@@ -1,0 +1,70 @@
+<!-- ##### SECTION Title ##### -->
+McAccountMonitor
+
+<!-- ##### SECTION Short_Description ##### -->
+Monitor the accounts' status.
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+The #McAccountMonitor is an object that raises signals when some changes have been made to one account. There are signals for account creation/deletion/change, and enabling/disabling.
+</para>
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+<!-- ##### STRUCT McAccountMonitor ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SIGNAL McAccountMonitor::account-changed ##### -->
+<para>
+
+</para>
+
+@mcaccountmonitor: the object which received the signal.
+@arg1: 
+
+<!-- ##### SIGNAL McAccountMonitor::account-created ##### -->
+<para>
+
+</para>
+
+@mcaccountmonitor: the object which received the signal.
+@arg1: 
+
+<!-- ##### SIGNAL McAccountMonitor::account-deleted ##### -->
+<para>
+
+</para>
+
+@mcaccountmonitor: the object which received the signal.
+@arg1: 
+
+<!-- ##### SIGNAL McAccountMonitor::account-disabled ##### -->
+<para>
+
+</para>
+
+@mcaccountmonitor: the object which received the signal.
+@arg1: 
+
+<!-- ##### SIGNAL McAccountMonitor::account-enabled ##### -->
+<para>
+
+</para>
+
+@mcaccountmonitor: the object which received the signal.
+@arg1: 
+
+<!-- ##### FUNCTION mc_account_monitor_new ##### -->
+<para>
+
+</para>
+
+@Returns: 
+
+

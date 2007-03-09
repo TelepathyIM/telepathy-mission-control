@@ -1,0 +1,789 @@
+/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 8 -*- */
+/*
+ * This file is part of mission-control
+ *
+ * Copyright (C) 2007 Nokia Corporation. 
+ *
+ * Contact: Naba Kumar  <naba.kumar@nokia.com>
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
+ * version 2.1 as published by the Free Software Foundation.
+ *
+ * This library is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA
+ *
+ */
+
+#include <dbus/dbus.h>
+#include <string.h>
+#include <dlfcn.h>
+#include <sched.h>
+#include <libmissioncontrol/mission-control.h>
+#include <stdlib.h>
+
+#include <glib.h>
+#include <dbus/dbus-glib.h>
+#include <dbus/dbus-glib-lowlevel.h>
+#include <dbus/dbus.h>
+#include <gconf/gconf-client.h>
+#include <libtelepathy/tp-interfaces.h>
+#include <libtelepathy/tp-constants.h>
+
+#include "mcd-signals-marshal.h"
+#include "mcd-dispatcher.h"
+#include "mcd-connection.h"
+#include "mcd-service.h"
+
+/* DBus service specifics */
+#define MISSION_CONTROL_DBUS_SERVICE "org.freedesktop.Telepathy.MissionControl"
+#define MISSION_CONTROL_DBUS_OBJECT  "/org/freedesktop/Telepathy/MissionControl"
+#define MISSION_CONTROL_DBUS_IFACE   "org.freedesktop.Telepathy.MissionControl"
+
+/* Signals */
+
+enum
+{
+    ACCOUNT_STATUS_CHANGED,
+    ERROR,
+    PRESENCE_STATUS_REQUESTED,
+    PRESENCE_STATUS_ACTUAL,
+    USED_CHANNELS_COUNT_CHANGED,
+    STATUS_ACTUAL,
+    LAST_SIGNAL
+};
+
+static guint signals[LAST_SIGNAL] = { 0 };
+static GObjectClass *parent_class = NULL;
+
+#define MCD_OBJECT_PRIV(mission) (G_TYPE_INSTANCE_GET_PRIVATE ((mission), \
+				   MCD_TYPE_SERVICE, \
+				   McdServicePrivate))
+
+/**
+ * McdService:
+ * It is the frontline interface object that exposes mission-control to outside
+ * world through a dbus interface. It basically subclasses McdMaster and
+ * wraps up everything inside it and translate them into mission-control
+ * dbus interface.
+ */
+G_DEFINE_TYPE (McdService, mcd_service, MCD_TYPE_MASTER);
+
+/* Private */
+
+typedef struct _McdServicePrivate
+{
+    McdPresenceFrame *presence_frame;
+    McdDispatcher *dispatcher;
+
+    McStatus last_status;
+
+    gboolean is_disposed;
+} McdServicePrivate;
+
+#define MC_EMIT_ERROR_ASYNC(mi, err) \
+    g_assert (err != NULL); \
+    dbus_g_method_return_error (mi, err); \
+    g_warning ("%s: Returning async error '%s'", G_STRFUNC, err->message); \
+    g_error_free (err);
+
+#define MC_SHOW_ERROR(err) \
+    g_assert ((err) != NULL); \
+    g_warning ("%s: Returning error '%s'", G_STRFUNC, (err)->message);
+
+/* Dbus interface implementation */
+static gboolean
+mcd_service_set_presence (GObject * obj, gint presence, gchar * message,
+			  GError ** error)
+{
+    mcd_master_request_presence (MCD_MASTER (obj), presence, message);
+    return TRUE;
+}
+
+static gboolean
+mcd_service_get_presence (GObject *obj, gint *ret, GError **error)
+{
+    *ret = mcd_master_get_requested_presence (MCD_MASTER (obj));
+    return TRUE;
+}
+
+static gboolean
+mcd_service_get_presence_actual (GObject *obj, gint *ret, GError **error)
+{
+    *ret = mcd_master_get_actual_presence (MCD_MASTER (obj));
+    return TRUE;
+}
+
+static void
+mcd_service_connect_all_with_default_presence (GObject * obj,
+					       DBusGMethodInvocation *mi)
+{
+    gchar *sender = dbus_g_method_get_sender (mi);
+    mcd_master_set_default_presence (MCD_MASTER (obj), sender);
+    g_free (sender);
+    dbus_g_method_return (mi);
+}
+
+static gboolean
+mcd_service_get_connection_status (GObject * obj, gchar * account_name,
+				   guint * ret, GError ** error)
+{
+    *ret = mcd_master_get_account_status (MCD_MASTER (obj), account_name);
+    return TRUE;
+}
+
+static gboolean
+mcd_service_get_online_connections (GObject * obj,
+				    gchar *** ret, GError ** error)
+{
+    return mcd_master_get_online_connection_names (MCD_MASTER (obj), ret);
+}
+
+static gboolean
+mcd_service_get_connection (GObject * obj, const gchar * account_name,
+			    gchar ** ret_servname,
+			    gchar ** ret_objpath, GError ** error)
+{
+    return mcd_master_get_account_connection_details (MCD_MASTER (obj),
+						      account_name,
+						      ret_servname,
+						      ret_objpath);
+}
+
+static void
+mcd_service_request_channel (GObject * obj,
+			     const gchar * account_name,
+			     const gchar * type,
+			     guint handle,
+			     gint handle_type,
+			     guint serial,
+			     DBusGMethodInvocation *mi)
+{
+    struct mcd_channel_request req;
+    GError *err = NULL;
+
+    memset (&req, 0, sizeof (req));
+    req.account_name = account_name;
+    req.channel_type = type;
+    req.channel_handle = handle;
+    req.channel_handle_type = handle_type;
+    req.requestor_serial = serial;
+    req.requestor_client_id = dbus_g_method_get_sender (mi);
+    if (!mcd_master_request_channel (MCD_MASTER (obj), &req, &err))
+    {
+	g_free ((gchar *)req.requestor_client_id);
+	MC_EMIT_ERROR_ASYNC (mi, err);
+	return;
+    }
+    g_free ((gchar *)req.requestor_client_id);
+    dbus_g_method_return (mi);
+}
+
+static void
+mcd_service_request_channel_with_string_handle (GObject * obj,
+						const gchar * account_name,
+						const gchar * type,
+						const gchar * handle,
+						gint handle_type,
+						guint serial,
+					       	DBusGMethodInvocation *mi)
+{
+    struct mcd_channel_request req;
+    GError *err = NULL;
+
+    memset (&req, 0, sizeof (req));
+    req.account_name = account_name;
+    req.channel_type = type;
+    req.channel_handle_string = handle;
+    req.channel_handle_type = handle_type;
+    req.requestor_serial = serial;
+    req.requestor_client_id = dbus_g_method_get_sender (mi);
+    mcd_controller_cancel_shutdown (MCD_CONTROLLER (obj));
+    if (!mcd_master_request_channel (MCD_MASTER (obj), &req, &err))
+    {
+	g_free ((gchar *)req.requestor_client_id);
+	MC_EMIT_ERROR_ASYNC (mi, err);
+	return;
+    }
+    g_free ((gchar *)req.requestor_client_id);
+    dbus_g_method_return (mi);
+}
+
+static void
+mcd_service_cancel_channel_request (GObject * obj, guint operation_id,
+				    DBusGMethodInvocation *mi)
+{
+    GError *err = NULL;
+    gchar *sender = dbus_g_method_get_sender (mi);
+    g_debug ("%s (%u)", G_STRFUNC, operation_id);
+    if (!mcd_master_cancel_channel_request (MCD_MASTER (obj), operation_id,
+					    sender, &err))
+    {
+	g_warning ("%s: channel not found", G_STRFUNC);
+	g_free (sender);
+	dbus_g_method_return (mi);
+	return;
+    }
+    g_free (sender);
+    if (err)
+    {
+	MC_EMIT_ERROR_ASYNC (mi, err);
+	return;
+    }
+    dbus_g_method_return (mi);
+}
+
+static gboolean
+mcd_service_get_used_channels_count (GObject * obj, const gchar *chan_type,
+				     guint * ret, GError ** error)
+{
+    if (!mcd_master_get_used_channels_count (MCD_MASTER (obj),
+					     g_quark_from_string (chan_type),
+					     ret, error))
+    {
+	MC_SHOW_ERROR (*error);
+	return FALSE;
+    }
+    return TRUE;
+}
+
+static gboolean
+mcd_service_get_account_for_connection(GObject *obj,
+				       const gchar *object_path,
+				       gchar **ret_unique_name,
+				       GError **error)
+{
+    g_debug ("%s: object_path = %s", __FUNCTION__, object_path);
+    
+    if (!mcd_master_get_account_for_connection (MCD_MASTER (obj),
+						object_path,
+						ret_unique_name,
+						error))
+    {
+	MC_SHOW_ERROR (*error);
+	return FALSE;
+    }
+    return TRUE;
+}
+
+static gboolean
+mcd_service_get_current_status(GObject *obj,
+			       McStatus *status, McPresence *presence,
+			       McPresence *requested_presence,
+			       GPtrArray **accounts, GError **error)
+{
+    McdServicePrivate *priv = MCD_OBJECT_PRIV (obj);
+    GList *account_list, *account_node;
+    GType type;
+
+    *status = priv->last_status;
+    *presence = mcd_master_get_actual_presence (MCD_MASTER (obj));
+    *requested_presence = mcd_master_get_requested_presence (MCD_MASTER (obj));
+    *accounts = g_ptr_array_new ();
+
+    type = dbus_g_type_get_struct ("GValueArray", G_TYPE_STRING, G_TYPE_UINT,
+				   G_TYPE_UINT, G_TYPE_UINT, G_TYPE_INVALID);
+    account_list = mc_accounts_list_by_enabled (TRUE);
+    for (account_node = account_list; account_node != NULL;
+	 account_node = g_list_next (account_node))
+    {
+	McAccount *account = account_node->data;
+	GValue account_data = { 0, };
+	const gchar *name;
+	TelepathyConnectionStatus status;
+	TelepathyConnectionStatusReason reason;
+	McPresence presence;
+
+	name = mc_account_get_unique_name (account);
+	status = mcd_presence_frame_get_account_status (priv->presence_frame,
+						       	account);
+	presence =
+	    mcd_presence_frame_get_account_presence (priv->presence_frame,
+						     account);
+	reason =
+	    mcd_presence_frame_get_account_status_reason (priv->presence_frame,
+							  account);
+
+	g_value_init (&account_data, type);
+	g_value_take_boxed (&account_data,
+			    dbus_g_type_specialized_construct (type));
+	dbus_g_type_struct_set (&account_data,
+				0, name,
+				1, status,
+				2, presence,
+				3, reason,
+				G_MAXUINT);
+
+	g_ptr_array_add (*accounts, g_value_get_boxed (&account_data));
+    }
+    mc_accounts_list_free (account_list);
+    return TRUE;
+}
+
+static void
+mcd_service_remote_avatar_changed(GObject *obj,
+				  const gchar *object_path,
+				  guint contact_id,
+				  const gchar *token,
+				  DBusGMethodInvocation *mi)
+{
+    McdConnection *connection;
+    GError *error = NULL;
+
+    g_debug ("%s: object_path = %s, id = %u, token = %s", __FUNCTION__,
+	     object_path, contact_id, token);
+ 
+    connection = mcd_master_get_connection (MCD_MASTER (obj),
+					    object_path, &error);
+    if (!connection)
+    {
+	MC_EMIT_ERROR_ASYNC (mi, error);
+	return;
+    }
+    /* let the D-Bus call return immediately, there's no need for the caller to
+     * be blocked while we get the avatar */
+    dbus_g_method_return (mi);
+
+    mcd_connection_remote_avatar_changed (connection, contact_id, token);
+}
+
+#include "mcd-service-gen.h"
+
+static void
+mcd_register_dbus_object (McdService * obj)
+{
+    DBusError error;
+    DBusGConnection *connection;
+    
+    g_object_get (obj, "dbus-connection", &connection, NULL);
+    
+    dbus_error_init (&error);
+    
+    g_debug ("Requesting MC dbus service");
+    
+    dbus_bus_request_name (dbus_g_connection_get_connection (connection),
+			   MISSION_CONTROL_DBUS_SERVICE, 0, &error);
+    if (dbus_error_is_set (&error))
+    {
+	g_error ("Service name '%s' is already in use - request failed",
+		    MISSION_CONTROL_DBUS_SERVICE);
+	dbus_error_free (&error);
+    }
+    
+    g_debug ("Registering MC object");
+    mcd_debug_print_tree (obj);
+    dbus_g_connection_register_g_object (connection,
+					 MISSION_CONTROL_DBUS_OBJECT,
+					 G_OBJECT (obj));
+    g_debug ("Registered MC object");
+    mcd_debug_print_tree (obj);
+}
+
+static void
+_on_account_status_changed (McdPresenceFrame * presence_frame,
+			    McAccount * account,
+			    TelepathyConnectionStatus connection_status,
+			    TelepathyConnectionStatusReason connection_reason,
+			    McdService * obj)
+{
+    McPresence presence =
+	mcd_presence_frame_get_account_presence (presence_frame, account);
+
+    /* FIXME: Don't emit the CONNECTING state. The ui doesn handle it
+     * correctly yet.
+     */
+    if (connection_status != TP_CONN_STATUS_CONNECTING)
+    {
+	/* Emit the AccountStatusChanged signal */
+	g_debug ("Emitting account status changed for %s: status = %d, reason = %d",
+		 mc_account_get_unique_name (account), connection_status,
+		 connection_reason);
+	
+	g_signal_emit_by_name (G_OBJECT (obj),
+			       "account-status-changed", connection_status,
+			       presence,
+			       connection_reason,
+			       mc_account_get_unique_name (account));
+    }
+}
+
+static void
+_on_account_presence_changed (McdPresenceFrame * presence_frame,
+			      McAccount * account,
+			      McPresence presence,
+			      gchar * presence_message, McdService * obj)
+{
+    /* Emit the AccountStatusChanged signal */
+    g_debug ("Emitting presence changed for %s: presence = %d, message = %s",
+	     mc_account_get_unique_name (account), presence,
+	     presence_message);
+    
+    g_signal_emit_by_name (G_OBJECT (obj),
+			   "account-status-changed",
+			   mcd_presence_frame_get_account_status
+			   (presence_frame, account), presence,
+			   mcd_presence_frame_get_account_status_reason
+			   (presence_frame, account),
+			   mc_account_get_unique_name (account));
+}
+
+static void
+_on_presence_requested (McdPresenceFrame * presence_frame,
+			McPresence presence,
+			gchar * presence_message, McdService * obj)
+{
+    /* Begin shutdown if it is offline request */
+    if (presence == MC_PRESENCE_OFFLINE ||
+	presence == MC_PRESENCE_UNSET)
+	mcd_controller_shutdown (MCD_CONTROLLER (obj),
+				 "Offline presence requested");
+    else
+	/* If there is a presence request, make sure shutdown is canceled */
+	mcd_controller_cancel_shutdown (MCD_CONTROLLER (obj));
+    
+    /* Emit the AccountStatusChanged signal */
+    g_signal_emit_by_name (G_OBJECT (obj),
+			   "presence-status-requested", presence);
+}
+
+static void
+_on_presence_actual (McdPresenceFrame * presence_frame,
+		     McPresence presence,
+		     gchar * presence_message, McdService * obj)
+{
+    /* Emit the AccountStatusChanged signal */
+    g_signal_emit_by_name (G_OBJECT (obj), "presence-status-actual", presence);
+}
+
+static void
+count_connections (McdOperation *manager, guint *connections)
+{
+    *connections += g_list_length ((GList *)
+				   mcd_operation_get_missions (manager));
+}
+
+static void
+_on_status_actual (McdPresenceFrame * presence_frame,
+		   TelepathyConnectionStatus status,
+		   McdService * obj)
+{
+    /* Everyone just got disconnected */
+    if (status == TP_CONN_STATUS_DISCONNECTED)
+    {
+	guint connections = 0;
+	/* if there are no connections, then exit. Count the connections
+	 * regardless of their status: we are supposing that if a connection is
+	 * still there, then there is a good reason for it and we won't exit,
+	 * even if it's not active (it might be trying to reconnect) */
+	mcd_operation_foreach (MCD_OPERATION (obj), (GFunc)count_connections,
+			       &connections);
+	if (connections == 0)
+	    mcd_controller_shutdown (MCD_CONTROLLER (obj), "No connections");
+    }
+}
+ 
+static void
+mcd_service_disconnect (McdMission *mission)
+{
+    MCD_MISSION_CLASS (mcd_service_parent_class)->disconnect (mission);
+    mcd_controller_shutdown (MCD_CONTROLLER (mission), "Disconnected");
+}
+
+static void
+_on_presence_stable (McdPresenceFrame *presence_frame, gboolean is_stable,
+		     McdService *service)
+{
+    McdServicePrivate *priv = MCD_OBJECT_PRIV (service);
+    McPresence req_presence;
+    McStatus status;
+
+    req_presence = mcd_presence_frame_get_requested_presence (presence_frame);
+    if (is_stable)
+    {
+	if (mcd_presence_frame_get_actual_presence (presence_frame) >=
+	    MC_PRESENCE_AVAILABLE)
+	    status = MC_STATUS_CONNECTED;
+	else
+	    status = MC_STATUS_DISCONNECTED;
+    }
+    else
+	status = MC_STATUS_CONNECTING;
+
+    if (status != priv->last_status)
+    {
+	g_signal_emit (service, signals[STATUS_ACTUAL], 0, status,
+		       req_presence);
+	priv->last_status = status;
+    }
+}
+
+static void
+_on_dispatcher_channel_added (McdDispatcher *dispatcher,
+			      McdChannel *channel, McdService *obj)
+{
+    /* Nothing to do for now */
+}
+
+static void
+_on_dispatcher_channel_removed (McdDispatcher *dispatcher,
+				McdChannel *channel, McdService *obj)
+{
+    const gchar *chan_type;
+    GQuark chan_type_quark;
+    gint usage;
+    
+    chan_type = mcd_channel_get_channel_type (channel);
+    chan_type_quark = mcd_channel_get_channel_type_quark (channel);
+    usage = mcd_dispatcher_get_channel_type_usage (dispatcher,
+						   chan_type_quark);
+
+    /* Signal that the channel count has changed */
+    g_signal_emit_by_name (G_OBJECT (obj),
+			   "used-channels-count-changed",
+			   chan_type, usage);
+}
+
+static void
+_on_dispatcher_channel_dispatched (McdDispatcher *dispatcher,
+				   McdChannel *channel,
+				   McdService *obj)
+{
+    const gchar *chan_type;
+    GQuark chan_type_quark;
+    gint usage;
+    
+    chan_type = mcd_channel_get_channel_type (channel);
+    chan_type_quark = mcd_channel_get_channel_type_quark (channel);
+    usage = mcd_dispatcher_get_channel_type_usage (dispatcher,
+						   chan_type_quark);
+    
+    /* Signal that the channel count has changed */
+    g_signal_emit_by_name (G_OBJECT (obj),
+			   "used-channels-count-changed",
+			   chan_type, usage);
+}
+
+static void
+_on_dispatcher_channel_dispatch_failed (McdDispatcher *dispatcher,
+					McdChannel *channel, GError *error,
+					McdService *obj)
+{
+    guint requestor_serial;
+    gchar *requestor_client_id;
+ 
+    g_debug ("%s", G_STRFUNC);
+    g_object_get (channel, "requestor-serial", &requestor_serial,
+		  "requestor-client-id", &requestor_client_id, NULL);
+    
+    if (requestor_client_id)
+    {
+	g_signal_emit_by_name (obj, "mcd-error", requestor_serial,
+			       requestor_client_id, error->code);
+	g_free (requestor_client_id);
+    }
+    
+    g_debug ("MC ERROR (channel request): %s", error->message);
+}
+
+static void
+mcd_dispose (GObject * obj)
+{
+    McdServicePrivate *priv;
+    McdService *self = MCD_OBJECT (obj);
+
+    priv = MCD_OBJECT_PRIV (self);
+
+    if (priv->is_disposed)
+    {
+	return;
+    }
+
+    priv->is_disposed = TRUE;
+
+    if (priv->presence_frame)
+    {
+	g_signal_handlers_disconnect_by_func (priv->presence_frame,
+					      _on_account_status_changed,
+					      self);
+	g_signal_handlers_disconnect_by_func (priv->presence_frame,
+					      _on_account_presence_changed,
+					      self);
+	g_signal_handlers_disconnect_by_func (priv->presence_frame,
+					      _on_presence_requested, self);
+	g_signal_handlers_disconnect_by_func (priv->presence_frame,
+					      _on_presence_actual, self);
+	g_signal_handlers_disconnect_by_func (priv->presence_frame,
+					      _on_status_actual, self);
+	g_signal_handlers_disconnect_by_func (priv->presence_frame,
+					      _on_presence_stable, self);
+	g_object_unref (priv->presence_frame);
+    }
+
+    if (priv->dispatcher)
+    {
+	g_signal_handlers_disconnect_by_func (priv->dispatcher,
+					      _on_dispatcher_channel_added,
+					      self);
+	g_signal_handlers_disconnect_by_func (priv->dispatcher,
+					      _on_dispatcher_channel_removed,
+					      self);
+	g_signal_handlers_disconnect_by_func (priv->dispatcher,
+					  _on_dispatcher_channel_dispatched,
+					  self);
+	g_signal_handlers_disconnect_by_func (priv->dispatcher,
+				      _on_dispatcher_channel_dispatch_failed,
+				      self);
+	g_object_unref (priv->dispatcher);
+    }
+
+    if (self->main_loop)
+    {
+	g_main_loop_quit (self->main_loop);
+	g_main_loop_unref (self->main_loop);
+	self->main_loop = NULL;
+    }
+
+    if (G_OBJECT_CLASS (parent_class)->dispose)
+    {
+	G_OBJECT_CLASS (parent_class)->dispose (obj);
+    }
+}
+
+static void
+mcd_service_init (McdService * obj)
+{
+    McdServicePrivate *priv = MCD_OBJECT_PRIV (obj);
+
+    obj->main_loop = g_main_loop_new (NULL, FALSE);
+
+    priv->last_status = -1;
+
+    g_object_get (obj, 
+                  "presence-frame", &priv->presence_frame,
+                  "dispatcher", &priv->dispatcher, NULL);
+    
+    /* Setup presence signals */
+    g_signal_connect (priv->presence_frame, "status-changed",
+		      G_CALLBACK (_on_account_status_changed), obj);
+    g_signal_connect (priv->presence_frame, "presence-changed",
+		      G_CALLBACK (_on_account_presence_changed), obj);
+    g_signal_connect (priv->presence_frame, "presence-requested",
+		      G_CALLBACK (_on_presence_requested), obj);
+    g_signal_connect (priv->presence_frame, "presence-actual",
+		      G_CALLBACK (_on_presence_actual), obj);
+    g_signal_connect (priv->presence_frame, "status-actual",
+		      G_CALLBACK (_on_status_actual), obj);
+    g_signal_connect (priv->presence_frame, "presence-stable",
+		      G_CALLBACK (_on_presence_stable), obj);
+    
+    /* Setup dispatcher signals */
+    g_signal_connect (priv->dispatcher, "channel-added",
+		      G_CALLBACK (_on_dispatcher_channel_added), obj);
+    g_signal_connect (priv->dispatcher, "channel-removed",
+		      G_CALLBACK (_on_dispatcher_channel_removed), obj);
+    g_signal_connect (priv->dispatcher, "dispatched",
+		      G_CALLBACK (_on_dispatcher_channel_dispatched), obj);
+    g_signal_connect (priv->dispatcher, "dispatch-failed",
+		      G_CALLBACK (_on_dispatcher_channel_dispatch_failed), obj);
+    
+    mcd_register_dbus_object (obj);
+    mcd_debug_print_tree (obj);
+}
+
+static void
+mcd_service_class_init (McdServiceClass * self)
+{
+    GObjectClass *gobject_class = G_OBJECT_CLASS (self);
+    McdMissionClass *mission_class = MCD_MISSION_CLASS (self);
+
+    parent_class = g_type_class_peek_parent (self);
+    gobject_class->dispose = mcd_dispose;
+    mission_class->disconnect = mcd_service_disconnect;
+
+    g_type_class_add_private (gobject_class, sizeof (McdServicePrivate));
+
+    /* AccountStatusChanged signal */
+    signals[ACCOUNT_STATUS_CHANGED] =
+	g_signal_new ("account-status-changed",
+		      G_OBJECT_CLASS_TYPE (self),
+		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+		      0,
+		      NULL, NULL, mcd_marshal_VOID__UINT_UINT_UINT_STRING,
+		      G_TYPE_NONE, 4, G_TYPE_UINT, G_TYPE_UINT,
+		      G_TYPE_UINT, G_TYPE_STRING);
+    /* libmc request_error signal */
+    signals[ERROR] =
+	g_signal_new ("mcd-error",
+		      G_OBJECT_CLASS_TYPE (self),
+		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+		      0,
+		      NULL, NULL, mcd_marshal_VOID__UINT_STRING_UINT, G_TYPE_NONE,
+		      3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_UINT);
+    /* PresenceStatusRequested signal */
+    g_signal_new ("presence-status-requested",
+		  G_OBJECT_CLASS_TYPE (self),
+		  G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+		  0,
+		  NULL, NULL, mcd_marshal_VOID__UINT,
+		  G_TYPE_NONE, 1, G_TYPE_UINT);
+    /* PresenceStatusActual signal */
+    g_signal_new ("presence-status-actual",
+		  G_OBJECT_CLASS_TYPE (self),
+		  G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+		  0,
+		  NULL, NULL, mcd_marshal_VOID__UINT,
+		  G_TYPE_NONE, 1, G_TYPE_UINT);
+    /* UsedChannelsCountChanged signal */
+    signals[USED_CHANNELS_COUNT_CHANGED] =
+	g_signal_new ("used-channels-count-changed",
+		      G_OBJECT_CLASS_TYPE (self),
+		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+		      0,
+		      NULL, NULL, mcd_marshal_VOID__STRING_UINT,
+		      G_TYPE_NONE, 2, G_TYPE_STRING, G_TYPE_UINT);
+    /* StatusActual signal */
+    signals[STATUS_ACTUAL] =
+	g_signal_new ("status-actual",
+		      G_OBJECT_CLASS_TYPE (self),
+		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+		      0,
+		      NULL, NULL, mcd_marshal_VOID__UINT_UINT,
+		      G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_UINT);
+    
+    dbus_g_object_type_install_info (G_TYPE_FROM_CLASS (self),
+				     &dbus_glib_mcd_service_object_info);
+}
+
+McdService *
+mcd_service_new (void)
+{
+    McdService *obj;
+    obj = g_object_new (MCD_TYPE_SERVICE, NULL);
+    return obj;
+}
+
+void
+mcd_service_run (McdService * self)
+{
+    g_main_loop_run (self->main_loop);
+}
+
+/* FIXME: This is defined twice. The other definition is in
+ * libmissioncontrol/mission-control.c
+ */
+GQuark
+mission_control_error_quark (void)
+{
+    static GQuark quark = 0;
+    if (quark == 0)
+	quark = g_quark_from_static_string ("mission-control-quark");
+    return quark;
+}
+

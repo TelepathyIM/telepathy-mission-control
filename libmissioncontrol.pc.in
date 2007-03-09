@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+profiles_dir=@PROFILES_DIR@
+
+Name: libmissioncontrol
+Description:  Mission Control Client Library
+Requires: dbus-1 >= 0.50, libtelepathy >= 0.0.1
+Version: @VERSION@
+Libs: -L${libdir} -lmissioncontrol -lmissioncontrol-config @DBUS_LIBS@
+Cflags: -I${includedir} @DBUS_CFLAGS@

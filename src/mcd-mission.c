@@ -1,0 +1,482 @@
+/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 8 -*- */
+/*
+ * This file is part of mission-control
+ *
+ * Copyright (C) 2007 Nokia Corporation. 
+ *
+ * Contact: Naba Kumar  <naba.kumar@nokia.com>
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
+ * version 2.1 as published by the Free Software Foundation.
+ *
+ * This library is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA
+ *
+ */
+
+#include <glib/gi18n.h>
+#include "mcd-mission.h"
+#include "mcd-enum-types.h"
+
+#define MCD_MISSION_PRIV(mission) (G_TYPE_INSTANCE_GET_PRIVATE ((mission), \
+				   MCD_TYPE_MISSION, \
+				   McdMissionPrivate))
+
+/**
+ * McdMission:
+ * It is the base class for every object in mission-control. It defines
+ * a set of virtual functions and set of corresponding action signals.
+ * all virtual functions results in emission of their corresponding action
+ * signals. The virtual functions define states of the object, such
+ * as memory conserved state, connected state, locked state, low power state,
+ * lit state, sleeping state etc. Each of the object states can also be queried
+ * independently as properties.
+ * 
+ * There are also some action signals such as abort, which is used to notify
+ * other objects holding hard references to it to release them (this object
+ * should then automatically die since all held references are released). It
+ * is mandatory for all other objects that hold a hard reference to it to
+ * listen for this signal and release the reference in signal handler.
+ * 
+ * Concrete derived classes should override the sate  methods to implement
+ * object specific state managements.
+ */
+G_DEFINE_TYPE (McdMission, mcd_mission, G_TYPE_OBJECT);
+
+/* Private */
+
+typedef struct _McdMissionPrivate
+{
+    McdMission *parent;
+    McdSystemFlags flags;
+    McdMode mode;
+    
+    gboolean is_disposed;
+
+} McdMissionPrivate;
+
+enum _McdMissionSignalType
+{
+    CONNECTED,
+    DISCONNECTED,
+    FLAGS_CHANGED,
+    MODE_SET,
+    PARENT_SET,
+    ABORT,
+    LAST_SIGNAL
+};
+
+enum _McdMissionPropertyType
+{
+    PROP_0,
+    PROP_SYSTEM_FLAGS,
+    PROP_MODE,
+    PROP_PARENT
+};
+
+static guint mcd_mission_signals[LAST_SIGNAL] = { 0 };
+
+static void
+_mcd_mission_connect (McdMission * mission)
+{
+    McdMissionPrivate *priv;
+
+    g_return_if_fail (MCD_IS_MISSION (mission));
+    priv = MCD_MISSION_PRIV (mission);
+
+    if (!mcd_mission_is_connected (mission))
+    {
+	gint flags = mcd_mission_get_flags (mission);
+	flags |= MCD_SYSTEM_CONNECTED;
+	mcd_mission_set_flags (mission, flags);
+	g_signal_emit_by_name (mission, "connected");
+    }
+}
+
+static void
+_mcd_mission_disconnect (McdMission * mission)
+{
+    McdMissionPrivate *priv;
+
+    g_return_if_fail (MCD_IS_MISSION (mission));
+    priv = MCD_MISSION_PRIV (mission);
+
+    if (mcd_mission_is_connected (mission))
+    {
+	gint flags = mcd_mission_get_flags (mission);
+	flags &= ~MCD_SYSTEM_CONNECTED;
+	mcd_mission_set_flags (mission, flags);
+	g_signal_emit_by_name (mission, "disconnected");
+    }
+}
+
+static void
+_mcd_mission_set_flags (McdMission * mission, McdSystemFlags flags)
+{
+    McdMissionPrivate *priv;
+
+    g_return_if_fail (MCD_IS_MISSION (mission));
+    priv = MCD_MISSION_PRIV (mission);
+
+    if (priv->flags != flags)
+    {
+	priv->flags = flags;
+	g_signal_emit_by_name (mission, "flags-changed", flags);
+    }
+}
+
+static McdSystemFlags
+_mcd_mission_get_flags (McdMission * mission)
+{
+    McdMissionPrivate *priv;
+
+    g_return_val_if_fail (MCD_IS_MISSION (mission), MCD_MODE_UNKNOWN);
+    priv = MCD_MISSION_PRIV (mission);
+
+    return priv->flags;
+}
+
+static void
+_mcd_mission_set_mode (McdMission * mission, McdMode mode)
+{
+    McdMissionPrivate *priv;
+
+    g_return_if_fail (MCD_IS_MISSION (mission));
+    priv = MCD_MISSION_PRIV (mission);
+
+    if (priv->mode != mode)
+    {
+        priv->mode = mode;
+
+        g_signal_emit_by_name (mission, "mode-set", mode);
+    }
+}
+
+static McdMode
+_mcd_mission_get_mode (McdMission * mission)
+{
+    McdMissionPrivate *priv;
+
+    g_return_val_if_fail (MCD_IS_MISSION (mission), MCD_MODE_UNKNOWN);
+    priv = MCD_MISSION_PRIV (mission);
+
+    return priv->mode;
+}
+
+static void
+on_parent_abort (McdMission *parent, McdMission *mission)
+{
+    g_debug ("%s called", G_STRFUNC);
+    mcd_mission_set_parent (mission, NULL);
+}
+
+static void
+_mcd_mission_set_parent (McdMission * mission, McdMission * parent)
+{
+    McdMissionPrivate *priv;
+
+    g_return_if_fail (MCD_IS_MISSION (mission));
+    g_return_if_fail ((parent == NULL) || MCD_IS_MISSION (parent));
+
+    priv = MCD_MISSION_PRIV (mission);
+
+    g_debug ("%s: child = %p, parent = %p", G_STRFUNC, mission, parent);
+
+    if (priv->parent)
+    {
+	g_signal_handlers_disconnect_by_func (priv->parent,
+					      on_parent_abort,
+					      mission);
+    }
+    
+    if (parent)
+    {
+	g_signal_connect (parent, "abort",
+			  G_CALLBACK (on_parent_abort),
+			  mission);
+	g_object_ref (parent);
+    }
+    
+    if (priv->parent)
+    {
+	g_object_unref (priv->parent);
+    }
+    
+    priv->parent = parent;
+    g_signal_emit_by_name (mission, "parent-set", parent);
+}
+
+static void
+_mcd_mission_abort (McdMission * mission)
+{
+    g_signal_emit_by_name (G_OBJECT (mission), "abort");
+}
+
+static void
+_mcd_mission_dispose (GObject * object)
+{
+    McdMissionPrivate *priv;
+    g_return_if_fail (MCD_IS_MISSION (object));
+
+    priv = MCD_MISSION_PRIV (object);
+
+    if (priv->is_disposed)
+    {
+	return;
+    }
+
+    priv->is_disposed = TRUE;
+
+    g_debug ("mission disposed %p", object);
+    if (priv->parent)
+    {
+	g_signal_handlers_disconnect_by_func (priv->parent,
+					      on_parent_abort,
+					      object);
+	g_object_unref (priv->parent);
+	priv->parent = NULL;
+    }
+    G_OBJECT_CLASS (mcd_mission_parent_class)->dispose (object);
+}
+
+static void
+_mcd_mission_finalize (GObject * object)
+{
+    g_debug ("mission finalized %p", object);
+    G_OBJECT_CLASS (mcd_mission_parent_class)->finalize (object);
+}
+
+static void
+_mcd_set_property (GObject * object, guint prop_id, const GValue * val,
+		   GParamSpec * pspec)
+{
+    McdMission *mission = MCD_MISSION (object);
+
+    switch (prop_id)
+    {
+    case PROP_PARENT:
+	mcd_mission_set_parent (mission, g_value_get_object (val));
+	break;
+    case PROP_SYSTEM_FLAGS:
+	mcd_mission_set_flags (mission, g_value_get_enum (val));
+	break;
+    case PROP_MODE:
+	mcd_mission_set_mode (mission, g_value_get_int (val));
+	break;
+    default:
+	G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+	break;
+    }
+}
+
+static void
+_mcd_get_property (GObject * object, guint prop_id, GValue * val,
+		   GParamSpec * pspec)
+{
+    McdMission *mission = MCD_MISSION (object);
+
+    switch (prop_id)
+    {
+    case PROP_PARENT:
+	g_value_set_object (val, mcd_mission_get_parent (mission));
+	break;
+    case PROP_SYSTEM_FLAGS:
+	g_value_set_enum (val, mcd_mission_get_flags (mission));
+	break;
+    case PROP_MODE:
+	g_value_set_enum (val, mcd_mission_get_mode (mission));
+	break;
+    default:
+	G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+	break;
+    }
+}
+
+static void
+mcd_mission_class_init (McdMissionClass * klass)
+{
+    GObjectClass *object_class = G_OBJECT_CLASS (klass);
+    g_type_class_add_private (object_class, sizeof (McdMissionPrivate));
+
+    /* virtual medthods */
+    object_class->finalize = _mcd_mission_finalize;
+    object_class->dispose = _mcd_mission_dispose;
+    object_class->set_property = _mcd_set_property;
+    object_class->get_property = _mcd_get_property;
+
+    /* virtual medthods */
+    klass->abort = _mcd_mission_abort;
+    klass->connect = _mcd_mission_connect;
+    klass->disconnect = _mcd_mission_disconnect;
+    klass->set_flags = _mcd_mission_set_flags;
+    klass->get_flags = _mcd_mission_get_flags;
+    klass->set_mode = _mcd_mission_set_mode;
+    klass->get_mode = _mcd_mission_get_mode;
+
+    klass->set_parent = _mcd_mission_set_parent;
+
+    /* signals */
+    mcd_mission_signals[ABORT] =
+	g_signal_new ("abort",
+		      G_OBJECT_CLASS_TYPE (klass),
+		      G_SIGNAL_RUN_FIRST,
+		      G_STRUCT_OFFSET (McdMissionClass, abort_signal),
+		      NULL, NULL, g_cclosure_marshal_VOID__VOID, G_TYPE_NONE,
+		      0);
+    mcd_mission_signals[CONNECTED] =
+	g_signal_new ("connected", G_OBJECT_CLASS_TYPE (klass),
+		      G_SIGNAL_RUN_FIRST, G_STRUCT_OFFSET (McdMissionClass,
+							   connected_signal),
+		      NULL, NULL, g_cclosure_marshal_VOID__VOID, G_TYPE_NONE,
+		      0);
+    mcd_mission_signals[DISCONNECTED] =
+	g_signal_new ("disconnected", G_OBJECT_CLASS_TYPE (klass),
+		      G_SIGNAL_RUN_FIRST, G_STRUCT_OFFSET (McdMissionClass,
+							   disconnected_signal),
+		      NULL, NULL, g_cclosure_marshal_VOID__VOID, G_TYPE_NONE,
+		      0);
+    mcd_mission_signals[FLAGS_CHANGED] =
+	g_signal_new ("flags-changed", G_OBJECT_CLASS_TYPE (klass),
+		      G_SIGNAL_RUN_FIRST, G_STRUCT_OFFSET (McdMissionClass,
+							   flags_changed_signal),
+		      NULL, NULL, g_cclosure_marshal_VOID__ENUM, G_TYPE_NONE,
+		      1, MCD_TYPE_SYSTEM_FLAGS);
+    mcd_mission_signals[MODE_SET] =
+	g_signal_new ("mode-set", G_OBJECT_CLASS_TYPE (klass),
+		      G_SIGNAL_RUN_FIRST, G_STRUCT_OFFSET (McdMissionClass,
+							   mode_set_signal),
+		      NULL, NULL, g_cclosure_marshal_VOID__ENUM, G_TYPE_NONE,
+		      1, MCD_TYPE_MODE);
+    mcd_mission_signals[PARENT_SET] =
+	g_signal_new ("parent-set", G_OBJECT_CLASS_TYPE (klass),
+		      G_SIGNAL_RUN_FIRST, G_STRUCT_OFFSET (McdMissionClass,
+							   parent_set_signal),
+		      NULL, NULL, g_cclosure_marshal_VOID__VOID, G_TYPE_NONE,
+		      0);
+
+    /* Properties */
+    g_object_class_install_property (object_class,
+				     PROP_PARENT,
+				     g_param_spec_object ("parent",
+							  _("Parent Mission"),
+							  _("Parent mission object to which this belongs"),
+							  MCD_TYPE_MISSION,
+							  G_PARAM_READWRITE));
+    g_object_class_install_property (object_class, PROP_MODE,
+				     g_param_spec_enum ("mode",
+						       _("Platform-specific modes"),
+						       _("Platform-specific modes"),
+						       MCD_TYPE_MODE,
+						       MCD_MODE_NORMAL,
+						       G_PARAM_READWRITE));
+    g_object_class_install_property (object_class, PROP_SYSTEM_FLAGS,
+				     g_param_spec_enum ("system-flags",
+						       _("System flags"),
+						       _("Mission control system flags"),
+						       MCD_TYPE_MODE,
+						       MCD_MODE_NORMAL,
+						       G_PARAM_READWRITE));
+}
+
+static void
+mcd_mission_init (McdMission * obj)
+{
+}
+
+/* Public methods */
+
+McdMission *
+mcd_mission_new (void)
+{
+    McdMission *obj;
+
+    obj = MCD_MISSION (g_object_new (MCD_TYPE_MISSION, NULL));
+
+    return obj;
+}
+
+void
+mcd_mission_connect (McdMission * mission)
+{
+    g_return_if_fail (MCD_IS_MISSION (mission));
+    MCD_MISSION_GET_CLASS (mission)->connect (mission);
+}
+
+void
+mcd_mission_disconnect (McdMission * mission)
+{
+    g_return_if_fail (MCD_IS_MISSION (mission));
+    MCD_MISSION_GET_CLASS (mission)->disconnect (mission);
+}
+
+void
+mcd_mission_abort (McdMission * mission)
+{
+    g_return_if_fail (MCD_IS_MISSION (mission));
+    MCD_MISSION_GET_CLASS (mission)->abort (mission);
+}
+
+McdSystemFlags
+mcd_mission_get_flags (McdMission * mission)
+{
+    g_return_val_if_fail (MCD_IS_MISSION (mission), 0);
+    return MCD_MISSION_GET_CLASS (mission)->get_flags (mission);
+}
+
+void
+mcd_mission_set_flags (McdMission * mission, McdSystemFlags flags)
+{
+    g_return_if_fail (MCD_IS_MISSION (mission));
+    MCD_MISSION_GET_CLASS (mission)->set_flags (mission, flags);
+}
+
+McdMode
+mcd_mission_get_mode (McdMission * mission)
+{
+    g_return_val_if_fail (MCD_IS_MISSION (mission), MCD_MODE_UNKNOWN);
+    return MCD_MISSION_GET_CLASS (mission)->get_mode (mission);
+}
+
+void
+mcd_mission_set_mode (McdMission * mission, McdMode mode)
+{
+    g_return_if_fail (MCD_IS_MISSION (mission));
+    MCD_MISSION_GET_CLASS (mission)->set_mode (mission, mode);
+}
+
+gboolean
+mcd_mission_is_connected (McdMission * mission)
+{
+    McdMissionPrivate *priv;
+
+    g_return_val_if_fail (MCD_IS_MISSION (mission), FALSE);
+    priv = MCD_MISSION_PRIV (mission);
+
+    return (priv->flags & MCD_SYSTEM_CONNECTED);
+}
+
+void
+mcd_mission_set_parent (McdMission * mission, McdMission * parent)
+{
+    g_return_if_fail (MCD_IS_MISSION (mission));
+    MCD_MISSION_GET_CLASS (mission)->set_parent (mission, parent);
+}
+
+McdMission *
+mcd_mission_get_parent (McdMission * mission)
+{
+    McdMissionPrivate *priv;
+
+    g_return_val_if_fail (MCD_IS_MISSION (mission), NULL);
+    priv = MCD_MISSION_PRIV (mission);
+
+    return priv->parent;
+}
