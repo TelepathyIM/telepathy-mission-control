@@ -836,8 +836,8 @@ mcd_master_set_default_presence (McdMaster * master, const gchar *client_id)
 	 mcd_presence_frame_get_requested_presence (priv->presence_frame)
 	 >= MC_PRESENCE_AVAILABLE))
     {
-	g_warning ("%s: Default presence requested while connected or "
-		   "already connecting", G_STRFUNC);
+	g_debug ("%s: Default presence requested while connected or "
+		 "already connecting", G_STRFUNC);
 	return FALSE;
     }
     mcd_master_set_offline_on_idle (master, TRUE);
