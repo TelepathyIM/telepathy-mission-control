@@ -113,6 +113,7 @@ mc_protocol_lookup (McManager *manager, const gchar *protocol)
  * @id: The #McProtocol.
  *
  * Frees (unrefs) the protocol.
+ * DEPRECATED, use g_object_unref() instead.
  */
 void
 mc_protocol_free (McProtocol *id)
@@ -162,7 +163,7 @@ mc_protocols_free_list (GList *list)
   GList *tmp;
 
   for (tmp = list; tmp != NULL; tmp = tmp->next)
-    mc_protocol_free ((McProtocol *) tmp->data);
+    g_object_unref ((McProtocol *) tmp->data);
 
   g_list_free (list);
 }

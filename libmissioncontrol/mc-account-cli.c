@@ -215,7 +215,7 @@ main (int argc, char **argv)
             {
               printf ("Error: Error deleting account: %s\n", argv[2]);
             }
-          mc_account_free (account);
+          g_object_unref (account);
         }
     }
   else if (strcmp (argv[1], "list") == 0)
@@ -273,7 +273,7 @@ main (int argc, char **argv)
 
           g_hash_table_destroy (params);
         }
-      mc_account_free (account);
+      g_object_unref (account);
     }
   else if (strcmp (argv[1], "enable") == 0)
     {
@@ -290,7 +290,7 @@ main (int argc, char **argv)
           exit (-1);
         }
       mc_account_set_enabled (account, TRUE);
-      mc_account_free (account);
+      g_object_unref (account);
     }
   else if (strcmp (argv[1], "disable") == 0)
     {
@@ -307,7 +307,7 @@ main (int argc, char **argv)
           exit (-1);
         }
       mc_account_set_enabled (account, FALSE);
-      mc_account_free (account);
+      g_object_unref (account);
     }
   else if (strcmp (argv[1], "display") == 0)
     {
@@ -324,7 +324,7 @@ main (int argc, char **argv)
           exit (-1);
         }
       mc_account_set_display_name (account, argv[3]);
-      mc_account_free (account);
+      g_object_unref (account);
     }
   else if (strcmp (argv[1], "set") == 0)
     {

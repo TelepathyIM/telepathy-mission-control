@@ -62,8 +62,6 @@ typedef struct {
 
 GType mc_account_get_type (void);
 
-McAccount* mc_account_new (void);
-
 typedef enum
 {
     MC_ACCOUNT_SETTING_ABSENT = 0,
@@ -80,7 +78,9 @@ McAccount *mc_account_lookup_with_profile (McProfile *profile,
                                                  const gchar *account);
 McAccount *mc_account_lookup_with_vcard_field (const gchar *vcard_field,
                                                      const gchar *account);
+#ifndef MC_DISABLE_DEPRECATED
 void mc_account_free (McAccount* account);
+#endif
 void mc_account_clear_cache (void);
 
 /* returns newly-created account, enabled by default */

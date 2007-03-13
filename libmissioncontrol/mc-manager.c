@@ -260,6 +260,7 @@ OUT:
  * @id: the #McManager.
  *
  * Frees (unrefs) the manager.
+ * DEPRECATED, use g_object_unref() instead.
  */
 void
 mc_manager_free (McManager *id)

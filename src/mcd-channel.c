@@ -108,10 +108,11 @@ on_channel_members_changed (DBusGProxy * group_proxy,
 	/* FIXME: Add duplicity check */
 	for (i = 0; i < l_pending->len; i++)
 	{
-	    g_array_append_val (priv->pending_local_members,
-				(guint) g_array_index (l_pending, guint, i));
-	    g_debug ("Added handle %u to channel pending members",
-		     (guint) g_array_index (l_pending, guint, i));
+            guint handle;
+
+            handle = g_array_index (l_pending, guint, i);
+	    g_array_append_val (priv->pending_local_members, handle);
+	    g_debug ("Added handle %u to channel pending members", handle);
 	}
     }
 
@@ -162,10 +163,11 @@ get_local_pending_cb (DBusGProxy * group_proxy,
 	/* FIXME: Add duplicity check */
 	for (i = 0; i < l_pending->len; i++)
 	{
-	    g_array_append_val (priv->pending_local_members,
-				(guint) g_array_index (l_pending, guint, i));
-	    g_debug ("Added handle %u to channel pending members",
-		     (guint) g_array_index (l_pending, guint, i));
+            guint handle;
+
+            handle = g_array_index (l_pending, guint, i);
+	    g_array_append_val (priv->pending_local_members, handle);
+	    g_debug ("Added handle %u to channel pending members", handle);
 	}
 	g_array_free (l_pending, TRUE);
     }

@@ -362,7 +362,7 @@ _mcd_connection_set_presence (McdConnection * connection,
 		       mc_account_get_unique_name (priv->account));
 	    return;
 	}
-	g_object_add_weak_pointer (G_OBJECT (priv->presence_proxy), (gpointer *)&priv->presence_proxy);
+	g_object_add_weak_pointer (G_OBJECT (priv->presence_proxy), (gpointer)&priv->presence_proxy);
 
 	if (tp_conn_iface_presence_get_statuses (priv->presence_proxy,
 						 &status_hash, &error) == FALSE)
@@ -651,7 +651,7 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
 	priv->got_capabilities = TRUE;
 	return;
     }
-    g_object_add_weak_pointer (G_OBJECT (priv->capabilities_proxy), (gpointer *)&priv->capabilities_proxy);
+    g_object_add_weak_pointer (G_OBJECT (priv->capabilities_proxy), (gpointer)&priv->capabilities_proxy);
     capabilities = mcd_dispatcher_get_channel_capabilities (priv->dispatcher);
     g_debug ("%s: advertising capabilities", G_STRFUNC);
     tp_conn_iface_capabilities_advertise_capabilities (priv->capabilities_proxy,
@@ -1059,13 +1059,13 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
     if (priv->presence_proxy)
     {
 	g_object_remove_weak_pointer (G_OBJECT(priv->presence_proxy),
-				      (gpointer *)&priv->presence_proxy);
+				      (gpointer)&priv->presence_proxy);
 	priv->presence_proxy = NULL;
     }
     if (priv->capabilities_proxy)
     {
 	g_object_remove_weak_pointer (G_OBJECT(priv->capabilities_proxy),
-				      (gpointer *)&priv->capabilities_proxy);
+				      (gpointer)&priv->capabilities_proxy);
 	priv->capabilities_proxy = NULL;
     }
     if (priv->avatars_proxy)

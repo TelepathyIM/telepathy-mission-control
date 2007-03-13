@@ -292,7 +292,7 @@ _mc_account_gconf_set_string (McAccount *account, const gchar *name,
  * @unique_name: The unique name of the account.
  *
  * Look-up an account from its unique name. The reference count of the returned
- * account is not incremented.
+ * account is incremented.
  *
  * Return value: The requested #McAccount, or NULL if not found.
  */
@@ -356,7 +356,7 @@ _free_all_but_one (GList *list)
  * @account: The name of the account.
  *
  * Look-up an account from its name in the given #McProfile. The reference
- * count of the returned account is not incremented.
+ * count of the returned account is incremented.
  *
  * Return value: The requested #McAccount, or NULL if not found.
  */
@@ -381,7 +381,7 @@ mc_account_lookup_with_profile (McProfile *profile,
  * @account: The name of the account.
  *
  * Look-up an account from its name in the given VCard field. The reference
- * count of the returned account is not incremented.
+ * count of the returned account is incremented.
  *
  * Return value: The requested #McAccount, or NULL if not found.
  */
@@ -405,6 +405,7 @@ mc_account_lookup_with_vcard_field (const gchar *vcard_field,
  * @account: The #McAccount.
  *
  * Free an account.
+ * DEPRECATED, use g_object_unref() instead.
  */
 void
 mc_account_free (McAccount* account)
@@ -737,7 +738,7 @@ _filter_vcard_field (McAccount *acct, gpointer data)
   else
     ret = (0 == strcmp (vcard_field, profile_vcard_field));
 
-  mc_profile_free (profile);
+  g_object_unref (profile);
   return ret;
 }
 
@@ -808,7 +809,7 @@ mc_accounts_filter (GList *accounts,
         }
       else
         {
-          mc_account_free (account);
+          g_object_unref (account);
         }
     }
 
@@ -1739,10 +1740,10 @@ mc_account_get_params (McAccount *account)
 
 OUT:
   if (protocol)
-    mc_protocol_free (protocol);
+    g_object_unref (protocol);
 
   if (profile)
-    mc_profile_free (profile);
+    g_object_unref (profile);
 
   return ret;
 }
@@ -1851,10 +1852,10 @@ mc_account_is_complete (McAccount *account)
 
 OUT:
   if (profile != NULL)
-    mc_profile_free (profile);
+    g_object_unref (profile);
 
   if (protocol != NULL)
-    mc_protocol_free (protocol);
+    g_object_unref (protocol);
 
   return ret;
 }
@@ -1875,7 +1876,7 @@ mc_account_get_supported_presences (McAccount *account)
     const McPresence *presences;
 
     presences = mc_profile_get_supported_presences (profile);
-    mc_profile_free (profile);
+    g_object_unref (profile);
     return presences;
 }
 
@@ -1895,7 +1896,7 @@ mc_account_supports_presence (McAccount *account, McPresence presence)
     gboolean supported;
 
     supported = mc_profile_supports_presence (profile, presence);
-    mc_profile_free (profile);
+    g_object_unref (profile);
     return supported;
 }
 

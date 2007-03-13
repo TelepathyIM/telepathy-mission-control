@@ -345,7 +345,7 @@ mc_profile_lookup_default_for_vcard_field (const gchar *vcard_field)
       if (ret != NULL ||
           !_mc_profile_load (cur))
         {
-          mc_profile_free (cur);
+          g_object_unref (cur);
           continue;
         }
 
@@ -359,7 +359,7 @@ mc_profile_lookup_default_for_vcard_field (const gchar *vcard_field)
         }
       else
         {
-          mc_profile_free (cur);
+          g_object_unref (cur);
         }
     }
 
@@ -373,6 +373,7 @@ mc_profile_lookup_default_for_vcard_field (const gchar *vcard_field)
  * @id: The #McProfile.
  *
  * Frees (unref) the given profile.
+ * DEPRECATED, use g_object_unref() instead.
  */
 void
 mc_profile_free (McProfile *id)
@@ -454,7 +455,7 @@ mc_profiles_list_by_vcard_field (const gchar *vcard_field)
 
       if (!_mc_profile_load (cur))
         {
-          mc_profile_free (cur);
+          g_object_unref (cur);
           continue;
         }
 
@@ -464,7 +465,7 @@ mc_profiles_list_by_vcard_field (const gchar *vcard_field)
         }
       else
         {
-          mc_profile_free (cur);
+          g_object_unref (cur);
         }
     }
 
@@ -487,7 +488,7 @@ mc_profiles_free_list (GList *list)
   for (tmp = list; tmp != NULL; tmp = tmp->next)
     {
       McProfile *p = tmp->data;
-      mc_profile_free (p);
+      g_object_unref (p);
     }
 
   g_list_free (list);
@@ -671,7 +672,7 @@ mc_profile_get_protocol (McProfile *id)
   g_return_val_if_fail (manager != NULL, NULL);
 
   protocol = mc_protocol_lookup (manager, priv->protocol);
-  mc_manager_free (manager);
+  g_object_unref (manager);
 
   g_return_val_if_fail (protocol != NULL, NULL);
   return protocol;

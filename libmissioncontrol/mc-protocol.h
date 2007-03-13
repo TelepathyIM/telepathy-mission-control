@@ -66,7 +66,9 @@ typedef struct {
 
 /* protocols are only unique within the context of a particular manager */
 McProtocol *mc_protocol_lookup (McManager *id, const gchar *protocol);
+#ifndef MC_DISABLE_DEPRECATED
 void mc_protocol_free (McProtocol *id);
+#endif
 
 GList *mc_protocols_list (void);
 GList *mc_protocols_list_by_manager (McManager *id);

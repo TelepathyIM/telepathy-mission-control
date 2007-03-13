@@ -63,7 +63,9 @@ typedef struct {
 GType mc_manager_get_type (void);
 
 McManager *mc_manager_lookup (const gchar *unique_name);
+#ifndef MC_DISABLE_DEPRECATED
 void mc_manager_free (McManager *id);
+#endif
 void mc_manager_clear_cache (void);
 
 /* get all managers; returns a list of McManager *s */

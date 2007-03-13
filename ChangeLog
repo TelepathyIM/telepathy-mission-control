@@ -1,3 +1,22 @@
+2007-03-13  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c, src/mcd-connection.c:
+	Apply patch from Xavier Claessens to make MC server build with
+	gcc 4.x.
+
+2007-03-12  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-cli.c,
+	libmissioncontrol/mc-account.[hc], libmissioncontrol/mc-manager.[hc],
+	libmissioncontrol/mc-profile.[hc], libmissioncontrol/mc-protocol.[hc],
+	libmissioncontrol/test.c:
+	Deprecate mc_{account,profile,protocol,manager}_free() and substitute
+	them with g_object_unref().
+
+	* libmissioncontrol/mc-account.c:
+	Correct documentation: mc_account_lookup*() does increment the
+	reference count.
+
 2007-03-09  Naba Kumar  <naba.kumar@nokia.com>
 	
 	* configure.ac: Version 4.17.

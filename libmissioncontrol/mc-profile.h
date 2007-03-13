@@ -84,7 +84,9 @@ McProfile* mc_profile_new (const gchar *unique_name);
 /* to find one profile */
 McProfile *mc_profile_lookup (const gchar *unique_name);
 McProfile *mc_profile_lookup_default_for_vcard_field (const gchar *vcard_field);
+#ifndef MC_DISABLE_DEPRECATED
 void mc_profile_free (McProfile *id);
+#endif
 void mc_profile_clear_cache (void);
 
 /* to find many profiles */

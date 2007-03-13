@@ -99,8 +99,8 @@ void test_profile ()
   profile2 = mc_profile_lookup ("testprofile");
   g_assert (profile1 == profile2);
 
-  mc_profile_free (profile1);
-  mc_profile_free (profile2);
+  g_object_unref (profile1);
+  g_object_unref (profile2);
 }
 
 void test_profile_list ()
@@ -179,8 +179,8 @@ void test_account()
   g_hash_table_foreach(
     mc_account_get_params(account1), check_account_param, account1);
 
-  mc_account_free(account1);
-  mc_account_free(account2);
+  g_object_unref(account1);
+  g_object_unref(account2);
 }
 
 void print_accounts_list ()
@@ -372,10 +372,10 @@ void test_account_monitor()
   g_assert (NULL != g_slist_find_custom (deleted, name1, (GCompareFunc) strcmp));
   g_assert (NULL != g_slist_find_custom (deleted, name2, (GCompareFunc) strcmp));
 
-  mc_profile_free (profile1);
-  mc_profile_free (profile2);
-  mc_account_free (account1);
-  mc_account_free (account2);
+  g_object_unref (profile1);
+  g_object_unref (profile2);
+  g_object_unref (account1);
+  g_object_unref (account2);
   g_object_unref (monitor);
 }
 
@@ -399,8 +399,8 @@ void test_manager()
   g_assert (manager2);
   g_assert (manager1 == manager2);
 
-  mc_manager_free (manager1);
-  mc_manager_free (manager2);
+  g_object_unref (manager1);
+  g_object_unref (manager2);
 }
 
 void test_protocol ()
@@ -450,10 +450,10 @@ void test_protocol ()
 
   mc_protocol_free_params_list (params);
 
-  mc_manager_free (manager1);
-  mc_manager_free (manager2);
-  mc_protocol_free (protocol1);
-  mc_protocol_free (protocol2);
+  g_object_unref (manager1);
+  g_object_unref (manager2);
+  g_object_unref (protocol1);
+  g_object_unref (protocol2);
 }
 
 int main ()
