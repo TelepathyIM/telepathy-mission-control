@@ -22,6 +22,17 @@
  *
  */
 
+/**
+ * SECTION:mcd-dispatcher
+ * @title: McdDispatcher
+ * @short_description: Dispatcher class to dispatch channels to handlers
+ * @see_also: 
+ * @stability: Unstable
+ * @include: mcd-dispatcher.h
+ * 
+ * FIXME
+ */
+
 #include <dlfcn.h>
 #include <glib/gi18n.h>
 #include <libtelepathy/tp-chan-iface-group-gen.h>

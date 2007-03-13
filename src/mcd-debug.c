@@ -22,6 +22,17 @@
  *
  */
 
+/**
+ * SECTION:mcd-debug
+ * @title: Debugging
+ * @short_description: Debugging utilities
+ * @see_also: 
+ * @stability: Unstable
+ * @include: mcd-debug.h
+ * 
+ * FIXME
+ */
+
 #include <stdlib.h>
 #include "mcd-debug.h"
 #include "mcd-operation.h"

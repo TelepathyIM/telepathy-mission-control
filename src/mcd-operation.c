@@ -22,6 +22,21 @@
  *
  */
 
+/**
+ * SECTION:mcd-operation
+ * @title: McdOperation
+ * @short_description: Container class for holding missions
+ * @see_also: 
+ * @stability: Unstable
+ * @include: mcd-operation.h
+ * 
+ * This is a simple container class that can hold a list of mission objects
+ * as children. McdOperation makes sure that object states (see: McdMission)
+ * of the container are all proxied to the children. Children life cycles
+ * also managed by this class and parent-child relationship is correctly
+ * established.
+ */
+
 #include <glib/gi18n.h>
 #include "mcd-operation.h"
 
@@ -29,14 +44,6 @@
 				       MCD_TYPE_OPERATION, \
 				       McdOperationPrivate))
 
-/**
- * McdOperation:
- * This is a simple container class that can hold a list of mission objects
- * as children. McdOperation makes sure that object states (see: McdMission)
- * of the container are all proxied to the children. Children life cycles
- * also managed by this class and parent-child relationship is correctly
- * established.
- */
 G_DEFINE_TYPE (McdOperation, mcd_operation, MCD_TYPE_MISSION);
 
 /* Private */

@@ -22,6 +22,18 @@
  *
  */
 
+/**
+ * SECTION:mcd-proxy
+ * @title: McdProxy
+ * @short_description: Mission proxy class
+ * @see_also: 
+ * @stability: Unstable
+ * @include: mcd-proxy.h
+ * 
+ * This is a simple container class that proxies the events from a proxy
+ * object to self container.
+ */
+
 #include <glib/gi18n.h>
 #include "mcd-proxy.h"
 
@@ -29,11 +41,6 @@
 				       MCD_TYPE_PROXY, \
 				       McdProxyPrivate))
 
-/**
- * McdProxy:
- * This is a simple container class that proxies the events from a proxy
- * object to self container.
- */
 G_DEFINE_TYPE (McdProxy, mcd_proxy, MCD_TYPE_OPERATION);
 
 /* Private */

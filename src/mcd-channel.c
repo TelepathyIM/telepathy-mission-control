@@ -22,6 +22,17 @@
  *
  */
 
+/**
+ * SECTION:mcd-channel
+ * @title: McdChannel
+ * @short_description: Channel class representing Telepathy channel class
+ * @see_also: 
+ * @stability: Unstable
+ * @include: mcd-channel.h
+ * 
+ * FIXME
+ */
+
 #include <glib/gi18n.h>
 #include <libtelepathy/tp-chan-iface-group-gen.h>
 #include <libtelepathy/tp-constants.h>

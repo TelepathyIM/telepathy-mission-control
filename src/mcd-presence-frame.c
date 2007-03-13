@@ -22,6 +22,17 @@
  *
  */
 
+/**
+ * SECTION:mcd-presence-frame
+ * @title: McdPresenceFrame
+ * @short_description: Presence maintenance framework
+ * @see_also: 
+ * @stability: Unstable
+ * @include: mcd-presence-frame.h
+ * 
+ * FIXME
+ */
+
 #include "mcd-signals-marshal.h"
 #include "mcd-presence-frame.h"
 

@@ -1,5 +1,14 @@
+2007-03-13  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-mission.c, src/mcd-controller.c, src/mcd-chan-handler.c,
+	src/mcd-connection.c, src/mcd-operation.c, src/mcd-service.c,
+	src/mcd-channel.c, src/mcd-manager.c, src/mcd-proxy.c,
+	src/mcd-dispatcher.c, src/mcd-debug.c,
+	src/mcd-master.c, src/mcd-presence-frame.c: Added API section docs.
+
 2007-03-13  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	Patch from Xavier Claessens:
 	* src/mcd-channel.c, src/mcd-connection.c:
 	Apply patch from Xavier Claessens to make MC server build with
 	gcc 4.x.

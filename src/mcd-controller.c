@@ -22,6 +22,19 @@
  *
  */
 
+/**
+ * SECTION:mcd-controller
+ * @title: McdController
+ * @short_description: Server controller class
+ * @see_also: 
+ * @stability: Unstable
+ * @include: mcd-controller.h
+ * 
+ * This class implements the logic to control mission-control based on all
+ * external device events and states. It also controls mission-control
+ * life-cycle based on such events.
+ */
+
 #include "mcd-controller.h"
 
 /* Milliseconds to wait for Connectivity coming back up before exiting MC */
@@ -32,12 +45,6 @@
 				  MCD_TYPE_CONTROLLER, \
 				  McdControllerPrivate))
 
-/**
- * McdController:
- * This class implements the logic to control mission-control based on all
- * external device events and states. It also controls mission-control
- * life-cycle based on such events.
- */
 G_DEFINE_TYPE (McdController, mcd_controller, MCD_TYPE_OPERATION);
 
 /* Private */

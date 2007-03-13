@@ -22,6 +22,17 @@
  *
  */
 
+/**
+ * SECTION:mcd-chan-handler
+ * @title: McdChannelHandler
+ * @short_description: Channel handler class corresponding to each .chandler file
+ * @see_also: 
+ * @stability: Unstable
+ * @include: mcd-chan-handler.h
+ * 
+ * FIXME
+ */
+
 #include <stdlib.h>
 #include <string.h>
 #include "mcd-chan-handler.h"

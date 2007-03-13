@@ -22,6 +22,30 @@
  *
  */
 
+/**
+ * SECTION:mcd-master
+ * @title: McdMaster
+ * @short_description: Server master class
+ * @see_also: 
+ * @stability: Unstable
+ * @include: mcd-master.h
+ * 
+ * This class implements actual mission-control. It keeps track of
+ * individual account presence and connection states in a McdPresenceFrame
+ * member object, which is available as a property.
+ * 
+ * The McdPresenceFrame object could be easily utilized for
+ * any presence releated events and actions, either within this class or
+ * any other class subclassing it or using it.
+ *
+ * It is basically a container for all McdManager objects and
+ * takes care of their management. It also takes care of sleep and awake
+ * cycles (e.g. translates to auto away somewhere down the hierarchy).
+ *
+ * McdMaster is a subclass of McdConroller, which essentially means it
+ * is subject to all device control.
+ */
+
 #include <glib/gi18n.h>
 #include <gconf/gconf-client.h>
 #include <libmissioncontrol/mc-manager.h>
@@ -40,23 +64,6 @@
 				  MCD_TYPE_MASTER, \
 				  McdMasterPrivate))
 
-/**
- * McdMaster:
- * This class implements actual mission-control. It keeps track of
- * individual account presence and connection states in a McdPresenceFrame
- * member object, which is available as a property.
- * 
- * The McdPresenceFrame object could be easily utilized for
- * any presence releated events and actions, either within this class or
- * any other class subclassing it or using it.
- *
- * It is basically a container for all McdManager objects and
- * takes care of their management. It also takes care of sleep and awake
- * cycles (e.g. translates to auto away somewhere down the hierarchy).
- *
- * McdMaster is a subclass of McdConroller, which essentially means it
- * is subject to all device control.
- */
 G_DEFINE_TYPE (McdMaster, mcd_master, MCD_TYPE_CONTROLLER);
 
 typedef struct _McdMasterPrivate

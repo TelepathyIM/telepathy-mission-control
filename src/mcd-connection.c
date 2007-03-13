@@ -22,6 +22,17 @@
  *
  */
 
+/**
+ * SECTION:mcd-connection
+ * @title: McdConnection
+ * @short_description: Connection class representing Telepathy connection class
+ * @see_also: 
+ * @stability: Unstable
+ * @include: mcd-connection.h
+ * 
+ * FIXME
+ */
+
 #include <string.h>
 #include <sys/types.h>
 #include <sched.h>

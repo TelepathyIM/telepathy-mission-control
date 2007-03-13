@@ -22,6 +22,20 @@
  *
  */
 
+/**
+ * SECTION:mcd-service
+ * @title: McdService
+ * @short_description: Service interface implementation
+ * @see_also: 
+ * @stability: Unstable
+ * @include: mcd-service.h
+ * 
+ * It is the frontline interface object that exposes mission-control to outside
+ * world through a dbus interface. It basically subclasses McdMaster and
+ * wraps up everything inside it and translate them into mission-control
+ * dbus interface.
+ */
+
 #include <dbus/dbus.h>
 #include <string.h>
 #include <dlfcn.h>
@@ -67,13 +81,6 @@ static GObjectClass *parent_class = NULL;
 				   MCD_TYPE_SERVICE, \
 				   McdServicePrivate))
 
-/**
- * McdService:
- * It is the frontline interface object that exposes mission-control to outside
- * world through a dbus interface. It basically subclasses McdMaster and
- * wraps up everything inside it and translate them into mission-control
- * dbus interface.
- */
 G_DEFINE_TYPE (McdService, mcd_service, MCD_TYPE_MASTER);
 
 /* Private */

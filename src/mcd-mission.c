@@ -22,16 +22,14 @@
  *
  */
 
-#include <glib/gi18n.h>
-#include "mcd-mission.h"
-#include "mcd-enum-types.h"
-
-#define MCD_MISSION_PRIV(mission) (G_TYPE_INSTANCE_GET_PRIVATE ((mission), \
-				   MCD_TYPE_MISSION, \
-				   McdMissionPrivate))
-
 /**
- * McdMission:
+ * SECTION:mcd-mission
+ * @title: McdMission
+ * @short_description: Base class for server classes
+ * @see_also: 
+ * @stability: Unstable
+ * @include: mcd-mission.h
+ * 
  * It is the base class for every object in mission-control. It defines
  * a set of virtual functions and set of corresponding action signals.
  * all virtual functions results in emission of their corresponding action
@@ -49,6 +47,15 @@
  * Concrete derived classes should override the sate  methods to implement
  * object specific state managements.
  */
+
+#include <glib/gi18n.h>
+#include "mcd-mission.h"
+#include "mcd-enum-types.h"
+
+#define MCD_MISSION_PRIV(mission) (G_TYPE_INSTANCE_GET_PRIVATE ((mission), \
+				   MCD_TYPE_MISSION, \
+				   McdMissionPrivate))
+
 G_DEFINE_TYPE (McdMission, mcd_mission, G_TYPE_OBJECT);
 
 /* Private */

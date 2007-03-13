@@ -22,6 +22,17 @@
  *
  */
 
+/**
+ * SECTION:mcd-manager
+ * @title: McdManager
+ * @short_description: Manager class representing Telepathy connection manager
+ * @see_also: 
+ * @stability: Unstable
+ * @include: mcd-manager.h
+ * 
+ * FIXME
+ */
+
 #include <string.h>
 #include <glib/gi18n.h>
 #include <libtelepathy/tp-connmgr.h>
