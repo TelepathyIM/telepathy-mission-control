@@ -1,5 +1,7 @@
 2007-03-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* configure.ac: Version 4.18.
+
 	* src/mcd-dispatcher-context.h, src/mcd-dispatcher.c:
 	Rewrite filter API to allow single filter registration and execution
 	priority.
