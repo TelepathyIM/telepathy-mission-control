@@ -44,46 +44,35 @@ G_BEGIN_DECLS
 typedef struct _McdDispatcherContext McdDispatcherContext;
 
 /* Filter function type */
-typedef void (*filter_func_t) (McdDispatcherContext * ctx);
+typedef void (*McdFilterFunc) (McdDispatcherContext * ctx);
 
-/* Data structures and typedefs needed by pluginized filters */
-typedef void (*abort_function_t) (McdDispatcherContext * ctx);
+/* Filter priorities */
+#define MCD_FILTER_PRIORITY_CRITICAL 10000
+#define MCD_FILTER_PRIORITY_SYSTEM   20000
+#define MCD_FILTER_PRIORITY_USER     30000
+#define MCD_FILTER_PRIORITY_NOTICE   40000
+#define MCD_FILTER_PRIORITY_LOW	     50000
 
-/* Requests the chain of filter functions for an unique combination of
- * channel types and filter flags.
- *
- * @param channel_type: A quark representing a particular channel type
- * @param filter_flags: The flags for the filter, such as incoming/outgoing
- * @return A NULL-terminated array of filter function pointers
- */
+typedef struct filter_t {
+    McdFilterFunc func;
+    guint priority;
+} McdFilter;
 
-filter_func_t *mcd_dispatcher_get_filter_chain (McdDispatcher * dispatcher,
-						GQuark channel_type_quark,
-						guint filter_flags);
+void mcd_dispatcher_register_filter (McdDispatcher *dispatcher,
+				     McdFilterFunc filter,
+				     GQuark channel_type_quark,
+				     guint filter_flags,
+				     guint priority);
 
+void mcd_dispatcher_unregister_filter (McdDispatcher *dispatcher,
+				       McdFilterFunc filter,
+				       GQuark channel_type_quark,
+				       guint filter_flags);
 
-/* Indicates to Mission Control that we want to register a filter chain
- * for a unique combination of channel type/filter flags.
- *
- * @param channel_type_quark: Quark indicating the channel type
- * @param filter_flags: The flags for the filter, such as incoming/outgoing
- * @param chain: The chain of filter functions to register
- */
-
-void mcd_dispatcher_register_filter_chain (McdDispatcher * dispatcher,
-					   GQuark channel_type_quark,
-					   guint filter_flags,
-					   filter_func_t * chain);
-
-/* Indicates to Mission Control that we will not want to have a filter chain
- * for particular unique channel type/filter flags combination anymore.
- *
- * @param channel_type_quark: Quark indicating the channel type
- * @param filter_flags: The flags for the filter, such as incoming/outgoing
- */
-void mcd_dispatcher_unregister_filter_chain (McdDispatcher * dispatcher,
-					     GQuark channel_type_quark,
-					     guint filter_flags);
+void mcd_dispatcher_register_filters (McdDispatcher *dispatcher,
+				      McdFilter *filters,
+				      GQuark channel_type_quark,
+				      guint filter_flags);
 
 /* Context API section
  *
@@ -110,19 +99,6 @@ McdChannelHandler * mcd_dispatcher_context_get_chan_handler (McdDispatcherContex
 /*Returns an array of the gchar *  addresses of participants in the channel*/
 GPtrArray *mcd_dispatcher_context_get_members (McdDispatcherContext * ctx);
 
-/*Filter-specifc data*/
-gpointer mcd_dispatcher_context_get_data (McdDispatcherContext * ctx);
-
-
-/* Setters */
-
-/* Abort function should be known only to the filter function.  When
-   executed, filter function MUST set an abort fn as needed (such as
-   when implementing an async filter) */
-
-void mcd_dispatcher_context_set_abort_fn (McdDispatcherContext * ctx, abort_function_t abort_fn);
-
-void mcd_dispatcher_context_set_data (McdDispatcherContext * ctx, gpointer data);
 
 /* Statemachine API section */
 

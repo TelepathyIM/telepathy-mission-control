@@ -1,3 +1,9 @@
+2007-03-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-dispatcher-context.h, src/mcd-dispatcher.c:
+	Rewrite filter API to allow single filter registration and execution
+	priority.
+
 2007-03-13  Naba Kumar  <naba.kumar@nokia.com>
 
 	* src/mcd-mission.c, src/mcd-controller.c, src/mcd-chan-handler.c,

@@ -59,17 +59,10 @@ struct _McdDispatcherContext
     McdChannel *channel;
 
     /* State-machine internal data fields: */
-    filter_func_t *chain;
+    GList *chain;
 
     /* Next function in chain */
     guint next_func_index;
-
-    /* Function to abort the current filter, if any */
-    abort_function_t abort_fn;
-    
-    /*Filter-specific user data */
-    gpointer data;
-
 };
 
 typedef struct _McdDispatcherPrivate
@@ -99,8 +92,8 @@ typedef struct _McdDispatcherPrivate
 
 struct iface_chains_t
 {
-    filter_func_t *chain_in;
-    filter_func_t *chain_out;
+    GList *chain_in;
+    GList *chain_out;
 };
 
 enum
@@ -217,14 +210,14 @@ _mcd_dispatcher_unload_filters (McdDispatcher * dispatcher)
 /* A convenience function for acquiring the chain for particular channel
 type and filter flag combination. */
 
-static filter_func_t *
+static GList *
 _mcd_dispatcher_get_filter_chain (McdDispatcher * dispatcher,
 				  GQuark channel_type_quark,
 				  guint filter_flags)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (dispatcher);
     struct iface_chains_t *iface_chains;
-    filter_func_t *filter_chain = NULL;
+    GList *filter_chain = NULL;
 
     iface_chains =
 	(struct iface_chains_t *)
@@ -253,11 +246,73 @@ _mcd_dispatcher_get_filter_chain (McdDispatcher * dispatcher,
     return filter_chain;
 }
 
+static GList *
+chain_add_filter (GList *chain, McdFilterFunc filter, guint priority)
+{
+    GList *elem;
+    McdFilter *filter_data;
+
+    filter_data = g_malloc (sizeof (McdFilter));
+    filter_data->func = filter;
+    filter_data->priority = priority;
+    for (elem = chain; elem; elem = elem->next)
+	if (((McdFilter *)elem->data)->priority >= priority) break;
+
+    return g_list_insert_before (chain, elem, filter_data);
+}
+
+static GList *
+chain_remove_filter (GList *chain, McdFilterFunc func)
+{
+    GList *elem, *new_chain = NULL;
+
+    /* since in-place modification of a list is error prone (especially if the
+     * same filter has been registered in the same chain with different
+     * priorities), we build a new list with the remaining elements */
+    for (elem = chain; elem; elem = elem->next)
+    {
+	if (((McdFilter *)elem->data)->func == func)
+	    g_free (elem->data);
+	else
+	    new_chain = g_list_append (new_chain, elem->data);
+    }
+    g_list_free (chain);
+
+    return new_chain;
+}
+
+static void
+free_filter_chains (struct iface_chains_t *chains)
+{
+    if (chains->chain_in)
+    {
+	g_list_foreach (chains->chain_in, (GFunc)g_free, NULL);
+	g_list_free (chains->chain_in);
+    }
+    if (chains->chain_out)
+    {
+	g_list_foreach (chains->chain_out, (GFunc)g_free, NULL);
+	g_list_free (chains->chain_out);
+    }
+    g_free (chains);
+}
+
+/**
+ * mcd_dispatcher_register_filter:
+ * @dispatcher: The #McdDispatcher.
+ * @filter: the filter function to be registered.
+ * @channel_type_quark: Quark indicating the channel type.
+ * @filter_flags: The flags for the filter, such as incoming/outgoing.
+ * @priority: The priority of the filter.
+ *
+ * Indicates to Mission Control that we want to register a filter for a unique
+ * combination of channel type/filter flags.
+ */
 void
-mcd_dispatcher_register_filter_chain (McdDispatcher * dispatcher,
-				      GQuark channel_type_quark,
-				      guint filter_flags,
-				      filter_func_t * chain)
+mcd_dispatcher_register_filter (McdDispatcher *dispatcher,
+			       	McdFilterFunc filter,
+				GQuark channel_type_quark,
+				guint filter_flags, guint priority)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (dispatcher);
     struct iface_chains_t *iface_chains = NULL;
@@ -269,36 +324,40 @@ mcd_dispatcher_register_filter_chain (McdDispatcher * dispatcher,
     {
 	iface_chains = g_new0 (struct iface_chains_t, 1);
 	g_datalist_id_set_data_full (&(priv->interface_filters),
-				     channel_type_quark, iface_chains, g_free);
+				     channel_type_quark, iface_chains,
+				     (GDestroyNotify)free_filter_chains);
     }
 
     switch (filter_flags)
     {
     case MCD_FILTER_IN:
-	if (iface_chains->chain_in != NULL)
-	{
-	    g_warning
-		("Overwriting a previous chain without unregistering it!");
-	}
-	iface_chains->chain_in = chain;
+	iface_chains->chain_in = chain_add_filter (iface_chains->chain_in,
+						   filter, priority);
 	break;
     case MCD_FILTER_OUT:
-	if (iface_chains->chain_out != NULL)
-	{
-	    g_warning
-		("Overwriting a previous chain without unregistering it!");
-	}
-	iface_chains->chain_out = chain;
+	iface_chains->chain_out = chain_add_filter (iface_chains->chain_out,
+						    filter, priority);
 	break;
     default:
 	g_warning ("Unknown filter flag value!");
     }
 }
 
+/**
+ * mcd_dispatcher_unregister_filter:
+ * @dispatcher: The #McdDispatcher.
+ * @filter: the filter function to be registered.
+ * @channel_type_quark: Quark indicating the channel type.
+ * @filter_flags: The flags for the filter, such as incoming/outgoing.
+ *
+ * Indicates to Mission Control that we will not want to have a filter
+ * for particular unique channel type/filter flags combination anymore.
+ */
 void
-mcd_dispatcher_unregister_filter_chain (McdDispatcher * dispatcher,
-					GQuark channel_type_quark,
-					guint filter_flags)
+mcd_dispatcher_unregister_filter (McdDispatcher * dispatcher,
+				  McdFilterFunc filter,
+				  GQuark channel_type_quark,
+				  guint filter_flags)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (dispatcher);
 
@@ -309,7 +368,7 @@ mcd_dispatcher_unregister_filter_chain (McdDispatcher * dispatcher,
 				channel_type_quark);
     if (chains == NULL)
     {
-	g_warning ("Attempting to unregister a nonexisting filter chain");
+	g_warning ("Attempting to unregister from an empty filter chain");
 	return;
     }
 
@@ -317,26 +376,50 @@ mcd_dispatcher_unregister_filter_chain (McdDispatcher * dispatcher,
     {
     case MCD_FILTER_IN:
 	/* No worries about memory leaks, as these are function pointers */
-	chains->chain_in = NULL;
+	chains->chain_in = chain_remove_filter(chains->chain_in, filter);
 	break;
     case MCD_FILTER_OUT:
-	chains->chain_out = NULL;
+	chains->chain_out = chain_remove_filter(chains->chain_out, filter);
 	break;
     default:
 	g_warning ("Unknown filter flag value!");
     }
 
-    /* Both chains are unregistered? We may as well free the struct then */
+    /* Both chains are empty? We may as well free the struct then */
 
     if (chains->chain_in == NULL && chains->chain_out == NULL)
     {
 	/* ? Should we dlclose the plugin as well..? */
 	g_datalist_id_remove_data (&(priv->interface_filters),
 				   channel_type_quark);
-	g_free (chains);
     }
 
     return;
+}
+
+/**
+ * mcd_dispatcher_register_filters:
+ * @dispatcher: The #McdDispatcher.
+ * @filters: a zero-terminated array of #McdFilter elements.
+ * @channel_type_quark: Quark indicating the channel type.
+ * @filter_flags: The flags for the filter, such as incoming/outgoing.
+ *
+ * Convenience function to register a batch of filters at once.
+ */
+void
+mcd_dispatcher_register_filters (McdDispatcher *dispatcher,
+				 McdFilter *filters,
+				 GQuark channel_type_quark,
+				 guint filter_flags)
+{
+    McdFilter *filter;
+
+    g_return_if_fail (filters != NULL);
+
+    for (filter = filters; filter->func != NULL; filter++)
+	mcd_dispatcher_register_filter (dispatcher, filter->func,
+				       	channel_type_quark,
+					filter_flags, filter->priority);
 }
 
 /* Returns # of times particular channel type  has been used */
@@ -615,9 +698,6 @@ _mcd_dispatcher_leave_state_machine (McdDispatcherContext * context)
     McdDispatcherPrivate *priv =
 	MCD_DISPATCHER_PRIV (context->dispatcher);
 
-    if (context->abort_fn)
-	context->abort_fn (context);
-
     /* _mcd_dispatcher_drop_channel_handler (context); */
 
     priv->state_machine_list =
@@ -639,7 +719,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 				     McdChannel *channel)
 {
     McdDispatcherContext *context;
-    filter_func_t *chain;
+    GList *chain;
     GQuark chan_type_quark;
     gboolean outgoing;
     gint filter_flags;
@@ -1043,17 +1123,16 @@ mcd_dispatcher_context_process (McdDispatcherContext * context, gboolean result)
     
     if (result)
     {
+	McdFilter *filter;
+
+	filter = g_list_nth_data (context->chain, context->next_func_index);
 	/* Do we still have functions to go through? */
-	if (context->chain[context->next_func_index])
+	if (filter)
 	{
-	    filter_func_t filter = context->chain[context->next_func_index];
-	    
 	    context->next_func_index++;
 	    
-	    /*new state-new abort function*/
-	    context->abort_fn = NULL;
 	    g_debug ("Next filter");
-	    filter (context);
+	    filter->func (context);
 	    return; /*State machine goes on...*/
 	}
 	else
@@ -1148,13 +1227,6 @@ mcd_dispatcher_context_get_channel (McdDispatcherContext * ctx)
     return ctx->channel;
 }
 
-gpointer
-mcd_dispatcher_context_get_data (McdDispatcherContext * ctx)
-{
-    g_return_val_if_fail (ctx, NULL);
-    return ctx->data;
-}
-
 McdChannelHandler *
 mcd_dispatcher_context_get_chan_handler (McdDispatcherContext * ctx)
 {
@@ -1171,21 +1243,6 @@ GPtrArray *
 mcd_dispatcher_context_get_members (McdDispatcherContext * ctx)
 {
     return mcd_channel_get_members (ctx->channel);
-}
-
-/* Context setters */
-void
-mcd_dispatcher_context_set_abort_fn (McdDispatcherContext * ctx, abort_function_t abort_fn)
-{
-    g_return_if_fail (ctx);
-    ctx->abort_fn = abort_fn;
-}
-
-void
-mcd_dispatcher_context_set_data (McdDispatcherContext * ctx, gpointer data)
-{
-    g_return_if_fail (ctx);
-    ctx->data = data;
 }
 
 GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher)
