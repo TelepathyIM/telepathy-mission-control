@@ -128,6 +128,8 @@ xml/Makefile \
 doc/Makefile \
 test/Makefile \
 doc/reference/Makefile \
+doc/reference/libmissioncontrol/Makefile \
+doc/reference/libmissioncontrol-server/Makefile \
 libmissioncontrol/Makefile \
 server/Makefile \
 server/org.freedesktop.Telepathy.MissionControl.service

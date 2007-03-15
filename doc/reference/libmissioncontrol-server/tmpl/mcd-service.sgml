@@ -1,0 +1,56 @@
+<!-- ##### SECTION Title ##### -->
+McdService
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+<!-- ##### MACRO MCD_OBJECT ##### -->
+<para>
+
+</para>
+
+@obj: 
+
+
+<!-- ##### MACRO MCD_OBJECT_CLASS ##### -->
+<para>
+
+</para>
+
+@klass: 
+
+
+<!-- ##### MACRO MCD_OBJECT_GET_CLASS ##### -->
+<para>
+
+</para>
+
+@obj: 
+
+
+<!-- ##### FUNCTION mcd_service_new ##### -->
+<para>
+
+</para>
+
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_service_run ##### -->
+<para>
+
+</para>
+
+@self: 
+
+

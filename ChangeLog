@@ -1,5 +1,12 @@
 2007-03-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* configure.ac:
+	* doc/*:
+	Move libmissioncontrol documentation to a subdirectory and setup a
+	tree for libmissioncontrol-server docs.
+
+2007-03-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
 	* configure.ac: Version 4.18.
 
 	* src/mcd-dispatcher-context.h, src/mcd-dispatcher.c:

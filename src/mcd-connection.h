@@ -39,15 +39,19 @@ G_BEGIN_DECLS
 #define MCD_IS_CONNECTION(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), MCD_TYPE_CONNECTION))
 #define MCD_IS_CONNECTION_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), MCD_TYPE_CONNECTION))
 #define MCD_CONNECTION_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), MCD_TYPE_CONNECTION, McdConnectionClass))
-    typedef struct
+
+typedef struct _McdConnection McdConnection;
+typedef struct _McdConnectionClass McdConnectionClass;
+
+struct _McdConnection
 {
     McdOperation parent;
-} McdConnection;
+};
 
-typedef struct
+struct _McdConnectionClass
 {
     McdOperationClass parent_class;
-} McdConnectionClass;
+};
 
 #include "mcd-presence-frame.h"
 #include "mcd-dispatcher.h"

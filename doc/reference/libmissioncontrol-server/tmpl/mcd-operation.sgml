@@ -1,0 +1,61 @@
+<!-- ##### SECTION Title ##### -->
+McdOperation
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+<!-- ##### FUNCTION mcd_operation_new ##### -->
+<para>
+
+</para>
+
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_operation_take_mission ##### -->
+<para>
+
+</para>
+
+@operation: 
+@mission: 
+
+
+<!-- ##### FUNCTION mcd_operation_remove_mission ##### -->
+<para>
+
+</para>
+
+@operation: 
+@mission: 
+
+
+<!-- ##### FUNCTION mcd_operation_foreach ##### -->
+<para>
+
+</para>
+
+@operation: 
+@func: 
+@user_data: 
+
+
+<!-- ##### FUNCTION mcd_operation_get_missions ##### -->
+<para>
+
+</para>
+
+@operation: 
+@Returns: 
+
+

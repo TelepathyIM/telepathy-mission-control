@@ -1,0 +1,71 @@
+<!-- ##### SECTION Title ##### -->
+McdDispatcher
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+<!-- ##### STRUCT McdDispatcherStatus ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### FUNCTION mcd_dispatcher_new ##### -->
+<para>
+
+</para>
+
+@dbus_connection: 
+@master: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_dispatcher_send ##### -->
+<para>
+
+</para>
+
+@dispatcher: 
+@channel: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_dispatcher_get_status ##### -->
+<para>
+
+</para>
+
+@dispatcher: 
+@channel: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_dispatcher_get_channel_type_usage ##### -->
+<para>
+
+</para>
+
+@dispatcher: 
+@chan_type_quark: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_dispatcher_get_channel_capabilities ##### -->
+<para>
+
+</para>
+
+@dispatcher: 
+@Returns: 
+
+

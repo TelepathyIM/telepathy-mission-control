@@ -1,0 +1,41 @@
+<!-- ##### SECTION Title ##### -->
+McdController
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+<!-- ##### FUNCTION mcd_controller_new ##### -->
+<para>
+
+</para>
+
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_controller_shutdown ##### -->
+<para>
+
+</para>
+
+@controller: 
+@reason: 
+
+
+<!-- ##### FUNCTION mcd_controller_cancel_shutdown ##### -->
+<para>
+
+</para>
+
+@controller: 
+
+

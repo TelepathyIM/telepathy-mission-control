@@ -1,0 +1,67 @@
+<!-- ##### SECTION Title ##### -->
+mcd-debug
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+<!-- ##### MACRO g_object_ref ##### -->
+<para>
+
+</para>
+
+@obj: 
+
+
+<!-- ##### MACRO g_object_unref ##### -->
+<para>
+
+</para>
+
+@obj: 
+
+
+<!-- ##### FUNCTION mcd_debug_init ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### FUNCTION mcd_debug_ref ##### -->
+<para>
+
+</para>
+
+@obj: 
+@filename: 
+@linenum: 
+
+
+<!-- ##### FUNCTION mcd_debug_unref ##### -->
+<para>
+
+</para>
+
+@obj: 
+@filename: 
+@linenum: 
+
+
+<!-- ##### FUNCTION mcd_debug_print_tree ##### -->
+<para>
+
+</para>
+
+@obj: 
+
+

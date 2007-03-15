@@ -1,0 +1,109 @@
+<!-- ##### SECTION Title ##### -->
+McdConnection
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+<!-- ##### FUNCTION mcd_connection_new ##### -->
+<para>
+
+</para>
+
+@dbus_connection: 
+@bus_name: 
+@tp_conn_mgr: 
+@account: 
+@presence_frame: 
+@dispatcher: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_connection_get_account ##### -->
+<para>
+
+</para>
+
+@connection: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_connection_get_connection_status ##### -->
+<para>
+
+</para>
+
+@connection: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_connection_request_channel ##### -->
+<para>
+
+</para>
+
+@connection: 
+@req: 
+@error: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_connection_cancel_channel_request ##### -->
+<para>
+
+</para>
+
+@connection: 
+@operation_id: 
+@requestor_client_id: 
+@error: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_connection_get_telepathy_details ##### -->
+<para>
+
+</para>
+
+@id: 
+@ret_servname: 
+@ret_objpath: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_connection_remote_avatar_changed ##### -->
+<para>
+
+</para>
+
+@connection: 
+@contact_id: 
+@token: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_connection_account_changed ##### -->
+<para>
+
+</para>
+
+@connection: 
+
+
+<!-- ##### FUNCTION mcd_connection_close ##### -->
+<para>
+
+</para>
+
+@connection: 
+
+

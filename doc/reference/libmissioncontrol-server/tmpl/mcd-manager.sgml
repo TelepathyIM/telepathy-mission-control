@@ -1,0 +1,120 @@
+<!-- ##### SECTION Title ##### -->
+McdManager
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+<!-- ##### FUNCTION mcd_manager_new ##### -->
+<para>
+
+</para>
+
+@mc_manager: 
+@pframe: 
+@dispatcher: 
+@dbus_connection: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_manager_add_account ##### -->
+<para>
+
+</para>
+
+@manager: 
+@account: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_manager_can_handle_account ##### -->
+<para>
+
+</para>
+
+@manager: 
+@account: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_manager_get_account_by_name ##### -->
+<para>
+
+</para>
+
+@manager: 
+@account_name: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_manager_remove_account ##### -->
+<para>
+
+</para>
+
+@manager: 
+@account: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_manager_get_accounts ##### -->
+<para>
+
+</para>
+
+@manager: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_manager_get_account_connection ##### -->
+<para>
+
+</para>
+
+@manager: 
+@account: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_manager_request_channel ##### -->
+<para>
+
+</para>
+
+@manager: 
+@req: 
+@error: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_manager_cancel_channel_request ##### -->
+<para>
+
+</para>
+
+@manager: 
+@operation_id: 
+@requestor_client_pid: 
+@error: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_manager_get_connection ##### -->
+<para>
+
+</para>
+
+@manager: 
+@object_path: 
+@Returns: 
+
+

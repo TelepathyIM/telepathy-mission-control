@@ -1915,7 +1915,8 @@ request_avatar_cb (DBusGProxy *proxy, GArray *avatar, char *mime_type,
     g_free (mime_type);
 }
 
-/** mcd_connection_remote_avatar_changed:
+/**
+ * mcd_connection_remote_avatar_changed:
  * @connection: the #McdConnection.
  * @contact_id: the own contact id in Telepathy.
  * @token: the new avatar token.

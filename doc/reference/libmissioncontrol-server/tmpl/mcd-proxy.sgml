@@ -1,0 +1,34 @@
+<!-- ##### SECTION Title ##### -->
+McdProxy
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+<!-- ##### FUNCTION mcd_proxy_new ##### -->
+<para>
+
+</para>
+
+@proxy_mission: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_proxy_get_proxy_object ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@Returns: 
+
+
