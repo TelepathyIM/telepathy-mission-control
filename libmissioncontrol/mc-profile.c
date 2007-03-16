@@ -266,9 +266,14 @@ _mc_profile_load (McProfile *profile)
 
   /* :D */
   caps = g_key_file_get_string (keyfile, PROFILE_GROUP, "Capabilities", NULL);
-  g_strdelimit (caps, " ,;", ':');
-  priv->capabilities = g_parse_debug_string (caps, capabilities, sizeof (capabilities) / sizeof (GDebugKey));
-  g_free (caps);
+  if (caps)
+  {
+      g_strdelimit (caps, " ,;", ':');
+      priv->capabilities =
+	  g_parse_debug_string (caps, capabilities,
+			       	sizeof (capabilities) / sizeof (GDebugKey));
+      g_free (caps);
+  }
 
   priv->default_settings = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                   (GDestroyNotify) g_free,

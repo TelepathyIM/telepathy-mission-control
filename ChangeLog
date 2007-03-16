@@ -1,5 +1,9 @@
 2007-03-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol/mc-profile.c:
+	Gracefully handle the lack of a Capabilities field in the .profile
+	config file.
+
 	* configure.ac:
 	Use the autotools' "datadir" variable to determine the location of the
 	profiles.
