@@ -14,7 +14,16 @@ AC_HEADER_STDC
 
 AM_CFLAGS="$CFLAGS -Wall -fno-strict-aliasing -ansi -DDMALLOC"
 
-eval datadir_expanded="$datadir"
+define([EXPAND_VARIABLE],
+[$2=[$]$1
+while true; do
+    case "[$]$2" in
+    *\[$]* ) eval "$2=[$]$2" ;;
+    *) break ;;
+    esac
+done])
+
+EXPAND_VARIABLE(datadir,datadir_expanded)
 
 AC_ARG_ENABLE(cast-checks,      [  --disable-cast-checks         compile with GLIB cast checks disabled],[cchecks=${enableval}],cchecks=yes)
 if test "x$cchecks" = "xno"; then
