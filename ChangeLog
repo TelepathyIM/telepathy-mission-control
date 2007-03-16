@@ -1,3 +1,9 @@
+2007-03-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	Use the autotools' "datadir" variable to determine the location of the
+	profiles.
+
 2007-03-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* configure.ac:

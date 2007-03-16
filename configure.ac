@@ -14,6 +14,8 @@ AC_HEADER_STDC
 
 AM_CFLAGS="$CFLAGS -Wall -fno-strict-aliasing -ansi -DDMALLOC"
 
+eval datadir_expanded="$datadir"
+
 AC_ARG_ENABLE(cast-checks,      [  --disable-cast-checks         compile with GLIB cast checks disabled],[cchecks=${enableval}],cchecks=yes)
 if test "x$cchecks" = "xno"; then
 	CFLAGS="$CFLAGS -DG_DISABLE_CAST_CHECKS"
@@ -31,7 +33,7 @@ fi
 
 AC_ARG_WITH(profiles_dir, AS_HELP_STRING([--with-profiles-dir=<path>],[Directory for storing profiles]))
 if test -z "$with_profiles_dir" ; then
-    PROFILES_DIR="/usr/share/mission-control/profiles"
+    PROFILES_DIR="${datadir_expanded}/mission-control/profiles"
 else
     PROFILES_DIR=$with_profiles_dir
 fi
@@ -51,7 +53,6 @@ AC_DEFINE_UNQUOTED(ACCOUNTS_DIR,"$ACCOUNTS_DIR", [Directory for storing accounts
 
 AC_ARG_WITH(chandlers_dir, AS_HELP_STRING([--with-chandlers-dir=<path>],[Directory for channel handlers]))
 if test -z "$with_chandlers_dir" ; then
-    eval datadir_expanded="$datadir"
     CHANDLERS_DIR="${datadir_expanded}/telepathy/managers"
 else
     CHANDLERS_DIR=$with_chandlers_dir
