@@ -159,6 +159,8 @@ _find_connection_by_path (gconstpointer data, gconstpointer user_data)
     const gchar *conn_object_path = NULL;
     gint ret;
 
+    if (!data) return 1;
+
     g_object_get (G_OBJECT (connection), "tp-connection",
 		  &tp_conn, NULL);
     if (!tp_conn)

@@ -1,5 +1,8 @@
 2007-03-21  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/mcd-manager.c:
+	Fix possible critical messages.
+
 	* Makefile.am, configure.ac, doc/Makefile.am,
 	libmissioncontrol/Makefile.am, src/Makefile.am, tools/*, xml/*:
 	Build MissionControl D-Bus interface documentation from the embedded
