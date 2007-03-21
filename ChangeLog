@@ -1,3 +1,14 @@
+2007-03-21  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* Makefile.am, configure.ac, doc/Makefile.am,
+	libmissioncontrol/Makefile.am, src/Makefile.am, tools/*, xml/*:
+	Build MissionControl D-Bus interface documentation from the embedded
+	docstrings found in D-Bus service XML file.
+
+2007-03-21  Naba Kumar  <naba.kumar@nokia.com>
+
+	* autogen.sh: Added autogen script
+
 2007-03-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmissioncontrol/mc-profile.c:

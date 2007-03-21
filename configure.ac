@@ -25,6 +25,13 @@ done])
 
 EXPAND_VARIABLE(datadir,datadir_expanded)
 
+XSLTPROC=
+AC_CHECK_PROGS([XSLTPROC], [xsltproc])
+if test -z "$XSLTPROC"; then
+    AC_MSG_ERROR([xsltproc (from the libxslt source package) is required])
+fi
+
+
 AC_ARG_ENABLE(cast-checks,      [  --disable-cast-checks         compile with GLIB cast checks disabled],[cchecks=${enableval}],cchecks=yes)
 if test "x$cchecks" = "xno"; then
 	CFLAGS="$CFLAGS -DG_DISABLE_CAST_CHECKS"
@@ -137,6 +144,7 @@ src/Makefile \
 xml/Makefile \
 doc/Makefile \
 test/Makefile \
+tools/Makefile \
 doc/reference/Makefile \
 doc/reference/libmissioncontrol/Makefile \
 doc/reference/libmissioncontrol-server/Makefile \

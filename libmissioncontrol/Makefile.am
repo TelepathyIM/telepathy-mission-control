@@ -49,7 +49,7 @@ libmissioncontrol_la_SOURCES = \
 
 mission_control_include = mission-control.h
 
-mc-client-lib-gen.h: ../xml/mcd-dbus-services.xml
+mc-client-lib-gen.h: $(top_builddir)/xml/MissionControl-gen.xml
 	dbus-binding-tool --prefix=mc-client-lib --mode=glib-client $< > $@
 
 %-marshal.h: %-marshal.list Makefile.am

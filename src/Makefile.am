@@ -104,7 +104,7 @@ mcd-enum-types.c: Makefile
 	&& rm -f xgen-getc
 
 
-mcd-service-gen.h: ../xml/mcd-dbus-services.xml
+mcd-service-gen.h: $(top_builddir)/xml/MissionControl-gen.xml
 	dbus-binding-tool --mode=glib-server --prefix=mcd_service $< > $@
 
 EXTRA_DIST = mcd-signals-marshal.list stamp-mcd-enum-types.h
