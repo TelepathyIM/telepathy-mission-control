@@ -79,7 +79,8 @@ mc_account_monitor_class_init (McAccountMonitorClass *klass)
   /**
    * McAccountMonitor::account-created:
    * @self: The #McAccountMonitor.
-   * @name: The name of the account being created.
+   * @name: The name of the account being created (use mc_account_lookup() to
+   * retrieve the account object).
    *
    * Emitted when a new account is created.
    */
@@ -95,7 +96,8 @@ mc_account_monitor_class_init (McAccountMonitorClass *klass)
   /**
    * McAccountMonitor::account-deleted:
    * @self: The #McAccountMonitor.
-   * @name: The name of the account being deleted.
+   * @name: The name of the account being deleted (use mc_account_lookup() to
+   * retrieve the account object).
    *
    * Emitted when an account is deleted.
    */
@@ -111,7 +113,8 @@ mc_account_monitor_class_init (McAccountMonitorClass *klass)
   /**
    * McAccountMonitor::account-enabled:
    * @self: The #McAccountMonitor.
-   * @name: The name of the account being enabled.
+   * @name: The name of the account being enabled (use mc_account_lookup() to
+   * retrieve the account object).
    *
    * Emitted when an account is enabled.
    */
@@ -127,7 +130,8 @@ mc_account_monitor_class_init (McAccountMonitorClass *klass)
   /**
    * McAccountMonitor::account-disabled:
    * @self: The #McAccountMonitor.
-   * @name: The name of the account being disabled.
+   * @name: The name of the account being disabled (use mc_account_lookup() to
+   * retrieve the account object).
    *
    * Emitted when an account is disabled.
    */
@@ -143,7 +147,8 @@ mc_account_monitor_class_init (McAccountMonitorClass *klass)
   /**
    * McAccountMonitor::account-changed:
    * @self: The #McAccountMonitor.
-   * @name: The name of the account being changed.
+   * @name: The name of the account being changed (use mc_account_lookup() to
+   * retrieve the account object).
    *
    * Emitted when an account is changed.
    */
