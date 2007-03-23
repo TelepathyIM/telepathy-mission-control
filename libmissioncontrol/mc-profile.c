@@ -192,6 +192,7 @@ _mc_profile_get_dirs ()
 	dir = g_build_filename (g_get_user_data_dir(), PROFILES_DIR, NULL);
 	if (g_file_test (dir, G_FILE_TEST_IS_DIR))
 	    dir_list = g_slist_prepend (dir_list, dir);
+	else g_free (dir);
 
 	dirs = g_get_system_data_dirs();
 	for (dirname = *dirs; dirname; dirs++, dirname = *dirs)
@@ -199,6 +200,7 @@ _mc_profile_get_dirs ()
 	    dir = g_build_filename (dirname, PROFILES_DIR, NULL);
 	    if (g_file_test (dir, G_FILE_TEST_IS_DIR))
 		dir_list = g_slist_prepend (dir_list, dir);
+	    else g_free (dir);
 	}
     }
 
