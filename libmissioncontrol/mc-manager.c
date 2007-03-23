@@ -32,8 +32,8 @@
 
 #include "mc-manager.h"
 #include "mc-manager-priv.h"
+#include <config.h>
 
-#define MANAGER_PATH "/usr/share/telepathy/managers"
 #define MANAGER_SUFFIX ".manager"
 #define MANAGER_SUFFIX_LEN 8
 
@@ -98,26 +98,75 @@ mc_manager_new (gchar *unique_name, gchar *bus_name, gchar *object_path,
   return new;
 }
 
-static const gchar *
-_mc_manager_path (void)
+static const gchar**
+_mc_manager_get_dirs ()
 {
-  const gchar *ret = NULL;
+    GSList *dir_list = NULL, *slist;
+    const gchar *dirname;
+    static gchar **manager_dirs = NULL;
+    guint n;
 
-  if (ret == NULL)
+    if (manager_dirs) return (const gchar **)manager_dirs;
+
+    dirname = g_getenv ("MC_MANAGER_DIR");
+    if (dirname && g_file_test (dirname, G_FILE_TEST_IS_DIR))
+	dir_list = g_slist_prepend (dir_list, (gchar *)dirname);
+
+    if (MANAGERS_DIR[0] == '/')
     {
-      ret = g_getenv ("MC_MANAGER_DIR");
-      if (ret == NULL)
-        ret = MANAGER_PATH;
+	if (g_file_test (MANAGERS_DIR, G_FILE_TEST_IS_DIR))
+	    dir_list = g_slist_prepend (dir_list, MANAGERS_DIR);
+    }
+    else
+    {
+	const gchar * const *dirs;
+	gchar *dir;
+	
+	dir = g_build_filename (g_get_user_data_dir(), MANAGERS_DIR, NULL);
+	if (g_file_test (dir, G_FILE_TEST_IS_DIR))
+	    dir_list = g_slist_prepend (dir_list, dir);
+	else g_free (dir);
+
+	dirs = g_get_system_data_dirs();
+	for (dirname = *dirs; dirname; dirs++, dirname = *dirs)
+	{
+	    dir = g_build_filename (dirname, MANAGERS_DIR, NULL);
+	    if (g_file_test (dir, G_FILE_TEST_IS_DIR))
+		dir_list = g_slist_prepend (dir_list, dir);
+	    else g_free (dir);
+	}
     }
 
-  return ret;
+    /* build the string array */
+    n = g_slist_length (dir_list);
+    manager_dirs = g_new (gchar *, n + 1);
+    manager_dirs[n--] = NULL;
+    for (slist = dir_list; slist; slist = slist->next)
+	manager_dirs[n--] = slist->data;
+    g_slist_free (dir_list);
+    return (const gchar **)manager_dirs;
 }
 
 static gchar *
 _mc_manager_filename (const gchar *unique_name)
 {
-  return g_strconcat (_mc_manager_path (), G_DIR_SEPARATOR_S,
-                      unique_name, MANAGER_SUFFIX, NULL);
+    const gchar **manager_dirs;
+    const gchar *dirname;
+    gchar *filename, *filepath = NULL;
+
+    manager_dirs = _mc_manager_get_dirs ();
+    if (!manager_dirs) return NULL;
+
+    filename = g_strconcat (unique_name, MANAGER_SUFFIX, NULL);
+    for (dirname = *manager_dirs; dirname; manager_dirs++, dirname = *manager_dirs)
+    {
+	filepath = g_build_filename (dirname, filename);
+	if (g_file_test (dirname, G_FILE_TEST_EXISTS)) break;
+	g_free (filepath);
+	filepath = NULL;
+    }
+    g_free (filename);
+    return filepath;
 }
 
 #define PREFIX_PROTOCOL "Protocol "

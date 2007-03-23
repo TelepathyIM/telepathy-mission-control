@@ -4,7 +4,7 @@
 	Automatic update.
 
 	* configure.ac, libmissioncontrol/mc-profile.c,
-	src/mcd-chan-handler.c:
+	libmissioncontrol/mc-manager.c, src/mcd-chan-handler.c:
 	Move to XDG compliant directory location for Telepathy data files.
 
 2007-03-21  Alberto Mardegan  <alberto.mardegan@nokia.com>
