@@ -121,7 +121,6 @@ mc_profile_clear_cache(void)
   profile_cache = NULL;
 }
 
-static const gchar * _mc_profile_path (void);
 static gchar * _mc_profile_filename (const gchar *name);
 
 static time_t
@@ -166,26 +165,73 @@ OUT:
   return profile;
 }
 
-static const gchar *
-_mc_profile_path (void)
+static const gchar**
+_mc_profile_get_dirs ()
 {
-  const gchar *ret = NULL;
+    GSList *dir_list = NULL, *slist;
+    const gchar *dirname;
+    static gchar **profile_dirs = NULL;
+    guint n;
 
-  if (ret == NULL)
+    if (profile_dirs) return (const gchar **)profile_dirs;
+
+    dirname = g_getenv ("MC_PROFILE_DIR");
+    if (dirname && g_file_test (dirname, G_FILE_TEST_IS_DIR))
+	dir_list = g_slist_prepend (dir_list, (gchar *)dirname);
+
+    if (PROFILES_DIR[0] == '/')
     {
-      ret = g_getenv ("MC_PROFILE_DIR");
-      if (ret == NULL)
-        ret = PROFILES_DIR;
+	if (g_file_test (PROFILES_DIR, G_FILE_TEST_IS_DIR))
+	    dir_list = g_slist_prepend (dir_list, PROFILES_DIR);
+    }
+    else
+    {
+	const gchar * const *dirs;
+	gchar *dir;
+	
+	dir = g_build_filename (g_get_user_data_dir(), PROFILES_DIR, NULL);
+	if (g_file_test (dir, G_FILE_TEST_IS_DIR))
+	    dir_list = g_slist_prepend (dir_list, dir);
+
+	dirs = g_get_system_data_dirs();
+	for (dirname = *dirs; dirname; dirs++, dirname = *dirs)
+	{
+	    dir = g_build_filename (dirname, PROFILES_DIR, NULL);
+	    if (g_file_test (dir, G_FILE_TEST_IS_DIR))
+		dir_list = g_slist_prepend (dir_list, dir);
+	}
     }
 
-  return ret;
+    /* build the string array */
+    n = g_slist_length (dir_list);
+    profile_dirs = g_new (gchar *, n + 1);
+    profile_dirs[n--] = NULL;
+    for (slist = dir_list; slist; slist = slist->next)
+	profile_dirs[n--] = slist->data;
+    g_slist_free (dir_list);
+    return (const gchar **)profile_dirs;
 }
 
 static gchar *
 _mc_profile_filename (const gchar *name)
 {
-  return g_strconcat (_mc_profile_path (), G_DIR_SEPARATOR_S,
-                      name, PROFILE_SUFFIX, NULL);
+    const gchar **profile_dirs;
+    const gchar *dirname;
+    gchar *filename, *filepath = NULL;
+
+    profile_dirs = _mc_profile_get_dirs ();
+    if (!profile_dirs) return NULL;
+
+    filename = g_strconcat (name, PROFILE_SUFFIX, NULL);
+    for (dirname = *profile_dirs; dirname; profile_dirs++, dirname = *profile_dirs)
+    {
+	filepath = g_build_filename (dirname, filename);
+	if (g_file_test (dirname, G_FILE_TEST_EXISTS)) break;
+	g_free (filepath);
+	filepath = NULL;
+    }
+    g_free (filename);
+    return filepath;
 }
 
 static gboolean
@@ -396,40 +442,45 @@ mc_profile_free (McProfile *id)
 GList *
 mc_profiles_list (void)
 {
-  GDir *dir;
-  GError *error = NULL;
-  GList *ret = NULL;
-  const gchar *filename;
+    GDir *dir;
+    GError *error = NULL;
+    GList *ret = NULL;
+    const gchar *filename, *dirname, **profile_dirs;
 
-  dir = g_dir_open(_mc_profile_path (), 0, &error);
-  if (!dir)
+    profile_dirs = _mc_profile_get_dirs ();
+    if (!profile_dirs) return NULL;
+
+    for (dirname = *profile_dirs; dirname; profile_dirs++, dirname = *profile_dirs)
     {
-      g_warning ("%s: unable to open directory %s: %s",
-          G_STRFUNC, _mc_profile_path (), error->message);
+	dir = g_dir_open(dirname, 0, &error);
+	if (!dir)
+	{
+	    g_warning ("%s: unable to open directory %s: %s",
+		       G_STRFUNC, dirname, error->message);
+	    g_error_free (error);
+	    continue;
+	}
 
-      g_error_free (error);
+	while ((filename = g_dir_read_name(dir)) != NULL)
+	{
+	    gchar *unique_name;
+	    McProfile *profile;
 
-      return NULL;
+	    if (!g_str_has_suffix (filename, PROFILE_SUFFIX))
+		continue;
+
+	    unique_name = g_strndup (filename,
+				     strlen(filename) - PROFILE_SUFFIX_LEN);
+	    profile = _mc_profile_new (unique_name);
+	    g_free (unique_name);
+
+	    ret = g_list_prepend (ret, profile);
+	}
+
+	g_dir_close (dir);
     }
 
-  while ((filename = g_dir_read_name(dir)) != NULL)
-    {
-      gchar *unique_name;
-      McProfile *profile;
-
-      if (!g_str_has_suffix (filename, PROFILE_SUFFIX))
-        continue;
-
-      unique_name = g_strndup (filename, strlen(filename) - PROFILE_SUFFIX_LEN);
-      profile = _mc_profile_new (unique_name);
-      g_free (unique_name);
-
-      ret = g_list_prepend (ret, profile);
-    }
-
-  g_dir_close (dir);
-
-  return ret;
+    return ret;
 }
 
 /**

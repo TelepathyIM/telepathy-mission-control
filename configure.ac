@@ -49,7 +49,7 @@ fi
 
 AC_ARG_WITH(profiles_dir, AS_HELP_STRING([--with-profiles-dir=<path>],[Directory for storing profiles]))
 if test -z "$with_profiles_dir" ; then
-    PROFILES_DIR="${datadir_expanded}/mission-control/profiles"
+    PROFILES_DIR="mission-control/profiles"
 else
     PROFILES_DIR=$with_profiles_dir
 fi
@@ -69,7 +69,7 @@ AC_DEFINE_UNQUOTED(ACCOUNTS_DIR,"$ACCOUNTS_DIR", [Directory for storing accounts
 
 AC_ARG_WITH(chandlers_dir, AS_HELP_STRING([--with-chandlers-dir=<path>],[Directory for channel handlers]))
 if test -z "$with_chandlers_dir" ; then
-    CHANDLERS_DIR="${datadir_expanded}/telepathy/managers"
+    CHANDLERS_DIR="telepathy/managers"
 else
     CHANDLERS_DIR=$with_chandlers_dir
 fi

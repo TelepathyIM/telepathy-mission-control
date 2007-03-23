@@ -74,22 +74,20 @@ _mcd_channel_handler_packer(GHashTable *handlers, gchar **string_list,
 * This is used for Connection Manager and Channel Handler files.
 */
 static void
-_mcd_channel_handlers_read_conf_files (GHashTable *handlers,
-				       gchar *suffix, gchar *group)
+scan_chandler_dir (const gchar *dirname, GHashTable *handlers,
+		   gchar *suffix, gchar *group)
 {
     GError *error = NULL;
     GKeyFile *file;
     gchar **string_list;
     gsize len;
     GDir *dir;
-    const gchar *filename, *dirname;
+    const gchar *filename;
     gchar *absolute_filepath;
     gchar *bus_name, *object_path;
     TelepathyChannelMediaCapability capabilities;
-    
-    dirname = g_getenv ("MC_CHANDLERS_DIR");
-    if (dirname == NULL)
-	dirname = CHANDLERS_DIR;
+
+    if (!g_file_test (dirname, G_FILE_TEST_IS_DIR)) return;
 
     /* Read the configuration file directory */
     if ((dir = g_dir_open(dirname, 0, &error)) == NULL)
@@ -151,6 +149,37 @@ _mcd_channel_handlers_read_conf_files (GHashTable *handlers,
 	}
     }
     g_dir_close(dir);
+}
+
+static void
+_mcd_channel_handlers_read_conf_files (GHashTable *handlers,
+				       gchar *suffix, gchar *group)
+{
+    const gchar *dirname;
+    
+    dirname = g_getenv ("MC_CHANDLERS_DIR");
+    if (dirname)
+	scan_chandler_dir (dirname, handlers, suffix, group);
+
+    if (CHANDLERS_DIR[0] == '/')
+	scan_chandler_dir (CHANDLERS_DIR, handlers, suffix, group);
+    else
+    {
+	const gchar * const *dirs;
+	gchar *dir;
+	
+	dir = g_build_filename (g_get_user_data_dir(), CHANDLERS_DIR, NULL);
+	scan_chandler_dir (dir, handlers, suffix, group);
+	g_free (dir);
+
+	dirs = g_get_system_data_dirs();
+	for (dirname = *dirs; dirname != NULL; dirs++, dirname = *dirs)
+	{
+	    dir = g_build_filename (dirname, CHANDLERS_DIR, NULL);
+	    scan_chandler_dir (dir, handlers, suffix, group);
+	    g_free (dir);
+	}
+    }
 }
 
 GHashTable*
