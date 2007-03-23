@@ -14,6 +14,13 @@ McdController
 
 </para>
 
+<!-- ##### STRUCT McdController ##### -->
+<para>
+
+</para>
+
+@parent: 
+
 <!-- ##### FUNCTION mcd_controller_new ##### -->
 <para>
 

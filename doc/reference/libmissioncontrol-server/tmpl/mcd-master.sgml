@@ -14,6 +14,13 @@ McdMaster
 
 </para>
 
+<!-- ##### STRUCT McdMaster ##### -->
+<para>
+
+</para>
+
+@parent: 
+
 <!-- ##### STRUCT mcd_channel_request ##### -->
 <para>
 

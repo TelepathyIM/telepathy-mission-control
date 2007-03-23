@@ -1,5 +1,8 @@
 2007-03-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* doc/reference/libmissioncontrol-server/tmpl/*.sgml:
+	Automatic update.
+
 	* configure.ac, libmissioncontrol/mc-profile.c,
 	src/mcd-chan-handler.c:
 	Move to XDG compliant directory location for Telepathy data files.

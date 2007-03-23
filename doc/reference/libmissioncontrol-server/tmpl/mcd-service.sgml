@@ -14,29 +14,13 @@ McdService
 
 </para>
 
-<!-- ##### MACRO MCD_OBJECT ##### -->
+<!-- ##### STRUCT McdService ##### -->
 <para>
 
 </para>
 
-@obj: 
-
-
-<!-- ##### MACRO MCD_OBJECT_CLASS ##### -->
-<para>
-
-</para>
-
-@klass: 
-
-
-<!-- ##### MACRO MCD_OBJECT_GET_CLASS ##### -->
-<para>
-
-</para>
-
-@obj: 
-
+@parent: 
+@main_loop: 
 
 <!-- ##### FUNCTION mcd_service_new ##### -->
 <para>

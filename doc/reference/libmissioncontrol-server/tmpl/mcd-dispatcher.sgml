@@ -14,6 +14,13 @@ McdDispatcher
 
 </para>
 
+<!-- ##### STRUCT McdDispatcher ##### -->
+<para>
+
+</para>
+
+@parent: 
+
 <!-- ##### STRUCT McdDispatcherStatus ##### -->
 <para>
 

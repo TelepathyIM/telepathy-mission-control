@@ -14,6 +14,13 @@ McdPresenceFrame
 
 </para>
 
+<!-- ##### STRUCT McdPresenceFrame ##### -->
+<para>
+
+</para>
+
+@parent: 
+
 <!-- ##### FUNCTION mcd_presence_frame_new ##### -->
 <para>
 
