@@ -1,4 +1,8 @@
+=== telepathy-mission-control 4.19 ===
+
 2007-03-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac: Rename package and tag version 4.19.
 
 	* doc/reference/libmissioncontrol-server/tmpl/*.sgml:
 	Automatic update.

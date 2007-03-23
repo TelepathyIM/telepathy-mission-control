@@ -1,5 +1,5 @@
 AC_INIT(Makefile.am)
-AM_INIT_AUTOMAKE(mission-control, 4.18)
+AM_INIT_AUTOMAKE(telepathy-mission-control, 4.19)
 AM_CONFIG_HEADER(config.h)
 
 AC_CANONICAL_HOST
