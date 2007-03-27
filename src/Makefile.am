@@ -57,7 +57,6 @@ libmissioncontrol_server_la_SOURCES = \
 	mcd-presence-frame.c \
 	mcd-dispatcher.c \
 	mcd-channel.c \
-	mcd-service-gen.h \
 	mcd-service.c \
 	mcd-proxy.c \
 	mcd-chan-handler.c

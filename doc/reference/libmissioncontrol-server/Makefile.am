@@ -61,7 +61,7 @@ content_files=
 # signals and properties.
 # e.g. INCLUDES=-I$(top_srcdir) -I$(top_builddir) $(GTK_DEBUG_FLAGS)
 # e.g. GTKDOC_LIBS=$(top_builddir)/gtk/$(gtktargetlib)
-INCLUDES=-I../../.. $(DBUS_CFLAGS) $(TELEPATHY_CFLAGS)
+INCLUDES=-I$(top_srcdir) $(DBUS_CFLAGS) $(TELEPATHY_CFLAGS)
 GTKDOC_LIBS=$(top_builddir)/src/libmissioncontrol-server.la $(GCONF_LIBS) $(GLIB_LIBS) $(DBUS_LIBS) $(TELEPATHY_LIBS)
 
 # This includes the standard gtk-doc make rules, copied by gtkdocize.

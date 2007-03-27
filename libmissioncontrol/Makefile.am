@@ -9,7 +9,7 @@ BUILT_SOURCES = \
 	mc-enum-types.h \
 	mc-client-lib-gen.h
 
-CLEANFILES = $(BUILT_SOURCES)
+CLEANFILES = $(BUILT_SOURCES) stamp-mc-enum-types.h
 
 lib_LTLIBRARIES = libmissioncontrol-config.la libmissioncontrol.la
 
@@ -93,7 +93,6 @@ test_LDADD = libmissioncontrol-config.la
 missioncontrolincludeinstdir=$(includedir)/libmissioncontrol
 missioncontrolincludeinst_DATA = \
 	mission-control-signals-marshal.h \
-	mc-client-lib-gen.h \
 	mission-control.h
 
 EXTRA_DIST = \
