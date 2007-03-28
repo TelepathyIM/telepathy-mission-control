@@ -1,4 +1,8 @@
+=== telepathy-mission-control 4.20 ===
+
 2007-03-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac: Version 4.20.
 
 	* libmissioncontrol/mc-account-monitor.c:
 	On "account-deleted", let the account object live while the signal is
