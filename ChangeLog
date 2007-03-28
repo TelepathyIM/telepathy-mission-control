@@ -1,5 +1,9 @@
 2007-03-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol/mc-account-monitor.c:
+	On "account-deleted", let the account object live while the signal is
+	emitted. Fixes #1688539.
+
 	* libmissioncontrol/mc-manager.c, libmissioncontrol/mc-profile.c:
 	Fix file existance test.
 

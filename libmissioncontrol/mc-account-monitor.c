@@ -231,9 +231,9 @@ _gconf_notify_cb (GConfClient *client, guint conn_id, GConfEntry *entry,
             {
               g_signal_emit (monitor, signals[SIGNAL_DISABLED], 0, name);
             }
-          g_hash_table_remove (priv->accounts, name);
           g_hash_table_remove (priv->enabledness, name);
           g_signal_emit (monitor, signals[SIGNAL_DELETED], 0, name);
+          g_hash_table_remove (priv->accounts, name);
         }
     }
   else if (g_str_has_suffix (entry->key, "/" MC_ACCOUNTS_GCONF_KEY_ENABLED))
