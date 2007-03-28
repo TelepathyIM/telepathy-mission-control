@@ -240,6 +240,7 @@ _mcd_connection_set_fallback_presences (McdConnection * connection, gint i)
     {
 	struct presence_info *presence;
 
+	if (fallback_presence[i][j] == 0) break;
 	presence = priv->presence_to_set[fallback_presence[i][j] - 1];
 	if (presence != NULL)
 	{

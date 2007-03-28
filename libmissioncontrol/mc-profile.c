@@ -227,8 +227,8 @@ _mc_profile_filename (const gchar *name)
     filename = g_strconcat (name, PROFILE_SUFFIX, NULL);
     for (dirname = *profile_dirs; dirname; profile_dirs++, dirname = *profile_dirs)
     {
-	filepath = g_build_filename (dirname, filename);
-	if (g_file_test (dirname, G_FILE_TEST_EXISTS)) break;
+	filepath = g_build_filename (dirname, filename, NULL);
+	if (g_file_test (filepath, G_FILE_TEST_EXISTS)) break;
 	g_free (filepath);
 	filepath = NULL;
     }

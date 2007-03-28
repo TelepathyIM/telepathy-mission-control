@@ -1,3 +1,16 @@
+2007-03-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-manager.c, libmissioncontrol/mc-profile.c:
+	Fix file existance test.
+
+2007-03-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-manager.c, libmissioncontrol/mc-profile.c:
+	Pass missing NULL to g_build_filename()...
+
+	* src/mcd-connection.c:
+	Make sure we don't access the presence array with index -1.
+
 === telepathy-mission-control 4.19 ===
 
 2007-03-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
