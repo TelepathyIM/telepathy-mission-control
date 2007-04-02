@@ -20,6 +20,9 @@ The #McProfile API provides a way for managing profiles.
 
 </para>
 
+<!-- ##### SECTION Stability_Level ##### -->
+
+
 <!-- ##### ENUM McProfileCapabilityFlags ##### -->
 <para>
 

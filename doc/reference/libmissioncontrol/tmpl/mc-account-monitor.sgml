@@ -14,6 +14,9 @@ The #McAccountMonitor is an object that raises signals when some changes have be
 
 </para>
 
+<!-- ##### SECTION Stability_Level ##### -->
+
+
 <!-- ##### STRUCT McAccountMonitor ##### -->
 <para>
 

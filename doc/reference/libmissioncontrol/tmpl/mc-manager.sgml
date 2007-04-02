@@ -17,6 +17,9 @@ The #McManager API allows clients to query the available connection managers, an
 
 </para>
 
+<!-- ##### SECTION Stability_Level ##### -->
+
+
 <!-- ##### STRUCT McManager ##### -->
 <para>
 

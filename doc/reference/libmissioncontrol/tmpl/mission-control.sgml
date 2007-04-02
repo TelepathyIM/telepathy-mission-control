@@ -14,6 +14,9 @@ mission-control service API
 
 </para>
 
+<!-- ##### SECTION Stability_Level ##### -->
+
+
 <!-- ##### TYPEDEF MissionControl ##### -->
 <para>
 
@@ -204,8 +207,6 @@ This callback is called in response to the #mission_control_get_current_status c
 @callback: 
 @user_data: 
 @Returns: 
-<!-- # Unused Parameters # -->
-@Handle_type: 
 
 
 <!-- ##### FUNCTION mission_control_cancel_channel_request ##### -->

@@ -14,6 +14,9 @@ mcd-enum-types
 
 </para>
 
+<!-- ##### SECTION Stability_Level ##### -->
+
+
 <!-- ##### FUNCTION mcd_mode_get_type ##### -->
 <para>
 

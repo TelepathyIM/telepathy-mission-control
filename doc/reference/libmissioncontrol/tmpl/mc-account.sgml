@@ -17,18 +17,13 @@ The #McAccount API allows clients to manage accounts.
 
 </para>
 
+<!-- ##### SECTION Stability_Level ##### -->
+
+
 <!-- ##### STRUCT McAccount ##### -->
 <para>
 
 </para>
-
-
-<!-- ##### FUNCTION mc_account_new ##### -->
-<para>
-
-</para>
-
-@Returns: 
 
 
 <!-- ##### ENUM McAccountSettingState ##### -->

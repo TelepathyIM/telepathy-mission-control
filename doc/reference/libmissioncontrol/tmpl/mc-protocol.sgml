@@ -16,6 +16,9 @@ which can handle this protocol.
 
 </para>
 
+<!-- ##### SECTION Stability_Level ##### -->
+
+
 <!-- ##### STRUCT McProtocol ##### -->
 <para>
 
@@ -90,8 +93,6 @@ which can handle this protocol.
 
 @protocol: 
 @Returns: 
-<!-- # Unused Parameters # -->
-@param: 
 
 
 <!-- ##### FUNCTION mc_protocol_free_params_list ##### -->
