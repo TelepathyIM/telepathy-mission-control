@@ -279,7 +279,10 @@ _mc_account_gconf_set_string (McAccount *account, const gchar *name,
 
     key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name,
 			    name, FALSE);
-    ok = gconf_client_set_string (client, key, value, NULL);
+    if (value)
+	ok = gconf_client_set_string (client, key, value, NULL);
+    else
+	ok = gconf_client_unset (client, key, NULL);
 
     g_free (key);
     g_object_unref (client);
@@ -957,7 +960,8 @@ mc_account_get_display_name (McAccount *account)
  * @account: The #McAccount.
  * @name: The name to set.
  *
- * Sets the display name of the account.
+ * Sets the display name of the account. If @name is NULL or an empty string,
+ * the display name is unset.
  *
  * Return value: %TRUE, or %FALSE if some error occurs.
  */
@@ -966,7 +970,7 @@ mc_account_set_display_name (McAccount *account, const gchar *name)
 {
     return _mc_account_gconf_set_string (account,
 					 MC_ACCOUNTS_GCONF_KEY_DISPLAY_NAME,
-					 name);
+					 (name && *name) ? name : NULL);
 }
 
 /**

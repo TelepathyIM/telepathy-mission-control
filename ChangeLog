@@ -1,3 +1,9 @@
+2007-04-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account.c:
+	Unset the account properties when the passed string is NULL. Also,
+	unset the display name if the passed value is the empty string.
+
 2007-04-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-chan-handler.c:
