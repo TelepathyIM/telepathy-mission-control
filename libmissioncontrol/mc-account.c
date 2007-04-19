@@ -827,7 +827,7 @@ mc_accounts_filter (GList *accounts,
  *
  * Gets the normalized name for the account.
  *
- * Return value: the normalized name (must free with #g_free), or NULL.
+ * Return value: the normalized name, or NULL.
  */
 const gchar *
 mc_account_get_normalized_name (McAccount *account)

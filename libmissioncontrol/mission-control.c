@@ -692,8 +692,7 @@ mission_control_get_connection_status (MissionControl * self,
  * @self: The #MissionControl object.
  * @error: address where an error can be returned, or NULL.
  *
- * Request an array of strings representing the account names that have
- * an active connection.
+ * Request an array of the accounts that have an active connection.
  * 
  * Return value: A list of McAccounts corresponding to the online
  * connections
