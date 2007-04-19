@@ -58,6 +58,7 @@
 #include <libtelepathy/tp-conn-iface-presence-gen.h>
 #include <libtelepathy/tp-conn-iface-capabilities-gen.h>
 #include <libtelepathy/tp-conn-iface-avatars-gen.h>
+#include <libtelepathy/tp-conn-iface-aliasing-gen.h>
 #include <libtelepathy/tp-helpers.h>
 
 #include "mcd-connection.h"
@@ -97,11 +98,13 @@ typedef struct
 
     /* Telepathy connection */
     TpConn *tp_conn;
+    guint self_handle;
 
     /* Presence proxy */
     DBusGProxy *presence_proxy;
 
     DBusGProxy *avatars_proxy;
+    DBusGProxy *alias_proxy;
 
     /* Capabilities proxy */
     DBusGProxy *capabilities_proxy;
@@ -123,6 +126,8 @@ typedef struct
     
     TelepathyConnectionStatusReason abort_reason;
     gboolean got_capabilities;
+
+    gchar *alias;
 
     gboolean is_disposed;
     
@@ -686,25 +691,28 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
 }
 
 static void
-_mcd_connection_get_normalized_name (McdConnectionPrivate *priv)
+_mcd_connection_get_self_handle (McdConnectionPrivate *priv)
 {
-    GArray *handles;
-    gchar **names = NULL;
     GError *error = NULL;
-    guint self_handle;
-
-    tp_conn_get_self_handle (DBUS_G_PROXY (priv->tp_conn), &self_handle,
-			     &error);
+    tp_conn_get_self_handle (DBUS_G_PROXY (priv->tp_conn),
+			     &priv->self_handle, &error);
     if (error)
     {
 	g_warning ("%s: tp_conn_get_self_handle failed: %s",
 		   G_STRFUNC, error->message);
 	g_error_free (error);
-	return;
     }
+}
+
+static void
+_mcd_connection_get_normalized_name (McdConnectionPrivate *priv)
+{
+    GArray *handles;
+    gchar **names = NULL;
+    GError *error = NULL;
 
     handles = g_array_sized_new (FALSE, FALSE, sizeof (guint), 1);
-    g_array_append_val (handles, self_handle);
+    g_array_append_val (handles, priv->self_handle);
     tp_conn_inspect_handles (DBUS_G_PROXY (priv->tp_conn),
 			     TP_CONN_HANDLE_TYPE_CONTACT, handles,
 			     &names, &error);
@@ -807,6 +815,86 @@ _mcd_connection_setup_avatar (McdConnectionPrivate *priv)
     g_free (token);
 }
 
+static void
+on_aliases_changed (DBusGProxy *tp_conn_proxy, GPtrArray *aliases,
+		    McdConnectionPrivate *priv)
+{
+    GType type;
+    gchar *alias;
+    guint contact;
+    gint i;
+
+    g_debug ("%s called", G_STRFUNC);
+    type = dbus_g_type_get_struct ("GValueArray", G_TYPE_UINT, G_TYPE_STRING,
+				   G_TYPE_INVALID);
+    for (i = 0; i < aliases->len; i++)
+    {
+	GValue data = { 0 };
+
+	g_value_init (&data, type);
+	g_value_set_static_boxed (&data, g_ptr_array_index(aliases, i));
+	dbus_g_type_struct_get (&data, 0, &contact, 1, &alias, G_MAXUINT);
+	g_debug("Got alias for contact %u: %s", contact, alias);
+	if (contact == priv->self_handle)
+	{
+	    g_debug("This is our alias");
+	    if (!priv->alias || strcmp (priv->alias, alias) != 0)
+	    {
+		g_free (priv->alias);
+		priv->alias = alias;
+		mc_account_set_alias (priv->account, alias);
+	    }
+	    break;
+	}
+	g_free (alias);
+    }
+}
+
+static void
+set_alias_cb (DBusGProxy *proxy, GError *error, gpointer userdata)
+{
+    if (error)
+    {
+	g_warning ("%s: error: %s", G_STRFUNC, error->message);
+	g_error_free (error);
+    }
+}
+
+static void
+_mcd_connection_setup_alias (McdConnectionPrivate *priv)
+{
+    GHashTable *aliases;
+    gchar *alias;
+
+    if (!priv->alias_proxy)
+    {
+	priv->alias_proxy = tp_conn_get_interface (priv->tp_conn,
+					TELEPATHY_CONN_IFACE_ALIASING_QUARK);
+	if (!priv->alias_proxy)
+	{
+	    g_debug ("%s: connection does not support aliasing interface", G_STRFUNC);
+	    return;
+	}
+	dbus_g_proxy_connect_signal (priv->alias_proxy,
+				     "AliasesChanged",
+				     G_CALLBACK (on_aliases_changed),
+				     priv, NULL);
+	g_object_ref (priv->alias_proxy);
+    }
+    alias = mc_account_get_alias (priv->account);
+    if (!priv->alias || strcmp (priv->alias, alias) != 0)
+    {
+	g_debug ("%s: setting alias '%s'", G_STRFUNC, alias);
+
+	aliases = g_hash_table_new (NULL, NULL);
+	g_hash_table_insert (aliases, GINT_TO_POINTER(priv->self_handle), alias);
+	tp_conn_iface_aliasing_set_aliases_async (priv->alias_proxy, aliases,
+						  set_alias_cb, priv);
+	g_hash_table_destroy (aliases);
+    }
+    g_free (alias);
+}
+
 static gboolean
 mcd_connection_reconnect (McdConnection *connection)
 {
@@ -847,8 +935,10 @@ _mcd_connection_status_changed_cb (DBusGProxy * tp_conn_proxy,
 		mcd_presence_frame_get_requested_presence_message (priv->presence_frame);
 	    _mcd_connection_set_presence (connection, requested_presence,
 					  presence_message);
+	    _mcd_connection_get_self_handle (priv);
 	    _mcd_connection_setup_capabilities (connection);
 	    _mcd_connection_setup_avatar (priv);
+	    _mcd_connection_setup_alias (priv);
 	    _mcd_connection_get_normalized_name (priv);
 	    priv->reconnect_interval = 30 * 1000; /* reset it to 30 seconds */
 	}
@@ -1085,6 +1175,17 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
 	g_object_unref (priv->avatars_proxy);
 	priv->avatars_proxy = NULL;
     }
+    if (priv->alias_proxy)
+    {
+	dbus_g_proxy_disconnect_signal (priv->alias_proxy,
+					"AliasesChanged",
+					G_CALLBACK (on_aliases_changed),
+					priv);
+	g_object_unref (priv->alias_proxy);
+	priv->alias_proxy = NULL;
+    }
+    g_free (priv->alias);
+    priv->alias = NULL;
     _mcd_connection_free_presence_info (connection);
 }
 
@@ -1984,10 +2085,12 @@ mcd_connection_account_changed (McdConnection *connection)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
 
-    /* setup the avatar (if it has not been changed, this function does
-     * nothing) */
     if (priv->tp_conn) 
+    {
+	/* setup the avatar (if it has not been changed, this function does
+	 * nothing) */
 	_mcd_connection_setup_avatar (priv);
-    /* TODO: same for display name, aka alias */
+	_mcd_connection_setup_alias (priv);
+    }
 }
 

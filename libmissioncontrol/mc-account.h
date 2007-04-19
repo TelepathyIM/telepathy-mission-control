@@ -177,6 +177,9 @@ gboolean mc_account_set_avatar_mime_type (McAccount *account,
 gint mc_account_get_avatar_id (McAccount *account);
 gboolean mc_account_reset_avatar_id (McAccount *account);
 
+gboolean mc_account_set_alias (McAccount *account, const gchar *alias);
+gchar *mc_account_get_alias (McAccount *account);
+
 G_END_DECLS
 
 #endif /* __MC_ACCOUNT_H__ */

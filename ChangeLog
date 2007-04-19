@@ -1,3 +1,13 @@
+2007-04-19  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-priv.h:
+	* libmissioncontrol/mc-account.[hc]:
+	* libmissioncontrol/mc-profile.[hc]:
+	Ability to set/get the account alias.
+
+	* src/mcd-connection.c:
+	Set the account alias upon connection, and listen to its changes.
+
 2007-04-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmissioncontrol/mc-account.c:

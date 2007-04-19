@@ -50,6 +50,7 @@ const GDebugKey capabilities[] = {
   { "split-account", MC_PROFILE_CAPABILITY_SPLIT_ACCOUNT },
   { "registration-ui", MC_PROFILE_CAPABILITY_REGISTRATION_UI },
   { "supports-avatars", MC_PROFILE_CAPABILITY_SUPPORTS_AVATARS },
+  { "supports-alias", MC_PROFILE_CAPABILITY_SUPPORTS_ALIAS },
 };
 
 typedef struct {

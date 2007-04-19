@@ -2139,3 +2139,42 @@ mc_account_reset_avatar_id (McAccount *account)
     return ok;
 }
 
+/**
+ * mc_account_get_alias:
+ * @account: The #McAccount.
+ *
+ * Gets the alias for the account.
+ *
+ * Return value: the alias (must be freed with g_free()), or NULL.
+ */
+gchar *
+mc_account_get_alias (McAccount *account)
+{
+    gchar *name;
+
+    g_return_val_if_fail (account != NULL, NULL);
+
+    if (!_mc_account_gconf_get_string (account,
+				       MC_ACCOUNTS_GCONF_KEY_ALIAS,
+				       FALSE, &name))
+	return NULL;
+
+    return name;
+}
+
+/**
+ * mc_account_set_alias:
+ * @account: The #McAccount.
+ * @alias: The alias to set.
+ *
+ * Sets the alias of the account.
+ *
+ * Return value: %TRUE, or %FALSE if some error occurs.
+ */
+gboolean
+mc_account_set_alias (McAccount *account, const gchar *alias)
+{
+    return _mc_account_gconf_set_string (account,
+					 MC_ACCOUNTS_GCONF_KEY_ALIAS,
+					 alias);
+}
