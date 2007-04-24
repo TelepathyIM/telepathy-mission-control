@@ -1,3 +1,9 @@
+2007-04-24  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	Patch from shiyee:
+	* libmissioncontrol/mc-manager.c:
+	Add GError initialization. Fixes #1705225.
+
 === telepathy-mission-control 4.21 ===
 
 2007-04-19  Alberto Mardegan  <alberto.mardegan@nokia.com>

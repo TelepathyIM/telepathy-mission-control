@@ -209,7 +209,7 @@ _keyfile_get_protocols (GKeyFile *keyfile, const gchar *manager)
 static McManager *
 _mc_manager_from_file (const gchar *unique_name, const gchar *filename)
 {
-  GError *error;
+  GError *error = NULL;
   GKeyFile *keyfile;
   gchar *bus_name = NULL;
   gchar *object_path = NULL;
