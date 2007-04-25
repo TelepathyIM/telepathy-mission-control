@@ -1,3 +1,8 @@
+2007-04-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* server/Makefile.am:
+	Fix server build: use local libmissioncontrol-config.
+
 2007-04-24  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	Patch from shiyee:
