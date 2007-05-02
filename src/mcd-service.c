@@ -110,6 +110,13 @@ static gboolean
 mcd_service_set_presence (GObject * obj, gint presence, gchar * message,
 			  GError ** error)
 {
+    if (presence >= LAST_MC_PRESENCE)
+    {
+	g_set_error (error, MC_ERROR, MC_PRESENCE_FAILURE_ERROR,
+		     "Invalid presence");
+	return FALSE;
+    }
+
     mcd_master_request_presence (MCD_MASTER (obj), presence, message);
     return TRUE;
 }

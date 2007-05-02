@@ -1065,10 +1065,6 @@ _mcd_connection_setup (McdConnection * connection)
 	g_hash_table_destroy (params);
 	g_object_unref (profile);
 
-	mcd_presence_frame_set_account_status (priv->presence_frame,
-					       priv->account,
-					       TP_CONN_STATUS_CONNECTING,
-					       TP_CONN_STATUS_REASON_REQUESTED);
 	if (!priv->tp_conn)
 	{
 	    g_warning ("%s: tp_connmgr_new_connection returned NULL", G_STRFUNC);
@@ -1078,6 +1074,11 @@ _mcd_connection_setup (McdConnection * connection)
 						   TP_CONN_STATUS_REASON_NETWORK_ERROR);
 	    return;
 	}
+
+	mcd_presence_frame_set_account_status (priv->presence_frame,
+					       priv->account,
+					       TP_CONN_STATUS_CONNECTING,
+					       TP_CONN_STATUS_REASON_REQUESTED);
 
 	/* Setup signals */
 	g_signal_connect (priv->tp_conn, "destroy",
