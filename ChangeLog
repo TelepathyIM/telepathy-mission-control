@@ -1,5 +1,9 @@
 2007-05-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol/mission-control.[hc], src/mcd-master.[hc],
+	src/mcd-service.c, xml/MissionControl.xml:
+	Add methods for retrieving the actual and requested presence messages.
+
 	* src/mcd-connection.c:
 	Don't set account status to CONNECTING if we don't have a Telepathy
 	connection.

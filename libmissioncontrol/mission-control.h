@@ -140,8 +140,12 @@ void mission_control_set_presence (MissionControl *self,
 				   gpointer user_data);
 
 McPresence mission_control_get_presence (MissionControl *self, GError **error);
+gchar *mission_control_get_presence_message (MissionControl *self,
+					     GError **error);
 McPresence mission_control_get_presence_actual (MissionControl *self,
 						GError **error);
+gchar *mission_control_get_presence_message_actual (MissionControl *self,
+						    GError **error);
 
 guint mission_control_request_channel (MissionControl *self,
 				       McAccount *account,

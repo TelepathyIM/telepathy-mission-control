@@ -129,9 +129,24 @@ mcd_service_get_presence (GObject *obj, gint *ret, GError **error)
 }
 
 static gboolean
+mcd_service_get_presence_message (GObject *obj, gchar **ret, GError **error)
+{
+    *ret = mcd_master_get_requested_presence_message (MCD_MASTER (obj));
+    return TRUE;
+}
+
+static gboolean
 mcd_service_get_presence_actual (GObject *obj, gint *ret, GError **error)
 {
     *ret = mcd_master_get_actual_presence (MCD_MASTER (obj));
+    return TRUE;
+}
+
+static gboolean
+mcd_service_get_presence_message_actual (GObject *obj, gchar **ret,
+					 GError **error)
+{
+    *ret = mcd_master_get_actual_presence_message (MCD_MASTER (obj));
     return TRUE;
 }
 

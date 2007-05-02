@@ -430,6 +430,39 @@ mission_control_get_presence (MissionControl * self, GError **error)
 }
 
 /**
+ * mission_control_get_presence_message:
+ * @self: The #MissionControl object.
+ * @error: address where an error can be returned, or NULL.
+ *
+ * Gets the currently requested presence message.
+ *
+ * Returns: The currently requested presence message
+ */
+gchar *
+mission_control_get_presence_message (MissionControl * self, GError **error)
+{
+    gchar *message;
+
+    /* Check whether Mission Control is running; if not, it's safe to
+     * say that we're offline without starting it to perform the
+     * query.  */
+    if (!mc_is_running)
+    {
+	g_debug ("%s: MC not running.", G_STRFUNC);
+	g_set_error (error, MC_ERROR, MC_DISCONNECTED_ERROR, "MC not running");
+	return NULL;
+    }
+
+    if (!mission_control_dbus_get_presence_message (DBUS_G_PROXY (self),
+						    &message, error))
+    {
+	message = NULL;
+    }
+
+    return message;
+}
+
+/**
  * mission_control_get_presence_actual:
  * @self: The #MissionControl object.
  * @error: address where an error can be returned, or NULL.
@@ -461,6 +494,40 @@ mission_control_get_presence_actual (MissionControl * self, GError **error)
     }
 
     return presence;
+}
+
+/**
+ * mission_control_get_presence_message_actual:
+ * @self: The #MissionControl object.
+ * @error: address where an error can be returned, or NULL.
+ *
+ * Gets the actual presence message.
+ *
+ * Returns: The actual presence message
+ */
+gchar *
+mission_control_get_presence_message_actual (MissionControl * self,
+					     GError **error)
+{
+    gchar *message;
+
+    /* Check whether Mission Control is running; if not, it's safe to
+     * say that we're offline without starting it to perform the
+     * query.  */
+    if (!mc_is_running)
+    {
+	g_debug ("%s: MC not running.", G_STRFUNC);
+	g_set_error (error, MC_ERROR, MC_DISCONNECTED_ERROR, "MC not running");
+	return NULL;
+    }
+
+    if (!mission_control_dbus_get_presence_message_actual (DBUS_G_PROXY (self),
+							   &message, error))
+    {
+	message = NULL;
+    }
+
+    return message;
 }
 
 /**

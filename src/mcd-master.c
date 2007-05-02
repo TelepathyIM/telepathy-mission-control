@@ -798,12 +798,30 @@ mcd_master_get_actual_presence (McdMaster * master)
     return mcd_presence_frame_get_actual_presence (priv->presence_frame);
 }
 
+gchar *
+mcd_master_get_actual_presence_message (McdMaster * master)
+{
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+
+    return g_strdup (
+	mcd_presence_frame_get_actual_presence_message (priv->presence_frame));
+}
+
 McPresence
 mcd_master_get_requested_presence (McdMaster * master)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
 
     return mcd_presence_frame_get_requested_presence (priv->presence_frame);
+}
+
+gchar *
+mcd_master_get_requested_presence_message (McdMaster * master)
+{
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+
+    return g_strdup (mcd_presence_frame_get_requested_presence_message (
+						    priv->presence_frame));
 }
 
 gboolean

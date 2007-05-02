@@ -39,12 +39,28 @@
 	<mc:docstring>The presence</mc:docstring>
       </arg>
     </method>
+    <method name="GetPresenceMessage">
+      <mc:docstring>
+	Gets the last requested presence message.
+      </mc:docstring>
+      <arg type="s" direction="out">
+	<mc:docstring>The presence message</mc:docstring>
+      </arg>
+    </method>
     <method name="GetPresenceActual">
       <mc:docstring>
 	Gets the actual presence.
       </mc:docstring>
       <arg type="u" direction="out">
 	<mc:docstring>The presence</mc:docstring>
+      </arg>
+    </method>
+    <method name="GetPresenceMessageActual">
+      <mc:docstring>
+	Gets the actual presence message.
+      </mc:docstring>
+      <arg type="s" direction="out">
+	<mc:docstring>The presence message</mc:docstring>
       </arg>
     </method>
     <method name="RequestChannel">

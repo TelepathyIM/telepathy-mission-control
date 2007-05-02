@@ -61,8 +61,10 @@ void mcd_master_request_presence (McdMaster * master,
 				  const gchar * presence_message);
 
 McPresence mcd_master_get_actual_presence (McdMaster * master);
+gchar *mcd_master_get_actual_presence_message (McdMaster * master);
 
 McPresence mcd_master_get_requested_presence (McdMaster * master);
+gchar *mcd_master_get_requested_presence_message (McdMaster * master);
 
 gboolean mcd_master_set_default_presence (McdMaster * master,
 					  const gchar *client_id);
