@@ -1,3 +1,9 @@
+2007-05-04  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Make sure the connection status is retrieved every time a connection
+	is created.
+
 2007-05-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmissioncontrol/mission-control.[hc], src/mcd-master.[hc],

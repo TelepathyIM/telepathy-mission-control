@@ -139,6 +139,12 @@ struct presence_info
     gboolean allow_message;
 };
 
+struct conn_status_data
+{
+    McdConnection *connection;
+    TelepathyConnectionStatus status;
+};
+
 enum
 {
     PROP_0,
@@ -993,15 +999,17 @@ _mcd_connection_status_changed_cb (DBusGProxy * tp_conn_proxy,
 }
 
 static gint
-disconnect_on_error_idle (McdConnection *connection)
+set_initial_status (struct conn_status_data *status_data)
 {
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-    
+    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (status_data->connection);
+ 
+    g_debug ("%s: status = %d", G_STRFUNC, status_data->status);
     /* Just synthesize the missing signal. */
     _mcd_connection_status_changed_cb (DBUS_G_PROXY (priv->tp_conn),
-			   TP_CONN_STATUS_DISCONNECTED,
+			   status_data->status,
 			   TP_CONN_STATUS_REASON_NONE_SPECIFIED,
-			   connection);
+			   status_data->connection);
+    g_free (status_data);
     return FALSE;
 }
 
@@ -1048,6 +1056,7 @@ _mcd_connection_setup (McdConnection * connection)
 	McProfile *profile;
 	const gchar *protocol_name;
 	const gchar *account_name;
+	struct conn_status_data *status_data;
 
 	profile = mc_account_get_profile (priv->account);
 	protocol_name = mc_profile_get_protocol_name (profile);
@@ -1075,11 +1084,6 @@ _mcd_connection_setup (McdConnection * connection)
 	    return;
 	}
 
-	mcd_presence_frame_set_account_status (priv->presence_frame,
-					       priv->account,
-					       TP_CONN_STATUS_CONNECTING,
-					       TP_CONN_STATUS_REASON_REQUESTED);
-
 	/* Setup signals */
 	g_signal_connect (priv->tp_conn, "destroy",
 			  G_CALLBACK (proxy_destroyed), connection);
@@ -1097,11 +1101,10 @@ _mcd_connection_setup (McdConnection * connection)
 	 * it because DISCONNECTION happened so fast.
 	 */
 	tp_conn_get_status (DBUS_G_PROXY (priv->tp_conn), &conn_status, NULL);
-	if (conn_status == TP_CONN_STATUS_DISCONNECTED)
-	{
-	    g_debug ("Connection is in DISCONNECTED state!");
-	    g_idle_add ((GSourceFunc)disconnect_on_error_idle, connection);
-	}
+	status_data = g_new (struct conn_status_data, 1);
+	status_data->connection = connection;
+	status_data->status = conn_status;
+	g_idle_add ((GSourceFunc)set_initial_status, status_data);
     }
     else
     {
