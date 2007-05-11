@@ -1,3 +1,13 @@
+2007-05-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.[hc]:
+	Add mcd_channel_is_missed() method to know if a channel has been
+	accepted by the local user.
+
+	* src/mcd-dispatcher.c:	
+	If a channel is aborted right before the channel handle starts, report
+	a dispatch failure.
+
 2007-05-04  Onne Gorter  <onne.gorter@nokia.com>
 
 	* libmissioncontrol/mc-account.c: (_filter_secondary_vcard_field):

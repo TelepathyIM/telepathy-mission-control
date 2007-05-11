@@ -63,6 +63,8 @@ typedef struct _McdChannelPrivate
     /* Pending members */
     GArray *pending_local_members;
     gboolean members_accepted;
+    gboolean missed;
+    guint self_handle;
     
     McdChannelStatus status;
     gchar *channel_name;
@@ -160,6 +162,24 @@ on_channel_members_changed (DBusGProxy * group_proxy,
     }
     /* FIXME: We should also remove members from the local pending
      * array, even if we don't need the info */
+    if (removed && removed->len > 0)
+    {
+	int i;
+
+	if (actor != priv->self_handle)
+	{
+	    for (i = 0; i < removed->len; i++)
+	    {
+		if (actor == g_array_index (removed, guint, i))
+		{
+		    /* the remote removed itself; if we didn't accept the call,
+		     * it's a missed channel */
+		    if (!priv->members_accepted) priv->missed = TRUE;
+		    break;
+		}
+	    }
+	}
+    }
 }
 
 static void
@@ -252,6 +272,22 @@ _mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
 }
 
 static void
+get_self_handle_cb (DBusGProxy *proxy, guint self_handle, GError *error,
+		    gpointer userdata)
+
+{
+    McdChannelPrivate *priv = (McdChannelPrivate *) userdata;
+    if (error)
+    {
+	g_warning ("%s: get_self_handle failed: %s", G_STRFUNC,
+		   error->message);
+	g_error_free (error);
+    }
+    else
+	priv->self_handle = self_handle;
+}
+
+static void
 _mcd_channel_set_property (GObject * obj, guint prop_id,
 			   const GValue * val, GParamSpec * pspec)
 {
@@ -295,6 +331,8 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
 		tp_chan_iface_group_get_local_pending_members_async (group_iface,
 								     get_local_pending_cb,
 								     channel);
+		tp_chan_iface_group_get_self_handle_async (group_iface,
+							   get_self_handle_cb, priv);
 	    }
 	    /* We want to track the channel object closes, because we need to do
 	     * some cleanups when it's gone */
@@ -805,5 +843,20 @@ mcd_channel_get_name (McdChannel *channel)
     }
 
     return priv->channel_name;
+}
+
+/**
+ * mcd_channel_is_missed:
+ * @channel: the #McdChannel.
+ *
+ * Return %TRUE if the remote party removed itself before we could join the
+ * channel.
+ *
+ * Returns: %TRUE if the channel is missed.
+ */
+gboolean
+mcd_channel_is_missed (McdChannel *channel)
+{
+    return MCD_CHANNEL_PRIV (channel)->missed;
 }
 

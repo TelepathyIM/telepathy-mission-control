@@ -96,6 +96,13 @@ struct iface_chains_t
     GList *chain_out;
 };
 
+struct cancel_call_data
+{
+    DBusGProxy *handler_proxy;
+    DBusGProxyCall *call;
+    McdDispatcher *dispatcher;
+};
+
 enum
 {
     PROP_0,
@@ -498,11 +505,24 @@ disconnect_proxy_destry_cb (McdChannel *channel, DBusGProxy *channelhandler)
 }
 
 static void
-cancel_proxy_call (McdChannel *channel, DBusGProxyCall *call)
+cancel_proxy_call (McdChannel *channel, struct cancel_call_data *call_data)
 {
-    DBusGProxy *proxy = g_object_steal_data (G_OBJECT (channel),
-					     "cancel_proxy_call_userdata");
-    dbus_g_proxy_cancel_call (proxy, call);
+    GError *mc_error = NULL;
+
+    dbus_g_proxy_cancel_call (call_data->handler_proxy, call_data->call);
+    
+    g_debug ("%s: signalling Handle channel failed", G_STRFUNC);
+    
+    /* We can't reliably map channel handler error codes to MC error
+     * codes. So just using generic error message.
+     */
+    mc_error = g_error_new (MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
+			    "Channel aborted");
+    
+    g_signal_emit (call_data->dispatcher,
+		   mcd_dispatcher_signals[DISPATCH_FAILED], 0,
+		   channel, mc_error);
+    g_error_free (mc_error);
 }
 
 static void
@@ -517,7 +537,7 @@ _mcd_dispatcher_handle_channel_async_cb (DBusGProxy * proxy, GError * error,
     McdChannelHandler *chandler = g_hash_table_lookup (priv->channel_handler_hash,
 						    mcd_channel_get_channel_type (channel));
 
-    g_object_steal_data (G_OBJECT (channel), "cancel_proxy_call_userdata");
+
     g_signal_handlers_disconnect_matched (channel, G_SIGNAL_MATCH_FUNC,	0, 0,
 					  NULL, cancel_proxy_call, NULL);
 
@@ -623,6 +643,7 @@ _mcd_dispatcher_start_channel_handler (McdDispatcherContext * context)
     }
     else
     {
+	struct cancel_call_data *call_data;
 	DBusGProxyCall *call;
 	TpConn *tp_conn;
 	
@@ -663,10 +684,12 @@ _mcd_dispatcher_start_channel_handler (McdDispatcherContext * context)
 				    mcd_channel_get_handle (channel),
 				    _mcd_dispatcher_handle_channel_async_cb,
 				    context);
-	g_object_set_data (G_OBJECT (channel), "cancel_proxy_call_userdata",
-			   handler_proxy);
-	g_signal_connect (channel, "abort", G_CALLBACK(cancel_proxy_call),
-			  call);
+	call_data = g_malloc (sizeof (struct cancel_call_data));
+	call_data->call = call;
+	call_data->handler_proxy = handler_proxy;
+	call_data->dispatcher = context->dispatcher;
+	g_signal_connect_data (channel, "abort", G_CALLBACK(cancel_proxy_call),
+			  call_data, (GClosureNotify)g_free, 0);
         g_object_unref (tp_conn);
     }
 }
@@ -744,7 +767,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 
     /* Context must be destroyed when the channel is destroyed */
     g_object_ref (channel); /* We hold separate refs for state machine */
-    g_signal_connect (channel, "abort", G_CALLBACK (on_channel_abort_context),
+    g_signal_connect_after (channel, "abort", G_CALLBACK (on_channel_abort_context),
 		      context);
     
     if (chain)

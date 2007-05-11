@@ -101,6 +101,7 @@ TelepathyHandleType mcd_channel_get_handle_type (McdChannel *channel);
 gint mcd_channel_get_flags (McdChannel *channel);
 GPtrArray* mcd_channel_get_members (McdChannel *channel);
 const gchar *mcd_channel_get_name (McdChannel *channel);
+gboolean mcd_channel_is_missed (McdChannel *channel);
 
 G_END_DECLS
 #endif /* MCD_CHANNEL_H */
