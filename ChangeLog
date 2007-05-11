@@ -1,5 +1,9 @@
 2007-05-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/mcd-service.c:
+	Let AccountStatusChanges signal be emitted even on connecting.
+	Fixes: #1716701.
+
 	* libmissioncontrol.pc.in:
 	* mission-control.pc.in:
 	Fix pkg-config requirements. Fixes: #1713514.

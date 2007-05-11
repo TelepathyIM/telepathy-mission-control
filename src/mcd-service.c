@@ -425,22 +425,16 @@ _on_account_status_changed (McdPresenceFrame * presence_frame,
     McPresence presence =
 	mcd_presence_frame_get_account_presence (presence_frame, account);
 
-    /* FIXME: Don't emit the CONNECTING state. The ui doesn handle it
-     * correctly yet.
-     */
-    if (connection_status != TP_CONN_STATUS_CONNECTING)
-    {
-	/* Emit the AccountStatusChanged signal */
-	g_debug ("Emitting account status changed for %s: status = %d, reason = %d",
-		 mc_account_get_unique_name (account), connection_status,
-		 connection_reason);
-	
-	g_signal_emit_by_name (G_OBJECT (obj),
-			       "account-status-changed", connection_status,
-			       presence,
-			       connection_reason,
-			       mc_account_get_unique_name (account));
-    }
+    /* Emit the AccountStatusChanged signal */
+    g_debug ("Emitting account status changed for %s: status = %d, reason = %d",
+	     mc_account_get_unique_name (account), connection_status,
+	     connection_reason);
+    
+    g_signal_emit_by_name (G_OBJECT (obj),
+			   "account-status-changed", connection_status,
+			   presence,
+			   connection_reason,
+			   mc_account_get_unique_name (account));
 }
 
 static void
