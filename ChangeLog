@@ -1,4 +1,8 @@
+=== telepathy-mission-control 4.22 ===
+
 2007-05-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac: Version 4.22.
 
 	* src/mcd-service.c:
 	Let AccountStatusChanges signal be emitted even on connecting.
