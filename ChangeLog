@@ -1,5 +1,9 @@
 2007-05-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol.pc.in:
+	* mission-control.pc.in:
+	Fix pkg-config requirements. Fixes: #1713514.
+
 	* src/mcd-channel.[hc]:
 	Add mcd_channel_is_missed() method to know if a channel has been
 	accepted by the local user.
