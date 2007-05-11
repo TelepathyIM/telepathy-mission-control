@@ -1,3 +1,20 @@
+2007-05-04  Onne Gorter  <onne.gorter@nokia.com>
+
+	* libmissioncontrol/mc-account.c: (_filter_secondary_vcard_field):
+	* libmissioncontrol/mc-account.h:
+	Fix minor issue with secondary field, add
+	mc_account_get_secondary_vcard_fields() function
+
+2007-05-04  Onne Gorter  <onne.gorter@nokia.com>
+
+	* libmissioncontrol/mc-account-priv.h:
+	* libmissioncontrol/mc-account.c: (_filter_vcard_field),
+	(_filter_secondary_vcard_field), (mc_accounts_list_by_vcard_field):
+	* libmissioncontrol/mc-account.h:
+	Add mc_accounts_list_by_secondary_vcard_field to retrieve all configured
+	accounts that support a vcard fields as their secondary means of access.
+	Usefull for sip that can call TEL fields through a gateway.
+
 2007-05-04  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-connection.c:

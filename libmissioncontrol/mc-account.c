@@ -745,6 +745,61 @@ _filter_vcard_field (McAccount *acct, gpointer data)
   return ret;
 }
 
+static gboolean
+_filter_secondary_vcard_field (McAccount *acct, gpointer data)
+{
+  const gchar *vcard_field;
+  GConfValue  *val;
+  GSList *fields;
+  gboolean ret;
+
+  g_return_val_if_fail (acct != NULL, FALSE);
+  g_return_val_if_fail (MC_ACCOUNT_PRIV (acct)->unique_name != NULL, FALSE);
+  g_return_val_if_fail (data != NULL, FALSE);
+
+  vcard_field = (const gchar *) data;
+
+  val = _mc_account_gconf_get (acct,
+          MC_ACCOUNTS_GCONF_KEY_SECONDARY_VCARD_FIELDS, FALSE);
+  if (val == NULL) return FALSE;
+
+  ret = FALSE;
+  for (fields = gconf_value_get_list(val); fields; fields = fields->next) {
+      if (0 == strcmp(vcard_field, gconf_value_get_string(fields->data))) {
+          ret = TRUE;
+      }
+  }
+
+  gconf_value_free(val);
+  return ret;
+}
+
+/**
+ * mc_account_get_secondary_vcard_fields:
+ * Get all configured secondairy vcard fields for this account.
+ *
+ * Return value: a #GList of all vcard fields (as char *). Is a copy, both data
+ * and list must be freed by receiver.
+ */
+GList *
+mc_account_get_secondary_vcard_fields (McAccount * acct)
+{
+  GConfValue  *val;
+  GSList *fields;
+  GList *ret = NULL;
+
+  val = _mc_account_gconf_get (acct,
+          MC_ACCOUNTS_GCONF_KEY_SECONDARY_VCARD_FIELDS, FALSE);
+  if (val == NULL) return NULL;
+
+  for (fields = gconf_value_get_list(val); fields; fields = fields->next) {
+      ret = g_list_prepend(ret, g_strdup(gconf_value_get_string(fields->data)));
+  }
+
+  gconf_value_free(val);
+  return ret;
+}
+
 /**
  * mc_accounts_list_by_vcard_field:
  * @vcard_field: the VCard field.
@@ -761,6 +816,25 @@ mc_accounts_list_by_vcard_field (const gchar *vcard_field)
 
   ret = mc_accounts_list ();
   ret = mc_accounts_filter (ret, _filter_vcard_field, (gpointer) vcard_field);
+
+  return ret;
+}
+
+/**
+ * mc_accounts_list_by_secondary_vcard_field:
+ * @vcard_field: the VCard field.
+ *
+ * List all accounts that can use the secondary VCard field given.
+ *
+ * Return value: A #GList of the accounts. Must be freed with #mc_accounts_list_free.
+ */
+GList *
+mc_accounts_list_by_secondary_vcard_field (const gchar *vcard_field)
+{
+  GList *ret;
+
+  ret = mc_accounts_list ();
+  ret = mc_accounts_filter (ret, _filter_secondary_vcard_field, (gpointer) vcard_field);
 
   return ret;
 }

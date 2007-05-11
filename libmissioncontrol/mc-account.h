@@ -96,6 +96,7 @@ GList *mc_accounts_list (void);
 GList *mc_accounts_list_by_enabled (gboolean enabled);
 GList *mc_accounts_list_by_profile (McProfile *profile);
 GList *mc_accounts_list_by_vcard_field (const gchar *vcard_field);
+GList *mc_accounts_list_by_secondary_vcard_field (const gchar *vcard_field);
 void mc_accounts_list_free (GList *list);
 
 /* filter a list of accounts according to whether a function returns TRUE,
@@ -180,6 +181,12 @@ gboolean mc_account_reset_avatar_id (McAccount *account);
 gboolean mc_account_set_alias (McAccount *account, const gchar *alias);
 gchar *mc_account_get_alias (McAccount *account);
 
+GList *mc_account_get_secondary_vcard_fields (McAccount * acct);
+/*
+void mc_account_set_secondary_vcard_fields (McAccount * acct, const GList * fields);
+void mc_account_add_secondary_vcard_field (McAccount * acct, const char * field);
+void mc_account_remove_secondary_vcard_field (McAccount * acct, const char * field);
+*/
 G_END_DECLS
 
 #endif /* __MC_ACCOUNT_H__ */

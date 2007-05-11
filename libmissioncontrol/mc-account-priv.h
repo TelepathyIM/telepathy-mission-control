@@ -36,6 +36,7 @@
 #define MC_ACCOUNTS_GCONF_KEY_AVATAR_ID "avatar_id"
 #define MC_ACCOUNTS_GCONF_KEY_DATA_DIR "data_dir"
 #define MC_ACCOUNTS_GCONF_KEY_ALIAS "alias"
+#define MC_ACCOUNTS_GCONF_KEY_SECONDARY_VCARD_FIELDS "secondary_vcard_fields"
 
 McAccount * _mc_account_new (const gchar *unique_name);
 
