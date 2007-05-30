@@ -67,6 +67,7 @@ typedef struct {
     gboolean vcard_default;
     McProfileCapabilityFlags capabilities;
     GHashTable *default_settings;
+    GHashTable *vcard_mangle_hash;
     GArray *supported_presences;
     time_t mtime;
 } McProfilePrivate;
@@ -96,6 +97,7 @@ mc_profile_finalize (GObject *object)
   g_free (priv->vcard_field);
   g_free (priv->default_account_domain);
   g_hash_table_destroy (priv->default_settings);
+  g_hash_table_destroy (priv->vcard_mangle_hash);
   g_array_free (priv->supported_presences, TRUE);
 }
 
@@ -324,6 +326,7 @@ _mc_profile_load (McProfile *profile)
       g_free (caps);
   }
 
+  // fill in the defaul settings hash
   priv->default_settings = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                   (GDestroyNotify) g_free,
                                                   (GDestroyNotify) g_free);
@@ -337,6 +340,25 @@ _mc_profile_load (McProfile *profile)
           k = g_strdup (key+8);
           v = g_key_file_get_string (keyfile, PROFILE_GROUP, key, NULL);
           g_hash_table_insert (MC_PROFILE_PRIV (profile)->default_settings, k, v);
+        }
+    }
+  g_strfreev (keys);
+
+  // fill in the vcard mangling hashtable
+  priv->vcard_mangle_hash = g_hash_table_new_full (
+          g_str_hash, g_str_equal, (GDestroyNotify) g_free, (GDestroyNotify) g_free);
+
+  keys = g_key_file_get_keys (keyfile, PROFILE_GROUP, 0, NULL);
+  for (tmp = keys; *tmp != NULL; tmp++)
+    {
+      gchar *key = *tmp;
+      if (0 == g_ascii_strncasecmp ("Mangle-", key, 7))
+        {
+          gchar *k, *v;
+          k = g_strdup (key + 7);
+          v = g_key_file_get_string (keyfile, PROFILE_GROUP, key, NULL);
+          g_hash_table_insert (MC_PROFILE_PRIV (profile)->vcard_mangle_hash, k, v);
+          //g_debug("inserted mangle: %s -> %s", k, v);
         }
     }
   g_strfreev (keys);
@@ -895,3 +917,28 @@ mc_profile_get_default_setting (McProfile *id, const gchar *setting)
   mc_protocol_free_params_list (params);
   return def;
 }
+
+/**
+ * mc_profile_get_vcard_mangle:
+ * @id: The #McProfile.
+ * @vcard_field: The vcard field for which to get the mangle
+ *
+ * Get a mangle to transform a foreign address to a handle this profile understands
+ *
+ * Returns: a string representing the mangle from the profile (must not be freed).
+ */
+const gchar *
+mc_profile_get_vcard_mangle (McProfile *id, const gchar *vcard_field)
+{
+  gboolean profile_loaded;
+
+  g_return_val_if_fail (id != NULL, NULL);
+  g_return_val_if_fail (vcard_field != NULL, NULL);
+  g_return_val_if_fail (*vcard_field != '\0', NULL);
+
+  profile_loaded = _mc_profile_load (id);
+  g_return_val_if_fail (profile_loaded, NULL);
+
+  return (const gchar *) g_hash_table_lookup (MC_PROFILE_PRIV (id)->vcard_mangle_hash, vcard_field);
+}
+

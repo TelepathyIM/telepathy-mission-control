@@ -1,3 +1,29 @@
+2007-05-29  Onne Gorter  <onne.gorter@nokia.com>
+
+	* libmissioncontrol/mc-profile.c: (mc_profile_finalize),
+	(_mc_profile_load), (mc_profile_get_default_setting):
+	* libmissioncontrol/mc-profile.h:
+	* libmissioncontrol/mission-control.c:
+	(mission_control_request_channel_with_string_handle_and_vcard_field
+	):
+	Added support for Mangle-TEL and other fields
+	TEL field is handled specially if no Mangle-TEL is defined
+
+2007-05-28  Onne Gorter  <onne.gorter@nokia.com>
+
+	* libmissioncontrol/mission-control.c:
+	(mission_control_request_channel_with_string_handle_and_vcard_field
+	):
+	* libmissioncontrol/mission-control.h:
+	add request_channel with string handle and vcard field, to give mission
+	control a way to mangle e.g. TEL to tel:number
+
+	the old request_cannel_with_string_handle calls the new function with NULL
+	vcard field
+
+	TODO: provisioning, or the profiles should turn the mangling into
+	something configurable at one point.
+
 === telepathy-mission-control 4.22 ===
 
 2007-05-11  Alberto Mardegan  <alberto.mardegan@nokia.com>

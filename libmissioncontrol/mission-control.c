@@ -596,6 +596,8 @@ mission_control_request_channel (MissionControl * self,
  * existing channel
  * @type: a D-Bus interface name representing base channel type
  * @handle: The handle we want to initiate the communication with
+ * @vcard_field: The vcard_field of the handle, may be null for default profile
+ * vcard field
  * @handle_type: The type of the handle we are initiating the communication
  * with. See #TelepathyHandleType
  * @callback: a #McCallback function to be notified about any errors
@@ -609,10 +611,11 @@ mission_control_request_channel (MissionControl * self,
  * #mission_control_cancel_channel_request.
  */
 guint
-mission_control_request_channel_with_string_handle (MissionControl * self,
+mission_control_request_channel_with_string_handle_and_vcard_field (MissionControl * self,
 						    McAccount * account,
 						    const gchar * type,
 						    const gchar * handle,
+						    const gchar * vcard_field,
 						    TelepathyHandleType
 						    handle_type,
 						    McCallback callback,
@@ -621,6 +624,7 @@ mission_control_request_channel_with_string_handle (MissionControl * self,
     struct dbus_cb_data *cb_data;
     operation_id++;
     const gchar *account_name = mc_account_get_unique_name (account);
+    char * mangled_handle = NULL;
 
     if (account_name == NULL)
     {
@@ -636,17 +640,89 @@ mission_control_request_channel_with_string_handle (MissionControl * self,
 	return operation_id;
     }
 
+    /* mangle the handle with the vcard_field */
+    if (vcard_field != NULL) {
+        const char * profile_vcard_field = mc_profile_get_vcard_field(mc_account_get_profile(account));
+
+        // TODO: this is where from the profiles or from the provisioning we
+        // must figure out how to actually mangle user addresses from foreign
+        // vcard fields to something the connection manager will understand.
+        // For now this is just lowercasing the vcard field and prepending it to the address
+
+        /* only mangle if it is not the default vcard field */
+        if (strcmp(vcard_field, profile_vcard_field) != 0) {
+
+            const char * mangle = mc_profile_get_vcard_mangle(mc_account_get_profile(account), vcard_field);
+            g_debug("MANGLE: %s", mangle);
+            if (mangle) {
+                mangled_handle = g_strdup_printf(mangle, handle);
+            } else {
+                if (strcmp(vcard_field, "TEL") == 0) {
+                    // TEL mangling
+                    char * tmp;
+                    char ** split = g_strsplit_set(handle, " -,.:;+", -1);
+                    mangled_handle = g_strjoinv("", split);
+                    g_strfreev(split);
+
+                    tmp = g_strdup_printf("sip:%s", mangled_handle);
+                    g_free(mangled_handle);
+                    mangled_handle = tmp;
+
+                } else {
+                    // generic mangling
+                    char * lower_vcard_field = g_utf8_strdown(vcard_field, -1);
+                    mangled_handle = g_strdup_printf("%s:%s", lower_vcard_field, handle);
+                    g_free(lower_vcard_field);
+                }
+            }
+            g_debug ("%s: mangling: %s (%s)", G_STRFUNC, mangled_handle, vcard_field);
+        }
+    }
+
     cb_data = g_malloc (sizeof (struct dbus_cb_data));
     g_assert (cb_data != NULL);
     cb_data->callback = callback;
     cb_data->user_data = user_data;
-    mission_control_dbus_request_channel_with_string_handle_async
-	(DBUS_G_PROXY (self), account_name, type, handle, handle_type,
-	 operation_id,
-	 dbus_async_cb, cb_data);
+
+    mission_control_dbus_request_channel_with_string_handle_async(
+            DBUS_G_PROXY (self),
+            account_name,
+            type,
+            (mangled_handle)?mangled_handle:handle,
+            handle_type,
+            operation_id,
+            dbus_async_cb, cb_data);
+
+    g_free(mangled_handle);
 
     return operation_id;
 }
+
+
+/**
+ * see @mission_control_request_channel_with_string_handle_and_vcard_field.
+ */
+guint
+mission_control_request_channel_with_string_handle (MissionControl * self,
+						    McAccount * account,
+						    const gchar * type,
+						    const gchar * handle,
+						    TelepathyHandleType
+						    handle_type,
+						    McCallback callback,
+						    gpointer user_data)
+{
+    return mission_control_request_channel_with_string_handle_and_vcard_field(
+            self,
+            account,
+            type,
+            handle,
+            NULL,
+            handle_type,
+            callback,
+            user_data);
+}
+
 
 /**
  * mission_control_cancel_channel_request:

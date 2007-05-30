@@ -163,6 +163,15 @@ guint mission_control_request_channel_with_string_handle (MissionControl *self,
 							  McCallback callback,
 							  gpointer user_data);
 
+guint mission_control_request_channel_with_string_handle_and_vcard_field (MissionControl *self,
+							  McAccount *account,
+							  const gchar *type,
+							  const gchar *handle,
+							  const gchar *vcard_field,
+							  TelepathyHandleType handle_type,
+							  McCallback callback,
+							  gpointer user_data);
+
 gboolean mission_control_cancel_channel_request (MissionControl *self,
 						 guint operation_id,
 						 GError **error);
