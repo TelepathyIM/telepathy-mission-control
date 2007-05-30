@@ -1,3 +1,11 @@
+2007-05-30  Onne Gorter  <onne.gorter@nokia.com>
+
+	* libmissioncontrol/mission-control.c:
+	(mission_control_request_channel_with_string_handle_and_vcard_field
+	):
+	Modify TEL mangling again, just strip out special chars, then pass it
+	verbatim
+
 2007-05-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	Patch from Sjoerd <sjoerd.simons@collabora.co.uk>:

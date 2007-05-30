@@ -663,11 +663,6 @@ mission_control_request_channel_with_string_handle_and_vcard_field (MissionContr
                     char ** split = g_strsplit_set(handle, " -,.:;+", -1);
                     mangled_handle = g_strjoinv("", split);
                     g_strfreev(split);
-
-                    tmp = g_strdup_printf("sip:%s", mangled_handle);
-                    g_free(mangled_handle);
-                    mangled_handle = tmp;
-
                 } else {
                     // generic mangling
                     char * lower_vcard_field = g_utf8_strdown(vcard_field, -1);
