@@ -774,7 +774,6 @@ static void
 _mcd_connection_setup_avatar (McdConnectionPrivate *priv)
 {
     gchar *filename, *mime_type, *token;
-    GArray *avatar;
     GError *error = NULL;
 
     priv->avatars_proxy = tp_conn_get_interface (priv->tp_conn,
@@ -794,14 +793,19 @@ _mcd_connection_setup_avatar (McdConnectionPrivate *priv)
     /* if the token is set, we have nothing to do */
     if (!token && filename && g_file_test (filename, G_FILE_TEST_EXISTS))
     {
-	avatar = g_array_new (FALSE, FALSE, 1);
-	g_return_if_fail (avatar != NULL);
-	if (g_file_get_contents (filename, &avatar->data, &avatar->len, &error))
+	gchar *data = NULL;
+	size_t length;
+	if (g_file_get_contents (filename, &data, &length, &error))
 	{
-	    if (avatar->len > 0)
+	    if (length > 0 && length < G_MAXUINT) 
+	    {
+		GArray avatar;
+		avatar.data = data;
+		avatar.len = (guint)length;
 		tp_conn_iface_avatars_set_avatar_async (priv->avatars_proxy,
-						       	avatar, mime_type,
+						       	&avatar, mime_type,
 						       	set_avatar_cb, priv);
+	    }
 	    else
 		tp_conn_iface_avatars_clear_avatar_async(priv->avatars_proxy,
 							 clear_avatar_cb,
@@ -813,7 +817,7 @@ _mcd_connection_setup_avatar (McdConnectionPrivate *priv)
 	    g_debug ("%s: error reading %s: %s", G_STRFUNC, filename, error->message);
 	    g_error_free (error);
 	}
-	g_array_free (avatar, TRUE);
+	g_free(data);
     }
     
     g_free (filename);
