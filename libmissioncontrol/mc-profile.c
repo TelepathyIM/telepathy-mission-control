@@ -51,6 +51,7 @@ const GDebugKey capabilities[] = {
   { "registration-ui", MC_PROFILE_CAPABILITY_REGISTRATION_UI },
   { "supports-avatars", MC_PROFILE_CAPABILITY_SUPPORTS_AVATARS },
   { "supports-alias", MC_PROFILE_CAPABILITY_SUPPORTS_ALIAS },
+  { "supports-roster", MC_PROFILE_CAPABILITY_SUPPORTS_ROSTER },
 };
 
 typedef struct {

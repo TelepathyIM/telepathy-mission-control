@@ -8,6 +8,9 @@
 
 2007-05-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol/mc-profile.[hc]:
+	Add "supports-roster" capability.
+
 	Patch from Sjoerd <sjoerd.simons@collabora.co.uk>:
 	* src/mcd-connection.c:
 	Fix usage of gint/gsize types for AMD64. Fixes #1718949.
