@@ -500,7 +500,8 @@ mc_profiles_list (void)
 	    profile = _mc_profile_new (unique_name);
 	    g_free (unique_name);
 
-	    ret = g_list_prepend (ret, profile);
+	    if (profile)
+		ret = g_list_prepend (ret, profile);
 	}
 
 	g_dir_close (dir);
@@ -751,7 +752,7 @@ mc_profile_get_protocol (McProfile *id)
   g_return_val_if_fail (profile_loaded, NULL);
 
   manager = mc_manager_lookup (priv->manager);
-  g_return_val_if_fail (manager != NULL, NULL);
+  if (!manager) return NULL;
 
   protocol = mc_protocol_lookup (manager, priv->protocol);
   g_object_unref (manager);
@@ -902,6 +903,7 @@ mc_profile_get_default_setting (McProfile *id, const gchar *setting)
     }
 
   proto = mc_profile_get_protocol (id);
+  if (!proto) return NULL;
   params = mc_protocol_get_params (proto);
 
   for (tmp = params; tmp != NULL; tmp = tmp->next)

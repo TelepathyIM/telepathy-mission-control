@@ -8,6 +8,9 @@
 
 2007-05-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol/mc-profile.c:
+	Avoid possible crashes/critical warnings.
+
 	* libmissioncontrol/mc-profile.[hc]:
 	Add "supports-roster" capability.
 
