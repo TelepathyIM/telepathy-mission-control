@@ -7,6 +7,8 @@ BUILT_SOURCES = \
 	mission-control-signals-marshal.h \
 	mc-enum-types.c \
 	mc-enum-types.h \
+	mc-signals-marshal.c \
+	mc-signals-marshal.h \
 	mc-client-lib-gen.h
 
 CLEANFILES = $(BUILT_SOURCES) stamp-mc-enum-types.h
@@ -25,6 +27,7 @@ libmissioncontrol_config_la_SOURCES = \
         mc-account-priv.h \
         mc-account-monitor.c \
 	mc-account-monitor-priv.h \
+	mc-signals-marshal.c \
 	mc-enum-types.c
 
 libmissioncontrol_config_includedir = $(includedir)/libmissioncontrol
@@ -34,7 +37,8 @@ libmissioncontrol_config_include_DATA = \
         mc-account-monitor.h \
         mc-profile.h \
         mc-protocol.h \
-        mc-manager.h
+        mc-manager.h \
+	mc-signals-marshal.h
 
 libmissioncontrol_config_la_LIBADD = $(GCONF_LIBS) $(GLIB_LIBS) $(DBUS_LIBS)
 

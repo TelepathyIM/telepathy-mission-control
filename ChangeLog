@@ -1,3 +1,16 @@
+2007-05-31  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.[hc], src/mcd-master.c:
+	If an account parameter change, disconnect and reconnect it.
+
+	* libmissioncontrol/Makefile.am,
+	libmissioncontrol/mc-account-monitor.c:
+	Add param-changed signal on McAccountMonitor: will be emitted whenever
+	a connection parameter changes for an account.
+
+	* libmissioncontrol/mc-account.c:
+	When looking up an account, also accept the normalized name as a key.
+
 === telepathy-mission-control 4.23 ===
 
 2007-05-30  Alberto Mardegan  <alberto.mardegan@nokia.com>

@@ -313,7 +313,7 @@ gboolean
 _filter_account (McAccount *acct, gpointer data)
 {
   const gchar *compare_account;
-  gchar *gconf_account;
+  gchar *gconf_account, *normalized_name;
   gboolean ret;
 
   g_return_val_if_fail (acct != NULL, FALSE);
@@ -330,6 +330,18 @@ _filter_account (McAccount *acct, gpointer data)
   ret = (0 == strcmp(gconf_account, compare_account));
 
   g_free (gconf_account);
+
+  if (!ret)
+  {
+      if (!_mc_account_gconf_get_string (acct,
+	    MC_ACCOUNTS_GCONF_KEY_NORMALIZED_NAME,
+	    TRUE, &normalized_name))
+	return FALSE;
+
+      ret = (0 == strcmp(normalized_name, compare_account));
+
+      g_free (normalized_name);
+  }
 
   return ret;
 }

@@ -29,6 +29,7 @@
 #include "mc-account.h"
 #include "mc-account-priv.h"
 #include "mc-account-monitor.h"
+#include "mc-signals-marshal.h"
 
 G_DEFINE_TYPE (McAccountMonitor, mc_account_monitor, G_TYPE_OBJECT);
 
@@ -42,6 +43,7 @@ enum
   SIGNAL_ENABLED,
   SIGNAL_DISABLED,
   SIGNAL_CHANGED,
+  PARAM_CHANGED,
   NUM_SIGNALS
 };
 
@@ -161,6 +163,24 @@ mc_account_monitor_class_init (McAccountMonitorClass *klass)
     g_cclosure_marshal_VOID__STRING,
     G_TYPE_NONE, 1,
     G_TYPE_STRING);
+  /**
+   * McAccountMonitor::param-changed:
+   * @self: The #McAccountMonitor.
+   * @name: The name of the account being changed (use mc_account_lookup() to
+   * retrieve the account object).
+   * @param: The name of the parameter which changed.
+   *
+   * Emitted when an account parameter is changed.
+   */
+  signals[PARAM_CHANGED] = g_signal_new (
+    "param-changed",
+    G_TYPE_FROM_CLASS (klass),
+    G_SIGNAL_RUN_LAST,
+    0,
+    NULL, NULL,
+    mc_signals_marshal_VOID__STRING_STRING,
+    G_TYPE_NONE, 2,
+    G_TYPE_STRING, G_TYPE_STRING);
 }
 
 static gchar *
@@ -181,6 +201,19 @@ _account_name_from_key (const gchar *key)
     return g_strndup (base, slash - base);
 }
 
+static const gchar *
+key_name (const gchar *path_key)
+{
+    const gchar *key = 0;
+
+    while (*path_key != 0)
+    {
+	if (*path_key == '/') key = path_key + 1;
+	path_key++;
+    }
+    return key;
+}
+
 static void
 _gconf_notify_cb (GConfClient *client, guint conn_id, GConfEntry *entry,
                   gpointer user_data)
@@ -190,9 +223,10 @@ _gconf_notify_cb (GConfClient *client, guint conn_id, GConfEntry *entry,
   gchar *name = NULL;
   McAccount *account;
   gboolean key_is_enabledness;
-  
-  key_is_enabledness = g_str_has_suffix (entry->key,
-                                         "/" MC_ACCOUNTS_GCONF_KEY_ENABLED);
+  const gchar *key;
+
+  key = key_name (entry->key);
+  key_is_enabledness = strcmp (key, MC_ACCOUNTS_GCONF_KEY_ENABLED) == 0;
   name = _account_name_from_key (entry->key);
   account = g_hash_table_lookup (priv->accounts, name);
   
@@ -222,7 +256,7 @@ _gconf_notify_cb (GConfClient *client, guint conn_id, GConfEntry *entry,
           /* We don't do anything for incomplete accounts */
         }
     }
-  else if (g_str_has_suffix (entry->key, "/" MC_ACCOUNTS_GCONF_KEY_DELETED))
+  else if (strcmp (key, MC_ACCOUNTS_GCONF_KEY_DELETED) == 0)
     {
       /* if account is deleted, remove it */
       if (!mc_account_is_complete (account))
@@ -236,7 +270,7 @@ _gconf_notify_cb (GConfClient *client, guint conn_id, GConfEntry *entry,
           g_hash_table_remove (priv->accounts, name);
         }
     }
-  else if (g_str_has_suffix (entry->key, "/" MC_ACCOUNTS_GCONF_KEY_ENABLED))
+  else if (strcmp (key, MC_ACCOUNTS_GCONF_KEY_ENABLED) == 0)
     {
       if (entry->value != NULL && entry->value->type == GCONF_VALUE_BOOL)
         {
@@ -253,10 +287,14 @@ _gconf_notify_cb (GConfClient *client, guint conn_id, GConfEntry *entry,
             }
         }
     }
-  else if (!g_str_has_suffix (entry->key, "/" MC_ACCOUNTS_GCONF_KEY_AVATAR_TOKEN))
+  else if (strcmp (key, MC_ACCOUNTS_GCONF_KEY_AVATAR_TOKEN) != 0)
     {
       /* Emit the rest as value changed signal */
       g_signal_emit (monitor, signals[SIGNAL_CHANGED], 0, name);
+
+      if (strncmp (key, "param-", 6) == 0)
+	  g_signal_emit (monitor, signals[PARAM_CHANGED], 0,
+			 name, key + 6);
     }
   
   /* If we are enabling/disabling account */

@@ -114,6 +114,7 @@ typedef struct
 
     guint reconnect_timer; 	/* timer for reconnection */
     guint reconnect_interval;
+    gboolean reconnection_requested;
 
     /* Supported presences */
     GArray *recognized_presence_info_array;
@@ -969,7 +970,8 @@ _mcd_connection_status_changed_cb (DBusGProxy * tp_conn_proxy,
 	
 	/* Notify connection abort */
 	if (conn_reason == TP_CONN_STATUS_REASON_NETWORK_ERROR ||
-	    conn_reason == TP_CONN_STATUS_REASON_NONE_SPECIFIED)
+	    conn_reason == TP_CONN_STATUS_REASON_NONE_SPECIFIED ||
+	    priv->reconnection_requested)
 	{
 	    /* we were disconnected by a network error or by a gabble crash (in
 	     * the latter case, we get NoneSpecified as a reason): don't abort
@@ -989,6 +991,7 @@ _mcd_connection_status_changed_cb (DBusGProxy * tp_conn_proxy,
 						   priv->account,
 						   TP_CONN_STATUS_CONNECTING,
 						   TP_CONN_STATUS_REASON_REQUESTED);
+	    priv->reconnection_requested = FALSE;
 	    return;
 	}
 
@@ -2100,5 +2103,25 @@ mcd_connection_account_changed (McdConnection *connection)
 	_mcd_connection_setup_avatar (priv);
 	_mcd_connection_setup_alias (priv);
     }
+}
+
+/**
+ * mcd_connection_restart:
+ * @connection: the #McdConnection.
+ *
+ * Disconnect the connection and reconnect it. This can be useful when some
+ * account parameter changes.
+ */
+void
+mcd_connection_restart (McdConnection *connection)
+{
+    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
+
+    g_debug ("%s called", G_STRFUNC);
+    priv->reconnection_requested = TRUE;
+    priv->reconnect_interval = 500; /* half a second */
+    mcd_mission_disconnect (MCD_MISSION (connection));
+    if (priv->tp_conn)
+	tp_conn_disconnect (DBUS_G_PROXY (priv->tp_conn), NULL);
 }
 

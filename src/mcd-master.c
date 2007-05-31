@@ -385,6 +385,31 @@ _mcd_master_on_account_changed (McAccountMonitor * monitor,
 }
 
 static void
+_mcd_master_on_param_changed (McAccountMonitor *monitor, gchar *account_name,
+			      gchar *param, McdMaster *master)
+{
+    McdManager *manager;
+    McAccount *account;
+
+    g_debug ("Account %s changed param %s", account_name, param);
+
+    account = mc_account_lookup (account_name);
+    if (!account) return;
+    manager = _mcd_master_find_manager (master, account);
+
+    if (manager)
+    {
+	McdConnection *connection;
+       
+	connection = mcd_manager_get_account_connection (manager, account);
+	if (connection)
+	    mcd_connection_restart (connection);
+    }
+
+    g_object_unref (account);
+}
+
+static void
 _mcd_master_init_account_monitoring (McdMaster * master)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
@@ -399,6 +424,9 @@ _mcd_master_init_account_monitoring (McdMaster * master)
     g_signal_connect (priv->account_monitor,
 		      "account-changed",
 		      (GCallback) _mcd_master_on_account_changed, master);
+    g_signal_connect (priv->account_monitor,
+		      "param-changed",
+		      (GCallback) _mcd_master_on_param_changed, master);
 }
 
 static void
@@ -412,6 +440,8 @@ _mcd_master_dispose_account_monitoring (McdMaster * master)
 		      (GCallback) _mcd_master_on_account_disabled, master);
     g_signal_handlers_disconnect_by_func (priv->account_monitor,
 		      (GCallback) _mcd_master_on_account_changed, master);
+    g_signal_handlers_disconnect_by_func (priv->account_monitor,
+		      (GCallback) _mcd_master_on_param_changed, master);
     g_object_unref (priv->account_monitor);
     priv->account_monitor = NULL;
 }
