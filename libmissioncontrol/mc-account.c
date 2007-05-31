@@ -335,7 +335,7 @@ _filter_account (McAccount *acct, gpointer data)
   {
       if (!_mc_account_gconf_get_string (acct,
 	    MC_ACCOUNTS_GCONF_KEY_NORMALIZED_NAME,
-	    TRUE, &normalized_name))
+	    FALSE, &normalized_name))
 	return FALSE;
 
       ret = (0 == strcmp(normalized_name, compare_account));
