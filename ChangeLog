@@ -1,3 +1,11 @@
+2007-06-01  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/Makefile.am: Fixed enum generation.
+
+	* src/mcd-provisioning-factory.h, src/mcd-provisioning.c,
+	src/mcd-provisioning.h, src/Makefile.am,
+	src/mcd-provisioning-factory.c: Added provisioning classes.
+
 2007-05-31  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-connection.[hc], src/mcd-master.c:
