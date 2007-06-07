@@ -67,6 +67,16 @@ mcd_provisioning_factory_class_init (McdProvisioningFactoryClass *klass)
     object_class->dispose = mcd_provisioning_factory_dispose;
 }
 
+/**
+ * mcd_provisioning_factory_lookup:
+ * @prov_factory: the #McdProvisioningFactory.
+ * @service: name of the service for which provisioning will be retrieved.
+ *
+ * Gets a #McdProvisioning object for @service.
+ *
+ * Returns: a #McdProvisioning, or %NULL if none found. The reference count
+ * will not be incremented.
+ */
 McdProvisioning*
 mcd_provisioning_factory_lookup (McdProvisioningFactory* prov_factory,
 				 const gchar *service)
@@ -80,6 +90,15 @@ mcd_provisioning_factory_lookup (McdProvisioningFactory* prov_factory,
     return g_hash_table_lookup (priv->provs, service);
 }
 
+/**
+ * mcd_provisioning_factory_add_provisioning:
+ * @prov_factory: the #McdProvisioningFactory.
+ * @service: name of the service for which provisioning will be provided.
+ * @provisioning: the #McdProvisioning object to add.
+ *
+ * Add a new provisioning object to the factory. Note that the factory will
+ * take ownership of the @provisioning object.
+ */
 void
 mcd_provisioning_factory_add_provisioning (McdProvisioningFactory* prov_factory,
 					   const gchar *service,
@@ -95,6 +114,14 @@ mcd_provisioning_factory_add_provisioning (McdProvisioningFactory* prov_factory,
     g_hash_table_insert (priv->provs, g_strdup (service), provisioning);
 }
 
+/**
+ * mcd_provisioning_factory_get:
+ * 
+ * Get the #McdProvisioningFactory. One doesn't have to hold a reference to the
+ * returned object: just call this function whenever needed.
+ *
+ * Returns: a #McdProvisioningFactory.
+ */
 McdProvisioningFactory*
 mcd_provisioning_factory_get (void)
 {
