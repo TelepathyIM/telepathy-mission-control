@@ -1,3 +1,9 @@
+2007-06-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-monitor.c:
+	Let the object be actually destroyed, sometimes.
+	Fixes: #1729826.
+
 === telepathy-mission-control 4.24 ===
 
 2007-06-08  Alberto Mardegan  <alberto.mardegan@nokia.com>

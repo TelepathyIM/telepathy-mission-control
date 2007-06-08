@@ -406,8 +406,8 @@ mc_account_monitor_new (void)
       monitor = g_object_new (MC_TYPE_ACCOUNT_MONITOR, NULL);
       g_object_add_weak_pointer (G_OBJECT (monitor), (gpointer) &monitor);
     }
-
-  g_object_ref (monitor);
+  else
+      g_object_ref (monitor);
   return monitor;
 }
 
