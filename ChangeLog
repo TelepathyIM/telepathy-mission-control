@@ -1,4 +1,8 @@
+=== telepathy-mission-control 4.24 ===
+
 2007-06-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac: Version 4.24.
 
 	* src/mcd-provisioning.[hc], src/mcd-provisioning-factory.c:
 	Add virtual method request_parameters() to McdProvisioning interface.
