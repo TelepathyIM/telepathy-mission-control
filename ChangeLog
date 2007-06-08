@@ -1,3 +1,9 @@
+2007-06-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-provisioning.[hc], src/mcd-provisioning-factory.c:
+	Add virtual method request_parameters() to McdProvisioning interface.
+	Add docstrings.
+
 2007-06-01  Naba Kumar  <naba.kumar@nokia.com>
 
 	* src/Makefile.am: Fixed enum generation.

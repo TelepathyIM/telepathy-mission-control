@@ -70,3 +70,33 @@ mcd_provisioning_get_type (void)
     }
     return type;
 }
+
+/**
+ * mcd_provisioning_request_parameters:
+ * @prov: the #McdProvisioning object.
+ * @url: URL of the provisioning server.
+ * @username: username for connecting to the server.
+ * @password: password for connecting to the server.
+ * @callback: #McdProvisioningCallback which will receive the parameters.
+ * @user_data: extra argument for @callback.
+ *
+ * Queries the provisioning service and registers the @callback function for
+ * handling the result.
+ */
+void
+mcd_provisioning_request_parameters (McdProvisioning *prov,
+				     const gchar *url,
+				     const gchar *username,
+				     const gchar *password,
+				     McdProvisioningCallback callback,
+				     gpointer user_data)
+{
+    g_return_if_fail (MCD_IS_PROVISIONING (prov));
+
+    MCD_PROVISIONING_GET_IFACE (prov)->request_parameters (prov, url,
+							   username,
+							   password,
+							   callback,
+							   user_data);
+}
+

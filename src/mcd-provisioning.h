@@ -44,14 +44,21 @@ typedef enum
     MCD_PROVISIONING_ERROR_BAD_RESULT,
 } McdProvisioningError;
 
-struct _McdProvisioningIface {
-    GTypeInterface g_iface;
-};
-
 typedef void (*McdProvisioningCallback) (McdProvisioning *prov,
 					 GHashTable *parameters,
 					 GError *error,
 					 gpointer user_data);
+
+struct _McdProvisioningIface {
+    GTypeInterface g_iface;
+
+    void (*request_parameters) (McdProvisioning *prov,
+				const gchar *url,
+				const gchar *username,
+				const gchar *password,
+				McdProvisioningCallback callback,
+				gpointer user_data);
+};
 
 GQuark mcd_provisioning_error_quark     (void);
 GType  mcd_provisioning_get_type        (void);
