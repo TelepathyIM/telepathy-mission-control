@@ -1,5 +1,9 @@
 2007-06-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/mcd-connection.c:
+	Don't let libtelepathy connect the connection by itself; this ensure
+	we don't lose any status changed signal.
+
 	* src/mcd-channel.c:
 	Check for the group interface, before using it.
 

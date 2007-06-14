@@ -140,12 +140,6 @@ struct presence_info
     gboolean allow_message;
 };
 
-struct conn_status_data
-{
-    McdConnection *connection;
-    TelepathyConnectionStatus status;
-};
-
 enum
 {
     PROP_0,
@@ -1005,21 +999,6 @@ _mcd_connection_status_changed_cb (DBusGProxy * tp_conn_proxy,
     }
 }
 
-static gint
-set_initial_status (struct conn_status_data *status_data)
-{
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (status_data->connection);
- 
-    g_debug ("%s: status = %d", G_STRFUNC, status_data->status);
-    /* Just synthesize the missing signal. */
-    _mcd_connection_status_changed_cb (DBUS_G_PROXY (priv->tp_conn),
-			   status_data->status,
-			   TP_CONN_STATUS_REASON_NONE_SPECIFIED,
-			   status_data->connection);
-    g_free (status_data);
-    return FALSE;
-}
-
 static void proxy_destroyed (DBusGProxy *tp_conn, McdConnection *connection)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
@@ -1063,7 +1042,9 @@ _mcd_connection_setup (McdConnection * connection)
 	McProfile *profile;
 	const gchar *protocol_name;
 	const gchar *account_name;
-	struct conn_status_data *status_data;
+	gchar *conn_bus_name, *conn_obj_path;
+	GError *error = NULL;
+	gboolean ret;
 
 	profile = mc_account_get_profile (priv->account);
 	protocol_name = mc_profile_get_protocol_name (profile);
@@ -1074,20 +1055,39 @@ _mcd_connection_setup (McdConnection * connection)
 
 	params = mc_account_get_params (priv->account);
 
-	/* FIXME: Libtelepathy has non-const on the name. Why's that? */
-	priv->tp_conn = tp_connmgr_new_connection (priv->tp_conn_mgr,
-						   params,
-						   (gchar *) protocol_name);
+	ret = tp_connmgr_request_connection (DBUS_G_PROXY (priv->tp_conn_mgr),
+					     protocol_name, params,
+					     &conn_bus_name, &conn_obj_path,
+					     &error);
 	g_hash_table_destroy (params);
 	g_object_unref (profile);
-
-	if (!priv->tp_conn)
+	if (!ret)
 	{
-	    g_warning ("%s: tp_connmgr_new_connection returned NULL", G_STRFUNC);
+	    g_warning ("%s: tp_connmgr_request_connection failed: %s",
+		       G_STRFUNC, error->message);
 	    mcd_presence_frame_set_account_status (priv->presence_frame,
 						   priv->account,
 						   TP_CONN_STATUS_DISCONNECTED,
 						   TP_CONN_STATUS_REASON_NETWORK_ERROR);
+	    g_error_free (error);
+	    return;
+	}
+
+	priv->tp_conn = tp_conn_new_without_connect (priv->dbus_connection,
+						     conn_bus_name,
+						     conn_obj_path,
+						     &conn_status, &error);
+	g_free (conn_bus_name);
+	g_free (conn_obj_path);
+	if (!priv->tp_conn)
+	{
+	    g_warning ("%s: tp_conn_new_without_connect failed: %s",
+		       G_STRFUNC, error->message);
+	    mcd_presence_frame_set_account_status (priv->presence_frame,
+						   priv->account,
+						   TP_CONN_STATUS_DISCONNECTED,
+						   TP_CONN_STATUS_REASON_NETWORK_ERROR);
+	    g_error_free (error);
 	    return;
 	}
 
@@ -1103,15 +1103,29 @@ _mcd_connection_setup (McdConnection * connection)
 				     G_CALLBACK
 				     (_mcd_connection_status_changed_cb),
 				     connection, NULL);
-	
-	/* We might have lost a StatusChanged signal before we connect to
-	 * it because DISCONNECTION happened so fast.
-	 */
-	tp_conn_get_status (DBUS_G_PROXY (priv->tp_conn), &conn_status, NULL);
-	status_data = g_new (struct conn_status_data, 1);
-	status_data->connection = connection;
-	status_data->status = conn_status;
-	g_idle_add ((GSourceFunc)set_initial_status, status_data);
+
+	/* if this was an already existing connection, it might be that it was
+	 * already connected/connecting, in which case we done. */
+	if (conn_status != TP_CONN_STATUS_DISCONNECTED)
+	    mcd_presence_frame_set_account_status (priv->presence_frame,
+						   priv->account,
+						   conn_status,
+						   TP_CONN_STATUS_REASON_NONE_SPECIFIED);
+	else
+	{
+	    /* Try to connect the connection */
+	    if (!tp_conn_connect (DBUS_G_PROXY (priv->tp_conn), &error))
+	    {
+		g_warning ("%s: tp_conn_connect failed: %s",
+			   G_STRFUNC, error->message);
+		mcd_presence_frame_set_account_status (priv->presence_frame,
+						       priv->account,
+						       conn_status,
+						       TP_CONN_STATUS_REASON_NETWORK_ERROR);
+		g_error_free (error);
+		return;
+	    }
+	}
     }
     else
     {
