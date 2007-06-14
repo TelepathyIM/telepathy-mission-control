@@ -1,3 +1,8 @@
+2007-06-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c:
+	Check for the group interface, before using it.
+
 2007-06-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmissioncontrol/mc-account-monitor.c:

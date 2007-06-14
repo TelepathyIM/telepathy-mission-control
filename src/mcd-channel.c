@@ -742,6 +742,8 @@ mcd_channel_get_members (McdChannel *channel)
         /* get a group proxy from the channel */
         group_proxy = tp_chan_get_interface (priv->tp_chan,
                 TELEPATHY_CHAN_IFACE_GROUP_QUARK);
+	if (!group_proxy)
+	    goto err_missing_interface;
         
         tp_chan_iface_group_get_members (DBUS_G_PROXY (group_proxy),
                 &contact_handles, &error);
@@ -789,6 +791,8 @@ mcd_channel_get_members (McdChannel *channel)
         {
             g_array_free (contact_handles, TRUE);
         }
+err_missing_interface:
+	;
     }
     
     g_object_unref (connection);

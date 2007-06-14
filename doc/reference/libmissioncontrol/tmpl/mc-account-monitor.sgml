@@ -63,6 +63,15 @@ The #McAccountMonitor is an object that raises signals when some changes have be
 @mcaccountmonitor: the object which received the signal.
 @arg1: 
 
+<!-- ##### SIGNAL McAccountMonitor::param-changed ##### -->
+<para>
+
+</para>
+
+@mcaccountmonitor: the object which received the signal.
+@arg1: 
+@arg2: 
+
 <!-- ##### FUNCTION mc_account_monitor_new ##### -->
 <para>
 
