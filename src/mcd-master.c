@@ -901,9 +901,14 @@ mcd_master_get_account_status (McdMaster * master, gchar * account_name)
     McAccount *account;
 
     account = mc_account_lookup (account_name);
-    status = mcd_presence_frame_get_account_status (priv->presence_frame,
-						  account);
-    g_object_unref (account);
+    if (account)
+    {
+	status = mcd_presence_frame_get_account_status (priv->presence_frame,
+						      account);
+	g_object_unref (account);
+    }
+    else
+	status = TP_CONN_STATUS_DISCONNECTED;
     return status;
 }
 

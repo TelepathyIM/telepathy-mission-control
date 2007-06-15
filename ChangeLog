@@ -1,5 +1,9 @@
 2007-06-15  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/mcd-connection.c, src/mcd-master.c:
+	Don't crash if we fail to retrieve account or profile data.
+	Fixes: NB#59649.
+
 	* libmissioncontrol/mc-account.c:
 	Fix reference leaks.
 

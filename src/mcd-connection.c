@@ -1047,6 +1047,14 @@ _mcd_connection_setup (McdConnection * connection)
 	gboolean ret;
 
 	profile = mc_account_get_profile (priv->account);
+	if (!profile)
+	{
+	    mcd_presence_frame_set_account_status (priv->presence_frame,
+						   priv->account,
+						   TP_CONN_STATUS_DISCONNECTED,
+						   TP_CONN_STATUS_REASON_AUTHENTICATION_FAILED);
+	    return;
+	}
 	protocol_name = mc_profile_get_protocol_name (profile);
 	account_name = mc_account_get_unique_name (priv->account);
 
