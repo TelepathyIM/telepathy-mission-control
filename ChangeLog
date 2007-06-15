@@ -1,3 +1,8 @@
+2007-06-15  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account.c:
+	Fix reference leaks.
+
 2007-06-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-connection.c:

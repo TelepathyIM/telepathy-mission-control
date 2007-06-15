@@ -1212,6 +1212,7 @@ mc_account_get_param_boolean (McAccount *account,
               ret = MC_ACCOUNT_SETTING_ABSENT;
             }
         }
+      g_object_unref (profile);
     }
 
   return ret;
@@ -1413,6 +1414,7 @@ mc_account_get_param_int (McAccount *account,
     {
       errno = 0;
       long_val = strtol (def, &end, 10);
+      g_object_unref (profile);
 
       if (*def == '\0' || *end != '\0')
         {
@@ -1435,6 +1437,7 @@ mc_account_get_param_int (McAccount *account,
       *value = int_val;
       return MC_ACCOUNT_SETTING_FROM_PROFILE;
     }
+  g_object_unref (profile);
 
   if (0 == strcmp(name, "http-proxy-port") ||
       0 == strcmp(name, "https-proxy-port"))
@@ -1494,8 +1497,10 @@ mc_account_get_param_string (McAccount *account,
   if (def != NULL)
     {
       *value = g_strdup (def);
+      g_object_unref (profile);
       return MC_ACCOUNT_SETTING_FROM_PROFILE;
     }
+  g_object_unref (profile);
 
   if (0 == strcmp(name, "http-proxy-server") ||
       0 == strcmp(name, "https-proxy-server"))
