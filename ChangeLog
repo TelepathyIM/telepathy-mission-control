@@ -1,4 +1,8 @@
+=== telepathy-mission-control 4.25 ===
+
 2007-06-15  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac: Version 4.25.
 
 	* libmissioncontrol/mc-account-monitor.c:
 	Turn a (wrong) assertion into a runtime check. Fixes: NB#54826.
