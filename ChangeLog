@@ -1,5 +1,8 @@
 2007-06-15  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol/mc-account-monitor.c:
+	Turn a (wrong) assertion into a runtime check. Fixes: NB#54826.
+
 	* src/mcd-connection.c, src/mcd-master.c:
 	Don't crash if we fail to retrieve account or profile data.
 	Fixes: NB#59649.
@@ -11,7 +14,7 @@
 
 	* src/mcd-connection.c:
 	Don't let libtelepathy connect the connection by itself; this ensure
-	we don't lose any status changed signal.
+	we don't lose any status changed signal. Fixes: NB#54624.
 
 	* src/mcd-channel.c:
 	Check for the group interface, before using it.

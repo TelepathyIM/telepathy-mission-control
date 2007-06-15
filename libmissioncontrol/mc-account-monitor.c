@@ -190,7 +190,7 @@ _account_name_from_key (const gchar *key)
   const gchar *base, *slash;
 
   g_assert (key == strstr (key, MC_ACCOUNTS_GCONF_BASE));
-  g_assert (strlen (key) > base_len + 1);
+  if (strlen (key) <= base_len + 1) return NULL;
 
   base = key + base_len + 1;
   slash = index (base, '/');
@@ -228,6 +228,7 @@ _gconf_notify_cb (GConfClient *client, guint conn_id, GConfEntry *entry,
   key = key_name (entry->key);
   key_is_enabledness = strcmp (key, MC_ACCOUNTS_GCONF_KEY_ENABLED) == 0;
   name = _account_name_from_key (entry->key);
+  if (!name) return;
   account = g_hash_table_lookup (priv->accounts, name);
   
   /* Was account complete before? */
