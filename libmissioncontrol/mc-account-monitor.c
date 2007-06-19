@@ -407,8 +407,9 @@ mc_account_monitor_new (void)
       monitor = g_object_new (MC_TYPE_ACCOUNT_MONITOR, NULL);
       g_object_add_weak_pointer (G_OBJECT (monitor), (gpointer) &monitor);
     }
-  else
-      g_object_ref (monitor);
+  /* The object is never to be disposed, or mc_account_lookup() might return
+   * different objects at each invocation. */
+  g_object_ref (monitor);
   return monitor;
 }
 

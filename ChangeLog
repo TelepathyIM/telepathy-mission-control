@@ -1,3 +1,10 @@
+2007-06-19  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-monitor.c:
+	Revert the fix for McAccountMonitor reference counting: the object
+	must never be disposed, or invocations of mc_account_lookup() might
+	return different objects for the same account.
+
 === telepathy-mission-control 4.25 ===
 
 2007-06-15  Alberto Mardegan  <alberto.mardegan@nokia.com>
