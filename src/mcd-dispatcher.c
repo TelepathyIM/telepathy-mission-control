@@ -254,7 +254,10 @@ _mcd_dispatcher_get_filter_chain (McdDispatcher * dispatcher,
 }
 
 static GList *
-chain_add_filter (GList *chain, McdFilterFunc filter, guint priority)
+chain_add_filter (GList *chain,
+		  McdFilterFunc filter,
+		  guint priority,
+                  gpointer user_data)
 {
     GList *elem;
     McdFilter *filter_data;
@@ -262,6 +265,7 @@ chain_add_filter (GList *chain, McdFilterFunc filter, guint priority)
     filter_data = g_malloc (sizeof (McdFilter));
     filter_data->func = filter;
     filter_data->priority = priority;
+    filter_data->user_data = user_data;
     for (elem = chain; elem; elem = elem->next)
 	if (((McdFilter *)elem->data)->priority >= priority) break;
 
@@ -319,7 +323,8 @@ void
 mcd_dispatcher_register_filter (McdDispatcher *dispatcher,
 			       	McdFilterFunc filter,
 				GQuark channel_type_quark,
-				guint filter_flags, guint priority)
+				guint filter_flags, guint priority,
+				gpointer user_data)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (dispatcher);
     struct iface_chains_t *iface_chains = NULL;
@@ -339,11 +344,11 @@ mcd_dispatcher_register_filter (McdDispatcher *dispatcher,
     {
     case MCD_FILTER_IN:
 	iface_chains->chain_in = chain_add_filter (iface_chains->chain_in,
-						   filter, priority);
+						   filter, priority, user_data);
 	break;
     case MCD_FILTER_OUT:
 	iface_chains->chain_out = chain_add_filter (iface_chains->chain_out,
-						    filter, priority);
+						    filter, priority, user_data);
 	break;
     default:
 	g_warning ("Unknown filter flag value!");
@@ -426,7 +431,8 @@ mcd_dispatcher_register_filters (McdDispatcher *dispatcher,
     for (filter = filters; filter->func != NULL; filter++)
 	mcd_dispatcher_register_filter (dispatcher, filter->func,
 				       	channel_type_quark,
-					filter_flags, filter->priority);
+					filter_flags, filter->priority,
+					filter->user_data);
 }
 
 /* Returns # of times particular channel type  has been used */
@@ -1155,7 +1161,7 @@ mcd_dispatcher_context_process (McdDispatcherContext * context, gboolean result)
 	    context->next_func_index++;
 	    
 	    g_debug ("Next filter");
-	    filter->func (context);
+	    filter->func (context, filter->user_data);
 	    return; /*State machine goes on...*/
 	}
 	else

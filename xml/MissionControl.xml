@@ -309,5 +309,26 @@
 	<mc:docstring>The actual presence</mc:docstring>
       </arg>
     </signal>
+    <method name="RegisterFilter">
+      <mc:docstring>
+	Signals the MissionControl service that a filter service is running for
+	a specified type of channel.
+      </mc:docstring>
+      <arg type="s" name="bus_name" direction="in">
+	<mc:docstring>D-Bus name where the filter service is</mc:docstring>
+      </arg>
+      <arg type="o" name="object_path" direction="in">
+	<mc:docstring>D-Bus object path where the filter service is</mc:docstring>
+      </arg>
+      <arg type="s" name="channel_type" direction="in">
+	<mc:docstring>Type of channel to be filtered</mc:docstring>
+      </arg>
+      <arg type="u" name="priority" direction="in">
+	<mc:docstring>Priority of the filter</mc:docstring>
+      </arg>
+      <arg type="u" name="flag" direction="in">
+	<mc:docstring>Flag</mc:docstring>
+      </arg>
+    </method>
   </interface>
 </node>

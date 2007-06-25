@@ -1,6 +1,13 @@
 2007-06-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
-	* src/mcd-dispatcher-context.h, src/mcd-dispatcher.c:
+	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
+	* libmissioncontrol/mission-control.[hc],
+	src/mcd-dispatcher-context.h, src/mcd-dispatcher.c, src/mcd-service.c,
+	src/mcd-signals-marshal.list, xml/MissionControl.xml:
+	Implement D-Bus API for channel filtering.
+
+	* src/mcd-dispatcher-context.h, src/mcd-dispatcher.c,
+	src/mcd-connection.[hc:
 	Remove the const keyword from the values returned by the getter
 	functions, as these objects are not supposed to be constant.
 

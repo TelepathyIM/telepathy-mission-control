@@ -50,9 +50,11 @@
 #include <gconf/gconf-client.h>
 #include <libtelepathy/tp-interfaces.h>
 #include <libtelepathy/tp-constants.h>
+#include <libtelepathy/tp-helpers.h>
 
 #include "mcd-signals-marshal.h"
 #include "mcd-dispatcher.h"
+#include "mcd-dispatcher-context.h"
 #include "mcd-connection.h"
 #include "mcd-service.h"
 
@@ -381,6 +383,139 @@ mcd_service_remote_avatar_changed(GObject *obj,
     dbus_g_method_return (mi);
 
     mcd_connection_remote_avatar_changed (connection, contact_id, token);
+}
+
+static void
+_on_filter_process (DBusGProxy *proxy, guint counter, gboolean process)
+{
+    McdDispatcherContext *ctx;
+    GHashTable *ctx_table = g_object_get_data (G_OBJECT (proxy), "table");
+
+    ctx = g_hash_table_lookup (ctx_table, GUINT_TO_POINTER (counter));
+    if (ctx)
+    {
+        g_debug ("%s: Process channel %d", __FUNCTION__, counter);
+        g_hash_table_remove (ctx_table, GUINT_TO_POINTER (counter));
+        mcd_dispatcher_context_process (ctx, process);
+    }
+}
+
+static void
+_on_filter_new_channel (McdDispatcherContext *ctx, DBusGProxy *proxy)
+{
+    TpConn *tp_conn;
+    const McdConnection *connection = mcd_dispatcher_context_get_connection (ctx);
+    McdChannel *channel = mcd_dispatcher_context_get_channel (ctx); 
+    static guint counter = 0;
+    GHashTable *ctx_table = g_object_get_data (G_OBJECT (proxy), "table");
+
+    g_hash_table_insert (ctx_table, GUINT_TO_POINTER (++counter), ctx);
+
+    g_object_get (G_OBJECT (connection), "tp-connection", &tp_conn, NULL);
+
+    g_debug ("%s: Filtering new channel", __FUNCTION__);
+    dbus_g_proxy_call_no_reply (proxy, "FilterChannel",
+				G_TYPE_STRING, dbus_g_proxy_get_bus_name (DBUS_G_PROXY(tp_conn)),
+				DBUS_TYPE_G_OBJECT_PATH, dbus_g_proxy_get_path (DBUS_G_PROXY(tp_conn)),
+				G_TYPE_STRING, mcd_channel_get_channel_type (channel),
+				DBUS_TYPE_G_OBJECT_PATH, mcd_channel_get_object_path (channel),
+				G_TYPE_UINT, mcd_channel_get_handle_type (channel),
+				G_TYPE_UINT, mcd_channel_get_handle (channel),
+				G_TYPE_UINT, counter,
+				G_TYPE_INVALID);
+}
+
+static gboolean
+_ctx_table_remove_foreach (guint counter,
+			   McdDispatcherContext *ctx,
+			   gpointer user_data)
+{
+    mcd_dispatcher_context_process (ctx, TRUE);
+    return TRUE;
+}
+
+static void
+_on_filter_proxy_destroy (DBusGProxy *proxy)
+{
+    McdDispatcher *dispatcher;
+    GHashTable *ctx_table;
+    guint quark;
+    guint flags;
+
+    dispatcher = g_object_get_data (G_OBJECT (proxy), "dispatcher");
+    ctx_table = g_object_get_data (G_OBJECT (proxy), "table");
+    quark = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (proxy), "quark"));
+    flags = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (proxy), "flags"));
+
+    g_hash_table_foreach_remove (ctx_table,
+    				 (GHRFunc) _ctx_table_remove_foreach,
+    				 NULL);
+
+    g_debug ("%s: Unregistering filter", __FUNCTION__);
+    mcd_dispatcher_unregister_filter (dispatcher,
+				      (McdFilterFunc) _on_filter_new_channel,
+				      quark, flags);
+
+    g_object_unref (proxy);
+}
+
+static gboolean
+mcd_service_register_filter(GObject *obj,
+			    const gchar *bus_name,
+			    const gchar *object_path,
+			    const gchar *channel_type,
+			    guint priority,
+			    guint flags,
+			    GError **error)
+{
+    McdServicePrivate *priv = MCD_OBJECT_PRIV (obj);
+    DBusGProxy *proxy;
+    GHashTable *ctx_table;
+    static gboolean initialized = FALSE;
+    guint quark = g_quark_from_string (channel_type);
+
+    g_debug ("%s: Registering new filter", __FUNCTION__);
+
+    if (!initialized)
+    {
+        dbus_g_object_register_marshaller (mcd_marshal_VOID__UINT_BOOLEAN,
+					   G_TYPE_NONE,
+					   G_TYPE_UINT,
+					   G_TYPE_BOOLEAN,
+					   G_TYPE_INVALID);
+        initialized = TRUE;
+    }
+
+    proxy = dbus_g_proxy_new_for_name (tp_get_bus (),
+    				       bus_name,
+    				       object_path,
+    				       "org.freedesktop.Telepathy.MissionControl.Filter");
+
+    ctx_table = g_hash_table_new (g_direct_hash, g_direct_equal);
+    g_object_set_data_full (G_OBJECT (proxy), "table", ctx_table,
+    			    (GDestroyNotify) g_hash_table_destroy);
+    g_object_set_data (G_OBJECT (proxy), "dispatcher", priv->dispatcher);
+    g_object_set_data (G_OBJECT (proxy), "flags", GUINT_TO_POINTER (flags));
+    g_object_set_data (G_OBJECT (proxy), "quark", GUINT_TO_POINTER (quark));
+
+    dbus_g_proxy_add_signal (proxy, "Process",
+			     G_TYPE_UINT,
+			     G_TYPE_BOOLEAN,
+			     G_TYPE_INVALID);
+    dbus_g_proxy_connect_signal (proxy, "Process",
+    				 G_CALLBACK (_on_filter_process),
+    				 NULL, NULL);
+    g_signal_connect (proxy, "destroy",
+    		      G_CALLBACK (_on_filter_proxy_destroy),
+    		      NULL);
+
+    mcd_dispatcher_register_filter (priv->dispatcher,
+    				    (McdFilterFunc) _on_filter_new_channel,
+    				    quark,
+    				    flags, priority,
+    				    proxy);
+
+    return TRUE;
 }
 
 #include "mcd-service-gen.h"

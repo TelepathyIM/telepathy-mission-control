@@ -44,7 +44,7 @@ G_BEGIN_DECLS
 typedef struct _McdDispatcherContext McdDispatcherContext;
 
 /* Filter function type */
-typedef void (*McdFilterFunc) (McdDispatcherContext * ctx);
+typedef void (*McdFilterFunc) (McdDispatcherContext * ctx, gpointer user_data);
 
 /* Filter priorities */
 #define MCD_FILTER_PRIORITY_CRITICAL 10000
@@ -56,13 +56,15 @@ typedef void (*McdFilterFunc) (McdDispatcherContext * ctx);
 typedef struct filter_t {
     McdFilterFunc func;
     guint priority;
+    gpointer user_data;
 } McdFilter;
 
 void mcd_dispatcher_register_filter (McdDispatcher *dispatcher,
 				     McdFilterFunc filter,
 				     GQuark channel_type_quark,
 				     guint filter_flags,
-				     guint priority);
+				     guint priority,
+				     gpointer user_data);
 
 void mcd_dispatcher_unregister_filter (McdDispatcher *dispatcher,
 				       McdFilterFunc filter,

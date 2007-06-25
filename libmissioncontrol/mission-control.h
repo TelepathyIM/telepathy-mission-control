@@ -101,6 +101,19 @@ typedef enum {
     MC_STATUS_CONNECTED,
 } McStatus;
 
+typedef enum {
+	MC_FILTER_PRIORITY_CRITICAL = 0,
+	MC_FILTER_PRIORITY_SYSTEM = 1000,
+	MC_FILTER_PRIORITY_NOTICE = 2000,
+	MC_FILTER_PRIORITY_DIALOG = 3000,
+	MC_FILTER_PRIORITY_MONITOR = 4000
+} McFilterPriority;
+
+typedef enum {
+	MC_FILTER_FLAG_INCOMING = 1 << 0,
+	MC_FILTER_FLAG_OUTCOMING = 1 << 1
+} McFilterFlag;
+
 struct _missioncontrol
 {
     DBusGProxy parent;
@@ -217,5 +230,13 @@ gboolean mission_control_remote_avatar_changed (MissionControl *self,
 						guint contact_id,
 						const gchar *token,
 						GError **error);
+
+gboolean mission_control_register_filter (MissionControl *self,
+					  const gchar *bus_name,
+					  const gchar *object_path,
+					  const gchar *channel_type,
+					  McFilterPriority priority,
+					  McFilterFlag flags,
+					  GError **error);
 
 #endif

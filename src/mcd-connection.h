@@ -66,7 +66,7 @@ McdConnection *mcd_connection_new (DBusGConnection * dbus_connection,
 				   McdDispatcher *dispatcher);
 
 /* Return the connection's account */
-const McAccount *mcd_connection_get_account (McdConnection * connection);
+McAccount *mcd_connection_get_account (McdConnection * connection);
 
 TelepathyConnectionStatus mcd_connection_get_connection_status (McdConnection
 								* connection);

@@ -1524,7 +1524,7 @@ mcd_connection_new (DBusGConnection * dbus_connection,
 
 /* Constant getters. These should probably be removed */
 
-const McAccount *
+McAccount *
 mcd_connection_get_account (McdConnection * id)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (id);

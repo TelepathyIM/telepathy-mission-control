@@ -1243,4 +1243,20 @@ mission_control_remote_avatar_changed (MissionControl *self,
 						       error);
 }
 
+gboolean
+mission_control_register_filter (MissionControl *self,
+				 const gchar *bus_name,
+				 const gchar *object_path,
+				 const gchar *channel_type,
+				 McFilterPriority priority,
+				 McFilterFlag flags,
+				 GError **error)
+{
+    return mission_control_dbus_register_filter (DBUS_G_PROXY (self),
+						 bus_name, object_path,
+						 channel_type,
+						 priority, flags,
+						 error);
+}
+
 
