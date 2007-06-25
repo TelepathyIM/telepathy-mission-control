@@ -354,7 +354,7 @@ mcd_mission_class_init (McdMissionClass * klass)
 	g_signal_new ("flags-changed", G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_FIRST, G_STRUCT_OFFSET (McdMissionClass,
 							   flags_changed_signal),
-		      NULL, NULL, g_cclosure_marshal_VOID__ENUM, G_TYPE_NONE,
+		      NULL, NULL, g_cclosure_marshal_VOID__FLAGS, G_TYPE_NONE,
 		      1, MCD_TYPE_SYSTEM_FLAGS);
     mcd_mission_signals[MODE_SET] =
 	g_signal_new ("mode-set", G_OBJECT_CLASS_TYPE (klass),

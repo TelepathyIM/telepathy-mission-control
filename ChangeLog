@@ -1,3 +1,10 @@
+2007-06-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	Patch from Jaap Haitsma <jaap@haitsma.org>:
+	* src/mcd-mission.c:
+	Set the correct type for the McdSystemFlags parameter in the
+	flags-changed signal.
+
 === telepathy-mission-control 4.26 ===
 
 2007-06-19  Alberto Mardegan  <alberto.mardegan@nokia.com>
