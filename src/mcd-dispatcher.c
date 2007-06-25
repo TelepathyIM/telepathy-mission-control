@@ -1198,7 +1198,7 @@ mcd_dispatcher_context_free (McdDispatcherContext * context)
 /* CONTEXT API */
 
 /* Context getters */
-const TpChan *
+TpChan *
 mcd_dispatcher_context_get_channel_object (McdDispatcherContext * ctx)
 {
     TpChan *tp_chan;
@@ -1214,7 +1214,7 @@ mcd_dispatcher_context_get_dispatcher (McdDispatcherContext * ctx)
     return ctx->dispatcher;
 }
 
-const McdConnection *
+McdConnection *
 mcd_dispatcher_context_get_connection (McdDispatcherContext * context)
 {
     McdConnection *connection;
@@ -1229,7 +1229,7 @@ mcd_dispatcher_context_get_connection (McdDispatcherContext * context)
     return connection;
 }
 
-const TpConn *
+TpConn *
 mcd_dispatcher_context_get_connection_object (McdDispatcherContext * ctx)
 {
     const McdConnection *connection;

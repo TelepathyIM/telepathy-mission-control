@@ -1,5 +1,9 @@
 2007-06-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/mcd-dispatcher-context.h, src/mcd-dispatcher.c:
+	Remove the const keyword from the values returned by the getter
+	functions, as these objects are not supposed to be constant.
+
 	Patch from Jaap Haitsma <jaap@haitsma.org>:
 	* src/mcd-mission.c:
 	Set the correct type for the McdSystemFlags parameter in the
