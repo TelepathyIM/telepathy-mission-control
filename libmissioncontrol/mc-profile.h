@@ -81,8 +81,6 @@ typedef struct {
 
 GType mc_profile_get_type (void);
 
-McProfile* mc_profile_new (const gchar *unique_name);
-
 /* to find one profile */
 McProfile *mc_profile_lookup (const gchar *unique_name);
 McProfile *mc_profile_lookup_default_for_vcard_field (const gchar *vcard_field);
