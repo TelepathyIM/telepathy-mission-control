@@ -1,3 +1,10 @@
+2007-06-26  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-master.c:
+	When requesting a channel from offline presence, monitor the requestor
+	process's lifetime to eventually reset the presence back to offline.
+	Fixes: NB#57390.
+
 2007-06-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	Patch from Xavier Claessens <zdra@users.sourceforge.net>:

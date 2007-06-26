@@ -1054,7 +1054,7 @@ mcd_master_request_channel (McdMaster *master,
 	mcd_presence_frame_is_stable (priv->presence_frame))
     {
 	g_debug ("%s: requesting default presence", G_STRFUNC);
-	mcd_master_set_default_presence (master, NULL);
+	mcd_master_set_default_presence (master, req->requestor_client_id);
     }
 
     node = managers;
