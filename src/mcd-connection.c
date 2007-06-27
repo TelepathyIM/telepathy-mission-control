@@ -63,6 +63,7 @@
 
 #include "mcd-connection.h"
 #include "mcd-channel.h"
+#include "mcd-provisioning-factory.h"
 
 #define MAX_REF_PRESENCE 4
 
@@ -86,7 +87,9 @@ typedef struct
 
     /* Channel dispatcher */
     McdDispatcher *dispatcher;
-    
+
+    McdProvisioning *provisioning;
+
     /* Account */
     McAccount *account;
 
@@ -199,6 +202,7 @@ static void mcd_async_request_chan_callback (DBusGProxy *proxy,
 static GError * map_tp_error_to_mc_error (McdChannel *channel, GError *tp_error);
 static void _mcd_connection_setup (McdConnection * connection);
 static void _mcd_connection_release_tp_connection (McdConnection *connection);
+static void mcd_connection_connect (McdConnection *connection, GHashTable *parameters);
 
 static McPresence presence_str_to_enum (const gchar *presence_str)
 {
@@ -1012,6 +1016,102 @@ static void proxy_destroyed (DBusGProxy *tp_conn, McdConnection *connection)
 }
 
 static void
+provisioning_cb (McdProvisioning *prov, GHashTable *parameters, GError *error,
+		 gpointer user_data)
+{
+    McdConnection *connection = MCD_CONNECTION (user_data);
+    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
+
+    g_debug ("%s called", G_STRFUNC);
+    priv->provisioning = NULL;
+    if (error)
+    {
+	g_warning ("%s failed: %s", G_STRFUNC, error->message);
+	g_error_free (error);
+	mcd_presence_frame_set_account_status (priv->presence_frame,
+					       priv->account,
+					       TP_CONN_STATUS_DISCONNECTED,
+					       TP_CONN_STATUS_REASON_AUTHENTICATION_FAILED);
+	return;
+    }
+    mcd_connection_connect (connection, parameters);
+    g_hash_table_destroy (parameters);
+}
+
+static void
+mcd_connection_get_params_and_connect (McdConnection *connection)
+{
+    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
+    GHashTable *params = NULL;
+    McAccountSettingState state;
+    gchar *url = NULL;
+    McProfile *profile;
+    const gchar *protocol_name;
+    const gchar *account_name;
+    gboolean requesting_provisioning = FALSE;
+
+    profile = mc_account_get_profile (priv->account);
+    if (!profile)
+    {
+	mcd_presence_frame_set_account_status (priv->presence_frame,
+					       priv->account,
+					       TP_CONN_STATUS_DISCONNECTED,
+					       TP_CONN_STATUS_REASON_AUTHENTICATION_FAILED);
+	return;
+    }
+    protocol_name = mc_profile_get_protocol_name (profile);
+    account_name = mc_account_get_unique_name (priv->account);
+
+    g_debug ("%s: Trying connect account: %s",
+	     G_STRFUNC, (gchar *) account_name);
+
+    state = mc_account_get_param_string (priv->account, "prov-url", &url);
+    if (state != MC_ACCOUNT_SETTING_ABSENT && url != NULL)
+    {
+	gchar *service = NULL, *username = NULL, *password = NULL;
+	/* get parameters from provisioning service */
+	mc_account_get_param_string (priv->account, "prov-service", &service);
+	mc_account_get_param_string (priv->account, "prov-username", &username);
+	mc_account_get_param_string (priv->account, "prov-password", &password);
+	if (service)
+	{
+	    McdProvisioningFactory *factory;
+	    McdProvisioning *prov;
+
+	    factory = mcd_provisioning_factory_get ();
+	    g_assert (factory != NULL);
+	    prov = mcd_provisioning_factory_lookup (factory, service);
+	    if (prov)
+	    {
+		g_debug ("%s: requesting parameters from provisioning service %s",
+			 G_STRFUNC, service);
+		/* if there was already a request, cancel it */
+		if (priv->provisioning)
+		    mcd_provisioning_cancel_request (priv->provisioning,
+						     provisioning_cb,
+						     connection);
+		mcd_provisioning_request_parameters (prov, url,
+						     username, password,
+						     provisioning_cb,
+						     connection);
+		requesting_provisioning = TRUE;
+		priv->provisioning = prov;
+	    }
+	    else
+		g_debug ("%s: provisioning service %s not found",
+			 G_STRFUNC, service);
+	}
+    }
+    if (!requesting_provisioning)
+    {
+	params = mc_account_get_params (priv->account);
+	mcd_connection_connect (connection, params);
+	g_hash_table_destroy (params);
+    }
+    g_object_unref (profile);
+}
+
+static void
 _mcd_connection_setup (McdConnection * connection)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
@@ -1035,10 +1135,23 @@ _mcd_connection_setup (McdConnection * connection)
     if (mcd_connection_get_connection_status (connection) !=
 	TP_CONN_STATUS_CONNECTED)
     {
-	TelepathyConnectionStatus conn_status;
+	mcd_connection_get_params_and_connect (connection);
+    }
+    else
+    {
+	g_debug ("%s: Not connecting because not disconnected (%i)",
+		 G_STRFUNC, mcd_connection_get_connection_status (connection));
+	return;
+    }
+}
+
+static void
+mcd_connection_connect (McdConnection *connection, GHashTable *params)
+{
+    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
+    TelepathyConnectionStatus conn_status;
 	
 	/* FIXME: Can we do it easier? */
-	GHashTable *params;
 	McProfile *profile;
 	const gchar *protocol_name;
 	const gchar *account_name;
@@ -1047,27 +1160,16 @@ _mcd_connection_setup (McdConnection * connection)
 	gboolean ret;
 
 	profile = mc_account_get_profile (priv->account);
-	if (!profile)
-	{
-	    mcd_presence_frame_set_account_status (priv->presence_frame,
-						   priv->account,
-						   TP_CONN_STATUS_DISCONNECTED,
-						   TP_CONN_STATUS_REASON_AUTHENTICATION_FAILED);
-	    return;
-	}
 	protocol_name = mc_profile_get_protocol_name (profile);
 	account_name = mc_account_get_unique_name (priv->account);
 
 	g_debug ("%s: Trying connect account: %s",
 		 G_STRFUNC, (gchar *) account_name);
 
-	params = mc_account_get_params (priv->account);
-
 	ret = tp_connmgr_request_connection (DBUS_G_PROXY (priv->tp_conn_mgr),
 					     protocol_name, params,
 					     &conn_bus_name, &conn_obj_path,
 					     &error);
-	g_hash_table_destroy (params);
 	g_object_unref (profile);
 	if (!ret)
 	{
@@ -1134,13 +1236,6 @@ _mcd_connection_setup (McdConnection * connection)
 		return;
 	    }
 	}
-    }
-    else
-    {
-	g_debug ("%s: Not connecting because not disconnected (%i)",
-		 G_STRFUNC, mcd_connection_get_connection_status (connection));
-	return;
-    }
 }
 
 static void
@@ -1277,6 +1372,12 @@ _mcd_connection_dispose (GObject * object)
 	priv->dispatcher = NULL;
     }
 
+    if (priv->provisioning)
+    {
+	mcd_provisioning_cancel_request (priv->provisioning, provisioning_cb,
+					 connection);
+	priv->provisioning = NULL;
+    }
     G_OBJECT_CLASS (mcd_connection_parent_class)->dispose (object);
 }
 

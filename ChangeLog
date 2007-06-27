@@ -1,5 +1,9 @@
 2007-06-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/mcd-connection.c:
+	Implement getting of connection parameters through a provisioning
+	service.
+
 	* src/mcd-provisioning.[hc]:
 	Add mcd_provisioning_cancel_request() API.
 
