@@ -202,7 +202,6 @@ static void mcd_async_request_chan_callback (DBusGProxy *proxy,
 static GError * map_tp_error_to_mc_error (McdChannel *channel, GError *tp_error);
 static void _mcd_connection_setup (McdConnection * connection);
 static void _mcd_connection_release_tp_connection (McdConnection *connection);
-static void mcd_connection_connect (McdConnection *connection, GHashTable *parameters);
 
 static McPresence presence_str_to_enum (const gchar *presence_str)
 {
@@ -1016,6 +1015,97 @@ static void proxy_destroyed (DBusGProxy *tp_conn, McdConnection *connection)
 }
 
 static void
+mcd_connection_connect (McdConnection *connection, GHashTable *params)
+{
+    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
+    TelepathyConnectionStatus conn_status;
+    McProfile *profile;
+    const gchar *protocol_name;
+    const gchar *account_name;
+    gchar *conn_bus_name, *conn_obj_path;
+    GError *error = NULL;
+    gboolean ret;
+
+    profile = mc_account_get_profile (priv->account);
+    protocol_name = mc_profile_get_protocol_name (profile);
+    account_name = mc_account_get_unique_name (priv->account);
+
+    g_debug ("%s: Trying connect account: %s",
+	     G_STRFUNC, (gchar *) account_name);
+
+    ret = tp_connmgr_request_connection (DBUS_G_PROXY (priv->tp_conn_mgr),
+					 protocol_name, params,
+					 &conn_bus_name, &conn_obj_path,
+					 &error);
+    g_object_unref (profile);
+    if (!ret)
+    {
+	g_warning ("%s: tp_connmgr_request_connection failed: %s",
+		   G_STRFUNC, error->message);
+	mcd_presence_frame_set_account_status (priv->presence_frame,
+					       priv->account,
+					       TP_CONN_STATUS_DISCONNECTED,
+					       TP_CONN_STATUS_REASON_NETWORK_ERROR);
+	g_error_free (error);
+	return;
+    }
+
+    priv->tp_conn = tp_conn_new_without_connect (priv->dbus_connection,
+						 conn_bus_name,
+						 conn_obj_path,
+						 &conn_status, &error);
+    g_free (conn_bus_name);
+    g_free (conn_obj_path);
+    if (!priv->tp_conn)
+    {
+	g_warning ("%s: tp_conn_new_without_connect failed: %s",
+		   G_STRFUNC, error->message);
+	mcd_presence_frame_set_account_status (priv->presence_frame,
+					       priv->account,
+					       TP_CONN_STATUS_DISCONNECTED,
+					       TP_CONN_STATUS_REASON_NETWORK_ERROR);
+	g_error_free (error);
+	return;
+    }
+
+    /* Setup signals */
+    g_signal_connect (priv->tp_conn, "destroy",
+		      G_CALLBACK (proxy_destroyed), connection);
+    dbus_g_proxy_connect_signal (DBUS_G_PROXY (priv->tp_conn), "NewChannel",
+				 G_CALLBACK
+				 (_mcd_connection_new_channel_cb),
+				 connection, NULL);
+    dbus_g_proxy_connect_signal (DBUS_G_PROXY (priv->tp_conn),
+				 "StatusChanged",
+				 G_CALLBACK
+				 (_mcd_connection_status_changed_cb),
+				 connection, NULL);
+
+    /* if this was an already existing connection, it might be that it was
+     * already connected/connecting, in which case we done. */
+    if (conn_status != TP_CONN_STATUS_DISCONNECTED)
+	mcd_presence_frame_set_account_status (priv->presence_frame,
+					       priv->account,
+					       conn_status,
+					       TP_CONN_STATUS_REASON_NONE_SPECIFIED);
+    else
+    {
+	/* Try to connect the connection */
+	if (!tp_conn_connect (DBUS_G_PROXY (priv->tp_conn), &error))
+	{
+	    g_warning ("%s: tp_conn_connect failed: %s",
+		       G_STRFUNC, error->message);
+	    mcd_presence_frame_set_account_status (priv->presence_frame,
+						   priv->account,
+						   conn_status,
+						   TP_CONN_STATUS_REASON_NETWORK_ERROR);
+	    g_error_free (error);
+	    return;
+	}
+    }
+}
+
+static void
 provisioning_cb (McdProvisioning *prov, GHashTable *parameters, GError *error,
 		 gpointer user_data)
 {
@@ -1143,99 +1233,6 @@ _mcd_connection_setup (McdConnection * connection)
 		 G_STRFUNC, mcd_connection_get_connection_status (connection));
 	return;
     }
-}
-
-static void
-mcd_connection_connect (McdConnection *connection, GHashTable *params)
-{
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-    TelepathyConnectionStatus conn_status;
-	
-	/* FIXME: Can we do it easier? */
-	McProfile *profile;
-	const gchar *protocol_name;
-	const gchar *account_name;
-	gchar *conn_bus_name, *conn_obj_path;
-	GError *error = NULL;
-	gboolean ret;
-
-	profile = mc_account_get_profile (priv->account);
-	protocol_name = mc_profile_get_protocol_name (profile);
-	account_name = mc_account_get_unique_name (priv->account);
-
-	g_debug ("%s: Trying connect account: %s",
-		 G_STRFUNC, (gchar *) account_name);
-
-	ret = tp_connmgr_request_connection (DBUS_G_PROXY (priv->tp_conn_mgr),
-					     protocol_name, params,
-					     &conn_bus_name, &conn_obj_path,
-					     &error);
-	g_object_unref (profile);
-	if (!ret)
-	{
-	    g_warning ("%s: tp_connmgr_request_connection failed: %s",
-		       G_STRFUNC, error->message);
-	    mcd_presence_frame_set_account_status (priv->presence_frame,
-						   priv->account,
-						   TP_CONN_STATUS_DISCONNECTED,
-						   TP_CONN_STATUS_REASON_NETWORK_ERROR);
-	    g_error_free (error);
-	    return;
-	}
-
-	priv->tp_conn = tp_conn_new_without_connect (priv->dbus_connection,
-						     conn_bus_name,
-						     conn_obj_path,
-						     &conn_status, &error);
-	g_free (conn_bus_name);
-	g_free (conn_obj_path);
-	if (!priv->tp_conn)
-	{
-	    g_warning ("%s: tp_conn_new_without_connect failed: %s",
-		       G_STRFUNC, error->message);
-	    mcd_presence_frame_set_account_status (priv->presence_frame,
-						   priv->account,
-						   TP_CONN_STATUS_DISCONNECTED,
-						   TP_CONN_STATUS_REASON_NETWORK_ERROR);
-	    g_error_free (error);
-	    return;
-	}
-
-	/* Setup signals */
-	g_signal_connect (priv->tp_conn, "destroy",
-			  G_CALLBACK (proxy_destroyed), connection);
-	dbus_g_proxy_connect_signal (DBUS_G_PROXY (priv->tp_conn), "NewChannel",
-				     G_CALLBACK
-				     (_mcd_connection_new_channel_cb),
-				     connection, NULL);
-	dbus_g_proxy_connect_signal (DBUS_G_PROXY (priv->tp_conn),
-				     "StatusChanged",
-				     G_CALLBACK
-				     (_mcd_connection_status_changed_cb),
-				     connection, NULL);
-
-	/* if this was an already existing connection, it might be that it was
-	 * already connected/connecting, in which case we done. */
-	if (conn_status != TP_CONN_STATUS_DISCONNECTED)
-	    mcd_presence_frame_set_account_status (priv->presence_frame,
-						   priv->account,
-						   conn_status,
-						   TP_CONN_STATUS_REASON_NONE_SPECIFIED);
-	else
-	{
-	    /* Try to connect the connection */
-	    if (!tp_conn_connect (DBUS_G_PROXY (priv->tp_conn), &error))
-	    {
-		g_warning ("%s: tp_conn_connect failed: %s",
-			   G_STRFUNC, error->message);
-		mcd_presence_frame_set_account_status (priv->presence_frame,
-						       priv->account,
-						       conn_status,
-						       TP_CONN_STATUS_REASON_NETWORK_ERROR);
-		g_error_free (error);
-		return;
-	    }
-	}
 }
 
 static void
