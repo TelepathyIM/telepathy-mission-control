@@ -100,3 +100,22 @@ mcd_provisioning_request_parameters (McdProvisioning *prov,
 							   user_data);
 }
 
+/**
+ * mcd_provisioning_cancel_request:
+ * @prov: the #McdProvisioning object.
+ * @callback: #McdProvisioningCallback to disconnect.
+ * @user_data: extra argument for @callback.
+ *
+ * Cancel a provisioning request, preventing @callback from being invoked.
+ */
+void
+mcd_provisioning_cancel_request (McdProvisioning *prov,
+				 McdProvisioningCallback callback,
+				 gpointer user_data)
+{
+    g_return_if_fail (MCD_IS_PROVISIONING (prov));
+
+    MCD_PROVISIONING_GET_IFACE (prov)->cancel_request (prov,
+						       callback, user_data);
+}
+

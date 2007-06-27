@@ -1,3 +1,8 @@
+2007-06-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-provisioning.[hc]:
+	Add mcd_provisioning_cancel_request() API.
+
 === telepathy-mission-control 4.27 ===
 
 2007-06-26  Alberto Mardegan  <alberto.mardegan@nokia.com>

@@ -58,6 +58,9 @@ struct _McdProvisioningIface {
 				const gchar *password,
 				McdProvisioningCallback callback,
 				gpointer user_data);
+    void (*cancel_request) (McdProvisioning *prov,
+			    McdProvisioningCallback callback,
+			    gpointer user_data);
 };
 
 GQuark mcd_provisioning_error_quark     (void);
@@ -69,6 +72,10 @@ void mcd_provisioning_request_parameters (McdProvisioning *prov,
 					  const gchar *password,
 					  McdProvisioningCallback callback,
 					  gpointer user_data);
+
+void mcd_provisioning_cancel_request (McdProvisioning *prov,
+				      McdProvisioningCallback callback,
+				      gpointer user_data);
 G_END_DECLS
 
 #endif
