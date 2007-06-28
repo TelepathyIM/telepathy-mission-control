@@ -41,7 +41,7 @@ static void
 mcd_provisioning_factory_init (McdProvisioningFactory *object)
 {
     McdProvisioningFactoryPriv *priv = MCD_PROVISIONING_FACTORY_GET_PRIV (object);
-    priv->provs = g_hash_table_new_full (g_direct_hash, g_direct_equal,
+    priv->provs = g_hash_table_new_full (g_str_hash, g_str_equal,
 					 (GDestroyNotify) g_free,
 					 (GDestroyNotify) g_object_unref);
 }

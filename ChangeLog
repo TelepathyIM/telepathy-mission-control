@@ -3,6 +3,7 @@
 	* src/mcd-provisioning-factory.c:
 	Fix function name: mcd_provisioning_factory_add instead of
 	mcd_provisioning_factory_add_provisioning.
+	Use g_str_{hash,equal} for the services hash table.
 
 2007-06-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
