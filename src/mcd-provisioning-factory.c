@@ -91,7 +91,7 @@ mcd_provisioning_factory_lookup (McdProvisioningFactory* prov_factory,
 }
 
 /**
- * mcd_provisioning_factory_add_provisioning:
+ * mcd_provisioning_factory_add:
  * @prov_factory: the #McdProvisioningFactory.
  * @service: name of the service for which provisioning will be provided.
  * @provisioning: the #McdProvisioning object to add.
@@ -100,9 +100,9 @@ mcd_provisioning_factory_lookup (McdProvisioningFactory* prov_factory,
  * take ownership of the @provisioning object.
  */
 void
-mcd_provisioning_factory_add_provisioning (McdProvisioningFactory* prov_factory,
-					   const gchar *service,
-					   McdProvisioning *provisioning)
+mcd_provisioning_factory_add (McdProvisioningFactory* prov_factory,
+			      const gchar *service,
+			      McdProvisioning *provisioning)
 {
     McdProvisioningFactoryPriv *priv;
     
