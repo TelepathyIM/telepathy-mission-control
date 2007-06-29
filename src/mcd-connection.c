@@ -1140,6 +1140,11 @@ mcd_connection_get_params_and_connect (McdConnection *connection)
     const gchar *account_name;
     gboolean requesting_provisioning = FALSE;
 
+    mcd_presence_frame_set_account_status (priv->presence_frame,
+					   priv->account,
+					   TP_CONN_STATUS_CONNECTING,
+					   TP_CONN_STATUS_REASON_REQUESTED);
+
     profile = mc_account_get_profile (priv->account);
     if (!profile)
     {
@@ -1191,6 +1196,10 @@ mcd_connection_get_params_and_connect (McdConnection *connection)
 		g_debug ("%s: provisioning service %s not found",
 			 G_STRFUNC, service);
 	}
+	g_free (service);
+	g_free (url);
+	g_free (username);
+	g_free (password);
     }
     if (!requesting_provisioning)
     {
