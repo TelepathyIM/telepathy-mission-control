@@ -1015,6 +1015,27 @@ static void proxy_destroyed (DBusGProxy *tp_conn, McdConnection *connection)
 }
 
 static void
+mcd_async_connect_cb (DBusGProxy *proxy, GError *error, gpointer userdata)
+{
+    McdConnection *connection = userdata;
+
+    g_debug ("%s called for connection %p", G_STRFUNC, connection);
+
+    g_object_set_data (G_OBJECT (connection), "connect_call", NULL);
+    if (error)
+    {
+	McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
+	g_warning ("%s: tp_conn_connect failed: %s",
+		   G_STRFUNC, error->message);
+	mcd_presence_frame_set_account_status (priv->presence_frame,
+					       priv->account,
+					       TP_CONN_STATUS_DISCONNECTED,
+					       TP_CONN_STATUS_REASON_NETWORK_ERROR);
+	g_error_free (error);
+    }
+}
+
+static void
 mcd_connection_connect (McdConnection *connection, GHashTable *params)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
@@ -1090,18 +1111,11 @@ mcd_connection_connect (McdConnection *connection, GHashTable *params)
 					       TP_CONN_STATUS_REASON_NONE_SPECIFIED);
     else
     {
+	DBusGProxyCall *call;
 	/* Try to connect the connection */
-	if (!tp_conn_connect (DBUS_G_PROXY (priv->tp_conn), &error))
-	{
-	    g_warning ("%s: tp_conn_connect failed: %s",
-		       G_STRFUNC, error->message);
-	    mcd_presence_frame_set_account_status (priv->presence_frame,
-						   priv->account,
-						   conn_status,
-						   TP_CONN_STATUS_REASON_NETWORK_ERROR);
-	    g_error_free (error);
-	    return;
-	}
+	call = tp_conn_connect_async (DBUS_G_PROXY (priv->tp_conn),
+				      mcd_async_connect_cb, connection);
+	g_object_set_data (G_OBJECT (connection), "connect_call", call);
     }
 }
 
@@ -1269,6 +1283,7 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
 					   priv->abort_reason);
     if (priv->tp_conn)
     {
+	DBusGProxyCall *call;
 	/* Disconnect signals */
 	dbus_g_proxy_disconnect_signal (DBUS_G_PROXY (priv->tp_conn),
 					"StatusChanged",
@@ -1284,6 +1299,13 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
 					      G_CALLBACK (proxy_destroyed),
 					      connection);
 
+	/* cancel pending calls */
+	call = g_object_get_data (G_OBJECT (connection), "connect_call");
+	if (call)
+	{
+	    dbus_g_proxy_cancel_call (DBUS_G_PROXY (priv->tp_conn), call);
+	    g_object_set_data (G_OBJECT (connection), "connect_call", NULL);
+	}
         
 	tp_conn_disconnect (DBUS_G_PROXY (priv->tp_conn), NULL);
 	g_object_unref (priv->tp_conn);
@@ -1347,7 +1369,7 @@ _mcd_connection_dispose (GObject * object)
 
     /* Unref pending channels */
     g_hash_table_destroy (priv->pending_channels);
-    
+
     _mcd_connection_release_tp_connection (connection);
     
     if (priv->presence_frame != NULL)
