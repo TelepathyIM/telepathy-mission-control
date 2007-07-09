@@ -13,7 +13,6 @@
     <xi:include href="xml/mc-manager.xml"/>
     <xi:include href="xml/mc-protocol.xml"/>
     <xi:include href="xml/mc-account-monitor.xml"/>
-    <xi:include href="xml/mc.xml"/>
     <xi:include href="xml/mission-control.xml"/>
   </chapter>
 </book>

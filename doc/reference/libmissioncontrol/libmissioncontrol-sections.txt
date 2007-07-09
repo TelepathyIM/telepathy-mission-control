@@ -146,11 +146,6 @@ MC_ACCOUNT_MONITOR_GET_CLASS
 </SECTION>
 
 <SECTION>
-<FILE>mc</FILE>
-mc_make_resident
-</SECTION>
-
-<SECTION>
 <FILE>mission-control</FILE>
 MissionControl
 MissionControlClass

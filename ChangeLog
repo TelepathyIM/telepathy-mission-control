@@ -1,5 +1,9 @@
 2007-07-09  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* doc/reference/libmissioncontrol/libmissioncontrol-docs.sgml,
+	doc/reference/libmissioncontrol/libmissioncontrol-sections.txt:
+	Remove mc.c file documentation.
+
 	* src/mcd-connection.c:
 	Use asynchronous call to connect the connection.
 
