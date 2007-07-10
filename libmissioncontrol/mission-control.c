@@ -659,7 +659,7 @@ mission_control_request_channel_with_string_handle_and_vcard_field (MissionContr
             } else {
                 if (strcmp(vcard_field, "TEL") == 0) {
                     // TEL mangling
-                    char ** split = g_strsplit_set(handle, " -,.:;+", -1);
+                    char ** split = g_strsplit_set(handle, " -,.:;", -1);
                     mangled_handle = g_strjoinv("", split);
                     g_strfreev(split);
                 } else {

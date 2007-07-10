@@ -1,5 +1,8 @@
 2007-07-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol/mission-control.c:
+	Don't strip the '+' out of the TEL field.
+
 	* src/mcd-channel.[hc]:
 	New mcd_channel_leave() API for removing the self handle from a
 	channel.
