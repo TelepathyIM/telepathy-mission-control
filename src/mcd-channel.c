@@ -787,6 +787,13 @@ err_missing_interface:
     return members;
 }
 
+static inline void
+tp_chan_iface_group_remove_members_with_reason_no_reply (DBusGProxy *proxy, const GArray* IN_contacts, const char * IN_message, const guint IN_reason)
+
+{
+    dbus_g_proxy_call_no_reply (proxy, "RemoveMembersWithReason", dbus_g_type_get_collection ("GArray", G_TYPE_UINT), IN_contacts, G_TYPE_STRING, IN_message, G_TYPE_UINT, IN_reason, G_TYPE_INVALID);
+}
+
 /**
  * mcd_channel_get_name:
  * @channel: the #McdChannel.
@@ -849,5 +856,34 @@ gboolean
 mcd_channel_is_missed (McdChannel *channel)
 {
     return MCD_CHANNEL_PRIV (channel)->missed;
+}
+
+/**
+ * mcd_channel_leave:
+ * @channel: the #McdChannel.
+ * @reason: a #TelepathyChannelGroupChangeReason.
+ *
+ * Leaves @channel with reason @reason.
+ *
+ * Returns: %TRUE for success, %FALSE otherwise.
+ */
+gboolean
+mcd_channel_leave (McdChannel *channel, const gchar *message,
+		   TelepathyChannelGroupChangeReason reason)
+{
+    McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
+    DBusGProxy *group;
+    GArray members;
+
+    if (!priv->tp_chan) return FALSE;
+    group = tp_chan_get_interface (priv->tp_chan,
+				   TELEPATHY_CHAN_IFACE_GROUP_QUARK);
+    if (!group) return FALSE;
+    g_debug ("removing self");
+    members.len = 1;
+    members.data = (gchar *)&priv->self_handle;
+    tp_chan_iface_group_remove_members_with_reason_no_reply (group, &members,
+							     message, reason);
+    return TRUE;
 }
 

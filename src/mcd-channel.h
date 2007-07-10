@@ -102,6 +102,8 @@ gint mcd_channel_get_flags (McdChannel *channel);
 GPtrArray* mcd_channel_get_members (McdChannel *channel);
 const gchar *mcd_channel_get_name (McdChannel *channel);
 gboolean mcd_channel_is_missed (McdChannel *channel);
+gboolean mcd_channel_leave (McdChannel *channel, const gchar *message,
+			    TelepathyChannelGroupChangeReason reason);
 
 G_END_DECLS
 #endif /* MCD_CHANNEL_H */
