@@ -1,3 +1,8 @@
+2007-07-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c:
+	Use a synchronous call for getting the self handle.
+
 2007-07-09  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* doc/reference/libmissioncontrol/libmissioncontrol-docs.sgml,

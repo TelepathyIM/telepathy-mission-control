@@ -272,22 +272,6 @@ _mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
 }
 
 static void
-get_self_handle_cb (DBusGProxy *proxy, guint self_handle, GError *error,
-		    gpointer userdata)
-
-{
-    McdChannelPrivate *priv = (McdChannelPrivate *) userdata;
-    if (error)
-    {
-	g_warning ("%s: get_self_handle failed: %s", G_STRFUNC,
-		   error->message);
-	g_error_free (error);
-    }
-    else
-	priv->self_handle = self_handle;
-}
-
-static void
 _mcd_channel_set_property (GObject * obj, guint prop_id,
 			   const GValue * val, GParamSpec * pspec)
 {
@@ -324,6 +308,7 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
 						 TELEPATHY_CHAN_IFACE_GROUP_QUARK);
 	    if (group_iface)
 	    {
+		GError *error = NULL;
 		/* Setup channel watches */
 		dbus_g_proxy_connect_signal (group_iface, "MembersChanged",
 					     G_CALLBACK (on_channel_members_changed),
@@ -331,8 +316,10 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
 		tp_chan_iface_group_get_local_pending_members_async (group_iface,
 								     get_local_pending_cb,
 								     channel);
-		tp_chan_iface_group_get_self_handle_async (group_iface,
-							   get_self_handle_cb, priv);
+		tp_chan_iface_group_get_self_handle (group_iface,
+						    &priv->self_handle, &error);
+		if (error)
+		    g_warning ("get_self_handle failed: %s", error->message);
 	    }
 	    /* We want to track the channel object closes, because we need to do
 	     * some cleanups when it's gone */
