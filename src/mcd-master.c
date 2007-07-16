@@ -398,13 +398,7 @@ _mcd_master_on_param_changed (McAccountMonitor *monitor, gchar *account_name,
     manager = _mcd_master_find_manager (master, account);
 
     if (manager)
-    {
-	McdConnection *connection;
-       
-	connection = mcd_manager_get_account_connection (manager, account);
-	if (connection)
-	    mcd_connection_restart (connection);
-    }
+	mcd_manager_reconnect_account (manager, account);
 
     g_object_unref (account);
 }

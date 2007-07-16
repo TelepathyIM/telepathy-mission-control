@@ -1,3 +1,9 @@
+2007-07-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-manager.[hc], src/mcd-master.c:
+	If an account parameter changes when a corresponding connection is not
+	there, create the connection and try to connect it.
+
 === telepathy-mission-control 4.29 ===
 
 2007-07-10  Alberto Mardegan  <alberto.mardegan@nokia.com>

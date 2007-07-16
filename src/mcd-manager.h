@@ -87,6 +87,7 @@ gboolean mcd_manager_cancel_channel_request (McdManager *manager, guint operatio
 
 McdConnection *mcd_manager_get_connection (McdManager *manager,
 					   const gchar *object_path);
+void mcd_manager_reconnect_account (McdManager *manager, McAccount *account);
 
 G_END_DECLS
 #endif /* MCD_MANAGER_H */

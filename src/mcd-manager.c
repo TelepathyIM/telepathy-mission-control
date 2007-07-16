@@ -1076,3 +1076,28 @@ mcd_manager_cancel_channel_request (McdManager *manager, guint operation_id,
     return FALSE;
 }
 
+/**
+ * mcd_manager_reconnect_account:
+ * @manager: the #McdManager.
+ * @account: the #McAccount to reconnect.
+ *
+ * Reconnect the account; if the account is currently online, first it will be
+ * disconnected.
+ */
+void
+mcd_manager_reconnect_account (McdManager *manager, McAccount *account)
+{
+    McdConnection *connection;
+   
+    g_debug ("%s called", G_STRFUNC);
+    connection = mcd_manager_get_account_connection (manager, account);
+    if (connection)
+	mcd_connection_restart (connection);
+    else
+    {
+	/* create a connection for the account */
+	g_debug ("try to create a connection");
+	_mcd_manager_create_connection (manager, account);
+    }
+}
+
