@@ -1715,6 +1715,10 @@ map_tp_error_to_mc_error (McdChannel *channel, GError *tp_error)
     {
 	mc_error_code = MC_CHANNEL_INVITE_ONLY_ERROR;
     }
+    else if (dbus_g_error_has_name(tp_error, "org.freedesktop.Telepathy.Error.InvalidHandle"))
+    {
+	mc_error_code = MC_INVALID_HANDLE_ERROR;
+    }
     return g_error_new (MC_ERROR, mc_error_code, "Telepathy Error: %s",
 			tp_error->message);
 }
