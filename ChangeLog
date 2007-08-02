@@ -1,3 +1,9 @@
+2007-08-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	Patch from Will Thompson:
+	* libmissioncontrol/mc-manager.c:
+	Properly scan the list nodes.
+
 2007-08-01  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-connection.c:

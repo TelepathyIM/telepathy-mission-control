@@ -422,7 +422,7 @@ _mc_manager_protocol_lookup (McManager *manager, const gchar *name)
   g_return_val_if_fail (name != NULL, NULL);
   g_return_val_if_fail (*name != '\0', NULL);
 
-  for (i = MC_MANAGER_PRIV (manager)->protocols; NULL != i; i++)
+  for (i = MC_MANAGER_PRIV (manager)->protocols; NULL != i; i = i->next)
     {
       McProtocol *protocol = (McProtocol *) i->data;
 
