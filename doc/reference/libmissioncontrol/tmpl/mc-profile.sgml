@@ -46,15 +46,6 @@ The #McProfile API provides a way for managing profiles.
 </para>
 
 
-<!-- ##### FUNCTION mc_profile_new ##### -->
-<para>
-
-</para>
-
-@unique_name: 
-@Returns: 
-
-
 <!-- ##### FUNCTION mc_profile_lookup ##### -->
 <para>
 

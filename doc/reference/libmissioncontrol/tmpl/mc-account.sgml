@@ -354,3 +354,22 @@ This function is called for every #McAccount in the list, and determines which e
 @Returns: 
 
 
+<!-- ##### FUNCTION mc_account_set_alias ##### -->
+<para>
+
+</para>
+
+@account: 
+@alias: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_account_get_alias ##### -->
+<para>
+
+</para>
+
+@account: 
+@Returns: 
+
+

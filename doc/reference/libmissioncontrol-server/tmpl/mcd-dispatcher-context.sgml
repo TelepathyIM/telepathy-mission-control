@@ -50,6 +50,7 @@ mcd-dispatcher-context
 </para>
 
 @ctx: 
+@user_data: 
 
 
 <!-- ##### MACRO MCD_FILTER_PRIORITY_CRITICAL ##### -->
@@ -94,6 +95,7 @@ mcd-dispatcher-context
 
 @func: 
 @priority: 
+@user_data: 
 
 <!-- ##### FUNCTION mcd_dispatcher_register_filter ##### -->
 <para>
@@ -105,6 +107,7 @@ mcd-dispatcher-context
 @channel_type_quark: 
 @filter_flags: 
 @priority: 
+@user_data: 
 
 
 <!-- ##### FUNCTION mcd_dispatcher_unregister_filter ##### -->
