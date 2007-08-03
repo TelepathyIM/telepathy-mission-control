@@ -1,5 +1,9 @@
 2007-08-03  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* configure.ac:
+	Correct version dependency for libtelepathy. Thanks to Ross Burton for
+	pointing this out.
+
 	* doc/reference/libmissioncontrol/libmissioncontrol-sections.txt:
 	Add documentation for mc_account_{set,get}_alias. Fixes: #1763010.
 
