@@ -42,7 +42,9 @@ libmissioncontrol_config_include_DATA = \
 
 libmissioncontrol_config_la_LIBADD = $(GCONF_LIBS) $(GLIB_LIBS) $(DBUS_LIBS)
 
-libmissioncontrol_config_la_LDFLAGS = $(common_ldflags) -export-symbols-regex "^mc_"
+libmissioncontrol_config_la_LDFLAGS = $(common_ldflags) \
+				      -export-symbols-regex "^mc_" \
+				      -version-info 0:1:0
 
 libmissioncontrol_la_LIBADD = $(DBUS_LIBS) $(TELEPATHY_LIBS) \
 	libmissioncontrol-config.la

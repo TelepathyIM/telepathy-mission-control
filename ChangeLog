@@ -1,3 +1,8 @@
+2007-08-03  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/Makefile.am:
+	Bump libmissioncontrol-config soname, to resolve ABI breakage.
+
 === telepathy-mission-control 4.31 ===
 
 2007-08-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
