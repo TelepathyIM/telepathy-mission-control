@@ -1,5 +1,8 @@
 2007-08-03  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* doc/reference/libmissioncontrol/libmissioncontrol-sections.txt:
+	Add documentation for mc_account_{set,get}_alias. Fixes: #1763010.
+
 	* libmissioncontrol/Makefile.am:
 	Bump libmissioncontrol-config soname, to resolve ABI breakage.
 

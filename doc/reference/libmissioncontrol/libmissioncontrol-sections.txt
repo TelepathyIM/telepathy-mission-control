@@ -38,6 +38,8 @@ mc_account_is_complete
 mc_account_exists_supporting_invisible
 mc_account_set_avatar
 mc_account_get_avatar
+mc_account_set_alias
+mc_account_get_alias
 <SUBSECTION Standard>
 MC_ACCOUNT
 MC_IS_ACCOUNT
