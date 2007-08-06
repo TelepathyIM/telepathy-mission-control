@@ -1,3 +1,11 @@
+2007-08-06  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol.pc.in, mission-control.pc.in:
+	Update required version of libtelepathy.
+
+	* src/Makefile.am:
+	Bump libmissioncontrol-server soname, to resolve ABI breakage.
+
 2007-08-03  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* configure.ac:

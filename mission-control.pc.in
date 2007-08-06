@@ -6,7 +6,7 @@ pluginlibdir=@pluginlibdir@
 
 Name: mission-control
 Description:  Mission control filters interface library
-Requires: dbus-1 >= 0.50, libtelepathy >= 0.0.50
+Requires: dbus-1 >= 0.50, libtelepathy >= 0.0.54
 Version: @VERSION@
 Libs: -L${libdir} -lmissioncontrol-server
 Cflags: -I${includedir}/mission-control
