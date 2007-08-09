@@ -558,6 +558,53 @@ mc_profiles_list_by_vcard_field (const gchar *vcard_field)
 }
 
 /**
+ * mc_profiles_list_by_protocol:
+ * @protocol: string id of the protocol.
+ * 
+ * Lists all configured profiles for the given protocol.
+ *
+ * Returns: a #GList of the profiles (must be freed with #mc_profiles_free_list).
+ */
+GList *
+mc_profiles_list_by_protocol (const gchar *protocol)
+{
+  GList *all, *tmp, *ret;
+
+  g_return_val_if_fail (protocol != NULL, NULL);
+  g_return_val_if_fail (*protocol != '\0', NULL);
+
+  all = mc_profiles_list ();
+  ret = NULL;
+
+  for (tmp = all;
+       tmp != NULL;
+       tmp = tmp->next)
+    {
+      McProfile *cur = (McProfile *) tmp->data;
+      McProfilePrivate *priv = MC_PROFILE_PRIV (cur);
+
+      if (!_mc_profile_load (cur))
+        {
+          g_object_unref (cur);
+          continue;
+        }
+
+      if (priv->protocol && 0 == strcmp (protocol, priv->protocol))
+        {
+          ret = g_list_prepend (ret, cur);
+        }
+      else
+        {
+          g_object_unref (cur);
+        }
+    }
+
+  g_list_free (all);
+
+  return ret;
+}
+
+/**
  * mc_profiles_free_list:
  * @list: The #GList of #McProfile.
  * 

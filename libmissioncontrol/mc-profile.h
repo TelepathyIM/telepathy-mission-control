@@ -92,6 +92,7 @@ void mc_profile_clear_cache (void);
 /* to find many profiles */
 GList *mc_profiles_list (void);
 GList *mc_profiles_list_by_vcard_field (const gchar *vcard_field);
+GList *mc_profiles_list_by_protocol (const gchar *protocol);
 void mc_profiles_free_list (GList *list);
 
 const gchar *mc_profile_get_unique_name (McProfile *id);
