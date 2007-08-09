@@ -1,5 +1,8 @@
 2007-08-09  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol/Makefile.am:
+	Add mc-enum-types.h to the list of headers to be installed.
+
 	* libmissioncontrol/mc-profile.[hc]:
 	Add mc_profiles_list_by_protocol() API.
 

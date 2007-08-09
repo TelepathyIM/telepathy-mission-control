@@ -35,6 +35,7 @@ libmissioncontrol_config_include_DATA = \
         mc.h \
         mc-account.h \
         mc-account-monitor.h \
+	mc-enum-types.h \
         mc-profile.h \
         mc-protocol.h \
         mc-manager.h \
