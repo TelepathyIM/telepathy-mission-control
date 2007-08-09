@@ -1,3 +1,5 @@
+=== telepathy-mission-control 4.33 ===
+
 2007-08-09  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/Makefile.am:
