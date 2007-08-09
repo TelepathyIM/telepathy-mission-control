@@ -25,7 +25,6 @@ mission_control_include = \
 
 mission_control_include_HEADERS = \
 	$(mission_control_include) \
-	mcd-enum-types.c \
 	mcd-enum-types.h
 
 BUILT_SOURCES = \

@@ -1,5 +1,8 @@
 2007-08-09  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/Makefile.am:
+	Remove mcd-enum-types.c from the installed files.
+
 	* libmissioncontrol/Makefile.am:
 	Add mc-enum-types.h to the list of headers to be installed.
 
