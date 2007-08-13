@@ -44,7 +44,7 @@ libmissioncontrol_server_la_LIBADD = $(GCONF_LIBS) $(TELEPATHY_LIBS) \
 
 # we want to export symbols so that the plugins can see them
 libmissioncontrol_server_la_LDFLAGS = -export-dynamic \
-				      -version-info 0:1:0
+				      -version-info 1:0:0
 
 libmissioncontrol_server_la_SOURCES = \
 	mcd-debug.c \

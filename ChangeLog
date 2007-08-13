@@ -1,3 +1,9 @@
+2007-08-13  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/Makefile.am:
+	* src/Makefile.am:
+	Use soname version properly.
+
 === telepathy-mission-control 4.33 ===
 
 2007-08-09  Alberto Mardegan  <alberto.mardegan@nokia.com>
