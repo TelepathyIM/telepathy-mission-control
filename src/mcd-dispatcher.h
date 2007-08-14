@@ -88,7 +88,8 @@ gint mcd_dispatcher_get_channel_type_usage (McdDispatcher * dispatcher,
 
 /* retrieves the channel handlers' capabilities, in a format suitable for being
  * used as a parameter for the telepathy "AdvertiseCapabilities" method */
-GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher);
+GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher,
+						    const gchar *protocol);
 
 G_END_DECLS
 

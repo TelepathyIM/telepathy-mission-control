@@ -663,6 +663,10 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
     GPtrArray *capabilities;
     GError *error = NULL;
     const gchar *remove = NULL;
+    McProfile *profile;
+    const gchar *protocol_name;
+    GType type;
+    gint i;
 
     priv->capabilities_proxy = tp_conn_get_interface (priv->tp_conn,
 				    TELEPATHY_CONN_IFACE_CAPABILITIES_QUARK);
@@ -673,7 +677,11 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
 	return;
     }
     g_object_add_weak_pointer (G_OBJECT (priv->capabilities_proxy), (gpointer)&priv->capabilities_proxy);
-    capabilities = mcd_dispatcher_get_channel_capabilities (priv->dispatcher);
+    profile = mc_account_get_profile (priv->account);
+    protocol_name = mc_profile_get_protocol_name (profile);
+    capabilities = mcd_dispatcher_get_channel_capabilities (priv->dispatcher,
+							    protocol_name);
+    g_object_unref (profile);
     g_debug ("%s: advertising capabilities", G_STRFUNC);
     tp_conn_iface_capabilities_advertise_capabilities (priv->capabilities_proxy,
 						       capabilities,
@@ -692,6 +700,13 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
     }
     priv->capabilities_timer =
 	g_timeout_add (1000 * 5, (GSourceFunc)on_capabilities_timeout, connection);
+
+    /* free the connection capabilities */
+    type = dbus_g_type_get_struct ("GValueArray", G_TYPE_STRING,
+				   G_TYPE_UINT, G_TYPE_INVALID);
+    for (i = 0; i < capabilities->len; i++)
+	g_boxed_free (type, g_ptr_array_index (capabilities, i));
+    g_ptr_array_free (capabilities, TRUE);
 }
 
 static void

@@ -1,3 +1,9 @@
+2007-08-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-chan-handler.c, src/mcd-connection.c,
+	src/mcd-dispatcher-context.h, src/mcd-dispatcher.[hc]:
+	Allow per protocol channel handlers.
+
 2007-08-13  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmissioncontrol/Makefile.am:

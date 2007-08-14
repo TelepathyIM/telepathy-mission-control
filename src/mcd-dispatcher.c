@@ -39,6 +39,7 @@
 #include <libtelepathy/tp-ch-gen.h>
 
 #include "mcd-signals-marshal.h"
+#include <libmissioncontrol/mc-account.h>
 #include "mcd-connection.h"
 #include "mcd-channel.h"
 #include "mcd-master.h"
@@ -58,12 +59,21 @@ struct _McdDispatcherContext
     /*The actual channel */
     McdChannel *channel;
 
+    gchar *protocol;
+
     /* State-machine internal data fields: */
     GList *chain;
 
     /* Next function in chain */
     guint next_func_index;
 };
+
+typedef struct _McdDispatcherArgs
+{
+    McdDispatcher *dispatcher;
+    const gchar *protocol;
+    GPtrArray *channel_handler_caps;
+} McdDispatcherArgs;
 
 typedef struct _McdDispatcherPrivate
 {
@@ -538,11 +548,19 @@ _mcd_dispatcher_handle_channel_async_cb (DBusGProxy * proxy, GError * error,
     McdDispatcherContext *context = userdata;
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (context->dispatcher);
     McdChannel *channel;
+    const gchar *protocol = NULL;
+    GHashTable *channel_handler;
+    McdChannelHandler *chandler;
 
     channel = mcd_dispatcher_context_get_channel (context);
-    McdChannelHandler *chandler = g_hash_table_lookup (priv->channel_handler_hash,
-						    mcd_channel_get_channel_type (channel));
+    protocol = mcd_dispatcher_context_get_protocol_name (context);
 
+    channel_handler = g_hash_table_lookup (priv->channel_handler_hash,
+					   mcd_channel_get_channel_type (channel));
+
+    chandler = g_hash_table_lookup (channel_handler, protocol);
+    if (!chandler)
+	chandler = g_hash_table_lookup (channel_handler, "default");
 
     g_signal_handlers_disconnect_matched (channel, G_SIGNAL_MATCH_FUNC,	0, 0,
 					  NULL, cancel_proxy_call, NULL);
@@ -622,18 +640,24 @@ _mcd_dispatcher_start_channel_handler (McdDispatcherContext * context)
     McdChannelHandler *chandler;
     McdDispatcherPrivate *priv;
     McdChannel *channel;
+    const gchar *protocol;
+    GHashTable *channel_handler;
+    
 
     g_return_if_fail (context);
 
     priv = MCD_DISPATCHER_PRIV (context->dispatcher);
     channel = mcd_dispatcher_context_get_channel (context); 
+    protocol = mcd_dispatcher_context_get_protocol_name (context);
 
-    /* we need to know where's the channel handler and queue */
-    /* drop from the queue */
-    /*FIXME: Use Quarks in hashtable */
-    chandler =
+    channel_handler =
 	g_hash_table_lookup (priv->channel_handler_hash,
 			     mcd_channel_get_channel_type (channel));
+
+    chandler = g_hash_table_lookup (channel_handler, protocol);
+    if (chandler == NULL)
+	chandler = g_hash_table_lookup (channel_handler, "default");
+    
     if (chandler == NULL)
     {
 	GError *mc_error;
@@ -955,16 +979,8 @@ static void
 _mcd_dispatcher_finalize (GObject * object)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
-    GType type;
-    gint i;
 
     g_hash_table_destroy (priv->channel_handler_hash);
-
-    type = dbus_g_type_get_struct ("GValueArray", G_TYPE_STRING,
-				   G_TYPE_UINT, G_TYPE_INVALID);
-    for (i = 0; i < priv->channel_handler_caps->len; i++)
-	g_boxed_free (type, g_ptr_array_index (priv->channel_handler_caps, i));
-    g_ptr_array_free (priv->channel_handler_caps, TRUE);
 
     G_OBJECT_CLASS (mcd_dispatcher_parent_class)->finalize (object);
 }
@@ -1110,6 +1126,19 @@ _build_channel_capabilities (gchar *channel_type, McdChannelHandler *handler,
 }
 
 
+static void
+_channel_capabilities (gchar *ctype, GHashTable *channel_handler,
+		       McdDispatcherArgs *args)
+{
+    McdChannelHandler *handler;
+
+    handler = g_hash_table_lookup (channel_handler, args->protocol);
+
+    if (!handler)
+	handler = g_hash_table_lookup (channel_handler, "default");
+
+    _build_channel_capabilities (ctype, handler, args->channel_handler_caps);
+}
 
 static void
 mcd_dispatcher_init (McdDispatcher * dispatcher)
@@ -1122,11 +1151,6 @@ mcd_dispatcher_init (McdDispatcher * dispatcher)
     
     priv->channel_handler_hash = mcd_get_channel_handlers ();
  
-    priv->channel_handler_caps = g_ptr_array_new();
-    g_hash_table_foreach (priv->channel_handler_hash,
-			  (GHFunc)_build_channel_capabilities,
-			  priv->channel_handler_caps);
-
     _mcd_dispatcher_load_filters (dispatcher);
 }
 
@@ -1198,6 +1222,7 @@ mcd_dispatcher_context_free (McdDispatcherContext * context)
 					      context);
 	g_object_unref (context->channel);
     }
+    g_free (context->protocol);
     g_free (context);
 }
 
@@ -1261,10 +1286,23 @@ mcd_dispatcher_context_get_chan_handler (McdDispatcherContext * ctx)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (ctx->dispatcher);
     McdChannel *channel;
-
+    const gchar *protocol;
+    McdChannelHandler *chandler;
+    GHashTable *channel_handler;
+    
     channel = mcd_dispatcher_context_get_channel (ctx);
-    return g_hash_table_lookup (priv->channel_handler_hash,
-	                        mcd_channel_get_channel_type (channel));
+    protocol = mcd_dispatcher_context_get_protocol_name (ctx);
+
+    channel_handler =
+	g_hash_table_lookup (priv->channel_handler_hash,
+			     mcd_channel_get_channel_type (channel));
+
+    chandler =  g_hash_table_lookup (channel_handler, protocol);
+    if (!chandler)
+        chandler =  g_hash_table_lookup (channel_handler, "default");
+
+    return chandler;
+     
 }
 
 /*Returns an array of the participants in the channel*/
@@ -1274,9 +1312,39 @@ mcd_dispatcher_context_get_members (McdDispatcherContext * ctx)
     return mcd_channel_get_members (ctx->channel);
 }
 
-GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher)
+GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher,
+						    const gchar *protocol)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (dispatcher);
+    McdDispatcherArgs args;
 
-    return priv->channel_handler_caps;
+    args.dispatcher = dispatcher;
+    args.protocol = protocol;
+    args.channel_handler_caps = g_ptr_array_new ();
+
+    g_hash_table_foreach (priv->channel_handler_hash,
+			  (GHFunc)_channel_capabilities,
+			  &args);
+
+    return args.channel_handler_caps;
 }
+
+const gchar *
+mcd_dispatcher_context_get_protocol_name (McdDispatcherContext *context)
+{
+    McdConnection *conn;
+    McAccount *account;
+    McProfile *profile;
+
+    if (!context->protocol)
+    {
+	conn = mcd_dispatcher_context_get_connection (context);
+	account = mcd_connection_get_account (conn);
+	profile = mc_account_get_profile (account);
+	context->protocol = g_strdup (mc_profile_get_protocol_name (profile));
+	g_object_unref (profile);
+    }
+    
+    return context->protocol;
+}
+

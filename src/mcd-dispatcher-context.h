@@ -111,6 +111,8 @@ GPtrArray *mcd_dispatcher_context_get_members (McdDispatcherContext * ctx);
 
 void mcd_dispatcher_context_process (McdDispatcherContext * ctx, gboolean result);
 
+const gchar *mcd_dispatcher_context_get_protocol_name (McdDispatcherContext *);
+
 G_END_DECLS
 
 #endif

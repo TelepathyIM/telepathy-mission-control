@@ -54,18 +54,33 @@ static inline void
 _mcd_channel_handler_packer(GHashTable *handlers, gchar **string_list,
 			    gsize list_length, gchar *bus_name,
 			    TelepathyChannelMediaCapability capabilities,
-			    gchar *object_path)
+			    gchar *object_path, const gchar *cm_protocol)
 {
     gint i;
     McdChannelHandler *handler;
-    
+    GHashTable *channel_handler;
+
     for (i = 0; i < list_length; i++)
     {
 	handler = g_new(McdChannelHandler, 1);
 	handler->bus_name = bus_name;
 	handler->obj_path = object_path;
 	handler->capabilities = capabilities;
-	g_hash_table_insert(handlers, g_strdup(string_list[i]), handler);
+
+ 	channel_handler = g_hash_table_lookup (handlers, string_list[i]);
+ 
+ 	if (!channel_handler)
+ 	{
+	    channel_handler = g_hash_table_new_full (g_str_hash, g_str_equal,
+						     g_free, (GDestroyNotify)_mcd_channel_handler_free);
+ 
+	    g_hash_table_insert (handlers, g_strdup (string_list[i]),
+				 channel_handler);
+ 	}
+
+	if (!cm_protocol) cm_protocol = "default";
+	g_hash_table_insert (channel_handler, g_strdup (cm_protocol),
+			     handler);	
     }
 }
 
@@ -85,6 +100,7 @@ scan_chandler_dir (const gchar *dirname, GHashTable *handlers,
     const gchar *filename;
     gchar *absolute_filepath;
     gchar *bus_name, *object_path;
+    const gchar *cm_protocol;
     TelepathyChannelMediaCapability capabilities;
 
     if (!g_file_test (dirname, G_FILE_TEST_IS_DIR)) return;
@@ -121,6 +137,16 @@ scan_chandler_dir (const gchar *dirname, GHashTable *handlers,
 	    {
 		g_error ("%s: %s", absolute_filepath, error->message);
 	    }
+
+	    cm_protocol = g_key_file_get_string (file, group,
+						 "Protocol", &error);
+	    if (error)
+	    {
+		g_error_free (error);
+		error = NULL;
+		cm_protocol = NULL;
+	    }
+
 	    capabilities = g_key_file_get_integer(file, group, "TypeSpecificCapabilities",
 						  &error);
 	    if (error)
@@ -141,7 +167,7 @@ scan_chandler_dir (const gchar *dirname, GHashTable *handlers,
 	    }
 	    
 	    _mcd_channel_handler_packer(handlers, string_list, len, bus_name,
-				       	capabilities, object_path);
+				       	capabilities, object_path, cm_protocol);
 	    
 	    g_strfreev(string_list);
 	    g_key_file_free(file);
@@ -189,7 +215,7 @@ mcd_get_channel_handlers (void)
     
     handlers = g_hash_table_new_full(g_str_hash, g_str_equal,
 				     g_free,
-				     (GDestroyNotify)_mcd_channel_handler_free);
+				     (GDestroyNotify)g_hash_table_destroy);
     
     /* Read Channel Handler files */
     _mcd_channel_handlers_read_conf_files (handlers,
