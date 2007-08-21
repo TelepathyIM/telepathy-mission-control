@@ -2046,7 +2046,7 @@ mcd_connection_request_channel (McdConnection *connection,
     /* We do not add the channel in connection until tp_channel is created */
     g_object_set_data (G_OBJECT (channel), "temporary_connection", connection);
     
-    if (req->channel_handle)
+    if (req->channel_handle != 0 || req->channel_type == 0)
     {
 	DBusGProxyCall *call;
 	/* the channel stays in priv->pending_channels until a telepathy
@@ -2068,7 +2068,7 @@ mcd_connection_request_channel (McdConnection *connection,
 	 * a string handle; in that case, we must first request a channel
 	 * handle for it */
 	const gchar *name_array[2];
-	g_assert (req->channel_handle_string != NULL);
+	g_return_val_if_fail (req->channel_handle_string != NULL, FALSE);
 
 	name_array[0] = req->channel_handle_string;
 	name_array[1] = NULL;

@@ -1,3 +1,10 @@
+2007-08-21  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Allow requesting a channel with handle 0 if channel handle type is
+	also 0. Turn a g_assert into a g_return_val_if_fail.
+	Fixes: #1772597.
+
 2007-08-20  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmissioncontrol.pc.in, libmissioncontrol/Makefile.am,
