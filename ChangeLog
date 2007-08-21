@@ -1,5 +1,8 @@
 2007-08-21  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol/mc-profile.c: (_mc_profile_load):
+	Strip spaces from presence names. Fixes: #1772539.
+
 	* src/mcd-connection.c:
 	Allow requesting a channel with handle 0 if channel handle type is
 	also 0. Turn a g_assert into a g_return_val_if_fail.

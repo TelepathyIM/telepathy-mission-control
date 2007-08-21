@@ -302,12 +302,14 @@ _mc_profile_load (McProfile *profile)
   {
       McPresence presence;
       GEnumValue *value;
+      gchar *presence_str;
 
+      presence_str = g_strstrip (presences_str[i]);
       value = g_enum_get_value_by_nick (presences_class,
-				       	presences_str[i]);
+				       	presence_str);
       if (!value)
       {
-	  g_warning ("Unrecognized presence `%s'", presences_str[i]);
+	  g_warning ("Unrecognized presence `%s'", presence_str);
 	  continue;
       }
       presence = value->value;
