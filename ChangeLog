@@ -1,5 +1,9 @@
 2007-08-21  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/Makefile.am:
+	Remove compilation flags, they are to be specified in configure.ac or
+	in debian/rules. Fixes: #1772178.
+
 	* libmissioncontrol/mc-profile.c: (_mc_profile_load):
 	Strip spaces from presence names. Fixes: #1772539.
 

@@ -1,8 +1,7 @@
 INCLUDES = $(GCONF_CFLAGS) $(TELEPATHY_CFLAGS) \
 	   -DMCD_DEFAULT_FILTER_PLUGIN_DIR=\"@pluginlibdir@\" \
 	   -DDBUS_API_SUBJECT_TO_CHANGE \
-	   -DMC_DISABLE_DEPRECATED -I$(top_srcdir) \
-	   -O0 -g -fno-omit-frame-pointer -Wall -Werror
+	   -DMC_DISABLE_DEPRECATED -I$(top_srcdir)
 
 mission_control_includedir = $(includedir)/mission-control
 mission_control_include = \
