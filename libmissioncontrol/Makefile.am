@@ -13,10 +13,10 @@ BUILT_SOURCES = \
 
 CLEANFILES = $(BUILT_SOURCES) stamp-mc-enum-types.h
 
-lib_LTLIBRARIES = libmissioncontrol-config.la libmissioncontrol.la
+lib_LTLIBRARIES = libmissioncontrol-client.la
 
-libmissioncontrol_config_la_CFLAGS = $(GLIB_CFLAGS) $(GCONF_CFLAGS)
-libmissioncontrol_config_la_SOURCES = \
+libmissioncontrol_client_la_CFLAGS = $(GLIB_CFLAGS) $(GCONF_CFLAGS)
+libmissioncontrol_client_la_SOURCES = \
         mc.c\
         mc-manager.c \
         mc-manager-priv.h \
@@ -28,10 +28,12 @@ libmissioncontrol_config_la_SOURCES = \
         mc-account-monitor.c \
 	mc-account-monitor-priv.h \
 	mc-signals-marshal.c \
-	mc-enum-types.c
+	mc-enum-types.c \
+	mission-control-signals-marshal.c \
+	mission-control.c
 
-libmissioncontrol_config_includedir = $(includedir)/libmissioncontrol
-libmissioncontrol_config_include_DATA = \
+libmissioncontrol_client_includedir = $(includedir)/libmissioncontrol
+libmissioncontrol_client_include_DATA = \
         mc.h \
         mc-account.h \
         mc-account-monitor.h \
@@ -39,22 +41,19 @@ libmissioncontrol_config_include_DATA = \
         mc-profile.h \
         mc-protocol.h \
         mc-manager.h \
-	mc-signals-marshal.h
+	mc-signals-marshal.h \
+	mission-control-signals-marshal.h \
+	mission-control.h
 
-libmissioncontrol_config_la_LIBADD = $(GCONF_LIBS) $(GLIB_LIBS) $(DBUS_LIBS)
+libmissioncontrol_client_la_LIBADD = $(GCONF_LIBS) $(GLIB_LIBS) $(DBUS_LIBS) $(TELEPATHY_LIBS)
 
-libmissioncontrol_config_la_LDFLAGS = $(common_ldflags) \
-				      -export-symbols-regex "^mc_" \
-				      -version-info 1:0:0
+libmissioncontrol_client_la_LDFLAGS = $(common_ldflags) \
+				      -export-symbols-regex "^(mc_)|(mission_control_)" \
+				      -version-info 0:0:0
 
-libmissioncontrol_la_LIBADD = $(DBUS_LIBS) $(TELEPATHY_LIBS) \
-	libmissioncontrol-config.la
-
-libmissioncontrol_la_SOURCES = \
-	mission-control-signals-marshal.c \
-	mission-control.c
-
-mission_control_include = mission-control.h
+mission_control_include = \
+	mission-control-signals-marshal.h \
+	mission-control.h
 
 mc-client-lib-gen.h: $(top_builddir)/xml/MissionControl-gen.xml
 	dbus-binding-tool --prefix=mc-client-lib --mode=glib-client $< > $@
@@ -92,16 +91,10 @@ mc-enum-types.c: Makefile $(mission_control_include)
 
 bin_PROGRAMS = mc-account
 mc_account_SOURCES = mc-account-cli.c
-mc_account_LDADD = libmissioncontrol-config.la
+mc_account_LDADD = libmissioncontrol-client.la
 noinst_PROGRAMS = test
 test_SOURCES = test.c
-test_LDADD = libmissioncontrol-config.la
-
-missioncontrolincludeinstdir=$(includedir)/libmissioncontrol
-missioncontrolincludeinst_DATA = \
-	mission-control-signals-marshal.h \
-	mission-control.h
+test_LDADD = libmissioncontrol-client.la
 
 EXTRA_DIST = \
-	$(missioncontrolincludeinst_DATA) \
-	$(libmissioncontrol_config_include_DATA)
+	$(libmissioncontrol_client_include_DATA)

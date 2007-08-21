@@ -7,6 +7,6 @@ if HAVE_TESTS
 
 bin_PROGRAMS = mc-client
 mc_client_SOURCES = mc-client.c
-mc_client_LDADD = $(top_srcdir)/libmissioncontrol/libmissioncontrol.la
+mc_client_LDADD = $(top_srcdir)/libmissioncontrol/libmissioncontrol-client.la
 
 endif

@@ -8,5 +8,5 @@ Name: libmissioncontrol
 Description:  Mission Control Client Library
 Requires: dbus-1 >= 0.50, libtelepathy >= 0.0.54
 Version: @VERSION@
-Libs: -L${libdir} -lmissioncontrol -lmissioncontrol-config @DBUS_LIBS@
+Libs: -L${libdir} -lmissioncontrol-client @DBUS_LIBS@
 Cflags: -I${includedir} @DBUS_CFLAGS@
