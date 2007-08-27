@@ -1,3 +1,9 @@
+2007-08-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-master.c:
+	When an account parameter changes, perform reconnection only if
+	requested presence is online.
+
 === telepathy-mission-control 4.35 ===
 
 2007-08-21  Alberto Mardegan  <alberto.mardegan@nokia.com>

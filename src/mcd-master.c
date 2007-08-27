@@ -388,10 +388,14 @@ static void
 _mcd_master_on_param_changed (McAccountMonitor *monitor, gchar *account_name,
 			      gchar *param, McdMaster *master)
 {
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     McdManager *manager;
     McAccount *account;
 
     g_debug ("Account %s changed param %s", account_name, param);
+    if (mcd_presence_frame_get_requested_presence (priv->presence_frame) <=
+       	MC_PRESENCE_OFFLINE)
+	return;
 
     account = mc_account_lookup (account_name);
     if (!account) return;
