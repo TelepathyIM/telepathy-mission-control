@@ -1,3 +1,9 @@
+2007-08-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account.[hc]:
+	Add mc_account_set_secondary_vcard_fields() API to set all secondary
+	VCard fields at once.
+
 2007-08-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-master.c:

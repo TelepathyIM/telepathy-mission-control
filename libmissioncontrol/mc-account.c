@@ -787,6 +787,47 @@ _filter_secondary_vcard_field (McAccount *acct, gpointer data)
 }
 
 /**
+ * mc_account_set_secondary_vcard_fields:
+ *
+ * Set all configured secondary vcard fields for this account.
+ *
+ * Returns: %TRUE on success, %FALSE otherwise.
+ */
+gboolean
+mc_account_set_secondary_vcard_fields (McAccount *account, const GList *fields)
+{
+    GConfClient *client;
+    gchar *key;
+    gboolean ok;
+
+    g_return_val_if_fail (account != NULL, FALSE);
+    g_return_val_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL,
+			  FALSE);
+
+    client = gconf_client_get_default ();
+    g_return_val_if_fail (client != NULL, FALSE);
+
+    key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name,
+			    MC_ACCOUNTS_GCONF_KEY_SECONDARY_VCARD_FIELDS, FALSE);
+    if (fields)
+    {
+	GSList *s_fields = NULL;
+
+	for (; fields != NULL; fields = fields->next)
+	    s_fields = g_slist_prepend (s_fields, fields->data);
+
+	ok = gconf_client_set_list (client, key, GCONF_VALUE_STRING, s_fields, NULL);
+    }
+    else
+	ok = gconf_client_unset (client, key, NULL);
+
+    g_free (key);
+    g_object_unref (client);
+
+    return ok;
+}
+
+/**
  * mc_account_get_secondary_vcard_fields:
  * Get all configured secondairy vcard fields for this account.
  *

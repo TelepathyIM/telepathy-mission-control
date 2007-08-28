@@ -181,9 +181,10 @@ gboolean mc_account_reset_avatar_id (McAccount *account);
 gboolean mc_account_set_alias (McAccount *account, const gchar *alias);
 gchar *mc_account_get_alias (McAccount *account);
 
+gboolean mc_account_set_secondary_vcard_fields (McAccount *account,
+					       	const GList *fields);
 GList *mc_account_get_secondary_vcard_fields (McAccount * acct);
 /*
-void mc_account_set_secondary_vcard_fields (McAccount * acct, const GList * fields);
 void mc_account_add_secondary_vcard_field (McAccount * acct, const char * field);
 void mc_account_remove_secondary_vcard_field (McAccount * acct, const char * field);
 */
