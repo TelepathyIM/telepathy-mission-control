@@ -1,5 +1,10 @@
 2007-08-31  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/mcd-connection.c:
+	Listen to the AvatarUpdated signal, instead of relying on eds-sync
+	doing that. With a compile-time switch, old behaviour is still
+	possible. Fixes: #1763009.
+
 	* libmissioncontrol/mc-account.[hc]:
 	Add mc_account_set_avatar_from_data() API. Partially fixes #1763009.
 

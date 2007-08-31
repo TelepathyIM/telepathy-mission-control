@@ -202,6 +202,8 @@ static void mcd_async_request_chan_callback (DBusGProxy *proxy,
 static GError * map_tp_error_to_mc_error (McdChannel *channel, GError *tp_error);
 static void _mcd_connection_setup (McdConnection * connection);
 static void _mcd_connection_release_tp_connection (McdConnection *connection);
+static void request_avatar_cb (DBusGProxy *, GArray *, char *, GError *,
+			       gpointer);
 
 static McPresence presence_str_to_enum (const gchar *presence_str)
 {
@@ -783,6 +785,35 @@ clear_avatar_cb (DBusGProxy *proxy, GError *error, gpointer userdata)
     g_free (filename);
 }
 
+static gboolean
+on_avatar_updated (DBusGProxy *proxy, guint contact_id, const gchar *token,
+		   gpointer userdata)
+{
+    McdConnectionPrivate *priv = (McdConnectionPrivate *)userdata;
+    gboolean changed = FALSE;
+    gchar *prev_token;
+
+#ifndef NO_AVATAR_UPDATED
+    if (contact_id != priv->self_handle) return FALSE;
+#endif
+    g_debug ("%s: contact %d, token: %s", G_STRFUNC, contact_id, token);
+    if (!mc_account_get_avatar (priv->account, NULL, NULL, &prev_token))
+	return FALSE;
+
+    if (!prev_token || strcmp (token, prev_token) != 0)
+    {
+	g_debug ("%s: avatar has changed", G_STRFUNC);
+	/* the avatar has changed, let's retrieve the new one */
+	tp_conn_iface_avatars_request_avatar_async (proxy, contact_id,
+						request_avatar_cb,
+						priv);
+	mc_account_set_avatar_token (priv->account, token);
+	changed = TRUE;
+    }
+    g_free (prev_token);
+    return changed;
+}
+
 static void
 _mcd_connection_setup_avatar (McdConnectionPrivate *priv)
 {
@@ -797,6 +828,12 @@ _mcd_connection_setup_avatar (McdConnectionPrivate *priv)
 	return;
     }
     g_object_ref (priv->avatars_proxy);
+#ifndef NO_AVATAR_UPDATED
+    dbus_g_proxy_connect_signal (priv->avatars_proxy,
+				 "AvatarUpdated",
+				 G_CALLBACK (on_avatar_updated),
+				 priv, NULL);
+#endif
     if (!mc_account_get_avatar (priv->account, &filename, &mime_type, &token))
     {
 	g_debug ("%s: mc_account_get_avatar() returned FALSE", G_STRFUNC);
@@ -1343,6 +1380,12 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
     }
     if (priv->avatars_proxy)
     {
+#ifndef NO_AVATAR_UPDATED
+	dbus_g_proxy_disconnect_signal (priv->avatars_proxy,
+					"AvatarUpdated",
+					G_CALLBACK (on_avatar_updated),
+					priv);
+#endif
 	g_object_unref (priv->avatars_proxy);
 	priv->avatars_proxy = NULL;
     }
@@ -2214,9 +2257,8 @@ gboolean mcd_connection_remote_avatar_changed (McdConnection *connection,
 					       guint contact_id,
 					       const gchar *token)
 {
+#ifdef NO_AVATAR_UPDATED
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-    gchar *prev_token;
-    gboolean changed = FALSE;
 
     if (!priv->avatars_proxy)
     {
@@ -2224,21 +2266,11 @@ gboolean mcd_connection_remote_avatar_changed (McdConnection *connection,
 	return FALSE;
     }
 
-    if (!mc_account_get_avatar (priv->account, NULL, NULL, &prev_token))
-	return FALSE;
-
-    if (!prev_token || strcmp (token, prev_token) != 0)
-    {
-	g_debug ("%s: avatar has changed", G_STRFUNC);
-	/* the avatar has changed, let's retrieve the new one */
-	tp_conn_iface_avatars_request_avatar_async (priv->avatars_proxy, contact_id,
-						request_avatar_cb,
-						priv);
-	mc_account_set_avatar_token (priv->account, token);
-	changed = TRUE;
-    }
-    g_free (prev_token);
-    return changed;
+    return on_avatar_updated (priv->avatars_proxy, contact_id, token, priv);
+#else
+    g_debug ("%s called, but it's a stub", G_STRFUNC);
+    return FALSE;
+#endif
 }
 
 void
