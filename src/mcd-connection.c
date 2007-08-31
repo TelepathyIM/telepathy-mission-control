@@ -699,7 +699,7 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
 	g_source_remove (priv->capabilities_timer);
     }
     priv->capabilities_timer =
-	g_timeout_add (1000 * 5, (GSourceFunc)on_capabilities_timeout, connection);
+	g_timeout_add (1000 * 10, (GSourceFunc)on_capabilities_timeout, connection);
 
     /* free the connection capabilities */
     type = dbus_g_type_get_struct ("GValueArray", G_TYPE_STRING,

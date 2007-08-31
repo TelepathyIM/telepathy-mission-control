@@ -1,3 +1,8 @@
+2007-08-31  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Increase timeout for receiving capabilities.
+
 === telepathy-mission-control 4.36 ===
 
 2007-08-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
