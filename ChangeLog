@@ -1,5 +1,8 @@
 2007-08-31  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol/mc-account.[hc]:
+	Add mc_account_set_avatar_from_data() API. Partially fixes #1763009.
+
 	* src/mcd-connection.c:
 	Increase timeout for receiving capabilities.
 

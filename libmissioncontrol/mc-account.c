@@ -1795,39 +1795,6 @@ _add_one_setting (McAccount *account,
     }
 }
 
-static gboolean
-copy_file (const gchar *filename_in, const gchar *filename_out)
-{
-    FILE *f_in, *f_out;
-    char buffer[2048];
-    size_t read, written;
-    gboolean ret = TRUE;
-
-    f_in = fopen (filename_in, "r");
-    f_out = fopen (filename_out, "w");
-    if (!f_in || !f_out) return FALSE;
-    while ((read = fread (buffer, 1, sizeof (buffer), f_in)) > 0)
-    {
-	written = fwrite (buffer, 1, read, f_out);
-	if (written < read)
-	{
-	    g_warning ("%s: fwrite failed (errno = %d)",
-		       G_STRFUNC, errno);
-	    ret = FALSE;
-	    break;
-	}
-    }
-    if (ferror (f_in))
-    {
-	g_warning ("%s: fread failed (errno = %d)",
-		   G_STRFUNC, errno);
-	ret = FALSE;
-    }
-    fclose (f_in);
-    fclose (f_out);
-    return ret;
-}
-
 /**
  * mc_account_get_params:
  * @account: The #McAccount.
@@ -2051,6 +2018,43 @@ gboolean
 mc_account_set_avatar (McAccount *account, const gchar *filename,
 		       const gchar *mime_type)
 {
+    gchar *data;
+    gsize len;
+
+    g_return_val_if_fail (account != NULL, FALSE);
+
+    if (filename)
+    {
+	if (!g_file_get_contents (filename, &data, &len, NULL))
+	{
+	    g_warning ("%s: reading file %s failed", G_STRLOC, filename);
+	    return FALSE;
+	}
+    }
+    else
+    {
+	data = NULL;
+	len = 0;
+    }
+
+    return mc_account_set_avatar_from_data (account, data, len, mime_type);
+}
+
+/**
+ * mc_account_set_avatar_from_data:
+ * @account: The #McAccount.
+ * @data: image binary contents.
+ * @len: length of @data.
+ * @mime_type: the MIME type of the image.
+ *
+ * Set the avatar for this account. If @data is %NULL, the avatar is cleared.
+ *
+ * Return value: %TRUE, or %FALSE if some error occurred.
+ */
+gboolean
+mc_account_set_avatar_from_data (McAccount *account, const gchar *data,
+				 gsize len, const gchar *mime_type)
+{
     gchar *data_dir, *filename_out;
     GConfClient *client;
     gboolean ret = TRUE;
@@ -2064,17 +2068,14 @@ mc_account_set_avatar (McAccount *account, const gchar *filename,
 	g_mkdir_with_parents (data_dir, 0777);
     g_free (data_dir);
 
-    if (filename)
+    if (data)
     {
-	/* copy the file in the account data directory */
-	if (strcmp (filename_out, filename) != 0)
+	if (!g_file_set_contents (filename_out, data, (gssize)len, NULL))
 	{
-	    if (copy_file (filename, filename_out) == FALSE)
-	    {
-		g_warning ("%s: copy_file failed", G_STRLOC);
-		g_free (filename_out);
-		return FALSE;
-	    }
+	    g_warning ("%s: writing to file %s failed", G_STRLOC,
+		       filename_out);
+	    g_free (filename_out);
+	    return FALSE;
 	}
     }
     else

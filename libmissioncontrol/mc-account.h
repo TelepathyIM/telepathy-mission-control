@@ -168,6 +168,8 @@ gboolean mc_account_supports_presence (McAccount *account,
 
 gboolean mc_account_set_avatar (McAccount *account, const gchar *filename,
 			       	const gchar *mime_type);
+gboolean mc_account_set_avatar_from_data (McAccount *account, const gchar *data,
+					  gsize len, const gchar *mime_type);
 gboolean mc_account_get_avatar (McAccount *account, gchar **filename,
 			       	gchar **mime_type, gchar **token);
 
