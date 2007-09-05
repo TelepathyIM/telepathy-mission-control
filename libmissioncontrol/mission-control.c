@@ -642,34 +642,43 @@ mission_control_request_channel_with_string_handle_and_vcard_field (MissionContr
 
     /* mangle the handle with the vcard_field */
     if (vcard_field != NULL) {
-        const char * profile_vcard_field = mc_profile_get_vcard_field(mc_account_get_profile(account));
+	McProfile *profile = mc_account_get_profile (account);
 
-        // TODO: this is where from the profiles or from the provisioning we
-        // must figure out how to actually mangle user addresses from foreign
-        // vcard fields to something the connection manager will understand.
-        // For now this is just lowercasing the vcard field and prepending it to the address
+	if (G_LIKELY (profile))
+	{
+	    const char * profile_vcard_field = mc_profile_get_vcard_field (profile);
 
-        /* only mangle if it is not the default vcard field */
-        if (strcmp(vcard_field, profile_vcard_field) != 0) {
+	    // TODO: this is where from the profiles or from the provisioning
+	    // we must figure out how to actually mangle user addresses from
+	    // foreign vcard fields to something the connection manager will
+	    // understand.
+	    // For now this is just lowercasing the vcard field and prepending
+	    // it to the address
 
-            const char * mangle = mc_profile_get_vcard_mangle(mc_account_get_profile(account), vcard_field);
-            g_debug("MANGLE: %s", mangle);
-            if (mangle) {
-                mangled_handle = g_strdup_printf(mangle, handle);
-            } else {
-                if (strcmp(vcard_field, "TEL") == 0) {
-                    // TEL mangling
-                    char ** split = g_strsplit_set(handle, " -,.:;", -1);
-                    mangled_handle = g_strjoinv("", split);
-                    g_strfreev(split);
-                } else {
-                    // generic mangling
-                    char * lower_vcard_field = g_utf8_strdown(vcard_field, -1);
-                    mangled_handle = g_strdup_printf("%s:%s", lower_vcard_field, handle);
-                    g_free(lower_vcard_field);
-                }
-            }
-            g_debug ("%s: mangling: %s (%s)", G_STRFUNC, mangled_handle, vcard_field);
+	    /* only mangle if it is not the default vcard field */
+	    if (profile_vcard_field == NULL ||
+	       	strcmp(vcard_field, profile_vcard_field) != 0) {
+
+		const char * mangle = mc_profile_get_vcard_mangle(profile, vcard_field);
+		g_debug("MANGLE: %s", mangle);
+		if (mangle) {
+		    mangled_handle = g_strdup_printf(mangle, handle);
+		} else {
+		    if (strcmp(vcard_field, "TEL") == 0) {
+			// TEL mangling
+			char ** split = g_strsplit_set(handle, " -,.:;", -1);
+			mangled_handle = g_strjoinv("", split);
+			g_strfreev(split);
+		    } else {
+			// generic mangling
+			char * lower_vcard_field = g_utf8_strdown(vcard_field, -1);
+			mangled_handle = g_strdup_printf("%s:%s", lower_vcard_field, handle);
+			g_free(lower_vcard_field);
+		    }
+		}
+		g_debug ("%s: mangling: %s (%s)", G_STRFUNC, mangled_handle, vcard_field);
+	    }
+	    g_object_unref (profile);
         }
     }
 

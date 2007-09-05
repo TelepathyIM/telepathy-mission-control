@@ -1,3 +1,10 @@
+2007-09-05  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mission-control.c:
+	Add some more checks to the
+	mission_control_request_channel_with_string_handle_and_vcard_field
+	function, and fix a reference leak.
+
 === telepathy-mission-control 4.37 ===
 
 2007-08-31  Alberto Mardegan  <alberto.mardegan@nokia.com>
