@@ -1,3 +1,5 @@
+=== telepathy-mission-control 4.38 ===
+
 2007-09-05  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmissioncontrol/mission-control.c:
