@@ -1113,13 +1113,16 @@ mcd_connection_connect (McdConnection *connection, GHashTable *params)
     g_object_unref (profile);
     if (!ret)
     {
-	g_warning ("%s: tp_connmgr_request_connection failed: %s",
-		   G_STRFUNC, error->message);
+	if (error)
+	{
+	    g_warning ("%s: tp_connmgr_request_connection failed: %s",
+		       G_STRFUNC, error->message);
+	    g_error_free (error);
+	}
 	mcd_presence_frame_set_account_status (priv->presence_frame,
 					       priv->account,
 					       TP_CONN_STATUS_DISCONNECTED,
 					       TP_CONN_STATUS_REASON_NETWORK_ERROR);
-	g_error_free (error);
 	return;
     }
 
