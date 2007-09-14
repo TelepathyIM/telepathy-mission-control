@@ -49,6 +49,7 @@ G_DEFINE_TYPE (McAccount, mc_account, G_TYPE_OBJECT);
 typedef struct
 {
   gchar *unique_name;
+  gchar *profile_name;
   GSList *display_names;
   GSList *normalized_names;
 } McAccountPrivate;
@@ -63,6 +64,7 @@ mc_account_finalize (GObject *object)
   McAccountPrivate *priv = MC_ACCOUNT_PRIV (self);
   
   g_free (priv->unique_name);
+  g_free (priv->profile_name);
   g_slist_foreach (priv->display_names, (GFunc)g_free, NULL);
   g_slist_free (priv->display_names);
   g_slist_foreach (priv->normalized_names, (GFunc)g_free, NULL);
@@ -1029,22 +1031,21 @@ mc_account_get_unique_name (McAccount *account)
 McProfile *
 mc_account_get_profile (McAccount *account)
 {
-  McProfile *ret;
-  gchar *profile_name;
+  McAccountPrivate *priv;
 
   g_return_val_if_fail (account != NULL, NULL);
   g_return_val_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL,
                         NULL);
 
-  if (!_mc_account_gconf_get_string (account, MC_ACCOUNTS_GCONF_KEY_PROFILE,
-                                        FALSE, &profile_name))
-    return NULL;
+  priv = MC_ACCOUNT_PRIV (account);
+  if (G_UNLIKELY (!priv->profile_name))
+  {
+    if (!_mc_account_gconf_get_string (account, MC_ACCOUNTS_GCONF_KEY_PROFILE,
+				       FALSE, &priv->profile_name))
+      return NULL;
+  }
 
-  ret = mc_profile_lookup (profile_name);
-
-  g_free (profile_name);
-
-  return ret;
+  return mc_profile_lookup (priv->profile_name);
 }
 
 /**
