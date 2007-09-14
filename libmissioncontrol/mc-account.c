@@ -52,10 +52,13 @@ typedef struct
   gchar *profile_name;
   GSList *display_names;
   GSList *normalized_names;
+  gboolean enabled;
 } McAccountPrivate;
 
 static gboolean mc_account_set_deleted (McAccount *account, gboolean deleted);
 static gboolean mc_account_is_deleted (McAccount *account);
+static gboolean _mc_account_gconf_get_boolean (McAccount *account,
+			const gchar *name, gboolean param, gboolean *value);
 
 static void
 mc_account_finalize (GObject *object)
@@ -87,10 +90,23 @@ McAccount *
 _mc_account_new (const gchar *unique_name)
 {
   McAccount *new;
+  gboolean enabled;
   new = (McAccount *)g_object_new (MC_TYPE_ACCOUNT, NULL);
   MC_ACCOUNT_PRIV (new)->unique_name = g_strdup (unique_name);
 
+  /* get enabledness status */
+  if (_mc_account_gconf_get_boolean (new, MC_ACCOUNTS_GCONF_KEY_ENABLED,
+				     FALSE, &enabled) && enabled)
+      MC_ACCOUNT_PRIV (new)->enabled = TRUE;
+
   return new;
+}
+
+void
+_mc_account_set_enabled_priv (McAccount *account, gboolean enabled)
+{
+  g_return_if_fail (account != NULL);
+  MC_ACCOUNT_PRIV (account)->enabled = enabled;
 }
 
 static void
@@ -1112,16 +1128,9 @@ mc_account_set_display_name (McAccount *account, const gchar *name)
 gboolean
 mc_account_is_enabled (McAccount *account)
 {
-  gboolean enabled;
-
   g_return_val_if_fail (account != NULL, FALSE);
-  g_return_val_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL, FALSE);
 
-  if (!_mc_account_gconf_get_boolean (account, MC_ACCOUNTS_GCONF_KEY_ENABLED,
-                                         FALSE, &enabled))
-    return FALSE;
-
-  return enabled;
+  return MC_ACCOUNT_PRIV (account)->enabled;
 }
 
 static gboolean

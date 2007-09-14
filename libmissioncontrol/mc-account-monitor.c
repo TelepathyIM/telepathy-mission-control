@@ -54,7 +54,6 @@ typedef struct
   GConfClient *gconf_client;
   guint gconf_connection;
   GHashTable *accounts;
-  GHashTable *enabledness;
 } McAccountMonitorPrivate;
 
 static void
@@ -68,7 +67,6 @@ mc_account_monitor_finalize (GObject *object)
     priv->gconf_client, MC_ACCOUNTS_GCONF_BASE, NULL);
 
   g_hash_table_destroy (priv->accounts);
-  g_hash_table_destroy (priv->enabledness);
 }
 
 static void
@@ -246,8 +244,6 @@ _gconf_notify_cb (GConfClient *client, guint conn_id, GConfEntry *entry,
 	   * signal */
 	  if (mc_account_is_enabled (account))
 	  {
-              g_hash_table_insert (priv->enabledness, g_strdup (name),
-				   GINT_TO_POINTER (TRUE));
 	      g_signal_emit (monitor, signals[SIGNAL_ENABLED], 0, name);
 	  }
         }
@@ -260,13 +256,13 @@ _gconf_notify_cb (GConfClient *client, guint conn_id, GConfEntry *entry,
   else if (strcmp (key, MC_ACCOUNTS_GCONF_KEY_DELETED) == 0)
     {
       /* if account is deleted, remove it */
-      if (!mc_account_is_complete (account))
+      if (entry->value != NULL && entry->value->type == GCONF_VALUE_BOOL &&
+          gconf_value_get_bool (entry->value))
         {
-          if (GPOINTER_TO_INT (g_hash_table_lookup (priv->enabledness, name)))
+          if (mc_account_is_enabled (account))
             {
               g_signal_emit (monitor, signals[SIGNAL_DISABLED], 0, name);
             }
-          g_hash_table_remove (priv->enabledness, name);
           g_signal_emit (monitor, signals[SIGNAL_DELETED], 0, name);
           g_hash_table_remove (priv->accounts, name);
         }
@@ -277,13 +273,12 @@ _gconf_notify_cb (GConfClient *client, guint conn_id, GConfEntry *entry,
         {
           if (gconf_value_get_bool (entry->value))
             {
-              g_hash_table_insert (priv->enabledness, g_strdup (name),
-                GINT_TO_POINTER (TRUE));
+	      _mc_account_set_enabled_priv (account, TRUE);
               g_signal_emit (monitor, signals[SIGNAL_ENABLED], 0, name);
             }
           else
             {
-              g_hash_table_remove (priv->enabledness, name);
+	      _mc_account_set_enabled_priv (account, FALSE);
               g_signal_emit (monitor, signals[SIGNAL_DISABLED], 0, name);
             }
         }
@@ -325,8 +320,6 @@ mc_account_monitor_init (McAccountMonitor *self)
 
   priv->accounts = g_hash_table_new_full (
     g_str_hash, g_str_equal, (GDestroyNotify) g_free, g_object_unref);
-  priv->enabledness = g_hash_table_new_full (
-    g_str_hash, g_str_equal, (GDestroyNotify) g_free, NULL);
 
   for (i = dirs; NULL != i; i = i->next)
     {
@@ -337,10 +330,6 @@ mc_account_monitor_init (McAccountMonitor *self)
       if (mc_account_is_complete (account))
         {
            g_hash_table_insert (priv->accounts, g_strdup (name), account);
-
-           if (mc_account_is_enabled (account))
-             g_hash_table_insert (priv->enabledness, g_strdup (name),
-               GINT_TO_POINTER (TRUE));
         }
       else
         {

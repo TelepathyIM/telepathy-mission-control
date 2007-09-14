@@ -39,6 +39,7 @@
 #define MC_ACCOUNTS_GCONF_KEY_SECONDARY_VCARD_FIELDS "secondary_vcard_fields"
 
 McAccount * _mc_account_new (const gchar *unique_name);
+void _mc_account_set_enabled_priv (McAccount *account, gboolean enabled);
 
 #endif /* __MC_ACCOUNT_PRIV_H__ */
 

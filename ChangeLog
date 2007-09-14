@@ -1,5 +1,10 @@
 2007-09-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol/mc-account-monitor.c,
+	libmissioncontrol/mc-account-priv.h, libmissioncontrol/mc-account.c:
+	Move account enabledness related code to McAccount, avoiding some
+	GConf lookups.
+
 	* libmissioncontrol/mc-account.c:
 	Cache the profile name, since it's not going to change.
 
