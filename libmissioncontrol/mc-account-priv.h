@@ -40,6 +40,8 @@
 
 McAccount * _mc_account_new (const gchar *unique_name);
 void _mc_account_set_enabled_priv (McAccount *account, gboolean enabled);
+void _mc_account_set_normalized_name_priv (McAccount *account, const gchar *name);
+void _mc_account_set_display_name_priv (McAccount *account, const gchar *name);
 
 #endif /* __MC_ACCOUNT_PRIV_H__ */
 

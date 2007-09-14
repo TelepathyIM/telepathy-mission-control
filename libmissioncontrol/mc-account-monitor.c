@@ -291,6 +291,18 @@ _gconf_notify_cb (GConfClient *client, guint conn_id, GConfEntry *entry,
       if (strncmp (key, "param-", 6) == 0)
 	  g_signal_emit (monitor, signals[PARAM_CHANGED], 0,
 			 name, key + 6);
+
+      /* report the changed value to the McAccount, if it's a cached setting */
+      if (entry->value != NULL && entry->value->type == GCONF_VALUE_STRING)
+      {
+	  const gchar *value;
+	 
+	  value = gconf_value_get_string (entry->value);
+	  if (strcmp (key, MC_ACCOUNTS_GCONF_KEY_NORMALIZED_NAME) == 0)
+	      _mc_account_set_normalized_name_priv (account, value);
+	  else if (strcmp (key, MC_ACCOUNTS_GCONF_KEY_DISPLAY_NAME) == 0)
+	      _mc_account_set_display_name_priv (account, value);
+      }
     }
   
   /* If we are enabling/disabling account */

@@ -59,6 +59,8 @@ static gboolean mc_account_set_deleted (McAccount *account, gboolean deleted);
 static gboolean mc_account_is_deleted (McAccount *account);
 static gboolean _mc_account_gconf_get_boolean (McAccount *account,
 			const gchar *name, gboolean param, gboolean *value);
+static gboolean _mc_account_gconf_get_string (McAccount *account,
+			  const gchar *name, gboolean param, gchar **value);
 
 static void
 mc_account_finalize (GObject *object)
@@ -89,15 +91,27 @@ mc_account_clear_cache (void)
 McAccount *
 _mc_account_new (const gchar *unique_name)
 {
+  McAccountPrivate *priv;
   McAccount *new;
   gboolean enabled;
+  gchar *name;
+
   new = (McAccount *)g_object_new (MC_TYPE_ACCOUNT, NULL);
-  MC_ACCOUNT_PRIV (new)->unique_name = g_strdup (unique_name);
+  priv = MC_ACCOUNT_PRIV (new);
+  priv->unique_name = g_strdup (unique_name);
 
   /* get enabledness status */
   if (_mc_account_gconf_get_boolean (new, MC_ACCOUNTS_GCONF_KEY_ENABLED,
 				     FALSE, &enabled) && enabled)
-      MC_ACCOUNT_PRIV (new)->enabled = TRUE;
+      priv->enabled = TRUE;
+
+  if (_mc_account_gconf_get_string (new, MC_ACCOUNTS_GCONF_KEY_NORMALIZED_NAME,
+				    FALSE, &name))
+      priv->normalized_names = g_slist_prepend (NULL, name);
+
+  if (_mc_account_gconf_get_string (new, MC_ACCOUNTS_GCONF_KEY_DISPLAY_NAME,
+				    FALSE, &name))
+      priv->display_names = g_slist_prepend (NULL, name);
 
   return new;
 }
@@ -107,6 +121,45 @@ _mc_account_set_enabled_priv (McAccount *account, gboolean enabled)
 {
   g_return_if_fail (account != NULL);
   MC_ACCOUNT_PRIV (account)->enabled = enabled;
+}
+
+static GSList *
+set_first_element (GSList *list, const gchar *value)
+{
+    GSList *elem;
+
+    if ((elem = g_slist_find_custom(list, value, (GCompareFunc)strcmp)) != NULL)
+    {
+	if (elem != list)
+	{
+	    /* move the new name at the beginning of the list */
+	    list = g_slist_remove_link (list, elem);
+	    list = g_slist_concat (elem, list);
+	}
+    }
+    else
+	list = g_slist_prepend (list, g_strdup (value));
+    return list;
+}
+
+void
+_mc_account_set_normalized_name_priv (McAccount *account, const gchar *name)
+{
+    McAccountPrivate *priv;
+
+    g_return_if_fail (account != NULL);
+    priv = MC_ACCOUNT_PRIV (account);
+    priv->normalized_names = set_first_element (priv->normalized_names, name);
+}
+
+void
+_mc_account_set_display_name_priv (McAccount *account, const gchar *name)
+{
+    McAccountPrivate *priv;
+
+    g_return_if_fail (account != NULL);
+    priv = MC_ACCOUNT_PRIV (account);
+    priv->display_names = set_first_element (priv->display_names, name);
 }
 
 static void
@@ -978,29 +1031,11 @@ const gchar *
 mc_account_get_normalized_name (McAccount *account)
 {
   McAccountPrivate *priv;
-  GSList *list;
-  gchar *name;
 
   g_return_val_if_fail (account != NULL, NULL);
   priv = MC_ACCOUNT_PRIV (account);
 
-  if (!_mc_account_gconf_get_string (account,
-				     MC_ACCOUNTS_GCONF_KEY_NORMALIZED_NAME,
-				     FALSE, &name))
-    return NULL;
-
-  if ((list = g_slist_find_custom(priv->normalized_names, name,
-				  (GCompareFunc)strcmp)) != NULL)
-  {
-      g_free (name);
-      name = list->data;
-  }
-  else
-  {
-      priv->normalized_names = g_slist_prepend (priv->normalized_names,
-						name);
-  }
-  return name;
+  return (priv->normalized_names) ? priv->normalized_names->data : NULL;
 }
 
 /**
@@ -1076,27 +1111,11 @@ const gchar *
 mc_account_get_display_name (McAccount *account)
 {
   McAccountPrivate *priv;
-  GSList *list;
-  gchar *name;
 
   g_return_val_if_fail (account != NULL, NULL);
   priv = MC_ACCOUNT_PRIV (account);
 
-  if (!_mc_account_gconf_get_string (account, MC_ACCOUNTS_GCONF_KEY_DISPLAY_NAME,
-                                        FALSE, &name))
-    return NULL;
-
-  if ((list = g_slist_find_custom(priv->display_names, name,
-				  (GCompareFunc)strcmp)) != NULL)
-  {
-      g_free (name);
-      name = list->data;
-  }
-  else
-  {
-      priv->display_names = g_slist_prepend (priv->display_names, name);
-  }
-  return name;
+  return (priv->display_names) ? priv->display_names->data : NULL;
 }
 
 /**

@@ -2,6 +2,11 @@
 
 	* libmissioncontrol/mc-account-monitor.c,
 	libmissioncontrol/mc-account-priv.h, libmissioncontrol/mc-account.c:
+	Cache normalized and display name, instead of always retrieving them
+	from GConf.
+
+	* libmissioncontrol/mc-account-monitor.c,
+	libmissioncontrol/mc-account-priv.h, libmissioncontrol/mc-account.c:
 	Move account enabledness related code to McAccount, avoiding some
 	GConf lookups.
 
