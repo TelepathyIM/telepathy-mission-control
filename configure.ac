@@ -117,14 +117,6 @@ AC_ARG_ENABLE(server,
 )
 AM_CONDITIONAL(HAVE_SERVER, [test x$server_enabled = xyes])
 
-dnl ***************************************************************************
-dnl Check for marshal and enum generators
-dnl ***************************************************************************
-GLIB_GENMARSHAL="`$PKG_CONFIG --variable=glib_genmarshal glib-2.0`"
-AC_SUBST(GLIB_GENMARSHAL)
-GLIB_MKENUMS="`$PKG_CONFIG --variable=glib_mkenums glib-2.0`"
-AC_SUBST(GLIB_MKENUMS)
-
 PKG_CHECK_MODULES(DBUS, [dbus-1 >= 0.51, dbus-glib-1 >= 0.51], have_dbus=yes, have_dbus=no)
 AC_SUBST(DBUS_CFLAGS)
 AC_SUBST(DBUS_LIBS)
@@ -141,6 +133,14 @@ AC_SUBST(GCONF_LIBS)
 PKG_CHECK_MODULES(GLIB, glib-2.0)
 AC_SUBST(GLIB_LIBS)
 AC_SUBST(GLIB_CFLAGS)
+
+dnl ***************************************************************************
+dnl Check for marshal and enum generators
+dnl ***************************************************************************
+GLIB_GENMARSHAL="`$PKG_CONFIG --variable=glib_genmarshal glib-2.0`"
+AC_SUBST(GLIB_GENMARSHAL)
+GLIB_MKENUMS="`$PKG_CONFIG --variable=glib_mkenums glib-2.0`"
+AC_SUBST(GLIB_MKENUMS)
 
 GTK_DOC_CHECK([1.3])
 

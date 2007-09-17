@@ -1,5 +1,9 @@
 2007-09-17  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* configure.ac:
+	Check for glib tools only after testing for glib itself.
+	Fixes: #1795921.
+
 	* libmissioncontrol/Makefile.am:
 	Add signal marshallers list file to EXTRA_DIST.
 
