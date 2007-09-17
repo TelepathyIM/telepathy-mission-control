@@ -1,3 +1,8 @@
+2007-09-17  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/Makefile.am:
+	Add signal marshallers list file to EXTRA_DIST.
+
 2007-09-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmissioncontrol/mc-account-monitor.c,

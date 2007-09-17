@@ -97,4 +97,7 @@ test_SOURCES = test.c
 test_LDADD = libmissioncontrol-client.la
 
 EXTRA_DIST = \
-	$(libmissioncontrol_client_include_DATA)
+	$(libmissioncontrol_client_include_DATA) \
+	mission-control-signals-marshal.list \
+	mc-signals-marshal.list
+
