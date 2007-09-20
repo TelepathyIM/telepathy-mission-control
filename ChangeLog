@@ -1,3 +1,5 @@
+=== telepathy-mission-control 4.40 ===
+
 2007-09-20  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmissioncontrol/mc-account-monitor.c:
