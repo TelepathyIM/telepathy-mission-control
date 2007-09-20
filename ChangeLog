@@ -1,3 +1,9 @@
+2007-09-20  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-monitor.c:
+	Set the account enabled flag to FALSE, before emitting the
+	account-disabled signal.
+
 === telepathy-mission-control 4.39 ===
 
 2007-09-17  Alberto Mardegan  <alberto.mardegan@nokia.com>

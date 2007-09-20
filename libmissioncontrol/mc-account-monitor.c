@@ -261,6 +261,7 @@ _gconf_notify_cb (GConfClient *client, guint conn_id, GConfEntry *entry,
         {
           if (mc_account_is_enabled (account))
             {
+	      _mc_account_set_enabled_priv (account, FALSE);
               g_signal_emit (monitor, signals[SIGNAL_DISABLED], 0, name);
             }
           g_signal_emit (monitor, signals[SIGNAL_DELETED], 0, name);
