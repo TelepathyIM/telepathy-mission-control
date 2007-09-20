@@ -68,6 +68,7 @@
 enum
 {
     ACCOUNT_STATUS_CHANGED,
+    ACCOUNT_PRESENCE_CHANGED,
     ERROR,
     PRESENCE_STATUS_REQUESTED,
     PRESENCE_STATUS_ACTUAL,
@@ -559,6 +560,10 @@ _on_account_status_changed (McdPresenceFrame * presence_frame,
 {
     McPresence presence =
 	mcd_presence_frame_get_account_presence (presence_frame, account);
+#ifndef NO_NEW_PRESENCE_SIGNALS
+    const gchar *message =
+	mcd_presence_frame_get_account_presence_message (presence_frame, account);
+#endif
 
     /* Emit the AccountStatusChanged signal */
     g_debug ("Emitting account status changed for %s: status = %d, reason = %d",
@@ -570,6 +575,13 @@ _on_account_status_changed (McdPresenceFrame * presence_frame,
 			   presence,
 			   connection_reason,
 			   mc_account_get_unique_name (account));
+#ifndef NO_NEW_PRESENCE_SIGNALS
+    g_signal_emit_by_name (G_OBJECT (obj),
+			   "account-presence-changed", connection_status,
+			   presence, message,
+			   connection_reason,
+			   mc_account_get_unique_name (account));
+#endif
 }
 
 static void
@@ -590,6 +602,16 @@ _on_account_presence_changed (McdPresenceFrame * presence_frame,
 			   mcd_presence_frame_get_account_status_reason
 			   (presence_frame, account),
 			   mc_account_get_unique_name (account));
+#ifndef NO_NEW_PRESENCE_SIGNALS
+    g_signal_emit_by_name (G_OBJECT (obj),
+			   "account-presence-changed",
+			   mcd_presence_frame_get_account_status
+			   (presence_frame, account), presence,
+			   presence_message,
+			   mcd_presence_frame_get_account_status_reason
+			   (presence_frame, account),
+			   mc_account_get_unique_name (account));
+#endif
 }
 
 static void
@@ -609,6 +631,10 @@ _on_presence_requested (McdPresenceFrame * presence_frame,
     /* Emit the AccountStatusChanged signal */
     g_signal_emit_by_name (G_OBJECT (obj),
 			   "presence-status-requested", presence);
+#ifndef NO_NEW_PRESENCE_SIGNALS
+    g_signal_emit_by_name (G_OBJECT (obj),
+			   "presence-requested", presence, presence_message);
+#endif
 }
 
 static void
@@ -618,6 +644,9 @@ _on_presence_actual (McdPresenceFrame * presence_frame,
 {
     /* Emit the AccountStatusChanged signal */
     g_signal_emit_by_name (G_OBJECT (obj), "presence-status-actual", presence);
+#ifndef NO_NEW_PRESENCE_SIGNALS
+    g_signal_emit_by_name (G_OBJECT (obj), "presence-changed", presence, presence_message);
+#endif
 }
 
 static void
@@ -876,6 +905,17 @@ mcd_service_class_init (McdServiceClass * self)
 		      NULL, NULL, mcd_marshal_VOID__UINT_UINT_UINT_STRING,
 		      G_TYPE_NONE, 4, G_TYPE_UINT, G_TYPE_UINT,
 		      G_TYPE_UINT, G_TYPE_STRING);
+#ifndef NO_NEW_PRESENCE_SIGNALS
+    /* AccountStatusChanged signal */
+    signals[ACCOUNT_PRESENCE_CHANGED] =
+	g_signal_new ("account-presence-changed",
+		      G_OBJECT_CLASS_TYPE (self),
+		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+		      0,
+		      NULL, NULL, mcd_marshal_VOID__UINT_UINT_UINT_STRING,
+		      G_TYPE_NONE, 5, G_TYPE_UINT, G_TYPE_UINT,
+		      G_TYPE_STRING, G_TYPE_UINT, G_TYPE_STRING);
+#endif
     /* libmc request_error signal */
     signals[ERROR] =
 	g_signal_new ("mcd-error",
@@ -891,6 +931,15 @@ mcd_service_class_init (McdServiceClass * self)
 		  0,
 		  NULL, NULL, mcd_marshal_VOID__UINT,
 		  G_TYPE_NONE, 1, G_TYPE_UINT);
+#ifndef NO_NEW_PRESENCE_SIGNALS
+    /* PresenceRequested signal */
+    g_signal_new ("presence-requested",
+		  G_OBJECT_CLASS_TYPE (self),
+		  G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+		  0,
+		  NULL, NULL, mcd_marshal_VOID__UINT,
+		  G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_STRING);
+#endif
     /* PresenceStatusActual signal */
     g_signal_new ("presence-status-actual",
 		  G_OBJECT_CLASS_TYPE (self),
@@ -898,6 +947,15 @@ mcd_service_class_init (McdServiceClass * self)
 		  0,
 		  NULL, NULL, mcd_marshal_VOID__UINT,
 		  G_TYPE_NONE, 1, G_TYPE_UINT);
+#ifndef NO_NEW_PRESENCE_SIGNALS
+    /* PresenceChanged signal */
+    g_signal_new ("presence-changed",
+		  G_OBJECT_CLASS_TYPE (self),
+		  G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+		  0,
+		  NULL, NULL, mcd_marshal_VOID__UINT,
+		  G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_STRING);
+#endif
     /* UsedChannelsCountChanged signal */
     signals[USED_CHANNELS_COUNT_CHANGED] =
 	g_signal_new ("used-channels-count-changed",

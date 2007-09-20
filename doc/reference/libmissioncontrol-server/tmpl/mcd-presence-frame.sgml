@@ -110,16 +110,6 @@ McdPresenceFrame
 @Returns: 
 
 
-<!-- ##### FUNCTION mcd_presence_frame_get_presence_message ##### -->
-<para>
-
-</para>
-
-@presence_frame: 
-@account: 
-@Returns: 
-
-
 <!-- ##### FUNCTION mcd_presence_frame_get_account_status ##### -->
 <para>
 

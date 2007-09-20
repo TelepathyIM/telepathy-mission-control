@@ -233,9 +233,30 @@
 	<mc:docstring>Avatar token</mc:docstring>
       </arg>
     </method>
+    <signal name="AccountPresenceChanged">
+      <mc:docstring>
+	Emitted when an account's connection status changes
+      </mc:docstring>
+      <arg type="u" name="status">
+	<mc:docstring>The connection status</mc:docstring>
+      </arg>
+      <arg type="u" name="presence">
+	<mc:docstring>The presence</mc:docstring>
+      </arg>
+      <arg type="s" name="message">
+	<mc:docstring>The presence message</mc:docstring>
+      </arg>
+      <arg type="u" name="reason">
+	<mc:docstring>The connection status reason</mc:docstring>
+      </arg>
+      <arg type="s" name="account_id">
+	<mc:docstring>The account name</mc:docstring>
+      </arg>
+    </signal>
     <signal name="AccountStatusChanged">
       <mc:docstring>
 	Emitted when an account's connection status changes
+	DEPRECATED
       </mc:docstring>
       <arg type="u" name="status">
 	<mc:docstring>The connection status</mc:docstring>
@@ -265,17 +286,41 @@
 	<mc:docstring>Error code</mc:docstring>
       </arg>
     </signal>
-    <signal name="PresenceStatusRequested">
+    <signal name="PresenceRequested">
       <mc:docstring>
 	Emitted when a presence has been requested.
       </mc:docstring>
       <arg type="u" name="presence">
 	<mc:docstring>The requested presence</mc:docstring>
       </arg>
+      <arg type="s" name="message">
+	<mc:docstring>The presence message</mc:docstring>
+      </arg>
+    </signal>
+    <signal name="PresenceStatusRequested">
+      <mc:docstring>
+	Emitted when a presence has been requested.
+	DEPRECATED
+      </mc:docstring>
+      <arg type="u" name="presence">
+	<mc:docstring>The requested presence</mc:docstring>
+      </arg>
+    </signal>
+    <signal name="PresenceChanged">
+      <mc:docstring>
+	Emitted when the actual presence has changed.
+      </mc:docstring>
+      <arg type="u" name="presence">
+	<mc:docstring>The actual presence</mc:docstring>
+      </arg>
+      <arg type="s" name="message">
+	<mc:docstring>The presence message</mc:docstring>
+      </arg>
     </signal>
     <signal name="PresenceStatusActual">
       <mc:docstring>
 	Emitted when the actual presence has changed.
+	DEPRECATED
       </mc:docstring>
       <arg type="u" name="presence">
 	<mc:docstring>The actual presence</mc:docstring>
