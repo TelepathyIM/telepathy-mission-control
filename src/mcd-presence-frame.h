@@ -109,7 +109,7 @@ void mcd_presence_frame_set_account_status (McdPresenceFrame * presence_frame,
 
 McPresence mcd_presence_frame_get_account_presence
     (McdPresenceFrame * presence_frame, McAccount * account);
-const gchar *mcd_presence_frame_get_presence_message
+const gchar *mcd_presence_frame_get_account_presence_message
     (McdPresenceFrame * presence_frame, McAccount * account);
 TelepathyConnectionStatus mcd_presence_frame_get_account_status
     (McdPresenceFrame * presence_frame, McAccount * account);
