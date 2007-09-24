@@ -1764,15 +1764,15 @@ map_tp_error_to_mc_error (McdChannel *channel, GError *tp_error)
     {
 	mc_error_code = MC_CONTACT_DOES_NOT_SUPPORT_VOICE_ERROR;
     }
-    else if (dbus_g_error_has_name(tp_error, "org.freedesktop.Telepathy.Error.ChannelBanned"))
+    else if (dbus_g_error_has_name(tp_error, "org.freedesktop.Telepathy.Error.Channel.Banned"))
     {
 	mc_error_code = MC_CHANNEL_BANNED_ERROR;
     }
-    else if (dbus_g_error_has_name(tp_error, "org.freedesktop.Telepathy.Error.ChannelFull"))
+    else if (dbus_g_error_has_name(tp_error, "org.freedesktop.Telepathy.Error.Channel.Full"))
     {
 	mc_error_code = MC_CHANNEL_FULL_ERROR;
     }
-    else if (dbus_g_error_has_name(tp_error, "org.freedesktop.Telepathy.Error.ChannelInviteOnly"))
+    else if (dbus_g_error_has_name(tp_error, "org.freedesktop.Telepathy.Error.Channel.InviteOnly"))
     {
 	mc_error_code = MC_CHANNEL_INVITE_ONLY_ERROR;
     }

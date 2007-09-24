@@ -1,5 +1,8 @@
 2007-09-24  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/mcd-connection.c:
+	Fix mapping of Telepathy channel full/inviteonly/banned errors.
+
 	* libmissioncontrol/mc-account.c:
 	Immediately update display/normalized name, without waiting for GConf
 	notification. Fixes: #1797819.
