@@ -1,3 +1,8 @@
+2007-09-24  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Fix possible crash happening when alias is NULL.
+
 === telepathy-mission-control 4.41 ===
 
 2007-09-20  Alberto Mardegan  <alberto.mardegan@nokia.com>

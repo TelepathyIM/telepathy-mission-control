@@ -942,7 +942,7 @@ _mcd_connection_setup_alias (McdConnectionPrivate *priv)
 	g_object_ref (priv->alias_proxy);
     }
     alias = mc_account_get_alias (priv->account);
-    if (!priv->alias || strcmp (priv->alias, alias) != 0)
+    if (alias && (!priv->alias || strcmp (priv->alias, alias) != 0))
     {
 	g_debug ("%s: setting alias '%s'", G_STRFUNC, alias);
 
