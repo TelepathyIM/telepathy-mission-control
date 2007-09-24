@@ -1,5 +1,9 @@
 2007-09-24  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol/mc-account.c:
+	Immediately update display/normalized name, without waiting for GConf
+	notification. Fixes: #1797819.
+
 	* src/mcd-connection.c:
 	Fix possible crash happening when alias is NULL.
 

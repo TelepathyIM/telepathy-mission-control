@@ -1050,9 +1050,15 @@ mc_account_get_normalized_name (McAccount *account)
 gboolean
 mc_account_set_normalized_name (McAccount *account, const gchar *name)
 {
-    return _mc_account_gconf_set_string (account,
+    if (_mc_account_gconf_set_string (account,
 				      MC_ACCOUNTS_GCONF_KEY_NORMALIZED_NAME,
-				      name);
+				      name))
+    {
+	_mc_account_set_normalized_name_priv (account, name);
+	return TRUE;
+    }
+    else
+	return FALSE;
 }
   
 /**
@@ -1131,9 +1137,15 @@ mc_account_get_display_name (McAccount *account)
 gboolean
 mc_account_set_display_name (McAccount *account, const gchar *name)
 {
-    return _mc_account_gconf_set_string (account,
-					 MC_ACCOUNTS_GCONF_KEY_DISPLAY_NAME,
-					 (name && *name) ? name : NULL);
+    if (_mc_account_gconf_set_string (account,
+				      MC_ACCOUNTS_GCONF_KEY_DISPLAY_NAME,
+				      (name && *name) ? name : NULL))
+    {
+	_mc_account_set_display_name_priv (account, name);
+	return TRUE;
+    }
+    else
+	return FALSE;
 }
 
 /**
