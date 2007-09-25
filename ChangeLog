@@ -1,3 +1,9 @@
+2007-09-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-master.c:
+	Store a copy of the presence message string, since it could be freed
+	anytime. Possibly fixes a crash.
+
 === telepathy-mission-control 4.42 ===
 
 2007-09-24  Alberto Mardegan  <alberto.mardegan@nokia.com>

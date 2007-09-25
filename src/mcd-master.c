@@ -72,7 +72,7 @@ typedef struct _McdMasterPrivate
     McdDispatcher *dispatcher;
     McdProxy *proxy;
     McPresence awake_presence;
-    const gchar *awake_presence_message;
+    gchar *awake_presence_message;
     McPresence default_presence;
 
     /* We create this for our member objects */
@@ -561,8 +561,10 @@ _mcd_master_disconnect (McdMission * mission)
 static void
 _mcd_master_finalize (GObject * object)
 {
-    McdMaster *master;
-    master = MCD_MASTER (object);
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (object);
+
+    g_free (priv->awake_presence_message);
+
     G_OBJECT_CLASS (mcd_master_parent_class)->finalize (object);
 }
 
@@ -630,8 +632,10 @@ _mcd_master_set_flags (McdMission * mission, McdSystemFlags flags)
 		mcd_presence_frame_get_actual_presence (priv->presence_frame);
 	    if (priv->awake_presence != MC_PRESENCE_AVAILABLE)
 		return;
-	    priv->awake_presence_message =
-		mcd_presence_frame_get_actual_presence_message (priv->presence_frame);
+	    g_free (priv->awake_presence_message);
+	    priv->awake_presence_message = g_strdup
+		(mcd_presence_frame_get_actual_presence_message
+		 (priv->presence_frame));
 
 	    mcd_presence_frame_request_presence (priv->presence_frame,
 						 MC_PRESENCE_AWAY, NULL);
