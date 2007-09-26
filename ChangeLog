@@ -1,3 +1,5 @@
+=== telepathy-mission-control 4.43 ===
+
 2007-09-26  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-connection.c:
