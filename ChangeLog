@@ -1,3 +1,8 @@
+2007-09-26  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Fix a memory leak.
+
 2007-09-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-master.c:

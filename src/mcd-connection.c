@@ -603,7 +603,7 @@ on_capabilities_changed (DBusGProxy *tp_conn_proxy,
     /* Return also if the "tp_chan_call" data is set (which means that a
      * request for this channel has already been made) */
     if (g_object_get_data (G_OBJECT (channel), "tp_chan_call") != NULL)
-	return;
+	goto done;
     chan_handle_type = mcd_channel_get_handle_type (channel);
     g_debug ("%s: requesting channel again (type = %s, handle_type = %u, handle = %u)",
 	     G_STRFUNC, chan_type, chan_handle_type, chan_handle);
@@ -614,6 +614,7 @@ on_capabilities_changed (DBusGProxy *tp_conn_proxy,
 					 mcd_async_request_chan_callback,
 					 channel);
     g_object_set_data (G_OBJECT (channel), "tp_chan_call", call);
+done:
     g_free (chan_type);
 }
 
