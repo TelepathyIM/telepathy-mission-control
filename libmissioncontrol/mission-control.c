@@ -847,7 +847,7 @@ GSList *
 mission_control_get_online_connections (MissionControl * self, GError **error)
 {
     GSList *online_conns = NULL;
-    gchar **names = NULL;
+    gchar **names = NULL, **name;
 
     /* Check whether we have any accounts, otherwise we do not have
      * connections either */
@@ -872,16 +872,16 @@ mission_control_get_online_connections (MissionControl * self, GError **error)
 	return NULL;
     }
     /* Create McAccounts with all the account names */
-    while (*names != NULL)
+    for (name = names; *name != NULL; *name++)
     {
-	McAccount *acc = mc_account_lookup (*names);
+	McAccount *acc = mc_account_lookup (*name);
 
 	if (acc != NULL)
 	{
 	    online_conns = g_slist_prepend (online_conns, acc);
 	}
-	*names++;
     }
+    g_strfreev (names);
 
     return online_conns;
 }

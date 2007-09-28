@@ -1,3 +1,15 @@
+2007-09-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.[hc], src/mcd-manager.c:
+	Add the mcd_connection_connect() API (renaming the static one that was
+	already using that name) and call it explicitly after the connection
+	is created.
+
+2007-09-26  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mission-control.c:
+	Fix a memory leak.
+
 === telepathy-mission-control 4.43 ===
 
 2007-09-26  Alberto Mardegan  <alberto.mardegan@nokia.com>

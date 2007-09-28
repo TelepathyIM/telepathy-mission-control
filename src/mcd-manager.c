@@ -102,6 +102,7 @@ _mcd_manager_create_connection (McdManager * manager, McAccount * account)
             priv->dispatcher);
     mcd_operation_take_mission (MCD_OPERATION (manager),
             MCD_MISSION (connection));
+    mcd_connection_connect (connection);
     g_debug ("%s: Created a connection %p for account: %s", G_STRFUNC,
             connection, mc_account_get_unique_name (account));
 }

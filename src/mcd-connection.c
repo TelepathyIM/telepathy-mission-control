@@ -1089,7 +1089,7 @@ mcd_async_connect_cb (DBusGProxy *proxy, GError *error, gpointer userdata)
 }
 
 static void
-mcd_connection_connect (McdConnection *connection, GHashTable *params)
+_mcd_connection_connect (McdConnection *connection, GHashTable *params)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
     TelepathyConnectionStatus conn_status;
@@ -1194,7 +1194,7 @@ provisioning_cb (McdProvisioning *prov, GHashTable *parameters, GError *error,
 					       TP_CONN_STATUS_REASON_AUTHENTICATION_FAILED);
 	return;
     }
-    mcd_connection_connect (connection, parameters);
+    _mcd_connection_connect (connection, parameters);
     g_hash_table_destroy (parameters);
 }
 
@@ -1274,7 +1274,7 @@ mcd_connection_get_params_and_connect (McdConnection *connection)
     if (!requesting_provisioning)
     {
 	params = mc_account_get_params (priv->account);
-	mcd_connection_connect (connection, params);
+	_mcd_connection_connect (connection, params);
 	g_hash_table_destroy (params);
     }
     g_object_unref (profile);
@@ -1548,7 +1548,6 @@ _mcd_connection_set_property (GObject * obj, guint prop_id,
 	if (priv->account)
 	    g_object_unref (priv->account);
 	priv->account = account;
-	_mcd_connection_setup (MCD_CONNECTION (obj));
 	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -2329,5 +2328,17 @@ mcd_connection_restart (McdConnection *connection)
     mcd_mission_disconnect (MCD_MISSION (connection));
     if (priv->tp_conn)
 	tp_conn_disconnect (DBUS_G_PROXY (priv->tp_conn), NULL);
+}
+
+/**
+ * mcd_connection_connect:
+ * @connection: the #McdConnection.
+ *
+ * Activate @connection.
+ */
+void
+mcd_connection_connect (McdConnection *connection)
+{
+    _mcd_connection_setup (connection);
 }
 

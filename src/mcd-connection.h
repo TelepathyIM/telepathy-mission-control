@@ -90,6 +90,7 @@ gboolean mcd_connection_remote_avatar_changed (McdConnection *connection,
 void mcd_connection_account_changed (McdConnection *connection);
 void mcd_connection_restart (McdConnection *connection);
 
+void mcd_connection_connect (McdConnection *connection);
 void mcd_connection_close (McdConnection *connection);
 
 G_END_DECLS
