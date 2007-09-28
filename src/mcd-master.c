@@ -86,6 +86,8 @@ typedef struct _McdMasterPrivate
     gboolean offline_on_idle;
     GHashTable *clients_needing_presence;
 
+    GHashTable *extra_parameters;
+
     gboolean is_disposed;
 } McdMasterPrivate;
 
@@ -757,6 +759,14 @@ install_dbus_filter (McdMasterPrivate *priv)
 }
 
 static void
+_g_value_free (gpointer data)
+{
+  GValue *value = (GValue *) data;
+  g_value_unset (value);
+  g_free (value);
+}
+
+static void
 mcd_master_init (McdMaster * master)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
@@ -790,6 +800,9 @@ mcd_master_init (McdMaster * master)
     priv->clients_needing_presence = g_hash_table_new_full (g_str_hash,
 							    g_str_equal,
 							    g_free, NULL);
+
+    priv->extra_parameters = g_hash_table_new_full (g_str_hash, g_str_equal,
+						    g_free, _g_value_free);
 }
 
 McdMaster *
@@ -1208,5 +1221,59 @@ mcd_master_set_default_presence_setting (McdMaster *master,
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     priv->default_presence = presence;
+}
+
+/**
+ * mcd_master_add_connection_parameter:
+ * @master: the #McdMaster.
+ * @name: the name of the parameter to add.
+ * @value: a #GValue.
+ *
+ * Set a global connection parameter to be passed to all connection managers
+ * (which support this parameter).  If called twice for the same parameter, the
+ * new value will replace the previous one.
+ */
+void
+mcd_master_add_connection_parameter (McdMaster *master, const gchar *name,
+				     const GValue *value)
+{
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    GValue *val;
+
+    g_return_if_fail (name != NULL);
+    g_return_if_fail (value != NULL);
+
+    val = g_malloc0 (sizeof (GValue));
+    g_value_init (val, G_VALUE_TYPE (value));
+    g_value_copy (value, val);
+    g_hash_table_replace (priv->extra_parameters, g_strdup (name), val);
+}
+
+static void
+copy_parameter (gpointer key, gpointer value, gpointer userdata)
+{
+    GHashTable *dest = (GHashTable *)userdata;
+
+    g_hash_table_insert (dest, key, value);
+}
+
+/**
+ * mcd_master_get_connection_parameters:
+ * @master: the #McdMaster.
+ *
+ * Get the global connections parameters.
+ *
+ * Returns: the #GHashTable of the parameters. It has to be destroyed when no
+ * longer needed.
+ */
+GHashTable *
+mcd_master_get_connection_parameters (McdMaster *master)
+{
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    GHashTable *ret;
+    
+    ret = g_hash_table_new (g_str_hash, g_str_equal);
+    g_hash_table_foreach (priv->extra_parameters, copy_parameter, ret);
+    return ret;
 }
 

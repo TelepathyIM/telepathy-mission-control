@@ -104,5 +104,9 @@ gboolean mcd_master_get_account_for_connection (McdMaster *master,
 						gchar **ret_unique_name,
 						GError **error);
 
+void mcd_master_add_connection_parameter (McdMaster *master, const gchar *name,
+					  const GValue *value);
+GHashTable * mcd_master_get_connection_parameters (McdMaster *master);
+
 G_END_DECLS
 #endif /* MCD_MASTER_H */

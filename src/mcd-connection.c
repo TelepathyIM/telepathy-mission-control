@@ -143,6 +143,12 @@ struct presence_info
     gboolean allow_message;
 };
 
+struct param_data
+{
+    GSList *pr_params;
+    GHashTable *dest;
+};
+
 enum
 {
     PROP_0,
@@ -1088,6 +1094,77 @@ mcd_async_connect_cb (DBusGProxy *proxy, GError *error, gpointer userdata)
     }
 }
 
+static GHashTable *
+get_extra_parameters (McdConnection *connection)
+{
+    McdMission *mission;
+ 
+    mission = mcd_mission_get_parent (MCD_MISSION (connection));
+    g_return_val_if_fail (mission != NULL, NULL);
+    mission = mcd_mission_get_parent (mission);
+    g_return_val_if_fail (mission != NULL && MCD_IS_MASTER (mission), NULL);
+    return mcd_master_get_connection_parameters (MCD_MASTER (mission));
+}
+
+static void
+add_supported_param (gpointer key, gpointer value, gpointer userdata)
+{
+    struct param_data *pd = (struct param_data *)userdata;
+    gboolean found = FALSE;
+    GSList *list;
+ 
+    for (list = pd->pr_params; list != NULL; list = list->next)
+    {
+	McProtocolParam *param = list->data;
+	if (strcmp (param->name, key) == 0)
+	{
+	    found = TRUE;
+	    break;
+	}
+    }
+    if (found && !g_hash_table_lookup (pd->dest, key))
+    {
+	g_debug ("%s: adding parameter %s", G_STRFUNC, (gchar *)key);
+	g_hash_table_insert (pd->dest, key, value);
+    }
+}
+
+static void
+add_supported_extra_parameters (GHashTable *extra, McProfile *profile,
+				GHashTable *params)
+{
+    McProtocol *protocol;
+    struct param_data pd;
+    GSList *pr_params;
+
+    protocol = mc_profile_get_protocol (profile);
+    g_return_if_fail (protocol != NULL);
+
+    pr_params = mc_protocol_get_params (protocol);
+    pd.pr_params = pr_params;
+    pd.dest = params;
+    g_hash_table_foreach (extra, add_supported_param, &pd);
+    mc_protocol_free_params_list (pr_params);
+    g_object_unref (protocol);
+}
+
+static void
+remove_extra_parameter (gpointer key, gpointer value, gpointer userdata)
+{
+    GHashTable *params = (GHashTable *)userdata;
+    g_hash_table_steal (params, key);
+}
+
+static void
+remove_extra_parameters (GHashTable *extra_parameters, GHashTable *params)
+{
+    /* we need to remove the extra parameters from the parameters hash table
+     * because otherwise whey will be freed twice (and possibly in a wrong way)
+     * by the two g_hash_table_destroy() calls, since we didn't copy them */
+    g_hash_table_foreach (extra_parameters, remove_extra_parameter, params);
+    g_hash_table_destroy (extra_parameters);
+}
+
 static void
 _mcd_connection_connect (McdConnection *connection, GHashTable *params)
 {
@@ -1097,6 +1174,7 @@ _mcd_connection_connect (McdConnection *connection, GHashTable *params)
     const gchar *protocol_name;
     const gchar *account_name;
     gchar *conn_bus_name, *conn_obj_path;
+    GHashTable *extra_parameters;
     GError *error = NULL;
     gboolean ret;
 
@@ -1107,10 +1185,13 @@ _mcd_connection_connect (McdConnection *connection, GHashTable *params)
     g_debug ("%s: Trying connect account: %s",
 	     G_STRFUNC, (gchar *) account_name);
 
+    extra_parameters = get_extra_parameters (connection);
+    add_supported_extra_parameters (extra_parameters, profile, params);
     ret = tp_connmgr_request_connection (DBUS_G_PROXY (priv->tp_conn_mgr),
 					 protocol_name, params,
 					 &conn_bus_name, &conn_obj_path,
 					 &error);
+    remove_extra_parameters (extra_parameters, params);
     g_object_unref (profile);
     if (!ret)
     {
