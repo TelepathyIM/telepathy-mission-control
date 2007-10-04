@@ -221,11 +221,9 @@ _gconf_notify_cb (GConfClient *client, guint conn_id, GConfEntry *entry,
   McAccountMonitorPrivate *priv = MC_ACCOUNT_MONITOR_PRIV (monitor);
   gchar *name = NULL;
   McAccount *account;
-  gboolean key_is_enabledness;
   const gchar *key;
 
   key = key_name (entry->key);
-  key_is_enabledness = strcmp (key, MC_ACCOUNTS_GCONF_KEY_ENABLED) == 0;
   name = _account_name_from_key (entry->key);
   if (!name) return;
   account = g_hash_table_lookup (priv->accounts, name);
