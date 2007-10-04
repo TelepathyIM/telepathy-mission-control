@@ -1,5 +1,8 @@
 2007-10-04  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol/mc-account.c:
+	Fix a crash: strcmp could be called with NULL parameters.
+
 	* libmissioncontrol/mc-account-monitor.c:
 	Unref the GConf client.
 

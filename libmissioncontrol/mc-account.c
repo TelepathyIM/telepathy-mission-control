@@ -123,12 +123,20 @@ _mc_account_set_enabled_priv (McAccount *account, gboolean enabled)
   MC_ACCOUNT_PRIV (account)->enabled = enabled;
 }
 
+static gint
+strcmp_null (gconstpointer a, gconstpointer b)
+{
+    if (a == b) return 0;
+    if (!a || !b) return 1;
+    return strcmp (a, b);
+}
+
 static GSList *
 set_first_element (GSList *list, const gchar *value)
 {
     GSList *elem;
 
-    if ((elem = g_slist_find_custom(list, value, (GCompareFunc)strcmp)) != NULL)
+    if ((elem = g_slist_find_custom(list, value, strcmp_null)) != NULL)
     {
 	if (elem != list)
 	{
