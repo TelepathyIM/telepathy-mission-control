@@ -1,3 +1,8 @@
+2007-10-04  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-monitor.c:
+	Unref the GConf client.
+
 === telepathy-mission-control 4.44 ===
 
 2007-09-28  Alberto Mardegan  <alberto.mardegan@nokia.com>

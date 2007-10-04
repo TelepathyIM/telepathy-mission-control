@@ -65,6 +65,7 @@ mc_account_monitor_finalize (GObject *object)
   gconf_client_notify_remove (priv->gconf_client, priv->gconf_connection);
   gconf_client_remove_dir (
     priv->gconf_client, MC_ACCOUNTS_GCONF_BASE, NULL);
+  g_object_unref (priv->gconf_client);
 
   g_hash_table_destroy (priv->accounts);
 }
