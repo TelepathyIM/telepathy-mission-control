@@ -186,9 +186,16 @@ static void
 get_local_pending_cb (DBusGProxy * group_proxy,
 		      GArray * l_pending, GError * error, gpointer userdata)
 {
-    McdChannelPrivate *priv = MCD_CHANNEL_PRIV (userdata);
+    if (error)
+    {
+	g_warning ("%s: error: %s", G_STRFUNC, error->message);
+	g_error_free (error);
+	return;
+    }
+
     if (l_pending)
     {
+	McdChannelPrivate *priv = MCD_CHANNEL_PRIV (userdata);
 	int i;
 	g_debug ("%u local pending members, adding", l_pending->len);
 	/* FIXME: Add duplicity check */

@@ -1,3 +1,8 @@
+2007-10-05  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c:
+	Handle possible error from DBus.
+
 === telepathy-mission-control 4.45 ===
 
 2007-10-04  Alberto Mardegan  <alberto.mardegan@nokia.com>
