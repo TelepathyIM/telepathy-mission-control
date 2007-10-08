@@ -285,13 +285,6 @@ _gconf_notify_cb (GConfClient *client, guint conn_id, GConfEntry *entry,
     }
   else if (strcmp (key, MC_ACCOUNTS_GCONF_KEY_AVATAR_TOKEN) != 0)
     {
-      /* Emit the rest as value changed signal */
-      g_signal_emit (monitor, signals[SIGNAL_CHANGED], 0, name);
-
-      if (strncmp (key, "param-", 6) == 0)
-	  g_signal_emit (monitor, signals[PARAM_CHANGED], 0,
-			 name, key + 6);
-
       /* report the changed value to the McAccount, if it's a cached setting */
       if (entry->value != NULL && entry->value->type == GCONF_VALUE_STRING)
       {
@@ -303,6 +296,13 @@ _gconf_notify_cb (GConfClient *client, guint conn_id, GConfEntry *entry,
 	  else if (strcmp (key, MC_ACCOUNTS_GCONF_KEY_DISPLAY_NAME) == 0)
 	      _mc_account_set_display_name_priv (account, value);
       }
+
+      /* Emit the rest as value changed signal */
+      g_signal_emit (monitor, signals[SIGNAL_CHANGED], 0, name);
+
+      if (strncmp (key, "param-", 6) == 0)
+	  g_signal_emit (monitor, signals[PARAM_CHANGED], 0,
+			 name, key + 6);
     }
   
   /* If we are enabling/disabling account */

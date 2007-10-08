@@ -1,3 +1,9 @@
+2007-10-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-monitor.c:
+	When an account changes, update internal data before emitting the
+	account-changed signal.
+
 === telepathy-mission-control 4.46 ===
 
 2007-10-05  Alberto Mardegan  <alberto.mardegan@nokia.com>
