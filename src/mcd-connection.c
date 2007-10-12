@@ -2173,7 +2173,7 @@ mcd_connection_request_channel (McdConnection *connection,
     /* We do not add the channel in connection until tp_channel is created */
     g_object_set_data (G_OBJECT (channel), "temporary_connection", connection);
     
-    if (req->channel_handle != 0 || req->channel_type == 0)
+    if (req->channel_handle != 0 || req->channel_handle_type == 0)
     {
 	DBusGProxyCall *call;
 	/* the channel stays in priv->pending_channels until a telepathy

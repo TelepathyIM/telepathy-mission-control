@@ -1,3 +1,8 @@
+2007-10-12  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Fix typo: allow requesting channels with handle_type = 0.
+
 === telepathy-mission-control 4.47 ===
 
 2007-10-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
