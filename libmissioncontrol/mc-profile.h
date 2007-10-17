@@ -102,6 +102,7 @@ const gchar *mc_profile_get_icon_name (McProfile *id);
 const gchar *mc_profile_get_branding_icon_name (McProfile *id);
 const gchar *mc_profile_get_vcard_field (McProfile *id);
 const gchar *mc_profile_get_default_account_domain (McProfile *id);
+const gchar *mc_profile_get_avatar_mime_type (McProfile *id);
 const McPresence *mc_profile_get_supported_presences (McProfile *id);
 gboolean mc_profile_supports_presence (McProfile *id, McPresence presence);
 McProtocol *mc_profile_get_protocol (McProfile *id);

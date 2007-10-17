@@ -1,3 +1,9 @@
+2007-10-17  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-profile.[hc]:
+	Add mc_profile_get_avatar_mime_type() for getting the preferred avatar
+	MIME type.
+
 2007-10-12  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-connection.c:

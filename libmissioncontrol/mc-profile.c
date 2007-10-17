@@ -65,6 +65,7 @@ typedef struct {
     gchar *protocol;
     gchar *vcard_field;
     gchar *default_account_domain;
+    gchar *avatar_mime_type;
     gboolean vcard_default;
     McProfileCapabilityFlags capabilities;
     GHashTable *default_settings;
@@ -97,6 +98,7 @@ mc_profile_finalize (GObject *object)
   g_free (priv->protocol);
   g_free (priv->vcard_field);
   g_free (priv->default_account_domain);
+  g_free (priv->avatar_mime_type);
   g_hash_table_destroy (priv->default_settings);
   g_hash_table_destroy (priv->vcard_mangle_hash);
   g_array_free (priv->supported_presences, TRUE);
@@ -278,6 +280,7 @@ _mc_profile_load (McProfile *profile)
   priv->vcard_field = g_key_file_get_string (keyfile, PROFILE_GROUP, "VCardField", NULL);
   priv->vcard_default = g_key_file_get_boolean (keyfile, PROFILE_GROUP, "VCardDefault", NULL);
   priv->default_account_domain = g_key_file_get_string (keyfile, PROFILE_GROUP, "DefaultAccountDomain", NULL);
+  priv->avatar_mime_type = g_key_file_get_string (keyfile, PROFILE_GROUP, "AvatarMimeType", NULL);
   localization_domain = g_key_file_get_string (keyfile, PROFILE_GROUP, "LocalizationDomain", NULL);
   if (localization_domain)
   {
@@ -875,6 +878,28 @@ mc_profile_get_default_account_domain (McProfile *id)
     priv->capabilities & MC_PROFILE_CAPABILITY_SPLIT_ACCOUNT, NULL);
 
   return priv->default_account_domain;
+}
+
+/**
+ * mc_profile_get_avatar_mime_type:
+ * @id: The #McProfile.
+ * 
+ * Get the preferred MIME type for the avatar.
+ *
+ * Returns: a string representing the MIME type (must not be freed).
+ */
+const gchar *
+mc_profile_get_avatar_mime_type (McProfile *id)
+{
+  McProfilePrivate *priv = MC_PROFILE_PRIV (id);
+  gboolean profile_loaded;
+
+  g_return_val_if_fail (id != NULL, NULL);
+
+  profile_loaded = _mc_profile_load (id);
+  g_return_val_if_fail (profile_loaded, NULL);
+
+  return priv->avatar_mime_type;
 }
 
 /**
