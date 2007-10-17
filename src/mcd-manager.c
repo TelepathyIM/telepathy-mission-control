@@ -93,6 +93,18 @@ _mcd_manager_create_connection (McdManager * manager, McAccount * account)
     McdManagerPrivate *priv = MCD_MANAGER_PRIV (manager);
     
     g_return_if_fail (mcd_manager_get_account_connection (manager, account) == NULL);
+    if (!priv->tp_conn_mgr)
+    {
+	g_return_if_fail (MC_IS_MANAGER (priv->mc_manager));
+
+	priv->tp_conn_mgr =
+	    tp_connmgr_new (priv->dbus_connection,
+			    mc_manager_get_bus_name (priv->mc_manager),
+			    mc_manager_get_object_path (priv->mc_manager),
+			    TP_IFACE_CONN_MGR_INTERFACE);
+	g_debug ("%s: Manager %s created", G_STRFUNC,
+		 mc_manager_get_unique_name (priv->mc_manager));
+    }
     
     connection = mcd_connection_new (priv->dbus_connection,
             mc_manager_get_bus_name (priv->
@@ -112,8 +124,6 @@ _mcd_manager_create_connections (McdManager * manager)
 {
     GList *node;
     McdManagerPrivate *priv = MCD_MANAGER_PRIV (manager);
-
-    g_return_if_fail (TELEPATHY_IS_CONNMGR (priv->tp_conn_mgr));
 
     for (node = priv->accounts; node; node = node->next)
     {
@@ -248,22 +258,6 @@ on_presence_requested_idle (gpointer data)
 	&& (requested_presence != MC_PRESENCE_OFFLINE
 	    && requested_presence != MC_PRESENCE_UNSET))
     {
-	if (!priv->tp_conn_mgr)
-	{
-	    g_return_val_if_fail (MC_IS_MANAGER (priv->mc_manager),
-				  FALSE);
-
-	    priv->tp_conn_mgr =
-		tp_connmgr_new (priv->dbus_connection,
-				mc_manager_get_bus_name (priv->
-							    mc_manager),
-				mc_manager_get_object_path (priv->
-							       mc_manager),
-				TP_IFACE_CONN_MGR_INTERFACE);
-	    g_debug ("%s: Manager %s created", G_STRFUNC,
-		     mc_manager_get_unique_name (priv->mc_manager));
-	}
-
 	_mcd_manager_create_connections (manager);
     }
 
@@ -875,24 +869,6 @@ mcd_manager_add_account (McdManager * manager, McAccount * account)
         if ((actual_presence != MC_PRESENCE_OFFLINE &&
                     actual_presence != MC_PRESENCE_UNSET))
         {
-            /* Also create the telepathy connection manager if not already
-             * created */
-            if (!priv->tp_conn_mgr)
-            {
-                g_return_val_if_fail (MC_IS_MANAGER (priv->mc_manager),
-                        FALSE);
-
-                priv->tp_conn_mgr =
-                    tp_connmgr_new (priv->dbus_connection,
-                            mc_manager_get_bus_name (priv->
-                                mc_manager),
-                            mc_manager_get_object_path (priv->
-                                mc_manager),
-                            TP_IFACE_CONN_MGR_INTERFACE);
-                g_debug ("%s: Manager %s created", G_STRFUNC,
-                        mc_manager_get_unique_name (priv->mc_manager));
-            }
-
             _mcd_manager_create_connection (manager, account);
         }
     }

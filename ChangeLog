@@ -1,5 +1,9 @@
 2007-10-17  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/mcd-manager.c:
+	Create the connection manager proxy just before actually using it;
+	fixes a potential crash.
+
 	* libmissioncontrol/mc-profile.[hc]:
 	Add mc_profile_get_avatar_mime_type() for getting the preferred avatar
 	MIME type.
