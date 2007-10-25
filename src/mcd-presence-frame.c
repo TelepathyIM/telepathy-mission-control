@@ -876,6 +876,14 @@ mcd_presence_frame_remove_account (McdPresenceFrame * presence_frame,
 					     NULL);*/
     /*_mcd_presence_frame_update_actual_presence (presence_frame, NULL);*/
     g_hash_table_remove (priv->account_presence, account);
+    if (g_hash_table_size (priv->account_presence) == 0)
+    {
+	if (priv->requested_presence)
+	{
+	    mcd_presence_free (priv->requested_presence);
+	    priv->requested_presence = NULL;
+	}
+    }
     
     return TRUE;
 }

@@ -1,5 +1,8 @@
 2007-10-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/mcd-presence-frame.c:
+	When removing the last account, unset the requested presence.
+
 	* src/mcd-manager.c:
 	When an account gets enabled, check for the requested presence, not
 	for the actual.
