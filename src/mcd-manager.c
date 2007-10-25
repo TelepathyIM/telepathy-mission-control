@@ -837,7 +837,7 @@ mcd_manager_add_account (McdManager * manager, McAccount * account)
 {
     McdManagerPrivate *priv;
     McdConnection *connection;
-    McPresence actual_presence;
+    McPresence requested_presence;
 
     g_return_val_if_fail (MCD_IS_MANAGER (manager), FALSE);
     g_return_val_if_fail (MC_IS_ACCOUNT (account), FALSE);
@@ -858,16 +858,16 @@ mcd_manager_add_account (McdManager * manager, McAccount * account)
     priv->accounts = g_list_prepend (priv->accounts, account);
     g_debug ("%s: %u accounts in total", G_STRFUNC, g_list_length (priv->accounts));
     
-    actual_presence =
-	mcd_presence_frame_get_actual_presence (priv->presence_frame);
+    requested_presence =
+	mcd_presence_frame_get_requested_presence (priv->presence_frame);
 
     connection = mcd_manager_get_account_connection (manager, account);
     if (!connection)
     {
         /* if presence is not offline or unset, we must create the 
          * connection for this new account */
-        if ((actual_presence != MC_PRESENCE_OFFLINE &&
-                    actual_presence != MC_PRESENCE_UNSET))
+        if ((requested_presence != MC_PRESENCE_OFFLINE &&
+             requested_presence != MC_PRESENCE_UNSET))
         {
             _mcd_manager_create_connection (manager, account);
         }

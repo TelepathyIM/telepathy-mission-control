@@ -1,3 +1,9 @@
+2007-10-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-manager.c:
+	When an account gets enabled, check for the requested presence, not
+	for the actual.
+
 === telepathy-mission-control 4.48 ===
 
 2007-10-17  Alberto Mardegan  <alberto.mardegan@nokia.com>
