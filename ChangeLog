@@ -1,3 +1,5 @@
+=== telepathy-mission-control 4.49 ===
+
 2007-10-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-presence-frame.c:
