@@ -1,3 +1,8 @@
+2007-11-06  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mission-control.c:
+	Fix an error in a for cycle enumerating accounts and a GCC warning.
+
 === telepathy-mission-control 4.49 ===
 
 2007-10-25  Alberto Mardegan  <alberto.mardegan@nokia.com>

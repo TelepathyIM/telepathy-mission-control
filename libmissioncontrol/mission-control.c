@@ -872,7 +872,7 @@ mission_control_get_online_connections (MissionControl * self, GError **error)
 	return NULL;
     }
     /* Create McAccounts with all the account names */
-    for (name = names; *name != NULL; *name++)
+    for (name = names; *name != NULL; name++)
     {
 	McAccount *acc = mc_account_lookup (*name);
 
@@ -1043,7 +1043,7 @@ gint mission_control_get_used_channels_count(MissionControl *self,
 
     if (!mission_control_dbus_get_used_channels_count(DBUS_G_PROXY(self),
 						      g_quark_to_string(type),
-						      (gint *)&ret,
+						      (guint *)&ret,
 						      error))
     {
 	/* We'll have to make a difference between a failed request and 0
