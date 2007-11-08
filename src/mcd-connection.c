@@ -2103,6 +2103,7 @@ mcd_async_request_handle_callback(DBusGProxy *proxy, GArray *handles,
 		 mcd_channel_get_handle_type (existing_channel),
 		 mcd_channel_get_channel_type (existing_channel));
 	if (chan_handle == mcd_channel_get_handle (existing_channel) &&
+	    chan_handle_type == mcd_channel_get_handle_type (existing_channel) &&
 	    strcmp(chan_type,
 		   mcd_channel_get_channel_type (existing_channel)) == 0)
 	{

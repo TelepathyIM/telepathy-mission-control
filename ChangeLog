@@ -1,3 +1,9 @@
+2007-11-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Compare also the channel handle type, before asserting that two
+	channels are the same.
+
 2007-11-06  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmissioncontrol/mission-control.c:
