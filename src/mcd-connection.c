@@ -126,7 +126,7 @@ typedef struct
     /* List of pending channels which has been requested to telepathy,
      * but telepathy hasn't yet responded with the channel object
      */
-    GHashTable *pending_channels;
+    GList *pending_channels;
     
     TelepathyConnectionStatusReason abort_reason;
     gboolean got_capabilities;
@@ -148,6 +148,13 @@ struct param_data
     GSList *pr_params;
     GHashTable *dest;
 };
+
+typedef struct {
+    guint handle_type;
+    guint handle;
+    const gchar *type;
+    McdChannel *channel;
+} McdPendingChannel;
 
 enum
 {
@@ -625,7 +632,7 @@ done:
 }
 
 static gboolean
-on_channel_capabilities_timeout (guint channel_handle, McdChannel *channel,
+on_channel_capabilities_timeout (McdChannel *channel,
 				 McdConnection *connection)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
@@ -651,16 +658,35 @@ on_channel_capabilities_timeout (guint channel_handle, McdChannel *channel,
     return TRUE;
 }
 
+static inline void
+pending_channel_free (McdPendingChannel *pc)
+{
+    g_object_unref (pc->channel);
+    g_free (pc);
+}
+
 static gboolean
 on_capabilities_timeout (McdConnection *connection)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
+    GList *list, *list_curr;
 
     g_debug ("%s: got_capabilities is %d", G_STRFUNC, priv->got_capabilities);
     priv->got_capabilities = TRUE;
-    g_hash_table_foreach_remove (priv->pending_channels,
-				 (GHRFunc)on_channel_capabilities_timeout,
-				 connection);
+    list = priv->pending_channels;
+    while (list)
+    {
+	McdPendingChannel *pc = list->data;
+
+	list_curr = list;
+	list = list->next;
+	if (on_channel_capabilities_timeout (pc->channel, connection))
+	{
+	    pending_channel_free (pc);
+	    priv->pending_channels =
+	       	g_list_delete_link (priv->pending_channels, list_curr);
+	}
+    }
     priv->capabilities_timer = 0;
     return FALSE;
 }
@@ -1511,7 +1537,8 @@ _mcd_connection_dispose (GObject * object)
 			   (GFunc) _foreach_channel_remove, connection);
 
     /* Unref pending channels */
-    g_hash_table_destroy (priv->pending_channels);
+    g_list_foreach (priv->pending_channels, (GFunc)pending_channel_free, NULL);
+    g_list_free (priv->pending_channels);
 
     _mcd_connection_release_tp_connection (connection);
     
@@ -1744,20 +1771,10 @@ mcd_connection_class_init (McdConnectionClass * klass)
 }
 
 static void
-release_channel_object (gpointer object)
-{
-    g_object_unref (object);
-}
-
-static void
 mcd_connection_init (McdConnection * connection)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
 
-    priv->pending_channels = g_hash_table_new_full (g_direct_hash,
-						    g_direct_equal,
-						    NULL,
-						    release_channel_object);
     priv->abort_reason = TP_CONN_STATUS_REASON_NONE_SPECIFIED;
 
     priv->reconnect_interval = 30 * 1000; /* 30 seconds */
@@ -1879,6 +1896,14 @@ remove_capabilities_refs (gpointer data)
     g_free (cwd);
 }
 
+static gint
+pending_channel_cmp (const McdPendingChannel *a, const McdPendingChannel *b)
+{
+    return a->handle == b->handle &&
+	a->handle_type == b->handle_type &&
+	strcmp (a->type, b->type);
+}
+
 static void
 mcd_async_request_chan_callback (DBusGProxy *proxy,
 				 gchar *channel_path,
@@ -1894,6 +1919,8 @@ mcd_async_request_chan_callback (DBusGProxy *proxy,
     TelepathyHandleType chan_handle_type;
     guint chan_handle;
     TpChan *tp_chan;
+    McdPendingChannel pc;
+    GList *list;
     /* We handle only the dbus errors */
     
     /* ChannelRequestor *chan_req = (ChannelRequestor *)user_data; */
@@ -1905,8 +1932,13 @@ mcd_async_request_chan_callback (DBusGProxy *proxy,
     g_object_get (channel,
 		  "channel-handle", &chan_handle,
 		  "channel-handle-type", &chan_handle_type,
+		  "channel-type", &chan_type,
 		  NULL);
 
+    pc.handle = chan_handle;
+    pc.handle_type = chan_handle_type;
+    pc.type = chan_type;
+    pc.channel = NULL;
 
     cwd = g_object_get_data (G_OBJECT (channel), "error_on_creation");
     if (cwd)
@@ -1941,8 +1973,14 @@ mcd_async_request_chan_callback (DBusGProxy *proxy,
 	     * reference to this temporary channel.
 	     * This should also unref the channel object
 	     */
-	    g_hash_table_remove (priv->pending_channels,
-				 GINT_TO_POINTER (chan_handle));
+	    list = g_list_find_custom (priv->pending_channels, &pc,
+				       (GCompareFunc)pending_channel_cmp);
+	    if (list)
+	    {
+		pending_channel_free (list->data);
+		priv->pending_channels =
+		    g_list_delete_link (priv->pending_channels, list);
+	    }
 	}
 	else
 	{
@@ -1964,6 +2002,7 @@ mcd_async_request_chan_callback (DBusGProxy *proxy,
 	    g_object_set_data_full (G_OBJECT (channel), "error_on_creation", cwd,
 				    remove_capabilities_refs);
 	}
+	g_free (chan_type);
 	return;
     }
     
@@ -1983,23 +2022,29 @@ mcd_async_request_chan_callback (DBusGProxy *proxy,
 	 * reference to this temporary channel.
 	 * This should also unref the channel object
 	 */
-	g_hash_table_remove (priv->pending_channels,
-			     GINT_TO_POINTER (chan_handle));
+	list = g_list_find_custom (priv->pending_channels, &pc,
+				   (GCompareFunc)pending_channel_cmp);
+	if (list)
+	{
+	    pending_channel_free (list->data);
+	    priv->pending_channels =
+	       	g_list_delete_link (priv->pending_channels, list);
+	}
+	g_free (chan_type);
 	return;
     }
     
     /* Everything here is well and fine. We can create the channel. */
-    channel = g_hash_table_lookup (priv->pending_channels,
-				   GUINT_TO_POINTER (chan_handle));
+    list = g_list_find_custom (priv->pending_channels, &pc,
+			       (GCompareFunc)pending_channel_cmp);
+    channel = ((McdPendingChannel *)list->data)->channel;
     if (!channel)
     {
 	g_warning ("%s: channel not found among the pending ones", G_STRFUNC);
+	g_free (chan_type);
 	return;
     }
 
-    g_object_get (channel,
-		  "channel-type", &chan_type,
-		  NULL);
     tp_chan = tp_chan_new (priv->dbus_connection, priv->bus_name,
 			   channel_path, chan_type, chan_handle_type, chan_handle);
     g_object_set (channel,
@@ -2007,11 +2052,11 @@ mcd_async_request_chan_callback (DBusGProxy *proxy,
 		  "tp-channel", tp_chan,
 		  NULL);
 
-    /* The channel is no longer pending. 'stealing' because want the
-     * channel ownership.
-     */
-    g_hash_table_steal (priv->pending_channels,
-			GINT_TO_POINTER (chan_handle));
+    /* The channel is no longer pending. We increase the reference count, since
+     * pending_channel_free() will decrease it */
+    g_object_ref (channel);
+    pending_channel_free (list->data);
+    priv->pending_channels = g_list_delete_link (priv->pending_channels, list);
     mcd_operation_take_mission (MCD_OPERATION (connection),
 				MCD_MISSION (channel));
 
@@ -2037,6 +2082,7 @@ mcd_async_request_handle_callback(DBusGProxy *proxy, GArray *handles,
     const gchar *chan_type;
     const GList *channels;
     DBusGProxyCall *call;
+    McdPendingChannel *pc;
     
     channel = MCD_CHANNEL (user_data);
     connection = g_object_get_data (G_OBJECT (channel), "temporary_connection");
@@ -2137,8 +2183,12 @@ mcd_async_request_handle_callback(DBusGProxy *proxy, GArray *handles,
     /* The channel is temporary and stays in priv->pending_channels until
      * a telepathy channel for it is created
      */
-    g_hash_table_insert (priv->pending_channels,
-			 GINT_TO_POINTER (chan_handle), channel);
+    pc = g_malloc (sizeof(McdPendingChannel));
+    pc->handle = chan_handle;
+    pc->handle_type = chan_handle_type;
+    pc->type = chan_type;
+    pc->channel = channel;
+    priv->pending_channels = g_list_prepend (priv->pending_channels, pc);
     
     /* Now, request the corresponding telepathy channel. */
     call = tp_conn_request_channel_async(DBUS_G_PROXY(proxy),
@@ -2177,10 +2227,16 @@ mcd_connection_request_channel (McdConnection *connection,
     if (req->channel_handle != 0 || req->channel_handle_type == 0)
     {
 	DBusGProxyCall *call;
+	McdPendingChannel *pc;
+
 	/* the channel stays in priv->pending_channels until a telepathy
 	 * channel for it is created */
-	g_hash_table_insert (priv->pending_channels,
-			     GINT_TO_POINTER (req->channel_handle), channel);
+	pc = g_malloc (sizeof(McdPendingChannel));
+	pc->handle = req->channel_handle;
+	pc->handle_type = req->channel_handle_type;
+	pc->type = req->channel_type;
+	pc->channel = channel;
+	priv->pending_channels = g_list_prepend (priv->pending_channels, pc);
 
 	call = tp_conn_request_channel_async(DBUS_G_PROXY(priv->tp_conn),
 					     req->channel_type,
@@ -2213,7 +2269,7 @@ mcd_connection_request_channel (McdConnection *connection,
 }
 
 static gboolean
-channel_matches_request (gpointer key, McdChannel *channel,
+channel_matches_request (McdChannel *channel,
 			 struct request_id *req_id)
 {
     guint requestor_serial;
@@ -2242,23 +2298,22 @@ mcd_connection_cancel_channel_request (McdConnection *connection,
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
     struct request_id req_id;
     const GList *channels, *node;
+    GList *list;
     McdChannel *channel;
 
     /* first, see if the channel is in the list of the pending channels */
     req_id.requestor_serial = operation_id;
     req_id.requestor_client_id = requestor_client_id;
-    channel = g_hash_table_find (priv->pending_channels,
-				 (GHRFunc)channel_matches_request,
-				 &req_id);
-    if (channel)
+
+    for (list = priv->pending_channels; list; list = list->next)
     {
-	guint chan_handle;
 	DBusGProxyCall *call;
+	McdPendingChannel *pc = list->data;
+
+	if (!channel_matches_request (pc->channel, &req_id)) continue;
+	channel = pc->channel;
 
 	g_debug ("%s: requested channel found in the pending_channels list (%p)", G_STRFUNC, channel);
-	g_object_get (channel,
-		      "channel-handle", &chan_handle,
-		      NULL);
 	/* check for pending dbus calls to be cancelled */
 	call = g_object_get_data (G_OBJECT (channel), "tp_chan_call");
 	dbus_g_proxy_cancel_call (DBUS_G_PROXY(priv->tp_conn), call);
@@ -2269,8 +2324,8 @@ mcd_connection_cancel_channel_request (McdConnection *connection,
 	 * this channel, it will be ignored since it has the suppress_handler
 	 * flag set.
 	 */
-	g_hash_table_remove (priv->pending_channels,
-			     GINT_TO_POINTER (chan_handle));
+	pending_channel_free (pc);
+	priv->pending_channels = g_list_delete_link (priv->pending_channels, list);
 	return TRUE;
     }
 

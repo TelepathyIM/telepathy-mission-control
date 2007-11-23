@@ -1,3 +1,10 @@
+2007-11-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Use a list of structures to keep track of the pending channels: in
+	this way we take into account also the handle type and the channel
+	type.
+
 === telepathy-mission-control 4.50 ===
 
 2007-11-08  Alberto Mardegan  <alberto.mardegan@nokia.com>

@@ -48,6 +48,11 @@ if test "x$checks" = "xno"; then
 	CFLAGS="$CFLAGS -DG_DISABLE_CHECKS"
 fi
 
+AC_ARG_ENABLE(coverage,       [  --enable-coverage         compile with coverage info],[enable_coverage=${enableval}],enable_coverage=no)
+if test "x$enable_coverage" = "xyes"; then
+       CFLAGS="$CFLAGS -g -fprofile-arcs -ftest-coverage"
+fi
+
 AC_ARG_WITH(profiles_dir, AS_HELP_STRING([--with-profiles-dir=<path>],[Directory for storing profiles]))
 if test -z "$with_profiles_dir" ; then
     PROFILES_DIR="mission-control/profiles"
