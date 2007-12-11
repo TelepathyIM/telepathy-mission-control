@@ -260,7 +260,7 @@ _mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
 					      G_CALLBACK (proxy_destroyed),
 					      channel);
 
-	if (close_channel && priv->channel_type_quark != TELEPATHY_CHAN_IFACE_CONTACTLIST_QUARK)
+	if (close_channel && priv->channel_type_quark != TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
 	{
 	    g_debug ("%s: Requesting telepathy to close the channel", G_STRFUNC);
 	    tp_chan_close (DBUS_G_PROXY (priv->tp_chan), &error);

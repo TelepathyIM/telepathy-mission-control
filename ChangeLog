@@ -1,3 +1,10 @@
+2007-12-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
+	* configure.ac, libmissioncontrol/mission-control.[hc],
+	src/mcd-channel.c:
+	Do not use deprecated libtp symbols. Fixes: #1831105.
+
 2007-11-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-connection.c:

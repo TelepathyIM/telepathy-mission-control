@@ -904,6 +904,7 @@ mission_control_get_connection (MissionControl * self, McAccount * account,
     gchar *bus_name = NULL, *obj_path = NULL;
     const gchar *account_name = mc_account_get_unique_name (account);
     DBusGConnection *connection = NULL;
+    guint status;
 
     if (account_name == NULL)
     {
@@ -949,7 +950,8 @@ mission_control_get_connection (MissionControl * self, McAccount * account,
      * We do not need to use the connect method via a connection manager,
      * because the connection is already initialized by MissionControl. */
 
-    tp_conn = tp_conn_new (connection, bus_name, obj_path);
+    tp_conn = tp_conn_new_without_connect (connection, bus_name, obj_path,
+					   &status, NULL);
 
     if (tp_conn == NULL)
     {

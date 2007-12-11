@@ -129,9 +129,9 @@ struct _missioncontrolclass
 
 typedef struct _McAccountStatus {
     gchar *unique_name;
-    TelepathyConnectionStatus status;
+    TpConnectionStatus status;
     McPresence presence;
-    TelepathyConnectionStatusReason reason;
+    TpConnectionStatusReason reason;
 } McAccountStatus;
 
 typedef void (*McCallback) (MissionControl *mc,
@@ -164,7 +164,7 @@ guint mission_control_request_channel (MissionControl *self,
 				       McAccount *account,
 				       const gchar *type,
 				       guint handle,
-				       TelepathyHandleType handle_type,
+				       TpHandleType handle_type,
 				       McCallback callback,
 				       gpointer user_data);
 
@@ -172,7 +172,7 @@ guint mission_control_request_channel_with_string_handle (MissionControl *self,
 							  McAccount *account,
 							  const gchar *type,
 							  const gchar *handle,
-							  TelepathyHandleType handle_type,
+							  TpHandleType handle_type,
 							  McCallback callback,
 							  gpointer user_data);
 
@@ -181,7 +181,7 @@ guint mission_control_request_channel_with_string_handle_and_vcard_field (Missio
 							  const gchar *type,
 							  const gchar *handle,
 							  const gchar *vcard_field,
-							  TelepathyHandleType handle_type,
+							  TpHandleType handle_type,
 							  McCallback callback,
 							  gpointer user_data);
 
