@@ -2069,6 +2069,7 @@ mc_account_set_avatar (McAccount *account, const gchar *filename,
 {
     gchar *data;
     gsize len;
+    gboolean ret;
 
     g_return_val_if_fail (account != NULL, FALSE);
 
@@ -2086,7 +2087,9 @@ mc_account_set_avatar (McAccount *account, const gchar *filename,
 	len = 0;
     }
 
-    return mc_account_set_avatar_from_data (account, data, len, mime_type);
+    ret = mc_account_set_avatar_from_data (account, data, len, mime_type);
+    g_free (data);
+    return ret;
 }
 
 /**
