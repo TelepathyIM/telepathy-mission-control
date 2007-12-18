@@ -1,3 +1,9 @@
+2007-12-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account.c:
+	Use a timestamp as avatar ID, instead of a random number (which is not
+	necessarily unique).
+
 2007-12-17  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmissioncontrol/mc-account.c:

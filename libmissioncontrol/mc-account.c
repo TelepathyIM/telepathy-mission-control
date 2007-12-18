@@ -2152,7 +2152,7 @@ mc_account_set_avatar_from_data (McAccount *account, const gchar *data,
      * having to load the file */
     key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name,
 			    MC_ACCOUNTS_GCONF_KEY_AVATAR_ID, FALSE);
-    ret = gconf_client_set_int(client, key, g_random_int(), NULL);
+    ret = gconf_client_set_int(client, key, time(0), NULL);
     g_free (key);
 
     if (mime_type)
@@ -2317,7 +2317,7 @@ mc_account_reset_avatar_id (McAccount *account)
 
     key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name,
 			    MC_ACCOUNTS_GCONF_KEY_AVATAR_ID, FALSE);
-    ok = gconf_client_set_int (client, key, g_random_int(), NULL);
+    ok = gconf_client_set_int (client, key, time(0), NULL);
     g_free (key);
 
     g_object_unref (client);
