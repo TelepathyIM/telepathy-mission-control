@@ -1,3 +1,9 @@
+2008-01-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	If the server doesn't store the avatar, we must set it everytime we
+	connect. Fixes: #1825366.
+
 === telepathy-mission-control 4.52 ===
 
 2007-12-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
