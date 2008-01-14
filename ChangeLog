@@ -1,3 +1,8 @@
+2008-01-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* server/org.freedesktop.Telepathy.MissionControl.service.in:
+	Updated to find mission-control in @libexecdir@. Fixes: #1871127.
+
 === telepathy-mission-control 4.53 ===
 
 2008-01-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
