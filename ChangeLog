@@ -1,5 +1,10 @@
 2008-01-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol/mission-control-signals-marshal.list,
+	libmissioncontrol/mission-control.c:
+	Register the PresenceChanged and ActualPresenceChanged signals.
+	Fixes: 31862760.
+
 	* server/Makefile.am:
 	Move mission-control binary to $libexecdir. Fixes: #1827691.
 

@@ -208,6 +208,17 @@ _missioncontrol_register_signal_marshallers (void)
     dbus_g_object_register_marshaller
 	(mission_control_signals_marshal_VOID__STRING_UINT, G_TYPE_NONE,
 	 G_TYPE_STRING, G_TYPE_UINT, G_TYPE_INVALID);
+#ifndef NO_NEW_PRESENCE_SIGNALS
+    /* Register the AccountPresenceChanged signal */
+    dbus_g_object_register_marshaller
+	(mission_control_signals_marshal_VOID__UINT_UINT_STRING_UINT_STRING,
+	 G_TYPE_NONE, G_TYPE_UINT, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_UINT,
+	 G_TYPE_STRING, G_TYPE_INVALID);
+    /* Register the PresenceChanged signal */
+    dbus_g_object_register_marshaller
+	(mission_control_signals_marshal_VOID__UINT_STRING, G_TYPE_NONE,
+	 G_TYPE_UINT, G_TYPE_STRING, G_TYPE_INVALID);
+#endif
 }
 
 static void
@@ -358,6 +369,13 @@ mission_control_new (DBusGConnection * connection)
 			     G_TYPE_STRING, G_TYPE_UINT, G_TYPE_INVALID);
     dbus_g_proxy_add_signal (DBUS_G_PROXY (mc_obj), "StatusActual",
 			     G_TYPE_UINT, G_TYPE_UINT, G_TYPE_INVALID);
+#ifndef NO_NEW_PRESENCE_SIGNALS
+    dbus_g_proxy_add_signal (DBUS_G_PROXY (mc_obj), "AccountPresenceChanged",
+			     G_TYPE_UINT, G_TYPE_UINT, G_TYPE_STRING,
+			     G_TYPE_UINT, G_TYPE_STRING, G_TYPE_INVALID);
+    dbus_g_proxy_add_signal (DBUS_G_PROXY (mc_obj), "PresenceChanged",
+			     G_TYPE_UINT, G_TYPE_STRING, G_TYPE_INVALID);
+#endif
     return mc_obj;
 }
 
