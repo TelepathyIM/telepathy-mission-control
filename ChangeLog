@@ -1,5 +1,8 @@
 2008-01-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* server/Makefile.am:
+	Move mission-control binary to $libexecdir. Fixes: #1827691.
+
 	* src/mcd-connection.c:
 	Duplicate the channel_type string, because the original one might be
 	freed while we are still using it. Fixes: #1849202.
