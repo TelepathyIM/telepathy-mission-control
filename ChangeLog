@@ -1,5 +1,9 @@
 2008-01-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/mcd-presence-frame.c:
+	Emit presence signals when the status message is changed.
+	Fixes: #1864568.
+
 	* libmissioncontrol/mission-control-signals-marshal.list,
 	libmissioncontrol/mission-control.c:
 	Register the PresenceChanged and ActualPresenceChanged signals.

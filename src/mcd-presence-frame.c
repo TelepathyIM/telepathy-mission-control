@@ -484,9 +484,9 @@ _mcd_presence_frame_update_actual_presence (McdPresenceFrame * presence_frame,
 {
     McdPresenceFramePrivate *priv;
     McdActualPresenceInfo pi;
-    McPresence old_presence;
     TelepathyConnectionStatus connection_status;
     TelepathyConnectionStatusReason connection_reason;
+    gboolean changed;
     
     g_debug ("%s called", G_STRFUNC);
 
@@ -501,7 +501,9 @@ _mcd_presence_frame_update_actual_presence (McdPresenceFrame * presence_frame,
     connection_status = priv->actual_presence->connection_status;
     connection_reason = priv->actual_presence->connection_reason;
 
-    old_presence = priv->actual_presence->presence;
+    changed = (priv->actual_presence->presence != pi.presence) ||
+              (tp_strdiff (priv->actual_presence->message, presence_message));
+
     mcd_presence_free (priv->actual_presence);
     priv->actual_presence = mcd_presence_new (pi.presence,
 					      presence_message,
@@ -509,8 +511,8 @@ _mcd_presence_frame_update_actual_presence (McdPresenceFrame * presence_frame,
 					      connection_reason);
 
     g_debug ("%s: presence actual: %d", G_STRFUNC, pi.presence);
-    if (old_presence != pi.presence)
-    {
+    if (changed)
+    {    
 	g_signal_emit_by_name (G_OBJECT (presence_frame),
 			       "presence-actual", pi.presence, presence_message);
     }
@@ -532,7 +534,8 @@ mcd_presence_frame_set_account_presence (McdPresenceFrame * presence_frame,
     account_presence = g_hash_table_lookup (priv->account_presence, account);
 
     g_return_if_fail (account_presence != NULL);
-    if (account_presence->presence == presence)
+    if (account_presence->presence == presence &&
+        !tp_strdiff (account_presence->message, presence_message))
     {
         g_debug ("%s: presence already set, not setting", G_STRFUNC);
         return;
