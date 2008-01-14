@@ -152,7 +152,7 @@ struct param_data
 typedef struct {
     guint handle_type;
     guint handle;
-    const gchar *type;
+    gchar *type;
     McdChannel *channel;
 } McdPendingChannel;
 
@@ -662,6 +662,7 @@ static inline void
 pending_channel_free (McdPendingChannel *pc)
 {
     g_object_unref (pc->channel);
+    g_free (pc->type);
     g_free (pc);
 }
 
@@ -2241,7 +2242,7 @@ mcd_async_request_handle_callback(DBusGProxy *proxy, GArray *handles,
     pc = g_malloc (sizeof(McdPendingChannel));
     pc->handle = chan_handle;
     pc->handle_type = chan_handle_type;
-    pc->type = chan_type;
+    pc->type = g_strdup (chan_type);
     pc->channel = channel;
     priv->pending_channels = g_list_prepend (priv->pending_channels, pc);
     
@@ -2289,7 +2290,7 @@ mcd_connection_request_channel (McdConnection *connection,
 	pc = g_malloc (sizeof(McdPendingChannel));
 	pc->handle = req->channel_handle;
 	pc->handle_type = req->channel_handle_type;
-	pc->type = req->channel_type;
+	pc->type = g_strdup (req->channel_type);
 	pc->channel = channel;
 	priv->pending_channels = g_list_prepend (priv->pending_channels, pc);
 
