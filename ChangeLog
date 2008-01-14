@@ -1,9 +1,11 @@
 2008-01-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
 	* src/mcd-presence-frame.c:
 	Emit presence signals when the status message is changed.
 	Fixes: #1864568.
 
+	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
 	* libmissioncontrol/mission-control-signals-marshal.list,
 	libmissioncontrol/mission-control.c:
 	Register the PresenceChanged and ActualPresenceChanged signals.
@@ -12,6 +14,7 @@
 	* server/Makefile.am:
 	Move mission-control binary to $libexecdir. Fixes: #1827691.
 
+	Patch from Alban Crequy <albancrequy@users.sourceforge.net>:
 	* src/mcd-connection.c:
 	Duplicate the channel_type string, because the original one might be
 	freed while we are still using it. Fixes: #1849202.
