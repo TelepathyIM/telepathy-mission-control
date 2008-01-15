@@ -1,3 +1,10 @@
+2008-01-15  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	Patch from Simon McVittie <smcvittie@users.sourceforge.net>:
+	* configure.ac, server/Makefile.am:
+	Since recursive variable expansion is troublesome for configure.ac,
+	have the Makefile generate the DBus service file. Fixes: #1871127.
+
 === telepathy-mission-control 4.54 ===
 
 2008-01-14  Alberto Mardegan  <alberto.mardegan@nokia.com>

@@ -166,5 +166,4 @@ doc/reference/libmissioncontrol/Makefile \
 doc/reference/libmissioncontrol-server/Makefile \
 libmissioncontrol/Makefile \
 server/Makefile \
-server/org.freedesktop.Telepathy.MissionControl.service
 ])

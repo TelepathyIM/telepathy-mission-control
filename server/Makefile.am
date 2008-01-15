@@ -5,8 +5,13 @@ INCLUDES = $(DBUS_CFLAGS) $(TELEPATHY_CFLAGS) -I$(top_srcdir) \
 
 if HAVE_SERVER
 
+EXTRA_DIST = org.freedesktop.Telepathy.MissionControl.service.in
+
 servicefiledir=$(prefix)/share/dbus-1/services
 servicefile_DATA=org.freedesktop.Telepathy.MissionControl.service
+
+%.service: %.service.in Makefile
+	sed -e 's![@]libexecdir[@]!$(libexecdir)!' $< > $@
 
 libexec_PROGRAMS = mission-control
 mission_control_SOURCES = mc-server.c
