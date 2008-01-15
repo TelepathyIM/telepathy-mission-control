@@ -6,6 +6,7 @@ INCLUDES = $(DBUS_CFLAGS) $(TELEPATHY_CFLAGS) -I$(top_srcdir) \
 if HAVE_SERVER
 
 EXTRA_DIST = org.freedesktop.Telepathy.MissionControl.service.in
+CLEANFILES = org.freedesktop.Telepathy.MissionControl.service
 
 servicefiledir=$(prefix)/share/dbus-1/services
 servicefile_DATA=org.freedesktop.Telepathy.MissionControl.service
