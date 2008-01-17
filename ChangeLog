@@ -1,3 +1,8 @@
+2008-01-17  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-presence-frame.c:
+	#include <telepathy-glib/util.h> to suppress a warning.
+
 === telepathy-mission-control 4.55 ===
 
 2008-01-15  Alberto Mardegan  <alberto.mardegan@nokia.com>

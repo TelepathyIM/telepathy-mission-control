@@ -35,6 +35,7 @@
 
 #include "mcd-signals-marshal.h"
 #include "mcd-presence-frame.h"
+#include <telepathy-glib/util.h>
 
 #define MCD_PRESENCE_FRAME_PRIV(pframe) (G_TYPE_INSTANCE_GET_PRIVATE ((pframe), \
 				  MCD_TYPE_PRESENCE_FRAME, \
