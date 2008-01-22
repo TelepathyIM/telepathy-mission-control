@@ -285,17 +285,18 @@ _gconf_notify_cb (GConfClient *client, guint conn_id, GConfEntry *entry,
     }
   else if (strcmp (key, MC_ACCOUNTS_GCONF_KEY_AVATAR_TOKEN) != 0)
     {
+      const gchar *value;
+
       /* report the changed value to the McAccount, if it's a cached setting */
       if (entry->value != NULL && entry->value->type == GCONF_VALUE_STRING)
-      {
-	  const gchar *value;
-	 
 	  value = gconf_value_get_string (entry->value);
-	  if (strcmp (key, MC_ACCOUNTS_GCONF_KEY_NORMALIZED_NAME) == 0)
-	      _mc_account_set_normalized_name_priv (account, value);
-	  else if (strcmp (key, MC_ACCOUNTS_GCONF_KEY_DISPLAY_NAME) == 0)
-	      _mc_account_set_display_name_priv (account, value);
-      }
+      else
+	  value = NULL;
+
+      if (strcmp (key, MC_ACCOUNTS_GCONF_KEY_NORMALIZED_NAME) == 0)
+	  _mc_account_set_normalized_name_priv (account, value);
+      else if (strcmp (key, MC_ACCOUNTS_GCONF_KEY_DISPLAY_NAME) == 0)
+	  _mc_account_set_display_name_priv (account, value);
 
       /* Emit the rest as value changed signal */
       g_signal_emit (monitor, signals[SIGNAL_CHANGED], 0, name);
