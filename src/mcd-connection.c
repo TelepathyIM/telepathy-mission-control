@@ -215,8 +215,6 @@ static void mcd_async_request_chan_callback (DBusGProxy *proxy,
 static GError * map_tp_error_to_mc_error (McdChannel *channel, GError *tp_error);
 static void _mcd_connection_setup (McdConnection * connection);
 static void _mcd_connection_release_tp_connection (McdConnection *connection);
-static void request_avatar_cb (DBusGProxy *, GArray *, char *, GError *,
-			       gpointer);
 
 static McPresence presence_str_to_enum (const gchar *presence_str)
 {
@@ -819,13 +817,56 @@ clear_avatar_cb (DBusGProxy *proxy, GError *error, gpointer userdata)
     g_free (filename);
 }
 
+static void
+on_avatar_retrieved (DBusGProxy *proxy,
+		     guint       contact_id,
+		     gchar      *token,
+		     GArray     *avatar,
+		     gchar      *mime_type,
+		     gpointer    userdata)
+{
+    McdConnectionPrivate *priv = (McdConnectionPrivate *)userdata;
+    gchar *prev_token = NULL;
+    gchar *filename;
+
+#ifndef NO_AVATAR_UPDATED
+    if (contact_id != priv->self_handle) return;
+#endif
+    g_debug ("%s: Avatar retrieved for contact %d, token: %s", G_STRFUNC, contact_id, token);
+    mc_account_get_avatar (priv->account, NULL, NULL, &prev_token);
+
+    if (!prev_token || strcmp (token, prev_token) != 0)
+    {
+	g_debug ("%s: received mime-type: %s", G_STRFUNC, mime_type);
+	if (mc_account_get_avatar (priv->account, &filename, NULL, NULL))
+	{
+	    g_file_set_contents (filename, avatar->data, avatar->len, NULL);
+	    mc_account_set_avatar_mime_type (priv->account, mime_type);
+	    mc_account_reset_avatar_id (priv->account);
+	    mc_account_set_avatar_token (priv->account, token);
+	    g_free (filename);
+	}
+    }
+    g_free (prev_token);
+}
+
+static void
+request_avatars_cb (DBusGProxy *proxy, GError *error, gpointer userdata)
+{
+    if (error)
+    {
+	g_warning ("%s: error: %s", G_STRFUNC, error->message);
+	g_error_free (error);
+    }
+}
+
 static gboolean
 on_avatar_updated (DBusGProxy *proxy, guint contact_id, const gchar *token,
 		   gpointer userdata)
 {
     McdConnectionPrivate *priv = (McdConnectionPrivate *)userdata;
-    gboolean changed = FALSE;
     gchar *prev_token;
+    gboolean changed = FALSE;
 
 #ifndef NO_AVATAR_UPDATED
     if (contact_id != priv->self_handle) return FALSE;
@@ -836,12 +877,14 @@ on_avatar_updated (DBusGProxy *proxy, guint contact_id, const gchar *token,
 
     if (!prev_token || strcmp (token, prev_token) != 0)
     {
+    	GArray handles;
 	g_debug ("%s: avatar has changed", G_STRFUNC);
 	/* the avatar has changed, let's retrieve the new one */
-	tp_conn_iface_avatars_request_avatar_async (proxy, contact_id,
-						request_avatar_cb,
-						priv);
-	mc_account_set_avatar_token (priv->account, token);
+	handles.len = 1;
+	handles.data = (gchar *)&contact_id;
+	tp_conn_iface_avatars_request_avatars_async (proxy, &handles,
+						     request_avatars_cb,
+						     priv);
 	changed = TRUE;
     }
     g_free (prev_token);
@@ -936,6 +979,10 @@ _mcd_connection_setup_avatar (McdConnectionPrivate *priv)
 	dbus_g_proxy_connect_signal (priv->avatars_proxy,
 				     "AvatarUpdated",
 				     G_CALLBACK (on_avatar_updated),
+				     priv, NULL);
+	dbus_g_proxy_connect_signal (priv->avatars_proxy,
+				     "AvatarRetrieved",
+				     G_CALLBACK (on_avatar_retrieved),
 				     priv, NULL);
 #endif
     }
@@ -1554,6 +1601,10 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
 	dbus_g_proxy_disconnect_signal (priv->avatars_proxy,
 					"AvatarUpdated",
 					G_CALLBACK (on_avatar_updated),
+					priv);
+	dbus_g_proxy_disconnect_signal (priv->avatars_proxy,
+					"AvatarRetrieved",
+					G_CALLBACK (on_avatar_retrieved),
 					priv);
 #endif
 	g_object_unref (priv->avatars_proxy);
@@ -2415,29 +2466,6 @@ mcd_connection_cancel_channel_request (McdConnection *connection,
     }
     g_debug ("%s: requested channel not found!", G_STRFUNC);
     return FALSE;
-}
-
-static void
-request_avatar_cb (DBusGProxy *proxy, GArray *avatar, char *mime_type,
-		   GError *error, gpointer userdata)
-{
-    McdConnectionPrivate *priv = (McdConnectionPrivate *)userdata;
-    gchar *filename;
-    if (error)
-    {
-	g_warning ("%s: error: %s", G_STRFUNC, error->message);
-	g_error_free (error);
-	return;
-    }
-    g_debug ("%s: received mime-type: %s", G_STRFUNC, mime_type);
-    if (mc_account_get_avatar (priv->account, &filename, NULL, NULL))
-    {
-	g_file_set_contents (filename, avatar->data, avatar->len, NULL);
-	mc_account_set_avatar_mime_type (priv->account, mime_type);
-	mc_account_reset_avatar_id (priv->account);
-	g_free (filename);
-    }
-    g_free (mime_type);
 }
 
 /**

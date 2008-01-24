@@ -1,5 +1,9 @@
 2008-01-24  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
+	* src/mcd-connection.c:
+	Use new API for requesting avatars.
+
 	* src/mcd-connection.c:
 	Avoid requesting the avatars interface more than once.
 
