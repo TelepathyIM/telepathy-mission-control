@@ -922,20 +922,23 @@ _mcd_connection_setup_avatar (McdConnectionPrivate *priv)
 {
     gchar *filename, *mime_type, *token;
 
-    priv->avatars_proxy = tp_conn_get_interface (priv->tp_conn,
-				    TELEPATHY_CONN_IFACE_AVATARS_QUARK);
     if (!priv->avatars_proxy)
     {
-	g_debug ("%s: connection does not support avatar interface", G_STRFUNC);
-	return;
-    }
-    g_object_ref (priv->avatars_proxy);
+	priv->avatars_proxy = tp_conn_get_interface (priv->tp_conn,
+					TELEPATHY_CONN_IFACE_AVATARS_QUARK);
+	if (!priv->avatars_proxy)
+	{
+	    g_debug ("%s: connection does not support avatar interface", G_STRFUNC);
+	    return;
+	}
+	g_object_ref (priv->avatars_proxy);
 #ifndef NO_AVATAR_UPDATED
-    dbus_g_proxy_connect_signal (priv->avatars_proxy,
-				 "AvatarUpdated",
-				 G_CALLBACK (on_avatar_updated),
-				 priv, NULL);
+	dbus_g_proxy_connect_signal (priv->avatars_proxy,
+				     "AvatarUpdated",
+				     G_CALLBACK (on_avatar_updated),
+				     priv, NULL);
 #endif
+    }
     if (!mc_account_get_avatar (priv->account, &filename, &mime_type, &token))
     {
 	g_debug ("%s: mc_account_get_avatar() returned FALSE", G_STRFUNC);
