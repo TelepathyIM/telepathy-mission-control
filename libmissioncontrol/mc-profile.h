@@ -44,6 +44,7 @@ typedef enum
     MC_PROFILE_CAPABILITY_SUPPORTS_AVATARS = 1 << 7,
     MC_PROFILE_CAPABILITY_SUPPORTS_ALIAS = 1 << 8,
     MC_PROFILE_CAPABILITY_SUPPORTS_ROSTER = 1 << 9,
+    MC_PROFILE_CAPABILITY_VIDEO_P2P = 1 << 10,
 } McProfileCapabilityFlags;
 
 typedef struct {
@@ -106,6 +107,8 @@ const gchar *mc_profile_get_avatar_mime_type (McProfile *id);
 const McPresence *mc_profile_get_supported_presences (McProfile *id);
 gboolean mc_profile_supports_presence (McProfile *id, McPresence presence);
 McProtocol *mc_profile_get_protocol (McProfile *id);
+gint mc_profile_get_priority (McProfile *id);
+const gchar *mc_profile_get_default_account_name (McProfile *id);
 
 /* only use this protocol name instead of the real McProfile if you do
  * not care about being able to discover the correct connection manager

@@ -52,6 +52,7 @@ const GDebugKey capabilities[] = {
   { "supports-avatars", MC_PROFILE_CAPABILITY_SUPPORTS_AVATARS },
   { "supports-alias", MC_PROFILE_CAPABILITY_SUPPORTS_ALIAS },
   { "supports-roster", MC_PROFILE_CAPABILITY_SUPPORTS_ROSTER },
+  { "video-p2p", MC_PROFILE_CAPABILITY_VIDEO_P2P },
 };
 
 typedef struct {
@@ -66,6 +67,8 @@ typedef struct {
     gchar *vcard_field;
     gchar *default_account_domain;
     gchar *avatar_mime_type;
+    gchar *default_account_name;
+    gint priority;
     gboolean vcard_default;
     McProfileCapabilityFlags capabilities;
     GHashTable *default_settings;
@@ -99,6 +102,7 @@ mc_profile_finalize (GObject *object)
   g_free (priv->vcard_field);
   g_free (priv->default_account_domain);
   g_free (priv->avatar_mime_type);
+  g_free (priv->default_account_name);
   g_hash_table_destroy (priv->default_settings);
   g_hash_table_destroy (priv->vcard_mangle_hash);
   g_array_free (priv->supported_presences, TRUE);
@@ -281,6 +285,8 @@ _mc_profile_load (McProfile *profile)
   priv->vcard_default = g_key_file_get_boolean (keyfile, PROFILE_GROUP, "VCardDefault", NULL);
   priv->default_account_domain = g_key_file_get_string (keyfile, PROFILE_GROUP, "DefaultAccountDomain", NULL);
   priv->avatar_mime_type = g_key_file_get_string (keyfile, PROFILE_GROUP, "AvatarMimeType", NULL);
+  priv->default_account_name = g_key_file_get_string (keyfile, PROFILE_GROUP, "DefaultAccountName", NULL);
+  priv->priority = g_key_file_get_integer (keyfile, PROFILE_GROUP, "Priority", NULL);
   localization_domain = g_key_file_get_string (keyfile, PROFILE_GROUP, "LocalizationDomain", NULL);
   if (localization_domain)
   {
@@ -900,6 +906,51 @@ mc_profile_get_avatar_mime_type (McProfile *id)
   g_return_val_if_fail (profile_loaded, NULL);
 
   return priv->avatar_mime_type;
+}
+
+/**
+ * mc_profile_get_default_account_name:
+ * @id: The #McProfile.
+ * 
+ * Get the default account display name.
+ *
+ * Returns: a string representing the default account display name (must not be
+ * freed).
+ */
+const gchar *
+mc_profile_get_default_account_name (McProfile *id)
+{
+  McProfilePrivate *priv = MC_PROFILE_PRIV (id);
+  gboolean profile_loaded;
+
+  g_return_val_if_fail (id != NULL, NULL);
+
+  profile_loaded = _mc_profile_load (id);
+  g_return_val_if_fail (profile_loaded, NULL);
+
+  return priv->default_account_name;
+}
+
+/**
+ * mc_profile_get_priority:
+ * @id: The #McProfile.
+ * 
+ * Get the priority of the profile, as an integer number.
+ *
+ * Returns: the profile priority (0 meaning normal).
+ */
+gint
+mc_profile_get_priority (McProfile *id)
+{
+  McProfilePrivate *priv = MC_PROFILE_PRIV (id);
+  gboolean profile_loaded;
+
+  g_return_val_if_fail (id != NULL, 0);
+
+  profile_loaded = _mc_profile_load (id);
+  g_return_val_if_fail (profile_loaded, 0);
+
+  return priv->priority;
 }
 
 /**

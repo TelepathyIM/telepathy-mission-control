@@ -1,3 +1,10 @@
+2008-01-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-profile.[hc]:
+	Introduce videp-p2p capability.
+	Add a DefaultAccountName setting.
+	Add a Priority setting.
+
 === telepathy-mission-control 4.57 ===
 
 2008-01-24  Alberto Mardegan  <alberto.mardegan@nokia.com>
