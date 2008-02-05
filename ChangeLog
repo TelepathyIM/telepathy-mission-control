@@ -1,3 +1,9 @@
+2008-02-05  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-dispatcher.c:
+	Watch for every channel handler's lifetime, and not only for stream
+	channels.
+
 === telepathy-mission-control 4.58 ===
 
 2008-01-30  Alberto Mardegan  <alberto.mardegan@nokia.com>

@@ -593,12 +593,10 @@ _mcd_dispatcher_handle_channel_async_cb (DBusGProxy * proxy, GError * error,
 	return;
     }
 
-    /* In case the VOIP channel handler dies unexpectedly, we
+    /* In case the channel handler dies unexpectedly, we
      * may end up in very confused state if we do
      * nothing. Thus, we'll try to handle the death */
     
-    if (mcd_channel_get_channel_type_quark (channel)
-	== TELEPATHY_CHAN_IFACE_STREAMED_QUARK)
     {
 	const McdConnection *connection;
 	DBusGConnection *dbus_connection;
@@ -606,7 +604,6 @@ _mcd_dispatcher_handle_channel_async_cb (DBusGProxy * proxy, GError * error,
 	
 	connection = mcd_dispatcher_context_get_connection (context);
         g_object_get (G_OBJECT (connection), "dbus-connection", &dbus_connection, NULL);
-	g_debug ("Aha! A streamed media channel, need to guard it.");
 	
 	DBusGProxy *unique_name_proxy =
 	    dbus_g_proxy_new_for_name_owner (dbus_connection,
