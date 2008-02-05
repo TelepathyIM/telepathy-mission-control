@@ -598,7 +598,7 @@ _mcd_dispatcher_handle_channel_async_cb (DBusGProxy * proxy, GError * error,
      * nothing. Thus, we'll try to handle the death */
     
     {
-	const McdConnection *connection;
+	McdConnection *connection;
 	DBusGConnection *dbus_connection;
 	GError *unique_proxy_error = NULL;
 	
