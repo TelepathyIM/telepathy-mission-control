@@ -57,6 +57,14 @@ struct dbus_cb_data {
     gpointer user_data;
 };
 
+struct idle_cb_data {
+    MissionControl *self;
+    McCallback callback;
+    GError *error;
+    gpointer user_data;
+    guint id;
+};
+
 struct get_current_status_cb_data {
     McGetCurrentStatusCallback callback;
     gpointer user_data;
@@ -66,8 +74,46 @@ struct get_current_status_cb_data {
     if (callback) { \
 	GError *error = NULL; \
 	error = g_error_new (MC_ERROR, code, __VA_ARGS__); \
-	callback (mc, error, data); \
+	queue_callback (mc, callback, error, data); \
     }
+
+static void
+free_idle_cb_data (gpointer data)
+{
+    struct idle_cb_data *cbdata = data;
+
+    if (cbdata->error)
+	g_error_free (cbdata->error);
+    g_free (cbdata);
+}
+
+static gboolean
+invoke_callback (gpointer data)
+{
+    struct idle_cb_data *cbdata = data;
+
+    cbdata->callback (cbdata->self, cbdata->error, cbdata->user_data);
+    cbdata->error = NULL;
+    g_hash_table_remove (cbdata->self->active_callbacks,
+			 GINT_TO_POINTER (cbdata->id));
+    return FALSE;
+}
+
+static void
+queue_callback (MissionControl *self, McCallback callback,
+		GError *error, gpointer user_data)
+{
+    struct idle_cb_data *data;
+
+    data = g_malloc (sizeof (struct idle_cb_data));
+    data->self = self;
+    data->callback = callback;
+    data->error = error;
+    data->user_data = user_data;
+    data->id = g_idle_add (invoke_callback, data);
+    g_hash_table_insert (self->active_callbacks, GINT_TO_POINTER (data->id),
+			 data);
+}
 
 static void
 dbus_async_cb (DBusGProxy * proxy, GError * error, gpointer userdata)
@@ -226,6 +272,11 @@ mission_control_init (GTypeInstance * instance, gpointer g_class)
 {
     MissionControl *self = MISSIONCONTROL (instance);
     self->first_run = TRUE;
+
+    self->active_callbacks =
+	g_hash_table_new_full (g_direct_hash, g_direct_equal,
+			       (GDestroyNotify)g_source_remove,
+			       free_idle_cb_data);
 }
 
 
@@ -237,6 +288,12 @@ mission_control_dispose (GObject * obj)
     if (self->first_run)
     {
 	self->first_run = FALSE;
+    }
+
+    if (self->active_callbacks)
+    {
+	g_hash_table_destroy (self->active_callbacks);
+	self->active_callbacks = NULL;
     }
 
     if (G_OBJECT_CLASS (parent_class)->dispose)

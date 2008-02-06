@@ -1,3 +1,9 @@
+2008-02-06  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mission-control.[hc]:
+	Invoke the callback from an idle function, so that the clients can get
+	their request ID before the callback gets executed.
+
 2008-02-05  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-dispatcher.c:

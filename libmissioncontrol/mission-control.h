@@ -119,6 +119,7 @@ struct _missioncontrol
     DBusGProxy parent;
 
     gboolean first_run;
+    GHashTable *active_callbacks;
 };
 
 
