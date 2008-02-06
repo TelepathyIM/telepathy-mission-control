@@ -129,7 +129,8 @@ typedef struct
     GList *pending_channels;
     
     TelepathyConnectionStatusReason abort_reason;
-    gboolean got_capabilities;
+    gboolean got_capabilities : 1;
+    gboolean setting_avatar : 1;
 
     gchar *alias;
 
@@ -789,6 +790,8 @@ static void
 set_avatar_cb (DBusGProxy *proxy, char *token, GError *error, gpointer userdata)
 {
     McdConnectionPrivate *priv = (McdConnectionPrivate *)userdata;
+
+    priv->setting_avatar = FALSE;
     if (error)
     {
 	g_warning ("%s: error: %s", G_STRFUNC, error->message);
@@ -832,6 +835,9 @@ on_avatar_retrieved (DBusGProxy *proxy,
 #ifndef NO_AVATAR_UPDATED
     if (contact_id != priv->self_handle) return;
 #endif
+    /* if we are setting the avatar, we must ignore this signal */
+    if (priv->setting_avatar) return;
+
     g_debug ("%s: Avatar retrieved for contact %d, token: %s", G_STRFUNC, contact_id, token);
     mc_account_get_avatar (priv->account, NULL, NULL, &prev_token);
 
@@ -871,6 +877,9 @@ on_avatar_updated (DBusGProxy *proxy, guint contact_id, const gchar *token,
 #ifndef NO_AVATAR_UPDATED
     if (contact_id != priv->self_handle) return FALSE;
 #endif
+    /* if we are setting the avatar, we must ignore this signal */
+    if (priv->setting_avatar) return FALSE;
+
     g_debug ("%s: contact %d, token: %s", G_STRFUNC, contact_id, token);
     if (!mc_account_get_avatar (priv->account, NULL, NULL, &prev_token))
 	return FALSE;
@@ -899,6 +908,7 @@ _mcd_connection_set_avatar (McdConnectionPrivate *priv, gchar *filename,
     gchar *data = NULL;
     size_t length;
 
+    g_debug ("%s called", G_STRFUNC);
     if (filename == NULL || !g_file_test (filename, G_FILE_TEST_EXISTS))
     {
 	return;
@@ -913,6 +923,7 @@ _mcd_connection_set_avatar (McdConnectionPrivate *priv, gchar *filename,
 	    avatar.len = (guint)length;
 	    tp_conn_iface_avatars_set_avatar_async (priv->avatars_proxy,
 						    &avatar, mime_type, set_avatar_cb, priv);
+	    priv->setting_avatar = TRUE;
 	}
 	else
 	    tp_conn_iface_avatars_clear_avatar_async(priv->avatars_proxy,
@@ -964,6 +975,7 @@ static void
 _mcd_connection_setup_avatar (McdConnectionPrivate *priv)
 {
     gchar *filename, *mime_type, *token;
+    gboolean just_connected = FALSE;
 
     if (!priv->avatars_proxy)
     {
@@ -985,6 +997,8 @@ _mcd_connection_setup_avatar (McdConnectionPrivate *priv)
 				     G_CALLBACK (on_avatar_retrieved),
 				     priv, NULL);
 #endif
+	just_connected = TRUE;
+	priv->setting_avatar = FALSE;
     }
     if (!mc_account_get_avatar (priv->account, &filename, &mime_type, &token))
     {
@@ -996,10 +1010,11 @@ _mcd_connection_setup_avatar (McdConnectionPrivate *priv)
     {
 	if (!token)
 	    _mcd_connection_set_avatar (priv, filename, mime_type);
-	else
+	else if (just_connected)
 	{
 	    GArray handles;
 
+	    g_debug ("checking for server token");
 	    /* Set the avatar only if no other one was set */
 	    handles.len = 1;
 	    handles.data = (gchar *)&priv->self_handle;
