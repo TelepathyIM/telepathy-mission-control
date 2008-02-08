@@ -134,6 +134,39 @@ static guint mcd_dispatcher_signals[LAST_SIGNAL] = { 0 };
 
 static void mcd_dispatcher_context_free (McdDispatcherContext * ctx);
 
+static inline DBusGProxyCall *
+tp_ch_handle_channel_2_async (DBusGProxy *proxy,
+			      const char * IN_Bus_Name,
+			      const char* IN_Connection,
+			      const char *IN_Channel_Type,
+			      const char* IN_Channel,
+			      const guint IN_Handle_Type, const guint IN_Handle,
+			      gboolean incoming, guint request_id,
+			      const GHashTable *options,
+			      tp_ch_handle_channel_reply callback,
+			      gpointer userdata)
+
+{
+    DBusGAsyncData *stuff;
+    stuff = g_new (DBusGAsyncData, 1);
+    stuff->cb = G_CALLBACK (callback);
+    stuff->userdata = userdata;
+    return dbus_g_proxy_begin_call (proxy, "HandleChannel2",
+				    tp_ch_handle_channel_async_callback,
+				    stuff, g_free,
+				    G_TYPE_STRING, IN_Bus_Name,
+				    DBUS_TYPE_G_OBJECT_PATH, IN_Connection,
+				    G_TYPE_STRING, IN_Channel_Type,
+				    DBUS_TYPE_G_OBJECT_PATH, IN_Channel,
+				    G_TYPE_UINT, IN_Handle_Type,
+				    G_TYPE_UINT, IN_Handle,
+				    /* New params for version 2: */
+				    G_TYPE_BOOLEAN, incoming,
+				    G_TYPE_UINT, request_id,
+				    dbus_g_type_get_map ("GHashTable", G_TYPE_STRING, G_TYPE_VALUE), options,
+				    G_TYPE_INVALID);
+}
+
 static void
 _mcd_dispatcher_load_filters (McdDispatcher * dispatcher)
 {
@@ -695,22 +728,55 @@ _mcd_dispatcher_start_channel_handler (McdDispatcherContext * context)
 		 mcd_channel_get_object_path (channel),
 		 mcd_channel_get_handle_type (channel),
 		 mcd_channel_get_handle (channel));
-		 
-	call = tp_ch_handle_channel_async (handler_proxy,
-				    /*Connection bus */
-				    dbus_g_proxy_get_bus_name (DBUS_G_PROXY
+ 
+	if (chandler->version >= 2)
+	{
+	    gboolean outgoing;
+	    guint request_id;
+	    GHashTable *options;
+
+	    g_debug ("new chandler");
+	    g_object_get (channel,
+			  "outgoing", &outgoing,
+			  "requestor-serial", &request_id,
+			  NULL);
+	    options = g_hash_table_new (g_str_hash, g_str_equal);
+	    call = tp_ch_handle_channel_2_async (handler_proxy,
+					/*Connection bus */
+					dbus_g_proxy_get_bus_name (DBUS_G_PROXY
+								   (tp_conn)),
+					/*Connection path */
+					dbus_g_proxy_get_path (DBUS_G_PROXY
 							       (tp_conn)),
-				    /*Connection path */
-				    dbus_g_proxy_get_path (DBUS_G_PROXY
-							   (tp_conn)),
-				    /*Channel type */
-				    mcd_channel_get_channel_type (channel),
-				    /*Object path */
-				    mcd_channel_get_object_path (channel),
-				    mcd_channel_get_handle_type (channel),
-				    mcd_channel_get_handle (channel),
-				    _mcd_dispatcher_handle_channel_async_cb,
-				    context);
+					/*Channel type */
+					mcd_channel_get_channel_type (channel),
+					/*Object path */
+					mcd_channel_get_object_path (channel),
+					mcd_channel_get_handle_type (channel),
+					mcd_channel_get_handle (channel),
+					!outgoing,
+					request_id,
+					options,
+					_mcd_dispatcher_handle_channel_async_cb,
+					context);
+	    g_hash_table_destroy (options);
+	}
+	else
+	    call = tp_ch_handle_channel_async (handler_proxy,
+					/*Connection bus */
+					dbus_g_proxy_get_bus_name (DBUS_G_PROXY
+								   (tp_conn)),
+					/*Connection path */
+					dbus_g_proxy_get_path (DBUS_G_PROXY
+							       (tp_conn)),
+					/*Channel type */
+					mcd_channel_get_channel_type (channel),
+					/*Object path */
+					mcd_channel_get_object_path (channel),
+					mcd_channel_get_handle_type (channel),
+					mcd_channel_get_handle (channel),
+					_mcd_dispatcher_handle_channel_async_cb,
+					context);
 	call_data = g_malloc (sizeof (struct cancel_call_data));
 	call_data->call = call;
 	call_data->handler_proxy = handler_proxy;

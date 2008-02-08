@@ -35,6 +35,7 @@ typedef struct
     const gchar *bus_name;
     const gchar *obj_path;
     TelepathyChannelMediaCapability capabilities;
+    gint version;
 } McdChannelHandler;
 
 GHashTable* mcd_get_channel_handlers (void);

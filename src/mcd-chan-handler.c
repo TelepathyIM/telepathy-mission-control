@@ -54,7 +54,8 @@ static inline void
 _mcd_channel_handler_packer(GHashTable *handlers, gchar **string_list,
 			    gsize list_length, gchar *bus_name,
 			    TelepathyChannelMediaCapability capabilities,
-			    gchar *object_path, const gchar *cm_protocol)
+			    gchar *object_path, const gchar *cm_protocol,
+			    gint handler_version)
 {
     gint i;
     McdChannelHandler *handler;
@@ -66,6 +67,7 @@ _mcd_channel_handler_packer(GHashTable *handlers, gchar **string_list,
 	handler->bus_name = bus_name;
 	handler->obj_path = object_path;
 	handler->capabilities = capabilities;
+	handler->version = handler_version;
 
  	channel_handler = g_hash_table_lookup (handlers, string_list[i]);
  
@@ -102,6 +104,7 @@ scan_chandler_dir (const gchar *dirname, GHashTable *handlers,
     gchar *bus_name, *object_path;
     const gchar *cm_protocol;
     TelepathyChannelMediaCapability capabilities;
+    gint handler_version;
 
     if (!g_file_test (dirname, G_FILE_TEST_IS_DIR)) return;
 
@@ -147,6 +150,9 @@ scan_chandler_dir (const gchar *dirname, GHashTable *handlers,
 		cm_protocol = NULL;
 	    }
 
+	    handler_version = g_key_file_get_integer (file, group,
+						      "HandlerVersion", NULL);
+
 	    capabilities = g_key_file_get_integer(file, group, "TypeSpecificCapabilities",
 						  &error);
 	    if (error)
@@ -167,7 +173,8 @@ scan_chandler_dir (const gchar *dirname, GHashTable *handlers,
 	    }
 	    
 	    _mcd_channel_handler_packer(handlers, string_list, len, bus_name,
-				       	capabilities, object_path, cm_protocol);
+				       	capabilities, object_path, cm_protocol,
+					handler_version);
 	    
 	    g_strfreev(string_list);
 	    g_key_file_free(file);

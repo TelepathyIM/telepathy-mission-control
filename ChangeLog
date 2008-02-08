@@ -1,5 +1,11 @@
 2008-02-06  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/mcd-chan-handler.[hc], src/mcd-dispatcher.c:
+	Introduce a HandlerVersion parameter in the .chandler files, that
+	makes MC call a HandleChannel2 method on them; this provides a boolean
+	indicating the channel direction, and the same request_id as returned
+	by mission_control_request_channel().
+
 	* src/mcd-connection.c:
 	Don't update the avatar while we are setting it.
 
