@@ -1,5 +1,5 @@
 XSLTFLAGS = --nonet --novalid
-DROP_NAMESPACE = sed -e 's@xmlns:mc="http://telepathy\.freedesktop\.org/wiki/DbusSpec.extensions-v0"@@g'
+DROP_NAMESPACE = sed -e 's@xmlns:tp="http://telepathy\.freedesktop\.org/wiki/DbusSpec.extensions-v0"@@g'
 SPECS = MissionControl.xml
 
 SPECS_GEN = ${SPECS:.xml=-gen.xml}

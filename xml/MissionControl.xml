@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<node name="/org/freedesktop/Telepathy/MissionControl" xmlns:mc="http://telepathy.freedesktop.org/wiki/DbusSpec#extensions-v0">
-  <mc:copyright>Copyright (C) 2007 Nokia Corporation</mc:copyright>
-  <mc:license xmlns="http://www.w3.org/1999/xhtml">
+<node name="/Mission_Control" xmlns:tp="http://telepathy.freedesktop.org/wiki/DbusSpec#extensions-v0">
+  <tp:copyright>Copyright (C) 2007 Nokia Corporation</tp:copyright>
+  <tp:license xmlns="http://www.w3.org/1999/xhtml">
     <p>This library is free software; you can redistribute it and/or
       modify it under the terms of the GNU Lesser General Public
       License as published by the Free Software Foundation; either
@@ -15,364 +15,364 @@
     <p>You should have received a copy of the GNU Lesser General Public
       License along with this library; if not, write to the Free Software
       Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA</p>
-  </mc:license>
+  </tp:license>
   <interface name="org.freedesktop.Telepathy.MissionControl">
     <annotation name="org.freedesktop.DBus.GLib.CSymbol" value="mcd_service"/>
     <annotation name="org.freedesktop.DBus.GLib.ClientCSymbol" 
       value="mission_control_dbus"/>
     <method name="SetPresence">
-      <mc:docstring>
-	Request a presence.
-      </mc:docstring>
+      <tp:docstring>
+        Request a presence.
+      </tp:docstring>
       <arg type="u" name="presence" direction="in">
-	<mc:docstring>The presence to set</mc:docstring>
+        <tp:docstring>The presence to set</tp:docstring>
       </arg>
       <arg type="s" name="message" direction="in">
-	<mc:docstring>The presence message</mc:docstring>
+        <tp:docstring>The presence message</tp:docstring>
       </arg>
     </method>
     <method name="GetPresence">
-      <mc:docstring>
-	Gets the last requested presence.
-      </mc:docstring>
+      <tp:docstring>
+        Gets the last requested presence.
+      </tp:docstring>
       <arg type="u" direction="out">
-	<mc:docstring>The presence</mc:docstring>
+        <tp:docstring>The presence</tp:docstring>
       </arg>
     </method>
     <method name="GetPresenceMessage">
-      <mc:docstring>
-	Gets the last requested presence message.
-      </mc:docstring>
+      <tp:docstring>
+        Gets the last requested presence message.
+      </tp:docstring>
       <arg type="s" direction="out">
-	<mc:docstring>The presence message</mc:docstring>
+        <tp:docstring>The presence message</tp:docstring>
       </arg>
     </method>
     <method name="GetPresenceActual">
-      <mc:docstring>
-	Gets the actual presence.
-      </mc:docstring>
+      <tp:docstring>
+        Gets the actual presence.
+      </tp:docstring>
       <arg type="u" direction="out">
-	<mc:docstring>The presence</mc:docstring>
+        <tp:docstring>The presence</tp:docstring>
       </arg>
     </method>
     <method name="GetPresenceMessageActual">
-      <mc:docstring>
-	Gets the actual presence message.
-      </mc:docstring>
+      <tp:docstring>
+        Gets the actual presence message.
+      </tp:docstring>
       <arg type="s" direction="out">
-	<mc:docstring>The presence message</mc:docstring>
+        <tp:docstring>The presence message</tp:docstring>
       </arg>
     </method>
     <method name="RequestChannel">
-      <mc:docstring>
-	Requests a channel.
-      </mc:docstring>
+      <tp:docstring>
+        Requests a channel.
+      </tp:docstring>
       <annotation name="org.freedesktop.DBus.GLib.Async" value=""/>
       <arg type="s" name="account_name" direction="in">
-	<mc:docstring>Account requesting the channel.</mc:docstring>
+        <tp:docstring>Account requesting the channel.</tp:docstring>
       </arg>
       <arg type="s" name="type" direction="in">
-	<mc:docstring>D-Bus interface name representing the channel type</mc:docstring>
+        <tp:docstring>D-Bus interface name representing the channel type</tp:docstring>
       </arg>
       <arg type="u" name="handle" direction="in">
-	<mc:docstring>A nonzero integer handle representing a contact, room,
-	  list, etc.</mc:docstring>
+        <tp:docstring>A nonzero integer handle representing a contact, room,
+          list, etc.</tp:docstring>
       </arg>
       <arg type="i" name="handle_type" direction="in">
-	<mc:docstring>A integer representing the channel type</mc:docstring>
+        <tp:docstring>A integer representing the channel type</tp:docstring>
       </arg>
       <arg type="u" name="serial" direction="in">
-	<mc:docstring>A integer representing an operation ID, which can then be
-	  used for cancelling the request</mc:docstring>
+        <tp:docstring>A integer representing an operation ID, which can then be
+          used for cancelling the request</tp:docstring>
       </arg>
     </method>
     <method name="RequestChannelWithStringHandle">
       <annotation name="org.freedesktop.DBus.GLib.Async" value=""/>
-      <mc:docstring>
-	Requests a channel by a string handle.
-      </mc:docstring>
+      <tp:docstring>
+        Requests a channel by a string handle.
+      </tp:docstring>
       <arg type="s" name="account_name" direction="in">
-	<mc:docstring>Account requesting the channel.</mc:docstring>
+        <tp:docstring>Account requesting the channel.</tp:docstring>
       </arg>
       <arg type="s" name="type" direction="in">
-	<mc:docstring>D-Bus interface name representing the channel type</mc:docstring>
+        <tp:docstring>D-Bus interface name representing the channel type</tp:docstring>
       </arg>
       <arg type="s" name="handle" direction="in">
-	<mc:docstring>A string handle representing a contact, room, list,
-	  etc.</mc:docstring>
+        <tp:docstring>A string handle representing a contact, room, list,
+          etc.</tp:docstring>
       </arg>
       <arg type="i" name="handle_type" direction="in">
-	<mc:docstring>A integer representing the channel type</mc:docstring>
+        <tp:docstring>A integer representing the channel type</tp:docstring>
       </arg>
       <arg type="u" name="serial" direction="in">
-	<mc:docstring>A integer representing an operation ID, which can then be
-	  used for cancelling the request</mc:docstring>
+        <tp:docstring>A integer representing an operation ID, which can then be
+          used for cancelling the request</tp:docstring>
       </arg>
     </method>
     <method name="CancelChannelRequest">
       <annotation name="org.freedesktop.DBus.GLib.Async" value=""/>
-      <mc:docstring>
-	Cancel a channel request.
-      </mc:docstring>
+      <tp:docstring>
+        Cancel a channel request.
+      </tp:docstring>
       <arg type="u" name="operation_id" direction="in">
-	<mc:docstring>The operation ID which identifies the channel request;
-	  this is the same integet that was passed when making the
-	  request</mc:docstring>
+        <tp:docstring>The operation ID which identifies the channel request;
+          this is the same integet that was passed when making the
+          request</tp:docstring>
       </arg>
     </method>
     <method name="ConnectAllWithDefaultPresence">
       <annotation name="org.freedesktop.DBus.GLib.Async" value=""/>
-      <mc:docstring>
-	Request all accounts to go online with the default presence.
-      </mc:docstring>
+      <tp:docstring>
+        Request all accounts to go online with the default presence.
+      </tp:docstring>
     </method>
     <method name="GetConnectionStatus">
-      <mc:docstring>
-	Get the status of the connection.
-      </mc:docstring>
+      <tp:docstring>
+        Get the status of the connection.
+      </tp:docstring>
       <arg type="s" name="account_name" direction="in">
-	<mc:docstring>The account</mc:docstring>
+        <tp:docstring>The account</tp:docstring>
       </arg>
       <arg type="u" direction="out">
-	<mc:docstring>Status of the connection</mc:docstring>
+        <tp:docstring>Status of the connection</tp:docstring>
       </arg>
     </method>
     <method name="GetOnlineConnections">
-      <mc:docstring>
-	Get a list of the connected accounts.
-      </mc:docstring>
+      <tp:docstring>
+        Get a list of the connected accounts.
+      </tp:docstring>
       <arg type="as" direction="out">
-	<mc:docstring>The array of the online accounts</mc:docstring>
+        <tp:docstring>The array of the online accounts</tp:docstring>
       </arg>
     </method>
     <method name="GetConnection">
-      <mc:docstring>
-	Get the connection object of an account.
-      </mc:docstring>
+      <tp:docstring>
+        Get the connection object of an account.
+      </tp:docstring>
       <arg type="s" name="account_name" direction="in">
-	<mc:docstring>The account</mc:docstring>
+        <tp:docstring>The account</tp:docstring>
       </arg>
       <arg type="s" direction="out">
-	<mc:docstring>The D-Bus bus name of the Telepathy
-	  connection</mc:docstring>
+        <tp:docstring>The D-Bus bus name of the Telepathy
+          connection</tp:docstring>
       </arg>
       <arg type="o" direction="out">
-	<mc:docstring>The D-Bus object path of the Telepathy
-	  connection</mc:docstring>
+        <tp:docstring>The D-Bus object path of the Telepathy
+          connection</tp:docstring>
       </arg>
     </method>
     <method name="GetAccountForConnection">
-      <mc:docstring>
-	Get the account for this Telepathy connection.
-      </mc:docstring>
+      <tp:docstring>
+        Get the account for this Telepathy connection.
+      </tp:docstring>
       <arg type="s" name="object_path" direction="in">
-	<mc:docstring>The D-Bus object path of the Telepathy
-	  connection</mc:docstring>
+        <tp:docstring>The D-Bus object path of the Telepathy
+          connection</tp:docstring>
       </arg>
       <arg type="s" direction="out">
-	<mc:docstring>The account name</mc:docstring>
+        <tp:docstring>The account name</tp:docstring>
       </arg>
     </method>
     <method name="GetUsedChannelsCount">
-      <mc:docstring>
-	Get the number of channels of the specified type.
-      </mc:docstring>
+      <tp:docstring>
+        Get the number of channels of the specified type.
+      </tp:docstring>
       <arg type="s" name="type" direction="in">
-	<mc:docstring>D-Bus interface name representing the channel type</mc:docstring>
+        <tp:docstring>D-Bus interface name representing the channel type</tp:docstring>
       </arg>
       <arg type="u" direction="out">
-	<mc:docstring>Number of channels</mc:docstring>
+        <tp:docstring>Number of channels</tp:docstring>
       </arg>
     </method>
     <method name="GetCurrentStatus">
-      <mc:docstring>
-	Get MissionControl's current status.
-      </mc:docstring>
+      <tp:docstring>
+        Get MissionControl's current status.
+      </tp:docstring>
       <arg type="u" name="status" direction="out">
-	<mc:docstring>
-	  Integer representing the MissionControl status (as in the
-	  <code>McStatus</code> enum):
-	  <ul>
-	    <li>0 - disconnected</li>
-	    <li>1 - connecting</li>
-	    <li>2 - connected</li>
-	  </ul>
-	</mc:docstring>
+        <tp:docstring>
+          Integer representing the MissionControl status (as in the
+          <code>McStatus</code> enum):
+          <ul>
+            <li>0 - disconnected</li>
+            <li>1 - connecting</li>
+            <li>2 - connected</li>
+          </ul>
+        </tp:docstring>
       </arg>
       <arg type="u" name="presence" direction="out">
-	<mc:docstring>Actual presence</mc:docstring>
+        <tp:docstring>Actual presence</tp:docstring>
       </arg>
       <arg type="u" name="requested_presence" direction="out">
-	<mc:docstring>Requested presence</mc:docstring>
+        <tp:docstring>Requested presence</tp:docstring>
       </arg>
       <arg type="a(suuu)" name="accounts" direction="out">
-	<mc:docstring>
-	  An array of structures specifying the accounts' state, fields being:
-	  <ul>
-	    <li>The account name</li>
-	    <li>The account's connection status</li>
-	    <li>The presence</li>
-	    <li>The connection status reason</li>
-	  </ul>
-	</mc:docstring>
+        <tp:docstring>
+          An array of structures specifying the accounts' state, fields being:
+          <ul>
+            <li>The account name</li>
+            <li>The account's connection status</li>
+            <li>The presence</li>
+            <li>The connection status reason</li>
+          </ul>
+        </tp:docstring>
       </arg>
     </method>
     <method name="RemoteAvatarChanged">
-      <mc:docstring>
-	Signals the MissionControl service that an account's remote avatar has
-	changed
-      </mc:docstring>
+      <tp:docstring>
+        Signals the MissionControl service that an account's remote avatar has
+        changed
+      </tp:docstring>
       <annotation name="org.freedesktop.DBus.GLib.Async" value=""/>
       <arg type="s" name="object_path" direction="in">
-	<mc:docstring>D-Bus object path of the connection</mc:docstring>
+        <tp:docstring>D-Bus object path of the connection</tp:docstring>
       </arg>
       <arg type="u" name="contact_id" direction="in">
-	<mc:docstring>Telepathy handle for the account (self handle)</mc:docstring>
+        <tp:docstring>Telepathy handle for the account (self handle)</tp:docstring>
       </arg>
       <arg type="s" name="token" direction="in">
-	<mc:docstring>Avatar token</mc:docstring>
+        <tp:docstring>Avatar token</tp:docstring>
       </arg>
     </method>
     <signal name="AccountPresenceChanged">
-      <mc:docstring>
-	Emitted when an account's connection status changes
-      </mc:docstring>
+      <tp:docstring>
+        Emitted when an account's connection status changes
+      </tp:docstring>
       <arg type="u" name="status">
-	<mc:docstring>The connection status</mc:docstring>
+        <tp:docstring>The connection status</tp:docstring>
       </arg>
       <arg type="u" name="presence">
-	<mc:docstring>The presence</mc:docstring>
+        <tp:docstring>The presence</tp:docstring>
       </arg>
       <arg type="s" name="message">
-	<mc:docstring>The presence message</mc:docstring>
+        <tp:docstring>The presence message</tp:docstring>
       </arg>
       <arg type="u" name="reason">
-	<mc:docstring>The connection status reason</mc:docstring>
+        <tp:docstring>The connection status reason</tp:docstring>
       </arg>
       <arg type="s" name="account_id">
-	<mc:docstring>The account name</mc:docstring>
+        <tp:docstring>The account name</tp:docstring>
       </arg>
     </signal>
     <signal name="AccountStatusChanged">
-      <mc:docstring>
-	Emitted when an account's connection status changes
-	DEPRECATED
-      </mc:docstring>
+      <tp:docstring>
+        Emitted when an account's connection status changes
+        DEPRECATED
+      </tp:docstring>
       <arg type="u" name="status">
-	<mc:docstring>The connection status</mc:docstring>
+        <tp:docstring>The connection status</tp:docstring>
       </arg>
       <arg type="u" name="presence">
-	<mc:docstring>The presence</mc:docstring>
+        <tp:docstring>The presence</tp:docstring>
       </arg>
       <arg type="u" name="reason">
-	<mc:docstring>The connection status reason</mc:docstring>
+        <tp:docstring>The connection status reason</tp:docstring>
       </arg>
       <arg type="s" name="account_id">
-	<mc:docstring>The account name</mc:docstring>
+        <tp:docstring>The account name</tp:docstring>
       </arg>
     </signal>
     <signal name="McdError">
-      <mc:docstring>
-	Emitted when a requested channel could not be dispatched.
-      </mc:docstring>
+      <tp:docstring>
+        Emitted when a requested channel could not be dispatched.
+      </tp:docstring>
       <arg type="u" name="serial">
-	<mc:docstring>Operation ID of the channel request</mc:docstring>
+        <tp:docstring>Operation ID of the channel request</tp:docstring>
       </arg>
       <arg type="s" name="client_id">
-	<mc:docstring>D-Bus name of the process which requested the
-	  channel</mc:docstring>
+        <tp:docstring>D-Bus name of the process which requested the
+          channel</tp:docstring>
       </arg>
       <arg type="u" name="error_id">
-	<mc:docstring>Error code</mc:docstring>
+        <tp:docstring>Error code</tp:docstring>
       </arg>
     </signal>
     <signal name="PresenceRequested">
-      <mc:docstring>
-	Emitted when a presence has been requested.
-      </mc:docstring>
+      <tp:docstring>
+        Emitted when a presence has been requested.
+      </tp:docstring>
       <arg type="u" name="presence">
-	<mc:docstring>The requested presence</mc:docstring>
+        <tp:docstring>The requested presence</tp:docstring>
       </arg>
       <arg type="s" name="message">
-	<mc:docstring>The presence message</mc:docstring>
+        <tp:docstring>The presence message</tp:docstring>
       </arg>
     </signal>
     <signal name="PresenceStatusRequested">
-      <mc:docstring>
-	Emitted when a presence has been requested.
-	DEPRECATED
-      </mc:docstring>
+      <tp:docstring>
+        Emitted when a presence has been requested.
+        DEPRECATED
+      </tp:docstring>
       <arg type="u" name="presence">
-	<mc:docstring>The requested presence</mc:docstring>
+        <tp:docstring>The requested presence</tp:docstring>
       </arg>
     </signal>
     <signal name="PresenceChanged">
-      <mc:docstring>
-	Emitted when the actual presence has changed.
-      </mc:docstring>
+      <tp:docstring>
+        Emitted when the actual presence has changed.
+      </tp:docstring>
       <arg type="u" name="presence">
-	<mc:docstring>The actual presence</mc:docstring>
+        <tp:docstring>The actual presence</tp:docstring>
       </arg>
       <arg type="s" name="message">
-	<mc:docstring>The presence message</mc:docstring>
+        <tp:docstring>The presence message</tp:docstring>
       </arg>
     </signal>
     <signal name="PresenceStatusActual">
-      <mc:docstring>
-	Emitted when the actual presence has changed.
-	DEPRECATED
-      </mc:docstring>
+      <tp:docstring>
+        Emitted when the actual presence has changed.
+        DEPRECATED
+      </tp:docstring>
       <arg type="u" name="presence">
-	<mc:docstring>The actual presence</mc:docstring>
+        <tp:docstring>The actual presence</tp:docstring>
       </arg>
     </signal>
     <signal name="UsedChannelsCountChanged">
-      <mc:docstring>
-	Emitted when the number of channels of a specified type has changed.
-      </mc:docstring>
+      <tp:docstring>
+        Emitted when the number of channels of a specified type has changed.
+      </tp:docstring>
       <arg type="s" name="type">
-	<mc:docstring>D-Bus interface name representing the channel type</mc:docstring>
+        <tp:docstring>D-Bus interface name representing the channel type</tp:docstring>
       </arg>
       <arg type="u" name="count">
-	<mc:docstring>The number of channels of this type</mc:docstring>
+        <tp:docstring>The number of channels of this type</tp:docstring>
       </arg>
     </signal>
     <signal name="StatusActual">
-      <mc:docstring>
-	Emitted when the global connection status changes.
-      </mc:docstring>
+      <tp:docstring>
+        Emitted when the global connection status changes.
+      </tp:docstring>
       <arg type="u" name="status">
-	<mc:docstring>The actual status, meaning:
-	  <ul>
-	    <li>disconnected - all accounts are disconnected</li>
-	    <li>connecting - at least one account is connecting</li>
-	    <li>connected - at least one account is connected, and no account is connecting</li>
-	  </ul>
-	</mc:docstring>
+        <tp:docstring>The actual status, meaning:
+          <ul>
+            <li>disconnected - all accounts are disconnected</li>
+            <li>connecting - at least one account is connecting</li>
+            <li>connected - at least one account is connected, and no account is connecting</li>
+          </ul>
+        </tp:docstring>
       </arg>
       <arg type="u" name="presence">
-	<mc:docstring>The actual presence</mc:docstring>
+        <tp:docstring>The actual presence</tp:docstring>
       </arg>
     </signal>
     <method name="RegisterFilter">
-      <mc:docstring>
-	Signals the MissionControl service that a filter service is running for
-	a specified type of channel.
-      </mc:docstring>
+      <tp:docstring>
+        Signals the MissionControl service that a filter service is running for
+        a specified type of channel.
+      </tp:docstring>
       <arg type="s" name="bus_name" direction="in">
-	<mc:docstring>D-Bus name where the filter service is</mc:docstring>
+        <tp:docstring>D-Bus name where the filter service is</tp:docstring>
       </arg>
       <arg type="o" name="object_path" direction="in">
-	<mc:docstring>D-Bus object path where the filter service is</mc:docstring>
+        <tp:docstring>D-Bus object path where the filter service is</tp:docstring>
       </arg>
       <arg type="s" name="channel_type" direction="in">
-	<mc:docstring>Type of channel to be filtered</mc:docstring>
+        <tp:docstring>Type of channel to be filtered</tp:docstring>
       </arg>
       <arg type="u" name="priority" direction="in">
-	<mc:docstring>Priority of the filter</mc:docstring>
+        <tp:docstring>Priority of the filter</tp:docstring>
       </arg>
       <arg type="u" name="flag" direction="in">
-	<mc:docstring>Flag</mc:docstring>
+        <tp:docstring>Flag</tp:docstring>
       </arg>
     </method>
   </interface>
