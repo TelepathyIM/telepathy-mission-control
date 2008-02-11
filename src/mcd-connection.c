@@ -2024,9 +2024,13 @@ remove_capabilities_refs (gpointer data)
 static gint
 pending_channel_cmp (const McdPendingChannel *a, const McdPendingChannel *b)
 {
-    return a->handle == b->handle &&
-	a->handle_type == b->handle_type &&
-	strcmp (a->type, b->type);
+    gint ret;
+
+    ret = a->handle - b->handle;
+    if (ret) return ret;
+    ret = a->handle_type - b->handle_type;
+    if (ret) return ret;
+    return strcmp (a->type, b->type);
 }
 
 static void
