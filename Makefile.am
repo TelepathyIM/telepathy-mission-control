@@ -1,4 +1,4 @@
-SUBDIRS = tools extensions xml libmissioncontrol src doc server test
+SUBDIRS = tools xml libmissioncontrol src doc server test
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libmissioncontrol.pc mission-control.pc
