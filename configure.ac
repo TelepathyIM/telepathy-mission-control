@@ -32,6 +32,12 @@ if test -z "$XSLTPROC"; then
     AC_MSG_ERROR([xsltproc (from the libxslt source package) is required])
 fi
 
+PYTHON=
+AC_CHECK_PROGS([PYTHON], [python2.3 python2.4 python2.5 python])
+if test -z "$PYTHON"; then
+    AC_MSG_ERROR([Python is required to compile this package])
+fi
+
 
 AC_ARG_ENABLE(cast-checks,      [  --disable-cast-checks         compile with GLIB cast checks disabled],[cchecks=${enableval}],cchecks=yes)
 if test "x$cchecks" = "xno"; then
@@ -126,7 +132,7 @@ PKG_CHECK_MODULES(DBUS, [dbus-1 >= 0.51, dbus-glib-1 >= 0.51], have_dbus=yes, ha
 AC_SUBST(DBUS_CFLAGS)
 AC_SUBST(DBUS_LIBS)
 
-PKG_CHECK_MODULES(TELEPATHY, libtelepathy >= 0.3.0)
+PKG_CHECK_MODULES(TELEPATHY, telepathy-glib >= 0.7.1 libtelepathy >= 0.3.2)
 AC_SUBST(TELEPATHY_LIBS)
 AC_SUBST(TELEPATHY_CFLAGS)
 

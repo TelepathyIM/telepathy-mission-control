@@ -1,3 +1,15 @@
+2008-02-15  Simon McVittie  <simon.mcvittie@collabora.co.uk>
+
+	* tools/: update from telepathy-glib/telepathy-spec and pull in
+	a fairly complete set of code-gen tools (which will actually be used
+	in a follow-up patch)
+
+	* configure.ac: Check for Python (the code-gen tools use it).
+	Require telepathy-glib 0.7.1 and libtelepathy 0.3.2
+
+	* xml/MissionControl.xml: Use tp: namespace prefix in preparation for
+	extending use of telepathy-glib code generation tools
+
 === telepathy-mission-control 4.60 ===
 
 2008-02-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
@@ -6,11 +18,6 @@
 	Fix the comparison of pending channels (the condition on the channel
 	type was inverted).
 	Fixes: http://bugzilla.gnome.org/show_bug.cgi?id=511063
-
-2008-02-08  Simon McVittie  <simon.mcvittie@collabora.co.uk>
-
-	* xml/MissionControl.xml: Use tp: namespace prefix in preparation for
-	extending use of telepathy-glib code generation tools
 
 === telepathy-mission-control 4.59 ===
 
