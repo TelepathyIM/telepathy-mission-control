@@ -1,3 +1,34 @@
+2008-02-18  Simon McVittie  <simon.mcvittie@collabora.co.uk>
+
+	* libmissioncontrol.pc.in: require newer libtelepathy, telepathy-glib
+
+	* libmissioncontrol/dbus-api.[ch], libmissioncontrol/mission-control.h:
+	move MissionControl D-Bus interface constants into a new shared header,
+	and auto-generate GTypes and enums from XML (in theory - currently
+	there are none)
+
+	* libmissioncontrol/cli-nmc4.[ch]: add McCliNMC4, a TpProxy subclass
+	representing the MC 4.x D-Bus API
+
+	* libmissioncontrol/svc-nmc4.[ch]: add McSvcNMC4, a GInterface
+	representing the MC 4.x D-Bus API
+
+	* libmissioncontrol/Makefile.am: auto-generate stuff for McCliNMC4,
+	McSvcNMC4 and dbus-api.h
+
+	* xml/, doc/Makefile.am: move mcd-dbus-services.xml to nmc4.xml,
+	add all.xml (this is to fit in better with telepathy-glib code-gen)
+
+	* configure.ac: check for mkdir -p
+
+	* doc/reference/libmissioncontrol/Makefile.am: fix out-of-tree build
+	against generated headers
+
+	* doc/reference/libmissioncontrol-server/libmissioncontrol-server.types:
+	reconstruct missing file which broke distcheck
+
+	* Makefile.am: use --enable-gtk-doc when running distcheck
+
 2008-02-15  Simon McVittie  <simon.mcvittie@collabora.co.uk>
 
 	* tools/: update from telepathy-glib/telepathy-spec and pull in

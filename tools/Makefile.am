@@ -10,7 +10,8 @@ EXTRA_DIST = \
     glib-gtypes-generator.py \
     glib-signals-marshal-gen.py \
     identity.xsl \
-    libglibcodegen.py
+    libglibcodegen.py \
+    spec-to-introspect.xsl
 
 CLEANFILES = libglibcodegen.pyc libglibcodegen.pyo
 

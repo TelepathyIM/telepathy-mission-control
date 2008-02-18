@@ -1,9 +1,0 @@
-<mc:spec
-    xmlns:mc="http://telepathy.freedesktop.org/wiki/DbusSpec#extensions-v0"
-    xmlns:xi="http://www.w3.org/2001/XInclude">
-
-<mc:copyright>Copyright (C) 2007 Nokia Corporation</mc:copyright>
-
-<xi:include href="MissionControl.xml"/>
-
-</mc:spec>

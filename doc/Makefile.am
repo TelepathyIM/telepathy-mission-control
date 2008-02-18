@@ -1,10 +1,10 @@
 SUBDIRS = reference
-SPECS = $(top_builddir)/xml/mcd-dbus-services.xml
+SPECS = $(top_srcdir)/xml/all.xml
 SPECS_DOC = mc-dbus-iface.html
 
 all-local: $(SPECS_DOC)
 
-$(SPECS_DOC): $(SPECS) $(top_builddir)/xml/MissionControl.xml $(top_srcdir)/tools/doc-generator.xsl
+$(SPECS_DOC): $(top_srcdir)/xml/all.xml $(wildcard $(top_srcdir)/xml/*.xml) $(top_srcdir)/tools/doc-generator.xsl
 	$(XSLTPROC) --xinclude --novalid $(top_srcdir)/tools/doc-generator.xsl $< > $@
 
 clean-local:

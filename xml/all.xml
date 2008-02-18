@@ -1,0 +1,9 @@
+<tp:spec
+    xmlns:tp="http://telepathy.freedesktop.org/wiki/DbusSpec#extensions-v0"
+    xmlns:xi="http://www.w3.org/2001/XInclude">
+
+<tp:copyright>Copyright (C) 2007 Nokia Corporation</tp:copyright>
+
+<xi:include href="nmc4.xml"/>
+
+</tp:spec>

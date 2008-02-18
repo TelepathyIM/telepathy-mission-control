@@ -29,18 +29,17 @@
 #define DBUS_API_SUBJECT_TO_CHANGE
 #endif
 
-#include "dbus/dbus-glib.h"
-#include "dbus/dbus-glib-lowlevel.h"
-#include "dbus/dbus.h"
-#include <libtelepathy/tp-constants.h>
-#include <libtelepathy/tp-conn.h>
-#include <libtelepathy/tp-chan.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-#define MISSION_CONTROL_SERVICE "org.freedesktop.Telepathy.MissionControl"
-#define MISSION_CONTROL_IFACE "org.freedesktop.Telepathy.MissionControl"
-#define MISSION_CONTROL_PATH "/org/freedesktop/Telepathy/MissionControl"
+#include <dbus/dbus-glib.h>
+#include <dbus/dbus-glib-lowlevel.h>
+#include <dbus/dbus.h>
+#include <libtelepathy/tp-constants.h>
+#include <libtelepathy/tp-conn.h>
+#include <libtelepathy/tp-chan.h>
+
+#include <libmissioncontrol/dbus-api.h>
 
 #define MISSIONCONTROL_TYPE       (mission_control_get_type ())
 
