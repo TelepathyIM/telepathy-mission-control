@@ -41,11 +41,13 @@ G_BEGIN_DECLS
 #define MCD_CONNECTION_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), MCD_TYPE_CONNECTION, McdConnectionClass))
 
 typedef struct _McdConnection McdConnection;
+typedef struct _McdConnectionPrivate McdConnectionPrivate;
 typedef struct _McdConnectionClass McdConnectionClass;
 
 struct _McdConnection
 {
     McdOperation parent;
+    McdConnectionPrivate *priv;
 };
 
 struct _McdConnectionClass

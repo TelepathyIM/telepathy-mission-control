@@ -164,7 +164,7 @@ _find_connection (gconstpointer data, gconstpointer user_data)
 static gint
 _find_connection_by_path (gconstpointer data, gconstpointer user_data)
 {
-    TpConn *tp_conn;
+    TpConnection *tp_conn;
     McdConnection *connection = MCD_CONNECTION (data);
     const gchar *object_path = (const gchar *)user_data;
     const gchar *conn_object_path = NULL;
@@ -176,7 +176,7 @@ _find_connection_by_path (gconstpointer data, gconstpointer user_data)
 		  &tp_conn, NULL);
     if (!tp_conn)
 	return 1;
-    conn_object_path = dbus_g_proxy_get_path (DBUS_G_PROXY (tp_conn));
+    conn_object_path = TP_PROXY (tp_conn)->object_path;
     if (strcmp (conn_object_path, object_path) == 0)
     {
 	ret = 0;

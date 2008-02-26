@@ -705,7 +705,7 @@ _mcd_dispatcher_start_channel_handler (McdDispatcherContext * context)
     {
 	struct cancel_call_data *call_data;
 	DBusGProxyCall *call;
-	TpConn *tp_conn;
+	TpConnection *tp_conn;
 	
 	const McdConnection *connection = mcd_dispatcher_context_get_connection (context);
 	DBusGConnection *dbus_connection;
@@ -723,7 +723,7 @@ _mcd_dispatcher_start_channel_handler (McdDispatcherContext * context)
 		 " obj_path = %s, handle_type = %d, handle = %d",
 		 chandler->bus_name,
 		 chandler->obj_path,
-		 dbus_g_proxy_get_path (DBUS_G_PROXY (tp_conn)),
+		 TP_PROXY (tp_conn)->object_path,
 		 mcd_channel_get_channel_type (channel),
 		 mcd_channel_get_object_path (channel),
 		 mcd_channel_get_handle_type (channel),
@@ -743,11 +743,9 @@ _mcd_dispatcher_start_channel_handler (McdDispatcherContext * context)
 	    options = g_hash_table_new (g_str_hash, g_str_equal);
 	    call = tp_ch_handle_channel_2_async (handler_proxy,
 					/*Connection bus */
-					dbus_g_proxy_get_bus_name (DBUS_G_PROXY
-								   (tp_conn)),
+					TP_PROXY (tp_conn)->bus_name,
 					/*Connection path */
-					dbus_g_proxy_get_path (DBUS_G_PROXY
-							       (tp_conn)),
+					TP_PROXY (tp_conn)->object_path,
 					/*Channel type */
 					mcd_channel_get_channel_type (channel),
 					/*Object path */
@@ -764,11 +762,9 @@ _mcd_dispatcher_start_channel_handler (McdDispatcherContext * context)
 	else
 	    call = tp_ch_handle_channel_async (handler_proxy,
 					/*Connection bus */
-					dbus_g_proxy_get_bus_name (DBUS_G_PROXY
-								   (tp_conn)),
+					TP_PROXY (tp_conn)->bus_name,
 					/*Connection path */
-					dbus_g_proxy_get_path (DBUS_G_PROXY
-							       (tp_conn)),
+					TP_PROXY (tp_conn)->object_path,
 					/*Channel type */
 					mcd_channel_get_channel_type (channel),
 					/*Object path */
