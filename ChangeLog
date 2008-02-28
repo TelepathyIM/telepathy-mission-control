@@ -1,6 +1,10 @@
 2008-02-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
+	* libmissioncontrol/mission-control.h:
+	Fix typo (outcoming -> outgoing). Fixes: #1903876.
+
+	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
 	* src/mcd-connection.c:
 	Unset the `register' parameter once successfully connected.
 	Fixes: #1763775.

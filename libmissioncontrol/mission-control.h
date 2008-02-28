@@ -109,8 +109,9 @@ typedef enum {
 
 typedef enum {
 	MC_FILTER_FLAG_INCOMING = 1 << 0,
-	MC_FILTER_FLAG_OUTCOMING = 1 << 1
+	MC_FILTER_FLAG_OUTGOING = 1 << 1
 } McFilterFlag;
+#define MC_FILTER_FLAG_OUTCOMING MC_FILTER_FLAG_OUTGOING
 
 struct _missioncontrol
 {
