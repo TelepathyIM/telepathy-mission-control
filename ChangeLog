@@ -1,5 +1,10 @@
 2008-02-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
+	* src/mcd-connection.c:
+	Unset the `register' parameter once successfully connected.
+	Fixes: #1763775.
+
 	* libmissioncontrol/mc-manager.[hc], src/mcd-channel.[hc],
 	src/mcd-connection.[hc], src/mcd-manager.c:
 	Migrate from libtelepathy to telepathy-glib.

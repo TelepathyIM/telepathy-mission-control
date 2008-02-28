@@ -1216,6 +1216,10 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
 	break;
     case TP_CONNECTION_STATUS_CONNECTED:
 	{
+	    /* We successfully connected the account, make sure we don't retry
+	     * to register it next time. */
+	    mc_account_unset_param (priv->account, "register");
+ 
 	    mcd_presence_frame_set_account_status (priv->presence_frame,
 						   priv->account,
 						   conn_status, conn_reason);
