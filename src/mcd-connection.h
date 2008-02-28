@@ -28,7 +28,7 @@
 #include <glib.h>
 #include <glib-object.h>
 #include <libmissioncontrol/mc-account.h>
-#include <libtelepathy/tp-connmgr.h>
+#include <telepathy-glib/connection-manager.h>
 
 #include "mcd-operation.h"
 
@@ -62,7 +62,7 @@ GType mcd_connection_get_type (void);
 
 McdConnection *mcd_connection_new (DBusGConnection * dbus_connection,
 				   const gchar * bus_name,
-				   TpConnMgr * tp_conn_mgr,
+				   TpConnectionManager * tp_conn_mgr,
 				   McAccount * account,
 				   McdPresenceFrame * presence_frame,
 				   McdDispatcher *dispatcher);

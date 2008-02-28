@@ -75,6 +75,7 @@ void mc_managers_free_list (GList *list);
 const gchar *mc_manager_get_unique_name (McManager *id);
 const gchar *mc_manager_get_bus_name (McManager *id);
 const gchar *mc_manager_get_object_path (McManager *id);
+const gchar *mc_manager_get_filename (McManager *id);
 
 G_END_DECLS
 

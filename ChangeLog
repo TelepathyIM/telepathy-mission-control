@@ -1,3 +1,9 @@
+2008-02-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-manager.[hc], src/mcd-channel.[hc],
+	src/mcd-connection.[hc], src/mcd-manager.c:
+	Migrate from libtelepathy to telepathy-glib.
+
 2008-02-18  Simon McVittie  <simon.mcvittie@collabora.co.uk>
 
 	* libmissioncontrol.pc.in: require newer libtelepathy, telepathy-glib

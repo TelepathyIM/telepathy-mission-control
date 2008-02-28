@@ -45,6 +45,9 @@ static GHashTable *manager_cache = NULL;
 
 typedef struct {
   gchar *unique_name;
+  gchar *filename;
+
+  /* FIXME: bus_name and object_path shouldn't be needed anymore */
   gchar *bus_name;
   gchar *object_path;
   time_t mtime;
@@ -59,6 +62,7 @@ mc_manager_finalize (GObject *object)
   GSList *i;
 
   g_free (priv->unique_name);
+  g_free (priv->filename);
   g_free (priv->bus_name);
   g_free (priv->object_path);
 
@@ -434,5 +438,26 @@ _mc_manager_protocol_lookup (McManager *manager, const gchar *name)
     }
 
   return NULL;
+}
+
+/**
+ * mc_manager_get_filename:
+ * @id: the #McManager.
+ *
+ * Gets the file path of the manager.
+ *
+ * Returns: the file path, as a string (not to be freed).
+ */
+const gchar *
+mc_manager_get_filename (McManager *id)
+{
+    McManagerPrivate *priv = MC_MANAGER_PRIV (id);
+
+    g_return_val_if_fail (id != NULL, NULL);
+
+    if (!priv->filename)
+	priv->filename = _mc_manager_filename (priv->unique_name);
+
+    return priv->filename;
 }
 

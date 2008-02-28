@@ -42,6 +42,7 @@ G_BEGIN_DECLS
 #define MCD_CHANNEL_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), MCD_TYPE_CHANNEL, McdChannelClass))
 
 typedef struct _McdChannel McdChannel;
+typedef struct _McdChannelPrivate McdChannelPrivate;
 typedef struct _McdChannelClass McdChannelClass;
 
 typedef enum
@@ -56,6 +57,7 @@ typedef enum
 struct _McdChannel
 {
     McdMission parent;
+    McdChannelPrivate *priv;
 };
 
 struct _McdChannelClass
@@ -81,7 +83,7 @@ struct mcd_channel_request
 
 GType mcd_channel_get_type (void);
 
-McdChannel *mcd_channel_new (TpChan *channel,
+McdChannel *mcd_channel_new (TpChannel *channel,
 			     const gchar *channel_object_path,
 			     const gchar *channel_type,
 			     guint channel_handle,

@@ -50,17 +50,7 @@
 #include <libmissioncontrol/mc-protocol.h>
 #include <libmissioncontrol/mc-profile.h>
 #include <telepathy-glib/dbus.h>
-#include <libtelepathy/tp-connmgr.h>
-#include <libtelepathy/tp-interfaces.h>
-#include <libtelepathy/tp-constants.h>
-#include <libtelepathy/tp-chan.h>
-#include <libtelepathy/tp-conn.h>
-#include <libtelepathy/tp-conn-gen.h>
-#include <libtelepathy/tp-conn-iface-presence-gen.h>
-#include <libtelepathy/tp-conn-iface-capabilities-gen.h>
-#include <libtelepathy/tp-conn-iface-avatars-gen.h>
-#include <libtelepathy/tp-conn-iface-aliasing-gen.h>
-#include <libtelepathy/tp-helpers.h>
+#include <telepathy-glib/connection.h>
 
 #include "mcd-connection.h"
 #include "mcd-channel.h"
@@ -97,7 +87,7 @@ struct _McdConnectionPrivate
     /* McProfile *profile; */
 
     /* Telepathy connection manager */
-    TpConnMgr *tp_conn_mgr;
+    TpConnectionManager *tp_conn_mgr;
 
     /* Telepathy connection */
     TpConnection *tp_conn;
@@ -586,17 +576,24 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
 {
     McdConnection *connection = MCD_CONNECTION (weak_object);
     McdConnectionPrivate *priv = user_data;
-    TpChan *tp_chan;
+    TpChannel *tp_chan;
     McdChannel *channel;
+    GError *error = NULL;
     
     /* ignore all our own requests (they have always suppress_handler = 1) as
      * well as other requests for which our intervention has not been requested
      * */
     if (suppress_handler) return;
     
-    /* g_return_if_fail (TELEPATHY_IS_CHAN (tp_chan)); */
-    tp_chan = tp_chan_new (priv->dbus_connection, priv->bus_name,
-			   chan_obj_path, chan_type, handle_type, handle);
+    tp_chan = tp_channel_new (priv->tp_conn, chan_obj_path, chan_type,
+			      handle_type, handle, &error);
+    if (error)
+    {
+	g_warning ("%s: tp_channel_new returned error: %s",
+		   G_STRFUNC, error->message);
+	g_error_free (error);
+	return;
+    }
 
     /* It's an incoming channel, so we create a new McdChannel for it */
     channel = mcd_channel_new (tp_chan,
@@ -1413,40 +1410,18 @@ on_connection_ready_notify (TpConnection *tp_conn, GParamSpec *pspec,
 }
 
 static void
-_mcd_connection_connect (McdConnection *connection, GHashTable *params)
+request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
+		       const gchar *obj_path, const GError *tperror,
+		       gpointer user_data, GObject *weak_object)
 {
-    McdConnectionPrivate *priv = connection->priv;
-    McProfile *profile;
-    const gchar *protocol_name;
-    const gchar *account_name;
-    gchar *conn_bus_name, *conn_obj_path;
-    GHashTable *extra_parameters;
+    McdConnection *connection = MCD_CONNECTION (weak_object);
+    McdConnectionPrivate *priv = user_data;
     GError *error = NULL;
-    gboolean ret;
 
-    profile = mc_account_get_profile (priv->account);
-    protocol_name = mc_profile_get_protocol_name (profile);
-    account_name = mc_account_get_unique_name (priv->account);
-
-    g_debug ("%s: Trying connect account: %s",
-	     G_STRFUNC, (gchar *) account_name);
-
-    extra_parameters = get_extra_parameters (connection);
-    add_supported_extra_parameters (extra_parameters, profile, params);
-    ret = tp_connmgr_request_connection (DBUS_G_PROXY (priv->tp_conn_mgr),
-					 protocol_name, params,
-					 &conn_bus_name, &conn_obj_path,
-					 &error);
-    remove_extra_parameters (extra_parameters, params);
-    g_object_unref (profile);
-    if (!ret)
+    if (tperror)
     {
-	if (error)
-	{
-	    g_warning ("%s: tp_connmgr_request_connection failed: %s",
-		       G_STRFUNC, error->message);
-	    g_error_free (error);
-	}
+	g_warning ("%s: RequestConnection failed: %s",
+		   G_STRFUNC, tperror->message);
 	mcd_presence_frame_set_account_status (priv->presence_frame,
 					       priv->account,
 					       TP_CONNECTION_STATUS_DISCONNECTED,
@@ -1454,10 +1429,8 @@ _mcd_connection_connect (McdConnection *connection, GHashTable *params)
 	return;
     }
 
-    priv->tp_conn = tp_connection_new (priv->dbus_daemon, conn_bus_name,
-				       conn_obj_path, &error);
-    g_free (conn_bus_name);
-    g_free (conn_obj_path);
+    priv->tp_conn = tp_connection_new (priv->dbus_daemon, bus_name,
+				       obj_path, &error);
     if (!priv->tp_conn)
     {
 	g_warning ("%s: tp_connection_new failed: %s",
@@ -1489,6 +1462,33 @@ _mcd_connection_connect (McdConnection *connection, GHashTable *params)
      * https://bugs.freedesktop.org/show_bug.cgi?id=14620 */
     tp_cli_connection_call_connect (priv->tp_conn, -1, connect_cb, priv, NULL,
 				    (GObject *)connection);
+}
+
+static void
+_mcd_connection_connect (McdConnection *connection, GHashTable *params)
+{
+    McdConnectionPrivate *priv = connection->priv;
+    McProfile *profile;
+    const gchar *protocol_name;
+    const gchar *account_name;
+    GHashTable *extra_parameters;
+
+    profile = mc_account_get_profile (priv->account);
+    protocol_name = mc_profile_get_protocol_name (profile);
+    account_name = mc_account_get_unique_name (priv->account);
+
+    g_debug ("%s: Trying connect account: %s",
+	     G_STRFUNC, (gchar *) account_name);
+
+    extra_parameters = get_extra_parameters (connection);
+    add_supported_extra_parameters (extra_parameters, profile, params);
+    tp_cli_connection_manager_call_request_connection (priv->tp_conn_mgr, -1,
+						       protocol_name, params,
+						       request_connection_cb,
+						       priv, NULL,
+						       (GObject *)connection);
+    remove_extra_parameters (extra_parameters, params);
+    g_object_unref (profile);
 }
 
 static void
@@ -1755,7 +1755,7 @@ _mcd_connection_set_property (GObject * obj, guint prop_id,
     McdDispatcher *dispatcher;
     DBusGConnection *dbus_connection;
     McAccount *account;
-    TpConnMgr *tp_conn_mgr;
+    TpConnectionManager *tp_conn_mgr;
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (obj);
 
     switch (prop_id)
@@ -1814,7 +1814,6 @@ _mcd_connection_set_property (GObject * obj, guint prop_id,
 	break;
     case PROP_TP_MANAGER:
 	tp_conn_mgr = g_value_get_object (val);
-	g_return_if_fail (TELEPATHY_IS_CONNMGR (tp_conn_mgr));
 	g_object_ref (tp_conn_mgr);
 	if (priv->tp_conn_mgr)
 	    g_object_unref (priv->tp_conn_mgr);
@@ -1920,7 +1919,7 @@ mcd_connection_class_init (McdConnectionClass * klass)
 							  ("Telepathy Manager Object"),
 							  _
 							  ("Telepathy Manager Object which this connection uses"),
-							  TELEPATHY_CONNMGR_TYPE,
+							  TP_TYPE_CONNECTION_MANAGER,
 							  G_PARAM_READWRITE |
 							  G_PARAM_CONSTRUCT_ONLY));
     g_object_class_install_property (object_class, PROP_TP_CONNECTION,
@@ -1963,7 +1962,7 @@ mcd_connection_init (McdConnection * connection)
 McdConnection *
 mcd_connection_new (DBusGConnection * dbus_connection,
 		    const gchar * bus_name,
-		    TpConnMgr * tp_conn_mgr,
+		    TpConnectionManager * tp_conn_mgr,
 		    McAccount * account,
 		    McdPresenceFrame * presence_frame,
 		    McdDispatcher *dispatcher)
@@ -1971,7 +1970,7 @@ mcd_connection_new (DBusGConnection * dbus_connection,
     McdConnection *mcdconn = NULL;
     g_return_val_if_fail (dbus_connection != NULL, NULL);
     g_return_val_if_fail (bus_name != NULL, NULL);
-    g_return_val_if_fail (TELEPATHY_IS_CONNMGR (tp_conn_mgr), NULL);
+    g_return_val_if_fail (TP_IS_CONNECTION_MANAGER (tp_conn_mgr), NULL);
     g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
     g_return_val_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame), NULL);
 
@@ -2084,18 +2083,18 @@ pending_channel_cmp (const McdPendingChannel *a, const McdPendingChannel *b)
 
 static void
 request_channel_cb (TpConnection *proxy, const gchar *channel_path,
-		    const GError *error, gpointer user_data,
+		    const GError *tp_error, gpointer user_data,
 		    GObject *weak_object)
 {
     McdChannel *channel = MCD_CHANNEL (weak_object);
     McdConnection *connection = user_data;
     McdConnectionPrivate *priv = connection->priv;
-    GError *error_on_creation;
+    GError *error_on_creation, *error = NULL;
     struct capabilities_wait_data *cwd;
     gchar *chan_type;
     TelepathyHandleType chan_handle_type;
     guint chan_handle;
-    TpChan *tp_chan;
+    TpChannel *tp_chan;
     McdPendingChannel pc;
     GList *list;
     /* We handle only the dbus errors */
@@ -2124,19 +2123,19 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 	error_on_creation = NULL;
 
     
-    if (error != NULL)
+    if (tp_error != NULL)
     {
-	g_debug ("%s: Got error: %s", G_STRFUNC, error->message);
+	g_debug ("%s: Got error: %s", G_STRFUNC, tp_error->message);
 	if (error_on_creation != NULL)
 	{
 	    /* replace the error, so that the initial one is reported */
-	    error = error_on_creation;
+	    tp_error = error_on_creation;
 	}
 
 	if (priv->got_capabilities || error_on_creation)
 	{
 	    /* Faild dispatch */
-	    GError *mc_error = map_tp_error_to_mc_error (channel, error);
+	    GError *mc_error = map_tp_error_to_mc_error (channel, tp_error);
 	    g_signal_emit_by_name (G_OBJECT(priv->dispatcher), "dispatch-failed",
 				   channel, mc_error);
 	    g_error_free (mc_error);
@@ -2163,7 +2162,7 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 		     G_STRFUNC, chan_handle, mcd_channel_get_handle_type (channel));
 	    /* Store the error, we might need it later */
 	    cwd = g_malloc (sizeof (struct capabilities_wait_data));
-	    cwd->error = g_error_copy (error);
+	    cwd->error = g_error_copy (tp_error);
 	    cwd->signal_connection =
 		tp_cli_connection_interface_capabilities_connect_to_capabilities_changed (priv->tp_conn,
 											  on_capabilities_changed,
@@ -2216,8 +2215,17 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 	return;
     }
 
-    tp_chan = tp_chan_new (priv->dbus_connection, priv->bus_name,
-			   channel_path, chan_type, chan_handle_type, chan_handle);
+    tp_chan = tp_channel_new (priv->tp_conn, channel_path, chan_type,
+			      chan_handle_type, chan_handle, &error);
+    g_free (chan_type);
+    if (error)
+    {
+	g_warning ("%s: tp_channel_new returned error: %s",
+		   G_STRFUNC, error->message);
+	g_error_free (error);
+	return;
+    }
+
     g_object_set (channel,
 		  "channel-object-path", channel_path,
 		  "tp-channel", tp_chan,
@@ -2237,7 +2245,6 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
     /* Dispatch the incoming channel */
     mcd_dispatcher_send (priv->dispatcher, channel);
     
-    g_free (chan_type);
     g_object_unref (tp_chan);
 }
 

@@ -35,8 +35,8 @@
 
 #include <string.h>
 #include <glib/gi18n.h>
-#include <libtelepathy/tp-connmgr.h>
-#include <libtelepathy/tp-interfaces.h>
+#include <telepathy-glib/dbus.h>
+#include <telepathy-glib/connection-manager.h>
 #include <libmissioncontrol/mission-control.h>
 
 #include "mcd-connection.h"
@@ -51,10 +51,11 @@ G_DEFINE_TYPE (McdManager, mcd_manager, MCD_TYPE_OPERATION);
 typedef struct _McdManagerPrivate
 {
     DBusGConnection *dbus_connection;
+    TpDBusDaemon *dbus_daemon;
     McManager *mc_manager;
     McdPresenceFrame *presence_frame;
     McdDispatcher *dispatcher;
-    TpConnMgr *tp_conn_mgr;
+    TpConnectionManager *tp_conn_mgr;
     GList *accounts;
     gboolean is_disposed;
     gboolean delay_presence_request;
@@ -95,15 +96,24 @@ _mcd_manager_create_connection (McdManager * manager, McAccount * account)
     g_return_if_fail (mcd_manager_get_account_connection (manager, account) == NULL);
     if (!priv->tp_conn_mgr)
     {
+	GError *error = NULL;
+	const gchar *unique_name;
+
 	g_return_if_fail (MC_IS_MANAGER (priv->mc_manager));
 
+	unique_name = mc_manager_get_unique_name (priv->mc_manager);
 	priv->tp_conn_mgr =
-	    tp_connmgr_new (priv->dbus_connection,
-			    mc_manager_get_bus_name (priv->mc_manager),
-			    mc_manager_get_object_path (priv->mc_manager),
-			    TP_IFACE_CONN_MGR_INTERFACE);
-	g_debug ("%s: Manager %s created", G_STRFUNC,
-		 mc_manager_get_unique_name (priv->mc_manager));
+	    tp_connection_manager_new (priv->dbus_daemon, unique_name,
+				       mc_manager_get_filename (priv->mc_manager),
+				       &error);
+	if (error)
+	{
+	    g_warning ("%s, cannot create manager %s: %s", G_STRFUNC,
+		       unique_name, error->message);
+	    g_error_free (error);
+	    return;
+	}
+	g_debug ("%s: Manager %s created", G_STRFUNC, unique_name);
     }
     
     connection = mcd_connection_new (priv->dbus_connection,
@@ -546,7 +556,10 @@ _mcd_manager_dispose (GObject * object)
 	g_object_unref (priv->tp_conn_mgr);
 	priv->tp_conn_mgr = NULL;
     }
-    
+
+    if (priv->dbus_daemon)
+	g_object_unref (priv->dbus_daemon);
+
     G_OBJECT_CLASS (mcd_manager_parent_class)->dispose (object);
 }
 
@@ -630,6 +643,9 @@ _mcd_manager_set_property (GObject * obj, guint prop_id,
 	if (priv->dbus_connection)
 	    dbus_g_connection_unref (priv->dbus_connection);
 	priv->dbus_connection = dbus_connection;
+	if (priv->dbus_daemon)
+	    g_object_unref (priv->dbus_daemon);
+	priv->dbus_daemon = tp_dbus_daemon_new (dbus_connection);
 	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
