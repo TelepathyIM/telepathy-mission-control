@@ -30,8 +30,6 @@
 #include <dbus/dbus-glib.h>
 #include <libmissioncontrol/mc-account.h>
 #include <libmissioncontrol/mc-profile.h>
-#include <libtelepathy/tp-chan.h>
-#include <libtelepathy/tp-conn.h>
 
 G_BEGIN_DECLS
 

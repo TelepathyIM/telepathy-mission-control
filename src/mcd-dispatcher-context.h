@@ -88,9 +88,9 @@ void mcd_dispatcher_register_filters (McdDispatcher *dispatcher,
 
 McdDispatcher* mcd_dispatcher_context_get_dispatcher (McdDispatcherContext * ctx);
 
-TpChan *mcd_dispatcher_context_get_channel_object (McdDispatcherContext * ctx);
+TpChannel *mcd_dispatcher_context_get_channel_object (McdDispatcherContext * ctx);
 
-TpConn * mcd_dispatcher_context_get_connection_object (McdDispatcherContext * ctx);
+TpConnection *mcd_dispatcher_context_get_connection_object (McdDispatcherContext * ctx);
 
 McdChannel * mcd_dispatcher_context_get_channel (McdDispatcherContext * ctx);
 

@@ -72,8 +72,8 @@ gboolean mcd_master_set_default_presence (McdMaster * master,
 void mcd_master_set_default_presence_setting (McdMaster *master,
 					      McPresence presence);
 
-TelepathyConnectionStatus mcd_master_get_account_status (McdMaster * master,
-							 gchar * account_name);
+TpConnectionStatus mcd_master_get_account_status (McdMaster * master,
+						  gchar * account_name);
 
 gboolean mcd_master_get_online_connection_names (McdMaster * master,
 						 gchar *** connected_names);

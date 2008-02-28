@@ -27,8 +27,7 @@
 
 #include <glib.h>
 #include <glib-object.h>
-#include <libtelepathy/tp-chan.h>
-#include <libtelepathy/tp-constants.h>
+#include <telepathy-glib/channel.h>
 
 #include "mcd-mission.h"
 
@@ -87,7 +86,7 @@ McdChannel *mcd_channel_new (TpChannel *channel,
 			     const gchar *channel_object_path,
 			     const gchar *channel_type,
 			     guint channel_handle,
-			     TelepathyHandleType channel_handle_type,
+			     TpHandleType channel_handle_type,
 			     gboolean outgoing,
 			     guint requestor_serial,
 			     const gchar *requestor_client_id);
@@ -99,13 +98,13 @@ const gchar* mcd_channel_get_channel_type (McdChannel *channel);
 GQuark mcd_channel_get_channel_type_quark (McdChannel *channel);
 const gchar* mcd_channel_get_object_path (McdChannel *channel);
 guint mcd_channel_get_handle (McdChannel *channel);
-TelepathyHandleType mcd_channel_get_handle_type (McdChannel *channel);
+TpHandleType mcd_channel_get_handle_type (McdChannel *channel);
 gint mcd_channel_get_flags (McdChannel *channel);
 GPtrArray* mcd_channel_get_members (McdChannel *channel);
 const gchar *mcd_channel_get_name (McdChannel *channel);
 gboolean mcd_channel_is_missed (McdChannel *channel);
 gboolean mcd_channel_leave (McdChannel *channel, const gchar *message,
-			    TelepathyChannelGroupChangeReason reason);
+			    TpChannelGroupChangeReason reason);
 
 G_END_DECLS
 #endif /* MCD_CHANNEL_H */

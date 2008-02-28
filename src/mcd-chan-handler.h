@@ -26,7 +26,7 @@
 #define MCD_CHAN_HANDLER_H
 
 #include <glib.h>
-#include <libtelepathy/tp-constants.h>
+#include <telepathy-glib/enums.h>
 
 /* Channel handler */
 
@@ -34,7 +34,7 @@ typedef struct
 {
     const gchar *bus_name;
     const gchar *obj_path;
-    TelepathyChannelMediaCapability capabilities;
+    TpChannelMediaCapabilities capabilities;
     gint version;
 } McdChannelHandler;
 

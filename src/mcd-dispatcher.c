@@ -35,8 +35,6 @@
 
 #include <dlfcn.h>
 #include <glib/gi18n.h>
-#include <libtelepathy/tp-chan-iface-group-gen.h>
-#include <libtelepathy/tp-ch-gen.h>
 
 #include "mcd-signals-marshal.h"
 #include <libmissioncontrol/mc-account.h>
@@ -133,6 +131,28 @@ enum _McdDispatcherSignalType
 static guint mcd_dispatcher_signals[LAST_SIGNAL] = { 0 };
 
 static void mcd_dispatcher_context_free (McdDispatcherContext * ctx);
+typedef void (*tp_ch_handle_channel_reply) (DBusGProxy *proxy, GError *error, gpointer userdata);
+
+static void
+tp_ch_handle_channel_async_callback (DBusGProxy *proxy, DBusGProxyCall *call, void *user_data)
+{
+  DBusGAsyncData *data = (DBusGAsyncData*) user_data;
+  GError *error = NULL;
+  dbus_g_proxy_end_call (proxy, call, &error, G_TYPE_INVALID);
+  (*(tp_ch_handle_channel_reply)data->cb) (proxy, error, data->userdata);
+  return;
+}
+
+static inline DBusGProxyCall*
+tp_ch_handle_channel_async (DBusGProxy *proxy, const char * IN_Bus_Name, const char* IN_Connection, const char * IN_Channel_Type, const char* IN_Channel, const guint IN_Handle_Type, const guint IN_Handle, tp_ch_handle_channel_reply callback, gpointer userdata)
+
+{
+  DBusGAsyncData *stuff;
+  stuff = g_new (DBusGAsyncData, 1);
+  stuff->cb = G_CALLBACK (callback);
+  stuff->userdata = userdata;
+  return dbus_g_proxy_begin_call (proxy, "HandleChannel", tp_ch_handle_channel_async_callback, stuff, g_free, G_TYPE_STRING, IN_Bus_Name, DBUS_TYPE_G_OBJECT_PATH, IN_Connection, G_TYPE_STRING, IN_Channel_Type, DBUS_TYPE_G_OBJECT_PATH, IN_Channel, G_TYPE_UINT, IN_Handle_Type, G_TYPE_UINT, IN_Handle, G_TYPE_INVALID);
+}
 
 static inline DBusGProxyCall *
 tp_ch_handle_channel_2_async (DBusGProxy *proxy,
@@ -1288,10 +1308,10 @@ mcd_dispatcher_context_free (McdDispatcherContext * context)
 /* CONTEXT API */
 
 /* Context getters */
-TpChan *
+TpChannel *
 mcd_dispatcher_context_get_channel_object (McdDispatcherContext * ctx)
 {
-    TpChan *tp_chan;
+    TpChannel *tp_chan;
     g_return_val_if_fail (ctx, 0);
     g_object_get (G_OBJECT (ctx->channel), "tp-channel", &tp_chan, NULL);
     g_object_unref (G_OBJECT (tp_chan));
@@ -1319,11 +1339,11 @@ mcd_dispatcher_context_get_connection (McdDispatcherContext * context)
     return connection;
 }
 
-TpConn *
+TpConnection *
 mcd_dispatcher_context_get_connection_object (McdDispatcherContext * ctx)
 {
     const McdConnection *connection;
-    TpConn *tp_conn;
+    TpConnection *tp_conn;
    
     connection = mcd_dispatcher_context_get_connection (ctx); 
     g_object_get (G_OBJECT (connection), "tp-connection",

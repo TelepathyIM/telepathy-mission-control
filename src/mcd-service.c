@@ -48,9 +48,6 @@
 #include <dbus/dbus-glib-lowlevel.h>
 #include <dbus/dbus.h>
 #include <gconf/gconf-client.h>
-#include <libtelepathy/tp-interfaces.h>
-#include <libtelepathy/tp-constants.h>
-#include <libtelepathy/tp-helpers.h>
 
 #include "mcd-signals-marshal.h"
 #include "mcd-dispatcher.h"
@@ -329,8 +326,8 @@ mcd_service_get_current_status(GObject *obj,
 	McAccount *account = account_node->data;
 	GValue account_data = { 0, };
 	const gchar *name;
-	TelepathyConnectionStatus status;
-	TelepathyConnectionStatusReason reason;
+	TpConnectionStatus status;
+	TpConnectionStatusReason reason;
 	McPresence presence;
 
 	name = mc_account_get_unique_name (account);
@@ -404,7 +401,7 @@ _on_filter_process (DBusGProxy *proxy, guint counter, gboolean process)
 static void
 _on_filter_new_channel (McdDispatcherContext *ctx, DBusGProxy *proxy)
 {
-    TpConn *tp_conn;
+    TpConnection *tp_conn;
     const McdConnection *connection = mcd_dispatcher_context_get_connection (ctx);
     McdChannel *channel = mcd_dispatcher_context_get_channel (ctx); 
     static guint counter = 0;
@@ -554,8 +551,8 @@ mcd_register_dbus_object (McdService * obj)
 static void
 _on_account_status_changed (McdPresenceFrame * presence_frame,
 			    McAccount * account,
-			    TelepathyConnectionStatus connection_status,
-			    TelepathyConnectionStatusReason connection_reason,
+			    TpConnectionStatus connection_status,
+			    TpConnectionStatusReason connection_reason,
 			    McdService * obj)
 {
     McPresence presence =
@@ -658,11 +655,11 @@ count_connections (McdOperation *manager, guint *connections)
 
 static void
 _on_status_actual (McdPresenceFrame * presence_frame,
-		   TelepathyConnectionStatus status,
+		   TpConnectionStatus status,
 		   McdService * obj)
 {
     /* Everyone just got disconnected */
-    if (status == TP_CONN_STATUS_DISCONNECTED)
+    if (status == TP_CONNECTION_STATUS_DISCONNECTED)
     {
 	guint connections = 0;
 	/* if there are no connections, then exit. Count the connections

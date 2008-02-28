@@ -50,6 +50,7 @@
 #include <libmissioncontrol/mc-protocol.h>
 #include <libmissioncontrol/mc-profile.h>
 #include <telepathy-glib/dbus.h>
+#include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/connection.h>
 
 #include "mcd-connection.h"
@@ -290,19 +291,19 @@ recognize_presence (gpointer key, gpointer value, gpointer user_data)
 	telepathy_enum = g_value_get_uint (g_value_array_get_nth (status, 0));
 	switch (telepathy_enum)
 	{
-	case TP_CONN_PRESENCE_TYPE_OFFLINE:
+	case TP_CONNECTION_PRESENCE_TYPE_OFFLINE:
 	    j = MC_PRESENCE_OFFLINE;
 	    break;
-	case TP_CONN_PRESENCE_TYPE_AVAILABLE:
+	case TP_CONNECTION_PRESENCE_TYPE_AVAILABLE:
 	    j = MC_PRESENCE_AVAILABLE;
 	    break;
-	case TP_CONN_PRESENCE_TYPE_AWAY:
+	case TP_CONNECTION_PRESENCE_TYPE_AWAY:
 	    j = MC_PRESENCE_AWAY;
 	    break;
-	case TP_CONN_PRESENCE_TYPE_EXTENDED_AWAY:
+	case TP_CONNECTION_PRESENCE_TYPE_EXTENDED_AWAY:
 	    j = MC_PRESENCE_EXTENDED_AWAY;
 	    break;
-	case TP_CONN_PRESENCE_TYPE_HIDDEN:
+	case TP_CONNECTION_PRESENCE_TYPE_HIDDEN:
 	    j = MC_PRESENCE_HIDDEN;
 	    break;
 	default:
@@ -413,7 +414,6 @@ _mcd_connection_set_presence (McdConnection * connection,
     presence_str = g_strdup (supported_presence_info->presence_str);
     presence = presence_str_to_enum (supported_presence_info->presence_str);
 
-    /* Add the presence by libtelepathy */
     /* FIXME: what should we do when this is NULL? */
     if (presence_str != NULL)
     {
@@ -554,8 +554,8 @@ on_presence_requested (McdPresenceFrame * presence_frame,
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
 
     g_debug ("Presence requested: %d", presence);
-    if (presence == TP_CONN_PRESENCE_TYPE_OFFLINE ||
-	presence == TP_CONN_PRESENCE_TYPE_UNSET)
+    if (presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE ||
+	presence == TP_CONNECTION_PRESENCE_TYPE_UNSET)
     {
 	/* Connection Proxy */
 	priv->abort_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
@@ -825,7 +825,7 @@ _mcd_connection_get_normalized_name (McdConnection *connection)
     handles = g_array_sized_new (FALSE, FALSE, sizeof (guint), 1);
     g_array_append_val (handles, priv->self_handle);
     tp_cli_connection_call_inspect_handles (priv->tp_conn, -1,
-					    TP_CONN_HANDLE_TYPE_CONTACT,
+					    TP_HANDLE_TYPE_CONTACT,
 					    handles,
 					    inspect_handles_cb, priv, NULL,
 					    (GObject *)connection);
@@ -1993,7 +1993,7 @@ mcd_connection_get_account (McdConnection * id)
     return priv->account;
 }
 
-TelepathyConnectionStatus
+TpConnectionStatus
 mcd_connection_get_connection_status (McdConnection * id)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (id);
@@ -2009,7 +2009,7 @@ mcd_connection_get_telepathy_details (McdConnection * id,
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (id);
 
     g_return_val_if_fail (priv->tp_conn != NULL, FALSE);
-    g_return_val_if_fail (TELEPATHY_IS_CONN (priv->tp_conn), FALSE);
+    g_return_val_if_fail (TP_IS_CONNECTION (priv->tp_conn), FALSE);
 
     /* Query the properties required for creation of identical TpConn object */
     *ret_objpath =
@@ -2033,7 +2033,7 @@ map_tp_error_to_mc_error (McdChannel *channel, const GError *tp_error)
      */
     error = dbus_g_error_get_name ((GError *)tp_error);
     if (mcd_channel_get_channel_type_quark (channel) ==
-	TELEPATHY_CHAN_IFACE_STREAMED_QUARK &&
+	TP_IFACE_QUARK_CHANNEL_TYPE_STREAMED_MEDIA &&
 	strcmp(error, "org.freedesktop.Telepathy.Error.NotAvailable") == 0)
     {
 	mc_error_code = MC_CONTACT_DOES_NOT_SUPPORT_VOICE_ERROR;
@@ -2092,7 +2092,7 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
     GError *error_on_creation, *error = NULL;
     struct capabilities_wait_data *cwd;
     gchar *chan_type;
-    TelepathyHandleType chan_handle_type;
+    TpHandleType chan_handle_type;
     guint chan_handle;
     TpChannel *tp_chan;
     McdPendingChannel pc;

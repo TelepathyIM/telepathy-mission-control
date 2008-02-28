@@ -47,8 +47,8 @@ typedef struct _McdPresence
 {
     McPresence presence;
     gchar *message;
-    TelepathyConnectionStatus connection_status;
-    TelepathyConnectionStatusReason connection_reason;
+    TpConnectionStatus connection_status;
+    TpConnectionStatusReason connection_reason;
 } McdPresence;
 
 typedef struct _McdPresenceFramePrivate
@@ -89,8 +89,8 @@ static guint mcd_presence_frame_signals[LAST_SIGNAL] = { 0 };
 static McdPresence *
 mcd_presence_new (McPresence tp_presence,
 		  const gchar * presence_message,
-		  TelepathyConnectionStatus connection_status,
-		  TelepathyConnectionStatusReason connection_reason)
+		  TpConnectionStatus connection_status,
+		  TpConnectionStatusReason connection_reason)
 {
     McdPresence *presence = g_new0 (McdPresence, 1);
     presence->presence = tp_presence;
@@ -256,8 +256,8 @@ mcd_presence_frame_init (McdPresenceFrame * obj)
 
     priv->actual_presence = mcd_presence_new (MC_PRESENCE_UNSET,
 					      NULL,
-					      TP_CONN_STATUS_DISCONNECTED,
-					      TP_CONN_STATUS_REASON_NONE_SPECIFIED);
+					      TP_CONNECTION_STATUS_DISCONNECTED,
+					      TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED);
     priv->requested_presence = NULL;
     priv->last_presence = NULL;
 
@@ -311,7 +311,7 @@ _mcd_presence_frame_request_presence (McdPresenceFrame * presence_frame,
 				      const gchar * presence_message)
 {
     McdPresenceFramePrivate *priv;
-    TelepathyConnectionStatus status;
+    TpConnectionStatus status;
 
     g_return_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame));
     priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
@@ -323,17 +323,17 @@ _mcd_presence_frame_request_presence (McdPresenceFrame * presence_frame,
 
     if (presence == MC_PRESENCE_OFFLINE)
     {
-	status = TP_CONN_STATUS_DISCONNECTED;
+	status = TP_CONNECTION_STATUS_DISCONNECTED;
     }
 
     else
     {
-	status = TP_CONN_STATUS_CONNECTED;
+	status = TP_CONNECTION_STATUS_CONNECTED;
     }
 
     priv->requested_presence = mcd_presence_new (presence, presence_message,
 						 status,
-						 TP_CONN_STATUS_REASON_REQUESTED);
+						 TP_CONNECTION_STATUS_REASON_REQUESTED);
     g_debug ("%s: Presence %d is being requested", G_STRFUNC, presence);
 
     g_signal_emit_by_name (presence_frame, "presence-requested",
@@ -485,8 +485,8 @@ _mcd_presence_frame_update_actual_presence (McdPresenceFrame * presence_frame,
 {
     McdPresenceFramePrivate *priv;
     McdActualPresenceInfo pi;
-    TelepathyConnectionStatus connection_status;
-    TelepathyConnectionStatusReason connection_reason;
+    TpConnectionStatus connection_status;
+    TpConnectionStatusReason connection_reason;
     gboolean changed;
     
     g_debug ("%s called", G_STRFUNC);
@@ -615,8 +615,8 @@ _mcd_presence_frame_update_actual_statuses (gpointer key,
 					    gpointer val, gpointer user_data)
 {
     McdPresence *account_presence = (McdPresence *) val;
-    TelepathyConnectionStatus *connection_status =
-	(TelepathyConnectionStatus *) user_data;
+    TpConnectionStatus *connection_status =
+	(TpConnectionStatus *) user_data;
 
     if (*connection_status > account_presence->connection_status)
 	*connection_status = account_presence->connection_status;
@@ -626,9 +626,9 @@ static void
 _mcd_presence_frame_update_actual_status (McdPresenceFrame * presence_frame)
 {
     McdPresenceFramePrivate *priv;
-    TelepathyConnectionStatus connection_status = TP_CONN_STATUS_DISCONNECTED;
-    TelepathyConnectionStatus old_connection_status;
-    TelepathyConnectionStatusReason connection_reason;
+    TpConnectionStatus connection_status = TP_CONNECTION_STATUS_DISCONNECTED;
+    TpConnectionStatus old_connection_status;
+    TpConnectionStatusReason connection_reason;
     McPresence presence;
     gchar *presence_message = NULL;
     
@@ -661,7 +661,7 @@ static void
 _mcd_presence_frame_check_stable (McAccount *account, McdPresence *presence, gboolean *stable)
 {
     g_debug ("%s: status = %d", G_STRFUNC, presence->connection_status);
-    if (presence->connection_status == TP_CONN_STATUS_CONNECTING)
+    if (presence->connection_status == TP_CONNECTION_STATUS_CONNECTING)
        	*stable = FALSE;
 }
 
@@ -681,14 +681,14 @@ _mcd_presence_frame_update_stable (McdPresenceFrame *presence_frame)
 void
 mcd_presence_frame_set_account_status (McdPresenceFrame * presence_frame,
 				       McAccount * account,
-				       TelepathyConnectionStatus
+				       TpConnectionStatus
 				       connection_status,
-				       TelepathyConnectionStatusReason
+				       TpConnectionStatusReason
 				       connection_reason)
 {
     McdPresenceFramePrivate *priv;
     McdPresence *account_presence;
-    TelepathyConnectionStatus previous_status;
+    TpConnectionStatus previous_status;
     gboolean was_stable;
 
     g_return_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame));
@@ -712,7 +712,7 @@ mcd_presence_frame_set_account_status (McdPresenceFrame * presence_frame,
     if (previous_status == connection_status)
 	return;
 
-    if (connection_status == TP_CONN_STATUS_DISCONNECTED)
+    if (connection_status == TP_CONNECTION_STATUS_DISCONNECTED)
     {
 	/* We first set UNSET presence */
 	mcd_presence_frame_set_account_presence (presence_frame, account,
@@ -723,13 +723,13 @@ mcd_presence_frame_set_account_status (McdPresenceFrame * presence_frame,
 			       connection_status, connection_reason);
 	_mcd_presence_frame_update_actual_status (presence_frame);
     }
-    else if (connection_status == TP_CONN_STATUS_CONNECTING)
+    else if (connection_status == TP_CONNECTION_STATUS_CONNECTING)
     {
 	g_signal_emit_by_name (presence_frame, "status-changed", account,
 			       connection_status, connection_reason);
 	_mcd_presence_frame_update_actual_status (presence_frame);
     }
-    else if (connection_status == TP_CONN_STATUS_CONNECTED)
+    else if (connection_status == TP_CONNECTION_STATUS_CONNECTED)
     {
 	/* We first set CONNECTED */
 	g_signal_emit_by_name (presence_frame, "status-changed", account,
@@ -758,18 +758,18 @@ mcd_presence_frame_set_account_status (McdPresenceFrame * presence_frame,
     }
 }
 
-TelepathyConnectionStatus
+TpConnectionStatus
 mcd_presence_frame_get_account_status (McdPresenceFrame * presence_frame,
 				       McAccount * account)
 {
     McdPresenceFramePrivate *priv;
-    TelepathyConnectionStatus conn_status;
+    TpConnectionStatus conn_status;
 
     g_return_val_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame),
-			  TP_CONN_STATUS_DISCONNECTED);
+			  TP_CONNECTION_STATUS_DISCONNECTED);
     priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
 
-    conn_status = TP_CONN_STATUS_DISCONNECTED;
+    conn_status = TP_CONNECTION_STATUS_DISCONNECTED;
     if (priv->account_presence)
     {
 	McdPresence *presence;
@@ -780,19 +780,19 @@ mcd_presence_frame_get_account_status (McdPresenceFrame * presence_frame,
     return conn_status;
 }
 
-TelepathyConnectionStatusReason
+TpConnectionStatusReason
 mcd_presence_frame_get_account_status_reason (McdPresenceFrame *
 					      presence_frame,
 					      McAccount * account)
 {
     McdPresenceFramePrivate *priv;
-    TelepathyConnectionStatusReason conn_reason;
+    TpConnectionStatusReason conn_reason;
 
     g_return_val_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame),
-			  TP_CONN_STATUS_REASON_NONE_SPECIFIED);
+			  TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED);
     priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
 
-    conn_reason = TP_CONN_STATUS_REASON_NONE_SPECIFIED;
+    conn_reason = TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
     if (priv->account_presence)
     {
 	McdPresence *presence;
@@ -824,8 +824,8 @@ mcd_presence_frame_set_accounts (McdPresenceFrame * presence_frame,
 	g_hash_table_insert (priv->account_presence, node->data,
 			     mcd_presence_new (MC_PRESENCE_UNSET,
 					       NULL,
-					       TP_CONN_STATUS_DISCONNECTED,
-					       TP_CONN_STATUS_REASON_NONE_SPECIFIED));
+					       TP_CONNECTION_STATUS_DISCONNECTED,
+					       TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED));
     }
 }
 
@@ -846,8 +846,8 @@ mcd_presence_frame_add_account (McdPresenceFrame * presence_frame,
     
     presence = mcd_presence_new (MC_PRESENCE_UNSET,
             NULL,
-            TP_CONN_STATUS_DISCONNECTED,
-            TP_CONN_STATUS_REASON_NONE_SPECIFIED);
+            TP_CONNECTION_STATUS_DISCONNECTED,
+            TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED);
     g_object_ref (account);
     g_hash_table_insert (priv->account_presence,
             account,

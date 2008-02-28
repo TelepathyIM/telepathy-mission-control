@@ -36,6 +36,7 @@
 #include <string.h>
 #include <glib/gi18n.h>
 #include <telepathy-glib/dbus.h>
+#include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/connection-manager.h>
 #include <libmissioncontrol/mission-control.h>
 
@@ -397,7 +398,7 @@ _mcd_manager_nuke_connections (McdManager *manager)
 	    
 	    proxy = dbus_g_proxy_new_for_name(priv->dbus_connection,
 					      *name, path,
-					      TP_IFACE_CONN_INTERFACE);
+					      TP_IFACE_CONNECTION);
 	    
 	    g_free(path);
 	    
@@ -1032,7 +1033,7 @@ mcd_manager_request_channel (McdManager *manager,
 	return FALSE;
     }
     else if (mcd_connection_get_connection_status (connection) !=
-	     TP_CONN_STATUS_CONNECTED)
+	     TP_CONNECTION_STATUS_CONNECTED)
     {
 	g_debug ("%s: connection is not connected", G_STRFUNC);
 	request_channel_delayed (manager, req);

@@ -28,7 +28,6 @@
 #include <glib.h>
 #include <glib-object.h>
 #include <libmissioncontrol/mc-account.h>
-#include <libtelepathy/tp-constants.h>
 #include <libmissioncontrol/mission-control.h>
 
 #include "mcd-mission.h"
@@ -64,8 +63,8 @@ struct _McdPresenceFrameClass
 				 const gchar * presence_message);
     void (*status_changed_signal) (McdPresenceFrame * presence_frame,
 				   McAccount * account,
-				   TelepathyConnectionStatus connection_status,
-				   TelepathyConnectionStatusReason
+				   TpConnectionStatus connection_status,
+				   TpConnectionStatusReason
 				   connection_reason);
     
     /* Aggregate signals */
@@ -73,7 +72,7 @@ struct _McdPresenceFrameClass
 				    McPresence presence,
 				    const gchar * presence_message);
     void (*status_actual_signal) (McdPresenceFrame * presence_frame,
-				  TelepathyConnectionStatus status);
+				  TpConnectionStatus status);
 };
 
 GType mcd_presence_frame_get_type (void);
@@ -102,18 +101,18 @@ void mcd_presence_frame_set_account_presence (McdPresenceFrame *
 					      const gchar * presence_message);
 void mcd_presence_frame_set_account_status (McdPresenceFrame * presence_frame,
 					    McAccount * account,
-					    TelepathyConnectionStatus
+					    TpConnectionStatus
 					    connection_status,
-					    TelepathyConnectionStatusReason
+					    TpConnectionStatusReason
 					    connection_reason);
 
 McPresence mcd_presence_frame_get_account_presence
     (McdPresenceFrame * presence_frame, McAccount * account);
 const gchar *mcd_presence_frame_get_account_presence_message
     (McdPresenceFrame * presence_frame, McAccount * account);
-TelepathyConnectionStatus mcd_presence_frame_get_account_status
+TpConnectionStatus mcd_presence_frame_get_account_status
     (McdPresenceFrame * presence_frame, McAccount * account);
-TelepathyConnectionStatusReason mcd_presence_frame_get_account_status_reason
+TpConnectionStatusReason mcd_presence_frame_get_account_status_reason
     (McdPresenceFrame * presence_frame, McAccount * account);
 
 void mcd_presence_frame_set_accounts (McdPresenceFrame * presence_frame,

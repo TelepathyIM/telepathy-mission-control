@@ -35,9 +35,8 @@
 #include <dbus/dbus-glib.h>
 #include <dbus/dbus-glib-lowlevel.h>
 #include <dbus/dbus.h>
-#include <libtelepathy/tp-constants.h>
-#include <libtelepathy/tp-conn.h>
-#include <libtelepathy/tp-chan.h>
+#include <telepathy-glib/connection.h>
+#include <telepathy-glib/channel.h>
 
 #include <libmissioncontrol/dbus-api.h>
 
@@ -200,11 +199,12 @@ guint mission_control_get_connection_status (MissionControl *self,
 GSList *mission_control_get_online_connections (MissionControl *self,
 						GError **error);
 
-TpConn *mission_control_get_connection (MissionControl *self,
-					McAccount *account, GError **error);
+TpConnection *mission_control_get_connection (MissionControl *self,
+					      McAccount *account,
+					      GError **error);
 
 McAccount *mission_control_get_account_for_connection (MissionControl *self,
-						       TpConn *connection,
+						       TpConnection *connection,
 						       GError **error);
 
 gint mission_control_get_used_channels_count (MissionControl *self,
@@ -226,7 +226,7 @@ void mission_control_get_current_status (MissionControl *self,
 void mission_control_free_account_statuses (McAccountStatus *accounts);
 
 gboolean mission_control_remote_avatar_changed (MissionControl *self,
-						TpConn *connection,
+						TpConnection *connection,
 						guint contact_id,
 						const gchar *token,
 						GError **error);

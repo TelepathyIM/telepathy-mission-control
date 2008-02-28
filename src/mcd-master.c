@@ -908,11 +908,11 @@ mcd_master_set_default_presence (McdMaster * master, const gchar *client_id)
     return TRUE;
 }
 
-TelepathyConnectionStatus
+TpConnectionStatus
 mcd_master_get_account_status (McdMaster * master, gchar * account_name)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    TelepathyConnectionStatus status;
+    TpConnectionStatus status;
     McAccount *account;
 
     account = mc_account_lookup (account_name);
@@ -923,7 +923,7 @@ mcd_master_get_account_status (McdMaster * master, gchar * account_name)
 	g_object_unref (account);
     }
     else
-	status = TP_CONN_STATUS_DISCONNECTED;
+	status = TP_CONNECTION_STATUS_DISCONNECTED;
     return status;
 }
 
@@ -948,7 +948,7 @@ mcd_master_get_online_connection_names (McdMaster * master,
 	     account_node = g_list_next (account_node))
 	{
 	    McAccount *account = account_node->data;
-	    TelepathyConnectionStatus status;
+	    TpConnectionStatus status;
 
 	    status =
 		mcd_presence_frame_get_account_status (priv->presence_frame,
@@ -956,7 +956,7 @@ mcd_master_get_online_connection_names (McdMaster * master,
 	    /* Ensure that only accounts that are actually conntected are added to
 	     * the pointer array. */
 
-	    if (status == TP_CONN_STATUS_CONNECTED)
+	    if (status == TP_CONNECTION_STATUS_CONNECTED)
 	    {
 		g_ptr_array_add (names,
 				 g_strdup (mc_account_get_unique_name

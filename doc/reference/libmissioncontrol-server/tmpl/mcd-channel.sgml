@@ -24,6 +24,85 @@ McdChannel
 
 @parent: 
 
+<para>
+
+</para>
+
+@mcdchannel: the object which received the signal.
+
+<!-- ##### SIGNAL McdChannel::status-changed ##### -->
+<para>
+
+</para>
+
+@mcdchannel: the object which received the signal.
+@arg1: 
+
+<!-- ##### ARG McdChannel:channel-handle ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdChannel:channel-handle-type ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdChannel:channel-object-path ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdChannel:channel-status ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdChannel:channel-type ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdChannel:channel-type-quark ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdChannel:connection ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdChannel:name-ready ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdChannel:outgoing ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdChannel:requestor-client-id ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdChannel:requestor-serial ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdChannel:self-handle-ready ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdChannel:tp-channel ##### -->
+<para>
+
+</para>
+
 <!-- ##### ENUM McdChannelStatus ##### -->
 <para>
 

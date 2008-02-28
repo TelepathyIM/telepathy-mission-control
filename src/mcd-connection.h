@@ -70,8 +70,7 @@ McdConnection *mcd_connection_new (DBusGConnection * dbus_connection,
 /* Return the connection's account */
 McAccount *mcd_connection_get_account (McdConnection * connection);
 
-TelepathyConnectionStatus mcd_connection_get_connection_status (McdConnection
-								* connection);
+TpConnectionStatus mcd_connection_get_connection_status (McdConnection *connection);
 
 gboolean mcd_connection_request_channel (McdConnection *connection,
 					 const struct mcd_channel_request *req,

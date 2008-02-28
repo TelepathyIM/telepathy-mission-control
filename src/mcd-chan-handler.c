@@ -53,7 +53,7 @@ _mcd_channel_handler_free (McdChannelHandler *handler)
 static inline void
 _mcd_channel_handler_packer(GHashTable *handlers, gchar **string_list,
 			    gsize list_length, gchar *bus_name,
-			    TelepathyChannelMediaCapability capabilities,
+			    TpChannelMediaCapabilities capabilities,
 			    gchar *object_path, const gchar *cm_protocol,
 			    gint handler_version)
 {
@@ -103,7 +103,7 @@ scan_chandler_dir (const gchar *dirname, GHashTable *handlers,
     gchar *absolute_filepath;
     gchar *bus_name, *object_path;
     const gchar *cm_protocol;
-    TelepathyChannelMediaCapability capabilities;
+    TpChannelMediaCapabilities capabilities;
     gint handler_version;
 
     if (!g_file_test (dirname, G_FILE_TEST_IS_DIR)) return;

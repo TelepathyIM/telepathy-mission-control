@@ -34,9 +34,7 @@
  */
 
 #include <glib/gi18n.h>
-#include <libtelepathy/tp-chan-iface-group-gen.h>
-#include <libtelepathy/tp-constants.h>
-#include <libtelepathy/tp-conn.h>
+#include <telepathy-glib/interfaces.h>
 
 #include "mcd-channel.h"
 #include "mcd-enum-types.h"
@@ -53,7 +51,7 @@ struct _McdChannelPrivate
     gchar *channel_type;
     GQuark channel_type_quark;
     guint channel_handle;
-    TelepathyHandleType channel_handle_type;
+    TpHandleType channel_handle_type;
     gboolean outgoing;
     
     /* Channel created based on the above channel info */
@@ -419,8 +417,6 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
             g_return_if_fail (priv->channel_type != NULL);
             g_return_if_fail (priv->channel_handle >= 0);
  
-	    /* FIXME: BUG in libtelepathy */
-	    /* g_return_if_fail (TELEPATHY_IS_CHAN (tp_chan)); */
 	    g_object_ref (tp_chan);
 	}
 	_mcd_channel_release_tp_channel (channel, TRUE);
@@ -700,7 +696,7 @@ mcd_channel_init (McdChannel * obj)
 McdChannel *
 mcd_channel_new (TpChannel * tp_chan, const gchar *channel_object_path,
 		 const gchar *channel_type, guint channel_handle,
-		 TelepathyHandleType channel_handle_type, gboolean outgoing,
+		 TpHandleType channel_handle_type, gboolean outgoing,
 		 guint requestor_serial, const gchar *requestor_client_id)
 {
     McdChannel *obj;
@@ -760,7 +756,7 @@ mcd_channel_get_handle (McdChannel *channel)
     return MCD_CHANNEL_PRIV (channel)->channel_handle;
 }
 
-TelepathyHandleType
+TpHandleType
 mcd_channel_get_handle_type (McdChannel *channel)
 {
     return MCD_CHANNEL_PRIV (channel)->channel_handle_type;
@@ -967,7 +963,7 @@ mcd_channel_is_missed (McdChannel *channel)
  */
 gboolean
 mcd_channel_leave (McdChannel *channel, const gchar *message,
-		   TelepathyChannelGroupChangeReason reason)
+		   TpChannelGroupChangeReason reason)
 {
 #if 1
     g_warning ("%s called, but shouldn't!", G_STRFUNC);

@@ -27,6 +27,7 @@
 #include "mission-control-signals-marshal.h"
 #include <glib.h>
 #include <string.h>
+#include <telepathy-glib/dbus.h>
 
 static void _handle_mcd_errors (DBusGProxy * missioncontrol, guint serial,
 				gchar *client_id, guint reason,
@@ -39,6 +40,7 @@ static guint operation_id; /* A simple counter for execution order tracking;
 			      must be global per process */
 static GList *instances = NULL;
 static DBusConnection *dbus_connection = NULL;
+static TpDBusDaemon *dbus_daemon = NULL;
 static gboolean mc_is_running = FALSE;
 
 /* Signals */
@@ -198,6 +200,11 @@ static void instance_finalized (gpointer data, GObject *object)
     instances = g_list_remove (instances, object);
     if (!instances)
     {
+	if (dbus_daemon)
+	{
+	    g_object_unref (dbus_daemon);
+	    dbus_daemon = NULL;
+	}
 	dbus_connection_remove_filter (dbus_connection, dbus_filter_func,
 				       NULL);
 	dbus_connection_unref (dbus_connection);
@@ -405,6 +412,7 @@ mission_control_new (DBusGConnection * connection)
 	/* this is the first instance created in this process:
 	 * perform some global initializations */
 	initialize_dbus_filter (connection);
+	dbus_daemon = tp_dbus_daemon_new (connection);
     }
     /* Add the object to the list of living MC instances, and add a watch for
      * its finalization */
@@ -627,7 +635,7 @@ mission_control_request_channel (MissionControl * self,
 				 McAccount * account,
 				 const gchar * type,
 				 guint handle,
-				 TelepathyHandleType handle_type,
+				 TpHandleType handle_type,
 				 McCallback callback,
 				 gpointer user_data)
 {
@@ -691,7 +699,7 @@ mission_control_request_channel_with_string_handle_and_vcard_field (MissionContr
 						    const gchar * type,
 						    const gchar * handle,
 						    const gchar * vcard_field,
-						    TelepathyHandleType
+						    TpHandleType
 						    handle_type,
 						    McCallback callback,
 						    gpointer user_data)
@@ -785,7 +793,7 @@ mission_control_request_channel_with_string_handle (MissionControl * self,
 						    McAccount * account,
 						    const gchar * type,
 						    const gchar * handle,
-						    TelepathyHandleType
+						    TpHandleType
 						    handle_type,
 						    McCallback callback,
 						    gpointer user_data)
@@ -877,7 +885,7 @@ mission_control_get_connection_status (MissionControl * self,
 {
     /* XXX TP_CONN_STATUS_DISCONNECTED is used as an UNKNOWN status is not
      * available */
-    guint conn_status = TP_CONN_STATUS_DISCONNECTED;
+    guint conn_status = TP_CONNECTION_STATUS_DISCONNECTED;
     const gchar *account_name = mc_account_get_unique_name (account);
 
     if (account_name == NULL)
@@ -899,7 +907,7 @@ mission_control_get_connection_status (MissionControl * self,
     {
 	g_debug ("%s: MC not running.", G_STRFUNC);
 	g_set_error (error, MC_ERROR, MC_DISCONNECTED_ERROR, "MC not running");
-	return TP_CONN_STATUS_DISCONNECTED;
+	return TP_CONNECTION_STATUS_DISCONNECTED;
     }
 
     mission_control_dbus_get_connection_status (DBUS_G_PROXY (self),
@@ -971,15 +979,13 @@ mission_control_get_online_connections (MissionControl * self, GError **error)
  * 
  * Return value: An existing TpConn object, NULL if the account is not connected
  */
-TpConn *
+TpConnection *
 mission_control_get_connection (MissionControl * self, McAccount * account,
 				GError **error)
 {
-    TpConn *tp_conn = NULL;
+    TpConnection *tp_conn = NULL;
     gchar *bus_name = NULL, *obj_path = NULL;
     const gchar *account_name = mc_account_get_unique_name (account);
-    DBusGConnection *connection = NULL;
-    guint status;
 
     if (account_name == NULL)
     {
@@ -1002,41 +1008,23 @@ mission_control_get_connection (MissionControl * self, McAccount * account,
 	return NULL;
     }
 
-    g_object_get (G_OBJECT (self), "connection", &connection, NULL);
-
-    if (connection == NULL)
-    {
-	g_set_error (error, MC_ERROR, MC_DISCONNECTED_ERROR,
-		     "Cannot get D-BUS connection");
-	return NULL;
-    }
-
     /* Match the account name and corresponding connection parameters in
      * Mission Control */
 
     if (!mission_control_dbus_get_connection (DBUS_G_PROXY (self), account_name,
 					      &bus_name, &obj_path, error))
     {
-	dbus_g_connection_unref (connection);
 	return NULL;
     }
 
-    /* Create a local copy of the TpConn object from the acquired information.
+    /* Create a local copy of the TpConnection object from the acquired
+     * information.
      * We do not need to use the connect method via a connection manager,
      * because the connection is already initialized by MissionControl. */
-
-    tp_conn = tp_conn_new_without_connect (connection, bus_name, obj_path,
-					   &status, NULL);
-
-    if (tp_conn == NULL)
-    {
-	g_set_error (error, MC_ERROR, MC_DISCONNECTED_ERROR,
-		     "Cannot get telepathy connection");
-    }
+    tp_conn = tp_connection_new (dbus_daemon, bus_name, obj_path, error);
 
     g_free (bus_name);
     g_free (obj_path);
-    dbus_g_connection_unref (connection);
 
     return tp_conn;
 }
@@ -1054,7 +1042,7 @@ mission_control_get_connection (MissionControl * self, McAccount * account,
  */
 McAccount *
 mission_control_get_account_for_connection (MissionControl * self,
-					    TpConn * connection,
+					    TpConnection *connection,
 					    GError **error)
 {
     const gchar *connection_object_path;
@@ -1071,7 +1059,7 @@ mission_control_get_account_for_connection (MissionControl * self,
 	return NULL;
     }
 
-    connection_object_path = dbus_g_proxy_get_path (DBUS_G_PROXY (connection));
+    connection_object_path = TP_PROXY (connection)->object_path;
 
     if (!mission_control_dbus_get_account_for_connection (DBUS_G_PROXY (self),
 							  connection_object_path,
@@ -1298,35 +1286,14 @@ check_for_accounts (MissionControl * self)
  * @token: the Telepathy token for the new avatar.
  * @error: address where an error can be returned, or NULL.
  *
- * This function is responsible for taking actions in response to the own
- * avatar being received from the server. Depending on the situation, this
- * function can update the local avatar in our #McAccount.
- *
- * Returns: %TRUE if success, %FALSE if some error occurred.
+ * DEPRECATED. Do not use.
  */
 gboolean
 mission_control_remote_avatar_changed (MissionControl *self,
-				       TpConn *connection, guint contact_id,
+				       TpConnection *connection, guint contact_id,
 				       const gchar *token, GError **error)
 {
-    const gchar *connection_object_path;
-
-    /* Check whether Mission Control is running; if not, it's safe to
-     * say that there are no accounts or connections in that case
-     * without starting it to perform the query.  */
-    if (!mc_is_running)
-    {
-	g_debug ("%s: MC not running.", G_STRFUNC);
-	g_set_error (error, MC_ERROR, MC_DISCONNECTED_ERROR, "MC not running");
-	return FALSE;
-    }
-
-    connection_object_path = dbus_g_proxy_get_path (DBUS_G_PROXY (connection));
-
-    return mission_control_dbus_remote_avatar_changed (DBUS_G_PROXY (self),
-						       connection_object_path,
-						       contact_id, token,
-						       error);
+    return FALSE;
 }
 
 gboolean
