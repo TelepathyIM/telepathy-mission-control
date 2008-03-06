@@ -73,7 +73,7 @@ struct _McdDispatcherClass
 
 GType mcd_dispatcher_get_type (void);
 
-McdDispatcher *mcd_dispatcher_new (DBusGConnection * dbus_connection,
+McdDispatcher *mcd_dispatcher_new (TpDBusDaemon *dbus_daemon,
 				   McdMaster * master);
 
 gboolean mcd_dispatcher_send (McdDispatcher * dispatcher, McdChannel *channel);

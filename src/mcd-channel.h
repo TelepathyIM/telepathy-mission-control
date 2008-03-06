@@ -83,7 +83,6 @@ struct mcd_channel_request
 GType mcd_channel_get_type (void);
 
 McdChannel *mcd_channel_new (TpChannel *channel,
-			     const gchar *channel_object_path,
 			     const gchar *channel_type,
 			     guint channel_handle,
 			     TpHandleType channel_handle_type,
@@ -102,6 +101,8 @@ TpHandleType mcd_channel_get_handle_type (McdChannel *channel);
 gint mcd_channel_get_flags (McdChannel *channel);
 GPtrArray* mcd_channel_get_members (McdChannel *channel);
 const gchar *mcd_channel_get_name (McdChannel *channel);
+const gchar *mcd_channel_get_inviter (McdChannel *channel);
+guint mcd_channel_get_self_handle (McdChannel *channel);
 gboolean mcd_channel_is_missed (McdChannel *channel);
 gboolean mcd_channel_leave (McdChannel *channel, const gchar *message,
 			    TpChannelGroupChangeReason reason);

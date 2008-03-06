@@ -47,7 +47,6 @@ G_DEFINE_TYPE (McdChannel, mcd_channel, MCD_TYPE_MISSION);
 struct _McdChannelPrivate
 {
     /* Channel info */
-    gchar *channel_object_path;
     gchar *channel_type;
     GQuark channel_type_quark;
     guint channel_handle;
@@ -61,6 +60,8 @@ struct _McdChannelPrivate
     /* boolean properties */
     guint self_handle_ready : 1;
     guint name_ready : 1;
+    guint local_pending_members_ready : 1;
+    guint inviter_ready : 1;
 
     /* Pending members */
     GArray *pending_local_members;
@@ -70,6 +71,7 @@ struct _McdChannelPrivate
     
     McdChannelStatus status;
     gchar *channel_name;
+    gchar *inviter;
     
     /* Requestor info */
     guint requestor_serial;
@@ -78,6 +80,12 @@ struct _McdChannelPrivate
     gboolean is_disposed;
 };
 
+typedef struct
+{
+    guint member;
+    guint actor;
+} PendingMemberInfo;
+    
 enum _McdChannelSignalType
 {
     STATUS_CHANGED,
@@ -90,7 +98,6 @@ enum _McdChannelPropertyType
     PROP_CONNECTION=1,
     PROP_TP_CHANNEL,
     PROP_CHANNEL_STATUS,
-    PROP_CHANNEL_OBJECT_PATH,
     PROP_CHANNEL_TYPE,
     PROP_CHANNEL_TYPE_QUARK,
     PROP_CHANNEL_HANDLE,
@@ -100,6 +107,7 @@ enum _McdChannelPropertyType
     PROP_REQUESTOR_CLIENT_ID,
     PROP_SELF_HANDLE_READY,
     PROP_NAME_READY,
+    PROP_INVITER_READY,
 };
 
 static guint mcd_channel_signals[LAST_SIGNAL] = { 0 };
@@ -124,11 +132,12 @@ on_members_changed (TpChannel *proxy, const gchar *message,
 	/* FIXME: Add duplicity check */
 	for (i = 0; i < l_pending->len; i++)
 	{
-            guint handle;
+	    PendingMemberInfo pmi;
 
-            handle = g_array_index (l_pending, guint, i);
-	    g_array_append_val (priv->pending_local_members, handle);
-	    g_debug ("Added handle %u to channel pending members", handle);
+	    pmi.member = g_array_index (l_pending, guint, i);
+	    pmi.actor = actor;
+	    g_array_append_val (priv->pending_local_members, pmi);
+	    g_debug ("Added handle %u to channel pending members", pmi.member);
 	}
     }
 
@@ -148,8 +157,10 @@ on_members_changed (TpChannel *proxy, const gchar *message,
 
 	    for (j = 0; j < priv->pending_local_members->len; j++)
 	    {
-		if (added_member ==
-		    g_array_index (priv->pending_local_members, guint, i))
+		PendingMemberInfo *pmi;
+
+		pmi = &g_array_index (priv->pending_local_members, PendingMemberInfo, i);
+		if (added_member == pmi->member)
 		{
 		    g_debug
 			("Pending local member added -> do not restore lock");
@@ -186,10 +197,90 @@ on_members_changed (TpChannel *proxy, const gchar *message,
 }
 
 static void
-group_get_local_pending_members_cb (TpChannel *proxy, const GArray *l_pending,
-				    const GError *error, gpointer user_data,
-				    GObject *weak_object)
+inspect_inviter_cb (TpConnection *proxy, const gchar **names, const GError *error,
+		    gpointer user_data, GObject *weak_object)
 {
+    McdChannel *channel = MCD_CHANNEL (weak_object);
+    McdChannelPrivate *priv = user_data;
+
+    if (error)
+	g_warning ("Could not inspect contact handle: %s",
+		   error->message);
+    else
+    {
+	priv->inviter = g_strdup (names[0]);
+	g_debug ("Got inviter: %s", priv->inviter);
+    }
+
+    priv->inviter_ready = TRUE;
+    g_object_notify ((GObject *)channel, "inviter-ready");
+}
+
+
+/**
+ * lookup_actor:
+ *
+ * Find out who invited us: find who is the actor who invited the self_handle,
+ * and inspect it
+ */
+static void
+lookup_actor (McdChannel *channel)
+{
+    McdChannelPrivate *priv = channel->priv;
+    PendingMemberInfo *pmi;
+    gint i;
+
+    g_debug ("%s called", G_STRFUNC);
+    for (i = 0; i < priv->pending_local_members->len; i++)
+    {
+	pmi = &g_array_index (priv->pending_local_members, PendingMemberInfo,
+			      i);
+	if (pmi->member == priv->self_handle)
+	    break;
+    }
+
+    if (i < priv->pending_local_members->len) /* i.e., found */
+    {
+	GArray request_handles;
+	TpConnection *tp_conn;
+
+	/* FIXME: we should check for
+	 * CHANNEL_GROUP_FLAG_CHANNEL_SPECIFIC_HANDLES and call GetHandleOwners
+	 * if needed. See
+	 * https://sourceforge.net/tracker/index.php?func=detail&aid=1906932&group_id=190214&atid=932444
+	 */
+	request_handles.len = 1;
+	request_handles.data = (gchar *)&pmi->actor;
+	g_object_get (priv->tp_chan, "connection", &tp_conn, NULL);
+	tp_cli_connection_call_inspect_handles (tp_conn, -1,
+						TP_HANDLE_TYPE_CONTACT,
+						&request_handles,
+						inspect_inviter_cb,
+						priv, NULL,
+						(GObject *)channel);
+	g_object_unref (tp_conn);
+    }
+    else
+    {
+	/* couldn't find the inviter, but we have to emit the notification
+	 * anyway */
+	g_debug ("%s: inviter not found", G_STRFUNC);
+	priv->inviter_ready = TRUE;
+	g_object_notify ((GObject *)channel, "inviter-ready");
+    }
+}
+
+static void
+group_get_local_pending_members_with_info (TpChannel *proxy,
+					   const GPtrArray *l_pending,
+					   const GError *error,
+					   gpointer user_data,
+					   GObject *weak_object)
+{
+    McdChannel *channel = MCD_CHANNEL (weak_object);
+    McdChannelPrivate *priv = user_data;
+
+    priv->local_pending_members_ready = TRUE;
     if (error)
     {
 	g_warning ("%s: error: %s", G_STRFUNC, error->message);
@@ -198,18 +289,22 @@ group_get_local_pending_members_cb (TpChannel *proxy, const GArray *l_pending,
 
     if (l_pending)
     {
-	McdChannelPrivate *priv = user_data;
 	int i;
 	g_debug ("%u local pending members, adding", l_pending->len);
 	/* FIXME: Add duplicity check */
 	for (i = 0; i < l_pending->len; i++)
 	{
-            guint handle;
+	    PendingMemberInfo pmi;
+	    GValueArray *va;
 
-            handle = g_array_index (l_pending, guint, i);
-	    g_array_append_val (priv->pending_local_members, handle);
-	    g_debug ("Added handle %u to channel pending members", handle);
+	    va = g_ptr_array_index (l_pending, i);
+	    pmi.member = g_value_get_uint (va->values);
+	    pmi.actor = g_value_get_uint (va->values + 1);
+	    g_array_append_val (priv->pending_local_members, pmi);
+	    g_debug ("Added handle %u to channel pending members", pmi.member);
 	}
+	if (priv->self_handle_ready)
+	    lookup_actor (channel);
     }
 }
 
@@ -230,11 +325,13 @@ proxy_destroyed (TpProxy *self, guint domain, gint code, gchar *message,
 		 gpointer user_data)
 {
     McdChannel *channel = user_data;
-    McdChannelPrivate *priv = channel->priv;
 
     g_debug ("Channel proxy destroyed (%s)!", message);
+    /*
+    McdChannelPrivate *priv = channel->priv;
     g_object_unref (priv->tp_chan);
     priv->tp_chan = NULL;
+    */
     mcd_mission_abort (MCD_MISSION (channel));
     g_debug ("Channel closed");
 }
@@ -255,6 +352,9 @@ group_get_self_handle_cb (TpChannel *proxy, guint self_handle,
     }
     priv->self_handle_ready = TRUE;
     g_object_notify ((GObject *)channel, "self-handle-ready");
+
+    if (priv->local_pending_members_ready)
+	lookup_actor (channel);
 }
 
 static inline void
@@ -271,10 +371,10 @@ _mcd_channel_setup_group (McdChannel *channel)
 							 group_get_self_handle_cb,
 							 priv, NULL,
 							 (GObject *)channel);
-    tp_cli_channel_interface_group_call_get_local_pending_members (priv->tp_chan, -1,
-								   group_get_local_pending_members_cb,
-								   priv, NULL,
-								   (GObject *)channel);
+    tp_cli_channel_interface_group_call_get_local_pending_members_with_info (priv->tp_chan, -1,
+							group_get_local_pending_members_with_info,
+									     priv, NULL,
+									     (GObject *)channel);
 }
 
 static void
@@ -300,16 +400,25 @@ _mcd_channel_ready (McdChannel *channel)
     TpConnection *tp_conn;
     GArray request_handles;
 
-    /* get the name of the channel */
-    g_object_get (priv->tp_chan, "connection", &tp_conn, NULL);
-    request_handles.len = 1;
-    request_handles.data = (gchar *)&priv->channel_handle;
-    tp_cli_connection_call_inspect_handles (tp_conn, -1,
-					    priv->channel_handle_type,
-					    &request_handles,
-					    inspect_channel_handle_cb,
-					    priv, NULL,
-					    (GObject *)channel);
+    g_object_get (priv->tp_chan,
+		  "connection", &tp_conn,
+		  "handle", &priv->channel_handle,
+		  "handle-type", &priv->channel_handle_type,
+		  NULL);
+    g_debug ("%s: handle %u, type %u", G_STRFUNC,
+	     priv->channel_handle_type, priv->channel_handle);
+    if (priv->channel_handle_type != 0)
+    {
+	/* get the name of the channel */
+	request_handles.len = 1;
+	request_handles.data = (gchar *)&priv->channel_handle;
+	tp_cli_connection_call_inspect_handles (tp_conn, -1,
+						priv->channel_handle_type,
+						&request_handles,
+						inspect_channel_handle_cb,
+						priv, NULL,
+						(GObject *)channel);
+    }
     g_object_unref (tp_conn);
 
     priv->has_group_if = tp_proxy_has_interface_by_id (priv->tp_chan,
@@ -329,18 +438,6 @@ on_channel_ready (TpChannel *tp_chan, GParamSpec *pspec, McdChannel *channel)
 }
 
 static void
-close_cb (TpChannel *proxy, const GError *error, gpointer user_data,
-	  GObject *weak_object)
-{
-    if (error)
-    {
-	g_warning ("%s: Request for channel close failed: %s",
-		   G_STRFUNC, error->message);
-    }
-    g_object_unref (proxy);
-}
-
-static void
 _mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
@@ -357,14 +454,12 @@ _mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
 	if (close_channel && priv->channel_type_quark != TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
 	{
 	    g_debug ("%s: Requesting telepathy to close the channel", G_STRFUNC);
-	    tp_cli_channel_call_close (priv->tp_chan, -1, close_cb, priv, NULL,
-				       (GObject *)channel);
+	    tp_cli_channel_call_close (priv->tp_chan, -1, NULL, NULL, NULL, NULL);
 	    /* in this case we don't destroy the proxy now; it will be done in
 	     * the close_cb */
 	}
-	else
-	    /* Destroy our proxy */
-	    g_object_unref (priv->tp_chan);
+	/* Destroy our proxy */
+	g_object_unref (priv->tp_chan);
 	
 	priv->tp_chan = NULL;
     }
@@ -413,7 +508,6 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
 	tp_chan = g_value_get_object (val);
 	if (tp_chan)
 	{
-            g_return_if_fail (priv->channel_object_path != NULL);
             g_return_if_fail (priv->channel_type != NULL);
             g_return_if_fail (priv->channel_handle >= 0);
  
@@ -423,14 +517,6 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
 	priv->tp_chan = tp_chan;
 	if (priv->tp_chan)
 	    _mcd_channel_setup (channel, priv);
-	break;
-    case PROP_CHANNEL_OBJECT_PATH:
-	/* g_return_if_fail (g_value_get_string (val) != NULL); */
-	g_free (priv->channel_object_path);
-	if (g_value_get_string (val) != NULL)
-	    priv->channel_object_path = g_strdup (g_value_get_string (val));
-	else
-	    priv->channel_object_path = NULL;
 	break;
     case PROP_CHANNEL_TYPE:
 	/* g_return_if_fail (g_value_get_string (val) != NULL); */
@@ -488,9 +574,6 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
     case PROP_TP_CHANNEL:
 	g_value_set_object (val, priv->tp_chan);
 	break;
-    case PROP_CHANNEL_OBJECT_PATH:
-	g_value_set_string (val, priv->channel_object_path);
-	break;
     case PROP_CHANNEL_TYPE:
 	g_value_set_string (val, priv->channel_type);
 	break;
@@ -518,6 +601,9 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
     case PROP_NAME_READY:
 	g_value_set_boolean (val, priv->name_ready);
 	break;
+    case PROP_INVITER_READY:
+	g_value_set_boolean (val, priv->inviter_ready);
+	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
@@ -529,11 +615,11 @@ _mcd_channel_finalize (GObject * object)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (object);
     
-    g_free (priv->channel_object_path);
     g_free (priv->channel_type);
     g_array_free (priv->pending_local_members, TRUE);
     g_free (priv->requestor_client_id);
     g_free (priv->channel_name);
+    g_free (priv->inviter);
     
     G_OBJECT_CLASS (mcd_channel_parent_class)->finalize (object);
 }
@@ -543,6 +629,7 @@ _mcd_channel_dispose (GObject * object)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (object);
    
+    g_debug ("\n\n%s for %p (is disposed = %d)", G_STRFUNC, object, priv->is_disposed);
     if (priv->is_disposed)
 	return;
 
@@ -604,13 +691,6 @@ mcd_channel_class_init (McdChannelClass * klass)
 							MCD_TYPE_CHANNEL_STATUS,
 							MCD_CHANNEL_PENDING,
 							G_PARAM_READWRITE));
-    g_object_class_install_property (object_class, PROP_CHANNEL_OBJECT_PATH,
-				     g_param_spec_string ("channel-object-path",
-							  _ ("Channel dbus object path"),
-							  _ ("DBus Bus name to use by us"),
-							  NULL,
-							  G_PARAM_READWRITE /*|
-							  G_PARAM_CONSTRUCT_ONLY */));
     g_object_class_install_property (object_class, PROP_CHANNEL_TYPE,
 				     g_param_spec_string ("channel-type",
 							  _ ("Channel type"),
@@ -677,6 +757,12 @@ mcd_channel_class_init (McdChannelClass * klass)
 						       _("Name ready"),
 						       FALSE,
 						       G_PARAM_READABLE));
+    g_object_class_install_property (object_class, PROP_INVITER_READY,
+				     g_param_spec_boolean ("inviter-ready",
+						       _("Inviter ready"),
+						       _("Inviter ready"),
+						       FALSE,
+						       G_PARAM_READABLE));
 }
 
 static void
@@ -690,18 +776,17 @@ mcd_channel_init (McdChannel * obj)
 
     priv->self_handle = INVALID_SELF_HANDLE;
     priv->pending_local_members = g_array_new (FALSE, FALSE,
-					       sizeof (guint));
+					       sizeof (PendingMemberInfo));
 }
 
 McdChannel *
-mcd_channel_new (TpChannel * tp_chan, const gchar *channel_object_path,
+mcd_channel_new (TpChannel * tp_chan,
 		 const gchar *channel_type, guint channel_handle,
 		 TpHandleType channel_handle_type, gboolean outgoing,
 		 guint requestor_serial, const gchar *requestor_client_id)
 {
     McdChannel *obj;
     obj = MCD_CHANNEL (g_object_new (MCD_TYPE_CHANNEL,
-				     "channel-object-path", channel_object_path,
 				     "channel-type", channel_type,
 				     "channel-handle", channel_handle,
 				     "channel-handle-type", channel_handle_type,
@@ -747,7 +832,9 @@ mcd_channel_get_channel_type_quark (McdChannel *channel)
 const gchar *
 mcd_channel_get_object_path (McdChannel *channel)
 {
-    return MCD_CHANNEL_PRIV (channel)->channel_object_path;
+    McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
+
+    return priv->tp_chan ? TP_PROXY (priv->tp_chan)->object_path : NULL;
 }
 
 guint
@@ -935,6 +1022,39 @@ mcd_channel_get_name (McdChannel *channel)
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
 
     return priv->channel_name;
+}
+
+/**
+ * mcd_channel_get_inviter:
+ * @channel: the #McdChannel.
+ *
+ * Get the address of the inviter (i.e. the actor who put us in the pending
+ * local members list).
+ *
+ * Returns: a const string holding the inviter address.
+ */
+const gchar *
+mcd_channel_get_inviter (McdChannel *channel)
+{
+    McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
+
+    return priv->inviter;
+}
+
+/**
+ * mcd_channel_get_self_handle:
+ * @channel: the #McdChannel.
+ *
+ * Gets the self handle (the "self-handle-ready" property tells if this datum
+ * is available).
+ *
+ * Returns: the self handle.
+ */
+guint
+mcd_channel_get_self_handle (McdChannel *channel)
+{
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), INVALID_SELF_HANDLE);
+    return channel->priv->self_handle;
 }
 
 /**

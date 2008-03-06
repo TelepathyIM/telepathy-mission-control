@@ -66,7 +66,7 @@ GType mcd_manager_get_type (void);
 McdManager *mcd_manager_new (McManager * mc_manager,
 			     McdPresenceFrame * pframe,
 			     McdDispatcher *dispatcher,
-			     DBusGConnection * dbus_connection);
+			     TpDBusDaemon *dbus_daemon);
 
 gboolean mcd_manager_add_account (McdManager * manager, McAccount * account);
 gboolean mcd_manager_can_handle_account (McdManager * manager,

@@ -67,7 +67,6 @@ G_DEFINE_TYPE (McdConnection, mcd_connection, MCD_TYPE_OPERATION);
 struct _McdConnectionPrivate
 {
     /* DBUS connection */
-    DBusGConnection *dbus_connection;
     TpDBusDaemon *dbus_daemon;
 
     /* DBus bus name */
@@ -151,7 +150,7 @@ typedef struct {
 enum
 {
     PROP_0,
-    PROP_DBUS_CONNECTION,
+    PROP_DBUS_DAEMON,
     PROP_BUS_NAME,
     PROP_TP_MANAGER,
     PROP_TP_CONNECTION,
@@ -597,7 +596,6 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
 
     /* It's an incoming channel, so we create a new McdChannel for it */
     channel = mcd_channel_new (tp_chan,
-			       chan_obj_path,
 			       chan_type,
 			       handle,
 			       handle_type,
@@ -1216,10 +1214,6 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
 	break;
     case TP_CONNECTION_STATUS_CONNECTED:
 	{
-	    /* We successfully connected the account, make sure we don't retry
-	     * to register it next time. */
-	    mc_account_unset_param (priv->account, "register");
- 
 	    mcd_presence_frame_set_account_status (priv->presence_frame,
 						   priv->account,
 						   conn_status, conn_reason);
@@ -1746,7 +1740,10 @@ _mcd_connection_dispose (GObject * object)
     }
 
     if (priv->dbus_daemon)
+    {
 	g_object_unref (priv->dbus_daemon);
+	priv->dbus_daemon = NULL;
+    }
 
     G_OBJECT_CLASS (mcd_connection_parent_class)->dispose (object);
 }
@@ -1757,7 +1754,6 @@ _mcd_connection_set_property (GObject * obj, guint prop_id,
 {
     McdPresenceFrame *presence_frame;
     McdDispatcher *dispatcher;
-    DBusGConnection *dbus_connection;
     McAccount *account;
     TpConnectionManager *tp_conn_mgr;
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (obj);
@@ -1801,15 +1797,10 @@ _mcd_connection_set_property (GObject * obj, guint prop_id,
 	}
 	priv->dispatcher = dispatcher;
 	break;
-    case PROP_DBUS_CONNECTION:
-	dbus_connection = g_value_get_pointer (val);
-	dbus_g_connection_ref (dbus_connection);
-	if (priv->dbus_connection)
-	    dbus_g_connection_unref (priv->dbus_connection);
-	priv->dbus_connection = dbus_connection;
+    case PROP_DBUS_DAEMON:
 	if (priv->dbus_daemon)
 	    g_object_unref (priv->dbus_daemon);
-	priv->dbus_daemon = tp_dbus_daemon_new (dbus_connection);
+	priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
 	break;
     case PROP_BUS_NAME:
 	g_return_if_fail (g_value_get_string (val) != NULL);
@@ -1845,8 +1836,8 @@ _mcd_connection_get_property (GObject * obj, guint prop_id,
 
     switch (prop_id)
     {
-    case PROP_DBUS_CONNECTION:
-	g_value_set_pointer (val, priv->dbus_connection);
+    case PROP_DBUS_DAEMON:
+	g_value_set_object (val, priv->dbus_daemon);
 	break;
     case PROP_BUS_NAME:
 	g_value_set_string (val, priv->bus_name);
@@ -1902,13 +1893,13 @@ mcd_connection_class_init (McdConnectionClass * klass)
 							  MCD_TYPE_DISPATCHER,
 							  G_PARAM_READWRITE |
 							  G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property (object_class, PROP_DBUS_CONNECTION,
-				     g_param_spec_pointer ("dbus-connection",
-							   _("DBus Connection"),
-							   _
-							   ("DBus connection to use by us"),
-							   G_PARAM_READWRITE |
-							   G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property (object_class, PROP_DBUS_DAEMON,
+				     g_param_spec_object ("dbus-daemon",
+							  _("DBus daemon"),
+							  _("DBus daemon"),
+							  TP_TYPE_DBUS_DAEMON,
+							  G_PARAM_READWRITE |
+							  G_PARAM_CONSTRUCT_ONLY));
     g_object_class_install_property (object_class, PROP_BUS_NAME,
 				     g_param_spec_string ("bus-name",
 							  _("DBus Bus name"),
@@ -1964,7 +1955,7 @@ mcd_connection_init (McdConnection * connection)
  * Uses mcd_get_manager function to get TpConnManager
  */
 McdConnection *
-mcd_connection_new (DBusGConnection * dbus_connection,
+mcd_connection_new (TpDBusDaemon *dbus_daemon,
 		    const gchar * bus_name,
 		    TpConnectionManager * tp_conn_mgr,
 		    McAccount * account,
@@ -1972,14 +1963,14 @@ mcd_connection_new (DBusGConnection * dbus_connection,
 		    McdDispatcher *dispatcher)
 {
     McdConnection *mcdconn = NULL;
-    g_return_val_if_fail (dbus_connection != NULL, NULL);
+    g_return_val_if_fail (dbus_daemon != NULL, NULL);
     g_return_val_if_fail (bus_name != NULL, NULL);
     g_return_val_if_fail (TP_IS_CONNECTION_MANAGER (tp_conn_mgr), NULL);
     g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
     g_return_val_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame), NULL);
 
     mcdconn = g_object_new (MCD_TYPE_CONNECTION,
-			    "dbus-connection", dbus_connection,
+			    "dbus-daemon", dbus_daemon,
 			    "bus-name", bus_name,
 			    "tp-manager", tp_conn_mgr,
 			    "presence-frame", presence_frame,
@@ -2231,7 +2222,6 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
     }
 
     g_object_set (channel,
-		  "channel-object-path", channel_path,
 		  "tp-channel", tp_chan,
 		  NULL);
 
@@ -2392,7 +2382,6 @@ mcd_connection_request_channel (McdConnection *connection,
     
     /* The channel is temporary */
     channel = mcd_channel_new (NULL,
-			       NULL,
 			       req->channel_type,
 			       req->channel_handle,
 			       req->channel_handle_type,

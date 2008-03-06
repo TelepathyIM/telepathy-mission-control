@@ -975,13 +975,148 @@ mission_control_get_online_connections (MissionControl * self, GError **error)
  * @account: The account the connection is created for.
  * @error: address where an error can be returned, or NULL.
  *
+ * DEPRECATED: do not use, will be removed soon.
+ * Use mission_control_get_tpconnection instead.
+ *
  * Gets a connection object for the specified account name.
  * 
  * Return value: An existing TpConn object, NULL if the account is not connected
  */
-TpConnection *
+TpConn *
 mission_control_get_connection (MissionControl * self, McAccount * account,
 				GError **error)
+{
+    TpConn *tp_conn = NULL;
+    gchar *bus_name = NULL, *obj_path = NULL;
+    const gchar *account_name = mc_account_get_unique_name (account);
+    DBusGConnection *connection = NULL;
+    guint status;
+
+    if (account_name == NULL)
+    {
+	g_set_error (error, MC_ERROR, MC_INVALID_ACCOUNT_ERROR, " ");
+	return NULL;
+    }
+
+    /* Check whether we have any accounts to request connection for */
+    if (!check_for_accounts (self))
+    {
+	g_set_error (error, MC_ERROR, MC_NO_ACCOUNTS_ERROR, " ");
+	return NULL;
+    }
+
+    /* If MC isn't running there won't be any connections. */
+    if (!mc_is_running)
+    {
+	g_debug ("%s: MC not running.", G_STRFUNC);
+	g_set_error (error, MC_ERROR, MC_DISCONNECTED_ERROR, "MC not running");
+	return NULL;
+    }
+
+    g_object_get (G_OBJECT (self), "connection", &connection, NULL);
+
+    if (connection == NULL)
+    {
+	g_set_error (error, MC_ERROR, MC_DISCONNECTED_ERROR,
+		     "Cannot get D-BUS connection");
+	return NULL;
+    }
+
+    /* Match the account name and corresponding connection parameters in
+     * Mission Control */
+
+    if (!mission_control_dbus_get_connection (DBUS_G_PROXY (self), account_name,
+					      &bus_name, &obj_path, error))
+    {
+	dbus_g_connection_unref (connection);
+	return NULL;
+    }
+
+    /* Create a local copy of the TpConn object from the acquired information.
+     * We do not need to use the connect method via a connection manager,
+     * because the connection is already initialized by MissionControl. */
+
+    tp_conn = tp_conn_new_without_connect (connection, bus_name, obj_path,
+					   &status, NULL);
+
+    if (tp_conn == NULL)
+    {
+	g_set_error (error, MC_ERROR, MC_DISCONNECTED_ERROR,
+		     "Cannot get telepathy connection");
+    }
+
+    g_free (bus_name);
+    g_free (obj_path);
+    dbus_g_connection_unref (connection);
+
+    return tp_conn;
+}
+
+/**
+ * mission_control_get_account_for_connection:
+ * @self: The #MissionControl object.
+ * @connection: connection object to get the account for
+ * @error: address where an error can be returned, or NULL.
+ *
+ * DEPRECATED: do not use, will be removed soon.
+ * Use mission_control_get_account_for_tpconnection instead.
+ *
+ * Gets the account corresponding to the connection object.
+ * Note that as a result the caller owns a reference to the account object.
+ *
+ * Return value: The matching account object, NULL on error
+ */
+McAccount *
+mission_control_get_account_for_connection (MissionControl * self,
+					    TpConn * connection,
+					    GError **error)
+{
+    const gchar *connection_object_path;
+    gchar *account_unique_name;
+    McAccount *account;
+
+    /* Check whether Mission Control is running; if not, it's safe to
+     * say that there are no accounts or connections in that case
+     * without starting it to perform the query.  */
+    if (!mc_is_running)
+    {
+	g_debug ("%s: MC not running.", G_STRFUNC);
+	g_set_error (error, MC_ERROR, MC_DISCONNECTED_ERROR, "MC not running");
+	return NULL;
+    }
+
+    connection_object_path = dbus_g_proxy_get_path (DBUS_G_PROXY (connection));
+
+    if (!mission_control_dbus_get_account_for_connection (DBUS_G_PROXY (self),
+							  connection_object_path,
+							  &account_unique_name,
+							  error))
+    {
+	g_warning ("%s: Getting account for the connection failed", G_STRFUNC);
+	return NULL;
+    }
+
+    account = mc_account_lookup (account_unique_name);
+
+    g_free (account_unique_name);
+
+    return account;
+}
+
+/**
+ * mission_control_get_tpconnection:
+ * @self: The #MissionControl object.
+ * @account: The account the connection is created for.
+ * @error: address where an error can be returned, or NULL.
+ *
+ * Gets a connection object for the specified account name.
+ * 
+ * Return value: An existing TpConnection object, NULL if the account is not
+ * connected
+ */
+TpConnection *
+mission_control_get_tpconnection (MissionControl * self, McAccount * account,
+				  GError **error)
 {
     TpConnection *tp_conn = NULL;
     gchar *bus_name = NULL, *obj_path = NULL;
@@ -1030,7 +1165,7 @@ mission_control_get_connection (MissionControl * self, McAccount * account,
 }
 
 /**
- * mission_control_get_account_for_connection:
+ * mission_control_get_account_for_tpconnection:
  * @self: The #MissionControl object.
  * @connection: connection object to get the account for
  * @error: address where an error can be returned, or NULL.
@@ -1041,9 +1176,9 @@ mission_control_get_connection (MissionControl * self, McAccount * account,
  * Return value: The matching account object, NULL on error
  */
 McAccount *
-mission_control_get_account_for_connection (MissionControl * self,
-					    TpConnection *connection,
-					    GError **error)
+mission_control_get_account_for_tpconnection (MissionControl * self,
+					      TpConnection *connection,
+					      GError **error)
 {
     const gchar *connection_object_path;
     gchar *account_unique_name;

@@ -76,7 +76,7 @@ typedef struct _McdMasterPrivate
     McPresence default_presence;
 
     /* We create this for our member objects */
-    DBusGConnection *dbus_connection;
+    TpDBusDaemon *dbus_daemon;
     
     /* Monitor for account enabling/disabling events */
     McAccountMonitor *account_monitor;
@@ -139,7 +139,7 @@ _mcd_master_init_managers (McdMaster * master)
 	    {
 		manager =
 		    mcd_manager_new (mc_manager, priv->presence_frame,
-				     priv->dispatcher, priv->dbus_connection);
+				     priv->dispatcher, priv->dbus_daemon);
 		g_hash_table_insert (mc_managers, mc_manager, manager);
 		mcd_operation_take_mission (MCD_OPERATION (master),
 					    MCD_MISSION (manager));
@@ -292,7 +292,7 @@ _mcd_master_on_account_enabled (McAccountMonitor * monitor,
 	{
             manager =
                 mcd_manager_new (mc_manager, priv->presence_frame,
-                                 priv->dispatcher, priv->dbus_connection);
+                                 priv->dispatcher, priv->dbus_daemon);
             mcd_operation_take_mission (MCD_OPERATION (master),
                                  MCD_MISSION (manager));
         }
@@ -585,7 +585,8 @@ _mcd_master_get_property (GObject * obj, guint prop_id,
 	g_value_set_object (val, priv->dispatcher);
 	break;
     case PROP_DBUS_CONNECTION:
-	g_value_set_pointer (val, priv->dbus_connection);
+	g_value_set_pointer (val,
+			     TP_PROXY (priv->dbus_daemon)->dbus_connection);
 	break;
     case PROP_DEFAULT_PRESENCE:
 	g_value_set_uint (val, priv->default_presence);
@@ -665,16 +666,16 @@ _mcd_master_dispose (GObject * object)
     
     g_hash_table_destroy (priv->clients_needing_presence);
 
-    if (priv->dbus_connection)
+    if (priv->dbus_daemon)
     {
-	dbus_connection_remove_filter (dbus_g_connection_get_connection
-				       (priv->dbus_connection),
-				       dbus_filter_func, priv);
+	DBusGConnection *dbus_connection;
 
-	/* Flush all outgoing DBUS messages and signals */
-	dbus_g_connection_flush (priv->dbus_connection);
-	dbus_g_connection_unref (priv->dbus_connection);
-	priv->dbus_connection = NULL;
+	dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
+	dbus_connection_remove_filter (dbus_g_connection_get_connection
+				       (dbus_connection),
+				       dbus_filter_func, priv);
+	g_object_unref (priv->dbus_daemon);
+	priv->dbus_daemon = NULL;
     }
 
     /* Don't unref() the dispatcher and the presence-frame: they will be
@@ -739,11 +740,14 @@ mcd_master_class_init (McdMasterClass * klass)
 static void
 install_dbus_filter (McdMasterPrivate *priv)
 {
+    DBusGConnection *dbus_connection;
     DBusConnection *dbus_conn;
     DBusError error;
 
     /* set up the NameOwnerChange filter */
-    dbus_conn = dbus_g_connection_get_connection (priv->dbus_connection);
+
+    dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
+    dbus_conn = dbus_g_connection_get_connection (dbus_connection);
     dbus_error_init (&error);
     dbus_connection_add_filter (dbus_conn,
 				dbus_filter_func,
@@ -770,20 +774,23 @@ static void
 mcd_master_init (McdMaster * master)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    DBusGConnection *dbus_connection;
     GError *error = NULL;
+
     /* Initialize DBus connection */
-    priv->dbus_connection = dbus_g_bus_get (DBUS_BUS_STARTER, &error);
-    if (priv->dbus_connection == NULL)
+    dbus_connection = dbus_g_bus_get (DBUS_BUS_STARTER, &error);
+    if (dbus_connection == NULL)
     {
 	g_printerr ("Failed to open connection to bus: %s", error->message);
 	g_error_free (error);
 	return;
     }
+    priv->dbus_daemon = tp_dbus_daemon_new (dbus_connection);
 
     install_dbus_filter (priv);
 
     priv->presence_frame = mcd_presence_frame_new ();
-    priv->dispatcher = mcd_dispatcher_new (priv->dbus_connection, master);
+    priv->dispatcher = mcd_dispatcher_new (priv->dbus_daemon, master);
     g_assert (MCD_IS_DISPATCHER (priv->dispatcher));
     /* propagate the signals to dispatcher and presence_frame, too */
     priv->proxy = mcd_proxy_new (MCD_MISSION (master));

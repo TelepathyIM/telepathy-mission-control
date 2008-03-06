@@ -1,13 +1,20 @@
+=== telepathy-mission-control 4.61 ===
+
+2008-03-04  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.[hc]:
+	Implement mcd_channel_get_inviter().
+
+2008-03-03  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac, libmissioncontrol/mission-control.[hc]:
+	Don't drop libtelepathy completely, but retain API/ABI compatibility.
+
 2008-02-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
 	* libmissioncontrol/mission-control.h:
 	Fix typo (outcoming -> outgoing). Fixes: #1903876.
-
-	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
-	* src/mcd-connection.c:
-	Unset the `register' parameter once successfully connected.
-	Fixes: #1763775.
 
 	* libmissioncontrol/mc-manager.[hc], src/mcd-channel.[hc],
 	src/mcd-connection.[hc], src/mcd-manager.c:

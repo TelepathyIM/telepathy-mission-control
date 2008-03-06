@@ -51,7 +51,6 @@ G_DEFINE_TYPE (McdManager, mcd_manager, MCD_TYPE_OPERATION);
 
 typedef struct _McdManagerPrivate
 {
-    DBusGConnection *dbus_connection;
     TpDBusDaemon *dbus_daemon;
     McManager *mc_manager;
     McdPresenceFrame *presence_frame;
@@ -71,7 +70,7 @@ enum
     PROP_PRESENCE_FRAME,
     PROP_DISPATCHER,
     PROP_MC_MANAGER,
-    PROP_DBUS_CONNECTION,
+    PROP_DBUS_DAEMON,
     PROP_ACCOUNTS
 };
 
@@ -117,7 +116,7 @@ _mcd_manager_create_connection (McdManager * manager, McAccount * account)
 	g_debug ("%s: Manager %s created", G_STRFUNC, unique_name);
     }
     
-    connection = mcd_connection_new (priv->dbus_connection,
+    connection = mcd_connection_new (priv->dbus_daemon,
             mc_manager_get_bus_name (priv->
                 mc_manager),
             priv->tp_conn_mgr, account,
@@ -289,7 +288,6 @@ abort_requested_channel (gchar *key, struct mcd_channel_request *req,
 			 "Connection cancelled");
     /* we must create a channel object, just for delivering the error */
     channel = mcd_channel_new (NULL,
-			       NULL,
 			       req->channel_type,
 			       0,
 			       req->channel_handle_type,
@@ -357,6 +355,7 @@ _mcd_manager_nuke_connections (McdManager *manager)
     DBusGProxy *proxy;
     GError *error = NULL;
     static gboolean already_nuked = FALSE;
+    DBusGConnection *dbus_connection;
     
     if (already_nuked)
 	return; /* We only nuke it once in process instance */
@@ -365,7 +364,8 @@ _mcd_manager_nuke_connections (McdManager *manager)
     g_debug ("Nuking possible stale connections");
     
     priv = MCD_MANAGER_PRIV (manager);
-    proxy = dbus_g_proxy_new_for_name(priv->dbus_connection,
+    dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
+    proxy = dbus_g_proxy_new_for_name(dbus_connection,
 				      DBUS_SERVICE_DBUS,
 				      DBUS_PATH_DBUS,
 				      DBUS_INTERFACE_DBUS);
@@ -396,7 +396,7 @@ _mcd_manager_nuke_connections (McdManager *manager)
 	    
 	    g_debug ("Trying to disconnect (%s), path=%s", *name, path);
 	    
-	    proxy = dbus_g_proxy_new_for_name(priv->dbus_connection,
+	    proxy = dbus_g_proxy_new_for_name(dbus_connection,
 					      *name, path,
 					      TP_IFACE_CONNECTION);
 	    
@@ -540,12 +540,6 @@ _mcd_manager_dispose (GObject * object)
     
     _mcd_manager_set_presence_frame (MCD_MANAGER (object), NULL);
     
-    if (priv->dbus_connection)
-    {
-	dbus_g_connection_unref (priv->dbus_connection);
-	priv->dbus_connection = NULL;
-    }
-    
     if (priv->mc_manager)
     {
 	g_object_unref (priv->mc_manager);
@@ -609,7 +603,6 @@ _mcd_manager_set_property (GObject * obj, guint prop_id,
     McdPresenceFrame *presence_frame;
     McdDispatcher *dispatcher;
     McManager *mc_manager;
-    DBusGConnection *dbus_connection;
 
     switch (prop_id)
     {
@@ -638,15 +631,10 @@ _mcd_manager_set_property (GObject * obj, guint prop_id,
 	    g_object_unref (priv->mc_manager);
 	priv->mc_manager = mc_manager;
 	break;
-    case PROP_DBUS_CONNECTION:
-	dbus_connection = g_value_get_pointer (val);
-	dbus_g_connection_ref (dbus_connection);
-	if (priv->dbus_connection)
-	    dbus_g_connection_unref (priv->dbus_connection);
-	priv->dbus_connection = dbus_connection;
+    case PROP_DBUS_DAEMON:
 	if (priv->dbus_daemon)
 	    g_object_unref (priv->dbus_daemon);
-	priv->dbus_daemon = tp_dbus_daemon_new (dbus_connection);
+	priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
 	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -671,8 +659,8 @@ _mcd_manager_get_property (GObject * obj, guint prop_id,
     case PROP_MC_MANAGER:
 	g_value_set_object (val, priv->mc_manager);
 	break;
-    case PROP_DBUS_CONNECTION:
-	g_value_set_pointer (val, priv->dbus_connection);
+    case PROP_DBUS_DAEMON:
+	g_value_set_object (val, priv->dbus_daemon);
 	break;
     case PROP_ACCOUNTS:
         g_debug ("%s: accounts getting over-written", G_STRFUNC);
@@ -748,13 +736,13 @@ mcd_manager_class_init (McdManagerClass * klass)
 							  MC_TYPE_MANAGER,
 							  G_PARAM_READWRITE |
 							  G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property (object_class, PROP_DBUS_CONNECTION,
-				     g_param_spec_pointer ("dbus-connection",
-							   _("DBus Connection"),
-							   _
-							   ("DBus connection to use by us"),
-							   G_PARAM_READWRITE |
-							   G_PARAM_CONSTRUCT));
+    g_object_class_install_property (object_class, PROP_DBUS_DAEMON,
+				     g_param_spec_object ("dbus-daemon",
+							  _("DBus daemon"),
+							  _("DBus daemon"),
+							  TP_TYPE_DBUS_DAEMON,
+							  G_PARAM_READWRITE |
+							  G_PARAM_CONSTRUCT));
     g_object_class_install_property (object_class, PROP_ACCOUNTS,
 				     g_param_spec_pointer ("accounts",
 							   _("Accounts"),
@@ -766,9 +754,6 @@ mcd_manager_class_init (McdManagerClass * klass)
 static void
 mcd_manager_init (McdManager * manager)
 {
-    McdManagerPrivate *priv = MCD_MANAGER_PRIV (manager);
-
-    priv->dbus_connection = NULL;
 }
 
 /* Public methods */
@@ -777,14 +762,14 @@ McdManager *
 mcd_manager_new (McManager * mc_manager,
 		 McdPresenceFrame * pframe,
 		 McdDispatcher *dispatcher,
-		 DBusGConnection * dbus_connection)
+		 TpDBusDaemon *dbus_daemon)
 {
     McdManager *obj;
     obj = MCD_MANAGER (g_object_new (MCD_TYPE_MANAGER,
 				     "mc-manager", mc_manager,
 				     "presence-frame", pframe,
 				     "dispatcher", dispatcher,
-				     "dbus-connection", dbus_connection, NULL));
+				     "dbus-daemon", dbus_daemon, NULL));
     _mcd_manager_nuke_connections (obj);
     return obj;
 }

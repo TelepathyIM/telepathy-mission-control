@@ -84,7 +84,7 @@ typedef struct _McdDispatcherPrivate
     GSList *filter_dlhandles;
     gchar *plugin_dir;
     GData *interface_filters;
-    DBusGConnection *dbus_connection;
+    TpDBusDaemon *dbus_daemon;
 
     /* Channel handlers */
     GHashTable *channel_handler_hash;
@@ -115,7 +115,7 @@ enum
 {
     PROP_0,
     PROP_PLUGIN_DIR,
-    PROP_DBUS_CONNECTION,
+    PROP_DBUS_DAEMON,
     PROP_MCD_MASTER,
 };
 
@@ -651,12 +651,10 @@ _mcd_dispatcher_handle_channel_async_cb (DBusGProxy * proxy, GError * error,
      * nothing. Thus, we'll try to handle the death */
     
     {
-	McdConnection *connection;
 	DBusGConnection *dbus_connection;
 	GError *unique_proxy_error = NULL;
 	
-	connection = mcd_dispatcher_context_get_connection (context);
-        g_object_get (G_OBJECT (connection), "dbus-connection", &dbus_connection, NULL);
+	dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
 	
 	DBusGProxy *unique_name_proxy =
 	    dbus_g_proxy_new_for_name_owner (dbus_connection,
@@ -730,8 +728,8 @@ _mcd_dispatcher_start_channel_handler (McdDispatcherContext * context)
 	const McdConnection *connection = mcd_dispatcher_context_get_connection (context);
 	DBusGConnection *dbus_connection;
 
+	dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
         g_object_get (G_OBJECT (connection),
-                      "dbus-connection", &dbus_connection,
                       "tp-connection", &tp_conn, NULL);
 
 	DBusGProxy *handler_proxy = dbus_g_proxy_new_for_name (dbus_connection,
@@ -994,7 +992,6 @@ _mcd_dispatcher_set_property (GObject * obj, guint prop_id,
 {
     McdDispatcher *dispatcher = MCD_DISPATCHER (obj);
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (obj);
-    DBusGConnection *dbus_connection;
     McdMaster *master;
 
     switch (prop_id)
@@ -1007,12 +1004,10 @@ _mcd_dispatcher_set_property (GObject * obj, guint prop_id,
 	_mcd_dispatcher_unload_filters (dispatcher);
 	_mcd_dispatcher_load_filters (dispatcher);
 	break;
-    case PROP_DBUS_CONNECTION:
-	dbus_connection = g_value_get_pointer (val);
-	dbus_g_connection_ref (dbus_connection);
-	if (priv->dbus_connection)
-	    dbus_g_connection_unref (priv->dbus_connection);
-	priv->dbus_connection = dbus_connection;
+    case PROP_DBUS_DAEMON:
+	if (priv->dbus_daemon)
+	    g_object_unref (priv->dbus_daemon);
+	priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
 	break;
     case PROP_MCD_MASTER:
 	master = g_value_get_object (val);
@@ -1042,8 +1037,8 @@ _mcd_dispatcher_get_property (GObject * obj, guint prop_id,
     case PROP_PLUGIN_DIR:
 	g_value_set_string (val, priv->plugin_dir);
 	break;
-    case PROP_DBUS_CONNECTION:
-	g_value_set_pointer (val, priv->dbus_connection);
+    case PROP_DBUS_DAEMON:
+	g_value_set_object (val, priv->dbus_daemon);
 	break;
     case PROP_MCD_MASTER:
 	g_value_set_object (val, priv->master);
@@ -1082,10 +1077,10 @@ _mcd_dispatcher_dispose (GObject * object)
 	priv->master = NULL;
     }
 
-    if (priv->dbus_connection)
+    if (priv->dbus_daemon)
     {
-	dbus_g_connection_unref (priv->dbus_connection);
-	priv->dbus_connection = NULL;
+	g_object_unref (priv->dbus_daemon);
+	priv->dbus_daemon = NULL;
     }
 
     if (priv->channels)
@@ -1168,12 +1163,13 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
 							  G_PARAM_READWRITE |
 							  G_PARAM_CONSTRUCT));
     g_object_class_install_property (object_class,
-				     PROP_DBUS_CONNECTION,
-				     g_param_spec_pointer ("dbus-connection",
-							   _("DBus Connection"),
-							   _("DBus connection to use by us"),
-							   G_PARAM_READWRITE |
-							   G_PARAM_CONSTRUCT));
+				     PROP_DBUS_DAEMON,
+				     g_param_spec_object ("dbus-daemon",
+							  _("DBus daemon"),
+							  _("DBus daemon"),
+							  TP_TYPE_DBUS_DAEMON,
+							  G_PARAM_READWRITE |
+							  G_PARAM_CONSTRUCT));
     g_object_class_install_property (object_class,
 				     PROP_MCD_MASTER,
 				     g_param_spec_object ("mcd-master",
@@ -1234,14 +1230,12 @@ mcd_dispatcher_init (McdDispatcher * dispatcher)
 }
 
 McdDispatcher *
-mcd_dispatcher_new (DBusGConnection * dbus_connection, McdMaster * master)
+mcd_dispatcher_new (TpDBusDaemon *dbus_daemon, McdMaster *master)
 {
     McdDispatcher *obj;
     obj = MCD_DISPATCHER (g_object_new (MCD_TYPE_DISPATCHER,
-					"dbus-connection",
-					dbus_connection,
-					"mcd-master", 
-					master, 
+					"dbus-daemon", dbus_daemon,
+					"mcd-master", master, 
 					NULL));
     return obj;
 }

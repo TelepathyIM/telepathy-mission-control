@@ -60,7 +60,7 @@ struct _McdConnectionClass
 
 GType mcd_connection_get_type (void);
 
-McdConnection *mcd_connection_new (DBusGConnection * dbus_connection,
+McdConnection *mcd_connection_new (TpDBusDaemon *dbus_daemon,
 				   const gchar * bus_name,
 				   TpConnectionManager * tp_conn_mgr,
 				   McAccount * account,

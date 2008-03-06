@@ -35,6 +35,7 @@
 #include <dbus/dbus-glib.h>
 #include <dbus/dbus-glib-lowlevel.h>
 #include <dbus/dbus.h>
+#include <libtelepathy/tp-conn.h>
 #include <telepathy-glib/connection.h>
 #include <telepathy-glib/channel.h>
 
@@ -200,13 +201,20 @@ guint mission_control_get_connection_status (MissionControl *self,
 GSList *mission_control_get_online_connections (MissionControl *self,
 						GError **error);
 
-TpConnection *mission_control_get_connection (MissionControl *self,
-					      McAccount *account,
-					      GError **error);
+TpConn *mission_control_get_connection (MissionControl *self,
+					McAccount *account, GError **error);
 
 McAccount *mission_control_get_account_for_connection (MissionControl *self,
-						       TpConnection *connection,
+						       TpConn *connection,
 						       GError **error);
+
+TpConnection *mission_control_get_tpconnection (MissionControl *self,
+						McAccount *account,
+						GError **error);
+
+McAccount *mission_control_get_account_for_tpconnection (MissionControl *self,
+							 TpConnection *connection,
+							 GError **error);
 
 gint mission_control_get_used_channels_count (MissionControl *self,
 					      GQuark type, GError **error);
