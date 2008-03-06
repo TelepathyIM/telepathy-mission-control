@@ -1,3 +1,5 @@
+=== telepathy-mission-control 4.62 ===
+
 2008-03-06  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-channel.c:
