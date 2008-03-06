@@ -1,3 +1,8 @@
+2008-03-06  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c:
+	Rewrite the loop break condition to avoid a warning.
+
 === telepathy-mission-control 4.61 ===
 
 2008-03-04  Alberto Mardegan  <alberto.mardegan@nokia.com>

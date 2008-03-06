@@ -228,6 +228,7 @@ lookup_actor (McdChannel *channel)
 {
     McdChannelPrivate *priv = channel->priv;
     PendingMemberInfo *pmi;
+    gboolean found = FALSE;
     gint i;
 
     g_debug ("%s called", G_STRFUNC);
@@ -236,10 +237,13 @@ lookup_actor (McdChannel *channel)
 	pmi = &g_array_index (priv->pending_local_members, PendingMemberInfo,
 			      i);
 	if (pmi->member == priv->self_handle)
+	{
+	    found = TRUE;
 	    break;
+	}
     }
 
-    if (i < priv->pending_local_members->len) /* i.e., found */
+    if (found)
     {
 	GArray request_handles;
 	TpConnection *tp_conn;
