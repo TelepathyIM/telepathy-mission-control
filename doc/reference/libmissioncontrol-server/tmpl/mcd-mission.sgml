@@ -22,7 +22,65 @@ McdMission
 
 </para>
 
-@parent: 
+
+<!-- ##### SIGNAL McdMission::abort ##### -->
+<para>
+
+</para>
+
+@mcdmission: the object which received the signal.
+
+<!-- ##### SIGNAL McdMission::connected ##### -->
+<para>
+
+</para>
+
+@mcdmission: the object which received the signal.
+
+<!-- ##### SIGNAL McdMission::disconnected ##### -->
+<para>
+
+</para>
+
+@mcdmission: the object which received the signal.
+
+<!-- ##### SIGNAL McdMission::flags-changed ##### -->
+<para>
+
+</para>
+
+@mcdmission: the object which received the signal.
+@arg1: 
+
+<!-- ##### SIGNAL McdMission::mode-set ##### -->
+<para>
+
+</para>
+
+@mcdmission: the object which received the signal.
+@arg1: 
+
+<!-- ##### SIGNAL McdMission::parent-set ##### -->
+<para>
+
+</para>
+
+@mcdmission: the object which received the signal.
+
+<!-- ##### ARG McdMission:mode ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdMission:parent ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdMission:system-flags ##### -->
+<para>
+
+</para>
 
 <!-- ##### MACRO MCD_MISSION_GET_FLAGS_MASKED ##### -->
 <para>

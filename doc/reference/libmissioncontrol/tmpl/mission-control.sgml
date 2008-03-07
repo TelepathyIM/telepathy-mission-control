@@ -130,6 +130,7 @@ This callback is called in response to the #mission_control_get_current_status c
 
 @parent: 
 @first_run: 
+@active_callbacks: 
 
 <!-- ##### STRUCT missioncontrolclass ##### -->
 <para>

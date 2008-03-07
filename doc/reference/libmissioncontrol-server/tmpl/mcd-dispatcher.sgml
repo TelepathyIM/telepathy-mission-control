@@ -22,7 +22,6 @@ McdDispatcher
 
 </para>
 
-@parent: 
 
 <!-- ##### SIGNAL McdDispatcher::channel-added ##### -->
 <para>

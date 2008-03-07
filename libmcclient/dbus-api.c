@@ -1,5 +1,5 @@
 /*
- * dbus-api.h - Mission Control D-Bus API strings, enums etc.
+ * dbus-api.c - Mission Control D-Bus API strings, enums etc.
  *
  * Copyright (C) 2008 Collabora Ltd. <http://www.collabora.co.uk/>
  * Copyright (C) 2008 Nokia Corporation
@@ -19,20 +19,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef __LIBMISSIONCONTROL_DBUS_API_H__
-#define __LIBMISSIONCONTROL_DBUS_API_H__
+#include "dbus-api.h"
 
-#include <glib/gquark.h>
-#include <glib-object.h>
-#include <dbus/dbus-glib.h>
-
-
-#define MISSION_CONTROL_SERVICE "org.freedesktop.Telepathy.MissionControl"
-#define MISSION_CONTROL_IFACE "org.freedesktop.Telepathy.MissionControl"
-#define MISSION_CONTROL_PATH "/org/freedesktop/Telepathy/MissionControl"
-
-#include <libmissioncontrol/_gen/enums.h>
-#include <libmissioncontrol/_gen/gtypes.h>
-#include <libmissioncontrol/_gen/interfaces.h>
-
-#endif
+/* auto-generated stubs */
+#include "_gen/gtypes-body.h"
+#include "_gen/interfaces-body.h"

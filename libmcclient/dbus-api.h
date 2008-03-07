@@ -19,20 +19,20 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef __LIBMISSIONCONTROL_DBUS_API_H__
-#define __LIBMISSIONCONTROL_DBUS_API_H__
+#ifndef __LIBMCCLIENT_DBUS_API_H__
+#define __LIBMCCLIENT_DBUS_API_H__
 
 #include <glib/gquark.h>
 #include <glib-object.h>
 #include <dbus/dbus-glib.h>
-
+#include <telepathy-glib/errors.h>
 
 #define MISSION_CONTROL_SERVICE "org.freedesktop.Telepathy.MissionControl"
 #define MISSION_CONTROL_IFACE "org.freedesktop.Telepathy.MissionControl"
 #define MISSION_CONTROL_PATH "/org/freedesktop/Telepathy/MissionControl"
 
-#include <libmissioncontrol/_gen/enums.h>
-#include <libmissioncontrol/_gen/gtypes.h>
-#include <libmissioncontrol/_gen/interfaces.h>
+#include <libmcclient/_gen/enums.h>
+#include <libmcclient/_gen/gtypes.h>
+#include <libmcclient/_gen/interfaces.h>
 
 #endif

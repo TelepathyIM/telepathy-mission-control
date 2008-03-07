@@ -1,3 +1,14 @@
+2008-03-07  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/Makefile.am, src/mcd-account-manager.h, src/mcd-account.h:
+	Implement server-side stubs.
+
+	* Makefile.am, configure.ac, libmcclient.pc.in, libmcclient/*,
+	libmissioncontrol/dbus-api.h, xml/Account.xml,
+	xml/Account_Manager.xml, xml/Makefile.am, xml/all.xml:
+	Add Account and AccountManager specifications, and implement stubs in
+	libmcclient.
+
 === telepathy-mission-control 4.62 ===
 
 2008-03-06  Alberto Mardegan  <alberto.mardegan@nokia.com>

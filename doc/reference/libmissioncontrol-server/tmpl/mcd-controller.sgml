@@ -22,7 +22,6 @@ McdController
 
 </para>
 
-@parent: 
 
 <!-- ##### FUNCTION mcd_controller_new ##### -->
 <para>

@@ -22,7 +22,22 @@ McdOperation
 
 </para>
 
-@parent: 
+
+<!-- ##### SIGNAL McdOperation::mission-removed ##### -->
+<para>
+
+</para>
+
+@mcdoperation: the object which received the signal.
+@arg1: 
+
+<!-- ##### SIGNAL McdOperation::mission-taken ##### -->
+<para>
+
+</para>
+
+@mcdoperation: the object which received the signal.
+@arg1: 
 
 <!-- ##### FUNCTION mcd_operation_new ##### -->
 <para>

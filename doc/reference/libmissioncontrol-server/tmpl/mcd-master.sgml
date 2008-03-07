@@ -22,7 +22,26 @@ McdMaster
 
 </para>
 
-@parent: 
+
+<!-- ##### ARG McdMaster:dbus-connection ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdMaster:default-presence ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdMaster:dispatcher ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdMaster:presence-frame ##### -->
+<para>
+
+</para>
 
 <!-- ##### STRUCT mcd_channel_request ##### -->
 <para>

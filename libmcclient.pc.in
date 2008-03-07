@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+profiles_dir=@PROFILES_DIR@
+
+Name: libmcclient
+Description:  Mission Control Client Library
+Requires: dbus-1 >= 0.50, telepathy-glib >= 0.7.1
+Version: @VERSION@
+Libs: -L${libdir} -lmcclient @DBUS_LIBS@
+Cflags: -I${includedir} @DBUS_CFLAGS@

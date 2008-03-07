@@ -161,6 +161,7 @@ AC_SUBST(pluginlibdir)
 
 AC_OUTPUT([
 Makefile \
+libmcclient.pc \
 mission-control.pc \
 libmissioncontrol.pc \
 src/Makefile \
@@ -171,6 +172,7 @@ tools/Makefile \
 doc/reference/Makefile \
 doc/reference/libmissioncontrol/Makefile \
 doc/reference/libmissioncontrol-server/Makefile \
+libmcclient/Makefile \
 libmissioncontrol/Makefile \
 server/Makefile \
 ])

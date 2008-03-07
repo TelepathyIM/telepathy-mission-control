@@ -5,6 +5,8 @@ INCLUDES = $(GCONF_CFLAGS) $(TELEPATHY_CFLAGS) \
 
 mission_control_includedir = $(includedir)/mission-control
 mission_control_include = \
+	mcd-account.h \
+	mcd-account-manager.h \
 	mcd-debug.h \
 	mcd-mission.h \
 	mcd-operation.h \
@@ -22,17 +24,39 @@ mission_control_include = \
 	mcd-provisioning.h \
 	mcd-provisioning-factory.h
 
+genincludedir = $(mission_control_includedir)/_gen
+nodist_geninclude_HEADERS = \
+	_gen/enums.h \
+	_gen/interfaces.h \
+	_gen/gtypes.h \
+	_gen/svc-Account.h \
+	_gen/svc-Account_Manager.h
+
+nodist_mission_control_server_la_SOURCES = \
+	_gen/gtypes-body.h \
+	_gen/interfaces-body.h \
+	_gen/register-dbus-glib-marshallers-body.h \
+	_gen/signals-marshal.c \
+	_gen/signals-marshal.h \
+	_gen/signals-marshal.list \
+	_gen/svc-Account.c \
+	_gen/svc-Account_Manager.c
+
+
 mission_control_include_HEADERS = \
 	$(mission_control_include) \
 	mcd-enum-types.h
 
 BUILT_SOURCES = \
+	_gen/all.xml \
 	mcd-service-gen.h \
 	mcd-signals-marshal.h \
 	mcd-signals-marshal.c \
 	mcd-enum-types.c \
 	mcd-enum-types.h \
-	stamp-mcd-enum-types.h
+	stamp-mcd-enum-types.h \
+	$(nodist_mission_control_server_la_SOURCES) \
+	$(nodist_geninclude_HEADERS)
  
 CLEANFILES = $(BUILT_SOURCES)
 
@@ -110,3 +134,83 @@ mcd-service-gen.h: $(top_builddir)/xml/MissionControl-gen.xml
 	dbus-binding-tool --mode=glib-server --prefix=mcd_service $< > $@
 
 EXTRA_DIST = mcd-signals-marshal.list stamp-mcd-enum-types.h
+
+# ---- telepathy-glib-style code generation ----
+
+tools_dir = $(top_srcdir)/tools
+
+_gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml)
+	$(mkdir_p) _gen
+	$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
+		$< > $@
+
+# Generated files which can be done for all "classes" at once
+
+_gen/gtypes.h _gen/gtypes-body.h: _gen/all.xml \
+	$(top_srcdir)/tools/glib-gtypes-generator.py
+	$(PYTHON) $(top_srcdir)/tools/glib-gtypes-generator.py \
+		$< _gen/gtypes mc
+
+_gen/signals-marshal.list: _gen/all.xml \
+	$(tools_dir)/glib-signals-marshal-gen.py
+	$(PYTHON) $(tools_dir)/glib-signals-marshal-gen.py $< > $@
+
+_gen/signals-marshal.h: _gen/signals-marshal.list
+	$(GLIB_GENMARSHAL) --header --prefix=_mc_ext_marshal $< > $@
+
+_gen/signals-marshal.c: _gen/signals-marshal.list
+	$(GLIB_GENMARSHAL) --body --prefix=_mc_ext_marshal $< > $@
+
+_gen/register-dbus-glib-marshallers-body.h: _gen/all.xml \
+	$(tools_dir)/glib-client-marshaller-gen.py
+	$(PYTHON) $(tools_dir)/glib-client-marshaller-gen.py $< \
+		_mc_ext > $@
+
+_gen/enums.h: _gen/all.xml $(tools_dir)/c-constants-generator.xsl
+	$(XSLTPROC) $(XSLTPROCFLAGS) \
+		--stringparam mixed-case-prefix mc \
+		$(tools_dir)/c-constants-generator.xsl \
+		$< > $@
+
+_gen/interfaces.h: _gen/all.xml \
+	$(tools_dir)/glib-interfaces-generator.xsl \
+	$(tools_dir)/c-interfaces-generator.xsl
+	$(XSLTPROC) $(XSLTPROCFLAGS) \
+		--stringparam mixed-case-prefix mc \
+		$(tools_dir)/glib-interfaces-generator.xsl \
+		$< > $@
+
+_gen/interfaces-body.h: _gen/all.xml \
+	$(tools_dir)/glib-interfaces-body-generator.xsl \
+	$(tools_dir)/c-interfaces-generator.xsl
+	$(XSLTPROC) $(XSLTPROCFLAGS) \
+		--stringparam mixed-case-prefix mc \
+		$(tools_dir)/glib-interfaces-body-generator.xsl \
+		$< > $@
+
+
+# Generated files which must be generated per "class".
+# (Currently the only "class" is nmc4, but the new API will need "classes"
+# like account, account-manager, ...)
+
+_gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml)
+	$(mkdir_p) _gen
+	$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
+		$< > $@
+
+_gen/cli-%-body.h _gen/cli-%.h: _gen/%.xml \
+	$(tools_dir)/glib-client-gen.py Makefile.am
+	$(PYTHON) $(tools_dir)/glib-client-gen.py \
+		--group=`echo $* | tr x- x_` \
+		--iface-quark-prefix=MC_IFACE_QUARK \
+		$< Mc_Cli _gen/cli-$*
+
+_gen/svc-%.c _gen/svc-%.h: _gen/%.xml \
+	$(tools_dir)/glib-ginterface-gen.py Makefile.am
+	$(PYTHON) $(tools_dir)/glib-ginterface-gen.py \
+		--filename=_gen/svc-$* \
+		--signal-marshal-prefix=_mc_ext \
+		--include='<telepathy-glib/dbus.h>' \
+		--include='"_gen/signals-marshal.h"' \
+		--not-implemented-func='tp_dbus_g_method_return_not_implemented' \
+		$< Mc_Svc_

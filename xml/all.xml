@@ -2,8 +2,19 @@
     xmlns:tp="http://telepathy.freedesktop.org/wiki/DbusSpec#extensions-v0"
     xmlns:xi="http://www.w3.org/2001/XInclude">
 
-<tp:copyright>Copyright (C) 2007 Nokia Corporation</tp:copyright>
+<tp:copyright>Copyright (C) 2008 Nokia Corporation</tp:copyright>
 
 <xi:include href="nmc4.xml"/>
+<xi:include href="Account.xml"/>
+<xi:include href="Account_Manager.xml"/>
+
+<tp:generic-types>
+    <tp:external-type name="Connection_Presence_Type" type="u"
+	from="Telepathy specification (Connection)"/>
+    <tp:external-type name="Connection_Manager_Name" type="s"
+	from="Telepathy specification (ConnectionManager)"/>
+    <tp:external-type name="Protocol" type="s"
+	from="Telepathy specification (ConnectionManager)"/>
+</tp:generic-types>
 
 </tp:spec>

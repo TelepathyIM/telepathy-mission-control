@@ -22,7 +22,11 @@ McdProxy
 
 </para>
 
-@parent: 
+
+<!-- ##### ARG McdProxy:proxy-object ##### -->
+<para>
+
+</para>
 
 <!-- ##### FUNCTION mcd_proxy_new ##### -->
 <para>

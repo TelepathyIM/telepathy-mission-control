@@ -22,7 +22,6 @@ McdManager
 
 </para>
 
-@parent: 
 
 <!-- ##### SIGNAL McdManager::account-added ##### -->
 <para>
