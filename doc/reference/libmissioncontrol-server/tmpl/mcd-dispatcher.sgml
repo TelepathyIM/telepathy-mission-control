@@ -24,6 +24,54 @@ McdDispatcher
 
 @parent: 
 
+<!-- ##### SIGNAL McdDispatcher::channel-added ##### -->
+<para>
+
+</para>
+
+@mcddispatcher: the object which received the signal.
+@arg1: 
+
+<!-- ##### SIGNAL McdDispatcher::channel-removed ##### -->
+<para>
+
+</para>
+
+@mcddispatcher: the object which received the signal.
+@arg1: 
+
+<!-- ##### SIGNAL McdDispatcher::dispatch-failed ##### -->
+<para>
+
+</para>
+
+@mcddispatcher: the object which received the signal.
+@arg1: 
+@arg2: 
+
+<!-- ##### SIGNAL McdDispatcher::dispatched ##### -->
+<para>
+
+</para>
+
+@mcddispatcher: the object which received the signal.
+@arg1: 
+
+<!-- ##### ARG McdDispatcher:dbus-daemon ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdDispatcher:mcd-master ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdDispatcher:plugin-dir ##### -->
+<para>
+
+</para>
+
 <!-- ##### STRUCT McdDispatcherStatus ##### -->
 <para>
 
@@ -35,7 +83,7 @@ McdDispatcher
 
 </para>
 
-@dbus_connection: 
+@dbus_daemon: 
 @master: 
 @Returns: 
 

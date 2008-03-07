@@ -24,6 +24,47 @@ McdManager
 
 @parent: 
 
+<!-- ##### SIGNAL McdManager::account-added ##### -->
+<para>
+
+</para>
+
+@mcdmanager: the object which received the signal.
+@arg1: 
+
+<!-- ##### SIGNAL McdManager::account-removed ##### -->
+<para>
+
+</para>
+
+@mcdmanager: the object which received the signal.
+@arg1: 
+
+<!-- ##### ARG McdManager:accounts ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdManager:dbus-daemon ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdManager:dispatcher ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdManager:mc-manager ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdManager:presence-frame ##### -->
+<para>
+
+</para>
+
 <!-- ##### FUNCTION mcd_manager_new ##### -->
 <para>
 
@@ -32,7 +73,7 @@ McdManager
 @mc_manager: 
 @pframe: 
 @dispatcher: 
-@dbus_connection: 
+@dbus_daemon: 
 @Returns: 
 
 

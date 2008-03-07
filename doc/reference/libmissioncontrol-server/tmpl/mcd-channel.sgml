@@ -48,11 +48,6 @@ McdChannel
 
 </para>
 
-<!-- ##### ARG McdChannel:channel-object-path ##### -->
-<para>
-
-</para>
-
 <!-- ##### ARG McdChannel:channel-status ##### -->
 <para>
 
@@ -69,6 +64,11 @@ McdChannel
 </para>
 
 <!-- ##### ARG McdChannel:connection ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdChannel:inviter-ready ##### -->
 <para>
 
 </para>
@@ -132,7 +132,6 @@ McdChannel
 </para>
 
 @channel: 
-@channel_object_path: 
 @channel_type: 
 @channel_handle: 
 @channel_handle_type: 

@@ -24,12 +24,47 @@ McdConnection
 
 @parent: 
 
+<!-- ##### ARG McdConnection:account ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdConnection:bus-name ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdConnection:dbus-daemon ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdConnection:dispatcher ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdConnection:presence-frame ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdConnection:tp-connection ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdConnection:tp-manager ##### -->
+<para>
+
+</para>
+
 <!-- ##### FUNCTION mcd_connection_new ##### -->
 <para>
 
 </para>
 
-@dbus_connection: 
+@dbus_daemon: 
 @bus_name: 
 @tp_conn_mgr: 
 @account: 
