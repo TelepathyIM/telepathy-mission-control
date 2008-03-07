@@ -32,7 +32,7 @@ nodist_geninclude_HEADERS = \
 	_gen/svc-Account.h \
 	_gen/svc-Account_Manager.h
 
-nodist_mission_control_server_la_SOURCES = \
+nodist_libmissioncontrol_server_la_SOURCES = \
 	_gen/gtypes-body.h \
 	_gen/interfaces-body.h \
 	_gen/register-dbus-glib-marshallers-body.h \
@@ -45,6 +45,7 @@ nodist_mission_control_server_la_SOURCES = \
 
 mission_control_include_HEADERS = \
 	$(mission_control_include) \
+	mcd-account-priv.h \
 	mcd-enum-types.h
 
 BUILT_SOURCES = \
@@ -55,7 +56,7 @@ BUILT_SOURCES = \
 	mcd-enum-types.c \
 	mcd-enum-types.h \
 	stamp-mcd-enum-types.h \
-	$(nodist_mission_control_server_la_SOURCES) \
+	$(nodist_libmissioncontrol_server_la_SOURCES) \
 	$(nodist_geninclude_HEADERS)
  
 CLEANFILES = $(BUILT_SOURCES)
@@ -70,6 +71,8 @@ libmissioncontrol_server_la_LDFLAGS = -export-dynamic \
 				      -version-info 3:10:2
 
 libmissioncontrol_server_la_SOURCES = \
+	mcd-account.c \
+	mcd-account-manager.c \
 	mcd-debug.c \
 	mcd-enum-types.c \
 	mcd-signals-marshal.c \

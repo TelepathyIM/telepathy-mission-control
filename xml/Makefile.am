@@ -21,4 +21,5 @@ clean-local:
 EXTRA_DIST = \
 	all.xml \
 	nmc4.xml \
+	nmc5.xml \
 	$(SPECS)

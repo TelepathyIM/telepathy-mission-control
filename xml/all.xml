@@ -5,8 +5,7 @@
 <tp:copyright>Copyright (C) 2008 Nokia Corporation</tp:copyright>
 
 <xi:include href="nmc4.xml"/>
-<xi:include href="Account.xml"/>
-<xi:include href="Account_Manager.xml"/>
+<xi:include href="nmc5.xml"/>
 
 <tp:generic-types>
     <tp:external-type name="Connection_Presence_Type" type="u"
