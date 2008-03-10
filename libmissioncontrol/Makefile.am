@@ -80,7 +80,7 @@ libmissioncontrol_client_la_LIBADD = $(GCONF_LIBS) $(GLIB_LIBS) $(DBUS_LIBS) $(T
 
 libmissioncontrol_client_la_LDFLAGS = $(common_ldflags) \
 				      -export-symbols-regex "^(mc_)|(mission_control_)" \
-				      -version-info 5:0:0
+				      -version-info 4:2:5
 
 mission_control_include = \
 	mission-control-signals-marshal.h \

@@ -1,3 +1,11 @@
+2008-03-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/Makefile.am:
+	Revert unnecessary version bump.
+
+	* src/mcd-account-manager.[hc]:
+	Register object with DBus.
+
 2008-03-07  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/Makefile.am, src/mcd-account-manager.h, src/mcd-account.h:

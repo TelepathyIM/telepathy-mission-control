@@ -42,11 +42,14 @@ G_DEFINE_TYPE_WITH_CODE (McdAccountManager, mcd_account_manager, G_TYPE_OBJECT,
 
 struct _McdAccountManagerPrivate
 {
+    /* DBUS connection */
+    TpDBusDaemon *dbus_daemon;
 };
 
 enum
 {
     PROP_0,
+    PROP_DBUS_DAEMON,
 };
 
 
@@ -54,6 +57,58 @@ static void
 account_manager_iface_init (McSvcAccountManagerClass *iface,
 			    gpointer iface_data)
 {
+}
+
+
+static void
+register_dbus_service (McdAccountManager *account_manager)
+{
+    McdAccountManagerPrivate *priv = account_manager->priv;
+    DBusGConnection *dbus_connection;
+
+    dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
+    if (G_LIKELY (dbus_connection))
+	dbus_g_connection_register_g_object (dbus_connection,
+					     MC_ACCOUNT_MANAGER_DBUS_OBJECT,
+					     G_OBJECT (account_manager));
+}
+
+static void
+set_property (GObject *obj, guint prop_id,
+	      const GValue *val, GParamSpec *pspec)
+{
+    McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (obj);
+
+    switch (prop_id)
+    {
+    case PROP_DBUS_DAEMON:
+	if (priv->dbus_daemon)
+	    g_object_unref (priv->dbus_daemon);
+	priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
+	if (priv->dbus_daemon)
+	    register_dbus_service (MCD_ACCOUNT_MANAGER (obj));
+	break;
+    default:
+	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
+	break;
+    }
+}
+
+static void
+get_property (GObject *obj, guint prop_id,
+	      GValue *val, GParamSpec *pspec)
+{
+    McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (obj);
+
+    switch (prop_id)
+    {
+    case PROP_DBUS_DAEMON:
+	g_value_set_object (val, priv->dbus_daemon);
+	break;
+    default:
+	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
+	break;
+    }
 }
 
 static void
@@ -76,6 +131,16 @@ mcd_account_manager_class_init (McdAccountManagerClass *klass)
 
     object_class->dispose = _mcd_account_manager_dispose;
     object_class->finalize = _mcd_account_manager_finalize;
+    object_class->set_property = set_property;
+    object_class->get_property = get_property;
+
+    g_object_class_install_property (object_class, PROP_DBUS_DAEMON,
+				     g_param_spec_object ("dbus-daemon",
+							  _("DBus daemon"),
+							  _("DBus daemon"),
+							  TP_TYPE_DBUS_DAEMON,
+							  G_PARAM_READWRITE |
+							  G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
@@ -90,11 +155,13 @@ mcd_account_manager_init (McdAccountManager *account_manager)
 }
 
 McdAccountManager *
-mcd_account_manager_new (void)
+mcd_account_manager_new (TpDBusDaemon *dbus_daemon)
 {
     gpointer *obj;
 
-    obj = g_object_new (MCD_TYPE_ACCOUNT_MANAGER, NULL);
+    obj = g_object_new (MCD_TYPE_ACCOUNT_MANAGER,
+		       	"dbus-daemon", &dbus_daemon,
+			NULL);
     return MCD_ACCOUNT_MANAGER (obj);
 }
 
