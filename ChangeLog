@@ -1,5 +1,10 @@
 2008-03-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	Patch from Sjoerd <sjoerd.simons@collabora.co.uk>:
+	* src/mcd-channel.c:
+	Make the "on_close" function static, as it should always have been.
+	Fixes: #1910142.
+
 	* libmissioncontrol/Makefile.am:
 	Revert unnecessary version bump.
 

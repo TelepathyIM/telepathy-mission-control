@@ -313,7 +313,7 @@ group_get_local_pending_members_with_info (TpChannel *proxy,
 }
 
 /* The callback is called on channel Closed signal */
-void
+static void
 on_closed (TpChannel *proxy, gpointer user_data, GObject *weak_object)
 {
     McdChannel *channel = MCD_CHANNEL (weak_object);
