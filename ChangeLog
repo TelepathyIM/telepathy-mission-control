@@ -1,3 +1,9 @@
+2008-03-12  Alberto Mardegan  <mardy@users.sourceforge.net>
+
+	* src/mcd-service.c:
+	Fix a crash when dispatching a channel to external filters.
+	Fixes: #1912653, bugs.freedesktop.org#14968.
+
 === telepathy-mission-control 4.63 ===
 
 2008-03-10  Alberto Mardegan  <alberto.mardegan@nokia.com>

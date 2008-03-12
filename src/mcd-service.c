@@ -413,8 +413,8 @@ _on_filter_new_channel (McdDispatcherContext *ctx, DBusGProxy *proxy)
 
     g_debug ("%s: Filtering new channel", __FUNCTION__);
     dbus_g_proxy_call_no_reply (proxy, "FilterChannel",
-				G_TYPE_STRING, dbus_g_proxy_get_bus_name (DBUS_G_PROXY(tp_conn)),
-				DBUS_TYPE_G_OBJECT_PATH, dbus_g_proxy_get_path (DBUS_G_PROXY(tp_conn)),
+				G_TYPE_STRING, TP_PROXY (tp_conn)->bus_name,
+				DBUS_TYPE_G_OBJECT_PATH, TP_PROXY (tp_conn)->object_path,
 				G_TYPE_STRING, mcd_channel_get_channel_type (channel),
 				DBUS_TYPE_G_OBJECT_PATH, mcd_channel_get_object_path (channel),
 				G_TYPE_UINT, mcd_channel_get_handle_type (channel),
