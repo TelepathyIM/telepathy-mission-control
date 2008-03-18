@@ -1,3 +1,8 @@
+2008-03-18  Alberto Mardegan  <mardy@users.sourceforge.net>
+
+	* src/mcd-channel.c:
+	Don't try to close the channel, if the proxy is already invalidated.
+
 === telepathy-mission-control 4.64 ===
 
 2008-03-12  Alberto Mardegan  <mardy@users.sourceforge.net>
