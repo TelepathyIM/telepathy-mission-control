@@ -576,55 +576,6 @@ _mcd_presence_frame_update_actual_presence (McdPresenceFrame * presence_frame,
     }
 }
 
-void
-mcd_presence_frame_set_account_presence (McdPresenceFrame * presence_frame,
-					 McAccount * account,
-					 McPresence
-					 presence,
-					 const gchar * presence_message)
-{
-    McdPresenceFramePrivate *priv;
-    McdPresence *account_presence;
-
-    g_return_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame));
-
-    priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-    account_presence = g_hash_table_lookup (priv->account_presence, account);
-
-    g_return_if_fail (account_presence != NULL);
-    if (account_presence->presence == presence &&
-        !tp_strdiff (account_presence->message, presence_message))
-    {
-        g_debug ("%s: presence already set, not setting", G_STRFUNC);
-        return;
-    }
-
-    g_debug ("%s: changing presence of account %s from %d to %d",
-             G_STRFUNC, mc_account_get_unique_name (account),
-             account_presence->presence,
-             presence);
-    account_presence->presence = presence;
-    g_free (account_presence->message);
-    account_presence->message = NULL;
-    if (presence_message)
-	account_presence->message = g_strdup (presence_message);
-
-    g_signal_emit_by_name (presence_frame, "presence-changed", account,
-			   presence, presence_message);
-
-    _mcd_presence_frame_update_actual_presence (presence_frame,
-						presence_message);
-    
-    if (mcd_debug_get_level() > 0)
-    {
-	g_debug ("Presence Set for account: %s: %d",
-		 mc_account_get_unique_name (account),
-		 presence);
-	_mcd_presence_frame_print (presence_frame);
-    }
-    
-}
-
 McPresence
 mcd_presence_frame_get_account_presence (McdPresenceFrame * presence_frame,
 					 McAccount * account)
