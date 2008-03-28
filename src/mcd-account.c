@@ -1876,7 +1876,8 @@ mcd_account_online_request (McdAccount *account,
     McdAccountPrivate *priv = account->priv;
     GError *error = NULL;
 
-    g_debug ("%s: connection status is %d", G_STRFUNC, priv->conn_status);
+    g_debug ("%s: connection status for %s is %d",
+	     G_STRFUNC, priv->unique_name, priv->conn_status);
     if (priv->conn_status == TP_CONNECTION_STATUS_CONNECTED)
     {
 	/* invoke the callback now */
