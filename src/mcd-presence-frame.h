@@ -42,6 +42,9 @@ G_BEGIN_DECLS
 typedef struct _McdPresenceFrame McdPresenceFrame;
 typedef struct _McdPresenceFrameClass McdPresenceFrameClass;
 
+#include "mcd-account.h"
+#include "mcd-account-manager.h"
+
 struct _McdPresenceFrame
 {
     McdMission parent;
@@ -58,11 +61,11 @@ struct _McdPresenceFrameClass
     
     /* Account specific signals */
     void (*presence_set_signal) (McdPresenceFrame * presence_frame,
-				 McAccount * account,
+				 McdAccount * account,
 				 McPresence presence,
 				 const gchar * presence_message);
     void (*status_changed_signal) (McdPresenceFrame * presence_frame,
-				   McAccount * account,
+				   McdAccount * account,
 				   TpConnectionStatus connection_status,
 				   TpConnectionStatusReason
 				   connection_reason);
@@ -99,12 +102,6 @@ void mcd_presence_frame_set_account_presence (McdPresenceFrame *
 					      McPresence
 					      presence,
 					      const gchar * presence_message);
-void mcd_presence_frame_set_account_status (McdPresenceFrame * presence_frame,
-					    McAccount * account,
-					    TpConnectionStatus
-					    connection_status,
-					    TpConnectionStatusReason
-					    connection_reason);
 
 McPresence mcd_presence_frame_get_account_presence
     (McdPresenceFrame * presence_frame, McAccount * account);
@@ -119,14 +116,17 @@ void mcd_presence_frame_set_accounts (McdPresenceFrame * presence_frame,
 				      const GList * accounts);
 
 gboolean mcd_presence_frame_add_account (McdPresenceFrame * presence_frame,
-                                         McAccount * account);
+                                         McdAccount * account);
 gboolean mcd_presence_frame_remove_account (McdPresenceFrame * presence_frame,
-                                         McAccount * account);
+                                         McdAccount * account);
 
 gboolean mcd_presence_frame_cancel_last_request (McdPresenceFrame *
 						 presence_frame);
 
 gboolean mcd_presence_frame_is_stable (McdPresenceFrame *presence_frame);
+
+void mcd_presence_frame_set_account_manager (McdPresenceFrame *presence_frame,
+					     McdAccountManager *account_manager);
 
 G_END_DECLS
 #endif /* MCD_PRESENCE_FRAME_H */

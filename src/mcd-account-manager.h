@@ -43,6 +43,8 @@ typedef struct _McdAccountManager McdAccountManager;
 typedef struct _McdAccountManagerPrivate McdAccountManagerPrivate;
 typedef struct _McdAccountManagerClass McdAccountManagerClass;
 
+#include "mcd-account.h"
+
 struct _McdAccountManager
 {
     GObject parent;
@@ -55,9 +57,17 @@ struct _McdAccountManagerClass
 };
 
 
+#define MC_ACCOUNT_MANAGER_DBUS_SERVICE "org.freedesktop.Telepathy.AccountManager"
 #define MC_ACCOUNT_MANAGER_DBUS_OBJECT "/org/freedesktop/Telepathy/AccountManager"
 
 GType mcd_account_manager_get_type (void);
 McdAccountManager *mcd_account_manager_new (TpDBusDaemon *dbus_daemon);
+
+void mcd_account_manager_write_conf (GKeyFile *keyfile);
+
+GHashTable *mcd_account_manager_get_valid_accounts (McdAccountManager *account_manager);
+
+McdAccount *mcd_account_manager_lookup_account (McdAccountManager *account_manager,
+						const gchar *name);
 
 #endif

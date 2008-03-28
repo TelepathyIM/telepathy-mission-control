@@ -48,6 +48,7 @@
 
 #include <glib/gi18n.h>
 #include <gconf/gconf-client.h>
+#include <string.h>
 #include <libmissioncontrol/mc-manager.h>
 #include <libmissioncontrol/mc-account.h>
 #include <libmissioncontrol/mc-profile.h>
@@ -59,6 +60,7 @@
 #include "mcd-proxy.h"
 #include "mcd-manager.h"
 #include "mcd-dispatcher.h"
+#include "mcd-account-manager.h"
 
 #define MCD_MASTER_PRIV(master) (G_TYPE_INSTANCE_GET_PRIVATE ((master), \
 				  MCD_TYPE_MASTER, \
@@ -69,6 +71,7 @@ G_DEFINE_TYPE (McdMaster, mcd_master, MCD_TYPE_CONTROLLER);
 typedef struct _McdMasterPrivate
 {
     McdPresenceFrame *presence_frame;
+    McdAccountManager *account_manager;
     McdDispatcher *dispatcher;
     McdProxy *proxy;
     McPresence awake_presence;
@@ -100,351 +103,7 @@ enum
     PROP_DEFAULT_PRESENCE,
 };
 
-static void
-_mcd_master_init_managers (McdMaster * master)
-{
-    GList *acct, *acct_head;
-    GHashTable *mc_managers;
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-
-    /* FIXME: Should get only _supported_ protocols */
-    /* Only enabled accounts are read in */
-
-    mc_managers = g_hash_table_new (g_direct_hash, g_direct_equal);
-
-    /* Deal with all enabled accounts */
-    acct_head = mc_accounts_list_by_enabled (TRUE);
-
-    /* Let the presence frame know what accounts we have */
-    mcd_presence_frame_set_accounts (priv->presence_frame, acct_head);
-
-    for (acct = acct_head; acct; acct = g_list_next (acct))
-    {
-	McAccount *account;
-	McProfile *profile;
-	McProtocol *protocol;
-	McManager *mc_manager;
-
-	account = acct ? acct->data : NULL;
-	profile = account ? mc_account_get_profile (account) : NULL;
-	protocol = profile ? mc_profile_get_protocol (profile) : NULL;
-	mc_manager = protocol ? mc_protocol_get_manager (protocol) : NULL;
-
-	if (mc_manager)
-	{
-	    McdManager *manager;
-	    manager = g_hash_table_lookup (mc_managers, mc_manager);
-
-	    if (!manager)
-	    {
-		manager =
-		    mcd_manager_new (mc_manager, priv->presence_frame,
-				     priv->dispatcher, priv->dbus_daemon);
-		g_hash_table_insert (mc_managers, mc_manager, manager);
-		mcd_operation_take_mission (MCD_OPERATION (master),
-					    MCD_MISSION (manager));
-	    }
-	    mcd_manager_add_account (manager, account);
-
-	    g_debug ("%s: Added account:\n\tName\t\"%s\"\n\tProfile\t\"%s\""
-		     "\n\tProto\t\"%s\"\n\tManager\t\"%s\"",
-		     G_STRFUNC,
-		     mc_account_get_unique_name (account),
-		     mc_profile_get_unique_name (profile),
-		     mc_protocol_get_name (protocol),
-		     mc_manager_get_unique_name (mc_manager));
-	}
-	else
-	{
-	    g_warning ("%s: Cannot add account:\n\tName\t\"%s\"\n\tProfile\t"
-		       "\"%s\"\n\tProto\t\"%s\"\n\tManager\t\"%s\"",
-		       G_STRFUNC,
-		       account ? mc_account_get_unique_name (account) :
-		       "NONE",
-		       profile ? mc_profile_get_unique_name (profile) :
-		       "NONE",
-		       protocol ? mc_protocol_get_name (protocol) : "NONE",
-		       mc_manager ?
-		       mc_manager_get_unique_name (mc_manager) : "NONE");
-	}
-
-	if (profile)
-	    g_object_unref (profile);
-	if (protocol)
-	    g_object_unref (protocol);
-	if (mc_manager)
-	    g_object_unref (mc_manager);
-	/* if (account)
-	    g_object_unref (account); */
-    }				/*for */
-    g_list_free (acct_head);
-    g_hash_table_destroy (mc_managers);
-}
-
-static gint
-_manager_has_account (McdManager * manager, McAccount * account)
-{
-    const GList *accounts;
-    const GList *account_node;
-    
-    accounts = mcd_manager_get_accounts (manager);
-    account_node = g_list_find ((GList *) accounts, account);
-
-    if (account_node)
-    {
-	return 0;
-    }
-
-    else
-    {
-	return 1;
-    }
-}
-
-static McdManager *
-_mcd_master_find_manager (McdMaster * master, McAccount * account)
-{
-    const GList *managers;
-    const GList *manager_node;
-
-    managers = mcd_operation_get_missions (MCD_OPERATION (master));
-    manager_node =
-	g_list_find_custom ((GList*)managers, account,
-			    (GCompareFunc) _manager_has_account);
-
-    if (manager_node)
-    {
-	return MCD_MANAGER (manager_node->data);
-    }
-
-    else
-    {
-	return NULL;
-    }
-}
-
-static gint
-_is_manager_responsible (McdManager * manager, McAccount * account)
-{
-    gboolean can_handle = 
-        mcd_manager_can_handle_account (manager, account);
-
-    if (can_handle)
-    {
-	return 0;
-    }
-    else
-    {
-	return 1;
-    }
-}
-
-static McdManager *
-_mcd_master_find_potential_manager (McdMaster * master, McAccount * account)
-{
-    const GList *managers;
-    const GList *manager_node;
-
-    managers = mcd_operation_get_missions (MCD_OPERATION (master));
-    manager_node =
-	g_list_find_custom ((GList*)managers, account,
-			    (GCompareFunc) _is_manager_responsible);
-
-    if (manager_node)
-    {
-	return MCD_MANAGER (manager_node->data);
-    }
-
-    else
-    {
-	return NULL;
-    }
-}
-
-/* Reads in account's settings if they aren't in the hash table
-   already and (re)connects the account. */
-static void
-_mcd_master_on_account_enabled (McAccountMonitor * monitor,
-			        gchar * account_name, gpointer user_data)
-{
-    McdMaster *master = MCD_MASTER (user_data);
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    McdManager *manager;
-    McAccount *account;
-
-    g_debug ("Account %s enabled", account_name);
-
-    account = mc_account_lookup (account_name);
-    manager = _mcd_master_find_potential_manager (master, account);
-
-    if (manager == NULL)
-    {
-	McProfile *profile;
-	McProtocol *protocol;
-	McManager *mc_manager;
-
-        g_debug ("%s: manager not found, creating a new one", G_STRFUNC);
-	profile = account ? mc_account_get_profile (account) : NULL;
-	protocol = profile ? mc_profile_get_protocol (profile) : NULL;
-	mc_manager = protocol ? mc_protocol_get_manager (protocol) : NULL;
-
-	if (mc_manager)
-	{
-            manager =
-                mcd_manager_new (mc_manager, priv->presence_frame,
-                                 priv->dispatcher, priv->dbus_daemon);
-            mcd_operation_take_mission (MCD_OPERATION (master),
-                                 MCD_MISSION (manager));
-        }
-        else
-        {
-	    g_warning ("%s: Failed to get the manager for the account:"
-                       "\n\tName\t\"%s\"\n\tProfile\t\"%s\"\n\tProto"
-                       "\t\"%s\"\n\tManager\t\"%s\"",
-		       G_STRFUNC,
-		       account ? mc_account_get_unique_name (account) :
-		       "NONE",
-		       profile ? mc_profile_get_unique_name (profile) :
-		       "NONE",
-		       protocol ? mc_protocol_get_name (protocol) : "NONE",
-		       mc_manager ?
-		       mc_manager_get_unique_name (mc_manager) : "NONE");
-        }
-    
-        if (profile)
-            g_object_unref (profile);
-        if (protocol)
-            g_object_unref (protocol);
-        if (mc_manager)
-            g_object_unref (mc_manager);
-    }
-
-    if (manager != NULL)
-    {
-        g_debug ("adding account to manager and presence_frame");
-        mcd_presence_frame_add_account (priv->presence_frame, account);
-        mcd_manager_add_account (manager, account);
-    }
-
-    if (account)
-        g_object_unref (account);
-}
-
-static void
-_mcd_master_on_account_disabled (McAccountMonitor * monitor,
-			        gchar * account_name, gpointer user_data)
-{
-    McdMaster *master = MCD_MASTER (user_data);
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    McdManager *manager;
-    McAccount *account;
-
-    g_debug ("Account %s disabled", account_name);
-
-    account = mc_account_lookup (account_name);
-    
-    manager = _mcd_master_find_manager (master, account);
-
-    if (manager != NULL)
-    {
-        g_debug ("removing account from manager");
-        mcd_manager_remove_account (manager, account);
-    }
-
-    g_debug ("%s: removing account %s from presence_frame %p", 
-             G_STRFUNC, 
-             mc_account_get_unique_name (account),
-             priv->presence_frame);
-    mcd_presence_frame_remove_account (priv->presence_frame, account);
-
-    if (account)
-        g_object_unref (account);
-}
-
-static void
-_mcd_master_on_account_changed (McAccountMonitor * monitor,
-			        gchar * account_name, McdMaster *master)
-{
-    McdManager *manager;
-    McAccount *account;
-
-    g_debug ("Account %s changed", account_name);
-
-    account = mc_account_lookup (account_name);
-    if (!account) return;
-    manager = _mcd_master_find_manager (master, account);
-
-    if (manager)
-    {
-	McdConnection *connection;
-       
-	connection = mcd_manager_get_account_connection (manager, account);
-	if (connection)
-	    mcd_connection_account_changed (connection);
-    }
-
-    g_object_unref (account);
-}
-
-static void
-_mcd_master_on_param_changed (McAccountMonitor *monitor, gchar *account_name,
-			      gchar *param, McdMaster *master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    McdManager *manager;
-    McAccount *account;
-
-    g_debug ("Account %s changed param %s", account_name, param);
-    if (mcd_presence_frame_get_requested_presence (priv->presence_frame) <=
-       	MC_PRESENCE_OFFLINE)
-	return;
-
-    account = mc_account_lookup (account_name);
-    if (!account) return;
-    manager = _mcd_master_find_manager (master, account);
-
-    if (manager)
-	mcd_manager_reconnect_account (manager, account);
-
-    g_object_unref (account);
-}
-
-static void
-_mcd_master_init_account_monitoring (McdMaster * master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    
-    priv->account_monitor = mc_account_monitor_new ();
-    g_signal_connect (priv->account_monitor,
-		      "account-enabled",
-		      (GCallback) _mcd_master_on_account_enabled, master);
-    g_signal_connect (priv->account_monitor,
-		      "account-disabled",
-		      (GCallback) _mcd_master_on_account_disabled, master);
-    g_signal_connect (priv->account_monitor,
-		      "account-changed",
-		      (GCallback) _mcd_master_on_account_changed, master);
-    g_signal_connect (priv->account_monitor,
-		      "param-changed",
-		      (GCallback) _mcd_master_on_param_changed, master);
-}
-
-static void
-_mcd_master_dispose_account_monitoring (McdMaster * master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    
-    g_signal_handlers_disconnect_by_func (priv->account_monitor,
-		      (GCallback) _mcd_master_on_account_enabled, master);
-    g_signal_handlers_disconnect_by_func (priv->account_monitor,
-		      (GCallback) _mcd_master_on_account_disabled, master);
-    g_signal_handlers_disconnect_by_func (priv->account_monitor,
-		      (GCallback) _mcd_master_on_account_changed, master);
-    g_signal_handlers_disconnect_by_func (priv->account_monitor,
-		      (GCallback) _mcd_master_on_param_changed, master);
-    g_object_unref (priv->account_monitor);
-    priv->account_monitor = NULL;
-}
+static McdMaster *default_master = NULL;
 
 static gboolean
 exists_supporting_invisible (McdMasterPrivate *priv)
@@ -666,6 +325,12 @@ _mcd_master_dispose (GObject * object)
     
     g_hash_table_destroy (priv->clients_needing_presence);
 
+    if (priv->account_manager)
+    {
+	g_object_unref (priv->account_manager);
+	priv->account_manager = NULL;
+    }
+
     if (priv->dbus_daemon)
     {
 	DBusGConnection *dbus_connection;
@@ -683,9 +348,6 @@ _mcd_master_dispose (GObject * object)
     priv->dispatcher = NULL;
     priv->presence_frame = NULL;
     g_object_unref (priv->proxy);
-
-    if (priv->account_monitor)
-	_mcd_master_dispose_account_monitoring (MCD_MASTER (object));
 
     G_OBJECT_CLASS (mcd_master_parent_class)->dispose (object);
 }
@@ -777,6 +439,9 @@ mcd_master_init (McdMaster * master)
     DBusGConnection *dbus_connection;
     GError *error = NULL;
 
+    if (!default_master)
+	default_master = master;
+
     /* Initialize DBus connection */
     dbus_connection = dbus_g_bus_get (DBUS_BUS_STARTER, &error);
     if (dbus_connection == NULL)
@@ -799,25 +464,24 @@ mcd_master_init (McdMaster * master)
     mcd_operation_take_mission (MCD_OPERATION (priv->proxy),
 			       	MCD_MISSION (priv->dispatcher));
 
-    _mcd_master_init_managers (master);
-    
-    /* Listen for account enable/disable events */
-    _mcd_master_init_account_monitoring (master);
-
     priv->clients_needing_presence = g_hash_table_new_full (g_str_hash,
 							    g_str_equal,
 							    g_free, NULL);
 
     priv->extra_parameters = g_hash_table_new_full (g_str_hash, g_str_equal,
 						    g_free, _g_value_free);
+
+    priv->account_manager = mcd_account_manager_new (priv->dbus_daemon);
+    mcd_presence_frame_set_account_manager (priv->presence_frame,
+					    priv->account_manager);
 }
 
 McdMaster *
-mcd_master_new (void)
+mcd_master_get_default (void)
 {
-    McdMaster *obj;
-    obj = MCD_MASTER (g_object_new (MCD_TYPE_MASTER, NULL));
-    return obj;
+    if (!default_master)
+	default_master = MCD_MASTER (g_object_new (MCD_TYPE_MASTER, NULL));
+    return default_master;
 }
 
 static void
@@ -1009,26 +673,8 @@ mcd_master_get_account_connection_details (McdMaster * master,
 					   const gchar * account_name,
 					   gchar ** servname, gchar ** objpath)
 {
-    McAccount *account;
-    McdManager *manager;
-    McdConnection *connection;
-    gboolean ret = FALSE;
-
-    account = mc_account_lookup (account_name);
-    if (account)
-    {
-	manager = _mcd_master_find_manager (master, account);
-	connection =
-	    manager ? mcd_manager_get_account_connection (manager, account) : NULL;
-	g_object_unref (account);
-
-	if (connection)
-	    ret =
-		mcd_connection_get_telepathy_details (connection, servname,
-						      objpath);
-    }
-
-    return ret;
+    g_warning ("%s not implemented", G_STRFUNC);
+    return FALSE;
 }
 
 gboolean
@@ -1036,6 +682,7 @@ mcd_master_request_channel (McdMaster *master,
 			    const struct mcd_channel_request *req,
 			    GError ** error)
 {
+#if 0
     const GList *managers, *node;
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
 
@@ -1106,7 +753,23 @@ mcd_master_request_channel (McdMaster *master,
 		     req->account_name);
     }
     g_warning ("No matching manager found for account %s", req->account_name);
-    return FALSE;
+#else
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    McdAccount *account;
+
+    account = mcd_account_manager_lookup_account (priv->account_manager,
+						  req->account_name);
+    if (!account)
+    {
+	if (error)
+	{
+	    g_set_error (error, MC_ERROR, MC_INVALID_ACCOUNT_ERROR,
+			 "No such account %s", req->account_name);
+	}
+	return FALSE;
+    }
+    return mcd_account_request_channel_nmc4 (account, req, error);
+#endif
 }
 
 gboolean
@@ -1282,5 +945,44 @@ mcd_master_get_connection_parameters (McdMaster *master)
     ret = g_hash_table_new (g_str_hash, g_str_equal);
     g_hash_table_foreach (priv->extra_parameters, copy_parameter, ret);
     return ret;
+}
+
+/**
+ * mcd_master_lookup_manager:
+ * @master: the #McdMaster.
+ * @unique_name: the name of the manager.
+ *
+ * Gets the manager whose name is @unique_name. If the manager object doesn't
+ * exists yet, it is created.
+ *
+ * Returns: a #McdManager. Caller must call g_object_ref() on it to ensure it
+ * will stay alive as long as needed.
+ */
+McdManager *
+mcd_master_lookup_manager (McdMaster *master,
+			   const gchar *unique_name)
+{
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    const GList *managers, *list;
+    McdManager *manager;
+
+    managers = mcd_operation_get_missions (MCD_OPERATION (master));
+    for (list = managers; list; list = list->next)
+    {
+	manager = MCD_MANAGER (list->data);
+	if (strcmp (unique_name,
+		    mcd_manager_get_name (manager)) == 0)
+	    return manager;
+    }
+
+    manager = mcd_manager_new (unique_name, priv->presence_frame,
+			       priv->dispatcher, priv->dbus_daemon);
+    if (G_UNLIKELY (!manager))
+	g_warning ("Manager %s not created", unique_name);
+    else
+	mcd_operation_take_mission (MCD_OPERATION (master),
+				    MCD_MISSION (manager));
+
+    return manager;
 }
 

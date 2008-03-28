@@ -27,13 +27,6 @@
 
 #include <glib.h>
 #include <glib-object.h>
-#include <libmissioncontrol/mc-account.h>
-#include <libmissioncontrol/mc-manager.h>
-
-#include "mcd-connection.h"
-#include "mcd-operation.h"
-#include "mcd-presence-frame.h"
-#include "mcd-dispatcher.h"
 
 G_BEGIN_DECLS
 
@@ -45,11 +38,20 @@ G_BEGIN_DECLS
 #define MCD_MANAGER_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), MCD_TYPE_MANAGER, McdManagerClass))
 
 typedef struct _McdManager McdManager;
+typedef struct _McdManagerPrivate McdManagerPrivate;
 typedef struct _McdManagerClass McdManagerClass;
+
+#include "mcd-account.h"
+#include "mcd-connection.h"
+#include "mcd-operation.h"
+#include "mcd-presence-frame.h"
+#include "mcd-dispatcher.h"
 
 struct _McdManager
 {
     McdOperation parent;
+
+    McdManagerPrivate *priv;
 };
 
 struct _McdManagerClass
@@ -63,21 +65,38 @@ struct _McdManagerClass
 };
 
 GType mcd_manager_get_type (void);
-McdManager *mcd_manager_new (McManager * mc_manager,
+McdManager *mcd_manager_new (const gchar *unique_name,
 			     McdPresenceFrame * pframe,
 			     McdDispatcher *dispatcher,
 			     TpDBusDaemon *dbus_daemon);
 
-gboolean mcd_manager_add_account (McdManager * manager, McAccount * account);
-gboolean mcd_manager_can_handle_account (McdManager * manager,
-					 McAccount *account);
-McAccount* mcd_manager_get_account_by_name (McdManager * manager,
-					       const gchar * account_name);
-gboolean mcd_manager_remove_account (McdManager * manager,
-				     McAccount * account);
-const GList *mcd_manager_get_accounts (McdManager * manager);
-McdConnection *mcd_manager_get_account_connection (McdManager * manager,
-						   McAccount * account);
+const gchar *mcd_manager_get_name (McdManager *manager);
+
+/* Protocol related structures */
+typedef struct {
+    gchar *name;
+    GArray *params;
+} McdProtocol;
+
+typedef struct {
+    gchar *name;
+    gchar *signature;
+    /* omitting default value, as long as it's not needed */
+    guint flags;
+} McdProtocolParam;
+
+enum
+{
+    MCD_PROTOCOL_PARAM_REQUIRED = 1 << 0,
+    MCD_PROTOCOL_PARAM_REGISTER = 1 << 1,
+};
+
+const GArray *mcd_manager_get_parameters (McdManager *manager,
+					  const gchar *protocol);
+
+McdConnection *mcd_manager_create_connection (McdManager *manager,
+					      McdAccount *account);
+
 gboolean mcd_manager_request_channel (McdManager *manager,
 				      const struct mcd_channel_request *req,
 				      GError ** error);
@@ -87,7 +106,6 @@ gboolean mcd_manager_cancel_channel_request (McdManager *manager, guint operatio
 
 McdConnection *mcd_manager_get_connection (McdManager *manager,
 					   const gchar *object_path);
-void mcd_manager_reconnect_account (McdManager *manager, McAccount *account);
 
 G_END_DECLS
 #endif /* MCD_MANAGER_H */

@@ -22,6 +22,8 @@
 #ifndef __MCD_ACCOUNT_H__
 #define __MCD_ACCOUNT_H__
 
+#include <telepathy-glib/dbus.h>
+#include <telepathy-glib/enums.h>
 /* auto-generated stubs */
 #include "_gen/svc-Account.h"
 
@@ -37,6 +39,8 @@ typedef struct _McdAccount McdAccount;
 typedef struct _McdAccountPrivate McdAccountPrivate;
 typedef struct _McdAccountClass McdAccountClass;
 
+#include "mcd-connection.h"
+
 struct _McdAccount
 {
     GObject parent;
@@ -49,7 +53,65 @@ struct _McdAccountClass
 };
 
 
-GType mcd_account_get_type (void);
-McdAccount *mcd_account_new (GKeyFile *keyfile, const gchar *name);
+#define MC_ACCOUNT_DBUS_OBJECT_BASE "/org/freedesktop/Telepathy/Account/"
 
+GType mcd_account_get_type (void);
+McdAccount *mcd_account_new (TpDBusDaemon *dbus_daemon, GKeyFile *keyfile,
+			     const gchar *name);
+
+gboolean mcd_account_delete (McdAccount *account, GError **error);
+
+const gchar *mcd_account_get_unique_name (McdAccount *account);
+const gchar *mcd_account_get_object_path (McdAccount *account);
+
+gboolean mcd_account_is_valid (McdAccount *account);
+gboolean mcd_account_check_validity (McdAccount *account);
+
+const gchar *mcd_account_get_protocol_name (McdAccount *account);
+
+gboolean mcd_account_set_parameters (McdAccount *account, GHashTable *params,
+				     GError **error);
+GHashTable *mcd_account_get_parameters (McdAccount *account);
+gboolean mcd_account_check_parameters (McdAccount *account);
+
+void mcd_account_request_presence (McdAccount *account,
+				   TpConnectionPresenceType type,
+				   const gchar *status, const gchar *message);
+void mcd_account_set_current_presence (McdAccount *account,
+				       TpConnectionPresenceType presence,
+				       const gchar *status,
+				       const gchar *message);
+void mcd_account_get_current_presence (McdAccount *account,
+				       TpConnectionPresenceType *presence,
+				       const gchar **status,
+				       const gchar **message);
+void mcd_account_get_requested_presence (McdAccount *account,
+					 TpConnectionPresenceType *presence,
+					 const gchar **status,
+					 const gchar **message);
+
+void mcd_account_set_normalized_name (McdAccount *account, const gchar *name);
+
+gboolean mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
+				 const gchar *mime_type, const gchar *token,
+				 GError **error);
+void mcd_account_get_avatar (McdAccount *account, GArray **avatar,
+			     gchar **mime_type);
+void mcd_account_set_avatar_token (McdAccount *account, const gchar *token);
+gchar *mcd_account_get_avatar_token (McdAccount *account);
+
+void mcd_account_set_alias (McdAccount *account, const gchar *alias);
+
+gchar *mcd_account_get_alias (McdAccount *account);
+
+void mcd_account_set_connection_status (McdAccount *account,
+					TpConnectionStatus status,
+					TpConnectionStatusReason reason);
+TpConnectionStatus mcd_account_get_connection_status (McdAccount *account);
+
+McdConnection *mcd_account_get_connection (McdAccount *account);
+
+gboolean mcd_account_request_channel_nmc4 (McdAccount *account,
+					   const struct mcd_channel_request *req,
+					   GError **error);
 #endif

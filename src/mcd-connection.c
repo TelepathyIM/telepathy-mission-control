@@ -72,16 +72,11 @@ struct _McdConnectionPrivate
     /* DBus bus name */
     gchar *bus_name;
 
-    /* Presence frame */
-    McdPresenceFrame *presence_frame;
-
     /* Channel dispatcher */
     McdDispatcher *dispatcher;
 
-    McdProvisioning *provisioning;
-
     /* Account */
-    McAccount *account;
+    McdAccount *account;
 
     /* Associated profile */
     /* McProfile *profile; */
@@ -130,7 +125,8 @@ struct presence_info
 };
 
 typedef struct {
-    McPresence presence;
+    TpConnectionPresenceType presence;
+    gchar *status;
     gchar *message;
 } McdPresenceData;
 
@@ -155,7 +151,6 @@ enum
     PROP_TP_MANAGER,
     PROP_TP_CONNECTION,
     PROP_ACCOUNT,
-    PROP_PRESENCE_FRAME,
     PROP_DISPATCHER,
 };
 
@@ -353,6 +348,7 @@ mcd_presence_data_free (gpointer userdata)
 {
     McdPresenceData *pd = userdata;
 
+    g_free (pd->status);
     g_free (pd->message);
     g_free (pd);
 }
@@ -367,22 +363,20 @@ presence_set_status_cb (TpConnection *proxy, const GError *error,
     if (error)
     {
 	g_warning ("%s: Setting presence of %s to %d failed: %s",
-		   G_STRFUNC, mc_account_get_unique_name (priv->account),
+		   G_STRFUNC, mcd_account_get_unique_name (priv->account),
 		   pd->presence, error->message);
     }
     else
     {
-	mcd_presence_frame_set_account_presence (priv->presence_frame,
-						 priv->account,
-						 pd->presence,
-						 pd->message);
+	mcd_account_set_current_presence (priv->account, pd->presence,
+					  pd->status, pd->message);
     }
 }
 
 static void
 _mcd_connection_set_presence (McdConnection * connection,
-			      McPresence presence,
-			      const gchar * presence_message)
+			      TpConnectionPresenceType presence,
+			      const gchar *status, const gchar *message)
 {
     const gchar *presence_str;
     GHashTable *presence_ht;
@@ -426,10 +420,10 @@ _mcd_connection_set_presence (McdConnection * connection,
 	 * Note that we silently ignore the message if Connection Manager
 	 * doesn't support it for this presence state!
 	 */
-	if (supported_presence_info->allow_message && presence_message)
+	if (supported_presence_info->allow_message && message)
 	{
 	    g_value_init (&msg_gval, G_TYPE_STRING);
-	    g_value_set_string (&msg_gval, presence_message);
+	    g_value_set_string (&msg_gval, message);
 	    g_hash_table_insert (params_ht, "message", &msg_gval);
 	}
 
@@ -437,14 +431,15 @@ _mcd_connection_set_presence (McdConnection * connection,
 
 	pd = g_malloc (sizeof (McdPresenceData));
 	pd->presence = presence;
-	pd->message = g_strdup (presence_message);
+	pd->status = g_strdup (status);
+	pd->message = g_strdup (message);
 	tp_cli_connection_interface_presence_call_set_status (priv->tp_conn, -1,
 							      presence_ht,
 							      presence_set_status_cb,
 							      pd, mcd_presence_data_free,
 							      (GObject *)connection);
 
-	if (supported_presence_info->allow_message && presence_message)
+	if (supported_presence_info->allow_message && message)
 	    g_value_unset (&msg_gval);
 
 	g_hash_table_destroy (presence_ht);
@@ -460,14 +455,14 @@ presence_get_statuses_cb (TpConnection *proxy, GHashTable *status_hash,
 {
     McdConnectionPrivate *priv = user_data;
     McdConnection *connection = MCD_CONNECTION (weak_object);
-    McPresence presence;
-    const gchar *presence_message;
+    TpConnectionPresenceType presence;
+    const gchar *status, *message;
     guint i;
 
     if (error)
     {
 	g_warning ("%s: Get statuses failed for account %s: %s", G_STRFUNC,
-		   mc_account_get_unique_name (priv->account),
+		   mcd_account_get_unique_name (priv->account),
 		   error->message);
 	return;
     }
@@ -490,11 +485,9 @@ presence_get_statuses_cb (TpConnection *proxy, GHashTable *status_hash,
     }
 
     /* Now the presence info is ready. We can set the presence */
-    presence =
-	mcd_presence_frame_get_requested_presence (priv->presence_frame);
-    presence_message =
-	mcd_presence_frame_get_requested_presence_message (priv->presence_frame);
-    _mcd_connection_set_presence (connection, presence, presence_message);
+    mcd_account_get_requested_presence (priv->account, &presence,
+				       	&status, &message);
+    _mcd_connection_set_presence (connection, presence, status, message);
 }
 
 static void
@@ -545,12 +538,13 @@ _mcd_connection_call_disconnect (McdConnection *connection)
  * the operation is handled by (yet to be written) handler
  */
 static void
-on_presence_requested (McdPresenceFrame * presence_frame,
-		       McPresence presence,
-		       const gchar * presence_message, gpointer user_data)
+on_presence_requested (McdAccount *account,
+		       TpConnectionPresenceType presence,
+		       const gchar *status, const gchar *message,
+		       gpointer user_data)
 {
     McdConnection *connection = MCD_CONNECTION (user_data);
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
+    McdConnectionPrivate *priv = connection->priv;
 
     g_debug ("Presence requested: %d", presence);
     if (presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE ||
@@ -563,7 +557,8 @@ on_presence_requested (McdPresenceFrame * presence_frame,
     }
     else
     {
-	_mcd_connection_set_presence (connection, presence, presence_message);
+	if (mcd_connection_get_connection_status (connection) == TP_CONNECTION_STATUS_CONNECTED)
+	    _mcd_connection_set_presence (connection, presence, status, message);
     }
 }
 
@@ -757,7 +752,6 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
     GPtrArray *capabilities;
     const gchar *remove = NULL;
-    McProfile *profile;
     const gchar *protocol_name;
     GType type;
     gint i;
@@ -768,11 +762,9 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
 	priv->got_capabilities = TRUE;
 	return;
     }
-    profile = mc_account_get_profile (priv->account);
-    protocol_name = mc_profile_get_protocol_name (profile);
+    protocol_name = mcd_account_get_protocol_name (priv->account);
     capabilities = mcd_dispatcher_get_channel_capabilities (priv->dispatcher,
 							    protocol_name);
-    g_object_unref (profile);
     g_debug ("%s: advertising capabilities", G_STRFUNC);
     tp_cli_connection_interface_capabilities_call_advertise_capabilities (priv->tp_conn, -1,
 									  capabilities,
@@ -810,7 +802,7 @@ inspect_handles_cb (TpConnection *proxy, const gchar **names,
     }
     if (names && names[0] != NULL)
     {
-	mc_account_set_normalized_name (priv->account, names[0]);
+	mcd_account_set_normalized_name (priv->account, names[0]);
     }
 }
 
@@ -873,24 +865,21 @@ avatars_set_avatar_cb (TpConnection *proxy, const gchar *token,
 	return;
     }
     g_debug ("%s: received token: %s", G_STRFUNC, token);
-    mc_account_set_avatar_token (priv->account, token);
+    mcd_account_set_avatar_token (priv->account, token);
 }
 
 static void
 avatars_clear_avatar_cb (TpConnection *proxy, const GError *error,
 			 gpointer user_data, GObject *weak_object)
 {
-    gchar *filename = user_data;
     if (!error)
     {
-	g_debug ("%s: Clear avatar succeeded, removing %s", G_STRFUNC, filename);
-	g_remove (filename);
+	g_debug ("%s: Clear avatar succeeded", G_STRFUNC);
     }
     else
     {
 	g_warning ("%s: error: %s", G_STRFUNC, error->message);
     }
-    g_free (filename);
 }
 
 static void
@@ -900,7 +889,6 @@ on_avatar_retrieved (TpConnection *proxy, guint contact_id, const gchar *token,
 {
     McdConnectionPrivate *priv = user_data;
     gchar *prev_token = NULL;
-    gchar *filename;
 
     if (contact_id != priv->self_handle) return;
 
@@ -908,19 +896,12 @@ on_avatar_retrieved (TpConnection *proxy, guint contact_id, const gchar *token,
     if (priv->setting_avatar) return;
 
     g_debug ("%s: Avatar retrieved for contact %d, token: %s", G_STRFUNC, contact_id, token);
-    mc_account_get_avatar (priv->account, NULL, NULL, &prev_token);
+    prev_token = mcd_account_get_avatar_token (priv->account);
 
     if (!prev_token || strcmp (token, prev_token) != 0)
     {
 	g_debug ("%s: received mime-type: %s", G_STRFUNC, mime_type);
-	if (mc_account_get_avatar (priv->account, &filename, NULL, NULL))
-	{
-	    g_file_set_contents (filename, avatar->data, avatar->len, NULL);
-	    mc_account_set_avatar_mime_type (priv->account, mime_type);
-	    mc_account_reset_avatar_id (priv->account);
-	    mc_account_set_avatar_token (priv->account, token);
-	    g_free (filename);
-	}
+	mcd_account_set_avatar (priv->account, avatar, mime_type, token, NULL);
     }
     g_free (prev_token);
 }
@@ -949,7 +930,7 @@ on_avatar_updated (TpConnection *proxy, guint contact_id, const gchar *token,
     if (priv->setting_avatar) return;
 
     g_debug ("%s: contact %d, token: %s", G_STRFUNC, contact_id, token);
-    if (!mc_account_get_avatar (priv->account, NULL, NULL, &prev_token))
+    if (!(prev_token = mcd_account_get_avatar_token (priv->account)))
 	return;
 
     if (!prev_token || strcmp (token, prev_token) != 0)
@@ -969,49 +950,27 @@ on_avatar_updated (TpConnection *proxy, guint contact_id, const gchar *token,
 }
 
 static void
-_mcd_connection_set_avatar (McdConnection *connection, gchar *filename,
-			    gchar *mime_type)
+_mcd_connection_set_avatar (McdConnection *connection, const GArray *avatar,
+			    const gchar *mime_type)
 {
     McdConnectionPrivate *priv = connection->priv;
-    GError *error = NULL;
-    gchar *data = NULL;
-    size_t length;
 
     g_debug ("%s called", G_STRFUNC);
-    if (filename == NULL || !g_file_test (filename, G_FILE_TEST_EXISTS))
+    if (avatar->len > 0 && avatar->len < G_MAXUINT)
     {
-	return;
-    }
-
-    if (g_file_get_contents (filename, &data, &length, &error))
-    {
-	if (length > 0 && length < G_MAXUINT)
-	{
-	    GArray avatar;
-	    avatar.data = data;
-	    avatar.len = (guint)length;
-	    tp_cli_connection_interface_avatars_call_set_avatar (priv->tp_conn, -1,
-								 &avatar, mime_type,
-								 avatars_set_avatar_cb,
-								 priv, NULL,
-								 (GObject *)connection);
-	    priv->setting_avatar = TRUE;
-	}
-	else
-	    tp_cli_connection_interface_avatars_call_clear_avatar (priv->tp_conn, -1,
-								   avatars_clear_avatar_cb,
-								   g_strdup (filename),
-								   g_free,
-								   (GObject *)connection);
-
+	tp_cli_connection_interface_avatars_call_set_avatar (priv->tp_conn, -1,
+							     avatar, mime_type,
+							     avatars_set_avatar_cb,
+							     priv, NULL,
+							     (GObject *)connection);
+	priv->setting_avatar = TRUE;
     }
     else
-    {
-	g_debug ("%s: error reading %s: %s", G_STRFUNC, filename,
-		 error->message);
-	g_error_free (error);
-    }
-    g_free(data);
+	tp_cli_connection_interface_avatars_call_clear_avatar (priv->tp_conn, -1,
+							       avatars_clear_avatar_cb,
+							       NULL,
+							       g_free,
+							       (GObject *)connection);
 }
 
 static void
@@ -1021,8 +980,9 @@ avatars_request_tokens_cb (TpConnection *proxy, GHashTable *tokens,
 {
     McdConnectionPrivate *priv = (McdConnectionPrivate *)user_data;
     McdConnection *connection = MCD_CONNECTION (weak_object);
+    GArray *avatar = NULL;
     const gchar *token;
-    gchar *filename, *mime_type;
+    gchar *mime_type;
 
     if (error)
     {
@@ -1034,24 +994,31 @@ avatars_request_tokens_cb (TpConnection *proxy, GHashTable *tokens,
     if (token)
 	return;
 
-    if (!mc_account_get_avatar (priv->account, &filename, &mime_type, NULL))
-    {
-	g_debug ("%s: mc_account_get_avatar() returned FALSE", G_STRFUNC);
-	return;
-    }
+    mcd_account_get_avatar (priv->account, &avatar, &mime_type);
 
     g_debug ("No avatar set, setting our own");
-    _mcd_connection_set_avatar (connection, filename, mime_type);
+    _mcd_connection_set_avatar (connection, avatar, mime_type);
 
-    g_free (filename);
+    g_array_free (avatar, TRUE);
     g_free (mime_type);
+}
+
+static void
+on_account_avatar_changed (McdAccount *account, const GArray *avatar,
+			   const gchar *mime_type, McdConnection *connection)
+{
+    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
+
+    if (!priv->has_avatars_if) return;
+    _mcd_connection_set_avatar (connection, avatar, mime_type);
 }
 
 static void
 _mcd_connection_setup_avatar (McdConnection *connection)
 {
     McdConnectionPrivate *priv = connection->priv;
-    gchar *filename, *mime_type, *token;
+    gchar *mime_type, *token;
+    GArray *avatar;
 
     if (!priv->has_avatars_if)
 	return;
@@ -1068,16 +1035,14 @@ _mcd_connection_setup_avatar (McdConnection *connection)
 								     NULL);
     priv->setting_avatar = FALSE;
 
-    if (!mc_account_get_avatar (priv->account, &filename, &mime_type, &token))
-    {
-	g_debug ("%s: mc_account_get_avatar() returned FALSE", G_STRFUNC);
-	return;
-    }
+    mcd_account_get_avatar (priv->account, &avatar, &mime_type);
 
-    if (filename)
+    if (avatar)
     {
+	token = mcd_account_get_avatar_token (priv->account);
+	g_free (token);
 	if (!token)
-	    _mcd_connection_set_avatar (connection, filename, mime_type);
+	    _mcd_connection_set_avatar (connection, avatar, mime_type);
 	else
 	{
 	    GArray handles;
@@ -1092,10 +1057,9 @@ _mcd_connection_setup_avatar (McdConnection *connection)
 									      priv, NULL,
 									      (GObject *)connection);
 	}
+	g_array_free (avatar, TRUE);
     }
-    g_free (filename);
     g_free (mime_type);
-    g_free (token);
 }
 
 static void
@@ -1126,7 +1090,7 @@ on_aliases_changed (TpConnection *proxy, const GPtrArray *aliases,
 	    {
 		g_free (priv->alias);
 		priv->alias = alias;
-		mc_account_set_alias (priv->account, alias);
+		mcd_account_set_alias (priv->account, alias);
 	    }
 	    break;
 	}
@@ -1175,7 +1139,7 @@ _mcd_connection_setup_alias (McdConnection *connection)
 								     priv, NULL,
 								     (GObject *)connection,
 								     NULL);
-    alias = mc_account_get_alias (priv->account);
+    alias = mcd_account_get_alias (priv->account);
     if (alias && (!priv->alias || strcmp (priv->alias, alias) != 0))
 	_mcd_connection_set_alias (connection, priv, alias);
     g_free (alias);
@@ -1206,17 +1170,15 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
     switch (conn_status)
     {
     case TP_CONNECTION_STATUS_CONNECTING:
-	mcd_presence_frame_set_account_status (priv->presence_frame,
-					       priv->account,
-					       conn_status, conn_reason);
+	mcd_account_set_connection_status (priv->account,
+					   conn_status, conn_reason);
 	priv->abort_reason = TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
 	priv->reconnection_requested = FALSE;
 	break;
     case TP_CONNECTION_STATUS_CONNECTED:
 	{
-	    mcd_presence_frame_set_account_status (priv->presence_frame,
-						   priv->account,
-						   conn_status, conn_reason);
+	    mcd_account_set_connection_status (priv->account,
+					       conn_status, conn_reason);
 	    _mcd_connection_get_self_handle (connection);
 	    priv->reconnect_interval = 30 * 1000; /* reset it to 30 seconds */
 	}
@@ -1271,10 +1233,9 @@ static void proxy_destroyed (DBusGProxy *tp_conn, guint domain, gint code,
 	/* FIXME HACK: since we want presence-applet to immediately start
 	 * displaying a blinking icon, we must set the account status to
 	 * CONNECTING now */
-	mcd_presence_frame_set_account_status (priv->presence_frame,
-					       priv->account,
-					       TP_CONNECTION_STATUS_CONNECTING,
-					       TP_CONNECTION_STATUS_REASON_REQUESTED);
+	mcd_account_set_connection_status (priv->account,
+					   TP_CONNECTION_STATUS_CONNECTING,
+					   TP_CONNECTION_STATUS_REASON_REQUESTED);
 	priv->reconnection_requested = FALSE;
     }
     else
@@ -1299,77 +1260,6 @@ connect_cb (TpConnection *tp_conn, const GError *error,
 	g_warning ("%s: tp_conn_connect failed: %s",
 		   G_STRFUNC, error->message);
     }
-}
-
-static GHashTable *
-get_extra_parameters (McdConnection *connection)
-{
-    McdMission *mission;
- 
-    mission = mcd_mission_get_parent (MCD_MISSION (connection));
-    g_return_val_if_fail (mission != NULL, NULL);
-    mission = mcd_mission_get_parent (mission);
-    g_return_val_if_fail (mission != NULL && MCD_IS_MASTER (mission), NULL);
-    return mcd_master_get_connection_parameters (MCD_MASTER (mission));
-}
-
-static void
-add_supported_param (gpointer key, gpointer value, gpointer userdata)
-{
-    struct param_data *pd = (struct param_data *)userdata;
-    gboolean found = FALSE;
-    GSList *list;
- 
-    for (list = pd->pr_params; list != NULL; list = list->next)
-    {
-	McProtocolParam *param = list->data;
-	if (strcmp (param->name, key) == 0)
-	{
-	    found = TRUE;
-	    break;
-	}
-    }
-    if (found && !g_hash_table_lookup (pd->dest, key))
-    {
-	g_debug ("%s: adding parameter %s", G_STRFUNC, (gchar *)key);
-	g_hash_table_insert (pd->dest, key, value);
-    }
-}
-
-static void
-add_supported_extra_parameters (GHashTable *extra, McProfile *profile,
-				GHashTable *params)
-{
-    McProtocol *protocol;
-    struct param_data pd;
-    GSList *pr_params;
-
-    protocol = mc_profile_get_protocol (profile);
-    g_return_if_fail (protocol != NULL);
-
-    pr_params = mc_protocol_get_params (protocol);
-    pd.pr_params = pr_params;
-    pd.dest = params;
-    g_hash_table_foreach (extra, add_supported_param, &pd);
-    mc_protocol_free_params_list (pr_params);
-    g_object_unref (protocol);
-}
-
-static void
-remove_extra_parameter (gpointer key, gpointer value, gpointer userdata)
-{
-    GHashTable *params = (GHashTable *)userdata;
-    g_hash_table_steal (params, key);
-}
-
-static void
-remove_extra_parameters (GHashTable *extra_parameters, GHashTable *params)
-{
-    /* we need to remove the extra parameters from the parameters hash table
-     * because otherwise whey will be freed twice (and possibly in a wrong way)
-     * by the two g_hash_table_destroy() calls, since we didn't copy them */
-    g_hash_table_foreach (extra_parameters, remove_extra_parameter, params);
-    g_hash_table_destroy (extra_parameters);
 }
 
 static void
@@ -1420,10 +1310,9 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
     {
 	g_warning ("%s: RequestConnection failed: %s",
 		   G_STRFUNC, tperror->message);
-	mcd_presence_frame_set_account_status (priv->presence_frame,
-					       priv->account,
-					       TP_CONNECTION_STATUS_DISCONNECTED,
-					       TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
+	mcd_account_set_connection_status (priv->account,
+					   TP_CONNECTION_STATUS_DISCONNECTED,
+					   TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
 	return;
     }
 
@@ -1433,10 +1322,9 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
     {
 	g_warning ("%s: tp_connection_new failed: %s",
 		   G_STRFUNC, error->message);
-	mcd_presence_frame_set_account_status (priv->presence_frame,
-					       priv->account,
-					       TP_CONNECTION_STATUS_DISCONNECTED,
-					       TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
+	mcd_account_set_connection_status (priv->account,
+					   TP_CONNECTION_STATUS_DISCONNECTED,
+					   TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
 	g_error_free (error);
 	return;
     }
@@ -1466,50 +1354,21 @@ static void
 _mcd_connection_connect (McdConnection *connection, GHashTable *params)
 {
     McdConnectionPrivate *priv = connection->priv;
-    McProfile *profile;
     const gchar *protocol_name;
     const gchar *account_name;
-    GHashTable *extra_parameters;
 
-    profile = mc_account_get_profile (priv->account);
-    protocol_name = mc_profile_get_protocol_name (profile);
-    account_name = mc_account_get_unique_name (priv->account);
+    protocol_name = mcd_account_get_protocol_name (priv->account);
+    account_name = mcd_account_get_unique_name (priv->account);
 
     g_debug ("%s: Trying connect account: %s",
 	     G_STRFUNC, (gchar *) account_name);
 
-    extra_parameters = get_extra_parameters (connection);
-    add_supported_extra_parameters (extra_parameters, profile, params);
+    /* TODO: add extra parameters? */
     tp_cli_connection_manager_call_request_connection (priv->tp_conn_mgr, -1,
 						       protocol_name, params,
 						       request_connection_cb,
 						       priv, NULL,
 						       (GObject *)connection);
-    remove_extra_parameters (extra_parameters, params);
-    g_object_unref (profile);
-}
-
-static void
-provisioning_cb (McdProvisioning *prov, GHashTable *parameters, GError *error,
-		 gpointer user_data)
-{
-    McdConnection *connection = MCD_CONNECTION (user_data);
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-
-    g_debug ("%s called", G_STRFUNC);
-    priv->provisioning = NULL;
-    if (error)
-    {
-	g_warning ("%s failed: %s", G_STRFUNC, error->message);
-	g_error_free (error);
-	mcd_presence_frame_set_account_status (priv->presence_frame,
-					       priv->account,
-					       TP_CONNECTION_STATUS_DISCONNECTED,
-					       TP_CONNECTION_STATUS_REASON_AUTHENTICATION_FAILED);
-	return;
-    }
-    _mcd_connection_connect (connection, parameters);
-    g_hash_table_destroy (parameters);
 }
 
 static void
@@ -1517,81 +1376,21 @@ mcd_connection_get_params_and_connect (McdConnection *connection)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
     GHashTable *params = NULL;
-    McAccountSettingState state;
-    gchar *url = NULL;
-    McProfile *profile;
-    const gchar *protocol_name;
     const gchar *account_name;
-    gboolean requesting_provisioning = FALSE;
 
-    mcd_presence_frame_set_account_status (priv->presence_frame,
-					   priv->account,
-					   TP_CONNECTION_STATUS_CONNECTING,
-					   TP_CONNECTION_STATUS_REASON_REQUESTED);
+    g_debug ("%s called for %p", G_STRFUNC, connection);
+    mcd_account_set_connection_status (priv->account,
+				       TP_CONNECTION_STATUS_CONNECTING,
+				       TP_CONNECTION_STATUS_REASON_REQUESTED);
 
-    profile = mc_account_get_profile (priv->account);
-    if (!profile)
-    {
-	mcd_presence_frame_set_account_status (priv->presence_frame,
-					       priv->account,
-					       TP_CONNECTION_STATUS_DISCONNECTED,
-					       TP_CONNECTION_STATUS_REASON_AUTHENTICATION_FAILED);
-	return;
-    }
-    protocol_name = mc_profile_get_protocol_name (profile);
-    account_name = mc_account_get_unique_name (priv->account);
+    account_name = mcd_account_get_unique_name (priv->account);
 
     g_debug ("%s: Trying connect account: %s",
 	     G_STRFUNC, (gchar *) account_name);
 
-    state = mc_account_get_param_string (priv->account, "prov-url", &url);
-    if (state != MC_ACCOUNT_SETTING_ABSENT && url != NULL)
-    {
-	gchar *service = NULL, *username = NULL, *password = NULL;
-	/* get parameters from provisioning service */
-	mc_account_get_param_string (priv->account, "prov-service", &service);
-	mc_account_get_param_string (priv->account, "prov-username", &username);
-	mc_account_get_param_string (priv->account, "prov-password", &password);
-	if (service)
-	{
-	    McdProvisioningFactory *factory;
-	    McdProvisioning *prov;
-
-	    factory = mcd_provisioning_factory_get ();
-	    g_assert (factory != NULL);
-	    prov = mcd_provisioning_factory_lookup (factory, service);
-	    if (prov)
-	    {
-		g_debug ("%s: requesting parameters from provisioning service %s",
-			 G_STRFUNC, service);
-		/* if there was already a request, cancel it */
-		if (priv->provisioning)
-		    mcd_provisioning_cancel_request (priv->provisioning,
-						     provisioning_cb,
-						     connection);
-		mcd_provisioning_request_parameters (prov, url,
-						     username, password,
-						     provisioning_cb,
-						     connection);
-		requesting_provisioning = TRUE;
-		priv->provisioning = prov;
-	    }
-	    else
-		g_debug ("%s: provisioning service %s not found",
-			 G_STRFUNC, service);
-	}
-	g_free (service);
-	g_free (url);
-	g_free (username);
-	g_free (password);
-    }
-    if (!requesting_provisioning)
-    {
-	params = mc_account_get_params (priv->account);
-	_mcd_connection_connect (connection, params);
-	g_hash_table_destroy (params);
-    }
-    g_object_unref (profile);
+    params = mcd_account_get_parameters (priv->account);
+    _mcd_connection_connect (connection, params);
+    g_hash_table_destroy (params);
 }
 
 static void
@@ -1647,10 +1446,9 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
 
     g_debug ("%s(%p) called", G_STRFUNC, connection);
-    mcd_presence_frame_set_account_status (priv->presence_frame,
-					   priv->account,
-					   TP_CONNECTION_STATUS_DISCONNECTED, 
-					   priv->abort_reason);
+    mcd_account_set_connection_status (priv->account,
+				       TP_CONNECTION_STATUS_DISCONNECTED, 
+				       priv->abort_reason);
     if (priv->tp_conn)
     {
 	/* Disconnect signals */
@@ -1704,18 +1502,14 @@ _mcd_connection_dispose (GObject * object)
 
     _mcd_connection_release_tp_connection (connection);
     
-    if (priv->presence_frame != NULL)
-    {
-	g_signal_handlers_disconnect_by_func (G_OBJECT
-					      (priv->presence_frame),
-					      G_CALLBACK
-					      (on_presence_requested), object);
-	g_object_unref (priv->presence_frame);
-	priv->presence_frame = NULL;
-    }
-
     if (priv->account)
     {
+	g_signal_handlers_disconnect_by_func (priv->account,
+					      G_CALLBACK
+					      (on_presence_requested), object);
+	g_signal_handlers_disconnect_by_func (priv->account,
+					      G_CALLBACK (on_account_avatar_changed),
+					      object);
 	g_object_unref (priv->account);
 	priv->account = NULL;
     }
@@ -1732,13 +1526,6 @@ _mcd_connection_dispose (GObject * object)
 	priv->dispatcher = NULL;
     }
 
-    if (priv->provisioning)
-    {
-	mcd_provisioning_cancel_request (priv->provisioning, provisioning_cb,
-					 connection);
-	priv->provisioning = NULL;
-    }
-
     if (priv->dbus_daemon)
     {
 	g_object_unref (priv->dbus_daemon);
@@ -1752,38 +1539,13 @@ static void
 _mcd_connection_set_property (GObject * obj, guint prop_id,
 			      const GValue * val, GParamSpec * pspec)
 {
-    McdPresenceFrame *presence_frame;
     McdDispatcher *dispatcher;
-    McAccount *account;
+    McdAccount *account;
     TpConnectionManager *tp_conn_mgr;
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (obj);
 
     switch (prop_id)
     {
-    case PROP_PRESENCE_FRAME:
-	presence_frame = g_value_get_object (val);
-	if (presence_frame)
-	{
-	    g_return_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame));
-	    g_object_ref (presence_frame);
-	}
-
-	if (priv->presence_frame)
-	{
-	    g_signal_handlers_disconnect_by_func (G_OBJECT
-						  (priv->presence_frame),
-						  G_CALLBACK
-						  (on_presence_requested), obj);
-	    g_object_unref (priv->presence_frame);
-	}
-	priv->presence_frame = presence_frame;
-	if (priv->presence_frame)
-	{
-	    g_signal_connect_after (G_OBJECT (priv->presence_frame),
-				    "presence-requested",
-				    G_CALLBACK (on_presence_requested), obj);
-	}
-	break;
     case PROP_DISPATCHER:
 	dispatcher = g_value_get_object (val);
 	if (dispatcher)
@@ -1816,11 +1578,15 @@ _mcd_connection_set_property (GObject * obj, guint prop_id,
 	break;
     case PROP_ACCOUNT:
 	account = g_value_get_object (val);
-	g_return_if_fail (MC_IS_ACCOUNT (account));
+	g_return_if_fail (MCD_IS_ACCOUNT (account));
 	g_object_ref (account);
-	if (priv->account)
-	    g_object_unref (priv->account);
 	priv->account = account;
+	g_signal_connect (priv->account,
+			  "requested-presence-changed",
+			  G_CALLBACK (on_presence_requested), obj);
+	g_signal_connect (priv->account,
+			  "avatar-changed",
+			  G_CALLBACK (on_account_avatar_changed), obj);
 	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -1851,9 +1617,6 @@ _mcd_connection_get_property (GObject * obj, guint prop_id,
     case PROP_TP_CONNECTION:
 	g_value_set_object (val, priv->tp_conn);
 	break;
-    case PROP_PRESENCE_FRAME:
-	g_value_set_object (val, priv->presence_frame);
-	break;
     case PROP_DISPATCHER:
 	g_value_set_object (val, priv->dispatcher);
 	break;
@@ -1875,16 +1638,6 @@ mcd_connection_class_init (McdConnectionClass * klass)
     object_class->get_property = _mcd_connection_get_property;
 
     /* Properties */
-    g_object_class_install_property (object_class,
-				     PROP_PRESENCE_FRAME,
-				     g_param_spec_object ("presence-frame",
-							  _
-							  ("Presence Frame Object"),
-							  _
-							  ("Presence frame Object used by connections to update presence"),
-							  MCD_TYPE_PRESENCE_FRAME,
-							  G_PARAM_READWRITE |
-							  G_PARAM_CONSTRUCT_ONLY));
     g_object_class_install_property (object_class,
 				     PROP_DISPATCHER,
 				     g_param_spec_object ("dispatcher",
@@ -1930,7 +1683,7 @@ mcd_connection_class_init (McdConnectionClass * klass)
 							  _("Account Object"),
 							  _
 							  ("Account that will be used to create this connection"),
-							  MC_TYPE_ACCOUNT,
+							  MCD_TYPE_ACCOUNT,
 							  G_PARAM_READWRITE |
 							  G_PARAM_CONSTRUCT_ONLY));
 }
@@ -1958,22 +1711,19 @@ McdConnection *
 mcd_connection_new (TpDBusDaemon *dbus_daemon,
 		    const gchar * bus_name,
 		    TpConnectionManager * tp_conn_mgr,
-		    McAccount * account,
-		    McdPresenceFrame * presence_frame,
+		    McdAccount * account,
 		    McdDispatcher *dispatcher)
 {
     McdConnection *mcdconn = NULL;
     g_return_val_if_fail (dbus_daemon != NULL, NULL);
     g_return_val_if_fail (bus_name != NULL, NULL);
     g_return_val_if_fail (TP_IS_CONNECTION_MANAGER (tp_conn_mgr), NULL);
-    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
-    g_return_val_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame), NULL);
+    g_return_val_if_fail (MCD_IS_ACCOUNT (account), NULL);
 
     mcdconn = g_object_new (MCD_TYPE_CONNECTION,
 			    "dbus-daemon", dbus_daemon,
 			    "bus-name", bus_name,
 			    "tp-manager", tp_conn_mgr,
-			    "presence-frame", presence_frame,
 			    "dispatcher", dispatcher,
 			    "account", account, NULL);
     return mcdconn;
@@ -1981,7 +1731,7 @@ mcd_connection_new (TpDBusDaemon *dbus_daemon,
 
 /* Constant getters. These should probably be removed */
 
-McAccount *
+McdAccount *
 mcd_connection_get_account (McdConnection * id)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (id);
@@ -1992,8 +1742,22 @@ TpConnectionStatus
 mcd_connection_get_connection_status (McdConnection * id)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (id);
-    return mcd_presence_frame_get_account_status (priv->presence_frame,
-						  priv->account);
+    return mcd_account_get_connection_status (priv->account);
+}
+
+TpConnectionStatusReason
+mcd_connection_get_connection_status_reason (McdConnection *connection)
+{
+    McdConnectionPrivate *priv = connection->priv;
+    TpConnectionStatusReason conn_reason;
+
+    if (priv->tp_conn)
+	g_object_get (G_OBJECT (priv->tp_conn),
+		      "status-reason", &conn_reason,
+		      NULL);
+    else
+	conn_reason = TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
+    return conn_reason;
 }
 
 gboolean
@@ -2553,30 +2317,6 @@ mcd_connection_close (McdConnection *connection)
     mcd_mission_abort (MCD_MISSION (connection));
 }
 
-static inline void
-account_changed_avatar (McdConnection *connection)
-{
-    McdConnectionPrivate *priv = connection->priv;
-    gchar *filename, *mime_type, *token;
-
-    if (priv->setting_avatar)
-    {
-	g_debug ("%s: already setting avatar", G_STRFUNC);
-	return;
-    }
-    if (!mc_account_get_avatar (priv->account, &filename, &mime_type, &token))
-    {
-	g_debug ("%s: mc_account_get_avatar() returned FALSE", G_STRFUNC);
-	return;
-    }
-
-    if (filename && !token)
-	_mcd_connection_set_avatar (connection, filename, mime_type);
-    g_free (filename);
-    g_free (mime_type);
-    g_free (token);
-}
-
 /**
  * mcd_connection_account_changed:
  * @connection: the #McdConnection.
@@ -2595,16 +2335,11 @@ mcd_connection_account_changed (McdConnection *connection)
 
     if (priv->tp_conn) 
     {
-	/* setup the avatar (if it has not been changed, this function does
-	 * nothing) */
-	if (priv->has_avatars_if)
-	    account_changed_avatar (connection);
-
 	if (priv->has_alias_if)
 	{
 	    gchar *alias;
 
-	    alias = mc_account_get_alias (priv->account);
+	    alias = mcd_account_get_alias (priv->account);
 	    if (alias && (!priv->alias || strcmp (priv->alias, alias) != 0))
 		_mcd_connection_set_alias (connection, priv, alias);
 	    g_free (alias);
@@ -2641,5 +2376,16 @@ void
 mcd_connection_connect (McdConnection *connection)
 {
     _mcd_connection_setup (connection);
+}
+
+const gchar *
+mcd_connection_get_object_path (McdConnection *connection)
+{
+    McdConnectionPrivate *priv = connection->priv;
+
+    if (priv->tp_conn)
+	return TP_PROXY (priv->tp_conn)->object_path;
+    else
+	return NULL;
 }
 

@@ -34,7 +34,9 @@
  */
 
 #include <string.h>
+#include <stdio.h>
 #include <glib/gi18n.h>
+#include <config.h>
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/connection-manager.h>
@@ -43,35 +45,39 @@
 #include "mcd-connection.h"
 #include "mcd-manager.h"
 
-#define MCD_MANAGER_PRIV(manager) (G_TYPE_INSTANCE_GET_PRIVATE ((manager), \
-				   MCD_TYPE_MANAGER, \
-				   McdManagerPrivate))
+#define MANAGER_SUFFIX ".manager"
+
+#define MCD_MANAGER_PRIV(manager) (MCD_MANAGER (manager)->priv)
 
 G_DEFINE_TYPE (McdManager, mcd_manager, MCD_TYPE_OPERATION);
 
-typedef struct _McdManagerPrivate
+struct _McdManagerPrivate
 {
+    gchar *name;
     TpDBusDaemon *dbus_daemon;
-    McManager *mc_manager;
     McdPresenceFrame *presence_frame;
     McdDispatcher *dispatcher;
+
+    /* bus name and object path of the ConnectionManager */
+    gchar *bus_name;
+    gchar *object_path;
     TpConnectionManager *tp_conn_mgr;
-    GList *accounts;
+
+    GArray *protocols; /* array of McdProtocol structures */
     gboolean is_disposed;
     gboolean delay_presence_request;
 
     /* Table of channels to create upon connection */
     GHashTable *requested_channels;
-} McdManagerPrivate;
+};
 
 enum
 {
     PROP_0,
+    PROP_NAME,
     PROP_PRESENCE_FRAME,
     PROP_DISPATCHER,
-    PROP_MC_MANAGER,
     PROP_DBUS_DAEMON,
-    PROP_ACCOUNTS
 };
 
 enum _McdManagerSignalType
@@ -87,65 +93,75 @@ static void abort_requested_channel (gchar *key,
 				     struct mcd_channel_request *req,
 				     McdManager *manager);
 
-static void
-_mcd_manager_create_connection (McdManager * manager, McAccount * account)
+static const gchar**
+_mc_manager_get_dirs ()
 {
-    McdConnection *connection;
-    McdManagerPrivate *priv = MCD_MANAGER_PRIV (manager);
-    
-    g_return_if_fail (mcd_manager_get_account_connection (manager, account) == NULL);
-    if (!priv->tp_conn_mgr)
+    GSList *dir_list = NULL, *slist;
+    const gchar *dirname;
+    static gchar **manager_dirs = NULL;
+    guint n;
+
+    if (manager_dirs) return (const gchar **)manager_dirs;
+
+    dirname = g_getenv ("MC_MANAGER_DIR");
+    if (dirname && g_file_test (dirname, G_FILE_TEST_IS_DIR))
+	dir_list = g_slist_prepend (dir_list, (gchar *)dirname);
+
+    if (MANAGERS_DIR[0] == '/')
     {
-	GError *error = NULL;
-	const gchar *unique_name;
-
-	g_return_if_fail (MC_IS_MANAGER (priv->mc_manager));
-
-	unique_name = mc_manager_get_unique_name (priv->mc_manager);
-	priv->tp_conn_mgr =
-	    tp_connection_manager_new (priv->dbus_daemon, unique_name,
-				       mc_manager_get_filename (priv->mc_manager),
-				       &error);
-	if (error)
-	{
-	    g_warning ("%s, cannot create manager %s: %s", G_STRFUNC,
-		       unique_name, error->message);
-	    g_error_free (error);
-	    return;
-	}
-	g_debug ("%s: Manager %s created", G_STRFUNC, unique_name);
+	if (g_file_test (MANAGERS_DIR, G_FILE_TEST_IS_DIR))
+	    dir_list = g_slist_prepend (dir_list, MANAGERS_DIR);
     }
-    
-    connection = mcd_connection_new (priv->dbus_daemon,
-            mc_manager_get_bus_name (priv->
-                mc_manager),
-            priv->tp_conn_mgr, account,
-            priv->presence_frame,
-            priv->dispatcher);
-    mcd_operation_take_mission (MCD_OPERATION (manager),
-            MCD_MISSION (connection));
-    mcd_connection_connect (connection);
-    g_debug ("%s: Created a connection %p for account: %s", G_STRFUNC,
-            connection, mc_account_get_unique_name (account));
+    else
+    {
+	const gchar * const *dirs;
+	gchar *dir;
+
+	dir = g_build_filename (g_get_user_data_dir(), MANAGERS_DIR, NULL);
+	if (g_file_test (dir, G_FILE_TEST_IS_DIR))
+	    dir_list = g_slist_prepend (dir_list, dir);
+	else g_free (dir);
+
+	dirs = g_get_system_data_dirs();
+	for (dirname = *dirs; dirname; dirs++, dirname = *dirs)
+	{
+	    dir = g_build_filename (dirname, MANAGERS_DIR, NULL);
+	    if (g_file_test (dir, G_FILE_TEST_IS_DIR))
+		dir_list = g_slist_prepend (dir_list, dir);
+	    else g_free (dir);
+	}
+    }
+
+    /* build the string array */
+    n = g_slist_length (dir_list);
+    manager_dirs = g_new (gchar *, n + 1);
+    manager_dirs[n--] = NULL;
+    for (slist = dir_list; slist; slist = slist->next)
+	manager_dirs[n--] = slist->data;
+    g_slist_free (dir_list);
+    return (const gchar **)manager_dirs;
 }
 
-void
-_mcd_manager_create_connections (McdManager * manager)
+static gchar *
+_mcd_manager_filename (const gchar *unique_name)
 {
-    GList *node;
-    McdManagerPrivate *priv = MCD_MANAGER_PRIV (manager);
+    const gchar **manager_dirs;
+    const gchar *dirname;
+    gchar *filename, *filepath = NULL;
 
-    for (node = priv->accounts; node; node = node->next)
+    manager_dirs = _mc_manager_get_dirs ();
+    if (!manager_dirs) return NULL;
+
+    filename = g_strconcat (unique_name, MANAGER_SUFFIX, NULL);
+    for (dirname = *manager_dirs; dirname; manager_dirs++, dirname = *manager_dirs)
     {
-	/* Create a connection object for each account */
-	McAccount *account = MC_ACCOUNT (node->data);
-	
-	/* Only create a new connection if there already is not one */
-	if (!mcd_manager_get_account_connection (manager, account))
-	{
-	    _mcd_manager_create_connection (manager, account);
-	}
+	filepath = g_build_filename (dirname, filename, NULL);
+	if (g_file_test (filepath, G_FILE_TEST_EXISTS)) break;
+	g_free (filepath);
+	filepath = NULL;
     }
+    g_free (filename);
+    return filepath;
 }
 
 static gint
@@ -268,7 +284,9 @@ on_presence_requested_idle (gpointer data)
 	&& (requested_presence != MC_PRESENCE_OFFLINE
 	    && requested_presence != MC_PRESENCE_UNSET))
     {
+	/* FIXME
 	_mcd_manager_create_connections (manager);
+	*/
     }
 
     return FALSE;
@@ -423,6 +441,7 @@ _mcd_manager_nuke_connections (McdManager *manager)
     g_strfreev(names);
 }
 
+#if 0
 static void
 requested_channel_free (struct mcd_channel_request *req)
 {
@@ -463,6 +482,7 @@ request_channel_delayed (McdManager *manager,
     g_hash_table_insert (priv->requested_channels, key, req_cp);
     g_free (key);
 }
+#endif
 
 static void
 _mcd_manager_set_presence_frame (McdManager *manager, McdPresenceFrame *presence_frame)
@@ -501,19 +521,38 @@ static void
 _mcd_manager_finalize (GObject * object)
 {
     McdManagerPrivate *priv = MCD_MANAGER_PRIV (object);
+    McdProtocolParam *param;
+    McdProtocol *protocol;
+    gint i, j;
+
+    for (i = 0; i < priv->protocols->len; i++)
+    {
+	protocol = &g_array_index (priv->protocols, McdProtocol, i);
+	for (j = 0; j < protocol->params->len; j++)
+	{
+	    param = &g_array_index (protocol->params, McdProtocolParam, j);
+	    g_free (param->name);
+	    g_free (param->signature);
+	}
+	g_array_free (protocol->params, TRUE);
+    }
+    g_array_free (priv->protocols, TRUE);
 
     if (priv->requested_channels)
     {
 	g_hash_table_destroy (priv->requested_channels);
-	priv->requested_channels = NULL;
     }
+
+    g_free (priv->name);
+    g_free (priv->bus_name);
+    g_free (priv->object_path);
+
     G_OBJECT_CLASS (mcd_manager_parent_class)->finalize (object);
 }
 
 static void
 _mcd_manager_dispose (GObject * object)
 {
-    GList *node;
     McdManagerPrivate *priv;
     priv = MCD_MANAGER_PRIV (object);
 
@@ -524,14 +563,6 @@ _mcd_manager_dispose (GObject * object)
 
     priv->is_disposed = TRUE;
 
-    if (priv->accounts)
-    {
-	for (node = priv->accounts; node; node = node->next)
-	    g_object_unref (G_OBJECT (node->data));
-	g_list_free (priv->accounts);
-	priv->accounts = NULL;
-    }
-    
     if (priv->dispatcher)
     {
 	g_object_unref (priv->dispatcher);
@@ -539,12 +570,6 @@ _mcd_manager_dispose (GObject * object)
     }
     
     _mcd_manager_set_presence_frame (MCD_MANAGER (object), NULL);
-    
-    if (priv->mc_manager)
-    {
-	g_object_unref (priv->mc_manager);
-	priv->mc_manager = NULL;
-    }
     
     if (priv->tp_conn_mgr)
     {
@@ -595,6 +620,121 @@ _mcd_manager_disconnect (McdMission * mission)
     mcd_debug_print_tree(mission);
 }
 
+static inline void
+read_parameters (GArray *params, GKeyFile *keyfile, const gchar *group_name)
+{
+    gchar **keys, **i;
+
+    keys = g_key_file_get_keys (keyfile, group_name, NULL, NULL);
+    if (!keys)
+    {
+	g_warning ("%s: failed to get keys from file", G_STRFUNC);
+	return;
+    }
+
+    for (i = keys; *i != NULL; i++)
+    {
+	McdProtocolParam param = { 0, 0, 0 };
+	gchar *value = g_key_file_get_string (keyfile, group_name, *i, NULL);
+
+	if (strncmp (*i, "param-", 6) == 0)
+	{
+	    gchar *ptr, *signature, *flag;
+
+	    param.name = g_strdup (*i + 6);
+
+	    signature = strtok_r (value, " \t", &ptr);
+	    if (!signature)
+	    {
+		g_warning ("%s: param \"%s\" has no signature",
+			   G_STRFUNC, param.name);
+		g_free (value);
+		continue;
+	    }
+	    param.signature = g_strdup (signature);
+
+	    while ((flag = strtok_r (NULL, " \t", &ptr)) != NULL)
+	    {
+		if (strcmp (flag, "required") == 0)
+		    param.flags |= MCD_PROTOCOL_PARAM_REQUIRED;
+		else if (strcmp (flag, "register") == 0)
+		    param.flags |= MCD_PROTOCOL_PARAM_REGISTER;
+	    }
+	    g_array_append_val (params, param);
+	}
+
+	g_free (value);
+    }
+
+    g_strfreev (keys);
+}
+
+static inline void
+read_protocols (McdManager *manager, GKeyFile *keyfile)
+{
+    McdManagerPrivate *priv = manager->priv;
+    gchar **groups = NULL, **i;
+
+    groups = g_key_file_get_groups (keyfile, NULL);
+
+    for (i = groups; *i != NULL; i++)
+    {
+	McdProtocol protocol;
+
+	if (strncmp (*i, "Protocol ", 9) != 0) continue;
+	protocol.name = g_strdup (*i + 9);
+	protocol.params = g_array_new (FALSE, FALSE,
+				       sizeof (McdProtocolParam));
+	read_parameters (protocol.params, keyfile, *i);
+
+	g_array_append_val (priv->protocols, protocol);
+    }
+
+    g_strfreev (groups);
+}
+
+static void
+mcd_manager_setup (McdManager *manager)
+{
+    McdManagerPrivate *priv = manager->priv;
+    GError *error = NULL;
+    GKeyFile *keyfile;
+    gchar *bus_name = NULL;
+    gchar *object_path = NULL;
+    gchar *filename;
+
+    filename = _mcd_manager_filename (priv->name);
+
+    keyfile = g_key_file_new ();
+
+    if (!g_key_file_load_from_file (keyfile, filename, G_KEY_FILE_NONE, &error))
+    {
+	g_warning ("%s: loading %s failed: %s", G_STRFUNC,
+		   filename, error->message);
+	g_error_free (error);
+	g_free (filename);
+	return;
+    }
+    g_free (filename);
+
+    priv->bus_name = g_key_file_get_string (keyfile, "ConnectionManager",
+					    "BusName", NULL);
+    priv->object_path = g_key_file_get_string (keyfile, "ConnectionManager",
+					       "ObjectPath", NULL);
+
+    if (!priv->bus_name || !priv->object_path)
+    {
+	g_warning ("%s: failed to get bus name and object path from file",
+		   G_STRFUNC);
+	g_free (bus_name);
+	g_free (object_path);
+	return;
+    }
+
+    read_protocols (manager, keyfile);
+    g_key_file_free (keyfile);
+}
+
 static void
 _mcd_manager_set_property (GObject * obj, guint prop_id,
 			   const GValue * val, GParamSpec * pspec)
@@ -602,10 +742,14 @@ _mcd_manager_set_property (GObject * obj, guint prop_id,
     McdManagerPrivate *priv = MCD_MANAGER_PRIV (obj);
     McdPresenceFrame *presence_frame;
     McdDispatcher *dispatcher;
-    McManager *mc_manager;
 
     switch (prop_id)
     {
+    case PROP_NAME:
+	g_assert (priv->name == NULL);
+	priv->name = g_value_dup_string (val);
+	mcd_manager_setup (MCD_MANAGER (obj));
+	break;
     case PROP_PRESENCE_FRAME:
 	presence_frame = g_value_get_object (val);
 	_mcd_manager_set_presence_frame (MCD_MANAGER (obj), presence_frame);
@@ -622,14 +766,6 @@ _mcd_manager_set_property (GObject * obj, guint prop_id,
 	    g_object_unref (priv->dispatcher);
 	}
 	priv->dispatcher = dispatcher;
-	break;
-    case PROP_MC_MANAGER:
-	mc_manager = g_value_get_object (val);
-	g_return_if_fail (MC_IS_MANAGER (mc_manager));
-	g_object_ref (mc_manager);
-	if (priv->mc_manager)
-	    g_object_unref (priv->mc_manager);
-	priv->mc_manager = mc_manager;
 	break;
     case PROP_DBUS_DAEMON:
 	if (priv->dbus_daemon)
@@ -656,15 +792,8 @@ _mcd_manager_get_property (GObject * obj, guint prop_id,
     case PROP_DISPATCHER:
 	g_value_set_object (val, priv->dispatcher);
 	break;
-    case PROP_MC_MANAGER:
-	g_value_set_object (val, priv->mc_manager);
-	break;
     case PROP_DBUS_DAEMON:
 	g_value_set_object (val, priv->dbus_daemon);
-	break;
-    case PROP_ACCOUNTS:
-        g_debug ("%s: accounts getting over-written", G_STRFUNC);
-	g_value_set_pointer (val, priv->accounts);
 	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -708,6 +837,14 @@ mcd_manager_class_init (McdManagerClass * klass)
 
     /* Properties */
     g_object_class_install_property (object_class,
+				     PROP_NAME,
+				     g_param_spec_string ("name",
+							  _("Name"),
+							  _("Name"),
+							  NULL,
+							  G_PARAM_WRITABLE |
+							  G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property (object_class,
 				     PROP_PRESENCE_FRAME,
 				     g_param_spec_object ("presence-frame",
 							  _
@@ -727,15 +864,6 @@ mcd_manager_class_init (McdManagerClass * klass)
 							  MCD_TYPE_DISPATCHER,
 							  G_PARAM_READWRITE |
 							  G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property (object_class, PROP_MC_MANAGER,
-				     g_param_spec_object ("mc-manager",
-							  _
-							  ("McManager Object"),
-							  _
-							  ("McManager Object which this manager uses"),
-							  MC_TYPE_MANAGER,
-							  G_PARAM_READWRITE |
-							  G_PARAM_CONSTRUCT_ONLY));
     g_object_class_install_property (object_class, PROP_DBUS_DAEMON,
 				     g_param_spec_object ("dbus-daemon",
 							  _("DBus daemon"),
@@ -743,188 +871,36 @@ mcd_manager_class_init (McdManagerClass * klass)
 							  TP_TYPE_DBUS_DAEMON,
 							  G_PARAM_READWRITE |
 							  G_PARAM_CONSTRUCT));
-    g_object_class_install_property (object_class, PROP_ACCOUNTS,
-				     g_param_spec_pointer ("accounts",
-							   _("Accounts"),
-							   _
-							   ("List of accounts associated with this manager"),
-							   G_PARAM_READABLE));
 }
 
 static void
-mcd_manager_init (McdManager * manager)
+mcd_manager_init (McdManager *manager)
 {
+    McdManagerPrivate *priv;
+
+    priv = G_TYPE_INSTANCE_GET_PRIVATE (manager, MCD_TYPE_MANAGER,
+					McdManagerPrivate);
+    manager->priv = priv;
+
+    priv->protocols = g_array_new (FALSE, FALSE, sizeof (McdProtocol));
 }
 
 /* Public methods */
 
 McdManager *
-mcd_manager_new (McManager * mc_manager,
+mcd_manager_new (const gchar *unique_name,
 		 McdPresenceFrame * pframe,
 		 McdDispatcher *dispatcher,
 		 TpDBusDaemon *dbus_daemon)
 {
     McdManager *obj;
     obj = MCD_MANAGER (g_object_new (MCD_TYPE_MANAGER,
-				     "mc-manager", mc_manager,
+				     "name", unique_name,
 				     "presence-frame", pframe,
 				     "dispatcher", dispatcher,
 				     "dbus-daemon", dbus_daemon, NULL));
     _mcd_manager_nuke_connections (obj);
     return obj;
-}
-
-gboolean
-mcd_manager_can_handle_account (McdManager * manager, McAccount *account)
-{
-    McdManagerPrivate *priv;
-    McProfile *profile;
-    McProtocol *protocol;
-    McManager *mc_manager;
-    gboolean ret;
-
-    g_return_val_if_fail (MCD_IS_MANAGER (manager), FALSE);
-    g_return_val_if_fail (account != NULL, FALSE);
-    
-    priv = MCD_MANAGER_PRIV (manager);
-
-    profile = account ? mc_account_get_profile (account) : NULL;
-    protocol = profile ? mc_profile_get_protocol (profile) : NULL;
-    mc_manager = protocol ? mc_protocol_get_manager (protocol) : NULL;
-
-    if (priv->mc_manager == mc_manager)
-    {
-        ret = TRUE;
-    }
-    else 
-    {
-        ret = FALSE;
-    }
-
-    if (profile)
-        g_object_unref (profile);
-    if (protocol)
-        g_object_unref (protocol);
-    if (mc_manager)
-        g_object_unref (mc_manager);
-   
-    return ret;
-}
-
-McAccount *
-mcd_manager_get_account_by_name (McdManager * manager,
-				 const gchar * account_name)
-{
-    GList *node;
-    McdManagerPrivate *priv;
-
-    g_return_val_if_fail (MCD_IS_MANAGER (manager), FALSE);
-    g_return_val_if_fail (account_name != NULL, FALSE);
-    
-    priv = MCD_MANAGER_PRIV (manager);
-    
-    node = priv->accounts;
-    while (node)
-    {
-	if (strcmp (mc_account_get_unique_name (MC_ACCOUNT (node->data)),
-		    account_name) == 0)
-	    return MC_ACCOUNT (node->data);
-	node = node->next;
-    }
-    return NULL;
-}
-
-gboolean
-mcd_manager_add_account (McdManager * manager, McAccount * account)
-{
-    McdManagerPrivate *priv;
-    McdConnection *connection;
-    McPresence requested_presence;
-
-    g_return_val_if_fail (MCD_IS_MANAGER (manager), FALSE);
-    g_return_val_if_fail (MC_IS_ACCOUNT (account), FALSE);
-
-    priv = MCD_MANAGER_PRIV (manager);
-
-    /* Make sure this account can be handled by this manager */
-    g_return_val_if_fail (mcd_manager_can_handle_account (manager, account),
-			  FALSE);
-
-    /* Check if the account is already added */
-    if (g_list_find (priv->accounts, account))
-	return FALSE;
-
-    g_object_ref (account);
-    g_debug ("%s: %u accounts in total", G_STRFUNC, g_list_length (priv->accounts));
-    g_debug ("%s: adding account %p", G_STRFUNC, account);
-    priv->accounts = g_list_prepend (priv->accounts, account);
-    g_debug ("%s: %u accounts in total", G_STRFUNC, g_list_length (priv->accounts));
-    
-    requested_presence =
-	mcd_presence_frame_get_requested_presence (priv->presence_frame);
-
-    connection = mcd_manager_get_account_connection (manager, account);
-    if (!connection)
-    {
-        /* if presence is not offline or unset, we must create the 
-         * connection for this new account */
-        if ((requested_presence != MC_PRESENCE_OFFLINE &&
-             requested_presence != MC_PRESENCE_UNSET))
-        {
-            _mcd_manager_create_connection (manager, account);
-        }
-    }
-
-    g_signal_emit_by_name (manager, "account-added", account);
-    return TRUE;
-}
-
-gboolean
-mcd_manager_remove_account (McdManager * manager, McAccount * account)
-{
-    McdManagerPrivate *priv;
-    McdConnection *connection;
-
-    g_return_val_if_fail (MCD_IS_MANAGER (manager), FALSE);
-    g_return_val_if_fail (MC_IS_ACCOUNT (account), FALSE);
-
-    priv = MCD_MANAGER_PRIV (manager);
-
-    if (!g_list_find (priv->accounts, account))
-	return FALSE;
-
-    connection = mcd_manager_get_account_connection (manager, account);
-    if (connection != NULL)
-    {
-        mcd_connection_close (connection);
-    }
-    
-    g_debug ("%s: %u accounts in total", G_STRFUNC, g_list_length (priv->accounts));
-    g_debug ("%s: removing account %p", G_STRFUNC, account);
-    priv->accounts = g_list_remove (priv->accounts, account);
-    g_debug ("%s: %u accounts in total", G_STRFUNC, g_list_length (priv->accounts));
-    g_signal_emit_by_name (manager, "account-removed", account);
-
-    /* Account is unrefed after signal emission to prevent it being dead
-     * when the signal was emitted.
-     */
-    g_object_unref (account);
-    
-    if (priv->accounts == NULL)
-    {
-        /* If we don't have any accounts, we don't have the right to live
-         * anymore. */
-        g_debug ("%s: commiting suicide", G_STRFUNC);
-        mcd_mission_abort (MCD_MISSION (manager));
-    }
-
-    return TRUE;
-}
-
-const GList *
-mcd_manager_get_accounts (McdManager * manager)
-{
-    return MCD_MANAGER_PRIV (manager)->accounts;
 }
 
 McdConnection *
@@ -974,6 +950,7 @@ mcd_manager_request_channel (McdManager *manager,
 			     const struct mcd_channel_request *req,
 			     GError ** error)
 {
+#if 0
     McAccount *account;
     McdConnection *connection;
     
@@ -1032,6 +1009,10 @@ mcd_manager_request_channel (McdManager *manager,
     }
     g_assert (error == NULL || *error == NULL);
     return TRUE;
+#else
+    g_warning ("%s not implemented", G_STRFUNC);
+    return FALSE;
+#endif
 }
 
 gboolean
@@ -1076,7 +1057,90 @@ mcd_manager_reconnect_account (McdManager *manager, McAccount *account)
     {
 	/* create a connection for the account */
 	g_debug ("try to create a connection");
+	/* FIXME
 	_mcd_manager_create_connection (manager, account);
+	*/
     }
+}
+
+/**
+ * mcd_manager_get_unique_name:
+ * @manager: the #McdManager.
+ *
+ * Gets the unique name of the @manager.
+ *
+ * Returns: a const string with the unique name.
+ */
+const gchar *
+mcd_manager_get_name (McdManager *manager)
+{
+    McdManagerPrivate *priv = MCD_MANAGER_PRIV (manager);
+    return priv->name;
+}
+
+/**
+ * mcd_manager_get_parameters:
+ * @manager: the #McdManager.
+ * @protocol: the protocol name.
+ *
+ * Retrieve the array of the parameters supported by the protocol.
+ *
+ * Returns: a #GArray of #McProtocolParam elements.
+ */
+const GArray *
+mcd_manager_get_parameters (McdManager *manager, const gchar *protocol)
+{
+    McdManagerPrivate *priv = manager->priv;
+    McdProtocol *proto;
+    gint i;
+
+    for (i = 0; i < priv->protocols->len; i++)
+    {
+	proto = &g_array_index (priv->protocols, McdProtocol, i);
+	if (strcmp (proto->name, protocol) == 0)
+	{
+	    return proto->params;
+	}
+    }
+    return NULL;
+}
+
+McdConnection *
+mcd_manager_create_connection (McdManager *manager, McdAccount *account)
+{
+    McdManagerPrivate *priv = manager->priv;
+    McdConnection *connection;
+
+    if (!priv->tp_conn_mgr)
+    {
+	GError *error = NULL;
+	gchar *manager_filename;
+
+	manager_filename = _mcd_manager_filename (priv->name);
+	priv->tp_conn_mgr =
+	    tp_connection_manager_new (priv->dbus_daemon, priv->name,
+				       manager_filename, &error);
+	g_free (manager_filename);
+	if (error)
+	{
+	    g_warning ("%s, cannot create manager %s: %s", G_STRFUNC,
+		       priv->name, error->message);
+	    g_error_free (error);
+	    return NULL;
+	}
+	g_debug ("%s: Manager %s created", G_STRFUNC, priv->name);
+    }
+
+    connection = mcd_connection_new (priv->dbus_daemon,
+				     TP_PROXY (priv->tp_conn_mgr)->bus_name,
+				     priv->tp_conn_mgr, account,
+				     priv->dispatcher);
+    mcd_operation_take_mission (MCD_OPERATION (manager),
+				MCD_MISSION (connection));
+    mcd_connection_connect (connection);
+    g_debug ("%s: Created a connection %p for account: %s", G_STRFUNC,
+	     connection, mcd_account_get_unique_name (account));
+
+    return connection;
 }
 

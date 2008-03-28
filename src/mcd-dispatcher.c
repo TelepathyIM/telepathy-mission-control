@@ -1406,16 +1406,13 @@ const gchar *
 mcd_dispatcher_context_get_protocol_name (McdDispatcherContext *context)
 {
     McdConnection *conn;
-    McAccount *account;
-    McProfile *profile;
+    McdAccount *account;
 
     if (!context->protocol)
     {
 	conn = mcd_dispatcher_context_get_connection (context);
 	account = mcd_connection_get_account (conn);
-	profile = mc_account_get_profile (account);
-	context->protocol = g_strdup (mc_profile_get_protocol_name (profile));
-	g_object_unref (profile);
+	context->protocol = g_strdup (mcd_account_get_protocol_name (account));
     }
     
     return context->protocol;

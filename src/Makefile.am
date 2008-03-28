@@ -7,6 +7,7 @@ mission_control_includedir = $(includedir)/mission-control
 mission_control_include = \
 	mcd-account.h \
 	mcd-account-manager.h \
+	mcd-dbusprop.h \
 	mcd-debug.h \
 	mcd-mission.h \
 	mcd-operation.h \
@@ -73,6 +74,7 @@ libmissioncontrol_server_la_LDFLAGS = -export-dynamic \
 libmissioncontrol_server_la_SOURCES = \
 	mcd-account.c \
 	mcd-account-manager.c \
+	mcd-dbusprop.c \
 	mcd-debug.c \
 	mcd-enum-types.c \
 	mcd-signals-marshal.c \

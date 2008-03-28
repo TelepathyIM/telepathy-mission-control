@@ -55,7 +55,6 @@ struct _McdConnectionClass
     McdOperationClass parent_class;
 };
 
-#include "mcd-presence-frame.h"
 #include "mcd-dispatcher.h"
 
 GType mcd_connection_get_type (void);
@@ -63,14 +62,16 @@ GType mcd_connection_get_type (void);
 McdConnection *mcd_connection_new (TpDBusDaemon *dbus_daemon,
 				   const gchar * bus_name,
 				   TpConnectionManager * tp_conn_mgr,
-				   McAccount * account,
-				   McdPresenceFrame * presence_frame,
+				   McdAccount * account,
 				   McdDispatcher *dispatcher);
 
+const gchar *mcd_connection_get_object_path (McdConnection *connection);
+
 /* Return the connection's account */
-McAccount *mcd_connection_get_account (McdConnection * connection);
+McdAccount *mcd_connection_get_account (McdConnection * connection);
 
 TpConnectionStatus mcd_connection_get_connection_status (McdConnection *connection);
+TpConnectionStatusReason mcd_connection_get_connection_status_reason (McdConnection *connection);
 
 gboolean mcd_connection_request_channel (McdConnection *connection,
 					 const struct mcd_channel_request *req,

@@ -40,6 +40,7 @@ G_BEGIN_DECLS
 typedef struct _McdMaster McdMaster;
 typedef struct _McdMasterClass McdMasterClass;
 
+#include <mcd-manager.h>
 #include <mcd-connection.h>
 
 struct _McdMaster
@@ -55,7 +56,12 @@ struct _McdMasterClass
 struct mcd_channel_request;
 
 GType mcd_master_get_type (void);
-McdMaster *mcd_master_new (void);
+#define mcd_master_new()    mcd_master_get_default()
+McdMaster *mcd_master_get_default (void);
+
+McdManager *mcd_master_lookup_manager (McdMaster *master,
+				       const gchar *unique_name);
+
 void mcd_master_request_presence (McdMaster * master,
 				  McPresence presence,
 				  const gchar * presence_message);
