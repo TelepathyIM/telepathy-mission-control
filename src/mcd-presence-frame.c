@@ -261,7 +261,7 @@ mcd_presence_frame_class_init (McdPresenceFrameClass * klass)
 				       presence_set_signal),
 		      NULL, NULL,
 		      mcd_marshal_VOID__OBJECT_INT_STRING,
-		      G_TYPE_NONE, 3, G_TYPE_OBJECT, G_TYPE_INT, G_TYPE_STRING);
+		      G_TYPE_NONE, 3, MCD_TYPE_ACCOUNT, G_TYPE_INT, G_TYPE_STRING);
     mcd_presence_frame_signals[STATUS_CHANGED] =
 	g_signal_new ("status-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
