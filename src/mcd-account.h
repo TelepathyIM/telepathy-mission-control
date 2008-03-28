@@ -108,6 +108,7 @@ void mcd_account_set_connection_status (McdAccount *account,
 					TpConnectionStatus status,
 					TpConnectionStatusReason reason);
 TpConnectionStatus mcd_account_get_connection_status (McdAccount *account);
+TpConnectionStatusReason mcd_account_get_connection_status_reason (McdAccount *account);
 
 McdConnection *mcd_account_get_connection (McdAccount *account);
 

@@ -108,9 +108,9 @@ McPresence mcd_presence_frame_get_account_presence
 const gchar *mcd_presence_frame_get_account_presence_message
     (McdPresenceFrame * presence_frame, McAccount * account);
 TpConnectionStatus mcd_presence_frame_get_account_status
-    (McdPresenceFrame * presence_frame, McAccount * account);
+    (McdPresenceFrame * presence_frame, McdAccount * account);
 TpConnectionStatusReason mcd_presence_frame_get_account_status_reason
-    (McdPresenceFrame * presence_frame, McAccount * account);
+    (McdPresenceFrame * presence_frame, McdAccount * account);
 
 void mcd_presence_frame_set_accounts (McdPresenceFrame * presence_frame,
 				      const GList * accounts);

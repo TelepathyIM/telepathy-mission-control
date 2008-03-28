@@ -1832,6 +1832,13 @@ mcd_account_get_connection_status (McdAccount *account)
     return priv->conn_status;
 }
 
+TpConnectionStatusReason
+mcd_account_get_connection_status_reason (McdAccount *account)
+{
+    McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
+    return priv->conn_reason;
+}
+
 McdConnection *
 mcd_account_get_connection (McdAccount *account)
 {

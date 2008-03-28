@@ -618,49 +618,21 @@ mcd_presence_frame_get_account_presence_message (McdPresenceFrame *
     return NULL;
 }
 
+/* TODO: remove this useless func */
 TpConnectionStatus
 mcd_presence_frame_get_account_status (McdPresenceFrame * presence_frame,
-				       McAccount * account)
+				       McdAccount *account)
 {
-    McdPresenceFramePrivate *priv;
-    TpConnectionStatus conn_status;
-
-    g_return_val_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame),
-			  TP_CONNECTION_STATUS_DISCONNECTED);
-    priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-
-    conn_status = TP_CONNECTION_STATUS_DISCONNECTED;
-    if (priv->account_presence)
-    {
-	McdPresence *presence;
-	presence = g_hash_table_lookup (priv->account_presence, account);
-	if (presence)
-	    conn_status = presence->connection_status;
-    }
-    return conn_status;
+    return mcd_account_get_connection_status (account);
 }
 
+/* TODO: remove this useless func */
 TpConnectionStatusReason
 mcd_presence_frame_get_account_status_reason (McdPresenceFrame *
 					      presence_frame,
-					      McAccount * account)
+					      McdAccount * account)
 {
-    McdPresenceFramePrivate *priv;
-    TpConnectionStatusReason conn_reason;
-
-    g_return_val_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame),
-			  TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED);
-    priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-
-    conn_reason = TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
-    if (priv->account_presence)
-    {
-	McdPresence *presence;
-	presence = g_hash_table_lookup (priv->account_presence, account);
-	if (presence)
-	    conn_reason = presence->connection_reason;
-    }
-    return conn_reason;
+    return mcd_account_get_connection_status_reason (account);
 }
 
 void

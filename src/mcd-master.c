@@ -584,14 +584,13 @@ mcd_master_get_account_status (McdMaster * master, gchar * account_name)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     TpConnectionStatus status;
-    McAccount *account;
+    McdAccount *account;
 
-    account = mc_account_lookup (account_name);
+    account = mcd_account_manager_lookup_account (priv->account_manager,
+						  account_name);
     if (account)
     {
-	status = mcd_presence_frame_get_account_status (priv->presence_frame,
-						      account);
-	g_object_unref (account);
+	status = mcd_account_get_connection_status (account);
     }
     else
 	status = TP_CONNECTION_STATUS_DISCONNECTED;
@@ -602,6 +601,7 @@ gboolean
 mcd_master_get_online_connection_names (McdMaster * master,
 					gchar *** connected_names)
 {
+#if 0
     GList *accounts;
     gboolean ret;
 
@@ -666,6 +666,10 @@ mcd_master_get_online_connection_names (McdMaster * master,
     }
 
     return ret;
+#else
+    g_warning ("%s not implemented", G_STRFUNC);
+    return FALSE;
+#endif
 }
 
 gboolean

@@ -308,6 +308,7 @@ mcd_service_get_current_status(GObject *obj,
 			       McPresence *requested_presence,
 			       GPtrArray **accounts, GError **error)
 {
+#if 0
     McdServicePrivate *priv = MCD_OBJECT_PRIV (obj);
     GList *account_list, *account_node;
     GType type;
@@ -354,6 +355,10 @@ mcd_service_get_current_status(GObject *obj,
     }
     mc_accounts_list_free (account_list);
     return TRUE;
+#else
+    g_warning ("%s not implemented", G_STRFUNC);
+    return FALSE;
+#endif
 }
 
 static void
@@ -583,13 +588,13 @@ _on_account_status_changed (McdPresenceFrame * presence_frame,
 
 static void
 _on_account_presence_changed (McdPresenceFrame * presence_frame,
-			      McAccount * account,
+			      McdAccount * account,
 			      McPresence presence,
 			      gchar * presence_message, McdService * obj)
 {
     /* Emit the AccountStatusChanged signal */
     g_debug ("Emitting presence changed for %s: presence = %d, message = %s",
-	     mc_account_get_unique_name (account), presence,
+	     mcd_account_get_unique_name (account), presence,
 	     presence_message);
     
     g_signal_emit_by_name (G_OBJECT (obj),
@@ -598,7 +603,7 @@ _on_account_presence_changed (McdPresenceFrame * presence_frame,
 			   (presence_frame, account), presence,
 			   mcd_presence_frame_get_account_status_reason
 			   (presence_frame, account),
-			   mc_account_get_unique_name (account));
+			   mcd_account_get_unique_name (account));
 #ifndef NO_NEW_PRESENCE_SIGNALS
     g_signal_emit_by_name (G_OBJECT (obj),
 			   "account-presence-changed",
@@ -607,7 +612,7 @@ _on_account_presence_changed (McdPresenceFrame * presence_frame,
 			   presence_message,
 			   mcd_presence_frame_get_account_status_reason
 			   (presence_frame, account),
-			   mc_account_get_unique_name (account));
+			   mcd_account_get_unique_name (account));
 #endif
 }
 
