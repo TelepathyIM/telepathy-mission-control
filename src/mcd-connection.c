@@ -1446,6 +1446,9 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
 
     g_debug ("%s(%p) called", G_STRFUNC, connection);
+    mcd_account_set_current_presence (priv->account,
+				      TP_CONNECTION_PRESENCE_TYPE_OFFLINE,
+				      "offline", NULL);
     mcd_account_set_connection_status (priv->account,
 				       TP_CONNECTION_STATUS_DISCONNECTED, 
 				       priv->abort_reason);

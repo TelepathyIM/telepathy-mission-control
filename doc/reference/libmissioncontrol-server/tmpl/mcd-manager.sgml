@@ -39,11 +39,6 @@ McdManager
 @mcdmanager: the object which received the signal.
 @arg1: 
 
-<!-- ##### ARG McdManager:accounts ##### -->
-<para>
-
-</para>
-
 <!-- ##### ARG McdManager:dbus-daemon ##### -->
 <para>
 
@@ -54,7 +49,7 @@ McdManager
 
 </para>
 
-<!-- ##### ARG McdManager:mc-manager ##### -->
+<!-- ##### ARG McdManager:name ##### -->
 <para>
 
 </para>
@@ -69,69 +64,10 @@ McdManager
 
 </para>
 
-@mc_manager: 
+@unique_name: 
 @pframe: 
 @dispatcher: 
 @dbus_daemon: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_manager_add_account ##### -->
-<para>
-
-</para>
-
-@manager: 
-@account: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_manager_can_handle_account ##### -->
-<para>
-
-</para>
-
-@manager: 
-@account: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_manager_get_account_by_name ##### -->
-<para>
-
-</para>
-
-@manager: 
-@account_name: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_manager_remove_account ##### -->
-<para>
-
-</para>
-
-@manager: 
-@account: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_manager_get_accounts ##### -->
-<para>
-
-</para>
-
-@manager: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_manager_get_account_connection ##### -->
-<para>
-
-</para>
-
-@manager: 
-@account: 
 @Returns: 
 
 

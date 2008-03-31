@@ -121,6 +121,7 @@ enum
 
 enum
 {
+    CONNECTION_STATUS_CHANGED,
     CURRENT_PRESENCE_CHANGED,
     REQUESTED_PRESENCE_CHANGED,
     VALIDITY_CHANGED,
@@ -402,6 +403,37 @@ get_valid (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
     g_value_init (value, G_TYPE_BOOLEAN);
     g_value_set_boolean (value, priv->valid);
+}
+
+static void
+set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
+{
+    McdAccount *account = MCD_ACCOUNT (self);
+    McdAccountPrivate *priv = account->priv;
+    gboolean enabled;
+
+    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
+    enabled = g_value_get_boolean (value);
+    if (priv->enabled != enabled)
+    {
+	g_key_file_set_boolean (priv->keyfile, priv->unique_name,
+				MC_ACCOUNTS_KEY_ENABLED,
+			       	enabled);
+	priv->enabled = enabled;
+	mcd_account_manager_write_conf (priv->keyfile);
+	mcd_account_changed_property (account, name, value);
+    }
+}
+
+static void
+get_enabled (TpSvcDBusProperties *self, const gchar *name, GValue *value)
+{
+    McdAccount *account = MCD_ACCOUNT (self);
+    McdAccountPrivate *priv = account->priv;
+
+    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
+    g_value_init (value, G_TYPE_BOOLEAN);
+    g_value_set_boolean (value, priv->enabled);
 }
 
 static void
@@ -748,10 +780,22 @@ get_requested_presence (TpSvcDBusProperties *self,
     g_value_set_static_string (va->values + 2, message);
 }
 
+static void
+get_normalized_name (TpSvcDBusProperties *self,
+		     const gchar *name, GValue *value)
+{
+    McdAccount *account = MCD_ACCOUNT (self);
+    McdAccountPrivate *priv = account->priv;
+
+    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
+    mcd_account_get_string_val (account, name, value);
+}
+
 static McdDBusProp account_properties[] = {
     { "DisplayName", set_display_name, get_display_name },
     { "Icon", set_icon, get_icon },
     { "Valid", NULL, get_valid },
+    { "Enabled", set_enabled, get_enabled },
     { "Nickname", set_nickname, get_nickname },
     { "Avatar", set_avatar, get_avatar },
     { "Parameters", NULL, get_parameters },
@@ -763,6 +807,7 @@ static McdDBusProp account_properties[] = {
     { "ConnectionStatusReason", NULL, get_connection_status_reason },
     { "CurrentPresence", NULL, get_current_presence },
     { "RequestedPresence", set_requested_presence, get_requested_presence },
+    { "NormalizedName", NULL, get_normalized_name },
     { 0 },
 };
 
@@ -1270,6 +1315,14 @@ mcd_account_class_init (McdAccountClass * klass)
 							  G_PARAM_CONSTRUCT_ONLY));
 
     /* Signals */
+    signals[CONNECTION_STATUS_CHANGED] =
+	g_signal_new ("connection-status-changed",
+		      G_OBJECT_CLASS_TYPE (klass),
+		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+		      0,
+		      NULL, NULL, mcd_marshal_VOID__UINT_UINT,
+		      G_TYPE_NONE,
+		      2, G_TYPE_UINT, G_TYPE_UINT);
     signals[CURRENT_PRESENCE_CHANGED] =
 	g_signal_new ("current-presence-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
@@ -1800,6 +1853,7 @@ mcd_account_set_connection_status (McdAccount *account,
 				   TpConnectionStatusReason reason)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
+    gboolean changed = FALSE;
 
     if (status != priv->conn_status)
     {
@@ -1810,6 +1864,7 @@ mcd_account_set_connection_status (McdAccount *account,
 	mcd_account_changed_property (account, "ConnectionStatus",
 				      &value);
 	g_value_unset (&value);
+	changed = TRUE;
 
 	process_online_requests (account, status, reason);
     }
@@ -1822,7 +1877,12 @@ mcd_account_set_connection_status (McdAccount *account,
 	mcd_account_changed_property (account, "ConnectionStatusReason",
 				      &value);
 	g_value_unset (&value);
+	changed = TRUE;
     }
+
+    if (changed)
+	g_signal_emit (account, signals[CONNECTION_STATUS_CHANGED], 0,
+		       status, reason);
 }
 
 TpConnectionStatus

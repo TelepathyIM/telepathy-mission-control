@@ -59,14 +59,6 @@ McdPresenceFrame
 @mcdpresenceframe: the object which received the signal.
 @arg1: 
 
-<!-- ##### SIGNAL McdPresenceFrame::status-actual ##### -->
-<para>
-
-</para>
-
-@mcdpresenceframe: the object which received the signal.
-@arg1: 
-
 <!-- ##### SIGNAL McdPresenceFrame::status-changed ##### -->
 <para>
 
@@ -131,38 +123,6 @@ McdPresenceFrame
 @Returns: 
 
 
-<!-- ##### FUNCTION mcd_presence_frame_set_account_presence ##### -->
-<para>
-
-</para>
-
-@presence_frame: 
-@account: 
-@Param3: 
-@presence_message: 
-
-
-<!-- ##### FUNCTION mcd_presence_frame_set_account_status ##### -->
-<para>
-
-</para>
-
-@presence_frame: 
-@account: 
-@Param3: 
-@Param4: 
-
-
-<!-- ##### FUNCTION mcd_presence_frame_get_account_presence ##### -->
-<para>
-
-</para>
-
-@presence_frame: 
-@account: 
-@Returns: 
-
-
 <!-- ##### FUNCTION mcd_presence_frame_get_account_status ##### -->
 <para>
 
@@ -180,44 +140,6 @@ McdPresenceFrame
 
 @presence_frame: 
 @account: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_presence_frame_set_accounts ##### -->
-<para>
-
-</para>
-
-@presence_frame: 
-@accounts: 
-
-
-<!-- ##### FUNCTION mcd_presence_frame_add_account ##### -->
-<para>
-
-</para>
-
-@presence_frame: 
-@account: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_presence_frame_remove_account ##### -->
-<para>
-
-</para>
-
-@presence_frame: 
-@account: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_presence_frame_cancel_last_request ##### -->
-<para>
-
-</para>
-
-@presence_frame: 
 @Returns: 
 
 

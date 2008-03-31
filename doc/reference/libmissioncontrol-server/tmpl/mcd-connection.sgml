@@ -43,11 +43,6 @@ McdConnection
 
 </para>
 
-<!-- ##### ARG McdConnection:presence-frame ##### -->
-<para>
-
-</para>
-
 <!-- ##### ARG McdConnection:tp-connection ##### -->
 <para>
 
@@ -67,7 +62,6 @@ McdConnection
 @bus_name: 
 @tp_conn_mgr: 
 @account: 
-@presence_frame: 
 @dispatcher: 
 @Returns: 
 

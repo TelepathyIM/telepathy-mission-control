@@ -803,14 +803,6 @@ mcd_master_cancel_channel_request (McdMaster *master, guint operation_id,
 }
 
 gboolean
-mcd_master_cancel_last_presence_request (McdMaster * master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-
-    return mcd_presence_frame_cancel_last_request (priv->presence_frame);
-}
-
-gboolean
 mcd_master_get_used_channels_count (McdMaster *master, guint chan_type,
 				    guint * ret, GError ** error)
 {

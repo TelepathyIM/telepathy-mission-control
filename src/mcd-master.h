@@ -89,8 +89,6 @@ gboolean mcd_master_get_account_connection_details (McdMaster * master,
 						    gchar ** servname,
 						    gchar ** objpath);
 
-gboolean mcd_master_cancel_last_presence_request (McdMaster * master);
-
 gboolean mcd_master_request_channel (McdMaster *master,
 				     const struct mcd_channel_request *req,
 				     GError ** error);

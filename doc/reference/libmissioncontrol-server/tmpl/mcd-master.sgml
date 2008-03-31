@@ -56,7 +56,7 @@ McdMaster
 @requestor_serial: 
 @requestor_client_id: 
 
-<!-- ##### FUNCTION mcd_master_new ##### -->
+<!-- ##### MACRO mcd_master_new ##### -->
 <para>
 
 </para>
@@ -140,15 +140,6 @@ McdMaster
 @account_name: 
 @servname: 
 @objpath: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_master_cancel_last_presence_request ##### -->
-<para>
-
-</para>
-
-@master: 
 @Returns: 
 
 

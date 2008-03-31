@@ -59,7 +59,6 @@ typedef struct _McdPresenceFramePrivate
     McdPresence *requested_presence;
     McdPresence *actual_presence;
     McdPresence *last_presence;
-    GHashTable *account_presence;
     GList *accounts;
 
     gboolean is_stable;
@@ -82,7 +81,6 @@ enum _McdPresenceFrameSignalType
     
     /* Accumulated changes */
     PRESENCE_ACTUAL,
-    STATUS_ACTUAL,
     PRESENCE_STABLE,
     
     LAST_SIGNAL
@@ -155,12 +153,6 @@ _mcd_presence_frame_dispose (GObject * object)
     {
 	g_object_unref (priv->account_manager);
 	priv->account_manager = NULL;
-    }
-
-    if (priv->account_presence)
-    {
-	g_hash_table_destroy (priv->account_presence);
-	priv->account_presence = NULL;
     }
 
     G_OBJECT_CLASS (mcd_presence_frame_parent_class)->dispose (object);
@@ -270,7 +262,7 @@ mcd_presence_frame_class_init (McdPresenceFrameClass * klass)
 				       status_changed_signal),
 		      NULL, NULL,
 		      mcd_marshal_VOID__OBJECT_INT_INT,
-		      G_TYPE_NONE, 3, G_TYPE_OBJECT, G_TYPE_INT, G_TYPE_INT);
+		      G_TYPE_NONE, 3, MCD_TYPE_ACCOUNT, G_TYPE_INT, G_TYPE_INT);
     mcd_presence_frame_signals[PRESENCE_ACTUAL] =
 	g_signal_new ("presence-actual",
 		      G_OBJECT_CLASS_TYPE (klass),
@@ -280,15 +272,6 @@ mcd_presence_frame_class_init (McdPresenceFrameClass * klass)
 		      NULL, NULL,
 		      mcd_marshal_VOID__INT_STRING,
 		      G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_STRING);
-    mcd_presence_frame_signals[STATUS_ACTUAL] =
-	g_signal_new ("status-actual",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_FIRST,
-		      G_STRUCT_OFFSET (McdPresenceFrameClass,
-				       status_actual_signal),
-		      NULL, NULL,
-		      mcd_marshal_VOID__INT,
-		      G_TYPE_NONE, 1, G_TYPE_INT);
     mcd_presence_frame_signals[PRESENCE_STABLE] =
 	g_signal_new ("presence-stable",
 		      G_OBJECT_CLASS_TYPE (klass),
@@ -303,11 +286,6 @@ static void
 mcd_presence_frame_init (McdPresenceFrame * obj)
 {
     McdPresenceFramePrivate *priv = MCD_PRESENCE_FRAME_PRIV (obj);
-
-    priv->account_presence =
-	g_hash_table_new_full (g_direct_hash, g_direct_equal,
-			       (GDestroyNotify) g_object_unref,
-			       (GDestroyNotify) mcd_presence_free);
 
     priv->actual_presence = mcd_presence_new (MC_PRESENCE_UNSET,
 					      NULL,
@@ -327,37 +305,6 @@ mcd_presence_frame_new (void)
     McdPresenceFrame *obj;
     obj = MCD_PRESENCE_FRAME (g_object_new (MCD_TYPE_PRESENCE_FRAME, NULL));
     return obj;
-}
-
-static void
-_mcd_presence_frame_print_account (McAccount *account, McdPresence *presence,
-				   McdPresenceFrame *presence_frame)
-{
-    g_debug ("    Account: %s", mc_account_get_unique_name (account));
-    if (presence->message)
-    {
-	g_debug ("        Presence = %d, Status = %d, Message = %s",
-		 presence->presence, presence->connection_status,
-		 presence->message);
-    }
-    else
-    {
-	g_debug ("        Presence = %d, Status = %d",
-		 presence->presence, presence->connection_status);
-    }
-}
-
-static void
-_mcd_presence_frame_print (McdPresenceFrame *presence_frame)
-{
-    McdPresenceFramePrivate *priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-    
-    g_debug ("PresenceFrame state:");
-    g_debug ("[");
-    g_hash_table_foreach (priv->account_presence,
-			  (GHFunc)_mcd_presence_frame_print_account,
-			  presence_frame);
-    g_debug ("]");
 }
 
 static void
@@ -420,51 +367,10 @@ mcd_presence_frame_request_presence (McdPresenceFrame * presence_frame,
 	priv->last_presence->presence = MC_PRESENCE_OFFLINE;
     }
 
-    if (mcd_debug_get_level() > 0)
-    {
-	g_debug ("Presence requested: %d", presence);
-	_mcd_presence_frame_print (presence_frame);
-    }
+    g_debug ("Presence requested: %d", presence);
     
     _mcd_presence_frame_request_presence (presence_frame, presence,
 					  presence_message);
-}
-
-gboolean
-mcd_presence_frame_cancel_last_request (McdPresenceFrame * presence_frame)
-{
-    McdPresenceFramePrivate *priv;
-    McPresence presence;
-    gchar *message;
-
-    g_return_val_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame), FALSE);
-    priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-
-    if (priv->last_presence != NULL)
-    {
-	presence = priv->last_presence->presence;
-	if (priv->last_presence->message)
-	{
-	    message = g_strdup (priv->last_presence->message);
-	}
-
-	else
-	{
-	    message = NULL;
-	}
-
-	mcd_presence_free (priv->last_presence);
-	priv->last_presence = NULL;
-
-	_mcd_presence_frame_request_presence (presence_frame, presence,
-					      message);
-	return TRUE;
-    }
-
-    else
-    {
-	return FALSE;
-    }
 }
 
 McPresence
@@ -576,48 +482,6 @@ _mcd_presence_frame_update_actual_presence (McdPresenceFrame * presence_frame,
     }
 }
 
-McPresence
-mcd_presence_frame_get_account_presence (McdPresenceFrame * presence_frame,
-					 McAccount * account)
-{
-    McdPresenceFramePrivate *priv;
-    McPresence ret_presence;
-
-    g_return_val_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame),
-			  MC_PRESENCE_UNSET);
-    priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-
-    ret_presence = MC_PRESENCE_UNSET;
-    if (priv->account_presence)
-    {
-	McdPresence *presence;
-	presence = g_hash_table_lookup (priv->account_presence, account);
-	if (presence)
-	    ret_presence = presence->presence;
-    }
-    return ret_presence;
-}
-
-const gchar *
-mcd_presence_frame_get_account_presence_message (McdPresenceFrame *
-						 presence_frame,
-						 McAccount * account)
-{
-    McdPresenceFramePrivate *priv;
-
-    g_return_val_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame), NULL);
-    priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-
-    if (priv->account_presence)
-    {
-	McdPresence *presence;
-	presence = g_hash_table_lookup (priv->account_presence, account);
-	if (presence)
-	    return presence->message;
-    }
-    return NULL;
-}
-
 /* TODO: remove this useless func */
 TpConnectionStatus
 mcd_presence_frame_get_account_status (McdPresenceFrame * presence_frame,
@@ -635,32 +499,6 @@ mcd_presence_frame_get_account_status_reason (McdPresenceFrame *
     return mcd_account_get_connection_status_reason (account);
 }
 
-void
-mcd_presence_frame_set_accounts (McdPresenceFrame * presence_frame,
-				 const GList * accounts)
-{
-    const GList *node;
-    McdPresenceFramePrivate *priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-
-    if (priv->account_presence)
-    {
-	g_hash_table_destroy (priv->account_presence);
-	priv->account_presence =
-	    g_hash_table_new_full (g_direct_hash, g_direct_equal,
-				   (GDestroyNotify) g_object_unref,
-				   (GDestroyNotify) mcd_presence_free);
-    }
-    for (node = accounts; node; node = node->next)
-    {
-	g_object_ref (node->data);
-	g_hash_table_insert (priv->account_presence, node->data,
-			     mcd_presence_new (MC_PRESENCE_UNSET,
-					       NULL,
-					       TP_CONNECTION_STATUS_DISCONNECTED,
-					       TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED));
-    }
-}
-
 static void
 on_account_current_presence_changed (McdAccount *account,
 				     TpConnectionPresenceType presence,
@@ -674,7 +512,17 @@ on_account_current_presence_changed (McdAccount *account,
 						message);
 }
 
-gboolean
+static void
+on_account_connection_status_changed (McdAccount *account,
+				      TpConnectionStatus status,
+				      TpConnectionStatusReason reason,
+				      McdPresenceFrame *presence_frame)
+{
+    g_signal_emit (presence_frame, mcd_presence_frame_signals[STATUS_CHANGED],
+		   0, account, status, reason);
+}
+
+static gboolean
 mcd_presence_frame_add_account (McdPresenceFrame * presence_frame,
                                 McdAccount *account)
 {
@@ -691,14 +539,14 @@ mcd_presence_frame_add_account (McdPresenceFrame * presence_frame,
     g_signal_connect (account, "current-presence-changed",
 		      G_CALLBACK (on_account_current_presence_changed),
 		      presence_frame);
+    g_signal_connect (account, "connection-status-changed",
+		      G_CALLBACK (on_account_connection_status_changed),
+		      presence_frame);
     
-    /*mcd_presence_frame_set_account_presence (presence_frame, account,
-					     priv->actual_presence->presence,
-					     NULL);*/
     return TRUE;
 }
 
-gboolean
+static gboolean
 mcd_presence_frame_remove_account (McdPresenceFrame * presence_frame,
                                    McdAccount *account)
 {
@@ -709,12 +557,12 @@ mcd_presence_frame_remove_account (McdPresenceFrame * presence_frame,
     if (!pos) return FALSE;
     
     g_debug ("%s: removing account %s", G_STRFUNC, mcd_account_get_unique_name (account));
-    /*mcd_presence_frame_set_account_presence (presence_frame, account,
-					     MC_PRESENCE_UNSET,
-					     NULL);*/
     /*_mcd_presence_frame_update_actual_presence (presence_frame, NULL);*/
     g_signal_handlers_disconnect_by_func (account, 
 					  on_account_current_presence_changed,
+					  presence_frame);
+    g_signal_handlers_disconnect_by_func (account, 
+					  on_account_connection_status_changed,
 					  presence_frame);
     g_object_unref (account);
     priv->accounts = g_list_delete_link (priv->accounts, pos);

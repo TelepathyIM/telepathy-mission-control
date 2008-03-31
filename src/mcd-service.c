@@ -555,34 +555,32 @@ mcd_register_dbus_object (McdService * obj)
 
 static void
 _on_account_status_changed (McdPresenceFrame * presence_frame,
-			    McAccount * account,
+			    McdAccount *account,
 			    TpConnectionStatus connection_status,
 			    TpConnectionStatusReason connection_reason,
 			    McdService * obj)
 {
-    McPresence presence =
-	mcd_presence_frame_get_account_presence (presence_frame, account);
-#ifndef NO_NEW_PRESENCE_SIGNALS
-    const gchar *message =
-	mcd_presence_frame_get_account_presence_message (presence_frame, account);
-#endif
+    TpConnectionPresenceType presence;
+    const gchar *status, *message;
+
+    mcd_account_get_current_presence (account, &presence, &status, &message);
 
     /* Emit the AccountStatusChanged signal */
     g_debug ("Emitting account status changed for %s: status = %d, reason = %d",
-	     mc_account_get_unique_name (account), connection_status,
+	     mcd_account_get_unique_name (account), connection_status,
 	     connection_reason);
     
     g_signal_emit_by_name (G_OBJECT (obj),
 			   "account-status-changed", connection_status,
 			   presence,
 			   connection_reason,
-			   mc_account_get_unique_name (account));
+			   mcd_account_get_unique_name (account));
 #ifndef NO_NEW_PRESENCE_SIGNALS
     g_signal_emit_by_name (G_OBJECT (obj),
 			   "account-presence-changed", connection_status,
 			   presence, message,
 			   connection_reason,
-			   mc_account_get_unique_name (account));
+			   mcd_account_get_unique_name (account));
 #endif
 }
 

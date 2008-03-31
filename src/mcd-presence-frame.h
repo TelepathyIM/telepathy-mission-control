@@ -27,7 +27,6 @@
 
 #include <glib.h>
 #include <glib-object.h>
-#include <libmissioncontrol/mc-account.h>
 #include <libmissioncontrol/mission-control.h>
 
 #include "mcd-mission.h"
@@ -74,8 +73,6 @@ struct _McdPresenceFrameClass
     void (*presence_actual_signal) (McdPresenceFrame * presence_frame,
 				    McPresence presence,
 				    const gchar * presence_message);
-    void (*status_actual_signal) (McdPresenceFrame * presence_frame,
-				  TpConnectionStatus status);
 };
 
 GType mcd_presence_frame_get_type (void);
@@ -96,32 +93,10 @@ McPresence mcd_presence_frame_get_actual_presence
 const gchar *mcd_presence_frame_get_actual_presence_message
     (McdPresenceFrame * presence_frame);
 
-void mcd_presence_frame_set_account_presence (McdPresenceFrame *
-					      presence_frame,
-					      McAccount * account,
-					      McPresence
-					      presence,
-					      const gchar * presence_message);
-
-McPresence mcd_presence_frame_get_account_presence
-    (McdPresenceFrame * presence_frame, McAccount * account);
-const gchar *mcd_presence_frame_get_account_presence_message
-    (McdPresenceFrame * presence_frame, McAccount * account);
 TpConnectionStatus mcd_presence_frame_get_account_status
     (McdPresenceFrame * presence_frame, McdAccount * account);
 TpConnectionStatusReason mcd_presence_frame_get_account_status_reason
     (McdPresenceFrame * presence_frame, McdAccount * account);
-
-void mcd_presence_frame_set_accounts (McdPresenceFrame * presence_frame,
-				      const GList * accounts);
-
-gboolean mcd_presence_frame_add_account (McdPresenceFrame * presence_frame,
-                                         McdAccount * account);
-gboolean mcd_presence_frame_remove_account (McdPresenceFrame * presence_frame,
-                                         McdAccount * account);
-
-gboolean mcd_presence_frame_cancel_last_request (McdPresenceFrame *
-						 presence_frame);
 
 gboolean mcd_presence_frame_is_stable (McdPresenceFrame *presence_frame);
 
