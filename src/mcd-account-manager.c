@@ -39,6 +39,7 @@
 #include "_gen/interfaces.h"
 
 #define WRITE_CONF_DELAY    2000
+#define INITIAL_CONFIG_FILE_CONTENTS "# Telepathy accounts\n"
 
 #define MCD_ACCOUNT_MANAGER_PRIV(account_manager) \
     (MCD_ACCOUNT_MANAGER (account_manager)->priv)
@@ -576,6 +577,16 @@ mcd_account_manager_init (McdAccountManager *account_manager)
     priv->keyfile = g_key_file_new ();
     conf_filename = get_account_conf_filename ();
     g_debug ("Loading accounts from %s", conf_filename);
+    if (!g_file_test (conf_filename, G_FILE_TEST_EXISTS))
+    {
+	gchar *dirname = g_path_get_dirname (conf_filename);
+	g_mkdir_with_parents (dirname, 0777);
+	g_free (dirname);
+
+	g_debug ("Creating file");
+	g_file_set_contents (conf_filename, INITIAL_CONFIG_FILE_CONTENTS,
+			     sizeof (INITIAL_CONFIG_FILE_CONTENTS) - 1, NULL);
+    }
     g_key_file_load_from_file (priv->keyfile, conf_filename,
 			       G_KEY_FILE_KEEP_COMMENTS, &error);
     g_free (conf_filename);
