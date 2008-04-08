@@ -39,6 +39,18 @@
 #include "mc-profile.h"
 #include <config.h>
 
+#ifdef HAVE_KEYRING
+#include <gnome-keyring.h>
+GnomeKeyringPasswordSchema keyring_schema = {
+  GNOME_KEYRING_ITEM_GENERIC_SECRET,
+  { 
+    { "account", GNOME_KEYRING_ATTRIBUTE_TYPE_STRING },
+    { "param", GNOME_KEYRING_ATTRIBUTE_TYPE_STRING },
+    { NULL, 0 }
+  }
+};
+#endif
+
 #define MC_ACCOUNTS_MAX 1024
 #define MC_AVATAR_FILENAME	"avatar.bin"
 
@@ -1578,6 +1590,29 @@ mc_account_get_param_string (McAccount *account,
 
   /* TODO: retreive type from protocol and check it matches */
 
+#ifdef HAVE_KEYRING
+  if (strstr (name, "password") != NULL)
+    {
+      const gchar *account_name;
+      gchar *password;
+      GnomeKeyringResult res;
+
+      account_name = mc_account_get_unique_name (account);
+      res = gnome_keyring_find_password_sync (&keyring_schema,
+          &password,
+          "account", account_name, 
+          "param", name,
+          NULL);
+      if (res == GNOME_KEYRING_RESULT_OK)
+        {
+          g_debug ("%s: Password found in keyring", G_STRFUNC);
+          *value = g_strdup (password);
+          gnome_keyring_free_password (password);
+          return MC_ACCOUNT_SETTING_FROM_ACCOUNT;
+        }
+    }
+#endif
+
   if (_mc_account_gconf_get_string (account, name, TRUE, value))
       return MC_ACCOUNT_SETTING_FROM_ACCOUNT;
 
@@ -1715,6 +1750,26 @@ mc_account_set_param_string (McAccount *account,
   client = gconf_client_get_default ();
   g_return_val_if_fail (client != NULL, FALSE);
 
+#ifdef HAVE_KEYRING
+  if (strstr (name, "password") != NULL)
+    {
+      const gchar *account_name;
+      gchar *display_name;
+
+      g_debug ("%s: Storing password in keyring", G_STRFUNC);
+
+      account_name = mc_account_get_unique_name (account);
+      display_name = g_strdup_printf ("Password for account %s", account_name);
+      gnome_keyring_store_password_sync (&keyring_schema, GNOME_KEYRING_DEFAULT,
+          display_name, value,
+          "account", account_name, 
+          "param", name,
+          NULL);
+      g_free (display_name);
+      value = "keyring";
+    }
+#endif
+
   key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name, name,
                              TRUE);
   ok = gconf_client_set_string (client, key, value, NULL);
@@ -1749,6 +1804,21 @@ mc_account_unset_param (McAccount *account, const gchar *name)
 
   client = gconf_client_get_default ();
   g_return_val_if_fail (client != NULL, FALSE);
+
+#ifdef HAVE_KEYRING
+  if (strstr (name, "password") != NULL)
+    {
+      const gchar *account_name;
+
+      g_debug ("%s: Removing password from keyring", G_STRFUNC);
+
+      account_name = mc_account_get_unique_name (account);
+      gnome_keyring_delete_password_sync (&keyring_schema,
+          "account", account_name, 
+          "param", name,
+          NULL);
+    }
+#endif
 
   key = _mc_account_path (priv->unique_name, name, TRUE);
   ok = gconf_client_unset (client, key, NULL);

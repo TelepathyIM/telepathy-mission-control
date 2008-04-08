@@ -1,3 +1,11 @@
+2008-04-08  Alberto Mardegan  <mardy@users.sourceforge.net>
+
+	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
+	* configure.ac, libmissioncontrol/Makefile.am,
+	libmissioncontrol/mc-account.c:
+	Store passwords in gnome-keyring, if available.
+	Fixes: #1928094.
+
 2008-03-18  Alberto Mardegan  <mardy@users.sourceforge.net>
 
 	* src/mcd-channel.c:

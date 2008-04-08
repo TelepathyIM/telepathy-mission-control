@@ -146,6 +146,30 @@ PKG_CHECK_MODULES(GLIB, glib-2.0)
 AC_SUBST(GLIB_LIBS)
 AC_SUBST(GLIB_CFLAGS)
 
+AC_ARG_ENABLE(keyring,
+              AS_HELP_STRING([--enable-keyring=@<:@no/yes/auto@:>@],
+                             [store secrets in gnome keyring]), ,
+                             enable_keyring=auto)
+
+if test "x$enable_keyring" != "xno"; then
+   PKG_CHECK_MODULES(KEYRING,
+   [
+      gnome-keyring-1
+   ], have_keyring="yes", have_keyring="no")
+else
+   have_keyring=no
+fi
+
+if test "x$enable_keyring" = "xyes" -a "x$have_keyring" != "xyes"; then
+  AC_MSG_ERROR([Couldn't find keyring.])
+fi
+
+if test "x$have_keyring" = "xyes"; then
+  AC_DEFINE(HAVE_KEYRING, 1, [Define if we have keyring])
+fi
+
+AM_CONDITIONAL(HAVE_KEYRING, test "x$have_keyring" = "xyes")
+
 dnl ***************************************************************************
 dnl Check for marshal and enum generators
 dnl ***************************************************************************

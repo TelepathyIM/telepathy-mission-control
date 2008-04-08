@@ -23,7 +23,7 @@ CLEANFILES = $(BUILT_SOURCES) stamp-mc-enum-types.h
 
 lib_LTLIBRARIES = libmissioncontrol-client.la
 
-libmissioncontrol_client_la_CFLAGS = $(GLIB_CFLAGS) $(GCONF_CFLAGS)
+libmissioncontrol_client_la_CFLAGS = $(GLIB_CFLAGS) $(GCONF_CFLAGS) $(KEYRING_CFLAGS)
 libmissioncontrol_client_la_SOURCES = \
 	cli-nmc4.c \
 	dbus-api.c \
@@ -76,7 +76,7 @@ nodist_libmissioncontrol_client_la_SOURCES = \
 	_gen/signals-marshal.list \
 	_gen/svc-nmc4.c
 
-libmissioncontrol_client_la_LIBADD = $(GCONF_LIBS) $(GLIB_LIBS) $(DBUS_LIBS) $(TELEPATHY_LIBS)
+libmissioncontrol_client_la_LIBADD = $(GCONF_LIBS) $(GLIB_LIBS) $(DBUS_LIBS) $(TELEPATHY_LIBS) $(KEYRING_LIBS)
 
 libmissioncontrol_client_la_LDFLAGS = $(common_ldflags) \
 				      -export-symbols-regex "^(mc_)|(mission_control_)" \
