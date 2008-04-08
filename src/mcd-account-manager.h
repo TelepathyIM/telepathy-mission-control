@@ -69,5 +69,7 @@ GHashTable *mcd_account_manager_get_valid_accounts (McdAccountManager *account_m
 
 McdAccount *mcd_account_manager_lookup_account (McdAccountManager *account_manager,
 						const gchar *name);
+McdAccount *mcd_account_manager_lookup_account_by_path (McdAccountManager *account_manager,
+						       	const gchar *object_path);
 
 #endif

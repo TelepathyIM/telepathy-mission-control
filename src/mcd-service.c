@@ -308,7 +308,6 @@ mcd_service_get_current_status(GObject *obj,
 			       McPresence *requested_presence,
 			       GPtrArray **accounts, GError **error)
 {
-#if 0
     McdServicePrivate *priv = MCD_OBJECT_PRIV (obj);
     GList *account_list, *account_node;
     GType type;
@@ -320,23 +319,22 @@ mcd_service_get_current_status(GObject *obj,
 
     type = dbus_g_type_get_struct ("GValueArray", G_TYPE_STRING, G_TYPE_UINT,
 				   G_TYPE_UINT, G_TYPE_UINT, G_TYPE_INVALID);
-    account_list = mc_accounts_list_by_enabled (TRUE);
+    account_list = mcd_presence_frame_get_accounts (priv->presence_frame);
     for (account_node = account_list; account_node != NULL;
 	 account_node = g_list_next (account_node))
     {
-	McAccount *account = account_node->data;
+	McdAccount *account = account_node->data;
 	GValue account_data = { 0, };
-	const gchar *name;
+	const gchar *name, *p_status, *p_message;
 	TpConnectionStatus status;
 	TpConnectionStatusReason reason;
-	McPresence presence;
+	TpConnectionPresenceType presence;
 
-	name = mc_account_get_unique_name (account);
+	name = mcd_account_get_unique_name (account);
+	mcd_account_get_current_presence (account, &presence,
+					  &p_status, &p_message);
 	status = mcd_presence_frame_get_account_status (priv->presence_frame,
 						       	account);
-	presence =
-	    mcd_presence_frame_get_account_presence (priv->presence_frame,
-						     account);
 	reason =
 	    mcd_presence_frame_get_account_status_reason (priv->presence_frame,
 							  account);
@@ -353,12 +351,7 @@ mcd_service_get_current_status(GObject *obj,
 
 	g_ptr_array_add (*accounts, g_value_get_boxed (&account_data));
     }
-    mc_accounts_list_free (account_list);
     return TRUE;
-#else
-    g_warning ("%s not implemented", G_STRFUNC);
-    return FALSE;
-#endif
 }
 
 static void

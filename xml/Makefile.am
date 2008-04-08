@@ -5,7 +5,9 @@ DROP_NAMESPACE = sed -e 's@xmlns:tp="http://telepathy\.freedesktop\.org/wiki/Dbu
 
 SPECS = MissionControl.xml \
 	Account_Manager.xml \
-	Account.xml
+	Account.xml \
+	Account_Interface_Compat.xml
+
 
 SPECS_GEN = ${SPECS:.xml=-gen.xml}
 

@@ -29,10 +29,11 @@
 #include <config.h>
 
 #include <telepathy-glib/svc-generic.h>
-#include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/util.h>
+#include <telepathy-glib/gtypes.h>
 #include "mcd-account.h"
 #include "mcd-account-priv.h"
+#include "mcd-account-compat.h"
 #include "mcd-account-manager.h"
 #include "mcd-signals-marshal.h"
 #include "mcd-manager.h"
@@ -57,6 +58,8 @@ G_DEFINE_TYPE_WITH_CODE (McdAccount, mcd_account, G_TYPE_OBJECT,
 						account_iface_init);
 			 G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
 						properties_iface_init);
+			 G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_ACCOUNT_INTERFACE_COMPAT,
+						_mcd_account_compat_iface_init);
 			)
 
 struct _McdAccountPrivate
@@ -239,6 +242,7 @@ mcd_account_request_presence_int (McdAccount *account,
     return TRUE;
 }
 
+#ifdef DELAY_PROPERTY_CHANGED
 static gboolean
 emit_property_changed (gpointer userdata)
 {
@@ -257,6 +261,7 @@ emit_property_changed (gpointer userdata)
     priv->properties_source = 0;
     return FALSE;
 }
+#endif
 
 /*
  * This function is responsible of emitting the AccountPropertyChanged signal.
@@ -268,6 +273,7 @@ static void
 mcd_account_changed_property (McdAccount *account, const gchar *key,
 			      const GValue *value)
 {
+#ifdef DELAY_PROPERTY_CHANGED
     McdAccountPrivate *priv = account->priv;
     GValue *val;
 
@@ -305,6 +311,17 @@ mcd_account_changed_property (McdAccount *account, const gchar *key,
     g_value_init (val, G_VALUE_TYPE (value));
     g_value_copy (value, val);
     g_hash_table_insert (priv->changed_properties, (gpointer)key, val);
+#else
+    GHashTable *properties;
+
+    g_debug ("%s called: %s", G_STRFUNC, key);
+    properties = g_hash_table_new (g_str_hash, g_str_equal);
+    g_hash_table_insert (properties, (gpointer)key, (gpointer)value);
+    mc_svc_account_emit_account_property_changed (account,
+						  properties);
+
+    g_hash_table_destroy (properties);
+#endif
 }
 
 static gboolean
@@ -1043,6 +1060,8 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
 {
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
+    GHashTable *parameters;
+    GValue value = { 0 };
     GError *error = NULL;
 
     g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
@@ -1058,6 +1077,13 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
     }
 
     mcd_account_unset_parameters (account, unset);
+
+    /* emit the PropertiesChanged signal */
+    parameters = mcd_account_get_parameters (account);
+    g_value_init (&value, TP_HASH_TYPE_STRING_VARIANT_MAP);
+    g_value_take_boxed (&value, parameters);
+    mcd_account_changed_property (account, "Parameters", &value);
+    g_value_unset (&value);
 
     mcd_account_check_validity (account);
     mcd_account_manager_write_conf (priv->keyfile);
@@ -1095,7 +1121,6 @@ mcd_account_setup (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
     gboolean valid;
-    gchar *ch, *name;
 
     if (!priv->keyfile || !priv->unique_name) return FALSE;
 
@@ -1109,17 +1134,8 @@ mcd_account_setup (McdAccount *account)
 			       MC_ACCOUNTS_KEY_PROTOCOL, NULL);
     if (!priv->protocol_name) return FALSE;
 
-    name = tp_escape_as_identifier (priv->unique_name);
     priv->object_path = g_strconcat (MC_ACCOUNT_DBUS_OBJECT_BASE,
-				     priv->manager_name, "/",
-				     priv->protocol_name, "/",
-				     name, NULL);
-    g_free (name);
-    /* seems that the dash is an invalid character... */
-    for (ch = priv->object_path + sizeof(MC_ACCOUNT_DBUS_OBJECT_BASE);
-	 *ch != 0;
-	 ch++)
-	if (*ch == '-') *ch = '_';
+				     priv->unique_name, NULL);
 
     priv->enabled =
 	g_key_file_get_boolean (priv->keyfile, priv->unique_name,
@@ -1378,6 +1394,9 @@ mcd_account_init (McdAccount *account)
     /* add the interface properties */
     dbusprop_add_interface (TP_SVC_DBUS_PROPERTIES (account),
 			    MC_IFACE_ACCOUNT, account_properties);
+    dbusprop_add_interface (TP_SVC_DBUS_PROPERTIES (account),
+			    MC_IFACE_ACCOUNT_INTERFACE_COMPAT,
+			    _mcd_account_compat_get_properties());
 
     priv->conn_status = TP_CONNECTION_STATUS_DISCONNECTED;
 }
@@ -1676,6 +1695,15 @@ mcd_account_set_normalized_name (McdAccount *account, const gchar *name)
     mcd_account_manager_write_conf (priv->keyfile);
 }
 
+gchar *
+mcd_account_get_normalized_name (McdAccount *account)
+{
+    McdAccountPrivate *priv = account->priv;
+
+    return g_key_file_get_string (priv->keyfile, priv->unique_name,
+				  MC_ACCOUNTS_KEY_NORMALIZED_NAME, NULL);
+}
+
 void
 mcd_account_set_avatar_token (McdAccount *account, const gchar *token)
 {
@@ -1755,16 +1783,13 @@ mcd_account_get_avatar (McdAccount *account, GArray **avatar,
 		       	gchar **mime_type)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
-    gchar *data_dir, *filename;
+    gchar *filename;
 
     *mime_type = g_key_file_get_string (priv->keyfile, priv->unique_name,
 					MC_ACCOUNTS_KEY_AVATAR_MIME, NULL);
 
     if (avatar) *avatar = NULL;
-    data_dir = get_account_data_path (priv);
-    g_debug("data dir: %s", data_dir);
-    filename = g_build_filename (data_dir, MC_AVATAR_FILENAME, NULL);
-    g_free (data_dir);
+    filename = mcd_account_get_avatar_filename (account);
 
     if (filename && g_file_test (filename, G_FILE_TEST_EXISTS))
     {
@@ -1915,10 +1940,14 @@ mcd_account_check_validity (McdAccount *account)
     valid = mcd_account_check_parameters (account);
     if (valid != priv->valid)
     {
+	GValue value = { 0 };
 	g_debug ("Account validity changed (old: %d, new: %d)",
 		 priv->valid, valid);
 	priv->valid = valid;
 	g_signal_emit (account, signals[VALIDITY_CHANGED], 0, valid);
+	g_value_init (&value, G_TYPE_BOOLEAN);
+	g_value_set_boolean (&value, valid);
+	mcd_account_changed_property (account, "Valid", &value);
     }
     return valid;
 }
@@ -2030,3 +2059,23 @@ mcd_account_request_channel_nmc4 (McdAccount *account,
 				       error);
 }
 
+GKeyFile *
+mcd_account_get_keyfile (McdAccount *account)
+{
+    McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
+    return priv->keyfile;
+}
+
+/* this is public because of mcd-account-compat */
+gchar *
+mcd_account_get_avatar_filename (McdAccount *account)
+{
+    McdAccountPrivate *priv = account->priv;
+    gchar *data_dir, *filename;
+
+    data_dir = get_account_data_path (priv);
+    g_debug("data dir: %s", data_dir);
+    filename = g_build_filename (data_dir, MC_AVATAR_FILENAME, NULL);
+    g_free (data_dir);
+    return filename;
+}

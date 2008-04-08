@@ -34,9 +34,11 @@ libmissioncontrol_client_la_SOURCES = \
         mc-protocol-priv.h \
         mc-profile.c \
         mc-account.c \
+        mc-account-proxy.c \
         mc-account-priv.h \
         mc-account-monitor.c \
 	mc-account-monitor-priv.h \
+        mc-account-manager-proxy.c \
 	mc-signals-marshal.c \
 	mc-enum-types.c \
 	mission-control-signals-marshal.c \
@@ -48,7 +50,9 @@ libmissioncontrol_client_include_HEADERS = \
 	dbus-api.h \
         mc.h \
         mc-account.h \
+        mc-account-proxy.h \
         mc-account-monitor.h \
+        mc-account-manager-proxy.h \
 	mc-enum-types.h \
         mc-profile.h \
         mc-protocol.h \
@@ -60,6 +64,8 @@ libmissioncontrol_client_include_HEADERS = \
 
 genincludedir = $(libmissioncontrol_client_includedir)/_gen
 nodist_geninclude_HEADERS = \
+	_gen/cli-Account.h \
+	_gen/cli-Account_Manager.h \
 	_gen/cli-nmc4.h \
 	_gen/enums.h \
 	_gen/interfaces.h \
@@ -67,6 +73,8 @@ nodist_geninclude_HEADERS = \
 	_gen/svc-nmc4.h
 
 nodist_libmissioncontrol_client_la_SOURCES = \
+	_gen/cli-Account-body.h \
+	_gen/cli-Account_Manager-body.h \
 	_gen/cli-nmc4-body.h \
 	_gen/gtypes-body.h \
 	_gen/interfaces-body.h \
@@ -196,8 +204,8 @@ _gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml)
 		$< > $@
 
 _gen/cli-%-body.h _gen/cli-%.h: _gen/%.xml \
-	$(tools_dir)/glib-client-gen.py Makefile.am
-	$(PYTHON) $(tools_dir)/glib-client-gen.py \
+	$(tools_dir)/glib-blocking-client-gen.py Makefile.am
+	$(PYTHON) $(tools_dir)/glib-blocking-client-gen.py \
 		--group=`echo $* | tr x- x_` \
 		--iface-quark-prefix=MC_IFACE_QUARK \
 		$< Mc_Cli _gen/cli-$*

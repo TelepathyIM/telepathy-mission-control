@@ -603,9 +603,13 @@ add_account (gpointer key, gpointer value, gpointer userdata)
 
 static void
 on_account_validity_changed (McdAccountManager *account_manager,
-			     McdAccount *account, gboolean valid,
+			     const gchar *object_path, gboolean valid,
 			     McdPresenceFrame *presence_frame)
 {
+    McdAccount *account;
+
+    account = mcd_account_manager_lookup_account_by_path (account_manager,
+							  object_path);
     if (valid)
 	mcd_presence_frame_add_account (presence_frame, account);
     else
@@ -628,5 +632,12 @@ mcd_presence_frame_set_account_manager (McdPresenceFrame *presence_frame,
     g_signal_connect (account_manager, "account-validity-changed",
 		      G_CALLBACK (on_account_validity_changed),
 		      presence_frame);
+}
+
+GList *
+mcd_presence_frame_get_accounts (McdPresenceFrame *presence_frame)
+{
+    McdPresenceFramePrivate *priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
+    return priv->accounts;
 }
 

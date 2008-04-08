@@ -3,6 +3,7 @@ EXTRA_DIST = \
     c-interfaces-generator.xsl \
     doc-generator.xsl \
     glib-client-gen.py \
+    glib-blocking-client-gen.py \
     glib-client-marshaller-gen.py \
     glib-interfaces-generator.xsl \
     glib-interfaces-body-generator.xsl \

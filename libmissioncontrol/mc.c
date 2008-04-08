@@ -22,6 +22,10 @@
  */
 
 #include <gmodule.h>
+#include <telepathy-glib/dbus.h>
+#include <telepathy-glib/interfaces.h>
+#include <telepathy-glib/proxy-subclass.h>
+
 
 #include "mc.h"
 
@@ -47,4 +51,112 @@ mc_make_resident (void)
     }
   g_module_make_resident (module);
 }
+
+gboolean
+mc_cli_dbus_properties_do_get (gpointer proxy,
+    gint timeout_ms,
+    const gchar *in_Interface_Name,
+    const gchar *in_Property_Name,
+    GValue **out_Value,
+    GError **error)
+{
+  DBusGProxy *iface;
+  GQuark interface = TP_IFACE_QUARK_DBUS_PROPERTIES;
+  GValue *o_Value = g_new0 (GValue, 1);
+
+  g_return_val_if_fail (TP_IS_PROXY (proxy), FALSE);
+
+  iface = tp_proxy_borrow_interface_by_id
+       ((TpProxy *) proxy, interface, error);
+
+  if (iface == NULL)
+    return FALSE;
+
+  if(dbus_g_proxy_call_with_timeout (iface,
+          "Get",
+          timeout_ms,
+	  error,
+              G_TYPE_STRING, in_Interface_Name,
+              G_TYPE_STRING, in_Property_Name,
+          G_TYPE_INVALID,
+              G_TYPE_VALUE, o_Value,
+          G_TYPE_INVALID))
+  {
+      *out_Value = o_Value;
+      return TRUE;
+  }
+  else
+  {
+      g_free (o_Value);
+      return FALSE;
+  }
+}
+
+
+gboolean
+mc_cli_dbus_properties_do_get_all (gpointer proxy,
+    gint timeout_ms,
+    const gchar *in_Interface_Name,
+    GHashTable **out_Properties,
+    GError **error)
+{
+  DBusGProxy *iface;
+  GQuark interface = TP_IFACE_QUARK_DBUS_PROPERTIES;
+  GHashTable *o_Properties;
+
+  g_return_val_if_fail (TP_IS_PROXY (proxy), FALSE);
+
+  iface = tp_proxy_borrow_interface_by_id
+       ((TpProxy *) proxy, interface, error);
+
+  if (iface == NULL)
+    return FALSE;
+
+  if (dbus_g_proxy_call_with_timeout (iface,
+          "GetAll",
+          timeout_ms,
+	  error,
+              G_TYPE_STRING, in_Interface_Name,
+          G_TYPE_INVALID,
+	      (dbus_g_type_get_map ("GHashTable", G_TYPE_STRING, G_TYPE_VALUE)), &o_Properties,
+          G_TYPE_INVALID))
+  {
+      *out_Properties = o_Properties;
+
+      return TRUE;
+  }
+  else
+      return FALSE;
+}
+
+
+gboolean
+mc_cli_dbus_properties_do_set (gpointer proxy,
+    gint timeout_ms,
+    const gchar *in_Interface_Name,
+    const gchar *in_Property_Name,
+    const GValue *in_Value,
+    GError **error)
+{
+  DBusGProxy *iface;
+  GQuark interface = TP_IFACE_QUARK_DBUS_PROPERTIES;
+
+  g_return_val_if_fail (TP_IS_PROXY (proxy), FALSE);
+
+  iface = tp_proxy_borrow_interface_by_id
+       ((TpProxy *) proxy, interface, error);
+
+  if (iface == NULL)
+    return FALSE;
+
+  return dbus_g_proxy_call_with_timeout (iface,
+          "Set",
+          timeout_ms,
+	  error,
+              G_TYPE_STRING, in_Interface_Name,
+              G_TYPE_STRING, in_Property_Name,
+              G_TYPE_VALUE, in_Value,
+          G_TYPE_INVALID);
+}
+
 

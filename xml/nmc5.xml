@@ -5,6 +5,7 @@
 <tp:copyright>Copyright (C) 2008 Nokia Corporation</tp:copyright>
 
 <xi:include href="Account.xml"/>
+<xi:include href="Account_Interface_Compat.xml"/>
 <xi:include href="Account_Manager.xml"/>
 
 </tp:spec>

@@ -21,9 +21,35 @@
  *
  */
 
+#ifndef __MC_H__
+#define __MC_H__
+
+#include <glib-object.h>
+
 G_BEGIN_DECLS
 
 void mc_make_resident (void);
 
+gboolean mc_cli_dbus_properties_do_get (gpointer proxy,
+    gint timeout_ms,
+    const gchar *in_Interface_Name,
+    const gchar *in_Property_Name,
+    GValue **out_Value,
+    GError **error);
+
+gboolean mc_cli_dbus_properties_do_get_all (gpointer proxy,
+    gint timeout_ms,
+    const gchar *in_Interface_Name,
+    GHashTable **out_Properties,
+    GError **error);
+
+gboolean mc_cli_dbus_properties_do_set (gpointer proxy,
+    gint timeout_ms,
+    const gchar *in_Interface_Name,
+    const gchar *in_Property_Name,
+    const GValue *in_Value,
+    GError **error);
+
 G_END_DECLS
+#endif
 

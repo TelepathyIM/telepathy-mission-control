@@ -102,6 +102,7 @@ gboolean mcd_presence_frame_is_stable (McdPresenceFrame *presence_frame);
 
 void mcd_presence_frame_set_account_manager (McdPresenceFrame *presence_frame,
 					     McdAccountManager *account_manager);
+GList *mcd_presence_frame_get_accounts (McdPresenceFrame *presence_frame);
 
 G_END_DECLS
 #endif /* MCD_PRESENCE_FRAME_H */

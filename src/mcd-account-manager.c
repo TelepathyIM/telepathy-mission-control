@@ -30,6 +30,7 @@
 #include <dbus/dbus.h>
 
 #include <telepathy-glib/svc-generic.h>
+#include <telepathy-glib/util.h>
 #include <telepathy-glib/errors.h>
 #include "mcd-account-manager.h"
 #include "mcd-account.h"
@@ -185,10 +186,12 @@ complete_account_creation (McdAccountManager *account_manager,
 }
 
 static gchar *
-create_unique_name (McdAccountManagerPrivate *priv, GHashTable *params)
+create_unique_name (McdAccountManagerPrivate *priv, const gchar *manager,
+		    const gchar *protocol, GHashTable *params)
 {
     gchar *path, *seq, *unique_name = NULL;
     const gchar *base = NULL;
+    gchar *esc_manager, *esc_protocol, *esc_base;
     GValue *value;
     gint i, len;
 
@@ -199,9 +202,16 @@ create_unique_name (McdAccountManagerPrivate *priv, GHashTable *params)
     if (!base)
 	base = "account";
 
-    len = strlen (base);
+    esc_manager = tp_escape_as_identifier (manager);
+    esc_protocol = tp_escape_as_identifier (protocol);
+    esc_base = tp_escape_as_identifier (base);
+    /* add two chars for the "/" */
+    len = strlen (esc_manager) + strlen (esc_protocol) + strlen (esc_base) + 2;
     path = g_malloc (len + 5);
-    strcpy (path, base);
+    sprintf (path, "%s/%s/%s", esc_manager, esc_protocol, esc_base);
+    g_free (esc_manager);
+    g_free (esc_protocol);
+    g_free (esc_base);
     seq = path + len;
     for (i = 0; i < 1024; i++)
     {
@@ -237,7 +247,7 @@ mcd_account_manager_create_account (McdAccountManager *account_manager,
 	return FALSE;
     }
 
-    unique_name = create_unique_name (priv, params);
+    unique_name = create_unique_name (priv, manager, protocol, params);
     if (G_UNLIKELY (unique_name == NULL))
     {
 	g_warning ("Couldn't create a unique name");
@@ -618,5 +628,28 @@ mcd_account_manager_lookup_account (McdAccountManager *account_manager,
     McdAccountManagerPrivate *priv = account_manager->priv;
 
     return g_hash_table_lookup (priv->accounts, name);
+}
+
+static gboolean
+find_by_path (gpointer key, gpointer value, gpointer user_data)
+{
+    McdAccount *account = value;
+    const gchar *object_path = user_data;
+
+    if (strcmp (object_path,
+		mcd_account_get_object_path (account)) == 0)
+	return TRUE;
+    return FALSE;
+}
+
+/* NOTE: this might become unused when the presence-frame gets removed */
+McdAccount *
+mcd_account_manager_lookup_account_by_path (McdAccountManager *account_manager,
+					    const gchar *object_path)
+{
+    McdAccountManagerPrivate *priv = account_manager->priv;
+
+    return g_hash_table_find (priv->accounts, find_by_path,
+			      (gpointer)object_path);
 }
 

@@ -33,34 +33,53 @@
 #include <glib/gstdio.h>
 
 #include "mc-account.h"
+#include "mc-account-proxy.h"
 #include "mc-account-priv.h"
 #include "mc-account-monitor.h"
 #include "mc-account-monitor-priv.h"
 #include "mc-profile.h"
+#include "mc.h"
 #include <config.h>
 
 #define MC_ACCOUNTS_MAX 1024
 #define MC_AVATAR_FILENAME	"avatar.bin"
 
-#define MC_ACCOUNT_PRIV(account) ((McAccountPrivate *)account->priv)
+#define MC_ACCOUNT_PRIV(account) ((McAccountPrivate *)MC_ACCOUNT (account)->priv)
 
 G_DEFINE_TYPE (McAccount, mc_account, G_TYPE_OBJECT);
 
 typedef struct
 {
+    TpProxy *proxy;
+    gchar *manager_name;
+    gchar *protocol_name;
   gchar *unique_name;
   gchar *profile_name;
   GSList *display_names;
   GSList *normalized_names;
+  gchar *alias;
   gboolean enabled;
+  gboolean valid;
+  gchar *last_name;
+  gchar *last_value;
+  gint avatar_id;
 } McAccountPrivate;
 
-static gboolean mc_account_set_deleted (McAccount *account, gboolean deleted);
-static gboolean mc_account_is_deleted (McAccount *account);
-static gboolean _mc_account_gconf_get_boolean (McAccount *account,
-			const gchar *name, gboolean param, gboolean *value);
-static gboolean _mc_account_gconf_get_string (McAccount *account,
-			  const gchar *name, gboolean param, gchar **value);
+static GSList *set_first_element (GSList *list, const gchar *value);
+
+static void
+mc_account_dispose (GObject *object)
+{
+    McAccount *self = MC_ACCOUNT(object);
+    McAccountPrivate *priv = MC_ACCOUNT_PRIV (self);
+
+    if (priv->proxy)
+    {
+	g_object_unref (priv->proxy);
+	priv->proxy = NULL;
+    }
+    G_OBJECT_CLASS (mc_account_parent_class)->dispose (object);
+}
 
 static void
 mc_account_finalize (GObject *object)
@@ -68,12 +87,17 @@ mc_account_finalize (GObject *object)
   McAccount *self = MC_ACCOUNT(object);
   McAccountPrivate *priv = MC_ACCOUNT_PRIV (self);
   
+  g_free (priv->manager_name);
+  g_free (priv->protocol_name);
   g_free (priv->unique_name);
   g_free (priv->profile_name);
   g_slist_foreach (priv->display_names, (GFunc)g_free, NULL);
   g_slist_free (priv->display_names);
   g_slist_foreach (priv->normalized_names, (GFunc)g_free, NULL);
   g_slist_free (priv->normalized_names);
+  g_free (priv->alias);
+  g_free (priv->last_name);
+  g_free (priv->last_value);
 }
 
 static void
@@ -88,32 +112,157 @@ mc_account_clear_cache (void)
 {
 }
 
-McAccount *
-_mc_account_new (const gchar *unique_name)
+static inline gboolean
+parse_object_path (McAccountPrivate *priv, const gchar *object_path)
 {
-  McAccountPrivate *priv;
-  McAccount *new;
-  gboolean enabled;
-  gchar *name;
+    gchar manager[64], protocol[64], unique_name[256];
+    gint n;
 
-  new = (McAccount *)g_object_new (MC_TYPE_ACCOUNT, NULL);
-  priv = MC_ACCOUNT_PRIV (new);
-  priv->unique_name = g_strdup (unique_name);
+    n = sscanf (object_path, MC_ACCOUNT_DBUS_OBJECT_BASE "%[^/]/%[^/]/%s",
+		manager, protocol, unique_name);
+    if (n != 3) return FALSE;
 
-  /* get enabledness status */
-  if (_mc_account_gconf_get_boolean (new, MC_ACCOUNTS_GCONF_KEY_ENABLED,
-				     FALSE, &enabled) && enabled)
-      priv->enabled = TRUE;
+    priv->manager_name = g_strdup (manager);
+    priv->protocol_name = g_strdup (protocol);
+    priv->unique_name = g_strdup (MC_ACCOUNT_UNIQUE_NAME_FROM_PATH (object_path));
+    return TRUE;
+}
 
-  if (_mc_account_gconf_get_string (new, MC_ACCOUNTS_GCONF_KEY_NORMALIZED_NAME,
-				    FALSE, &name))
-      priv->normalized_names = g_slist_prepend (NULL, name);
+static void
+print_prop (gpointer key, gpointer ht_value, gpointer userdata)
+{
+    const gchar *name = key;
+    const GValue *value = ht_value;
 
-  if (_mc_account_gconf_get_string (new, MC_ACCOUNTS_GCONF_KEY_DISPLAY_NAME,
-				    FALSE, &name))
-      priv->display_names = g_slist_prepend (NULL, name);
+    g_debug ("prop: %s (%s)", name, G_VALUE_TYPE_NAME (value));
+}
 
-  return new;
+static void
+on_account_property_changed (TpProxy *proxy, GHashTable *properties,
+			     gpointer user_data, GObject *weak_object)
+{
+    //McAccount *account = MC_ACCOUNT (weak_object);
+    McAccountPrivate *priv = user_data;
+    const GValue *value;
+
+    g_debug ("%s called on %s", G_STRFUNC, priv->unique_name);
+
+    g_hash_table_foreach (properties, print_prop, NULL);
+    value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_VALID);
+    if (value)
+	priv->valid = g_value_get_boolean (value);
+
+    value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_NORMALIZED_NAME);
+    if (value)
+	priv->normalized_names = set_first_element (priv->normalized_names,
+						 g_value_get_string (value));
+
+    value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_DISPLAY_NAME);
+    if (value)
+	priv->display_names = set_first_element (priv->display_names,
+						 g_value_get_string (value));
+
+    value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_ALIAS);
+    if (value)
+    {
+	g_free (priv->alias);
+	priv->alias = g_value_dup_string (value);
+    }
+
+    value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_AVATAR);
+    if (value)
+	priv->avatar_id = time(0);
+
+    /* FIXME: we should also emit the "param-changed" signal if an account
+     * parameter changed, but since is was used only be the mission-control
+     * process, we can skip now. Besides, we wouldn't know which parameter
+     * actually changed */
+
+    /* emit the account-changed signal */
+    McAccountMonitor *monitor = mc_account_monitor_new ();
+    g_signal_emit_by_name (monitor, "account-changed", priv->unique_name);
+    g_object_unref (monitor);
+}
+
+McAccount *
+_mc_account_new (TpDBusDaemon *dbus_daemon, const gchar *object_path)
+{
+    McAccountPrivate *priv;
+    McAccount *new;
+    GHashTable *properties;
+    GError *error = NULL;
+
+    new = (McAccount *)g_object_new (MC_TYPE_ACCOUNT, NULL);
+    priv = MC_ACCOUNT_PRIV (new);
+    priv->proxy = g_object_new (MC_TYPE_ACCOUNT_PROXY,
+				"dbus-daemon", dbus_daemon,
+				"bus-name", MC_ACCOUNT_MANAGER_DBUS_SERVICE,
+				"object-path", object_path,
+				NULL);
+    if (!priv->proxy ||
+	!parse_object_path (priv, object_path))
+	return NULL;
+
+    mc_cli_account_connect_to_account_property_changed (priv->proxy,
+							on_account_property_changed,
+							priv, NULL,
+							(GObject *)new, NULL);
+
+    mc_cli_dbus_properties_do_get_all (priv->proxy, -1,
+				       MC_IFACE_ACCOUNT,
+				       &properties, &error);
+    if (error)
+    {
+	g_warning ("Properties error: %s", error->message);
+	g_error_free (error);
+    }
+    else
+    {
+	GValue *value;
+
+	value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_ENABLED);
+	if (value)
+	    priv->enabled = g_value_get_boolean (value);
+
+	value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_VALID);
+	if (value)
+	    priv->valid = g_value_get_boolean (value);
+
+	value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_NORMALIZED_NAME);
+	if (value)
+	    priv->normalized_names = g_slist_prepend (NULL, g_value_dup_string (value));
+
+	value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_DISPLAY_NAME);
+	if (value)
+	    priv->display_names = g_slist_prepend (NULL, g_value_dup_string (value));
+
+	value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_ALIAS);
+	if (value)
+	    priv->alias = g_value_dup_string (value);
+
+	g_hash_table_destroy (properties);
+    }
+
+    mc_cli_dbus_properties_do_get_all (priv->proxy, -1,
+				       MC_IFACE_ACCOUNT_INTERFACE_COMPAT,
+				       &properties, &error);
+    if (error)
+    {
+	g_warning ("Compat properties error: %s", error->message);
+	g_error_free (error);
+    }
+    else
+    {
+	GValue *value;
+
+	value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_PROFILE);
+	if (value)
+	    priv->profile_name = g_value_dup_string (value);
+
+	g_hash_table_destroy (properties);
+    }
+
+    return new;
 }
 
 void
@@ -175,198 +324,8 @@ mc_account_class_init (McAccountClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
   g_type_class_add_private (object_class, sizeof (McAccountPrivate));
+  object_class->dispose = mc_account_dispose;
   object_class->finalize = mc_account_finalize;
-}
-
-/* Returns the data dir for the given account name.
- * Returned string must be freed by caller. */
-static gchar *
-get_account_data_path (const gchar *unique_name)
-{
-  const gchar *base;
-
-  base = g_getenv ("MC_ACCOUNT_DIR");
-  if (!base)
-    base = ACCOUNTS_DIR;
-  if (!base)
-    return NULL;
-
-  if (base[0] == '~')
-    return g_build_filename (g_get_home_dir(), base + 1, unique_name, NULL);
-  else
-    return g_build_filename (base, unique_name, NULL);
-}
-
-/* if key is NULL, returns the gconf dir for the given account name,
- * otherwise returns the full key. prepends key with param- if
- * param is TRUE. returned string must be freed by caller. */
-static gchar *
-_mc_account_path (const gchar *unique_name,
-                     const gchar *key,
-                     gboolean param)
-{
-  if (key != NULL)
-    {
-      if (param)
-        {
-          return g_strconcat (MC_ACCOUNTS_GCONF_BASE, "/",
-                              unique_name, "/param-",
-                              key, NULL);
-        }
-      else
-        {
-          return g_strconcat (MC_ACCOUNTS_GCONF_BASE, "/",
-                              unique_name, "/",
-                              key, NULL);
-        }
-    }
-  else
-    {
-      return g_strconcat (MC_ACCOUNTS_GCONF_BASE, "/",
-                          unique_name, NULL);
-    }
-}
-
-static GConfValue *
-_mc_account_gconf_get (McAccount *account,
-                          const gchar *name,
-                          gboolean param)
-{
-  GConfClient *client;
-  gchar *key;
-  GConfValue *value;
-
-  g_return_val_if_fail (account != NULL, NULL);
-  g_return_val_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL,
-                        NULL);
-  g_return_val_if_fail (name != NULL, NULL);
-
-  client = gconf_client_get_default ();
-  g_return_val_if_fail (client != NULL, NULL);
-
-  key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name,
-                             name, param);
-  value = gconf_client_get (client, key, NULL);
-
-  g_object_unref (client);
-  g_free (key);
-
-  return value;
-}
-
-static gboolean
-_mc_account_gconf_get_boolean (McAccount *account,
-                                  const gchar *name,
-                                  gboolean param,
-                                  gboolean *value)
-{
-  GConfValue *val;
-
-  g_return_val_if_fail (value != NULL, FALSE);
-
-  val = _mc_account_gconf_get (account, name, param);
-
-  if (val == NULL)
-    {
-      return FALSE;
-    }
-
-  if (val->type != GCONF_VALUE_BOOL)
-    {
-      gconf_value_free (val);
-      return FALSE;
-    }
-
-  *value = gconf_value_get_bool (val);
-  gconf_value_free (val);
-
-  return TRUE;
-}
-
-static gboolean
-_mc_account_gconf_get_int (McAccount *account,
-                              const gchar *name,
-                              gboolean param,
-                              gint *value)
-{
-  GConfValue *val;
-
-  g_return_val_if_fail (value != NULL, FALSE);
-
-  val = _mc_account_gconf_get (account, name, param);
-
-  if (val == NULL)
-    {
-      return FALSE;
-    }
-
-  if (val->type != GCONF_VALUE_INT)
-    {
-      gconf_value_free (val);
-      return FALSE;
-    }
-
-  *value = gconf_value_get_int (val);
-  gconf_value_free (val);
-
-  return TRUE;
-}
-
-static gboolean
-_mc_account_gconf_get_string (McAccount *account,
-                                 const gchar *name,
-                                 gboolean param,
-                                 gchar **value)
-{
-  GConfValue *val;
-
-  g_return_val_if_fail (value != NULL, FALSE);
-
-  val = _mc_account_gconf_get (account, name, param);
-
-  if (val == NULL)
-    {
-      return FALSE;
-    }
-
-  if (val->type != GCONF_VALUE_STRING)
-    {
-      gconf_value_free (val);
-      return FALSE;
-    }
-
-  *value = g_strdup (gconf_value_get_string (val));
-  gconf_value_free (val);
-
-  return TRUE;
-}
-
-static gboolean
-_mc_account_gconf_set_string (McAccount *account, const gchar *name,
-			      const gchar *value)
-{
-    GConfClient *client;
-    gchar *key;
-    gboolean ok;
-
-    g_return_val_if_fail (account != NULL, FALSE);
-    g_return_val_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL,
-			  FALSE);
-
-    client = gconf_client_get_default ();
-    g_return_val_if_fail (client != NULL, FALSE);
-
-    key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name,
-			    name, FALSE);
-    if (value)
-	ok = gconf_client_set_string (client, key, value, NULL);
-    else
-	ok = gconf_client_unset (client, key, NULL);
-
-    g_free (key);
-    g_object_unref (client);
-
-    return ok;
 }
 
 /**
@@ -391,8 +350,8 @@ mc_account_lookup (const gchar *unique_name)
 gboolean
 _filter_account (McAccount *acct, gpointer data)
 {
-  const gchar *compare_account;
-  gchar *gconf_account, *normalized_name;
+  const gchar *compare_account, *normalized_name;
+  gchar *gconf_account;
   gboolean ret;
 
   g_return_val_if_fail (acct != NULL, FALSE);
@@ -401,10 +360,9 @@ _filter_account (McAccount *acct, gpointer data)
 
   compare_account = (const gchar *) data;
 
-  if (!_mc_account_gconf_get_string (acct,
-        MC_ACCOUNTS_GCONF_KEY_PARAM_ACCOUNT,
-        TRUE, &gconf_account))
-    return FALSE;
+  if (mc_account_get_param_string (acct, "account", &gconf_account) ==
+      MC_ACCOUNT_SETTING_ABSENT)
+      return FALSE;
 
   ret = (0 == strcmp(gconf_account, compare_account));
 
@@ -412,14 +370,11 @@ _filter_account (McAccount *acct, gpointer data)
 
   if (!ret)
   {
-      if (!_mc_account_gconf_get_string (acct,
-	    MC_ACCOUNTS_GCONF_KEY_NORMALIZED_NAME,
-	    FALSE, &normalized_name))
+      normalized_name = mc_account_get_normalized_name (acct);
+      if (!normalized_name)
 	return FALSE;
 
       ret = (0 == strcmp(normalized_name, compare_account));
-
-      g_free (normalized_name);
   }
 
   return ret;
@@ -518,163 +473,50 @@ mc_account_free (McAccount* account)
 McAccount *
 mc_account_create (McProfile *profile)
 {
-  McAccount *ret = NULL;
-  GConfClient *client;
-  const gchar *profile_name;
-  gchar *unique_name, *key, *data_dir = NULL;
-  guint i = 0;
-  gboolean ok;
+    McAccountMonitor *monitor;
+    McAccount *account;
+    McAccountPrivate *priv;
+    McProtocol *protocol;
+    McManager *manager;
+    const gchar *manager_name, *protocol_name;
+    GHashTable *params;
+    GValue value = { 0 };
 
-  g_return_val_if_fail (profile != NULL, NULL);
+    protocol = mc_profile_get_protocol (profile);
+    if (!protocol) return NULL;
+    manager = mc_protocol_get_manager (protocol);
+    if (!manager) return NULL;
 
-  client = gconf_client_get_default ();
-  g_return_val_if_fail (client != NULL, NULL);
+    protocol_name = mc_protocol_get_name (protocol);
+    manager_name = mc_manager_get_unique_name (manager);
+    monitor = mc_account_monitor_new ();
+    params = g_hash_table_new (g_str_hash, g_str_equal);
+    account = _mc_account_monitor_create_account (monitor, manager_name,
+						  protocol_name, NULL,
+						  params);
+    g_hash_table_destroy (params);
+    g_object_unref (protocol);
+    g_object_unref (monitor);
+    g_object_unref (manager);
 
-  profile_name = mc_profile_get_unique_name (profile);
-
-  /* find the first free account with this profile */
-  unique_name = NULL;
-  while (unique_name == NULL && i < MC_ACCOUNTS_MAX)
+    if (account)
     {
-      gchar *path;
-
-      unique_name = g_strdup_printf ("%s%u", profile_name, i);
-
-      path = _mc_account_path (unique_name, NULL, FALSE);
-      if (gconf_client_dir_exists (client, path, NULL))
-        {
-          g_free (unique_name);
-          unique_name = NULL;
-          i++;
-        }
-      g_free (path);
+	GError *error = NULL;
+	priv = account->priv;
+	g_value_init (&value, G_TYPE_STRING);
+	g_value_set_static_string (&value, mc_profile_get_unique_name (profile));
+	mc_cli_dbus_properties_do_set (priv->proxy, -1,
+				       MC_IFACE_ACCOUNT_INTERFACE_COMPAT,
+				       MC_ACCOUNTS_GCONF_KEY_PROFILE,
+				       &value, &error);
+	if (error)
+	{
+	    g_warning ("setting profile on %s failed: %s",
+		       priv->unique_name, error->message);
+	    g_error_free (error);
+	}
     }
-
-  if (unique_name == NULL)
-    goto OUT;
-
-  key = _mc_account_path (unique_name, MC_ACCOUNTS_GCONF_KEY_PROFILE, FALSE);
-  ok = gconf_client_set_string (client, key, profile_name, NULL);
-  g_free (key);
-
-  if (!ok)
-    goto OUT;
-
-  /* create the directory for storing the binary objects (i.e., avatar) */
-  data_dir = get_account_data_path (unique_name);
-  if (g_mkdir_with_parents (data_dir, 0777) != 0)
-      goto OUT;
-  /* and store it in GConf */
-  key = _mc_account_path (unique_name, MC_ACCOUNTS_GCONF_KEY_DATA_DIR, FALSE);
-  ok = gconf_client_set_string (client, key, data_dir, NULL);
-  g_free (key);
-
-  /* Account is disabled by default, because there is no guarantee
-   * the account is usable at this point. The one who created the
-   * account should enable it when its ready.
-   */
-  ret = _mc_account_new (unique_name);
-
-OUT:
-  g_free (data_dir);
-  g_free (unique_name);
-  g_object_unref (client);
-
-  return ret;
-}
-
-static gchar *
-_account_name_from_key (const gchar *key)
-{
-  guint base_len = strlen (MC_ACCOUNTS_GCONF_BASE);
-  const gchar *base, *slash;
-
-  g_assert (key == strstr (key, MC_ACCOUNTS_GCONF_BASE));
-  g_assert (strlen (key) > base_len + 1);
-
-  base = key + base_len + 1;
-  slash = strchr (base, '/');
-
-  if (slash == NULL)
-    return g_strdup (base);
-  else
-    return g_strndup (base, slash - base);
-}
-
-static gboolean
-mc_account_expunge_deleted (gpointer user_data)
-{
-  GConfClient *client;
-  gchar *key;
-  GSList *entries, *tmp;
-  gboolean ok = TRUE;
-  GError *error = NULL;
-  GSList *i, *dirs;
-  
-  client = gconf_client_get_default ();
-  g_return_val_if_fail (client != NULL, FALSE);
-
-  dirs = gconf_client_all_dirs (client, MC_ACCOUNTS_GCONF_BASE, &error);
-
-  if (NULL != error)
-    {
-      g_print ("Error: %s\n", error->message);
-      g_assert_not_reached ();
-    }
-  for (i = dirs; NULL != i; i = i->next)
-    {
-      gchar *unique_name = _account_name_from_key (i->data);
-      gchar *data_dir_str;
-      GDir *data_dir;
-
-      McAccount *account = _mc_account_new (unique_name);
-
-      if (!mc_account_is_deleted (account))
-      {
-        g_object_unref (account);
-        g_free (i->data);
-        g_free (unique_name);
-        continue;
-      }
-      
-      key = _mc_account_path (unique_name, NULL, FALSE);
-      entries = gconf_client_all_entries (client, key, NULL);
-      g_free (key);
-
-      for (tmp = entries; tmp != NULL; tmp = tmp->next)
-        {
-          GConfEntry *entry;
-          entry = (GConfEntry*) tmp->data;
-
-          if (!gconf_client_unset (client, entry->key, NULL))
-            ok = FALSE;
-
-          gconf_entry_free (entry);
-        }
-
-      data_dir_str = get_account_data_path (unique_name);
-      data_dir = g_dir_open (data_dir_str, 0, NULL);
-      if (data_dir)
-      {
-	  const gchar *filename;
-	  while ((filename = g_dir_read_name (data_dir)) != NULL)
-	  {
-	      gchar *path;
-	      path = g_build_filename (data_dir_str, filename, NULL);
-	      g_remove (path);
-	      g_free (path);
-	  }
-	  g_dir_close (data_dir);
-	  g_rmdir (data_dir_str);
-      }
-      g_free (data_dir_str);
-
-      g_free (i->data);
-      g_free (unique_name);
-      g_slist_free (entries);
-    }
-  g_object_unref (client);
-  return FALSE;
+    return account;
 }
 
 /**
@@ -689,21 +531,21 @@ mc_account_expunge_deleted (gpointer user_data)
 gboolean
 mc_account_delete (McAccount *account)
 {
-  gboolean ok;
+    McAccountPrivate *priv = MC_ACCOUNT_PRIV (account);
+    GError *error = NULL;
   
-  g_return_val_if_fail (account != NULL, FALSE);
-  g_return_val_if_fail (MC_ACCOUNT_PRIV(account)->unique_name != NULL,
-                        FALSE);
-  mc_account_set_enabled (account, FALSE);
-  
-  ok = mc_account_set_deleted (account, TRUE);
+    mc_account_set_enabled (account, FALSE);
 
-  /* Expunge deleted accounts after 5 secs. We can't expunge the accounts
-   * immediately because there might be other people using the accounts
-   * and gconf signaling is really async.
-   */
-  g_timeout_add (2000, (GSourceFunc)mc_account_expunge_deleted, NULL);
-  return ok;
+    mc_cli_account_do_remove (priv->proxy, -1, &error);
+    if (error)
+    {
+	g_warning ("%s on %s failed: %s",
+		   G_STRFUNC, priv->unique_name, error->message);
+	g_error_free (error);
+	return FALSE;
+    }
+
+    return TRUE;
 }
 
 /**
@@ -765,24 +607,10 @@ mc_accounts_list_by_enabled (gboolean enabled)
 static gboolean
 _filter_profile (McAccount *acct, gpointer data)
 {
-  McProfile *profile;
-  gchar *profile_name;
-  gboolean ret;
+    McAccountPrivate *priv = acct->priv;
+    gchar *profile_name = data;
 
-  g_return_val_if_fail (acct != NULL, FALSE);
-  g_return_val_if_fail (MC_ACCOUNT_PRIV (acct)->unique_name != NULL, FALSE);
-  g_return_val_if_fail (data != NULL, FALSE);
-
-  profile = (McProfile *) data;
-
-  if (!_mc_account_gconf_get_string (acct, MC_ACCOUNTS_GCONF_KEY_PROFILE,
-                                        FALSE, &profile_name))
-    return FALSE;
-
-  ret = (0 == strcmp (profile_name, mc_profile_get_unique_name (profile)));
-  g_free (profile_name);
-
-  return ret;
+    return strcmp (priv->profile_name, profile_name) == 0;
 }
 
 /**
@@ -797,12 +625,15 @@ _filter_profile (McAccount *acct, gpointer data)
 GList *
 mc_accounts_list_by_profile (McProfile *profile)
 {
+  const gchar *profile_name;
   GList *ret;
 
   g_return_val_if_fail (profile != NULL, NULL);
+  profile_name = mc_profile_get_unique_name (profile);
+  g_return_val_if_fail (profile_name != NULL, NULL);
 
   ret = mc_accounts_list ();
-  ret = mc_accounts_filter (ret, _filter_profile, profile);
+  ret = mc_accounts_filter (ret, _filter_profile, (gchar *)profile_name);
 
   return ret;
 }
@@ -840,8 +671,7 @@ static gboolean
 _filter_secondary_vcard_field (McAccount *acct, gpointer data)
 {
   const gchar *vcard_field;
-  GConfValue  *val;
-  GSList *fields;
+  GList *fields, *field;
   gboolean ret;
 
   g_return_val_if_fail (acct != NULL, FALSE);
@@ -850,18 +680,18 @@ _filter_secondary_vcard_field (McAccount *acct, gpointer data)
 
   vcard_field = (const gchar *) data;
 
-  val = _mc_account_gconf_get (acct,
-          MC_ACCOUNTS_GCONF_KEY_SECONDARY_VCARD_FIELDS, FALSE);
-  if (val == NULL) return FALSE;
+  fields = mc_account_get_secondary_vcard_fields (acct);
+  if (fields == NULL) return FALSE;
 
   ret = FALSE;
-  for (fields = gconf_value_get_list(val); fields; fields = fields->next) {
-      if (0 == strcmp(vcard_field, gconf_value_get_string(fields->data))) {
+  for (field = fields; field != NULL; field = field->next) {
+      if (0 == strcmp(vcard_field, fields->data)) {
           ret = TRUE;
       }
   }
 
-  gconf_value_free(val);
+  g_list_foreach (fields, (GFunc)g_free, NULL);
+  g_list_free (fields);
   return ret;
 }
 
@@ -875,35 +705,34 @@ _filter_secondary_vcard_field (McAccount *acct, gpointer data)
 gboolean
 mc_account_set_secondary_vcard_fields (McAccount *account, const GList *fields)
 {
-    GConfClient *client;
-    gchar *key;
-    gboolean ok;
+    McAccountPrivate *priv = MC_ACCOUNT_PRIV (account);
+    GValue value = { 0 };
+    GError *error = NULL;
+    gchar **v_fields;
+    guint len, i;
 
-    g_return_val_if_fail (account != NULL, FALSE);
-    g_return_val_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL,
-			  FALSE);
+    len = g_list_length ((GList *)fields);
+    v_fields = g_malloc (sizeof (gchar *) * (len + 1));
+    for (i = 0; fields; fields = fields->next, i++)
+	v_fields[i] = g_strdup (fields->data);
+    v_fields[i] = NULL;
 
-    client = gconf_client_get_default ();
-    g_return_val_if_fail (client != NULL, FALSE);
-
-    key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name,
-			    MC_ACCOUNTS_GCONF_KEY_SECONDARY_VCARD_FIELDS, FALSE);
-    if (fields)
+    g_value_init (&value, G_TYPE_STRV);
+    g_value_take_boxed (&value, v_fields);
+    mc_cli_dbus_properties_do_set (priv->proxy, -1,
+				   MC_IFACE_ACCOUNT_INTERFACE_COMPAT,
+				   MC_ACCOUNTS_GCONF_KEY_SECONDARY_VCARD_FIELDS,
+				   &value, &error);
+    g_value_unset (&value);
+    if (error)
     {
-	GSList *s_fields = NULL;
-
-	for (; fields != NULL; fields = fields->next)
-	    s_fields = g_slist_prepend (s_fields, fields->data);
-
-	ok = gconf_client_set_list (client, key, GCONF_VALUE_STRING, s_fields, NULL);
+	g_warning ("%s on %s failed: %s",
+		   G_STRFUNC, priv->unique_name, error->message);
+	g_error_free (error);
+	return FALSE;
     }
     else
-	ok = gconf_client_unset (client, key, NULL);
-
-    g_free (key);
-    g_object_unref (client);
-
-    return ok;
+	return TRUE;
 }
 
 /**
@@ -916,20 +745,37 @@ mc_account_set_secondary_vcard_fields (McAccount *account, const GList *fields)
 GList *
 mc_account_get_secondary_vcard_fields (McAccount * acct)
 {
-  GConfValue  *val;
-  GSList *fields;
-  GList *ret = NULL;
+#ifdef GET_SECONDARY_VCARD_FIELDS
+    McAccountPrivate *priv = MC_ACCOUNT_PRIV (acct);
+    GValue *val_fields;
+    GList *ret = NULL;
+    gchar **fields, **field;
+    GError *error = NULL;
 
-  val = _mc_account_gconf_get (acct,
-          MC_ACCOUNTS_GCONF_KEY_SECONDARY_VCARD_FIELDS, FALSE);
-  if (val == NULL) return NULL;
+    mc_cli_dbus_properties_do_get (priv->proxy, -1,
+				   MC_IFACE_ACCOUNT_INTERFACE_COMPAT,
+				   MC_ACCOUNTS_GCONF_KEY_SECONDARY_VCARD_FIELDS,
+				   &val_fields, &error);
+    if (error)
+    {
+	g_warning ("%s on %s failed: %s",
+		   G_STRFUNC, priv->unique_name, error->message);
+	g_error_free (error);
+	return NULL;
+    }
+    fields = g_value_get_boxed (val_fields);
+    g_free (val_fields);
 
-  for (fields = gconf_value_get_list(val); fields; fields = fields->next) {
-      ret = g_list_prepend(ret, g_strdup(gconf_value_get_string(fields->data)));
-  }
+    /* put the fields into a list */
+    for (field = fields; *field != NULL; field++)
+	ret = g_list_append (ret, *field);
+    g_free (fields);
 
-  gconf_value_free(val);
-  return ret;
+    return ret;
+#else
+    g_warning ("%s is disabled due to spamming", G_STRFUNC);
+    return NULL;
+#endif
 }
 
 /**
@@ -1058,15 +904,9 @@ mc_account_get_normalized_name (McAccount *account)
 gboolean
 mc_account_set_normalized_name (McAccount *account, const gchar *name)
 {
-    if (_mc_account_gconf_set_string (account,
-				      MC_ACCOUNTS_GCONF_KEY_NORMALIZED_NAME,
-				      name))
-    {
-	_mc_account_set_normalized_name_priv (account, name);
-	return TRUE;
-    }
-    else
-	return FALSE;
+    g_warning ("%s: only mission-control should call this function!",
+	       G_STRFUNC);
+    return FALSE;
 }
   
 /**
@@ -1105,9 +945,22 @@ mc_account_get_profile (McAccount *account)
   priv = MC_ACCOUNT_PRIV (account);
   if (G_UNLIKELY (!priv->profile_name))
   {
-    if (!_mc_account_gconf_get_string (account, MC_ACCOUNTS_GCONF_KEY_PROFILE,
-				       FALSE, &priv->profile_name))
-      return NULL;
+    GValue *val_profile;
+    GError *error = NULL;
+
+    mc_cli_dbus_properties_do_get (priv->proxy, -1,
+				   MC_IFACE_ACCOUNT_INTERFACE_COMPAT,
+				   MC_ACCOUNTS_GCONF_KEY_PROFILE,
+				   &val_profile, &error);
+    if (error)
+    {
+	g_warning ("%s: getting profile for %s failed: %s",
+		   G_STRFUNC, priv->unique_name, error->message);
+	g_error_free (error);
+	return NULL;
+    }
+    priv->profile_name = (gchar *)g_value_get_string (val_profile);
+    g_free (val_profile);
   }
 
   return mc_profile_lookup (priv->profile_name);
@@ -1145,15 +998,25 @@ mc_account_get_display_name (McAccount *account)
 gboolean
 mc_account_set_display_name (McAccount *account, const gchar *name)
 {
-    if (_mc_account_gconf_set_string (account,
-				      MC_ACCOUNTS_GCONF_KEY_DISPLAY_NAME,
-				      (name && *name) ? name : NULL))
+    McAccountPrivate *priv = MC_ACCOUNT_PRIV (account);
+    GValue value = { 0 };
+    GError *error = NULL;
+
+    g_value_init (&value, G_TYPE_STRING);
+    g_value_set_static_string (&value, name);
+    mc_cli_dbus_properties_do_set (priv->proxy, -1,
+				   MC_IFACE_ACCOUNT,
+				   MC_ACCOUNTS_GCONF_KEY_DISPLAY_NAME,
+				   &value, &error);
+    if (error)
     {
-	_mc_account_set_display_name_priv (account, name);
-	return TRUE;
+	g_warning ("%s on %s failed: %s",
+		   G_STRFUNC, priv->unique_name, error->message);
+	g_error_free (error);
+	return FALSE;
     }
     else
-	return FALSE;
+	return TRUE;
 }
 
 /**
@@ -1172,44 +1035,6 @@ mc_account_is_enabled (McAccount *account)
   return MC_ACCOUNT_PRIV (account)->enabled;
 }
 
-static gboolean
-mc_account_is_deleted (McAccount *account)
-{
-  gboolean deleted;
-
-  g_return_val_if_fail (account != NULL, FALSE);
-  g_return_val_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL, FALSE);
-
-  if (!_mc_account_gconf_get_boolean (account, MC_ACCOUNTS_GCONF_KEY_DELETED,
-                                         FALSE, &deleted))
-    return FALSE;
-
-  return deleted;
-}
-
-static gboolean
-mc_account_set_deleted (McAccount *account, gboolean deleted)
-{
-  GConfClient *client;
-  gchar *key;
-  gboolean ok;
-
-  g_return_val_if_fail (account != NULL, FALSE);
-  g_return_val_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL, FALSE);
-
-  client = gconf_client_get_default ();
-  g_return_val_if_fail (client != NULL, FALSE);
-
-  key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name,
-                             MC_ACCOUNTS_GCONF_KEY_DELETED, FALSE);
-  ok = gconf_client_set_bool (client, key, deleted, NULL);
-
-  g_free (key);
-  g_object_unref (client);
-
-  return ok;
-}
-
 /**
  * mc_account_set_enabled:
  * @account: The #McAccount.
@@ -1220,27 +1045,49 @@ mc_account_set_deleted (McAccount *account, gboolean deleted)
  * Return value: %TRUE, or %FALSE if some error occurred.
  */
 gboolean
-mc_account_set_enabled (McAccount *account, const gboolean enabled)
+mc_account_set_enabled (McAccount *account, gboolean enabled)
 {
-  GConfClient *client;
-  gchar *key;
-  gboolean ok;
+    McAccountPrivate *priv = MC_ACCOUNT_PRIV (account);
+    GValue value = { 0 };
+    GError *error = NULL;
 
-  g_return_val_if_fail (account != NULL, FALSE);
-  g_return_val_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL, FALSE);
+    g_value_init (&value, G_TYPE_BOOLEAN);
+    g_value_set_boolean (&value, enabled);
+    mc_cli_dbus_properties_do_set (priv->proxy, -1,
+				   MC_IFACE_ACCOUNT,
+				   MC_ACCOUNTS_GCONF_KEY_ENABLED,
+				   &value, &error);
+    if (error)
+    {
+	g_warning ("%s on %s failed: %s",
+		   G_STRFUNC, priv->unique_name, error->message);
+	g_error_free (error);
+	return FALSE;
+    }
+    else
+	return TRUE;
+}
 
-  client = gconf_client_get_default ();
-  g_return_val_if_fail (client != NULL, FALSE);
+static gboolean
+mc_account_get_param (McAccount *account, const gchar *name,
+		      GValue *dst_value)
+{
+    GHashTable *parameters;
+    GValue *value;
+    gboolean ok = FALSE;
 
-  gconf_client_suggest_sync (client, NULL);
-  key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name,
-                             MC_ACCOUNTS_GCONF_KEY_ENABLED, FALSE);
-  ok = gconf_client_set_bool (client, key, enabled, NULL);
-
-  g_free (key);
-  g_object_unref (client);
-
-  return ok;
+    g_debug ("%s: %s", G_STRFUNC, name);
+    parameters = mc_account_get_params (account);
+    if (!parameters) return FALSE;
+    value = g_hash_table_lookup (parameters, name);
+    if (value)
+    {
+	g_value_init (dst_value, G_VALUE_TYPE (value));
+	g_value_copy (value, dst_value);
+	ok = TRUE;
+    }
+    g_hash_table_destroy (parameters);
+    return ok;
 }
 
 /**
@@ -1259,6 +1106,7 @@ mc_account_get_param_boolean (McAccount *account,
                                  gboolean *value)
 {
   McAccountSettingState ret;
+  GValue val = { 0 };
 
   g_return_val_if_fail (account != NULL, MC_ACCOUNT_SETTING_ABSENT);
   g_return_val_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL,
@@ -1270,8 +1118,9 @@ mc_account_get_param_boolean (McAccount *account,
 
   ret = MC_ACCOUNT_SETTING_ABSENT;
 
-  if (_mc_account_gconf_get_boolean (account, name, TRUE, value))
+  if (mc_account_get_param (account, name, &val))
     {
+      *value = g_value_get_boolean (&val);
       ret = MC_ACCOUNT_SETTING_FROM_ACCOUNT;
     }
   else
@@ -1485,6 +1334,7 @@ mc_account_get_param_int (McAccount *account,
   gint int_val;
   McProfile *profile;
   const gchar *def;
+  GValue val = { 0 };
 
   g_return_val_if_fail (account != NULL, MC_ACCOUNT_SETTING_ABSENT);
   g_return_val_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL,
@@ -1494,8 +1344,26 @@ mc_account_get_param_int (McAccount *account,
 
   /* TODO: retreive type from protocol and check it matches */
 
-  if (_mc_account_gconf_get_int (account, name, TRUE, value))
+  if (mc_account_get_param (account, name, &val))
+  {
+      if (G_VALUE_TYPE (&val) == G_TYPE_INT)
+	  *value = g_value_get_int (&val);
+      else if (g_value_type_transformable (G_VALUE_TYPE (&val), G_TYPE_INT))
+      {
+	  GValue trans = { 0 };
+
+	  g_value_init (&trans, G_TYPE_INT);
+	  g_value_transform (&val, &trans);
+	  *value = g_value_get_int (&trans);
+      }
+      else
+      {
+	  g_warning ("%s: param %s has type %s (expecting integer)",
+		     G_STRFUNC, name, G_VALUE_TYPE_NAME (&val));
+	  return MC_ACCOUNT_SETTING_ABSENT;
+      }
       return MC_ACCOUNT_SETTING_FROM_ACCOUNT;
+  }
 
   profile = mc_account_get_profile (account);
   def = mc_profile_get_default_setting (profile, name);
@@ -1569,6 +1437,8 @@ mc_account_get_param_string (McAccount *account,
 {
   McProfile *profile;
   const gchar *def;
+  GValue val = { 0 };
+  McAccountPrivate *priv = MC_ACCOUNT_PRIV (account);
 
   g_return_val_if_fail (account != NULL, MC_ACCOUNT_SETTING_ABSENT);
   g_return_val_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL,
@@ -1578,8 +1448,23 @@ mc_account_get_param_string (McAccount *account,
 
   /* TODO: retreive type from protocol and check it matches */
 
-  if (_mc_account_gconf_get_string (account, name, TRUE, value))
+  if (priv->last_name && strcmp (priv->last_name, name) == 0)
+  {
+      g_warning ("%s: you are calling me for the same param (%s), please cache it",
+		 G_STRFUNC, name);
+      *value = g_strdup (priv->last_value);
       return MC_ACCOUNT_SETTING_FROM_ACCOUNT;
+  }
+  g_free (priv->last_name);
+  priv->last_name = NULL;
+  if (mc_account_get_param (account, name, &val))
+  {
+      *value = (gchar *)g_value_get_string (&val);
+      g_free (priv->last_value);
+      priv->last_name = g_strdup (name);
+      priv->last_value = g_strdup (*value);
+      return MC_ACCOUNT_SETTING_FROM_ACCOUNT;
+  }
 
   profile = mc_account_get_profile (account);
   def = mc_profile_get_default_setting (profile, name);
@@ -1614,6 +1499,35 @@ mc_account_get_param_string (McAccount *account,
   return MC_ACCOUNT_SETTING_ABSENT;
 }
 
+static gboolean
+mc_account_set_param (McAccount *account, const gchar *name,
+		      const GValue *value)
+{
+    McAccountPrivate *priv = MC_ACCOUNT_PRIV (account);
+    const gchar *unset[] = { NULL, NULL };
+    GHashTable *set;
+    GError *error = NULL;
+
+    set = g_hash_table_new (g_str_hash, g_str_equal);
+    if (value)
+	g_hash_table_insert (set, (gpointer)name, (gpointer)value);
+    else
+	unset[0] = name;
+    mc_cli_account_do_update_parameters (priv->proxy, -1,
+					 set, unset,
+					 &error);
+    g_hash_table_destroy (set);
+    if (error)
+    {
+	g_warning ("%s on %s failed: %s",
+		   G_STRFUNC, priv->unique_name, error->message);
+	g_error_free (error);
+	return FALSE;
+    }
+    else
+	return TRUE;
+}
+
 /**
  * mc_account_set_param_boolean:
  * @account: The #McAccount.
@@ -1629,26 +1543,53 @@ mc_account_set_param_boolean (McAccount *account,
                                  const gchar *name,
                                  gboolean value)
 {
-  GConfClient *client;
-  gchar *key;
-  gboolean ok;
+    GValue val = { 0 };
 
-  g_return_val_if_fail (account != NULL, FALSE);
-  g_return_val_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL,
-                        FALSE);
-  g_return_val_if_fail (name != NULL, FALSE);
+    g_value_init (&val, G_TYPE_BOOLEAN);
+    g_value_set_boolean (&val, value);
+    return mc_account_set_param (account, name, &val);
+}
 
-  client = gconf_client_get_default ();
-  g_return_val_if_fail (client != NULL, FALSE);
+static inline GType
+get_param_type (McAccount *account, const gchar *name)
+{
+    McProfile *profile;
+    McProtocol *protocol;
+    GType ret = G_TYPE_INT;
 
-  key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name, name,
-                             TRUE);
-  ok = gconf_client_set_bool (client, key, value, NULL);
+    profile = mc_account_get_profile (account);
+    if (profile)
+    {
+	protocol = mc_profile_get_protocol (profile);
+	if (protocol)
+	{
+	    GSList *params, *param;
 
-  g_free (key);
-  g_object_unref (client);
-
-  return ok;
+	    params = mc_protocol_get_params (protocol);
+	    for (param = params; param != NULL; param = param->next)
+	    {
+		McProtocolParam *p = param->data;
+		if (strcmp (p->name, name) == 0)
+		{
+		    switch (p->signature[0])
+		    {
+		    case DBUS_TYPE_INT16:
+		    case DBUS_TYPE_INT32:
+			ret = G_TYPE_INT;
+			break;
+		    case DBUS_TYPE_UINT16:
+		    case DBUS_TYPE_UINT32:
+			ret = G_TYPE_UINT;
+			break;
+		    }
+		    break;
+		}
+	    }
+	    g_object_unref (protocol);
+	}
+	g_object_unref (profile);
+    }
+    return ret;
 }
 
 /**
@@ -1666,26 +1607,16 @@ mc_account_set_param_int (McAccount *account,
                              const gchar *name,
                              gint value)
 {
-  GConfClient *client;
-  gchar *key;
-  gboolean ok;
+    GValue val = { 0 };
+    GType type;
 
-  g_return_val_if_fail (account != NULL, FALSE);
-  g_return_val_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL,
-                        FALSE);
-  g_return_val_if_fail (name != NULL, FALSE);
-
-  client = gconf_client_get_default ();
-  g_return_val_if_fail (client != NULL, FALSE);
-
-  key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name, name,
-                             TRUE);
-  ok = gconf_client_set_int (client, key, value, NULL);
-
-  g_free (key);
-  g_object_unref (client);
-
-  return ok;
+    type = get_param_type (account, name);
+    g_value_init (&val, type);
+    if (type == G_TYPE_INT)
+	g_value_set_int (&val, value);
+    else
+	g_value_set_uint (&val, (guint)value);
+    return mc_account_set_param (account, name, &val);
 }
 
 /**
@@ -1703,26 +1634,11 @@ mc_account_set_param_string (McAccount *account,
                                 const gchar *name,
                                 const gchar *value)
 {
-  GConfClient *client;
-  gchar *key;
-  gboolean ok;
+    GValue val = { 0 };
 
-  g_return_val_if_fail (account != NULL, FALSE);
-  g_return_val_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL,
-                        FALSE);
-  g_return_val_if_fail (name != NULL, FALSE);
-
-  client = gconf_client_get_default ();
-  g_return_val_if_fail (client != NULL, FALSE);
-
-  key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name, name,
-                             TRUE);
-  ok = gconf_client_set_string (client, key, value, NULL);
-
-  g_free (key);
-  g_object_unref (client);
-
-  return ok;
+    g_value_init (&val, G_TYPE_STRING);
+    g_value_set_static_string (&val, value);
+    return mc_account_set_param (account, name, &val);
 }
 
 /**
@@ -1737,111 +1653,7 @@ mc_account_set_param_string (McAccount *account,
 gboolean
 mc_account_unset_param (McAccount *account, const gchar *name)
 {
-  McAccountPrivate *priv = MC_ACCOUNT_PRIV (account);
-  GConfClient *client;
-  gchar *key;
-  gboolean ok;
-
-  g_return_val_if_fail (account != NULL, FALSE);
-  g_return_val_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL,
-                        FALSE);
-  g_return_val_if_fail (name != NULL, FALSE);
-
-  client = gconf_client_get_default ();
-  g_return_val_if_fail (client != NULL, FALSE);
-
-  key = _mc_account_path (priv->unique_name, name, TRUE);
-  ok = gconf_client_unset (client, key, NULL);
-
-  g_free (key);
-  g_object_unref (client);
-
-  return ok;
-}
-
-static void
-_g_value_free (gpointer data)
-{
-  GValue *value = (GValue *) data;
-  g_value_unset (value);
-  g_free (value);
-}
-
-static void
-_add_one_setting (McAccount *account,
-                  McProtocolParam *param,
-                  GHashTable *hash)
-{
-  GValue *value = NULL;
-  McAccountSettingState ret = MC_ACCOUNT_SETTING_ABSENT;
-
-  g_return_if_fail (account != NULL);
-  g_return_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL);
-  g_return_if_fail (param != NULL);
-  g_return_if_fail (param->name != NULL);
-  g_return_if_fail (param->signature != NULL);
-
-  switch (param->signature[0])
-    {
-    case DBUS_TYPE_STRING:
-      {
-        char *tmp;
-        ret = mc_account_get_param_string (account, param->name, &tmp);
-        if (ret != MC_ACCOUNT_SETTING_ABSENT)
-          {
-            value = g_new0(GValue, 1);
-            g_value_init (value, G_TYPE_STRING);
-            g_value_take_string (value, tmp);
-          }
-        break;
-      }
-    case DBUS_TYPE_INT16:
-    case DBUS_TYPE_INT32:
-      {
-        gint tmp;
-        ret = mc_account_get_param_int (account, param->name, &tmp);
-        if (ret != MC_ACCOUNT_SETTING_ABSENT)
-          {
-            value = g_new0(GValue, 1);
-            g_value_init (value, G_TYPE_INT);
-            g_value_set_int (value, tmp);
-          }
-        break;
-      }
-    case DBUS_TYPE_UINT16:
-    case DBUS_TYPE_UINT32:
-      {
-        gint tmp;
-        ret = mc_account_get_param_int (account, param->name, &tmp);
-        if (ret != MC_ACCOUNT_SETTING_ABSENT)
-          {
-            value = g_new0(GValue, 1);
-            g_value_init (value, G_TYPE_UINT);
-            g_value_set_uint (value, tmp);
-          }
-        break;
-      }
-    case DBUS_TYPE_BOOLEAN:
-      {
-        gboolean tmp;
-        ret = mc_account_get_param_boolean (account, param->name, &tmp);
-        if (ret != MC_ACCOUNT_SETTING_ABSENT)
-          {
-            value = g_new0(GValue, 1);
-            g_value_init (value, G_TYPE_BOOLEAN);
-            g_value_set_boolean (value, tmp);
-          }
-        break;
-      }
-    default:
-      g_warning ("%s: skipping parameter %s, unknown type %s", G_STRFUNC, param->name, param->signature);
-    }
-
-  if (ret != MC_ACCOUNT_SETTING_ABSENT && hash != NULL)
-    {
-      g_return_if_fail (value != NULL);
-      g_hash_table_insert (hash, g_strdup (param->name), value);
-    }
+    return mc_account_set_param (account, name, NULL);
 }
 
 /**
@@ -1856,48 +1668,33 @@ _add_one_setting (McAccount *account,
 GHashTable *
 mc_account_get_params (McAccount *account)
 {
-  McProfile *profile = NULL;
-  McProtocol *protocol = NULL;
-  GSList *params, *tmp;
-  GHashTable *ret = NULL;
+    GHashTable *parameters;
+    McAccountPrivate *priv = MC_ACCOUNT_PRIV (account);
+    GValue *val_parameters;
+    GError *error = NULL;
 
-  g_return_val_if_fail (account != NULL, NULL);
-  g_return_val_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL,
-                        NULL);
+    g_return_val_if_fail (account != NULL, NULL);
+    g_return_val_if_fail (MC_ACCOUNT_PRIV (account)->unique_name != NULL,
+			  NULL);
 
-  profile = mc_account_get_profile (account);
-  if (profile == NULL)
+    mc_cli_dbus_properties_do_get (priv->proxy, -1,
+				   MC_IFACE_ACCOUNT,
+				   MC_ACCOUNTS_GCONF_KEY_PARAMETERS,
+				   &val_parameters, &error);
+    if (error)
     {
-      g_debug ("%s: getting profile failed", G_STRFUNC);
-      goto OUT;
+	g_warning ("%s: getting parameters for %s failed: %s",
+		   G_STRFUNC, priv->unique_name, error->message);
+	g_error_free (error);
+	return NULL;
     }
 
-  protocol = mc_profile_get_protocol (profile);
-  if (protocol == NULL)
-    {
-      g_debug ("%s: getting protocol failed", G_STRFUNC);
-      goto OUT;
-    }
+    parameters = g_value_get_boxed (val_parameters);
 
-  ret = g_hash_table_new_full (g_str_hash, g_str_equal,
-                               (GDestroyNotify) g_free,
-                               (GDestroyNotify) _g_value_free);
+    /* this does not free the hastable */
+    g_free (val_parameters);
 
-  params = mc_protocol_get_params (protocol);
-
-  for (tmp = params; tmp != NULL; tmp = tmp->next)
-    _add_one_setting (account, (McProtocolParam *) tmp->data, ret);
-
-  mc_protocol_free_params_list (params);
-
-OUT:
-  if (protocol)
-    g_object_unref (protocol);
-
-  if (profile)
-    g_object_unref (profile);
-
-  return ret;
+    return parameters;
 }
 
 /**
@@ -1912,104 +1709,9 @@ OUT:
 gboolean
 mc_account_is_complete (McAccount *account)
 {
-  McProfile *profile = NULL;
-  McProtocol *protocol = NULL;
-  GSList *params = NULL, *tmp;
-  gboolean ret = TRUE;
+    g_return_val_if_fail (account != NULL, FALSE);
 
-  g_return_val_if_fail (account != NULL, FALSE);
-  
-  /* Check if account was expunged */
-  if (MC_ACCOUNT_PRIV (account)->unique_name == NULL)
-        return FALSE;
-
-  /* Check if account was deleted */
-  if (mc_account_is_deleted (account))
-    return FALSE;
-  
-  profile = mc_account_get_profile (account);
-  if (profile == NULL)
-    {
-      ret = FALSE;
-      goto OUT;
-    }
-
-  protocol = mc_profile_get_protocol (profile);
-  if (protocol == NULL)
-    {
-      ret = FALSE;
-      goto OUT;
-    }
-
-  params = mc_protocol_get_params (protocol);
-
-  for (tmp = params; tmp != NULL; tmp = tmp->next)
-    {
-      McProtocolParam *param;
-      const gchar *def;
-      GConfValue *val;
-
-      param = (McProtocolParam *) tmp->data;
-
-      if (!(param->flags & MC_PROTOCOL_PARAM_REQUIRED))
-        continue;
-
-      if (param == NULL || param->name == NULL || param->signature == NULL)
-        {
-          ret = FALSE;
-          break;
-        }
-
-      /* TODO: check this value can be mapped to the desired type */
-      def = mc_profile_get_default_setting (profile, param->name);
-      if (def)
-        {
-          continue;
-        }
-
-      val = _mc_account_gconf_get (account, param->name, TRUE);
-      if (val == NULL)
-        {
-          ret = FALSE;
-          break;
-        }
-
-      /* TODO: unduplicate this type mapping */
-      switch (param->signature[0])
-        {
-        case DBUS_TYPE_BOOLEAN:
-          if (val->type != GCONF_VALUE_BOOL)
-            ret = FALSE;
-          break;
-        case DBUS_TYPE_INT16:
-        case DBUS_TYPE_UINT16:
-          if (val->type != GCONF_VALUE_INT)
-            ret = FALSE;
-          break;
-        case DBUS_TYPE_STRING:
-          if (val->type != GCONF_VALUE_STRING)
-            ret = FALSE;
-          break;
-        default:
-          ret = FALSE;
-        }
-
-      gconf_value_free (val);
-
-      if (ret == FALSE)
-        break;
-    }
-
-  mc_protocol_free_params_list (params);
-
-OUT:
-  if (profile != NULL)
-    g_object_unref (profile);
-
-  if (protocol != NULL)
-    g_object_unref (protocol);
-
-  return ret;
+    return MC_ACCOUNT_PRIV (account)->valid;
 }
 
 /**
@@ -2107,67 +1809,37 @@ gboolean
 mc_account_set_avatar_from_data (McAccount *account, const gchar *data,
 				 gsize len, const gchar *mime_type)
 {
-    gchar *data_dir, *filename_out;
-    GConfClient *client;
-    gboolean ret = TRUE;
-    gchar *key;
+    McAccountPrivate *priv = MC_ACCOUNT_PRIV (account);
+    GValue value = { 0 };
+    GError *error = NULL;
+    GArray avatar;
+    GType type;
 
-    g_return_val_if_fail (account != NULL, FALSE);
-
-    data_dir = get_account_data_path (MC_ACCOUNT_PRIV(account)->unique_name);
-    filename_out = g_build_filename (data_dir, MC_AVATAR_FILENAME, NULL);
-    if (!g_file_test (data_dir, G_FILE_TEST_EXISTS))
-	g_mkdir_with_parents (data_dir, 0777);
-    g_free (data_dir);
-
-    if (data)
+    avatar.data = (gchar *)data;
+    avatar.len = len;
+    type = dbus_g_type_get_struct ("GValueArray",
+				   dbus_g_type_get_collection ("GArray",
+							       G_TYPE_UCHAR),
+				   G_TYPE_STRING,
+				   G_TYPE_INVALID);
+    g_value_init (&value, type);
+    g_value_set_static_boxed (&value, dbus_g_type_specialized_construct (type));
+    GValueArray *va = (GValueArray *) g_value_get_boxed (&value);
+    g_value_take_boxed (va->values, &avatar);
+    g_value_set_static_string (va->values + 1, mime_type);
+    mc_cli_dbus_properties_do_set (priv->proxy, -1,
+				   MC_IFACE_ACCOUNT,
+				   MC_ACCOUNTS_GCONF_KEY_AVATAR,
+				   &value, &error);
+    if (error)
     {
-	if (!g_file_set_contents (filename_out, data, (gssize)len, NULL))
-	{
-	    g_warning ("%s: writing to file %s failed", G_STRLOC,
-		       filename_out);
-	    g_free (filename_out);
-	    return FALSE;
-	}
+	g_warning ("%s on %s failed: %s",
+		   G_STRFUNC, priv->unique_name, error->message);
+	g_error_free (error);
+	return FALSE;
     }
     else
-    {
-	/* create an empty file; this will cause MC to clear the current
-	 * avatar */
-	FILE *f_out = fopen (filename_out, "w");
-	fclose (f_out);
-    }
-
-    client = gconf_client_get_default ();
-    g_return_val_if_fail (client != NULL, FALSE);
-
-    key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name,
-			    MC_ACCOUNTS_GCONF_KEY_AVATAR_TOKEN, FALSE);
-    ret = gconf_client_unset(client, key, NULL);
-    g_free (key);
-    if (!ret) goto error;
-
-    /* put an ID for the avatar, so that listeners of the "account-changed"
-     * signal will be able to determine whether the avatar has changed without
-     * having to load the file */
-    key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name,
-			    MC_ACCOUNTS_GCONF_KEY_AVATAR_ID, FALSE);
-    ret = gconf_client_set_int(client, key, time(0), NULL);
-    g_free (key);
-
-    if (mime_type)
-    {
-	key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name,
-				MC_ACCOUNTS_GCONF_KEY_AVATAR_MIME, FALSE);
-	ret = gconf_client_set_string (client, key, mime_type, NULL);
-	g_free (key);
-    }
-
-error:
-    g_object_unref (client);
-    g_free (filename_out);
-
-    return ret;
+	return TRUE;
 }
 
 /**
@@ -2183,9 +1855,9 @@ error:
 gboolean
 mc_account_set_avatar_token (McAccount *account, const gchar *token)
 {
-    return _mc_account_gconf_set_string (account,
-					 MC_ACCOUNTS_GCONF_KEY_AVATAR_TOKEN,
-					 token);
+    g_warning ("%s: only mission-control should call this function!",
+	       G_STRFUNC);
+    return FALSE;
 }
 
 /**
@@ -2201,9 +1873,9 @@ mc_account_set_avatar_token (McAccount *account, const gchar *token)
 gboolean
 mc_account_set_avatar_mime_type (McAccount *account, const gchar *mime_type)
 {
-    return _mc_account_gconf_set_string (account,
-					 MC_ACCOUNTS_GCONF_KEY_AVATAR_MIME,
-					 mime_type);
+    g_warning ("%s: only mission-control should call this function!",
+	       G_STRFUNC);
+    return FALSE;
 }
 
 /**
@@ -2223,42 +1895,53 @@ gboolean
 mc_account_get_avatar (McAccount *account, gchar **filename,
 		       gchar **mime_type, gchar **token)
 {
-    gchar *data_dir;
-    GConfClient *client;
-    gchar *key;
-
-    g_return_val_if_fail (account != NULL, FALSE);
+    McAccountPrivate *priv = MC_ACCOUNT_PRIV (account);
+    GValue *val_avatar;
+    GError *error = NULL;
 
     if (filename)
     {
-	data_dir =
-	    get_account_data_path (MC_ACCOUNT_PRIV (account)->unique_name);
-	*filename = g_build_filename (data_dir, MC_AVATAR_FILENAME, NULL);
-	if (!g_file_test (data_dir, G_FILE_TEST_EXISTS))
-	    g_mkdir_with_parents (data_dir, 0777);
-	g_free (data_dir);
-    }
-
-    client = gconf_client_get_default ();
-    g_return_val_if_fail (client != NULL, FALSE);
-
-    if (token)
-    {
-	key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name,
-				MC_ACCOUNTS_GCONF_KEY_AVATAR_TOKEN, FALSE);
-	*token = gconf_client_get_string (client, key, NULL);
-	g_free (key);
+	mc_cli_dbus_properties_do_get (priv->proxy, -1,
+				       MC_IFACE_ACCOUNT_INTERFACE_COMPAT,
+				       MC_ACCOUNTS_GCONF_KEY_AVATAR_FILE,
+				       &val_avatar, &error);
+	if (error)
+	{
+	    g_warning ("%s: getting avatar file for %s failed: %s",
+		       G_STRFUNC, priv->unique_name, error->message);
+	    g_error_free (error);
+	    return FALSE;
+	}
+	*filename = (gchar *)g_value_get_string (val_avatar);
+	g_free (val_avatar);
     }
 
     if (mime_type)
     {
-	key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name,
-				MC_ACCOUNTS_GCONF_KEY_AVATAR_MIME, FALSE);
-	*mime_type = gconf_client_get_string (client, key, NULL);
-	g_free (key);
+	mc_cli_dbus_properties_do_get (priv->proxy, -1,
+				       MC_IFACE_ACCOUNT,
+				       MC_ACCOUNTS_GCONF_KEY_AVATAR,
+				       &val_avatar, &error);
+	if (error)
+	{
+	    g_warning ("%s: getting avatar for %s failed: %s",
+		       G_STRFUNC, priv->unique_name, error->message);
+	    g_error_free (error);
+	    return FALSE;
+	}
+	GValueArray *va = (GValueArray *) g_value_get_boxed (val_avatar);
+	g_debug ("value array at %p, type %s, %d elems", va, G_VALUE_TYPE_NAME (val_avatar), va->n_values);
+	*mime_type = g_value_dup_string (va->values + 1);
+	g_value_unset (val_avatar);
+	g_free (val_avatar);
     }
 
-    g_object_unref (client);
+    /* we cannot know the token, but it was used only for mission-control */
+    if (token)
+    {
+	g_warning ("%s: only mission-control should retrieve the token!",
+		   G_STRFUNC);
+    }
 
     return TRUE;
 }
@@ -2275,22 +1958,9 @@ mc_account_get_avatar (McAccount *account, gchar **filename,
 gint
 mc_account_get_avatar_id (McAccount *account)
 {
-    GConfClient *client;
-    gchar *key;
-    gint ret;
+    McAccountPrivate *priv = MC_ACCOUNT_PRIV (account);
 
-    g_return_val_if_fail (account != NULL, 0);
-
-    client = gconf_client_get_default ();
-    g_return_val_if_fail (client != NULL, 0);
-
-    key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name,
-			    MC_ACCOUNTS_GCONF_KEY_AVATAR_ID, FALSE);
-    ret = gconf_client_get_int (client, key, NULL);
-    g_free (key);
-
-    g_object_unref (client);
-    return ret;
+    return priv->avatar_id;
 }
 
 /**
@@ -2306,22 +1976,8 @@ mc_account_get_avatar_id (McAccount *account)
 gboolean
 mc_account_reset_avatar_id (McAccount *account)
 {
-    GConfClient *client;
-    gchar *key;
-    gboolean ok;
-
-    g_return_val_if_fail (account != FALSE, 0);
-
-    client = gconf_client_get_default ();
-    g_return_val_if_fail (client != FALSE, 0);
-
-    key = _mc_account_path (MC_ACCOUNT_PRIV (account)->unique_name,
-			    MC_ACCOUNTS_GCONF_KEY_AVATAR_ID, FALSE);
-    ok = gconf_client_set_int (client, key, time(0), NULL);
-    g_free (key);
-
-    g_object_unref (client);
-    return ok;
+    /* does nothing */
+    return TRUE;
 }
 
 /**
@@ -2335,16 +1991,9 @@ mc_account_reset_avatar_id (McAccount *account)
 gchar *
 mc_account_get_alias (McAccount *account)
 {
-    gchar *name;
-
     g_return_val_if_fail (account != NULL, NULL);
 
-    if (!_mc_account_gconf_get_string (account,
-				       MC_ACCOUNTS_GCONF_KEY_ALIAS,
-				       FALSE, &name))
-	return NULL;
-
-    return name;
+    return g_strdup (MC_ACCOUNT_PRIV (account)->alias);
 }
 
 /**
@@ -2359,7 +2008,24 @@ mc_account_get_alias (McAccount *account)
 gboolean
 mc_account_set_alias (McAccount *account, const gchar *alias)
 {
-    return _mc_account_gconf_set_string (account,
-					 MC_ACCOUNTS_GCONF_KEY_ALIAS,
-					 alias);
+    McAccountPrivate *priv = MC_ACCOUNT_PRIV (account);
+    GValue value = { 0 };
+    GError *error = NULL;
+
+    g_value_init (&value, G_TYPE_STRING);
+    g_value_set_static_string (&value, alias);
+    mc_cli_dbus_properties_do_set (priv->proxy, -1,
+				   MC_IFACE_ACCOUNT,
+				   MC_ACCOUNTS_GCONF_KEY_ALIAS,
+				   &value, &error);
+    if (error)
+    {
+	g_warning ("%s on %s failed: %s",
+		   G_STRFUNC, priv->unique_name, error->message);
+	g_error_free (error);
+	return FALSE;
+    }
+    else
+	return TRUE;
 }
+

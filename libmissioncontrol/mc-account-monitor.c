@@ -24,12 +24,19 @@
 #include <string.h>
 #include <strings.h>
 
+#include <telepathy-glib/proxy.h>
+#include <telepathy-glib/dbus.h>
+#include <telepathy-glib/svc-generic.h>
+#include "_gen/interfaces.h"
 #include <gconf/gconf-client.h>
 
 #include "mc-account.h"
 #include "mc-account-priv.h"
 #include "mc-account-monitor.h"
+#include "mc-account-monitor-priv.h"
+#include "mc-account-manager-proxy.h"
 #include "mc-signals-marshal.h"
+#include "mc.h"
 
 G_DEFINE_TYPE (McAccountMonitor, mc_account_monitor, G_TYPE_OBJECT);
 
@@ -51,8 +58,7 @@ static guint signals[NUM_SIGNALS];
 
 typedef struct
 {
-  GConfClient *gconf_client;
-  guint gconf_connection;
+    TpProxy *proxy;
   GHashTable *accounts;
 } McAccountMonitorPrivate;
 
@@ -61,11 +67,6 @@ mc_account_monitor_finalize (GObject *object)
 {
   McAccountMonitor *self = MC_ACCOUNT_MONITOR (object);
   McAccountMonitorPrivate *priv = MC_ACCOUNT_MONITOR_PRIV (self);
-
-  gconf_client_notify_remove (priv->gconf_client, priv->gconf_connection);
-  gconf_client_remove_dir (
-    priv->gconf_client, MC_ACCOUNTS_GCONF_BASE, NULL);
-  g_object_unref (priv->gconf_client);
 
   g_hash_table_destroy (priv->accounts);
 }
@@ -169,7 +170,7 @@ mc_account_monitor_class_init (McAccountMonitorClass *klass)
    * retrieve the account object).
    * @param: The name of the parameter which changed.
    *
-   * Emitted when an account parameter is changed.
+   * NOTE: this signal is no longer emitted in this version.
    */
   signals[PARAM_CHANGED] = g_signal_new (
     "param-changed",
@@ -182,195 +183,138 @@ mc_account_monitor_class_init (McAccountMonitorClass *klass)
     G_TYPE_STRING, G_TYPE_STRING);
 }
 
-static gchar *
-_account_name_from_key (const gchar *key)
+static void
+on_account_removed (TpProxy *proxy, const gchar *object_path,
+		    gpointer user_data, GObject *weak_object)
 {
-  guint base_len = strlen (MC_ACCOUNTS_GCONF_BASE);
-  const gchar *base, *slash;
+    McAccountMonitor *monitor = MC_ACCOUNT_MONITOR (weak_object);
+    McAccountMonitorPrivate *priv = user_data;
+    const gchar *name;
+    McAccount *account;
 
-  g_assert (key == strstr (key, MC_ACCOUNTS_GCONF_BASE));
-  if (strlen (key) <= base_len + 1) return NULL;
+    name = MC_ACCOUNT_UNIQUE_NAME_FROM_PATH (object_path);
+    g_debug ("%s called for account %s", G_STRFUNC, name);
 
-  base = key + base_len + 1;
-  slash = index (base, '/');
-
-  if (slash == NULL)
-    return g_strdup (base);
-  else
-    return g_strndup (base, slash - base);
-}
-
-static const gchar *
-key_name (const gchar *path_key)
-{
-    const gchar *key = 0;
-
-    while (*path_key != 0)
+    account = g_hash_table_lookup (priv->accounts, name);
+    g_debug ("Account is %sknown", account ? "" : "not ");
+    if (account)
     {
-	if (*path_key == '/') key = path_key + 1;
-	path_key++;
+	if (mc_account_is_enabled (account))
+	{
+	    _mc_account_set_enabled_priv (account, FALSE);
+	    g_signal_emit (monitor, signals[SIGNAL_DISABLED], 0, name);
+	}
+	g_signal_emit (monitor, signals[SIGNAL_DELETED], 0, name);
+	g_hash_table_remove (priv->accounts, name);
     }
-    return key;
 }
 
 static void
-_gconf_notify_cb (GConfClient *client, guint conn_id, GConfEntry *entry,
-                  gpointer user_data)
+on_account_validity_changed (TpProxy *proxy, const gchar *object_path,
+			     gboolean valid, gpointer user_data,
+			     GObject *weak_object)
 {
-  McAccountMonitor *monitor = MC_ACCOUNT_MONITOR (user_data);
-  McAccountMonitorPrivate *priv = MC_ACCOUNT_MONITOR_PRIV (monitor);
-  gchar *name = NULL;
-  McAccount *account;
-  const gchar *key;
+    McAccountMonitor *monitor = MC_ACCOUNT_MONITOR (weak_object);
+    McAccountMonitorPrivate *priv = user_data;
+    const gchar *name;
+    McAccount *account;
 
-  key = key_name (entry->key);
-  name = _account_name_from_key (entry->key);
-  if (!name) return;
-  account = g_hash_table_lookup (priv->accounts, name);
-  
-  /* Was account complete before? */
-  if (account == NULL)
+    name = MC_ACCOUNT_UNIQUE_NAME_FROM_PATH (object_path);
+    g_debug ("%s called for account %s (%d)", G_STRFUNC, name, valid);
+
+    account = g_hash_table_lookup (priv->accounts, name);
+    g_debug ("Account is %sknown", account ? "" : "not ");
+    if (account)
     {
-      account = _mc_account_new (name);
-      
-      /* Account was not complete before and it just become complete */
-      if (mc_account_is_complete (account))
-        {
-          g_hash_table_insert (priv->accounts, g_strdup (name), account);
-          g_signal_emit (monitor, signals[SIGNAL_CREATED], 0, name);
-
-	  /* check if the account is enabled and, in case, emit the respective
-	   * signal */
-	  if (mc_account_is_enabled (account))
-	  {
-	      g_signal_emit (monitor, signals[SIGNAL_ENABLED], 0, name);
-	  }
-        }
-       else
-        {
-          g_object_unref (account);
-          /* We don't do anything for incomplete accounts */
-        }
+	/* the old implementation didn't report signals for account
+	 * completeness, and for account deletion we have another signal; so,
+	 * we have nothing to do here */
     }
-  else if (strcmp (key, MC_ACCOUNTS_GCONF_KEY_DELETED) == 0)
+    else if (valid)
     {
-      /* if account is deleted, remove it */
-      if (entry->value != NULL && entry->value->type == GCONF_VALUE_BOOL &&
-          gconf_value_get_bool (entry->value))
-        {
-          if (mc_account_is_enabled (account))
-            {
-	      _mc_account_set_enabled_priv (account, FALSE);
-              g_signal_emit (monitor, signals[SIGNAL_DISABLED], 0, name);
-            }
-          g_signal_emit (monitor, signals[SIGNAL_DELETED], 0, name);
-          g_hash_table_remove (priv->accounts, name);
-        }
+	account = _mc_account_new (priv->proxy->dbus_daemon, object_path);
+	g_hash_table_insert (priv->accounts, g_strdup (name), account);
+	g_signal_emit (monitor, signals[SIGNAL_CREATED], 0, name);
+
+	/* check if the account is enabled and, in case, emit the respective
+	 * signal */
+	if (mc_account_is_enabled (account))
+	{
+	    g_signal_emit (monitor, signals[SIGNAL_ENABLED], 0, name);
+	}
     }
-  else if (strcmp (key, MC_ACCOUNTS_GCONF_KEY_ENABLED) == 0)
-    {
-      if (entry->value != NULL && entry->value->type == GCONF_VALUE_BOOL)
-        {
-          if (gconf_value_get_bool (entry->value))
-            {
-	      _mc_account_set_enabled_priv (account, TRUE);
-              g_signal_emit (monitor, signals[SIGNAL_ENABLED], 0, name);
-            }
-          else
-            {
-	      _mc_account_set_enabled_priv (account, FALSE);
-              g_signal_emit (monitor, signals[SIGNAL_DISABLED], 0, name);
-            }
-        }
-    }
-  else if (strcmp (key, MC_ACCOUNTS_GCONF_KEY_AVATAR_TOKEN) != 0)
-    {
-      const gchar *value;
-
-      /* report the changed value to the McAccount, if it's a cached setting */
-      if (entry->value != NULL && entry->value->type == GCONF_VALUE_STRING)
-	  value = gconf_value_get_string (entry->value);
-      else
-	  value = NULL;
-
-      if (strcmp (key, MC_ACCOUNTS_GCONF_KEY_NORMALIZED_NAME) == 0)
-	  _mc_account_set_normalized_name_priv (account, value);
-      else if (strcmp (key, MC_ACCOUNTS_GCONF_KEY_DISPLAY_NAME) == 0)
-	  _mc_account_set_display_name_priv (account, value);
-
-      /* Emit the rest as value changed signal */
-      g_signal_emit (monitor, signals[SIGNAL_CHANGED], 0, name);
-
-      if (strncmp (key, "param-", 6) == 0)
-	  g_signal_emit (monitor, signals[PARAM_CHANGED], 0,
-			 name, key + 6);
-    }
-  
-  /* If we are enabling/disabling account */
-  g_free (name);
 }
 
 static void
 mc_account_monitor_init (McAccountMonitor *self)
 {
-  GError *error = NULL;
-  GConfClient *client = gconf_client_get_default ();
-  GSList *i, *dirs;
-  McAccountMonitorPrivate *priv;
+    GError *error = NULL;
+    McAccountMonitorPrivate *priv;
+    TpDBusDaemon *dbus_daemon;
+    DBusGConnection *connection;
+    GValue *val_accounts;
+    const gchar **accounts, **name;
 
-  self->priv = G_TYPE_INSTANCE_GET_PRIVATE(self,
-      MC_TYPE_ACCOUNT_MONITOR, McAccountMonitorPrivate);
-  priv = MC_ACCOUNT_MONITOR_PRIV (self);
-  priv->accounts = NULL;
-  priv->gconf_client = client;
-  dirs = gconf_client_all_dirs (client, MC_ACCOUNTS_GCONF_BASE, &error);
-
-  if (NULL != error)
+    self->priv = G_TYPE_INSTANCE_GET_PRIVATE(self,
+					     MC_TYPE_ACCOUNT_MONITOR, McAccountMonitorPrivate);
+    priv = MC_ACCOUNT_MONITOR_PRIV (self);
+    connection = dbus_g_bus_get (DBUS_BUS_STARTER, &error);
+    if (error)
     {
-      g_print ("Error: %s\n", error->message);
-      g_assert_not_reached ();
+	g_printerr ("Failed to open connection to bus: %s", error->message);
+	g_error_free (error);
+	return;
+    }
+    dbus_daemon = tp_dbus_daemon_new (connection);
+    priv->proxy = g_object_new (MC_TYPE_ACCOUNT_MANAGER_PROXY,
+				"dbus-daemon", dbus_daemon,
+				"bus-name", MC_ACCOUNT_MANAGER_DBUS_SERVICE,
+				"object-path", MC_ACCOUNT_MANAGER_DBUS_OBJECT,
+				NULL);
+    g_assert (priv->proxy != NULL);
+    priv->accounts = NULL;
+
+    if (NULL != error)
+    {
+	g_print ("Error: %s\n", error->message);
+	g_assert_not_reached ();
     }
 
-  priv->accounts = g_hash_table_new_full (
-    g_str_hash, g_str_equal, (GDestroyNotify) g_free, g_object_unref);
+    priv->accounts = g_hash_table_new_full (g_str_hash, g_str_equal,
+					    (GDestroyNotify) g_free,
+					    g_object_unref);
 
-  for (i = dirs; NULL != i; i = i->next)
+    mc_cli_dbus_properties_do_get (priv->proxy, -1,
+				   MC_IFACE_ACCOUNT_MANAGER, "ValidAccounts",
+				   &val_accounts, &error);
+    if (error)
     {
-      gchar *name = _account_name_from_key (i->data);
-      McAccount *account = _mc_account_new (name);
-
-      /* Only pick up accounts which are not yet deleted. */
-      if (mc_account_is_complete (account))
-        {
-           g_hash_table_insert (priv->accounts, g_strdup (name), account);
-        }
-      else
-        {
-           g_object_unref (account);
-        }
-      g_free (i->data);
-      g_free (name);
+	g_warning ("Error getting accounts: %s", error->message);
+	g_error_free (error);
+	error = NULL;
     }
+    accounts = g_value_get_boxed (val_accounts);
 
-  g_slist_free (dirs);
-
-  gconf_client_add_dir (
-    client, MC_ACCOUNTS_GCONF_BASE, GCONF_CLIENT_PRELOAD_NONE, &error);
-
-  if (NULL != error)
+    for (name = accounts; *name != NULL; name++)
     {
-      g_print ("Error: %s\n", error->message);
-      g_assert_not_reached ();
-    }
+	McAccount *account;
+	const gchar *unique_name;
 
-  priv->gconf_connection = gconf_client_notify_add (
-    client, MC_ACCOUNTS_GCONF_BASE, _gconf_notify_cb, self, NULL, &error);
-
-  if (NULL != error)
-    {
-      g_print ("Error: %s\n", error->message);
-      g_assert_not_reached ();
+	account = _mc_account_new (dbus_daemon, *name);
+	unique_name = MC_ACCOUNT_UNIQUE_NAME_FROM_PATH (*name);
+	g_hash_table_insert (priv->accounts, g_strdup (unique_name), account);
     }
+    g_value_unset (val_accounts);
+    g_free (val_accounts);
+
+    mc_cli_account_manager_connect_to_account_removed (priv->proxy,
+						       on_account_removed,
+						       priv, NULL,
+						       (GObject *)self, NULL);
+    mc_cli_account_manager_connect_to_account_validity_changed (priv->proxy,
+								on_account_validity_changed,
+								priv, NULL,
+								(GObject *)self, NULL);
 }
 
 McAccount *
@@ -483,5 +427,30 @@ mc_account_monitor_get_supported_presences (McAccountMonitor *monitor)
   data = (McPresence *)presences->data;
   g_array_free (presences, FALSE);
   return data;
+}
+
+McAccount *
+_mc_account_monitor_create_account (McAccountMonitor *monitor,
+				    const gchar *manager,
+				    const gchar *protocol,
+				    const gchar *display_name,
+				    GHashTable *parameters)
+{
+    McAccountMonitorPrivate *priv = MC_ACCOUNT_MONITOR_PRIV (monitor);
+    gchar *object_path;
+    GError *error = NULL;
+
+    mc_cli_account_manager_do_create_account (priv->proxy, -1,
+					      manager, protocol,
+					      display_name, parameters,
+					      &object_path, &error);
+    if (error)
+    {
+	g_warning ("%s failed: %s", G_STRFUNC, error->message);
+	g_error_free (error);
+	return NULL;
+    }
+
+    return _mc_account_new (priv->proxy->dbus_daemon, object_path);
 }
 

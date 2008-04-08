@@ -64,6 +64,8 @@ gboolean mcd_account_delete (McdAccount *account, GError **error);
 const gchar *mcd_account_get_unique_name (McdAccount *account);
 const gchar *mcd_account_get_object_path (McdAccount *account);
 
+GKeyFile *mcd_account_get_keyfile (McdAccount *account);
+
 gboolean mcd_account_is_valid (McdAccount *account);
 gboolean mcd_account_check_validity (McdAccount *account);
 
@@ -91,6 +93,7 @@ void mcd_account_get_requested_presence (McdAccount *account,
 					 const gchar **message);
 
 void mcd_account_set_normalized_name (McdAccount *account, const gchar *name);
+gchar *mcd_account_get_normalized_name (McdAccount *account);
 
 gboolean mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
 				 const gchar *mime_type, const gchar *token,
@@ -115,4 +118,7 @@ McdConnection *mcd_account_get_connection (McdAccount *account);
 gboolean mcd_account_request_channel_nmc4 (McdAccount *account,
 					   const struct mcd_channel_request *req,
 					   GError **error);
+
+gchar *mcd_account_get_avatar_filename (McdAccount *account);
+
 #endif

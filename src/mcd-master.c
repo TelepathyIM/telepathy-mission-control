@@ -867,15 +867,14 @@ mcd_master_get_account_for_connection (McdMaster *master,
 				       GError **error)
 {
     McdConnection *connection;
+    McdAccount *account;
 
     connection = mcd_master_get_connection (master, object_path, error);
-    if (connection)
+    if (connection &&
+	(account = mcd_connection_get_account (connection)))
     {
-	McAccount *account;
-	
-	g_object_get (G_OBJECT (connection), "account", &account, NULL);
-	*ret_unique_name = g_strdup (mc_account_get_unique_name (account));
-	g_object_unref (G_OBJECT (account));
+
+	*ret_unique_name = g_strdup (mcd_account_get_unique_name (account));
 	return TRUE;
     }
     return FALSE;

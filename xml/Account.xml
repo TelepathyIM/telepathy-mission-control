@@ -192,7 +192,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
       </tp:docstring>
     </property>
 
-    <property name="enabled" type="b" access="readwrite">
+    <property name="Enabled" type="b" access="readwrite">
       <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
         <p>This property gives the users the possibility to prevent an account
         from being used; account editor UIs should let the user modify this

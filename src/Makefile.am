@@ -6,6 +6,7 @@ INCLUDES = $(GCONF_CFLAGS) $(TELEPATHY_CFLAGS) \
 mission_control_includedir = $(includedir)/mission-control
 mission_control_include = \
 	mcd-account.h \
+	mcd-account-compat.h \
 	mcd-account-manager.h \
 	mcd-dbusprop.h \
 	mcd-debug.h \
@@ -31,6 +32,7 @@ nodist_geninclude_HEADERS = \
 	_gen/interfaces.h \
 	_gen/gtypes.h \
 	_gen/svc-Account.h \
+	_gen/svc-Account_Interface_Compat.h \
 	_gen/svc-Account_Manager.h
 
 nodist_libmissioncontrol_server_la_SOURCES = \
@@ -41,6 +43,7 @@ nodist_libmissioncontrol_server_la_SOURCES = \
 	_gen/signals-marshal.h \
 	_gen/signals-marshal.list \
 	_gen/svc-Account.c \
+	_gen/svc-Account_Interface_Compat.c \
 	_gen/svc-Account_Manager.c
 
 
@@ -73,6 +76,7 @@ libmissioncontrol_server_la_LDFLAGS = -export-dynamic \
 
 libmissioncontrol_server_la_SOURCES = \
 	mcd-account.c \
+	mcd-account-compat.c \
 	mcd-account-manager.c \
 	mcd-dbusprop.c \
 	mcd-debug.c \

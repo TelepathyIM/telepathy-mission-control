@@ -26,6 +26,11 @@
 
 McAccount * _mc_account_monitor_lookup (McAccountMonitor *monitor, const gchar *unique_name);
 GList * _mc_account_monitor_list (McAccountMonitor *monitor);
+McAccount *_mc_account_monitor_create_account (McAccountMonitor *monitor,
+					       const gchar *manager,
+					       const gchar *protocol,
+					       const gchar *display_name,
+					       GHashTable *parameters);
 
 #endif /* __MC_ACCOUNT_MONITOR_PRIV_H__ */
 
