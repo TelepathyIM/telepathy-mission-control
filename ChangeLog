@@ -1,4 +1,9 @@
-2008-03-18  Alberto Mardegan  <mardy@users.sourceforge.net>
+2008-04-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-master.c:
+	Implement get_connection_names().
+
+2008-03-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-channel.c:
 	Don't try to close the channel, if the proxy is already invalidated.

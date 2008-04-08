@@ -601,75 +601,40 @@ gboolean
 mcd_master_get_online_connection_names (McdMaster * master,
 					gchar *** connected_names)
 {
-#if 0
-    GList *accounts;
-    gboolean ret;
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    GList *account_list, *account_node;
+    GPtrArray *names = g_ptr_array_new ();
 
-    accounts = mc_accounts_list_by_enabled (TRUE);
-
-    /* MC exits if there aren't any accounts */
-    if (accounts)
+    account_list = mcd_presence_frame_get_accounts (priv->presence_frame);
+    for (account_node = account_list; account_node != NULL;
+	 account_node = account_node->next)
     {
-	McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-	GPtrArray *names = g_ptr_array_new ();
-	GList *account_node;
+	McdAccount *account = account_node->data;
 
-	/* Iterate through all connected accounts */
-	for (account_node = accounts; account_node;
-	     account_node = g_list_next (account_node))
+
+	if (mcd_account_get_connection_status (account) ==
+	    TP_CONNECTION_STATUS_CONNECTED)
 	{
-	    McAccount *account = account_node->data;
-	    TpConnectionStatus status;
-
-	    status =
-		mcd_presence_frame_get_account_status (priv->presence_frame,
-						       account);
-	    /* Ensure that only accounts that are actually conntected are added to
-	     * the pointer array. */
-
-	    if (status == TP_CONNECTION_STATUS_CONNECTED)
-	    {
-		g_ptr_array_add (names,
-				 g_strdup (mc_account_get_unique_name
-					   (account)));
-	    }
+	    g_ptr_array_add (names,
+			     g_strdup (mcd_account_get_unique_name (account)));
 	}
-
-	if (names->len != 0)
-	{
-	    int i;
-
-	    /* Copy the collected names to the array of strings */
-	    *connected_names =
-		(gchar **) g_malloc0 (sizeof (gchar *) * (names->len + 1));
-	    for (i = 0; i < names->len; i++)
-	    {
-		*(*connected_names + i) = g_ptr_array_index (names, i);
-	    }
-	    (*connected_names)[i] = NULL;
-
-	    ret = TRUE;
-	}
-
-	else
-	{
-	    ret = FALSE;
-	}
-
-	g_ptr_array_free (names, TRUE);
-	g_list_free (accounts);
     }
 
-    else
+    if (names->len != 0)
     {
-	ret = FALSE;
-    }
+	int i;
 
-    return ret;
-#else
-    g_warning ("%s not implemented", G_STRFUNC);
+	/* Copy the collected names to the array of strings */
+	*connected_names =
+	    (gchar **) g_malloc0 (sizeof (gchar *) * (names->len + 1));
+	for (i = 0; i < names->len; i++)
+	{
+	    *(*connected_names + i) = g_ptr_array_index (names, i);
+	}
+	(*connected_names)[i] = NULL;
+    }
+    g_ptr_array_free (names, TRUE);
     return FALSE;
-#endif
 }
 
 gboolean
