@@ -650,26 +650,6 @@ count_connections (McdOperation *manager, guint *connections)
 }
 
 static void
-_on_status_actual (McdPresenceFrame * presence_frame,
-		   TpConnectionStatus status,
-		   McdService * obj)
-{
-    /* Everyone just got disconnected */
-    if (status == TP_CONNECTION_STATUS_DISCONNECTED)
-    {
-	guint connections = 0;
-	/* if there are no connections, then exit. Count the connections
-	 * regardless of their status: we are supposing that if a connection is
-	 * still there, then there is a good reason for it and we won't exit,
-	 * even if it's not active (it might be trying to reconnect) */
-	mcd_operation_foreach (MCD_OPERATION (obj), (GFunc)count_connections,
-			       &connections);
-	if (connections == 0)
-	    mcd_controller_shutdown (MCD_CONTROLLER (obj), "No connections");
-    }
-}
- 
-static void
 mcd_service_disconnect (McdMission *mission)
 {
     MCD_MISSION_CLASS (mcd_service_parent_class)->disconnect (mission);
@@ -800,8 +780,6 @@ mcd_dispose (GObject * obj)
 	g_signal_handlers_disconnect_by_func (priv->presence_frame,
 					      _on_presence_actual, self);
 	g_signal_handlers_disconnect_by_func (priv->presence_frame,
-					      _on_status_actual, self);
-	g_signal_handlers_disconnect_by_func (priv->presence_frame,
 					      _on_presence_stable, self);
 	g_object_unref (priv->presence_frame);
     }
@@ -858,8 +836,6 @@ mcd_service_init (McdService * obj)
 		      G_CALLBACK (_on_presence_requested), obj);
     g_signal_connect (priv->presence_frame, "presence-actual",
 		      G_CALLBACK (_on_presence_actual), obj);
-    g_signal_connect (priv->presence_frame, "status-actual",
-		      G_CALLBACK (_on_status_actual), obj);
     g_signal_connect (priv->presence_frame, "presence-stable",
 		      G_CALLBACK (_on_presence_stable), obj);
     
