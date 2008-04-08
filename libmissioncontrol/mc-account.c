@@ -145,8 +145,6 @@ on_account_property_changed (TpProxy *proxy, GHashTable *properties,
     McAccountPrivate *priv = user_data;
     const GValue *value;
 
-    g_debug ("%s called on %s", G_STRFUNC, priv->unique_name);
-
     g_hash_table_foreach (properties, print_prop, NULL);
     value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_VALID);
     if (value)
@@ -1076,7 +1074,6 @@ mc_account_get_param (McAccount *account, const gchar *name,
     GValue *value;
     gboolean ok = FALSE;
 
-    g_debug ("%s: %s", G_STRFUNC, name);
     parameters = mc_account_get_params (account);
     if (!parameters) return FALSE;
     value = g_hash_table_lookup (parameters, name);
@@ -1930,7 +1927,6 @@ mc_account_get_avatar (McAccount *account, gchar **filename,
 	    return FALSE;
 	}
 	GValueArray *va = (GValueArray *) g_value_get_boxed (val_avatar);
-	g_debug ("value array at %p, type %s, %d elems", va, G_VALUE_TYPE_NAME (val_avatar), va->n_values);
 	*mime_type = g_value_dup_string (va->values + 1);
 	g_value_unset (val_avatar);
 	g_free (val_avatar);

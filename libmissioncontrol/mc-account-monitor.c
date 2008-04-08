@@ -193,10 +193,8 @@ on_account_removed (TpProxy *proxy, const gchar *object_path,
     McAccount *account;
 
     name = MC_ACCOUNT_UNIQUE_NAME_FROM_PATH (object_path);
-    g_debug ("%s called for account %s", G_STRFUNC, name);
 
     account = g_hash_table_lookup (priv->accounts, name);
-    g_debug ("Account is %sknown", account ? "" : "not ");
     if (account)
     {
 	if (mc_account_is_enabled (account))
@@ -220,10 +218,8 @@ on_account_validity_changed (TpProxy *proxy, const gchar *object_path,
     McAccount *account;
 
     name = MC_ACCOUNT_UNIQUE_NAME_FROM_PATH (object_path);
-    g_debug ("%s called for account %s (%d)", G_STRFUNC, name, valid);
 
     account = g_hash_table_lookup (priv->accounts, name);
-    g_debug ("Account is %sknown", account ? "" : "not ");
     if (account)
     {
 	/* the old implementation didn't report signals for account
