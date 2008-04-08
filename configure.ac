@@ -133,7 +133,7 @@ PKG_CHECK_MODULES(DBUS, [dbus-1 >= 0.51, dbus-glib-1 >= 0.51], have_dbus=yes, ha
 AC_SUBST(DBUS_CFLAGS)
 AC_SUBST(DBUS_LIBS)
 
-PKG_CHECK_MODULES(TELEPATHY, telepathy-glib >= 0.7.1 libtelepathy >= 0.3.0)
+PKG_CHECK_MODULES(TELEPATHY, telepathy-glib >= 0.7.6 libtelepathy >= 0.3.0)
 AC_SUBST(TELEPATHY_LIBS)
 AC_SUBST(TELEPATHY_CFLAGS)
 
