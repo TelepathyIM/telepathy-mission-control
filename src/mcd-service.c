@@ -643,13 +643,6 @@ _on_presence_actual (McdPresenceFrame * presence_frame,
 }
 
 static void
-count_connections (McdOperation *manager, guint *connections)
-{
-    *connections += g_list_length ((GList *)
-				   mcd_operation_get_missions (manager));
-}
-
-static void
 mcd_service_disconnect (McdMission *mission)
 {
     MCD_MISSION_CLASS (mcd_service_parent_class)->disconnect (mission);
