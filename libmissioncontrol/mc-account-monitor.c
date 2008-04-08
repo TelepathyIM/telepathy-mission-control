@@ -288,6 +288,7 @@ mc_account_monitor_init (McAccountMonitor *self)
 	g_warning ("Error getting accounts: %s", error->message);
 	g_error_free (error);
 	error = NULL;
+	return;
     }
     accounts = g_value_get_boxed (val_accounts);
 
