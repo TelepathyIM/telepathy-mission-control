@@ -1,5 +1,9 @@
 2008-04-08  Alberto Mardegan  <mardy@users.sourceforge.net>
 
+	* src/mcd-service.c:
+	Make mcd_service_get_online_connections() never return error, as it's
+	not properly implemented anyways. Fixes: #1936865.
+
 	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
 	* configure.ac, libmissioncontrol/Makefile.am,
 	libmissioncontrol/mc-account.c:

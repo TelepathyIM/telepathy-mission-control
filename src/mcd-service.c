@@ -172,7 +172,8 @@ static gboolean
 mcd_service_get_online_connections (GObject * obj,
 				    gchar *** ret, GError ** error)
 {
-    return mcd_master_get_online_connection_names (MCD_MASTER (obj), ret);
+    mcd_master_get_online_connection_names (MCD_MASTER (obj), ret);
+    return TRUE;
 }
 
 static gboolean
