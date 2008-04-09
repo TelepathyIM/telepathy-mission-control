@@ -634,7 +634,7 @@ mcd_master_get_online_connection_names (McdMaster * master,
 	(*connected_names)[i] = NULL;
     }
     g_ptr_array_free (names, TRUE);
-    return FALSE;
+    return TRUE;
 }
 
 gboolean
