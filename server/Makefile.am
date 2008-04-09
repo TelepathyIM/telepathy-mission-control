@@ -1,5 +1,6 @@
 INCLUDES = $(DBUS_CFLAGS) $(TELEPATHY_CFLAGS) -I$(top_srcdir) \
 	   -I$(top_srcdir)/src \
+	   -I$(top_builddir)/src \
 	-DMC_DISABLE_DEPRECATED \
 	-DLIBDIR="@libdir@" -DLIBVERSION="0"
 
