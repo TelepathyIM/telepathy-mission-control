@@ -1800,7 +1800,7 @@ mcd_account_get_avatar (McdAccount *account, GArray **avatar,
 	{
 	    if (length > 0 && length < G_MAXUINT) 
 	    {
-		*avatar = g_malloc (sizeof (GArray));
+		*avatar = g_array_new (FALSE, FALSE, 1);
 		(*avatar)->data = data;
 		(*avatar)->len = (guint)length;
 	    }
@@ -1815,7 +1815,7 @@ mcd_account_get_avatar (McdAccount *account, GArray **avatar,
     g_free (filename);
 
     if (!*avatar)
-	*avatar = g_malloc0 (sizeof (GArray));
+	*avatar = g_array_new (FALSE, FALSE, 1);
 }
 
 void
