@@ -41,6 +41,12 @@ typedef struct _McdDBusProp
     mcd_getprop getprop;
 } McdDBusProp;
 
+void mcd_dbusprop_get_property (TpSvcDBusProperties *self,
+				const gchar *interface_name,
+				const gchar *property_name,
+				GValue *value,
+				GError **error);
+
 void dbusprop_set (TpSvcDBusProperties *self,
 		   const gchar *interface_name,
 		   const gchar *property_name,

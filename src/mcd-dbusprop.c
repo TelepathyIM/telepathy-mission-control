@@ -77,25 +77,20 @@ dbusprop_set (TpSvcDBusProperties *self,
 }
 
 void
-dbusprop_get (TpSvcDBusProperties *self,
-	      const gchar *interface_name,
-	      const gchar *property_name,
-	      DBusGMethodInvocation *context)
+mcd_dbusprop_get_property (TpSvcDBusProperties *self,
+			   const gchar *interface_name,
+			   const gchar *property_name,
+			   GValue *value,
+			   GError **error)
 {
     McdDBusProp *prop_array, *property;
-    GValue value = { 0 };
-    GError *error = NULL;
-
-    g_debug ("%s: %s, %s", G_STRFUNC, interface_name, property_name);
 
     /* FIXME: use some prefix */
     prop_array = g_object_get_data (G_OBJECT (self), interface_name);
     if (!prop_array)
     {
-	g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
 		     "invalid interface: %s", interface_name);
-	dbus_g_method_return_error (context, error);
-	g_error_free (error);
 	return;
     }
 
@@ -105,22 +100,40 @@ dbusprop_get (TpSvcDBusProperties *self,
 	    break;
     if (!property->name)
     {
-	g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
 		     "invalid property: %s", property_name);
-	dbus_g_method_return_error (context, error);
-	g_error_free (error);
 	return;
     }
 
     if (!property->getprop)
     {
-	g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
 		     "property %s cannot be read", property_name);
+	return;
+    }
+    property->getprop (self, property_name, value);
+}
+
+void
+dbusprop_get (TpSvcDBusProperties *self,
+	      const gchar *interface_name,
+	      const gchar *property_name,
+	      DBusGMethodInvocation *context)
+{
+    GValue value = { 0 };
+    GError *error = NULL;
+
+    g_debug ("%s: %s, %s", G_STRFUNC, interface_name, property_name);
+
+    mcd_dbusprop_get_property (self, interface_name, property_name,
+			       &value, &error);
+    if (error)
+    {
 	dbus_g_method_return_error (context, error);
 	g_error_free (error);
 	return;
     }
-    property->getprop (self, property_name, &value);
+
     tp_svc_dbus_properties_return_from_get (context, &value);
     g_value_unset (&value);
 }
