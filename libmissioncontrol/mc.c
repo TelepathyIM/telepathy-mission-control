@@ -156,7 +156,8 @@ mc_cli_dbus_properties_do_set (gpointer proxy,
               G_TYPE_STRING, in_Interface_Name,
               G_TYPE_STRING, in_Property_Name,
               G_TYPE_VALUE, in_Value,
-          G_TYPE_INVALID);
+          G_TYPE_INVALID,
+	  G_TYPE_INVALID);
 }
 
 

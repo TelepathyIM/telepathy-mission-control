@@ -1,3 +1,8 @@
+2008-04-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc.c:
+	Mark the end of output arguments of the DBus call.
+
 === telepathy-mission-control 5.0.beta1 ===
 
 2008-04-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
