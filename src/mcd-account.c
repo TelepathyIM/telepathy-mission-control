@@ -1673,6 +1673,15 @@ mcd_account_get_current_presence (McdAccount *account,
 
 /* TODO: remove when the relative members will become public */
 const gchar *
+mcd_account_get_manager_name (McdAccount *account)
+{
+    McdAccountPrivate *priv = account->priv;
+
+    return priv->manager_name;
+}
+
+/* TODO: remove when the relative members will become public */
+const gchar *
 mcd_account_get_protocol_name (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
@@ -2079,3 +2088,4 @@ mcd_account_get_avatar_filename (McdAccount *account)
     g_free (data_dir);
     return filename;
 }
+

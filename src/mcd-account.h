@@ -69,6 +69,7 @@ GKeyFile *mcd_account_get_keyfile (McdAccount *account);
 gboolean mcd_account_is_valid (McdAccount *account);
 gboolean mcd_account_check_validity (McdAccount *account);
 
+const gchar *mcd_account_get_manager_name (McdAccount *account);
 const gchar *mcd_account_get_protocol_name (McdAccount *account);
 
 gboolean mcd_account_set_parameters (McdAccount *account, GHashTable *params,
