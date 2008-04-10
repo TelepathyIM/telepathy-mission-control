@@ -1,5 +1,8 @@
 2008-04-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol/mc-account-cli.c:
+	Fix the mc-account tool so that accounts can be created.
+
 	* libmissioncontrol/mc.c:
 	Mark the end of output arguments of the DBus call.
 

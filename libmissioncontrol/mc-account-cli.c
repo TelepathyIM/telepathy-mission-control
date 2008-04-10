@@ -39,7 +39,7 @@ show_help (gchar * err)
 
   printf ("Usage:\n"
 	  "    %1$s list\n"
-	  "    %1$s add <profile> <display name> string:account=<user_id> string:password=<password> [(int|bool|string):<key>=<value> ...]\n"
+	  "    %1$s add <profile> <display name> string:account=<user_id> [(int|bool|string):<key>=<value> ...]\n"
 	  "    %1$s set <account name> (int|bool|string):<key>=<value> [...]\n"
 	  "    %1$s display <account name> <display name>\n"
 	  "    %1$s show <account name>\n"
@@ -145,7 +145,7 @@ main (int argc, char **argv)
       McProfile *profile;
       McAccount *account;
 
-      if (argc < 6)
+      if (argc < 5)
         show_help ("Invalid add command.");
 
       profile = mc_profile_lookup (argv[2]);
@@ -180,6 +180,10 @@ main (int argc, char **argv)
                   printf ("Account not added successfully: %s\n", name);
                   show_help ("Invalid account paramenters");
                 }
+
+	      /* we must iterate the main loop to get the "Valid" property */
+	      while (g_main_context_iteration (NULL, FALSE));
+
               if (!mc_account_is_complete (account))
                 {
                   mc_account_delete (account);
