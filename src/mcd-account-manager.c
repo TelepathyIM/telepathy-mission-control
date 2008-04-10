@@ -33,6 +33,7 @@
 #include <telepathy-glib/util.h>
 #include <telepathy-glib/errors.h>
 #include "mcd-account-manager.h"
+#include "mcd-account-manager-query.h"
 #include "mcd-account.h"
 #include "mcd-account-priv.h"
 #include "mcd-dbusprop.h"
@@ -54,6 +55,8 @@ G_DEFINE_TYPE_WITH_CODE (McdAccountManager, mcd_account_manager, G_TYPE_OBJECT,
 						account_manager_iface_init);
 			 G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
 						properties_iface_init);
+			 G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_ACCOUNT_MANAGER_INTERFACE_QUERY,
+						_mcd_account_manager_query_iface_init);
 			)
 
 struct _McdAccountManagerPrivate
@@ -601,6 +604,9 @@ mcd_account_manager_init (McdAccountManager *account_manager)
     dbusprop_add_interface (TP_SVC_DBUS_PROPERTIES (account_manager),
 			    MC_IFACE_ACCOUNT_MANAGER,
 			    am_properties);
+    dbusprop_add_interface (TP_SVC_DBUS_PROPERTIES (account_manager),
+			    MC_IFACE_ACCOUNT_MANAGER_INTERFACE_QUERY,
+			    _mcd_account_manager_query_get_properties());
 }
 
 McdAccountManager *

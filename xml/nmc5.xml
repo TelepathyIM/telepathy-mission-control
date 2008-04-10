@@ -7,5 +7,6 @@
 <xi:include href="Account.xml"/>
 <xi:include href="Account_Interface_Compat.xml"/>
 <xi:include href="Account_Manager.xml"/>
+<xi:include href="Account_Manager_Interface_Query.xml"/>
 
 </tp:spec>
