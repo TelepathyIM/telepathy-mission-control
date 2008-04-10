@@ -1,5 +1,8 @@
 2008-04-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* tools/libglibcodegen.py:
+	Make the "ao" DBus type map to a C GPtrArray.
+
 	* src/mcd-dbusprop.[hc]:
 	Implement a DBus independent function for getting interface
 	properties.
