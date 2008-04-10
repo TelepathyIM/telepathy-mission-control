@@ -39,7 +39,7 @@ show_help (gchar * err)
 
   printf ("Usage:\n"
 	  "    %1$s list\n"
-	  "    %1$s add <profile> <display name> string:account=<user_id> [(int|bool|string):<key>=<value> ...]\n"
+	  "    %1$s add <profile> <display name> [(int|bool|string):<key>=<value> ...]\n"
 	  "    %1$s set <account name> (int|bool|string):<key>=<value> [...]\n"
 	  "    %1$s display <account name> <display name>\n"
 	  "    %1$s show <account name>\n"
@@ -145,7 +145,7 @@ main (int argc, char **argv)
       McProfile *profile;
       McAccount *account;
 
-      if (argc < 5)
+      if (argc < 4)
         show_help ("Invalid add command.");
 
       profile = mc_profile_lookup (argv[2]);

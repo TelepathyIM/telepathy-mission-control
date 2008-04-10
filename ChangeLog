@@ -1,10 +1,11 @@
 2008-04-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol/mc-account-cli.c:
+	Don't require any parameters on account creation.
+
 	* src/mcd-account-manager-query.[hc],
 	xml/Account_Manager_Interface_Query.xml:
 	Implement the account query API.
-
-2008-04-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* tools/libglibcodegen.py:
 	Make the "ao" DBus type map to a C GPtrArray.
