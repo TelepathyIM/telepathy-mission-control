@@ -631,7 +631,6 @@ mcd_account_manager_write_conf (GKeyFile *keyfile)
 				       write_conf, keyfile);
 }
 
-/* temporary function useful for McdPresenceFrame only */
 GHashTable *
 mcd_account_manager_get_valid_accounts (McdAccountManager *account_manager)
 {
