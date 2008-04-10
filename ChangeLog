@@ -1,3 +1,5 @@
+=== telepathy-mission-control 5.0.beta2 ===
+
 2008-04-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmissioncontrol/mc-account-cli.c:
