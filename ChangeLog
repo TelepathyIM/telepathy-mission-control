@@ -1,32 +1,3 @@
-=== telepathy-mission-control 5.0.beta2 ===
-
-2008-04-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
-
-	* libmissioncontrol/mc-account-cli.c:
-	Fix the mc-account tool so that accounts can be created.
-
-	* libmissioncontrol/mc.c:
-	Mark the end of output arguments of the DBus call.
-
-=== telepathy-mission-control 5.0.beta1 ===
-
-2008-04-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
-
-	* src/mcd-account-manager.c:
-	Create the account configuration file, if it does not exist.
-
-	* src/mcd-master.c:
-	Implement get_connection_names().
-
-2008-03-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
-
-	* configure.ac, src/Makefile.am, src/mcd-account-manager.[hc],
-	src/mcd-account-priv.h, src/mcd-account.[hc], src/mcd-connection.[hc],
-	src/mcd-dbusprop.[hc], src/mcd-manager.[hc], src/mcd-master.[hc],
-	src/mcd-service.c:
-	Implement AccountManager and Account properties (just set/get, no real
-	functionality).
-
 === telepathy-mission-control 4.65 ===
 
 2008-04-08  Alberto Mardegan  <mardy@users.sourceforge.net>
