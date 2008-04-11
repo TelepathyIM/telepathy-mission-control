@@ -132,7 +132,7 @@ get_secondary_vcard_fields (TpSvcDBusProperties *self, const gchar *name,
 }
 
 
-McdDBusProp account_compat_properties[] = {
+static const McdDBusProp account_compat_properties[] = {
     { "Profile", set_profile, get_profile },
     { "AvatarFile", NULL, get_avatar_file },
     { "SecondaryVCardFields", set_secondary_vcard_fields, get_secondary_vcard_fields },
