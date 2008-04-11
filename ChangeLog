@@ -1,5 +1,9 @@
 2008-04-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol/mc-account.c:
+	Have the McAccountMonitor emit the Enabled and Disabled signals as
+	appropriate.
+
 	* src/mcd-account-compat.[hc], src/mcd-account-conditions.[hc],
 	src/mcd-account-manager-query.[hc], src/mcd-account-manager.c,
 	src/mcd-account.c, src/mcd-dbusprop.[hc]:

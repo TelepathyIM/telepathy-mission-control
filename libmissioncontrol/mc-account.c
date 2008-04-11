@@ -146,9 +146,21 @@ on_account_property_changed (TpProxy *proxy, GHashTable *properties,
     const GValue *value;
 
     g_hash_table_foreach (properties, print_prop, NULL);
+
+    McAccountMonitor *monitor = mc_account_monitor_new ();
+
     value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_VALID);
     if (value)
 	priv->valid = g_value_get_boolean (value);
+
+    value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_ENABLED);
+    if (value)
+    {
+	priv->enabled = g_value_get_boolean (value);
+	g_signal_emit_by_name (monitor, priv->enabled ?
+			       "account-enabled" : "account-disabled",
+			       priv->unique_name);
+    }
 
     value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_NORMALIZED_NAME);
     if (value)
@@ -177,7 +189,6 @@ on_account_property_changed (TpProxy *proxy, GHashTable *properties,
      * actually changed */
 
     /* emit the account-changed signal */
-    McAccountMonitor *monitor = mc_account_monitor_new ();
     g_signal_emit_by_name (monitor, "account-changed", priv->unique_name);
     g_object_unref (monitor);
 }
