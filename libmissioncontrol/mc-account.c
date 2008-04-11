@@ -1447,8 +1447,6 @@ mc_account_get_param_string (McAccount *account,
 
   if (priv->last_name && strcmp (priv->last_name, name) == 0)
   {
-      g_warning ("%s: you are calling me for the same param (%s), please cache it",
-		 G_STRFUNC, name);
       *value = g_strdup (priv->last_value);
       return MC_ACCOUNT_SETTING_FROM_ACCOUNT;
   }
