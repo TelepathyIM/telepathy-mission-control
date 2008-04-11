@@ -50,13 +50,22 @@ static void account_manager_iface_init (McSvcAccountManagerClass *iface,
 static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
 				   gpointer iface_data);
 
+static const McdDBusProp account_manager_properties[];
+
+static const McdInterfaceData account_manager_interfaces[] = {
+    MCD_IMPLEMENT_IFACE (mc_svc_account_manager_get_type,
+			 account_manager,
+			 MC_IFACE_ACCOUNT_MANAGER),
+    MCD_IMPLEMENT_IFACE (mc_svc_account_manager_interface_query_get_type,
+			 account_manager_query,
+			 MC_IFACE_ACCOUNT_MANAGER_INTERFACE_QUERY),
+    { G_TYPE_INVALID, }
+};
+
 G_DEFINE_TYPE_WITH_CODE (McdAccountManager, mcd_account_manager, G_TYPE_OBJECT,
-			 G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_ACCOUNT_MANAGER,
-						account_manager_iface_init);
+			 MCD_DBUS_INIT_INTERFACES (account_manager_interfaces);
 			 G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
 						properties_iface_init);
-			 G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_ACCOUNT_MANAGER_INTERFACE_QUERY,
-						_mcd_account_manager_query_iface_init);
 			)
 
 struct _McdAccountManagerPrivate
@@ -357,7 +366,7 @@ get_invalid_accounts (TpSvcDBusProperties *self, const gchar *name,
     accounts_to_gvalue (priv->invalid_accounts, value);
 }
 
-static McdDBusProp am_properties[] = {
+static const McdDBusProp account_manager_properties[] = {
     { "ValidAccounts", NULL, get_valid_accounts },
     { "InvalidAccounts", NULL, get_invalid_accounts },
     { 0 },
@@ -600,13 +609,8 @@ mcd_account_manager_init (McdAccountManager *account_manager)
 	return;
     }
 
-    /* add the interface properties */
-    dbusprop_add_interface (TP_SVC_DBUS_PROPERTIES (account_manager),
-			    MC_IFACE_ACCOUNT_MANAGER,
-			    am_properties);
-    dbusprop_add_interface (TP_SVC_DBUS_PROPERTIES (account_manager),
-			    MC_IFACE_ACCOUNT_MANAGER_INTERFACE_QUERY,
-			    _mcd_account_manager_query_get_properties());
+    /* initializes the interfaces */
+    mcd_dbus_init_interfaces_instances (account_manager);
 }
 
 McdAccountManager *

@@ -54,15 +54,23 @@ static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
 typedef void (*McdOnlineRequestCb) (McdAccount *account, gpointer userdata,
 				    const GError *error);
 
+static const McdDBusProp account_properties[];
+
+static const McdInterfaceData account_interfaces[] = {
+    MCD_IMPLEMENT_IFACE (mc_svc_account_get_type, account, MC_IFACE_ACCOUNT),
+    MCD_IMPLEMENT_IFACE (mc_svc_account_interface_compat_get_type,
+			 account_compat,
+			 MC_IFACE_ACCOUNT_INTERFACE_COMPAT),
+    MCD_IMPLEMENT_IFACE (mc_svc_account_interface_conditions_get_type,
+			 account_conditions,
+			 MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS),
+    { G_TYPE_INVALID, }
+};
+
 G_DEFINE_TYPE_WITH_CODE (McdAccount, mcd_account, G_TYPE_OBJECT,
-			 G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_ACCOUNT,
-						account_iface_init);
+			 MCD_DBUS_INIT_INTERFACES (account_interfaces);
 			 G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
 						properties_iface_init);
-			 G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_ACCOUNT_INTERFACE_COMPAT,
-						_mcd_account_compat_iface_init);
-			 G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_ACCOUNT_INTERFACE_CONDITIONS,
-						_mcd_account_conditions_iface_init);
 			)
 
 struct _McdAccountPrivate
@@ -371,6 +379,30 @@ mcd_account_get_string_val (McdAccount *account, const gchar *key,
 				    key, NULL);
     g_value_init (value, G_TYPE_STRING);
     g_value_take_string (value, string);
+}
+
+static void
+get_interfaces (TpSvcDBusProperties *self, const gchar *name, GValue *value)
+{
+    const McdInterfaceData *iface_data;
+    gchar **interfaces;
+    gint n_interfaces = 0, i;
+
+    for (iface_data = account_interfaces; iface_data->get_type != NULL;
+	 iface_data++)
+	if (iface_data->interface)
+	    n_interfaces++;
+
+    interfaces = g_malloc (sizeof (gchar *) * (n_interfaces + 1));
+    i = 0;
+    for (iface_data = account_interfaces; iface_data->get_type != NULL;
+	 iface_data++)
+	if (iface_data->interface)
+	    interfaces[i++] = g_strdup (iface_data->interface);
+    interfaces[i] = NULL;
+
+    g_value_init (value, G_TYPE_STRV);
+    g_value_take_boxed (value, interfaces);
 }
 
 static void
@@ -811,7 +843,8 @@ get_normalized_name (TpSvcDBusProperties *self,
     mcd_account_get_string_val (account, name, value);
 }
 
-static McdDBusProp account_properties[] = {
+static const McdDBusProp account_properties[] = {
+    { "Interfaces", NULL, get_interfaces },
     { "DisplayName", set_display_name, get_display_name },
     { "Icon", set_icon, get_icon },
     { "Valid", NULL, get_valid },
@@ -1394,15 +1427,8 @@ mcd_account_init (McdAccount *account)
 					McdAccountPrivate);
     account->priv = priv;
 
-    /* add the interface properties */
-    dbusprop_add_interface (TP_SVC_DBUS_PROPERTIES (account),
-			    MC_IFACE_ACCOUNT, account_properties);
-    dbusprop_add_interface (TP_SVC_DBUS_PROPERTIES (account),
-			    MC_IFACE_ACCOUNT_INTERFACE_COMPAT,
-			    _mcd_account_compat_get_properties());
-    dbusprop_add_interface (TP_SVC_DBUS_PROPERTIES (account),
-			    MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS,
-			    _mcd_account_conditions_get_properties());
+    /* initializes the interfaces */
+    mcd_dbus_init_interfaces_instances (account);
 
     priv->conn_status = TP_CONNECTION_STATUS_DISCONNECTED;
 }

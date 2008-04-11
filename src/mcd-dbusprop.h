@@ -33,6 +33,7 @@ typedef void (*mcd_setprop) (TpSvcDBusProperties *self, const gchar *name,
 			     const GValue *value);
 typedef void (*mcd_getprop) (TpSvcDBusProperties *self, const gchar *name,
 			     GValue *value);
+typedef void (*McdInterfaceInit) (TpSvcDBusProperties *self);
 
 typedef struct _McdDBusProp
 {
@@ -40,6 +41,40 @@ typedef struct _McdDBusProp
     mcd_setprop setprop;
     mcd_getprop getprop;
 } McdDBusProp;
+
+typedef struct _McdInterfaceData
+{
+    GType (*get_type)();
+    const gchar *interface;
+    const McdDBusProp *properties;
+    GInterfaceInitFunc iface_init;
+    McdInterfaceInit instance_init;
+} McdInterfaceData;
+
+#define MCD_IMPLEMENT_IFACE(type, type_name, dbus_name) \
+{ \
+    type, \
+    dbus_name, \
+    type_name##_properties, \
+    (GInterfaceInitFunc)type_name##_iface_init, \
+    NULL, \
+}
+
+#define MCD_IMPLEMENT_IFACE_WITH_INIT(type, type_name, dbus_name) \
+{ \
+    type, \
+    dbus_name, \
+    type_name##_properties, \
+    (GInterfaceInitFunc)type_name##_iface_init, \
+    type_name##_instance_init, \
+}
+
+void mcd_dbus_init_interfaces (GType g_define_type_id,
+			       const McdInterfaceData *iface_data);
+#define MCD_DBUS_INIT_INTERFACES(iface_data) \
+    mcd_dbus_init_interfaces (g_define_type_id, iface_data)
+
+void mcd_dbus_init_interfaces_instances (gpointer self);
 
 void mcd_dbusprop_get_property (TpSvcDBusProperties *self,
 				const gchar *interface_name,
@@ -61,10 +96,6 @@ void dbusprop_get (TpSvcDBusProperties *self,
 void dbusprop_get_all (TpSvcDBusProperties *self,
 		       const gchar *interface_name,
 		       DBusGMethodInvocation *context);
-
-void dbusprop_add_interface (TpSvcDBusProperties *self,
-			     const gchar *interface_name,
-			     const McdDBusProp *properties);
 
 G_END_DECLS
 #endif /* __MCD_DBUSPROP_H__ */

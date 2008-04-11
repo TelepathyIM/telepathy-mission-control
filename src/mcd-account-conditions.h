@@ -31,9 +31,10 @@
 
 G_BEGIN_DECLS
 
-const McdDBusProp *_mcd_account_conditions_get_properties (void);
-void _mcd_account_conditions_iface_init (McSvcAccountInterfaceConditionsClass *iface,
-					 gpointer iface_data);
+extern const McdDBusProp account_conditions_properties[];
+
+void account_conditions_iface_init (McSvcAccountInterfaceConditionsClass *iface,
+				    gpointer iface_data);
 
 G_END_DECLS
 #endif

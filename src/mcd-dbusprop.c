@@ -26,6 +26,35 @@
 #include <telepathy-glib/errors.h>
 #include "mcd-dbusprop.h"
 
+#define MCD_INTERFACES_QUARK get_interfaces_quark()
+
+static GQuark
+get_interfaces_quark ()
+{
+    static GQuark interfaces_quark = 0;
+    
+    if (G_UNLIKELY (!interfaces_quark))
+	interfaces_quark = g_quark_from_static_string ("interfaces");
+    return interfaces_quark;
+}
+
+static const McdDBusProp *
+get_interface_properties (TpSvcDBusProperties *object, const gchar *interface)
+{
+    McdInterfaceData *iface_data;
+
+    iface_data = g_type_get_qdata (G_OBJECT_TYPE (object),
+				   MCD_INTERFACES_QUARK);
+    while (iface_data->get_type)
+    {
+	if (iface_data->interface &&
+	    strcmp (iface_data->interface, interface) == 0)
+	    return iface_data->properties;
+	iface_data++;
+    }
+    return NULL;
+}
+
 void
 dbusprop_set (TpSvcDBusProperties *self,
 	      const gchar *interface_name,
@@ -33,13 +62,12 @@ dbusprop_set (TpSvcDBusProperties *self,
 	      const GValue *value,
 	      DBusGMethodInvocation *context)
 {
-    McdDBusProp *prop_array, *property;
+    const McdDBusProp *prop_array, *property;
     GError *error = NULL;
 
     g_debug ("%s: %s, %s", G_STRFUNC, interface_name, property_name);
 
-    /* FIXME: use some prefix */
-    prop_array = g_object_get_data (G_OBJECT (self), interface_name);
+    prop_array = get_interface_properties (self, interface_name);
     if (!prop_array)
     {
 	g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
@@ -83,10 +111,9 @@ mcd_dbusprop_get_property (TpSvcDBusProperties *self,
 			   GValue *value,
 			   GError **error)
 {
-    McdDBusProp *prop_array, *property;
+    const McdDBusProp *prop_array, *property;
 
-    /* FIXME: use some prefix */
-    prop_array = g_object_get_data (G_OBJECT (self), interface_name);
+    prop_array = get_interface_properties (self, interface_name);
     if (!prop_array)
     {
 	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
@@ -152,14 +179,13 @@ dbusprop_get_all (TpSvcDBusProperties *self,
 		  const gchar *interface_name,
 		  DBusGMethodInvocation *context)
 {
-    McdDBusProp *prop_array, *property;
+    const McdDBusProp *prop_array, *property;
     GHashTable *properties;
     GError *error = NULL;
 
     g_debug ("%s: %s", G_STRFUNC, interface_name);
 
-    /* FIXME: use some prefix */
-    prop_array = g_object_get_data (G_OBJECT (self), interface_name);
+    prop_array = get_interface_properties (self, interface_name);
     if (!prop_array)
     {
 	g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
@@ -186,11 +212,34 @@ dbusprop_get_all (TpSvcDBusProperties *self,
 }
 
 void
-dbusprop_add_interface (TpSvcDBusProperties *self,
-			const gchar *interface_name,
-			const McdDBusProp *properties)
+mcd_dbus_init_interfaces (GType g_define_type_id,
+			  const McdInterfaceData *iface_data)
 {
-    g_debug ("%s: %s", G_STRFUNC, interface_name);
-    g_object_set_data (G_OBJECT (self), interface_name, (gpointer)properties);
+    g_type_set_qdata (g_define_type_id, MCD_INTERFACES_QUARK,
+		      (gpointer)iface_data);
+
+    while (iface_data->get_type)
+    {
+	GType type;
+
+	type = iface_data->get_type();
+	G_IMPLEMENT_INTERFACE (type, iface_data->iface_init);
+	iface_data++;
+    }
+}
+
+void
+mcd_dbus_init_interfaces_instances (gpointer self)
+{
+    McdInterfaceData *iface_data;
+
+    iface_data = g_type_get_qdata (G_OBJECT_TYPE (self), MCD_INTERFACES_QUARK);
+
+    while (iface_data->get_type)
+    {
+	if (iface_data->instance_init)
+	    iface_data->instance_init (self);
+	iface_data++;
+    }
 }
 

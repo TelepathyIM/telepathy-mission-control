@@ -132,22 +132,16 @@ get_secondary_vcard_fields (TpSvcDBusProperties *self, const gchar *name,
 }
 
 
-static const McdDBusProp account_compat_properties[] = {
+const McdDBusProp account_compat_properties[] = {
     { "Profile", set_profile, get_profile },
     { "AvatarFile", NULL, get_avatar_file },
     { "SecondaryVCardFields", set_secondary_vcard_fields, get_secondary_vcard_fields },
     { 0 },
 };
 
-const McdDBusProp *
-_mcd_account_compat_get_properties (void)
-{
-    return account_compat_properties;
-}
-
 void
-_mcd_account_compat_iface_init (McSvcAccountInterfaceCompatClass *iface,
-				gpointer iface_data)
+account_compat_iface_init (McSvcAccountInterfaceCompatClass *iface,
+			   gpointer iface_data)
 {
 }
 

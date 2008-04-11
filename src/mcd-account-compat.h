@@ -31,8 +31,9 @@
 
 G_BEGIN_DECLS
 
-const McdDBusProp *_mcd_account_compat_get_properties (void);
-void _mcd_account_compat_iface_init (McSvcAccountInterfaceCompatClass *iface,
+extern const McdDBusProp account_compat_properties[];
+
+void account_compat_iface_init (McSvcAccountInterfaceCompatClass *iface,
 				     gpointer iface_data);
 
 G_END_DECLS

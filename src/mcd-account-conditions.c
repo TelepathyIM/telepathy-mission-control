@@ -108,20 +108,14 @@ get_condition (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 }
 
 
-static const McdDBusProp account_conditions_properties[] = {
+const McdDBusProp account_conditions_properties[] = {
     { "Condition", set_condition, get_condition },
     { 0 },
 };
 
-const McdDBusProp *
-_mcd_account_conditions_get_properties (void)
-{
-    return account_conditions_properties;
-}
-
 void
-_mcd_account_conditions_iface_init (McSvcAccountInterfaceConditionsClass *iface,
-				    gpointer iface_data)
+account_conditions_iface_init (McSvcAccountInterfaceConditionsClass *iface,
+			       gpointer iface_data)
 {
 }
 

@@ -81,7 +81,7 @@ get_keywords (TpSvcDBusProperties *self, const gchar *name,
 }
 
 
-McdDBusProp account_manager_query_properties[] = {
+const McdDBusProp account_manager_query_properties[] = {
     { "Keywords", NULL, get_keywords },
     { 0 },
 };
@@ -351,8 +351,8 @@ account_manager_find_accounts (McSvcAccountManagerInterfaceQuery *self,
 
 
 void
-_mcd_account_manager_query_iface_init (McSvcAccountManagerInterfaceQueryClass *iface,
-				       gpointer iface_data)
+account_manager_query_iface_init (McSvcAccountManagerInterfaceQueryClass *iface,
+				  gpointer iface_data)
 {
 #define IMPLEMENT(x) mc_svc_account_manager_interface_query_implement_##x (\
     iface, account_manager_##x)

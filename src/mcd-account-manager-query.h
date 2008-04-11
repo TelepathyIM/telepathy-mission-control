@@ -31,9 +31,10 @@
 
 G_BEGIN_DECLS
 
-const McdDBusProp *_mcd_account_manager_query_get_properties (void);
-void _mcd_account_manager_query_iface_init (McSvcAccountManagerInterfaceQueryClass *iface,
-					    gpointer iface_data);
+extern const McdDBusProp account_manager_query_properties[];
+
+void account_manager_query_iface_init (McSvcAccountManagerInterfaceQueryClass *iface,
+				       gpointer iface_data);
 
 G_END_DECLS
 #endif

@@ -1,5 +1,11 @@
 2008-04-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/mcd-account-compat.[hc], src/mcd-account-conditions.[hc],
+	src/mcd-account-manager-query.[hc], src/mcd-account-manager.c,
+	src/mcd-account.c, src/mcd-dbusprop.[hc]:
+	Rewrite the interface registration mechanism. Implement the
+	''Interfaces'' property for the Account class.
+
 	* src/Makefile.am, src/mcd-account-conditions.[hc], src/mcd-account.c,
 	xml/Account_Interface_Conditions.xml, xml/Makefile.am, xml/nmc5.xml:
 	Implement the Account Conditions interface (set/get properties only,
