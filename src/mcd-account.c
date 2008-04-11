@@ -34,6 +34,7 @@
 #include "mcd-account.h"
 #include "mcd-account-priv.h"
 #include "mcd-account-compat.h"
+#include "mcd-account-conditions.h"
 #include "mcd-account-manager.h"
 #include "mcd-signals-marshal.h"
 #include "mcd-manager.h"
@@ -60,6 +61,8 @@ G_DEFINE_TYPE_WITH_CODE (McdAccount, mcd_account, G_TYPE_OBJECT,
 						properties_iface_init);
 			 G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_ACCOUNT_INTERFACE_COMPAT,
 						_mcd_account_compat_iface_init);
+			 G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_ACCOUNT_INTERFACE_CONDITIONS,
+						_mcd_account_conditions_iface_init);
 			)
 
 struct _McdAccountPrivate
@@ -1397,6 +1400,9 @@ mcd_account_init (McdAccount *account)
     dbusprop_add_interface (TP_SVC_DBUS_PROPERTIES (account),
 			    MC_IFACE_ACCOUNT_INTERFACE_COMPAT,
 			    _mcd_account_compat_get_properties());
+    dbusprop_add_interface (TP_SVC_DBUS_PROPERTIES (account),
+			    MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS,
+			    _mcd_account_conditions_get_properties());
 
     priv->conn_status = TP_CONNECTION_STATUS_DISCONNECTED;
 }

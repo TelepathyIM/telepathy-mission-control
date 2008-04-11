@@ -1,3 +1,10 @@
+2008-04-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/Makefile.am, src/mcd-account-conditions.[hc], src/mcd-account.c,
+	xml/Account_Interface_Conditions.xml, xml/Makefile.am, xml/nmc5.xml:
+	Implement the Account Conditions interface (set/get properties only,
+	no real functionality yet).
+
 === telepathy-mission-control 5.0.beta3 ===
 
 2008-04-10  Alberto Mardegan  <alberto.mardegan@nokia.com>

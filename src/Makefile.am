@@ -7,6 +7,7 @@ mission_control_includedir = $(includedir)/mission-control
 mission_control_include = \
 	mcd-account.h \
 	mcd-account-compat.h \
+	mcd-account-conditions.h \
 	mcd-account-manager.h \
 	mcd-account-manager-query.h \
 	mcd-dbusprop.h \
@@ -34,6 +35,7 @@ nodist_geninclude_HEADERS = \
 	_gen/gtypes.h \
 	_gen/svc-Account.h \
 	_gen/svc-Account_Interface_Compat.h \
+	_gen/svc-Account_Interface_Conditions.h \
 	_gen/svc-Account_Manager.h \
 	_gen/svc-Account_Manager_Interface_Query.h
 
@@ -46,6 +48,7 @@ nodist_libmissioncontrol_server_la_SOURCES = \
 	_gen/signals-marshal.list \
 	_gen/svc-Account.c \
 	_gen/svc-Account_Interface_Compat.c \
+	_gen/svc-Account_Interface_Conditions.c \
 	_gen/svc-Account_Manager.c \
 	_gen/svc-Account_Manager_Interface_Query.c
 
@@ -80,6 +83,7 @@ libmissioncontrol_server_la_LDFLAGS = -export-dynamic \
 libmissioncontrol_server_la_SOURCES = \
 	mcd-account.c \
 	mcd-account-compat.c \
+	mcd-account-conditions.c \
 	mcd-account-manager.c \
 	mcd-account-manager-query.c \
 	mcd-dbusprop.c \

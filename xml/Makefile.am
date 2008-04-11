@@ -7,7 +7,8 @@ SPECS = MissionControl.xml \
 	Account_Manager.xml \
 	Account_Manager_Interface_Query.xml \
 	Account.xml \
-	Account_Interface_Compat.xml
+	Account_Interface_Compat.xml \
+	Account_Interface_Conditions.xml
 
 
 SPECS_GEN = ${SPECS:.xml=-gen.xml}
