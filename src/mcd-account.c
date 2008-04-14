@@ -211,6 +211,9 @@ mcd_account_request_presence_int (McdAccount *account,
     McdAccountPrivate *priv = account->priv;
     gboolean changed = FALSE;
 
+    if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE && !priv->enabled)
+	return FALSE;
+
     if (priv->req_presence_type != type)
     {
 	priv->req_presence_type = type;
@@ -468,6 +471,11 @@ set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
     enabled = g_value_get_boolean (value);
     if (priv->enabled != enabled)
     {
+	if (!enabled)
+	    mcd_account_request_presence (account,
+					  TP_CONNECTION_PRESENCE_TYPE_OFFLINE,
+					  "offline", NULL);
+
 	g_key_file_set_boolean (priv->keyfile, priv->unique_name,
 				MC_ACCOUNTS_KEY_ENABLED,
 			       	enabled);

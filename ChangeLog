@@ -1,3 +1,9 @@
+2008-04-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-account.c:
+	Prevent disabled accounts from going online.
+	When an account gets disabled, put it offline.
+
 === telepathy-mission-control 5.0.beta4 ===
 
 2008-04-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
