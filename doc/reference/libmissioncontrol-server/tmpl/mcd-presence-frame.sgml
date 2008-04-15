@@ -51,7 +51,7 @@ McdPresenceFrame
 @arg1: 
 @arg2: 
 
-<!-- ##### SIGNAL McdPresenceFrame::presence-stable ##### -->
+<!-- ##### SIGNAL McdPresenceFrame::status-actual ##### -->
 <para>
 
 </para>
