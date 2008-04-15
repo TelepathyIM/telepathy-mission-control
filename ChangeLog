@@ -1,5 +1,8 @@
 2008-04-15  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmissioncontrol/mc-account.c:
+	If the display name is set to an empty string, consider it NULL.
+
 	* src/mcd-presence-frame.c, src/mcd-service.c:
 	Properly report presence and status signals.
 

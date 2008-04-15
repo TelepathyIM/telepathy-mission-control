@@ -169,8 +169,14 @@ on_account_property_changed (TpProxy *proxy, GHashTable *properties,
 
     value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_DISPLAY_NAME);
     if (value)
-	priv->display_names = set_first_element (priv->display_names,
-						 g_value_get_string (value));
+    {
+	const gchar *string;
+
+	string = g_value_get_string (value);
+	if (string && string[0] != 0)
+	    priv->display_names = set_first_element (priv->display_names,
+						     string);
+    }
 
     value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_ALIAS);
     if (value)
