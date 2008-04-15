@@ -650,24 +650,30 @@ mcd_service_disconnect (McdMission *mission)
 }
 
 static void
-_on_presence_stable (McdPresenceFrame *presence_frame, gboolean is_stable,
-		     McdService *service)
+_on_status_actual (McdPresenceFrame *presence_frame,
+		   TpConnectionStatus tpstatus,
+		   McdService *service)
 {
     McdServicePrivate *priv = MCD_OBJECT_PRIV (service);
     McPresence req_presence;
     McStatus status;
 
     req_presence = mcd_presence_frame_get_requested_presence (presence_frame);
-    if (is_stable)
+    switch (tpstatus)
     {
-	if (mcd_presence_frame_get_actual_presence (presence_frame) >=
-	    MC_PRESENCE_AVAILABLE)
-	    status = MC_STATUS_CONNECTED;
-	else
-	    status = MC_STATUS_DISCONNECTED;
-    }
-    else
+    case TP_CONNECTION_STATUS_CONNECTED:
+	status = MC_STATUS_CONNECTED;
+	break;
+    case TP_CONNECTION_STATUS_CONNECTING:
 	status = MC_STATUS_CONNECTING;
+	break;
+    case TP_CONNECTION_STATUS_DISCONNECTED:
+	status = MC_STATUS_DISCONNECTED;
+	break;
+    default:
+	status = MC_STATUS_DISCONNECTED;
+	g_warning ("Unexpected status %d", tpstatus);
+    }
 
     if (status != priv->last_status)
     {
@@ -773,7 +779,7 @@ mcd_dispose (GObject * obj)
 	g_signal_handlers_disconnect_by_func (priv->presence_frame,
 					      _on_presence_actual, self);
 	g_signal_handlers_disconnect_by_func (priv->presence_frame,
-					      _on_presence_stable, self);
+					      _on_status_actual, self);
 	g_object_unref (priv->presence_frame);
     }
 
@@ -829,8 +835,8 @@ mcd_service_init (McdService * obj)
 		      G_CALLBACK (_on_presence_requested), obj);
     g_signal_connect (priv->presence_frame, "presence-actual",
 		      G_CALLBACK (_on_presence_actual), obj);
-    g_signal_connect (priv->presence_frame, "presence-stable",
-		      G_CALLBACK (_on_presence_stable), obj);
+    g_signal_connect (priv->presence_frame, "status-actual",
+		      G_CALLBACK (_on_status_actual), obj);
     
     /* Setup dispatcher signals */
     g_signal_connect (priv->dispatcher, "channel-added",

@@ -61,7 +61,7 @@ typedef struct _McdPresenceFramePrivate
     McdPresence *last_presence;
     GList *accounts;
 
-    gboolean is_stable;
+    TpConnectionStatus actual_status;
 } McdPresenceFramePrivate;
 
 typedef struct _McdActualPresenceInfo {
@@ -81,7 +81,7 @@ enum _McdPresenceFrameSignalType
     
     /* Accumulated changes */
     PRESENCE_ACTUAL,
-    PRESENCE_STABLE,
+    STATUS_ACTUAL,
     
     LAST_SIGNAL
 };
@@ -272,14 +272,14 @@ mcd_presence_frame_class_init (McdPresenceFrameClass * klass)
 		      NULL, NULL,
 		      mcd_marshal_VOID__INT_STRING,
 		      G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_STRING);
-    mcd_presence_frame_signals[PRESENCE_STABLE] =
-	g_signal_new ("presence-stable",
+    mcd_presence_frame_signals[STATUS_ACTUAL] =
+	g_signal_new ("status-actual",
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_FIRST,
 		      0,
 		      NULL, NULL,
-		      mcd_marshal_VOID__BOOLEAN,
-		      G_TYPE_NONE, 1, G_TYPE_BOOLEAN);
+		      mcd_marshal_VOID__INT,
+		      G_TYPE_NONE, 1, G_TYPE_INT);
 }
 
 static void
@@ -294,7 +294,7 @@ mcd_presence_frame_init (McdPresenceFrame * obj)
     priv->requested_presence = NULL;
     priv->last_presence = NULL;
 
-    priv->is_stable = TRUE;
+    priv->actual_status = TP_CONNECTION_STATUS_DISCONNECTED;
 }
 
 /* Public */
@@ -513,13 +513,49 @@ on_account_current_presence_changed (McdAccount *account,
 }
 
 static void
+_mcd_presence_frame_update_actual_status (McdPresenceFrame *presence_frame)
+{
+    McdPresenceFramePrivate *priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
+    GList *list;
+
+    priv->actual_status = TP_CONNECTION_STATUS_DISCONNECTED;
+    for (list = priv->accounts; list; list = list->next)
+    {
+	McdAccount *account = list->data;
+	TpConnectionStatus status;
+
+	status = mcd_account_get_connection_status (account);
+	g_debug ("Account %s is %d", mcd_account_get_unique_name (account),
+		 status);
+	if (status == TP_CONNECTION_STATUS_CONNECTING)
+	{
+	    priv->actual_status = status;
+	    break;
+	}
+	else if (status == TP_CONNECTION_STATUS_CONNECTED)
+	    priv->actual_status = status;
+    }
+}
+
+static void
 on_account_connection_status_changed (McdAccount *account,
 				      TpConnectionStatus status,
 				      TpConnectionStatusReason reason,
 				      McdPresenceFrame *presence_frame)
 {
+    McdPresenceFramePrivate *priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
+    TpConnectionStatus conn_status;
+
     g_signal_emit (presence_frame, mcd_presence_frame_signals[STATUS_CHANGED],
 		   0, account, status, reason);
+
+    conn_status = priv->actual_status;
+    _mcd_presence_frame_update_actual_status (presence_frame);
+    if (conn_status != priv->actual_status ||
+       	priv->actual_status != TP_CONNECTION_STATUS_CONNECTING)
+	g_signal_emit (presence_frame,
+		       mcd_presence_frame_signals[STATUS_ACTUAL],
+		       0, priv->actual_status);
 }
 
 static gboolean
@@ -589,7 +625,7 @@ gboolean
 mcd_presence_frame_is_stable (McdPresenceFrame *presence_frame)
 {
     McdPresenceFramePrivate *priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-    return priv->is_stable;
+    return priv->actual_status != TP_CONNECTION_STATUS_CONNECTING;
 }
 
 static void

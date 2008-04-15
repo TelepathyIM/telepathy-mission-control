@@ -1,3 +1,8 @@
+2008-04-15  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-presence-frame.c, src/mcd-service.c:
+	Properly report presence and status signals.
+
 2008-04-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-account.c:
