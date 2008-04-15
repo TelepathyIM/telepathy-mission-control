@@ -170,12 +170,8 @@ on_account_property_changed (TpProxy *proxy, GHashTable *properties,
     value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_DISPLAY_NAME);
     if (value)
     {
-	const gchar *string;
-
-	string = g_value_get_string (value);
-	if (string && string[0] != 0)
-	    priv->display_names = set_first_element (priv->display_names,
-						     string);
+	priv->display_names = set_first_element (priv->display_names,
+						 g_value_get_string (value));
     }
 
     value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_ALIAS);
@@ -299,6 +295,8 @@ static GSList *
 set_first_element (GSList *list, const gchar *value)
 {
     GSList *elem;
+
+    if (value && value[0] == 0) value = NULL;
 
     if ((elem = g_slist_find_custom(list, value, strcmp_null)) != NULL)
     {
