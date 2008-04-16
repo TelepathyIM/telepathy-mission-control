@@ -1,3 +1,8 @@
+2008-04-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-manager.c:
+	Use the actual-status signal instead of the removed presence-stable.
+
 === telepathy-mission-control 5.0.beta6 ===
 
 2008-04-15  Alberto Mardegan  <alberto.mardegan@nokia.com>

@@ -235,8 +235,8 @@ requested_channel_process (gchar *key, struct mcd_channel_request *req,
 }
 
 static void
-on_presence_stable (McdPresenceFrame *presence_frame,
-		    gboolean is_stable, McdManager *manager)
+on_status_actual (McdPresenceFrame *presence_frame,
+		  TpConnectionStatus status, McdManager *manager)
 {
     McdManagerPrivate *priv = MCD_MANAGER_PRIV (manager);
 
@@ -245,7 +245,7 @@ on_presence_stable (McdPresenceFrame *presence_frame,
     {
 	/* don't do anything until the presence frame is stable */
 	g_debug ("presence frame is %sstable", mcd_presence_frame_is_stable (presence_frame) ? "" : "not ");
-	if (!is_stable)
+	if (status == TP_CONNECTION_STATUS_CONNECTING)
 	    return;
 	if (mcd_presence_frame_get_actual_presence (presence_frame) >=
 	    MC_PRESENCE_AVAILABLE)
@@ -502,7 +502,7 @@ _mcd_manager_set_presence_frame (McdManager *manager, McdPresenceFrame *presence
 					      (on_presence_requested), manager);
 	g_signal_handlers_disconnect_by_func (priv->presence_frame,
 					      G_CALLBACK
-					      (on_presence_stable),
+					      (on_status_actual),
 					      manager);
 	g_object_unref (priv->presence_frame);
     }
@@ -512,8 +512,8 @@ _mcd_manager_set_presence_frame (McdManager *manager, McdPresenceFrame *presence
 	g_signal_connect (G_OBJECT (priv->presence_frame),
 			  "presence-requested",
 			  G_CALLBACK (on_presence_requested), manager);
-	g_signal_connect (priv->presence_frame, "presence-stable",
-			  G_CALLBACK (on_presence_stable), manager);
+	g_signal_connect (priv->presence_frame, "status-actual",
+			  G_CALLBACK (on_status_actual), manager);
     }
 }
 
