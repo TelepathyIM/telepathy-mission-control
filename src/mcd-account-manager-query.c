@@ -180,8 +180,8 @@ match_account_property (McdAccount *account, McdIfaceProperty *prop)
 	    match = (value.data[0].v_uint64 == prop->value->data[0].v_uint64);
 	    break;
 	case G_TYPE_STRING:
-	    match = (strcmp (g_value_get_string (&value),
-			     g_value_get_string (prop->value)) == 0);
+	    match = !tp_strdiff (g_value_get_string (&value),
+				 g_value_get_string (prop->value));
 	    break;
 	default:
 	    g_warning ("%s: unsupported value type: %s",

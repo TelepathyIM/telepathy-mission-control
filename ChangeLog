@@ -1,3 +1,8 @@
+2008-04-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-account-manager-query.c:
+	Use tp_strdiff() to avoid crashes when one of the strings is NULL.
+
 === telepathy-mission-control 5.0.beta7 ===
 
 2008-04-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
