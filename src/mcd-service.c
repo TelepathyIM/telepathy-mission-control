@@ -562,7 +562,12 @@ _on_account_status_changed (McdPresenceFrame * presence_frame,
     g_debug ("Emitting account status changed for %s: status = %d, reason = %d",
 	     mcd_account_get_unique_name (account), connection_status,
 	     connection_reason);
-    
+
+    /* HACK for old MC compatibility */
+    if (connection_status == TP_CONNECTION_STATUS_CONNECTED &&
+	presence < TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
+	presence = TP_CONNECTION_PRESENCE_TYPE_AVAILABLE;
+
     g_signal_emit_by_name (G_OBJECT (obj),
 			   "account-status-changed", connection_status,
 			   presence,
@@ -588,6 +593,12 @@ _on_account_presence_changed (McdPresenceFrame * presence_frame,
 	     mcd_account_get_unique_name (account), presence,
 	     presence_message);
     
+    /* HACK for old MC compatibility */
+    if (mcd_presence_frame_get_account_status (presence_frame, account)
+       	== TP_CONNECTION_STATUS_CONNECTED &&
+	presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
+	return;
+
     g_signal_emit_by_name (G_OBJECT (obj),
 			   "account-status-changed",
 			   mcd_presence_frame_get_account_status

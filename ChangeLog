@@ -1,5 +1,9 @@
 2008-04-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/mcd-service.c:
+	Implement two hacks to make the presence signal behave as they did in
+	MC4.
+
 	* src/mcd-manager.c:
 	Use the actual-status signal instead of the removed presence-stable.
 
