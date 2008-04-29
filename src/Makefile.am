@@ -26,6 +26,7 @@ mission_control_include = \
 	mcd-dispatcher-context.h \
 	mcd-service.h \
 	mcd-chan-handler.h \
+	mcd-transport.h \
 	mcd-provisioning.h \
 	mcd-provisioning-factory.h
 
@@ -103,6 +104,7 @@ libmissioncontrol_server_la_SOURCES = \
 	mcd-service.c \
 	mcd-proxy.c \
 	mcd-chan-handler.c \
+	mcd-transport.c \
 	mcd-provisioning.c \
 	mcd-provisioning-factory.c 
 
@@ -126,7 +128,7 @@ mcd-enum-types.h: stamp-mcd-enum-types.h
 	@true
 stamp-mcd-enum-types.h: Makefile $(mission_control_include) mcd-enum-types.c
 	( cd $(srcdir) && glib-mkenums \
-		--fhead "#ifndef __MCD_ENUM_TYPES_H__\n#define __MCD_ENUM_TYPES_H__\n\n#include \"mcd-mission.h\"\n#include \"mcd-channel.h\"\n#include \"mcd-provisioning.h\"\n\nG_BEGIN_DECLS\n" \
+		--fhead "#ifndef __MCD_ENUM_TYPES_H__\n#define __MCD_ENUM_TYPES_H__\n\n#include \"mcd-mission.h\"\n#include \"mcd-channel.h\"\n#include \"mcd-provisioning.h\"\n#include \"mcd-transport.h\"\n\nG_BEGIN_DECLS\n" \
 		--fprod "/* enumerations from \"@filename@\" */\n" \
 		--vhead "GType @enum_name@_get_type (void) G_GNUC_CONST;\n#define MCD_TYPE_@ENUMSHORT@ (@enum_name@_get_type())\n" \
 		--ftail "G_END_DECLS\n\n#endif /* __MCD_ENUM_TYPES_H__ */" \

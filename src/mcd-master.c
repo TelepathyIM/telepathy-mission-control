@@ -63,6 +63,7 @@
 #include "mcd-dispatcher.h"
 #include "mcd-account-manager.h"
 #include "mcd-plugin.h"
+#include "mcd-transport.h"
 
 #define MCD_MASTER_PRIV(master) (G_TYPE_INSTANCE_GET_PRIVATE ((master), \
 				  MCD_TYPE_MASTER, \
@@ -94,6 +95,7 @@ typedef struct _McdMasterPrivate
     GHashTable *extra_parameters;
 
     GPtrArray *plugins;
+    GPtrArray *transport_plugins;
 
     gboolean is_disposed;
 } McdMasterPrivate;
@@ -393,6 +395,19 @@ _mcd_master_dispose (GObject * object)
 
     g_hash_table_destroy (priv->clients_needing_presence);
 
+    if (priv->transport_plugins)
+    {
+	gint i;
+	for (i = 0; i < priv->transport_plugins->len; i++)
+	{
+	    McdTransportPlugin *plugin;
+	    plugin = g_ptr_array_index (priv->transport_plugins, i);
+	    g_object_unref (plugin);
+	}
+	g_ptr_array_free (priv->transport_plugins, TRUE);
+	priv->transport_plugins = NULL;
+    }
+
     if (priv->plugins)
     {
 	mcd_master_unload_plugins (MCD_MASTER (object));
@@ -548,6 +563,7 @@ mcd_master_init (McdMaster * master)
     mcd_presence_frame_set_account_manager (priv->presence_frame,
 					    priv->account_manager);
 
+    priv->transport_plugins = g_ptr_array_new ();
     mcd_master_load_plugins (master);
 }
 
@@ -1035,5 +1051,22 @@ McdDispatcher *
 mcd_plugin_get_dispatcher (McdPlugin *plugin)
 {
     return MCD_MASTER_PRIV (plugin)->dispatcher;
+}
+
+/**
+ * mcd_plugin_register_transport:
+ * @plugin: the #McdPlugin.
+ * @transport_plugin: the #McdTransportPlugin.
+ *
+ * Registers @transport_plugin as a transport monitoring object.
+ */
+void
+mcd_plugin_register_transport (McdPlugin *plugin,
+			       McdTransportPlugin *transport_plugin)
+{
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (plugin);
+
+    g_object_ref (transport_plugin);
+    g_ptr_array_add (priv->transport_plugins, transport_plugin);
 }
 

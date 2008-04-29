@@ -22,6 +22,7 @@
 #define __MCD_PLUGIN_H__
 
 #include "mcd-dispatcher.h"
+#include "mcd-transport.h"
 
 G_BEGIN_DECLS
 
@@ -32,6 +33,9 @@ typedef void (*McdPluginInitFunc) (McdPlugin *plugin);
 #define MCD_PLUGIN_INIT_FUNC  "mcd_plugin_init"
 
 McdDispatcher *mcd_plugin_get_dispatcher (McdPlugin *plugin);
+void mcd_plugin_register_transport (McdPlugin *plugin,
+				    McdTransportPlugin *transport_plugin);
+				    
 
 G_END_DECLS
 
