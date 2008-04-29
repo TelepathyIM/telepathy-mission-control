@@ -1,3 +1,10 @@
+2008-04-29  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/Makefile.am, src/mcd-dispatcher-context.h, src/mcd-dispatcher.c,
+	src/mcd-master.c, src/mcd-plugin.h:
+	Move plugin loading mechanism into McdMaster and make it generic for
+	more types of plugins.
+
 2008-04-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-account-manager-query.c:

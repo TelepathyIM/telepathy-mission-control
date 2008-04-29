@@ -31,8 +31,6 @@
 
 G_BEGIN_DECLS
 
-#define MCD_PLUGIN_INIT_FUNC  "mcd_filters_init"
-
 /* Filter flag definitions */
 #define MCD_FILTER_IN  1<<0
 #define MCD_FILTER_OUT 1<<1

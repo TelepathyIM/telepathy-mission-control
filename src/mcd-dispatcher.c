@@ -81,8 +81,6 @@ typedef struct _McdDispatcherPrivate
     /* All active channels */
     GList *channels;
     
-    GSList *filter_dlhandles;
-    gchar *plugin_dir;
     GData *interface_filters;
     TpDBusDaemon *dbus_daemon;
 
@@ -114,7 +112,6 @@ struct cancel_call_data
 enum
 {
     PROP_0,
-    PROP_PLUGIN_DIR,
     PROP_DBUS_DAEMON,
     PROP_MCD_MASTER,
 };
@@ -185,94 +182,6 @@ tp_ch_handle_channel_2_async (DBusGProxy *proxy,
 				    G_TYPE_UINT, request_id,
 				    dbus_g_type_get_map ("GHashTable", G_TYPE_STRING, G_TYPE_VALUE), options,
 				    G_TYPE_INVALID);
-}
-
-static void
-_mcd_dispatcher_load_filters (McdDispatcher * dispatcher)
-{
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (dispatcher);
-    GDir *dir = NULL;
-    GError *error = NULL;
-    void *plugin_handle;
-    const gchar *name;
-
-    dir = g_dir_open (priv->plugin_dir, 0, &error);
-    if (!dir)
-    {
-	g_debug ("Could not open plugin directory: %s", error->message);
-	g_error_free (error);
-	return;
-    }
-
-    while ((name = g_dir_read_name (dir)))
-    {
-	plugin_handle = NULL;
-	gchar *path = NULL;
-	path = g_strconcat (priv->plugin_dir, G_DIR_SEPARATOR_S, name, NULL);
-	/* Skip directories */
-
-	if (g_file_test (path, G_FILE_TEST_IS_DIR))
-	{
-	    g_free (path);
-	    continue;
-	}
-	/* Is it a library? If yes, add the name to list */
-
-	if (!g_str_has_suffix (path, ".so"))
-	{
-	    g_free (path);
-	    continue;
-	}
-
-	/* ? Do we need to check more strictly than by using prefix-check?
-	 * Probably not, as failure of dlopen will take care of things
-	 * anyway? */
-
-	plugin_handle = dlopen (path, RTLD_NOW);
-
-	if (plugin_handle != NULL)
-	{
-	    void (*plugin_init) (McdDispatcher * dispatcher);
-
-	    priv->filter_dlhandles = g_slist_prepend (priv->filter_dlhandles,
-						      plugin_handle);
-
-	    plugin_init = dlsym (plugin_handle, MCD_PLUGIN_INIT_FUNC);
-	    if (plugin_init != NULL)
-	    {
-		plugin_init (dispatcher);
-	    }
-	    else
-	    {
-		g_debug ("Error opening filter plugin: %s: %s", path,
-			 dlerror ());
-	    }
-	}
-	else
-	{
-	    g_debug ("Could not open plugin %s because: %s", path, dlerror ());
-	}
-	g_free (path);
-    }
-    g_dir_close (dir);
-
-    return;
-}
-
-static void
-_mcd_dispatcher_unload_filters (McdDispatcher * dispatcher)
-{
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (dispatcher);
-
-    if (priv->filter_dlhandles)
-    {
-	g_slist_foreach (priv->filter_dlhandles, (GFunc) dlclose, NULL);
-	g_slist_free (priv->filter_dlhandles);
-	priv->filter_dlhandles = NULL;
-
-	g_datalist_clear (&priv->interface_filters);
-	priv->interface_filters = NULL;
-    }
 }
 
 /* REGISTRATION/DEREGISTRATION of filters*/
@@ -990,20 +899,11 @@ static void
 _mcd_dispatcher_set_property (GObject * obj, guint prop_id,
 			      const GValue * val, GParamSpec * pspec)
 {
-    McdDispatcher *dispatcher = MCD_DISPATCHER (obj);
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (obj);
     McdMaster *master;
 
     switch (prop_id)
     {
-    case PROP_PLUGIN_DIR:
-	g_free (priv->plugin_dir);
-
-	priv->plugin_dir = g_value_dup_string (val);
-
-	_mcd_dispatcher_unload_filters (dispatcher);
-	_mcd_dispatcher_load_filters (dispatcher);
-	break;
     case PROP_DBUS_DAEMON:
 	if (priv->dbus_daemon)
 	    g_object_unref (priv->dbus_daemon);
@@ -1034,9 +934,6 @@ _mcd_dispatcher_get_property (GObject * obj, guint prop_id,
 
     switch (prop_id)
     {
-    case PROP_PLUGIN_DIR:
-	g_value_set_string (val, priv->plugin_dir);
-	break;
     case PROP_DBUS_DAEMON:
 	g_value_set_object (val, priv->dbus_daemon);
 	break;
@@ -1062,7 +959,6 @@ _mcd_dispatcher_finalize (GObject * object)
 static void
 _mcd_dispatcher_dispose (GObject * object)
 {
-    McdDispatcher *dispatcher = MCD_DISPATCHER (object);
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
     
     if (priv->is_disposed)
@@ -1088,10 +984,12 @@ _mcd_dispatcher_dispose (GObject * object)
 	g_list_free (priv->channels);
 	priv->channels = NULL;
     }
-    g_free (priv->plugin_dir);
-    priv->plugin_dir = NULL;
 
-    _mcd_dispatcher_unload_filters (dispatcher);
+    if (priv->interface_filters)
+    {
+	g_datalist_clear (&priv->interface_filters);
+	priv->interface_filters = NULL;
+    }
     G_OBJECT_CLASS (mcd_dispatcher_parent_class)->dispose (object);
 }
 
@@ -1155,14 +1053,6 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
     
     /* Properties */
     g_object_class_install_property (object_class,
-				     PROP_PLUGIN_DIR,
-				     g_param_spec_string ("plugin-dir",
-							  _("Plugin Directory"),
-							  _("The Directory to load filter plugins from"),
-							  MCD_DEFAULT_FILTER_PLUGIN_DIR,
-							  G_PARAM_READWRITE |
-							  G_PARAM_CONSTRUCT));
-    g_object_class_install_property (object_class,
 				     PROP_DBUS_DAEMON,
 				     g_param_spec_object ("dbus-daemon",
 							  _("DBus daemon"),
@@ -1220,13 +1110,9 @@ mcd_dispatcher_init (McdDispatcher * dispatcher)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (dispatcher);
 
-    priv->plugin_dir = g_strdup (MCD_DEFAULT_FILTER_PLUGIN_DIR);
-
     g_datalist_init (&(priv->interface_filters));
     
     priv->channel_handler_hash = mcd_get_channel_handlers ();
- 
-    _mcd_dispatcher_load_filters (dispatcher);
 }
 
 McdDispatcher *

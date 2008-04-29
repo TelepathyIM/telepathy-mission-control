@@ -18,6 +18,7 @@ mission_control_include = \
 	mcd-controller.h \
 	mcd-manager.h \
 	mcd-connection.h \
+	mcd-plugin.h \
 	mcd-presence-frame.h \
 	mcd-channel.h \
 	mcd-proxy.h \

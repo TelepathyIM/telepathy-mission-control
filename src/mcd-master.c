@@ -48,6 +48,7 @@
 
 #include <glib/gi18n.h>
 #include <gconf/gconf-client.h>
+#include <gmodule.h>
 #include <string.h>
 #include <libmissioncontrol/mc-manager.h>
 #include <libmissioncontrol/mc-account.h>
@@ -61,6 +62,7 @@
 #include "mcd-manager.h"
 #include "mcd-dispatcher.h"
 #include "mcd-account-manager.h"
+#include "mcd-plugin.h"
 
 #define MCD_MASTER_PRIV(master) (G_TYPE_INSTANCE_GET_PRIVATE ((master), \
 				  MCD_TYPE_MASTER, \
@@ -91,6 +93,8 @@ typedef struct _McdMasterPrivate
 
     GHashTable *extra_parameters;
 
+    GPtrArray *plugins;
+
     gboolean is_disposed;
 } McdMasterPrivate;
 
@@ -104,6 +108,70 @@ enum
 };
 
 static McdMaster *default_master = NULL;
+
+static void
+mcd_master_unload_plugins (McdMaster *master)
+{
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    GModule *module;
+    gint i;
+
+    for (i = 0; i < priv->plugins->len; i++)
+    {
+	module = g_ptr_array_index (priv->plugins, i);
+	g_module_close (module);
+    }
+    g_ptr_array_free (priv->plugins, TRUE);
+    priv->plugins = NULL;
+}
+
+static void
+mcd_master_load_plugins (McdMaster *master)
+{
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    GDir *dir = NULL;
+    GError *error = NULL;
+    const gchar *name;
+
+    dir = g_dir_open (MCD_DEFAULT_FILTER_PLUGIN_DIR, 0, &error);
+    if (!dir)
+    {
+	g_debug ("Could not open plugin directory: %s", error->message);
+	g_error_free (error);
+	return;
+    }
+
+    priv->plugins = g_ptr_array_new ();
+    while ((name = g_dir_read_name (dir)))
+    {
+	GModule *module;
+	gchar *path;
+
+	if (name[0] == '.' || !g_str_has_suffix (name, ".so")) continue;
+
+	path = g_build_filename (MCD_DEFAULT_FILTER_PLUGIN_DIR, name, NULL);
+	module = g_module_open (path, 0);
+	g_free (path);
+	if (module)
+	{
+	    McdPluginInitFunc init_func;
+	    if (g_module_symbol (module, MCD_PLUGIN_INIT_FUNC,
+				 (gpointer)&init_func))
+	    {
+		init_func ((McdPlugin *)master);
+		g_ptr_array_add (priv->plugins, module);
+	    }
+	    else
+		g_debug ("Error looking up symbol " MCD_PLUGIN_INIT_FUNC
+			 " from plugin %s: %s", name, g_module_error ());
+	}
+	else
+	{
+	    g_debug ("Error opening plugin: %s: %s", name, g_module_error ());
+	}
+    }
+    g_dir_close (dir);
+}
 
 static gboolean
 exists_supporting_invisible (McdMasterPrivate *priv)
@@ -322,8 +390,13 @@ _mcd_master_dispose (GObject * object)
 	return;
     }
     priv->is_disposed = TRUE;
-    
+
     g_hash_table_destroy (priv->clients_needing_presence);
+
+    if (priv->plugins)
+    {
+	mcd_master_unload_plugins (MCD_MASTER (object));
+    }
 
     if (priv->account_manager)
     {
@@ -474,6 +547,8 @@ mcd_master_init (McdMaster * master)
     priv->account_manager = mcd_account_manager_new (priv->dbus_daemon);
     mcd_presence_frame_set_account_manager (priv->presence_frame,
 					    priv->account_manager);
+
+    mcd_master_load_plugins (master);
 }
 
 McdMaster *
@@ -944,5 +1019,21 @@ mcd_master_lookup_manager (McdMaster *master,
 				    MCD_MISSION (manager));
 
     return manager;
+}
+
+/**
+ * mcd_plugin_get_dispatcher:
+ * @plugin: the #McdPlugin
+ * 
+ * Gets the McdDispatcher, to be used for registering channel filters. The
+ * reference count of the returned object is not incremented, and the object is
+ * guaranteed to stay alive during the whole lifetime of the plugin.
+ *
+ * Returns: the #McdDispatcher
+ */
+McdDispatcher *
+mcd_plugin_get_dispatcher (McdPlugin *plugin)
+{
+    return MCD_MASTER_PRIV (plugin)->dispatcher;
 }
 
