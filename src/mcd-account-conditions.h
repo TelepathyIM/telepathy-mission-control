@@ -36,5 +36,7 @@ extern const McdDBusProp account_conditions_properties[];
 void account_conditions_iface_init (McSvcAccountInterfaceConditionsClass *iface,
 				    gpointer iface_data);
 
+GHashTable *mcd_account_get_conditions (McdAccount *account);
+
 G_END_DECLS
 #endif

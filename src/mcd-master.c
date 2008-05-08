@@ -62,6 +62,7 @@
 #include "mcd-manager.h"
 #include "mcd-dispatcher.h"
 #include "mcd-account-manager.h"
+#include "mcd-account-conditions.h"
 #include "mcd-plugin.h"
 #include "mcd-transport.h"
 
@@ -109,7 +110,93 @@ enum
     PROP_DEFAULT_PRESENCE,
 };
 
+typedef struct {
+    McdMaster *master;
+    McdTransportPlugin *plugin;
+    McdTransport *transport;
+} TransportData;
+
 static McdMaster *default_master = NULL;
+
+static void
+check_account_transport (gpointer key, gpointer value, gpointer userdata)
+{
+    McdAccount *account = MCD_ACCOUNT (value);
+    TransportData *td = userdata;
+    GHashTable *conditions;
+
+    /* get all enabled accounts, which have the "ConnectAutomatically" flag set
+     * and that are not connected */
+    if (!mcd_account_is_enabled (account) ||
+	!mcd_account_get_connect_automatically (account) ||
+	mcd_account_get_connection_status (account) ==
+       	TP_CONNECTION_STATUS_CONNECTED) 
+	return;
+
+    conditions = mcd_account_get_conditions (account);
+    if (mcd_transport_plugin_check_conditions (td->plugin, td->transport,
+					       conditions))
+    {
+	TpConnectionPresenceType presence;
+	const gchar *status, *message;
+
+	mcd_account_get_automatic_presence (account, &presence,
+					    &status, &message);
+	mcd_account_request_presence (account, presence, status, message);
+    }
+    g_hash_table_destroy (conditions);
+}
+
+static void
+mcd_master_transport_connected (McdMaster *master, McdTransportPlugin *plugin,
+				McdTransport *transport)
+{
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    GHashTable *valid_accounts;
+    TransportData td;
+
+    g_debug ("%s: %s", G_STRFUNC, mcd_transport_get_name (plugin, transport));
+
+    td.master = master;
+    td.plugin = plugin;
+    td.transport = transport;
+
+    valid_accounts =
+       	mcd_account_manager_get_valid_accounts (priv->account_manager);
+    g_hash_table_foreach (valid_accounts, check_account_transport, &td);
+}
+
+static void
+mcd_master_connect_automatic_accounts (McdMaster *master)
+{
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    gint i;
+    for (i = 0; i < priv->transport_plugins->len; i++)
+    {
+	McdTransportPlugin *plugin;
+	const GList *transports;
+
+	plugin = g_ptr_array_index (priv->transport_plugins, i);
+	transports = mcd_transport_plugin_get_transports (plugin);
+	while (transports)
+	{
+	    if (mcd_transport_get_status (plugin, transports->data) !=
+		MCD_TRANSPORT_STATUS_CONNECTED)
+		continue;
+	    mcd_master_transport_connected (master, plugin, transports->data);
+	    transports = transports->next;
+	}
+    }
+}
+
+static void
+on_transport_status_changed (McdTransportPlugin *plugin,
+			     McdTransport *transport,
+			     McdTransportStatus status, McdMaster *master)
+{
+    g_debug ("Transport %s changed status to %u",
+	     mcd_transport_get_name (plugin, transport), status);
+}
 
 static void
 mcd_master_unload_plugins (McdMaster *master)
@@ -402,6 +489,9 @@ _mcd_master_dispose (GObject * object)
 	{
 	    McdTransportPlugin *plugin;
 	    plugin = g_ptr_array_index (priv->transport_plugins, i);
+	    g_signal_handlers_disconnect_by_func (plugin, 
+						  on_transport_status_changed,
+						  object);
 	    g_object_unref (plugin);
 	}
 	g_ptr_array_free (priv->transport_plugins, TRUE);
@@ -565,6 +655,11 @@ mcd_master_init (McdMaster * master)
 
     priv->transport_plugins = g_ptr_array_new ();
     mcd_master_load_plugins (master);
+
+    /* we assume that at this point all transport plugins have been registered.
+     * We get the active transports and check whether some accounts should be
+     * automatically connected */
+    mcd_master_connect_automatic_accounts (master);
 }
 
 McdMaster *
@@ -1067,6 +1162,9 @@ mcd_plugin_register_transport (McdPlugin *plugin,
     McdMasterPrivate *priv = MCD_MASTER_PRIV (plugin);
 
     g_object_ref (transport_plugin);
+    g_signal_connect (transport_plugin, "status-changed",
+		      G_CALLBACK (on_transport_status_changed),
+		      MCD_MASTER (plugin));
     g_ptr_array_add (priv->transport_plugins, transport_plugin);
 }
 

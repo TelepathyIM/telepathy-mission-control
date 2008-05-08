@@ -84,7 +84,28 @@ set_condition (TpSvcDBusProperties *self, const gchar *name,
 static void
 get_condition (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 {
-    McdAccount *account = MCD_ACCOUNT (self);
+    GHashTable *conditions;
+
+    conditions = mcd_account_get_conditions (MCD_ACCOUNT (self));
+
+    g_value_init (value, DBUS_TYPE_G_STRING_STRING_HASHTABLE);
+    g_value_take_boxed (value, conditions);
+}
+
+
+const McdDBusProp account_conditions_properties[] = {
+    { "Condition", set_condition, get_condition },
+    { 0 },
+};
+
+void
+account_conditions_iface_init (McSvcAccountInterfaceConditionsClass *iface,
+			       gpointer iface_data)
+{
+}
+
+GHashTable *mcd_account_get_conditions (McdAccount *account)
+{
     const gchar *unique_name;
     GKeyFile *keyfile;
     gchar **keys, **key, *condition;
@@ -103,19 +124,6 @@ get_condition (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 	g_hash_table_insert (conditions, g_strdup (*key + 10), condition);
     }
     g_strfreev (keys);
-    g_value_init (value, DBUS_TYPE_G_STRING_STRING_HASHTABLE);
-    g_value_take_boxed (value, conditions);
-}
-
-
-const McdDBusProp account_conditions_properties[] = {
-    { "Condition", set_condition, get_condition },
-    { 0 },
-};
-
-void
-account_conditions_iface_init (McSvcAccountInterfaceConditionsClass *iface,
-			       gpointer iface_data)
-{
+    return conditions;
 }
 

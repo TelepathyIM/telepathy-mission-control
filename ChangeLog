@@ -1,3 +1,9 @@
+2008-05-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-account-conditions.[hc], src/mcd-master.c:
+	When a transport gets connected, check account conditions and connect
+	the account if they are satisfied.
+
 2008-04-29  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/Makefile.am, src/mcd-master.c, src/mcd-plugin.h,
