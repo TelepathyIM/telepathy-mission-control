@@ -56,6 +56,8 @@ struct _McdTransportPluginIface
     gboolean (*check_conditions) (McdTransportPlugin *plugin,
 				  McdTransport *transport,
 				  const GHashTable *conditions);
+    const gchar * (*get_transport_name) (McdTransportPlugin *plugin,
+					 McdTransport *transport);
 
     /* signals */
     void (*status_changed) (McdTransportPlugin *plugin, McdTransport *transport,

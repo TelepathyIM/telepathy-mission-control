@@ -157,3 +157,21 @@ mcd_transport_plugin_check_conditions (McdTransportPlugin *plugin,
     return iface->check_conditions (plugin, transport, conditions);
 }
 
+/**
+ * mcd_transport_get_name:
+ * @plugin: the #McdTransportPlugin.
+ * @transport: a #McdTransport.
+ *
+ * Gets the name of @transport.
+ *
+ * Returns: the name of the transport.
+ */
+const gchar *
+mcd_transport_get_name (McdTransportPlugin *plugin, McdTransport *transport)
+{
+    McdTransportPluginIface *iface;
+
+    iface = MCD_TRANSPORT_PLUGIN_GET_IFACE (plugin);
+    return iface->get_transport_name (plugin, transport);
+}
+
