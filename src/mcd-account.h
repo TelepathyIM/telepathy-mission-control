@@ -69,6 +69,8 @@ GKeyFile *mcd_account_get_keyfile (McdAccount *account);
 gboolean mcd_account_is_valid (McdAccount *account);
 gboolean mcd_account_check_validity (McdAccount *account);
 
+gboolean mcd_account_is_enabled (McdAccount *account);
+
 const gchar *mcd_account_get_manager_name (McdAccount *account);
 const gchar *mcd_account_get_protocol_name (McdAccount *account);
 
@@ -89,6 +91,12 @@ void mcd_account_get_current_presence (McdAccount *account,
 				       const gchar **status,
 				       const gchar **message);
 void mcd_account_get_requested_presence (McdAccount *account,
+					 TpConnectionPresenceType *presence,
+					 const gchar **status,
+					 const gchar **message);
+
+gboolean mcd_account_get_connect_automatically (McdAccount *account);
+void mcd_account_get_automatic_presence (McdAccount *account,
 					 TpConnectionPresenceType *presence,
 					 const gchar **status,
 					 const gchar **message);

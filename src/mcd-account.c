@@ -1471,6 +1471,21 @@ mcd_account_is_valid (McdAccount *account)
     return priv->valid;
 }
 
+/**
+ * mcd_account_is_enabled:
+ * @account: the #McdAccount.
+ *
+ * Checks if the account is enabled:
+ *
+ * Returns: %TRUE if the account is enabled, false otherwise.
+ */
+gboolean
+mcd_account_is_enabled (McdAccount *account)
+{
+    McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
+    return priv->enabled;
+}
+
 const gchar *
 mcd_account_get_unique_name (McdAccount *account)
 {
@@ -1709,6 +1724,27 @@ mcd_account_get_current_presence (McdAccount *account,
     *presence = priv->curr_presence_type;
     *status = priv->curr_presence_status;
     *message = priv->curr_presence_message;
+}
+
+gboolean
+mcd_account_get_connect_automatically (McdAccount *account)
+{
+    McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
+    return priv->connect_automatically;
+}
+
+/* TODO: remove when the relative members will become public */
+void
+mcd_account_get_automatic_presence (McdAccount *account,
+				    TpConnectionPresenceType *presence,
+				    const gchar **status,
+				    const gchar **message)
+{
+    McdAccountPrivate *priv = account->priv;
+
+    *presence = priv->auto_presence_type;
+    *status = priv->auto_presence_status;
+    *message = priv->auto_presence_message;
 }
 
 /* TODO: remove when the relative members will become public */
