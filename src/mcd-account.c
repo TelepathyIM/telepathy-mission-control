@@ -1185,6 +1185,10 @@ mcd_account_setup (McdAccount *account)
 	g_key_file_get_boolean (priv->keyfile, priv->unique_name,
 				MC_ACCOUNTS_KEY_ENABLED, NULL);
 
+    priv->connect_automatically =
+	g_key_file_get_boolean (priv->keyfile, priv->unique_name,
+				MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY, NULL);
+
     /* check the manager */
     if (!priv->manager && !load_manager (priv))
     {
