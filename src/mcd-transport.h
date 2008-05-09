@@ -66,6 +66,7 @@ struct _McdTransportPluginIface
 			    McdTransportStatus status);
 };
 
+GType mcd_transport_plugin_get_type (void) G_GNUC_CONST;
 
 const gchar *mcd_transport_plugin_get_name (McdTransportPlugin *plugin);
 const GList *mcd_transport_plugin_get_transports (McdTransportPlugin *plugin);
