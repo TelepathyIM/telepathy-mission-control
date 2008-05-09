@@ -118,6 +118,18 @@ typedef struct {
 
 static McdMaster *default_master = NULL;
 
+static inline void
+set_account_transport (McdAccount *account, McdTransport *transport)
+{
+    g_object_set_data ((GObject *)account, "transport", transport);
+}
+
+static inline McdTransport *
+get_account_transport (McdAccount *account)
+{
+    return g_object_get_data ((GObject *)account, "transport");
+}
+
 static void
 check_account_transport (gpointer key, gpointer value, gpointer userdata)
 {
@@ -133,6 +145,8 @@ check_account_transport (gpointer key, gpointer value, gpointer userdata)
        	TP_CONNECTION_STATUS_CONNECTED) 
 	return;
 
+    g_debug ("%s: account %s would like to connect",
+	     G_STRFUNC, mcd_account_get_unique_name (account));
     conditions = mcd_account_get_conditions (account);
     if (mcd_transport_plugin_check_conditions (td->plugin, td->transport,
 					       conditions))
@@ -140,9 +154,11 @@ check_account_transport (gpointer key, gpointer value, gpointer userdata)
 	TpConnectionPresenceType presence;
 	const gchar *status, *message;
 
+	g_debug ("conditions matched");
 	mcd_account_get_automatic_presence (account, &presence,
 					    &status, &message);
 	mcd_account_request_presence (account, presence, status, message);
+	set_account_transport (account, td->transport);
     }
     g_hash_table_destroy (conditions);
 }
@@ -164,6 +180,42 @@ mcd_master_transport_connected (McdMaster *master, McdTransportPlugin *plugin,
     valid_accounts =
        	mcd_account_manager_get_valid_accounts (priv->account_manager);
     g_hash_table_foreach (valid_accounts, check_account_transport, &td);
+}
+
+static void
+disconnect_account_transport (gpointer key, gpointer value, gpointer userdata)
+{
+    McdAccount *account = MCD_ACCOUNT (value);
+    TransportData *td = userdata;
+
+    if (td->transport == get_account_transport (account))
+    {
+	g_debug ("%s: account %s must disconnect",
+		 G_STRFUNC, mcd_account_get_unique_name (account));
+	mcd_account_request_presence (account,
+				      TP_CONNECTION_PRESENCE_TYPE_OFFLINE,
+				      "offline", "addio");
+	set_account_transport (account, NULL);
+    }
+}
+
+static void
+mcd_master_transport_disconnected (McdMaster *master, McdTransportPlugin *plugin,
+				   McdTransport *transport)
+{
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    GHashTable *valid_accounts;
+    TransportData td;
+
+    g_debug ("%s: %s", G_STRFUNC, mcd_transport_get_name (plugin, transport));
+
+    td.master = master;
+    td.plugin = plugin;
+    td.transport = transport;
+
+    valid_accounts =
+       	mcd_account_manager_get_valid_accounts (priv->account_manager);
+    g_hash_table_foreach (valid_accounts, disconnect_account_transport, &td);
 }
 
 static void
@@ -196,6 +248,15 @@ on_transport_status_changed (McdTransportPlugin *plugin,
 {
     g_debug ("Transport %s changed status to %u",
 	     mcd_transport_get_name (plugin, transport), status);
+
+    if (status == MCD_TRANSPORT_STATUS_CONNECTED)
+	mcd_master_transport_connected (master, plugin, transport);
+    else if (status == MCD_TRANSPORT_STATUS_DISCONNECTING ||
+	     status == MCD_TRANSPORT_STATUS_DISCONNECTED)
+    {
+	/* disconnect all accounts that were using this transport */
+	mcd_master_transport_disconnected (master, plugin, transport);
+    }
 }
 
 static void
@@ -1154,6 +1215,8 @@ mcd_plugin_get_dispatcher (McdPlugin *plugin)
  * @transport_plugin: the #McdTransportPlugin.
  *
  * Registers @transport_plugin as a transport monitoring object.
+ * The @plugin takes ownership of the transport (i.e., it doesn't increment its
+ * reference count).
  */
 void
 mcd_plugin_register_transport (McdPlugin *plugin,
@@ -1161,7 +1224,7 @@ mcd_plugin_register_transport (McdPlugin *plugin,
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (plugin);
 
-    g_object_ref (transport_plugin);
+    g_debug ("%s called", G_STRFUNC);
     g_signal_connect (transport_plugin, "status-changed",
 		      G_CALLBACK (on_transport_status_changed),
 		      MCD_MASTER (plugin));
