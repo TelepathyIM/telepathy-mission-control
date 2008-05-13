@@ -1,3 +1,15 @@
+=== telepathy-mission-control 5.0.beta8 ===
+
+2008-05-13  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* doc/reference/libmissioncontrol-server/tmpl/mcd-dispatcher.sgml,
+	src/Makefile.am, src/mcd-account-config.h,
+	src/mcd-account-connection.[hc], src/mcd-account-manager-query.c,
+	src/mcd-account-manager.c, src/mcd-account-priv.h, src/mcd-account.c,
+	src/mcd-connection-plugin.h, src/mcd-connection.[hc],
+	src/mcd-manager.c, src/mcd-master.[hc], src/mcd-plugin.h:
+	Add support for account connection plugins.
+
 2008-05-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-account-conditions.[hc], src/mcd-master.c:

@@ -8,6 +8,7 @@ mission_control_include = \
 	mcd-account.h \
 	mcd-account-compat.h \
 	mcd-account-conditions.h \
+	mcd-account-connection.h \
 	mcd-account-manager.h \
 	mcd-account-manager-query.h \
 	mcd-dbusprop.h \
@@ -18,6 +19,7 @@ mission_control_include = \
 	mcd-controller.h \
 	mcd-manager.h \
 	mcd-connection.h \
+	mcd-connection-plugin.h \
 	mcd-plugin.h \
 	mcd-presence-frame.h \
 	mcd-channel.h \
@@ -57,6 +59,7 @@ nodist_libmissioncontrol_server_la_SOURCES = \
 
 mission_control_include_HEADERS = \
 	$(mission_control_include) \
+	mcd-account-config.h \
 	mcd-account-priv.h \
 	mcd-enum-types.h
 
@@ -86,6 +89,7 @@ libmissioncontrol_server_la_SOURCES = \
 	mcd-account.c \
 	mcd-account-compat.c \
 	mcd-account-conditions.c \
+	mcd-account-connection.c \
 	mcd-account-manager.c \
 	mcd-account-manager-query.c \
 	mcd-dbusprop.c \

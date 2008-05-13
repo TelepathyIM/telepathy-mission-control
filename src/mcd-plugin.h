@@ -21,12 +21,12 @@
 #ifndef __MCD_PLUGIN_H__
 #define __MCD_PLUGIN_H__
 
-#include "mcd-dispatcher.h"
-#include "mcd-transport.h"
-
 G_BEGIN_DECLS
 
 typedef struct _McdPlugin McdPlugin;
+
+#include "mcd-dispatcher.h"
+#include "mcd-transport.h"
 
 typedef void (*McdPluginInitFunc) (McdPlugin *plugin);
 

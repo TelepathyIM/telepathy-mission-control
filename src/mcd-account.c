@@ -35,6 +35,7 @@
 #include "mcd-account-priv.h"
 #include "mcd-account-compat.h"
 #include "mcd-account-conditions.h"
+#include "mcd-account-connection.h"
 #include "mcd-account-manager.h"
 #include "mcd-signals-marshal.h"
 #include "mcd-manager.h"
@@ -133,18 +134,7 @@ enum
     PROP_NAME,
 };
 
-enum
-{
-    CONNECTION_STATUS_CHANGED,
-    CURRENT_PRESENCE_CHANGED,
-    REQUESTED_PRESENCE_CHANGED,
-    VALIDITY_CHANGED,
-    AVATAR_CHANGED,
-    ALIAS_CHANGED,
-    LAST_SIGNAL
-};
-
-static guint signals[LAST_SIGNAL] = { 0 };
+guint _mcd_account_signals[LAST_SIGNAL] = { 0 };
 
 static void
 process_online_request (gpointer key, gpointer cb_userdata, gpointer userdata)
@@ -236,24 +226,37 @@ mcd_account_request_presence_int (McdAccount *account,
 
     if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE && !priv->connection)
     {
+	mcd_account_connection_begin (account);
+    }
+
+    g_signal_emit (account,
+		   _mcd_account_signals[REQUESTED_PRESENCE_CHANGED], 0,
+		   type, status, message);
+    return TRUE;
+}
+
+void
+_mcd_account_connect (McdAccount *account, GHashTable *params)
+{
+    McdAccountPrivate *priv = account->priv;
+
+    if (!priv->connection)
+    {
 	if (!priv->manager && !load_manager (priv))
 	{
 	    g_warning ("%s: Could not find manager `%s'",
 		       G_STRFUNC, priv->manager_name);
-	    return TRUE;
+	    return;
 	}
 
 	priv->connection = mcd_manager_create_connection (priv->manager,
 							  account);
-	g_return_val_if_fail (priv->connection != NULL, TRUE);
+	g_return_if_fail (priv->connection != NULL);
 	g_object_ref (priv->connection);
 	g_signal_connect (priv->connection, "abort",
 			  G_CALLBACK (on_connection_abort), account);
     }
-
-    g_signal_emit (account, signals[REQUESTED_PRESENCE_CHANGED], 0,
-		   type, status, message);
-    return TRUE;
+    mcd_connection_connect (priv->connection, params);
 }
 
 #ifdef DELAY_PROPERTY_CHANGED
@@ -1379,7 +1382,7 @@ mcd_account_class_init (McdAccountClass * klass)
 							  G_PARAM_CONSTRUCT_ONLY));
 
     /* Signals */
-    signals[CONNECTION_STATUS_CHANGED] =
+    _mcd_account_signals[CONNECTION_STATUS_CHANGED] =
 	g_signal_new ("connection-status-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
@@ -1387,7 +1390,7 @@ mcd_account_class_init (McdAccountClass * klass)
 		      NULL, NULL, mcd_marshal_VOID__UINT_UINT,
 		      G_TYPE_NONE,
 		      2, G_TYPE_UINT, G_TYPE_UINT);
-    signals[CURRENT_PRESENCE_CHANGED] =
+    _mcd_account_signals[CURRENT_PRESENCE_CHANGED] =
 	g_signal_new ("current-presence-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
@@ -1395,7 +1398,7 @@ mcd_account_class_init (McdAccountClass * klass)
 		      NULL, NULL, mcd_marshal_VOID__UINT_STRING_STRING,
 		      G_TYPE_NONE,
 		      3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING);
-    signals[REQUESTED_PRESENCE_CHANGED] =
+    _mcd_account_signals[REQUESTED_PRESENCE_CHANGED] =
 	g_signal_new ("requested-presence-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
@@ -1403,7 +1406,7 @@ mcd_account_class_init (McdAccountClass * klass)
 		      NULL, NULL, mcd_marshal_VOID__UINT_STRING_STRING,
 		      G_TYPE_NONE,
 		      3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING);
-    signals[VALIDITY_CHANGED] =
+    _mcd_account_signals[VALIDITY_CHANGED] =
 	g_signal_new ("validity-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
@@ -1411,7 +1414,7 @@ mcd_account_class_init (McdAccountClass * klass)
 		      NULL, NULL, mcd_marshal_VOID__BOOLEAN,
 		      G_TYPE_NONE, 1,
 		      G_TYPE_BOOLEAN);
-    signals[AVATAR_CHANGED] =
+    _mcd_account_signals[AVATAR_CHANGED] =
 	g_signal_new ("avatar-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
@@ -1420,13 +1423,14 @@ mcd_account_class_init (McdAccountClass * klass)
 		      G_TYPE_NONE, 2,
 		      dbus_g_type_get_collection ("GArray", G_TYPE_UCHAR),
 		      G_TYPE_STRING);
-    signals[ALIAS_CHANGED] =
+    _mcd_account_signals[ALIAS_CHANGED] =
 	g_signal_new ("alias-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		      0,
 		      NULL, NULL, g_cclosure_marshal_VOID__STRING,
 		      G_TYPE_NONE, 1, G_TYPE_STRING);
+    _mcd_account_connection_class_init (klass);
 }
 
 static void
@@ -1698,7 +1702,7 @@ mcd_account_set_current_presence (McdAccount *account,
 
     /* TODO: when the McdPresenceFrame is removed, check if this signal is
      * still used by someone else, or remove it */
-    g_signal_emit (account, signals[CURRENT_PRESENCE_CHANGED], 0,
+    g_signal_emit (account, _mcd_account_signals[CURRENT_PRESENCE_CHANGED], 0,
 		   presence, status, message);
 }
 
@@ -1860,7 +1864,7 @@ mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
 	g_key_file_set_string (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_AVATAR_MIME, mime_type);
 
-    g_signal_emit (account, signals[AVATAR_CHANGED], 0,
+    g_signal_emit (account, _mcd_account_signals[AVATAR_CHANGED], 0,
 		   avatar, mime_type);
 
     mcd_account_manager_write_conf (priv->keyfile);
@@ -1995,7 +1999,8 @@ mcd_account_set_connection_status (McdAccount *account,
     }
 
     if (changed)
-	g_signal_emit (account, signals[CONNECTION_STATUS_CHANGED], 0,
+	g_signal_emit (account,
+		       _mcd_account_signals[CONNECTION_STATUS_CHANGED], 0,
 		       status, reason);
 }
 
@@ -2033,7 +2038,8 @@ mcd_account_check_validity (McdAccount *account)
 	g_debug ("Account validity changed (old: %d, new: %d)",
 		 priv->valid, valid);
 	priv->valid = valid;
-	g_signal_emit (account, signals[VALIDITY_CHANGED], 0, valid);
+	g_signal_emit (account, _mcd_account_signals[VALIDITY_CHANGED], 0,
+		       valid);
 	g_value_init (&value, G_TYPE_BOOLEAN);
 	g_value_set_boolean (&value, valid);
 	mcd_account_changed_property (account, "Valid", &value);

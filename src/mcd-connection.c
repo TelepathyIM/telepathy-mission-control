@@ -387,6 +387,7 @@ _mcd_connection_set_presence (McdConnection * connection,
 
     if (!priv->tp_conn)
     {
+	g_warning ("%s: tp_conn is NULL!", G_STRFUNC);
 	_mcd_connection_setup (connection);
 	return;
     }
@@ -1388,9 +1389,8 @@ mcd_connection_get_params_and_connect (McdConnection *connection)
     g_debug ("%s: Trying connect account: %s",
 	     G_STRFUNC, (gchar *) account_name);
 
-    params = mcd_account_get_parameters (priv->account);
+    params = g_object_get_data ((GObject *)connection, "params");
     _mcd_connection_connect (connection, params);
-    g_hash_table_destroy (params);
 }
 
 static void
@@ -2372,12 +2372,18 @@ mcd_connection_restart (McdConnection *connection)
 /**
  * mcd_connection_connect:
  * @connection: the #McdConnection.
+ * @params: a #GHashTable of connection parameters.
  *
- * Activate @connection.
+ * Activate @connection. The connection takes ownership of @params.
  */
 void
-mcd_connection_connect (McdConnection *connection)
+mcd_connection_connect (McdConnection *connection, GHashTable *params)
 {
+    /* TODO: we should probably not save the parameters, but instead restart
+     * the full account connection process when we want to reconnect the
+     * connection */
+    g_object_set_data_full ((GObject *)connection, "params", params,
+			    (GDestroyNotify)g_hash_table_destroy);
     _mcd_connection_setup (connection);
 }
 

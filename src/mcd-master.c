@@ -65,6 +65,7 @@
 #include "mcd-account-conditions.h"
 #include "mcd-plugin.h"
 #include "mcd-transport.h"
+#include "mcd-account-connection.h"
 
 #define MCD_MASTER_PRIV(master) (G_TYPE_INSTANCE_GET_PRIVATE ((master), \
 				  MCD_TYPE_MASTER, \
@@ -97,6 +98,7 @@ typedef struct _McdMasterPrivate
 
     GPtrArray *plugins;
     GPtrArray *transport_plugins;
+    GList *account_connections;
 
     gboolean is_disposed;
 } McdMasterPrivate;
@@ -115,6 +117,12 @@ typedef struct {
     McdTransportPlugin *plugin;
     McdTransport *transport;
 } TransportData;
+
+typedef struct {
+    gint priority;
+    McdAccountConnectionFunc func;
+    gpointer userdata;
+} McdAccountConnectionData;
 
 static McdMaster *default_master = NULL;
 
@@ -441,6 +449,9 @@ static void
 _mcd_master_finalize (GObject * object)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (object);
+
+    g_list_foreach (priv->account_connections, (GFunc)g_free, NULL);
+    g_list_free (priv->account_connections);
 
     g_free (priv->awake_presence_message);
 
@@ -1229,5 +1240,45 @@ mcd_plugin_register_transport (McdPlugin *plugin,
 		      G_CALLBACK (on_transport_status_changed),
 		      MCD_MASTER (plugin));
     g_ptr_array_add (priv->transport_plugins, transport_plugin);
+}
+
+void
+mcd_plugin_register_account_connection (McdPlugin *plugin,
+					McdAccountConnectionFunc func,
+					gint priority,
+					gpointer userdata)
+{
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (plugin);
+    McdAccountConnectionData *acd;
+    GList *list;
+
+    g_debug ("%s called", G_STRFUNC);
+    acd = g_malloc (sizeof (McdAccountConnectionData));
+    acd->priority = priority;
+    acd->func = func;
+    acd->userdata = userdata;
+    for (list = priv->account_connections; list; list = list->next)
+	if (((McdAccountConnectionData *)list->data)->priority >= priority) break;
+
+    priv->account_connections =
+       	g_list_insert_before (priv->account_connections, list, acd);
+}
+
+void
+mcd_master_get_nth_account_connection (McdMaster *master, gint i,
+				       McdAccountConnectionFunc *func,
+				       gpointer *userdata)
+{
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    McdAccountConnectionData *acd;
+
+    acd = g_list_nth_data (priv->account_connections, i);
+    if (acd)
+    {
+	*func = acd->func;
+	*userdata = acd->userdata;
+    }
+    else
+	*func = NULL;
 }
 

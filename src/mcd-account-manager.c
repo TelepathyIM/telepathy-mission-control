@@ -35,7 +35,7 @@
 #include "mcd-account-manager.h"
 #include "mcd-account-manager-query.h"
 #include "mcd-account.h"
-#include "mcd-account-priv.h"
+#include "mcd-account-config.h"
 #include "mcd-dbusprop.h"
 #include "_gen/interfaces.h"
 

@@ -42,6 +42,7 @@ typedef struct _McdMasterClass McdMasterClass;
 
 #include <mcd-manager.h>
 #include <mcd-connection.h>
+#include <mcd-connection-plugin.h>
 
 struct _McdMaster
 {
@@ -111,6 +112,10 @@ gboolean mcd_master_get_account_for_connection (McdMaster *master,
 void mcd_master_add_connection_parameter (McdMaster *master, const gchar *name,
 					  const GValue *value);
 GHashTable * mcd_master_get_connection_parameters (McdMaster *master);
+
+void mcd_master_get_nth_account_connection (McdMaster *master, gint i,
+					    McdAccountConnectionFunc *func,
+					    gpointer *userdata);
 
 G_END_DECLS
 #endif /* MCD_MASTER_H */
