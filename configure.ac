@@ -114,6 +114,21 @@ AC_ARG_ENABLE(tests,
 )
 AM_CONDITIONAL(HAVE_TESTS, [test x$test_enabled = xyes])
 
+examples_enabled="no"
+AC_MSG_CHECKING(whether to build examples)
+AC_ARG_ENABLE(examples,
+	[  --enable-examples        build examples. default=no],
+	[
+		AC_MSG_RESULT(${enableval})
+		examples_enabled="${enableval}"
+	],
+	[
+		AC_MSG_RESULT(no)
+		examples_enabled="no"
+	]
+)
+AM_CONDITIONAL(HAVE_EXAMPLES, [test x$examples_enabled = xyes])
+
 server_enabled="yes"
 AC_MSG_CHECKING(whether to build the sample server)
 AC_ARG_ENABLE(server,
