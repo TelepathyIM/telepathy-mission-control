@@ -51,7 +51,8 @@ valid_accounts_cb (TpProxy *proxy, const GValue *val_accounts,
 	McAccount *account;
 
 	account = mc_account_new (proxy->dbus_daemon, *name);
-	g_debug ("account %s", account->unique_name);
+	g_debug ("account %s, manager %s, protocol %s",
+		 account->unique_name, account->manager_name, account->protocol_name);
     }
 
     g_main_loop_quit (main_loop);

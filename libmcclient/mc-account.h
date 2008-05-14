@@ -34,6 +34,8 @@ typedef struct _McAccountPrivate McAccountPrivate;
 struct _McAccount {
     TpProxy parent;
     gchar *unique_name;
+    gchar *manager_name;
+    gchar *protocol_name;
     /*<private>*/
     gpointer priv;
 };

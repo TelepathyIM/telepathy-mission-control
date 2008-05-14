@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <stdio.h>
 #include "mc-account.h"
 #include "dbus-api.h"
 
@@ -67,16 +68,50 @@ enum
     PROP_OBJECT_PATH,
 };
 
+static inline gboolean
+parse_object_path (McAccount *account)
+{
+    gchar manager[64], protocol[64], unique_name[256];
+    gchar *object_path = account->parent.object_path;
+    gint n;
+
+    if (G_UNLIKELY (!object_path)) return FALSE;
+    n = sscanf (object_path, MC_ACCOUNT_DBUS_OBJECT_BASE "%[^/]/%[^/]/%s",
+		manager, protocol, unique_name);
+    if (n != 3) return FALSE;
+
+    g_debug ("%s, %s, %s", manager, protocol, unique_name);
+    account->manager_name = g_strdup (manager);
+    account->protocol_name = g_strdup (protocol);
+    account->unique_name = object_path +
+       	(sizeof (MC_ACCOUNT_DBUS_OBJECT_BASE) - 1);
+    return TRUE;
+}
+
 static void
 mc_account_init (McAccount *self)
 {
 }
 
 static void
+finalize (GObject *object)
+{
+    McAccount *account = MC_ACCOUNT (object);
+
+    g_free (account->manager_name);
+    g_free (account->protocol_name);
+
+    G_OBJECT_CLASS (mc_account_parent_class)->finalize (object);
+}
+
+static void
 mc_account_class_init (McAccountClass *klass)
 {
     GType type = MC_TYPE_ACCOUNT;
+    GObjectClass *object_class = (GObjectClass *)klass;
     TpProxyClass *proxy_class = (TpProxyClass *)klass;
+
+    object_class->finalize = finalize;
 
     /* the API is stateless, so we can keep the same proxy across restarts */
     proxy_class->must_have_unique_name = FALSE;
@@ -108,9 +143,8 @@ mc_account_new (TpDBusDaemon *dbus, const gchar *object_path)
 			    "bus-name", MC_ACCOUNT_MANAGER_DBUS_SERVICE,
 			    "object-path", object_path,
 			    NULL);
-    if (G_LIKELY (account) && account->parent.object_path)
-	account->unique_name = account->parent.object_path +
-	    (sizeof (MC_ACCOUNT_DBUS_OBJECT_BASE) - 1);
+    if (G_LIKELY (account))
+	parse_object_path (account);
     return account;
 }
 
