@@ -58,13 +58,14 @@ struct _McAccountClass {
  *
  * Since: FIXME
  */
-struct _McAccount {
-    TpProxy parent;
-    /*<private>*/
-    gpointer priv;
-};
 
 G_DEFINE_TYPE (McAccount, mc_account, TP_TYPE_PROXY);
+
+enum
+{
+    PROP_0,
+    PROP_OBJECT_PATH,
+};
 
 static void
 mc_account_init (McAccount *self)
@@ -75,7 +76,7 @@ static void
 mc_account_class_init (McAccountClass *klass)
 {
     GType type = MC_TYPE_ACCOUNT;
-    TpProxyClass *proxy_class = (TpProxyClass *) klass;
+    TpProxyClass *proxy_class = (TpProxyClass *)klass;
 
     /* the API is stateless, so we can keep the same proxy across restarts */
     proxy_class->must_have_unique_name = FALSE;
@@ -98,12 +99,18 @@ mc_account_class_init (McAccountClass *klass)
  * Since: FIXME
  */
 McAccount *
-mc_account_new (TpDBusDaemon *dbus)
+mc_account_new (TpDBusDaemon *dbus, const gchar *object_path)
 {
-    return MC_ACCOUNT (g_object_new (MC_TYPE_ACCOUNT,
-					     "dbus-daemon", dbus,
-					     "bus-name", MISSION_CONTROL_SERVICE,
-					     "object-path", MISSION_CONTROL_PATH,
-					     NULL));
+    McAccount *account;
+
+    account = g_object_new (MC_TYPE_ACCOUNT,
+			    "dbus-daemon", dbus,
+			    "bus-name", MC_ACCOUNT_MANAGER_DBUS_SERVICE,
+			    "object-path", object_path,
+			    NULL);
+    if (G_LIKELY (account) && account->parent.object_path)
+	account->unique_name = account->parent.object_path +
+	    (sizeof (MC_ACCOUNT_DBUS_OBJECT_BASE) - 1);
+    return account;
 }
 

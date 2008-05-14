@@ -27,9 +27,9 @@
 #include <dbus/dbus-glib.h>
 #include <telepathy-glib/errors.h>
 
-#define MISSION_CONTROL_SERVICE "org.freedesktop.Telepathy.MissionControl"
-#define MISSION_CONTROL_IFACE "org.freedesktop.Telepathy.MissionControl"
-#define MISSION_CONTROL_PATH "/org/freedesktop/Telepathy/MissionControl"
+#define MC_ACCOUNT_MANAGER_DBUS_SERVICE "org.freedesktop.Telepathy.AccountManager"
+#define MC_ACCOUNT_MANAGER_DBUS_OBJECT "/org/freedesktop/Telepathy/AccountManager"
+#define MC_ACCOUNT_DBUS_OBJECT_BASE "/org/freedesktop/Telepathy/Account/"
 
 #include <libmcclient/_gen/enums.h>
 #include <libmcclient/_gen/gtypes.h>

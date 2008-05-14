@@ -101,10 +101,10 @@ mc_account_manager_class_init (McAccountManagerClass *klass)
 McAccountManager *
 mc_account_manager_new (TpDBusDaemon *dbus)
 {
-    return MC_ACCOUNT_MANAGER (g_object_new (MC_TYPE_ACCOUNT_MANAGER,
-					     "dbus-daemon", dbus,
-					     "bus-name", MISSION_CONTROL_SERVICE,
-					     "object-path", MISSION_CONTROL_PATH,
-					     NULL));
+    return g_object_new (MC_TYPE_ACCOUNT_MANAGER,
+			 "dbus-daemon", dbus,
+			 "bus-name", MC_ACCOUNT_MANAGER_DBUS_SERVICE,
+			 "object-path", MC_ACCOUNT_MANAGER_DBUS_OBJECT,
+			 NULL);
 }
 

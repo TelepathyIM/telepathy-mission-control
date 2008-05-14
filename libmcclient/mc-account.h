@@ -31,6 +31,13 @@ typedef struct _McAccount McAccount;
 typedef struct _McAccountClass McAccountClass;
 typedef struct _McAccountPrivate McAccountPrivate;
 
+struct _McAccount {
+    TpProxy parent;
+    gchar *unique_name;
+    /*<private>*/
+    gpointer priv;
+};
+
 GType mc_account_get_type (void);
 
 #define MC_TYPE_ACCOUNT (mc_account_get_type ())
@@ -48,7 +55,7 @@ GType mc_account_get_type (void);
   (G_TYPE_INSTANCE_GET_CLASS ((obj), MC_TYPE_ACCOUNT, \
                               McAccountClass))
 
-McAccount *mc_account_new (TpDBusDaemon *dbus);
+McAccount *mc_account_new (TpDBusDaemon *dbus, const gchar *object_path);
 
 G_END_DECLS
 

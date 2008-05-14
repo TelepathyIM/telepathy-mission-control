@@ -175,4 +175,5 @@ doc/reference/libmissioncontrol-server/Makefile \
 libmcclient/Makefile \
 libmissioncontrol/Makefile \
 server/Makefile \
+examples/Makefile \
 ])

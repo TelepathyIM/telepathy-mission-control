@@ -1,3 +1,13 @@
+2008-05-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* Makefile.am, configure.ac, examples/Makefile.am,
+	examples/mc-example.c:
+	Add a directory for examples.
+
+	* libmcclient/dbus-api.h, libmcclient/mc-account-manager.c,
+	libmcclient/mc-account.[hc]:
+	Fix creation of TpProxies.
+
 === telepathy-mission-control 5.0.beta8 ===
 
 2008-05-13  Alberto Mardegan  <alberto.mardegan@nokia.com>
