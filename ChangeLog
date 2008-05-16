@@ -1,3 +1,8 @@
+2008-05-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/mc-account.[hc]:
+	Add a few APIs for retrieving DBus properties.
+
 2008-05-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* Makefile.am, configure.ac, examples/Makefile.am,
