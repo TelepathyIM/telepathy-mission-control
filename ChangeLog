@@ -1,5 +1,8 @@
 2008-05-19  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* tools/libglibcodegen.py:
+	Fix demarshalling of DBus type "ao".
+
 	* libmcclient/Makefile.am:
 	Add support for all known interfaces.
 
