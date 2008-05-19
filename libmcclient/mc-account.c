@@ -53,6 +53,7 @@ struct _McAccountClass {
 };
 
 struct _McAccountPrivate {
+    gint useless;
 };
 
 /**
@@ -79,7 +80,6 @@ parse_object_path (McAccount *account)
     gchar *object_path = account->parent.object_path;
     gint n;
 
-    if (G_UNLIKELY (!object_path)) return FALSE;
     n = sscanf (object_path, MC_ACCOUNT_DBUS_OBJECT_BASE "%[^/]/%[^/]/%s",
 		manager, protocol, unique_name);
     if (n != 3) return FALSE;
@@ -101,6 +101,24 @@ mc_account_init (McAccount *account)
 				    McAccountPrivate);
 }
 
+static GObject *
+constructor (GType type,
+	     guint n_params,
+	     GObjectConstructParam *params)
+{
+    GObjectClass *object_class = (GObjectClass *) mc_account_parent_class;
+    McAccount *account;
+   
+    account =  MC_ACCOUNT (object_class->constructor (type, n_params, params));
+
+    g_return_val_if_fail (account != NULL, NULL);
+
+    if (!parse_object_path (account))
+	return NULL;
+
+    return (GObject *) account;
+}
+
 static void
 finalize (GObject *object)
 {
@@ -120,6 +138,7 @@ mc_account_class_init (McAccountClass *klass)
     TpProxyClass *proxy_class = (TpProxyClass *)klass;
 
     g_type_class_add_private (object_class, sizeof (McAccountPrivate));
+    object_class->constructor = constructor;
     object_class->finalize = finalize;
 
     /* the API is stateless, so we can keep the same proxy across restarts */
@@ -152,8 +171,6 @@ mc_account_new (TpDBusDaemon *dbus, const gchar *object_path)
 			    "bus-name", MC_ACCOUNT_MANAGER_DBUS_SERVICE,
 			    "object-path", object_path,
 			    NULL);
-    if (G_LIKELY (account))
-	parse_object_path (account);
     return account;
 }
 

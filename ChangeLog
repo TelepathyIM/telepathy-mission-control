@@ -1,6 +1,9 @@
 2008-05-19  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmcclient/mc-account.c:
+	Move the post-initialization code inside the constructor.
+
+	* libmcclient/mc-account.[hc]:
 	Remove the property retrival/monitoring code: the same functionality
 	will be implemented in telepathy-glib.
 

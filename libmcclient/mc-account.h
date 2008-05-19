@@ -59,12 +59,6 @@ GType mc_account_get_type (void);
 
 McAccount *mc_account_new (TpDBusDaemon *dbus, const gchar *object_path);
 
-gboolean mc_account_watch_interface (McAccount *account, GQuark interface);
-const GValue *mc_account_get_property (McAccount *account, GQuark interface,
-				       const gchar *name);
-void mc_account_get (McAccount *account, GQuark interface,
-		     const gchar *first_prop, ...);
-
 G_END_DECLS
 
 /* auto-generated stubs */
