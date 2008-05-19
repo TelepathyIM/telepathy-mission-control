@@ -1,3 +1,9 @@
+2008-05-19  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/mc-account.c:
+	Remove the property retrival/monitoring code: the same functionality
+	will be implemented in telepathy-glib.
+
 2008-05-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmcclient/mc-account.[hc]:
