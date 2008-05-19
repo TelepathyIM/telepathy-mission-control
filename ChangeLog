@@ -1,5 +1,11 @@
 2008-05-19  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmcclient/Makefile.am, libmcclient/account-manager.xml,
+	libmcclient/account.xml, libmcclient/mc-account-manager.[hc],
+	libmcclient/mc-account.[hc]:
+	Rewrite generation of code so that interfaces are correctly
+	implemented.
+
 	* tools/libglibcodegen.py:
 	Fix demarshalling of DBus type "ao".
 

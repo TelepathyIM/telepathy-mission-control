@@ -54,6 +54,6 @@ McAccountManager *mc_account_manager_new (TpDBusDaemon *dbus);
 G_END_DECLS
 
 /* auto-generated stubs */
-#include <libmcclient/_gen/cli-Account_Manager.h>
+#include <libmcclient/_gen/cli-account-manager.h>
 
 #endif

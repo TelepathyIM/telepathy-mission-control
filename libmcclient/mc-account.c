@@ -26,7 +26,7 @@
 
 #include <telepathy-glib/proxy-subclass.h>
 
-#include "_gen/cli-Account-body.h"
+#include "_gen/cli-account-body.h"
 
 /**
  * SECTION:mc-account
@@ -99,6 +99,11 @@ mc_account_init (McAccount *account)
     priv = account->priv =
        	G_TYPE_INSTANCE_GET_PRIVATE(account, MC_TYPE_ACCOUNT,
 				    McAccountPrivate);
+
+    tp_proxy_add_interface_by_id ((TpProxy *)account,
+				  MC_IFACE_QUARK_ACCOUNT_INTERFACE_COMPAT);
+    tp_proxy_add_interface_by_id ((TpProxy *)account,
+				  MC_IFACE_QUARK_ACCOUNT_INTERFACE_CONDITIONS);
 }
 
 static GObject *
@@ -145,7 +150,7 @@ mc_account_class_init (McAccountClass *klass)
     proxy_class->must_have_unique_name = FALSE;
 
     proxy_class->interface = MC_IFACE_QUARK_ACCOUNT;
-    tp_proxy_or_subclass_hook_on_interface_add (type, mc_cli_Account_add_signals);
+    tp_proxy_or_subclass_hook_on_interface_add (type, mc_cli_account_add_signals);
 
     tp_proxy_subclass_add_error_mapping (type, TP_ERROR_PREFIX, TP_ERRORS,
 					 TP_TYPE_ERROR);

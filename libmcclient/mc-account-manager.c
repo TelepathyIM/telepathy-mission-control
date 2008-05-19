@@ -25,7 +25,7 @@
 
 #include <telepathy-glib/proxy-subclass.h>
 
-#include "_gen/cli-Account_Manager-body.h"
+#include "_gen/cli-account-manager-body.h"
 
 /**
  * SECTION:mc-account-manager
@@ -70,6 +70,8 @@ G_DEFINE_TYPE (McAccountManager, mc_account_manager, TP_TYPE_PROXY);
 static void
 mc_account_manager_init (McAccountManager *self)
 {
+    tp_proxy_add_interface_by_id ((TpProxy *)self,
+	MC_IFACE_QUARK_ACCOUNT_MANAGER_INTERFACE_QUERY);
 }
 
 static void
@@ -82,7 +84,7 @@ mc_account_manager_class_init (McAccountManagerClass *klass)
     proxy_class->must_have_unique_name = FALSE;
 
     proxy_class->interface = MC_IFACE_QUARK_ACCOUNT_MANAGER;
-    tp_proxy_or_subclass_hook_on_interface_add (type, mc_cli_Account_Manager_add_signals);
+    tp_proxy_or_subclass_hook_on_interface_add (type, mc_cli_account_manager_add_signals);
 
     tp_proxy_subclass_add_error_mapping (type, TP_ERROR_PREFIX, TP_ERRORS,
 					 TP_TYPE_ERROR);

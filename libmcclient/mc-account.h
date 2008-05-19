@@ -62,6 +62,6 @@ McAccount *mc_account_new (TpDBusDaemon *dbus, const gchar *object_path);
 G_END_DECLS
 
 /* auto-generated stubs */
-#include <libmcclient/_gen/cli-Account.h>
+#include <libmcclient/_gen/cli-account.h>
 
 #endif
