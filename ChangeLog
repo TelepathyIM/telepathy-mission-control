@@ -1,5 +1,8 @@
 2008-05-19  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmcclient/Makefile.am:
+	Add support for all known interfaces.
+
 	* libmcclient/mc-account.c:
 	Move the post-initialization code inside the constructor.
 

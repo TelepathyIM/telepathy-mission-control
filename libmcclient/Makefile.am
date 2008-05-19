@@ -33,14 +33,20 @@ libmcclient_include_HEADERS = \
 genincludedir = $(libmcclient_includedir)/_gen
 nodist_geninclude_HEADERS = \
 	_gen/cli-Account.h \
+	_gen/cli-Account_Interface_Compat.h \
+	_gen/cli-Account_Interface_Conditions.h \
 	_gen/cli-Account_Manager.h \
+	_gen/cli-Account_Manager_Interface_Query.h \
 	_gen/enums.h \
 	_gen/interfaces.h \
 	_gen/gtypes.h
 
 nodist_libmcclient_la_SOURCES = \
 	_gen/cli-Account-body.h \
+	_gen/cli-Account_Interface_Compat-body.h \
+	_gen/cli-Account_Interface_Conditions-body.h \
 	_gen/cli-Account_Manager-body.h \
+	_gen/cli-Account_Manager_Interface_Query-body.h \
 	_gen/gtypes-body.h \
 	_gen/interfaces-body.h \
 	_gen/register-dbus-glib-marshallers-body.h \
