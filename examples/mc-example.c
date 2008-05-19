@@ -31,6 +31,7 @@
 
 static GMainLoop *main_loop;
 
+
 static void
 valid_accounts_cb (TpProxy *proxy, const GValue *val_accounts,
 		   const GError *error, gpointer user_data,
@@ -55,7 +56,7 @@ valid_accounts_cb (TpProxy *proxy, const GValue *val_accounts,
 		 account->unique_name, account->manager_name, account->protocol_name);
     }
 
-    g_main_loop_quit (main_loop);
+    g_timeout_add (2000, (GSourceFunc)g_main_loop_quit, main_loop);
 }
 
 int main ()
