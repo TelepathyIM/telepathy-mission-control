@@ -59,11 +59,38 @@ valid_accounts_cb (TpProxy *proxy, const GValue *val_accounts,
     g_timeout_add (2000, (GSourceFunc)g_main_loop_quit, main_loop);
 }
 
+void find_accounts_cb (TpProxy *proxy, const GPtrArray *accounts,
+		       const GError *error, gpointer user_data,
+		       GObject *weak_object)
+{
+    gchar *name;
+    gint i;
+
+    g_debug ("%s called", G_STRFUNC);
+    if (error)
+    {
+	g_warning ("%s: got error: %s", G_STRFUNC, error->message);
+	return;
+    }
+
+    for (i = 0; i < accounts->len; i++)
+    {
+	McAccount *account;
+
+	name = g_ptr_array_index (accounts, i);
+	account = mc_account_new (proxy->dbus_daemon, name);
+	g_debug ("enabled account %s, manager %s, protocol %s",
+		 account->unique_name, account->manager_name, account->protocol_name);
+    }
+}
+
 int main ()
 {
     McAccountManager *am;
     DBusGConnection *dbus_conn;
     TpDBusDaemon *daemon;
+    GHashTable *params;
+    GValue v_true = { 0 };
 
     g_type_init ();
     dbus_conn = tp_get_bus ();
@@ -78,7 +105,19 @@ int main ()
 				     "ValidAccounts",
 				     valid_accounts_cb,
 				     NULL, NULL, NULL);
-				     
+ 
+    params = g_hash_table_new (g_str_hash, g_str_equal);
+    g_value_init (&v_true, G_TYPE_BOOLEAN);
+    g_value_set_boolean (&v_true, TRUE);
+    g_hash_table_insert (params,
+			 "org.freedesktop.Telepathy.Account.Enabled",
+			 &v_true);
+    mc_cli_account_manager_interface_query_call_find_accounts (am, -1, 
+							       params,
+							       find_accounts_cb,
+							       NULL, NULL,
+							       NULL);
+    g_hash_table_destroy (params);
     main_loop = g_main_loop_new (NULL, FALSE);
     g_main_loop_run (main_loop);
 
