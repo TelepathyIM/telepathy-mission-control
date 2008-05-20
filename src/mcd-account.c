@@ -388,30 +388,6 @@ mcd_account_get_string_val (McdAccount *account, const gchar *key,
 }
 
 static void
-get_interfaces (TpSvcDBusProperties *self, const gchar *name, GValue *value)
-{
-    const McdInterfaceData *iface_data;
-    gchar **interfaces;
-    gint n_interfaces = 0, i;
-
-    for (iface_data = account_interfaces; iface_data->get_type != NULL;
-	 iface_data++)
-	if (iface_data->interface)
-	    n_interfaces++;
-
-    interfaces = g_malloc (sizeof (gchar *) * (n_interfaces + 1));
-    i = 0;
-    for (iface_data = account_interfaces; iface_data->get_type != NULL;
-	 iface_data++)
-	if (iface_data->interface)
-	    interfaces[i++] = g_strdup (iface_data->interface);
-    interfaces[i] = NULL;
-
-    g_value_init (value, G_TYPE_STRV);
-    g_value_take_boxed (value, interfaces);
-}
-
-static void
 set_display_name (TpSvcDBusProperties *self, const gchar *name,
 		  const GValue *value)
 {
@@ -855,7 +831,7 @@ get_normalized_name (TpSvcDBusProperties *self,
 }
 
 static const McdDBusProp account_properties[] = {
-    { "Interfaces", NULL, get_interfaces },
+    { "Interfaces", NULL, mcd_dbus_get_interfaces },
     { "DisplayName", set_display_name, get_display_name },
     { "Icon", set_icon, get_icon },
     { "Valid", NULL, get_valid },

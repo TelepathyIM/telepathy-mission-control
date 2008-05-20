@@ -369,6 +369,7 @@ get_invalid_accounts (TpSvcDBusProperties *self, const gchar *name,
 static const McdDBusProp account_manager_properties[] = {
     { "ValidAccounts", NULL, get_valid_accounts },
     { "InvalidAccounts", NULL, get_invalid_accounts },
+    { "Interfaces", NULL, mcd_dbus_get_interfaces },
     { 0 },
 };
 

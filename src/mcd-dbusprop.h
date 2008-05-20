@@ -97,5 +97,9 @@ void dbusprop_get_all (TpSvcDBusProperties *self,
 		       const gchar *interface_name,
 		       DBusGMethodInvocation *context);
 
+void mcd_dbus_get_interfaces (TpSvcDBusProperties *self,
+			      const gchar *name,
+			      GValue *value);
+
 G_END_DECLS
 #endif /* __MCD_DBUSPROP_H__ */

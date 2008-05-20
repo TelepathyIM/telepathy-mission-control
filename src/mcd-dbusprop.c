@@ -243,3 +243,31 @@ mcd_dbus_init_interfaces_instances (gpointer self)
     }
 }
 
+void
+mcd_dbus_get_interfaces (TpSvcDBusProperties *self, const gchar *name,
+			 GValue *value)
+{
+    McdInterfaceData *iface_data, *id;
+    gint i;
+    gchar **names;
+
+    g_debug ("%s called", G_STRFUNC);
+    iface_data = g_type_get_qdata (G_OBJECT_TYPE (self), MCD_INTERFACES_QUARK);
+
+    /* count the interfaces */
+    i = 0;
+    for (id = iface_data; id->get_type; id++)
+	i++;
+
+    names = g_new (gchar *, i + 1);
+    i = 0;
+    for (id = iface_data; id->get_type; id++)
+    {
+	names[i] = g_strdup (id->interface);
+	i++;
+    }
+    names[i] = NULL;
+    g_value_init (value, G_TYPE_STRV);
+    g_value_take_boxed (value, names);
+}
+
