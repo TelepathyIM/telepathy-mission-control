@@ -38,6 +38,7 @@ nodist_geninclude_HEADERS = \
 	_gen/interfaces.h \
 	_gen/gtypes.h \
 	_gen/svc-Account.h \
+	_gen/svc-Account_Interface_Avatar.h \
 	_gen/svc-Account_Interface_Compat.h \
 	_gen/svc-Account_Interface_Conditions.h \
 	_gen/svc-Account_Manager.h \
@@ -51,6 +52,7 @@ nodist_libmissioncontrol_server_la_SOURCES = \
 	_gen/signals-marshal.h \
 	_gen/signals-marshal.list \
 	_gen/svc-Account.c \
+	_gen/svc-Account_Interface_Avatar.c \
 	_gen/svc-Account_Interface_Compat.c \
 	_gen/svc-Account_Interface_Conditions.c \
 	_gen/svc-Account_Manager.c \

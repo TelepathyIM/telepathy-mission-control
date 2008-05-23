@@ -101,6 +101,8 @@ mc_account_init (McAccount *account)
 				    McAccountPrivate);
 
     tp_proxy_add_interface_by_id ((TpProxy *)account,
+				  MC_IFACE_QUARK_ACCOUNT_INTERFACE_AVATAR);
+    tp_proxy_add_interface_by_id ((TpProxy *)account,
 				  MC_IFACE_QUARK_ACCOUNT_INTERFACE_COMPAT);
     tp_proxy_add_interface_by_id ((TpProxy *)account,
 				  MC_IFACE_QUARK_ACCOUNT_INTERFACE_CONDITIONS);

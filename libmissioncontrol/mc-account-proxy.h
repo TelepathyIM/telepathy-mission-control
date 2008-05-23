@@ -52,5 +52,6 @@ G_END_DECLS
 
 /* auto-generated stubs */
 #include <libmissioncontrol/_gen/cli-Account.h>
+#include <libmissioncontrol/_gen/cli-Account_Interface_Avatar.h>
 
 #endif

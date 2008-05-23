@@ -52,13 +52,20 @@ static void account_iface_init (McSvcAccountClass *iface,
 			       	gpointer iface_data);
 static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
 				   gpointer iface_data);
+static void account_avatar_iface_init (McSvcAccountInterfaceAvatarClass *iface,
+				       gpointer iface_data);
+
 typedef void (*McdOnlineRequestCb) (McdAccount *account, gpointer userdata,
 				    const GError *error);
 
 static const McdDBusProp account_properties[];
+static const McdDBusProp account_avatar_properties[];
 
 static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE (mc_svc_account_get_type, account, MC_IFACE_ACCOUNT),
+    MCD_IMPLEMENT_IFACE (mc_svc_account_interface_avatar_get_type,
+			 account_avatar,
+			 MC_IFACE_ACCOUNT_INTERFACE_AVATAR),
     MCD_IMPLEMENT_IFACE (mc_svc_account_interface_compat_get_type,
 			 account_compat,
 			 MC_IFACE_ACCOUNT_INTERFACE_COMPAT),
@@ -519,7 +526,7 @@ set_avatar (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
 	return;
     }
     if (changed)
-	mcd_account_changed_property (account, name, value);
+	mc_svc_account_interface_avatar_emit_avatar_changed (account);
 }
 
 static void
@@ -837,7 +844,6 @@ static const McdDBusProp account_properties[] = {
     { "Valid", NULL, get_valid },
     { "Enabled", set_enabled, get_enabled },
     { "Nickname", set_nickname, get_nickname },
-    { "Avatar", set_avatar, get_avatar },
     { "Parameters", NULL, get_parameters },
     { "PresetParameters", NULL, get_preset_parameters },
     { "AutomaticPresence", set_automatic_presence, get_automatic_presence },
@@ -850,6 +856,17 @@ static const McdDBusProp account_properties[] = {
     { "NormalizedName", NULL, get_normalized_name },
     { 0 },
 };
+
+static const McdDBusProp account_avatar_properties[] = {
+    { "Avatar", set_avatar, get_avatar },
+    { 0 },
+};
+
+static void
+account_avatar_iface_init (McSvcAccountInterfaceAvatarClass *iface,
+			   gpointer iface_data)
+{
+}
 
 static void
 properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
@@ -1391,7 +1408,7 @@ mcd_account_class_init (McdAccountClass * klass)
 		      G_TYPE_NONE, 1,
 		      G_TYPE_BOOLEAN);
     _mcd_account_signals[AVATAR_CHANGED] =
-	g_signal_new ("avatar-changed",
+	g_signal_new ("mcd-avatar-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		      0,

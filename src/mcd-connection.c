@@ -1588,7 +1588,7 @@ _mcd_connection_set_property (GObject * obj, guint prop_id,
 			  "requested-presence-changed",
 			  G_CALLBACK (on_presence_requested), obj);
 	g_signal_connect (priv->account,
-			  "avatar-changed",
+			  "mcd-avatar-changed",
 			  G_CALLBACK (on_account_avatar_changed), obj);
 	break;
     default:

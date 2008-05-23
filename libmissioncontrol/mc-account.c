@@ -181,16 +181,26 @@ on_account_property_changed (TpProxy *proxy, GHashTable *properties,
 	priv->alias = g_value_dup_string (value);
     }
 
-    value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_AVATAR);
-    if (value)
-	priv->avatar_id = time(0);
-
     /* FIXME: we should also emit the "param-changed" signal if an account
      * parameter changed, but since is was used only be the mission-control
      * process, we can skip now. Besides, we wouldn't know which parameter
      * actually changed */
 
     /* emit the account-changed signal */
+    g_signal_emit_by_name (monitor, "account-changed", priv->unique_name);
+    g_object_unref (monitor);
+}
+
+static void
+on_account_avatar_changed (TpProxy *proxy, gpointer user_data,
+			   GObject *weak_object)
+{
+    McAccountPrivate *priv = user_data;
+
+    g_debug ("%s called", G_STRFUNC);
+    priv->avatar_id = time(0);
+    /* emit the account-changed signal */
+    McAccountMonitor *monitor = mc_account_monitor_new ();
     g_signal_emit_by_name (monitor, "account-changed", priv->unique_name);
     g_object_unref (monitor);
 }
@@ -218,6 +228,10 @@ _mc_account_new (TpDBusDaemon *dbus_daemon, const gchar *object_path)
 							on_account_property_changed,
 							priv, NULL,
 							(GObject *)new, NULL);
+    mc_cli_account_interface_avatar_connect_to_avatar_changed (priv->proxy,
+							       on_account_avatar_changed,
+							       priv, NULL,
+							       (GObject *)new, NULL);
 
     mc_cli_dbus_properties_do_get_all (priv->proxy, -1,
 				       MC_IFACE_ACCOUNT,
@@ -1838,7 +1852,7 @@ mc_account_set_avatar_from_data (McAccount *account, const gchar *data,
     g_value_take_boxed (va->values, &avatar);
     g_value_set_static_string (va->values + 1, mime_type);
     mc_cli_dbus_properties_do_set (priv->proxy, -1,
-				   MC_IFACE_ACCOUNT,
+				   MC_IFACE_ACCOUNT_INTERFACE_AVATAR,
 				   MC_ACCOUNTS_GCONF_KEY_AVATAR,
 				   &value, &error);
     if (error)

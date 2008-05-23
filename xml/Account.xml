@@ -71,6 +71,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
       </tp:rationale>
 
     </tp:docstring>
+    <tp:added version="0.17.2"/>
+    <tp:changed version="0.17.6">moved the Avatar property to a separate
+      interface</tp:changed>
 
     <!-- Missing functionality compared with NMC 4.x account + profile,
     apart from as listed above:
@@ -195,24 +198,32 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
     <property name="Enabled" type="b" access="readwrite">
       <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
         <p>This property gives the users the possibility to prevent an account
-        from being used; account editor UIs should let the user modify this
-        flag on valid accounts. This flag does not change the validity of the
-        account.</p>
-        <p>A disabled account will never attempt to go online.</p>
+          from being used. This flag does not change the validity of the
+          account.</p>
+
+        <p>A disabled account can never be put online.</p>
 
         <tp:rationale>
           <p>Use cases:</p>
+
           <ul>
             <li>user has two or more accounts capable of calling contact X, but
-            he doesn't want the UI to propmt him everytime about which one he
-            wants to use for the call. He can then disable all the equivalent
-            accounts but one.</li>
+              he doesn't want the UI to prompt him everytime about which one he
+              wants to use for the call. He can then disable all the equivalent
+              accounts but one.</li>
+
             <li>There is some temporary server error and the user doesn't want
-            to be be bother by error messages, or change the account
-            configuration: temporarily disabling the account is quicker.</li>
+              to be be bother by error messages, or change the account
+              configuration: temporarily disabling the account is quicker.</li>
           </ul>
-          <p>It's still unspecified whether setting this property on invalid
-          accounts should be allowed.</p>
+
+          <p>The AccountManager SHOULD allow this property to be set on invalid
+            accounts, but MUST NOT attempt to put invalid accounts online
+            even if they become Enabled.</p>
+
+          <tp:rationale>
+            <p>There doesn't seem to be any good reason not to allow this.</p>
+          </tp:rationale>
         </tp:rationale>
       </tp:docstring>
     </property>
@@ -256,21 +267,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
           described in XEP-0165 and its references). The terminology change
           from alias to nickname here is a step in that direction.
           This corresponds to NMC 4.x mc_account_get_alias.
-        </tp:rationale>
-      </tp:docstring>
-    </property>
-
-    <property name="Avatar" type="(ays)" access="readwrite">
-      <tp:docstring>
-        The avatar to set on this account for display to other contacts,
-        represented as a structure containing the bytes of the avatar,
-        and the MIME type as a string; may be set to an empty byte-array and
-        an empty string to indicate no avatar. When the account becomes
-        connected, the account manager SHOULD set this avatar using SetAvatar
-        if appropriate.
-
-        <tp:rationale>
-          This corresponds to NMC 4.x mc_account_get_avatar.
         </tp:rationale>
       </tp:docstring>
     </property>
@@ -470,10 +466,31 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
     <property name="NormalizedName" type="s" access="read">
       <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
-        <p>The normalized name of the account. This is the string returned by
-        the connection's InspectHandle method called on the self handle. It can
-        be an empty string, if this value is not known yet (which will always
-        be the case for account that never went online).</p>
+        <p>The normalized user ID of the local user on this account (i.e. the
+          string returned when the InspectHandle method is called on the
+          result of GetSelfHandle() for an active connection).</p>
+        
+        <p>It is unspecified whether this user ID is globally unique.</p>
+
+        <tp:rationale>
+          <p>As currently implemented, IRC user IDs are only unique within
+            the same IRCnet. On some saner protocols, the user ID includes a
+            DNS name which provides global uniqueness.</p>
+        </tp:rationale>
+
+        <p>If this value is not known yet (which will always be the case for
+          accounts that have never been online), it will be an empty
+          string.</p>
+
+        <p>It is possible that this value will change if the connection
+          manager's normalization algorithm changes, although this SHOULD
+          be avoided.</p>
+
+        <tp:rationale>
+          <p>It's not always completely clear what normalization algorithm
+            should be used; for instance, in Gabble, we currently use JIDs,
+            but it would also have been reasonable to use xmpp URIs.</p>
+        </tp:rationale>
       </tp:docstring>
     </property>
 

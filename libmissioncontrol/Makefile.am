@@ -65,6 +65,7 @@ libmissioncontrol_client_include_HEADERS = \
 genincludedir = $(libmissioncontrol_client_includedir)/_gen
 nodist_geninclude_HEADERS = \
 	_gen/cli-Account.h \
+	_gen/cli-Account_Interface_Avatar.h \
 	_gen/cli-Account_Manager.h \
 	_gen/cli-nmc4.h \
 	_gen/enums.h \
@@ -74,6 +75,7 @@ nodist_geninclude_HEADERS = \
 
 nodist_libmissioncontrol_client_la_SOURCES = \
 	_gen/cli-Account-body.h \
+	_gen/cli-Account_Interface_Avatar-body.h \
 	_gen/cli-Account_Manager-body.h \
 	_gen/cli-nmc4-body.h \
 	_gen/gtypes-body.h \

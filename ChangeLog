@@ -1,3 +1,14 @@
+2008-05-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/account.xml, libmcclient/mc-account.c,
+	libmissioncontrol/Makefile.am,
+	libmissioncontrol/mc-account-proxy.[hc],
+	libmissioncontrol/mc-account.c, src/Makefile.am, src/mcd-account.[hc],
+	src/mcd-connection.c, xml/Account.xml,
+	xml/Account_Interface_Avatar.xml, xml/Makefile.am, xml/nmc5.xml:
+	Move the Avatar property into a separate interface; add it to
+	libmcclient and modify libmissioncontrol to continue to work properly.
+
 2008-05-20  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-account-manager.c, src/mcd-account.c, src/mcd-dbusprop.[hc]:
