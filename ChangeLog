@@ -1,5 +1,8 @@
 2008-05-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/mcd-presence-frame.c:
+	Remove references to accounts when they are deleted.
+
 	* libmcclient/dbus-api.h, libmcclient/mc-account-manager.c,
 	libmcclient/mc-account.[hc]:
 	Register signal marshallers, and avoid using the name ``unique_name''

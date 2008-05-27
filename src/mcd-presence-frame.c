@@ -99,6 +99,10 @@ static const gchar *presence_statuses[] = {
 
 static guint mcd_presence_frame_signals[LAST_SIGNAL] = { 0 };
 
+static gboolean
+mcd_presence_frame_remove_account (McdPresenceFrame *presence_frame,
+				   McdAccount *account);
+
 static McdPresence *
 mcd_presence_new (McPresence tp_presence,
 		  const gchar * presence_message,
@@ -558,6 +562,13 @@ on_account_connection_status_changed (McdAccount *account,
 		       0, priv->actual_status);
 }
 
+static void
+on_account_removed (McdAccount *account,
+		    McdPresenceFrame *presence_frame)
+{
+    mcd_presence_frame_remove_account (presence_frame, account);
+}
+
 static gboolean
 mcd_presence_frame_add_account (McdPresenceFrame * presence_frame,
                                 McdAccount *account)
@@ -577,6 +588,9 @@ mcd_presence_frame_add_account (McdPresenceFrame * presence_frame,
 		      presence_frame);
     g_signal_connect (account, "connection-status-changed",
 		      G_CALLBACK (on_account_connection_status_changed),
+		      presence_frame);
+    g_signal_connect (account, "removed",
+		      G_CALLBACK (on_account_removed),
 		      presence_frame);
     
     return TRUE;
@@ -599,6 +613,9 @@ mcd_presence_frame_remove_account (McdPresenceFrame * presence_frame,
 					  presence_frame);
     g_signal_handlers_disconnect_by_func (account, 
 					  on_account_connection_status_changed,
+					  presence_frame);
+    g_signal_handlers_disconnect_by_func (account, 
+					  on_account_removed,
 					  presence_frame);
     g_object_unref (account);
     priv->accounts = g_list_delete_link (priv->accounts, pos);
