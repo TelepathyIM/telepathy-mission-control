@@ -35,4 +35,6 @@
 #include <libmcclient/_gen/gtypes.h>
 #include <libmcclient/_gen/interfaces.h>
 
+void _mc_ext_register_dbus_glib_marshallers (void);
+
 #endif

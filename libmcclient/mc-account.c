@@ -76,17 +76,17 @@ enum
 static inline gboolean
 parse_object_path (McAccount *account)
 {
-    gchar manager[64], protocol[64], unique_name[256];
+    gchar manager[64], protocol[64], name[256];
     gchar *object_path = account->parent.object_path;
     gint n;
 
     n = sscanf (object_path, MC_ACCOUNT_DBUS_OBJECT_BASE "%[^/]/%[^/]/%s",
-		manager, protocol, unique_name);
+		manager, protocol, name);
     if (n != 3) return FALSE;
 
     account->manager_name = g_strdup (manager);
     account->protocol_name = g_strdup (protocol);
-    account->unique_name = object_path +
+    account->name = object_path +
        	(sizeof (MC_ACCOUNT_DBUS_OBJECT_BASE) - 1);
     return TRUE;
 }
@@ -150,6 +150,8 @@ mc_account_class_init (McAccountClass *klass)
 
     /* the API is stateless, so we can keep the same proxy across restarts */
     proxy_class->must_have_unique_name = FALSE;
+
+    _mc_ext_register_dbus_glib_marshallers ();
 
     proxy_class->interface = MC_IFACE_QUARK_ACCOUNT;
     tp_proxy_or_subclass_hook_on_interface_add (type, mc_cli_account_add_signals);

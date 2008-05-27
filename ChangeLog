@@ -1,3 +1,10 @@
+2008-05-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/dbus-api.h, libmcclient/mc-account-manager.c,
+	libmcclient/mc-account.[hc]:
+	Register signal marshallers, and avoid using the name ``unique_name''
+	inside the library, as it has a special meaning in DBus terminology.
+
 2008-05-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmcclient/account.xml, libmcclient/mc-account.c,

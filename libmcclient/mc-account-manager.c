@@ -26,6 +26,8 @@
 #include <telepathy-glib/proxy-subclass.h>
 
 #include "_gen/cli-account-manager-body.h"
+#include "_gen/signals-marshal.h"
+#include "_gen/register-dbus-glib-marshallers-body.h"
 
 /**
  * SECTION:mc-account-manager
@@ -82,6 +84,8 @@ mc_account_manager_class_init (McAccountManagerClass *klass)
 
     /* the API is stateless, so we can keep the same proxy across restarts */
     proxy_class->must_have_unique_name = FALSE;
+
+    _mc_ext_register_dbus_glib_marshallers ();
 
     proxy_class->interface = MC_IFACE_QUARK_ACCOUNT_MANAGER;
     tp_proxy_or_subclass_hook_on_interface_add (type, mc_cli_account_manager_add_signals);
