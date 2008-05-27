@@ -1,4 +1,4 @@
-SUBDIRS = tools xml libmcclient libmissioncontrol src doc server test
+SUBDIRS = tools xml libmcclient libmissioncontrol src doc server test util
 
 if HAVE_EXAMPLES
 SUBDIRS += examples

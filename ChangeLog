@@ -1,5 +1,9 @@
 2008-05-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* Makefile.am, configure.ac, util/Makefile.am,
+	util/mc-account-convert.c:
+	Add account conversion tool from accounts created with MC < 5.0.
+
 	* src/mcd-presence-frame.c:
 	Remove references to accounts when they are deleted.
 
