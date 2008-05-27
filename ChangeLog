@@ -1,3 +1,5 @@
+=== telepathy-mission-control 5.0.beta9 ===
+
 2008-05-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* Makefile.am, configure.ac, util/Makefile.am,
