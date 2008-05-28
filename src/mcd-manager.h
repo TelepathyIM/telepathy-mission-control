@@ -57,11 +57,6 @@ struct _McdManager
 struct _McdManagerClass
 {
     McdOperationClass parent_class;
-
-    /* signals */
-    void (*account_added_signal) (McdManager * manager, McAccount * account);
-    void (*account_removed_signal) (McdManager * manager,
-				    McAccount * account);
 };
 
 GType mcd_manager_get_type (void);

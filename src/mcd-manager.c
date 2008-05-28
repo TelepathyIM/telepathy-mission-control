@@ -40,7 +40,8 @@
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/connection-manager.h>
-#include <libmissioncontrol/mission-control.h>
+
+#include <libmcclient/mc-errors.h>
 
 #include "mcd-connection.h"
 #include "mcd-manager.h"
@@ -79,15 +80,6 @@ enum
     PROP_DISPATCHER,
     PROP_DBUS_DAEMON,
 };
-
-enum _McdManagerSignalType
-{
-    ACCOUNT_ADDED,
-    ACCOUNT_REMOVED,
-    LAST_SIGNAL
-};
-
-static guint mcd_manager_signals[LAST_SIGNAL] = { 0 };
 
 static void abort_requested_channel (gchar *key,
 				     struct mcd_channel_request *req,
@@ -165,29 +157,6 @@ _mcd_manager_filename (const gchar *unique_name)
 }
 
 static gint
-_find_connection (gconstpointer data, gconstpointer user_data)
-{
-    McdConnection *connection = MCD_CONNECTION (data);
-    McAccount *account = MC_ACCOUNT (user_data);
-    McAccount *connection_account = NULL;
-    gint ret;
-
-    g_object_get (G_OBJECT (connection), "account", &connection_account, NULL);
-
-    if (connection_account == account)
-    {
-	ret = 0;
-    }
-    else
-    {
-	ret = 1;
-    }
-
-    g_object_unref (G_OBJECT (connection_account));
-    return ret;
-}
-
-static gint
 _find_connection_by_path (gconstpointer data, gconstpointer user_data)
 {
     TpConnection *tp_conn;
@@ -248,7 +217,7 @@ on_status_actual (McdPresenceFrame *presence_frame,
 	if (status == TP_CONNECTION_STATUS_CONNECTING)
 	    return;
 	if (mcd_presence_frame_get_actual_presence (presence_frame) >=
-	    MC_PRESENCE_AVAILABLE)
+	    TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
 	{
 	    g_hash_table_foreach (priv->requested_channels,
 				  (GHFunc)requested_channel_process,
@@ -272,17 +241,17 @@ on_presence_requested_idle (gpointer data)
 {
     McdManager *manager = MCD_MANAGER (data);
     McdManagerPrivate *priv = MCD_MANAGER_PRIV (manager);
-    McPresence requested_presence =
+    TpConnectionPresenceType requested_presence =
 	mcd_presence_frame_get_requested_presence (priv->presence_frame);
-    McPresence actual_presence =
+    TpConnectionPresenceType actual_presence =
 	mcd_presence_frame_get_actual_presence (priv->presence_frame);
 
     g_debug ("%s: %d, %d", G_STRFUNC, requested_presence,
 	     actual_presence);
-    if ((actual_presence == MC_PRESENCE_OFFLINE
-	 || actual_presence == MC_PRESENCE_UNSET)
-	&& (requested_presence != MC_PRESENCE_OFFLINE
-	    && requested_presence != MC_PRESENCE_UNSET))
+    if ((actual_presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE
+	 || actual_presence == TP_CONNECTION_PRESENCE_TYPE_UNSET)
+	&& (requested_presence != TP_CONNECTION_PRESENCE_TYPE_OFFLINE
+	    && requested_presence != TP_CONNECTION_PRESENCE_TYPE_UNSET))
     {
 	/* FIXME
 	_mcd_manager_create_connections (manager);
@@ -334,7 +303,7 @@ abort_requested_channels (McdManager *manager)
 
 static void
 on_presence_requested (McdPresenceFrame * presence_frame,
-		       McPresence presence,
+		       TpConnectionPresenceType presence,
 		       const gchar * presence_message, gpointer data)
 {
     McdManagerPrivate *priv;
@@ -355,7 +324,7 @@ on_presence_requested (McdPresenceFrame * presence_frame,
 	/* if we are offline and the user cancels the connection request, we
 	 * must clean the requested channels and return an error to the UI for
 	 * each of them. */
-	if (presence == MC_PRESENCE_OFFLINE && priv->requested_channels != NULL)
+	if (presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE && priv->requested_channels != NULL)
 	    abort_requested_channels (MCD_MANAGER (data));
     }
 }
@@ -817,24 +786,6 @@ mcd_manager_class_init (McdManagerClass * klass)
     mission_class->connect = _mcd_manager_connect;
     mission_class->disconnect = _mcd_manager_disconnect;
 
-    /* signals */
-    mcd_manager_signals[ACCOUNT_ADDED] =
-	g_signal_new ("account-added",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_FIRST,
-		      G_STRUCT_OFFSET (McdManagerClass, account_added_signal),
-		      NULL, NULL,
-		      g_cclosure_marshal_VOID__OBJECT,
-		      G_TYPE_NONE, 1, G_TYPE_OBJECT);
-    mcd_manager_signals[ACCOUNT_REMOVED] =
-	g_signal_new ("account-removed",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_FIRST,
-		      G_STRUCT_OFFSET (McdManagerClass, account_removed_signal),
-		      NULL, NULL,
-		      g_cclosure_marshal_VOID__OBJECT,
-		      G_TYPE_NONE, 1, G_TYPE_OBJECT);
-
     /* Properties */
     g_object_class_install_property (object_class,
 				     PROP_NAME,
@@ -904,27 +855,6 @@ mcd_manager_new (const gchar *unique_name,
 }
 
 McdConnection *
-mcd_manager_get_account_connection (McdManager * manager,
-				    McAccount * account)
-{
-    const GList *connections;
-    const GList *node;
-
-    connections = mcd_operation_get_missions (MCD_OPERATION (manager));
-    node = g_list_find_custom ((GList*)connections, account, _find_connection);
-
-    if (node != NULL)
-    {
-	return MCD_CONNECTION (node->data);
-    }
-
-    else
-    {
-	return NULL;
-    }
-}
-
-McdConnection *
 mcd_manager_get_connection (McdManager * manager, const gchar *object_path)
 {
     const GList *connections;
@@ -976,7 +906,7 @@ mcd_manager_request_channel (McdManager *manager,
 
 	g_debug ("%s: mcd-manager has connectivity status = %d", G_STRFUNC, mcd_mission_is_connected (MCD_MISSION (manager)));
 	if (!mcd_mission_is_connected (MCD_MISSION (manager)) ||
-	    (mcd_presence_frame_get_actual_presence (priv->presence_frame) <= MC_PRESENCE_AVAILABLE &&
+	    (mcd_presence_frame_get_actual_presence (priv->presence_frame) <= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE &&
 	     !mcd_presence_frame_is_stable (priv->presence_frame))
 	    )
 	{
@@ -1034,33 +964,6 @@ mcd_manager_cancel_channel_request (McdManager *manager, guint operation_id,
 	    return TRUE;
     }
     return FALSE;
-}
-
-/**
- * mcd_manager_reconnect_account:
- * @manager: the #McdManager.
- * @account: the #McAccount to reconnect.
- *
- * Reconnect the account; if the account is currently online, first it will be
- * disconnected.
- */
-void
-mcd_manager_reconnect_account (McdManager *manager, McAccount *account)
-{
-    McdConnection *connection;
-   
-    g_debug ("%s called", G_STRFUNC);
-    connection = mcd_manager_get_account_connection (manager, account);
-    if (connection)
-	mcd_connection_restart (connection);
-    else
-    {
-	/* create a connection for the account */
-	g_debug ("try to create a connection");
-	/* FIXME
-	_mcd_manager_create_connection (manager, account);
-	*/
-    }
 }
 
 /**

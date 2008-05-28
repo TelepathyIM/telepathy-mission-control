@@ -46,7 +46,7 @@ G_DEFINE_TYPE (McdPresenceFrame, mcd_presence_frame, MCD_TYPE_MISSION);
 
 typedef struct _McdPresence
 {
-    McPresence presence;
+    TpConnectionPresenceType presence;
     gchar *message;
     TpConnectionStatus connection_status;
     TpConnectionStatusReason connection_reason;
@@ -104,7 +104,7 @@ mcd_presence_frame_remove_account (McdPresenceFrame *presence_frame,
 				   McdAccount *account);
 
 static McdPresence *
-mcd_presence_new (McPresence tp_presence,
+mcd_presence_new (TpConnectionPresenceType tp_presence,
 		  const gchar * presence_message,
 		  TpConnectionStatus connection_status,
 		  TpConnectionStatusReason connection_reason)
@@ -209,7 +209,7 @@ request_presence (gpointer key, gpointer value, gpointer userdata)
 
 static void
 presence_requested_signal (McdPresenceFrame *presence_frame,
-			   McPresence presence, const gchar *presence_message)
+			   TpConnectionPresenceType presence, const gchar *presence_message)
 {
     McdPresenceFramePrivate *priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
     GHashTable *accounts;
@@ -291,7 +291,7 @@ mcd_presence_frame_init (McdPresenceFrame * obj)
 {
     McdPresenceFramePrivate *priv = MCD_PRESENCE_FRAME_PRIV (obj);
 
-    priv->actual_presence = mcd_presence_new (MC_PRESENCE_UNSET,
+    priv->actual_presence = mcd_presence_new (TP_CONNECTION_PRESENCE_TYPE_UNSET,
 					      NULL,
 					      TP_CONNECTION_STATUS_DISCONNECTED,
 					      TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED);
@@ -313,7 +313,7 @@ mcd_presence_frame_new (void)
 
 static void
 _mcd_presence_frame_request_presence (McdPresenceFrame * presence_frame,
-				      McPresence presence,
+				      TpConnectionPresenceType presence,
 				      const gchar * presence_message)
 {
     McdPresenceFramePrivate *priv;
@@ -327,7 +327,7 @@ _mcd_presence_frame_request_presence (McdPresenceFrame * presence_frame,
 	mcd_presence_free (priv->requested_presence);
     }
 
-    if (presence == MC_PRESENCE_OFFLINE)
+    if (presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
     {
 	status = TP_CONNECTION_STATUS_DISCONNECTED;
     }
@@ -348,7 +348,7 @@ _mcd_presence_frame_request_presence (McdPresenceFrame * presence_frame,
 
 void
 mcd_presence_frame_request_presence (McdPresenceFrame * presence_frame,
-				     McPresence presence,
+				     TpConnectionPresenceType presence,
 				     const gchar * presence_message)
 {
     McdPresenceFramePrivate *priv;
@@ -366,9 +366,9 @@ mcd_presence_frame_request_presence (McdPresenceFrame * presence_frame,
 	     priv->last_presence->presence,
 	     priv->last_presence->message);
 
-    if (priv->last_presence->presence == MC_PRESENCE_UNSET)
+    if (priv->last_presence->presence == TP_CONNECTION_PRESENCE_TYPE_UNSET)
     {
-	priv->last_presence->presence = MC_PRESENCE_OFFLINE;
+	priv->last_presence->presence = TP_CONNECTION_PRESENCE_TYPE_OFFLINE;
     }
 
     g_debug ("Presence requested: %d", presence);
@@ -377,18 +377,18 @@ mcd_presence_frame_request_presence (McdPresenceFrame * presence_frame,
 					  presence_message);
 }
 
-McPresence
+TpConnectionPresenceType
 mcd_presence_frame_get_requested_presence (McdPresenceFrame * presence_frame)
 {
     McdPresenceFramePrivate *priv;
     g_return_val_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame),
-			  MC_PRESENCE_UNSET);
+			  TP_CONNECTION_PRESENCE_TYPE_UNSET);
     priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
 
     if (priv->requested_presence)
 	return priv->requested_presence->presence;
     else
-	return MC_PRESENCE_UNSET;
+	return TP_CONNECTION_PRESENCE_TYPE_UNSET;
 }
 
 const gchar *
@@ -405,12 +405,12 @@ mcd_presence_frame_get_requested_presence_message (McdPresenceFrame *
 	return NULL;
 }
 
-McPresence
+TpConnectionPresenceType
 mcd_presence_frame_get_actual_presence (McdPresenceFrame * presence_frame)
 {
     McdPresenceFramePrivate *priv;
     g_return_val_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame),
-			  MC_PRESENCE_UNSET);
+			  TP_CONNECTION_PRESENCE_TYPE_UNSET);
     priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
 
     return priv->actual_presence->presence;
@@ -459,7 +459,7 @@ _mcd_presence_frame_update_actual_presence (McdPresenceFrame * presence_frame,
     
     g_debug ("%s called", G_STRFUNC);
 
-    pi.presence = MC_PRESENCE_UNSET;
+    pi.presence = TP_CONNECTION_PRESENCE_TYPE_UNSET;
     pi.requested_presence = mcd_presence_frame_get_requested_presence (presence_frame);
     pi.found = FALSE;
     priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);

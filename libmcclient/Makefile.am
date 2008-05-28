@@ -21,12 +21,14 @@ libmcclient_la_SOURCES = \
 	dbus-api.c \
 	mc-account.c \
 	mc-account-manager.c \
+	mc-errors.c \
 	mc-signals-marshal.c
 
 libmcclient_includedir = $(includedir)/libmcclient
 libmcclient_include_HEADERS = \
 	dbus-api.h \
 	mc-account.h \
+	mc-errors.h \
 	mc-account-manager.h \
 	mc-signals-marshal.h
 

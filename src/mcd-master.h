@@ -64,20 +64,20 @@ McdManager *mcd_master_lookup_manager (McdMaster *master,
 				       const gchar *unique_name);
 
 void mcd_master_request_presence (McdMaster * master,
-				  McPresence presence,
+				  TpConnectionPresenceType presence,
 				  const gchar * presence_message);
 
-McPresence mcd_master_get_actual_presence (McdMaster * master);
+TpConnectionPresenceType mcd_master_get_actual_presence (McdMaster * master);
 gchar *mcd_master_get_actual_presence_message (McdMaster * master);
 
-McPresence mcd_master_get_requested_presence (McdMaster * master);
+TpConnectionPresenceType mcd_master_get_requested_presence (McdMaster * master);
 gchar *mcd_master_get_requested_presence_message (McdMaster * master);
 
 gboolean mcd_master_set_default_presence (McdMaster * master,
 					  const gchar *client_id);
 
 void mcd_master_set_default_presence_setting (McdMaster *master,
-					      McPresence presence);
+					      TpConnectionPresenceType presence);
 
 TpConnectionStatus mcd_master_get_account_status (McdMaster * master,
 						  gchar * account_name);

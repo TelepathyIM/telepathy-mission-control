@@ -45,19 +45,17 @@
 #include <stdlib.h>
 #include <dlfcn.h>
 
-#include <libmissioncontrol/mc-manager.h>
-#include <libmissioncontrol/mc-account.h>
-#include <libmissioncontrol/mc-protocol.h>
-#include <libmissioncontrol/mc-profile.h>
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/connection.h>
+#include <libmcclient/mc-errors.h>
 
 #include "mcd-connection.h"
 #include "mcd-channel.h"
 #include "mcd-provisioning-factory.h"
 
 #define MAX_REF_PRESENCE 4
+#define LAST_MC_PRESENCE (TP_CONNECTION_PRESENCE_TYPE_BUSY + 1)
 
 #define MCD_CONNECTION_PRIV(mcdconn) (MCD_CONNECTION (mcdconn)->priv)
 
@@ -155,32 +153,37 @@ enum
 };
 
 /* This table lists the Telepathy well-known statuses and the corresponding
- * McPresence values; the order in which the items appear is only important for
- * those statuses which map to the same McPresence value: for them, the first
- * ones will be preferred. */
+ * TpConnectionPresenceType values; the order in which the items appear is only
+ * important for those statuses which map to the same TpConnectionPresenceType
+ * value: for them, the first ones will be preferred. */
 static const struct _presence_mapping {
     gchar *presence_str;
-    McPresence mc_presence;
+    TpConnectionPresenceType mc_presence;
 } presence_mapping[] = {
-    { "offline", MC_PRESENCE_OFFLINE },
-    { "available", MC_PRESENCE_AVAILABLE },
-    { "away", MC_PRESENCE_AWAY },
-    { "xa", MC_PRESENCE_EXTENDED_AWAY },
-    { "hidden", MC_PRESENCE_HIDDEN },
-    { "dnd", MC_PRESENCE_DO_NOT_DISTURB },
-    { "brb", MC_PRESENCE_AWAY },
-    { "busy", MC_PRESENCE_DO_NOT_DISTURB },
+    { "offline", TP_CONNECTION_PRESENCE_TYPE_OFFLINE },
+    { "available", TP_CONNECTION_PRESENCE_TYPE_AVAILABLE },
+    { "away", TP_CONNECTION_PRESENCE_TYPE_AWAY },
+    { "xa", TP_CONNECTION_PRESENCE_TYPE_EXTENDED_AWAY },
+    { "hidden", TP_CONNECTION_PRESENCE_TYPE_HIDDEN },
+    { "dnd", TP_CONNECTION_PRESENCE_TYPE_BUSY },
+    { "brb", TP_CONNECTION_PRESENCE_TYPE_AWAY },
+    { "busy", TP_CONNECTION_PRESENCE_TYPE_BUSY },
     { NULL, 0 },
 };
 
-static const McPresence fallback_presence
+static const TpConnectionPresenceType fallback_presence
     [LAST_MC_PRESENCE - 1][MAX_REF_PRESENCE] = {
-    { 0 },	/* MC_PRESENCE_OFFLINE */
-    { 0 },	/* MC_PRESENCE_AVAILABLE */
-    { MC_PRESENCE_AVAILABLE, 0 },	/* MC_PRESENCE_AWAY */
-    { MC_PRESENCE_AWAY, MC_PRESENCE_AVAILABLE, 0 },	/* MC_PRESENCE_EXTENDED_AWAY */
-    { MC_PRESENCE_DO_NOT_DISTURB, MC_PRESENCE_EXTENDED_AWAY, MC_PRESENCE_AVAILABLE, 0 }, /* MC_PRESENCE_HIDDEN */
-    { 0 }	/* MC_PRESENCE_DO_NOT_DISTURB */
+    { 0 },	/* TP_CONNECTION_PRESENCE_TYPE_OFFLINE */
+    { 0 },	/* TP_CONNECTION_PRESENCE_TYPE_AVAILABLE */
+    { TP_CONNECTION_PRESENCE_TYPE_AVAILABLE,
+       	0 },	/* TP_CONNECTION_PRESENCE_TYPE_AWAY */
+    { TP_CONNECTION_PRESENCE_TYPE_AWAY, TP_CONNECTION_PRESENCE_TYPE_AVAILABLE,
+       	0 },	/* TP_CONNECTION_PRESENCE_TYPE_EXTENDED_AWAY */
+    { TP_CONNECTION_PRESENCE_TYPE_BUSY,
+       	TP_CONNECTION_PRESENCE_TYPE_EXTENDED_AWAY,
+       	TP_CONNECTION_PRESENCE_TYPE_AVAILABLE,
+       	0 },	/* TP_CONNECTION_PRESENCE_TYPE_HIDDEN */
+    { 0 }	/* TP_CONNECTION_PRESENCE_TYPE_BUSY */
 };
 
 struct request_id {
@@ -200,13 +203,13 @@ static GError * map_tp_error_to_mc_error (McdChannel *channel, const GError *tp_
 static void _mcd_connection_setup (McdConnection * connection);
 static void _mcd_connection_release_tp_connection (McdConnection *connection);
 
-static McPresence presence_str_to_enum (const gchar *presence_str)
+static TpConnectionPresenceType presence_str_to_enum (const gchar *presence_str)
 {
     const struct _presence_mapping *mapping;
     for (mapping = presence_mapping; mapping->presence_str; mapping++)
 	if (strcmp (presence_str, mapping->presence_str) == 0)
 	    return mapping->mc_presence;
-    return MC_PRESENCE_UNSET;
+    return TP_CONNECTION_PRESENCE_TYPE_UNSET;
 }
 
 /* Free dynamic members and presence_info itself */
@@ -251,7 +254,7 @@ _mcd_connection_set_fallback_presences (McdConnection * connection, gint i)
 	if (presence != NULL)
 	{
 	    priv->presence_to_set[i] = presence;
-	    g_debug ("Fallback for McPresence %d set to %s",
+	    g_debug ("Fallback for TpConnectionPresenceType %d set to %s",
 		     i + 1, presence->presence_str);
 	    return;
 	}
@@ -279,26 +282,26 @@ recognize_presence (gpointer key, gpointer value, gpointer user_data)
     pi.presence_str = g_strdup ((const gchar *) key);
 
     j = presence_str_to_enum (pi.presence_str);
-    if (j == MC_PRESENCE_UNSET)
+    if (j == TP_CONNECTION_PRESENCE_TYPE_UNSET)
     {
 	/* Didn't find match by comparing strings so map using the telepathy enum. */
 	telepathy_enum = g_value_get_uint (g_value_array_get_nth (status, 0));
 	switch (telepathy_enum)
 	{
 	case TP_CONNECTION_PRESENCE_TYPE_OFFLINE:
-	    j = MC_PRESENCE_OFFLINE;
+	    j = TP_CONNECTION_PRESENCE_TYPE_OFFLINE;
 	    break;
 	case TP_CONNECTION_PRESENCE_TYPE_AVAILABLE:
-	    j = MC_PRESENCE_AVAILABLE;
+	    j = TP_CONNECTION_PRESENCE_TYPE_AVAILABLE;
 	    break;
 	case TP_CONNECTION_PRESENCE_TYPE_AWAY:
-	    j = MC_PRESENCE_AWAY;
+	    j = TP_CONNECTION_PRESENCE_TYPE_AWAY;
 	    break;
 	case TP_CONNECTION_PRESENCE_TYPE_EXTENDED_AWAY:
-	    j = MC_PRESENCE_EXTENDED_AWAY;
+	    j = TP_CONNECTION_PRESENCE_TYPE_EXTENDED_AWAY;
 	    break;
 	case TP_CONNECTION_PRESENCE_TYPE_HIDDEN:
-	    j = MC_PRESENCE_HIDDEN;
+	    j = TP_CONNECTION_PRESENCE_TYPE_HIDDEN;
 	    break;
 	default:
 	    g_debug ("Unknown Telepathy presence type. Presence %s "
@@ -332,7 +335,7 @@ enable_well_known_presences (McdConnectionPrivate *priv)
 				     struct presence_info, i);
 		if (strcmp (pi->presence_str, mapping->presence_str) == 0)
 		{
-		    g_debug ("Using %s status for McPresence %d",
+		    g_debug ("Using %s status for TpConnectionPresenceType %d",
 			     mapping->presence_str, mapping->mc_presence);
 		    /* Presence values used when setting the presence status */
 		    priv->presence_to_set[mapping->mc_presence - 1] = pi;

@@ -37,12 +37,13 @@
 #include <glib/gi18n.h>
 
 #include "mcd-signals-marshal.h"
-#include <libmissioncontrol/mc-account.h>
 #include "mcd-connection.h"
 #include "mcd-channel.h"
 #include "mcd-master.h"
 #include "mcd-chan-handler.h"
 #include "mcd-dispatcher-context.h"
+
+#include <libmcclient/mc-errors.h>
 
 #define MCD_DISPATCHER_PRIV(dispatcher) (G_TYPE_INSTANCE_GET_PRIVATE ((dispatcher), \
 				  MCD_TYPE_DISPATCHER, \

@@ -1,3 +1,9 @@
+2008-05-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/Makefile.am, libmcclient/mc-errors.[hc], src/*:
+	Make libmissioncontrol-server not depend on libmissioncontrol-client
+	(dpend on libmcclient, instead).
+
 === telepathy-mission-control 5.0.beta9 ===
 
 2008-05-27  Alberto Mardegan  <alberto.mardegan@nokia.com>

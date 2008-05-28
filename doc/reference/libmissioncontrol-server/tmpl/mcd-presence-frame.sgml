@@ -83,7 +83,7 @@ McdPresenceFrame
 </para>
 
 @presence_frame: 
-@Param2: 
+@presence: 
 @presence_message: 
 
 

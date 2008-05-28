@@ -28,6 +28,7 @@
 #include <glib/gi18n.h>
 #include <config.h>
 
+#include <dbus/dbus.h>
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 #include <telepathy-glib/gtypes.h>
@@ -42,6 +43,7 @@
 #include "mcd-master.h"
 #include "mcd-dbusprop.h"
 #include "_gen/interfaces.h"
+#include "_gen/gtypes.h"
 
 #define MAX_KEY_LENGTH	64
 #define MC_AVATAR_FILENAME	"avatar.bin"

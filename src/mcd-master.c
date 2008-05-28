@@ -50,11 +50,9 @@
 #include <gconf/gconf-client.h>
 #include <gmodule.h>
 #include <string.h>
-#include <libmissioncontrol/mc-manager.h>
-#include <libmissioncontrol/mc-account.h>
-#include <libmissioncontrol/mc-profile.h>
-#include <libmissioncontrol/mc-account-monitor.h>
-#include <libmissioncontrol/mission-control.h>
+#include <dbus/dbus.h>
+#include <dbus/dbus-glib.h>
+#include <dbus/dbus-glib-lowlevel.h>
 
 #include "mcd-master.h"
 #include "mcd-presence-frame.h"
@@ -66,6 +64,8 @@
 #include "mcd-plugin.h"
 #include "mcd-transport.h"
 #include "mcd-account-connection.h"
+
+#include <libmcclient/mc-errors.h>
 
 #define MCD_MASTER_PRIV(master) (G_TYPE_INSTANCE_GET_PRIVATE ((master), \
 				  MCD_TYPE_MASTER, \
@@ -79,16 +79,13 @@ typedef struct _McdMasterPrivate
     McdAccountManager *account_manager;
     McdDispatcher *dispatcher;
     McdProxy *proxy;
-    McPresence awake_presence;
+    TpConnectionPresenceType awake_presence;
     gchar *awake_presence_message;
-    McPresence default_presence;
+    TpConnectionPresenceType default_presence;
 
     /* We create this for our member objects */
     TpDBusDaemon *dbus_daemon;
     
-    /* Monitor for account enabling/disabling events */
-    McAccountMonitor *account_monitor;
-
     /* if this flag is set, presence should go offline when all conversations
      * are closed */
     gboolean offline_on_idle;
@@ -331,45 +328,10 @@ mcd_master_load_plugins (McdMaster *master)
     g_dir_close (dir);
 }
 
-static gboolean
-exists_supporting_invisible (McdMasterPrivate *priv)
-{
-    McPresence *presences, *presence;
-    gboolean found = FALSE;
-
-    presences =
-       	mc_account_monitor_get_supported_presences (priv->account_monitor);
-    for (presence = presences; *presence; presence++)
-	if (*presence == MC_PRESENCE_HIDDEN)
-	{
-	    found = TRUE;
-	    break;
-	}
-    g_free (presences);
-    return found;
-}
-
-static McPresence
+static TpConnectionPresenceType
 _get_default_presence (McdMasterPrivate *priv)
 {
-    McPresence presence = priv->default_presence;
-
-    if (presence == MC_PRESENCE_OFFLINE)
-    {
-	/* Map offline to hidden if supported */
-	presence = exists_supporting_invisible (priv)?
-	    MC_PRESENCE_HIDDEN : MC_PRESENCE_AWAY;
-    }
-
-    else if ((presence == MC_PRESENCE_HIDDEN) &&
-	     (exists_supporting_invisible (priv) == FALSE))
-    {
-	/* Default presence was set to hidden/invisible but none of the
-	 * accounts support it. Therefore use MC_PRESENCE_AWAY. */
-	g_debug ("Default presence setting is hidden but none of the "
-		 "accounts support it. Falling back to away.");
-	presence = MC_PRESENCE_AWAY;
-    }
+    TpConnectionPresenceType presence = priv->default_presence;
 
     return presence;
 }
@@ -418,7 +380,7 @@ dbus_filter_func (DBusConnection *connection,
 		    priv->offline_on_idle)
 		{
 		    mcd_presence_frame_request_presence (priv->presence_frame,
-							 MC_PRESENCE_OFFLINE,
+							 TP_CONNECTION_PRESENCE_TYPE_OFFLINE,
 							 "No active processes");
 		}
 	    }
@@ -432,7 +394,7 @@ static void
 _mcd_master_connect (McdMission * mission)
 {
     MCD_MISSION_CLASS (mcd_master_parent_class)->connect (mission);
-    /*if (mission->main_presence.presence_enum != MC_PRESENCE_OFFLINE)
+    /*if (mission->main_presence.presence_enum != TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
      * mcd_connect_all_accounts(mission); */
 
 }
@@ -521,7 +483,7 @@ _mcd_master_set_flags (McdMission * mission, McdSystemFlags flags)
 	    /* Save the current presence first */
 	    priv->awake_presence =
 		mcd_presence_frame_get_actual_presence (priv->presence_frame);
-	    if (priv->awake_presence != MC_PRESENCE_AVAILABLE)
+	    if (priv->awake_presence != TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
 		return;
 	    g_free (priv->awake_presence_message);
 	    priv->awake_presence_message = g_strdup
@@ -529,7 +491,7 @@ _mcd_master_set_flags (McdMission * mission, McdSystemFlags flags)
 		 (priv->presence_frame));
 
 	    mcd_presence_frame_request_presence (priv->presence_frame,
-						 MC_PRESENCE_AWAY, NULL);
+						 TP_CONNECTION_PRESENCE_TYPE_AWAY, NULL);
 	}
 	else
 	{    
@@ -644,7 +606,7 @@ mcd_master_class_init (McdMasterClass * klass)
 						       _("Default presence"),
 						       _("Default presence when connecting"),
 						       0,
-						       LAST_MC_PRESENCE,
+						       TP_CONNECTION_PRESENCE_TYPE_UNSET,
 						       0,
 						       G_PARAM_READWRITE));
 }
@@ -753,18 +715,18 @@ mcd_master_set_offline_on_idle (McdMaster *master, gboolean offline_on_idle)
 
 void
 mcd_master_request_presence (McdMaster * master,
-			     McPresence presence,
+			     TpConnectionPresenceType presence,
 			     const gchar * presence_message)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
 
     mcd_presence_frame_request_presence (priv->presence_frame, presence,
 					 presence_message);
-    if (presence >= MC_PRESENCE_AVAILABLE)
+    if (presence >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
 	mcd_master_set_offline_on_idle (master, FALSE);
 }
 
-McPresence
+TpConnectionPresenceType
 mcd_master_get_actual_presence (McdMaster * master)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
@@ -781,7 +743,7 @@ mcd_master_get_actual_presence_message (McdMaster * master)
 	mcd_presence_frame_get_actual_presence_message (priv->presence_frame));
 }
 
-McPresence
+TpConnectionPresenceType
 mcd_master_get_requested_presence (McdMaster * master)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
@@ -802,10 +764,10 @@ gboolean
 mcd_master_set_default_presence (McdMaster * master, const gchar *client_id)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    McPresence presence;
+    TpConnectionPresenceType presence;
 
     presence = _get_default_presence (priv);
-    if (presence == MC_PRESENCE_UNSET)
+    if (presence == TP_CONNECTION_PRESENCE_TYPE_UNSET)
 	return FALSE;
 
     if (client_id)
@@ -819,14 +781,14 @@ mcd_master_set_default_presence (McdMaster * master, const gchar *client_id)
     }
 
     if (mcd_presence_frame_get_actual_presence (priv->presence_frame)
-       	>= MC_PRESENCE_AVAILABLE ||
+       	>= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE ||
 	!mcd_presence_frame_is_stable (priv->presence_frame) ||
 	/* if we are not connected the presence frame will always be stable,
 	 * but this doesn't mean we must accept this request; maybe another one
 	 * is pending */
 	(!mcd_mission_is_connected (MCD_MISSION (master)) &&
 	 mcd_presence_frame_get_requested_presence (priv->presence_frame)
-	 >= MC_PRESENCE_AVAILABLE))
+	 >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE))
     {
 	g_debug ("%s: Default presence requested while connected or "
 		 "already connecting", G_STRFUNC);
@@ -946,7 +908,7 @@ mcd_master_request_channel (McdMaster *master,
     }
  
     /* make sure we are online, or will be */
-    if (mcd_presence_frame_get_actual_presence (priv->presence_frame) <= MC_PRESENCE_AVAILABLE &&
+    if (mcd_presence_frame_get_actual_presence (priv->presence_frame) <= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE &&
 	mcd_presence_frame_is_stable (priv->presence_frame))
     {
 	g_debug ("%s: requesting default presence", G_STRFUNC);
@@ -1105,7 +1067,7 @@ mcd_master_get_account_for_connection (McdMaster *master,
 
 void
 mcd_master_set_default_presence_setting (McdMaster *master,
-					 McPresence presence)
+					 TpConnectionPresenceType presence)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     priv->default_presence = presence;

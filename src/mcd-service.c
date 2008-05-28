@@ -40,7 +40,6 @@
 #include <string.h>
 #include <dlfcn.h>
 #include <sched.h>
-#include <libmissioncontrol/mission-control.h>
 #include <stdlib.h>
 
 #include <glib.h>
@@ -55,10 +54,20 @@
 #include "mcd-connection.h"
 #include "mcd-service.h"
 
+#include <libmcclient/mc-errors.h>
+
 /* DBus service specifics */
 #define MISSION_CONTROL_DBUS_SERVICE "org.freedesktop.Telepathy.MissionControl"
 #define MISSION_CONTROL_DBUS_OBJECT  "/org/freedesktop/Telepathy/MissionControl"
 #define MISSION_CONTROL_DBUS_IFACE   "org.freedesktop.Telepathy.MissionControl"
+
+#define LAST_MC_PRESENCE (TP_CONNECTION_PRESENCE_TYPE_BUSY + 1)
+
+typedef enum {
+    MC_STATUS_DISCONNECTED,
+    MC_STATUS_CONNECTING,
+    MC_STATUS_CONNECTED,
+} McStatus;
 
 /* Signals */
 
@@ -304,8 +313,8 @@ mcd_service_get_account_for_connection(GObject *obj,
 
 static gboolean
 mcd_service_get_current_status(GObject *obj,
-			       McStatus *status, McPresence *presence,
-			       McPresence *requested_presence,
+			       McStatus *status, TpConnectionPresenceType *presence,
+			       TpConnectionPresenceType *requested_presence,
 			       GPtrArray **accounts, GError **error)
 {
     McdServicePrivate *priv = MCD_OBJECT_PRIV (obj);
@@ -585,7 +594,7 @@ _on_account_status_changed (McdPresenceFrame * presence_frame,
 static void
 _on_account_presence_changed (McdPresenceFrame * presence_frame,
 			      McdAccount * account,
-			      McPresence presence,
+			      TpConnectionPresenceType presence,
 			      gchar * presence_message, McdService * obj)
 {
     /* Emit the AccountStatusChanged signal */
@@ -620,12 +629,12 @@ _on_account_presence_changed (McdPresenceFrame * presence_frame,
 
 static void
 _on_presence_requested (McdPresenceFrame * presence_frame,
-			McPresence presence,
+			TpConnectionPresenceType presence,
 			gchar * presence_message, McdService * obj)
 {
     /* Begin shutdown if it is offline request */
-    if (presence == MC_PRESENCE_OFFLINE ||
-	presence == MC_PRESENCE_UNSET)
+    if (presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE ||
+	presence == TP_CONNECTION_PRESENCE_TYPE_UNSET)
 	mcd_controller_shutdown (MCD_CONTROLLER (obj),
 				 "Offline presence requested");
     else
@@ -643,7 +652,7 @@ _on_presence_requested (McdPresenceFrame * presence_frame,
 
 static void
 _on_presence_actual (McdPresenceFrame * presence_frame,
-		     McPresence presence,
+		     TpConnectionPresenceType presence,
 		     gchar * presence_message, McdService * obj)
 {
     /* Emit the AccountStatusChanged signal */
@@ -666,7 +675,7 @@ _on_status_actual (McdPresenceFrame *presence_frame,
 		   McdService *service)
 {
     McdServicePrivate *priv = MCD_OBJECT_PRIV (service);
-    McPresence req_presence;
+    TpConnectionPresenceType req_presence;
     McStatus status;
 
     req_presence = mcd_presence_frame_get_requested_presence (presence_frame);

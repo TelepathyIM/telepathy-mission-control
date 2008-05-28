@@ -27,7 +27,6 @@
 
 #include <glib.h>
 #include <glib-object.h>
-#include <libmissioncontrol/mc-account.h>
 #include <telepathy-glib/connection-manager.h>
 
 #include "mcd-operation.h"

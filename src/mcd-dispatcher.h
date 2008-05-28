@@ -28,8 +28,6 @@
 #include <glib.h>
 #include <glib-object.h>
 #include <dbus/dbus-glib.h>
-#include <libmissioncontrol/mc-account.h>
-#include <libmissioncontrol/mc-profile.h>
 
 G_BEGIN_DECLS
 

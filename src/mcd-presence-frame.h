@@ -27,7 +27,6 @@
 
 #include <glib.h>
 #include <glib-object.h>
-#include <libmissioncontrol/mission-control.h>
 
 #include "mcd-mission.h"
 
@@ -55,13 +54,13 @@ struct _McdPresenceFrameClass
 
     /* Signals */
     void (*presence_requested_signal) (McdPresenceFrame * presence_frame,
-				       McPresence presence,
+				       TpConnectionPresenceType presence,
 				       const gchar * presence_message);
     
     /* Account specific signals */
     void (*presence_set_signal) (McdPresenceFrame * presence_frame,
 				 McdAccount * account,
-				 McPresence presence,
+				 TpConnectionPresenceType presence,
 				 const gchar * presence_message);
     void (*status_changed_signal) (McdPresenceFrame * presence_frame,
 				   McdAccount * account,
@@ -71,7 +70,7 @@ struct _McdPresenceFrameClass
     
     /* Aggregate signals */
     void (*presence_actual_signal) (McdPresenceFrame * presence_frame,
-				    McPresence presence,
+				    TpConnectionPresenceType presence,
 				    const gchar * presence_message);
 };
 
@@ -79,16 +78,15 @@ GType mcd_presence_frame_get_type (void);
 McdPresenceFrame *mcd_presence_frame_new (void);
 
 void mcd_presence_frame_request_presence (McdPresenceFrame * presence_frame,
-					  McPresence
-					  presence,
+					  TpConnectionPresenceType presence,
 					  const gchar * presence_message);
 
-McPresence mcd_presence_frame_get_requested_presence
+TpConnectionPresenceType mcd_presence_frame_get_requested_presence
     (McdPresenceFrame * presence_frame);
 const gchar *mcd_presence_frame_get_requested_presence_message
     (McdPresenceFrame * presence_frame);
 
-McPresence mcd_presence_frame_get_actual_presence
+TpConnectionPresenceType mcd_presence_frame_get_actual_presence
     (McdPresenceFrame * presence_frame);
 const gchar *mcd_presence_frame_get_actual_presence_message
     (McdPresenceFrame * presence_frame);
