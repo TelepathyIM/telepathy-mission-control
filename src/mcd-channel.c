@@ -398,11 +398,18 @@ inspect_channel_handle_cb (TpConnection *proxy, const gchar **handle_names,
 }
 
 static void
-_mcd_channel_ready (McdChannel *channel)
+on_channel_ready (TpChannel *tp_chan, const GError *error, gpointer user_data)
 {
+    McdChannel *channel = user_data;
     McdChannelPrivate *priv = channel->priv;
     TpConnection *tp_conn;
     GArray request_handles;
+
+    if (error)
+    {
+	g_debug ("%s got error: %s", G_STRFUNC, error->message);
+	return;
+    }
 
     g_object_get (priv->tp_chan,
 		  "connection", &tp_conn,
@@ -432,25 +439,11 @@ _mcd_channel_ready (McdChannel *channel)
 }
 
 static void
-on_channel_ready (TpChannel *tp_chan, GParamSpec *pspec, McdChannel *channel)
-{
-    gboolean ready;
-
-    g_object_get (tp_chan, "channel-ready", &ready, NULL);
-    if (ready)
-	_mcd_channel_ready (channel);
-}
-
-static void
 _mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
     if (priv->tp_chan)
     {
-	g_signal_handlers_disconnect_by_func (priv->tp_chan,
-					      G_CALLBACK (on_channel_ready),
-					      channel);
-        
 	g_signal_handlers_disconnect_by_func (G_OBJECT (priv->tp_chan),
 					      G_CALLBACK (proxy_destroyed),
 					      channel);
@@ -471,16 +464,9 @@ _mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
 static inline void
 _mcd_channel_setup (McdChannel *channel, McdChannelPrivate *priv)
 {
-    gboolean ready;
-
     /* check if the channel is ready; if not, connect to its "channel-ready"
      * signal */
-    g_object_get (priv->tp_chan, "channel-ready", &ready, NULL);
-    if (ready)
-	_mcd_channel_ready (channel);
-    else
-	g_signal_connect (priv->tp_chan, "notify::channel-ready",
-			  G_CALLBACK (on_channel_ready), channel);
+    tp_channel_call_when_ready (priv->tp_chan, on_channel_ready, channel);
 
     /* We want to track the channel object closes, because we need to do
      * some cleanups when it's gone */

@@ -1267,17 +1267,18 @@ connect_cb (TpConnection *tp_conn, const GError *error,
 }
 
 static void
-on_connection_ready_notify (TpConnection *tp_conn, GParamSpec *pspec,
-			    McdConnection *connection)
+on_connection_ready (TpConnection *tp_conn, const GError *error,
+		     gpointer user_data)
 {
+    McdConnection *connection = user_data;
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-    gboolean ready;
 
-    g_object_get (G_OBJECT(tp_conn),
-		  "connection-ready", &ready,
-		  NULL);
-    g_debug ("%s: %d", G_STRFUNC, ready);
-    if (!ready) return;
+    if (error)
+    {
+	g_debug ("%s got error: %s", G_STRFUNC, error->message);
+	return;
+    }
+    g_debug ("%s: connection is ready", G_STRFUNC);
 
     priv->has_presence_if = tp_proxy_has_interface_by_id (tp_conn,
 							  TP_IFACE_QUARK_CONNECTION_INTERFACE_PRESENCE);
@@ -1339,9 +1340,8 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
     g_signal_connect (priv->tp_conn, "notify::status",
 		      G_CALLBACK (on_connection_status_changed),
 		      connection);
-    g_signal_connect (priv->tp_conn, "notify::connection-ready",
-		      G_CALLBACK (on_connection_ready_notify),
-		      connection);
+    tp_connection_call_when_ready (priv->tp_conn, on_connection_ready,
+				   connection);
     tp_cli_connection_connect_to_new_channel (priv->tp_conn,
 					      on_new_channel,
 					      priv, NULL,
@@ -1458,9 +1458,6 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
     if (priv->tp_conn)
     {
 	/* Disconnect signals */
-	g_signal_handlers_disconnect_by_func (priv->tp_conn,
-					      G_CALLBACK (on_connection_ready_notify),
-					      connection);
 	g_signal_handlers_disconnect_by_func (priv->tp_conn,
 					      G_CALLBACK (on_connection_status_changed),
 					      connection);

@@ -1,5 +1,8 @@
 2008-05-29  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/mcd-channel.c, src/mcd-connection.c:
+	Use the new tp_XXX_call_when_ready() APIs.
+
 	* examples/mc-example.c:
 	Update example program.
 
