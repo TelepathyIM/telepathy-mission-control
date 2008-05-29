@@ -1,5 +1,8 @@
 2008-05-29  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* examples/mc-example.c:
+	Update example program.
+
 	* libmcclient/Makefile.am, libmcclient/mc-profile.[hc]:
 	Add McProfile APIs to access profiles.
 

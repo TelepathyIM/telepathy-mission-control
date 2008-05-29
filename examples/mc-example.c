@@ -28,9 +28,33 @@
 #include <libmcclient/dbus-api.h>
 #include <libmcclient/mc-account-manager.h>
 #include <libmcclient/mc-account.h>
+#include <libmcclient/mc-profile.h>
 
 static GMainLoop *main_loop;
 
+static void
+get_profile_cb (TpProxy *proxy, const GValue *val_profile,
+		const GError *error, gpointer user_data,
+		GObject *weak_object)
+{
+    const gchar *profile_name;
+    McProfile *profile;
+
+    g_debug ("%s called", G_STRFUNC);
+    if (error)
+    {
+	g_warning ("%s: got error: %s", G_STRFUNC, error->message);
+	return;
+    }
+
+    profile_name = g_value_get_string (val_profile);
+    g_debug ("profile is %s", profile_name);
+    profile = mc_profile_lookup (profile_name);
+    if (profile)
+    {
+	g_debug ("VCard field is %s", mc_profile_get_vcard_field (profile));
+    }
+}
 
 static void
 valid_accounts_cb (TpProxy *proxy, const GValue *val_accounts,
@@ -53,7 +77,13 @@ valid_accounts_cb (TpProxy *proxy, const GValue *val_accounts,
 
 	account = mc_account_new (proxy->dbus_daemon, *name);
 	g_debug ("account %s, manager %s, protocol %s",
-		 account->unique_name, account->manager_name, account->protocol_name);
+		 account->name, account->manager_name, account->protocol_name);
+
+	tp_cli_dbus_properties_call_get (account, -1,
+					 MC_IFACE_ACCOUNT_INTERFACE_COMPAT,
+					 "Profile",
+					 get_profile_cb,
+					 NULL, NULL, NULL);
     }
 
     g_timeout_add (2000, (GSourceFunc)g_main_loop_quit, main_loop);
@@ -80,7 +110,7 @@ void find_accounts_cb (TpProxy *proxy, const GPtrArray *accounts,
 	name = g_ptr_array_index (accounts, i);
 	account = mc_account_new (proxy->dbus_daemon, name);
 	g_debug ("enabled account %s, manager %s, protocol %s",
-		 account->unique_name, account->manager_name, account->protocol_name);
+		 account->name, account->manager_name, account->protocol_name);
     }
 }
 
