@@ -1783,41 +1783,39 @@ mcd_connection_get_telepathy_details (McdConnection * id,
 }
 
 static GError *
-map_tp_error_to_mc_error (McdChannel *channel, const GError *tp_error)
+map_tp_error_to_mc_error (McdChannel *channel, const GError *error)
 {
     MCError mc_error_code = MC_CHANNEL_REQUEST_GENERIC_ERROR;
-    const gchar *error;
     
-    g_warning ("Telepathy Error = %s", tp_error->message);
+    g_warning ("Telepathy Error = %s", error->message);
     
     /* TODO : Are there still more specific errors we need
      * to distinguish?
      */
-    error = dbus_g_error_get_name ((GError *)tp_error);
     if (mcd_channel_get_channel_type_quark (channel) ==
 	TP_IFACE_QUARK_CHANNEL_TYPE_STREAMED_MEDIA &&
-	strcmp(error, "org.freedesktop.Telepathy.Error.NotAvailable") == 0)
+	error->code == TP_ERROR_NOT_AVAILABLE)
     {
 	mc_error_code = MC_CONTACT_DOES_NOT_SUPPORT_VOICE_ERROR;
     }
-    else if (strcmp (error, "org.freedesktop.Telepathy.Error.Channel.Banned") == 0)
+    else if (error->code == TP_ERROR_CHANNEL_BANNED)
     {
 	mc_error_code = MC_CHANNEL_BANNED_ERROR;
     }
-    else if (strcmp (error, "org.freedesktop.Telepathy.Error.Channel.Full") == 0)
+    else if (error->code == TP_ERROR_CHANNEL_FULL)
     {
 	mc_error_code = MC_CHANNEL_FULL_ERROR;
     }
-    else if (strcmp (error, "org.freedesktop.Telepathy.Error.Channel.InviteOnly") == 0)
+    else if (error->code == TP_ERROR_CHANNEL_INVITE_ONLY)
     {
 	mc_error_code = MC_CHANNEL_INVITE_ONLY_ERROR;
     }
-    else if (strcmp (error, "org.freedesktop.Telepathy.Error.InvalidHandle") == 0)
+    else if (error->code == TP_ERROR_INVALID_HANDLE)
     {
 	mc_error_code = MC_INVALID_HANDLE_ERROR;
     }
     return g_error_new (MC_ERROR, mc_error_code, "Telepathy Error: %s",
-			tp_error->message);
+			error->message);
 }
 
 static void
