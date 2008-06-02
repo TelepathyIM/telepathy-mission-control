@@ -1,3 +1,10 @@
+2008-06-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-account.c, src/mcd-connection.[hc]:
+	Properly change Nickname on the connection, when it's changed on the
+	account.
+	Remove an unused function and optimize some code.
+
 2008-05-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-connection.c:

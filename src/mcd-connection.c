@@ -1114,9 +1114,9 @@ aliasing_set_aliases_cb (TpConnection *proxy, const GError *error,
 
 static void
 _mcd_connection_set_alias (McdConnection *connection,
-			   McdConnectionPrivate *priv,
 			   const gchar *alias)
 {
+    McdConnectionPrivate *priv = connection->priv;
     GHashTable *aliases;
 
     g_debug ("%s: setting alias '%s'", G_STRFUNC, alias);
@@ -1133,6 +1133,16 @@ _mcd_connection_set_alias (McdConnection *connection,
 }
 
 static void
+on_account_alias_changed (McdAccount *account, const gchar *alias,
+			  McdConnection *connection)
+{
+    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
+
+    if (!priv->has_alias_if) return;
+    _mcd_connection_set_alias (connection, alias);
+}
+
+static void
 _mcd_connection_setup_alias (McdConnection *connection)
 {
     McdConnectionPrivate *priv = connection->priv;
@@ -1145,7 +1155,7 @@ _mcd_connection_setup_alias (McdConnection *connection)
 								     NULL);
     alias = mcd_account_get_alias (priv->account);
     if (alias && (!priv->alias || strcmp (priv->alias, alias) != 0))
-	_mcd_connection_set_alias (connection, priv, alias);
+	_mcd_connection_set_alias (connection, alias);
     g_free (alias);
 }
 
@@ -1513,6 +1523,9 @@ _mcd_connection_dispose (GObject * object)
 	g_signal_handlers_disconnect_by_func (priv->account,
 					      G_CALLBACK (on_account_avatar_changed),
 					      object);
+	g_signal_handlers_disconnect_by_func (priv->account,
+					      G_CALLBACK (on_account_alias_changed),
+					      object);
 	g_object_unref (priv->account);
 	priv->account = NULL;
     }
@@ -1590,6 +1603,9 @@ _mcd_connection_set_property (GObject * obj, guint prop_id,
 	g_signal_connect (priv->account,
 			  "mcd-avatar-changed",
 			  G_CALLBACK (on_account_avatar_changed), obj);
+	g_signal_connect (priv->account,
+			  "alias-changed",
+			  G_CALLBACK (on_account_alias_changed), obj);
 	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -2023,16 +2039,19 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
     
     channel = MCD_CHANNEL (weak_object);
     
-    if (error != NULL)
+    if (error != NULL || g_array_index (handles, guint, 0) == 0)
     {
 	GError *mc_error;
+	const gchar *msg;
+
+	msg = error ? error->message : "got handle 0";
 	g_warning ("Could not map string handle to a valid handle!: %s",
-		   error->message);
+		   msg);
 	
 	/* Fail dispatch */
 	mc_error = g_error_new (MC_ERROR, MC_INVALID_HANDLE_ERROR,
 		     "Could not map string handle to a valid handle!: %s",
-				error->message);
+		     msg);
 	g_signal_emit_by_name (priv->dispatcher, "dispatch-failed",
 			       channel, mc_error);
 	g_error_free (mc_error);
@@ -2049,26 +2068,6 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
     chan_handle = g_array_index (handles, guint, 0);
     
     g_debug ("Got handle %u", chan_handle);
-    
-    /* Is the handle we got valid? */
-    if (chan_handle == 0)
-    {
-	GError *mc_error;
-	g_warning ("Could not map the string  to a valid handle!");
-	
-	/* Fail dispatch */
-	mc_error = g_error_new (MC_ERROR, MC_INVALID_HANDLE_ERROR,
-			     "Could not map string handle to a valid handle!");
-	g_signal_emit_by_name (priv->dispatcher, "dispatch-failed",
-			       channel, mc_error);
-	g_error_free (mc_error);
-	
-	/* No abort, because we are the only one holding the only reference
-	 * to this temporary channel
-	 */
-	g_object_unref (channel);
-	return;
-    }
     
     /* Check if a telepathy channel has already been created; this could happen
      * in the case we had a chat window open, the UI crashed and now the same
@@ -2316,36 +2315,6 @@ mcd_connection_close (McdConnection *connection)
 
     priv->abort_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
     mcd_mission_abort (MCD_MISSION (connection));
-}
-
-/**
- * mcd_connection_account_changed:
- * @connection: the #McdConnection.
- *
- * This function must be called when the account this connection refers to is
- * modified.
- * Note: ideally, this should be a private method and the connection should
- * monitor the account itself; but since the monitoring is already done by
- * McdMaster for all accounts, it seemed more convenient to let it call this
- * function whenever needed.
- */
-void
-mcd_connection_account_changed (McdConnection *connection)
-{
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-
-    if (priv->tp_conn) 
-    {
-	if (priv->has_alias_if)
-	{
-	    gchar *alias;
-
-	    alias = mcd_account_get_alias (priv->account);
-	    if (alias && (!priv->alias || strcmp (priv->alias, alias) != 0))
-		_mcd_connection_set_alias (connection, priv, alias);
-	    g_free (alias);
-	}
-    }
 }
 
 /**

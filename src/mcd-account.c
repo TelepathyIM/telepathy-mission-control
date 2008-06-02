@@ -361,11 +361,10 @@ mcd_account_set_string_val (McdAccount *account, const gchar *key,
     string = g_value_get_string (value);
     old_string = g_key_file_get_string (priv->keyfile, priv->unique_name,
 				       	key, NULL);
-    if (old_string == string ||
-	(old_string && string && strcmp (old_string, string) == 0))
+    if (!tp_strdiff (old_string, string))
     {
 	g_free (old_string);
-	return TRUE;
+	return FALSE;
     }
 
     g_free (old_string);
@@ -491,7 +490,9 @@ set_nickname (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
     McdAccountPrivate *priv = account->priv;
 
     g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
-    mcd_account_set_string_val (account, name, value);
+    if (mcd_account_set_string_val (account, name, value))
+	g_signal_emit (account, _mcd_account_signals[ALIAS_CHANGED], 0,
+		       g_value_get_string (value));
 }
 
 static void
