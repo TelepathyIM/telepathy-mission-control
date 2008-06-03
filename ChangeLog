@@ -1,3 +1,5 @@
+=== telepathy-mission-control 5.0.beta10 ===
+
 2008-06-03  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-channel.c, src/mcd-manager.[hc], src/mcd-master.c:
