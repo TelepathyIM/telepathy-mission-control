@@ -1,3 +1,8 @@
+2008-06-03  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c, src/mcd-manager.[hc], src/mcd-master.c:
+	Remove some unused code.
+
 2008-06-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-account.c, src/mcd-connection.[hc]:

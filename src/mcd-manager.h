@@ -92,10 +92,6 @@ const GArray *mcd_manager_get_parameters (McdManager *manager,
 McdConnection *mcd_manager_create_connection (McdManager *manager,
 					      McdAccount *account);
 
-gboolean mcd_manager_request_channel (McdManager *manager,
-				      const struct mcd_channel_request *req,
-				      GError ** error);
-
 gboolean mcd_manager_cancel_channel_request (McdManager *manager, guint operation_id,
 					     const gchar *requestor_client_pid, GError **error);
 

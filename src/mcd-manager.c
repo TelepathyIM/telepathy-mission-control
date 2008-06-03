@@ -67,9 +67,6 @@ struct _McdManagerPrivate
     GArray *protocols; /* array of McdProtocol structures */
     gboolean is_disposed;
     gboolean delay_presence_request;
-
-    /* Table of channels to create upon connection */
-    GHashTable *requested_channels;
 };
 
 enum
@@ -80,10 +77,6 @@ enum
     PROP_DISPATCHER,
     PROP_DBUS_DAEMON,
 };
-
-static void abort_requested_channel (gchar *key,
-				     struct mcd_channel_request *req,
-				     McdManager *manager);
 
 static const gchar**
 _mc_manager_get_dirs ()
@@ -185,57 +178,6 @@ _find_connection_by_path (gconstpointer data, gconstpointer user_data)
     return ret;
 }
 
-static void
-requested_channel_process (gchar *key, struct mcd_channel_request *req,
-			   McdManager *manager)
-{
-    GError *error = NULL;
-
-    g_debug ("%s: creating channel %s - %s - %s", G_STRFUNC, req->account_name, req->channel_type, req->channel_handle_string);
-
-    if (!mcd_manager_request_channel (manager, req, &error))
-    {
-	g_assert (error != NULL);
-	g_debug ("%s: channel request failed (%s)", G_STRFUNC, error->message);
-	g_error_free (error);
-	return;
-    }
-    g_assert (error == NULL);
-}
-
-static void
-on_status_actual (McdPresenceFrame *presence_frame,
-		  TpConnectionStatus status, McdManager *manager)
-{
-    McdManagerPrivate *priv = MCD_MANAGER_PRIV (manager);
-
-    g_debug ("%s called", G_STRFUNC); 
-    if (priv->requested_channels)
-    {
-	/* don't do anything until the presence frame is stable */
-	g_debug ("presence frame is %sstable", mcd_presence_frame_is_stable (presence_frame) ? "" : "not ");
-	if (status == TP_CONNECTION_STATUS_CONNECTING)
-	    return;
-	if (mcd_presence_frame_get_actual_presence (presence_frame) >=
-	    TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
-	{
-	    g_hash_table_foreach (priv->requested_channels,
-				  (GHFunc)requested_channel_process,
-				  manager);
-	}
-	else
-	{
-	    /* We couldn't connect; signal an error to the channel requestors
-	     */
-	    g_hash_table_foreach (priv->requested_channels,
-				  (GHFunc)abort_requested_channel,
-				  manager);
-	}
-	g_hash_table_destroy (priv->requested_channels);
-	priv->requested_channels = NULL;
-    }
-}
-
 static gboolean
 on_presence_requested_idle (gpointer data)
 {
@@ -262,46 +204,6 @@ on_presence_requested_idle (gpointer data)
 }
 
 static void
-abort_requested_channel (gchar *key, struct mcd_channel_request *req,
-			 McdManager *manager)
-{
-    McdManagerPrivate *priv = MCD_MANAGER_PRIV (manager);
-    McdChannel *channel;
-    GError *error;
-
-    g_debug ("%s: aborting channel %s - %s - %s", G_STRFUNC,
-	     req->account_name, req->channel_type, req->channel_handle_string);
-    error = g_error_new (MC_ERROR, MC_NETWORK_ERROR,
-			 "Connection cancelled");
-    /* we must create a channel object, just for delivering the error */
-    channel = mcd_channel_new (NULL,
-			       req->channel_type,
-			       0,
-			       req->channel_handle_type,
-			       TRUE, /* outgoing */
-			       req->requestor_serial,
-			       req->requestor_client_id);
-    g_signal_emit_by_name (priv->dispatcher, "dispatch-failed",
-			   channel, error);
-    g_error_free (error);
-    /* this will actually destroy the channel object */
-    g_object_unref (channel);
-}
-
-static void
-abort_requested_channels (McdManager *manager)
-{
-    McdManagerPrivate *priv = MCD_MANAGER_PRIV (manager);
-
-    g_debug ("%s called %p", G_STRFUNC, priv->requested_channels);
-    g_hash_table_foreach (priv->requested_channels,
-			  (GHFunc)abort_requested_channel,
-			  manager);
-    g_hash_table_destroy (priv->requested_channels);
-    priv->requested_channels = NULL;
-}
-
-static void
 on_presence_requested (McdPresenceFrame * presence_frame,
 		       TpConnectionPresenceType presence,
 		       const gchar * presence_message, gpointer data)
@@ -320,12 +222,6 @@ on_presence_requested (McdPresenceFrame * presence_frame,
 	priv = MCD_MANAGER_PRIV(data);
 	g_debug ("%s: Delaying call to on_presence_requested_idle", G_STRFUNC);
 	priv->delay_presence_request = TRUE;
-
-	/* if we are offline and the user cancels the connection request, we
-	 * must clean the requested channels and return an error to the UI for
-	 * each of them. */
-	if (presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE && priv->requested_channels != NULL)
-	    abort_requested_channels (MCD_MANAGER (data));
     }
 }
 
@@ -410,49 +306,6 @@ _mcd_manager_nuke_connections (McdManager *manager)
     g_strfreev(names);
 }
 
-#if 0
-static void
-requested_channel_free (struct mcd_channel_request *req)
-{
-    g_free ((gchar *)req->account_name);
-    g_free ((gchar *)req->channel_type);
-    g_free ((gchar *)req->channel_handle_string);
-    g_free ((gchar *)req->requestor_client_id);
-    g_free (req);
-}
-
-static void
-request_channel_delayed (McdManager *manager,
-			 const struct mcd_channel_request *req)
-{
-    McdManagerPrivate *priv = MCD_MANAGER_PRIV (manager);
-    struct mcd_channel_request *req_cp;
-    gchar *key;
-
-    g_debug ("%s: account %s, type %s, handle %s", G_STRFUNC, req->account_name, req->channel_type, req->channel_handle_string);
-    if (!priv->requested_channels)
-	priv->requested_channels =
-	    g_hash_table_new_full (g_direct_hash, g_direct_equal,
-				   NULL, (GDestroyNotify)
-				   requested_channel_free);
-
-    if (req->channel_handle_string)
-	key = g_strdup_printf("%s\n%s\n%s", req->account_name, req->channel_type,
-			      req->channel_handle_string);
-    else
-	key = g_strdup_printf("%s\n%s\n%u", req->account_name, req->channel_type,
-			      req->channel_handle);
-    req_cp = g_malloc (sizeof (struct mcd_channel_request));
-    memcpy(req_cp, req, sizeof (struct mcd_channel_request));
-    req_cp->account_name = g_strdup (req->account_name);
-    req_cp->channel_type = g_strdup (req->channel_type);
-    req_cp->channel_handle_string = g_strdup (req->channel_handle_string);
-    req_cp->requestor_client_id = g_strdup (req->requestor_client_id);
-    g_hash_table_insert (priv->requested_channels, key, req_cp);
-    g_free (key);
-}
-#endif
-
 static void
 _mcd_manager_set_presence_frame (McdManager *manager, McdPresenceFrame *presence_frame)
 {
@@ -469,10 +322,6 @@ _mcd_manager_set_presence_frame (McdManager *manager, McdPresenceFrame *presence
 					      (priv->presence_frame),
 					      G_CALLBACK
 					      (on_presence_requested), manager);
-	g_signal_handlers_disconnect_by_func (priv->presence_frame,
-					      G_CALLBACK
-					      (on_status_actual),
-					      manager);
 	g_object_unref (priv->presence_frame);
     }
     priv->presence_frame = presence_frame;
@@ -481,8 +330,6 @@ _mcd_manager_set_presence_frame (McdManager *manager, McdPresenceFrame *presence
 	g_signal_connect (G_OBJECT (priv->presence_frame),
 			  "presence-requested",
 			  G_CALLBACK (on_presence_requested), manager);
-	g_signal_connect (priv->presence_frame, "status-actual",
-			  G_CALLBACK (on_status_actual), manager);
     }
 }
 
@@ -506,11 +353,6 @@ _mcd_manager_finalize (GObject * object)
 	g_array_free (protocol->params, TRUE);
     }
     g_array_free (priv->protocols, TRUE);
-
-    if (priv->requested_channels)
-    {
-	g_hash_table_destroy (priv->requested_channels);
-    }
 
     g_free (priv->name);
     g_free (priv->bus_name);
@@ -873,76 +715,6 @@ mcd_manager_get_connection (McdManager * manager, const gchar *object_path)
     {
 	return NULL;
     }
-}
-
-gboolean
-mcd_manager_request_channel (McdManager *manager,
-			     const struct mcd_channel_request *req,
-			     GError ** error)
-{
-#if 0
-    McAccount *account;
-    McdConnection *connection;
-    
-    account = mcd_manager_get_account_by_name (manager, req->account_name);
-    if (!account)
-    {
-	/* ERROR here */
-	if (error)
-	{
-	    g_set_error (error, MC_ERROR, MC_NO_MATCHING_CONNECTION_ERROR,
-			 "No matching account found for account name '%s'",
-			 req->account_name);
-	    g_warning ("No matching account found for account name '%s'",
-		       req->account_name);
-	}
-	return FALSE;
-    }
-    
-    connection = mcd_manager_get_account_connection (manager, account);
-    if (!connection)
-    {
-	McdManagerPrivate *priv = MCD_MANAGER_PRIV (manager);
-
-	g_debug ("%s: mcd-manager has connectivity status = %d", G_STRFUNC, mcd_mission_is_connected (MCD_MISSION (manager)));
-	if (!mcd_mission_is_connected (MCD_MISSION (manager)) ||
-	    (mcd_presence_frame_get_actual_presence (priv->presence_frame) <= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE &&
-	     !mcd_presence_frame_is_stable (priv->presence_frame))
-	    )
-	{
-	    request_channel_delayed (manager, req);
-	    return TRUE;
-	}
-	/* ERROR here */
-	if (error)
-	{
-	    g_set_error (error, MC_ERROR, MC_NO_MATCHING_CONNECTION_ERROR,
-			 "No matching connection found for account name '%s'",
-			 req->account_name);
-	    g_warning ("%s: No matching connection found for account name '%s'",
-		       G_STRFUNC, req->account_name);
-	}
-	return FALSE;
-    }
-    else if (mcd_connection_get_connection_status (connection) !=
-	     TP_CONNECTION_STATUS_CONNECTED)
-    {
-	g_debug ("%s: connection is not connected", G_STRFUNC);
-	request_channel_delayed (manager, req);
-	return TRUE;
-    }
-
-    if (!mcd_connection_request_channel (connection, req, error))
-    {
-	g_assert (error == NULL || *error != NULL);
-	return FALSE;
-    }
-    g_assert (error == NULL || *error == NULL);
-    return TRUE;
-#else
-    g_warning ("%s not implemented", G_STRFUNC);
-    return FALSE;
-#endif
 }
 
 gboolean

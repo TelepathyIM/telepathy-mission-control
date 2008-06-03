@@ -871,78 +871,6 @@ mcd_master_request_channel (McdMaster *master,
 			    const struct mcd_channel_request *req,
 			    GError ** error)
 {
-#if 0
-    const GList *managers, *node;
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-
-    g_return_val_if_fail (MCD_IS_MASTER (master), FALSE);
-    g_return_val_if_fail (error == NULL || *error == NULL, FALSE);
-    
-    /* Low memory ? */
-    if (MCD_MISSION_GET_FLAGS_MASKED (MCD_MISSION (master),
-				      MCD_SYSTEM_MEMORY_CONSERVED))
-    {
-	g_warning ("Device is in lowmem state, will not create a channel");
-	if (error)
-	    g_set_error (error, MC_ERROR, MC_LOWMEM_ERROR, "Low memory");
-	return FALSE;
-    }
-    
-    /* First find out the right manager */
-    managers = mcd_operation_get_missions (MCD_OPERATION (master));
-    
-    /* If there are no accounts, error */
-    if (managers == NULL)
-    {
-	if (error)
-	{
-	    g_set_error (error, MC_ERROR, MC_NO_ACCOUNTS_ERROR,
-			 "No accounts configured");
-	}
-	g_warning ("No accounts configured");
-	
-	/* Nothing to do. Just exit */
-	mcd_controller_shutdown (MCD_CONTROLLER (master),
-				 "No accounts configured");
-	return FALSE;
-    }
- 
-    /* make sure we are online, or will be */
-    if (mcd_presence_frame_get_actual_presence (priv->presence_frame) <= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE &&
-	mcd_presence_frame_is_stable (priv->presence_frame))
-    {
-	g_debug ("%s: requesting default presence", G_STRFUNC);
-	mcd_master_set_default_presence (master, req->requestor_client_id);
-    }
-
-    node = managers;
-    while (node)
-    {
-	if (mcd_manager_get_account_by_name (MCD_MANAGER (node->data),
-					     req->account_name))
-	{
-	    /* FIXME: handle error correctly */
-	    if (!mcd_manager_request_channel (MCD_MANAGER (node->data),
-					      req, error))
-	    {
-		g_assert (error == NULL || *error != NULL);
-		return FALSE;
-	    }
-	    g_assert (error == NULL || *error == NULL);
-	    return TRUE;
-	}
-	node = node->next;
-    }
-    
-    /* Manager not found */
-    if (error)
-    {
-	g_set_error (error, MC_ERROR, MC_NO_MATCHING_CONNECTION_ERROR,
-		     "No matching manager found for account %s",
-		     req->account_name);
-    }
-    g_warning ("No matching manager found for account %s", req->account_name);
-#else
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     McdAccount *account;
 
@@ -958,7 +886,6 @@ mcd_master_request_channel (McdMaster *master,
 	return FALSE;
     }
     return mcd_account_request_channel_nmc4 (account, req, error);
-#endif
 }
 
 gboolean
