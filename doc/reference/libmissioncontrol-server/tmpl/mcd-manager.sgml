@@ -55,17 +55,6 @@ McdManager
 @Returns: 
 
 
-<!-- ##### FUNCTION mcd_manager_request_channel ##### -->
-<para>
-
-</para>
-
-@manager: 
-@req: 
-@error: 
-@Returns: 
-
-
 <!-- ##### FUNCTION mcd_manager_cancel_channel_request ##### -->
 <para>
 

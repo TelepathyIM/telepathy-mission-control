@@ -129,14 +129,6 @@ McdConnection
 @Returns: 
 
 
-<!-- ##### FUNCTION mcd_connection_account_changed ##### -->
-<para>
-
-</para>
-
-@connection: 
-
-
 <!-- ##### FUNCTION mcd_connection_close ##### -->
 <para>
 
