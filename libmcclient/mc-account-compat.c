@@ -49,7 +49,6 @@ update_property (gpointer key, gpointer ht_value, gpointer user_data)
     McAccountCompatProps *props = account->priv->compat_props;
     GValue *value = ht_value;
     const gchar *name = key;
-    GType type;
 
     if (strcmp (name, "Profile") == 0)
     {
@@ -65,10 +64,7 @@ update_property (gpointer key, gpointer ht_value, gpointer user_data)
     {
 	g_strfreev ((gchar **)props->secondary_vcard_fields);
 	props->secondary_vcard_fields = g_value_get_boxed (value);
-	/* HACK: clear the GValue so that the contents will not be freed */
-	type = G_VALUE_TYPE (value); 
-	memset (value, 0, sizeof (GValue)); 
-	g_value_init (value, type); 
+	_mc_gvalue_stolen (value);
     }
 }
 

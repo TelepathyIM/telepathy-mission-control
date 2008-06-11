@@ -37,4 +37,6 @@
 
 void _mc_ext_register_dbus_glib_marshallers (void);
 
+inline void _mc_gvalue_stolen (GValue *value);
+
 #endif

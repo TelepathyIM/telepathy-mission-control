@@ -248,7 +248,6 @@ update_property (gpointer key, gpointer ht_value, gpointer user_data)
     GValue *value = ht_value;
     const gchar *name = key;
     GValueArray *va;
-    GType type;
 
     if (strcmp (name, "DisplayName") == 0)
     {
@@ -278,10 +277,7 @@ update_property (gpointer key, gpointer ht_value, gpointer user_data)
 	if (props->parameters)
 	    g_hash_table_destroy (props->parameters);
 	props->parameters = g_value_get_boxed (value);
-	/* HACK: clear the GValue so that the hashtable will not be freed */
-	type = G_VALUE_TYPE (value); 
-	memset (value, 0, sizeof (GValue)); 
-	g_value_init (value, type); 
+	_mc_gvalue_stolen (value);
     }
     else if (strcmp (name, "AutomaticPresence") == 0)
     {

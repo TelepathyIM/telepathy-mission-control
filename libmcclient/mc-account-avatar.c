@@ -49,7 +49,6 @@ update_property (gpointer key, gpointer ht_value, gpointer user_data)
     GValue *value = ht_value;
     const gchar *name = key;
     GValueArray *va;
-    GType type;
 
     if (strcmp (name, "Avatar") == 0)
     {
@@ -58,11 +57,8 @@ update_property (gpointer key, gpointer ht_value, gpointer user_data)
 	    g_array_free (props->avatar, TRUE);
 	va = g_value_get_boxed (value);
 	props->avatar = g_value_get_boxed (va->values);
+	_mc_gvalue_stolen (va->values);
 	props->mime_type = g_value_dup_string (va->values + 1);
-	/* HACK: clear the GValue so that the GArray will not be freed */
-	type = G_VALUE_TYPE (va->values); 
-	memset (va->values, 0, sizeof (GValue)); 
-	g_value_init (va->values, type); 
     }
 }
 

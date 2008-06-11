@@ -20,7 +20,20 @@
  */
 
 #include "dbus-api.h"
+#include <string.h>
 
 /* auto-generated stubs */
 #include "_gen/gtypes-body.h"
 #include "_gen/interfaces-body.h"
+
+inline void
+_mc_gvalue_stolen (GValue *value)
+{
+    GType type;
+
+    /* HACK: clear the GValue so that the contents will not be freed */
+    type = G_VALUE_TYPE (value); 
+    memset (value, 0, sizeof (GValue)); 
+    g_value_init (value, type); 
+}
+
