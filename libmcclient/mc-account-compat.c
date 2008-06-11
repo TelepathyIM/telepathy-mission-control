@@ -39,6 +39,7 @@ _mc_account_compat_props_free (McAccountCompatProps *props)
     g_free (props->profile);
     g_free (props->avatar_file);
     g_strfreev ((gchar **)props->secondary_vcard_fields);
+    g_free (props);
 }
 
 static void

@@ -38,6 +38,7 @@ _mc_account_avatar_props_free (McAccountAvatarProps *props)
     g_free (props->mime_type);
     if (props->avatar)
 	g_array_free (props->avatar, TRUE);
+    g_free (props);
 }
 
 static void

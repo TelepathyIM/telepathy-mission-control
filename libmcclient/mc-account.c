@@ -165,6 +165,7 @@ account_props_free (McAccountProps *props)
     g_free (props->req_presence_status);
     g_free (props->req_presence_message);
     g_free (props->normalized_name);
+    g_free (props);
 }
 
 static void
