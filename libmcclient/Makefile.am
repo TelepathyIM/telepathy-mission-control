@@ -20,6 +20,7 @@ libmcclient_la_CFLAGS = $(GLIB_CFLAGS) $(GCONF_CFLAGS)
 libmcclient_la_SOURCES = \
 	dbus-api.c \
 	mc-account.c \
+	mc-account-avatar.c \
 	mc-account-manager.c \
 	mc-errors.c \
 	mc-profile.c \
@@ -33,6 +34,9 @@ libmcclient_include_HEADERS = \
 	mc-profile.h \
 	mc-account-manager.h \
 	mc-signals-marshal.h
+
+noinst_HEADERS = \
+	mc-account-priv.h
 
 genincludedir = $(libmcclient_includedir)/_gen
 nodist_geninclude_HEADERS = \

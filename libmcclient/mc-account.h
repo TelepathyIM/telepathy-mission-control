@@ -68,6 +68,37 @@ void mc_account_call_when_ready (McAccount *account,
 				 gpointer user_data);
 
 const gchar *mc_account_get_display_name (McAccount *account);
+const gchar *mc_account_get_icon (McAccount *account);
+gboolean mc_account_is_valid (McAccount *account);
+gboolean mc_account_is_enabled (McAccount *account);
+gboolean mc_account_connects_automatically (McAccount *account);
+const gchar *mc_account_get_nickname (McAccount *account);
+const GHashTable *mc_account_get_parameters (McAccount *account);
+void mc_account_get_automatic_presence (McAccount *account,
+					TpConnectionPresenceType *type,
+					const gchar **status,
+					const gchar **message);
+const gchar *mc_account_get_connection_name (McAccount *account);
+TpConnectionStatus mc_account_get_connection_status (McAccount *account);
+TpConnectionStatusReason mc_account_get_connection_status_reason (McAccount *account);
+void mc_account_get_current_presence (McAccount *account,
+				      TpConnectionPresenceType *type,
+				      const gchar **status,
+				      const gchar **message);
+void mc_account_get_requested_presence (McAccount *account,
+					TpConnectionPresenceType *type,
+					const gchar **status,
+					const gchar **message);
+const gchar *mc_account_get_normalized_name (McAccount *account);
+
+
+void mc_account_avatar_call_when_ready (McAccount *account,
+				       	McAccountWhenReadyCb callback,
+					gpointer user_data);
+
+void mc_account_avatar_get (McAccount *account,
+			    const gchar **avatar, gsize *length,
+			    const gchar **mime_type);
 
 G_END_DECLS
 

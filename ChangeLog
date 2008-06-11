@@ -1,3 +1,11 @@
+2008-06-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/Makefile.am, libmcclient/mc-account-avatar.c,
+	libmcclient/mc-account-priv.h, libmcclient/mc-account.[hc]:
+	Add getters for all the Account properties.
+	Refactor the code to easy plugging in interfaces.
+	Add Avatar interface.
+
 2008-06-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmcclient/mc-account.[hc]:

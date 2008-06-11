@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "mc-account.h"
+#include "mc-account-priv.h"
 #include "dbus-api.h"
 
 #include <telepathy-glib/proxy-subclass.h>
@@ -52,7 +53,7 @@ struct _McAccountClass {
     gpointer priv;
 };
 
-typedef struct {
+struct _McAccountProps {
     gchar *display_name;
     gchar *icon;
     guint valid : 1;
@@ -73,18 +74,10 @@ typedef struct {
     gchar *req_presence_status;
     gchar *req_presence_message;
     gchar *normalized_name;
-} McAccountProps;
-
-struct _McAccountPrivate {
-    McAccountProps *props;
 };
 
 #define MC_ACCOUNT_IS_READY(account) (MC_ACCOUNT(account)->priv->props != NULL)
-
-typedef struct {
-    McAccountWhenReadyCb callback;
-    gpointer user_data;
-} CallWhenReadyContext;
+#define MC_ACCOUNT_IFACE_IS_READY(iface_data) (*(iface_data->props_data_ptr) != NULL)
 
 /**
  * McAccount:
@@ -348,23 +341,22 @@ properties_get_all_cb (TpProxy *proxy, GHashTable *props,
     }
     else
     {
-	McAccountPrivate *priv = account->priv;
-
-	priv->props = g_malloc0 (sizeof (McAccountProps));
-	g_hash_table_foreach (props, update_property, account);
+	ctx->create_props (account, props);
 	ctx->callback (account, NULL, ctx->user_data);
     }
 }
 
 void
-mc_account_call_when_ready (McAccount *account, McAccountWhenReadyCb callback,
-			    gpointer user_data)
+_mc_account_call_when_ready_int (McAccount *account,
+				 McAccountWhenReadyCb callback,
+				 gpointer user_data,
+				 McAccountIfaceData *iface_data)
 {
     TpProxy *proxy = (TpProxy *) account;
 
     g_return_if_fail (callback != NULL);
     
-    if (MC_ACCOUNT_IS_READY (account) || proxy->invalidated)
+    if (MC_ACCOUNT_IFACE_IS_READY (iface_data) || proxy->invalidated)
     {
 	callback (account, proxy->invalidated, user_data);
     }
@@ -374,8 +366,9 @@ mc_account_call_when_ready (McAccount *account, McAccountWhenReadyCb callback,
 
 	ctx->callback = callback;
 	ctx->user_data = user_data;
+	ctx->create_props = iface_data->create_props;
 	if (!tp_cli_dbus_properties_call_get_all (account, -1, 
-						  MC_IFACE_ACCOUNT, 
+						  iface_data->name, 
 						  properties_get_all_cb, 
 						  ctx,
 						  call_when_ready_context_free,
@@ -390,10 +383,180 @@ mc_account_call_when_ready (McAccount *account, McAccountWhenReadyCb callback,
     }
 }
 
+static void
+create_props (McAccount *account, GHashTable *props)
+{
+    McAccountPrivate *priv = account->priv;
+
+    priv->props = g_malloc0 (sizeof (McAccountProps));
+    g_hash_table_foreach (props, update_property, account);
+}
+
+void
+mc_account_call_when_ready (McAccount *account, McAccountWhenReadyCb callback,
+			    gpointer user_data)
+{
+    McAccountIfaceData iface_data;
+
+    iface_data.name = MC_IFACE_ACCOUNT;
+    iface_data.props_data_ptr = (gpointer *)&account->priv->props;
+    iface_data.create_props = create_props;
+
+    _mc_account_call_when_ready_int (account, callback, user_data, &iface_data);
+}
+
 const gchar *
 mc_account_get_display_name (McAccount *account)
 {
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
     if (G_UNLIKELY (!account->priv->props)) return NULL;
     return account->priv->props->display_name;
+}
+
+const gchar *
+mc_account_get_icon (McAccount *account)
+{
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
+    if (G_UNLIKELY (!account->priv->props)) return NULL;
+    return account->priv->props->icon;
+}
+
+gboolean
+mc_account_is_valid (McAccount *account)
+{
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), FALSE);
+    if (G_UNLIKELY (!account->priv->props)) return FALSE;
+    return account->priv->props->valid;
+}
+
+gboolean
+mc_account_is_enabled (McAccount *account)
+{
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), FALSE);
+    if (G_UNLIKELY (!account->priv->props)) return FALSE;
+    return account->priv->props->enabled;
+}
+
+gboolean
+mc_account_connects_automatically (McAccount *account)
+{
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), FALSE);
+    if (G_UNLIKELY (!account->priv->props)) return FALSE;
+    return account->priv->props->connect_automatically;
+}
+
+const gchar *
+mc_account_get_nickname (McAccount *account)
+{
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
+    if (G_UNLIKELY (!account->priv->props)) return NULL;
+    return account->priv->props->nickname;
+}
+
+const GHashTable *
+mc_account_get_parameters (McAccount *account)
+{
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
+    if (G_UNLIKELY (!account->priv->props)) return NULL;
+    return account->priv->props->parameters;
+}
+
+void
+mc_account_get_automatic_presence (McAccount *account,
+				   TpConnectionPresenceType *type,
+				   const gchar **status,
+				   const gchar **message)
+{
+    McAccountProps *props;
+
+    g_return_if_fail (MC_IS_ACCOUNT (account));
+    props = account->priv->props;
+    if (G_UNLIKELY (!props))
+    {
+	*type = TP_CONNECTION_PRESENCE_TYPE_UNSET;
+	*status = *message = NULL;
+	return;
+    }
+    *type = props->auto_presence_type;
+    *status = props->auto_presence_status;
+    *message = props->auto_presence_message;
+}
+
+const gchar *
+mc_account_get_connection_name (McAccount *account)
+{
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
+    if (G_UNLIKELY (!account->priv->props)) return NULL;
+    return account->priv->props->connection;
+}
+
+TpConnectionStatus
+mc_account_get_connection_status (McAccount *account)
+{
+    g_return_val_if_fail (MC_IS_ACCOUNT (account),
+			  TP_CONNECTION_STATUS_DISCONNECTED);
+    if (G_UNLIKELY (!account->priv->props))
+       	return TP_CONNECTION_STATUS_DISCONNECTED;
+    return account->priv->props->connection_status;
+}
+
+TpConnectionStatusReason
+mc_account_get_connection_status_reason (McAccount *account)
+{
+    g_return_val_if_fail (MC_IS_ACCOUNT (account),
+			  TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED);
+    if (G_UNLIKELY (!account->priv->props))
+       	return TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
+    return account->priv->props->connection_status_reason;
+}
+
+void
+mc_account_get_current_presence (McAccount *account,
+				      TpConnectionPresenceType *type,
+				      const gchar **status,
+				      const gchar **message)
+{
+    McAccountProps *props;
+
+    g_return_if_fail (MC_IS_ACCOUNT (account));
+    props = account->priv->props;
+    if (G_UNLIKELY (!props))
+    {
+	*type = TP_CONNECTION_PRESENCE_TYPE_UNSET;
+	*status = *message = NULL;
+	return;
+    }
+    *type = props->curr_presence_type;
+    *status = props->curr_presence_status;
+    *message = props->curr_presence_message;
+}
+
+void
+mc_account_get_requested_presence (McAccount *account,
+					TpConnectionPresenceType *type,
+					const gchar **status,
+					const gchar **message)
+{
+    McAccountProps *props;
+
+    g_return_if_fail (MC_IS_ACCOUNT (account));
+    props = account->priv->props;
+    if (G_UNLIKELY (!props))
+    {
+	*type = TP_CONNECTION_PRESENCE_TYPE_UNSET;
+	*status = *message = NULL;
+	return;
+    }
+    *type = props->req_presence_type;
+    *status = props->req_presence_status;
+    *message = props->req_presence_message;
+}
+
+const gchar *
+mc_account_get_normalized_name (McAccount *account)
+{
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
+    if (G_UNLIKELY (!account->priv->props)) return NULL;
+    return account->priv->props->normalized_name;
 }
 
