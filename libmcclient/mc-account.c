@@ -52,9 +52,39 @@ struct _McAccountClass {
     gpointer priv;
 };
 
+typedef struct {
+    gchar *display_name;
+    gchar *icon;
+    guint valid : 1;
+    guint enabled : 1;
+    guint connect_automatically : 1;
+    gchar *nickname;
+    GHashTable *parameters;
+    TpConnectionPresenceType auto_presence_type;
+    gchar *auto_presence_status;
+    gchar *auto_presence_message;
+    gchar *connection;
+    TpConnectionStatus connection_status;
+    TpConnectionStatusReason connection_status_reason;
+    TpConnectionPresenceType curr_presence_type;
+    gchar *curr_presence_status;
+    gchar *curr_presence_message;
+    TpConnectionPresenceType req_presence_type;
+    gchar *req_presence_status;
+    gchar *req_presence_message;
+    gchar *normalized_name;
+} McAccountProps;
+
 struct _McAccountPrivate {
-    gint useless;
+    McAccountProps *props;
 };
+
+#define MC_ACCOUNT_IS_READY(account) (MC_ACCOUNT(account)->priv->props != NULL)
+
+typedef struct {
+    McAccountWhenReadyCb callback;
+    gpointer user_data;
+} CallWhenReadyContext;
 
 /**
  * McAccount:
@@ -127,9 +157,30 @@ constructor (GType type,
 }
 
 static void
+account_props_free (McAccountProps *props)
+{
+    g_free (props->display_name);
+    g_free (props->icon);
+    g_free (props->nickname);
+    if (props->parameters)
+	g_hash_table_destroy (props->parameters);
+    g_free (props->auto_presence_status);
+    g_free (props->auto_presence_message);
+    g_free (props->connection);
+    g_free (props->curr_presence_status);
+    g_free (props->curr_presence_message);
+    g_free (props->req_presence_status);
+    g_free (props->req_presence_message);
+    g_free (props->normalized_name);
+}
+
+static void
 finalize (GObject *object)
 {
     McAccount *account = MC_ACCOUNT (object);
+
+    if (account->priv->props)
+	account_props_free (account->priv->props);
 
     g_free (account->manager_name);
     g_free (account->protocol_name);
@@ -181,5 +232,168 @@ mc_account_new (TpDBusDaemon *dbus, const gchar *object_path)
 			    "object-path", object_path,
 			    NULL);
     return account;
+}
+
+static void
+call_when_ready_context_free (gpointer ptr)
+{
+    g_slice_free (CallWhenReadyContext, ptr);
+}
+
+static void
+update_property (gpointer key, gpointer ht_value, gpointer user_data)
+{
+    McAccount *account = user_data;
+    McAccountProps *props = account->priv->props;
+    GValue *value = ht_value;
+    const gchar *name = key;
+    GValueArray *va;
+    GType type;
+
+    if (strcmp (name, "DisplayName") == 0)
+    {
+	g_free (props->display_name);
+	props->display_name = g_value_dup_string (value);
+    }
+    else if (strcmp (name, "Icon") == 0)
+    {
+	g_free (props->icon);
+	props->icon = g_value_dup_string (value);
+    }
+    else if (strcmp (name, "Valid") == 0)
+    {
+	props->valid = g_value_get_boolean (value);
+    }
+    else if (strcmp (name, "Enabled") == 0)
+    {
+	props->enabled = g_value_get_boolean (value);
+    }
+    else if (strcmp (name, "Nickname") == 0)
+    {
+	g_free (props->nickname);
+	props->nickname = g_value_dup_string (value);
+    }
+    else if (strcmp (name, "Parameters") == 0)
+    {
+	if (props->parameters)
+	    g_hash_table_destroy (props->parameters);
+	props->parameters = g_value_get_boxed (value);
+	/* HACK: clear the GValue so that the hashtable will not be freed */
+	type = G_VALUE_TYPE (value); 
+	memset (value, 0, sizeof (GValue)); 
+	g_value_init (value, type); 
+    }
+    else if (strcmp (name, "AutomaticPresence") == 0)
+    {
+	g_free (props->auto_presence_status);
+	g_free (props->auto_presence_message);
+	va = g_value_get_boxed (value);
+	props->auto_presence_type = (gint)g_value_get_uint (va->values);
+	props->auto_presence_status = g_value_dup_string (va->values + 1);
+	props->auto_presence_message = g_value_dup_string (va->values + 2);
+    }
+    else if (strcmp (name, "ConnectAutomatically") == 0)
+    {
+	props->connect_automatically = g_value_get_boolean (value);
+    }
+    else if (strcmp (name, "Connection") == 0)
+    {
+	g_free (props->connection);
+	props->connection = g_value_dup_string (value);
+    }
+    else if (strcmp (name, "ConnectionStatus") == 0)
+    {
+	props->connection_status = g_value_get_uint (value);
+    }
+    else if (strcmp (name, "ConnectionStatusReason") == 0)
+    {
+	props->connection_status_reason = g_value_get_uint (value);
+    }
+    else if (strcmp (name, "CurrentPresence") == 0)
+    {
+	g_free (props->curr_presence_status);
+	g_free (props->curr_presence_message);
+	va = g_value_get_boxed (value);
+	props->curr_presence_type = (gint)g_value_get_uint (va->values);
+	props->curr_presence_status = g_value_dup_string (va->values + 1);
+	props->curr_presence_message = g_value_dup_string (va->values + 2);
+    }
+    else if (strcmp (name, "RequestedPresence") == 0)
+    {
+	g_free (props->req_presence_status);
+	g_free (props->req_presence_message);
+	va = g_value_get_boxed (value);
+	props->req_presence_type = (gint)g_value_get_uint (va->values);
+	props->req_presence_status = g_value_dup_string (va->values + 1);
+	props->req_presence_message = g_value_dup_string (va->values + 2);
+    }
+    else if (strcmp (name, "NormalizedName") == 0)
+    {
+	g_free (props->normalized_name);
+	props->normalized_name = g_value_dup_string (value);
+    }
+}
+
+static void
+properties_get_all_cb (TpProxy *proxy, GHashTable *props, 
+		       const GError *error, gpointer user_data, 
+		       GObject *weak_object) 
+{
+    McAccount *account = MC_ACCOUNT (proxy);
+    CallWhenReadyContext *ctx = user_data;
+
+    if (error)
+    {
+	ctx->callback (account, error, ctx->user_data);
+    }
+    else
+    {
+	McAccountPrivate *priv = account->priv;
+
+	priv->props = g_malloc0 (sizeof (McAccountProps));
+	g_hash_table_foreach (props, update_property, account);
+	ctx->callback (account, NULL, ctx->user_data);
+    }
+}
+
+void
+mc_account_call_when_ready (McAccount *account, McAccountWhenReadyCb callback,
+			    gpointer user_data)
+{
+    TpProxy *proxy = (TpProxy *) account;
+
+    g_return_if_fail (callback != NULL);
+    
+    if (MC_ACCOUNT_IS_READY (account) || proxy->invalidated)
+    {
+	callback (account, proxy->invalidated, user_data);
+    }
+    else
+    {
+	CallWhenReadyContext *ctx = g_slice_new (CallWhenReadyContext);
+
+	ctx->callback = callback;
+	ctx->user_data = user_data;
+	if (!tp_cli_dbus_properties_call_get_all (account, -1, 
+						  MC_IFACE_ACCOUNT, 
+						  properties_get_all_cb, 
+						  ctx,
+						  call_when_ready_context_free,
+						  NULL)) 
+	{
+	    GError *error = g_error_new_literal (TP_ERRORS,
+						 TP_ERROR_NOT_AVAILABLE,
+						 "DBus call failed");
+	    callback (account, error, user_data);
+	    g_error_free (error);
+	} 
+    }
+}
+
+const gchar *
+mc_account_get_display_name (McAccount *account)
+{
+    if (G_UNLIKELY (!account->priv->props)) return NULL;
+    return account->priv->props->display_name;
 }
 

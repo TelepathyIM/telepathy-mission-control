@@ -1,3 +1,8 @@
+2008-06-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/mc-account.[hc]:
+	Add code to retrieve the basic Account properties.
+
 === telepathy-mission-control 5.0.beta10 ===
 
 2008-06-03  Alberto Mardegan  <alberto.mardegan@nokia.com>

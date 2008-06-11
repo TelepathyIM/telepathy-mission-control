@@ -24,6 +24,7 @@
 #define __LIBMCCLIENT_ACCOUNT_H__
 
 #include <telepathy-glib/proxy.h>
+#include <telepathy-glib/enums.h>
 
 G_BEGIN_DECLS
 
@@ -58,6 +59,15 @@ GType mc_account_get_type (void);
                               McAccountClass))
 
 McAccount *mc_account_new (TpDBusDaemon *dbus, const gchar *object_path);
+
+typedef void (*McAccountWhenReadyCb) (McAccount *account, const GError *error,
+				      gpointer user_data);
+
+void mc_account_call_when_ready (McAccount *account,
+				 McAccountWhenReadyCb callback,
+				 gpointer user_data);
+
+const gchar *mc_account_get_display_name (McAccount *account);
 
 G_END_DECLS
 
