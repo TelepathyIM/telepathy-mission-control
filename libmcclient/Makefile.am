@@ -21,6 +21,7 @@ libmcclient_la_SOURCES = \
 	dbus-api.c \
 	mc-account.c \
 	mc-account-avatar.c \
+	mc-account-compat.c \
 	mc-account-manager.c \
 	mc-errors.c \
 	mc-profile.c \

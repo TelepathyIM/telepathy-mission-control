@@ -1,5 +1,9 @@
 2008-06-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmcclient/Makefile.am, libmcclient/mc-account-compat.c,
+	libmcclient/mc-account-priv.h, libmcclient/mc-account.[hc]:
+	Add Compat interface.
+
 	* libmcclient/Makefile.am, libmcclient/mc-account-avatar.c,
 	libmcclient/mc-account-priv.h, libmcclient/mc-account.[hc]:
 	Add getters for all the Account properties.

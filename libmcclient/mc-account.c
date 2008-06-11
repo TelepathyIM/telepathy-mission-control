@@ -175,6 +175,12 @@ finalize (GObject *object)
     if (account->priv->props)
 	account_props_free (account->priv->props);
 
+    if (account->priv->avatar_props)
+	_mc_account_avatar_props_free (account->priv->avatar_props);
+
+    if (account->priv->compat_props)
+	_mc_account_compat_props_free (account->priv->compat_props);
+
     g_free (account->manager_name);
     g_free (account->protocol_name);
 

@@ -100,6 +100,15 @@ void mc_account_avatar_get (McAccount *account,
 			    const gchar **avatar, gsize *length,
 			    const gchar **mime_type);
 
+
+void mc_account_compat_call_when_ready (McAccount *account,
+				       	McAccountWhenReadyCb callback,
+					gpointer user_data);
+
+const gchar *mc_account_compat_get_profile (McAccount *account);
+const gchar *mc_account_compat_get_avatar_file (McAccount *account);
+const gchar * const *mc_account_compat_get_secondary_vcard_fields (McAccount *account);
+
 G_END_DECLS
 
 /* auto-generated stubs */
