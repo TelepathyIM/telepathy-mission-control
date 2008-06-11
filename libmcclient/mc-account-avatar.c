@@ -31,7 +31,6 @@ struct _McAccountAvatarProps {
     gchar *mime_type;
 };
 
-#define MC_ACCOUNT_IS_READY(account) (MC_ACCOUNT(account)->priv->props != NULL)
 
 void
 _mc_account_avatar_props_free (McAccountAvatarProps *props)
