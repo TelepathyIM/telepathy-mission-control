@@ -51,7 +51,6 @@ update_property (gpointer key, gpointer ht_value, gpointer user_data)
     const gchar *name = key;
     GType type;
 
-    g_debug ("%s: got property %s", G_STRFUNC, name);
     if (strcmp (name, "Profile") == 0)
     {
 	g_free (props->profile);

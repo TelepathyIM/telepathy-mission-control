@@ -51,7 +51,6 @@ update_property (gpointer key, gpointer ht_value, gpointer user_data)
     GValueArray *va;
     GType type;
 
-    g_debug ("%s: got property %s", G_STRFUNC, name);
     if (strcmp (name, "Avatar") == 0)
     {
 	g_free (props->mime_type);
