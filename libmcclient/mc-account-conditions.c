@@ -72,7 +72,7 @@ mc_account_conditions_call_when_ready (McAccount *account,
 {
     McAccountIfaceData iface_data;
 
-    iface_data.name = MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS;
+    iface_data.id = MC_IFACE_QUARK_ACCOUNT_INTERFACE_CONDITIONS;
     iface_data.props_data_ptr = (gpointer *)&account->priv->conditions_props;
     iface_data.create_props = create_props;
 

@@ -83,7 +83,7 @@ mc_account_compat_call_when_ready (McAccount *account, McAccountWhenReadyCb call
 {
     McAccountIfaceData iface_data;
 
-    iface_data.name = MC_IFACE_ACCOUNT_INTERFACE_COMPAT;
+    iface_data.id = MC_IFACE_QUARK_ACCOUNT_INTERFACE_COMPAT;
     iface_data.props_data_ptr = (gpointer *)&account->priv->compat_props;
     iface_data.create_props = create_props;
 
