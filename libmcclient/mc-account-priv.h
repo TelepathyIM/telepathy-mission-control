@@ -30,11 +30,13 @@ G_BEGIN_DECLS
 typedef struct _McAccountProps McAccountProps;
 typedef struct _McAccountAvatarProps McAccountAvatarProps;
 typedef struct _McAccountCompatProps McAccountCompatProps;
+typedef struct _McAccountConditionsProps McAccountConditionsProps;
 
 struct _McAccountPrivate {
     McAccountProps *props;
     McAccountAvatarProps *avatar_props;
     McAccountCompatProps *compat_props;
+    McAccountConditionsProps *conditions_props;
 };
 
 typedef struct _CallWhenReadyContext CallWhenReadyContext;
@@ -62,6 +64,8 @@ void _mc_account_call_when_ready_int (McAccount *account,
 void _mc_account_avatar_props_free (McAccountAvatarProps *props);
 
 void _mc_account_compat_props_free (McAccountCompatProps *props);
+
+void _mc_account_conditions_props_free (McAccountConditionsProps *props);
 
 G_END_DECLS
 

@@ -182,6 +182,9 @@ finalize (GObject *object)
     if (account->priv->compat_props)
 	_mc_account_compat_props_free (account->priv->compat_props);
 
+    if (account->priv->conditions_props)
+	_mc_account_conditions_props_free (account->priv->conditions_props);
+
     g_free (account->manager_name);
     g_free (account->protocol_name);
 

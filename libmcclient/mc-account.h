@@ -109,6 +109,13 @@ const gchar *mc_account_compat_get_profile (McAccount *account);
 const gchar *mc_account_compat_get_avatar_file (McAccount *account);
 const gchar * const *mc_account_compat_get_secondary_vcard_fields (McAccount *account);
 
+
+void mc_account_conditions_call_when_ready (McAccount *account,
+					    McAccountWhenReadyCb callback,
+					    gpointer user_data);
+
+const GHashTable *mc_account_conditions_get (McAccount *account);
+
 G_END_DECLS
 
 /* auto-generated stubs */
