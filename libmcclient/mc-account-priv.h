@@ -32,32 +32,12 @@ typedef struct _McAccountAvatarProps McAccountAvatarProps;
 typedef struct _McAccountCompatProps McAccountCompatProps;
 typedef struct _McAccountConditionsProps McAccountConditionsProps;
 
-typedef struct _CallWhenReadyContext CallWhenReadyContext;
-typedef struct _McIfaceStatus McIfaceStatus;
-
 struct _McAccountPrivate {
-    /* for each interface, store a McIfaceStatus struct */
-    GData *ifaces_status;
     McAccountProps *props;
     McAccountAvatarProps *avatar_props;
     McAccountCompatProps *compat_props;
     McAccountConditionsProps *conditions_props;
 };
-
-typedef struct _McAccountIfaceData McAccountIfaceData;
-
-typedef void (*McAccountCreateProps) (McAccount *account, GHashTable *props);
-
-struct _McAccountIfaceData {
-    GQuark id;
-    gpointer *props_data_ptr;
-    McAccountCreateProps create_props;
-};
-
-void _mc_account_call_when_ready_int (McAccount *account,
-				      McAccountWhenReadyCb callback,
-				      gpointer user_data,
-				      McAccountIfaceData *iface_data);
 
 void _mc_account_avatar_props_free (McAccountAvatarProps *props);
 

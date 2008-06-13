@@ -1,3 +1,11 @@
+2008-06-13  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/dbus-api.[hc], libmcclient/mc-account-avatar.c,
+	libmcclient/mc-account-compat.c, libmcclient/mc-account-conditions.c,
+	libmcclient/mc-account-priv.h, libmcclient/mc-account.c:
+	Make interface properties code more generic so that it can be used for
+	any TpProxy object.
+
 2008-06-12  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmcclient/Makefile.am, libmcclient/mc-account-conditions.c,

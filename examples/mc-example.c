@@ -23,6 +23,7 @@
  */
 
 #include <glib.h>
+#include <stdio.h>
 //#include <dbus/dbus-glib.h>
 #include <telepathy-glib/dbus.h>
 #include <libmcclient/dbus-api.h>
@@ -31,6 +32,7 @@
 #include <libmcclient/mc-profile.h>
 
 static GMainLoop *main_loop;
+static gint n_avatar;
 
 static void
 get_profile_cb (TpProxy *proxy, const GValue *val_profile,
@@ -55,6 +57,92 @@ get_profile_cb (TpProxy *proxy, const GValue *val_profile,
 	g_debug ("VCard field is %s", mc_profile_get_vcard_field (profile));
     }
 }
+
+static void
+ready_cb (McAccount *account, const GError *error, gpointer userdata)
+{
+    const gchar *ciao = userdata;
+    TpConnectionPresenceType type;
+    const gchar *status, *message;
+    
+    g_debug ("%s called with userdata %s", G_STRFUNC, ciao);
+    if (error)
+    {
+	g_warning ("%s: got error: %s", G_STRFUNC, error->message);
+	return;
+    }
+    g_debug ("Displayname: %s", mc_account_get_display_name (account));
+    g_debug ("normalizedname: %s", mc_account_get_normalized_name (account));
+    mc_account_get_requested_presence (account, &type, &status, &message);
+    g_debug ("requestedpresence: %u, %s, %s", type, status, message);
+}
+
+static void
+avatar_ready_cb (McAccount *account, const GError *error, gpointer userdata)
+{
+    gchar filename[200];
+    const gchar *ciao = userdata;
+    const gchar *data, *mime_type;
+    gsize len;
+    
+    g_debug ("%s called with userdata %s", G_STRFUNC, ciao);
+    if (error)
+    {
+	g_warning ("%s: got error: %s", G_STRFUNC, error->message);
+	return;
+    }
+    mc_account_avatar_get (account, &data, &len, &mime_type);
+    g_debug ("Mime type: %s", mime_type);
+    sprintf (filename, "avatar%d.bin", n_avatar++);
+    g_file_set_contents (filename, data, len, NULL);
+}
+
+#if 0
+static void
+compat_ready_cb (McAccount *account, const GError *error, gpointer userdata)
+{
+    const gchar *ciao = userdata;
+    const gchar * const *fields, * const *field;
+    
+    g_debug ("%s called with userdata %s", G_STRFUNC, ciao);
+    if (error)
+    {
+	g_warning ("%s: got error: %s", G_STRFUNC, error->message);
+	return;
+    }
+    mc_account_compat_get_profile (account);
+    g_debug ("profile: %s", mc_account_compat_get_profile (account));
+    g_debug ("vcard fields:");
+    fields = mc_account_compat_get_secondary_vcard_fields (account);
+    for (field = fields; *field; field++)
+	g_debug ("   %s", *field);
+
+}
+
+static void
+print_condition (gpointer key, gpointer ht_value, gpointer userdata)
+{
+    gchar *name = key, *value = ht_value;
+
+    g_debug ("    cond %s: %s", name, value);
+}
+
+static void
+conditions_ready_cb (McAccount *account, const GError *error, gpointer userdata)
+{
+    const gchar *ciao = userdata;
+    const GHashTable *conditions;
+    
+    g_debug ("%s called with userdata %s", G_STRFUNC, ciao);
+    if (error)
+    {
+	g_warning ("%s: got error: %s", G_STRFUNC, error->message);
+	return;
+    }
+    conditions = mc_account_conditions_get (account);
+    g_hash_table_foreach ((GHashTable *)conditions, print_condition, NULL);
+}
+#endif
 
 static void
 valid_accounts_cb (TpProxy *proxy, const GValue *val_accounts,
@@ -84,9 +172,17 @@ valid_accounts_cb (TpProxy *proxy, const GValue *val_accounts,
 					 "Profile",
 					 get_profile_cb,
 					 NULL, NULL, NULL);
+	mc_account_call_when_ready (account, ready_cb, "ciao");
+	mc_account_avatar_call_when_ready (account, avatar_ready_cb, "ciao2");
+	mc_account_call_when_ready (account, ready_cb, "ciaoNOOOOOO");
+	mc_account_avatar_call_when_ready (account, avatar_ready_cb, "ciaoNOOOO2");
+	/*
+	mc_account_compat_call_when_ready (account, compat_ready_cb, "ciao3");
+	mc_account_conditions_call_when_ready (account, conditions_ready_cb, "ciao4");*/
+	g_timeout_add (2000, (GSourceFunc)g_object_unref, account);
     }
 
-    g_timeout_add (2000, (GSourceFunc)g_main_loop_quit, main_loop);
+    g_timeout_add (2500, (GSourceFunc)g_main_loop_quit, main_loop);
 }
 
 void find_accounts_cb (TpProxy *proxy, const GPtrArray *accounts,

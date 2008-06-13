@@ -69,8 +69,9 @@ update_property (gpointer key, gpointer ht_value, gpointer user_data)
 }
 
 static void
-create_props (McAccount *account, GHashTable *props)
+create_props (TpProxy *proxy, GHashTable *props)
 {
+    McAccount *account = MC_ACCOUNT (proxy);
     McAccountPrivate *priv = account->priv;
 
     priv->compat_props = g_malloc0 (sizeof (McAccountCompatProps));
@@ -81,13 +82,15 @@ void
 mc_account_compat_call_when_ready (McAccount *account, McAccountWhenReadyCb callback,
 				   gpointer user_data)
 {
-    McAccountIfaceData iface_data;
+    McIfaceData iface_data;
 
     iface_data.id = MC_IFACE_QUARK_ACCOUNT_INTERFACE_COMPAT;
     iface_data.props_data_ptr = (gpointer *)&account->priv->compat_props;
     iface_data.create_props = create_props;
 
-    _mc_account_call_when_ready_int (account, callback, user_data, &iface_data);
+    _mc_iface_call_when_ready_int ((TpProxy *)account,
+				   (McIfaceWhenReadyCb)callback, user_data,
+				   &iface_data);
 }
 
 const gchar *

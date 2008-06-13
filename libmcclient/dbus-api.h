@@ -25,6 +25,7 @@
 #include <glib/gquark.h>
 #include <glib-object.h>
 #include <dbus/dbus-glib.h>
+#include <telepathy-glib/proxy.h>
 #include <telepathy-glib/errors.h>
 
 #define MC_ACCOUNT_MANAGER_DBUS_SERVICE "org.freedesktop.Telepathy.AccountManager"
@@ -38,5 +39,29 @@
 void _mc_ext_register_dbus_glib_marshallers (void);
 
 inline void _mc_gvalue_stolen (GValue *value);
+
+
+typedef struct _McIfaceData McIfaceData;
+
+typedef void (*McIfaceCreateProps) (TpProxy *proxy, GHashTable *props);
+
+struct _McIfaceData {
+    /* id of the interface */
+    GQuark id;
+
+    /* pointer to the interface private data */
+    gpointer *props_data_ptr;
+
+    /* pointer to the function to be called when GetAll has returned */
+    McIfaceCreateProps create_props;
+};
+
+typedef void (*McIfaceWhenReadyCb) (TpProxy *proxy, const GError *error,
+				    gpointer user_data);
+
+void _mc_iface_call_when_ready_int (TpProxy *proxy,
+				    McIfaceWhenReadyCb callback,
+				    gpointer user_data,
+				    McIfaceData *iface_data);
 
 #endif

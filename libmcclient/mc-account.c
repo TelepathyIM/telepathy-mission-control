@@ -53,17 +53,6 @@ struct _McAccountClass {
     gpointer priv;
 };
 
-struct _CallWhenReadyContext {
-    McAccountWhenReadyCb callback;
-    gpointer user_data;
-};
-
-struct _McIfaceStatus {
-    GQuark iface_quark;
-    GSList *contexts;
-    McAccountCreateProps create_props;
-};
-
 struct _McAccountProps {
     gchar *display_name;
     gchar *icon;
@@ -86,9 +75,6 @@ struct _McAccountProps {
     gchar *req_presence_message;
     gchar *normalized_name;
 };
-
-#define MC_ACCOUNT_IS_READY(account) (MC_ACCOUNT(account)->priv->props != NULL)
-#define MC_ACCOUNT_IFACE_IS_READY(iface_data) (*(iface_data->props_data_ptr) != NULL)
 
 /**
  * McAccount:
@@ -140,8 +126,6 @@ mc_account_init (McAccount *account)
 				  MC_IFACE_QUARK_ACCOUNT_INTERFACE_COMPAT);
     tp_proxy_add_interface_by_id ((TpProxy *)account,
 				  MC_IFACE_QUARK_ACCOUNT_INTERFACE_CONDITIONS);
-
-    g_datalist_init (&priv->ifaces_status);
 }
 
 static GObject *
@@ -198,8 +182,6 @@ finalize (GObject *object)
     if (account->priv->conditions_props)
 	_mc_account_conditions_props_free (account->priv->conditions_props);
 
-    g_datalist_clear (&account->priv->ifaces_status);
-
     g_free (account->manager_name);
     g_free (account->protocol_name);
 
@@ -250,26 +232,6 @@ mc_account_new (TpDBusDaemon *dbus, const gchar *object_path)
 			    "object-path", object_path,
 			    NULL);
     return account;
-}
-
-static void
-call_when_ready_context_free (gpointer ptr)
-{
-    g_slice_free (CallWhenReadyContext, ptr);
-}
-
-static void
-_mc_iface_status_free (gpointer ptr)
-{
-    McIfaceStatus *iface_status = ptr;
-    GSList *list;
-
-    for (list = iface_status->contexts; list; list = list->next)
-    {
-	call_when_ready_context_free (list->data);
-    }
-    g_slist_free (iface_status->contexts);
-    g_slice_free (McIfaceStatus, iface_status);
 }
 
 static void
@@ -363,89 +325,9 @@ update_property (gpointer key, gpointer ht_value, gpointer user_data)
 }
 
 static void
-properties_get_all_cb (TpProxy *proxy, GHashTable *props, 
-		       const GError *error, gpointer user_data, 
-		       GObject *weak_object) 
+create_props (TpProxy *proxy, GHashTable *props)
 {
     McAccount *account = MC_ACCOUNT (proxy);
-    McIfaceStatus *iface_status = user_data;
-    CallWhenReadyContext *ctx;
-    GSList *list;
-
-    g_debug ("\n\n\n%s called\n", G_STRFUNC);
-    if (error)
-    {
-	for (list = iface_status->contexts; list; list = list->next)
-	{
-	    ctx = list->data;
-	    ctx->callback (account, error, ctx->user_data);
-	}
-    }
-    else
-    {
-	iface_status->create_props (account, props);
-	for (list = iface_status->contexts; list; list = list->next)
-	{
-	    ctx = list->data;
-	    ctx->callback (account, NULL, ctx->user_data);
-	}
-	g_datalist_id_remove_data (&account->priv->ifaces_status,
-				   iface_status->iface_quark);
-    }
-}
-
-void
-_mc_account_call_when_ready_int (McAccount *account,
-				 McAccountWhenReadyCb callback,
-				 gpointer user_data,
-				 McAccountIfaceData *iface_data)
-{
-    TpProxy *proxy = (TpProxy *) account;
-
-    g_return_if_fail (callback != NULL);
-    
-    if (MC_ACCOUNT_IFACE_IS_READY (iface_data) || proxy->invalidated)
-    {
-	callback (account, proxy->invalidated, user_data);
-    }
-    else
-    {
-	CallWhenReadyContext *ctx = g_slice_new (CallWhenReadyContext);
-	McIfaceStatus *iface_status;
-
-	ctx->callback = callback;
-	ctx->user_data = user_data;
-
-	iface_status = g_datalist_id_get_data (&account->priv->ifaces_status,
-					       iface_data->id);
-	if (!iface_status)
-	{
-	    /* it's the first time we are interested in this interface:
-	     * setup the struct and call the GetAll method */
-	    iface_status = g_slice_new (McIfaceStatus);
-	    iface_status->contexts = NULL;
-	    iface_status->iface_quark = iface_data->id;
-	    iface_status->create_props = iface_data->create_props;
-	    g_datalist_id_set_data_full (&account->priv->ifaces_status,
-					 iface_data->id,
-					 iface_status,
-					 _mc_iface_status_free);
-
-	    const gchar *name = g_quark_to_string (iface_data->id);
-	    tp_cli_dbus_properties_call_get_all (account, -1, name, 
-						 properties_get_all_cb, 
-						 iface_status,
-						 NULL,
-						 NULL);
-	}
-
-	iface_status->contexts = g_slist_prepend (iface_status->contexts, ctx);
-    }
-}
-
-static void
-create_props (McAccount *account, GHashTable *props)
-{
     McAccountPrivate *priv = account->priv;
 
     priv->props = g_malloc0 (sizeof (McAccountProps));
@@ -456,13 +338,15 @@ void
 mc_account_call_when_ready (McAccount *account, McAccountWhenReadyCb callback,
 			    gpointer user_data)
 {
-    McAccountIfaceData iface_data;
+    McIfaceData iface_data;
 
     iface_data.id = MC_IFACE_QUARK_ACCOUNT;
     iface_data.props_data_ptr = (gpointer *)&account->priv->props;
     iface_data.create_props = create_props;
 
-    _mc_account_call_when_ready_int (account, callback, user_data, &iface_data);
+    _mc_iface_call_when_ready_int ((TpProxy *)account,
+				   (McIfaceWhenReadyCb)callback, user_data,
+				   &iface_data);
 }
 
 const gchar *
