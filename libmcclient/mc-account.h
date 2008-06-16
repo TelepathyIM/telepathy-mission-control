@@ -116,7 +116,10 @@ void mc_account_conditions_call_when_ready (McAccount *account,
 
 const GHashTable *mc_account_conditions_get (McAccount *account);
 
+
 G_END_DECLS
+
+#include <libmcclient/mc-quark.h>
 
 /* auto-generated stubs */
 #include <libmcclient/_gen/cli-account.h>

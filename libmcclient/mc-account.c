@@ -24,6 +24,7 @@
 #include "mc-account.h"
 #include "mc-account-priv.h"
 #include "dbus-api.h"
+#include "mc-signals-marshal.h"
 
 #include <telepathy-glib/proxy-subclass.h>
 
@@ -59,6 +60,8 @@ struct _McAccountProps {
     guint valid : 1;
     guint enabled : 1;
     guint connect_automatically : 1;
+    guint emit_changed : 1;
+    guint emit_connection_status_changed : 1;
     gchar *nickname;
     GHashTable *parameters;
     TpConnectionPresenceType auto_presence_type;
@@ -92,6 +95,8 @@ enum
     PROP_0,
     PROP_OBJECT_PATH,
 };
+
+guint _mc_account_signals[LAST_SIGNAL] = { 0 };
 
 static inline gboolean
 parse_object_path (McAccount *account)
@@ -209,6 +214,57 @@ mc_account_class_init (McAccountClass *klass)
 
     tp_proxy_subclass_add_error_mapping (type, TP_ERROR_PREFIX, TP_ERRORS,
 					 TP_TYPE_ERROR);
+
+    _mc_account_signals[PRESENCE_CHANGED] =
+	g_signal_new ("presence-changed",
+		      G_OBJECT_CLASS_TYPE (klass),
+		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+		      0,
+		      NULL, NULL,
+		      mc_signals_marshal_VOID__UINT_UINT_STRING_STRING,
+		      G_TYPE_NONE,
+		      4, G_TYPE_UINT, G_TYPE_UINT, G_TYPE_STRING,
+		      G_TYPE_STRING);
+
+    _mc_account_signals[STRING_CHANGED] =
+	g_signal_new ("string-changed",
+		      G_OBJECT_CLASS_TYPE (klass),
+		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+		      0,
+		      NULL, NULL,
+		      mc_signals_marshal_VOID__UINT_STRING,
+		      G_TYPE_NONE,
+		      2, G_TYPE_UINT, G_TYPE_STRING);
+
+    _mc_account_signals[CONNECTION_STATUS_CHANGED] =
+	g_signal_new ("connection-status-changed",
+		      G_OBJECT_CLASS_TYPE (klass),
+		      G_SIGNAL_RUN_LAST,
+		      0,
+		      NULL, NULL,
+		      mc_signals_marshal_VOID__UINT_UINT,
+		      G_TYPE_NONE,
+		      2, G_TYPE_UINT, G_TYPE_UINT);
+
+    _mc_account_signals[FLAG_CHANGED] =
+	g_signal_new ("flag-changed",
+		      G_OBJECT_CLASS_TYPE (klass),
+		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+		      0,
+		      NULL, NULL,
+		      mc_signals_marshal_VOID__UINT_BOOLEAN,
+		      G_TYPE_NONE,
+		      2, G_TYPE_UINT, G_TYPE_BOOLEAN);
+
+    _mc_account_signals[PARAMETERS_CHANGED] =
+	g_signal_new ("parameters-changed",
+		      G_OBJECT_CLASS_TYPE (klass),
+		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+		      0,
+		      NULL, NULL,
+		      mc_signals_marshal_VOID__BOXED_BOXED,
+		      G_TYPE_NONE,
+		      2, G_TYPE_HASH_TABLE, G_TYPE_HASH_TABLE);
 }
 
 /**
@@ -247,31 +303,62 @@ update_property (gpointer key, gpointer ht_value, gpointer user_data)
     {
 	g_free (props->display_name);
 	props->display_name = g_value_dup_string (value);
+	if (props->emit_changed)
+	    g_signal_emit (account, _mc_account_signals[STRING_CHANGED],
+			   MC_QUARK_DISPLAY_NAME,
+			   MC_QUARK_DISPLAY_NAME,
+			   props->display_name);
     }
     else if (strcmp (name, "Icon") == 0)
     {
 	g_free (props->icon);
 	props->icon = g_value_dup_string (value);
+	if (props->emit_changed)
+	    g_signal_emit (account, _mc_account_signals[STRING_CHANGED],
+			   MC_QUARK_ICON,
+			   MC_QUARK_ICON,
+			   props->icon);
     }
     else if (strcmp (name, "Valid") == 0)
     {
 	props->valid = g_value_get_boolean (value);
+	if (props->emit_changed)
+	    g_signal_emit (account, _mc_account_signals[FLAG_CHANGED],
+			   MC_QUARK_VALID,
+			   MC_QUARK_VALID,
+			   props->valid);
     }
     else if (strcmp (name, "Enabled") == 0)
     {
 	props->enabled = g_value_get_boolean (value);
+	if (props->emit_changed)
+	    g_signal_emit (account, _mc_account_signals[FLAG_CHANGED],
+			   MC_QUARK_ENABLED,
+			   MC_QUARK_ENABLED,
+			   props->enabled);
     }
     else if (strcmp (name, "Nickname") == 0)
     {
 	g_free (props->nickname);
 	props->nickname = g_value_dup_string (value);
+	if (props->emit_changed)
+	    g_signal_emit (account, _mc_account_signals[STRING_CHANGED],
+			   MC_QUARK_NICKNAME,
+			   MC_QUARK_NICKNAME,
+			   props->nickname);
     }
     else if (strcmp (name, "Parameters") == 0)
     {
-	if (props->parameters)
-	    g_hash_table_destroy (props->parameters);
+	GHashTable *old_parameters = props->parameters;
+
 	props->parameters = g_value_get_boxed (value);
 	_mc_gvalue_stolen (value);
+	if (props->emit_changed)
+	    g_signal_emit (account, _mc_account_signals[PARAMETERS_CHANGED],
+			   0,
+			   old_parameters, props->parameters);
+	if (old_parameters)
+	    g_hash_table_destroy (old_parameters);
     }
     else if (strcmp (name, "AutomaticPresence") == 0)
     {
@@ -281,10 +368,22 @@ update_property (gpointer key, gpointer ht_value, gpointer user_data)
 	props->auto_presence_type = (gint)g_value_get_uint (va->values);
 	props->auto_presence_status = g_value_dup_string (va->values + 1);
 	props->auto_presence_message = g_value_dup_string (va->values + 2);
+	if (props->emit_changed)
+	    g_signal_emit (account, _mc_account_signals[PRESENCE_CHANGED],
+			   MC_QUARK_AUTOMATIC_PRESENCE,
+			   MC_QUARK_AUTOMATIC_PRESENCE,
+			   props->auto_presence_type,
+			   props->auto_presence_status,
+			   props->auto_presence_message);
     }
     else if (strcmp (name, "ConnectAutomatically") == 0)
     {
 	props->connect_automatically = g_value_get_boolean (value);
+	if (props->emit_changed)
+	    g_signal_emit (account, _mc_account_signals[FLAG_CHANGED],
+			   MC_QUARK_CONNECT_AUTOMATICALLY,
+			   MC_QUARK_CONNECT_AUTOMATICALLY,
+			   props->connect_automatically);
     }
     else if (strcmp (name, "Connection") == 0)
     {
@@ -294,10 +393,14 @@ update_property (gpointer key, gpointer ht_value, gpointer user_data)
     else if (strcmp (name, "ConnectionStatus") == 0)
     {
 	props->connection_status = g_value_get_uint (value);
+	if (props->emit_changed)
+	    props->emit_connection_status_changed = TRUE;
     }
     else if (strcmp (name, "ConnectionStatusReason") == 0)
     {
 	props->connection_status_reason = g_value_get_uint (value);
+	if (props->emit_changed)
+	    props->emit_connection_status_changed = TRUE;
     }
     else if (strcmp (name, "CurrentPresence") == 0)
     {
@@ -307,6 +410,13 @@ update_property (gpointer key, gpointer ht_value, gpointer user_data)
 	props->curr_presence_type = (gint)g_value_get_uint (va->values);
 	props->curr_presence_status = g_value_dup_string (va->values + 1);
 	props->curr_presence_message = g_value_dup_string (va->values + 2);
+	if (props->emit_changed)
+	    g_signal_emit (account, _mc_account_signals[PRESENCE_CHANGED],
+			   MC_QUARK_CURRENT_PRESENCE,
+			   MC_QUARK_CURRENT_PRESENCE,
+			   props->curr_presence_type,
+			   props->curr_presence_status,
+			   props->curr_presence_message);
     }
     else if (strcmp (name, "RequestedPresence") == 0)
     {
@@ -316,11 +426,23 @@ update_property (gpointer key, gpointer ht_value, gpointer user_data)
 	props->req_presence_type = (gint)g_value_get_uint (va->values);
 	props->req_presence_status = g_value_dup_string (va->values + 1);
 	props->req_presence_message = g_value_dup_string (va->values + 2);
+	if (props->emit_changed)
+	    g_signal_emit (account, _mc_account_signals[PRESENCE_CHANGED],
+			   MC_QUARK_REQUESTED_PRESENCE,
+			   MC_QUARK_REQUESTED_PRESENCE,
+			   props->req_presence_type,
+			   props->req_presence_status,
+			   props->req_presence_message);
     }
     else if (strcmp (name, "NormalizedName") == 0)
     {
 	g_free (props->normalized_name);
 	props->normalized_name = g_value_dup_string (value);
+	if (props->emit_changed)
+	    g_signal_emit (account, _mc_account_signals[STRING_CHANGED],
+			   MC_QUARK_NORMALIZED_NAME,
+			   MC_QUARK_NORMALIZED_NAME,
+			   props->normalized_name);
     }
 }
 
@@ -332,6 +454,24 @@ create_props (TpProxy *proxy, GHashTable *props)
 
     priv->props = g_malloc0 (sizeof (McAccountProps));
     g_hash_table_foreach (props, update_property, account);
+    priv->props->emit_changed = TRUE;
+}
+static void 
+on_account_property_changed (TpProxy *proxy, GHashTable *props, 
+			     gpointer user_data, GObject *weak_object) 
+{ 
+    McAccount *account = MC_ACCOUNT (proxy); 
+    McAccountPrivate *priv = account->priv; 
+
+    /* if the GetAll method hasn't returned yet, we do nothing */
+    if (G_UNLIKELY (!priv->props)) return;
+
+    g_hash_table_foreach (props, update_property, account);
+    if (priv->props->emit_connection_status_changed)
+	g_signal_emit (account,
+		       _mc_account_signals[CONNECTION_STATUS_CHANGED], 0,
+		       priv->props->connection_status,
+		       priv->props->connection_status_reason);
 }
 
 void
@@ -344,9 +484,15 @@ mc_account_call_when_ready (McAccount *account, McAccountWhenReadyCb callback,
     iface_data.props_data_ptr = (gpointer *)&account->priv->props;
     iface_data.create_props = create_props;
 
-    _mc_iface_call_when_ready_int ((TpProxy *)account,
-				   (McIfaceWhenReadyCb)callback, user_data,
-				   &iface_data);
+    if (_mc_iface_call_when_ready_int ((TpProxy *)account,
+				       (McIfaceWhenReadyCb)callback, user_data,
+				       &iface_data))
+    {
+	mc_cli_account_connect_to_account_property_changed (account,
+							    on_account_property_changed,
+							    NULL, NULL,
+							    NULL, NULL);
+    }
 }
 
 const gchar *

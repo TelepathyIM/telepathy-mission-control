@@ -42,6 +42,7 @@ noinst_HEADERS = \
 
 genincludedir = $(libmcclient_includedir)/_gen
 nodist_geninclude_HEADERS = \
+	mc-quark.h \
 	_gen/cli-account.h \
 	_gen/cli-account-manager.h \
 	_gen/enums.h \
@@ -49,6 +50,7 @@ nodist_geninclude_HEADERS = \
 	_gen/gtypes.h
 
 nodist_libmcclient_la_SOURCES = \
+	mc-quark.c \
 	_gen/cli-account-body.h \
 	_gen/cli-account-manager-body.h \
 	_gen/gtypes-body.h \
@@ -75,11 +77,18 @@ EXTRA_DIST = \
 	$(libmcclient_include_DATA) \
 	account.xml \
 	account-manager.xml \
+	mc-quark.list \
 	mc-signals-marshal.list
 
 # ---- telepathy-glib-style code generation ----
 
 tools_dir = $(top_srcdir)/tools
+
+%-quark.c %-quark.h: %-quark.list \
+	$(tools_dir)/gquark-gen.py Makefile.am
+	$(PYTHON) $(tools_dir)/gquark-gen.py \
+		--quark-prefix=MC_QUARK \
+		$< $*_quark $*-quark
 
 _gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml)
 	$(mkdir_p) _gen

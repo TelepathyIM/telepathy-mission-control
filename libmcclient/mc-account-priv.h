@@ -27,6 +27,18 @@
 
 G_BEGIN_DECLS
 
+enum
+{
+    PRESENCE_CHANGED,
+    STRING_CHANGED,
+    CONNECTION_STATUS_CHANGED,
+    FLAG_CHANGED,
+    PARAMETERS_CHANGED,
+    LAST_SIGNAL
+};
+
+extern guint _mc_account_signals[LAST_SIGNAL];
+
 typedef struct _McAccountProps McAccountProps;
 typedef struct _McAccountAvatarProps McAccountAvatarProps;
 typedef struct _McAccountCompatProps McAccountCompatProps;
