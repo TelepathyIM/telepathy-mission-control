@@ -102,13 +102,15 @@ properties_get_all_cb (TpProxy *proxy, GHashTable *props,
     }
 }
 
-void
+gboolean
 _mc_iface_call_when_ready_int (TpProxy *proxy,
 			       McIfaceWhenReadyCb callback,
 			       gpointer user_data,
 			       McIfaceData *iface_data)
 {
-    g_return_if_fail (callback != NULL);
+    gboolean first_invocation = FALSE;
+
+    g_return_val_if_fail (callback != NULL, FALSE);
     
     if (MC_IFACE_IS_READY (iface_data) || proxy->invalidated)
     {
@@ -141,9 +143,19 @@ _mc_iface_call_when_ready_int (TpProxy *proxy,
 						 iface_status,
 						 NULL,
 						 NULL);
+	    first_invocation = TRUE;
 	}
 
 	iface_status->contexts = g_slist_prepend (iface_status->contexts, ctx);
     }
+
+    return first_invocation;
+}
+
+gboolean
+_mc_iface_is_ready (gpointer object, GQuark iface)
+{
+    /* The interface is ready when the struct has been deleted */
+    return g_object_get_qdata (object, iface) ? FALSE : TRUE;
 }
 

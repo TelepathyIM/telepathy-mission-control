@@ -59,9 +59,11 @@ struct _McIfaceData {
 typedef void (*McIfaceWhenReadyCb) (TpProxy *proxy, const GError *error,
 				    gpointer user_data);
 
-void _mc_iface_call_when_ready_int (TpProxy *proxy,
-				    McIfaceWhenReadyCb callback,
-				    gpointer user_data,
-				    McIfaceData *iface_data);
+gboolean _mc_iface_call_when_ready_int (TpProxy *proxy,
+					McIfaceWhenReadyCb callback,
+					gpointer user_data,
+					McIfaceData *iface_data);
+
+gboolean _mc_iface_is_ready (gpointer object, GQuark iface);
 
 #endif
