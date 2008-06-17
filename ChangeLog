@@ -1,5 +1,9 @@
 2008-06-17  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmcclient/mc-account-manager.[hc],
+	libmcclient/mc-signals-marshal.list:
+	Implement getting/monitoring of AccountManager properties.
+
 	* libmcclient/mc-account-avatar.c, libmcclient/mc-account-priv.h,
 	libmcclient/mc-account.c, libmcclient/mc-signals-marshal.list:
 	Watch for properties changes in the Avatar interface.

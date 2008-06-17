@@ -51,6 +51,18 @@ GType mc_account_manager_get_type (void);
 
 McAccountManager *mc_account_manager_new (TpDBusDaemon *dbus);
 
+typedef void (*McAccountManagerWhenReadyCb) (McAccountManager *manager,
+					     const GError *error,
+					     gpointer user_data);
+
+void mc_account_manager_call_when_ready (McAccountManager *manager,
+					 McAccountManagerWhenReadyCb callback,
+					 gpointer user_data);
+
+const gchar * const *mc_account_manager_get_valid_accounts (McAccountManager
+							    *manager);
+const gchar * const *mc_account_manager_get_invalid_accounts (McAccountManager
+							      *manager);
 G_END_DECLS
 
 /* auto-generated stubs */
