@@ -35,30 +35,6 @@ static GMainLoop *main_loop;
 static gint n_avatar;
 
 static void
-get_profile_cb (TpProxy *proxy, const GValue *val_profile,
-		const GError *error, gpointer user_data,
-		GObject *weak_object)
-{
-    const gchar *profile_name;
-    McProfile *profile;
-
-    g_debug ("%s called", G_STRFUNC);
-    if (error)
-    {
-	g_warning ("%s: got error: %s", G_STRFUNC, error->message);
-	return;
-    }
-
-    profile_name = g_value_get_string (val_profile);
-    g_debug ("profile is %s", profile_name);
-    profile = mc_profile_lookup (profile_name);
-    if (profile)
-    {
-	g_debug ("VCard field is %s", mc_profile_get_vcard_field (profile));
-    }
-}
-
-static void
 ready_cb (McAccount *account, const GError *error, gpointer userdata)
 {
     const gchar *ciao = userdata;
@@ -97,59 +73,69 @@ avatar_ready_cb (McAccount *account, const GError *error, gpointer userdata)
     g_file_set_contents (filename, data, len, NULL);
 }
 
-#if 0
 static void
-compat_ready_cb (McAccount *account, const GError *error, gpointer userdata)
+on_presence_changed (McAccount *account, GQuark presence, TpConnectionPresenceType type,
+		     const gchar *status, const gchar *message, gpointer userdata)
 {
-    const gchar *ciao = userdata;
-    const gchar * const *fields, * const *field;
-    
-    g_debug ("%s called with userdata %s", G_STRFUNC, ciao);
-    if (error)
-    {
-	g_warning ("%s: got error: %s", G_STRFUNC, error->message);
-	return;
-    }
-    mc_account_compat_get_profile (account);
-    g_debug ("profile: %s", mc_account_compat_get_profile (account));
-    g_debug ("vcard fields:");
-    fields = mc_account_compat_get_secondary_vcard_fields (account);
-    for (field = fields; *field; field++)
-	g_debug ("   %s", *field);
-
+    g_debug ("%s Presence changed for account %s:\ntype %d, status %s, message %s",
+	     g_quark_to_string (presence), account->name,
+	     type, status, message);
 }
 
 static void
-print_condition (gpointer key, gpointer ht_value, gpointer userdata)
+on_connection_status_changed (McAccount *account, TpConnectionStatus status,
+			      TpConnectionStatusReason reason)
 {
-    gchar *name = key, *value = ht_value;
-
-    g_debug ("    cond %s: %s", name, value);
+    g_debug ("Connection status changed for account %s:\n %d, reason %d",
+	     account->name, status, reason);
 }
 
 static void
-conditions_ready_cb (McAccount *account, const GError *error, gpointer userdata)
+on_flag_changed (McAccount *account, GQuark flag, gboolean value, gpointer userdata)
 {
-    const gchar *ciao = userdata;
-    const GHashTable *conditions;
-    
-    g_debug ("%s called with userdata %s", G_STRFUNC, ciao);
-    if (error)
-    {
-	g_warning ("%s: got error: %s", G_STRFUNC, error->message);
-	return;
-    }
-    conditions = mc_account_conditions_get (account);
-    g_hash_table_foreach ((GHashTable *)conditions, print_condition, NULL);
+    g_debug ("%s flag changed for account %s: %d",
+	     g_quark_to_string (flag), account->name, value);
 }
-#endif
 
 static void
-valid_accounts_cb (TpProxy *proxy, const GValue *val_accounts,
-		   const GError *error, gpointer user_data,
-		   GObject *weak_object)
+print_param (gpointer key, gpointer ht_value, gpointer userdata)
 {
-    const gchar **accounts, **name;
+    GValue *value = ht_value;
+    gchar *name = key;
+
+    if (G_VALUE_TYPE (value) == G_TYPE_BOOLEAN)
+	g_debug ("name: %s, value: %d", name, g_value_get_boolean (value));
+    else if (G_VALUE_TYPE (value) == G_TYPE_STRING)
+	g_debug ("name: %s, value: %s", name, g_value_get_string (value));
+    else if (G_VALUE_TYPE (value) == G_TYPE_UINT)
+	g_debug ("name: %s, value: %u", name, g_value_get_uint (value));
+    else if (G_VALUE_TYPE (value) == G_TYPE_INT)
+	g_debug ("name: %s, value: %d", name, g_value_get_int (value));
+}
+
+static void
+on_parameters_changed (McAccount *account, GHashTable *old, GHashTable *new)
+{
+    g_debug ("parameters changed for account %s:",
+	     account->name);
+    g_debug ("old:");
+    g_hash_table_foreach (old, print_param, NULL);
+    g_debug ("new:");
+    g_hash_table_foreach (new, print_param, NULL);
+}
+
+static void
+on_avatar_changed (McAccount *account, GArray *avatar, const gchar *mime_type)
+{
+    g_debug ("avatar changed for account %s:",
+	     account->name);
+    g_debug ("len %d, mime type: %s", avatar->len, mime_type);
+}
+
+static void
+am_ready (McAccountManager *am, const GError *error, gpointer user_data)
+{
+    const gchar * const *accounts, * const *name;
 
     g_debug ("%s called", G_STRFUNC);
     if (error)
@@ -158,31 +144,29 @@ valid_accounts_cb (TpProxy *proxy, const GValue *val_accounts,
 	return;
     }
 
-    accounts = g_value_get_boxed (val_accounts);
+    accounts = mc_account_manager_get_valid_accounts (am);
     for (name = accounts; *name != NULL; name++)
     {
 	McAccount *account;
 
-	account = mc_account_new (proxy->dbus_daemon, *name);
+	account = mc_account_new (((TpProxy *)am)->dbus_daemon, *name);
 	g_debug ("account %s, manager %s, protocol %s",
 		 account->name, account->manager_name, account->protocol_name);
+	g_signal_connect (account, "presence-changed::current",
+			  G_CALLBACK (on_presence_changed), NULL);
+	g_signal_connect (account, "connection-status-changed",
+			  G_CALLBACK (on_connection_status_changed), NULL);
+	g_signal_connect (account, "flag-changed",
+			  G_CALLBACK (on_flag_changed), NULL);
+	g_signal_connect (account, "parameters-changed",
+			  G_CALLBACK (on_parameters_changed), NULL);
+	g_signal_connect (account, "avatar-changed",
+			  G_CALLBACK (on_avatar_changed), NULL);
 
-	tp_cli_dbus_properties_call_get (account, -1,
-					 MC_IFACE_ACCOUNT_INTERFACE_COMPAT,
-					 "Profile",
-					 get_profile_cb,
-					 NULL, NULL, NULL);
-	mc_account_call_when_ready (account, ready_cb, "ciao");
-	mc_account_avatar_call_when_ready (account, avatar_ready_cb, "ciao2");
-	mc_account_call_when_ready (account, ready_cb, "ciaoNOOOOOO");
-	mc_account_avatar_call_when_ready (account, avatar_ready_cb, "ciaoNOOOO2");
-	/*
-	mc_account_compat_call_when_ready (account, compat_ready_cb, "ciao3");
-	mc_account_conditions_call_when_ready (account, conditions_ready_cb, "ciao4");*/
-	g_timeout_add (2000, (GSourceFunc)g_object_unref, account);
+	mc_account_call_when_ready (account, ready_cb, NULL);
+	mc_account_avatar_call_when_ready (account, avatar_ready_cb, NULL);
     }
 
-    g_timeout_add (2500, (GSourceFunc)g_main_loop_quit, main_loop);
 }
 
 void find_accounts_cb (TpProxy *proxy, const GPtrArray *accounts,
@@ -210,6 +194,28 @@ void find_accounts_cb (TpProxy *proxy, const GPtrArray *accounts,
     }
 }
 
+static void
+on_validity_changed (TpProxy *proxy, const gchar *path, gboolean valid,
+		     gpointer user_data, GObject *weak_object)
+{
+    McAccountManager *am = MC_ACCOUNT_MANAGER (proxy);
+    const gchar * const *accounts, * const *name;
+
+    g_debug ("Account %s is now %s", path, valid ? "valid" : "invalid");
+    g_debug ("valid accounts:");
+    accounts = mc_account_manager_get_valid_accounts (am);
+    for (name = accounts; *name != NULL; name++)
+    {
+	g_debug ("  %s", *name);
+    }
+    g_debug ("invalid accounts:");
+    accounts = mc_account_manager_get_invalid_accounts (am);
+    for (name = accounts; *name != NULL; name++)
+    {
+	g_debug ("  %s", *name);
+    }
+}
+
 int main ()
 {
     McAccountManager *am;
@@ -226,11 +232,9 @@ int main ()
     am = mc_account_manager_new (daemon);
     g_object_unref (daemon);
 
-    tp_cli_dbus_properties_call_get (am, -1,
-				     MC_IFACE_ACCOUNT_MANAGER,
-				     "ValidAccounts",
-				     valid_accounts_cb,
-				     NULL, NULL, NULL);
+    mc_account_manager_call_when_ready (am, am_ready, NULL);
+    mc_cli_account_manager_connect_to_account_validity_changed (am,
+		      on_validity_changed, NULL, NULL, NULL, NULL);
  
     params = g_hash_table_new (g_str_hash, g_str_equal);
     g_value_init (&v_true, G_TYPE_BOOLEAN);
