@@ -171,10 +171,9 @@ create_props (TpProxy *proxy, GHashTable *props)
 }
 
 static void
-account_move (const gchar *account_path, gchar ***src, gchar ***dst)
+account_remove (const gchar *account_path, gchar ***src)
 {
     gchar **ap, **new_list, **ap2;
-    gchar *account_path_dup;
     gsize len;
 
     /* remove the account from the src list (it could be not there) */
@@ -205,7 +204,15 @@ account_move (const gchar *account_path, gchar ***src, gchar ***dst)
 	    *src = new_list;
 	}
     }
-    /* add the account to the dst list */
+}
+
+static void
+account_add (const gchar *account_path, gchar ***dst)
+{
+    gchar **ap, **new_list;
+    gchar *account_path_dup;
+    gsize len;
+
     account_path_dup = g_strdup (account_path);
     if (!*dst)
     {
@@ -237,17 +244,30 @@ on_account_validity_changed (TpProxy *proxy, const gchar *account_path,
     /* update the lists */
     if (valid)
     {
-	account_move (account_path, &props->invalid_accounts,
-		      &props->valid_accounts);
+	account_remove (account_path, &props->invalid_accounts);
+	account_add (account_path, &props->valid_accounts);
     }
     else
     {
-	account_move (account_path, &props->valid_accounts,
-		      &props->invalid_accounts);
+	account_remove (account_path, &props->valid_accounts);
+	account_add (account_path, &props->invalid_accounts);
     }
 
     g_signal_emit (manager, _mc_account_manager_signals[VALIDITY_CHANGED], 0,
 		   account_path, valid);
+}
+
+static void
+on_account_removed (TpProxy *proxy, const gchar *account_path,
+		    gpointer user_data, GObject *weak_object)
+{
+    McAccountManager *manager = MC_ACCOUNT_MANAGER (proxy);
+    McAccountManagerProps *props = manager->props;
+
+    if (G_UNLIKELY (!props)) return;
+
+    account_remove (account_path, &props->valid_accounts);
+    account_remove (account_path, &props->invalid_accounts);
 }
 
 void
@@ -268,6 +288,10 @@ mc_account_manager_call_when_ready (McAccountManager *manager,
 	mc_cli_account_manager_connect_to_account_validity_changed (manager,
 						on_account_validity_changed,
 						NULL, NULL, NULL, NULL);
+	mc_cli_account_manager_connect_to_account_removed (manager,
+							   on_account_removed,
+							   NULL, NULL,
+							   NULL, NULL);
     }
 }
 
