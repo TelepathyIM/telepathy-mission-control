@@ -34,6 +34,7 @@ enum
     CONNECTION_STATUS_CHANGED,
     FLAG_CHANGED,
     PARAMETERS_CHANGED,
+    AVATAR_CHANGED,
     LAST_SIGNAL
 };
 
@@ -52,6 +53,7 @@ struct _McAccountPrivate {
 };
 
 void _mc_account_avatar_props_free (McAccountAvatarProps *props);
+void _mc_account_avatar_class_init (McAccountClass *klass);
 
 void _mc_account_compat_props_free (McAccountCompatProps *props);
 

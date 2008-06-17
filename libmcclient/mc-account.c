@@ -265,6 +265,8 @@ mc_account_class_init (McAccountClass *klass)
 		      mc_signals_marshal_VOID__BOXED_BOXED,
 		      G_TYPE_NONE,
 		      2, G_TYPE_HASH_TABLE, G_TYPE_HASH_TABLE);
+
+    _mc_account_avatar_class_init (klass);
 }
 
 /**
