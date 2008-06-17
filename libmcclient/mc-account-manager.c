@@ -76,14 +76,6 @@ struct _McAccountManager {
 
 G_DEFINE_TYPE (McAccountManager, mc_account_manager, TP_TYPE_PROXY);
 
-enum
-{
-    VALIDITY_CHANGED,
-    LAST_SIGNAL
-};
-
-static guint _mc_account_manager_signals[LAST_SIGNAL] = { 0 };
-
 static void
 mc_account_manager_init (McAccountManager *self)
 {
@@ -107,16 +99,6 @@ mc_account_manager_class_init (McAccountManagerClass *klass)
 
     tp_proxy_subclass_add_error_mapping (type, TP_ERROR_PREFIX, TP_ERRORS,
 					 TP_TYPE_ERROR);
-
-    _mc_account_manager_signals[VALIDITY_CHANGED] =
-	g_signal_new ("validity-changed",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL,
-		      mc_signals_marshal_VOID__STRING_BOOLEAN,
-		      G_TYPE_NONE,
-		      2, G_TYPE_STRING, G_TYPE_BOOLEAN);
 }
 
 /**
@@ -252,9 +234,6 @@ on_account_validity_changed (TpProxy *proxy, const gchar *account_path,
 	account_remove (account_path, &props->valid_accounts);
 	account_add (account_path, &props->invalid_accounts);
     }
-
-    g_signal_emit (manager, _mc_account_manager_signals[VALIDITY_CHANGED], 0,
-		   account_path, valid);
 }
 
 static void
