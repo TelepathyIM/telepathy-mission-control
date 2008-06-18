@@ -1,5 +1,12 @@
 2008-06-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* tools/glib-client-gen.py:
+	Remove generation of reentrant blocking calls.
+
+=== telepathy-mission-control 5.0.beta12 ===
+
+2008-06-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
 	* libmcclient/mc-account-avatar.c, libmcclient/mc-account-compat.c,
 	libmcclient/mc-account-conditions.c, libmcclient/mc-account-manager.c,
 	libmcclient/mc-account.c:
