@@ -1,4 +1,4 @@
-INCLUDES = $(GCONF_CFLAGS) $(TELEPATHY_CFLAGS) \
+INCLUDES = $(DBUS_CFLAGS) $(GCONF_CFLAGS) $(TELEPATHY_CFLAGS) \
 	   -DMCD_DEFAULT_FILTER_PLUGIN_DIR=\"@pluginlibdir@\" \
 	   -DDBUS_API_SUBJECT_TO_CHANGE \
 	   -DMC_DISABLE_DEPRECATED -I$(top_srcdir)
@@ -80,7 +80,7 @@ CLEANFILES = $(BUILT_SOURCES)
 
 lib_LTLIBRARIES = libmissioncontrol-server.la
 
-libmissioncontrol_server_la_LIBADD = $(GCONF_LIBS) $(TELEPATHY_LIBS) \
+libmissioncontrol_server_la_LIBADD = $(DBUS_LIBS) $(GCONF_LIBS) $(TELEPATHY_LIBS) \
 	$(top_builddir)/libmcclient/libmcclient.la
 
 # we want to export symbols so that the plugins can see them

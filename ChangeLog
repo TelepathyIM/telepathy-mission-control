@@ -1,3 +1,8 @@
+2008-06-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/Makefile.am:
+	Explicitly link to DBus libraries. Fixes: #1988768.
+
 === telepathy-mission-control 5.0.beta11 ===
 
 2008-06-17  Alberto Mardegan  <alberto.mardegan@nokia.com>
