@@ -74,7 +74,7 @@ mc_account_conditions_call_when_ready (McAccount *account,
     McIfaceData iface_data;
 
     iface_data.id = MC_IFACE_QUARK_ACCOUNT_INTERFACE_CONDITIONS;
-    iface_data.props_data_ptr = (gpointer *)&account->priv->conditions_props;
+    iface_data.props_data_ptr = (gpointer)&account->priv->conditions_props;
     iface_data.create_props = create_props;
 
     _mc_iface_call_when_ready_int ((TpProxy *)account,

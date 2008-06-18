@@ -85,7 +85,7 @@ mc_account_compat_call_when_ready (McAccount *account, McAccountWhenReadyCb call
     McIfaceData iface_data;
 
     iface_data.id = MC_IFACE_QUARK_ACCOUNT_INTERFACE_COMPAT;
-    iface_data.props_data_ptr = (gpointer *)&account->priv->compat_props;
+    iface_data.props_data_ptr = (gpointer)&account->priv->compat_props;
     iface_data.create_props = create_props;
 
     _mc_iface_call_when_ready_int ((TpProxy *)account,

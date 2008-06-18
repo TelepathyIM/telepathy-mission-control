@@ -1,5 +1,11 @@
 2008-06-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmcclient/mc-account-avatar.c, libmcclient/mc-account-compat.c,
+	libmcclient/mc-account-conditions.c, libmcclient/mc-account-manager.c,
+	libmcclient/mc-account.c:
+	Correct pointer casting so that no warning are emitted when GCC 4.2 is
+	used.
+
 	* src/Makefile.am:
 	Explicitly link to DBus libraries. Fixes: #1988768.
 

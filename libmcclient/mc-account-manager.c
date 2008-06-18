@@ -257,7 +257,7 @@ mc_account_manager_call_when_ready (McAccountManager *manager,
     McIfaceData iface_data;
 
     iface_data.id = MC_IFACE_QUARK_ACCOUNT_MANAGER;
-    iface_data.props_data_ptr = (gpointer *)&manager->props;
+    iface_data.props_data_ptr = (gpointer)&manager->props;
     iface_data.create_props = create_props;
 
     if (_mc_iface_call_when_ready_int ((TpProxy *)manager,

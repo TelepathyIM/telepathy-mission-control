@@ -483,7 +483,7 @@ mc_account_call_when_ready (McAccount *account, McAccountWhenReadyCb callback,
     McIfaceData iface_data;
 
     iface_data.id = MC_IFACE_QUARK_ACCOUNT;
-    iface_data.props_data_ptr = (gpointer *)&account->priv->props;
+    iface_data.props_data_ptr = (gpointer)&account->priv->props;
     iface_data.create_props = create_props;
 
     if (_mc_iface_call_when_ready_int ((TpProxy *)account,
