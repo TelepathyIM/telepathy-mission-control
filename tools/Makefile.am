@@ -10,6 +10,7 @@ EXTRA_DIST = \
     glib-ginterface-gen.py \
     glib-gtypes-generator.py \
     glib-signals-marshal-gen.py \
+    gquark-gen.py \
     identity.xsl \
     libglibcodegen.py \
     spec-to-introspect.xsl
