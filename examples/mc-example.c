@@ -74,6 +74,15 @@ avatar_ready_cb (McAccount *account, const GError *error, gpointer userdata)
 }
 
 static void
+on_string_changed (McAccount *account, GQuark string, const gchar *text,
+		   gpointer userdata)
+{
+    g_debug ("%s changed for account %s:\n  new string: %s",
+	     g_quark_to_string (string), account->name,
+	     text);
+}
+
+static void
 on_presence_changed (McAccount *account, GQuark presence, TpConnectionPresenceType type,
 		     const gchar *status, const gchar *message, gpointer userdata)
 {
@@ -95,6 +104,9 @@ on_flag_changed (McAccount *account, GQuark flag, gboolean value, gpointer userd
 {
     g_debug ("%s flag changed for account %s: %d",
 	     g_quark_to_string (flag), account->name, value);
+
+    if (flag == MC_QUARK_VALID && !value)
+	g_object_unref (account);
 }
 
 static void
@@ -133,6 +145,39 @@ on_avatar_changed (McAccount *account, GArray *avatar, const gchar *mime_type)
 }
 
 static void
+on_account_removed (TpProxy *proxy, gpointer user_data, GObject *weak_object)
+{
+    McAccount *account = MC_ACCOUNT (proxy);
+    g_debug ("Account %s removed", account->name);
+    g_object_unref (account);
+}
+
+static void
+watch_account (McAccount *account)
+{
+    g_debug ("watching account %s, manager %s, protocol %s",
+	     account->name, account->manager_name, account->protocol_name);
+
+    mc_cli_account_connect_to_removed (account, on_account_removed,
+				       NULL, NULL, NULL, NULL);
+    g_signal_connect (account, "string-changed",
+		      G_CALLBACK (on_string_changed), NULL);
+    g_signal_connect (account, "presence-changed::current",
+		      G_CALLBACK (on_presence_changed), NULL);
+    g_signal_connect (account, "connection-status-changed",
+		      G_CALLBACK (on_connection_status_changed), NULL);
+    g_signal_connect (account, "flag-changed",
+		      G_CALLBACK (on_flag_changed), NULL);
+    g_signal_connect (account, "parameters-changed",
+		      G_CALLBACK (on_parameters_changed), NULL);
+    g_signal_connect (account, "avatar-changed",
+		      G_CALLBACK (on_avatar_changed), NULL);
+
+    mc_account_call_when_ready (account, ready_cb, NULL);
+    mc_account_avatar_call_when_ready (account, avatar_ready_cb, NULL);
+}
+
+static void
 am_ready (McAccountManager *am, const GError *error, gpointer user_data)
 {
     const gchar * const *accounts, * const *name;
@@ -150,21 +195,8 @@ am_ready (McAccountManager *am, const GError *error, gpointer user_data)
 	McAccount *account;
 
 	account = mc_account_new (((TpProxy *)am)->dbus_daemon, *name);
-	g_debug ("account %s, manager %s, protocol %s",
-		 account->name, account->manager_name, account->protocol_name);
-	g_signal_connect (account, "presence-changed::current",
-			  G_CALLBACK (on_presence_changed), NULL);
-	g_signal_connect (account, "connection-status-changed",
-			  G_CALLBACK (on_connection_status_changed), NULL);
-	g_signal_connect (account, "flag-changed",
-			  G_CALLBACK (on_flag_changed), NULL);
-	g_signal_connect (account, "parameters-changed",
-			  G_CALLBACK (on_parameters_changed), NULL);
-	g_signal_connect (account, "avatar-changed",
-			  G_CALLBACK (on_avatar_changed), NULL);
 
-	mc_account_call_when_ready (account, ready_cb, NULL);
-	mc_account_avatar_call_when_ready (account, avatar_ready_cb, NULL);
+	watch_account (account);
     }
 
 }
@@ -213,6 +245,15 @@ on_validity_changed (TpProxy *proxy, const gchar *path, gboolean valid,
     for (name = accounts; *name != NULL; name++)
     {
 	g_debug ("  %s", *name);
+    }
+
+    if (valid)
+    {
+	McAccount *account;
+
+	account = mc_account_new (proxy->dbus_daemon, path);
+
+	watch_account (account);
     }
 }
 
