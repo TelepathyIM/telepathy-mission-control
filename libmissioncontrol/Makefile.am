@@ -57,6 +57,7 @@ libmissioncontrol_client_include_HEADERS = \
         mc-profile.h \
         mc-protocol.h \
         mc-manager.h \
+        mc-remap.h \
 	mc-signals-marshal.h \
 	mission-control-signals-marshal.h \
 	mission-control.h \
@@ -89,7 +90,7 @@ nodist_libmissioncontrol_client_la_SOURCES = \
 libmissioncontrol_client_la_LIBADD = $(GCONF_LIBS) $(GLIB_LIBS) $(DBUS_LIBS) $(TELEPATHY_LIBS)
 
 libmissioncontrol_client_la_LDFLAGS = $(common_ldflags) \
-				      -export-symbols-regex "^(mc_)|(mission_control_)" \
+				      -export-symbols-regex "^(mc_)|(omc_)|(mission_control_)" \
 				      -version-info 4:2:4
 
 mission_control_include = \
@@ -100,10 +101,12 @@ mc-client-lib-gen.h: $(top_builddir)/xml/MissionControl-gen.xml
 	dbus-binding-tool --prefix=mc-client-lib --mode=glib-client $< > $@
 
 %-marshal.h: %-marshal.list Makefile.am
-	glib-genmarshal --header --prefix=$(subst -,_,$*)_marshal $< > $*-marshal.h
+	echo "#include <libmissioncontrol/mc-remap.h>" > $*-marshal.h
+	glib-genmarshal --header --prefix=$(subst -,_,$*)_marshal $< >> $*-marshal.h
 
 %-marshal.c: %-marshal.list Makefile.am
-	glib-genmarshal --body --prefix=$(subst -,_,$*)_marshal $< > $*-marshal.c
+	echo "#include <libmissioncontrol/mc-remap.h>" > $*-marshal.c
+	glib-genmarshal --body --prefix=$(subst -,_,$*)_marshal $< >> $*-marshal.c
 
 mc-enum-types.h: stamp-mc-enum-types.h
 	@true

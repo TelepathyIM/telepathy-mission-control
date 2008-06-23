@@ -31,6 +31,8 @@
 #define MISSION_CONTROL_IFACE "org.freedesktop.Telepathy.MissionControl"
 #define MISSION_CONTROL_PATH "/org/freedesktop/Telepathy/MissionControl"
 
+#include <libmissioncontrol/mc-remap.h>
+
 #include <libmissioncontrol/_gen/enums.h>
 #include <libmissioncontrol/_gen/gtypes.h>
 #include <libmissioncontrol/_gen/interfaces.h>

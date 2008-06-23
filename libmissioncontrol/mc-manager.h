@@ -27,6 +27,8 @@
 #include <glib.h>
 #include <glib-object.h>
 
+#include <libmissioncontrol/mc-remap.h>
+
 G_BEGIN_DECLS
 
 #define MC_TYPE_MANAGER mc_manager_get_type()

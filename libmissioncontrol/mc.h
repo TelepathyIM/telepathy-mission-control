@@ -25,6 +25,7 @@
 #define __MC_H__
 
 #include <glib-object.h>
+#include <libmissioncontrol/mc-remap.h>
 
 G_BEGIN_DECLS
 

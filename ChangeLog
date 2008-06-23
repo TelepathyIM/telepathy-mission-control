@@ -1,3 +1,9 @@
+2008-06-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/Makefile.am, libmissioncontrol/*.h:
+	Rename symbols potentially conflicting with libmcclient: change the prefix
+	from `mc_' to `omc_'.
+
 2008-06-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* tools/glib-client-gen.py:

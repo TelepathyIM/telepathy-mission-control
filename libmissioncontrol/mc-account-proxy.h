@@ -22,6 +22,7 @@
 #define __LIBMISSIONCONTROL_ACCOUNT_PROXY_H__
 
 #include <telepathy-glib/proxy.h>
+#include <libmissioncontrol/mc-remap.h>
 
 G_BEGIN_DECLS
 
