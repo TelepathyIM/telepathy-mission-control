@@ -1,3 +1,5 @@
+=== telepathy-mission-control 5.0.beta13 ===
+
 2008-06-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmissioncontrol/Makefile.am, libmissioncontrol/*.h:
