@@ -1,3 +1,9 @@
+2008-06-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/mc-account-avatar.c, libmcclient/mc-account-compat.c,
+	libmcclient/mc-account-conditions.c, libmcclient/mc-account.[hc]:
+	Add methods for setting Account properties.
+
 === telepathy-mission-control 5.0.beta13 ===
 
 2008-06-23  Alberto Mardegan  <alberto.mardegan@nokia.com>

@@ -98,6 +98,20 @@ enum
 
 guint _mc_account_signals[LAST_SIGNAL] = { 0 };
 
+static inline void
+set_presence_gvalue (GValue *value, TpConnectionPresenceType type,
+		     const gchar *status, const gchar *message)
+{
+    GType gtype;
+    gtype = MC_STRUCT_TYPE_ACCOUNT_PRESENCE;
+    g_value_init (value, gtype);
+    g_value_take_boxed (value, dbus_g_type_specialized_construct (gtype));
+    GValueArray *va = (GValueArray *) g_value_get_boxed (value);
+    g_value_set_uint (va->values, type);
+    g_value_set_static_string (va->values + 1, status);
+    g_value_set_static_string (va->values + 2, message);
+}
+
 static inline gboolean
 parse_object_path (McAccount *account)
 {
@@ -650,5 +664,156 @@ mc_account_get_normalized_name (McAccount *account)
     g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
     if (G_UNLIKELY (!account->priv->props)) return NULL;
     return account->priv->props->normalized_name;
+}
+
+TpProxyPendingCall *
+mc_account_set_display_name (McAccount *account, const gchar *display_name,
+			     tp_cli_dbus_properties_callback_for_set callback,
+			     gpointer user_data,
+			     GDestroyNotify destroy,
+			     GObject *weak_object)
+{
+    GValue value = { 0 };
+
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
+    g_value_init (&value, G_TYPE_STRING);
+    g_value_set_static_string (&value, display_name);
+    return tp_cli_dbus_properties_call_set (account, -1,
+	MC_IFACE_ACCOUNT, "DisplayName", &value,
+	callback, user_data, destroy, weak_object);
+}
+
+TpProxyPendingCall *
+mc_account_set_icon (McAccount *account, const gchar *icon,
+		     tp_cli_dbus_properties_callback_for_set callback,
+		     gpointer user_data,
+		     GDestroyNotify destroy,
+		     GObject *weak_object)
+{
+    GValue value = { 0 };
+
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
+    g_value_init (&value, G_TYPE_STRING);
+    g_value_set_static_string (&value, icon);
+    return tp_cli_dbus_properties_call_set (account, -1,
+	MC_IFACE_ACCOUNT, "Icon", &value,
+	callback, user_data, destroy, weak_object);
+}
+
+TpProxyPendingCall *
+mc_account_set_enabled (McAccount *account, gboolean enabled,
+			tp_cli_dbus_properties_callback_for_set callback,
+			gpointer user_data,
+			GDestroyNotify destroy,
+			GObject *weak_object)
+{
+    GValue value = { 0 };
+
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
+    g_value_init (&value, G_TYPE_BOOLEAN);
+    g_value_set_boolean (&value, enabled);
+    return tp_cli_dbus_properties_call_set (account, -1,
+	MC_IFACE_ACCOUNT, "Enabled", &value,
+	callback, user_data, destroy, weak_object);
+}
+
+TpProxyPendingCall *
+mc_account_set_connect_automatically (McAccount *account, gboolean connect,
+				      tp_cli_dbus_properties_callback_for_set callback,
+				      gpointer user_data,
+				      GDestroyNotify destroy,
+				      GObject *weak_object)
+{
+    GValue value = { 0 };
+
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
+    g_value_init (&value, G_TYPE_BOOLEAN);
+    g_value_set_boolean (&value, connect);
+    return tp_cli_dbus_properties_call_set (account, -1,
+	MC_IFACE_ACCOUNT, "ConnectAutomatically", &value,
+	callback, user_data, destroy, weak_object);
+}
+
+TpProxyPendingCall *
+mc_account_set_nickname (McAccount *account, const gchar *nickname,
+			 tp_cli_dbus_properties_callback_for_set callback,
+			 gpointer user_data,
+			 GDestroyNotify destroy,
+			 GObject *weak_object)
+{
+    GValue value = { 0 };
+
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
+    g_value_init (&value, G_TYPE_STRING);
+    g_value_set_static_string (&value, nickname);
+    return tp_cli_dbus_properties_call_set (account, -1,
+	MC_IFACE_ACCOUNT, "Nickname", &value,
+	callback, user_data, destroy, weak_object);
+}
+
+TpProxyPendingCall *
+mc_account_set_automatic_presence (McAccount *account,
+				   TpConnectionPresenceType type,
+				   const gchar *status,
+				   const gchar *message,
+				   tp_cli_dbus_properties_callback_for_set callback,
+				   gpointer user_data,
+				   GDestroyNotify destroy,
+				   GObject *weak_object)
+{
+    TpProxyPendingCall *call;
+    GValue value = { 0 };
+
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
+    set_presence_gvalue (&value, type, status, message);
+    call = tp_cli_dbus_properties_call_set (account, -1,
+	MC_IFACE_ACCOUNT, "AutomaticPresence", &value,
+	callback, user_data, destroy, weak_object);
+    g_value_unset (&value);
+    return call;
+}
+
+TpProxyPendingCall *
+mc_account_set_current_presence (McAccount *account,
+				 TpConnectionPresenceType type,
+				 const gchar *status,
+				 const gchar *message,
+				 tp_cli_dbus_properties_callback_for_set callback,
+				 gpointer user_data,
+				 GDestroyNotify destroy,
+				 GObject *weak_object)
+{
+    TpProxyPendingCall *call;
+    GValue value = { 0 };
+
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
+    set_presence_gvalue (&value, type, status, message);
+    call = tp_cli_dbus_properties_call_set (account, -1,
+	MC_IFACE_ACCOUNT, "CurrentPresence", &value,
+	callback, user_data, destroy, weak_object);
+    g_value_unset (&value);
+    return call;
+}
+
+TpProxyPendingCall *
+mc_account_set_requested_presence (McAccount *account,
+				   TpConnectionPresenceType type,
+				   const gchar *status,
+				   const gchar *message,
+				   tp_cli_dbus_properties_callback_for_set callback,
+				   gpointer user_data,
+				   GDestroyNotify destroy,
+				   GObject *weak_object)
+{
+    TpProxyPendingCall *call;
+    GValue value = { 0 };
+
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
+    set_presence_gvalue (&value, type, status, message);
+    call = tp_cli_dbus_properties_call_set (account, -1,
+	MC_IFACE_ACCOUNT, "RequestedPresence", &value,
+	callback, user_data, destroy, weak_object);
+    g_value_unset (&value);
+    return call;
 }
 

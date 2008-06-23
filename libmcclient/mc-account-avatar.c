@@ -171,3 +171,36 @@ mc_account_avatar_get (McAccount *account,
     *mime_type = props->mime_type;
 }
 
+TpProxyPendingCall *
+mc_account_avatar_set (McAccount *account, const gchar *avatar, gsize len,
+		       const gchar *mime_type,
+		       tp_cli_dbus_properties_callback_for_set callback,
+		       gpointer user_data,
+		       GDestroyNotify destroy,
+		       GObject *weak_object)
+{
+    TpProxyPendingCall *call;
+    GValue value = { 0 };
+    GArray avatar_array;
+    GType type;
+
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
+    avatar_array.data = (gchar *)avatar;
+    avatar_array.len = len;
+    type = dbus_g_type_get_struct ("GValueArray",
+				   dbus_g_type_get_collection ("GArray",
+							       G_TYPE_UCHAR),
+				   G_TYPE_STRING,
+				   G_TYPE_INVALID);
+    g_value_init (&value, type);
+    g_value_take_boxed (&value, dbus_g_type_specialized_construct (type));
+    GValueArray *va = (GValueArray *) g_value_get_boxed (&value);
+    g_value_set_static_boxed (va->values, &avatar_array);
+    g_value_set_static_string (va->values + 1, mime_type);
+    call = tp_cli_dbus_properties_call_set (account, -1,
+	MC_IFACE_ACCOUNT_INTERFACE_AVATAR, "Avatar", &value,
+	callback, user_data, destroy, weak_object);
+    g_value_unset (&value);
+    return call;
+}
+

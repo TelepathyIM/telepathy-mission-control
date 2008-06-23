@@ -90,6 +90,63 @@ void mc_account_get_requested_presence (McAccount *account,
 					const gchar **status,
 					const gchar **message);
 const gchar *mc_account_get_normalized_name (McAccount *account);
+TpProxyPendingCall *
+mc_account_set_display_name (McAccount *account, const gchar *display_name,
+			     tp_cli_dbus_properties_callback_for_set callback,
+			     gpointer user_data,
+			     GDestroyNotify destroy,
+			     GObject *weak_object);
+TpProxyPendingCall *
+mc_account_set_icon (McAccount *account, const gchar *icon,
+		     tp_cli_dbus_properties_callback_for_set callback,
+		     gpointer user_data,
+		     GDestroyNotify destroy,
+		     GObject *weak_object);
+TpProxyPendingCall *
+mc_account_set_enabled (McAccount *account, gboolean enabled,
+			tp_cli_dbus_properties_callback_for_set callback,
+			gpointer user_data,
+			GDestroyNotify destroy,
+			GObject *weak_object);
+TpProxyPendingCall *
+mc_account_set_connect_automatically (McAccount *account, gboolean connect,
+				      tp_cli_dbus_properties_callback_for_set callback,
+				      gpointer user_data,
+				      GDestroyNotify destroy,
+				      GObject *weak_object);
+TpProxyPendingCall *
+mc_account_set_nickname (McAccount *account, const gchar *nickname,
+			 tp_cli_dbus_properties_callback_for_set callback,
+			 gpointer user_data,
+			 GDestroyNotify destroy,
+			 GObject *weak_object);
+TpProxyPendingCall *
+mc_account_set_automatic_presence (McAccount *account,
+				   TpConnectionPresenceType type,
+				   const gchar *status,
+				   const gchar *message,
+				   tp_cli_dbus_properties_callback_for_set callback,
+				   gpointer user_data,
+				   GDestroyNotify destroy,
+				   GObject *weak_object);
+TpProxyPendingCall *
+mc_account_set_current_presence (McAccount *account,
+				 TpConnectionPresenceType type,
+				 const gchar *status,
+				 const gchar *message,
+				 tp_cli_dbus_properties_callback_for_set callback,
+				 gpointer user_data,
+				 GDestroyNotify destroy,
+				 GObject *weak_object);
+TpProxyPendingCall *
+mc_account_set_requested_presence (McAccount *account,
+				   TpConnectionPresenceType type,
+				   const gchar *status,
+				   const gchar *message,
+				   tp_cli_dbus_properties_callback_for_set callback,
+				   gpointer user_data,
+				   GDestroyNotify destroy,
+				   GObject *weak_object);
 
 
 void mc_account_avatar_call_when_ready (McAccount *account,
@@ -99,6 +156,13 @@ void mc_account_avatar_call_when_ready (McAccount *account,
 void mc_account_avatar_get (McAccount *account,
 			    const gchar **avatar, gsize *length,
 			    const gchar **mime_type);
+TpProxyPendingCall *
+mc_account_avatar_set (McAccount *account, const gchar *avatar, gsize len,
+		       const gchar *mime_type,
+		       tp_cli_dbus_properties_callback_for_set callback,
+		       gpointer user_data,
+		       GDestroyNotify destroy,
+		       GObject *weak_object);
 
 
 void mc_account_compat_call_when_ready (McAccount *account,
@@ -108,6 +172,13 @@ void mc_account_compat_call_when_ready (McAccount *account,
 const gchar *mc_account_compat_get_profile (McAccount *account);
 const gchar *mc_account_compat_get_avatar_file (McAccount *account);
 const gchar * const *mc_account_compat_get_secondary_vcard_fields (McAccount *account);
+TpProxyPendingCall *
+mc_account_set_secondary_vcard_fields (McAccount *account,
+				       const gchar * const *fields,
+				       tp_cli_dbus_properties_callback_for_set callback,
+				       gpointer user_data,
+				       GDestroyNotify destroy,
+				       GObject *weak_object);
 
 
 void mc_account_conditions_call_when_ready (McAccount *account,
@@ -115,7 +186,13 @@ void mc_account_conditions_call_when_ready (McAccount *account,
 					    gpointer user_data);
 
 const GHashTable *mc_account_conditions_get (McAccount *account);
-
+TpProxyPendingCall *
+mc_account_set_conditions (McAccount *account,
+			   const GHashTable *conditions,
+			   tp_cli_dbus_properties_callback_for_set callback,
+			   gpointer user_data,
+			   GDestroyNotify destroy,
+			   GObject *weak_object);
 
 G_END_DECLS
 

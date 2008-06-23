@@ -120,3 +120,21 @@ mc_account_compat_get_secondary_vcard_fields (McAccount *account)
     return account->priv->compat_props->secondary_vcard_fields;
 }
 
+TpProxyPendingCall *
+mc_account_set_secondary_vcard_fields (McAccount *account,
+				       const gchar * const *fields,
+				       tp_cli_dbus_properties_callback_for_set callback,
+				       gpointer user_data,
+				       GDestroyNotify destroy,
+				       GObject *weak_object)
+{
+    GValue value = { 0 };
+
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
+    g_value_init (&value, G_TYPE_STRV);
+    g_value_set_static_boxed (&value, fields);
+    return tp_cli_dbus_properties_call_set (account, -1,
+	MC_IFACE_ACCOUNT_INTERFACE_COMPAT, "SecondaryVCardFields", &value,
+	callback, user_data, destroy, weak_object);
+}
+

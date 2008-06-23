@@ -91,3 +91,21 @@ mc_account_conditions_get (McAccount *account)
     return account->priv->conditions_props->conditions;
 }
 
+TpProxyPendingCall *
+mc_account_set_conditions (McAccount *account,
+			   const GHashTable *conditions,
+			   tp_cli_dbus_properties_callback_for_set callback,
+			   gpointer user_data,
+			   GDestroyNotify destroy,
+			   GObject *weak_object)
+{
+    GValue value = { 0 };
+
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
+    g_value_init (&value, DBUS_TYPE_G_STRING_STRING_HASHTABLE);
+    g_value_set_static_boxed (&value, conditions);
+    return tp_cli_dbus_properties_call_set (account, -1,
+	MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS, "Condition", &value,
+	callback, user_data, destroy, weak_object);
+}
+
