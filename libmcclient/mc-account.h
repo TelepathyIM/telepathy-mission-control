@@ -196,7 +196,7 @@ mc_account_set_conditions (McAccount *account,
 
 G_END_DECLS
 
-#include <libmcclient/mc-quark.h>
+#include <libmcclient/_gen/mc-quark.h>
 
 /* auto-generated stubs */
 #include <libmcclient/_gen/cli-account.h>

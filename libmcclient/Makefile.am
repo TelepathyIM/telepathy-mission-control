@@ -42,7 +42,7 @@ noinst_HEADERS = \
 
 genincludedir = $(libmcclient_includedir)/_gen
 nodist_geninclude_HEADERS = \
-	mc-quark.h \
+	_gen/mc-quark.h \
 	_gen/cli-account.h \
 	_gen/cli-account-manager.h \
 	_gen/enums.h \
@@ -50,7 +50,7 @@ nodist_geninclude_HEADERS = \
 	_gen/gtypes.h
 
 nodist_libmcclient_la_SOURCES = \
-	mc-quark.c \
+	_gen/mc-quark.c \
 	_gen/cli-account-body.h \
 	_gen/cli-account-manager-body.h \
 	_gen/gtypes-body.h \
@@ -84,11 +84,11 @@ EXTRA_DIST = \
 
 tools_dir = $(top_srcdir)/tools
 
-%-quark.c %-quark.h: %-quark.list \
+_gen/%-quark.c _gen/%-quark.h: %-quark.list \
 	$(tools_dir)/gquark-gen.py Makefile.am
 	$(PYTHON) $(tools_dir)/gquark-gen.py \
 		--quark-prefix=MC_QUARK \
-		$< $*_quark $*-quark
+		$< $*_quark _gen/$*-quark
 
 _gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml)
 	$(mkdir_p) _gen

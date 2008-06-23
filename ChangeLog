@@ -1,5 +1,8 @@
 2008-06-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmcclient/Makefile.am, libmcclient/mc-account.h:
+	Move the mc-quark.[hc] files into _gen/.
+
 	* libmcclient/mc-account-avatar.c, libmcclient/mc-account-compat.c,
 	libmcclient/mc-account-conditions.c, libmcclient/mc-account.[hc]:
 	Add methods for setting Account properties.
