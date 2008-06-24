@@ -1,3 +1,8 @@
+2008-06-24  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/mc-account-manager.c:
+	Emit a GObject signal when a new account is created.
+
 2008-06-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmcclient/Makefile.am, libmcclient/mc-account.h:

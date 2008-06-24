@@ -76,6 +76,14 @@ struct _McAccountManager {
 
 G_DEFINE_TYPE (McAccountManager, mc_account_manager, TP_TYPE_PROXY);
 
+enum
+{
+    ACCOUNT_CREATED,
+    LAST_SIGNAL
+};
+
+guint _mc_account_manager_signals[LAST_SIGNAL] = { 0 };
+
 static void
 mc_account_manager_init (McAccountManager *self)
 {
@@ -99,6 +107,16 @@ mc_account_manager_class_init (McAccountManagerClass *klass)
 
     tp_proxy_subclass_add_error_mapping (type, TP_ERROR_PREFIX, TP_ERRORS,
 					 TP_TYPE_ERROR);
+
+    _mc_account_manager_signals[ACCOUNT_CREATED] =
+	g_signal_new ("account-created",
+		      G_OBJECT_CLASS_TYPE (klass),
+		      G_SIGNAL_RUN_LAST,
+		      0,
+		      NULL, NULL,
+		      mc_signals_marshal_VOID__STRING_BOOLEAN,
+		      G_TYPE_NONE,
+		      2, G_TYPE_STRING, G_TYPE_BOOLEAN);
 }
 
 /**
@@ -152,7 +170,7 @@ create_props (TpProxy *proxy, GHashTable *props)
     g_hash_table_foreach (props, update_property, manager);
 }
 
-static void
+static gboolean
 account_remove (const gchar *account_path, gchar ***src)
 {
     gchar **ap, **new_list, **ap2;
@@ -184,8 +202,10 @@ account_remove (const gchar *account_path, gchar ***src)
 	    *ap2 = NULL;
 	    g_free (*src);
 	    *src = new_list;
+	    return TRUE;
 	}
     }
+    return FALSE;
 }
 
 static void
@@ -221,19 +241,25 @@ on_account_validity_changed (TpProxy *proxy, const gchar *account_path,
 {
     McAccountManager *manager = MC_ACCOUNT_MANAGER (proxy);
     McAccountManagerProps *props = manager->props;
+    gboolean existed;
 
     if (G_UNLIKELY (!props)) return;
     /* update the lists */
     if (valid)
     {
-	account_remove (account_path, &props->invalid_accounts);
+	existed = account_remove (account_path, &props->invalid_accounts);
 	account_add (account_path, &props->valid_accounts);
     }
     else
     {
-	account_remove (account_path, &props->valid_accounts);
+	existed = account_remove (account_path, &props->valid_accounts);
 	account_add (account_path, &props->invalid_accounts);
     }
+
+    if (!existed)
+	g_signal_emit (manager,
+		       _mc_account_manager_signals[ACCOUNT_CREATED], 0,
+		       account_path, valid);
 }
 
 static void
