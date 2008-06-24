@@ -105,6 +105,7 @@ gint mc_profile_get_priority (McProfile *id);
 const gchar *mc_profile_get_default_account_name (McProfile *id);
 
 const gchar *mc_profile_get_protocol_name (McProfile *id);
+const gchar *mc_profile_get_manager_name (McProfile *id);
 
 gboolean mc_profile_is_default_for_vcard_field (McProfile *id);
 McProfileCapabilityFlags mc_profile_get_capabilities (McProfile *id);

@@ -1,5 +1,8 @@
 2008-06-24  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmcclient/mc-profile.[hc]:
+	Add mc_profile_get_manager_name().
+
 	* libmcclient/mc-account-manager.c:
 	Emit a GObject signal when a new account is created.
 

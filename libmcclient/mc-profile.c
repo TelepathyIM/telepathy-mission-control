@@ -826,6 +826,27 @@ mc_profile_get_protocol_name (McProfile *id)
 }
 
 /**
+ * mc_profile_get_manager_name:
+ * @id: The #McProfile.
+ * 
+ * Get the manager name of the profile.
+ *
+ * Returns: a string representing the manager name (must not be freed).
+ */
+const gchar *
+mc_profile_get_manager_name (McProfile *id)
+{
+    gboolean profile_loaded;
+
+    g_return_val_if_fail (id != NULL, NULL);
+
+    profile_loaded = _mc_profile_load (id);
+    g_return_val_if_fail (profile_loaded, NULL);
+
+    return MC_PROFILE_PRIV (id)->manager;
+}
+
+/**
  * mc_profile_get_vcard_field:
  * @id: The #McProfile.
  * 
