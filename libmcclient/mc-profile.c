@@ -1002,6 +1002,34 @@ mc_profile_get_capabilities (McProfile *id)
 }
 
 /**
+ * mc_profile_get_default_setting:
+ * @id: The #McProfile.
+ * @setting: The setting for which default value has to be retrieved.
+ * 
+ * Get the default value of a setting of the profile.
+ *
+ * Returns: a string representing the default setting (must not be freed).
+ */
+const gchar *
+mc_profile_get_default_setting (McProfile *id, const gchar *setting)
+{
+    gboolean profile_loaded;
+    const gchar *def;
+
+    g_return_val_if_fail (id != NULL, NULL);
+    g_return_val_if_fail (setting != NULL, NULL);
+    g_return_val_if_fail (*setting != '\0', NULL);
+
+    profile_loaded = _mc_profile_load (id);
+    g_return_val_if_fail (profile_loaded, NULL);
+
+    def = g_hash_table_lookup (MC_PROFILE_PRIV (id)->default_settings,
+			       setting);
+
+    return def;
+}
+
+/**
  * mc_profile_get_vcard_mangle:
  * @id: The #McProfile.
  * @vcard_field: The vcard field for which to get the mangle

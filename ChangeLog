@@ -1,5 +1,8 @@
 2008-06-24  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmcclient/mc-profile.[hc]:
+	Add mc_profile_get_default_setting().
+
 	* libmcclient/mc-account-compat.c, libmcclient/mc-account.h:
 	Add mc_account_compat_set_profile(), and rename
 	mc_account_set_secondary_vcard_fields() into the more consistent
