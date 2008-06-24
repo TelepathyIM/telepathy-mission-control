@@ -173,12 +173,18 @@ const gchar *mc_account_compat_get_profile (McAccount *account);
 const gchar *mc_account_compat_get_avatar_file (McAccount *account);
 const gchar * const *mc_account_compat_get_secondary_vcard_fields (McAccount *account);
 TpProxyPendingCall *
-mc_account_set_secondary_vcard_fields (McAccount *account,
-				       const gchar * const *fields,
-				       tp_cli_dbus_properties_callback_for_set callback,
-				       gpointer user_data,
-				       GDestroyNotify destroy,
-				       GObject *weak_object);
+mc_account_compat_set_profile (McAccount *account, const gchar *profile,
+			       tp_cli_dbus_properties_callback_for_set callback,
+			       gpointer user_data,
+			       GDestroyNotify destroy,
+			       GObject *weak_object);
+TpProxyPendingCall *
+mc_account_compat_set_secondary_vcard_fields (McAccount *account,
+					      const gchar * const *fields,
+					      tp_cli_dbus_properties_callback_for_set callback,
+					      gpointer user_data,
+					      GDestroyNotify destroy,
+					      GObject *weak_object);
 
 
 void mc_account_conditions_call_when_ready (McAccount *account,
