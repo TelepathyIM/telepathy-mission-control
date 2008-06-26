@@ -1,3 +1,5 @@
+=== telepathy-mission-control 4.66 ===
+
 2008-06-26  Alberto Mardegan  <mardy@users.sourceforge.net>
 
 	* src/Makefile.am:
