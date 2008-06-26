@@ -24,6 +24,7 @@
 
 #include <glib.h>
 #include <stdio.h>
+#include <string.h>
 //#include <dbus/dbus-glib.h>
 #include <telepathy-glib/dbus.h>
 #include <libmcclient/dbus-api.h>
@@ -35,11 +36,40 @@ static GMainLoop *main_loop;
 static gint n_avatar;
 
 static void
+set_conditions (McAccount *account)
+{
+    GHashTable *conditions;
+
+    conditions = g_hash_table_new_full (g_str_hash, g_str_equal, NULL, g_free);
+    g_hash_table_insert (conditions, "ip-route", g_strdup ("true"));
+    mc_account_set_conditions (account, conditions,
+			       NULL, NULL, NULL, NULL);
+    g_hash_table_destroy (conditions);
+}
+
+static void
+set_fields (McAccount *account)
+{
+    const gchar *const fields[] = { "X-TEL", "X-MSN", NULL };
+
+
+    mc_account_compat_set_secondary_vcard_fields (account, fields,
+			       NULL, NULL, NULL, NULL);
+}
+
+static void
+set_display_name_cb (TpProxy *proxy, const GError *error, gpointer user_data,
+		     GObject *weak_object)
+{
+    g_debug ("%s called (%s)", G_STRFUNC, (gchar *)user_data);
+}
+
+static void
 ready_cb (McAccount *account, const GError *error, gpointer userdata)
 {
     const gchar *ciao = userdata;
     TpConnectionPresenceType type;
-    const gchar *status, *message;
+    const gchar *status, *message, *name;
     
     g_debug ("%s called with userdata %s", G_STRFUNC, ciao);
     if (error)
@@ -48,15 +78,42 @@ ready_cb (McAccount *account, const GError *error, gpointer userdata)
 	return;
     }
     g_debug ("Displayname: %s", mc_account_get_display_name (account));
+    name = mc_account_get_display_name (account);
+    if (name && strcmp (name, "Pippo") == 0)
+	mc_account_set_display_name (account, "Pluto",
+				     set_display_name_cb, "beo", NULL, NULL);
+    mc_account_get_automatic_presence (account, &type, &status, &message);
+    type = (type == TP_CONNECTION_PRESENCE_TYPE_AWAY) ?
+       	TP_CONNECTION_PRESENCE_TYPE_AVAILABLE : TP_CONNECTION_PRESENCE_TYPE_AWAY;
+    if (status && strcmp (status, "away") == 0)
+	status = "available";
+    else
+	status = "away";
+    mc_account_set_automatic_presence (account, type, status, "ciao",
+				       NULL, NULL, NULL, NULL);
+
+
     g_debug ("normalizedname: %s", mc_account_get_normalized_name (account));
     mc_account_get_requested_presence (account, &type, &status, &message);
     g_debug ("requestedpresence: %u, %s, %s", type, status, message);
+
+    set_conditions (account);
+    set_fields (account);
+}
+
+static void
+set_avatar_cb (TpProxy *proxy, const GError *error, gpointer user_data,
+		     GObject *weak_object)
+{
+    g_debug ("%s called (%s)", G_STRFUNC, (gchar *)user_data);
+    if (error)
+	g_warning ("%s: %s", G_STRFUNC, error->message);
 }
 
 static void
 avatar_ready_cb (McAccount *account, const GError *error, gpointer userdata)
 {
-    gchar filename[200];
+    gchar filename[200], *data_old;
     const gchar *ciao = userdata;
     const gchar *data, *mime_type;
     gsize len;
@@ -67,9 +124,16 @@ avatar_ready_cb (McAccount *account, const GError *error, gpointer userdata)
 	g_warning ("%s: got error: %s", G_STRFUNC, error->message);
 	return;
     }
+    sprintf (filename, "avatar%d.bin", n_avatar++);
+    if (g_file_get_contents (filename, &data_old, &len, NULL))
+    {
+	g_debug ("setting avatar %s", filename);
+	mc_account_avatar_set (account, data_old, len, "image/png",
+			       set_avatar_cb, "boh", NULL, NULL);
+	g_free (data_old);
+    }
     mc_account_avatar_get (account, &data, &len, &mime_type);
     g_debug ("Mime type: %s", mime_type);
-    sprintf (filename, "avatar%d.bin", n_avatar++);
     g_file_set_contents (filename, data, len, NULL);
 }
 
@@ -162,7 +226,7 @@ watch_account (McAccount *account)
 				       NULL, NULL, NULL, NULL);
     g_signal_connect (account, "string-changed",
 		      G_CALLBACK (on_string_changed), NULL);
-    g_signal_connect (account, "presence-changed::current",
+    g_signal_connect (account, "presence-changed",
 		      G_CALLBACK (on_presence_changed), NULL);
     g_signal_connect (account, "connection-status-changed",
 		      G_CALLBACK (on_connection_status_changed), NULL);
@@ -257,13 +321,20 @@ on_validity_changed (TpProxy *proxy, const gchar *path, gboolean valid,
     }
 }
 
+static void
+on_account_created (McAccountManager *am, const gchar *account_path,
+		    gboolean valid, gpointer user_data)
+{
+    g_debug ("%s: %s (%d)", G_STRFUNC, account_path, valid);
+}
+
 int main ()
 {
     McAccountManager *am;
     DBusGConnection *dbus_conn;
     TpDBusDaemon *daemon;
     GHashTable *params;
-    GValue v_true = { 0 };
+    GValue v_true = { 0 }, v_profile = { 0 };
 
     g_type_init ();
     dbus_conn = tp_get_bus ();
@@ -273,6 +344,8 @@ int main ()
     am = mc_account_manager_new (daemon);
     g_object_unref (daemon);
 
+    g_signal_connect (am, "account-created",
+		      G_CALLBACK (on_account_created), NULL);
     mc_account_manager_call_when_ready (am, am_ready, NULL);
     mc_cli_account_manager_connect_to_account_validity_changed (am,
 		      on_validity_changed, NULL, NULL, NULL, NULL);
@@ -283,6 +356,11 @@ int main ()
     g_hash_table_insert (params,
 			 "org.freedesktop.Telepathy.Account.Enabled",
 			 &v_true);
+    g_value_init (&v_profile, G_TYPE_STRING);
+    g_value_set_static_string (&v_profile, "sip");
+    g_hash_table_insert (params,
+			 "org.freedesktop.Telepathy.Account.Interface.Compat.Profile",
+			 &v_profile);
     mc_cli_account_manager_interface_query_call_find_accounts (am, -1, 
 							       params,
 							       find_accounts_cb,
