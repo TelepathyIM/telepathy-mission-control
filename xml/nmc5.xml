@@ -10,5 +10,6 @@
 <xi:include href="Account_Interface_Conditions.xml"/>
 <xi:include href="Account_Manager.xml"/>
 <xi:include href="Account_Manager_Interface_Query.xml"/>
+<xi:include href="Account_Manager_Interface_Creation.xml"/>
 
 </tp:spec>

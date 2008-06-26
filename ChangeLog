@@ -1,5 +1,11 @@
 2008-06-26  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/Makefile.am, src/mcd-account-manager-creation.[hc],
+	src/mcd-account-manager.[hc],
+	xml/Account_Manager_Interface_Creation.xml, xml/nmc5.xml:
+	Add a new BDus interface to the AccountManager to request the creation
+	of an account and atomic setting of properties.
+
 	* src/mcd-dbusprop.[hc]:
 	Add API to internally set a property.
 

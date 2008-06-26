@@ -34,6 +34,7 @@
 #include <telepathy-glib/errors.h>
 #include "mcd-account-manager.h"
 #include "mcd-account-manager-query.h"
+#include "mcd-account-manager-creation.h"
 #include "mcd-account.h"
 #include "mcd-account-config.h"
 #include "mcd-dbusprop.h"
@@ -59,6 +60,9 @@ static const McdInterfaceData account_manager_interfaces[] = {
     MCD_IMPLEMENT_IFACE (mc_svc_account_manager_interface_query_get_type,
 			 account_manager_query,
 			 MC_IFACE_ACCOUNT_MANAGER_INTERFACE_QUERY),
+    MCD_IMPLEMENT_IFACE (mc_svc_account_manager_interface_creation_get_type,
+			 account_manager_creation,
+			 MC_IFACE_ACCOUNT_MANAGER_INTERFACE_CREATION),
     { G_TYPE_INVALID, }
 };
 
@@ -169,7 +173,7 @@ add_account (McdAccountManager *account_manager, McdAccount *account)
     return valid;
 }
 
-static gboolean
+static McdAccount *
 complete_account_creation (McdAccountManager *account_manager,
 			   const gchar *unique_name,
 			   GHashTable *params,
@@ -193,9 +197,10 @@ complete_account_creation (McdAccountManager *account_manager,
     {
 	mcd_account_delete (account, NULL);
 	g_object_unref (account);
+	account = NULL;
     }
     mcd_account_manager_write_conf (priv->keyfile);
-    return ok;
+    return account;
 }
 
 static gchar *
@@ -238,7 +243,7 @@ create_unique_name (McdAccountManagerPrivate *priv, const gchar *manager,
     return unique_name;
 }
 
-static gboolean
+McdAccount *
 mcd_account_manager_create_account (McdAccountManager *account_manager,
 				    const gchar *manager,
 				    const gchar *protocol,
@@ -249,7 +254,7 @@ mcd_account_manager_create_account (McdAccountManager *account_manager,
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
     gchar *unique_name;
-    gboolean ok;
+    McdAccount *account;
 
     g_debug ("%s called", G_STRFUNC);
     if (G_UNLIKELY (manager == NULL || manager[0] == 0 ||
@@ -257,14 +262,14 @@ mcd_account_manager_create_account (McdAccountManager *account_manager,
     {
 	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
 		     "Invalid parameters");
-	return FALSE;
+	return NULL;
     }
 
     unique_name = create_unique_name (priv, manager, protocol, params);
     if (G_UNLIKELY (unique_name == NULL))
     {
 	g_warning ("Couldn't create a unique name");
-	return FALSE;
+	return NULL;
     }
 
     /* create the basic GConf keys */
@@ -276,10 +281,10 @@ mcd_account_manager_create_account (McdAccountManager *account_manager,
 	g_key_file_set_string (priv->keyfile, unique_name,
 			       MC_ACCOUNTS_KEY_DISPLAY_NAME, display_name);
 
-    ok = complete_account_creation (account_manager, unique_name,
-				    params, account_obj, error);
+    account = complete_account_creation (account_manager, unique_name,
+					 params, account_obj, error);
     g_free (unique_name);
-    return ok;
+    return account;
 }
 
 static void

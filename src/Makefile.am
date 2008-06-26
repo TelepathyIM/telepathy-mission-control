@@ -10,6 +10,7 @@ mission_control_include = \
 	mcd-account-conditions.h \
 	mcd-account-connection.h \
 	mcd-account-manager.h \
+	mcd-account-manager-creation.h \
 	mcd-account-manager-query.h \
 	mcd-dbusprop.h \
 	mcd-debug.h \
@@ -42,6 +43,7 @@ nodist_geninclude_HEADERS = \
 	_gen/svc-Account_Interface_Compat.h \
 	_gen/svc-Account_Interface_Conditions.h \
 	_gen/svc-Account_Manager.h \
+	_gen/svc-Account_Manager_Interface_Creation.h \
 	_gen/svc-Account_Manager_Interface_Query.h
 
 nodist_libmissioncontrol_server_la_SOURCES = \
@@ -56,6 +58,7 @@ nodist_libmissioncontrol_server_la_SOURCES = \
 	_gen/svc-Account_Interface_Compat.c \
 	_gen/svc-Account_Interface_Conditions.c \
 	_gen/svc-Account_Manager.c \
+	_gen/svc-Account_Manager_Interface_Creation.c \
 	_gen/svc-Account_Manager_Interface_Query.c
 
 
@@ -93,6 +96,7 @@ libmissioncontrol_server_la_SOURCES = \
 	mcd-account-conditions.c \
 	mcd-account-connection.c \
 	mcd-account-manager.c \
+	mcd-account-manager-creation.c \
 	mcd-account-manager-query.c \
 	mcd-dbusprop.c \
 	mcd-debug.c \
