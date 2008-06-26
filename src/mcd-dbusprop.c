@@ -56,24 +56,21 @@ get_interface_properties (TpSvcDBusProperties *object, const gchar *interface)
 }
 
 void
-dbusprop_set (TpSvcDBusProperties *self,
-	      const gchar *interface_name,
-	      const gchar *property_name,
-	      const GValue *value,
-	      DBusGMethodInvocation *context)
+mcd_dbusprop_set_property (TpSvcDBusProperties *self,
+			   const gchar *interface_name,
+			   const gchar *property_name,
+			   const GValue *value,
+			   GError **error)
 {
     const McdDBusProp *prop_array, *property;
-    GError *error = NULL;
 
     g_debug ("%s: %s, %s", G_STRFUNC, interface_name, property_name);
 
     prop_array = get_interface_properties (self, interface_name);
     if (!prop_array)
     {
-	g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
 		     "invalid interface: %s", interface_name);
-	dbus_g_method_return_error (context, error);
-	g_error_free (error);
 	return;
     }
 
@@ -83,24 +80,40 @@ dbusprop_set (TpSvcDBusProperties *self,
 	    break;
     if (!property->name)
     {
-	g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
 		     "invalid property: %s", property_name);
-	dbus_g_method_return_error (context, error);
-	g_error_free (error);
 	return;
     }
 
     if (!property->setprop)
     {
-	g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
 		     "property %s cannot be written", property_name);
-	dbus_g_method_return_error (context, error);
-	g_error_free (error);
 	return;
     }
     /* we pass property->name, because we know it's a static value and there
      * will be no need to care about its lifetime */
     property->setprop (self, property->name, value);
+}
+
+void
+dbusprop_set (TpSvcDBusProperties *self,
+	      const gchar *interface_name,
+	      const gchar *property_name,
+	      const GValue *value,
+	      DBusGMethodInvocation *context)
+{
+    GError *error = NULL;
+
+    mcd_dbusprop_set_property (self, interface_name, property_name,
+			       value, &error);
+    if (error)
+    {
+	dbus_g_method_return_error (context, error);
+	g_error_free (error);
+	return;
+    }
+
     tp_svc_dbus_properties_return_from_set (context);
 }
 

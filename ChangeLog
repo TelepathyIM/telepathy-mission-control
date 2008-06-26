@@ -1,3 +1,8 @@
+2008-06-26  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-dbusprop.[hc]:
+	Add API to internally set a property.
+
 2008-06-24  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmcclient/mc-profile.[hc]:
