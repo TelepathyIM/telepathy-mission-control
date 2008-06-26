@@ -98,8 +98,8 @@ properties_get_all_cb (TpProxy *proxy, GHashTable *props,
 	    ctx = list->data;
 	    ctx->callback (proxy, NULL, ctx->user_data);
 	}
-	g_object_set_qdata ((GObject *)proxy, iface_status->iface_quark, NULL);
     }
+    g_object_set_qdata ((GObject *)proxy, iface_status->iface_quark, NULL);
 }
 
 gboolean
