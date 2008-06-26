@@ -1,3 +1,8 @@
+2008-06-26  Alberto Mardegan  <mardy@users.sourceforge.net>
+
+	* src/Makefile.am:
+	Add DBus CFLAGS when compiling. Fixes: #1988768.
+
 === telepathy-mission-control 4.65 ===
 
 2008-04-08  Alberto Mardegan  <mardy@users.sourceforge.net>
