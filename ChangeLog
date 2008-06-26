@@ -1,5 +1,8 @@
 2008-06-26  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmcclient/account-manager.xml, libmcclient/mc-account-manager.c:
+	Support the new interface in libmcclient.
+
 	* src/Makefile.am, src/mcd-account-manager-creation.[hc],
 	src/mcd-account-manager.[hc],
 	xml/Account_Manager_Interface_Creation.xml, xml/nmc5.xml:
