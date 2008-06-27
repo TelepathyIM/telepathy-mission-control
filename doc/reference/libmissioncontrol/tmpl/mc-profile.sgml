@@ -46,6 +46,8 @@ The #McProfile API provides a way for managing profiles.
 
 </para>
 
+@parent: 
+@priv: 
 
 <!-- ##### FUNCTION mc_profile_lookup ##### -->
 <para>

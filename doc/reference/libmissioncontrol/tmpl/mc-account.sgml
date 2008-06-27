@@ -25,6 +25,8 @@ The #McAccount API allows clients to manage accounts.
 
 </para>
 
+@parent: 
+@priv: 
 
 <!-- ##### ENUM McAccountSettingState ##### -->
 <para>

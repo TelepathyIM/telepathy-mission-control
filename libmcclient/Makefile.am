@@ -86,6 +86,7 @@ tools_dir = $(top_srcdir)/tools
 
 _gen/%-quark.c _gen/%-quark.h: %-quark.list \
 	$(tools_dir)/gquark-gen.py Makefile.am
+	$(mkdir_p) _gen
 	$(PYTHON) $(tools_dir)/gquark-gen.py \
 		--quark-prefix=MC_QUARK \
 		$< $*_quark _gen/$*-quark
