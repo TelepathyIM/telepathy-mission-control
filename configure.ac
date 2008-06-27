@@ -154,7 +154,7 @@ AC_ARG_ENABLE(keyring,
 if test "x$enable_keyring" != "xno"; then
    PKG_CHECK_MODULES(KEYRING,
    [
-      gnome-keyring-1
+      gnome-keyring-1 >= 2.22
    ], have_keyring="yes", have_keyring="no")
 else
    have_keyring=no

@@ -1,3 +1,8 @@
+2008-06-27  Alberto Mardegan  <mardy@users.sourceforge.net>
+
+	* configure.ac:
+	Add version check on gnome-keyring. Fixes: #1938135.
+
 === telepathy-mission-control 4.66 ===
 
 2008-06-26  Alberto Mardegan  <mardy@users.sourceforge.net>
