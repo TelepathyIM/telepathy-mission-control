@@ -2075,6 +2075,10 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
     channels = mcd_operation_get_missions (MCD_OPERATION (connection));
     while (channels)
     {
+	/* for calls, we probably don't want this. TODO: investigate better */
+	if (mcd_channel_get_channel_type_quark (channel) ==
+	    TP_IFACE_QUARK_CHANNEL_TYPE_STREAMED_MEDIA) break;
+
 	existing_channel = MCD_CHANNEL (channels->data);
 	g_debug ("Chan: %d, handle type %d, channel type %s",
 		 mcd_channel_get_handle (existing_channel),
