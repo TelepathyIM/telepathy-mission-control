@@ -1,3 +1,8 @@
+2008-06-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-remap.h:
+	Rename GTypes that were conflicting with libmcclient.
+
 2008-06-26  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmcclient/account-manager.xml, libmcclient/mc-account-manager.c:

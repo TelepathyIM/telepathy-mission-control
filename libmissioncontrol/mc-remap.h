@@ -150,5 +150,10 @@
 #define mc_status_get_type omc_status_get_type
 #define mc_type_dbus_struct_uss omc_type_dbus_struct_uss
 
+#define McAccount OmcAccount
+#define McAccountClass OmcAccountClass
+#define McProfile OmcProfile
+#define McProfileClass OmcProfileClass
+
 #endif
 
