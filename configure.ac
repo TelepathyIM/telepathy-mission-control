@@ -1,4 +1,4 @@
-AC_INIT(telepathy-mission-control, 5.0.beta13)
+AC_INIT(telepathy-mission-control, 5.0.beta14)
 AC_CONFIG_SRCDIR(Makefile.am)
 AM_INIT_AUTOMAKE([tar-ustar])
 AM_CONFIG_HEADER(config.h)
