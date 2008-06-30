@@ -28,6 +28,7 @@
 #include <glib/gi18n.h>
 #include <config.h>
 
+#include <dbus/dbus-glib-lowlevel.h>
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/util.h>
@@ -37,6 +38,7 @@
 #include "mcd-account-manager.h"
 #include "_gen/interfaces.h"
 
+static guint last_operation_id = 1;
 
 static void
 set_profile (TpSvcDBusProperties *self, const gchar *name,
@@ -139,9 +141,80 @@ const McdDBusProp account_compat_properties[] = {
     { 0 },
 };
 
+static void
+account_request_channel (McSvcAccountInterfaceCompat *self,
+			 const gchar *type,
+			 guint handle,
+			 gint handle_type,
+			 DBusGMethodInvocation *context)
+{
+    struct mcd_channel_request req;
+    GError *error = NULL;
+
+    memset (&req, 0, sizeof (req));
+    req.channel_type = type;
+    req.channel_handle = handle;
+    req.channel_handle_type = handle_type;
+    req.requestor_serial = last_operation_id++;
+    req.requestor_client_id = dbus_g_method_get_sender (context);
+    mcd_account_request_channel_nmc4 (MCD_ACCOUNT (self),
+				      &req, &error);
+    if (error)
+    {
+	dbus_g_method_return_error (context, error);
+	g_error_free (error);
+    }
+    mc_svc_account_interface_compat_return_from_request_channel (context, req.requestor_serial);
+}
+
+static void
+account_request_channel_with_string_handle (McSvcAccountInterfaceCompat *self,
+					    const gchar *type,
+					    const gchar *handle,
+					    gint handle_type,
+					    DBusGMethodInvocation *context)
+{
+    struct mcd_channel_request req;
+    GError *error = NULL;
+
+    memset (&req, 0, sizeof (req));
+    req.channel_type = type;
+    req.channel_handle_string = handle;
+    req.channel_handle_type = handle_type;
+    req.requestor_serial = last_operation_id++;
+    req.requestor_client_id = dbus_g_method_get_sender (context);
+    mcd_account_request_channel_nmc4 (MCD_ACCOUNT (self),
+				      &req, &error);
+    if (error)
+    {
+	dbus_g_method_return_error (context, error);
+	g_error_free (error);
+    }
+    mc_svc_account_interface_compat_return_from_request_channel_with_string_handle (context, req.requestor_serial);
+}
+
+static void
+account_cancel_channel_request (McSvcAccountInterfaceCompat *self,
+				guint in_operation_id,
+				DBusGMethodInvocation *context)
+{
+    GError *error;
+
+    error = g_error_new (TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
+			 "%s is currently just a stub", G_STRFUNC);
+    dbus_g_method_return_error (context, error);
+    g_error_free (error);
+}
+
 void
 account_compat_iface_init (McSvcAccountInterfaceCompatClass *iface,
 			   gpointer iface_data)
 {
+#define IMPLEMENT(x) mc_svc_account_interface_compat_implement_##x (\
+    iface, account_##x)
+    IMPLEMENT(request_channel);
+    IMPLEMENT(request_channel_with_string_handle);
+    IMPLEMENT(cancel_channel_request);
+#undef IMPLEMENT
 }
 

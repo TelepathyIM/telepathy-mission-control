@@ -1,6 +1,10 @@
 2008-06-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
-	* src/mcd-connection.c:i
+	* src/mcd-account-compat.c, xml/Account_Interface_Compat.xml:
+	Implement the old channel request APIs in the Compat interface, so
+	that it's possible to request channels from libmcclient.
+
+	* src/mcd-connection.c:
 	When dealing with the channel type, use its GQuark rather than the
 	full string.
 
