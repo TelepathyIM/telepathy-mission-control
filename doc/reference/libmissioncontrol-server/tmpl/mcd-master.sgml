@@ -48,13 +48,6 @@ McdMaster
 
 </para>
 
-@account_name: 
-@channel_type: 
-@channel_handle: 
-@channel_handle_string: 
-@channel_handle_type: 
-@requestor_serial: 
-@requestor_client_id: 
 
 <!-- ##### MACRO mcd_master_new ##### -->
 <para>

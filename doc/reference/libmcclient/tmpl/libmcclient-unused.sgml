@@ -22,6 +22,54 @@
 cli-account-body
 
 
+<!-- ##### SECTION ./tmpl/cli-account-manager-body.sgml:Long_Description ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION ./tmpl/cli-account-manager-body.sgml:See_Also ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION ./tmpl/cli-account-manager-body.sgml:Short_Description ##### -->
+
+
+
+<!-- ##### SECTION ./tmpl/cli-account-manager-body.sgml:Stability_Level ##### -->
+
+
+
+<!-- ##### SECTION ./tmpl/cli-account-manager-body.sgml:Title ##### -->
+cli-account-manager-body
+
+
+<!-- ##### SECTION ./tmpl/cli-account-manager.sgml:Long_Description ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION ./tmpl/cli-account-manager.sgml:See_Also ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION ./tmpl/cli-account-manager.sgml:Short_Description ##### -->
+
+
+
+<!-- ##### SECTION ./tmpl/cli-account-manager.sgml:Stability_Level ##### -->
+
+
+
+<!-- ##### SECTION ./tmpl/cli-account-manager.sgml:Title ##### -->
+cli-account-manager
+
+
 <!-- ##### SECTION ./tmpl/cli-account.sgml:Long_Description ##### -->
 <para>
 
