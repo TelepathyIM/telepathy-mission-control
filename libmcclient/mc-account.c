@@ -37,16 +37,12 @@
  *
  * This module provides a client-side proxy object for the Telepathy
  * Account D-Bus API.
- *
- * Since: FIXME
  */
 
 /**
  * McAccountClass:
  *
  * The class of a #McAccount.
- *
- * Since: FIXME
  */
 struct _McAccountClass {
     TpProxyClass parent_class;
@@ -84,8 +80,11 @@ struct _McAccountProps {
  *
  * A proxy object for the Telepathy Account D-Bus API. This is a subclass of
  * #TpProxy.
- *
- * Since: FIXME
+ * @parent: the #TpProxy for the account object.
+ * @name: the name of the account; currently it's the variable part of the
+ * D-Bus object path. (read-only)
+ * @manager_name: the name of the Telepathy manager. (read-only)
+ * @protocol_name: the name of the protocol. (read-only)
  */
 
 G_DEFINE_TYPE (McAccount, mc_account, TP_TYPE_PROXY);
@@ -229,6 +228,18 @@ mc_account_class_init (McAccountClass *klass)
     tp_proxy_subclass_add_error_mapping (type, TP_ERROR_PREFIX, TP_ERRORS,
 					 TP_TYPE_ERROR);
 
+    /**
+     * McAccount::presence-changed:
+     * @account: the #McAccount.
+     * @detail: a #GQuark specifying which presence has changed.
+     * @type: the presence type.
+     * @status: the presence status string.
+     * @message: the presence status message.
+     *
+     * Emitted when the current, requested or automatic presence changes.
+     * This signal will be emitted only once mc_account_call_when_ready() has
+     * been successfully invoked.
+     */
     _mc_account_signals[PRESENCE_CHANGED] =
 	g_signal_new ("presence-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
@@ -240,6 +251,16 @@ mc_account_class_init (McAccountClass *klass)
 		      4, G_TYPE_UINT, G_TYPE_UINT, G_TYPE_STRING,
 		      G_TYPE_STRING);
 
+    /**
+     * McAccount::string-changed:
+     * @account: the #McAccount.
+     * @detail: a #GQuark specifying which string has changed.
+     * @message: the new vaule for the string.
+     *
+     * Emitted when a string property changes (such as display name, icon...).
+     * This signal will be emitted only once mc_account_call_when_ready() has
+     * been successfully invoked.
+     */
     _mc_account_signals[STRING_CHANGED] =
 	g_signal_new ("string-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
@@ -250,6 +271,16 @@ mc_account_class_init (McAccountClass *klass)
 		      G_TYPE_NONE,
 		      2, G_TYPE_UINT, G_TYPE_STRING);
 
+    /**
+     * McAccount::string-changed:
+     * @account: the #McAccount.
+     * @status: the connection status.
+     * @reason: the connection status reason.
+     *
+     * Emitted when the connection status changes.
+     * This signal will be emitted only once mc_account_call_when_ready() has
+     * been successfully invoked.
+     */
     _mc_account_signals[CONNECTION_STATUS_CHANGED] =
 	g_signal_new ("connection-status-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
@@ -260,6 +291,16 @@ mc_account_class_init (McAccountClass *klass)
 		      G_TYPE_NONE,
 		      2, G_TYPE_UINT, G_TYPE_UINT);
 
+    /**
+     * McAccount::flag-changed:
+     * @account: the #McAccount.
+     * @detail: a #GQuark specifying which flag has changed.
+     * @value: the new vaule for the boolean property.
+     *
+     * Emitted when a boolean property changes (such as valid, enabled).
+     * This signal will be emitted only once mc_account_call_when_ready() has
+     * been successfully invoked.
+     */
     _mc_account_signals[FLAG_CHANGED] =
 	g_signal_new ("flag-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
@@ -270,6 +311,17 @@ mc_account_class_init (McAccountClass *klass)
 		      G_TYPE_NONE,
 		      2, G_TYPE_UINT, G_TYPE_BOOLEAN);
 
+    /**
+     * McAccount::parameters-changed:
+     * @account: the #McAccount.
+     * @old: the #GHashTable of the old account parameters.
+     * @new: the #GHashTable of the new account parameters.
+     *
+     * Emitted when the account parameters change. Don't modify the passed-in
+     * hash tables.
+     * This signal will be emitted only once mc_account_call_when_ready() has
+     * been successfully invoked.
+     */
     _mc_account_signals[PARAMETERS_CHANGED] =
 	g_signal_new ("parameters-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
@@ -286,12 +338,9 @@ mc_account_class_init (McAccountClass *klass)
 /**
  * mc_account_new:
  * @dbus: a D-Bus daemon; may not be %NULL
+ * @object_path: the path of the D-Bus account object.
  *
- * <!-- -->
- *
- * Returns: a new NMC 4.x proxy
- *
- * Since: FIXME
+ * Returns: a new #McAccount object.
  */
 McAccount *
 mc_account_new (TpDBusDaemon *dbus, const gchar *object_path)
@@ -490,6 +539,26 @@ on_account_property_changed (TpProxy *proxy, GHashTable *props,
 		       priv->props->connection_status_reason);
 }
 
+/**
+ * McAccountWhenReadyCb:
+ * @account: the #McAccount.
+ * @error: %NULL if the channel is ready for use, or the error with which it
+ * was invalidated if it is now invalid.
+ * @user_data: the user data that was passed to mc_account_call_when_ready().
+ */
+
+/**
+ * mc_account_call_when_ready:
+ * @account: the #McAccount.
+ * @callback: called when the channel becomes ready or invalidated, whichever
+ * happens first.
+ * @user_data: user data to be passed to @callback.
+ *
+ * Start retrieving and monitoring the properties of the base interface of
+ * @account. If they have already been retrieved, call @callback immediately,
+ * then return. Otherwise, @callback will be called when the properties are
+ * ready.
+ */
 void
 mc_account_call_when_ready (McAccount *account, McAccountWhenReadyCb callback,
 			    gpointer user_data)
@@ -511,6 +580,14 @@ mc_account_call_when_ready (McAccount *account, McAccountWhenReadyCb callback,
     }
 }
 
+/**
+ * mc_account_get_display_name:
+ * @account: the #McAccount.
+ *
+ * Returns: a constant string representing the account display name.
+ * mc_account_call_when_ready() must have been successfully invoked prior to
+ * calling this function.
+ */
 const gchar *
 mc_account_get_display_name (McAccount *account)
 {
@@ -519,6 +596,14 @@ mc_account_get_display_name (McAccount *account)
     return account->priv->props->display_name;
 }
 
+/**
+ * mc_account_get_icon:
+ * @account: the #McAccount.
+ *
+ * Returns: a constant string representing the account icon name.
+ * mc_account_call_when_ready() must have been successfully invoked prior to
+ * calling this function.
+ */
 const gchar *
 mc_account_get_icon (McAccount *account)
 {
@@ -527,6 +612,14 @@ mc_account_get_icon (McAccount *account)
     return account->priv->props->icon;
 }
 
+/**
+ * mc_account_is_valid:
+ * @account: the #McAccount.
+ *
+ * Returns: %TRUE if the account is valid, %FALSE otherwise.
+ * mc_account_call_when_ready() must have been successfully invoked prior to
+ * calling this function.
+ */
 gboolean
 mc_account_is_valid (McAccount *account)
 {
@@ -535,6 +628,14 @@ mc_account_is_valid (McAccount *account)
     return account->priv->props->valid;
 }
 
+/**
+ * mc_account_is_enabled:
+ * @account: the #McAccount.
+ *
+ * Returns: %TRUE if the account is enabled, %FALSE otherwise.
+ * mc_account_call_when_ready() must have been successfully invoked prior to
+ * calling this function.
+ */
 gboolean
 mc_account_is_enabled (McAccount *account)
 {
@@ -543,6 +644,15 @@ mc_account_is_enabled (McAccount *account)
     return account->priv->props->enabled;
 }
 
+/**
+ * mc_account_connects_automatically:
+ * @account: the #McAccount.
+ *
+ * Returns: %TRUE if the account automatically connects when possible, %FALSE
+ * otherwise.
+ * mc_account_call_when_ready() must have been successfully invoked prior to
+ * calling this function.
+ */
 gboolean
 mc_account_connects_automatically (McAccount *account)
 {
@@ -551,6 +661,14 @@ mc_account_connects_automatically (McAccount *account)
     return account->priv->props->connect_automatically;
 }
 
+/**
+ * mc_account_get_nickname:
+ * @account: the #McAccount.
+ *
+ * Returns: the nickname (alias) of @account.
+ * mc_account_call_when_ready() must have been successfully invoked prior to
+ * calling this function.
+ */
 const gchar *
 mc_account_get_nickname (McAccount *account)
 {
@@ -559,6 +677,16 @@ mc_account_get_nickname (McAccount *account)
     return account->priv->props->nickname;
 }
 
+/**
+ * mc_account_get_parameters:
+ * @account: the #McAccount.
+ *
+ * Returns: a constant #GHashTable (do not destroy or modify it) listing the
+ * account parameters. The keys in the hash table are strings representing the
+ * parameter names, and the values are stored in #GValue types.
+ * mc_account_call_when_ready() must have been successfully invoked prior to
+ * calling this function.
+ */
 const GHashTable *
 mc_account_get_parameters (McAccount *account)
 {
@@ -567,6 +695,20 @@ mc_account_get_parameters (McAccount *account)
     return account->priv->props->parameters;
 }
 
+/**
+ * mc_account_get_automatic_presence:
+ * @account: the #McAccount.
+ * @type: pointer to a #TpConnectionPresenceType to receive the presence type.
+ * @status: pointer that will receive the presence status string (to be not
+ * modified or free'd).
+ * @message: pointer that will receive the presence status message string (to
+ * be not modified or free'd).
+ *
+ * Retrieves the automatic presence (the presence this account will request
+ * when going automatically online).
+ * mc_account_call_when_ready() must have been successfully invoked prior to
+ * calling this function.
+ */
 void
 mc_account_get_automatic_presence (McAccount *account,
 				   TpConnectionPresenceType *type,
@@ -588,6 +730,15 @@ mc_account_get_automatic_presence (McAccount *account,
     *message = props->auto_presence_message;
 }
 
+/**
+ * mc_account_get_connection_name:
+ * @account: the #McAccount.
+ *
+ * Returns: a constant string representing the D-Bus path of the Telepathy
+ * connection object, or %NULL if the account is disconnected.
+ * mc_account_call_when_ready() must have been successfully invoked prior to
+ * calling this function.
+ */
 const gchar *
 mc_account_get_connection_name (McAccount *account)
 {
@@ -596,6 +747,14 @@ mc_account_get_connection_name (McAccount *account)
     return account->priv->props->connection;
 }
 
+/**
+ * mc_account_get_connection_status:
+ * @account: the #McAccount.
+ *
+ * Returns: the connection status of the Telepathy connection object.
+ * mc_account_call_when_ready() must have been successfully invoked prior to
+ * calling this function.
+ */
 TpConnectionStatus
 mc_account_get_connection_status (McAccount *account)
 {
@@ -606,6 +765,14 @@ mc_account_get_connection_status (McAccount *account)
     return account->priv->props->connection_status;
 }
 
+/**
+ * mc_account_get_connection_status_reason:
+ * @account: the #McAccount.
+ *
+ * Returns: the connection status reason of the Telepathy connection object.
+ * mc_account_call_when_ready() must have been successfully invoked prior to
+ * calling this function.
+ */
 TpConnectionStatusReason
 mc_account_get_connection_status_reason (McAccount *account)
 {
@@ -616,6 +783,19 @@ mc_account_get_connection_status_reason (McAccount *account)
     return account->priv->props->connection_status_reason;
 }
 
+/**
+ * mc_account_get_current_presence:
+ * @account: the #McAccount.
+ * @type: pointer to a #TpConnectionPresenceType to receive the presence type.
+ * @status: pointer that will receive the presence status string (to be not
+ * modified or free'd).
+ * @message: pointer that will receive the presence status message string (to
+ * be not modified or free'd).
+ *
+ * Retrieves the current presence of @account.
+ * mc_account_call_when_ready() must have been successfully invoked prior to
+ * calling this function.
+ */
 void
 mc_account_get_current_presence (McAccount *account,
 				      TpConnectionPresenceType *type,
@@ -637,6 +817,19 @@ mc_account_get_current_presence (McAccount *account,
     *message = props->curr_presence_message;
 }
 
+/**
+ * mc_account_get_requested_presence:
+ * @account: the #McAccount.
+ * @type: pointer to a #TpConnectionPresenceType to receive the presence type.
+ * @status: pointer that will receive the presence status string (to be not
+ * modified or free'd).
+ * @message: pointer that will receive the presence status message string (to
+ * be not modified or free'd).
+ *
+ * Retrieves the requested presence of @account.
+ * mc_account_call_when_ready() must have been successfully invoked prior to
+ * calling this function.
+ */
 void
 mc_account_get_requested_presence (McAccount *account,
 					TpConnectionPresenceType *type,
@@ -658,6 +851,17 @@ mc_account_get_requested_presence (McAccount *account,
     *message = props->req_presence_message;
 }
 
+/**
+ * mc_account_get_normalized_name:
+ * @account: the #McAccount.
+ *
+ * Returns: a constant string representing the normalized name of @account.
+ * This is the value returned from Telepathy when inspecting the self handle,
+ * and will be %NULL if the account never went online.
+ * connection object, or %NULL if the account is disconnected.
+ * mc_account_call_when_ready() must have been successfully invoked prior to
+ * calling this function.
+ */
 const gchar *
 mc_account_get_normalized_name (McAccount *account)
 {
@@ -666,6 +870,21 @@ mc_account_get_normalized_name (McAccount *account)
     return account->priv->props->normalized_name;
 }
 
+/**
+ * mc_account_set_display_name:
+ * @account: the #McAccount.
+ * @display_name: display name to be set.
+ * @callback: callback to be invoked when the operation completes, or %NULL.
+ * @user_data: user data for @callback.
+ * @destroy: #GDestroyNotify function for @user_data.
+ * @weak_object: if not NULL, a GObject which will be weakly referenced; if it
+ * is destroyed, this call will automatically be cancelled. Must be NULL if
+ * callback is NULL.
+ *
+ * Set the display name of @account.
+ *
+ * Returns: a #TpProxyPendingCall for the underlying D-Bus call.
+ */
 TpProxyPendingCall *
 mc_account_set_display_name (McAccount *account, const gchar *display_name,
 			     tp_cli_dbus_properties_callback_for_set callback,
@@ -683,6 +902,21 @@ mc_account_set_display_name (McAccount *account, const gchar *display_name,
 	callback, user_data, destroy, weak_object);
 }
 
+/**
+ * mc_account_set_icon:
+ * @account: the #McAccount.
+ * @icon: icon name to be set.
+ * @callback: callback to be invoked when the operation completes, or %NULL.
+ * @user_data: user data for @callback.
+ * @destroy: #GDestroyNotify function for @user_data.
+ * @weak_object: if not NULL, a GObject which will be weakly referenced; if it
+ * is destroyed, this call will automatically be cancelled. Must be NULL if
+ * callback is NULL.
+ *
+ * Set the icon of @account.
+ *
+ * Returns: a #TpProxyPendingCall for the underlying D-Bus call.
+ */
 TpProxyPendingCall *
 mc_account_set_icon (McAccount *account, const gchar *icon,
 		     tp_cli_dbus_properties_callback_for_set callback,
@@ -700,6 +934,21 @@ mc_account_set_icon (McAccount *account, const gchar *icon,
 	callback, user_data, destroy, weak_object);
 }
 
+/**
+ * mc_account_set_enabled:
+ * @account: the #McAccount.
+ * @enabled: whether the @account must be enabled.
+ * @callback: callback to be invoked when the operation completes, or %NULL.
+ * @user_data: user data for @callback.
+ * @destroy: #GDestroyNotify function for @user_data.
+ * @weak_object: if not NULL, a GObject which will be weakly referenced; if it
+ * is destroyed, this call will automatically be cancelled. Must be NULL if
+ * callback is NULL.
+ *
+ * Enables or disables @account.
+ *
+ * Returns: a #TpProxyPendingCall for the underlying D-Bus call.
+ */
 TpProxyPendingCall *
 mc_account_set_enabled (McAccount *account, gboolean enabled,
 			tp_cli_dbus_properties_callback_for_set callback,
@@ -717,6 +966,21 @@ mc_account_set_enabled (McAccount *account, gboolean enabled,
 	callback, user_data, destroy, weak_object);
 }
 
+/**
+ * mc_account_set_connect_automatically:
+ * @account: the #McAccount.
+ * @connect: whether the @account must connect automatically.
+ * @callback: callback to be invoked when the operation completes, or %NULL.
+ * @user_data: user data for @callback.
+ * @destroy: #GDestroyNotify function for @user_data.
+ * @weak_object: if not NULL, a GObject which will be weakly referenced; if it
+ * is destroyed, this call will automatically be cancelled. Must be NULL if
+ * callback is NULL.
+ *
+ * Enables or disables automatic connection for @account.
+ *
+ * Returns: a #TpProxyPendingCall for the underlying D-Bus call.
+ */
 TpProxyPendingCall *
 mc_account_set_connect_automatically (McAccount *account, gboolean connect,
 				      tp_cli_dbus_properties_callback_for_set callback,
@@ -734,6 +998,21 @@ mc_account_set_connect_automatically (McAccount *account, gboolean connect,
 	callback, user_data, destroy, weak_object);
 }
 
+/**
+ * mc_account_set_nickname:
+ * @account: the #McAccount.
+ * @icon: nickname to be set.
+ * @callback: callback to be invoked when the operation completes, or %NULL.
+ * @user_data: user data for @callback.
+ * @destroy: #GDestroyNotify function for @user_data.
+ * @weak_object: if not NULL, a GObject which will be weakly referenced; if it
+ * is destroyed, this call will automatically be cancelled. Must be NULL if
+ * callback is NULL.
+ *
+ * Set the nickname (alias) of @account.
+ *
+ * Returns: a #TpProxyPendingCall for the underlying D-Bus call.
+ */
 TpProxyPendingCall *
 mc_account_set_nickname (McAccount *account, const gchar *nickname,
 			 tp_cli_dbus_properties_callback_for_set callback,
@@ -751,6 +1030,23 @@ mc_account_set_nickname (McAccount *account, const gchar *nickname,
 	callback, user_data, destroy, weak_object);
 }
 
+/**
+ * mc_account_set_automatic_presence:
+ * @account: the #McAccount.
+ * @type: the presence type.
+ * @status: the presence status string.
+ * @message: the presence status message.
+ * @callback: callback to be invoked when the operation completes, or %NULL.
+ * @user_data: user data for @callback.
+ * @destroy: #GDestroyNotify function for @user_data.
+ * @weak_object: if not NULL, a GObject which will be weakly referenced; if it
+ * is destroyed, this call will automatically be cancelled. Must be NULL if
+ * callback is NULL.
+ *
+ * Set the automatic presence of @account.
+ *
+ * Returns: a #TpProxyPendingCall for the underlying D-Bus call.
+ */
 TpProxyPendingCall *
 mc_account_set_automatic_presence (McAccount *account,
 				   TpConnectionPresenceType type,
@@ -795,6 +1091,23 @@ mc_account_set_current_presence (McAccount *account,
     return call;
 }
 
+/**
+ * mc_account_set_requested_presence:
+ * @account: the #McAccount.
+ * @type: the presence type.
+ * @status: the presence status string.
+ * @message: the presence status message.
+ * @callback: callback to be invoked when the operation completes, or %NULL.
+ * @user_data: user data for @callback.
+ * @destroy: #GDestroyNotify function for @user_data.
+ * @weak_object: if not NULL, a GObject which will be weakly referenced; if it
+ * is destroyed, this call will automatically be cancelled. Must be NULL if
+ * callback is NULL.
+ *
+ * Set the requested presence of @account.
+ *
+ * Returns: a #TpProxyPendingCall for the underlying D-Bus call.
+ */
 TpProxyPendingCall *
 mc_account_set_requested_presence (McAccount *account,
 				   TpConnectionPresenceType type,

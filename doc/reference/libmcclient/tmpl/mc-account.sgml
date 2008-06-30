@@ -22,6 +22,10 @@ mc-account
 
 </para>
 
+@parent: 
+@name: 
+@manager_name: 
+@protocol_name: 
 
 <!-- ##### SIGNAL McAccount::connection-status-changed ##### -->
 <para>
@@ -71,12 +75,6 @@ mc-account
 @arg2: 
 
 <!-- ##### STRUCT McAccountClass ##### -->
-<para>
-
-</para>
-
-
-<!-- ##### STRUCT McAccountPrivate ##### -->
 <para>
 
 </para>

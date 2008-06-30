@@ -28,11 +28,12 @@
 
 G_BEGIN_DECLS
 
-typedef struct _McAccount McAccount;
 typedef struct _McAccountClass McAccountClass;
 typedef struct _McAccountPrivate McAccountPrivate;
+typedef struct _McAccount McAccount;
 
 struct _McAccount {
+    /*<public>*/
     TpProxy parent;
     gchar *name;
     gchar *manager_name;

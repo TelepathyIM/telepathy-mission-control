@@ -1,3 +1,8 @@
+2008-06-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/mc-account.[hc]:
+	Add documentation for the base interface of McAccount.
+
 === telepathy-mission-control 5.0.beta16 ===
 
 2008-06-30  Alberto Mardegan  <alberto.mardegan@nokia.com>

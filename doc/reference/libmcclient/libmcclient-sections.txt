@@ -3,7 +3,6 @@
 <INCLUDE>libmcclient/mc-account.h</INCLUDE>
 McAccount
 McAccountClass
-McAccountPrivate
 mc_account_new
 McAccountWhenReadyCb
 mc_account_call_when_ready
@@ -72,7 +71,6 @@ mc_cli_account_interface_compat_call_cancel_channel_request
 <FILE>mc-account-manager</FILE>
 McAccountManager
 McAccountManagerClass
-McAccountManagerPrivate
 mc_account_manager_new
 McAccountManagerWhenReadyCb
 mc_account_manager_call_when_ready
