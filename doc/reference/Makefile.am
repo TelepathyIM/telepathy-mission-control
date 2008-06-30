@@ -1,2 +1,2 @@
-SUBDIRS = libmissioncontrol libmissioncontrol-server
+SUBDIRS = libmcclient libmissioncontrol libmissioncontrol-server
 

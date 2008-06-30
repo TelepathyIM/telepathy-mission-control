@@ -12,6 +12,7 @@ EXTRA_DIST = \
     glib-signals-marshal-gen.py \
     gquark-gen.py \
     identity.xsl \
+    libtpcodegen.py \
     libglibcodegen.py \
     spec-to-introspect.xsl
 
@@ -19,6 +20,8 @@ CLEANFILES = libglibcodegen.pyc libglibcodegen.pyo
 
 all: $(EXTRA_DIST)
 
+libglibcodegen.py: libtpcodegen.py
+	touch $@
 glib-client-marshaller-gen.py: libglibcodegen.py
 	touch $@
 glib-ginterface-gen.py: libglibcodegen.py

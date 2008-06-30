@@ -1,0 +1,158 @@
+<!-- ##### SECTION Title ##### -->
+cli-account-manager
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION Stability_Level ##### -->
+
+
+<!-- ##### USER_FUNCTION mc_cli_account_manager_signal_callback_account_removed ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@arg_Account: 
+@user_data: 
+@weak_object: 
+
+
+<!-- ##### FUNCTION mc_cli_account_manager_connect_to_account_removed ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@callback: 
+@user_data: 
+@destroy: 
+@weak_object: 
+@error: 
+@Returns: 
+
+
+<!-- ##### USER_FUNCTION mc_cli_account_manager_signal_callback_account_validity_changed ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@arg_Account: 
+@arg_Valid: 
+@user_data: 
+@weak_object: 
+
+
+<!-- ##### FUNCTION mc_cli_account_manager_connect_to_account_validity_changed ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@callback: 
+@user_data: 
+@destroy: 
+@weak_object: 
+@error: 
+@Returns: 
+
+
+<!-- ##### USER_FUNCTION mc_cli_account_manager_callback_for_create_account ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@out_Account: 
+@error: 
+@user_data: 
+@weak_object: 
+
+
+<!-- ##### FUNCTION mc_cli_account_manager_call_create_account ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@timeout_ms: 
+@in_Connection_Manager: 
+@in_Protocol: 
+@in_Display_Name: 
+@in_Parameters: 
+@callback: 
+@user_data: 
+@destroy: 
+@weak_object: 
+@Returns: 
+
+
+<!-- ##### USER_FUNCTION mc_cli_account_manager_interface_creation_callback_for_create_account ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@out_Account: 
+@error: 
+@user_data: 
+@weak_object: 
+
+
+<!-- ##### FUNCTION mc_cli_account_manager_interface_creation_call_create_account ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@timeout_ms: 
+@in_Connection_Manager: 
+@in_Protocol: 
+@in_Display_Name: 
+@in_Parameters: 
+@in_Properties: 
+@callback: 
+@user_data: 
+@destroy: 
+@weak_object: 
+@Returns: 
+
+
+<!-- ##### USER_FUNCTION mc_cli_account_manager_interface_query_callback_for_find_accounts ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@out_accounts: 
+@error: 
+@user_data: 
+@weak_object: 
+
+
+<!-- ##### FUNCTION mc_cli_account_manager_interface_query_call_find_accounts ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@timeout_ms: 
+@in_params: 
+@callback: 
+@user_data: 
+@destroy: 
+@weak_object: 
+@Returns: 
+
+

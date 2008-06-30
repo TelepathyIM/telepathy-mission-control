@@ -28,7 +28,7 @@ import xml.dom.minidom
 from getopt import gnu_getopt
 
 from libglibcodegen import Signature, type_to_gtype, cmp_by_name, \
-        camelcase_to_lower, get_docstring
+        camelcase_to_lower, get_docstring, xml_escape
 
 
 NS_TP = "http://telepathy.freedesktop.org/wiki/DbusSpec#extensions-v0"
@@ -46,6 +46,8 @@ class Generator(object):
         self.basename = basename
         self.group = opts.get('--group', None)
         self.iface_quark_prefix = opts.get('--iface-quark-prefix', None)
+        self.tp_proxy_api = tuple(map(int,
+                opts.get('--tp-proxy-api', '0').split('.')))
         self.proxy_cls = opts.get('--subclass', 'TpProxy') + ' *'
         self.proxy_arg = opts.get('--subclass', 'void') + ' *'
         self.proxy_assert = opts.get('--subclass-assert', 'TP_IS_PROXY')
@@ -55,9 +57,13 @@ class Generator(object):
             self.proxy_arg = 'gpointer '
 
     def h(self, s):
+        if isinstance(s, unicode):
+            s = s.encode('utf-8')
         self.__header.append(s)
 
     def b(self, s):
+        if isinstance(s, unicode):
+            s = s.encode('utf-8')
         self.__body.append(s)
 
     def get_iface_quark(self):
@@ -118,8 +124,8 @@ class Generator(object):
             name, info, tp_type, elt = arg
             ctype, gtype, marshaller, pointer = info
 
-            self.b(' * @%s: <![CDATA[%s]]>' % (name,
-                get_docstring(elt) or '(Undocumented)'))
+            self.b(' * @%s: %s' % (name,
+                xml_escape(get_docstring(elt) or '(Undocumented)')))
 
         self.b(' * @user_data: User-supplied data')
         self.b(' * @weak_object: User-supplied weakly referenced object')
@@ -142,7 +148,7 @@ class Generator(object):
 
         if args:
             self.b('static void')
-            self.b('%s (DBusGProxy *proxy,' % collect_name)
+            self.b('%s (DBusGProxy *proxy G_GNUC_UNUSED,' % collect_name)
 
             for arg in args:
                 name, info, tp_type, elt = arg
@@ -208,7 +214,7 @@ class Generator(object):
 
         self.b('static void')
         self.b('%s (TpProxy *tpproxy,' % invoke_name)
-        self.b('    GError *error,')
+        self.b('    GError *error G_GNUC_UNUSED,')
         self.b('    GValueArray *args,')
         self.b('    GCallback generic_callback,')
         self.b('    gpointer user_data,')
@@ -293,8 +299,7 @@ class Generator(object):
         self.b(' *')
         self.b(' * Connect a handler to the signal %s.' % member)
         self.b(' *')
-        self.b(' * <![CDATA[%s]]>'
-                % (get_docstring(signal) or '(Undocumented)'))
+        self.b(' * %s' % xml_escape(get_docstring(signal) or '(Undocumented)'))
         self.b(' *')
         self.b(' * Returns: a #TpProxySignalConnection containing all of the')
         self.b(' * above, which can be used to disconnect the signal; or')
@@ -406,8 +411,8 @@ class Generator(object):
             ctype, gtype, marshaller, pointer = info
 
             self.b(' * @%s: Used to return an \'out\' argument if @error is '
-                   '%%NULL: <![CDATA[%s]]>'
-                   % (name, get_docstring(elt) or '(Undocumented)'))
+                   '%%NULL: %s'
+                   % (name, xml_escape(get_docstring(elt) or '(Undocumented)')))
 
         self.b(' * @error: %NULL on success, or an error on failure')
         self.b(' * @user_data: user-supplied data')
@@ -463,7 +468,13 @@ class Generator(object):
                 name, info, tp_type, elt = arg
                 ctype, gtype, marshaller, pointer = info
 
-                self.b('  %s%s;' % (ctype, name))
+                # "We handle variants specially; the caller is expected to
+                # have already allocated storage for them". Thanks,
+                # dbus-glib...
+                if gtype == 'G_TYPE_VALUE':
+                    self.b('  GValue *%s = g_new0 (GValue, 1);' % name)
+                else:
+                    self.b('  %s%s;' % (ctype, name))
 
         self.b('')
         self.b('  dbus_g_proxy_end_call (proxy, call, &error,')
@@ -472,7 +483,10 @@ class Generator(object):
             name, info, tp_type, elt = arg
             ctype, gtype, marshaller, pointer = info
 
-            self.b('      %s, &%s,' % (gtype, name))
+            if gtype == 'G_TYPE_VALUE':
+                self.b('      %s, %s,' % (gtype, name))
+            else:
+                self.b('      %s, &%s,' % (gtype, name))
 
         self.b('      G_TYPE_INVALID);')
 
@@ -485,6 +499,13 @@ class Generator(object):
             self.b('    {')
             self.b('      tp_proxy_pending_call_v0_take_results (user_data, error,')
             self.b('          NULL);')
+
+            for arg in out_args:
+                name, info, tp_type, elt = arg
+                ctype, gtype, marshaller, pointer = info
+                if gtype == 'G_TYPE_VALUE':
+                    self.b('      g_free (%s);' % name)
+
             self.b('      return;')
             self.b('    }')
             self.b('')
@@ -636,21 +657,25 @@ class Generator(object):
             name, info, tp_type, elt = arg
             ctype, gtype, marshaller, pointer = info
 
-            self.b(' * @%s: Used to pass an \'in\' argument: <![CDATA[%s]]>'
-                   % (name, get_docstring(elt) or '(Undocumented)'))
+            self.b(' * @%s: Used to pass an \'in\' argument: %s'
+                   % (name, xml_escape(get_docstring(elt) or '(Undocumented)')))
 
-        self.b(' * @callback: called when the method call succeeds or fails')
-        self.b(' * @user_data: user-supplied data passed to the callback')
+        self.b(' * @callback: called when the method call succeeds or fails;')
+        self.b(' *   may be %NULL to make a "fire and forget" call with no ')
+        self.b(' *   reply tracking')
+        self.b(' * @user_data: user-supplied data passed to the callback;')
+        self.b(' *   must be %NULL if @callback is %NULL')
         self.b(' * @destroy: called with the user_data as argument, after the')
-        self.b(' *   call has succeeded, failed or been cancelled')
-        self.b(' * @weak_object: A #GObject which will be weakly referenced; ')
-        self.b(' *   if it is destroyed, this callback will automatically be')
-        self.b(' *   disconnected')
+        self.b(' *   call has succeeded, failed or been cancelled;')
+        self.b(' *   must be %NULL if @callback is %NULL')
+        self.b(' * @weak_object: If not %NULL, a #GObject which will be ')
+        self.b(' *   weakly referenced; if it is destroyed, this call ')
+        self.b(' *   will automatically be cancelled. Must be %NULL if ')
+        self.b(' *   @callback is %NULL')
         self.b(' *')
         self.b(' * Start a %s method call.' % member)
         self.b(' *')
-        self.b(' * <![CDATA[%s]]>'
-                % (get_docstring(method) or '(Undocumented)'))
+        self.b(' * %s' % xml_escape(get_docstring(method) or '(Undocumented)'))
         self.b(' *')
         self.b(' * Returns: a #TpProxyPendingCall representing the call in')
         self.b(' *  progress. It is borrowed from the object, and will become')
@@ -687,6 +712,12 @@ class Generator(object):
         self.b('')
         self.b('  g_return_val_if_fail (%s (proxy), NULL);'
                % self.proxy_assert)
+        self.b('  g_return_val_if_fail (callback != NULL || '
+               'user_data == NULL, NULL);')
+        self.b('  g_return_val_if_fail (callback != NULL || '
+               'destroy == NULL, NULL);')
+        self.b('  g_return_val_if_fail (callback != NULL || '
+               'weak_object == NULL, NULL);')
         self.b('')
         self.b('  iface = tp_proxy_borrow_interface_by_id (')
         self.b('      (TpProxy *) proxy,')
@@ -707,6 +738,10 @@ class Generator(object):
                 self.b('            0,')
 
         self.b('            error, user_data, weak_object);')
+        self.b('')
+        self.b('      if (destroy != NULL)')
+        self.b('        destroy (user_data);')
+        self.b('')
         self.b('      g_error_free (error);')
         self.b('      return NULL;')
         self.b('    }')
@@ -794,17 +829,23 @@ class Generator(object):
         signals = node.getElementsByTagName('signal')
         methods = node.getElementsByTagName('method')
 
-        self.b('static inline void')
-        self.b('%s_add_signals_for_%s (DBusGProxy *proxy)'
-                % (self.prefix_lc, name.lower()))
-        self.b('{')
+        if signals:
+            self.b('static inline void')
+            self.b('%s_add_signals_for_%s (DBusGProxy *proxy)'
+                    % (self.prefix_lc, name.lower()))
+            self.b('{')
 
-        for signal in signals:
-            self.do_signal_add(signal)
+            if self.tp_proxy_api >= (0, 7, 6):
+                self.b('  if (!tp_proxy_dbus_g_proxy_claim_for_signal_adding '
+                       '(proxy))')
+                self.b('    return;')
 
-        self.b('}')
-        self.b('')
-        self.b('')
+            for signal in signals:
+                self.do_signal_add(signal)
+
+            self.b('}')
+            self.b('')
+            self.b('')
 
         for signal in signals:
             self.do_signal(name, signal)
@@ -848,17 +889,20 @@ class Generator(object):
             self.b(' * #TpProxy::interface-added.')
             self.b(' */')
             self.b('static void')
-            self.b('%s_%s_add_signals (TpProxy *self,'
+            self.b('%s_%s_add_signals (TpProxy *self G_GNUC_UNUSED,'
                     % (self.prefix_lc, self.group))
             self.b('    guint quark,')
             self.b('    DBusGProxy *proxy,')
-            self.b('    gpointer unused)')
+            self.b('    gpointer unused G_GNUC_UNUSED)')
 
             self.b('{')
 
             for node in nodes:
                 iface = node.getElementsByTagName('interface')[0]
                 self.iface_dbus = iface.getAttribute('name')
+                signals = node.getElementsByTagName('signal')
+                if not signals:
+                    continue
                 name = node.getAttribute('name').replace('/', '').lower()
                 self.iface_uc = name.upper()
                 self.b('  if (quark == %s)' % self.get_iface_quark())
@@ -882,7 +926,7 @@ def types_to_gtypes(types):
 if __name__ == '__main__':
     options, argv = gnu_getopt(sys.argv[1:], '',
                                ['group=', 'subclass=', 'subclass-assert=',
-                                'iface-quark-prefix='])
+                                'iface-quark-prefix=', 'tp-proxy-api='])
 
     opts = {}
 

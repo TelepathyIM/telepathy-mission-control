@@ -1,5 +1,12 @@
 2008-06-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* configure.ac, doc/reference/Makefile.am,
+	doc/reference/libmcclient/*, tools/Makefile.am,
+	tools/doc-generator.xsl, tools/glib-client-gen.py,
+	tools/libglibcodegen.py, tools/libtpcodegen.py, xml/Makefile.am,
+	xml/all.xml, xml/generic-types.xml:
+	Build documentation for libmcclient.
+
 	* src/mcd-account-compat.c, xml/Account_Interface_Compat.xml:
 	Implement the old channel request APIs in the Compat interface, so
 	that it's possible to request channels from libmcclient.

@@ -1,0 +1,7 @@
+#include <libmcclient/mc-account-manager.h>
+#include <libmcclient/mc-account.h>
+#include <libmcclient/mc-profile.h>
+
+mc_account_manager_get_type
+mc_account_get_type
+mc_profile_get_type

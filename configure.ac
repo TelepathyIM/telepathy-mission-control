@@ -161,6 +161,10 @@ PKG_CHECK_MODULES(GLIB, glib-2.0)
 AC_SUBST(GLIB_LIBS)
 AC_SUBST(GLIB_CFLAGS)
 
+dnl docs/Makefile.am needs to know whether it's an out of tree build
+dnl (srcdir != builddir)
+AM_CONDITIONAL([OUT_OF_TREE_BUILD], [test "z$ac_srcdir" != z.])
+
 dnl ***************************************************************************
 dnl Check for marshal and enum generators
 dnl ***************************************************************************
@@ -185,6 +189,7 @@ doc/Makefile \
 test/Makefile \
 tools/Makefile \
 doc/reference/Makefile \
+doc/reference/libmcclient/Makefile \
 doc/reference/libmissioncontrol/Makefile \
 doc/reference/libmissioncontrol-server/Makefile \
 libmcclient/Makefile \

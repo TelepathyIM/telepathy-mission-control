@@ -27,4 +27,5 @@ EXTRA_DIST = \
 	all.xml \
 	nmc4.xml \
 	nmc5.xml \
+	generic-types.xml \
 	$(SPECS)

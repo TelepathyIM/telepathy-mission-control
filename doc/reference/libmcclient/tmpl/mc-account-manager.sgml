@@ -1,0 +1,75 @@
+<!-- ##### SECTION Title ##### -->
+mc-account-manager
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION Stability_Level ##### -->
+
+
+<!-- ##### STRUCT McAccountManager ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SIGNAL McAccountManager::account-created ##### -->
+<para>
+
+</para>
+
+@mcaccountmanager: the object which received the signal.
+@arg1: 
+@arg2: 
+
+<!-- ##### STRUCT McAccountManagerClass ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### STRUCT McAccountManagerPrivate ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### FUNCTION mc_account_manager_new ##### -->
+<para>
+
+</para>
+
+@dbus: 
+@Returns: 
+
+
+<!-- ##### USER_FUNCTION McAccountManagerWhenReadyCb ##### -->
+<para>
+
+</para>
+
+@manager: 
+@error: 
+@user_data: 
+
+
+<!-- ##### FUNCTION mc_account_manager_call_when_ready ##### -->
+<para>
+
+</para>
+
+@manager: 
+@callback: 
+@user_data: 
+
+

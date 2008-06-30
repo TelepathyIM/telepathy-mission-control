@@ -1,0 +1,54 @@
+<!-- ##### SECTION Title ##### -->
+mc-errors
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION Stability_Level ##### -->
+
+
+<!-- ##### MACRO MC_ERROR ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### ENUM MCError ##### -->
+<para>
+
+</para>
+
+@MC_DISCONNECTED_ERROR: 
+@MC_INVALID_HANDLE_ERROR: 
+@MC_NO_MATCHING_CONNECTION_ERROR: 
+@MC_INVALID_ACCOUNT_ERROR: 
+@MC_PRESENCE_FAILURE_ERROR: 
+@MC_NO_ACCOUNTS_ERROR: 
+@MC_NETWORK_ERROR: 
+@MC_CONTACT_DOES_NOT_SUPPORT_VOICE_ERROR: 
+@MC_LOWMEM_ERROR: 
+@MC_CHANNEL_REQUEST_GENERIC_ERROR: 
+@MC_CHANNEL_BANNED_ERROR: 
+@MC_CHANNEL_FULL_ERROR: 
+@MC_CHANNEL_INVITE_ONLY_ERROR: 
+@MC_LAST_ERROR: 
+
+<!-- ##### FUNCTION mc_error_quark ##### -->
+<para>
+
+</para>
+
+@Returns: 
+
+

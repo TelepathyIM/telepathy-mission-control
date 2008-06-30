@@ -1,0 +1,274 @@
+<!-- ##### SECTION Title ##### -->
+McProfile
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION Stability_Level ##### -->
+
+
+<!-- ##### ENUM McProfileCapabilityFlags ##### -->
+<para>
+
+</para>
+
+@MC_PROFILE_CAPABILITY_NONE: 
+@MC_PROFILE_CAPABILITY_CHAT_P2P: 
+@MC_PROFILE_CAPABILITY_CHAT_ROOM: 
+@MC_PROFILE_CAPABILITY_CHAT_ROOM_LIST: 
+@MC_PROFILE_CAPABILITY_VOICE_P2P: 
+@MC_PROFILE_CAPABILITY_CONTACT_SEARCH: 
+@MC_PROFILE_CAPABILITY_SPLIT_ACCOUNT: 
+@MC_PROFILE_CAPABILITY_REGISTRATION_UI: 
+@MC_PROFILE_CAPABILITY_SUPPORTS_AVATARS: 
+@MC_PROFILE_CAPABILITY_SUPPORTS_ALIAS: 
+@MC_PROFILE_CAPABILITY_SUPPORTS_ROSTER: 
+@MC_PROFILE_CAPABILITY_VIDEO_P2P: 
+
+<!-- ##### STRUCT McProfile ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### STRUCT McProfileClass ##### -->
+<para>
+
+</para>
+
+@parent_class: 
+
+<!-- ##### FUNCTION mc_profile_lookup ##### -->
+<para>
+
+</para>
+
+@unique_name: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_lookup_default_for_vcard_field ##### -->
+<para>
+
+</para>
+
+@vcard_field: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_clear_cache ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### FUNCTION mc_profiles_list ##### -->
+<para>
+
+</para>
+
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profiles_list_by_vcard_field ##### -->
+<para>
+
+</para>
+
+@vcard_field: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profiles_list_by_protocol ##### -->
+<para>
+
+</para>
+
+@protocol: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profiles_free_list ##### -->
+<para>
+
+</para>
+
+@list: 
+
+
+<!-- ##### FUNCTION mc_profile_get_unique_name ##### -->
+<para>
+
+</para>
+
+@id: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_get_configuration_ui ##### -->
+<para>
+
+</para>
+
+@id: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_get_display_name ##### -->
+<para>
+
+</para>
+
+@id: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_get_icon_name ##### -->
+<para>
+
+</para>
+
+@id: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_get_branding_icon_name ##### -->
+<para>
+
+</para>
+
+@id: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_get_vcard_field ##### -->
+<para>
+
+</para>
+
+@id: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_get_default_account_domain ##### -->
+<para>
+
+</para>
+
+@id: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_get_avatar_mime_type ##### -->
+<para>
+
+</para>
+
+@id: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_get_supported_presences ##### -->
+<para>
+
+</para>
+
+@id: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_supports_presence ##### -->
+<para>
+
+</para>
+
+@id: 
+@presence: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_get_priority ##### -->
+<para>
+
+</para>
+
+@id: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_get_default_account_name ##### -->
+<para>
+
+</para>
+
+@id: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_get_protocol_name ##### -->
+<para>
+
+</para>
+
+@id: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_get_manager_name ##### -->
+<para>
+
+</para>
+
+@id: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_is_default_for_vcard_field ##### -->
+<para>
+
+</para>
+
+@id: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_get_capabilities ##### -->
+<para>
+
+</para>
+
+@id: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_get_default_setting ##### -->
+<para>
+
+</para>
+
+@id: 
+@setting: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_profile_get_vcard_mangle ##### -->
+<para>
+
+</para>
+
+@id: 
+@vcard_field: 
+@Returns: 
+
+

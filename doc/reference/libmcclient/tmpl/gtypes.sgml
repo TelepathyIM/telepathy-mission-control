@@ -1,0 +1,34 @@
+<!-- ##### SECTION Title ##### -->
+gtypes
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION Stability_Level ##### -->
+
+
+<!-- ##### MACRO MC_STRUCT_TYPE_ACCOUNT_PRESENCE ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### FUNCTION mc_type_dbus_struct_uss ##### -->
+<para>
+
+</para>
+
+@Returns: 
+
+
