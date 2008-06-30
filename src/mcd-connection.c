@@ -137,7 +137,7 @@ struct param_data
 typedef struct {
     guint handle_type;
     guint handle;
-    gchar *type;
+    GQuark type;
     McdChannel *channel;
 } McdPendingChannel;
 
@@ -708,7 +708,6 @@ static inline void
 pending_channel_free (McdPendingChannel *pc)
 {
     g_object_unref (pc->channel);
-    g_free (pc->type);
     g_free (pc);
 }
 
@@ -1854,7 +1853,7 @@ pending_channel_cmp (const McdPendingChannel *a, const McdPendingChannel *b)
     if (ret) return ret;
     ret = a->handle_type - b->handle_type;
     if (ret) return ret;
-    return strcmp (a->type, b->type);
+    return a->type - b->type;
 }
 
 static void
@@ -1867,7 +1866,7 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
     McdConnectionPrivate *priv = connection->priv;
     GError *error_on_creation, *error = NULL;
     struct capabilities_wait_data *cwd;
-    gchar *chan_type;
+    GQuark chan_type;
     TpHandleType chan_handle_type;
     guint chan_handle;
     TpChannel *tp_chan;
@@ -1881,7 +1880,7 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
     g_object_get (channel,
 		  "channel-handle", &chan_handle,
 		  "channel-handle-type", &chan_handle_type,
-		  "channel-type", &chan_type,
+		  "channel-type-quark", &chan_type,
 		  NULL);
 
     pc.handle = chan_handle;
@@ -1948,7 +1947,6 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 	    g_object_set_data_full (G_OBJECT (channel), "error_on_creation", cwd,
 				    remove_capabilities_refs);
 	}
-	g_free (chan_type);
 	return;
     }
     
@@ -1976,7 +1974,6 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 	    priv->pending_channels =
 	       	g_list_delete_link (priv->pending_channels, list);
 	}
-	g_free (chan_type);
 	return;
     }
     
@@ -1987,13 +1984,12 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
     if (!channel)
     {
 	g_warning ("%s: channel not found among the pending ones", G_STRFUNC);
-	g_free (chan_type);
 	return;
     }
 
-    tp_chan = tp_channel_new (priv->tp_conn, channel_path, chan_type,
+    tp_chan = tp_channel_new (priv->tp_conn, channel_path,
+			      g_quark_to_string (chan_type),
 			      chan_handle_type, chan_handle, &error);
-    g_free (chan_type);
     if (error)
     {
 	g_warning ("%s: tp_channel_new returned error: %s",
@@ -2032,7 +2028,7 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
     McdConnection *connection = user_data;
     McdConnectionPrivate *priv = connection->priv;
     guint chan_handle, chan_handle_type;
-    const gchar *chan_type;
+    GQuark chan_type;
     const GList *channels;
     TpProxyPendingCall *call;
     McdPendingChannel *pc;
@@ -2063,7 +2059,7 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
 	return;
     }
     
-    chan_type = mcd_channel_get_channel_type (channel),
+    chan_type = mcd_channel_get_channel_type_quark (channel),
     chan_handle_type = mcd_channel_get_handle_type (channel),
     chan_handle = g_array_index (handles, guint, 0);
     
@@ -2076,8 +2072,7 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
     while (channels)
     {
 	/* for calls, we probably don't want this. TODO: investigate better */
-	if (mcd_channel_get_channel_type_quark (channel) ==
-	    TP_IFACE_QUARK_CHANNEL_TYPE_STREAMED_MEDIA) break;
+	if (chan_type == TP_IFACE_QUARK_CHANNEL_TYPE_STREAMED_MEDIA) break;
 
 	existing_channel = MCD_CHANNEL (channels->data);
 	g_debug ("Chan: %d, handle type %d, channel type %s",
@@ -2086,8 +2081,7 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
 		 mcd_channel_get_channel_type (existing_channel));
 	if (chan_handle == mcd_channel_get_handle (existing_channel) &&
 	    chan_handle_type == mcd_channel_get_handle_type (existing_channel) &&
-	    strcmp(chan_type,
-		   mcd_channel_get_channel_type (existing_channel)) == 0)
+	    chan_type == mcd_channel_get_channel_type_quark (existing_channel))
 	{
 	    guint requestor_serial;
 	    gchar *requestor_client_id;
@@ -2122,7 +2116,7 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
     pc = g_malloc (sizeof(McdPendingChannel));
     pc->handle = chan_handle;
     pc->handle_type = chan_handle_type;
-    pc->type = g_strdup (chan_type);
+    pc->type = chan_type;
     pc->channel = channel;
     priv->pending_channels = g_list_prepend (priv->pending_channels, pc);
     
@@ -2170,7 +2164,7 @@ mcd_connection_request_channel (McdConnection *connection,
 	pc = g_malloc (sizeof(McdPendingChannel));
 	pc->handle = req->channel_handle;
 	pc->handle_type = req->channel_handle_type;
-	pc->type = g_strdup (req->channel_type);
+	pc->type = g_quark_from_string (req->channel_type);
 	pc->channel = channel;
 	priv->pending_channels = g_list_prepend (priv->pending_channels, pc);
 

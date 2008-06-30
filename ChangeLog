@@ -1,3 +1,9 @@
+2008-06-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:i
+	When dealing with the channel type, use its GQuark rather than the
+	full string.
+
 2008-06-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-connection.c:
