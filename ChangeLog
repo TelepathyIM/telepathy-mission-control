@@ -1,5 +1,9 @@
 2008-06-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* doc/reference/libmcclient/libmcclient.types:
+	Disable generation of McAccount signal documentation as it breaks the
+	build for yet unknown reasons.
+
 	* libmcclient/mc-account.[hc]:
 	Add documentation for the base interface of McAccount.
 
