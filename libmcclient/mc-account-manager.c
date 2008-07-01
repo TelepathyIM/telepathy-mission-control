@@ -38,16 +38,12 @@
  *
  * This module provides a client-side proxy object for the Telepathy
  * AccountManager D-Bus API.
- *
- * Since: FIXME
  */
 
 /**
  * McAccountManagerClass:
  *
  * The class of a #McAccountManager.
- *
- * Since: FIXME
  */
 struct _McAccountManagerClass {
     TpProxyClass parent_class;
@@ -65,8 +61,6 @@ typedef struct _McAccountManagerProps {
  *
  * A proxy object for the Telepathy AccountManager D-Bus API. This is a
  * subclass of #TpProxy.
- *
- * Since: FIXME
  */
 struct _McAccountManager {
     TpProxy parent;
@@ -110,6 +104,17 @@ mc_account_manager_class_init (McAccountManagerClass *klass)
     tp_proxy_subclass_add_error_mapping (type, TP_ERROR_PREFIX, TP_ERRORS,
 					 TP_TYPE_ERROR);
 
+    /**
+     * McAccountManager::account-created:
+     * @account_manager: the #McAccountManager.
+     * @object_path: the path to the DBus Account object.
+     * @valid: %TRUE if this is a valid account.
+     *
+     * Emitted when a new account is created.
+     *
+     * This signal will be emitted only once
+     * mc_account_manager_call_when_ready() has been successfully invoked.
+     */
     _mc_account_manager_signals[ACCOUNT_CREATED] =
 	g_signal_new ("account-created",
 		      G_OBJECT_CLASS_TYPE (klass),
@@ -125,11 +130,9 @@ mc_account_manager_class_init (McAccountManagerClass *klass)
  * mc_account_manager_new:
  * @dbus: a D-Bus daemon; may not be %NULL
  *
- * <!-- -->
+ * Creates a proxy for the DBus AccountManager Telepathy object.
  *
- * Returns: a new NMC 4.x proxy
- *
- * Since: FIXME
+ * Returns: a new #McAccountManager object.
  */
 McAccountManager *
 mc_account_manager_new (TpDBusDaemon *dbus)
@@ -277,6 +280,27 @@ on_account_removed (TpProxy *proxy, const gchar *account_path,
     account_remove (account_path, &props->invalid_accounts);
 }
 
+/**
+ * McAccountManagerWhenReadyCb:
+ * @manager: the #McAccountManager.
+ * @error: %NULL if the interface is ready for use, or the error with which it
+ * was invalidated if it is now invalid.
+ * @user_data: the user data that was passed to
+ * mc_account_manager_call_when_ready().
+ */
+
+/**
+ * mc_account_manager_call_when_ready:
+ * @manager: the #McAccountManager.
+ * @callback: called when the interface becomes ready or invalidated, whichever
+ * happens first.
+ * @user_data: user data to be passed to @callback.
+ *
+ * Start retrieving and monitoring the properties of the base interface of
+ * @manager. If they have already been retrieved, call @callback immediately,
+ * then return. Otherwise, @callback will be called when the properties are
+ * ready.
+ */
 void
 mc_account_manager_call_when_ready (McAccountManager *manager,
 				    McAccountManagerWhenReadyCb callback,
@@ -302,6 +326,15 @@ mc_account_manager_call_when_ready (McAccountManager *manager,
     }
 }
 
+/**
+ * mc_account_manager_get_valid_accounts:
+ * @manager: the #McAccountManager.
+ *
+ * Returns: a non-modifyable array of strings representing the DBus object
+ * paths to the valid accounts.
+ * mc_account_manager_call_when_ready() must have been successfully invoked
+ * prior to calling this function.
+ */
 const gchar * const *
 mc_account_manager_get_valid_accounts (McAccountManager *manager)
 {
@@ -310,6 +343,15 @@ mc_account_manager_get_valid_accounts (McAccountManager *manager)
     return (const gchar * const *)manager->props->valid_accounts;
 }
 
+/**
+ * mc_account_manager_get_invalid_accounts:
+ * @manager: the #McAccountManager.
+ *
+ * Returns: a non-modifyable array of strings representing the DBus object
+ * paths to the invalid accounts.
+ * mc_account_manager_call_when_ready() must have been successfully invoked
+ * prior to calling this function.
+ */
 const gchar * const *
 mc_account_manager_get_invalid_accounts (McAccountManager *manager)
 {

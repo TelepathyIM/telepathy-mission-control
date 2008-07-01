@@ -77,14 +77,14 @@ struct _McAccountProps {
 
 /**
  * McAccount:
- *
- * A proxy object for the Telepathy Account D-Bus API. This is a subclass of
- * #TpProxy.
  * @parent: the #TpProxy for the account object.
  * @name: the name of the account; currently it's the variable part of the
  * D-Bus object path. (read-only)
  * @manager_name: the name of the Telepathy manager. (read-only)
  * @protocol_name: the name of the protocol. (read-only)
+ *
+ * A proxy object for the Telepathy Account D-Bus API. This is a subclass of
+ * #TpProxy.
  */
 
 G_DEFINE_TYPE (McAccount, mc_account, TP_TYPE_PROXY);
@@ -237,6 +237,7 @@ mc_account_class_init (McAccountClass *klass)
      * @message: the presence status message.
      *
      * Emitted when the current, requested or automatic presence changes.
+     *
      * This signal will be emitted only once mc_account_call_when_ready() has
      * been successfully invoked.
      */
@@ -258,6 +259,7 @@ mc_account_class_init (McAccountClass *klass)
      * @message: the new vaule for the string.
      *
      * Emitted when a string property changes (such as display name, icon...).
+     *
      * This signal will be emitted only once mc_account_call_when_ready() has
      * been successfully invoked.
      */
@@ -278,6 +280,7 @@ mc_account_class_init (McAccountClass *klass)
      * @reason: the connection status reason.
      *
      * Emitted when the connection status changes.
+     *
      * This signal will be emitted only once mc_account_call_when_ready() has
      * been successfully invoked.
      */
@@ -298,6 +301,7 @@ mc_account_class_init (McAccountClass *klass)
      * @value: the new vaule for the boolean property.
      *
      * Emitted when a boolean property changes (such as valid, enabled).
+     *
      * This signal will be emitted only once mc_account_call_when_ready() has
      * been successfully invoked.
      */
@@ -319,6 +323,7 @@ mc_account_class_init (McAccountClass *klass)
      *
      * Emitted when the account parameters change. Don't modify the passed-in
      * hash tables.
+     *
      * This signal will be emitted only once mc_account_call_when_ready() has
      * been successfully invoked.
      */
@@ -542,7 +547,7 @@ on_account_property_changed (TpProxy *proxy, GHashTable *props,
 /**
  * McAccountWhenReadyCb:
  * @account: the #McAccount.
- * @error: %NULL if the channel is ready for use, or the error with which it
+ * @error: %NULL if the interface is ready for use, or the error with which it
  * was invalidated if it is now invalid.
  * @user_data: the user data that was passed to mc_account_call_when_ready().
  */
@@ -550,7 +555,7 @@ on_account_property_changed (TpProxy *proxy, GHashTable *props,
 /**
  * mc_account_call_when_ready:
  * @account: the #McAccount.
- * @callback: called when the channel becomes ready or invalidated, whichever
+ * @callback: called when the interface becomes ready or invalidated, whichever
  * happens first.
  * @user_data: user data to be passed to @callback.
  *
@@ -859,6 +864,7 @@ mc_account_get_requested_presence (McAccount *account,
  * This is the value returned from Telepathy when inspecting the self handle,
  * and will be %NULL if the account never went online.
  * connection object, or %NULL if the account is disconnected.
+ *
  * mc_account_call_when_ready() must have been successfully invoked prior to
  * calling this function.
  */
@@ -1001,7 +1007,7 @@ mc_account_set_connect_automatically (McAccount *account, gboolean connect,
 /**
  * mc_account_set_nickname:
  * @account: the #McAccount.
- * @icon: nickname to be set.
+ * @nickname: nickname to be set.
  * @callback: callback to be invoked when the operation completes, or %NULL.
  * @user_data: user data for @callback.
  * @destroy: #GDestroyNotify function for @user_data.

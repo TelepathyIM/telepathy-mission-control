@@ -45,6 +45,16 @@ _mc_account_avatar_props_free (McAccountAvatarProps *props)
 void
 _mc_account_avatar_class_init (McAccountClass *klass)
 {
+    /**
+     * McAccount::avatar-changed:
+     * @account: the #McAccount.
+     * @avatar: a #GArray of bytes, carrying the avatar data.
+     * @mime_type: the MIME type of the avatar data.
+     *
+     * Emitted when the avatar changes.
+     * This signal will be emitted only once
+     * mc_account_avatar_call_when_ready() has been successfully invoked.
+     */
     _mc_account_signals[AVATAR_CHANGED] =
 	g_signal_new ("avatar-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
@@ -128,6 +138,18 @@ on_avatar_changed (TpProxy *proxy, gpointer user_data, GObject *weak_object)
 				     get_avatar_cb, NULL, NULL, NULL);
 }
 
+/**
+ * mc_account_avatar_call_when_ready:
+ * @account: the #McAccount.
+ * @callback: called when the interface becomes ready or invalidated, whichever
+ * happens first.
+ * @user_data: user data to be passed to @callback.
+ *
+ * Start retrieving and monitoring the properties of the Avatar interface of
+ * @account. If they have already been retrieved, call @callback immediately,
+ * then return. Otherwise, @callback will be called when the properties are
+ * ready.
+ */
 void
 mc_account_avatar_call_when_ready (McAccount *account, McAccountWhenReadyCb callback,
 				   gpointer user_data)
@@ -149,6 +171,15 @@ mc_account_avatar_call_when_ready (McAccount *account, McAccountWhenReadyCb call
     }
 }
 
+/**
+ * mc_account_avatar_get:
+ * @account: the #McAccount.
+ *
+ * Retrieves the avatar file contents and MIME type.
+ *
+ * mc_account_avatar_call_when_ready() must have been successfully invoked
+ * prior to calling this function.
+ */
 void
 mc_account_avatar_get (McAccount *account,
 		       const gchar **avatar, gsize *length,
@@ -171,6 +202,23 @@ mc_account_avatar_get (McAccount *account,
     *mime_type = props->mime_type;
 }
 
+/**
+ * mc_account_avatar_set:
+ * @account: the #McAccount.
+ * @avatar: avatar data to be set.
+ * @len: size of the avatar data.
+ * @mime_type: MIME type of the avatar data.
+ * @callback: callback to be invoked when the operation completes, or %NULL.
+ * @user_data: user data for @callback.
+ * @destroy: #GDestroyNotify function for @user_data.
+ * @weak_object: if not NULL, a GObject which will be weakly referenced; if it
+ * is destroyed, this call will automatically be cancelled. Must be NULL if
+ * callback is NULL.
+ *
+ * Set the avatar for @account.
+ *
+ * Returns: a #TpProxyPendingCall for the underlying D-Bus call.
+ */
 TpProxyPendingCall *
 mc_account_avatar_set (McAccount *account, const gchar *avatar, gsize len,
 		       const gchar *mime_type,

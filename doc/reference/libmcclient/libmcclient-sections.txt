@@ -26,7 +26,6 @@ mc_account_set_enabled
 mc_account_set_connect_automatically
 mc_account_set_nickname
 mc_account_set_automatic_presence
-mc_account_set_current_presence
 mc_account_set_requested_presence
 mc_account_avatar_call_when_ready
 mc_account_avatar_get
@@ -74,6 +73,8 @@ McAccountManagerClass
 mc_account_manager_new
 McAccountManagerWhenReadyCb
 mc_account_manager_call_when_ready
+mc_account_manager_get_valid_accounts
+mc_account_manager_get_invalid_accounts
 <SUBSECTION Standard>
 MC_ACCOUNT_MANAGER
 MC_IS_ACCOUNT_MANAGER
