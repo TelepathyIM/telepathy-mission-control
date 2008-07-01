@@ -1069,28 +1069,6 @@ mc_account_set_automatic_presence (McAccount *account,
     return call;
 }
 
-TpProxyPendingCall *
-mc_account_set_current_presence (McAccount *account,
-				 TpConnectionPresenceType type,
-				 const gchar *status,
-				 const gchar *message,
-				 tp_cli_dbus_properties_callback_for_set callback,
-				 gpointer user_data,
-				 GDestroyNotify destroy,
-				 GObject *weak_object)
-{
-    TpProxyPendingCall *call;
-    GValue value = { 0 };
-
-    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
-    set_presence_gvalue (&value, type, status, message);
-    call = tp_cli_dbus_properties_call_set (account, -1,
-	MC_IFACE_ACCOUNT, "CurrentPresence", &value,
-	callback, user_data, destroy, weak_object);
-    g_value_unset (&value);
-    return call;
-}
-
 /**
  * mc_account_set_requested_presence:
  * @account: the #McAccount.

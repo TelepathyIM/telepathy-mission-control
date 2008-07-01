@@ -337,22 +337,6 @@ mc-account
 @Returns: 
 
 
-<!-- ##### FUNCTION mc_account_set_current_presence ##### -->
-<para>
-
-</para>
-
-@account: 
-@type: 
-@status: 
-@message: 
-@callback: 
-@user_data: 
-@destroy: 
-@weak_object: 
-@Returns: 
-
-
 <!-- ##### FUNCTION mc_account_set_requested_presence ##### -->
 <para>
 

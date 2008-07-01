@@ -1,3 +1,9 @@
+2008-07-01  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/mc-account.[hc]:
+	Remove mc_account_set_current_presence(), which should have never been
+	existed as the property is read-only.
+
 === telepathy-mission-control 5.0.beta18 ===
 
 2008-07-01  Alberto Mardegan  <alberto.mardegan@nokia.com>

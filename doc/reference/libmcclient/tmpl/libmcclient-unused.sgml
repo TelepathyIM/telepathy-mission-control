@@ -94,3 +94,18 @@ cli-account-manager
 cli-account
 
 
+<!-- ##### FUNCTION mc_account_set_current_presence ##### -->
+<para>
+
+</para>
+
+@account: 
+@type: 
+@status: 
+@message: 
+@callback: 
+@user_data: 
+@destroy: 
+@weak_object: 
+@Returns: 
+

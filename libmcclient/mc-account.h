@@ -131,15 +131,6 @@ mc_account_set_automatic_presence (McAccount *account,
 				   GDestroyNotify destroy,
 				   GObject *weak_object);
 TpProxyPendingCall *
-mc_account_set_current_presence (McAccount *account,
-				 TpConnectionPresenceType type,
-				 const gchar *status,
-				 const gchar *message,
-				 tp_cli_dbus_properties_callback_for_set callback,
-				 gpointer user_data,
-				 GDestroyNotify destroy,
-				 GObject *weak_object);
-TpProxyPendingCall *
 mc_account_set_requested_presence (McAccount *account,
 				   TpConnectionPresenceType type,
 				   const gchar *status,
