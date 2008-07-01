@@ -27,6 +27,15 @@ mc-account
 @manager_name: 
 @protocol_name: 
 
+<!-- ##### SIGNAL McAccount::avatar-changed ##### -->
+<para>
+
+</para>
+
+@mcaccount: the object which received the signal.
+@arg1: 
+@arg2: 
+
 <!-- ##### SIGNAL McAccount::connection-status-changed ##### -->
 <para>
 

@@ -1,5 +1,9 @@
 2008-07-01  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* doc/reference/libmcclient/Makefile.am:
+	Implemented a workaround for gtkdoc to recognize the DBus specialized
+	types. McAccount signal documentation is now generated.
+
 	* doc/reference/libmcclient/libmcclient.types:
 	Re-enable signal documentation for McAccount; it doesn't work, but
 	it's not the reason why the build was failing.
