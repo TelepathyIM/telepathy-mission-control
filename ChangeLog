@@ -1,3 +1,9 @@
+2008-07-01  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* doc/reference/libmcclient/libmcclient.types:
+	Re-enable signal documentation for McAccount; it doesn't work, but
+	it's not the reason why the build was failing.
+
 === telepathy-mission-control 5.0.beta17 ===
 
 2008-06-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
