@@ -1,3 +1,8 @@
+2008-07-04  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-master.[hc], src/mcd-service.c:
+	Implement mcd_service_get_connection().
+
 2008-07-01  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmcclient/mc-account.[hc]:

@@ -88,7 +88,8 @@ gboolean mcd_master_get_online_connection_names (McdMaster * master,
 gboolean mcd_master_get_account_connection_details (McdMaster * master,
 						    const gchar * account_name,
 						    gchar ** servname,
-						    gchar ** objpath);
+						    gchar ** objpath,
+						    GError **error);
 
 gboolean mcd_master_request_channel (McdMaster *master,
 				     const struct mcd_channel_request *req,

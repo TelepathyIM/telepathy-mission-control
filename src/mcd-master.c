@@ -860,10 +860,33 @@ mcd_master_get_online_connection_names (McdMaster * master,
 gboolean
 mcd_master_get_account_connection_details (McdMaster * master,
 					   const gchar * account_name,
-					   gchar ** servname, gchar ** objpath)
+					   gchar ** servname, gchar ** objpath,
+					   GError **error)
 {
-    g_warning ("%s not implemented", G_STRFUNC);
-    return FALSE;
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    McdConnection *connection;
+    McdAccount *account;
+
+    account = mcd_account_manager_lookup_account (priv->account_manager,
+						  account_name);
+    if (!account)
+    {
+	if (error)
+	    g_set_error (error, MC_ERROR, MC_INVALID_ACCOUNT_ERROR,
+			 "No such account %s", account_name);
+	return FALSE;
+    }
+
+    connection = mcd_account_get_connection (account);
+    if (!connection)
+    {
+	if (error)
+	    g_set_error (error, MC_ERROR, MC_NO_MATCHING_CONNECTION_ERROR,
+			 "Account %s is not connected", account_name);
+	return FALSE;
+    }
+    return mcd_connection_get_telepathy_details (connection,
+						 servname, objpath);
 }
 
 gboolean

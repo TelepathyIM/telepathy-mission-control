@@ -192,7 +192,8 @@ mcd_service_get_connection (GObject * obj, const gchar * account_name,
     return mcd_master_get_account_connection_details (MCD_MASTER (obj),
 						      account_name,
 						      ret_servname,
-						      ret_objpath);
+						      ret_objpath,
+						      error);
 }
 
 static void
