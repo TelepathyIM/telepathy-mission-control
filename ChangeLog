@@ -1,3 +1,8 @@
+2008-07-07  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient.pc.in:
+	Add telepathy-glib compilation flags and libraries.
+
 === telepathy-mission-control 5.0.beta19 ===
 
 2008-07-04  Alberto Mardegan  <alberto.mardegan@nokia.com>
