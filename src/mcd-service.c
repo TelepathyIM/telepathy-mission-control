@@ -47,7 +47,6 @@
 #include <dbus/dbus-glib.h>
 #include <dbus/dbus-glib-lowlevel.h>
 #include <dbus/dbus.h>
-#include <gconf/gconf-client.h>
 
 #include "mcd-signals-marshal.h"
 #include "mcd-dispatcher.h"

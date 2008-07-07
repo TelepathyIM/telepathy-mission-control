@@ -1,3 +1,10 @@
+2008-07-07  Alberto Mardegan  <mardy@users.sourceforge.net>
+
+	* configure.ac, libmissioncontrol/Makefile.am, src/Makefile.am,
+	src/mcd-master.c, src/mcd-service.c:
+	Make libmissioncontrol-client depend on gmodule, and the server on
+	libdl, as they are using those.
+
 2008-06-27  Alberto Mardegan  <mardy@users.sourceforge.net>
 
 	* configure.ac:

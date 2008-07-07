@@ -146,6 +146,10 @@ PKG_CHECK_MODULES(GLIB, glib-2.0)
 AC_SUBST(GLIB_LIBS)
 AC_SUBST(GLIB_CFLAGS)
 
+PKG_CHECK_MODULES(GMODULE, gmodule-2.0)
+AC_SUBST(GMODULE_LIBS)
+AC_SUBST(GMODULE_CFLAGS)
+
 AC_ARG_ENABLE(keyring,
               AS_HELP_STRING([--enable-keyring=@<:@no/yes/auto@:>@],
                              [store secrets in gnome keyring]), ,

@@ -47,7 +47,6 @@
  */
 
 #include <glib/gi18n.h>
-#include <gconf/gconf-client.h>
 #include <libmissioncontrol/mc-manager.h>
 #include <libmissioncontrol/mc-account.h>
 #include <libmissioncontrol/mc-profile.h>
