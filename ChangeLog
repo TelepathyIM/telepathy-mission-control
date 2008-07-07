@@ -1,3 +1,8 @@
+2008-07-07  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac, libmissioncontrol/Makefile.am:
+	libmissioncontrol is the only module depending on libtelepathy.
+
 === telepathy-mission-control 5.0.beta20 ===
 
 2008-07-07  Alberto Mardegan  <alberto.mardegan@nokia.com>

@@ -1,6 +1,7 @@
 INCLUDES = \
 	$(DBUS_CFLAGS) \
 	$(TELEPATHY_CFLAGS) \
+	$(LIBTELEPATHY_CFLAGS) \
 	-I$(top_srcdir) \
 	-I$(top_builddir) \
 	-DMC_DISABLE_DEPRECATED \
@@ -87,7 +88,8 @@ nodist_libmissioncontrol_client_la_SOURCES = \
 	_gen/signals-marshal.list \
 	_gen/svc-nmc4.c
 
-libmissioncontrol_client_la_LIBADD = $(GCONF_LIBS) $(GLIB_LIBS) $(DBUS_LIBS) $(TELEPATHY_LIBS)
+libmissioncontrol_client_la_LIBADD = $(GCONF_LIBS) $(GLIB_LIBS) $(DBUS_LIBS) \
+				     $(TELEPATHY_LIBS) $(LIBTELEPATHY_LIBS)
 
 libmissioncontrol_client_la_LDFLAGS = $(common_ldflags) \
 				      -export-symbols-regex "^(mc_)|(omc_)|(mission_control_)" \
