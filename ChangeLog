@@ -1,3 +1,11 @@
+2008-07-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/dbus-api.[hc]:
+	Add code to allow the call_when_ready family of function to be
+	cancelled when a weakly-referenced GObject is destroyed.
+
+=== telepathy-mission-control 5.0.beta21 ===
+
 2008-07-07  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* configure.ac, libmissioncontrol/Makefile.am:

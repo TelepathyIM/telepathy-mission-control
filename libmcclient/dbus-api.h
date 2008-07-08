@@ -56,13 +56,22 @@ struct _McIfaceData {
     McIfaceCreateProps create_props;
 };
 
+typedef struct _CallWhenReadyContext CallWhenReadyContext;
+
 typedef void (*McIfaceWhenReadyCb) (TpProxy *proxy, const GError *error,
-				    gpointer user_data);
+				    gpointer user_data, GObject *weak_object);
 
 gboolean _mc_iface_call_when_ready_int (TpProxy *proxy,
 					McIfaceWhenReadyCb callback,
 					gpointer user_data,
 					McIfaceData *iface_data);
+gboolean _mc_iface_call_when_ready_object_int (TpProxy *proxy,
+					       McIfaceWhenReadyCb callback,
+					       gpointer user_data,
+					       GDestroyNotify destroy,
+					       GObject *weak_object,
+					       McIfaceData *iface_data);
+void _mc_iface_cancel_callback (CallWhenReadyContext *ctx);
 
 gboolean _mc_iface_is_ready (gpointer object, GQuark iface);
 
