@@ -32,6 +32,50 @@
 #include <libmcclient/mc-account.h>
 #include <libmcclient/mc-profile.h>
 
+typedef struct _TestObjectClass {
+    GObjectClass parent_class;
+} TestObjectClass;
+typedef struct _TestObject {
+    GObject parent;
+    gchar *string;
+} TestObject;
+GType test_object_get_type (void);
+#define TEST_TYPE_OBJECT (test_object_get_type ())
+G_DEFINE_TYPE (TestObject, test_object, G_TYPE_OBJECT);
+
+static void
+test_object_init (TestObject *to)
+{
+    to->string = g_strdup ("a test string");
+}
+
+static void
+dispose (GObject *object)
+{
+    g_debug ("%s called for %p", G_STRFUNC, object);
+    G_OBJECT_CLASS (test_object_parent_class)->dispose (object);
+}
+
+static void
+finalize (GObject *object)
+{
+    TestObject *to = (TestObject *)object;
+
+    g_debug ("%s called for %p", G_STRFUNC, object);
+    g_free (to->string);
+    G_OBJECT_CLASS (test_object_parent_class)->finalize (object);
+}
+
+static void
+test_object_class_init (TestObjectClass *klass)
+{
+    GObjectClass *object_class = (GObjectClass *)klass;
+
+    object_class->dispose = dispose;
+    object_class->finalize = finalize;
+}
+
+
 static GMainLoop *main_loop;
 static gint n_avatar;
 
@@ -65,7 +109,8 @@ set_display_name_cb (TpProxy *proxy, const GError *error, gpointer user_data,
 }
 
 static void
-ready_cb (McAccount *account, const GError *error, gpointer userdata)
+ready_cb (McAccount *account, const GError *error, gpointer userdata,
+	  GObject *weak_object)
 {
     const gchar *ciao = userdata;
     TpConnectionPresenceType type;
@@ -111,7 +156,8 @@ set_avatar_cb (TpProxy *proxy, const GError *error, gpointer user_data,
 }
 
 static void
-avatar_ready_cb (McAccount *account, const GError *error, gpointer userdata)
+avatar_ready_cb (McAccount *account, const GError *error, gpointer userdata,
+		 GObject *weak_object)
 {
     gchar filename[200], *data_old;
     const gchar *ciao = userdata;
@@ -217,8 +263,37 @@ on_account_removed (TpProxy *proxy, gpointer user_data, GObject *weak_object)
 }
 
 static void
+free_string (gpointer ptr)
+{
+    g_debug ("%s: %s", G_STRFUNC, (gchar *)ptr);
+    g_free (ptr);
+}
+
+static gboolean
+unref_test_object (gpointer obj)
+{
+    g_object_unref (obj);
+    return FALSE;
+}
+
+static void
+all_ready_cb (McAccount *account, const GError *error, gpointer user_data,
+	      GObject *weak_object)
+{
+    TestObject *to = (TestObject *)weak_object;
+    g_debug ("%s called, account %p, user_data = %s, weak = %p",
+	     G_STRFUNC, account, (gchar *)user_data, weak_object);
+    g_debug ("Test string: %s", to->string);
+
+    ready_cb (account, error, user_data, weak_object);
+    avatar_ready_cb (account, error, user_data, weak_object);
+}
+
+static void
 watch_account (McAccount *account)
 {
+    GObject *to;
+
     g_debug ("watching account %s, manager %s, protocol %s",
 	     account->name, account->manager_name, account->protocol_name);
 
@@ -237,8 +312,16 @@ watch_account (McAccount *account)
     g_signal_connect (account, "avatar-changed",
 		      G_CALLBACK (on_avatar_changed), NULL);
 
-    mc_account_call_when_ready (account, ready_cb, NULL);
-    mc_account_avatar_call_when_ready (account, avatar_ready_cb, NULL);
+    to = g_object_new (TEST_TYPE_OBJECT, NULL);
+    mc_account_call_when_all_ready (account,
+				    all_ready_cb,
+				    g_strdup ("Userdata string"), free_string,
+				    to,
+				    MC_IFACE_QUARK_ACCOUNT,
+				    MC_IFACE_QUARK_ACCOUNT_INTERFACE_AVATAR,
+				    0);
+    //g_timeout_add (2000, unref_test_object, to);
+    unref_test_object (to);
 }
 
 static void
