@@ -1,5 +1,13 @@
 2008-07-09  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* doc/reference/libmcclient/libmcclient-sections.txt,
+	doc/reference/libmcclient/tmpl/mc-account.sgml,
+	libmcclient/mc-account-avatar.c, libmcclient/mc-account-compat.c,
+	libmcclient/mc-account-conditions.c, libmcclient/mc-account-priv.h,
+	libmcclient/mc-account.[hc]:
+	Add mc_account_call_when_iface_ready() and
+	mc_account_call_when_all_ready().
+
 	* libmcclient/dbus-api.[hc]:
 	Add an internal API to let a single callback be invoked when a set of
 	interfaces are ready.

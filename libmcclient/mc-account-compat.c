@@ -32,6 +32,22 @@ struct _McAccountCompatProps {
     const gchar **secondary_vcard_fields;
 };
 
+static void create_props (TpProxy *proxy, GHashTable *props);
+
+static McIfaceDescription iface_description = {
+    G_STRUCT_OFFSET (McAccountPrivate, compat_props),
+    create_props,
+    NULL,
+};
+
+
+void
+_mc_account_compat_class_init (McAccountClass *klass)
+{
+    _mc_iface_add (MC_TYPE_ACCOUNT,
+		   MC_IFACE_QUARK_ACCOUNT_INTERFACE_COMPAT,
+		   &iface_description);
+}
 
 void
 _mc_account_compat_props_free (McAccountCompatProps *props)

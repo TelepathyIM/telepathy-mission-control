@@ -68,6 +68,23 @@ void mc_account_call_when_ready (McAccount *account,
 				 McAccountWhenReadyCb callback,
 				 gpointer user_data);
 
+typedef void (*McAccountWhenReadyObjectCb) (McAccount *account,
+					    const GError *error,
+					    gpointer user_data,
+					    GObject *weak_object);
+
+void mc_account_call_when_iface_ready (McAccount *account,
+				       GQuark interface,
+				       McAccountWhenReadyObjectCb callback,
+				       gpointer user_data,
+				       GDestroyNotify destroy,
+				       GObject *weak_object);
+void mc_account_call_when_all_ready (McAccount *account,
+				     McAccountWhenReadyObjectCb callback,
+				     gpointer user_data,
+				     GDestroyNotify destroy,
+				     GObject *weak_object, ...);
+
 const gchar *mc_account_get_display_name (McAccount *account);
 const gchar *mc_account_get_icon (McAccount *account);
 gboolean mc_account_is_valid (McAccount *account);

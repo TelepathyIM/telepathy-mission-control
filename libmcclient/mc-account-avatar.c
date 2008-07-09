@@ -32,6 +32,15 @@ struct _McAccountAvatarProps {
     gchar *mime_type;
 };
 
+static void create_props (TpProxy *proxy, GHashTable *props);
+static void setup_props_monitor (TpProxy *proxy, GQuark interface);
+
+static McIfaceDescription iface_description = {
+    G_STRUCT_OFFSET (McAccountPrivate, avatar_props),
+    create_props,
+    setup_props_monitor,
+};
+
 
 void
 _mc_account_avatar_props_free (McAccountAvatarProps *props)
@@ -45,6 +54,10 @@ _mc_account_avatar_props_free (McAccountAvatarProps *props)
 void
 _mc_account_avatar_class_init (McAccountClass *klass)
 {
+    _mc_iface_add (MC_TYPE_ACCOUNT,
+		   MC_IFACE_QUARK_ACCOUNT_INTERFACE_AVATAR,
+		   &iface_description);
+
     /**
      * McAccount::avatar-changed:
      * @account: the #McAccount.
@@ -136,6 +149,17 @@ on_avatar_changed (TpProxy *proxy, gpointer user_data, GObject *weak_object)
 				     MC_IFACE_ACCOUNT_INTERFACE_AVATAR,
 				     "Avatar",
 				     get_avatar_cb, NULL, NULL, NULL);
+}
+
+static void
+setup_props_monitor (TpProxy *proxy, GQuark interface)
+{
+    McAccount *account = MC_ACCOUNT (proxy);
+
+    mc_cli_account_interface_avatar_connect_to_avatar_changed (account,
+							       on_avatar_changed,
+							       NULL, NULL,
+							       NULL, NULL);
 }
 
 /**

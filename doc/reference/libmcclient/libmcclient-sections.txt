@@ -6,6 +6,9 @@ McAccountClass
 mc_account_new
 McAccountWhenReadyCb
 mc_account_call_when_ready
+McAccountWhenReadyObjectCb
+mc_account_call_when_iface_ready
+mc_account_call_when_all_ready
 mc_account_get_display_name
 mc_account_get_icon
 mc_account_is_valid

@@ -30,6 +30,22 @@ struct _McAccountConditionsProps {
     GHashTable *conditions;
 };
 
+static void create_props (TpProxy *proxy, GHashTable *props);
+
+static McIfaceDescription iface_description = {
+    G_STRUCT_OFFSET (McAccountPrivate, conditions_props),
+    create_props,
+    NULL,
+};
+
+
+void
+_mc_account_conditions_class_init (McAccountClass *klass)
+{
+    _mc_iface_add (MC_TYPE_ACCOUNT,
+		   MC_IFACE_QUARK_ACCOUNT_INTERFACE_CONDITIONS,
+		   &iface_description);
+}
 
 void
 _mc_account_conditions_props_free (McAccountConditionsProps *props)

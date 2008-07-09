@@ -97,6 +97,16 @@ enum
 
 guint _mc_account_signals[LAST_SIGNAL] = { 0 };
 
+static void create_props (TpProxy *proxy, GHashTable *props);
+static void setup_props_monitor (TpProxy *proxy, GQuark interface);
+
+static McIfaceDescription iface_description = {
+    G_STRUCT_OFFSET (McAccountPrivate, props),
+    create_props,
+    setup_props_monitor,
+};
+
+
 static inline void
 set_presence_gvalue (GValue *value, TpConnectionPresenceType type,
 		     const gchar *status, const gchar *message)
@@ -337,7 +347,11 @@ mc_account_class_init (McAccountClass *klass)
 		      G_TYPE_NONE,
 		      2, G_TYPE_HASH_TABLE, G_TYPE_HASH_TABLE);
 
+    _mc_iface_add (MC_TYPE_ACCOUNT, MC_IFACE_QUARK_ACCOUNT,
+		   &iface_description);
     _mc_account_avatar_class_init (klass);
+    _mc_account_compat_class_init (klass);
+    _mc_account_conditions_class_init (klass);
 }
 
 /**
@@ -544,6 +558,17 @@ on_account_property_changed (TpProxy *proxy, GHashTable *props,
 		       priv->props->connection_status_reason);
 }
 
+static void
+setup_props_monitor (TpProxy *proxy, GQuark interface)
+{
+    McAccount *account = MC_ACCOUNT (proxy);
+
+    mc_cli_account_connect_to_account_property_changed (account,
+							on_account_property_changed,
+							NULL, NULL,
+							NULL, NULL);
+}
+
 /**
  * McAccountWhenReadyCb:
  * @account: the #McAccount.
@@ -583,6 +608,90 @@ mc_account_call_when_ready (McAccount *account, McAccountWhenReadyCb callback,
 							    NULL, NULL,
 							    NULL, NULL);
     }
+}
+
+/**
+ * McAccountWhenReadyObjectCb:
+ * @account: the #McAccount.
+ * @error: %NULL if the interface is ready for use, or the error with which it
+ * was invalidated if it is now invalid.
+ * @user_data: the user data that was passed to
+ * mc_account_call_when_iface_ready() or mc_account_call_when_all_ready().
+ * @weak_object: the #GObject that was passed to
+ * mc_account_call_when_iface_ready() or mc_account_call_when_all_ready().
+ */
+
+/**
+ * mc_account_call_when_iface_ready:
+ * @account: the #McAccount.
+ * @interface: a #GQuark representing the interface to process.
+ * @callback: called when the interface becomes ready or invalidated, whichever
+ * happens first.
+ * @user_data: user data to be passed to @callback.
+ * @destroy: called with the user_data as argument, after the call has
+ * succeeded, failed or been cancelled.
+ * @weak_object: If not %NULL, a #GObject which will be weakly referenced; if
+ * it is destroyed, this call will automatically be cancelled. Must be %NULL if
+ * @callback is %NULL
+ *
+ * Start retrieving and monitoring the properties of the interface @interface
+ * of @account. If they have already been retrieved, call @callback
+ * immediately, then return. Otherwise, @callback will be called when the
+ * properties are ready.
+ */
+void
+mc_account_call_when_iface_ready (McAccount *account,
+				  GQuark interface,
+				  McAccountWhenReadyObjectCb callback,
+				  gpointer user_data,
+				  GDestroyNotify destroy,
+				  GObject *weak_object)
+{
+    _mc_iface_call_when_ready ((TpProxy *)account,
+			       MC_TYPE_ACCOUNT,
+			       interface,
+			       (McIfaceWhenReadyCb)callback,
+			       user_data, destroy, weak_object);
+}
+
+/**
+ * mc_account_call_when_all_ready:
+ * @account: the #McAccount.
+ * @callback: called when the interfaces becomes ready or invalidated,
+ * whichever happens first.
+ * @user_data: user data to be passed to @callback.
+ * @destroy: called with the user_data as argument, after the call has
+ * succeeded, failed or been cancelled.
+ * @weak_object: If not %NULL, a #GObject which will be weakly referenced; if
+ * it is destroyed, this call will automatically be cancelled. Must be %NULL if
+ * @callback is %NULL
+ * @Varargs: a list of #GQuark types representing the interfaces to process,
+ * followed by %0.
+ *
+ * Start retrieving and monitoring the properties of the specified interfaces
+ * of @account. This is a convenience function built around
+ * mc_account_call_when_iface_ready(), to have @callback called only once all
+ * the specified interfaces are ready. In case more than one interface fail to
+ * be processed, the #GError passed to the callback function will be the one of
+ * the first interface that failed.
+ */
+void
+mc_account_call_when_all_ready (McAccount *account,
+				McAccountWhenReadyObjectCb callback,
+				gpointer user_data,
+				GDestroyNotify destroy,
+				GObject *weak_object, ...)
+{
+    va_list ifaces;
+
+    va_start (ifaces, weak_object);
+
+    _mc_iface_call_when_all_ready ((TpProxy *)account,
+			       MC_TYPE_ACCOUNT,
+			       (McIfaceWhenReadyCb)callback,
+			       user_data, destroy, weak_object,
+			       ifaces);
+    va_end (ifaces);
 }
 
 /**

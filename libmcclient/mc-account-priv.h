@@ -56,8 +56,10 @@ void _mc_account_avatar_props_free (McAccountAvatarProps *props);
 void _mc_account_avatar_class_init (McAccountClass *klass);
 
 void _mc_account_compat_props_free (McAccountCompatProps *props);
+void _mc_account_compat_class_init (McAccountClass *klass);
 
 void _mc_account_conditions_props_free (McAccountConditionsProps *props);
+void _mc_account_conditions_class_init (McAccountClass *klass);
 
 G_END_DECLS
 

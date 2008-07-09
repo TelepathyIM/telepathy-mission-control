@@ -119,6 +119,43 @@ mc-account
 @user_data: 
 
 
+<!-- ##### USER_FUNCTION McAccountWhenReadyObjectCb ##### -->
+<para>
+
+</para>
+
+@account: 
+@error: 
+@user_data: 
+@weak_object: 
+
+
+<!-- ##### FUNCTION mc_account_call_when_iface_ready ##### -->
+<para>
+
+</para>
+
+@account: 
+@interface: 
+@callback: 
+@user_data: 
+@destroy: 
+@weak_object: 
+
+
+<!-- ##### FUNCTION mc_account_call_when_all_ready ##### -->
+<para>
+
+</para>
+
+@account: 
+@callback: 
+@user_data: 
+@destroy: 
+@weak_object: 
+@Varargs: 
+
+
 <!-- ##### FUNCTION mc_account_get_display_name ##### -->
 <para>
 
