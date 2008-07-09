@@ -44,6 +44,7 @@ inline void _mc_gvalue_stolen (GValue *value);
 typedef struct _McIfaceData McIfaceData;
 
 typedef void (*McIfaceCreateProps) (TpProxy *proxy, GHashTable *props);
+typedef void (*McIfaceSetupPropsMonitor) (TpProxy *proxy, GQuark interface);
 
 struct _McIfaceData {
     /* id of the interface */
@@ -55,6 +56,12 @@ struct _McIfaceData {
     /* pointer to the function to be called when GetAll has returned */
     McIfaceCreateProps create_props;
 };
+
+typedef struct _McIfaceDescription {
+    guint props_data_offset;
+    McIfaceCreateProps create_props;
+    McIfaceSetupPropsMonitor setup_props_monitor;
+} McIfaceDescription;
 
 typedef struct _CallWhenReadyContext CallWhenReadyContext;
 
@@ -71,7 +78,14 @@ gboolean _mc_iface_call_when_ready_object_int (TpProxy *proxy,
 					       GDestroyNotify destroy,
 					       GObject *weak_object,
 					       McIfaceData *iface_data);
+void _mc_iface_call_when_ready (TpProxy *proxy, GType type, GQuark interface,
+				McIfaceWhenReadyCb callback,
+				gpointer user_data, GDestroyNotify destroy,
+				GObject *weak_object);
 void _mc_iface_cancel_callback (CallWhenReadyContext *ctx);
+
+void _mc_iface_add (GType type, GQuark interface,
+		    McIfaceDescription *iface_description);
 
 gboolean _mc_iface_is_ready (gpointer object, GQuark iface);
 

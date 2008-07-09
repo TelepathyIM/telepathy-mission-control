@@ -1,3 +1,9 @@
+2008-07-09  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/dbus-api.[hc]:
+	When monitoring an interface, allow the interface to be specified by a
+	GQuark, rather than have a separate API for each one.
+
 2008-07-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* libmcclient/dbus-api.[hc]:

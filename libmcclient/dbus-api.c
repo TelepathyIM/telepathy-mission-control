@@ -203,3 +203,45 @@ _mc_iface_is_ready (gpointer object, GQuark iface)
     return g_object_get_qdata (object, iface) ? FALSE : TRUE;
 }
 
+void
+_mc_iface_add (GType type, GQuark interface,
+	       McIfaceDescription *iface_description)
+{
+    g_type_set_qdata (type, interface, iface_description);
+}
+
+void
+_mc_iface_call_when_ready (TpProxy *proxy, GType type, GQuark interface,
+			   McIfaceWhenReadyCb callback,
+			   gpointer user_data, GDestroyNotify destroy,
+			   GObject *weak_object)
+{
+    McIfaceDescription *desc;
+    McIfaceData iface_data;
+    gpointer private;
+    
+    desc = g_type_get_qdata (type, interface);
+    if (G_UNLIKELY (!desc))
+    {
+	g_warning ("Type %s has not a McIfaceDescription for interface %s",
+		   g_type_name (type), g_quark_to_string (interface));
+	return;
+    }
+
+    private = g_type_instance_get_private ((GTypeInstance *)proxy, type);
+    g_assert (private != NULL);
+    iface_data.id = interface;
+    iface_data.props_data_ptr =
+       	G_STRUCT_MEMBER_P (private, desc->props_data_offset);
+    iface_data.create_props = desc->create_props;
+
+    if (_mc_iface_call_when_ready_object_int (proxy, callback, user_data,
+					      destroy, weak_object,
+					      &iface_data))
+    {
+	if (desc->setup_props_monitor)
+	    desc->setup_props_monitor (proxy, interface);
+    }
+}
+
+
