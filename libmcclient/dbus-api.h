@@ -82,6 +82,10 @@ void _mc_iface_call_when_ready (TpProxy *proxy, GType type, GQuark interface,
 				McIfaceWhenReadyCb callback,
 				gpointer user_data, GDestroyNotify destroy,
 				GObject *weak_object);
+void _mc_iface_call_when_all_ready (TpProxy *proxy, GType type,
+				    McIfaceWhenReadyCb callback,
+				    gpointer user_data, GDestroyNotify destroy,
+				    GObject *weak_object, va_list ifaces);
 void _mc_iface_cancel_callback (CallWhenReadyContext *ctx);
 
 void _mc_iface_add (GType type, GQuark interface,

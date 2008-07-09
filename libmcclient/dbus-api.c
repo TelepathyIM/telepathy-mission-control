@@ -244,4 +244,75 @@ _mc_iface_call_when_ready (TpProxy *proxy, GType type, GQuark interface,
     }
 }
 
+typedef struct _MultiCbData {
+    McIfaceWhenReadyCb callback;
+    gpointer user_data;
+    GDestroyNotify destroy;
+    gint remaining_ifaces;
+    gint remaining_destroys;
+    GError *error;
+} MultiCbData;
+
+static void
+multi_cb_data_free (gpointer ptr)
+{
+    MultiCbData *mcbd = ptr;
+
+    mcbd->remaining_destroys--;
+    g_assert (mcbd->remaining_destroys >= 0);
+    if (mcbd->remaining_destroys == 0)
+    {
+	if (mcbd->destroy)
+	    mcbd->destroy (mcbd->user_data);
+	if (mcbd->error)
+	    g_error_free (mcbd->error);
+	g_slice_free (MultiCbData, mcbd);
+    }
+}
+
+static void
+call_when_all_ready_cb (TpProxy *proxy, const GError *error,
+			gpointer user_data, GObject *weak_object)
+{
+    MultiCbData *mcbd = user_data;
+
+    if (error)
+    {
+	if (mcbd->error == NULL)
+	    mcbd->error = g_error_copy (error);
+    }
+    mcbd->remaining_ifaces--;
+    g_assert (mcbd->remaining_ifaces >= 0);
+    if (mcbd->remaining_ifaces == 0)
+    {
+	if (mcbd->callback)
+	    mcbd->callback (proxy, mcbd->error, mcbd->user_data, weak_object);
+    }
+}
+
+void
+_mc_iface_call_when_all_ready (TpProxy *proxy, GType type,
+			       McIfaceWhenReadyCb callback,
+			       gpointer user_data, GDestroyNotify destroy,
+			       GObject *weak_object, va_list ifaces)
+{
+    GQuark iface;
+    MultiCbData *mcbd;
+
+    mcbd = g_slice_new0 (MultiCbData);
+    mcbd->callback = callback;
+    mcbd->user_data = user_data;
+    mcbd->destroy = destroy;
+
+    for (iface = va_arg (ifaces, GQuark); iface != 0;
+	 iface = va_arg (ifaces, GQuark))
+    {
+	mcbd->remaining_ifaces++;
+	mcbd->remaining_destroys++;
+	_mc_iface_call_when_ready (proxy, type, iface,
+				   call_when_all_ready_cb,
+				   mcbd, multi_cb_data_free, weak_object);
+    }
+    va_end (ifaces);
+}
 
