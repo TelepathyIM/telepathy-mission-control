@@ -551,8 +551,9 @@ on_presence_requested (McdAccount *account,
     McdConnectionPrivate *priv = connection->priv;
 
     g_debug ("Presence requested: %d", presence);
-    if (presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE ||
-	presence == TP_CONNECTION_PRESENCE_TYPE_UNSET)
+    if (presence == TP_CONNECTION_PRESENCE_TYPE_UNSET) return;
+
+    if (presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
     {
 	/* Connection Proxy */
 	priv->abort_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
@@ -1205,10 +1206,13 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
 	 */
 	priv->abort_reason = conn_reason;
 	
-	/* Notify connection abort */
-	if (conn_reason == TP_CONNECTION_STATUS_REASON_NETWORK_ERROR ||
-	    conn_reason == TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED)
-	    priv->reconnection_requested = TRUE;
+	if (conn_reason != TP_CONNECTION_STATUS_REASON_REQUESTED &&
+	    conn_reason != TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED)
+	{
+	    mcd_account_request_presence (priv->account,
+					  TP_CONNECTION_PRESENCE_TYPE_UNSET,
+					  NULL, NULL);
+	}
 	break;
     default:
 	g_warning ("Unknown telepathy connection status");

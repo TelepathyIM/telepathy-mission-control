@@ -1,3 +1,9 @@
+2008-07-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Don't automatically attempt reconnecting after a connection error.
+	Instead, unset the requested presence so that it can be set again.
+
 === telepathy-mission-control 5.0.beta22 ===
 
 2008-07-09  Alberto Mardegan  <alberto.mardegan@nokia.com>
