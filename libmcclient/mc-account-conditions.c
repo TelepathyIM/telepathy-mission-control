@@ -147,7 +147,7 @@ mc_account_conditions_get (McAccount *account)
  * Returns: a #TpProxyPendingCall for the underlying D-Bus call.
  */
 TpProxyPendingCall *
-mc_account_set_conditions (McAccount *account,
+mc_account_conditions_set (McAccount *account,
 			   const GHashTable *conditions,
 			   tp_cli_dbus_properties_callback_for_set callback,
 			   gpointer user_data,

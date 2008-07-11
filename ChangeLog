@@ -1,5 +1,9 @@
 2008-07-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmcclient/mc-account-conditions.c, libmcclient/mc-account.h:
+	Rename mc_account_set_conditions() to mc_account_conditions_set(), as
+	it should have been since the beginning.
+
 	* libmcclient/mc-account-compat.c,
 	libmcclient/mc-account-conditions.c:
 	Add missing documentation.

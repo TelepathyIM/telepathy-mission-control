@@ -94,6 +94,19 @@ cli-account-manager
 cli-account
 
 
+<!-- ##### FUNCTION mc_account_set_conditions ##### -->
+<para>
+
+</para>
+
+@account: 
+@conditions: 
+@callback: 
+@user_data: 
+@destroy: 
+@weak_object: 
+@Returns: 
+
 <!-- ##### FUNCTION mc_account_set_current_presence ##### -->
 <para>
 

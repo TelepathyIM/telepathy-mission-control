@@ -202,7 +202,7 @@ void mc_account_conditions_call_when_ready (McAccount *account,
 
 const GHashTable *mc_account_conditions_get (McAccount *account);
 TpProxyPendingCall *
-mc_account_set_conditions (McAccount *account,
+mc_account_conditions_set (McAccount *account,
 			   const GHashTable *conditions,
 			   tp_cli_dbus_properties_callback_for_set callback,
 			   gpointer user_data,
