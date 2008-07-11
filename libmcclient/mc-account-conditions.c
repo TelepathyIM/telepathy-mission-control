@@ -82,6 +82,18 @@ create_props (TpProxy *proxy, GHashTable *props)
     g_hash_table_foreach (props, update_property, account);
 }
 
+/**
+ * mc_account_conditions_call_when_ready:
+ * @account: the #McAccount.
+ * @callback: called when the interface becomes ready or invalidated, whichever
+ * happens first.
+ * @user_data: user data to be passed to @callback.
+ *
+ * Start retrieving and monitoring the properties of the Conditions interface
+ * of @account. If they have already been retrieved, call @callback
+ * immediately, then return. Otherwise, @callback will be called when the
+ * properties are ready.
+ */
 void
 mc_account_conditions_call_when_ready (McAccount *account,
 				       McAccountWhenReadyCb callback,
@@ -98,6 +110,16 @@ mc_account_conditions_call_when_ready (McAccount *account,
 				   &iface_data);
 }
 
+/**
+ * mc_account_conditions_get:
+ * @account: the #McAccount.
+ *
+ * Retrieves the account conditions.
+ *
+ * Returns: a #GHashTable containing the account conditions, where both keys
+ * and values are NULL-terminated strings. It must not be modified or
+ * destroyed.
+ */
 const GHashTable *
 mc_account_conditions_get (McAccount *account)
 {
@@ -107,6 +129,23 @@ mc_account_conditions_get (McAccount *account)
     return account->priv->conditions_props->conditions;
 }
 
+/**
+ * mc_account_conditions_set:
+ * @account: the #McAccount.
+ * @conditions: a #GHashTable with the conditions to set.
+ * @callback: callback to be invoked when the operation completes, or %NULL.
+ * @user_data: user data for @callback.
+ * @destroy: #GDestroyNotify function for @user_data.
+ * @weak_object: if not NULL, a GObject which will be weakly referenced; if it
+ * is destroyed, this call will automatically be cancelled. Must be NULL if
+ * callback is NULL.
+ *
+ * Set the conditions for @account; the @conditions must be in a #GHashTable
+ * where both keys and valus are NULL-terminated strings. It will not be
+ * modified by this method.
+ *
+ * Returns: a #TpProxyPendingCall for the underlying D-Bus call.
+ */
 TpProxyPendingCall *
 mc_account_set_conditions (McAccount *account,
 			   const GHashTable *conditions,

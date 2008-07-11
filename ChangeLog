@@ -1,5 +1,9 @@
 2008-07-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmcclient/mc-account-compat.c,
+	libmcclient/mc-account-conditions.c:
+	Add missing documentation.
+
 	* src/mcd-connection.c:
 	Don't automatically attempt reconnecting after a connection error.
 	Instead, unset the requested presence so that it can be set again.

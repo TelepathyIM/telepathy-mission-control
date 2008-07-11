@@ -94,8 +94,21 @@ create_props (TpProxy *proxy, GHashTable *props)
     g_hash_table_foreach (props, update_property, account);
 }
 
+/**
+ * mc_account_compat_call_when_ready:
+ * @account: the #McAccount.
+ * @callback: called when the interface becomes ready or invalidated, whichever
+ * happens first.
+ * @user_data: user data to be passed to @callback.
+ *
+ * Start retrieving and monitoring the properties of the Compat interface of
+ * @account. If they have already been retrieved, call @callback immediately,
+ * then return. Otherwise, @callback will be called when the properties are
+ * ready.
+ */
 void
-mc_account_compat_call_when_ready (McAccount *account, McAccountWhenReadyCb callback,
+mc_account_compat_call_when_ready (McAccount *account,
+				   McAccountWhenReadyCb callback,
 				   gpointer user_data)
 {
     McIfaceData iface_data;
@@ -109,6 +122,14 @@ mc_account_compat_call_when_ready (McAccount *account, McAccountWhenReadyCb call
 				   &iface_data);
 }
 
+/**
+ * mc_account_compat_get_profile:
+ * @account: the #McAccount.
+ *
+ * Retrieves the profile name of @account.
+ *
+ * Returns: a constant string representing the name of the profile.
+ */
 const gchar *
 mc_account_compat_get_profile (McAccount *account)
 {
@@ -118,6 +139,12 @@ mc_account_compat_get_profile (McAccount *account)
     return account->priv->compat_props->profile;
 }
 
+/**
+ * mc_account_compat_get_avatar_file:
+ * @account: the #McAccount.
+ *
+ * Returns: a constant string representing the filename of the avatar.
+ */
 const gchar *
 mc_account_compat_get_avatar_file (McAccount *account)
 {
@@ -127,6 +154,13 @@ mc_account_compat_get_avatar_file (McAccount *account)
     return account->priv->compat_props->avatar_file;
 }
 
+/**
+ * mc_account_compat_get_secondary_vcard_fields:
+ * @account: the #McAccount.
+ *
+ * Returns: an array of strings representing the secondary vcard fields set for
+ * @account.
+ */
 const gchar * const *
 mc_account_compat_get_secondary_vcard_fields (McAccount *account)
 {
@@ -136,6 +170,21 @@ mc_account_compat_get_secondary_vcard_fields (McAccount *account)
     return account->priv->compat_props->secondary_vcard_fields;
 }
 
+/**
+ * mc_account_avatar_set:
+ * @account: the #McAccount.
+ * @profile: the name of the profile to set.
+ * @callback: callback to be invoked when the operation completes, or %NULL.
+ * @user_data: user data for @callback.
+ * @destroy: #GDestroyNotify function for @user_data.
+ * @weak_object: if not NULL, a GObject which will be weakly referenced; if it
+ * is destroyed, this call will automatically be cancelled. Must be NULL if
+ * callback is NULL.
+ *
+ * Set the profile name for @account.
+ *
+ * Returns: a #TpProxyPendingCall for the underlying D-Bus call.
+ */
 TpProxyPendingCall *
 mc_account_compat_set_profile (McAccount *account, const gchar *profile,
 			       tp_cli_dbus_properties_callback_for_set callback,
@@ -153,6 +202,21 @@ mc_account_compat_set_profile (McAccount *account, const gchar *profile,
 	callback, user_data, destroy, weak_object);
 }
 
+/**
+ * mc_account_avatar_set:
+ * @account: the #McAccount.
+ * @fields: array of VCard fields to set.
+ * @callback: callback to be invoked when the operation completes, or %NULL.
+ * @user_data: user data for @callback.
+ * @destroy: #GDestroyNotify function for @user_data.
+ * @weak_object: if not NULL, a GObject which will be weakly referenced; if it
+ * is destroyed, this call will automatically be cancelled. Must be NULL if
+ * callback is NULL.
+ *
+ * Set the secondary VCard fields for @account.
+ *
+ * Returns: a #TpProxyPendingCall for the underlying D-Bus call.
+ */
 TpProxyPendingCall *
 mc_account_compat_set_secondary_vcard_fields (McAccount *account,
 					      const gchar * const *fields,
