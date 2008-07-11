@@ -801,7 +801,7 @@ mc_account_get_nickname (McAccount *account)
  * mc_account_call_when_ready() must have been successfully invoked prior to
  * calling this function.
  */
-const GHashTable *
+GHashTable *
 mc_account_get_parameters (McAccount *account)
 {
     g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);

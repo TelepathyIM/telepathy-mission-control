@@ -120,7 +120,7 @@ mc_account_conditions_call_when_ready (McAccount *account,
  * and values are NULL-terminated strings. It must not be modified or
  * destroyed.
  */
-const GHashTable *
+GHashTable *
 mc_account_conditions_get (McAccount *account)
 {
     g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);

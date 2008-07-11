@@ -91,7 +91,7 @@ gboolean mc_account_is_valid (McAccount *account);
 gboolean mc_account_is_enabled (McAccount *account);
 gboolean mc_account_connects_automatically (McAccount *account);
 const gchar *mc_account_get_nickname (McAccount *account);
-const GHashTable *mc_account_get_parameters (McAccount *account);
+GHashTable *mc_account_get_parameters (McAccount *account);
 void mc_account_get_automatic_presence (McAccount *account,
 					TpConnectionPresenceType *type,
 					const gchar **status,
@@ -200,7 +200,7 @@ void mc_account_conditions_call_when_ready (McAccount *account,
 					    McAccountWhenReadyCb callback,
 					    gpointer user_data);
 
-const GHashTable *mc_account_conditions_get (McAccount *account);
+GHashTable *mc_account_conditions_get (McAccount *account);
 TpProxyPendingCall *
 mc_account_conditions_set (McAccount *account,
 			   const GHashTable *conditions,
