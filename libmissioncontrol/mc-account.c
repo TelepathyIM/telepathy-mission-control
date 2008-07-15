@@ -1509,6 +1509,25 @@ mc_account_get_param_int (McAccount *account,
   if (_mc_account_gconf_get_int (account, name, TRUE, value))
       return MC_ACCOUNT_SETTING_FROM_ACCOUNT;
 
+  if (0 == strcmp(name, "http-proxy-port") ||
+      0 == strcmp(name, "https-proxy-port"))
+    {
+      gchar *host;
+      guint port;
+      gboolean https;
+
+      if (0 == strcmp (name, "https-proxy-port"))
+        https = TRUE;
+      else
+        https = FALSE;
+
+      if (_get_system_http_proxy (https, &host, &port))
+        {
+          *value = port;
+          return MC_ACCOUNT_SETTING_FROM_PROXY;
+        }
+    }
+
   profile = mc_account_get_profile (account);
   def = mc_profile_get_default_setting (profile, name);
 
@@ -1540,25 +1559,6 @@ mc_account_get_param_int (McAccount *account,
       return MC_ACCOUNT_SETTING_FROM_PROFILE;
     }
   g_object_unref (profile);
-
-  if (0 == strcmp(name, "http-proxy-port") ||
-      0 == strcmp(name, "https-proxy-port"))
-    {
-      gchar *host;
-      guint port;
-      gboolean https;
-
-      if (0 == strcmp (name, "https-proxy-port"))
-        https = TRUE;
-      else
-        https = FALSE;
-
-      if (_get_system_http_proxy (https, &host, &port))
-        {
-          *value = port;
-          return MC_ACCOUNT_SETTING_FROM_PROXY;
-        }
-    }
 
   return MC_ACCOUNT_SETTING_ABSENT;
 }

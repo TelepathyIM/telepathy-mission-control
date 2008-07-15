@@ -1,3 +1,9 @@
+2008-07-15  Alberto Mardegan  <mardy@users.sourceforge.net>
+
+	* libmissioncontrol/mc-account.c:
+	Give the system proxy settings higher priority over the account
+	profile/protocol defaults. Fixes: NB#2009342.
+
 2008-07-07  Alberto Mardegan  <mardy@users.sourceforge.net>
 
 	* configure.ac, libmissioncontrol/Makefile.am, src/Makefile.am,
