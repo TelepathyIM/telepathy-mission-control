@@ -385,6 +385,7 @@ _mcd_master_on_account_changed (McAccountMonitor * monitor,
     g_object_unref (account);
 }
 
+#ifdef MC_MAEMO_BUILD
 static void
 _mcd_master_on_param_changed (McAccountMonitor *monitor, gchar *account_name,
 			      gchar *param, McdMaster *master)
@@ -407,6 +408,7 @@ _mcd_master_on_param_changed (McAccountMonitor *monitor, gchar *account_name,
 
     g_object_unref (account);
 }
+#endif
 
 static void
 _mcd_master_init_account_monitoring (McdMaster * master)
@@ -423,9 +425,11 @@ _mcd_master_init_account_monitoring (McdMaster * master)
     g_signal_connect (priv->account_monitor,
 		      "account-changed",
 		      (GCallback) _mcd_master_on_account_changed, master);
+#ifdef MC_MAEMO_BUILD
     g_signal_connect (priv->account_monitor,
 		      "param-changed",
 		      (GCallback) _mcd_master_on_param_changed, master);
+#endif
 }
 
 static void
@@ -439,8 +443,10 @@ _mcd_master_dispose_account_monitoring (McdMaster * master)
 		      (GCallback) _mcd_master_on_account_disabled, master);
     g_signal_handlers_disconnect_by_func (priv->account_monitor,
 		      (GCallback) _mcd_master_on_account_changed, master);
+#ifdef MC_MAEMO_BUILD
     g_signal_handlers_disconnect_by_func (priv->account_monitor,
 		      (GCallback) _mcd_master_on_param_changed, master);
+#endif
     g_object_unref (priv->account_monitor);
     priv->account_monitor = NULL;
 }

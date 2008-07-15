@@ -1,5 +1,9 @@
 2008-07-15  Alberto Mardegan  <mardy@users.sourceforge.net>
 
+	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
+	* src/mcd-connection.c, src/mcd-master.c:
+	Set register param to FALSE once connected. Fixes: NB#1763775.
+
 	* libmissioncontrol/mc-account.c:
 	Give the system proxy settings higher priority over the account
 	profile/protocol defaults. Fixes: NB#2009342.
