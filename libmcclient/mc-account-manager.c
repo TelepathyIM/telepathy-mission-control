@@ -87,11 +87,33 @@ mc_account_manager_init (McAccountManager *self)
 	MC_IFACE_QUARK_ACCOUNT_MANAGER_INTERFACE_QUERY);
 }
 
+static inline void
+manager_props_free (McAccountManagerProps *props)
+{
+    g_strfreev (props->valid_accounts);
+    g_strfreev (props->invalid_accounts);
+    g_free (props);
+}
+
+static void
+finalize (GObject *object)
+{
+    McAccountManager *manager = MC_ACCOUNT_MANAGER (object);
+
+    if (manager->props)
+	manager_props_free (manager->props);
+
+    G_OBJECT_CLASS (mc_account_manager_parent_class)->finalize (object);
+}
+
 static void
 mc_account_manager_class_init (McAccountManagerClass *klass)
 {
     GType type = MC_TYPE_ACCOUNT_MANAGER;
+    GObjectClass *object_class = (GObjectClass *)klass;
     TpProxyClass *proxy_class = (TpProxyClass *) klass;
+
+    object_class->finalize = finalize;
 
     /* the API is stateless, so we can keep the same proxy across restarts */
     proxy_class->must_have_unique_name = FALSE;
