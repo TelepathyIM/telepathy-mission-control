@@ -1,5 +1,9 @@
 2008-07-21  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* libmcclient/mc-account.c:
+	Allow the various *_get_presence() methods to pass NULL for those
+	fields the caller is not interested in.
+
 	* libmcclient/mc-account-manager.c:
 	Free the Manager properties on finalization, that were being leaked.
 

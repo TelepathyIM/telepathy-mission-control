@@ -835,13 +835,20 @@ mc_account_get_automatic_presence (McAccount *account,
     props = account->priv->props;
     if (G_UNLIKELY (!props))
     {
-	*type = TP_CONNECTION_PRESENCE_TYPE_UNSET;
-	*status = *message = NULL;
+	if (type)
+	    *type = TP_CONNECTION_PRESENCE_TYPE_UNSET;
+	if (status)
+	    *status = NULL;
+	if (message)
+	    *message = NULL;
 	return;
     }
-    *type = props->auto_presence_type;
-    *status = props->auto_presence_status;
-    *message = props->auto_presence_message;
+    if (type)
+	*type = props->auto_presence_type;
+    if (status)
+	*status = props->auto_presence_status;
+    if (message)
+	*message = props->auto_presence_message;
 }
 
 /**
@@ -922,13 +929,20 @@ mc_account_get_current_presence (McAccount *account,
     props = account->priv->props;
     if (G_UNLIKELY (!props))
     {
-	*type = TP_CONNECTION_PRESENCE_TYPE_UNSET;
-	*status = *message = NULL;
+	if (type)
+	    *type = TP_CONNECTION_PRESENCE_TYPE_UNSET;
+	if (status)
+	    *status = NULL;
+	if (message)
+	    *message = NULL;
 	return;
     }
-    *type = props->curr_presence_type;
-    *status = props->curr_presence_status;
-    *message = props->curr_presence_message;
+    if (type)
+	*type = props->curr_presence_type;
+    if (status)
+	*status = props->curr_presence_status;
+    if (message)
+	*message = props->curr_presence_message;
 }
 
 /**
@@ -956,13 +970,20 @@ mc_account_get_requested_presence (McAccount *account,
     props = account->priv->props;
     if (G_UNLIKELY (!props))
     {
-	*type = TP_CONNECTION_PRESENCE_TYPE_UNSET;
-	*status = *message = NULL;
+	if (type)
+	    *type = TP_CONNECTION_PRESENCE_TYPE_UNSET;
+	if (status)
+	    *status = NULL;
+	if (message)
+	    *message = NULL;
 	return;
     }
-    *type = props->req_presence_type;
-    *status = props->req_presence_status;
-    *message = props->req_presence_message;
+    if (type)
+	*type = props->req_presence_type;
+    if (status)
+	*status = props->req_presence_status;
+    if (message)
+	*message = props->req_presence_message;
 }
 
 /**
