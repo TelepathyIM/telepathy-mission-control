@@ -64,7 +64,7 @@ libmcclient_la_LIBADD = $(GCONF_LIBS) $(GLIB_LIBS) $(DBUS_LIBS) $(TELEPATHY_LIBS
 
 libmcclient_la_LDFLAGS = $(common_ldflags) \
 				      -export-symbols-regex "^(mc_)|(mission_control_)" \
-				      -version-info 6:1:0
+				      -version-info 7:0:1
 
 %-marshal.h: %-marshal.list Makefile.am
 	glib-genmarshal --header --prefix=$(subst -,_,$*)_marshal $< > $*-marshal.h
