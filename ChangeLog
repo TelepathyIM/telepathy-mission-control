@@ -1,3 +1,10 @@
+2008-07-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/mc-profile.[hc]:
+	Add a mc_profile_get_filename() function, to retrive the pathname of
+	the .profile file. Applications can therefore parse the profiles
+	themselves, and look for application specific data.
+
 === telepathy-mission-control 5.0.beta24 ===
 
 2008-07-21  Alberto Mardegan  <alberto.mardegan@nokia.com>

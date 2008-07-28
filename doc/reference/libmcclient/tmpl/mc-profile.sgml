@@ -66,6 +66,15 @@ McProfile
 @Returns: 
 
 
+<!-- ##### FUNCTION mc_profile_get_filename ##### -->
+<para>
+
+</para>
+
+@unique_name: 
+@Returns: 
+
+
 <!-- ##### FUNCTION mc_profile_clear_cache ##### -->
 <para>
 

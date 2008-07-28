@@ -418,6 +418,24 @@ mc_profile_lookup (const gchar *unique_name)
 }
 
 /**
+ * mc_profile_get_filename:
+ * @unique_name: The unique name of the profile.
+ *
+ * Get the .profile file path of the profile @unique_name. This can be useful
+ * for applications which wants to parse the .profile file themselves, for the
+ * cases when the profile contains application specific data.
+ * Note that this function is not meant to be used for creating new profiles:
+ * if the .profile file does not exist, this functions fails.
+ *
+ * Return value: The path of the .profile file, or %NULL.
+ */
+gchar *
+mc_profile_get_filename (const gchar *unique_name)
+{
+    return _mc_profile_filename (unique_name);
+}
+
+/**
  * mc_profile_lookup_default_for_vcard_field:
  * @vcard_field: The vcard field.
  *

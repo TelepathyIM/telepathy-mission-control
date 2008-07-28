@@ -107,6 +107,7 @@ McProfile
 McProfileClass
 mc_profile_lookup
 mc_profile_lookup_default_for_vcard_field
+mc_profile_get_filename
 mc_profile_clear_cache
 mc_profiles_list
 mc_profiles_list_by_vcard_field
