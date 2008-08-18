@@ -98,7 +98,7 @@ libmissioncontrol_server_la_LIBADD = \
 
 libmissioncontrol_server_la_LDFLAGS = \
 	-export-symbols-regex '^((mc_)|(mcd_)|(mission_control_))' \
-	-version-info "5":"0":"0"
+	-version-info "6":"0":"0"
 # the redundant quoting here is to prevent the libtool command line from
 # looking like an error message in an oddly named file
 
