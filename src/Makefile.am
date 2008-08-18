@@ -1,4 +1,9 @@
-INCLUDES = $(DBUS_CFLAGS) $(GCONF_CFLAGS) $(TELEPATHY_CFLAGS) \
+INCLUDES = \
+	   $(GCONF_CFLAGS) \
+	   $(TELEPATHY_CFLAGS) \
+	   $(DBUS_CFLAGS) \
+	   $(GMODULE_CFLAGS) \
+	   $(GLIB_CFLAGS) \
 	   -DMCD_DEFAULT_FILTER_PLUGIN_DIR=\"@pluginlibdir@\" \
 	   -DDBUS_API_SUBJECT_TO_CHANGE \
 	   -DMC_DISABLE_DEPRECATED -I$(top_srcdir)
@@ -83,12 +88,19 @@ CLEANFILES = $(BUILT_SOURCES)
 
 lib_LTLIBRARIES = libmissioncontrol-server.la
 
-libmissioncontrol_server_la_LIBADD = $(DBUS_LIBS) $(GCONF_LIBS) $(TELEPATHY_LIBS) \
-	$(top_builddir)/libmcclient/libmcclient.la
+libmissioncontrol_server_la_LIBADD = \
+	$(top_builddir)/libmcclient/libmcclient.la \
+	$(GCONF_LIBS) \
+	$(TELEPATHY_LIBS) \
+	$(DBUS_LIBS) \
+	$(GMODULE_LIBS) \
+	$(GLIB_LIBS)
 
-# we want to export symbols so that the plugins can see them
-libmissioncontrol_server_la_LDFLAGS = -export-dynamic \
-				      -version-info 5:0:0
+libmissioncontrol_server_la_LDFLAGS = \
+	-export-symbols-regex '^((mc_)|(mcd_)|(mission_control_))' \
+	-version-info "5":"0":"0"
+# the redundant quoting here is to prevent the libtool command line from
+# looking like an error message in an oddly named file
 
 libmissioncontrol_server_la_SOURCES = \
 	mcd-account.c \
@@ -129,10 +141,12 @@ libmissioncontrol_server_la_SOURCES = \
 # 	mcd-main.c
 
 %-signals-marshal.h: %-signals-marshal.list Makefile
-	glib-genmarshal --header --prefix=$(subst -,_,$*)_marshal $< > $*-signals-marshal.h
+	glib-genmarshal --header --prefix=_$(subst -,_,$*)_marshal $< > $*-signals-marshal.h
 
 %-signals-marshal.c: %-signals-marshal.list Makefile
-	glib-genmarshal --body --prefix=$(subst -,_,$*)_marshal $< > $*-signals-marshal.c
+	{ echo '#include "$*-signals-marshal.h"' && \
+	glib-genmarshal --body --prefix=_$(subst -,_,$*)_marshal $<; } \
+	> $*-signals-marshal.c
 
 mcd-enum-types.h: stamp-mcd-enum-types.h
 	@true
@@ -189,7 +203,9 @@ _gen/signals-marshal.h: _gen/signals-marshal.list
 	$(GLIB_GENMARSHAL) --header --prefix=_mc_ext_marshal $< > $@
 
 _gen/signals-marshal.c: _gen/signals-marshal.list
-	$(GLIB_GENMARSHAL) --body --prefix=_mc_ext_marshal $< > $@
+	{ echo '#include "_gen/signals-marshal.h"' && \
+	$(GLIB_GENMARSHAL) --body --prefix=_mc_ext_marshal $<; } \
+	> $@
 
 _gen/register-dbus-glib-marshallers-body.h: _gen/all.xml \
 	$(tools_dir)/glib-client-marshaller-gen.py

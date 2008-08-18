@@ -396,8 +396,9 @@ mission_control_get_type (void)
 MissionControl *
 mission_control_new (DBusGConnection * connection)
 {
-    g_return_val_if_fail (connection != NULL, NULL);
     MissionControl *mc_obj = NULL;
+
+    g_return_val_if_fail (connection != NULL, NULL);
 
     /* Create the proxy object that is used for performing
      * the method calls on the Mission Control service */
@@ -705,9 +706,10 @@ mission_control_request_channel_with_string_handle_and_vcard_field (MissionContr
 						    gpointer user_data)
 {
     struct dbus_cb_data *cb_data;
-    operation_id++;
     const gchar *account_name = mc_account_get_unique_name (account);
     char * mangled_handle = NULL;
+
+    operation_id++;
 
     if (account_name == NULL)
     {
@@ -731,12 +733,13 @@ mission_control_request_channel_with_string_handle_and_vcard_field (MissionContr
 	{
 	    const char * profile_vcard_field = mc_profile_get_vcard_field (profile);
 
-	    // TODO: this is where from the profiles or from the provisioning
-	    // we must figure out how to actually mangle user addresses from
-	    // foreign vcard fields to something the connection manager will
-	    // understand.
-	    // For now this is just lowercasing the vcard field and prepending
-	    // it to the address
+	    /* TODO: this is where from the profiles or from the provisioning
+	     * we must figure out how to actually mangle user addresses from
+	     * foreign vcard fields to something the connection manager will
+	     * understand.
+	     * For now this is just lowercasing the vcard field and prepending
+	     * it to the address
+             */
 
 	    /* only mangle if it is not the default vcard field */
 	    if (profile_vcard_field == NULL ||
@@ -748,12 +751,12 @@ mission_control_request_channel_with_string_handle_and_vcard_field (MissionContr
 		    mangled_handle = g_strdup_printf(mangle, handle);
 		} else {
 		    if (strcmp(vcard_field, "TEL") == 0) {
-			// TEL mangling
+			/* TEL mangling */
 			char ** split = g_strsplit_set(handle, " -,.:;", -1);
 			mangled_handle = g_strjoinv("", split);
 			g_strfreev(split);
 		    } else {
-			// generic mangling
+			/* generic mangling */
 			char * lower_vcard_field = g_utf8_strdown(vcard_field, -1);
 			mangled_handle = g_strdup_printf("%s:%s", lower_vcard_field, handle);
 			g_free(lower_vcard_field);
@@ -1266,7 +1269,7 @@ get_current_status_cb (DBusGProxy * proxy,
     McAccountStatus *accounts, *account;
     GType type;
     gsize n_accounts;
-    gint i;
+    guint i;
 
     if (error)
 	g_debug ("%s: Error: %s (%u)", G_STRFUNC, error->message, error->code);
@@ -1274,6 +1277,7 @@ get_current_status_cb (DBusGProxy * proxy,
     type = dbus_g_type_get_struct ("GValueArray", G_TYPE_STRING, G_TYPE_UINT,
 				   G_TYPE_UINT, G_TYPE_UINT, G_TYPE_INVALID);
     accounts = g_new (McAccountStatus, accounts_array->len);
+
     for (i = 0, account = accounts; i < accounts_array->len; i++, account++)
     {
 	GValue account_value = { 0, };

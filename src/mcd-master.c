@@ -227,7 +227,8 @@ static void
 mcd_master_connect_automatic_accounts (McdMaster *master)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    gint i;
+    guint i;
+
     for (i = 0; i < priv->transport_plugins->len; i++)
     {
 	McdTransportPlugin *plugin;
@@ -269,7 +270,7 @@ mcd_master_unload_plugins (McdMaster *master)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     GModule *module;
-    gint i;
+    guint i;
 
     for (i = 0; i < priv->plugins->len; i++)
     {
@@ -518,7 +519,8 @@ _mcd_master_dispose (GObject * object)
 
     if (priv->transport_plugins)
     {
-	gint i;
+	guint i;
+
 	for (i = 0; i < priv->transport_plugins->len; i++)
 	{
 	    McdTransportPlugin *plugin;
@@ -842,7 +844,7 @@ mcd_master_get_online_connection_names (McdMaster * master,
 
     if (names->len != 0)
     {
-	int i;
+	guint i;
 
 	/* Copy the collected names to the array of strings */
 	*connected_names =

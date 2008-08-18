@@ -563,10 +563,11 @@ _mcd_dispatcher_handle_channel_async_cb (DBusGProxy * proxy, GError * error,
     {
 	DBusGConnection *dbus_connection;
 	GError *unique_proxy_error = NULL;
+        DBusGProxy *unique_name_proxy;
 	
 	dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
 	
-	DBusGProxy *unique_name_proxy =
+	unique_name_proxy =
 	    dbus_g_proxy_new_for_name_owner (dbus_connection,
 					     chandler->bus_name,
 					     chandler->obj_path,
@@ -634,7 +635,7 @@ _mcd_dispatcher_start_channel_handler (McdDispatcherContext * context)
 	struct cancel_call_data *call_data;
 	DBusGProxyCall *call;
 	TpConnection *tp_conn;
-	
+	DBusGProxy *handler_proxy;
 	const McdConnection *connection = mcd_dispatcher_context_get_connection (context);
 	DBusGConnection *dbus_connection;
 
@@ -642,7 +643,7 @@ _mcd_dispatcher_start_channel_handler (McdDispatcherContext * context)
         g_object_get (G_OBJECT (connection),
                       "tp-connection", &tp_conn, NULL);
 
-	DBusGProxy *handler_proxy = dbus_g_proxy_new_for_name (dbus_connection,
+	handler_proxy = dbus_g_proxy_new_for_name (dbus_connection,
 							       chandler->bus_name,
 							       chandler->obj_path,
 				"org.freedesktop.Telepathy.ChannelHandler");
@@ -1022,7 +1023,7 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		      G_STRUCT_OFFSET (McdDispatcherClass,
 				       channel_added_signal),
-		      NULL, NULL, mcd_marshal_VOID__OBJECT,
+		      NULL, NULL, g_cclosure_marshal_VOID__OBJECT,
 		      G_TYPE_NONE, 1, MCD_TYPE_CHANNEL);
     
     mcd_dispatcher_signals[CHANNEL_REMOVED] =
@@ -1031,7 +1032,7 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		      G_STRUCT_OFFSET (McdDispatcherClass,
 				       channel_removed_signal),
-		      NULL, NULL, mcd_marshal_VOID__OBJECT,
+		      NULL, NULL, g_cclosure_marshal_VOID__OBJECT,
 		      G_TYPE_NONE, 1, MCD_TYPE_CHANNEL);
     
     mcd_dispatcher_signals[DISPATCHED] =
@@ -1040,7 +1041,7 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		      G_STRUCT_OFFSET (McdDispatcherClass,
 				       dispatched_signal),
-		      NULL, NULL, mcd_marshal_VOID__OBJECT,
+		      NULL, NULL, g_cclosure_marshal_VOID__OBJECT,
 		      G_TYPE_NONE, 1, MCD_TYPE_CHANNEL);
     
     mcd_dispatcher_signals[DISPATCH_FAILED] =
@@ -1049,7 +1050,7 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		      G_STRUCT_OFFSET (McdDispatcherClass,
 				       dispatch_failed_signal),
-		      NULL, NULL, mcd_marshal_VOID__OBJECT_POINTER,
+		      NULL, NULL, _mcd_marshal_VOID__OBJECT_POINTER,
 		      G_TYPE_NONE, 2, MCD_TYPE_CHANNEL, G_TYPE_POINTER);
     
     /* Properties */

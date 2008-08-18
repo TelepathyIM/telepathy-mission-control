@@ -128,7 +128,7 @@ on_members_changed (TpChannel *proxy, const gchar *message,
 
     if (l_pending && l_pending->len > 0)
     {
-	int i;
+	guint i;
 	/* FIXME: Add duplicity check */
 	for (i = 0; i < l_pending->len; i++)
 	{
@@ -146,7 +146,7 @@ on_members_changed (TpChannel *proxy, const gchar *message,
 
     if (added && added->len > 0)
     {
-	int i, j;
+	guint i, j;
 	g_debug ("%u added members", added->len);
 	for (i = 0; i < added->len; i++)
 	{
@@ -178,7 +178,7 @@ on_members_changed (TpChannel *proxy, const gchar *message,
      * array, even if we don't need the info */
     if (removed && removed->len > 0)
     {
-	int i;
+	guint i;
 
 	if (actor != priv->self_handle)
 	{
@@ -229,7 +229,7 @@ lookup_actor (McdChannel *channel)
     McdChannelPrivate *priv = channel->priv;
     PendingMemberInfo *pmi;
     gboolean found = FALSE;
-    gint i;
+    guint i;
 
     g_debug ("%s called", G_STRFUNC);
     for (i = 0; i < priv->pending_local_members->len; i++)
@@ -293,7 +293,7 @@ group_get_local_pending_members_with_info (TpChannel *proxy,
 
     if (l_pending)
     {
-	int i;
+	guint i;
 	g_debug ("%u local pending members, adding", l_pending->len);
 	/* FIXME: Add duplicity check */
 	for (i = 0; i < l_pending->len; i++)

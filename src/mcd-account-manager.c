@@ -392,8 +392,8 @@ properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 /* Returns the location of the account configuration file.
  * Returned string must be freed by caller. */
 static gchar *
-get_account_conf_filename ()
-{   
+get_account_conf_filename (void)
+{
     const gchar *base;
 
     base = g_getenv ("MC_ACCOUNT_DIR");

@@ -303,18 +303,21 @@ mcd_operation_remove_mission (McdOperation * operation, McdMission * mission)
 const GList *
 mcd_operation_get_missions (McdOperation * operation)
 {
-    g_return_val_if_fail (MCD_IS_OPERATION (operation), NULL);
+    McdOperationPrivate *priv;
 
-    McdOperationPrivate *priv = MCD_OPERATION_PRIV (operation);
+    g_return_val_if_fail (MCD_IS_OPERATION (operation), NULL);
+    priv = MCD_OPERATION_PRIV (operation);
+
     return priv->missions;
 }
 
 void
 mcd_operation_foreach (McdOperation * operation, GFunc func, gpointer user_data)
 {
-    g_return_if_fail (MCD_IS_OPERATION (operation));
+    McdOperationPrivate *priv;
 
-    McdOperationPrivate *priv = MCD_OPERATION_PRIV (operation);
+    g_return_if_fail (MCD_IS_OPERATION (operation));
+    priv = MCD_OPERATION_PRIV (operation);
 
     g_list_foreach (priv->missions, (GFunc) func, user_data);
 }

@@ -25,7 +25,6 @@
 #include <glib.h>
 #include <stdio.h>
 #include <string.h>
-//#include <dbus/dbus-glib.h>
 #include <telepathy-glib/dbus.h>
 #include <libmcclient/dbus-api.h>
 #include <libmcclient/mc-account-manager.h>
@@ -86,7 +85,7 @@ set_conditions (McAccount *account)
 
     conditions = g_hash_table_new_full (g_str_hash, g_str_equal, NULL, g_free);
     g_hash_table_insert (conditions, "ip-route", g_strdup ("true"));
-    mc_account_set_conditions (account, conditions,
+    mc_account_conditions_set (account, conditions,
 			       NULL, NULL, NULL, NULL);
     g_hash_table_destroy (conditions);
 }
@@ -320,7 +319,6 @@ watch_account (McAccount *account)
 				    MC_IFACE_QUARK_ACCOUNT,
 				    MC_IFACE_QUARK_ACCOUNT_INTERFACE_AVATAR,
 				    0);
-    //g_timeout_add (2000, unref_test_object, to);
     unref_test_object (to);
 }
 
@@ -348,12 +346,13 @@ am_ready (McAccountManager *am, const GError *error, gpointer user_data)
 
 }
 
-void find_accounts_cb (TpProxy *proxy, const GPtrArray *accounts,
-		       const GError *error, gpointer user_data,
-		       GObject *weak_object)
+static void
+find_accounts_cb (TpProxy *proxy, const GPtrArray *accounts,
+		  const GError *error, gpointer user_data,
+		  GObject *weak_object)
 {
     gchar *name;
-    gint i;
+    guint i;
 
     g_debug ("%s called", G_STRFUNC);
     if (error)
@@ -411,7 +410,9 @@ on_account_created (McAccountManager *am, const gchar *account_path,
     g_debug ("%s: %s (%d)", G_STRFUNC, account_path, valid);
 }
 
-int main ()
+int
+main (int argc,
+      char **argv)
 {
     McAccountManager *am;
     DBusGConnection *dbus_conn;

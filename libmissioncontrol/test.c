@@ -34,54 +34,8 @@
 #include "mc-account-monitor.h"
 #include "mc-profile.h"
 
-void print_profile (McProfile *profile)
-{
-  const gchar *name, *protocol_name;
-  McProtocol *protocol;
-
-  g_assert (NULL != profile);
-  name = mc_profile_get_unique_name (profile);
-  protocol = mc_profile_get_protocol (profile);
-  protocol_name = mc_protocol_get_name (protocol);
-  printf ("profile: %s (%s)\n", name, protocol_name);
-}
-
-void print_account (McAccount *account)
-{
-  const gchar *name = mc_account_get_unique_name (account);
-  printf ("account: %p (%s)\n", account, name);
-}
-
-void print_manager (McManager *manager)
-{
-  const gchar *name = mc_manager_get_unique_name (manager);
-  printf ("manager: %p (%s)\n", manager, name);
-}
-
-void print_protocol (McProtocol *protocol)
-{
-  printf ("protocol: %s/%s\n",
-    mc_manager_get_unique_name (
-      mc_protocol_get_manager (protocol)),
-    mc_protocol_get_name (protocol));
-}
-
-void print_protocol_detailed (McProtocol *protocol)
-{
-  GSList *i;
-
-  g_assert (NULL != protocol);
-  print_protocol (protocol);
-
-  for (i = mc_protocol_get_params (protocol); NULL != i; i = i->next)
-    {
-      McProtocolParam *param = (McProtocolParam *) i->data;
-
-      printf("  %s:%s\n", param->signature, param->name);
-    }
-}
-
-void test_profile ()
+static void
+test_profile (void)
 {
   McProfile *profile1, *profile2;
   McProtocol *protocol;
@@ -103,7 +57,8 @@ void test_profile ()
   g_object_unref (profile2);
 }
 
-void test_profile_list ()
+static void
+test_profile_list (void)
 {
   GList *list, *i;
   McProfile *profile1, *profile2;
@@ -133,7 +88,8 @@ void test_profile_list ()
   mc_profiles_free_list (list);
 }
 
-void test_profile_stat ()
+static void
+test_profile_stat (void)
 {
   McProfile *profile1, *profile2;
 
@@ -143,7 +99,8 @@ void test_profile_stat ()
   g_assert (profile1 != profile2);
 }
 
-void check_account_param (gpointer key, gpointer value, gpointer data)
+static void
+check_account_param (gpointer key, gpointer value, gpointer data)
 {
   if (0 == strcmp (key, "account"))
     {
@@ -162,7 +119,8 @@ void check_account_param (gpointer key, gpointer value, gpointer data)
   g_warning ("got unexpected parameter \"%s\" for account", (gchar *) key);
 }
 
-void test_account()
+static void
+test_account (void)
 {
   McAccount *account1, *account2;
 
@@ -183,26 +141,8 @@ void test_account()
   g_object_unref(account2);
 }
 
-void print_accounts_list ()
-{
-  GList *i, *accounts;
-
-  accounts = mc_accounts_list ();
-
-  for (i = accounts; NULL != i; i = i->next)
-    {
-      McAccount *account = (McAccount *) i->data;
-      const gchar *name = mc_account_get_unique_name (account);
-      const gchar *display_name = mc_account_get_display_name (account);
-
-      if (display_name)
-        g_print (" %s (\"%s\")\n", name, display_name);
-      else
-        g_print (" %s\n", name);
-    }
-}
-
-gint account_has_name (gconstpointer account_p, gconstpointer name_p)
+static gint
+account_has_name (gconstpointer account_p, gconstpointer name_p)
 {
   McAccount *account = (McAccount *) account_p;
   const gchar *name = (gchar *) name_p;
@@ -210,7 +150,8 @@ gint account_has_name (gconstpointer account_p, gconstpointer name_p)
   return strcmp (mc_account_get_unique_name (account), name);
 }
 
-void test_mc_account_list ()
+static void
+test_mc_account_list (void)
 {
   GList *accounts;
   McAccount *account;
@@ -228,41 +169,47 @@ void test_mc_account_list ()
   mc_account_delete (account);
 }
 
-void cb_account_created(McAccountMonitor *monitor, gchar *name, gpointer data)
+static void
+cb_account_created(McAccountMonitor *monitor, gchar *name, gpointer data)
 {
   GSList **created = (GSList **) data;
   *created = g_slist_append (*created, g_strdup (name));
   /*printf ("account created: %s\n", name); */
 }
 
-void cb_account_deleted(McAccountMonitor *monitor, gchar *name, gpointer data)
+static void
+cb_account_deleted(McAccountMonitor *monitor, gchar *name, gpointer data)
 {
   GSList **deleted = (GSList **) data;
   *deleted = g_slist_append (*deleted, g_strdup (name));
   /*printf ("account deleted: %s\n", name); */
 }
 
-void cb_account_enabled (McAccountMonitor *monitor, gchar *name, gpointer data)
+static void
+cb_account_enabled (McAccountMonitor *monitor, gchar *name, gpointer data)
 {
   GSList **enabled = (GSList **) data;
   *enabled = g_slist_append (*enabled, g_strdup (name));
   /* printf ("account enabled: %s\n", name); */
 }
 
-void cb_account_disabled (McAccountMonitor *monitor, gchar *name, gpointer data)
+static void
+cb_account_disabled (McAccountMonitor *monitor, gchar *name, gpointer data)
 {
   GSList **disabled = (GSList **) data;
   *disabled = g_slist_append (*disabled, g_strdup (name));
   /* printf ("account disabled: %s\n", name); */
 }
 
-void cb_account_changed (McAccountMonitor *monitor, gchar *name, gpointer data)
+static void
+cb_account_changed (McAccountMonitor *monitor, gchar *name, gpointer data)
 {
   GSList **disabled = (GSList **) data;
   *disabled = g_slist_append (*disabled, g_strdup (name));
 }
 
-void test_account_monitor()
+static void
+test_account_monitor (void)
 {
   McAccountMonitor *monitor;
   McProfile *profile1, *profile2;
@@ -379,7 +326,8 @@ void test_account_monitor()
   g_object_unref (monitor);
 }
 
-void test_manager()
+static void
+test_manager (void)
 {
   McManager *manager1, *manager2;
 
@@ -403,7 +351,8 @@ void test_manager()
   g_object_unref (manager2);
 }
 
-void test_protocol ()
+static void
+test_protocol (void)
 {
   McManager *manager1, *manager2;
   McProtocol *protocol1, *protocol2;
@@ -456,7 +405,8 @@ void test_protocol ()
   g_object_unref (protocol2);
 }
 
-int main ()
+int
+main (int argc, char **argv)
 {
   g_setenv ("MC_PROFILE_DIR", "../test", FALSE);
   g_setenv ("MC_MANAGER_DIR", "../test", FALSE);

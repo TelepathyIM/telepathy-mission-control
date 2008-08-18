@@ -29,10 +29,10 @@
 #define MCD_INTERFACES_QUARK get_interfaces_quark()
 
 static GQuark
-get_interfaces_quark ()
+get_interfaces_quark (void)
 {
     static GQuark interfaces_quark = 0;
-    
+
     if (G_UNLIKELY (!interfaces_quark))
 	interfaces_quark = g_quark_from_static_string ("interfaces");
     return interfaces_quark;

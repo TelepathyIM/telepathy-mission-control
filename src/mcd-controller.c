@@ -98,11 +98,12 @@ _mcd_controller_exit_by_timeout (gpointer data)
 void
 mcd_controller_shutdown (McdController *controller, const gchar *reason)
 {
+    McdControllerPrivate *priv;
+
     g_return_if_fail (MCD_IS_CONTROLLER (controller));
-    
-    McdControllerPrivate *priv = MCD_CONTROLLER_PRIV (controller);
-    
-    if(!priv->shutdown_timeout_id)	
+    priv = MCD_CONTROLLER_PRIV (controller);
+
+    if(!priv->shutdown_timeout_id)
     {
 	g_debug ("MC will bail out because of \"%s\" out exit after %i",
 		 reason ? reason : "No reason specified",
@@ -123,10 +124,11 @@ mcd_controller_shutdown (McdController *controller, const gchar *reason)
 void
 mcd_controller_cancel_shutdown (McdController *controller)
 {
+    McdControllerPrivate *priv;
+
     g_return_if_fail (MCD_IS_CONTROLLER (controller));
-    
-    McdControllerPrivate *priv = MCD_CONTROLLER_PRIV (controller);
-    
+    priv = MCD_CONTROLLER_PRIV (controller);
+
     if (priv->shutdown_timeout_id)
     {
 	g_debug ("Cancelling exit timeout");

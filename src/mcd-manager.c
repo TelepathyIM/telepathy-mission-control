@@ -33,18 +33,21 @@
  * FIXME
  */
 
-#include <string.h>
+#define _POSIX_C_SOURCE 200112L  /* for strtok_r() */
+#include "config.h"
+#include "mcd-manager.h"
+
 #include <stdio.h>
+#include <string.h>
+
 #include <glib/gi18n.h>
-#include <config.h>
+#include <telepathy-glib/connection-manager.h>
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/interfaces.h>
-#include <telepathy-glib/connection-manager.h>
 
 #include <libmcclient/mc-errors.h>
 
 #include "mcd-connection.h"
-#include "mcd-manager.h"
 
 #define MANAGER_SUFFIX ".manager"
 
@@ -79,7 +82,7 @@ enum
 };
 
 static const gchar**
-_mc_manager_get_dirs ()
+_mc_manager_get_dirs (void)
 {
     GSList *dir_list = NULL, *slist;
     const gchar *dirname;
@@ -339,7 +342,7 @@ _mcd_manager_finalize (GObject * object)
     McdManagerPrivate *priv = MCD_MANAGER_PRIV (object);
     McdProtocolParam *param;
     McdProtocol *protocol;
-    gint i, j;
+    guint i, j;
 
     for (i = 0; i < priv->protocols->len; i++)
     {
@@ -767,7 +770,7 @@ mcd_manager_get_parameters (McdManager *manager, const gchar *protocol)
 {
     McdManagerPrivate *priv = manager->priv;
     McdProtocol *proto;
-    gint i;
+    guint i;
 
     for (i = 0; i < priv->protocols->len; i++)
     {

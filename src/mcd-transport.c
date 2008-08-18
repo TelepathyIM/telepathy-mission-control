@@ -71,7 +71,7 @@ mcd_transport_plugin_base_init (gpointer iface)
             G_SIGNAL_RUN_FIRST,
             G_STRUCT_OFFSET (McdTransportPluginIface, status_changed),
             NULL, NULL,
-            mcd_marshal_VOID__POINTER_UINT,
+            _mcd_marshal_VOID__POINTER_UINT,
             G_TYPE_NONE, 2,
             G_TYPE_POINTER, MCD_TYPE_TRANSPORT_STATUS);
         initialized = TRUE;

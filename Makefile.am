@@ -1,4 +1,6 @@
-SUBDIRS = tools xml libmcclient libmissioncontrol src doc server test util
+ACLOCAL_AMFLAGS = -I m4
+
+SUBDIRS = m4 tools xml libmcclient libmissioncontrol src doc server test util
 
 if HAVE_EXAMPLES
 SUBDIRS += examples

@@ -1,6 +1,7 @@
-AC_INIT(telepathy-mission-control, 5.0.beta25)
+AC_INIT(telepathy-mission-control, 5.0.beta25.smcv5)
+AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(Makefile.am)
-AM_INIT_AUTOMAKE([tar-ustar])
+AM_INIT_AUTOMAKE([1.9 tar-ustar -Wno-portability])
 AM_CONFIG_HEADER(config.h)
 
 AC_CANONICAL_HOST
@@ -15,6 +16,27 @@ AM_PROG_MKDIR_P
 AC_HEADER_STDC
 
 AM_CFLAGS="$CFLAGS -Wall -fno-strict-aliasing -ansi -DDMALLOC"
+
+# Recommended CFLAGS for pedantic checking, from telepathy-glib
+
+AS_COMPILER_FLAG([-Wdeclaration-after-statement],
+  [AM_CFLAGS="$AM_CFLAGS -Wdeclaration-after-statement"])
+AS_COMPILER_FLAG([-Wstrict-prototypes],
+  [AM_CFLAGS="$AM_CFLAGS -Wstrict-prototypes"])
+AS_COMPILER_FLAG([-Wmissing-prototypes],
+  [AM_CFLAGS="$AM_CFLAGS -Wmissing-prototypes"])
+AS_COMPILER_FLAG([-Wmissing-declarations],
+  [AM_CFLAGS="$AM_CFLAGS -Wmissing-declarations"])
+
+AC_ARG_ENABLE([Werror],
+  AC_HELP_STRING([--enable-Werror],[compile with -Werror]),
+  [werror=$enableval], [werror=no])
+
+if test "$werror" = yes; then
+  AS_COMPILER_FLAG([-Werror], [AM_CFLAGS="$AM_CFLAGS -Werror"])
+fi
+
+AC_SUBST([AM_CFLAGS])
 
 define([EXPAND_VARIABLE],
 [$2=[$]$1
@@ -99,32 +121,32 @@ fi
 AC_SUBST(CHANDLERS_DIR)
 AC_DEFINE_UNQUOTED(CHANDLERS_DIR,"$CHANDLERS_DIR", [Directory for channel handlers])
 
-test_enabled="no"
+test_enabled="yes"
 AC_MSG_CHECKING(whether to build tests)
 AC_ARG_ENABLE(tests,
-	[  --enable-tests           build tests. default=no],
+	[  --disable-tests           don't build tests. default: enable them],
 	[
 		AC_MSG_RESULT(${enableval})
 		test_enabled="${enableval}"
 	],
 	[
-		AC_MSG_RESULT(no)
-		test_enabled="no"
+		AC_MSG_RESULT([yes (default)])
+		test_enabled="yes"
 	]
 )
 AM_CONDITIONAL(HAVE_TESTS, [test x$test_enabled = xyes])
 
-examples_enabled="no"
+examples_enabled="yes"
 AC_MSG_CHECKING(whether to build examples)
 AC_ARG_ENABLE(examples,
-	[  --enable-examples        build examples. default=no],
+	[  --disable-examples        don't build examples. default: build them],
 	[
 		AC_MSG_RESULT(${enableval})
 		examples_enabled="${enableval}"
 	],
 	[
-		AC_MSG_RESULT(no)
-		examples_enabled="no"
+		AC_MSG_RESULT([yes (default)])
+		examples_enabled="yes"
 	]
 )
 AM_CONDITIONAL(HAVE_EXAMPLES, [test x$examples_enabled = xyes])
@@ -161,9 +183,13 @@ PKG_CHECK_MODULES(GCONF, gconf-2.0 >= $GCONF_REQUIRED_VERSION)
 AC_SUBST(GCONF_CFLAGS)
 AC_SUBST(GCONF_LIBS)
 
-PKG_CHECK_MODULES(GLIB, glib-2.0)
+PKG_CHECK_MODULES(GLIB, glib-2.0 gobject-2.0)
 AC_SUBST(GLIB_LIBS)
 AC_SUBST(GLIB_CFLAGS)
+
+PKG_CHECK_MODULES(GMODULE, gmodule-no-export-2.0)
+AC_SUBST(GMODULE_LIBS)
+AC_SUBST(GMODULE_CFLAGS)
 
 dnl docs/Makefile.am needs to know whether it's an out of tree build
 dnl (srcdir != builddir)
@@ -184,21 +210,22 @@ AC_SUBST(pluginlibdir)
 
 AC_OUTPUT([
 Makefile \
-libmcclient.pc \
-mission-control.pc \
-libmissioncontrol.pc \
-src/Makefile \
-xml/Makefile \
 doc/Makefile \
-test/Makefile \
-tools/Makefile \
 doc/reference/Makefile \
 doc/reference/libmcclient/Makefile \
-doc/reference/libmissioncontrol/Makefile \
 doc/reference/libmissioncontrol-server/Makefile \
-libmcclient/Makefile \
-libmissioncontrol/Makefile \
-server/Makefile \
+doc/reference/libmissioncontrol/Makefile \
 examples/Makefile \
+libmcclient.pc \
+libmcclient/Makefile \
+libmissioncontrol.pc \
+libmissioncontrol/Makefile \
+m4/Makefile \
+mission-control.pc \
+server/Makefile \
+src/Makefile \
+test/Makefile \
+tools/Makefile \
 util/Makefile \
+xml/Makefile \
 ])

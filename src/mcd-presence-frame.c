@@ -247,7 +247,7 @@ mcd_presence_frame_class_init (McdPresenceFrameClass * klass)
 		      G_STRUCT_OFFSET (McdPresenceFrameClass,
 				       presence_requested_signal),
 		      NULL, NULL,
-		      mcd_marshal_VOID__INT_STRING,
+		      _mcd_marshal_VOID__INT_STRING,
 		      G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_STRING);
     mcd_presence_frame_signals[PRESENCE_CHANGED] =
 	g_signal_new ("presence-changed",
@@ -256,7 +256,7 @@ mcd_presence_frame_class_init (McdPresenceFrameClass * klass)
 		      G_STRUCT_OFFSET (McdPresenceFrameClass,
 				       presence_set_signal),
 		      NULL, NULL,
-		      mcd_marshal_VOID__OBJECT_INT_STRING,
+		      _mcd_marshal_VOID__OBJECT_INT_STRING,
 		      G_TYPE_NONE, 3, MCD_TYPE_ACCOUNT, G_TYPE_INT, G_TYPE_STRING);
     mcd_presence_frame_signals[STATUS_CHANGED] =
 	g_signal_new ("status-changed",
@@ -265,7 +265,7 @@ mcd_presence_frame_class_init (McdPresenceFrameClass * klass)
 		      G_STRUCT_OFFSET (McdPresenceFrameClass,
 				       status_changed_signal),
 		      NULL, NULL,
-		      mcd_marshal_VOID__OBJECT_INT_INT,
+		      _mcd_marshal_VOID__OBJECT_INT_INT,
 		      G_TYPE_NONE, 3, MCD_TYPE_ACCOUNT, G_TYPE_INT, G_TYPE_INT);
     mcd_presence_frame_signals[PRESENCE_ACTUAL] =
 	g_signal_new ("presence-actual",
@@ -274,7 +274,7 @@ mcd_presence_frame_class_init (McdPresenceFrameClass * klass)
 		      G_STRUCT_OFFSET (McdPresenceFrameClass,
 				       presence_actual_signal),
 		      NULL, NULL,
-		      mcd_marshal_VOID__INT_STRING,
+		      _mcd_marshal_VOID__INT_STRING,
 		      G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_STRING);
     mcd_presence_frame_signals[STATUS_ACTUAL] =
 	g_signal_new ("status-actual",
@@ -282,7 +282,7 @@ mcd_presence_frame_class_init (McdPresenceFrameClass * klass)
 		      G_SIGNAL_RUN_FIRST,
 		      0,
 		      NULL, NULL,
-		      mcd_marshal_VOID__INT,
+		      g_cclosure_marshal_VOID__INT,
 		      G_TYPE_NONE, 1, G_TYPE_INT);
 }
 

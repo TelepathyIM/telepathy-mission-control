@@ -49,7 +49,7 @@ store_condition (gpointer key, gpointer value, gpointer userdata)
 
     keyfile = mcd_account_get_keyfile (account);
     unique_name = mcd_account_get_unique_name (account);
-    snprintf (condition_key, sizeof (condition_key), "condition-%s", name);
+    g_snprintf (condition_key, sizeof (condition_key), "condition-%s", name);
     g_key_file_set_string (keyfile, unique_name, condition_key, condition);
 }
 

@@ -221,7 +221,7 @@ _mcd_connection_free_presence_info (McdConnection * conn)
     if (priv->recognized_presence_info_array != NULL)
     {
 	struct presence_info *pi;
-	gint i;
+	guint i;
 
 	for (i = 0; i < priv->recognized_presence_info_array->len; i++)
 	{
@@ -327,7 +327,7 @@ enable_well_known_presences (McdConnectionPrivate *priv)
     {
 	if (priv->presence_to_set[mapping->mc_presence - 1] == NULL)
 	{
-	    gint i;
+	    guint i;
 	    /* see if this presence is supported by the connection */
 	    for (i = 0; i < priv->recognized_presence_info_array->len; i++)
 	    {
@@ -635,7 +635,7 @@ on_capabilities_changed (TpConnection *proxy, const GPtrArray *caps,
     gchar *chan_type;
     guint chan_handle, chan_handle_type;
     TpProxyPendingCall *call;
-    gint i;
+    guint i;
 
     g_debug ("%s: got capabilities for channel %p handle %d, type %s",
 	     G_STRFUNC, channel, mcd_channel_get_handle (channel), mcd_channel_get_channel_type (channel));
@@ -755,10 +755,10 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
     GPtrArray *capabilities;
-    const gchar *remove = NULL;
+    const gchar *removed = NULL;
     const gchar *protocol_name;
     GType type;
-    gint i;
+    guint i;
 
     if (!priv->has_capabilities_if)
     {
@@ -772,7 +772,7 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
     g_debug ("%s: advertising capabilities", G_STRFUNC);
     tp_cli_connection_interface_capabilities_call_advertise_capabilities (priv->tp_conn, -1,
 									  capabilities,
-									  &remove,
+									  &removed,
 									  capabilities_advertise_cb,
 									  priv, NULL,
 									  (GObject *) connection);
@@ -1074,7 +1074,7 @@ on_aliases_changed (TpConnection *proxy, const GPtrArray *aliases,
     GType type;
     gchar *alias;
     guint contact;
-    gint i;
+    guint i;
 
     g_debug ("%s called", G_STRFUNC);
     type = dbus_g_type_get_struct ("GValueArray", G_TYPE_UINT, G_TYPE_STRING,

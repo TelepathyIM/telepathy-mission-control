@@ -111,7 +111,7 @@ gc_dup_string (const GConfValue *value)
 }
 
 static const gchar**
-_mc_manager_get_dirs ()
+_mc_manager_get_dirs (void)
 {
     GSList *dir_list = NULL, *slist;
     const gchar *dirname;
@@ -182,7 +182,7 @@ _mc_manager_filename (const gchar *unique_name)
 }
 
 static const gchar**
-_mc_profile_get_dirs ()
+_mc_profile_get_dirs (void)
 {
     GSList *dir_list = NULL, *slist;
     const gchar *dirname;
@@ -257,7 +257,7 @@ account_key (const gchar *account, const gchar *key)
 {
     static gchar buffer[2048];
 
-    snprintf (buffer, sizeof (buffer), "%s/%s/%s", MC_ACCOUNTS_GCONF_BASE, account, key);
+    g_snprintf (buffer, sizeof (buffer), "%s/%s/%s", MC_ACCOUNTS_GCONF_BASE, account, key);
     return buffer;
 }
 
@@ -301,7 +301,7 @@ read_gconf_data (AccountInfo *ai, const gchar *unique_name)
     ParamValue pv;
     gint len;
 
-    len = snprintf (dir, sizeof (dir), "%s/%s", MC_ACCOUNTS_GCONF_BASE, unique_name);
+    len = g_snprintf (dir, sizeof (dir), "%s/%s", MC_ACCOUNTS_GCONF_BASE, unique_name);
     len++;
     entries = gconf_client_all_entries (client, dir, NULL);
     for (list = entries; list != NULL; list = list->next)
@@ -366,11 +366,11 @@ read_gconf_data (AccountInfo *ai, const gchar *unique_name)
     {
 	GError *error = NULL;
 	gchar *data;
-	gsize len;
-	if (g_file_get_contents (avatar_filename, &data, &len, &error))
+	gsize avatar_len;
+	if (g_file_get_contents (avatar_filename, &data, &avatar_len, &error))
 	{
 	    ai->avatar.data = (gchar *)data;
-	    ai->avatar.len = len;
+	    ai->avatar.len = avatar_len;
 	}
 	else
 	{
@@ -392,7 +392,7 @@ parse_profile_param (AccountInfo *ai, GKeyFile *profile, const gchar *key)
 
     /* read the parameter signature from the manager file */
     /* key + 8, to skip the "Default-" */
-    snprintf (param_str, sizeof (param_str), "param-%s", key + 8);
+    g_snprintf (param_str, sizeof (param_str), "param-%s", key + 8);
     param_info = g_key_file_get_string (ai->manager_cfg, ai->protocol_grp, param_str, NULL);
     if (!param_info) return FALSE;
     signature = param_info[0];
@@ -557,6 +557,8 @@ create_account_cb (TpProxy *proxy, const gchar *obj_path, const GError *error,
 
     if (ai->avatar.data && ai->avatar_mime)
     {
+	GValueArray *va;
+
 	type = dbus_g_type_get_struct ("GValueArray",
 				       dbus_g_type_get_collection ("GArray",
 								   G_TYPE_UCHAR),
@@ -564,7 +566,7 @@ create_account_cb (TpProxy *proxy, const gchar *obj_path, const GError *error,
 				       G_TYPE_INVALID);
 	g_value_init (&value, type);
 	g_value_take_boxed (&value, dbus_g_type_specialized_construct (type));
-	GValueArray *va = (GValueArray *) g_value_get_boxed (&value);
+	va = (GValueArray *) g_value_get_boxed (&value);
 	g_value_set_static_boxed (va->values, &ai->avatar);
 	g_value_set_static_string (va->values + 1, ai->avatar_mime);
 	ok = set_account_prop (account,
@@ -718,7 +720,8 @@ convert_accounts (McAccountManager *am)
     return FALSE;
 }
 
-int main ()
+int
+main (int argc, char **argv)
 {
     McAccountManager *am;
     DBusGConnection *dbus_conn;

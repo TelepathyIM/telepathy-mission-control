@@ -354,7 +354,7 @@ _mc_profile_load (McProfile *profile)
 	g_free (caps);
     }
 
-    // fill in the defaul settings hash
+    /* fill in the defaul settings hash */
     priv->default_settings = g_hash_table_new_full (g_str_hash, g_str_equal,
 						    (GDestroyNotify) g_free,
 						    (GDestroyNotify) g_free);
@@ -372,7 +372,7 @@ _mc_profile_load (McProfile *profile)
     }
     g_strfreev (keys);
 
-    // fill in the vcard mangling hashtable
+    /* fill in the vcard mangling hashtable */
     priv->vcard_mangle_hash = g_hash_table_new_full (
 						     g_str_hash, g_str_equal, (GDestroyNotify) g_free, (GDestroyNotify) g_free);
 
@@ -386,7 +386,6 @@ _mc_profile_load (McProfile *profile)
 	    k = g_strdup (key + 7);
 	    v = g_key_file_get_string (keyfile, PROFILE_GROUP, key, NULL);
 	    g_hash_table_insert (MC_PROFILE_PRIV (profile)->vcard_mangle_hash, k, v);
-	    //g_debug("inserted mangle: %s -> %s", k, v);
 	}
     }
     g_strfreev (keys);

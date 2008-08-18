@@ -21,15 +21,18 @@
  *
  */
 
+#include "config.h"
+#undef MC_DISABLE_DEPRECATED
+#include "mc-profile.h"
+#define MC_DISABLE_DEPRECATED
+
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <libintl.h>
 
-#include "mc-profile.h"
 #include "mc-enum-types.h"
-#include <config.h>
 
 #define PROFILE_SUFFIX ".profile"
 #define PROFILE_SUFFIX_LEN 8
@@ -176,7 +179,7 @@ OUT:
 }
 
 static const gchar**
-_mc_profile_get_dirs ()
+_mc_profile_get_dirs (void)
 {
     GSList *dir_list = NULL, *slist;
     const gchar *dirname;
@@ -258,7 +261,7 @@ _mc_profile_load (McProfile *profile)
   gchar **presences_str;
   GEnumClass *presences_class;
   gsize length;
-  gint i;
+  guint i;
 
   priv = MC_PROFILE_PRIV (profile);
 
@@ -338,7 +341,7 @@ _mc_profile_load (McProfile *profile)
       g_free (caps);
   }
 
-  // fill in the defaul settings hash
+  /* fill in the defaul settings hash */
   priv->default_settings = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                   (GDestroyNotify) g_free,
                                                   (GDestroyNotify) g_free);
@@ -356,7 +359,7 @@ _mc_profile_load (McProfile *profile)
     }
   g_strfreev (keys);
 
-  // fill in the vcard mangling hashtable
+  /* fill in the vcard mangling hashtable */
   priv->vcard_mangle_hash = g_hash_table_new_full (
           g_str_hash, g_str_equal, (GDestroyNotify) g_free, (GDestroyNotify) g_free);
 
@@ -370,7 +373,7 @@ _mc_profile_load (McProfile *profile)
           k = g_strdup (key + 7);
           v = g_key_file_get_string (keyfile, PROFILE_GROUP, key, NULL);
           g_hash_table_insert (MC_PROFILE_PRIV (profile)->vcard_mangle_hash, k, v);
-          //g_debug("inserted mangle: %s -> %s", k, v);
+          /* g_debug("inserted mangle: %s -> %s", k, v); */
         }
     }
   g_strfreev (keys);

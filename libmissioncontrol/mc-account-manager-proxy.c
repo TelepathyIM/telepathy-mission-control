@@ -22,9 +22,13 @@
 #include <telepathy-glib/proxy-subclass.h>
 #include <telepathy-glib/errors.h>
 #include "_gen/interfaces.h"
-#include "_gen/cli-Account_Manager-body.h"
 #include "_gen/signals-marshal.h"
+
+/* auto-generated stub code */
+
+static void _mc_ext_register_dbus_glib_marshallers (void);
 #include "_gen/register-dbus-glib-marshallers-body.h"
+#include "_gen/cli-Account_Manager-body.h"
 
 struct _McAccountManagerProxyClass {
     TpProxyClass parent_class;

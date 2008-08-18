@@ -33,9 +33,9 @@ G_BEGIN_DECLS
 #define g_object_ref(obj)    (mcd_debug_ref (obj, __FILE__, __LINE__))
 #define g_object_unref(obj)  (mcd_debug_unref (obj, __FILE__, __LINE__))
 
-void mcd_debug_init ();
+void mcd_debug_init (void);
 
-inline gint mcd_debug_get_level ();
+inline gint mcd_debug_get_level (void);
 
 void mcd_debug_ref (gpointer obj, const gchar *filename, gint linenum);
 void mcd_debug_unref (gpointer obj, const gchar *filename, gint linenum);

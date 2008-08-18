@@ -57,7 +57,7 @@ _mcd_channel_handler_packer(GHashTable *handlers, gchar **string_list,
 			    gchar *object_path, const gchar *cm_protocol,
 			    gint handler_version)
 {
-    gint i;
+    gsize i;
     McdChannelHandler *handler;
     GHashTable *channel_handler;
 

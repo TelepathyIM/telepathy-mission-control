@@ -85,11 +85,6 @@ const McdDBusProp account_manager_query_properties[] = {
     { 0 },
 };
 
-const McdDBusProp *
-_mcd_account_manager_query_get_properties (void)
-{
-    return account_manager_query_properties;
-}
 
 static gboolean
 match_account_parameter (McdAccount *account, const gchar *name,
@@ -198,7 +193,7 @@ find_accounts (gpointer key, gpointer value, gpointer userdata)
     McdFindData *fd = userdata;
     TpConnectionPresenceType presence;
     const gchar *object_path, *string, *status, *message;
-    gint i;
+    guint i;
 
     g_debug ("%s: %s", G_STRFUNC, (gchar *)key);
     if (fd->manager)

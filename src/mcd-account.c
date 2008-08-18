@@ -22,17 +22,19 @@
  *
  */
 
+#include "config.h"
+#include "mcd-account.h"
+
 #include <stdio.h>
 #include <string.h>
-#include <glib/gstdio.h>
-#include <glib/gi18n.h>
-#include <config.h>
 
 #include <dbus/dbus.h>
+#include <glib/gi18n.h>
+#include <glib/gstdio.h>
+#include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
-#include <telepathy-glib/gtypes.h>
-#include "mcd-account.h"
+
 #include "mcd-account-priv.h"
 #include "mcd-account-compat.h"
 #include "mcd-account-conditions.h"
@@ -540,6 +542,7 @@ get_avatar (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     gchar *mime_type;
     GArray *avatar = NULL;
     GType type;
+    GValueArray *va;
 
     g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
 
@@ -552,7 +555,7 @@ get_avatar (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 				   G_TYPE_INVALID);
     g_value_init (value, type);
     g_value_take_boxed (value, dbus_g_type_specialized_construct (type));
-    GValueArray *va = (GValueArray *) g_value_get_boxed (value);
+    va = (GValueArray *) g_value_get_boxed (value);
     g_value_take_boxed (va->values, avatar);
     g_value_take_string (va->values + 1, mime_type);
 }
@@ -655,6 +658,7 @@ get_automatic_presence (TpSvcDBusProperties *self,
     gchar *presence, *message;
     gint presence_type;
     GType type;
+    GValueArray *va;
 
     g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
 
@@ -665,7 +669,7 @@ get_automatic_presence (TpSvcDBusProperties *self,
     type = MC_STRUCT_TYPE_ACCOUNT_PRESENCE;
     g_value_init (value, type);
     g_value_take_boxed (value, dbus_g_type_specialized_construct (type));
-    GValueArray *va = (GValueArray *) g_value_get_boxed (value);
+    va = (GValueArray *) g_value_get_boxed (value);
     g_value_set_uint (va->values, presence_type);
     g_value_set_static_string (va->values + 1, presence);
     g_value_set_static_string (va->values + 2, message);
@@ -765,6 +769,7 @@ get_current_presence (TpSvcDBusProperties *self, const gchar *name,
     gchar *status, *message;
     gint presence_type;
     GType type;
+    GValueArray *va;
 
     g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
 
@@ -775,7 +780,7 @@ get_current_presence (TpSvcDBusProperties *self, const gchar *name,
     type = MC_STRUCT_TYPE_ACCOUNT_PRESENCE;
     g_value_init (value, type);
     g_value_take_boxed (value, dbus_g_type_specialized_construct (type));
-    GValueArray *va = (GValueArray *) g_value_get_boxed (value);
+    va = (GValueArray *) g_value_get_boxed (value);
     g_value_set_uint (va->values, presence_type);
     g_value_set_static_string (va->values + 1, status);
     g_value_set_static_string (va->values + 2, message);
@@ -813,6 +818,7 @@ get_requested_presence (TpSvcDBusProperties *self,
     gchar *presence, *message;
     gint presence_type;
     GType type;
+    GValueArray *va;
 
     g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
 
@@ -823,7 +829,7 @@ get_requested_presence (TpSvcDBusProperties *self,
     type = MC_STRUCT_TYPE_ACCOUNT_PRESENCE;
     g_value_init (value, type);
     g_value_take_boxed (value, dbus_g_type_specialized_construct (type));
-    GValueArray *va = (GValueArray *) g_value_get_boxed (value);
+    va = (GValueArray *) g_value_get_boxed (value);
     g_value_set_uint (va->values, presence_type);
     g_value_set_static_string (va->values + 1, presence);
     g_value_set_static_string (va->values + 2, message);
@@ -908,7 +914,7 @@ has_param (McdAccountPrivate *priv, const gchar *name)
 {
     gchar key[MAX_KEY_LENGTH];
 
-    snprintf (key, sizeof (key), "param-%s", name);
+    g_snprintf (key, sizeof (key), "param-%s", name);
     return g_key_file_has_key (priv->keyfile, priv->unique_name, key, NULL);
 }
 
@@ -972,7 +978,7 @@ mcd_account_check_parameters (McdAccount *account)
     McdAccountPrivate *priv = account->priv;
     const GArray *parameters;
     gboolean valid;
-    gint i;
+    guint i;
 
     g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
     parameters = mcd_manager_get_parameters (priv->manager,
@@ -1008,7 +1014,8 @@ set_parameter (gpointer ht_key, gpointer ht_value, gpointer userdata)
     const GValue *value = ht_value;
     gchar key[MAX_KEY_LENGTH];
 
-    snprintf (key, sizeof (key), "param-%s", name);
+    g_snprintf (key, sizeof (key), "param-%s", name);
+
     switch (G_VALUE_TYPE (value))
     {
     case G_TYPE_STRING:
@@ -1090,7 +1097,7 @@ mcd_account_unset_parameters (McdAccount *account, const gchar **params)
 
     for (param = params; *param != NULL; param++)
     {
-	snprintf (key, sizeof (key), "param-%s", *param);
+	g_snprintf (key, sizeof (key), "param-%s", *param);
 	g_key_file_remove_key (priv->keyfile, priv->unique_name,
 			       key, NULL);
 	g_debug ("unset param %s", *param);
@@ -1383,7 +1390,7 @@ mcd_account_class_init (McdAccountClass * klass)
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		      0,
-		      NULL, NULL, mcd_marshal_VOID__UINT_UINT,
+		      NULL, NULL, _mcd_marshal_VOID__UINT_UINT,
 		      G_TYPE_NONE,
 		      2, G_TYPE_UINT, G_TYPE_UINT);
     _mcd_account_signals[CURRENT_PRESENCE_CHANGED] =
@@ -1391,7 +1398,7 @@ mcd_account_class_init (McdAccountClass * klass)
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		      0,
-		      NULL, NULL, mcd_marshal_VOID__UINT_STRING_STRING,
+		      NULL, NULL, _mcd_marshal_VOID__UINT_STRING_STRING,
 		      G_TYPE_NONE,
 		      3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING);
     _mcd_account_signals[REQUESTED_PRESENCE_CHANGED] =
@@ -1399,7 +1406,7 @@ mcd_account_class_init (McdAccountClass * klass)
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		      0,
-		      NULL, NULL, mcd_marshal_VOID__UINT_STRING_STRING,
+		      NULL, NULL, _mcd_marshal_VOID__UINT_STRING_STRING,
 		      G_TYPE_NONE,
 		      3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING);
     _mcd_account_signals[VALIDITY_CHANGED] =
@@ -1407,7 +1414,7 @@ mcd_account_class_init (McdAccountClass * klass)
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		      0,
-		      NULL, NULL, mcd_marshal_VOID__BOOLEAN,
+		      NULL, NULL, g_cclosure_marshal_VOID__BOOLEAN,
 		      G_TYPE_NONE, 1,
 		      G_TYPE_BOOLEAN);
     _mcd_account_signals[AVATAR_CHANGED] =
@@ -1415,7 +1422,7 @@ mcd_account_class_init (McdAccountClass * klass)
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		      0,
-		      NULL, NULL, mcd_marshal_VOID__BOXED_STRING,
+		      NULL, NULL, _mcd_marshal_VOID__BOXED_STRING,
 		      G_TYPE_NONE, 2,
 		      dbus_g_type_get_collection ("GArray", G_TYPE_UCHAR),
 		      G_TYPE_STRING);
@@ -1525,7 +1532,7 @@ add_parameter (McdAccountPrivate *priv, McdProtocolParam *param,
     g_return_if_fail (param->name != NULL);
     g_return_if_fail (param->signature != NULL);
 
-    snprintf (key, sizeof (key), "param-%s", param->name);
+    g_snprintf (key, sizeof (key), "param-%s", param->name);
 
     switch (param->signature[0])
     {
@@ -1595,7 +1602,7 @@ mcd_account_get_parameters (McdAccount *account)
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     GHashTable *params;
     const GArray *parameters;
-    gint i;
+    guint i;
 
     g_debug ("%s called", G_STRFUNC);
     if (!priv->manager && !load_manager (priv)) return NULL;
@@ -1633,11 +1640,12 @@ mcd_account_request_presence (McdAccount *account,
     {
 	GValue value = { 0 };
 	GType type;
+        GValueArray *va;
 
 	type = MC_STRUCT_TYPE_ACCOUNT_PRESENCE;
 	g_value_init (&value, type);
 	g_value_take_boxed (&value, dbus_g_type_specialized_construct (type));
-	GValueArray *va = (GValueArray *) g_value_get_boxed (&value);
+	va = (GValueArray *) g_value_get_boxed (&value);
 	g_value_set_uint (va->values, presence);
 	g_value_set_static_string (va->values + 1, status);
 	g_value_set_static_string (va->values + 2, message);
@@ -1664,7 +1672,7 @@ mcd_account_set_current_presence (McdAccount *account,
     gboolean changed = FALSE;
     GValue value = { 0 };
     GType type;
-
+    GValueArray *va;
 
     if (priv->curr_presence_type != presence)
     {
@@ -1689,7 +1697,7 @@ mcd_account_set_current_presence (McdAccount *account,
     type = MC_STRUCT_TYPE_ACCOUNT_PRESENCE;
     g_value_init (&value, type);
     g_value_take_boxed (&value, dbus_g_type_specialized_construct (type));
-    GValueArray *va = (GValueArray *) g_value_get_boxed (&value);
+    va = (GValueArray *) g_value_get_boxed (&value);
     g_value_set_uint (va->values, presence);
     g_value_set_static_string (va->values + 1, status);
     g_value_set_static_string (va->values + 2, message);

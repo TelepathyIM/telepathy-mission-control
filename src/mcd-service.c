@@ -484,7 +484,7 @@ mcd_service_register_filter(GObject *obj,
 
     if (!initialized)
     {
-        dbus_g_object_register_marshaller (mcd_marshal_VOID__UINT_BOOLEAN,
+        dbus_g_object_register_marshaller (_mcd_marshal_VOID__UINT_BOOLEAN,
 					   G_TYPE_NONE,
 					   G_TYPE_UINT,
 					   G_TYPE_BOOLEAN,
@@ -891,7 +891,7 @@ mcd_service_class_init (McdServiceClass * self)
 		      G_OBJECT_CLASS_TYPE (self),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		      0,
-		      NULL, NULL, mcd_marshal_VOID__UINT_UINT_UINT_STRING,
+		      NULL, NULL, _mcd_marshal_VOID__UINT_UINT_UINT_STRING,
 		      G_TYPE_NONE, 4, G_TYPE_UINT, G_TYPE_UINT,
 		      G_TYPE_UINT, G_TYPE_STRING);
 #ifndef NO_NEW_PRESENCE_SIGNALS
@@ -901,7 +901,7 @@ mcd_service_class_init (McdServiceClass * self)
 		      G_OBJECT_CLASS_TYPE (self),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		      0,
-		      NULL, NULL, mcd_marshal_VOID__UINT_UINT_UINT_STRING,
+		      NULL, NULL, _mcd_marshal_VOID__UINT_UINT_UINT_STRING,
 		      G_TYPE_NONE, 5, G_TYPE_UINT, G_TYPE_UINT,
 		      G_TYPE_STRING, G_TYPE_UINT, G_TYPE_STRING);
 #endif
@@ -911,14 +911,14 @@ mcd_service_class_init (McdServiceClass * self)
 		      G_OBJECT_CLASS_TYPE (self),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		      0,
-		      NULL, NULL, mcd_marshal_VOID__UINT_STRING_UINT, G_TYPE_NONE,
+		      NULL, NULL, _mcd_marshal_VOID__UINT_STRING_UINT, G_TYPE_NONE,
 		      3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_UINT);
     /* PresenceStatusRequested signal */
     g_signal_new ("presence-status-requested",
 		  G_OBJECT_CLASS_TYPE (self),
 		  G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		  0,
-		  NULL, NULL, mcd_marshal_VOID__UINT,
+		  NULL, NULL, g_cclosure_marshal_VOID__UINT,
 		  G_TYPE_NONE, 1, G_TYPE_UINT);
 #ifndef NO_NEW_PRESENCE_SIGNALS
     /* PresenceRequested signal */
@@ -926,7 +926,7 @@ mcd_service_class_init (McdServiceClass * self)
 		  G_OBJECT_CLASS_TYPE (self),
 		  G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		  0,
-		  NULL, NULL, mcd_marshal_VOID__UINT,
+		  NULL, NULL, _mcd_marshal_VOID__UINT_STRING,
 		  G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_STRING);
 #endif
     /* PresenceStatusActual signal */
@@ -934,7 +934,7 @@ mcd_service_class_init (McdServiceClass * self)
 		  G_OBJECT_CLASS_TYPE (self),
 		  G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		  0,
-		  NULL, NULL, mcd_marshal_VOID__UINT,
+		  NULL, NULL, g_cclosure_marshal_VOID__UINT,
 		  G_TYPE_NONE, 1, G_TYPE_UINT);
 #ifndef NO_NEW_PRESENCE_SIGNALS
     /* PresenceChanged signal */
@@ -942,7 +942,7 @@ mcd_service_class_init (McdServiceClass * self)
 		  G_OBJECT_CLASS_TYPE (self),
 		  G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		  0,
-		  NULL, NULL, mcd_marshal_VOID__UINT,
+		  NULL, NULL, _mcd_marshal_VOID__UINT_STRING,
 		  G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_STRING);
 #endif
     /* UsedChannelsCountChanged signal */
@@ -951,7 +951,7 @@ mcd_service_class_init (McdServiceClass * self)
 		      G_OBJECT_CLASS_TYPE (self),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		      0,
-		      NULL, NULL, mcd_marshal_VOID__STRING_UINT,
+		      NULL, NULL, _mcd_marshal_VOID__STRING_UINT,
 		      G_TYPE_NONE, 2, G_TYPE_STRING, G_TYPE_UINT);
     /* StatusActual signal */
     signals[STATUS_ACTUAL] =
@@ -959,7 +959,7 @@ mcd_service_class_init (McdServiceClass * self)
 		      G_OBJECT_CLASS_TYPE (self),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		      0,
-		      NULL, NULL, mcd_marshal_VOID__UINT_UINT,
+		      NULL, NULL, _mcd_marshal_VOID__UINT_UINT,
 		      G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_UINT);
     
     dbus_g_object_type_install_info (G_TYPE_FROM_CLASS (self),
@@ -978,17 +978,5 @@ void
 mcd_service_run (McdService * self)
 {
     g_main_loop_run (self->main_loop);
-}
-
-/* FIXME: This is defined twice. The other definition is in
- * libmissioncontrol/mission-control.c
- */
-GQuark
-mission_control_error_quark (void)
-{
-    static GQuark quark = 0;
-    if (quark == 0)
-	quark = g_quark_from_static_string ("mission-control-quark");
-    return quark;
 }
 

@@ -57,7 +57,8 @@ static void mc_callback (MissionControl *mc, GError *error, gpointer data)
 	g_debug ("%s: data is %p", G_STRFUNC, data);
 }
 
-int main ()
+int
+main (int argc, char **argv)
 {
     MissionControl *mc;
     DBusGConnection *dbus_conn = NULL;

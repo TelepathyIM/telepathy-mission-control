@@ -21,6 +21,11 @@
  *
  */
 
+#include "config.h"
+#undef MC_DISABLE_DEPRECATED
+#include "mc-account.h"
+#define MC_DISABLE_DEPRECATED
+
 #define DBUS_API_SUBJECT_TO_CHANGE
 
 #include <dbus/dbus.h>
@@ -32,14 +37,11 @@
 #include <stdio.h>
 #include <glib/gstdio.h>
 
-#include "mc-account.h"
 #include "mc-account-proxy.h"
 #include "mc-account-priv.h"
 #include "mc-account-monitor.h"
 #include "mc-account-monitor-priv.h"
-#include "mc-profile.h"
 #include "mc.h"
-#include <config.h>
 
 #define MC_ACCOUNTS_MAX 1024
 #define MC_AVATAR_FILENAME	"avatar.bin"
@@ -141,13 +143,13 @@ static void
 on_account_property_changed (TpProxy *proxy, GHashTable *properties,
 			     gpointer user_data, GObject *weak_object)
 {
-    //McAccount *account = MC_ACCOUNT (weak_object);
     McAccountPrivate *priv = user_data;
     const GValue *value;
+    McAccountMonitor *monitor;
 
     g_hash_table_foreach (properties, print_prop, NULL);
 
-    McAccountMonitor *monitor = mc_account_monitor_new ();
+    monitor = mc_account_monitor_new ();
 
     value = g_hash_table_lookup (properties, MC_ACCOUNTS_GCONF_KEY_VALID);
     if (value)
@@ -196,11 +198,12 @@ on_account_avatar_changed (TpProxy *proxy, gpointer user_data,
 			   GObject *weak_object)
 {
     McAccountPrivate *priv = user_data;
+    McAccountMonitor *monitor;
 
     g_debug ("%s called", G_STRFUNC);
     priv->avatar_id = time(0);
     /* emit the account-changed signal */
-    McAccountMonitor *monitor = mc_account_monitor_new ();
+    monitor = mc_account_monitor_new ();
     g_signal_emit_by_name (monitor, "account-changed", priv->unique_name);
     g_object_unref (monitor);
 }
@@ -374,7 +377,7 @@ mc_account_lookup (const gchar *unique_name)
   return ret;
 }
 
-gboolean
+static gboolean
 _filter_account (McAccount *acct, gpointer data)
 {
   const gchar *compare_account, *normalized_name;
@@ -407,7 +410,7 @@ _filter_account (McAccount *acct, gpointer data)
   return ret;
 }
 
-McAccount *
+static McAccount *
 _free_all_but_one (GList *list)
 {
   McAccount *ret = NULL;
@@ -1838,6 +1841,7 @@ mc_account_set_avatar_from_data (McAccount *account, const gchar *data,
     GError *error = NULL;
     GArray avatar;
     GType type;
+    GValueArray *va;
 
     avatar.data = (gchar *)data;
     avatar.len = len;
@@ -1848,7 +1852,7 @@ mc_account_set_avatar_from_data (McAccount *account, const gchar *data,
 				   G_TYPE_INVALID);
     g_value_init (&value, type);
     g_value_set_static_boxed (&value, dbus_g_type_specialized_construct (type));
-    GValueArray *va = (GValueArray *) g_value_get_boxed (&value);
+    va = (GValueArray *) g_value_get_boxed (&value);
     g_value_take_boxed (va->values, &avatar);
     g_value_set_static_string (va->values + 1, mime_type);
     mc_cli_dbus_properties_do_set (priv->proxy, -1,
@@ -1942,10 +1946,13 @@ mc_account_get_avatar (McAccount *account, gchar **filename,
 
     if (mime_type)
     {
+	GValueArray *va;
+
 	mc_cli_dbus_properties_do_get (priv->proxy, -1,
 				       MC_IFACE_ACCOUNT,
 				       MC_ACCOUNTS_GCONF_KEY_AVATAR,
 				       &val_avatar, &error);
+
 	if (error)
 	{
 	    g_warning ("%s: getting avatar for %s failed: %s",
@@ -1953,7 +1960,8 @@ mc_account_get_avatar (McAccount *account, gchar **filename,
 	    g_error_free (error);
 	    return FALSE;
 	}
-	GValueArray *va = (GValueArray *) g_value_get_boxed (val_avatar);
+
+	va = (GValueArray *) g_value_get_boxed (val_avatar);
 	*mime_type = g_value_dup_string (va->values + 1);
 	g_value_unset (val_avatar);
 	g_free (val_avatar);

@@ -1,3 +1,117 @@
+2008-08-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-service.c:
+	Remove mission_control_error_quark(), and wonder why it was there.
+
+	* configure.ac:
+	Remove -Wextra, it breaks the build unless some -Wno-* are options are
+	available too.
+
+	* libmissioncontrol/test.c:
+	Remove unused functions.
+
+2008-08-13  Simon McVittie  <simon.mcvittie@collabora.co.uk>
+
+	* autogen.sh, configure.ac, debian/control, debian/rules:
+	Use and require automake 1.9 and tar-ustar, to make distributable
+	tarballs without missing files (mostly copied from telepathy-glib)
+
+	* various:
+	Add some more svn:ignore patterns
+
+	* autogen.sh: Enable gtk-doc by default
+
+	* src/Makefile.am:
+	Avoid exporting internal symbols
+
+	* libmcclient/Makefile.am, libmissioncontrol/Makefile.am,
+	src/Makefile.am:
+	Quote libtool c:r:a arguments so they don't look like errors to vim
+
+	* Makefile.am, configure.ac, m4/Makefile.am (added),
+	m4/as-compiler-flag.m4 (added, copied from autostars via
+	telepathy-glib):
+	Enable more warnings (the recommended warnings from telepathy-glib)
+	and make them actually take effect
+
+	* various:
+	Fix declarations with unspecified arguments (foo ()) so they correctly
+	have no arguments (foo (void))
+
+	* various:
+	Make functions static if they are internal to a translation unit
+
+	* src/Makefile.am, libmissioncontrol/Makefile.am,
+	libmcclient/Makefile.am:
+	Give generated marshallers proper definitions
+
+	* src/mcd-account-conditions.c, util/mc-account-convert.c:
+	Use g_snprintf (snprintf is C99 and so requires a feature-test macro)
+
+	* various:
+	Use guint rather than gint when iterating over a GArray, GPtrArray,
+	etc. (fixing signed/unsigned comparison warnings)
+
+	* src/mcd-manager.c:
+	Order #includes according to Telepathy coding style
+
+	* src/mcd-account-manager-query.c:
+	Remove unused internal code
+
+	* src/mcd-manager.c:
+	Use feature test macro _POSIX_C_SOURCE to declare that we expect a
+	POSIX environment, so we can use strtok_r
+
+	* various:
+	Stop using C99/C++-style local variable declarations
+
+	* util/mc-account-convert.c, libmissioncontrol/mc-protocol.c:
+	Don't shadow a local variable with a more narrowly scoped local of the
+	same name
+
+	* examples/mc-example.c, test/mc-client.c, configure.ac,
+	examples/Makefile.am, test/Makefile.am:
+	Build (but do not install) example and test by default, and fix them
+	so they actually compile
+
+	* test/Makefile.am:
+	Fix out-of-tree builds
+
+	* src/Makefile.am, src/mcd-*.c:
+	Rename signals marshallers to _mcd_* so they're not in the library
+	ABI, and use g_cclosure_* where possible rather than duplicating them
+
+	* src/mcd-service.c:
+	Fix the marshaller for McdService::presence-requested to match the
+	signal's arguments
+
+	* configure.ac, src/Makefile.am, libmissioncontrol/Makefile.am:
+	Check for GModule, and explicitly depend on it in the libraries that
+	use it
+
+	* libmcclient/Makefile.am:
+	Don't add a useless dependency on gconf
+
+	* libmcclient.pc.in, libmissioncontrol.pc.in:
+	Remove dependencies' CFLAGS and LIBS from the Libs, Cflags lines -
+	the Requires line will already provide those - and add
+	Requires.private for various missing dependencies
+
+	* various:
+	Avoid warnings when implementing deprecated functions
+
+	* various:
+	Remove all C++-style // comments, they don't work in -ansi mode
+
+	* libmissioncontrol/mc-account-manager-proxy.c:
+	Fix inclusion of generated implementations
+
+	* libmcclient/Makefile.am, libmissioncontrol/Makefile.am,
+	src/Makefile.am, configure.ac:
+	Use gmodule-no-export-2.0 and remove -export-dynamic from libraries'
+	linker flags - libraries export selected dynamic symbols anyway, and
+	-export-dynamic exports *all* symbols, defeating -export-symbols-regex
+
 === telepathy-mission-control 5.0.beta25 ===
 
 2008-07-28  Alberto Mardegan  <alberto.mardegan@nokia.com>

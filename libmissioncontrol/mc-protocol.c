@@ -21,6 +21,11 @@
  *
  */
 
+#include "config.h"
+#undef MC_DISABLE_DEPRECATED
+#include "mc-protocol.h"
+#define MC_DISABLE_DEPRECATED
+
 #define DBUS_API_SUBJECT_TO_CHANGE 1
 
 #include <dbus/dbus.h>
@@ -30,7 +35,6 @@
 #include "mc-manager.h"
 #include "mc-manager-priv.h"
 
-#include "mc-protocol.h"
 #include "mc-protocol-priv.h"
 
 #define MC_PROTOCOL_PRIV(protocol) ((McProtocolPrivate *)protocol->priv)
@@ -304,23 +308,23 @@ _mc_protocol_from_keyfile (GKeyFile *keyfile, const gchar *manager_name,
   for (i = keys; NULL != *i; i++)
     {
       McProtocolParam *param;
-      const gchar *name = *i;
-      gchar *value = g_key_file_get_string (keyfile, group_name, *i, NULL);
+      const gchar *key = *i;
+      gchar *value = g_key_file_get_string (keyfile, group_name, key, NULL);
 
-      if (0 == strncmp (*i, PREFIX_PARAM, PREFIX_PARAM_LEN))
+      if (0 == strncmp (key, PREFIX_PARAM, PREFIX_PARAM_LEN))
         {
-          name += PREFIX_PARAM_LEN;
-          param = _parse_parameter (name, value);
+          key += PREFIX_PARAM_LEN;
+          param = _parse_parameter (key, value);
 
           if (param)
             params = g_slist_prepend (params, param);
         }
-      else if (0 == strncmp (*i, PREFIX_DEFAULT, PREFIX_DEFAULT_LEN))
+      else if (0 == strncmp (key, PREFIX_DEFAULT, PREFIX_DEFAULT_LEN))
         {
           GSList *node;
           
-          name += PREFIX_DEFAULT_LEN;
-          node = g_slist_find_custom (params, name, find_param_by_name_func);
+          key += PREFIX_DEFAULT_LEN;
+          node = g_slist_find_custom (params, key, find_param_by_name_func);
 
           if (node)
             {
@@ -334,7 +338,7 @@ _mc_protocol_from_keyfile (GKeyFile *keyfile, const gchar *manager_name,
         }
       else
         {
-          g_debug ("%s: unrecognised protocol key \"%s\"", G_STRFUNC, *i);
+          g_debug ("%s: unrecognised protocol key \"%s\"", G_STRFUNC, key);
         }
 
       g_free (value);

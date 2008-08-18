@@ -44,7 +44,7 @@ typedef struct _McdDBusProp
 
 typedef struct _McdInterfaceData
 {
-    GType (*get_type)();
+    GType (*get_type)(void);
     const gchar *interface;
     const McdDBusProp *properties;
     GInterfaceInitFunc iface_init;

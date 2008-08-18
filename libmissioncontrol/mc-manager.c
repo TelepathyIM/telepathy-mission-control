@@ -21,6 +21,11 @@
  *
  */
 
+#include "config.h"
+#undef MC_DISABLE_DEPRECATED
+#include "mc-manager.h"
+#define MC_DISABLE_DEPRECATED
+
 #include <string.h>
 #include <sys/types.h>
 
@@ -30,9 +35,7 @@
 #include "mc-protocol.h"
 #include "mc-protocol-priv.h"
 
-#include "mc-manager.h"
 #include "mc-manager-priv.h"
-#include <config.h>
 
 #define MANAGER_SUFFIX ".manager"
 #define MANAGER_SUFFIX_LEN 8
@@ -103,7 +106,7 @@ mc_manager_new (gchar *unique_name, gchar *bus_name, gchar *object_path,
 }
 
 static const gchar**
-_mc_manager_get_dirs ()
+_mc_manager_get_dirs (void)
 {
     GSList *dir_list = NULL, *slist;
     const gchar *dirname;

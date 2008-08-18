@@ -1,6 +1,7 @@
 INCLUDES = \
-	$(DBUS_CFLAGS) \
 	$(TELEPATHY_CFLAGS) \
+	$(DBUS_CFLAGS) \
+	$(GLIB_CFLAGS) \
 	-I$(top_srcdir) \
 	-I$(top_builddir) \
 	-DLIBDIR="@libdir@" -DLIBVERSION="0"
@@ -16,7 +17,7 @@ CLEANFILES = $(BUILT_SOURCES)
 
 lib_LTLIBRARIES = libmcclient.la
 
-libmcclient_la_CFLAGS = $(GLIB_CFLAGS) $(GCONF_CFLAGS)
+libmcclient_la_CFLAGS = $(GLIB_CFLAGS)
 libmcclient_la_SOURCES = \
 	dbus-api.c \
 	mc-account.c \
@@ -60,11 +61,16 @@ nodist_libmcclient_la_SOURCES = \
 	_gen/signals-marshal.h \
 	_gen/signals-marshal.list
 
-libmcclient_la_LIBADD = $(GCONF_LIBS) $(GLIB_LIBS) $(DBUS_LIBS) $(TELEPATHY_LIBS)
+libmcclient_la_LIBADD = \
+	$(TELEPATHY_LIBS) \
+	$(DBUS_LIBS) \
+	$(GLIB_LIBS)
 
-libmcclient_la_LDFLAGS = $(common_ldflags) \
-				      -export-symbols-regex "^(mc_)|(mission_control_)" \
-				      -version-info 7:0:1
+libmcclient_la_LDFLAGS = \
+	-export-symbols-regex "^(mc_)|(mission_control_)" \
+	-version-info "7":"0":"1"
+# the redundant quoting here is to prevent the libtool command line from
+# looking like an error message in an oddly named file
 
 %-marshal.h: %-marshal.list Makefile.am
 	glib-genmarshal --header --prefix=$(subst -,_,$*)_marshal $< > $*-marshal.h

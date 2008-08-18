@@ -378,7 +378,7 @@ static void
 merge_presences (gpointer key, McAccount *account, GArray *presences)
 {
   const McPresence *account_presences;
-  gint i;
+  guint i;
 
   if (!mc_account_is_enabled (account))
       return;
