@@ -1,0 +1,10 @@
+requested_presence requested
+current_presence current
+automatic_presence automatic
+display_name display-name
+normalized_name normalized-name
+icon icon
+nickname nickname
+enabled enabled
+valid valid
+connect_automatically connect-automatically
