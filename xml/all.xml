@@ -8,6 +8,10 @@
 <xi:include href="nmc5.xml"/>
 
 <tp:generic-types>
+    <tp:external-type name="Connection_Status" type="u"
+	from="Telepathy specification (Connection)"/>
+    <tp:external-type name="Connection_Status_Reason" type="u"
+	from="Telepathy specification (Connection)"/>
     <tp:external-type name="Connection_Presence_Type" type="u"
 	from="Telepathy specification (Connection)"/>
     <tp:external-type name="Connection_Manager_Name" type="s"

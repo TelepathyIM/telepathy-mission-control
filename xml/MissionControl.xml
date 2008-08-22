@@ -20,6 +20,33 @@
     <annotation name="org.freedesktop.DBus.GLib.CSymbol" value="mcd_service"/>
     <annotation name="org.freedesktop.DBus.GLib.ClientCSymbol" 
       value="mission_control_dbus"/>
+
+    <tp:struct name="AccountState" array-name="AccountStateList">
+      <tp:docstring>
+        A struct representing the account state.
+      </tp:docstring>
+      <tp:member type="s" name="Account_Name">
+        <tp:docstring>
+          The account name
+        </tp:docstring>
+      </tp:member>
+      <tp:member type="u" tp:type="Connection_Status" name="Connection_State">
+        <tp:docstring>
+          The account's connection status
+        </tp:docstring>
+      </tp:member>
+      <tp:member type="u" tp:type="Connection_Presence_Type" name="Presence">
+        <tp:docstring>
+          The presence
+        </tp:docstring>
+      </tp:member>
+      <tp:member type="u" tp:type="Connection_Status_Reason" name="Flags">
+        <tp:docstring>
+          The connection status reason
+        </tp:docstring>
+      </tp:member>
+    </tp:struct>
+
     <method name="SetPresence">
       <tp:docstring>
         Request a presence.
@@ -205,7 +232,7 @@
       <arg type="u" name="requested_presence" direction="out">
         <tp:docstring>Requested presence</tp:docstring>
       </arg>
-      <arg type="a(suuu)" name="accounts" direction="out">
+      <arg type="a(suuu)" tp:type="AccountState[]" name="accounts" direction="out">
         <tp:docstring>
           An array of structures specifying the accounts' state, fields being:
           <ul>

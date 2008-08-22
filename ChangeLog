@@ -2,6 +2,10 @@
 
 2008-08-22  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* xml/Account_Interface_Avatar.xml, xml/Makefile.am,
+	xml/MissionControl.xml, xml/all.xml:
+	Add missing struct types.
+
 	* src/mcd-channel.c:
 	Cancel the _call_when_ready() callback if che channel object is
 	deleted.

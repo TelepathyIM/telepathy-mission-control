@@ -35,7 +35,19 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
     </tp:docstring>
     <tp:added version="0.17.6"/>
 
-    <property name="Avatar" type="(ays)" access="readwrite">
+    <tp:struct name="AvatarInfo" >
+      <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+        <p>A struct containing the avatar</p>
+        <ul>
+          <li>Avatar data</li>
+          <li>MIME type</li>
+        </ul>
+      </tp:docstring>
+      <tp:member type="ay" name="Avatar_Data"/>
+      <tp:member type="s" name="Mime_Type"/>
+    </tp:struct>
+
+    <property name="Avatar" tp:type="AvatarInfo" type="(ays)" access="readwrite">
       <tp:docstring>
         The avatar to set on this account for display to other contacts,
         represented as a structure containing the bytes of the avatar,
