@@ -714,12 +714,16 @@ get_connection (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
     const gchar *object_path;
+    gchar *bus_name;
 
     g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
     g_value_init (value, G_TYPE_STRING);
     if (priv->connection &&
 	(object_path = mcd_connection_get_object_path (priv->connection)))
-	g_value_set_string (value, object_path);
+    {
+	bus_name = g_strdelimit (g_strdup (object_path + 1), "/", '.');
+	g_value_take_string (value, bus_name);
+    }
     else
 	g_value_set_static_string (value, "");
 }

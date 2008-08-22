@@ -400,17 +400,25 @@ inspect_channel_handle_cb (TpConnection *proxy, const gchar **handle_names,
 static void
 on_channel_ready (TpChannel *tp_chan, const GError *error, gpointer user_data)
 {
-    McdChannel *channel = user_data;
-    McdChannelPrivate *priv = channel->priv;
+    McdChannel *channel, **channel_ptr = user_data;
+    McdChannelPrivate *priv;
     TpConnection *tp_conn;
     GArray request_handles;
 
+    channel = *channel_ptr;
+    if (channel)
+	g_object_remove_weak_pointer ((GObject *)channel,
+				      (gpointer)channel_ptr);
+    g_slice_free (McdChannel *, channel_ptr);
     if (error)
     {
 	g_debug ("%s got error: %s", G_STRFUNC, error->message);
 	return;
     }
 
+    if (!channel) return;
+
+    priv = channel->priv;
     g_object_get (priv->tp_chan,
 		  "connection", &tp_conn,
 		  "handle", &priv->channel_handle,
@@ -464,9 +472,12 @@ _mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
 static inline void
 _mcd_channel_setup (McdChannel *channel, McdChannelPrivate *priv)
 {
-    /* check if the channel is ready; if not, connect to its "channel-ready"
-     * signal */
-    tp_channel_call_when_ready (priv->tp_chan, on_channel_ready, channel);
+    McdChannel **channel_ptr;
+
+    channel_ptr = g_slice_alloc (sizeof (McdChannel *));
+    *channel_ptr = channel;
+    g_object_add_weak_pointer ((GObject *)channel, (gpointer)channel_ptr);
+    tp_channel_call_when_ready (priv->tp_chan, on_channel_ready, channel_ptr);
 
     /* We want to track the channel object closes, because we need to do
      * some cleanups when it's gone */

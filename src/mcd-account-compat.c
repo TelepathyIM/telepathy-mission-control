@@ -163,6 +163,7 @@ account_request_channel (McSvcAccountInterfaceCompat *self,
     {
 	dbus_g_method_return_error (context, error);
 	g_error_free (error);
+	return;
     }
     mc_svc_account_interface_compat_return_from_request_channel (context, req.requestor_serial);
 }
@@ -189,6 +190,7 @@ account_request_channel_with_string_handle (McSvcAccountInterfaceCompat *self,
     {
 	dbus_g_method_return_error (context, error);
 	g_error_free (error);
+	return;
     }
     mc_svc_account_interface_compat_return_from_request_channel_with_string_handle (context, req.requestor_serial);
 }

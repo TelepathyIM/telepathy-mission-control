@@ -1,3 +1,18 @@
+2008-08-22  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c:
+	Cancel the _call_when_ready() callback if che channel object is
+	deleted.
+
+	* src/mcd-account.c:
+	As per the specs, return the connection bus name, and not its object
+	path.
+
+2008-08-21  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-account-compat.c:
+	Add a return statement on an error condition.
+
 === telepathy-mission-control 5.0.beta26 ===
 
 2008-08-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
