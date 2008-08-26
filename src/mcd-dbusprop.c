@@ -42,15 +42,22 @@ static const McdDBusProp *
 get_interface_properties (TpSvcDBusProperties *object, const gchar *interface)
 {
     McdInterfaceData *iface_data;
+    GType type;
 
-    iface_data = g_type_get_qdata (G_OBJECT_TYPE (object),
-				   MCD_INTERFACES_QUARK);
-    while (iface_data->get_type)
+    /* we must look up the ancestors, in case the object implementing the
+     * interface has been subclassed. */
+    for (type = G_OBJECT_TYPE (object); type != 0; type = g_type_parent (type))
     {
-	if (iface_data->interface &&
-	    strcmp (iface_data->interface, interface) == 0)
-	    return iface_data->properties;
-	iface_data++;
+	iface_data = g_type_get_qdata (type, MCD_INTERFACES_QUARK);
+	if (!iface_data) continue;
+
+	while (iface_data->get_type)
+	{
+	    if (iface_data->interface &&
+		strcmp (iface_data->interface, interface) == 0)
+		return iface_data->properties;
+	    iface_data++;
+	}
     }
     return NULL;
 }
@@ -261,26 +268,24 @@ mcd_dbus_get_interfaces (TpSvcDBusProperties *self, const gchar *name,
 			 GValue *value)
 {
     McdInterfaceData *iface_data, *id;
-    gint i;
-    gchar **names;
+    GPtrArray *a_ifaces;
+    GType type;
 
     g_debug ("%s called", G_STRFUNC);
-    iface_data = g_type_get_qdata (G_OBJECT_TYPE (self), MCD_INTERFACES_QUARK);
 
-    /* count the interfaces */
-    i = 0;
-    for (id = iface_data; id->get_type; id++)
-	i++;
+    a_ifaces = g_ptr_array_new ();
 
-    names = g_new (gchar *, i + 1);
-    i = 0;
-    for (id = iface_data; id->get_type; id++)
+    for (type = G_OBJECT_TYPE (self); type != 0; type = g_type_parent (type))
     {
-	names[i] = g_strdup (id->interface);
-	i++;
+	iface_data = g_type_get_qdata (type, MCD_INTERFACES_QUARK);
+	if (!iface_data) continue;
+
+	for (id = iface_data; id->get_type; id++)
+	    g_ptr_array_add (a_ifaces, g_strdup (id->interface));
     }
-    names[i] = NULL;
+    g_ptr_array_add (a_ifaces, NULL);
+
     g_value_init (value, G_TYPE_STRV);
-    g_value_take_boxed (value, names);
+    g_value_take_boxed (value, g_ptr_array_free (a_ifaces, FALSE));
 }
 

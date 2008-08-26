@@ -58,7 +58,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</
       </ul>
     </tp:docstring>
 
-    <property name="Condition" type="a{ss}" access="readwrite">
+    <property name="Condition" type="a{ss}" tp:type="String_String_Map"
+      access="readwrite">
       <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
         <p>The condition is a list of rules, consisting of a name and of a value,
         both strings.
