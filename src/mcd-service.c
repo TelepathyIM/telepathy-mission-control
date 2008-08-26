@@ -543,7 +543,7 @@ mcd_register_dbus_object (McdService * obj)
     if (dbus_error_is_set (&error))
     {
 	g_error ("Service name '%s' is already in use - request failed",
-		    MISSION_CONTROL_DBUS_SERVICE);
+		 MISSION_CONTROL_DBUS_SERVICE);
 	dbus_error_free (&error);
     }
     
@@ -835,18 +835,15 @@ mcd_dispose (GObject * obj)
 }
 
 static void
-mcd_service_init (McdService * obj)
+mcd_service_constructed (GObject *obj)
 {
     McdServicePrivate *priv = MCD_OBJECT_PRIV (obj);
 
-    obj->main_loop = g_main_loop_new (NULL, FALSE);
-
-    priv->last_status = -1;
-
-    g_object_get (obj, 
+    g_object_get (obj,
                   "presence-frame", &priv->presence_frame,
-                  "dispatcher", &priv->dispatcher, NULL);
-    
+                  "dispatcher", &priv->dispatcher,
+		  NULL);
+
     /* Setup presence signals */
     g_signal_connect (priv->presence_frame, "status-changed",
 		      G_CALLBACK (_on_account_status_changed), obj);
@@ -858,7 +855,7 @@ mcd_service_init (McdService * obj)
 		      G_CALLBACK (_on_presence_actual), obj);
     g_signal_connect (priv->presence_frame, "status-actual",
 		      G_CALLBACK (_on_status_actual), obj);
-    
+
     /* Setup dispatcher signals */
     g_signal_connect (priv->dispatcher, "channel-added",
 		      G_CALLBACK (_on_dispatcher_channel_added), obj);
@@ -868,9 +865,19 @@ mcd_service_init (McdService * obj)
 		      G_CALLBACK (_on_dispatcher_channel_dispatched), obj);
     g_signal_connect (priv->dispatcher, "dispatch-failed",
 		      G_CALLBACK (_on_dispatcher_channel_dispatch_failed), obj);
-    
-    mcd_register_dbus_object (obj);
+
+    mcd_register_dbus_object (MCD_OBJECT (obj));
     mcd_debug_print_tree (obj);
+}
+
+static void
+mcd_service_init (McdService * obj)
+{
+    McdServicePrivate *priv = MCD_OBJECT_PRIV (obj);
+
+    obj->main_loop = g_main_loop_new (NULL, FALSE);
+
+    priv->last_status = -1;
 }
 
 static void
@@ -880,6 +887,7 @@ mcd_service_class_init (McdServiceClass * self)
     McdMissionClass *mission_class = MCD_MISSION_CLASS (self);
 
     parent_class = g_type_class_peek_parent (self);
+    gobject_class->constructed = mcd_service_constructed;
     gobject_class->dispose = mcd_dispose;
     mission_class->disconnect = mcd_service_disconnect;
 
@@ -970,7 +978,23 @@ McdService *
 mcd_service_new (void)
 {
     McdService *obj;
-    obj = g_object_new (MCD_TYPE_SERVICE, NULL);
+    DBusGConnection *dbus_connection;
+    TpDBusDaemon *dbus_daemon;
+    GError *error = NULL;
+
+    /* Initialize DBus connection */
+    dbus_connection = dbus_g_bus_get (DBUS_BUS_STARTER, &error);
+    if (dbus_connection == NULL)
+    {
+	g_printerr ("Failed to open connection to bus: %s", error->message);
+	g_error_free (error);
+	return NULL;
+    }
+    dbus_daemon = tp_dbus_daemon_new (dbus_connection);
+    obj = g_object_new (MCD_TYPE_SERVICE,
+			"dbus-daemon", dbus_daemon,
+			NULL);
+    g_object_unref (dbus_daemon);
     return obj;
 }
 

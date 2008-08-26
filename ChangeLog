@@ -1,5 +1,9 @@
 2008-08-26  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/mcd-account-manager.[hc], src/mcd-master.c, src/mcd-service.c:
+	Allow the McdAccountManager to be subclassed; rework the
+	initialization process of some objects to make it more sane.
+
 	* src/mcd-dbusprop.c:
 	Make derived objects work.
 

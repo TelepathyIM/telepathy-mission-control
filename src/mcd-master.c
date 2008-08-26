@@ -105,8 +105,10 @@ enum
     PROP_0,
     PROP_PRESENCE_FRAME,
     PROP_DBUS_CONNECTION,
+    PROP_DBUS_DAEMON,
     PROP_DISPATCHER,
     PROP_DEFAULT_PRESENCE,
+    PROP_ACCOUNT_MANAGER,
 };
 
 typedef struct {
@@ -435,12 +437,18 @@ _mcd_master_get_property (GObject * obj, guint prop_id,
     case PROP_DISPATCHER:
 	g_value_set_object (val, priv->dispatcher);
 	break;
+    case PROP_DBUS_DAEMON:
+	g_value_set_object (val, priv->dbus_daemon);
+	break;
     case PROP_DBUS_CONNECTION:
 	g_value_set_pointer (val,
 			     TP_PROXY (priv->dbus_daemon)->dbus_connection);
 	break;
     case PROP_DEFAULT_PRESENCE:
 	g_value_set_uint (val, priv->default_presence);
+	break;
+    case PROP_ACCOUNT_MANAGER:
+	g_value_set_object (val, priv->account_manager);
 	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -455,9 +463,17 @@ _mcd_master_set_property (GObject *obj, guint prop_id,
     McdMasterPrivate *priv = MCD_MASTER_PRIV (obj);
 
     switch (prop_id)
-    { 
+    {
+    case PROP_DBUS_DAEMON:
+	g_assert (priv->dbus_daemon == NULL);
+	priv->dbus_daemon = g_value_dup_object (val);
+	break;
     case PROP_DEFAULT_PRESENCE:
 	priv->default_presence = g_value_get_uint (val);
+	break;
+    case PROP_ACCOUNT_MANAGER:
+	g_assert (priv->account_manager == NULL);
+	priv->account_manager = g_value_dup_object (val);
 	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -567,53 +583,6 @@ _mcd_master_dispose (GObject * object)
 }
 
 static void
-mcd_master_class_init (McdMasterClass * klass)
-{
-    GObjectClass *object_class = G_OBJECT_CLASS (klass);
-    McdMissionClass *mission_class = MCD_MISSION_CLASS (klass);
-    g_type_class_add_private (object_class, sizeof (McdMasterPrivate));
-
-    object_class->finalize = _mcd_master_finalize;
-    object_class->get_property = _mcd_master_get_property;
-    object_class->set_property = _mcd_master_set_property;
-    object_class->dispose = _mcd_master_dispose;
-
-    mission_class->connect = _mcd_master_connect;
-    mission_class->disconnect = _mcd_master_disconnect;
-    mission_class->set_flags = _mcd_master_set_flags;
-
-    /* Properties */
-    g_object_class_install_property (object_class,
-				     PROP_PRESENCE_FRAME,
-				     g_param_spec_object ("presence-frame",
-							  _("Presence Frame Object"),
-							  _("Presence frame Object used by connections to update presence"),
-							  MCD_TYPE_PRESENCE_FRAME,
-							  G_PARAM_READABLE));
-    g_object_class_install_property (object_class,
-				     PROP_DISPATCHER,
-				     g_param_spec_object ("dispatcher",
-							  _("Dispatcher Object"),
-							  _("Dispatcher Object used to dispatch channels"),
-							  MCD_TYPE_DISPATCHER,
-							  G_PARAM_READABLE));
-    g_object_class_install_property (object_class,
-				     PROP_DBUS_CONNECTION,
-				     g_param_spec_pointer ("dbus-connection",
-							  _("D-Bus Connection"),
-							  _("Connection to the D-Bus"),
-							  G_PARAM_READABLE));
-    g_object_class_install_property (object_class, PROP_DEFAULT_PRESENCE,
-				     g_param_spec_uint ("default-presence",
-						       _("Default presence"),
-						       _("Default presence when connecting"),
-						       0,
-						       TP_CONNECTION_PRESENCE_TYPE_UNSET,
-						       0,
-						       G_PARAM_READWRITE));
-}
-
-static void
 install_dbus_filter (McdMasterPrivate *priv)
 {
     DBusGConnection *dbus_connection;
@@ -638,6 +607,108 @@ install_dbus_filter (McdMasterPrivate *priv)
     }
 }
 
+static GObject *
+mcd_master_constructor (GType type, guint n_params,
+			GObjectConstructParam *params)
+{
+    GObjectClass *object_class = (GObjectClass *)mcd_master_parent_class;
+    McdMaster *master;
+    McdMasterPrivate *priv;
+
+    master =  MCD_MASTER (object_class->constructor (type, n_params, params));
+    priv = MCD_MASTER_PRIV (master);
+
+    g_return_val_if_fail (master != NULL, NULL);
+
+    if (!priv->account_manager)
+	priv->account_manager = mcd_account_manager_new (priv->dbus_daemon);
+    _mcd_account_manager_setup (priv->account_manager);
+
+    install_dbus_filter (priv);
+
+    priv->presence_frame = mcd_presence_frame_new ();
+    priv->dispatcher = mcd_dispatcher_new (priv->dbus_daemon, master);
+    g_assert (MCD_IS_DISPATCHER (priv->dispatcher));
+    /* propagate the signals to dispatcher and presence_frame, too */
+    priv->proxy = mcd_proxy_new (MCD_MISSION (master));
+    mcd_operation_take_mission (MCD_OPERATION (priv->proxy),
+				MCD_MISSION (priv->presence_frame));
+    mcd_operation_take_mission (MCD_OPERATION (priv->proxy),
+				MCD_MISSION (priv->dispatcher));
+
+    mcd_presence_frame_set_account_manager (priv->presence_frame,
+					    priv->account_manager);
+
+    mcd_master_load_plugins (master);
+
+    /* we assume that at this point all transport plugins have been registered.
+     * We get the active transports and check whether some accounts should be
+     * automatically connected */
+    mcd_master_connect_automatic_accounts (master);
+
+    return (GObject *) master;
+}
+
+static void
+mcd_master_class_init (McdMasterClass * klass)
+{
+    GObjectClass *object_class = G_OBJECT_CLASS (klass);
+    McdMissionClass *mission_class = MCD_MISSION_CLASS (klass);
+    g_type_class_add_private (object_class, sizeof (McdMasterPrivate));
+
+    object_class->constructor = mcd_master_constructor;
+    object_class->finalize = _mcd_master_finalize;
+    object_class->get_property = _mcd_master_get_property;
+    object_class->set_property = _mcd_master_set_property;
+    object_class->dispose = _mcd_master_dispose;
+
+    mission_class->connect = _mcd_master_connect;
+    mission_class->disconnect = _mcd_master_disconnect;
+    mission_class->set_flags = _mcd_master_set_flags;
+
+    /* Properties */
+    g_object_class_install_property (object_class,
+				     PROP_PRESENCE_FRAME,
+				     g_param_spec_object ("presence-frame",
+							  _("Presence Frame Object"),
+							  _("Presence frame Object used by connections to update presence"),
+							  MCD_TYPE_PRESENCE_FRAME,
+							  G_PARAM_READABLE));
+    g_object_class_install_property (object_class,
+				     PROP_DISPATCHER,
+				     g_param_spec_object ("dispatcher",
+							  _("Dispatcher Object"),
+							  _("Dispatcher Object used to dispatch channels"),
+							  MCD_TYPE_DISPATCHER,
+							  G_PARAM_READABLE));
+
+    g_object_class_install_property (object_class, PROP_DBUS_DAEMON,
+	g_param_spec_object ("dbus-daemon", _("DBus daemon"), _("DBus daemon"),
+			     TP_TYPE_DBUS_DAEMON,
+			     G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+
+    g_object_class_install_property (object_class,
+				     PROP_DBUS_CONNECTION,
+				     g_param_spec_pointer ("dbus-connection",
+							  _("D-Bus Connection"),
+							  _("Connection to the D-Bus"),
+							  G_PARAM_READABLE));
+    g_object_class_install_property (object_class, PROP_DEFAULT_PRESENCE,
+				     g_param_spec_uint ("default-presence",
+						       _("Default presence"),
+						       _("Default presence when connecting"),
+						       0,
+						       TP_CONNECTION_PRESENCE_TYPE_UNSET,
+						       0,
+						       G_PARAM_READWRITE));
+
+    g_object_class_install_property (object_class, PROP_ACCOUNT_MANAGER,
+	g_param_spec_object ("account-manager",
+			     _("AccountManager"), _("AccountManager"),
+			     MCD_TYPE_ACCOUNT_MANAGER,
+			     G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+}
+
 static void
 _g_value_free (gpointer data)
 {
@@ -650,33 +721,9 @@ static void
 mcd_master_init (McdMaster * master)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    DBusGConnection *dbus_connection;
-    GError *error = NULL;
 
     if (!default_master)
 	default_master = master;
-
-    /* Initialize DBus connection */
-    dbus_connection = dbus_g_bus_get (DBUS_BUS_STARTER, &error);
-    if (dbus_connection == NULL)
-    {
-	g_printerr ("Failed to open connection to bus: %s", error->message);
-	g_error_free (error);
-	return;
-    }
-    priv->dbus_daemon = tp_dbus_daemon_new (dbus_connection);
-
-    install_dbus_filter (priv);
-
-    priv->presence_frame = mcd_presence_frame_new ();
-    priv->dispatcher = mcd_dispatcher_new (priv->dbus_daemon, master);
-    g_assert (MCD_IS_DISPATCHER (priv->dispatcher));
-    /* propagate the signals to dispatcher and presence_frame, too */
-    priv->proxy = mcd_proxy_new (MCD_MISSION (master));
-    mcd_operation_take_mission (MCD_OPERATION (priv->proxy),
-			       	MCD_MISSION (priv->presence_frame));
-    mcd_operation_take_mission (MCD_OPERATION (priv->proxy),
-			       	MCD_MISSION (priv->dispatcher));
 
     priv->clients_needing_presence = g_hash_table_new_full (g_str_hash,
 							    g_str_equal,
@@ -685,17 +732,7 @@ mcd_master_init (McdMaster * master)
     priv->extra_parameters = g_hash_table_new_full (g_str_hash, g_str_equal,
 						    g_free, _g_value_free);
 
-    priv->account_manager = mcd_account_manager_new (priv->dbus_daemon);
-    mcd_presence_frame_set_account_manager (priv->presence_frame,
-					    priv->account_manager);
-
     priv->transport_plugins = g_ptr_array_new ();
-    mcd_master_load_plugins (master);
-
-    /* we assume that at this point all transport plugins have been registered.
-     * We get the active transports and check whether some accounts should be
-     * automatically connected */
-    mcd_master_connect_automatic_accounts (master);
 }
 
 McdMaster *

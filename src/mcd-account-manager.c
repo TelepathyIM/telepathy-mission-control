@@ -441,8 +441,15 @@ write_conf (gpointer userdata)
     return FALSE;
 }
 
-static void
-mcd_account_manager_setup (McdAccountManager *account_manager)
+/**
+ * _mcd_account_manager_setup:
+ * @account_manager: the #McdAccountManager.
+ *
+ * This function must be called by the McdMaster; it reads the accounts from
+ * the config file, and it needs a McdMaster instance to be active.
+ */
+void
+_mcd_account_manager_setup (McdAccountManager *account_manager)
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
     gchar **accounts, **name;
@@ -499,10 +506,7 @@ set_property (GObject *obj, guint prop_id,
 	    g_object_unref (priv->dbus_daemon);
 	priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
 	if (priv->dbus_daemon)
-	{
 	    register_dbus_service (account_manager);
-	    mcd_account_manager_setup (account_manager);
-	}
 	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -677,5 +681,19 @@ mcd_account_manager_lookup_account_by_path (McdAccountManager *account_manager,
 
     return g_hash_table_find (priv->accounts, find_by_path,
 			      (gpointer)object_path);
+}
+
+/**
+ * mcd_account_manager_get_config:
+ * @account_manager: the #McdAccountManager.
+ *
+ * Returns: the #GKeyFile holding the configuration.
+ */
+GKeyFile *
+mcd_account_manager_get_config (McdAccountManager *account_manager)
+{
+    g_return_val_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager), NULL);
+
+    return account_manager->priv->keyfile;
 }
 
