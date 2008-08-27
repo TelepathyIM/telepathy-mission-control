@@ -1,3 +1,5 @@
+=== telepathy-mission-control 5.0.beta29 ===
+
 2008-08-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-connection.c:
