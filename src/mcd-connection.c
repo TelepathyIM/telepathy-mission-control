@@ -1283,15 +1283,24 @@ static void
 on_connection_ready (TpConnection *tp_conn, const GError *error,
 		     gpointer user_data)
 {
-    McdConnection *connection = user_data;
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
+    McdConnection *connection, **connection_ptr = user_data;
+    McdConnectionPrivate *priv;
 
+    connection = *connection_ptr;
+    if (connection)
+	g_object_remove_weak_pointer ((GObject *)connection,
+				      (gpointer)connection_ptr);
+    g_slice_free (McdConnection *, connection_ptr);
     if (error)
     {
 	g_debug ("%s got error: %s", G_STRFUNC, error->message);
 	return;
     }
+
+    if (!connection) return;
+
     g_debug ("%s: connection is ready", G_STRFUNC);
+    priv = MCD_CONNECTION_PRIV (connection);
 
     priv->has_presence_if = tp_proxy_has_interface_by_id (tp_conn,
 							  TP_IFACE_QUARK_CONNECTION_INTERFACE_PRESENCE);
@@ -1321,6 +1330,7 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
 		       gpointer user_data, GObject *weak_object)
 {
     McdConnection *connection = MCD_CONNECTION (weak_object);
+    McdConnection **connection_ptr;
     McdConnectionPrivate *priv = user_data;
     GError *error = NULL;
 
@@ -1353,8 +1363,14 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
     g_signal_connect (priv->tp_conn, "notify::status",
 		      G_CALLBACK (on_connection_status_changed),
 		      connection);
+    /* HACK for cancelling the _call_when_ready() callback when our object gets
+     * destroyed */
+    connection_ptr = g_slice_alloc (sizeof (McdConnection *));
+    *connection_ptr = connection;
+    g_object_add_weak_pointer ((GObject *)connection,
+			       (gpointer)connection_ptr);
     tp_connection_call_when_ready (priv->tp_conn, on_connection_ready,
-				   connection);
+				   connection_ptr);
     tp_cli_connection_connect_to_new_channel (priv->tp_conn,
 					      on_new_channel,
 					      priv, NULL,

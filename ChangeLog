@@ -1,5 +1,9 @@
 2008-08-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
+	* src/mcd-connection.c:
+	Cancel the _call_when_ready() callback if che connection object is
+	deleted.
+
 	* src/mcd-master.c:
 	Change the order in which objects are instantiated, so that
 	McdDispatcher is available when McdManagers need it.
