@@ -839,6 +839,7 @@ mcd_service_constructed (GObject *obj)
 {
     McdServicePrivate *priv = MCD_OBJECT_PRIV (obj);
 
+    g_debug ("%s called", G_STRFUNC);
     g_object_get (obj,
                   "presence-frame", &priv->presence_frame,
                   "dispatcher", &priv->dispatcher,
@@ -868,6 +869,9 @@ mcd_service_constructed (GObject *obj)
 
     mcd_register_dbus_object (MCD_OBJECT (obj));
     mcd_debug_print_tree (obj);
+
+    if (G_OBJECT_CLASS (parent_class)->constructed)
+	G_OBJECT_CLASS (parent_class)->constructed (obj);
 }
 
 static void
@@ -878,6 +882,7 @@ mcd_service_init (McdService * obj)
     obj->main_loop = g_main_loop_new (NULL, FALSE);
 
     priv->last_status = -1;
+    g_debug ("%s called", G_STRFUNC);
 }
 
 static void
