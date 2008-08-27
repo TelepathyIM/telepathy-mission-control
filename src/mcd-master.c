@@ -622,13 +622,15 @@ mcd_master_constructor (GType type, guint n_params,
 
     if (!priv->account_manager)
 	priv->account_manager = mcd_account_manager_new (priv->dbus_daemon);
+
+    priv->dispatcher = mcd_dispatcher_new (priv->dbus_daemon, master);
+    g_assert (MCD_IS_DISPATCHER (priv->dispatcher));
+
     _mcd_account_manager_setup (priv->account_manager);
 
     install_dbus_filter (priv);
 
     priv->presence_frame = mcd_presence_frame_new ();
-    priv->dispatcher = mcd_dispatcher_new (priv->dbus_daemon, master);
-    g_assert (MCD_IS_DISPATCHER (priv->dispatcher));
     /* propagate the signals to dispatcher and presence_frame, too */
     priv->proxy = mcd_proxy_new (MCD_MISSION (master));
     mcd_operation_take_mission (MCD_OPERATION (priv->proxy),

@@ -23,7 +23,17 @@ McdMaster
 </para>
 
 
+<!-- ##### ARG McdMaster:account-manager ##### -->
+<para>
+
+</para>
+
 <!-- ##### ARG McdMaster:dbus-connection ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdMaster:dbus-daemon ##### -->
 <para>
 
 </para>
