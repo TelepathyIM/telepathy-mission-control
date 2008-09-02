@@ -507,7 +507,7 @@ read_protocols (McdManager *manager, GKeyFile *keyfile)
     g_strfreev (groups);
 }
 
-static void
+static gboolean
 mcd_manager_setup (McdManager *manager)
 {
     McdManagerPrivate *priv = manager->priv;
@@ -518,6 +518,11 @@ mcd_manager_setup (McdManager *manager)
     gchar *filename;
 
     filename = _mcd_manager_filename (priv->name);
+    if (!filename)
+    {
+	g_warning ("No config file found for manager %s", priv->name);
+	return FALSE;
+    }
 
     keyfile = g_key_file_new ();
 
@@ -527,7 +532,7 @@ mcd_manager_setup (McdManager *manager)
 		   filename, error->message);
 	g_error_free (error);
 	g_free (filename);
-	return;
+	return FALSE;
     }
     g_free (filename);
 
@@ -542,11 +547,35 @@ mcd_manager_setup (McdManager *manager)
 		   G_STRFUNC);
 	g_free (bus_name);
 	g_free (object_path);
-	return;
+	return FALSE;
     }
 
     read_protocols (manager, keyfile);
     g_key_file_free (keyfile);
+
+    return TRUE;
+}
+
+static GObject *
+_mcd_manager_constructor (GType type, guint n_params,
+			  GObjectConstructParam *params)
+{
+    GObjectClass *object_class = (GObjectClass *)mcd_manager_parent_class;
+    McdManager *manager;
+    McdManagerPrivate *priv;
+
+    manager =  MCD_MANAGER (object_class->constructor (type, n_params, params));
+    priv = manager->priv;
+
+    g_return_val_if_fail (manager != NULL, NULL);
+
+    if (!mcd_manager_setup (manager))
+    {
+	g_object_unref (manager);
+	return NULL;
+    }
+
+    return (GObject *) manager;
 }
 
 static void
@@ -562,7 +591,6 @@ _mcd_manager_set_property (GObject * obj, guint prop_id,
     case PROP_NAME:
 	g_assert (priv->name == NULL);
 	priv->name = g_value_dup_string (val);
-	mcd_manager_setup (MCD_MANAGER (obj));
 	break;
     case PROP_PRESENCE_FRAME:
 	presence_frame = g_value_get_object (val);
@@ -623,6 +651,7 @@ mcd_manager_class_init (McdManagerClass * klass)
 
     g_type_class_add_private (object_class, sizeof (McdManagerPrivate));
 
+    object_class->constructor = _mcd_manager_constructor;
     object_class->finalize = _mcd_manager_finalize;
     object_class->dispose = _mcd_manager_dispose;
     object_class->set_property = _mcd_manager_set_property;
