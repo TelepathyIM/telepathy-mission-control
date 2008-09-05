@@ -2026,6 +2026,16 @@ mcd_account_get_connection_status_reason (McdAccount *account)
     return priv->conn_reason;
 }
 
+void
+_mcd_account_tp_connection_changed (McdAccount *account)
+{
+    GValue value = { 0 };
+
+    get_connection ((TpSvcDBusProperties *)account, "Connection", &value);
+    mcd_account_changed_property (account, "Connection", &value);
+    g_value_unset (&value);
+}
+
 McdConnection *
 mcd_account_get_connection (McdAccount *account)
 {

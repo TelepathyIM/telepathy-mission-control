@@ -131,4 +131,7 @@ gboolean mcd_account_request_channel_nmc4 (McdAccount *account,
 
 gchar *mcd_account_get_avatar_filename (McdAccount *account);
 
+/* non-exported methods */
+void _mcd_account_tp_connection_changed (McdAccount *account);
+
 #endif

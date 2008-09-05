@@ -1,3 +1,9 @@
+2008-09-05  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-account.[hc], src/mcd-connection.c:
+	Emit the PropertiesChanged signal when the Telepathy connection is
+	created and destroyed.
+
 === telepathy-mission-control 5.0.beta30 ===
 
 2008-09-02  Alberto Mardegan  <alberto.mardegan@nokia.com>

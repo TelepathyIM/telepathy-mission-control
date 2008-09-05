@@ -1356,6 +1356,7 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
 	g_error_free (error);
 	return;
     }
+    _mcd_account_tp_connection_changed (priv->account);
 
     /* Setup signals */
     g_signal_connect (priv->tp_conn, "invalidated",
@@ -1497,6 +1498,7 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
 	_mcd_connection_call_disconnect (connection);
 	/* g_object_unref (priv->tp_conn) is done in the disconnect_cb */
 	priv->tp_conn = NULL;
+	_mcd_account_tp_connection_changed (priv->account);
     }
 
     /* the interface proxies obtained from this connection must be deleted, too
