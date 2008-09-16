@@ -1,3 +1,9 @@
+2008-09-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-manager.c:
+	Don't call any methods on the McdManager if construction fails;
+	instead, call the from the constructor.
+
 === telepathy-mission-control 5.0.beta31 ===
 
 2008-09-05  Alberto Mardegan  <alberto.mardegan@nokia.com>

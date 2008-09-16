@@ -575,6 +575,8 @@ _mcd_manager_constructor (GType type, guint n_params,
 	return NULL;
     }
 
+    _mcd_manager_nuke_connections (manager);
+
     return (GObject *) manager;
 }
 
@@ -724,7 +726,6 @@ mcd_manager_new (const gchar *unique_name,
 				     "presence-frame", pframe,
 				     "dispatcher", dispatcher,
 				     "dbus-daemon", dbus_daemon, NULL));
-    _mcd_manager_nuke_connections (obj);
     return obj;
 }
 
