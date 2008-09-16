@@ -1,8 +1,10 @@
+=== telepathy-mission-control 5.0.beta32 ===
+
 2008-09-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
 
 	* src/mcd-manager.c:
 	Don't call any methods on the McdManager if construction fails;
-	instead, call the from the constructor.
+	instead, call them from the constructor.
 
 === telepathy-mission-control 5.0.beta31 ===
 
