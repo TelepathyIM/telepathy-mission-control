@@ -48,6 +48,11 @@ def test(q, bus, mc):
     account.Set('org.freedesktop.Telepathy.Account',
             'Enabled', True,
             dbus_interface='org.freedesktop.DBus.Properties')
+    q.expect('dbus-signal',
+            path=account_path,
+            signal='AccountPropertyChanged',
+            interface='org.freedesktop.Telepathy.Account',
+            args=[dbus.Dictionary({"Enabled": True}, signature='sv')])
 
     # Which value should I use?
     # MC_PRESENCE_AVAILABLE == 2
