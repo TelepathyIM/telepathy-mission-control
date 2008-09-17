@@ -1,18 +1,21 @@
 import dbus
 
+from servicetest import EventPattern, tp_name_prefix, tp_path_prefix
+from fakecm import start_fake_connection_manager
 from mctest import exec_test
 
+FakeCM_bus_name = "com.example.FakeCM"
+ConnectionManager_object_path = "/com/example/FakeCM/ConnectionManager"
+
+
 def test(q, bus, mc):
-    # Introspect for debugging purpose
+    start_fake_connection_manager(q, bus, FakeCM_bus_name,
+            ConnectionManager_object_path)
+    
+    # Introspect the old iface for debugging purpose
     mc_introspected = mc.Introspect(
             dbus_interface='org.freedesktop.DBus.Introspectable')
     #print mc_introspected
-
-    # Check MC has D-Bus property interface
-    properties = mc.GetAll(
-            'org.freedesktop.Telepathy.AccountManager',
-            dbus_interface='org.freedesktop.DBus.Properties')
-    assert properties is not None
 
     # Check the old iface
     old_iface = dbus.Interface(mc, 'org.freedesktop.Telepathy.MissionControl')
@@ -21,19 +24,21 @@ def test(q, bus, mc):
     arg0 = old_iface.GetPresence()
     assert arg0 == 0, arg0
 
-    # Check MC has AccountManager interface
-    account_manager_iface = dbus.Interface(mc,
-            'org.freedesktop.Telepathy.AccountManager')
+    ## Test the fake connection manager (test the test). The fake connection
+    ## manager aims to be used by Mission Control
+    fake_cm = bus.get_object(FakeCM_bus_name, ConnectionManager_object_path)
 
-    ## Not yet implemented in MC
-    #params = dbus.Dictionary({}, signature='sv')
-    #account_name = account_manager_iface.CreateAccount(
-    #        'salut', # Connection_Manager
-    #        'local-xmpp', # Protocol
-    #        'mc_test', #Display_Name
-    #        params, # Parameters
-    #        )
-    #assert account_name is not None
+    def reply_handler_cb(dummy):
+        print "ok: " + str(dummy)
+    def error_handler_cb(dummy):
+        print "error: " + str(dummy)
+
+    fake_cm.GetParameters("awrty", reply_handler=reply_handler_cb,
+            error_handler=error_handler_cb,
+            dbus_interface="org.freedesktop.Telepathy.ConnectionManager")
+    print "method called"
+    e = q.expect('dbus-method-call')
+    print e.name
 
 if __name__ == '__main__':
     exec_test(test, {})

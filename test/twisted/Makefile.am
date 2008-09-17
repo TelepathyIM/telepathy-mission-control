@@ -1,6 +1,7 @@
 TWISTED_TESTS =
 
 TWISTED_BASIC_TESTS = \
+        test-account.py \
         test-basic.py
 
 TESTS =
