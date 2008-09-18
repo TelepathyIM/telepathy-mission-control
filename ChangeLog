@@ -1,3 +1,6 @@
+This is a placeholder ChangeLog - use `git log` instead.
+In distributed tarballs this is replaced by the output of `git log --stat`.
+
 === telepathy-mission-control 5.0.beta32 ===
 
 2008-09-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
