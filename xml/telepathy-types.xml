@@ -1,0 +1,96 @@
+<tp:telepathy-types
+  xmlns:tp="http://telepathy.freedesktop.org/wiki/DbusSpec#extensions-v0">
+
+  <tp:mapping name="Channel_Class" array-name="Channel_Class_List">
+    <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+      <p>Mapping representing a class of channels that can be requested
+	from a connection manager, can be handled by a user interface,
+	are supported by a contact, etc.</p>
+
+      <p>Classes of channel are identified by the fixed values of
+	a subset of their properties.</p>
+
+      <p>Channel classes SHOULD always include the keys
+	<tp:dbus-ref>org.freedesktop.Telepathy.Channel.ChannelType</tp:dbus-ref>
+	and
+	<tp:dbus-ref>org.freedesktop.Telepathy.Channel.TargetHandleType</tp:dbus-ref>.
+	</p>
+    </tp:docstring>
+
+    <tp:member type="s" name="Key" tp:type="DBus_Qualified_Member">
+      <tp:docstring>
+	A D-Bus interface name, followed by a dot and a D-Bus property name.
+      </tp:docstring>
+    </tp:member>
+
+    <tp:member type="v" name="Value">
+      <tp:docstring>
+	The value of the property.
+      </tp:docstring>
+    </tp:member>
+  </tp:mapping>
+
+  <tp:struct name="Channel_Details" array-name="Channel_Details_List">
+    <tp:added version="0.17.11">(as stable API)</tp:added>
+
+    <tp:docstring>
+      Enough details of a channel that clients can work out how to dispatch
+      or handle it.
+    </tp:docstring>
+
+    <tp:member name="Channel" type="o">
+      <tp:docstring>
+	The object path of the channel.
+      </tp:docstring>
+    </tp:member>
+
+    <tp:member name="Properties" type="a{sv}"
+      tp:type="Qualified_Property_Value_Map">
+      <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+	<p>Properties of the channel.</p>
+
+	<p>Connection managers MUST NOT include properties in this mapping
+	  if their values can change. Clients MUST ignore properties
+	  that appear in this mapping if their values can change.</p>
+
+	<tp:rationale>
+	  <p>If properties that could change were included, the following
+	    race condition would be likely to exist in some cases:</p>
+
+	  <ul>
+	    <li>NewChannels or Get("Channels") includes a property P with
+	      value V1</li>
+	    <li>Client creates a proxy object for the channel</li>
+	    <li>The value of P changes to V2</li>
+	    <li>Client connects to PChanged signal</li>
+	    <li>Client should call Get("P") or GetAll here, to avoid the
+	      race, but client's author has forgotten to do so</li>
+	    <li>Proxy object thinks P == V1, but actually P == V2</li>
+	  </ul>
+
+	  <p>We've taken the opportunity to make the API encourage the
+	    client author to get it right. Where possible, we intend that
+	    properties whose value will be used in channel dispatching
+	    or other "early" processing will be defined so that they are
+	    immutable (can never change).</p>
+	</tp:rationale>
+
+	<p>Each dictionary MUST contain the keys
+	  <tp:dbus-ref>org.freedesktop.Telepathy.Channel.ChannelType</tp:dbus-ref>,
+	  <tp:dbus-ref>org.freedesktop.Telepathy.Channel.TargetHandleType</tp:dbus-ref>,
+	  <tp:dbus-ref>org.freedesktop.Telepathy.Channel.TargetHandle</tp:dbus-ref>
+	  and
+	  <tp:dbus-ref>org.freedesktop.Telepathy.Channel.TargetID</tp:dbus-ref>.
+	</p>
+	<!-- FIXME: maybe also Requested, InitiatorHandle,
+	InitiatorID once they leave the FUTURE pseudo-interface -->
+
+	<tp:rationale>
+	  <p>We expect these to be crucial to the channel-dispatching
+	    process.</p>
+	</tp:rationale>
+      </tp:docstring>
+    </tp:member>
+  </tp:struct>
+
+</tp:telepathy-types>

@@ -12,4 +12,9 @@
 <xi:include href="Account_Manager_Interface_Query.xml"/>
 <xi:include href="Account_Manager_Interface_Creation.xml"/>
 
+<xi:include href="Client.xml"/>
+<xi:include href="Client_Approver.xml"/>
+<xi:include href="Client_Handler.xml"/>
+<xi:include href="Client_Observer.xml"/>
+
 </tp:spec>

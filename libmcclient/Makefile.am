@@ -46,6 +46,7 @@ nodist_geninclude_HEADERS = \
 	_gen/mc-quark.h \
 	_gen/cli-account.h \
 	_gen/cli-account-manager.h \
+	_gen/svc-client.h \
 	_gen/enums.h \
 	_gen/interfaces.h \
 	_gen/gtypes.h
@@ -54,6 +55,7 @@ nodist_libmcclient_la_SOURCES = \
 	_gen/mc-quark.c \
 	_gen/cli-account-body.h \
 	_gen/cli-account-manager-body.h \
+	_gen/svc-client.c \
 	_gen/gtypes-body.h \
 	_gen/interfaces-body.h \
 	_gen/register-dbus-glib-marshallers-body.h \
@@ -83,6 +85,7 @@ EXTRA_DIST = \
 	$(libmcclient_include_DATA) \
 	account.xml \
 	account-manager.xml \
+	client.xml \
 	mc-quark.list \
 	mc-signals-marshal.list
 
@@ -163,3 +166,12 @@ _gen/cli-%-body.h _gen/cli-%.h: _gen/%.xml \
 		--iface-quark-prefix=MC_IFACE_QUARK \
 		$< Mc_Cli _gen/cli-$*
 
+_gen/svc-%.c _gen/svc-%.h: _gen/%.xml \
+	$(tools_dir)/glib-ginterface-gen.py Makefile.am
+	$(PYTHON) $(tools_dir)/glib-ginterface-gen.py \
+		--filename=_gen/svc-$* \
+		--signal-marshal-prefix=_mc_ext \
+		--include='<telepathy-glib/dbus.h>' \
+		--include='"_gen/signals-marshal.h"' \
+		--not-implemented-func='tp_dbus_g_method_return_not_implemented' \
+		$< Mc_Svc_
