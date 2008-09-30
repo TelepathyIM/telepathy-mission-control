@@ -40,6 +40,7 @@ mission_control_include = \
 
 genincludedir = $(mission_control_includedir)/_gen
 nodist_geninclude_HEADERS = \
+	_gen/cli-client.h \
 	_gen/enums.h \
 	_gen/interfaces.h \
 	_gen/gtypes.h \
@@ -52,6 +53,7 @@ nodist_geninclude_HEADERS = \
 	_gen/svc-Account_Manager_Interface_Query.h
 
 nodist_libmissioncontrol_server_la_SOURCES = \
+	_gen/cli-client-body.h \
 	_gen/gtypes-body.h \
 	_gen/interfaces-body.h \
 	_gen/register-dbus-glib-marshallers-body.h \
@@ -177,7 +179,10 @@ mcd-enum-types.c: Makefile
 mcd-service-gen.h: $(top_builddir)/xml/MissionControl-gen.xml
 	dbus-binding-tool --mode=glib-server --prefix=mcd_service $< > $@
 
-EXTRA_DIST = mcd-signals-marshal.list stamp-mcd-enum-types.h
+EXTRA_DIST = \
+	client.xml \
+	mcd-signals-marshal.list \
+	stamp-mcd-enum-types.h
 
 # ---- telepathy-glib-style code generation ----
 
@@ -240,6 +245,11 @@ _gen/interfaces-body.h: _gen/all.xml \
 # like account, account-manager, ...)
 
 _gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml)
+	$(mkdir_p) _gen
+	$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
+		$< > $@
+
+_gen/%.xml: %.xml
 	$(mkdir_p) _gen
 	$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
