@@ -1203,10 +1203,10 @@ mcd_account_setup (McdAccount *account)
     if (!priv->manager && !load_manager (priv))
     {
 	g_warning ("Could not find manager `%s'", priv->manager_name);
-	return FALSE;
+	valid = FALSE;
     }
-
-    valid = mcd_account_check_parameters (account);
+    else
+	valid = mcd_account_check_parameters (account);
     priv->valid = valid;
 
     /* load the automatic presence */
