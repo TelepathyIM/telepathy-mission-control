@@ -82,6 +82,16 @@ enum
 
 guint _mc_account_manager_signals[LAST_SIGNAL] = { 0 };
 
+static void create_props (TpProxy *proxy, GHashTable *props);
+static void setup_props_monitor (TpProxy *proxy, GQuark interface);
+
+static McIfaceDescription iface_description = {
+    G_STRUCT_OFFSET (McAccountManagerPrivate, props),
+    create_props,
+    setup_props_monitor,
+};
+
+
 static void
 mc_account_manager_init (McAccountManager *self)
 {
@@ -154,6 +164,9 @@ mc_account_manager_class_init (McAccountManagerClass *klass)
 		      mc_signals_marshal_VOID__STRING_BOOLEAN,
 		      G_TYPE_NONE,
 		      2, G_TYPE_STRING, G_TYPE_BOOLEAN);
+
+    _mc_iface_add (MC_TYPE_ACCOUNT_MANAGER, MC_IFACE_QUARK_ACCOUNT_MANAGER,
+		   &iface_description);
 }
 
 /**
@@ -310,6 +323,20 @@ on_account_removed (TpProxy *proxy, const gchar *account_path,
     account_remove (account_path, &props->invalid_accounts);
 }
 
+static void
+setup_props_monitor (TpProxy *proxy, GQuark interface)
+{
+    McAccountManager *manager = MC_ACCOUNT_MANAGER (proxy);
+
+    mc_cli_account_manager_connect_to_account_validity_changed (manager,
+					    on_account_validity_changed,
+					    NULL, NULL, NULL, NULL);
+    mc_cli_account_manager_connect_to_account_removed (manager,
+						       on_account_removed,
+						       NULL, NULL,
+						       NULL, NULL);
+}
+
 /**
  * McAccountManagerWhenReadyCb:
  * @manager: the #McAccountManager.
@@ -394,5 +421,49 @@ mc_account_manager_get_invalid_accounts (McAccountManager *manager)
     props = manager->priv->props;
     if (G_UNLIKELY (!props)) return NULL;
     return (const gchar * const *)props->invalid_accounts;
+}
+
+/**
+ * McAccountManagerWhenReadyObjectCb:
+ * @manager: the #McAccountManager.
+ * @error: %NULL if the interface is ready for use, or the error with which it
+ * was invalidated if it is now invalid.
+ * @user_data: the user data that was passed to
+ * mc_account_call_when_iface_ready() or mc_account_call_when_all_ready().
+ * @weak_object: the #GObject that was passed to
+ * mc_account_call_when_iface_ready() or mc_account_call_when_all_ready().
+ */
+
+/**
+ * mc_account_manager_call_when_iface_ready:
+ * @manager: the #McAccountManager.
+ * @interface: a #GQuark representing the interface to process.
+ * @callback: called when the interface becomes ready or invalidated, whichever
+ * happens first.
+ * @user_data: user data to be passed to @callback.
+ * @destroy: called with the user_data as argument, after the call has
+ * succeeded, failed or been cancelled.
+ * @weak_object: If not %NULL, a #GObject which will be weakly referenced; if
+ * it is destroyed, this call will automatically be cancelled. Must be %NULL if
+ * @callback is %NULL
+ *
+ * Start retrieving and monitoring the properties of the interface @interface
+ * of @account. If they have already been retrieved, call @callback
+ * immediately, then return. Otherwise, @callback will be called when the
+ * properties are ready.
+ */
+void
+mc_account_manager_call_when_iface_ready (McAccountManager *manager,
+				    GQuark interface,
+				    McAccountManagerWhenReadyObjectCb callback,
+				    gpointer user_data,
+				    GDestroyNotify destroy,
+				    GObject *weak_object)
+{
+    _mc_iface_call_when_ready ((TpProxy *)manager,
+			       MC_TYPE_ACCOUNT_MANAGER,
+			       interface,
+			       (McIfaceWhenReadyCb)callback,
+			       user_data, destroy, weak_object);
 }
 

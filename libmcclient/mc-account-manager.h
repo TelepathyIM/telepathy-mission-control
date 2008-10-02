@@ -63,6 +63,19 @@ const gchar * const *mc_account_manager_get_valid_accounts (McAccountManager
 							    *manager);
 const gchar * const *mc_account_manager_get_invalid_accounts (McAccountManager
 							      *manager);
+
+typedef void (*McAccountManagerWhenReadyObjectCb) (McAccountManager *manager,
+						   const GError *error,
+						   gpointer user_data,
+						   GObject *weak_object);
+
+void mc_account_manager_call_when_iface_ready (McAccountManager *manager,
+				    GQuark interface,
+				    McAccountManagerWhenReadyObjectCb callback,
+				    gpointer user_data,
+				    GDestroyNotify destroy,
+				    GObject *weak_object);
+
 G_END_DECLS
 
 /* auto-generated stubs */
