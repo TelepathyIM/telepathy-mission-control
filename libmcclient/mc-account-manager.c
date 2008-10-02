@@ -105,6 +105,25 @@ static McIfaceDescription iface_description = {
 
 
 static void
+on_account_invalidated (McAccount *account,
+			guint domain, gint code, gchar *message,
+			McAccountManager *manager)
+{
+    g_hash_table_remove (manager->priv->accounts, account->name);
+}
+
+static void
+account_cache_remove (gpointer ptr)
+{
+    McAccount *account = MC_ACCOUNT (ptr);
+
+    g_signal_handlers_disconnect_matched (account, G_SIGNAL_MATCH_FUNC,
+					  0, 0, NULL,
+					  on_account_invalidated, NULL);
+    g_object_unref (account);
+}
+
+static void
 ready_with_accounts_data_free (gpointer ptr)
 {
     ReadyWithAccountsData *cb_data = ptr;
@@ -698,7 +717,7 @@ mc_account_manager_get_account (McAccountManager *manager,
     if (G_UNLIKELY (!priv->accounts))
     {
 	priv->accounts = g_hash_table_new_full (g_str_hash, g_str_equal,
-						   NULL, g_object_unref);
+						NULL, account_cache_remove);
     }
     g_return_val_if_fail (priv->accounts != NULL, NULL);
 
@@ -727,6 +746,8 @@ mc_account_manager_get_account (McAccountManager *manager,
 	if (G_LIKELY (account))
 	{
 	    g_hash_table_insert (priv->accounts, account->name, account);
+	    g_signal_connect (account, "invalidated",
+			      G_CALLBACK (on_account_invalidated), manager);
 	}
 	if (object_path != account_name)
 	    g_free ((gchar *)object_path);
