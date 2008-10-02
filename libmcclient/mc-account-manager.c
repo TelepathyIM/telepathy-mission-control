@@ -95,6 +95,8 @@ enum
 
 guint _mc_account_manager_signals[LAST_SIGNAL] = { 0 };
 
+static McAccountManager *account_manager_singleton = NULL;
+
 static void create_props (TpProxy *proxy, GHashTable *props);
 static void setup_props_monitor (TpProxy *proxy, GQuark interface);
 
@@ -238,6 +240,23 @@ manager_props_free (McAccountManagerProps *props)
     g_free (props);
 }
 
+static GObject *
+constructor (GType type, guint n_params, GObjectConstructParam *params)
+{
+    GObject *object;
+
+    if (!account_manager_singleton)
+    {
+	object = G_OBJECT_CLASS (mc_account_manager_parent_class)->constructor
+	    (type, n_params, params);
+	account_manager_singleton = MC_ACCOUNT_MANAGER (object);
+    }
+    else
+	object = g_object_ref (account_manager_singleton);
+
+    return object;
+}
+
 static void
 dispose (GObject *object)
 {
@@ -274,6 +293,7 @@ mc_account_manager_class_init (McAccountManagerClass *klass)
     TpProxyClass *proxy_class = (TpProxyClass *) klass;
 
     g_type_class_add_private (object_class, sizeof (McAccountManagerPrivate));
+    object_class->constructor = constructor;
     object_class->finalize = finalize;
     object_class->dispose = dispose;
 
