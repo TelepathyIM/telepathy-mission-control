@@ -89,6 +89,7 @@ typedef struct {
 enum
 {
     ACCOUNT_CREATED,
+    ACCOUNT_READY,
     LAST_SIGNAL
 };
 
@@ -308,6 +309,32 @@ mc_account_manager_class_init (McAccountManagerClass *klass)
 		      G_TYPE_NONE,
 		      2, G_TYPE_STRING, G_TYPE_BOOLEAN);
 
+    /**
+     * McAccountManager::account-ready:
+     * @account_manager: the #McAccountManager.
+     * @account: the #McAccount that became ready.
+     *
+     * Emitted when a new account has appeared on the D-Bus and all the
+     * requested interfaces (see
+     * mc_account_manager_call_when_ready_with_accounts()) have become ready.
+     *
+     * Clients should connect to this signal only after
+     * mc_account_manager_call_when_ready_with_accounts() has called the
+     * callback function.
+     *
+     * In the unlikely case that this signal is emitted several times for the
+     * same account, clients should ignore all but the first emission.
+     */
+    _mc_account_manager_signals[ACCOUNT_READY] =
+	g_signal_new ("account-ready",
+		      G_OBJECT_CLASS_TYPE (klass),
+		      G_SIGNAL_RUN_LAST,
+		      0,
+		      NULL, NULL,
+		      g_cclosure_marshal_VOID__OBJECT,
+		      G_TYPE_NONE,
+		      1, MC_TYPE_ACCOUNT);
+
     _mc_iface_add (MC_TYPE_ACCOUNT_MANAGER, MC_IFACE_QUARK_ACCOUNT_MANAGER,
 		   &iface_description);
 }
@@ -426,12 +453,32 @@ account_add (const gchar *account_path, gchar ***dst)
 }
 
 static void
+new_account_ready_cb (TpProxy *proxy, const GError *error,
+		      gpointer user_data, GObject *weak_object)
+{
+    McAccountManager *manager = MC_ACCOUNT_MANAGER (weak_object);
+    McAccount *account = MC_ACCOUNT (proxy);
+
+    if (error)
+    {
+	g_warning ("Error retrieving properties for %s: %s",
+		   account->name, error->message);
+	return;
+    }
+
+    g_signal_emit (manager,
+		   _mc_account_manager_signals[ACCOUNT_READY], 0,
+		   account);
+}
+
+static void
 on_account_validity_changed (TpProxy *proxy, const gchar *account_path,
 			     gboolean valid, gpointer user_data,
 			     GObject *weak_object)
 {
     McAccountManager *manager = MC_ACCOUNT_MANAGER (proxy);
-    McAccountManagerProps *props = manager->priv->props;
+    McAccountManagerPrivate *priv = manager->priv;
+    McAccountManagerProps *props = priv->props;
     gboolean existed;
 
     if (G_UNLIKELY (!props)) return;
@@ -448,9 +495,26 @@ on_account_validity_changed (TpProxy *proxy, const gchar *account_path,
     }
 
     if (!existed)
+    {
 	g_signal_emit (manager,
 		       _mc_account_manager_signals[ACCOUNT_CREATED], 0,
 		       account_path, valid);
+	if (priv->account_ifaces)
+	{
+	    McAccount *account;
+	    GQuark *ifaces;
+	    guint n_ifaces;
+
+	    ifaces = (GQuark *)priv->account_ifaces->pdata;
+	    n_ifaces = priv->account_ifaces->len;
+
+	    account = mc_account_manager_get_account (manager, account_path);
+	    _mc_iface_call_when_all_readyv (TP_PROXY (account), MC_TYPE_ACCOUNT,
+					    new_account_ready_cb, NULL, NULL,
+					    (GObject *)manager,
+					    n_ifaces, ifaces);
+	}
+    }
 }
 
 static void
