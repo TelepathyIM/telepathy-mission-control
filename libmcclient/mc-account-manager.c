@@ -127,7 +127,7 @@ account_cache_remove (gpointer ptr)
 }
 
 static void
-ready_with_accounts_data_free (gpointer ptr)
+ready_with_accounts_data_unref (gpointer ptr)
 {
     ReadyWithAccountsData *cb_data = ptr;
 
@@ -183,7 +183,7 @@ get_accounts_ready (McAccountManager *manager, gchar **accounts,
 	cb_data->cb_remaining++;
 	_mc_iface_call_when_all_readyv (TP_PROXY (account), MC_TYPE_ACCOUNT,
 					account_ready_cb, cb_data,
-					ready_with_accounts_data_free,
+					ready_with_accounts_data_unref,
 					weak_object,
 					n_ifaces, ifaces);
     }
@@ -769,7 +769,7 @@ mc_account_manager_call_when_ready_with_accounts (McAccountManager *manager,
 					      MC_IFACE_QUARK_ACCOUNT_MANAGER,
 					      manager_ready_cb,
 					      cb_data,
-					      ready_with_accounts_data_free,
+					      ready_with_accounts_data_unref,
 					      weak_object);
 }
 
@@ -856,8 +856,9 @@ mc_account_manager_get_account (McAccountManager *manager,
  *
  * List all accounts known by the @manager. For this function to be really
  * useful, you first need to have waited for
- * mc_account_manager_call_when_ready_with_accounts(), or it will only return
- * those accounts for which mc_account_manager_get_account() has been called.
+ * mc_account_manager_call_when_ready_with_accounts() to succeed, or it will
+ * only return those accounts for which mc_account_manager_get_account() has
+ * been called.
  *
  * Returns: a #GList of #McAccount objects; to be free'd with g_list_free().
  */
