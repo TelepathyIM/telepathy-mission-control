@@ -31,6 +31,8 @@
 #define MC_ACCOUNT_MANAGER_DBUS_SERVICE "org.freedesktop.Telepathy.AccountManager"
 #define MC_ACCOUNT_MANAGER_DBUS_OBJECT "/org/freedesktop/Telepathy/AccountManager"
 #define MC_ACCOUNT_DBUS_OBJECT_BASE "/org/freedesktop/Telepathy/Account/"
+#define MC_ACCOUNT_DBUS_OBJECT_BASE_LEN \
+    (sizeof (MC_ACCOUNT_DBUS_OBJECT_BASE) - 1)
 
 #include <libmcclient/_gen/enums.h>
 #include <libmcclient/_gen/gtypes.h>

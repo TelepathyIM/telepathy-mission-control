@@ -134,8 +134,7 @@ parse_object_path (McAccount *account)
 
     account->manager_name = g_strdup (manager);
     account->protocol_name = g_strdup (protocol);
-    account->name = object_path +
-       	(sizeof (MC_ACCOUNT_DBUS_OBJECT_BASE) - 1);
+    account->name = object_path + MC_ACCOUNT_DBUS_OBJECT_BASE_LEN;
     return TRUE;
 }
 
