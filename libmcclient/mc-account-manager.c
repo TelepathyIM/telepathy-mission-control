@@ -65,6 +65,10 @@ typedef struct _McAccountManagerProps {
 struct _McAccountManager {
     TpProxy parent;
     /*<private>*/
+    McAccountManagerPrivate *priv;
+};
+
+struct _McAccountManagerPrivate {
     McAccountManagerProps *props;
 };
 
@@ -81,6 +85,9 @@ guint _mc_account_manager_signals[LAST_SIGNAL] = { 0 };
 static void
 mc_account_manager_init (McAccountManager *self)
 {
+    self->priv = G_TYPE_INSTANCE_GET_PRIVATE(self, MC_TYPE_ACCOUNT_MANAGER,
+					     McAccountManagerPrivate);
+
     tp_proxy_add_interface_by_id ((TpProxy *)self,
 	MC_IFACE_QUARK_ACCOUNT_MANAGER_INTERFACE_CREATION);
     tp_proxy_add_interface_by_id ((TpProxy *)self,
@@ -98,10 +105,10 @@ manager_props_free (McAccountManagerProps *props)
 static void
 finalize (GObject *object)
 {
-    McAccountManager *manager = MC_ACCOUNT_MANAGER (object);
+    McAccountManagerPrivate *priv = MC_ACCOUNT_MANAGER (object)->priv;
 
-    if (manager->props)
-	manager_props_free (manager->props);
+    if (priv->props)
+	manager_props_free (priv->props);
 
     G_OBJECT_CLASS (mc_account_manager_parent_class)->finalize (object);
 }
@@ -113,6 +120,7 @@ mc_account_manager_class_init (McAccountManagerClass *klass)
     GObjectClass *object_class = (GObjectClass *)klass;
     TpProxyClass *proxy_class = (TpProxyClass *) klass;
 
+    g_type_class_add_private (object_class, sizeof (McAccountManagerPrivate));
     object_class->finalize = finalize;
 
     /* the API is stateless, so we can keep the same proxy across restarts */
@@ -170,7 +178,7 @@ static void
 update_property (gpointer key, gpointer ht_value, gpointer user_data)
 {
     McAccountManager *manager = user_data;
-    McAccountManagerProps *props = manager->props;
+    McAccountManagerProps *props = manager->priv->props;
     GValue *value = ht_value;
     const gchar *name = key;
 
@@ -193,7 +201,7 @@ create_props (TpProxy *proxy, GHashTable *props)
 {
     McAccountManager *manager = MC_ACCOUNT_MANAGER (proxy);
 
-    manager->props = g_malloc0 (sizeof (McAccountManagerProps));
+    manager->priv->props = g_malloc0 (sizeof (McAccountManagerProps));
     g_hash_table_foreach (props, update_property, manager);
 }
 
@@ -267,7 +275,7 @@ on_account_validity_changed (TpProxy *proxy, const gchar *account_path,
 			     GObject *weak_object)
 {
     McAccountManager *manager = MC_ACCOUNT_MANAGER (proxy);
-    McAccountManagerProps *props = manager->props;
+    McAccountManagerProps *props = manager->priv->props;
     gboolean existed;
 
     if (G_UNLIKELY (!props)) return;
@@ -294,7 +302,7 @@ on_account_removed (TpProxy *proxy, const gchar *account_path,
 		    gpointer user_data, GObject *weak_object)
 {
     McAccountManager *manager = MC_ACCOUNT_MANAGER (proxy);
-    McAccountManagerProps *props = manager->props;
+    McAccountManagerProps *props = manager->priv->props;
 
     if (G_UNLIKELY (!props)) return;
 
@@ -331,7 +339,7 @@ mc_account_manager_call_when_ready (McAccountManager *manager,
     McIfaceData iface_data;
 
     iface_data.id = MC_IFACE_QUARK_ACCOUNT_MANAGER;
-    iface_data.props_data_ptr = (gpointer)&manager->props;
+    iface_data.props_data_ptr = (gpointer)&manager->priv->props;
     iface_data.create_props = create_props;
 
     if (_mc_iface_call_when_ready_int ((TpProxy *)manager,
@@ -360,9 +368,12 @@ mc_account_manager_call_when_ready (McAccountManager *manager,
 const gchar * const *
 mc_account_manager_get_valid_accounts (McAccountManager *manager)
 {
+    McAccountManagerProps *props;
+
     g_return_val_if_fail (MC_IS_ACCOUNT_MANAGER (manager), NULL);
-    if (G_UNLIKELY (!manager->props)) return NULL;
-    return (const gchar * const *)manager->props->valid_accounts;
+    props = manager->priv->props;
+    if (G_UNLIKELY (!props)) return NULL;
+    return (const gchar * const *)props->valid_accounts;
 }
 
 /**
@@ -377,8 +388,11 @@ mc_account_manager_get_valid_accounts (McAccountManager *manager)
 const gchar * const *
 mc_account_manager_get_invalid_accounts (McAccountManager *manager)
 {
+    McAccountManagerProps *props;
+
     g_return_val_if_fail (MC_IS_ACCOUNT_MANAGER (manager), NULL);
-    if (G_UNLIKELY (!manager->props)) return NULL;
-    return (const gchar * const *)manager->props->invalid_accounts;
+    props = manager->priv->props;
+    if (G_UNLIKELY (!props)) return NULL;
+    return (const gchar * const *)props->invalid_accounts;
 }
 
