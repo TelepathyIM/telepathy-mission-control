@@ -480,8 +480,13 @@ update_property (gpointer key, gpointer ht_value, gpointer user_data)
     }
     else if (strcmp (name, "Connection") == 0)
     {
+	const gchar *object_path;
 	g_free (props->connection);
-	props->connection = g_value_dup_string (value);
+	object_path = g_value_get_boxed (value);
+	if (object_path && strcmp (object_path, "/") != 0)
+	    props->connection = g_strdup (object_path);
+	else
+	    props->connection = NULL;
     }
     else if (strcmp (name, "ConnectionStatus") == 0)
     {
