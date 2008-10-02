@@ -318,3 +318,32 @@ _mc_iface_call_when_all_ready (TpProxy *proxy, GType type,
     multi_cb_data_free (mcbd);
 }
 
+void
+_mc_iface_call_when_all_readyv (TpProxy *proxy, GType type,
+				McIfaceWhenReadyCb callback,
+				gpointer user_data, GDestroyNotify destroy,
+				GObject *weak_object,
+				guint n_ifaces, GQuark *ifaces)
+{
+    GQuark iface;
+    MultiCbData *mcbd;
+    guint i;
+
+    mcbd = g_slice_new0 (MultiCbData);
+    mcbd->callback = callback;
+    mcbd->user_data = user_data;
+    mcbd->destroy = destroy;
+    mcbd->ref_count = 1;
+
+    for (i = 0; i < n_ifaces; i++)
+    {
+	iface = ifaces[i];
+	mcbd->remaining_ifaces++;
+	mcbd->ref_count++;
+	_mc_iface_call_when_ready (proxy, type, iface,
+				   call_when_all_ready_cb,
+				   mcbd, multi_cb_data_free, weak_object);
+    }
+    multi_cb_data_free (mcbd);
+}
+
