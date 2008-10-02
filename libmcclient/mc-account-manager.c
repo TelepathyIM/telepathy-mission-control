@@ -839,3 +839,51 @@ mc_account_manager_get_account (McAccountManager *manager,
     return account;
 }
 
+/**
+ * McAccountFilterFunc:
+ * @account: a #McAccount.
+ * @user_data: the user data that was passed to
+ * mc_account_manager_list_accounts().
+ *
+ * Returns: %TRUE if @account must be listed, %FALSE otherwise.
+ */
+
+/**
+ * mc_account_manager_list_accounts:
+ * @manager: the #McAccountManager.
+ * @filter: a function for filtering accounts, or %NULL.
+ * @user_data: user data to be supplied to the filtering callback.
+ *
+ * List all accounts known by the @manager. For this function to be really
+ * useful, you first need to have waited for
+ * mc_account_manager_call_when_ready_with_accounts(), or it will only return
+ * those accounts for which mc_account_manager_get_account() has been called.
+ *
+ * Returns: a #GList of #McAccount objects; to be free'd with g_list_free().
+ */
+GList *
+mc_account_manager_list_accounts (McAccountManager *manager,
+				  McAccountFilterFunc filter,
+				  gpointer user_data)
+{
+    GHashTable *accounts_ht;
+    GHashTableIter iter;
+    McAccount *account;
+    GList *list = NULL;
+
+    g_return_val_if_fail (MC_IS_ACCOUNT_MANAGER (manager), NULL);
+    accounts_ht = manager->priv->accounts;
+    if (G_UNLIKELY (accounts_ht == NULL)) return NULL;
+
+    g_hash_table_iter_init (&iter, accounts_ht);
+    while (g_hash_table_iter_next (&iter, NULL, (gpointer)&account))
+    {
+	if (filter && !filter (account, user_data))
+	    continue;
+
+	list = g_list_prepend (list, account);
+    }
+
+    return g_list_reverse (list);
+}
+

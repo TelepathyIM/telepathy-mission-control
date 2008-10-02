@@ -87,6 +87,11 @@ void mc_account_manager_call_when_ready_with_accounts (
 McAccount *mc_account_manager_get_account (McAccountManager *manager,
 					   const gchar *account_name);
 
+typedef gboolean (*McAccountFilterFunc) (McAccount *account,
+					 gpointer user_data);
+GList *mc_account_manager_list_accounts (McAccountManager *manager,
+					 McAccountFilterFunc filter,
+					 gpointer user_data);
 G_END_DECLS
 
 /* auto-generated stubs */
