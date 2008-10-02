@@ -249,7 +249,7 @@ typedef struct _MultiCbData {
     gpointer user_data;
     GDestroyNotify destroy;
     gint remaining_ifaces;
-    gint remaining_destroys;
+    gint ref_count;
     GError *error;
 } MultiCbData;
 
@@ -258,9 +258,9 @@ multi_cb_data_free (gpointer ptr)
 {
     MultiCbData *mcbd = ptr;
 
-    mcbd->remaining_destroys--;
-    g_assert (mcbd->remaining_destroys >= 0);
-    if (mcbd->remaining_destroys == 0)
+    mcbd->ref_count--;
+    g_assert (mcbd->ref_count >= 0);
+    if (mcbd->ref_count == 0)
     {
 	if (mcbd->destroy)
 	    mcbd->destroy (mcbd->user_data);
@@ -303,16 +303,18 @@ _mc_iface_call_when_all_ready (TpProxy *proxy, GType type,
     mcbd->callback = callback;
     mcbd->user_data = user_data;
     mcbd->destroy = destroy;
+    mcbd->ref_count = 1;
 
     for (iface = va_arg (ifaces, GQuark); iface != 0;
 	 iface = va_arg (ifaces, GQuark))
     {
 	mcbd->remaining_ifaces++;
-	mcbd->remaining_destroys++;
+	mcbd->ref_count++;
 	_mc_iface_call_when_ready (proxy, type, iface,
 				   call_when_all_ready_cb,
 				   mcbd, multi_cb_data_free, weak_object);
     }
     va_end (ifaces);
+    multi_cb_data_free (mcbd);
 }
 
