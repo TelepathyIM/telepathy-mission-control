@@ -107,6 +107,14 @@ static McIfaceDescription iface_description = {
 };
 
 
+static void
+on_account_removed (TpProxy *proxy, gpointer user_data, GObject *weak_object)
+{
+    GError e = { TP_DBUS_ERRORS, TP_DBUS_ERROR_OBJECT_REMOVED,
+	"Account was removed" };
+    tp_proxy_invalidate (proxy, &e);
+}
+
 static inline void
 set_presence_gvalue (GValue *value, TpConnectionPresenceType type,
 		     const gchar *status, const gchar *message)
@@ -170,6 +178,8 @@ constructor (GType type,
     if (!parse_object_path (account))
 	return NULL;
 
+    mc_cli_account_connect_to_removed (account, on_account_removed,
+				       NULL, NULL, NULL, NULL);
     return (GObject *) account;
 }
 
