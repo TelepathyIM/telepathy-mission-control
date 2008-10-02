@@ -70,9 +70,21 @@ struct _McAccountManager {
 
 struct _McAccountManagerPrivate {
     McAccountManagerProps *props;
+    GPtrArray *account_ifaces;
+    GHashTable *accounts;
 };
 
 G_DEFINE_TYPE (McAccountManager, mc_account_manager, TP_TYPE_PROXY);
+
+typedef struct {
+    McAccountManagerWhenReadyObjectCb callback;
+    gpointer user_data;
+    GDestroyNotify destroy;
+    GError *error;
+    McAccountManager *manager;
+    gint ref_count;
+    gint cb_remaining;
+} ReadyWithAccountsData;
 
 enum
 {
@@ -91,6 +103,100 @@ static McIfaceDescription iface_description = {
     setup_props_monitor,
 };
 
+
+static void
+ready_with_accounts_data_free (gpointer ptr)
+{
+    ReadyWithAccountsData *cb_data = ptr;
+
+    cb_data->ref_count--;
+    g_assert (cb_data->ref_count >= 0);
+    if (cb_data->ref_count == 0)
+    {
+	if (cb_data->destroy)
+	    cb_data->destroy (cb_data->user_data);
+	if (cb_data->error)
+	    g_error_free (cb_data->error);
+	g_slice_free (ReadyWithAccountsData, cb_data);
+    }
+}
+
+static void
+account_ready_cb (TpProxy *proxy, const GError *error,
+		  gpointer user_data, GObject *weak_object)
+{
+    ReadyWithAccountsData *cb_data = user_data;
+
+    if (error)
+    {
+	if (cb_data->error == NULL)
+	    cb_data->error = g_error_copy (error);
+    }
+    cb_data->cb_remaining--;
+    if (cb_data->cb_remaining == 0)
+    {
+	if (cb_data->callback)
+	    cb_data->callback (cb_data->manager, error, cb_data->user_data,
+			       weak_object);
+    }
+}
+
+static void
+get_accounts_ready (McAccountManager *manager, gchar **accounts,
+		    ReadyWithAccountsData *cb_data, GObject *weak_object)
+{
+    McAccountManagerPrivate *priv = manager->priv;
+    GQuark *ifaces;
+    guint i, n_ifaces;
+
+    ifaces = (GQuark *)priv->account_ifaces->pdata;
+    n_ifaces = priv->account_ifaces->len;
+
+    for (i = 0; accounts[i] != NULL; i++)
+    {
+	McAccount *account;
+
+	account = mc_account_manager_get_account (manager, accounts[i]);
+	cb_data->ref_count++;
+	cb_data->cb_remaining++;
+	_mc_iface_call_when_all_readyv (TP_PROXY (account), MC_TYPE_ACCOUNT,
+					account_ready_cb, cb_data,
+					ready_with_accounts_data_free,
+					weak_object,
+					n_ifaces, ifaces);
+    }
+}
+
+static void
+manager_ready_cb (McAccountManager *manager, const GError *error,
+		  gpointer user_data, GObject *weak_object)
+{
+    McAccountManagerPrivate *priv = manager->priv;
+    ReadyWithAccountsData *cb_data = user_data;
+
+    if (error)
+    {
+	if (cb_data->callback)
+	    cb_data->callback (manager, error, cb_data->user_data,
+			       weak_object);
+	return;
+    }
+
+    /* now we have the account names; create all accounts and get them ready */
+    get_accounts_ready (manager, priv->props->valid_accounts,
+			cb_data, weak_object);
+    get_accounts_ready (manager, priv->props->invalid_accounts,
+			cb_data, weak_object);
+    cb_data->cb_remaining--;
+    if (cb_data->cb_remaining == 0)
+    {
+	/* either we have no accounts, or they were all ready; in any case, we
+	 * can invoke the callback now */
+	if (cb_data->callback)
+	    cb_data->callback (manager, error, cb_data->user_data,
+			       weak_object);
+    }
+}
 
 static void
 mc_account_manager_init (McAccountManager *self)
@@ -113,12 +219,29 @@ manager_props_free (McAccountManagerProps *props)
 }
 
 static void
+dispose (GObject *object)
+{
+    McAccountManagerPrivate *priv = MC_ACCOUNT_MANAGER (object)->priv;
+
+    if (priv->accounts)
+    {
+	g_hash_table_destroy (priv->accounts);
+	priv->accounts = NULL;
+    }
+
+    G_OBJECT_CLASS (mc_account_manager_parent_class)->dispose (object);
+}
+
+static void
 finalize (GObject *object)
 {
     McAccountManagerPrivate *priv = MC_ACCOUNT_MANAGER (object)->priv;
 
     if (priv->props)
 	manager_props_free (priv->props);
+
+    if (priv->account_ifaces)
+	g_ptr_array_free (priv->account_ifaces, TRUE);
 
     G_OBJECT_CLASS (mc_account_manager_parent_class)->finalize (object);
 }
@@ -132,6 +255,7 @@ mc_account_manager_class_init (McAccountManagerClass *klass)
 
     g_type_class_add_private (object_class, sizeof (McAccountManagerPrivate));
     object_class->finalize = finalize;
+    object_class->dispose = dispose;
 
     /* the API is stateless, so we can keep the same proxy across restarts */
     proxy_class->must_have_unique_name = FALSE;
@@ -465,5 +589,148 @@ mc_account_manager_call_when_iface_ready (McAccountManager *manager,
 			       interface,
 			       (McIfaceWhenReadyCb)callback,
 			       user_data, destroy, weak_object);
+}
+
+/**
+ * mc_account_manager_call_when_ready_with_accounts:
+ * @manager: the #McAccountManager.
+ * @callback: called when the account manager and all the accounts are ready,
+ * or some error occurs.
+ * @user_data: user data to be passed to @callback.
+ * @destroy: called with the user_data as argument, after the call has
+ * succeeded, failed or been cancelled.
+ * @weak_object: If not %NULL, a #GObject which will be weakly referenced; if
+ * it is destroyed, this call will automatically be cancelled. Must be %NULL if
+ * @callback is %NULL
+ * @Varargs: a list of #GQuark types representing the account interfaces to
+ * process, followed by %0.
+ *
+ * This is a convenience function that waits for the account manager to be
+ * ready, after which it requests the desired interfaces out of all accounts
+ * and returns only once they are all ready.
+ * After this function has been called, all new accounts that should appear
+ * will have their desired interfaces retrieved, and the "account-ready" signal
+ * will be emitted.
+ */
+void
+mc_account_manager_call_when_ready_with_accounts (McAccountManager *manager,
+				    McAccountManagerWhenReadyObjectCb callback,
+				    gpointer user_data,
+				    GDestroyNotify destroy,
+				    GObject *weak_object, ...)
+{
+    McAccountManagerPrivate *priv;
+    GQuark iface;
+    guint len, i;
+    ReadyWithAccountsData *cb_data;
+    va_list ifaces;
+
+    g_return_if_fail (MC_IS_ACCOUNT_MANAGER (manager));
+    priv = manager->priv;
+
+    /* Add the requested interfaces to the account_ifaces array */
+    va_start (ifaces, weak_object);
+
+    if (!priv->account_ifaces)
+	priv->account_ifaces = g_ptr_array_sized_new (8);
+
+    len = priv->account_ifaces->len;
+    for (iface = va_arg (ifaces, GQuark); iface != 0;
+	 iface = va_arg (ifaces, GQuark))
+    {
+	for (i = 0; i < len; i++)
+	{
+	    gpointer ptr = g_ptr_array_index (priv->account_ifaces, i);
+
+	    if ((GQuark)GPOINTER_TO_UINT (ptr) == iface)
+		break;
+	}
+	if (i < len) /* found */
+	    continue;
+
+	g_ptr_array_add (priv->account_ifaces, GUINT_TO_POINTER(iface));
+    }
+    va_end (ifaces);
+
+    /* Get the account manager ready; in the callback, we'll make the accounts
+     * ready. */
+    cb_data = g_slice_new0 (ReadyWithAccountsData);
+    cb_data->callback = callback;
+    cb_data->user_data = user_data;
+    cb_data->destroy = destroy;
+    cb_data->manager = manager;
+    cb_data->ref_count = 1;
+    cb_data->cb_remaining = 1;
+
+    mc_account_manager_call_when_iface_ready (manager,
+					      MC_IFACE_QUARK_ACCOUNT_MANAGER,
+					      manager_ready_cb,
+					      cb_data,
+					      ready_with_accounts_data_free,
+					      weak_object);
+}
+
+/**
+ * mc_account_manager_get_account:
+ * @manager: the #McAccountManager.
+ * @account_name: the name of a #McAccount, or an object path.
+ *
+ * Get the #McAccount for the account whose name is @account_name. It looks up
+ * the accounts from an internal cache, and if the #McAccount is not found
+ * there it is created, provided that the @account_name refers to a proper
+ * account.
+ *
+ * Returns: a #McAccount, not referenced. %NULL if @account_name does not match
+ * any account.
+ */
+McAccount *
+mc_account_manager_get_account (McAccountManager *manager,
+				const gchar *account_name)
+{
+    McAccountManagerPrivate *priv;
+    McAccount *account;
+    const gchar *object_path, *name;
+
+    g_return_val_if_fail (MC_IS_ACCOUNT_MANAGER (manager), NULL);
+    g_return_val_if_fail (account_name != NULL, NULL);
+
+    priv = manager->priv;
+    if (G_UNLIKELY (!priv->accounts))
+    {
+	priv->accounts = g_hash_table_new_full (g_str_hash, g_str_equal,
+						   NULL, g_object_unref);
+    }
+    g_return_val_if_fail (priv->accounts != NULL, NULL);
+
+    /* @account_name can be an account name or an object path; now we need the
+     * name */
+    if (strncmp (account_name, MC_ACCOUNT_DBUS_OBJECT_BASE,
+		 MC_ACCOUNT_DBUS_OBJECT_BASE_LEN) == 0)
+    {
+	object_path = account_name;
+	name = account_name + MC_ACCOUNT_DBUS_OBJECT_BASE_LEN;
+    }
+    else
+    {
+	object_path = NULL;
+	name = account_name;
+    }
+
+    account = g_hash_table_lookup (priv->accounts, name);
+    if (!account)
+    {
+	if (!object_path)
+	    object_path = g_strconcat (MC_ACCOUNT_DBUS_OBJECT_BASE,
+				       account_name, NULL);
+	account = mc_account_new (TP_PROXY(manager)->dbus_daemon,
+				  object_path);
+	if (G_LIKELY (account))
+	{
+	    g_hash_table_insert (priv->accounts, account->name, account);
+	}
+	if (object_path != account_name)
+	    g_free ((gchar *)object_path);
+    }
+    return account;
 }
 

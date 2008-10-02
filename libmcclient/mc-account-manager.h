@@ -31,6 +31,8 @@ typedef struct _McAccountManager McAccountManager;
 typedef struct _McAccountManagerClass McAccountManagerClass;
 typedef struct _McAccountManagerPrivate McAccountManagerPrivate;
 
+#include <libmcclient/mc-account.h>
+
 GType mc_account_manager_get_type (void);
 
 #define MC_TYPE_ACCOUNT_MANAGER \
@@ -75,6 +77,15 @@ void mc_account_manager_call_when_iface_ready (McAccountManager *manager,
 				    gpointer user_data,
 				    GDestroyNotify destroy,
 				    GObject *weak_object);
+void mc_account_manager_call_when_ready_with_accounts (
+				    McAccountManager *manager,
+				    McAccountManagerWhenReadyObjectCb callback,
+				    gpointer user_data,
+				    GDestroyNotify destroy,
+				    GObject *weak_object, ...);
+
+McAccount *mc_account_manager_get_account (McAccountManager *manager,
+					   const gchar *account_name);
 
 G_END_DECLS
 
