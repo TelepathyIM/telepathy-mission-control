@@ -11,7 +11,11 @@ SPECS = MissionControl.xml \
 	Account.xml \
 	Account_Interface_Avatar.xml \
 	Account_Interface_Compat.xml \
-	Account_Interface_Conditions.xml
+	Account_Interface_Conditions.xml \
+	Client.xml \
+	Client_Approver.xml \
+	Client_Handler.xml \
+	Client_Observer.xml
 
 
 SPECS_GEN = ${SPECS:.xml=-gen.xml}
@@ -34,4 +38,5 @@ EXTRA_DIST = \
 	nmc4.xml \
 	nmc5.xml \
 	generic-types.xml \
+	telepathy-types.xml \
 	$(SPECS)

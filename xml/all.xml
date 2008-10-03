@@ -21,5 +21,6 @@
 </tp:generic-types>
 
 <xi:include href="generic-types.xml"/>
+<xi:include href="telepathy-types.xml"/>
 
 </tp:spec>
