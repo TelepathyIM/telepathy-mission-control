@@ -482,11 +482,19 @@ update_property (gpointer key, gpointer ht_value, gpointer user_data)
     {
 	const gchar *object_path;
 	g_free (props->connection);
-	object_path = g_value_get_boxed (value);
-	if (object_path && strcmp (object_path, "/") != 0)
-	    props->connection = g_strdup (object_path);
+	if (G_LIKELY (G_VALUE_HOLDS (value, DBUS_TYPE_G_OBJECT_PATH)))
+	{
+	    object_path = g_value_get_boxed (value);
+	    if (object_path && strcmp (object_path, "/") != 0)
+		props->connection = g_strdup (object_path);
+	    else
+		props->connection = NULL;
+	}
 	else
+	{
+	    g_warning ("%s: %s not an object path", G_STRFUNC, name);
 	    props->connection = NULL;
+	}
     }
     else if (strcmp (name, "ConnectionStatus") == 0)
     {
