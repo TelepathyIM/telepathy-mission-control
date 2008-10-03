@@ -96,7 +96,9 @@ void mc_account_get_automatic_presence (McAccount *account,
 					TpConnectionPresenceType *type,
 					const gchar **status,
 					const gchar **message);
-const gchar *mc_account_get_connection_name (McAccount *account);
+const gchar *mc_account_get_connection_path (McAccount *account);
+const gchar *mc_account_get_connection_name (McAccount *account)
+    G_GNUC_DEPRECATED;
 TpConnectionStatus mc_account_get_connection_status (McAccount *account);
 TpConnectionStatusReason mc_account_get_connection_status_reason (McAccount *account);
 void mc_account_get_current_presence (McAccount *account,

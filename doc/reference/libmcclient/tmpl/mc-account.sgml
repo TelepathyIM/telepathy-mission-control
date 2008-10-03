@@ -230,6 +230,15 @@ mc-account
 @message: 
 
 
+<!-- ##### FUNCTION mc_account_get_connection_path ##### -->
+<para>
+
+</para>
+
+@account: 
+@Returns: 
+
+
 <!-- ##### FUNCTION mc_account_get_connection_name ##### -->
 <para>
 

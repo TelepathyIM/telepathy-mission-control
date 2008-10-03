@@ -576,7 +576,7 @@ command_connection (McAccount *account)
     TpConnectionStatus status;
     TpConnectionStatusReason reason;
 
-    name = mc_account_get_connection_name (account);
+    name = mc_account_get_connection_path (account);
     status = mc_account_get_connection_status (account);
     reason = mc_account_get_connection_status_reason (account);
 

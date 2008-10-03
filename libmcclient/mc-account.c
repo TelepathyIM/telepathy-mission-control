@@ -874,7 +874,7 @@ mc_account_get_automatic_presence (McAccount *account,
 }
 
 /**
- * mc_account_get_connection_name:
+ * mc_account_get_connection_path:
  * @account: the #McAccount.
  *
  * Returns: a constant string representing the D-Bus path of the Telepathy
@@ -883,11 +883,23 @@ mc_account_get_automatic_presence (McAccount *account,
  * calling this function.
  */
 const gchar *
-mc_account_get_connection_name (McAccount *account)
+mc_account_get_connection_path (McAccount *account)
 {
     g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
     if (G_UNLIKELY (!account->priv->props)) return NULL;
     return account->priv->props->connection;
+}
+
+/**
+ * mc_account_get_connection_name:
+ * @account: the #McAccount.
+ *
+ * @deprecated: use mc_account_get_connection_path() instead.
+ */
+const gchar *
+mc_account_get_connection_name (McAccount *account)
+{
+    return mc_account_get_connection_path (account);
 }
 
 /**
