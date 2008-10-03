@@ -18,4 +18,6 @@
 <xi:include href="Client_Handler.xml"/>
 <xi:include href="Client_Observer.xml"/>
 
+<xi:include href="Channel_Dispatch_Operation.xml"/>
+
 </tp:spec>
