@@ -23,18 +23,6 @@ McdService
 </para>
 
 
-<!-- ##### SIGNAL McdService::account-presence-changed ##### -->
-<para>
-
-</para>
-
-@mcdservice: the object which received the signal.
-@arg1: 
-@arg2: 
-@arg3: 
-@arg4: 
-@arg5: 
-
 <!-- ##### SIGNAL McdService::account-status-changed ##### -->
 <para>
 
@@ -55,24 +43,6 @@ McdService
 @arg1: 
 @arg2: 
 @arg3: 
-
-<!-- ##### SIGNAL McdService::presence-changed ##### -->
-<para>
-
-</para>
-
-@mcdservice: the object which received the signal.
-@arg1: 
-@arg2: 
-
-<!-- ##### SIGNAL McdService::presence-requested ##### -->
-<para>
-
-</para>
-
-@mcdservice: the object which received the signal.
-@arg1: 
-@arg2: 
 
 <!-- ##### SIGNAL McdService::presence-status-actual ##### -->
 <para>

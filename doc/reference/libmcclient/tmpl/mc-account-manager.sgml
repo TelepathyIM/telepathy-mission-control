@@ -32,6 +32,14 @@ mc-account-manager
 @arg1: 
 @arg2: 
 
+<!-- ##### SIGNAL McAccountManager::account-ready ##### -->
+<para>
+
+</para>
+
+@mcaccountmanager: the object which received the signal.
+@arg1: 
+
 <!-- ##### STRUCT McAccountManagerClass ##### -->
 <para>
 
@@ -65,6 +73,74 @@ mc-account-manager
 @manager: 
 @callback: 
 @user_data: 
+
+
+<!-- ##### USER_FUNCTION McAccountManagerWhenReadyObjectCb ##### -->
+<para>
+
+</para>
+
+@manager: 
+@error: 
+@user_data: 
+@weak_object: 
+
+
+<!-- ##### FUNCTION mc_account_manager_call_when_iface_ready ##### -->
+<para>
+
+</para>
+
+@manager: 
+@interface: 
+@callback: 
+@user_data: 
+@destroy: 
+@weak_object: 
+
+
+<!-- ##### FUNCTION mc_account_manager_call_when_ready_with_accounts ##### -->
+<para>
+
+</para>
+
+@manager: 
+@callback: 
+@user_data: 
+@destroy: 
+@weak_object: 
+@Varargs: 
+
+
+<!-- ##### FUNCTION mc_account_manager_get_account ##### -->
+<para>
+
+</para>
+
+@manager: 
+@account_name: 
+@Returns: 
+
+
+<!-- ##### USER_FUNCTION McAccountFilterFunc ##### -->
+<para>
+
+</para>
+
+@account: 
+@user_data: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_account_manager_list_accounts ##### -->
+<para>
+
+</para>
+
+@manager: 
+@filter: 
+@user_data: 
+@Returns: 
 
 
 <!-- ##### USER_FUNCTION mc_cli_account_manager_signal_callback_account_removed ##### -->
