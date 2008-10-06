@@ -120,11 +120,33 @@ static void
 get_channels (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 {
     McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (self);
+    GPtrArray *channel_array;
+    GList *list;
 
     g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
+
+    channel_array = g_ptr_array_sized_new (g_list_length (priv->channels));
+    for (list = priv->channels; list != NULL; list = list->next)
+    {
+        McdChannel *channel = MCD_CHANNEL (list->data);
+        GHashTable *properties;
+        GValue channel_val = { 0, };
+
+        properties = _mcd_channel_get_immutable_properties (channel);
+
+        g_value_init (&channel_val, MC_STRUCT_TYPE_CHANNEL_DETAILS);
+        g_value_take_boxed (&channel_val,
+            dbus_g_type_specialized_construct (MC_STRUCT_TYPE_CHANNEL_DETAILS));
+        dbus_g_type_struct_set (&channel_val,
+                                0, mcd_channel_get_object_path (channel),
+                                1, properties,
+                                G_MAXUINT);
+
+        g_ptr_array_add (channel_array, g_value_get_boxed (&channel_val));
+    }
+
     g_value_init (value, MC_ARRAY_TYPE_CHANNEL_DETAILS_LIST);
-    g_warning ("%s not implemented", G_STRFUNC);
-    g_value_set_static_boxed (value, NULL);
+    g_value_take_boxed (value, channel_array);
 }
 
 static void
