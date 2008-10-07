@@ -26,6 +26,7 @@ libmcclient_la_SOURCES = \
 	mc-account-conditions.c \
 	mc-account-manager.c \
 	mc-account-request.c \
+	mc-dispatch-operation.c \
 	mc-errors.c \
 	mc-profile.c \
 	mc-signals-marshal.c
@@ -37,6 +38,7 @@ libmcclient_include_HEADERS = \
 	mc-errors.h \
 	mc-profile.h \
 	mc-account-manager.h \
+	mc-dispatch-operation.h \
 	mc-signals-marshal.h
 
 noinst_HEADERS = \

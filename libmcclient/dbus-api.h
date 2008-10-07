@@ -44,6 +44,9 @@
 #define MC_CLIENT_DBUS_SERVICE_BASE_LEN \
     (sizeof (MC_CLIENT_DBUS_SERVICE_BASE) - 1)
 
+/* FIXME: MC should register a separate service for the ChannelDispatcher */
+#define MC_CHANNEL_DISPATCHER_DBUS_SERVICE MC_ACCOUNT_MANAGER_DBUS_SERVICE
+
 #include <libmcclient/_gen/enums.h>
 #include <libmcclient/_gen/gtypes.h>
 #include <libmcclient/_gen/interfaces.h>
