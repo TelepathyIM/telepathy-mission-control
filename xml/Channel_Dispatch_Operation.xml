@@ -140,8 +140,19 @@
 
     <signal name="ChannelLost" tp:name-for-bindings="Channel_Lost">
       <tp:docstring>
-        A channel has closed before it could be claimed or handled.
+        A channel has closed before it could be claimed or handled. If this
+        is emitted for the last remaining channel in a channel dispatch
+        operation, it MUST immediately be followed by
+        <tp:member-ref>Finished</tp:member-ref>.
       </tp:docstring>
+
+      <arg name="Channel" type="o">
+        <tp:docstring>
+          The <tp:dbus-ref
+            namespace="org.freedesktop.Telepathy">Channel</tp:dbus-ref>
+          that closed.
+        </tp:docstring>
+      </arg>
 
       <arg name="Error" type="s" tp:type="DBus_Error_Name">
         <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
