@@ -90,6 +90,13 @@ McdChannel *mcd_channel_new (TpChannel *channel,
 			     gboolean outgoing,
 			     guint requestor_serial,
 			     const gchar *requestor_client_id);
+McdChannel *mcd_channel_new_from_path (TpConnection *connection,
+                                       const gchar *object_path,
+                                       const gchar *type, guint handle,
+                                       TpHandleType handle_type);
+gboolean mcd_channel_set_object_path (McdChannel *channel,
+                                      TpConnection *connection,
+                                      const gchar *object_path);
 
 void mcd_channel_set_status (McdChannel *channel, McdChannelStatus status);
 McdChannelStatus mcd_channel_get_status (McdChannel * channel);

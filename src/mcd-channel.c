@@ -799,6 +799,84 @@ mcd_channel_new (TpChannel * tp_chan,
     return obj;
 }
 
+/**
+ * mcd_channel_new_from_path:
+ * @connection: the #TpConnection on which the channel exists.
+ * @object_path: the D-Bus object path of an existing channel.
+ * @type: the channel type.
+ * @handle: the channel handle.
+ * @handle_type: the #TpHandleType.
+ *
+ * Creates a #McdChannel with an associated #TpChannel proxy for the channel
+ * located at @object_path.
+ *
+ * Returns: a new #McdChannel if the #TpChannel was created successfully, %NULL
+ * otherwise.
+ */
+McdChannel *
+mcd_channel_new_from_path (TpConnection *connection, const gchar *object_path,
+                           const gchar *type, guint handle,
+                           TpHandleType handle_type)
+{
+    McdChannel *channel;
+    channel = g_object_new (MCD_TYPE_CHANNEL,
+                            "channel-type", type,
+                            "channel-handle", handle,
+                            "channel-handle-type", handle_type,
+                            NULL);
+    if (mcd_channel_set_object_path (channel, connection, object_path))
+        return channel;
+    else
+    {
+        g_object_unref (channel);
+        return NULL;
+    }
+}
+
+/**
+ * mcd_channel_set_object_path:
+ * @channel: the #McdChannel.
+ * @connection: the #TpConnection on which the channel exists.
+ * @object_path: the D-Bus object path of an existing channel.
+ *
+ * This method makes @channel create a #TpChannel object for @object_path.
+ * It must not be called it @channel has already a #TpChannel associated with
+ * it.
+ *
+ * Returns: %TRUE if the #TpChannel has been created, %FALSE otherwise.
+ */
+gboolean
+mcd_channel_set_object_path (McdChannel *channel, TpConnection *connection,
+                             const gchar *object_path)
+{
+    McdChannelPrivate *priv;
+    GError *error = NULL;
+
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), FALSE);
+    priv = channel->priv;
+
+    g_return_val_if_fail (priv->tp_chan == NULL, FALSE);
+    priv->tp_chan = tp_channel_new (connection, object_path,
+                                    priv->channel_type,
+                                    priv->channel_handle_type,
+                                    priv->channel_handle,
+                                    &error);
+    if (error)
+    {
+        g_warning ("%s: tp_channel_new returned error: %s",
+                   G_STRFUNC, error->message);
+        g_error_free (error);
+    }
+
+    if (priv->tp_chan)
+    {
+        _mcd_channel_setup (channel, priv);
+        return TRUE;
+    }
+    else
+        return FALSE;
+}
+
 void
 mcd_channel_set_status (McdChannel *channel, McdChannelStatus status)
 {

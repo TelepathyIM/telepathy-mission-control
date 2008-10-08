@@ -569,33 +569,19 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
 {
     McdConnection *connection = MCD_CONNECTION (weak_object);
     McdConnectionPrivate *priv = user_data;
-    TpChannel *tp_chan;
     McdChannel *channel;
-    GError *error = NULL;
-    
+
     /* ignore all our own requests (they have always suppress_handler = 1) as
      * well as other requests for which our intervention has not been requested
      * */
     if (suppress_handler) return;
-    
-    tp_chan = tp_channel_new (priv->tp_conn, chan_obj_path, chan_type,
-			      handle_type, handle, &error);
-    if (error)
-    {
-	g_warning ("%s: tp_channel_new returned error: %s",
-		   G_STRFUNC, error->message);
-	g_error_free (error);
-	return;
-    }
 
     /* It's an incoming channel, so we create a new McdChannel for it */
-    channel = mcd_channel_new (tp_chan,
-			       chan_type,
-			       handle,
-			       handle_type,
-			       FALSE, /* incoming */
-			       0, 0); /* There is no requestor, obviously */
-    
+    channel = mcd_channel_new_from_path (proxy,
+                                         chan_obj_path,
+                                         chan_type, handle, handle_type);
+    if (G_UNLIKELY (!channel)) return;
+
     mcd_operation_take_mission (MCD_OPERATION (connection),
 				MCD_MISSION (channel));
 
@@ -604,8 +590,6 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
     
     /* Dispatch the incoming channel */
     mcd_dispatcher_send (priv->dispatcher, channel);
-    
-    g_object_unref (tp_chan);
 }
 
 static void
@@ -1861,12 +1845,11 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
     McdChannel *channel = MCD_CHANNEL (weak_object);
     McdConnection *connection = user_data;
     McdConnectionPrivate *priv = connection->priv;
-    GError *error_on_creation, *error = NULL;
+    GError *error_on_creation;
     struct capabilities_wait_data *cwd;
     GQuark chan_type;
     TpHandleType chan_handle_type;
     guint chan_handle;
-    TpChannel *tp_chan;
     /* We handle only the dbus errors */
     
     /* ChannelRequestor *chan_req = (ChannelRequestor *)user_data; */
@@ -1933,7 +1916,9 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 	}
 	return;
     }
-    
+
+    priv->pending_channels = g_list_remove (priv->pending_channels,
+                                            channel);
     if (channel_path == NULL)
     {
 	GError *mc_error;
@@ -1950,29 +1935,16 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 	 * reference to this temporary channel.
 	 */
         g_object_unref (channel);
-        priv->pending_channels = g_list_remove (priv->pending_channels,
-                                                channel);
 	return;
     }
     
     /* Everything here is well and fine. We can create the channel. */
-    tp_chan = tp_channel_new (priv->tp_conn, channel_path,
-			      g_quark_to_string (chan_type),
-			      chan_handle_type, chan_handle, &error);
-    if (error)
+    if (!mcd_channel_set_object_path (channel, priv->tp_conn, channel_path))
     {
-	g_warning ("%s: tp_channel_new returned error: %s",
-		   G_STRFUNC, error->message);
-	g_error_free (error);
-	return;
+        g_object_unref (channel);
+        return;
     }
 
-    g_object_set (channel,
-		  "tp-channel", tp_chan,
-		  NULL);
-
-    /* The channel is no longer pending */
-    priv->pending_channels = g_list_remove (priv->pending_channels, channel);
     mcd_operation_take_mission (MCD_OPERATION (connection),
 				MCD_MISSION (channel));
 
@@ -1981,8 +1953,6 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
     
     /* Dispatch the incoming channel */
     mcd_dispatcher_send (priv->dispatcher, channel);
-    
-    g_object_unref (tp_chan);
 }
 
 static void
