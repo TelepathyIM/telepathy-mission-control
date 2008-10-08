@@ -98,11 +98,6 @@ struct _McdConnectionPrivate
     GArray *recognized_presence_info_array;
     struct presence_info *presence_to_set[LAST_MC_PRESENCE - 1];
 
-    /* List of pending channels which has been requested to telepathy,
-     * but telepathy hasn't yet responded with the channel object
-     */
-    GList *pending_channels;
-    
     TpConnectionStatusReason abort_reason;
     gboolean got_capabilities : 1;
     gboolean setting_avatar : 1;
@@ -687,22 +682,21 @@ static gboolean
 on_capabilities_timeout (McdConnection *connection)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-    GList *list, *list_curr;
+    const GList *list, *list_curr;
 
     g_debug ("%s: got_capabilities is %d", G_STRFUNC, priv->got_capabilities);
     priv->got_capabilities = TRUE;
-    list = priv->pending_channels;
+    list = mcd_operation_get_missions ((McdOperation *)connection);
     while (list)
     {
-        McdChannel *channel = list->data;
+        McdChannel *channel = MCD_CHANNEL (list->data);
 
 	list_curr = list;
 	list = list->next;
-        if (on_channel_capabilities_timeout (channel, connection))
+        if (mcd_channel_get_status (channel) == MCD_CHANNEL_PENDING &&
+            on_channel_capabilities_timeout (channel, connection))
 	{
-            g_object_unref (channel);
-	    priv->pending_channels =
-                g_list_delete_link (priv->pending_channels, list_curr);
+            mcd_mission_abort ((McdMission *)channel);
 	}
     }
     priv->capabilities_timer = 0;
@@ -1501,10 +1495,6 @@ _mcd_connection_dispose (GObject * object)
     mcd_operation_foreach (MCD_OPERATION (connection),
 			   (GFunc) _foreach_channel_remove, connection);
 
-    /* Unref pending channels */
-    g_list_foreach (priv->pending_channels, (GFunc)g_object_unref, NULL);
-    g_list_free (priv->pending_channels);
-
     _mcd_connection_release_tp_connection (connection);
     
     if (priv->account)
@@ -1887,13 +1877,7 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 	    g_signal_emit_by_name (G_OBJECT(priv->dispatcher), "dispatch-failed",
 				   channel, mc_error);
 	    g_error_free (mc_error);
-	    
-	    /* No abort on channel, because we are the only one holding the only
-	     * reference to this temporary channel.
-	     */
-            g_object_unref (channel);
-            priv->pending_channels = g_list_remove (priv->pending_channels,
-                                                    channel);
+            mcd_mission_abort ((McdMission *)channel);
 	}
 	else
 	{
@@ -1917,8 +1901,6 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 	return;
     }
 
-    priv->pending_channels = g_list_remove (priv->pending_channels,
-                                            channel);
     if (channel_path == NULL)
     {
 	GError *mc_error;
@@ -1930,23 +1912,16 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 	g_signal_emit_by_name (G_OBJECT(priv->dispatcher),
 			       "dispatch-failed", channel, mc_error);
 	g_error_free (mc_error);
-	
-	/* No abort on channel, because we are the only one holding the only
-	 * reference to this temporary channel.
-	 */
-        g_object_unref (channel);
+        mcd_mission_abort ((McdMission *)channel);
 	return;
     }
     
     /* Everything here is well and fine. We can create the channel. */
     if (!mcd_channel_set_object_path (channel, priv->tp_conn, channel_path))
     {
-        g_object_unref (channel);
+        mcd_mission_abort ((McdMission *)channel);
         return;
     }
-
-    mcd_operation_take_mission (MCD_OPERATION (connection),
-				MCD_MISSION (channel));
 
     /* Channel about to be dispatched */
     mcd_channel_set_status (channel, MCD_CHANNEL_DISPATCHING);
@@ -2044,12 +2019,10 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
 
     /* Update our newly acquired information */
     g_object_set (channel, "channel-handle", chan_handle, NULL);
- 
-    /* The channel is temporary and stays in priv->pending_channels until
-     * a telepathy channel for it is created
-     */
-    priv->pending_channels = g_list_prepend (priv->pending_channels, channel);
-    
+
+    mcd_operation_take_mission (MCD_OPERATION (connection),
+				MCD_MISSION (channel));
+
     /* Now, request the corresponding telepathy channel. */
     call = tp_cli_connection_call_request_channel (priv->tp_conn, -1,
 						   mcd_channel_get_channel_type (channel),
@@ -2080,7 +2053,8 @@ mcd_connection_request_channel (McdConnection *connection,
 			       TRUE, /* outgoing */
 			       req->requestor_serial,
 			       req->requestor_client_id);
-    
+    mcd_channel_set_status (channel, MCD_CHANNEL_PENDING);
+
     /* We do not add the channel in connection until tp_channel is created */
     g_object_set_data (G_OBJECT (channel), "temporary_connection", connection);
     
@@ -2088,10 +2062,8 @@ mcd_connection_request_channel (McdConnection *connection,
     {
 	TpProxyPendingCall *call;
 
-	/* the channel stays in priv->pending_channels until a telepathy
-	 * channel for it is created */
-        priv->pending_channels = g_list_prepend (priv->pending_channels,
-                                                 channel);
+        mcd_operation_take_mission (MCD_OPERATION (connection),
+                                    MCD_MISSION (channel));
 
 	call = tp_cli_connection_call_request_channel (priv->tp_conn, -1,
 						       req->channel_type,
@@ -2113,7 +2085,7 @@ mcd_connection_request_channel (McdConnection *connection,
 	name_array[0] = req->channel_handle_string;
 	name_array[1] = NULL;
 
-	/* Channel is temporary and will enter priv->pending_channels list
+	/* Channel is temporary and will be added as a child mission
 	 * only when we successfully resolve the handle. */
 	tp_cli_connection_call_request_handles (priv->tp_conn, -1,
 						req->channel_handle_type,
@@ -2125,63 +2097,20 @@ mcd_connection_request_channel (McdConnection *connection,
     return TRUE;
 }
 
-static gboolean
-channel_matches_request (McdChannel *channel,
-			 struct request_id *req_id)
-{
-    guint requestor_serial;
-    gchar *requestor_client_id;
-    gboolean found;
-
-    g_object_get (channel,
-		  "requestor-serial", &requestor_serial,
-		  "requestor-client-id", &requestor_client_id,
-		  NULL);
-    if (requestor_serial == req_id->requestor_serial &&
-	strcmp (requestor_client_id, req_id->requestor_client_id) == 0)
-	found = TRUE;
-    else
-	found = FALSE;
-    g_free (requestor_client_id);
-    return found;
-}
-
 gboolean
 mcd_connection_cancel_channel_request (McdConnection *connection,
 				       guint operation_id,
 				       const gchar *requestor_client_id,
 				       GError **error)
 {
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
     struct request_id req_id;
     const GList *channels, *node;
-    GList *list;
     McdChannel *channel;
 
     /* first, see if the channel is in the list of the pending channels */
     req_id.requestor_serial = operation_id;
     req_id.requestor_client_id = requestor_client_id;
 
-    for (list = priv->pending_channels; list; list = list->next)
-    {
-        channel = list->data;
-
-        if (!channel_matches_request (channel, &req_id)) continue;
-
-	g_debug ("%s: requested channel found in the pending_channels list (%p)", G_STRFUNC, channel);
-	/* No abort on channel, because we are the only one holding the only
-	 * reference to this temporary channel.
-	 * No other actions needed; if a NewChannel signal will be emitted for
-	 * this channel, it will be ignored since it has the suppress_handler
-	 * flag set.
-	 */
-        g_object_unref (channel);
-        priv->pending_channels = g_list_remove (priv->pending_channels, list);
-	return TRUE;
-    }
-
-    /* the channel might already have a TpChan created for it, and either be in
-     * the dispatcher or be already handled. Aborting in any case. */
     channels = mcd_operation_get_missions (MCD_OPERATION (connection));
     if (!channels) return FALSE;
 
