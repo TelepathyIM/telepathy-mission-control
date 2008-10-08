@@ -1,3 +1,5 @@
+/* vi: set et sw=4 ts=8 cino=t0,(0: */
+/* -*- Mode: C; indent-tabs-mode: nil; c-basic-offset: 4; tab-width: 8 -*- */
 /*
  * This file is part of mission-control
  *
