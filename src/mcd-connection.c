@@ -135,13 +135,6 @@ struct param_data
     GHashTable *dest;
 };
 
-typedef struct {
-    guint handle_type;
-    guint handle;
-    GQuark type;
-    McdChannel *channel;
-} McdPendingChannel;
-
 enum
 {
     PROP_0,
@@ -706,13 +699,6 @@ on_channel_capabilities_timeout (McdChannel *channel,
     return TRUE;
 }
 
-static inline void
-pending_channel_free (McdPendingChannel *pc)
-{
-    g_object_unref (pc->channel);
-    g_free (pc);
-}
-
 static gboolean
 on_capabilities_timeout (McdConnection *connection)
 {
@@ -724,15 +710,15 @@ on_capabilities_timeout (McdConnection *connection)
     list = priv->pending_channels;
     while (list)
     {
-	McdPendingChannel *pc = list->data;
+        McdChannel *channel = list->data;
 
 	list_curr = list;
 	list = list->next;
-	if (on_channel_capabilities_timeout (pc->channel, connection))
+        if (on_channel_capabilities_timeout (channel, connection))
 	{
-	    pending_channel_free (pc);
+            g_object_unref (channel);
 	    priv->pending_channels =
-	       	g_list_delete_link (priv->pending_channels, list_curr);
+                g_list_delete_link (priv->pending_channels, list_curr);
 	}
     }
     priv->capabilities_timer = 0;
@@ -1532,7 +1518,7 @@ _mcd_connection_dispose (GObject * object)
 			   (GFunc) _foreach_channel_remove, connection);
 
     /* Unref pending channels */
-    g_list_foreach (priv->pending_channels, (GFunc)pending_channel_free, NULL);
+    g_list_foreach (priv->pending_channels, (GFunc)g_object_unref, NULL);
     g_list_free (priv->pending_channels);
 
     _mcd_connection_release_tp_connection (connection);
@@ -1867,18 +1853,6 @@ remove_capabilities_refs (gpointer data)
     g_free (cwd);
 }
 
-static gint
-pending_channel_cmp (const McdPendingChannel *a, const McdPendingChannel *b)
-{
-    gint ret;
-
-    ret = a->handle - b->handle;
-    if (ret) return ret;
-    ret = a->handle_type - b->handle_type;
-    if (ret) return ret;
-    return a->type - b->type;
-}
-
 static void
 request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 		    const GError *tp_error, gpointer user_data,
@@ -1893,8 +1867,6 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
     TpHandleType chan_handle_type;
     guint chan_handle;
     TpChannel *tp_chan;
-    McdPendingChannel pc;
-    GList *list;
     /* We handle only the dbus errors */
     
     /* ChannelRequestor *chan_req = (ChannelRequestor *)user_data; */
@@ -1905,11 +1877,6 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 		  "channel-handle-type", &chan_handle_type,
 		  "channel-type-quark", &chan_type,
 		  NULL);
-
-    pc.handle = chan_handle;
-    pc.handle_type = chan_handle_type;
-    pc.type = chan_type;
-    pc.channel = NULL;
 
     cwd = g_object_get_data (G_OBJECT (channel), "error_on_creation");
     if (cwd)
@@ -1940,16 +1907,10 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 	    
 	    /* No abort on channel, because we are the only one holding the only
 	     * reference to this temporary channel.
-	     * This should also unref the channel object
 	     */
-	    list = g_list_find_custom (priv->pending_channels, &pc,
-				       (GCompareFunc)pending_channel_cmp);
-	    if (list)
-	    {
-		pending_channel_free (list->data);
-		priv->pending_channels =
-		    g_list_delete_link (priv->pending_channels, list);
-	    }
+            g_object_unref (channel);
+            priv->pending_channels = g_list_remove (priv->pending_channels,
+                                                    channel);
 	}
 	else
 	{
@@ -1987,29 +1948,14 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 	
 	/* No abort on channel, because we are the only one holding the only
 	 * reference to this temporary channel.
-	 * This should also unref the channel object
 	 */
-	list = g_list_find_custom (priv->pending_channels, &pc,
-				   (GCompareFunc)pending_channel_cmp);
-	if (list)
-	{
-	    pending_channel_free (list->data);
-	    priv->pending_channels =
-	       	g_list_delete_link (priv->pending_channels, list);
-	}
+        g_object_unref (channel);
+        priv->pending_channels = g_list_remove (priv->pending_channels,
+                                                channel);
 	return;
     }
     
     /* Everything here is well and fine. We can create the channel. */
-    list = g_list_find_custom (priv->pending_channels, &pc,
-			       (GCompareFunc)pending_channel_cmp);
-    channel = ((McdPendingChannel *)list->data)->channel;
-    if (!channel)
-    {
-	g_warning ("%s: channel not found among the pending ones", G_STRFUNC);
-	return;
-    }
-
     tp_chan = tp_channel_new (priv->tp_conn, channel_path,
 			      g_quark_to_string (chan_type),
 			      chan_handle_type, chan_handle, &error);
@@ -2025,11 +1971,8 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 		  "tp-channel", tp_chan,
 		  NULL);
 
-    /* The channel is no longer pending. We increase the reference count, since
-     * pending_channel_free() will decrease it */
-    g_object_ref (channel);
-    pending_channel_free (list->data);
-    priv->pending_channels = g_list_delete_link (priv->pending_channels, list);
+    /* The channel is no longer pending */
+    priv->pending_channels = g_list_remove (priv->pending_channels, channel);
     mcd_operation_take_mission (MCD_OPERATION (connection),
 				MCD_MISSION (channel));
 
@@ -2054,8 +1997,7 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
     GQuark chan_type;
     const GList *channels;
     TpProxyPendingCall *call;
-    McdPendingChannel *pc;
-    
+
     channel = MCD_CHANNEL (weak_object);
     
     if (error != NULL || g_array_index (handles, guint, 0) == 0)
@@ -2136,12 +2078,7 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
     /* The channel is temporary and stays in priv->pending_channels until
      * a telepathy channel for it is created
      */
-    pc = g_malloc (sizeof(McdPendingChannel));
-    pc->handle = chan_handle;
-    pc->handle_type = chan_handle_type;
-    pc->type = chan_type;
-    pc->channel = channel;
-    priv->pending_channels = g_list_prepend (priv->pending_channels, pc);
+    priv->pending_channels = g_list_prepend (priv->pending_channels, channel);
     
     /* Now, request the corresponding telepathy channel. */
     call = tp_cli_connection_call_request_channel (priv->tp_conn, -1,
@@ -2180,16 +2117,11 @@ mcd_connection_request_channel (McdConnection *connection,
     if (req->channel_handle != 0 || req->channel_handle_type == 0)
     {
 	TpProxyPendingCall *call;
-	McdPendingChannel *pc;
 
 	/* the channel stays in priv->pending_channels until a telepathy
 	 * channel for it is created */
-	pc = g_malloc (sizeof(McdPendingChannel));
-	pc->handle = req->channel_handle;
-	pc->handle_type = req->channel_handle_type;
-	pc->type = g_quark_from_string (req->channel_type);
-	pc->channel = channel;
-	priv->pending_channels = g_list_prepend (priv->pending_channels, pc);
+        priv->pending_channels = g_list_prepend (priv->pending_channels,
+                                                 channel);
 
 	call = tp_cli_connection_call_request_channel (priv->tp_conn, -1,
 						       req->channel_type,
@@ -2262,21 +2194,19 @@ mcd_connection_cancel_channel_request (McdConnection *connection,
 
     for (list = priv->pending_channels; list; list = list->next)
     {
-	McdPendingChannel *pc = list->data;
+        channel = list->data;
 
-	if (!channel_matches_request (pc->channel, &req_id)) continue;
-	channel = pc->channel;
+        if (!channel_matches_request (channel, &req_id)) continue;
 
 	g_debug ("%s: requested channel found in the pending_channels list (%p)", G_STRFUNC, channel);
 	/* No abort on channel, because we are the only one holding the only
 	 * reference to this temporary channel.
-	 * This should also unref the channel object.
 	 * No other actions needed; if a NewChannel signal will be emitted for
 	 * this channel, it will be ignored since it has the suppress_handler
 	 * flag set.
 	 */
-	pending_channel_free (pc);
-	priv->pending_channels = g_list_delete_link (priv->pending_channels, list);
+        g_object_unref (channel);
+        priv->pending_channels = g_list_remove (priv->pending_channels, list);
 	return TRUE;
     }
 
