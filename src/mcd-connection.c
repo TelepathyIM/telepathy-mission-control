@@ -698,7 +698,7 @@ on_capabilities_timeout (McdConnection *connection)
 
 	list_curr = list;
 	list = list->next;
-        if (mcd_channel_get_status (channel) == MCD_CHANNEL_PENDING &&
+        if (mcd_channel_get_status (channel) == MCD_CHANNEL_NO_PROXY &&
             on_channel_capabilities_timeout (channel, connection))
 	{
             mcd_mission_abort ((McdMission *)channel);
@@ -2079,7 +2079,7 @@ mcd_connection_request_channel (McdConnection *connection,
 			       TRUE, /* outgoing */
 			       req->requestor_serial,
 			       req->requestor_client_id);
-    mcd_channel_set_status (channel, MCD_CHANNEL_PENDING);
+    mcd_channel_set_status (channel, MCD_CHANNEL_NO_PROXY);
 
     /* We do not add the channel in connection until tp_channel is created */
     g_object_set_data (G_OBJECT (channel), "temporary_connection", connection);

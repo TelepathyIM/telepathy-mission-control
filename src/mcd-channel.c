@@ -695,7 +695,7 @@ mcd_channel_class_init (McdChannelClass * klass)
 							_("Channel status"),
 							_("Channel status that indicates the state of channel"),
 							MCD_TYPE_CHANNEL_STATUS,
-							MCD_CHANNEL_PENDING,
+							MCD_CHANNEL_NO_PROXY,
 							G_PARAM_READWRITE));
     g_object_class_install_property (object_class, PROP_CHANNEL_TYPE,
 				     g_param_spec_string ("channel-type",
