@@ -106,6 +106,9 @@ struct _McdConnectionPrivate
     gboolean has_alias_if : 1;
     gboolean has_capabilities_if : 1;
 
+    /* FALSE until the connection is ready for dispatching */
+    gboolean can_dispatch : 1;
+
     gchar *alias;
 
     gboolean is_disposed;
@@ -580,11 +583,16 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
     mcd_operation_take_mission (MCD_OPERATION (connection),
 				MCD_MISSION (channel));
 
-    /* Channel about to be dispatched */
-    mcd_channel_set_status (channel, MCD_CHANNEL_DISPATCHING);
-    
-    /* Dispatch the incoming channel */
-    mcd_dispatcher_send (priv->dispatcher, channel);
+    if (priv->can_dispatch)
+    {
+        /* Channel about to be dispatched */
+        mcd_channel_set_status (channel, MCD_CHANNEL_DISPATCHING);
+
+        /* Dispatch the incoming channel */
+        mcd_dispatcher_send (priv->dispatcher, channel);
+    }
+    else
+        mcd_channel_set_status (channel, MCD_CHANNEL_UNDISPATCHED);
 }
 
 static void
@@ -1245,6 +1253,31 @@ connect_cb (TpConnection *tp_conn, const GError *error,
 }
 
 static void
+dispatch_undispatched_channels (McdConnection *connection)
+{
+    McdConnectionPrivate *priv = connection->priv;
+    const GList *channels;
+
+    priv->can_dispatch = TRUE;
+    channels = mcd_operation_get_missions ((McdOperation *)connection);
+
+    g_debug ("%s called", G_STRFUNC);
+    while (channels)
+    {
+	McdChannel *channel = MCD_CHANNEL (channels->data);
+
+        if (mcd_channel_get_status (channel) == MCD_CHANNEL_UNDISPATCHED)
+        {
+            g_debug ("Dispatching channel %p", channel);
+            /* dispatch the channel */
+            mcd_channel_set_status (channel, MCD_CHANNEL_DISPATCHING);
+            mcd_dispatcher_send (priv->dispatcher, channel);
+        }
+        channels = channels->next;
+    }
+}
+
+static void
 on_connection_ready (TpConnection *tp_conn, const GError *error,
 		     gpointer user_data)
 {
@@ -1287,6 +1320,8 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
 
     if (priv->has_alias_if)
 	_mcd_connection_setup_alias (connection);
+
+    dispatch_undispatched_channels (connection);
 }
 
 static void

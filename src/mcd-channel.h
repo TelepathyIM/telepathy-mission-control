@@ -47,6 +47,8 @@ typedef struct _McdChannelClass McdChannelClass;
 
 typedef enum
 {
+    MCD_CHANNEL_UNDISPATCHED, /* used for channels created in the NewChannel
+                                 signal before the connection is ready */
     MCD_CHANNEL_PENDING,     /* Telepathy channel is not yet created */
     MCD_CHANNEL_DISPATCHING, /* Telepathy channel is created and waiting dispatch */
     MCD_CHANNEL_DISPATCHED,  /* Channel has been dispatched to handler */
