@@ -48,7 +48,6 @@ G_DEFINE_TYPE (McdChannel, mcd_channel, MCD_TYPE_MISSION);
 struct _McdChannelPrivate
 {
     /* Channel info */
-    gchar *type;
     GQuark type_quark;
     guint handle;
     TpHandleType handle_type;
@@ -516,7 +515,6 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
 	tp_chan = g_value_get_object (val);
 	if (tp_chan)
 	{
-            g_return_if_fail (priv->type != NULL);
             g_return_if_fail (priv->handle >= 0);
  
 	    g_object_ref (tp_chan);
@@ -529,18 +527,7 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
     case PROP_CHANNEL_TYPE:
         DEPRECATED_PROPERTY_WARNING;
     case PROP_TYPE:
-	/* g_return_if_fail (g_value_get_string (val) != NULL); */
-	g_free (priv->type);
-	if (g_value_get_string (val) != NULL)
-	{
-	    priv->type = g_strdup (g_value_get_string (val));
-	    priv->type_quark = g_quark_from_string (priv->type);
-	}
-	else
-	{
-	    priv->type = NULL;
-	    priv->type_quark = 0;
-	}
+        priv->type_quark = g_quark_from_string (g_value_get_string (val));
 	break;
     case PROP_CHANNEL_TYPE_QUARK:
         DEPRECATED_PROPERTY_WARNING;
@@ -592,7 +579,7 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
 	break;
     case PROP_CHANNEL_TYPE:
         DEPRECATED_PROPERTY_WARNING;
-	g_value_set_string (val, priv->type);
+	g_value_set_static_string (val, g_quark_to_string (priv->type_quark));
 	break;
     case PROP_CHANNEL_TYPE_QUARK:
         DEPRECATED_PROPERTY_WARNING;
@@ -635,7 +622,6 @@ _mcd_channel_finalize (GObject * object)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (object);
     
-    g_free (priv->type);
     g_array_free (priv->pending_local_members, TRUE);
     g_free (priv->requestor_client_id);
     g_free (priv->channel_name);
@@ -887,7 +873,7 @@ mcd_channel_set_object_path (McdChannel *channel, TpConnection *connection,
 
     g_return_val_if_fail (priv->tp_chan == NULL, FALSE);
     priv->tp_chan = tp_channel_new (connection, object_path,
-                                    priv->type,
+                                    g_quark_to_string (priv->type_quark),
                                     priv->handle_type,
                                     priv->handle,
                                     &error);
@@ -930,7 +916,8 @@ mcd_channel_get_members_accepted (McdChannel *channel)
 const gchar *
 mcd_channel_get_channel_type (McdChannel *channel)
 {
-    return MCD_CHANNEL_PRIV (channel)->type;
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
+    return g_quark_to_string (channel->priv->type_quark);
 }
 
 GQuark
