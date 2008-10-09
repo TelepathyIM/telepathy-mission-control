@@ -585,9 +585,6 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
 
     if (priv->can_dispatch)
     {
-        /* Channel about to be dispatched */
-        mcd_channel_set_status (channel, MCD_CHANNEL_DISPATCHING);
-
         /* Dispatch the incoming channel */
         mcd_dispatcher_send (priv->dispatcher, channel);
     }
@@ -1270,7 +1267,6 @@ dispatch_undispatched_channels (McdConnection *connection)
         {
             g_debug ("Dispatching channel %p", channel);
             /* dispatch the channel */
-            mcd_channel_set_status (channel, MCD_CHANNEL_DISPATCHING);
             mcd_dispatcher_send (priv->dispatcher, channel);
         }
         channels = channels->next;
@@ -1956,9 +1952,6 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
         return;
     }
 
-    /* Channel about to be dispatched */
-    mcd_channel_set_status (channel, MCD_CHANNEL_DISPATCHING);
-    
     /* Dispatch the incoming channel */
     mcd_dispatcher_send (priv->dispatcher, channel);
 }

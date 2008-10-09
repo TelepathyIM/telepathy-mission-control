@@ -817,7 +817,8 @@ _mcd_dispatcher_send (McdDispatcher * dispatcher, McdChannel * channel)
     McdDispatcherPrivate *priv;
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
     g_return_if_fail (MCD_IS_CHANNEL (channel));
-    
+
+    mcd_channel_set_status (channel, MCD_CHANNEL_DISPATCHING);
     priv = MCD_DISPATCHER_PRIV (dispatcher);
 
     /* it can happen that this function gets called when the same channel has
