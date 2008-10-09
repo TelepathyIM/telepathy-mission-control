@@ -48,10 +48,10 @@ G_DEFINE_TYPE (McdChannel, mcd_channel, MCD_TYPE_MISSION);
 struct _McdChannelPrivate
 {
     /* Channel info */
-    gchar *channel_type;
-    GQuark channel_type_quark;
-    guint channel_handle;
-    TpHandleType channel_handle_type;
+    gchar *type;
+    GQuark type_quark;
+    guint handle;
+    TpHandleType handle_type;
     gboolean outgoing;
     
     /* Channel created based on the above channel info */
@@ -100,9 +100,12 @@ enum _McdChannelPropertyType
     PROP_TP_CHANNEL,
     PROP_CHANNEL_STATUS,
     PROP_CHANNEL_TYPE,
+    PROP_TYPE,
     PROP_CHANNEL_TYPE_QUARK,
     PROP_CHANNEL_HANDLE,
+    PROP_HANDLE,
     PROP_CHANNEL_HANDLE_TYPE,
+    PROP_HANDLE_TYPE,
     PROP_OUTGOING,
     PROP_REQUESTOR_SERIAL,
     PROP_REQUESTOR_CLIENT_ID,
@@ -110,6 +113,9 @@ enum _McdChannelPropertyType
     PROP_NAME_READY,
     PROP_INVITER_READY,
 };
+
+#define DEPRECATED_PROPERTY_WARNING \
+    g_warning ("%s: property %s is deprecated", G_STRFUNC, pspec->name)
 
 static guint mcd_channel_signals[LAST_SIGNAL] = { 0 };
 
@@ -422,18 +428,18 @@ on_channel_ready (TpChannel *tp_chan, const GError *error, gpointer user_data)
     priv = channel->priv;
     g_object_get (priv->tp_chan,
 		  "connection", &tp_conn,
-		  "handle", &priv->channel_handle,
-		  "handle-type", &priv->channel_handle_type,
+		  "handle", &priv->handle,
+		  "handle-type", &priv->handle_type,
 		  NULL);
     g_debug ("%s: handle %u, type %u", G_STRFUNC,
-	     priv->channel_handle_type, priv->channel_handle);
-    if (priv->channel_handle_type != 0)
+	     priv->handle_type, priv->handle);
+    if (priv->handle_type != 0)
     {
 	/* get the name of the channel */
 	request_handles.len = 1;
-	request_handles.data = (gchar *)&priv->channel_handle;
+	request_handles.data = (gchar *)&priv->handle;
 	tp_cli_connection_call_inspect_handles (tp_conn, -1,
-						priv->channel_handle_type,
+						priv->handle_type,
 						&request_handles,
 						inspect_channel_handle_cb,
 						priv, NULL,
@@ -458,7 +464,7 @@ _mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
 					      channel);
 
 	if (close_channel && !TP_PROXY (priv->tp_chan)->invalidated &&
-            priv->channel_type_quark != TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
+            priv->type_quark != TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
 	{
 	    g_debug ("%s: Requesting telepathy to close the channel", G_STRFUNC);
 	    tp_cli_channel_call_close (priv->tp_chan, -1, NULL, NULL, NULL, NULL);
@@ -500,6 +506,7 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
     switch (prop_id)
     { 
     case PROP_CHANNEL_STATUS:
+        DEPRECATED_PROPERTY_WARNING;
 	priv->status = g_value_get_enum (val);
 	g_signal_emit_by_name (channel, "status-changed", priv->status);
 	break;
@@ -509,8 +516,8 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
 	tp_chan = g_value_get_object (val);
 	if (tp_chan)
 	{
-            g_return_if_fail (priv->channel_type != NULL);
-            g_return_if_fail (priv->channel_handle >= 0);
+            g_return_if_fail (priv->type != NULL);
+            g_return_if_fail (priv->handle >= 0);
  
 	    g_object_ref (tp_chan);
 	}
@@ -520,26 +527,33 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
 	    _mcd_channel_setup (channel, priv);
 	break;
     case PROP_CHANNEL_TYPE:
+        DEPRECATED_PROPERTY_WARNING;
+    case PROP_TYPE:
 	/* g_return_if_fail (g_value_get_string (val) != NULL); */
-	g_free (priv->channel_type);
+	g_free (priv->type);
 	if (g_value_get_string (val) != NULL)
 	{
-	    priv->channel_type = g_strdup (g_value_get_string (val));
-	    priv->channel_type_quark = g_quark_from_string (priv->channel_type);
+	    priv->type = g_strdup (g_value_get_string (val));
+	    priv->type_quark = g_quark_from_string (priv->type);
 	}
 	else
 	{
-	    priv->channel_type = NULL;
-	    priv->channel_type_quark = 0;
+	    priv->type = NULL;
+	    priv->type_quark = 0;
 	}
 	break;
     case PROP_CHANNEL_TYPE_QUARK:
+        DEPRECATED_PROPERTY_WARNING;
          break;
     case PROP_CHANNEL_HANDLE:
-	priv->channel_handle = g_value_get_uint (val);
+        DEPRECATED_PROPERTY_WARNING;
+    case PROP_HANDLE:
+	priv->handle = g_value_get_uint (val);
 	break;
     case PROP_CHANNEL_HANDLE_TYPE:
-	priv->channel_handle_type = g_value_get_uint (val);
+        DEPRECATED_PROPERTY_WARNING;
+    case PROP_HANDLE_TYPE:
+	priv->handle_type = g_value_get_uint (val);
 	break;
     case PROP_OUTGOING:
 	priv->outgoing = g_value_get_boolean (val);
@@ -570,22 +584,27 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
 	g_value_set_object (val, mcd_mission_get_parent (MCD_MISSION (obj)));
 	break;
     case PROP_CHANNEL_STATUS:
+        DEPRECATED_PROPERTY_WARNING;
 	g_value_set_enum (val, priv->status);
 	break;
     case PROP_TP_CHANNEL:
 	g_value_set_object (val, priv->tp_chan);
 	break;
     case PROP_CHANNEL_TYPE:
-	g_value_set_string (val, priv->channel_type);
+        DEPRECATED_PROPERTY_WARNING;
+	g_value_set_string (val, priv->type);
 	break;
     case PROP_CHANNEL_TYPE_QUARK:
-	g_value_set_uint (val, priv->channel_type_quark);
+        DEPRECATED_PROPERTY_WARNING;
+	g_value_set_uint (val, priv->type_quark);
 	break;
     case PROP_CHANNEL_HANDLE:
-	g_value_set_uint (val, priv->channel_handle);
+        DEPRECATED_PROPERTY_WARNING;
+	g_value_set_uint (val, priv->handle);
 	break;
     case PROP_CHANNEL_HANDLE_TYPE:
-	g_value_set_uint (val, priv->channel_handle_type);
+        DEPRECATED_PROPERTY_WARNING;
+	g_value_set_uint (val, priv->handle_type);
 	break;
     case PROP_OUTGOING:
 	g_value_set_boolean (val, priv->outgoing);
@@ -616,7 +635,7 @@ _mcd_channel_finalize (GObject * object)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (object);
     
-    g_free (priv->channel_type);
+    g_free (priv->type);
     g_array_free (priv->pending_local_members, TRUE);
     g_free (priv->requestor_client_id);
     g_free (priv->channel_name);
@@ -699,6 +718,9 @@ mcd_channel_class_init (McdChannelClass * klass)
 							  NULL,
 							  G_PARAM_READWRITE /*|
 							  G_PARAM_CONSTRUCT_ONLY*/));
+    g_object_class_install_property (object_class, PROP_TYPE,
+        g_param_spec_string ("type", "type", "type",
+                             NULL, G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
     g_object_class_install_property (object_class, PROP_CHANNEL_TYPE_QUARK,
 				     g_param_spec_uint ("channel-type-quark",
 						       _("Telepathy channel type in quark form"),
@@ -717,6 +739,10 @@ mcd_channel_class_init (McdChannelClass * klass)
 						       0,
 						       G_PARAM_READWRITE /*|
 						       G_PARAM_CONSTRUCT_ONLY */));
+    g_object_class_install_property (object_class, PROP_HANDLE,
+        g_param_spec_uint ("handle", "handle", "handle",
+                           0, G_MAXUINT, 0,
+                           G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
     g_object_class_install_property (object_class, PROP_CHANNEL_HANDLE_TYPE,
 				     g_param_spec_uint ("channel-handle-type",
 						       _("Telepathy channel handle type"),
@@ -726,6 +752,10 @@ mcd_channel_class_init (McdChannelClass * klass)
 						       0,
 						       G_PARAM_READWRITE /* |
 						       G_PARAM_CONSTRUCT_ONLY */));
+    g_object_class_install_property (object_class, PROP_HANDLE_TYPE,
+        g_param_spec_uint ("handle-type", "handle-type", "handle-type",
+                           0, G_MAXUINT, 0,
+                           G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
     g_object_class_install_property (object_class, PROP_OUTGOING,
 				     g_param_spec_boolean ("outgoing",
 						       _("Outgoing channel"),
@@ -782,15 +812,15 @@ mcd_channel_init (McdChannel * obj)
 
 McdChannel *
 mcd_channel_new (TpChannel * tp_chan,
-		 const gchar *channel_type, guint channel_handle,
-		 TpHandleType channel_handle_type, gboolean outgoing,
+		 const gchar *type, guint handle,
+		 TpHandleType handle_type, gboolean outgoing,
 		 guint requestor_serial, const gchar *requestor_client_id)
 {
     McdChannel *obj;
     obj = MCD_CHANNEL (g_object_new (MCD_TYPE_CHANNEL,
-				     "channel-type", channel_type,
-				     "channel-handle", channel_handle,
-				     "channel-handle-type", channel_handle_type,
+				     "type", type,
+				     "handle", handle,
+				     "handle-type", handle_type,
 				     "outgoing", outgoing,
 				     "requestor-serial", requestor_serial,
 				     "requestor-client-id", requestor_client_id,
@@ -820,9 +850,9 @@ mcd_channel_new_from_path (TpConnection *connection, const gchar *object_path,
 {
     McdChannel *channel;
     channel = g_object_new (MCD_TYPE_CHANNEL,
-                            "channel-type", type,
-                            "channel-handle", handle,
-                            "channel-handle-type", handle_type,
+                            "type", type,
+                            "handle", handle,
+                            "handle-type", handle_type,
                             NULL);
     if (mcd_channel_set_object_path (channel, connection, object_path))
         return channel;
@@ -857,9 +887,9 @@ mcd_channel_set_object_path (McdChannel *channel, TpConnection *connection,
 
     g_return_val_if_fail (priv->tp_chan == NULL, FALSE);
     priv->tp_chan = tp_channel_new (connection, object_path,
-                                    priv->channel_type,
-                                    priv->channel_handle_type,
-                                    priv->channel_handle,
+                                    priv->type,
+                                    priv->handle_type,
+                                    priv->handle,
                                     &error);
     if (error)
     {
@@ -881,7 +911,8 @@ void
 mcd_channel_set_status (McdChannel *channel, McdChannelStatus status)
 {
     g_return_if_fail(MCD_IS_CHANNEL(channel));
-    g_object_set (channel, "channel-status", status, NULL);
+    g_signal_emit_by_name (channel, "status-changed", status);
+    channel->priv->status = status;
 }
 
 McdChannelStatus
@@ -899,13 +930,13 @@ mcd_channel_get_members_accepted (McdChannel *channel)
 const gchar *
 mcd_channel_get_channel_type (McdChannel *channel)
 {
-    return MCD_CHANNEL_PRIV (channel)->channel_type;
+    return MCD_CHANNEL_PRIV (channel)->type;
 }
 
 GQuark
 mcd_channel_get_channel_type_quark (McdChannel *channel)
 {
-    return MCD_CHANNEL_PRIV (channel)->channel_type_quark;
+    return MCD_CHANNEL_PRIV (channel)->type_quark;
 }
 
 const gchar *
@@ -916,16 +947,23 @@ mcd_channel_get_object_path (McdChannel *channel)
     return priv->tp_chan ? TP_PROXY (priv->tp_chan)->object_path : NULL;
 }
 
+void
+mcd_channel_set_handle (McdChannel *channel, guint handle)
+{
+    g_return_if_fail (MCD_IS_CHANNEL (channel));
+    channel->priv->handle = handle;
+}
+
 guint
 mcd_channel_get_handle (McdChannel *channel)
 {
-    return MCD_CHANNEL_PRIV (channel)->channel_handle;
+    return MCD_CHANNEL_PRIV (channel)->handle;
 }
 
 TpHandleType
 mcd_channel_get_handle_type (McdChannel *channel)
 {
-    return MCD_CHANNEL_PRIV (channel)->channel_handle_type;
+    return MCD_CHANNEL_PRIV (channel)->handle_type;
 }
 
 GPtrArray*

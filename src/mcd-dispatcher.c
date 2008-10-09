@@ -767,9 +767,9 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     gint filter_flags;
     
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (dispatcher);
-    
+
+    chan_type_quark = mcd_channel_get_channel_type_quark (channel);
     g_object_get (G_OBJECT (channel),
-		  "channel-type-quark", &chan_type_quark,
 		  "outgoing", &outgoing,
 		  NULL);
 

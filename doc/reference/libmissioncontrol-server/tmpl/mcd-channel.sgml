@@ -68,6 +68,16 @@ McdChannel
 
 </para>
 
+<!-- ##### ARG McdChannel:handle ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdChannel:handle-type ##### -->
+<para>
+
+</para>
+
 <!-- ##### ARG McdChannel:inviter-ready ##### -->
 <para>
 
@@ -99,6 +109,11 @@ McdChannel
 </para>
 
 <!-- ##### ARG McdChannel:tp-channel ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdChannel:type ##### -->
 <para>
 
 </para>

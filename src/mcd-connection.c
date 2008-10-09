@@ -1845,11 +1845,9 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
     /* ChannelRequestor *chan_req = (ChannelRequestor *)user_data; */
     g_object_steal_data (G_OBJECT (channel), "tp_chan_call");
 
-    g_object_get (channel,
-		  "channel-handle", &chan_handle,
-		  "channel-handle-type", &chan_handle_type,
-		  "channel-type-quark", &chan_type,
-		  NULL);
+    chan_handle = mcd_channel_get_handle (channel);
+    chan_handle_type = mcd_channel_get_handle_type (channel);
+    chan_type = mcd_channel_get_channel_type_quark (channel);
 
     cwd = g_object_get_data (G_OBJECT (channel), "error_on_creation");
     if (cwd)
@@ -2018,7 +2016,7 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
     }
 
     /* Update our newly acquired information */
-    g_object_set (channel, "channel-handle", chan_handle, NULL);
+    mcd_channel_set_handle (channel, chan_handle);
 
     mcd_operation_take_mission (MCD_OPERATION (connection),
 				MCD_MISSION (channel));
