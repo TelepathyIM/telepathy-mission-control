@@ -116,6 +116,8 @@ enum _McdChannelPropertyType
 #define DEPRECATED_PROPERTY_WARNING \
     g_warning ("%s: property %s is deprecated", G_STRFUNC, pspec->name)
 
+#define IMMUTABLE_PROPERTIES "immprop"
+
 static guint mcd_channel_signals[LAST_SIGNAL] = { 0 };
 
 static void _mcd_channel_release_tp_channel (McdChannel *channel,
@@ -1057,5 +1059,32 @@ mcd_channel_leave (McdChannel *channel, const gchar *message,
 							     message, reason);
     return TRUE;
 #endif
+}
+
+/*
+ * _mcd_channel_set_immutable_properties:
+ * @channel: the #McdChannel.
+ * @properties: a #GHashTable of immutable properties.
+ *
+ * Internal function: assign a hash table of properties to @channel.
+ */
+void
+_mcd_channel_set_immutable_properties (McdChannel *channel,
+                                       GHashTable *properties)
+{
+    g_object_set_data_full ((GObject *)channel, IMMUTABLE_PROPERTIES,
+                            properties, (GDestroyNotify)g_hash_table_destroy);
+}
+
+/*
+ * _mcd_channel_get_immutable_properties:
+ * @channel: the #McdChannel.
+ *
+ * Returns: the #GHashTable of the immutable properties.
+ */
+GHashTable *
+_mcd_channel_get_immutable_properties (McdChannel *channel)
+{
+    return g_object_get_data ((GObject *)channel, IMMUTABLE_PROPERTIES);
 }
 

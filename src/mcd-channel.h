@@ -118,5 +118,10 @@ gboolean mcd_channel_is_missed (McdChannel *channel);
 gboolean mcd_channel_leave (McdChannel *channel, const gchar *message,
 			    TpChannelGroupChangeReason reason);
 
+/* not exported: */
+void _mcd_channel_set_immutable_properties (McdChannel *channel,
+                                            GHashTable *properties);
+GHashTable *_mcd_channel_get_immutable_properties (McdChannel *channel);
+
 G_END_DECLS
 #endif /* MCD_CHANNEL_H */
