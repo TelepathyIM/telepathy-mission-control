@@ -48,6 +48,7 @@
 
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/interfaces.h>
+#include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/connection.h>
 #include <libmcclient/mc-errors.h>
 
@@ -85,6 +86,7 @@ struct _McdConnectionPrivate
 
     /* Telepathy connection */
     TpConnection *tp_conn;
+    TpProxySignalConnection *new_channel_sc;
     guint self_handle;
 
     /* Capabilities timer */
@@ -105,6 +107,7 @@ struct _McdConnectionPrivate
     gboolean has_avatars_if : 1;
     gboolean has_alias_if : 1;
     gboolean has_capabilities_if : 1;
+    gboolean has_requests_if : 1;
 
     /* FALSE until the connection is ready for dispatching */
     gboolean can_dispatch : 1;
@@ -1274,6 +1277,141 @@ dispatch_undispatched_channels (McdConnection *connection)
 }
 
 static void
+on_new_channels (TpConnection *proxy, const GPtrArray *channels,
+                 gpointer user_data, GObject *weak_object)
+{
+    McdConnection *connection = MCD_CONNECTION (weak_object);
+    McdConnectionPrivate *priv = user_data;
+    McdChannel *channel;
+    guint i;
+
+    /* we can completely ignore the channels that arrive while can_dispatch is
+     * FALSE: the on_new_channel handler is already recording them */
+    if (!priv->can_dispatch) return;
+
+    /* For the time being, dispatch each channel separately.
+     * TODO: these channels should be dispatched together */
+    for (i = 0; i < channels->len; i++)
+    {
+        GValueArray *va;
+        const gchar *object_path, *channel_type;
+        GHashTable *props;
+        GValue *value;
+        guint handle_type, handle;
+
+        va = g_ptr_array_index (channels, i);
+        object_path = g_value_get_boxed (va->values);
+        props = g_value_get_boxed (va->values + 1);
+
+        /* Don't do anything for requested channels */
+        value = g_hash_table_lookup (props,
+            "org.freedesktop.Telepathy.Channel.FUTURE.Requested");
+        if (value && g_value_get_boolean (value))
+            continue;
+
+        /* get channel type, handle type, handle */
+        value = g_hash_table_lookup (props, TP_IFACE_CHANNEL ".ChannelType");
+        channel_type = value ? g_value_get_string (value) : NULL;
+
+        value = g_hash_table_lookup (props,
+                                     TP_IFACE_CHANNEL ".TargetHandleType");
+        handle_type = value ? g_value_get_uint (value) : 0;
+
+        value = g_hash_table_lookup (props, TP_IFACE_CHANNEL ".TargetHandle");
+        handle = value ? g_value_get_uint (value) : 0;
+
+        g_debug ("%s: type = %s, handle_type = %u, handle = %u", G_STRFUNC,
+                 channel_type, handle_type, handle);
+        channel = mcd_channel_new_from_path (proxy, object_path, channel_type,
+                                             handle, handle_type);
+        if (G_UNLIKELY (!channel)) continue;
+
+        /* properties need to be copied */
+        props = g_value_dup_boxed (va->values + 1);
+        _mcd_channel_set_immutable_properties (channel, props);
+        mcd_operation_take_mission (MCD_OPERATION (connection),
+                                    MCD_MISSION (channel));
+
+        /* Dispatch the incoming channel */
+        mcd_dispatcher_send (priv->dispatcher, channel);
+    }
+}
+
+static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
+                                 const GError *error, gpointer user_data,
+                                 GObject *weak_object)
+{
+    McdConnection *connection = MCD_CONNECTION (weak_object);
+    McdConnectionPrivate *priv = user_data;
+    const GList *mcd_channels, *list;
+    GPtrArray *channels;
+    GValue *value;
+    guint i;
+
+    value = g_hash_table_lookup (properties, "Channels");
+    if (!G_VALUE_HOLDS (value, TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST))
+    {
+        g_warning ("%s: property Channels has type %s, expecting %s",
+                   G_STRFUNC, G_VALUE_TYPE_NAME (value),
+                   g_type_name (TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST));
+        return;
+    }
+
+    mcd_channels = mcd_operation_get_missions ((McdOperation *)connection);
+    channels = g_value_get_boxed (value);
+    for (i = 0; i < channels->len; i++)
+    {
+        GValueArray *va;
+        const gchar *object_path;
+        GHashTable *channel_props;
+
+        va = g_ptr_array_index (channels, i);
+        object_path = g_value_get_boxed (va->values);
+        channel_props = g_value_dup_boxed (va->values + 1);
+        /* find the McdChannel */
+        for (list = mcd_channels; list != NULL; list = list->next)
+        {
+            McdChannel *channel = MCD_CHANNEL (list->data);
+            const gchar *channel_path;
+
+            if (mcd_channel_get_status (channel) != MCD_CHANNEL_UNDISPATCHED)
+                continue;
+            channel_path = mcd_channel_get_object_path (channel);
+            if (channel_path && strcmp (channel_path, object_path) == 0)
+            {
+                _mcd_channel_set_immutable_properties (channel, channel_props);
+                /* channel is ready for dispatching */
+                mcd_dispatcher_send (priv->dispatcher, channel);
+                break;
+            }
+        }
+    }
+
+    tp_proxy_signal_connection_disconnect (priv->new_channel_sc);
+    priv->can_dispatch = TRUE;
+}
+
+static void
+mcd_connection_setup_requests (McdConnection *connection)
+{
+    McdConnectionPrivate *priv = connection->priv;
+
+    /*
+     * 1. connect to the NewChannels
+     * 2. get existing channels
+     * 3. disconnect from NewChannel
+     * 4. dispatch the UNDISPATCHED
+     */
+    tp_cli_connection_interface_requests_connect_to_new_channels
+        (priv->tp_conn, on_new_channels, priv, NULL,
+         (GObject *)connection, NULL);
+
+    tp_cli_dbus_properties_call_get_all (priv->tp_conn, -1,
+        TP_IFACE_CONNECTION_INTERFACE_REQUESTS,
+        get_all_requests_cb, priv, NULL, (GObject *)connection);
+}
+
+static void
 on_connection_ready (TpConnection *tp_conn, const GError *error,
 		     gpointer user_data)
 {
@@ -1304,6 +1442,8 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
 						       TP_IFACE_QUARK_CONNECTION_INTERFACE_ALIASING);
     priv->has_capabilities_if = tp_proxy_has_interface_by_id (tp_conn,
 							      TP_IFACE_QUARK_CONNECTION_INTERFACE_CAPABILITIES);
+    priv->has_requests_if = tp_proxy_has_interface_by_id (tp_conn,
+        TP_IFACE_QUARK_CONNECTION_INTERFACE_REQUESTS);
 
     if (priv->has_presence_if)
 	_mcd_connection_setup_presence (connection);
@@ -1317,7 +1457,10 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
     if (priv->has_alias_if)
 	_mcd_connection_setup_alias (connection);
 
-    dispatch_undispatched_channels (connection);
+    if (priv->has_requests_if)
+        mcd_connection_setup_requests (connection);
+    else
+        dispatch_undispatched_channels (connection);
 }
 
 static void
@@ -1368,10 +1511,11 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
 			       (gpointer)connection_ptr);
     tp_connection_call_when_ready (priv->tp_conn, on_connection_ready,
 				   connection_ptr);
-    tp_cli_connection_connect_to_new_channel (priv->tp_conn,
-					      on_new_channel,
-					      priv, NULL,
-					      (GObject *)connection, NULL);
+    priv->new_channel_sc =
+        tp_cli_connection_connect_to_new_channel (priv->tp_conn,
+                                                  on_new_channel,
+                                                  priv, NULL,
+                                                  (GObject *)connection, NULL);
 
     /* FIXME we don't know the status of the connection yet, but calling
      * Connect shouldn't cause any harm
