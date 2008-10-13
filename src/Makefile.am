@@ -73,7 +73,8 @@ mission_control_include_HEADERS = \
 	$(mission_control_include) \
 	mcd-account-config.h \
 	mcd-account-priv.h \
-	mcd-enum-types.h
+	mcd-enum-types.h \
+	mcd-misc.h
 
 BUILT_SOURCES = \
 	_gen/all.xml \
@@ -116,6 +117,7 @@ libmissioncontrol_server_la_SOURCES = \
 	mcd-debug.c \
 	mcd-enum-types.c \
 	mcd-signals-marshal.c \
+	mcd-misc.c \
 	mcd-mission.c \
 	mcd-operation.c \
 	mcd-controller.c \
