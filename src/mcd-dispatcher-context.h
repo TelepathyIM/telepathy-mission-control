@@ -93,13 +93,16 @@ TpConnection *mcd_dispatcher_context_get_connection_object (McdDispatcherContext
 
 McdChannel * mcd_dispatcher_context_get_channel (McdDispatcherContext * ctx);
 
-McdConnection * mcd_dispatcher_context_get_connection (McdDispatcherContext * ctx);
+McdConnection *mcd_dispatcher_context_get_connection
+    (McdDispatcherContext *context);
 
 McdChannelHandler * mcd_dispatcher_context_get_chan_handler (McdDispatcherContext * ctx);
 
 /*Returns an array of the gchar *  addresses of participants in the channel*/
 GPtrArray *mcd_dispatcher_context_get_members (McdDispatcherContext * ctx);
 
+GPtrArray *mcd_dispatcher_context_get_channels_dbus
+    (McdDispatcherContext *context);
 
 /* Statemachine API section */
 
