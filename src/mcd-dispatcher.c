@@ -64,6 +64,7 @@ struct _McdDispatcherContext
     McdDispatcher *dispatcher;
 
     GList *channels;
+    McdChannel *main_channel;
 
     gchar *protocol;
 
@@ -174,6 +175,8 @@ enum _McdDispatcherSignalType
 static guint mcd_dispatcher_signals[LAST_SIGNAL] = { 0 };
 
 static void mcd_dispatcher_context_free (McdDispatcherContext * ctx);
+static void mcd_dispatcher_context_set_channel (McdDispatcherContext *context,
+                                                McdChannel *channel);
 
 typedef void (*tp_ch_handle_channel_reply) (DBusGProxy *proxy, GError *error, gpointer userdata);
 
@@ -852,30 +855,70 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
     mcd_dispatcher_context_free (context);
 }
 
-static void
-mcd_dispatcher_run_handler (McdDispatcherContext *context)
+/*
+ * mcd_dispatcher_run_handler:
+ * @context: the #McdDispatcherContext.
+ * @channels: a #GList of #McdChannel elements to be handled.
+ *
+ * This functions tries to find a handler to handle @channels, and invokes its
+ * HandleChannels method. It returns a list of channels that are still
+ * unhandled.
+ */
+static GList *
+mcd_dispatcher_run_handler (McdDispatcherContext *context,
+                            const GList *channels)
 {
     McdDispatcherPrivate *priv = context->dispatcher->priv;
     McdClient *handler = NULL;
+    gint num_channels_best, num_channels;
+    const GList *cl;
     GList *list;
+    GList *handled_best = NULL, *unhandled;
 
     /* TODO: in the McdDispatcherContext there should be a hint on what handler
      * to invoke */
+    num_channels_best = 0;
     for (list = priv->clients; list != NULL; list = list->next)
     {
         McdClient *client = list->data;
-        McdChannel *channel;
+        GList *handled = NULL;
 
-        /* TODO: support more than one channel */
-        channel = mcd_dispatcher_context_get_channel (context);
+        if (!client->proxy ||
+            !(client->interfaces & MCD_CLIENT_HANDLER))
+            continue;
 
-        if (client->proxy &&
-            client->interfaces & MCD_CLIENT_HANDLER &&
-            match_filters (channel, client->handler_filters))
+        /* count the number of channels supported by this handler; we try to
+         * send the channels to the handler that can handle the most */
+        num_channels = 0;
+        for (cl = channels; cl != NULL; cl = cl->next)
         {
-            handler = client;
-            break;
+            McdChannel *channel = MCD_CHANNEL (cl->data);
+
+            if (match_filters (channel, client->handler_filters))
+            {
+                num_channels++;
+                handled = g_list_prepend (handled, channel);
+            }
         }
+
+        if (num_channels > num_channels_best)
+        {
+            /* this is the best candidate handler so far; remember also the
+             * list of channels it cannot handle */
+            handler = client;
+            g_list_free (handled_best);
+            handled_best = handled;
+        }
+        else
+            g_list_free (handled);
+    }
+
+    /* build the list of unhandled channels */
+    unhandled = NULL;
+    for (cl = channels; cl != NULL; cl = cl->next)
+    {
+        if (!g_list_find (handled_best, cl->data))
+            unhandled = g_list_prepend (unhandled, cl->data);
     }
 
     if (handler)
@@ -884,7 +927,7 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context)
         McdConnection *connection;
         McdAccount *account;
         const gchar *account_path, *connection_path;
-        GPtrArray *channels, *satisfied_requests;
+        GPtrArray *channels_array, *satisfied_requests;
 
         connection = mcd_dispatcher_context_get_connection (context);
         g_assert (connection != NULL);
@@ -894,23 +937,31 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context)
         g_assert (account != NULL);
         account_path = mcd_account_get_object_path (account);
 
-        channels = _mcd_channel_details_build_from_list (context->channels);
+        channels_array = _mcd_channel_details_build_from_list (handled_best);
 
         satisfied_requests = g_ptr_array_new (); /* TODO */
         user_action_time = 0; /* TODO: if we have a CDO, get it from there */
         mc_cli_client_handler_call_handle_channels (handler->proxy, -1,
             account_path, connection_path,
-            channels, satisfied_requests, user_action_time,
+            channels_array, satisfied_requests, user_action_time,
             handle_channels_cb, context, NULL, (GObject *)context->dispatcher);
 
         g_ptr_array_free (satisfied_requests, TRUE);
-        _mcd_channel_details_free (channels);
+        _mcd_channel_details_free (channels_array);
     }
     else
     {
         g_debug ("Client.Handler not found, invoking old-style handler");
-        start_old_channel_handler (context);
+        for (cl = unhandled; cl != NULL; cl = cl->next)
+        {
+            mcd_dispatcher_context_set_channel (context,
+                                                MCD_CHANNEL (cl->data));
+            start_old_channel_handler (context);
+        }
+        g_list_free (unhandled);
+        unhandled = NULL;
     }
+    return unhandled;
 }
 
 /* Happens at the end of successful filter chain execution (empty chain
@@ -919,11 +970,28 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context)
 static void
 mcd_dispatcher_run_clients (McdDispatcherContext *context)
 {
+    const GList *channels;
+    GList *unhandled = NULL;
+
     /* TODO: start observers */
 
     /* TODO: for non requested channels, start approvers */
 
-    mcd_dispatcher_run_handler (context);
+    /* call mcd_dispatcher_run_handler until there are no unhandled channels */
+    channels = mcd_dispatcher_context_get_channels (context);
+    while (channels)
+    {
+        g_list_free (unhandled);
+        unhandled = mcd_dispatcher_run_handler (context, channels);
+        if (g_list_length (unhandled) >= g_list_length ((GList *)channels))
+        {
+            /* this could really be an assertion, but just to be on the safe
+             * side... */
+            g_warning ("Number of unhandled channels not decreasing!");
+            break;
+        }
+        channels = unhandled;
+    }
 }
 
 static void
@@ -1643,11 +1711,32 @@ mcd_dispatcher_context_get_connection_object (McdDispatcherContext * ctx)
     return tp_conn;
 }
 
+/*
+ * mcd_dispatcher_context_set_channel:
+ *
+ * Sets the channel to be considered the main channel of the dispatcher
+ * context, that is the one that will be retrieved with
+ * mcd_dispatcher_context_get_channel(). It's useful only for compatibility
+ * with the old code.
+ */
+static void
+mcd_dispatcher_context_set_channel (McdDispatcherContext *context,
+                                    McdChannel *channel)
+{
+    g_return_if_fail (context != NULL);
+    g_return_if_fail (channel != NULL);
+
+    context->main_channel = channel;
+}
+
 McdChannel *
 mcd_dispatcher_context_get_channel (McdDispatcherContext * ctx)
 {
     g_return_val_if_fail (ctx, 0);
-    return ctx->channels ? MCD_CHANNEL (ctx->channels->data) : NULL;
+    if (ctx->main_channel)
+        return ctx->main_channel;
+    else
+        return ctx->channels ? MCD_CHANNEL (ctx->channels->data) : NULL;
 }
 
 /**
