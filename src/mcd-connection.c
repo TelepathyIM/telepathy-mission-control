@@ -101,16 +101,16 @@ struct _McdConnectionPrivate
     struct presence_info *presence_to_set[LAST_MC_PRESENCE - 1];
 
     TpConnectionStatusReason abort_reason;
-    gboolean got_capabilities : 1;
-    gboolean setting_avatar : 1;
-    gboolean has_presence_if : 1;
-    gboolean has_avatars_if : 1;
-    gboolean has_alias_if : 1;
-    gboolean has_capabilities_if : 1;
-    gboolean has_requests_if : 1;
+    guint got_capabilities : 1;
+    guint setting_avatar : 1;
+    guint has_presence_if : 1;
+    guint has_avatars_if : 1;
+    guint has_alias_if : 1;
+    guint has_capabilities_if : 1;
+    guint has_requests_if : 1;
 
     /* FALSE until the connection is ready for dispatching */
-    gboolean can_dispatch : 1;
+    guint can_dispatch : 1;
 
     gchar *alias;
 
