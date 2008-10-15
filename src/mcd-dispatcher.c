@@ -1657,6 +1657,19 @@ mcd_dispatcher_context_get_channel (McdDispatcherContext * ctx)
     return ctx->channels ? MCD_CHANNEL (ctx->channels->data) : NULL;
 }
 
+/**
+ * mcd_dispatcher_context_get_channels:
+ * @context: the #McdDispatcherContext.
+ *
+ * Returns: a #GList of #McdChannel elements.
+ */
+const GList *
+mcd_dispatcher_context_get_channels (McdDispatcherContext *context)
+{
+    g_return_val_if_fail (context != NULL, NULL);
+    return context->channels;
+}
+
 McdChannelHandler *
 mcd_dispatcher_context_get_chan_handler (McdDispatcherContext * ctx)
 {
