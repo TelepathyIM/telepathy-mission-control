@@ -175,6 +175,9 @@ enum _McdDispatcherSignalType
 static guint mcd_dispatcher_signals[LAST_SIGNAL] = { 0 };
 
 static void mcd_dispatcher_context_free (McdDispatcherContext * ctx);
+GPtrArray *_mcd_dispatcher_context_get_channels_dbus
+    (McdDispatcherContext *context);
+
 typedef void (*tp_ch_handle_channel_reply) (DBusGProxy *proxy, GError *error, gpointer userdata);
 
 static void
@@ -894,7 +897,7 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context)
         g_assert (account != NULL);
         account_path = mcd_account_get_object_path (account);
 
-        channels = mcd_dispatcher_context_get_channels_dbus (context);
+        channels = _mcd_dispatcher_context_get_channels_dbus (context);
 
         satisfied_requests = g_ptr_array_new (); /* TODO */
         user_action_time = 0; /* TODO: if we have a CDO, get it from there */
@@ -1766,13 +1769,13 @@ mcd_dispatcher_context_build_channels_dbus (McdDispatcherContext *context)
 }
 
 /**
- * mcd_dispatcher_context_get_channels_dbus:
+ * _mcd_dispatcher_context_get_channels_dbus:
  * @context: the #McdDispatcherContext.
  *
  * Returns: the a(oa{sv}) of channels.
  */
 GPtrArray *
-mcd_dispatcher_context_get_channels_dbus (McdDispatcherContext *context)
+_mcd_dispatcher_context_get_channels_dbus (McdDispatcherContext *context)
 {
     if (!context->channels_dbus)
         mcd_dispatcher_context_build_channels_dbus (context);
