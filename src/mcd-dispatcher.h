@@ -41,6 +41,7 @@ G_BEGIN_DECLS
 
 typedef struct _McdDispatcher McdDispatcher;
 typedef struct _McdDispatcherClass McdDispatcherClass;
+typedef struct _McdDispatcherPrivate McdDispatcherPrivate;
 typedef struct _McdDispatcherStatus McdDispatcherStatus;
 
 #include "mcd-channel.h"
@@ -49,6 +50,7 @@ typedef struct _McdDispatcherStatus McdDispatcherStatus;
 struct _McdDispatcher
 {
     McdMission parent;
+    McdDispatcherPrivate *priv;
 };
 
 struct _McdDispatcherClass

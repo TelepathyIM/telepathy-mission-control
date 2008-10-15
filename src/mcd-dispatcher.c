@@ -55,9 +55,7 @@
 
 #include <string.h>
 
-#define MCD_DISPATCHER_PRIV(dispatcher) (G_TYPE_INSTANCE_GET_PRIVATE ((dispatcher), \
-				  MCD_TYPE_DISPATCHER, \
-				  McdDispatcherPrivate))
+#define MCD_DISPATCHER_PRIV(dispatcher) (MCD_DISPATCHER (dispatcher)->priv)
 
 G_DEFINE_TYPE (McdDispatcher, mcd_dispatcher, MCD_TYPE_MISSION);
 
@@ -119,7 +117,7 @@ typedef struct _McdClient
 #define MCD_IFACE_CLIENT_HANDLER "org.freedesktop.Telepathy.Client.Handler"
 #define MCD_IFACE_CLIENT_OBSERVER "org.freedesktop.Telepathy.Client.Observer"
 
-typedef struct _McdDispatcherPrivate
+struct _McdDispatcherPrivate
 {
     /* Pending state machine contexts */
     GSList *state_machine_list;
@@ -143,7 +141,7 @@ typedef struct _McdDispatcherPrivate
  
     gboolean is_disposed;
     
-} McdDispatcherPrivate;
+};
 
 struct iface_chains_t
 {
@@ -264,7 +262,7 @@ _mcd_dispatcher_get_filter_chain (McdDispatcher * dispatcher,
 				  GQuark channel_type_quark,
 				  guint filter_flags)
 {
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (dispatcher);
+    McdDispatcherPrivate *priv = dispatcher->priv;
     struct iface_chains_t *iface_chains;
     GList *filter_chain = NULL;
 
@@ -368,7 +366,7 @@ mcd_dispatcher_register_filter (McdDispatcher *dispatcher,
 				guint filter_flags, guint priority,
 				gpointer user_data)
 {
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (dispatcher);
+    McdDispatcherPrivate *priv = dispatcher->priv;
     struct iface_chains_t *iface_chains = NULL;
 
     /* Check if the interface already has stored data, otherwise create it */
@@ -413,7 +411,7 @@ mcd_dispatcher_unregister_filter (McdDispatcher * dispatcher,
 				  GQuark channel_type_quark,
 				  guint filter_flags)
 {
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (dispatcher);
+    McdDispatcherPrivate *priv = dispatcher->priv;
 
     /* First, do we have anything registered for that channel type? */
     struct iface_chains_t *chains =
@@ -483,7 +481,7 @@ mcd_dispatcher_get_channel_type_usage (McdDispatcher * dispatcher,
 				       GQuark chan_type_quark)
 {
     GList *node;
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (dispatcher);
+    McdDispatcherPrivate *priv = dispatcher->priv;
     gint usage_counter = 0;
     
     node = priv->channels;
@@ -502,7 +500,7 @@ mcd_dispatcher_get_channel_type_usage (McdDispatcher * dispatcher,
 static void
 on_channel_abort_list (McdChannel *channel, McdDispatcher *dispatcher)
 {
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (dispatcher);
+    McdDispatcherPrivate *priv = dispatcher->priv;
     
     g_debug ("Abort Channel; Removing channel from list");
     priv->channels = g_list_remove (priv->channels, channel);
@@ -578,7 +576,7 @@ _mcd_dispatcher_handle_channel_async_cb (DBusGProxy * proxy, GError * error,
 					 gpointer userdata)
 {
     McdDispatcherContext *context = userdata;
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (context->dispatcher);
+    McdDispatcherPrivate *priv = context->dispatcher->priv;
     McdChannel *channel;
     const gchar *protocol = NULL;
     GHashTable *channel_handler;
@@ -671,7 +669,7 @@ start_old_channel_handler (McdDispatcherContext *context)
 
     g_return_if_fail (context);
 
-    priv = MCD_DISPATCHER_PRIV (context->dispatcher);
+    priv = context->dispatcher->priv;
     channel = mcd_dispatcher_context_get_channel (context); 
     protocol = mcd_dispatcher_context_get_protocol_name (context);
 
@@ -857,7 +855,7 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
 static void
 mcd_dispatcher_run_handler (McdDispatcherContext *context)
 {
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (context->dispatcher);
+    McdDispatcherPrivate *priv = context->dispatcher->priv;
     McdClient *handler = NULL;
     GList *list;
 
@@ -953,8 +951,7 @@ _mcd_dispatcher_drop_channel_handler (McdDispatcherContext * context)
 static void
 _mcd_dispatcher_leave_state_machine (McdDispatcherContext * context)
 {
-    McdDispatcherPrivate *priv =
-	MCD_DISPATCHER_PRIV (context->dispatcher);
+    McdDispatcherPrivate *priv = context->dispatcher->priv;
 
     /* _mcd_dispatcher_drop_channel_handler (context); */
 
@@ -982,7 +979,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     gboolean outgoing;
     gint filter_flags;
     
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (dispatcher);
+    McdDispatcherPrivate *priv = dispatcher->priv;
 
     chan_type_quark = mcd_channel_get_channel_type_quark (channel);
     g_object_get (G_OBJECT (channel),
@@ -1035,7 +1032,7 @@ _mcd_dispatcher_send (McdDispatcher * dispatcher, McdChannel * channel)
     g_return_if_fail (MCD_IS_CHANNEL (channel));
 
     mcd_channel_set_status (channel, MCD_CHANNEL_DISPATCHING);
-    priv = MCD_DISPATCHER_PRIV (dispatcher);
+    priv = dispatcher->priv;
 
     /* it can happen that this function gets called when the same channel has
      * already entered the state machine or even when it has already been
@@ -1510,7 +1507,11 @@ _channel_capabilities (gchar *ctype, GHashTable *channel_handler,
 static void
 mcd_dispatcher_init (McdDispatcher * dispatcher)
 {
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (dispatcher);
+    McdDispatcherPrivate *priv;
+
+    priv = G_TYPE_INSTANCE_GET_PRIVATE (dispatcher, MCD_TYPE_DISPATCHER,
+                                        McdDispatcherPrivate);
+    dispatcher->priv = priv;
 
     g_datalist_init (&(priv->interface_filters));
     
@@ -1533,7 +1534,7 @@ mcd_dispatcher_new (TpDBusDaemon *dbus_daemon, McdMaster *master)
 void
 mcd_dispatcher_context_process (McdDispatcherContext * context, gboolean result)
 {
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (context->dispatcher);
+    McdDispatcherPrivate *priv = context->dispatcher->priv;
     
     if (result)
     {
@@ -1659,7 +1660,7 @@ mcd_dispatcher_context_get_channel (McdDispatcherContext * ctx)
 McdChannelHandler *
 mcd_dispatcher_context_get_chan_handler (McdDispatcherContext * ctx)
 {
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (ctx->dispatcher);
+    McdDispatcherPrivate *priv = ctx->dispatcher->priv;
     McdChannel *channel;
     const gchar *protocol;
     McdChannelHandler *chandler;
@@ -1690,7 +1691,7 @@ mcd_dispatcher_context_get_members (McdDispatcherContext * ctx)
 GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher,
 						    const gchar *protocol)
 {
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (dispatcher);
+    McdDispatcherPrivate *priv = dispatcher->priv;
     McdDispatcherArgs args;
 
     args.dispatcher = dispatcher;
