@@ -42,7 +42,6 @@ G_BEGIN_DECLS
 typedef struct _McdDispatcher McdDispatcher;
 typedef struct _McdDispatcherClass McdDispatcherClass;
 typedef struct _McdDispatcherPrivate McdDispatcherPrivate;
-typedef struct _McdDispatcherStatus McdDispatcherStatus;
 
 #include "mcd-channel.h"
 #include "mcd-master.h"
@@ -78,9 +77,6 @@ McdDispatcher *mcd_dispatcher_new (TpDBusDaemon *dbus_daemon,
 				   McdMaster * master);
 
 gboolean mcd_dispatcher_send (McdDispatcher * dispatcher, McdChannel *channel);
-
-McdDispatcherStatus
-mcd_dispatcher_get_status (McdDispatcher * dispatcher, McdChannel *channel);
 
 gint mcd_dispatcher_get_channel_type_usage (McdDispatcher * dispatcher,
 					    GQuark chan_type_quark);

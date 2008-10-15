@@ -235,7 +235,6 @@ McdDispatcherStatus
 <TITLE>McdDispatcher</TITLE>
 mcd_dispatcher_new
 mcd_dispatcher_send
-mcd_dispatcher_get_status
 mcd_dispatcher_get_channel_type_usage
 mcd_dispatcher_get_channel_capabilities
 <SUBSECTION Standard>
