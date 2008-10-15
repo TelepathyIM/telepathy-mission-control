@@ -64,7 +64,6 @@ struct _McdDispatcherContext
     McdDispatcher *dispatcher;
 
     GList *channels;
-    GPtrArray *channels_dbus;
 
     gchar *protocol;
 
@@ -175,8 +174,6 @@ enum _McdDispatcherSignalType
 static guint mcd_dispatcher_signals[LAST_SIGNAL] = { 0 };
 
 static void mcd_dispatcher_context_free (McdDispatcherContext * ctx);
-GPtrArray *_mcd_dispatcher_context_get_channels_dbus
-    (McdDispatcherContext *context);
 
 typedef void (*tp_ch_handle_channel_reply) (DBusGProxy *proxy, GError *error, gpointer userdata);
 
@@ -897,7 +894,7 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context)
         g_assert (account != NULL);
         account_path = mcd_account_get_object_path (account);
 
-        channels = _mcd_dispatcher_context_get_channels_dbus (context);
+        channels = _mcd_channel_details_build_from_list (context->channels);
 
         satisfied_requests = g_ptr_array_new (); /* TODO */
         user_action_time = 0; /* TODO: if we have a CDO, get it from there */
@@ -907,6 +904,7 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context)
             handle_channels_cb, context, NULL, (GObject *)context->dispatcher);
 
         g_ptr_array_free (satisfied_requests, TRUE);
+        _mcd_channel_details_free (channels);
     }
     else
     {
@@ -1577,7 +1575,6 @@ static void
 mcd_dispatcher_context_free (McdDispatcherContext * context)
 {
     GList *list;
-    GValue value = { 0, };
 
     /* FIXME: check for leaks */
     g_return_if_fail (context);
@@ -1593,13 +1590,6 @@ mcd_dispatcher_context_free (McdDispatcherContext * context)
     }
     g_list_free (context->channels);
 
-    /* to free the array of channels_dbus, put it into a GValue */
-    if (context->channels_dbus)
-    {
-        g_value_init (&value, MC_ARRAY_TYPE_CHANNEL_DETAILS_LIST);
-        g_value_take_boxed (&value, context->channels_dbus);
-        g_value_unset (&value);
-    }
     g_free (context->protocol);
     g_free (context);
 }
@@ -1735,50 +1725,5 @@ mcd_dispatcher_context_get_protocol_name (McdDispatcherContext *context)
     }
     
     return context->protocol;
-}
-
-static void
-mcd_dispatcher_context_build_channels_dbus (McdDispatcherContext *context)
-{
-    GPtrArray *channels;
-    GList *list;
-
-    channels = g_ptr_array_sized_new (g_list_length (context->channels));
-    for (list = context->channels; list != NULL; list = list->next)
-    {
-        McdChannel *channel = MCD_CHANNEL (list->data);
-        GHashTable *properties;
-        GValue channel_val = { 0, };
-        GType type;
-
-        properties = _mcd_channel_get_immutable_properties (channel);
-
-        type = MC_STRUCT_TYPE_CHANNEL_DETAILS;
-        g_value_init (&channel_val, type);
-        g_value_take_boxed (&channel_val,
-                            dbus_g_type_specialized_construct (type));
-        dbus_g_type_struct_set (&channel_val,
-                                0, mcd_channel_get_object_path (channel),
-                                1, properties,
-                                G_MAXUINT);
-
-        g_ptr_array_add (channels, g_value_get_boxed (&channel_val));
-    }
-
-    context->channels_dbus = channels;
-}
-
-/**
- * _mcd_dispatcher_context_get_channels_dbus:
- * @context: the #McdDispatcherContext.
- *
- * Returns: the a(oa{sv}) of channels.
- */
-GPtrArray *
-_mcd_dispatcher_context_get_channels_dbus (McdDispatcherContext *context)
-{
-    if (!context->channels_dbus)
-        mcd_dispatcher_context_build_channels_dbus (context);
-    return context->channels_dbus;
 }
 

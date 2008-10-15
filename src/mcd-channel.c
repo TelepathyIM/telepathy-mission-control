@@ -39,6 +39,7 @@
 
 #include "mcd-channel.h"
 #include "mcd-enum-types.h"
+#include "_gen/gtypes.h"
 
 #define MCD_CHANNEL_PRIV(channel) (MCD_CHANNEL (channel)->priv)
 #define INVALID_SELF_HANDLE ((guint) -1)
@@ -1087,4 +1088,60 @@ _mcd_channel_get_immutable_properties (McdChannel *channel)
 {
     return g_object_get_data ((GObject *)channel, IMMUTABLE_PROPERTIES);
 }
+
+/*
+ * _mcd_channel_details_build_from_list:
+ * @channels: a #GList of #McdChannel elements.
+ *
+ * Returns: a #GPtrArray of Channel_Details, ready to be sent over D-Bus. Free
+ * with _mcd_channel_details_free().
+ */
+GPtrArray *
+_mcd_channel_details_build_from_list (GList *channels)
+{
+    GPtrArray *channel_array;
+    GList *list;
+
+    channel_array = g_ptr_array_sized_new (g_list_length (channels));
+    for (list = channels; list != NULL; list = list->next)
+    {
+        McdChannel *channel = MCD_CHANNEL (list->data);
+        GHashTable *properties;
+        GValue channel_val = { 0, };
+        GType type;
+
+        properties = _mcd_channel_get_immutable_properties (channel);
+
+        type = MC_STRUCT_TYPE_CHANNEL_DETAILS;
+        g_value_init (&channel_val, type);
+        g_value_take_boxed (&channel_val,
+                            dbus_g_type_specialized_construct (type));
+        dbus_g_type_struct_set (&channel_val,
+                                0, mcd_channel_get_object_path (channel),
+                                1, properties,
+                                G_MAXUINT);
+
+        g_ptr_array_add (channel_array, g_value_get_boxed (&channel_val));
+    }
+
+    return channel_array;
+}
+
+/*
+ * _mcd_channel_details_free:
+ * @channels: a #GPtrArray of Channel_Details.
+ *
+ * Frees the memory used by @channels.
+ */
+void
+_mcd_channel_details_free (GPtrArray *channels)
+{
+    GValue value = { 0, };
+
+    /* to free the array, put it into a GValue */
+    g_value_init (&value, MC_ARRAY_TYPE_CHANNEL_DETAILS_LIST);
+    g_value_take_boxed (&value, channels);
+    g_value_unset (&value);
+}
+
 

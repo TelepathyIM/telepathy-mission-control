@@ -123,5 +123,8 @@ void _mcd_channel_set_immutable_properties (McdChannel *channel,
                                             GHashTable *properties);
 GHashTable *_mcd_channel_get_immutable_properties (McdChannel *channel);
 
+GPtrArray *_mcd_channel_details_build_from_list (GList *channels);
+void _mcd_channel_details_free (GPtrArray *channels);
+
 G_END_DECLS
 #endif /* MCD_CHANNEL_H */
