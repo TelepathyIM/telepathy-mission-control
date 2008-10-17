@@ -61,6 +61,8 @@ G_DEFINE_TYPE (McdDispatcher, mcd_dispatcher, MCD_TYPE_MISSION);
 
 struct _McdDispatcherContext
 {
+    gint ref_count;
+
     McdDispatcher *dispatcher;
 
     GList *channels;
@@ -156,6 +158,12 @@ struct cancel_call_data
     McdDispatcher *dispatcher;
 };
 
+typedef struct
+{
+    McdDispatcherContext *context;
+    GList *channels;
+} McdHandlerCallData;
+
 enum
 {
     PROP_0,
@@ -169,16 +177,71 @@ enum _McdDispatcherSignalType
     CHANNEL_REMOVED,
     DISPATCHED,
     DISPATCH_FAILED,
+    DISPATCH_COMPLETED,
     LAST_SIGNAL
 };
 
 static guint mcd_dispatcher_signals[LAST_SIGNAL] = { 0 };
 
-static void mcd_dispatcher_context_free (McdDispatcherContext * ctx);
+static void mcd_dispatcher_context_unref (McdDispatcherContext * ctx);
 static void mcd_dispatcher_context_set_channel (McdDispatcherContext *context,
                                                 McdChannel *channel);
+static void mcd_dispatcher_leave_state_machine (McdDispatcherContext *context);
 
 typedef void (*tp_ch_handle_channel_reply) (DBusGProxy *proxy, GError *error, gpointer userdata);
+
+static inline void
+mcd_dispatcher_context_ref (McdDispatcherContext *context)
+{
+    g_return_if_fail (context != NULL);
+    g_debug ("%s called on %p (ref = %d)", G_STRFUNC,
+             context, context->ref_count);
+    context->ref_count++;
+}
+
+static void
+mcd_handler_call_data_free (McdHandlerCallData *call_data)
+{
+    g_list_free (call_data->channels);
+    g_slice_free (McdHandlerCallData, call_data);
+}
+
+/*
+ * mcd_dispatcher_context_handler_done:
+ * @context: the #McdDispatcherContext.
+ * 
+ * Called to informs the @context that handling of a channel is completed,
+ * either because a channel handler has returned from the HandleChannel(s)
+ * call, or because there was an error in calling the handler. 
+ * This function checks the status of all the channels in @context, and when
+ * there is nothing left to do (either because all channels are dispatched, or
+ * because it's impossible to dispatch them) it emits the "dispatch-completed"
+ * signal and destroys the @context.
+ */
+static void
+mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
+{
+    GList *list;
+    gint channels_left = 0;
+
+    for (list = context->channels; list != NULL; list = list->next)
+    {
+        McdChannel *channel = MCD_CHANNEL (list->data);
+
+        if (mcd_channel_get_status (channel) == MCD_CHANNEL_DISPATCHING)
+            channels_left++;
+        /* TODO: recognize those channels whose dispatch failed, and
+         * re-dispatch them to another handler */
+    }
+
+    g_debug ("%s: %d channels still dispatching", G_STRFUNC, channels_left);
+    if (channels_left == 0)
+    {
+        g_signal_emit (context->dispatcher,
+                       mcd_dispatcher_signals[DISPATCH_COMPLETED], 0, context);
+        mcd_dispatcher_leave_state_machine (context);
+    }
+}
 
 static void
 mcd_client_filter_free (McdClientFilter *filter)
@@ -615,7 +678,8 @@ _mcd_dispatcher_handle_channel_async_cb (DBusGProxy * proxy, GError * error,
 	 */
 	mc_error = g_error_new (MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
 				"Handle channel failed: %s", error->message);
-	
+
+        mcd_channel_set_status (channel, MCD_CHANNEL_FAILED);
 	g_signal_emit_by_name (context->dispatcher, "dispatch-failed",
 			       channel, mc_error);
 	
@@ -623,6 +687,8 @@ _mcd_dispatcher_handle_channel_async_cb (DBusGProxy * proxy, GError * error,
 	g_error_free (error);
 	if (channel)
 	    mcd_mission_abort (MCD_MISSION (channel));
+
+        mcd_dispatcher_context_handler_done (context);
 	return;
     }
 
@@ -656,8 +722,9 @@ _mcd_dispatcher_handle_channel_async_cb (DBusGProxy * proxy, GError * error,
 	}
     }
 
+    mcd_channel_set_status (channel, MCD_CHANNEL_DISPATCHED);
     g_signal_emit_by_name (context->dispatcher, "dispatched", channel);
-    mcd_dispatcher_context_free (context);
+    mcd_dispatcher_context_handler_done (context);
 }
 
 static void
@@ -693,9 +760,11 @@ start_old_channel_handler (McdDispatcherContext *context)
 	mc_error = g_error_new (MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
 				"No handler for channel type %s",
 				mcd_channel_get_channel_type (channel));
+        mcd_channel_set_status (channel, MCD_CHANNEL_FAILED);
 	g_signal_emit_by_name (context->dispatcher, "dispatch-failed", channel,
 			       mc_error);
 	g_error_free (mc_error);
+        mcd_dispatcher_context_handler_done (context);
     }
     else
     {
@@ -823,11 +892,9 @@ static void
 handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
                     GObject *weak_object)
 {
-    McdDispatcherContext *context = user_data;
-    McdChannel *channel;
-
-    /* TODO: don't assume we have only one channel */
-    channel = mcd_dispatcher_context_get_channel (context);
+    McdHandlerCallData *call_data = user_data;
+    McdDispatcherContext *context = call_data->context;
+    GList *list;
 
     if (error)
     {
@@ -841,18 +908,33 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
         mc_error = g_error_new (MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
                                 "Handle channel failed: %s", error->message);
 
-        g_signal_emit_by_name (context->dispatcher, "dispatch-failed",
-                               channel, mc_error);
+        for (list = call_data->channels; list != NULL; list = list->next)
+        {
+            McdChannel *channel = MCD_CHANNEL (list->data);
 
+            mcd_channel_set_status (channel, MCD_CHANNEL_FAILED);
+            g_signal_emit_by_name (context->dispatcher, "dispatch-failed",
+                                   channel, mc_error);
+
+            /* FIXME: try to dispatch the channels to another handler, instead
+             * of just aborting them */
+            mcd_mission_abort (MCD_MISSION (channel));
+        }
         g_error_free (mc_error);
-        mcd_mission_abort (MCD_MISSION (channel));
-        return;
+    }
+    else
+    {
+        for (list = call_data->channels; list != NULL; list = list->next)
+        {
+            McdChannel *channel = MCD_CHANNEL (list->data);
+
+            /* TODO: abort the channel if the handler dies */
+            mcd_channel_set_status (channel, MCD_CHANNEL_DISPATCHED);
+            g_signal_emit_by_name (context->dispatcher, "dispatched", channel);
+        }
     }
 
-    /* TODO: abort the channel if the handler dies */
-
-    g_signal_emit_by_name (context->dispatcher, "dispatched", channel);
-    mcd_dispatcher_context_free (context);
+    mcd_dispatcher_context_handler_done (context);
 }
 
 /*
@@ -928,6 +1010,7 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
         McdAccount *account;
         const gchar *account_path, *connection_path;
         GPtrArray *channels_array, *satisfied_requests;
+        McdHandlerCallData *handler_data;
 
         connection = mcd_dispatcher_context_get_connection (context);
         g_assert (connection != NULL);
@@ -941,10 +1024,21 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
 
         satisfied_requests = g_ptr_array_new (); /* TODO */
         user_action_time = 0; /* TODO: if we have a CDO, get it from there */
+
+        /* The callback needs to get the dispatcher context, and the channels
+         * the handler was asked to handle. The context will keep track of how
+         * many channels are still to be dispatched,
+         * still pending. When all of them return, the dispatching is
+         * considered to be completed. */
+        handler_data = g_slice_new (McdHandlerCallData);
+        handler_data->context = context;
+        handler_data->channels = handled_best;
         mc_cli_client_handler_call_handle_channels (handler->proxy, -1,
             account_path, connection_path,
             channels_array, satisfied_requests, user_action_time,
-            handle_channels_cb, context, NULL, (GObject *)context->dispatcher);
+            handle_channels_cb,
+            handler_data, (GDestroyNotify)mcd_handler_call_data_free,
+            (GObject *)context->dispatcher);
 
         g_ptr_array_free (satisfied_requests, TRUE);
         _mcd_channel_details_free (channels_array);
@@ -973,6 +1067,7 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
     const GList *channels;
     GList *unhandled = NULL;
 
+    mcd_dispatcher_context_ref (context);
     /* TODO: start observers */
 
     /* TODO: for non requested channels, start approvers */
@@ -992,6 +1087,7 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
         }
         channels = unhandled;
     }
+    mcd_dispatcher_context_unref (context);
 }
 
 static void
@@ -1018,7 +1114,7 @@ _mcd_dispatcher_drop_channel_handler (McdDispatcherContext * context)
 /* STATE MACHINE */
 
 static void
-_mcd_dispatcher_leave_state_machine (McdDispatcherContext * context)
+mcd_dispatcher_leave_state_machine (McdDispatcherContext * context)
 {
     McdDispatcherPrivate *priv = context->dispatcher->priv;
 
@@ -1027,14 +1123,18 @@ _mcd_dispatcher_leave_state_machine (McdDispatcherContext * context)
     priv->state_machine_list =
 	g_slist_remove (priv->state_machine_list, context);
 
-    mcd_dispatcher_context_free (context);
+    mcd_dispatcher_context_unref (context);
 }
 
 static void
 on_channel_abort_context (McdChannel *channel, McdDispatcherContext *context)
 {
-    g_debug ("Abort Channel; Destroying state machine context.");
-    _mcd_dispatcher_leave_state_machine (context);
+    g_debug ("Channel %p aborted while in a dispatcher context", channel);
+
+    /* TODO: it's still not clear what we should do with these aborted
+     * channels; for now, we keep them in the context, pretending that nothing
+     * happened -- the channel handler will see that they don't exist anymore
+     */
 }
 
 /* Entering the state machine */
@@ -1062,6 +1162,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     
     /* Preparing and filling the context */
     context = g_new0 (McdDispatcherContext, 1);
+    context->ref_count = 1;
     context->dispatcher = dispatcher;
     context->channels = g_list_prepend (NULL, channel);
     context->chain = chain;
@@ -1102,6 +1203,16 @@ _mcd_dispatcher_send (McdDispatcher * dispatcher, McdChannel * channel)
 
     mcd_channel_set_status (channel, MCD_CHANNEL_DISPATCHING);
     priv = dispatcher->priv;
+
+    /* deprecate the "dispatch-failed" and "dispatched" signals; we have the
+     * "dispatch-complete" signal that carries the whole context, so that the
+     * listeners are able to see the status of all the channels involved */
+    if (g_signal_has_handler_pending (dispatcher,
+            mcd_dispatcher_signals[DISPATCH_FAILED], 0, TRUE) ||
+        g_signal_has_handler_pending (dispatcher,
+            mcd_dispatcher_signals[DISPATCHED], 0, TRUE))
+        g_warning ("The signals \"dispatch-failed\" and \"dispatched\" are "
+                   "deprecated and will disappear very soon");
 
     /* it can happen that this function gets called when the same channel has
      * already entered the state machine or even when it has already been
@@ -1160,11 +1271,12 @@ _mcd_dispatcher_send (McdDispatcher * dispatcher, McdChannel * channel)
 	    g_debug ("%s: channel is already dispatched, starting handler", G_STRFUNC);
 	    /* Preparing and filling the context */
 	    context = g_new0 (McdDispatcherContext, 1);
+            context->ref_count = 1;
 	    context->dispatcher = dispatcher;
 	    context->channels = g_list_prepend (NULL, channel);
 
-	    /* We must ref() the channel, because mcd_dispatcher_context_free()
-	     * will unref() it */
+            /* We must ref() the channel, because
+             * mcd_dispatcher_context_unref() will unref() it */
 	    g_object_ref (channel);
 	    mcd_dispatcher_run_clients (context);
 	}
@@ -1518,7 +1630,23 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
 				       dispatch_failed_signal),
 		      NULL, NULL, _mcd_marshal_VOID__OBJECT_POINTER,
 		      G_TYPE_NONE, 2, MCD_TYPE_CHANNEL, G_TYPE_POINTER);
-    
+
+    /**
+     * McdDispatcher::dispatch-completed:
+     * @dispatcher: the #McdDispatcher.
+     * @context: a #McdDispatcherContext.
+     *
+     * This signal is emitted when a dispatch operation has terminated. One can
+     * inspect @context to get the status of the channels.
+     * After this signal returns, @context is no longer valid.
+     */
+    mcd_dispatcher_signals[DISPATCH_COMPLETED] =
+        g_signal_new ("dispatch-completed",
+                      G_OBJECT_CLASS_TYPE (klass),
+                      G_SIGNAL_RUN_LAST,
+                      0, NULL, NULL, g_cclosure_marshal_VOID__POINTER,
+                      G_TYPE_NONE, 1, G_TYPE_POINTER);
+
     /* Properties */
     g_object_class_install_property (object_class,
 				     PROP_DBUS_DAEMON,
@@ -1640,26 +1768,32 @@ mcd_dispatcher_context_process (McdDispatcherContext * context, gboolean result)
 }
 
 static void
-mcd_dispatcher_context_free (McdDispatcherContext * context)
+mcd_dispatcher_context_unref (McdDispatcherContext * context)
 {
     GList *list;
 
     /* FIXME: check for leaks */
     g_return_if_fail (context);
+    g_return_if_fail (context->ref_count > 0);
 
-    /* Freeing context data */
-    for (list = context->channels; list != NULL; list = list->next)
+    g_debug ("%s called on %p (ref = %d)", G_STRFUNC,
+             context, context->ref_count);
+    context->ref_count--;
+    if (context->ref_count == 0)
     {
-        McdChannel *channel = MCD_CHANNEL (list->data);
-	g_signal_handlers_disconnect_by_func (channel,
-					      G_CALLBACK (on_channel_abort_context),
-					      context);
-	g_object_unref (channel);
-    }
-    g_list_free (context->channels);
+        g_debug ("%s: freeing the context %p", G_STRFUNC, context);
+        for (list = context->channels; list != NULL; list = list->next)
+        {
+            McdChannel *channel = MCD_CHANNEL (list->data);
+            g_signal_handlers_disconnect_by_func (channel,
+                G_CALLBACK (on_channel_abort_context), context);
+            g_object_unref (channel);
+        }
+        g_list_free (context->channels);
 
-    g_free (context->protocol);
-    g_free (context);
+        g_free (context->protocol);
+        g_free (context);
+    }
 }
 
 /* CONTEXT API */
