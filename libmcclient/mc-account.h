@@ -213,6 +213,73 @@ mc_account_conditions_set (McAccount *account,
 			   GDestroyNotify destroy,
 			   GObject *weak_object);
 
+
+/* Channel requests */
+typedef struct {
+    guint32 _mask;
+    GQuark fld_channel_type;
+    guint fld_target_handle;
+    TpHandleType fld_target_handle_type;
+    gchar *fld_target_id;
+} McAccountChannelRequestData;
+
+enum
+{
+    _MC_IS_SET_channel_type        = 1 << 0,
+    _MC_IS_SET_target_handle       = 1 << 1,
+    _MC_IS_SET_target_handle_type  = 1 << 2,
+    _MC_IS_SET_target_id           = 1 << 3,
+};
+
+#define MC_ACCOUNT_CRD_INIT(crd) ((crd)->_mask = 0)
+#define MC_ACCOUNT_CRD_IS_SET(crd, FIELD) ((crd)->_mask & _MC_IS_SET_ ## FIELD)
+#define MC_ACCOUNT_CRD_GET(crd, FIELD) ((crd)->fld_ ## FIELD)
+#define MC_ACCOUNT_CRD_SET(crd, FIELD, value) \
+    do {\
+        (crd)->_mask |= _MC_IS_SET_ ## FIELD; \
+        (crd)->fld_ ## FIELD = value;\
+    } while(0)
+#define MC_ACCOUNT_CRD_UNSET(crd, FIELD) (crd)->_mask &= ~ _MC_IS_SET_ ## FIELD;
+
+typedef enum
+{
+    MC_ACCOUNT_CR_SUCCEEDED,
+    MC_ACCOUNT_CR_FAILED,
+    MC_ACCOUNT_CR_CANCELLED,
+} McAccountChannelRequestEvent;
+
+typedef void (*McAccountChannelRequestCb) (McAccount *account,
+                                           guint request_id,
+                                           McAccountChannelRequestEvent event,
+                                           gpointer user_data,
+                                           GObject *weak_object);
+
+guint mc_account_channel_request (McAccount *account,
+                                  const McAccountChannelRequestData *req_data,
+                                  time_t user_action_time,
+                                  const gchar *handler,
+                                  McAccountChannelRequestCb callback,
+                                  gpointer user_data,
+                                  GDestroyNotify destroy,
+                                  GObject *weak_object);
+
+guint mc_account_channel_request_ht (McAccount *account,
+                                     GHashTable *properties,
+                                     time_t user_action_time,
+                                     const gchar *handler,
+                                     McAccountChannelRequestCb callback,
+                                     gpointer user_data,
+                                     GDestroyNotify destroy,
+                                     GObject *weak_object);
+
+void mc_account_channel_request_cancel (McAccount *account, guint request_id);
+const GError *mc_account_channel_request_get_error (McAccount *account,
+                                                    guint request_id);
+const gchar *mc_account_channel_request_get_path (McAccount *account,
+                                                  guint request_id);
+guint mc_account_channel_request_get_from_path (McAccount *account,
+                                                const gchar *object_path);
+
 G_END_DECLS
 
 #include <libmcclient/_gen/mc-quark.h>

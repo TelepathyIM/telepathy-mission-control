@@ -25,6 +25,7 @@ libmcclient_la_SOURCES = \
 	mc-account-compat.c \
 	mc-account-conditions.c \
 	mc-account-manager.c \
+	mc-account-request.c \
 	mc-errors.c \
 	mc-profile.c \
 	mc-signals-marshal.c
