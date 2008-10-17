@@ -181,7 +181,7 @@ enum _McdDispatcherSignalType
     LAST_SIGNAL
 };
 
-static guint mcd_dispatcher_signals[LAST_SIGNAL] = { 0 };
+static guint signals[LAST_SIGNAL] = { 0 };
 
 static void mcd_dispatcher_context_unref (McdDispatcherContext * ctx);
 static void mcd_dispatcher_context_set_channel (McdDispatcherContext *context,
@@ -238,7 +238,7 @@ mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
     if (channels_left == 0)
     {
         g_signal_emit (context->dispatcher,
-                       mcd_dispatcher_signals[DISPATCH_COMPLETED], 0, context);
+                       signals[DISPATCH_COMPLETED], 0, context);
         mcd_dispatcher_leave_state_machine (context);
     }
 }
@@ -631,8 +631,7 @@ cancel_proxy_call (McdChannel *channel, struct cancel_call_data *call_data)
     mc_error = g_error_new (MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
 			    "Channel aborted");
     
-    g_signal_emit (call_data->dispatcher,
-		   mcd_dispatcher_signals[DISPATCH_FAILED], 0,
+    g_signal_emit (call_data->dispatcher, signals[DISPATCH_FAILED], 0,
 		   channel, mc_error);
     g_error_free (mc_error);
 }
@@ -1207,10 +1206,10 @@ _mcd_dispatcher_send (McdDispatcher * dispatcher, McdChannel * channel)
     /* deprecate the "dispatch-failed" and "dispatched" signals; we have the
      * "dispatch-complete" signal that carries the whole context, so that the
      * listeners are able to see the status of all the channels involved */
-    if (g_signal_has_handler_pending (dispatcher,
-            mcd_dispatcher_signals[DISPATCH_FAILED], 0, TRUE) ||
-        g_signal_has_handler_pending (dispatcher,
-            mcd_dispatcher_signals[DISPATCHED], 0, TRUE))
+    if (g_signal_has_handler_pending (dispatcher, signals[DISPATCH_FAILED], 0,
+                                      TRUE) ||
+        g_signal_has_handler_pending (dispatcher, signals[DISPATCHED], 0,
+                                      TRUE))
         g_warning ("The signals \"dispatch-failed\" and \"dispatched\" are "
                    "deprecated and will disappear very soon");
 
@@ -1595,7 +1594,7 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
     object_class->dispose = _mcd_dispatcher_dispose;
     klass->send = _mcd_dispatcher_send;
 
-    mcd_dispatcher_signals[CHANNEL_ADDED] =
+    signals[CHANNEL_ADDED] =
 	g_signal_new ("channel_added",
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
@@ -1604,7 +1603,7 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
 		      NULL, NULL, g_cclosure_marshal_VOID__OBJECT,
 		      G_TYPE_NONE, 1, MCD_TYPE_CHANNEL);
     
-    mcd_dispatcher_signals[CHANNEL_REMOVED] =
+    signals[CHANNEL_REMOVED] =
 	g_signal_new ("channel_removed",
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
@@ -1613,7 +1612,7 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
 		      NULL, NULL, g_cclosure_marshal_VOID__OBJECT,
 		      G_TYPE_NONE, 1, MCD_TYPE_CHANNEL);
     
-    mcd_dispatcher_signals[DISPATCHED] =
+    signals[DISPATCHED] =
 	g_signal_new ("dispatched",
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
@@ -1622,7 +1621,7 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
 		      NULL, NULL, g_cclosure_marshal_VOID__OBJECT,
 		      G_TYPE_NONE, 1, MCD_TYPE_CHANNEL);
     
-    mcd_dispatcher_signals[DISPATCH_FAILED] =
+    signals[DISPATCH_FAILED] =
 	g_signal_new ("dispatch-failed",
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
@@ -1640,7 +1639,7 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
      * inspect @context to get the status of the channels.
      * After this signal returns, @context is no longer valid.
      */
-    mcd_dispatcher_signals[DISPATCH_COMPLETED] =
+    signals[DISPATCH_COMPLETED] =
         g_signal_new ("dispatch-completed",
                       G_OBJECT_CLASS_TYPE (klass),
                       G_SIGNAL_RUN_LAST,
