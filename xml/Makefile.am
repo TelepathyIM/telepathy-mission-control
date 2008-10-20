@@ -10,6 +10,7 @@ SPECS = MissionControl.xml \
 	Account_Manager_Interface_Query.xml \
 	Account.xml \
 	Account_Interface_Avatar.xml \
+	Account_Interface_ChannelRequests.xml \
 	Account_Interface_Compat.xml \
 	Account_Interface_Conditions.xml \
 	Client.xml \

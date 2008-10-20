@@ -40,6 +40,7 @@
 #include "mcd-account-compat.h"
 #include "mcd-account-conditions.h"
 #include "mcd-account-connection.h"
+#include "mcd-account-requests.h"
 #include "mcd-account-manager.h"
 #include "mcd-signals-marshal.h"
 #include "mcd-manager.h"
@@ -71,6 +72,9 @@ static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE (mc_svc_account_interface_avatar_get_type,
 			 account_avatar,
 			 MC_IFACE_ACCOUNT_INTERFACE_AVATAR),
+    MCD_IMPLEMENT_IFACE (mc_svc_account_interface_channelrequests_get_type,
+			 account_channelrequests,
+			 MC_IFACE_ACCOUNT_INTERFACE_CHANNELREQUESTS),
     MCD_IMPLEMENT_IFACE (mc_svc_account_interface_compat_get_type,
 			 account_compat,
 			 MC_IFACE_ACCOUNT_INTERFACE_COMPAT),
