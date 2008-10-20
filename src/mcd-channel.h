@@ -52,8 +52,8 @@ typedef enum
     MCD_CHANNEL_NO_PROXY,     /* Telepathy channel is not yet created */
     MCD_CHANNEL_DISPATCHING, /* Telepathy channel is created and waiting dispatch */
     MCD_CHANNEL_DISPATCHED,  /* Channel has been dispatched to handler */
-    MCD_CHANNEL_FAILED,      /* Channel could not be dispached to handler, dying */
-    
+    MCD_CHANNEL_FAILED,      /* Channel creation failed, or channel could not
+                                be dispached to a handler */
 } McdChannelStatus;
 
 struct _McdChannel
@@ -129,6 +129,9 @@ void _mcd_channel_details_free (GPtrArray *channels);
 void _mcd_channel_set_target_id (McdChannel *channel,
                                  const gchar *target_id);
 const gchar *_mcd_channel_get_target_id (McdChannel *channel);
+
+void _mcd_channel_set_error (McdChannel *channel, GError *error);
+const GError *_mcd_channel_get_error (McdChannel *channel);
 
 G_END_DECLS
 #endif /* MCD_CHANNEL_H */

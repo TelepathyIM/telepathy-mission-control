@@ -2142,6 +2142,37 @@ process_channel_request (McdAccount *account, gpointer userdata,
     mcd_connection_request_channel (priv->connection, channel, &err);
 }
 
+static void
+on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
+                           McdAccount *account)
+{
+    g_debug ("%s (%u)", G_STRFUNC, status);
+    g_return_if_fail (MCD_IS_ACCOUNT (account));
+
+    if (status == MCD_CHANNEL_DISPATCHING)
+    {
+        /* from now on, errors are reported by the dispatcher */
+        g_signal_handlers_disconnect_by_func (channel,
+                                              on_channel_status_changed,
+                                              account);
+    }
+    else if (status == MCD_CHANNEL_FAILED)
+    {
+        const GError *error;
+        McdMaster *master;
+        McdDispatcher *dispatcher = NULL;
+
+        master = mcd_master_get_default ();
+        g_object_get (master, "dispatcher", &dispatcher, NULL);
+        g_return_if_fail (dispatcher != NULL);
+
+        error = _mcd_channel_get_error (channel);
+        g_signal_emit_by_name (G_OBJECT(dispatcher),
+                               "dispatch-failed", channel, error);
+        g_object_unref (dispatcher);
+    }
+}
+
 gboolean
 mcd_account_request_channel_nmc4 (McdAccount *account,
 				  const struct mcd_channel_request *req,
@@ -2159,6 +2190,8 @@ mcd_account_request_channel_nmc4 (McdAccount *account,
 			       req->requestor_client_id);
     _mcd_channel_set_target_id (channel, req->channel_handle_string);
     mcd_channel_set_status (channel, MCD_CHANNEL_NO_PROXY);
+    g_signal_connect (channel, "status-changed",
+                      G_CALLBACK (on_channel_status_changed), account);
 
     return mcd_account_online_request (account,
 				       process_channel_request,

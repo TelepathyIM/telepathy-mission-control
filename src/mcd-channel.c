@@ -1171,3 +1171,35 @@ _mcd_channel_get_target_id (McdChannel *channel)
     return g_object_get_data ((GObject *)channel, "TargetID");
 }
 
+/*
+ * _mcd_channel_set_error:
+ * @channel: the #McdChannel.
+ * @error: a #GError.
+ *
+ * Sets @error on channel, and takes ownership of it. As a side effect, if
+ * @error is not %NULL this method causes the channel status be set to
+ * %MCD_CHANNEL_FAILED.
+ */
+void
+_mcd_channel_set_error (McdChannel *channel, GError *error)
+{
+    g_return_if_fail (MCD_IS_CHANNEL (channel));
+    g_object_set_data_full ((GObject *)channel, "Error",
+                            error, (GDestroyNotify)g_error_free);
+    if (error)
+        mcd_channel_set_status (channel, MCD_CHANNEL_FAILED);
+}
+
+/*
+ * _mcd_channel_get_error:
+ * @channel: the #McdChannel.
+ *
+ * Returns: the #GError, or %NULL if no error is set.
+ */
+const GError *
+_mcd_channel_get_error (McdChannel *channel)
+{
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
+    return g_object_get_data ((GObject *)channel, "Error");
+}
+
