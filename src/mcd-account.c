@@ -2121,36 +2121,25 @@ mcd_account_online_request (McdAccount *account,
 }
 
 static void
-requested_channel_free (struct mcd_channel_request *req)
-{
-    g_free ((gchar *)req->account_name);
-    g_free ((gchar *)req->channel_type);
-    g_free ((gchar *)req->channel_handle_string);
-    g_free ((gchar *)req->requestor_client_id);
-    g_free (req);
-}
-
-static void
 process_channel_request (McdAccount *account, gpointer userdata,
 			 const GError *error)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
-    struct mcd_channel_request *req = userdata;
+    McdChannel *channel = MCD_CHANNEL (userdata);
     GError *err = NULL;
 
     if (error)
     {
 	g_warning ("%s: got error: %s", G_STRFUNC, error->message);
 	/* TODO: report the error to the requestor process */
-	requested_channel_free (req);
+        g_object_unref (channel);
 	return;
     }
     g_debug ("%s called", G_STRFUNC);
     g_return_if_fail (priv->connection != NULL);
     g_return_if_fail (priv->conn_status == TP_CONNECTION_STATUS_CONNECTED);
 
-    mcd_connection_request_channel (priv->connection, req, &err);
-    requested_channel_free (req);
+    mcd_connection_request_channel (priv->connection, channel, &err);
 }
 
 gboolean
@@ -2158,18 +2147,22 @@ mcd_account_request_channel_nmc4 (McdAccount *account,
 				  const struct mcd_channel_request *req,
 				  GError **error)
 {
-    struct mcd_channel_request *req_cp;
+    McdChannel *channel;
 
-    req_cp = g_malloc (sizeof (struct mcd_channel_request));
-    memcpy(req_cp, req, sizeof (struct mcd_channel_request));
-    req_cp->account_name = g_strdup (req->account_name);
-    req_cp->channel_type = g_strdup (req->channel_type);
-    req_cp->channel_handle_string = g_strdup (req->channel_handle_string);
-    req_cp->requestor_client_id = g_strdup (req->requestor_client_id);
+    /* The channel is temporary */
+    channel = mcd_channel_new (NULL,
+			       req->channel_type,
+			       req->channel_handle,
+			       req->channel_handle_type,
+			       TRUE, /* outgoing */
+			       req->requestor_serial,
+			       req->requestor_client_id);
+    _mcd_channel_set_target_id (channel, req->channel_handle_string);
+    mcd_channel_set_status (channel, MCD_CHANNEL_NO_PROXY);
 
     return mcd_account_online_request (account,
 				       process_channel_request,
-				       req_cp,
+				       channel,
 				       error);
 }
 

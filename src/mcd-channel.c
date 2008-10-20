@@ -1144,4 +1144,30 @@ _mcd_channel_details_free (GPtrArray *channels)
     g_value_unset (&value);
 }
 
+/*
+ * _mcd_channel_set_target_id:
+ * @channel: the #McdChannel.
+ * @target_id: string representing target contact.
+ */
+void
+_mcd_channel_set_target_id (McdChannel *channel,
+                            const gchar *target_id)
+{
+    g_return_if_fail (MCD_IS_CHANNEL (channel));
+    g_object_set_data_full ((GObject *)channel, "TargetID",
+                            g_strdup (target_id), g_free);
+}
+
+/*
+ * _mcd_channel_get_target_id:
+ * @channel: the #McdChannel.
+ *
+ * Returns: string representing the target contact, or %NULL.
+ */
+const gchar *
+_mcd_channel_get_target_id (McdChannel *channel)
+{
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
+    return g_object_get_data ((GObject *)channel, "TargetID");
+}
 

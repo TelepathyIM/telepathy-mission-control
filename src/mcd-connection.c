@@ -2206,39 +2206,35 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
 
 gboolean
 mcd_connection_request_channel (McdConnection *connection,
-				const struct mcd_channel_request *req,
+                                McdChannel *channel,
 			       	GError ** error)
 {
-    McdChannel *channel;
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-    
+    guint channel_handle, channel_handle_type;
+
     g_return_val_if_fail (priv->tp_conn != NULL, FALSE);
     g_return_val_if_fail (TP_IS_CONNECTION (priv->tp_conn), FALSE);
-    
-    /* The channel is temporary */
-    channel = mcd_channel_new (NULL,
-			       req->channel_type,
-			       req->channel_handle,
-			       req->channel_handle_type,
-			       TRUE, /* outgoing */
-			       req->requestor_serial,
-			       req->requestor_client_id);
-    mcd_channel_set_status (channel, MCD_CHANNEL_NO_PROXY);
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), FALSE);
 
     /* We do not add the channel in connection until tp_channel is created */
     g_object_set_data (G_OBJECT (channel), "temporary_connection", connection);
-    
-    if (req->channel_handle != 0 || req->channel_handle_type == 0)
+
+    channel_handle_type = mcd_channel_get_handle_type (channel);
+    channel_handle = mcd_channel_get_handle (channel);
+
+    if (channel_handle != 0 || channel_handle_type == 0)
     {
 	TpProxyPendingCall *call;
+        const gchar *channel_type;
 
         mcd_operation_take_mission (MCD_OPERATION (connection),
                                     MCD_MISSION (channel));
 
+        channel_type = mcd_channel_get_channel_type (channel);
 	call = tp_cli_connection_call_request_channel (priv->tp_conn, -1,
-						       req->channel_type,
-						       req->channel_handle_type,
-						       req->channel_handle, TRUE,
+                                                       channel_type,
+                                                       channel_handle_type,
+                                                       channel_handle, TRUE,
 						       request_channel_cb,
 						       connection, NULL,
 						       (GObject *)channel);
@@ -2249,16 +2245,19 @@ mcd_connection_request_channel (McdConnection *connection,
 	/* if channel handle is 0, this means that the channel was requested by
 	 * a string handle; in that case, we must first request a channel
 	 * handle for it */
-	const gchar *name_array[2];
-	g_return_val_if_fail (req->channel_handle_string != NULL, FALSE);
+        const gchar *name_array[2], *target_id;
 
-	name_array[0] = req->channel_handle_string;
+        target_id = _mcd_channel_get_target_id (channel);
+        g_return_val_if_fail (target_id != NULL, FALSE);
+        g_return_val_if_fail (channel_handle_type != 0, FALSE);
+
+        name_array[0] = target_id;
 	name_array[1] = NULL;
 
 	/* Channel is temporary and will be added as a child mission
 	 * only when we successfully resolve the handle. */
 	tp_cli_connection_call_request_handles (priv->tp_conn, -1,
-						req->channel_handle_type,
+                                                channel_handle_type,
 						name_array,
 						request_handles_cb,
 						connection, NULL,

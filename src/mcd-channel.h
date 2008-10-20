@@ -126,5 +126,9 @@ GHashTable *_mcd_channel_get_immutable_properties (McdChannel *channel);
 GPtrArray *_mcd_channel_details_build_from_list (GList *channels);
 void _mcd_channel_details_free (GPtrArray *channels);
 
+void _mcd_channel_set_target_id (McdChannel *channel,
+                                 const gchar *target_id);
+const gchar *_mcd_channel_get_target_id (McdChannel *channel);
+
 G_END_DECLS
 #endif /* MCD_CHANNEL_H */
