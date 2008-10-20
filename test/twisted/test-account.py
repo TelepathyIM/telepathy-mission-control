@@ -85,7 +85,7 @@ def test(q, bus, mc):
     assert properties.get('Enabled') == False, properties.get('Enabled')
     #assert properties.get('Nickname') == 'fakenick', properties.get('Nickname')
     assert properties.get('Parameters') == params, properties.get('Parameters')
-    assert properties.get('Connection') == '', properties.get('Connection')
+    assert properties.get('Connection') == '/', properties.get('Connection')
     assert properties.get('NormalizedName') == '', \
         properties.get('NormalizedName')
 
