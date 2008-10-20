@@ -2111,7 +2111,6 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
     guint chan_handle, chan_handle_type;
     GQuark chan_type;
     const GList *channels;
-    TpProxyPendingCall *call;
 
     channel = MCD_CHANNEL (weak_object);
     
@@ -2190,18 +2189,8 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
     /* Update our newly acquired information */
     mcd_channel_set_handle (channel, chan_handle);
 
-    mcd_operation_take_mission (MCD_OPERATION (connection),
-				MCD_MISSION (channel));
-
-    /* Now, request the corresponding telepathy channel. */
-    call = tp_cli_connection_call_request_channel (priv->tp_conn, -1,
-						   mcd_channel_get_channel_type (channel),
-						   mcd_channel_get_handle_type (channel),
-						   chan_handle, TRUE,
-						   request_channel_cb,
-						   connection, NULL,
-						   (GObject *)channel);
-    g_object_set_data ((GObject *)channel, "tp_chan_call", call);
+    g_return_if_fail (chan_handle != 0);
+    mcd_connection_request_channel (connection, channel, NULL);
 }
 
 gboolean
