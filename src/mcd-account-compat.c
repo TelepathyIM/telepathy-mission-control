@@ -39,6 +39,7 @@
 #include "mcd-account-compat.h"
 #include "mcd-account-manager.h"
 #include "mcd-misc.h"
+#include "mcd-service.h"
 #include "_gen/interfaces.h"
 
 static guint last_operation_id = 1;
@@ -254,27 +255,24 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
     g_debug ("%s (%u)", G_STRFUNC, status);
     g_return_if_fail (MCD_IS_ACCOUNT (account));
 
-    if (status == MCD_CHANNEL_DISPATCHING)
+    if (status == MCD_CHANNEL_FAILED)
     {
-        /* from now on, errors are reported by the dispatcher */
-        g_signal_handlers_disconnect_by_func (channel,
-                                              on_channel_status_changed,
-                                              account);
-    }
-    else if (status == MCD_CHANNEL_FAILED)
-    {
+        guint requestor_serial;
+        gchar *requestor_client_id;
         const GError *error;
         McdMaster *master;
-        McdDispatcher *dispatcher = NULL;
 
         master = mcd_master_get_default ();
-        g_object_get (master, "dispatcher", &dispatcher, NULL);
-        g_return_if_fail (dispatcher != NULL);
+        g_return_if_fail (MCD_IS_SERVICE (master));
 
         error = _mcd_channel_get_error (channel);
-        g_signal_emit_by_name (G_OBJECT(dispatcher),
-                               "dispatch-failed", channel, error);
-        g_object_unref (dispatcher);
+        g_object_get (channel,
+                      "requestor-serial", &requestor_serial,
+                      "requestor-client-id", &requestor_client_id,
+                      NULL);
+        g_signal_emit_by_name (master, "mcd-error", requestor_serial,
+                               requestor_client_id, error->code);
+        g_free (requestor_client_id);
     }
 }
 

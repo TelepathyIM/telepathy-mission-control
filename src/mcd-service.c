@@ -753,28 +753,6 @@ _on_dispatcher_channel_dispatched (McdDispatcher *dispatcher,
 }
 
 static void
-_on_dispatcher_channel_dispatch_failed (McdDispatcher *dispatcher,
-					McdChannel *channel, GError *error,
-					McdService *obj)
-{
-    guint requestor_serial;
-    gchar *requestor_client_id;
- 
-    g_debug ("%s", G_STRFUNC);
-    g_object_get (channel, "requestor-serial", &requestor_serial,
-		  "requestor-client-id", &requestor_client_id, NULL);
-    
-    if (requestor_client_id)
-    {
-	g_signal_emit_by_name (obj, "mcd-error", requestor_serial,
-			       requestor_client_id, error->code);
-	g_free (requestor_client_id);
-    }
-    
-    g_debug ("MC ERROR (channel request): %s", error->message);
-}
-
-static void
 mcd_dispose (GObject * obj)
 {
     McdServicePrivate *priv;
@@ -817,9 +795,6 @@ mcd_dispose (GObject * obj)
 	g_signal_handlers_disconnect_by_func (priv->dispatcher,
 					  _on_dispatcher_channel_dispatched,
 					  self);
-	g_signal_handlers_disconnect_by_func (priv->dispatcher,
-				      _on_dispatcher_channel_dispatch_failed,
-				      self);
 	g_object_unref (priv->dispatcher);
     }
 
@@ -866,8 +841,6 @@ mcd_service_constructed (GObject *obj)
 		      G_CALLBACK (_on_dispatcher_channel_removed), obj);
     g_signal_connect (priv->dispatcher, "dispatched",
 		      G_CALLBACK (_on_dispatcher_channel_dispatched), obj);
-    g_signal_connect (priv->dispatcher, "dispatch-failed",
-		      G_CALLBACK (_on_dispatcher_channel_dispatch_failed), obj);
 
     mcd_register_dbus_object (MCD_OBJECT (obj));
     mcd_debug_print_tree (obj);
