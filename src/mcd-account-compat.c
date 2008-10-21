@@ -332,7 +332,7 @@ _mcd_account_compat_request_channel_nmc4 (McdAccount *account,
     g_hash_table_insert (properties, TP_IFACE_CHANNEL ".TargetHandleType",
                          value);
 
-    channel = mcd_channel_new_request (properties);
+    channel = mcd_channel_new_request (properties, 0, NULL);
 
     req_data = g_slice_new0 (McdAccountCompatReq);
     req_data->requestor_serial = req->requestor_serial;

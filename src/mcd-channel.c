@@ -87,7 +87,14 @@ typedef struct
     guint member;
     guint actor;
 } PendingMemberInfo;
-    
+
+typedef struct
+{
+    GHashTable *properties;
+    guint64 user_time;
+    gchar *preferred_handler;
+} McdChannelRequestData;
+
 enum _McdChannelSignalType
 {
     STATUS_CHANGED,
@@ -120,11 +127,21 @@ enum _McdChannelPropertyType
 
 #define CD_IMMUTABLE_PROPERTIES "_immprop"
 #define CD_ERROR    "_error"
+#define CD_REQUEST  "_reqdata"
 
 static guint mcd_channel_signals[LAST_SIGNAL] = { 0 };
 
 static void _mcd_channel_release_tp_channel (McdChannel *channel,
 					     gboolean close_channel);
+
+static void
+channel_request_data_free (McdChannelRequestData *crd)
+{
+    g_debug ("%s called for %p", G_STRFUNC, crd);
+    g_hash_table_unref (crd->properties);
+    g_free (crd->preferred_handler);
+    g_slice_free (McdChannelRequestData, crd);
+}
 
 static void
 on_members_changed (TpChannel *proxy, const gchar *message,
@@ -1157,12 +1174,12 @@ _mcd_channel_details_free (GPtrArray *channels)
 const gchar *
 _mcd_channel_get_target_id (McdChannel *channel)
 {
-    GHashTable *properties;
+    McdChannelRequestData *crd;
 
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    properties = g_object_get_data ((GObject *)channel, "_ReqProps");
-    return properties ?
-        tp_asv_get_string (properties, TP_IFACE_CHANNEL ".TargetID") : NULL;
+    crd = g_object_get_data ((GObject *)channel, CD_REQUEST);
+    if (G_UNLIKELY (!crd || !crd->properties)) return NULL;
+    return tp_asv_get_string (crd->properties, TP_IFACE_CHANNEL ".TargetID");
 }
 
 /*
@@ -1200,6 +1217,8 @@ _mcd_channel_get_error (McdChannel *channel)
 /**
  * mcd_channel_new_request:
  * @properties: a #GHashTable of desired channel properties.
+ * @user_time: user action time.
+ * @preferred_handler: well-known name of preferred handler.
  *
  * Create a #McdChannel object holding the given properties. The object can
  * then be used to intiate a channel request, by passing it to
@@ -1208,12 +1227,14 @@ _mcd_channel_get_error (McdChannel *channel)
  * Returns: a newly created #McdChannel.
  */
 McdChannel *
-mcd_channel_new_request (GHashTable *properties)
+mcd_channel_new_request (GHashTable *properties, guint64 user_time,
+                         const gchar *preferred_handler)
 {
     McdChannel *channel;
     guint handle;
     TpHandleType handle_type;
     const gchar *channel_type, *target_id;
+    McdChannelRequestData *crd;
 
     channel_type = tp_asv_get_string (properties,
                                       TP_IFACE_CHANNEL ".ChannelType");
@@ -1231,9 +1252,16 @@ mcd_channel_new_request (GHashTable *properties)
                             "handle-type", handle_type,
                             "outgoing", TRUE,
                             NULL);
-    g_object_set_data_full ((GObject *)channel, "_ReqProps",
-                            g_hash_table_ref (properties),
-                            (GDestroyNotify)g_hash_table_unref);
+
+    /* TODO: these data could be freed when the channel status becomes
+     * MCD_CHANNEL_DISPATCHED */
+    crd = g_slice_new (McdChannelRequestData);
+    crd->properties = g_hash_table_ref (properties);
+    crd->user_time = user_time;
+    crd->preferred_handler = g_strdup (preferred_handler);
+    g_object_set_data_full ((GObject *)channel, CD_REQUEST,
+                            crd, (GDestroyNotify)channel_request_data_free);
+
     mcd_channel_set_status (channel, MCD_CHANNEL_NO_PROXY);
 
     return channel;

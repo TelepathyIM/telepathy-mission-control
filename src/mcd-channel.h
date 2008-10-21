@@ -86,7 +86,9 @@ McdChannel *mcd_channel_new_from_path (TpConnection *connection,
                                        const gchar *object_path,
                                        const gchar *type, guint handle,
                                        TpHandleType handle_type);
-McdChannel *mcd_channel_new_request (GHashTable *properties);
+McdChannel *mcd_channel_new_request (GHashTable *properties,
+                                     guint64 user_time,
+                                     const gchar *preferred_handler);
 
 gboolean mcd_channel_set_object_path (McdChannel *channel,
                                       TpConnection *connection,
