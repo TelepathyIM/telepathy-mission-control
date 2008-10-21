@@ -42,7 +42,15 @@
 #include "mcd-service.h"
 #include "_gen/interfaces.h"
 
+#define COMPAT_REQ_DATA "compat_req"
+
 static guint last_operation_id = 1;
+
+typedef struct
+{
+    guint requestor_serial;
+    gchar *requestor_client_id;
+} McdAccountCompatReq;
 
 static void
 set_profile (TpSvcDBusProperties *self, const gchar *name,
@@ -252,13 +260,15 @@ static void
 on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
                            McdAccount *account)
 {
+    McdAccountCompatReq *req_data;
+
     g_debug ("%s (%u)", G_STRFUNC, status);
     g_return_if_fail (MCD_IS_ACCOUNT (account));
 
-    if (status == MCD_CHANNEL_FAILED)
+    if (status == MCD_CHANNEL_FAILED &&
+        (req_data = g_object_get_data ((GObject *)channel, COMPAT_REQ_DATA))
+        != NULL)
     {
-        guint requestor_serial;
-        gchar *requestor_client_id;
         const GError *error;
         McdMaster *master;
 
@@ -266,14 +276,22 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
         g_return_if_fail (MCD_IS_SERVICE (master));
 
         error = _mcd_channel_get_error (channel);
-        g_object_get (channel,
-                      "requestor-serial", &requestor_serial,
-                      "requestor-client-id", &requestor_client_id,
-                      NULL);
-        g_signal_emit_by_name (master, "mcd-error", requestor_serial,
-                               requestor_client_id, error->code);
-        g_free (requestor_client_id);
+        g_signal_emit_by_name (master, "mcd-error",
+                               req_data->requestor_serial,
+                               req_data->requestor_client_id, error->code);
     }
+    else if (status == MCD_CHANNEL_DISPATCHED)
+    {
+        /* we don't need the request data anymore */
+        g_object_set_data ((GObject *)channel, COMPAT_REQ_DATA, NULL);
+    }
+}
+
+static void
+compat_req_data_free (McdAccountCompatReq *req)
+{
+    g_free (req->requestor_client_id);
+    g_slice_free (McdAccountCompatReq, req);
 }
 
 gboolean
@@ -282,6 +300,7 @@ _mcd_account_compat_request_channel_nmc4 (McdAccount *account,
                                           GError **error)
 {
     McdChannel *channel;
+    McdAccountCompatReq *req_data;
     GHashTable *properties;
     GValue *value;
 
@@ -317,10 +336,13 @@ _mcd_account_compat_request_channel_nmc4 (McdAccount *account,
                          value);
 
     channel = mcd_channel_new_request (properties);
-    g_object_set ((GObject *)channel,
-                  "requestor-serial", req->requestor_serial,
-                  "requestor-client-id", req->requestor_client_id,
-                  NULL);
+
+    req_data = g_slice_new0 (McdAccountCompatReq);
+    req_data->requestor_serial = req->requestor_serial;
+    req_data->requestor_client_id = g_strdup (req->requestor_client_id);
+    g_object_set_data_full ((GObject *)channel, COMPAT_REQ_DATA,
+                            req_data, (GDestroyNotify)compat_req_data_free);
+
     g_signal_connect (channel, "status-changed",
                       G_CALLBACK (on_channel_status_changed), account);
 
