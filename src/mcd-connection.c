@@ -2153,21 +2153,10 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
 	    chan_handle_type == mcd_channel_get_handle_type (existing_channel) &&
 	    chan_type == mcd_channel_get_channel_type_quark (existing_channel))
 	{
-	    guint requestor_serial;
-	    gchar *requestor_client_id;
-
 	    g_debug ("%s: Channel already existing, returning old one", G_STRFUNC);
-	    /* we retrieve the information we need from the newly created
-	     * channel object and set them to the "old" channel */
-	    g_object_get (channel,
-			  "requestor-serial", &requestor_serial,
-			  "requestor-client-id", &requestor_client_id,
-			  NULL);
-	    g_object_set (existing_channel,
-			  "requestor-serial", requestor_serial,
-			  "requestor-client-id", requestor_client_id,
-			  NULL);
-	    g_free (requestor_client_id);
+            /* FIXME: this situation is weird. We should have checked for the
+             * existance of the channel _before_ getting here, already when
+             * creating the request */
 	    /* we no longer need the new channel */
 	    g_object_unref (channel);
 	    /* notify the dispatcher again */
