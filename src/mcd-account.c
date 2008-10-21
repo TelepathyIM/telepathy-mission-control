@@ -1523,14 +1523,6 @@ mcd_account_get_object_path (McdAccount *account)
     return account->priv->object_path;
 }
 
-static void
-_g_value_free (gpointer data)
-{
-  GValue *value = (GValue *) data;
-  g_value_unset (value);
-  g_free (value);
-}
-
 static inline void
 add_parameter (McdAccountPrivate *priv, McdProtocolParam *param,
 	       GHashTable *params)
@@ -1575,7 +1567,7 @@ add_parameter (McdAccountPrivate *priv, McdProtocolParam *param,
 	g_error_free (error);
 	return;
     }
-    value = g_new0(GValue, 1);
+    value = g_slice_new0 (GValue);
 
     switch (param->signature[0])
     {
@@ -1622,7 +1614,7 @@ mcd_account_get_parameters (McdAccount *account)
     if (!priv->manager && !load_manager (priv)) return NULL;
 
     params = g_hash_table_new_full (g_str_hash, g_str_equal,
-				    g_free, _g_value_free);
+				    g_free, prop_value_free);
     parameters = mcd_manager_get_parameters (priv->manager,
 					     priv->protocol_name);
     if (!parameters) return params;
