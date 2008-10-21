@@ -96,6 +96,8 @@ McdChannel *mcd_channel_new_from_path (TpConnection *connection,
                                        const gchar *object_path,
                                        const gchar *type, guint handle,
                                        TpHandleType handle_type);
+McdChannel *mcd_channel_new_request (GHashTable *properties);
+
 gboolean mcd_channel_set_object_path (McdChannel *channel,
                                       TpConnection *connection,
                                       const gchar *object_path);
@@ -126,8 +128,6 @@ GHashTable *_mcd_channel_get_immutable_properties (McdChannel *channel);
 GPtrArray *_mcd_channel_details_build_from_list (GList *channels);
 void _mcd_channel_details_free (GPtrArray *channels);
 
-void _mcd_channel_set_target_id (McdChannel *channel,
-                                 const gchar *target_id);
 const gchar *_mcd_channel_get_target_id (McdChannel *channel);
 
 void _mcd_channel_set_error (McdChannel *channel, GError *error);

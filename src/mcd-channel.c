@@ -36,6 +36,7 @@
 
 #include <glib/gi18n.h>
 #include <telepathy-glib/interfaces.h>
+#include <telepathy-glib/dbus.h>
 
 #include "mcd-channel.h"
 #include "mcd-enum-types.h"
@@ -1145,20 +1146,6 @@ _mcd_channel_details_free (GPtrArray *channels)
 }
 
 /*
- * _mcd_channel_set_target_id:
- * @channel: the #McdChannel.
- * @target_id: string representing target contact.
- */
-void
-_mcd_channel_set_target_id (McdChannel *channel,
-                            const gchar *target_id)
-{
-    g_return_if_fail (MCD_IS_CHANNEL (channel));
-    g_object_set_data_full ((GObject *)channel, "TargetID",
-                            g_strdup (target_id), g_free);
-}
-
-/*
  * _mcd_channel_get_target_id:
  * @channel: the #McdChannel.
  *
@@ -1167,8 +1154,12 @@ _mcd_channel_set_target_id (McdChannel *channel,
 const gchar *
 _mcd_channel_get_target_id (McdChannel *channel)
 {
+    GHashTable *properties;
+
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    return g_object_get_data ((GObject *)channel, "TargetID");
+    properties = g_object_get_data ((GObject *)channel, "_ReqProps");
+    return properties ?
+        tp_asv_get_string (properties, TP_IFACE_CHANNEL ".TargetID") : NULL;
 }
 
 /*
@@ -1201,5 +1192,47 @@ _mcd_channel_get_error (McdChannel *channel)
 {
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
     return g_object_get_data ((GObject *)channel, "Error");
+}
+
+/**
+ * mcd_channel_new_request:
+ * @properties: a #GHashTable of desired channel properties.
+ *
+ * Create a #McdChannel object holding the given properties. The object can
+ * then be used to intiate a channel request, by passing it to
+ * mcd_connection_request_channel() on a connection in connected state.
+ *
+ * Returns: a newly created #McdChannel.
+ */
+McdChannel *
+mcd_channel_new_request (GHashTable *properties)
+{
+    McdChannel *channel;
+    guint handle;
+    TpHandleType handle_type;
+    const gchar *channel_type, *target_id;
+
+    channel_type = tp_asv_get_string (properties,
+                                      TP_IFACE_CHANNEL ".ChannelType");
+    target_id = tp_asv_get_string (properties,
+                                   TP_IFACE_CHANNEL ".TargetID");
+    handle = tp_asv_get_uint32 (properties,
+                                TP_IFACE_CHANNEL ".TargetHandle", NULL);
+    handle_type =
+        tp_asv_get_uint32 (properties,
+                           TP_IFACE_CHANNEL ".TargetHandleType", NULL);
+
+    channel = g_object_new (MCD_TYPE_CHANNEL,
+                            "type", channel_type,
+                            "handle", handle,
+                            "handle-type", handle_type,
+                            "outgoing", TRUE,
+                            NULL);
+    g_object_set_data_full ((GObject *)channel, "_ReqProps",
+                            g_hash_table_ref (properties),
+                            (GDestroyNotify)g_hash_table_unref);
+    mcd_channel_set_status (channel, MCD_CHANNEL_NO_PROXY);
+
+    return channel;
 }
 

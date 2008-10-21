@@ -33,6 +33,7 @@
 #include <glib/gi18n.h>
 #include <glib/gstdio.h>
 #include <telepathy-glib/gtypes.h>
+#include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
@@ -151,6 +152,14 @@ enum
 };
 
 guint _mcd_account_signals[LAST_SIGNAL] = { 0 };
+
+static void
+prop_value_free (gpointer data)
+{
+  GValue *value = (GValue *) data;
+  g_value_unset (value);
+  g_slice_free (GValue, value);
+}
 
 static void
 process_online_request (gpointer key, gpointer cb_userdata, gpointer userdata)
@@ -2179,17 +2188,45 @@ mcd_account_request_channel_nmc4 (McdAccount *account,
 				  GError **error)
 {
     McdChannel *channel;
+    GHashTable *properties;
+    GValue *value;
 
-    /* The channel is temporary */
-    channel = mcd_channel_new (NULL,
-			       req->channel_type,
-			       req->channel_handle,
-			       req->channel_handle_type,
-			       TRUE, /* outgoing */
-			       req->requestor_serial,
-			       req->requestor_client_id);
-    _mcd_channel_set_target_id (channel, req->channel_handle_string);
-    mcd_channel_set_status (channel, MCD_CHANNEL_NO_PROXY);
+    properties = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                        NULL, prop_value_free);
+
+    value = g_slice_new0 (GValue);
+    g_value_init (value, G_TYPE_STRING);
+    g_value_set_string (value, req->channel_type);
+    g_hash_table_insert (properties, TP_IFACE_CHANNEL ".ChannelType", value);
+
+    if (req->channel_handle_string)
+    {
+        value = g_slice_new0 (GValue);
+        g_value_init (value, G_TYPE_STRING);
+        g_value_set_string (value, req->channel_handle_string);
+        g_hash_table_insert (properties, TP_IFACE_CHANNEL ".TargetID", value);
+    }
+
+    if (req->channel_handle)
+    {
+        value = g_slice_new0 (GValue);
+        g_value_init (value, G_TYPE_UINT);
+        g_value_set_uint (value, req->channel_handle);
+        g_hash_table_insert (properties, TP_IFACE_CHANNEL ".TargetHandle",
+                             value);
+    }
+
+    value = g_slice_new0 (GValue);
+    g_value_init (value, G_TYPE_UINT);
+    g_value_set_uint (value, req->channel_handle_type);
+    g_hash_table_insert (properties, TP_IFACE_CHANNEL ".TargetHandleType",
+                         value);
+
+    channel = mcd_channel_new_request (properties);
+    g_object_set ((GObject *)channel,
+                  "requestor-serial", req->requestor_serial,
+                  "requestor-client-id", req->requestor_client_id,
+                  NULL);
     g_signal_connect (channel, "status-changed",
                       G_CALLBACK (on_channel_status_changed), account);
 
