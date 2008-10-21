@@ -171,6 +171,7 @@ account_request_channel (McSvcAccountInterfaceCompat *self,
     req.requestor_client_id = dbus_g_method_get_sender (context);
     _mcd_account_compat_request_channel_nmc4 (MCD_ACCOUNT (self),
                                               &req, &error);
+    g_free (req.requestor_client_id);
     if (error)
     {
 	dbus_g_method_return_error (context, error);
@@ -198,6 +199,7 @@ account_request_channel_with_string_handle (McSvcAccountInterfaceCompat *self,
     req.requestor_client_id = dbus_g_method_get_sender (context);
     _mcd_account_compat_request_channel_nmc4 (MCD_ACCOUNT (self),
                                               &req, &error);
+    g_free (req.requestor_client_id);
     if (error)
     {
 	dbus_g_method_return_error (context, error);
@@ -333,6 +335,7 @@ _mcd_account_compat_request_channel_nmc4 (McdAccount *account,
                          value);
 
     channel = mcd_channel_new_request (properties, 0, NULL);
+    g_hash_table_unref (properties);
 
     req_data = g_slice_new0 (McdAccountCompatReq);
     req_data->requestor_serial = req->requestor_serial;

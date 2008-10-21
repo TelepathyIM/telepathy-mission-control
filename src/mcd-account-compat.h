@@ -46,7 +46,7 @@ struct mcd_channel_request
     const gchar *channel_handle_string;
     gint channel_handle_type;
     guint requestor_serial;
-    const gchar *requestor_client_id;
+    gchar *requestor_client_id;
 };
 
 /* not exported */
