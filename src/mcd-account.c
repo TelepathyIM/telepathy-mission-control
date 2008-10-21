@@ -62,9 +62,6 @@ static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
 static void account_avatar_iface_init (McSvcAccountInterfaceAvatarClass *iface,
 				       gpointer iface_data);
 
-typedef void (*McdOnlineRequestCb) (McdAccount *account, gpointer userdata,
-				    const GError *error);
-
 static const McdDBusProp account_properties[];
 static const McdDBusProp account_avatar_properties[];
 
@@ -2078,11 +2075,24 @@ mcd_account_request_automatic_presence (McdAccount *account)
 					  priv->auto_presence_message);
 }
 
-static gboolean
-mcd_account_online_request (McdAccount *account,
-			    McdOnlineRequestCb callback,
-			    gpointer userdata,
-			    GError **imm_error)
+/*
+ * _mcd_account_online_request:
+ * @account: the #McdAccount.
+ * @callback: a #McdOnlineRequestCb.
+ * @userdata: user data to be passed to @callback.
+ * @imm_error: pointer to a #GError location, or %NULL.
+ *
+ * If the account is online, call @callbeck immediately; else, try to put the
+ * account online (set its presence to the automatic presence) and eventually
+ * invoke @callback.
+ *
+ * Returns: %TRUE if @callback was/will be invoked, %FALSE otherwise.
+ */
+gboolean
+_mcd_account_online_request (McdAccount *account,
+                             McdOnlineRequestCb callback,
+                             gpointer userdata,
+                             GError **imm_error)
 {
     McdAccountPrivate *priv = account->priv;
     GError *error = NULL;
@@ -2222,10 +2232,10 @@ mcd_account_request_channel_nmc4 (McdAccount *account,
     g_signal_connect (channel, "status-changed",
                       G_CALLBACK (on_channel_status_changed), account);
 
-    return mcd_account_online_request (account,
-				       process_channel_request,
-				       channel,
-				       error);
+    return _mcd_account_online_request (account,
+                                        process_channel_request,
+                                        channel,
+                                        error);
 }
 
 GKeyFile *

@@ -44,5 +44,12 @@ extern guint _mcd_account_signals[LAST_SIGNAL];
 
 void _mcd_account_connect (McdAccount *account, GHashTable *params);
 
+typedef void (*McdOnlineRequestCb) (McdAccount *account, gpointer userdata,
+				    const GError *error);
+gboolean _mcd_account_online_request (McdAccount *account,
+                                      McdOnlineRequestCb callback,
+                                      gpointer userdata,
+                                      GError **imm_error);
+
 #endif /* __MCD_ACCOUNT_PRIV_H__ */
 
