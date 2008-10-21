@@ -118,7 +118,8 @@ enum _McdChannelPropertyType
 #define DEPRECATED_PROPERTY_WARNING \
     g_warning ("%s: property %s is deprecated", G_STRFUNC, pspec->name)
 
-#define IMMUTABLE_PROPERTIES "immprop"
+#define CD_IMMUTABLE_PROPERTIES "_immprop"
+#define CD_ERROR    "_error"
 
 static guint mcd_channel_signals[LAST_SIGNAL] = { 0 };
 
@@ -1074,7 +1075,7 @@ void
 _mcd_channel_set_immutable_properties (McdChannel *channel,
                                        GHashTable *properties)
 {
-    g_object_set_data_full ((GObject *)channel, IMMUTABLE_PROPERTIES,
+    g_object_set_data_full ((GObject *)channel, CD_IMMUTABLE_PROPERTIES,
                             properties, (GDestroyNotify)g_hash_table_destroy);
 }
 
@@ -1087,7 +1088,7 @@ _mcd_channel_set_immutable_properties (McdChannel *channel,
 GHashTable *
 _mcd_channel_get_immutable_properties (McdChannel *channel)
 {
-    return g_object_get_data ((GObject *)channel, IMMUTABLE_PROPERTIES);
+    return g_object_get_data ((GObject *)channel, CD_IMMUTABLE_PROPERTIES);
 }
 
 /*
@@ -1175,7 +1176,7 @@ void
 _mcd_channel_set_error (McdChannel *channel, GError *error)
 {
     g_return_if_fail (MCD_IS_CHANNEL (channel));
-    g_object_set_data_full ((GObject *)channel, "Error",
+    g_object_set_data_full ((GObject *)channel, CD_ERROR,
                             error, (GDestroyNotify)g_error_free);
     if (error)
         mcd_channel_set_status (channel, MCD_CHANNEL_FAILED);
@@ -1191,7 +1192,7 @@ const GError *
 _mcd_channel_get_error (McdChannel *channel)
 {
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    return g_object_get_data ((GObject *)channel, "Error");
+    return g_object_get_data ((GObject *)channel, CD_ERROR);
 }
 
 /**
