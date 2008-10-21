@@ -127,9 +127,10 @@ TpConnectionStatusReason mcd_account_get_connection_status_reason (McdAccount *a
 
 McdConnection *mcd_account_get_connection (McdAccount *account);
 
+struct mcd_channel_request;
 gboolean mcd_account_request_channel_nmc4 (McdAccount *account,
 					   const struct mcd_channel_request *req,
-					   GError **error);
+                                           GError **error) G_GNUC_DEPRECATED;
 
 gchar *mcd_account_get_avatar_filename (McdAccount *account);
 

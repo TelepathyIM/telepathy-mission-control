@@ -38,5 +38,20 @@ extern const McdDBusProp account_compat_properties[];
 void account_compat_iface_init (McSvcAccountInterfaceCompatClass *iface,
 				     gpointer iface_data);
 
+struct mcd_channel_request
+{
+    const gchar *account_name;
+    const gchar *channel_type;
+    guint channel_handle;
+    const gchar *channel_handle_string;
+    gint channel_handle_type;
+    guint requestor_serial;
+    const gchar *requestor_client_id;
+};
+
+/* not exported */
+gboolean _mcd_account_compat_request_channel_nmc4 (McdAccount *account,
+    const struct mcd_channel_request *req, GError **error);
+
 G_END_DECLS
 #endif

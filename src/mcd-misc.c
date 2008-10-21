@@ -87,4 +87,11 @@ _mcd_xdg_data_subdir_foreach (const gchar *subdir,
     }
 }
 
+void
+_mcd_prop_value_free (gpointer data)
+{
+  GValue *value = (GValue *) data;
+  g_value_unset (value);
+  g_slice_free (GValue, value);
+}
 

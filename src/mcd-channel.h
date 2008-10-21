@@ -72,17 +72,6 @@ struct _McdChannelClass
     void (*members_accepted_signal) (McdChannel *channel);
 };
 
-struct mcd_channel_request
-{
-    const gchar *account_name;
-    const gchar *channel_type;
-    guint channel_handle;
-    const gchar *channel_handle_string;
-    gint channel_handle_type;
-    guint requestor_serial;
-    const gchar *requestor_client_id;
-};
-
 GType mcd_channel_get_type (void);
 
 McdChannel *mcd_channel_new (TpChannel *channel,

@@ -62,6 +62,7 @@
 #include "mcd-dispatcher.h"
 #include "mcd-account-manager.h"
 #include "mcd-account-conditions.h"
+#include "mcd-account-compat.h"
 #include "mcd-plugin.h"
 #include "mcd-transport.h"
 #include "mcd-account-connection.h"
@@ -950,7 +951,7 @@ mcd_master_request_channel (McdMaster *master,
 	}
 	return FALSE;
     }
-    return mcd_account_request_channel_nmc4 (account, req, error);
+    return _mcd_account_compat_request_channel_nmc4 (account, req, error);
 }
 
 gboolean

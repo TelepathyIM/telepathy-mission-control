@@ -27,6 +27,7 @@
 #define MCD_MISC_H
 
 #include <glib.h>
+#include <glib-object.h>
 
 G_BEGIN_DECLS
 
@@ -36,6 +37,8 @@ typedef gboolean (*McdXdgDataSubdirFunc) (const gchar *path,
 void _mcd_xdg_data_subdir_foreach (const gchar *subdir,
                                    McdXdgDataSubdirFunc callback,
                                    gpointer user_data);
+
+void _mcd_prop_value_free (gpointer data);
 
 G_END_DECLS
 #endif /* MCD_MISC_H */

@@ -43,6 +43,7 @@
 #include "mcd-account-connection.h"
 #include "mcd-account-requests.h"
 #include "mcd-account-manager.h"
+#include "mcd-misc.h"
 #include "mcd-signals-marshal.h"
 #include "mcd-manager.h"
 #include "mcd-master.h"
@@ -149,14 +150,6 @@ enum
 };
 
 guint _mcd_account_signals[LAST_SIGNAL] = { 0 };
-
-static void
-prop_value_free (gpointer data)
-{
-  GValue *value = (GValue *) data;
-  g_value_unset (value);
-  g_slice_free (GValue, value);
-}
 
 static void
 process_online_request (gpointer key, gpointer cb_userdata, gpointer userdata)
@@ -1611,7 +1604,7 @@ mcd_account_get_parameters (McdAccount *account)
     if (!priv->manager && !load_manager (priv)) return NULL;
 
     params = g_hash_table_new_full (g_str_hash, g_str_equal,
-				    g_free, prop_value_free);
+				    g_free, _mcd_prop_value_free);
     parameters = mcd_manager_get_parameters (priv->manager,
 					     priv->protocol_name);
     if (!parameters) return params;
@@ -2131,111 +2124,12 @@ _mcd_account_online_request (McdAccount *account,
     return TRUE;
 }
 
-static void
-process_channel_request (McdAccount *account, gpointer userdata,
-			 const GError *error)
-{
-    McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
-    McdChannel *channel = MCD_CHANNEL (userdata);
-    GError *err = NULL;
-
-    if (error)
-    {
-	g_warning ("%s: got error: %s", G_STRFUNC, error->message);
-	/* TODO: report the error to the requestor process */
-        g_object_unref (channel);
-	return;
-    }
-    g_debug ("%s called", G_STRFUNC);
-    g_return_if_fail (priv->connection != NULL);
-    g_return_if_fail (priv->conn_status == TP_CONNECTION_STATUS_CONNECTED);
-
-    mcd_connection_request_channel (priv->connection, channel, &err);
-}
-
-static void
-on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
-                           McdAccount *account)
-{
-    g_debug ("%s (%u)", G_STRFUNC, status);
-    g_return_if_fail (MCD_IS_ACCOUNT (account));
-
-    if (status == MCD_CHANNEL_DISPATCHING)
-    {
-        /* from now on, errors are reported by the dispatcher */
-        g_signal_handlers_disconnect_by_func (channel,
-                                              on_channel_status_changed,
-                                              account);
-    }
-    else if (status == MCD_CHANNEL_FAILED)
-    {
-        const GError *error;
-        McdMaster *master;
-        McdDispatcher *dispatcher = NULL;
-
-        master = mcd_master_get_default ();
-        g_object_get (master, "dispatcher", &dispatcher, NULL);
-        g_return_if_fail (dispatcher != NULL);
-
-        error = _mcd_channel_get_error (channel);
-        g_signal_emit_by_name (G_OBJECT(dispatcher),
-                               "dispatch-failed", channel, error);
-        g_object_unref (dispatcher);
-    }
-}
-
 gboolean
 mcd_account_request_channel_nmc4 (McdAccount *account,
 				  const struct mcd_channel_request *req,
 				  GError **error)
 {
-    McdChannel *channel;
-    GHashTable *properties;
-    GValue *value;
-
-    properties = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                        NULL, prop_value_free);
-
-    value = g_slice_new0 (GValue);
-    g_value_init (value, G_TYPE_STRING);
-    g_value_set_string (value, req->channel_type);
-    g_hash_table_insert (properties, TP_IFACE_CHANNEL ".ChannelType", value);
-
-    if (req->channel_handle_string)
-    {
-        value = g_slice_new0 (GValue);
-        g_value_init (value, G_TYPE_STRING);
-        g_value_set_string (value, req->channel_handle_string);
-        g_hash_table_insert (properties, TP_IFACE_CHANNEL ".TargetID", value);
-    }
-
-    if (req->channel_handle)
-    {
-        value = g_slice_new0 (GValue);
-        g_value_init (value, G_TYPE_UINT);
-        g_value_set_uint (value, req->channel_handle);
-        g_hash_table_insert (properties, TP_IFACE_CHANNEL ".TargetHandle",
-                             value);
-    }
-
-    value = g_slice_new0 (GValue);
-    g_value_init (value, G_TYPE_UINT);
-    g_value_set_uint (value, req->channel_handle_type);
-    g_hash_table_insert (properties, TP_IFACE_CHANNEL ".TargetHandleType",
-                         value);
-
-    channel = mcd_channel_new_request (properties);
-    g_object_set ((GObject *)channel,
-                  "requestor-serial", req->requestor_serial,
-                  "requestor-client-id", req->requestor_client_id,
-                  NULL);
-    g_signal_connect (channel, "status-changed",
-                      G_CALLBACK (on_channel_status_changed), account);
-
-    return _mcd_account_online_request (account,
-                                        process_channel_request,
-                                        channel,
-                                        error);
+    return _mcd_account_compat_request_channel_nmc4 (account, req, error);
 }
 
 GKeyFile *

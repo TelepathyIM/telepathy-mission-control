@@ -32,11 +32,13 @@
 #include <dbus/dbus-glib-lowlevel.h>
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/gtypes.h>
+#include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/util.h>
 #include "mcd-account.h"
 #include "mcd-account-priv.h"
 #include "mcd-account-compat.h"
 #include "mcd-account-manager.h"
+#include "mcd-misc.h"
 #include "_gen/interfaces.h"
 
 static guint last_operation_id = 1;
@@ -158,8 +160,8 @@ account_request_channel (McSvcAccountInterfaceCompat *self,
     req.channel_handle_type = handle_type;
     req.requestor_serial = last_operation_id++;
     req.requestor_client_id = dbus_g_method_get_sender (context);
-    mcd_account_request_channel_nmc4 (MCD_ACCOUNT (self),
-				      &req, &error);
+    _mcd_account_compat_request_channel_nmc4 (MCD_ACCOUNT (self),
+                                              &req, &error);
     if (error)
     {
 	dbus_g_method_return_error (context, error);
@@ -185,8 +187,8 @@ account_request_channel_with_string_handle (McSvcAccountInterfaceCompat *self,
     req.channel_handle_type = handle_type;
     req.requestor_serial = last_operation_id++;
     req.requestor_client_id = dbus_g_method_get_sender (context);
-    mcd_account_request_channel_nmc4 (MCD_ACCOUNT (self),
-				      &req, &error);
+    _mcd_account_compat_request_channel_nmc4 (MCD_ACCOUNT (self),
+                                              &req, &error);
     if (error)
     {
 	dbus_g_method_return_error (context, error);
@@ -219,5 +221,114 @@ account_compat_iface_init (McSvcAccountInterfaceCompatClass *iface,
     IMPLEMENT(request_channel_with_string_handle);
     IMPLEMENT(cancel_channel_request);
 #undef IMPLEMENT
+}
+
+static void
+process_channel_request (McdAccount *account, gpointer userdata,
+			 const GError *error)
+{
+    McdChannel *channel = MCD_CHANNEL (userdata);
+    McdConnection *connection;
+    GError *err = NULL;
+
+    if (error)
+    {
+        g_warning ("%s: got error: %s", G_STRFUNC, error->message);
+        /* TODO: report the error to the requestor process */
+        g_object_unref (channel);
+        return;
+    }
+    g_debug ("%s called", G_STRFUNC);
+    connection = mcd_account_get_connection (account);
+    g_return_if_fail (connection != NULL);
+    g_return_if_fail (mcd_connection_get_connection_status (connection)
+                      == TP_CONNECTION_STATUS_CONNECTED);
+
+    mcd_connection_request_channel (connection, channel, &err);
+}
+
+static void
+on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
+                           McdAccount *account)
+{
+    g_debug ("%s (%u)", G_STRFUNC, status);
+    g_return_if_fail (MCD_IS_ACCOUNT (account));
+
+    if (status == MCD_CHANNEL_DISPATCHING)
+    {
+        /* from now on, errors are reported by the dispatcher */
+        g_signal_handlers_disconnect_by_func (channel,
+                                              on_channel_status_changed,
+                                              account);
+    }
+    else if (status == MCD_CHANNEL_FAILED)
+    {
+        const GError *error;
+        McdMaster *master;
+        McdDispatcher *dispatcher = NULL;
+
+        master = mcd_master_get_default ();
+        g_object_get (master, "dispatcher", &dispatcher, NULL);
+        g_return_if_fail (dispatcher != NULL);
+
+        error = _mcd_channel_get_error (channel);
+        g_signal_emit_by_name (G_OBJECT(dispatcher),
+                               "dispatch-failed", channel, error);
+        g_object_unref (dispatcher);
+    }
+}
+
+gboolean
+_mcd_account_compat_request_channel_nmc4 (McdAccount *account,
+                                          const struct mcd_channel_request *req,
+                                          GError **error)
+{
+    McdChannel *channel;
+    GHashTable *properties;
+    GValue *value;
+
+    properties = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                        NULL, _mcd_prop_value_free);
+
+    value = g_slice_new0 (GValue);
+    g_value_init (value, G_TYPE_STRING);
+    g_value_set_string (value, req->channel_type);
+    g_hash_table_insert (properties, TP_IFACE_CHANNEL ".ChannelType", value);
+
+    if (req->channel_handle_string)
+    {
+        value = g_slice_new0 (GValue);
+        g_value_init (value, G_TYPE_STRING);
+        g_value_set_string (value, req->channel_handle_string);
+        g_hash_table_insert (properties, TP_IFACE_CHANNEL ".TargetID", value);
+    }
+
+    if (req->channel_handle)
+    {
+        value = g_slice_new0 (GValue);
+        g_value_init (value, G_TYPE_UINT);
+        g_value_set_uint (value, req->channel_handle);
+        g_hash_table_insert (properties, TP_IFACE_CHANNEL ".TargetHandle",
+                             value);
+    }
+
+    value = g_slice_new0 (GValue);
+    g_value_init (value, G_TYPE_UINT);
+    g_value_set_uint (value, req->channel_handle_type);
+    g_hash_table_insert (properties, TP_IFACE_CHANNEL ".TargetHandleType",
+                         value);
+
+    channel = mcd_channel_new_request (properties);
+    g_object_set ((GObject *)channel,
+                  "requestor-serial", req->requestor_serial,
+                  "requestor-client-id", req->requestor_client_id,
+                  NULL);
+    g_signal_connect (channel, "status-changed",
+                      G_CALLBACK (on_channel_status_changed), account);
+
+    return _mcd_account_online_request (account,
+                                        process_channel_request,
+                                        channel,
+                                        error);
 }
 
