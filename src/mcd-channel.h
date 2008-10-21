@@ -91,7 +91,8 @@ McdChannel *mcd_channel_new (TpChannel *channel,
 			     TpHandleType channel_handle_type,
 			     gboolean outgoing,
 			     guint requestor_serial,
-			     const gchar *requestor_client_id);
+                             const gchar *requestor_client_id)
+    G_GNUC_DEPRECATED;
 McdChannel *mcd_channel_new_from_path (TpConnection *connection,
                                        const gchar *object_path,
                                        const gchar *type, guint handle,

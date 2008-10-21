@@ -551,6 +551,7 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
 	priv->outgoing = g_value_get_boolean (val);
 	break;
     case PROP_REQUESTOR_SERIAL:
+        DEPRECATED_PROPERTY_WARNING;
         priv->requestor_serial = g_value_get_uint (val);
         break;
     case PROP_REQUESTOR_CLIENT_ID:
@@ -602,6 +603,7 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
 	g_value_set_boolean (val, priv->outgoing);
 	break;
     case PROP_REQUESTOR_SERIAL:
+        DEPRECATED_PROPERTY_WARNING;
 	g_value_set_uint (val, priv->requestor_serial);
 	break;
     case PROP_REQUESTOR_CLIENT_ID:
