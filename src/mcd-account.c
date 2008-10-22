@@ -1604,7 +1604,8 @@ mcd_account_get_parameters (McdAccount *account)
     if (!priv->manager && !load_manager (priv)) return NULL;
 
     params = g_hash_table_new_full (g_str_hash, g_str_equal,
-				    g_free, _mcd_prop_value_free);
+				    g_free,
+                                    (GDestroyNotify)tp_g_value_slice_free);
     parameters = mcd_manager_get_parameters (priv->manager,
 					     priv->protocol_name);
     if (!parameters) return params;

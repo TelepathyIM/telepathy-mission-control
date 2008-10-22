@@ -305,32 +305,29 @@ _mcd_account_compat_request_channel_nmc4 (McdAccount *account,
     GValue *value;
 
     properties = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                        NULL, _mcd_prop_value_free);
+                                        NULL,
+                                        (GDestroyNotify)tp_g_value_slice_free);
 
-    value = g_slice_new0 (GValue);
-    g_value_init (value, G_TYPE_STRING);
+    value = tp_g_value_slice_new (G_TYPE_STRING);
     g_value_set_string (value, req->channel_type);
     g_hash_table_insert (properties, TP_IFACE_CHANNEL ".ChannelType", value);
 
     if (req->channel_handle_string)
     {
-        value = g_slice_new0 (GValue);
-        g_value_init (value, G_TYPE_STRING);
+        value = tp_g_value_slice_new (G_TYPE_STRING);
         g_value_set_string (value, req->channel_handle_string);
         g_hash_table_insert (properties, TP_IFACE_CHANNEL ".TargetID", value);
     }
 
     if (req->channel_handle)
     {
-        value = g_slice_new0 (GValue);
-        g_value_init (value, G_TYPE_UINT);
+        value = tp_g_value_slice_new (G_TYPE_UINT);
         g_value_set_uint (value, req->channel_handle);
         g_hash_table_insert (properties, TP_IFACE_CHANNEL ".TargetHandle",
                              value);
     }
 
-    value = g_slice_new0 (GValue);
-    g_value_init (value, G_TYPE_UINT);
+    value = tp_g_value_slice_new (G_TYPE_UINT);
     g_value_set_uint (value, req->channel_handle_type);
     g_hash_table_insert (properties, TP_IFACE_CHANNEL ".TargetHandleType",
                          value);
