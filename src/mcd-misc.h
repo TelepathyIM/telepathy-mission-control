@@ -38,5 +38,9 @@ void _mcd_xdg_data_subdir_foreach (const gchar *subdir,
                                    McdXdgDataSubdirFunc callback,
                                    gpointer user_data);
 
+GHashTable *_mcd_deepcopy_asv (GHashTable *asv);
+
+const gchar *_mcd_get_error_string (const GError *error);
+
 G_END_DECLS
 #endif /* MCD_MISC_H */

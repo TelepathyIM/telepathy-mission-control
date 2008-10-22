@@ -37,8 +37,141 @@
 #include "mcd-account-priv.h"
 #include "mcd-account-requests.h"
 #include "mcd-account-manager.h"
+#include "mcd-misc.h"
 #include "_gen/interfaces.h"
 
+#define REQUEST_OBJ_BASE "/com/nokia/MissionControl/requests/r"
+
+typedef struct
+{
+    gchar *id;
+    gchar *requestor_client_id;
+} McdRequestData;
+
+static guint last_prop_id = 1;
+
+#define REQUEST_DATA "request_data"
+
+static inline McdRequestData *
+get_request_data (McdChannel *channel)
+{
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
+    return g_object_get_data ((GObject *)channel, REQUEST_DATA);
+}
+
+static const gchar *
+get_request_id (McdChannel *channel)
+{
+    McdRequestData *rd;
+
+    rd = get_request_data (channel);
+    return rd->id;
+}
+
+static void
+online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
+{
+    McdChannel *channel = MCD_CHANNEL (userdata);
+    McdConnection *connection;
+
+    if (error)
+    {
+        g_warning ("%s: got error: %s", G_STRFUNC, error->message);
+        _mcd_channel_set_error (channel, g_error_copy (error));
+        /* no unref here, as this will invoke our handler which will
+         * unreference the channel */
+        return;
+    }
+    g_debug ("%s called", G_STRFUNC);
+    connection = mcd_account_get_connection (account);
+    g_return_if_fail (connection != NULL);
+    g_return_if_fail (mcd_connection_get_connection_status (connection)
+                      == TP_CONNECTION_STATUS_CONNECTED);
+
+    /* the connection will take ownership of the channel, so let's keep a
+     * reference to it to make sure it's not destroyed while we are using it */
+    g_object_ref (channel);
+    mcd_connection_request_channel (connection, channel, NULL);
+}
+
+static void
+request_data_free (McdRequestData *rd)
+{
+    g_free (rd->id);
+    g_free (rd->requestor_client_id);
+    g_slice_free (McdRequestData, rd);
+}
+
+static void
+on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
+                           McdAccount *account)
+{
+    const GError *error;
+
+    if (status == MCD_CHANNEL_FAILED)
+    {
+        const gchar *err_string;
+        error = _mcd_channel_get_error (channel);
+        g_warning ("Channel request %s failed, error: %s",
+                   get_request_id (channel), error->message);
+
+        err_string = _mcd_get_error_string (error);
+        mc_svc_account_interface_channelrequests_emit_failed (account,
+            get_request_id (channel), err_string, error->message);
+
+        g_object_unref (channel);
+    }
+    else if (status == MCD_CHANNEL_DISPATCHED)
+    {
+        mc_svc_account_interface_channelrequests_emit_succeeded (account,
+            get_request_id (channel));
+
+        /* free the request data, it's no longer useful */
+        g_object_set_data ((GObject *)channel, REQUEST_DATA, NULL);
+
+        g_object_unref (channel);
+    }
+}
+
+static McdChannel *
+create_request (McdAccount *account, GHashTable *properties,
+                guint64 user_time, const gchar *preferred_handler,
+                DBusGMethodInvocation *context, gboolean use_existing)
+{
+    McdChannel *channel;
+    McdRequestData *rd;
+    GError *error = NULL;
+    GHashTable *props;
+
+    /* TODO: handle use_existing */
+
+    /* We MUST deep-copy the hash-table, as we don't know how dbus-glib will
+     * free it */
+    props = _mcd_deepcopy_asv (properties);
+    channel = mcd_channel_new_request (props, user_time,
+                                       preferred_handler);
+    g_hash_table_unref (props);
+
+    rd = g_slice_new (McdRequestData);
+    rd->id = g_strdup_printf (REQUEST_OBJ_BASE "%u", last_prop_id++);
+    rd->requestor_client_id = dbus_g_method_get_sender (context);
+    g_object_set_data_full ((GObject *)channel, REQUEST_DATA, rd,
+                            (GDestroyNotify)request_data_free);
+
+    g_signal_connect (channel, "status-changed",
+                      G_CALLBACK (on_channel_status_changed), account);
+
+    _mcd_account_online_request (account, online_request_cb, channel, &error);
+    if (error)
+    {
+        g_warning ("%s: _mcd_account_online_request: %s", G_STRFUNC,
+                   error->message);
+        _mcd_channel_set_error (channel, error);
+        /* no unref here, as this will invoke our handler which will
+         * unreference the channel */
+    }
+    return channel;
+}
 
 const McdDBusProp account_channelrequests_properties[] = {
     { 0 },
@@ -52,14 +185,17 @@ account_request_create (McSvcAccountInterfaceChannelRequests *self,
 {
     GError *error = NULL;
     const gchar *request_id;
+    McdChannel *channel;
 
+    channel = create_request (MCD_ACCOUNT (self), properties, user_time,
+                              preferred_handler, context, FALSE);
     if (error)
     {
         dbus_g_method_return_error (context, error);
         g_error_free (error);
         return;
     }
-    request_id = "/com/nokia/chavo/request/r3";
+    request_id = get_request_id (channel);
     mc_svc_account_interface_channelrequests_return_from_create (context,
                                                                  request_id);
 }
@@ -72,6 +208,10 @@ account_request_ensure_channel (McSvcAccountInterfaceChannelRequests *self,
 {
     GError *error = NULL;
     const gchar *request_id;
+    McdChannel *channel;
+
+    channel = create_request (MCD_ACCOUNT (self), properties, user_time,
+                              preferred_handler, context, TRUE);
 
     if (error)
     {
@@ -79,7 +219,7 @@ account_request_ensure_channel (McSvcAccountInterfaceChannelRequests *self,
         g_error_free (error);
         return;
     }
-    request_id = "/com/nokia/chavo/request/r4";
+    request_id = get_request_id (channel);
     mc_svc_account_interface_channelrequests_return_from_ensure_channel
         (context, request_id);
 }

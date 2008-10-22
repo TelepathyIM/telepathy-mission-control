@@ -24,6 +24,9 @@
  */
 
 #include "mcd-misc.h"
+#include <telepathy-glib/errors.h>
+#include <telepathy-glib/util.h>
+#include <libmcclient/mc-errors.h>
 
 /*
  * Miscellaneus functions
@@ -85,5 +88,93 @@ _mcd_xdg_data_subdir_foreach (const gchar *subdir,
         scan_data_subdir (dir, callback, user_data);
         g_free (dir);
     }
+}
+
+GHashTable *
+_mcd_deepcopy_asv (GHashTable *asv)
+{
+    GHashTable *copy;
+    GHashTableIter iter;
+    gpointer ht_key, ht_value;
+
+    copy = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                  g_free,
+                                  (GDestroyNotify)tp_g_value_slice_free);
+    g_hash_table_iter_init (&iter, asv);
+    while (g_hash_table_iter_next (&iter, &ht_key, &ht_value))
+    {
+        GValue *value = g_slice_new0 (GValue);
+        g_value_init (value, G_VALUE_TYPE (ht_value));
+        g_value_copy (ht_value, value);
+
+        g_hash_table_insert (copy, g_strdup (ht_key), value);
+    }
+    return copy;
+}
+
+#define MC_ERROR_PREFIX "com.nokia.MissionControl.Errors"
+
+const gchar *
+_mcd_get_error_string (const GError *error)
+{
+    if (error->domain == TP_ERRORS)
+    {
+        switch (error->code)
+        {
+        case TP_ERROR_NETWORK_ERROR:
+            return TP_ERROR_PREFIX ".NetworkError";
+        case TP_ERROR_NOT_IMPLEMENTED:
+            return TP_ERROR_PREFIX ".NotImplemented";
+        case TP_ERROR_INVALID_ARGUMENT:
+            return TP_ERROR_PREFIX ".InvalidArgument";
+        case TP_ERROR_NOT_AVAILABLE:
+            return TP_ERROR_PREFIX ".NotAvailable";
+        case TP_ERROR_PERMISSION_DENIED:
+            return TP_ERROR_PREFIX ".PermissionDenied";
+        case TP_ERROR_DISCONNECTED:
+            return TP_ERROR_PREFIX ".Disconnected";
+        case TP_ERROR_INVALID_HANDLE:
+            return TP_ERROR_PREFIX ".InvalidHandle";
+        case TP_ERROR_CHANNEL_BANNED:
+            return TP_ERROR_PREFIX ".Banned";
+        case TP_ERROR_CHANNEL_FULL:
+            return TP_ERROR_PREFIX ".Full";
+        case TP_ERROR_CHANNEL_INVITE_ONLY:
+            return TP_ERROR_PREFIX ".InviteOnly";
+        }
+    }
+    else if (error->domain == MC_ERROR)
+    {
+        switch (error->code)
+        {
+        case MC_DISCONNECTED_ERROR:
+            return MC_ERROR_PREFIX ".Disconnected";
+        case MC_INVALID_HANDLE_ERROR:
+            return MC_ERROR_PREFIX ".InvalidHandle";
+        case MC_NO_MATCHING_CONNECTION_ERROR:
+            return MC_ERROR_PREFIX ".NoMatchingConnection";
+        case MC_INVALID_ACCOUNT_ERROR:
+            return MC_ERROR_PREFIX ".InvalidAccount";
+        case MC_PRESENCE_FAILURE_ERROR:
+            return MC_ERROR_PREFIX ".PresenceFailure";
+        case MC_NO_ACCOUNTS_ERROR:
+            return MC_ERROR_PREFIX ".NoAccounts";
+        case MC_NETWORK_ERROR:
+            return MC_ERROR_PREFIX ".Network";
+        case MC_CONTACT_DOES_NOT_SUPPORT_VOICE_ERROR:
+            return MC_ERROR_PREFIX ".ContactDoesNotSupportVoice";
+        case MC_LOWMEM_ERROR:
+            return MC_ERROR_PREFIX ".Lowmem";
+        case MC_CHANNEL_REQUEST_GENERIC_ERROR:
+            return MC_ERROR_PREFIX ".Generic";
+        case MC_CHANNEL_BANNED_ERROR:
+            return MC_ERROR_PREFIX ".ChannelBanned";
+        case MC_CHANNEL_FULL_ERROR:
+            return MC_ERROR_PREFIX ".ChannelFull";
+        case MC_CHANNEL_INVITE_ONLY_ERROR:
+            return MC_ERROR_PREFIX ".ChannelInviteOnly";
+        }
+    }
+    return NULL;
 }
 
