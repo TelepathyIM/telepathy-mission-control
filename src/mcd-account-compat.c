@@ -240,7 +240,6 @@ process_channel_request (McdAccount *account, gpointer userdata,
 {
     McdChannel *channel = MCD_CHANNEL (userdata);
     McdConnection *connection;
-    GError *err = NULL;
 
     if (error)
     {
@@ -255,7 +254,7 @@ process_channel_request (McdAccount *account, gpointer userdata,
     g_return_if_fail (mcd_connection_get_connection_status (connection)
                       == TP_CONNECTION_STATUS_CONNECTED);
 
-    mcd_connection_request_channel (connection, channel, &err);
+    mcd_connection_request_channel (connection, channel);
 }
 
 static void

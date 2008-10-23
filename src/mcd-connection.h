@@ -74,8 +74,7 @@ TpConnectionStatus mcd_connection_get_connection_status (McdConnection *connecti
 TpConnectionStatusReason mcd_connection_get_connection_status_reason (McdConnection *connection);
 
 gboolean mcd_connection_request_channel (McdConnection *connection,
-					 McdChannel *channel,
-					 GError ** error);
+					 McdChannel *channel);
 
 gboolean mcd_connection_cancel_channel_request (McdConnection *connection,
 					       	guint operation_id,

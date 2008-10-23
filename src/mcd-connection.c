@@ -1266,7 +1266,7 @@ request_unrequested_channels (McdConnection *connection)
         if (mcd_channel_get_status (channel) == MCD_CHANNEL_REQUEST)
         {
             g_debug ("Requesting channel %p", channel);
-            mcd_connection_request_channel (connection, channel, NULL);
+            mcd_connection_request_channel (connection, channel);
         }
         channels = channels->next;
     }
@@ -2196,13 +2196,12 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
     mcd_channel_set_handle (channel, chan_handle);
 
     g_return_if_fail (chan_handle != 0);
-    mcd_connection_request_channel (connection, channel, NULL);
+    mcd_connection_request_channel (connection, channel);
 }
 
 gboolean
 mcd_connection_request_channel (McdConnection *connection,
-                                McdChannel *channel,
-			       	GError ** error)
+                                McdChannel *channel)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
     guint channel_handle, channel_handle_type;

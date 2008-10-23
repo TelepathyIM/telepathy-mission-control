@@ -91,7 +91,7 @@ online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
     /* the connection will take ownership of the channel, so let's keep a
      * reference to it to make sure it's not destroyed while we are using it */
     g_object_ref (channel);
-    mcd_connection_request_channel (connection, channel, NULL);
+    mcd_connection_request_channel (connection, channel);
 }
 
 static void
