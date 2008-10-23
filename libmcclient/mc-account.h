@@ -221,7 +221,7 @@ typedef struct {
     guint fld_target_handle;
     TpHandleType fld_target_handle_type;
     const gchar *fld_target_id;
-} McAccountChannelRequestData;
+} McAccountChannelrequestData;
 
 enum
 {
@@ -246,39 +246,39 @@ typedef enum
     MC_ACCOUNT_CR_SUCCEEDED,
     MC_ACCOUNT_CR_FAILED,
     MC_ACCOUNT_CR_CANCELLED,
-} McAccountChannelRequestEvent;
+} McAccountChannelrequestEvent;
 
-typedef void (*McAccountChannelRequestCb) (McAccount *account,
+typedef void (*McAccountChannelrequestCb) (McAccount *account,
                                            guint request_id,
-                                           McAccountChannelRequestEvent event,
+                                           McAccountChannelrequestEvent event,
                                            gpointer user_data,
                                            GObject *weak_object);
 
-guint mc_account_channel_request (McAccount *account,
-                                  const McAccountChannelRequestData *req_data,
-                                  time_t user_action_time,
-                                  const gchar *handler,
-                                  McAccountChannelRequestCb callback,
-                                  gpointer user_data,
-                                  GDestroyNotify destroy,
-                                  GObject *weak_object);
+guint mc_account_channelrequest (McAccount *account,
+                                 const McAccountChannelrequestData *req_data,
+                                 time_t user_action_time,
+                                 const gchar *handler,
+                                 McAccountChannelrequestCb callback,
+                                 gpointer user_data,
+                                 GDestroyNotify destroy,
+                                 GObject *weak_object);
 
-guint mc_account_channel_request_ht (McAccount *account,
-                                     GHashTable *properties,
-                                     time_t user_action_time,
-                                     const gchar *handler,
-                                     McAccountChannelRequestCb callback,
-                                     gpointer user_data,
-                                     GDestroyNotify destroy,
-                                     GObject *weak_object);
+guint mc_account_channelrequest_ht (McAccount *account,
+                                    GHashTable *properties,
+                                    time_t user_action_time,
+                                    const gchar *handler,
+                                    McAccountChannelrequestCb callback,
+                                    gpointer user_data,
+                                    GDestroyNotify destroy,
+                                    GObject *weak_object);
 
-void mc_account_channel_request_cancel (McAccount *account, guint request_id);
-const GError *mc_account_channel_request_get_error (McAccount *account,
-                                                    guint request_id);
-const gchar *mc_account_channel_request_get_path (McAccount *account,
-                                                  guint request_id);
-guint mc_account_channel_request_get_from_path (McAccount *account,
-                                                const gchar *object_path);
+void mc_account_channelrequest_cancel (McAccount *account, guint request_id);
+const GError *mc_account_channelrequest_get_error (McAccount *account,
+                                                   guint request_id);
+const gchar *mc_account_channelrequest_get_path (McAccount *account,
+                                                 guint request_id);
+guint mc_account_channelrequest_get_from_path (McAccount *account,
+                                               const gchar *object_path);
 
 G_END_DECLS
 

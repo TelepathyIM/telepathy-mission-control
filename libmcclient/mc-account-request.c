@@ -42,7 +42,7 @@ typedef struct
     GError *error;
 
     /* caller data */
-    McAccountChannelRequestCb callback;
+    McAccountChannelrequestCb callback;
     gpointer user_data;
     GDestroyNotify destroy;
     GObject *weak_object;
@@ -93,7 +93,7 @@ mc_request_free (McChannelRequest *req)
 }
 
 static void
-emit_request_event (McChannelRequest *req, McAccountChannelRequestEvent event)
+emit_request_event (McChannelRequest *req, McAccountChannelrequestEvent event)
 {
     if (req->callback)
         req->callback (req->account, GPOINTER_TO_UINT (req), event,
@@ -134,7 +134,7 @@ on_request_failed (TpProxy *proxy, const gchar *request_path,
     McChannelRequest *req;
 
     g_debug ("%s called for %s", G_STRFUNC, request_path);
-    req = GUINT_TO_POINTER (mc_account_channel_request_get_from_path
+    req = GUINT_TO_POINTER (mc_account_channelrequest_get_from_path
                             (MC_ACCOUNT (proxy), request_path));
     if (!req) /* not our request, ignore it */
         return;
@@ -152,7 +152,7 @@ on_request_succeeded (TpProxy *proxy, const gchar *request_path,
     McChannelRequest *req;
 
     g_debug ("%s called for %s", G_STRFUNC, request_path);
-    req = GUINT_TO_POINTER (mc_account_channel_request_get_from_path
+    req = GUINT_TO_POINTER (mc_account_channelrequest_get_from_path
                             (MC_ACCOUNT (proxy), request_path));
     if (!req) /* not our request, ignore it */
         return;
@@ -179,10 +179,10 @@ _mc_account_channelrequests_class_init (McAccountClass *klass)
 }
 
 /**
- * McAccountChannelRequestCb:
+ * McAccountChannelrequestCb:
  * @account: the #McAccount.
  * @request_id: unique identifier of the channel request.
- * @event: one #McAccountChannelRequestEvent.
+ * @event: one #McAccountChannelrequestEvent.
  * @user_data: the user data that was passed when registering the callback.
  * @weak_object: the #GObject that was passed when registering the callback.
  *
@@ -196,9 +196,9 @@ _mc_account_channelrequests_class_init (McAccountClass *klass)
  */
 
 /**
- * mc_account_channel_request:
+ * mc_account_channelrequest:
  * @account: the #McAccount.
- * @req_data: a #McAccountChannelRequestData struct with the requested fields
+ * @req_data: a #McAccountChannelrequestData struct with the requested fields
  * set.
  * @user_action_time: the time at which user action occurred, or %0.
  * @handler: well-known name of the preferred handler, or %NULL.
@@ -210,19 +210,19 @@ _mc_account_channelrequests_class_init (McAccountClass *klass)
  * it is destroyed, this call will automatically be cancelled.
  *
  * This is a convenience function that internally calls
- * mc_account_channel_request_ht(). The only difference between the two
+ * mc_account_channelrequest_ht(). The only difference between the two
  * functions is that this one takes the requested properties in the form of a
- * #McAccountChannelRequestData structure.
+ * #McAccountChannelrequestData structure.
  *
  * Returns: the unique ID of the channel request.
  */
 guint
-mc_account_channel_request (McAccount *account,
-                            const McAccountChannelRequestData *req_data,
-                            time_t user_action_time, const gchar *handler,
-                            McAccountChannelRequestCb callback,
-                            gpointer user_data, GDestroyNotify destroy,
-                            GObject *weak_object)
+mc_account_channelrequest (McAccount *account,
+                           const McAccountChannelrequestData *req_data,
+                           time_t user_action_time, const gchar *handler,
+                           McAccountChannelrequestCb callback,
+                           gpointer user_data, GDestroyNotify destroy,
+                           GObject *weak_object)
 {
     GHashTable *properties;
     GValue v_channel_type;
@@ -281,7 +281,7 @@ mc_account_channel_request (McAccount *account,
                              &v_target_id);
     }
 
-    id = mc_account_channel_request_ht (account, properties, user_action_time,
+    id = mc_account_channelrequest_ht (account, properties, user_action_time,
                                         handler, callback, user_data, destroy,
                                         weak_object);
     g_hash_table_destroy (properties);
@@ -289,7 +289,7 @@ mc_account_channel_request (McAccount *account,
 }
 
 /**
- * mc_account_channel_request_ht:
+ * mc_account_channelrequest_ht:
  * @account: the #McAccount.
  * @properties: a #GHashTable with the requested channel properties.
  * @user_action_time: the time at which user action occurred, or %0.
@@ -317,17 +317,17 @@ mc_account_channel_request (McAccount *account,
  * @callback will not be called anymore, but @destroy (if it was not %NULL) is
  * called on @user_data; the channel request is left at whatever state it was:
  * if you want it to be cancelled, you need to call
- * mc_account_channel_request_cancel() explicitly.
+ * mc_account_channelrequest_cancel() explicitly.
  *
  * Returns: the unique ID of the channel request.
  */
 guint
-mc_account_channel_request_ht (McAccount *account,
-                               GHashTable *properties,
-                               time_t user_action_time, const gchar *handler,
-                               McAccountChannelRequestCb callback,
-                               gpointer user_data, GDestroyNotify destroy,
-                               GObject *weak_object)
+mc_account_channelrequest_ht (McAccount *account,
+                              GHashTable *properties,
+                              time_t user_action_time, const gchar *handler,
+                              McAccountChannelrequestCb callback,
+                              gpointer user_data, GDestroyNotify destroy,
+                              GObject *weak_object)
 {
     McAccountChannelrequestsProps *props;
     McChannelRequest *req;
@@ -369,20 +369,20 @@ mc_account_channel_request_ht (McAccount *account,
 }
 
 /**
- * mc_account_channel_request_cancel:
+ * mc_account_channelrequest_cancel:
  * @account: the #McAccount.
  * @request_id: the ID of the request to be cancelled.
  *
  * Cancel the channel request identified by @request_id.
  */
 void
-mc_account_channel_request_cancel (McAccount *account, guint request_id)
+mc_account_channelrequest_cancel (McAccount *account, guint request_id)
 {
     g_warning ("%s is not implemented yet", G_STRFUNC);
 }
 
 /**
- * mc_account_channel_request_get_error:
+ * mc_account_channelrequest_get_error:
  * @account: the #McAccount.
  * @request_id: the ID of the channel request.
  *
@@ -392,7 +392,7 @@ mc_account_channel_request_cancel (McAccount *account, guint request_id)
  * Returns: a #GError (not to be freed), or %NULL.
  */
 const GError *
-mc_account_channel_request_get_error (McAccount *account, guint request_id)
+mc_account_channelrequest_get_error (McAccount *account, guint request_id)
 {
     McChannelRequest *req;
 
@@ -403,7 +403,7 @@ mc_account_channel_request_get_error (McAccount *account, guint request_id)
 }
 
 /**
- * mc_account_channel_request_get_path:
+ * mc_account_channelrequest_get_path:
  * @account: the #McAccount.
  * @request_id: the ID of the channel request.
  *
@@ -415,7 +415,7 @@ mc_account_channel_request_get_error (McAccount *account, guint request_id)
  * Returns: the object path of the channel request.
  */
 const gchar *
-mc_account_channel_request_get_path (McAccount *account, guint request_id)
+mc_account_channelrequest_get_path (McAccount *account, guint request_id)
 {
     McChannelRequest *req;
 
@@ -426,7 +426,7 @@ mc_account_channel_request_get_path (McAccount *account, guint request_id)
 }
 
 /**
- * mc_account_channel_request_get_from_path:
+ * mc_account_channelrequest_get_from_path:
  * @account: the #McAccount.
  * @object_path: the D-Bus object path of a channel request.
  *
@@ -436,8 +436,8 @@ mc_account_channel_request_get_path (McAccount *account, guint request_id)
  * Returns: the unique ID of the channel request, or %0.
  */
 guint
-mc_account_channel_request_get_from_path (McAccount *account,
-                                          const gchar *object_path)
+mc_account_channelrequest_get_from_path (McAccount *account,
+                                         const gchar *object_path)
 {
     McAccountChannelrequestsProps *props;
     GList *list;
