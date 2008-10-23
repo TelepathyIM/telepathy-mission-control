@@ -2222,9 +2222,6 @@ mcd_connection_request_channel (McdConnection *connection,
         return TRUE;
     }
 
-    /* We do not add the channel in connection until tp_channel is created */
-    g_object_set_data (G_OBJECT (channel), "temporary_connection", connection);
-
     channel_handle_type = mcd_channel_get_handle_type (channel);
     channel_handle = mcd_channel_get_handle (channel);
 
