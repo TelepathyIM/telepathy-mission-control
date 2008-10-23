@@ -254,10 +254,16 @@ typedef void (*McAccountChannelrequestCb) (McAccount *account,
                                            gpointer user_data,
                                            GObject *weak_object);
 
+typedef enum
+{
+    MC_ACCOUNT_CR_FLAG_USE_EXISTING = 0,  /* if set, call EnsureChannel */
+} McAccountChannelrequestFlags;
+
 guint mc_account_channelrequest (McAccount *account,
                                  const McAccountChannelrequestData *req_data,
                                  time_t user_action_time,
                                  const gchar *handler,
+                                 McAccountChannelrequestFlags flags,
                                  McAccountChannelrequestCb callback,
                                  gpointer user_data,
                                  GDestroyNotify destroy,
@@ -267,6 +273,7 @@ guint mc_account_channelrequest_ht (McAccount *account,
                                     GHashTable *properties,
                                     time_t user_action_time,
                                     const gchar *handler,
+                                    McAccountChannelrequestFlags flags,
                                     McAccountChannelrequestCb callback,
                                     gpointer user_data,
                                     GDestroyNotify destroy,

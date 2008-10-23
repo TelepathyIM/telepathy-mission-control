@@ -196,12 +196,19 @@ _mc_account_channelrequests_class_init (McAccountClass *klass)
  */
 
 /**
+ * McAccountChannelrequestFlags:
+ * @MC_ACCOUNT_CR_FLAG_USE_EXISTING: allow requesting of an existing channel
+ * (EnsureChannel will be called).
+ */
+
+/**
  * mc_account_channelrequest:
  * @account: the #McAccount.
  * @req_data: a #McAccountChannelrequestData struct with the requested fields
  * set.
  * @user_action_time: the time at which user action occurred, or %0.
  * @handler: well-known name of the preferred handler, or %NULL.
+ * @flags: a combination of #McAccountChannelrequestFlags.
  * @callback: called when something happens to the request.
  * @user_data: user data to be passed to @callback.
  * @destroy: called with the user_data as argument, after the request has
@@ -220,6 +227,7 @@ guint
 mc_account_channelrequest (McAccount *account,
                            const McAccountChannelrequestData *req_data,
                            time_t user_action_time, const gchar *handler,
+                           McAccountChannelrequestFlags flags,
                            McAccountChannelrequestCb callback,
                            gpointer user_data, GDestroyNotify destroy,
                            GObject *weak_object)
@@ -282,8 +290,8 @@ mc_account_channelrequest (McAccount *account,
     }
 
     id = mc_account_channelrequest_ht (account, properties, user_action_time,
-                                        handler, callback, user_data, destroy,
-                                        weak_object);
+                                        handler, flags, callback, user_data,
+                                        destroy, weak_object);
     g_hash_table_destroy (properties);
     return id;
 }
@@ -294,6 +302,7 @@ mc_account_channelrequest (McAccount *account,
  * @properties: a #GHashTable with the requested channel properties.
  * @user_action_time: the time at which user action occurred, or %0.
  * @handler: well-known name of the preferred handler, or %NULL.
+ * @flags: a combination of #McAccountChannelrequestFlags.
  * @callback: called when something happens to the request.
  * @user_data: user data to be passed to @callback.
  * @destroy: called with the user_data as argument, after the request has
@@ -325,6 +334,7 @@ guint
 mc_account_channelrequest_ht (McAccount *account,
                               GHashTable *properties,
                               time_t user_action_time, const gchar *handler,
+                              McAccountChannelrequestFlags flags,
                               McAccountChannelrequestCb callback,
                               gpointer user_data, GDestroyNotify destroy,
                               GObject *weak_object)
@@ -356,13 +366,14 @@ mc_account_channelrequest_ht (McAccount *account,
         g_object_weak_ref (weak_object,
                            (GWeakNotify)on_weak_object_destroy, account);
     }
-    mc_cli_account_interface_channelrequests_call_create (account, -1,
-                                                          properties,
-                                                          user_action_time,
-                                                          handler,
-                                                          request_create_cb,
-                                                          req, NULL,
-                                                          NULL);
+    if (flags & MC_ACCOUNT_CR_FLAG_USE_EXISTING)
+        mc_cli_account_interface_channelrequests_call_ensure_channel
+            (account, -1, properties, user_action_time, handler,
+             request_create_cb, req, NULL, NULL);
+    else
+        mc_cli_account_interface_channelrequests_call_create
+            (account, -1, properties, user_action_time, handler,
+             request_create_cb, req, NULL, NULL);
 
     props->requests = g_list_prepend (props->requests, req);
     return GPOINTER_TO_UINT (req);
