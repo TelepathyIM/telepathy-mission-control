@@ -1250,6 +1250,29 @@ connect_cb (TpConnection *tp_conn, const GError *error,
 }
 
 static void
+request_unrequested_channels (McdConnection *connection)
+{
+    const GList *channels;
+
+    channels = mcd_operation_get_missions ((McdOperation *)connection);
+
+    g_debug ("%s called", G_STRFUNC);
+    /* go through the channels that were requested while the connection was not
+     * ready, and process them */
+    while (channels)
+    {
+	McdChannel *channel = MCD_CHANNEL (channels->data);
+
+        if (mcd_channel_get_status (channel) == MCD_CHANNEL_REQUEST)
+        {
+            g_debug ("Requesting channel %p", channel);
+            mcd_connection_request_channel (connection, channel, NULL);
+        }
+        channels = channels->next;
+    }
+}
+
+static void
 dispatch_undispatched_channels (McdConnection *connection)
 {
     McdConnectionPrivate *priv = connection->priv;
@@ -1458,6 +1481,9 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
         mcd_connection_setup_requests (connection);
     else
         dispatch_undispatched_channels (connection);
+
+    /* and request all channels */
+    request_unrequested_channels (connection);
 }
 
 static void
@@ -2185,6 +2211,18 @@ mcd_connection_request_channel (McdConnection *connection,
     g_return_val_if_fail (TP_IS_CONNECTION (priv->tp_conn), FALSE);
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), FALSE);
 
+    if (!mcd_mission_get_parent ((McdMission *)channel))
+        mcd_operation_take_mission (MCD_OPERATION (connection),
+                                    MCD_MISSION (channel));
+
+    if (!tp_connection_is_ready (priv->tp_conn))
+    {
+        /* don't request any channel until the connection is ready (because we
+         * don't know if the CM implements the Requests interface). The channel
+         * will be processed once the connection is ready */
+        return TRUE;
+    }
+
     /* We do not add the channel in connection until tp_channel is created */
     g_object_set_data (G_OBJECT (channel), "temporary_connection", connection);
 
@@ -2195,9 +2233,6 @@ mcd_connection_request_channel (McdConnection *connection,
     {
 	TpProxyPendingCall *call;
         const gchar *channel_type;
-
-        mcd_operation_take_mission (MCD_OPERATION (connection),
-                                    MCD_MISSION (channel));
 
         channel_type = mcd_channel_get_channel_type (channel);
 	call = tp_cli_connection_call_request_channel (priv->tp_conn, -1,
