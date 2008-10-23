@@ -678,11 +678,10 @@ _mcd_dispatcher_handle_channel_async_cb (DBusGProxy * proxy, GError * error,
 	mc_error = g_error_new (MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
 				"Handle channel failed: %s", error->message);
 
-        mcd_channel_set_status (channel, MCD_CHANNEL_FAILED);
+        _mcd_channel_set_error (channel, mc_error);
 	g_signal_emit_by_name (context->dispatcher, "dispatch-failed",
 			       channel, mc_error);
 	
-	g_error_free (mc_error);
 	g_error_free (error);
 	if (channel)
 	    mcd_mission_abort (MCD_MISSION (channel));
@@ -759,10 +758,9 @@ start_old_channel_handler (McdDispatcherContext *context)
 	mc_error = g_error_new (MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
 				"No handler for channel type %s",
 				mcd_channel_get_channel_type (channel));
-        mcd_channel_set_status (channel, MCD_CHANNEL_FAILED);
+        _mcd_channel_set_error (channel, mc_error);
 	g_signal_emit_by_name (context->dispatcher, "dispatch-failed", channel,
 			       mc_error);
-	g_error_free (mc_error);
         mcd_dispatcher_context_handler_done (context);
     }
     else
@@ -911,7 +909,7 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
         {
             McdChannel *channel = MCD_CHANNEL (list->data);
 
-            mcd_channel_set_status (channel, MCD_CHANNEL_FAILED);
+            _mcd_channel_set_error (channel, g_error_copy (mc_error));
             g_signal_emit_by_name (context->dispatcher, "dispatch-failed",
                                    channel, mc_error);
 
