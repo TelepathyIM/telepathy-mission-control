@@ -279,6 +279,14 @@ guint mc_account_channelrequest_ht (McAccount *account,
                                     GDestroyNotify destroy,
                                     GObject *weak_object);
 
+guint mc_account_channelrequest_add (McAccount *account,
+                                     const gchar *object_path,
+                                     GHashTable *properties,
+                                     McAccountChannelrequestCb callback,
+                                     gpointer user_data,
+                                     GDestroyNotify destroy,
+                                     GObject *weak_object);
+
 void mc_account_channelrequest_cancel (McAccount *account, guint request_id);
 const GError *mc_account_channelrequest_get_error (McAccount *account,
                                                    guint request_id);

@@ -172,6 +172,43 @@ _mc_account_channelrequests_props_free (McAccountChannelrequestsProps *props)
     g_slice_free (McAccountChannelrequestsProps, props);
 }
 
+static McChannelRequest *
+create_request_struct (McAccount *account,
+                       McAccountChannelrequestCb callback,
+                       gpointer user_data, GDestroyNotify destroy,
+                       GObject *weak_object)
+{
+    McAccountChannelrequestsProps *props;
+    McChannelRequest *req;
+
+    props = account->priv->request_props;
+    if (props == NULL)
+    {
+        account->priv->request_props = props =
+            g_slice_new0 (McAccountChannelrequestsProps);
+
+        mc_cli_account_interface_channelrequests_connect_to_failed (account,
+            on_request_failed, NULL, NULL, NULL, NULL);
+        mc_cli_account_interface_channelrequests_connect_to_succeeded (account,
+            on_request_succeeded, NULL, NULL, NULL, NULL);
+    }
+
+    req = g_slice_new0 (McChannelRequest);
+    req->account = account;
+    req->callback = callback;
+    req->user_data = user_data;
+    req->destroy = destroy;
+    if (weak_object)
+    {
+        req->weak_object = weak_object;
+        g_object_weak_ref (weak_object,
+                           (GWeakNotify)on_weak_object_destroy, account);
+    }
+
+    props->requests = g_list_prepend (props->requests, req);
+    return req;
+}
+
 void
 _mc_account_channelrequests_class_init (McAccountClass *klass)
 {
@@ -339,33 +376,12 @@ mc_account_channelrequest_ht (McAccount *account,
                               gpointer user_data, GDestroyNotify destroy,
                               GObject *weak_object)
 {
-    McAccountChannelrequestsProps *props;
     McChannelRequest *req;
 
     g_return_val_if_fail (MC_IS_ACCOUNT (account), 0);
-    props = account->priv->request_props;
-    if (props == NULL)
-    {
-        account->priv->request_props = props =
-            g_slice_new0 (McAccountChannelrequestsProps);
+    req = create_request_struct (account, callback, user_data, destroy,
+                                 weak_object);
 
-        mc_cli_account_interface_channelrequests_connect_to_failed (account,
-            on_request_failed, NULL, NULL, NULL, NULL);
-        mc_cli_account_interface_channelrequests_connect_to_succeeded (account,
-            on_request_succeeded, NULL, NULL, NULL, NULL);
-    }
-
-    req = g_slice_new0 (McChannelRequest);
-    req->account = account;
-    req->callback = callback;
-    req->user_data = user_data;
-    req->destroy = destroy;
-    if (weak_object)
-    {
-        req->weak_object = weak_object;
-        g_object_weak_ref (weak_object,
-                           (GWeakNotify)on_weak_object_destroy, account);
-    }
     if (flags & MC_ACCOUNT_CR_FLAG_USE_EXISTING)
         mc_cli_account_interface_channelrequests_call_ensure_channel
             (account, -1, properties, user_action_time, handler,
@@ -375,7 +391,62 @@ mc_account_channelrequest_ht (McAccount *account,
             (account, -1, properties, user_action_time, handler,
              request_create_cb, req, NULL, NULL);
 
-    props->requests = g_list_prepend (props->requests, req);
+    return GPOINTER_TO_UINT (req);
+}
+
+/**
+ * mc_account_channelrequest_add:
+ * @account: the #McAccount.
+ * @object_path: the D-Bus object path of a channel request.
+ * @properties: a D-Bus a{sv} of properties.
+ * @callback: called when something happens to the request.
+ * @user_data: user data to be passed to @callback.
+ * @destroy: called with the user_data as argument, after the request has
+ * succeeded, failed or been cancelled.
+ * @weak_object: If not %NULL, a #GObject which will be weakly referenced; if
+ * it is destroyed, this call will automatically be cancelled.
+ *
+ * This function adds an existing request, created from another process and
+ * described by @object_path and @properties, to those to be monitored.
+ *
+ * Returns: the unique ID of the channel request, or %0 if the request was
+ * already being monitored by another callback.
+ */
+guint
+mc_account_channelrequest_add (McAccount *account, const gchar *object_path,
+                               GHashTable *properties,
+                               McAccountChannelrequestCb callback,
+                               gpointer user_data, GDestroyNotify destroy,
+                               GObject *weak_object)
+{
+    McChannelRequest *req;
+    guint id;
+
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), 0);
+
+    /* check whether this request is already monitored by us */
+    id = mc_account_channelrequest_get_from_path (account, object_path);
+    if (id != 0)
+    {
+        req = GUINT_TO_POINTER (id);
+        /* either we properly invoke this callback too, or we must return an
+         * error to inform that it will not be called */
+        if (callback != NULL &&
+            (callback != req->callback || user_data != req->user_data ||
+             destroy != req->destroy))
+        {
+            g_warning ("%s: request %s is already monitored", G_STRFUNC,
+                       object_path);
+            return 0;
+        }
+        return id;
+    }
+
+    req = create_request_struct (account, callback, user_data, destroy,
+                                 weak_object);
+    req->request_path = g_strdup (object_path);
+    /* at the moment there isn't even a method for retrieving the properties,
+     * so let's ignore them */
     return GPOINTER_TO_UINT (req);
 }
 
