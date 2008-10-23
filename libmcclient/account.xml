@@ -4,6 +4,7 @@
 
 <xi:include href="../xml/Account.xml"/>
 <xi:include href="../xml/Account_Interface_Avatar.xml"/>
+<xi:include href="../xml/Account_Interface_ChannelRequests.xml"/>
 <xi:include href="../xml/Account_Interface_Compat.xml"/>
 <xi:include href="../xml/Account_Interface_Conditions.xml"/>
 

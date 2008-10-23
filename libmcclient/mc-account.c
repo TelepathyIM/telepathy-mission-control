@@ -160,6 +160,8 @@ mc_account_init (McAccount *account)
     tp_proxy_add_interface_by_id ((TpProxy *)account,
 				  MC_IFACE_QUARK_ACCOUNT_INTERFACE_AVATAR);
     tp_proxy_add_interface_by_id ((TpProxy *)account,
+        MC_IFACE_QUARK_ACCOUNT_INTERFACE_CHANNELREQUESTS);
+    tp_proxy_add_interface_by_id ((TpProxy *)account,
 				  MC_IFACE_QUARK_ACCOUNT_INTERFACE_COMPAT);
     tp_proxy_add_interface_by_id ((TpProxy *)account,
 				  MC_IFACE_QUARK_ACCOUNT_INTERFACE_CONDITIONS);
@@ -214,6 +216,9 @@ finalize (GObject *object)
 
     if (account->priv->avatar_props)
 	_mc_account_avatar_props_free (account->priv->avatar_props);
+
+    if (account->priv->request_props)
+	_mc_account_channelrequests_props_free (account->priv->request_props);
 
     if (account->priv->compat_props)
 	_mc_account_compat_props_free (account->priv->compat_props);

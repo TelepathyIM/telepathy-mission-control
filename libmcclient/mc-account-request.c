@@ -27,8 +27,156 @@
 #include "mc-account.h"
 #include "mc-account-priv.h"
 #include "dbus-api.h"
+#include "mc-errors.h"
 
 #include <telepathy-glib/interfaces.h>
+
+struct _McAccountChannelrequestsProps {
+    GList *requests;
+};
+
+typedef struct
+{
+    McAccount *account;
+    gchar *request_path;
+    GError *error;
+
+    /* caller data */
+    McAccountChannelRequestCb callback;
+    gpointer user_data;
+    GDestroyNotify destroy;
+    GObject *weak_object;
+} McChannelRequest;
+
+
+static void mc_request_free (McChannelRequest *req);
+
+static void
+on_weak_object_destroy (McAccount *account, GObject *weak_object)
+{
+    McAccountChannelrequestsProps *props;
+    GList *list;
+
+    g_return_if_fail (MC_IS_ACCOUNT (account));
+
+    props = account->priv->request_props;
+    g_return_if_fail (props != NULL);
+
+    /* look for this request */
+    for (list = props->requests; list != NULL; list = list->next)
+    {
+        McChannelRequest *req = list->data;
+
+        if (req->weak_object == weak_object)
+        {
+            props->requests = g_list_delete_link (props->requests, list);
+            req->weak_object = NULL;
+            mc_request_free (req);
+            break;
+        }
+    }
+}
+
+static void
+mc_request_free (McChannelRequest *req)
+{
+    if (req->weak_object)
+        g_object_weak_unref (req->weak_object,
+                             (GWeakNotify)on_weak_object_destroy,
+                             req->account);
+    if (req->destroy)
+        req->destroy (req->user_data);
+    g_free (req->request_path);
+    if (req->error)
+        g_error_free (req->error);
+    g_slice_free (McChannelRequest, req);
+}
+
+static void
+emit_request_event (McChannelRequest *req, McAccountChannelRequestEvent event)
+{
+    if (req->callback)
+        req->callback (req->account, GPOINTER_TO_UINT (req), event,
+                       req->user_data, req->weak_object);
+
+    if (event == MC_ACCOUNT_CR_SUCCEEDED ||
+        event == MC_ACCOUNT_CR_FAILED ||
+        event == MC_ACCOUNT_CR_CANCELLED)
+    {
+        /* the request does no longer exist */
+        mc_request_free (req);
+    }
+}
+
+static void
+request_create_cb (TpProxy *proxy, const gchar *request_path,
+                   const GError *error, gpointer user_data,
+                   GObject *weak_object)
+{
+    McChannelRequest *req = user_data;
+
+    if (error)
+    {
+        /* the request hasn't even been created */
+        req->error = g_error_copy (error);
+        emit_request_event (req, MC_ACCOUNT_CR_FAILED);
+        return;
+    }
+    g_debug ("%s called with %s", G_STRFUNC, request_path);
+    req->request_path = g_strdup (request_path);
+}
+
+static void
+on_request_failed (TpProxy *proxy, const gchar *request_path,
+                   const gchar *error_name, const gchar *error_message,
+                   gpointer user_data, GObject *weak_object)
+{
+    McChannelRequest *req;
+
+    g_debug ("%s called for %s", G_STRFUNC, request_path);
+    req = GUINT_TO_POINTER (mc_account_channel_request_get_from_path
+                            (MC_ACCOUNT (proxy), request_path));
+    if (!req) /* not our request, ignore it */
+        return;
+
+    /* FIXME: map the error properly */
+    req->error = g_error_new (MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
+                              error_message);
+    emit_request_event (req, MC_ACCOUNT_CR_FAILED);
+}
+
+static void
+on_request_succeeded (TpProxy *proxy, const gchar *request_path,
+                      gpointer user_data, GObject *weak_object)
+{
+    McChannelRequest *req;
+
+    g_debug ("%s called for %s", G_STRFUNC, request_path);
+    req = GUINT_TO_POINTER (mc_account_channel_request_get_from_path
+                            (MC_ACCOUNT (proxy), request_path));
+    if (!req) /* not our request, ignore it */
+        return;
+
+    emit_request_event (req, MC_ACCOUNT_CR_SUCCEEDED);
+}
+
+void
+_mc_account_channelrequests_props_free (McAccountChannelrequestsProps *props)
+{
+    GList *list;
+
+    for (list = props->requests; list != NULL; list = list->next)
+        mc_request_free (list->data);
+
+    g_list_free (props->requests);
+    g_slice_free (McAccountChannelrequestsProps, props);
+}
+
+void
+_mc_account_channelrequests_class_init (McAccountClass *klass)
+{
+    /* nothing here, as we don't have any properties on the interface */
+}
 
 /**
  * McAccountChannelRequestCb:
@@ -108,7 +256,7 @@ mc_account_channel_request (McAccount *account,
                           MC_ACCOUNT_CRD_GET (req_data, target_handle));
         g_hash_table_insert (properties,
                              TP_IFACE_CHANNEL ".TargetHandle",
-                             &v_channel_type);
+                             &v_target_handle);
     }
 
     if (MC_ACCOUNT_CRD_IS_SET (req_data, target_handle_type))
@@ -119,7 +267,7 @@ mc_account_channel_request (McAccount *account,
                           MC_ACCOUNT_CRD_GET (req_data, target_handle_type));
         g_hash_table_insert (properties,
                              TP_IFACE_CHANNEL ".TargetHandleType",
-                             &v_channel_type);
+                             &v_target_handle_type);
     }
 
     if (MC_ACCOUNT_CRD_IS_SET (req_data, target_id))
@@ -181,8 +329,43 @@ mc_account_channel_request_ht (McAccount *account,
                                gpointer user_data, GDestroyNotify destroy,
                                GObject *weak_object)
 {
-    g_warning ("%s is not implemented yet", G_STRFUNC);
-    return 0;
+    McAccountChannelrequestsProps *props;
+    McChannelRequest *req;
+
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), 0);
+    props = account->priv->request_props;
+    if (props == NULL)
+    {
+        account->priv->request_props = props =
+            g_slice_new0 (McAccountChannelrequestsProps);
+
+        mc_cli_account_interface_channelrequests_connect_to_failed (account,
+            on_request_failed, NULL, NULL, NULL, NULL);
+        mc_cli_account_interface_channelrequests_connect_to_succeeded (account,
+            on_request_succeeded, NULL, NULL, NULL, NULL);
+    }
+
+    req = g_slice_new0 (McChannelRequest);
+    req->account = account;
+    req->callback = callback;
+    req->user_data = user_data;
+    req->destroy = destroy;
+    if (weak_object)
+    {
+        req->weak_object = weak_object;
+        g_object_weak_ref (weak_object,
+                           (GWeakNotify)on_weak_object_destroy, account);
+    }
+    mc_cli_account_interface_channelrequests_call_create (account, -1,
+                                                          properties,
+                                                          user_action_time,
+                                                          handler,
+                                                          request_create_cb,
+                                                          req, NULL,
+                                                          NULL);
+
+    props->requests = g_list_prepend (props->requests, req);
+    return GPOINTER_TO_UINT (req);
 }
 
 /**
@@ -211,8 +394,12 @@ mc_account_channel_request_cancel (McAccount *account, guint request_id)
 const GError *
 mc_account_channel_request_get_error (McAccount *account, guint request_id)
 {
-    g_warning ("%s is not implemented yet", G_STRFUNC);
-    return NULL;
+    McChannelRequest *req;
+
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
+    g_return_val_if_fail (request_id != 0, NULL);
+    req = GUINT_TO_POINTER (request_id);
+    return req->error;
 }
 
 /**
@@ -230,8 +417,12 @@ mc_account_channel_request_get_error (McAccount *account, guint request_id)
 const gchar *
 mc_account_channel_request_get_path (McAccount *account, guint request_id)
 {
-    g_warning ("%s is not implemented yet", G_STRFUNC);
-    return NULL;
+    McChannelRequest *req;
+
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
+    g_return_val_if_fail (request_id != 0, NULL);
+    req = GUINT_TO_POINTER (request_id);
+    return req->request_path;
 }
 
 /**
@@ -248,7 +439,21 @@ guint
 mc_account_channel_request_get_from_path (McAccount *account,
                                           const gchar *object_path)
 {
-    g_warning ("%s is not implemented yet", G_STRFUNC);
+    McAccountChannelrequestsProps *props;
+    GList *list;
+
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), 0);
+    g_return_val_if_fail (object_path != NULL, 0);
+    props = account->priv->request_props;
+    if (!props) return 0;
+
+    for (list = props->requests; list != NULL; list = list->next)
+    {
+        McChannelRequest *req = list->data;
+
+        if (req->request_path && strcmp (req->request_path, object_path) == 0)
+            return GPOINTER_TO_UINT (req);
+    }
     return 0;
 }
 

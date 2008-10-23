@@ -44,18 +44,24 @@ extern guint _mc_account_signals[LAST_SIGNAL];
 
 typedef struct _McAccountProps McAccountProps;
 typedef struct _McAccountAvatarProps McAccountAvatarProps;
+typedef struct _McAccountChannelrequestsProps McAccountChannelrequestsProps;
 typedef struct _McAccountCompatProps McAccountCompatProps;
 typedef struct _McAccountConditionsProps McAccountConditionsProps;
 
 struct _McAccountPrivate {
     McAccountProps *props;
     McAccountAvatarProps *avatar_props;
+    McAccountChannelrequestsProps *request_props;
     McAccountCompatProps *compat_props;
     McAccountConditionsProps *conditions_props;
 };
 
 void _mc_account_avatar_props_free (McAccountAvatarProps *props);
 void _mc_account_avatar_class_init (McAccountClass *klass);
+
+void _mc_account_channelrequests_props_free
+    (McAccountChannelrequestsProps *props);
+void _mc_account_channelrequests_class_init (McAccountClass *klass);
 
 void _mc_account_compat_props_free (McAccountCompatProps *props);
 void _mc_account_compat_class_init (McAccountClass *klass);
