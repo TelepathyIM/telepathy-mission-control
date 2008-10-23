@@ -525,6 +525,133 @@ mc-account
 @Returns: 
 
 
+<!-- ##### STRUCT McAccountChannelrequestData ##### -->
+<para>
+
+</para>
+
+@_mask: 
+@fld_channel_type: 
+@fld_target_handle: 
+@fld_target_handle_type: 
+@fld_target_id: 
+
+<!-- ##### ENUM McAccountChannelrequestEvent ##### -->
+<para>
+
+</para>
+
+@MC_ACCOUNT_CR_SUCCEEDED: 
+@MC_ACCOUNT_CR_FAILED: 
+@MC_ACCOUNT_CR_CANCELLED: 
+
+<!-- ##### USER_FUNCTION McAccountChannelrequestCb ##### -->
+<para>
+
+</para>
+
+@account: 
+@request_id: 
+@event: 
+@user_data: 
+@weak_object: 
+
+
+<!-- ##### ENUM McAccountChannelrequestFlags ##### -->
+<para>
+
+</para>
+
+@MC_ACCOUNT_CR_FLAG_USE_EXISTING: 
+
+<!-- ##### FUNCTION mc_account_channelrequest ##### -->
+<para>
+
+</para>
+
+@account: 
+@req_data: 
+@user_action_time: 
+@handler: 
+@flags: 
+@callback: 
+@user_data: 
+@destroy: 
+@weak_object: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_account_channelrequest_ht ##### -->
+<para>
+
+</para>
+
+@account: 
+@properties: 
+@user_action_time: 
+@handler: 
+@flags: 
+@callback: 
+@user_data: 
+@destroy: 
+@weak_object: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_account_channelrequest_add ##### -->
+<para>
+
+</para>
+
+@account: 
+@object_path: 
+@properties: 
+@callback: 
+@user_data: 
+@destroy: 
+@weak_object: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_account_channelrequest_cancel ##### -->
+<para>
+
+</para>
+
+@account: 
+@request_id: 
+
+
+<!-- ##### FUNCTION mc_account_channelrequest_get_error ##### -->
+<para>
+
+</para>
+
+@account: 
+@request_id: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_account_channelrequest_get_path ##### -->
+<para>
+
+</para>
+
+@account: 
+@request_id: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_account_channelrequest_get_from_path ##### -->
+<para>
+
+</para>
+
+@account: 
+@object_path: 
+@Returns: 
+
+
 <!-- ##### USER_FUNCTION mc_cli_account_signal_callback_removed ##### -->
 <para>
 
