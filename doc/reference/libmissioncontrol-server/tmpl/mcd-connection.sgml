@@ -90,7 +90,7 @@ McdConnection
 </para>
 
 @connection: 
-@req: 
+@channel: 
 @error: 
 @Returns: 
 

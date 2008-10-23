@@ -39,6 +39,14 @@ McdDispatcher
 @mcddispatcher: the object which received the signal.
 @arg1: 
 
+<!-- ##### SIGNAL McdDispatcher::dispatch-completed ##### -->
+<para>
+
+</para>
+
+@mcddispatcher: the object which received the signal.
+@arg1: 
+
 <!-- ##### SIGNAL McdDispatcher::dispatch-failed ##### -->
 <para>
 
@@ -66,12 +74,6 @@ McdDispatcher
 
 </para>
 
-<!-- ##### STRUCT McdDispatcherStatus ##### -->
-<para>
-
-</para>
-
-
 <!-- ##### FUNCTION mcd_dispatcher_new ##### -->
 <para>
 
@@ -83,16 +85,6 @@ McdDispatcher
 
 
 <!-- ##### FUNCTION mcd_dispatcher_send ##### -->
-<para>
-
-</para>
-
-@dispatcher: 
-@channel: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_dispatcher_get_status ##### -->
 <para>
 
 </para>
