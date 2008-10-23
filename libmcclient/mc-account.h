@@ -220,7 +220,7 @@ typedef struct {
     GQuark fld_channel_type;
     guint fld_target_handle;
     TpHandleType fld_target_handle_type;
-    gchar *fld_target_id;
+    const gchar *fld_target_id;
 } McAccountChannelRequestData;
 
 enum

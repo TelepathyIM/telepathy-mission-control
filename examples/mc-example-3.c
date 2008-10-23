@@ -109,7 +109,7 @@ request_channel (McAccount *account, GQuark type, const gchar *contact)
 
     MC_ACCOUNT_CRD_INIT (&req);
     MC_ACCOUNT_CRD_SET (&req, channel_type, type);
-    MC_ACCOUNT_CRD_SET (&req, target_id, (gchar *)contact);
+    MC_ACCOUNT_CRD_SET (&req, target_id, contact);
     MC_ACCOUNT_CRD_SET (&req, target_handle_type, TP_HANDLE_TYPE_CONTACT);
     id = mc_account_channel_request (account, &req, time(0),
 				     NULL,
