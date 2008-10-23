@@ -698,7 +698,7 @@ on_capabilities_timeout (McdConnection *connection)
 
 	list_curr = list;
 	list = list->next;
-        if (mcd_channel_get_status (channel) == MCD_CHANNEL_NO_PROXY &&
+        if (mcd_channel_get_status (channel) == MCD_CHANNEL_REQUEST &&
             on_channel_capabilities_timeout (channel, connection))
 	{
             mcd_mission_abort ((McdMission *)channel);

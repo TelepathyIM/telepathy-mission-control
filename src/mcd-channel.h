@@ -49,7 +49,7 @@ typedef enum
 {
     MCD_CHANNEL_UNDISPATCHED, /* used for channels created in the NewChannel
                                  signal before the connection is ready */
-    MCD_CHANNEL_NO_PROXY,     /* Telepathy channel is not yet created */
+    MCD_CHANNEL_REQUEST,      /* Telepathy channel is not yet created */
     MCD_CHANNEL_DISPATCHING, /* Telepathy channel is created and waiting dispatch */
     MCD_CHANNEL_DISPATCHED,  /* Channel has been dispatched to handler */
     MCD_CHANNEL_FAILED,      /* Channel creation failed, or channel could not

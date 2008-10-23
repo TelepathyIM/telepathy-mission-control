@@ -719,7 +719,7 @@ mcd_channel_class_init (McdChannelClass * klass)
 							_("Channel status"),
 							_("Channel status that indicates the state of channel"),
 							MCD_TYPE_CHANNEL_STATUS,
-							MCD_CHANNEL_NO_PROXY,
+							MCD_CHANNEL_REQUEST,
 							G_PARAM_READWRITE));
     g_object_class_install_property (object_class, PROP_CHANNEL_TYPE,
 				     g_param_spec_string ("channel-type",
@@ -1264,7 +1264,7 @@ mcd_channel_new_request (GHashTable *properties, guint64 user_time,
     g_object_set_data_full ((GObject *)channel, CD_REQUEST,
                             crd, (GDestroyNotify)channel_request_data_free);
 
-    mcd_channel_set_status (channel, MCD_CHANNEL_NO_PROXY);
+    mcd_channel_set_status (channel, MCD_CHANNEL_REQUEST);
 
     return channel;
 }
