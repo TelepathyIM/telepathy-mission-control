@@ -2058,10 +2058,21 @@ mcd_account_check_validity (McdAccount *account)
     return valid;
 }
 
+/*
+ * mcd_account_request_connection:
+ * @account: the #McdAccount.
+ *
+ * Request the account to go online. If an automatic presence is specified, set
+ * it.
+ */
 static void
-mcd_account_request_automatic_presence (McdAccount *account)
+mcd_account_request_connection (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
+
+    if (!priv->connection)
+        mcd_account_connection_begin (account);
+
     if (priv->auto_presence_type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
 	mcd_account_request_presence_int (account,
 					  priv->auto_presence_type,
@@ -2102,7 +2113,7 @@ _mcd_account_online_request (McdAccount *account,
     {
 	/* listen to the StatusChanged signal */
        	if (priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED)
-	    mcd_account_request_automatic_presence (account);
+            mcd_account_request_connection (account);
 	if (!priv->connection)
 	{
 	    g_set_error (imm_error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
