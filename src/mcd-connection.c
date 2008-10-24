@@ -55,6 +55,7 @@
 #include "mcd-connection.h"
 #include "mcd-channel.h"
 #include "mcd-provisioning-factory.h"
+#include "mcd-misc.h"
 
 #define MAX_REF_PRESENCE 4
 #define LAST_MC_PRESENCE (TP_CONNECTION_PRESENCE_TYPE_BUSY + 1)
@@ -2199,28 +2200,60 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
     mcd_connection_request_channel (connection, channel);
 }
 
-gboolean
-mcd_connection_request_channel (McdConnection *connection,
-                                McdChannel *channel)
+static void
+create_channel_cb (TpConnection *proxy, const gchar *channel_path,
+                   GHashTable *properties, const GError *error,
+                   gpointer user_data, GObject *weak_object)
+{
+    McdChannel *channel = MCD_CHANNEL (weak_object);
+    McdConnection *connection = user_data;
+    McdConnectionPrivate *priv = connection->priv;
+
+    if (error != NULL)
+    {
+        GError *mc_error;
+
+        /* No special handling of "no capabilities" error: being confident that
+         * https://bugs.freedesktop.org/show_bug.cgi?id=15769 will be fixed
+         * soon :-) */
+        g_debug ("%s: Got error: %s", G_STRFUNC, error->message);
+        mc_error = map_tp_error_to_mc_error (channel, error);
+        _mcd_channel_set_error (channel, mc_error);
+        mcd_mission_abort ((McdMission *)channel);
+        return;
+    }
+
+    _mcd_channel_set_immutable_properties (channel,
+                                           _mcd_deepcopy_asv (properties));
+    /* Everything here is well and fine. We can create the channel. */
+    if (!mcd_channel_set_object_path (channel, priv->tp_conn, channel_path))
+    {
+        mcd_mission_abort ((McdMission *)channel);
+        return;
+    }
+
+    /* Dispatch the incoming channel */
+    mcd_dispatcher_send (priv->dispatcher, channel);
+}
+
+static gboolean
+request_channel_new_iface (McdConnection *connection, McdChannel *channel)
+{
+    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
+    GHashTable *properties;
+
+    properties = _mcd_channel_get_requested_properties (channel);
+    tp_cli_connection_interface_requests_call_create_channel
+        (priv->tp_conn, -1, properties, create_channel_cb, connection, NULL,
+         (GObject *)channel);
+    return TRUE;
+}
+
+static gboolean
+request_channel_old_iface (McdConnection *connection, McdChannel *channel)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
     guint channel_handle, channel_handle_type;
-
-    g_return_val_if_fail (priv->tp_conn != NULL, FALSE);
-    g_return_val_if_fail (TP_IS_CONNECTION (priv->tp_conn), FALSE);
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), FALSE);
-
-    if (!mcd_mission_get_parent ((McdMission *)channel))
-        mcd_operation_take_mission (MCD_OPERATION (connection),
-                                    MCD_MISSION (channel));
-
-    if (!tp_connection_is_ready (priv->tp_conn))
-    {
-        /* don't request any channel until the connection is ready (because we
-         * don't know if the CM implements the Requests interface). The channel
-         * will be processed once the connection is ready */
-        return TRUE;
-    }
 
     channel_handle_type = mcd_channel_get_handle_type (channel);
     channel_handle = mcd_channel_get_handle (channel);
@@ -2264,6 +2297,34 @@ mcd_connection_request_channel (McdConnection *connection,
 						(GObject *)channel);
     }
     return TRUE;
+}
+
+gboolean
+mcd_connection_request_channel (McdConnection *connection,
+                                McdChannel *channel)
+{
+    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
+
+    g_return_val_if_fail (priv->tp_conn != NULL, FALSE);
+    g_return_val_if_fail (TP_IS_CONNECTION (priv->tp_conn), FALSE);
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), FALSE);
+
+    if (!mcd_mission_get_parent ((McdMission *)channel))
+        mcd_operation_take_mission (MCD_OPERATION (connection),
+                                    MCD_MISSION (channel));
+
+    if (!tp_connection_is_ready (priv->tp_conn))
+    {
+        /* don't request any channel until the connection is ready (because we
+         * don't know if the CM implements the Requests interface). The channel
+         * will be processed once the connection is ready */
+        return TRUE;
+    }
+
+    if (priv->has_requests_if)
+        return request_channel_new_iface (connection, channel);
+    else
+        return request_channel_old_iface (connection, channel);
 }
 
 gboolean

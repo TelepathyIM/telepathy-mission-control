@@ -1269,3 +1269,20 @@ mcd_channel_new_request (GHashTable *properties, guint64 user_time,
     return channel;
 }
 
+/*
+ * _mcd_channel_get_requested_properties:
+ * @channel: the #McdChannel.
+ *
+ * Returns: #GHashTable of requested properties.
+ */
+GHashTable *
+_mcd_channel_get_requested_properties (McdChannel *channel)
+{
+    McdChannelRequestData *crd;
+
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
+    crd = g_object_get_data ((GObject *)channel, CD_REQUEST);
+    if (G_UNLIKELY (!crd)) return NULL;
+    return crd->properties;
+}
+
