@@ -1097,7 +1097,7 @@ _mcd_channel_set_immutable_properties (McdChannel *channel,
                                        GHashTable *properties)
 {
     g_object_set_data_full ((GObject *)channel, CD_IMMUTABLE_PROPERTIES,
-                            properties, (GDestroyNotify)g_hash_table_destroy);
+                            properties, (GDestroyNotify)g_hash_table_unref);
 }
 
 /*
