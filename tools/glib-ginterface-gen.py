@@ -37,7 +37,7 @@ class Generator(object):
 
     def __init__(self, dom, prefix, basename, signal_marshal_prefix,
                  headers, end_headers, not_implemented_func,
-                 allow_havoc):
+                 allow_havoc, write_properties):
         self.dom = dom
         self.__header = []
         self.__body = []
@@ -71,6 +71,7 @@ class Generator(object):
         self.end_headers = end_headers
         self.not_implemented_func = not_implemented_func
         self.allow_havoc = allow_havoc
+        self.write_properties = write_properties
 
     def h(self, s):
         self.__header.append(s)
@@ -89,7 +90,11 @@ class Generator(object):
         interface = interfaces[0]
         self.iface_name = interface.getAttribute('name')
 
-        tmp = node.getAttribute('causes-havoc')
+        tmp = interface.getAttribute('tp:implement-service')
+        if tmp == "no":
+            return
+
+        tmp = interface.getAttribute('tp:causes-havoc')
         if tmp and not self.allow_havoc:
             raise AssertionError('%s is %s' % (self.iface_name, tmp))
 
@@ -99,6 +104,9 @@ class Generator(object):
 
         methods = interface.getElementsByTagName('method')
         signals = interface.getElementsByTagName('signal')
+        properties = interface.getElementsByTagName('property')
+        # Don't put properties in dbus-glib glue
+        glue_properties = []
 
         self.b('struct _%s%sClass {' % (self.Prefix, node_name_mixed))
         self.b('    GTypeInterface parent_class;')
@@ -196,23 +204,70 @@ class Generator(object):
         for signal in signals:
             base_init_code.extend(self.do_signal(signal))
 
-        self.b('static void')
-        self.b('%s%s_base_init (gpointer klass)'
+        self.b('static inline void')
+        self.b('%s%s_base_init_once (gpointer klass G_GNUC_UNUSED)'
                % (self.prefix_, node_name_lc))
         self.b('{')
-        self.b('  static gboolean initialized = FALSE;')
-        self.b('')
-        self.b('  if (initialized)')
-        self.b('    return;')
-        self.b('')
-        self.b('  initialized = TRUE;')
-        self.b('')
+        if self.write_properties:
+            self.b('  static TpDBusPropertiesMixinPropInfo properties[%d] = {'
+                   % (len(properties) + 1))
+
+            for m in properties:
+                access = m.getAttribute('access')
+                assert access in ('read', 'write', 'readwrite')
+
+                if access == 'read':
+                    flags = 'TP_DBUS_PROPERTIES_MIXIN_FLAG_READ'
+                elif access == 'write':
+                    flags = 'TP_DBUS_PROPERTIES_MIXIN_FLAG_WRITE'
+                else:
+                    flags = ('TP_DBUS_PROPERTIES_MIXIN_FLAG_READ | '
+                             'TP_DBUS_PROPERTIES_MIXIN_FLAG_WRITE')
+
+                self.b('      { 0, %s, "%s", 0, NULL, NULL }, /* %s */'
+                       % (flags, m.getAttribute('type'),
+                          m.getAttribute('name')))
+
+            self.b('      { 0, 0, NULL, 0, NULL, NULL }')
+            self.b('  };')
+            self.b('  static TpDBusPropertiesMixinIfaceInfo interface =')
+            self.b('      { 0, properties, NULL, NULL };')
+            self.b('')
+            self.b('  interface.dbus_interface = g_quark_from_static_string '
+                   '("%s");' % self.iface_name)
+
+            for i, m in enumerate(properties):
+                self.b('  properties[%d].name = g_quark_from_static_string '
+                       '("%s");' % (i, m.getAttribute('name')))
+                self.b('  properties[%d].type = %s;'
+                       % (i, type_to_gtype(m.getAttribute('type'))[1]))
+
+            self.b('  tp_svc_interface_set_dbus_properties_info (%s, '
+                   '&interface);' % self.current_gtype)
+
+            self.b('')
+
         for s in base_init_code:
             self.b(s)
         self.b('  dbus_g_object_type_install_info (%s%s_get_type (),'
                % (self.prefix_, node_name_lc))
         self.b('      &_%s%s_object_info);'
                % (self.prefix_, node_name_lc))
+        self.b('}')
+
+        self.b('static void')
+        self.b('%s%s_base_init (gpointer klass)'
+               % (self.prefix_, node_name_lc))
+        self.b('{')
+        self.b('  static gboolean initialized = FALSE;')
+        self.b('')
+        self.b('  if (!initialized)')
+        self.b('    {')
+        self.b('      initialized = TRUE;')
+        self.b('      %s%s_base_init_once (klass);'
+               % (self.prefix_, node_name_lc))
+        self.b('    }')
+        # insert anything we need to do per implementation here
         self.b('}')
 
         self.h('')
@@ -235,7 +290,10 @@ class Generator(object):
         self.b('  %d,' % len(methods))
         self.b('"' + method_blob.replace('\0', '\\0') + '",')
         self.b('"' + self.get_signal_glue(signals).replace('\0', '\\0') + '",')
-        self.b('"\\0"')
+        if self.write_properties:
+            self.b('"' +
+                   self.get_property_glue(glue_properties).replace('\0', '\\0')
+                   + '",')
         self.b('};')
         self.b('')
 
@@ -298,6 +356,9 @@ class Generator(object):
             info.append(signal.getAttribute('name'))
 
         return '\0'.join(info) + '\0\0'
+
+    # the implementation can be the same
+    get_property_glue = get_signal_glue
 
     def get_method_impl_names(self, method):
         dbus_method_name = method.getAttribute('name')
@@ -532,10 +593,21 @@ class Generator(object):
         self.b('}')
         self.b('')
 
+        signal_name = dbus_gutils_wincaps_to_uscore(dbus_name).replace('_',
+                '-')
+        in_base_init.append('  /**')
+        in_base_init.append('   * %s%s::%s:'
+                % (self.Prefix, self.node_name_mixed, signal_name))
+        for (ctype, name, gtype) in args:
+            in_base_init.append('   * @%s: %s (FIXME, generate documentation)'
+                   % (name, ctype))
+        in_base_init.append('   *')
+        in_base_init.append('   * The %s D-Bus signal is emitted whenever '
+                'this GObject signal is.' % dbus_name)
+        in_base_init.append('   */')
         in_base_init.append('  %s_signals[%s] ='
                             % (self.node_name_lc, const_name))
-        in_base_init.append('  g_signal_new ("%s",'
-                % (dbus_gutils_wincaps_to_uscore(dbus_name).replace('_', '-')))
+        in_base_init.append('  g_signal_new ("%s",' % signal_name)
         in_base_init.append('      G_OBJECT_CLASS_TYPE (klass),')
         in_base_init.append('      G_SIGNAL_RUN_LAST|G_SIGNAL_DETAILED,')
         in_base_init.append('      0,')
@@ -552,6 +624,8 @@ class Generator(object):
     def __call__(self):
         self.h('#include <glib-object.h>')
         self.h('#include <dbus/dbus-glib.h>')
+        if self.write_properties:
+            self.h('#include <telepathy-glib/dbus-properties-mixin.h>')
         self.h('')
         self.h('G_BEGIN_DECLS')
         self.h('')
@@ -613,7 +687,8 @@ if __name__ == '__main__':
                                ['filename=', 'signal-marshal-prefix=',
                                 'include=', 'include-end=',
                                 'allow-unstable',
-                                'not-implemented-func='])
+                                'not-implemented-func=',
+                                'no-properties'])
 
     try:
         prefix = argv[1]
@@ -626,6 +701,7 @@ if __name__ == '__main__':
     end_headers = []
     not_implemented_func = ''
     allow_havoc = False
+    write_properties = True
 
     for option, value in options:
         if option == '--filename':
@@ -644,6 +720,8 @@ if __name__ == '__main__':
             not_implemented_func = value
         elif option == '--allow-unstable':
             allow_havoc = True
+        elif option == '--no-properties':
+            write_properties = False
 
     try:
         dom = xml.dom.minidom.parse(argv[0])
@@ -651,4 +729,5 @@ if __name__ == '__main__':
         cmdline_error()
 
     Generator(dom, prefix, basename, signal_marshal_prefix, headers,
-              end_headers, not_implemented_func, allow_havoc)()
+              end_headers, not_implemented_func, allow_havoc,
+              write_properties)()
