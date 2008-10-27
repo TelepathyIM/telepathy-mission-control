@@ -1160,6 +1160,20 @@ mcd_master_lookup_manager (McdMaster *master,
 }
 
 /**
+ * mcd_master_get_dispatcher:
+ * @master: the #McdMaster.
+ *
+ * Returns: the #McdDispatcher. It will go away when @master is disposed,
+ * unless you keep a reference to it.
+ */
+McdDispatcher *
+mcd_master_get_dispatcher (McdMaster *master)
+{
+    g_return_val_if_fail (MCD_IS_MASTER (master), NULL);
+    return MCD_MASTER_PRIV (master)->dispatcher;
+}
+
+/**
  * mcd_plugin_get_dispatcher:
  * @plugin: the #McdPlugin
  * 

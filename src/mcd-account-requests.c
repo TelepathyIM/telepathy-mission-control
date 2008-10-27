@@ -40,15 +40,10 @@
 #include "mcd-misc.h"
 #include "_gen/interfaces.h"
 
-#define REQUEST_OBJ_BASE "/com/nokia/MissionControl/requests/r"
-
 typedef struct
 {
-    gchar *id;
     gchar *requestor_client_id;
 } McdRequestData;
-
-static guint last_prop_id = 1;
 
 #define REQUEST_DATA "request_data"
 
@@ -57,15 +52,6 @@ get_request_data (McdChannel *channel)
 {
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
     return g_object_get_data ((GObject *)channel, REQUEST_DATA);
-}
-
-static const gchar *
-get_request_id (McdChannel *channel)
-{
-    McdRequestData *rd;
-
-    rd = get_request_data (channel);
-    return rd->id;
 }
 
 static void
@@ -97,7 +83,6 @@ online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
 static void
 request_data_free (McdRequestData *rd)
 {
-    g_free (rd->id);
     g_free (rd->requestor_client_id);
     g_slice_free (McdRequestData, rd);
 }
@@ -113,18 +98,19 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
         const gchar *err_string;
         error = _mcd_channel_get_error (channel);
         g_warning ("Channel request %s failed, error: %s",
-                   get_request_id (channel), error->message);
+                   _mcd_channel_get_request_path (channel), error->message);
 
         err_string = _mcd_get_error_string (error);
         mc_svc_account_interface_channelrequests_emit_failed (account,
-            get_request_id (channel), err_string, error->message);
+            _mcd_channel_get_request_path (channel),
+            err_string, error->message);
 
         g_object_unref (channel);
     }
     else if (status == MCD_CHANNEL_DISPATCHED)
     {
         mc_svc_account_interface_channelrequests_emit_succeeded (account,
-            get_request_id (channel));
+            _mcd_channel_get_request_path (channel));
 
         /* free the request data, it's no longer useful */
         g_object_set_data ((GObject *)channel, REQUEST_DATA, NULL);
@@ -142,6 +128,7 @@ create_request (McdAccount *account, GHashTable *properties,
     McdRequestData *rd;
     GError *error = NULL;
     GHashTable *props;
+    McdDispatcher *dispatcher;
 
     /* TODO: handle use_existing */
 
@@ -153,13 +140,15 @@ create_request (McdAccount *account, GHashTable *properties,
     g_hash_table_unref (props);
 
     rd = g_slice_new (McdRequestData);
-    rd->id = g_strdup_printf (REQUEST_OBJ_BASE "%u", last_prop_id++);
     rd->requestor_client_id = dbus_g_method_get_sender (context);
     g_object_set_data_full ((GObject *)channel, REQUEST_DATA, rd,
                             (GDestroyNotify)request_data_free);
 
     g_signal_connect (channel, "status-changed",
                       G_CALLBACK (on_channel_status_changed), account);
+
+    dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
+    _mcd_dispatcher_add_request (dispatcher, channel);
 
     _mcd_account_online_request (account, online_request_cb, channel, &error);
     if (error)
@@ -195,7 +184,7 @@ account_request_create (McSvcAccountInterfaceChannelRequests *self,
         g_error_free (error);
         return;
     }
-    request_id = get_request_id (channel);
+    request_id = _mcd_channel_get_request_path (channel);
     mc_svc_account_interface_channelrequests_return_from_create (context,
                                                                  request_id);
 }
@@ -219,7 +208,7 @@ account_request_ensure_channel (McSvcAccountInterfaceChannelRequests *self,
         g_error_free (error);
         return;
     }
-    request_id = get_request_id (channel);
+    request_id = _mcd_channel_get_request_path (channel);
     mc_svc_account_interface_channelrequests_return_from_ensure_channel
         (context, request_id);
 }

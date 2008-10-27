@@ -86,6 +86,10 @@ gint mcd_dispatcher_get_channel_type_usage (McdDispatcher * dispatcher,
 GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher,
 						    const gchar *protocol);
 
+/* not exported */
+void _mcd_dispatcher_add_request (McdDispatcher *dispatcher,
+                                  McdChannel *channel);
+
 G_END_DECLS
 
 #endif /* MCD_DISPATCHER_H */

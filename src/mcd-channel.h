@@ -122,6 +122,8 @@ void _mcd_channel_details_free (GPtrArray *channels);
 
 const gchar *_mcd_channel_get_target_id (McdChannel *channel);
 GHashTable *_mcd_channel_get_requested_properties (McdChannel *channel);
+const gchar *_mcd_channel_get_request_path (McdChannel *channel);
+guint64 _mcd_channel_get_request_user_action_time (McdChannel *channel);
 
 void _mcd_channel_set_error (McdChannel *channel, GError *error);
 const GError *_mcd_channel_get_error (McdChannel *channel);

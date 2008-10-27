@@ -164,6 +164,12 @@ typedef struct
     GList *channels;
 } McdHandlerCallData;
 
+typedef struct
+{
+    TpProxy *handler;
+    gchar *request_path;
+} McdRemoveRequestData;
+
 enum
 {
     PROP_0,
@@ -1945,5 +1951,140 @@ mcd_dispatcher_context_get_protocol_name (McdDispatcherContext *context)
     }
     
     return context->protocol;
+}
+
+static void
+remove_request_data_free (McdRemoveRequestData *rrd)
+{
+    g_object_unref (rrd->handler);
+    g_free (rrd->request_path);
+    g_slice_free (McdRemoveRequestData, rrd);
+}
+
+static void
+on_request_status_changed (McdChannel *channel, McdChannelStatus status,
+                           McdRemoveRequestData *rrd)
+{
+    if (status != MCD_CHANNEL_FAILED && status != MCD_CHANNEL_DISPATCHED)
+        return;
+
+    g_debug ("%s called, %u", G_STRFUNC, status);
+    if (status == MCD_CHANNEL_FAILED)
+    {
+        const GError *error;
+        const gchar *err_string;
+        error = _mcd_channel_get_error (channel);
+        err_string = _mcd_get_error_string (error);
+        /* no callback, as we don't really care */
+        mc_cli_client_handler_call_remove_failed_request
+            (rrd->handler, -1, rrd->request_path, err_string, error->message,
+             NULL, NULL, NULL, NULL);
+    }
+
+    /* we don't need the McdRemoveRequestData anymore */
+    remove_request_data_free (rrd);
+    g_signal_handlers_disconnect_by_func (channel, on_request_status_changed,
+                                          rrd);
+}
+
+static void
+add_request_cb (TpProxy *proxy, const GError *error, gpointer user_data,
+                GObject *weak_object)
+{
+    McdChannel *channel = MCD_CHANNEL (user_data);
+    McdRemoveRequestData *rrd;
+
+    if (error)
+    {
+        g_warning ("AddRequest %s failed: %s",
+                   _mcd_channel_get_request_path (channel), error->message);
+        return;
+    }
+
+    rrd = g_slice_new (McdRemoveRequestData);
+    /* store the request path, because it might not be available when the
+     * channel status changes */
+    rrd->request_path = g_strdup (_mcd_channel_get_request_path (channel));
+    rrd->handler = proxy;
+    g_object_ref (proxy);
+    /* we must watch whether the request fails and in that case call
+     * RemoveFailedRequest */
+    g_signal_connect (channel, "status-changed",
+                      G_CALLBACK (on_request_status_changed), rrd);
+}
+
+/*
+ * _mcd_dispatcher_add_request:
+ * @context: the #McdDispatcherContext.
+ * @channels: a #McdChannel in MCD_CHANNEL_REQUEST state.
+ *
+ * Add a request; this basically means invoking AddRequest (and maybe
+ * RemoveRequest) on the channel handler.
+ */
+void
+_mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdChannel *channel)
+{
+    McdDispatcherPrivate *priv;
+    McdClient *handler = NULL;
+    GHashTable *properties;
+    GValue v_user_time = { 0, };
+    GValue v_requests = { 0, };
+    GPtrArray *requests;
+    GList *list;
+
+    g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
+    g_return_if_fail (MCD_IS_CHANNEL (channel));
+    g_return_if_fail (mcd_channel_get_status (channel) == MCD_CHANNEL_REQUEST);
+
+    priv = dispatcher->priv;
+
+    for (list = priv->clients; list != NULL; list = list->next)
+    {
+        McdClient *client = list->data;
+
+        if (!client->proxy ||
+            !(client->interfaces & MCD_CLIENT_HANDLER))
+            continue;
+
+        if (match_filters (channel, client->handler_filters))
+        {
+            handler = client;
+            break;
+        }
+    }
+
+    if (!handler)
+    {
+        /* No handler found. But it's possible that by the time that the
+         * channel will be created some handler will have popped up, so we
+         * must not destroy it. */
+        g_debug ("No handler for request %s",
+                 _mcd_channel_get_request_path (channel));
+        return;
+    }
+
+    properties = g_hash_table_new (g_str_hash, g_str_equal);
+
+    g_value_init (&v_user_time, G_TYPE_UINT64);
+    g_value_set_uint64 (&v_user_time,
+                        _mcd_channel_get_request_user_action_time (channel));
+
+    requests = g_ptr_array_sized_new (1);
+    g_ptr_array_add (requests,
+                     _mcd_channel_get_requested_properties (channel));
+    g_value_init (&v_requests, dbus_g_type_get_collection ("GPtrArray",
+         MC_HASH_TYPE_QUALIFIED_PROPERTY_VALUE_MAP));
+    g_value_set_static_boxed (&v_requests, requests);
+
+    g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest" ".UserActionTime", &v_user_time);
+    g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest" ".Requests", &v_requests);
+
+    g_object_ref (channel);
+    mc_cli_client_handler_call_add_request (handler->proxy, -1,
+        _mcd_channel_get_request_path (channel), properties,
+        add_request_cb, channel, g_object_unref, (GObject *)dispatcher);
+
+    g_hash_table_unref (properties);
+    g_ptr_array_free (requests, TRUE);
 }
 

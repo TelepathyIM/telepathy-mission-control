@@ -90,6 +90,8 @@ typedef struct
 
 typedef struct
 {
+    gchar *path;
+
     GHashTable *properties;
     guint64 user_time;
     gchar *preferred_handler;
@@ -131,6 +133,10 @@ enum _McdChannelPropertyType
 
 static guint mcd_channel_signals[LAST_SIGNAL] = { 0 };
 
+#define REQUEST_OBJ_BASE "/com/nokia/MissionControl/requests/r"
+static guint last_req_id = 1;
+
+
 static void _mcd_channel_release_tp_channel (McdChannel *channel,
 					     gboolean close_channel);
 
@@ -140,6 +146,7 @@ channel_request_data_free (McdChannelRequestData *crd)
     g_debug ("%s called for %p", G_STRFUNC, crd);
     g_hash_table_unref (crd->properties);
     g_free (crd->preferred_handler);
+    g_free (crd->path);
     g_slice_free (McdChannelRequestData, crd);
 }
 
@@ -1258,6 +1265,7 @@ mcd_channel_new_request (GHashTable *properties, guint64 user_time,
     /* TODO: these data could be freed when the channel status becomes
      * MCD_CHANNEL_DISPATCHED */
     crd = g_slice_new (McdChannelRequestData);
+    crd->path = g_strdup_printf (REQUEST_OBJ_BASE "%u", last_req_id++);
     crd->properties = g_hash_table_ref (properties);
     crd->user_time = user_time;
     crd->preferred_handler = g_strdup (preferred_handler);
@@ -1284,5 +1292,41 @@ _mcd_channel_get_requested_properties (McdChannel *channel)
     crd = g_object_get_data ((GObject *)channel, CD_REQUEST);
     if (G_UNLIKELY (!crd)) return NULL;
     return crd->properties;
+}
+
+/*
+ * _mcd_channel_get_request_path:
+ * @channel: the #McdChannel.
+ *
+ * Returns: the object path of the channel request, if the channel is in
+ * MCD_CHANNEL_REQUEST status.
+ */
+const gchar *
+_mcd_channel_get_request_path (McdChannel *channel)
+{
+    McdChannelRequestData *crd;
+
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
+    crd = g_object_get_data ((GObject *)channel, CD_REQUEST);
+    if (G_UNLIKELY (!crd)) return NULL;
+    return crd->path;
+}
+
+/*
+ * _mcd_channel_get_request_user_action_time:
+ * @channel: the #McdChannel.
+ *
+ * Returns: UserActionTime of the channel request, if the channel is in
+ * MCD_CHANNEL_REQUEST status.
+ */
+guint64
+_mcd_channel_get_request_user_action_time (McdChannel *channel)
+{
+    McdChannelRequestData *crd;
+
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), 0);
+    crd = g_object_get_data ((GObject *)channel, CD_REQUEST);
+    if (G_UNLIKELY (!crd)) return 0;
+    return crd->user_time;
 }
 
