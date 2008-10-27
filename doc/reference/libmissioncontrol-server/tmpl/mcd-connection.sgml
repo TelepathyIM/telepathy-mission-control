@@ -91,7 +91,6 @@ McdConnection
 
 @connection: 
 @channel: 
-@error: 
 @Returns: 
 
 
