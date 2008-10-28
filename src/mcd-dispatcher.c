@@ -1025,8 +1025,23 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
 
         channels_array = _mcd_channel_details_build_from_list (handled_best);
 
-        satisfied_requests = g_ptr_array_new (); /* TODO */
         user_action_time = 0; /* TODO: if we have a CDO, get it from there */
+        satisfied_requests = g_ptr_array_new ();
+        for (cl = channels; cl != NULL; cl = cl->next)
+        {
+            McdChannel *channel = MCD_CHANNEL (cl->data);
+            const gchar *req_path;
+            guint64 user_time;
+
+            req_path = _mcd_channel_get_request_path (channel);
+            if (req_path)
+                g_ptr_array_add (satisfied_requests, (gchar *)req_path);
+
+            /* FIXME: what if we have more than one request? */
+            user_time = _mcd_channel_get_request_user_action_time (channel);
+            if (user_time)
+                user_action_time = user_time;
+        }
 
         /* The callback needs to get the dispatcher context, and the channels
          * the handler was asked to handle. The context will keep track of how
