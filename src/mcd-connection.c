@@ -1325,8 +1325,7 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
         props = g_value_get_boxed (va->values + 1);
 
         /* Don't do anything for requested channels */
-        value = g_hash_table_lookup (props,
-            "org.freedesktop.Telepathy.Channel.FUTURE.Requested");
+        value = g_hash_table_lookup (props, TP_IFACE_CHANNEL ".Requested");
         if (value && g_value_get_boolean (value))
             continue;
 
