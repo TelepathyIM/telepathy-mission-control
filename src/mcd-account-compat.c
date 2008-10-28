@@ -304,6 +304,7 @@ _mcd_account_compat_request_channel_nmc4 (McdAccount *account,
     McdAccountCompatReq *req_data;
     GHashTable *properties;
     GValue *value;
+    McdDispatcher *dispatcher;
 
     properties = g_hash_table_new_full (g_str_hash, g_str_equal,
                                         NULL,
@@ -335,6 +336,9 @@ _mcd_account_compat_request_channel_nmc4 (McdAccount *account,
 
     channel = mcd_channel_new_request (properties, 0, NULL);
     g_hash_table_unref (properties);
+
+    dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
+    _mcd_dispatcher_add_request (dispatcher, channel);
 
     req_data = g_slice_new0 (McdAccountCompatReq);
     req_data->requestor_serial = req->requestor_serial;
