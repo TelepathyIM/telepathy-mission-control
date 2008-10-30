@@ -116,6 +116,15 @@ const gchar *mc_profile_get_default_setting (McProfile *id,
 					     const gchar *setting);
 const gchar *mc_profile_get_vcard_mangle (McProfile *id, const gchar *vcard_field);
 
+/* presences */
+const gchar * const *mc_profile_presences_list (McProfile *id);
+gchar *mc_profile_presence_get_name (McProfile *id,
+                                     const gchar *presence);
+TpConnectionPresenceType mc_profile_presence_get_type (McProfile *id,
+                                                       const gchar *presence);
+gchar *mc_profile_presence_get_icon_name (McProfile *id,
+                                          const gchar *presence);
+
 G_END_DECLS
 
 #endif /* __MC_PROFILE_H__ */
