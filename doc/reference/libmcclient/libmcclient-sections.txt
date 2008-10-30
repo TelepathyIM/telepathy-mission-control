@@ -149,6 +149,10 @@ mc_profile_is_default_for_vcard_field
 mc_profile_get_capabilities
 mc_profile_get_default_setting
 mc_profile_get_vcard_mangle
+mc_profile_presences_list
+mc_profile_presence_get_name
+mc_profile_presence_get_type
+mc_profile_presence_get_icon_name
 <SUBSECTION Standard>
 MC_PROFILE
 MC_IS_PROFILE
