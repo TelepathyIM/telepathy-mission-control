@@ -238,6 +238,7 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
 {
     McdDispatchOperation *operation = MCD_DISPATCH_OPERATION (obj);
     McdDispatchOperationPrivate *priv = operation->priv;
+    GList *list;
 
     switch (prop_id)
     {
@@ -257,6 +258,10 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
                 mcd_mission_get_parent (MCD_MISSION (channel));
             if (G_LIKELY (priv->connection))
                 g_object_ref (priv->connection);
+
+            /* reference the channels */
+            for (list = priv->channels; list != NULL; list = list->next)
+                g_object_ref (list->data);
         }
         break;
     default:
@@ -296,6 +301,15 @@ static void
 mcd_dispatch_operation_dispose (GObject *object)
 {
     McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (object);
+    GList *list;
+
+    if (priv->channels)
+    {
+        for (list = priv->channels; list != NULL; list = list->next)
+            g_object_unref (list->data);
+        g_list_free (priv->channels);
+        priv->channels = NULL;
+    }
 
     if (priv->connection)
     {
@@ -348,6 +362,14 @@ mcd_dispatch_operation_init (McdDispatchOperation *operation)
     mcd_dbus_init_interfaces_instances (operation);
 }
 
+/*
+ * _mcd_dispatch_operation_new:
+ * @dbus_daemon: a #TpDBusDaemon.
+ * @channels: a #GList of #McdChannel elements to dispatch.
+ *
+ * Creates a #McdDispatchOperation. The #GList @channels will be no longer
+ * valid after this function has been called.
+ */
 McdDispatchOperation *
 _mcd_dispatch_operation_new (TpDBusDaemon *dbus_daemon,
                              GList *channels)
