@@ -349,8 +349,8 @@ mcd_dispatch_operation_init (McdDispatchOperation *operation)
 }
 
 McdDispatchOperation *
-mcd_dispatch_operation_new (TpDBusDaemon *dbus_daemon,
-                            GList *channels)
+_mcd_dispatch_operation_new (TpDBusDaemon *dbus_daemon,
+                             GList *channels)
 {
     gpointer *obj;
     obj = g_object_new (MCD_TYPE_DISPATCH_OPERATION,
