@@ -80,7 +80,6 @@ enum
 {
     PROP_0,
     PROP_DBUS_DAEMON,
-    PROP_CONNECTION,
     PROP_CHANNELS,
 };
 
@@ -247,13 +246,18 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
             g_object_unref (priv->dbus_daemon);
         priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
         break;
-    case PROP_CONNECTION:
-        g_assert (priv->connection == NULL);
-        priv->connection = g_value_dup_object (val);
-        break;
     case PROP_CHANNELS:
         g_assert (priv->channels == NULL);
         priv->channels = g_value_get_pointer (val);
+        if (G_LIKELY (priv->channels))
+        {
+            /* get the connection from the first channel */
+            McdChannel *channel = MCD_CHANNEL (priv->channels->data);
+            priv->connection = (McdConnection *)
+                mcd_mission_get_parent (MCD_MISSION (channel));
+            if (G_LIKELY (priv->connection))
+                g_object_ref (priv->connection);
+        }
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -325,11 +329,6 @@ mcd_dispatch_operation_class_init (McdDispatchOperationClass * klass)
 							  TP_TYPE_DBUS_DAEMON,
 							  G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
-    g_object_class_install_property (object_class, PROP_CONNECTION,
-        g_param_spec_object ("connection", "connection", "connection",
-							  TP_TYPE_DBUS_DAEMON,
-							  G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-
     g_object_class_install_property (object_class, PROP_CHANNELS,
         g_param_spec_pointer ("channels", "channels", "channels",
                               G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
@@ -351,13 +350,11 @@ mcd_dispatch_operation_init (McdDispatchOperation *operation)
 
 McdDispatchOperation *
 mcd_dispatch_operation_new (TpDBusDaemon *dbus_daemon,
-                            McdConnection *connection,
                             GList *channels)
 {
     gpointer *obj;
     obj = g_object_new (MCD_TYPE_DISPATCH_OPERATION,
                         "dbus-daemon", dbus_daemon,
-                        "connection", connection,
                         "channels", channels,
                         NULL);
     return MCD_DISPATCH_OPERATION (obj);
