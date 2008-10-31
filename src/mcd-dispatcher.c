@@ -1159,22 +1159,27 @@ on_channel_abort_context (McdChannel *channel, McdDispatcherContext *context)
 /* Entering the state machine */
 static void
 _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
-				     McdChannel *channel)
+				     GList *channels, gboolean requested)
 {
     McdDispatcherContext *context;
+    McdDispatcherPrivate *priv;
     GList *chain;
     GQuark chan_type_quark;
-    gboolean outgoing;
     gint filter_flags;
-    
-    McdDispatcherPrivate *priv = dispatcher->priv;
+    McdChannel *channel;
 
+    g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
+    g_return_if_fail (channels != NULL);
+    g_return_if_fail (MCD_IS_CHANNEL (channels->data));
+
+    priv = dispatcher->priv;
+
+    /* FIXME: this is only temporary, there is no reason why we use the first
+     * channel (and not all of them) for anything */
+    channel = MCD_CHANNEL (channels->data);
     chan_type_quark = mcd_channel_get_channel_type_quark (channel);
-    g_object_get (G_OBJECT (channel),
-		  "outgoing", &outgoing,
-		  NULL);
 
-    filter_flags = outgoing ? MCD_FILTER_OUT: MCD_FILTER_IN;
+    filter_flags = requested ? MCD_FILTER_OUT: MCD_FILTER_IN;
     chain = _mcd_dispatcher_get_filter_chain (dispatcher,
 					      chan_type_quark,
 					      filter_flags);
@@ -1183,7 +1188,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     context = g_new0 (McdDispatcherContext, 1);
     context->ref_count = 1;
     context->dispatcher = dispatcher;
-    context->channels = g_list_prepend (NULL, channel);
+    context->channels = channels;
     context->chain = chain;
 
     /* Context must be destroyed when the channel is destroyed */
@@ -1217,11 +1222,18 @@ static void
 _mcd_dispatcher_send (McdDispatcher * dispatcher, McdChannel * channel)
 {
     McdDispatcherPrivate *priv;
+    gboolean outgoing;
+
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
     g_return_if_fail (MCD_IS_CHANNEL (channel));
 
     mcd_channel_set_status (channel, MCD_CHANNEL_DISPATCHING);
     priv = dispatcher->priv;
+
+    g_object_get (G_OBJECT (channel),
+                  "outgoing", &outgoing,
+                  NULL);
+    g_debug ("channel is %s", outgoing ? "outgoing" : "incoming");
 
     /* deprecate the "dispatch-failed" and "dispatched" signals; we have the
      * "dispatch-complete" signal that carries the whole context, so that the
@@ -1250,13 +1262,7 @@ _mcd_dispatcher_send (McdDispatcher * dispatcher, McdChannel * channel)
 	if (list) context = list->data;
 	if (context)
 	{
-	    gboolean outgoing;
 	    g_debug ("%s: channel found in the state machine (%p)", G_STRFUNC, context);
-	    g_object_get (G_OBJECT (channel),
-			  "outgoing", &outgoing,
-			  NULL);
-
-	    g_debug ("channel is %s", outgoing ? "outgoing" : "incoming");
 	    /* this channel has not been dispatched; we can get to this point if:
 	     * 1) the channel is incoming (i.e. the contacts plugin icon is
 	     *    blinking) but the user didn't realize that and instead
@@ -1309,7 +1315,10 @@ _mcd_dispatcher_send (McdDispatcher * dispatcher, McdChannel * channel)
     priv->channels = g_list_prepend (priv->channels, channel);
     
     g_signal_emit_by_name (dispatcher, "channel-added", channel);
-    _mcd_dispatcher_enter_state_machine (dispatcher, channel);
+
+    _mcd_dispatcher_enter_state_machine (dispatcher,
+                                         g_list_prepend (NULL, channel),
+                                         outgoing);
 }
 
 static void
