@@ -43,6 +43,7 @@
 #include "mcd-master.h"
 #include "mcd-chan-handler.h"
 #include "mcd-dispatcher-context.h"
+#include "mcd-dispatch-operation.h"
 #include "mcd-misc.h"
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/proxy-subclass.h>
@@ -2101,5 +2102,27 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdChannel *channel)
 
     g_hash_table_unref (properties);
     g_ptr_array_free (requests, TRUE);
+}
+
+/*
+ * _mcd_dispatcher_send_channels:
+ * @dispatcher: the #McdDispatcher.
+ * @channels: a #GList of #McdChannel elements.
+ * @requested: whether the channels were requested by MC.
+ *
+ * Dispatch @channels. The #GList @channels will be no longer valid after this
+ * function has been called.
+ */
+void
+_mcd_dispatcher_send_channels (McdDispatcher *dispatcher, GList *channels,
+                               gboolean requested)
+{
+    McdDispatcherPrivate *priv = dispatcher->priv;
+    McdDispatchOperation *operation;
+
+    if (!requested)
+        operation = _mcd_dispatch_operation_new (priv->dbus_daemon, channels);
+    else
+        operation = NULL;
 }
 
