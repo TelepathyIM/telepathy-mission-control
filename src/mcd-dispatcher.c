@@ -1163,10 +1163,9 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 {
     McdDispatcherContext *context;
     McdDispatcherPrivate *priv;
-    GList *chain;
-    GQuark chan_type_quark;
-    gint filter_flags;
+    GList *chain, *list;
     McdChannel *channel;
+    guint n_channels;
 
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
     g_return_if_fail (channels != NULL);
@@ -1174,16 +1173,32 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 
     priv = dispatcher->priv;
 
-    /* FIXME: this is only temporary, there is no reason why we use the first
-     * channel (and not all of them) for anything */
-    channel = MCD_CHANNEL (channels->data);
-    chan_type_quark = mcd_channel_get_channel_type_quark (channel);
+    /* old-style filters cannot probably handle more than one channel; so,
+     * invoke them only if we have one single channel to dispatch.
+     *
+     * FIXME: design a plugin filter API to handle the multi-channel case (it
+     * might be as simple as just removing the channel type quark from the
+     * registration function */
+    n_channels = g_list_length (channels);
+    if (n_channels == 1)
+    {
+        GQuark chan_type_quark;
+        gint filter_flags;
 
-    filter_flags = requested ? MCD_FILTER_OUT: MCD_FILTER_IN;
-    chain = _mcd_dispatcher_get_filter_chain (dispatcher,
-					      chan_type_quark,
-					      filter_flags);
-    
+        channel = MCD_CHANNEL (channels->data);
+        chan_type_quark = mcd_channel_get_channel_type_quark (channel);
+
+        filter_flags = requested ? MCD_FILTER_OUT: MCD_FILTER_IN;
+        chain = _mcd_dispatcher_get_filter_chain (dispatcher,
+                                                  chan_type_quark,
+                                                  filter_flags);
+    }
+    else
+    {
+        g_debug ("%u channels to dispatch, filters disabled", n_channels);
+        chain = NULL;
+    }
+
     /* Preparing and filling the context */
     context = g_new0 (McdDispatcherContext, 1);
     context->ref_count = 1;
@@ -1191,15 +1206,19 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     context->channels = channels;
     context->chain = chain;
 
-    /* Context must be destroyed when the channel is destroyed */
-    g_object_ref (channel); /* We hold separate refs for state machine */
-    g_signal_connect_after (channel, "abort", G_CALLBACK (on_channel_abort_context),
-		      context);
-    
+    for (list = channels; list != NULL; list = list->next)
+    {
+        channel = MCD_CHANNEL (list->data);
+
+        g_object_ref (channel); /* We hold separate refs for state machine */
+        g_signal_connect_after (channel, "abort",
+                                G_CALLBACK (on_channel_abort_context),
+                                context);
+    }
+
     if (chain)
     {
-        g_debug ("entering state machine for channel of type: %s",
-             g_quark_to_string (chan_type_quark));
+        g_debug ("entering state machine for context %p", context);
 
 	priv->state_machine_list =
 	    g_slist_prepend (priv->state_machine_list, context);
@@ -1207,7 +1226,8 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     }
     else
     {
-	g_debug ("No filters found for type %s, starting the channel handler", g_quark_to_string (chan_type_quark));
+        g_debug ("No filters found for context %p, "
+                 "starting the channel handler", context);
 	mcd_dispatcher_run_clients (context);
     }
 }
