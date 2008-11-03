@@ -61,4 +61,8 @@ GType mcd_dispatch_operation_get_type (void);
 McdDispatchOperation *_mcd_dispatch_operation_new (TpDBusDaemon *dbus_daemon,
                                                    GList *channels);
 
+const gchar *mcd_dispatch_operation_get_path (McdDispatchOperation *operation);
+GHashTable *mcd_dispatch_operation_get_properties
+    (McdDispatchOperation *operation);
+
 #endif

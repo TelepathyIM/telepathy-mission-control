@@ -67,6 +67,7 @@ struct _McdDispatchOperationPrivate
 {
     gchar *unique_name;
     gchar *object_path;
+    GHashTable *properties;
 
     /* DBUS connection */
     TpDBusDaemon *dbus_daemon;
@@ -292,6 +293,9 @@ mcd_dispatch_operation_finalize (GObject *object)
 {
     McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (object);
 
+    if (priv->properties)
+        g_hash_table_unref (priv->properties);
+
     g_free (priv->object_path);
 
     G_OBJECT_CLASS (mcd_dispatch_operation_parent_class)->finalize (object);
@@ -380,5 +384,62 @@ _mcd_dispatch_operation_new (TpDBusDaemon *dbus_daemon,
                         "channels", channels,
                         NULL);
     return MCD_DISPATCH_OPERATION (obj);
+}
+
+/**
+ * mcd_dispatch_operation_get_path:
+ * @operation: the #McdDispatchOperation.
+ *
+ * Returns: the D-Bus object path of @operation.
+ */
+const gchar *
+mcd_dispatch_operation_get_path (McdDispatchOperation *operation)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (operation), NULL);
+    return operation->priv->object_path;
+}
+
+/**
+ * mcd_dispatch_operation_get_properties:
+ * @operation: the #McdDispatchOperation.
+ *
+ * Gets the immutable properties of @operation.
+ *
+ * Returns: a #GHashTable with the operation properties. The reference count is
+ * not incremented.
+ */
+GHashTable *
+mcd_dispatch_operation_get_properties (McdDispatchOperation *operation)
+{
+    McdDispatchOperationPrivate *priv;
+
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (operation), NULL);
+    priv = operation->priv;
+    if (!priv->properties)
+    {
+        const McdDBusProp *property;
+
+        priv->properties =
+            g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
+                                   (GDestroyNotify)tp_g_value_slice_free);
+
+        for (property = dispatch_operation_properties;
+             property->name != NULL;
+             property++)
+        {
+            GValue *value;
+            gchar *name;
+
+            if (!property->getprop) continue;
+
+            value = g_slice_new0 (GValue);
+            property->getprop ((TpSvcDBusProperties *)operation,
+                               property->name, value);
+            name = g_strconcat (MC_IFACE_CHANNEL_DISPATCH_OPERATION,
+                                property->name, NULL);
+            g_hash_table_insert (priv->properties, name, value);
+        }
+    }
+    return priv->properties;
 }
 
