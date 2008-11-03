@@ -64,5 +64,8 @@ McdDispatchOperation *_mcd_dispatch_operation_new (TpDBusDaemon *dbus_daemon,
 const gchar *mcd_dispatch_operation_get_path (McdDispatchOperation *operation);
 GHashTable *mcd_dispatch_operation_get_properties
     (McdDispatchOperation *operation);
+gboolean mcd_dispatch_operation_is_claimed (McdDispatchOperation *operation);
+const gchar *mcd_dispatch_operation_get_handler
+    (McdDispatchOperation *operation);
 
 #endif

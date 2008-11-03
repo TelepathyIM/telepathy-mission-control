@@ -69,6 +69,11 @@ struct _McdDispatchOperationPrivate
     gchar *object_path;
     GHashTable *properties;
 
+    /* Results */
+    guint finished : 1;
+    guint claimed : 1;
+    gchar *handler;
+
     /* DBUS connection */
     TpDBusDaemon *dbus_daemon;
 
@@ -183,11 +188,67 @@ properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 }
 
 static void
+mcd_dispatch_operation_finish (McdDispatchOperation *operation)
+{
+    McdDispatchOperationPrivate *priv = operation->priv;
+
+    priv->finished = TRUE;
+    mc_svc_channel_dispatch_operation_emit_finished (operation);
+}
+
+static void
+dispatch_operation_handle_with (McSvcChannelDispatchOperation *self,
+                                const gchar *handler_path,
+                                DBusGMethodInvocation *context)
+{
+    McdDispatchOperationPrivate *priv;
+
+    priv = MCD_DISPATCH_OPERATION_PRIV (self);
+    if (priv->finished)
+    {
+        GError *error = g_error_new (TP_ERRORS, TP_ERROR_NOT_YOURS,
+                                     "CDO already finished");
+        dbus_g_method_return_error (context, error);
+        g_error_free (error);
+        return;
+    }
+
+    priv->handler = g_strdup (handler_path);
+    mc_svc_channel_dispatch_operation_return_from_handle_with (context);
+
+    mcd_dispatch_operation_finish (MCD_DISPATCH_OPERATION (self));
+}
+
+static void
+dispatch_operation_claim (McSvcChannelDispatchOperation *self,
+                          DBusGMethodInvocation *context)
+{
+    McdDispatchOperationPrivate *priv;
+
+    priv = MCD_DISPATCH_OPERATION_PRIV (self);
+    if (priv->finished)
+    {
+        GError *error = g_error_new (TP_ERRORS, TP_ERROR_NOT_YOURS,
+                                     "CDO already finished");
+        dbus_g_method_return_error (context, error);
+        g_error_free (error);
+        return;
+    }
+
+    priv->claimed = TRUE;
+    mc_svc_channel_dispatch_operation_return_from_claim (context);
+
+    mcd_dispatch_operation_finish (MCD_DISPATCH_OPERATION (self));
+}
+
+static void
 dispatch_operation_iface_init (McSvcChannelDispatchOperationClass *iface,
                                gpointer iface_data)
 {
-#define IMPLEMENT(x) mc_svc_dispatch_operation_implement_##x (\
+#define IMPLEMENT(x) mc_svc_channel_dispatch_operation_implement_##x (\
     iface, dispatch_operation_##x)
+    IMPLEMENT(handle_with);
+    IMPLEMENT(claim);
 #undef IMPLEMENT
 }
 
@@ -296,6 +357,7 @@ mcd_dispatch_operation_finalize (GObject *object)
     if (priv->properties)
         g_hash_table_unref (priv->properties);
 
+    g_free (priv->handler);
     g_free (priv->object_path);
 
     G_OBJECT_CLASS (mcd_dispatch_operation_parent_class)->finalize (object);
@@ -441,5 +503,31 @@ mcd_dispatch_operation_get_properties (McdDispatchOperation *operation)
         }
     }
     return priv->properties;
+}
+
+/**
+ * mcd_dispatch_operation_is_claimed:
+ * @operation: the #McdDispatchOperation.
+ *
+ * Returns: %TRUE if the operation was claimed, %FALSE otherwise.
+ */
+gboolean
+mcd_dispatch_operation_is_claimed (McdDispatchOperation *operation)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (operation), FALSE);
+    return operation->priv->claimed;
+}
+
+/**
+ * mcd_dispatch_operation_get_handler:
+ * @operation: the #McdDispatchOperation.
+ *
+ * Returns: the well-known name of the choosen channel handler.
+ */
+const gchar *
+mcd_dispatch_operation_get_handler (McdDispatchOperation *operation)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (operation), NULL);
+    return operation->priv->handler;
 }
 
