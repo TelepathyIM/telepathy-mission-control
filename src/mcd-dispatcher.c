@@ -70,6 +70,13 @@ struct _McdDispatcherContext
     McdChannel *main_channel;
     McdDispatchOperation *operation;
 
+    /* This variable is the count of locks that must be removed before handlers
+     * can be invoked. Each call to an observer increments this count (and
+     * decrements it on return), and for unrequested channels we have an
+     * approver lock, too.
+     * When the variable gets back to 0, handlers are run. */
+    gint client_locks;
+
     gchar *protocol;
 
     /* State-machine internal data fields: */
@@ -1078,19 +1085,13 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
     return unhandled;
 }
 
-/* Happens at the end of successful filter chain execution (empty chain
- * is always successful)
- */
 static void
-mcd_dispatcher_run_clients (McdDispatcherContext *context)
+mcd_dispatcher_run_handlers (McdDispatcherContext *context)
 {
     const GList *channels;
     GList *unhandled = NULL;
 
     mcd_dispatcher_context_ref (context);
-    /* TODO: start observers */
-
-    /* TODO: for non requested channels, start approvers */
 
     /* call mcd_dispatcher_run_handler until there are no unhandled channels */
     channels = mcd_dispatcher_context_get_channels (context);
@@ -1107,6 +1108,112 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
         }
         channels = unhandled;
     }
+    mcd_dispatcher_context_unref (context);
+}
+
+static void
+mcd_dispatcher_context_release_client_lock (McdDispatcherContext *context)
+{
+    g_return_if_fail (context->client_locks > 0);
+    g_debug ("%s called on %p, locks = %d", G_STRFUNC,
+             context, context->client_locks);
+    context->client_locks--;
+    if (context->client_locks == 0)
+    {
+        /* no observers left, let's go on with the dispatching */
+        mcd_dispatcher_run_handlers (context);
+    }
+}
+
+static void
+observe_channels_cb (TpProxy *proxy, const GError *error,
+                     gpointer user_data, GObject *weak_object)
+{
+    McdDispatcherContext *context = user_data;
+
+    /* we display the error just for debugging, but we don't really care */
+    if (error)
+        g_debug ("Observer returned error: %s", error->message);
+
+    mcd_dispatcher_context_release_client_lock (context);
+}
+
+static void
+mcd_dispatcher_run_observers (McdDispatcherContext *context)
+{
+    McdDispatcherPrivate *priv = context->dispatcher->priv;
+    McdClient *handler = NULL;
+    const GList *cl, *channels;
+    GList *list;
+    GHashTable *observer_info;
+
+    channels = context->channels;
+    observer_info = NULL;
+
+    for (list = priv->clients; list != NULL; list = list->next)
+    {
+        McdClient *client = list->data;
+        GList *observed = NULL;
+        McdConnection *connection;
+        McdAccount *account;
+        const gchar *account_path, *connection_path;
+        GPtrArray *channels_array;
+
+        if (!client->proxy ||
+            !(client->interfaces & MCD_CLIENT_OBSERVER))
+            continue;
+
+        for (cl = channels; cl != NULL; cl = cl->next)
+        {
+            McdChannel *channel = MCD_CHANNEL (cl->data);
+
+            if (match_filters (channel, client->handler_filters))
+                observed = g_list_prepend (observed, channel);
+        }
+        if (!observed) continue;
+
+        /* build up the parameters and invoke the observer */
+        connection = mcd_dispatcher_context_get_connection (context);
+        g_assert (connection != NULL);
+        connection_path = mcd_connection_get_object_path (connection);
+
+        account = mcd_connection_get_account (connection);
+        g_assert (account != NULL);
+        account_path = mcd_account_get_object_path (account);
+
+        /* TODO: there's room for optimization here: reuse the channels_array,
+         * if the observed list is the same */
+        channels_array = _mcd_channel_details_build_from_list (observed);
+
+        context->client_locks++;
+        mcd_dispatcher_context_ref (context);
+        mc_cli_client_observer_call_observe_channels (handler->proxy, -1,
+            account_path, connection_path, channels_array, observer_info,
+            observe_channels_cb,
+            context, (GDestroyNotify)mcd_dispatcher_context_unref,
+            (GObject *)context->dispatcher);
+
+        _mcd_channel_details_free (channels_array);
+
+        g_list_free (observed);
+    }
+}
+
+/* Happens at the end of successful filter chain execution (empty chain
+ * is always successful)
+ */
+static void
+mcd_dispatcher_run_clients (McdDispatcherContext *context)
+{
+    mcd_dispatcher_context_ref (context);
+    context->client_locks = 1; /* we release this lock at the end of the
+                                    function */
+
+    mcd_dispatcher_run_observers (context);
+
+    /* TODO: for non requested channels, start approvers */
+
+    mcd_dispatcher_context_release_client_lock (context);
     mcd_dispatcher_context_unref (context);
 }
 
