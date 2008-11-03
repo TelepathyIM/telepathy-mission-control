@@ -973,6 +973,14 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
     const GList *cl;
     GList *list;
     GList *handled_best = NULL, *unhandled;
+    const gchar *approved_handler;
+
+    /* The highest priority goes to the handler chosen by the approver */
+    if (context->operation)
+        approved_handler =
+            mcd_dispatch_operation_get_handler (context->operation);
+    else
+        approved_handler = NULL;
 
     /* TODO: in the McdDispatcherContext there should be a hint on what handler
      * to invoke */
@@ -981,6 +989,7 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
     {
         McdClient *client = list->data;
         GList *handled = NULL;
+        gboolean the_chosen_one;
 
         if (!client->proxy ||
             !(client->interfaces & MCD_CLIENT_HANDLER))
@@ -1000,13 +1009,20 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
             }
         }
 
-        if (num_channels > num_channels_best)
+        the_chosen_one =
+            approved_handler != NULL && strcmp (approved_handler,
+                                                client->name) == 0;
+        if (num_channels > num_channels_best || the_chosen_one)
         {
             /* this is the best candidate handler so far; remember also the
              * list of channels it cannot handle */
             handler = client;
             g_list_free (handled_best);
             handled_best = handled;
+
+            /* we don't even look for other handlers, if this is the one chosen
+             * by the approver */
+            if (the_chosen_one) break;
         }
         else
             g_list_free (handled);
@@ -1397,12 +1413,6 @@ on_operation_finished (McdDispatchOperation *operation,
     }
     else
     {
-        const gchar *handler;
-
-        handler = mcd_dispatch_operation_get_handler (operation);
-
-        /* TODO: set this handler as the preferred handler for the context */
-
         /* this is the lock set in mcd_dispatcher_run_approvers(): releasing
          * this will make the handlers run */
         mcd_dispatcher_context_release_client_lock (context);
