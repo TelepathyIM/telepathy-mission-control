@@ -40,6 +40,9 @@
 #include "_gen/interfaces.h"
 #include "_gen/gtypes.h"
 
+#define MCD_CLIENT_BASE_NAME "org.freedesktop.Telepathy.Client."
+#define MCD_CLIENT_BASE_NAME_LEN (sizeof (MCD_CLIENT_BASE_NAME) - 1)
+
 #define MCD_DISPATCH_OPERATION_PRIV(operation) (MCD_DISPATCH_OPERATION (operation)->priv)
 
 static void
@@ -213,7 +216,17 @@ dispatch_operation_handle_with (McSvcChannelDispatchOperation *self,
         return;
     }
 
-    priv->handler = g_strdup (handler_path);
+    if (strncmp (handler_path, MCD_CLIENT_BASE_NAME,
+                 MCD_CLIENT_BASE_NAME_LEN) != 0)
+    {
+        GError *error = g_error_new (TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                                     "Invalid handler name");
+        dbus_g_method_return_error (context, error);
+        g_error_free (error);
+        return;
+    }
+
+    priv->handler = g_strdup (handler_path + MCD_CLIENT_BASE_NAME_LEN);
     mc_svc_channel_dispatch_operation_return_from_handle_with (context);
 
     mcd_dispatch_operation_finish (MCD_DISPATCH_OPERATION (self));
