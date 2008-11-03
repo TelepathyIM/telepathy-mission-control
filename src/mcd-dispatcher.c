@@ -77,6 +77,9 @@ struct _McdDispatcherContext
      * When the variable gets back to 0, handlers are run. */
     gint client_locks;
 
+    /* Number of approvers that we invoked */
+    gint approvers_invoked;
+
     gchar *protocol;
 
     /* State-machine internal data fields: */
@@ -202,6 +205,8 @@ static void mcd_dispatcher_context_unref (McdDispatcherContext * ctx);
 static void mcd_dispatcher_context_set_channel (McdDispatcherContext *context,
                                                 McdChannel *channel);
 static void mcd_dispatcher_leave_state_machine (McdDispatcherContext *context);
+static void on_operation_finished (McdDispatchOperation *operation,
+                                   McdDispatcherContext *context);
 
 typedef void (*tp_ch_handle_channel_reply) (DBusGProxy *proxy, GError *error, gpointer userdata);
 
@@ -1199,6 +1204,101 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
     }
 }
 
+/*
+ * mcd_dispatcher_context_approver_not_invoked:
+ * @context: the #McdDispatcherContext.
+ *
+ * This function is called when an approver returned error on
+ * AddDispatchOperation(), and is used to keep track of how many approvers we
+ * have contacted. If all of them fail, then we continue the dispatching.
+ */
+static void
+mcd_dispatcher_context_approver_not_invoked (McdDispatcherContext *context)
+{
+    g_return_if_fail (context->approvers_invoked > 0);
+    context->approvers_invoked--;
+
+    if (context->approvers_invoked == 0)
+        mcd_dispatcher_context_release_client_lock (context);
+}
+
+static void
+add_dispatch_operation_cb (TpProxy *proxy, const GError *error,
+                           gpointer user_data, GObject *weak_object)
+{
+    McdDispatcherContext *context = user_data;
+
+    if (error)
+    {
+        g_debug ("Failed to add DO on approver: %s", error->message);
+
+        /* if all approvers fail to add the DO, then we behave as if no
+         * approver was registered: i.e., we continue dispatching */
+        context->approvers_invoked--;
+        if (context->approvers_invoked == 0)
+            mcd_dispatcher_context_release_client_lock (context);
+    }
+}
+
+static void
+mcd_dispatcher_run_approvers (McdDispatcherContext *context)
+{
+    McdDispatcherPrivate *priv = context->dispatcher->priv;
+    McdClient *handler = NULL;
+    const GList *cl, *channels;
+    GList *list;
+
+    g_return_if_fail (context->operation != NULL);
+
+    /* we temporarily increment this count and decrement it at the end of the
+     * function, to make sure it won't become 0 while we are still invoking
+     * approvers */
+    context->approvers_invoked = 1;
+
+    context->client_locks++;
+    channels = context->channels;
+    for (list = priv->clients; list != NULL; list = list->next)
+    {
+        McdClient *client = list->data;
+        const gchar *dispatch_operation;
+        GHashTable *properties;
+        gboolean matched = FALSE;
+
+        if (!client->proxy ||
+            !(client->interfaces & MCD_CLIENT_APPROVER))
+            continue;
+
+        for (cl = channels; cl != NULL; cl = cl->next)
+        {
+            McdChannel *channel = MCD_CHANNEL (cl->data);
+
+            if (match_filters (channel, client->handler_filters))
+            {
+                matched = TRUE;
+                break;
+            }
+        }
+        if (!matched) continue;
+
+        dispatch_operation =
+            mcd_dispatch_operation_get_path (context->operation);
+        properties =
+            mcd_dispatch_operation_get_properties (context->operation);
+
+        context->approvers_invoked++;
+        mcd_dispatcher_context_ref (context);
+        mc_cli_client_approver_call_add_dispatch_operation (handler->proxy, -1,
+            dispatch_operation, properties,
+            add_dispatch_operation_cb,
+            context, (GDestroyNotify)mcd_dispatcher_context_unref,
+            (GObject *)context->dispatcher);
+    }
+
+    /* This matches the approvers count set to 1 at the beginning of the
+     * function */
+    mcd_dispatcher_context_approver_not_invoked (context);
+}
+
 /* Happens at the end of successful filter chain execution (empty chain
  * is always successful)
  */
@@ -1211,7 +1311,12 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
 
     mcd_dispatcher_run_observers (context);
 
-    /* TODO: for non requested channels, start approvers */
+    if (context->operation)
+    {
+        /* if we have a dispatch operation, it means that the channels were not
+         * requested: start the Approvers */
+        mcd_dispatcher_run_approvers (context);
+    }
 
     mcd_dispatcher_context_release_client_lock (context);
     mcd_dispatcher_context_unref (context);
@@ -1264,6 +1369,46 @@ on_channel_abort_context (McdChannel *channel, McdDispatcherContext *context)
      */
 }
 
+static void
+on_operation_finished (McdDispatchOperation *operation,
+                       McdDispatcherContext *context)
+{
+    /* This is emitted when the HandleWith() or Claimed() are invoked on the
+     * CDO: according to which of these have happened, we run the choosen
+     * handler or we don't. */
+
+    if (mcd_dispatch_operation_is_claimed (operation))
+    {
+        GList *list;
+
+        /* we don't release the client lock, in order to not run the handlers.
+         * But we have to mark all channels as dispatched, and free the
+         * @context */
+        for (list = context->channels; list != NULL; list = list->next)
+        {
+            McdChannel *channel = MCD_CHANNEL (list->data);
+
+            /* TODO: abort the channel if the handler dies */
+            mcd_channel_set_status (channel, MCD_CHANNEL_DISPATCHED);
+            g_signal_emit_by_name (context->dispatcher, "dispatched", channel);
+        }
+
+        mcd_dispatcher_context_handler_done (context);
+    }
+    else
+    {
+        const gchar *handler;
+
+        handler = mcd_dispatch_operation_get_handler (operation);
+
+        /* TODO: set this handler as the preferred handler for the context */
+
+        /* this is the lock set in mcd_dispatcher_run_approvers(): releasing
+         * this will make the handlers run */
+        mcd_dispatcher_context_release_client_lock (context);
+    }
+}
+
 /* Entering the state machine */
 static void
 _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
@@ -1314,8 +1459,12 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     context->channels = channels;
     context->chain = chain;
     if (!requested)
+    {
         context->operation =
             _mcd_dispatch_operation_new (priv->dbus_daemon, channels);
+        g_signal_connect (context->operation, "finished",
+                          G_CALLBACK (on_operation_finished), context);
+    }
 
     for (list = channels; list != NULL; list = list->next)
     {
@@ -1950,7 +2099,12 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context)
         }
         /* disposing the dispatch operation also frees the channels list */
         if (context->operation)
+        {
+            g_signal_handlers_disconnect_by_func (context->operation,
+                                                  on_operation_finished,
+                                                  context);
             g_object_unref (context->operation);
+        }
         else
             g_list_free (context->channels);
 
