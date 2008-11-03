@@ -68,6 +68,7 @@ struct _McdDispatcherContext
 
     GList *channels;
     McdChannel *main_channel;
+    McdDispatchOperation *operation;
 
     gchar *protocol;
 
@@ -1205,6 +1206,9 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     context->dispatcher = dispatcher;
     context->channels = channels;
     context->chain = chain;
+    if (!requested)
+        context->operation =
+            _mcd_dispatch_operation_new (priv->dbus_daemon, channels);
 
     for (list = channels; list != NULL; list = list->next)
     {
@@ -1837,7 +1841,11 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context)
                 G_CALLBACK (on_channel_abort_context), context);
             g_object_unref (channel);
         }
-        g_list_free (context->channels);
+        /* disposing the dispatch operation also frees the channels list */
+        if (context->operation)
+            g_object_unref (context->operation);
+        else
+            g_list_free (context->channels);
 
         g_free (context->protocol);
         g_free (context);
@@ -2146,12 +2154,6 @@ void
 _mcd_dispatcher_send_channels (McdDispatcher *dispatcher, GList *channels,
                                gboolean requested)
 {
-    McdDispatcherPrivate *priv = dispatcher->priv;
-    McdDispatchOperation *operation;
-
-    if (!requested)
-        operation = _mcd_dispatch_operation_new (priv->dbus_daemon, channels);
-    else
-        operation = NULL;
+    _mcd_dispatcher_enter_state_machine (dispatcher, channels, requested);
 }
 

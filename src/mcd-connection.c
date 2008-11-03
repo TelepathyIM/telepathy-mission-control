@@ -1304,14 +1304,14 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
     McdConnection *connection = MCD_CONNECTION (weak_object);
     McdConnectionPrivate *priv = user_data;
     McdChannel *channel;
+    GList *channel_list = NULL;
+    gboolean requested = FALSE;
     guint i;
 
     /* we can completely ignore the channels that arrive while can_dispatch is
      * FALSE: the on_new_channel handler is already recording them */
     if (!priv->can_dispatch) return;
 
-    /* For the time being, dispatch each channel separately.
-     * TODO: these channels should be dispatched together */
     for (i = 0; i < channels->len; i++)
     {
         GValueArray *va;
@@ -1327,7 +1327,13 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
         /* Don't do anything for requested channels */
         value = g_hash_table_lookup (props, TP_IFACE_CHANNEL ".Requested");
         if (value && g_value_get_boolean (value))
+        {
+            requested = TRUE;
+            /* FIXME: once the CMs emit this signal _after_ having returned
+             * from CreateChannel(), we can handle requested channels here,
+             * too. */
             continue;
+        }
 
         /* get channel type, handle type, handle */
         value = g_hash_table_lookup (props, TP_IFACE_CHANNEL ".ChannelType");
@@ -1352,9 +1358,14 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
         mcd_operation_take_mission (MCD_OPERATION (connection),
                                     MCD_MISSION (channel));
 
-        /* Dispatch the incoming channel */
-        mcd_dispatcher_send (priv->dispatcher, channel);
+        channel_list = g_list_prepend (channel_list, channel);
     }
+
+    /* FIXME: once the CMs emit this signal _after_ having returned from
+     * CreateChannel(), we can handle requested channels here, too. */
+    if (requested) return;
+
+    _mcd_dispatcher_send_channels (priv->dispatcher, channel_list, requested);
 }
 
 static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
