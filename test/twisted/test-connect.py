@@ -54,13 +54,37 @@ def test(q, bus, mc):
             interface='org.freedesktop.Telepathy.Account',
             args=[dbus.Dictionary({"Enabled": True}, signature='sv')])
 
-    # Which value should I use?
-    # MC_PRESENCE_AVAILABLE == 2
-    # TP_CONNECTION_STATUS_CONNECTED == 0
-    old_iface.SetPresence(2, "Hello, everybody!")
+    # Check the requested presence is offline
+    properties = account.GetAll(
+            'org.freedesktop.Telepathy.Account',
+            dbus_interface='org.freedesktop.DBus.Properties')
+    assert properties is not None
+    # the requested presence is defined by Connection_Presence_Type:
+    #  Connection_Presence_Type_Unset = 0
+    #  Connection_Presence_Type_Offline = 1
+    #  Connection_Presence_Type_Available = 2
+    assert properties.get('RequestedPresence') == \
+        dbus.Struct((dbus.UInt32(0L), dbus.String(u''), dbus.String(u''))), \
+        properties.get('RequestedPresence')  # FIXME: we should expect 1
+
+    # Go online
+    requested_presence = dbus.Struct((dbus.UInt32(2L), dbus.String(u'brb'),
+                dbus.String(u'Be back soon!')))
+    account.Set('org.freedesktop.Telepathy.Account',
+            'RequestedPresence', requested_presence,
+            dbus_interface='org.freedesktop.DBus.Properties')
+
     e = q.expect('dbus-method-call', name='RequestConnection',
             protocol='fakeprotocol')
     assert e.parameters == params
+
+    # Check the requested presence is online
+    properties = account.GetAll(
+            'org.freedesktop.Telepathy.Account',
+            dbus_interface='org.freedesktop.DBus.Properties')
+    assert properties is not None
+    assert properties.get('RequestedPresence') == requested_presence, \
+        properties.get('RequestedPresence')
 
 if __name__ == '__main__':
     exec_test(test, {})
