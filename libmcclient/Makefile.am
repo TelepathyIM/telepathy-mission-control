@@ -26,6 +26,7 @@ libmcclient_la_SOURCES = \
 	mc-account-conditions.c \
 	mc-account-manager.c \
 	mc-account-request.c \
+	mc-dispatch-operation.c \
 	mc-errors.c \
 	mc-profile.c \
 	mc-signals-marshal.c
@@ -37,6 +38,7 @@ libmcclient_include_HEADERS = \
 	mc-errors.h \
 	mc-profile.h \
 	mc-account-manager.h \
+	mc-dispatch-operation.h \
 	mc-signals-marshal.h
 
 noinst_HEADERS = \
@@ -47,6 +49,7 @@ nodist_geninclude_HEADERS = \
 	_gen/mc-quark.h \
 	_gen/cli-account.h \
 	_gen/cli-account-manager.h \
+	_gen/cli-dispatch-operation.h \
 	_gen/svc-client.h \
 	_gen/enums.h \
 	_gen/interfaces.h \
@@ -56,6 +59,7 @@ nodist_libmcclient_la_SOURCES = \
 	_gen/mc-quark.c \
 	_gen/cli-account-body.h \
 	_gen/cli-account-manager-body.h \
+	_gen/cli-dispatch-operation-body.h \
 	_gen/svc-client.c \
 	_gen/gtypes-body.h \
 	_gen/interfaces-body.h \
