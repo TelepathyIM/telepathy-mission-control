@@ -2083,6 +2083,8 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdChannel *channel)
     g_value_init (&v_user_time, G_TYPE_UINT64);
     g_value_set_uint64 (&v_user_time,
                         _mcd_channel_get_request_user_action_time (channel));
+    g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest"
+                         ".UserActionTime", &v_user_time);
 
     requests = g_ptr_array_sized_new (1);
     g_ptr_array_add (requests,
@@ -2090,9 +2092,8 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdChannel *channel)
     g_value_init (&v_requests, dbus_g_type_get_collection ("GPtrArray",
          MC_HASH_TYPE_QUALIFIED_PROPERTY_VALUE_MAP));
     g_value_set_static_boxed (&v_requests, requests);
-
-    g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest" ".UserActionTime", &v_user_time);
-    g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest" ".Requests", &v_requests);
+    g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest"
+                         ".Requests", &v_requests);
 
     g_object_ref (channel);
     mc_cli_client_handler_call_add_request (handler->proxy, -1,
