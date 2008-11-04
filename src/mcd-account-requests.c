@@ -148,7 +148,7 @@ create_request (McdAccount *account, GHashTable *properties,
                       G_CALLBACK (on_channel_status_changed), account);
 
     dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
-    _mcd_dispatcher_add_request (dispatcher, channel);
+    _mcd_dispatcher_add_request (dispatcher, account, channel);
 
     _mcd_account_online_request (account, online_request_cb, channel, &error);
     if (error)

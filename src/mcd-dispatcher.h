@@ -88,7 +88,7 @@ GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher,
 
 /* not exported */
 void _mcd_dispatcher_add_request (McdDispatcher *dispatcher,
-                                  McdChannel *channel);
+                                  McdAccount *account, McdChannel *channel);
 
 G_END_DECLS
 

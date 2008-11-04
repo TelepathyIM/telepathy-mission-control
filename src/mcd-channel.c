@@ -1330,3 +1330,21 @@ _mcd_channel_get_request_user_action_time (McdChannel *channel)
     return crd->user_time;
 }
 
+/*
+ * _mcd_channel_get_request_preferred_handler:
+ * @channel: the #McdChannel.
+ *
+ * Returns: the preferred handler specified when requesting the channel, if the
+ * channel is in MCD_CHANNEL_REQUEST status.
+ */
+const gchar *
+_mcd_channel_get_request_preferred_handler (McdChannel *channel)
+{
+    McdChannelRequestData *crd;
+
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
+    crd = g_object_get_data ((GObject *)channel, CD_REQUEST);
+    if (G_UNLIKELY (!crd)) return NULL;
+    return crd->preferred_handler;
+}
+
