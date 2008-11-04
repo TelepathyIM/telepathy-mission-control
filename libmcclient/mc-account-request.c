@@ -95,6 +95,10 @@ mc_request_free (McChannelRequest *req)
 static void
 emit_request_event (McChannelRequest *req, McAccountChannelrequestEvent event)
 {
+    McAccountChannelrequestsProps *props;
+
+    props = req->account->priv->request_props;
+
     if (req->callback)
         req->callback (req->account, GPOINTER_TO_UINT (req), event,
                        req->user_data, req->weak_object);
@@ -103,8 +107,19 @@ emit_request_event (McChannelRequest *req, McAccountChannelrequestEvent event)
         event == MC_ACCOUNT_CR_FAILED ||
         event == MC_ACCOUNT_CR_CANCELLED)
     {
-        /* the request does no longer exist */
-        mc_request_free (req);
+        GList *list;
+
+        /* we must delete the request, but being careful that this might have
+         * been already done by the client, by destroying the weak_object */
+        for (list = props->requests; list != NULL; list = list->next)
+        {
+            if (req == list->data)
+            {
+                props->requests = g_list_delete_link (props->requests, list);
+                mc_request_free (req);
+                break;
+            }
+        }
     }
 }
 
