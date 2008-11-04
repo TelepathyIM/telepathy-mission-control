@@ -2340,19 +2340,23 @@ add_request_cb (TpProxy *proxy, const GError *error, gpointer user_data,
 /*
  * _mcd_dispatcher_add_request:
  * @context: the #McdDispatcherContext.
+ * @account: the #McdAccount.
  * @channels: a #McdChannel in MCD_CHANNEL_REQUEST state.
  *
  * Add a request; this basically means invoking AddRequest (and maybe
  * RemoveRequest) on the channel handler.
  */
 void
-_mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdChannel *channel)
+_mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
+                             McdChannel *channel)
 {
     McdDispatcherPrivate *priv;
     McdClient *handler = NULL;
     GHashTable *properties;
     GValue v_user_time = { 0, };
     GValue v_requests = { 0, };
+    GValue v_account = { 0, };
+    GValue v_preferred_handler = { 0, };
     GPtrArray *requests;
     GList *list;
 
@@ -2392,6 +2396,8 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdChannel *channel)
     g_value_init (&v_user_time, G_TYPE_UINT64);
     g_value_set_uint64 (&v_user_time,
                         _mcd_channel_get_request_user_action_time (channel));
+    g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest"
+                         ".UserActionTime", &v_user_time);
 
     requests = g_ptr_array_sized_new (1);
     g_ptr_array_add (requests,
@@ -2399,9 +2405,20 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdChannel *channel)
     g_value_init (&v_requests, dbus_g_type_get_collection ("GPtrArray",
          MC_HASH_TYPE_QUALIFIED_PROPERTY_VALUE_MAP));
     g_value_set_static_boxed (&v_requests, requests);
+    g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest"
+                         ".Requests", &v_requests);
 
-    g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest" ".UserActionTime", &v_user_time);
-    g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest" ".Requests", &v_requests);
+    g_value_init (&v_account, DBUS_TYPE_G_OBJECT_PATH);
+    g_value_set_static_boxed (&v_account,
+                              mcd_account_get_object_path (account));
+    g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest"
+                         ".Account", &v_account);
+
+    g_value_init (&v_preferred_handler, G_TYPE_STRING);
+    g_value_set_static_string (&v_preferred_handler,
+        _mcd_channel_get_request_preferred_handler (channel));
+    g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest"
+                         ".PreferredHandler", &v_preferred_handler);
 
     g_object_ref (channel);
     mc_cli_client_handler_call_add_request (handler->proxy, -1,

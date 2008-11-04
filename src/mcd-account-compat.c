@@ -338,7 +338,7 @@ _mcd_account_compat_request_channel_nmc4 (McdAccount *account,
     g_hash_table_unref (properties);
 
     dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
-    _mcd_dispatcher_add_request (dispatcher, channel);
+    _mcd_dispatcher_add_request (dispatcher, account, channel);
 
     req_data = g_slice_new0 (McdAccountCompatReq);
     req_data->requestor_serial = req->requestor_serial;
