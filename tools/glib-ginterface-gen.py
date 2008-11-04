@@ -290,10 +290,9 @@ class Generator(object):
         self.b('  %d,' % len(methods))
         self.b('"' + method_blob.replace('\0', '\\0') + '",')
         self.b('"' + self.get_signal_glue(signals).replace('\0', '\\0') + '",')
-        if self.write_properties:
-            self.b('"' +
-                   self.get_property_glue(glue_properties).replace('\0', '\\0')
-                   + '",')
+        self.b('"' +
+               self.get_property_glue(glue_properties).replace('\0', '\\0') +
+               '",')
         self.b('};')
         self.b('')
 
