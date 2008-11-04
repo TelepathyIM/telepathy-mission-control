@@ -35,6 +35,8 @@
 #define PROFILE_SUFFIX ".profile"
 #define PROFILE_SUFFIX_LEN 8
 #define PROFILE_GROUP "Profile"
+#define PRESENCE_PREFIX "Presence "
+#define PRESENCE_PREFIX_LEN (sizeof (PRESENCE_PREFIX) - 1)
 
 #define MC_PROFILE_PRIV(profile) ((McProfilePrivate *)profile->priv)
 
@@ -68,8 +70,8 @@ const static gchar *presence_map[] = {
 };
 
 typedef struct {
+    GKeyFile *keyfile;
     gchar *unique_name;
-    gboolean loaded;
     gchar *configuration_ui;
     gchar *display_name;
     gchar *icon_name;
@@ -80,6 +82,8 @@ typedef struct {
     gchar *default_account_domain;
     gchar *avatar_mime_type;
     gchar *default_account_name;
+    gchar *localization_domain;
+    gchar **presences;
     gint priority;
     gboolean vcard_default;
     McProfileCapabilityFlags capabilities;
@@ -126,9 +130,12 @@ mc_profile_finalize (GObject *object)
     g_free (priv->default_account_domain);
     g_free (priv->avatar_mime_type);
     g_free (priv->default_account_name);
+    g_free (priv->localization_domain);
+    g_strfreev (priv->presences);
     g_hash_table_destroy (priv->default_settings);
     g_hash_table_destroy (priv->vcard_mangle_hash);
     g_array_free (priv->supported_presences, TRUE);
+    g_key_file_free (priv->keyfile);
 }
 
 static void
@@ -275,7 +282,7 @@ _mc_profile_load (McProfile *profile)
     gchar *filename;
     GKeyFile *keyfile;
     GError *error = NULL;
-    gchar *caps, *localization_domain;
+    gchar *caps;
     gchar **keys, **tmp;
     McProfilePrivate *priv;
     gchar **presences_str;
@@ -284,12 +291,12 @@ _mc_profile_load (McProfile *profile)
 
     priv = MC_PROFILE_PRIV (profile);
 
-    if (priv->loaded)
+    if (priv->keyfile)
 	return TRUE;
 
     filename = _mc_profile_filename (priv->unique_name);
 
-    keyfile = g_key_file_new ();
+    priv->keyfile = keyfile = g_key_file_new ();
     if (!g_key_file_load_from_file (keyfile, filename, G_KEY_FILE_NONE, &error))
     {
 	g_debug ("%s: loading %s failed: %s", G_STRFUNC, filename, error->message);
@@ -309,16 +316,17 @@ _mc_profile_load (McProfile *profile)
     priv->avatar_mime_type = g_key_file_get_string (keyfile, PROFILE_GROUP, "AvatarMimeType", NULL);
     priv->default_account_name = g_key_file_get_string (keyfile, PROFILE_GROUP, "DefaultAccountName", NULL);
     priv->priority = g_key_file_get_integer (keyfile, PROFILE_GROUP, "Priority", NULL);
-    localization_domain = g_key_file_get_string (keyfile, PROFILE_GROUP, "LocalizationDomain", NULL);
-    if (localization_domain)
+    priv->localization_domain = g_key_file_get_string (keyfile, PROFILE_GROUP,
+                                                       "LocalizationDomain",
+                                                       NULL);
+    if (priv->localization_domain)
     {
 	gchar *display_name;
 
-	display_name = g_strdup (dgettext (localization_domain,
+	display_name = g_strdup (dgettext (priv->localization_domain,
 					   priv->display_name));
 	g_free (priv->display_name);
 	priv->display_name = display_name;
-	g_free (localization_domain);
     }
 
     g_key_file_set_list_separator (keyfile, ',');
@@ -392,10 +400,8 @@ _mc_profile_load (McProfile *profile)
     }
     g_strfreev (keys);
 
-    g_key_file_free (keyfile);
     g_free (filename);
 
-    priv->loaded = TRUE;
     return TRUE;
 }
 
@@ -1070,5 +1076,132 @@ mc_profile_get_vcard_mangle (McProfile *id, const gchar *vcard_field)
     g_return_val_if_fail (profile_loaded, NULL);
 
     return (const gchar *) g_hash_table_lookup (MC_PROFILE_PRIV (id)->vcard_mangle_hash, vcard_field);
+}
+
+/**
+ * mc_profile_presences_list:
+ * @id: The #McProfile.
+ *
+ * List the presences supported by this profile.
+ *
+ * Returns: an array of strings representing the presence statuses supported by
+ * this profile (do not free).
+ */
+const gchar * const *
+mc_profile_presences_list (McProfile *id)
+{
+    McProfilePrivate *priv;
+    gchar **groups;
+    GPtrArray *presences;
+    gsize len = 0;
+    guint i;
+
+    g_return_val_if_fail (MC_IS_PROFILE (id), NULL);
+    priv = id->priv;
+    if (!priv->presences)
+    {
+        if (G_UNLIKELY (!priv->keyfile)) _mc_profile_load (id);
+        g_return_val_if_fail (priv->keyfile != NULL, NULL);
+
+        presences = g_ptr_array_new ();
+        groups = g_key_file_get_groups (priv->keyfile, &len);
+        for (i = 0; i < len; i++)
+        {
+            gchar *presence;
+
+            if (strncmp (groups[i], PRESENCE_PREFIX, PRESENCE_PREFIX_LEN) != 0)
+                continue;
+            presence = g_strdup (groups[i] + PRESENCE_PREFIX_LEN);
+            g_ptr_array_add (presences, presence);
+        }
+        g_strfreev (groups);
+
+        /* the list is NULL-terminated */
+        g_ptr_array_add (presences, NULL);
+        priv->presences = (gchar **)g_ptr_array_free (presences, FALSE);
+    }
+    return (const gchar * const *)priv->presences;
+}
+
+/**
+ * mc_profile_presence_get_name:
+ * @id: The #McProfile.
+ * @presence: status name of the presence.
+ *
+ * Returns: the localized name of the presence status.
+ */
+gchar *
+mc_profile_presence_get_name (McProfile *id, const gchar *presence)
+{
+    McProfilePrivate *priv;
+    gchar group[128], *name, *string;
+
+    g_return_val_if_fail (MC_IS_PROFILE (id), NULL);
+    priv = id->priv;
+    if (G_UNLIKELY (!priv->keyfile)) _mc_profile_load (id);
+    g_return_val_if_fail (priv->keyfile != NULL, NULL);
+
+    g_snprintf (group, sizeof (group), PRESENCE_PREFIX "%s", presence);
+    if (priv->localization_domain)
+    {
+        string = g_key_file_get_string (priv->keyfile, group, "Name", NULL);
+        if (string)
+        {
+            name = g_strdup (dgettext (priv->localization_domain, string));
+            g_free (string);
+        }
+        else
+            name = NULL;
+    }
+    else
+        name = g_key_file_get_locale_string (priv->keyfile, group, "Name",
+                                             NULL, NULL);
+    return name;
+}
+
+/**
+ * mc_profile_presence_get_type:
+ * @id: The #McProfile.
+ * @presence: status name of the presence.
+ *
+ * Returns: the #TpConnectionPresenceType of @presence.
+ */
+TpConnectionPresenceType
+mc_profile_presence_get_type (McProfile *id, const gchar *presence)
+{
+    McProfilePrivate *priv;
+    gchar group[128];
+
+    g_return_val_if_fail (MC_IS_PROFILE (id),
+                          TP_CONNECTION_PRESENCE_TYPE_UNSET);
+    priv = id->priv;
+    if (G_UNLIKELY (!priv->keyfile)) _mc_profile_load (id);
+    g_return_val_if_fail (priv->keyfile != NULL,
+                          TP_CONNECTION_PRESENCE_TYPE_UNSET);
+
+    g_snprintf (group, sizeof (group), PRESENCE_PREFIX "%s", presence);
+    return (TpConnectionPresenceType)
+        g_key_file_get_integer (priv->keyfile, group, "Type", NULL);
+}
+
+/**
+ * mc_profile_presence_get_icon_name:
+ * @id: The #McProfile.
+ * @presence: status name of the presence.
+ *
+ * Returns: the branding icon name for @presence.
+ */
+gchar *
+mc_profile_presence_get_icon_name (McProfile *id, const gchar *presence)
+{
+    McProfilePrivate *priv;
+    gchar group[128];
+
+    g_return_val_if_fail (MC_IS_PROFILE (id), NULL);
+    priv = id->priv;
+    if (G_UNLIKELY (!priv->keyfile)) _mc_profile_load (id);
+    g_return_val_if_fail (priv->keyfile != NULL, NULL);
+    g_snprintf (group, sizeof (group), PRESENCE_PREFIX "%s", presence);
+    return g_key_file_get_string (priv->keyfile, group, "IconName", NULL);
 }
 
