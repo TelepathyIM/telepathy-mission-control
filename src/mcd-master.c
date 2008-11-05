@@ -227,27 +227,79 @@ mcd_master_transport_disconnected (McdMaster *master, McdTransportPlugin *plugin
     g_hash_table_foreach (valid_accounts, disconnect_account_transport, &td);
 }
 
+static gboolean
+account_conditions_satisfied (McdMasterPrivate *priv, McdAccount *account)
+{
+    GHashTable *conditions;
+    gboolean ret = FALSE;
+
+    conditions = mcd_account_get_conditions (account);
+    if (g_hash_table_size (conditions) == 0)
+        ret = TRUE;
+    else
+    {
+        guint i;
+        for (i = 0; i < priv->transport_plugins->len; i++)
+        {
+            McdTransportPlugin *plugin;
+            const GList *transports;
+
+            plugin = g_ptr_array_index (priv->transport_plugins, i);
+            transports = mcd_transport_plugin_get_transports (plugin);
+            while (transports)
+            {
+                McdTransport *transport = transports->data;
+                if (mcd_transport_get_status (plugin, transport) ==
+                    MCD_TRANSPORT_STATUS_CONNECTED &&
+                    mcd_transport_plugin_check_conditions (plugin, transport,
+                                                           conditions))
+                {
+                    set_account_transport (account, transport);
+                    ret = TRUE;
+                    goto finish;
+                }
+                transports = transports->next;
+            }
+        }
+    }
+finish:
+    g_hash_table_unref (conditions);
+    return ret;
+}
+
 static void
 mcd_master_connect_automatic_accounts (McdMaster *master)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    guint i;
+    GHashTable *valid_accounts;
+    GHashTableIter iter;
+    gpointer ht_key, ht_value;
 
-    for (i = 0; i < priv->transport_plugins->len; i++)
+    valid_accounts =
+        mcd_account_manager_get_valid_accounts (priv->account_manager);
+    g_hash_table_iter_init (&iter, valid_accounts);
+    while (g_hash_table_iter_next (&iter, &ht_key, &ht_value))
     {
-	McdTransportPlugin *plugin;
-	const GList *transports;
+        McdAccount *account = MCD_ACCOUNT (ht_value);
 
-	plugin = g_ptr_array_index (priv->transport_plugins, i);
-	transports = mcd_transport_plugin_get_transports (plugin);
-	while (transports)
-	{
-	    if (mcd_transport_get_status (plugin, transports->data) !=
-		MCD_TRANSPORT_STATUS_CONNECTED)
-		continue;
-	    mcd_master_transport_connected (master, plugin, transports->data);
-	    transports = transports->next;
-	}
+        if (mcd_account_is_enabled (account) &&
+            mcd_account_get_connect_automatically (account) &&
+            mcd_account_get_connection_status (account) ==
+            TP_CONNECTION_STATUS_DISCONNECTED)
+        {
+            /* if the account conditions are satisfied, connect */
+            if (account_conditions_satisfied (priv, account))
+            {
+                TpConnectionPresenceType presence;
+                const gchar *status, *message;
+
+                g_debug ("conditions matched");
+                mcd_account_get_automatic_presence (account, &presence,
+                                                    &status, &message);
+                mcd_account_request_presence (account, presence, status,
+                                              message);
+            }
+        }
     }
 }
 
