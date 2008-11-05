@@ -50,6 +50,7 @@ gboolean _mcd_account_online_request (McdAccount *account,
                                       McdOnlineRequestCb callback,
                                       gpointer userdata,
                                       GError **imm_error);
+void _mcd_account_request_connection (McdAccount *account);
 
 #endif /* __MCD_ACCOUNT_PRIV_H__ */
 
