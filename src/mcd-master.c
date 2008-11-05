@@ -63,6 +63,7 @@
 #include "mcd-account-manager.h"
 #include "mcd-account-conditions.h"
 #include "mcd-account-compat.h"
+#include "mcd-account-priv.h"
 #include "mcd-plugin.h"
 #include "mcd-transport.h"
 #include "mcd-account-connection.h"
@@ -160,13 +161,8 @@ check_account_transport (gpointer key, gpointer value, gpointer userdata)
     if (mcd_transport_plugin_check_conditions (td->plugin, td->transport,
 					       conditions))
     {
-	TpConnectionPresenceType presence;
-	const gchar *status, *message;
-
 	g_debug ("conditions matched");
-	mcd_account_get_automatic_presence (account, &presence,
-					    &status, &message);
-	mcd_account_request_presence (account, presence, status, message);
+        _mcd_account_request_connection (account);
 	set_account_transport (account, td->transport);
     }
     g_hash_table_destroy (conditions);
@@ -290,14 +286,8 @@ mcd_master_connect_automatic_accounts (McdMaster *master)
             /* if the account conditions are satisfied, connect */
             if (account_conditions_satisfied (priv, account))
             {
-                TpConnectionPresenceType presence;
-                const gchar *status, *message;
-
                 g_debug ("conditions matched");
-                mcd_account_get_automatic_presence (account, &presence,
-                                                    &status, &message);
-                mcd_account_request_presence (account, presence, status,
-                                              message);
+                _mcd_account_request_connection (account);
             }
         }
     }
