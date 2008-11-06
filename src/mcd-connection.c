@@ -2233,6 +2233,7 @@ create_channel_cb (TpConnection *proxy, const gchar *channel_path,
         mcd_mission_abort ((McdMission *)channel);
         return;
     }
+    g_debug ("%s: %p, object %s", G_STRFUNC, channel, channel_path);
 
     _mcd_channel_set_immutable_properties (channel,
                                            _mcd_deepcopy_asv (properties));

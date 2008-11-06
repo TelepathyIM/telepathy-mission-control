@@ -588,7 +588,7 @@ on_channel_abort_list (McdChannel *channel, McdDispatcher *dispatcher)
 {
     McdDispatcherPrivate *priv = dispatcher->priv;
     
-    g_debug ("Abort Channel; Removing channel from list");
+    g_debug ("Abort Channel %p; Removing channel from list", channel);
     priv->channels = g_list_remove (priv->channels, channel);
     g_signal_emit_by_name (dispatcher, "channel-removed", channel);
     g_object_unref (channel);

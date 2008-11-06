@@ -676,15 +676,40 @@ _mcd_channel_dispose (GObject * object)
 }
 
 static void
+mcd_channel_abort (McdMission *mission)
+{
+    McdChannel *channel = MCD_CHANNEL (mission);
+    McdChannelPrivate *priv = channel->priv;
+
+    g_debug ("%s: %p", G_STRFUNC, mission);
+    /* If this is still a channel request, signal the failure */
+    if (priv->status == MCD_CHANNEL_REQUEST ||
+        priv->status == MCD_CHANNEL_DISPATCHING)
+    {
+        /* this code-path can only happen if the connection is aborted, as in
+         * the other cases we handle the error in McdChannel; for this reason,
+         * we use the DISCONNECTED error code */
+        GError *error = g_error_new (TP_ERRORS, TP_ERROR_DISCONNECTED,
+                                     "Channel aborted");
+        _mcd_channel_set_error (channel, error);
+    }
+
+    /* chain up with the parent */
+    MCD_MISSION_CLASS (mcd_channel_parent_class)->abort (mission);
+}
+
+static void
 mcd_channel_class_init (McdChannelClass * klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
+    McdMissionClass *mission_class = MCD_MISSION_CLASS (klass);
     g_type_class_add_private (object_class, sizeof (McdChannelPrivate));
 
     object_class->finalize = _mcd_channel_finalize;
     object_class->dispose = _mcd_channel_dispose;
     object_class->set_property = _mcd_channel_set_property;
     object_class->get_property = _mcd_channel_get_property;
+    mission_class->abort = mcd_channel_abort;
 
     /* signals */
     mcd_channel_signals[STATUS_CHANGED] =
@@ -927,6 +952,7 @@ mcd_channel_set_object_path (McdChannel *channel, TpConnection *connection,
 void
 mcd_channel_set_status (McdChannel *channel, McdChannelStatus status)
 {
+    g_debug ("%s: %p, %u", G_STRFUNC, channel, status);
     g_return_if_fail(MCD_IS_CHANNEL(channel));
     g_object_ref (channel);
     g_signal_emit_by_name (channel, "status-changed", status);
