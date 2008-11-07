@@ -143,40 +143,6 @@ enum
     PROP_DISPATCHER,
 };
 
-/* This table lists the Telepathy well-known statuses and the corresponding
- * TpConnectionPresenceType values; the order in which the items appear is only
- * important for those statuses which map to the same TpConnectionPresenceType
- * value: for them, the first ones will be preferred. */
-static const struct _presence_mapping {
-    gchar *presence_str;
-    TpConnectionPresenceType mc_presence;
-} presence_mapping[] = {
-    { "offline", TP_CONNECTION_PRESENCE_TYPE_OFFLINE },
-    { "available", TP_CONNECTION_PRESENCE_TYPE_AVAILABLE },
-    { "away", TP_CONNECTION_PRESENCE_TYPE_AWAY },
-    { "xa", TP_CONNECTION_PRESENCE_TYPE_EXTENDED_AWAY },
-    { "hidden", TP_CONNECTION_PRESENCE_TYPE_HIDDEN },
-    { "dnd", TP_CONNECTION_PRESENCE_TYPE_BUSY },
-    { "brb", TP_CONNECTION_PRESENCE_TYPE_AWAY },
-    { "busy", TP_CONNECTION_PRESENCE_TYPE_BUSY },
-    { NULL, 0 },
-};
-
-static const TpConnectionPresenceType fallback_presence
-    [LAST_MC_PRESENCE - 1][MAX_REF_PRESENCE] = {
-    { 0 },	/* TP_CONNECTION_PRESENCE_TYPE_OFFLINE */
-    { 0 },	/* TP_CONNECTION_PRESENCE_TYPE_AVAILABLE */
-    { TP_CONNECTION_PRESENCE_TYPE_AVAILABLE,
-       	0 },	/* TP_CONNECTION_PRESENCE_TYPE_AWAY */
-    { TP_CONNECTION_PRESENCE_TYPE_AWAY, TP_CONNECTION_PRESENCE_TYPE_AVAILABLE,
-       	0 },	/* TP_CONNECTION_PRESENCE_TYPE_EXTENDED_AWAY */
-    { TP_CONNECTION_PRESENCE_TYPE_BUSY,
-       	TP_CONNECTION_PRESENCE_TYPE_EXTENDED_AWAY,
-       	TP_CONNECTION_PRESENCE_TYPE_AVAILABLE,
-       	0 },	/* TP_CONNECTION_PRESENCE_TYPE_HIDDEN */
-    { 0 }	/* TP_CONNECTION_PRESENCE_TYPE_BUSY */
-};
-
 struct request_id {
     guint requestor_serial;
     const gchar *requestor_client_id;
