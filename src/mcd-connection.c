@@ -126,11 +126,6 @@ struct presence_info
     guint can_have_message : 1;
 };
 
-typedef struct {
-    gchar *status;
-    gchar *message;
-} McdPresenceData;
-
 struct param_data
 {
     GSList *pr_params;
@@ -199,15 +194,6 @@ static GError * map_tp_error_to_mc_error (McdChannel *channel, const GError *tp_
 static void _mcd_connection_setup (McdConnection * connection);
 static void _mcd_connection_release_tp_connection (McdConnection *connection);
 
-static TpConnectionPresenceType presence_str_to_enum (const gchar *presence_str)
-{
-    const struct _presence_mapping *mapping;
-    for (mapping = presence_mapping; mapping->presence_str; mapping++)
-	if (strcmp (presence_str, mapping->presence_str) == 0)
-	    return mapping->mc_presence;
-    return TP_CONNECTION_PRESENCE_TYPE_UNSET;
-}
-
 /* Free dynamic members and presence_info itself */
 static void
 _mcd_connection_free_presence_info (McdConnection * conn)
@@ -231,33 +217,16 @@ _mcd_connection_free_presence_info (McdConnection * conn)
 }
 
 static void
-mcd_presence_data_free (gpointer userdata)
-{
-    McdPresenceData *pd = userdata;
-
-    g_free (pd->status);
-    g_free (pd->message);
-    g_free (pd);
-}
-
-static void
 presence_set_status_cb (TpConnection *proxy, const GError *error,
 			gpointer user_data, GObject *weak_object)
 {
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (weak_object);
-    McdPresenceData *pd = user_data;
+    McdConnectionPrivate *priv = user_data;
 
     if (error)
     {
-        g_warning ("%s: Setting presence of %s to %s failed: %s",
+        g_warning ("%s: Setting presence of %s failed: %s",
 		   G_STRFUNC, mcd_account_get_unique_name (priv->account),
-                   pd->status, error->message);
-    }
-    else
-    {
-        mcd_account_set_current_presence (priv->account,
-                                          presence_str_to_enum (pd->status),
-					  pd->status, pd->message);
+                   error->message);
     }
 }
 
@@ -266,7 +235,6 @@ _mcd_connection_set_presence (McdConnection * connection,
 			      const gchar *status, const gchar *message)
 {
     McdConnectionPrivate *priv = connection->priv;
-    McdPresenceData *pd;
 
     if (!priv->tp_conn)
     {
@@ -279,12 +247,9 @@ _mcd_connection_set_presence (McdConnection * connection,
 
     if (!priv->has_presence_if) return;
 
-    pd = g_malloc (sizeof (McdPresenceData));
-    pd->status = g_strdup (status);
-    pd->message = g_strdup (message);
     tp_cli_connection_interface_simple_presence_call_set_presence
-        (priv->tp_conn, -1, status, message, presence_set_status_cb, pd,
-         mcd_presence_data_free, (GObject *)connection);
+        (priv->tp_conn, -1, status, message, presence_set_status_cb,
+         priv, NULL, (GObject *)connection);
 }
 
 
@@ -334,6 +299,27 @@ presence_get_statuses_cb (TpProxy *proxy, const GValue *v_statuses,
 }
 
 static void
+on_presences_changed (TpConnection *proxy, GHashTable *presences,
+                      gpointer user_data, GObject *weak_object)
+{
+    McdConnectionPrivate *priv = user_data;
+    GValueArray *va;
+
+    va = g_hash_table_lookup (presences, GUINT_TO_POINTER (priv->self_handle));
+    if (va)
+    {
+        TpConnectionPresenceType presence;
+        const gchar *status, *message;
+
+        presence = g_value_get_uint (va->values);
+        status = g_value_get_string (va->values + 1);
+        message = g_value_get_string (va->values + 2);
+        mcd_account_set_current_presence (priv->account,
+                                          presence, status, message);
+    }
+}
+
+static void
 _mcd_connection_setup_presence (McdConnection *connection)
 {
     McdConnectionPrivate *priv =  connection->priv;
@@ -342,6 +328,9 @@ _mcd_connection_setup_presence (McdConnection *connection)
         (priv->tp_conn, -1, TP_IFACE_CONNECTION_INTERFACE_SIMPLE_PRESENCE,
          "Statuses", presence_get_statuses_cb, priv, NULL,
          (GObject *)connection);
+    tp_cli_connection_interface_simple_presence_connect_to_presences_changed
+        (priv->tp_conn, on_presences_changed, priv, NULL,
+         (GObject *)connection, NULL);
 }
 
 static void
