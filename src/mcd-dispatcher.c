@@ -781,6 +781,7 @@ start_old_channel_handler (McdDispatcherContext *context)
         _mcd_channel_set_error (channel, mc_error);
 	g_signal_emit_by_name (context->dispatcher, "dispatch-failed", channel,
 			       mc_error);
+        mcd_mission_abort (MCD_MISSION (channel));
         mcd_dispatcher_context_handler_done (context);
     }
     else
