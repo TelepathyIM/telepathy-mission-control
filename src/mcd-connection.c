@@ -112,6 +112,9 @@ struct _McdConnectionPrivate
     /* FALSE until the connection is ready for dispatching */
     guint can_dispatch : 1;
 
+    /* FALSE until we got the first PresencesChanged for the self handle */
+    guint got_presences_changed : 1;
+
     gchar *alias;
 
     gboolean is_disposed;
@@ -228,6 +231,28 @@ presence_set_status_cb (TpConnection *proxy, const GError *error,
 		   G_STRFUNC, mcd_account_get_unique_name (priv->account),
                    error->message);
     }
+    /* We rely on the PresenceChanged signal to update our presence, but:
+     * - it is not emitted if the presence doesn't change
+     * - we miss a few emissions, while we wait for the readiness
+     *
+     * For this reasons, until we don't get the first PresenceChanged for our
+     * self handle, just copy the account requested presence as current
+     * presence.
+     * FIXME: remove this code is things in things in SimplePresence interface
+     * are changed.
+     */
+    if (!priv->got_presences_changed)
+    {
+        TpConnectionPresenceType presence;
+        const gchar *status, *message;
+
+        /* this is not really correct, as the requested presence might have
+         * been changed -- but we hope it didn't */
+        mcd_account_get_requested_presence (priv->account,
+                                            &presence, &status, &message);
+        mcd_account_set_current_presence (priv->account,
+                                          presence, status, message);
+    }
 }
 
 static void
@@ -316,6 +341,7 @@ on_presences_changed (TpConnection *proxy, GHashTable *presences,
         message = g_value_get_string (va->values + 2);
         mcd_account_set_current_presence (priv->account,
                                           presence, status, message);
+        priv->got_presences_changed = TRUE;
     }
 }
 
