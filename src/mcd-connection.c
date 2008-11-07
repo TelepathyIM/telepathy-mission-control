@@ -97,9 +97,6 @@ struct _McdConnectionPrivate
     guint reconnect_interval;
     gboolean reconnection_requested;
 
-    /* Supported presences */
-    GArray *recognized_presence_info_array;
-
     TpConnectionStatusReason abort_reason;
     guint got_capabilities : 1;
     guint setting_avatar : 1;
@@ -197,28 +194,6 @@ static GError * map_tp_error_to_mc_error (McdChannel *channel, const GError *tp_
 static void _mcd_connection_setup (McdConnection * connection);
 static void _mcd_connection_release_tp_connection (McdConnection *connection);
 
-/* Free dynamic members and presence_info itself */
-static void
-_mcd_connection_free_presence_info (McdConnection * conn)
-{
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (conn);
-
-    if (priv->recognized_presence_info_array != NULL)
-    {
-	struct presence_info *pi;
-	guint i;
-
-	for (i = 0; i < priv->recognized_presence_info_array->len; i++)
-	{
-	    pi = &g_array_index (priv->recognized_presence_info_array,
-				 struct presence_info, i);
-	    g_free (pi->presence_str);
-	}
-	g_array_free (priv->recognized_presence_info_array, TRUE);
-	priv->recognized_presence_info_array = NULL;
-    }
-}
-
 static void
 presence_set_status_cb (TpConnection *proxy, const GError *error,
 			gpointer user_data, GObject *weak_object)
@@ -279,51 +254,6 @@ _mcd_connection_set_presence (McdConnection * connection,
 
 
 static void
-presence_get_statuses_cb (TpProxy *proxy, const GValue *v_statuses,
-			  const GError *error, gpointer user_data,
-			  GObject *weak_object)
-{
-    McdConnectionPrivate *priv = user_data;
-    McdConnection *connection = MCD_CONNECTION (weak_object);
-    TpConnectionPresenceType presence;
-    const gchar *status, *message;
-    GHashTable *statuses;
-    GHashTableIter iter;
-    gpointer ht_key, ht_value;
-
-    if (error)
-    {
-	g_warning ("%s: Get statuses failed for account %s: %s", G_STRFUNC,
-		   mcd_account_get_unique_name (priv->account),
-		   error->message);
-	return;
-    }
-
-    priv->recognized_presence_info_array =
-        g_array_new (FALSE, FALSE, sizeof (struct presence_info));
-
-    statuses = g_value_get_boxed (v_statuses);
-    g_hash_table_iter_init (&iter, statuses);
-    while (g_hash_table_iter_next (&iter, &ht_key, &ht_value))
-    {
-        const gchar *status = ht_key;
-        GValueArray *va = ht_value;
-        struct presence_info pi;
-
-        pi.presence_str = g_strdup (status);
-        pi.presence = g_value_get_uint (va->values);
-        pi.may_set_on_self = g_value_get_boolean (va->values + 1);
-        pi.can_have_message = g_value_get_boolean (va->values + 2);
-        g_array_append_val (priv->recognized_presence_info_array, pi);
-    }
-
-    /* Now the presence info is ready. We can set the presence */
-    mcd_account_get_requested_presence (priv->account, &presence,
-				       	&status, &message);
-    _mcd_connection_set_presence (connection, status, message);
-}
-
-static void
 on_presences_changed (TpConnection *proxy, GHashTable *presences,
                       gpointer user_data, GObject *weak_object)
 {
@@ -350,10 +280,6 @@ _mcd_connection_setup_presence (McdConnection *connection)
 {
     McdConnectionPrivate *priv =  connection->priv;
 
-    tp_cli_dbus_properties_call_get
-        (priv->tp_conn, -1, TP_IFACE_CONNECTION_INTERFACE_SIMPLE_PRESENCE,
-         "Statuses", presence_get_statuses_cb, priv, NULL,
-         (GObject *)connection);
     tp_cli_connection_interface_simple_presence_connect_to_presences_changed
         (priv->tp_conn, on_presences_changed, priv, NULL,
          (GObject *)connection, NULL);
@@ -1499,8 +1425,6 @@ _mcd_connection_finalize (GObject * object)
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
 
     g_free (priv->bus_name);
-    
-    _mcd_connection_free_presence_info (connection);
 
     G_OBJECT_CLASS (mcd_connection_parent_class)->finalize (object);
 }
@@ -1537,7 +1461,6 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
      */
     g_free (priv->alias);
     priv->alias = NULL;
-    _mcd_connection_free_presence_info (connection);
 }
 
 static void
