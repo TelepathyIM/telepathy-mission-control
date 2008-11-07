@@ -649,6 +649,11 @@ install_dbus_filter (McdMasterPrivate *priv)
 	g_warning ("Match rule adding failed");
 	dbus_error_free (&error);
     }
+
+    /* FIXME: it doesn't really belong here, but for now it's OK. Move it when
+     * we switch to TpDBusDaemon APIs for monitoring D-Bus names */
+    /* There's no point in MC to stay alive if it's disconnected from the bus */
+    dbus_connection_set_exit_on_disconnect (dbus_conn, TRUE);
 }
 
 static GObject *
