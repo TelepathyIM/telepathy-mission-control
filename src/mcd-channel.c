@@ -1129,8 +1129,18 @@ void
 _mcd_channel_set_immutable_properties (McdChannel *channel,
                                        GHashTable *properties)
 {
+    gboolean present;
+    guint handle;
+
     g_object_set_data_full ((GObject *)channel, CD_IMMUTABLE_PROPERTIES,
                             properties, (GDestroyNotify)g_hash_table_unref);
+    /* copy any properties into the channel */
+    /* FIXME: this is only a quick fix. This all "immutable properties" thing
+     * must be revisited, when a similar TpGlib API exists */
+    handle = tp_asv_get_uint32 (properties, TP_IFACE_CHANNEL ".TargetHandle",
+                                &present);
+    if (present)
+        channel->priv->handle = handle;
 }
 
 /*
