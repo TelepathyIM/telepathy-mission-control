@@ -672,15 +672,15 @@ mcd_manager_class_init (McdManagerClass * klass)
     g_object_class_install_property
         (object_class, PROP_PRESENCE_FRAME,
          g_param_spec_object ("presence-frame",
-                              "Presence Frame Object",
-                              "Presence frame Object used by connections to update presence",
+                              "Presence frame",
+                              "Presence frame",
                               MCD_TYPE_PRESENCE_FRAME,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
     g_object_class_install_property
         (object_class, PROP_DISPATCHER,
          g_param_spec_object ("dispatcher",
-                              "Dispatcher Object",
-                              "Channel dispatcher object",
+                              "Dispatcher",
+                              "Dispatcher",
                               MCD_TYPE_DISPATCHER,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
     g_object_class_install_property

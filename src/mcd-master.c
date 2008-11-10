@@ -721,15 +721,15 @@ mcd_master_class_init (McdMasterClass * klass)
     g_object_class_install_property
         (object_class, PROP_PRESENCE_FRAME,
          g_param_spec_object ("presence-frame",
-                              "Presence Frame Object",
-                              "Presence frame Object used by connections to update presence",
+                              "Presence frame",
+                              "Presence frame",
                               MCD_TYPE_PRESENCE_FRAME,
                               G_PARAM_READABLE));
     g_object_class_install_property
         (object_class, PROP_DISPATCHER,
          g_param_spec_object ("dispatcher",
-                              "Dispatcher Object",
-                              "Dispatcher Object used to dispatch channels",
+                              "Dispatcher",
+                              "Dispatcher",
                               MCD_TYPE_DISPATCHER,
                               G_PARAM_READABLE));
 
@@ -743,13 +743,13 @@ mcd_master_class_init (McdMasterClass * klass)
         (object_class, PROP_DBUS_CONNECTION,
          g_param_spec_pointer ("dbus-connection",
                                "D-Bus Connection",
-                               "Connection to the D-Bus",
+                               "D-Bus Connection",
                                G_PARAM_READABLE));
     g_object_class_install_property
         (object_class, PROP_DEFAULT_PRESENCE,
          g_param_spec_uint ("default-presence",
                             "Default presence",
-                            "Default presence when connecting",
+                            "Default presence",
                             0, TP_CONNECTION_PRESENCE_TYPE_UNSET, 0,
                             G_PARAM_READWRITE));
 

@@ -374,8 +374,8 @@ mcd_mission_class_init (McdMissionClass * klass)
     g_object_class_install_property
         (object_class, PROP_PARENT,
          g_param_spec_object ("parent",
-                              "Parent Mission",
-                              "Parent mission object to which this belongs",
+                              "Parent mission",
+                              "Parent mission",
                               MCD_TYPE_MISSION,
                               G_PARAM_READWRITE));
     g_object_class_install_property

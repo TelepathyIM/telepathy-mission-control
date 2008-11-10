@@ -1598,8 +1598,8 @@ mcd_connection_class_init (McdConnectionClass * klass)
     g_object_class_install_property
         (object_class, PROP_DISPATCHER,
          g_param_spec_object ("dispatcher",
-                              "Dispatcher Object",
-                              "Dispatcher to dispatch channels",
+                              "Dispatcher",
+                              "Dispatcher",
                               MCD_TYPE_DISPATCHER,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
     g_object_class_install_property
@@ -1611,28 +1611,28 @@ mcd_connection_class_init (McdConnectionClass * klass)
         (object_class, PROP_BUS_NAME,
          g_param_spec_string ("bus-name",
                               "DBus Bus name",
-                              "DBus Bus name to use by us",
+                              "DBus Bus name",
                               NULL,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
     g_object_class_install_property
         (object_class, PROP_TP_MANAGER,
          g_param_spec_object ("tp-manager",
-                              "Telepathy Manager Object",
-                              "Telepathy Manager Object which this connection uses",
+                              "Telepathy Manager",
+                              "Telepathy Manager",
                               TP_TYPE_CONNECTION_MANAGER,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
     g_object_class_install_property
         (object_class, PROP_TP_CONNECTION,
          g_param_spec_object ("tp-connection",
-                              "Telepathy Connection Object",
-                              "Telepathy Connection Object which this connection uses",
+                              "Telepathy Connection",
+                              "Telepathy Connection",
                               TP_TYPE_CONNECTION,
                               G_PARAM_READABLE));
     g_object_class_install_property
         (object_class, PROP_ACCOUNT,
          g_param_spec_object ("account",
-                              "Account Object",
-                              "Account that will be used to create this connection",
+                              "Account",
+                              "Account",
                               MCD_TYPE_ACCOUNT,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 }

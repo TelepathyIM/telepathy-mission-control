@@ -733,22 +733,22 @@ mcd_channel_class_init (McdChannelClass * klass)
     g_object_class_install_property
         (object_class, PROP_CONNECTION,
          g_param_spec_object ("connection",
-                              "McdConnection Object",
-                              "McdConnection Object from which this channel was created",
+                              "McdConnection",
+                              "McdConnection",
                               G_TYPE_OBJECT,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
     g_object_class_install_property
         (object_class, PROP_TP_CHANNEL,
          g_param_spec_object ("tp-channel",
-                              "Telepathy Channel Object",
-                              "Telepathy Channel Object wrapped by it",
+                              "Telepathy Channel",
+                              "Telepathy Channel",
                               TP_TYPE_CHANNEL,
                               G_PARAM_READWRITE));
     g_object_class_install_property
         (object_class, PROP_CHANNEL_STATUS,
          g_param_spec_enum ("channel-status",
                             "Channel status",
-                            "Channel status that indicates the state of channel",
+                            "Channel status",
                             MCD_TYPE_CHANNEL_STATUS, MCD_CHANNEL_REQUEST,
                             G_PARAM_READWRITE));
     g_object_class_install_property
