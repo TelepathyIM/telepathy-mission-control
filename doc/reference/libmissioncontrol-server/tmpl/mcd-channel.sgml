@@ -134,13 +134,6 @@ McdChannel
 
 </para>
 
-@account_name: 
-@channel_type: 
-@channel_handle: 
-@channel_handle_string: 
-@channel_handle_type: 
-@requestor_serial: 
-@requestor_client_id: 
 
 <!-- ##### FUNCTION mcd_channel_new ##### -->
 <para>
