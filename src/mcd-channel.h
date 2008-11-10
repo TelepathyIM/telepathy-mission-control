@@ -111,6 +111,7 @@ guint mcd_channel_get_self_handle (McdChannel *channel);
 gboolean mcd_channel_is_missed (McdChannel *channel);
 gboolean mcd_channel_leave (McdChannel *channel, const gchar *message,
 			    TpChannelGroupChangeReason reason);
+gboolean mcd_channel_is_requested (McdChannel *channel);
 
 /* not exported: */
 void _mcd_channel_set_immutable_properties (McdChannel *channel,

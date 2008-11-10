@@ -131,6 +131,7 @@ mcd_channel_get_handle_type
 mcd_channel_get_flags
 mcd_channel_get_members
 mcd_channel_get_name
+mcd_channel_is_requested
 <SUBSECTION Standard>
 MCD_CHANNEL
 MCD_IS_CHANNEL

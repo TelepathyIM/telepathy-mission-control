@@ -1384,3 +1384,16 @@ _mcd_channel_get_request_preferred_handler (McdChannel *channel)
     return crd->preferred_handler;
 }
 
+/**
+ * mcd_channel_is_requested:
+ * @channel: the #McdChannel.
+ *
+ * Returns: %TRUE if @channel was requested, %FALSE otherwise.
+ */
+gboolean
+mcd_channel_is_requested (McdChannel *channel)
+{
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), FALSE);
+    return channel->priv->outgoing;
+}
+
