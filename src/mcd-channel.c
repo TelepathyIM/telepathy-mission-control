@@ -1306,3 +1306,22 @@ mcd_channel_is_requested (McdChannel *channel)
     return channel->priv->outgoing;
 }
 
+/**
+ * mcd_channel_get_account:
+ * @channel: the #McdChannel.
+ *
+ * Returns: the #McdAccount on which this channel was created.
+ */
+McdAccount *
+mcd_channel_get_account (McdChannel *channel)
+{
+    McdMission *connection;
+
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
+    connection = mcd_mission_get_parent (MCD_MISSION (channel));
+    if (G_LIKELY (connection))
+        return mcd_connection_get_account (MCD_CONNECTION (connection));
+    else
+        return NULL;
+}
+
