@@ -114,3 +114,23 @@ McdDispatcher
 @Returns: 
 
 
+<!-- ##### FUNCTION mcd_dispatcher_add_filter ##### -->
+<para>
+
+</para>
+
+@dispatcher: 
+@filter: 
+@priority: 
+@user_data: 
+
+
+<!-- ##### FUNCTION mcd_dispatcher_add_filters ##### -->
+<para>
+
+</para>
+
+@dispatcher: 
+@filters: 
+
+

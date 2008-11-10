@@ -237,6 +237,8 @@ mcd_dispatcher_new
 mcd_dispatcher_send
 mcd_dispatcher_get_channel_type_usage
 mcd_dispatcher_get_channel_capabilities
+mcd_dispatcher_add_filter
+mcd_dispatcher_add_filters
 <SUBSECTION Standard>
 MCD_DISPATCHER
 MCD_IS_DISPATCHER
