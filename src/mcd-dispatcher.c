@@ -1189,7 +1189,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
         {
             McdChannel *channel = MCD_CHANNEL (cl->data);
 
-            if (match_filters (channel, client->handler_filters))
+            if (match_filters (channel, client->observer_filters))
                 observed = g_list_prepend (observed, channel);
         }
         if (!observed) continue;
@@ -1289,7 +1289,7 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
         {
             McdChannel *channel = MCD_CHANNEL (cl->data);
 
-            if (match_filters (channel, client->handler_filters))
+            if (match_filters (channel, client->approver_filters))
             {
                 matched = TRUE;
                 break;
