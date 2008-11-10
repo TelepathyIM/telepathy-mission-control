@@ -1967,22 +1967,16 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
                       G_TYPE_NONE, 1, G_TYPE_POINTER);
 
     /* Properties */
-    g_object_class_install_property (object_class,
-				     PROP_DBUS_DAEMON,
-				     g_param_spec_object ("dbus-daemon",
-							  _("DBus daemon"),
-							  _("DBus daemon"),
-							  TP_TYPE_DBUS_DAEMON,
-							  G_PARAM_READWRITE |
-							  G_PARAM_CONSTRUCT));
-    g_object_class_install_property (object_class,
-				     PROP_MCD_MASTER,
-				     g_param_spec_object ("mcd-master",
-							   _("McdMaster"),
-							   _("McdMaster"),
-							   MCD_TYPE_MASTER,
-							   G_PARAM_READWRITE |
-							   G_PARAM_CONSTRUCT));
+    g_object_class_install_property
+        (object_class, PROP_DBUS_DAEMON,
+         g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
+                              TP_TYPE_DBUS_DAEMON,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
+    g_object_class_install_property
+        (object_class, PROP_MCD_MASTER,
+         g_param_spec_object ("mcd-master", "McdMaster", "McdMaster",
+                              MCD_TYPE_MASTER,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
 }
 
 static void

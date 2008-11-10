@@ -730,112 +730,112 @@ mcd_channel_class_init (McdChannelClass * klass)
 		      G_TYPE_NONE, 0);
 
     /* properties */
-    g_object_class_install_property (object_class,
-				     PROP_CONNECTION,
-				     g_param_spec_object ("connection",
-							  _ ("McdConnection Object"),
-							  _ ("McdConnection Object from which this channel was created"),
-							  G_TYPE_OBJECT,
-							  G_PARAM_READWRITE | 
-							  G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property (object_class,
-				     PROP_TP_CHANNEL,
-				     g_param_spec_object ("tp-channel",
-							  _ ("Telepathy Channel Object"),
-							  _ ("Telepathy Channel Object wrapped by it"),
-							  TP_TYPE_CHANNEL,
-                                                          G_PARAM_READWRITE /* |
-                                                          G_PARAM_CONSTRUCT_ONLY */));
-    g_object_class_install_property (object_class, PROP_CHANNEL_STATUS,
-				     g_param_spec_enum ("channel-status",
-							_("Channel status"),
-							_("Channel status that indicates the state of channel"),
-							MCD_TYPE_CHANNEL_STATUS,
-							MCD_CHANNEL_REQUEST,
-							G_PARAM_READWRITE));
-    g_object_class_install_property (object_class, PROP_CHANNEL_TYPE,
-				     g_param_spec_string ("channel-type",
-							  _ ("Channel type"),
-							  _ ("Telepathy channel type"),
-							  NULL,
-							  G_PARAM_READWRITE /*|
-							  G_PARAM_CONSTRUCT_ONLY*/));
-    g_object_class_install_property (object_class, PROP_TYPE,
-        g_param_spec_string ("type", "type", "type",
-                             NULL, G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property (object_class, PROP_CHANNEL_TYPE_QUARK,
-				     g_param_spec_uint ("channel-type-quark",
-						       _("Telepathy channel type in quark form"),
-						       _("Telepathy channel type in quark form"),
-						       0,
-						       G_MAXINT,
-						       0,
-						       G_PARAM_READWRITE /*|
-						       G_PARAM_CONSTRUCT_ONLY*/));
-    g_object_class_install_property (object_class, PROP_CHANNEL_HANDLE,
-				     g_param_spec_uint ("channel-handle",
-						       _("Telepathy channel handle"),
-						       _("Telepathy channel handle"),
-						       0,
-						       G_MAXINT,
-						       0,
-						       G_PARAM_READWRITE /*|
-						       G_PARAM_CONSTRUCT_ONLY */));
-    g_object_class_install_property (object_class, PROP_HANDLE,
-        g_param_spec_uint ("handle", "handle", "handle",
-                           0, G_MAXUINT, 0,
-                           G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property (object_class, PROP_CHANNEL_HANDLE_TYPE,
-				     g_param_spec_uint ("channel-handle-type",
-						       _("Telepathy channel handle type"),
-						       _("Telepathy channel handle type"),
-						       0,
-						       G_MAXINT,
-						       0,
-						       G_PARAM_READWRITE /* |
-						       G_PARAM_CONSTRUCT_ONLY */));
-    g_object_class_install_property (object_class, PROP_HANDLE_TYPE,
-        g_param_spec_uint ("handle-type", "handle-type", "handle-type",
-                           0, G_MAXUINT, 0,
-                           G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property (object_class, PROP_OUTGOING,
-				     g_param_spec_boolean ("outgoing",
-						       _("Outgoing channel"),
-						       _("True if the channel was requested by us"),
-						       FALSE,
-						       G_PARAM_READWRITE |
-						       G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property (object_class, PROP_REQUESTOR_SERIAL,
-				     g_param_spec_uint ("requestor-serial",
-						       _("Requestor serial number"),
-						       _("Requestor serial number"),
-						       0,
-						       G_MAXINT,
-						       0,
-						       G_PARAM_READWRITE));
-    g_object_class_install_property (object_class, PROP_REQUESTOR_CLIENT_ID,
-				     g_param_spec_string ("requestor-client-id",
-							  _("Requestor client id"),
-							  _("Requestor client id"),
-							  NULL, G_PARAM_READWRITE));
-    g_object_class_install_property (object_class, PROP_SELF_HANDLE_READY,
-				     g_param_spec_boolean ("self-handle-ready",
-						       _("Self handle ready"),
-						       _("Self handle ready"),
-						       FALSE,
-						       G_PARAM_READABLE));
-    g_object_class_install_property (object_class, PROP_NAME_READY,
-				     g_param_spec_boolean ("name-ready",
-						       _("Name ready"),
-						       _("Name ready"),
-						       FALSE,
-						       G_PARAM_READABLE));
-    g_object_class_install_property (object_class, PROP_INVITER_READY,
-				     g_param_spec_boolean ("inviter-ready",
-						       _("Inviter ready"),
-						       _("Inviter ready"),
-						       FALSE,
-						       G_PARAM_READABLE));
+    g_object_class_install_property
+        (object_class, PROP_CONNECTION,
+         g_param_spec_object ("connection",
+                              "McdConnection Object",
+                              "McdConnection Object from which this channel was created",
+                              G_TYPE_OBJECT,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property
+        (object_class, PROP_TP_CHANNEL,
+         g_param_spec_object ("tp-channel",
+                              "Telepathy Channel Object",
+                              "Telepathy Channel Object wrapped by it",
+                              TP_TYPE_CHANNEL,
+                              G_PARAM_READWRITE));
+    g_object_class_install_property
+        (object_class, PROP_CHANNEL_STATUS,
+         g_param_spec_enum ("channel-status",
+                            "Channel status",
+                            "Channel status that indicates the state of channel",
+                            MCD_TYPE_CHANNEL_STATUS, MCD_CHANNEL_REQUEST,
+                            G_PARAM_READWRITE));
+    g_object_class_install_property
+        (object_class, PROP_CHANNEL_TYPE,
+         g_param_spec_string ("channel-type",
+                              "Channel type",
+                              "Telepathy channel type",
+                              NULL,
+                              G_PARAM_READWRITE));
+    g_object_class_install_property
+        (object_class, PROP_TYPE,
+         g_param_spec_string ("type", "type", "type",
+                              NULL,
+                              G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property
+        (object_class, PROP_CHANNEL_TYPE_QUARK,
+         g_param_spec_uint ("channel-type-quark",
+                            "Telepathy channel type in quark form",
+                            "Telepathy channel type in quark form",
+                            0, G_MAXINT, 0,
+                            G_PARAM_READWRITE));
+    g_object_class_install_property
+        (object_class, PROP_CHANNEL_HANDLE,
+         g_param_spec_uint ("channel-handle",
+                            "Telepathy channel handle",
+                            "Telepathy channel handle",
+                            0, G_MAXINT, 0,
+                            G_PARAM_READWRITE));
+    g_object_class_install_property
+        (object_class, PROP_HANDLE,
+         g_param_spec_uint ("handle", "handle", "handle",
+                            0, G_MAXUINT, 0,
+                            G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property
+        (object_class, PROP_CHANNEL_HANDLE_TYPE,
+         g_param_spec_uint ("channel-handle-type",
+                            "Telepathy channel handle type",
+                            "Telepathy channel handle type",
+                            0, G_MAXINT, 0,
+                            G_PARAM_READWRITE));
+    g_object_class_install_property
+        (object_class, PROP_HANDLE_TYPE,
+         g_param_spec_uint ("handle-type", "handle-type", "handle-type",
+                            0, G_MAXUINT, 0,
+                            G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property
+        (object_class, PROP_OUTGOING,
+         g_param_spec_boolean ("outgoing",
+                               "Outgoing channel",
+                               "True if the channel was requested by us",
+                               FALSE,
+                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property
+        (object_class, PROP_REQUESTOR_SERIAL,
+         g_param_spec_uint ("requestor-serial",
+                            "Requestor serial number",
+                            "Requestor serial number",
+                            0, G_MAXINT, 0,
+                            G_PARAM_READWRITE));
+    g_object_class_install_property
+        (object_class, PROP_REQUESTOR_CLIENT_ID,
+         g_param_spec_string ("requestor-client-id",
+                              "Requestor client id",
+                              "Requestor client id",
+                              NULL,
+                              G_PARAM_READWRITE));
+    g_object_class_install_property
+        (object_class, PROP_SELF_HANDLE_READY,
+         g_param_spec_boolean ("self-handle-ready",
+                               "Self handle ready",
+                               "Self handle ready",
+                               FALSE,
+                               G_PARAM_READABLE));
+    g_object_class_install_property
+        (object_class, PROP_NAME_READY,
+         g_param_spec_boolean ("name-ready",
+                               "Name ready",
+                               "Name ready",
+                               FALSE,
+                               G_PARAM_READABLE));
+    g_object_class_install_property
+        (object_class, PROP_INVITER_READY,
+         g_param_spec_boolean ("inviter-ready",
+                               "Inviter ready",
+                               "Inviter ready",
+                               FALSE,
+                               G_PARAM_READABLE));
 }
 
 static void

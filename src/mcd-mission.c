@@ -371,27 +371,27 @@ mcd_mission_class_init (McdMissionClass * klass)
 		      0);
 
     /* Properties */
-    g_object_class_install_property (object_class,
-				     PROP_PARENT,
-				     g_param_spec_object ("parent",
-							  _("Parent Mission"),
-							  _("Parent mission object to which this belongs"),
-							  MCD_TYPE_MISSION,
-							  G_PARAM_READWRITE));
-    g_object_class_install_property (object_class, PROP_MODE,
-				     g_param_spec_enum ("mode",
-						       _("Platform-specific modes"),
-						       _("Platform-specific modes"),
-						       MCD_TYPE_MODE,
-						       MCD_MODE_NORMAL,
-						       G_PARAM_READWRITE));
-    g_object_class_install_property (object_class, PROP_SYSTEM_FLAGS,
-				     g_param_spec_enum ("system-flags",
-						       _("System flags"),
-						       _("Mission control system flags"),
-						       MCD_TYPE_MODE,
-						       MCD_MODE_NORMAL,
-						       G_PARAM_READWRITE));
+    g_object_class_install_property
+        (object_class, PROP_PARENT,
+         g_param_spec_object ("parent",
+                              "Parent Mission",
+                              "Parent mission object to which this belongs",
+                              MCD_TYPE_MISSION,
+                              G_PARAM_READWRITE));
+    g_object_class_install_property
+        (object_class, PROP_MODE,
+         g_param_spec_enum ("mode",
+                            "Platform-specific modes",
+                            "Platform-specific modes",
+                            MCD_TYPE_MODE, MCD_MODE_NORMAL,
+                            G_PARAM_READWRITE));
+    g_object_class_install_property
+        (object_class, PROP_SYSTEM_FLAGS,
+         g_param_spec_enum ("system-flags",
+                            "System flags",
+                            "Mission control system flags",
+                            MCD_TYPE_MODE, MCD_MODE_NORMAL,
+                            G_PARAM_READWRITE));
 }
 
 static void

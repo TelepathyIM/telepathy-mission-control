@@ -718,46 +718,47 @@ mcd_master_class_init (McdMasterClass * klass)
     mission_class->set_flags = _mcd_master_set_flags;
 
     /* Properties */
-    g_object_class_install_property (object_class,
-				     PROP_PRESENCE_FRAME,
-				     g_param_spec_object ("presence-frame",
-							  _("Presence Frame Object"),
-							  _("Presence frame Object used by connections to update presence"),
-							  MCD_TYPE_PRESENCE_FRAME,
-							  G_PARAM_READABLE));
-    g_object_class_install_property (object_class,
-				     PROP_DISPATCHER,
-				     g_param_spec_object ("dispatcher",
-							  _("Dispatcher Object"),
-							  _("Dispatcher Object used to dispatch channels"),
-							  MCD_TYPE_DISPATCHER,
-							  G_PARAM_READABLE));
+    g_object_class_install_property
+        (object_class, PROP_PRESENCE_FRAME,
+         g_param_spec_object ("presence-frame",
+                              "Presence Frame Object",
+                              "Presence frame Object used by connections to update presence",
+                              MCD_TYPE_PRESENCE_FRAME,
+                              G_PARAM_READABLE));
+    g_object_class_install_property
+        (object_class, PROP_DISPATCHER,
+         g_param_spec_object ("dispatcher",
+                              "Dispatcher Object",
+                              "Dispatcher Object used to dispatch channels",
+                              MCD_TYPE_DISPATCHER,
+                              G_PARAM_READABLE));
 
-    g_object_class_install_property (object_class, PROP_DBUS_DAEMON,
-	g_param_spec_object ("dbus-daemon", _("DBus daemon"), _("DBus daemon"),
-			     TP_TYPE_DBUS_DAEMON,
-			     G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property
+        (object_class, PROP_DBUS_DAEMON,
+         g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
+                              TP_TYPE_DBUS_DAEMON,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
-    g_object_class_install_property (object_class,
-				     PROP_DBUS_CONNECTION,
-				     g_param_spec_pointer ("dbus-connection",
-							  _("D-Bus Connection"),
-							  _("Connection to the D-Bus"),
-							  G_PARAM_READABLE));
-    g_object_class_install_property (object_class, PROP_DEFAULT_PRESENCE,
-				     g_param_spec_uint ("default-presence",
-						       _("Default presence"),
-						       _("Default presence when connecting"),
-						       0,
-						       TP_CONNECTION_PRESENCE_TYPE_UNSET,
-						       0,
-						       G_PARAM_READWRITE));
+    g_object_class_install_property
+        (object_class, PROP_DBUS_CONNECTION,
+         g_param_spec_pointer ("dbus-connection",
+                               "D-Bus Connection",
+                               "Connection to the D-Bus",
+                               G_PARAM_READABLE));
+    g_object_class_install_property
+        (object_class, PROP_DEFAULT_PRESENCE,
+         g_param_spec_uint ("default-presence",
+                            "Default presence",
+                            "Default presence when connecting",
+                            0, TP_CONNECTION_PRESENCE_TYPE_UNSET, 0,
+                            G_PARAM_READWRITE));
 
-    g_object_class_install_property (object_class, PROP_ACCOUNT_MANAGER,
-	g_param_spec_object ("account-manager",
-			     _("AccountManager"), _("AccountManager"),
-			     MCD_TYPE_ACCOUNT_MANAGER,
-			     G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property
+        (object_class, PROP_ACCOUNT_MANAGER,
+         g_param_spec_object ("account-manager",
+                              "AccountManager", "AccountManager",
+                              MCD_TYPE_ACCOUNT_MANAGER,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void

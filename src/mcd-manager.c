@@ -664,41 +664,30 @@ mcd_manager_class_init (McdManagerClass * klass)
     mission_class->disconnect = _mcd_manager_disconnect;
 
     /* Properties */
-    g_object_class_install_property (object_class,
-				     PROP_NAME,
-				     g_param_spec_string ("name",
-							  _("Name"),
-							  _("Name"),
-							  NULL,
-							  G_PARAM_WRITABLE |
-							  G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property (object_class,
-				     PROP_PRESENCE_FRAME,
-				     g_param_spec_object ("presence-frame",
-							  _
-							  ("Presence Frame Object"),
-							  _
-							  ("Presence frame Object used by connections to update presence"),
-							  MCD_TYPE_PRESENCE_FRAME,
-							  G_PARAM_READWRITE |
-							  G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property (object_class,
-				     PROP_DISPATCHER,
-				     g_param_spec_object ("dispatcher",
-							  _
-							  ("Dispatcher Object"),
-							  _
-							  ("Channel dispatcher object"),
-							  MCD_TYPE_DISPATCHER,
-							  G_PARAM_READWRITE |
-							  G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property (object_class, PROP_DBUS_DAEMON,
-				     g_param_spec_object ("dbus-daemon",
-							  _("DBus daemon"),
-							  _("DBus daemon"),
-							  TP_TYPE_DBUS_DAEMON,
-							  G_PARAM_READWRITE |
-							  G_PARAM_CONSTRUCT));
+    g_object_class_install_property
+        (object_class, PROP_NAME,
+         g_param_spec_string ("name", "Name", "Name",
+                              NULL,
+                              G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property
+        (object_class, PROP_PRESENCE_FRAME,
+         g_param_spec_object ("presence-frame",
+                              "Presence Frame Object",
+                              "Presence frame Object used by connections to update presence",
+                              MCD_TYPE_PRESENCE_FRAME,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property
+        (object_class, PROP_DISPATCHER,
+         g_param_spec_object ("dispatcher",
+                              "Dispatcher Object",
+                              "Channel dispatcher object",
+                              MCD_TYPE_DISPATCHER,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property
+        (object_class, PROP_DBUS_DAEMON,
+         g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
+                              TP_TYPE_DBUS_DAEMON,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
 }
 
 static void

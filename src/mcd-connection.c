@@ -1595,54 +1595,46 @@ mcd_connection_class_init (McdConnectionClass * klass)
     object_class->get_property = _mcd_connection_get_property;
 
     /* Properties */
-    g_object_class_install_property (object_class,
-				     PROP_DISPATCHER,
-				     g_param_spec_object ("dispatcher",
-							  _("Dispatcher Object"),
-							  _("Dispatcher to dispatch channels"),
-							  MCD_TYPE_DISPATCHER,
-							  G_PARAM_READWRITE |
-							  G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property (object_class, PROP_DBUS_DAEMON,
-				     g_param_spec_object ("dbus-daemon",
-							  _("DBus daemon"),
-							  _("DBus daemon"),
-							  TP_TYPE_DBUS_DAEMON,
-							  G_PARAM_READWRITE |
-							  G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property (object_class, PROP_BUS_NAME,
-				     g_param_spec_string ("bus-name",
-							  _("DBus Bus name"),
-							  _
-							  ("DBus Bus name to use by us"),
-							  NULL,
-							  G_PARAM_READWRITE |
-							  G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property (object_class, PROP_TP_MANAGER,
-				     g_param_spec_object ("tp-manager",
-							  _
-							  ("Telepathy Manager Object"),
-							  _
-							  ("Telepathy Manager Object which this connection uses"),
-							  TP_TYPE_CONNECTION_MANAGER,
-							  G_PARAM_READWRITE |
-							  G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property (object_class, PROP_TP_CONNECTION,
-				     g_param_spec_object ("tp-connection",
-							  _
-							  ("Telepathy Connection Object"),
-							  _
-							  ("Telepathy Connection Object which this connection uses"),
-							  TP_TYPE_CONNECTION,
-							  G_PARAM_READABLE));
-    g_object_class_install_property (object_class, PROP_ACCOUNT,
-				     g_param_spec_object ("account",
-							  _("Account Object"),
-							  _
-							  ("Account that will be used to create this connection"),
-							  MCD_TYPE_ACCOUNT,
-							  G_PARAM_READWRITE |
-							  G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property
+        (object_class, PROP_DISPATCHER,
+         g_param_spec_object ("dispatcher",
+                              "Dispatcher Object",
+                              "Dispatcher to dispatch channels",
+                              MCD_TYPE_DISPATCHER,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property
+        (object_class, PROP_DBUS_DAEMON,
+         g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
+                              TP_TYPE_DBUS_DAEMON,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property
+        (object_class, PROP_BUS_NAME,
+         g_param_spec_string ("bus-name",
+                              "DBus Bus name",
+                              "DBus Bus name to use by us",
+                              NULL,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property
+        (object_class, PROP_TP_MANAGER,
+         g_param_spec_object ("tp-manager",
+                              "Telepathy Manager Object",
+                              "Telepathy Manager Object which this connection uses",
+                              TP_TYPE_CONNECTION_MANAGER,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property
+        (object_class, PROP_TP_CONNECTION,
+         g_param_spec_object ("tp-connection",
+                              "Telepathy Connection Object",
+                              "Telepathy Connection Object which this connection uses",
+                              TP_TYPE_CONNECTION,
+                              G_PARAM_READABLE));
+    g_object_class_install_property
+        (object_class, PROP_ACCOUNT,
+         g_param_spec_object ("account",
+                              "Account Object",
+                              "Account that will be used to create this connection",
+                              MCD_TYPE_ACCOUNT,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void

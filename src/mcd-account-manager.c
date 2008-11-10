@@ -571,13 +571,11 @@ mcd_account_manager_class_init (McdAccountManagerClass *klass)
     object_class->set_property = set_property;
     object_class->get_property = get_property;
 
-    g_object_class_install_property (object_class, PROP_DBUS_DAEMON,
-				     g_param_spec_object ("dbus-daemon",
-							  _("DBus daemon"),
-							  _("DBus daemon"),
-							  TP_TYPE_DBUS_DAEMON,
-							  G_PARAM_READWRITE |
-							  G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property
+        (object_class, PROP_DBUS_DAEMON,
+         g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
+                              TP_TYPE_DBUS_DAEMON,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void

@@ -199,13 +199,13 @@ mcd_proxy_class_init (McdProxyClass * klass)
     object_class->set_property = _mcd_proxy_set_property;
     object_class->get_property = _mcd_proxy_get_property;
 
-    g_object_class_install_property (object_class,
-				     PROP_PROXY_OBJECT,
-				     g_param_spec_object ("proxy-object",
-							  _("Proxy object"),
-							  _("Object to be monitored for McdMission signals"),
-							  MCD_TYPE_MISSION,
-							  G_PARAM_READWRITE));
+    g_object_class_install_property
+        (object_class, PROP_PROXY_OBJECT,
+         g_param_spec_object ("proxy-object",
+                              "Proxy object",
+                              "Object to be monitored for McdMission signals",
+                              MCD_TYPE_MISSION,
+                              G_PARAM_READWRITE));
 }
 
 static void
