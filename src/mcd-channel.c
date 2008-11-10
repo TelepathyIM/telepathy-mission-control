@@ -63,7 +63,6 @@ struct _McdChannelPrivate
     guint self_handle_ready : 1;
     guint name_ready : 1;
     guint local_pending_members_ready : 1;
-    guint inviter_ready : 1;
 
     /* Pending members */
     GArray *pending_local_members;
@@ -73,7 +72,7 @@ struct _McdChannelPrivate
     
     McdChannelStatus status;
     gchar *channel_name;
-    gchar *inviter;
+    const gchar *initiator_id;
     
     /* Requestor info */
     guint requestor_serial;
@@ -232,91 +231,12 @@ on_members_changed (TpChannel *proxy, const gchar *message,
 }
 
 static void
-inspect_inviter_cb (TpConnection *proxy, const gchar **names, const GError *error,
-		    gpointer user_data, GObject *weak_object)
-{
-    McdChannel *channel = MCD_CHANNEL (weak_object);
-    McdChannelPrivate *priv = user_data;
-
-    if (error)
-	g_warning ("Could not inspect contact handle: %s",
-		   error->message);
-    else
-    {
-	priv->inviter = g_strdup (names[0]);
-	g_debug ("Got inviter: %s", priv->inviter);
-    }
-
-    priv->inviter_ready = TRUE;
-    g_object_notify ((GObject *)channel, "inviter-ready");
-}
-
-
-/**
- * lookup_actor:
- *
- * Find out who invited us: find who is the actor who invited the self_handle,
- * and inspect it
- */
-static void
-lookup_actor (McdChannel *channel)
-{
-    McdChannelPrivate *priv = channel->priv;
-    PendingMemberInfo *pmi;
-    gboolean found = FALSE;
-    guint i;
-
-    g_debug ("%s called", G_STRFUNC);
-    for (i = 0; i < priv->pending_local_members->len; i++)
-    {
-	pmi = &g_array_index (priv->pending_local_members, PendingMemberInfo,
-			      i);
-	if (pmi->member == priv->self_handle)
-	{
-	    found = TRUE;
-	    break;
-	}
-    }
-
-    if (found)
-    {
-	GArray request_handles;
-	TpConnection *tp_conn;
-
-	/* FIXME: we should check for
-	 * CHANNEL_GROUP_FLAG_CHANNEL_SPECIFIC_HANDLES and call GetHandleOwners
-	 * if needed. See
-	 * https://sourceforge.net/tracker/index.php?func=detail&aid=1906932&group_id=190214&atid=932444
-	 */
-	request_handles.len = 1;
-	request_handles.data = (gchar *)&pmi->actor;
-	g_object_get (priv->tp_chan, "connection", &tp_conn, NULL);
-	tp_cli_connection_call_inspect_handles (tp_conn, -1,
-						TP_HANDLE_TYPE_CONTACT,
-						&request_handles,
-						inspect_inviter_cb,
-						priv, NULL,
-						(GObject *)channel);
-	g_object_unref (tp_conn);
-    }
-    else
-    {
-	/* couldn't find the inviter, but we have to emit the notification
-	 * anyway */
-	g_debug ("%s: inviter not found", G_STRFUNC);
-	priv->inviter_ready = TRUE;
-	g_object_notify ((GObject *)channel, "inviter-ready");
-    }
-}
-
-static void
 group_get_local_pending_members_with_info (TpChannel *proxy,
 					   const GPtrArray *l_pending,
 					   const GError *error,
 					   gpointer user_data,
 					   GObject *weak_object)
 {
-    McdChannel *channel = MCD_CHANNEL (weak_object);
     McdChannelPrivate *priv = user_data;
 
     priv->local_pending_members_ready = TRUE;
@@ -342,8 +262,6 @@ group_get_local_pending_members_with_info (TpChannel *proxy,
 	    g_array_append_val (priv->pending_local_members, pmi);
 	    g_debug ("Added handle %u to channel pending members", pmi.member);
 	}
-	if (priv->self_handle_ready)
-	    lookup_actor (channel);
     }
 }
 
@@ -391,9 +309,6 @@ group_get_self_handle_cb (TpChannel *proxy, guint self_handle,
     }
     priv->self_handle_ready = TRUE;
     g_object_notify ((GObject *)channel, "self-handle-ready");
-
-    if (priv->local_pending_members_ready)
-	lookup_actor (channel);
 }
 
 static inline void
@@ -639,9 +554,6 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
     case PROP_NAME_READY:
 	g_value_set_boolean (val, priv->name_ready);
 	break;
-    case PROP_INVITER_READY:
-	g_value_set_boolean (val, priv->inviter_ready);
-	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
@@ -656,7 +568,6 @@ _mcd_channel_finalize (GObject * object)
     g_array_free (priv->pending_local_members, TRUE);
     g_free (priv->requestor_client_id);
     g_free (priv->channel_name);
-    g_free (priv->inviter);
     
     G_OBJECT_CLASS (mcd_channel_parent_class)->finalize (object);
 }
@@ -828,12 +739,6 @@ mcd_channel_class_init (McdChannelClass * klass)
 				     g_param_spec_boolean ("name-ready",
 						       _("Name ready"),
 						       _("Name ready"),
-						       FALSE,
-						       G_PARAM_READABLE));
-    g_object_class_install_property (object_class, PROP_INVITER_READY,
-				     g_param_spec_boolean ("inviter-ready",
-						       _("Inviter ready"),
-						       _("Inviter ready"),
 						       FALSE,
 						       G_PARAM_READABLE));
 }
@@ -1050,7 +955,7 @@ mcd_channel_get_inviter (McdChannel *channel)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
 
-    return priv->inviter;
+    return priv->initiator_id;
 }
 
 /**
@@ -1129,6 +1034,7 @@ void
 _mcd_channel_set_immutable_properties (McdChannel *channel,
                                        GHashTable *properties)
 {
+    McdChannelPrivate *priv = channel->priv;
     gboolean present;
     guint handle;
 
@@ -1141,6 +1047,9 @@ _mcd_channel_set_immutable_properties (McdChannel *channel,
                                 &present);
     if (present)
         channel->priv->handle = handle;
+
+    priv->initiator_id =
+        tp_asv_get_string (properties, TP_IFACE_CHANNEL ".InitiatorID");
 }
 
 /*
