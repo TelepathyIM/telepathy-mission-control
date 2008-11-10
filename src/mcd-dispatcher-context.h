@@ -101,6 +101,8 @@ TpConnection *mcd_dispatcher_context_get_connection_object (McdDispatcherContext
 McdChannel * mcd_dispatcher_context_get_channel (McdDispatcherContext * ctx);
 const GList *mcd_dispatcher_context_get_channels
     (McdDispatcherContext *context);
+McdChannel *mcd_dispatcher_context_get_channel_by_type
+    (McdDispatcherContext *context, GQuark type);
 
 McdConnection *mcd_dispatcher_context_get_connection
     (McdDispatcherContext *context);

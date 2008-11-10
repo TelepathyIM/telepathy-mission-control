@@ -2231,6 +2231,30 @@ mcd_dispatcher_context_get_channels (McdDispatcherContext *context)
     return context->channels;
 }
 
+/**
+ * mcd_dispatcher_context_get_channel_by_type:
+ * @context: the #McdDispatcherContext.
+ * @type: the #GQuark representing the channel type.
+ *
+ * Returns: the first #McdChannel of the requested type, or %NULL.
+ */
+McdChannel *
+mcd_dispatcher_context_get_channel_by_type (McdDispatcherContext *context,
+                                            GQuark type)
+{
+    GList *list;
+
+    g_return_val_if_fail (context != NULL, NULL);
+    for (list = context->channels; list != NULL; list = list->next)
+    {
+        McdChannel *channel = MCD_CHANNEL (list->data);
+
+        if (mcd_channel_get_channel_type_quark (channel) == type)
+            return channel;
+    }
+    return NULL;
+}
+
 McdChannelHandler *
 mcd_dispatcher_context_get_chan_handler (McdDispatcherContext * ctx)
 {
