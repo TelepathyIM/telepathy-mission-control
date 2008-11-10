@@ -391,7 +391,7 @@ chain_add_filter (GList *chain,
     GList *elem;
     McdFilter *filter_data;
 
-    filter_data = g_malloc (sizeof (McdFilter));
+    filter_data = g_slice_new (McdFilter);
     filter_data->func = filter;
     filter_data->priority = priority;
     filter_data->user_data = user_data;
@@ -412,7 +412,7 @@ chain_remove_filter (GList *chain, McdFilterFunc func)
     for (elem = chain; elem; elem = elem->next)
     {
 	if (((McdFilter *)elem->data)->func == func)
-	    g_free (elem->data);
+	    g_slice_free (McdFilter, elem->data);
 	else
 	    new_chain = g_list_append (new_chain, elem->data);
     }
@@ -424,14 +424,17 @@ chain_remove_filter (GList *chain, McdFilterFunc func)
 static void
 free_filter_chains (struct iface_chains_t *chains)
 {
+    GList *list;
     if (chains->chain_in)
     {
-	g_list_foreach (chains->chain_in, (GFunc)g_free, NULL);
+        for (list = chains->chain_in; list != NULL; list = list->next)
+            g_slice_free (McdFilter, list->data);
 	g_list_free (chains->chain_in);
     }
     if (chains->chain_out)
     {
-	g_list_foreach (chains->chain_out, (GFunc)g_free, NULL);
+        for (list = chains->chain_out; list != NULL; list = list->next)
+            g_slice_free (McdFilter, list->data);
 	g_list_free (chains->chain_out);
     }
     g_free (chains);
@@ -1678,7 +1681,7 @@ _mcd_dispatcher_finalize (GObject * object)
     {
         GList *list;
         for (list = priv->filters; list != NULL; list = list->next)
-            g_free (list->data);
+            g_slice_free (McdFilter, list->data);
         g_list_free (priv->filters);
     }
 
