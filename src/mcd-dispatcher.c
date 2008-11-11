@@ -2404,7 +2404,7 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
     g_ptr_array_add (requests,
                      _mcd_channel_get_requested_properties (channel));
     g_value_init (&v_requests, dbus_g_type_get_collection ("GPtrArray",
-         MC_HASH_TYPE_QUALIFIED_PROPERTY_VALUE_MAP));
+         TP_HASH_TYPE_QUALIFIED_PROPERTY_VALUE_MAP));
     g_value_set_static_boxed (&v_requests, requests);
     g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest"
                          ".Requests", &v_requests);

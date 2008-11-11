@@ -169,7 +169,7 @@ update_property (gpointer key, gpointer ht_value, gpointer user_data)
         g_list_foreach (props->channels, (GFunc)mc_channel_details_free, NULL);
         g_list_free (props->channels);
         if (G_LIKELY (G_VALUE_HOLDS (value,
-                                     MC_ARRAY_TYPE_CHANNEL_DETAILS_LIST)))
+                                     TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST)))
         {
             props->channels = create_channels_prop (value);
         }

@@ -1178,7 +1178,7 @@ _mcd_channel_details_build_from_list (GList *channels)
 
         properties = _mcd_channel_get_immutable_properties (channel);
 
-        type = MC_STRUCT_TYPE_CHANNEL_DETAILS;
+        type = TP_STRUCT_TYPE_ACCOUNT_DETAILS;
         g_value_init (&channel_val, type);
         g_value_take_boxed (&channel_val,
                             dbus_g_type_specialized_construct (type));
@@ -1205,7 +1205,7 @@ _mcd_channel_details_free (GPtrArray *channels)
     GValue value = { 0, };
 
     /* to free the array, put it into a GValue */
-    g_value_init (&value, MC_ARRAY_TYPE_CHANNEL_DETAILS_LIST);
+    g_value_init (&value, TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST);
     g_value_take_boxed (&value, channels);
     g_value_unset (&value);
 }
