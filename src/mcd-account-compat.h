@@ -26,6 +26,7 @@
 
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/enums.h>
+#include <libmcclient/mc-profile.h>
 /* auto-generated stubs */
 #include "_gen/svc-Account_Interface_Compat.h"
 
@@ -48,6 +49,8 @@ struct mcd_channel_request
     guint requestor_serial;
     gchar *requestor_client_id;
 };
+
+McProfile *mcd_account_compat_get_mc_profile (McdAccount *account);
 
 /* not exported */
 gboolean _mcd_account_compat_request_channel_nmc4 (McdAccount *account,

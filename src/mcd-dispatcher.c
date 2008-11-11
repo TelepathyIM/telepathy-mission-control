@@ -148,6 +148,9 @@ struct _McdDispatcherPrivate
      * performance reasons */
     GPtrArray *channel_handler_caps;
 
+    /* list of McdFilter elements */
+    GList *filters;
+
     /* each element is a McdClient struct */
     GList *clients;
 
@@ -388,7 +391,7 @@ chain_add_filter (GList *chain,
     GList *elem;
     McdFilter *filter_data;
 
-    filter_data = g_malloc (sizeof (McdFilter));
+    filter_data = g_slice_new (McdFilter);
     filter_data->func = filter;
     filter_data->priority = priority;
     filter_data->user_data = user_data;
@@ -409,7 +412,7 @@ chain_remove_filter (GList *chain, McdFilterFunc func)
     for (elem = chain; elem; elem = elem->next)
     {
 	if (((McdFilter *)elem->data)->func == func)
-	    g_free (elem->data);
+	    g_slice_free (McdFilter, elem->data);
 	else
 	    new_chain = g_list_append (new_chain, elem->data);
     }
@@ -421,14 +424,17 @@ chain_remove_filter (GList *chain, McdFilterFunc func)
 static void
 free_filter_chains (struct iface_chains_t *chains)
 {
+    GList *list;
     if (chains->chain_in)
     {
-	g_list_foreach (chains->chain_in, (GFunc)g_free, NULL);
+        for (list = chains->chain_in; list != NULL; list = list->next)
+            g_slice_free (McdFilter, list->data);
 	g_list_free (chains->chain_in);
     }
     if (chains->chain_out)
     {
-	g_list_foreach (chains->chain_out, (GFunc)g_free, NULL);
+        for (list = chains->chain_out; list != NULL; list = list->next)
+            g_slice_free (McdFilter, list->data);
 	g_list_free (chains->chain_out);
     }
     g_free (chains);
@@ -1438,11 +1444,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     priv = dispatcher->priv;
 
     /* old-style filters cannot probably handle more than one channel; so,
-     * invoke them only if we have one single channel to dispatch.
-     *
-     * FIXME: design a plugin filter API to handle the multi-channel case (it
-     * might be as simple as just removing the channel type quark from the
-     * registration function */
+     * invoke them only if we have one single channel to dispatch. */
     n_channels = g_list_length (channels);
     if (n_channels == 1)
     {
@@ -1462,6 +1464,13 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
         g_debug ("%u channels to dispatch, filters disabled", n_channels);
         chain = NULL;
     }
+
+    /* invoke in-process channel filters */
+    /* FIXME: once old-style filters support is removed, we'll just have:
+     *
+     *  chain = priv->filters
+     */
+    chain = g_list_concat (chain, priv->filters);
 
     /* Preparing and filling the context */
     context = g_new0 (McdDispatcherContext, 1);
@@ -1667,6 +1676,14 @@ static void
 _mcd_dispatcher_finalize (GObject * object)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
+
+    if (priv->filters)
+    {
+        GList *list;
+        for (list = priv->filters; list != NULL; list = list->next)
+            g_slice_free (McdFilter, list->data);
+        g_list_free (priv->filters);
+    }
 
     g_hash_table_destroy (priv->channel_handler_hash);
 
@@ -2208,6 +2225,30 @@ mcd_dispatcher_context_get_channels (McdDispatcherContext *context)
     return context->channels;
 }
 
+/**
+ * mcd_dispatcher_context_get_channel_by_type:
+ * @context: the #McdDispatcherContext.
+ * @type: the #GQuark representing the channel type.
+ *
+ * Returns: the first #McdChannel of the requested type, or %NULL.
+ */
+McdChannel *
+mcd_dispatcher_context_get_channel_by_type (McdDispatcherContext *context,
+                                            GQuark type)
+{
+    GList *list;
+
+    g_return_val_if_fail (context != NULL, NULL);
+    for (list = context->channels; list != NULL; list = list->next)
+    {
+        McdChannel *channel = MCD_CHANNEL (list->data);
+
+        if (mcd_channel_get_channel_type_quark (channel) == type)
+            return channel;
+    }
+    return NULL;
+}
+
 McdChannelHandler *
 mcd_dispatcher_context_get_chan_handler (McdDispatcherContext * ctx)
 {
@@ -2438,5 +2479,50 @@ _mcd_dispatcher_send_channels (McdDispatcher *dispatcher, GList *channels,
                                gboolean requested)
 {
     _mcd_dispatcher_enter_state_machine (dispatcher, channels, requested);
+}
+
+/**
+ * mcd_dispatcher_add_filter:
+ * @dispatcher: The #McdDispatcher.
+ * @filter: the filter function to be registered.
+ * @priority: The priority of the filter.
+ * @user_data: user data to be passed to @filter on invocation.
+ *
+ * Register a filter into the dispatcher chain: @filter will be invoked
+ * whenever channels need to be dispatched.
+ */
+void
+mcd_dispatcher_add_filter (McdDispatcher *dispatcher,
+                           McdFilterFunc filter,
+                           guint priority,
+                           gpointer user_data)
+{
+    McdDispatcherPrivate *priv;
+
+    g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
+    priv = dispatcher->priv;
+    priv->filters =
+        chain_add_filter (priv->filters, filter, priority, user_data);
+}
+
+/**
+ * mcd_dispatcher_add_filters:
+ * @dispatcher: The #McdDispatcher.
+ * @filters: a zero-terminated array of #McdFilter elements.
+ *
+ * Convenience function to add a batch of filters at once.
+ */
+void
+mcd_dispatcher_add_filters (McdDispatcher *dispatcher,
+                            const McdFilter *filters)
+{
+    const McdFilter *filter;
+
+    g_return_if_fail (filters != NULL);
+
+    for (filter = filters; filter->func != NULL; filter++)
+        mcd_dispatcher_add_filter (dispatcher, filter->func,
+                                   filter->priority,
+                                   filter->user_data);
 }
 

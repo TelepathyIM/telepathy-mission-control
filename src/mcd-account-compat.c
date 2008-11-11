@@ -355,3 +355,29 @@ _mcd_account_compat_request_channel_nmc4 (McdAccount *account,
                                         error);
 }
 
+/**
+ * mcd_account_compat_get_profile:
+ * @account: the #McdAccount.
+ *
+ * Returns: the #McProfile for the account. Unreference it when done.
+ */
+McProfile *
+mcd_account_compat_get_mc_profile (McdAccount *account)
+{
+    const gchar *unique_name;
+    GKeyFile *keyfile;
+    gchar *profile_name;
+    McProfile *profile = NULL;
+
+    keyfile = mcd_account_get_keyfile (account);
+    unique_name = mcd_account_get_unique_name (account);
+    profile_name = g_key_file_get_string (keyfile, unique_name,
+                                          "Profile", NULL);
+    if (profile_name)
+    {
+        profile = mc_profile_lookup (profile_name);
+        g_free (profile_name);
+    }
+    return profile;
+}
+

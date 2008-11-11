@@ -177,6 +177,16 @@ mcd-dispatcher-context
 @Returns: 
 
 
+<!-- ##### FUNCTION mcd_dispatcher_context_get_channel_by_type ##### -->
+<para>
+
+</para>
+
+@context: 
+@type: 
+@Returns: 
+
+
 <!-- ##### FUNCTION mcd_dispatcher_context_get_connection ##### -->
 <para>
 

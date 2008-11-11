@@ -58,6 +58,13 @@ typedef struct filter_t {
     gpointer user_data;
 } McdFilter;
 
+void mcd_dispatcher_add_filter (McdDispatcher *dispatcher,
+                                McdFilterFunc filter,
+                                guint priority,
+                                gpointer user_data);
+void mcd_dispatcher_add_filters (McdDispatcher *dispatcher,
+                                 const McdFilter *filters);
+
 void mcd_dispatcher_register_filter (McdDispatcher *dispatcher,
 				     McdFilterFunc filter,
 				     GQuark channel_type_quark,
@@ -73,7 +80,7 @@ void mcd_dispatcher_unregister_filter (McdDispatcher *dispatcher,
 void mcd_dispatcher_register_filters (McdDispatcher *dispatcher,
 				      McdFilter *filters,
 				      GQuark channel_type_quark,
-				      guint filter_flags);
+				      guint filter_flags) G_GNUC_DEPRECATED;
 
 /* Context API section
  *
@@ -94,6 +101,8 @@ TpConnection *mcd_dispatcher_context_get_connection_object (McdDispatcherContext
 McdChannel * mcd_dispatcher_context_get_channel (McdDispatcherContext * ctx);
 const GList *mcd_dispatcher_context_get_channels
     (McdDispatcherContext *context);
+McdChannel *mcd_dispatcher_context_get_channel_by_type
+    (McdDispatcherContext *context, GQuark type);
 
 McdConnection *mcd_dispatcher_context_get_connection
     (McdDispatcherContext *context);

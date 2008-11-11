@@ -249,3 +249,12 @@ McdChannel
 @Returns: 
 
 
+<!-- ##### FUNCTION mcd_channel_is_requested ##### -->
+<para>
+
+</para>
+
+@channel: 
+@Returns: 
+
+
