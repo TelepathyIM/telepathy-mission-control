@@ -38,7 +38,7 @@
       <p>More specifically, whenever the
         <tp:dbus-ref namespace="org.freedesktop.Telepathy">Connection.Interface.Requests.NewChannels</tp:dbus-ref>
         signal contains channels whose
-        <tp:dbus-ref namespace="org.freedesktop.Telepathy">Channel.FUTURE.Requested</tp:dbus-ref>
+        <tp:dbus-ref namespace="org.freedesktop.Telepathy.Channel">Requested</tp:dbus-ref>
         property is false, or whenever the
         <tp:dbus-ref namespace="org.freedesktop.Telepathy">Connection.NewChannel</tp:dbus-ref>
         signal contains a channel with suppress_handler false,

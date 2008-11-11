@@ -18,6 +18,8 @@
 	from="Telepathy specification (ConnectionManager)"/>
     <tp:external-type name="Protocol" type="s"
 	from="Telepathy specification (ConnectionManager)"/>
+    <tp:external-type name="Simple_Presence" type="(uss)"
+	from="Telepathy specification (SimplePresence)"/>
 </tp:generic-types>
 
 <xi:include href="generic-types.xml"/>

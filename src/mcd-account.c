@@ -670,7 +670,7 @@ get_automatic_presence (TpSvcDBusProperties *self,
     presence = priv->auto_presence_status;
     message = priv->auto_presence_message;
 
-    type = MC_STRUCT_TYPE_ACCOUNT_PRESENCE;
+    type = TP_STRUCT_TYPE_SIMPLE_PRESENCE;
     g_value_init (value, type);
     g_value_take_boxed (value, dbus_g_type_specialized_construct (type));
     va = (GValueArray *) g_value_get_boxed (value);
@@ -781,7 +781,7 @@ get_current_presence (TpSvcDBusProperties *self, const gchar *name,
     status = priv->curr_presence_status;
     message = priv->curr_presence_message;
 
-    type = MC_STRUCT_TYPE_ACCOUNT_PRESENCE;
+    type = TP_STRUCT_TYPE_SIMPLE_PRESENCE;
     g_value_init (value, type);
     g_value_take_boxed (value, dbus_g_type_specialized_construct (type));
     va = (GValueArray *) g_value_get_boxed (value);
@@ -830,7 +830,7 @@ get_requested_presence (TpSvcDBusProperties *self,
     presence = priv->req_presence_status;
     message = priv->req_presence_message;
 
-    type = MC_STRUCT_TYPE_ACCOUNT_PRESENCE;
+    type = TP_STRUCT_TYPE_SIMPLE_PRESENCE;
     g_value_init (value, type);
     g_value_take_boxed (value, dbus_g_type_specialized_construct (type));
     va = (GValueArray *) g_value_get_boxed (value);
@@ -1633,7 +1633,7 @@ mcd_account_request_presence (McdAccount *account,
 	GType type;
         GValueArray *va;
 
-	type = MC_STRUCT_TYPE_ACCOUNT_PRESENCE;
+	type = TP_STRUCT_TYPE_SIMPLE_PRESENCE;
 	g_value_init (&value, type);
 	g_value_take_boxed (&value, dbus_g_type_specialized_construct (type));
 	va = (GValueArray *) g_value_get_boxed (&value);
@@ -1685,7 +1685,7 @@ mcd_account_set_current_presence (McdAccount *account,
 
     if (!changed) return;
 
-    type = MC_STRUCT_TYPE_ACCOUNT_PRESENCE;
+    type = TP_STRUCT_TYPE_SIMPLE_PRESENCE;
     g_value_init (&value, type);
     g_value_take_boxed (&value, dbus_g_type_specialized_construct (type));
     va = (GValueArray *) g_value_get_boxed (&value);
