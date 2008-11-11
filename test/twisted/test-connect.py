@@ -13,13 +13,6 @@ def test(q, bus, mc):
     start_fake_connection_manager(q, bus, FakeCM_bus_name,
             ConnectionManager_object_path)
     
-    # Check the old iface
-    old_iface = dbus.Interface(mc, 'org.freedesktop.Telepathy.MissionControl')
-    arg0 = old_iface.GetOnlineConnections()
-    assert arg0 == []
-    arg0 = old_iface.GetPresence()
-    assert arg0 == 0, arg0
-
     # Get the AccountManager interface
     account_manager = bus.get_object(
         tp_name_prefix + '.AccountManager',
