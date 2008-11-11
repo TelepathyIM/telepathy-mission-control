@@ -26,9 +26,12 @@
 
 #include <glib/gquark.h>
 #include <glib-object.h>
+
 #include <dbus/dbus-glib.h>
-#include <telepathy-glib/proxy.h>
+
 #include <telepathy-glib/errors.h>
+#include <telepathy-glib/gtypes.h>
+#include <telepathy-glib/proxy.h>
 
 #define MC_ACCOUNT_MANAGER_DBUS_SERVICE "org.freedesktop.Telepathy.AccountManager"
 #define MC_ACCOUNT_MANAGER_DBUS_OBJECT "/org/freedesktop/Telepathy/AccountManager"
@@ -50,6 +53,8 @@
 #include <libmcclient/_gen/enums.h>
 #include <libmcclient/_gen/gtypes.h>
 #include <libmcclient/_gen/interfaces.h>
+
+#define MC_STRUCT_TYPE_ACCOUNT_PRESENCE (TP_STRUCT_TYPE_SIMPLE_PRESENCE)
 
 void _mc_ext_register_dbus_glib_marshallers (void);
 

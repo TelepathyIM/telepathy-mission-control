@@ -122,7 +122,7 @@ set_presence_gvalue (GValue *value, TpConnectionPresenceType type,
 		     const gchar *status, const gchar *message)
 {
     GType gtype;
-    gtype = MC_STRUCT_TYPE_ACCOUNT_PRESENCE;
+    gtype = TP_STRUCT_TYPE_SIMPLE_PRESENCE;
     g_value_init (value, gtype);
     g_value_take_boxed (value, dbus_g_type_specialized_construct (gtype));
     GValueArray *va = (GValueArray *) g_value_get_boxed (value);
