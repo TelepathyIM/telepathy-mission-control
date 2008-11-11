@@ -118,7 +118,7 @@ create_channels_prop (GValue *value)
     guint i;
 
     channels = g_value_get_boxed (value);
-    for (i = channels->len - 1; i >= 0; i++)
+    for (i = channels->len - 1; i >= 0; i--)
     {
         McChannelDetails *details;
         GValueArray *va;
