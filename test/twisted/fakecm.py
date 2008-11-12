@@ -22,10 +22,11 @@ class FakeConn(dbus.service.Object):
         return None
 
 class FakeCM(dbus.service.Object):
-    def __init__(self, object_path, q, bus, nameref):
+    def __init__(self, object_path, q, bus, bus_name, nameref):
         self.object_path = object_path
         self.q = q
         self.bus = bus
+        self.bus_name = bus_name
         # keep a reference on nameref, otherwise, the name will be lost!
         self.nameref = nameref 
         dbus.service.Object.__init__(self, bus, object_path)
@@ -51,11 +52,11 @@ class FakeCM(dbus.service.Object):
         self.q.append(Event('dbus-method-call', name="RequestConnection",
                     protocol=protocol, parameters=parameters,
                     conn=conn, obj=self))
-        return ['fakeprotocol', conn_path]
+        return [self.bus_name, conn_path]
 
 def start_fake_connection_manager(q, bus, bus_name, object_path):
     nameref = dbus.service.BusName(bus_name, bus=bus)
-    cm = FakeCM(object_path, q, bus, nameref)
+    cm = FakeCM(object_path, q, bus, bus_name, nameref)
     return cm
 
 
