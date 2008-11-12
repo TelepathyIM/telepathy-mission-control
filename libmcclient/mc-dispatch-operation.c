@@ -92,6 +92,9 @@ typedef struct {
                              gpointer props_struct);
 } McProperty;
 
+#define MAX_PROPERTY_NAME_LEN  64
+#define MC_QUALIFIED_PROPERTY_NAME_LEN \
+    (sizeof(MC_IFACE_CHANNEL_DISPATCH_OPERATION) + MAX_PROPERTY_NAME_LEN)
 
 static void
 mc_dispatch_operation_init (McDispatchOperation *operation)
@@ -178,6 +181,8 @@ set_possible_handlers (const gchar *name, const GValue *value,
 
 static const McProperty dispatch_operation_props[] =
 {
+    /* Make sure that the property names are not too long: adjust the
+     * MAX_PROPERTY_NAME_LEN constant accordingly */
     { "Connection", "o", set_connection },
     { "Account", "o", set_account },
     { "Channels", "a(oa{sv})", set_channels },
@@ -208,16 +213,26 @@ create_operation_props (McDispatchOperation *operation, GHashTable *properties)
 {
     McDispatchOperationProps *props;
     const McProperty *prop;
+    gchar qualified_name[MC_QUALIFIED_PROPERTY_NAME_LEN], *name_ptr;
 
     props = g_slice_new0 (McDispatchOperationProps);
     operation->priv->props = props;
+
+    strcpy (qualified_name, MC_IFACE_CHANNEL_DISPATCH_OPERATION);
+    name_ptr =
+        qualified_name + (sizeof (MC_IFACE_CHANNEL_DISPATCH_OPERATION) - 1);
+    *name_ptr = '.';
+    name_ptr++;
 
     for (prop = dispatch_operation_props; prop->name != NULL; prop++)
     {
         GValue *value;
         GType type;
 
-        value = g_hash_table_lookup (properties, prop->name);
+        g_return_if_fail (strlen (prop->name) < MAX_PROPERTY_NAME_LEN);
+        strcpy (name_ptr, prop->name);
+
+        value = g_hash_table_lookup (properties, qualified_name);
         if (!value) continue;
 
         type = gtype_from_dbus_signature (prop->dbus_signature);
