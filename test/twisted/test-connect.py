@@ -69,7 +69,11 @@ def test(q, bus, mc):
 
     e = q.expect('dbus-method-call', name='RequestConnection',
             protocol='fakeprotocol')
+    conn_object_path = e.conn.object_path
     assert e.parameters == params
+
+    e = q.expect('dbus-method-call', name='Connect',
+            path=conn_object_path)
 
     # Check the requested presence is online
     properties = account.GetAll(

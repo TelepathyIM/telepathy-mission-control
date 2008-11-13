@@ -17,8 +17,9 @@ class FakeConn(dbus.service.Object):
 
     @dbus.service.method(dbus_interface=conn_iface,
                          in_signature='', out_signature='')
-    def Connect(self, protocol):
-        self.q.append(Event('dbus-method-call', name="Connect", obj=self))
+    def Connect(self):
+        self.q.append(Event('dbus-method-call', name="Connect", obj=self,
+                    path=self.object_path))
         return None
 
 class FakeCM(dbus.service.Object):
