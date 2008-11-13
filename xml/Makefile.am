@@ -16,7 +16,8 @@ SPECS = MissionControl.xml \
 	Client.xml \
 	Client_Approver.xml \
 	Client_Handler.xml \
-	Client_Observer.xml
+	Client_Observer.xml \
+        Connection_Interface_Contact_Capabilities.xml
 
 
 SPECS_GEN = ${SPECS:.xml=-gen.xml}
