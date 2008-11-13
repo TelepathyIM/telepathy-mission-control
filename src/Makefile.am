@@ -43,6 +43,7 @@ mission_control_include = \
 genincludedir = $(mission_control_includedir)/_gen
 nodist_geninclude_HEADERS = \
 	_gen/cli-client.h \
+	_gen/cli-Connection_Interface_Contact_Capabilities.h \
 	_gen/enums.h \
 	_gen/interfaces.h \
 	_gen/gtypes.h \
@@ -58,6 +59,7 @@ nodist_geninclude_HEADERS = \
 
 nodist_libmissioncontrol_server_la_SOURCES = \
 	_gen/cli-client-body.h \
+	_gen/cli-Connection_Interface_Contact_Capabilities-body.h \
 	_gen/gtypes-body.h \
 	_gen/interfaces-body.h \
 	_gen/register-dbus-glib-marshallers-body.h \

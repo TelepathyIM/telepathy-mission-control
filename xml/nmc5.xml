@@ -20,4 +20,6 @@
 
 <xi:include href="Channel_Dispatch_Operation.xml"/>
 
+<xi:include href="Connection_Interface_Contact_Capabilities.xml"/>
+
 </tp:spec>

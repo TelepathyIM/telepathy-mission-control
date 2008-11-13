@@ -16,6 +16,8 @@
 	from="Telepathy specification (Connection)"/>
     <tp:external-type name="Connection_Manager_Name" type="s"
 	from="Telepathy specification (ConnectionManager)"/>
+    <tp:external-type name="Contact_Handle" type="u"
+        from="Telepathy specification (Connection)"/>
     <tp:external-type name="Protocol" type="s"
 	from="Telepathy specification (ConnectionManager)"/>
     <tp:external-type name="Simple_Presence" type="(uss)"
