@@ -102,11 +102,13 @@ struct _McdConnectionPrivate
 
     TpConnectionStatusReason abort_reason;
     guint got_capabilities : 1;
+    guint got_contact_capabilities : 1;
     guint setting_avatar : 1;
     guint has_presence_if : 1;
     guint has_avatars_if : 1;
     guint has_alias_if : 1;
     guint has_capabilities_if : 1;
+    guint has_contact_capabilities_if : 1;
     guint has_requests_if : 1;
 
     /* FALSE until the connection is ready for dispatching */
@@ -512,6 +514,36 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
     for (i = 0; i < capabilities->len; i++)
 	g_boxed_free (type, g_ptr_array_index (capabilities, i));
     g_ptr_array_free (capabilities, TRUE);
+}
+
+static void
+_mcd_connection_setup_contact_capabilities (McdConnection *connection)
+{
+    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
+    GPtrArray *capabilities;
+    GPtrArray *contact_capabilities;
+    const gchar *removed = NULL;
+    const gchar *protocol_name;
+    guint i;
+
+    if (!priv->has_contact_capabilities_if)
+    {
+	g_debug ("%s: connection does not support contact capabilities interface", G_STRFUNC);
+	priv->got_contact_capabilities = TRUE;
+	return;
+    }
+    protocol_name = mcd_account_get_protocol_name (priv->account);
+    capabilities = mcd_dispatcher_get_channel_capabilities (priv->dispatcher,
+							    protocol_name);
+    g_debug ("%s: advertising capabilities", G_STRFUNC);
+
+    contact_capabilities = g_ptr_array_new ();
+    mc_cli_connection_interface_contact_capabilities_call_set_self_capabilities
+      (priv->tp_conn, -1, contact_capabilities, NULL, NULL, NULL, NULL);
+    g_debug ("SetSelfCapabilities: Called.");
+
+    /* free the connection capabilities (FIXME) */
+    g_ptr_array_free (contact_capabilities, TRUE);
 }
 
 static void
@@ -999,14 +1031,6 @@ connect_cb (TpConnection *tp_conn, const GError *error,
 	g_warning ("%s: tp_conn_connect failed: %s",
 		   G_STRFUNC, error->message);
     }
-    else
-    {
-      GPtrArray *caps = g_ptr_array_new ();
-      g_debug ("calling SetSelfCapabilities");
-      mc_cli_connection_interface_contact_capabilities_call_set_self_capabilities
-        (tp_conn, -1, caps, NULL, NULL, NULL, NULL);
-      g_ptr_array_free (caps, TRUE);
-    }
 }
 
 static void
@@ -1227,6 +1251,8 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
 						       TP_IFACE_QUARK_CONNECTION_INTERFACE_ALIASING);
     priv->has_capabilities_if = tp_proxy_has_interface_by_id (tp_conn,
 							      TP_IFACE_QUARK_CONNECTION_INTERFACE_CAPABILITIES);
+    priv->has_contact_capabilities_if = tp_proxy_has_interface_by_id (tp_conn,
+        MC_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES);
     priv->has_requests_if = tp_proxy_has_interface_by_id (tp_conn,
         TP_IFACE_QUARK_CONNECTION_INTERFACE_REQUESTS);
 
@@ -1235,6 +1261,9 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
 
     if (priv->has_capabilities_if)
 	_mcd_connection_setup_capabilities (connection);
+
+    if (priv->has_contact_capabilities_if)
+	_mcd_connection_setup_contact_capabilities (connection);
 
     if (priv->has_avatars_if)
 	_mcd_connection_setup_avatar (connection);
