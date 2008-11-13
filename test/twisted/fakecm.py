@@ -15,14 +15,55 @@ class FakeConn(dbus.service.Object):
         self.bus = bus
         # keep a reference on nameref, otherwise, the name will be lost!
         self.nameref = nameref 
+        self.status = 2 # Connection_Status_Disconnected
         dbus.service.Object.__init__(self, bus, object_path)
+
+    # interface Connection
 
     @dbus.service.method(dbus_interface=conn_iface,
                          in_signature='', out_signature='')
     def Connect(self):
+        self.StatusChanged(1, 1)
+        self.StatusChanged(0, 1)
         self.q.append(Event('dbus-method-call', name="Connect", obj=self,
                     path=self.object_path))
         return None
+
+    @dbus.service.method(dbus_interface=conn_iface,
+                         in_signature='', out_signature='as')
+    def GetInterfaces(self):
+        self.q.append(Event('dbus-method-call', name="GetInterfaces",
+                    obj=self, path=self.object_path))
+        return dbus.Array([conn_iface, caps_iface])
+
+    @dbus.service.method(dbus_interface=conn_iface,
+                         in_signature='', out_signature='u')
+    def GetSelfHandle(self):
+        self.q.append(Event('dbus-method-call', name="GetSelfHandle",
+                    obj=self, path=self.object_path))
+        return 0
+
+    @dbus.service.method(dbus_interface=conn_iface,
+                         in_signature='', out_signature='u')
+    def GetStatus(self):
+        self.q.append(Event('dbus-method-call', name="GetStatus",
+                    obj=self, path=self.object_path))
+        return self.status
+
+    @dbus.service.method(dbus_interface=conn_iface,
+                         in_signature='uau', out_signature='as')
+    def InspectHandles(self, handle_type, handles):
+        self.q.append(Event('dbus-method-call', name="InspectHandles",
+                    obj=self, path=self.object_path, handle_type=handle_type,
+                    handles=handles))
+        return ["self@server"]
+
+    @dbus.service.signal(dbus_interface=conn_iface,
+                         signature='uu')
+    def StatusChanged(self, status, reason):
+        self.status = status
+
+    # interface Connection.Interface.ContactCapabilities.DRAFT
 
     @dbus.service.method(dbus_interface=caps_iface,
                          in_signature='aa{sv}', out_signature='')
