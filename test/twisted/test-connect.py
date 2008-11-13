@@ -75,6 +75,10 @@ def test(q, bus, mc):
     e = q.expect('dbus-method-call', name='Connect',
             path=conn_object_path)
 
+    e = q.expect('dbus-method-call', name='SetSelfCapabilities',
+            path=conn_object_path)
+    assert e.caps == dbus.Array([]), e.caps
+
     # Check the requested presence is online
     properties = account.GetAll(
             'org.freedesktop.Telepathy.Account',
