@@ -5,6 +5,8 @@ from servicetest import EventPattern, tp_name_prefix, tp_path_prefix
 
 cm_iface = "org.freedesktop.Telepathy.ConnectionManager"
 conn_iface = "org.freedesktop.Telepathy.Connection"
+caps_iface = \
+  "org.freedesktop.Telepathy.Connection.Interface.ContactCapabilities.DRAFT"
 
 class FakeConn(dbus.service.Object):
     def __init__(self, object_path, q, bus, nameref):
@@ -20,6 +22,13 @@ class FakeConn(dbus.service.Object):
     def Connect(self):
         self.q.append(Event('dbus-method-call', name="Connect", obj=self,
                     path=self.object_path))
+        return None
+
+    @dbus.service.method(dbus_interface=caps_iface,
+                         in_signature='aa{sv}', out_signature='')
+    def SetSelfCapabilities(self, caps):
+        self.q.append(Event('dbus-method-call', name="SetSelfCapabilities",
+                    obj=self, path=self.object_path, caps=caps))
         return None
 
 class FakeCM(dbus.service.Object):
