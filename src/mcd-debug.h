@@ -38,7 +38,7 @@ void mcd_debug_init (void);
 
 inline gint mcd_debug_get_level (void);
 
-void mcd_debug_ref (gpointer obj, const gchar *filename, gint linenum);
+gpointer mcd_debug_ref (gpointer obj, const gchar *filename, gint linenum);
 void mcd_debug_unref (gpointer obj, const gchar *filename, gint linenum);
 
 void mcd_debug_print_tree (gpointer obj);
