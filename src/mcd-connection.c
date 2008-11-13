@@ -50,12 +50,18 @@
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/connection.h>
+#include <telepathy-glib/proxy-subclass.h>
 #include <libmcclient/mc-errors.h>
 
 #include "mcd-connection.h"
 #include "mcd-channel.h"
 #include "mcd-provisioning-factory.h"
 #include "mcd-misc.h"
+
+#include "_gen/interfaces.h"
+#include "_gen/gtypes.h"
+#include "_gen/cli-Connection_Interface_Contact_Capabilities.h"
+#include "_gen/cli-Connection_Interface_Contact_Capabilities-body.h"
 
 #define MAX_REF_PRESENCE 4
 #define LAST_MC_PRESENCE (TP_CONNECTION_PRESENCE_TYPE_BUSY + 1)
@@ -992,6 +998,14 @@ connect_cb (TpConnection *tp_conn, const GError *error,
     {
 	g_warning ("%s: tp_conn_connect failed: %s",
 		   G_STRFUNC, error->message);
+    }
+    else
+    {
+      GPtrArray *caps = g_ptr_array_new ();
+      g_debug ("calling SetSelfCapabilities");
+      mc_cli_connection_interface_contact_capabilities_call_set_self_capabilities
+        (tp_conn, -1, caps, NULL, NULL, NULL, NULL);
+      g_ptr_array_free (caps, TRUE);
     }
 }
 
