@@ -2298,6 +2298,31 @@ GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher,
     return args.channel_handler_caps;
 }
 
+static void
+_channel_enhanced_capabilities (McdClient *client,
+                                McdDispatcherArgs *args)
+{
+  /* TODO */
+}
+
+
+GPtrArray *
+mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher * dispatcher,
+                                                  const gchar *protocol)
+{
+    McdDispatcherPrivate *priv = dispatcher->priv;
+    McdDispatcherArgs args;
+
+    args.dispatcher = dispatcher;
+    args.protocol = protocol;
+    args.channel_handler_caps = g_ptr_array_new ();
+
+    g_list_foreach (priv->clients, (GFunc) _channel_enhanced_capabilities,
+        &args);
+
+    return args.channel_handler_caps;
+}
+
 const gchar *
 mcd_dispatcher_context_get_protocol_name (McdDispatcherContext *context)
 {

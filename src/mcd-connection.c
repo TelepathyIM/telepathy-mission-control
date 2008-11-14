@@ -520,7 +520,6 @@ static void
 _mcd_connection_setup_contact_capabilities (McdConnection *connection)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-    GPtrArray *capabilities;
     GPtrArray *contact_capabilities;
     const gchar *removed = NULL;
     const gchar *protocol_name;
@@ -533,11 +532,11 @@ _mcd_connection_setup_contact_capabilities (McdConnection *connection)
 	return;
     }
     protocol_name = mcd_account_get_protocol_name (priv->account);
-    capabilities = mcd_dispatcher_get_channel_capabilities (priv->dispatcher,
-							    protocol_name);
+    contact_capabilities = mcd_dispatcher_get_channel_enhanced_capabilities
+      (priv->dispatcher, protocol_name);
+
     g_debug ("%s: advertising capabilities", G_STRFUNC);
 
-    contact_capabilities = g_ptr_array_new ();
     mc_cli_connection_interface_contact_capabilities_call_set_self_capabilities
       (priv->tp_conn, -1, contact_capabilities, NULL, NULL, NULL, NULL);
     g_debug ("SetSelfCapabilities: Called.");
