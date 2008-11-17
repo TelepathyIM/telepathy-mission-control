@@ -1062,6 +1062,11 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
      * FALSE: the on_new_channel handler is already recording them */
     if (!priv->can_dispatch) return;
 
+    /* first, check if we have to dispatch the channels at all */
+    if (!MCD_CONNECTION_GET_CLASS (connection)->need_dispatch (connection,
+                                                               channels))
+        return;
+
     for (i = 0; i < channels->len; i++)
     {
         GValueArray *va;
@@ -1077,13 +1082,7 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
         /* Don't do anything for requested channels */
         value = g_hash_table_lookup (props, TP_IFACE_CHANNEL ".Requested");
         if (value && g_value_get_boolean (value))
-        {
             requested = TRUE;
-            /* FIXME: once the CMs emit this signal _after_ having returned
-             * from CreateChannel(), we can handle requested channels here,
-             * too. */
-            continue;
-        }
 
         /* get channel type, handle type, handle */
         value = g_hash_table_lookup (props, TP_IFACE_CHANNEL ".ChannelType");
@@ -1110,10 +1109,6 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
 
         channel_list = g_list_prepend (channel_list, channel);
     }
-
-    /* FIXME: once the CMs emit this signal _after_ having returned from
-     * CreateChannel(), we can handle requested channels here, too. */
-    if (requested) return;
 
     _mcd_dispatcher_send_channels (priv->dispatcher, channel_list, requested);
 }
@@ -1583,6 +1578,65 @@ _mcd_connection_get_property (GObject * obj, guint prop_id,
     }
 }
 
+/*
+ * mcd_connection_need_dispatch:
+ * @connection: the #McdConnection.
+ * @channels: array of #McdChannel elements.
+ *
+ * This functions must be called in response to a NewChannels signals, and is
+ * responsible for deciding whether MC must handle the channels or not.
+ */
+static gboolean
+mcd_connection_need_dispatch (McdConnection *connection,
+                              const GPtrArray *channels)
+{
+    gboolean any_requested = FALSE, requested_by_us = FALSE;
+    guint i;
+
+    /* We must _not_ handle channels that have the Requested flag set but that
+     * have no McdChannel object associated: these are the channels directly
+     * requested to the CM by some other application, and we must ignore them
+     */
+    for (i = 0; i < channels->len; i++)
+    {
+        GValueArray *va;
+        const gchar *object_path;
+        GHashTable *props;
+        gboolean requested;
+
+        va = g_ptr_array_index (channels, i);
+        object_path = g_value_get_boxed (va->values);
+        props = g_value_get_boxed (va->values + 1);
+
+        requested = tp_asv_get_boolean (props, TP_IFACE_CHANNEL ".Requested",
+                                        NULL);
+        if (requested)
+        {
+            const GList *list = NULL;
+            any_requested = TRUE;
+
+            list = mcd_operation_get_missions ((McdOperation *)connection);
+            while (list)
+            {
+                McdChannel *channel = MCD_CHANNEL (list->data);
+                const gchar *req_object_path;
+
+                req_object_path = mcd_channel_get_object_path (channel);
+                if (req_object_path &&
+                    strcmp (object_path, req_object_path) == 0)
+                {
+                    requested_by_us = TRUE;
+                }
+                list = list->next;
+            }
+        }
+    }
+
+    /* handle only bundles which were not requested or that were requested
+     * through MC */
+    return !any_requested || requested_by_us;
+}
+
 static void
 mcd_connection_class_init (McdConnectionClass * klass)
 {
@@ -1593,6 +1647,8 @@ mcd_connection_class_init (McdConnectionClass * klass)
     object_class->dispose = _mcd_connection_dispose;
     object_class->set_property = _mcd_connection_set_property;
     object_class->get_property = _mcd_connection_get_property;
+
+    klass->need_dispatch = mcd_connection_need_dispatch;
 
     /* Properties */
     g_object_class_install_property
@@ -1983,8 +2039,8 @@ create_channel_cb (TpConnection *proxy, const gchar *channel_path,
         return;
     }
 
-    /* Dispatch the incoming channel */
-    mcd_dispatcher_send (priv->dispatcher, channel);
+    /* No dispatching here: the channel will be dispatched upon receiving the
+     * NewChannels signal */
 }
 
 static gboolean
