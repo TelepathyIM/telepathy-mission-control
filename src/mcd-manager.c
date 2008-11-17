@@ -651,10 +651,12 @@ create_connection (McdManager *manager, McdAccount *account)
 {
     McdManagerPrivate *priv = manager->priv;
 
-    return mcd_connection_new (priv->dbus_daemon,
-                               TP_PROXY (priv->tp_conn_mgr)->bus_name,
-                               priv->tp_conn_mgr, account,
-                               priv->dispatcher);
+    return g_object_new (MCD_TYPE_CONNECTION,
+                         "dbus-daemon", priv->dbus_daemon,
+                         "tp-manager", priv->tp_conn_mgr,
+                         "dispatcher", priv->dispatcher,
+                         "account", account,
+                         NULL);
 }
 
 static void
