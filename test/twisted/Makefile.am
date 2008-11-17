@@ -28,6 +28,7 @@ check-twisted:
 
 EXTRA_DIST = \
 	$(TWISTED_BASIC_TESTS) \
+        fakecm.py \
 	mctest.py \
 	servicetest.py
 
