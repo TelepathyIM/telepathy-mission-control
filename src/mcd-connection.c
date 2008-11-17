@@ -1386,6 +1386,7 @@ _mcd_connection_finalize (GObject * object)
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
 
     g_free (priv->bus_name);
+    g_free (priv->alias);
 
     G_OBJECT_CLASS (mcd_connection_parent_class)->finalize (object);
 }
