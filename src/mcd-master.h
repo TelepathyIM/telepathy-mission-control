@@ -66,6 +66,7 @@ McdMaster *mcd_master_get_default (void);
 McdManager *mcd_master_lookup_manager (McdMaster *master,
 				       const gchar *unique_name);
 McdDispatcher *mcd_master_get_dispatcher (McdMaster *master);
+TpDBusDaemon *mcd_master_get_dbus_daemon (McdMaster *master);
 
 void mcd_master_request_presence (McdMaster * master,
 				  TpConnectionPresenceType presence,

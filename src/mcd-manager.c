@@ -852,3 +852,29 @@ mcd_manager_create_connection (McdManager *manager, McdAccount *account)
     return connection;
 }
 
+/**
+ * mcd_manager_get_tp_proxy:
+ * @manager: the #McdManager.
+ *
+ * Returns: the #TpConnectionManager proxy, or %NULL.
+ */
+TpConnectionManager *
+mcd_manager_get_tp_proxy (McdManager *manager)
+{
+    g_return_val_if_fail (MCD_IS_MANAGER (manager), NULL);
+    return manager->priv->tp_conn_mgr;
+}
+
+/**
+ * mcd_manager_get_dispatcher:
+ * @manager: the #McdManager.
+ *
+ * Returns: the #McdDispatcher.
+ */
+McdDispatcher *
+mcd_manager_get_dispatcher (McdManager *manager)
+{
+    g_return_val_if_fail (MCD_IS_MANAGER (manager), NULL);
+    return manager->priv->dispatcher;
+}
+

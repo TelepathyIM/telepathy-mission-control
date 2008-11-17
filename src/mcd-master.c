@@ -1248,6 +1248,19 @@ mcd_plugin_get_dispatcher (McdPlugin *plugin)
 }
 
 /**
+ * mcd_master_get_dbus_daemon:
+ * @master: the #McdMaster.
+ *
+ * Returns: the #TpDBusDaemon.
+ */
+TpDBusDaemon *
+mcd_master_get_dbus_daemon (McdMaster *master)
+{
+    g_return_val_if_fail (MCD_IS_MASTER (master), NULL);
+    return MCD_MASTER_PRIV (master)->dbus_daemon;
+}
+
+/**
  * mcd_plugin_register_transport:
  * @plugin: the #McdPlugin.
  * @transport_plugin: the #McdTransportPlugin.

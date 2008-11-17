@@ -100,6 +100,8 @@ gboolean mcd_manager_cancel_channel_request (McdManager *manager, guint operatio
 
 McdConnection *mcd_manager_get_connection (McdManager *manager,
 					   const gchar *object_path);
+TpConnectionManager *mcd_manager_get_tp_proxy (McdManager *manager);
+McdDispatcher *mcd_manager_get_dispatcher (McdManager *manager);
 
 G_END_DECLS
 #endif /* MCD_MANAGER_H */
