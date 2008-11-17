@@ -36,6 +36,7 @@
 
 #include <glib/gi18n.h>
 #include <telepathy-glib/interfaces.h>
+#include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/dbus.h>
 
 #include "mcd-channel.h"
@@ -1086,7 +1087,7 @@ _mcd_channel_details_build_from_list (GList *channels)
 
         properties = _mcd_channel_get_immutable_properties (channel);
 
-        type = TP_STRUCT_TYPE_ACCOUNT_DETAILS;
+        type = TP_STRUCT_TYPE_CHANNEL_DETAILS;
         g_value_init (&channel_val, type);
         g_value_take_boxed (&channel_val,
                             dbus_g_type_specialized_construct (type));
