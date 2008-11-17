@@ -58,6 +58,8 @@ struct _McdManager
 struct _McdManagerClass
 {
     McdOperationClass parent_class;
+    McdConnection *(*create_connection) (McdManager *manager,
+                                         McdAccount *account);
 };
 
 GType mcd_manager_get_type (void);
