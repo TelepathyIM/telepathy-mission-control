@@ -145,7 +145,7 @@ create_channels_prop (const GValue *value)
     return list;
 }
 
-void
+static void
 set_connection (const gchar *name, const GValue *value, gpointer props_struct)
 {
     McDispatchOperationProps *props = props_struct;
@@ -153,7 +153,7 @@ set_connection (const gchar *name, const GValue *value, gpointer props_struct)
     props->connection = g_value_dup_boxed (value);
 }
 
-void
+static void
 set_account (const gchar *name, const GValue *value, gpointer props_struct)
 {
     McDispatchOperationProps *props = props_struct;
@@ -161,7 +161,7 @@ set_account (const gchar *name, const GValue *value, gpointer props_struct)
     props->account = g_value_dup_boxed (value);
 }
 
-void
+static void
 set_channels (const gchar *name, const GValue *value, gpointer props_struct)
 {
     McDispatchOperationProps *props = props_struct;
@@ -170,7 +170,7 @@ set_channels (const gchar *name, const GValue *value, gpointer props_struct)
     props->channels = create_channels_prop (value);
 }
 
-void
+static void
 set_possible_handlers (const gchar *name, const GValue *value,
                        gpointer props_struct)
 {
