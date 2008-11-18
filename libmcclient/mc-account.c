@@ -383,19 +383,27 @@ mc_account_new (TpDBusDaemon *dbus, const gchar *object_path)
 }
 
 static void
+update_string (McAccount *account, gchar **ptr, const GValue *value,
+               GQuark quark, gboolean emit_changed)
+{
+    g_free (*ptr);
+    *ptr = g_value_dup_string (value);
+    if (emit_changed)
+        g_signal_emit (account, _mc_account_signals[STRING_CHANGED],
+                       quark,
+                       quark,
+                       *ptr);
+}
+
+static void
 update_display_name (const gchar *name, const GValue *value,
                      gpointer user_data)
 {
     McAccount *account = MC_ACCOUNT (user_data);
     McAccountProps *props = account->priv->props;
 
-    g_free (props->display_name);
-    props->display_name = g_value_dup_string (value);
-    if (props->emit_changed)
-        g_signal_emit (account, _mc_account_signals[STRING_CHANGED],
-                       MC_QUARK_DISPLAY_NAME,
-                       MC_QUARK_DISPLAY_NAME,
-                       props->display_name);
+    update_string (account, &props->display_name, value,
+                   MC_QUARK_DISPLAY_NAME, props->emit_changed);
 }
 
 static void
@@ -404,13 +412,8 @@ update_icon (const gchar *name, const GValue *value, gpointer user_data)
     McAccount *account = MC_ACCOUNT (user_data);
     McAccountProps *props = account->priv->props;
 
-    g_free (props->icon);
-    props->icon = g_value_dup_string (value);
-    if (props->emit_changed)
-        g_signal_emit (account, _mc_account_signals[STRING_CHANGED],
-                       MC_QUARK_ICON,
-                       MC_QUARK_ICON,
-                       props->icon);
+    update_string (account, &props->icon, value,
+                   MC_QUARK_ICON, props->emit_changed);
 }
 
 static void
@@ -447,13 +450,8 @@ update_nickname (const gchar *name, const GValue *value, gpointer user_data)
     McAccount *account = MC_ACCOUNT (user_data);
     McAccountProps *props = account->priv->props;
 
-    g_free (props->nickname);
-    props->nickname = g_value_dup_string (value);
-    if (props->emit_changed)
-        g_signal_emit (account, _mc_account_signals[STRING_CHANGED],
-                       MC_QUARK_NICKNAME,
-                       MC_QUARK_NICKNAME,
-                       props->nickname);
+    update_string (account, &props->nickname, value,
+                   MC_QUARK_NICKNAME, props->emit_changed);
 }
 
 static void
@@ -604,13 +602,8 @@ update_normalized_name (const gchar *name, const GValue *value,
     McAccount *account = MC_ACCOUNT (user_data);
     McAccountProps *props = account->priv->props;
 
-    g_free (props->normalized_name);
-    props->normalized_name = g_value_dup_string (value);
-    if (props->emit_changed)
-        g_signal_emit (account, _mc_account_signals[STRING_CHANGED],
-                       MC_QUARK_NORMALIZED_NAME,
-                       MC_QUARK_NORMALIZED_NAME,
-                       props->normalized_name);
+    update_string (account, &props->normalized_name, value,
+                   MC_QUARK_NORMALIZED_NAME, props->emit_changed);
 }
 
 static const McIfaceProperty account_properties[] =
