@@ -2,16 +2,33 @@ import dbus
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix
 from fakecm import start_fake_connection_manager
+from fakeclient import start_fake_client
 from mctest import exec_test
 
 FakeCM_bus_name = "org.freedesktop.Telepathy.ConnectionManager.fakecm"
 ConnectionManager_object_path = \
     "/org/freedesktop/Telepathy/ConnectionManager/fakecm"
 
+FakeClient_bus_name = "org.freedesktop.Telepathy.Client.fakeclient"
+Client_object_path = \
+    "/org/freedesktop/Telepathy/Client/fakeclient"
+
 
 def test(q, bus, mc):
     start_fake_connection_manager(q, bus, FakeCM_bus_name,
             ConnectionManager_object_path)
+    
+    http_fixed_properties = dbus.Dictionary({
+        'org.freedesktop.Telepathy.Channel.TargetHandleType': 1L,
+        'org.freedesktop.Telepathy.Channel.ChannelType':
+            'org.freedesktop.Telepathy.Channel.Type.StreamTube.DRAFT',
+        'org.freedesktop.Telepathy.Channel.Type.StreamTube.DRAFT.Service':
+            'http'
+        }, signature='sv')
+    caps = dbus.Array([http_fixed_properties], signature='a{sv}')
+
+    start_fake_client(q, bus, FakeClient_bus_name,
+            Client_object_path, caps)
     
     # Get the AccountManager interface
     account_manager = bus.get_object(
@@ -77,7 +94,7 @@ def test(q, bus, mc):
 
     e = q.expect('dbus-method-call', name='SetSelfCapabilities',
             path=conn_object_path)
-    assert e.caps == dbus.Array([]), e.caps
+    assert e.caps == caps, e.caps
 
     # Check the requested presence is online
     properties = account.GetAll(

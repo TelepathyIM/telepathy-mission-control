@@ -10,14 +10,18 @@ client_handler_iface = "org.freedesktop.Telepathy.Client.Handler.DRAFT"
 
 properties_iface = "org.freedesktop.DBus.Properties"
 
+empty_caps = dbus.Array([], signature='a{sv}')
+
 class FakeClient(dbus.service.Object):
-    def __init__(self, object_path, q, bus, bus_name, nameref):
+    def __init__(self, object_path, q, bus, bus_name, nameref,
+            caps = empty_caps):
         self.object_path = object_path
         self.q = q
         self.bus = bus
         self.bus_name = bus_name
         # keep a reference on nameref, otherwise, the name will be lost!
         self.nameref = nameref 
+        self.caps = caps
         dbus.service.Object.__init__(self, bus, object_path)
 
     @dbus.service.method(dbus_interface=properties_iface,
@@ -31,7 +35,18 @@ class FakeClient(dbus.service.Object):
                     client_observer_iface,
                     client_approver_iface,
                     client_handler_iface
-                    ])
+                    ], signature='s')
+        if interface_name == client_observer_iface and \
+                           property_name == "ObserverChannelFilter":
+            return empty_caps
+        if interface_name == client_approver_iface and \
+                           property_name == "ApproverChannelFilter":
+            return empty_caps
+        if interface_name == client_handler_iface and \
+                           property_name == "HandlerChannelFilter":
+            return self.caps
+        print "Error: interface_name=%s property_name=%s" % \
+            (interface_name, property_name)
         return None
 
     @dbus.service.method(dbus_interface=properties_iface,
@@ -49,9 +64,9 @@ class FakeClient(dbus.service.Object):
                     }, signature='sv')
         return None
 
-def start_fake_client(q, bus, bus_name, object_path):
+def start_fake_client(q, bus, bus_name, object_path, caps):
     nameref = dbus.service.BusName(bus_name, bus=bus)
-    client = FakeClient(object_path, q, bus, bus_name, nameref)
+    client = FakeClient(object_path, q, bus, bus_name, nameref, caps)
     return client
 
 
