@@ -41,6 +41,12 @@
  * Account D-Bus API.
  */
 
+typedef struct {
+    TpConnectionPresenceType type;
+    gchar *status;
+    gchar *message;
+} McPresence;
+
 struct _McAccountProps {
     gchar *display_name;
     gchar *icon;
@@ -51,20 +57,17 @@ struct _McAccountProps {
     guint emit_connection_status_changed : 1;
     gchar *nickname;
     GHashTable *parameters;
-    TpConnectionPresenceType auto_presence_type;
-    gchar *auto_presence_status;
-    gchar *auto_presence_message;
+    McPresence auto_presence;
     gchar *connection;
     TpConnectionStatus connection_status;
     TpConnectionStatusReason connection_status_reason;
-    TpConnectionPresenceType curr_presence_type;
-    gchar *curr_presence_status;
-    gchar *curr_presence_message;
-    TpConnectionPresenceType req_presence_type;
-    gchar *req_presence_status;
-    gchar *req_presence_message;
+    McPresence curr_presence;
+    McPresence req_presence;
     gchar *normalized_name;
 };
+
+#define mc_presence_free(presence) \
+    { g_free ((presence)->status); g_free ((presence)->message); }
 
 /**
  * McAccount:
@@ -186,13 +189,10 @@ account_props_free (McAccountProps *props)
     g_free (props->nickname);
     if (props->parameters)
 	g_hash_table_destroy (props->parameters);
-    g_free (props->auto_presence_status);
-    g_free (props->auto_presence_message);
+    mc_presence_free (&props->auto_presence);
     g_free (props->connection);
-    g_free (props->curr_presence_status);
-    g_free (props->curr_presence_message);
-    g_free (props->req_presence_status);
-    g_free (props->req_presence_message);
+    mc_presence_free (&props->curr_presence);
+    mc_presence_free (&props->req_presence);
     g_free (props->normalized_name);
     g_free (props);
 }
@@ -472,26 +472,34 @@ update_parameters (const gchar *name, const GValue *value,
 }
 
 static void
+update_presence (McAccount *account, McPresence *presence, const GValue *value,
+                 GQuark quark, gboolean emit_changed)
+{
+    GValueArray *va;
+
+    mc_presence_free (presence);
+    va = g_value_get_boxed (value);
+    presence->type = (gint)g_value_get_uint (va->values);
+    presence->status = g_value_dup_string (va->values + 1);
+    presence->message = g_value_dup_string (va->values + 2);
+    if (emit_changed)
+        g_signal_emit (account, _mc_account_signals[PRESENCE_CHANGED],
+                       quark,
+                       quark,
+                       presence->type,
+                       presence->status,
+                       presence->message);
+}
+
+static void
 update_automatic_presence (const gchar *name, const GValue *value,
                            gpointer user_data)
 {
     McAccount *account = MC_ACCOUNT (user_data);
     McAccountProps *props = account->priv->props;
-    GValueArray *va;
 
-    g_free (props->auto_presence_status);
-    g_free (props->auto_presence_message);
-    va = g_value_get_boxed (value);
-    props->auto_presence_type = (gint)g_value_get_uint (va->values);
-    props->auto_presence_status = g_value_dup_string (va->values + 1);
-    props->auto_presence_message = g_value_dup_string (va->values + 2);
-    if (props->emit_changed)
-        g_signal_emit (account, _mc_account_signals[PRESENCE_CHANGED],
-                       MC_QUARK_AUTOMATIC_PRESENCE,
-                       MC_QUARK_AUTOMATIC_PRESENCE,
-                       props->auto_presence_type,
-                       props->auto_presence_status,
-                       props->auto_presence_message);
+    update_presence (account, &props->auto_presence, value,
+                     MC_QUARK_AUTOMATIC_PRESENCE, props->emit_changed);
 }
 
 static void
@@ -555,21 +563,9 @@ update_current_presence (const gchar *name, const GValue *value,
 {
     McAccount *account = MC_ACCOUNT (user_data);
     McAccountProps *props = account->priv->props;
-    GValueArray *va;
 
-    g_free (props->curr_presence_status);
-    g_free (props->curr_presence_message);
-    va = g_value_get_boxed (value);
-    props->curr_presence_type = (gint)g_value_get_uint (va->values);
-    props->curr_presence_status = g_value_dup_string (va->values + 1);
-    props->curr_presence_message = g_value_dup_string (va->values + 2);
-    if (props->emit_changed)
-        g_signal_emit (account, _mc_account_signals[PRESENCE_CHANGED],
-                       MC_QUARK_CURRENT_PRESENCE,
-                       MC_QUARK_CURRENT_PRESENCE,
-                       props->curr_presence_type,
-                       props->curr_presence_status,
-                       props->curr_presence_message);
+    update_presence (account, &props->curr_presence, value,
+                     MC_QUARK_CURRENT_PRESENCE, props->emit_changed);
 }
 
 static void
@@ -578,21 +574,9 @@ update_requested_presence (const gchar *name, const GValue *value,
 {
     McAccount *account = MC_ACCOUNT (user_data);
     McAccountProps *props = account->priv->props;
-    GValueArray *va;
 
-    g_free (props->req_presence_status);
-    g_free (props->req_presence_message);
-    va = g_value_get_boxed (value);
-    props->req_presence_type = (gint)g_value_get_uint (va->values);
-    props->req_presence_status = g_value_dup_string (va->values + 1);
-    props->req_presence_message = g_value_dup_string (va->values + 2);
-    if (props->emit_changed)
-        g_signal_emit (account, _mc_account_signals[PRESENCE_CHANGED],
-                       MC_QUARK_REQUESTED_PRESENCE,
-                       MC_QUARK_REQUESTED_PRESENCE,
-                       props->req_presence_type,
-                       props->req_presence_status,
-                       props->req_presence_message);
+    update_presence (account, &props->req_presence, value,
+                     MC_QUARK_REQUESTED_PRESENCE, props->emit_changed);
 }
 
 static void
@@ -943,11 +927,11 @@ mc_account_get_automatic_presence (McAccount *account,
 	return;
     }
     if (type)
-	*type = props->auto_presence_type;
+	*type = props->auto_presence.type;
     if (status)
-	*status = props->auto_presence_status;
+	*status = props->auto_presence.status;
     if (message)
-	*message = props->auto_presence_message;
+	*message = props->auto_presence.message;
 }
 
 /**
@@ -1049,11 +1033,11 @@ mc_account_get_current_presence (McAccount *account,
 	return;
     }
     if (type)
-	*type = props->curr_presence_type;
+	*type = props->curr_presence.type;
     if (status)
-	*status = props->curr_presence_status;
+	*status = props->curr_presence.status;
     if (message)
-	*message = props->curr_presence_message;
+	*message = props->curr_presence.message;
 }
 
 /**
@@ -1090,11 +1074,11 @@ mc_account_get_requested_presence (McAccount *account,
 	return;
     }
     if (type)
-	*type = props->req_presence_type;
+	*type = props->req_presence.type;
     if (status)
-	*status = props->req_presence_status;
+	*status = props->req_presence.status;
     if (message)
-	*message = props->req_presence_message;
+	*message = props->req_presence.message;
 }
 
 /**
