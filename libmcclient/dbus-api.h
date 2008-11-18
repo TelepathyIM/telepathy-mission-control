@@ -54,8 +54,6 @@
 #include <libmcclient/_gen/gtypes.h>
 #include <libmcclient/_gen/interfaces.h>
 
-#define MC_STRUCT_TYPE_ACCOUNT_PRESENCE (TP_STRUCT_TYPE_SIMPLE_PRESENCE)
-
 void _mc_ext_register_dbus_glib_marshallers (void);
 
 inline void _mc_gvalue_stolen (GValue *value);
@@ -65,6 +63,13 @@ typedef struct _McIfaceData McIfaceData;
 
 typedef void (*McIfaceCreateProps) (TpProxy *proxy, GHashTable *props);
 typedef void (*McIfaceSetupPropsMonitor) (TpProxy *proxy, GQuark interface);
+
+typedef struct {
+    gchar *name;
+    gchar *dbus_signature;
+    void (*update_property) (const gchar *name, const GValue *value,
+                             gpointer props_struct);
+} McIfaceProperty;
 
 struct _McIfaceData {
     /* id of the interface */
@@ -120,5 +125,9 @@ void _mc_iface_add (GType type, GQuark interface,
 gboolean _mc_iface_is_ready (gpointer object, GQuark iface);
 
 GType _mc_gtype_from_dbus_signature (const gchar *signature);
+
+void _mc_iface_update_props (const McIfaceProperty *props_definition,
+                             GHashTable *properties, gpointer proxy_props,
+                             const gchar *iface_name, gsize iface_name_len);
 
 #endif

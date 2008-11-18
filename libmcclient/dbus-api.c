@@ -24,9 +24,15 @@
 #include "dbus-api.h"
 #include <string.h>
 
+#include <dbus/dbus-protocol.h>
+
 /* auto-generated stubs */
 #include "_gen/gtypes-body.h"
 #include "_gen/interfaces-body.h"
+
+/* interface + dot + property name + zero terminator */
+#define MC_QUALIFIED_PROPERTY_NAME_LEN \
+    (DBUS_MAXIMUM_NAME_LENGTH + 1 + DBUS_MAXIMUM_NAME_LENGTH + 1)
 
 #define MC_IFACE_IS_READY(iface_data) (*(iface_data->props_data_ptr) != NULL)
 
@@ -354,13 +360,74 @@ _mc_gtype_from_dbus_signature (const gchar *signature)
 {
     if (G_UNLIKELY (!signature)) return G_TYPE_INVALID;
 
+    /* dbus-glib's functions that create the GTypes are implemented using a
+     * lookup table, so that if the sub-component types are the same, the same
+     * GType is returned.
+     * So here it should be safe to use any of the functions that return the
+     * desired type */
     if (strcmp (signature, "s") == 0)
         return G_TYPE_STRING;
     if (strcmp (signature, "b") == 0)
         return G_TYPE_BOOLEAN;
     if (strcmp (signature, "u") == 0)
         return G_TYPE_UINT;
+    if (strcmp (signature, "o") == 0)
+        return DBUS_TYPE_G_OBJECT_PATH;
+    if (strcmp (signature, "as") == 0)
+        return G_TYPE_STRV;
+    if (strcmp (signature, "a{sv}") == 0)
+        return TP_HASH_TYPE_STRING_VARIANT_MAP;
+    if (strcmp (signature, "(uss)") == 0)
+        return TP_STRUCT_TYPE_SIMPLE_PRESENCE;
+    if (strcmp (signature, "a(oa{sv})") == 0)
+        return MC_ARRAY_TYPE_CHANNEL_DETAILS_LIST;
     g_warning ("%s: Type %s not mapped", G_STRFUNC, signature);
     return G_TYPE_INVALID;
+}
+
+void
+_mc_iface_update_props (const McIfaceProperty *props_definition,
+                        GHashTable *properties, gpointer proxy_props,
+                        const gchar *iface_name, gsize iface_name_len)
+{
+    const McIfaceProperty *prop;
+    gchar qualified_name[MC_QUALIFIED_PROPERTY_NAME_LEN], *name_ptr = NULL;
+
+    if (iface_name)
+    {
+        g_return_if_fail (iface_name_len <= DBUS_MAXIMUM_NAME_LENGTH);
+        strcpy (qualified_name, iface_name);
+        name_ptr = qualified_name + iface_name_len;
+        *name_ptr = '.';
+        name_ptr++;
+    }
+
+    for (prop = props_definition; prop->name != NULL; prop++)
+    {
+        GValue *value;
+        GType type;
+
+        g_return_if_fail (strlen (prop->name) <= DBUS_MAXIMUM_NAME_LENGTH);
+        if (name_ptr)
+        {
+            strcpy (name_ptr, prop->name);
+            value = g_hash_table_lookup (properties, qualified_name);
+        }
+        else
+            value = g_hash_table_lookup (properties, prop->name);
+        if (!value) continue;
+
+        type = _mc_gtype_from_dbus_signature (prop->dbus_signature);
+        if (G_LIKELY (G_VALUE_HOLDS (value, type)))
+        {
+            prop->update_property (prop->name, value, proxy_props);
+        }
+        else
+        {
+            g_warning ("%s: %s is a %s, expecting %s",
+                       G_STRFUNC, prop->name,
+                       G_VALUE_TYPE_NAME (value), g_type_name (type));
+        }
+    }
 }
 

@@ -383,173 +383,254 @@ mc_account_new (TpDBusDaemon *dbus, const gchar *object_path)
 }
 
 static void
-update_property (gpointer key, gpointer ht_value, gpointer user_data)
+update_display_name (const gchar *name, const GValue *value,
+                     gpointer user_data)
 {
-    McAccount *account = user_data;
+    McAccount *account = MC_ACCOUNT (user_data);
     McAccountProps *props = account->priv->props;
-    GValue *value = ht_value;
-    const gchar *name = key;
+
+    g_free (props->display_name);
+    props->display_name = g_value_dup_string (value);
+    if (props->emit_changed)
+        g_signal_emit (account, _mc_account_signals[STRING_CHANGED],
+                       MC_QUARK_DISPLAY_NAME,
+                       MC_QUARK_DISPLAY_NAME,
+                       props->display_name);
+}
+
+static void
+update_icon (const gchar *name, const GValue *value, gpointer user_data)
+{
+    McAccount *account = MC_ACCOUNT (user_data);
+    McAccountProps *props = account->priv->props;
+
+    g_free (props->icon);
+    props->icon = g_value_dup_string (value);
+    if (props->emit_changed)
+        g_signal_emit (account, _mc_account_signals[STRING_CHANGED],
+                       MC_QUARK_ICON,
+                       MC_QUARK_ICON,
+                       props->icon);
+}
+
+static void
+update_valid (const gchar *name, const GValue *value, gpointer user_data)
+{
+    McAccount *account = MC_ACCOUNT (user_data);
+    McAccountProps *props = account->priv->props;
+
+    props->valid = g_value_get_boolean (value);
+    if (props->emit_changed)
+        g_signal_emit (account, _mc_account_signals[FLAG_CHANGED],
+                       MC_QUARK_VALID,
+                       MC_QUARK_VALID,
+                       props->valid);
+}
+
+static void
+update_enabled (const gchar *name, const GValue *value, gpointer user_data)
+{
+    McAccount *account = MC_ACCOUNT (user_data);
+    McAccountProps *props = account->priv->props;
+
+    props->enabled = g_value_get_boolean (value);
+    if (props->emit_changed)
+        g_signal_emit (account, _mc_account_signals[FLAG_CHANGED],
+                       MC_QUARK_ENABLED,
+                       MC_QUARK_ENABLED,
+                       props->enabled);
+}
+
+static void
+update_nickname (const gchar *name, const GValue *value, gpointer user_data)
+{
+    McAccount *account = MC_ACCOUNT (user_data);
+    McAccountProps *props = account->priv->props;
+
+    g_free (props->nickname);
+    props->nickname = g_value_dup_string (value);
+    if (props->emit_changed)
+        g_signal_emit (account, _mc_account_signals[STRING_CHANGED],
+                       MC_QUARK_NICKNAME,
+                       MC_QUARK_NICKNAME,
+                       props->nickname);
+}
+
+static void
+update_parameters (const gchar *name, const GValue *value,
+                   gpointer user_data)
+{
+    McAccount *account = MC_ACCOUNT (user_data);
+    McAccountProps *props = account->priv->props;
+    GHashTable *old_parameters = props->parameters;
+
+    props->parameters = g_value_dup_boxed (value);
+    if (props->emit_changed)
+        g_signal_emit (account, _mc_account_signals[PARAMETERS_CHANGED],
+                       0,
+                       old_parameters, props->parameters);
+    if (old_parameters)
+        g_hash_table_destroy (old_parameters);
+}
+
+static void
+update_automatic_presence (const gchar *name, const GValue *value,
+                           gpointer user_data)
+{
+    McAccount *account = MC_ACCOUNT (user_data);
+    McAccountProps *props = account->priv->props;
     GValueArray *va;
 
-    if (strcmp (name, "DisplayName") == 0)
-    {
-	g_free (props->display_name);
-	props->display_name = g_value_dup_string (value);
-	if (props->emit_changed)
-	    g_signal_emit (account, _mc_account_signals[STRING_CHANGED],
-			   MC_QUARK_DISPLAY_NAME,
-			   MC_QUARK_DISPLAY_NAME,
-			   props->display_name);
-    }
-    else if (strcmp (name, "Icon") == 0)
-    {
-	g_free (props->icon);
-	props->icon = g_value_dup_string (value);
-	if (props->emit_changed)
-	    g_signal_emit (account, _mc_account_signals[STRING_CHANGED],
-			   MC_QUARK_ICON,
-			   MC_QUARK_ICON,
-			   props->icon);
-    }
-    else if (strcmp (name, "Valid") == 0)
-    {
-	props->valid = g_value_get_boolean (value);
-	if (props->emit_changed)
-	    g_signal_emit (account, _mc_account_signals[FLAG_CHANGED],
-			   MC_QUARK_VALID,
-			   MC_QUARK_VALID,
-			   props->valid);
-    }
-    else if (strcmp (name, "Enabled") == 0)
-    {
-	props->enabled = g_value_get_boolean (value);
-	if (props->emit_changed)
-	    g_signal_emit (account, _mc_account_signals[FLAG_CHANGED],
-			   MC_QUARK_ENABLED,
-			   MC_QUARK_ENABLED,
-			   props->enabled);
-    }
-    else if (strcmp (name, "Nickname") == 0)
-    {
-	g_free (props->nickname);
-	props->nickname = g_value_dup_string (value);
-	if (props->emit_changed)
-	    g_signal_emit (account, _mc_account_signals[STRING_CHANGED],
-			   MC_QUARK_NICKNAME,
-			   MC_QUARK_NICKNAME,
-			   props->nickname);
-    }
-    else if (strcmp (name, "Parameters") == 0)
-    {
-	GHashTable *old_parameters = props->parameters;
-
-	props->parameters = g_value_get_boxed (value);
-	_mc_gvalue_stolen (value);
-	if (props->emit_changed)
-	    g_signal_emit (account, _mc_account_signals[PARAMETERS_CHANGED],
-			   0,
-			   old_parameters, props->parameters);
-	if (old_parameters)
-	    g_hash_table_destroy (old_parameters);
-    }
-    else if (strcmp (name, "AutomaticPresence") == 0)
-    {
-	g_free (props->auto_presence_status);
-	g_free (props->auto_presence_message);
-	va = g_value_get_boxed (value);
-	props->auto_presence_type = (gint)g_value_get_uint (va->values);
-	props->auto_presence_status = g_value_dup_string (va->values + 1);
-	props->auto_presence_message = g_value_dup_string (va->values + 2);
-	if (props->emit_changed)
-	    g_signal_emit (account, _mc_account_signals[PRESENCE_CHANGED],
-			   MC_QUARK_AUTOMATIC_PRESENCE,
-			   MC_QUARK_AUTOMATIC_PRESENCE,
-			   props->auto_presence_type,
-			   props->auto_presence_status,
-			   props->auto_presence_message);
-    }
-    else if (strcmp (name, "ConnectAutomatically") == 0)
-    {
-	props->connect_automatically = g_value_get_boolean (value);
-	if (props->emit_changed)
-	    g_signal_emit (account, _mc_account_signals[FLAG_CHANGED],
-			   MC_QUARK_CONNECT_AUTOMATICALLY,
-			   MC_QUARK_CONNECT_AUTOMATICALLY,
-			   props->connect_automatically);
-    }
-    else if (strcmp (name, "Connection") == 0)
-    {
-	const gchar *object_path;
-	g_free (props->connection);
-	if (G_LIKELY (G_VALUE_HOLDS (value, DBUS_TYPE_G_OBJECT_PATH)))
-	{
-	    object_path = g_value_get_boxed (value);
-	    if (object_path && strcmp (object_path, "/") != 0)
-		props->connection = g_strdup (object_path);
-	    else
-		props->connection = NULL;
-	}
-	else
-	{
-	    g_warning ("%s: %s not an object path", G_STRFUNC, name);
-	    props->connection = NULL;
-	}
-    }
-    else if (strcmp (name, "ConnectionStatus") == 0)
-    {
-	props->connection_status = g_value_get_uint (value);
-	if (props->emit_changed)
-	    props->emit_connection_status_changed = TRUE;
-    }
-    else if (strcmp (name, "ConnectionStatusReason") == 0)
-    {
-	props->connection_status_reason = g_value_get_uint (value);
-	if (props->emit_changed)
-	    props->emit_connection_status_changed = TRUE;
-    }
-    else if (strcmp (name, "CurrentPresence") == 0)
-    {
-	g_free (props->curr_presence_status);
-	g_free (props->curr_presence_message);
-	va = g_value_get_boxed (value);
-	props->curr_presence_type = (gint)g_value_get_uint (va->values);
-	props->curr_presence_status = g_value_dup_string (va->values + 1);
-	props->curr_presence_message = g_value_dup_string (va->values + 2);
-	if (props->emit_changed)
-	    g_signal_emit (account, _mc_account_signals[PRESENCE_CHANGED],
-			   MC_QUARK_CURRENT_PRESENCE,
-			   MC_QUARK_CURRENT_PRESENCE,
-			   props->curr_presence_type,
-			   props->curr_presence_status,
-			   props->curr_presence_message);
-    }
-    else if (strcmp (name, "RequestedPresence") == 0)
-    {
-	g_free (props->req_presence_status);
-	g_free (props->req_presence_message);
-	va = g_value_get_boxed (value);
-	props->req_presence_type = (gint)g_value_get_uint (va->values);
-	props->req_presence_status = g_value_dup_string (va->values + 1);
-	props->req_presence_message = g_value_dup_string (va->values + 2);
-	if (props->emit_changed)
-	    g_signal_emit (account, _mc_account_signals[PRESENCE_CHANGED],
-			   MC_QUARK_REQUESTED_PRESENCE,
-			   MC_QUARK_REQUESTED_PRESENCE,
-			   props->req_presence_type,
-			   props->req_presence_status,
-			   props->req_presence_message);
-    }
-    else if (strcmp (name, "NormalizedName") == 0)
-    {
-	g_free (props->normalized_name);
-	props->normalized_name = g_value_dup_string (value);
-	if (props->emit_changed)
-	    g_signal_emit (account, _mc_account_signals[STRING_CHANGED],
-			   MC_QUARK_NORMALIZED_NAME,
-			   MC_QUARK_NORMALIZED_NAME,
-			   props->normalized_name);
-    }
+    g_free (props->auto_presence_status);
+    g_free (props->auto_presence_message);
+    va = g_value_get_boxed (value);
+    props->auto_presence_type = (gint)g_value_get_uint (va->values);
+    props->auto_presence_status = g_value_dup_string (va->values + 1);
+    props->auto_presence_message = g_value_dup_string (va->values + 2);
+    if (props->emit_changed)
+        g_signal_emit (account, _mc_account_signals[PRESENCE_CHANGED],
+                       MC_QUARK_AUTOMATIC_PRESENCE,
+                       MC_QUARK_AUTOMATIC_PRESENCE,
+                       props->auto_presence_type,
+                       props->auto_presence_status,
+                       props->auto_presence_message);
 }
+
+static void
+update_connect_automatically (const gchar *name, const GValue *value,
+                              gpointer user_data)
+{
+    McAccount *account = MC_ACCOUNT (user_data);
+    McAccountProps *props = account->priv->props;
+
+    props->connect_automatically = g_value_get_boolean (value);
+    if (props->emit_changed)
+        g_signal_emit (account, _mc_account_signals[FLAG_CHANGED],
+                       MC_QUARK_CONNECT_AUTOMATICALLY,
+                       MC_QUARK_CONNECT_AUTOMATICALLY,
+                       props->connect_automatically);
+}
+
+static void
+update_connection (const gchar *name, const GValue *value,
+                   gpointer user_data)
+{
+    McAccount *account = MC_ACCOUNT (user_data);
+    McAccountProps *props = account->priv->props;
+    const gchar *object_path;
+
+    g_free (props->connection);
+    object_path = g_value_get_boxed (value);
+    if (object_path && strcmp (object_path, "/") != 0)
+        props->connection = g_strdup (object_path);
+    else
+        props->connection = NULL;
+}
+
+static void
+update_connection_status (const gchar *name, const GValue *value,
+                          gpointer user_data)
+{
+    McAccount *account = MC_ACCOUNT (user_data);
+    McAccountProps *props = account->priv->props;
+
+    props->connection_status = g_value_get_uint (value);
+    if (props->emit_changed)
+        props->emit_connection_status_changed = TRUE;
+}
+
+static void
+update_connection_status_reason (const gchar *name, const GValue *value,
+                                 gpointer user_data)
+{
+    McAccount *account = MC_ACCOUNT (user_data);
+    McAccountProps *props = account->priv->props;
+
+    props->connection_status_reason = g_value_get_uint (value);
+    if (props->emit_changed)
+        props->emit_connection_status_changed = TRUE;
+}
+
+static void
+update_current_presence (const gchar *name, const GValue *value,
+                         gpointer user_data)
+{
+    McAccount *account = MC_ACCOUNT (user_data);
+    McAccountProps *props = account->priv->props;
+    GValueArray *va;
+
+    g_free (props->curr_presence_status);
+    g_free (props->curr_presence_message);
+    va = g_value_get_boxed (value);
+    props->curr_presence_type = (gint)g_value_get_uint (va->values);
+    props->curr_presence_status = g_value_dup_string (va->values + 1);
+    props->curr_presence_message = g_value_dup_string (va->values + 2);
+    if (props->emit_changed)
+        g_signal_emit (account, _mc_account_signals[PRESENCE_CHANGED],
+                       MC_QUARK_CURRENT_PRESENCE,
+                       MC_QUARK_CURRENT_PRESENCE,
+                       props->curr_presence_type,
+                       props->curr_presence_status,
+                       props->curr_presence_message);
+}
+
+static void
+update_requested_presence (const gchar *name, const GValue *value,
+                           gpointer user_data)
+{
+    McAccount *account = MC_ACCOUNT (user_data);
+    McAccountProps *props = account->priv->props;
+    GValueArray *va;
+
+    g_free (props->req_presence_status);
+    g_free (props->req_presence_message);
+    va = g_value_get_boxed (value);
+    props->req_presence_type = (gint)g_value_get_uint (va->values);
+    props->req_presence_status = g_value_dup_string (va->values + 1);
+    props->req_presence_message = g_value_dup_string (va->values + 2);
+    if (props->emit_changed)
+        g_signal_emit (account, _mc_account_signals[PRESENCE_CHANGED],
+                       MC_QUARK_REQUESTED_PRESENCE,
+                       MC_QUARK_REQUESTED_PRESENCE,
+                       props->req_presence_type,
+                       props->req_presence_status,
+                       props->req_presence_message);
+}
+
+static void
+update_normalized_name (const gchar *name, const GValue *value,
+                        gpointer user_data)
+{
+    McAccount *account = MC_ACCOUNT (user_data);
+    McAccountProps *props = account->priv->props;
+
+    g_free (props->normalized_name);
+    props->normalized_name = g_value_dup_string (value);
+    if (props->emit_changed)
+        g_signal_emit (account, _mc_account_signals[STRING_CHANGED],
+                       MC_QUARK_NORMALIZED_NAME,
+                       MC_QUARK_NORMALIZED_NAME,
+                       props->normalized_name);
+}
+
+static const McIfaceProperty account_properties[] =
+{
+    { "DisplayName", "s", update_display_name },
+    { "Icon", "s", update_icon },
+    { "Valid", "b", update_valid },
+    { "Enabled", "b", update_enabled },
+    { "Nickname", "s", update_nickname },
+    { "Parameters", "a{sv}", update_parameters },
+    { "AutomaticPresence", "(uss)", update_automatic_presence },
+    { "ConnectAutomatically", "b", update_connect_automatically },
+    { "Connection", "o", update_connection },
+    { "ConnectionStatus", "u", update_connection_status },
+    { "ConnectionStatusReason", "u", update_connection_status_reason },
+    { "CurrentPresence", "(uss)", update_current_presence },
+    { "RequestedPresence", "(uss)", update_requested_presence },
+    { "NormalizedName", "s", update_normalized_name },
+    { NULL, NULL, NULL }
+};
 
 static void
 create_props (TpProxy *proxy, GHashTable *props)
@@ -558,9 +639,10 @@ create_props (TpProxy *proxy, GHashTable *props)
     McAccountPrivate *priv = account->priv;
 
     priv->props = g_malloc0 (sizeof (McAccountProps));
-    g_hash_table_foreach (props, update_property, account);
+    _mc_iface_update_props (account_properties, props, account, NULL, 0);
     priv->props->emit_changed = TRUE;
 }
+
 static void 
 on_account_property_changed (TpProxy *proxy, GHashTable *props, 
 			     gpointer user_data, GObject *weak_object) 
@@ -571,7 +653,7 @@ on_account_property_changed (TpProxy *proxy, GHashTable *props,
     /* if the GetAll method hasn't returned yet, we do nothing */
     if (G_UNLIKELY (!priv->props)) return;
 
-    g_hash_table_foreach (props, update_property, account);
+    _mc_iface_update_props (account_properties, props, account, NULL, 0);
     if (priv->props->emit_connection_status_changed)
     {
 	g_signal_emit (account,
