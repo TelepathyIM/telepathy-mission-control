@@ -51,6 +51,8 @@
 #include "_gen/interfaces.h"
 #include "_gen/gtypes.h"
 
+#define DELAY_PROPERTY_CHANGED
+
 #define MAX_KEY_LENGTH	64
 #define MC_AVATAR_FILENAME	"avatar.bin"
 

@@ -78,11 +78,6 @@ McdChannel
 
 </para>
 
-<!-- ##### ARG McdChannel:inviter-ready ##### -->
-<para>
-
-</para>
-
 <!-- ##### ARG McdChannel:name-ready ##### -->
 <para>
 
@@ -250,6 +245,15 @@ McdChannel
 
 
 <!-- ##### FUNCTION mcd_channel_is_requested ##### -->
+<para>
+
+</para>
+
+@channel: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mcd_channel_get_account ##### -->
 <para>
 
 </para>

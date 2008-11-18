@@ -40,7 +40,7 @@
 
 static gint mc_debug = 0;
 
-void
+gpointer
 mcd_debug_ref (gpointer obj, const gchar *filename, gint linenum)
 {
     /* Function reference untouchable by macro processing */
@@ -51,7 +51,7 @@ mcd_debug_ref (gpointer obj, const gchar *filename, gint linenum)
 	g_debug ("[%s:%d]: Referencing (%d) object %p of type %s",
 		 filename, linenum, G_OBJECT (obj)->ref_count,
 		 obj, G_OBJECT_TYPE_NAME(obj));
-    untouchable_ref (obj);
+    return untouchable_ref (obj);
 }
 
 void

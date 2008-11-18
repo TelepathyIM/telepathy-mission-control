@@ -28,11 +28,6 @@ McdConnection
 
 </para>
 
-<!-- ##### ARG McdConnection:bus-name ##### -->
-<para>
-
-</para>
-
 <!-- ##### ARG McdConnection:dbus-daemon ##### -->
 <para>
 

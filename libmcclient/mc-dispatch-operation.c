@@ -83,6 +83,19 @@ enum
     PROP_PROPERTIES,
 };
 
+/* if this turns out to work well, we can move this definition to a common
+ * header and use it in every module */
+typedef struct {
+    gchar *name;
+    gchar *dbus_signature;
+    void (*update_property) (const gchar *name, const GValue *value,
+                             gpointer props_struct);
+} McProperty;
+
+#define MAX_PROPERTY_NAME_LEN  64
+#define MC_QUALIFIED_PROPERTY_NAME_LEN \
+    (sizeof(MC_IFACE_CHANNEL_DISPATCH_OPERATION) + MAX_PROPERTY_NAME_LEN)
+
 static void
 mc_dispatch_operation_init (McDispatchOperation *operation)
 {
@@ -111,14 +124,14 @@ operation_props_free (McDispatchOperationProps *props)
 }
 
 static inline GList *
-create_channels_prop (GValue *value)
+create_channels_prop (const GValue *value)
 {
     GList *list = NULL;
     GPtrArray *channels;
     guint i;
 
     channels = g_value_get_boxed (value);
-    for (i = channels->len - 1; i >= 0; i++)
+    for (i = channels->len - 1; i >= 0; i--)
     {
         McChannelDetails *details;
         GValueArray *va;
@@ -133,68 +146,107 @@ create_channels_prop (GValue *value)
 }
 
 static void
-update_property (gpointer key, gpointer ht_value, gpointer user_data)
+set_connection (const gchar *name, const GValue *value, gpointer props_struct)
 {
-    McDispatchOperation *operation = user_data;
-    McDispatchOperationProps *props = operation->priv->props;
-    GValue *value = ht_value;
-    const gchar *name = key;
+    McDispatchOperationProps *props = props_struct;
+    g_free (props->connection);
+    props->connection = g_value_dup_boxed (value);
+}
 
-    if (strcmp (name, "Connection") == 0)
-    {
-        g_free (props->connection);
-        if (G_LIKELY (G_VALUE_HOLDS (value, DBUS_TYPE_G_OBJECT_PATH)))
-            props->connection = g_value_dup_boxed (value);
-        else
-        {
-            g_warning ("%s: %s is a %s, expecting object path",
-                       G_STRFUNC, name, G_VALUE_TYPE_NAME (value));
-            props->connection = NULL;
-        }
-    }
-    else if (strcmp (name, "Account") == 0)
-    {
-        g_free (props->account);
-        if (G_LIKELY (G_VALUE_HOLDS (value, DBUS_TYPE_G_OBJECT_PATH)))
-            props->account = g_value_dup_boxed (value);
-        else
-        {
-            g_warning ("%s: %s is a %s, expecting object path",
-                       G_STRFUNC, name, G_VALUE_TYPE_NAME (value));
-            props->account = NULL;
-        }
-    }
-    else if (strcmp (name, "Channels") == 0)
-    {
-        g_list_foreach (props->channels, (GFunc)mc_channel_details_free, NULL);
-        g_list_free (props->channels);
-        if (G_LIKELY (G_VALUE_HOLDS (value,
-                                     TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST)))
-        {
-            props->channels = create_channels_prop (value);
-        }
-        else
-        {
-            g_warning ("%s: %s is a %s, expecting ChannelDetailList",
-                       G_STRFUNC, name, G_VALUE_TYPE_NAME (value));
-            props->channels = NULL;
-        }
-    }
-    else if (strcmp (name, "PossibleHandlers") == 0)
-    {
-        g_strfreev (props->possible_handlers);
-        props->possible_handlers = g_value_dup_boxed (value);
-    }
+static void
+set_account (const gchar *name, const GValue *value, gpointer props_struct)
+{
+    McDispatchOperationProps *props = props_struct;
+    g_free (props->account);
+    props->account = g_value_dup_boxed (value);
+}
+
+static void
+set_channels (const gchar *name, const GValue *value, gpointer props_struct)
+{
+    McDispatchOperationProps *props = props_struct;
+    g_list_foreach (props->channels, (GFunc)mc_channel_details_free, NULL);
+    g_list_free (props->channels);
+    props->channels = create_channels_prop (value);
+}
+
+static void
+set_possible_handlers (const gchar *name, const GValue *value,
+                       gpointer props_struct)
+{
+    McDispatchOperationProps *props = props_struct;
+    g_strfreev (props->possible_handlers);
+    props->possible_handlers = g_value_dup_boxed (value);
+}
+
+static const McProperty dispatch_operation_props[] =
+{
+    /* Make sure that the property names are not too long: adjust the
+     * MAX_PROPERTY_NAME_LEN constant accordingly */
+    { "Connection", "o", set_connection },
+    { "Account", "o", set_account },
+    { "Channels", "a(oa{sv})", set_channels },
+    { "PossibleHandlers", "as", set_possible_handlers },
+    { NULL, NULL, NULL }
+};
+
+static GType
+gtype_from_dbus_signature (const gchar *signature)
+{
+    /* dbus-glib's functions that create the GTypes are implemented using a
+     * lookup table, so that if the sub-component types are the same, the same
+     * GType is returned.
+     * So here it should be safe to use any of the functions that return the
+     * desired type */
+    if (strcmp (signature, "o") == 0)
+        return DBUS_TYPE_G_OBJECT_PATH;
+    if (strcmp (signature, "a(oa{sv})") == 0)
+        return MC_ARRAY_TYPE_CHANNEL_DETAILS_LIST;
+    if (strcmp (signature, "as") == 0)
+        return G_TYPE_STRV;
+    g_warning ("%s: Type %s not mapped", G_STRFUNC, signature);
+    return G_TYPE_INVALID;
 }
 
 static void
 create_operation_props (McDispatchOperation *operation, GHashTable *properties)
 {
     McDispatchOperationProps *props;
+    const McProperty *prop;
+    gchar qualified_name[MC_QUALIFIED_PROPERTY_NAME_LEN], *name_ptr;
 
     props = g_slice_new0 (McDispatchOperationProps);
     operation->priv->props = props;
-    g_hash_table_foreach (properties, update_property, operation);
+
+    strcpy (qualified_name, MC_IFACE_CHANNEL_DISPATCH_OPERATION);
+    name_ptr =
+        qualified_name + (sizeof (MC_IFACE_CHANNEL_DISPATCH_OPERATION) - 1);
+    *name_ptr = '.';
+    name_ptr++;
+
+    for (prop = dispatch_operation_props; prop->name != NULL; prop++)
+    {
+        GValue *value;
+        GType type;
+
+        g_return_if_fail (strlen (prop->name) < MAX_PROPERTY_NAME_LEN);
+        strcpy (name_ptr, prop->name);
+
+        value = g_hash_table_lookup (properties, qualified_name);
+        if (!value) continue;
+
+        type = gtype_from_dbus_signature (prop->dbus_signature);
+        if (G_LIKELY (G_VALUE_HOLDS (value, type)))
+        {
+            prop->update_property (prop->name, value, props);
+        }
+        else
+        {
+            g_warning ("%s: %s is a %s, expecting %s",
+                       G_STRFUNC, prop->name,
+                       G_VALUE_TYPE_NAME (value), g_type_name (type));
+        }
+    }
 }
 
 static void

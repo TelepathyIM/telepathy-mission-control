@@ -17,18 +17,3 @@ gtypes
 <!-- ##### SECTION Stability_Level ##### -->
 
 
-<!-- ##### MACRO MC_STRUCT_TYPE_ACCOUNT_PRESENCE ##### -->
-<para>
-
-</para>
-
-
-
-<!-- ##### FUNCTION mc_type_dbus_struct_uss ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
-

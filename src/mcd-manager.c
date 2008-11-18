@@ -646,6 +646,19 @@ _mcd_manager_get_property (GObject * obj, guint prop_id,
     }
 }
 
+static McdConnection *
+create_connection (McdManager *manager, McdAccount *account)
+{
+    McdManagerPrivate *priv = manager->priv;
+
+    return g_object_new (MCD_TYPE_CONNECTION,
+                         "dbus-daemon", priv->dbus_daemon,
+                         "tp-manager", priv->tp_conn_mgr,
+                         "dispatcher", priv->dispatcher,
+                         "account", account,
+                         NULL);
+}
+
 static void
 mcd_manager_class_init (McdManagerClass * klass)
 {
@@ -662,6 +675,8 @@ mcd_manager_class_init (McdManagerClass * klass)
 
     mission_class->connect = _mcd_manager_connect;
     mission_class->disconnect = _mcd_manager_disconnect;
+
+    klass->create_connection = create_connection;
 
     /* Properties */
     g_object_class_install_property
@@ -829,15 +844,39 @@ mcd_manager_create_connection (McdManager *manager, McdAccount *account)
 	g_debug ("%s: Manager %s created", G_STRFUNC, priv->name);
     }
 
-    connection = mcd_connection_new (priv->dbus_daemon,
-				     TP_PROXY (priv->tp_conn_mgr)->bus_name,
-				     priv->tp_conn_mgr, account,
-				     priv->dispatcher);
+    connection = MCD_MANAGER_GET_CLASS (manager)->create_connection
+        (manager, account);
     mcd_operation_take_mission (MCD_OPERATION (manager),
 				MCD_MISSION (connection));
     g_debug ("%s: Created a connection %p for account: %s", G_STRFUNC,
 	     connection, mcd_account_get_unique_name (account));
 
     return connection;
+}
+
+/**
+ * mcd_manager_get_tp_proxy:
+ * @manager: the #McdManager.
+ *
+ * Returns: the #TpConnectionManager proxy, or %NULL.
+ */
+TpConnectionManager *
+mcd_manager_get_tp_proxy (McdManager *manager)
+{
+    g_return_val_if_fail (MCD_IS_MANAGER (manager), NULL);
+    return manager->priv->tp_conn_mgr;
+}
+
+/**
+ * mcd_manager_get_dispatcher:
+ * @manager: the #McdManager.
+ *
+ * Returns: the #McdDispatcher.
+ */
+McdDispatcher *
+mcd_manager_get_dispatcher (McdManager *manager)
+{
+    g_return_val_if_fail (MCD_IS_MANAGER (manager), NULL);
+    return manager->priv->dispatcher;
 }
 
