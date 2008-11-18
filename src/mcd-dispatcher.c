@@ -48,6 +48,7 @@
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/proxy-subclass.h>
+#include <telepathy-glib/util.h>
 #include "_gen/interfaces.h"
 #include "_gen/gtypes.h"
 #include "_gen/cli-client.h"
@@ -125,6 +126,8 @@ typedef struct _McdClient
     GList *approver_filters;
     GList *handler_filters;
     GList *observer_filters;
+    /* from the HandlerChannelFilter property */
+    GValue *caps;
 } McdClient;
 
 #define MCD_IFACE_CLIENT "org.freedesktop.Telepathy.Client"
@@ -152,8 +155,9 @@ struct _McdDispatcherPrivate
     /* list of McdFilter elements */
     GList *filters;
 
-    /* each element is a McdClient struct */
-    GList *clients;
+    /* hash table containing clients
+     * char *bus_name -> McdClient */
+    GHashTable *clients;
 
     McdMaster *master;
  
@@ -280,6 +284,9 @@ mcd_client_free (McdClient *client)
         g_object_unref (client->proxy);
 
     g_free (client->name);
+    if (client->caps != NULL)
+      g_value_unset (client->caps);
+
     g_list_foreach (client->approver_filters,
                     (GFunc)mcd_client_filter_free, NULL);
     g_list_foreach (client->handler_filters,
@@ -979,9 +986,10 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
     McdClient *handler = NULL;
     gint num_channels_best, num_channels;
     const GList *cl;
-    GList *list;
     GList *handled_best = NULL, *unhandled;
     const gchar *approved_handler;
+    GHashTableIter iter;
+    McdClient *client;
 
     /* The highest priority goes to the handler chosen by the approver */
     if (context->operation)
@@ -993,9 +1001,9 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
     /* TODO: in the McdDispatcherContext there should be a hint on what handler
      * to invoke */
     num_channels_best = 0;
-    for (list = priv->clients; list != NULL; list = list->next)
+    g_hash_table_iter_init (&iter, priv->clients);
+    while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &client))
     {
-        McdClient *client = list->data;
         GList *handled = NULL;
         gboolean the_chosen_one;
 
@@ -1173,15 +1181,16 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
     McdDispatcherPrivate *priv = context->dispatcher->priv;
     McdClient *handler = NULL;
     const GList *cl, *channels;
-    GList *list;
     GHashTable *observer_info;
+    GHashTableIter iter;
+    McdClient *client;
 
     channels = context->channels;
     observer_info = NULL;
 
-    for (list = priv->clients; list != NULL; list = list->next)
+    g_hash_table_iter_init (&iter, priv->clients);
+    while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &client))
     {
-        McdClient *client = list->data;
         GList *observed = NULL;
         McdConnection *connection;
         McdAccount *account;
@@ -1270,7 +1279,8 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
     McdDispatcherPrivate *priv = context->dispatcher->priv;
     McdClient *handler = NULL;
     const GList *cl, *channels;
-    GList *list;
+    GHashTableIter iter;
+    McdClient *client;
 
     g_return_if_fail (context->operation != NULL);
 
@@ -1281,9 +1291,9 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
 
     context->client_locks++;
     channels = context->channels;
-    for (list = priv->clients; list != NULL; list = list->next)
+    g_hash_table_iter_init (&iter, priv->clients);
+    while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &client))
     {
-        McdClient *client = list->data;
         const gchar *dispatch_operation;
         GHashTable *properties;
         gboolean matched = FALSE;
@@ -1702,7 +1712,7 @@ _mcd_dispatcher_dispose (GObject * object)
     }
     priv->is_disposed = TRUE;
 
-    g_list_foreach (priv->clients, (GFunc)mcd_client_free, NULL);
+    g_hash_table_destroy (priv->clients);
 
     if (priv->master)
     {
@@ -1789,8 +1799,103 @@ parse_client_filter (GKeyFile *file, const gchar *group)
 }
 
 static void
-create_client_proxy (McdDispatcherPrivate *priv, McdClient *client)
+get_approver_channel_filter_cb (TpProxy *proxy,
+                                const GValue *out_Value,
+                                const GError *error,
+                                gpointer user_data,
+                                GObject *weak_object)
 {
+    /* McdDispatcher *self = MCD_DISPATCHER (weak_object);
+    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
+    McdClient *client = user_data; */
+    g_debug ("%s: Called.", G_STRFUNC);
+}
+
+static void
+get_observer_channel_filter_cb (TpProxy *proxy,
+                                const GValue *out_Value,
+                                const GError *error,
+                                gpointer user_data,
+                                GObject *weak_object)
+{
+    /* McdDispatcher *self = MCD_DISPATCHER (weak_object);
+    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
+    McdClient *client = user_data; */
+    g_debug ("%s: Called.", G_STRFUNC);
+}
+
+static void
+get_handler_channel_filter_cb (TpProxy *proxy,
+                               const GValue *out_Value,
+                               const GError *error,
+                               gpointer user_data,
+                               GObject *weak_object)
+{
+    /* McdDispatcher *self = MCD_DISPATCHER (weak_object);
+    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self); */
+    McdClient *client = user_data;
+    g_debug ("%s: Called.", G_STRFUNC);
+
+    client->caps = tp_g_value_slice_new (TP_ARRAY_TYPE_CHANNEL_CLASS_LIST);
+    g_value_copy (out_Value, client->caps);
+}
+
+static void
+get_interfaces_cb (TpProxy *proxy,
+                   const GValue *out_Value,
+                   const GError *error,
+                   gpointer user_data,
+                   GObject *weak_object)
+{
+    McdDispatcher *self = MCD_DISPATCHER (weak_object);
+    /* McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self); */
+    McdClient *client = user_data;
+    gchar **arr;
+
+    arr = g_value_get_boxed (out_Value);
+
+    while (arr != NULL && *arr != NULL)
+      {
+        if (strcmp (*arr, MCD_IFACE_CLIENT_APPROVER ".DRAFT") == 0)
+          client->interfaces |= MCD_CLIENT_APPROVER;
+        if (strcmp (*arr, MCD_IFACE_CLIENT_HANDLER ".DRAFT") == 0)
+          client->interfaces |= MCD_CLIENT_HANDLER;
+        if (strcmp (*arr, MCD_IFACE_CLIENT_OBSERVER ".DRAFT") == 0)
+          client->interfaces |= MCD_CLIENT_OBSERVER;
+        arr++;
+      }
+
+    tp_proxy_add_interface_by_id (client->proxy, MC_IFACE_QUARK_CLIENT);
+    if (client->interfaces & MCD_CLIENT_APPROVER)
+      {
+        tp_proxy_add_interface_by_id (client->proxy,
+                                      MC_IFACE_QUARK_CLIENT_APPROVER);
+        tp_cli_dbus_properties_call_get (client->proxy, -1,
+            MCD_IFACE_CLIENT_APPROVER ".DRAFT", "ApproverChannelFilter",
+            get_approver_channel_filter_cb, client, NULL, G_OBJECT (self));
+      }
+    if (client->interfaces & MCD_CLIENT_HANDLER)
+      {
+        tp_proxy_add_interface_by_id (client->proxy,
+                                      MC_IFACE_QUARK_CLIENT_HANDLER);
+        tp_cli_dbus_properties_call_get (client->proxy, -1,
+            MCD_IFACE_CLIENT_HANDLER ".DRAFT", "HandlerChannelFilter",
+            get_handler_channel_filter_cb, client, NULL, G_OBJECT (self));
+      }
+    if (client->interfaces & MCD_CLIENT_OBSERVER)
+      {
+        tp_proxy_add_interface_by_id (client->proxy,
+                                      MC_IFACE_QUARK_CLIENT_OBSERVER);
+        tp_cli_dbus_properties_call_get (client->proxy, -1,
+            MCD_IFACE_CLIENT_OBSERVER ".DRAFT", "ObserverChannelFilter",
+            get_observer_channel_filter_cb, client, NULL, G_OBJECT (self));
+      }
+}
+
+static void
+create_client_proxy (McdDispatcher *self, McdClient *client)
+{
+    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
     gchar *bus_name, *object_path;
 
     bus_name = g_strconcat ("org.freedesktop.Telepathy.Client.",
@@ -1807,48 +1912,20 @@ create_client_proxy (McdDispatcherPrivate *priv, McdClient *client)
     g_free (object_path);
     g_free (bus_name);
 
-    tp_proxy_add_interface_by_id (client->proxy, MC_IFACE_QUARK_CLIENT);
-    if (client->interfaces & MCD_CLIENT_APPROVER)
-        tp_proxy_add_interface_by_id (client->proxy,
-                                      MC_IFACE_QUARK_CLIENT_APPROVER);
-    if (client->interfaces & MCD_CLIENT_HANDLER)
-        tp_proxy_add_interface_by_id (client->proxy,
-                                      MC_IFACE_QUARK_CLIENT_HANDLER);
-    if (client->interfaces & MCD_CLIENT_OBSERVER)
-        tp_proxy_add_interface_by_id (client->proxy,
-                                      MC_IFACE_QUARK_CLIENT_OBSERVER);
-
-    priv->clients = g_list_prepend (priv->clients, client);
+    return;
 }
 
-static gboolean
-parse_client_file (const gchar *path, const gchar *filename,
-                   gpointer user_data)
+static void
+parse_client_file (McdClient *client, GKeyFile *file)
 {
-    McdDispatcherPrivate *priv = user_data;
-    GKeyFile *file;
-    const gchar *extension;
     gchar **iface_names, **groups;
-    McdClient *client;
     guint i;
     gsize len = 0;
-    GError *error = NULL;
-
-    extension = g_strrstr (filename, ".client");
-    if (!extension || extension[7] != 0) return TRUE;
-
-    file = g_key_file_new ();
-    g_key_file_load_from_file (file, path, 0, &error);
-    if (error)
-    {
-        g_warning ("Error loading %s: %s", path, error->message);
-        goto finish;
-    }
 
     iface_names = g_key_file_get_string_list (file, MCD_IFACE_CLIENT,
                                               "Interfaces", 0, NULL);
     if (!iface_names)
-        goto finish;
+        return;
 
     client = g_slice_new0 (McdClient);
     for (i = 0; iface_names[i] != NULL; i++)
@@ -1897,16 +1974,146 @@ parse_client_file (const gchar *path, const gchar *filename,
     client->bypass_approver =
         g_key_file_get_boolean (file, MCD_IFACE_CLIENT_HANDLER,
                                 "BypassApprover", NULL);
+}
 
-    client->name = g_strndup (filename, extension - filename);
-    g_debug ("%s: adding client %s from .client file",
-             G_STRFUNC, client->name);
+static McdClient *
+create_mcd_client (McdDispatcher *self, const gchar *name)
+{
+  /* McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self); */
+  const gchar * const *dirs;
+  const gchar *dirname;
+  McdClient *client;
+  gchar *filename;
+  GKeyFile *file = NULL;
+  gboolean file_found = FALSE;
 
-    create_client_proxy (priv, client);
+  g_assert (strncmp (MCD_IFACE_CLIENT ".", name,
+        strlen (MCD_IFACE_CLIENT ".")) == 0);
 
-finish:
-    g_key_file_free (file);
-    return TRUE;
+  client = g_slice_new0 (McdClient);
+  client->name = g_strdup (name + strlen (MCD_IFACE_CLIENT "."));
+  g_debug ("McdClient created for %s", name);
+
+  filename = g_strdup_printf ("%s.client", client->name);
+
+  /* optionally, we read the .client file */
+  file = g_key_file_new ();
+  dirs = g_get_system_data_dirs();
+  for (dirname = *dirs; dirname != NULL; dirs++, dirname = *dirs)
+    {
+        GError *error = NULL;
+        gchar *absolute_filepath;
+        absolute_filepath = g_build_filename (dirname, "telepathy/clients",
+            filename, NULL);
+        g_key_file_load_from_file (file, absolute_filepath, 0, &error);
+
+        if (!error)
+          {
+            g_debug ("File found for %s: %s", name, absolute_filepath);
+            file_found = TRUE;
+            g_free (absolute_filepath);
+            break;
+          }
+        g_free (absolute_filepath);
+    }
+  g_free (filename);
+
+  if (file_found)
+    {
+      parse_client_file (client, file);
+    }
+
+  g_key_file_free (file);
+  create_client_proxy (self, client);
+
+  if (!file_found)
+    {
+      g_debug ("No .client file for %s. Ask on D-Bus.", name);
+      tp_cli_dbus_properties_call_get (client->proxy, -1,
+          MCD_IFACE_CLIENT ".DRAFT", "Interfaces", get_interfaces_cb, client,
+          NULL, G_OBJECT (self));
+    }
+
+
+  return client;
+}
+
+static void
+add_names_cb (McdDispatcher *self,
+              const gchar **names)
+{
+    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
+  
+    while (names != NULL && *names != NULL)
+      {
+        gpointer orig_key, value;
+        const char *name = *names;
+        names++;
+
+        if (strncmp (MCD_IFACE_CLIENT, name, strlen (MCD_IFACE_CLIENT)) != 0)
+          {
+            /* This is not a Telepathy Client */
+            continue;
+          }
+
+        if (g_hash_table_lookup_extended (priv->clients, name, &orig_key,
+              &value))
+          {
+            /* This Telepathy Client is already known */
+            continue;
+          }
+
+        g_debug ("%s: Register client %s", G_STRFUNC, name);
+
+        g_hash_table_insert (priv->clients, g_strdup (name),
+            create_mcd_client (self, name));
+      }
+}
+
+static void
+list_names_cb (TpDBusDaemon *proxy,
+    const gchar **out0,
+    const GError *error,
+    gpointer user_data,
+    GObject *weak_object)
+{
+    McdDispatcher *self = MCD_DISPATCHER (weak_object);
+
+    add_names_cb (self, out0);
+}
+
+static void
+list_activatable_names_cb (TpDBusDaemon *proxy,
+    const gchar **out0,
+    const GError *error,
+    gpointer user_data,
+    GObject *weak_object)
+{
+    McdDispatcher *self = MCD_DISPATCHER (weak_object);
+    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
+
+    add_names_cb (self, out0);
+
+    tp_cli_dbus_daemon_call_list_names (priv->dbus_daemon,
+        -1, list_names_cb, NULL, NULL, weak_object);
+}
+
+static void
+name_owner_changed_cb (TpDBusDaemon *proxy,
+    const gchar *arg0,
+    const gchar *arg1,
+    const gchar *arg2,
+    gpointer user_data,
+    GObject *weak_object)
+{
+    McdDispatcher *self = MCD_DISPATCHER (weak_object);
+    gchar *names[2] = {NULL, NULL};
+    
+    names[0] = g_strdup (arg0);
+
+    add_names_cb (self, (const gchar **) names);
+
+    g_free (names[0]);
 }
 
 static void
@@ -1914,8 +2121,11 @@ mcd_dispatcher_constructed (GObject *object)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
 
-    _mcd_xdg_data_subdir_foreach ("telepathy/clients",
-                                  parse_client_file, priv);
+    tp_cli_dbus_daemon_connect_to_name_owner_changed (priv->dbus_daemon,
+        name_owner_changed_cb, NULL, NULL, object, NULL);
+
+    tp_cli_dbus_daemon_call_list_activatable_names (priv->dbus_daemon,
+        -1, list_activatable_names_cb, NULL, NULL, object);
 }
 
 static void
@@ -2044,6 +2254,9 @@ mcd_dispatcher_init (McdDispatcher * dispatcher)
     g_datalist_init (&(priv->interface_filters));
     
     priv->channel_handler_hash = mcd_get_channel_handlers ();
+
+    priv->clients = g_hash_table_new_full (NULL, NULL, g_free,
+        (GDestroyNotify) mcd_client_free);
 }
 
 McdDispatcher *
@@ -2298,29 +2511,31 @@ GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher,
     return args.channel_handler_caps;
 }
 
-static void
-_channel_enhanced_capabilities (McdClient *client,
-                                McdDispatcherArgs *args)
-{
-  /* TODO */
-}
-
 
 GPtrArray *
 mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher * dispatcher,
                                                   const gchar *protocol)
 {
     McdDispatcherPrivate *priv = dispatcher->priv;
-    McdDispatcherArgs args;
+    GHashTableIter iter;
+    gpointer key, value;
+    GPtrArray *caps = g_ptr_array_new ();
 
-    args.dispatcher = dispatcher;
-    args.protocol = protocol;
-    args.channel_handler_caps = g_ptr_array_new ();
+    g_hash_table_iter_init (&iter, priv->clients);
+    while (g_hash_table_iter_next (&iter, &key, &value)) 
+      {
+        McdClient *client = value;
+        GPtrArray *client_caps = g_value_get_boxed (client->caps);
+        int i;
 
-    g_list_foreach (priv->clients, (GFunc) _channel_enhanced_capabilities,
-        &args);
+        for (i = 0 ; i < client_caps->len ; i++)
+          {
+            /* TODO: Do not add if already in the caps variable */
+            g_ptr_array_add (caps, g_ptr_array_index (client_caps, i));
+          }
+      }
 
-    return args.channel_handler_caps;
+    return caps;
 }
 
 const gchar *
@@ -2420,7 +2635,8 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
     GValue v_account = { 0, };
     GValue v_preferred_handler = { 0, };
     GPtrArray *requests;
-    GList *list;
+    GHashTableIter iter;
+    McdClient *client;
 
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
     g_return_if_fail (MCD_IS_CHANNEL (channel));
@@ -2428,10 +2644,9 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
 
     priv = dispatcher->priv;
 
-    for (list = priv->clients; list != NULL; list = list->next)
+    g_hash_table_iter_init (&iter, priv->clients);
+    while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &client))
     {
-        McdClient *client = list->data;
-
         if (!client->proxy ||
             !(client->interfaces & MCD_CLIENT_HANDLER))
             continue;
