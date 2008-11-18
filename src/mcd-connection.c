@@ -521,9 +521,7 @@ _mcd_connection_setup_contact_capabilities (McdConnection *connection)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
     GPtrArray *contact_capabilities;
-    const gchar *removed = NULL;
     const gchar *protocol_name;
-    guint i;
 
     if (!priv->has_contact_capabilities_if)
     {
