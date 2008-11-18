@@ -178,3 +178,12 @@ _mcd_get_error_string (const GError *error)
     return NULL;
 }
 
+GType
+type_dbus_aasv (void)
+{
+  static GType t = 0;
+
+  if (G_UNLIKELY (t == 0))
+    t = dbus_g_type_get_collection ("GPtrArray", tp_type_dbus_hash_sv ());
+  return t;
+}

@@ -28,6 +28,7 @@
 
 #include <glib.h>
 #include <glib-object.h>
+#include <telepathy-glib/gtypes.h>
 
 G_BEGIN_DECLS
 
@@ -41,6 +42,16 @@ void _mcd_xdg_data_subdir_foreach (const gchar *subdir,
 GHashTable *_mcd_deepcopy_asv (GHashTable *asv);
 
 const gchar *_mcd_get_error_string (const GError *error);
+
+/* FIXME: we should use the definition from telepathy-glib, but
+ * https://bugs.freedesktop.org/show_bug.cgi?id=18515
+ * TP_ARRAY_TYPE_CHANNEL_CLASS_LIST is not defined at the moment */
+#ifdef TP_ARRAY_TYPE_CHANNEL_CLASS_LIST
+#error "telepathy-glib has been fixed, this should be removed"
+#endif
+#define TP_ARRAY_TYPE_CHANNEL_CLASS_LIST (type_dbus_aasv ())
+GType type_dbus_aasv (void);
+
 
 G_END_DECLS
 #endif /* MCD_MISC_H */
