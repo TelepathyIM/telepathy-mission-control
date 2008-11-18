@@ -700,6 +700,15 @@ mcd_master_constructor (GType type, guint n_params,
     return (GObject *) master;
 }
 
+static McdManager *
+mcd_master_create_manager (McdMaster *master, const gchar *unique_name)
+{
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+
+    return mcd_manager_new (unique_name, priv->presence_frame,
+                            priv->dispatcher, priv->dbus_daemon);
+}
+
 static void
 mcd_master_class_init (McdMasterClass * klass)
 {
@@ -716,6 +725,8 @@ mcd_master_class_init (McdMasterClass * klass)
     mission_class->connect = _mcd_master_connect;
     mission_class->disconnect = _mcd_master_disconnect;
     mission_class->set_flags = _mcd_master_set_flags;
+
+    klass->create_manager = mcd_master_create_manager;
 
     /* Properties */
     g_object_class_install_property
@@ -1183,7 +1194,6 @@ McdManager *
 mcd_master_lookup_manager (McdMaster *master,
 			   const gchar *unique_name)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     const GList *managers, *list;
     McdManager *manager;
 
@@ -1196,8 +1206,8 @@ mcd_master_lookup_manager (McdMaster *master,
 	    return manager;
     }
 
-    manager = mcd_manager_new (unique_name, priv->presence_frame,
-			       priv->dispatcher, priv->dbus_daemon);
+    manager = MCD_MASTER_GET_CLASS (master)->create_manager
+        (master, unique_name);
     if (G_UNLIKELY (!manager))
 	g_warning ("Manager %s not created", unique_name);
     else
@@ -1235,6 +1245,19 @@ McdDispatcher *
 mcd_plugin_get_dispatcher (McdPlugin *plugin)
 {
     return MCD_MASTER_PRIV (plugin)->dispatcher;
+}
+
+/**
+ * mcd_master_get_dbus_daemon:
+ * @master: the #McdMaster.
+ *
+ * Returns: the #TpDBusDaemon.
+ */
+TpDBusDaemon *
+mcd_master_get_dbus_daemon (McdMaster *master)
+{
+    g_return_val_if_fail (MCD_IS_MASTER (master), NULL);
+    return MCD_MASTER_PRIV (master)->dbus_daemon;
 }
 
 /**
