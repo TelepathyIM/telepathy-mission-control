@@ -510,7 +510,7 @@ mcd_dispatch_operation_get_properties (McdDispatchOperation *operation)
             value = g_slice_new0 (GValue);
             property->getprop ((TpSvcDBusProperties *)operation,
                                property->name, value);
-            name = g_strconcat (MC_IFACE_CHANNEL_DISPATCH_OPERATION,
+            name = g_strconcat (MC_IFACE_CHANNEL_DISPATCH_OPERATION, ".",
                                 property->name, NULL);
             g_hash_table_insert (priv->properties, name, value);
         }
