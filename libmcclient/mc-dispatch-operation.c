@@ -128,7 +128,7 @@ create_channels_prop (const GValue *value)
 {
     GList *list = NULL;
     GPtrArray *channels;
-    guint i;
+    gint i;
 
     channels = g_value_get_boxed (value);
     for (i = channels->len - 1; i >= 0; i--)

@@ -1042,6 +1042,28 @@ dispatch_undispatched_channels (McdConnection *connection)
     }
 }
 
+static McdChannel *
+find_channel_by_path (McdConnection *connection, const gchar *object_path)
+{
+    const GList *list = NULL;
+
+    list = mcd_operation_get_missions (MCD_OPERATION (connection));
+    while (list)
+    {
+        McdChannel *channel = MCD_CHANNEL (list->data);
+        const gchar *req_object_path;
+
+        req_object_path = mcd_channel_get_object_path (channel);
+        if (req_object_path &&
+            strcmp (object_path, req_object_path) == 0)
+        {
+            return channel;
+        }
+        list = list->next;
+    }
+    return NULL;
+}
+
 static void
 on_new_channels (TpConnection *proxy, const GPtrArray *channels,
                  gpointer user_data, GObject *weak_object)
@@ -1079,28 +1101,37 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
         if (value && g_value_get_boolean (value))
             requested = TRUE;
 
-        /* get channel type, handle type, handle */
-        value = g_hash_table_lookup (props, TP_IFACE_CHANNEL ".ChannelType");
-        channel_type = value ? g_value_get_string (value) : NULL;
+        /* if the channel was a request, we already have an object for it;
+         * otherwise, create a new one */
+        channel = find_channel_by_path (connection, object_path);
+        if (!channel)
+        {
+            /* get channel type, handle type, handle */
+            value = g_hash_table_lookup (props,
+                                         TP_IFACE_CHANNEL ".ChannelType");
+            channel_type = value ? g_value_get_string (value) : NULL;
 
-        value = g_hash_table_lookup (props,
-                                     TP_IFACE_CHANNEL ".TargetHandleType");
-        handle_type = value ? g_value_get_uint (value) : 0;
+            value = g_hash_table_lookup (props,
+                                         TP_IFACE_CHANNEL ".TargetHandleType");
+            handle_type = value ? g_value_get_uint (value) : 0;
 
-        value = g_hash_table_lookup (props, TP_IFACE_CHANNEL ".TargetHandle");
-        handle = value ? g_value_get_uint (value) : 0;
+            value = g_hash_table_lookup (props,
+                                         TP_IFACE_CHANNEL ".TargetHandle");
+            handle = value ? g_value_get_uint (value) : 0;
 
-        g_debug ("%s: type = %s, handle_type = %u, handle = %u", G_STRFUNC,
-                 channel_type, handle_type, handle);
-        channel = mcd_channel_new_from_path (proxy, object_path, channel_type,
-                                             handle, handle_type);
-        if (G_UNLIKELY (!channel)) continue;
+            g_debug ("%s: type = %s, handle_type = %u, handle = %u", G_STRFUNC,
+                     channel_type, handle_type, handle);
+            channel = mcd_channel_new_from_path (proxy, object_path,
+                                                 channel_type,
+                                                 handle, handle_type);
+            if (G_UNLIKELY (!channel)) continue;
 
-        /* properties need to be copied */
-        props = g_value_dup_boxed (va->values + 1);
-        _mcd_channel_set_immutable_properties (channel, props);
-        mcd_operation_take_mission (MCD_OPERATION (connection),
-                                    MCD_MISSION (channel));
+            /* properties need to be copied */
+            props = g_value_dup_boxed (va->values + 1);
+            _mcd_channel_set_immutable_properties (channel, props);
+            mcd_operation_take_mission (MCD_OPERATION (connection),
+                                        MCD_MISSION (channel));
+        }
 
         channel_list = g_list_prepend (channel_list, channel);
     }
@@ -1598,23 +1629,10 @@ mcd_connection_need_dispatch (McdConnection *connection,
                                         NULL);
         if (requested)
         {
-            const GList *list = NULL;
             any_requested = TRUE;
 
-            list = mcd_operation_get_missions ((McdOperation *)connection);
-            while (list)
-            {
-                McdChannel *channel = MCD_CHANNEL (list->data);
-                const gchar *req_object_path;
-
-                req_object_path = mcd_channel_get_object_path (channel);
-                if (req_object_path &&
-                    strcmp (object_path, req_object_path) == 0)
-                {
-                    requested_by_us = TRUE;
-                }
-                list = list->next;
-            }
+            if (find_channel_by_path (connection, object_path))
+                requested_by_us = TRUE;
         }
     }
 
