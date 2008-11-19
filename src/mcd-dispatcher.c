@@ -1994,7 +1994,7 @@ create_mcd_client (McdDispatcher *self, const gchar *name)
   const gchar *dirname;
   McdClient *client;
   gchar *filename;
-  GKeyFile *file = NULL;
+  GKeyFile *file;
   gboolean file_found = FALSE;
 
   g_assert (strncmp (MCD_IFACE_CLIENT ".", name,
