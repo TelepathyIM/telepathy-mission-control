@@ -1998,10 +1998,10 @@ create_mcd_client (McdDispatcher *self, const gchar *name)
     gboolean file_found = FALSE;
 
     g_assert (strncmp (MCD_IFACE_CLIENT ".", name,
-          strlen (MCD_IFACE_CLIENT ".")) == 0);
+          sizeof (MCD_IFACE_CLIENT ".") - 1) == 0);
 
     client = g_slice_new0 (McdClient);
-    client->name = g_strdup (name + strlen (MCD_IFACE_CLIENT "."));
+    client->name = g_strdup (name + sizeof (MCD_IFACE_CLIENT ".") - 1);
     g_debug ("McdClient created for %s", name);
 
     filename = g_strdup_printf ("%s.client", client->name);
@@ -2060,7 +2060,8 @@ add_names_cb (McdDispatcher *self,
         const char *name = *names;
         names++;
 
-        if (strncmp (MCD_IFACE_CLIENT, name, strlen (MCD_IFACE_CLIENT)) != 0)
+        if (strncmp (MCD_IFACE_CLIENT, name, sizeof (MCD_IFACE_CLIENT) - 1)
+            != 0)
         {
             /* This is not a Telepathy Client */
             continue;
