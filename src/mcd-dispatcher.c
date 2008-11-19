@@ -98,17 +98,6 @@ typedef struct _McdDispatcherArgs
     GPtrArray *channel_handler_caps;
 } McdDispatcherArgs;
 
-#define MCD_CLIENT_FILTER_CHANNEL_TYPE 0x1
-#define MCD_CLIENT_FILTER_HANDLE_TYPE  0x2
-#define MCD_CLIENT_FILTER_REQUESTED    0x4
-typedef struct _McdClientFilter
-{
-    guint field_mask;
-    GQuark channel_type;
-    TpHandleType handle_type;
-    guint requested : 1;
-} McdClientFilter;
-
 typedef enum
 {
     MCD_CLIENT_APPROVER = 0x1,
@@ -122,10 +111,16 @@ typedef struct _McdClient
     gchar *name;
     McdClientInterface interfaces;
     guint bypass_approver : 1;
-    /* each element is a McdClientFilter */
+
+    /* Channel filters
+     * A channel filter is a GHashTable of
+     * - key: gchar *property_name
+     * - value: one of the allowed types on the ObserverChannelFilter spec
+     */
     GList *approver_filters;
     GList *handler_filters;
     GList *observer_filters;
+
     /* from the HandlerChannelFilter property */
     GValue *caps;
 } McdClient;
@@ -272,12 +267,6 @@ mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
 }
 
 static void
-mcd_client_filter_free (McdClientFilter *filter)
-{
-    g_slice_free (McdClientFilter, filter);
-}
-
-static void
 mcd_client_free (McdClient *client)
 {
     if (client->proxy)
@@ -288,11 +277,11 @@ mcd_client_free (McdClient *client)
         g_value_unset (client->caps);
 
     g_list_foreach (client->approver_filters,
-                    (GFunc)mcd_client_filter_free, NULL);
+                    (GFunc)g_hash_table_destroy, NULL);
     g_list_foreach (client->handler_filters,
-                    (GFunc)mcd_client_filter_free, NULL);
+                    (GFunc)g_hash_table_destroy, NULL);
     g_list_foreach (client->observer_filters,
-                    (GFunc)mcd_client_filter_free, NULL);
+                    (GFunc)g_hash_table_destroy, NULL);
 }
 
 static void
@@ -883,38 +872,104 @@ start_old_channel_handler (McdDispatcherContext *context)
 static gboolean
 match_filters (McdChannel *channel, GList *filters)
 {
+    GHashTable *channel_properties =
+        _mcd_channel_get_immutable_properties (channel);
     gboolean matched = FALSE;
     GList *list;
 
     for (list = filters; list != NULL; list = list->next)
     {
-        McdClientFilter *filter = list->data;
+        GHashTable *filter = list->data;
+        GHashTableIter filter_iter;
+        gboolean filter_matched = TRUE;
+        gchar *property_name;
+        GValue *filter_value;
 
-        if (filter->field_mask & MCD_CLIENT_FILTER_CHANNEL_TYPE)
+        g_hash_table_iter_init (&filter_iter, filter);
+        while (g_hash_table_iter_next (&filter_iter,
+                                       (gpointer *) &property_name,
+                                       (gpointer *) &filter_value)) 
         {
-            g_debug ("channel type: %u, filter %u",
-                     mcd_channel_get_channel_type_quark (channel),
-                     filter->channel_type);
-            if (mcd_channel_get_channel_type_quark (channel) !=
-                filter->channel_type)
-                continue;
+            GValue *channel_value;
+
+            channel_value = g_hash_table_lookup (channel_properties,
+                                                 property_name);
+            if (channel_value == NULL)
+            {
+                /* the channel does not even have this property */
+                filter_matched = FALSE;
+                break;
+            }
+
+            g_assert (G_IS_VALUE (filter_value));
+            g_assert (G_IS_VALUE (channel_value));
+
+            /* string */
+            if (G_VALUE_TYPE (filter_value) == G_TYPE_STRING)
+            {
+                if (G_VALUE_TYPE (channel_value) != G_TYPE_STRING)
+                {
+                    /* the channel has this property, but the wrong type */
+                    filter_matched = FALSE;
+                    break;
+                }
+
+                if (strcmp (g_value_get_string (filter_value),
+                            g_value_get_string (channel_value)) != 0)
+                {
+                    /* the content does not match */
+                    filter_matched = FALSE;
+                    break;
+                }
+            }
+
+            /* boolean */
+            if (G_VALUE_TYPE (filter_value) == G_TYPE_BOOLEAN)
+            {
+                if (G_VALUE_TYPE (channel_value) != G_TYPE_BOOLEAN)
+                {
+                    /* the channel has this property, but the wrong type */
+                    filter_matched = FALSE;
+                    break;
+                }
+
+                if (g_value_get_boolean (filter_value) !=
+                    g_value_get_boolean (channel_value))
+                {
+                    /* the content does not match */
+                    filter_matched = FALSE;
+                    break;
+                }
+            }
+
+            /* integers */
+            if (g_value_type_compatible (G_VALUE_TYPE (filter_value),
+                                         G_TYPE_UINT64))
+            {
+                if (g_value_type_compatible (G_VALUE_TYPE (channel_value),
+                                             G_TYPE_UINT64))
+                {
+                    /* the channel has this property, but the wrong type */
+                    filter_matched = FALSE;
+                    break;
+                }
+
+                if (g_value_get_uint64 (filter_value) !=
+                    g_value_get_uint64 (channel_value))
+                {
+                    /* the content does not match */
+                    filter_matched = FALSE;
+                    break;
+                }
+            }
+
         }
 
-        if (filter->field_mask & MCD_CLIENT_FILTER_REQUESTED)
-        {
-            /* TODO */
-        }
-
-        if (filter->field_mask & MCD_CLIENT_FILTER_HANDLE_TYPE)
-        {
-            g_debug ("handle type: %u, filter %u",
-                     mcd_channel_get_handle_type (channel),
-                     filter->handle_type);
-            if (mcd_channel_get_handle_type (channel) != filter->handle_type)
-                continue;
-        }
-        matched = TRUE;
-        break;
+        if (filter_matched)
+          {
+              matched = TRUE;
+              break;
+          }
     }
 
     return matched;
@@ -1748,48 +1803,80 @@ mcd_dispatcher_send (McdDispatcher * dispatcher, McdChannel *channel)
     return TRUE;
 }
 
-static McdClientFilter *
+static GHashTable *
 parse_client_filter (GKeyFile *file, const gchar *group)
 {
-    McdClientFilter *filter;
+    GHashTable *filter;
     gchar **keys;
     gsize len = 0;
     guint i;
 
-    filter = g_slice_new0 (McdClientFilter);
+    filter = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
+                                    (GDestroyNotify) g_value_unset);
 
     keys = g_key_file_get_keys (file, group, &len, NULL);
     for (i = 0; i < len; i++)
     {
         const gchar *key;
+        const gchar *space;
+        gchar *file_property;
+        gchar file_property_type;
 
         key = keys[i];
-        if (strcmp (key, TP_IFACE_CHANNEL ".Type s") == 0)
-        {
-            gchar *string;
+        space = g_strrstr (key, " ");
 
-            string = g_key_file_get_string (file, group, key, NULL);
-            filter->channel_type = g_quark_from_string (string);
-            g_free (string);
-
-            filter->field_mask |= MCD_CLIENT_FILTER_CHANNEL_TYPE;
-        }
-        else if (strcmp (key, TP_IFACE_CHANNEL ".TargetHandleType u") == 0)
-        {
-            filter->handle_type =
-                (guint) g_key_file_get_integer (file, group, key, NULL);
-            filter->field_mask |= MCD_CLIENT_FILTER_HANDLE_TYPE;
-        }
-        else if (strcmp (key, TP_IFACE_CHANNEL ".Requested b") == 0)
-        {
-            filter->requested =
-                g_key_file_get_boolean (file, group, key, NULL);
-            filter->field_mask |= MCD_CLIENT_FILTER_REQUESTED;
-        }
-        else
+        if (space == NULL || space + 1 == '\0' || space + 2 != '\0' )
         {
             g_warning ("Invalid key %s in client file", key);
             continue;
+        }
+        file_property_type = space[1];
+        file_property = g_strndup (key, space - key);
+
+        switch (file_property_type)
+        {
+            case 'y': case 'n': case 'q': case 'i': case 'u':
+            case 'x': case 't':
+                /* cannot use g_key_file_get_integer because we need to
+                 * support 64 bits */
+                break;
+
+            case 'b':
+                {
+                    GValue *value = tp_g_value_slice_new (G_TYPE_BOOLEAN);
+                    gboolean b = g_key_file_get_boolean (file, group, key,
+                                                         NULL);
+                    g_value_set_boolean (value, b);
+                    g_hash_table_insert (filter, file_property, value);
+                    break;
+                }
+
+            case 's':
+                {
+                    GValue *value = tp_g_value_slice_new (G_TYPE_STRING);
+                    gchar *str = g_key_file_get_string (file, group, key,
+                                                        NULL);
+
+                    g_value_set_string (value, str);
+                    g_hash_table_insert (filter, file_property, value);
+                    break;
+                }
+
+            case 'o':
+                {
+                    GValue *value = tp_g_value_slice_new
+                        (DBUS_TYPE_G_OBJECT_PATH);
+                    gchar *str = g_key_file_get_string (file, group, key,
+                                                        NULL);
+
+                    g_value_set_boxed (value, str);
+                    g_hash_table_insert (filter, file_property, value);
+                    break;
+                }
+
+            default:
+                g_warning ("Invalid key %s in client file", key);
+                continue;
         }
     }
     g_strfreev (keys);
