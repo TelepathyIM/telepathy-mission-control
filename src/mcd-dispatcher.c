@@ -1840,6 +1840,21 @@ get_handler_channel_filter_cb (TpProxy *proxy,
 }
 
 static void
+client_add_interface_by_id (McdClient *client)
+{
+    tp_proxy_add_interface_by_id (client->proxy, MC_IFACE_QUARK_CLIENT);
+    if (client->interfaces & MCD_CLIENT_APPROVER)
+        tp_proxy_add_interface_by_id (client->proxy,
+                                      MC_IFACE_QUARK_CLIENT_APPROVER);
+    if (client->interfaces & MCD_CLIENT_HANDLER)
+        tp_proxy_add_interface_by_id (client->proxy,
+                                      MC_IFACE_QUARK_CLIENT_HANDLER);
+    if (client->interfaces & MCD_CLIENT_OBSERVER)
+        tp_proxy_add_interface_by_id (client->proxy,
+                                      MC_IFACE_QUARK_CLIENT_OBSERVER);
+}
+
+static void
 get_interfaces_cb (TpProxy *proxy,
                    const GValue *out_Value,
                    const GError *error,
@@ -1864,27 +1879,21 @@ get_interfaces_cb (TpProxy *proxy,
         arr++;
       }
 
-    tp_proxy_add_interface_by_id (client->proxy, MC_IFACE_QUARK_CLIENT);
+    client_add_interface_by_id (client);
     if (client->interfaces & MCD_CLIENT_APPROVER)
       {
-        tp_proxy_add_interface_by_id (client->proxy,
-                                      MC_IFACE_QUARK_CLIENT_APPROVER);
         tp_cli_dbus_properties_call_get (client->proxy, -1,
             MCD_IFACE_CLIENT_APPROVER ".DRAFT", "ApproverChannelFilter",
             get_approver_channel_filter_cb, client, NULL, G_OBJECT (self));
       }
     if (client->interfaces & MCD_CLIENT_HANDLER)
       {
-        tp_proxy_add_interface_by_id (client->proxy,
-                                      MC_IFACE_QUARK_CLIENT_HANDLER);
         tp_cli_dbus_properties_call_get (client->proxy, -1,
             MCD_IFACE_CLIENT_HANDLER ".DRAFT", "HandlerChannelFilter",
             get_handler_channel_filter_cb, client, NULL, G_OBJECT (self));
       }
     if (client->interfaces & MCD_CLIENT_OBSERVER)
       {
-        tp_proxy_add_interface_by_id (client->proxy,
-                                      MC_IFACE_QUARK_CLIENT_OBSERVER);
         tp_cli_dbus_properties_call_get (client->proxy, -1,
             MCD_IFACE_CLIENT_OBSERVER ".DRAFT", "ObserverChannelFilter",
             get_observer_channel_filter_cb, client, NULL, G_OBJECT (self));
@@ -1973,6 +1982,8 @@ parse_client_file (McdClient *client, GKeyFile *file)
     client->bypass_approver =
         g_key_file_get_boolean (file, MCD_IFACE_CLIENT_HANDLER,
                                 "BypassApprover", NULL);
+
+    client_add_interface_by_id (client);
 }
 
 static McdClient *
