@@ -2479,6 +2479,12 @@ void
 _mcd_dispatcher_send_channels (McdDispatcher *dispatcher, GList *channels,
                                gboolean requested)
 {
+    GList *list;
+
+    for (list = channels; list != NULL; list = list->next)
+        mcd_channel_set_status (MCD_CHANNEL (list->data),
+                                MCD_CHANNEL_DISPATCHING);
+
     _mcd_dispatcher_enter_state_machine (dispatcher, channels, requested);
 }
 
