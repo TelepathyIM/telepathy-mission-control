@@ -285,7 +285,7 @@ mcd_client_free (McdClient *client)
 
     g_free (client->name);
     if (client->caps != NULL)
-      g_value_unset (client->caps);
+        g_value_unset (client->caps);
 
     g_list_foreach (client->approver_filters,
                     (GFunc)mcd_client_filter_free, NULL);
@@ -1989,27 +1989,27 @@ parse_client_file (McdClient *client, GKeyFile *file)
 static McdClient *
 create_mcd_client (McdDispatcher *self, const gchar *name)
 {
-  /* McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self); */
-  const gchar * const *dirs;
-  const gchar *dirname;
-  McdClient *client;
-  gchar *filename;
-  GKeyFile *file;
-  gboolean file_found = FALSE;
+    /* McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self); */
+    const gchar * const *dirs;
+    const gchar *dirname;
+    McdClient *client;
+    gchar *filename;
+    GKeyFile *file;
+    gboolean file_found = FALSE;
 
-  g_assert (strncmp (MCD_IFACE_CLIENT ".", name,
-        strlen (MCD_IFACE_CLIENT ".")) == 0);
+    g_assert (strncmp (MCD_IFACE_CLIENT ".", name,
+          strlen (MCD_IFACE_CLIENT ".")) == 0);
 
-  client = g_slice_new0 (McdClient);
-  client->name = g_strdup (name + strlen (MCD_IFACE_CLIENT "."));
-  g_debug ("McdClient created for %s", name);
+    client = g_slice_new0 (McdClient);
+    client->name = g_strdup (name + strlen (MCD_IFACE_CLIENT "."));
+    g_debug ("McdClient created for %s", name);
 
-  filename = g_strdup_printf ("%s.client", client->name);
+    filename = g_strdup_printf ("%s.client", client->name);
 
-  /* optionally, we read the .client file */
-  file = g_key_file_new ();
-  dirs = g_get_system_data_dirs();
-  for (dirname = *dirs; dirname != NULL; dirs++, dirname = *dirs)
+    /* optionally, we read the .client file */
+    file = g_key_file_new ();
+    dirs = g_get_system_data_dirs();
+    for (dirname = *dirs; dirname != NULL; dirs++, dirname = *dirs)
     {
         GError *error = NULL;
         gchar *absolute_filepath;
@@ -2018,34 +2018,34 @@ create_mcd_client (McdDispatcher *self, const gchar *name)
         g_key_file_load_from_file (file, absolute_filepath, 0, &error);
 
         if (!error)
-          {
+        {
             g_debug ("File found for %s: %s", name, absolute_filepath);
             file_found = TRUE;
             g_free (absolute_filepath);
             break;
-          }
+        }
         g_free (absolute_filepath);
     }
-  g_free (filename);
+    g_free (filename);
 
-  if (file_found)
+    if (file_found)
     {
-      parse_client_file (client, file);
+        parse_client_file (client, file);
     }
 
-  g_key_file_free (file);
-  create_client_proxy (self, client);
+    g_key_file_free (file);
+    create_client_proxy (self, client);
 
-  if (!file_found)
+    if (!file_found)
     {
-      g_debug ("No .client file for %s. Ask on D-Bus.", name);
-      tp_cli_dbus_properties_call_get (client->proxy, -1,
-          MCD_IFACE_CLIENT ".DRAFT", "Interfaces", get_interfaces_cb, client,
-          NULL, G_OBJECT (self));
+        g_debug ("No .client file for %s. Ask on D-Bus.", name);
+        tp_cli_dbus_properties_call_get (client->proxy, -1,
+            MCD_IFACE_CLIENT ".DRAFT", "Interfaces", get_interfaces_cb, client,
+            NULL, G_OBJECT (self));
     }
 
 
-  return client;
+    return client;
 }
 
 static void
@@ -2055,29 +2055,29 @@ add_names_cb (McdDispatcher *self,
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
   
     while (names != NULL && *names != NULL)
-      {
+    {
         gpointer orig_key, value;
         const char *name = *names;
         names++;
 
         if (strncmp (MCD_IFACE_CLIENT, name, strlen (MCD_IFACE_CLIENT)) != 0)
-          {
+        {
             /* This is not a Telepathy Client */
             continue;
-          }
+        }
 
         if (g_hash_table_lookup_extended (priv->clients, name, &orig_key,
               &value))
-          {
+        {
             /* This Telepathy Client is already known */
             continue;
-          }
+        }
 
         g_debug ("%s: Register client %s", G_STRFUNC, name);
 
         g_hash_table_insert (priv->clients, g_strdup (name),
             create_mcd_client (self, name));
-      }
+    }
 }
 
 static void
