@@ -1277,7 +1277,6 @@ static void
 mcd_dispatcher_run_approvers (McdDispatcherContext *context)
 {
     McdDispatcherPrivate *priv = context->dispatcher->priv;
-    McdClient *handler = NULL;
     const GList *cl, *channels;
     GHashTableIter iter;
     McdClient *client;
@@ -1321,7 +1320,7 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
 
         context->approvers_invoked++;
         mcd_dispatcher_context_ref (context);
-        mc_cli_client_approver_call_add_dispatch_operation (handler->proxy, -1,
+        mc_cli_client_approver_call_add_dispatch_operation (client->proxy, -1,
             dispatch_operation, properties,
             add_dispatch_operation_cb,
             context, (GDestroyNotify)mcd_dispatcher_context_unref,
@@ -2719,6 +2718,12 @@ void
 _mcd_dispatcher_send_channels (McdDispatcher *dispatcher, GList *channels,
                                gboolean requested)
 {
+    GList *list;
+
+    for (list = channels; list != NULL; list = list->next)
+        mcd_channel_set_status (MCD_CHANNEL (list->data),
+                                MCD_CHANNEL_DISPATCHING);
+
     _mcd_dispatcher_enter_state_machine (dispatcher, channels, requested);
 }
 
