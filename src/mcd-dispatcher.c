@@ -120,9 +120,6 @@ typedef struct _McdClient
     GList *approver_filters;
     GList *handler_filters;
     GList *observer_filters;
-
-    /* from the HandlerChannelFilter property */
-    GValue *caps;
 } McdClient;
 
 #define MCD_IFACE_CLIENT "org.freedesktop.Telepathy.Client"
@@ -273,8 +270,6 @@ mcd_client_free (McdClient *client)
         g_object_unref (client->proxy);
 
     g_free (client->name);
-    if (client->caps != NULL)
-        g_value_unset (client->caps);
 
     g_list_foreach (client->approver_filters,
                     (GFunc)g_hash_table_destroy, NULL);
@@ -1885,45 +1880,63 @@ parse_client_filter (GKeyFile *file, const gchar *group)
 }
 
 static void
-get_approver_channel_filter_cb (TpProxy *proxy,
-                                const GValue *out_Value,
-                                const GError *error,
-                                gpointer user_data,
-                                GObject *weak_object)
+get_channel_filter_cb (TpProxy *proxy,
+                       const GValue *out_Value,
+                       const GError *error,
+                       gpointer user_data,
+                       GObject *weak_object)
 {
-    /* McdDispatcher *self = MCD_DISPATCHER (weak_object);
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
-    McdClient *client = user_data; */
-    g_debug ("%s: Called.", G_STRFUNC);
-}
+    GList **client_filters = user_data;
+    GPtrArray *filters = g_value_get_boxed (out_Value);
+    int i;
 
-static void
-get_observer_channel_filter_cb (TpProxy *proxy,
-                                const GValue *out_Value,
-                                const GError *error,
-                                gpointer user_data,
-                                GObject *weak_object)
-{
-    /* McdDispatcher *self = MCD_DISPATCHER (weak_object);
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
-    McdClient *client = user_data; */
-    g_debug ("%s: Called.", G_STRFUNC);
-}
+    for (i = 0 ; i < filters->len ; i++)
+    {
+        GHashTable *channel_class = g_ptr_array_index (filters, i);
+        GHashTable *new_channel_class;
+        GHashTableIter iter;
+        gchar *property_name;
+        GValue *property_value;
+        gboolean valid_filter = TRUE;
 
-static void
-get_handler_channel_filter_cb (TpProxy *proxy,
-                               const GValue *out_Value,
-                               const GError *error,
-                               gpointer user_data,
-                               GObject *weak_object)
-{
-    /* McdDispatcher *self = MCD_DISPATCHER (weak_object);
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self); */
-    McdClient *client = user_data;
-    g_debug ("%s: Called.", G_STRFUNC);
+        new_channel_class = g_hash_table_new_full
+            (g_str_hash, g_str_equal, g_free,
+             (GDestroyNotify) g_value_unset);
 
-    client->caps = tp_g_value_slice_new (TP_ARRAY_TYPE_CHANNEL_CLASS_LIST);
-    g_value_copy (out_Value, client->caps);
+        g_hash_table_iter_init (&iter, channel_class);
+        while (g_hash_table_iter_next (&iter, (gpointer *) &property_name,
+                                       (gpointer *) &property_value)) 
+        {
+            GValue *filter_value;
+
+            if (G_VALUE_TYPE (property_value) != G_TYPE_BOOLEAN &&
+                G_VALUE_TYPE (property_value) != G_TYPE_STRING &&
+                ! g_value_type_compatible (G_VALUE_TYPE (property_value),
+                                           G_TYPE_UINT64) &&
+                ! g_value_type_compatible (G_VALUE_TYPE (property_value),
+                                           G_TYPE_INT64))
+            {
+                /* invalid type, do not add this filter */
+                g_warning ("%s: Property %s has an invalid type (%s)",
+                           G_STRFUNC, property_name,
+                           g_type_name (G_VALUE_TYPE (property_value)));
+                valid_filter = FALSE;
+                break;
+            }
+
+            filter_value = tp_g_value_slice_new
+                (G_VALUE_TYPE (property_value));
+            g_value_copy (property_value, filter_value);
+            g_hash_table_insert (new_channel_class, g_strdup (property_name),
+                                 filter_value);
+        }
+
+        if (valid_filter)
+            *client_filters = g_list_prepend
+                (*client_filters, new_channel_class);
+        else
+            g_hash_table_destroy (new_channel_class);
+    }
 }
 
 static void
@@ -1971,19 +1984,22 @@ get_interfaces_cb (TpProxy *proxy,
       {
         tp_cli_dbus_properties_call_get (client->proxy, -1,
             MCD_IFACE_CLIENT_APPROVER ".DRAFT", "ApproverChannelFilter",
-            get_approver_channel_filter_cb, client, NULL, G_OBJECT (self));
+            get_channel_filter_cb, &client->approver_filters,
+            NULL, G_OBJECT (self));
       }
     if (client->interfaces & MCD_CLIENT_HANDLER)
       {
         tp_cli_dbus_properties_call_get (client->proxy, -1,
             MCD_IFACE_CLIENT_HANDLER ".DRAFT", "HandlerChannelFilter",
-            get_handler_channel_filter_cb, client, NULL, G_OBJECT (self));
+            get_channel_filter_cb, &client->handler_filters,
+            NULL, G_OBJECT (self));
       }
     if (client->interfaces & MCD_CLIENT_OBSERVER)
       {
         tp_cli_dbus_properties_call_get (client->proxy, -1,
             MCD_IFACE_CLIENT_OBSERVER ".DRAFT", "ObserverChannelFilter",
-            get_observer_channel_filter_cb, client, NULL, G_OBJECT (self));
+            get_channel_filter_cb, &client->observer_filters,
+            NULL, G_OBJECT (self));
       }
 }
 
@@ -2621,17 +2637,18 @@ mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher * dispatcher,
 
     g_hash_table_iter_init (&iter, priv->clients);
     while (g_hash_table_iter_next (&iter, &key, &value)) 
-      {
+    {
         McdClient *client = value;
-        GPtrArray *client_caps = g_value_get_boxed (client->caps);
-        int i;
+        GList *list;
 
-        for (i = 0 ; i < client_caps->len ; i++)
-          {
+        for (list = client->handler_filters; list != NULL; list = list->next)
+        {
+            GHashTable *channel_class = list->data;
+
             /* TODO: Do not add if already in the caps variable */
-            g_ptr_array_add (caps, g_ptr_array_index (client_caps, i));
-          }
-      }
+            g_ptr_array_add (caps, channel_class);
+        }
+    }
 
     return caps;
 }
