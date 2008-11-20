@@ -1,0 +1,39 @@
+#!/bin/sh
+
+cd "@abs_top_builddir@/test/twisted/tools"
+
+# Run Mission Control in a private environment
+export MC_DEBUG=2
+export MC_CHANDLERS_DIR="@abs_top_builddir@/test/twisted/chandlers"
+export MC_MANAGER_DIR="@abs_top_builddir@/test/twisted/managers"
+export MC_ACCOUNT_DIR="@abs_top_builddir@/test/twisted/accounts"
+#export MC_PROFILE_DIR=
+
+ulimit -c unlimited
+exec > missioncontrol-testing.log 2>&1
+
+if test -n "$MISSIONCONTROL_TEST_VALGRIND"; then
+	export G_DEBUG=gc-friendly
+	export G_SLICE=always-malloc
+	MISSIONCONTROL_WRAPPER="valgrind --leak-check=full --num-callers=20"
+elif test -n "$MISSIONCONTROL_TEST_REFDBG"; then
+        if test -z "$REFDBG_OPTIONS" ; then
+                export REFDBG_OPTIONS="btnum=10"
+        fi
+        if test -z "$MISSIONCONTROL_WRAPPER" ; then
+                MISSIONCONTROL_WRAPPER="refdbg"
+        fi
+fi
+
+# Delete previous Mission Control accounts
+if [ -f "@abs_top_builddir@/test/twisted/accounts/accounts.cfg" ] ; then
+        echo "Delete @abs_top_builddir@/test/twisted/accounts/accounts.cfg"
+        rm -f -- "@abs_top_builddir@/test/twisted/accounts/accounts.cfg"
+fi
+if [ -e "@abs_top_builddir@/test/twisted/accounts/accounts.cfg" ] ; then
+        echo "Error: accounts.cfg file exists:"
+        echo "@abs_top_builddir@/test/twisted/accounts/accounts.cfg"
+        exit 1
+fi
+
+exec $MISSIONCONTROL_WRAPPER @abs_top_builddir@/server/mission-control

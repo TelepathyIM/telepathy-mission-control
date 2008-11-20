@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=org.freedesktop.Telepathy.MissionControl
+Exec=@abs_top_builddir@/test/twisted/tools/exec-with-log.sh

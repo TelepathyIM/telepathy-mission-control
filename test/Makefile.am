@@ -5,6 +5,8 @@ INCLUDES = $(DBUS_CFLAGS) $(TELEPATHY_CFLAGS) -I$(top_srcdir) \
 
 if HAVE_TESTS
 
+SUBDIRS = twisted
+
 noinst_PROGRAMS = mc-client
 mc_client_SOURCES = mc-client.c
 mc_client_LDADD = $(top_builddir)/libmissioncontrol/libmissioncontrol-client.la

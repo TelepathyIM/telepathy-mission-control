@@ -1,0 +1,3 @@
+Directory for twisted test to write the accounts.cfg file. $MC_ACCOUNT_DIR is
+set to this directory in the twisted environment. accounts.cfg is deleted before running any test.
+
