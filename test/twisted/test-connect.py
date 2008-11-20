@@ -27,7 +27,7 @@ def test(q, bus, mc):
         }, signature='sv')
     caps = dbus.Array([http_fixed_properties], signature='a{sv}')
 
-    start_fake_client(q, bus, FakeClient_bus_name,
+    fake_client = start_fake_client(q, bus, FakeClient_bus_name,
             Client_object_path, caps)
     
     # Get the AccountManager interface
@@ -87,6 +87,7 @@ def test(q, bus, mc):
     e = q.expect('dbus-method-call', name='RequestConnection',
             protocol='fakeprotocol')
     conn_object_path = e.conn.object_path
+    fake_conn = e.conn
     assert e.parameters == params
 
     e = q.expect('dbus-method-call', name='Connect',
@@ -103,6 +104,14 @@ def test(q, bus, mc):
     assert properties is not None
     assert properties.get('RequestedPresence') == requested_presence, \
         properties.get('RequestedPresence')
+
+    new_channel = http_fixed_properties
+    new_channel['org.freedesktop.Telepathy.Channel.TargetHandle'] = 2L
+
+    fake_conn.new_incoming_channel('/foobar', new_channel)
+
+    e = q.expect('dbus-method-call', name='HandleChannels', obj=fake_client,
+            connection=conn_object_path)
 
 if __name__ == '__main__':
     exec_test(test, {})

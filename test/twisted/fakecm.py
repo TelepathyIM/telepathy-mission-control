@@ -3,10 +3,12 @@ import dbus.service
 from servicetest import Event
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix
 
+properties_iface = "org.freedesktop.DBus.Properties"
 cm_iface = "org.freedesktop.Telepathy.ConnectionManager"
 conn_iface = "org.freedesktop.Telepathy.Connection"
 caps_iface = \
   "org.freedesktop.Telepathy.Connection.Interface.ContactCapabilities.DRAFT"
+requests_iface = "org.freedesktop.Telepathy.Connection.Interface.Requests"
 
 class FakeConn(dbus.service.Object):
     def __init__(self, object_path, q, bus, nameref):
@@ -16,6 +18,7 @@ class FakeConn(dbus.service.Object):
         # keep a reference on nameref, otherwise, the name will be lost!
         self.nameref = nameref 
         self.status = 2 # Connection_Status_Disconnected
+        self.channels = []
         dbus.service.Object.__init__(self, bus, object_path)
 
     # interface Connection
@@ -34,7 +37,7 @@ class FakeConn(dbus.service.Object):
     def GetInterfaces(self):
         self.q.append(Event('dbus-method-call', name="GetInterfaces",
                     obj=self, path=self.object_path))
-        return dbus.Array([conn_iface, caps_iface])
+        return dbus.Array([conn_iface, caps_iface, requests_iface])
 
     @dbus.service.method(dbus_interface=conn_iface,
                          in_signature='', out_signature='u')
@@ -71,6 +74,56 @@ class FakeConn(dbus.service.Object):
         self.q.append(Event('dbus-method-call', name="SetSelfCapabilities",
                     obj=self, path=self.object_path, caps=caps))
         return None
+
+    @dbus.service.signal(dbus_interface=requests_iface,
+                         signature='a(oa{sv})')
+    def NewChannels(self, array):
+        self.channels = self.channels + array
+
+    @dbus.service.signal(dbus_interface=conn_iface,
+                         signature='osuub')
+    def NewChannel(self, object_path, channel_type, handle_type, handle,
+            suppress_handle):
+        pass
+
+    @dbus.service.method(dbus_interface=properties_iface,
+                         in_signature='ss', out_signature='v')
+    def Get(self, interface_name, property_name):
+        self.q.append(Event('dbus-method-call', name="Get",
+                    obj=self, interface_name=interface_name,
+                    property_name=property_name))
+        if interface_name == requests_iface and \
+                           property_name == "Channels":
+            return dbus.Array(self.channels, signature='(oa{sv})')
+        print "Error: interface_name=%s property_name=%s" % \
+            (interface_name, property_name)
+        return None
+
+    @dbus.service.method(dbus_interface=properties_iface,
+                         in_signature='s', out_signature='a{sv}')
+    def GetAll(self, interface_name):
+        self.q.append(Event('dbus-method-call', name="GetAll",
+                    obj=self, interface_name=interface_name))
+        if interface_name == conn_iface:
+            return dbus.Dictionary({
+                    'SelfHandle': 0L
+                    }, signature='sv')
+        if interface_name == requests_iface:
+            return dbus.Dictionary({
+                    'Channels': dbus.Array(self.channels,
+                        signature='(oa{sv})')
+                    }, signature='sv')
+        return None
+
+    def new_incoming_channel(self, object_path, asv):
+        self.NewChannels(dbus.Array([(object_path, asv)],
+                    signature='(oa{sv})'))
+        self.NewChannel(object_path,
+                asv['org.freedesktop.Telepathy.Channel.ChannelType'],
+                asv['org.freedesktop.Telepathy.Channel.TargetHandleType'],
+                asv['org.freedesktop.Telepathy.Channel.TargetHandle'],
+                False)
+
 
 class FakeCM(dbus.service.Object):
     def __init__(self, object_path, q, bus, bus_name, nameref):

@@ -64,6 +64,15 @@ class FakeClient(dbus.service.Object):
                     }, signature='sv')
         return None
 
+    @dbus.service.method(dbus_interface=client_handler_iface,
+                         in_signature='ooa(oa{sv})aot', out_signature='')
+    def HandleChannels(self, account, connection, channels,
+            requests_satisfied, user_action_time):
+        self.q.append(Event('dbus-method-call', name="HandleChannels",
+                    obj=self, account=account, connection=connection,
+                    channels=channels, requests_satisfied=requests_satisfied,
+                    user_action_time=user_action_time))
+
 def start_fake_client(q, bus, bus_name, object_path, caps):
     nameref = dbus.service.BusName(bus_name, bus=bus)
     client = FakeClient(object_path, q, bus, bus_name, nameref, caps)
