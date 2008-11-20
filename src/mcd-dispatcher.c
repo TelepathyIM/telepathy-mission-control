@@ -2207,9 +2207,6 @@ list_activatable_names_cb (TpDBusDaemon *proxy,
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
 
     add_names_cb (self, out0);
-
-    tp_cli_dbus_daemon_call_list_names (priv->dbus_daemon,
-        -1, list_names_cb, NULL, NULL, weak_object);
 }
 
 static void
@@ -2237,6 +2234,9 @@ mcd_dispatcher_constructed (GObject *object)
 
     tp_cli_dbus_daemon_connect_to_name_owner_changed (priv->dbus_daemon,
         name_owner_changed_cb, NULL, NULL, object, NULL);
+
+    tp_cli_dbus_daemon_call_list_names (priv->dbus_daemon,
+        -1, list_names_cb, NULL, NULL, object);
 
     tp_cli_dbus_daemon_call_list_activatable_names (priv->dbus_daemon,
         -1, list_activatable_names_cb, NULL, NULL, object);
