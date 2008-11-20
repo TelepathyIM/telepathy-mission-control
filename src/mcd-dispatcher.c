@@ -864,6 +864,83 @@ start_old_channel_handler (McdDispatcherContext *context)
     }
 }
 
+/* returns TRUE if the channel matches one property criteria
+ */
+static gboolean
+match_property (GHashTable *channel_properties,
+                gchar *property_name,
+                GValue *filter_value)
+{
+    GValue *channel_value;
+
+    channel_value = g_hash_table_lookup (channel_properties,
+                                         property_name);
+    if (channel_value == NULL)
+    {
+        /* the channel does not even have this property */
+        return FALSE;
+    }
+
+    g_assert (G_IS_VALUE (filter_value));
+    g_assert (G_IS_VALUE (channel_value));
+
+    /* string */
+    if (G_VALUE_TYPE (filter_value) == G_TYPE_STRING)
+    {
+        if (G_VALUE_TYPE (channel_value) != G_TYPE_STRING)
+        {
+            /* the channel has this property, but the wrong type */
+            return FALSE;
+        }
+
+        if (strcmp (g_value_get_string (filter_value),
+                    g_value_get_string (channel_value)) != 0)
+        {
+            /* the content does not match */
+            return FALSE;
+        }
+    }
+
+    /* boolean */
+    if (G_VALUE_TYPE (filter_value) == G_TYPE_BOOLEAN)
+    {
+        if (G_VALUE_TYPE (channel_value) != G_TYPE_BOOLEAN)
+        {
+            /* the channel has this property, but the wrong type */
+            return FALSE;
+        }
+
+        if (g_value_get_boolean (filter_value) !=
+            g_value_get_boolean (channel_value))
+        {
+            /* the content does not match */
+            return FALSE;
+        }
+    }
+
+    /* integers */
+    if (g_value_type_compatible (G_VALUE_TYPE (filter_value),
+                                 G_TYPE_UINT64))
+    {
+        if (g_value_type_compatible (G_VALUE_TYPE (channel_value),
+                                     G_TYPE_UINT64))
+        {
+            /* the channel has this property, but the wrong type */
+            return FALSE;
+        }
+
+        if (g_value_get_uint64 (filter_value) !=
+            g_value_get_uint64 (channel_value))
+        {
+            /* the content does not match */
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+
+/* returns TRUE if the channel matches one of the channel filters
+ */
 static gboolean
 match_filters (McdChannel *channel, GList *filters)
 {
@@ -885,79 +962,12 @@ match_filters (McdChannel *channel, GList *filters)
                                        (gpointer *) &property_name,
                                        (gpointer *) &filter_value)) 
         {
-            GValue *channel_value;
-
-            channel_value = g_hash_table_lookup (channel_properties,
-                                                 property_name);
-            if (channel_value == NULL)
+            if (! match_property (channel_properties, property_name,
+                                filter_value))
             {
-                /* the channel does not even have this property */
                 filter_matched = FALSE;
                 break;
             }
-
-            g_assert (G_IS_VALUE (filter_value));
-            g_assert (G_IS_VALUE (channel_value));
-
-            /* string */
-            if (G_VALUE_TYPE (filter_value) == G_TYPE_STRING)
-            {
-                if (G_VALUE_TYPE (channel_value) != G_TYPE_STRING)
-                {
-                    /* the channel has this property, but the wrong type */
-                    filter_matched = FALSE;
-                    break;
-                }
-
-                if (strcmp (g_value_get_string (filter_value),
-                            g_value_get_string (channel_value)) != 0)
-                {
-                    /* the content does not match */
-                    filter_matched = FALSE;
-                    break;
-                }
-            }
-
-            /* boolean */
-            if (G_VALUE_TYPE (filter_value) == G_TYPE_BOOLEAN)
-            {
-                if (G_VALUE_TYPE (channel_value) != G_TYPE_BOOLEAN)
-                {
-                    /* the channel has this property, but the wrong type */
-                    filter_matched = FALSE;
-                    break;
-                }
-
-                if (g_value_get_boolean (filter_value) !=
-                    g_value_get_boolean (channel_value))
-                {
-                    /* the content does not match */
-                    filter_matched = FALSE;
-                    break;
-                }
-            }
-
-            /* integers */
-            if (g_value_type_compatible (G_VALUE_TYPE (filter_value),
-                                         G_TYPE_UINT64))
-            {
-                if (g_value_type_compatible (G_VALUE_TYPE (channel_value),
-                                             G_TYPE_UINT64))
-                {
-                    /* the channel has this property, but the wrong type */
-                    filter_matched = FALSE;
-                    break;
-                }
-
-                if (g_value_get_uint64 (filter_value) !=
-                    g_value_get_uint64 (channel_value))
-                {
-                    /* the content does not match */
-                    filter_matched = FALSE;
-                    break;
-                }
-            }
-
         }
 
         if (filter_matched)
