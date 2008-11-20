@@ -1807,7 +1807,7 @@ parse_client_filter (GKeyFile *file, const gchar *group)
     guint i;
 
     filter = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
-                                    (GDestroyNotify) g_value_unset);
+                                    (GDestroyNotify) tp_g_value_slice_free);
 
     keys = g_key_file_get_keys (file, group, &len, NULL);
     for (i = 0; i < len; i++)
@@ -1901,7 +1901,7 @@ get_channel_filter_cb (TpProxy *proxy,
 
         new_channel_class = g_hash_table_new_full
             (g_str_hash, g_str_equal, g_free,
-             (GDestroyNotify) g_value_unset);
+             (GDestroyNotify) tp_g_value_slice_free);
 
         g_hash_table_iter_init (&iter, channel_class);
         while (g_hash_table_iter_next (&iter, (gpointer *) &property_name,
