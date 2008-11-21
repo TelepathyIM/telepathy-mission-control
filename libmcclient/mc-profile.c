@@ -99,6 +99,29 @@ typedef struct {
     time_t mtime;
 } McProfilePrivate;
 
+static gchar *
+get_localized_group_field (McProfilePrivate *priv, const gchar *group,
+                           const gchar *field)
+{
+    gchar *name, *string;
+
+    if (priv->localization_domain)
+    {
+        string = g_key_file_get_string (priv->keyfile, group, field, NULL);
+        if (string)
+        {
+            name = g_strdup (dgettext (priv->localization_domain, string));
+            g_free (string);
+        }
+        else
+            name = NULL;
+    }
+    else
+        name = g_key_file_get_locale_string (priv->keyfile, group, field,
+                                             NULL, NULL);
+    return name;
+}
+
 static gboolean
 set_value_from_key (GKeyFile *keyfile, const gchar *group, const gchar *key,
                     GValue *value)
@@ -1190,7 +1213,7 @@ gchar *
 mc_profile_presence_get_name (McProfile *id, const gchar *presence)
 {
     McProfilePrivate *priv;
-    gchar group[128], *name, *string;
+    gchar group[128];
 
     g_return_val_if_fail (MC_IS_PROFILE (id), NULL);
     priv = id->priv;
@@ -1198,21 +1221,7 @@ mc_profile_presence_get_name (McProfile *id, const gchar *presence)
     g_return_val_if_fail (priv->keyfile != NULL, NULL);
 
     g_snprintf (group, sizeof (group), PRESENCE_PREFIX "%s", presence);
-    if (priv->localization_domain)
-    {
-        string = g_key_file_get_string (priv->keyfile, group, "Name", NULL);
-        if (string)
-        {
-            name = g_strdup (dgettext (priv->localization_domain, string));
-            g_free (string);
-        }
-        else
-            name = NULL;
-    }
-    else
-        name = g_key_file_get_locale_string (priv->keyfile, group, "Name",
-                                             NULL, NULL);
-    return name;
+    return get_localized_group_field (priv, group, "Name");
 }
 
 /**
@@ -1371,7 +1380,7 @@ gchar *
 mc_profile_action_get_name (McProfile *profile, const gchar *action)
 {
     McProfilePrivate *priv;
-    gchar group[128], *name, *string;
+    gchar group[128];
 
     g_return_val_if_fail (MC_IS_PROFILE (profile), NULL);
     priv = profile->priv;
@@ -1379,21 +1388,7 @@ mc_profile_action_get_name (McProfile *profile, const gchar *action)
     g_return_val_if_fail (priv->keyfile != NULL, NULL);
 
     g_snprintf (group, sizeof (group), ACTION_PREFIX "%s", action);
-    if (priv->localization_domain)
-    {
-        string = g_key_file_get_string (priv->keyfile, group, "Name", NULL);
-        if (string)
-        {
-            name = g_strdup (dgettext (priv->localization_domain, string));
-            g_free (string);
-        }
-        else
-            name = NULL;
-    }
-    else
-        name = g_key_file_get_locale_string (priv->keyfile, group, "Name",
-                                             NULL, NULL);
-    return name;
+    return get_localized_group_field (priv, group, "Name");
 }
 
 /**
