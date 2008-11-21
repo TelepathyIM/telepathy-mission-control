@@ -56,6 +56,7 @@
 #include <libmcclient/mc-errors.h>
 
 #include <string.h>
+#include "timestamps.h"
 
 #define MCD_DISPATCHER_PRIV(dispatcher) (MCD_DISPATCHER (dispatcher)->priv)
 
@@ -1120,6 +1121,7 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
     const GList *channels;
     GList *unhandled = NULL;
 
+    timestamp ("run handlers");
     mcd_dispatcher_context_ref (context);
 
     /* call mcd_dispatcher_run_handler until there are no unhandled channels */
@@ -1176,6 +1178,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
     GList *list;
     GHashTable *observer_info;
 
+    timestamp ("run observers");
     channels = context->channels;
     observer_info = NULL;
 
@@ -1272,6 +1275,7 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
     GList *list;
 
     g_return_if_fail (context->operation != NULL);
+    timestamp ("run approvers");
 
     /* we temporarily increment this count and decrement it at the end of the
      * function, to make sure it won't become 0 while we are still invoking
@@ -1500,6 +1504,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     {
         g_debug ("entering state machine for context %p", context);
 
+        timestamp ("invoke internal filters");
 	priv->state_machine_list =
 	    g_slist_prepend (priv->state_machine_list, context);
 	mcd_dispatcher_context_process (context, TRUE);

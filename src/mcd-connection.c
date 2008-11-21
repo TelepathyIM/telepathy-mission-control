@@ -56,6 +56,7 @@
 #include "mcd-channel.h"
 #include "mcd-provisioning-factory.h"
 #include "mcd-misc.h"
+#include "timestamps.h"
 
 #define MAX_REF_PRESENCE 4
 #define LAST_MC_PRESENCE (TP_CONNECTION_PRESENCE_TYPE_BUSY + 1)
@@ -1084,6 +1085,7 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
                                                                channels))
         return;
 
+    timestamp ("NewChannels received");
     for (i = 0; i < channels->len; i++)
     {
         GValueArray *va;
