@@ -115,7 +115,13 @@ typedef struct _McdClient
     /* Channel filters
      * A channel filter is a GHashTable of
      * - key: gchar *property_name
-     * - value: one of the allowed types on the ObserverChannelFilter spec
+     * - value: GValue of one of the allowed types on the ObserverChannelFilter
+     *          spec. The following matching is observed:
+     *           * G_TYPE_STRING: 's'
+     *           * G_TYPE_BOOLEAN: 'b'
+     *           * DBUS_TYPE_G_OBJECT_PATH: 'o'
+     *           * G_TYPE_UINT64: 'y' (8b), 'q' (16b), 'u' (32b), 't' (64b)
+     *           * G_TYPE_INT64:            'n' (16b), 'i' (32b), 'x' (64b)
      */
     GList *approver_filters;
     GList *handler_filters;
@@ -2214,7 +2220,6 @@ list_activatable_names_cb (TpDBusDaemon *proxy,
     GObject *weak_object)
 {
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
 
     add_names_cb (self, out0);
 }
@@ -2635,6 +2640,128 @@ GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher,
     return args.channel_handler_caps;
 }
 
+static gint64
+get_signed_integer (GValue *value)
+{
+  switch (G_VALUE_TYPE (value))
+    {
+    case G_TYPE_INT:
+      return g_value_get_int (value);
+
+    case G_TYPE_INT64:
+      return g_value_get_int64 (value);
+
+    default:
+      g_assert_not_reached ();
+    }
+}
+
+static guint64
+get_unsigned_integer (GValue *value)
+{
+  switch (G_VALUE_TYPE (value))
+    {
+    case G_TYPE_UCHAR:
+      return g_value_get_uchar (value);
+
+    case G_TYPE_UINT:
+      return g_value_get_uint (value);
+      break;
+
+    case G_TYPE_UINT64:
+      return g_value_get_uint64 (value);
+
+    default:
+      g_assert_not_reached ();
+    }
+}
+
+/* return TRUE if the two GValue are equals
+ * The check is done according to the spec of the ObserverChannelFilter
+ * property
+ */
+static gboolean
+channel_property_equals (GValue *value1, GValue *value2)
+{
+    GType type1 = G_VALUE_TYPE (value1);
+    GType type2 = G_VALUE_TYPE (value2);
+    gboolean value1_is_signed;
+
+    if (type1 == G_TYPE_BOOLEAN)
+        return G_VALUE_TYPE (value2) == G_TYPE_BOOLEAN &&
+            g_value_get_boolean (value1) == g_value_get_boolean (value2);
+
+    if (type1 == G_TYPE_STRING)
+        return G_VALUE_TYPE (value2) == G_TYPE_STRING &&
+            g_strcmp0 (g_value_get_string (value1),
+                       g_value_get_string (value2));
+
+    if (type1 == DBUS_TYPE_G_OBJECT_PATH)
+        return G_VALUE_TYPE (value2) == DBUS_TYPE_G_OBJECT_PATH &&
+            g_strcmp0 (g_value_get_boxed (value1),
+                       g_value_get_boxed (value2));
+
+    if (type1 == G_TYPE_UCHAR ||
+        type1 == G_TYPE_UINT ||
+        type1 == G_TYPE_UINT64)
+        value1_is_signed = FALSE;
+    else if (type1 == G_TYPE_INT ||
+             type1 == G_TYPE_INT64)
+        value1_is_signed = TRUE;
+    else
+    {
+        g_warning ("%s: Invalid type: %s",
+                   G_STRFUNC, g_type_name (G_VALUE_TYPE (value1)));
+        return FALSE;
+    }
+
+    /* integer case */
+
+    if (type2 == G_TYPE_UCHAR ||
+        type2 == G_TYPE_UINT ||
+        type2 == G_TYPE_UINT64)
+    {
+        if (value1_is_signed)
+        {
+            if (get_signed_integer (value1) < 0 ||
+                get_unsigned_integer (value2) > G_MAXINT64)
+                return FALSE;
+
+            return get_signed_integer (value1) ==
+                get_unsigned_integer (value2);
+        }
+        else
+        {
+            return get_unsigned_integer (value1) ==
+                get_unsigned_integer (value2);
+        }
+    }
+    else if (type2 == G_TYPE_INT ||
+             type2 == G_TYPE_INT64)
+    {
+        if (value1_is_signed)
+        {
+            return get_unsigned_integer (value1) ==
+                get_unsigned_integer (value2);
+        }
+        else
+        {
+            if (get_signed_integer (value2) < 0 ||
+                get_unsigned_integer (value1) > G_MAXINT64)
+                return FALSE;
+
+            return get_signed_integer (value1) ==
+                get_unsigned_integer (value2);
+        }
+    }
+    else
+        return FALSE;
+}
+
+static gboolean
+diff_channel_classes (GPtrArray *channel_class1, GPtrArray *channel_class2)
+{
+}
 
 GPtrArray *
 mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher * dispatcher,
