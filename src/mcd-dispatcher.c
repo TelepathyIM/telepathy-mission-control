@@ -2148,6 +2148,7 @@ create_mcd_client (McdDispatcher *self, const gchar *name)
     /* McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self); */
     const gchar * const *dirs;
     const gchar *dirname;
+    const gchar *env_dirname;
     McdClient *client;
     gchar *filename;
     GKeyFile *file;
@@ -2162,10 +2163,35 @@ create_mcd_client (McdDispatcher *self, const gchar *name)
 
     filename = g_strdup_printf ("%s.client", client->name);
 
-    /* optionally, we read the .client file */
+    /* The .client file is not mandatory as per the spec. However if it
+     * exists, it is better to read it than activating the service to read the
+     * D-Bus properties.
+     * 
+     * The full path is $XDG_DATA_DIRS/telepathy/clients/clientname.client
+     * For testing purposes, we also look for $MC_CLIENTS_DIR/clientname.client
+     * if $MC_CLIENTS_DIR is set.
+     */
     file = g_key_file_new ();
+
+    env_dirname = g_getenv ("MC_CLIENTS_DIR");
+    if (env_dirname)
+    {
+        GError *error = NULL;
+        gchar *absolute_filepath;
+        absolute_filepath = g_build_filename (env_dirname, filename, NULL);
+        g_key_file_load_from_file (file, absolute_filepath, 0, &error);
+
+        if (!error)
+        {
+            g_debug ("File found for %s: %s", name, absolute_filepath);
+            file_found = TRUE;
+        }
+        g_free (absolute_filepath);
+    }
+
     dirs = g_get_system_data_dirs();
-    for (dirname = *dirs; dirname != NULL; dirs++, dirname = *dirs)
+    for (dirname = *dirs; dirname != NULL && !file_found;
+         dirs++, dirname = *dirs)
     {
         GError *error = NULL;
         gchar *absolute_filepath;
@@ -2177,8 +2203,6 @@ create_mcd_client (McdDispatcher *self, const gchar *name)
         {
             g_debug ("File found for %s: %s", name, absolute_filepath);
             file_found = TRUE;
-            g_free (absolute_filepath);
-            break;
         }
         g_free (absolute_filepath);
     }
