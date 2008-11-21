@@ -1947,13 +1947,30 @@ get_channel_filter_cb (TpProxy *proxy,
                                        (gpointer *) &property_value)) 
         {
             GValue *filter_value;
+            GType property_type = G_VALUE_TYPE (property_value);
 
-            if (G_VALUE_TYPE (property_value) != G_TYPE_BOOLEAN &&
-                G_VALUE_TYPE (property_value) != G_TYPE_STRING &&
-                ! g_value_type_compatible (G_VALUE_TYPE (property_value),
-                                           G_TYPE_UINT64) &&
-                ! g_value_type_compatible (G_VALUE_TYPE (property_value),
-                                           G_TYPE_INT64))
+            if (property_type == G_TYPE_BOOLEAN ||
+                property_type == G_TYPE_STRING ||
+                property_type == DBUS_TYPE_G_OBJECT_PATH)
+            {
+                filter_value = tp_g_value_slice_new
+                    (G_VALUE_TYPE (property_value));
+                g_value_copy (property_value, filter_value);
+            }
+            else if (property_type == G_TYPE_UCHAR ||
+                     property_type == G_TYPE_UINT ||
+                     property_type == G_TYPE_UINT64)
+            {
+                filter_value = tp_g_value_slice_new (G_TYPE_UINT64);
+                g_value_transform (property_value, filter_value);
+            }
+            else if (property_type == G_TYPE_INT ||
+                     property_type == G_TYPE_INT64)
+            {
+                filter_value = tp_g_value_slice_new (G_TYPE_INT64);
+                g_value_transform (property_value, filter_value);
+            }
+            else
             {
                 /* invalid type, do not add this filter */
                 g_warning ("%s: Property %s has an invalid type (%s)",
@@ -1963,9 +1980,6 @@ get_channel_filter_cb (TpProxy *proxy,
                 break;
             }
 
-            filter_value = tp_g_value_slice_new
-                (G_VALUE_TYPE (property_value));
-            g_value_copy (property_value, filter_value);
             g_hash_table_insert (new_channel_class, g_strdup (property_name),
                                  filter_value);
         }
