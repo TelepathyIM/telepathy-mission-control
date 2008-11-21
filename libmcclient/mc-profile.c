@@ -1205,3 +1205,120 @@ mc_profile_presence_get_icon_name (McProfile *id, const gchar *presence)
     return g_key_file_get_string (priv->keyfile, group, "IconName", NULL);
 }
 
+/**
+ * mc_profile_actions_list:
+ * @profile: The #McProfile.
+ *
+ * List the action IDs supported by this profile.
+ *
+ * Returns: a #GList of strings. To be free'd with
+ * mc_profile_actions_list_free().
+ */
+GList *
+mc_profile_actions_list (McProfile *profile)
+{
+    return NULL;
+}
+
+/**
+ * mc_profile_actions_list_by_vcard_field:
+ * @profile: The #McProfile.
+ * @vcard_field: a VCard field.
+ *
+ * List the action IDs supported by this profile for the given VCard field.
+ *
+ * Returns: a #GList of strings. To be free'd with
+ * mc_profile_actions_list_free().
+ */
+GList *
+mc_profile_actions_list_by_vcard_field (McProfile *profile,
+                                        const gchar *vcard_field)
+{
+    return NULL;
+}
+
+/**
+ * mc_profile_actions_list_by_vcard_fields:
+ * @profile: The #McProfile.
+ * @vcard_fields: an array of VCard fields.
+ *
+ * List the action IDs supported by this profile for the given VCard fields.
+ *
+ * Returns: a #GList of strings. To be free'd with
+ * mc_profile_actions_list_free().
+ */
+GList *
+mc_profile_actions_list_by_vcard_fields (McProfile *profile,
+                                         const gchar **vcard_fields)
+{
+    return NULL;
+}
+
+/**
+ * mc_profile_action_get_name:
+ * @profile: The #McProfile.
+ * @action: the action ID.
+ *
+ * Returns: the localized name of the action.
+ */
+gchar *
+mc_profile_action_get_name (McProfile *profile, const gchar *action)
+{
+    return NULL;
+}
+
+/**
+ * mc_profile_action_get_icon_name:
+ * @profile: The #McProfile.
+ * @action: the action ID.
+ *
+ * Returns: the name of the action icon.
+ */
+gchar *
+mc_profile_action_get_icon_name (McProfile *profile, const gchar *action)
+{
+    return NULL;
+}
+
+/**
+ * mc_profile_action_get_vcard_fields:
+ * @profile: The #McProfile.
+ * @action: the action ID.
+ *
+ * Returns: the VCard fields of the action. Free with g_strfreev().
+ */
+gchar **
+mc_profile_action_get_vcard_fields (McProfile *profile, const gchar *action)
+{
+    return NULL;
+}
+
+/**
+ * mc_profile_action_get_properties:
+ * @profile: The #McProfile.
+ * @action: the action ID.
+ *
+ * Get the #GHashTable of qualified channel properties, to be used when
+ * requesting a Telepathy channel for this action. Properties can be added to
+ * the hash table: keys will be free'd with g_free() and values with
+ * g_value_unset() + g_slice_free().
+ *
+ * Returns: a #GHashTable of properties.
+ */
+GHashTable *
+mc_profile_action_get_properties (McProfile *profile, const gchar *action)
+{
+    return NULL;
+}
+
+/**
+ * mc_profile_actions_list_free:
+ * @profile: The #McProfile.
+ *
+ * Free a list of profile actions
+ */
+void
+mc_profile_actions_list_free (GList *actions)
+{
+}
+
