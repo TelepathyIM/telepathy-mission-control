@@ -5,6 +5,7 @@ cd "@abs_top_builddir@/test/twisted/tools"
 # Run Mission Control in a private environment
 export MC_DEBUG=2
 export MC_CHANDLERS_DIR="@abs_top_builddir@/test/twisted/chandlers"
+export MC_CLIENTS_DIR="@abs_top_builddir@/test/twisted/clients"
 export MC_MANAGER_DIR="@abs_top_builddir@/test/twisted/managers"
 export MC_ACCOUNT_DIR="@abs_top_builddir@/test/twisted/accounts"
 #export MC_PROFILE_DIR=

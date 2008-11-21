@@ -1,0 +1,4 @@
+This directory contains .clients files used by Mission Control when it is run
+by twisted test. $MC_CLIENTS_DIR is set to this directory in the twisted
+environment.
+
