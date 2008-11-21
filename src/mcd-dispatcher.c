@@ -2758,9 +2758,32 @@ channel_property_equals (GValue *value1, GValue *value2)
         return FALSE;
 }
 
+/* return TRUE if the two channel classes are equals
+ */
 static gboolean
-diff_channel_classes (GPtrArray *channel_class1, GPtrArray *channel_class2)
+channel_classes_equals (GHashTable *channel_class1, GHashTable *channel_class2)
 {
+    GHashTableIter iter;
+    gchar *property_name;
+    GValue *property_value1;
+
+    if (g_hash_table_size (channel_class1) !=
+        g_hash_table_size (channel_class2))
+        return FALSE;
+
+    g_hash_table_iter_init (&iter, channel_class1);
+    while (g_hash_table_iter_next (&iter, (gpointer *) &property_name,
+                                   (gpointer *) &property_value1)) 
+    {
+        GValue *property_value2;
+        property_value2 = g_hash_table_lookup (channel_class2, property_name);
+        if (property_value2 == NULL)
+            return FALSE;
+
+        if (!channel_property_equals (property_value1, property_value2))
+            return FALSE;
+    }
+    return TRUE;
 }
 
 GPtrArray *
@@ -2781,9 +2804,22 @@ mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher * dispatcher,
         for (list = client->handler_filters; list != NULL; list = list->next)
         {
             GHashTable *channel_class = list->data;
+            int i;
+            gboolean already_in_caps = FALSE;
 
-            /* TODO: Do not add if already in the caps variable */
-            g_ptr_array_add (caps, channel_class);
+            /* Check if the filter is already in the caps variable */
+            for (i = 0 ; i < caps->len ; i++)
+            {
+                GHashTable *channel_class2 = g_ptr_array_index (caps, i);
+                if (channel_classes_equals (channel_class, channel_class2))
+                {
+                    already_in_caps = TRUE;
+                    break;
+                }
+            }
+
+            if (! already_in_caps)
+                g_ptr_array_add (caps, channel_class);
         }
     }
 
