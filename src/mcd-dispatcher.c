@@ -35,6 +35,8 @@
  */
 
 #include <dlfcn.h>
+#include <glib.h>
+#include <glib/gprintf.h>
 #include <glib/gi18n.h>
 
 #include "mcd-signals-marshal.h"
@@ -1846,11 +1848,32 @@ parse_client_filter (GKeyFile *file, const gchar *group)
 
         switch (file_property_type)
         {
-            case 'y': case 'n': case 'q': case 'i': case 'u':
-            case 'x': case 't':
-                /* cannot use g_key_file_get_integer because we need to
-                 * support 64 bits */
-                break;
+            case 'q':
+            case 'u':
+            case 't': /* unsigned integer */
+                {
+                    /* g_key_file_get_integer cannot be used because we need
+                     * to support 64 bits */
+                    GValue *value = tp_g_value_slice_new (G_TYPE_UINT64);
+                    gchar *str = g_key_file_get_string (file, group, key,
+                                                        NULL);
+                    g_value_set_uint64 (value, g_ascii_strtoull (str, NULL, 0));
+                    g_free (str);
+                    break;
+                }
+
+            case 'y':
+            case 'n':
+            case 'i':
+            case 'x': /* signed integer */
+                {
+                    GValue *value = tp_g_value_slice_new (G_TYPE_INT64);
+                    gchar *str = g_key_file_get_string (file, group, key,
+                                                        NULL);
+                    g_value_set_uint64 (value, g_ascii_strtoll (str, NULL, 0));
+                    g_free (str);
+                    break;
+                }
 
             case 'b':
                 {
