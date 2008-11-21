@@ -521,7 +521,6 @@ _mcd_connection_setup_contact_capabilities (McdConnection *connection)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
     GPtrArray *contact_capabilities;
-    const gchar *protocol_name;
 
     if (!priv->has_contact_capabilities_if)
     {
@@ -529,9 +528,8 @@ _mcd_connection_setup_contact_capabilities (McdConnection *connection)
 	priv->got_contact_capabilities = TRUE;
 	return;
     }
-    protocol_name = mcd_account_get_protocol_name (priv->account);
     contact_capabilities = mcd_dispatcher_get_channel_enhanced_capabilities
-      (priv->dispatcher, protocol_name);
+      (priv->dispatcher);
 
     g_debug ("%s: advertising capabilities", G_STRFUNC);
 

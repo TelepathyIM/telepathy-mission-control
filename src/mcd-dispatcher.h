@@ -89,8 +89,7 @@ GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher,
 /* retrieves the channel handlers' capabilities, in a format suitable for being
  * used as a parameter for the telepathy "SetSelfCapabilities" method */
 GPtrArray *mcd_dispatcher_get_channel_enhanced_capabilities (
-    McdDispatcher * dispatcher,
-    const gchar *protocol);
+    McdDispatcher * dispatcher);
 
 /* not exported */
 void _mcd_dispatcher_add_request (McdDispatcher *dispatcher,

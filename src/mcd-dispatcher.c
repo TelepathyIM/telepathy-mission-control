@@ -2848,8 +2848,7 @@ channel_classes_equals (GHashTable *channel_class1, GHashTable *channel_class2)
 }
 
 GPtrArray *
-mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher * dispatcher,
-                                                  const gchar *protocol)
+mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher * dispatcher)
 {
     McdDispatcherPrivate *priv = dispatcher->priv;
     GHashTableIter iter;
