@@ -128,6 +128,11 @@ typedef struct _McdClient
     GList *approver_filters;
     GList *handler_filters;
     GList *observer_filters;
+
+    /* If a client was in the ListActivatableNames list, it must not be
+     * removed when it disappear from the bus.
+     */
+    gboolean activatable;
 } McdClient;
 
 #define MCD_IFACE_CLIENT "org.freedesktop.Telepathy.Client"
@@ -2143,7 +2148,9 @@ parse_client_file (McdClient *client, GKeyFile *file)
 }
 
 static McdClient *
-create_mcd_client (McdDispatcher *self, const gchar *name)
+create_mcd_client (McdDispatcher *self,
+                   const gchar *name,
+                   gboolean activatable)
 {
     /* McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self); */
     const gchar * const *dirs;
@@ -2159,6 +2166,7 @@ create_mcd_client (McdDispatcher *self, const gchar *name)
 
     client = g_slice_new0 (McdClient);
     client->name = g_strdup (name + sizeof (MCD_IFACE_CLIENT ".") - 1);
+    client->activatable = activatable;
     g_debug ("McdClient created for %s", name);
 
     filename = g_strdup_printf ("%s.client", client->name);
@@ -2228,9 +2236,13 @@ create_mcd_client (McdDispatcher *self, const gchar *name)
     return client;
 }
 
+/* Check the list of strings whether they are valid well-known names of
+ * Telepathy clients and create McdClient objects for each of them.
+ */
 static void
-add_names_cb (McdDispatcher *self,
-              const gchar **names)
+new_names_cb (McdDispatcher *self,
+              const gchar **names,
+              gboolean activatable)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
   
@@ -2250,14 +2262,21 @@ add_names_cb (McdDispatcher *self,
         if (g_hash_table_lookup_extended (priv->clients, name, &orig_key,
               &value))
         {
-            /* This Telepathy Client is already known */
+            /* This Telepathy Client is already known so don't create it
+             * again. However, set the activatable bit now.
+             */
+            if (activatable)
+            {
+                McdClient *client = (McdClient *) value;
+                client->activatable = TRUE;
+            }
             continue;
         }
 
         g_debug ("%s: Register client %s", G_STRFUNC, name);
 
         g_hash_table_insert (priv->clients, g_strdup (name),
-            create_mcd_client (self, name));
+            create_mcd_client (self, name, activatable));
     }
 }
 
@@ -2270,7 +2289,7 @@ list_names_cb (TpDBusDaemon *proxy,
 {
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
 
-    add_names_cb (self, out0);
+    new_names_cb (self, out0, FALSE);
 }
 
 static void
@@ -2282,7 +2301,7 @@ list_activatable_names_cb (TpDBusDaemon *proxy,
 {
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
 
-    add_names_cb (self, out0);
+    new_names_cb (self, out0, TRUE);
 }
 
 static void
@@ -2294,13 +2313,44 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
     GObject *weak_object)
 {
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
-    gchar *names[2] = {NULL, NULL};
-    
-    names[0] = g_strdup (arg0);
+    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
 
-    add_names_cb (self, (const gchar **) names);
+    if (g_strcmp0 (arg1, "") == 0 && g_strcmp0 (arg2, "") != 0)
+    {
+        /* the name appeared on the bus */
+        gchar *names[2] = {NULL, NULL};
+        names[0] = g_strdup (arg0);
+        new_names_cb (self, (const gchar **) names, FALSE);
+        g_free (names[0]);
+    }
+    else if (g_strcmp0 (arg1, "") != 0 && g_strcmp0 (arg2, "") == 0)
+    {
+        /* The name disappeared from the bus */
+        gpointer orig_key, value;
+        McdClient *client;
 
-    g_free (names[0]);
+        if (!g_hash_table_lookup_extended (priv->clients, arg0, &orig_key,
+              &value))
+            return;
+
+        client = (McdClient *) value;
+
+        if (!client->activatable)
+            g_hash_table_remove (priv->clients, client);
+    }
+    else if (g_strcmp0 (arg1, "") != 0 && g_strcmp0 (arg2, "") != 0)
+    {
+        /* The name's ownership changed. Does the Telepathy spec allow that?
+         * TODO: Do something smart
+         */
+        g_warning ("%s: The ownership of name '%s' changed", G_STRFUNC, arg0);
+    }
+    else
+    {
+        /* dbus-daemon is sick */
+        g_warning ("%s: Malformed message from the D-Bus daemon about '%s'",
+                   G_STRFUNC, arg0);
+    }
 }
 
 static void
@@ -2311,11 +2361,11 @@ mcd_dispatcher_constructed (GObject *object)
     tp_cli_dbus_daemon_connect_to_name_owner_changed (priv->dbus_daemon,
         name_owner_changed_cb, NULL, NULL, object, NULL);
 
-    tp_cli_dbus_daemon_call_list_names (priv->dbus_daemon,
-        -1, list_names_cb, NULL, NULL, object);
-
     tp_cli_dbus_daemon_call_list_activatable_names (priv->dbus_daemon,
         -1, list_activatable_names_cb, NULL, NULL, object);
+
+    tp_cli_dbus_daemon_call_list_names (priv->dbus_daemon,
+        -1, list_names_cb, NULL, NULL, object);
 }
 
 static void
