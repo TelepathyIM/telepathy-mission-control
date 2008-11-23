@@ -82,7 +82,8 @@ mission_control_include_HEADERS = \
 	mcd-account-config.h \
 	mcd-account-priv.h \
 	mcd-enum-types.h \
-	mcd-misc.h
+	mcd-misc.h \
+	timestamps.h
 
 BUILT_SOURCES = \
 	_gen/all.xml \
