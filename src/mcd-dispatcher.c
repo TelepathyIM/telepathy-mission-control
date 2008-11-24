@@ -898,59 +898,7 @@ match_property (GHashTable *channel_properties,
     g_assert (G_IS_VALUE (filter_value));
     g_assert (G_IS_VALUE (channel_value));
 
-    /* string */
-    if (G_VALUE_TYPE (filter_value) == G_TYPE_STRING)
-    {
-        if (G_VALUE_TYPE (channel_value) != G_TYPE_STRING)
-        {
-            /* the channel has this property, but the wrong type */
-            return FALSE;
-        }
-
-        if (tp_strdiff (g_value_get_string (filter_value),
-                        g_value_get_string (channel_value)))
-        {
-            /* the content does not match */
-            return FALSE;
-        }
-    }
-
-    /* boolean */
-    if (G_VALUE_TYPE (filter_value) == G_TYPE_BOOLEAN)
-    {
-        if (G_VALUE_TYPE (channel_value) != G_TYPE_BOOLEAN)
-        {
-            /* the channel has this property, but the wrong type */
-            return FALSE;
-        }
-
-        if (!!g_value_get_boolean (filter_value) !=
-            !!g_value_get_boolean (channel_value))
-        {
-            /* the content does not match */
-            return FALSE;
-        }
-    }
-
-    /* integers */
-    if (g_value_type_compatible (G_VALUE_TYPE (filter_value),
-                                 G_TYPE_UINT64))
-    {
-        if (g_value_type_compatible (G_VALUE_TYPE (channel_value),
-                                     G_TYPE_UINT64))
-        {
-            /* the channel has this property, but the wrong type */
-            return FALSE;
-        }
-
-        if (g_value_get_uint64 (filter_value) !=
-            g_value_get_uint64 (channel_value))
-        {
-            /* the content does not match */
-            return FALSE;
-        }
-    }
-    return TRUE;
+    return channel_property_equals (filter_value, channel_value);
 }
 
 /* returns TRUE if the channel matches one of the channel filters
@@ -2805,7 +2753,7 @@ channel_property_equals (GValue *value1, GValue *value2)
 
     if (type1 == G_TYPE_BOOLEAN)
         return G_VALUE_TYPE (value2) == G_TYPE_BOOLEAN &&
-            g_value_get_boolean (value1) == g_value_get_boolean (value2);
+            !!g_value_get_boolean (value1) == !!g_value_get_boolean (value2);
 
     if (type1 == G_TYPE_STRING)
         return G_VALUE_TYPE (value2) == G_TYPE_STRING &&
