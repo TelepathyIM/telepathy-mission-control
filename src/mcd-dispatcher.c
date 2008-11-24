@@ -2237,6 +2237,7 @@ create_mcd_client (McdDispatcher *self,
      * D-Bus properties.
      * 
      * The full path is $XDG_DATA_DIRS/telepathy/clients/clientname.client
+     * or $XDG_DATA_HOME/telepathy/clients/clientname.client
      * For testing purposes, we also look for $MC_CLIENTS_DIR/clientname.client
      * if $MC_CLIENTS_DIR is set.
      */
@@ -2258,14 +2259,13 @@ create_mcd_client (McdDispatcher *self,
         g_free (absolute_filepath);
     }
 
-    dirs = g_get_system_data_dirs();
-    for (dirname = *dirs; dirname != NULL && !file_found;
-         dirs++, dirname = *dirs)
+    dirname = g_get_user_data_dir ();
+    if (!file_found && dirname)
     {
         GError *error = NULL;
         gchar *absolute_filepath;
         absolute_filepath = g_build_filename (dirname, "telepathy/clients",
-            filename, NULL);
+                                              filename, NULL);
         g_key_file_load_from_file (file, absolute_filepath, 0, &error);
 
         if (!error)
@@ -2275,6 +2275,25 @@ create_mcd_client (McdDispatcher *self,
         }
         g_free (absolute_filepath);
     }
+
+    dirs = g_get_system_data_dirs ();
+    for (dirname = *dirs; dirname != NULL && !file_found;
+         dirs++, dirname = *dirs)
+    {
+        GError *error = NULL;
+        gchar *absolute_filepath;
+        absolute_filepath = g_build_filename (dirname, "telepathy/clients",
+                                              filename, NULL);
+        g_key_file_load_from_file (file, absolute_filepath, 0, &error);
+
+        if (!error)
+        {
+            g_debug ("File found for %s: %s", name, absolute_filepath);
+            file_found = TRUE;
+        }
+        g_free (absolute_filepath);
+    }
+
     g_free (filename);
 
     if (file_found)
