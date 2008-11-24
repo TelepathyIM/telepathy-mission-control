@@ -2832,8 +2832,8 @@ channel_property_equals (GValue *value1, GValue *value2)
     {
         if (value1_is_signed)
         {
-            return get_unsigned_integer (value1) ==
-                get_unsigned_integer (value2);
+            return get_signed_integer (value1) ==
+                get_signed_integer (value2);
         }
         else
         {
