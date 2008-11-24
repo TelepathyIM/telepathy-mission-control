@@ -2809,13 +2809,13 @@ channel_property_equals (GValue *value1, GValue *value2)
 
     if (type1 == G_TYPE_STRING)
         return G_VALUE_TYPE (value2) == G_TYPE_STRING &&
-            g_strcmp0 (g_value_get_string (value1),
-                       g_value_get_string (value2));
+            !tp_strdiff (g_value_get_string (value1),
+                         g_value_get_string (value2));
 
     if (type1 == DBUS_TYPE_G_OBJECT_PATH)
         return G_VALUE_TYPE (value2) == DBUS_TYPE_G_OBJECT_PATH &&
-            g_strcmp0 (g_value_get_boxed (value1),
-                       g_value_get_boxed (value2));
+            !tp_strdiff (g_value_get_boxed (value1),
+                         g_value_get_boxed (value2));
 
     if (type1 == G_TYPE_UCHAR ||
         type1 == G_TYPE_UINT ||
