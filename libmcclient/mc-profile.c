@@ -31,12 +31,18 @@
 
 #include "mc-profile.h"
 #include <config.h>
+#include <telepathy-glib/util.h>
+#include "dbus-api.h"
 
 #define PROFILE_SUFFIX ".profile"
 #define PROFILE_SUFFIX_LEN 8
 #define PROFILE_GROUP "Profile"
 #define PRESENCE_PREFIX "Presence "
 #define PRESENCE_PREFIX_LEN (sizeof (PRESENCE_PREFIX) - 1)
+#define ACTION_PREFIX "Action "
+#define ACTION_PREFIX_LEN (sizeof (ACTION_PREFIX) - 1)
+#define ACTION_PROP_PREFIX "prop-"
+#define ACTION_PROP_PREFIX_LEN (sizeof (ACTION_PROP_PREFIX) - 1)
 
 #define MC_PROFILE_PRIV(profile) ((McProfilePrivate *)profile->priv)
 
@@ -92,6 +98,87 @@ typedef struct {
     GArray *supported_presences;
     time_t mtime;
 } McProfilePrivate;
+
+#define get_private_and_load_or_return_val(profile, val) \
+{ \
+    g_return_val_if_fail (MC_IS_PROFILE (profile), val); \
+    priv = profile->priv; \
+    if (G_UNLIKELY (!priv->keyfile)) _mc_profile_load (profile); \
+    g_return_val_if_fail (priv->keyfile != NULL, val); \
+}
+
+static gchar *
+get_localized_group_field (McProfilePrivate *priv, const gchar *group,
+                           const gchar *field)
+{
+    gchar *name, *string;
+
+    if (priv->localization_domain)
+    {
+        string = g_key_file_get_string (priv->keyfile, group, field, NULL);
+        if (string)
+        {
+            name = g_strdup (dgettext (priv->localization_domain, string));
+            g_free (string);
+        }
+        else
+            name = NULL;
+    }
+    else
+        name = g_key_file_get_locale_string (priv->keyfile, group, field,
+                                             NULL, NULL);
+    return name;
+}
+
+static gboolean
+set_value_from_key (GKeyFile *keyfile, const gchar *group, const gchar *key,
+                    GValue *value)
+{
+    gboolean ok = FALSE;
+    switch (G_VALUE_TYPE (value))
+    {
+    case G_TYPE_STRING:
+        {
+            gchar *string;
+            string = g_key_file_get_string (keyfile, group, key, NULL);
+            if (string)
+            {
+                g_value_take_string (value, string);
+                ok = TRUE;
+            }
+        }
+        break;
+    case G_TYPE_UINT:
+        {
+            guint i;
+            i = (guint)g_key_file_get_integer (keyfile, group, key, NULL);
+            g_value_set_uint (value, i);
+            ok = TRUE;
+        }
+        break;
+    case G_TYPE_INT:
+        {
+            gint i;
+            i = g_key_file_get_integer (keyfile, group, key, NULL);
+            g_value_set_int (value, i);
+            ok = TRUE;
+        }
+        break;
+    case G_TYPE_BOOLEAN:
+        {
+            gboolean b;
+            b = g_key_file_get_boolean (keyfile, group, key, NULL);
+            g_value_set_boolean (value, b);
+            ok = TRUE;
+        }
+        break;
+    default:
+        g_warning ("%s: don't know how to parse type %s", G_STRFUNC,
+                   G_VALUE_TYPE_NAME (value));
+        break;
+    }
+    return ok;
+}
 
 static TpConnectionPresenceType
 map_presence (const gchar *status)
@@ -687,14 +774,10 @@ mc_profiles_free_list (GList *list)
 const gchar *
 mc_profile_get_unique_name (McProfile *id)
 {
-    gboolean profile_loaded;
+    McProfilePrivate *priv;
 
-    g_return_val_if_fail (id != NULL, NULL);
-
-    profile_loaded = _mc_profile_load (id);
-    g_return_val_if_fail (profile_loaded, NULL);
-
-    return MC_PROFILE_PRIV(id)->unique_name;
+    get_private_and_load_or_return_val (id, NULL);
+    return priv->unique_name;
 }
 
 /**
@@ -708,14 +791,10 @@ mc_profile_get_unique_name (McProfile *id)
 const gchar *
 mc_profile_get_configuration_ui (McProfile *id)
 {
-    gboolean profile_loaded;
+    McProfilePrivate *priv;
 
-    g_return_val_if_fail (id != NULL, NULL);
-
-    profile_loaded = _mc_profile_load (id);
-    g_return_val_if_fail (profile_loaded, NULL);
-
-    return MC_PROFILE_PRIV (id)->configuration_ui;
+    get_private_and_load_or_return_val (id, NULL);
+    return priv->configuration_ui;
 }
 
 /**
@@ -729,14 +808,10 @@ mc_profile_get_configuration_ui (McProfile *id)
 const gchar *
 mc_profile_get_display_name (McProfile *id)
 {
-    gboolean profile_loaded;
+    McProfilePrivate *priv;
 
-    g_return_val_if_fail (id != NULL, NULL);
-
-    profile_loaded = _mc_profile_load (id);
-    g_return_val_if_fail (profile_loaded, NULL);
-
-    return MC_PROFILE_PRIV (id)->display_name;
+    get_private_and_load_or_return_val (id, NULL);
+    return priv->display_name;
 }
 
 /**
@@ -750,14 +825,10 @@ mc_profile_get_display_name (McProfile *id)
 const gchar *
 mc_profile_get_icon_name (McProfile *id)
 {
-    gboolean profile_loaded;
+    McProfilePrivate *priv;
 
-    g_return_val_if_fail (id != NULL, NULL);
-
-    profile_loaded = _mc_profile_load (id);
-    g_return_val_if_fail (profile_loaded, NULL);
-
-    return MC_PROFILE_PRIV (id)->icon_name;
+    get_private_and_load_or_return_val (id, NULL);
+    return priv->icon_name;
 }
 
 /**
@@ -771,14 +842,10 @@ mc_profile_get_icon_name (McProfile *id)
 const gchar *
 mc_profile_get_branding_icon_name (McProfile *id)
 {
-    gboolean profile_loaded;
+    McProfilePrivate *priv;
 
-    g_return_val_if_fail (id != NULL, NULL);
-
-    profile_loaded = _mc_profile_load (id);
-    g_return_val_if_fail (profile_loaded, NULL);
-
-    return MC_PROFILE_PRIV (id)->branding_icon_name;
+    get_private_and_load_or_return_val (id, NULL);
+    return priv->branding_icon_name;
 }
 
 /**
@@ -793,14 +860,10 @@ mc_profile_get_branding_icon_name (McProfile *id)
 const TpConnectionPresenceType *
 mc_profile_get_supported_presences (McProfile *id)
 {
-    gboolean profile_loaded;
+    McProfilePrivate *priv;
 
-    g_return_val_if_fail (id != NULL, NULL);
-
-    profile_loaded = _mc_profile_load (id);
-    g_return_val_if_fail (profile_loaded, NULL);
-
-    return (TpConnectionPresenceType *)(MC_PROFILE_PRIV (id)->supported_presences->data);
+    get_private_and_load_or_return_val (id, NULL);
+    return (TpConnectionPresenceType *)(priv->supported_presences->data);
 }
 
 /*
@@ -840,14 +903,10 @@ mc_profile_supports_presence (McProfile *id, TpConnectionPresenceType presence)
 const gchar *
 mc_profile_get_protocol_name (McProfile *id)
 {
-    gboolean profile_loaded;
+    McProfilePrivate *priv;
 
-    g_return_val_if_fail (id != NULL, NULL);
-
-    profile_loaded = _mc_profile_load (id);
-    g_return_val_if_fail (profile_loaded, NULL);
-
-    return MC_PROFILE_PRIV (id)->protocol;
+    get_private_and_load_or_return_val (id, NULL);
+    return priv->protocol;
 }
 
 /**
@@ -861,14 +920,10 @@ mc_profile_get_protocol_name (McProfile *id)
 const gchar *
 mc_profile_get_manager_name (McProfile *id)
 {
-    gboolean profile_loaded;
+    McProfilePrivate *priv;
 
-    g_return_val_if_fail (id != NULL, NULL);
-
-    profile_loaded = _mc_profile_load (id);
-    g_return_val_if_fail (profile_loaded, NULL);
-
-    return MC_PROFILE_PRIV (id)->manager;
+    get_private_and_load_or_return_val (id, NULL);
+    return priv->manager;
 }
 
 /**
@@ -882,14 +937,10 @@ mc_profile_get_manager_name (McProfile *id)
 const gchar *
 mc_profile_get_vcard_field (McProfile *id)
 {
-    gboolean profile_loaded;
+    McProfilePrivate *priv;
 
-    g_return_val_if_fail (id != NULL, NULL);
-
-    profile_loaded = _mc_profile_load (id);
-    g_return_val_if_fail (profile_loaded, NULL);
-
-    return MC_PROFILE_PRIV (id)->vcard_field;
+    get_private_and_load_or_return_val (id, NULL);
+    return priv->vcard_field;
 }
 
 /**
@@ -904,13 +955,9 @@ mc_profile_get_vcard_field (McProfile *id)
 const gchar *
 mc_profile_get_default_account_domain (McProfile *id)
 {
-    McProfilePrivate *priv = MC_PROFILE_PRIV (id);
-    gboolean profile_loaded;
+    McProfilePrivate *priv;
 
-    g_return_val_if_fail (id != NULL, NULL);
-
-    profile_loaded = _mc_profile_load (id);
-    g_return_val_if_fail (profile_loaded, NULL);
+    get_private_and_load_or_return_val (id, NULL);
     g_return_val_if_fail (
 			  priv->capabilities & MC_PROFILE_CAPABILITY_SPLIT_ACCOUNT, NULL);
 
@@ -928,14 +975,9 @@ mc_profile_get_default_account_domain (McProfile *id)
 const gchar *
 mc_profile_get_avatar_mime_type (McProfile *id)
 {
-    McProfilePrivate *priv = MC_PROFILE_PRIV (id);
-    gboolean profile_loaded;
+    McProfilePrivate *priv;
 
-    g_return_val_if_fail (id != NULL, NULL);
-
-    profile_loaded = _mc_profile_load (id);
-    g_return_val_if_fail (profile_loaded, NULL);
-
+    get_private_and_load_or_return_val (id, NULL);
     return priv->avatar_mime_type;
 }
 
@@ -951,14 +993,9 @@ mc_profile_get_avatar_mime_type (McProfile *id)
 const gchar *
 mc_profile_get_default_account_name (McProfile *id)
 {
-    McProfilePrivate *priv = MC_PROFILE_PRIV (id);
-    gboolean profile_loaded;
+    McProfilePrivate *priv;
 
-    g_return_val_if_fail (id != NULL, NULL);
-
-    profile_loaded = _mc_profile_load (id);
-    g_return_val_if_fail (profile_loaded, NULL);
-
+    get_private_and_load_or_return_val (id, NULL);
     return priv->default_account_name;
 }
 
@@ -973,14 +1010,9 @@ mc_profile_get_default_account_name (McProfile *id)
 gint
 mc_profile_get_priority (McProfile *id)
 {
-    McProfilePrivate *priv = MC_PROFILE_PRIV (id);
-    gboolean profile_loaded;
+    McProfilePrivate *priv;
 
-    g_return_val_if_fail (id != NULL, 0);
-
-    profile_loaded = _mc_profile_load (id);
-    g_return_val_if_fail (profile_loaded, 0);
-
+    get_private_and_load_or_return_val (id, 0);
     return priv->priority;
 }
 
@@ -995,14 +1027,10 @@ mc_profile_get_priority (McProfile *id)
 gboolean
 mc_profile_is_default_for_vcard_field (McProfile *id)
 {
-    gboolean profile_loaded;
+    McProfilePrivate *priv;
 
-    g_return_val_if_fail (id != NULL, FALSE);
-
-    profile_loaded = _mc_profile_load (id);
-    g_return_val_if_fail (profile_loaded, FALSE);
-
-    return MC_PROFILE_PRIV (id)->vcard_default;
+    get_private_and_load_or_return_val (id, FALSE);
+    return priv->vcard_default;
 }
 
 /**
@@ -1016,14 +1044,10 @@ mc_profile_is_default_for_vcard_field (McProfile *id)
 McProfileCapabilityFlags
 mc_profile_get_capabilities (McProfile *id)
 {
-    gboolean profile_loaded;
+    McProfilePrivate *priv;
 
-    g_return_val_if_fail (id != NULL, 0);
-
-    profile_loaded = _mc_profile_load (id);
-    g_return_val_if_fail (profile_loaded, 0);
-
-    return MC_PROFILE_PRIV (id)->capabilities;
+    get_private_and_load_or_return_val (id, 0);
+    return priv->capabilities;
 }
 
 /**
@@ -1038,17 +1062,14 @@ mc_profile_get_capabilities (McProfile *id)
 const gchar *
 mc_profile_get_default_setting (McProfile *id, const gchar *setting)
 {
-    gboolean profile_loaded;
+    McProfilePrivate *priv;
     const gchar *def;
 
-    g_return_val_if_fail (id != NULL, NULL);
+    get_private_and_load_or_return_val (id, NULL);
     g_return_val_if_fail (setting != NULL, NULL);
     g_return_val_if_fail (*setting != '\0', NULL);
 
-    profile_loaded = _mc_profile_load (id);
-    g_return_val_if_fail (profile_loaded, NULL);
-
-    def = g_hash_table_lookup (MC_PROFILE_PRIV (id)->default_settings,
+    def = g_hash_table_lookup (priv->default_settings,
 			       setting);
 
     return def;
@@ -1066,16 +1087,14 @@ mc_profile_get_default_setting (McProfile *id, const gchar *setting)
 const gchar *
 mc_profile_get_vcard_mangle (McProfile *id, const gchar *vcard_field)
 {
-    gboolean profile_loaded;
+    McProfilePrivate *priv;
 
-    g_return_val_if_fail (id != NULL, NULL);
+    get_private_and_load_or_return_val (id, NULL);
     g_return_val_if_fail (vcard_field != NULL, NULL);
     g_return_val_if_fail (*vcard_field != '\0', NULL);
 
-    profile_loaded = _mc_profile_load (id);
-    g_return_val_if_fail (profile_loaded, NULL);
-
-    return (const gchar *) g_hash_table_lookup (MC_PROFILE_PRIV (id)->vcard_mangle_hash, vcard_field);
+    return (const gchar *) g_hash_table_lookup (priv->vcard_mangle_hash,
+                                                vcard_field);
 }
 
 /**
@@ -1134,29 +1153,12 @@ gchar *
 mc_profile_presence_get_name (McProfile *id, const gchar *presence)
 {
     McProfilePrivate *priv;
-    gchar group[128], *name, *string;
+    gchar group[128];
 
-    g_return_val_if_fail (MC_IS_PROFILE (id), NULL);
-    priv = id->priv;
-    if (G_UNLIKELY (!priv->keyfile)) _mc_profile_load (id);
-    g_return_val_if_fail (priv->keyfile != NULL, NULL);
+    get_private_and_load_or_return_val (id, NULL);
 
     g_snprintf (group, sizeof (group), PRESENCE_PREFIX "%s", presence);
-    if (priv->localization_domain)
-    {
-        string = g_key_file_get_string (priv->keyfile, group, "Name", NULL);
-        if (string)
-        {
-            name = g_strdup (dgettext (priv->localization_domain, string));
-            g_free (string);
-        }
-        else
-            name = NULL;
-    }
-    else
-        name = g_key_file_get_locale_string (priv->keyfile, group, "Name",
-                                             NULL, NULL);
-    return name;
+    return get_localized_group_field (priv, group, "Name");
 }
 
 /**
@@ -1172,12 +1174,7 @@ mc_profile_presence_get_type (McProfile *id, const gchar *presence)
     McProfilePrivate *priv;
     gchar group[128];
 
-    g_return_val_if_fail (MC_IS_PROFILE (id),
-                          TP_CONNECTION_PRESENCE_TYPE_UNSET);
-    priv = id->priv;
-    if (G_UNLIKELY (!priv->keyfile)) _mc_profile_load (id);
-    g_return_val_if_fail (priv->keyfile != NULL,
-                          TP_CONNECTION_PRESENCE_TYPE_UNSET);
+    get_private_and_load_or_return_val (id, TP_CONNECTION_PRESENCE_TYPE_UNSET);
 
     g_snprintf (group, sizeof (group), PRESENCE_PREFIX "%s", presence);
     return (TpConnectionPresenceType)
@@ -1197,11 +1194,237 @@ mc_profile_presence_get_icon_name (McProfile *id, const gchar *presence)
     McProfilePrivate *priv;
     gchar group[128];
 
-    g_return_val_if_fail (MC_IS_PROFILE (id), NULL);
-    priv = id->priv;
-    if (G_UNLIKELY (!priv->keyfile)) _mc_profile_load (id);
-    g_return_val_if_fail (priv->keyfile != NULL, NULL);
+    get_private_and_load_or_return_val (id, NULL);
     g_snprintf (group, sizeof (group), PRESENCE_PREFIX "%s", presence);
     return g_key_file_get_string (priv->keyfile, group, "IconName", NULL);
+}
+
+/**
+ * mc_profile_actions_list:
+ * @profile: The #McProfile.
+ *
+ * List the action IDs supported by this profile.
+ *
+ * Returns: a #GList of strings. To be free'd with
+ * mc_profile_actions_list_free().
+ */
+GList *
+mc_profile_actions_list (McProfile *profile)
+{
+    return mc_profile_actions_list_by_vcard_fields (profile, NULL);
+}
+
+/**
+ * mc_profile_actions_list_by_vcard_field:
+ * @profile: The #McProfile.
+ * @vcard_field: a VCard field.
+ *
+ * List the action IDs supported by this profile for the given VCard field.
+ *
+ * Returns: a #GList of strings. To be free'd with
+ * mc_profile_actions_list_free().
+ */
+GList *
+mc_profile_actions_list_by_vcard_field (McProfile *profile,
+                                        const gchar *vcard_field)
+{
+    const gchar *fields[2];
+
+    fields[0] = vcard_field;
+    fields[1] = NULL;
+    return mc_profile_actions_list_by_vcard_fields (profile, fields);
+}
+
+/**
+ * mc_profile_actions_list_by_vcard_fields:
+ * @profile: The #McProfile.
+ * @vcard_fields: an array of VCard fields.
+ *
+ * List the action IDs supported by this profile for the given VCard fields.
+ *
+ * Returns: a #GList of strings. To be free'd with
+ * mc_profile_actions_list_free().
+ */
+GList *
+mc_profile_actions_list_by_vcard_fields (McProfile *profile,
+                                         const gchar **vcard_fields)
+{
+    McProfilePrivate *priv;
+    gchar **groups;
+    GList *actions;
+    gsize len = 0;
+    guint i;
+
+    get_private_and_load_or_return_val (profile, NULL);
+
+    groups = g_key_file_get_groups (priv->keyfile, &len);
+    for (i = 0; i < len; i++)
+    {
+        const gchar *p_action;
+        gchar *action;
+
+        if (strncmp (groups[i], ACTION_PREFIX, ACTION_PREFIX_LEN) != 0)
+            continue;
+        p_action = groups[i] + ACTION_PREFIX_LEN;
+        if (vcard_fields)
+        {
+            const gchar **field_r;
+            gchar **action_fields, **field_a;
+            gboolean found = FALSE;
+
+            /* check if any of the action VCard fields match those requested by
+             * the caller */
+            action_fields = mc_profile_action_get_vcard_fields (profile,
+                                                                p_action);
+            for (field_r = vcard_fields; *field_r != NULL; field_r++)
+                for (field_a = action_fields; *field_a != NULL; field_a++)
+                    if (strcmp (*field_a, *field_r) == 0)
+                    {
+                        found = TRUE;
+                        break;
+                    }
+
+            g_strfreev (action_fields);
+            if (!found) continue;
+        }
+        action = g_strdup (p_action);
+        actions = g_list_prepend (actions, action);
+    }
+    g_strfreev (groups);
+
+    return g_list_reverse (actions);
+}
+
+/**
+ * mc_profile_action_get_name:
+ * @profile: The #McProfile.
+ * @action: the action ID.
+ *
+ * Returns: the localized name of the action.
+ */
+gchar *
+mc_profile_action_get_name (McProfile *profile, const gchar *action)
+{
+    McProfilePrivate *priv;
+    gchar group[128];
+
+    get_private_and_load_or_return_val (profile, NULL);
+    g_snprintf (group, sizeof (group), ACTION_PREFIX "%s", action);
+    return get_localized_group_field (priv, group, "Name");
+}
+
+/**
+ * mc_profile_action_get_icon_name:
+ * @profile: The #McProfile.
+ * @action: the action ID.
+ *
+ * Returns: the name of the action icon.
+ */
+gchar *
+mc_profile_action_get_icon_name (McProfile *profile, const gchar *action)
+{
+    McProfilePrivate *priv;
+    gchar group[128];
+
+    get_private_and_load_or_return_val (profile, NULL);
+    g_snprintf (group, sizeof (group), ACTION_PREFIX "%s", action);
+    return g_key_file_get_string (priv->keyfile, group, "IconName", NULL);
+}
+
+/**
+ * mc_profile_action_get_vcard_fields:
+ * @profile: The #McProfile.
+ * @action: the action ID.
+ *
+ * Returns: the VCard fields of the action. Free with g_strfreev().
+ */
+gchar **
+mc_profile_action_get_vcard_fields (McProfile *profile, const gchar *action)
+{
+    McProfilePrivate *priv;
+    gchar group[128];
+
+    get_private_and_load_or_return_val (profile, NULL);
+    g_snprintf (group, sizeof (group), ACTION_PREFIX "%s", action);
+    return g_key_file_get_string_list (priv->keyfile, group, "VCardFields",
+                                       NULL, NULL);
+}
+
+/**
+ * mc_profile_action_get_properties:
+ * @profile: The #McProfile.
+ * @action: the action ID.
+ *
+ * Get the #GHashTable of qualified channel properties, to be used when
+ * requesting a Telepathy channel for this action. Properties can be added to
+ * the hash table: keys will be free'd with g_free() and values with
+ * g_value_unset() + g_slice_free().
+ *
+ * Returns: a #GHashTable of properties.
+ */
+GHashTable *
+mc_profile_action_get_properties (McProfile *profile, const gchar *action)
+{
+    McProfilePrivate *priv;
+    gchar group[128];
+    GHashTable *properties;
+    gchar **keys;
+    gsize len = 0;
+    guint i;
+
+    get_private_and_load_or_return_val (profile, NULL);
+    g_snprintf (group, sizeof (group), ACTION_PREFIX "%s", action);
+
+    properties = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
+                                        (GDestroyNotify)tp_g_value_slice_free);
+    keys = g_key_file_get_keys (priv->keyfile, group, &len, NULL);
+    for (i = 0; i < len; i++)
+    {
+        gchar *p_name, *p_type, *name;
+        GValue *value;
+        GType type;
+
+        if (strncmp (keys[i], ACTION_PROP_PREFIX, ACTION_PROP_PREFIX_LEN) != 0)
+            continue;
+        p_name = keys[i] + ACTION_PROP_PREFIX_LEN;
+        p_type = strchr (p_name, '-');
+        if (p_type) p_type++;
+        type = _mc_gtype_from_dbus_signature (p_type);
+        if (G_UNLIKELY (type == G_TYPE_INVALID))
+        {
+            g_warning ("%s: invalid type %s for action %s in profile %s",
+                       G_STRFUNC, p_type, action, priv->unique_name);
+            continue;
+        }
+
+        value = tp_g_value_slice_new (type);
+
+        if (set_value_from_key (priv->keyfile, group, keys[i], value))
+        {
+            name = g_strndup (p_name, p_type - p_name - 1);
+            g_hash_table_insert (properties, name, value);
+        }
+        else
+            tp_g_value_slice_free (value);
+    }
+    g_strfreev (keys);
+
+    return properties;
+}
+
+/**
+ * mc_profile_actions_list_free:
+ * @profile: The #McProfile.
+ *
+ * Free a list of profile actions
+ */
+void
+mc_profile_actions_list_free (GList *actions)
+{
+    GList *list;
+
+    for (list = actions; list != NULL; list = list->next)
+        g_free (list->data);
+    g_list_free (actions);
 }
 

@@ -125,6 +125,22 @@ TpConnectionPresenceType mc_profile_presence_get_type (McProfile *id,
 gchar *mc_profile_presence_get_icon_name (McProfile *id,
                                           const gchar *presence);
 
+/* actions */
+GList *mc_profile_actions_list (McProfile *profile);
+GList *mc_profile_actions_list_by_vcard_field (McProfile *profile,
+                                               const gchar *vcard_field);
+GList *mc_profile_actions_list_by_vcard_fields (McProfile *profile,
+                                                const gchar **vcard_fields);
+
+gchar *mc_profile_action_get_name (McProfile *profile, const gchar *action);
+gchar *mc_profile_action_get_icon_name (McProfile *profile,
+                                        const gchar *action);
+gchar **mc_profile_action_get_vcard_fields (McProfile *profile,
+                                            const gchar *action);
+GHashTable *mc_profile_action_get_properties (McProfile *profile,
+                                              const gchar *action);
+void mc_profile_actions_list_free (GList *actions);
+
 G_END_DECLS
 
 #endif /* __MC_PROFILE_H__ */
