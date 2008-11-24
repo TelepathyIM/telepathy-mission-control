@@ -223,6 +223,8 @@ static void mcd_dispatcher_leave_state_machine (McdDispatcherContext *context);
 static void on_operation_finished (McdDispatchOperation *operation,
                                    McdDispatcherContext *context);
 
+static gboolean channel_property_equals (GValue *value1, GValue *value2);
+
 typedef void (*tp_ch_handle_channel_reply) (DBusGProxy *proxy, GError *error, gpointer userdata);
 
 static inline void
