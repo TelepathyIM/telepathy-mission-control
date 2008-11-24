@@ -907,8 +907,8 @@ match_property (GHashTable *channel_properties,
             return FALSE;
         }
 
-        if (strcmp (g_value_get_string (filter_value),
-                    g_value_get_string (channel_value)) != 0)
+        if (tp_strdiff (g_value_get_string (filter_value),
+                        g_value_get_string (channel_value)))
         {
             /* the content does not match */
             return FALSE;
