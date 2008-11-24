@@ -924,8 +924,8 @@ match_property (GHashTable *channel_properties,
             return FALSE;
         }
 
-        if (g_value_get_boolean (filter_value) !=
-            g_value_get_boolean (channel_value))
+        if (!!g_value_get_boolean (filter_value) !=
+            !!g_value_get_boolean (channel_value))
         {
             /* the content does not match */
             return FALSE;
