@@ -223,8 +223,6 @@ static void mcd_dispatcher_leave_state_machine (McdDispatcherContext *context);
 static void on_operation_finished (McdDispatchOperation *operation,
                                    McdDispatcherContext *context);
 
-static gboolean channel_property_equals (GValue *value1, GValue *value2);
-
 typedef void (*tp_ch_handle_channel_reply) (DBusGProxy *proxy, GError *error, gpointer userdata);
 
 static inline void
@@ -888,20 +886,103 @@ match_property (GHashTable *channel_properties,
                 gchar *property_name,
                 GValue *filter_value)
 {
-    GValue *channel_value;
-
-    channel_value = g_hash_table_lookup (channel_properties,
-                                         property_name);
-    if (channel_value == NULL)
-    {
-        /* the channel does not even have this property */
-        return FALSE;
-    }
+    GType filter_type = G_VALUE_TYPE (filter_value);
 
     g_assert (G_IS_VALUE (filter_value));
-    g_assert (G_IS_VALUE (channel_value));
 
-    return channel_property_equals (filter_value, channel_value);
+    if (filter_type == G_TYPE_STRING)
+    {
+        const gchar *string;
+
+        string = tp_asv_get_string (channel_properties, property_name);
+        if (!string)
+            return FALSE;
+
+        return !tp_strdiff (string, g_value_get_string (filter_value));
+    }
+
+    if (filter_type == DBUS_TYPE_G_OBJECT_PATH)
+    {
+        const gchar *path;
+
+        path = tp_asv_get_object_path (channel_properties, property_name);
+        if (!path)
+            return FALSE;
+
+        return !tp_strdiff (path, g_value_get_boxed (filter_value));
+    }
+
+    if (filter_type == G_TYPE_BOOLEAN)
+    {
+        gboolean valid;
+        gboolean b;
+
+        b = tp_asv_get_boolean (channel_properties, property_name, &valid);
+        if (!valid)
+            return FALSE;
+
+        return !!b == !!g_value_get_boolean (filter_value);
+    }
+
+    if (filter_type == G_TYPE_UCHAR || filter_type == G_TYPE_UINT ||
+        filter_type == G_TYPE_UINT64)
+    {
+        gboolean valid;
+        guint64 i;
+
+        i = tp_asv_get_uint64 (channel_properties, property_name, &valid);
+        if (!valid)
+            return FALSE;
+
+        if (filter_type == G_TYPE_UCHAR)
+            return i == g_value_get_uchar (filter_value);
+        else if (filter_type == G_TYPE_UINT)
+            return i == g_value_get_uint (filter_value);
+        else
+            return i == g_value_get_uint64 (filter_value);
+    }
+
+    if (filter_type == G_TYPE_INT || filter_type == G_TYPE_INT64)
+    {
+        gboolean valid;
+        gint64 i;
+
+        i = tp_asv_get_int64 (channel_properties, property_name, &valid);
+        if (!valid)
+            return FALSE;
+
+        if (filter_type == G_TYPE_INT)
+            return i == g_value_get_int (filter_value);
+        else
+            return i == g_value_get_int64 (filter_value);
+    }
+
+    g_warning ("%s: Invalid type: %s",
+               G_STRFUNC, g_type_name (filter_type));
+    return FALSE;
+}
+
+/* return TRUE if the two channel classes are equals
+ */
+static gboolean
+channel_classes_equals (GHashTable *channel_class1, GHashTable *channel_class2)
+{
+    GHashTableIter iter;
+    gchar *property_name;
+    GValue *property_value;
+
+    if (g_hash_table_size (channel_class1) !=
+        g_hash_table_size (channel_class2))
+        return FALSE;
+
+    g_hash_table_iter_init (&iter, channel_class1);
+    while (g_hash_table_iter_next (&iter, (gpointer *) &property_name,
+                                   (gpointer *) &property_value)) 
+    {
+        if (!match_property (channel_class2, property_name, property_value))
+          return FALSE;
+    }
+    return TRUE;
 }
 
 /* returns TRUE if the channel matches one of the channel filters
@@ -2729,152 +2810,6 @@ GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher,
 			  &args);
 
     return args.channel_handler_caps;
-}
-
-static gint64
-get_signed_integer (GValue *value)
-{
-  switch (G_VALUE_TYPE (value))
-    {
-    case G_TYPE_INT:
-      return g_value_get_int (value);
-
-    case G_TYPE_INT64:
-      return g_value_get_int64 (value);
-
-    default:
-      g_assert_not_reached ();
-    }
-}
-
-static guint64
-get_unsigned_integer (GValue *value)
-{
-  switch (G_VALUE_TYPE (value))
-    {
-    case G_TYPE_UCHAR:
-      return g_value_get_uchar (value);
-
-    case G_TYPE_UINT:
-      return g_value_get_uint (value);
-      break;
-
-    case G_TYPE_UINT64:
-      return g_value_get_uint64 (value);
-
-    default:
-      g_assert_not_reached ();
-    }
-}
-
-/* return TRUE if the two GValue are equals
- * The check is done according to the spec of the ObserverChannelFilter
- * property
- */
-static gboolean
-channel_property_equals (GValue *value1, GValue *value2)
-{
-    GType type1 = G_VALUE_TYPE (value1);
-    GType type2 = G_VALUE_TYPE (value2);
-    gboolean value1_is_signed;
-
-    if (type1 == G_TYPE_BOOLEAN)
-        return G_VALUE_TYPE (value2) == G_TYPE_BOOLEAN &&
-            !!g_value_get_boolean (value1) == !!g_value_get_boolean (value2);
-
-    if (type1 == G_TYPE_STRING)
-        return G_VALUE_TYPE (value2) == G_TYPE_STRING &&
-            !tp_strdiff (g_value_get_string (value1),
-                         g_value_get_string (value2));
-
-    if (type1 == DBUS_TYPE_G_OBJECT_PATH)
-        return G_VALUE_TYPE (value2) == DBUS_TYPE_G_OBJECT_PATH &&
-            !tp_strdiff (g_value_get_boxed (value1),
-                         g_value_get_boxed (value2));
-
-    if (type1 == G_TYPE_UCHAR ||
-        type1 == G_TYPE_UINT ||
-        type1 == G_TYPE_UINT64)
-        value1_is_signed = FALSE;
-    else if (type1 == G_TYPE_INT ||
-             type1 == G_TYPE_INT64)
-        value1_is_signed = TRUE;
-    else
-    {
-        g_warning ("%s: Invalid type: %s",
-                   G_STRFUNC, g_type_name (G_VALUE_TYPE (value1)));
-        return FALSE;
-    }
-
-    /* integer case */
-
-    if (type2 == G_TYPE_UCHAR ||
-        type2 == G_TYPE_UINT ||
-        type2 == G_TYPE_UINT64)
-    {
-        if (value1_is_signed)
-        {
-            if (get_signed_integer (value1) < 0 ||
-                get_unsigned_integer (value2) > G_MAXINT64)
-                return FALSE;
-
-            return get_signed_integer (value1) ==
-                get_unsigned_integer (value2);
-        }
-        else
-        {
-            return get_unsigned_integer (value1) ==
-                get_unsigned_integer (value2);
-        }
-    }
-    else if (type2 == G_TYPE_INT ||
-             type2 == G_TYPE_INT64)
-    {
-        if (value1_is_signed)
-        {
-            return get_signed_integer (value1) ==
-                get_signed_integer (value2);
-        }
-        else
-        {
-            if (get_signed_integer (value2) < 0 ||
-                get_unsigned_integer (value1) > G_MAXINT64)
-                return FALSE;
-
-            return get_signed_integer (value1) ==
-                get_unsigned_integer (value2);
-        }
-    }
-    else
-        return FALSE;
-}
-
-/* return TRUE if the two channel classes are equals
- */
-static gboolean
-channel_classes_equals (GHashTable *channel_class1, GHashTable *channel_class2)
-{
-    GHashTableIter iter;
-    gchar *property_name;
-    GValue *property_value1;
-
-    if (g_hash_table_size (channel_class1) !=
-        g_hash_table_size (channel_class2))
-        return FALSE;
-
-    g_hash_table_iter_init (&iter, channel_class1);
-    while (g_hash_table_iter_next (&iter, (gpointer *) &property_name,
-                                   (gpointer *) &property_value1)) 
-    {
-        GValue *property_value2;
-        property_value2 = g_hash_table_lookup (channel_class2, property_name);
-        if (property_value2 == NULL)
-            return FALSE;
-
-        if (!channel_property_equals (property_value1, property_value2))
-            return FALSE;
-    }
-    return TRUE;
 }
 
 GPtrArray *
