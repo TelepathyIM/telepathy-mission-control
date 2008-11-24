@@ -35,6 +35,7 @@
  */
 
 #include <dlfcn.h>
+#include <errno.h>
 #include <glib.h>
 #include <glib/gprintf.h>
 #include <glib/gi18n.h>
@@ -1812,10 +1813,22 @@ parse_client_filter (GKeyFile *file, const gchar *group)
                 {
                     /* g_key_file_get_integer cannot be used because we need
                      * to support 64 bits */
+                    guint i;
                     GValue *value = tp_g_value_slice_new (G_TYPE_UINT64);
                     gchar *str = g_key_file_get_string (file, group, key,
                                                         NULL);
-                    g_value_set_uint64 (value, g_ascii_strtoull (str, NULL, 0));
+                    errno = 0;
+                    i = g_ascii_strtoull (str, NULL, 0);
+                    if (errno != 0)
+                    {
+                        g_warning ("Invalid unsigned integer '%s' in client"
+                                   " file", str);
+                    }
+                    else
+                    {
+                        g_value_set_uint64 (value, i);
+                        g_hash_table_insert (filter, file_property, value);
+                    }
                     g_free (str);
                     break;
                 }
@@ -1825,10 +1838,22 @@ parse_client_filter (GKeyFile *file, const gchar *group)
             case 'i':
             case 'x': /* signed integer */
                 {
+                    gint i;
                     GValue *value = tp_g_value_slice_new (G_TYPE_INT64);
                     gchar *str = g_key_file_get_string (file, group, key,
                                                         NULL);
-                    g_value_set_uint64 (value, g_ascii_strtoll (str, NULL, 0));
+                    errno = 0;
+                    i = g_ascii_strtoll (str, NULL, 0);
+                    if (errno != 0)
+                    {
+                        g_warning ("Invalid signed integer '%s' in client"
+                                   " file", str);
+                    }
+                    else
+                    {
+                        g_value_set_uint64 (value, i);
+                        g_hash_table_insert (filter, file_property, value);
+                    }
                     g_free (str);
                     break;
                 }
