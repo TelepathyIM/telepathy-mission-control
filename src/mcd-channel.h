@@ -129,6 +129,11 @@ GHashTable *_mcd_channel_get_requested_properties (McdChannel *channel);
 const gchar *_mcd_channel_get_request_path (McdChannel *channel);
 guint64 _mcd_channel_get_request_user_action_time (McdChannel *channel);
 const gchar *_mcd_channel_get_request_preferred_handler (McdChannel *channel);
+void _mcd_channel_set_request_use_existing (McdChannel *channel,
+                                            gboolean use_existing);
+gboolean _mcd_channel_get_request_use_existing (McdChannel *channel);
+
+void _mcd_channel_set_request_proxy (McdChannel *channel, McdChannel *source);
 
 void _mcd_channel_set_error (McdChannel *channel, GError *error);
 const GError *_mcd_channel_get_error (McdChannel *channel);

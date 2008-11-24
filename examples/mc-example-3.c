@@ -112,12 +112,12 @@ request_channel (McAccount *account, GQuark type, const gchar *contact)
     MC_ACCOUNT_CRD_SET (&req, target_id, contact);
     MC_ACCOUNT_CRD_SET (&req, target_handle_type, TP_HANDLE_TYPE_CONTACT);
     id = mc_account_channelrequest (account, &req, time(0),
-				    NULL, 0,
+				    NULL, MC_ACCOUNT_CR_FLAG_USE_EXISTING,
 				    channel_request_cb,
 				    g_strdup ("ciao"), g_free,
 				    to);
     g_debug ("Request id = %x", id);
-    g_timeout_add (1000, unref_test_object, to);
+    g_timeout_add (10000, unref_test_object, to);
 }
 
 static gboolean

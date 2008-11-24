@@ -2537,3 +2537,29 @@ mcd_dispatcher_add_filters (McdDispatcher *dispatcher,
                                    filter->user_data);
 }
 
+/*
+ * _mcd_dispatcher_reinvoke_handler:
+ * @dispatcher: The #McdDispatcher.
+ * @channel: a #McdChannel.
+ *
+ * Re-invoke the channel handler for @channel.
+ */
+void
+_mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
+                                  McdChannel *channel)
+{
+    McdDispatcherContext *context;
+
+    /* Preparing and filling the context */
+    context = g_new0 (McdDispatcherContext, 1);
+    context->ref_count = 1;
+    context->dispatcher = dispatcher;
+    context->channels = g_list_prepend (NULL, channel);
+
+    /* We must ref() the channel, because
+     * mcd_dispatcher_context_unref() will unref() it */
+    g_object_ref (channel);
+    mcd_dispatcher_run_handlers (context);
+    mcd_dispatcher_context_unref (context);
+}
+
