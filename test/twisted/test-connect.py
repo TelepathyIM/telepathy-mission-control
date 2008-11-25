@@ -9,9 +9,9 @@ FakeCM_bus_name = "org.freedesktop.Telepathy.ConnectionManager.fakecm"
 ConnectionManager_object_path = \
     "/org/freedesktop/Telepathy/ConnectionManager/fakecm"
 
-FakeClient_bus_name = "org.freedesktop.Telepathy.Client.fakeclient"
+FakeClient_bus_name = "org.freedesktop.Telepathy.Client.DRAFT.fakeclient"
 Client_object_path = \
-    "/org/freedesktop/Telepathy/Client/fakeclient"
+    "/org/freedesktop/Telepathy/Client/DRAFT/fakeclient"
 
 
 def test(q, bus, mc):

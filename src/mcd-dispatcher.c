@@ -137,10 +137,18 @@ typedef struct _McdClient
     gboolean activatable;
 } McdClient;
 
-#define MCD_IFACE_CLIENT "org.freedesktop.Telepathy.Client"
-#define MCD_IFACE_CLIENT_APPROVER "org.freedesktop.Telepathy.Client.Approver"
-#define MCD_IFACE_CLIENT_HANDLER "org.freedesktop.Telepathy.Client.Handler"
-#define MCD_IFACE_CLIENT_OBSERVER "org.freedesktop.Telepathy.Client.Observer"
+/* The same defines as MC_IFACE_CLIENT* from interfaces.h but without the
+ * ".DRAFT" suffix, to be used in .client files. Once the interfaces are
+ * undrafted, theses defines must be removed.
+ */
+#define MC_FILE_IFACE_CLIENT \
+    "org.freedesktop.Telepathy.Client"
+#define MC_FILE_IFACE_CLIENT_APPROVER \
+    "org.freedesktop.Telepathy.Client.Approver"
+#define MC_FILE_IFACE_CLIENT_HANDLER \
+    "org.freedesktop.Telepathy.Client.Handler"
+#define MC_FILE_IFACE_CLIENT_OBSERVER \
+    "org.freedesktop.Telepathy.Client.Observer"
 
 struct _McdDispatcherPrivate
 {
@@ -2089,11 +2097,11 @@ get_interfaces_cb (TpProxy *proxy,
 
     while (arr != NULL && *arr != NULL)
       {
-        if (strcmp (*arr, MCD_IFACE_CLIENT_APPROVER ".DRAFT") == 0)
+        if (strcmp (*arr, MC_IFACE_CLIENT_APPROVER) == 0)
           client->interfaces |= MCD_CLIENT_APPROVER;
-        if (strcmp (*arr, MCD_IFACE_CLIENT_HANDLER ".DRAFT") == 0)
+        if (strcmp (*arr, MC_IFACE_CLIENT_HANDLER) == 0)
           client->interfaces |= MCD_CLIENT_HANDLER;
-        if (strcmp (*arr, MCD_IFACE_CLIENT_OBSERVER ".DRAFT") == 0)
+        if (strcmp (*arr, MC_IFACE_CLIENT_OBSERVER) == 0)
           client->interfaces |= MCD_CLIENT_OBSERVER;
         arr++;
       }
@@ -2102,21 +2110,21 @@ get_interfaces_cb (TpProxy *proxy,
     if (client->interfaces & MCD_CLIENT_APPROVER)
       {
         tp_cli_dbus_properties_call_get (client->proxy, -1,
-            MCD_IFACE_CLIENT_APPROVER ".DRAFT", "ApproverChannelFilter",
+            MC_IFACE_CLIENT_APPROVER, "ApproverChannelFilter",
             get_channel_filter_cb, &client->approver_filters,
             NULL, G_OBJECT (self));
       }
     if (client->interfaces & MCD_CLIENT_HANDLER)
       {
         tp_cli_dbus_properties_call_get (client->proxy, -1,
-            MCD_IFACE_CLIENT_HANDLER ".DRAFT", "HandlerChannelFilter",
+            MC_IFACE_CLIENT_HANDLER, "HandlerChannelFilter",
             get_channel_filter_cb, &client->handler_filters,
             NULL, G_OBJECT (self));
       }
     if (client->interfaces & MCD_CLIENT_OBSERVER)
       {
         tp_cli_dbus_properties_call_get (client->proxy, -1,
-            MCD_IFACE_CLIENT_OBSERVER ".DRAFT", "ObserverChannelFilter",
+            MC_IFACE_CLIENT_OBSERVER, "ObserverChannelFilter",
             get_channel_filter_cb, &client->observer_filters,
             NULL, G_OBJECT (self));
       }
@@ -2128,9 +2136,8 @@ create_client_proxy (McdDispatcher *self, McdClient *client)
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
     gchar *bus_name, *object_path;
 
-    bus_name = g_strconcat ("org.freedesktop.Telepathy.Client.",
-                            client->name, NULL);
-    object_path = g_strconcat ("/org/freedesktop/Telepathy/Client/",
+    bus_name = g_strconcat (MC_IFACE_CLIENT ".", client->name, NULL);
+    object_path = g_strconcat ("/org/freedesktop/Telepathy/Client/DRAFT/",
                                client->name, NULL);
     client->proxy = g_object_new (TP_TYPE_PROXY,
                                   "dbus-daemon", priv->dbus_daemon,
@@ -2152,7 +2159,7 @@ parse_client_file (McdClient *client, GKeyFile *file)
     guint i;
     gsize len = 0;
 
-    iface_names = g_key_file_get_string_list (file, MCD_IFACE_CLIENT,
+    iface_names = g_key_file_get_string_list (file, MC_FILE_IFACE_CLIENT,
                                               "Interfaces", 0, NULL);
     if (!iface_names)
         return;
@@ -2160,11 +2167,11 @@ parse_client_file (McdClient *client, GKeyFile *file)
     client = g_slice_new0 (McdClient);
     for (i = 0; iface_names[i] != NULL; i++)
     {
-        if (strcmp (iface_names[i], MCD_IFACE_CLIENT_APPROVER) == 0)
+        if (strcmp (iface_names[i], MC_FILE_IFACE_CLIENT_APPROVER) == 0)
             client->interfaces |= MCD_CLIENT_APPROVER;
-        else if (strcmp (iface_names[i], MCD_IFACE_CLIENT_HANDLER) == 0)
+        else if (strcmp (iface_names[i], MC_FILE_IFACE_CLIENT_HANDLER) == 0)
             client->interfaces |= MCD_CLIENT_HANDLER;
-        else if (strcmp (iface_names[i], MCD_IFACE_CLIENT_OBSERVER) == 0)
+        else if (strcmp (iface_names[i], MC_FILE_IFACE_CLIENT_OBSERVER) == 0)
             client->interfaces |= MCD_CLIENT_OBSERVER;
     }
     g_strfreev (iface_names);
@@ -2174,7 +2181,7 @@ parse_client_file (McdClient *client, GKeyFile *file)
     for (i = 0; i < len; i++)
     {
         if (client->interfaces & MCD_CLIENT_APPROVER &&
-            g_str_has_prefix (groups[i], MCD_IFACE_CLIENT_APPROVER
+            g_str_has_prefix (groups[i], MC_FILE_IFACE_CLIENT_APPROVER
                               ".ApproverChannelFilter "))
         {
             client->approver_filters =
@@ -2182,7 +2189,7 @@ parse_client_file (McdClient *client, GKeyFile *file)
                                 parse_client_filter (file, groups[i]));
         }
         else if (client->interfaces & MCD_CLIENT_HANDLER &&
-            g_str_has_prefix (groups[i], MCD_IFACE_CLIENT_HANDLER
+            g_str_has_prefix (groups[i], MC_FILE_IFACE_CLIENT_HANDLER
                               ".HandlerChannelFilter "))
         {
             client->handler_filters =
@@ -2190,7 +2197,7 @@ parse_client_file (McdClient *client, GKeyFile *file)
                                 parse_client_filter (file, groups[i]));
         }
         else if (client->interfaces & MCD_CLIENT_OBSERVER &&
-            g_str_has_prefix (groups[i], MCD_IFACE_CLIENT_OBSERVER
+            g_str_has_prefix (groups[i], MC_FILE_IFACE_CLIENT_OBSERVER
                               ".ObserverChannelFilter "))
         {
             client->observer_filters =
@@ -2202,7 +2209,7 @@ parse_client_file (McdClient *client, GKeyFile *file)
 
     /* Other client options */
     client->bypass_approver =
-        g_key_file_get_boolean (file, MCD_IFACE_CLIENT_HANDLER,
+        g_key_file_get_boolean (file, MC_FILE_IFACE_CLIENT_HANDLER,
                                 "BypassApprover", NULL);
 
     client_add_interface_by_id (client);
@@ -2222,11 +2229,11 @@ create_mcd_client (McdDispatcher *self,
     GKeyFile *file;
     gboolean file_found = FALSE;
 
-    g_assert (strncmp (MCD_IFACE_CLIENT ".", name,
-          sizeof (MCD_IFACE_CLIENT ".") - 1) == 0);
+    g_assert (strncmp (MC_IFACE_CLIENT ".", name,
+          sizeof (MC_IFACE_CLIENT ".") - 1) == 0);
 
     client = g_slice_new0 (McdClient);
-    client->name = g_strdup (name + sizeof (MCD_IFACE_CLIENT ".") - 1);
+    client->name = g_strdup (name + sizeof (MC_IFACE_CLIENT ".") - 1);
     client->activatable = activatable;
     g_debug ("McdClient created for %s", name);
 
@@ -2308,7 +2315,7 @@ create_mcd_client (McdDispatcher *self,
     {
         g_debug ("No .client file for %s. Ask on D-Bus.", name);
         tp_cli_dbus_properties_call_get (client->proxy, -1,
-            MCD_IFACE_CLIENT ".DRAFT", "Interfaces", get_interfaces_cb, client,
+            MC_IFACE_CLIENT, "Interfaces", get_interfaces_cb, client,
             NULL, G_OBJECT (self));
     }
 
@@ -2332,7 +2339,7 @@ new_names_cb (McdDispatcher *self,
         const char *name = *names;
         names++;
 
-        if (strncmp (MCD_IFACE_CLIENT, name, sizeof (MCD_IFACE_CLIENT) - 1)
+        if (strncmp (MC_IFACE_CLIENT, name, sizeof (MC_IFACE_CLIENT) - 1)
             != 0)
         {
             /* This is not a Telepathy Client */
