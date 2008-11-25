@@ -2339,8 +2339,8 @@ new_names_cb (McdDispatcher *self,
         const char *name = *names;
         names++;
 
-        if (strncmp (MC_IFACE_CLIENT, name, sizeof (MC_IFACE_CLIENT) - 1)
-            != 0)
+        if (strncmp (MC_IFACE_CLIENT ".", name,
+                     sizeof (MC_IFACE_CLIENT ".") - 1) != 0)
         {
             /* This is not a Telepathy Client */
             continue;
