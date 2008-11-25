@@ -72,6 +72,11 @@ struct _McdChannelClass
     void (*status_changed_signal) (McdChannel * channel,
 				   McdChannelStatus status);
     void (*members_accepted_signal) (McdChannel *channel);
+    void (*_mc_reserved1) (void);
+    void (*_mc_reserved2) (void);
+    void (*_mc_reserved3) (void);
+    void (*_mc_reserved4) (void);
+    void (*_mc_reserved5) (void);
 };
 
 GType mcd_channel_get_type (void);
