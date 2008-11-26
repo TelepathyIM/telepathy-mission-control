@@ -126,6 +126,10 @@ typedef struct _McdClient
      *           * DBUS_TYPE_G_OBJECT_PATH: 'o'
      *           * G_TYPE_UINT64: 'y' (8b), 'q' (16b), 'u' (32b), 't' (64b)
      *           * G_TYPE_INT64:            'n' (16b), 'i' (32b), 'x' (64b)
+     *
+     * The list can be NULL if there is no filter, or the filters are not yet
+     * retrieven from the D-Bus *ChannelFitler properties. In the last case,
+     * the dispatcher just don't dispatch to this client.
      */
     GList *approver_filters;
     GList *handler_filters;
