@@ -256,7 +256,7 @@ typedef void (*McAccountChannelrequestCb) (McAccount *account,
 
 typedef enum
 {
-    MC_ACCOUNT_CR_FLAG_USE_EXISTING = 0,  /* if set, call EnsureChannel */
+    MC_ACCOUNT_CR_FLAG_USE_EXISTING = 1 << 0, /* if set, call EnsureChannel */
 } McAccountChannelrequestFlags;
 
 guint mc_account_channelrequest (McAccount *account,

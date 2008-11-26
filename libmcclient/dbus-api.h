@@ -119,4 +119,6 @@ void _mc_iface_add (GType type, GQuark interface,
 
 gboolean _mc_iface_is_ready (gpointer object, GQuark iface);
 
+GType _mc_gtype_from_dbus_signature (const gchar *signature);
+
 #endif

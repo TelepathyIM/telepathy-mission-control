@@ -95,6 +95,8 @@ typedef struct
     GHashTable *properties;
     guint64 user_time;
     gchar *preferred_handler;
+
+    gboolean use_existing;
 } McdChannelRequestData;
 
 enum _McdChannelSignalType
@@ -139,6 +141,9 @@ static guint last_req_id = 1;
 
 static void _mcd_channel_release_tp_channel (McdChannel *channel,
 					     gboolean close_channel);
+static void on_proxied_channel_status_changed (McdChannel *source,
+                                               McdChannelStatus status,
+                                               McdChannel *dest);
 
 static void
 channel_request_data_free (McdChannelRequestData *crd)
@@ -1293,6 +1298,43 @@ _mcd_channel_get_request_preferred_handler (McdChannel *channel)
     return crd->preferred_handler;
 }
 
+/*
+ * _mcd_channel_set_request_use_existing:
+ * @channel: the #McdChannel.
+ * @use_existing: %TRUE if @channel must be requested via EnsureChannel.
+ *
+ * Sets the use_existing flag on @channel request.
+ */
+void
+_mcd_channel_set_request_use_existing (McdChannel *channel,
+                                       gboolean use_existing)
+{
+    McdChannelRequestData *crd;
+
+    g_return_if_fail (MCD_IS_CHANNEL (channel));
+    crd = g_object_get_data ((GObject *)channel, CD_REQUEST);
+    if (G_UNLIKELY (!crd)) return;
+    crd->use_existing = use_existing;
+}
+
+/*
+ * _mcd_channel_get_request_use_existing:
+ * @channel: the #McdChannel.
+ *
+ * Returns: %TRUE if the channel musb be requested via EnsureChannel, %FALSE
+ * otherwise.
+ */
+gboolean
+_mcd_channel_get_request_use_existing (McdChannel *channel)
+{
+    McdChannelRequestData *crd;
+
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), FALSE);
+    crd = g_object_get_data ((GObject *)channel, CD_REQUEST);
+    if (G_UNLIKELY (!crd)) return FALSE;
+    return crd->use_existing;
+}
+
 /**
  * mcd_channel_is_requested:
  * @channel: the #McdChannel.
@@ -1323,5 +1365,65 @@ mcd_channel_get_account (McdChannel *channel)
         return mcd_connection_get_account (MCD_CONNECTION (connection));
     else
         return NULL;
+}
+
+static void
+copy_status (McdChannel *source, McdChannel *dest)
+{
+    McdChannelPrivate *src_priv, *dst_priv;
+
+    src_priv = source->priv;
+    dst_priv = dest->priv;
+    if (dst_priv->status != src_priv->status)
+    {
+        g_debug ("%s: source is %d, dest is %d", G_STRFUNC,
+                 src_priv->status, dst_priv->status);
+        if (src_priv->status == MCD_CHANNEL_FAILED)
+        {
+            const GError *error;
+
+            error = _mcd_channel_get_error (source);
+            /* this also takes care of setting the status */
+            _mcd_channel_set_error (dest, g_error_copy (error));
+        }
+        else
+            mcd_channel_set_status (dest, src_priv->status);
+    }
+
+    if (dst_priv->status == MCD_CHANNEL_FAILED ||
+        dst_priv->status == MCD_CHANNEL_DISPATCHED)
+    {
+        /* the request is completed, we are not interested in monitor the
+         * channel anymore */
+        g_signal_handlers_disconnect_by_func
+            (source, on_proxied_channel_status_changed, dest);
+        mcd_mission_abort (MCD_MISSION (dest));
+    }
+}
+
+static void
+on_proxied_channel_status_changed (McdChannel *source,
+                                   McdChannelStatus status,
+                                   McdChannel *dest)
+{
+    copy_status (source, dest);
+}
+
+/*
+ * _mcd_channel_set_request_proxy:
+ * @channel: the requested #McdChannel.
+ * @source: the #McdChannel to be proxied.
+ *
+ * This function turns @channel into a proxy for @source: it listens to
+ * "status-changed" signals from @source and replicates them on @channel
+ */
+void
+_mcd_channel_set_request_proxy (McdChannel *channel, McdChannel *source)
+{
+    g_return_if_fail (MCD_IS_CHANNEL (channel));
+    g_return_if_fail (MCD_IS_CHANNEL (source));
+    copy_status (source, channel);
+    g_signal_connect (source, "status-changed",
+                      G_CALLBACK (on_proxied_channel_status_changed), channel);
 }
 

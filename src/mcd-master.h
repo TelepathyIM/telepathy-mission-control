@@ -55,6 +55,12 @@ struct _McdMasterClass
     McdControllerClass parent_class;
     McdManager *(*create_manager) (McdMaster *master,
                                    const gchar *unique_name);
+    void (*_mc_reserved1) (void);
+    void (*_mc_reserved2) (void);
+    void (*_mc_reserved3) (void);
+    void (*_mc_reserved4) (void);
+    void (*_mc_reserved5) (void);
+    void (*_mc_reserved6) (void);
 };
 
 struct mcd_channel_request;

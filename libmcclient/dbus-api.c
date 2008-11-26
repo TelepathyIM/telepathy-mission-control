@@ -349,3 +349,18 @@ _mc_iface_call_when_all_readyv (TpProxy *proxy, GType type,
     multi_cb_data_free (mcbd);
 }
 
+GType
+_mc_gtype_from_dbus_signature (const gchar *signature)
+{
+    if (G_UNLIKELY (!signature)) return G_TYPE_INVALID;
+
+    if (strcmp (signature, "s") == 0)
+        return G_TYPE_STRING;
+    if (strcmp (signature, "b") == 0)
+        return G_TYPE_BOOLEAN;
+    if (strcmp (signature, "u") == 0)
+        return G_TYPE_UINT;
+    g_warning ("%s: Type %s not mapped", G_STRFUNC, signature);
+    return G_TYPE_INVALID;
+}
+

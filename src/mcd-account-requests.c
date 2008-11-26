@@ -130,14 +130,13 @@ create_request (McdAccount *account, GHashTable *properties,
     GHashTable *props;
     McdDispatcher *dispatcher;
 
-    /* TODO: handle use_existing */
-
     /* We MUST deep-copy the hash-table, as we don't know how dbus-glib will
      * free it */
     props = _mcd_deepcopy_asv (properties);
     channel = mcd_channel_new_request (props, user_time,
                                        preferred_handler);
     g_hash_table_unref (props);
+    _mcd_channel_set_request_use_existing (channel, use_existing);
 
     rd = g_slice_new (McdRequestData);
     rd->requestor_client_id = dbus_g_method_get_sender (context);

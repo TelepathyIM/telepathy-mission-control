@@ -2042,12 +2042,11 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
 }
 
 static void
-create_channel_cb (TpConnection *proxy, const gchar *channel_path,
-                   GHashTable *properties, const GError *error,
-                   gpointer user_data, GObject *weak_object)
+common_request_channel_cb (TpConnection *proxy, gboolean yours,
+                           const gchar *channel_path, GHashTable *properties,
+                           const GError *error,
+                           McdConnection *connection, McdChannel *channel)
 {
-    McdChannel *channel = MCD_CHANNEL (weak_object);
-    McdConnection *connection = user_data;
     McdConnectionPrivate *priv = connection->priv;
 
     if (error != NULL)
@@ -2065,6 +2064,38 @@ create_channel_cb (TpConnection *proxy, const gchar *channel_path,
     }
     g_debug ("%s: %p, object %s", G_STRFUNC, channel, channel_path);
 
+    /* if this was a call to EnsureChannel, it can happen that the returned
+     * channel was already created before; in that case we keep the McdChannel
+     * alive only as a proxy for the status-changed signals from the "real"
+     * McdChannel */
+    if (_mcd_channel_get_request_use_existing (channel))
+    {
+        McdChannel *existing;
+        existing = find_channel_by_path (connection, channel_path);
+        if (existing)
+        {
+            /* Two possibilities:
+             *
+             * 1) if @existing is not yet in dispatched state, proxy the
+             * signals from @existing to this request (@channel).
+             *
+             * 2) if @existing is already dispatched, we must re-invoke its
+             * handler
+             */
+            if (mcd_channel_get_status (channel) == MCD_CHANNEL_DISPATCHED)
+            {
+                g_debug ("reinvoking handler on channel %p", existing);
+                _mcd_dispatcher_reinvoke_handler (priv->dispatcher, existing);
+            }
+            else
+            {
+                g_debug ("channel %p is proxying %p", channel, existing);
+                _mcd_channel_set_request_proxy (channel, existing);
+            }
+            return;
+        }
+    }
+
     _mcd_channel_set_immutable_properties (channel,
                                            _mcd_deepcopy_asv (properties));
     /* Everything here is well and fine. We can create the channel. */
@@ -2078,6 +2109,27 @@ create_channel_cb (TpConnection *proxy, const gchar *channel_path,
      * NewChannels signal */
 }
 
+static void
+ensure_channel_cb (TpConnection *proxy, gboolean yours,
+                   const gchar *channel_path, GHashTable *properties,
+                   const GError *error,
+                   gpointer user_data, GObject *weak_object)
+{
+    common_request_channel_cb (proxy, yours, channel_path, properties, error,
+                               MCD_CONNECTION (user_data),
+                               MCD_CHANNEL (weak_object));
+}
+
+static void
+create_channel_cb (TpConnection *proxy, const gchar *channel_path,
+                   GHashTable *properties, const GError *error,
+                   gpointer user_data, GObject *weak_object)
+{
+    common_request_channel_cb (proxy, TRUE, channel_path, properties, error,
+                               MCD_CONNECTION (user_data),
+                               MCD_CHANNEL (weak_object));
+}
+
 static gboolean
 request_channel_new_iface (McdConnection *connection, McdChannel *channel)
 {
@@ -2085,9 +2137,18 @@ request_channel_new_iface (McdConnection *connection, McdChannel *channel)
     GHashTable *properties;
 
     properties = _mcd_channel_get_requested_properties (channel);
-    tp_cli_connection_interface_requests_call_create_channel
-        (priv->tp_conn, -1, properties, create_channel_cb, connection, NULL,
-         (GObject *)channel);
+    if (_mcd_channel_get_request_use_existing (channel))
+    {
+        tp_cli_connection_interface_requests_call_ensure_channel
+            (priv->tp_conn, -1, properties, ensure_channel_cb,
+             connection, NULL, (GObject *)channel);
+    }
+    else
+    {
+        tp_cli_connection_interface_requests_call_create_channel
+            (priv->tp_conn, -1, properties, create_channel_cb,
+             connection, NULL, (GObject *)channel);
+    }
     return TRUE;
 }
 
