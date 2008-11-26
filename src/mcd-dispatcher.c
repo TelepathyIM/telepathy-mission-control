@@ -775,10 +775,9 @@ start_old_channel_handler (McdDispatcherContext *context)
 {
     McdChannelHandler *chandler;
     McdDispatcherPrivate *priv;
-    McdChannel *channel;
+    McdChannel *channel = NULL;
     const gchar *protocol;
     GHashTable *channel_handler;
-    
 
     g_return_if_fail (context);
 
@@ -790,10 +789,13 @@ start_old_channel_handler (McdDispatcherContext *context)
 	g_hash_table_lookup (priv->channel_handler_hash,
 			     mcd_channel_get_channel_type (channel));
 
-    chandler = g_hash_table_lookup (channel_handler, protocol);
-    if (chandler == NULL)
-	chandler = g_hash_table_lookup (channel_handler, "default");
-    
+    if (channel_handler != NULL)
+    {
+        chandler = g_hash_table_lookup (channel_handler, protocol);
+        if (chandler == NULL)
+            chandler = g_hash_table_lookup (channel_handler, "default");
+    }
+
     if (chandler == NULL)
     {
 	GError *mc_error;
