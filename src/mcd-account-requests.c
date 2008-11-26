@@ -98,7 +98,7 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
 static McdChannel *
 create_request (McdAccount *account, GHashTable *properties,
                 guint64 user_time, const gchar *preferred_handler,
-                DBusGMethodInvocation *context, gboolean use_existing)
+                gboolean use_existing)
 {
     McdChannel *channel;
     GError *error = NULL;
@@ -146,7 +146,7 @@ account_request_create (McSvcAccountInterfaceChannelRequests *self,
     McdChannel *channel;
 
     channel = create_request (MCD_ACCOUNT (self), properties, user_time,
-                              preferred_handler, context, FALSE);
+                              preferred_handler, FALSE);
     if (error)
     {
         dbus_g_method_return_error (context, error);
@@ -170,7 +170,7 @@ account_request_ensure_channel (McSvcAccountInterfaceChannelRequests *self,
     McdChannel *channel;
 
     channel = create_request (MCD_ACCOUNT (self), properties, user_time,
-                              preferred_handler, context, TRUE);
+                              preferred_handler, TRUE);
 
     if (error)
     {
