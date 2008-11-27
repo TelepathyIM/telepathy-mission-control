@@ -101,6 +101,9 @@ struct _McdConnectionPrivate
     guint reconnect_interval;
     gboolean reconnection_requested;
 
+    /* Supported presences (values are McdPresenceInfo structs) */
+    GHashTable *recognized_presences;
+
     TpConnectionStatusReason abort_reason;
     guint got_capabilities : 1;
     guint got_contact_capabilities : 1;
@@ -124,13 +127,12 @@ struct _McdConnectionPrivate
     
 };
 
-struct presence_info
+typedef struct
 {
-    gchar *presence_str;
     TpConnectionPresenceType presence;
     guint may_set_on_self : 1;
     guint can_have_message : 1;
-};
+} McdPresenceInfo;
 
 struct param_data
 {
@@ -158,12 +160,27 @@ struct capabilities_wait_data {
     TpProxySignalConnection *signal_connection;
 };
 
+static const gchar *_available_fb[] = { NULL };
+static const gchar *_away_fb[] = { "away", NULL };
+static const gchar *_ext_away_fb[] = { "xa", "away", NULL };
+static const gchar *_hidden_fb[] = { "hidden", "dnd", "busy", "away", NULL };
+static const gchar *_busy_fb[] = { "busy", "dnd", "away", NULL };
+static const gchar **presence_fallbacks[] = {
+    _available_fb, _away_fb, _ext_away_fb, _hidden_fb, _busy_fb
+};
+
 static void request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 				const GError *error, gpointer user_data,
 				GObject *weak_object);
 static GError * map_tp_error_to_mc_error (McdChannel *channel, const GError *tp_error);
 static void _mcd_connection_setup (McdConnection * connection);
 static void _mcd_connection_release_tp_connection (McdConnection *connection);
+
+static void
+mcd_presence_info_free (McdPresenceInfo *pi)
+{
+    g_slice_free (McdPresenceInfo, pi);
+}
 
 static void
 presence_set_status_cb (TpConnection *proxy, const GError *error,
@@ -201,8 +218,41 @@ presence_set_status_cb (TpConnection *proxy, const GError *error,
     }
 }
 
+static gboolean
+_check_presence (McdConnectionPrivate *priv, TpConnectionPresenceType presence,
+                 const gchar **status)
+{
+    const gchar **fallbacks;
+
+    if (g_hash_table_lookup (priv->recognized_presences, *status))
+        return TRUE;
+
+    if (presence < TP_CONNECTION_PRESENCE_TYPE_AVAILABLE ||
+        presence > TP_CONNECTION_PRESENCE_TYPE_BUSY)
+        return FALSE;
+
+    fallbacks =
+        presence_fallbacks[presence - TP_CONNECTION_PRESENCE_TYPE_AVAILABLE];
+
+    for (; *fallbacks != NULL; fallbacks++)
+        if (g_hash_table_lookup (priv->recognized_presences, *fallbacks))
+            break;
+
+    /* assume that "available" is always supported -- otherwise, an error will
+     * be returned by SetPresence, but it's not a big loss */
+    if (*fallbacks == NULL)
+        *fallbacks = "available";
+
+    g_debug ("%s: account %s: presence %s not supported, setting %s",
+             G_STRFUNC, mcd_account_get_unique_name (priv->account),
+             *status, *fallbacks);
+    *status = *fallbacks;
+    return TRUE;
+}
+
 static void
 _mcd_connection_set_presence (McdConnection * connection,
+                              TpConnectionPresenceType presence,
 			      const gchar *status, const gchar *message)
 {
     McdConnectionPrivate *priv = connection->priv;
@@ -217,11 +267,63 @@ _mcd_connection_set_presence (McdConnection * connection,
 
     if (!priv->has_presence_if) return;
 
-    tp_cli_connection_interface_simple_presence_call_set_presence
-        (priv->tp_conn, -1, status, message, presence_set_status_cb,
-         priv, NULL, (GObject *)connection);
+    if (_check_presence (priv, presence, &status))
+        tp_cli_connection_interface_simple_presence_call_set_presence
+            (priv->tp_conn, -1, status, message, presence_set_status_cb,
+             priv, NULL, (GObject *)connection);
 }
 
+
+static void
+presence_get_statuses_cb (TpProxy *proxy, const GValue *v_statuses,
+			  const GError *error, gpointer user_data,
+			  GObject *weak_object)
+{
+    McdConnectionPrivate *priv = user_data;
+    McdConnection *connection = MCD_CONNECTION (weak_object);
+    TpConnectionPresenceType presence;
+    const gchar *status, *message;
+    GHashTable *statuses;
+    GHashTableIter iter;
+    gpointer ht_key, ht_value;
+
+    if (error)
+    {
+        g_warning ("%s: Get statuses failed for account %s: %s", G_STRFUNC,
+                   mcd_account_get_unique_name (priv->account),
+                   error->message);
+        return;
+    }
+
+    if (!priv->recognized_presences)
+        priv->recognized_presences =
+            g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
+                                   (GDestroyNotify)mcd_presence_info_free);
+
+    g_debug ("%s: account %s:",
+             G_STRFUNC, mcd_account_get_unique_name (priv->account));
+    statuses = g_value_get_boxed (v_statuses);
+    g_hash_table_iter_init (&iter, statuses);
+    while (g_hash_table_iter_next (&iter, &ht_key, &ht_value))
+    {
+        const gchar *status = ht_key;
+        GValueArray *va = ht_value;
+        McdPresenceInfo *pi;
+
+        g_debug ("  %s", status);
+        pi = g_slice_new (McdPresenceInfo);
+        pi->presence = g_value_get_uint (va->values);
+        pi->may_set_on_self = g_value_get_boolean (va->values + 1);
+        pi->can_have_message = g_value_get_boolean (va->values + 2);
+        g_hash_table_insert (priv->recognized_presences,
+                             g_strdup (status), pi);
+    }
+
+    /* Now the presence info is ready. We can set the presence */
+    mcd_account_get_requested_presence (priv->account, &presence,
+                                        &status, &message);
+    _mcd_connection_set_presence (connection, presence, status, message);
+}
 
 static void
 on_presences_changed (TpConnection *proxy, GHashTable *presences,
@@ -250,6 +352,10 @@ _mcd_connection_setup_presence (McdConnection *connection)
 {
     McdConnectionPrivate *priv =  connection->priv;
 
+    tp_cli_dbus_properties_call_get
+        (priv->tp_conn, -1, TP_IFACE_CONNECTION_INTERFACE_SIMPLE_PRESENCE,
+         "Statuses", presence_get_statuses_cb, priv, NULL,
+         (GObject *)connection);
     tp_cli_connection_interface_simple_presence_connect_to_presences_changed
         (priv->tp_conn, on_presences_changed, priv, NULL,
          (GObject *)connection, NULL);
@@ -312,8 +418,7 @@ on_presence_requested (McdAccount *account,
     }
     else
     {
-	if (mcd_connection_get_connection_status (connection) == TP_CONNECTION_STATUS_CONNECTED)
-            _mcd_connection_set_presence (connection, status, message);
+        _mcd_connection_set_presence (connection, presence, status, message);
     }
 }
 
@@ -1451,6 +1556,8 @@ _mcd_connection_finalize (GObject * object)
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
 
     g_free (priv->alias);
+    if (priv->recognized_presences)
+        g_hash_table_destroy (priv->recognized_presences);
 
     G_OBJECT_CLASS (mcd_connection_parent_class)->finalize (object);
 }
@@ -1487,6 +1594,9 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
      */
     g_free (priv->alias);
     priv->alias = NULL;
+
+    if (priv->recognized_presences)
+        g_hash_table_remove_all (priv->recognized_presences);
 }
 
 static void
