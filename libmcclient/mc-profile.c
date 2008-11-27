@@ -1251,7 +1251,7 @@ mc_profile_actions_list_by_vcard_fields (McProfile *profile,
 {
     McProfilePrivate *priv;
     gchar **groups;
-    GList *actions;
+    GList *actions = NULL;
     gsize len = 0;
     guint i;
 
