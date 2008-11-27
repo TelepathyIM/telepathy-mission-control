@@ -2539,7 +2539,7 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
 }
 
 static void
-_build_channel_capabilities (gchar *channel_type, McdChannelHandler *handler,
+_build_channel_capabilities (const gchar *channel_type, guint type_flags,
 			     GPtrArray *capabilities)
 {
     GValue cap = {0,};
@@ -2552,7 +2552,7 @@ _build_channel_capabilities (gchar *channel_type, McdChannelHandler *handler,
 
     dbus_g_type_struct_set (&cap,
 			    0, channel_type,
-			    1, handler->capabilities,
+			    1, type_flags,
 			    G_MAXUINT);
 
     g_ptr_array_add (capabilities, g_value_get_boxed (&cap));
@@ -2570,7 +2570,8 @@ _channel_capabilities (gchar *ctype, GHashTable *channel_handler,
     if (!handler)
 	handler = g_hash_table_lookup (channel_handler, "default");
 
-    _build_channel_capabilities (ctype, handler, args->channel_handler_caps);
+    _build_channel_capabilities (ctype, handler->capabilities,
+                                 args->channel_handler_caps);
 }
 
 static void
@@ -2830,6 +2831,8 @@ GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher,
 {
     McdDispatcherPrivate *priv = dispatcher->priv;
     McdDispatcherArgs args;
+    GHashTableIter iter;
+    gpointer key, value;
 
     args.dispatcher = dispatcher;
     args.protocol = protocol;
@@ -2839,6 +2842,32 @@ GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher,
 			  (GHFunc)_channel_capabilities,
 			  &args);
 
+    /* Add the capabilities from the new-style clients */
+    g_hash_table_iter_init (&iter, priv->clients);
+    while (g_hash_table_iter_next (&iter, &key, &value)) 
+    {
+        McdClient *client = value;
+        GList *list;
+
+        for (list = client->handler_filters; list != NULL; list = list->next)
+        {
+            GHashTable *channel_class = list->data;
+            const gchar *channel_type;
+            guint type_flags;
+
+            channel_type = tp_asv_get_string (channel_class,
+                                              TP_IFACE_CHANNEL ".ChannelType");
+            if (!channel_type) continue;
+
+            /* There is currently no way to map the HandlerChannelFilter client
+             * property into type-specific capabilities. Let's pretend we
+             * support everything. */
+            type_flags = 0xffffffff;
+
+            _build_channel_capabilities (channel_type, type_flags,
+                                         args.channel_handler_caps);
+        }
+    }
     return args.channel_handler_caps;
 }
 
