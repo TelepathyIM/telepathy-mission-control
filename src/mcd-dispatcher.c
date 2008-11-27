@@ -2148,8 +2148,6 @@ create_client_proxy (McdDispatcher *self, McdClient *client)
                                   "object-path", object_path,
                                   "bus-name", bus_name,
                                   NULL);
-    /* call this empty auto-generated function or it will be unused */
-    mc_cli_client_add_signals(NULL, 0, NULL, NULL);
     g_free (object_path);
     g_free (bus_name);
 
@@ -2472,6 +2470,9 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
     object_class->finalize = _mcd_dispatcher_finalize;
     object_class->dispose = _mcd_dispatcher_dispose;
     klass->send = _mcd_dispatcher_send;
+
+    tp_proxy_or_subclass_hook_on_interface_add
+        (TP_TYPE_PROXY, mc_cli_client_add_signals);
 
     signals[CHANNEL_ADDED] =
 	g_signal_new ("channel_added",
