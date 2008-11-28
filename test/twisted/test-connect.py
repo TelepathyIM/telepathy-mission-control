@@ -106,7 +106,9 @@ def test(q, bus, mc):
         properties.get('RequestedPresence')
 
     new_channel = http_fixed_properties
-    new_channel['org.freedesktop.Telepathy.Channel.TargetHandle'] = 2L
+    handle = fake_conn.get_handle("buddy")
+    new_channel['org.freedesktop.Telepathy.Channel.TargetID'] = "buddy"
+    new_channel['org.freedesktop.Telepathy.Channel.TargetHandle'] = handle
 
     fake_conn.new_incoming_channel('/foobar', new_channel)
 

@@ -2,6 +2,7 @@ import dbus
 import dbus.service
 from servicetest import Event
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix
+from twisted.internet import reactor
 
 properties_iface = "org.freedesktop.DBus.Properties"
 cm_iface = "org.freedesktop.Telepathy.ConnectionManager"
@@ -9,6 +10,48 @@ conn_iface = "org.freedesktop.Telepathy.Connection"
 caps_iface = \
   "org.freedesktop.Telepathy.Connection.Interface.ContactCapabilities.DRAFT"
 requests_iface = "org.freedesktop.Telepathy.Connection.Interface.Requests"
+channel_iface = "org.freedesktop.Telepathy.Channel"
+
+class FakeChannel(dbus.service.Object):
+    def __init__(self, conn, object_path, q, bus, nameref, props):
+        self.conn = conn
+        self.object_path = object_path
+        self.q = q
+        self.bus = bus
+        # keep a reference on nameref, otherwise, the name will be lost!
+        self.nameref = nameref
+        self.props = props
+
+        if channel_iface + '.TargetHandle' not in props:
+            self.props[channel_iface + '.TargetHandle'] = \
+                self.conn.get_handle(props[channel_iface + '.TargetID'])
+
+        dbus.service.Object.__init__(self, bus, object_path)
+
+    def called(self, method):
+        self.q.append(Event('dbus-method-call', name=method, obj=self,
+                    path=self.object_path))
+
+    @dbus.service.method(dbus_interface=channel_iface,
+                         in_signature='', out_signature='as')
+    def GetInterfaces(self):
+        self.called('GetInterfaces')
+        return [self.props[channel_iface + '.ChannelType']]
+
+    @dbus.service.method(dbus_interface=channel_iface,
+                         in_signature='', out_signature='u')
+    def GetHandle(self):
+        return self.props[channel_iface + '.TargetHandle']
+
+    @dbus.service.method(dbus_interface=channel_iface,
+                         in_signature='', out_signature='')
+    def Close(self):
+        self.Closed()
+
+    @dbus.service.signal(dbus_interface=channel_iface, signature='')
+    def Closed(self):
+        pass
+
 
 class FakeConn(dbus.service.Object):
     def __init__(self, object_path, q, bus, nameref):
@@ -18,7 +61,10 @@ class FakeConn(dbus.service.Object):
         # keep a reference on nameref, otherwise, the name will be lost!
         self.nameref = nameref 
         self.status = 2 # Connection_Status_Disconnected
+        self.next_channel_id = 1
         self.channels = []
+        self.handles = {}
+        self.next_handle = 1337 # break people depending on SelfHandle == 1
         dbus.service.Object.__init__(self, bus, object_path)
 
     # interface Connection
@@ -39,12 +85,22 @@ class FakeConn(dbus.service.Object):
                     obj=self, path=self.object_path))
         return dbus.Array([conn_iface, caps_iface, requests_iface])
 
+    def get_handle(self, id):
+        for handle, id_ in self.handles.iteritems():
+            if id_ == id:
+                return handle
+        handle = self.next_handle
+        self.next_handle += 1
+
+        self.handles[handle] = id
+        return handle
+
     @dbus.service.method(dbus_interface=conn_iface,
                          in_signature='', out_signature='u')
     def GetSelfHandle(self):
         self.q.append(Event('dbus-method-call', name="GetSelfHandle",
                     obj=self, path=self.object_path))
-        return 0
+        return self.get_handle('fakeaccount')
 
     @dbus.service.method(dbus_interface=conn_iface,
                          in_signature='', out_signature='u')
@@ -59,7 +115,28 @@ class FakeConn(dbus.service.Object):
         self.q.append(Event('dbus-method-call', name="InspectHandles",
                     obj=self, path=self.object_path, handle_type=handle_type,
                     handles=handles))
-        return ["self@server"]
+        if handle_type != 1:
+            raise "non-contact handles don't exist"
+
+        ret = []
+        for handle in handles:
+            if handle not in self.handles:
+                raise "%d is not a valid handle" % handle
+            ret.append(self.handles[handle])
+
+        return ret
+
+    @dbus.service.method(dbus_interface=conn_iface,
+                         in_signature='uas', out_signature='au')
+    def RequestHandles(self, type, ids):
+        if type != 1:
+            raise "non-contact handles don't exist"
+
+        ret = []
+        for id in ids:
+            ret.append(self.get_handle(id))
+
+        return ret
 
     @dbus.service.signal(dbus_interface=conn_iface,
                          signature='uu')
@@ -123,6 +200,37 @@ class FakeConn(dbus.service.Object):
                 asv['org.freedesktop.Telepathy.Channel.TargetHandleType'],
                 asv['org.freedesktop.Telepathy.Channel.TargetHandle'],
                 False)
+
+    # interface Connection.Interface.Requests
+    def make_channel(self, props):
+        path = self.object_path + "/channel%d" % self.next_channel_id
+        self.next_channel_id += 1
+        chan = FakeChannel(self, path, self.q, self.bus, self.nameref, props)
+        reactor.callLater(0, self.NewChannels, [(chan, props)])
+        return chan
+
+    @dbus.service.method(dbus_interface=requests_iface,
+                         in_signature='a{sv}', out_signature='oa{sv}')
+    def CreateChannel(self, request):
+        self.q.append(Event('dbus-method-call', name="CreateChannel",
+                    obj=self, interface_name=requests_iface))
+        chan = self.make_channel(request)
+        return (chan, request)
+
+    @dbus.service.method(dbus_interface=requests_iface,
+                         in_signature='a{sv}', out_signature='boa{sv}')
+    def EnsureChannel(self, request):
+        self.q.append(Event('dbus-method-call', name="EnsureChannel",
+                    obj=self, interface_name=requests_iface))
+        chan = self.make_channel(request)
+        self.q
+        return (True, chan, request)
+
+    @dbus.service.signal(dbus_interface=requests_iface,
+                         signature="o")
+    def ChannelClosed(self, channel):
+        pass
+
 
 
 class FakeCM(dbus.service.Object):
