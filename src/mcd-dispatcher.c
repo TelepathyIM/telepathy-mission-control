@@ -2966,7 +2966,6 @@ add_request_cb (TpProxy *proxy, const GError *error, gpointer user_data,
                 GObject *weak_object)
 {
     McdChannel *channel = MCD_CHANNEL (user_data);
-    McdRemoveRequestData *rrd;
 
     if (error)
     {
@@ -2974,17 +2973,6 @@ add_request_cb (TpProxy *proxy, const GError *error, gpointer user_data,
                    _mcd_channel_get_request_path (channel), error->message);
         return;
     }
-
-    rrd = g_slice_new (McdRemoveRequestData);
-    /* store the request path, because it might not be available when the
-     * channel status changes */
-    rrd->request_path = g_strdup (_mcd_channel_get_request_path (channel));
-    rrd->handler = proxy;
-    g_object_ref (proxy);
-    /* we must watch whether the request fails and in that case call
-     * RemoveFailedRequest */
-    g_signal_connect (channel, "status-changed",
-                      G_CALLBACK (on_request_status_changed), rrd);
 }
 
 /*
@@ -3010,6 +2998,7 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
     GPtrArray *requests;
     GHashTableIter iter;
     McdClient *client;
+    McdRemoveRequestData *rrd;
 
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
     g_return_if_fail (MCD_IS_CHANNEL (channel));
@@ -3077,6 +3066,18 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
 
     g_hash_table_unref (properties);
     g_ptr_array_free (requests, TRUE);
+
+    /* Prepare for a RemoveFailedRequest */
+    rrd = g_slice_new (McdRemoveRequestData);
+    /* store the request path, because it might not be available when the
+     * channel status changes */
+    rrd->request_path = g_strdup (_mcd_channel_get_request_path (channel));
+    rrd->handler = handler->proxy;
+    g_object_ref (handler->proxy);
+    /* we must watch whether the request fails and in that case call
+     * RemoveFailedRequest */
+    g_signal_connect (channel, "status-changed",
+                      G_CALLBACK (on_request_status_changed), rrd);
 }
 
 /*
