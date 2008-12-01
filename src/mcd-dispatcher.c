@@ -2141,7 +2141,7 @@ create_client_proxy (McdDispatcher *self, McdClient *client)
     gchar *bus_name, *object_path;
 
     bus_name = g_strconcat (MC_IFACE_CLIENT ".", client->name, NULL);
-    object_path = g_strconcat ("/org/freedesktop/Telepathy/Client/DRAFT/",
+    object_path = g_strconcat ("/org/freedesktop/Telepathy/Client/",
                                client->name, NULL);
     client->proxy = g_object_new (TP_TYPE_PROXY,
                                   "dbus-daemon", priv->dbus_daemon,
