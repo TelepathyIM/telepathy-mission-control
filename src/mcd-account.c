@@ -1928,38 +1928,47 @@ mcd_account_get_alias (McdAccount *account)
 				  MC_ACCOUNTS_KEY_ALIAS, NULL);
 }
 
-static inline void
-process_online_requests (McdAccount *account,
-			 TpConnectionStatus status,
-			 TpConnectionStatusReason reason)
+void
+_mcd_account_online_request_completed (McdAccount *account, GError *error)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     McdOnlineRequestData data;
 
     if (!priv->online_requests) return;
 
+    data.error = error;
+    data.account = account;
+    g_hash_table_foreach (priv->online_requests,
+                          process_online_request,
+                          &data);
+    if (error)
+        g_error_free (error);
+    g_hash_table_destroy (priv->online_requests);
+    priv->online_requests = NULL;
+}
+
+static inline void
+process_online_requests (McdAccount *account,
+			 TpConnectionStatus status,
+			 TpConnectionStatusReason reason)
+{
+    McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
+    GError *error;
+
     switch (status)
     {
     case TP_CONNECTION_STATUS_CONNECTED:
-	data.error = NULL;
+        error = NULL;
 	break;
     case TP_CONNECTION_STATUS_DISCONNECTED:
-	data.error = NULL;
-	g_set_error (&data.error, TP_ERRORS, TP_ERROR_DISCONNECTED,
-		     "Account %s disconnected with reason %d",
-		     priv->unique_name, reason);
+        error = g_error_new (TP_ERRORS, TP_ERROR_DISCONNECTED,
+                             "Account %s disconnected with reason %d",
+                             priv->unique_name, reason);
 	break;
     default:
 	return;
     }
-    data.account = account;
-    g_hash_table_foreach (priv->online_requests,
-			  process_online_request,
-			  &data);
-    if (data.error)
-	g_error_free (data.error);
-    g_hash_table_destroy (priv->online_requests);
-    priv->online_requests = NULL;
+    _mcd_account_online_request_completed (account, error);
 }
 
 void
@@ -2110,13 +2119,6 @@ _mcd_account_online_request (McdAccount *account,
 	/* listen to the StatusChanged signal */
        	if (priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED)
             _mcd_account_request_connection (account);
-	if (!priv->connection)
-	{
-	    g_set_error (imm_error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
-			 "Could not create a connection for account %s",
-			 priv->unique_name);
-	    return FALSE;
-	}
 
 	/* now the connection should be in connecting state; insert the
 	 * callback in the online_requests hash table, which will be processed

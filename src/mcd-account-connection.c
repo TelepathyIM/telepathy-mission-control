@@ -103,6 +103,15 @@ mcd_account_connection_proceed (McdAccount *account, gboolean success)
 	{
 	    _mcd_account_connect (account, ctx->params);
 	}
+        else
+        {
+            GError *error;
+
+            error = g_error_new (TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+                                 "Plugins refused connection to account %s",
+                                 mcd_account_get_unique_name (account));
+            _mcd_account_online_request_completed (account, error);
+        }
 	g_object_set_qdata ((GObject *)account,
 			    account_connection_context_quark, NULL);
     }

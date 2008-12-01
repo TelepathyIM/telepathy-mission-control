@@ -51,6 +51,9 @@ gboolean _mcd_account_online_request (McdAccount *account,
                                       gpointer userdata,
                                       GError **imm_error);
 void _mcd_account_request_connection (McdAccount *account);
+G_GNUC_INTERNAL
+void _mcd_account_online_request_completed (McdAccount *account,
+                                            GError *error);
 
 #endif /* __MCD_ACCOUNT_PRIV_H__ */
 
