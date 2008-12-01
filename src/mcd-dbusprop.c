@@ -26,6 +26,8 @@
 #include <string.h>
 #include <telepathy-glib/errors.h>
 #include "mcd-dbusprop.h"
+#include <_gen/interfaces.h>
+#include <_gen/interfaces-body.h>
 
 #define MCD_INTERFACES_QUARK get_interfaces_quark()
 
