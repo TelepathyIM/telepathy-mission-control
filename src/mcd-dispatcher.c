@@ -2961,20 +2961,6 @@ on_request_status_changed (McdChannel *channel, McdChannelStatus status,
                                           rrd);
 }
 
-static void
-add_request_cb (TpProxy *proxy, const GError *error, gpointer user_data,
-                GObject *weak_object)
-{
-    McdChannel *channel = MCD_CHANNEL (user_data);
-
-    if (error)
-    {
-        g_warning ("AddRequest %s failed: %s",
-                   _mcd_channel_get_request_path (channel), error->message);
-        return;
-    }
-}
-
 /*
  * _mcd_dispatcher_add_request:
  * @context: the #McdDispatcherContext.
@@ -3059,10 +3045,9 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
     g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest"
                          ".PreferredHandler", &v_preferred_handler);
 
-    g_object_ref (channel);
     mc_cli_client_handler_call_add_request (handler->proxy, -1,
         _mcd_channel_get_request_path (channel), properties,
-        add_request_cb, channel, g_object_unref, (GObject *)dispatcher);
+        NULL, NULL, NULL, NULL);
 
     g_hash_table_unref (properties);
     g_ptr_array_free (requests, TRUE);
