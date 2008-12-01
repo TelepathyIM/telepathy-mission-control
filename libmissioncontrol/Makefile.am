@@ -223,10 +223,11 @@ _gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml)
 		$< > $@
 
 _gen/cli-%-body.h _gen/cli-%.h: _gen/%.xml \
-	$(tools_dir)/glib-blocking-client-gen.py Makefile.am
-	$(PYTHON) $(tools_dir)/glib-blocking-client-gen.py \
+	$(tools_dir)/glib-client-gen.py Makefile.am
+	$(PYTHON) $(tools_dir)/glib-client-gen.py \
 		--group=`echo $* | tr x- x_` \
 		--iface-quark-prefix=MC_IFACE_QUARK \
+		--generate-blocking \
 		$< Mc_Cli _gen/cli-$*
 
 _gen/svc-%.c _gen/svc-%.h: _gen/%.xml \
