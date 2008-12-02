@@ -581,10 +581,13 @@ on_account_property_changed (TpProxy *proxy, GHashTable *props,
 
     g_hash_table_foreach (props, update_property, account);
     if (priv->props->emit_connection_status_changed)
+    {
 	g_signal_emit (account,
 		       _mc_account_signals[CONNECTION_STATUS_CHANGED], 0,
 		       priv->props->connection_status,
 		       priv->props->connection_status_reason);
+        priv->props->emit_connection_status_changed = FALSE;
+    }
 }
 
 static void
