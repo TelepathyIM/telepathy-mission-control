@@ -2009,7 +2009,7 @@ get_channel_filter_cb (TpProxy *proxy,
 {
     GList **client_filters = user_data;
     GPtrArray *filters = g_value_get_boxed (out_Value);
-    int i;
+    guint i;
 
     for (i = 0 ; i < filters->len ; i++)
     {
@@ -2892,7 +2892,7 @@ mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher * dispatcher)
         for (list = client->handler_filters; list != NULL; list = list->next)
         {
             GHashTable *channel_class = list->data;
-            int i;
+            guint i;
             gboolean already_in_caps = FALSE;
 
             /* Check if the filter is already in the caps variable */

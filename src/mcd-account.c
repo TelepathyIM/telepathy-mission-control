@@ -734,13 +734,13 @@ set_automatic_presence (TpSvcDBusProperties *self,
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
     const gchar *status, *message;
-    gint type;
+    TpConnectionPresenceType type;
     gboolean changed = FALSE;
     GValueArray *va;
 
     g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
     va = g_value_get_boxed (value);
-    type = (gint)g_value_get_uint (va->values);
+    type = g_value_get_uint (va->values);
     status = g_value_get_string (va->values + 1);
     message = g_value_get_string (va->values + 2);
     g_debug ("setting automatic presence: %d, %s, %s", type, status, message);
