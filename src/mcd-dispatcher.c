@@ -989,10 +989,10 @@ channel_classes_equals (GHashTable *channel_class1, GHashTable *channel_class2)
 
     g_hash_table_iter_init (&iter, channel_class1);
     while (g_hash_table_iter_next (&iter, (gpointer *) &property_name,
-                                   (gpointer *) &property_value)) 
+                                   (gpointer *) &property_value))
     {
         if (!match_property (channel_class2, property_name, property_value))
-          return FALSE;
+            return FALSE;
     }
     return TRUE;
 }
@@ -1018,7 +1018,7 @@ match_filters (McdChannel *channel, GList *filters)
         g_hash_table_iter_init (&filter_iter, filter);
         while (g_hash_table_iter_next (&filter_iter,
                                        (gpointer *) &property_name,
-                                       (gpointer *) &filter_value)) 
+                                       (gpointer *) &filter_value))
         {
             if (! match_property (channel_properties, property_name,
                                 filter_value))
@@ -1029,10 +1029,10 @@ match_filters (McdChannel *channel, GList *filters)
         }
 
         if (filter_matched)
-          {
-              matched = TRUE;
-              break;
-          }
+        {
+            matched = TRUE;
+            break;
+        }
     }
 
     return matched;
@@ -1902,93 +1902,89 @@ parse_client_filter (GKeyFile *file, const gchar *group)
 
         switch (file_property_type)
         {
-            case 'q':
-            case 'u':
-            case 't': /* unsigned integer */
+        case 'q':
+        case 'u':
+        case 't': /* unsigned integer */
+            {
+                /* g_key_file_get_integer cannot be used because we need
+                 * to support 64 bits */
+                guint i;
+                GValue *value = tp_g_value_slice_new (G_TYPE_UINT64);
+                gchar *str = g_key_file_get_string (file, group, key,
+                                                    NULL);
+                errno = 0;
+                i = g_ascii_strtoull (str, NULL, 0);
+                if (errno != 0)
                 {
-                    /* g_key_file_get_integer cannot be used because we need
-                     * to support 64 bits */
-                    guint i;
-                    GValue *value = tp_g_value_slice_new (G_TYPE_UINT64);
-                    gchar *str = g_key_file_get_string (file, group, key,
-                                                        NULL);
-                    errno = 0;
-                    i = g_ascii_strtoull (str, NULL, 0);
-                    if (errno != 0)
-                    {
-                        g_warning ("Invalid unsigned integer '%s' in client"
-                                   " file", str);
-                    }
-                    else
-                    {
-                        g_value_set_uint64 (value, i);
-                        g_hash_table_insert (filter, file_property, value);
-                    }
-                    g_free (str);
-                    break;
+                    g_warning ("Invalid unsigned integer '%s' in client"
+                               " file", str);
                 }
-
-            case 'y':
-            case 'n':
-            case 'i':
-            case 'x': /* signed integer */
+                else
                 {
-                    gint i;
-                    GValue *value = tp_g_value_slice_new (G_TYPE_INT64);
-                    gchar *str = g_key_file_get_string (file, group, key,
-                                                        NULL);
-                    errno = 0;
-                    i = g_ascii_strtoll (str, NULL, 0);
-                    if (errno != 0)
-                    {
-                        g_warning ("Invalid signed integer '%s' in client"
-                                   " file", str);
-                    }
-                    else
-                    {
-                        g_value_set_uint64 (value, i);
-                        g_hash_table_insert (filter, file_property, value);
-                    }
-                    g_free (str);
-                    break;
-                }
-
-            case 'b':
-                {
-                    GValue *value = tp_g_value_slice_new (G_TYPE_BOOLEAN);
-                    gboolean b = g_key_file_get_boolean (file, group, key,
-                                                         NULL);
-                    g_value_set_boolean (value, b);
+                    g_value_set_uint64 (value, i);
                     g_hash_table_insert (filter, file_property, value);
-                    break;
                 }
+                g_free (str);
+                break;
+            }
 
-            case 's':
+        case 'y':
+        case 'n':
+        case 'i':
+        case 'x': /* signed integer */
+            {
+                gint i;
+                GValue *value = tp_g_value_slice_new (G_TYPE_INT64);
+                gchar *str = g_key_file_get_string (file, group, key, NULL);
+                errno = 0;
+                i = g_ascii_strtoll (str, NULL, 0);
+                if (errno != 0)
                 {
-                    GValue *value = tp_g_value_slice_new (G_TYPE_STRING);
-                    gchar *str = g_key_file_get_string (file, group, key,
-                                                        NULL);
-
-                    g_value_set_string (value, str);
-                    g_hash_table_insert (filter, file_property, value);
-                    break;
+                    g_warning ("Invalid signed integer '%s' in client"
+                               " file", str);
                 }
-
-            case 'o':
+                else
                 {
-                    GValue *value = tp_g_value_slice_new
-                        (DBUS_TYPE_G_OBJECT_PATH);
-                    gchar *str = g_key_file_get_string (file, group, key,
-                                                        NULL);
-
-                    g_value_set_boxed (value, str);
+                    g_value_set_uint64 (value, i);
                     g_hash_table_insert (filter, file_property, value);
-                    break;
                 }
+                g_free (str);
+                break;
+            }
 
-            default:
-                g_warning ("Invalid key %s in client file", key);
-                continue;
+        case 'b':
+            {
+                GValue *value = tp_g_value_slice_new (G_TYPE_BOOLEAN);
+                gboolean b = g_key_file_get_boolean (file, group, key, NULL);
+                g_value_set_boolean (value, b);
+                g_hash_table_insert (filter, file_property, value);
+                break;
+            }
+
+        case 's':
+            {
+                GValue *value = tp_g_value_slice_new (G_TYPE_STRING);
+                gchar *str = g_key_file_get_string (file, group, key, NULL);
+
+                g_value_set_string (value, str);
+                g_hash_table_insert (filter, file_property, value);
+                break;
+            }
+
+        case 'o':
+            {
+                GValue *value = tp_g_value_slice_new
+                    (DBUS_TYPE_G_OBJECT_PATH);
+                gchar *str = g_key_file_get_string (file, group, key, NULL);
+
+                g_value_set_boxed (value, str);
+                g_hash_table_insert (filter, file_property, value);
+                break;
+            }
+
+        default:
+            g_warning ("Invalid key %s in client file", key);
+            continue;
         }
     }
     g_strfreev (keys);
@@ -2100,38 +2096,38 @@ get_interfaces_cb (TpProxy *proxy,
     arr = g_value_get_boxed (out_Value);
 
     while (arr != NULL && *arr != NULL)
-      {
+    {
         if (strcmp (*arr, MC_IFACE_CLIENT_APPROVER) == 0)
-          client->interfaces |= MCD_CLIENT_APPROVER;
+            client->interfaces |= MCD_CLIENT_APPROVER;
         if (strcmp (*arr, MC_IFACE_CLIENT_HANDLER) == 0)
-          client->interfaces |= MCD_CLIENT_HANDLER;
+            client->interfaces |= MCD_CLIENT_HANDLER;
         if (strcmp (*arr, MC_IFACE_CLIENT_OBSERVER) == 0)
-          client->interfaces |= MCD_CLIENT_OBSERVER;
+            client->interfaces |= MCD_CLIENT_OBSERVER;
         arr++;
-      }
+    }
 
     client_add_interface_by_id (client);
     if (client->interfaces & MCD_CLIENT_APPROVER)
-      {
-        tp_cli_dbus_properties_call_get (client->proxy, -1,
-            MC_IFACE_CLIENT_APPROVER, "ApproverChannelFilter",
-            get_channel_filter_cb, &client->approver_filters,
-            NULL, G_OBJECT (self));
-      }
+    {
+        tp_cli_dbus_properties_call_get
+            (client->proxy, -1, MC_IFACE_CLIENT_APPROVER,
+             "ApproverChannelFilter", get_channel_filter_cb,
+             &client->approver_filters, NULL, G_OBJECT (self));
+    }
     if (client->interfaces & MCD_CLIENT_HANDLER)
-      {
-        tp_cli_dbus_properties_call_get (client->proxy, -1,
-            MC_IFACE_CLIENT_HANDLER, "HandlerChannelFilter",
-            get_channel_filter_cb, &client->handler_filters,
-            NULL, G_OBJECT (self));
-      }
+    {
+        tp_cli_dbus_properties_call_get
+            (client->proxy, -1, MC_IFACE_CLIENT_HANDLER,
+             "HandlerChannelFilter", get_channel_filter_cb,
+             &client->handler_filters, NULL, G_OBJECT (self));
+    }
     if (client->interfaces & MCD_CLIENT_OBSERVER)
-      {
-        tp_cli_dbus_properties_call_get (client->proxy, -1,
-            MC_IFACE_CLIENT_OBSERVER, "ObserverChannelFilter",
-            get_channel_filter_cb, &client->observer_filters,
-            NULL, G_OBJECT (self));
-      }
+    {
+        tp_cli_dbus_properties_call_get
+            (client->proxy, -1, MC_IFACE_CLIENT_OBSERVER,
+             "ObserverChannelFilter", get_channel_filter_cb,
+             &client->observer_filters, NULL, G_OBJECT (self));
+    }
 }
 
 static void
