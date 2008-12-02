@@ -1102,12 +1102,6 @@ static void proxy_destroyed (DBusGProxy *tp_conn, guint domain, gint code,
 	if (priv->reconnect_interval >= 30 * 60 * 1000)
 	    /* no more than 30 minutes! */
 	    priv->reconnect_interval = 30 * 60 * 1000;
-	/* FIXME HACK: since we want presence-applet to immediately start
-	 * displaying a blinking icon, we must set the account status to
-	 * CONNECTING now */
-	mcd_account_set_connection_status (priv->account,
-					   TP_CONNECTION_STATUS_CONNECTING,
-					   TP_CONNECTION_STATUS_REASON_REQUESTED);
 	priv->reconnection_requested = FALSE;
     }
     else
@@ -1530,14 +1524,8 @@ _mcd_connection_setup (McdConnection * connection)
 	priv->reconnect_timer = 0;
     }
 
-    /* FIXME HACK: the correct test is
-
     if (mcd_connection_get_connection_status (connection) ==
-	TP_CONNECTION_STATUS_DISCONNECTED)
-     * but since we set the account status to CONNECTING as soon as we got
-     * disconnected by a network error, we must accept that status, too */
-    if (mcd_connection_get_connection_status (connection) !=
-	TP_CONNECTION_STATUS_CONNECTED)
+        TP_CONNECTION_STATUS_DISCONNECTED)
     {
 	mcd_connection_get_params_and_connect (connection);
     }
