@@ -1892,7 +1892,7 @@ parse_client_filter (GKeyFile *file, const gchar *group)
         key = keys[i];
         space = g_strrstr (key, " ");
 
-        if (space == NULL || space + 1 == '\0' || space + 2 != '\0' )
+        if (space == NULL || space[1] == '\0' || space[2] != '\0')
         {
             g_warning ("Invalid key %s in client file", key);
             continue;
@@ -2140,7 +2140,7 @@ create_client_proxy (McdDispatcher *self, McdClient *client)
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
     gchar *bus_name, *object_path;
 
-    bus_name = g_strconcat (MC_IFACE_CLIENT ".", client->name, NULL);
+    bus_name = g_strconcat (MC_FILE_IFACE_CLIENT ".", client->name, NULL);
     object_path = g_strconcat ("/org/freedesktop/Telepathy/Client/",
                                client->name, NULL);
     client->proxy = g_object_new (TP_TYPE_PROXY,
@@ -2166,7 +2166,6 @@ parse_client_file (McdClient *client, GKeyFile *file)
     if (!iface_names)
         return;
 
-    client = g_slice_new0 (McdClient);
     for (i = 0; iface_names[i] != NULL; i++)
     {
         if (strcmp (iface_names[i], MC_FILE_IFACE_CLIENT_APPROVER) == 0)
@@ -2213,8 +2212,6 @@ parse_client_file (McdClient *client, GKeyFile *file)
     client->bypass_approver =
         g_key_file_get_boolean (file, MC_FILE_IFACE_CLIENT_HANDLER,
                                 "BypassApprover", NULL);
-
-    client_add_interface_by_id (client);
 }
 
 static McdClient *
@@ -2231,11 +2228,11 @@ create_mcd_client (McdDispatcher *self,
     GKeyFile *file;
     gboolean file_found = FALSE;
 
-    g_assert (strncmp (MC_IFACE_CLIENT ".", name,
-          sizeof (MC_IFACE_CLIENT ".") - 1) == 0);
+    g_assert (strncmp (MC_FILE_IFACE_CLIENT ".", name,
+          sizeof (MC_FILE_IFACE_CLIENT ".") - 1) == 0);
 
     client = g_slice_new0 (McdClient);
-    client->name = g_strdup (name + sizeof (MC_IFACE_CLIENT ".") - 1);
+    client->name = g_strdup (name + sizeof (MC_FILE_IFACE_CLIENT ".") - 1);
     client->activatable = activatable;
     g_debug ("McdClient created for %s", name);
 
@@ -2320,6 +2317,8 @@ create_mcd_client (McdDispatcher *self,
             MC_IFACE_CLIENT, "Interfaces", get_interfaces_cb, client,
             NULL, G_OBJECT (self));
     }
+    else
+        client_add_interface_by_id (client);
 
 
     return client;
@@ -2341,8 +2340,8 @@ new_names_cb (McdDispatcher *self,
         const char *name = *names;
         names++;
 
-        if (strncmp (MC_IFACE_CLIENT ".", name,
-                     sizeof (MC_IFACE_CLIENT ".") - 1) != 0)
+        if (strncmp (MC_FILE_IFACE_CLIENT ".", name,
+                     sizeof (MC_FILE_IFACE_CLIENT ".") - 1) != 0)
         {
             /* This is not a Telepathy Client */
             continue;
