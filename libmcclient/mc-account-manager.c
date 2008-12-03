@@ -252,6 +252,8 @@ constructor (GType type, guint n_params, GObjectConstructParam *params)
 	object = G_OBJECT_CLASS (mc_account_manager_parent_class)->constructor
 	    (type, n_params, params);
 	account_manager_singleton = MC_ACCOUNT_MANAGER (object);
+        g_object_add_weak_pointer (object,
+                                   (gpointer) &account_manager_singleton);
     }
     else
 	object = g_object_ref (account_manager_singleton);
