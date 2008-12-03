@@ -1,2 +1,4 @@
-SUBDIRS = libmcclient libmissioncontrol libmissioncontrol-server
-
+SUBDIRS = libmcclient libmissioncontrol-server
+if HAVE_LEGACY
+SUBDIRS += libmissioncontrol
+endif
