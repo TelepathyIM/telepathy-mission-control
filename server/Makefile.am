@@ -20,7 +20,6 @@ servicefile_DATA=org.freedesktop.Telepathy.MissionControl.service \
 
 libexec_PROGRAMS = mission-control
 mission_control_SOURCES = mc-server.c
-mission_control_LDADD = $(top_builddir)/src/libmissioncontrol-server.la \
-			$(top_builddir)/libmissioncontrol/libmissioncontrol-client.la
+mission_control_LDADD = $(top_builddir)/src/libmissioncontrol-server.la
 
 endif
