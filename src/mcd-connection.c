@@ -1284,6 +1284,12 @@ static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
     GValue *value;
     guint i;
 
+    if (error)
+    {
+        g_warning ("%s got error: %s", G_STRFUNC, error->message);
+        return;
+    }
+
     value = g_hash_table_lookup (properties, "Channels");
     if (!G_VALUE_HOLDS (value, TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST))
     {
