@@ -53,7 +53,8 @@ struct _McdAccount
 struct _McdAccountClass
 {
     GObjectClass parent_class;
-    void (*_mc_reserved1) (void);
+    gboolean (*get_parameter) (McdAccount *account, const gchar *name,
+                               GValue *value);
     void (*_mc_reserved2) (void);
     void (*_mc_reserved3) (void);
     void (*_mc_reserved4) (void);

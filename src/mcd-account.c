@@ -153,6 +153,69 @@ enum
 
 guint _mcd_account_signals[LAST_SIGNAL] = { 0 };
 
+static gboolean
+get_parameter (McdAccount *account, const gchar *name, GValue *value)
+{
+    McdAccountPrivate *priv = account->priv;
+    gchar key[MAX_KEY_LENGTH];
+
+    g_snprintf (key, sizeof (key), "param-%s", name);
+    if (!g_key_file_has_key (priv->keyfile, priv->unique_name, key, NULL))
+        return FALSE;
+
+    if (value)
+    {
+        gchar *v_string = NULL;
+        gint v_int = 0;
+        gboolean v_bool = FALSE;
+
+        switch (G_VALUE_TYPE (value))
+        {
+        case G_TYPE_STRING:
+            v_string = g_key_file_get_string (priv->keyfile, priv->unique_name,
+                                              key, NULL);
+            g_value_take_string (value, v_string);
+            break;
+        case G_TYPE_INT:
+            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
+                                            key, NULL);
+            g_value_set_int (value, v_int);
+            break;
+        case G_TYPE_INT64:
+            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
+                                            key, NULL);
+            g_value_set_int64 (value, v_int);
+            break;
+        case G_TYPE_UCHAR:
+            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
+                                            key, NULL);
+            g_value_set_uchar (value, v_int);
+            break;
+        case G_TYPE_UINT:
+            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
+                                            key, NULL);
+            g_value_set_uint (value, v_int);
+            break;
+        case G_TYPE_UINT64:
+            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
+                                            key, NULL);
+            g_value_set_uint64 (value, v_int);
+            break;
+        case G_TYPE_BOOLEAN:
+            v_bool = g_key_file_get_boolean (priv->keyfile, priv->unique_name,
+                                             key, NULL);
+            g_value_set_boolean (value, v_bool);
+            break;
+        default:
+            g_warning ("%s: skipping parameter %s, unknown type %s", G_STRFUNC,
+                       name, G_VALUE_TYPE_NAME (value));
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
 static void
 process_online_request (gpointer key, gpointer cb_userdata, gpointer userdata)
 {
@@ -1358,6 +1421,8 @@ mcd_account_class_init (McdAccountClass * klass)
     object_class->set_property = set_property;
     object_class->get_property = get_property;
 
+    klass->get_parameter = get_parameter;
+
     g_object_class_install_property
         (object_class, PROP_DBUS_DAEMON,
          g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
@@ -1588,64 +1653,8 @@ gboolean
 mcd_account_get_parameter (McdAccount *account, const gchar *name,
                            GValue *value)
 {
-    McdAccountPrivate *priv = account->priv;
-    gchar key[MAX_KEY_LENGTH];
-
-    g_snprintf (key, sizeof (key), "param-%s", name);
-    if (!g_key_file_has_key (priv->keyfile, priv->unique_name, key, NULL))
-        return FALSE;
-
-    if (value)
-    {
-        gchar *v_string = NULL;
-        gint v_int = 0;
-        gboolean v_bool = FALSE;
-
-        switch (G_VALUE_TYPE (value))
-        {
-        case G_TYPE_STRING:
-            v_string = g_key_file_get_string (priv->keyfile, priv->unique_name,
-                                              key, NULL);
-            g_value_take_string (value, v_string);
-            break;
-        case G_TYPE_INT:
-            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
-                                            key, NULL);
-            g_value_set_int (value, v_int);
-            break;
-        case G_TYPE_INT64:
-            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
-                                            key, NULL);
-            g_value_set_int64 (value, v_int);
-            break;
-        case G_TYPE_UCHAR:
-            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
-                                            key, NULL);
-            g_value_set_uchar (value, v_int);
-            break;
-        case G_TYPE_UINT:
-            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
-                                            key, NULL);
-            g_value_set_uint (value, v_int);
-            break;
-        case G_TYPE_UINT64:
-            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
-                                            key, NULL);
-            g_value_set_uint64 (value, v_int);
-            break;
-        case G_TYPE_BOOLEAN:
-            v_bool = g_key_file_get_boolean (priv->keyfile, priv->unique_name,
-                                             key, NULL);
-            g_value_set_boolean (value, v_bool);
-            break;
-        default:
-            g_warning ("%s: skipping parameter %s, unknown type %s", G_STRFUNC,
-                       name, G_VALUE_TYPE_NAME (value));
-            return FALSE;
-        }
-    }
-
-    return TRUE;
+    return MCD_ACCOUNT_GET_CLASS (account)->get_parameter (account, name,
+                                                           value);
 }
 
 /**
