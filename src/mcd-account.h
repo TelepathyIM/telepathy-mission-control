@@ -89,6 +89,8 @@ gboolean mcd_account_set_parameters (McdAccount *account, GHashTable *params,
 				     GError **error);
 GHashTable *mcd_account_get_parameters (McdAccount *account);
 gboolean mcd_account_check_parameters (McdAccount *account);
+void mcd_account_set_parameter (McdAccount *account, const gchar *name,
+                                const GValue *value);
 gboolean mcd_account_get_parameter (McdAccount *account, const gchar *name,
                                     GValue *value);
 

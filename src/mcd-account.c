@@ -1072,15 +1072,30 @@ mcd_account_check_parameters (McdAccount *account)
     return valid;
 }
 
-static void
-set_parameter (gpointer ht_key, gpointer ht_value, gpointer userdata)
+/**
+ * mcd_account_set_parameter:
+ * @account: the #McdAccount.
+ * @name: the parameter name.
+ * @value: a #GValue with the value to set, or %NULL.
+ *
+ * Sets the parameter @name to the value in @value. If @value, is %NULL, the
+ * parameter is unset.
+ */
+void
+mcd_account_set_parameter (McdAccount *account, const gchar *name,
+                           const GValue *value)
 {
-    McdAccountPrivate *priv = userdata;
-    const gchar *name = ht_key;
-    const GValue *value = ht_value;
+    McdAccountPrivate *priv = account->priv;
     gchar key[MAX_KEY_LENGTH];
 
     g_snprintf (key, sizeof (key), "param-%s", name);
+
+    if (!value)
+    {
+        g_key_file_remove_key (priv->keyfile, priv->unique_name, key, NULL);
+        g_debug ("unset param %s", name);
+        return;
+    }
 
     switch (G_VALUE_TYPE (value))
     {
@@ -1111,8 +1126,10 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
 {
     McdAccountPrivate *priv = account->priv;
     const GArray *parameters;
-    GValue *value;
     guint i, n_params = 0;
+    GHashTableIter iter;
+    const gchar *name;
+    const GValue *value;
 
     g_debug ("%s called", G_STRFUNC);
     if (!priv->manager && !load_manager (priv)) return FALSE;
@@ -1150,23 +1167,22 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
 	return FALSE;
     }
 
-    g_hash_table_foreach (params, set_parameter, priv);
+    g_hash_table_iter_init (&iter, params);
+    while (g_hash_table_iter_next (&iter, (gpointer)&name, (gpointer)&value))
+    {
+        mcd_account_set_parameter (account, name, value);
+    }
     return TRUE;
 }
 
 static inline void
 mcd_account_unset_parameters (McdAccount *account, const gchar **params)
 {
-    McdAccountPrivate *priv = account->priv;
     const gchar **param;
-    gchar key[MAX_KEY_LENGTH];
 
     for (param = params; *param != NULL; param++)
     {
-	g_snprintf (key, sizeof (key), "param-%s", *param);
-	g_key_file_remove_key (priv->keyfile, priv->unique_name,
-			       key, NULL);
-	g_debug ("unset param %s", *param);
+        mcd_account_set_parameter (account, *param, NULL);
     }
 }
 
