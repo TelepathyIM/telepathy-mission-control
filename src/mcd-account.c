@@ -153,6 +153,44 @@ enum
 
 guint _mcd_account_signals[LAST_SIGNAL] = { 0 };
 
+static void
+set_parameter (McdAccount *account, const gchar *name, const GValue *value)
+{
+    McdAccountPrivate *priv = account->priv;
+    gchar key[MAX_KEY_LENGTH];
+
+    g_snprintf (key, sizeof (key), "param-%s", name);
+
+    if (!value)
+    {
+        g_key_file_remove_key (priv->keyfile, priv->unique_name, key, NULL);
+        g_debug ("unset param %s", name);
+        return;
+    }
+
+    switch (G_VALUE_TYPE (value))
+    {
+    case G_TYPE_STRING:
+	g_key_file_set_string (priv->keyfile, priv->unique_name, key,
+			       g_value_get_string (value));
+	break;
+    case G_TYPE_UINT:
+	g_key_file_set_integer (priv->keyfile, priv->unique_name, key,
+				g_value_get_uint (value));
+	break;
+    case G_TYPE_INT:
+	g_key_file_set_integer (priv->keyfile, priv->unique_name, key,
+				g_value_get_int (value));
+	break;
+    case G_TYPE_BOOLEAN:
+	g_key_file_set_boolean (priv->keyfile, priv->unique_name, key,
+				g_value_get_boolean (value));
+	break;
+    default:
+	g_warning ("Unexpected param type %s", G_VALUE_TYPE_NAME (value));
+    }
+}
+
 static gboolean
 get_parameter (McdAccount *account, const gchar *name, GValue *value)
 {
@@ -1085,39 +1123,7 @@ void
 mcd_account_set_parameter (McdAccount *account, const gchar *name,
                            const GValue *value)
 {
-    McdAccountPrivate *priv = account->priv;
-    gchar key[MAX_KEY_LENGTH];
-
-    g_snprintf (key, sizeof (key), "param-%s", name);
-
-    if (!value)
-    {
-        g_key_file_remove_key (priv->keyfile, priv->unique_name, key, NULL);
-        g_debug ("unset param %s", name);
-        return;
-    }
-
-    switch (G_VALUE_TYPE (value))
-    {
-    case G_TYPE_STRING:
-	g_key_file_set_string (priv->keyfile, priv->unique_name, key,
-			       g_value_get_string (value));
-	break;
-    case G_TYPE_UINT:
-	g_key_file_set_integer (priv->keyfile, priv->unique_name, key,
-				g_value_get_uint (value));
-	break;
-    case G_TYPE_INT:
-	g_key_file_set_integer (priv->keyfile, priv->unique_name, key,
-				g_value_get_int (value));
-	break;
-    case G_TYPE_BOOLEAN:
-	g_key_file_set_boolean (priv->keyfile, priv->unique_name, key,
-				g_value_get_boolean (value));
-	break;
-    default:
-	g_warning ("Unexpected param type %s", G_VALUE_TYPE_NAME (value));
-    }
+    MCD_ACCOUNT_GET_CLASS (account)->set_parameter (account, name, value);
 }
 
 gboolean
@@ -1444,6 +1450,7 @@ mcd_account_class_init (McdAccountClass * klass)
     object_class->get_property = get_property;
 
     klass->get_parameter = get_parameter;
+    klass->set_parameter = set_parameter;
     klass->delete = _mcd_account_delete;
 
     g_object_class_install_property

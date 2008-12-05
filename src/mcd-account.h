@@ -55,8 +55,9 @@ struct _McdAccountClass
     GObjectClass parent_class;
     gboolean (*get_parameter) (McdAccount *account, const gchar *name,
                                GValue *value);
+    void (*set_parameter) (McdAccount *account, const gchar *name,
+                           const GValue *value);
     gboolean (*delete) (McdAccount *account, GError **error);
-    void (*_mc_reserved3) (void);
     void (*_mc_reserved4) (void);
     void (*_mc_reserved5) (void);
     void (*_mc_reserved6) (void);
