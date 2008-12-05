@@ -268,9 +268,10 @@ dispatch_operation_iface_init (McSvcChannelDispatchOperationClass *iface,
 static void
 create_object_path (McdDispatchOperationPrivate *priv)
 {
+    static guint cpt = 0;
     priv->object_path =
         g_strdup_printf (MC_DISPATCH_OPERATION_DBUS_OBJECT_BASE "do%u",
-                         (guint)time (0));
+                         cpt++);
     priv->unique_name = priv->object_path +
         (sizeof (MC_DISPATCH_OPERATION_DBUS_OBJECT_BASE) - 1);
 }
