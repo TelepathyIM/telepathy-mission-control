@@ -915,15 +915,6 @@ mc_param_type (McdProtocolParam *param)
     return G_TYPE_INVALID;
 }
 
-static gboolean
-has_param (McdAccountPrivate *priv, const gchar *name)
-{
-    gchar key[MAX_KEY_LENGTH];
-
-    g_snprintf (key, sizeof (key), "param-%s", name);
-    return g_key_file_has_key (priv->keyfile, priv->unique_name, key, NULL);
-}
-
 gboolean
 mcd_account_delete (McdAccount *account, GError **error)
 {
@@ -1000,7 +991,7 @@ mcd_account_check_parameters (McdAccount *account)
 	type = mc_param_type (param);
 	if (param->flags & MCD_PROTOCOL_PARAM_REQUIRED)
 	{
-	    if (!has_param (priv, param->name))
+	    if (!mcd_account_get_parameter (account, param->name, NULL))
 	    {
 		g_debug ("missing required parameter %s", param->name);
 		valid = FALSE;
@@ -1510,74 +1501,42 @@ mcd_account_get_object_path (McdAccount *account)
 }
 
 static inline void
-add_parameter (McdAccountPrivate *priv, McdProtocolParam *param,
+add_parameter (McdAccount *account, McdProtocolParam *param,
 	       GHashTable *params)
 {
-    GValue *value = NULL;
-    GError *error = NULL;
-    gchar key[MAX_KEY_LENGTH];
-    gchar *v_string = NULL;
-    gint v_int = 0;
-    gboolean v_bool = FALSE;
+    GValue *value;
+    GType type;
 
     g_return_if_fail (param != NULL);
     g_return_if_fail (param->name != NULL);
     g_return_if_fail (param->signature != NULL);
 
-    g_snprintf (key, sizeof (key), "param-%s", param->name);
-
     switch (param->signature[0])
     {
     case DBUS_TYPE_STRING:
-	v_string = g_key_file_get_string (priv->keyfile, priv->unique_name,
-					  key, &error);
+        type = G_TYPE_STRING;
 	break;
     case DBUS_TYPE_INT16:
     case DBUS_TYPE_INT32:
+        type = G_TYPE_INT;
+        break;
     case DBUS_TYPE_UINT16:
     case DBUS_TYPE_UINT32:
-	v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
-					key, &error);
+        type = G_TYPE_UINT;
 	break;
     case DBUS_TYPE_BOOLEAN:
-	v_bool = g_key_file_get_boolean (priv->keyfile, priv->unique_name,
-					 key, &error);
+        type = G_TYPE_BOOLEAN;
 	break;
     default:
-	g_warning ("%s: skipping parameter %s, unknown type %s", G_STRFUNC, param->name, param->signature);
+        g_warning ("%s: skipping parameter %s, unknown type %s", G_STRFUNC,
+                   param->name, param->signature);
 	return;
     }
 
-    if (error)
-    {
-	g_error_free (error);
-	return;
-    }
-    value = g_slice_new0 (GValue);
+    value = tp_g_value_slice_new (type);
 
-    switch (param->signature[0])
-    {
-    case DBUS_TYPE_STRING:
-	g_value_init (value, G_TYPE_STRING);
-	g_value_take_string (value, v_string);
-	break;
-    case DBUS_TYPE_INT16:
-    case DBUS_TYPE_INT32:
-	g_value_init (value, G_TYPE_INT);
-	g_value_set_int (value, v_int);
-	break;
-    case DBUS_TYPE_UINT16:
-    case DBUS_TYPE_UINT32:
-	g_value_init (value, G_TYPE_UINT);
-	g_value_set_uint (value, (guint)v_int);
-	break;
-    case DBUS_TYPE_BOOLEAN:
-	g_value_init (value, G_TYPE_BOOLEAN);
-	g_value_set_boolean (value, v_bool);
-	break;
-    }
-
-    g_hash_table_insert (params, g_strdup (param->name), value);
+    if (mcd_account_get_parameter (account, param->name, value))
+        g_hash_table_insert (params, g_strdup (param->name), value);
 }
 
 /**
@@ -1610,9 +1569,83 @@ mcd_account_get_parameters (McdAccount *account)
 	McdProtocolParam *param;
 
 	param = &g_array_index (parameters, McdProtocolParam, i);
-	add_parameter (priv, param, params);
+	add_parameter (account, param, params);
     }
     return params;
+}
+
+/**
+ * mcd_account_get_parameter:
+ * @account: the #McdAccount.
+ * @name: the parameter name.
+ * @value: a initialized #GValue to receive the parameter value, or %NULL.
+ *
+ * Get the @name parameter for @account.
+ *
+ * Returns: %TRUE if found, %FALSE otherwise.
+ */
+gboolean
+mcd_account_get_parameter (McdAccount *account, const gchar *name,
+                           GValue *value)
+{
+    McdAccountPrivate *priv = account->priv;
+    gchar key[MAX_KEY_LENGTH];
+
+    g_snprintf (key, sizeof (key), "param-%s", name);
+    if (!g_key_file_has_key (priv->keyfile, priv->unique_name, key, NULL))
+        return FALSE;
+
+    if (value)
+    {
+        gchar *v_string = NULL;
+        gint v_int = 0;
+        gboolean v_bool = FALSE;
+
+        switch (G_VALUE_TYPE (value))
+        {
+        case G_TYPE_STRING:
+            v_string = g_key_file_get_string (priv->keyfile, priv->unique_name,
+                                              key, NULL);
+            g_value_take_string (value, v_string);
+            break;
+        case G_TYPE_INT:
+            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
+                                            key, NULL);
+            g_value_set_int (value, v_int);
+            break;
+        case G_TYPE_INT64:
+            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
+                                            key, NULL);
+            g_value_set_int64 (value, v_int);
+            break;
+        case G_TYPE_UCHAR:
+            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
+                                            key, NULL);
+            g_value_set_uchar (value, v_int);
+            break;
+        case G_TYPE_UINT:
+            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
+                                            key, NULL);
+            g_value_set_uint (value, v_int);
+            break;
+        case G_TYPE_UINT64:
+            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
+                                            key, NULL);
+            g_value_set_uint64 (value, v_int);
+            break;
+        case G_TYPE_BOOLEAN:
+            v_bool = g_key_file_get_boolean (priv->keyfile, priv->unique_name,
+                                             key, NULL);
+            g_value_set_boolean (value, v_bool);
+            break;
+        default:
+            g_warning ("%s: skipping parameter %s, unknown type %s", G_STRFUNC,
+                       name, G_VALUE_TYPE_NAME (value));
+            return FALSE;
+        }
+    }
+
+    return TRUE;
 }
 
 /**
