@@ -185,7 +185,8 @@ complete_account_creation (McdAccountManager *account_manager,
     McdAccount *account;
     gboolean ok;
 
-    account = mcd_account_new (priv->dbus_daemon, priv->keyfile, unique_name);
+    account = MCD_ACCOUNT_MANAGER_GET_CLASS (account_manager)->account_new
+        (priv->dbus_daemon, priv->keyfile, unique_name);
 
     ok = mcd_account_set_parameters (account, params, error);
     if (ok)
@@ -460,7 +461,8 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
     {
 	McdAccount *account;
 
-	account = mcd_account_new (priv->dbus_daemon, priv->keyfile, *name);
+        account = MCD_ACCOUNT_MANAGER_GET_CLASS (account_manager)->account_new
+            (priv->dbus_daemon, priv->keyfile, *name);
 	if (account)
 	    add_account (account_manager, account);
     }
@@ -570,6 +572,8 @@ mcd_account_manager_class_init (McdAccountManagerClass *klass)
     object_class->finalize = _mcd_account_manager_finalize;
     object_class->set_property = set_property;
     object_class->get_property = get_property;
+
+    klass->account_new = mcd_account_new;
 
     g_object_class_install_property
         (object_class, PROP_DBUS_DAEMON,

@@ -56,7 +56,8 @@ struct _McdAccountManager
 struct _McdAccountManagerClass
 {
     GObjectClass parent_class;
-    void (*_mc_reserved1) (void);
+    McdAccount *(*account_new) (TpDBusDaemon *dbus_daemon, GKeyFile *keyfile,
+                                const gchar *name);
     void (*_mc_reserved2) (void);
     void (*_mc_reserved3) (void);
     void (*_mc_reserved4) (void);
