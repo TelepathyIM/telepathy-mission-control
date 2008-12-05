@@ -262,6 +262,41 @@ get_account_data_path (McdAccountPrivate *priv)
 	return g_build_filename (base, priv->unique_name, NULL);
 }
 
+static gboolean
+_mcd_account_delete (McdAccount *account, GError **error)
+{
+    McdAccountPrivate *priv = account->priv;
+    gchar *data_dir_str;
+    GDir *data_dir;
+
+    g_key_file_remove_group (priv->keyfile, priv->unique_name, error);
+    if (error && *error)
+    {
+        g_warning ("Could not remove GConf dir (%s)",
+                   error ? (*error)->message : "");
+        return FALSE;
+    }
+
+    data_dir_str = get_account_data_path (priv);
+    data_dir = g_dir_open (data_dir_str, 0, NULL);
+    if (data_dir)
+    {
+        const gchar *filename;
+        while ((filename = g_dir_read_name (data_dir)) != NULL)
+        {
+            gchar *path;
+            path = g_build_filename (data_dir_str, filename, NULL);
+            g_remove (path);
+            g_free (path);
+        }
+        g_dir_close (data_dir);
+        g_rmdir (data_dir_str);
+    }
+    g_free (data_dir_str);
+    mcd_account_manager_write_conf (priv->keyfile);
+    return TRUE;
+}
+
 static void
 on_connection_abort (McdConnection *connection, McdAccount *account)
 {
@@ -981,36 +1016,7 @@ mc_param_type (McdProtocolParam *param)
 gboolean
 mcd_account_delete (McdAccount *account, GError **error)
 {
-    McdAccountPrivate *priv = account->priv;
-    gchar *data_dir_str;
-    GDir *data_dir;
-
-    g_key_file_remove_group (priv->keyfile, priv->unique_name, error);
-    if (error && *error)
-    {
-	g_warning ("Could not remove GConf dir (%s)",
-		   error ? (*error)->message : "");
-	return FALSE;
-    }
-
-    data_dir_str = get_account_data_path (priv);
-    data_dir = g_dir_open (data_dir_str, 0, NULL);
-    if (data_dir)
-    {
-	const gchar *filename;
-	while ((filename = g_dir_read_name (data_dir)) != NULL)
-	{
-	    gchar *path;
-	    path = g_build_filename (data_dir_str, filename, NULL);
-	    g_remove (path);
-	    g_free (path);
-	}
-	g_dir_close (data_dir);
-	g_rmdir (data_dir_str);
-    }
-    g_free (data_dir_str);
-    mcd_account_manager_write_conf (priv->keyfile);
-    return TRUE;
+    return MCD_ACCOUNT_GET_CLASS (account)->delete (account, error);
 }
 
 static void
@@ -1422,6 +1428,7 @@ mcd_account_class_init (McdAccountClass * klass)
     object_class->get_property = get_property;
 
     klass->get_parameter = get_parameter;
+    klass->delete = _mcd_account_delete;
 
     g_object_class_install_property
         (object_class, PROP_DBUS_DAEMON,
