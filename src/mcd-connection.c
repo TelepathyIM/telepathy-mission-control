@@ -1279,10 +1279,15 @@ static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
 {
     McdConnection *connection = MCD_CONNECTION (weak_object);
     McdConnectionPrivate *priv = user_data;
-    const GList *mcd_channels, *list;
     GPtrArray *channels;
     GValue *value;
     guint i;
+
+    if (error)
+    {
+        g_warning ("%s got error: %s", G_STRFUNC, error->message);
+        return;
+    }
 
     value = g_hash_table_lookup (properties, "Channels");
     if (!G_VALUE_HOLDS (value, TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST))
@@ -1293,19 +1298,24 @@ static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
         return;
     }
 
-    mcd_channels = mcd_operation_get_missions ((McdOperation *)connection);
     channels = g_value_get_boxed (value);
     for (i = 0; i < channels->len; i++)
     {
         GValueArray *va;
         const gchar *object_path;
         GHashTable *channel_props;
+        const GList *list;
 
         va = g_ptr_array_index (channels, i);
         object_path = g_value_get_boxed (va->values);
         channel_props = g_value_dup_boxed (va->values + 1);
         /* find the McdChannel */
-        for (list = mcd_channels; list != NULL; list = list->next)
+        /* NOTE: we cannot move the mcd_operation_get_missions() call out of
+         * the loop, because mcd_dispatcher_send() can cause the channel to be
+         * destroyed, at which point our list would contain a finalized channel
+         * (and a crash will happen) */
+        list = mcd_operation_get_missions ((McdOperation *)connection);
+        for (; list != NULL; list = list->next)
         {
             McdChannel *channel = MCD_CHANNEL (list->data);
             const gchar *channel_path;
