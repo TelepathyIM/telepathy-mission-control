@@ -43,6 +43,7 @@ typedef struct _McdAccountPrivate McdAccountPrivate;
 typedef struct _McdAccountClass McdAccountClass;
 
 #include "mcd-connection.h"
+#include "mcd-account-manager.h"
 
 struct _McdAccount
 {
@@ -53,14 +54,25 @@ struct _McdAccount
 struct _McdAccountClass
 {
     GObjectClass parent_class;
+    gboolean (*get_parameter) (McdAccount *account, const gchar *name,
+                               GValue *value);
+    void (*set_parameter) (McdAccount *account, const gchar *name,
+                           const GValue *value);
+    gboolean (*delete) (McdAccount *account, GError **error);
+    void (*_mc_reserved4) (void);
+    void (*_mc_reserved5) (void);
+    void (*_mc_reserved6) (void);
+    void (*_mc_reserved7) (void);
 };
 
 
 #define MC_ACCOUNT_DBUS_OBJECT_BASE "/org/freedesktop/Telepathy/Account/"
 
 GType mcd_account_get_type (void);
-McdAccount *mcd_account_new (TpDBusDaemon *dbus_daemon, GKeyFile *keyfile,
+McdAccount *mcd_account_new (McdAccountManager *account_manager,
 			     const gchar *name);
+
+McdAccountManager *mcd_account_get_account_manager (McdAccount *account);
 
 gboolean mcd_account_delete (McdAccount *account, GError **error);
 
@@ -81,6 +93,10 @@ gboolean mcd_account_set_parameters (McdAccount *account, GHashTable *params,
 				     GError **error);
 GHashTable *mcd_account_get_parameters (McdAccount *account);
 gboolean mcd_account_check_parameters (McdAccount *account);
+void mcd_account_set_parameter (McdAccount *account, const gchar *name,
+                                const GValue *value);
+gboolean mcd_account_get_parameter (McdAccount *account, const gchar *name,
+                                    GValue *value);
 
 void mcd_account_request_presence (McdAccount *account,
 				   TpConnectionPresenceType type,

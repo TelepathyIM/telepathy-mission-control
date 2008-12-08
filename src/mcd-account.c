@@ -42,7 +42,6 @@
 #include "mcd-account-conditions.h"
 #include "mcd-account-connection.h"
 #include "mcd-account-requests.h"
-#include "mcd-account-manager.h"
 #include "mcd-misc.h"
 #include "mcd-signals-marshal.h"
 #include "mcd-manager.h"
@@ -98,11 +97,9 @@ struct _McdAccountPrivate
     gchar *manager_name;
     gchar *protocol_name;
 
-    /* DBUS connection */
-    TpDBusDaemon *dbus_daemon;
-
     McdConnection *connection;
     McdManager *manager;
+    McdAccountManager *account_manager;
     GKeyFile *keyfile;		/* configuration file */
 
     /* connection status */
@@ -147,11 +144,112 @@ enum
 {
     PROP_0,
     PROP_DBUS_DAEMON,
-    PROP_KEYFILE,
+    PROP_ACCOUNT_MANAGER,
     PROP_NAME,
 };
 
 guint _mcd_account_signals[LAST_SIGNAL] = { 0 };
+
+static void
+set_parameter (McdAccount *account, const gchar *name, const GValue *value)
+{
+    McdAccountPrivate *priv = account->priv;
+    gchar key[MAX_KEY_LENGTH];
+
+    g_snprintf (key, sizeof (key), "param-%s", name);
+
+    if (!value)
+    {
+        g_key_file_remove_key (priv->keyfile, priv->unique_name, key, NULL);
+        g_debug ("unset param %s", name);
+        return;
+    }
+
+    switch (G_VALUE_TYPE (value))
+    {
+    case G_TYPE_STRING:
+	g_key_file_set_string (priv->keyfile, priv->unique_name, key,
+			       g_value_get_string (value));
+	break;
+    case G_TYPE_UINT:
+	g_key_file_set_integer (priv->keyfile, priv->unique_name, key,
+				g_value_get_uint (value));
+	break;
+    case G_TYPE_INT:
+	g_key_file_set_integer (priv->keyfile, priv->unique_name, key,
+				g_value_get_int (value));
+	break;
+    case G_TYPE_BOOLEAN:
+	g_key_file_set_boolean (priv->keyfile, priv->unique_name, key,
+				g_value_get_boolean (value));
+	break;
+    default:
+	g_warning ("Unexpected param type %s", G_VALUE_TYPE_NAME (value));
+    }
+}
+
+static gboolean
+get_parameter (McdAccount *account, const gchar *name, GValue *value)
+{
+    McdAccountPrivate *priv = account->priv;
+    gchar key[MAX_KEY_LENGTH];
+
+    g_snprintf (key, sizeof (key), "param-%s", name);
+    if (!g_key_file_has_key (priv->keyfile, priv->unique_name, key, NULL))
+        return FALSE;
+
+    if (value)
+    {
+        gchar *v_string = NULL;
+        gint v_int = 0;
+        gboolean v_bool = FALSE;
+
+        switch (G_VALUE_TYPE (value))
+        {
+        case G_TYPE_STRING:
+            v_string = g_key_file_get_string (priv->keyfile, priv->unique_name,
+                                              key, NULL);
+            g_value_take_string (value, v_string);
+            break;
+        case G_TYPE_INT:
+            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
+                                            key, NULL);
+            g_value_set_int (value, v_int);
+            break;
+        case G_TYPE_INT64:
+            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
+                                            key, NULL);
+            g_value_set_int64 (value, v_int);
+            break;
+        case G_TYPE_UCHAR:
+            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
+                                            key, NULL);
+            g_value_set_uchar (value, v_int);
+            break;
+        case G_TYPE_UINT:
+            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
+                                            key, NULL);
+            g_value_set_uint (value, v_int);
+            break;
+        case G_TYPE_UINT64:
+            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
+                                            key, NULL);
+            g_value_set_uint64 (value, v_int);
+            break;
+        case G_TYPE_BOOLEAN:
+            v_bool = g_key_file_get_boolean (priv->keyfile, priv->unique_name,
+                                             key, NULL);
+            g_value_set_boolean (value, v_bool);
+            break;
+        default:
+            g_warning ("%s: skipping parameter %s, unknown type %s", G_STRFUNC,
+                       name, G_VALUE_TYPE_NAME (value));
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
 
 static void
 process_online_request (gpointer key, gpointer cb_userdata, gpointer userdata)
@@ -197,6 +295,41 @@ get_account_data_path (McdAccountPrivate *priv)
 				 priv->unique_name, NULL);
     else
 	return g_build_filename (base, priv->unique_name, NULL);
+}
+
+static gboolean
+_mcd_account_delete (McdAccount *account, GError **error)
+{
+    McdAccountPrivate *priv = account->priv;
+    gchar *data_dir_str;
+    GDir *data_dir;
+
+    g_key_file_remove_group (priv->keyfile, priv->unique_name, error);
+    if (error && *error)
+    {
+        g_warning ("Could not remove GConf dir (%s)",
+                   error ? (*error)->message : "");
+        return FALSE;
+    }
+
+    data_dir_str = get_account_data_path (priv);
+    data_dir = g_dir_open (data_dir_str, 0, NULL);
+    if (data_dir)
+    {
+        const gchar *filename;
+        while ((filename = g_dir_read_name (data_dir)) != NULL)
+        {
+            gchar *path;
+            path = g_build_filename (data_dir_str, filename, NULL);
+            g_remove (path);
+            g_free (path);
+        }
+        g_dir_close (data_dir);
+        g_rmdir (data_dir_str);
+    }
+    g_free (data_dir_str);
+    mcd_account_manager_write_conf (priv->account_manager);
+    return TRUE;
 }
 
 static void
@@ -385,7 +518,7 @@ mcd_account_set_string_val (McdAccount *account, const gchar *key,
 			       key, NULL);
 	string = NULL;
     }
-    mcd_account_manager_write_conf (priv->keyfile);
+    mcd_account_manager_write_conf (priv->account_manager);
     mcd_account_changed_property (account, key, value);
     return TRUE;
 }
@@ -475,7 +608,7 @@ set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
 				MC_ACCOUNTS_KEY_ENABLED,
 			       	enabled);
 	priv->enabled = enabled;
-	mcd_account_manager_write_conf (priv->keyfile);
+	mcd_account_manager_write_conf (priv->account_manager);
 	mcd_account_changed_property (account, name, value);
     }
 }
@@ -650,7 +783,7 @@ set_automatic_presence (TpSvcDBusProperties *self,
 
     if (changed)
     {
-	mcd_account_manager_write_conf (priv->keyfile);
+	mcd_account_manager_write_conf (priv->account_manager);
 	mcd_account_changed_property (account, name, value);
     }
 }
@@ -697,7 +830,7 @@ set_connect_automatically (TpSvcDBusProperties *self,
 				MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY,
 			       	connect_automatically);
 	priv->connect_automatically = connect_automatically;
-	mcd_account_manager_write_conf (priv->keyfile);
+	mcd_account_manager_write_conf (priv->account_manager);
 	mcd_account_changed_property (account, name, value);
     }
 }
@@ -915,48 +1048,10 @@ mc_param_type (McdProtocolParam *param)
     return G_TYPE_INVALID;
 }
 
-static gboolean
-has_param (McdAccountPrivate *priv, const gchar *name)
-{
-    gchar key[MAX_KEY_LENGTH];
-
-    g_snprintf (key, sizeof (key), "param-%s", name);
-    return g_key_file_has_key (priv->keyfile, priv->unique_name, key, NULL);
-}
-
 gboolean
 mcd_account_delete (McdAccount *account, GError **error)
 {
-    McdAccountPrivate *priv = account->priv;
-    gchar *data_dir_str;
-    GDir *data_dir;
-
-    g_key_file_remove_group (priv->keyfile, priv->unique_name, error);
-    if (error && *error)
-    {
-	g_warning ("Could not remove GConf dir (%s)",
-		   error ? (*error)->message : "");
-	return FALSE;
-    }
-
-    data_dir_str = get_account_data_path (priv);
-    data_dir = g_dir_open (data_dir_str, 0, NULL);
-    if (data_dir)
-    {
-	const gchar *filename;
-	while ((filename = g_dir_read_name (data_dir)) != NULL)
-	{
-	    gchar *path;
-	    path = g_build_filename (data_dir_str, filename, NULL);
-	    g_remove (path);
-	    g_free (path);
-	}
-	g_dir_close (data_dir);
-	g_rmdir (data_dir_str);
-    }
-    g_free (data_dir_str);
-    mcd_account_manager_write_conf (priv->keyfile);
-    return TRUE;
+    return MCD_ACCOUNT_GET_CLASS (account)->delete (account, error);
 }
 
 static void
@@ -1000,7 +1095,7 @@ mcd_account_check_parameters (McdAccount *account)
 	type = mc_param_type (param);
 	if (param->flags & MCD_PROTOCOL_PARAM_REQUIRED)
 	{
-	    if (!has_param (priv, param->name))
+	    if (!mcd_account_get_parameter (account, param->name, NULL))
 	    {
 		g_debug ("missing required parameter %s", param->name);
 		valid = FALSE;
@@ -1012,37 +1107,20 @@ mcd_account_check_parameters (McdAccount *account)
     return valid;
 }
 
-static void
-set_parameter (gpointer ht_key, gpointer ht_value, gpointer userdata)
+/**
+ * mcd_account_set_parameter:
+ * @account: the #McdAccount.
+ * @name: the parameter name.
+ * @value: a #GValue with the value to set, or %NULL.
+ *
+ * Sets the parameter @name to the value in @value. If @value, is %NULL, the
+ * parameter is unset.
+ */
+void
+mcd_account_set_parameter (McdAccount *account, const gchar *name,
+                           const GValue *value)
 {
-    McdAccountPrivate *priv = userdata;
-    const gchar *name = ht_key;
-    const GValue *value = ht_value;
-    gchar key[MAX_KEY_LENGTH];
-
-    g_snprintf (key, sizeof (key), "param-%s", name);
-
-    switch (G_VALUE_TYPE (value))
-    {
-    case G_TYPE_STRING:
-	g_key_file_set_string (priv->keyfile, priv->unique_name, key,
-			       g_value_get_string (value));
-	break;
-    case G_TYPE_UINT:
-	g_key_file_set_integer (priv->keyfile, priv->unique_name, key,
-				g_value_get_uint (value));
-	break;
-    case G_TYPE_INT:
-	g_key_file_set_integer (priv->keyfile, priv->unique_name, key,
-				g_value_get_int (value));
-	break;
-    case G_TYPE_BOOLEAN:
-	g_key_file_set_boolean (priv->keyfile, priv->unique_name, key,
-				g_value_get_boolean (value));
-	break;
-    default:
-	g_warning ("Unexpected param type %s", G_VALUE_TYPE_NAME (value));
-    }
+    MCD_ACCOUNT_GET_CLASS (account)->set_parameter (account, name, value);
 }
 
 gboolean
@@ -1051,8 +1129,10 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
 {
     McdAccountPrivate *priv = account->priv;
     const GArray *parameters;
-    GValue *value;
     guint i, n_params = 0;
+    GHashTableIter iter;
+    const gchar *name;
+    const GValue *value;
 
     g_debug ("%s called", G_STRFUNC);
     if (!priv->manager && !load_manager (priv)) return FALSE;
@@ -1090,23 +1170,22 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
 	return FALSE;
     }
 
-    g_hash_table_foreach (params, set_parameter, priv);
+    g_hash_table_iter_init (&iter, params);
+    while (g_hash_table_iter_next (&iter, (gpointer)&name, (gpointer)&value))
+    {
+        mcd_account_set_parameter (account, name, value);
+    }
     return TRUE;
 }
 
 static inline void
 mcd_account_unset_parameters (McdAccount *account, const gchar **params)
 {
-    McdAccountPrivate *priv = account->priv;
     const gchar **param;
-    gchar key[MAX_KEY_LENGTH];
 
     for (param = params; *param != NULL; param++)
     {
-	g_snprintf (key, sizeof (key), "param-%s", *param);
-	g_key_file_remove_key (priv->keyfile, priv->unique_name,
-			       key, NULL);
-	g_debug ("unset param %s", *param);
+        mcd_account_set_parameter (account, *param, NULL);
     }
 }
 
@@ -1142,7 +1221,7 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
     g_value_unset (&value);
 
     mcd_account_check_validity (account);
-    mcd_account_manager_write_conf (priv->keyfile);
+    mcd_account_manager_write_conf (priv->account_manager);
     mc_svc_account_return_from_update_parameters (context);
 }
 
@@ -1161,10 +1240,14 @@ register_dbus_service (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
     DBusGConnection *dbus_connection;
+    TpDBusDaemon *dbus_daemon;
 
-    if (!priv->dbus_daemon || !priv->object_path) return;
+    if (!priv->account_manager || !priv->object_path) return;
 
-    dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
+    dbus_daemon = mcd_account_manager_get_dbus_daemon (priv->account_manager);
+    g_return_if_fail (dbus_daemon != NULL);
+
+    dbus_connection = TP_PROXY (dbus_daemon)->dbus_connection;
 
     if (G_LIKELY (dbus_connection))
 	dbus_g_connection_register_g_object (dbus_connection,
@@ -1178,7 +1261,10 @@ mcd_account_setup (McdAccount *account)
     McdAccountPrivate *priv = account->priv;
     gboolean valid;
 
-    if (!priv->keyfile || !priv->unique_name) return FALSE;
+    if (!priv->account_manager || !priv->unique_name) return FALSE;
+
+    priv->keyfile = mcd_account_manager_get_config (priv->account_manager);
+    if (!priv->keyfile) return FALSE;
 
     priv->manager_name =
 	g_key_file_get_string (priv->keyfile, priv->unique_name,
@@ -1236,15 +1322,11 @@ set_property (GObject *obj, guint prop_id,
 
     switch (prop_id)
     {
-    case PROP_DBUS_DAEMON:
-	if (priv->dbus_daemon)
-	    g_object_unref (priv->dbus_daemon);
-	priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
-	register_dbus_service (MCD_ACCOUNT (obj));
-	break;
-    case PROP_KEYFILE:
-	g_assert (priv->keyfile == NULL);
-	priv->keyfile = g_value_get_pointer (val);
+    case PROP_ACCOUNT_MANAGER:
+        g_assert (priv->account_manager == NULL);
+        /* don't keep a reference to the account_manager: we can safely assume
+         * its lifetime is longer than the McdAccount's */
+        priv->account_manager = g_value_get_object (val);
 	if (mcd_account_setup (account))
 	    register_dbus_service (account);
 	break;
@@ -1275,7 +1357,8 @@ get_property (GObject *obj, guint prop_id,
     switch (prop_id)
     {
     case PROP_DBUS_DAEMON:
-	g_value_set_object (val, priv->dbus_daemon);
+        g_value_set_object
+            (val, mcd_account_manager_get_dbus_daemon (priv->account_manager));
 	break;
     case PROP_NAME:
 	g_value_set_string (val, priv->unique_name);
@@ -1348,11 +1431,6 @@ _mcd_account_dispose (GObject *object)
 	priv->connection = NULL;
     }
 
-    if (priv->dbus_daemon)
-    {
-	g_object_unref (priv->dbus_daemon);
-	priv->dbus_daemon = NULL;
-    }
     G_OBJECT_CLASS (mcd_account_parent_class)->dispose (object);
 }
 
@@ -1367,15 +1445,19 @@ mcd_account_class_init (McdAccountClass * klass)
     object_class->set_property = set_property;
     object_class->get_property = get_property;
 
+    klass->get_parameter = get_parameter;
+    klass->set_parameter = set_parameter;
+    klass->delete = _mcd_account_delete;
+
     g_object_class_install_property
         (object_class, PROP_DBUS_DAEMON,
          g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
-                              TP_TYPE_DBUS_DAEMON,
-                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+                              TP_TYPE_DBUS_DAEMON, G_PARAM_READABLE));
 
     g_object_class_install_property
-        (object_class, PROP_KEYFILE,
-         g_param_spec_pointer ("keyfile", "Conf file", "Conf file",
+        (object_class, PROP_ACCOUNT_MANAGER,
+         g_param_spec_object ("account-manager", "account-manager",
+                               "account-manager", MCD_TYPE_ACCOUNT_MANAGER,
                                G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 
     g_object_class_install_property
@@ -1453,16 +1535,27 @@ mcd_account_init (McdAccount *account)
 }
 
 McdAccount *
-mcd_account_new (TpDBusDaemon *dbus_daemon, GKeyFile *keyfile,
-		 const gchar *name)
+mcd_account_new (McdAccountManager *account_manager, const gchar *name)
 {
     gpointer *obj;
     obj = g_object_new (MCD_TYPE_ACCOUNT,
-			"dbus-daemon", dbus_daemon,
-			"keyfile", keyfile,
+                        "account-manager", account_manager,
 			"name", name,
 			NULL);
     return MCD_ACCOUNT (obj);
+}
+
+/**
+ * mcd_account_get_account_manager:
+ * @account: the #McdAccount.
+ *
+ * Returns: the #McdAccountManager.
+ */
+McdAccountManager *
+mcd_account_get_account_manager (McdAccount *account)
+{
+    g_return_val_if_fail (MCD_IS_ACCOUNT (account), NULL);
+    return account->priv->account_manager;
 }
 
 /*
@@ -1510,74 +1603,42 @@ mcd_account_get_object_path (McdAccount *account)
 }
 
 static inline void
-add_parameter (McdAccountPrivate *priv, McdProtocolParam *param,
+add_parameter (McdAccount *account, McdProtocolParam *param,
 	       GHashTable *params)
 {
-    GValue *value = NULL;
-    GError *error = NULL;
-    gchar key[MAX_KEY_LENGTH];
-    gchar *v_string = NULL;
-    gint v_int = 0;
-    gboolean v_bool = FALSE;
+    GValue *value;
+    GType type;
 
     g_return_if_fail (param != NULL);
     g_return_if_fail (param->name != NULL);
     g_return_if_fail (param->signature != NULL);
 
-    g_snprintf (key, sizeof (key), "param-%s", param->name);
-
     switch (param->signature[0])
     {
     case DBUS_TYPE_STRING:
-	v_string = g_key_file_get_string (priv->keyfile, priv->unique_name,
-					  key, &error);
+        type = G_TYPE_STRING;
 	break;
     case DBUS_TYPE_INT16:
     case DBUS_TYPE_INT32:
+        type = G_TYPE_INT;
+        break;
     case DBUS_TYPE_UINT16:
     case DBUS_TYPE_UINT32:
-	v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
-					key, &error);
+        type = G_TYPE_UINT;
 	break;
     case DBUS_TYPE_BOOLEAN:
-	v_bool = g_key_file_get_boolean (priv->keyfile, priv->unique_name,
-					 key, &error);
+        type = G_TYPE_BOOLEAN;
 	break;
     default:
-	g_warning ("%s: skipping parameter %s, unknown type %s", G_STRFUNC, param->name, param->signature);
+        g_warning ("%s: skipping parameter %s, unknown type %s", G_STRFUNC,
+                   param->name, param->signature);
 	return;
     }
 
-    if (error)
-    {
-	g_error_free (error);
-	return;
-    }
-    value = g_slice_new0 (GValue);
+    value = tp_g_value_slice_new (type);
 
-    switch (param->signature[0])
-    {
-    case DBUS_TYPE_STRING:
-	g_value_init (value, G_TYPE_STRING);
-	g_value_take_string (value, v_string);
-	break;
-    case DBUS_TYPE_INT16:
-    case DBUS_TYPE_INT32:
-	g_value_init (value, G_TYPE_INT);
-	g_value_set_int (value, v_int);
-	break;
-    case DBUS_TYPE_UINT16:
-    case DBUS_TYPE_UINT32:
-	g_value_init (value, G_TYPE_UINT);
-	g_value_set_uint (value, (guint)v_int);
-	break;
-    case DBUS_TYPE_BOOLEAN:
-	g_value_init (value, G_TYPE_BOOLEAN);
-	g_value_set_boolean (value, v_bool);
-	break;
-    }
-
-    g_hash_table_insert (params, g_strdup (param->name), value);
+    if (mcd_account_get_parameter (account, param->name, value))
+        g_hash_table_insert (params, g_strdup (param->name), value);
 }
 
 /**
@@ -1610,9 +1671,27 @@ mcd_account_get_parameters (McdAccount *account)
 	McdProtocolParam *param;
 
 	param = &g_array_index (parameters, McdProtocolParam, i);
-	add_parameter (priv, param, params);
+	add_parameter (account, param, params);
     }
     return params;
+}
+
+/**
+ * mcd_account_get_parameter:
+ * @account: the #McdAccount.
+ * @name: the parameter name.
+ * @value: a initialized #GValue to receive the parameter value, or %NULL.
+ *
+ * Get the @name parameter for @account.
+ *
+ * Returns: %TRUE if found, %FALSE otherwise.
+ */
+gboolean
+mcd_account_get_parameter (McdAccount *account, const gchar *name,
+                           GValue *value)
+{
+    return MCD_ACCOUNT_GET_CLASS (account)->get_parameter (account, name,
+                                                           value);
 }
 
 /**
@@ -1782,7 +1861,7 @@ mcd_account_set_normalized_name (McdAccount *account, const gchar *name)
     else
 	g_key_file_remove_key (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_NORMALIZED_NAME, NULL);
-    mcd_account_manager_write_conf (priv->keyfile);
+    mcd_account_manager_write_conf (priv->account_manager);
 }
 
 gchar *
@@ -1806,7 +1885,7 @@ mcd_account_set_avatar_token (McdAccount *account, const gchar *token)
     else
 	g_key_file_remove_key (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_AVATAR_TOKEN, NULL);
-    mcd_account_manager_write_conf (priv->keyfile);
+    mcd_account_manager_write_conf (priv->account_manager);
 }
 
 gchar *
@@ -1864,7 +1943,7 @@ mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
     g_signal_emit (account, _mcd_account_signals[AVATAR_CHANGED], 0,
 		   avatar, mime_type);
 
-    mcd_account_manager_write_conf (priv->keyfile);
+    mcd_account_manager_write_conf (priv->account_manager);
     return TRUE;
 }
 
