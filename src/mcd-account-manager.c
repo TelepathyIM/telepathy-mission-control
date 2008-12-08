@@ -100,9 +100,7 @@ static guint write_conf_id = 0;
 static McdAccount *
 account_new (McdAccountManager *account_manager, const gchar *name)
 {
-    McdAccountManagerPrivate *priv = account_manager->priv;
-
-    return mcd_account_new (priv->dbus_daemon, priv->keyfile, name);
+    return mcd_account_new (account_manager, name);
 }
 
 static void
@@ -189,7 +187,6 @@ complete_account_creation (McdAccountManager *account_manager,
 			   const gchar **object_path,
 			   GError **error)
 {
-    McdAccountManagerPrivate *priv = account_manager->priv;
     McdAccount *account;
     gboolean ok;
 
@@ -209,7 +206,7 @@ complete_account_creation (McdAccountManager *account_manager,
 	g_object_unref (account);
 	account = NULL;
     }
-    mcd_account_manager_write_conf (priv->keyfile);
+    mcd_account_manager_write_conf (account_manager);
     return account;
 }
 
@@ -645,15 +642,29 @@ mcd_account_manager_new (TpDBusDaemon *dbus_daemon)
     return MCD_ACCOUNT_MANAGER (obj);
 }
 
+/**
+ * mcd_account_manager_get_dbus_daemon:
+ * @account_manager: the #McdAccountManager.
+ *
+ * Returns: the #TpDBusDaemon.
+ */
+TpDBusDaemon *
+mcd_account_manager_get_dbus_daemon (McdAccountManager *account_manager)
+{
+    g_return_val_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager), NULL);
+
+    return account_manager->priv->dbus_daemon;
+}
+
 void
-mcd_account_manager_write_conf (GKeyFile *keyfile)
+mcd_account_manager_write_conf (McdAccountManager *account_manager)
 {
     /* FIXME: this (reasonably) assumes that there is only one
      * McdAccountManager object running, since the write_conf_id is a static
      * variable */
     if (write_conf_id == 0) 
-	write_conf_id = g_timeout_add (WRITE_CONF_DELAY,
-				       write_conf, keyfile);
+        write_conf_id = g_timeout_add (WRITE_CONF_DELAY, write_conf,
+                                       account_manager->priv->keyfile);
 }
 
 GHashTable *

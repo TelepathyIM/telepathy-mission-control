@@ -73,10 +73,13 @@ struct _McdAccountManagerClass
 GType mcd_account_manager_get_type (void);
 McdAccountManager *mcd_account_manager_new (TpDBusDaemon *dbus_daemon);
 
+TpDBusDaemon *mcd_account_manager_get_dbus_daemon
+    (McdAccountManager *account_manager);
+
 void _mcd_account_manager_setup (McdAccountManager *account_manager);
 
 GKeyFile *mcd_account_manager_get_config (McdAccountManager *account_manager);
-void mcd_account_manager_write_conf (GKeyFile *keyfile);
+void mcd_account_manager_write_conf (McdAccountManager *account_manager);
 
 McdAccount *mcd_account_manager_lookup_account (McdAccountManager *account_manager,
 						const gchar *name);

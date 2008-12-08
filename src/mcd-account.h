@@ -43,6 +43,7 @@ typedef struct _McdAccountPrivate McdAccountPrivate;
 typedef struct _McdAccountClass McdAccountClass;
 
 #include "mcd-connection.h"
+#include "mcd-account-manager.h"
 
 struct _McdAccount
 {
@@ -68,8 +69,10 @@ struct _McdAccountClass
 #define MC_ACCOUNT_DBUS_OBJECT_BASE "/org/freedesktop/Telepathy/Account/"
 
 GType mcd_account_get_type (void);
-McdAccount *mcd_account_new (TpDBusDaemon *dbus_daemon, GKeyFile *keyfile,
+McdAccount *mcd_account_new (McdAccountManager *account_manager,
 			     const gchar *name);
+
+McdAccountManager *mcd_account_get_account_manager (McdAccount *account);
 
 gboolean mcd_account_delete (McdAccount *account, GError **error);
 

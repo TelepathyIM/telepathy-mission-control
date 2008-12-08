@@ -42,7 +42,6 @@
 #include "mcd-account-conditions.h"
 #include "mcd-account-connection.h"
 #include "mcd-account-requests.h"
-#include "mcd-account-manager.h"
 #include "mcd-misc.h"
 #include "mcd-signals-marshal.h"
 #include "mcd-manager.h"
@@ -98,11 +97,9 @@ struct _McdAccountPrivate
     gchar *manager_name;
     gchar *protocol_name;
 
-    /* DBUS connection */
-    TpDBusDaemon *dbus_daemon;
-
     McdConnection *connection;
     McdManager *manager;
+    McdAccountManager *account_manager;
     GKeyFile *keyfile;		/* configuration file */
 
     /* connection status */
@@ -147,7 +144,7 @@ enum
 {
     PROP_0,
     PROP_DBUS_DAEMON,
-    PROP_KEYFILE,
+    PROP_ACCOUNT_MANAGER,
     PROP_NAME,
 };
 
@@ -331,7 +328,7 @@ _mcd_account_delete (McdAccount *account, GError **error)
         g_rmdir (data_dir_str);
     }
     g_free (data_dir_str);
-    mcd_account_manager_write_conf (priv->keyfile);
+    mcd_account_manager_write_conf (priv->account_manager);
     return TRUE;
 }
 
@@ -521,7 +518,7 @@ mcd_account_set_string_val (McdAccount *account, const gchar *key,
 			       key, NULL);
 	string = NULL;
     }
-    mcd_account_manager_write_conf (priv->keyfile);
+    mcd_account_manager_write_conf (priv->account_manager);
     mcd_account_changed_property (account, key, value);
     return TRUE;
 }
@@ -611,7 +608,7 @@ set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
 				MC_ACCOUNTS_KEY_ENABLED,
 			       	enabled);
 	priv->enabled = enabled;
-	mcd_account_manager_write_conf (priv->keyfile);
+	mcd_account_manager_write_conf (priv->account_manager);
 	mcd_account_changed_property (account, name, value);
     }
 }
@@ -786,7 +783,7 @@ set_automatic_presence (TpSvcDBusProperties *self,
 
     if (changed)
     {
-	mcd_account_manager_write_conf (priv->keyfile);
+	mcd_account_manager_write_conf (priv->account_manager);
 	mcd_account_changed_property (account, name, value);
     }
 }
@@ -833,7 +830,7 @@ set_connect_automatically (TpSvcDBusProperties *self,
 				MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY,
 			       	connect_automatically);
 	priv->connect_automatically = connect_automatically;
-	mcd_account_manager_write_conf (priv->keyfile);
+	mcd_account_manager_write_conf (priv->account_manager);
 	mcd_account_changed_property (account, name, value);
     }
 }
@@ -1224,7 +1221,7 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
     g_value_unset (&value);
 
     mcd_account_check_validity (account);
-    mcd_account_manager_write_conf (priv->keyfile);
+    mcd_account_manager_write_conf (priv->account_manager);
     mc_svc_account_return_from_update_parameters (context);
 }
 
@@ -1243,10 +1240,14 @@ register_dbus_service (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
     DBusGConnection *dbus_connection;
+    TpDBusDaemon *dbus_daemon;
 
-    if (!priv->dbus_daemon || !priv->object_path) return;
+    if (!priv->account_manager || !priv->object_path) return;
 
-    dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
+    dbus_daemon = mcd_account_manager_get_dbus_daemon (priv->account_manager);
+    g_return_if_fail (dbus_daemon != NULL);
+
+    dbus_connection = TP_PROXY (dbus_daemon)->dbus_connection;
 
     if (G_LIKELY (dbus_connection))
 	dbus_g_connection_register_g_object (dbus_connection,
@@ -1260,7 +1261,10 @@ mcd_account_setup (McdAccount *account)
     McdAccountPrivate *priv = account->priv;
     gboolean valid;
 
-    if (!priv->keyfile || !priv->unique_name) return FALSE;
+    if (!priv->account_manager || !priv->unique_name) return FALSE;
+
+    priv->keyfile = mcd_account_manager_get_config (priv->account_manager);
+    if (!priv->keyfile) return FALSE;
 
     priv->manager_name =
 	g_key_file_get_string (priv->keyfile, priv->unique_name,
@@ -1318,15 +1322,11 @@ set_property (GObject *obj, guint prop_id,
 
     switch (prop_id)
     {
-    case PROP_DBUS_DAEMON:
-	if (priv->dbus_daemon)
-	    g_object_unref (priv->dbus_daemon);
-	priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
-	register_dbus_service (MCD_ACCOUNT (obj));
-	break;
-    case PROP_KEYFILE:
-	g_assert (priv->keyfile == NULL);
-	priv->keyfile = g_value_get_pointer (val);
+    case PROP_ACCOUNT_MANAGER:
+        g_assert (priv->account_manager == NULL);
+        /* don't keep a reference to the account_manager: we can safely assume
+         * its lifetime is longer than the McdAccount's */
+        priv->account_manager = g_value_get_object (val);
 	if (mcd_account_setup (account))
 	    register_dbus_service (account);
 	break;
@@ -1357,7 +1357,8 @@ get_property (GObject *obj, guint prop_id,
     switch (prop_id)
     {
     case PROP_DBUS_DAEMON:
-	g_value_set_object (val, priv->dbus_daemon);
+        g_value_set_object
+            (val, mcd_account_manager_get_dbus_daemon (priv->account_manager));
 	break;
     case PROP_NAME:
 	g_value_set_string (val, priv->unique_name);
@@ -1430,11 +1431,6 @@ _mcd_account_dispose (GObject *object)
 	priv->connection = NULL;
     }
 
-    if (priv->dbus_daemon)
-    {
-	g_object_unref (priv->dbus_daemon);
-	priv->dbus_daemon = NULL;
-    }
     G_OBJECT_CLASS (mcd_account_parent_class)->dispose (object);
 }
 
@@ -1456,12 +1452,12 @@ mcd_account_class_init (McdAccountClass * klass)
     g_object_class_install_property
         (object_class, PROP_DBUS_DAEMON,
          g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
-                              TP_TYPE_DBUS_DAEMON,
-                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+                              TP_TYPE_DBUS_DAEMON, G_PARAM_READABLE));
 
     g_object_class_install_property
-        (object_class, PROP_KEYFILE,
-         g_param_spec_pointer ("keyfile", "Conf file", "Conf file",
+        (object_class, PROP_ACCOUNT_MANAGER,
+         g_param_spec_object ("account-manager", "account-manager",
+                               "account-manager", MCD_TYPE_ACCOUNT_MANAGER,
                                G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 
     g_object_class_install_property
@@ -1539,16 +1535,27 @@ mcd_account_init (McdAccount *account)
 }
 
 McdAccount *
-mcd_account_new (TpDBusDaemon *dbus_daemon, GKeyFile *keyfile,
-		 const gchar *name)
+mcd_account_new (McdAccountManager *account_manager, const gchar *name)
 {
     gpointer *obj;
     obj = g_object_new (MCD_TYPE_ACCOUNT,
-			"dbus-daemon", dbus_daemon,
-			"keyfile", keyfile,
+                        "account-manager", account_manager,
 			"name", name,
 			NULL);
     return MCD_ACCOUNT (obj);
+}
+
+/**
+ * mcd_account_get_account_manager:
+ * @account: the #McdAccount.
+ *
+ * Returns: the #McdAccountManager.
+ */
+McdAccountManager *
+mcd_account_get_account_manager (McdAccount *account)
+{
+    g_return_val_if_fail (MCD_IS_ACCOUNT (account), NULL);
+    return account->priv->account_manager;
 }
 
 /*
@@ -1854,7 +1861,7 @@ mcd_account_set_normalized_name (McdAccount *account, const gchar *name)
     else
 	g_key_file_remove_key (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_NORMALIZED_NAME, NULL);
-    mcd_account_manager_write_conf (priv->keyfile);
+    mcd_account_manager_write_conf (priv->account_manager);
 }
 
 gchar *
@@ -1878,7 +1885,7 @@ mcd_account_set_avatar_token (McdAccount *account, const gchar *token)
     else
 	g_key_file_remove_key (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_AVATAR_TOKEN, NULL);
-    mcd_account_manager_write_conf (priv->keyfile);
+    mcd_account_manager_write_conf (priv->account_manager);
 }
 
 gchar *
@@ -1936,7 +1943,7 @@ mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
     g_signal_emit (account, _mcd_account_signals[AVATAR_CHANGED], 0,
 		   avatar, mime_type);
 
-    mcd_account_manager_write_conf (priv->keyfile);
+    mcd_account_manager_write_conf (priv->account_manager);
     return TRUE;
 }
 
