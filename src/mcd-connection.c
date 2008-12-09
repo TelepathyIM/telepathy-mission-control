@@ -452,7 +452,7 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
         mcd_dispatcher_send (priv->dispatcher, channel);
     }
     else
-        mcd_channel_set_status (channel, MCD_CHANNEL_UNDISPATCHED);
+        mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_UNDISPATCHED);
 }
 
 static void
@@ -558,7 +558,7 @@ on_capabilities_timeout (McdConnection *connection)
 
 	list_curr = list;
 	list = list->next;
-        if (mcd_channel_get_status (channel) == MCD_CHANNEL_REQUEST &&
+        if (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_REQUEST &&
             on_channel_capabilities_timeout (channel, connection))
 	{
             mcd_mission_abort ((McdMission *)channel);
@@ -1142,7 +1142,7 @@ request_unrequested_channels (McdConnection *connection)
     {
 	McdChannel *channel = MCD_CHANNEL (channels->data);
 
-        if (mcd_channel_get_status (channel) == MCD_CHANNEL_REQUEST)
+        if (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_REQUEST)
         {
             g_debug ("Requesting channel %p", channel);
             mcd_connection_request_channel (connection, channel);
@@ -1165,7 +1165,7 @@ dispatch_undispatched_channels (McdConnection *connection)
     {
 	McdChannel *channel = MCD_CHANNEL (channels->data);
 
-        if (mcd_channel_get_status (channel) == MCD_CHANNEL_UNDISPATCHED)
+        if (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_UNDISPATCHED)
         {
             g_debug ("Dispatching channel %p", channel);
             /* dispatch the channel */
@@ -1320,7 +1320,8 @@ static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
             McdChannel *channel = MCD_CHANNEL (list->data);
             const gchar *channel_path;
 
-            if (mcd_channel_get_status (channel) != MCD_CHANNEL_UNDISPATCHED)
+            if (mcd_channel_get_status (channel) !=
+                MCD_CHANNEL_STATUS_UNDISPATCHED)
                 continue;
             channel_path = mcd_channel_get_object_path (channel);
             if (channel_path && strcmp (channel_path, object_path) == 0)
@@ -2194,7 +2195,8 @@ common_request_channel_cb (TpConnection *proxy, gboolean yours,
              * 2) if @existing is already dispatched, we must re-invoke its
              * handler
              */
-            if (mcd_channel_get_status (channel) == MCD_CHANNEL_DISPATCHED)
+            if (mcd_channel_get_status (channel) ==
+                MCD_CHANNEL_STATUS_DISPATCHED)
             {
                 g_debug ("reinvoking handler on channel %p", existing);
                 _mcd_dispatcher_reinvoke_handler (priv->dispatcher, existing);

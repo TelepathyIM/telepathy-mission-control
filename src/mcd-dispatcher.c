@@ -275,7 +275,7 @@ mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
     {
         McdChannel *channel = MCD_CHANNEL (list->data);
 
-        if (mcd_channel_get_status (channel) == MCD_CHANNEL_DISPATCHING)
+        if (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_DISPATCHING)
             channels_left++;
         /* TODO: recognize those channels whose dispatch failed, and
          * re-dispatch them to another handler */
@@ -765,7 +765,7 @@ _mcd_dispatcher_handle_channel_async_cb (DBusGProxy * proxy, GError * error,
 	}
     }
 
-    mcd_channel_set_status (channel, MCD_CHANNEL_DISPATCHED);
+    mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_DISPATCHED);
     g_signal_emit_by_name (context->dispatcher, "dispatched", channel);
     mcd_dispatcher_context_handler_done (context);
 }
@@ -1007,7 +1007,7 @@ match_filters (McdChannel *channel, GList *filters)
     GList *list;
 
     channel_properties =
-        (mcd_channel_get_status (channel) == MCD_CHANNEL_REQUEST) ?
+        (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_REQUEST) ?
         _mcd_channel_get_requested_properties (channel) :
         _mcd_channel_get_immutable_properties (channel);
 
@@ -1083,7 +1083,7 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
             McdChannel *channel = MCD_CHANNEL (list->data);
 
             /* TODO: abort the channel if the handler dies */
-            mcd_channel_set_status (channel, MCD_CHANNEL_DISPATCHED);
+            mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_DISPATCHED);
             g_signal_emit_by_name (context->dispatcher, "dispatched", channel);
         }
     }
@@ -1547,7 +1547,7 @@ on_operation_finished (McdDispatchOperation *operation,
             McdChannel *channel = MCD_CHANNEL (list->data);
 
             /* TODO: abort the channel if the handler dies */
-            mcd_channel_set_status (channel, MCD_CHANNEL_DISPATCHED);
+            mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_DISPATCHED);
             g_signal_emit_by_name (context->dispatcher, "dispatched", channel);
         }
 
@@ -1663,7 +1663,7 @@ _mcd_dispatcher_send (McdDispatcher * dispatcher, McdChannel * channel)
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
     g_return_if_fail (MCD_IS_CHANNEL (channel));
 
-    mcd_channel_set_status (channel, MCD_CHANNEL_DISPATCHING);
+    mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_DISPATCHING);
     priv = dispatcher->priv;
 
     g_object_get (G_OBJECT (channel),
@@ -2938,11 +2938,12 @@ static void
 on_request_status_changed (McdChannel *channel, McdChannelStatus status,
                            McdRemoveRequestData *rrd)
 {
-    if (status != MCD_CHANNEL_FAILED && status != MCD_CHANNEL_DISPATCHED)
+    if (status != MCD_CHANNEL_STATUS_FAILED &&
+        status != MCD_CHANNEL_STATUS_DISPATCHED)
         return;
 
     g_debug ("%s called, %u", G_STRFUNC, status);
-    if (status == MCD_CHANNEL_FAILED)
+    if (status == MCD_CHANNEL_STATUS_FAILED)
     {
         const GError *error;
         const gchar *err_string;
@@ -2987,7 +2988,8 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
 
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
     g_return_if_fail (MCD_IS_CHANNEL (channel));
-    g_return_if_fail (mcd_channel_get_status (channel) == MCD_CHANNEL_REQUEST);
+    g_return_if_fail (mcd_channel_get_status (channel) ==
+                      MCD_CHANNEL_STATUS_REQUEST);
 
     priv = dispatcher->priv;
 
@@ -3081,7 +3083,7 @@ _mcd_dispatcher_send_channels (McdDispatcher *dispatcher, GList *channels,
 
     for (list = channels; list != NULL; list = list->next)
         mcd_channel_set_status (MCD_CHANNEL (list->data),
-                                MCD_CHANNEL_DISPATCHING);
+                                MCD_CHANNEL_STATUS_DISPATCHING);
 
     _mcd_dispatcher_enter_state_machine (dispatcher, channels, requested);
 }

@@ -93,7 +93,7 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
 {
     const GError *error;
 
-    if (status == MCD_CHANNEL_FAILED)
+    if (status == MCD_CHANNEL_STATUS_FAILED)
     {
         const gchar *err_string;
         error = _mcd_channel_get_error (channel);
@@ -107,7 +107,7 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
 
         g_object_unref (channel);
     }
-    else if (status == MCD_CHANNEL_DISPATCHED)
+    else if (status == MCD_CHANNEL_STATUS_DISPATCHED)
     {
         mc_svc_account_interface_channelrequests_emit_succeeded (account,
             _mcd_channel_get_request_path (channel));

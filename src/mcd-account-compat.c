@@ -266,7 +266,7 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
     g_debug ("%s (%u)", G_STRFUNC, status);
     g_return_if_fail (MCD_IS_ACCOUNT (account));
 
-    if (status == MCD_CHANNEL_FAILED &&
+    if (status == MCD_CHANNEL_STATUS_FAILED &&
         (req_data = g_object_get_data ((GObject *)channel, COMPAT_REQ_DATA))
         != NULL)
     {
@@ -281,7 +281,7 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
                                req_data->requestor_serial,
                                req_data->requestor_client_id, error->code);
     }
-    else if (status == MCD_CHANNEL_DISPATCHED)
+    else if (status == MCD_CHANNEL_STATUS_DISPATCHED)
     {
         /* we don't need the request data anymore */
         g_object_set_data ((GObject *)channel, COMPAT_REQ_DATA, NULL);

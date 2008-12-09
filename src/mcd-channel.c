@@ -600,8 +600,8 @@ mcd_channel_abort (McdMission *mission)
 
     g_debug ("%s: %p", G_STRFUNC, mission);
     /* If this is still a channel request, signal the failure */
-    if (priv->status == MCD_CHANNEL_REQUEST ||
-        priv->status == MCD_CHANNEL_DISPATCHING)
+    if (priv->status == MCD_CHANNEL_STATUS_REQUEST ||
+        priv->status == MCD_CHANNEL_STATUS_DISPATCHING)
     {
         /* this code-path can only happen if the connection is aborted, as in
          * the other cases we handle the error in McdChannel; for this reason,
@@ -666,7 +666,7 @@ mcd_channel_class_init (McdChannelClass * klass)
          g_param_spec_enum ("channel-status",
                             "Channel status",
                             "Channel status",
-                            MCD_TYPE_CHANNEL_STATUS, MCD_CHANNEL_REQUEST,
+                            MCD_TYPE_CHANNEL_STATUS, MCD_CHANNEL_STATUS_REQUEST,
                             G_PARAM_READWRITE));
     g_object_class_install_property
         (object_class, PROP_CHANNEL_TYPE,
@@ -1148,7 +1148,7 @@ _mcd_channel_get_target_id (McdChannel *channel)
  *
  * Sets @error on channel, and takes ownership of it. As a side effect, if
  * @error is not %NULL this method causes the channel status be set to
- * %MCD_CHANNEL_FAILED.
+ * %MCD_CHANNEL_STATUS_FAILED.
  */
 void
 _mcd_channel_set_error (McdChannel *channel, GError *error)
@@ -1157,7 +1157,7 @@ _mcd_channel_set_error (McdChannel *channel, GError *error)
     g_object_set_data_full ((GObject *)channel, CD_ERROR,
                             error, (GDestroyNotify)g_error_free);
     if (error)
-        mcd_channel_set_status (channel, MCD_CHANNEL_FAILED);
+        mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_FAILED);
 }
 
 /*
@@ -1213,7 +1213,7 @@ mcd_channel_new_request (GHashTable *properties, guint64 user_time,
                             NULL);
 
     /* TODO: these data could be freed when the channel status becomes
-     * MCD_CHANNEL_DISPATCHED */
+     * MCD_CHANNEL_STATUS_DISPATCHED */
     crd = g_slice_new (McdChannelRequestData);
     crd->path = g_strdup_printf (REQUEST_OBJ_BASE "%u", last_req_id++);
     crd->properties = g_hash_table_ref (properties);
@@ -1222,7 +1222,7 @@ mcd_channel_new_request (GHashTable *properties, guint64 user_time,
     g_object_set_data_full ((GObject *)channel, CD_REQUEST,
                             crd, (GDestroyNotify)channel_request_data_free);
 
-    mcd_channel_set_status (channel, MCD_CHANNEL_REQUEST);
+    mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_REQUEST);
 
     return channel;
 }
@@ -1378,7 +1378,7 @@ copy_status (McdChannel *source, McdChannel *dest)
     {
         g_debug ("%s: source is %d, dest is %d", G_STRFUNC,
                  src_priv->status, dst_priv->status);
-        if (src_priv->status == MCD_CHANNEL_FAILED)
+        if (src_priv->status == MCD_CHANNEL_STATUS_FAILED)
         {
             const GError *error;
 
@@ -1390,8 +1390,8 @@ copy_status (McdChannel *source, McdChannel *dest)
             mcd_channel_set_status (dest, src_priv->status);
     }
 
-    if (dst_priv->status == MCD_CHANNEL_FAILED ||
-        dst_priv->status == MCD_CHANNEL_DISPATCHED)
+    if (dst_priv->status == MCD_CHANNEL_STATUS_FAILED ||
+        dst_priv->status == MCD_CHANNEL_STATUS_DISPATCHED)
     {
         /* the request is completed, we are not interested in monitor the
          * channel anymore */
