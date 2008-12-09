@@ -52,17 +52,6 @@ typedef struct
     gchar *requestor_client_id;
 } McdAccountCompatReq;
 
-static inline void
-mcd_account_write_conf (McdAccount *account)
-{
-    McdAccountManager *account_manager;
-
-    account_manager = mcd_account_get_account_manager (account);
-    g_return_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager));
-
-    mcd_account_manager_write_conf (account_manager);
-}
-
 static void
 set_profile (TpSvcDBusProperties *self, const gchar *name,
 	     const GValue *value)

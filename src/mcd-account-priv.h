@@ -55,5 +55,16 @@ G_GNUC_INTERNAL
 void _mcd_account_online_request_completed (McdAccount *account,
                                             GError *error);
 
+static inline void
+mcd_account_write_conf (McdAccount *account)
+{
+    McdAccountManager *account_manager;
+
+    account_manager = mcd_account_get_account_manager (account);
+    g_return_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager));
+
+    mcd_account_manager_write_conf (account_manager);
+}
+
 #endif /* __MCD_ACCOUNT_PRIV_H__ */
 
