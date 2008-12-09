@@ -39,6 +39,17 @@
 #include "_gen/interfaces.h"
 
 
+static inline void
+mcd_account_write_conf (McdAccount *account)
+{
+    McdAccountManager *account_manager;
+
+    account_manager = mcd_account_get_account_manager (account);
+    g_return_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager));
+
+    mcd_account_manager_write_conf (account_manager);
+}
+
 static void
 store_condition (gpointer key, gpointer value, gpointer userdata)
 {
@@ -79,7 +90,7 @@ set_condition (TpSvcDBusProperties *self, const gchar *name,
 
     g_hash_table_foreach (conditions, store_condition, account);
 
-    mcd_account_manager_write_conf (keyfile);
+    mcd_account_write_conf (account);
 }
 
 static void

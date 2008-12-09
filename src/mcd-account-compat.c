@@ -52,6 +52,17 @@ typedef struct
     gchar *requestor_client_id;
 } McdAccountCompatReq;
 
+static inline void
+mcd_account_write_conf (McdAccount *account)
+{
+    McdAccountManager *account_manager;
+
+    account_manager = mcd_account_get_account_manager (account);
+    g_return_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager));
+
+    mcd_account_manager_write_conf (account_manager);
+}
+
 static void
 set_profile (TpSvcDBusProperties *self, const gchar *name,
 	     const GValue *value)
@@ -71,7 +82,7 @@ set_profile (TpSvcDBusProperties *self, const gchar *name,
 	g_key_file_remove_key (keyfile, unique_name,
 			       name, NULL);
     }
-    mcd_account_manager_write_conf (keyfile);
+    mcd_account_write_conf (account);
 }
 
 static void
@@ -125,7 +136,7 @@ set_secondary_vcard_fields (TpSvcDBusProperties *self, const gchar *name,
 	g_key_file_remove_key (keyfile, unique_name,
 			       name, NULL);
     }
-    mcd_account_manager_write_conf (keyfile);
+    mcd_account_write_conf (account);
 }
 
 static void
