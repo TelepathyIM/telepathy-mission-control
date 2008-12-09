@@ -1002,10 +1002,14 @@ channel_classes_equals (GHashTable *channel_class1, GHashTable *channel_class2)
 static gboolean
 match_filters (McdChannel *channel, GList *filters)
 {
-    GHashTable *channel_properties =
-        _mcd_channel_get_immutable_properties (channel);
+    GHashTable *channel_properties;
     gboolean matched = FALSE;
     GList *list;
+
+    channel_properties =
+        (mcd_channel_get_status (channel) == MCD_CHANNEL_REQUEST) ?
+        _mcd_channel_get_requested_properties (channel) :
+        _mcd_channel_get_immutable_properties (channel);
 
     for (list = filters; list != NULL; list = list->next)
     {
