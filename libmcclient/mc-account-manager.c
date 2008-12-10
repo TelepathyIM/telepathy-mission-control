@@ -384,22 +384,35 @@ mc_account_manager_new (TpDBusDaemon *dbus)
 static void
 update_property (gpointer key, gpointer ht_value, gpointer user_data)
 {
+    static GType ao_type = G_TYPE_INVALID;
     McAccountManager *manager = user_data;
     McAccountManagerProps *props = manager->priv->props;
     GValue *value = ht_value;
     const gchar *name = key;
 
-    if (strcmp (name, "ValidAccounts") == 0)
+    if (G_UNLIKELY (ao_type == G_TYPE_INVALID))
+        ao_type = dbus_g_type_get_collection ("GPtrArray",
+                                              DBUS_TYPE_G_OBJECT_PATH);
+
+    if (strcmp (name, "ValidAccounts") == 0 &&
+        G_VALUE_HOLDS (value, ao_type))
     {
-	g_strfreev (props->valid_accounts);
-	props->valid_accounts = g_value_get_boxed (value);
-	_mc_gvalue_stolen (value);
+        GPtrArray *contents = g_value_get_boxed (value);
+
+        _mc_gvalue_stolen (value);
+        g_strfreev (props->valid_accounts);
+        g_ptr_array_add (contents, NULL);
+        props->valid_accounts = (gchar **) g_ptr_array_free (contents, FALSE);
     }
-    else if (strcmp (name, "InvalidAccounts") == 0)
+    else if (strcmp (name, "InvalidAccounts") == 0 &&
+             G_VALUE_HOLDS (value, ao_type))
     {
-	g_strfreev (props->invalid_accounts);
-	props->invalid_accounts = g_value_get_boxed (value);
-	_mc_gvalue_stolen (value);
+        GPtrArray *contents = g_value_get_boxed (value);
+
+        _mc_gvalue_stolen (value);
+        g_strfreev (props->invalid_accounts);
+        g_ptr_array_add (contents, NULL);
+        props->invalid_accounts = (gchar **) g_ptr_array_free (contents, FALSE);
     }
 }
 
