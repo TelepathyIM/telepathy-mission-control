@@ -224,6 +224,9 @@ _check_presence (McdConnectionPrivate *priv, TpConnectionPresenceType presence,
 {
     const gchar **fallbacks;
 
+    if (presence == TP_CONNECTION_PRESENCE_TYPE_UNSET || *status == NULL)
+        return FALSE;
+
     if (g_hash_table_lookup (priv->recognized_presences, *status))
         return TRUE;
 
