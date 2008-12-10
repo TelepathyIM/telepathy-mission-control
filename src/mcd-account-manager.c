@@ -83,12 +83,6 @@ struct _McdAccountManagerPrivate
     GHashTable *invalid_accounts;
 };
 
-typedef struct
-{
-    gchar **accounts;
-    gint i;
-} McdAccountArray;
-
 enum
 {
     PROP_0,
@@ -330,30 +324,27 @@ account_manager_iface_init (McSvcAccountManagerClass *iface,
 }
 
 static void
-append_account (gpointer key, gpointer val, gpointer userdata)
-{
-    McdAccountArray *aa = userdata;
-    const gchar *object_path;
-
-    object_path = mcd_account_get_object_path (val);
-    aa->accounts[aa->i++] = g_strdup (object_path);
-    aa->accounts[aa->i] = NULL;
-}
-
-static void
 accounts_to_gvalue (GHashTable *accounts, GValue *value)
 {
-    McdAccountArray account_array;
-    gint n_accounts;
+    static GType ao_type = G_TYPE_INVALID;
+    GPtrArray *account_array;
+    GHashTableIter iter;
+    gpointer k, v;
 
-    n_accounts = g_hash_table_size (accounts);
-    account_array.accounts = g_new (gchar *, n_accounts + 1);
-    account_array.accounts[0] = NULL;
-    account_array.i = 0;
+    if (G_UNLIKELY (ao_type == G_TYPE_INVALID))
+        ao_type = dbus_g_type_get_collection ("GPtrArray",
+                                              DBUS_TYPE_G_OBJECT_PATH);
 
-    g_hash_table_foreach (accounts, append_account, &account_array);
-    g_value_init (value, G_TYPE_STRV);
-    g_value_take_boxed (value, account_array.accounts);
+    account_array = g_ptr_array_sized_new (g_hash_table_size (accounts));
+
+    g_hash_table_iter_init (&iter, accounts);
+
+    while (g_hash_table_iter_next (&iter, &k, &v))
+        g_ptr_array_add (account_array,
+                         g_strdup (mcd_account_get_object_path (v)));
+
+    g_value_init (value, ao_type);
+    g_value_take_boxed (value, account_array);
 }
 
 static void
