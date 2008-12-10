@@ -3156,6 +3156,6 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
      * mcd_dispatcher_context_unref() will unref() it */
     g_object_ref (channel);
     mcd_dispatcher_run_handlers (context);
-    mcd_dispatcher_context_unref (context);
+    /* the context will be unreferenced once it leaves the state machine */
 }
 

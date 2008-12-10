@@ -2198,17 +2198,14 @@ common_request_channel_cb (TpConnection *proxy, gboolean yours,
              * 2) if @existing is already dispatched, we must re-invoke its
              * handler
              */
-            if (mcd_channel_get_status (channel) ==
+            if (mcd_channel_get_status (existing) ==
                 MCD_CHANNEL_STATUS_DISPATCHED)
             {
                 g_debug ("reinvoking handler on channel %p", existing);
                 _mcd_dispatcher_reinvoke_handler (priv->dispatcher, existing);
             }
-            else
-            {
-                g_debug ("channel %p is proxying %p", channel, existing);
-                _mcd_channel_set_request_proxy (channel, existing);
-            }
+            g_debug ("channel %p is proxying %p", channel, existing);
+            _mcd_channel_set_request_proxy (channel, existing);
             return;
         }
     }
