@@ -184,6 +184,7 @@ account_request_create (McSvcAccountInterfaceChannelRequests *self,
         return;
     }
     request_id = _mcd_channel_get_request_path (channel);
+    g_debug ("%s: returning %s", G_STRFUNC, request_id);
     mc_svc_account_interface_channelrequests_return_from_create (context,
                                                                  request_id);
 }
@@ -208,6 +209,7 @@ account_request_ensure_channel (McSvcAccountInterfaceChannelRequests *self,
         return;
     }
     request_id = _mcd_channel_get_request_path (channel);
+    g_debug ("%s: returning %s", G_STRFUNC, request_id);
     mc_svc_account_interface_channelrequests_return_from_ensure_channel
         (context, request_id);
 }
