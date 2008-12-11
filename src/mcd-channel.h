@@ -141,6 +141,8 @@ void _mcd_channel_set_request_use_existing (McdChannel *channel,
                                             gboolean use_existing);
 gboolean _mcd_channel_get_request_use_existing (McdChannel *channel);
 
+G_GNUC_INTERNAL
+void _mcd_channel_copy_details (McdChannel *channel, McdChannel *source);
 void _mcd_channel_set_request_proxy (McdChannel *channel, McdChannel *source);
 
 void _mcd_channel_set_error (McdChannel *channel, GError *error);

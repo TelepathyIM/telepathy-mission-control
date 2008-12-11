@@ -3133,6 +3133,16 @@ mcd_dispatcher_add_filters (McdDispatcher *dispatcher,
                                    filter->user_data);
 }
 
+static void
+on_redispatched_channel_status_changed (McdChannel *channel,
+                                        McdChannelStatus status)
+{
+    if (status == MCD_CHANNEL_STATUS_DISPATCHED)
+    {
+        mcd_mission_abort (MCD_MISSION (channel));
+    }
+}
+
 /*
  * _mcd_dispatcher_reinvoke_handler:
  * @dispatcher: The #McdDispatcher.
@@ -3140,7 +3150,7 @@ mcd_dispatcher_add_filters (McdDispatcher *dispatcher,
  *
  * Re-invoke the channel handler for @channel.
  */
-void
+static void
 _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
                                   McdChannel *channel)
 {
@@ -3157,5 +3167,34 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     g_object_ref (channel);
     mcd_dispatcher_run_handlers (context);
     /* the context will be unreferenced once it leaves the state machine */
+}
+
+void
+_mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
+                                     McdChannel *channel, McdChannel *request)
+{
+    /* if the channel is already dispatched, just reinvoke the handler; if it
+     * is not, @request must mirror the status of @channel */
+    if (mcd_channel_get_status (channel) ==
+        MCD_CHANNEL_STATUS_DISPATCHED)
+    {
+        g_debug ("reinvoking handler on channel %p", channel);
+
+        /* copy the object path and the immutable properties from the
+         * existing channel */
+        _mcd_channel_copy_details (request, channel);
+
+        /* destroy the McdChannel object after it is dispatched */
+        g_signal_connect_after
+            (request, "status-changed",
+             G_CALLBACK (on_redispatched_channel_status_changed), NULL);
+
+        _mcd_dispatcher_reinvoke_handler (dispatcher, request);
+    }
+    else
+    {
+        g_debug ("channel %p is proxying %p", request, channel);
+        _mcd_channel_set_request_proxy (request, channel);
+    }
 }
 

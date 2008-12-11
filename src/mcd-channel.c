@@ -64,6 +64,7 @@ struct _McdChannelPrivate
     guint self_handle_ready : 1;
     guint name_ready : 1;
     guint local_pending_members_ready : 1;
+    guint close_on_dispose : 1;
 
     /* Pending members */
     GArray *pending_local_members;
@@ -588,7 +589,8 @@ _mcd_channel_dispose (GObject * object)
 	return;
 
     priv->is_disposed = TRUE;
-    _mcd_channel_release_tp_channel (MCD_CHANNEL (object), TRUE);
+    _mcd_channel_release_tp_channel (MCD_CHANNEL (object),
+                                     priv->close_on_dispose);
     G_OBJECT_CLASS (mcd_channel_parent_class)->dispose (object);
 }
 
@@ -767,6 +769,7 @@ mcd_channel_init (McdChannel * obj)
     priv->self_handle = INVALID_SELF_HANDLE;
     priv->pending_local_members = g_array_new (FALSE, FALSE,
 					       sizeof (PendingMemberInfo));
+    priv->close_on_dispose = TRUE;
 }
 
 McdChannel *
@@ -1435,5 +1438,31 @@ _mcd_channel_set_request_proxy (McdChannel *channel, McdChannel *source)
     copy_status (source, channel);
     g_signal_connect (source, "status-changed",
                       G_CALLBACK (on_proxied_channel_status_changed), channel);
+}
+
+/*
+ * _mcd_channel_copy_details:
+ * @channel: the #McdChannel.
+ * @source: the #McdChannel from which details are to be copied.
+ *
+ * Copy the #TpProxy and all associated properties from channel @source into
+ * @channel.
+ */
+void
+_mcd_channel_copy_details (McdChannel *channel, McdChannel *source)
+{
+    GHashTable *props;
+
+    g_return_if_fail (MCD_IS_CHANNEL (channel));
+    g_return_if_fail (MCD_IS_CHANNEL (source));
+
+    channel->priv->tp_chan = g_object_ref (source->priv->tp_chan);
+    channel->priv->close_on_dispose = FALSE;
+    /* Once we use the new tp-glib functionality of creating tp channels with
+     * properties the assignment above will copy the immutable properties, too;
+     * but for the time being, we must do it manually */
+    props = _mcd_channel_get_immutable_properties (source);
+    g_hash_table_ref (props);
+    _mcd_channel_set_immutable_properties (channel, props);
 }
 

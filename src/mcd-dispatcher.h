@@ -102,8 +102,10 @@ void _mcd_dispatcher_add_request (McdDispatcher *dispatcher,
                                   McdAccount *account, McdChannel *channel);
 void _mcd_dispatcher_send_channels (McdDispatcher *dispatcher,
                                     GList *channels, gboolean requested);
-void _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
-                                       McdChannel *channel);
+G_GNUC_INTERNAL
+void _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
+                                          McdChannel *channel,
+                                          McdChannel *request);
 
 G_END_DECLS
 

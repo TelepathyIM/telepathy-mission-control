@@ -2190,22 +2190,8 @@ common_request_channel_cb (TpConnection *proxy, gboolean yours,
         existing = find_channel_by_path (connection, channel_path);
         if (existing)
         {
-            /* Two possibilities:
-             *
-             * 1) if @existing is not yet in dispatched state, proxy the
-             * signals from @existing to this request (@channel).
-             *
-             * 2) if @existing is already dispatched, we must re-invoke its
-             * handler
-             */
-            if (mcd_channel_get_status (existing) ==
-                MCD_CHANNEL_STATUS_DISPATCHED)
-            {
-                g_debug ("reinvoking handler on channel %p", existing);
-                _mcd_dispatcher_reinvoke_handler (priv->dispatcher, existing);
-            }
-            g_debug ("channel %p is proxying %p", channel, existing);
-            _mcd_channel_set_request_proxy (channel, existing);
+            _mcd_dispatcher_add_channel_request (priv->dispatcher, existing,
+                                                 channel);
             return;
         }
     }
