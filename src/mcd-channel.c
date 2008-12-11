@@ -616,6 +616,12 @@ mcd_channel_abort (McdMission *mission)
 }
 
 static void
+mcd_channel_status_changed (McdChannel *channel, McdChannelStatus status)
+{
+    channel->priv->status = status;
+}
+
+static void
 mcd_channel_class_init (McdChannelClass * klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
@@ -627,6 +633,7 @@ mcd_channel_class_init (McdChannelClass * klass)
     object_class->set_property = _mcd_channel_set_property;
     object_class->get_property = _mcd_channel_get_property;
     mission_class->abort = mcd_channel_abort;
+    klass->status_changed_signal = mcd_channel_status_changed;
 
     /* signals */
     mcd_channel_signals[STATUS_CHANGED] =
@@ -869,7 +876,6 @@ mcd_channel_set_status (McdChannel *channel, McdChannelStatus status)
     {
         g_object_ref (channel);
         g_signal_emit_by_name (channel, "status-changed", status);
-        channel->priv->status = status;
         g_object_unref (channel);
     }
 }
