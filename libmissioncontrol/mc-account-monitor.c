@@ -244,12 +244,14 @@ on_account_validity_changed (TpProxy *proxy, const gchar *object_path,
 static void
 mc_account_monitor_init (McAccountMonitor *self)
 {
+    GType ao_type;
     GError *error = NULL;
     McAccountMonitorPrivate *priv;
     TpDBusDaemon *dbus_daemon;
     DBusGConnection *connection;
     GValue *val_accounts;
-    const gchar **accounts, **name;
+    GPtrArray *accounts;
+    guint i;
 
     self->priv = G_TYPE_INSTANCE_GET_PRIVATE(self,
 					     MC_TYPE_ACCOUNT_MONITOR, McAccountMonitorPrivate);
@@ -261,6 +263,10 @@ mc_account_monitor_init (McAccountMonitor *self)
 	g_error_free (error);
 	return;
     }
+
+    ao_type = dbus_g_type_get_collection ("GPtrArray",
+            DBUS_TYPE_G_OBJECT_PATH);
+
     dbus_daemon = tp_dbus_daemon_new (connection);
     priv->proxy = g_object_new (MC_TYPE_ACCOUNT_MANAGER_PROXY,
 				"dbus-daemon", dbus_daemon,
@@ -290,15 +296,24 @@ mc_account_monitor_init (McAccountMonitor *self)
 	error = NULL;
 	return;
     }
+    if (!G_VALUE_HOLDS (val_accounts, ao_type))
+    {
+        g_warning ("ValidAccounts did not have D-Bus type 'ao': %s",
+                G_VALUE_TYPE_NAME (val_accounts));
+        g_value_unset (val_accounts);
+        g_free (val_accounts);
+        return;
+    }
     accounts = g_value_get_boxed (val_accounts);
 
-    for (name = accounts; *name != NULL; name++)
+    for (i = 0; i < accounts->len; i++)
     {
+        const gchar *object_path = g_ptr_array_index (accounts, i);
 	McAccount *account;
 	const gchar *unique_name;
 
-	account = _mc_account_new (dbus_daemon, *name);
-	unique_name = MC_ACCOUNT_UNIQUE_NAME_FROM_PATH (*name);
+	account = _mc_account_new (dbus_daemon, object_path);
+	unique_name = MC_ACCOUNT_UNIQUE_NAME_FROM_PATH (object_path);
 	g_hash_table_insert (priv->accounts, g_strdup (unique_name), account);
     }
     g_value_unset (val_accounts);

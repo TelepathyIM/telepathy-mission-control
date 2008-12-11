@@ -52,6 +52,8 @@ def test(q, bus, mc):
             dbus_interface='org.freedesktop.DBus.Properties')
     assert properties is not None
     assert properties.get('ValidAccounts') == [account_path], properties
+    account_path = properties['ValidAccounts'][0]
+    assert isinstance(account_path, dbus.ObjectPath), repr(account_path)
     assert properties.get('InvalidAccounts') == [], properties
 
     # Get the Account interface
