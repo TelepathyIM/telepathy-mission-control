@@ -135,6 +135,8 @@ void _mcd_channel_details_free (GPtrArray *channels);
 const gchar *_mcd_channel_get_target_id (McdChannel *channel);
 GHashTable *_mcd_channel_get_requested_properties (McdChannel *channel);
 const gchar *_mcd_channel_get_request_path (McdChannel *channel);
+G_GNUC_INTERNAL
+const GList *_mcd_channel_get_satisfied_requests (McdChannel *channel);
 guint64 _mcd_channel_get_request_user_action_time (McdChannel *channel);
 const gchar *_mcd_channel_get_request_preferred_handler (McdChannel *channel);
 void _mcd_channel_set_request_use_existing (McdChannel *channel,

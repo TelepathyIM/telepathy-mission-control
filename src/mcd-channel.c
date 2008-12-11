@@ -91,7 +91,7 @@ typedef struct
 
 typedef struct
 {
-    gchar *path;
+    GList *paths;
 
     GHashTable *properties;
     guint64 user_time;
@@ -149,10 +149,17 @@ static void on_proxied_channel_status_changed (McdChannel *source,
 static void
 channel_request_data_free (McdChannelRequestData *crd)
 {
+    GList *list;
+
     g_debug ("%s called for %p", G_STRFUNC, crd);
     g_hash_table_unref (crd->properties);
     g_free (crd->preferred_handler);
-    g_free (crd->path);
+    list = crd->paths;
+    while (list);
+    {
+        g_free (list->data);
+        list = g_list_delete_link (list, list);
+    }
     g_slice_free (McdChannelRequestData, crd);
 }
 
@@ -1228,7 +1235,8 @@ mcd_channel_new_request (GHashTable *properties, guint64 user_time,
     /* TODO: these data could be freed when the channel status becomes
      * MCD_CHANNEL_STATUS_DISPATCHED */
     crd = g_slice_new (McdChannelRequestData);
-    crd->path = g_strdup_printf (REQUEST_OBJ_BASE "%u", last_req_id++);
+    crd->paths = g_list_prepend (NULL, g_strdup_printf (REQUEST_OBJ_BASE "%u",
+                                                        last_req_id++));
     crd->properties = g_hash_table_ref (properties);
     crd->user_time = user_time;
     crd->preferred_handler = g_strdup (preferred_handler);
@@ -1267,12 +1275,29 @@ _mcd_channel_get_requested_properties (McdChannel *channel)
 const gchar *
 _mcd_channel_get_request_path (McdChannel *channel)
 {
+    const GList *satisfied_requests;
+
+    satisfied_requests = _mcd_channel_get_satisfied_requests (channel);
+    return satisfied_requests ? satisfied_requests->data : NULL;
+}
+
+/*
+ * _mcd_channel_get_satisfied_requests:
+ * @channel: the #McdChannel.
+ *
+ * Returns: a list of the object paths of the channel requests satisfied by
+ * this channel, if the channel status is not yet MCD_CHANNEL_STATUS_DISPATCHED
+ * or MCD_CHANNEL_STATUS_FAILED.
+ */
+const GList *
+_mcd_channel_get_satisfied_requests (McdChannel *channel)
+{
     McdChannelRequestData *crd;
 
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
     crd = g_object_get_data ((GObject *)channel, CD_REQUEST);
     if (G_UNLIKELY (!crd)) return NULL;
-    return crd->path;
+    return crd->paths;
 }
 
 /*
@@ -1433,8 +1458,21 @@ on_proxied_channel_status_changed (McdChannel *source,
 void
 _mcd_channel_set_request_proxy (McdChannel *channel, McdChannel *source)
 {
+    const gchar *request_path;
+
     g_return_if_fail (MCD_IS_CHANNEL (channel));
     g_return_if_fail (MCD_IS_CHANNEL (source));
+
+    /* Now @source is also satisfying the request of @channel */
+    request_path = _mcd_channel_get_request_path (channel);
+    if (G_LIKELY (request_path))
+    {
+        McdChannelRequestData *crd;
+        crd = g_object_get_data ((GObject *)source, CD_REQUEST);
+        if (G_LIKELY (crd))
+            crd->paths = g_list_prepend (crd->paths, g_strdup (request_path));
+    }
+
     copy_status (source, channel);
     g_signal_connect (source, "status-changed",
                       G_CALLBACK (on_proxied_channel_status_changed), channel);
