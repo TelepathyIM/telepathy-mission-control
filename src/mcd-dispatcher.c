@@ -1247,25 +1247,28 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
 static void
 mcd_dispatcher_run_handlers (McdDispatcherContext *context)
 {
-    const GList *channels;
+    GList *channels;
     GList *unhandled = NULL;
 
     timestamp ("run handlers");
     mcd_dispatcher_context_ref (context);
 
     /* call mcd_dispatcher_run_handler until there are no unhandled channels */
-    channels = mcd_dispatcher_context_get_channels (context);
+
+    /* g_list_copy() should have a 'const' parameter. */
+    channels = g_list_copy ((GList *)
+                            mcd_dispatcher_context_get_channels (context));
     while (channels)
     {
-        g_list_free (unhandled);
         unhandled = mcd_dispatcher_run_handler (context, channels);
-        if (g_list_length (unhandled) >= g_list_length ((GList *)channels))
+        if (g_list_length (unhandled) >= g_list_length (channels))
         {
             /* this could really be an assertion, but just to be on the safe
              * side... */
             g_warning ("Number of unhandled channels not decreasing!");
             break;
         }
+        g_list_free (channels);
         channels = unhandled;
     }
     mcd_dispatcher_context_unref (context);
