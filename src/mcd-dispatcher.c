@@ -1198,12 +1198,15 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
         for (cl = channels; cl != NULL; cl = cl->next)
         {
             McdChannel *channel = MCD_CHANNEL (cl->data);
-            const gchar *req_path;
+            const GList *requests;
             guint64 user_time;
 
-            req_path = _mcd_channel_get_request_path (channel);
-            if (req_path)
-                g_ptr_array_add (satisfied_requests, (gchar *)req_path);
+            requests = _mcd_channel_get_satisfied_requests (channel);
+            while (requests)
+            {
+                g_ptr_array_add (satisfied_requests, requests->data);
+                requests = requests->next;
+            }
 
             /* FIXME: what if we have more than one request? */
             user_time = _mcd_channel_get_request_user_action_time (channel);
