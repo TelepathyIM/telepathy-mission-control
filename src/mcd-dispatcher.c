@@ -1305,7 +1305,6 @@ static void
 mcd_dispatcher_run_observers (McdDispatcherContext *context)
 {
     McdDispatcherPrivate *priv = context->dispatcher->priv;
-    McdClient *handler = NULL;
     const GList *cl, *channels;
     GHashTable *observer_info;
     GHashTableIter iter;
@@ -1352,7 +1351,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
 
         context->client_locks++;
         mcd_dispatcher_context_ref (context);
-        mc_cli_client_observer_call_observe_channels (handler->proxy, -1,
+        mc_cli_client_observer_call_observe_channels (client->proxy, -1,
             account_path, connection_path, channels_array, observer_info,
             observe_channels_cb,
             context, (GDestroyNotify)mcd_dispatcher_context_unref,
