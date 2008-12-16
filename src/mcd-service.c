@@ -316,17 +316,20 @@ mcd_service_get_account_for_connection(GObject *obj,
 
 static gboolean
 mcd_service_get_current_status(GObject *obj,
-			       McStatus *status, TpConnectionPresenceType *presence,
-			       TpConnectionPresenceType *requested_presence,
-			       GPtrArray **accounts, GError **error)
+                               McStatus *status_out,
+                               TpConnectionPresenceType *presence_out,
+                               TpConnectionPresenceType *requested_presence_out,
+                               GPtrArray **accounts,
+                               GError **error)
 {
+    McdMaster *as_master = MCD_MASTER (obj);
     McdServicePrivate *priv = MCD_OBJECT_PRIV (obj);
     GList *account_list, *account_node;
     GType type;
 
-    *status = priv->last_status;
-    *presence = mcd_master_get_actual_presence (MCD_MASTER (obj));
-    *requested_presence = mcd_master_get_requested_presence (MCD_MASTER (obj));
+    *status_out = priv->last_status;
+    *presence_out = mcd_master_get_actual_presence (as_master);
+    *requested_presence_out = mcd_master_get_requested_presence (as_master);
     *accounts = g_ptr_array_new ();
 
     type = dbus_g_type_get_struct ("GValueArray", G_TYPE_STRING, G_TYPE_UINT,

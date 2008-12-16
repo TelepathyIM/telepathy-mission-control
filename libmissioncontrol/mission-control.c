@@ -36,8 +36,8 @@ static void _handle_mcd_errors (DBusGProxy * missioncontrol, guint serial,
 static gboolean check_for_accounts (MissionControl * self);
 
 static GObjectClass *parent_class = NULL;
-static guint operation_id; /* A simple counter for execution order tracking;
-			      must be global per process */
+/* A simple counter for execution order tracking; must be global per process */
+static guint last_operation_id;
 static GList *instances = NULL;
 static DBusConnection *dbus_connection = NULL;
 static TpDBusDaemon *dbus_daemon = NULL;
@@ -642,20 +642,20 @@ mission_control_request_channel (MissionControl * self,
 {
     struct dbus_cb_data *cb_data;
     const gchar *account_name = mc_account_get_unique_name (account);
-    operation_id++;
+    last_operation_id++;
 
     if (account_name == NULL)
     {
 	INVOKE_CALLBACK (self, callback, user_data, MC_INVALID_ACCOUNT_ERROR,
 			 " ");
-	return operation_id;
+	return last_operation_id;
     }
 
     /* Check whether we have any accounts to request channel for */
     if (!check_for_accounts (self))
     {
 	INVOKE_CALLBACK (self, callback, user_data, MC_NO_ACCOUNTS_ERROR, " ");
-	return operation_id;
+	return last_operation_id;
     }
 
     cb_data = g_malloc (sizeof (struct dbus_cb_data));
@@ -665,11 +665,11 @@ mission_control_request_channel (MissionControl * self,
     mission_control_dbus_request_channel_async (DBUS_G_PROXY (self),
 						account_name,
 						type, handle, handle_type,
-						operation_id,
+						last_operation_id,
 						dbus_async_cb,
 						cb_data);
 
-    return operation_id;
+    return last_operation_id;
 }
 
 
@@ -709,20 +709,20 @@ mission_control_request_channel_with_string_handle_and_vcard_field (MissionContr
     const gchar *account_name = mc_account_get_unique_name (account);
     char * mangled_handle = NULL;
 
-    operation_id++;
+    last_operation_id++;
 
     if (account_name == NULL)
     {
 	INVOKE_CALLBACK (self, callback, user_data, MC_INVALID_ACCOUNT_ERROR,
 			 " ");
-	return operation_id;
+	return last_operation_id;
     }
 
     /* Check whether we have any accounts to request channel for */
     if (!check_for_accounts (self))
     {
 	INVOKE_CALLBACK (self, callback, user_data, MC_NO_ACCOUNTS_ERROR, " ");
-	return operation_id;
+	return last_operation_id;
     }
 
     /* mangle the handle with the vcard_field */
@@ -779,12 +779,12 @@ mission_control_request_channel_with_string_handle_and_vcard_field (MissionContr
             type,
             (mangled_handle)?mangled_handle:handle,
             handle_type,
-            operation_id,
+            last_operation_id,
             dbus_async_cb, cb_data);
 
     g_free(mangled_handle);
 
-    return operation_id;
+    return last_operation_id;
 }
 
 
