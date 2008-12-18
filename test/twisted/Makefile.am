@@ -33,7 +33,11 @@ EXTRA_DIST = \
 	mctest.py \
 	servicetest.py
 
-CLEANFILES = mc-[1-9]*.log *.pyc */*.pyc
+CLEANFILES = \
+	mc-[1-9]*.log \
+	*.pyc \
+	*/*.pyc \
+	with-session-bus-*.dbus-monitor-logs
 
 check_misc_sources = $(TESTS)
 

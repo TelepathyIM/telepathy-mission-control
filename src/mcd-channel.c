@@ -472,11 +472,7 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
     case PROP_TP_CHANNEL:
 	tp_chan = g_value_get_object (val);
 	if (tp_chan)
-	{
-            g_return_if_fail (priv->handle >= 0);
- 
 	    g_object_ref (tp_chan);
-	}
 	_mcd_channel_release_tp_channel (channel, TRUE);
 	priv->tp_chan = tp_chan;
 	if (priv->tp_chan)

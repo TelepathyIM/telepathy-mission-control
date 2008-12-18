@@ -309,11 +309,12 @@ presence_get_statuses_cb (TpProxy *proxy, const GValue *v_statuses,
     g_hash_table_iter_init (&iter, statuses);
     while (g_hash_table_iter_next (&iter, &ht_key, &ht_value))
     {
-        const gchar *status = ht_key;
         GValueArray *va = ht_value;
         McdPresenceInfo *pi;
 
+        status = ht_key;
         g_debug ("  %s", status);
+
         pi = g_slice_new (McdPresenceInfo);
         pi->presence = g_value_get_uint (va->values);
         pi->may_set_on_self = g_value_get_boolean (va->values + 1);

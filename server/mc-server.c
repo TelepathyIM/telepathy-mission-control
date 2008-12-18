@@ -25,6 +25,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <glib.h>
+
+#include <telepathy-glib/debug.h>
+
 #include "mcd-service.h"
 
 
@@ -47,6 +50,7 @@ main (int argc, char **argv)
 
     g_type_init ();
 
+    tp_debug_set_flags (g_getenv ("TP_GLIB_DEBUG"));
 
     mcd = mcd_service_new ();
 

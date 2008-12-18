@@ -40,20 +40,6 @@
 #include "mcd-misc.h"
 #include "_gen/interfaces.h"
 
-typedef struct
-{
-    gchar *requestor_client_id;
-} McdRequestData;
-
-#define REQUEST_DATA "request_data"
-
-static inline McdRequestData *
-get_request_data (McdChannel *channel)
-{
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    return g_object_get_data ((GObject *)channel, REQUEST_DATA);
-}
-
 static void
 online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
 {
@@ -81,13 +67,6 @@ online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
 }
 
 static void
-request_data_free (McdRequestData *rd)
-{
-    g_free (rd->requestor_client_id);
-    g_slice_free (McdRequestData, rd);
-}
-
-static void
 on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
                            McdAccount *account)
 {
@@ -112,9 +91,6 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
         mc_svc_account_interface_channelrequests_emit_succeeded (account,
             _mcd_channel_get_request_path (channel));
 
-        /* free the request data, it's no longer useful */
-        g_object_set_data ((GObject *)channel, REQUEST_DATA, NULL);
-
         g_object_unref (channel);
     }
 }
@@ -122,10 +98,9 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
 static McdChannel *
 create_request (McdAccount *account, GHashTable *properties,
                 guint64 user_time, const gchar *preferred_handler,
-                DBusGMethodInvocation *context, gboolean use_existing)
+                gboolean use_existing)
 {
     McdChannel *channel;
-    McdRequestData *rd;
     GError *error = NULL;
     GHashTable *props;
     McdDispatcher *dispatcher;
@@ -137,11 +112,6 @@ create_request (McdAccount *account, GHashTable *properties,
                                        preferred_handler);
     g_hash_table_unref (props);
     _mcd_channel_set_request_use_existing (channel, use_existing);
-
-    rd = g_slice_new (McdRequestData);
-    rd->requestor_client_id = dbus_g_method_get_sender (context);
-    g_object_set_data_full ((GObject *)channel, REQUEST_DATA, rd,
-                            (GDestroyNotify)request_data_free);
 
     g_signal_connect (channel, "status-changed",
                       G_CALLBACK (on_channel_status_changed), account);
@@ -176,7 +146,7 @@ account_request_create (McSvcAccountInterfaceChannelRequests *self,
     McdChannel *channel;
 
     channel = create_request (MCD_ACCOUNT (self), properties, user_time,
-                              preferred_handler, context, FALSE);
+                              preferred_handler, FALSE);
     if (error)
     {
         dbus_g_method_return_error (context, error);
@@ -200,7 +170,7 @@ account_request_ensure_channel (McSvcAccountInterfaceChannelRequests *self,
     McdChannel *channel;
 
     channel = create_request (MCD_ACCOUNT (self), properties, user_time,
-                              preferred_handler, context, TRUE);
+                              preferred_handler, TRUE);
 
     if (error)
     {

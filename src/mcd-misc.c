@@ -94,21 +94,12 @@ GHashTable *
 _mcd_deepcopy_asv (GHashTable *asv)
 {
     GHashTable *copy;
-    GHashTableIter iter;
-    gpointer ht_key, ht_value;
 
     copy = g_hash_table_new_full (g_str_hash, g_str_equal,
                                   g_free,
                                   (GDestroyNotify)tp_g_value_slice_free);
-    g_hash_table_iter_init (&iter, asv);
-    while (g_hash_table_iter_next (&iter, &ht_key, &ht_value))
-    {
-        GValue *value = g_slice_new0 (GValue);
-        g_value_init (value, G_VALUE_TYPE (ht_value));
-        g_value_copy (ht_value, value);
-
-        g_hash_table_insert (copy, g_strdup (ht_key), value);
-    }
+    tp_g_hash_table_update (copy, asv, (GBoxedCopyFunc) g_strdup,
+                            (GBoxedCopyFunc) tp_g_value_slice_dup);
     return copy;
 }
 

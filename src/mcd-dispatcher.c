@@ -775,10 +775,9 @@ start_old_channel_handler (McdDispatcherContext *context)
 {
     McdChannelHandler *chandler;
     McdDispatcherPrivate *priv;
-    McdChannel *channel;
+    McdChannel *channel = NULL;
     const gchar *protocol;
     GHashTable *channel_handler;
-    
 
     g_return_if_fail (context);
 
@@ -790,10 +789,13 @@ start_old_channel_handler (McdDispatcherContext *context)
 	g_hash_table_lookup (priv->channel_handler_hash,
 			     mcd_channel_get_channel_type (channel));
 
-    chandler = g_hash_table_lookup (channel_handler, protocol);
-    if (chandler == NULL)
-	chandler = g_hash_table_lookup (channel_handler, "default");
-    
+    if (channel_handler != NULL)
+    {
+        chandler = g_hash_table_lookup (channel_handler, protocol);
+        if (chandler == NULL)
+            chandler = g_hash_table_lookup (channel_handler, "default");
+    }
+
     if (chandler == NULL)
     {
 	GError *mc_error;
@@ -1250,25 +1252,28 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
 static void
 mcd_dispatcher_run_handlers (McdDispatcherContext *context)
 {
-    const GList *channels;
+    GList *channels;
     GList *unhandled = NULL;
 
     timestamp ("run handlers");
     mcd_dispatcher_context_ref (context);
 
     /* call mcd_dispatcher_run_handler until there are no unhandled channels */
-    channels = mcd_dispatcher_context_get_channels (context);
+
+    /* g_list_copy() should have a 'const' parameter. */
+    channels = g_list_copy ((GList *)
+                            mcd_dispatcher_context_get_channels (context));
     while (channels)
     {
-        g_list_free (unhandled);
         unhandled = mcd_dispatcher_run_handler (context, channels);
-        if (g_list_length (unhandled) >= g_list_length ((GList *)channels))
+        if (g_list_length (unhandled) >= g_list_length (channels))
         {
             /* this could really be an assertion, but just to be on the safe
              * side... */
             g_warning ("Number of unhandled channels not decreasing!");
             break;
         }
+        g_list_free (channels);
         channels = unhandled;
     }
     mcd_dispatcher_context_unref (context);
@@ -1305,7 +1310,6 @@ static void
 mcd_dispatcher_run_observers (McdDispatcherContext *context)
 {
     McdDispatcherPrivate *priv = context->dispatcher->priv;
-    McdClient *handler = NULL;
     const GList *cl, *channels;
     GHashTable *observer_info;
     GHashTableIter iter;
@@ -1352,7 +1356,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
 
         context->client_locks++;
         mcd_dispatcher_context_ref (context);
-        mc_cli_client_observer_call_observe_channels (handler->proxy, -1,
+        mc_cli_client_observer_call_observe_channels (client->proxy, -1,
             account_path, connection_path, channels_array, observer_info,
             observe_channels_cb,
             context, (GDestroyNotify)mcd_dispatcher_context_unref,
@@ -1915,12 +1919,12 @@ parse_client_filter (GKeyFile *file, const gchar *group)
             {
                 /* g_key_file_get_integer cannot be used because we need
                  * to support 64 bits */
-                guint i;
+                guint x;
                 GValue *value = tp_g_value_slice_new (G_TYPE_UINT64);
                 gchar *str = g_key_file_get_string (file, group, key,
                                                     NULL);
                 errno = 0;
-                i = g_ascii_strtoull (str, NULL, 0);
+                x = g_ascii_strtoull (str, NULL, 0);
                 if (errno != 0)
                 {
                     g_warning ("Invalid unsigned integer '%s' in client"
@@ -1928,7 +1932,7 @@ parse_client_filter (GKeyFile *file, const gchar *group)
                 }
                 else
                 {
-                    g_value_set_uint64 (value, i);
+                    g_value_set_uint64 (value, x);
                     g_hash_table_insert (filter, file_property, value);
                 }
                 g_free (str);
@@ -1940,11 +1944,11 @@ parse_client_filter (GKeyFile *file, const gchar *group)
         case 'i':
         case 'x': /* signed integer */
             {
-                gint i;
+                gint x;
                 GValue *value = tp_g_value_slice_new (G_TYPE_INT64);
                 gchar *str = g_key_file_get_string (file, group, key, NULL);
                 errno = 0;
-                i = g_ascii_strtoll (str, NULL, 0);
+                x = g_ascii_strtoll (str, NULL, 0);
                 if (errno != 0)
                 {
                     g_warning ("Invalid signed integer '%s' in client"
@@ -1952,7 +1956,7 @@ parse_client_filter (GKeyFile *file, const gchar *group)
                 }
                 else
                 {
-                    g_value_set_uint64 (value, i);
+                    g_value_set_uint64 (value, x);
                     g_hash_table_insert (filter, file_property, value);
                 }
                 g_free (str);
@@ -2008,7 +2012,7 @@ get_channel_filter_cb (TpProxy *proxy,
 {
     GList **client_filters = user_data;
     GPtrArray *filters = g_value_get_boxed (out_Value);
-    int i;
+    guint i;
 
     for (i = 0 ; i < filters->len ; i++)
     {
@@ -2891,7 +2895,7 @@ mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher * dispatcher)
         for (list = client->handler_filters; list != NULL; list = list->next)
         {
             GHashTable *channel_class = list->data;
-            int i;
+            guint i;
             gboolean already_in_caps = FALSE;
 
             /* Check if the filter is already in the caps variable */

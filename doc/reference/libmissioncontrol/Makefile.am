@@ -58,6 +58,10 @@ HTML_IMAGES=
 # e.g. content_files=running.sgml building.sgml changes-2.0.sgml
 content_files=
 
+# Undefine this so the scanner doesn't inherit the ultra-pedantic warnings used
+# for real code.
+AM_CFLAGS =
+
 # CFLAGS and LDFLAGS for compiling gtkdoc-scangobj with your library.
 # Only needed if you are using gtkdoc-scangobj to dynamically query widget
 # signals and properties.
