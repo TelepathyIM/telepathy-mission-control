@@ -28,6 +28,8 @@
 #include "mcd-dbusprop.h"
 #include <_gen/interfaces.h>
 #include <_gen/interfaces-body.h>
+#include <_gen/gtypes.h>
+#include <_gen/gtypes-body.h>
 
 #define MCD_INTERFACES_QUARK get_interfaces_quark()
 

@@ -42,6 +42,7 @@
 #include "mcd-account-conditions.h"
 #include "mcd-account-connection.h"
 #include "mcd-account-requests.h"
+#include "mcd-account-stats.h"
 #include "mcd-misc.h"
 #include "mcd-signals-marshal.h"
 #include "mcd-manager.h"
@@ -81,6 +82,9 @@ static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE (mc_svc_account_interface_conditions_get_type,
 			 account_conditions,
 			 MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS),
+    MCD_IMPLEMENT_IFACE_WITH_INIT (mc_svc_account_interface_stats_get_type,
+                                   account_stats,
+                                   MC_IFACE_ACCOUNT_INTERFACE_STATS),
     { G_TYPE_INVALID, }
 };
 
