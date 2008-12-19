@@ -773,7 +773,7 @@ _mcd_dispatcher_handle_channel_async_cb (DBusGProxy * proxy, GError * error,
 static void
 start_old_channel_handler (McdDispatcherContext *context)
 {
-    McdChannelHandler *chandler;
+    McdChannelHandler *chandler = NULL;
     McdDispatcherPrivate *priv;
     McdChannel *channel = NULL;
     const gchar *protocol;
