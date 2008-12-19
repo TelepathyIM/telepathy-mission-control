@@ -13,6 +13,7 @@ SPECS = MissionControl.xml \
 	Account_Interface_ChannelRequests.xml \
 	Account_Interface_Compat.xml \
 	Account_Interface_Conditions.xml \
+	Account_Interface_Stats.xml \
 	Client.xml \
 	Client_Approver.xml \
 	Client_Handler.xml \

@@ -97,4 +97,10 @@
     <tp:member type="s" name="Value"/>
   </tp:mapping>
 
+  <tp:mapping name="Channel_Count_Map">
+    <tp:docstring>A mapping from strings representing channel types to their usage count</tp:docstring>
+    <tp:member type="s" name="Key"/>
+    <tp:member type="u" name="Value"/>
+  </tp:mapping>
+
 </tp:generic-types>
