@@ -91,27 +91,27 @@ _mc_account_stats_class_init (McAccountClass *klass)
 }
 
 static void
-update_property (gpointer key, gpointer ht_value, gpointer user_data)
+update_channel_count (const gchar *name, const GValue *value,
+                      gpointer user_data)
 {
     McAccount *account = MC_ACCOUNT (user_data);
     McAccountStatsProps *props = account->priv->stats_props;
-    GValue *value = ht_value;
-    const gchar *name = key;
+    GHashTable *channel_count;
 
-    g_return_if_fail (props != NULL);
-
-    if (strcmp (name, "ChannelCount") == 0)
-    {
-        GHashTable *channel_count;
-
-        channel_count = g_value_dup_boxed (value);
-        if (props->channel_count)
-            g_signal_emit (account, _mc_account_signals[CHANNEL_COUNT_CHANGED],
-                           0, channel_count);
-        else
-            props->channel_count = channel_count;
-    }
+    channel_count = g_value_dup_boxed (value);
+    if (props->channel_count)
+        /* the signal closure will update the props->channel_count */
+        g_signal_emit (account, _mc_account_signals[CHANNEL_COUNT_CHANGED],
+                       0, channel_count);
+    else
+        props->channel_count = channel_count;
 }
+
+static const McIfaceProperty account_stats_properties[] =
+{
+    { "ChannelCount", "a{su}", update_channel_count },
+    { NULL, NULL, NULL }
+};
 
 static void
 create_props (TpProxy *proxy, GHashTable *props)
@@ -120,7 +120,7 @@ create_props (TpProxy *proxy, GHashTable *props)
     McAccountPrivate *priv = account->priv;
 
     priv->stats_props = g_slice_new0 (McAccountStatsProps);
-    g_hash_table_foreach (props, update_property, account);
+    _mc_iface_update_props (account_stats_properties, props, account, NULL, 0);
 }
 
 static void
@@ -133,7 +133,8 @@ on_stats_changed (TpProxy *proxy, GHashTable *properties, gpointer user_data,
     /* if the GetAll method hasn't returned yet, we do nothing */
     if (G_UNLIKELY (!priv->stats_props)) return;
 
-    g_hash_table_foreach (properties, update_property, account);
+    _mc_iface_update_props (account_stats_properties, properties,
+                            account, NULL, 0);
 }
 
 static void
