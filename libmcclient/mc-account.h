@@ -295,6 +295,11 @@ const gchar *mc_account_channelrequest_get_path (McAccount *account,
 guint mc_account_channelrequest_get_from_path (McAccount *account,
                                                const gchar *object_path);
 
+
+/* Account statistics */
+
+GHashTable *mc_account_stats_get_channel_count (McAccount *account);
+
 G_END_DECLS
 
 #include <libmcclient/_gen/mc-quark.h>

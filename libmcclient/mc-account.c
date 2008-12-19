@@ -41,17 +41,6 @@
  * Account D-Bus API.
  */
 
-/**
- * McAccountClass:
- *
- * The class of a #McAccount.
- */
-struct _McAccountClass {
-    TpProxyClass parent_class;
-    /*<private>*/
-    gpointer priv;
-};
-
 struct _McAccountProps {
     gchar *display_name;
     gchar *icon;
@@ -165,6 +154,8 @@ mc_account_init (McAccount *account)
 				  MC_IFACE_QUARK_ACCOUNT_INTERFACE_COMPAT);
     tp_proxy_add_interface_by_id ((TpProxy *)account,
 				  MC_IFACE_QUARK_ACCOUNT_INTERFACE_CONDITIONS);
+    tp_proxy_add_interface_by_id ((TpProxy *)account,
+				  MC_IFACE_QUARK_ACCOUNT_INTERFACE_STATS);
 }
 
 static GObject *
@@ -368,6 +359,7 @@ mc_account_class_init (McAccountClass *klass)
     _mc_account_avatar_class_init (klass);
     _mc_account_compat_class_init (klass);
     _mc_account_conditions_class_init (klass);
+    _mc_account_stats_class_init (klass);
 }
 
 /**

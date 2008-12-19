@@ -37,6 +37,7 @@ enum
     FLAG_CHANGED,
     PARAMETERS_CHANGED,
     AVATAR_CHANGED,
+    CHANNEL_COUNT_CHANGED,
     LAST_SIGNAL
 };
 
@@ -47,6 +48,7 @@ typedef struct _McAccountAvatarProps McAccountAvatarProps;
 typedef struct _McAccountChannelrequestsProps McAccountChannelrequestsProps;
 typedef struct _McAccountCompatProps McAccountCompatProps;
 typedef struct _McAccountConditionsProps McAccountConditionsProps;
+typedef struct _McAccountStatsProps McAccountStatsProps;
 
 struct _McAccountPrivate {
     McAccountProps *props;
@@ -54,6 +56,20 @@ struct _McAccountPrivate {
     McAccountChannelrequestsProps *request_props;
     McAccountCompatProps *compat_props;
     McAccountConditionsProps *conditions_props;
+    McAccountStatsProps *stats_props;
+};
+
+/**
+ * McAccountClass:
+ *
+ * The class of a #McAccount.
+ */
+struct _McAccountClass {
+    TpProxyClass parent_class;
+
+    /* signals */
+    void (*stats_channel_count_changed) (McAccount *account,
+                                         GHashTable *channel_count);
 };
 
 void _mc_account_avatar_props_free (McAccountAvatarProps *props);
@@ -68,6 +84,9 @@ void _mc_account_compat_class_init (McAccountClass *klass);
 
 void _mc_account_conditions_props_free (McAccountConditionsProps *props);
 void _mc_account_conditions_class_init (McAccountClass *klass);
+
+void _mc_account_stats_props_free (McAccountStatsProps *props);
+void _mc_account_stats_class_init (McAccountClass *klass);
 
 G_END_DECLS
 
