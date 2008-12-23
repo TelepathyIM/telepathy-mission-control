@@ -27,7 +27,7 @@ if test "$werror" = yes; then
   AS_COMPILER_FLAG([-Werror], [ERROR_CFLAGS="$ERROR_CFLAGS -Werror"])
 fi
 
-AS_COMPILER_FLAG(-Wextra, wextra=yes, wextra=no)
+#AS_COMPILER_FLAG(-Wextra, wextra=yes, wextra=no)
 AS_COMPILER_FLAG(-Wno-missing-field-initializers,
         wno_missing_field_initializers=yes,
         wno_missing_field_initializers=no)
