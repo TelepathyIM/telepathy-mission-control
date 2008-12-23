@@ -615,6 +615,7 @@ mcd_channel_abort (McdMission *mission)
                                      "Channel aborted");
         _mcd_channel_set_error (channel, error);
     }
+    _mcd_channel_release_tp_channel (channel, TRUE);
 
     /* chain up with the parent */
     MCD_MISSION_CLASS (mcd_channel_parent_class)->abort (mission);
