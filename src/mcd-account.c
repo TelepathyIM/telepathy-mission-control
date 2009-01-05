@@ -265,8 +265,9 @@ process_online_request (gpointer key, gpointer cb_userdata, gpointer userdata)
 }
 
 static gboolean
-load_manager (McdAccountPrivate *priv)
+load_manager (McdAccount *account)
 {
+    McdAccountPrivate *priv = account->priv;
     McdMaster *master;
 
     if (G_UNLIKELY (!priv->manager_name)) return FALSE;
@@ -396,7 +397,7 @@ _mcd_account_connect (McdAccount *account, GHashTable *params)
 
     if (!priv->connection)
     {
-	if (!priv->manager && !load_manager (priv))
+	if (!priv->manager && !load_manager (account))
 	{
 	    g_warning ("%s: Could not find manager `%s'",
 		       G_STRFUNC, priv->manager_name);
@@ -1139,7 +1140,7 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     const GValue *value;
 
     g_debug ("%s called", G_STRFUNC);
-    if (!priv->manager && !load_manager (priv)) return FALSE;
+    if (!priv->manager && !load_manager (account)) return FALSE;
 
     parameters = mcd_manager_get_parameters (priv->manager,
 					     priv->protocol_name);
@@ -1292,7 +1293,7 @@ mcd_account_setup (McdAccount *account)
 				MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY, NULL);
 
     /* check the manager */
-    if (!priv->manager && !load_manager (priv))
+    if (!priv->manager && !load_manager (account))
     {
 	g_warning ("Could not find manager `%s'", priv->manager_name);
 	valid = FALSE;
@@ -1662,7 +1663,7 @@ mcd_account_get_parameters (McdAccount *account)
     guint i;
 
     g_debug ("%s called", G_STRFUNC);
-    if (!priv->manager && !load_manager (priv)) return NULL;
+    if (!priv->manager && !load_manager (account)) return NULL;
 
     params = g_hash_table_new_full (g_str_hash, g_str_equal,
 				    g_free,
