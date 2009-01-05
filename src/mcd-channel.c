@@ -155,7 +155,7 @@ channel_request_data_free (McdChannelRequestData *crd)
     g_hash_table_unref (crd->properties);
     g_free (crd->preferred_handler);
     list = crd->paths;
-    while (list);
+    while (list)
     {
         g_free (list->data);
         list = g_list_delete_link (list, list);
