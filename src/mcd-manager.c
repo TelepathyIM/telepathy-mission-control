@@ -525,9 +525,7 @@ mcd_manager_setup (McdManager *manager)
     {
         g_warning ("%s, cannot create manager %s: %s", G_STRFUNC,
                    priv->name, error->message);
-        g_error_free (error);
-        g_free (filename);
-        return FALSE;
+        goto error;
     }
 
     keyfile = g_key_file_new ();
@@ -536,10 +534,7 @@ mcd_manager_setup (McdManager *manager)
     {
 	g_warning ("%s: loading %s failed: %s", G_STRFUNC,
 		   filename, error->message);
-	g_error_free (error);
-	g_free (filename);
-        g_object_unref (priv->tp_conn_mgr);
-	return FALSE;
+        goto error;
     }
     g_free (filename);
 
@@ -548,6 +543,15 @@ mcd_manager_setup (McdManager *manager)
 
     g_debug ("%s: Manager %s created", G_STRFUNC, priv->name);
     return TRUE;
+
+error:
+    if (priv->tp_conn_mgr)
+        g_object_unref (priv->tp_conn_mgr);
+    if (error)
+        g_error_free (error);
+    g_free (filename);
+
+    return FALSE;
 }
 
 static GObject *
