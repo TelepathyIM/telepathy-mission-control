@@ -63,9 +63,6 @@ struct _McdManagerPrivate
     McdPresenceFrame *presence_frame;
     McdDispatcher *dispatcher;
 
-    /* bus name and object path of the ConnectionManager */
-    gchar *bus_name;
-    gchar *object_path;
     TpConnectionManager *tp_conn_mgr;
 
     GArray *protocols; /* array of McdProtocol structures */
@@ -359,8 +356,6 @@ _mcd_manager_finalize (GObject * object)
     g_array_free (priv->protocols, TRUE);
 
     g_free (priv->name);
-    g_free (priv->bus_name);
-    g_free (priv->object_path);
 
     G_OBJECT_CLASS (mcd_manager_parent_class)->finalize (object);
 }
@@ -514,8 +509,6 @@ mcd_manager_setup (McdManager *manager)
     McdManagerPrivate *priv = manager->priv;
     GError *error = NULL;
     GKeyFile *keyfile;
-    gchar *bus_name = NULL;
-    gchar *object_path = NULL;
     gchar *filename;
 
     filename = _mcd_manager_filename (priv->name);
@@ -536,20 +529,6 @@ mcd_manager_setup (McdManager *manager)
 	return FALSE;
     }
     g_free (filename);
-
-    priv->bus_name = g_key_file_get_string (keyfile, "ConnectionManager",
-					    "BusName", NULL);
-    priv->object_path = g_key_file_get_string (keyfile, "ConnectionManager",
-					       "ObjectPath", NULL);
-
-    if (!priv->bus_name || !priv->object_path)
-    {
-	g_warning ("%s: failed to get bus name and object path from file",
-		   G_STRFUNC);
-	g_free (bus_name);
-	g_free (object_path);
-	return FALSE;
-    }
 
     read_protocols (manager, keyfile);
     g_key_file_free (keyfile);
