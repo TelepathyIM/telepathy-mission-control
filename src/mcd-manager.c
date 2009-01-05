@@ -153,6 +153,31 @@ _mcd_manager_filename (const gchar *unique_name)
     return filepath;
 }
 
+static gboolean
+_mcd_manager_create_proxy (McdManager *manager)
+{
+    McdManagerPrivate *priv = manager->priv;
+    GError *error = NULL;
+    gchar *manager_filename;
+
+    g_return_val_if_fail (priv->tp_conn_mgr == NULL, TRUE);
+
+    manager_filename = _mcd_manager_filename (priv->name);
+    priv->tp_conn_mgr =
+        tp_connection_manager_new (priv->dbus_daemon, priv->name,
+                                   manager_filename, &error);
+    g_free (manager_filename);
+    if (error)
+    {
+        g_warning ("%s, cannot create manager %s: %s", G_STRFUNC,
+                   priv->name, error->message);
+        g_error_free (error);
+        return FALSE;
+    }
+    g_debug ("%s: Manager %s created", G_STRFUNC, priv->name);
+    return TRUE;
+}
+
 static gint
 _find_connection_by_path (gconstpointer data, gconstpointer user_data)
 {
@@ -825,24 +850,7 @@ mcd_manager_create_connection (McdManager *manager, McdAccount *account)
     McdConnection *connection;
 
     if (!priv->tp_conn_mgr)
-    {
-	GError *error = NULL;
-	gchar *manager_filename;
-
-	manager_filename = _mcd_manager_filename (priv->name);
-	priv->tp_conn_mgr =
-	    tp_connection_manager_new (priv->dbus_daemon, priv->name,
-				       manager_filename, &error);
-	g_free (manager_filename);
-	if (error)
-	{
-	    g_warning ("%s, cannot create manager %s: %s", G_STRFUNC,
-		       priv->name, error->message);
-	    g_error_free (error);
-	    return NULL;
-	}
-	g_debug ("%s: Manager %s created", G_STRFUNC, priv->name);
-    }
+        _mcd_manager_create_proxy (manager);
 
     connection = MCD_MANAGER_GET_CLASS (manager)->create_connection
         (manager, account);
