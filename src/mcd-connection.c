@@ -2408,19 +2408,12 @@ mcd_connection_close (McdConnection *connection)
  * mcd_connection_restart:
  * @connection: the #McdConnection.
  *
- * Disconnect the connection and reconnect it. This can be useful when some
- * account parameter changes.
+ * DEPRECATED: doesn't do anything.
  */
 void
 mcd_connection_restart (McdConnection *connection)
 {
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-
-    g_debug ("%s called", G_STRFUNC);
-    priv->auto_reconnect = TRUE;
-    priv->reconnect_interval = 500; /* half a second */
-    mcd_mission_disconnect (MCD_MISSION (connection));
-    _mcd_connection_call_disconnect (connection);
+    g_warning ("%s is deprecated", G_STRFUNC);
 }
 
 /**
