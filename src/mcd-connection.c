@@ -2308,6 +2308,7 @@ mcd_connection_request_channel (McdConnection *connection,
                                 McdChannel *channel)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
+    gboolean ret;
 
     g_return_val_if_fail (priv->tp_conn != NULL, FALSE);
     g_return_val_if_fail (TP_IS_CONNECTION (priv->tp_conn), FALSE);
@@ -2326,9 +2327,13 @@ mcd_connection_request_channel (McdConnection *connection,
     }
 
     if (priv->has_requests_if)
-        return request_channel_new_iface (connection, channel);
+        ret = request_channel_new_iface (connection, channel);
     else
-        return request_channel_old_iface (connection, channel);
+        ret = request_channel_old_iface (connection, channel);
+
+    if (ret)
+        mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_REQUESTED);
+    return ret;
 }
 
 gboolean
