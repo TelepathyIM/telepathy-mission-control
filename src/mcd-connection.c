@@ -559,10 +559,13 @@ on_capabilities_timeout (McdConnection *connection)
     while (list)
     {
         McdChannel *channel = MCD_CHANNEL (list->data);
+        McdChannelStatus status;
 
 	list_curr = list;
 	list = list->next;
-        if (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_REQUEST &&
+        status = mcd_channel_get_status (channel);
+        if ((status == MCD_CHANNEL_STATUS_REQUEST ||
+             status == MCD_CHANNEL_STATUS_REQUESTED) &&
             on_channel_capabilities_timeout (channel, connection))
 	{
             mcd_mission_abort ((McdMission *)channel);
