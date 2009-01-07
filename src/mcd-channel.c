@@ -606,6 +606,7 @@ mcd_channel_abort (McdMission *mission)
     g_debug ("%s: %p", G_STRFUNC, mission);
     /* If this is still a channel request, signal the failure */
     if (priv->status == MCD_CHANNEL_STATUS_REQUEST ||
+        priv->status == MCD_CHANNEL_STATUS_REQUESTED ||
         priv->status == MCD_CHANNEL_STATUS_DISPATCHING)
     {
         /* this code-path can only happen if the connection is aborted, as in
