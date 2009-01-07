@@ -379,18 +379,15 @@ disconnect_cb (TpConnection *proxy, const GError *error, gpointer user_data,
 static void
 _mcd_connection_call_disconnect (McdConnection *connection)
 {
-    McdConnectionPrivate *priv = connection->priv;
-    guint status;
-    
-    if (!priv->tp_conn) return;
+    TpConnection *tp_conn = connection->priv->tp_conn;
 
-    g_object_get (G_OBJECT (priv->tp_conn),
-		  "status", &status,
-		  NULL);
-    if (status == TP_CONNECTION_STATUS_DISCONNECTED) return;
-    tp_cli_connection_call_disconnect (priv->tp_conn, -1,
+    if (!tp_conn || TP_PROXY (tp_conn)->invalidated != NULL) return;
+
+    if (tp_connection_get_status (tp_conn, NULL) ==
+        TP_CONNECTION_STATUS_DISCONNECTED) return;
+    tp_cli_connection_call_disconnect (tp_conn, -1,
 				       disconnect_cb,
-				       priv, NULL,
+				       NULL, NULL,
 				       (GObject *)connection);
 
 }
