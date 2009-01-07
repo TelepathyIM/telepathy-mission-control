@@ -64,6 +64,7 @@
 #include "_gen/cli-Connection_Interface_Contact_Capabilities.h"
 #include "_gen/cli-Connection_Interface_Contact_Capabilities-body.h"
 
+#define INITIAL_RECONNECTION_TIME   (1 * 1000) /* 1 second */
 #define MAX_REF_PRESENCE 4
 #define LAST_MC_PRESENCE (TP_CONNECTION_PRESENCE_TYPE_BUSY + 1)
 
@@ -1053,7 +1054,7 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
 	    mcd_account_set_connection_status (priv->account,
 					       conn_status, conn_reason);
 	    _mcd_connection_get_self_handle (connection);
-	    priv->reconnect_interval = 30 * 1000; /* reset it to 30 seconds */
+	    priv->reconnect_interval = INITIAL_RECONNECTION_TIME;
 	}
 	break;
     case TP_CONNECTION_STATUS_DISCONNECTED:
@@ -1860,7 +1861,7 @@ mcd_connection_init (McdConnection * connection)
 
     priv->abort_reason = TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
 
-    priv->reconnect_interval = 30 * 1000; /* 30 seconds */
+    priv->reconnect_interval = INITIAL_RECONNECTION_TIME;
     priv->auto_reconnect = TRUE;
 }
 
