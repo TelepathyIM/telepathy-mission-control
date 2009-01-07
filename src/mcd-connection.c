@@ -1046,7 +1046,6 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
 	mcd_account_set_connection_status (priv->account,
 					   conn_status, conn_reason);
 	priv->abort_reason = TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
-	priv->reconnection_requested = FALSE;
 	break;
     case TP_CONNECTION_STATUS_CONNECTED:
 	{
@@ -1095,18 +1094,20 @@ static void proxy_destroyed (DBusGProxy *tp_conn, guint domain, gint code,
 
     if (priv->reconnection_requested)
     {
-	g_debug ("Preparing for reconnection");
-	/* we were disconnected by a network error or by a gabble crash (in
-	 * the latter case, we get NoneSpecified as a reason): don't abort
-	 * the connection but try to reconnect later */
-	priv->reconnect_timer = g_timeout_add (priv->reconnect_interval,
-				    (GSourceFunc)mcd_connection_reconnect,
-				    connection);
-	priv->reconnect_interval *= 2;
-	if (priv->reconnect_interval >= 30 * 60 * 1000)
-	    /* no more than 30 minutes! */
-	    priv->reconnect_interval = 30 * 60 * 1000;
-	priv->reconnection_requested = FALSE;
+        /* we were disconnected by a network error or by a connection manager
+         * crash (in the latter case, we get NoneSpecified as a reason): don't
+         * abort the connection but try to reconnect later */
+        if (priv->reconnect_timer == 0)
+        {
+            g_debug ("Preparing for reconnection");
+            priv->reconnect_timer = g_timeout_add (priv->reconnect_interval,
+                                        (GSourceFunc)mcd_connection_reconnect,
+                                        connection);
+            priv->reconnect_interval *= 2;
+            if (priv->reconnect_interval >= 30 * 60 * 1000)
+                /* no more than 30 minutes! */
+                priv->reconnect_interval = 30 * 60 * 1000;
+        }
     }
     else
     {
@@ -1859,6 +1860,7 @@ mcd_connection_init (McdConnection * connection)
     priv->abort_reason = TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
 
     priv->reconnect_interval = 30 * 1000; /* 30 seconds */
+    priv->reconnection_requested = TRUE;
 }
 
 /* Public methods */
@@ -2447,5 +2449,21 @@ mcd_connection_get_object_path (McdConnection *connection)
 	return TP_PROXY (priv->tp_conn)->object_path;
     else
 	return NULL;
+}
+
+/**
+ * mcd_connection_set_reconnect:
+ * @connection: the #McdConnection.
+ * @reconnect: %TRUE to activate auto-reconnection, %FALSE otherwise.
+ *
+ * Enable/disable the automatic reconnection behaviour on connection lost.
+ * By default automatic reconnection is enabled.
+ */
+void
+mcd_connection_set_reconnect (McdConnection *connection, gboolean reconnect)
+{
+    g_return_if_fail (MCD_IS_CONNECTION (connection));
+
+    connection->priv->reconnection_requested = reconnect;
 }
 
