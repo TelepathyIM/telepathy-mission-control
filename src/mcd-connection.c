@@ -99,7 +99,6 @@ struct _McdConnectionPrivate
 
     guint reconnect_timer; 	/* timer for reconnection */
     guint reconnect_interval;
-    gboolean reconnection_requested;
 
     /* Supported presences (values are McdPresenceInfo structs) */
     GHashTable *recognized_presences;
@@ -120,6 +119,8 @@ struct _McdConnectionPrivate
 
     /* FALSE until we got the first PresencesChanged for the self handle */
     guint got_presences_changed : 1;
+
+    guint auto_reconnect : 1;
 
     gchar *alias;
 
@@ -1092,7 +1093,7 @@ static void proxy_destroyed (DBusGProxy *tp_conn, guint domain, gint code,
 	priv->capabilities_timer = 0;
     }
 
-    if (priv->reconnection_requested)
+    if (priv->auto_reconnect)
     {
         /* we were disconnected by a network error or by a connection manager
          * crash (in the latter case, we get NoneSpecified as a reason): don't
@@ -1860,7 +1861,7 @@ mcd_connection_init (McdConnection * connection)
     priv->abort_reason = TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
 
     priv->reconnect_interval = 30 * 1000; /* 30 seconds */
-    priv->reconnection_requested = TRUE;
+    priv->auto_reconnect = TRUE;
 }
 
 /* Public methods */
@@ -2416,7 +2417,7 @@ mcd_connection_restart (McdConnection *connection)
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
 
     g_debug ("%s called", G_STRFUNC);
-    priv->reconnection_requested = TRUE;
+    priv->auto_reconnect = TRUE;
     priv->reconnect_interval = 500; /* half a second */
     mcd_mission_disconnect (MCD_MISSION (connection));
     _mcd_connection_call_disconnect (connection);
@@ -2464,6 +2465,6 @@ mcd_connection_set_reconnect (McdConnection *connection, gboolean reconnect)
 {
     g_return_if_fail (MCD_IS_CONNECTION (connection));
 
-    connection->priv->reconnection_requested = reconnect;
+    connection->priv->auto_reconnect = reconnect;
 }
 
