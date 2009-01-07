@@ -64,7 +64,7 @@
 #include "_gen/cli-Connection_Interface_Contact_Capabilities.h"
 #include "_gen/cli-Connection_Interface_Contact_Capabilities-body.h"
 
-#define INITIAL_RECONNECTION_TIME   (1 * 1000) /* 1 second */
+#define INITIAL_RECONNECTION_TIME   1 /* 1 second */
 #define MAX_REF_PRESENCE 4
 #define LAST_MC_PRESENCE (TP_CONNECTION_PRESENCE_TYPE_BUSY + 1)
 
@@ -618,7 +618,8 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
 	g_source_remove (priv->capabilities_timer);
     }
     priv->capabilities_timer =
-	g_timeout_add (1000 * 10, (GSourceFunc)on_capabilities_timeout, connection);
+        g_timeout_add_seconds (10, (GSourceFunc)on_capabilities_timeout,
+                               connection);
 
     /* free the connection capabilities */
     type = dbus_g_type_get_struct ("GValueArray", G_TYPE_STRING,
@@ -1102,13 +1103,13 @@ static void proxy_destroyed (DBusGProxy *tp_conn, guint domain, gint code,
         if (priv->reconnect_timer == 0)
         {
             g_debug ("Preparing for reconnection");
-            priv->reconnect_timer = g_timeout_add (priv->reconnect_interval,
-                                        (GSourceFunc)mcd_connection_reconnect,
-                                        connection);
+            priv->reconnect_timer = g_timeout_add_seconds
+                (priv->reconnect_interval,
+                 (GSourceFunc)mcd_connection_reconnect, connection);
             priv->reconnect_interval *= 2;
-            if (priv->reconnect_interval >= 30 * 60 * 1000)
+            if (priv->reconnect_interval >= 30 * 60)
                 /* no more than 30 minutes! */
-                priv->reconnect_interval = 30 * 60 * 1000;
+                priv->reconnect_interval = 30 * 60;
         }
     }
     else
