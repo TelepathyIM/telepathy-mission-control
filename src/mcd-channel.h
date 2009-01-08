@@ -57,6 +57,7 @@ typedef enum
                                       */
     MCD_CHANNEL_STATUS_DISPATCHING,  /* Telepathy channel is created and
                                         waiting dispatch */
+    MCD_CHANNEL_STATUS_HANDLER_INVOKED,
     MCD_CHANNEL_STATUS_DISPATCHED,   /* Channel has been dispatched to handler
                                       */
     MCD_CHANNEL_STATUS_FAILED,       /* Channel creation failed, or channel

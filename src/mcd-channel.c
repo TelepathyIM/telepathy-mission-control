@@ -607,7 +607,8 @@ mcd_channel_abort (McdMission *mission)
     /* If this is still a channel request, signal the failure */
     if (priv->status == MCD_CHANNEL_STATUS_REQUEST ||
         priv->status == MCD_CHANNEL_STATUS_REQUESTED ||
-        priv->status == MCD_CHANNEL_STATUS_DISPATCHING)
+        priv->status == MCD_CHANNEL_STATUS_DISPATCHING ||
+        priv->status == MCD_CHANNEL_STATUS_HANDLER_INVOKED)
     {
         /* this code-path can only happen if the connection is aborted, as in
          * the other cases we handle the error in McdChannel; for this reason,
