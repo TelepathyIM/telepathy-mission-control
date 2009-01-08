@@ -50,8 +50,7 @@ online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
     {
         g_warning ("%s: got error: %s", G_STRFUNC, error->message);
         _mcd_channel_set_error (channel, g_error_copy (error));
-        /* no unref here, as this will invoke our handler which will
-         * unreference the channel */
+        g_object_unref (channel);
         return;
     }
     g_debug ("%s called", G_STRFUNC);
@@ -60,9 +59,8 @@ online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
     g_return_if_fail (mcd_connection_get_connection_status (connection)
                       == TP_CONNECTION_STATUS_CONNECTED);
 
-    /* the connection will take ownership of the channel, so let's keep a
-     * reference to it to make sure it's not destroyed while we are using it */
-    g_object_ref (channel);
+    /* the connection will take ownership of the channel, so the reference we
+     * are holding is passed to it */
     mcd_connection_request_channel (connection, channel);
 }
 
@@ -128,6 +126,13 @@ create_request (McdAccount *account, GHashTable *properties,
         /* no unref here, as this will invoke our handler which will
          * unreference the channel */
     }
+    else
+    {
+        /* the channel must be kept alive until online_request_cb is called;
+         * this reference will be removed in that callback */
+        g_object_ref (channel);
+    }
+
     return channel;
 }
 
