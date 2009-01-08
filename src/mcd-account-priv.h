@@ -55,6 +55,15 @@ G_GNUC_INTERNAL
 void _mcd_account_online_request_completed (McdAccount *account,
                                             GError *error);
 
+typedef struct {
+    McdOnlineRequestCb callback;
+    gpointer user_data;
+} McdOnlineRequestData;
+
+G_GNUC_INTERNAL
+GList *_mcd_account_get_online_requests (McdAccount *account);
+
+
 static inline void
 mcd_account_write_conf (McdAccount *account)
 {
