@@ -1044,6 +1044,25 @@ match_filters (McdChannel *channel, GList *filters)
     return matched;
 }
 
+static McdClient *
+get_default_handler (McdDispatcher *dispatcher, McdChannel *channel)
+{
+    GHashTableIter iter;
+    McdClient *client;
+
+    g_hash_table_iter_init (&iter, dispatcher->priv->clients);
+    while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &client))
+    {
+        if (!client->proxy ||
+            !(client->interfaces & MCD_CLIENT_HANDLER))
+            continue;
+
+        if (match_filters (channel, client->handler_filters))
+            return client;
+    }
+    return NULL;
+}
+
 static void
 handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
                     GObject *weak_object)
@@ -2989,8 +3008,6 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
     GValue v_account = { 0, };
     GValue v_preferred_handler = { 0, };
     GPtrArray *requests;
-    GHashTableIter iter;
-    McdClient *client;
     McdRemoveRequestData *rrd;
 
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
@@ -3000,20 +3017,7 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
 
     priv = dispatcher->priv;
 
-    g_hash_table_iter_init (&iter, priv->clients);
-    while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &client))
-    {
-        if (!client->proxy ||
-            !(client->interfaces & MCD_CLIENT_HANDLER))
-            continue;
-
-        if (match_filters (channel, client->handler_filters))
-        {
-            handler = client;
-            break;
-        }
-    }
-
+    handler = get_default_handler (dispatcher, channel);
     if (!handler)
     {
         /* No handler found. But it's possible that by the time that the
