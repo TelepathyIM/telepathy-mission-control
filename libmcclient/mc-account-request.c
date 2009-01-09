@@ -40,6 +40,7 @@ typedef struct
     McAccount *account;
     gchar *request_path;
     GError *error;
+    gboolean cancelled;
 
     /* caller data */
     McAccountChannelrequestCb callback;
@@ -129,6 +130,16 @@ request_create_cb (TpProxy *proxy, const gchar *request_path,
                    GObject *weak_object)
 {
     McChannelRequest *req = user_data;
+
+    if (req->cancelled)
+    {
+        g_debug ("%s: cancelling %s", G_STRFUNC, request_path);
+        if (!error)
+            mc_cli_account_interface_channelrequests_call_cancel
+                (proxy, -1, request_path, NULL, NULL, NULL, NULL);
+        emit_request_event (req, MC_ACCOUNT_CR_CANCELLED);
+        return;
+    }
 
     if (error)
     {
@@ -475,7 +486,23 @@ mc_account_channelrequest_add (McAccount *account, const gchar *object_path,
 void
 mc_account_channelrequest_cancel (McAccount *account, guint request_id)
 {
-    g_warning ("%s is not implemented yet", G_STRFUNC);
+    McChannelRequest *req;
+
+    g_return_if_fail (MC_IS_ACCOUNT (account));
+    g_return_if_fail (request_id != 0);
+    req = GUINT_TO_POINTER (request_id);
+
+    if (req->request_path)
+    {
+        g_debug ("%s: %s", G_STRFUNC, req->request_path);
+        mc_cli_account_interface_channelrequests_call_cancel
+            (account, -1, req->request_path, NULL, NULL, NULL, NULL);
+        emit_request_event (req, MC_ACCOUNT_CR_CANCELLED);
+    }
+    else
+    {
+        req->cancelled = TRUE;
+    }
 }
 
 /**
