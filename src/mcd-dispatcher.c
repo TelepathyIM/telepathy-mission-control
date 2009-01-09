@@ -116,6 +116,11 @@ typedef struct _McdClient
     McdClientInterface interfaces;
     guint bypass_approver : 1;
 
+    /* If a client was in the ListActivatableNames list, it must not be
+     * removed when it disappear from the bus.
+     */
+    guint activatable : 1;
+
     /* Channel filters
      * A channel filter is a GHashTable of
      * - key: gchar *property_name
@@ -134,11 +139,6 @@ typedef struct _McdClient
     GList *approver_filters;
     GList *handler_filters;
     GList *observer_filters;
-
-    /* If a client was in the ListActivatableNames list, it must not be
-     * removed when it disappear from the bus.
-     */
-    gboolean activatable;
 } McdClient;
 
 /* The same defines as MC_IFACE_CLIENT* from interfaces.h but without the
