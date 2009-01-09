@@ -2209,6 +2209,13 @@ common_request_channel_cb (TpConnection *proxy, gboolean yours,
         return;
     }
 
+    /* if the channel request was cancelled, abort the channel now */
+    if (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_FAILED)
+    {
+        g_debug ("Channel %p was cancelled, aborting", channel);
+        mcd_mission_abort (MCD_MISSION (channel));
+    }
+
     /* No dispatching here: the channel will be dispatched upon receiving the
      * NewChannels signal */
 }
