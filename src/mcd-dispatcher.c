@@ -1483,6 +1483,23 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
     mcd_dispatcher_context_approver_not_invoked (context);
 }
 
+static gboolean
+handlers_can_bypass_approval (McdDispatcherContext *context)
+{
+    McdClient *handler;
+    GList *cl;
+
+    for (cl = context->channels; cl != NULL; cl = cl->next)
+    {
+        McdChannel *channel = MCD_CHANNEL (cl->data);
+
+        handler = get_default_handler (context->dispatcher, channel);
+        if (!handler || !handler->bypass_approver)
+            return FALSE;
+    }
+    return TRUE;
+}
+
 /* Happens at the end of successful filter chain execution (empty chain
  * is always successful)
  */
@@ -1499,7 +1516,10 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
     {
         /* if we have a dispatch operation, it means that the channels were not
          * requested: start the Approvers */
-        mcd_dispatcher_run_approvers (context);
+
+        /* but if the handlers have the BypassApproval flag set, then don't */
+        if (!handlers_can_bypass_approval (context))
+            mcd_dispatcher_run_approvers (context);
     }
 
     mcd_dispatcher_context_release_client_lock (context);
