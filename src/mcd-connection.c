@@ -1607,6 +1607,14 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
 }
 
 static void
+on_account_removed (McdAccount *account, McdConnection *connection)
+{
+    g_debug ("Account %s removed, aborting connection",
+             mcd_account_get_unique_name (account));
+    mcd_mission_abort (MCD_MISSION (connection));
+}
+
+static void
 _mcd_connection_dispose (GObject * object)
 {
     McdConnection *connection = MCD_CONNECTION (object);
@@ -1641,6 +1649,9 @@ _mcd_connection_dispose (GObject * object)
 	g_signal_handlers_disconnect_by_func (priv->account,
 					      G_CALLBACK (on_account_alias_changed),
 					      object);
+        g_signal_handlers_disconnect_by_func (priv->account,
+                                              G_CALLBACK (on_account_removed),
+                                              object);
 	g_object_unref (priv->account);
 	priv->account = NULL;
     }
@@ -1716,6 +1727,9 @@ _mcd_connection_set_property (GObject * obj, guint prop_id,
 	g_signal_connect (priv->account,
 			  "alias-changed",
 			  G_CALLBACK (on_account_alias_changed), obj);
+        g_signal_connect (priv->account, "removed",
+                          G_CALLBACK (on_account_removed),
+                          obj);
 	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);

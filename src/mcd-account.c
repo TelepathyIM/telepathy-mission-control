@@ -1366,6 +1366,7 @@ _mcd_account_finalize (GObject *object)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (object);
 
+    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
     if (priv->changed_properties)
 	g_hash_table_destroy (priv->changed_properties);
     if (priv->property_values)
@@ -1395,6 +1396,7 @@ _mcd_account_dispose (GObject *object)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (object);
 
+    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
     if (priv->online_requests)
     {
         GError *error;
