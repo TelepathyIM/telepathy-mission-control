@@ -116,6 +116,11 @@ typedef struct _McdClient
     McdClientInterface interfaces;
     guint bypass_approver : 1;
 
+    /* If a client was in the ListActivatableNames list, it must not be
+     * removed when it disappear from the bus.
+     */
+    guint activatable : 1;
+
     /* Channel filters
      * A channel filter is a GHashTable of
      * - key: gchar *property_name
@@ -134,11 +139,6 @@ typedef struct _McdClient
     GList *approver_filters;
     GList *handler_filters;
     GList *observer_filters;
-
-    /* If a client was in the ListActivatableNames list, it must not be
-     * removed when it disappear from the bus.
-     */
-    gboolean activatable;
 } McdClient;
 
 /* The same defines as MC_IFACE_CLIENT* from interfaces.h but without the
@@ -1047,6 +1047,25 @@ match_filters (McdChannel *channel, GList *filters)
     return matched;
 }
 
+static McdClient *
+get_default_handler (McdDispatcher *dispatcher, McdChannel *channel)
+{
+    GHashTableIter iter;
+    McdClient *client;
+
+    g_hash_table_iter_init (&iter, dispatcher->priv->clients);
+    while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &client))
+    {
+        if (!client->proxy ||
+            !(client->interfaces & MCD_CLIENT_HANDLER))
+            continue;
+
+        if (match_filters (channel, client->handler_filters))
+            return client;
+    }
+    return NULL;
+}
+
 static void
 handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
                     GObject *weak_object)
@@ -1470,6 +1489,23 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
     mcd_dispatcher_context_approver_not_invoked (context);
 }
 
+static gboolean
+handlers_can_bypass_approval (McdDispatcherContext *context)
+{
+    McdClient *handler;
+    GList *cl;
+
+    for (cl = context->channels; cl != NULL; cl = cl->next)
+    {
+        McdChannel *channel = MCD_CHANNEL (cl->data);
+
+        handler = get_default_handler (context->dispatcher, channel);
+        if (!handler || !handler->bypass_approver)
+            return FALSE;
+    }
+    return TRUE;
+}
+
 /* Happens at the end of successful filter chain execution (empty chain
  * is always successful)
  */
@@ -1486,7 +1522,10 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
     {
         /* if we have a dispatch operation, it means that the channels were not
          * requested: start the Approvers */
-        mcd_dispatcher_run_approvers (context);
+
+        /* but if the handlers have the BypassApproval flag set, then don't */
+        if (!handlers_can_bypass_approval (context))
+            mcd_dispatcher_run_approvers (context);
     }
 
     mcd_dispatcher_context_release_client_lock (context);
@@ -2995,8 +3034,6 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
     GValue v_account = { 0, };
     GValue v_preferred_handler = { 0, };
     GPtrArray *requests;
-    GHashTableIter iter;
-    McdClient *client;
     McdRemoveRequestData *rrd;
 
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
@@ -3006,20 +3043,7 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
 
     priv = dispatcher->priv;
 
-    g_hash_table_iter_init (&iter, priv->clients);
-    while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &client))
-    {
-        if (!client->proxy ||
-            !(client->interfaces & MCD_CLIENT_HANDLER))
-            continue;
-
-        if (match_filters (channel, client->handler_filters))
-        {
-            handler = client;
-            break;
-        }
-    }
-
+    handler = get_default_handler (dispatcher, channel);
     if (!handler)
     {
         /* No handler found. But it's possible that by the time that the
