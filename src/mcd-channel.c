@@ -38,6 +38,7 @@
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/dbus.h>
+#include <telepathy-glib/util.h>
 
 #include "mcd-channel.h"
 #include "mcd-enum-types.h"
@@ -867,19 +868,31 @@ mcd_channel_new_from_path (TpConnection *connection, const gchar *object_path,
                            const gchar *type, guint handle,
                            TpHandleType handle_type)
 {
+    GHashTable *props;
+    GValue v_type = { 0 };
+    GValue v_handle = { 0 };
+    GValue v_handle_type = { 0 };
     McdChannel *channel;
-    channel = g_object_new (MCD_TYPE_CHANNEL,
-                            "type", type,
-                            "handle", handle,
-                            "handle-type", handle_type,
-                            NULL);
-    if (mcd_channel_set_object_path (channel, connection, object_path))
-        return channel;
-    else
-    {
-        g_object_unref (channel);
-        return NULL;
-    }
+
+    props = g_hash_table_new (g_str_hash, g_str_equal);
+
+    g_value_init (&v_type, G_TYPE_STRING);
+    g_value_set_static_string (&v_type, type);
+    g_hash_table_insert (props, TP_IFACE_CHANNEL ".ChannelType", &v_type);
+
+    g_value_init (&v_handle, G_TYPE_UINT);
+    g_value_set_uint (&v_handle, handle);
+    g_hash_table_insert (props, TP_IFACE_CHANNEL ".TargetHandle", &v_handle);
+
+    g_value_init (&v_handle_type, G_TYPE_UINT);
+    g_value_set_uint (&v_handle_type, handle_type);
+    g_hash_table_insert (props, TP_IFACE_CHANNEL ".TargetHandleType",
+                         &v_handle_type);
+
+    channel = mcd_channel_new_from_properties (connection, object_path, props);
+
+    g_hash_table_unref (props);
+    return channel;
 }
 
 /**
