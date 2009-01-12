@@ -33,6 +33,12 @@
 #include <libmcclient/mc-profile.h>
 #include <telepathy-glib/interfaces.h>
 
+typedef struct
+{
+    McAccount *account;
+    guint req_id;
+} ReqData;
+
 typedef struct _TestObjectClass {
     GObjectClass parent_class;
 } TestObjectClass;
@@ -98,12 +104,24 @@ channel_request_cb (McAccount *account, guint request_id,
 	     mc_account_channelrequest_get_path (account, request_id));
 }
 
+static gboolean
+cancel_request (gpointer user_data)
+{
+    ReqData *rd = user_data;
+
+    g_debug ("%s called, cancelling %u", G_STRFUNC, rd->req_id);
+    mc_account_channelrequest_cancel (rd->account, rd->req_id);
+    g_slice_free (ReqData, rd);
+    return FALSE;
+}
+
 static void
 request_channel (McAccount *account, GQuark type, const gchar *contact)
 {
     McAccountChannelrequestData req;
     GObject *to;
     guint id;
+    ReqData *rd;
 
     to = g_object_new (TEST_TYPE_OBJECT, NULL);
 
@@ -118,6 +136,11 @@ request_channel (McAccount *account, GQuark type, const gchar *contact)
 				    to);
     g_debug ("Request id = %x", id);
     g_timeout_add (10000, unref_test_object, to);
+
+    rd = g_slice_new (ReqData);
+    rd->account = account;
+    rd->req_id = id;
+    g_timeout_add (500, cancel_request, rd);
 }
 
 static gboolean

@@ -140,11 +140,6 @@ struct _McdAccountPrivate
     guint properties_source;
 };
 
-typedef struct {
-    McdOnlineRequestCb callback;
-    gpointer user_data;
-} McdOnlineRequestData;
-
 enum
 {
     PROP_0,
@@ -2028,6 +2023,14 @@ _mcd_account_online_request_completed (McdAccount *account, GError *error)
     if (error)
         g_error_free (error);
     priv->online_requests = NULL;
+}
+
+GList *
+_mcd_account_get_online_requests (McdAccount *account)
+{
+    g_return_val_if_fail (MCD_IS_ACCOUNT (account), NULL);
+
+    return account->priv->online_requests;
 }
 
 static inline void

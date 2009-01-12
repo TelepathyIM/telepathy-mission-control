@@ -274,8 +274,11 @@ mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
     for (list = context->channels; list != NULL; list = list->next)
     {
         McdChannel *channel = MCD_CHANNEL (list->data);
+        McdChannelStatus status;
 
-        if (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_DISPATCHING)
+        status = mcd_channel_get_status (channel);
+        if (status == MCD_CHANNEL_STATUS_DISPATCHING ||
+            status == MCD_CHANNEL_STATUS_HANDLER_INVOKED)
             channels_left++;
         /* TODO: recognize those channels whose dispatch failed, and
          * re-dispatch them to another handler */
@@ -1214,6 +1217,9 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
             user_time = _mcd_channel_get_request_user_action_time (channel);
             if (user_time)
                 user_action_time = user_time;
+
+            mcd_channel_set_status (channel,
+                                    MCD_CHANNEL_STATUS_HANDLER_INVOKED);
         }
 
         /* The callback needs to get the dispatcher context, and the channels

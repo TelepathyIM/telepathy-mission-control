@@ -53,8 +53,11 @@ typedef enum
                                         NewChannel signal before the connection
                                         is ready */
     MCD_CHANNEL_STATUS_REQUEST,      /* Telepathy channel is not yet created */
+    MCD_CHANNEL_STATUS_REQUESTED,    /* Channel has been requested from the CM
+                                      */
     MCD_CHANNEL_STATUS_DISPATCHING,  /* Telepathy channel is created and
                                         waiting dispatch */
+    MCD_CHANNEL_STATUS_HANDLER_INVOKED,
     MCD_CHANNEL_STATUS_DISPATCHED,   /* Channel has been dispatched to handler
                                       */
     MCD_CHANNEL_STATUS_FAILED,       /* Channel creation failed, or channel
