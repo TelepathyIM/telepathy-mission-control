@@ -926,6 +926,37 @@ mcd_channel_set_object_path (McdChannel *channel, TpConnection *connection,
         return FALSE;
 }
 
+/**
+ * mcd_channel_create_proxy:
+ * @channel: the #McdChannel.
+ * @connection: the #TpConnection on which the channel exists.
+ * @object_path: the D-Bus object path of an existing channel.
+ * @properties: #GHashTable of immutable channel properties, or %NULL.
+ *
+ * This method makes @channel create a #TpChannel object for @object_path.
+ * It must not be called if @channel has already a #TpChannel associated with
+ * it.
+ *
+ * Returns: %TRUE if the #TpChannel has been created, %FALSE otherwise.
+ */
+gboolean
+_mcd_channel_create_proxy (McdChannel *channel, TpConnection *connection,
+                           const gchar *object_path,
+                           const GHashTable *properties)
+{
+    if (mcd_channel_set_object_path (channel, connection, object_path))
+    {
+        if (properties)
+            _mcd_channel_set_immutable_properties
+                (channel,
+                 g_boxed_copy (TP_HASH_TYPE_QUALIFIED_PROPERTY_VALUE_MAP,
+                               properties));
+        return TRUE;
+    }
+    else
+        return FALSE;
+}
+
 void
 mcd_channel_set_status (McdChannel *channel, McdChannelStatus status)
 {

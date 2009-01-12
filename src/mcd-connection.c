@@ -2067,7 +2067,8 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 
     /* TODO: construct the a{sv} of immutable properties */
     /* Everything here is well and fine. We can create the channel proxy. */
-    if (!mcd_channel_set_object_path (channel, priv->tp_conn, channel_path))
+    if (!_mcd_channel_create_proxy (channel, priv->tp_conn,
+                                    channel_path, NULL))
     {
         mcd_mission_abort ((McdMission *)channel);
         return;
@@ -2196,10 +2197,9 @@ common_request_channel_cb (TpConnection *proxy, gboolean yours,
         }
     }
 
-    _mcd_channel_set_immutable_properties (channel,
-                                           _mcd_deepcopy_asv (properties));
     /* Everything here is well and fine. We can create the channel. */
-    if (!mcd_channel_set_object_path (channel, priv->tp_conn, channel_path))
+    if (!_mcd_channel_create_proxy (channel, priv->tp_conn,
+                                    channel_path, properties))
     {
         mcd_mission_abort ((McdMission *)channel);
         return;
