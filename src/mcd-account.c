@@ -126,8 +126,9 @@ struct _McdAccountPrivate
 				    configuration file as needed */
     gchar *auto_presence_message;
 
-    GHashTable *online_requests; /* callbacks with userdata to be called when
-				    the account will be online */
+    GList *online_requests; /* list of McdOnlineRequestData structures
+                               (callback with user data) to be called when the
+                               account will be online */
 
     guint connect_automatically : 1;
     guint enabled : 1;
@@ -140,8 +141,8 @@ struct _McdAccountPrivate
 };
 
 typedef struct {
-    McdAccount *account;
-    GError *error;
+    McdOnlineRequestCb callback;
+    gpointer user_data;
 } McdOnlineRequestData;
 
 enum
@@ -253,15 +254,6 @@ get_parameter (McdAccount *account, const gchar *name, GValue *value)
     }
 
     return TRUE;
-}
-
-static void
-process_online_request (gpointer key, gpointer cb_userdata, gpointer userdata)
-{
-    McdOnlineRequestCb callback = key;
-    McdOnlineRequestData *data = userdata;
-
-    callback (data->account, cb_userdata, data->error);
 }
 
 static gboolean
@@ -1410,17 +1402,20 @@ _mcd_account_dispose (GObject *object)
 
     if (priv->online_requests)
     {
-	McdOnlineRequestData data;
+        GError *error;
+        GList *list = priv->online_requests;
 
-	data.account = MCD_ACCOUNT (object);
-	data.error = NULL;
-	g_set_error (&data.error, TP_ERRORS, TP_ERROR_DISCONNECTED,
-		     "Disposing account %s", priv->unique_name);
-	g_hash_table_foreach (priv->online_requests,
-			      process_online_request,
-			      &data);
-	g_error_free (data.error);
-	g_hash_table_destroy (priv->online_requests);
+        error = g_error_new (TP_ERRORS, TP_ERROR_DISCONNECTED,
+                             "Disposing account %s", priv->unique_name);
+        while (list)
+        {
+            McdOnlineRequestData *data = list->data;
+
+            data->callback (MCD_ACCOUNT (object), data->user_data, error);
+            g_slice_free (McdOnlineRequestData, data);
+            list = g_list_delete_link (list, list);
+        }
+        g_error_free (error);
 	priv->online_requests = NULL;
     }
 
@@ -2016,18 +2011,22 @@ void
 _mcd_account_online_request_completed (McdAccount *account, GError *error)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
-    McdOnlineRequestData data;
+    GList *list;
 
     if (!priv->online_requests) return;
 
-    data.error = error;
-    data.account = account;
-    g_hash_table_foreach (priv->online_requests,
-                          process_online_request,
-                          &data);
+    list = priv->online_requests;
+
+    while (list)
+    {
+        McdOnlineRequestData *data = list->data;
+
+        data->callback (account, data->user_data, error);
+        g_slice_free (McdOnlineRequestData, data);
+        list = g_list_delete_link (list, list);
+    }
     if (error)
         g_error_free (error);
-    g_hash_table_destroy (priv->online_requests);
     priv->online_requests = NULL;
 }
 
@@ -2200,6 +2199,7 @@ _mcd_account_online_request (McdAccount *account,
     }
     else
     {
+        McdOnlineRequestData *data;
 	/* listen to the StatusChanged signal */
        	if (priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED)
             _mcd_account_request_connection (account);
@@ -2207,13 +2207,10 @@ _mcd_account_online_request (McdAccount *account,
 	/* now the connection should be in connecting state; insert the
 	 * callback in the online_requests hash table, which will be processed
 	 * in the mcd_account_set_connection_status function */
-	if (!priv->online_requests)
-	{
-	    priv->online_requests = g_hash_table_new (g_direct_hash,
-						      g_direct_equal);
-	    g_return_val_if_fail (priv->online_requests, FALSE);
-	}
-	g_hash_table_insert (priv->online_requests, callback, userdata);
+        data = g_slice_new (McdOnlineRequestData);
+        data->callback = callback;
+        data->user_data = userdata;
+        priv->online_requests = g_list_append (priv->online_requests, data);
     }
     return TRUE;
 }
