@@ -1229,10 +1229,9 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
     for (i = 0; i < channels->len; i++)
     {
         GValueArray *va;
-        const gchar *object_path, *channel_type;
+        const gchar *object_path;
         GHashTable *props;
         GValue *value;
-        guint handle_type, handle;
 
         va = g_ptr_array_index (channels, i);
         object_path = g_value_get_boxed (va->values);
@@ -1248,29 +1247,10 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
         channel = find_channel_by_path (connection, object_path);
         if (!channel)
         {
-            /* get channel type, handle type, handle */
-            value = g_hash_table_lookup (props,
-                                         TP_IFACE_CHANNEL ".ChannelType");
-            channel_type = value ? g_value_get_string (value) : NULL;
-
-            value = g_hash_table_lookup (props,
-                                         TP_IFACE_CHANNEL ".TargetHandleType");
-            handle_type = value ? g_value_get_uint (value) : 0;
-
-            value = g_hash_table_lookup (props,
-                                         TP_IFACE_CHANNEL ".TargetHandle");
-            handle = value ? g_value_get_uint (value) : 0;
-
-            g_debug ("%s: type = %s, handle_type = %u, handle = %u", G_STRFUNC,
-                     channel_type, handle_type, handle);
-            channel = mcd_channel_new_from_path (proxy, object_path,
-                                                 channel_type,
-                                                 handle, handle_type);
+            channel = mcd_channel_new_from_properties (proxy, object_path,
+                                                       props);
             if (G_UNLIKELY (!channel)) continue;
 
-            /* properties need to be copied */
-            props = g_value_dup_boxed (va->values + 1);
-            _mcd_channel_set_immutable_properties (channel, props);
             mcd_operation_take_mission (MCD_OPERATION (connection),
                                         MCD_MISSION (channel));
         }

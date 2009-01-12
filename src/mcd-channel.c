@@ -798,6 +798,57 @@ mcd_channel_new (TpChannel * tp_chan,
 }
 
 /**
+ * mcd_channel_new_from_properties:
+ * @connection: the #TpConnection on which the channel exists.
+ * @object_path: the D-Bus object path of an existing channel.
+ * @properties: #GHashTable of immutable channel properties.
+ *
+ * Creates a #McdChannel with an associated #TpChannel proxy for the channel
+ * located at @object_path.
+ *
+ * Returns: a new #McdChannel if the #TpChannel was created successfully, %NULL
+ * otherwise.
+ */
+McdChannel *
+mcd_channel_new_from_properties (TpConnection *connection,
+                                 const gchar *object_path,
+                                 const GHashTable *properties)
+{
+    McdChannel *channel;
+    const gchar *type;
+    guint handle_type, handle;
+
+    type = tp_asv_get_string (properties, TP_IFACE_CHANNEL ".ChannelType");
+
+    handle_type = tp_asv_get_uint32 (properties,
+                                     TP_IFACE_CHANNEL ".TargetHandleType",
+                                     NULL);
+    handle = tp_asv_get_uint32 (properties,
+                                TP_IFACE_CHANNEL ".TargetHandle", NULL);
+    g_debug ("%s: type = %s, handle_type = %u, handle = %u", G_STRFUNC,
+             type, handle_type, handle);
+
+    channel = g_object_new (MCD_TYPE_CHANNEL,
+                            "type", type,
+                            "handle", handle,
+                            "handle-type", handle_type,
+                            NULL);
+    if (mcd_channel_set_object_path (channel, connection, object_path))
+    {
+        _mcd_channel_set_immutable_properties
+            (channel,
+             g_boxed_copy (TP_HASH_TYPE_QUALIFIED_PROPERTY_VALUE_MAP,
+                           properties));
+        return channel;
+    }
+    else
+    {
+        g_object_unref (channel);
+        return NULL;
+    }
+}
+
+/**
  * mcd_channel_new_from_path:
  * @connection: the #TpConnection on which the channel exists.
  * @object_path: the D-Bus object path of an existing channel.
