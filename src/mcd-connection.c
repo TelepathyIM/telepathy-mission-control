@@ -57,7 +57,7 @@
 #include "mcd-channel.h"
 #include "mcd-provisioning-factory.h"
 #include "mcd-misc.h"
-#include "timestamps.h"
+#include "sp_timestamp.h"
 
 #include "_gen/interfaces.h"
 #include "_gen/gtypes.h"
@@ -1225,7 +1225,7 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
                                                                channels))
         return;
 
-    timestamp ("NewChannels received");
+    sp_timestamp ("NewChannels received");
     for (i = 0; i < channels->len; i++)
     {
         GValueArray *va;
