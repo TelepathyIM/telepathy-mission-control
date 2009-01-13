@@ -107,8 +107,7 @@ enum _McdChannelSignalType
 
 enum _McdChannelPropertyType
 {
-    PROP_CONNECTION=1,
-    PROP_TP_CHANNEL,
+    PROP_TP_CHANNEL = 1,
     PROP_CHANNEL_TYPE,
     PROP_TYPE,
     PROP_CHANNEL_TYPE_QUARK,
@@ -414,9 +413,7 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (obj);
 
     switch (prop_id)
-    { 
-    case PROP_CONNECTION:
-         break;
+    {
     case PROP_TP_CHANNEL:
 	tp_chan = g_value_get_object (val);
 	if (tp_chan)
@@ -451,10 +448,6 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
 
     switch (prop_id)
     {
-    case PROP_CONNECTION:
-	/* FIXME: This is presumetous and wrong */
-	g_value_set_object (val, mcd_mission_get_parent (MCD_MISSION (obj)));
-	break;
     case PROP_TP_CHANNEL:
 	g_value_set_object (val, priv->tp_chan);
 	break;
@@ -579,13 +572,6 @@ mcd_channel_class_init (McdChannelClass * klass)
 		      G_TYPE_NONE, 0);
 
     /* properties */
-    g_object_class_install_property
-        (object_class, PROP_CONNECTION,
-         g_param_spec_object ("connection",
-                              "McdConnection",
-                              "McdConnection",
-                              G_TYPE_OBJECT,
-                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
     g_object_class_install_property
         (object_class, PROP_TP_CHANNEL,
          g_param_spec_object ("tp-channel",
