@@ -1049,23 +1049,9 @@ mcd_channel_new_request (GHashTable *properties, guint64 user_time,
                          const gchar *preferred_handler)
 {
     McdChannel *channel;
-    guint handle;
-    TpHandleType handle_type;
-    const gchar *channel_type, *target_id;
     McdChannelRequestData *crd;
 
-    channel_type = tp_asv_get_string (properties,
-                                      TP_IFACE_CHANNEL ".ChannelType");
-    target_id = tp_asv_get_string (properties,
-                                   TP_IFACE_CHANNEL ".TargetID");
-    handle = tp_asv_get_uint32 (properties,
-                                TP_IFACE_CHANNEL ".TargetHandle", NULL);
-    handle_type =
-        tp_asv_get_uint32 (properties,
-                           TP_IFACE_CHANNEL ".TargetHandleType", NULL);
-
     channel = g_object_new (MCD_TYPE_CHANNEL,
-                            "type", channel_type,
                             "outgoing", TRUE,
                             NULL);
 
