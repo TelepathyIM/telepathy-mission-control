@@ -1095,7 +1095,8 @@ static void proxy_destroyed (DBusGProxy *tp_conn, guint domain, gint code,
 	priv->capabilities_timer = 0;
     }
 
-    if (priv->auto_reconnect)
+    if (priv->auto_reconnect &&
+        priv->abort_reason != TP_CONNECTION_STATUS_REASON_REQUESTED)
     {
         /* we were disconnected by a network error or by a connection manager
          * crash (in the latter case, we get NoneSpecified as a reason): don't
