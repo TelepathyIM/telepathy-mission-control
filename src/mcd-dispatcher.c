@@ -2263,7 +2263,7 @@ parse_client_file (McdClient *client, GKeyFile *file)
     /* Other client options */
     client->bypass_approver =
         g_key_file_get_boolean (file, MC_FILE_IFACE_CLIENT_HANDLER,
-                                "BypassApprover", NULL);
+                                "BypassApproval", NULL);
 }
 
 static McdClient *
