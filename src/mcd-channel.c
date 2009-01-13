@@ -53,23 +53,20 @@ typedef struct _McdChannelRequestData McdChannelRequestData;
 struct _McdChannelPrivate
 {
     gboolean outgoing;
-    
-    /* Channel created based on the above channel info */
+
     TpChannel *tp_chan;
-    guint has_group_if : 1;
 
     /* boolean properties */
+    guint has_group_if : 1;
     guint close_on_dispose : 1;
-
-    gboolean members_accepted;
-    gboolean missed;
+    guint members_accepted : 1;
+    guint missed : 1;
+    guint is_disposed : 1;
 
     McdChannelStatus status;
     const gchar *initiator_id;
 
     McdChannelRequestData *request_data;
-
-    gboolean is_disposed;
 };
 
 struct _McdChannelRequestData
