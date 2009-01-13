@@ -109,7 +109,8 @@ McdChannel *mcd_channel_new_request (GHashTable *properties,
 
 gboolean mcd_channel_set_object_path (McdChannel *channel,
                                       TpConnection *connection,
-                                      const gchar *object_path);
+                                      const gchar *object_path)
+    G_GNUC_DEPRECATED;
 G_GNUC_INTERNAL
 gboolean _mcd_channel_create_proxy (McdChannel *channel,
                                     TpConnection *connection,

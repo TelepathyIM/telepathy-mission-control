@@ -568,32 +568,8 @@ gboolean
 mcd_channel_set_object_path (McdChannel *channel, TpConnection *connection,
                              const gchar *object_path)
 {
-    McdChannelPrivate *priv;
-    GError *error = NULL;
-
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), FALSE);
-    priv = channel->priv;
-
-    g_return_val_if_fail (priv->tp_chan == NULL, FALSE);
-    priv->tp_chan = tp_channel_new (connection, object_path,
-                                    mcd_channel_get_channel_type (channel),
-                                    mcd_channel_get_handle_type (channel),
-                                    mcd_channel_get_handle (channel),
-                                    &error);
-    if (error)
-    {
-        g_warning ("%s: tp_channel_new returned error: %s",
-                   G_STRFUNC, error->message);
-        g_error_free (error);
-    }
-
-    if (priv->tp_chan)
-    {
-        _mcd_channel_setup (channel, priv);
-        return TRUE;
-    }
-    else
-        return FALSE;
+    g_warning ("%s is deprecated", G_STRFUNC);
+    return FALSE;
 }
 
 /**
