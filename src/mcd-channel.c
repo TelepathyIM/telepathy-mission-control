@@ -59,12 +59,8 @@ struct _McdChannelPrivate
     guint has_group_if : 1;
 
     /* boolean properties */
-    guint self_handle_ready : 1;
-    guint local_pending_members_ready : 1;
     guint close_on_dispose : 1;
 
-    /* Pending members */
-    GArray *pending_local_members;
     gboolean members_accepted;
     gboolean missed;
 
@@ -75,12 +71,6 @@ struct _McdChannelPrivate
 
     gboolean is_disposed;
 };
-
-typedef struct
-{
-    guint member;
-    guint actor;
-} PendingMemberInfo;
 
 struct _McdChannelRequestData
 {
@@ -149,115 +139,44 @@ static void
 on_members_changed (TpChannel *proxy, const gchar *message,
 		    const GArray *added, const GArray *removed,
 		    const GArray *l_pending, const GArray *r_pending,
-		    guint actor, guint reason, gpointer user_data,
-		    GObject *weak_object)
+                    guint actor, guint reason, McdChannel *channel)
 {
-    McdChannel *channel = MCD_CHANNEL (weak_object);
-    McdChannelPrivate *priv = user_data;
-    /* Local pending members? Add to the array and exit. */
+    McdChannelPrivate *priv = channel->priv;
+    TpHandle self_handle;
+    guint i;
 
-    if (l_pending && l_pending->len > 0)
-    {
-	guint i;
-	/* FIXME: Add duplicity check */
-	for (i = 0; i < l_pending->len; i++)
-	{
-	    PendingMemberInfo pmi;
-
-	    pmi.member = g_array_index (l_pending, guint, i);
-	    pmi.actor = actor;
-	    g_array_append_val (priv->pending_local_members, pmi);
-	    g_debug ("Added handle %u to channel pending members", pmi.member);
-	}
-    }
-
-    /* Added members? If any of them are in the local pending array, we can
-     * remove the lock restoration flag */
+    self_handle = tp_channel_group_get_self_handle (proxy);
 
     if (added && added->len > 0)
     {
-	guint i, j;
 	g_debug ("%u added members", added->len);
 	for (i = 0; i < added->len; i++)
 	{
 	    guint added_member = g_array_index (added, guint, i);
 
-	    /* N^2 complexity is not good, however with VOIP calls we should
-	     * not bump into significant number of members */
-
-	    for (j = 0; j < priv->pending_local_members->len; j++)
-	    {
-		PendingMemberInfo *pmi;
-
-		pmi = &g_array_index (priv->pending_local_members, PendingMemberInfo, i);
-		if (added_member == pmi->member)
-		{
-		    g_debug
-			("Pending local member added -> do not restore lock");
-		    g_debug
-			("This should appear only when the call was accepted");
-		    /* mcd_object_get ()->filters_unlocked_tk_lock = FALSE; */
-		    priv->members_accepted = TRUE;
-		    g_signal_emit_by_name (channel, "members-accepted");
-		    break;
-		}
-	    }
+            /* see whether we are the added member */
+            if (added_member == self_handle)
+            {
+                g_debug ("This should appear only when the call was accepted");
+                priv->members_accepted = TRUE;
+                g_signal_emit_by_name (channel, "members-accepted");
+                break;
+            }
 	}
     }
-    /* FIXME: We should also remove members from the local pending
-     * array, even if we don't need the info */
-    if (removed && removed->len > 0)
+
+    if (removed && removed->len > 0 && actor != self_handle)
     {
-	guint i;
-
-	if (actor != mcd_channel_get_self_handle (channel))
-	{
-	    for (i = 0; i < removed->len; i++)
-	    {
-		if (actor == g_array_index (removed, guint, i))
-		{
-		    /* the remote removed itself; if we didn't accept the call,
-		     * it's a missed channel */
-		    if (!priv->members_accepted) priv->missed = TRUE;
-		    break;
-		}
-	    }
-	}
-    }
-}
-
-static void
-group_get_local_pending_members_with_info (TpChannel *proxy,
-					   const GPtrArray *l_pending,
-					   const GError *error,
-					   gpointer user_data,
-					   GObject *weak_object)
-{
-    McdChannelPrivate *priv = user_data;
-
-    priv->local_pending_members_ready = TRUE;
-    if (error)
-    {
-	g_warning ("%s: error: %s", G_STRFUNC, error->message);
-	return;
-    }
-
-    if (l_pending)
-    {
-	guint i;
-	g_debug ("%u local pending members, adding", l_pending->len);
-	/* FIXME: Add duplicity check */
-	for (i = 0; i < l_pending->len; i++)
-	{
-	    PendingMemberInfo pmi;
-	    GValueArray *va;
-
-	    va = g_ptr_array_index (l_pending, i);
-	    pmi.member = g_value_get_uint (va->values);
-	    pmi.actor = g_value_get_uint (va->values + 1);
-	    g_array_append_val (priv->pending_local_members, pmi);
-	    g_debug ("Added handle %u to channel pending members", pmi.member);
-	}
+        for (i = 0; i < removed->len; i++)
+        {
+            if (actor == g_array_index (removed, guint, i))
+            {
+                /* the remote removed itself; if we didn't accept the call,
+                 * it's a missed channel */
+                if (!priv->members_accepted) priv->missed = TRUE;
+                break;
+            }
+        }
     }
 }
 
@@ -282,16 +201,9 @@ _mcd_channel_setup_group (McdChannel *channel)
 {
     McdChannelPrivate *priv = channel->priv;
 
-    tp_cli_channel_interface_group_connect_to_members_changed (priv->tp_chan,
-							       on_members_changed,
-							       priv, NULL,
-							       (GObject *)channel,
-							       NULL);
+    g_signal_connect (priv->tp_chan, "group-members-changed",
+                      G_CALLBACK (on_members_changed), channel);
     g_object_notify ((GObject *)channel, "self-handle-ready");
-    tp_cli_channel_interface_group_call_get_local_pending_members_with_info (priv->tp_chan, -1,
-							group_get_local_pending_members_with_info,
-									     priv, NULL,
-									     (GObject *)channel);
 }
 
 static void
@@ -328,6 +240,9 @@ _mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
     if (priv->tp_chan)
     {
+        g_signal_handlers_disconnect_by_func (G_OBJECT (priv->tp_chan),
+                                              G_CALLBACK (on_members_changed),
+                                              channel);
 	g_signal_handlers_disconnect_by_func (G_OBJECT (priv->tp_chan),
 					      G_CALLBACK (proxy_destroyed),
 					      channel);
@@ -414,16 +329,6 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
 }
 
 static void
-_mcd_channel_finalize (GObject * object)
-{
-    McdChannelPrivate *priv = MCD_CHANNEL_PRIV (object);
-    
-    g_array_free (priv->pending_local_members, TRUE);
-    
-    G_OBJECT_CLASS (mcd_channel_parent_class)->finalize (object);
-}
-
-static void
 _mcd_channel_dispose (GObject * object)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (object);
@@ -484,7 +389,6 @@ mcd_channel_class_init (McdChannelClass * klass)
     McdMissionClass *mission_class = MCD_MISSION_CLASS (klass);
     g_type_class_add_private (object_class, sizeof (McdChannelPrivate));
 
-    object_class->finalize = _mcd_channel_finalize;
     object_class->dispose = _mcd_channel_dispose;
     object_class->set_property = _mcd_channel_set_property;
     object_class->get_property = _mcd_channel_get_property;
@@ -549,8 +453,6 @@ mcd_channel_init (McdChannel * obj)
 					McdChannelPrivate);
     obj->priv = priv;
 
-    priv->pending_local_members = g_array_new (FALSE, FALSE,
-					       sizeof (PendingMemberInfo));
     priv->close_on_dispose = TRUE;
 }
 
