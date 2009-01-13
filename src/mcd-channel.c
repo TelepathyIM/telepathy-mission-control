@@ -45,7 +45,6 @@
 #include "_gen/gtypes.h"
 
 #define MCD_CHANNEL_PRIV(channel) (MCD_CHANNEL (channel)->priv)
-#define INVALID_SELF_HANDLE ((guint) -1)
 
 G_DEFINE_TYPE (McdChannel, mcd_channel, MCD_TYPE_MISSION);
 
@@ -68,8 +67,7 @@ struct _McdChannelPrivate
     GArray *pending_local_members;
     gboolean members_accepted;
     gboolean missed;
-    guint self_handle;
-    
+
     McdChannelStatus status;
     const gchar *initiator_id;
 
@@ -212,7 +210,7 @@ on_members_changed (TpChannel *proxy, const gchar *message,
     {
 	guint i;
 
-	if (actor != priv->self_handle)
+	if (actor != mcd_channel_get_self_handle (channel))
 	{
 	    for (i = 0; i < removed->len; i++)
 	    {
@@ -279,24 +277,6 @@ proxy_destroyed (TpProxy *self, guint domain, gint code, gchar *message,
     g_debug ("Channel closed");
 }
 
-static void
-group_get_self_handle_cb (TpChannel *proxy, guint self_handle,
-			  const GError *error, gpointer user_data,
-			  GObject *weak_object)
-{
-    McdChannel *channel = MCD_CHANNEL (weak_object);
-    McdChannelPrivate *priv = user_data;
-    if (error)
-	g_warning ("get_self_handle failed: %s", error->message);
-    else
-    {
-	priv->self_handle = self_handle;
-	g_debug ("channel %p: got self handle %u", channel, self_handle);
-    }
-    priv->self_handle_ready = TRUE;
-    g_object_notify ((GObject *)channel, "self-handle-ready");
-}
-
 static inline void
 _mcd_channel_setup_group (McdChannel *channel)
 {
@@ -307,10 +287,7 @@ _mcd_channel_setup_group (McdChannel *channel)
 							       priv, NULL,
 							       (GObject *)channel,
 							       NULL);
-    tp_cli_channel_interface_group_call_get_self_handle (priv->tp_chan, -1,
-							 group_get_self_handle_cb,
-							 priv, NULL,
-							 (GObject *)channel);
+    g_object_notify ((GObject *)channel, "self-handle-ready");
     tp_cli_channel_interface_group_call_get_local_pending_members_with_info (priv->tp_chan, -1,
 							group_get_local_pending_members_with_info,
 									     priv, NULL,
@@ -426,8 +403,6 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
 	g_value_set_boolean (val, priv->outgoing);
 	break;
     case PROP_SELF_HANDLE_READY:
-	g_value_set_boolean (val, priv->self_handle_ready);
-	break;
     case PROP_NAME_READY:
         g_value_set_boolean (val, priv->tp_chan &&
                              tp_channel_is_ready (priv->tp_chan));
@@ -574,7 +549,6 @@ mcd_channel_init (McdChannel * obj)
 					McdChannelPrivate);
     obj->priv = priv;
 
-    priv->self_handle = INVALID_SELF_HANDLE;
     priv->pending_local_members = g_array_new (FALSE, FALSE,
 					       sizeof (PendingMemberInfo));
     priv->close_on_dispose = TRUE;
@@ -956,8 +930,10 @@ mcd_channel_get_inviter (McdChannel *channel)
 guint
 mcd_channel_get_self_handle (McdChannel *channel)
 {
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), INVALID_SELF_HANDLE);
-    return channel->priv->self_handle;
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), 0);
+    if (channel->priv->tp_chan)
+        return tp_channel_group_get_self_handle (channel->priv->tp_chan);
+    return 0;
 }
 
 /**
