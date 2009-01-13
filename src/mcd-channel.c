@@ -853,25 +853,8 @@ gboolean
 mcd_channel_leave (McdChannel *channel, const gchar *message,
 		   TpChannelGroupChangeReason reason)
 {
-#if 1
     g_warning ("%s called, but shouldn't!", G_STRFUNC);
     return FALSE;
-#else
-    McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
-    DBusGProxy *group;
-    GArray members;
-
-    if (!priv->tp_chan) return FALSE;
-    group = tp_chan_get_interface (priv->tp_chan,
-				   TELEPATHY_CHAN_IFACE_GROUP_QUARK);
-    if (!group) return FALSE;
-    g_debug ("removing self");
-    members.len = 1;
-    members.data = (gchar *)&priv->self_handle;
-    tp_chan_iface_group_remove_members_with_reason_no_reply (group, &members,
-							     message, reason);
-    return TRUE;
-#endif
 }
 
 /*

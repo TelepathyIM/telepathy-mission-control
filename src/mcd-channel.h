@@ -134,7 +134,8 @@ const gchar *mcd_channel_get_inviter (McdChannel *channel);
 guint mcd_channel_get_self_handle (McdChannel *channel);
 gboolean mcd_channel_is_missed (McdChannel *channel);
 gboolean mcd_channel_leave (McdChannel *channel, const gchar *message,
-			    TpChannelGroupChangeReason reason);
+			    TpChannelGroupChangeReason reason)
+    G_GNUC_DEPRECATED;
 gboolean mcd_channel_is_requested (McdChannel *channel);
 McdAccount *mcd_channel_get_account (McdChannel *channel);
 TpChannel *mcd_channel_get_tp_channel (McdChannel *channel);
