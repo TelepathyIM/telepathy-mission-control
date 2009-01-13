@@ -52,11 +52,10 @@ typedef struct _McdChannelRequestData McdChannelRequestData;
 
 struct _McdChannelPrivate
 {
-    gboolean outgoing;
-
     TpChannel *tp_chan;
 
     /* boolean properties */
+    guint outgoing : 1;
     guint has_group_if : 1;
     guint close_on_dispose : 1;
     guint members_accepted : 1;
@@ -206,6 +205,7 @@ on_channel_ready (TpChannel *tp_chan, const GError *error, gpointer user_data)
 {
     McdChannel *channel, **channel_ptr = user_data;
     McdChannelPrivate *priv;
+    gboolean requested, valid;
 
     channel = *channel_ptr;
     if (channel)
@@ -221,6 +221,12 @@ on_channel_ready (TpChannel *tp_chan, const GError *error, gpointer user_data)
     if (!channel) return;
 
     priv = channel->priv;
+    requested = tp_asv_get_boolean
+        (tp_channel_borrow_immutable_properties (tp_chan),
+         TP_IFACE_CHANNEL ".Requested", &valid);
+    if (valid)
+        priv->outgoing = requested;
+
     g_object_notify ((GObject *)channel, "name-ready");
 
     priv->has_group_if = tp_proxy_has_interface_by_id (priv->tp_chan,
