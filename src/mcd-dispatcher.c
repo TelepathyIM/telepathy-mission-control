@@ -2875,7 +2875,7 @@ mcd_dispatcher_context_get_chan_handler (McdDispatcherContext * ctx)
 GPtrArray *
 mcd_dispatcher_context_get_members (McdDispatcherContext * ctx)
 {
-    return mcd_channel_get_members (mcd_dispatcher_context_get_channel (ctx));
+    return NULL;
 }
 
 GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher,
