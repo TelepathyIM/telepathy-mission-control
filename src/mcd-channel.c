@@ -95,6 +95,7 @@ struct _McdChannelRequestData
     GList *paths;
 
     GHashTable *properties;
+    guint target_handle; /* used only if the Requests interface is absent */
     guint64 user_time;
     gchar *preferred_handler;
 
@@ -1003,20 +1004,67 @@ mcd_channel_get_object_path (McdChannel *channel)
 void
 mcd_channel_set_handle (McdChannel *channel, guint handle)
 {
+    McdChannelPrivate *priv;
+
     g_return_if_fail (MCD_IS_CHANNEL (channel));
-    channel->priv->handle = handle;
+    priv = channel->priv;
+    g_return_if_fail (priv->status != MCD_CHANNEL_STATUS_REQUEST);
+
+    /* we cannot add the handle to the request_data->properties hash table,
+     * because we don't know how the table elements should be allocated. So,
+     * use a separate field in the request_data structure.
+     * In any case, this function is called only if the new Requests interface
+     * is not available on the connection, meaning that we won't directly use
+     * the hash table anyway.
+     */
+    priv->request_data->target_handle = handle;
 }
 
 guint
 mcd_channel_get_handle (McdChannel *channel)
 {
-    return MCD_CHANNEL_PRIV (channel)->handle;
+    McdChannelPrivate *priv;
+
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), 0);
+    priv = channel->priv;
+    if (priv->tp_chan)
+        return tp_channel_get_handle (priv->tp_chan, NULL);
+
+    if (G_LIKELY (priv->request_data))
+    {
+        if (priv->request_data->properties)
+        {
+            gboolean valid;
+            guint handle;
+
+            handle = tp_asv_get_uint32 (priv->request_data->properties,
+                                        TP_IFACE_CHANNEL ".TargetHandle",
+                                        &valid);
+            if (valid)
+                return handle;
+        }
+        return priv->request_data->target_handle;
+    }
+    else
+        return 0;
 }
 
 TpHandleType
 mcd_channel_get_handle_type (McdChannel *channel)
 {
-    return MCD_CHANNEL_PRIV (channel)->handle_type;
+    McdChannelPrivate *priv;
+    guint handle_type = TP_HANDLE_TYPE_NONE;
+
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), 0);
+    priv = channel->priv;
+    if (priv->tp_chan)
+        tp_channel_get_handle (priv->tp_chan, &handle_type);
+    else if (G_LIKELY (priv->request_data && priv->request_data->properties))
+        handle_type = tp_asv_get_uint32
+            (priv->request_data->properties,
+             TP_IFACE_CHANNEL ".TargetHandleType", NULL);
+
+    return handle_type;
 }
 
 GPtrArray*
