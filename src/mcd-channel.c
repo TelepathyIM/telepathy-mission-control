@@ -49,6 +49,8 @@
 
 G_DEFINE_TYPE (McdChannel, mcd_channel, MCD_TYPE_MISSION);
 
+typedef struct _McdChannelRequestData McdChannelRequestData;
+
 struct _McdChannelPrivate
 {
     /* Channel info */
@@ -76,7 +78,9 @@ struct _McdChannelPrivate
     McdChannelStatus status;
     gchar *channel_name;
     const gchar *initiator_id;
-    
+
+    McdChannelRequestData *request_data;
+
     /* Requestor info */
     guint requestor_serial;
     gchar *requestor_client_id;
@@ -90,7 +94,7 @@ typedef struct
     guint actor;
 } PendingMemberInfo;
 
-typedef struct
+struct _McdChannelRequestData
 {
     GList *paths;
 
@@ -99,7 +103,7 @@ typedef struct
     gchar *preferred_handler;
 
     gboolean use_existing;
-} McdChannelRequestData;
+};
 
 enum _McdChannelSignalType
 {
@@ -133,7 +137,6 @@ enum _McdChannelPropertyType
 
 #define CD_IMMUTABLE_PROPERTIES "_immprop"
 #define CD_ERROR    "_error"
-#define CD_REQUEST  "_reqdata"
 
 static guint mcd_channel_signals[LAST_SIGNAL] = { 0 };
 
@@ -593,6 +596,13 @@ _mcd_channel_dispose (GObject * object)
 	return;
 
     priv->is_disposed = TRUE;
+
+    if (priv->request_data)
+    {
+        channel_request_data_free (priv->request_data);
+        priv->request_data = NULL;
+    }
+
     _mcd_channel_release_tp_channel (MCD_CHANNEL (object),
                                      priv->close_on_dispose);
     G_OBJECT_CLASS (mcd_channel_parent_class)->dispose (object);
@@ -1237,7 +1247,7 @@ _mcd_channel_get_target_id (McdChannel *channel)
     McdChannelRequestData *crd;
 
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    crd = g_object_get_data ((GObject *)channel, CD_REQUEST);
+    crd = channel->priv->request_data;
     if (G_UNLIKELY (!crd || !crd->properties)) return NULL;
     return tp_asv_get_string (crd->properties, TP_IFACE_CHANNEL ".TargetID");
 }
@@ -1321,8 +1331,7 @@ mcd_channel_new_request (GHashTable *properties, guint64 user_time,
     crd->properties = g_hash_table_ref (properties);
     crd->user_time = user_time;
     crd->preferred_handler = g_strdup (preferred_handler);
-    g_object_set_data_full ((GObject *)channel, CD_REQUEST,
-                            crd, (GDestroyNotify)channel_request_data_free);
+    channel->priv->request_data = crd;
 
     mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_REQUEST);
 
@@ -1341,7 +1350,7 @@ _mcd_channel_get_requested_properties (McdChannel *channel)
     McdChannelRequestData *crd;
 
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    crd = g_object_get_data ((GObject *)channel, CD_REQUEST);
+    crd = channel->priv->request_data;
     if (G_UNLIKELY (!crd)) return NULL;
     return crd->properties;
 }
@@ -1376,7 +1385,7 @@ _mcd_channel_get_satisfied_requests (McdChannel *channel)
     McdChannelRequestData *crd;
 
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    crd = g_object_get_data ((GObject *)channel, CD_REQUEST);
+    crd = channel->priv->request_data;
     if (G_UNLIKELY (!crd)) return NULL;
     return crd->paths;
 }
@@ -1394,7 +1403,7 @@ _mcd_channel_get_request_user_action_time (McdChannel *channel)
     McdChannelRequestData *crd;
 
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), 0);
-    crd = g_object_get_data ((GObject *)channel, CD_REQUEST);
+    crd = channel->priv->request_data;
     if (G_UNLIKELY (!crd)) return 0;
     return crd->user_time;
 }
@@ -1412,7 +1421,7 @@ _mcd_channel_get_request_preferred_handler (McdChannel *channel)
     McdChannelRequestData *crd;
 
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    crd = g_object_get_data ((GObject *)channel, CD_REQUEST);
+    crd = channel->priv->request_data;
     if (G_UNLIKELY (!crd)) return NULL;
     return crd->preferred_handler;
 }
@@ -1431,7 +1440,7 @@ _mcd_channel_set_request_use_existing (McdChannel *channel,
     McdChannelRequestData *crd;
 
     g_return_if_fail (MCD_IS_CHANNEL (channel));
-    crd = g_object_get_data ((GObject *)channel, CD_REQUEST);
+    crd = channel->priv->request_data;
     if (G_UNLIKELY (!crd)) return;
     crd->use_existing = use_existing;
 }
@@ -1449,7 +1458,7 @@ _mcd_channel_get_request_use_existing (McdChannel *channel)
     McdChannelRequestData *crd;
 
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), FALSE);
-    crd = g_object_get_data ((GObject *)channel, CD_REQUEST);
+    crd = channel->priv->request_data;
     if (G_UNLIKELY (!crd)) return FALSE;
     return crd->use_existing;
 }
@@ -1549,7 +1558,7 @@ _mcd_channel_set_request_proxy (McdChannel *channel, McdChannel *source)
     if (G_LIKELY (request_path))
     {
         McdChannelRequestData *crd;
-        crd = g_object_get_data ((GObject *)source, CD_REQUEST);
+        crd = source->priv->request_data;
         if (G_LIKELY (crd))
             crd->paths = g_list_prepend (crd->paths, g_strdup (request_path));
     }
