@@ -99,7 +99,6 @@ enum _McdChannelPropertyType
 #define DEPRECATED_PROPERTY_WARNING \
     g_warning ("%s: property %s is deprecated", G_STRFUNC, pspec->name)
 
-#define CD_IMMUTABLE_PROPERTIES "_immprop"
 #define CD_ERROR    "_error"
 
 static guint mcd_channel_signals[LAST_SIGNAL] = { 0 };
@@ -903,10 +902,14 @@ void
 _mcd_channel_set_immutable_properties (McdChannel *channel,
                                        GHashTable *properties)
 {
-    McdChannelPrivate *priv = channel->priv;
+    g_return_if_fail (MCD_IS_CHANNEL (channel));
 
-    g_object_set_data_full ((GObject *)channel, CD_IMMUTABLE_PROPERTIES,
-                            properties, (GDestroyNotify)g_hash_table_unref);
+    if (G_LIKELY (channel->priv->tp_chan))
+        g_object_set (channel->priv->tp_chan,
+                      "channel-properties", properties,
+                      NULL);
+    else
+        g_warning ("%s: no TpChannel yet!", G_STRFUNC);
 }
 
 /*
@@ -918,7 +921,11 @@ _mcd_channel_set_immutable_properties (McdChannel *channel,
 GHashTable *
 _mcd_channel_get_immutable_properties (McdChannel *channel)
 {
-    return g_object_get_data ((GObject *)channel, CD_IMMUTABLE_PROPERTIES);
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
+
+    return channel->priv->tp_chan ?
+        tp_channel_borrow_immutable_properties (channel->priv->tp_chan) :
+            NULL;
 }
 
 /*
@@ -1318,18 +1325,10 @@ _mcd_channel_set_request_proxy (McdChannel *channel, McdChannel *source)
 void
 _mcd_channel_copy_details (McdChannel *channel, McdChannel *source)
 {
-    GHashTable *props;
-
     g_return_if_fail (MCD_IS_CHANNEL (channel));
     g_return_if_fail (MCD_IS_CHANNEL (source));
 
     channel->priv->tp_chan = g_object_ref (source->priv->tp_chan);
     channel->priv->close_on_dispose = FALSE;
-    /* Once we use the new tp-glib functionality of creating tp channels with
-     * properties the assignment above will copy the immutable properties, too;
-     * but for the time being, we must do it manually */
-    props = _mcd_channel_get_immutable_properties (source);
-    g_hash_table_ref (props);
-    _mcd_channel_set_immutable_properties (channel, props);
 }
 
