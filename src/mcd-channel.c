@@ -806,17 +806,24 @@ _mcd_channel_create_proxy (McdChannel *channel, TpConnection *connection,
                            const gchar *object_path,
                            const GHashTable *properties)
 {
-    if (mcd_channel_set_object_path (channel, connection, object_path))
+    TpChannel *tp_chan;
+    GError *error = NULL;
+
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), FALSE);
+    tp_chan = tp_channel_new_from_properties (connection, object_path,
+                                              properties, &error);
+    if (G_UNLIKELY (error))
     {
-        if (properties)
-            _mcd_channel_set_immutable_properties
-                (channel,
-                 g_boxed_copy (TP_HASH_TYPE_QUALIFIED_PROPERTY_VALUE_MAP,
-                               properties));
-        return TRUE;
-    }
-    else
+        g_warning ("%s: got error: %s", G_STRFUNC, error->message);
+        g_error_free (error);
         return FALSE;
+    }
+
+    g_object_set (channel,
+                  "tp-channel", tp_chan,
+                  NULL);
+    g_object_unref (tp_chan);
+    return TRUE;
 }
 
 void
