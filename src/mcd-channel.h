@@ -138,29 +138,43 @@ McdAccount *mcd_channel_get_account (McdChannel *channel);
 TpChannel *mcd_channel_get_tp_channel (McdChannel *channel);
 
 /* not exported: */
+G_GNUC_INTERNAL
 void _mcd_channel_set_immutable_properties (McdChannel *channel,
                                             GHashTable *properties);
+G_GNUC_INTERNAL
 GHashTable *_mcd_channel_get_immutable_properties (McdChannel *channel);
 
+G_GNUC_INTERNAL
 GPtrArray *_mcd_channel_details_build_from_list (GList *channels);
+G_GNUC_INTERNAL
 void _mcd_channel_details_free (GPtrArray *channels);
 
+G_GNUC_INTERNAL
 const gchar *_mcd_channel_get_target_id (McdChannel *channel);
+G_GNUC_INTERNAL
 GHashTable *_mcd_channel_get_requested_properties (McdChannel *channel);
+G_GNUC_INTERNAL
 const gchar *_mcd_channel_get_request_path (McdChannel *channel);
 G_GNUC_INTERNAL
 const GList *_mcd_channel_get_satisfied_requests (McdChannel *channel);
+G_GNUC_INTERNAL
 guint64 _mcd_channel_get_request_user_action_time (McdChannel *channel);
+G_GNUC_INTERNAL
 const gchar *_mcd_channel_get_request_preferred_handler (McdChannel *channel);
+G_GNUC_INTERNAL
 void _mcd_channel_set_request_use_existing (McdChannel *channel,
                                             gboolean use_existing);
+G_GNUC_INTERNAL
 gboolean _mcd_channel_get_request_use_existing (McdChannel *channel);
 
 G_GNUC_INTERNAL
 void _mcd_channel_copy_details (McdChannel *channel, McdChannel *source);
+G_GNUC_INTERNAL
 void _mcd_channel_set_request_proxy (McdChannel *channel, McdChannel *source);
 
+G_GNUC_INTERNAL
 void _mcd_channel_set_error (McdChannel *channel, GError *error);
+G_GNUC_INTERNAL
 const GError *_mcd_channel_get_error (McdChannel *channel);
 
 G_END_DECLS
