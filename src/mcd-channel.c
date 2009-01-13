@@ -109,17 +109,10 @@ enum _McdChannelPropertyType
 {
     PROP_CONNECTION=1,
     PROP_TP_CHANNEL,
-    PROP_CHANNEL_STATUS,
     PROP_CHANNEL_TYPE,
     PROP_TYPE,
     PROP_CHANNEL_TYPE_QUARK,
-    PROP_CHANNEL_HANDLE,
-    PROP_HANDLE,
-    PROP_CHANNEL_HANDLE_TYPE,
-    PROP_HANDLE_TYPE,
     PROP_OUTGOING,
-    PROP_REQUESTOR_SERIAL,
-    PROP_REQUESTOR_CLIENT_ID,
     PROP_SELF_HANDLE_READY,
     PROP_NAME_READY,
     PROP_INVITER_READY,
@@ -422,11 +415,6 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
 
     switch (prop_id)
     { 
-    case PROP_CHANNEL_STATUS:
-        DEPRECATED_PROPERTY_WARNING;
-	priv->status = g_value_get_enum (val);
-	g_signal_emit_by_name (channel, "status-changed", priv->status);
-	break;
     case PROP_CONNECTION:
          break;
     case PROP_TP_CHANNEL:
@@ -446,21 +434,9 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
     case PROP_CHANNEL_TYPE_QUARK:
         DEPRECATED_PROPERTY_WARNING;
          break;
-    case PROP_CHANNEL_HANDLE:
-    case PROP_HANDLE:
-        DEPRECATED_PROPERTY_WARNING;
-	break;
-    case PROP_CHANNEL_HANDLE_TYPE:
-    case PROP_HANDLE_TYPE:
-        DEPRECATED_PROPERTY_WARNING;
-	break;
     case PROP_OUTGOING:
 	priv->outgoing = g_value_get_boolean (val);
 	break;
-    case PROP_REQUESTOR_SERIAL:
-    case PROP_REQUESTOR_CLIENT_ID:
-        DEPRECATED_PROPERTY_WARNING;
-        break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
@@ -479,10 +455,6 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
 	/* FIXME: This is presumetous and wrong */
 	g_value_set_object (val, mcd_mission_get_parent (MCD_MISSION (obj)));
 	break;
-    case PROP_CHANNEL_STATUS:
-        DEPRECATED_PROPERTY_WARNING;
-	g_value_set_enum (val, priv->status);
-	break;
     case PROP_TP_CHANNEL:
 	g_value_set_object (val, priv->tp_chan);
 	break;
@@ -494,20 +466,8 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
         DEPRECATED_PROPERTY_WARNING;
 	g_value_set_uint (val, priv->type_quark);
 	break;
-    case PROP_CHANNEL_HANDLE:
-        DEPRECATED_PROPERTY_WARNING;
-	g_value_set_uint (val, 0);
-	break;
-    case PROP_CHANNEL_HANDLE_TYPE:
-        DEPRECATED_PROPERTY_WARNING;
-	g_value_set_uint (val, 0);
-	break;
     case PROP_OUTGOING:
 	g_value_set_boolean (val, priv->outgoing);
-	break;
-    case PROP_REQUESTOR_SERIAL:
-    case PROP_REQUESTOR_CLIENT_ID:
-        DEPRECATED_PROPERTY_WARNING;
 	break;
     case PROP_SELF_HANDLE_READY:
 	g_value_set_boolean (val, priv->self_handle_ready);
@@ -634,13 +594,6 @@ mcd_channel_class_init (McdChannelClass * klass)
                               TP_TYPE_CHANNEL,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
     g_object_class_install_property
-        (object_class, PROP_CHANNEL_STATUS,
-         g_param_spec_enum ("channel-status",
-                            "Channel status",
-                            "Channel status",
-                            MCD_TYPE_CHANNEL_STATUS, MCD_CHANNEL_STATUS_REQUEST,
-                            G_PARAM_READWRITE));
-    g_object_class_install_property
         (object_class, PROP_CHANNEL_TYPE,
          g_param_spec_string ("channel-type",
                               "Channel type",
@@ -660,50 +613,12 @@ mcd_channel_class_init (McdChannelClass * klass)
                             0, G_MAXINT, 0,
                             G_PARAM_READWRITE));
     g_object_class_install_property
-        (object_class, PROP_CHANNEL_HANDLE,
-         g_param_spec_uint ("channel-handle",
-                            "Telepathy channel handle",
-                            "Telepathy channel handle",
-                            0, G_MAXINT, 0,
-                            G_PARAM_READWRITE));
-    g_object_class_install_property
-        (object_class, PROP_HANDLE,
-         g_param_spec_uint ("handle", "handle", "handle",
-                            0, G_MAXUINT, 0,
-                            G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property
-        (object_class, PROP_CHANNEL_HANDLE_TYPE,
-         g_param_spec_uint ("channel-handle-type",
-                            "Telepathy channel handle type",
-                            "Telepathy channel handle type",
-                            0, G_MAXINT, 0,
-                            G_PARAM_READWRITE));
-    g_object_class_install_property
-        (object_class, PROP_HANDLE_TYPE,
-         g_param_spec_uint ("handle-type", "handle-type", "handle-type",
-                            0, G_MAXUINT, 0,
-                            G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property
         (object_class, PROP_OUTGOING,
          g_param_spec_boolean ("outgoing",
                                "Outgoing channel",
                                "True if the channel was requested by us",
                                FALSE,
                                G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property
-        (object_class, PROP_REQUESTOR_SERIAL,
-         g_param_spec_uint ("requestor-serial",
-                            "Requestor serial number",
-                            "Requestor serial number",
-                            0, G_MAXINT, 0,
-                            G_PARAM_READWRITE));
-    g_object_class_install_property
-        (object_class, PROP_REQUESTOR_CLIENT_ID,
-         g_param_spec_string ("requestor-client-id",
-                              "Requestor client id",
-                              "Requestor client id",
-                              NULL,
-                              G_PARAM_READWRITE));
     g_object_class_install_property
         (object_class, PROP_SELF_HANDLE_READY,
          g_param_spec_boolean ("self-handle-ready",
@@ -741,15 +656,8 @@ mcd_channel_new (TpChannel * tp_chan,
 		 TpHandleType handle_type, gboolean outgoing,
 		 guint requestor_serial, const gchar *requestor_client_id)
 {
-    McdChannel *obj;
-    obj = MCD_CHANNEL (g_object_new (MCD_TYPE_CHANNEL,
-				     "type", type,
-				     "handle", handle,
-				     "handle-type", handle_type,
-				     "outgoing", outgoing,
-				     "tp-channel", tp_chan,
-				     NULL));
-    return obj;
+    g_warning ("%s is deprecated", G_STRFUNC);
+    return NULL;
 }
 
 /**
@@ -1309,8 +1217,6 @@ mcd_channel_new_request (GHashTable *properties, guint64 user_time,
 
     channel = g_object_new (MCD_TYPE_CHANNEL,
                             "type", channel_type,
-                            "handle", handle,
-                            "handle-type", handle_type,
                             "outgoing", TRUE,
                             NULL);
 
