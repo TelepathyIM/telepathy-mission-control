@@ -139,6 +139,9 @@ on_members_changed (TpChannel *proxy, const gchar *message,
     TpHandle self_handle;
     guint i;
 
+    g_debug ("%s called (actor %u, reason %u, self_handle %u)", G_STRFUNC,
+             actor, reason, tp_channel_group_get_self_handle (proxy));
+
     self_handle = tp_channel_group_get_self_handle (proxy);
 
     if (added && added->len > 0)
@@ -147,6 +150,7 @@ on_members_changed (TpChannel *proxy, const gchar *message,
 	for (i = 0; i < added->len; i++)
 	{
 	    guint added_member = g_array_index (added, guint, i);
+            g_debug ("added member %u", added_member);
 
             /* see whether we are the added member */
             if (added_member == self_handle)
@@ -163,6 +167,7 @@ on_members_changed (TpChannel *proxy, const gchar *message,
     {
         for (i = 0; i < removed->len; i++)
         {
+            g_debug ("removed member %u", g_array_index (removed, guint, i));
             if (actor == g_array_index (removed, guint, i))
             {
                 /* the remote removed itself; if we didn't accept the call,
@@ -220,6 +225,7 @@ on_channel_ready (TpChannel *tp_chan, const GError *error, gpointer user_data)
 
     if (!channel) return;
 
+    g_debug ("channel %p is ready", channel);
     priv = channel->priv;
     requested = tp_asv_get_boolean
         (tp_channel_borrow_immutable_properties (tp_chan),
