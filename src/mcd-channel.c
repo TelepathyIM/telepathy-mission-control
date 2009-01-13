@@ -64,7 +64,6 @@ struct _McdChannelPrivate
     guint is_disposed : 1;
 
     McdChannelStatus status;
-    const gchar *initiator_id;
 
     McdChannelRequestData *request_data;
 };
@@ -812,9 +811,18 @@ mcd_channel_get_name (McdChannel *channel)
 const gchar *
 mcd_channel_get_inviter (McdChannel *channel)
 {
-    McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
+    McdChannelPrivate *priv;
+    GHashTable *properties = NULL;
 
-    return priv->initiator_id;
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
+    priv = channel->priv;
+    if (priv->tp_chan)
+    {
+        properties = tp_channel_borrow_immutable_properties (priv->tp_chan);
+        if (properties)
+            return tp_asv_get_string (properties, TP_IFACE_CHANNEL ".TargetID");
+    }
+    return NULL;
 }
 
 /**
@@ -899,9 +907,6 @@ _mcd_channel_set_immutable_properties (McdChannel *channel,
 
     g_object_set_data_full ((GObject *)channel, CD_IMMUTABLE_PROPERTIES,
                             properties, (GDestroyNotify)g_hash_table_unref);
-    /* copy any properties into the channel */
-    priv->initiator_id =
-        tp_asv_get_string (properties, TP_IFACE_CHANNEL ".InitiatorID");
 }
 
 /*
