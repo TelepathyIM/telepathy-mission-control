@@ -81,10 +81,6 @@ struct _McdChannelPrivate
 
     McdChannelRequestData *request_data;
 
-    /* Requestor info */
-    guint requestor_serial;
-    gchar *requestor_client_id;
-    
     gboolean is_disposed;
 };
 
@@ -504,12 +500,8 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
 	priv->outgoing = g_value_get_boolean (val);
 	break;
     case PROP_REQUESTOR_SERIAL:
-        DEPRECATED_PROPERTY_WARNING;
-        priv->requestor_serial = g_value_get_uint (val);
-        break;
     case PROP_REQUESTOR_CLIENT_ID:
-	g_free (priv->requestor_client_id);
-	priv->requestor_client_id = g_value_dup_string (val);
+        DEPRECATED_PROPERTY_WARNING;
         break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -556,11 +548,8 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
 	g_value_set_boolean (val, priv->outgoing);
 	break;
     case PROP_REQUESTOR_SERIAL:
-        DEPRECATED_PROPERTY_WARNING;
-	g_value_set_uint (val, priv->requestor_serial);
-	break;
     case PROP_REQUESTOR_CLIENT_ID:
-	g_value_set_string (val, priv->requestor_client_id);
+        DEPRECATED_PROPERTY_WARNING;
 	break;
     case PROP_SELF_HANDLE_READY:
 	g_value_set_boolean (val, priv->self_handle_ready);
@@ -580,7 +569,6 @@ _mcd_channel_finalize (GObject * object)
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (object);
     
     g_array_free (priv->pending_local_members, TRUE);
-    g_free (priv->requestor_client_id);
     g_free (priv->channel_name);
     
     G_OBJECT_CLASS (mcd_channel_parent_class)->finalize (object);
@@ -801,8 +789,6 @@ mcd_channel_new (TpChannel * tp_chan,
 				     "handle", handle,
 				     "handle-type", handle_type,
 				     "outgoing", outgoing,
-				     "requestor-serial", requestor_serial,
-				     "requestor-client-id", requestor_client_id,
 				     "tp-channel", tp_chan,
 				     NULL));
     return obj;
