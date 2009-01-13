@@ -55,8 +55,6 @@ struct _McdChannelPrivate
 {
     /* Channel info */
     GQuark type_quark;
-    guint handle;
-    TpHandleType handle_type;
     gboolean outgoing;
     
     /* Channel created based on the above channel info */
@@ -65,7 +63,6 @@ struct _McdChannelPrivate
 
     /* boolean properties */
     guint self_handle_ready : 1;
-    guint name_ready : 1;
     guint local_pending_members_ready : 1;
     guint close_on_dispose : 1;
 
@@ -76,7 +73,6 @@ struct _McdChannelPrivate
     guint self_handle;
     
     McdChannelStatus status;
-    gchar *channel_name;
     const gchar *initiator_id;
 
     McdChannelRequestData *request_data;
@@ -347,28 +343,10 @@ _mcd_channel_setup_group (McdChannel *channel)
 }
 
 static void
-inspect_channel_handle_cb (TpConnection *proxy, const gchar **handle_names,
-			   const GError *error, gpointer user_data,
-			   GObject *weak_object)
-{
-    McdChannel *channel = MCD_CHANNEL (weak_object);
-    McdChannelPrivate *priv = user_data;
-
-    if (error)
-	g_warning ("%s: InspectHandles failed: %s", G_STRFUNC, error->message);
-    else
-	priv->channel_name = g_strdup (handle_names[0]);
-    priv->name_ready = TRUE;
-    g_object_notify ((GObject *)channel, "name-ready");
-}
-
-static void
 on_channel_ready (TpChannel *tp_chan, const GError *error, gpointer user_data)
 {
     McdChannel *channel, **channel_ptr = user_data;
     McdChannelPrivate *priv;
-    TpConnection *tp_conn;
-    GArray request_handles;
 
     channel = *channel_ptr;
     if (channel)
@@ -384,26 +362,7 @@ on_channel_ready (TpChannel *tp_chan, const GError *error, gpointer user_data)
     if (!channel) return;
 
     priv = channel->priv;
-    g_object_get (priv->tp_chan,
-		  "connection", &tp_conn,
-		  "handle", &priv->handle,
-		  "handle-type", &priv->handle_type,
-		  NULL);
-    g_debug ("%s: handle %u, type %u", G_STRFUNC,
-	     priv->handle_type, priv->handle);
-    if (priv->handle_type != 0)
-    {
-	/* get the name of the channel */
-	request_handles.len = 1;
-	request_handles.data = (gchar *)&priv->handle;
-	tp_cli_connection_call_inspect_handles (tp_conn, -1,
-						priv->handle_type,
-						&request_handles,
-						inspect_channel_handle_cb,
-						priv, NULL,
-						(GObject *)channel);
-    }
-    g_object_unref (tp_conn);
+    g_object_notify ((GObject *)channel, "name-ready");
 
     priv->has_group_if = tp_proxy_has_interface_by_id (priv->tp_chan,
 						       TP_IFACE_QUARK_CHANNEL_INTERFACE_GROUP);
@@ -488,14 +447,12 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
         DEPRECATED_PROPERTY_WARNING;
          break;
     case PROP_CHANNEL_HANDLE:
-        DEPRECATED_PROPERTY_WARNING;
     case PROP_HANDLE:
-	priv->handle = g_value_get_uint (val);
+        DEPRECATED_PROPERTY_WARNING;
 	break;
     case PROP_CHANNEL_HANDLE_TYPE:
-        DEPRECATED_PROPERTY_WARNING;
     case PROP_HANDLE_TYPE:
-	priv->handle_type = g_value_get_uint (val);
+        DEPRECATED_PROPERTY_WARNING;
 	break;
     case PROP_OUTGOING:
 	priv->outgoing = g_value_get_boolean (val);
@@ -539,11 +496,11 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
 	break;
     case PROP_CHANNEL_HANDLE:
         DEPRECATED_PROPERTY_WARNING;
-	g_value_set_uint (val, priv->handle);
+	g_value_set_uint (val, 0);
 	break;
     case PROP_CHANNEL_HANDLE_TYPE:
         DEPRECATED_PROPERTY_WARNING;
-	g_value_set_uint (val, priv->handle_type);
+	g_value_set_uint (val, 0);
 	break;
     case PROP_OUTGOING:
 	g_value_set_boolean (val, priv->outgoing);
@@ -556,7 +513,8 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
 	g_value_set_boolean (val, priv->self_handle_ready);
 	break;
     case PROP_NAME_READY:
-	g_value_set_boolean (val, priv->name_ready);
+        g_value_set_boolean (val, priv->tp_chan &&
+                             tp_channel_is_ready (priv->tp_chan));
 	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -570,7 +528,6 @@ _mcd_channel_finalize (GObject * object)
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (object);
     
     g_array_free (priv->pending_local_members, TRUE);
-    g_free (priv->channel_name);
     
     G_OBJECT_CLASS (mcd_channel_parent_class)->finalize (object);
 }
@@ -904,8 +861,8 @@ mcd_channel_set_object_path (McdChannel *channel, TpConnection *connection,
     g_return_val_if_fail (priv->tp_chan == NULL, FALSE);
     priv->tp_chan = tp_channel_new (connection, object_path,
                                     g_quark_to_string (priv->type_quark),
-                                    priv->handle_type,
-                                    priv->handle,
+                                    mcd_channel_get_handle_type (channel),
+                                    mcd_channel_get_handle (channel),
                                     &error);
     if (error)
     {
@@ -1086,9 +1043,18 @@ mcd_channel_get_members (McdChannel *channel)
 const gchar *
 mcd_channel_get_name (McdChannel *channel)
 {
-    McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
+    McdChannelPrivate *priv;
+    GHashTable *properties = NULL;
 
-    return priv->channel_name;
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
+    priv = channel->priv;
+    if (priv->tp_chan)
+        properties = tp_channel_borrow_immutable_properties (priv->tp_chan);
+    else if (G_LIKELY (priv->request_data))
+        properties = priv->request_data->properties;
+
+    if (!properties) return NULL;
+    return tp_asv_get_string (properties, TP_IFACE_CHANNEL ".TargetID");
 }
 
 /**
@@ -1185,19 +1151,10 @@ _mcd_channel_set_immutable_properties (McdChannel *channel,
                                        GHashTable *properties)
 {
     McdChannelPrivate *priv = channel->priv;
-    gboolean present;
-    guint handle;
 
     g_object_set_data_full ((GObject *)channel, CD_IMMUTABLE_PROPERTIES,
                             properties, (GDestroyNotify)g_hash_table_unref);
     /* copy any properties into the channel */
-    /* FIXME: this is only a quick fix. This all "immutable properties" thing
-     * must be revisited, when a similar TpGlib API exists */
-    handle = tp_asv_get_uint32 (properties, TP_IFACE_CHANNEL ".TargetHandle",
-                                &present);
-    if (present)
-        channel->priv->handle = handle;
-
     priv->initiator_id =
         tp_asv_get_string (properties, TP_IFACE_CHANNEL ".InitiatorID");
 }
