@@ -53,8 +53,6 @@ typedef struct _McdChannelRequestData McdChannelRequestData;
 
 struct _McdChannelPrivate
 {
-    /* Channel info */
-    GQuark type_quark;
     gboolean outgoing;
     
     /* Channel created based on the above channel info */
@@ -108,9 +106,6 @@ enum _McdChannelSignalType
 enum _McdChannelPropertyType
 {
     PROP_TP_CHANNEL = 1,
-    PROP_CHANNEL_TYPE,
-    PROP_TYPE,
-    PROP_CHANNEL_TYPE_QUARK,
     PROP_OUTGOING,
     PROP_SELF_HANDLE_READY,
     PROP_NAME_READY,
@@ -373,7 +368,8 @@ _mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
 					      channel);
 
 	if (close_channel && !TP_PROXY (priv->tp_chan)->invalidated &&
-            priv->type_quark != TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
+            tp_channel_get_channel_type_id (priv->tp_chan) !=
+            TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
 	{
 	    g_debug ("%s: Requesting telepathy to close the channel", G_STRFUNC);
 	    tp_cli_channel_call_close (priv->tp_chan, -1, NULL, NULL, NULL, NULL);
@@ -423,14 +419,6 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
 	if (priv->tp_chan)
 	    _mcd_channel_setup (channel, priv);
 	break;
-    case PROP_CHANNEL_TYPE:
-        DEPRECATED_PROPERTY_WARNING;
-    case PROP_TYPE:
-        priv->type_quark = g_quark_from_string (g_value_get_string (val));
-	break;
-    case PROP_CHANNEL_TYPE_QUARK:
-        DEPRECATED_PROPERTY_WARNING;
-         break;
     case PROP_OUTGOING:
 	priv->outgoing = g_value_get_boolean (val);
 	break;
@@ -450,14 +438,6 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
     {
     case PROP_TP_CHANNEL:
 	g_value_set_object (val, priv->tp_chan);
-	break;
-    case PROP_CHANNEL_TYPE:
-        DEPRECATED_PROPERTY_WARNING;
-	g_value_set_static_string (val, g_quark_to_string (priv->type_quark));
-	break;
-    case PROP_CHANNEL_TYPE_QUARK:
-        DEPRECATED_PROPERTY_WARNING;
-	g_value_set_uint (val, priv->type_quark);
 	break;
     case PROP_OUTGOING:
 	g_value_set_boolean (val, priv->outgoing);
@@ -579,25 +559,6 @@ mcd_channel_class_init (McdChannelClass * klass)
                               "Telepathy Channel",
                               TP_TYPE_CHANNEL,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
-    g_object_class_install_property
-        (object_class, PROP_CHANNEL_TYPE,
-         g_param_spec_string ("channel-type",
-                              "Channel type",
-                              "Telepathy channel type",
-                              NULL,
-                              G_PARAM_READWRITE));
-    g_object_class_install_property
-        (object_class, PROP_TYPE,
-         g_param_spec_string ("type", "type", "type",
-                              NULL,
-                              G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property
-        (object_class, PROP_CHANNEL_TYPE_QUARK,
-         g_param_spec_uint ("channel-type-quark",
-                            "Telepathy channel type in quark form",
-                            "Telepathy channel type in quark form",
-                            0, G_MAXINT, 0,
-                            G_PARAM_READWRITE));
     g_object_class_install_property
         (object_class, PROP_OUTGOING,
          g_param_spec_boolean ("outgoing",
@@ -754,7 +715,7 @@ mcd_channel_set_object_path (McdChannel *channel, TpConnection *connection,
 
     g_return_val_if_fail (priv->tp_chan == NULL, FALSE);
     priv->tp_chan = tp_channel_new (connection, object_path,
-                                    g_quark_to_string (priv->type_quark),
+                                    mcd_channel_get_channel_type (channel),
                                     mcd_channel_get_handle_type (channel),
                                     mcd_channel_get_handle (channel),
                                     &error);
@@ -841,14 +802,39 @@ mcd_channel_get_members_accepted (McdChannel *channel)
 const gchar *
 mcd_channel_get_channel_type (McdChannel *channel)
 {
+    McdChannelPrivate *priv;
+
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    return g_quark_to_string (channel->priv->type_quark);
+    priv = channel->priv;
+    if (priv->tp_chan)
+        return tp_channel_get_channel_type (priv->tp_chan);
+
+    if (G_LIKELY (priv->request_data && priv->request_data->properties))
+        return tp_asv_get_string (priv->request_data->properties,
+                                  TP_IFACE_CHANNEL ".ChannelType");
+
+    return NULL;
 }
 
 GQuark
 mcd_channel_get_channel_type_quark (McdChannel *channel)
 {
-    return MCD_CHANNEL_PRIV (channel)->type_quark;
+    McdChannelPrivate *priv;
+
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), 0);
+    priv = channel->priv;
+    if (priv->tp_chan)
+        return tp_channel_get_channel_type_id (priv->tp_chan);
+
+    if (G_LIKELY (priv->request_data && priv->request_data->properties))
+    {
+        const gchar *type;
+        type = tp_asv_get_string (priv->request_data->properties,
+                                  TP_IFACE_CHANNEL ".ChannelType");
+        return g_quark_from_string (type);
+    }
+
+    return 0;
 }
 
 const gchar *
