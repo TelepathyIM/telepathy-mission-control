@@ -676,7 +676,7 @@ mcd_channel_class_init (McdChannelClass * klass)
                               "Telepathy Channel",
                               "Telepathy Channel",
                               TP_TYPE_CHANNEL,
-                              G_PARAM_READWRITE));
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
     g_object_class_install_property
         (object_class, PROP_CHANNEL_STATUS,
          g_param_spec_enum ("channel-status",
@@ -816,37 +816,24 @@ mcd_channel_new_from_properties (TpConnection *connection,
                                  const GHashTable *properties)
 {
     McdChannel *channel;
-    const gchar *type;
-    guint handle_type, handle;
+    TpChannel *tp_chan;
+    GError *error = NULL;
 
-    type = tp_asv_get_string (properties, TP_IFACE_CHANNEL ".ChannelType");
 
-    handle_type = tp_asv_get_uint32 (properties,
-                                     TP_IFACE_CHANNEL ".TargetHandleType",
-                                     NULL);
-    handle = tp_asv_get_uint32 (properties,
-                                TP_IFACE_CHANNEL ".TargetHandle", NULL);
-    g_debug ("%s: type = %s, handle_type = %u, handle = %u", G_STRFUNC,
-             type, handle_type, handle);
-
-    channel = g_object_new (MCD_TYPE_CHANNEL,
-                            "type", type,
-                            "handle", handle,
-                            "handle-type", handle_type,
-                            NULL);
-    if (mcd_channel_set_object_path (channel, connection, object_path))
+    tp_chan = tp_channel_new_from_properties (connection, object_path,
+                                              properties, &error);
+    if (G_UNLIKELY (error))
     {
-        _mcd_channel_set_immutable_properties
-            (channel,
-             g_boxed_copy (TP_HASH_TYPE_QUALIFIED_PROPERTY_VALUE_MAP,
-                           properties));
-        return channel;
-    }
-    else
-    {
-        g_object_unref (channel);
+        g_warning ("%s: got error: %s", G_STRFUNC, error->message);
+        g_error_free (error);
         return NULL;
     }
+
+    channel = g_object_new (MCD_TYPE_CHANNEL,
+                            "tp-channel", tp_chan,
+                            NULL);
+    g_object_unref (tp_chan);
+    return channel;
 }
 
 /**
