@@ -320,6 +320,7 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
 	break;
     case PROP_SELF_HANDLE_READY:
     case PROP_NAME_READY:
+        DEPRECATED_PROPERTY_WARNING;
         g_value_set_boolean (val, priv->tp_chan &&
                              tp_channel_is_ready (priv->tp_chan));
 	break;
@@ -1322,5 +1323,13 @@ _mcd_channel_copy_details (McdChannel *channel, McdChannel *source)
 
     channel->priv->tp_chan = g_object_ref (source->priv->tp_chan);
     channel->priv->close_on_dispose = FALSE;
+}
+
+TpChannel *
+mcd_channel_get_tp_channel (McdChannel *channel)
+{
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
+
+    return channel->priv->tp_chan;
 }
 

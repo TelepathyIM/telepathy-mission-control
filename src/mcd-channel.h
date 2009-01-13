@@ -135,6 +135,7 @@ gboolean mcd_channel_leave (McdChannel *channel, const gchar *message,
 			    TpChannelGroupChangeReason reason);
 gboolean mcd_channel_is_requested (McdChannel *channel);
 McdAccount *mcd_channel_get_account (McdChannel *channel);
+TpChannel *mcd_channel_get_tp_channel (McdChannel *channel);
 
 /* not exported: */
 void _mcd_channel_set_immutable_properties (McdChannel *channel,
