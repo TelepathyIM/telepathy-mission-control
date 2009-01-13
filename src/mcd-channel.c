@@ -263,18 +263,6 @@ group_get_local_pending_members_with_info (TpChannel *proxy,
     }
 }
 
-/* The callback is called on channel Closed signal */
-static void
-on_closed (TpChannel *proxy, gpointer user_data, GObject *weak_object)
-{
-    McdChannel *channel = MCD_CHANNEL (weak_object);
-
-    g_debug ("%s called for %p", G_STRFUNC, channel);
-    _mcd_channel_release_tp_channel (channel, FALSE);
-    mcd_mission_abort (MCD_MISSION (channel));
-    g_debug ("Channel closed");
-}
-
 static void
 proxy_destroyed (TpProxy *self, guint domain, gint code, gchar *message,
 		 gpointer user_data)
@@ -391,11 +379,6 @@ _mcd_channel_setup (McdChannel *channel, McdChannelPrivate *priv)
     g_object_add_weak_pointer ((GObject *)channel, (gpointer)channel_ptr);
     tp_channel_call_when_ready (priv->tp_chan, on_channel_ready, channel_ptr);
 
-    /* We want to track the channel object closes, because we need to do
-     * some cleanups when it's gone */
-    tp_cli_channel_connect_to_closed (priv->tp_chan, on_closed,
-				      priv, NULL, (GObject *)channel,
-				      NULL);
     g_signal_connect (priv->tp_chan, "invalidated",
 		      G_CALLBACK (proxy_destroyed), channel);
 }
