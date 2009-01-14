@@ -543,9 +543,7 @@ static void
 get_display_name (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
-    McdAccountPrivate *priv = account->priv;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
     mcd_account_get_string_val (account, name, value);
 }
 
@@ -563,9 +561,7 @@ static void
 get_icon (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
-    McdAccountPrivate *priv = account->priv;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
     mcd_account_get_string_val (account, name, value);
 }
 
@@ -575,7 +571,6 @@ get_valid (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
     g_value_init (value, G_TYPE_BOOLEAN);
     g_value_set_boolean (value, priv->valid);
 }
@@ -611,7 +606,6 @@ get_enabled (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
     g_value_init (value, G_TYPE_BOOLEAN);
     g_value_set_boolean (value, priv->enabled);
 }
@@ -632,9 +626,7 @@ static void
 get_nickname (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
-    McdAccountPrivate *priv = account->priv;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
     mcd_account_get_string_val (account, name, value);
 }
 
@@ -669,13 +661,10 @@ static void
 get_avatar (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
-    McdAccountPrivate *priv = account->priv;
     gchar *mime_type;
     GArray *avatar = NULL;
     GType type;
     GValueArray *va;
-
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
 
     mcd_account_get_avatar (account, &avatar, &mime_type);
 
@@ -695,10 +684,8 @@ static void
 get_parameters (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
-    McdAccountPrivate *priv = account->priv;
     GHashTable *parameters;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
     parameters = mcd_account_get_parameters (account);
     g_value_init (value, TP_HASH_TYPE_STRING_VARIANT_MAP);
     g_value_take_boxed (value, parameters);
@@ -708,11 +695,8 @@ static void
 get_preset_parameters (TpSvcDBusProperties *self, const gchar *name,
 		       GValue *value)
 {
-    McdAccount *account = MCD_ACCOUNT (self);
-    McdAccountPrivate *priv = account->priv;
     GHashTable *parameters;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
     parameters = g_hash_table_new (g_str_hash, g_str_equal);
     g_warning ("Preset parameters not used in current implementation");
     g_value_init (value, TP_HASH_TYPE_STRING_VARIANT_MAP);
@@ -791,8 +775,6 @@ get_automatic_presence (TpSvcDBusProperties *self,
     GType type;
     GValueArray *va;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
-
     presence_type = priv->auto_presence_type;
     presence = priv->auto_presence_status;
     message = priv->auto_presence_message;
@@ -846,7 +828,6 @@ get_connection (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     McdAccountPrivate *priv = account->priv;
     const gchar *object_path;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
     g_value_init (value, DBUS_TYPE_G_OBJECT_PATH);
     if (priv->connection &&
 	(object_path = mcd_connection_get_object_path (priv->connection)))
@@ -863,7 +844,6 @@ get_connection_status (TpSvcDBusProperties *self,
     McdAccountPrivate *priv = account->priv;
     TpConnectionStatus status;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
     if (priv->connection)
 	status = mcd_connection_get_connection_status (priv->connection);
     else
@@ -881,7 +861,6 @@ get_connection_status_reason (TpSvcDBusProperties *self,
     McdAccountPrivate *priv = account->priv;
     TpConnectionStatusReason reason;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
     if (priv->connection)
 	reason = mcd_connection_get_connection_status_reason (priv->connection);
     else
@@ -901,8 +880,6 @@ get_current_presence (TpSvcDBusProperties *self, const gchar *name,
     gint presence_type;
     GType type;
     GValueArray *va;
-
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
 
     presence_type = priv->curr_presence_type;
     status = priv->curr_presence_status;
@@ -951,8 +928,6 @@ get_requested_presence (TpSvcDBusProperties *self,
     GType type;
     GValueArray *va;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
-
     presence_type = priv->req_presence_type;
     presence = priv->req_presence_status;
     message = priv->req_presence_message;
@@ -971,9 +946,7 @@ get_normalized_name (TpSvcDBusProperties *self,
 		     const gchar *name, GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
-    McdAccountPrivate *priv = account->priv;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
     mcd_account_get_string_val (account, name, value);
 }
 
