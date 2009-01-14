@@ -808,7 +808,8 @@ mcd_channel_get_inviter (McdChannel *channel)
     {
         properties = tp_channel_borrow_immutable_properties (priv->tp_chan);
         if (properties)
-            return tp_asv_get_string (properties, TP_IFACE_CHANNEL ".TargetID");
+            return tp_asv_get_string (properties,
+                                      TP_IFACE_CHANNEL ".InitiatorID");
     }
     return NULL;
 }
