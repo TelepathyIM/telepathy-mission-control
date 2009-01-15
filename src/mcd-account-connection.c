@@ -55,6 +55,11 @@ mcd_account_connection_begin (McdAccount *account)
 {
     McdAccountConnectionContext *ctx;
 
+    /* check whether a connection process is already ongoing */
+    if (g_object_get_qdata (G_OBJECT (account),
+                            account_connection_context_quark))
+        return;
+
     /* get account params */
     /* create dynamic params HT */
     /* run the handlers */
