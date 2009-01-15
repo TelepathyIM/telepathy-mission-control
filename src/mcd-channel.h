@@ -142,8 +142,11 @@ TpChannel *mcd_channel_get_tp_channel (McdChannel *channel);
 
 /* not exported: */
 G_GNUC_INTERNAL
-void _mcd_channel_set_immutable_properties (McdChannel *channel,
-                                            GHashTable *properties);
+gboolean _mcd_channel_create_proxy_old (McdChannel *channel,
+                                        TpConnection *connection,
+                                        const gchar *object_path,
+                                        const gchar *type, guint handle,
+                                        TpHandleType handle_type);
 G_GNUC_INTERNAL
 GHashTable *_mcd_channel_get_immutable_properties (McdChannel *channel);
 

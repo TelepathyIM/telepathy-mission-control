@@ -558,6 +558,38 @@ mcd_channel_new_from_path (TpConnection *connection, const gchar *object_path,
     return channel;
 }
 
+gboolean
+_mcd_channel_create_proxy_old (McdChannel *channel, TpConnection *connection,
+                               const gchar *object_path, const gchar *type,
+                               guint handle, TpHandleType handle_type)
+{
+    GHashTable *props;
+    GValue v_type = { 0 };
+    GValue v_handle = { 0 };
+    GValue v_handle_type = { 0 };
+    gboolean ret;
+
+    props = g_hash_table_new (g_str_hash, g_str_equal);
+
+    g_value_init (&v_type, G_TYPE_STRING);
+    g_value_set_static_string (&v_type, type);
+    g_hash_table_insert (props, TP_IFACE_CHANNEL ".ChannelType", &v_type);
+
+    g_value_init (&v_handle, G_TYPE_UINT);
+    g_value_set_uint (&v_handle, handle);
+    g_hash_table_insert (props, TP_IFACE_CHANNEL ".TargetHandle", &v_handle);
+
+    g_value_init (&v_handle_type, G_TYPE_UINT);
+    g_value_set_uint (&v_handle_type, handle_type);
+    g_hash_table_insert (props, TP_IFACE_CHANNEL ".TargetHandleType",
+                         &v_handle_type);
+
+    ret = _mcd_channel_create_proxy (channel, connection, object_path, props);
+
+    g_hash_table_unref (props);
+    return ret;
+}
+
 /**
  * mcd_channel_set_object_path:
  * @channel: the #McdChannel.
@@ -862,27 +894,6 @@ mcd_channel_leave (McdChannel *channel, const gchar *message,
 {
     g_warning ("%s called, but shouldn't!", G_STRFUNC);
     return FALSE;
-}
-
-/*
- * _mcd_channel_set_immutable_properties:
- * @channel: the #McdChannel.
- * @properties: a #GHashTable of immutable properties.
- *
- * Internal function: assign a hash table of properties to @channel.
- */
-void
-_mcd_channel_set_immutable_properties (McdChannel *channel,
-                                       GHashTable *properties)
-{
-    g_return_if_fail (MCD_IS_CHANNEL (channel));
-
-    if (G_LIKELY (channel->priv->tp_chan))
-        g_object_set (channel->priv->tp_chan,
-                      "channel-properties", properties,
-                      NULL);
-    else
-        g_warning ("%s: no TpChannel yet!", G_STRFUNC);
 }
 
 /*

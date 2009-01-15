@@ -131,6 +131,16 @@ struct _McdConnectionPrivate
 
 typedef struct
 {
+    gchar *object_path;
+    gchar *channel_type;
+    TpHandle handle;
+    TpHandleType handle_type;
+} McdTmpChannelData;
+
+#define MCD_TMP_CHANNEL_DATA    "tmp_channel_data"
+
+typedef struct
+{
     TpConnectionPresenceType presence;
     guint may_set_on_self : 1;
     guint can_have_message : 1;
@@ -177,6 +187,16 @@ static void request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 static GError * map_tp_error_to_mc_error (McdChannel *channel, const GError *tp_error);
 static void _mcd_connection_setup (McdConnection * connection);
 static void _mcd_connection_release_tp_connection (McdConnection *connection);
+
+static void
+mcd_tmp_channel_data_free (gpointer data)
+{
+    McdTmpChannelData *tcd = data;
+
+    g_free (tcd->object_path);
+    g_free (tcd->channel_type);
+    g_slice_free (McdTmpChannelData, tcd);
+}
 
 static void
 mcd_presence_info_free (McdPresenceInfo *pi)
@@ -441,21 +461,37 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
     if (suppress_handler) return;
 
     /* It's an incoming channel, so we create a new McdChannel for it */
-    channel = mcd_channel_new_from_path (proxy,
-                                         chan_obj_path,
-                                         chan_type, handle, handle_type);
-    if (G_UNLIKELY (!channel)) return;
-
-    mcd_operation_take_mission (MCD_OPERATION (connection),
-				MCD_MISSION (channel));
-
     if (priv->can_dispatch)
     {
+        channel = mcd_channel_new_from_path (proxy,
+                                             chan_obj_path,
+                                             chan_type, handle, handle_type);
+        if (G_UNLIKELY (!channel)) return;
+        mcd_operation_take_mission (MCD_OPERATION (connection),
+                                    MCD_MISSION (channel));
         /* Dispatch the incoming channel */
         mcd_dispatcher_send (priv->dispatcher, channel);
     }
     else
+    {
+        /* create a void channel, but no TpProxy yet. Bundle the channel data,
+         * to be used later */
+        McdTmpChannelData *tcd;
+
+        channel = g_object_new (MCD_TYPE_CHANNEL,
+                                "outgoing", FALSE,
+                                NULL);
+        tcd = g_slice_new (McdTmpChannelData);
+        tcd->object_path = g_strdup (chan_obj_path);
+        tcd->channel_type = g_strdup (chan_type);
+        tcd->handle = handle;
+        tcd->handle_type = handle_type;
+        g_object_set_data_full (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA,
+                                tcd, mcd_tmp_channel_data_free);
+        mcd_operation_take_mission (MCD_OPERATION (connection),
+                                    MCD_MISSION (channel));
         mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_UNDISPATCHED);
+    }
 }
 
 static void
@@ -1175,6 +1211,21 @@ dispatch_undispatched_channels (McdConnection *connection)
 
         if (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_UNDISPATCHED)
         {
+            /* undispatched channels have no TpProxy associated: create it now
+             */
+            McdTmpChannelData *tcd;
+
+            tcd = g_object_get_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA);
+            if (G_UNLIKELY (!tcd))
+            {
+                g_warning ("Channel %p is undispatched without data", channel);
+                continue;
+            }
+
+            _mcd_channel_create_proxy_old (channel, priv->tp_conn,
+                                           tcd->object_path, tcd->channel_type,
+                                           tcd->handle, tcd->handle_type);
+            g_object_set_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA, NULL);
             g_debug ("Dispatching channel %p", channel);
             /* dispatch the channel */
             mcd_dispatcher_send (priv->dispatcher, channel);
@@ -1306,15 +1357,24 @@ static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
         for (; list != NULL; list = list->next)
         {
             McdChannel *channel = MCD_CHANNEL (list->data);
-            const gchar *channel_path;
+            McdTmpChannelData *tcd;
 
             if (mcd_channel_get_status (channel) !=
                 MCD_CHANNEL_STATUS_UNDISPATCHED)
                 continue;
-            channel_path = mcd_channel_get_object_path (channel);
-            if (channel_path && strcmp (channel_path, object_path) == 0)
+
+            tcd = g_object_get_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA);
+            if (G_UNLIKELY (!tcd))
             {
-                _mcd_channel_set_immutable_properties (channel, channel_props);
+                g_warning ("Channel %p is undispatched without data", channel);
+                continue;
+            }
+            if (strcmp (tcd->object_path, object_path) == 0)
+            {
+                _mcd_channel_create_proxy (channel, priv->tp_conn,
+                                           object_path, channel_props);
+                g_object_set_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA,
+                                   NULL);
                 /* channel is ready for dispatching */
                 mcd_dispatcher_send (priv->dispatcher, channel);
                 break;
