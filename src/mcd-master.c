@@ -195,11 +195,12 @@ disconnect_account_transport (gpointer key, gpointer value, gpointer userdata)
 
     if (td->transport == get_account_transport (account))
     {
+        McdConnection *connection;
+
 	g_debug ("%s: account %s must disconnect",
 		 G_STRFUNC, mcd_account_get_unique_name (account));
-	mcd_account_request_presence (account,
-				      TP_CONNECTION_PRESENCE_TYPE_OFFLINE,
-				      "offline", "addio");
+        connection = mcd_account_get_connection (account);
+        mcd_connection_close (connection);
 	set_account_transport (account, NULL);
     }
 }
