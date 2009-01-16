@@ -128,6 +128,10 @@ typedef struct {
 
 static McdMaster *default_master = NULL;
 
+static gboolean account_conditions_satisfied (McdMasterPrivate *priv,
+                                              McdAccount *account);
+
+
 static inline void
 set_account_transport (McdAccount *account, McdTransport *transport)
 {
@@ -196,12 +200,22 @@ disconnect_account_transport (gpointer key, gpointer value, gpointer userdata)
     if (td->transport == get_account_transport (account))
     {
         McdConnection *connection;
+        McdMasterPrivate *priv;
 
 	g_debug ("%s: account %s must disconnect",
 		 G_STRFUNC, mcd_account_get_unique_name (account));
         connection = mcd_account_get_connection (account);
         mcd_connection_close (connection);
 	set_account_transport (account, NULL);
+
+        /* it may be that there is another transport to which the account can
+         * reconnect */
+        priv = MCD_MASTER_PRIV (td->master);
+        if (account_conditions_satisfied (priv, account))
+        {
+            g_debug ("conditions matched");
+            _mcd_account_request_connection (account);
+        }
     }
 }
 
