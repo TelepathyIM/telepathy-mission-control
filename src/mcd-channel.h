@@ -87,14 +87,6 @@ struct _McdChannelClass
 
 GType mcd_channel_get_type (void);
 
-McdChannel *mcd_channel_new (TpChannel *channel,
-			     const gchar *channel_type,
-			     guint channel_handle,
-			     TpHandleType channel_handle_type,
-			     gboolean outgoing,
-			     guint requestor_serial,
-                             const gchar *requestor_client_id)
-    G_GNUC_DEPRECATED;
 McdChannel *
 mcd_channel_new_from_properties (TpConnection *connection,
                                  const gchar *object_path,
@@ -107,10 +99,6 @@ McdChannel *mcd_channel_new_request (GHashTable *properties,
                                      guint64 user_time,
                                      const gchar *preferred_handler);
 
-gboolean mcd_channel_set_object_path (McdChannel *channel,
-                                      TpConnection *connection,
-                                      const gchar *object_path)
-    G_GNUC_DEPRECATED;
 G_GNUC_INTERNAL
 gboolean _mcd_channel_create_proxy (McdChannel *channel,
                                     TpConnection *connection,
@@ -127,15 +115,10 @@ void mcd_channel_set_handle (McdChannel *channel, guint handle);
 guint mcd_channel_get_handle (McdChannel *channel);
 TpHandleType mcd_channel_get_handle_type (McdChannel *channel);
 gint mcd_channel_get_flags (McdChannel *channel);
-GPtrArray* mcd_channel_get_members (McdChannel *channel)
-    G_GNUC_DEPRECATED;
 const gchar *mcd_channel_get_name (McdChannel *channel);
 const gchar *mcd_channel_get_inviter (McdChannel *channel);
 guint mcd_channel_get_self_handle (McdChannel *channel);
 gboolean mcd_channel_is_missed (McdChannel *channel);
-gboolean mcd_channel_leave (McdChannel *channel, const gchar *message,
-			    TpChannelGroupChangeReason reason)
-    G_GNUC_DEPRECATED;
 gboolean mcd_channel_is_requested (McdChannel *channel);
 McdAccount *mcd_channel_get_account (McdChannel *channel);
 TpChannel *mcd_channel_get_tp_channel (McdChannel *channel);

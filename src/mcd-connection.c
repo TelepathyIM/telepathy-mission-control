@@ -2473,18 +2473,6 @@ mcd_connection_close (McdConnection *connection)
 }
 
 /**
- * mcd_connection_restart:
- * @connection: the #McdConnection.
- *
- * DEPRECATED: doesn't do anything.
- */
-void
-mcd_connection_restart (McdConnection *connection)
-{
-    g_warning ("%s is deprecated", G_STRFUNC);
-}
-
-/**
  * mcd_connection_connect:
  * @connection: the #McdConnection.
  * @params: a #GHashTable of connection parameters.

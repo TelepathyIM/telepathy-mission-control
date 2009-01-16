@@ -90,9 +90,6 @@ enum _McdChannelPropertyType
 {
     PROP_TP_CHANNEL = 1,
     PROP_OUTGOING,
-    PROP_SELF_HANDLE_READY,
-    PROP_NAME_READY,
-    PROP_INVITER_READY,
 };
 
 #define DEPRECATED_PROPERTY_WARNING \
@@ -202,7 +199,6 @@ _mcd_channel_setup_group (McdChannel *channel)
 
     g_signal_connect (priv->tp_chan, "group-members-changed",
                       G_CALLBACK (on_members_changed), channel);
-    g_object_notify ((GObject *)channel, "self-handle-ready");
 }
 
 static void
@@ -232,8 +228,6 @@ on_channel_ready (TpChannel *tp_chan, const GError *error, gpointer user_data)
          TP_IFACE_CHANNEL ".Requested", &valid);
     if (valid)
         priv->outgoing = requested;
-
-    g_object_notify ((GObject *)channel, "name-ready");
 
     priv->has_group_if = tp_proxy_has_interface_by_id (priv->tp_chan,
 						       TP_IFACE_QUARK_CHANNEL_INTERFACE_GROUP);
@@ -323,12 +317,6 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
 	break;
     case PROP_OUTGOING:
 	g_value_set_boolean (val, priv->outgoing);
-	break;
-    case PROP_SELF_HANDLE_READY:
-    case PROP_NAME_READY:
-        DEPRECATED_PROPERTY_WARNING;
-        g_value_set_boolean (val, priv->tp_chan &&
-                             tp_channel_is_ready (priv->tp_chan));
 	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -436,20 +424,6 @@ mcd_channel_class_init (McdChannelClass * klass)
                                "True if the channel was requested by us",
                                FALSE,
                                G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property
-        (object_class, PROP_SELF_HANDLE_READY,
-         g_param_spec_boolean ("self-handle-ready",
-                               "Self handle ready",
-                               "Self handle ready",
-                               FALSE,
-                               G_PARAM_READABLE));
-    g_object_class_install_property
-        (object_class, PROP_NAME_READY,
-         g_param_spec_boolean ("name-ready",
-                               "Name ready",
-                               "Name ready",
-                               FALSE,
-                               G_PARAM_READABLE));
 }
 
 static void
@@ -462,16 +436,6 @@ mcd_channel_init (McdChannel * obj)
     obj->priv = priv;
 
     priv->close_on_dispose = TRUE;
-}
-
-McdChannel *
-mcd_channel_new (TpChannel * tp_chan,
-		 const gchar *type, guint handle,
-		 TpHandleType handle_type, gboolean outgoing,
-		 guint requestor_serial, const gchar *requestor_client_id)
-{
-    g_warning ("%s is deprecated", G_STRFUNC);
-    return NULL;
 }
 
 /**
@@ -588,26 +552,6 @@ _mcd_channel_create_proxy_old (McdChannel *channel, TpConnection *connection,
 
     g_hash_table_unref (props);
     return ret;
-}
-
-/**
- * mcd_channel_set_object_path:
- * @channel: the #McdChannel.
- * @connection: the #TpConnection on which the channel exists.
- * @object_path: the D-Bus object path of an existing channel.
- *
- * This method makes @channel create a #TpChannel object for @object_path.
- * It must not be called it @channel has already a #TpChannel associated with
- * it.
- *
- * Returns: %TRUE if the #TpChannel has been created, %FALSE otherwise.
- */
-gboolean
-mcd_channel_set_object_path (McdChannel *channel, TpConnection *connection,
-                             const gchar *object_path)
-{
-    g_warning ("%s is deprecated", G_STRFUNC);
-    return FALSE;
 }
 
 /**
@@ -786,13 +730,6 @@ mcd_channel_get_handle_type (McdChannel *channel)
     return handle_type;
 }
 
-GPtrArray*
-mcd_channel_get_members (McdChannel *channel)
-{
-    g_warning ("%s called, but shouldn't!", G_STRFUNC);
-    return NULL;
-}
-
 /**
  * mcd_channel_get_name:
  * @channel: the #McdChannel.
@@ -877,23 +814,6 @@ gboolean
 mcd_channel_is_missed (McdChannel *channel)
 {
     return MCD_CHANNEL_PRIV (channel)->missed;
-}
-
-/**
- * mcd_channel_leave:
- * @channel: the #McdChannel.
- * @reason: a #TelepathyChannelGroupChangeReason.
- *
- * Leaves @channel with reason @reason.
- *
- * Returns: %TRUE for success, %FALSE otherwise.
- */
-gboolean
-mcd_channel_leave (McdChannel *channel, const gchar *message,
-		   TpChannelGroupChangeReason reason)
-{
-    g_warning ("%s called, but shouldn't!", G_STRFUNC);
-    return FALSE;
 }
 
 /*
