@@ -1226,8 +1226,6 @@ mcd_account_setup (McdAccount *account)
     McdAccountPrivate *priv = account->priv;
     gboolean valid;
 
-    if (!priv->account_manager || !priv->unique_name) return FALSE;
-
     priv->keyfile = mcd_account_manager_get_config (priv->account_manager);
     if (!priv->keyfile) return FALSE;
 
@@ -1292,19 +1290,10 @@ set_property (GObject *obj, guint prop_id,
         /* don't keep a reference to the account_manager: we can safely assume
          * its lifetime is longer than the McdAccount's */
         priv->account_manager = g_value_get_object (val);
-	if (mcd_account_setup (account))
-	    register_dbus_service (account);
 	break;
     case PROP_NAME:
 	g_assert (priv->unique_name == NULL);
 	priv->unique_name = g_value_dup_string (val);
-	if (G_UNLIKELY (!priv->unique_name))
-	{
-	    g_warning ("unique name cannot be NULL");
-	    return;
-	}
-	if (mcd_account_setup (account))
-	    register_dbus_service (account);
 	break;
 
     default:
@@ -1404,12 +1393,48 @@ _mcd_account_dispose (GObject *object)
     G_OBJECT_CLASS (mcd_account_parent_class)->dispose (object);
 }
 
+static GObject *
+_mcd_account_constructor (GType type, guint n_params,
+                          GObjectConstructParam *params)
+{
+    GObjectClass *object_class = (GObjectClass *)mcd_account_parent_class;
+    McdAccount *account;
+    McdAccountPrivate *priv;
+
+    account = MCD_ACCOUNT (object_class->constructor (type, n_params, params));
+    priv = account->priv;
+
+    g_return_val_if_fail (account != NULL, NULL);
+    if (G_UNLIKELY (!priv->account_manager || !priv->unique_name))
+    {
+        g_object_unref (account);
+        return NULL;
+    }
+
+    return (GObject *) account;
+}
+
+static void
+_mcd_account_constructed (GObject *object)
+{
+    GObjectClass *object_class = (GObjectClass *)mcd_account_parent_class;
+    McdAccount *account = MCD_ACCOUNT (object);
+
+    if (mcd_account_setup (account))
+        register_dbus_service (account);
+
+    if (object_class->constructed)
+        object_class->constructed (object);
+}
+
 static void
 mcd_account_class_init (McdAccountClass * klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
     g_type_class_add_private (object_class, sizeof (McdAccountPrivate));
 
+    object_class->constructor = _mcd_account_constructor;
+    object_class->constructed = _mcd_account_constructed;
     object_class->dispose = _mcd_account_dispose;
     object_class->finalize = _mcd_account_finalize;
     object_class->set_property = set_property;
