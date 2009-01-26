@@ -167,7 +167,8 @@ check_account_transport (gpointer key, gpointer value, gpointer userdata)
     {
 	g_debug ("conditions matched");
         _mcd_account_request_connection (account);
-	set_account_transport (account, td->transport);
+        if (g_hash_table_size (conditions) > 0)
+            set_account_transport (account, td->transport);
     }
     g_hash_table_unref (conditions);
 }
