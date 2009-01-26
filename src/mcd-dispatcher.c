@@ -2388,7 +2388,7 @@ new_names_cb (McdDispatcher *self,
   
     while (names != NULL && *names != NULL)
     {
-        gpointer orig_key, value;
+        McdClient *client;
         const char *name = *names;
         names++;
 
@@ -2399,17 +2399,14 @@ new_names_cb (McdDispatcher *self,
             continue;
         }
 
-        if (g_hash_table_lookup_extended (priv->clients, name, &orig_key,
-              &value))
+        client = g_hash_table_lookup (priv->clients, name);
+        if (client)
         {
             /* This Telepathy Client is already known so don't create it
              * again. However, set the activatable bit now.
              */
             if (activatable)
-            {
-                McdClient *client = (McdClient *) value;
                 client->activatable = TRUE;
-            }
             continue;
         }
 
@@ -2466,17 +2463,11 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
     else if (g_strcmp0 (arg1, "") != 0 && g_strcmp0 (arg2, "") == 0)
     {
         /* The name disappeared from the bus */
-        gpointer orig_key, value;
         McdClient *client;
 
-        if (!g_hash_table_lookup_extended (priv->clients, arg0, &orig_key,
-              &value))
-            return;
-
-        client = (McdClient *) value;
-
-        if (!client->activatable)
-            g_hash_table_remove (priv->clients, client);
+        client = g_hash_table_lookup (priv->clients, arg0);
+        if (client && !client->activatable)
+            g_hash_table_remove (priv->clients, arg0);
     }
     else if (g_strcmp0 (arg1, "") != 0 && g_strcmp0 (arg2, "") != 0)
     {
@@ -2639,7 +2630,7 @@ mcd_dispatcher_init (McdDispatcher * dispatcher)
     
     priv->channel_handler_hash = mcd_get_channel_handlers ();
 
-    priv->clients = g_hash_table_new_full (NULL, NULL, g_free,
+    priv->clients = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
         (GDestroyNotify) mcd_client_free);
 }
 
