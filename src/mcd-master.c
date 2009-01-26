@@ -169,7 +169,7 @@ check_account_transport (gpointer key, gpointer value, gpointer userdata)
         _mcd_account_request_connection (account);
 	set_account_transport (account, td->transport);
     }
-    g_hash_table_destroy (conditions);
+    g_hash_table_unref (conditions);
 }
 
 static void
