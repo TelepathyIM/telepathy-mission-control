@@ -47,6 +47,7 @@ scan_data_subdir (const gchar *dirname, McdXdgDataSubdirFunc callback,
     {
         g_warning ("Error opening directory %s: %s", dirname,
                    error->message);
+        g_clear_error (&error);
     }
 
     while ((filename = g_dir_read_name (dir)) != NULL)
