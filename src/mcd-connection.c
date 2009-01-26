@@ -470,7 +470,9 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
         mcd_operation_take_mission (MCD_OPERATION (connection),
                                     MCD_MISSION (channel));
         /* Dispatch the incoming channel */
-        mcd_dispatcher_send (priv->dispatcher, channel);
+        _mcd_dispatcher_send_channels (priv->dispatcher,
+                                       g_list_prepend (NULL, channel),
+                                       FALSE);
     }
     else
     {
@@ -1229,7 +1231,9 @@ dispatch_undispatched_channels (McdConnection *connection)
             g_object_set_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA, NULL);
             g_debug ("Dispatching channel %p", channel);
             /* dispatch the channel */
-            mcd_dispatcher_send (priv->dispatcher, channel);
+            _mcd_dispatcher_send_channels (priv->dispatcher,
+                                           g_list_prepend (NULL, channel),
+                                           FALSE);
         }
         channels = channels->next;
     }
@@ -1377,7 +1381,9 @@ static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
                 g_object_set_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA,
                                    NULL);
                 /* channel is ready for dispatching */
-                mcd_dispatcher_send (priv->dispatcher, channel);
+                _mcd_dispatcher_send_channels (priv->dispatcher,
+                                               g_list_prepend (NULL, channel),
+                                               FALSE);
                 break;
             }
         }
@@ -2136,7 +2142,9 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
     }
 
     /* Dispatch the incoming channel */
-    mcd_dispatcher_send (priv->dispatcher, channel);
+    _mcd_dispatcher_send_channels (priv->dispatcher,
+                                   g_list_prepend (NULL, channel),
+                                   TRUE);
 }
 
 static void
@@ -2206,7 +2214,10 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
 	    /* we no longer need the new channel */
 	    g_object_unref (channel);
 	    /* notify the dispatcher again */
-	    mcd_dispatcher_send (priv->dispatcher, existing_channel);
+            _mcd_dispatcher_send_channels (priv->dispatcher,
+                                           g_list_prepend (NULL,
+                                                           existing_channel),
+                                           TRUE);
 	    return;
 	}
 	channels = channels->next;
