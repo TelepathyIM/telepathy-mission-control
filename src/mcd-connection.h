@@ -96,7 +96,6 @@ gboolean mcd_connection_get_telepathy_details (McdConnection * id,
 gboolean mcd_connection_remote_avatar_changed (McdConnection *connection,
 					       guint contact_id,
 					       const gchar *token);
-void mcd_connection_restart (McdConnection *connection) G_GNUC_DEPRECATED;
 void mcd_connection_set_reconnect (McdConnection *connection,
                                    gboolean reconnect);
 

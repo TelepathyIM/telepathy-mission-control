@@ -110,7 +110,8 @@ McdConnection *mcd_dispatcher_context_get_connection
 McdChannelHandler * mcd_dispatcher_context_get_chan_handler (McdDispatcherContext * ctx);
 
 /*Returns an array of the gchar *  addresses of participants in the channel*/
-GPtrArray *mcd_dispatcher_context_get_members (McdDispatcherContext * ctx);
+GPtrArray *mcd_dispatcher_context_get_members (McdDispatcherContext * ctx)
+    G_GNUC_DEPRECATED;
 
 /* Statemachine API section */
 

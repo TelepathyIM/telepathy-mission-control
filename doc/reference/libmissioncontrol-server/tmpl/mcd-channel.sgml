@@ -38,46 +38,6 @@ McdChannel
 @mcdchannel: the object which received the signal.
 @arg1: 
 
-<!-- ##### ARG McdChannel:channel-handle ##### -->
-<para>
-
-</para>
-
-<!-- ##### ARG McdChannel:channel-handle-type ##### -->
-<para>
-
-</para>
-
-<!-- ##### ARG McdChannel:channel-status ##### -->
-<para>
-
-</para>
-
-<!-- ##### ARG McdChannel:channel-type ##### -->
-<para>
-
-</para>
-
-<!-- ##### ARG McdChannel:channel-type-quark ##### -->
-<para>
-
-</para>
-
-<!-- ##### ARG McdChannel:connection ##### -->
-<para>
-
-</para>
-
-<!-- ##### ARG McdChannel:handle ##### -->
-<para>
-
-</para>
-
-<!-- ##### ARG McdChannel:handle-type ##### -->
-<para>
-
-</para>
-
 <!-- ##### ARG McdChannel:name-ready ##### -->
 <para>
 
@@ -88,27 +48,12 @@ McdChannel
 
 </para>
 
-<!-- ##### ARG McdChannel:requestor-client-id ##### -->
-<para>
-
-</para>
-
-<!-- ##### ARG McdChannel:requestor-serial ##### -->
-<para>
-
-</para>
-
 <!-- ##### ARG McdChannel:self-handle-ready ##### -->
 <para>
 
 </para>
 
 <!-- ##### ARG McdChannel:tp-channel ##### -->
-<para>
-
-</para>
-
-<!-- ##### ARG McdChannel:type ##### -->
 <para>
 
 </para>
@@ -131,13 +76,6 @@ McdChannel
 
 </para>
 
-@account_name: 
-@channel_type: 
-@channel_handle: 
-@channel_handle_string: 
-@channel_handle_type: 
-@requestor_serial: 
-@requestor_client_id: 
 
 <!-- ##### FUNCTION mcd_channel_new ##### -->
 <para>
