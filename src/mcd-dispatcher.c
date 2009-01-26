@@ -594,17 +594,36 @@ gint
 mcd_dispatcher_get_channel_type_usage (McdDispatcher * dispatcher,
 				       GQuark chan_type_quark)
 {
-    GList *node;
+    const GList *managers, *connections, *channels;
     McdDispatcherPrivate *priv = dispatcher->priv;
     gint usage_counter = 0;
-    
-    node = priv->channels;
-    while (node)
+
+    managers = mcd_operation_get_missions (MCD_OPERATION (priv->master));
+    while (managers)
     {
-	McdChannel *chan = (McdChannel*) node->data;
-	if (chan && chan_type_quark == mcd_channel_get_channel_type_quark (chan))
-	    usage_counter++;
-	node = node->next;
+        connections =
+            mcd_operation_get_missions (MCD_OPERATION (managers->data));
+        while (connections)
+        {
+            channels =
+                mcd_operation_get_missions (MCD_OPERATION (connections->data));
+            while (channels)
+            {
+                McdChannel *channel = MCD_CHANNEL (channels->data);
+                McdChannelStatus status;
+
+                status = mcd_channel_get_status (channel);
+                if ((status == MCD_CHANNEL_STATUS_DISPATCHING ||
+                     status == MCD_CHANNEL_STATUS_HANDLER_INVOKED ||
+                     status == MCD_CHANNEL_STATUS_DISPATCHED) &&
+                    mcd_channel_get_channel_type_quark (channel) ==
+                    chan_type_quark)
+                    usage_counter++;
+                channels = channels->next;
+            }
+            connections = connections->next;
+        }
+	managers = managers->next;
     }
 
     return usage_counter;
