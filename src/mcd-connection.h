@@ -44,6 +44,8 @@ typedef struct _McdConnection McdConnection;
 typedef struct _McdConnectionPrivate McdConnectionPrivate;
 typedef struct _McdConnectionClass McdConnectionClass;
 
+#include "mcd-channel.h"
+
 struct _McdConnection
 {
     McdOperation parent;
@@ -55,8 +57,9 @@ struct _McdConnectionClass
     McdOperationClass parent_class;
     gboolean (*need_dispatch) (McdConnection *connection,
                                const GPtrArray *channels);
-    void (*_mc_reserved1) (void);
     void (*_mc_reserved2) (void);
+    gboolean (*request_channel) (McdConnection *connection,
+                                 McdChannel *channel);
     void (*_mc_reserved3) (void);
     void (*_mc_reserved4) (void);
     void (*_mc_reserved5) (void);
