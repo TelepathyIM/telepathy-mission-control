@@ -61,6 +61,7 @@ struct _McdChannelPrivate
     guint members_accepted : 1;
     guint missed : 1;
     guint is_disposed : 1;
+    guint is_aborted : 1;
 
     McdChannelStatus status;
 
@@ -364,6 +365,12 @@ mcd_channel_abort (McdMission *mission)
     McdChannelPrivate *priv = channel->priv;
 
     g_debug ("%s: %p", G_STRFUNC, mission);
+    if (priv->is_aborted)
+    {
+        g_debug ("Already aborted");
+        return;
+    }
+    priv->is_aborted = TRUE;
     /* If this is still a channel request, signal the failure */
     if (priv->status == MCD_CHANNEL_STATUS_REQUEST ||
         priv->status == MCD_CHANNEL_STATUS_REQUESTED ||
