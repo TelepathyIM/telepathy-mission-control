@@ -70,6 +70,9 @@ struct _McdDispatcherContext
 {
     gint ref_count;
 
+    /* If this flag is TRUE, dispatching must be cancelled ASAP */
+    guint cancelled : 1;
+
     McdDispatcher *dispatcher;
 
     GList *channels;
@@ -1576,12 +1579,19 @@ mcd_dispatcher_leave_state_machine (McdDispatcherContext * context)
 static void
 on_channel_abort_context (McdChannel *channel, McdDispatcherContext *context)
 {
+    const GError *error;
     g_debug ("Channel %p aborted while in a dispatcher context", channel);
 
     /* TODO: it's still not clear what we should do with these aborted
      * channels; for now, we keep them in the context, pretending that nothing
      * happened -- the channel handler will see that they don't exist anymore
      */
+
+    /* but if it was a channel request, and it was cancelled, then the whole
+     * context should be aborted */
+    error = _mcd_channel_get_error (channel);
+    if (error && error->code == TP_ERROR_CANCELLED)
+        context->cancelled = TRUE;
 }
 
 static void
@@ -2541,7 +2551,7 @@ mcd_dispatcher_context_process (McdDispatcherContext * context, gboolean result)
 {
     McdDispatcherPrivate *priv = context->dispatcher->priv;
     
-    if (result)
+    if (result && !context->cancelled)
     {
 	McdFilter *filter;
 
