@@ -1541,24 +1541,25 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
 }
 
 static void
-_mcd_dispatcher_drop_channel_handler (McdDispatcherContext * context)
+_mcd_dispatcher_context_abort (McdDispatcherContext *context,
+                               const GError *error)
 {
-    McdChannel *channel;
+    GList *list;
 
     g_return_if_fail(context);
 
-    /* drop from the queue and close channel */
-    
-    /* FIXME: The queue functionality is still missing. Add support for
-    it, once it's available. */
-    channel = mcd_dispatcher_context_get_channel (context);
-    if (channel != NULL)
+    for (list = context->channels; list != NULL; list = list->next)
     {
-	/* Context will be destroyed on this emission, so be careful
-	 * not to access it after this.
-	 */
-	mcd_mission_abort (MCD_MISSION (channel));
+        McdChannel *channel = MCD_CHANNEL (list->data);
+
+        if (_mcd_channel_get_error (channel) == NULL)
+            _mcd_channel_set_error (channel, g_error_copy (error));
+
+        /* FIXME: try to dispatch the channels to another handler, instead
+         * of just aborting them */
+        mcd_mission_abort (MCD_MISSION (channel));
     }
+    mcd_dispatcher_context_unref (context);
 }
 
 /* STATE MACHINE */
@@ -2573,11 +2574,22 @@ mcd_dispatcher_context_process (McdDispatcherContext * context, gboolean result)
     }
     else
     {
-	g_debug ("Filters failed, disposing request");
-	
-	/* Some filter failed. The request shall not be handled. */
-	/* Context would be destroyed somewhere in this call */
-	_mcd_dispatcher_drop_channel_handler (context);
+        GError error;
+
+        if (context->cancelled)
+        {
+            error.domain = TP_ERRORS;
+            error.code = TP_ERROR_CANCELLED;
+            error.message = "Context cancelled";
+        }
+        else
+        {
+            g_debug ("Filters failed, disposing request");
+            error.domain = TP_ERRORS;
+            error.code = TP_ERROR_NOT_AVAILABLE;
+            error.message = "Filters failed";
+        }
+        _mcd_dispatcher_context_abort (context, &error);
     }
     
     /* FIXME: Should we remove the request in other cases? */
