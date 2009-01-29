@@ -377,7 +377,9 @@ mcd_channel_abort (McdMission *mission)
                                      "Channel aborted");
         _mcd_channel_set_error (channel, error);
     }
-    _mcd_channel_release_tp_channel (channel, TRUE);
+    /* Don't release the TpChannel, because we might still be asked to retrieve
+     * its properties or object path; instead, just close the channel */
+    mcd_channel_close (channel);
 
     /* chain up with the parent */
     MCD_MISSION_CLASS (mcd_channel_parent_class)->abort (mission);
