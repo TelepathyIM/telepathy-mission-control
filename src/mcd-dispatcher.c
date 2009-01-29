@@ -74,6 +74,7 @@ struct _McdDispatcherContext
 
     GList *channels;
     McdChannel *main_channel;
+    McdAccount *account;
     McdDispatchOperation *operation;
 
     /* This variable is the count of locks that must be removed before handlers
@@ -1626,11 +1627,19 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     McdDispatcherPrivate *priv;
     GList *chain, *list;
     McdChannel *channel;
+    McdAccount *account;
     guint n_channels;
 
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
     g_return_if_fail (channels != NULL);
     g_return_if_fail (MCD_IS_CHANNEL (channels->data));
+
+    account = mcd_channel_get_account (channels->data);
+    if (G_UNLIKELY (!account))
+    {
+        g_warning ("%s called with no account", G_STRFUNC);
+        return;
+    }
 
     priv = dispatcher->priv;
 
@@ -1667,6 +1676,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     context = g_new0 (McdDispatcherContext, 1);
     context->ref_count = 1;
     context->dispatcher = dispatcher;
+    context->account = account;
     context->channels = channels;
     context->chain = chain;
     if (!requested)
