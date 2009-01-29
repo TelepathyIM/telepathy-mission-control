@@ -68,7 +68,7 @@ struct _McdDispatcherClass
 				    GError *error);
 
     /* virtual methods */
-    void (*send) (McdDispatcher * dispatcher, McdChannel *channel);
+    void (*_mc_reserved0) (void);
     void (*_mc_reserved1) (void);
     void (*_mc_reserved2) (void);
     void (*_mc_reserved3) (void);
@@ -81,8 +81,6 @@ GType mcd_dispatcher_get_type (void);
 
 McdDispatcher *mcd_dispatcher_new (TpDBusDaemon *dbus_daemon,
 				   McdMaster * master);
-
-gboolean mcd_dispatcher_send (McdDispatcher * dispatcher, McdChannel *channel);
 
 gint mcd_dispatcher_get_channel_type_usage (McdDispatcher * dispatcher,
 					    GQuark chan_type_quark);

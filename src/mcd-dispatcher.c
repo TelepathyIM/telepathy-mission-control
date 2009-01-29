@@ -158,10 +158,7 @@ struct _McdDispatcherPrivate
 {
     /* Pending state machine contexts */
     GSList *state_machine_list;
-    
-    /* All active channels */
-    GList *channels;
-    
+
     GData *interface_filters;
     TpDBusDaemon *dbus_daemon;
 
@@ -594,32 +591,39 @@ gint
 mcd_dispatcher_get_channel_type_usage (McdDispatcher * dispatcher,
 				       GQuark chan_type_quark)
 {
-    GList *node;
+    const GList *managers, *connections, *channels;
     McdDispatcherPrivate *priv = dispatcher->priv;
     gint usage_counter = 0;
-    
-    node = priv->channels;
-    while (node)
+
+    managers = mcd_operation_get_missions (MCD_OPERATION (priv->master));
+    while (managers)
     {
-	McdChannel *chan = (McdChannel*) node->data;
-	if (chan && chan_type_quark == mcd_channel_get_channel_type_quark (chan))
-	    usage_counter++;
-	node = node->next;
+        connections =
+            mcd_operation_get_missions (MCD_OPERATION (managers->data));
+        while (connections)
+        {
+            channels =
+                mcd_operation_get_missions (MCD_OPERATION (connections->data));
+            while (channels)
+            {
+                McdChannel *channel = MCD_CHANNEL (channels->data);
+                McdChannelStatus status;
+
+                status = mcd_channel_get_status (channel);
+                if ((status == MCD_CHANNEL_STATUS_DISPATCHING ||
+                     status == MCD_CHANNEL_STATUS_HANDLER_INVOKED ||
+                     status == MCD_CHANNEL_STATUS_DISPATCHED) &&
+                    mcd_channel_get_channel_type_quark (channel) ==
+                    chan_type_quark)
+                    usage_counter++;
+                channels = channels->next;
+            }
+            connections = connections->next;
+        }
+	managers = managers->next;
     }
 
     return usage_counter;
-}
-
-/* The callback is called on channel Closed signal */
-static void
-on_channel_abort_list (McdChannel *channel, McdDispatcher *dispatcher)
-{
-    McdDispatcherPrivate *priv = dispatcher->priv;
-    
-    g_debug ("Abort Channel %p; Removing channel from list", channel);
-    priv->channels = g_list_remove (priv->channels, channel);
-    g_signal_emit_by_name (dispatcher, "channel-removed", channel);
-    g_object_unref (channel);
 }
 
 static void
@@ -1700,115 +1704,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     }
 }
 
-static gint
-channel_on_state_machine (McdDispatcherContext *context, McdChannel *channel)
-{
-    return (mcd_dispatcher_context_get_channel (context) == channel) ? 0 : 1;
-}
-
-static void
-_mcd_dispatcher_send (McdDispatcher * dispatcher, McdChannel * channel)
-{
-    McdDispatcherPrivate *priv;
-    gboolean outgoing;
-
-    g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
-    g_return_if_fail (MCD_IS_CHANNEL (channel));
-
-    mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_DISPATCHING);
-    priv = dispatcher->priv;
-
-    g_object_get (G_OBJECT (channel),
-                  "outgoing", &outgoing,
-                  NULL);
-    g_debug ("channel is %s", outgoing ? "outgoing" : "incoming");
-
-    /* deprecate the "dispatch-failed" and "dispatched" signals; we have the
-     * "dispatch-complete" signal that carries the whole context, so that the
-     * listeners are able to see the status of all the channels involved */
-    if (g_signal_has_handler_pending (dispatcher, signals[DISPATCH_FAILED], 0,
-                                      TRUE) ||
-        g_signal_has_handler_pending (dispatcher, signals[DISPATCHED], 0,
-                                      TRUE))
-        g_warning ("The signals \"dispatch-failed\" and \"dispatched\" are "
-                   "deprecated and will disappear very soon");
-
-    /* it can happen that this function gets called when the same channel has
-     * already entered the state machine or even when it has already been
-     * dispatched; so, check if this channel is already known to the
-     * dispatcher: */
-    if (g_list_find (priv->channels, channel))
-    {
-	McdDispatcherContext *context = NULL;
-	GSList *list;
-	g_debug ("%s: channel is already in dispatcher", G_STRFUNC);
-
-	/* check if channel has already been dispatched (if it's still in the
-	 * state machine list, this means that it hasn't) */
-	list = g_slist_find_custom (priv->state_machine_list, channel,
-				    (GCompareFunc)channel_on_state_machine);
-	if (list) context = list->data;
-	if (context)
-	{
-	    g_debug ("%s: channel found in the state machine (%p)", G_STRFUNC, context);
-	    /* this channel has not been dispatched; we can get to this point if:
-	     * 1) the channel is incoming (i.e. the contacts plugin icon is
-	     *    blinking) but the user didn't realize that and instead
-	     *    requested the same channel again;
-	     * 2) theif channel is outgoing, and it was requested again before
-	     *    it could be created; I'm not sure this can really happen,
-	     *    though. In this case we don't have to do anything, just ignore
-	     *    this second request */
-	    if (!outgoing)
-	    {
-		/* incoming channel: the state machine is probably stucked
-		 * waiting for the user to acknowledge the channel. We bypass
-		 * all that and instead launch the channel handler; this will
-		 * free the context, but we still have to remove it from the
-		 * machine state list ourselves.
-		 * The filters should connect to the "dispatched" signal to
-		 * catch this particular situation and clean-up gracefully. */
-		mcd_dispatcher_run_clients (context);
-		priv->state_machine_list =
-		    g_slist_remove(priv->state_machine_list, context);
-
-	    }
-	}
-	else
-	{
-	    /* The channel was not found in the state machine, hence it must
-	     * have been already dispatched.
-	     * We could get to this point if the UI crashed while this channel
-	     * was open, and now the user is requesting it again. just go straight
-	     * and start the channel handler. */
-	    g_debug ("%s: channel is already dispatched, starting handler", G_STRFUNC);
-	    /* Preparing and filling the context */
-	    context = g_new0 (McdDispatcherContext, 1);
-            context->ref_count = 1;
-	    context->dispatcher = dispatcher;
-	    context->channels = g_list_prepend (NULL, channel);
-
-            /* We must ref() the channel, because
-             * mcd_dispatcher_context_unref() will unref() it */
-	    g_object_ref (channel);
-	    mcd_dispatcher_run_clients (context);
-	}
-	return;
-    }
-    
-    /* Get hold of it in our all channels list */
-    g_object_ref (channel); /* We hold separate refs for channels list */
-    g_signal_connect (channel, "abort", G_CALLBACK (on_channel_abort_list),
-		      dispatcher);
-    priv->channels = g_list_prepend (priv->channels, channel);
-    
-    g_signal_emit_by_name (dispatcher, "channel-added", channel);
-
-    _mcd_dispatcher_enter_state_machine (dispatcher,
-                                         g_list_prepend (NULL, channel),
-                                         outgoing);
-}
-
 static void
 _mcd_dispatcher_set_property (GObject * obj, guint prop_id,
 			      const GValue * val, GParamSpec * pspec)
@@ -1903,27 +1798,12 @@ _mcd_dispatcher_dispose (GObject * object)
 	priv->dbus_daemon = NULL;
     }
 
-    if (priv->channels)
-    {
-	g_list_free (priv->channels);
-	priv->channels = NULL;
-    }
-
     if (priv->interface_filters)
     {
 	g_datalist_clear (&priv->interface_filters);
 	priv->interface_filters = NULL;
     }
     G_OBJECT_CLASS (mcd_dispatcher_parent_class)->dispose (object);
-}
-
-gboolean
-mcd_dispatcher_send (McdDispatcher * dispatcher, McdChannel *channel)
-{
-    g_return_val_if_fail (MCD_IS_DISPATCHER (dispatcher), FALSE);
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), FALSE);
-    MCD_DISPATCHER_GET_CLASS (dispatcher)->send (dispatcher, channel);
-    return TRUE;
 }
 
 static GHashTable *
@@ -2511,7 +2391,6 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
     object_class->get_property = _mcd_dispatcher_get_property;
     object_class->finalize = _mcd_dispatcher_finalize;
     object_class->dispose = _mcd_dispatcher_dispose;
-    klass->send = _mcd_dispatcher_send;
 
     tp_proxy_or_subclass_hook_on_interface_add
         (TP_TYPE_PROXY, mc_cli_client_add_signals);
