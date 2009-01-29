@@ -1207,18 +1207,18 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
     {
         guint64 user_action_time;
         McdConnection *connection;
-        McdAccount *account;
         const gchar *account_path, *connection_path;
         GPtrArray *channels_array, *satisfied_requests;
         McdHandlerCallData *handler_data;
 
         connection = mcd_dispatcher_context_get_connection (context);
-        g_assert (connection != NULL);
-        connection_path = mcd_connection_get_object_path (connection);
+        connection_path = connection ?
+            mcd_connection_get_object_path (connection) : NULL;
+        if (G_UNLIKELY (!connection_path)) connection_path = "/";
 
-        account = mcd_connection_get_account (connection);
-        g_assert (account != NULL);
-        account_path = mcd_account_get_object_path (account);
+        g_assert (context->account != NULL);
+        account_path = mcd_account_get_object_path (context->account);
+        if (G_UNLIKELY (!account_path)) account_path = "/";
 
         channels_array = _mcd_channel_details_build_from_list (handled_best);
 
