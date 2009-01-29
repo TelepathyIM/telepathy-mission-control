@@ -236,6 +236,21 @@ on_channel_ready (TpChannel *tp_chan, const GError *error, gpointer user_data)
 }
 
 static void
+mcd_channel_close (McdChannel *channel)
+{
+    McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
+
+    if (priv->tp_chan &&
+        !TP_PROXY (priv->tp_chan)->invalidated &&
+        tp_channel_get_channel_type_id (priv->tp_chan) !=
+        TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
+    {
+        g_debug ("%s: Requesting telepathy to close the channel", G_STRFUNC);
+        tp_cli_channel_call_close (priv->tp_chan, -1, NULL, NULL, NULL, NULL);
+    }
+}
+
+static void
 _mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
@@ -248,13 +263,9 @@ _mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
 					      G_CALLBACK (proxy_destroyed),
 					      channel);
 
-	if (close_channel && !TP_PROXY (priv->tp_chan)->invalidated &&
-            tp_channel_get_channel_type_id (priv->tp_chan) !=
-            TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
-	{
-	    g_debug ("%s: Requesting telepathy to close the channel", G_STRFUNC);
-	    tp_cli_channel_call_close (priv->tp_chan, -1, NULL, NULL, NULL, NULL);
-	}
+	if (close_channel)
+            mcd_channel_close (channel);
+
 	/* Destroy our proxy */
 	g_object_unref (priv->tp_chan);
 	
