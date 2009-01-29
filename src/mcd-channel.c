@@ -620,6 +620,7 @@ mcd_channel_set_status (McdChannel *channel, McdChannelStatus status)
 
     if (status != channel->priv->status)
     {
+        g_return_if_fail (channel->priv->status != MCD_CHANNEL_STATUS_FAILED);
         g_object_ref (channel);
         g_signal_emit_by_name (channel, "status-changed", status);
         g_object_unref (channel);
