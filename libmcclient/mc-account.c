@@ -208,9 +208,6 @@ finalize (GObject *object)
     if (account->priv->avatar_props)
 	_mc_account_avatar_props_free (account->priv->avatar_props);
 
-    if (account->priv->request_props)
-	_mc_account_channelrequests_props_free (account->priv->request_props);
-
     if (account->priv->compat_props)
 	_mc_account_compat_props_free (account->priv->compat_props);
 

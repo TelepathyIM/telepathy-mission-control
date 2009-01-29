@@ -31,12 +31,9 @@
 
 #include <telepathy-glib/interfaces.h>
 
-struct _McAccountChannelrequestsProps {
-    GList *requests;
-};
-
 typedef struct
 {
+    guint id;
     McAccount *account;
     gchar *request_path;
     GError *error;
@@ -49,33 +46,31 @@ typedef struct
     GObject *weak_object;
 } McChannelRequest;
 
+static GHashTable *requests = NULL;
+static guint last_request_id = 0;
 
-static void mc_request_free (McChannelRequest *req);
+#define REQUEST_FROM_ID(id) request_from_id(id)
+#define REQUEST_ID(req) (req->id)
+
+static inline McChannelRequest *
+request_from_id (guint id)
+{
+    if (G_UNLIKELY (!requests)) return NULL;
+
+    return g_hash_table_lookup (requests, GUINT_TO_POINTER (id));
+}
 
 static void
-on_weak_object_destroy (McAccount *account, GObject *weak_object)
+on_weak_object_destroy (guint id, GObject *weak_object)
 {
-    McAccountChannelrequestsProps *props;
-    GList *list;
+    McChannelRequest *req;
 
-    g_return_if_fail (MC_IS_ACCOUNT (account));
+    req = REQUEST_FROM_ID (id);
+    if (G_UNLIKELY (!req)) return;
 
-    props = account->priv->request_props;
-    g_return_if_fail (props != NULL);
-
-    /* look for this request */
-    for (list = props->requests; list != NULL; list = list->next)
-    {
-        McChannelRequest *req = list->data;
-
-        if (req->weak_object == weak_object)
-        {
-            props->requests = g_list_delete_link (props->requests, list);
-            req->weak_object = NULL;
-            mc_request_free (req);
-            break;
-        }
-    }
+    g_return_if_fail (req->weak_object != weak_object);
+    req->weak_object = NULL;
+    g_hash_table_remove (requests, GUINT_TO_POINTER (id));
 }
 
 static void
@@ -84,7 +79,7 @@ mc_request_free (McChannelRequest *req)
     if (req->weak_object)
         g_object_weak_unref (req->weak_object,
                              (GWeakNotify)on_weak_object_destroy,
-                             req->account);
+                             GUINT_TO_POINTER (req->id));
     if (req->destroy)
         req->destroy (req->user_data);
     g_free (req->request_path);
@@ -96,31 +91,15 @@ mc_request_free (McChannelRequest *req)
 static void
 emit_request_event (McChannelRequest *req, McAccountChannelrequestEvent event)
 {
-    McAccountChannelrequestsProps *props;
-
-    props = req->account->priv->request_props;
-
     if (req->callback)
-        req->callback (req->account, GPOINTER_TO_UINT (req), event,
+        req->callback (req->account, REQUEST_ID (req), event,
                        req->user_data, req->weak_object);
 
     if (event == MC_ACCOUNT_CR_SUCCEEDED ||
         event == MC_ACCOUNT_CR_FAILED ||
         event == MC_ACCOUNT_CR_CANCELLED)
     {
-        GList *list;
-
-        /* we must delete the request, but being careful that this might have
-         * been already done by the client, by destroying the weak_object */
-        for (list = props->requests; list != NULL; list = list->next)
-        {
-            if (req == list->data)
-            {
-                props->requests = g_list_delete_link (props->requests, list);
-                mc_request_free (req);
-                break;
-            }
-        }
+        g_hash_table_remove (requests, GUINT_TO_POINTER (REQUEST_ID (req)));
     }
 }
 
@@ -158,12 +137,15 @@ on_request_failed (TpProxy *proxy, const gchar *request_path,
                    gpointer user_data, GObject *weak_object)
 {
     McChannelRequest *req;
+    guint id;
 
     g_debug ("%s called for %s", G_STRFUNC, request_path);
-    req = GUINT_TO_POINTER (mc_account_channelrequest_get_from_path
-                            (MC_ACCOUNT (proxy), request_path));
-    if (!req) /* not our request, ignore it */
+    id = mc_channelrequest_get_from_path (request_path);
+    if (id == 0) /* not our request, ignore it */
         return;
+
+    req = REQUEST_FROM_ID (id);
+    if (G_UNLIKELY (!req)) return;
 
     /* FIXME: map the error properly */
     req->error = g_error_new (MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
@@ -176,26 +158,17 @@ on_request_succeeded (TpProxy *proxy, const gchar *request_path,
                       gpointer user_data, GObject *weak_object)
 {
     McChannelRequest *req;
+    guint id;
 
     g_debug ("%s called for %s", G_STRFUNC, request_path);
-    req = GUINT_TO_POINTER (mc_account_channelrequest_get_from_path
-                            (MC_ACCOUNT (proxy), request_path));
-    if (!req) /* not our request, ignore it */
+    id = mc_channelrequest_get_from_path (request_path);
+    if (id == 0) /* not our request, ignore it */
         return;
 
+    req = REQUEST_FROM_ID (id);
+    if (G_UNLIKELY (!req)) return;
+
     emit_request_event (req, MC_ACCOUNT_CR_SUCCEEDED);
-}
-
-void
-_mc_account_channelrequests_props_free (McAccountChannelrequestsProps *props)
-{
-    GList *list;
-
-    for (list = props->requests; list != NULL; list = list->next)
-        mc_request_free (list->data);
-
-    g_list_free (props->requests);
-    g_slice_free (McAccountChannelrequestsProps, props);
 }
 
 static McChannelRequest *
@@ -204,14 +177,12 @@ create_request_struct (McAccount *account,
                        gpointer user_data, GDestroyNotify destroy,
                        GObject *weak_object)
 {
-    McAccountChannelrequestsProps *props;
     McChannelRequest *req;
 
-    props = account->priv->request_props;
-    if (props == NULL)
+    if (!requests)
     {
-        account->priv->request_props = props =
-            g_slice_new0 (McAccountChannelrequestsProps);
+        requests = g_hash_table_new_full (NULL, NULL, NULL,
+                                          (GDestroyNotify)mc_request_free);
 
         mc_cli_account_interface_channelrequests_connect_to_failed (account,
             on_request_failed, NULL, NULL, NULL, NULL);
@@ -220,6 +191,7 @@ create_request_struct (McAccount *account,
     }
 
     req = g_slice_new0 (McChannelRequest);
+    req->id = ++last_request_id;
     req->account = account;
     req->callback = callback;
     req->user_data = user_data;
@@ -228,10 +200,12 @@ create_request_struct (McAccount *account,
     {
         req->weak_object = weak_object;
         g_object_weak_ref (weak_object,
-                           (GWeakNotify)on_weak_object_destroy, account);
+                           (GWeakNotify)on_weak_object_destroy,
+                           GUINT_TO_POINTER (req->id));
     }
 
-    props->requests = g_list_prepend (props->requests, req);
+    g_hash_table_insert (requests, GUINT_TO_POINTER (req->id), req);
+
     return req;
 }
 
@@ -417,7 +391,7 @@ mc_account_channelrequest_ht (McAccount *account,
             (account, -1, properties, user_action_time, handler,
              request_create_cb, req, NULL, NULL);
 
-    return GPOINTER_TO_UINT (req);
+    return REQUEST_ID (req);
 }
 
 /**
@@ -454,7 +428,7 @@ mc_account_channelrequest_add (McAccount *account, const gchar *object_path,
     id = mc_account_channelrequest_get_from_path (account, object_path);
     if (id != 0)
     {
-        req = GUINT_TO_POINTER (id);
+        req = REQUEST_FROM_ID (id);
         /* either we properly invoke this callback too, or we must return an
          * error to inform that it will not be called */
         if (callback != NULL &&
@@ -473,7 +447,7 @@ mc_account_channelrequest_add (McAccount *account, const gchar *object_path,
     req->request_path = g_strdup (object_path);
     /* at the moment there isn't even a method for retrieving the properties,
      * so let's ignore them */
-    return GPOINTER_TO_UINT (req);
+    return REQUEST_ID (req);
 }
 
 /**
@@ -490,7 +464,12 @@ mc_account_channelrequest_cancel (McAccount *account, guint request_id)
 
     g_return_if_fail (MC_IS_ACCOUNT (account));
     g_return_if_fail (request_id != 0);
-    req = GUINT_TO_POINTER (request_id);
+    req = REQUEST_FROM_ID (request_id);
+    if (G_UNLIKELY (!req))
+    {
+        g_warning ("%s: invalid request ID: %u", G_STRFUNC, request_id);
+        return;
+    }
 
     if (req->request_path)
     {
@@ -522,7 +501,12 @@ mc_account_channelrequest_get_error (McAccount *account, guint request_id)
 
     g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
     g_return_val_if_fail (request_id != 0, NULL);
-    req = GUINT_TO_POINTER (request_id);
+    req = REQUEST_FROM_ID (request_id);
+    if (G_UNLIKELY (!req))
+    {
+        g_warning ("%s: invalid request ID: %u", G_STRFUNC, request_id);
+        return NULL;
+    }
     return req->error;
 }
 
@@ -541,12 +525,7 @@ mc_account_channelrequest_get_error (McAccount *account, guint request_id)
 const gchar *
 mc_account_channelrequest_get_path (McAccount *account, guint request_id)
 {
-    McChannelRequest *req;
-
-    g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
-    g_return_val_if_fail (request_id != 0, NULL);
-    req = GUINT_TO_POINTER (request_id);
-    return req->request_path;
+    return mc_channelrequest_get_path (request_id);
 }
 
 /**
@@ -563,20 +542,53 @@ guint
 mc_account_channelrequest_get_from_path (McAccount *account,
                                          const gchar *object_path)
 {
-    McAccountChannelrequestsProps *props;
-    GList *list;
+    return mc_channelrequest_get_from_path (object_path);
+}
 
-    g_return_val_if_fail (MC_IS_ACCOUNT (account), 0);
+/**
+ * mc_channelrequest_get_path:
+ * @request_id: the ID of the channel request.
+ *
+ * Get the object path of the channel request identified by @request_id.
+ * The channel request D-Bus object is currently not implemented, but this
+ * object path can be used consistently with the
+ * org.freedesktop.Telepathy.Client.Handler interface.
+ *
+ * Returns: the object path of the channel request.
+ */
+const gchar *
+mc_channelrequest_get_path (guint request_id)
+{
+    McChannelRequest *req;
+
+    g_return_val_if_fail (request_id != 0, NULL);
+    req = REQUEST_FROM_ID (request_id);
+    return req ? req->request_path : NULL;
+}
+
+/**
+ * mc_channelrequest_get_from_path:
+ * @object_path: the D-Bus object path of a channel request.
+ *
+ * Finds the request ID whose D-Bus object path matches @object_path.
+ * This only works if the request was created by this process.
+ *
+ * Returns: the unique ID of the channel request, or %0.
+ */
+guint
+mc_channelrequest_get_from_path (const gchar *object_path)
+{
+    McChannelRequest *req;
+    GHashTableIter iter;
+
     g_return_val_if_fail (object_path != NULL, 0);
-    props = account->priv->request_props;
-    if (!props) return 0;
+    if (G_UNLIKELY (!requests)) return 0;
 
-    for (list = props->requests; list != NULL; list = list->next)
+    g_hash_table_iter_init (&iter, requests);
+    while (g_hash_table_iter_next (&iter, NULL, (gpointer)&req))
     {
-        McChannelRequest *req = list->data;
-
         if (req->request_path && strcmp (req->request_path, object_path) == 0)
-            return GPOINTER_TO_UINT (req);
+            return REQUEST_ID (req);
     }
     return 0;
 }
