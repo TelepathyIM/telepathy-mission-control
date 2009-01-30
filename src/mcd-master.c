@@ -206,7 +206,8 @@ disconnect_account_transport (gpointer key, gpointer value, gpointer userdata)
 	g_debug ("%s: account %s must disconnect",
 		 G_STRFUNC, mcd_account_get_unique_name (account));
         connection = mcd_account_get_connection (account);
-        mcd_connection_close (connection);
+        if (connection)
+            mcd_connection_close (connection);
 	set_account_transport (account, NULL);
 
         /* it may be that there is another transport to which the account can
