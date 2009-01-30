@@ -160,8 +160,10 @@ create_request (McdAccount *account, GHashTable *properties,
     g_hash_table_unref (props);
     _mcd_channel_set_request_use_existing (channel, use_existing);
 
-    g_signal_connect (channel, "status-changed",
-                      G_CALLBACK (on_channel_status_changed), account);
+    /* we use connect_after, to make sure that other signals (such as
+     * RemoveFailedRequest) are emitted before the Failed signal */
+    g_signal_connect_after (channel, "status-changed",
+                            G_CALLBACK (on_channel_status_changed), account);
 
     dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
     _mcd_dispatcher_add_request (dispatcher, account, channel);
