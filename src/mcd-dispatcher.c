@@ -73,6 +73,11 @@ struct _McdDispatcherContext
     /* If this flag is TRUE, dispatching must be cancelled ASAP */
     guint cancelled : 1;
 
+    /* This is set to TRUE if the incoming channel being dispatched has being
+     * requested before the approvers could be run; in that case, the approval
+     * phase should be skipped */
+    guint skip_approval : 1;
+
     McdDispatcher *dispatcher;
 
     GList *channels;
@@ -1531,7 +1536,8 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
          * requested: start the Approvers */
 
         /* but if the handlers have the BypassApproval flag set, then don't */
-        if (!handlers_can_bypass_approval (context))
+        if (!context->skip_approval &&
+            !handlers_can_bypass_approval (context))
             mcd_dispatcher_run_approvers (context);
     }
 
@@ -3148,6 +3154,8 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
                     mcd_dispatch_operation_handle_with (context->operation,
                                                         NULL, NULL);
             }
+            else
+                context->skip_approval = TRUE;
         }
         g_debug ("channel %p is proxying %p", request, channel);
         _mcd_channel_set_request_proxy (request, channel);
