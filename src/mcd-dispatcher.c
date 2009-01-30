@@ -160,8 +160,8 @@ typedef struct _McdClient
 
 struct _McdDispatcherPrivate
 {
-    /* Pending state machine contexts */
-    GSList *state_machine_list;
+    /* Dispatching contexts */
+    GList *contexts;
 
     GData *interface_filters;
     TpDBusDaemon *dbus_daemon;
@@ -232,7 +232,6 @@ static guint signals[LAST_SIGNAL] = { 0 };
 static void mcd_dispatcher_context_unref (McdDispatcherContext * ctx);
 static void mcd_dispatcher_context_set_channel (McdDispatcherContext *context,
                                                 McdChannel *channel);
-static void mcd_dispatcher_leave_state_machine (McdDispatcherContext *context);
 static void on_operation_finished (McdDispatchOperation *operation,
                                    McdDispatcherContext *context);
 
@@ -290,7 +289,7 @@ mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
     {
         g_signal_emit (context->dispatcher,
                        signals[DISPATCH_COMPLETED], 0, context);
-        mcd_dispatcher_leave_state_machine (context);
+        mcd_dispatcher_context_unref (context);
     }
 }
 
@@ -1562,21 +1561,6 @@ _mcd_dispatcher_context_abort (McdDispatcherContext *context,
     mcd_dispatcher_context_unref (context);
 }
 
-/* STATE MACHINE */
-
-static void
-mcd_dispatcher_leave_state_machine (McdDispatcherContext * context)
-{
-    McdDispatcherPrivate *priv = context->dispatcher->priv;
-
-    /* _mcd_dispatcher_drop_channel_handler (context); */
-
-    priv->state_machine_list =
-	g_slist_remove (priv->state_machine_list, context);
-
-    mcd_dispatcher_context_unref (context);
-}
-
 static void
 on_channel_abort_context (McdChannel *channel, McdDispatcherContext *context)
 {
@@ -1690,6 +1674,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     context->account = account;
     context->channels = channels;
     context->chain = chain;
+    priv->contexts = g_list_prepend (priv->contexts, context);
     if (!requested)
     {
         context->operation =
@@ -1713,8 +1698,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
         g_debug ("entering state machine for context %p", context);
 
         sp_timestamp ("invoke internal filters");
-	priv->state_machine_list =
-	    g_slist_prepend (priv->state_machine_list, context);
 	mcd_dispatcher_context_process (context, TRUE);
     }
     else
@@ -2550,8 +2533,6 @@ mcd_dispatcher_new (TpDBusDaemon *dbus_daemon, McdMaster *master)
 void
 mcd_dispatcher_context_process (McdDispatcherContext * context, gboolean result)
 {
-    McdDispatcherPrivate *priv = context->dispatcher->priv;
-    
     if (result && !context->cancelled)
     {
 	McdFilter *filter;
@@ -2591,15 +2572,12 @@ mcd_dispatcher_context_process (McdDispatcherContext * context, gboolean result)
         }
         _mcd_dispatcher_context_abort (context, &error);
     }
-    
-    /* FIXME: Should we remove the request in other cases? */
-    priv->state_machine_list =
-	g_slist_remove(priv->state_machine_list, context);
 }
 
 static void
 mcd_dispatcher_context_unref (McdDispatcherContext * context)
 {
+    McdDispatcherPrivate *priv;
     GList *list;
 
     /* FIXME: check for leaks */
@@ -2629,6 +2607,10 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context)
         }
         else
             g_list_free (context->channels);
+
+        /* remove the context from the list of active contexts */
+        priv = MCD_DISPATCHER_PRIV (context->dispatcher);
+        priv->contexts = g_list_remove (priv->contexts, context);
 
         g_free (context->protocol);
         g_free (context);
