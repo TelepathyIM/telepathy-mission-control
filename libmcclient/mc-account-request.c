@@ -593,3 +593,22 @@ mc_channelrequest_get_from_path (const gchar *object_path)
     return 0;
 }
 
+/**
+ * mc_channelrequest_get_account:
+ * @request_id: the ID of the channel request.
+ *
+ * Gets the account on which this channel request was made.
+ *
+ * Returns: the #McAccount (reference count is not increased), or %NULL if the
+ * request is not valid.
+ */
+McAccount *
+mc_channelrequest_get_account (guint request_id)
+{
+    McChannelRequest *req;
+
+    g_return_val_if_fail (request_id != 0, NULL);
+    req = REQUEST_FROM_ID (request_id);
+    return req ? req->account : NULL;
+}
+

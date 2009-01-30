@@ -296,6 +296,7 @@ guint mc_account_channelrequest_get_from_path (McAccount *account,
                                                const gchar *object_path);
 const gchar *mc_channelrequest_get_path (guint request_id);
 guint mc_channelrequest_get_from_path (const gchar *object_path);
+McAccount *mc_channelrequest_get_account (guint request_id);
 
 
 /* Account statistics */
