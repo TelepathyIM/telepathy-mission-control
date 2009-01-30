@@ -3090,14 +3090,33 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     /* the context will be unreferenced once it leaves the state machine */
 }
 
+static McdDispatcherContext *
+find_context_from_channel (McdDispatcher *dispatcher, McdChannel *channel)
+{
+    GList *list;
+
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
+    for (list = dispatcher->priv->contexts; list != NULL; list = list->next)
+    {
+        McdDispatcherContext *context = list->data;
+
+        if (g_list_find (context->channels, channel))
+            return context;
+    }
+    return NULL;
+}
+
 void
 _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
                                      McdChannel *channel, McdChannel *request)
 {
+    McdChannelStatus status;
+
+    status = mcd_channel_get_status (channel);
+
     /* if the channel is already dispatched, just reinvoke the handler; if it
      * is not, @request must mirror the status of @channel */
-    if (mcd_channel_get_status (channel) ==
-        MCD_CHANNEL_STATUS_DISPATCHED)
+    if (status == MCD_CHANNEL_STATUS_DISPATCHED)
     {
         g_debug ("reinvoking handler on channel %p", channel);
 
@@ -3114,6 +3133,22 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
     }
     else
     {
+        if (status == MCD_CHANNEL_STATUS_DISPATCHING)
+        {
+            McdDispatcherContext *context;
+
+            context = find_context_from_channel (dispatcher, channel);
+            g_debug ("channel %p is in context %p", channel, context);
+            if (context->approvers_invoked > 0)
+            {
+                /* the existing channel is waiting for approval; but since the
+                 * same channel has been requested, the approval operation must
+                 * terminate */
+                if (G_LIKELY (context->operation))
+                    mcd_dispatch_operation_handle_with (context->operation,
+                                                        NULL, NULL);
+            }
+        }
         g_debug ("channel %p is proxying %p", request, channel);
         _mcd_channel_set_request_proxy (request, channel);
     }
