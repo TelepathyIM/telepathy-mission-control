@@ -67,5 +67,8 @@ GHashTable *mcd_dispatch_operation_get_properties
 gboolean mcd_dispatch_operation_is_claimed (McdDispatchOperation *operation);
 const gchar *mcd_dispatch_operation_get_handler
     (McdDispatchOperation *operation);
+void mcd_dispatch_operation_handle_with (McdDispatchOperation *operation,
+                                         const gchar *handler_path,
+                                         GError **error);
 
 #endif

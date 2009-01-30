@@ -204,32 +204,17 @@ dispatch_operation_handle_with (McSvcChannelDispatchOperation *self,
                                 const gchar *handler_path,
                                 DBusGMethodInvocation *context)
 {
-    McdDispatchOperationPrivate *priv;
+    GError *error = NULL;
 
-    priv = MCD_DISPATCH_OPERATION_PRIV (self);
-    if (priv->finished)
+    mcd_dispatch_operation_handle_with (MCD_DISPATCH_OPERATION (self),
+                                        handler_path, &error);
+    if (error)
     {
-        GError *error = g_error_new (TP_ERRORS, TP_ERROR_NOT_YOURS,
-                                     "CDO already finished");
         dbus_g_method_return_error (context, error);
         g_error_free (error);
-        return;
     }
-
-    if (strncmp (handler_path, MCD_CLIENT_BASE_NAME,
-                 MCD_CLIENT_BASE_NAME_LEN) != 0)
-    {
-        GError *error = g_error_new (TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                                     "Invalid handler name");
-        dbus_g_method_return_error (context, error);
-        g_error_free (error);
-        return;
-    }
-
-    priv->handler = g_strdup (handler_path + MCD_CLIENT_BASE_NAME_LEN);
-    mc_svc_channel_dispatch_operation_return_from_handle_with (context);
-
-    mcd_dispatch_operation_finish (MCD_DISPATCH_OPERATION (self));
+    else
+        mc_svc_channel_dispatch_operation_return_from_handle_with (context);
 }
 
 static void
@@ -543,5 +528,37 @@ mcd_dispatch_operation_get_handler (McdDispatchOperation *operation)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (operation), NULL);
     return operation->priv->handler;
+}
+
+void
+mcd_dispatch_operation_handle_with (McdDispatchOperation *operation,
+                                    const gchar *handler_path,
+                                    GError **error)
+{
+    McdDispatchOperationPrivate *priv;
+
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (operation));
+    priv = operation->priv;
+
+    if (priv->finished)
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_NOT_YOURS,
+                     "CDO already finished");
+        return;
+    }
+
+    if (handler_path)
+    {
+        if (strncmp (handler_path, MCD_CLIENT_BASE_NAME,
+                     MCD_CLIENT_BASE_NAME_LEN) != 0)
+        {
+            g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                         "Invalid handler name");
+            return;
+        }
+        priv->handler = g_strdup (handler_path + MCD_CLIENT_BASE_NAME_LEN);
+    }
+
+    mcd_dispatch_operation_finish (operation);
 }
 
