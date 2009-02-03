@@ -267,11 +267,7 @@ mcd_account_manager_create_account (McdAccountManager *account_manager,
     }
 
     unique_name = create_unique_name (priv, manager, protocol, params);
-    if (G_UNLIKELY (unique_name == NULL))
-    {
-	g_warning ("Couldn't create a unique name");
-	return NULL;
-    }
+    g_return_if_fail (unique_name != NULL);
 
     /* create the basic GConf keys */
     g_key_file_set_string (priv->keyfile, unique_name,
