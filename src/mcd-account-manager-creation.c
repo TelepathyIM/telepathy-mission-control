@@ -39,10 +39,8 @@
 
 typedef struct
 {
-    McdAccount *account;
     GHashTable *properties;
     DBusGMethodInvocation *context;
-    GError *error;
 } McdCreationData;
 
 const McdDBusProp account_manager_creation_properties[] = {
@@ -50,36 +48,10 @@ const McdDBusProp account_manager_creation_properties[] = {
 };
 
 
-static void
-set_property (gpointer key, gpointer val, gpointer userdata)
-{
-    McdCreationData *cd = userdata;
-    gchar *name = key, *dot, *iface, *pname;
-    GValue *value = val;
-
-    if (cd->error) return;
-
-    if ((dot = strrchr (name, '.')) != NULL)
-    {
-	iface = g_strndup (name, dot - name);
-	pname = dot + 1;
-	mcd_dbusprop_set_property (TP_SVC_DBUS_PROPERTIES (cd->account),
-				   iface, pname, value, &cd->error);
-	g_free (iface);
-    }
-    else
-    {
-	g_set_error (&cd->error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-		     "Unrecognized property: %s", name);
-    }
-}
-
 static inline void
 mcd_creation_data_free (McdCreationData *cd)
 {
     g_hash_table_unref (cd->properties);
-    if (cd->error)
-	g_error_free (cd->error);
     g_slice_free (McdCreationData, cd);
 }
 
@@ -89,6 +61,10 @@ create_account_cb (McdAccountManager *account_manager, McdAccount *account,
 {
     McdCreationData *cd = user_data;
     const gchar *object_path;
+    GHashTableIter iter;
+    gchar *name;
+    GValue *value;
+    GError *err = NULL;
 
     if (G_UNLIKELY (error))
     {
@@ -97,11 +73,30 @@ create_account_cb (McdAccountManager *account_manager, McdAccount *account,
     }
 
     g_return_if_fail (MCD_IS_ACCOUNT (account));
-    cd->account = account;
-    g_hash_table_foreach (cd->properties, set_property, cd);
-    if (cd->error)
+
+    g_hash_table_iter_init (&iter, cd->properties);
+    while (g_hash_table_iter_next (&iter, (gpointer)&name, (gpointer)&value) &&
+           err == NULL)
     {
-	dbus_g_method_return_error (cd->context, cd->error);
+        gchar *dot, *iface, *pname;
+
+        if ((dot = strrchr (name, '.')) != NULL)
+        {
+            iface = g_strndup (name, dot - name);
+            pname = dot + 1;
+            mcd_dbusprop_set_property (TP_SVC_DBUS_PROPERTIES (account),
+                                       iface, pname, value, &err);
+            g_free (iface);
+        }
+        else
+            err = g_error_new (TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                               "Unrecognized property: %s", name);
+    }
+
+    if (err)
+    {
+        dbus_g_method_return_error (cd->context, err);
+        g_error_free (err);
 	return;
     }
     object_path = mcd_account_get_object_path (account);
@@ -121,7 +116,6 @@ account_manager_create_account (McSvcAccountManagerInterfaceCreation *self,
     McdCreationData *cd;
 
     cd = g_slice_new (McdCreationData);
-    cd->error = NULL;
     cd->properties = g_hash_table_ref (properties);
     cd->context = context;
     mcd_account_manager_create_account (MCD_ACCOUNT_MANAGER (self),
