@@ -87,7 +87,9 @@ McdAccount *mcd_account_manager_lookup_account_by_path (McdAccountManager *accou
 						       	const gchar *object_path);
 
 /* for interfaces only */
+G_GNUC_INTERNAL
 GHashTable *mcd_account_manager_get_valid_accounts (McdAccountManager *account_manager);
+G_GNUC_INTERNAL
 McdAccount *mcd_account_manager_create_account (McdAccountManager *
 						account_manager,
 						const gchar *manager,
