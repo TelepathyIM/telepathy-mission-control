@@ -83,6 +83,21 @@ struct _McdAccountManagerPrivate
     GHashTable *invalid_accounts;
 };
 
+typedef struct
+{
+    McdAccountManager *account_manager;
+    gint account_lock;
+} McdLoadAccountsData;
+
+typedef struct
+{
+    McdAccountManager *account_manager;
+    GHashTable *parameters;
+    McdGetAccountCb callback;
+    gpointer user_data;
+    GDestroyNotify destroy;
+} McdCreateAccountData;
+
 enum
 {
     PROP_0,
@@ -90,6 +105,8 @@ enum
 };
 
 static guint write_conf_id = 0;
+
+static void register_dbus_service (McdAccountManager *account_manager);
 
 static McdAccount *
 account_new (McdAccountManager *account_manager, const gchar *name)
@@ -174,23 +191,34 @@ add_account (McdAccountManager *account_manager, McdAccount *account)
     return valid;
 }
 
-static McdAccount *
-complete_account_creation (McdAccountManager *account_manager,
-			   const gchar *unique_name,
-			   GHashTable *params,
-			   const gchar **object_path,
-			   GError **error)
+static void
+mcd_create_account_data_free (McdCreateAccountData *cad)
 {
-    McdAccount *account;
+    g_hash_table_unref (cad->parameters);
+    g_slice_free (McdCreateAccountData, cad);
+}
+
+static void
+complete_account_creation (McdAccount *account,
+                           const GError *cb_error,
+                           gpointer user_data)
+{
+    McdCreateAccountData *cad = user_data;
+    McdAccountManager *account_manager;
+    GError *error = NULL;
     gboolean ok;
 
-    account = MCD_ACCOUNT_MANAGER_GET_CLASS (account_manager)->account_new
-        (account_manager, unique_name);
+    account_manager = cad->account_manager;
+    if (G_UNLIKELY (cb_error))
+    {
+        cad->callback (account_manager, account, cb_error, cad->user_data);
+        mcd_create_account_data_free (cad);
+        return;
+    }
 
-    ok = mcd_account_set_parameters (account, params, error);
+    ok = mcd_account_set_parameters (account, cad->parameters, &error);
     if (ok)
     {
-	*object_path = mcd_account_get_object_path (account);
 	add_account (account_manager, account);
 	mcd_account_check_validity (account);
     }
@@ -201,7 +229,11 @@ complete_account_creation (McdAccountManager *account_manager,
 	account = NULL;
     }
     mcd_account_manager_write_conf (account_manager);
-    return account;
+
+    cad->callback (account_manager, account, error, cad->user_data);
+    if (G_UNLIKELY (error))
+        g_error_free (error);
+    mcd_create_account_data_free (cad);
 }
 
 static gchar *
@@ -244,26 +276,30 @@ create_unique_name (McdAccountManagerPrivate *priv, const gchar *manager,
     return unique_name;
 }
 
-McdAccount *
+void
 mcd_account_manager_create_account (McdAccountManager *account_manager,
 				    const gchar *manager,
 				    const gchar *protocol,
 				    const gchar *display_name,
 				    GHashTable *params,
-				    const gchar **account_obj,
-				    GError **error)
+                                    McdGetAccountCb callback,
+                                    gpointer user_data, GDestroyNotify destroy)
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
-    gchar *unique_name;
+    McdCreateAccountData *cad;
     McdAccount *account;
+    gchar *unique_name;
 
     g_debug ("%s called", G_STRFUNC);
     if (G_UNLIKELY (manager == NULL || manager[0] == 0 ||
 		    protocol == NULL || protocol[0] == 0))
     {
-	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-		     "Invalid parameters");
-	return NULL;
+        GError error = { TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+            "Invalid parameters"};
+        callback (account_manager, NULL, &error, user_data);
+        if (destroy)
+            destroy (user_data);
+        return;
     }
 
     unique_name = create_unique_name (priv, manager, protocol, params);
@@ -278,10 +314,45 @@ mcd_account_manager_create_account (McdAccountManager *account_manager,
 	g_key_file_set_string (priv->keyfile, unique_name,
 			       MC_ACCOUNTS_KEY_DISPLAY_NAME, display_name);
 
-    account = complete_account_creation (account_manager, unique_name,
-					 params, account_obj, error);
+    account = MCD_ACCOUNT_MANAGER_GET_CLASS (account_manager)->account_new
+        (account_manager, unique_name);
     g_free (unique_name);
-    return account;
+
+    if (G_LIKELY (account))
+    {
+        cad = g_slice_new (McdCreateAccountData);
+        cad->account_manager = account_manager;
+        cad->parameters = g_hash_table_ref (params);
+        cad->callback = callback;
+        cad->user_data = user_data;
+        cad->destroy = destroy;
+        _mcd_account_load (account, complete_account_creation, cad);
+    }
+    else
+    {
+        GError error = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE, "" };
+        callback (account_manager, NULL, &error, user_data);
+        if (destroy)
+            destroy (user_data);
+    }
+}
+
+static void
+create_account_cb (McdAccountManager *account_manager, McdAccount *account,
+                   const GError *error, gpointer user_data)
+{
+    DBusGMethodInvocation *context = user_data;
+    const gchar *object_path;
+
+    if (G_UNLIKELY (error))
+    {
+        dbus_g_method_return_error (context, (GError *)error);
+	return;
+    }
+
+    g_return_if_fail (MCD_IS_ACCOUNT (account));
+    object_path = mcd_account_get_object_path (account);
+    mc_svc_account_manager_return_from_create_account (context, object_path);
 }
 
 static void
@@ -291,22 +362,10 @@ account_manager_create_account (McSvcAccountManager *self,
 				GHashTable *parameters,
 				DBusGMethodInvocation *context)
 {
-    GError *error = NULL;
-    const gchar *object_path;
-
-    if (!mcd_account_manager_create_account (MCD_ACCOUNT_MANAGER (self),
-					     manager, protocol, display_name,
-					     parameters, &object_path, &error))
-    {
-	if (!error)
-	    g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
-			 "Internal error");
-	dbus_g_method_return_error (context, error);
-	g_error_free (error);
-	return;
-    }
-
-    mc_svc_account_manager_return_from_create_account (context, object_path);
+    mcd_account_manager_create_account (MCD_ACCOUNT_MANAGER (self),
+                                        manager, protocol, display_name,
+                                        parameters,
+                                        create_account_cb, context, NULL);
 }
 
 static void
@@ -435,6 +494,32 @@ write_conf (gpointer userdata)
     return FALSE;
 }
 
+static void
+release_load_accounts_lock (McdLoadAccountsData *lad)
+{
+    g_return_if_fail (lad->account_lock > 0);
+    lad->account_lock--;
+    g_debug ("%s called, count is now %d", G_STRFUNC, lad->account_lock);
+    if (lad->account_lock == 0)
+    {
+        register_dbus_service (lad->account_manager);
+        g_slice_free (McdLoadAccountsData, lad);
+    }
+}
+
+static void
+account_loaded (McdAccount *account, const GError *error, gpointer user_data)
+{
+    McdLoadAccountsData *lad = user_data;
+
+    if (error)
+        g_warning ("%s: got error: %s", G_STRFUNC, error->message);
+    else
+        add_account (lad->account_manager, account);
+
+    release_load_accounts_lock (lad);
+}
+
 /**
  * _mcd_account_manager_setup:
  * @account_manager: the #McdAccountManager.
@@ -446,19 +531,32 @@ void
 _mcd_account_manager_setup (McdAccountManager *account_manager)
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
+    McdLoadAccountsData *lad;
     gchar **accounts, **name;
+
+    lad = g_slice_new (McdLoadAccountsData);
+    lad->account_manager = account_manager;
+    lad->account_lock = 1; /* will be released at the end of this function */
 
     accounts = g_key_file_get_groups (priv->keyfile, NULL);
     for (name = accounts; *name != NULL; name++)
     {
-	McdAccount *account;
+        McdAccount *account;
 
         account = MCD_ACCOUNT_MANAGER_GET_CLASS (account_manager)->account_new
             (account_manager, *name);
-	if (account)
-	    add_account (account_manager, account);
+        if (G_UNLIKELY (!account))
+        {
+            g_warning ("%s: account %s failed to instantiate", G_STRFUNC,
+                       *name);
+            continue;
+        }
+        lad->account_lock++;
+        _mcd_account_load (account, account_loaded, lad);
     }
     g_strfreev (accounts);
+
+    release_load_accounts_lock (lad);
 }
 
 static void
@@ -500,8 +598,6 @@ set_property (GObject *obj, guint prop_id,
 	if (priv->dbus_daemon)
 	    g_object_unref (priv->dbus_daemon);
 	priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
-	if (priv->dbus_daemon)
-	    register_dbus_service (account_manager);
 	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);

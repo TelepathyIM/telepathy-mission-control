@@ -133,6 +133,7 @@ struct _McdAccountPrivate
     guint connect_automatically : 1;
     guint enabled : 1;
     guint valid : 1;
+    guint loaded : 1;
 
     /* These fields are used to cache the changed properties */
     GHashTable *changed_properties;
@@ -149,6 +150,17 @@ enum
 };
 
 guint _mcd_account_signals[LAST_SIGNAL] = { 0 };
+static GQuark account_ready_quark = 0;
+
+static void
+mcd_account_loaded (McdAccount *account)
+{
+    g_return_if_fail (!account->priv->loaded);
+    account->priv->loaded = TRUE;
+
+    /* invoke all the callbacks */
+    mcd_object_ready (account, account_ready_quark, NULL);
+}
 
 static void
 set_parameter (McdAccount *account, const gchar *name, const GValue *value)
@@ -251,6 +263,23 @@ get_parameter (McdAccount *account, const gchar *name, GValue *value)
     return TRUE;
 }
 
+static void on_manager_ready (McdManager *manager, const GError *error,
+                              gpointer user_data)
+{
+    McdAccount *account = MCD_ACCOUNT (user_data);
+    McdAccountPrivate *priv = account->priv;
+
+    if (error)
+    {
+        g_debug ("%s: got error: %s", G_STRFUNC, error->message);
+    }
+    else
+    {
+        priv->valid = mcd_account_check_parameters (account);
+    }
+    mcd_account_loaded (account);
+}
+
 static gboolean
 load_manager (McdAccount *account)
 {
@@ -263,6 +292,7 @@ load_manager (McdAccount *account)
     if (priv->manager)
     {
 	g_object_ref (priv->manager);
+        mcd_manager_call_when_ready (priv->manager, on_manager_ready, account);
 	return TRUE;
     }
     else
@@ -322,6 +352,17 @@ _mcd_account_delete (McdAccount *account, GError **error)
     g_free (data_dir_str);
     mcd_account_manager_write_conf (priv->account_manager);
     return TRUE;
+}
+
+static void
+_mcd_account_load_real (McdAccount *account, McdAccountLoadCb callback,
+                        gpointer user_data)
+{
+    if (account->priv->loaded)
+        callback (account, NULL, user_data);
+    else
+        mcd_object_call_when_ready (account, account_ready_quark,
+                                    (McdReadyCb)callback, user_data);
 }
 
 static void
@@ -1224,7 +1265,6 @@ static gboolean
 mcd_account_setup (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
-    gboolean valid;
 
     priv->keyfile = mcd_account_manager_get_config (priv->account_manager);
     if (!priv->keyfile) return FALSE;
@@ -1250,16 +1290,6 @@ mcd_account_setup (McdAccount *account)
 	g_key_file_get_boolean (priv->keyfile, priv->unique_name,
 				MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY, NULL);
 
-    /* check the manager */
-    if (!priv->manager && !load_manager (account))
-    {
-	g_warning ("Could not find manager `%s'", priv->manager_name);
-	valid = FALSE;
-    }
-    else
-	valid = mcd_account_check_parameters (account);
-    priv->valid = valid;
-
     /* load the automatic presence */
     priv->auto_presence_type =
 	g_key_file_get_integer (priv->keyfile, priv->unique_name,
@@ -1273,6 +1303,14 @@ mcd_account_setup (McdAccount *account)
 			       MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE,
 			       NULL);
 
+    /* check the manager */
+    if (!priv->manager && !load_manager (account))
+    {
+	g_warning ("Could not find manager `%s'", priv->manager_name);
+        mcd_account_loaded (account);
+    }
+
+    _mcd_account_load (account, (McdAccountLoadCb)register_dbus_service, NULL);
     return TRUE;
 }
 
@@ -1420,8 +1458,7 @@ _mcd_account_constructed (GObject *object)
     GObjectClass *object_class = (GObjectClass *)mcd_account_parent_class;
     McdAccount *account = MCD_ACCOUNT (object);
 
-    if (mcd_account_setup (account))
-        register_dbus_service (account);
+    mcd_account_setup (account);
 
     if (object_class->constructed)
         object_class->constructed (object);
@@ -1443,6 +1480,7 @@ mcd_account_class_init (McdAccountClass * klass)
     klass->get_parameter = get_parameter;
     klass->set_parameter = set_parameter;
     klass->delete = _mcd_account_delete;
+    klass->load = _mcd_account_load_real;
 
     g_object_class_install_property
         (object_class, PROP_DBUS_DAEMON,
@@ -1511,6 +1549,8 @@ mcd_account_class_init (McdAccountClass * klass)
 		      NULL, NULL, g_cclosure_marshal_VOID__STRING,
 		      G_TYPE_NONE, 1, G_TYPE_STRING);
     _mcd_account_connection_class_init (klass);
+
+    account_ready_quark = g_quark_from_static_string ("mcd_account_load");
 }
 
 static void
@@ -2245,5 +2285,15 @@ mcd_account_get_avatar_filename (McdAccount *account)
     filename = g_build_filename (data_dir, MC_AVATAR_FILENAME, NULL);
     g_free (data_dir);
     return filename;
+}
+
+void
+_mcd_account_load (McdAccount *account, McdAccountLoadCb callback,
+                   gpointer user_data)
+{
+    g_return_if_fail (MCD_IS_ACCOUNT (account));
+    g_return_if_fail (callback != NULL);
+
+    MCD_ACCOUNT_GET_CLASS (account)->load (account, callback, user_data);
 }
 

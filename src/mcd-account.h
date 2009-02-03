@@ -51,6 +51,10 @@ struct _McdAccount
     McdAccountPrivate *priv;
 };
 
+typedef void (*McdAccountLoadCb) (McdAccount *account,
+                                  const GError *error,
+                                  gpointer user_data);
+
 struct _McdAccountClass
 {
     GObjectClass parent_class;
@@ -59,7 +63,8 @@ struct _McdAccountClass
     void (*set_parameter) (McdAccount *account, const gchar *name,
                            const GValue *value);
     gboolean (*delete) (McdAccount *account, GError **error);
-    void (*_mc_reserved4) (void);
+    void (*load) (McdAccount *account, McdAccountLoadCb callback,
+                  gpointer user_data);
     void (*_mc_reserved5) (void);
     void (*_mc_reserved6) (void);
     void (*_mc_reserved7) (void);
@@ -152,5 +157,9 @@ gchar *mcd_account_get_avatar_filename (McdAccount *account);
 
 /* non-exported methods */
 void _mcd_account_tp_connection_changed (McdAccount *account);
+
+G_GNUC_INTERNAL
+void _mcd_account_load (McdAccount *account, McdAccountLoadCb callback,
+                        gpointer user_data);
 
 #endif

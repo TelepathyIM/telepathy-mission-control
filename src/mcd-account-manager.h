@@ -89,14 +89,19 @@ McdAccount *mcd_account_manager_lookup_account_by_path (McdAccountManager *accou
 /* for interfaces only */
 G_GNUC_INTERNAL
 GHashTable *mcd_account_manager_get_valid_accounts (McdAccountManager *account_manager);
+
+typedef void (*McdGetAccountCb) (McdAccountManager *account_manager,
+                                 McdAccount *account,
+                                 const GError *error,
+                                 gpointer user_data);
 G_GNUC_INTERNAL
-McdAccount *mcd_account_manager_create_account (McdAccountManager *
-						account_manager,
-						const gchar *manager,
-						const gchar *protocol,
-						const gchar *display_name,
-						GHashTable *params,
-						const gchar **account_obj,
-						GError **error);
+void mcd_account_manager_create_account (McdAccountManager *account_manager,
+                                         const gchar *manager,
+                                         const gchar *protocol,
+                                         const gchar *display_name,
+                                         GHashTable *params,
+                                         McdGetAccountCb callback,
+                                         gpointer user_data,
+                                         GDestroyNotify destroy);
 
 #endif
