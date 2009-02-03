@@ -40,6 +40,8 @@
 typedef struct
 {
     McdAccount *account;
+    GHashTable *properties;
+    DBusGMethodInvocation *context;
     GError *error;
 } McdCreationData;
 
@@ -72,42 +74,60 @@ set_property (gpointer key, gpointer val, gpointer userdata)
     }
 }
 
-static void
-account_manager_create_account (McSvcAccountManagerInterfaceCreation *self,
-				const gchar *manager,
-				const gchar *protocol,
-				const gchar *display_name,
-				GHashTable *parameters,
-				GHashTable *properties,
-				DBusGMethodInvocation *context)
+static inline void
+mcd_creation_data_free (McdCreationData *cd)
 {
-    McdCreationData cd;
-    GError *error = NULL;
+    g_hash_table_unref (cd->properties);
+    if (cd->error)
+	g_error_free (cd->error);
+    g_slice_free (McdCreationData, cd);
+}
+
+static void
+create_account_cb (McdAccountManager *account_manager, McdAccount *account,
+                   const GError *error, gpointer user_data)
+{
+    McdCreationData *cd = user_data;
     const gchar *object_path;
 
-    cd.error = NULL;
-    cd.account =
-	mcd_account_manager_create_account (MCD_ACCOUNT_MANAGER (self),
-					    manager, protocol, display_name,
-					    parameters, &object_path, &error);
-    if (!cd.account)
+    if (G_UNLIKELY (error))
     {
-	if (!error)
-	    g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
-			 "Internal error");
-	dbus_g_method_return_error (context, error);
-	g_error_free (error);
+	dbus_g_method_return_error (cd->context, (GError *)error);
 	return;
     }
 
-    g_hash_table_foreach (properties, set_property, &cd);
-    if (cd.error)
+    g_return_if_fail (MCD_IS_ACCOUNT (account));
+    cd->account = account;
+    g_hash_table_foreach (cd->properties, set_property, cd);
+    if (cd->error)
     {
-	dbus_g_method_return_error (context, cd.error);
-	g_error_free (cd.error);
+	dbus_g_method_return_error (cd->context, cd->error);
 	return;
     }
-    mc_svc_account_manager_interface_creation_return_from_create_account (context, object_path);
+    object_path = mcd_account_get_object_path (account);
+    mc_svc_account_manager_interface_creation_return_from_create_account
+        (cd->context, object_path);
+}
+
+static void
+account_manager_create_account (McSvcAccountManagerInterfaceCreation *self,
+                                const gchar *manager,
+                                const gchar *protocol,
+                                const gchar *display_name,
+                                GHashTable *parameters,
+                                GHashTable *properties,
+                                DBusGMethodInvocation *context)
+{
+    McdCreationData *cd;
+
+    cd = g_slice_new (McdCreationData);
+    cd->error = NULL;
+    cd->properties = g_hash_table_ref (properties);
+    cd->context = context;
+    mcd_account_manager_create_account (MCD_ACCOUNT_MANAGER (self),
+                                        manager, protocol, display_name,
+                                        parameters, create_account_cb, cd,
+                                        (GDestroyNotify)mcd_creation_data_free);
 }
 
 
