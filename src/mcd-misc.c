@@ -179,3 +179,86 @@ type_dbus_aasv (void)
     t = dbus_g_type_get_collection ("GPtrArray", tp_type_dbus_hash_sv ());
   return t;
 }
+
+typedef struct
+{
+    McdReadyCb callback;
+    gpointer user_data;
+} McdReadyCbData;
+
+typedef struct
+{
+    gpointer object;
+    GSList *callbacks;
+} McdReadyData;
+
+static void
+mcd_object_invoke_ready_callbacks (McdReadyData *rd, const GError *error)
+{
+    GSList *list;
+
+    for (list = rd->callbacks; list != NULL; list = list->next)
+    {
+        McdReadyCbData *cb = list->data;
+
+        cb->callback (rd->object, error, cb->user_data);
+        g_slice_free (McdReadyCbData, cb);
+    }
+    g_slist_free (rd->callbacks);
+}
+
+static void
+mcd_ready_data_free (McdReadyData *rd)
+{
+    if (rd->object)
+    {
+        GError error = { TP_ERRORS, TP_ERROR_CANCELLED, "Object disposed" };
+        mcd_object_invoke_ready_callbacks (rd, &error);
+    }
+    g_slice_free (McdReadyData, rd);
+}
+
+void
+mcd_object_call_when_ready (gpointer object, GQuark quark, McdReadyCb callback,
+                            gpointer user_data)
+{
+    McdReadyData *rd;
+    McdReadyCbData *cb;
+
+    g_return_if_fail (G_IS_OBJECT (object));
+    g_return_if_fail (quark != 0);
+    g_return_if_fail (callback != NULL);
+
+    cb = g_slice_new (McdReadyCbData);
+    cb->callback = callback;
+    cb->user_data = user_data;
+
+    rd = g_object_get_qdata ((GObject *)object, quark);
+    if (!rd)
+    {
+        rd = g_slice_new (McdReadyData);
+        rd->object = object;
+        rd->callbacks = NULL;
+        g_object_set_qdata_full ((GObject *)object, quark, rd,
+                                 (GDestroyNotify)mcd_ready_data_free);
+    }
+    rd->callbacks = g_slist_prepend (rd->callbacks, cb);
+}
+
+void
+mcd_object_ready (gpointer object, GQuark quark, const GError *error)
+{
+    McdReadyData *rd;
+
+    rd = g_object_get_qdata ((GObject *)object, quark);
+    if (G_UNLIKELY (!rd))
+    {
+        g_warning ("%s: callback data is missing", G_STRFUNC);
+        return;
+    }
+
+    mcd_object_invoke_ready_callbacks (rd, error);
+    rd->object = NULL; /* so the callbacks won't be invoked again */
+    g_object_set_qdata ((GObject *)object, quark, NULL);
+}
+

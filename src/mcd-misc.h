@@ -52,6 +52,11 @@ const gchar *_mcd_get_error_string (const GError *error);
 #define TP_ARRAY_TYPE_CHANNEL_CLASS_LIST (type_dbus_aasv ())
 GType type_dbus_aasv (void);
 
+typedef void (*McdReadyCb) (gpointer *object, const GError *error,
+                            gpointer user_data);
+void mcd_object_call_when_ready (gpointer object, GQuark quark,
+                                 McdReadyCb callback, gpointer user_data);
+void mcd_object_ready (gpointer object, GQuark quark, const GError *error);
 
 G_END_DECLS
 #endif /* MCD_MISC_H */
