@@ -76,27 +76,8 @@ McdManager *mcd_manager_new (const gchar *unique_name,
 
 const gchar *mcd_manager_get_name (McdManager *manager);
 
-/* Protocol related structures */
-typedef struct {
-    gchar *name;
-    GArray *params;
-} McdProtocol;
-
-typedef struct {
-    gchar *name;
-    gchar *signature;
-    /* omitting default value, as long as it's not needed */
-    guint flags;
-} McdProtocolParam;
-
-enum
-{
-    MCD_PROTOCOL_PARAM_REQUIRED = 1 << 0,
-    MCD_PROTOCOL_PARAM_REGISTER = 1 << 1,
-};
-
-const GArray *mcd_manager_get_parameters (McdManager *manager,
-					  const gchar *protocol);
+const TpConnectionManagerParam *
+mcd_manager_get_parameters (McdManager *manager, const gchar *protocol);
 
 McdConnection *mcd_manager_create_connection (McdManager *manager,
 					      McdAccount *account);

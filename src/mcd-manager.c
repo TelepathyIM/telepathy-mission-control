@@ -66,7 +66,6 @@ struct _McdManagerPrivate
 
     TpConnectionManager *tp_conn_mgr;
 
-    GArray *protocols; /* array of McdProtocol structures */
     guint is_disposed : 1;
     guint delay_presence_request : 1;
     guint got_info : 1;
@@ -99,77 +98,6 @@ on_got_info (TpConnectionManager *tp_conn_mgr, guint source,
     g_debug ("manager %s is ready", priv->name);
     priv->got_info = TRUE;
     mcd_object_ready (manager, pending_got_info, NULL);
-}
-
-static const gchar**
-_mc_manager_get_dirs (void)
-{
-    GSList *dir_list = NULL, *slist;
-    const gchar *dirname;
-    static gchar **manager_dirs = NULL;
-    guint n;
-
-    if (manager_dirs) return (const gchar **)manager_dirs;
-
-    dirname = g_getenv ("MC_MANAGER_DIR");
-    if (dirname && g_file_test (dirname, G_FILE_TEST_IS_DIR))
-	dir_list = g_slist_prepend (dir_list, (gchar *)dirname);
-
-    if (MANAGERS_DIR[0] == '/')
-    {
-	if (g_file_test (MANAGERS_DIR, G_FILE_TEST_IS_DIR))
-	    dir_list = g_slist_prepend (dir_list, MANAGERS_DIR);
-    }
-    else
-    {
-	const gchar * const *dirs;
-	gchar *dir;
-
-	dir = g_build_filename (g_get_user_data_dir(), MANAGERS_DIR, NULL);
-	if (g_file_test (dir, G_FILE_TEST_IS_DIR))
-	    dir_list = g_slist_prepend (dir_list, dir);
-	else g_free (dir);
-
-	dirs = g_get_system_data_dirs();
-	for (dirname = *dirs; dirname; dirs++, dirname = *dirs)
-	{
-	    dir = g_build_filename (dirname, MANAGERS_DIR, NULL);
-	    if (g_file_test (dir, G_FILE_TEST_IS_DIR))
-		dir_list = g_slist_prepend (dir_list, dir);
-	    else g_free (dir);
-	}
-    }
-
-    /* build the string array */
-    n = g_slist_length (dir_list);
-    manager_dirs = g_new (gchar *, n + 1);
-    manager_dirs[n--] = NULL;
-    for (slist = dir_list; slist; slist = slist->next)
-	manager_dirs[n--] = slist->data;
-    g_slist_free (dir_list);
-    return (const gchar **)manager_dirs;
-}
-
-static gchar *
-_mcd_manager_filename (const gchar *unique_name)
-{
-    const gchar **manager_dirs;
-    const gchar *dirname;
-    gchar *filename, *filepath = NULL;
-
-    manager_dirs = _mc_manager_get_dirs ();
-    if (!manager_dirs) return NULL;
-
-    filename = g_strconcat (unique_name, MANAGER_SUFFIX, NULL);
-    for (dirname = *manager_dirs; dirname; manager_dirs++, dirname = *manager_dirs)
-    {
-	filepath = g_build_filename (dirname, filename, NULL);
-	if (g_file_test (filepath, G_FILE_TEST_EXISTS)) break;
-	g_free (filepath);
-	filepath = NULL;
-    }
-    g_free (filename);
-    return filepath;
 }
 
 static gint
@@ -360,22 +288,6 @@ static void
 _mcd_manager_finalize (GObject * object)
 {
     McdManagerPrivate *priv = MCD_MANAGER_PRIV (object);
-    McdProtocolParam *param;
-    McdProtocol *protocol;
-    guint i, j;
-
-    for (i = 0; i < priv->protocols->len; i++)
-    {
-	protocol = &g_array_index (priv->protocols, McdProtocol, i);
-	for (j = 0; j < protocol->params->len; j++)
-	{
-	    param = &g_array_index (protocol->params, McdProtocolParam, j);
-	    g_free (param->name);
-	    g_free (param->signature);
-	}
-	g_array_free (protocol->params, TRUE);
-    }
-    g_array_free (priv->protocols, TRUE);
 
     g_free (priv->name);
 
@@ -455,97 +367,15 @@ _mcd_manager_disconnect (McdMission * mission)
     mcd_debug_print_tree(mission);
 }
 
-static inline void
-read_parameters (GArray *params, GKeyFile *keyfile, const gchar *group_name)
-{
-    gchar **keys, **i;
-
-    keys = g_key_file_get_keys (keyfile, group_name, NULL, NULL);
-    if (!keys)
-    {
-	g_warning ("%s: failed to get keys from file", G_STRFUNC);
-	return;
-    }
-
-    for (i = keys; *i != NULL; i++)
-    {
-	McdProtocolParam param = { 0, 0, 0 };
-	gchar *value = g_key_file_get_string (keyfile, group_name, *i, NULL);
-
-	if (strncmp (*i, "param-", 6) == 0)
-	{
-	    gchar *ptr, *signature, *flag;
-
-	    param.name = g_strdup (*i + 6);
-
-	    signature = strtok_r (value, " \t", &ptr);
-	    if (!signature)
-	    {
-		g_warning ("%s: param \"%s\" has no signature",
-			   G_STRFUNC, param.name);
-		g_free (value);
-		continue;
-	    }
-	    param.signature = g_strdup (signature);
-
-	    while ((flag = strtok_r (NULL, " \t", &ptr)) != NULL)
-	    {
-		if (strcmp (flag, "required") == 0)
-		    param.flags |= MCD_PROTOCOL_PARAM_REQUIRED;
-		else if (strcmp (flag, "register") == 0)
-		    param.flags |= MCD_PROTOCOL_PARAM_REGISTER;
-	    }
-	    g_array_append_val (params, param);
-	}
-
-	g_free (value);
-    }
-
-    g_strfreev (keys);
-}
-
-static inline void
-read_protocols (McdManager *manager, GKeyFile *keyfile)
-{
-    McdManagerPrivate *priv = manager->priv;
-    gchar **groups = NULL, **i;
-
-    groups = g_key_file_get_groups (keyfile, NULL);
-
-    for (i = groups; *i != NULL; i++)
-    {
-	McdProtocol protocol;
-
-	if (strncmp (*i, "Protocol ", 9) != 0) continue;
-	protocol.name = g_strdup (*i + 9);
-	protocol.params = g_array_new (FALSE, FALSE,
-				       sizeof (McdProtocolParam));
-	read_parameters (protocol.params, keyfile, *i);
-
-	g_array_append_val (priv->protocols, protocol);
-    }
-
-    g_strfreev (groups);
-}
-
 static gboolean
 mcd_manager_setup (McdManager *manager)
 {
     McdManagerPrivate *priv = manager->priv;
     GError *error = NULL;
-    GKeyFile *keyfile;
-    gchar *filename;
-
-    filename = _mcd_manager_filename (priv->name);
-    if (!filename)
-    {
-	g_warning ("No config file found for manager %s", priv->name);
-	return FALSE;
-    }
 
     priv->tp_conn_mgr =
         tp_connection_manager_new (priv->dbus_daemon, priv->name,
-                                   filename, &error);
+                                   NULL, &error);
     if (error)
     {
         g_warning ("%s, cannot create manager %s: %s", G_STRFUNC,
@@ -556,19 +386,6 @@ mcd_manager_setup (McdManager *manager)
     g_signal_connect (priv->tp_conn_mgr, "got-info", G_CALLBACK (on_got_info),
                       manager);
 
-    keyfile = g_key_file_new ();
-
-    if (!g_key_file_load_from_file (keyfile, filename, G_KEY_FILE_NONE, &error))
-    {
-	g_warning ("%s: loading %s failed: %s", G_STRFUNC,
-		   filename, error->message);
-        goto error;
-    }
-    g_free (filename);
-
-    read_protocols (manager, keyfile);
-    g_key_file_free (keyfile);
-
     g_debug ("%s: Manager %s created", G_STRFUNC, priv->name);
     return TRUE;
 
@@ -577,7 +394,6 @@ error:
         g_object_unref (priv->tp_conn_mgr);
     if (error)
         g_error_free (error);
-    g_free (filename);
 
     return FALSE;
 }
@@ -740,8 +556,6 @@ mcd_manager_init (McdManager *manager)
     priv = G_TYPE_INSTANCE_GET_PRIVATE (manager, MCD_TYPE_MANAGER,
 					McdManagerPrivate);
     manager->priv = priv;
-
-    priv->protocols = g_array_new (FALSE, FALSE, sizeof (McdProtocol));
 }
 
 /* Public methods */
@@ -827,20 +641,28 @@ mcd_manager_get_name (McdManager *manager)
  *
  * Returns: a #GArray of #McProtocolParam elements.
  */
-const GArray *
+const TpConnectionManagerParam *
 mcd_manager_get_parameters (McdManager *manager, const gchar *protocol)
 {
-    McdManagerPrivate *priv = manager->priv;
-    McdProtocol *proto;
+    McdManagerPrivate *priv;
+    const TpConnectionManagerProtocol * const *protocols;
     guint i;
 
-    for (i = 0; i < priv->protocols->len; i++)
+    g_return_val_if_fail (MCD_IS_MANAGER (manager), NULL);
+    g_return_val_if_fail (protocol != NULL, NULL);
+
+    priv = manager->priv;
+    if (G_UNLIKELY (!priv->tp_conn_mgr))
+        return NULL;
+
+    protocols = priv->tp_conn_mgr->protocols;
+    if (G_UNLIKELY (!protocols))
+        return NULL;
+
+    for (i = 0; protocols[i] != NULL; i++)
     {
-	proto = &g_array_index (priv->protocols, McdProtocol, i);
-	if (strcmp (proto->name, protocol) == 0)
-	{
-	    return proto->params;
-	}
+        if (strcmp (protocols[i]->name, protocol) == 0)
+            return protocols[i]->params;
     }
     return NULL;
 }
