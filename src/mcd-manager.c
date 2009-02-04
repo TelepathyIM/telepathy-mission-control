@@ -66,8 +66,8 @@ struct _McdManagerPrivate
     TpConnectionManager *tp_conn_mgr;
 
     GArray *protocols; /* array of McdProtocol structures */
-    gboolean is_disposed;
-    gboolean delay_presence_request;
+    guint is_disposed : 1;
+    guint delay_presence_request : 1;
 };
 
 enum
