@@ -1034,9 +1034,11 @@ properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 }
 
 static GType
-mc_param_type (McdProtocolParam *param)
+mc_param_type (const TpConnectionManagerParam *param)
 {
-    switch (param->signature[0])
+    if (G_UNLIKELY (!param->dbus_signature)) return G_TYPE_INVALID;
+
+    switch (param->dbus_signature[0])
     {
     case DBUS_TYPE_STRING:
 	return G_TYPE_STRING;
@@ -1049,7 +1051,8 @@ mc_param_type (McdProtocolParam *param)
     case DBUS_TYPE_BOOLEAN:
 	return G_TYPE_BOOLEAN;
     default:
-	g_warning ("%s: skipping parameter %s, unknown type %s", G_STRFUNC, param->name, param->signature);
+        g_warning ("%s: skipping parameter %s, unknown type %s", G_STRFUNC,
+                   param->name, param->dbus_signature);
     }
     return G_TYPE_INVALID;
 }
@@ -1083,23 +1086,16 @@ gboolean
 mcd_account_check_parameters (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
-    const GArray *parameters;
+    const TpConnectionManagerParam *param;
     gboolean valid;
-    guint i;
 
     g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
-    parameters = mcd_manager_get_parameters (priv->manager,
-					     priv->protocol_name);
-    if (!parameters) return FALSE;
+    param = mcd_manager_get_parameters (priv->manager, priv->protocol_name);
+    if (!param) return FALSE;
     valid = TRUE;
-    for (i = 0; i < parameters->len; i++)
+    while (param->name != NULL)
     {
-	McdProtocolParam *param;
-	GType type;
-
-	param = &g_array_index (parameters, McdProtocolParam, i);
-	type = mc_param_type (param);
-	if (param->flags & MCD_PROTOCOL_PARAM_REQUIRED)
+        if (param->flags & TP_CONN_MGR_PARAM_FLAG_REQUIRED)
 	{
 	    if (!mcd_account_get_parameter (account, param->name, NULL))
 	    {
@@ -1108,6 +1104,7 @@ mcd_account_check_parameters (McdAccount *account)
 		break;
 	    }
 	}
+        param++;
     }
 
     return valid;
@@ -1134,8 +1131,8 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
 			    GError **error)
 {
     McdAccountPrivate *priv = account->priv;
-    const GArray *parameters;
-    guint i, n_params = 0;
+    const TpConnectionManagerParam *param;
+    guint n_params = 0;
     GHashTableIter iter;
     const gchar *name;
     const GValue *value;
@@ -1143,14 +1140,13 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     g_debug ("%s called", G_STRFUNC);
     if (!priv->manager && !load_manager (account)) return FALSE;
 
-    parameters = mcd_manager_get_parameters (priv->manager,
-					     priv->protocol_name);
-    for (i = 0; i < parameters->len; i++)
+    param = mcd_manager_get_parameters (priv->manager, priv->protocol_name);
+    if (G_UNLIKELY (!param)) return FALSE;
+
+    while (param->name != NULL)
     {
-	McdProtocolParam *param;
 	GType type;
 
-	param = &g_array_index (parameters, McdProtocolParam, i);
 	type = mc_param_type (param);
 	value = g_hash_table_lookup (params, param->name);
 	if (value)
@@ -1167,6 +1163,7 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
 	    }
 	    n_params++;
 	}
+        param++;
     }
 
     if (n_params != g_hash_table_size (params))
@@ -1638,37 +1635,14 @@ mcd_account_get_object_path (McdAccount *account)
 }
 
 static inline void
-add_parameter (McdAccount *account, McdProtocolParam *param,
+add_parameter (McdAccount *account, const TpConnectionManagerParam *param,
 	       GHashTable *params)
 {
     GValue *value;
     GType type;
 
-    g_return_if_fail (param != NULL);
-    g_return_if_fail (param->name != NULL);
-    g_return_if_fail (param->signature != NULL);
-
-    switch (param->signature[0])
-    {
-    case DBUS_TYPE_STRING:
-        type = G_TYPE_STRING;
-	break;
-    case DBUS_TYPE_INT16:
-    case DBUS_TYPE_INT32:
-        type = G_TYPE_INT;
-        break;
-    case DBUS_TYPE_UINT16:
-    case DBUS_TYPE_UINT32:
-        type = G_TYPE_UINT;
-	break;
-    case DBUS_TYPE_BOOLEAN:
-        type = G_TYPE_BOOLEAN;
-	break;
-    default:
-        g_warning ("%s: skipping parameter %s, unknown type %s", G_STRFUNC,
-                   param->name, param->signature);
-	return;
-    }
+    type = mc_param_type (param);
+    if (G_UNLIKELY (type == G_TYPE_INVALID)) return;
 
     value = tp_g_value_slice_new (type);
 
@@ -1688,9 +1662,8 @@ GHashTable *
 mcd_account_get_parameters (McdAccount *account)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
+    const TpConnectionManagerParam *param;
     GHashTable *params;
-    const GArray *parameters;
-    guint i;
 
     g_debug ("%s called", G_STRFUNC);
     if (!priv->manager && !load_manager (account)) return NULL;
@@ -1698,15 +1671,13 @@ mcd_account_get_parameters (McdAccount *account)
     params = g_hash_table_new_full (g_str_hash, g_str_equal,
 				    g_free,
                                     (GDestroyNotify)tp_g_value_slice_free);
-    parameters = mcd_manager_get_parameters (priv->manager,
-					     priv->protocol_name);
-    if (!parameters) return params;
-    for (i = 0; i < parameters->len; i++)
-    {
-	McdProtocolParam *param;
+    param = mcd_manager_get_parameters (priv->manager, priv->protocol_name);
+    if (G_UNLIKELY (!param)) return params;
 
-	param = &g_array_index (parameters, McdProtocolParam, i);
+    while (param->name != NULL)
+    {
 	add_parameter (account, param, params);
+        param++;
     }
     return params;
 }
