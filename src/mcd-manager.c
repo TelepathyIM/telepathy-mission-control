@@ -37,6 +37,7 @@
 #define _POSIX_C_SOURCE 200112L  /* for strtok_r() */
 #include "config.h"
 #include "mcd-manager.h"
+#include "mcd-misc.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -68,6 +69,7 @@ struct _McdManagerPrivate
     GArray *protocols; /* array of McdProtocol structures */
     guint is_disposed : 1;
     guint delay_presence_request : 1;
+    guint got_info : 1;
 };
 
 enum
@@ -78,6 +80,26 @@ enum
     PROP_DISPATCHER,
     PROP_DBUS_DAEMON,
 };
+
+static GQuark pending_got_info = 0;
+
+static void
+on_got_info (TpConnectionManager *tp_conn_mgr, guint source,
+             McdManager *manager)
+{
+    McdManagerPrivate *priv;
+
+    priv = manager->priv;
+    if (priv->got_info) return;
+
+    if (source == TP_CM_INFO_SOURCE_NONE &&
+        tp_connection_manager_activate (tp_conn_mgr))
+            return; /* let's wait for live introspection */
+
+    g_debug ("manager %s is ready", priv->name);
+    priv->got_info = TRUE;
+    mcd_object_ready (manager, pending_got_info, NULL);
+}
 
 static const gchar**
 _mc_manager_get_dirs (void)
@@ -364,6 +386,7 @@ static void
 _mcd_manager_dispose (GObject * object)
 {
     McdManagerPrivate *priv;
+
     priv = MCD_MANAGER_PRIV (object);
 
     if (priv->is_disposed)
@@ -383,6 +406,8 @@ _mcd_manager_dispose (GObject * object)
     
     if (priv->tp_conn_mgr)
     {
+        g_signal_handlers_disconnect_by_func (priv->tp_conn_mgr,
+                                              on_got_info, object);
 	g_object_unref (priv->tp_conn_mgr);
 	priv->tp_conn_mgr = NULL;
     }
@@ -527,6 +552,9 @@ mcd_manager_setup (McdManager *manager)
                    priv->name, error->message);
         goto error;
     }
+
+    g_signal_connect (priv->tp_conn_mgr, "got-info", G_CALLBACK (on_got_info),
+                      manager);
 
     keyfile = g_key_file_new ();
 
@@ -700,6 +728,8 @@ mcd_manager_class_init (McdManagerClass * klass)
          g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
                               TP_TYPE_DBUS_DAEMON,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
+
+    pending_got_info = g_quark_from_static_string ("mcd_manager_got_info");
 }
 
 static void
@@ -857,5 +887,29 @@ mcd_manager_get_dispatcher (McdManager *manager)
 {
     g_return_val_if_fail (MCD_IS_MANAGER (manager), NULL);
     return manager->priv->dispatcher;
+}
+
+/**
+ * mcd_manager_call_when_ready:
+ * @manager: the #McdManager.
+ * @callbacks: the #McdManagerReadyCb to invoke.
+ * @user_data: user data to be passed to the callback.
+ *
+ * Invoke @callback when @manager is ready, i.e. when its introspection has
+ * completed and all the manager protocols and parameter descriptions are
+ * available.
+ */
+void
+mcd_manager_call_when_ready (McdManager *manager, McdManagerReadyCb callback,
+                             gpointer user_data)
+{
+    g_return_if_fail (MCD_IS_MANAGER (manager));
+    g_return_if_fail (callback != NULL);
+
+    if (manager->priv->got_info)
+        callback (manager, NULL, user_data);
+    else
+        mcd_object_call_when_ready (manager, pending_got_info,
+                                    (McdReadyCb)callback, user_data);
 }
 

@@ -109,5 +109,11 @@ McdConnection *mcd_manager_get_connection (McdManager *manager,
 TpConnectionManager *mcd_manager_get_tp_proxy (McdManager *manager);
 McdDispatcher *mcd_manager_get_dispatcher (McdManager *manager);
 
+typedef void (*McdManagerReadyCb) (McdManager *manager, const GError *error,
+                                   gpointer user_data);
+void mcd_manager_call_when_ready (McdManager *manager,
+                                  McdManagerReadyCb callback,
+                                  gpointer user_data);
+
 G_END_DECLS
 #endif /* MCD_MANAGER_H */
