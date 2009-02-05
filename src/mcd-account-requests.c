@@ -150,7 +150,6 @@ create_request (McdAccount *account, GHashTable *properties,
     McdChannel *channel;
     GError *error = NULL;
     GHashTable *props;
-    McdDispatcher *dispatcher;
 
     /* We MUST deep-copy the hash-table, as we don't know how dbus-glib will
      * free it */
@@ -164,9 +163,6 @@ create_request (McdAccount *account, GHashTable *properties,
      * RemoveFailedRequest) are emitted before the Failed signal */
     g_signal_connect_after (channel, "status-changed",
                             G_CALLBACK (on_channel_status_changed), account);
-
-    dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
-    _mcd_dispatcher_add_request (dispatcher, account, channel);
 
     _mcd_account_online_request (account, online_request_cb, channel, &error);
     if (error)
@@ -200,6 +196,7 @@ account_request_create (McSvcAccountInterfaceChannelRequests *self,
     GError *error = NULL;
     const gchar *request_id;
     McdChannel *channel;
+    McdDispatcher *dispatcher;
 
     channel = create_request (MCD_ACCOUNT (self), properties, user_time,
                               preferred_handler, FALSE);
@@ -213,6 +210,9 @@ account_request_create (McSvcAccountInterfaceChannelRequests *self,
     g_debug ("%s: returning %s", G_STRFUNC, request_id);
     mc_svc_account_interface_channelrequests_return_from_create (context,
                                                                  request_id);
+
+    dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
+    _mcd_dispatcher_add_request (dispatcher, MCD_ACCOUNT (self), channel);
 }
 
 static void
@@ -224,6 +224,7 @@ account_request_ensure_channel (McSvcAccountInterfaceChannelRequests *self,
     GError *error = NULL;
     const gchar *request_id;
     McdChannel *channel;
+    McdDispatcher *dispatcher;
 
     channel = create_request (MCD_ACCOUNT (self), properties, user_time,
                               preferred_handler, TRUE);
@@ -238,6 +239,9 @@ account_request_ensure_channel (McSvcAccountInterfaceChannelRequests *self,
     g_debug ("%s: returning %s", G_STRFUNC, request_id);
     mc_svc_account_interface_channelrequests_return_from_ensure_channel
         (context, request_id);
+
+    dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
+    _mcd_dispatcher_add_request (dispatcher, MCD_ACCOUNT (self), channel);
 }
 
 static void
