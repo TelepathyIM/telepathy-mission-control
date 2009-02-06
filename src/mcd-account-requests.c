@@ -30,6 +30,7 @@
 #include <config.h>
 
 #include <dbus/dbus-glib-lowlevel.h>
+#include <libmcclient/mc-errors.h>
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/util.h>
@@ -151,6 +152,13 @@ create_request (McdAccount *account, GHashTable *properties,
     GHashTable *props;
 
     g_return_val_if_fail (error != NULL, NULL);
+
+    if (mcd_mission_get_flags (MCD_MISSION (mcd_master_get_default ())) &
+        MCD_SYSTEM_MEMORY_CONSERVED)
+    {
+        g_set_error (error, MC_ERROR, MC_LOWMEM_ERROR, "Insufficient memory");
+        return NULL;
+    }
 
     /* We MUST deep-copy the hash-table, as we don't know how dbus-glib will
      * free it */
