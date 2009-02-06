@@ -251,11 +251,7 @@ mcd_object_ready (gpointer object, GQuark quark, const GError *error)
     McdReadyData *rd;
 
     rd = g_object_get_qdata ((GObject *)object, quark);
-    if (G_UNLIKELY (!rd))
-    {
-        g_warning ("%s: callback data is missing", G_STRFUNC);
-        return;
-    }
+    if (!rd) return;
 
     mcd_object_invoke_ready_callbacks (rd, error);
     rd->object = NULL; /* so the callbacks won't be invoked again */
