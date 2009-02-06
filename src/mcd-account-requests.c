@@ -145,11 +145,12 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
 static McdChannel *
 create_request (McdAccount *account, GHashTable *properties,
                 guint64 user_time, const gchar *preferred_handler,
-                gboolean use_existing)
+                gboolean use_existing, GError **error)
 {
     McdChannel *channel;
-    GError *error = NULL;
     GHashTable *props;
+
+    g_return_val_if_fail (error != NULL, NULL);
 
     /* We MUST deep-copy the hash-table, as we don't know how dbus-glib will
      * free it */
@@ -164,14 +165,15 @@ create_request (McdAccount *account, GHashTable *properties,
     g_signal_connect_after (channel, "status-changed",
                             G_CALLBACK (on_channel_status_changed), account);
 
-    _mcd_account_online_request (account, online_request_cb, channel, &error);
-    if (error)
+    _mcd_account_online_request (account, online_request_cb, channel, error);
+    if (*error)
     {
         g_warning ("%s: _mcd_account_online_request: %s", G_STRFUNC,
-                   error->message);
-        _mcd_channel_set_error (channel, error);
+                   (*error)->message);
+        _mcd_channel_set_error (channel, g_error_copy (*error));
         /* no unref here, as this will invoke our handler which will
          * unreference the channel */
+        channel = NULL;
     }
     else
     {
@@ -198,7 +200,7 @@ account_request_common (McdAccount *account, GHashTable *properties,
     McdDispatcher *dispatcher;
 
     channel = create_request (account, properties, user_time,
-                              preferred_handler, use_existing);
+                              preferred_handler, use_existing, &error);
     if (error)
     {
         dbus_g_method_return_error (context, error);
