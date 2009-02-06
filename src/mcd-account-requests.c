@@ -188,18 +188,17 @@ const McdDBusProp account_channelrequests_properties[] = {
 };
 
 static void
-account_request_create (McSvcAccountInterfaceChannelRequests *self,
-                        GHashTable *properties, guint64 user_time,
-                        const gchar *preferred_handler,
-                        DBusGMethodInvocation *context)
+account_request_common (McdAccount *account, GHashTable *properties,
+                        guint64 user_time, const gchar *preferred_handler,
+                        DBusGMethodInvocation *context, gboolean use_existing)
 {
     GError *error = NULL;
     const gchar *request_id;
     McdChannel *channel;
     McdDispatcher *dispatcher;
 
-    channel = create_request (MCD_ACCOUNT (self), properties, user_time,
-                              preferred_handler, FALSE);
+    channel = create_request (account, properties, user_time,
+                              preferred_handler, use_existing);
     if (error)
     {
         dbus_g_method_return_error (context, error);
@@ -208,11 +207,25 @@ account_request_create (McSvcAccountInterfaceChannelRequests *self,
     }
     request_id = _mcd_channel_get_request_path (channel);
     g_debug ("%s: returning %s", G_STRFUNC, request_id);
-    mc_svc_account_interface_channelrequests_return_from_create (context,
-                                                                 request_id);
+    if (use_existing)
+        mc_svc_account_interface_channelrequests_return_from_ensure_channel
+            (context, request_id);
+    else
+        mc_svc_account_interface_channelrequests_return_from_create
+            (context, request_id);
 
     dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
-    _mcd_dispatcher_add_request (dispatcher, MCD_ACCOUNT (self), channel);
+    _mcd_dispatcher_add_request (dispatcher, account, channel);
+}
+
+static void
+account_request_create (McSvcAccountInterfaceChannelRequests *self,
+                        GHashTable *properties, guint64 user_time,
+                        const gchar *preferred_handler,
+                        DBusGMethodInvocation *context)
+{
+    account_request_common (MCD_ACCOUNT (self), properties, user_time,
+                            preferred_handler, context, FALSE);
 }
 
 static void
@@ -221,27 +234,8 @@ account_request_ensure_channel (McSvcAccountInterfaceChannelRequests *self,
                                 const gchar *preferred_handler,
                                 DBusGMethodInvocation *context)
 {
-    GError *error = NULL;
-    const gchar *request_id;
-    McdChannel *channel;
-    McdDispatcher *dispatcher;
-
-    channel = create_request (MCD_ACCOUNT (self), properties, user_time,
-                              preferred_handler, TRUE);
-
-    if (error)
-    {
-        dbus_g_method_return_error (context, error);
-        g_error_free (error);
-        return;
-    }
-    request_id = _mcd_channel_get_request_path (channel);
-    g_debug ("%s: returning %s", G_STRFUNC, request_id);
-    mc_svc_account_interface_channelrequests_return_from_ensure_channel
-        (context, request_id);
-
-    dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
-    _mcd_dispatcher_add_request (dispatcher, MCD_ACCOUNT (self), channel);
+    account_request_common (MCD_ACCOUNT (self), properties, user_time,
+                            preferred_handler, context, TRUE);
 }
 
 static void
