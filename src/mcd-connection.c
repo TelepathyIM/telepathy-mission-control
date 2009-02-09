@@ -2546,3 +2546,36 @@ mcd_connection_set_reconnect (McdConnection *connection, gboolean reconnect)
     connection->priv->auto_reconnect = reconnect;
 }
 
+/**
+ * _mcd_connection_update_property:
+ * @connection: the #McdConnection.
+ * @name: the qualified name of the property to be updated.
+ * @value: the new value of the property.
+ *
+ * Sets the property @name to @value.
+ */
+void
+_mcd_connection_update_property (McdConnection *connection, const gchar *name,
+                                 const GValue *value)
+{
+    McdConnectionPrivate *priv;
+    const gchar *dot, *member;
+    gchar *interface;
+
+    g_return_if_fail (MCD_IS_CONNECTION (connection));
+    g_return_if_fail (name != NULL);
+    priv = connection->priv;
+
+    if (G_UNLIKELY (!priv->tp_conn)) return;
+
+    dot = strrchr (name, '.');
+    if (G_UNLIKELY (!dot)) return;
+
+    interface = g_strndup (name, dot - name);
+    member = dot + 1;
+    tp_cli_dbus_properties_call_set (priv->tp_conn, -1,
+                                     interface, member, value,
+                                     NULL, NULL, NULL, NULL);
+    g_free (interface);
+}
+
