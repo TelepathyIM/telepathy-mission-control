@@ -30,6 +30,7 @@
 #include <config.h>
 
 #include <dbus/dbus-glib-lowlevel.h>
+#include <libmcclient/mc-errors.h>
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/util.h>
@@ -145,11 +146,19 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
 static McdChannel *
 create_request (McdAccount *account, GHashTable *properties,
                 guint64 user_time, const gchar *preferred_handler,
-                gboolean use_existing)
+                gboolean use_existing, GError **error)
 {
     McdChannel *channel;
-    GError *error = NULL;
     GHashTable *props;
+
+    g_return_val_if_fail (error != NULL, NULL);
+
+    if (mcd_mission_get_flags (MCD_MISSION (mcd_master_get_default ())) &
+        MCD_SYSTEM_MEMORY_CONSERVED)
+    {
+        g_set_error (error, MC_ERROR, MC_LOWMEM_ERROR, "Insufficient memory");
+        return NULL;
+    }
 
     /* We MUST deep-copy the hash-table, as we don't know how dbus-glib will
      * free it */
@@ -164,14 +173,15 @@ create_request (McdAccount *account, GHashTable *properties,
     g_signal_connect_after (channel, "status-changed",
                             G_CALLBACK (on_channel_status_changed), account);
 
-    _mcd_account_online_request (account, online_request_cb, channel, &error);
-    if (error)
+    _mcd_account_online_request (account, online_request_cb, channel, error);
+    if (*error)
     {
         g_warning ("%s: _mcd_account_online_request: %s", G_STRFUNC,
-                   error->message);
-        _mcd_channel_set_error (channel, error);
+                   (*error)->message);
+        _mcd_channel_set_error (channel, g_error_copy (*error));
         /* no unref here, as this will invoke our handler which will
          * unreference the channel */
+        channel = NULL;
     }
     else
     {
@@ -188,18 +198,17 @@ const McdDBusProp account_channelrequests_properties[] = {
 };
 
 static void
-account_request_create (McSvcAccountInterfaceChannelRequests *self,
-                        GHashTable *properties, guint64 user_time,
-                        const gchar *preferred_handler,
-                        DBusGMethodInvocation *context)
+account_request_common (McdAccount *account, GHashTable *properties,
+                        guint64 user_time, const gchar *preferred_handler,
+                        DBusGMethodInvocation *context, gboolean use_existing)
 {
     GError *error = NULL;
     const gchar *request_id;
     McdChannel *channel;
     McdDispatcher *dispatcher;
 
-    channel = create_request (MCD_ACCOUNT (self), properties, user_time,
-                              preferred_handler, FALSE);
+    channel = create_request (account, properties, user_time,
+                              preferred_handler, use_existing, &error);
     if (error)
     {
         dbus_g_method_return_error (context, error);
@@ -208,11 +217,25 @@ account_request_create (McSvcAccountInterfaceChannelRequests *self,
     }
     request_id = _mcd_channel_get_request_path (channel);
     g_debug ("%s: returning %s", G_STRFUNC, request_id);
-    mc_svc_account_interface_channelrequests_return_from_create (context,
-                                                                 request_id);
+    if (use_existing)
+        mc_svc_account_interface_channelrequests_return_from_ensure_channel
+            (context, request_id);
+    else
+        mc_svc_account_interface_channelrequests_return_from_create
+            (context, request_id);
 
     dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
-    _mcd_dispatcher_add_request (dispatcher, MCD_ACCOUNT (self), channel);
+    _mcd_dispatcher_add_request (dispatcher, account, channel);
+}
+
+static void
+account_request_create (McSvcAccountInterfaceChannelRequests *self,
+                        GHashTable *properties, guint64 user_time,
+                        const gchar *preferred_handler,
+                        DBusGMethodInvocation *context)
+{
+    account_request_common (MCD_ACCOUNT (self), properties, user_time,
+                            preferred_handler, context, FALSE);
 }
 
 static void
@@ -221,27 +244,8 @@ account_request_ensure_channel (McSvcAccountInterfaceChannelRequests *self,
                                 const gchar *preferred_handler,
                                 DBusGMethodInvocation *context)
 {
-    GError *error = NULL;
-    const gchar *request_id;
-    McdChannel *channel;
-    McdDispatcher *dispatcher;
-
-    channel = create_request (MCD_ACCOUNT (self), properties, user_time,
-                              preferred_handler, TRUE);
-
-    if (error)
-    {
-        dbus_g_method_return_error (context, error);
-        g_error_free (error);
-        return;
-    }
-    request_id = _mcd_channel_get_request_path (channel);
-    g_debug ("%s: returning %s", G_STRFUNC, request_id);
-    mc_svc_account_interface_channelrequests_return_from_ensure_channel
-        (context, request_id);
-
-    dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
-    _mcd_dispatcher_add_request (dispatcher, MCD_ACCOUNT (self), channel);
+    account_request_common (MCD_ACCOUNT (self), properties, user_time,
+                            preferred_handler, context, TRUE);
 }
 
 static void
