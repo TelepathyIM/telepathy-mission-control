@@ -128,6 +128,9 @@ GHashTable * mcd_master_get_connection_parameters (McdMaster *master);
 void mcd_master_get_nth_account_connection (McdMaster *master, gint i,
 					    McdAccountConnectionFunc *func,
 					    gpointer *userdata);
+G_GNUC_INTERNAL
+gboolean _mcd_master_account_conditions_satisfied (McdMaster *master,
+                                                   McdAccount *account);
 
 G_END_DECLS
 #endif /* MCD_MASTER_H */

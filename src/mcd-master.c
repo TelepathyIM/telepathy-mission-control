@@ -128,9 +128,6 @@ typedef struct {
 
 static McdMaster *default_master = NULL;
 
-static gboolean account_conditions_satisfied (McdMasterPrivate *priv,
-                                              McdAccount *account);
-
 
 static inline void
 set_account_transport (McdAccount *account, McdTransport *transport)
@@ -201,7 +198,6 @@ disconnect_account_transport (gpointer key, gpointer value, gpointer userdata)
     if (td->transport == get_account_transport (account))
     {
         McdConnection *connection;
-        McdMasterPrivate *priv;
 
 	g_debug ("%s: account %s must disconnect",
 		 G_STRFUNC, mcd_account_get_unique_name (account));
@@ -212,8 +208,7 @@ disconnect_account_transport (gpointer key, gpointer value, gpointer userdata)
 
         /* it may be that there is another transport to which the account can
          * reconnect */
-        priv = MCD_MASTER_PRIV (td->master);
-        if (account_conditions_satisfied (priv, account))
+        if (_mcd_master_account_conditions_satisfied (td->master, account))
         {
             g_debug ("conditions matched");
             _mcd_account_request_connection (account);
@@ -240,46 +235,6 @@ mcd_master_transport_disconnected (McdMaster *master, McdTransportPlugin *plugin
     g_hash_table_foreach (valid_accounts, disconnect_account_transport, &td);
 }
 
-static gboolean
-account_conditions_satisfied (McdMasterPrivate *priv, McdAccount *account)
-{
-    GHashTable *conditions;
-    gboolean ret = FALSE;
-
-    conditions = mcd_account_get_conditions (account);
-    if (g_hash_table_size (conditions) == 0)
-        ret = TRUE;
-    else
-    {
-        guint i;
-        for (i = 0; i < priv->transport_plugins->len; i++)
-        {
-            McdTransportPlugin *plugin;
-            const GList *transports;
-
-            plugin = g_ptr_array_index (priv->transport_plugins, i);
-            transports = mcd_transport_plugin_get_transports (plugin);
-            while (transports)
-            {
-                McdTransport *transport = transports->data;
-                if (mcd_transport_get_status (plugin, transport) ==
-                    MCD_TRANSPORT_STATUS_CONNECTED &&
-                    mcd_transport_plugin_check_conditions (plugin, transport,
-                                                           conditions))
-                {
-                    set_account_transport (account, transport);
-                    ret = TRUE;
-                    goto finish;
-                }
-                transports = transports->next;
-            }
-        }
-    }
-finish:
-    g_hash_table_unref (conditions);
-    return ret;
-}
-
 static void
 mcd_master_connect_automatic_accounts (McdMaster *master)
 {
@@ -301,7 +256,7 @@ mcd_master_connect_automatic_accounts (McdMaster *master)
             TP_CONNECTION_STATUS_DISCONNECTED)
         {
             /* if the account conditions are satisfied, connect */
-            if (account_conditions_satisfied (priv, account))
+            if (_mcd_master_account_conditions_satisfied (master, account))
             {
                 g_debug ("conditions matched");
                 _mcd_account_request_connection (account);
@@ -1337,5 +1292,49 @@ mcd_master_get_nth_account_connection (McdMaster *master, gint i,
     }
     else
 	*func = NULL;
+}
+
+gboolean
+_mcd_master_account_conditions_satisfied (McdMaster *master,
+                                          McdAccount *account)
+{
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    GHashTable *conditions;
+    gboolean ret = FALSE;
+
+    g_return_val_if_fail (MCD_IS_ACCOUNT (account), FALSE);
+
+    conditions = mcd_account_get_conditions (account);
+    if (g_hash_table_size (conditions) == 0)
+        ret = TRUE;
+    else
+    {
+        guint i;
+        for (i = 0; i < priv->transport_plugins->len; i++)
+        {
+            McdTransportPlugin *plugin;
+            const GList *transports;
+
+            plugin = g_ptr_array_index (priv->transport_plugins, i);
+            transports = mcd_transport_plugin_get_transports (plugin);
+            while (transports)
+            {
+                McdTransport *transport = transports->data;
+                if (mcd_transport_get_status (plugin, transport) ==
+                    MCD_TRANSPORT_STATUS_CONNECTED &&
+                    mcd_transport_plugin_check_conditions (plugin, transport,
+                                                           conditions))
+                {
+                    set_account_transport (account, transport);
+                    ret = TRUE;
+                    goto finish;
+                }
+                transports = transports->next;
+            }
+        }
+    }
+finish:
+    g_hash_table_unref (conditions);
+    return ret;
 }
 
