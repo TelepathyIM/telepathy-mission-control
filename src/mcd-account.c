@@ -152,6 +152,32 @@ enum
 guint _mcd_account_signals[LAST_SIGNAL] = { 0 };
 static GQuark account_ready_quark = 0;
 
+static gboolean
+value_is_same (const GValue *val1, const GValue *val2)
+{
+    g_return_val_if_fail (val1 != NULL && val2 != NULL, FALSE);
+    switch (G_VALUE_TYPE (val1))
+    {
+    case G_TYPE_STRING:
+        return g_strcmp0 (g_value_get_string (val1),
+                          g_value_get_string (val2)) == 0;
+    case G_TYPE_CHAR:
+    case G_TYPE_UCHAR:
+    case G_TYPE_INT:
+    case G_TYPE_UINT:
+    case G_TYPE_BOOLEAN:
+        return val1->data[0].v_uint == val2->data[0].v_uint;
+    case G_TYPE_INT64:
+        return g_value_get_int64 (val1) == g_value_get_int64 (val2);
+    case G_TYPE_UINT64:
+        return g_value_get_uint64 (val1) == g_value_get_uint64 (val2);
+    default:
+        g_warning ("%s: unexpected type %s",
+                   G_STRFUNC, G_VALUE_TYPE_NAME (val1));
+        return FALSE;
+    }
+}
+
 static void
 mcd_account_loaded (McdAccount *account)
 {
@@ -1136,6 +1162,8 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     GHashTableIter iter;
     const gchar *name;
     const GValue *value;
+    GSList *dbus_properties = NULL;
+    gboolean reset_connection;
 
     g_debug ("%s called", G_STRFUNC);
     if (!priv->manager && !load_manager (account)) return FALSE;
@@ -1143,6 +1171,7 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     param = mcd_manager_get_parameters (priv->manager, priv->protocol_name);
     if (G_UNLIKELY (!param)) return FALSE;
 
+    reset_connection = FALSE;
     while (param->name != NULL)
     {
 	GType type;
@@ -1161,6 +1190,29 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
 			     g_type_name (type), G_VALUE_TYPE_NAME (value));
 		return FALSE;
 	    }
+
+            if (mcd_account_get_connection_status (account) ==
+                TP_CONNECTION_STATUS_CONNECTED)
+            {
+                GValue old = { 0 };
+
+                g_value_init (&old, type);
+                if (!mcd_account_get_parameter (account, param->name, &old) ||
+                    !value_is_same (value, &old))
+                {
+                    g_debug ("Parameter %s changed", param->name);
+                    /* can the param be updated on the fly? If yes, prepare to
+                     * do so; and if not, prepare to reset the connection */
+                    if (param->flags & TP_CONN_MGR_PARAM_FLAG_DBUS_PROPERTY)
+                    {
+                        dbus_properties = g_slist_prepend (dbus_properties,
+                                                           param->name);
+                    }
+                    else
+                        reset_connection = TRUE;
+                }
+                g_value_unset (&old);
+            }
 	    n_params++;
 	}
         param++;
@@ -1178,6 +1230,31 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     {
         mcd_account_set_parameter (account, name, value);
     }
+
+    if (mcd_account_get_connection_status (account) ==
+        TP_CONNECTION_STATUS_CONNECTED)
+    {
+        if (reset_connection)
+        {
+            g_debug ("resetting connection");
+            mcd_connection_close (priv->connection);
+            mcd_account_connection_begin (account);
+        }
+        else
+        {
+            GSList *list;
+
+            for (list = dbus_properties; list != NULL; list = list->next)
+            {
+                name = list->data;
+                g_debug ("updating parameter %s", name);
+                value = g_hash_table_lookup (params, name);
+                _mcd_connection_update_property (priv->connection, name, value);
+            }
+        }
+    }
+    g_slist_free (dbus_properties);
+
     return TRUE;
 }
 
