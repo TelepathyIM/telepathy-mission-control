@@ -152,6 +152,33 @@ enum
 guint _mcd_account_signals[LAST_SIGNAL] = { 0 };
 static GQuark account_ready_quark = 0;
 
+/*
+ * _mcd_account_maybe_autoconnect:
+ * @account: the #McdAccount.
+ *
+ * Check whether automatic connection should happen (and attempt it if needed).
+ */
+static void
+_mcd_account_maybe_autoconnect (McdAccount *account)
+{
+    McdAccountPrivate *priv;
+
+    g_return_if_fail (MCD_IS_ACCOUNT (account));
+    priv = account->priv;
+
+    if (priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED &&
+        priv->connect_automatically)
+    {
+        McdMaster *master = mcd_master_get_default ();
+        if (_mcd_master_account_conditions_satisfied (master, account))
+        {
+            g_debug ("%s: connecting account %s", G_STRFUNC,
+                     priv->unique_name);
+            _mcd_account_request_connection (account);
+        }
+    }
+}
+
 static gboolean
 value_is_same (const GValue *val1, const GValue *val2)
 {
@@ -186,6 +213,7 @@ mcd_account_loaded (McdAccount *account)
 
     /* invoke all the callbacks */
     mcd_object_ready (account, account_ready_quark, NULL);
+    _mcd_account_maybe_autoconnect (account);
 }
 
 static void
@@ -1255,6 +1283,7 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     }
     g_slist_free (dbus_properties);
 
+    _mcd_account_maybe_autoconnect (account);
     return TRUE;
 }
 
