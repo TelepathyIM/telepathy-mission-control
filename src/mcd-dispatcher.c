@@ -778,6 +778,8 @@ _mcd_dispatcher_handle_channel_async_cb (DBusGProxy * proxy, GError * error,
 			      G_CALLBACK(disconnect_proxy_destry_cb),
 			      unique_name_proxy);
 	}
+        else
+            g_error_free (unique_proxy_error);
     }
 
     mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_DISPATCHED);
