@@ -1754,6 +1754,8 @@ add_parameter (McdAccount *account, const TpConnectionManagerParam *param,
 
     if (mcd_account_get_parameter (account, param->name, value))
         g_hash_table_insert (params, g_strdup (param->name), value);
+    else
+        tp_g_value_slice_free (value);
 }
 
 /**
