@@ -2931,8 +2931,6 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
 
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
     g_return_if_fail (MCD_IS_CHANNEL (channel));
-    g_return_if_fail (mcd_channel_get_status (channel) ==
-                      MCD_CHANNEL_STATUS_REQUEST);
 
     priv = dispatcher->priv;
 
