@@ -1914,7 +1914,7 @@ parse_client_filter (GKeyFile *file, const gchar *group)
                 GValue *value = tp_g_value_slice_new (G_TYPE_STRING);
                 gchar *str = g_key_file_get_string (file, group, key, NULL);
 
-                g_value_set_string (value, str);
+                g_value_take_string (value, str);
                 g_hash_table_insert (filter, file_property, value);
                 break;
             }
@@ -1925,7 +1925,7 @@ parse_client_filter (GKeyFile *file, const gchar *group)
                     (DBUS_TYPE_G_OBJECT_PATH);
                 gchar *str = g_key_file_get_string (file, group, key, NULL);
 
-                g_value_set_boxed (value, str);
+                g_value_take_boxed (value, str);
                 g_hash_table_insert (filter, file_property, value);
                 break;
             }
