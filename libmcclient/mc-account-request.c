@@ -92,15 +92,19 @@ mc_request_free (McChannelRequest *req)
 static void
 emit_request_event (McChannelRequest *req, McAccountChannelrequestEvent event)
 {
+    guint id;
+
+    id = REQUEST_ID (req);
+
     if (req->callback)
-        req->callback (req->account, REQUEST_ID (req), event,
+        req->callback (req->account, id, event,
                        req->user_data, req->weak_object);
 
     if (event == MC_ACCOUNT_CR_SUCCEEDED ||
         event == MC_ACCOUNT_CR_FAILED ||
         event == MC_ACCOUNT_CR_CANCELLED)
     {
-        g_hash_table_remove (requests, GUINT_TO_POINTER (REQUEST_ID (req)));
+        g_hash_table_remove (requests, GUINT_TO_POINTER (id));
     }
 }
 
