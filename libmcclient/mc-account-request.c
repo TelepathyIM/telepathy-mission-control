@@ -65,6 +65,7 @@ on_weak_object_destroy (guint id, GObject *weak_object)
 {
     McChannelRequest *req;
 
+    g_debug ("%s called (%u, %p)", G_STRFUNC, id, weak_object);
     req = REQUEST_FROM_ID (id);
     if (G_UNLIKELY (!req)) return;
 
