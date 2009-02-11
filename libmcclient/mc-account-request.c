@@ -68,7 +68,7 @@ on_weak_object_destroy (guint id, GObject *weak_object)
     req = REQUEST_FROM_ID (id);
     if (G_UNLIKELY (!req)) return;
 
-    g_return_if_fail (req->weak_object != weak_object);
+    g_return_if_fail (req->weak_object == weak_object);
     req->weak_object = NULL;
     g_hash_table_remove (requests, GUINT_TO_POINTER (id));
 }
