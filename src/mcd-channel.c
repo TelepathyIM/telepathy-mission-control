@@ -382,7 +382,7 @@ mcd_channel_abort (McdMission *mission)
          * we use the DISCONNECTED error code */
         GError *error = g_error_new (TP_ERRORS, TP_ERROR_DISCONNECTED,
                                      "Channel aborted");
-        _mcd_channel_set_error (channel, error);
+        mcd_channel_take_error (channel, error);
     }
     /* Don't release the TpChannel, because we might still be asked to retrieve
      * its properties or object path; instead, just close the channel */
@@ -925,17 +925,17 @@ _mcd_channel_get_target_id (McdChannel *channel)
     return tp_asv_get_string (crd->properties, TP_IFACE_CHANNEL ".TargetID");
 }
 
-/*
- * _mcd_channel_set_error:
+/**
+ * mcd_channel_take_error:
  * @channel: the #McdChannel.
  * @error: a #GError.
  *
- * Sets @error on channel, and takes ownership of it. As a side effect, if
- * @error is not %NULL this method causes the channel status be set to
- * %MCD_CHANNEL_STATUS_FAILED.
+ * Sets @error on channel, and takes ownership of it (the error will eventually
+ * be freed with g_error_free()). As a side effect, if @error is not %NULL this
+ * method causes the channel status be set to %MCD_CHANNEL_STATUS_FAILED.
  */
 void
-_mcd_channel_set_error (McdChannel *channel, GError *error)
+mcd_channel_take_error (McdChannel *channel, GError *error)
 {
     g_return_if_fail (MCD_IS_CHANNEL (channel));
     g_object_set_data_full ((GObject *)channel, CD_ERROR,
@@ -944,14 +944,14 @@ _mcd_channel_set_error (McdChannel *channel, GError *error)
         mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_FAILED);
 }
 
-/*
- * _mcd_channel_get_error:
+/**
+ * mcd_channel_get_error:
  * @channel: the #McdChannel.
  *
  * Returns: the #GError, or %NULL if no error is set.
  */
 const GError *
-_mcd_channel_get_error (McdChannel *channel)
+mcd_channel_get_error (McdChannel *channel)
 {
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
     return g_object_get_data ((GObject *)channel, CD_ERROR);
@@ -1167,9 +1167,9 @@ copy_status (McdChannel *source, McdChannel *dest)
         {
             const GError *error;
 
-            error = _mcd_channel_get_error (source);
+            error = mcd_channel_get_error (source);
             /* this also takes care of setting the status */
-            _mcd_channel_set_error (dest, g_error_copy (error));
+            mcd_channel_take_error (dest, g_error_copy (error));
         }
         else
             mcd_channel_set_status (dest, src_priv->status);

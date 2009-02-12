@@ -50,7 +50,7 @@ online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
     if (error)
     {
         g_warning ("%s: got error: %s", G_STRFUNC, error->message);
-        _mcd_channel_set_error (channel, g_error_copy (error));
+        mcd_channel_take_error (channel, g_error_copy (error));
         g_object_unref (channel);
         return;
     }
@@ -123,7 +123,7 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
     if (status == MCD_CHANNEL_STATUS_FAILED)
     {
         const gchar *err_string;
-        error = _mcd_channel_get_error (channel);
+        error = mcd_channel_get_error (channel);
         g_warning ("Channel request %s failed, error: %s",
                    _mcd_channel_get_request_path (channel), error->message);
 
@@ -178,7 +178,7 @@ create_request (McdAccount *account, GHashTable *properties,
     {
         g_warning ("%s: _mcd_account_online_request: %s", G_STRFUNC,
                    (*error)->message);
-        _mcd_channel_set_error (channel, g_error_copy (*error));
+        mcd_channel_take_error (channel, g_error_copy (*error));
         /* no unref here, as this will invoke our handler which will
          * unreference the channel */
         channel = NULL;
@@ -277,7 +277,7 @@ account_request_cancel (McSvcAccountInterfaceChannelRequests *self,
     {
         g_object_ref (channel);
         error = g_error_new (TP_ERRORS, TP_ERROR_CANCELLED, "Cancelled");
-        _mcd_channel_set_error (channel, error);
+        mcd_channel_take_error (channel, error);
 
         /* REQUESTED is a special case: the channel must not be aborted now,
          * because we need to explicitly close the channel object when it will

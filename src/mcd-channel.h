@@ -123,6 +123,10 @@ gboolean mcd_channel_is_requested (McdChannel *channel);
 McdAccount *mcd_channel_get_account (McdChannel *channel);
 TpChannel *mcd_channel_get_tp_channel (McdChannel *channel);
 
+void mcd_channel_take_error (McdChannel *channel, GError *error);
+const GError *mcd_channel_get_error (McdChannel *channel);
+
+
 /* not exported: */
 G_GNUC_INTERNAL
 gboolean _mcd_channel_create_proxy_old (McdChannel *channel,
@@ -160,11 +164,6 @@ G_GNUC_INTERNAL
 void _mcd_channel_copy_details (McdChannel *channel, McdChannel *source);
 G_GNUC_INTERNAL
 void _mcd_channel_set_request_proxy (McdChannel *channel, McdChannel *source);
-
-G_GNUC_INTERNAL
-void _mcd_channel_set_error (McdChannel *channel, GError *error);
-G_GNUC_INTERNAL
-const GError *_mcd_channel_get_error (McdChannel *channel);
 
 G_END_DECLS
 #endif /* MCD_CHANNEL_H */

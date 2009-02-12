@@ -738,7 +738,7 @@ _mcd_dispatcher_handle_channel_async_cb (DBusGProxy * proxy, GError * error,
 	mc_error = g_error_new (MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
 				"Handle channel failed: %s", error->message);
 
-        _mcd_channel_set_error (channel, mc_error);
+        mcd_channel_take_error (channel, mc_error);
 	g_signal_emit_by_name (context->dispatcher, "dispatch-failed",
 			       channel, mc_error);
 	
@@ -822,7 +822,7 @@ start_old_channel_handler (McdDispatcherContext *context)
 	mc_error = g_error_new (MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
 				"No handler for channel type %s",
 				mcd_channel_get_channel_type (channel));
-        _mcd_channel_set_error (channel, mc_error);
+        mcd_channel_take_error (channel, mc_error);
 	g_signal_emit_by_name (context->dispatcher, "dispatch-failed", channel,
 			       mc_error);
         mcd_mission_abort (MCD_MISSION (channel));
@@ -1104,7 +1104,7 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
         {
             McdChannel *channel = MCD_CHANNEL (list->data);
 
-            _mcd_channel_set_error (channel, g_error_copy (mc_error));
+            mcd_channel_take_error (channel, g_error_copy (mc_error));
             g_signal_emit_by_name (context->dispatcher, "dispatch-failed",
                                    channel, mc_error);
 
@@ -1559,8 +1559,8 @@ _mcd_dispatcher_context_abort (McdDispatcherContext *context,
     {
         McdChannel *channel = MCD_CHANNEL (list->data);
 
-        if (_mcd_channel_get_error (channel) == NULL)
-            _mcd_channel_set_error (channel, g_error_copy (error));
+        if (mcd_channel_get_error (channel) == NULL)
+            mcd_channel_take_error (channel, g_error_copy (error));
 
         /* FIXME: try to dispatch the channels to another handler, instead
          * of just aborting them */
@@ -1582,7 +1582,7 @@ on_channel_abort_context (McdChannel *channel, McdDispatcherContext *context)
 
     /* but if it was a channel request, and it was cancelled, then the whole
      * context should be aborted */
-    error = _mcd_channel_get_error (channel);
+    error = mcd_channel_get_error (channel);
     if (error && error->code == TP_ERROR_CANCELLED)
         context->cancelled = TRUE;
 }
@@ -2892,7 +2892,7 @@ on_request_status_changed (McdChannel *channel, McdChannelStatus status,
     {
         const GError *error;
         const gchar *err_string;
-        error = _mcd_channel_get_error (channel);
+        error = mcd_channel_get_error (channel);
         err_string = _mcd_get_error_string (error);
         /* no callback, as we don't really care */
         mc_cli_client_handler_call_remove_failed_request

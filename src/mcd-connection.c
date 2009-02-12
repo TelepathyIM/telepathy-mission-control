@@ -579,7 +579,7 @@ on_channel_capabilities_timeout (McdChannel *channel,
     g_debug ("%s: channel %p timed out, returning error!", G_STRFUNC, channel);
 
     mc_error = map_tp_error_to_mc_error (channel, cwd->error);
-    _mcd_channel_set_error (channel, mc_error);
+    mcd_channel_take_error (channel, mc_error);
     g_object_set_data (G_OBJECT (channel), "error_on_creation", NULL);
 
     /* No abort on channel, because we are the only one holding the only
@@ -2129,7 +2129,7 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 	{
 	    /* Faild dispatch */
 	    GError *mc_error = map_tp_error_to_mc_error (channel, tp_error);
-            _mcd_channel_set_error (channel, mc_error);
+            mcd_channel_take_error (channel, mc_error);
             mcd_mission_abort ((McdMission *)channel);
 	}
 	else
@@ -2162,7 +2162,7 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 	mc_error = g_error_new (MC_ERROR,
 				MC_CHANNEL_REQUEST_GENERIC_ERROR,
 				"Returned channel_path from telepathy is NULL");
-        _mcd_channel_set_error (channel, mc_error);
+        mcd_channel_take_error (channel, mc_error);
         mcd_mission_abort ((McdMission *)channel);
 	return;
     }
@@ -2209,7 +2209,7 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
 	mc_error = g_error_new (MC_ERROR, MC_INVALID_HANDLE_ERROR,
 		     "Could not map string handle to a valid handle!: %s",
 		     msg);
-        _mcd_channel_set_error (channel, mc_error);
+        mcd_channel_take_error (channel, mc_error);
 	
 	/* No abort, because we are the only one holding the only reference
 	 * to this temporary channel
@@ -2282,7 +2282,7 @@ common_request_channel_cb (TpConnection *proxy, gboolean yours,
          * soon :-) */
         g_debug ("%s: Got error: %s", G_STRFUNC, error->message);
         mc_error = map_tp_error_to_mc_error (channel, error);
-        _mcd_channel_set_error (channel, mc_error);
+        mcd_channel_take_error (channel, mc_error);
         mcd_mission_abort ((McdMission *)channel);
         return;
     }

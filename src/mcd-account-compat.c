@@ -276,7 +276,7 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
         master = mcd_master_get_default ();
         g_return_if_fail (MCD_IS_SERVICE (master));
 
-        error = _mcd_channel_get_error (channel);
+        error = mcd_channel_get_error (channel);
         g_signal_emit_by_name (master, "mcd-error",
                                req_data->requestor_serial,
                                req_data->requestor_client_id, error->code);
