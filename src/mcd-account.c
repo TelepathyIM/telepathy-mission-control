@@ -1194,10 +1194,20 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     gboolean reset_connection;
 
     g_debug ("%s called", G_STRFUNC);
-    if (!priv->manager && !load_manager (account)) return FALSE;
+    if (G_UNLIKELY (!priv->manager && !load_manager (account)))
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "Manager %s not found", priv->manager_name);
+        return FALSE;
+    }
 
     param = mcd_manager_get_parameters (priv->manager, priv->protocol_name);
-    if (G_UNLIKELY (!param)) return FALSE;
+    if (G_UNLIKELY (!param))
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "Protocol %s not found", priv->protocol_name);
+        return FALSE;
+    }
 
     reset_connection = FALSE;
     while (param->name != NULL)
