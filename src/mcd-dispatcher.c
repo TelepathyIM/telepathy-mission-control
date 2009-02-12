@@ -3089,6 +3089,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     context->ref_count = 1;
     context->dispatcher = dispatcher;
     context->channels = g_list_prepend (NULL, channel);
+    context->account = mcd_channel_get_account (channel);
 
     /* We must ref() the channel, because
      * mcd_dispatcher_context_unref() will unref() it */
