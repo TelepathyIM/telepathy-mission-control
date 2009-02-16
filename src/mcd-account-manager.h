@@ -103,5 +103,8 @@ void mcd_account_manager_create_account (McdAccountManager *account_manager,
                                          McdGetAccountCb callback,
                                          gpointer user_data,
                                          GDestroyNotify destroy);
+G_GNUC_INTERNAL
+void _mcd_account_manager_store_account_connections
+    (McdAccountManager *manager);
 
 #endif

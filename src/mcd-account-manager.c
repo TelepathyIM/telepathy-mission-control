@@ -80,6 +80,8 @@ struct _McdAccountManagerPrivate
 
     GKeyFile *keyfile;		/* configuration file */
     GHashTable *accounts;
+
+    gchar *account_connections_file; /* temporary file */
 };
 
 typedef struct
@@ -619,6 +621,9 @@ _mcd_account_manager_finalize (GObject *object)
 	write_conf (priv->keyfile);
     g_key_file_free (priv->keyfile);
 
+    remove (priv->account_connections_file);
+    g_free (priv->account_connections_file);
+
     g_hash_table_destroy (priv->accounts);
 
     G_OBJECT_CLASS (mcd_account_manager_parent_class)->finalize (object);
@@ -671,6 +676,9 @@ mcd_account_manager_init (McdAccountManager *account_manager)
 
     priv->accounts = g_hash_table_new_full (g_str_hash, g_str_equal,
 					    NULL, unref_account);
+
+    priv->account_connections_file =
+        g_build_filename (g_get_tmp_dir (), ".mc_connections", NULL);
 
     priv->keyfile = g_key_file_new ();
     conf_filename = get_account_conf_filename ();
@@ -785,5 +793,48 @@ mcd_account_manager_get_config (McdAccountManager *account_manager)
     g_return_val_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager), NULL);
 
     return account_manager->priv->keyfile;
+}
+
+/*
+ * _mcd_account_manager_store_account_connections:
+ * @account_manager: the #McdAccountManager.
+ *
+ * This function is used to remember what connection an account was bound to.
+ * The data is stored in a temporary file, and can be read when MC restarts
+ * after a crash.
+ */
+void
+_mcd_account_manager_store_account_connections (McdAccountManager *manager)
+{
+    McdAccountManagerPrivate *priv;
+    GHashTableIter iter;
+    const gchar *account_name, *connection_path, *connection_name;
+    McdAccount *account;
+    FILE *file;
+
+    g_return_if_fail (MCD_IS_ACCOUNT_MANAGER (manager));
+    g_return_if_fail (account != NULL);
+    priv = manager->priv;
+
+    file = fopen (priv->account_connections_file, "w");
+    if (G_UNLIKELY (!file)) return;
+
+    g_hash_table_iter_init (&iter, priv->accounts);
+    while (g_hash_table_iter_next (&iter, (gpointer)&account_name,
+                                   (gpointer)&account))
+    {
+        McdConnection *connection;
+
+        connection = mcd_account_get_connection (account);
+        if (connection)
+        {
+            connection_path = mcd_connection_get_object_path (connection);
+            connection_name = mcd_connection_get_name (connection);
+            if (connection_path && connection_name)
+                fprintf (file, "%s\t%s\t%s\n",
+                         connection_path, connection_name, account_name);
+        }
+    }
+    fclose (file);
 }
 

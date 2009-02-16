@@ -2247,6 +2247,9 @@ _mcd_account_tp_connection_changed (McdAccount *account)
     get_connection ((TpSvcDBusProperties *)account, "Connection", &value);
     mcd_account_changed_property (account, "Connection", &value);
     g_value_unset (&value);
+
+    _mcd_account_manager_store_account_connections
+        (account->priv->account_manager);
 }
 
 McdConnection *
