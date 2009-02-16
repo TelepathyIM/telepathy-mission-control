@@ -1756,6 +1756,7 @@ _mcd_connection_set_property (GObject * obj, guint prop_id,
         g_signal_connect (priv->account, "removed",
                           G_CALLBACK (on_account_removed),
                           obj);
+        _mcd_account_set_connection (account, MCD_CONNECTION (obj));
 	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
