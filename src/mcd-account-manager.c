@@ -138,15 +138,13 @@ on_account_removed (McdAccount *account, McdAccountManager *account_manager)
     g_hash_table_remove (priv->accounts, name);
 }
 
-static gboolean
+static void
 add_account (McdAccountManager *account_manager, McdAccount *account)
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
     const gchar *name;
-    gboolean valid;
 
     name = mcd_account_get_unique_name (account);
-    valid = mcd_account_is_valid (account);
     g_hash_table_insert (priv->accounts, (gchar *)name, account);
 
     /* if we have to connect to any signals from the account object, this is
@@ -156,7 +154,6 @@ add_account (McdAccountManager *account_manager, McdAccount *account)
 		      account_manager);
     g_signal_connect (account, "removed", G_CALLBACK (on_account_removed),
 		      account_manager);
-    return valid;
 }
 
 static void
