@@ -1485,7 +1485,6 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
 		       gpointer user_data, GObject *weak_object)
 {
     McdConnection *connection = MCD_CONNECTION (weak_object);
-    McdConnection **connection_ptr;
     McdConnectionPrivate *priv = user_data;
     GError *error = NULL;
 
@@ -1499,39 +1498,13 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
 	return;
     }
 
-    priv->tp_conn = tp_connection_new (priv->dbus_daemon, bus_name,
-				       obj_path, &error);
-    if (!priv->tp_conn)
+    _mcd_connection_set_tp_connection (connection, bus_name, obj_path, &error);
+    if (G_UNLIKELY (error))
     {
-	g_warning ("%s: tp_connection_new failed: %s",
-		   G_STRFUNC, error->message);
-	mcd_account_set_connection_status (priv->account,
-					   TP_CONNECTION_STATUS_DISCONNECTED,
-					   TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
+        g_warning ("%s: got error: %s", G_STRFUNC, error->message);
 	g_error_free (error);
 	return;
     }
-    _mcd_account_tp_connection_changed (priv->account);
-
-    /* Setup signals */
-    g_signal_connect (priv->tp_conn, "invalidated",
-		      G_CALLBACK (proxy_destroyed), connection);
-    g_signal_connect (priv->tp_conn, "notify::status",
-		      G_CALLBACK (on_connection_status_changed),
-		      connection);
-    /* HACK for cancelling the _call_when_ready() callback when our object gets
-     * destroyed */
-    connection_ptr = g_slice_alloc (sizeof (McdConnection *));
-    *connection_ptr = connection;
-    g_object_add_weak_pointer ((GObject *)connection,
-			       (gpointer)connection_ptr);
-    tp_connection_call_when_ready (priv->tp_conn, on_connection_ready,
-				   connection_ptr);
-    priv->new_channel_sc =
-        tp_cli_connection_connect_to_new_channel (priv->tp_conn,
-                                                  on_new_channel,
-                                                  priv, NULL,
-                                                  (GObject *)connection, NULL);
 
     /* FIXME we don't know the status of the connection yet, but calling
      * Connect shouldn't cause any harm
@@ -2588,5 +2561,47 @@ _mcd_connection_update_property (McdConnection *connection, const gchar *name,
                                      interface, member, value,
                                      NULL, NULL, NULL, NULL);
     g_free (interface);
+}
+
+void
+_mcd_connection_set_tp_connection (McdConnection *connection,
+                                   const gchar *bus_name,
+                                   const gchar *obj_path, GError **error)
+{
+    McdConnection **connection_ptr;
+    McdConnectionPrivate *priv;
+
+    g_return_if_fail (MCD_IS_CONNECTION (connection));
+    priv = connection->priv;
+    priv->tp_conn = tp_connection_new (priv->dbus_daemon, bus_name,
+                                       obj_path, error);
+    if (!priv->tp_conn)
+    {
+        mcd_account_set_connection_status (priv->account,
+                                           TP_CONNECTION_STATUS_DISCONNECTED,
+                                           TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
+        return;
+    }
+    _mcd_account_tp_connection_changed (priv->account);
+
+    /* Setup signals */
+    g_signal_connect (priv->tp_conn, "invalidated",
+                      G_CALLBACK (proxy_destroyed), connection);
+    g_signal_connect (priv->tp_conn, "notify::status",
+                      G_CALLBACK (on_connection_status_changed),
+                      connection);
+    /* HACK for cancelling the _call_when_ready() callback when our object gets
+     * destroyed */
+    connection_ptr = g_slice_alloc (sizeof (McdConnection *));
+    *connection_ptr = connection;
+    g_object_add_weak_pointer ((GObject *)connection,
+                               (gpointer)connection_ptr);
+    tp_connection_call_when_ready (priv->tp_conn, on_connection_ready,
+                                   connection_ptr);
+    priv->new_channel_sc =
+        tp_cli_connection_connect_to_new_channel (priv->tp_conn,
+                                                  on_new_channel,
+                                                  priv, NULL,
+                                                  (GObject *)connection, NULL);
 }
 
