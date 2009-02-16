@@ -139,6 +139,22 @@ on_account_removed (McdAccount *account, McdAccountManager *account_manager)
 }
 
 static void
+unref_account (gpointer data)
+{
+    McdAccount *account = MCD_ACCOUNT (data);
+    McdAccountManager *account_manager;
+
+    g_debug ("%s called for %s", G_STRFUNC,
+             mcd_account_get_unique_name (account));
+    account_manager = mcd_account_get_account_manager (account);
+    g_signal_handlers_disconnect_by_func (account, on_account_validity_changed,
+                                          account_manager);
+    g_signal_handlers_disconnect_by_func (account, on_account_removed,
+                                          account_manager);
+    g_object_unref (account);
+}
+
+static void
 add_account (McdAccountManager *account_manager, McdAccount *account)
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
@@ -651,7 +667,7 @@ mcd_account_manager_init (McdAccountManager *account_manager)
     account_manager->priv = priv;
 
     priv->accounts = g_hash_table_new_full (g_str_hash, g_str_equal,
-					    NULL, g_object_unref);
+					    NULL, unref_account);
 
     priv->keyfile = g_key_file_new ();
     conf_filename = get_account_conf_filename ();
