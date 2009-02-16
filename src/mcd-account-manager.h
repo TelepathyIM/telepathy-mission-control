@@ -88,7 +88,7 @@ McdAccount *mcd_account_manager_lookup_account_by_path (McdAccountManager *accou
 
 /* for interfaces only */
 G_GNUC_INTERNAL
-GHashTable *mcd_account_manager_get_valid_accounts (McdAccountManager *account_manager);
+GHashTable *mcd_account_manager_get_accounts (McdAccountManager *account_manager);
 
 typedef void (*McdGetAccountCb) (McdAccountManager *account_manager,
                                  McdAccount *account,

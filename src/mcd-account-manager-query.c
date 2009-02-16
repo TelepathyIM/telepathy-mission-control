@@ -320,7 +320,7 @@ account_manager_find_accounts (McSvcAccountManagerInterfaceQuery *self,
     {
 	GHashTable *accounts;
 	fd.accounts = g_ptr_array_sized_new (16);
-	accounts = mcd_account_manager_get_valid_accounts (account_manager);
+	accounts = mcd_account_manager_get_accounts (account_manager);
 	g_hash_table_foreach (accounts, find_accounts, &fd);
     }
     g_array_free (fd.params, TRUE);

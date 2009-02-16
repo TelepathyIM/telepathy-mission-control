@@ -80,7 +80,6 @@ struct _McdAccountManagerPrivate
 
     GKeyFile *keyfile;		/* configuration file */
     GHashTable *accounts;
-    GHashTable *invalid_accounts;
 };
 
 typedef struct
@@ -118,33 +117,8 @@ static void
 on_account_validity_changed (McdAccount *account, gboolean valid,
 			     McdAccountManager *account_manager)
 {
-    McdAccountManagerPrivate *priv = account_manager->priv;
-    const gchar *name, *object_path;
-    GHashTable *ht_old, *ht_new;
-    gboolean found_old, found_new;
+    const gchar *object_path;
 
-    if (valid)
-    {
-	ht_old = priv->invalid_accounts;
-	ht_new = priv->accounts;
-    }
-    else
-    {
-	ht_old = priv->accounts;
-	ht_new = priv->invalid_accounts;
-    }
-
-    name = mcd_account_get_unique_name (account);
-    found_old = g_hash_table_steal (ht_old, name);
-    if (!found_old)
-	g_warning ("%s (%d): account %s not found in list",
-		   G_STRFUNC, valid, name);
-    found_new = g_hash_table_lookup (ht_new, name) ? TRUE : FALSE;
-    if (found_new)
-	g_warning ("%s (%d): account %s is already in list",
-		   G_STRFUNC, valid, name);
-    else
-	g_hash_table_insert (ht_new, (gchar *)name, account);
     object_path = mcd_account_get_object_path (account);
     mc_svc_account_manager_emit_account_validity_changed (account_manager,
 							  object_path,
@@ -161,10 +135,7 @@ on_account_removed (McdAccount *account, McdAccountManager *account_manager)
     mc_svc_account_manager_emit_account_removed (account_manager, object_path);
 
     name = mcd_account_get_unique_name (account);
-    if (mcd_account_is_valid (account))
-	g_hash_table_remove (priv->accounts, name);
-    else
-	g_hash_table_remove (priv->invalid_accounts, name);
+    g_hash_table_remove (priv->accounts, name);
 }
 
 static gboolean
@@ -176,10 +147,7 @@ add_account (McdAccountManager *account_manager, McdAccount *account)
 
     name = mcd_account_get_unique_name (account);
     valid = mcd_account_is_valid (account);
-    if (valid)
-	g_hash_table_insert (priv->accounts, (gchar *)name, account);
-    else
-	g_hash_table_insert (priv->invalid_accounts, (gchar *)name, account);
+    g_hash_table_insert (priv->accounts, (gchar *)name, account);
 
     /* if we have to connect to any signals from the account object, this is
      * the place to do it */
@@ -379,12 +347,13 @@ account_manager_iface_init (McSvcAccountManagerClass *iface,
 }
 
 static void
-accounts_to_gvalue (GHashTable *accounts, GValue *value)
+accounts_to_gvalue (GHashTable *accounts, gboolean valid, GValue *value)
 {
     static GType ao_type = G_TYPE_INVALID;
     GPtrArray *account_array;
     GHashTableIter iter;
-    gpointer k, v;
+    McdAccount *account;
+    gpointer k;
 
     if (G_UNLIKELY (ao_type == G_TYPE_INVALID))
         ao_type = dbus_g_type_get_collection ("GPtrArray",
@@ -394,9 +363,12 @@ accounts_to_gvalue (GHashTable *accounts, GValue *value)
 
     g_hash_table_iter_init (&iter, accounts);
 
-    while (g_hash_table_iter_next (&iter, &k, &v))
-        g_ptr_array_add (account_array,
-                         g_strdup (mcd_account_get_object_path (v)));
+    while (g_hash_table_iter_next (&iter, &k, (gpointer)&account))
+    {
+        if (mcd_account_is_valid (account) == valid)
+            g_ptr_array_add (account_array,
+                             g_strdup (mcd_account_get_object_path (account)));
+    }
 
     g_value_init (value, ao_type);
     g_value_take_boxed (value, account_array);
@@ -410,7 +382,7 @@ get_valid_accounts (TpSvcDBusProperties *self, const gchar *name,
     McdAccountManagerPrivate *priv = account_manager->priv;
 
     g_debug ("%s called", G_STRFUNC);
-    accounts_to_gvalue (priv->accounts, value);
+    accounts_to_gvalue (priv->accounts, TRUE, value);
 }
 
 static void
@@ -421,7 +393,7 @@ get_invalid_accounts (TpSvcDBusProperties *self, const gchar *name,
     McdAccountManagerPrivate *priv = account_manager->priv;
 
     g_debug ("%s called", G_STRFUNC);
-    accounts_to_gvalue (priv->invalid_accounts, value);
+    accounts_to_gvalue (priv->accounts, FALSE, value);
 }
 
 static const McdDBusProp account_manager_properties[] = {
@@ -632,7 +604,6 @@ _mcd_account_manager_finalize (GObject *object)
     g_key_file_free (priv->keyfile);
 
     g_hash_table_destroy (priv->accounts);
-    g_hash_table_destroy (priv->invalid_accounts);
 
     G_OBJECT_CLASS (mcd_account_manager_parent_class)->finalize (object);
 }
@@ -684,8 +655,6 @@ mcd_account_manager_init (McdAccountManager *account_manager)
 
     priv->accounts = g_hash_table_new_full (g_str_hash, g_str_equal,
 					    NULL, g_object_unref);
-    priv->invalid_accounts = g_hash_table_new_full (g_str_hash, g_str_equal,
-						    NULL, g_object_unref);
 
     priv->keyfile = g_key_file_new ();
     conf_filename = get_account_conf_filename ();
@@ -751,7 +720,7 @@ mcd_account_manager_write_conf (McdAccountManager *account_manager)
 }
 
 GHashTable *
-mcd_account_manager_get_valid_accounts (McdAccountManager *account_manager)
+mcd_account_manager_get_accounts (McdAccountManager *account_manager)
 {
     return account_manager->priv->accounts;
 }

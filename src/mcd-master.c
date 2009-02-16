@@ -150,7 +150,8 @@ check_account_transport (gpointer key, gpointer value, gpointer userdata)
 
     /* get all enabled accounts, which have the "ConnectAutomatically" flag set
      * and that are not connected */
-    if (!mcd_account_is_enabled (account) ||
+    if (!mcd_account_is_valid (account) ||
+        !mcd_account_is_enabled (account) ||
 	!mcd_account_get_connect_automatically (account) ||
 	mcd_account_get_connection_status (account) ==
        	TP_CONNECTION_STATUS_CONNECTED) 
@@ -175,7 +176,7 @@ mcd_master_transport_connected (McdMaster *master, McdTransportPlugin *plugin,
 				McdTransport *transport)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    GHashTable *valid_accounts;
+    GHashTable *accounts;
     TransportData td;
 
     g_debug ("%s: %s", G_STRFUNC, mcd_transport_get_name (plugin, transport));
@@ -184,9 +185,8 @@ mcd_master_transport_connected (McdMaster *master, McdTransportPlugin *plugin,
     td.plugin = plugin;
     td.transport = transport;
 
-    valid_accounts =
-       	mcd_account_manager_get_valid_accounts (priv->account_manager);
-    g_hash_table_foreach (valid_accounts, check_account_transport, &td);
+    accounts = mcd_account_manager_get_accounts (priv->account_manager);
+    g_hash_table_foreach (accounts, check_account_transport, &td);
 }
 
 static void
@@ -221,7 +221,7 @@ mcd_master_transport_disconnected (McdMaster *master, McdTransportPlugin *plugin
 				   McdTransport *transport)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    GHashTable *valid_accounts;
+    GHashTable *accounts;
     TransportData td;
 
     g_debug ("%s: %s", G_STRFUNC, mcd_transport_get_name (plugin, transport));
@@ -230,27 +230,26 @@ mcd_master_transport_disconnected (McdMaster *master, McdTransportPlugin *plugin
     td.plugin = plugin;
     td.transport = transport;
 
-    valid_accounts =
-       	mcd_account_manager_get_valid_accounts (priv->account_manager);
-    g_hash_table_foreach (valid_accounts, disconnect_account_transport, &td);
+    accounts = mcd_account_manager_get_accounts (priv->account_manager);
+    g_hash_table_foreach (accounts, disconnect_account_transport, &td);
 }
 
 static void
 mcd_master_connect_automatic_accounts (McdMaster *master)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    GHashTable *valid_accounts;
+    GHashTable *accounts;
     GHashTableIter iter;
     gpointer ht_key, ht_value;
 
-    valid_accounts =
-        mcd_account_manager_get_valid_accounts (priv->account_manager);
-    g_hash_table_iter_init (&iter, valid_accounts);
+    accounts = mcd_account_manager_get_accounts (priv->account_manager);
+    g_hash_table_iter_init (&iter, accounts);
     while (g_hash_table_iter_next (&iter, &ht_key, &ht_value))
     {
         McdAccount *account = MCD_ACCOUNT (ht_value);
 
-        if (mcd_account_is_enabled (account) &&
+        if (mcd_account_is_valid (account) &&
+            mcd_account_is_enabled (account) &&
             mcd_account_get_connect_automatically (account) &&
             mcd_account_get_connection_status (account) ==
             TP_CONNECTION_STATUS_DISCONNECTED)

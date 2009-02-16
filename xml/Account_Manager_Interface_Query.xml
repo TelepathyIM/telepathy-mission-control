@@ -20,7 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</
     <tp:requires interface="org.freedesktop.Telepathy.AccountManager"/>
     <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
       <p>The Query interface provides a convienient way for clients to retrieve
-      a subset of the <em>valid</em> accounts satisfying certain conditions.</p>
+      a subset of the accounts satisfying certain conditions.</p>
 
       <tp:rationale>
         <p>This is basically the same API proposed by Zdra</p>
@@ -29,13 +29,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</
 
     <method name="FindAccounts">
       <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
-        <p>Find all valid accounts which match the search query.</p>
-        <p>An empty parameter should return all valid accounts</p>
-
-        <tp:rationale>
-          <p>It doesn't seem worth to provide a similar API for invalid
-          accounts, or anyway to include invalid accounts into the results.</p>
-        </tp:rationale>
+        <p>Find all accounts which match the search query.</p>
+        <p>An empty parameter should return all accounts</p>
       </tp:docstring>
 
       <arg direction="in" name="params" type="a{sv}" tp:type="String_Variant_Map">

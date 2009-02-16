@@ -202,6 +202,7 @@ request_presence (gpointer key, gpointer value, gpointer userdata)
     McdAccount *account = value;
     McdPresence *p = userdata;
 
+    if (!mcd_account_is_valid (account)) return;
     mcd_account_request_presence (account,
 				  (TpConnectionPresenceType)p->presence,
 				  presence_statuses[p->presence],
@@ -218,7 +219,7 @@ presence_requested_signal (McdPresenceFrame *presence_frame,
 
     if (!priv->account_manager) return;
 
-    accounts = mcd_account_manager_get_valid_accounts (priv->account_manager);
+    accounts = mcd_account_manager_get_accounts (priv->account_manager);
     p.presence = presence;
     p.message = (gchar *)presence_message;
     g_hash_table_foreach (accounts, request_presence, &p);
@@ -652,6 +653,7 @@ add_account (gpointer key, gpointer value, gpointer userdata)
     McdPresenceFrame *presence_frame = userdata;
     McdAccount *account = value;
 
+    if (!mcd_account_is_valid (account)) return;
     mcd_presence_frame_add_account (presence_frame, account);
 }
 
@@ -679,7 +681,7 @@ mcd_presence_frame_set_account_manager (McdPresenceFrame *presence_frame,
 
     g_object_ref (account_manager);
     priv->account_manager = account_manager;
-    accounts = mcd_account_manager_get_valid_accounts (priv->account_manager);
+    accounts = mcd_account_manager_get_accounts (priv->account_manager);
 
     g_hash_table_foreach (accounts, add_account, presence_frame);
 
