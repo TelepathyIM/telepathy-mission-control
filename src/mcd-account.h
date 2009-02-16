@@ -161,5 +161,8 @@ void _mcd_account_tp_connection_changed (McdAccount *account);
 G_GNUC_INTERNAL
 void _mcd_account_load (McdAccount *account, McdAccountLoadCb callback,
                         gpointer user_data);
+G_GNUC_INTERNAL
+void _mcd_account_set_connection (McdAccount *account,
+                                  McdConnection *connection);
 
 #endif

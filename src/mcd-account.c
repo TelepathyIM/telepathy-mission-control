@@ -426,8 +426,7 @@ on_connection_abort (McdConnection *connection, McdAccount *account)
 
     g_debug ("%s called (%p, account %s)", G_STRFUNC,
 	     connection, priv->unique_name);
-    g_object_unref (priv->connection);
-    priv->connection = NULL;
+    _mcd_account_set_connection (account, NULL);
 }
 
 static gboolean
@@ -479,6 +478,8 @@ _mcd_account_connect (McdAccount *account, GHashTable *params)
 
     if (!priv->connection)
     {
+        McdConnection *connection;
+
 	if (!priv->manager && !load_manager (account))
 	{
 	    g_warning ("%s: Could not find manager `%s'",
@@ -486,12 +487,8 @@ _mcd_account_connect (McdAccount *account, GHashTable *params)
 	    return;
 	}
 
-	priv->connection = mcd_manager_create_connection (priv->manager,
-							  account);
-	g_return_if_fail (priv->connection != NULL);
-	g_object_ref (priv->connection);
-	g_signal_connect (priv->connection, "abort",
-			  G_CALLBACK (on_connection_abort), account);
+        connection = mcd_manager_create_connection (priv->manager, account);
+        _mcd_account_set_connection (account, connection);
     }
     mcd_connection_connect (priv->connection, params);
 }
@@ -1535,11 +1532,7 @@ _mcd_account_dispose (GObject *object)
 	priv->manager = NULL;
     }
 
-    if (priv->connection)
-    {
-	g_object_unref (priv->connection);
-	priv->connection = NULL;
-    }
+    _mcd_account_set_connection (MCD_ACCOUNT (object), NULL);
 
     G_OBJECT_CLASS (mcd_account_parent_class)->dispose (object);
 }
@@ -2387,5 +2380,30 @@ _mcd_account_load (McdAccount *account, McdAccountLoadCb callback,
     g_return_if_fail (callback != NULL);
 
     MCD_ACCOUNT_GET_CLASS (account)->load (account, callback, user_data);
+}
+
+void
+_mcd_account_set_connection (McdAccount *account, McdConnection *connection)
+{
+    McdAccountPrivate *priv;
+
+    g_return_if_fail (MCD_IS_ACCOUNT (account));
+    priv = account->priv;
+    if (connection == priv->connection) return;
+
+    if (priv->connection)
+    {
+        g_signal_handlers_disconnect_by_func (priv->connection,
+                                              on_connection_abort, account);
+        g_object_unref (priv->connection);
+    }
+    priv->connection = connection;
+    if (connection)
+    {
+        g_return_if_fail (MCD_IS_CONNECTION (connection));
+        g_object_ref (connection);
+        g_signal_connect (connection, "abort",
+                          G_CALLBACK (on_connection_abort), account);
+    }
 }
 
