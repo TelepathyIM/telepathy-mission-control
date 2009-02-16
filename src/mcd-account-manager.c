@@ -109,6 +109,137 @@ static guint write_conf_id = 0;
 
 static void register_dbus_service (McdAccountManager *account_manager);
 
+static gboolean
+get_account_connection (const gchar *file_contents, const gchar *path,
+                        gchar **p_bus_name, gchar **p_account_name)
+{
+    const gchar *line, *tab1, *tab2, *endline;
+    const gchar *connection_path, *bus_name, *account_name;
+    size_t len;
+
+    g_return_val_if_fail (path != NULL, FALSE);
+    if (!file_contents) return FALSE;
+
+    len = strlen (path);
+    line = file_contents;
+    while ((tab1 = strchr (line, '\t')) != NULL)
+    {
+        connection_path = line;
+
+        bus_name = tab1 + 1;
+        tab2 = strchr (bus_name, '\t');
+        if (!tab2) break;
+
+        account_name = tab2 + 1;
+        endline = strchr (account_name, '\n');
+        if (!endline) break;
+
+        if (len == tab1 - line &&
+            strncmp (path, connection_path, len) == 0)
+        {
+            *p_bus_name = g_strndup (bus_name, tab2 - bus_name);
+            *p_account_name = g_strndup (account_name, endline - account_name);
+            return TRUE;
+        }
+        line = endline + 1;
+    }
+    return FALSE;
+}
+
+static gboolean
+recover_connection (McdAccountManager *account_manager, gchar *file_contents,
+                    const gchar *name)
+{
+    McdAccount *account;
+    McdConnection *connection;
+    McdManager *manager;
+    McdMaster *master;
+    const gchar *manager_name;
+    gchar *object_path, *bus_name, *account_name;
+    GError *error = NULL;
+    gboolean ret = FALSE;
+
+    object_path = g_strdelimit (g_strdup_printf ("/%s", name), ".", '/');
+    if (!get_account_connection (file_contents, object_path,
+                                 &bus_name, &account_name))
+        goto err_match;
+
+    account = g_hash_table_lookup (account_manager->priv->accounts,
+                                   account_name);
+    if (!account || !mcd_account_is_enabled (account))
+        goto err_account;
+
+    g_debug ("%s: account is %s", G_STRFUNC,
+             mcd_account_get_unique_name (account));
+    manager_name = mcd_account_get_manager_name (account);
+
+    master = mcd_master_get_default ();
+    g_return_val_if_fail (MCD_IS_MASTER (master), FALSE);
+
+    manager = mcd_master_lookup_manager (master, manager_name);
+    if (G_UNLIKELY (!manager))
+    {
+        g_debug ("Manager %s not found", manager_name);
+        goto err_manager;
+    }
+
+    connection = mcd_manager_create_connection (manager, account);
+    if (G_UNLIKELY (!connection)) goto err_connection;
+
+    _mcd_connection_set_tp_connection (connection, bus_name, object_path,
+                                       &error);
+    if (G_UNLIKELY (error))
+    {
+        g_debug ("%s: got error: %s", G_STRFUNC, error->message);
+        g_error_free (error);
+        goto err_connection;
+    }
+    ret = TRUE;
+
+err_connection:
+err_manager:
+err_account:
+    g_free (account_name);
+    g_free (bus_name);
+err_match:
+    g_free (object_path);
+    return ret;
+}
+
+static void
+list_connection_names_cb (const gchar * const *names, gsize n,
+                          const gchar * const *cms,
+                          const gchar * const *protocols,
+                          const GError *error, gpointer user_data,
+                          GObject *weak_object)
+{
+    McdAccountManager *account_manager = MCD_ACCOUNT_MANAGER (weak_object);
+    McdAccountManagerPrivate *priv = account_manager->priv;
+    gchar *contents = NULL;
+    guint i;
+
+    g_debug ("%s called, %u connections", G_STRFUNC, n);
+    g_file_get_contents (priv->account_connections_file, &contents, NULL, NULL);
+
+    for (i = 0; i < n; i++)
+    {
+        g_return_if_fail (names[i] != NULL);
+        g_debug ("Connection %s", names[i]);
+        if (!recover_connection (account_manager, contents, names[i]))
+        {
+            /* Close the connection */
+            TpConnection *proxy;
+
+            g_debug ("Killing connection");
+            proxy = tp_connection_new (priv->dbus_daemon, names[i], NULL, NULL);
+            if (proxy)
+                tp_cli_connection_call_disconnect (proxy, -1, NULL, NULL,
+                                                   NULL, NULL);
+        }
+    }
+    g_free (contents);
+}
+
 static McdAccount *
 account_new (McdAccountManager *account_manager, const gchar *name)
 {
@@ -522,6 +653,10 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
     McdAccountManagerPrivate *priv = account_manager->priv;
     McdLoadAccountsData *lad;
     gchar **accounts, **name;
+
+    tp_list_connection_names (priv->dbus_daemon,
+                              list_connection_names_cb, NULL, NULL,
+                              (GObject *)account_manager);
 
     lad = g_slice_new (McdLoadAccountsData);
     lad->account_manager = account_manager;
