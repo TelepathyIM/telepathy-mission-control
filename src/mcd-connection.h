@@ -77,6 +77,7 @@ McdConnection *mcd_connection_new (TpDBusDaemon *dbus_daemon,
 				   McdDispatcher *dispatcher) G_GNUC_DEPRECATED;
 
 const gchar *mcd_connection_get_object_path (McdConnection *connection);
+const gchar *mcd_connection_get_name (McdConnection *connection);
 
 /* Return the connection's account */
 McdAccount *mcd_connection_get_account (McdConnection * connection);

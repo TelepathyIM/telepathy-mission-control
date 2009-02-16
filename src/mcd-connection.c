@@ -2530,6 +2530,17 @@ mcd_connection_get_object_path (McdConnection *connection)
 	return NULL;
 }
 
+const gchar *
+mcd_connection_get_name (McdConnection *connection)
+{
+    McdConnectionPrivate *priv = connection->priv;
+
+    if (priv->tp_conn)
+	return TP_PROXY (priv->tp_conn)->bus_name;
+    else
+	return NULL;
+}
+
 /**
  * mcd_connection_set_reconnect:
  * @connection: the #McdConnection.
