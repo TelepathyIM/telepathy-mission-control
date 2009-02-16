@@ -498,9 +498,11 @@ account_loaded (McdAccount *account, const GError *error, gpointer user_data)
     McdLoadAccountsData *lad = user_data;
 
     if (error)
+    {
         g_warning ("%s: got error: %s", G_STRFUNC, error->message);
-    else
-        add_account (lad->account_manager, account);
+        g_hash_table_remove (lad->account_manager->priv->accounts,
+                             mcd_account_get_unique_name (account));
+    }
 
     release_load_accounts_lock (lad);
 }
@@ -537,6 +539,7 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
             continue;
         }
         lad->account_lock++;
+        add_account (lad->account_manager, account);
         _mcd_account_load (account, account_loaded, lad);
     }
     g_strfreev (accounts);
