@@ -166,7 +166,8 @@ _mcd_account_maybe_autoconnect (McdAccount *account)
     g_return_if_fail (MCD_IS_ACCOUNT (account));
     priv = account->priv;
 
-    if (priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED &&
+    if (priv->enabled &&
+        priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED &&
         priv->connect_automatically)
     {
         McdMaster *master = mcd_master_get_default ();
