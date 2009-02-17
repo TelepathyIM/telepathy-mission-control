@@ -188,7 +188,7 @@ typedef struct
 
 typedef struct
 {
-    gpointer object;
+    gpointer strukt;
     GSList *callbacks;
 } McdReadyData;
 
@@ -201,7 +201,7 @@ mcd_object_invoke_ready_callbacks (McdReadyData *rd, const GError *error)
     {
         McdReadyCbData *cb = list->data;
 
-        cb->callback (rd->object, error, cb->user_data);
+        cb->callback (rd->strukt, error, cb->user_data);
         g_slice_free (McdReadyCbData, cb);
     }
     g_slist_free (rd->callbacks);
@@ -210,7 +210,7 @@ mcd_object_invoke_ready_callbacks (McdReadyData *rd, const GError *error)
 static void
 mcd_ready_data_free (McdReadyData *rd)
 {
-    if (rd->object)
+    if (rd->strukt)
     {
         GError error = { TP_ERRORS, TP_ERROR_CANCELLED, "Object disposed" };
         mcd_object_invoke_ready_callbacks (rd, &error);
@@ -221,6 +221,15 @@ mcd_ready_data_free (McdReadyData *rd)
 void
 mcd_object_call_when_ready (gpointer object, GQuark quark, McdReadyCb callback,
                             gpointer user_data)
+{
+    mcd_object_call_on_struct_when_ready (object, object, quark, callback,
+                                          user_data);
+}
+
+void
+mcd_object_call_on_struct_when_ready (gpointer object, gpointer strukt,
+                                      GQuark quark, McdReadyCb callback,
+                                      gpointer user_data)
 {
     McdReadyData *rd;
     McdReadyCbData *cb;
@@ -237,7 +246,7 @@ mcd_object_call_when_ready (gpointer object, GQuark quark, McdReadyCb callback,
     if (!rd)
     {
         rd = g_slice_new (McdReadyData);
-        rd->object = object;
+        rd->strukt = strukt;
         rd->callbacks = NULL;
         g_object_set_qdata_full ((GObject *)object, quark, rd,
                                  (GDestroyNotify)mcd_ready_data_free);
@@ -254,7 +263,7 @@ mcd_object_ready (gpointer object, GQuark quark, const GError *error)
     if (!rd) return;
 
     mcd_object_invoke_ready_callbacks (rd, error);
-    rd->object = NULL; /* so the callbacks won't be invoked again */
+    rd->strukt = NULL; /* so the callbacks won't be invoked again */
     g_object_set_qdata ((GObject *)object, quark, NULL);
 }
 
