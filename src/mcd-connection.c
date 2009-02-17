@@ -1358,7 +1358,7 @@ static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
 
         va = g_ptr_array_index (channels, i);
         object_path = g_value_get_boxed (va->values);
-        channel_props = g_value_dup_boxed (va->values + 1);
+        channel_props = g_value_get_boxed (va->values + 1);
         /* find the McdChannel */
         /* NOTE: we cannot move the mcd_operation_get_missions() call out of
          * the loop, because mcd_dispatcher_send() can cause the channel to be
