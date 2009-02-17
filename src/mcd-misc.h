@@ -43,15 +43,6 @@ GHashTable *_mcd_deepcopy_asv (GHashTable *asv);
 
 const gchar *_mcd_get_error_string (const GError *error);
 
-/* FIXME: we should use the definition from telepathy-glib, but
- * https://bugs.freedesktop.org/show_bug.cgi?id=18515
- * TP_ARRAY_TYPE_CHANNEL_CLASS_LIST is not defined at the moment */
-#ifdef TP_ARRAY_TYPE_CHANNEL_CLASS_LIST
-#error "telepathy-glib has been fixed, this should be removed"
-#endif
-#define TP_ARRAY_TYPE_CHANNEL_CLASS_LIST (type_dbus_aasv ())
-GType type_dbus_aasv (void);
-
 typedef void (*McdReadyCb) (gpointer *object, const GError *error,
                             gpointer user_data);
 void mcd_object_call_when_ready (gpointer object, GQuark quark,
