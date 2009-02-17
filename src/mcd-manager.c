@@ -176,87 +176,6 @@ on_presence_requested (McdPresenceFrame * presence_frame,
     }
 }
 
-/* FIXME: Until we have a proper serialization and deserialization, we will
- * stick with killing all connections that were present before
- * mission-control got control of telepathy managers
- */
-/* Search the bus for already connected accounts and disconnect them. */
-static void
-_mcd_manager_nuke_connections (McdManager *manager)
-{
-    McdManagerPrivate *priv;
-    char **names, **name;
-    DBusGProxy *proxy;
-    GError *error = NULL;
-    static gboolean already_nuked = FALSE;
-    DBusGConnection *dbus_connection;
-    
-    if (already_nuked)
-	return; /* We only nuke it once in process instance */
-    already_nuked = TRUE;
-    
-    g_debug ("Nuking possible stale connections");
-    
-    priv = MCD_MANAGER_PRIV (manager);
-    dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
-    proxy = dbus_g_proxy_new_for_name(dbus_connection,
-				      DBUS_SERVICE_DBUS,
-				      DBUS_PATH_DBUS,
-				      DBUS_INTERFACE_DBUS);
-    
-    if (!proxy) 
-    {
-	g_warning ("Error creating proxy");
-	return;
-    }
-    
-    if (!dbus_g_proxy_call(proxy, "ListNames", &error, G_TYPE_INVALID,
-			   G_TYPE_STRV, &names, G_TYPE_INVALID))
-    {
-	g_warning ("ListNames() failed: %s", error->message);
-	g_error_free (error);
-	g_object_unref (proxy);
-	return;
-    }
-
-    g_object_unref(proxy);
-    
-    for (name = names; *name; name++)
-    {
-	if (strncmp(*name, "org.freedesktop.Telepathy.Connection.",
-		    strlen("org.freedesktop.Telepathy.Connection.")) == 0)
-	{
-	    gchar *path = g_strdelimit(g_strdup_printf("/%s", *name), ".", '/');
-	    
-	    g_debug ("Trying to disconnect (%s), path=%s", *name, path);
-	    
-	    proxy = dbus_g_proxy_new_for_name(dbus_connection,
-					      *name, path,
-					      TP_IFACE_CONNECTION);
-	    
-	    g_free(path);
-	    
-	    if (proxy)
-	    {
-		if (!dbus_g_proxy_call(proxy, "Disconnect", &error,
-				       G_TYPE_INVALID, G_TYPE_INVALID))
-		{
-		    g_warning ("Disconnect() failed: %s", error->message);
-		    g_error_free(error);
-		    error = NULL;
-		}
-		
-		g_object_unref(proxy);
-	    }
-	    else
-	    {
-		g_warning ("Error creating proxy");
-	    }
-	}
-    }
-    g_strfreev(names);
-}
-
 static void
 _mcd_manager_set_presence_frame (McdManager *manager, McdPresenceFrame *presence_frame)
 {
@@ -416,8 +335,6 @@ _mcd_manager_constructor (GType type, guint n_params,
 	g_object_unref (manager);
 	return NULL;
     }
-
-    _mcd_manager_nuke_connections (manager);
 
     return (GObject *) manager;
 }
