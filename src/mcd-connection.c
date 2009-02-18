@@ -54,6 +54,7 @@
 #include <libmcclient/mc-errors.h>
 
 #include "mcd-connection.h"
+#include "mcd-account-connection.h"
 #include "mcd-channel.h"
 #include "mcd-provisioning-factory.h"
 #include "mcd-misc.h"
@@ -185,7 +186,6 @@ static void request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 				const GError *error, gpointer user_data,
 				GObject *weak_object);
 static GError * map_tp_error_to_mc_error (McdChannel *channel, const GError *tp_error);
-static void _mcd_connection_setup (McdConnection * connection);
 static void _mcd_connection_release_tp_connection (McdConnection *connection);
 static gboolean request_channel_new_iface (McdConnection *connection,
                                            McdChannel *channel);
@@ -289,7 +289,7 @@ _mcd_connection_set_presence (McdConnection * connection,
     if (!priv->tp_conn)
     {
 	g_warning ("%s: tp_conn is NULL!", G_STRFUNC);
-	_mcd_connection_setup (connection);
+	mcd_connection_connect (connection, NULL);
 	return;
     }
     g_return_if_fail (TP_IS_CONNECTION (priv->tp_conn));
@@ -1067,7 +1067,7 @@ static gboolean
 mcd_connection_reconnect (McdConnection *connection)
 {
     g_debug ("%s: %p", G_STRFUNC, connection);
-    _mcd_connection_setup (connection);
+    mcd_connection_connect (connection, NULL);
     return FALSE;
 }
 
@@ -1546,17 +1546,20 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
 }
 
 static void
-_mcd_connection_connect (McdConnection *connection, GHashTable *params)
+_mcd_connection_connect_with_params (McdConnection *connection,
+                                     GHashTable *params)
 {
     McdConnectionPrivate *priv = connection->priv;
     const gchar *protocol_name;
-    const gchar *account_name;
 
     protocol_name = mcd_account_get_protocol_name (priv->account);
-    account_name = mcd_account_get_unique_name (priv->account);
 
     g_debug ("%s: Trying connect account: %s",
-	     G_STRFUNC, (gchar *) account_name);
+	     G_STRFUNC, mcd_account_get_unique_name (priv->account));
+
+    mcd_account_set_connection_status (priv->account,
+                                       TP_CONNECTION_STATUS_CONNECTING,
+                                       TP_CONNECTION_STATUS_REASON_REQUESTED);
 
     /* TODO: add extra parameters? */
     tp_cli_connection_manager_call_request_connection (priv->tp_conn_mgr, -1,
@@ -1564,54 +1567,6 @@ _mcd_connection_connect (McdConnection *connection, GHashTable *params)
 						       request_connection_cb,
 						       priv, NULL,
 						       (GObject *)connection);
-}
-
-static void
-mcd_connection_get_params_and_connect (McdConnection *connection)
-{
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-    GHashTable *params = NULL;
-    const gchar *account_name;
-
-    g_debug ("%s called for %p", G_STRFUNC, connection);
-    mcd_account_set_connection_status (priv->account,
-				       TP_CONNECTION_STATUS_CONNECTING,
-				       TP_CONNECTION_STATUS_REASON_REQUESTED);
-
-    account_name = mcd_account_get_unique_name (priv->account);
-
-    g_debug ("%s: Trying connect account: %s",
-	     G_STRFUNC, (gchar *) account_name);
-
-    params = g_object_get_data ((GObject *)connection, "params");
-    _mcd_connection_connect (connection, params);
-}
-
-static void
-_mcd_connection_setup (McdConnection * connection)
-{
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-
-    g_return_if_fail (priv->tp_conn_mgr);
-    g_return_if_fail (priv->account);
-
-    if (priv->reconnect_timer)
-    {
-	g_source_remove (priv->reconnect_timer);
-	priv->reconnect_timer = 0;
-    }
-
-    if (mcd_connection_get_connection_status (connection) ==
-        TP_CONNECTION_STATUS_DISCONNECTED)
-    {
-	mcd_connection_get_params_and_connect (connection);
-    }
-    else
-    {
-	g_debug ("%s: Not connecting because not disconnected (%i)",
-		 G_STRFUNC, mcd_connection_get_connection_status (connection));
-	return;
-    }
 }
 
 static void
@@ -2517,12 +2472,38 @@ mcd_connection_close (McdConnection *connection)
 void
 mcd_connection_connect (McdConnection *connection, GHashTable *params)
 {
-    /* TODO: we should probably not save the parameters, but instead restart
-     * the full account connection process when we want to reconnect the
-     * connection */
-    g_object_set_data_full ((GObject *)connection, "params", params,
-			    (GDestroyNotify)g_hash_table_destroy);
-    _mcd_connection_setup (connection);
+    McdConnectionPrivate *priv;
+
+    g_return_if_fail (MCD_IS_CONNECTION (connection));
+    priv = connection->priv;
+
+    g_return_if_fail (priv->tp_conn_mgr);
+    g_return_if_fail (priv->account);
+    g_debug ("%s called for %p, account %s", G_STRFUNC, connection,
+             mcd_account_get_unique_name (priv->account));
+
+    if (priv->reconnect_timer)
+    {
+	g_source_remove (priv->reconnect_timer);
+	priv->reconnect_timer = 0;
+    }
+
+    if (mcd_connection_get_connection_status (connection) ==
+        TP_CONNECTION_STATUS_DISCONNECTED)
+    {
+        g_object_set_data_full ((GObject *)connection, "params", params,
+                                (GDestroyNotify)g_hash_table_destroy);
+
+        if (params)
+            _mcd_connection_connect_with_params (connection, params);
+        else
+            mcd_account_connection_begin (priv->account);
+    }
+    else
+    {
+	g_debug ("%s: Not connecting because not disconnected (%i)",
+		 G_STRFUNC, mcd_connection_get_connection_status (connection));
+    }
 }
 
 const gchar *
