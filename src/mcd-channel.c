@@ -278,6 +278,7 @@ static inline void
 _mcd_channel_setup (McdChannel *channel, McdChannelPrivate *priv)
 {
     McdChannel **channel_ptr;
+    GHashTable *properties;
 
     channel_ptr = g_slice_alloc (sizeof (McdChannel *));
     *channel_ptr = channel;
@@ -286,6 +287,16 @@ _mcd_channel_setup (McdChannel *channel, McdChannelPrivate *priv)
 
     g_signal_connect (priv->tp_chan, "invalidated",
 		      G_CALLBACK (proxy_destroyed), channel);
+
+    properties = tp_channel_borrow_immutable_properties (priv->tp_chan);
+    if (properties)
+    {
+        gboolean requested, valid = FALSE;
+        requested = tp_asv_get_boolean
+            (properties, TP_IFACE_CHANNEL ".Requested", &valid);
+        if (valid)
+            priv->outgoing = requested;
+    }
 }
 
 static void
