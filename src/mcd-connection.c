@@ -1323,6 +1323,25 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
     _mcd_dispatcher_send_channels (priv->dispatcher, channel_list, requested);
 }
 
+static void
+mcd_connection_recover_channel (McdConnection *connection,
+                                const gchar *object_path,
+                                const GHashTable *properties)
+{
+    McdConnectionPrivate *priv = connection->priv;
+    McdChannel *channel;
+
+    g_debug ("%s called for %s", G_STRFUNC, object_path);
+    channel = mcd_channel_new_from_properties (priv->tp_conn, object_path,
+                                               properties);
+    if (G_UNLIKELY (!channel)) return;
+
+    mcd_operation_take_mission (MCD_OPERATION (connection),
+                                MCD_MISSION (channel));
+
+    _mcd_dispatcher_recover_channel (priv->dispatcher, channel);
+}
+
 static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
                                  const GError *error, gpointer user_data,
                                  GObject *weak_object)
@@ -1355,6 +1374,7 @@ static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
         const gchar *object_path;
         GHashTable *channel_props;
         const GList *list;
+        gboolean found = FALSE;
 
         va = g_ptr_array_index (channels, i);
         object_path = g_value_get_boxed (va->values);
@@ -1370,17 +1390,19 @@ static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
             McdChannel *channel = MCD_CHANNEL (list->data);
             McdTmpChannelData *tcd;
 
+            if (g_strcmp0 (object_path,
+                           mcd_channel_get_object_path (channel)) == 0)
+            {
+                found = TRUE;
+                break;
+            }
+
             if (mcd_channel_get_status (channel) !=
                 MCD_CHANNEL_STATUS_UNDISPATCHED)
                 continue;
 
             tcd = g_object_get_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA);
-            if (G_UNLIKELY (!tcd))
-            {
-                g_warning ("Channel %p is undispatched without data", channel);
-                continue;
-            }
-            if (strcmp (tcd->object_path, object_path) == 0)
+            if (tcd && strcmp (tcd->object_path, object_path) == 0)
             {
                 _mcd_channel_create_proxy (channel, priv->tp_conn,
                                            object_path, channel_props);
@@ -1390,8 +1412,18 @@ static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
                 _mcd_dispatcher_send_channels (priv->dispatcher,
                                                g_list_prepend (NULL, channel),
                                                FALSE);
+                found = TRUE;
                 break;
             }
+        }
+
+        if (!found)
+        {
+            /* We don't have a McdChannel for this channel, which most likely
+             * means that it was already present on the connection before MC
+             * started. Let's try to recover it */
+            mcd_connection_recover_channel (connection,
+                                            object_path, channel_props);
         }
     }
 

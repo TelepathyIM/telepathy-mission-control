@@ -104,6 +104,9 @@ G_GNUC_INTERNAL
 void _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
                                           McdChannel *channel,
                                           McdChannel *request);
+G_GNUC_INTERNAL
+void _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
+                                      McdChannel *channel);
 
 G_END_DECLS
 
