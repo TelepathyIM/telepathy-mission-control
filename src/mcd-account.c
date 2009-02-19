@@ -760,6 +760,8 @@ get_avatar (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     GValueArray *va;
 
     mcd_account_get_avatar (account, &avatar, &mime_type);
+    if (!avatar)
+        avatar = g_array_new (FALSE, FALSE, 1);
 
     type = dbus_g_type_get_struct ("GValueArray",
 				   dbus_g_type_get_collection ("GArray",
@@ -2100,9 +2102,6 @@ mcd_account_get_avatar (McdAccount *account, GArray **avatar,
 	}
     }
     g_free (filename);
-
-    if (!*avatar)
-	*avatar = g_array_new (FALSE, FALSE, 1);
 }
 
 void
