@@ -736,12 +736,6 @@ _mcd_connection_get_normalized_name (McdConnection *connection)
 }
 
 static void
-_mcd_connection_get_self_handle (McdConnection *connection)
-{
-    _mcd_connection_get_normalized_name (connection);
-}
-
-static void
 avatars_set_avatar_cb (TpConnection *proxy, const gchar *token,
 		       const GError *error, gpointer user_data,
 		       GObject *weak_object)
@@ -1084,7 +1078,6 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
 	{
 	    mcd_account_set_connection_status (priv->account,
 					       conn_status, conn_reason);
-	    _mcd_connection_get_self_handle (connection);
 	    priv->reconnect_interval = INITIAL_RECONNECTION_TIME;
 	}
 	break;
@@ -1461,6 +1454,8 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
 
     g_debug ("%s: connection is ready", G_STRFUNC);
     priv = MCD_CONNECTION_PRIV (connection);
+
+    _mcd_connection_get_normalized_name (connection);
 
     priv->has_presence_if = tp_proxy_has_interface_by_id
         (tp_conn, TP_IFACE_QUARK_CONNECTION_INTERFACE_SIMPLE_PRESENCE);
