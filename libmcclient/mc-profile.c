@@ -92,6 +92,7 @@ typedef struct {
     gchar **presences;
     gint priority;
     guint vcard_default : 1;
+    guint single_enable : 1;
     McProfileCapabilityFlags capabilities;
     GHashTable *default_settings;
     GHashTable *vcard_mangle_hash;
@@ -399,6 +400,7 @@ _mc_profile_load (McProfile *profile)
     priv->protocol = g_key_file_get_string (keyfile, PROFILE_GROUP, "Protocol", NULL);
     priv->vcard_field = g_key_file_get_string (keyfile, PROFILE_GROUP, "VCardField", NULL);
     priv->vcard_default = g_key_file_get_boolean (keyfile, PROFILE_GROUP, "VCardDefault", NULL);
+    priv->single_enable = g_key_file_get_boolean (keyfile, PROFILE_GROUP, "SingleEnable", NULL);
     priv->default_account_domain = g_key_file_get_string (keyfile, PROFILE_GROUP, "DefaultAccountDomain", NULL);
     priv->avatar_mime_type = g_key_file_get_string (keyfile, PROFILE_GROUP, "AvatarMimeType", NULL);
     priv->default_account_name = g_key_file_get_string (keyfile, PROFILE_GROUP, "DefaultAccountName", NULL);
@@ -1031,6 +1033,22 @@ mc_profile_is_default_for_vcard_field (McProfile *id)
 
     get_private_and_load_or_return_val (id, FALSE);
     return priv->vcard_default;
+}
+
+/**
+ * mc_profile_get_single_enable:
+ * @id: The #McProfile.
+ *
+ * Returns: #TRUE if no more than one account should be enabled for this
+ * service at the same time.
+ */
+gboolean
+mc_profile_get_single_enable (McProfile *id)
+{
+    McProfilePrivate *priv;
+
+    get_private_and_load_or_return_val (id, FALSE);
+    return priv->single_enable;
 }
 
 /**
