@@ -171,16 +171,6 @@ _mcd_get_error_string (const GError *error)
 }
 
 GType
-type_dbus_aasv (void)
-{
-  static GType t = 0;
-
-  if (G_UNLIKELY (t == 0))
-    t = dbus_g_type_get_collection ("GPtrArray", tp_type_dbus_hash_sv ());
-  return t;
-}
-
-GType
 _mcd_type_dbus_ao (void)
 {
   static GType t = 0;
