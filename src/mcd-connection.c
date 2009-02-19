@@ -2602,3 +2602,16 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
                                                   (GObject *)connection, NULL);
 }
 
+/**
+ * mcd_connection_get_tp_connection:
+ * @connection: the #McdConnection.
+ *
+ * Returns: the #TpConnection being used, or %NULL if none.
+ */
+TpConnection *
+mcd_connection_get_tp_connection (McdConnection *connection)
+{
+    g_return_val_if_fail (MCD_IS_CONNECTION (connection), NULL);
+    return connection->priv->tp_conn;
+}
+
