@@ -94,7 +94,6 @@ struct _McdConnectionPrivate
     /* Telepathy connection */
     TpConnection *tp_conn;
     TpProxySignalConnection *new_channel_sc;
-    guint self_handle;
 
     /* Capabilities timer */
     guint capabilities_timer;
@@ -361,8 +360,10 @@ on_presences_changed (TpConnection *proxy, GHashTable *presences,
 {
     McdConnectionPrivate *priv = user_data;
     GValueArray *va;
+    TpHandle self_handle;
 
-    va = g_hash_table_lookup (presences, GUINT_TO_POINTER (priv->self_handle));
+    self_handle = tp_connection_get_self_handle (proxy);
+    va = g_hash_table_lookup (presences, GUINT_TO_POINTER (self_handle));
     if (va)
     {
         TpConnectionPresenceType presence;
@@ -719,44 +720,19 @@ _mcd_connection_get_normalized_name (McdConnection *connection)
 {
     McdConnectionPrivate *priv = connection->priv;
     GArray *handles;
+    TpHandle self_handle;
+
+    g_return_if_fail (priv->tp_conn != NULL);
 
     handles = g_array_sized_new (FALSE, FALSE, sizeof (guint), 1);
-    g_array_append_val (handles, priv->self_handle);
+    self_handle = tp_connection_get_self_handle (priv->tp_conn);
+    g_array_append_val (handles, self_handle);
     tp_cli_connection_call_inspect_handles (priv->tp_conn, -1,
 					    TP_HANDLE_TYPE_CONTACT,
 					    handles,
 					    inspect_handles_cb, priv, NULL,
 					    (GObject *)connection);
     g_array_free (handles, TRUE); 
-}
-
-static void
-get_self_handle_cb (TpConnection *proxy, guint self_handle,
-		    const GError *error, gpointer user_data,
-		    GObject *weak_object)
-{
-    McdConnection *connection = MCD_CONNECTION (weak_object);
-    McdConnectionPrivate *priv = user_data;
-
-    if (!error)
-    {
-	priv->self_handle = self_handle;
-	_mcd_connection_get_normalized_name (connection);
-    }
-    else
-	g_warning ("GetSelfHandle failed for connection %p: %s",
-		   connection, error->message);
-}
-
-static void
-_mcd_connection_get_self_handle (McdConnection *connection)
-{
-    McdConnectionPrivate *priv = connection->priv;
-
-    tp_cli_connection_call_get_self_handle (priv->tp_conn, -1,
-					    get_self_handle_cb,
-					    priv, NULL,
-					    (GObject *)connection);
 }
 
 static void
@@ -798,7 +774,7 @@ on_avatar_retrieved (TpConnection *proxy, guint contact_id, const gchar *token,
     McdConnectionPrivate *priv = user_data;
     gchar *prev_token = NULL;
 
-    if (contact_id != priv->self_handle) return;
+    if (contact_id != tp_connection_get_self_handle (proxy)) return;
 
     /* if we are setting the avatar, we must ignore this signal */
     if (priv->setting_avatar) return;
@@ -832,7 +808,7 @@ on_avatar_updated (TpConnection *proxy, guint contact_id, const gchar *token,
     McdConnection *connection = MCD_CONNECTION (weak_object);
     gchar *prev_token;
 
-    if (contact_id != priv->self_handle) return;
+    if (contact_id != tp_connection_get_self_handle (proxy)) return;
 
     /* if we are setting the avatar, we must ignore this signal */
     if (priv->setting_avatar) return;
@@ -891,6 +867,7 @@ avatars_request_tokens_cb (TpConnection *proxy, GHashTable *tokens,
     GArray *avatar = NULL;
     const gchar *token;
     gchar *mime_type;
+    TpHandle self_handle;
 
     if (error)
     {
@@ -898,7 +875,8 @@ avatars_request_tokens_cb (TpConnection *proxy, GHashTable *tokens,
 	return;
     }
 
-    token = g_hash_table_lookup (tokens, GUINT_TO_POINTER (priv->self_handle));
+    self_handle = tp_connection_get_self_handle (proxy);
+    token = g_hash_table_lookup (tokens, GUINT_TO_POINTER (self_handle));
     if (token)
 	return;
 
@@ -954,11 +932,13 @@ _mcd_connection_setup_avatar (McdConnection *connection)
 	else
 	{
 	    GArray handles;
+            TpHandle self_handle;
 
 	    g_debug ("checking for server token");
 	    /* Set the avatar only if no other one was set */
+            self_handle = tp_connection_get_self_handle (priv->tp_conn);
 	    handles.len = 1;
-	    handles.data = (gchar *)&priv->self_handle;
+            handles.data = (gchar *)&self_handle;
 	    tp_cli_connection_interface_avatars_call_get_known_avatar_tokens (priv->tp_conn, -1,
 									      &handles,
 									      avatars_request_tokens_cb,
@@ -991,7 +971,7 @@ on_aliases_changed (TpConnection *proxy, const GPtrArray *aliases,
 	g_value_set_static_boxed (&data, g_ptr_array_index(aliases, i));
 	dbus_g_type_struct_get (&data, 0, &contact, 1, &alias, G_MAXUINT);
 	g_debug("Got alias for contact %u: %s", contact, alias);
-	if (contact == priv->self_handle)
+	if (contact == tp_connection_get_self_handle (proxy))
 	{
 	    g_debug("This is our alias");
 	    if (!priv->alias || strcmp (priv->alias, alias) != 0)
@@ -1022,11 +1002,13 @@ _mcd_connection_set_alias (McdConnection *connection,
 {
     McdConnectionPrivate *priv = connection->priv;
     GHashTable *aliases;
+    TpHandle self_handle;
 
     g_debug ("%s: setting alias '%s'", G_STRFUNC, alias);
 
     aliases = g_hash_table_new (NULL, NULL);
-    g_hash_table_insert (aliases, GINT_TO_POINTER(priv->self_handle),
+    self_handle = tp_connection_get_self_handle (priv->tp_conn);
+    g_hash_table_insert (aliases, GINT_TO_POINTER(self_handle),
 			 (gchar *)alias);
     tp_cli_connection_interface_aliasing_call_set_aliases (priv->tp_conn, -1,
 							   aliases,
@@ -1096,7 +1078,6 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
 	{
 	    mcd_account_set_connection_status (priv->account,
 					       conn_status, conn_reason);
-	    _mcd_connection_get_self_handle (connection);
 	    priv->reconnect_interval = INITIAL_RECONNECTION_TIME;
 	}
 	break;
@@ -1473,6 +1454,8 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
 
     g_debug ("%s: connection is ready", G_STRFUNC);
     priv = MCD_CONNECTION_PRIV (connection);
+
+    _mcd_connection_get_normalized_name (connection);
 
     priv->has_presence_if = tp_proxy_has_interface_by_id
         (tp_conn, TP_IFACE_QUARK_CONNECTION_INTERFACE_SIMPLE_PRESENCE);
