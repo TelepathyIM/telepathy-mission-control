@@ -91,7 +91,7 @@ typedef struct {
     gchar *localization_domain;
     gchar **presences;
     gint priority;
-    gboolean vcard_default;
+    guint vcard_default : 1;
     McProfileCapabilityFlags capabilities;
     GHashTable *default_settings;
     GHashTable *vcard_mangle_hash;
