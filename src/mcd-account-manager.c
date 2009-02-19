@@ -41,7 +41,7 @@
 #include "mcd-dbusprop.h"
 #include "_gen/interfaces.h"
 
-#define WRITE_CONF_DELAY    2000
+#define WRITE_CONF_DELAY    500
 #define INITIAL_CONFIG_FILE_CONTENTS "# Telepathy accounts\n"
 
 #define MCD_ACCOUNT_MANAGER_PRIV(account_manager) \
@@ -874,8 +874,9 @@ mcd_account_manager_write_conf (McdAccountManager *account_manager)
      * McdAccountManager object running, since the write_conf_id is a static
      * variable */
     if (write_conf_id == 0) 
-        write_conf_id = g_timeout_add (WRITE_CONF_DELAY, write_conf,
-                                       account_manager->priv->keyfile);
+        write_conf_id =
+            g_timeout_add_full (G_PRIORITY_HIGH, WRITE_CONF_DELAY, write_conf,
+                                account_manager->priv->keyfile, NULL);
 }
 
 GHashTable *
