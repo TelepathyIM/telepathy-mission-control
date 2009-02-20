@@ -760,6 +760,8 @@ get_avatar (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     GValueArray *va;
 
     mcd_account_get_avatar (account, &avatar, &mime_type);
+    if (!avatar)
+        avatar = g_array_new (FALSE, FALSE, 1);
 
     type = dbus_g_type_get_struct ("GValueArray",
 				   dbus_g_type_get_collection ("GArray",
@@ -2047,19 +2049,28 @@ mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
     }
     g_free (filename);
 
-    if (token)
-	g_key_file_set_string (priv->keyfile, priv->unique_name,
-			       MC_ACCOUNTS_KEY_AVATAR_TOKEN, token);
-    else
-	g_key_file_remove_key (priv->keyfile, priv->unique_name,
-			       MC_ACCOUNTS_KEY_AVATAR_TOKEN, NULL);
-
     if (mime_type)
 	g_key_file_set_string (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_AVATAR_MIME, mime_type);
 
-    g_signal_emit (account, _mcd_account_signals[AVATAR_CHANGED], 0,
-		   avatar, mime_type);
+    if (token)
+    {
+        gchar *prev_token;
+
+        prev_token = mcd_account_get_avatar_token (account);
+        g_key_file_set_string (priv->keyfile, priv->unique_name,
+                               MC_ACCOUNTS_KEY_AVATAR_TOKEN, token);
+        if (!prev_token || strcmp (prev_token, token) != 0)
+            mc_svc_account_interface_avatar_emit_avatar_changed (account);
+        g_free (prev_token);
+    }
+    else
+    {
+        g_key_file_remove_key (priv->keyfile, priv->unique_name,
+                               MC_ACCOUNTS_KEY_AVATAR_TOKEN, NULL);
+        g_signal_emit (account, _mcd_account_signals[AVATAR_CHANGED], 0,
+                       avatar, mime_type);
+    }
 
     mcd_account_manager_write_conf (priv->account_manager);
     return TRUE;
@@ -2100,9 +2111,6 @@ mcd_account_get_avatar (McdAccount *account, GArray **avatar,
 	}
     }
     g_free (filename);
-
-    if (!*avatar)
-	*avatar = g_array_new (FALSE, FALSE, 1);
 }
 
 void

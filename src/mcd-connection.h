@@ -82,6 +82,7 @@ const gchar *mcd_connection_get_name (McdConnection *connection);
 /* Return the connection's account */
 McdAccount *mcd_connection_get_account (McdConnection * connection);
 
+TpConnection *mcd_connection_get_tp_connection (McdConnection *connection);
 TpConnectionStatus mcd_connection_get_connection_status (McdConnection *connection);
 TpConnectionStatusReason mcd_connection_get_connection_status_reason (McdConnection *connection);
 

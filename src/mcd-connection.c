@@ -814,8 +814,7 @@ on_avatar_updated (TpConnection *proxy, guint contact_id, const gchar *token,
     if (priv->setting_avatar) return;
 
     g_debug ("%s: contact %d, token: %s", G_STRFUNC, contact_id, token);
-    if (!(prev_token = mcd_account_get_avatar_token (priv->account)))
-	return;
+    prev_token = mcd_account_get_avatar_token (priv->account);
 
     if (!prev_token || strcmp (token, prev_token) != 0)
     {
@@ -881,11 +880,12 @@ avatars_request_tokens_cb (TpConnection *proxy, GHashTable *tokens,
 	return;
 
     mcd_account_get_avatar (priv->account, &avatar, &mime_type);
-
-    g_debug ("No avatar set, setting our own");
-    _mcd_connection_set_avatar (connection, avatar, mime_type);
-
-    g_array_free (avatar, TRUE);
+    if (avatar)
+    {
+        g_debug ("No avatar set, setting our own");
+        _mcd_connection_set_avatar (connection, avatar, mime_type);
+        g_array_free (avatar, TRUE);
+    }
     g_free (mime_type);
 }
 
@@ -2600,5 +2600,18 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
                                                   on_new_channel,
                                                   priv, NULL,
                                                   (GObject *)connection, NULL);
+}
+
+/**
+ * mcd_connection_get_tp_connection:
+ * @connection: the #McdConnection.
+ *
+ * Returns: the #TpConnection being used, or %NULL if none.
+ */
+TpConnection *
+mcd_connection_get_tp_connection (McdConnection *connection)
+{
+    g_return_val_if_fail (MCD_IS_CONNECTION (connection), NULL);
+    return connection->priv->tp_conn;
 }
 
