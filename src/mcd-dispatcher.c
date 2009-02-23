@@ -1036,10 +1036,13 @@ match_filters (McdChannel *channel, GList *filters)
 {
     GHashTable *channel_properties;
     gboolean matched = FALSE;
+    McdChannelStatus status;
     GList *list;
 
+    status = mcd_channel_get_status (channel);
     channel_properties =
-        (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_REQUEST) ?
+        (status == MCD_CHANNEL_STATUS_REQUEST ||
+         status == MCD_CHANNEL_STATUS_REQUESTED) ?
         _mcd_channel_get_requested_properties (channel) :
         _mcd_channel_get_immutable_properties (channel);
 
