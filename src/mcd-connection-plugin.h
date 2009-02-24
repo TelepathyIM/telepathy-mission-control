@@ -29,12 +29,15 @@
 #include <glib.h>
 #include <glib-object.h>
 #include "mcd-plugin.h"
+#include "mcd-transport.h"
 
 G_BEGIN_DECLS
 
 typedef void (*McdAccountConnectionFunc) (McdAccount *account, GHashTable *parameters, gpointer userdata);
 
 void mcd_account_connection_proceed (McdAccount *account, gboolean success);
+void mcd_account_connection_bind_transport (McdAccount *account,
+                                            McdTransport *transport);
 
 #define MCD_ACCOUNT_CONNECTION_PRIORITY_POLICY 10000
 #define MCD_ACCOUNT_CONNECTION_PRIORITY_TRANSPORT 20000
@@ -44,6 +47,10 @@ void mcd_plugin_register_account_connection (McdPlugin *plugin,
 					     McdAccountConnectionFunc func,
 					     gint priority,
 					     gpointer userdata);
+
+/* not exported */
+G_GNUC_INTERNAL
+McdTransport *_mcd_account_connection_get_transport (McdAccount *account);
 
 G_END_DECLS
 
