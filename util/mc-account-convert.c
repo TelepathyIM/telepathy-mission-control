@@ -30,7 +30,6 @@
 #include <dbus/dbus.h>
 #include <dbus/dbus-glib.h>
 #include <telepathy-glib/dbus.h>
-#include <libmcclient/dbus-api.h>
 #include <libmcclient/mc-account-manager.h>
 #include <libmcclient/mc-account.h>
 

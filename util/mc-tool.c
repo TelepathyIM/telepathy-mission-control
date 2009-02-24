@@ -29,7 +29,6 @@
 #include <glib-object.h>
 
 #include <telepathy-glib/dbus.h>
-#include <libmcclient/dbus-api.h>
 #include <libmcclient/mc-account-manager.h>
 #include <libmcclient/mc-account.h>
 
