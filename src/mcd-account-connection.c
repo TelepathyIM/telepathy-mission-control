@@ -122,6 +122,33 @@ mcd_account_connection_proceed (McdAccount *account, gboolean success)
     }
 }
 
+/**
+ * mcd_account_connection_bind_transport:
+ * @account: the #McdAccount.
+ * @transport: the #McdTransport.
+ *
+ * Set @account as dependent on @transport; connectivity plugins should call
+ * this function in the callback they registered with
+ * mcd_plugin_register_account_connection(). This tells the account manager to
+ * disconnect @account when @transport goes away.
+ */
+void
+mcd_account_connection_bind_transport (McdAccount *account,
+                                       McdTransport *transport)
+{
+    g_return_if_fail (MCD_IS_ACCOUNT (account));
+
+    g_object_set_data ((GObject *)account, "transport", transport);
+}
+
+McdTransport *
+_mcd_account_connection_get_transport (McdAccount *account)
+{
+    g_return_val_if_fail (MCD_IS_ACCOUNT (account), NULL);
+
+    return g_object_get_data ((GObject *)account, "transport");
+}
+
 inline void
 _mcd_account_connection_class_init (McdAccountClass *klass)
 {

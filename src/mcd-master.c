@@ -129,18 +129,6 @@ typedef struct {
 static McdMaster *default_master = NULL;
 
 
-static inline void
-set_account_transport (McdAccount *account, McdTransport *transport)
-{
-    g_object_set_data ((GObject *)account, "transport", transport);
-}
-
-static inline McdTransport *
-get_account_transport (McdAccount *account)
-{
-    return g_object_get_data ((GObject *)account, "transport");
-}
-
 static void
 check_account_transport (gpointer key, gpointer value, gpointer userdata)
 {
@@ -166,7 +154,7 @@ check_account_transport (gpointer key, gpointer value, gpointer userdata)
 	g_debug ("conditions matched");
         _mcd_account_request_connection (account);
         if (g_hash_table_size (conditions) > 0)
-            set_account_transport (account, td->transport);
+            mcd_account_connection_bind_transport (account, td->transport);
     }
     g_hash_table_unref (conditions);
 }
@@ -195,7 +183,7 @@ disconnect_account_transport (gpointer key, gpointer value, gpointer userdata)
     McdAccount *account = MCD_ACCOUNT (value);
     TransportData *td = userdata;
 
-    if (td->transport == get_account_transport (account))
+    if (td->transport == _mcd_account_connection_get_transport (account))
     {
         McdConnection *connection;
 
@@ -204,7 +192,7 @@ disconnect_account_transport (gpointer key, gpointer value, gpointer userdata)
         connection = mcd_account_get_connection (account);
         if (connection)
             mcd_connection_close (connection);
-	set_account_transport (account, NULL);
+	mcd_account_connection_bind_transport (account, NULL);
 
         /* it may be that there is another transport to which the account can
          * reconnect */
@@ -1324,7 +1312,7 @@ _mcd_master_account_conditions_satisfied (McdMaster *master,
                     mcd_transport_plugin_check_conditions (plugin, transport,
                                                            conditions))
                 {
-                    set_account_transport (account, transport);
+                    mcd_account_connection_bind_transport (account, transport);
                     ret = TRUE;
                     goto finish;
                 }
