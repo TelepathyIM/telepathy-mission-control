@@ -35,6 +35,13 @@ typedef struct _McAccountManagerPrivate McAccountManagerPrivate;
 
 #include <libmcclient/mc-account.h>
 
+#ifndef MC_ACCOUNT_MANAGER_DBUS_SERVICE
+#define MC_ACCOUNT_MANAGER_DBUS_SERVICE \
+    "org.freedesktop.Telepathy.AccountManager"
+#define MC_ACCOUNT_MANAGER_DBUS_OBJECT \
+    "/org/freedesktop/Telepathy/AccountManager"
+#endif
+
 GType mc_account_manager_get_type (void);
 
 #define MC_TYPE_ACCOUNT_MANAGER \

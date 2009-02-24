@@ -27,6 +27,9 @@
 
 #include <telepathy-glib/proxy.h>
 #include <telepathy-glib/enums.h>
+#include <libmcclient/mc-enums.h>
+#include <libmcclient/mc-gtypes.h>
+#include <libmcclient/mc-interfaces.h>
 
 G_BEGIN_DECLS
 
@@ -43,6 +46,12 @@ struct _McAccount {
     /*<private>*/
     McAccountPrivate *priv;
 };
+
+#ifndef MC_ACCOUNT_DBUS_OBJECT_BASE
+#define MC_ACCOUNT_DBUS_OBJECT_BASE "/org/freedesktop/Telepathy/Account/"
+#define MC_ACCOUNT_DBUS_OBJECT_BASE_LEN \
+    (sizeof (MC_ACCOUNT_DBUS_OBJECT_BASE) - 1)
+#endif
 
 GType mc_account_get_type (void);
 

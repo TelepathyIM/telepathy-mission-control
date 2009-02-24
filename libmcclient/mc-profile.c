@@ -23,6 +23,8 @@
  *
  */
 
+#define MC_INTERNAL
+
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <string.h>

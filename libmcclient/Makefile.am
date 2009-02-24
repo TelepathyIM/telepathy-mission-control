@@ -36,11 +36,15 @@ libmcclient_includedir = $(includedir)/libmcclient
 libmcclient_include_HEADERS = \
 	dbus-api.h \
 	mc-account.h \
+	mc-enums.h \
 	mc-errors.h \
+	mc-gtypes.h \
+	mc-interfaces.h \
 	mc-profile.h \
 	mc-account-manager.h \
 	mc-dispatch-operation.h \
-	mc-signals-marshal.h
+	mc-signals-marshal.h \
+	mc-svc-client.h
 
 noinst_HEADERS = \
 	mc-account-priv.h

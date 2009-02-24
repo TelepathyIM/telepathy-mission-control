@@ -33,6 +33,9 @@
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/proxy.h>
 
+#ifndef MC_INTERNAL
+#warning This header is deprecated in favor of mc-account.h, mc-account-manager.h, mc-client.h
+
 #define MC_ACCOUNT_MANAGER_DBUS_SERVICE "org.freedesktop.Telepathy.AccountManager"
 #define MC_ACCOUNT_MANAGER_DBUS_OBJECT "/org/freedesktop/Telepathy/AccountManager"
 #define MC_ACCOUNT_DBUS_OBJECT_BASE "/org/freedesktop/Telepathy/Account/"
@@ -47,12 +50,14 @@
 #define MC_CLIENT_DBUS_SERVICE_BASE_LEN \
     (sizeof (MC_CLIENT_DBUS_SERVICE_BASE) - 1)
 
+#include <libmcclient/mc-enums.h>
+#include <libmcclient/mc-gtypes.h>
+#include <libmcclient/mc-interfaces.h>
+
+#endif /* MC_INTERNAL */
+
 /* FIXME: MC should register a separate service for the ChannelDispatcher */
 #define MC_CHANNEL_DISPATCHER_DBUS_SERVICE MC_ACCOUNT_MANAGER_DBUS_SERVICE
-
-#include <libmcclient/_gen/enums.h>
-#include <libmcclient/_gen/gtypes.h>
-#include <libmcclient/_gen/interfaces.h>
 
 void _mc_ext_register_dbus_glib_marshallers (void);
 

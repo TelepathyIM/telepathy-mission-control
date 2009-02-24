@@ -21,8 +21,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#define MC_INTERNAL
+
 #include <string.h>
 #include "mc-dispatch-operation.h"
+#include "mc-account-manager.h"
+#include "mc-gtypes.h"
+#include "mc-interfaces.h"
 #include "dbus-api.h"
 #include "mc-signals-marshal.h"
 

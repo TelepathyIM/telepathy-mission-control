@@ -21,7 +21,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#define MC_INTERNAL
 #include "dbus-api.h"
+#include "mc-gtypes.h"
 #include <string.h>
 
 #include <dbus/dbus-protocol.h>

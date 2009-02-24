@@ -22,6 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#define MC_INTERNAL
+
 #include <stdio.h>
 #include <string.h>
 #include "mc-account.h"
