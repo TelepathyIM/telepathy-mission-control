@@ -83,21 +83,16 @@ enum
 static GQuark pending_got_info = 0;
 
 static void
-on_got_info (TpConnectionManager *tp_conn_mgr, guint source,
-             McdManager *manager)
+on_manager_ready (TpConnectionManager *tp_conn_mgr, const GError *error,
+                  gpointer user_data, GObject *weak_object)
 {
+    McdManager *manager = MCD_MANAGER (weak_object);
     McdManagerPrivate *priv;
 
     priv = manager->priv;
-    if (priv->got_info) return;
-
-    if (source == TP_CM_INFO_SOURCE_NONE &&
-        tp_connection_manager_activate (tp_conn_mgr))
-            return; /* let's wait for live introspection */
-
     g_debug ("manager %s is ready", priv->name);
     priv->got_info = TRUE;
-    mcd_object_ready (manager, pending_got_info, NULL);
+    mcd_object_ready (manager, pending_got_info, error);
 }
 
 static gint
@@ -237,8 +232,6 @@ _mcd_manager_dispose (GObject * object)
     
     if (priv->tp_conn_mgr)
     {
-        g_signal_handlers_disconnect_by_func (priv->tp_conn_mgr,
-                                              on_got_info, object);
 	g_object_unref (priv->tp_conn_mgr);
 	priv->tp_conn_mgr = NULL;
     }
@@ -302,8 +295,8 @@ mcd_manager_setup (McdManager *manager)
         goto error;
     }
 
-    g_signal_connect (priv->tp_conn_mgr, "got-info", G_CALLBACK (on_got_info),
-                      manager);
+    tp_connection_manager_call_when_ready (priv->tp_conn_mgr, on_manager_ready,
+                                           NULL, NULL, (GObject *)manager);
 
     g_debug ("%s: Manager %s created", G_STRFUNC, priv->name);
     return TRUE;
