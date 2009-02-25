@@ -31,6 +31,21 @@
 
 G_BEGIN_DECLS
 
+#undef DEBUG
+
+#ifdef ENABLE_DEBUG
+
+#define DEBUG(format, ...) do {             \
+    if (mcd_debug_get_level () > 0)         \
+        g_debug (format, ##__VA_ARGS__);    \
+} while (0)
+
+#else /* !defined ENABLE_DEBUG */
+
+#define DEBUG(format, ...) do {} while (0)
+
+#endif /* ENABLE_DEBUG */
+
 #define g_object_ref(obj)    (mcd_debug_ref (obj, __FILE__, __LINE__))
 #define g_object_unref(obj)  (mcd_debug_unref (obj, __FILE__, __LINE__))
 
