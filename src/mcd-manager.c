@@ -68,7 +68,7 @@ struct _McdManagerPrivate
 
     guint is_disposed : 1;
     guint delay_presence_request : 1;
-    guint got_info : 1;
+    guint ready : 1;
 };
 
 enum
@@ -80,7 +80,7 @@ enum
     PROP_DBUS_DAEMON,
 };
 
-static GQuark pending_got_info = 0;
+static GQuark readiness_quark = 0;
 
 static void
 on_manager_ready (TpConnectionManager *tp_conn_mgr, const GError *error,
@@ -91,8 +91,8 @@ on_manager_ready (TpConnectionManager *tp_conn_mgr, const GError *error,
 
     priv = manager->priv;
     g_debug ("manager %s is ready", priv->name);
-    priv->got_info = TRUE;
-    mcd_object_ready (manager, pending_got_info, error);
+    priv->ready = TRUE;
+    mcd_object_ready (manager, readiness_quark, error);
 }
 
 static gint
@@ -455,7 +455,7 @@ mcd_manager_class_init (McdManagerClass * klass)
                               TP_TYPE_DBUS_DAEMON,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
 
-    pending_got_info = g_quark_from_static_string ("mcd_manager_got_info");
+    readiness_quark = g_quark_from_static_string ("mcd_manager_got_info");
 }
 
 static void
@@ -638,10 +638,10 @@ mcd_manager_call_when_ready (McdManager *manager, McdManagerReadyCb callback,
     g_return_if_fail (MCD_IS_MANAGER (manager));
     g_return_if_fail (callback != NULL);
 
-    if (manager->priv->got_info)
+    if (manager->priv->ready)
         callback (manager, NULL, user_data);
     else
-        mcd_object_call_when_ready (manager, pending_got_info,
+        mcd_object_call_when_ready (manager, readiness_quark,
                                     (McdReadyCb)callback, user_data);
 }
 
