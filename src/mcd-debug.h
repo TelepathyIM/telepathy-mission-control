@@ -31,12 +31,36 @@
 
 G_BEGIN_DECLS
 
+#undef DEBUG
+
+#ifdef ENABLE_DEBUG
+
+#define DEBUG(format, ...) G_STMT_START {   \
+    if (_mcd_debug_get_level () > 0)        \
+        g_debug ("%s: " format, G_STRFUNC, ##__VA_ARGS__);    \
+} G_STMT_END
+
+/* reference count debugging */
+#ifndef g_object_ref
 #define g_object_ref(obj)    (mcd_debug_ref (obj, __FILE__, __LINE__))
 #define g_object_unref(obj)  (mcd_debug_unref (obj, __FILE__, __LINE__))
+#endif
+
+#else /* !defined ENABLE_DEBUG */
+
+#define DEBUG(format, ...) do {} while (0)
+
+#endif /* ENABLE_DEBUG */
+
+extern gint mcd_debug_level;
 
 void mcd_debug_init (void);
 
-inline gint mcd_debug_get_level (void);
+void mcd_debug_set_level (gint level);
+static inline gint _mcd_debug_get_level (void)
+{
+    return mcd_debug_level;
+}
 
 gpointer mcd_debug_ref (gpointer obj, const gchar *filename, gint linenum);
 void mcd_debug_unref (gpointer obj, const gchar *filename, gint linenum);

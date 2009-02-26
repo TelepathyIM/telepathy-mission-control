@@ -145,13 +145,13 @@ check_account_transport (gpointer key, gpointer value, gpointer userdata)
        	TP_CONNECTION_STATUS_CONNECTED) 
 	return;
 
-    g_debug ("%s: account %s would like to connect",
-	     G_STRFUNC, mcd_account_get_unique_name (account));
+    DEBUG ("account %s would like to connect",
+           mcd_account_get_unique_name (account));
     conditions = mcd_account_get_conditions (account);
     if (mcd_transport_plugin_check_conditions (td->plugin, td->transport,
 					       conditions))
     {
-	g_debug ("conditions matched");
+        DEBUG ("conditions matched");
         _mcd_account_request_connection (account);
         if (g_hash_table_size (conditions) > 0)
             mcd_account_connection_bind_transport (account, td->transport);
@@ -167,7 +167,7 @@ mcd_master_transport_connected (McdMaster *master, McdTransportPlugin *plugin,
     GHashTable *accounts;
     TransportData td;
 
-    g_debug ("%s: %s", G_STRFUNC, mcd_transport_get_name (plugin, transport));
+    DEBUG ("%s", mcd_transport_get_name (plugin, transport));
 
     td.master = master;
     td.plugin = plugin;
@@ -187,8 +187,8 @@ disconnect_account_transport (gpointer key, gpointer value, gpointer userdata)
     {
         McdConnection *connection;
 
-	g_debug ("%s: account %s must disconnect",
-		 G_STRFUNC, mcd_account_get_unique_name (account));
+        DEBUG ("account %s must disconnect",
+               mcd_account_get_unique_name (account));
         connection = mcd_account_get_connection (account);
         if (connection)
             mcd_connection_close (connection);
@@ -198,7 +198,7 @@ disconnect_account_transport (gpointer key, gpointer value, gpointer userdata)
          * reconnect */
         if (_mcd_master_account_conditions_satisfied (td->master, account))
         {
-            g_debug ("conditions matched");
+            DEBUG ("conditions matched");
             _mcd_account_request_connection (account);
         }
     }
@@ -212,7 +212,7 @@ mcd_master_transport_disconnected (McdMaster *master, McdTransportPlugin *plugin
     GHashTable *accounts;
     TransportData td;
 
-    g_debug ("%s: %s", G_STRFUNC, mcd_transport_get_name (plugin, transport));
+    DEBUG ("%s", mcd_transport_get_name (plugin, transport));
 
     td.master = master;
     td.plugin = plugin;
@@ -245,7 +245,7 @@ mcd_master_connect_automatic_accounts (McdMaster *master)
             /* if the account conditions are satisfied, connect */
             if (_mcd_master_account_conditions_satisfied (master, account))
             {
-                g_debug ("conditions matched");
+                DEBUG ("conditions matched");
                 _mcd_account_request_connection (account);
             }
         }
@@ -257,8 +257,8 @@ on_transport_status_changed (McdTransportPlugin *plugin,
 			     McdTransport *transport,
 			     McdTransportStatus status, McdMaster *master)
 {
-    g_debug ("Transport %s changed status to %u",
-	     mcd_transport_get_name (plugin, transport), status);
+    DEBUG ("Transport %s changed status to %u",
+           mcd_transport_get_name (plugin, transport), status);
 
     if (status == MCD_TRANSPORT_STATUS_CONNECTED)
 	mcd_master_transport_connected (master, plugin, transport);
@@ -297,7 +297,7 @@ mcd_master_load_plugins (McdMaster *master)
     dir = g_dir_open (MCD_DEFAULT_FILTER_PLUGIN_DIR, 0, &error);
     if (!dir)
     {
-	g_debug ("Could not open plugin directory: %s", error->message);
+        DEBUG ("Could not open plugin directory: %s", error->message);
 	g_error_free (error);
 	return;
     }
@@ -323,12 +323,12 @@ mcd_master_load_plugins (McdMaster *master)
 		g_ptr_array_add (priv->plugins, module);
 	    }
 	    else
-		g_debug ("Error looking up symbol " MCD_PLUGIN_INIT_FUNC
-			 " from plugin %s: %s", name, g_module_error ());
+                DEBUG ("Error looking up symbol " MCD_PLUGIN_INIT_FUNC
+                       " from plugin %s: %s", name, g_module_error ());
 	}
 	else
 	{
-	    g_debug ("Error opening plugin: %s: %s", name, g_module_error ());
+            DEBUG ("Error opening plugin: %s: %s", name, g_module_error ());
 	}
     }
     g_dir_close (dir);
@@ -370,7 +370,7 @@ dbus_filter_func (DBusConnection *connection,
 				    &new_owner,
 				    DBUS_TYPE_INVALID)) {
 
-	    g_debug ("%s: error: %s", G_STRFUNC, error.message);
+            DEBUG ("error: %s", error.message);
 	    dbus_error_free (&error);
 
 	    return result;
@@ -380,7 +380,7 @@ dbus_filter_func (DBusConnection *connection,
 	{
 	    if (g_hash_table_lookup (priv->clients_needing_presence, prev_owner))
 	    {
-		g_debug ("Process %s which requested default presence is dead", prev_owner);
+                DEBUG ("Process %s which requested default presence is dead", prev_owner);
 		g_hash_table_remove (priv->clients_needing_presence, prev_owner);
 		if (g_hash_table_size (priv->clients_needing_presence) == 0 &&
 		    priv->offline_on_idle)
@@ -408,7 +408,7 @@ _mcd_master_connect (McdMission * mission)
 static void
 _mcd_master_disconnect (McdMission * mission)
 {
-    g_debug ("%s", G_STRFUNC);
+    DEBUG ("called");
 
     MCD_MISSION_CLASS (mcd_master_parent_class)->disconnect (mission);
 }
@@ -770,7 +770,7 @@ mcd_master_set_offline_on_idle (McdMaster *master, gboolean offline_on_idle)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
 
-    g_debug ("%s: setting offline_on_idle to %d", G_STRFUNC, offline_on_idle);
+    DEBUG ("setting offline_on_idle to %d", offline_on_idle);
     priv->offline_on_idle = offline_on_idle;
 }
 
@@ -835,7 +835,7 @@ mcd_master_set_default_presence (McdMaster * master, const gchar *client_id)
     {
 	if (g_hash_table_lookup (priv->clients_needing_presence, client_id) == NULL)
 	{
-	    g_debug ("New process requesting default presence (%s)", client_id);
+            DEBUG ("New process requesting default presence (%s)", client_id);
 	    g_hash_table_insert (priv->clients_needing_presence,
 				 g_strdup (client_id), GINT_TO_POINTER(1));
 	}
@@ -851,8 +851,8 @@ mcd_master_set_default_presence (McdMaster * master, const gchar *client_id)
 	 mcd_presence_frame_get_requested_presence (priv->presence_frame)
 	 >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE))
     {
-	g_debug ("%s: Default presence requested while connected or "
-		 "already connecting", G_STRFUNC);
+        DEBUG ("Default presence requested while connected or "
+               "already connecting");
 	return FALSE;
     }
     mcd_master_set_offline_on_idle (master, TRUE);
@@ -1234,7 +1234,7 @@ mcd_plugin_register_transport (McdPlugin *plugin,
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (plugin);
 
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("called");
     g_signal_connect (transport_plugin, "status-changed",
 		      G_CALLBACK (on_transport_status_changed),
 		      MCD_MASTER (plugin));
@@ -1251,7 +1251,7 @@ mcd_plugin_register_account_connection (McdPlugin *plugin,
     McdAccountConnectionData *acd;
     GList *list;
 
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("called");
     acd = g_malloc (sizeof (McdAccountConnectionData));
     acd->priority = priority;
     acd->func = func;

@@ -169,8 +169,7 @@ recover_connection (McdAccountManager *account_manager, gchar *file_contents,
     if (!account || !mcd_account_is_enabled (account))
         goto err_account;
 
-    g_debug ("%s: account is %s", G_STRFUNC,
-             mcd_account_get_unique_name (account));
+    DEBUG ("account is %s", mcd_account_get_unique_name (account));
     manager_name = mcd_account_get_manager_name (account);
 
     master = mcd_master_get_default ();
@@ -179,7 +178,7 @@ recover_connection (McdAccountManager *account_manager, gchar *file_contents,
     manager = mcd_master_lookup_manager (master, manager_name);
     if (G_UNLIKELY (!manager))
     {
-        g_debug ("Manager %s not found", manager_name);
+        DEBUG ("Manager %s not found", manager_name);
         goto err_manager;
     }
 
@@ -190,7 +189,7 @@ recover_connection (McdAccountManager *account_manager, gchar *file_contents,
                                        &error);
     if (G_UNLIKELY (error))
     {
-        g_debug ("%s: got error: %s", G_STRFUNC, error->message);
+        DEBUG ("got error: %s", error->message);
         g_error_free (error);
         goto err_connection;
     }
@@ -218,19 +217,19 @@ list_connection_names_cb (const gchar * const *names, gsize n,
     gchar *contents = NULL;
     guint i;
 
-    g_debug ("%s called, %u connections", G_STRFUNC, n);
+    DEBUG ("%u connections", n);
     g_file_get_contents (priv->account_connections_file, &contents, NULL, NULL);
 
     for (i = 0; i < n; i++)
     {
         g_return_if_fail (names[i] != NULL);
-        g_debug ("Connection %s", names[i]);
+        DEBUG ("Connection %s", names[i]);
         if (!recover_connection (account_manager, contents, names[i]))
         {
             /* Close the connection */
             TpConnection *proxy;
 
-            g_debug ("Killing connection");
+            DEBUG ("Killing connection");
             proxy = tp_connection_new (priv->dbus_daemon, names[i], NULL, NULL);
             if (proxy)
                 tp_cli_connection_call_disconnect (proxy, -1, NULL, NULL,
@@ -277,8 +276,7 @@ unref_account (gpointer data)
     McdAccount *account = MCD_ACCOUNT (data);
     McdAccountManager *account_manager;
 
-    g_debug ("%s called for %s", G_STRFUNC,
-             mcd_account_get_unique_name (account));
+    DEBUG ("called for %s", mcd_account_get_unique_name (account));
     account_manager = mcd_account_get_account_manager (account);
     g_signal_handlers_disconnect_by_func (account, on_account_validity_changed,
                                           account_manager);
@@ -404,7 +402,7 @@ mcd_account_manager_create_account (McdAccountManager *account_manager,
     McdAccount *account;
     gchar *unique_name;
 
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("called");
     if (G_UNLIKELY (manager == NULL || manager[0] == 0 ||
 		    protocol == NULL || protocol[0] == 0))
     {
@@ -527,7 +525,7 @@ get_valid_accounts (TpSvcDBusProperties *self, const gchar *name,
     McdAccountManager *account_manager = MCD_ACCOUNT_MANAGER (self);
     McdAccountManagerPrivate *priv = account_manager->priv;
 
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("called");
     accounts_to_gvalue (priv->accounts, TRUE, value);
 }
 
@@ -538,7 +536,7 @@ get_invalid_accounts (TpSvcDBusProperties *self, const gchar *name,
     McdAccountManager *account_manager = MCD_ACCOUNT_MANAGER (self);
     McdAccountManagerPrivate *priv = account_manager->priv;
 
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("called");
     accounts_to_gvalue (priv->accounts, FALSE, value);
 }
 
@@ -589,7 +587,7 @@ write_conf (gpointer userdata)
     gchar *filename, *data;
     gsize len;
 
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("called");
     write_conf_id = 0;
 
     data = g_key_file_to_data (keyfile, &len, &error);
@@ -617,7 +615,7 @@ release_load_accounts_lock (McdLoadAccountsData *lad)
 {
     g_return_if_fail (lad->account_lock > 0);
     lad->account_lock--;
-    g_debug ("%s called, count is now %d", G_STRFUNC, lad->account_lock);
+    DEBUG ("called, count is now %d", lad->account_lock);
     if (lad->account_lock == 0)
     {
         register_dbus_service (lad->account_manager);
@@ -817,14 +815,14 @@ mcd_account_manager_init (McdAccountManager *account_manager)
 
     priv->keyfile = g_key_file_new ();
     conf_filename = get_account_conf_filename ();
-    g_debug ("Loading accounts from %s", conf_filename);
+    DEBUG ("Loading accounts from %s", conf_filename);
     if (!g_file_test (conf_filename, G_FILE_TEST_EXISTS))
     {
 	gchar *dirname = g_path_get_dirname (conf_filename);
 	g_mkdir_with_parents (dirname, 0777);
 	g_free (dirname);
 
-	g_debug ("Creating file");
+        DEBUG ("Creating file");
 	g_file_set_contents (conf_filename, INITIAL_CONFIG_FILE_CONTENTS,
 			     sizeof (INITIAL_CONFIG_FILE_CONTENTS) - 1, NULL);
     }

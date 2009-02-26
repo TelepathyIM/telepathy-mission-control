@@ -263,7 +263,7 @@ mcd_service_cancel_channel_request (GObject * obj, guint operation_id,
 {
     GError *err = NULL;
     gchar *sender = dbus_g_method_get_sender (mi);
-    g_debug ("%s (%u)", G_STRFUNC, operation_id);
+    DEBUG ("%u", operation_id);
     if (!mcd_master_cancel_channel_request (MCD_MASTER (obj), operation_id,
 					    sender, &err))
     {
@@ -301,7 +301,7 @@ mcd_service_get_account_for_connection(GObject *obj,
 				       gchar **ret_unique_name,
 				       GError **error)
 {
-    g_debug ("%s: object_path = %s", __FUNCTION__, object_path);
+    DEBUG ("%s: object_path = %s", __FUNCTION__, object_path);
     
     if (!mcd_master_get_account_for_connection (MCD_MASTER (obj),
 						object_path,
@@ -379,8 +379,8 @@ mcd_service_remote_avatar_changed(GObject *obj,
     McdConnection *connection;
     GError *error = NULL;
 
-    g_debug ("%s: object_path = %s, id = %u, token = %s", __FUNCTION__,
-	     object_path, contact_id, token);
+    DEBUG ("%s: object_path = %s, id = %u, token = %s", __FUNCTION__,
+           object_path, contact_id, token);
  
     connection = mcd_master_get_connection (MCD_MASTER (obj),
 					    object_path, &error);
@@ -405,7 +405,7 @@ _on_filter_process (DBusGProxy *proxy, guint counter, gboolean process)
     ctx = g_hash_table_lookup (ctx_table, GUINT_TO_POINTER (counter));
     if (ctx)
     {
-        g_debug ("%s: Process channel %d", __FUNCTION__, counter);
+        DEBUG ("%s: Process channel %d", __FUNCTION__, counter);
         g_hash_table_remove (ctx_table, GUINT_TO_POINTER (counter));
         mcd_dispatcher_context_process (ctx, process);
     }
@@ -424,7 +424,7 @@ _on_filter_new_channel (McdDispatcherContext *ctx, DBusGProxy *proxy)
 
     g_object_get (G_OBJECT (connection), "tp-connection", &tp_conn, NULL);
 
-    g_debug ("%s: Filtering new channel", __FUNCTION__);
+    DEBUG ("%s: Filtering new channel", __FUNCTION__);
     dbus_g_proxy_call_no_reply (proxy, "FilterChannel",
 				G_TYPE_STRING, TP_PROXY (tp_conn)->bus_name,
 				DBUS_TYPE_G_OBJECT_PATH, TP_PROXY (tp_conn)->object_path,
@@ -462,7 +462,7 @@ _on_filter_proxy_destroy (DBusGProxy *proxy)
     				 (GHRFunc) _ctx_table_remove_foreach,
     				 NULL);
 
-    g_debug ("%s: Unregistering filter", __FUNCTION__);
+    DEBUG ("Unregistering filter");
     mcd_dispatcher_unregister_filter (dispatcher,
 				      (McdFilterFunc) _on_filter_new_channel,
 				      quark, flags);
@@ -485,7 +485,7 @@ mcd_service_register_filter(GObject *obj,
     static gboolean initialized = FALSE;
     guint quark = g_quark_from_string (channel_type);
 
-    g_debug ("%s: Registering new filter", __FUNCTION__);
+    DEBUG ("Registering new filter");
 
     if (!initialized)
     {
@@ -541,7 +541,7 @@ mcd_register_dbus_object (McdService * obj)
     
     dbus_error_init (&error);
     
-    g_debug ("Requesting MC dbus service");
+    DEBUG ("Requesting MC dbus service");
     
     dbus_bus_request_name (dbus_g_connection_get_connection (connection),
 			   MISSION_CONTROL_DBUS_SERVICE, 0, &error);
@@ -552,12 +552,12 @@ mcd_register_dbus_object (McdService * obj)
 	dbus_error_free (&error);
     }
     
-    g_debug ("Registering MC object");
+    DEBUG ("Registering MC object");
     mcd_debug_print_tree (obj);
     dbus_g_connection_register_g_object (connection,
 					 MISSION_CONTROL_DBUS_OBJECT,
 					 G_OBJECT (obj));
-    g_debug ("Registered MC object");
+    DEBUG ("Registered MC object");
     mcd_debug_print_tree (obj);
 }
 
@@ -574,9 +574,9 @@ _on_account_status_changed (McdPresenceFrame * presence_frame,
     mcd_account_get_current_presence (account, &presence, &status, &message);
 
     /* Emit the AccountStatusChanged signal */
-    g_debug ("Emitting account status changed for %s: status = %d, reason = %d",
-	     mcd_account_get_unique_name (account), connection_status,
-	     connection_reason);
+    DEBUG ("Emitting account status changed for %s: status = %d, reason = %d",
+           mcd_account_get_unique_name (account), connection_status,
+           connection_reason);
 
     /* HACK for old MC compatibility */
     if (connection_status == TP_CONNECTION_STATUS_CONNECTED &&
@@ -604,9 +604,9 @@ _on_account_presence_changed (McdPresenceFrame * presence_frame,
 			      gchar * presence_message, McdService * obj)
 {
     /* Emit the AccountStatusChanged signal */
-    g_debug ("Emitting presence changed for %s: presence = %d, message = %s",
-	     mcd_account_get_unique_name (account), presence,
-	     presence_message);
+    DEBUG ("Emitting presence changed for %s: presence = %d, message = %s",
+           mcd_account_get_unique_name (account), presence,
+           presence_message);
     
     /* HACK for old MC compatibility */
     if (mcd_presence_frame_get_account_status (presence_frame, account)
@@ -819,7 +819,7 @@ mcd_service_constructed (GObject *obj)
 {
     McdServicePrivate *priv = MCD_OBJECT_PRIV (obj);
 
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("called");
     g_object_get (obj,
                   "presence-frame", &priv->presence_frame,
                   "dispatcher", &priv->dispatcher,
@@ -860,7 +860,7 @@ mcd_service_init (McdService * obj)
     obj->main_loop = g_main_loop_new (NULL, FALSE);
 
     priv->last_status = -1;
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("called");
 }
 
 static void

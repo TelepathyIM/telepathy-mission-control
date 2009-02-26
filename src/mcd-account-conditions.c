@@ -121,7 +121,7 @@ GHashTable *mcd_account_get_conditions (McdAccount *account)
     {
 	if (strncmp (*key, "condition-", 10) != 0) continue;
 	condition = g_key_file_get_string (keyfile, unique_name, *key, NULL);
-	g_debug ("Condition: %s = %s", *key, condition);
+        DEBUG ("Condition: %s = %s", *key, condition);
 	g_hash_table_insert (conditions, g_strdup (*key + 10), condition);
     }
     g_strfreev (keys);

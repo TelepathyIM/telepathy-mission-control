@@ -96,6 +96,11 @@ done
 AC_SUBST(TEST_PYTHON)
 AM_CONDITIONAL([WANT_TWISTED_TESTS], test false != "$TEST_PYTHON")
 
+AC_ARG_ENABLE(debug,            [  --disable-debug               compile without debug code],[enable_debug=${enableval}], enable_debug=yes )
+if test "x$enable_debug" = "xyes"; then
+	CFLAGS="$CFLAGS -DENABLE_DEBUG"
+fi
+
 AC_ARG_ENABLE(cast-checks,      [  --disable-cast-checks         compile with GLIB cast checks disabled],[cchecks=${enableval}],cchecks=yes)
 if test "x$cchecks" = "xno"; then
 	CFLAGS="$CFLAGS -DG_DISABLE_CAST_CHECKS"

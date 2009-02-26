@@ -50,7 +50,7 @@ main (int argc, char **argv)
 
     g_type_init ();
 
-    tp_debug_set_flags (g_getenv ("TP_GLIB_DEBUG"));
+    tp_debug_set_flags (g_getenv ("MC_TP_DEBUG"));
 
     mcd = mcd_service_new ();
 

@@ -106,9 +106,9 @@ mcd_controller_shutdown (McdController *controller, const gchar *reason)
 
     if(!priv->shutdown_timeout_id)
     {
-	g_debug ("MC will bail out because of \"%s\" out exit after %i",
-		 reason ? reason : "No reason specified",
-		 EXIT_COUNTDOWN_TIME);
+        DEBUG ("MC will bail out because of \"%s\" out exit after %i",
+               reason ? reason : "No reason specified",
+               EXIT_COUNTDOWN_TIME);
 	
 	priv->shutdown_timeout_id = g_timeout_add (EXIT_COUNTDOWN_TIME,
 						   _mcd_controller_exit_by_timeout,
@@ -116,8 +116,8 @@ mcd_controller_shutdown (McdController *controller, const gchar *reason)
     }
     else
     {
-	g_debug ("Already shutting down. This one has the reason %s",
-		 reason ? reason:"No reason specified");
+        DEBUG ("Already shutting down. This one has the reason %s",
+               reason ? reason:"No reason specified");
     }
     mcd_debug_print_tree (controller);
 }
@@ -132,7 +132,7 @@ mcd_controller_cancel_shutdown (McdController *controller)
 
     if (priv->shutdown_timeout_id)
     {
-	g_debug ("Cancelling exit timeout");
+        DEBUG ("Cancelling exit timeout");
 	g_source_remove (priv->shutdown_timeout_id);
 	priv->shutdown_timeout_id = 0;
     }

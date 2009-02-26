@@ -115,7 +115,7 @@ channel_request_data_free (McdChannelRequestData *crd)
 {
     GList *list;
 
-    g_debug ("%s called for %p", G_STRFUNC, crd);
+    DEBUG ("called for %p", crd);
     g_hash_table_unref (crd->properties);
     g_free (crd->preferred_handler);
     list = crd->paths;
@@ -137,23 +137,23 @@ on_members_changed (TpChannel *proxy, const gchar *message,
     TpHandle self_handle;
     guint i;
 
-    g_debug ("%s called (actor %u, reason %u, self_handle %u)", G_STRFUNC,
-             actor, reason, tp_channel_group_get_self_handle (proxy));
+    DEBUG ("called (actor %u, reason %u, self_handle %u)",
+           actor, reason, tp_channel_group_get_self_handle (proxy));
 
     self_handle = tp_channel_group_get_self_handle (proxy);
 
     if (added && added->len > 0)
     {
-	g_debug ("%u added members", added->len);
+        DEBUG ("%u added members", added->len);
 	for (i = 0; i < added->len; i++)
 	{
 	    guint added_member = g_array_index (added, guint, i);
-            g_debug ("added member %u", added_member);
+            DEBUG ("added member %u", added_member);
 
             /* see whether we are the added member */
             if (added_member == self_handle)
             {
-                g_debug ("This should appear only when the call was accepted");
+                DEBUG ("This should appear only when the call was accepted");
                 priv->members_accepted = TRUE;
                 g_signal_emit_by_name (channel, "members-accepted");
                 break;
@@ -165,7 +165,7 @@ on_members_changed (TpChannel *proxy, const gchar *message,
     {
         for (i = 0; i < removed->len; i++)
         {
-            g_debug ("removed member %u", g_array_index (removed, guint, i));
+            DEBUG ("removed member %u", g_array_index (removed, guint, i));
             if (actor == g_array_index (removed, guint, i))
             {
                 /* the remote removed itself; if we didn't accept the call,
@@ -183,14 +183,14 @@ proxy_destroyed (TpProxy *self, guint domain, gint code, gchar *message,
 {
     McdChannel *channel = user_data;
 
-    g_debug ("Channel proxy destroyed (%s)!", message);
+    DEBUG ("Channel proxy destroyed (%s)!", message);
     /*
     McdChannelPrivate *priv = channel->priv;
     g_object_unref (priv->tp_chan);
     priv->tp_chan = NULL;
     */
     mcd_mission_abort (MCD_MISSION (channel));
-    g_debug ("Channel closed");
+    DEBUG ("Channel closed");
 }
 
 static inline void
@@ -216,13 +216,13 @@ on_channel_ready (TpChannel *tp_chan, const GError *error, gpointer user_data)
     g_slice_free (McdChannel *, channel_ptr);
     if (error)
     {
-	g_debug ("%s got error: %s", G_STRFUNC, error->message);
+        DEBUG ("got error: %s", error->message);
 	return;
     }
 
     if (!channel) return;
 
-    g_debug ("channel %p is ready", channel);
+    DEBUG ("channel %p is ready", channel);
     priv = channel->priv;
     requested = tp_asv_get_boolean
         (tp_channel_borrow_immutable_properties (tp_chan),
@@ -246,7 +246,7 @@ mcd_channel_close (McdChannel *channel)
         tp_channel_get_channel_type_id (priv->tp_chan) !=
         TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
     {
-        g_debug ("%s: Requesting telepathy to close the channel", G_STRFUNC);
+        DEBUG ("Requesting telepathy to close the channel");
         tp_cli_channel_call_close (priv->tp_chan, -1, NULL, NULL, NULL, NULL);
     }
 }
@@ -352,7 +352,7 @@ _mcd_channel_dispose (GObject * object)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (object);
    
-    g_debug ("\n\n%s for %p (is disposed = %d)", G_STRFUNC, object, priv->is_disposed);
+    DEBUG ("%p (is disposed = %d)", object, priv->is_disposed);
     if (priv->is_disposed)
 	return;
 
@@ -375,10 +375,10 @@ mcd_channel_abort (McdMission *mission)
     McdChannel *channel = MCD_CHANNEL (mission);
     McdChannelPrivate *priv = channel->priv;
 
-    g_debug ("%s: %p", G_STRFUNC, mission);
+    DEBUG ("%p", mission);
     if (priv->is_aborted)
     {
-        g_debug ("Already aborted");
+        DEBUG ("Already aborted");
         return;
     }
     priv->is_aborted = TRUE;
@@ -626,7 +626,7 @@ _mcd_channel_create_proxy (McdChannel *channel, TpConnection *connection,
 void
 mcd_channel_set_status (McdChannel *channel, McdChannelStatus status)
 {
-    g_debug ("%s: %p, %u", G_STRFUNC, channel, status);
+    DEBUG ("%p, %u", channel, status);
     g_return_if_fail(MCD_IS_CHANNEL(channel));
 
     if (status != channel->priv->status)
@@ -1172,8 +1172,7 @@ copy_status (McdChannel *source, McdChannel *dest)
     dst_priv = dest->priv;
     if (dst_priv->status != src_priv->status)
     {
-        g_debug ("%s: source is %d, dest is %d", G_STRFUNC,
-                 src_priv->status, dst_priv->status);
+        DEBUG ("source is %d, dest is %d", src_priv->status, dst_priv->status);
         if (src_priv->status == MCD_CHANNEL_STATUS_FAILED)
         {
             const GError *error;
