@@ -125,3 +125,9 @@ inline gint mcd_debug_get_level ()
     return mc_debug;
 }
 
+void
+mcd_debug_set_level (gint level)
+{
+    mc_debug = level;
+}
+

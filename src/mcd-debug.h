@@ -52,6 +52,7 @@ G_BEGIN_DECLS
 
 void mcd_debug_init (void);
 
+void mcd_debug_set_level (gint level);
 inline gint mcd_debug_get_level (void);
 
 gpointer mcd_debug_ref (gpointer obj, const gchar *filename, gint linenum);
