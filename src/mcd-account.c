@@ -786,18 +786,6 @@ get_parameters (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 }
 
 static void
-get_preset_parameters (TpSvcDBusProperties *self, const gchar *name,
-		       GValue *value)
-{
-    GHashTable *parameters;
-
-    parameters = g_hash_table_new (g_str_hash, g_str_equal);
-    g_warning ("Preset parameters not used in current implementation");
-    g_value_init (value, TP_HASH_TYPE_STRING_VARIANT_MAP);
-    g_value_take_boxed (value, parameters);
-}
-
-static void
 set_automatic_presence (TpSvcDBusProperties *self,
 			const gchar *name, const GValue *value)
 {
@@ -1052,7 +1040,6 @@ static const McdDBusProp account_properties[] = {
     { "Enabled", set_enabled, get_enabled },
     { "Nickname", set_nickname, get_nickname },
     { "Parameters", NULL, get_parameters },
-    { "PresetParameters", NULL, get_preset_parameters },
     { "AutomaticPresence", set_automatic_presence, get_automatic_presence },
     { "ConnectAutomatically", set_connect_automatically, get_connect_automatically },
     { "Connection", NULL, get_connection },
