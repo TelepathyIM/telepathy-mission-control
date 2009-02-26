@@ -122,7 +122,7 @@ _mcd_proxy_dispose (GObject * object)
     }
 
     priv->is_disposed = TRUE;
-    g_debug ("proxy disposed\n");
+    DEBUG ("proxy disposed\n");
 
     if (priv->proxy_object)
     {

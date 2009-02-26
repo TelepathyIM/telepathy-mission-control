@@ -54,7 +54,7 @@ online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
         g_object_unref (channel);
         return;
     }
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("%s called", G_STRFUNC);
     connection = mcd_account_get_connection (account);
     g_return_if_fail (connection != NULL);
     g_return_if_fail (mcd_connection_get_connection_status (connection)
@@ -62,7 +62,7 @@ online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
 
     if (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_FAILED)
     {
-        g_debug ("%s: channel %p is failed", G_STRFUNC, channel);
+        DEBUG ("%s: channel %p is failed", G_STRFUNC, channel);
         g_object_unref (channel);
         return;
     }
@@ -216,7 +216,7 @@ account_request_common (McdAccount *account, GHashTable *properties,
         return;
     }
     request_id = _mcd_channel_get_request_path (channel);
-    g_debug ("%s: returning %s", G_STRFUNC, request_id);
+    DEBUG ("%s: returning %s", G_STRFUNC, request_id);
     if (use_existing)
         mc_svc_account_interface_channelrequests_return_from_ensure_channel
             (context, request_id);
@@ -257,7 +257,7 @@ account_request_cancel (McSvcAccountInterfaceChannelRequests *self,
     McdChannel *channel;
     McdChannelStatus status;
 
-    g_debug ("%s called for %s", G_STRFUNC, request_id);
+    DEBUG ("%s called for %s", G_STRFUNC, request_id);
     g_return_if_fail (request_id != NULL);
     channel = get_channel_from_request (MCD_ACCOUNT (self), request_id);
     if (!channel)
@@ -270,7 +270,7 @@ account_request_cancel (McSvcAccountInterfaceChannelRequests *self,
     }
 
     status = mcd_channel_get_status (channel);
-    g_debug ("channel %p is in status %u", channel, status);
+    DEBUG ("channel %p is in status %u", channel, status);
     if (status == MCD_CHANNEL_STATUS_REQUEST ||
         status == MCD_CHANNEL_STATUS_REQUESTED ||
         status == MCD_CHANNEL_STATUS_DISPATCHING)

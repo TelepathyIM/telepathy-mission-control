@@ -182,7 +182,7 @@ _mcd_mission_get_mode (McdMission * mission)
 static void
 on_parent_abort (McdMission *parent, McdMission *mission)
 {
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("%s called", G_STRFUNC);
     mcd_mission_set_parent (mission, NULL);
 }
 
@@ -196,7 +196,7 @@ _mcd_mission_set_parent (McdMission * mission, McdMission * parent)
 
     priv = MCD_MISSION_PRIV (mission);
 
-    g_debug ("%s: child = %p, parent = %p", G_STRFUNC, mission, parent);
+    DEBUG ("%s: child = %p, parent = %p", G_STRFUNC, mission, parent);
 
     if (priv->parent)
     {
@@ -243,7 +243,7 @@ _mcd_mission_dispose (GObject * object)
 
     priv->is_disposed = TRUE;
 
-    g_debug ("mission disposed %p", object);
+    DEBUG ("mission disposed %p", object);
     if (priv->parent)
     {
 	g_signal_handlers_disconnect_by_func (priv->parent,
@@ -258,7 +258,7 @@ _mcd_mission_dispose (GObject * object)
 static void
 _mcd_mission_finalize (GObject * object)
 {
-    g_debug ("mission finalized %p", object);
+    DEBUG ("mission finalized %p", object);
     G_OBJECT_CLASS (mcd_mission_parent_class)->finalize (object);
 }
 

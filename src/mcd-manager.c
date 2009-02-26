@@ -95,7 +95,7 @@ on_got_info (TpConnectionManager *tp_conn_mgr, guint source,
         tp_connection_manager_activate (tp_conn_mgr))
             return; /* let's wait for live introspection */
 
-    g_debug ("manager %s is ready", priv->name);
+    DEBUG ("manager %s is ready", priv->name);
     priv->got_info = TRUE;
     mcd_object_ready (manager, pending_got_info, NULL);
 }
@@ -139,8 +139,7 @@ on_presence_requested_idle (gpointer data)
     TpConnectionPresenceType actual_presence =
 	mcd_presence_frame_get_actual_presence (priv->presence_frame);
 
-    g_debug ("%s: %d, %d", G_STRFUNC, requested_presence,
-	     actual_presence);
+    DEBUG ("%s: %d, %d", G_STRFUNC, requested_presence, actual_presence);
     if ((actual_presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE
 	 || actual_presence == TP_CONNECTION_PRESENCE_TYPE_UNSET)
 	&& (requested_presence != TP_CONNECTION_PRESENCE_TYPE_OFFLINE
@@ -161,8 +160,8 @@ on_presence_requested (McdPresenceFrame * presence_frame,
 {
     McdManagerPrivate *priv;
 
-    g_debug ("%s: Current connectivity status is %d", G_STRFUNC,
-	     mcd_mission_is_connected (MCD_MISSION (data)));
+    DEBUG ("%s: Current connectivity status is %d", G_STRFUNC,
+           mcd_mission_is_connected (MCD_MISSION (data)));
 
     if (mcd_mission_is_connected (MCD_MISSION (data)))
     {
@@ -171,7 +170,7 @@ on_presence_requested (McdPresenceFrame * presence_frame,
     else
     {
 	priv = MCD_MANAGER_PRIV(data);
-	g_debug ("%s: Delaying call to on_presence_requested_idle", G_STRFUNC);
+        DEBUG ("%s: Delaying call to on_presence_requested_idle", G_STRFUNC);
 	priv->delay_presence_request = TRUE;
     }
 }
@@ -254,12 +253,12 @@ _mcd_manager_connect (McdMission * mission)
 {
     McdManagerPrivate *priv = MCD_MANAGER_PRIV (mission);
 
-    g_debug ("%s: delay_presence_request = %d", G_STRFUNC, priv->delay_presence_request);
+    DEBUG ("%s: delay_presence_request = %d", G_STRFUNC, priv->delay_presence_request);
     if (priv->delay_presence_request)
     {
 	priv->delay_presence_request = FALSE;
 	g_idle_add (on_presence_requested_idle, mission);
-	g_debug ("%s: Added idle func on_presence_requested_idle", G_STRFUNC);
+        DEBUG ("%s: Added idle func on_presence_requested_idle", G_STRFUNC);
     }
     MCD_MISSION_CLASS (mcd_manager_parent_class)->connect (mission);
 }
@@ -269,20 +268,20 @@ _mcd_manager_disconnect (McdMission * mission)
 {
     GList *connections;
 
-    g_debug ("%s(%p)", G_STRFUNC, mission);
+    DEBUG ("%s(%p)", G_STRFUNC, mission);
     MCD_MISSION_CLASS (mcd_manager_parent_class)->disconnect (mission);
 
     /* We now call mcd_mission_abort() on all child connections; but since this
      * could modify the list of the children, we cannot just use
      * mcd_operation_foreach(). Instead, make a copy of the list and work on
      * that. */
-    g_debug("manager tree before abort:");
+    DEBUG("manager tree before abort:");
     mcd_debug_print_tree(mission);
     connections = g_list_copy ((GList *)mcd_operation_get_missions
 			       (MCD_OPERATION (mission)));
     g_list_foreach (connections, (GFunc) mcd_mission_abort, NULL);
     g_list_free (connections);
-    g_debug("manager tree after abort:");
+    DEBUG("manager tree after abort:");
     mcd_debug_print_tree(mission);
 }
 
@@ -305,7 +304,7 @@ mcd_manager_setup (McdManager *manager)
     g_signal_connect (priv->tp_conn_mgr, "got-info", G_CALLBACK (on_got_info),
                       manager);
 
-    g_debug ("%s: Manager %s created", G_STRFUNC, priv->name);
+    DEBUG ("%s: Manager %s created", G_STRFUNC, priv->name);
     return TRUE;
 
 error:
@@ -596,8 +595,8 @@ mcd_manager_create_connection (McdManager *manager, McdAccount *account)
         (manager, account);
     mcd_operation_take_mission (MCD_OPERATION (manager),
 				MCD_MISSION (connection));
-    g_debug ("%s: Created a connection %p for account: %s", G_STRFUNC,
-	     connection, mcd_account_get_unique_name (account));
+    DEBUG ("%s: Created a connection %p for account: %s", G_STRFUNC,
+           connection, mcd_account_get_unique_name (account));
 
     return connection;
 }

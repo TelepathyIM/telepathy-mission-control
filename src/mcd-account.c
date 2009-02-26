@@ -173,8 +173,7 @@ _mcd_account_maybe_autoconnect (McdAccount *account)
         McdMaster *master = mcd_master_get_default ();
         if (_mcd_master_account_conditions_satisfied (master, account))
         {
-            g_debug ("%s: connecting account %s", G_STRFUNC,
-                     priv->unique_name);
+            DEBUG ("%s: connecting account %s", G_STRFUNC, priv->unique_name);
             _mcd_account_request_connection (account);
         }
     }
@@ -228,7 +227,7 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value)
     if (!value)
     {
         g_key_file_remove_key (priv->keyfile, priv->unique_name, key, NULL);
-        g_debug ("unset param %s", name);
+        DEBUG ("unset param %s", name);
         return;
     }
 
@@ -326,7 +325,7 @@ static void on_manager_ready (McdManager *manager, const GError *error,
 
     if (error)
     {
-        g_debug ("%s: got error: %s", G_STRFUNC, error->message);
+        DEBUG ("%s: got error: %s", G_STRFUNC, error->message);
     }
     else
     {
@@ -425,8 +424,8 @@ on_connection_abort (McdConnection *connection, McdAccount *account)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
 
-    g_debug ("%s called (%p, account %s)", G_STRFUNC,
-	     connection, priv->unique_name);
+    DEBUG ("%s called (%p, account %s)", G_STRFUNC,
+           connection, priv->unique_name);
     _mcd_account_set_connection (account, NULL);
 }
 
@@ -501,7 +500,7 @@ emit_property_changed (gpointer userdata)
     McdAccount *account = MCD_ACCOUNT (userdata);
     McdAccountPrivate *priv = account->priv;
 
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("%s called", G_STRFUNC);
     mc_svc_account_emit_account_property_changed (account,
 						  priv->changed_properties);
 
@@ -529,14 +528,14 @@ mcd_account_changed_property (McdAccount *account, const gchar *key,
     McdAccountPrivate *priv = account->priv;
     GValue *val;
 
-    g_debug ("%s called: %s", G_STRFUNC, key);
+    DEBUG ("%s called: %s", G_STRFUNC, key);
     if (priv->changed_properties &&
 	g_hash_table_lookup (priv->changed_properties, key))
     {
 	/* the changed property was also changed before; then let's force the
 	 * emission of the signal now, so that the property will appear in two
 	 * separate signals */
-	g_debug ("Forcibly emit PropertiesChanged now");
+        DEBUG ("Forcibly emit PropertiesChanged now");
 	g_source_remove (priv->properties_source);
 	emit_property_changed (account);
     }
@@ -550,7 +549,7 @@ mcd_account_changed_property (McdAccount *account, const gchar *key,
 
     if (priv->properties_source == 0)
     {
-	g_debug ("First changed property");
+        DEBUG ("First changed property");
 	priv->property_values = g_array_sized_new (FALSE, FALSE,
 						   sizeof (GValue), 4);
 	priv->properties_source = g_timeout_add (10, emit_property_changed,
@@ -566,7 +565,7 @@ mcd_account_changed_property (McdAccount *account, const gchar *key,
 #else
     GHashTable *properties;
 
-    g_debug ("%s called: %s", G_STRFUNC, key);
+    DEBUG ("%s called: %s", G_STRFUNC, key);
     properties = g_hash_table_new (g_str_hash, g_str_equal);
     g_hash_table_insert (properties, (gpointer)key, (gpointer)value);
     mc_svc_account_emit_account_property_changed (account,
@@ -628,7 +627,7 @@ set_display_name (TpSvcDBusProperties *self, const gchar *name,
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
+    DEBUG ("%s called for %s", G_STRFUNC, priv->unique_name);
     mcd_account_set_string_val (account, name, value);
 }
 
@@ -646,7 +645,7 @@ set_icon (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
+    DEBUG ("%s called for %s", G_STRFUNC, priv->unique_name);
     mcd_account_set_string_val (account, name, value);
 }
 
@@ -675,7 +674,7 @@ set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
     McdAccountPrivate *priv = account->priv;
     gboolean enabled;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
+    DEBUG ("%s called for %s", G_STRFUNC, priv->unique_name);
     enabled = g_value_get_boolean (value);
     if (priv->enabled != enabled)
     {
@@ -709,7 +708,7 @@ set_nickname (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
+    DEBUG ("%s called for %s", G_STRFUNC, priv->unique_name);
     if (mcd_account_set_string_val (account, name, value))
 	g_signal_emit (account, _mcd_account_signals[ALIAS_CHANGED], 0,
 		       g_value_get_string (value));
@@ -734,7 +733,7 @@ set_avatar (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
     GError *error = NULL;
     gboolean changed;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
+    DEBUG ("%s called for %s", G_STRFUNC, priv->unique_name);
     va = g_value_get_boxed (value);
     avatar = g_value_get_boxed (va->values);
     mime_type = g_value_get_string (va->values + 1);
@@ -809,12 +808,12 @@ set_automatic_presence (TpSvcDBusProperties *self,
     gboolean changed = FALSE;
     GValueArray *va;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
+    DEBUG ("%s called for %s", G_STRFUNC, priv->unique_name);
     va = g_value_get_boxed (value);
     type = g_value_get_uint (va->values);
     status = g_value_get_string (va->values + 1);
     message = g_value_get_string (va->values + 2);
-    g_debug ("setting automatic presence: %d, %s, %s", type, status, message);
+    DEBUG ("setting automatic presence: %d, %s, %s", type, status, message);
 
     if (priv->auto_presence_type != type)
     {
@@ -891,7 +890,7 @@ set_connect_automatically (TpSvcDBusProperties *self,
     McdAccountPrivate *priv = account->priv;
     gboolean connect_automatically;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
+    DEBUG ("%s called for %s", G_STRFUNC, priv->unique_name);
     connect_automatically = g_value_get_boolean (value);
     if (priv->connect_automatically != connect_automatically)
     {
@@ -911,7 +910,7 @@ get_connect_automatically (TpSvcDBusProperties *self,
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
+    DEBUG ("%s called for %s", G_STRFUNC, priv->unique_name);
     g_value_init (value, G_TYPE_BOOLEAN);
     g_value_set_boolean (value, priv->connect_automatically);
 }
@@ -999,12 +998,12 @@ set_requested_presence (TpSvcDBusProperties *self,
     gint type;
     GValueArray *va;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
+    DEBUG ("%s called for %s", G_STRFUNC, priv->unique_name);
     va = g_value_get_boxed (value);
     type = (gint)g_value_get_uint (va->values);
     status = g_value_get_string (va->values + 1);
     message = g_value_get_string (va->values + 2);
-    g_debug ("setting requested presence: %d, %s, %s", type, status, message);
+    DEBUG ("setting requested presence: %d, %s, %s", type, status, message);
 
     if (mcd_account_request_presence_int (account, type, status, message))
     {
@@ -1122,7 +1121,7 @@ account_remove (McSvcAccount *self, DBusGMethodInvocation *context)
 {
     GError *error = NULL;
 
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("%s called", G_STRFUNC);
     if (!mcd_account_delete (MCD_ACCOUNT (self), &error))
     {
 	if (!error)
@@ -1143,7 +1142,7 @@ mcd_account_check_parameters (McdAccount *account)
     const TpConnectionManagerParam *param;
     gboolean valid;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
+    DEBUG ("%s called for %s", G_STRFUNC, priv->unique_name);
     param = mcd_manager_get_parameters (priv->manager, priv->protocol_name);
     if (!param) return FALSE;
     valid = TRUE;
@@ -1153,7 +1152,7 @@ mcd_account_check_parameters (McdAccount *account)
 	{
 	    if (!mcd_account_get_parameter (account, param->name, NULL))
 	    {
-		g_debug ("missing required parameter %s", param->name);
+                DEBUG ("missing required parameter %s", param->name);
 		valid = FALSE;
 		break;
 	    }
@@ -1193,7 +1192,7 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     GSList *dbus_properties = NULL;
     gboolean reset_connection;
 
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("%s called", G_STRFUNC);
     if (G_UNLIKELY (!priv->manager && !load_manager (account)))
     {
         g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
@@ -1218,7 +1217,7 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
 	value = g_hash_table_lookup (params, param->name);
 	if (value)
 	{
-	    g_debug ("Got param %s", param->name);
+            DEBUG ("Got param %s", param->name);
 	    if (G_VALUE_TYPE (value) != type)
 	    {
 		/* FIXME: define proper error */
@@ -1238,7 +1237,7 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
                 if (!mcd_account_get_parameter (account, param->name, &old) ||
                     !value_is_same (value, &old))
                 {
-                    g_debug ("Parameter %s changed", param->name);
+                    DEBUG ("Parameter %s changed", param->name);
                     /* can the param be updated on the fly? If yes, prepare to
                      * do so; and if not, prepare to reset the connection */
                     if (param->flags & TP_CONN_MGR_PARAM_FLAG_DBUS_PROPERTY)
@@ -1274,7 +1273,7 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     {
         if (reset_connection)
         {
-            g_debug ("resetting connection");
+            DEBUG ("resetting connection");
             mcd_connection_close (priv->connection);
             mcd_account_connection_begin (account);
         }
@@ -1285,7 +1284,7 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
             for (list = dbus_properties; list != NULL; list = list->next)
             {
                 name = list->data;
-                g_debug ("updating parameter %s", name);
+                DEBUG ("updating parameter %s", name);
                 value = g_hash_table_lookup (params, name);
                 _mcd_connection_update_property (priv->connection, name, value);
             }
@@ -1318,7 +1317,7 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
     GValue value = { 0 };
     GError *error = NULL;
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
+    DEBUG ("%s called for %s", G_STRFUNC, priv->unique_name);
 
     if (!mcd_account_set_parameters (account, set, &error))
     {
@@ -1479,7 +1478,7 @@ _mcd_account_finalize (GObject *object)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (object);
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
+    DEBUG ("%s called for %s", G_STRFUNC, priv->unique_name);
     if (priv->changed_properties)
 	g_hash_table_destroy (priv->changed_properties);
     if (priv->property_values)
@@ -1509,7 +1508,7 @@ _mcd_account_dispose (GObject *object)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (object);
 
-    g_debug ("%s called for %s", G_STRFUNC, priv->unique_name);
+    DEBUG ("%s called for %s", G_STRFUNC, priv->unique_name);
     if (priv->online_requests)
     {
         GError *error;
@@ -1779,7 +1778,7 @@ mcd_account_get_parameters (McdAccount *account)
     const TpConnectionManagerParam *param;
     GHashTable *params;
 
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("%s called", G_STRFUNC);
     if (!priv->manager && !load_manager (account)) return NULL;
 
     params = g_hash_table_new_full (g_str_hash, g_str_equal,
@@ -1974,7 +1973,7 @@ mcd_account_set_normalized_name (McdAccount *account, const gchar *name)
 {
     McdAccountPrivate *priv = account->priv;
 
-    g_debug ("%s called (%s)", G_STRFUNC, name);
+    DEBUG ("%s called (%s)", G_STRFUNC, name);
     if (name)
 	g_key_file_set_string (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_NORMALIZED_NAME, name);
@@ -1998,7 +1997,7 @@ mcd_account_set_avatar_token (McdAccount *account, const gchar *token)
 {
     McdAccountPrivate *priv = account->priv;
 
-    g_debug ("%s called (%s)", G_STRFUNC, token);
+    DEBUG ("%s called (%s)", G_STRFUNC, token);
     if (token)
 	g_key_file_set_string (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_AVATAR_TOKEN, token);
@@ -2025,7 +2024,7 @@ mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     gchar *data_dir, *filename;
 
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("%s called", G_STRFUNC);
     data_dir = get_account_data_path (priv);
     filename = g_build_filename (data_dir, MC_AVATAR_FILENAME, NULL);
     if (!g_file_test (data_dir, G_FILE_TEST_EXISTS))
@@ -2105,8 +2104,8 @@ mcd_account_get_avatar (McdAccount *account, GArray **avatar,
 	}
 	else
 	{
-	    g_debug ("%s: error reading %s: %s", G_STRFUNC,
-		     filename, error->message);
+            DEBUG ("%s: error reading %s: %s", G_STRFUNC,
+                   filename, error->message);
 	    g_error_free (error);
 	}
     }
@@ -2271,8 +2270,8 @@ mcd_account_check_validity (McdAccount *account)
     if (valid != priv->valid)
     {
 	GValue value = { 0 };
-	g_debug ("Account validity changed (old: %d, new: %d)",
-		 priv->valid, valid);
+        DEBUG ("Account validity changed (old: %d, new: %d)",
+               priv->valid, valid);
 	priv->valid = valid;
 	g_signal_emit (account, _mcd_account_signals[VALIDITY_CHANGED], 0,
 		       valid);
@@ -2327,8 +2326,8 @@ _mcd_account_online_request (McdAccount *account,
     McdAccountPrivate *priv = account->priv;
     GError *error = NULL;
 
-    g_debug ("%s: connection status for %s is %d",
-	     G_STRFUNC, priv->unique_name, priv->conn_status);
+    DEBUG ("%s: connection status for %s is %d",
+           G_STRFUNC, priv->unique_name, priv->conn_status);
     if (priv->conn_status == TP_CONNECTION_STATUS_CONNECTED)
     {
 	/* invoke the callback now */
@@ -2375,7 +2374,7 @@ mcd_account_get_avatar_filename (McdAccount *account)
     gchar *data_dir, *filename;
 
     data_dir = get_account_data_path (priv);
-    g_debug("data dir: %s", data_dir);
+    DEBUG("data dir: %s", data_dir);
     filename = g_build_filename (data_dir, MC_AVATAR_FILENAME, NULL);
     g_free (data_dir);
     return filename;

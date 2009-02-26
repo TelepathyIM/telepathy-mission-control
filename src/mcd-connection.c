@@ -271,9 +271,9 @@ _check_presence (McdConnectionPrivate *priv, TpConnectionPresenceType presence,
     if (*fallbacks == NULL)
         *fallbacks = "available";
 
-    g_debug ("%s: account %s: presence %s not supported, setting %s",
-             G_STRFUNC, mcd_account_get_unique_name (priv->account),
-             *status, *fallbacks);
+    DEBUG ("%s: account %s: presence %s not supported, setting %s",
+           G_STRFUNC, mcd_account_get_unique_name (priv->account),
+           *status, *fallbacks);
     *status = *fallbacks;
     return TRUE;
 }
@@ -328,8 +328,8 @@ presence_get_statuses_cb (TpProxy *proxy, const GValue *v_statuses,
             g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
                                    (GDestroyNotify)mcd_presence_info_free);
 
-    g_debug ("%s: account %s:",
-             G_STRFUNC, mcd_account_get_unique_name (priv->account));
+    DEBUG ("%s: account %s:",
+           G_STRFUNC, mcd_account_get_unique_name (priv->account));
     statuses = g_value_get_boxed (v_statuses);
     g_hash_table_iter_init (&iter, statuses);
     while (g_hash_table_iter_next (&iter, &ht_key, &ht_value))
@@ -338,7 +338,7 @@ presence_get_statuses_cb (TpProxy *proxy, const GValue *v_statuses,
         McdPresenceInfo *pi;
 
         status = ht_key;
-        g_debug ("  %s", status);
+        DEBUG ("  %s", status);
 
         pi = g_slice_new (McdPresenceInfo);
         pi->presence = g_value_get_uint (va->values);
@@ -434,7 +434,7 @@ on_presence_requested (McdAccount *account,
     McdConnection *connection = MCD_CONNECTION (user_data);
     McdConnectionPrivate *priv = connection->priv;
 
-    g_debug ("Presence requested: %d", presence);
+    DEBUG ("Presence requested: %d", presence);
     if (presence == TP_CONNECTION_PRESENCE_TYPE_UNSET) return;
 
     if (presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
@@ -524,8 +524,9 @@ on_capabilities_changed (TpConnection *proxy, const GPtrArray *caps,
     TpProxyPendingCall *call;
     guint i;
 
-    g_debug ("%s: got capabilities for channel %p handle %d, type %s",
-	     G_STRFUNC, channel, mcd_channel_get_handle (channel), mcd_channel_get_channel_type (channel));
+    DEBUG ("%s: got capabilities for channel %p handle %d, type %s",
+           G_STRFUNC, channel, mcd_channel_get_handle (channel),
+           mcd_channel_get_channel_type (channel));
     type = dbus_g_type_get_struct ("GValueArray", G_TYPE_UINT, G_TYPE_STRING,
 				   G_TYPE_UINT, G_TYPE_UINT, G_TYPE_UINT,
 				   G_TYPE_UINT, G_TYPE_INVALID);
@@ -551,8 +552,8 @@ on_capabilities_changed (TpConnection *proxy, const GPtrArray *caps,
     if (g_object_get_data (G_OBJECT (channel), "tp_chan_call") != NULL)
 	goto done;
     chan_handle_type = mcd_channel_get_handle_type (channel);
-    g_debug ("%s: requesting channel again (type = %s, handle_type = %u, handle = %u)",
-	     G_STRFUNC, chan_type, chan_handle_type, chan_handle);
+    DEBUG ("%s: requesting channel again (type = %s, handle_type = %u, handle = %u)",
+           G_STRFUNC, chan_type, chan_handle_type, chan_handle);
     call = tp_cli_connection_call_request_channel (priv->tp_conn, -1,
 						   chan_type,
 						   chan_handle_type,
@@ -577,7 +578,7 @@ on_channel_capabilities_timeout (McdChannel *channel,
 
     /* We reach this point if this channel was waiting for capabilities; we
      * abort it and return the original error */
-    g_debug ("%s: channel %p timed out, returning error!", G_STRFUNC, channel);
+    DEBUG ("%s: channel %p timed out, returning error!", G_STRFUNC, channel);
 
     mc_error = map_tp_error_to_mc_error (channel, cwd->error);
     mcd_channel_take_error (channel, mc_error);
@@ -595,7 +596,7 @@ on_capabilities_timeout (McdConnection *connection)
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
     const GList *list, *list_curr;
 
-    g_debug ("%s: got_capabilities is %d", G_STRFUNC, priv->got_capabilities);
+    DEBUG ("%s: got_capabilities is %d", G_STRFUNC, priv->got_capabilities);
     priv->got_capabilities = TRUE;
     list = mcd_operation_get_missions ((McdOperation *)connection);
     while (list)
@@ -641,14 +642,14 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
 
     if (!priv->has_capabilities_if)
     {
-	g_debug ("%s: connection does not support capabilities interface", G_STRFUNC);
+        DEBUG ("%s: connection does not support capabilities interface", G_STRFUNC);
 	priv->got_capabilities = TRUE;
 	return;
     }
     protocol_name = mcd_account_get_protocol_name (priv->account);
     capabilities = mcd_dispatcher_get_channel_capabilities (priv->dispatcher,
 							    protocol_name);
-    g_debug ("%s: advertising capabilities", G_STRFUNC);
+    DEBUG ("%s: advertising capabilities", G_STRFUNC);
     tp_cli_connection_interface_capabilities_call_advertise_capabilities (priv->tp_conn, -1,
 									  capabilities,
 									  &removed,
@@ -680,18 +681,18 @@ _mcd_connection_setup_contact_capabilities (McdConnection *connection)
 
     if (!priv->has_contact_capabilities_if)
     {
-	g_debug ("%s: connection does not support contact capabilities interface", G_STRFUNC);
+        DEBUG ("%s: connection does not support contact capabilities interface", G_STRFUNC);
 	priv->got_contact_capabilities = TRUE;
 	return;
     }
     contact_capabilities = mcd_dispatcher_get_channel_enhanced_capabilities
       (priv->dispatcher);
 
-    g_debug ("%s: advertising capabilities", G_STRFUNC);
+    DEBUG ("%s: advertising capabilities", G_STRFUNC);
 
     mc_cli_connection_interface_contact_capabilities_call_set_self_capabilities
       (priv->tp_conn, -1, contact_capabilities, NULL, NULL, NULL, NULL);
-    g_debug ("SetSelfCapabilities: Called.");
+    DEBUG ("SetSelfCapabilities: Called.");
 
     /* free the connection capabilities (FIXME) */
     g_ptr_array_free (contact_capabilities, TRUE);
@@ -748,7 +749,7 @@ avatars_set_avatar_cb (TpConnection *proxy, const gchar *token,
 	g_warning ("%s: error: %s", G_STRFUNC, error->message);
 	return;
     }
-    g_debug ("%s: received token: %s", G_STRFUNC, token);
+    DEBUG ("%s: received token: %s", G_STRFUNC, token);
     mcd_account_set_avatar_token (priv->account, token);
 }
 
@@ -758,7 +759,7 @@ avatars_clear_avatar_cb (TpConnection *proxy, const GError *error,
 {
     if (!error)
     {
-	g_debug ("%s: Clear avatar succeeded", G_STRFUNC);
+        DEBUG ("%s: Clear avatar succeeded", G_STRFUNC);
     }
     else
     {
@@ -779,12 +780,12 @@ on_avatar_retrieved (TpConnection *proxy, guint contact_id, const gchar *token,
     /* if we are setting the avatar, we must ignore this signal */
     if (priv->setting_avatar) return;
 
-    g_debug ("%s: Avatar retrieved for contact %d, token: %s", G_STRFUNC, contact_id, token);
+    DEBUG ("%s: Avatar retrieved for contact %d, token: %s", G_STRFUNC, contact_id, token);
     prev_token = mcd_account_get_avatar_token (priv->account);
 
     if (!prev_token || strcmp (token, prev_token) != 0)
     {
-	g_debug ("%s: received mime-type: %s", G_STRFUNC, mime_type);
+        DEBUG ("%s: received mime-type: %s", G_STRFUNC, mime_type);
 	mcd_account_set_avatar (priv->account, avatar, mime_type, token, NULL);
     }
     g_free (prev_token);
@@ -813,13 +814,13 @@ on_avatar_updated (TpConnection *proxy, guint contact_id, const gchar *token,
     /* if we are setting the avatar, we must ignore this signal */
     if (priv->setting_avatar) return;
 
-    g_debug ("%s: contact %d, token: %s", G_STRFUNC, contact_id, token);
+    DEBUG ("%s: contact %d, token: %s", G_STRFUNC, contact_id, token);
     prev_token = mcd_account_get_avatar_token (priv->account);
 
     if (!prev_token || strcmp (token, prev_token) != 0)
     {
     	GArray handles;
-	g_debug ("%s: avatar has changed", G_STRFUNC);
+        DEBUG ("%s: avatar has changed", G_STRFUNC);
 	/* the avatar has changed, let's retrieve the new one */
 	handles.len = 1;
 	handles.data = (gchar *)&contact_id;
@@ -838,7 +839,7 @@ _mcd_connection_set_avatar (McdConnection *connection, const GArray *avatar,
 {
     McdConnectionPrivate *priv = connection->priv;
 
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("%s called", G_STRFUNC);
     if (avatar->len > 0 && avatar->len < G_MAXUINT)
     {
 	tp_cli_connection_interface_avatars_call_set_avatar (priv->tp_conn, -1,
@@ -882,7 +883,7 @@ avatars_request_tokens_cb (TpConnection *proxy, GHashTable *tokens,
     mcd_account_get_avatar (priv->account, &avatar, &mime_type);
     if (avatar)
     {
-        g_debug ("No avatar set, setting our own");
+        DEBUG ("No avatar set, setting our own");
         _mcd_connection_set_avatar (connection, avatar, mime_type);
         g_array_free (avatar, TRUE);
     }
@@ -934,7 +935,7 @@ _mcd_connection_setup_avatar (McdConnection *connection)
 	    GArray handles;
             TpHandle self_handle;
 
-	    g_debug ("checking for server token");
+            DEBUG ("checking for server token");
 	    /* Set the avatar only if no other one was set */
             self_handle = tp_connection_get_self_handle (priv->tp_conn);
 	    handles.len = 1;
@@ -960,7 +961,7 @@ on_aliases_changed (TpConnection *proxy, const GPtrArray *aliases,
     guint contact;
     guint i;
 
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("%s called", G_STRFUNC);
     type = dbus_g_type_get_struct ("GValueArray", G_TYPE_UINT, G_TYPE_STRING,
 				   G_TYPE_INVALID);
     for (i = 0; i < aliases->len; i++)
@@ -970,10 +971,10 @@ on_aliases_changed (TpConnection *proxy, const GPtrArray *aliases,
 	g_value_init (&data, type);
 	g_value_set_static_boxed (&data, g_ptr_array_index(aliases, i));
 	dbus_g_type_struct_get (&data, 0, &contact, 1, &alias, G_MAXUINT);
-	g_debug("Got alias for contact %u: %s", contact, alias);
+        DEBUG ("Got alias for contact %u: %s", contact, alias);
 	if (contact == tp_connection_get_self_handle (proxy))
 	{
-	    g_debug("This is our alias");
+            DEBUG ("This is our alias");
 	    if (!priv->alias || strcmp (priv->alias, alias) != 0)
 	    {
 		g_free (priv->alias);
@@ -1004,7 +1005,7 @@ _mcd_connection_set_alias (McdConnection *connection,
     GHashTable *aliases;
     TpHandle self_handle;
 
-    g_debug ("%s: setting alias '%s'", G_STRFUNC, alias);
+    DEBUG ("%s: setting alias '%s'", G_STRFUNC, alias);
 
     aliases = g_hash_table_new (NULL, NULL);
     self_handle = tp_connection_get_self_handle (priv->tp_conn);
@@ -1048,7 +1049,7 @@ _mcd_connection_setup_alias (McdConnection *connection)
 static gboolean
 mcd_connection_reconnect (McdConnection *connection)
 {
-    g_debug ("%s: %p", G_STRFUNC, connection);
+    DEBUG ("%s: %p", G_STRFUNC, connection);
     mcd_connection_connect (connection, NULL);
     return FALSE;
 }
@@ -1065,7 +1066,7 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
 		  "status", &conn_status,
 		  "status-reason", &conn_reason,
 		  NULL);
-    g_debug ("%s: status_changed called from tp (%d)", G_STRFUNC, conn_status);
+    DEBUG ("%s: status_changed called from tp (%d)", G_STRFUNC, conn_status);
 
     switch (conn_status)
     {
@@ -1107,7 +1108,7 @@ static void proxy_destroyed (DBusGProxy *tp_conn, guint domain, gint code,
 			     gchar *message, McdConnection *connection)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-    g_debug ("Proxy destroyed (%s)!", message);
+    DEBUG ("Proxy destroyed (%s)!", message);
 
     _mcd_connection_release_tp_connection (connection);
 
@@ -1128,7 +1129,7 @@ static void proxy_destroyed (DBusGProxy *tp_conn, guint domain, gint code,
          * abort the connection but try to reconnect later */
         if (priv->reconnect_timer == 0)
         {
-            g_debug ("Preparing for reconnection");
+            DEBUG ("Preparing for reconnection");
             priv->reconnect_timer = g_timeout_add_seconds
                 (priv->reconnect_interval,
                  (GSourceFunc)mcd_connection_reconnect, connection);
@@ -1153,7 +1154,7 @@ connect_cb (TpConnection *tp_conn, const GError *error,
 {
     McdConnection *connection = MCD_CONNECTION (weak_object);
 
-    g_debug ("%s called for connection %p", G_STRFUNC, connection);
+    DEBUG ("%s called for connection %p", G_STRFUNC, connection);
 
     if (error)
     {
@@ -1169,7 +1170,7 @@ request_unrequested_channels (McdConnection *connection)
 
     channels = mcd_operation_get_missions ((McdOperation *)connection);
 
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("%s called", G_STRFUNC);
     /* go through the channels that were requested while the connection was not
      * ready, and process them */
     while (channels)
@@ -1178,7 +1179,7 @@ request_unrequested_channels (McdConnection *connection)
 
         if (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_REQUEST)
         {
-            g_debug ("Requesting channel %p", channel);
+            DEBUG ("Requesting channel %p", channel);
             mcd_connection_request_channel (connection, channel);
         }
         channels = channels->next;
@@ -1194,7 +1195,7 @@ dispatch_undispatched_channels (McdConnection *connection)
     priv->can_dispatch = TRUE;
     channels = mcd_operation_get_missions ((McdOperation *)connection);
 
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("%s called", G_STRFUNC);
     while (channels)
     {
 	McdChannel *channel = MCD_CHANNEL (channels->data);
@@ -1216,7 +1217,7 @@ dispatch_undispatched_channels (McdConnection *connection)
                                            tcd->object_path, tcd->channel_type,
                                            tcd->handle, tcd->handle_type);
             g_object_set_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA, NULL);
-            g_debug ("Dispatching channel %p", channel);
+            DEBUG ("Dispatching channel %p", channel);
             /* dispatch the channel */
             _mcd_dispatcher_send_channels (priv->dispatcher,
                                            g_list_prepend (NULL, channel),
@@ -1312,7 +1313,7 @@ mcd_connection_recover_channel (McdConnection *connection,
     McdConnectionPrivate *priv = connection->priv;
     McdChannel *channel;
 
-    g_debug ("%s called for %s", G_STRFUNC, object_path);
+    DEBUG ("%s called for %s", G_STRFUNC, object_path);
     channel = mcd_channel_new_from_properties (priv->tp_conn, object_path,
                                                properties);
     if (G_UNLIKELY (!channel)) return;
@@ -1446,13 +1447,13 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
     g_slice_free (McdConnection *, connection_ptr);
     if (error)
     {
-	g_debug ("%s got error: %s", G_STRFUNC, error->message);
+        DEBUG ("%s got error: %s", G_STRFUNC, error->message);
 	return;
     }
 
     if (!connection) return;
 
-    g_debug ("%s: connection is ready", G_STRFUNC);
+    DEBUG ("%s: connection is ready", G_STRFUNC);
     priv = MCD_CONNECTION_PRIV (connection);
 
     _mcd_connection_get_normalized_name (connection);
@@ -1537,8 +1538,8 @@ _mcd_connection_connect_with_params (McdConnection *connection,
 
     protocol_name = mcd_account_get_protocol_name (priv->account);
 
-    g_debug ("%s: Trying connect account: %s",
-	     G_STRFUNC, mcd_account_get_unique_name (priv->account));
+    DEBUG ("%s: Trying connect account: %s",
+           G_STRFUNC, mcd_account_get_unique_name (priv->account));
 
     mcd_account_set_connection_status (priv->account,
                                        TP_CONNECTION_STATUS_CONNECTING,
@@ -1570,7 +1571,7 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
 
-    g_debug ("%s(%p) called", G_STRFUNC, connection);
+    DEBUG ("%s(%p) called", G_STRFUNC, connection);
     mcd_account_set_current_presence (priv->account,
 				      TP_CONNECTION_PRESENCE_TYPE_OFFLINE,
 				      "offline", NULL);
@@ -1605,7 +1606,7 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
 static void
 on_account_removed (McdAccount *account, McdConnection *connection)
 {
-    g_debug ("Account %s removed, aborting connection",
+    DEBUG ("Account %s removed, aborting connection",
              mcd_account_get_unique_name (account));
     mcd_mission_abort (MCD_MISSION (connection));
 }
@@ -1616,7 +1617,7 @@ _mcd_connection_dispose (GObject * object)
     McdConnection *connection = MCD_CONNECTION (object);
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
 
-    g_debug ("%s called for object %p", G_STRFUNC, object);
+    DEBUG ("%s called for object %p", G_STRFUNC, object);
 
     if (priv->is_disposed)
     {
@@ -2022,7 +2023,7 @@ remove_capabilities_refs (gpointer data)
 {
     struct capabilities_wait_data *cwd = data;
 
-    g_debug ("\n\n\n%s called\n\n\n", G_STRFUNC);
+    DEBUG ("\n\n\n%s called\n\n\n", G_STRFUNC);
     tp_proxy_signal_connection_disconnect (cwd->signal_connection);
     g_error_free (cwd->error);
     g_free (cwd);
@@ -2062,7 +2063,7 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
     
     if (tp_error != NULL)
     {
-	g_debug ("%s: Got error: %s", G_STRFUNC, tp_error->message);
+        DEBUG ("%s: Got error: %s", G_STRFUNC, tp_error->message);
 	if (error_on_creation != NULL)
 	{
 	    /* replace the error, so that the initial one is reported */
@@ -2081,8 +2082,8 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 	    /* the channel request has failed probably because we are just
 	     * connected and we didn't recive the contact capabilities yet. In
 	     * this case, wait for this contact's capabilities to arrive */
-	    g_debug ("%s: listening for remote capabilities on channel handle %d, type %d",
-		     G_STRFUNC, chan_handle, mcd_channel_get_handle_type (channel));
+            DEBUG ("%s: listening for remote capabilities on channel handle %d, type %d",
+                   G_STRFUNC, chan_handle, mcd_channel_get_handle_type (channel));
 	    /* Store the error, we might need it later */
 	    cwd = g_malloc (sizeof (struct capabilities_wait_data));
 	    cwd->error = g_error_copy (tp_error);
@@ -2166,7 +2167,7 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
     chan_handle_type = mcd_channel_get_handle_type (channel),
     chan_handle = g_array_index (handles, guint, 0);
     
-    g_debug ("Got handle %u", chan_handle);
+    DEBUG ("Got handle %u", chan_handle);
     
     /* Check if a telepathy channel has already been created; this could happen
      * in the case we had a chat window open, the UI crashed and now the same
@@ -2178,15 +2179,15 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
 	if (chan_type == TP_IFACE_QUARK_CHANNEL_TYPE_STREAMED_MEDIA) break;
 
 	existing_channel = MCD_CHANNEL (channels->data);
-	g_debug ("Chan: %d, handle type %d, channel type %s",
-		 mcd_channel_get_handle (existing_channel),
-		 mcd_channel_get_handle_type (existing_channel),
-		 mcd_channel_get_channel_type (existing_channel));
+        DEBUG ("Chan: %d, handle type %d, channel type %s",
+               mcd_channel_get_handle (existing_channel),
+               mcd_channel_get_handle_type (existing_channel),
+               mcd_channel_get_channel_type (existing_channel));
 	if (chan_handle == mcd_channel_get_handle (existing_channel) &&
 	    chan_handle_type == mcd_channel_get_handle_type (existing_channel) &&
 	    chan_type == mcd_channel_get_channel_type_quark (existing_channel))
 	{
-	    g_debug ("%s: Channel already existing, returning old one", G_STRFUNC);
+            DEBUG ("%s: Channel already existing, returning old one", G_STRFUNC);
             /* FIXME: this situation is weird. We should have checked for the
              * existance of the channel _before_ getting here, already when
              * creating the request */
@@ -2224,13 +2225,13 @@ common_request_channel_cb (TpConnection *proxy, gboolean yours,
         /* No special handling of "no capabilities" error: being confident that
          * https://bugs.freedesktop.org/show_bug.cgi?id=15769 will be fixed
          * soon :-) */
-        g_debug ("%s: Got error: %s", G_STRFUNC, error->message);
+        DEBUG ("%s: Got error: %s", G_STRFUNC, error->message);
         mc_error = map_tp_error_to_mc_error (channel, error);
         mcd_channel_take_error (channel, mc_error);
         mcd_mission_abort ((McdMission *)channel);
         return;
     }
-    g_debug ("%s: %p, object %s", G_STRFUNC, channel, channel_path);
+    DEBUG ("%s: %p, object %s", G_STRFUNC, channel, channel_path);
 
     /* if this was a call to EnsureChannel, it can happen that the returned
      * channel was already created before; in that case we keep the McdChannel
@@ -2259,7 +2260,7 @@ common_request_channel_cb (TpConnection *proxy, gboolean yours,
     /* if the channel request was cancelled, abort the channel now */
     if (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_FAILED)
     {
-        g_debug ("Channel %p was cancelled, aborting", channel);
+        DEBUG ("Channel %p was cancelled, aborting", channel);
         mcd_mission_abort (MCD_MISSION (channel));
     }
 
@@ -2405,14 +2406,14 @@ mcd_connection_cancel_channel_request (McdConnection *connection,
 	if (chan_requestor_serial == operation_id &&
 	    strcmp (chan_requestor_client_id, requestor_client_id) == 0)
 	{
-	    g_debug ("%s: requested channel found (%p)", G_STRFUNC, channel);
+            DEBUG ("%s: requested channel found (%p)", G_STRFUNC, channel);
 	    mcd_mission_abort (MCD_MISSION (channel));
 	    g_free (chan_requestor_client_id);
 	    return TRUE;
 	}
 	g_free (chan_requestor_client_id);
     }
-    g_debug ("%s: requested channel not found!", G_STRFUNC);
+    DEBUG ("%s: requested channel not found!", G_STRFUNC);
     return FALSE;
 }
 
@@ -2432,7 +2433,7 @@ gboolean mcd_connection_remote_avatar_changed (McdConnection *connection,
 					       guint contact_id,
 					       const gchar *token)
 {
-    g_debug ("%s called, but it's a stub", G_STRFUNC);
+    DEBUG ("%s called, but it's a stub", G_STRFUNC);
     return FALSE;
 }
 
@@ -2462,8 +2463,8 @@ mcd_connection_connect (McdConnection *connection, GHashTable *params)
 
     g_return_if_fail (priv->tp_conn_mgr);
     g_return_if_fail (priv->account);
-    g_debug ("%s called for %p, account %s", G_STRFUNC, connection,
-             mcd_account_get_unique_name (priv->account));
+    DEBUG ("%s called for %p, account %s", G_STRFUNC, connection,
+           mcd_account_get_unique_name (priv->account));
 
     if (priv->reconnect_timer)
     {
@@ -2484,8 +2485,8 @@ mcd_connection_connect (McdConnection *connection, GHashTable *params)
     }
     else
     {
-	g_debug ("%s: Not connecting because not disconnected (%i)",
-		 G_STRFUNC, mcd_connection_get_connection_status (connection));
+        DEBUG ("%s: Not connecting because not disconnected (%i)",
+               G_STRFUNC, mcd_connection_get_connection_status (connection));
     }
 }
 

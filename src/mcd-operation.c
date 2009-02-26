@@ -97,7 +97,7 @@ _mcd_operation_abort (McdOperation * operation)
 {
     const GList *node;
     
-    g_debug ("Operation abort received, aborting all children");
+    DEBUG ("Operation abort received, aborting all children");
     node = MCD_OPERATION_PRIV (operation)->missions;
     while (node)
     {
@@ -130,7 +130,7 @@ _mcd_operation_dispose (GObject * object)
     }
 
     priv->is_disposed = TRUE;
-    g_debug ("operation disposed");
+    DEBUG ("operation disposed");
 
     g_signal_handlers_disconnect_by_func (object,
 					  G_CALLBACK (_mcd_operation_abort),
@@ -219,7 +219,7 @@ _mcd_operation_remove_mission (McdOperation * operation, McdMission * mission)
     
     g_signal_emit_by_name (G_OBJECT (operation), "mission-removed", mission);
 
-    g_debug ("removing mission: %p", mission);
+    DEBUG ("removing mission: %p", mission);
     g_object_unref (mission);
 }
 

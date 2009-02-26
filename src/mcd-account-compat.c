@@ -248,7 +248,7 @@ process_channel_request (McdAccount *account, gpointer userdata,
         g_object_unref (channel);
         return;
     }
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("%s called", G_STRFUNC);
     connection = mcd_account_get_connection (account);
     g_return_if_fail (connection != NULL);
     g_return_if_fail (mcd_connection_get_connection_status (connection)
@@ -263,7 +263,7 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
 {
     McdAccountCompatReq *req_data;
 
-    g_debug ("%s (%u)", G_STRFUNC, status);
+    DEBUG ("%s (%u)", G_STRFUNC, status);
     g_return_if_fail (MCD_IS_ACCOUNT (account));
 
     if (status == MCD_CHANNEL_STATUS_FAILED &&

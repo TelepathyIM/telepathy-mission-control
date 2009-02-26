@@ -142,7 +142,7 @@ match_account_property (McdAccount *account, McdIfaceProperty *prop)
     GValue value = { 0 };
     GError *error = NULL;
 
-    g_debug ("prop %s, value type %s", prop->name, G_VALUE_TYPE_NAME (prop->value));
+    DEBUG ("prop %s, value type %s", prop->name, G_VALUE_TYPE_NAME (prop->value));
     unique_name = mcd_account_get_unique_name (account);
     mcd_dbusprop_get_property (TP_SVC_DBUS_PROPERTIES (account),
 			       prop->iface, prop->name, &value,
@@ -196,7 +196,7 @@ find_accounts (gpointer key, gpointer value, gpointer userdata)
     const gchar *object_path, *string, *status, *message;
     guint i;
 
-    g_debug ("%s: %s", G_STRFUNC, (gchar *)key);
+    DEBUG ("%s: %s", G_STRFUNC, (gchar *)key);
     if (fd->manager)
     {
 	string = mcd_account_get_manager_name (account);
@@ -232,7 +232,7 @@ find_accounts (gpointer key, gpointer value, gpointer userdata)
 	if (!status || strcmp (fd->current_status, status) != 0) return;
     }
 
-    g_debug ("checking parameters");
+    DEBUG ("checking parameters");
     for (i = 0; i < fd->params->len; i++)
     {
 	McdFindParam *param;
@@ -241,7 +241,7 @@ find_accounts (gpointer key, gpointer value, gpointer userdata)
 	    return;
     }
 
-    g_debug ("checking properties");
+    DEBUG ("checking properties");
     for (i = 0; i < fd->properties->len; i++)
     {
 	McdIfaceProperty *prop;
@@ -250,7 +250,7 @@ find_accounts (gpointer key, gpointer value, gpointer userdata)
 	    return;
     }
     object_path = mcd_account_get_object_path (account);
-    g_debug ("%s", object_path);
+    DEBUG ("%s", object_path);
     g_ptr_array_add (fd->accounts, (gpointer)object_path);
 }
 
@@ -308,7 +308,7 @@ account_manager_find_accounts (McSvcAccountManagerInterfaceQuery *self,
     McdFindData fd;
     guint i;
 
-    g_debug ("%s called", G_STRFUNC);
+    DEBUG ("%s called", G_STRFUNC);
     memset (&fd, 0, sizeof (fd));
     fd.params = g_array_new (FALSE, FALSE, sizeof (McdFindParam));
     fd.properties = g_array_new (FALSE, FALSE, sizeof (McdIfaceProperty));
