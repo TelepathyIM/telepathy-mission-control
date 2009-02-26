@@ -37,7 +37,7 @@ G_BEGIN_DECLS
 
 #define DEBUG(format, ...) G_STMT_START {   \
     if (_mcd_debug_get_level () > 0)        \
-        g_debug (format, ##__VA_ARGS__);    \
+        g_debug ("%s: " format, G_STRFUNC, ##__VA_ARGS__);    \
 } G_STMT_END
 
 /* reference count debugging */
