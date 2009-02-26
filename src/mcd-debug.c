@@ -38,7 +38,7 @@
 #include "mcd-debug.h"
 #include "mcd-operation.h"
 
-static gint mc_debug = 0;
+gint mcd_debug_level = 0;
 
 gpointer
 mcd_debug_ref (gpointer obj, const gchar *filename, gint linenum)
@@ -47,7 +47,7 @@ mcd_debug_ref (gpointer obj, const gchar *filename, gint linenum)
     gpointer (*untouchable_ref) (gpointer object);
     
     untouchable_ref = g_object_ref;
-    if (mc_debug >= 2)
+    if (mcd_debug_level >= 2)
 	g_debug ("[%s:%d]: Referencing (%d) object %p of type %s",
 		 filename, linenum, G_OBJECT (obj)->ref_count,
 		 obj, G_OBJECT_TYPE_NAME(obj));
@@ -60,7 +60,7 @@ mcd_debug_unref (gpointer obj, const gchar *filename, gint linenum)
     void (*untouchable_unref) (gpointer object);
     
     untouchable_unref = g_object_unref;
-    if (mc_debug >= 2)
+    if (mcd_debug_level >= 2)
 	g_debug ("[%s:%d]: Unreferencing (%d) object %p of type %s",
 		 filename, linenum, G_OBJECT (obj)->ref_count, obj,
 		 G_OBJECT_TYPE_NAME(obj));
@@ -102,7 +102,7 @@ mcd_debug_print_tree (gpointer object)
 {
     g_return_if_fail (MCD_IS_MISSION (object));
 
-    if (mc_debug >= 2)
+    if (mcd_debug_level >= 2)
     {
 	g_debug ("Object Hierarchy of object %p", object);
 	g_debug ("[");
@@ -117,17 +117,12 @@ void mcd_debug_init ()
 
     mc_debug_str = getenv ("MC_DEBUG");
     if (mc_debug_str)
-	mc_debug = atoi (mc_debug_str);
-}
-
-inline gint mcd_debug_get_level ()
-{
-    return mc_debug;
+	mcd_debug_level = atoi (mc_debug_str);
 }
 
 void
 mcd_debug_set_level (gint level)
 {
-    mc_debug = level;
+    mcd_debug_level = level;
 }
 

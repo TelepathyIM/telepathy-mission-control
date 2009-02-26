@@ -36,7 +36,7 @@ G_BEGIN_DECLS
 #ifdef ENABLE_DEBUG
 
 #define DEBUG(format, ...) do {             \
-    if (mcd_debug_get_level () > 0)         \
+    if (_mcd_debug_get_level () > 0)        \
         g_debug (format, ##__VA_ARGS__);    \
 } while (0)
 
@@ -50,10 +50,15 @@ G_BEGIN_DECLS
 
 #endif /* ENABLE_DEBUG */
 
+extern gint mcd_debug_level;
+
 void mcd_debug_init (void);
 
 void mcd_debug_set_level (gint level);
-inline gint mcd_debug_get_level (void);
+static inline gint _mcd_debug_get_level (void)
+{
+    return mcd_debug_level;
+}
 
 gpointer mcd_debug_ref (gpointer obj, const gchar *filename, gint linenum);
 void mcd_debug_unref (gpointer obj, const gchar *filename, gint linenum);
