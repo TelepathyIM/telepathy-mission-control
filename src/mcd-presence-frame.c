@@ -342,7 +342,7 @@ _mcd_presence_frame_request_presence (McdPresenceFrame * presence_frame,
     priv->requested_presence = mcd_presence_new (presence, presence_message,
 						 status,
 						 TP_CONNECTION_STATUS_REASON_REQUESTED);
-    DEBUG ("%s: Presence %d is being requested", G_STRFUNC, presence);
+    DEBUG ("Presence %d is being requested", presence);
 
     g_signal_emit_by_name (presence_frame, "presence-requested",
 			   presence, presence_message);
@@ -364,9 +364,9 @@ mcd_presence_frame_request_presence (McdPresenceFrame * presence_frame,
     }
     priv->last_presence = mcd_presence_copy (priv->actual_presence);
     
-    DEBUG ("%s: updated last_presence = %d, msg = %s", G_STRFUNC,
-	     priv->last_presence->presence,
-	     priv->last_presence->message);
+    DEBUG ("updated last_presence = %d, msg = %s",
+           priv->last_presence->presence,
+           priv->last_presence->message);
 
     if (priv->last_presence->presence == TP_CONNECTION_PRESENCE_TYPE_UNSET)
     {
@@ -459,7 +459,7 @@ _mcd_presence_frame_update_actual_presence (McdPresenceFrame * presence_frame,
     TpConnectionStatusReason connection_reason;
     gboolean changed;
     
-    DEBUG ("%s called", G_STRFUNC);
+    DEBUG ("called");
 
     pi.presence = TP_CONNECTION_PRESENCE_TYPE_UNSET;
     pi.requested_presence = mcd_presence_frame_get_requested_presence (presence_frame);
@@ -480,7 +480,7 @@ _mcd_presence_frame_update_actual_presence (McdPresenceFrame * presence_frame,
 					      connection_status,
 					      connection_reason);
 
-    DEBUG ("%s: presence actual: %d", G_STRFUNC, pi.presence);
+    DEBUG ("presence actual: %d", pi.presence);
     if (changed)
     {    
 	g_signal_emit_by_name (G_OBJECT (presence_frame),
@@ -608,7 +608,7 @@ mcd_presence_frame_remove_account (McdPresenceFrame * presence_frame,
     pos = g_list_find (priv->accounts, account);
     if (!pos) return FALSE;
     
-    DEBUG ("%s: removing account %s", G_STRFUNC, mcd_account_get_unique_name (account));
+    DEBUG ("removing account %s", mcd_account_get_unique_name (account));
     /*_mcd_presence_frame_update_actual_presence (presence_frame, NULL);*/
     g_signal_handlers_disconnect_by_func (account, 
 					  on_account_current_presence_changed,

@@ -115,7 +115,7 @@ channel_request_data_free (McdChannelRequestData *crd)
 {
     GList *list;
 
-    DEBUG ("%s called for %p", G_STRFUNC, crd);
+    DEBUG ("called for %p", crd);
     g_hash_table_unref (crd->properties);
     g_free (crd->preferred_handler);
     list = crd->paths;
@@ -137,7 +137,7 @@ on_members_changed (TpChannel *proxy, const gchar *message,
     TpHandle self_handle;
     guint i;
 
-    DEBUG ("%s called (actor %u, reason %u, self_handle %u)", G_STRFUNC,
+    DEBUG ("called (actor %u, reason %u, self_handle %u)",
            actor, reason, tp_channel_group_get_self_handle (proxy));
 
     self_handle = tp_channel_group_get_self_handle (proxy);
@@ -216,7 +216,7 @@ on_channel_ready (TpChannel *tp_chan, const GError *error, gpointer user_data)
     g_slice_free (McdChannel *, channel_ptr);
     if (error)
     {
-        DEBUG ("%s got error: %s", G_STRFUNC, error->message);
+        DEBUG ("got error: %s", error->message);
 	return;
     }
 
@@ -246,7 +246,7 @@ mcd_channel_close (McdChannel *channel)
         tp_channel_get_channel_type_id (priv->tp_chan) !=
         TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
     {
-        DEBUG ("%s: Requesting telepathy to close the channel", G_STRFUNC);
+        DEBUG ("Requesting telepathy to close the channel");
         tp_cli_channel_call_close (priv->tp_chan, -1, NULL, NULL, NULL, NULL);
     }
 }
@@ -352,7 +352,7 @@ _mcd_channel_dispose (GObject * object)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (object);
    
-    DEBUG ("\n\n%s for %p (is disposed = %d)", G_STRFUNC, object, priv->is_disposed);
+    DEBUG ("%p (is disposed = %d)", object, priv->is_disposed);
     if (priv->is_disposed)
 	return;
 
@@ -375,7 +375,7 @@ mcd_channel_abort (McdMission *mission)
     McdChannel *channel = MCD_CHANNEL (mission);
     McdChannelPrivate *priv = channel->priv;
 
-    DEBUG ("%s: %p", G_STRFUNC, mission);
+    DEBUG ("%p", mission);
     if (priv->is_aborted)
     {
         DEBUG ("Already aborted");
@@ -626,7 +626,7 @@ _mcd_channel_create_proxy (McdChannel *channel, TpConnection *connection,
 void
 mcd_channel_set_status (McdChannel *channel, McdChannelStatus status)
 {
-    DEBUG ("%s: %p, %u", G_STRFUNC, channel, status);
+    DEBUG ("%p, %u", channel, status);
     g_return_if_fail(MCD_IS_CHANNEL(channel));
 
     if (status != channel->priv->status)
@@ -1172,8 +1172,7 @@ copy_status (McdChannel *source, McdChannel *dest)
     dst_priv = dest->priv;
     if (dst_priv->status != src_priv->status)
     {
-        DEBUG ("%s: source is %d, dest is %d", G_STRFUNC,
-               src_priv->status, dst_priv->status);
+        DEBUG ("source is %d, dest is %d", src_priv->status, dst_priv->status);
         if (src_priv->status == MCD_CHANNEL_STATUS_FAILED)
         {
             const GError *error;

@@ -145,8 +145,8 @@ check_account_transport (gpointer key, gpointer value, gpointer userdata)
        	TP_CONNECTION_STATUS_CONNECTED) 
 	return;
 
-    DEBUG ("%s: account %s would like to connect",
-           G_STRFUNC, mcd_account_get_unique_name (account));
+    DEBUG ("account %s would like to connect",
+           mcd_account_get_unique_name (account));
     conditions = mcd_account_get_conditions (account);
     if (mcd_transport_plugin_check_conditions (td->plugin, td->transport,
 					       conditions))
@@ -167,7 +167,7 @@ mcd_master_transport_connected (McdMaster *master, McdTransportPlugin *plugin,
     GHashTable *accounts;
     TransportData td;
 
-    DEBUG ("%s: %s", G_STRFUNC, mcd_transport_get_name (plugin, transport));
+    DEBUG ("%s", mcd_transport_get_name (plugin, transport));
 
     td.master = master;
     td.plugin = plugin;
@@ -187,8 +187,8 @@ disconnect_account_transport (gpointer key, gpointer value, gpointer userdata)
     {
         McdConnection *connection;
 
-        DEBUG ("%s: account %s must disconnect",
-               G_STRFUNC, mcd_account_get_unique_name (account));
+        DEBUG ("account %s must disconnect",
+               mcd_account_get_unique_name (account));
         connection = mcd_account_get_connection (account);
         if (connection)
             mcd_connection_close (connection);
@@ -212,7 +212,7 @@ mcd_master_transport_disconnected (McdMaster *master, McdTransportPlugin *plugin
     GHashTable *accounts;
     TransportData td;
 
-    DEBUG ("%s: %s", G_STRFUNC, mcd_transport_get_name (plugin, transport));
+    DEBUG ("%s", mcd_transport_get_name (plugin, transport));
 
     td.master = master;
     td.plugin = plugin;
@@ -370,7 +370,7 @@ dbus_filter_func (DBusConnection *connection,
 				    &new_owner,
 				    DBUS_TYPE_INVALID)) {
 
-            DEBUG ("%s: error: %s", G_STRFUNC, error.message);
+            DEBUG ("error: %s", error.message);
 	    dbus_error_free (&error);
 
 	    return result;
@@ -408,7 +408,7 @@ _mcd_master_connect (McdMission * mission)
 static void
 _mcd_master_disconnect (McdMission * mission)
 {
-    DEBUG ("%s", G_STRFUNC);
+    DEBUG ("called");
 
     MCD_MISSION_CLASS (mcd_master_parent_class)->disconnect (mission);
 }
@@ -770,7 +770,7 @@ mcd_master_set_offline_on_idle (McdMaster *master, gboolean offline_on_idle)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
 
-    DEBUG ("%s: setting offline_on_idle to %d", G_STRFUNC, offline_on_idle);
+    DEBUG ("setting offline_on_idle to %d", offline_on_idle);
     priv->offline_on_idle = offline_on_idle;
 }
 
@@ -851,8 +851,8 @@ mcd_master_set_default_presence (McdMaster * master, const gchar *client_id)
 	 mcd_presence_frame_get_requested_presence (priv->presence_frame)
 	 >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE))
     {
-        DEBUG ("%s: Default presence requested while connected or "
-               "already connecting", G_STRFUNC);
+        DEBUG ("Default presence requested while connected or "
+               "already connecting");
 	return FALSE;
     }
     mcd_master_set_offline_on_idle (master, TRUE);
@@ -1234,7 +1234,7 @@ mcd_plugin_register_transport (McdPlugin *plugin,
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (plugin);
 
-    DEBUG ("%s called", G_STRFUNC);
+    DEBUG ("called");
     g_signal_connect (transport_plugin, "status-changed",
 		      G_CALLBACK (on_transport_status_changed),
 		      MCD_MASTER (plugin));
@@ -1251,7 +1251,7 @@ mcd_plugin_register_account_connection (McdPlugin *plugin,
     McdAccountConnectionData *acd;
     GList *list;
 
-    DEBUG ("%s called", G_STRFUNC);
+    DEBUG ("called");
     acd = g_malloc (sizeof (McdAccountConnectionData));
     acd->priority = priority;
     acd->func = func;

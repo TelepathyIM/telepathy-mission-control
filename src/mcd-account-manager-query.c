@@ -196,7 +196,7 @@ find_accounts (gpointer key, gpointer value, gpointer userdata)
     const gchar *object_path, *string, *status, *message;
     guint i;
 
-    DEBUG ("%s: %s", G_STRFUNC, (gchar *)key);
+    DEBUG ("%s", (gchar *)key);
     if (fd->manager)
     {
 	string = mcd_account_get_manager_name (account);
@@ -308,7 +308,7 @@ account_manager_find_accounts (McSvcAccountManagerInterfaceQuery *self,
     McdFindData fd;
     guint i;
 
-    DEBUG ("%s called", G_STRFUNC);
+    DEBUG ("called");
     memset (&fd, 0, sizeof (fd));
     fd.params = g_array_new (FALSE, FALSE, sizeof (McdFindParam));
     fd.properties = g_array_new (FALSE, FALSE, sizeof (McdIfaceProperty));

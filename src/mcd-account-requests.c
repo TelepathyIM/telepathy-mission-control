@@ -49,12 +49,12 @@ online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
 
     if (error)
     {
-        g_warning ("%s: got error: %s", G_STRFUNC, error->message);
+        g_warning ("got error: %s", error->message);
         mcd_channel_take_error (channel, g_error_copy (error));
         g_object_unref (channel);
         return;
     }
-    DEBUG ("%s called", G_STRFUNC);
+    DEBUG ("called");
     connection = mcd_account_get_connection (account);
     g_return_if_fail (connection != NULL);
     g_return_if_fail (mcd_connection_get_connection_status (connection)
@@ -62,7 +62,7 @@ online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
 
     if (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_FAILED)
     {
-        DEBUG ("%s: channel %p is failed", G_STRFUNC, channel);
+        DEBUG ("channel %p is failed", channel);
         g_object_unref (channel);
         return;
     }
@@ -176,7 +176,7 @@ create_request (McdAccount *account, GHashTable *properties,
     _mcd_account_online_request (account, online_request_cb, channel, error);
     if (*error)
     {
-        g_warning ("%s: _mcd_account_online_request: %s", G_STRFUNC,
+        g_warning ("_mcd_account_online_request: %s",
                    (*error)->message);
         mcd_channel_take_error (channel, g_error_copy (*error));
         /* no unref here, as this will invoke our handler which will
@@ -216,7 +216,7 @@ account_request_common (McdAccount *account, GHashTable *properties,
         return;
     }
     request_id = _mcd_channel_get_request_path (channel);
-    DEBUG ("%s: returning %s", G_STRFUNC, request_id);
+    DEBUG ("returning %s", request_id);
     if (use_existing)
         mc_svc_account_interface_channelrequests_return_from_ensure_channel
             (context, request_id);
@@ -257,7 +257,7 @@ account_request_cancel (McSvcAccountInterfaceChannelRequests *self,
     McdChannel *channel;
     McdChannelStatus status;
 
-    DEBUG ("%s called for %s", G_STRFUNC, request_id);
+    DEBUG ("called for %s", request_id);
     g_return_if_fail (request_id != NULL);
     channel = get_channel_from_request (MCD_ACCOUNT (self), request_id);
     if (!channel)

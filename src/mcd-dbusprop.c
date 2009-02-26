@@ -77,7 +77,7 @@ mcd_dbusprop_set_property (TpSvcDBusProperties *self,
 {
     const McdDBusProp *prop_array, *property;
 
-    DEBUG ("%s: %s, %s", G_STRFUNC, interface_name, property_name);
+    DEBUG ("%s, %s", interface_name, property_name);
 
     prop_array = get_interface_properties (self, interface_name);
     if (!prop_array)
@@ -176,7 +176,7 @@ dbusprop_get (TpSvcDBusProperties *self,
     GValue value = { 0 };
     GError *error = NULL;
 
-    DEBUG ("%s: %s, %s", G_STRFUNC, interface_name, property_name);
+    DEBUG ("%s, %s", interface_name, property_name);
 
     mcd_dbusprop_get_property (self, interface_name, property_name,
 			       &value, &error);
@@ -209,7 +209,7 @@ dbusprop_get_all (TpSvcDBusProperties *self,
     GHashTable *properties;
     GError *error = NULL;
 
-    DEBUG ("%s: %s", G_STRFUNC, interface_name);
+    DEBUG ("%s", interface_name);
 
     prop_array = get_interface_properties (self, interface_name);
     if (!prop_array)
@@ -277,7 +277,7 @@ mcd_dbus_get_interfaces (TpSvcDBusProperties *self, const gchar *name,
     GPtrArray *a_ifaces;
     GType type;
 
-    DEBUG ("%s called", G_STRFUNC);
+    DEBUG ("called");
 
     a_ifaces = g_ptr_array_new ();
 

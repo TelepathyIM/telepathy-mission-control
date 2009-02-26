@@ -263,7 +263,7 @@ mcd_service_cancel_channel_request (GObject * obj, guint operation_id,
 {
     GError *err = NULL;
     gchar *sender = dbus_g_method_get_sender (mi);
-    DEBUG ("%s (%u)", G_STRFUNC, operation_id);
+    DEBUG ("%u", operation_id);
     if (!mcd_master_cancel_channel_request (MCD_MASTER (obj), operation_id,
 					    sender, &err))
     {
@@ -462,7 +462,7 @@ _on_filter_proxy_destroy (DBusGProxy *proxy)
     				 (GHRFunc) _ctx_table_remove_foreach,
     				 NULL);
 
-    DEBUG ("%s: Unregistering filter", G_STRFUNC);
+    DEBUG ("Unregistering filter");
     mcd_dispatcher_unregister_filter (dispatcher,
 				      (McdFilterFunc) _on_filter_new_channel,
 				      quark, flags);
@@ -485,7 +485,7 @@ mcd_service_register_filter(GObject *obj,
     static gboolean initialized = FALSE;
     guint quark = g_quark_from_string (channel_type);
 
-    DEBUG ("%s: Registering new filter", G_STRFUNC);
+    DEBUG ("Registering new filter");
 
     if (!initialized)
     {
@@ -819,7 +819,7 @@ mcd_service_constructed (GObject *obj)
 {
     McdServicePrivate *priv = MCD_OBJECT_PRIV (obj);
 
-    DEBUG ("%s called", G_STRFUNC);
+    DEBUG ("called");
     g_object_get (obj,
                   "presence-frame", &priv->presence_frame,
                   "dispatcher", &priv->dispatcher,
@@ -860,7 +860,7 @@ mcd_service_init (McdService * obj)
     obj->main_loop = g_main_loop_new (NULL, FALSE);
 
     priv->last_status = -1;
-    DEBUG ("%s called", G_STRFUNC);
+    DEBUG ("called");
 }
 
 static void

@@ -259,8 +259,7 @@ static inline void
 mcd_dispatcher_context_ref (McdDispatcherContext *context)
 {
     g_return_if_fail (context != NULL);
-    DEBUG ("%s called on %p (ref = %d)", G_STRFUNC,
-             context, context->ref_count);
+    DEBUG ("called on %p (ref = %d)", context, context->ref_count);
     context->ref_count++;
 }
 
@@ -302,7 +301,7 @@ mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
          * re-dispatch them to another handler */
     }
 
-    DEBUG ("%s: %d channels still dispatching", G_STRFUNC, channels_left);
+    DEBUG ("%d channels still dispatching", channels_left);
     if (channels_left == 0)
     {
         g_signal_emit (context->dispatcher,
@@ -401,7 +400,7 @@ _mcd_dispatcher_get_filter_chain (McdDispatcher * dispatcher,
 
     if (iface_chains == NULL)
     {
-        DEBUG ("%s: No chains for interface %s", G_STRFUNC,
+        DEBUG ("No chains for interface %s",
                g_quark_to_string (channel_type_quark));
     }
     else
@@ -696,7 +695,7 @@ cancel_proxy_call (McdChannel *channel, struct cancel_call_data *call_data)
 
     dbus_g_proxy_cancel_call (call_data->handler_proxy, call_data->call);
     
-    DEBUG ("%s: signalling Handle channel failed", G_STRFUNC);
+    DEBUG ("signalling Handle channel failed");
     
     /* We can't reliably map channel handler error codes to MC error
      * codes. So just using generic error message.
@@ -1339,8 +1338,7 @@ static void
 mcd_dispatcher_context_release_client_lock (McdDispatcherContext *context)
 {
     g_return_if_fail (context->client_locks > 0);
-    DEBUG ("%s called on %p, locks = %d", G_STRFUNC,
-           context, context->client_locks);
+    DEBUG ("called on %p, locks = %d", context, context->client_locks);
     context->client_locks--;
     if (context->client_locks == 0)
     {
@@ -2324,7 +2322,7 @@ new_names_cb (McdDispatcher *self,
             continue;
         }
 
-        DEBUG ("%s: Register client %s", G_STRFUNC, name);
+        DEBUG ("Register client %s", name);
 
         g_hash_table_insert (priv->clients, g_strdup (name),
             create_mcd_client (self, name, activatable));
@@ -2628,12 +2626,11 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context)
     g_return_if_fail (context);
     g_return_if_fail (context->ref_count > 0);
 
-    DEBUG ("%s called on %p (ref = %d)", G_STRFUNC,
-           context, context->ref_count);
+    DEBUG ("called on %p (ref = %d)", context, context->ref_count);
     context->ref_count--;
     if (context->ref_count == 0)
     {
-        DEBUG ("%s: freeing the context %p", G_STRFUNC, context);
+        DEBUG ("freeing the context %p", context);
         for (list = context->channels; list != NULL; list = list->next)
         {
             McdChannel *channel = MCD_CHANNEL (list->data);
@@ -2922,7 +2919,7 @@ on_request_status_changed (McdChannel *channel, McdChannelStatus status,
         status != MCD_CHANNEL_STATUS_DISPATCHED)
         return;
 
-    DEBUG ("%s called, %u", G_STRFUNC, status);
+    DEBUG ("called, %u", status);
     if (status == MCD_CHANNEL_STATUS_FAILED)
     {
         const GError *error;
@@ -3206,7 +3203,7 @@ get_handled_channels_cb (TpProxy *proxy, const GValue *v_channels,
 {
     McdClient *client = user_data;
 
-    DEBUG ("%s called", G_STRFUNC);
+    DEBUG ("called");
     client->got_handled_channels = TRUE;
 
     if (G_LIKELY (!error))
@@ -3241,7 +3238,7 @@ mcd_client_call_when_got_handled_channels (McdClient *client,
                                            McdReadyCb callback,
                                            gpointer user_data)
 {
-    DEBUG ("%s called", G_STRFUNC);
+    DEBUG ("called");
     if (client->got_handled_channels)
         callback (client, NULL, user_data);
     else
@@ -3261,7 +3258,7 @@ mcd_client_call_when_got_handled_channels (McdClient *client,
 static void
 channel_recover_release_lock (McdChannelRecover *cr)
 {
-    DEBUG ("%s called on %p (locks = %d)", G_STRFUNC, cr, cr->handler_locks);
+    DEBUG ("called on %p (locks = %d)", cr, cr->handler_locks);
     cr->handler_locks--;
     if (cr->handler_locks == 0)
     {
@@ -3289,7 +3286,7 @@ check_handled_channels (gpointer object, const GError *error,
     McdClient *client = object;
     McdChannelRecover *cr = user_data;
 
-    DEBUG ("%s called", G_STRFUNC);
+    DEBUG ("called");
     if (G_LIKELY (!error) && client->handled_channels != NULL)
     {
         const gchar *path;

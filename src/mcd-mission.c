@@ -182,7 +182,7 @@ _mcd_mission_get_mode (McdMission * mission)
 static void
 on_parent_abort (McdMission *parent, McdMission *mission)
 {
-    DEBUG ("%s called", G_STRFUNC);
+    DEBUG ("called");
     mcd_mission_set_parent (mission, NULL);
 }
 
@@ -196,7 +196,7 @@ _mcd_mission_set_parent (McdMission * mission, McdMission * parent)
 
     priv = MCD_MISSION_PRIV (mission);
 
-    DEBUG ("%s: child = %p, parent = %p", G_STRFUNC, mission, parent);
+    DEBUG ("child = %p, parent = %p", mission, parent);
 
     if (priv->parent)
     {
