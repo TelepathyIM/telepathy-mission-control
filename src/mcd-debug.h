@@ -35,10 +35,10 @@ G_BEGIN_DECLS
 
 #ifdef ENABLE_DEBUG
 
-#define DEBUG(format, ...) do {             \
+#define DEBUG(format, ...) G_STMT_START {   \
     if (_mcd_debug_get_level () > 0)        \
         g_debug (format, ##__VA_ARGS__);    \
-} while (0)
+} G_STMT_END
 
 /* reference count debugging */
 #define g_object_ref(obj)    (mcd_debug_ref (obj, __FILE__, __LINE__))
