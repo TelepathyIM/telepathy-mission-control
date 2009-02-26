@@ -41,8 +41,10 @@ G_BEGIN_DECLS
 } G_STMT_END
 
 /* reference count debugging */
+#ifndef g_object_ref
 #define g_object_ref(obj)    (mcd_debug_ref (obj, __FILE__, __LINE__))
 #define g_object_unref(obj)  (mcd_debug_unref (obj, __FILE__, __LINE__))
+#endif
 
 #else /* !defined ENABLE_DEBUG */
 
