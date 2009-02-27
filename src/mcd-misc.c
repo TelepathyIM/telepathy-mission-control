@@ -104,68 +104,32 @@ _mcd_deepcopy_asv (GHashTable *asv)
     return copy;
 }
 
-const gchar *
-_mcd_get_error_string (const GError *error)
+gchar *
+_mcd_build_error_string (const GError *error)
 {
+    GEnumValue *value;
+    GEnumClass *klass;
+    const gchar *prefix;
+
     if (error->domain == TP_ERRORS)
     {
-        switch (error->code)
-        {
-        case TP_ERROR_NETWORK_ERROR:
-            return TP_ERROR_PREFIX ".NetworkError";
-        case TP_ERROR_NOT_IMPLEMENTED:
-            return TP_ERROR_PREFIX ".NotImplemented";
-        case TP_ERROR_INVALID_ARGUMENT:
-            return TP_ERROR_PREFIX ".InvalidArgument";
-        case TP_ERROR_NOT_AVAILABLE:
-            return TP_ERROR_PREFIX ".NotAvailable";
-        case TP_ERROR_PERMISSION_DENIED:
-            return TP_ERROR_PREFIX ".PermissionDenied";
-        case TP_ERROR_DISCONNECTED:
-            return TP_ERROR_PREFIX ".Disconnected";
-        case TP_ERROR_INVALID_HANDLE:
-            return TP_ERROR_PREFIX ".InvalidHandle";
-        case TP_ERROR_CHANNEL_BANNED:
-            return TP_ERROR_PREFIX ".Banned";
-        case TP_ERROR_CHANNEL_FULL:
-            return TP_ERROR_PREFIX ".Full";
-        case TP_ERROR_CHANNEL_INVITE_ONLY:
-            return TP_ERROR_PREFIX ".InviteOnly";
-        }
+        klass = g_type_class_ref (TP_TYPE_ERROR);
+        prefix = TP_ERROR_PREFIX;
     }
     else if (error->domain == MC_ERROR)
     {
-        switch (error->code)
-        {
-        case MC_DISCONNECTED_ERROR:
-            return MC_ERROR_PREFIX ".Disconnected";
-        case MC_INVALID_HANDLE_ERROR:
-            return MC_ERROR_PREFIX ".InvalidHandle";
-        case MC_NO_MATCHING_CONNECTION_ERROR:
-            return MC_ERROR_PREFIX ".NoMatchingConnection";
-        case MC_INVALID_ACCOUNT_ERROR:
-            return MC_ERROR_PREFIX ".InvalidAccount";
-        case MC_PRESENCE_FAILURE_ERROR:
-            return MC_ERROR_PREFIX ".PresenceFailure";
-        case MC_NO_ACCOUNTS_ERROR:
-            return MC_ERROR_PREFIX ".NoAccounts";
-        case MC_NETWORK_ERROR:
-            return MC_ERROR_PREFIX ".Network";
-        case MC_CONTACT_DOES_NOT_SUPPORT_VOICE_ERROR:
-            return MC_ERROR_PREFIX ".ContactDoesNotSupportVoice";
-        case MC_LOWMEM_ERROR:
-            return MC_ERROR_PREFIX ".Lowmem";
-        case MC_CHANNEL_REQUEST_GENERIC_ERROR:
-            return MC_ERROR_PREFIX ".Generic";
-        case MC_CHANNEL_BANNED_ERROR:
-            return MC_ERROR_PREFIX ".ChannelBanned";
-        case MC_CHANNEL_FULL_ERROR:
-            return MC_ERROR_PREFIX ".ChannelFull";
-        case MC_CHANNEL_INVITE_ONLY_ERROR:
-            return MC_ERROR_PREFIX ".ChannelInviteOnly";
-        }
+        klass = g_type_class_ref (MC_TYPE_ERROR);
+        prefix = MC_ERROR_PREFIX;
     }
-    return NULL;
+    else
+        return NULL;
+    value = g_enum_get_value (klass, error->code);
+    g_type_class_unref (klass);
+
+    if (G_LIKELY (value && value->value_nick))
+        return g_strconcat (prefix, ".", value->value_nick, NULL);
+    else
+        return NULL;
 }
 
 GType

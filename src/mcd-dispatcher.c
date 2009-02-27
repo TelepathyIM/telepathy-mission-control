@@ -2923,13 +2923,14 @@ on_request_status_changed (McdChannel *channel, McdChannelStatus status,
     if (status == MCD_CHANNEL_STATUS_FAILED)
     {
         const GError *error;
-        const gchar *err_string;
+        gchar *err_string;
         error = mcd_channel_get_error (channel);
-        err_string = _mcd_get_error_string (error);
+        err_string = _mcd_build_error_string (error);
         /* no callback, as we don't really care */
         mc_cli_client_handler_call_remove_failed_request
             (rrd->handler, -1, rrd->request_path, err_string, error->message,
              NULL, NULL, NULL, NULL);
+        g_free (err_string);
     }
 
     /* we don't need the McdRemoveRequestData anymore */

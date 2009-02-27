@@ -122,15 +122,16 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
 
     if (status == MCD_CHANNEL_STATUS_FAILED)
     {
-        const gchar *err_string;
+        gchar *err_string;
         error = mcd_channel_get_error (channel);
         g_warning ("Channel request %s failed, error: %s",
                    _mcd_channel_get_request_path (channel), error->message);
 
-        err_string = _mcd_get_error_string (error);
+        err_string = _mcd_build_error_string (error);
         mc_svc_account_interface_channelrequests_emit_failed (account,
             _mcd_channel_get_request_path (channel),
             err_string, error->message);
+        g_free (err_string);
 
         g_object_unref (channel);
     }
