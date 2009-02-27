@@ -245,6 +245,8 @@ mc_account_class_init (McAccountClass *klass)
 
     tp_proxy_subclass_add_error_mapping (type, TP_ERROR_PREFIX, TP_ERRORS,
 					 TP_TYPE_ERROR);
+    tp_proxy_subclass_add_error_mapping (type, MC_ERROR_PREFIX, MC_ERROR,
+                                         MC_TYPE_ERROR);
 
     /**
      * McAccount::presence-changed:

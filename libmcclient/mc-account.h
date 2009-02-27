@@ -28,6 +28,7 @@
 #include <telepathy-glib/proxy.h>
 #include <telepathy-glib/enums.h>
 #include <libmcclient/mc-enums.h>
+#include <libmcclient/mc-errors.h>
 #include <libmcclient/mc-gtypes.h>
 #include <libmcclient/mc-interfaces.h>
 
