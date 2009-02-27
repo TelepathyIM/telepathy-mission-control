@@ -25,6 +25,12 @@
 #define __LIBMCCLIENT_ERRORS_H__
 
 #include <glib.h>
+#include <glib-object.h>
+
+#define MC_ERROR_PREFIX "com.nokia.MissionControl.Errors"
+
+#define MC_TYPE_ERROR (mc_error_get_type())
+GType mc_error_get_type (void);
 
 #define MC_ERROR (mc_error_quark())
 
@@ -43,7 +49,10 @@ typedef enum {
     MC_CHANNEL_FULL_ERROR,
     MC_CHANNEL_INVITE_ONLY_ERROR,
     MC_LAST_ERROR /*< skip >*/
-} MCError;
+} McError;
+
+/* Keep API compatibility: */
+#define MCError McError
 
 GQuark mc_error_quark (void);
 

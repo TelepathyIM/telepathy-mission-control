@@ -104,8 +104,6 @@ _mcd_deepcopy_asv (GHashTable *asv)
     return copy;
 }
 
-#define MC_ERROR_PREFIX "com.nokia.MissionControl.Errors"
-
 const gchar *
 _mcd_get_error_string (const GError *error)
 {
