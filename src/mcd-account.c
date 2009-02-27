@@ -1958,6 +1958,7 @@ void
 mcd_account_set_normalized_name (McdAccount *account, const gchar *name)
 {
     McdAccountPrivate *priv = account->priv;
+    GValue value = { 0, };
 
     DEBUG ("called (%s)", name);
     if (name)
@@ -1967,6 +1968,11 @@ mcd_account_set_normalized_name (McdAccount *account, const gchar *name)
 	g_key_file_remove_key (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_NORMALIZED_NAME, NULL);
     mcd_account_manager_write_conf (priv->account_manager);
+
+    g_value_init (&value, G_TYPE_STRING);
+    g_value_set_string (&value, name);
+    mcd_account_changed_property (account, "NormalizedName", &value);
+    g_value_unset (&value);
 }
 
 gchar *
