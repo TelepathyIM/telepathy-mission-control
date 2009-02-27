@@ -154,9 +154,8 @@ on_request_failed (TpProxy *proxy, const gchar *request_path,
     req = REQUEST_FROM_ID (id);
     if (G_UNLIKELY (!req)) return;
 
-    /* FIXME: map the error properly */
-    req->error = g_error_new (MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
-                              error_message);
+    tp_proxy_dbus_error_to_gerror (proxy, error_name, error_message,
+                                   &req->error);
     emit_request_event (req, MC_ACCOUNT_CR_FAILED);
 }
 
