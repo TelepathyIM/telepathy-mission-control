@@ -4,7 +4,8 @@ INCLUDES = \
 	$(GLIB_CFLAGS) \
 	-I$(top_srcdir) \
 	-I$(top_builddir) \
-	-DLIBDIR="@libdir@" -DLIBVERSION="0"
+	-DLIBDIR="@libdir@" -DLIBVERSION="0" \
+	-DG_LOG_DOMAIN=\"mc-client\"
 
 BUILT_SOURCES = \
 	_gen/all.xml \
