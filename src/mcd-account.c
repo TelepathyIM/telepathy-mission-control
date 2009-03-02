@@ -1970,7 +1970,7 @@ mcd_account_set_normalized_name (McdAccount *account, const gchar *name)
     mcd_account_manager_write_conf (priv->account_manager);
 
     g_value_init (&value, G_TYPE_STRING);
-    g_value_set_string (&value, name);
+    g_value_set_static_string (&value, name);
     mcd_account_changed_property (account, "NormalizedName", &value);
     g_value_unset (&value);
 }
