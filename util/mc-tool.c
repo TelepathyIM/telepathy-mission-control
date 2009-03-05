@@ -31,6 +31,7 @@
 #include <telepathy-glib/dbus.h>
 #include <libmcclient/mc-account-manager.h>
 #include <libmcclient/mc-account.h>
+#include <libmcclient/mc-profile.h>
 
 static gchar *app_name;
 static GMainLoop *main_loop;
@@ -43,6 +44,7 @@ show_help (gchar * err)
 
     printf ("Usage:\n"
 	    "    %1$s list\n"
+	    "    %1$s add <profile> <display name> [(int|bool|string):<key>=<value> ...]\n"
 	    "    %1$s add <manager>/<protocol> <display name> [(int|bool|string):<key>=<value> ...]\n"
 	    "    %1$s update <account name> [(int|uint|bool|string):<key>=<value>|clear:key] ...\n"
 	    "    %1$s display <account name> <display name>\n"
@@ -80,7 +82,7 @@ union command {
 
     struct {
 	struct common common;
-	gchar const *manager, *protocol, *display;
+	gchar const *manager, *protocol, *profile, *display;
 	GHashTable *parameters;
     } add;
 
@@ -490,14 +492,30 @@ callback_for_create_account (TpProxy *proxy,
 static gboolean
 command_add (McAccountManager *manager)
 {
+    GHashTable *properties;
+    GValue v_profile = { 0 };
+
+    properties = g_hash_table_new (g_str_hash, g_str_equal);
+
+    if (command.add.profile)
+    {
+	g_value_init (&v_profile, G_TYPE_STRING);
+	g_value_set_static_string (&v_profile, command.add.profile);
+	g_hash_table_insert (properties,
+			     MC_IFACE_ACCOUNT_INTERFACE_COMPAT ".Profile",
+			     &v_profile);
+    }
+
     return NULL !=
-	mc_cli_account_manager_call_create_account (manager, 25000,
-						    command.add.manager,
-						    command.add.protocol,
-						    command.add.display,
-						    command.add.parameters,
-						    callback_for_create_account,
-						    NULL, NULL, NULL);
+	mc_cli_account_manager_interface_creation_call_create_account
+	    (manager, 25000,
+	     command.add.manager,
+	     command.add.protocol,
+	     command.add.display,
+	     command.add.parameters,
+	     properties,
+	     callback_for_create_account,
+	     NULL, NULL, NULL);
 }
 
 static void
@@ -769,14 +787,32 @@ parse (int argc, char **argv)
 	if (argc < 4)
 	    show_help ("Invalid add command.");
 
-	strv = g_strsplit (argv[2], "/", 2);
+	if (strchr (argv[2], '/') != NULL)
+	{
+	    strv = g_strsplit (argv[2], "/", 2);
 
-	if (strv[0] == NULL || strv[1] == NULL || strv[2] != NULL)
-	    show_help ("Invalid add command.");
+	    if (strv[0] == NULL || strv[1] == NULL || strv[2] != NULL)
+		show_help ("Invalid add command.");
 
+	    command.add.manager = strv[0];
+	    command.add.protocol = strv[1];
+	}
+	else
+	{
+	    McProfile *profile;
+
+	    profile = mc_profile_lookup (argv[2]);
+	    if (!profile)
+	    {
+		g_warning ("%s: profile %s not found", argv[1], argv[2]);
+		exit (1);
+	    }
+
+	    command.add.profile = argv[2];
+	    command.add.manager = mc_profile_get_manager_name (profile);
+	    command.add.protocol = mc_profile_get_protocol_name (profile);
+	}
 	command.ready.manager = command_add;
-	command.add.manager = strv[0];
-	command.add.protocol = strv[1];
 	command.add.display = argv[3];
 
 	command.add.parameters = new_params ();
