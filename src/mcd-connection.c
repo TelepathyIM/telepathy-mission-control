@@ -442,6 +442,13 @@ on_presence_requested (McdAccount *account,
 	priv->abort_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
 	mcd_mission_disconnect (MCD_MISSION (connection));
 	_mcd_connection_call_disconnect (connection);
+
+        /* if a reconnection attempt is scheduled, cancel it */
+        if (priv->reconnect_timer)
+        {
+            g_source_remove (priv->reconnect_timer);
+            priv->reconnect_timer = 0;
+        }
     }
     else
     {
