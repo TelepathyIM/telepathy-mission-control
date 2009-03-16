@@ -57,5 +57,9 @@ void mcd_object_ready (gpointer object, GQuark quark, const GError *error);
 G_GNUC_INTERNAL
 GType _mcd_type_dbus_ao (void);
 
+G_GNUC_INTERNAL
+gboolean _mcd_file_set_contents (const gchar *filename, const gchar *contents,
+                                 gssize length, GError **error);
+
 G_END_DECLS
 #endif /* MCD_MISC_H */
