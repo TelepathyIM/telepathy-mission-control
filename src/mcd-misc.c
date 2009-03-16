@@ -26,6 +26,7 @@
 #include "mcd-misc.h"
 #include <errno.h>
 #define __USE_POSIX
+#define __USE_BSD
 #include <glib/gstdio.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -406,6 +407,24 @@ write_to_temp_file (const gchar *contents,
 
             goto out;
         }
+    }
+
+    errno = 0;
+    if (fsync (fd) == -1)
+    {
+        save_errno = 0;
+
+        g_set_error (err,
+                     G_FILE_ERROR,
+                     g_file_error_from_errno (save_errno),
+                     "Failed to sync file '%s': fsync() failed: %s",
+                     display_name,
+                     g_strerror (save_errno));
+
+        fclose (file);
+        g_unlink (tmp_name);
+
+        goto out;
     }
 
     errno = 0;
