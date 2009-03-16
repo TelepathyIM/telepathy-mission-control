@@ -28,8 +28,6 @@
 #include <glib/gstdio.h>
 #include <glib/gi18n.h>
 #include <config.h>
-#define __USE_BSD
-#include <unistd.h>
 
 #include <dbus/dbus-glib-lowlevel.h>
 #include <libmcclient/mc-errors.h>
@@ -226,26 +224,6 @@ account_request_common (McdAccount *account, GHashTable *properties,
     else
         mc_svc_account_interface_channelrequests_return_from_create
             (context, request_id);
-
-    /* FIXME: The following block of code is a hack to workaround D-Bus
-     * reordering the messages: bad things happen if the client gets the call
-     * to AddRequest or HandleChannels before the reply for the Create/Ensure
-     * call */
-    {
-        McdMaster *master;
-        TpDBusDaemon *dbus_daemon;
-        DBusConnection *connection;
-
-        master = mcd_master_get_default ();
-        dbus_daemon = mcd_master_get_dbus_daemon (master);
-        connection = dbus_g_connection_get_connection
-            (TP_PROXY (dbus_daemon)->dbus_connection);
-        dbus_connection_flush (connection);
-        dbus_connection_unref (connection);
-
-        DEBUG ("sleeping");
-        usleep (600000);
-    }
 
     dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
     _mcd_dispatcher_add_request (dispatcher, account, channel);
