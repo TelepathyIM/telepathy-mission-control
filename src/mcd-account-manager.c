@@ -39,6 +39,7 @@
 #include "mcd-account.h"
 #include "mcd-account-config.h"
 #include "mcd-dbusprop.h"
+#include "mcd-misc.h"
 #include "_gen/interfaces.h"
 
 #define WRITE_CONF_DELAY    500
@@ -598,7 +599,7 @@ write_conf (gpointer userdata)
 	return FALSE;
     }
     filename = get_account_conf_filename ();
-    ok = g_file_set_contents (filename, data, len, &error);
+    ok = _mcd_file_set_contents (filename, data, len, &error);
     g_free (filename);
     g_free (data);
     if (G_UNLIKELY (!ok))
@@ -823,8 +824,9 @@ mcd_account_manager_init (McdAccountManager *account_manager)
 	g_free (dirname);
 
         DEBUG ("Creating file");
-	g_file_set_contents (conf_filename, INITIAL_CONFIG_FILE_CONTENTS,
-			     sizeof (INITIAL_CONFIG_FILE_CONTENTS) - 1, NULL);
+	_mcd_file_set_contents (conf_filename, INITIAL_CONFIG_FILE_CONTENTS,
+                                sizeof (INITIAL_CONFIG_FILE_CONTENTS) - 1,
+                                NULL);
     }
     g_key_file_load_from_file (priv->keyfile, conf_filename,
 			       G_KEY_FILE_KEEP_COMMENTS, &error);
