@@ -239,199 +239,199 @@ mcd_object_ready (gpointer object, GQuark quark, const GError *error)
 
 static gint
 create_temp_file (gchar *tmpl, 
-		  int    permissions)
+                  int    permissions)
 {
-  char *XXXXXX;
-  int count, fd;
-  static const char letters[] =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  static const int NLETTERS = sizeof (letters) - 1;
-  glong value;
-  GTimeVal tv;
-  static int counter = 0;
+    char *XXXXXX;
+    int count, fd;
+    static const char letters[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    static const int NLETTERS = sizeof (letters) - 1;
+    glong value;
+    GTimeVal tv;
+    static int counter = 0;
 
-  /* find the last occurrence of "XXXXXX" */
-  XXXXXX = g_strrstr (tmpl, "XXXXXX");
+    /* find the last occurrence of "XXXXXX" */
+    XXXXXX = g_strrstr (tmpl, "XXXXXX");
 
-  if (!XXXXXX || strncmp (XXXXXX, "XXXXXX", 6))
+    if (!XXXXXX || strncmp (XXXXXX, "XXXXXX", 6))
     {
-      errno = EINVAL;
-      return -1;
+        errno = EINVAL;
+        return -1;
     }
 
-  /* Get some more or less random data.  */
-  g_get_current_time (&tv);
-  value = (tv.tv_usec ^ tv.tv_sec) + counter++;
+    /* Get some more or less random data.  */
+    g_get_current_time (&tv);
+    value = (tv.tv_usec ^ tv.tv_sec) + counter++;
 
-  for (count = 0; count < 100; value += 7777, ++count)
+    for (count = 0; count < 100; value += 7777, ++count)
     {
-      glong v = value;
+        glong v = value;
 
-      /* Fill in the random bits.  */
-      XXXXXX[0] = letters[v % NLETTERS];
-      v /= NLETTERS;
-      XXXXXX[1] = letters[v % NLETTERS];
-      v /= NLETTERS;
-      XXXXXX[2] = letters[v % NLETTERS];
-      v /= NLETTERS;
-      XXXXXX[3] = letters[v % NLETTERS];
-      v /= NLETTERS;
-      XXXXXX[4] = letters[v % NLETTERS];
-      v /= NLETTERS;
-      XXXXXX[5] = letters[v % NLETTERS];
+        /* Fill in the random bits.  */
+        XXXXXX[0] = letters[v % NLETTERS];
+        v /= NLETTERS;
+        XXXXXX[1] = letters[v % NLETTERS];
+        v /= NLETTERS;
+        XXXXXX[2] = letters[v % NLETTERS];
+        v /= NLETTERS;
+        XXXXXX[3] = letters[v % NLETTERS];
+        v /= NLETTERS;
+        XXXXXX[4] = letters[v % NLETTERS];
+        v /= NLETTERS;
+        XXXXXX[5] = letters[v % NLETTERS];
 
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
 
-      /* tmpl is in UTF-8 on Windows, thus use g_open() */
-      fd = g_open (tmpl, O_RDWR | O_CREAT | O_EXCL | O_BINARY, permissions);
+        /* tmpl is in UTF-8 on Windows, thus use g_open() */
+        fd = g_open (tmpl, O_RDWR | O_CREAT | O_EXCL | O_BINARY, permissions);
 
-      if (fd >= 0)
-	return fd;
-      else if (errno != EEXIST)
-	/* Any other error will apply also to other names we might
-	 *  try, and there are 2^32 or so of them, so give up now.
-	 */
-	return -1;
+        if (fd >= 0)
+            return fd;
+        else if (errno != EEXIST)
+            /* Any other error will apply also to other names we might
+             *  try, and there are 2^32 or so of them, so give up now.
+             */
+            return -1;
     }
 
-  /* We got out of the loop because we ran out of combinations to try.  */
-  errno = EEXIST;
-  return -1;
+    /* We got out of the loop because we ran out of combinations to try.  */
+    errno = EEXIST;
+    return -1;
 }
 
 static gboolean
 rename_file (const char *old_name,
-	     const char *new_name,
-	     GError **err)
+             const char *new_name,
+             GError **err)
 {
-  errno = 0;
-  if (g_rename (old_name, new_name) == -1)
+    errno = 0;
+    if (g_rename (old_name, new_name) == -1)
     {
-      int save_errno = errno;
-      gchar *display_old_name = g_filename_display_name (old_name);
-      gchar *display_new_name = g_filename_display_name (new_name);
+        int save_errno = errno;
+        gchar *display_old_name = g_filename_display_name (old_name);
+        gchar *display_new_name = g_filename_display_name (new_name);
 
-      g_set_error (err,
-		   G_FILE_ERROR,
-		   g_file_error_from_errno (save_errno),
-		   "Failed to rename file '%s' to '%s': g_rename() failed: %s",
-		   display_old_name,
-		   display_new_name,
-		   g_strerror (save_errno));
+        g_set_error (err,
+                     G_FILE_ERROR,
+                     g_file_error_from_errno (save_errno),
+                     "Failed to rename file '%s' to '%s': g_rename() failed: %s",
+                     display_old_name,
+                     display_new_name,
+                     g_strerror (save_errno));
 
-      g_free (display_old_name);
-      g_free (display_new_name);
-      
-      return FALSE;
+        g_free (display_old_name);
+        g_free (display_new_name);
+
+        return FALSE;
     }
-  
-  return TRUE;
+
+    return TRUE;
 }
 
 static gchar *
 write_to_temp_file (const gchar *contents,
-		    gssize length,
-		    const gchar *template,
-		    GError **err)
+                    gssize length,
+                    const gchar *template,
+                    GError **err)
 {
-  gchar *tmp_name;
-  gchar *display_name;
-  gchar *retval;
-  FILE *file;
-  gint fd;
-  int save_errno;
+    gchar *tmp_name;
+    gchar *display_name;
+    gchar *retval;
+    FILE *file;
+    gint fd;
+    int save_errno;
 
-  retval = NULL;
-  
-  tmp_name = g_strdup_printf ("%s.XXXXXX", template);
+    retval = NULL;
 
-  errno = 0;
-  fd = create_temp_file (tmp_name, 0666);
-  save_errno = errno;
+    tmp_name = g_strdup_printf ("%s.XXXXXX", template);
 
-  display_name = g_filename_display_name (tmp_name);
-      
-  if (fd == -1)
+    errno = 0;
+    fd = create_temp_file (tmp_name, 0666);
+    save_errno = errno;
+
+    display_name = g_filename_display_name (tmp_name);
+
+    if (fd == -1)
     {
-      g_set_error (err,
-		   G_FILE_ERROR,
-		   g_file_error_from_errno (save_errno),
-		   "Failed to create file '%s': %s",
-		   display_name, g_strerror (save_errno));
-      
-      goto out;
+        g_set_error (err,
+                     G_FILE_ERROR,
+                     g_file_error_from_errno (save_errno),
+                     "Failed to create file '%s': %s",
+                     display_name, g_strerror (save_errno));
+
+        goto out;
     }
 
-  errno = 0;
-  file = fdopen (fd, "wb");
-  if (!file)
+    errno = 0;
+    file = fdopen (fd, "wb");
+    if (!file)
     {
-      save_errno = errno;
-      g_set_error (err,
-		   G_FILE_ERROR,
-		   g_file_error_from_errno (save_errno),
-		   "Failed to open file '%s' for writing: fdopen() failed: %s",
-		   display_name,
-		   g_strerror (save_errno));
+        save_errno = errno;
+        g_set_error (err,
+                     G_FILE_ERROR,
+                     g_file_error_from_errno (save_errno),
+                     "Failed to open file '%s' for writing: fdopen() failed: %s",
+                     display_name,
+                     g_strerror (save_errno));
 
-      close (fd);
-      g_unlink (tmp_name);
-      
-      goto out;
+        close (fd);
+        g_unlink (tmp_name);
+
+        goto out;
     }
 
-  if (length > 0)
+    if (length > 0)
     {
-      gsize n_written;
-      
-      errno = 0;
+        gsize n_written;
 
-      n_written = fwrite (contents, 1, length, file);
+        errno = 0;
 
-      if (n_written < length)
-	{
-	  save_errno = errno;
-      
- 	  g_set_error (err,
-		       G_FILE_ERROR,
-		       g_file_error_from_errno (save_errno),
-		       "Failed to write file '%s': fwrite() failed: %s",
-		       display_name,
-		       g_strerror (save_errno));
+        n_written = fwrite (contents, 1, length, file);
 
-	  fclose (file);
-	  g_unlink (tmp_name);
-	  
-	  goto out;
-	}
+        if (n_written < length)
+        {
+            save_errno = errno;
+
+            g_set_error (err,
+                         G_FILE_ERROR,
+                         g_file_error_from_errno (save_errno),
+                         "Failed to write file '%s': fwrite() failed: %s",
+                         display_name,
+                         g_strerror (save_errno));
+
+            fclose (file);
+            g_unlink (tmp_name);
+
+            goto out;
+        }
     }
-   
-  errno = 0;
-  if (fclose (file) == EOF)
+
+    errno = 0;
+    if (fclose (file) == EOF)
     { 
-      save_errno = 0;
-      
-      g_set_error (err,
-		   G_FILE_ERROR,
-		   g_file_error_from_errno (save_errno),
-		   "Failed to close file '%s': fclose() failed: %s",
-		   display_name, 
-		   g_strerror (save_errno));
+        save_errno = 0;
 
-      g_unlink (tmp_name);
-      
-      goto out;
+        g_set_error (err,
+                     G_FILE_ERROR,
+                     g_file_error_from_errno (save_errno),
+                     "Failed to close file '%s': fclose() failed: %s",
+                     display_name, 
+                     g_strerror (save_errno));
+
+        g_unlink (tmp_name);
+
+        goto out;
     }
 
-  retval = g_strdup (tmp_name);
-  
- out:
-  g_free (tmp_name);
-  g_free (display_name);
-  
-  return retval;
+    retval = g_strdup (tmp_name);
+
+out:
+    g_free (tmp_name);
+    g_free (display_name);
+
+    return retval;
 }
 
 gboolean
