@@ -397,7 +397,8 @@ mcd_channel_abort (McdMission *mission)
     }
     /* Don't release the TpChannel, because we might still be asked to retrieve
      * its properties or object path; instead, just close the channel */
-    mcd_channel_close (channel);
+    if (priv->close_on_dispose)
+        mcd_channel_close (channel);
 
     /* chain up with the parent */
     MCD_MISSION_CLASS (mcd_channel_parent_class)->abort (mission);
