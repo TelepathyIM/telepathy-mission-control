@@ -3300,6 +3300,8 @@ check_handled_channels (gpointer object, const GError *error,
             {
                 DEBUG ("Channel %s is handled by %s", path, client->name);
                 cr->handled = TRUE;
+                mcd_channel_set_status (cr->channel,
+                                        MCD_CHANNEL_STATUS_DISPATCHED);
                 break;
             }
         }
