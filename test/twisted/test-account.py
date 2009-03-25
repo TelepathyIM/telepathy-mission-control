@@ -38,7 +38,8 @@ def test(q, bus, mc):
             in interfaces, interfaces
 
     # Create an account
-    params = dbus.Dictionary({"nickname": "fakenick"}, signature='sv')
+    params = dbus.Dictionary({"account": "someguy@example.com",
+        "password": "secrecy"}, signature='sv')
     account_path = account_manager_iface.CreateAccount(
             'fakecm', # Connection_Manager
             'fakeprotocol', # Protocol

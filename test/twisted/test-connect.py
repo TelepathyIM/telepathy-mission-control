@@ -38,7 +38,8 @@ def test(q, bus, mc):
             'org.freedesktop.Telepathy.AccountManager')
 
     # Create an account
-    params = dbus.Dictionary({"nickname": "fakenick"}, signature='sv')
+    params = dbus.Dictionary({"account": "someguy@example.com",
+        "password": "secrecy"}, signature='sv')
     account_path = account_manager_iface.CreateAccount(
             'fakecm', # Connection_Manager
             'fakeprotocol', # Protocol
@@ -54,6 +55,12 @@ def test(q, bus, mc):
     account_iface = dbus.Interface(account,
             'org.freedesktop.Telepathy.Account')
 
+    # The account is initially valid but disabled
+    assert not account.Get('org.freedesktop.Telepathy.Account', 'Enabled',
+            dbus_interface='org.freedesktop.DBus.Properties')
+    assert account.Get('org.freedesktop.Telepathy.Account', 'Valid',
+            dbus_interface='org.freedesktop.DBus.Properties')
+
     # Enable the account
     account.Set('org.freedesktop.Telepathy.Account',
             'Enabled', True,
@@ -61,8 +68,12 @@ def test(q, bus, mc):
     q.expect('dbus-signal',
             path=account_path,
             signal='AccountPropertyChanged',
-            interface='org.freedesktop.Telepathy.Account',
-            args=[dbus.Dictionary({"Enabled": True}, signature='sv')])
+            interface='org.freedesktop.Telepathy.Account')
+
+    assert account.Get('org.freedesktop.Telepathy.Account', 'Enabled',
+            dbus_interface='org.freedesktop.DBus.Properties')
+    assert account.Get('org.freedesktop.Telepathy.Account', 'Valid',
+            dbus_interface='org.freedesktop.DBus.Properties')
 
     # Check the requested presence is offline
     properties = account.GetAll(
