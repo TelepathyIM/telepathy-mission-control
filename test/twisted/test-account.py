@@ -1,6 +1,7 @@
 import dbus
 
-from servicetest import EventPattern, tp_name_prefix, tp_path_prefix
+from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
+        call_async
 from fakecm import start_fake_connection_manager
 from mctest import exec_test
 import constants as cs
@@ -58,13 +59,14 @@ def test(q, bus, mc):
         tp_name_prefix + '.AccountManager',
         account_path)
     account_iface = dbus.Interface(account, cs.ACCOUNT)
+    account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)
     # Introspect Account for debugging purpose
     account_introspected = account.Introspect(
             dbus_interface=cs.INTROSPECTABLE_IFACE)
     #print account_introspected
 
     # Check Account has D-Bus property interface
-    properties = account.GetAll(cs.ACCOUNT, dbus_interface=cs.PROPERTIES_IFACE)
+    properties = account_props.GetAll(cs.ACCOUNT)
     assert properties is not None
 
     assert properties.get('DisplayName') == 'fakeaccount', \
@@ -82,6 +84,46 @@ def test(q, bus, mc):
     assert cs.ACCOUNT_IFACE_AVATAR in interfaces, interfaces
     assert cs.ACCOUNT_IFACE_NOKIA_COMPAT in interfaces, interfaces
     assert cs.ACCOUNT_IFACE_NOKIA_CONDITIONS in interfaces, interfaces
+
+    # sanity check
+    for k in properties:
+        assert account_props.Get(cs.ACCOUNT, k) == properties[k], k
+
+    # Alter some miscellaneous r/w properties
+
+    call_async(q, account_props, 'Set', cs.ACCOUNT, 'DisplayName',
+            'Work account')
+    q.expect_many(
+        EventPattern('dbus-signal',
+            path=account_path,
+            signal='AccountPropertyChanged',
+            interface=cs.ACCOUNT,
+            args=[{'DisplayName': 'Work account'}]),
+        EventPattern('dbus-return', method='Set'),
+        )
+    assert account_props.Get(cs.ACCOUNT, 'DisplayName') == 'Work account'
+
+    call_async(q, account_props, 'Set', cs.ACCOUNT, 'Icon', 'im-jabber')
+    q.expect_many(
+        EventPattern('dbus-signal',
+            path=account_path,
+            signal='AccountPropertyChanged',
+            interface=cs.ACCOUNT,
+            args=[{'Icon': 'im-jabber'}]),
+        EventPattern('dbus-return', method='Set'),
+        )
+    assert account_props.Get(cs.ACCOUNT, 'Icon') == 'im-jabber'
+
+    call_async(q, account_props, 'Set', cs.ACCOUNT, 'Nickname', 'Joe Bloggs')
+    q.expect_many(
+        EventPattern('dbus-signal',
+            path=account_path,
+            signal='AccountPropertyChanged',
+            interface=cs.ACCOUNT,
+            args=[{'Nickname': 'Joe Bloggs'}]),
+        EventPattern('dbus-return', method='Set'),
+        )
+    assert account_props.Get(cs.ACCOUNT, 'Nickname') == 'Joe Bloggs'
 
     # Delete the account
     assert account_iface.Remove() is None
