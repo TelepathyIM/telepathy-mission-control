@@ -37,12 +37,21 @@ def test(q, bus, mc):
     # Create an account
     params = dbus.Dictionary({"account": "someguy@example.com",
         "password": "secrecy"}, signature='sv')
-    account_path = account_manager_iface.CreateAccount(
+    call_async(q, account_manager_iface, 'CreateAccount',
             'fakecm', # Connection_Manager
             'fakeprotocol', # Protocol
             'fakeaccount', #Display_Name
             params, # Parameters
             )
+    # the spec has no order guarantee here
+    signal, ret = q.expect_many(
+            EventPattern('dbus-signal', path=cs.AM_PATH,
+                signal='AccountValidityChanged', interface=cs.AM),
+            EventPattern('dbus-return', method='CreateAccount'),
+            )
+    account_path = ret.value[0]
+    assert signal.args == [account_path, True], signal.args
+
     assert account_path is not None
 
     # Check the account is correctly created
