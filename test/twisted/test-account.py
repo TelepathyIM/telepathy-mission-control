@@ -3,6 +3,7 @@ import dbus
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix
 from fakecm import start_fake_connection_manager
 from mctest import exec_test
+import constants as cs
 
 FakeCM_bus_name = "com.example.FakeCM"
 ConnectionManager_object_path = "/com/example/FakeCM/ConnectionManager"
@@ -10,21 +11,17 @@ ConnectionManager_object_path = "/com/example/FakeCM/ConnectionManager"
 
 def test(q, bus, mc):
     # Get the AccountManager interface
-    account_manager = bus.get_object(
-        tp_name_prefix + '.AccountManager',
-        tp_path_prefix + '/AccountManager')
-    account_manager_iface = dbus.Interface(account_manager,
-            'org.freedesktop.Telepathy.AccountManager')
+    account_manager = bus.get_object(cs.AM, cs.AM_PATH)
+    account_manager_iface = dbus.Interface(account_manager, cs.AM)
 
     # Introspect AccountManager for debugging purpose
     account_manager_introspected = account_manager.Introspect(
-            dbus_interface='org.freedesktop.DBus.Introspectable')
+            dbus_interface=cs.INTROSPECTABLE_IFACE)
     #print account_manager_introspected
 
     # Check AccountManager has D-Bus property interface
-    properties = account_manager.GetAll(
-            'org.freedesktop.Telepathy.AccountManager',
-            dbus_interface='org.freedesktop.DBus.Properties')
+    properties = account_manager.GetAll(cs.AM,
+            dbus_interface=cs.PROPERTIES_IFACE)
     assert properties is not None
     assert properties.get('ValidAccounts') == [], \
         properties.get('ValidAccounts')
@@ -33,9 +30,8 @@ def test(q, bus, mc):
     interfaces = properties.get('Interfaces')
 
     # assert that current functionality exists
-    assert 'com.nokia.AccountManager.Interface.Query' in interfaces, interfaces
-    assert 'org.freedesktop.Telepathy.AccountManager.Interface.Creation.DRAFT'\
-            in interfaces, interfaces
+    assert cs.AM_IFACE_CREATION_DRAFT in interfaces, interfaces
+    assert cs.AM_IFACE_NOKIA_QUERY in interfaces, interfaces
 
     # Create an account
     params = dbus.Dictionary({"account": "someguy@example.com",
@@ -49,9 +45,8 @@ def test(q, bus, mc):
     assert account_path is not None
 
     # Check the account is correctly created
-    properties = account_manager.GetAll(
-            'org.freedesktop.Telepathy.AccountManager',
-            dbus_interface='org.freedesktop.DBus.Properties')
+    properties = account_manager.GetAll(cs.AM,
+            dbus_interface=cs.PROPERTIES_IFACE)
     assert properties is not None
     assert properties.get('ValidAccounts') == [account_path], properties
     account_path = properties['ValidAccounts'][0]
@@ -62,17 +57,14 @@ def test(q, bus, mc):
     account = bus.get_object(
         tp_name_prefix + '.AccountManager',
         account_path)
-    account_iface = dbus.Interface(account,
-            'org.freedesktop.Telepathy.Account')
+    account_iface = dbus.Interface(account, cs.ACCOUNT)
     # Introspect Account for debugging purpose
     account_introspected = account.Introspect(
-            dbus_interface='org.freedesktop.DBus.Introspectable')
+            dbus_interface=cs.INTROSPECTABLE_IFACE)
     #print account_introspected
 
     # Check Account has D-Bus property interface
-    properties = account.GetAll(
-            'org.freedesktop.Telepathy.Account',
-            dbus_interface='org.freedesktop.DBus.Properties')
+    properties = account.GetAll(cs.ACCOUNT, dbus_interface=cs.PROPERTIES_IFACE)
     assert properties is not None
 
     assert properties.get('DisplayName') == 'fakeaccount', \
@@ -87,12 +79,9 @@ def test(q, bus, mc):
         properties.get('NormalizedName')
 
     interfaces = properties.get('Interfaces')
-    assert 'org.freedesktop.Telepathy.Account.Interface.Avatar' \
-        in interfaces, interfaces
-    assert 'org.freedesktop.Telepathy.Account.Interface.Compat' \
-        in interfaces, interfaces
-    assert 'com.nokia.Account.Interface.Conditions' \
-        in interfaces, interfaces
+    assert cs.ACCOUNT_IFACE_AVATAR in interfaces, interfaces
+    assert cs.ACCOUNT_IFACE_NOKIA_COMPAT in interfaces, interfaces
+    assert cs.ACCOUNT_IFACE_NOKIA_CONDITIONS in interfaces, interfaces
 
     # Delete the account
     assert account_iface.Remove() is None
@@ -100,21 +89,20 @@ def test(q, bus, mc):
         EventPattern('dbus-signal',
             path=account_path,
             signal='Removed',
-            interface='org.freedesktop.Telepathy.Account',
+            interface=cs.ACCOUNT,
             args=[]
             ),
         EventPattern('dbus-signal',
-            path=tp_path_prefix + '/AccountManager',
+            path=cs.AM_PATH,
             signal='AccountRemoved',
-            interface='org.freedesktop.Telepathy.AccountManager',
+            interface=cs.AM,
             args=[account_path]
             ),
         )
 
     # Check the account is correctly deleted
-    properties = account_manager.GetAll(
-            'org.freedesktop.Telepathy.AccountManager',
-            dbus_interface='org.freedesktop.DBus.Properties')
+    properties = account_manager.GetAll(cs.AM,
+            dbus_interface=cs.PROPERTIES_IFACE)
     assert properties is not None
     assert properties.get('ValidAccounts') == [], properties
     assert properties.get('InvalidAccounts') == [], properties
