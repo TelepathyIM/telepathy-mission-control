@@ -26,15 +26,16 @@ def test(q, bus, mc):
             'org.freedesktop.Telepathy.AccountManager',
             dbus_interface='org.freedesktop.DBus.Properties')
     assert properties is not None
-    assert properties.get('Interfaces') == [
-            'org.freedesktop.Telepathy.AccountManager',
-            'com.nokia.AccountManager.Interface.Query',
-            'org.freedesktop.Telepathy.AccountManager.Interface.Creation.DRAFT'
-        ], properties.get('Interfaces')
     assert properties.get('ValidAccounts') == [], \
         properties.get('ValidAccounts')
     assert properties.get('InvalidAccounts') == [], \
         properties.get('InvalidAccounts')
+    interfaces = properties.get('Interfaces')
+
+    # assert that current functionality exists
+    assert 'com.nokia.AccountManager.Interface.Query' in interfaces, interfaces
+    assert 'org.freedesktop.Telepathy.AccountManager.Interface.Creation.DRAFT'\
+            in interfaces, interfaces
 
     # Create an account
     params = dbus.Dictionary({"nickname": "fakenick"}, signature='sv')
@@ -72,14 +73,7 @@ def test(q, bus, mc):
             'org.freedesktop.Telepathy.Account',
             dbus_interface='org.freedesktop.DBus.Properties')
     assert properties is not None
-    assert 'org.freedesktop.Telepathy.Account' \
-        in properties.get('Interfaces'), properties.get('Interfaces')
-    assert 'org.freedesktop.Telepathy.Account.Interface.Avatar' \
-        in properties.get('Interfaces'), properties.get('Interfaces')
-    assert 'org.freedesktop.Telepathy.Account.Interface.Compat' \
-        in properties.get('Interfaces'), properties.get('Interfaces')
-    assert 'com.nokia.Account.Interface.Conditions' \
-        in properties.get('Interfaces'), properties.get('Interfaces')
+
     assert properties.get('DisplayName') == 'fakeaccount', \
         properties.get('DisplayName')
     assert properties.get('Icon') == '', properties.get('Icon')
@@ -90,6 +84,14 @@ def test(q, bus, mc):
     assert properties.get('Connection') == '/', properties.get('Connection')
     assert properties.get('NormalizedName') == '', \
         properties.get('NormalizedName')
+
+    interfaces = properties.get('Interfaces')
+    assert 'org.freedesktop.Telepathy.Account.Interface.Avatar' \
+        in interfaces, interfaces
+    assert 'org.freedesktop.Telepathy.Account.Interface.Compat' \
+        in interfaces, interfaces
+    assert 'com.nokia.Account.Interface.Conditions' \
+        in interfaces, interfaces
 
     # Delete the account
     assert account_iface.Remove() is None
