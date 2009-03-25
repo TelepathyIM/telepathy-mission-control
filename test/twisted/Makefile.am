@@ -28,6 +28,9 @@ check-twisted:
 
 EXTRA_DIST = \
 	$(TWISTED_BASIC_TESTS) \
+	telepathy/clients/README \
+	telepathy/managers/fakecm.manager \
+	telepathy/managers/README \
         fakeclient.py \
         fakecm.py \
 	mctest.py \

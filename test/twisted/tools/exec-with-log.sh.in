@@ -5,9 +5,14 @@ cd "@abs_top_builddir@/test/twisted/tools"
 # Run Mission Control in a private environment
 export MC_DEBUG=2
 export MC_CHANDLERS_DIR="@abs_top_builddir@/test/twisted/chandlers"
-export MC_CLIENTS_DIR="@abs_top_builddir@/test/twisted/clients"
-export MC_MANAGER_DIR="@abs_top_builddir@/test/twisted/managers"
 export MC_ACCOUNT_DIR="@abs_top_builddir@/test/twisted/accounts"
+
+export XDG_DATA_HOME="@abs_top_builddir@/test/twisted"
+export XDG_DATA_DIRS="@abs_top_srcdir@/test/twisted"
+# FIXME: these two are probably superseded by XDG_DATA_*?
+export MC_CLIENTS_DIR="@abs_top_builddir@/test/twisted/telepathy/clients"
+export MC_MANAGER_DIR="@abs_top_builddir@/test/twisted/telepathy/managers"
+
 #export MC_PROFILE_DIR=
 
 ulimit -c unlimited
