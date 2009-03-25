@@ -2,12 +2,13 @@
 Some handy constants for other tests to share and enjoy.
 """
 
-from dbus import PROPERTIES_IFACE
+from dbus import PROPERTIES_IFACE, INTROSPECTABLE_IFACE
+from servicetest import tp_name_prefix, tp_path_prefix
 
 HT_CONTACT = 1
 HT_ROOM = 2
 
-CHANNEL = "org.freedesktop.Telepathy.Channel"
+CHANNEL = tp_name_prefix + ".Channel"
 CHANNEL_IFACE_GROUP = CHANNEL + ".Interface.Group"
 CHANNEL_IFACE_HOLD = CHANNEL + ".Interface.Hold"
 CHANNEL_IFACE_MEDIA_SIGNALLING = CHANNEL + ".Interface.MediaSignalling"
@@ -19,7 +20,7 @@ CHANNEL_TYPE_DBUS_TUBE = CHANNEL + ".Type.DBusTube.DRAFT"
 CHANNEL_TYPE_STREAMED_MEDIA = CHANNEL + ".Type.StreamedMedia"
 CHANNEL_TYPE_TEXT = CHANNEL + ".Type.Text"
 
-TP_AWKWARD_PROPERTIES = "org.freedesktop.Telepathy.Properties"
+TP_AWKWARD_PROPERTIES = tp_name_prefix + ".Properties"
 PROPERTY_FLAG_READ = 1
 PROPERTY_FLAG_WRITE = 2
 
@@ -32,12 +33,12 @@ INITIATOR_HANDLE = CHANNEL + '.InitiatorHandle'
 INITIATOR_ID = CHANNEL + '.InitiatorID'
 INTERFACES = CHANNEL + '.Interfaces'
 
-CONN = "org.freedesktop.Telepathy.Connection"
+CONN = tp_name_prefix + ".Connection"
 CONN_IFACE_CONTACTS = CONN + '.Interface.Contacts'
 CONN_IFACE_CONTACT_CAPA = CONN + '.Interface.ContactCapabilities.DRAFT'
 CONN_IFACE_REQUESTS = CONN + '.Interface.Requests'
 
-ERROR = 'org.freedesktop.Telepathy.Error'
+ERROR = tp_name_prefix + '.Error'
 INVALID_ARGUMENT = ERROR + '.InvalidArgument'
 NOT_IMPLEMENTED = ERROR + '.NotImplemented'
 NOT_AVAILABLE = ERROR + '.NotAvailable'
@@ -94,3 +95,13 @@ MEDIA_STREAM_DIRECTION_NONE = 0
 MEDIA_STREAM_DIRECTION_SEND = 1
 MEDIA_STREAM_DIRECTION_RECEIVE = 2
 MEDIA_STREAM_DIRECTION_BIDIRECTIONAL = 3
+
+ACCOUNT = tp_name_prefix + '.Account'
+ACCOUNT_IFACE_AVATAR = ACCOUNT + '.Interface.Avatar'
+ACCOUNT_IFACE_NOKIA_COMPAT = ACCOUNT + '.Interface.Compat'
+ACCOUNT_IFACE_NOKIA_CONDITIONS = 'com.nokia.Account.Interface.Conditions'
+
+AM = tp_name_prefix + '.AccountManager'
+AM_IFACE_CREATION_DRAFT = AM + '.Interface.Creation.DRAFT'
+AM_IFACE_NOKIA_QUERY = 'com.nokia.AccountManager.Interface.Query'
+AM_PATH = tp_path_prefix + '/AccountManager'
