@@ -20,6 +20,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 </p>
   </tp:license>
   <interface name="org.freedesktop.Telepathy.Account.Interface.Avatar">
+    <tp:requires interface="org.freedesktop.Telepathy.Account"/>
+
     <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
       <p>This interface extends the core Account interface to provide a
         user-settable avatar image.</p>
