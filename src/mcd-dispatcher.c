@@ -1963,8 +1963,18 @@ get_channel_filter_cb (TpProxy *proxy,
                        GObject *weak_object)
 {
     GList **client_filters = user_data;
-    GPtrArray *filters = g_value_get_boxed (out_Value);
+    GPtrArray *filters;
     guint i;
+
+    if (error != NULL)
+    {
+        DEBUG ("error getting a filter list for client %s: %s #%d: %s",
+               tp_proxy_get_object_path (proxy),
+               g_quark_to_string (error->domain), error->code, error->message);
+        return;
+    }
+
+    filters = g_value_get_boxed (out_Value);
 
     for (i = 0 ; i < filters->len ; i++)
     {
