@@ -1,6 +1,7 @@
 TWISTED_TESTS =
 
 TWISTED_BASIC_TESTS = \
+	account-bad-cm.py \
 	do-nothing.py \
 	test-account.py \
 	test-connect.py
