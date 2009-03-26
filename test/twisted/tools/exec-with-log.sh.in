@@ -44,4 +44,6 @@ if [ -e "@abs_top_builddir@/test/twisted/accounts/accounts.cfg" ] ; then
         exit 1
 fi
 
-exec $MISSIONCONTROL_WRAPPER @abs_top_builddir@/server/mission-control
+exec @abs_top_builddir@/libtool --mode=execute \
+        $MISSIONCONTROL_WRAPPER \
+        @abs_top_builddir@/test/twisted/mc-debug-server
