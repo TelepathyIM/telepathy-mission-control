@@ -54,6 +54,7 @@ EXTRA_DIST = \
 	servicetest.py
 
 CLEANFILES = \
+	accounts/accounts.cfg \
 	mc-[1-9]*.log \
 	*.pyc \
 	*/*.pyc \
