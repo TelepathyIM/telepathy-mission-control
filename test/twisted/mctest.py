@@ -60,6 +60,7 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None):
         or '-v' in sys.argv)
 
     bus = dbus.SessionBus()
+    queue.attach_to_bus(bus)
     mc = make_mc(bus, queue.append, params)
     error = None
 
