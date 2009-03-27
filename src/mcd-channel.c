@@ -66,11 +66,12 @@ struct _McdChannelPrivate
     McdChannelStatus status;
 
     McdChannelRequestData *request_data;
+    GList *satisfied_requests;
 };
 
 struct _McdChannelRequestData
 {
-    GList *paths;
+    gchar *path;
 
     GHashTable *properties;
     guint target_handle; /* used only if the Requests interface is absent */
@@ -113,17 +114,10 @@ static void on_proxied_channel_status_changed (McdChannel *source,
 static void
 channel_request_data_free (McdChannelRequestData *crd)
 {
-    GList *list;
-
     DEBUG ("called for %p", crd);
     g_hash_table_unref (crd->properties);
     g_free (crd->preferred_handler);
-    list = crd->paths;
-    while (list)
-    {
-        g_free (list->data);
-        list = g_list_delete_link (list, list);
-    }
+    g_free (crd->path);
     g_slice_free (McdChannelRequestData, crd);
 }
 
@@ -370,6 +364,22 @@ _mcd_channel_dispose (GObject * object)
 }
 
 static void
+_mcd_channel_finalize (GObject * object)
+{
+    McdChannelPrivate *priv = MCD_CHANNEL_PRIV (object);
+    GList *list;
+
+    list = priv->satisfied_requests;
+    while (list)
+    {
+        g_free (list->data);
+        list = g_list_delete_link (list, list);
+    }
+
+    G_OBJECT_CLASS (mcd_channel_parent_class)->finalize (object);
+}
+
+static void
 mcd_channel_abort (McdMission *mission)
 {
     McdChannel *channel = MCD_CHANNEL (mission);
@@ -418,6 +428,7 @@ mcd_channel_class_init (McdChannelClass * klass)
     g_type_class_add_private (object_class, sizeof (McdChannelPrivate));
 
     object_class->dispose = _mcd_channel_dispose;
+    object_class->finalize = _mcd_channel_finalize;
     object_class->set_property = _mcd_channel_set_property;
     object_class->get_property = _mcd_channel_get_property;
     mission_class->abort = mcd_channel_abort;
@@ -995,12 +1006,13 @@ mcd_channel_new_request (GHashTable *properties, guint64 user_time,
     /* TODO: these data could be freed when the channel status becomes
      * MCD_CHANNEL_STATUS_DISPATCHED */
     crd = g_slice_new (McdChannelRequestData);
-    crd->paths = g_list_prepend (NULL, g_strdup_printf (REQUEST_OBJ_BASE "%u",
-                                                        last_req_id++));
+    crd->path = g_strdup_printf (REQUEST_OBJ_BASE "%u", last_req_id++);
     crd->properties = g_hash_table_ref (properties);
     crd->user_time = user_time;
     crd->preferred_handler = g_strdup (preferred_handler);
     channel->priv->request_data = crd;
+    channel->priv->satisfied_requests = g_list_prepend (NULL,
+                                                        g_strdup (crd->path));
 
     mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_REQUEST);
 
@@ -1034,10 +1046,11 @@ _mcd_channel_get_requested_properties (McdChannel *channel)
 const gchar *
 _mcd_channel_get_request_path (McdChannel *channel)
 {
-    const GList *satisfied_requests;
+    McdChannelRequestData *crd;
 
-    satisfied_requests = _mcd_channel_get_satisfied_requests (channel);
-    return satisfied_requests ? satisfied_requests->data : NULL;
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
+    crd = channel->priv->request_data;
+    return crd ? crd->path : NULL;
 }
 
 /*
@@ -1051,12 +1064,8 @@ _mcd_channel_get_request_path (McdChannel *channel)
 const GList *
 _mcd_channel_get_satisfied_requests (McdChannel *channel)
 {
-    McdChannelRequestData *crd;
-
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    crd = channel->priv->request_data;
-    if (G_UNLIKELY (!crd)) return NULL;
-    return crd->paths;
+    return channel->priv->satisfied_requests;
 }
 
 /*
@@ -1225,10 +1234,9 @@ _mcd_channel_set_request_proxy (McdChannel *channel, McdChannel *source)
     request_path = _mcd_channel_get_request_path (channel);
     if (G_LIKELY (request_path))
     {
-        McdChannelRequestData *crd;
-        crd = source->priv->request_data;
-        if (G_LIKELY (crd))
-            crd->paths = g_list_prepend (crd->paths, g_strdup (request_path));
+        source->priv->satisfied_requests =
+            g_list_prepend (source->priv->satisfied_requests,
+                            g_strdup (request_path));
     }
 
     copy_status (source, channel);
