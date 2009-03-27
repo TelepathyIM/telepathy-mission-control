@@ -1375,6 +1375,14 @@ static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
     }
 
     value = g_hash_table_lookup (properties, "Channels");
+
+    if (value == NULL)
+    {
+        g_warning ("%s: no Channels property on %s",
+                   G_STRFUNC, tp_proxy_get_object_path (proxy));
+        return;
+    }
+
     if (!G_VALUE_HOLDS (value, TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST))
     {
         g_warning ("%s: property Channels has type %s, expecting %s",
