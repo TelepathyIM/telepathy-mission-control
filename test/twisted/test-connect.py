@@ -1,22 +1,9 @@
 import dbus
+import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix
-from fakecm import start_fake_connection_manager
-from fakeclient import start_fake_client
-from mctest import exec_test
+from mctest import exec_test, SimulatedConnection
 import constants as cs
-
-_last_handle = 41
-_handles = {}
-def allocate_handle(identifier):
-    global _last_handle
-
-    if identifier in _handles:
-        return _handles[identifier]
-
-    _last_handle += 1
-    _handles[identifier] = _last_handle
-    return _last_handle
 
 def test(q, bus, mc):
     cm_name_ref = dbus.service.BusName(
@@ -117,54 +104,27 @@ def test(q, bus, mc):
             interface=tp_name_prefix + '.ConnectionManager',
             handled=False)
 
-    # FIXME: this next bit makes far too many assumptions about the precise
-    # order of things
+    conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
+            'myself')
 
-    conn_object_path = dbus.ObjectPath(tp_path_prefix +
-            '/Connection/fakecm/fakeprotocol/_')
-    conn_bus_name = tp_name_prefix + '.Connection.fakecm.fakeprotocol._'
-    conn_bus_name_ref = dbus.service.BusName(conn_bus_name, bus=bus)
-    q.dbus_return(e.message, conn_bus_name, conn_object_path, signature='so')
+    q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
-    e = q.expect('dbus-method-call', method='GetStatus',
-            path=conn_object_path, handled=False)
-    q.dbus_return(e.message, cs.CONN_STATUS_DISCONNECTED, signature='u')
+    # MC calls GetStatus (maybe) and then Connect
 
-    e = q.expect('dbus-method-call', method='Connect',
-            path=conn_object_path, handled=False)
-    q.dbus_return(e.message, signature='')
+    q.expect('dbus-method-call', method='Connect',
+            path=conn.object_path, handled=True)
 
-    q.dbus_emit(conn_object_path, cs.CONN, 'StatusChanged',
-            cs.CONN_STATUS_CONNECTING, cs.CONN_STATUS_REASON_NONE,
-            signature='uu')
+    # Connect succeeds
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
 
-    q.dbus_emit(conn_object_path, cs.CONN, 'StatusChanged',
-            cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE,
-            signature='uu')
+    # MC does some setup, including fetching the list of Channels
 
-    e = q.expect('dbus-method-call',
-            interface=cs.CONN, method='GetInterfaces',
-            path=conn_object_path, handled=False)
-    q.dbus_return(e.message, [cs.CONN_IFACE_REQUESTS], signature='as')
-
-    e = q.expect('dbus-method-call',
-            interface=cs.CONN, method='GetSelfHandle',
-            path=conn_object_path, handled=False)
-    q.dbus_return(e.message, allocate_handle("myself"), signature='u')
-
-    e = q.expect('dbus-method-call',
-            interface=cs.CONN, method='InspectHandles',
-            args=[cs.HT_CONTACT, [allocate_handle("myself")]],
-            path=conn_object_path, handled=False)
-    q.dbus_return(e.message, ["myself"], signature='as')
-
-    e = q.expect('dbus-method-call',
-            interface=cs.PROPERTIES_IFACE, method='GetAll',
-            args=[cs.CONN_IFACE_REQUESTS],
-            path=conn_object_path, handled=False)
-    q.dbus_return(e.message, {
-        'Channels': dbus.Array(signature='(oa{sv})'),
-        }, signature='a{sv}')
+    q.expect_many(
+            EventPattern('dbus-method-call',
+                interface=cs.PROPERTIES_IFACE, method='GetAll',
+                args=[cs.CONN_IFACE_REQUESTS],
+                path=conn.object_path, handled=True),
+            )
 
     # this secretly indicates that the TpConnection is ready
     e = q.expect('dbus-signal',
@@ -173,7 +133,7 @@ def test(q, bus, mc):
             args=[{'NormalizedName': 'myself'}])
 
     #e = q.expect('dbus-method-call', name='SetSelfCapabilities',
-    #        path=conn_object_path)
+    #        path=conn.object_path)
     #assert e.caps == caps, e.caps
 
     # Check the requested presence is online
@@ -184,14 +144,14 @@ def test(q, bus, mc):
         properties.get('RequestedPresence')
 
     new_channel = http_fixed_properties
-    buddy_handle = allocate_handle("buddy")
+    buddy_handle = conn.ensure_handle(cs.HT_CONTACT, "buddy")
     new_channel[cs.CHANNEL + '.TargetID'] = "buddy"
     new_channel[cs.CHANNEL + '.TargetHandle'] = buddy_handle
 
-    channel_path = dbus.ObjectPath(conn_object_path + '/channel')
-    q.dbus_emit(conn_object_path, cs.CONN_IFACE_REQUESTS, 'NewChannels',
+    channel_path = dbus.ObjectPath(conn.object_path + '/channel')
+    q.dbus_emit(conn.object_path, cs.CONN_IFACE_REQUESTS, 'NewChannels',
             [(channel_path, new_channel)], signature='a(oa{sv})')
-    q.dbus_emit(conn_object_path, cs.CONN, 'NewChannel',
+    q.dbus_emit(conn.object_path, cs.CONN, 'NewChannel',
             channel_path, cs.CHANNEL_TYPE_STREAM_TUBE,
             cs.HT_CONTACT, buddy_handle, False, signature='osuub')
 
