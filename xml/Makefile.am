@@ -14,6 +14,7 @@ SPECS = MissionControl.xml \
 	Account_Interface_Compat.xml \
 	Account_Interface_Conditions.xml \
 	Account_Interface_Stats.xml \
+	Channel_Dispatch_Operation.xml \
 	Client.xml \
 	Client_Approver.xml \
 	Client_Handler.xml \
