@@ -47,6 +47,7 @@ EXTRA_DIST = \
 	telepathy/clients/README \
 	telepathy/managers/fakecm.manager \
 	telepathy/managers/README \
+	constants.py \
         fakeclient.py \
         fakecm.py \
 	mctest.py \
