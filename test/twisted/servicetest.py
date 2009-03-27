@@ -327,11 +327,13 @@ class IteratingEventQueue(BaseEventQueue):
                 (EventPattern('dbus-method-call', **kwargs), cb))
 
     def dbus_emit(self, path, iface, name, *a, **k):
+        assert 'signature' in k, k
         message = dbus.lowlevel.SignalMessage(path, iface, name)
         message.append(*a, **k)
         self._bus.send_message(message)
 
     def dbus_return(self, in_reply_to, *a, **k):
+        assert 'signature' in k, k
         reply = dbus.lowlevel.MethodReturnMessage(in_reply_to)
         reply.append(*a, **k)
         self._bus.send_message(reply)
