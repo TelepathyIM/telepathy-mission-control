@@ -19,6 +19,9 @@
 <xi:include href="Client_Handler.xml"/>
 <xi:include href="Client_Observer.xml"/>
 
+<xi:include href="Channel_Dispatcher.xml"/>
+<xi:include href="Channel_Dispatcher_Interface_Operation_List.xml"/>
+<xi:include href="Channel_Request.xml"/>
 <xi:include href="Channel_Dispatch_Operation.xml"/>
 
 <xi:include href="Connection_Interface_Contact_Capabilities.xml"/>

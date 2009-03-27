@@ -57,7 +57,9 @@ nodist_geninclude_HEADERS = \
 	_gen/svc-Account_Manager.h \
 	_gen/svc-Account_Manager_Interface_Creation.h \
 	_gen/svc-Account_Manager_Interface_Query.h \
-	_gen/svc-dispatch-operation.h
+	_gen/svc-dispatcher.h \
+	_gen/svc-dispatch-operation.h \
+	_gen/svc-request.h
 
 nodist_libmissioncontrol_server_la_SOURCES = \
 	_gen/cli-client-body.h \
@@ -77,7 +79,9 @@ nodist_libmissioncontrol_server_la_SOURCES = \
 	_gen/svc-Account_Manager.c \
 	_gen/svc-Account_Manager_Interface_Creation.c \
 	_gen/svc-Account_Manager_Interface_Query.c \
-	_gen/svc-dispatch-operation.c
+	_gen/svc-dispatcher.c \
+	_gen/svc-dispatch-operation.c \
+	_gen/svc-request.c
 
 
 mission_control_include_HEADERS = \
@@ -198,8 +202,10 @@ mcd-service-gen.h: $(top_builddir)/xml/_gen/introspect-MissionControl.xml
 
 EXTRA_DIST = \
 	client.xml \
+	dispatcher.xml \
 	dispatch-operation.xml \
 	mcd-signals-marshal.list \
+	request.xml \
 	stamp-mcd-enum-types.h
 
 # ---- telepathy-glib-style code generation ----

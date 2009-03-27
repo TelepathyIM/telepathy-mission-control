@@ -112,7 +112,7 @@ _gen/%-quark.c _gen/%-quark.h: %-quark.list \
 		--quark-prefix=MC_QUARK \
 		$< $*_quark _gen/$*-quark
 
-_gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml)
+_gen/all.xml: $(top_srcdir)/xml/all.xml $(wildcard $(top_srcdir)/xml/*.xml)
 	$(mkdir_p) _gen
 	$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
