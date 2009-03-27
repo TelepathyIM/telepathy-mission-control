@@ -108,7 +108,7 @@ mission_control_include = \
 	mission-control-signals-marshal.h \
 	mission-control.h
 
-mc-client-lib-gen.h: $(top_builddir)/xml/MissionControl-gen.xml
+mc-client-lib-gen.h: $(top_builddir)/xml/_gen/introspect-MissionControl.xml
 	dbus-binding-tool --prefix=mc-client-lib --mode=glib-client $< > $@
 
 %-marshal.h: %-marshal.list Makefile.am

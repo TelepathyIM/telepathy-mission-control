@@ -193,7 +193,7 @@ mcd-enum-types.c: Makefile
 	&& rm -f xgen-getc
 
 
-mcd-service-gen.h: $(top_builddir)/xml/MissionControl-gen.xml
+mcd-service-gen.h: $(top_builddir)/xml/_gen/introspect-MissionControl.xml
 	dbus-binding-tool --mode=glib-server --prefix=mcd_service $< > $@
 
 EXTRA_DIST = \

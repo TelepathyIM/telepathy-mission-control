@@ -22,15 +22,17 @@ SPECS = MissionControl.xml \
         Connection_Interface_Contact_Capabilities.xml
 
 
-SPECS_GEN = ${SPECS:.xml=-gen.xml}
+SPECS_GEN = ${SPECS:%.xml=_gen/introspect-%.xml}
 
 all-local: $(SPECS_GEN)
 
-MissionControl-gen.xml: MissionControl.xml $(tools_dir)/spec-to-introspect.xsl
+_gen/introspect-MissionControl.xml: MissionControl.xml $(tools_dir)/spec-to-introspect.xsl
+	$(mkdir_p) _gen
 	$(XSLTPROC) $(XSLTFLAGS) $(tools_dir)/spec-to-introspect.xsl $< \
 		| $(DROP_NAMESPACE) | $(DROP_TPTYPE) > $@
 
-%-gen.xml: %.xml $(tools_dir)/spec-to-introspect.xsl
+_gen/introspect-%.xml: %.xml $(tools_dir)/spec-to-introspect.xsl
+	$(mkdir_p) _gen
 	$(XSLTPROC) $(XSLTFLAGS) $(tools_dir)/spec-to-introspect.xsl $< \
 		| $(DROP_NAMESPACE) > $@
 
