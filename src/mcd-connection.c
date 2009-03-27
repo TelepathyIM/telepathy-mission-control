@@ -466,6 +466,10 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
     McdConnectionPrivate *priv = user_data;
     McdChannel *channel;
 
+    DEBUG ("%s (t=%s, ht=%u, h=%u, suppress=%c)",
+           chan_obj_path, chan_type, handle_type, handle,
+           suppress_handler ? 'T' : 'F');
+
     /* ignore all our own requests (they have always suppress_handler = 1) as
      * well as other requests for which our intervention has not been requested
      * */
@@ -1265,6 +1269,30 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
     GList *channel_list = NULL;
     gboolean requested = FALSE;
     guint i;
+
+    if (DEBUGGING)
+    {
+        for (i = 0; i < channels->len; i++)
+        {
+            GValueArray *va = g_ptr_array_index (channels, i);
+            const gchar *object_path = g_value_get_boxed (va->values);
+            GHashTable *props = g_value_get_boxed (va->values + 1);
+            GHashTableIter iter;
+            gpointer k, v;
+
+            DEBUG ("%s", object_path);
+
+            g_hash_table_iter_init (&iter, props);
+
+            while (g_hash_table_iter_next (&iter, &k, &v))
+            {
+                gchar *repr = g_strdup_value_contents (v);
+
+                DEBUG("  \"%s\" => %s", (const gchar *) k, repr);
+                g_free (repr);
+            }
+        }
+    }
 
     /* we can completely ignore the channels that arrive while can_dispatch is
      * FALSE: the on_new_channel handler is already recording them */
