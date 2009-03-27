@@ -67,6 +67,7 @@ server/mission-control
 server/org.freedesktop.Telepathy.AccountManager.service
 server/org.freedesktop.Telepathy.MissionControl.service
 tags
+/telepathy-mission-control-5*
 test/mc-client
 test/twisted/with-session-bus-*.dbus-monitor-logs
 test/twisted/accounts/accounts.cfg
