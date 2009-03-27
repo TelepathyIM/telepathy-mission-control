@@ -97,6 +97,7 @@ EXTRA_DIST = \
 	account.xml \
 	account-manager.xml \
 	client.xml \
+	dispatch-operation.xml \
 	mc-quark.list \
 	mc-signals-marshal.list
 

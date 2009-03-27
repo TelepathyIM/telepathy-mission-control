@@ -47,12 +47,14 @@ EXTRA_DIST = \
 	telepathy/clients/README \
 	telepathy/managers/fakecm.manager \
 	telepathy/managers/README \
+	constants.py \
         fakeclient.py \
         fakecm.py \
 	mctest.py \
 	servicetest.py
 
 CLEANFILES = \
+	accounts/accounts.cfg \
 	mc-[1-9]*.log \
 	*.pyc \
 	*/*.pyc \
