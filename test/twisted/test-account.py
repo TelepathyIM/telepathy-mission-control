@@ -1,16 +1,15 @@
 import dbus
+import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
-from fakecm import start_fake_connection_manager
 from mctest import exec_test
 import constants as cs
 
-FakeCM_bus_name = "com.example.FakeCM"
-ConnectionManager_object_path = "/com/example/FakeCM/ConnectionManager"
-
-
 def test(q, bus, mc):
+    cm_name = dbus.service.BusName(
+            tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
+
     # Get the AccountManager interface
     account_manager = bus.get_object(cs.AM, cs.AM_PATH)
     account_manager_iface = dbus.Interface(account_manager, cs.AM)
@@ -44,6 +43,10 @@ def test(q, bus, mc):
             params, # Parameters
             )
     # the spec has no order guarantee here
+
+    # FIXME: MC ought to introspect the CM and find out that the params are
+    # in fact sufficient
+
     signal, ret = q.expect_many(
             EventPattern('dbus-signal', path=cs.AM_PATH,
                 signal='AccountValidityChanged', interface=cs.AM),
