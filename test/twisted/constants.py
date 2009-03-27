@@ -38,8 +38,14 @@ CONN_IFACE_CONTACTS = CONN + '.Interface.Contacts'
 CONN_IFACE_CONTACT_CAPA = CONN + '.Interface.ContactCapabilities.DRAFT'
 CONN_IFACE_REQUESTS = CONN + '.Interface.Requests'
 
+CONN_STATUS_CONNECTED = 0
+CONN_STATUS_CONNECTING = 1
+CONN_STATUS_DISCONNECTED = 2
+CONN_STATUS_REASON_NONE = 0
+
 ERROR = tp_name_prefix + '.Error'
 INVALID_ARGUMENT = ERROR + '.InvalidArgument'
+INVALID_HANDLE = ERROR + '.InvalidHandle'
 NOT_IMPLEMENTED = ERROR + '.NotImplemented'
 NOT_AVAILABLE = ERROR + '.NotAvailable'
 PERMISSION_DENIED = ERROR + '.PermissionDenied'
@@ -95,6 +101,12 @@ MEDIA_STREAM_DIRECTION_NONE = 0
 MEDIA_STREAM_DIRECTION_SEND = 1
 MEDIA_STREAM_DIRECTION_RECEIVE = 2
 MEDIA_STREAM_DIRECTION_BIDIRECTIONAL = 3
+
+CLIENT = tp_name_prefix + '.Client.DRAFT'
+CLIENT_PATH = tp_path_prefix + '/Client'
+OBSERVER = tp_name_prefix + '.Client.Observer.DRAFT'
+APPROVER = tp_name_prefix + '.Client.Approver.DRAFT'
+HANDLER = tp_name_prefix + '.Client.Handler.DRAFT'
 
 ACCOUNT = tp_name_prefix + '.Account'
 ACCOUNT_IFACE_AVATAR = ACCOUNT + '.Interface.Avatar'
