@@ -3174,6 +3174,7 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
     }
     else
     {
+        _mcd_channel_set_request_proxy (request, channel);
         if (status == MCD_CHANNEL_STATUS_DISPATCHING)
         {
             McdDispatcherContext *context;
@@ -3193,7 +3194,6 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
                 context->skip_approval = TRUE;
         }
         DEBUG ("channel %p is proxying %p", request, channel);
-        _mcd_channel_set_request_proxy (request, channel);
     }
 }
 
