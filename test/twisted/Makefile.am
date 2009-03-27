@@ -1,8 +1,24 @@
 TWISTED_TESTS =
 
 TWISTED_BASIC_TESTS = \
-        test-account.py \
-        test-connect.py
+	account-bad-cm.py \
+	do-nothing.py \
+	test-account.py \
+	test-connect.py
+
+# A debug version of the normal MC executable, which exits cleanly on
+# disconnection from D-Bus (so gcov info gets written out)
+noinst_PROGRAMS = mc-debug-server
+mc_debug_server_SOURCES = mc-debug-server.c
+mc_debug_server_LDADD = $(top_builddir)/src/libmissioncontrol-server.la
+
+INCLUDES = \
+	-I$(top_srcdir) -I$(top_builddir) \
+	-I$(top_srcdir)/src -I$(top_builddir)/src \
+	$(DBUS_CFLAGS) \
+	$(TELEPATHY_CFLAGS) \
+	-DMC_DISABLE_DEPRECATED \
+	-DLIBDIR="@libdir@" -DLIBVERSION="0"
 
 TESTS =
 
@@ -28,6 +44,9 @@ check-twisted:
 
 EXTRA_DIST = \
 	$(TWISTED_BASIC_TESTS) \
+	telepathy/clients/README \
+	telepathy/managers/fakecm.manager \
+	telepathy/managers/README \
         fakeclient.py \
         fakecm.py \
 	mctest.py \

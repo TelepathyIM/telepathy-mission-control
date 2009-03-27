@@ -12,6 +12,7 @@ EXTRA_DIST = \
     glib-signals-marshal-gen.py \
     gquark-gen.py \
     identity.xsl \
+    lcov.am \
     libtpcodegen.py \
     libglibcodegen.py \
     spec-to-introspect.xsl
