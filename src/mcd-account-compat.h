@@ -55,6 +55,8 @@ McProfile *mcd_account_compat_get_mc_profile (McdAccount *account);
 /* not exported */
 gboolean _mcd_account_compat_request_channel_nmc4 (McdAccount *account,
     const struct mcd_channel_request *req, GError **error);
+G_GNUC_INTERNAL
+inline void _mcd_account_compat_class_init (McdAccountClass *klass);
 
 G_END_DECLS
 #endif

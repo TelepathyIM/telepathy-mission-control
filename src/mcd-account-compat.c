@@ -72,6 +72,8 @@ set_profile (TpSvcDBusProperties *self, const gchar *name,
 			       name, NULL);
     }
     mcd_account_write_conf (account);
+
+    g_signal_emit (account, _mcd_account_signals[PROFILE_SET], 0);
 }
 
 static void
@@ -379,5 +381,17 @@ mcd_account_compat_get_mc_profile (McdAccount *account)
         g_free (profile_name);
     }
     return profile;
+}
+
+inline void
+_mcd_account_compat_class_init (McdAccountClass *klass)
+{
+    _mcd_account_signals[PROFILE_SET] =
+	g_signal_new ("profile-set",
+		      G_OBJECT_CLASS_TYPE (klass),
+		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+		      0,
+		      NULL, NULL, g_cclosure_marshal_VOID__VOID,
+		      G_TYPE_NONE, 0);
 }
 

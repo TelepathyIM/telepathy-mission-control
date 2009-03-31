@@ -1642,6 +1642,7 @@ mcd_account_class_init (McdAccountClass * klass)
 		      0,
 		      NULL, NULL, g_cclosure_marshal_VOID__STRING,
 		      G_TYPE_NONE, 1, G_TYPE_STRING);
+    _mcd_account_compat_class_init (klass);
     _mcd_account_connection_class_init (klass);
 
     account_ready_quark = g_quark_from_static_string ("mcd_account_load");
