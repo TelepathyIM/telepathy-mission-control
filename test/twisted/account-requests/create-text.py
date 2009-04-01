@@ -11,7 +11,7 @@ from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel
 import constants as cs
 
-def test(q, bus, mc, ensure=True):
+def test(q, bus, mc):
     params = dbus.Dictionary({"account": "someguy@example.com",
         "password": "secrecy"}, signature='sv')
     cm_name_ref, account = create_fakecm_account(q, bus, mc, params)
@@ -53,6 +53,10 @@ def test(q, bus, mc, ensure=True):
                 path=client.object_path),
             )
 
+    test_channel_creation(q, bus, account, client, conn, False)
+    test_channel_creation(q, bus, account, client, conn, True)
+
+def test_channel_creation(q, bus, account, client, conn, ensure):
     user_action_time = dbus.Int64(1238582606)
 
     # chat UI calls ChannelDispatcher.EnsureChannel or CreateChannel
@@ -115,7 +119,7 @@ def test(q, bus, mc, ensure=True):
                 channel.object_path, channel.immutable, signature='boa{sv}')
     else:   # Create
         q.dbus_return(cm_request_call.message,
-                channel.object_path, channel.immutable, signature='boa{sv}')
+                channel.object_path, channel.immutable, signature='oa{sv}')
     channel.announce()
 
     # Observer should get told, processing waits for it
@@ -154,5 +158,8 @@ def test(q, bus, mc, ensure=True):
             interface=cs.ACCOUNT_IFACE_NOKIA_REQUESTS, signal='Succeeded',
             args=[request_path])
 
+    # Close the channel
+    channel.close()
+
 if __name__ == '__main__':
-    exec_test(test, {}, False)
+    exec_test(test, {})
