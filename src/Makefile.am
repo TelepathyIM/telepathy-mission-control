@@ -289,5 +289,4 @@ _gen/svc-%.c _gen/svc-%.h: _gen/%.xml \
 		--include='"_gen/signals-marshal.h"' \
 		--not-implemented-func='tp_dbus_g_method_return_not_implemented' \
 		--allow-unstable \
-		--no-properties \
 		$< Mc_Svc_
