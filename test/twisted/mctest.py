@@ -74,9 +74,6 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None):
         error = e
 
     try:
-        if colourer:
-          sys.stdout = colourer.fh
-
         am_props_iface = dbus.Interface(bus.get_object(cs.AM, cs.AM_PATH),
                 cs.PROPERTIES_IFACE)
         am_props = am_props_iface.GetAll(cs.AM)
@@ -87,14 +84,17 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None):
                     cs.ACCOUNT)
             account_iface.Remove()
 
-        if error is None:
-          reactor.callLater(0, reactor.stop)
-        else:
-          # please ignore the POSIX behind the curtain
-          os._exit(1)
-
     except dbus.DBusException, e:
         pass
+
+    if error is None:
+      reactor.callLater(0, reactor.stop)
+    else:
+      # please ignore the POSIX behind the curtain
+      os._exit(1)
+
+    if colourer:
+      sys.stdout = colourer.fh
 
 def exec_test(fun, params=None, protocol=None, timeout=None):
   reactor.callWhenRunning (exec_test_deferred, fun, params, protocol, timeout)
