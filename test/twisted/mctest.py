@@ -215,24 +215,41 @@ class SimulatedChannel(object):
         self.q.add_dbus_method_impl(self.Get,
                 path=self.object_path,
                 interface=cs.PROPERTIES_IFACE, method='Get')
+        self.q.add_dbus_method_impl(self.Close,
+                path=self.object_path,
+                interface=cs.CHANNEL, method='Close')
+        self.q.add_dbus_method_impl(self.GetInterfaces,
+                path=self.object_path,
+                interface=cs.CHANNEL, method='GetInterfaces')
 
         self.announced = False
         self.closed = False
 
     def announce(self):
         assert not self.announced
+        self.announced = True
         self.conn.channels.append(self)
         self.q.dbus_emit(self.conn.object_path, cs.CONN_IFACE_REQUESTS,
                 'NewChannels', [(self.object_path, self.immutable)],
                 signature='a(oa{sv})')
 
+    def Close(self, e):
+        if not self.closed:
+            self.close()
+        self.q.dbus_return(e.message, signature='')
+
     def close(self):
         assert self.announced
         assert not self.closed
+        self.closed = True
         self.conn.channels.remove(self)
         self.q.dbus_emit(self.object_path, cs.CHANNEL, 'Closed', signature='')
-        self.q.dbus_emit(conn.object_path, cs.CONN_IFACE_REQUESTS,
+        self.q.dbus_emit(self.conn.object_path, cs.CONN_IFACE_REQUESTS,
                 'ChannelClosed', self.object_path, signature='o')
+
+    def GetInterfaces(self, e):
+        self.q.dbus_return(e.message,
+                self.properties[cs.CHANNEL + '.Interfaces'], signature='as')
 
     def GetAll(self, e):
         iface = e.args[0] + '.'
