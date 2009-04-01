@@ -41,7 +41,20 @@ CONN_IFACE_REQUESTS = CONN + '.Interface.Requests'
 CONN_STATUS_CONNECTED = 0
 CONN_STATUS_CONNECTING = 1
 CONN_STATUS_DISCONNECTED = 2
+
 CONN_STATUS_REASON_NONE = 0
+CONN_STATUS_REASON_REQUESTED = 1
+CONN_STATUS_REASON_NETWORK_ERROR = 2
+
+PRESENCE_TYPE_UNSET = 0
+PRESENCE_TYPE_OFFLINE = 1
+PRESENCE_TYPE_AVAILABLE = 2
+PRESENCE_TYPE_AWAY = 3
+PRESENCE_TYPE_XA = 4
+PRESENCE_TYPE_HIDDEN = 5
+PRESENCE_TYPE_BUSY = 6
+PRESENCE_TYPE_UNKNOWN = 7
+PRESENCE_TYPE_ERROR = 8
 
 ERROR = tp_name_prefix + '.Error'
 INVALID_ARGUMENT = ERROR + '.InvalidArgument'
@@ -111,9 +124,12 @@ HANDLER = tp_name_prefix + '.Client.Handler.DRAFT'
 ACCOUNT = tp_name_prefix + '.Account'
 ACCOUNT_IFACE_AVATAR = ACCOUNT + '.Interface.Avatar'
 ACCOUNT_IFACE_NOKIA_COMPAT = ACCOUNT + '.Interface.Compat'
+ACCOUNT_IFACE_NOKIA_REQUESTS = ACCOUNT + '.Interface.ChannelRequests'
 ACCOUNT_IFACE_NOKIA_CONDITIONS = 'com.nokia.Account.Interface.Conditions'
 
 AM = tp_name_prefix + '.AccountManager'
 AM_IFACE_CREATION_DRAFT = AM + '.Interface.Creation.DRAFT'
 AM_IFACE_NOKIA_QUERY = 'com.nokia.AccountManager.Interface.Query'
 AM_PATH = tp_path_prefix + '/AccountManager'
+
+CR = tp_name_prefix + '.ChannelRequest'
