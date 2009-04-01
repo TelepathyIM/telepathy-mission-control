@@ -443,11 +443,10 @@ def call_async(test, proxy, method, *args, **kw):
     kw.update({'reply_handler': reply_func, 'error_handler': error_func})
     method_proxy(*args, **kw)
 
-def sync_dbus(bus, q, conn):
+def sync_dbus(bus, q, proxy):
     # Dummy D-Bus method call
-    call_async(q, conn, "InspectHandles", 1, [])
-
-    event = q.expect('dbus-return', method='InspectHandles')
+    call_async(q, dbus.Interface(proxy, dbus.PEER_IFACE), "Ping")
+    event = q.expect('dbus-return', method='Ping')
 
 class ProxyWrapper:
     def __init__(self, object, default, others):
