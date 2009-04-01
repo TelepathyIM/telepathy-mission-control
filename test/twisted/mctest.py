@@ -389,7 +389,8 @@ def create_fakecm_account(q, bus, mc, params):
 
     a_signal, am_signal, ret = q.expect_many(
             servicetest.EventPattern('dbus-signal',
-                signal='AccountPropertyChanged', interface=cs.ACCOUNT),
+                signal='AccountPropertyChanged', interface=cs.ACCOUNT,
+                predicate=(lambda e: 'Valid' in e.args[0])),
             servicetest.EventPattern('dbus-signal', path=cs.AM_PATH,
                 signal='AccountValidityChanged', interface=cs.AM),
             servicetest.EventPattern('dbus-return', method='CreateAccount'),
