@@ -77,6 +77,16 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None):
         if colourer:
           sys.stdout = colourer.fh
 
+        am_props_iface = dbus.Interface(bus.get_object(cs.AM, cs.AM_PATH),
+                cs.PROPERTIES_IFACE)
+        am_props = am_props_iface.GetAll(cs.AM)
+
+        for a in (am_props.get('ValidAccounts', []) +
+                am_props.get('InvalidAccounts', [])):
+            account_iface = dbus.Interface(bus.get_object(cs.AM, a),
+                    cs.ACCOUNT)
+            account_iface.Remove()
+
         if error is None:
           reactor.callLater(0, reactor.stop)
         else:
