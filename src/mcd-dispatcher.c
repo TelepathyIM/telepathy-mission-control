@@ -1371,7 +1371,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
 
     sp_timestamp ("run observers");
     channels = context->channels;
-    observer_info = NULL;
+    observer_info = g_hash_table_new (g_str_hash, g_str_equal);
 
     g_hash_table_iter_init (&iter, priv->clients);
     while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &client))
@@ -1420,6 +1420,8 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
 
         g_list_free (observed);
     }
+
+    g_hash_table_destroy (observer_info);
 }
 
 /*
