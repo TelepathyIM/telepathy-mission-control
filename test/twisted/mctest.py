@@ -424,11 +424,4 @@ def enable_fakecm_account(q, bus, mc, account, expected_params):
                 path=conn.object_path, handled=True),
             )
 
-    # this secretly indicates that the TpConnection is ready
-    # FIXME: find a better way to determine that the account is ready for use
-    e = q.expect('dbus-signal',
-            interface=cs.ACCOUNT, signal='AccountPropertyChanged',
-            path=account.object_path,
-            args=[{'NormalizedName': 'myself'}])
-
     return conn
