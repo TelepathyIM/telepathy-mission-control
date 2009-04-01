@@ -80,12 +80,35 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None):
 
         for a in (am_props.get('ValidAccounts', []) +
                 am_props.get('InvalidAccounts', [])):
-            account_iface = dbus.Interface(bus.get_object(cs.AM, a),
-                    cs.ACCOUNT)
-            account_iface.Remove()
+            try:
+                account_props_iface = dbus.Interface(bus.get_object(cs.AM, a),
+                        cs.PROPERTIES_IFACE)
+                account_props_iface.Set(cs.ACCOUNT, 'RequestedPresence',
+                        (dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE), 'offline',
+                            ''))
+            except dbus.DBusException, e:
+                print >> sys.stderr, e
+
+            try:
+                account_props_iface = dbus.Interface(bus.get_object(cs.AM, a),
+                        cs.PROPERTIES_IFACE)
+                account_props_iface.Set(cs.ACCOUNT, 'Enabled', False)
+            except dbus.DBusException, e:
+                print >> sys.stderr, e
+
+            try:
+                account_iface = dbus.Interface(bus.get_object(cs.AM, a),
+                        cs.ACCOUNT)
+                account_iface.Remove()
+            except dbus.DBusException, e:
+                print >> sys.stderr, e
+
+            servicetest.sync_dbus(bus, queue, am_props_iface)
 
     except dbus.DBusException, e:
-        pass
+        print >> sys.stderr, e
+
+    queue.cleanup()
 
     if error is None:
       reactor.callLater(0, reactor.stop)
