@@ -177,6 +177,41 @@ class SimulatedConnection(object):
     def GetSelfHandle(self, e):
         self.q.dbus_return(e.message, self.self_handle, signature='u')
 
+class SimulatedChannel(object):
+    def __init__(self, conn, immutable, mutable={}):
+        self.conn = conn
+        self.q = conn.q
+        self.bus = conn.bus
+        self.object_path = conn.object_path + ('/_%x' % id(self))
+        self.immutable = immutable
+        self.properties = dbus.Dictionary({}, signature='sv')
+        self.properties.update(immutable)
+        self.properties.update(mutable)
+
+        self.q.add_dbus_method_impl(self.GetAll,
+                path=self.object_path,
+                interface=cs.PROPERTIES_IFACE, method='GetAll')
+        self.q.add_dbus_method_impl(self.Get,
+                path=self.object_path,
+                interface=cs.PROPERTIES_IFACE, method='Get')
+
+    def GetAll(self, e):
+        iface = e.args[0] + '.'
+
+        ret = dbus.Dictionary({}, signature='sv')
+        for k in self.properties:
+            if k.startswith(iface):
+                tail = k[len(iface):]
+                if '.' not in tail:
+                    ret[tail] = self.properties[k]
+        assert ret  # die on attempts to get unimplemented interfaces
+        self.q.dbus_return(e.message, ret, signature='a{sv}')
+
+    def Get(self, e):
+        prop = e.args[0] + '.' + e.args[1]
+        self.q.dbus_return(e.message, self.properties[prop],
+                signature='v')
+
 def aasv(x):
     return dbus.Array([dbus.Dictionary(d, signature='sv') for d in x],
             signature='a{sv}')
