@@ -127,7 +127,7 @@ class SimulatedConnection(object):
 
     def ensure_handle(self, type, identifier):
         if (type, identifier) in self._handles:
-            return self._handles[identifier]
+            return self._handles[(type, identifier)]
 
         self._last_handle += 1
         self._handles[(type, identifier)] = self._last_handle
