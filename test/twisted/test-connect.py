@@ -108,13 +108,8 @@ def test(q, bus, mc):
                 path=conn.object_path, handled=True),
             )
 
-    # Wait for an AccountPropertyChanged signal that indicates that we have
-    # the NormalizedName for the Account; this secretly indicates that the
-    # TpConnection inside MC is ready.
-    #
-    # FIXME: we shouldn't have to wait for this, but if we don't, then the
-    # NewChannels signal isn't necessarily handled
-
+    # Assert that the NormalizedName is harvested from the Connection at some
+    # point
     while 1:
         e = q.expect('dbus-signal',
                 interface=cs.ACCOUNT, signal='AccountPropertyChanged',
@@ -122,10 +117,6 @@ def test(q, bus, mc):
         if 'NormalizedName' in e.args[0]:
             assert e.args[0]['NormalizedName'] == 'myself', e.args
             break
-
-    #e = q.expect('dbus-method-call', name='SetSelfCapabilities',
-    #        path=conn.object_path)
-    #assert e.caps == caps, e.caps
 
     # Check the requested presence is online
     properties = account.GetAll(cs.ACCOUNT,
