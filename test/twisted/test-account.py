@@ -3,13 +3,10 @@ import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
-from mctest import exec_test
+from mctest import exec_test, create_fakecm_account
 import constants as cs
 
 def test(q, bus, mc):
-    cm_name = dbus.service.BusName(
-            tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
-
     # Get the AccountManager interface
     account_manager = bus.get_object(cs.AM, cs.AM_PATH)
     account_manager_iface = dbus.Interface(account_manager, cs.AM)
@@ -33,29 +30,11 @@ def test(q, bus, mc):
     assert cs.AM_IFACE_CREATION_DRAFT in interfaces, interfaces
     assert cs.AM_IFACE_NOKIA_QUERY in interfaces, interfaces
 
-    # Create an account
     params = dbus.Dictionary({"account": "someguy@example.com",
         "password": "secrecy"}, signature='sv')
-    call_async(q, account_manager_iface, 'CreateAccount',
-            'fakecm', # Connection_Manager
-            'fakeprotocol', # Protocol
-            'fakeaccount', #Display_Name
-            params, # Parameters
-            )
-    # the spec has no order guarantee here
+    (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
 
-    # FIXME: MC ought to introspect the CM and find out that the params are
-    # in fact sufficient
-
-    signal, ret = q.expect_many(
-            EventPattern('dbus-signal', path=cs.AM_PATH,
-                signal='AccountValidityChanged', interface=cs.AM),
-            EventPattern('dbus-return', method='CreateAccount'),
-            )
-    account_path = ret.value[0]
-    assert signal.args == [account_path, True], signal.args
-
-    assert account_path is not None
+    account_path = account.__dbus_object_path__
 
     # Check the account is correctly created
     properties = account_manager.GetAll(cs.AM,
@@ -66,10 +45,6 @@ def test(q, bus, mc):
     assert isinstance(account_path, dbus.ObjectPath), repr(account_path)
     assert properties.get('InvalidAccounts') == [], properties
 
-    # Get the Account interface
-    account = bus.get_object(
-        tp_name_prefix + '.AccountManager',
-        account_path)
     account_iface = dbus.Interface(account, cs.ACCOUNT)
     account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)
     # Introspect Account for debugging purpose

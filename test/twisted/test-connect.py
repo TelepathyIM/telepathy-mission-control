@@ -2,7 +2,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix
-from mctest import exec_test, SimulatedConnection
+from mctest import exec_test, SimulatedConnection, create_fakecm_account
 import constants as cs
 
 def test(q, bus, mc):
@@ -35,29 +35,10 @@ def test(q, bus, mc):
     q.dbus_return(e.message, dbus.Array([http_fixed_properties],
         signature='a{sv}', variant_level=1), signature='v')
 
-    # Get the AccountManager interface
-    account_manager = bus.get_object(cs.AM, cs.AM_PATH)
-    account_manager_iface = dbus.Interface(account_manager, cs.AM)
-
     # Create an account
     params = dbus.Dictionary({"account": "someguy@example.com",
         "password": "secrecy"}, signature='sv')
-    account_path = account_manager_iface.CreateAccount(
-            'fakecm', # Connection_Manager
-            'fakeprotocol', # Protocol
-            'fakeaccount', #Display_Name
-            params, # Parameters
-            )
-    assert account_path is not None
-
-    # Get the Account interface
-    account = bus.get_object(
-        tp_name_prefix + '.AccountManager',
-        account_path)
-    account_iface = dbus.Interface(account, cs.ACCOUNT)
-
-    # FIXME: MC ought to introspect the CM and find out that the params are
-    # in fact sufficient
+    (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
 
     # The account is initially valid but disabled
     assert not account.Get(cs.ACCOUNT, 'Enabled',
@@ -69,7 +50,7 @@ def test(q, bus, mc):
     account.Set(cs.ACCOUNT, 'Enabled', True,
             dbus_interface=cs.PROPERTIES_IFACE)
     q.expect('dbus-signal',
-            path=account_path,
+            path=account.object_path,
             signal='AccountPropertyChanged',
             interface=cs.ACCOUNT)
 
@@ -129,7 +110,7 @@ def test(q, bus, mc):
     # this secretly indicates that the TpConnection is ready
     e = q.expect('dbus-signal',
             interface=cs.ACCOUNT, signal='AccountPropertyChanged',
-            path=account_path,
+            path=account.object_path,
             args=[{'NormalizedName': 'myself'}])
 
     #e = q.expect('dbus-method-call', name='SetSelfCapabilities',

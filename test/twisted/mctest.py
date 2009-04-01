@@ -176,3 +176,97 @@ class SimulatedConnection(object):
 
     def GetSelfHandle(self, e):
         self.q.dbus_return(e.message, self.self_handle, signature='u')
+
+def aasv(x):
+    return dbus.Array([dbus.Dictionary(d, signature='sv') for d in x],
+            signature='a{sv}')
+
+def create_fakecm_account(q, bus, mc, params):
+    """Create a fake connection manager and an account that uses it.
+    """
+    cm_name_ref = dbus.service.BusName(
+            cs.tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
+
+    # Get the AccountManager interface
+    account_manager = bus.get_object(cs.AM, cs.AM_PATH)
+    account_manager_iface = dbus.Interface(account_manager, cs.AM)
+
+    # Create an account
+    servicetest.call_async(q, account_manager_iface, 'CreateAccount',
+            'fakecm', # Connection_Manager
+            'fakeprotocol', # Protocol
+            'fakeaccount', #Display_Name
+            params, # Parameters
+            )
+    # The spec has no order guarantee here.
+    # FIXME: MC ought to also introspect the CM and find out that the params
+    # are in fact sufficient
+
+    a_signal, am_signal, ret = q.expect_many(
+            servicetest.EventPattern('dbus-signal',
+                signal='AccountPropertyChanged', interface=cs.ACCOUNT),
+            servicetest.EventPattern('dbus-signal', path=cs.AM_PATH,
+                signal='AccountValidityChanged', interface=cs.AM),
+            servicetest.EventPattern('dbus-return', method='CreateAccount'),
+            )
+    account_path = ret.value[0]
+    assert am_signal.args == [account_path, True], am_signal.args
+    assert a_signal.args[0]['Valid'] == True, a_signal.args
+
+    assert account_path is not None
+
+    # Get the Account interface
+    account = bus.get_object(
+        cs.tp_name_prefix + '.AccountManager',
+        account_path)
+    account_iface = dbus.Interface(account, cs.ACCOUNT)
+    account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)
+    # Introspect Account for debugging purpose
+    account_introspected = account.Introspect(
+            dbus_interface=cs.INTROSPECTABLE_IFACE)
+    #print account_introspected
+
+    return (cm_name_ref, account)
+
+def enable_fakecm_account(q, bus, mc, account, expected_params):
+    # Enable the account
+    account.Set(cs.ACCOUNT, 'Enabled', True,
+            dbus_interface=cs.PROPERTIES_IFACE)
+
+    requested_presence = dbus.Struct((dbus.UInt32(2L),
+        dbus.String(u'available'), dbus.String(u'')))
+    account.Set(cs.ACCOUNT,
+            'RequestedPresence', requested_presence,
+            dbus_interface=cs.PROPERTIES_IFACE)
+
+    e = q.expect('dbus-method-call', method='RequestConnection',
+            args=['fakeprotocol', expected_params],
+            destination=cs.tp_name_prefix + '.ConnectionManager.fakecm',
+            path=cs.tp_path_prefix + '/ConnectionManager/fakecm',
+            interface=cs.tp_name_prefix + '.ConnectionManager',
+            handled=False)
+
+    conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
+            'myself')
+
+    q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
+
+    q.expect('dbus-method-call', method='Connect',
+            path=conn.object_path, handled=True)
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+
+    q.expect_many(
+            servicetest.EventPattern('dbus-method-call',
+                interface=cs.PROPERTIES_IFACE, method='GetAll',
+                args=[cs.CONN_IFACE_REQUESTS],
+                path=conn.object_path, handled=True),
+            )
+
+    # this secretly indicates that the TpConnection is ready
+    # FIXME: find a better way to determine that the account is ready for use
+    e = q.expect('dbus-signal',
+            interface=cs.ACCOUNT, signal='AccountPropertyChanged',
+            path=account.object_path,
+            args=[{'NormalizedName': 'myself'}])
+
+    return conn
