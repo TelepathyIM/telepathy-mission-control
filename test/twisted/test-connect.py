@@ -2,7 +2,8 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix
-from mctest import exec_test, SimulatedConnection, create_fakecm_account
+from mctest import exec_test, SimulatedConnection, create_fakecm_account,\
+        SimulatedChannel
 import constants as cs
 
 def test(q, bus, mc):
@@ -137,13 +138,10 @@ def test(q, bus, mc):
     buddy_handle = conn.ensure_handle(cs.HT_CONTACT, "buddy")
     new_channel[cs.CHANNEL + '.TargetID'] = "buddy"
     new_channel[cs.CHANNEL + '.TargetHandle'] = buddy_handle
+    new_channel[cs.CHANNEL + '.Requested'] = False
 
-    channel_path = dbus.ObjectPath(conn.object_path + '/channel')
-    q.dbus_emit(conn.object_path, cs.CONN_IFACE_REQUESTS, 'NewChannels',
-            [(channel_path, new_channel)], signature='a(oa{sv})')
-    q.dbus_emit(conn.object_path, cs.CONN, 'NewChannel',
-            channel_path, cs.CHANNEL_TYPE_STREAM_TUBE,
-            cs.HT_CONTACT, buddy_handle, False, signature='osuub')
+    chan = SimulatedChannel(conn, new_channel)
+    chan.announce()
 
     e = q.expect('dbus-method-call', method='HandleChannels')
 

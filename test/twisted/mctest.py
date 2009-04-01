@@ -127,6 +127,7 @@ class SimulatedConnection(object):
         self.reason = cs.CONN_STATUS_CONNECTING
         self.self_ident = self_ident
         self.self_handle = self.ensure_handle(cs.HT_CONTACT, self_ident)
+        self.channels = []
 
         q.add_dbus_method_impl(self.Connect,
                 path=self.object_path, interface=cs.CONN, method='Connect')
@@ -178,10 +179,14 @@ class SimulatedConnection(object):
         self.q.dbus_emit(self.object_path, cs.CONN, 'StatusChanged',
                 status, reason, signature='uu')
 
+    def get_channel_details(self):
+        return dbus.Array([(c.object_path, c.immutable)
+            for c in self.channels], signature='(oa{sv})')
+
     def GetAll_Requests(self, e):
         # FIXME: stub: assumes no channels
         self.q.dbus_return(e.message, {
-            'Channels': dbus.Array(signature='(oa{sv})'),
+            'Channels': self.get_channel_details(),
         }, signature='a{sv}')
 
     def GetSelfHandle(self, e):
@@ -204,6 +209,24 @@ class SimulatedChannel(object):
         self.q.add_dbus_method_impl(self.Get,
                 path=self.object_path,
                 interface=cs.PROPERTIES_IFACE, method='Get')
+
+        self.announced = False
+        self.closed = False
+
+    def announce(self):
+        assert not self.announced
+        self.conn.channels.append(self)
+        self.q.dbus_emit(self.conn.object_path, cs.CONN_IFACE_REQUESTS,
+                'NewChannels', [(self.object_path, self.immutable)],
+                signature='a(oa{sv})')
+
+    def close(self):
+        assert self.announced
+        assert not self.closed
+        self.conn.channels.remove(self)
+        self.q.dbus_emit(self.object_path, cs.CHANNEL, 'Closed', signature='')
+        self.q.dbus_emit(conn.object_path, cs.CONN_IFACE_REQUESTS,
+                'ChannelClosed', self.object_path, signature='o')
 
     def GetAll(self, e):
         iface = e.args[0] + '.'
