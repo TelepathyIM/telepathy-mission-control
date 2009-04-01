@@ -130,11 +130,34 @@ def test(q, bus, mc):
     new_channel[cs.CHANNEL + '.TargetID'] = "buddy"
     new_channel[cs.CHANNEL + '.TargetHandle'] = buddy_handle
     new_channel[cs.CHANNEL + '.Requested'] = False
+    new_channel[cs.CHANNEL + '.Interfaces'] = dbus.Array(signature='s')
 
     chan = SimulatedChannel(conn, new_channel)
     chan.announce()
 
     e = q.expect('dbus-method-call', method='HandleChannels')
+    q.dbus_return(e.message, signature='')
+
+    # Put the account offline
+    requested_presence = (dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE), 'offline', '')
+    account.Set(cs.ACCOUNT,
+            'RequestedPresence', requested_presence,
+            dbus_interface=cs.PROPERTIES_IFACE)
+
+    # In response, MC tells us to Disconnect, and we do
+    q.expect('dbus-method-call', method='Disconnect',
+            path=conn.object_path, handled=True)
+
+    # MC terminates the channel
+    # FIXME: it shouldn't do this!
+    #q.expect('dbus-method-call', method='Close',
+    #        path=chan.object_path, handled=True)
+
+    properties = account.GetAll(cs.ACCOUNT, dbus_interface=cs.PROPERTIES_IFACE)
+    assert properties['Connection'] == '/'
+    assert properties['ConnectionStatus'] == cs.CONN_STATUS_DISCONNECTED
+    assert properties['CurrentPresence'] == requested_presence
+    assert properties['RequestedPresence'] == requested_presence
 
 if __name__ == '__main__':
     exec_test(test, {})
