@@ -107,11 +107,20 @@ def test(q, bus, mc):
                 path=conn.object_path, handled=True),
             )
 
-    # this secretly indicates that the TpConnection is ready
-    e = q.expect('dbus-signal',
-            interface=cs.ACCOUNT, signal='AccountPropertyChanged',
-            path=account.object_path,
-            args=[{'NormalizedName': 'myself'}])
+    # Wait for an AccountPropertyChanged signal that indicates that we have
+    # the NormalizedName for the Account; this secretly indicates that the
+    # TpConnection inside MC is ready.
+    #
+    # FIXME: we shouldn't have to wait for this, but if we don't, then the
+    # NewChannels signal isn't necessarily handled
+
+    while 1:
+        e = q.expect('dbus-signal',
+                interface=cs.ACCOUNT, signal='AccountPropertyChanged',
+                path=account.object_path)
+        if 'NormalizedName' in e.args[0]:
+            assert e.args[0]['NormalizedName'] == 'myself', e.args
+            break
 
     #e = q.expect('dbus-method-call', name='SetSelfCapabilities',
     #        path=conn.object_path)
