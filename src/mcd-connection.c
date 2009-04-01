@@ -1556,6 +1556,8 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
 	return;
     }
 
+    DEBUG ("created %s", obj_path);
+
     _mcd_connection_set_tp_connection (connection, bus_name, obj_path, &error);
     if (G_UNLIKELY (error))
     {
