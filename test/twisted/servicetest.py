@@ -345,7 +345,14 @@ class IteratingEventQueue(BaseEventQueue):
     def attach_to_bus(self, bus):
         assert self._bus is None, self._bus
         self._bus = bus
-        self._bus.add_message_filter(self._dbus_filter)
+        self._dbus_filter_bound_method = self._dbus_filter
+        self._bus.add_message_filter(self._dbus_filter_bound_method)
+
+    def cleanup(self):
+        if self._bus is not None:
+            self._bus.remove_message_filter(self._dbus_filter_bound_method)
+            self._bus = None
+        self._dbus_method_impls = []
 
     def _dbus_filter(self, bus, message):
         if isinstance(message, dbus.lowlevel.MethodCallMessage):
