@@ -29,6 +29,7 @@
 #include <glib.h>
 #include <glib-object.h>
 #include <dbus/dbus-glib.h>
+#include <telepathy-glib/dbus-properties-mixin.h>
 
 G_BEGIN_DECLS
 
@@ -45,6 +46,11 @@ typedef struct _McdDispatcherPrivate McdDispatcherPrivate;
 
 #include "mcd-channel.h"
 #include "mcd-master.h"
+
+#define MCD_CHANNEL_DISPATCHER_BUS_NAME \
+    "org.freedesktop.Telepathy.ChannelDispatcher"
+#define MCD_CHANNEL_DISPATCHER_OBJECT_PATH \
+    "/org/freedesktop/Telepathy/ChannelDispatcher"
 
 struct _McdDispatcher
 {
@@ -68,7 +74,10 @@ struct _McdDispatcherClass
 				    GError *error);
 
     /* virtual methods */
-    void (*_mc_reserved0) (void);
+    union {
+        TpDBusPropertiesMixinClass real;
+        GCallback _pad;
+    } dbus_properties_class;
     void (*_mc_reserved1) (void);
     void (*_mc_reserved2) (void);
     void (*_mc_reserved3) (void);
