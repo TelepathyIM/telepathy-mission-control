@@ -2,6 +2,7 @@ TWISTED_TESTS =
 
 TWISTED_BASIC_TESTS = \
 	account-bad-cm.py \
+	account-requests/create-text.py \
 	do-nothing.py \
 	test-account.py \
 	test-connect.py
