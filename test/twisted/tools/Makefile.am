@@ -1,5 +1,7 @@
-exec-with-log.sh: exec-with-log.sh.in
-	sed -e "s|[@]abs_top_builddir[@]|@abs_top_builddir@|g" $< > $@
+exec-with-log.sh: exec-with-log.sh.in Makefile
+	sed -e "s|[@]abs_top_srcdir[@]|@abs_top_srcdir@|g" \
+		-e "s|[@]abs_top_builddir[@]|@abs_top_builddir@|g" \
+		$< > $@
 	chmod +x $@
 
 %.conf: %.conf.in

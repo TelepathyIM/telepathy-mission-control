@@ -1,7 +1,0 @@
-[ConnectionManager]
-BusName=com.example.FakeCM
-ObjectPath=/com/example/FakeCM/ConnectionManager
-
-[Protocol fakeprotocol]
-param-nickname=s
-

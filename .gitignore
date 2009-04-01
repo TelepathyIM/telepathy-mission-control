@@ -9,6 +9,8 @@
 *.stamp
 *.pyc
 *.bak
+*.gcda
+*.gcno
 /doc/reference/*/html
 /doc/reference/*/xml
 /doc/reference/*/*-decl-list.txt
@@ -46,6 +48,9 @@ examples/mc-example-2
 examples/mc-example-3
 gtk-doc.make
 install-sh
+/lcov.html
+/lcov.info
+/lcov.info.tmp
 libmcclient.pc
 libmcclient/diff
 libmissioncontrol.pc
@@ -62,9 +67,11 @@ server/mission-control
 server/org.freedesktop.Telepathy.AccountManager.service
 server/org.freedesktop.Telepathy.MissionControl.service
 tags
+/telepathy-mission-control-5*
 test/mc-client
 test/twisted/with-session-bus-*.dbus-monitor-logs
 test/twisted/accounts/accounts.cfg
+/test/twisted/mc-debug-server
 test/twisted/tools/exec-with-log.sh
 test/twisted/tools/missioncontrol-testing.log
 test/twisted/tools/org.freedesktop.Telepathy.MissionControl.service

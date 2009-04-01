@@ -198,6 +198,7 @@ mcd-service-gen.h: $(top_builddir)/xml/MissionControl-gen.xml
 
 EXTRA_DIST = \
 	client.xml \
+	dispatch-operation.xml \
 	mcd-signals-marshal.list \
 	stamp-mcd-enum-types.h
 

@@ -4,14 +4,13 @@ from servicetest import EventPattern, tp_name_prefix, tp_path_prefix
 from fakecm import start_fake_connection_manager
 from fakeclient import start_fake_client
 from mctest import exec_test
+import constants as cs
 
-FakeCM_bus_name = "org.freedesktop.Telepathy.ConnectionManager.fakecm"
-ConnectionManager_object_path = \
-    "/org/freedesktop/Telepathy/ConnectionManager/fakecm"
+FakeCM_bus_name = tp_name_prefix + ".ConnectionManager.fakecm"
+ConnectionManager_object_path = tp_path_prefix + "/ConnectionManager/fakecm"
 
-FakeClient_bus_name = "org.freedesktop.Telepathy.Client.fakeclient"
-Client_object_path = \
-    "/org/freedesktop/Telepathy/Client/fakeclient"
+FakeClient_bus_name = tp_name_prefix + ".Client.fakeclient"
+Client_object_path = tp_path_prefix + "/Client/fakeclient"
 
 
 def test(q, bus, mc):
@@ -19,10 +18,9 @@ def test(q, bus, mc):
             ConnectionManager_object_path)
     
     http_fixed_properties = dbus.Dictionary({
-        'org.freedesktop.Telepathy.Channel.TargetHandleType': 1L,
-        'org.freedesktop.Telepathy.Channel.ChannelType':
-            'org.freedesktop.Telepathy.Channel.Type.StreamTube.DRAFT',
-        'org.freedesktop.Telepathy.Channel.Type.StreamTube.DRAFT.Service':
+        cs.CHANNEL + '.TargetHandleType': 1L,
+        cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_STREAM_TUBE,
+        cs.CHANNEL_TYPE_STREAM_TUBE + '.Service':
             'http'
         }, signature='sv')
     caps = dbus.Array([http_fixed_properties], signature='a{sv}')
@@ -31,14 +29,12 @@ def test(q, bus, mc):
             Client_object_path, caps)
     
     # Get the AccountManager interface
-    account_manager = bus.get_object(
-        tp_name_prefix + '.AccountManager',
-        tp_path_prefix + '/AccountManager')
-    account_manager_iface = dbus.Interface(account_manager,
-            'org.freedesktop.Telepathy.AccountManager')
+    account_manager = bus.get_object(cs.AM, cs.AM_PATH)
+    account_manager_iface = dbus.Interface(account_manager, cs.AM)
 
     # Create an account
-    params = dbus.Dictionary({"nickname": "fakenick"}, signature='sv')
+    params = dbus.Dictionary({"account": "someguy@example.com",
+        "password": "secrecy"}, signature='sv')
     account_path = account_manager_iface.CreateAccount(
             'fakecm', # Connection_Manager
             'fakeprotocol', # Protocol
@@ -51,23 +47,30 @@ def test(q, bus, mc):
     account = bus.get_object(
         tp_name_prefix + '.AccountManager',
         account_path)
-    account_iface = dbus.Interface(account,
-            'org.freedesktop.Telepathy.Account')
+    account_iface = dbus.Interface(account, cs.ACCOUNT)
+
+    # The account is initially valid but disabled
+    assert not account.Get(cs.ACCOUNT, 'Enabled',
+            dbus_interface=cs.PROPERTIES_IFACE)
+    assert account.Get(cs.ACCOUNT, 'Valid',
+            dbus_interface=cs.PROPERTIES_IFACE)
 
     # Enable the account
-    account.Set('org.freedesktop.Telepathy.Account',
-            'Enabled', True,
-            dbus_interface='org.freedesktop.DBus.Properties')
+    account.Set(cs.ACCOUNT, 'Enabled', True,
+            dbus_interface=cs.PROPERTIES_IFACE)
     q.expect('dbus-signal',
             path=account_path,
             signal='AccountPropertyChanged',
-            interface='org.freedesktop.Telepathy.Account',
-            args=[dbus.Dictionary({"Enabled": True}, signature='sv')])
+            interface=cs.ACCOUNT)
+
+    assert account.Get(cs.ACCOUNT, 'Enabled',
+            dbus_interface=cs.PROPERTIES_IFACE)
+    assert account.Get(cs.ACCOUNT, 'Valid',
+            dbus_interface=cs.PROPERTIES_IFACE)
 
     # Check the requested presence is offline
-    properties = account.GetAll(
-            'org.freedesktop.Telepathy.Account',
-            dbus_interface='org.freedesktop.DBus.Properties')
+    properties = account.GetAll(cs.ACCOUNT,
+            dbus_interface=cs.PROPERTIES_IFACE)
     assert properties is not None
     # the requested presence is defined by Connection_Presence_Type:
     #  Connection_Presence_Type_Unset = 0
@@ -80,9 +83,9 @@ def test(q, bus, mc):
     # Go online
     requested_presence = dbus.Struct((dbus.UInt32(2L), dbus.String(u'brb'),
                 dbus.String(u'Be back soon!')))
-    account.Set('org.freedesktop.Telepathy.Account',
+    account.Set(cs.ACCOUNT,
             'RequestedPresence', requested_presence,
-            dbus_interface='org.freedesktop.DBus.Properties')
+            dbus_interface=cs.PROPERTIES_IFACE)
 
     e = q.expect('dbus-method-call', name='RequestConnection',
             protocol='fakeprotocol')
@@ -98,17 +101,16 @@ def test(q, bus, mc):
     assert e.caps == caps, e.caps
 
     # Check the requested presence is online
-    properties = account.GetAll(
-            'org.freedesktop.Telepathy.Account',
-            dbus_interface='org.freedesktop.DBus.Properties')
+    properties = account.GetAll(cs.ACCOUNT,
+            dbus_interface=cs.PROPERTIES_IFACE)
     assert properties is not None
     assert properties.get('RequestedPresence') == requested_presence, \
         properties.get('RequestedPresence')
 
     new_channel = http_fixed_properties
     handle = fake_conn.get_handle("buddy")
-    new_channel['org.freedesktop.Telepathy.Channel.TargetID'] = "buddy"
-    new_channel['org.freedesktop.Telepathy.Channel.TargetHandle'] = handle
+    new_channel[cs.CHANNEL + '.TargetID'] = "buddy"
+    new_channel[cs.CHANNEL + '.TargetHandle'] = handle
 
     fake_conn.new_incoming_channel('/foobar', new_channel)
 
