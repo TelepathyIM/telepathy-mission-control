@@ -162,6 +162,8 @@ class SimulatedConnection(object):
         self.StatusChanged(cs.CONN_STATUS_DISCONNECTED,
                 cs.CONN_STATUS_REASON_REQUESTED)
         self.q.dbus_return(e.message, signature='')
+        for c in self.channels:
+            c.close()
 
     def InspectHandles(self, e):
         htype, hs = e.args
