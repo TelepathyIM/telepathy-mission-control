@@ -131,6 +131,8 @@ class SimulatedConnection(object):
 
         q.add_dbus_method_impl(self.Connect,
                 path=self.object_path, interface=cs.CONN, method='Connect')
+        q.add_dbus_method_impl(self.Disconnect,
+                path=self.object_path, interface=cs.CONN, method='Disconnect')
         q.add_dbus_method_impl(self.GetSelfHandle,
                 path=self.object_path,
                 interface=cs.CONN, method='GetSelfHandle')
@@ -152,9 +154,13 @@ class SimulatedConnection(object):
         self.q.dbus_return(e.message, [cs.CONN_IFACE_REQUESTS], signature='as')
 
     def Connect(self, e):
-        self.q.dbus_emit(self.object_path, cs.CONN, 'StatusChanged',
-                cs.CONN_STATUS_CONNECTING, cs.CONN_STATUS_REASON_NONE,
-                signature='uu')
+        self.StatusChanged(cs.CONN_STATUS_CONNECTING,
+                cs.CONN_STATUS_REASON_REQUESTED)
+        self.q.dbus_return(e.message, signature='')
+
+    def Disconnect(self, e):
+        self.StatusChanged(cs.CONN_STATUS_DISCONNECTED,
+                cs.CONN_STATUS_REASON_REQUESTED)
         self.q.dbus_return(e.message, signature='')
 
     def InspectHandles(self, e):
