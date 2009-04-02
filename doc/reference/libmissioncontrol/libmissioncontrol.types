@@ -1,9 +1,0 @@
-#include <libmissioncontrol/mission-control.h>
-#include <libmissioncontrol/mc-account-monitor.h>
-
-mission_control_get_type
-mc_account_monitor_get_type
-mc_account_get_type
-mc_profile_get_type
-mc_protocol_get_type
-mc_manager_get_type
