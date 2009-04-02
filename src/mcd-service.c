@@ -129,17 +129,6 @@ _on_presence_requested (McdPresenceFrame * presence_frame,
 }
 
 static void
-_on_presence_actual (McdPresenceFrame * presence_frame,
-		     TpConnectionPresenceType presence,
-		     gchar * presence_message, McdService * obj)
-{
-    /* Emit the AccountStatusChanged signal */
-#ifndef NO_NEW_PRESENCE_SIGNALS
-    g_signal_emit_by_name (G_OBJECT (obj), "presence-changed", presence, presence_message);
-#endif
-}
-
-static void
 mcd_service_disconnect (McdMission *mission)
 {
     MCD_MISSION_CLASS (mcd_service_parent_class)->disconnect (mission);
@@ -198,8 +187,6 @@ mcd_dispose (GObject * obj)
 	g_signal_handlers_disconnect_by_func (priv->presence_frame,
 					      _on_presence_requested, self);
 	g_signal_handlers_disconnect_by_func (priv->presence_frame,
-					      _on_presence_actual, self);
-	g_signal_handlers_disconnect_by_func (priv->presence_frame,
 					      _on_status_actual, self);
 	g_object_unref (priv->presence_frame);
     }
@@ -230,8 +217,6 @@ mcd_service_constructed (GObject *obj)
     /* Setup presence signals */
     g_signal_connect (priv->presence_frame, "presence-requested",
 		      G_CALLBACK (_on_presence_requested), obj);
-    g_signal_connect (priv->presence_frame, "presence-actual",
-		      G_CALLBACK (_on_presence_actual), obj);
 
     /* Setup dispatcher signals */
 
@@ -265,16 +250,6 @@ mcd_service_class_init (McdServiceClass * self)
     mission_class->disconnect = mcd_service_disconnect;
 
     g_type_class_add_private (gobject_class, sizeof (McdServicePrivate));
-
-#ifndef NO_NEW_PRESENCE_SIGNALS
-    /* PresenceChanged signal */
-    g_signal_new ("presence-changed",
-		  G_OBJECT_CLASS_TYPE (self),
-		  G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		  0,
-		  NULL, NULL, _mcd_marshal_VOID__UINT_STRING,
-		  G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_STRING);
-#endif
 }
 
 McdService *
