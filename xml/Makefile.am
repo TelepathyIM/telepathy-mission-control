@@ -4,7 +4,7 @@ XSLTFLAGS = --nonet --novalid
 DROP_NAMESPACE = sed -e 's@xmlns:tp="http://telepathy\.freedesktop\.org/wiki/DbusSpec.extensions-v0"@@g'
 DROP_TPTYPE = sed -e 's@tp:type="[^"]*"@@g'
 
-SPECS = MissionControl.xml \
+SPECS = \
 	Account_Manager.xml \
 	Account_Manager_Interface_Creation.xml \
 	Account_Manager_Interface_Query.xml \
@@ -29,11 +29,6 @@ SPECS_GEN = ${SPECS:%.xml=_gen/introspect-%.xml}
 
 all-local: $(SPECS_GEN)
 
-_gen/introspect-MissionControl.xml: MissionControl.xml $(tools_dir)/spec-to-introspect.xsl
-	$(mkdir_p) _gen
-	$(XSLTPROC) $(XSLTFLAGS) $(tools_dir)/spec-to-introspect.xsl $< \
-		| $(DROP_NAMESPACE) | $(DROP_TPTYPE) > $@
-
 _gen/introspect-%.xml: %.xml $(tools_dir)/spec-to-introspect.xsl
 	$(mkdir_p) _gen
 	$(XSLTPROC) $(XSLTFLAGS) $(tools_dir)/spec-to-introspect.xsl $< \
@@ -44,7 +39,6 @@ clean-local:
 
 EXTRA_DIST = \
 	all.xml \
-	nmc4.xml \
 	nmc5.xml \
 	generic-types.xml \
 	telepathy-types.xml \
