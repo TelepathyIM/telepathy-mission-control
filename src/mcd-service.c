@@ -276,7 +276,7 @@ mcd_service_register_filter(GObject *obj,
 #include "mcd-service-gen.h"
 
 static void
-mcd_register_dbus_object (McdService * obj)
+mcd_service_obtain_bus_name (McdService * obj)
 {
     DBusError error;
     DBusGConnection *connection;
@@ -295,14 +295,6 @@ mcd_register_dbus_object (McdService * obj)
 		 MISSION_CONTROL_DBUS_SERVICE);
 	dbus_error_free (&error);
     }
-    
-    DEBUG ("Registering MC object");
-    mcd_debug_print_tree (obj);
-    dbus_g_connection_register_g_object (connection,
-					 MISSION_CONTROL_DBUS_OBJECT,
-					 G_OBJECT (obj));
-    DEBUG ("Registered MC object");
-    mcd_debug_print_tree (obj);
 }
 
 static void
@@ -589,7 +581,7 @@ mcd_service_constructed (GObject *obj)
     g_signal_connect (priv->dispatcher, "dispatched",
 		      G_CALLBACK (_on_dispatcher_channel_dispatched), obj);
 
-    mcd_register_dbus_object (MCD_OBJECT (obj));
+    mcd_service_obtain_bus_name (MCD_OBJECT (obj));
     mcd_debug_print_tree (obj);
 
     if (G_OBJECT_CLASS (parent_class)->constructed)
