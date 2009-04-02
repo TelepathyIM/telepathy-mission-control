@@ -64,7 +64,6 @@ struct _McdMasterClass
 };
 
 GType mcd_master_get_type (void);
-#define mcd_master_new()    mcd_master_get_default()
 McdMaster *mcd_master_get_default (void);
 
 McdManager *mcd_master_lookup_manager (McdMaster *master,
@@ -72,28 +71,8 @@ McdManager *mcd_master_lookup_manager (McdMaster *master,
 McdDispatcher *mcd_master_get_dispatcher (McdMaster *master);
 TpDBusDaemon *mcd_master_get_dbus_daemon (McdMaster *master);
 
-gboolean mcd_master_set_default_presence (McdMaster * master,
-					  const gchar *client_id);
-
 void mcd_master_set_default_presence_setting (McdMaster *master,
 					      TpConnectionPresenceType presence);
-
-TpConnectionStatus mcd_master_get_account_status (McdMaster * master,
-						  gchar * account_name);
-
-gboolean mcd_master_get_online_connection_names (McdMaster * master,
-						 gchar *** connected_names);
-
-gboolean mcd_master_get_account_connection_details (McdMaster * master,
-						    const gchar * account_name,
-						    gchar ** servname,
-						    gchar ** objpath,
-						    GError **error);
-
-gboolean mcd_master_get_account_for_connection (McdMaster *master,
-						const gchar *object_path,
-						gchar **ret_unique_name,
-						GError **error);
 
 void mcd_master_add_connection_parameter (McdMaster *master, const gchar *name,
 					  const GValue *value);
