@@ -88,11 +88,6 @@ typedef struct _McdMasterPrivate
 
     /* We create this for our member objects */
     TpDBusDaemon *dbus_daemon;
-    
-    /* if this flag is set, presence should go offline when all conversations
-     * are closed */
-    gboolean offline_on_idle;
-    GHashTable *clients_needing_presence;
 
     GHashTable *extra_parameters;
 
@@ -334,60 +329,6 @@ mcd_master_load_plugins (McdMaster *master)
     g_dir_close (dir);
 }
 
-static DBusHandlerResult
-dbus_filter_func (DBusConnection *connection,
-		  DBusMessage    *message,
-		  gpointer        data)
-{
-    DBusHandlerResult result = DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-    McdMasterPrivate *priv = (McdMasterPrivate *)data;
-
-    if (dbus_message_is_signal (message,
-				"org.freedesktop.DBus",
-				"NameOwnerChanged")) {
-	const gchar *name = NULL;
-	const gchar *prev_owner = NULL;
-	const gchar *new_owner = NULL;
-	DBusError error = {0};
-
-	dbus_error_init (&error);
-
-	if (!dbus_message_get_args (message,
-				    &error,
-				    DBUS_TYPE_STRING,
-				    &name,
-				    DBUS_TYPE_STRING,
-				    &prev_owner,
-				    DBUS_TYPE_STRING,
-				    &new_owner,
-				    DBUS_TYPE_INVALID)) {
-
-            DEBUG ("error: %s", error.message);
-	    dbus_error_free (&error);
-
-	    return result;
-	}
-
-	if (name && prev_owner && prev_owner[0] != '\0')
-	{
-	    if (g_hash_table_lookup (priv->clients_needing_presence, prev_owner))
-	    {
-                DEBUG ("Process %s which requested default presence is dead", prev_owner);
-		g_hash_table_remove (priv->clients_needing_presence, prev_owner);
-		if (g_hash_table_size (priv->clients_needing_presence) == 0 &&
-		    priv->offline_on_idle)
-		{
-		    mcd_presence_frame_request_presence (priv->presence_frame,
-							 TP_CONNECTION_PRESENCE_TYPE_OFFLINE,
-							 "No active processes");
-		}
-	    }
-	}
-    }
-
-    return result;
-}
-
 static void
 _mcd_master_connect (McdMission * mission)
 {
@@ -526,8 +467,6 @@ _mcd_master_dispose (GObject * object)
     }
     priv->is_disposed = TRUE;
 
-    g_hash_table_destroy (priv->clients_needing_presence);
-
     if (priv->transport_plugins)
     {
 	guint i;
@@ -558,12 +497,6 @@ _mcd_master_dispose (GObject * object)
 
     if (priv->dbus_daemon)
     {
-	DBusGConnection *dbus_connection;
-
-	dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
-	dbus_connection_remove_filter (dbus_g_connection_get_connection
-				       (dbus_connection),
-				       dbus_filter_func, priv);
 	g_object_unref (priv->dbus_daemon);
 	priv->dbus_daemon = NULL;
     }
@@ -575,36 +508,6 @@ _mcd_master_dispose (GObject * object)
     g_object_unref (priv->proxy);
 
     G_OBJECT_CLASS (mcd_master_parent_class)->dispose (object);
-}
-
-static void
-install_dbus_filter (McdMasterPrivate *priv)
-{
-    DBusGConnection *dbus_connection;
-    DBusConnection *dbus_conn;
-    DBusError error;
-
-    /* set up the NameOwnerChange filter */
-
-    dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
-    dbus_conn = dbus_g_connection_get_connection (dbus_connection);
-    dbus_error_init (&error);
-    dbus_connection_add_filter (dbus_conn,
-				dbus_filter_func,
-				priv, NULL);
-    dbus_bus_add_match (dbus_conn,
-			"type='signal'," "interface='org.freedesktop.DBus',"
-			"member='NameOwnerChanged'", &error);
-    if (dbus_error_is_set (&error))
-    {
-	g_warning ("Match rule adding failed");
-	dbus_error_free (&error);
-    }
-
-    /* FIXME: it doesn't really belong here, but for now it's OK. Move it when
-     * we switch to TpDBusDaemon APIs for monitoring D-Bus names */
-    /* There's no point in MC to stay alive if it's disconnected from the bus */
-    dbus_connection_set_exit_on_disconnect (dbus_conn, TRUE);
 }
 
 static GObject *
@@ -628,7 +531,10 @@ mcd_master_constructor (GType type, guint n_params,
 
     _mcd_account_manager_setup (priv->account_manager);
 
-    install_dbus_filter (priv);
+    dbus_connection_set_exit_on_disconnect (
+        dbus_g_connection_get_connection (
+            TP_PROXY (priv->dbus_daemon)->dbus_connection),
+        TRUE);
 
     priv->presence_frame = mcd_presence_frame_new ();
     /* propagate the signals to dispatcher and presence_frame, too */
@@ -738,10 +644,6 @@ mcd_master_init (McdMaster * master)
 
     if (!default_master)
 	default_master = master;
-
-    priv->clients_needing_presence = g_hash_table_new_full (g_str_hash,
-							    g_str_equal,
-							    g_free, NULL);
 
     priv->extra_parameters = g_hash_table_new_full (g_str_hash, g_str_equal,
 						    g_free, _g_value_free);
