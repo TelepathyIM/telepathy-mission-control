@@ -17,38 +17,26 @@ AC_HEADER_STDC
 
 # Recommended CFLAGS for pedantic checking, from telepathy-glib
 
-AS_COMPILER_FLAG(-Wall, ERROR_CFLAGS="-Wall", ERROR_CFLAGS="")
+TP_COMPILER_WARNINGS([ERROR_CFLAGS],
+  [false],   dnl <- no -Werror by default
+  [all \
+   extra \
+   declaration-after-statement \
+   shadow \
+   strict-prototypes \
+   missing-prototypes \
+   missing-declarations \
+   ],
+  [missing-field-initializers \
+   unused-parameter])
+AC_SUBST([ERROR_CFLAGS])
 
-AC_ARG_ENABLE([Werror],
-  AC_HELP_STRING([--enable-Werror],[compile with -Werror]),
-  [werror=$enableval], [werror=no])
-
-if test "$werror" = yes; then
-  AS_COMPILER_FLAG([-Werror], [ERROR_CFLAGS="$ERROR_CFLAGS -Werror"])
-fi
-
-#AS_COMPILER_FLAG(-Wextra, wextra=yes, wextra=no)
-AS_COMPILER_FLAG(-Wno-missing-field-initializers,
-        wno_missing_field_initializers=yes,
-        wno_missing_field_initializers=no)
-AS_COMPILER_FLAG(-Wno-unused-parameter,
-        wno_unused_parameter=yes,
-        wno_unused_parameter=no)
-
-if test x$werror = xyes; then
-    ERROR_CFLAGS="$ERROR_CFLAGS -Werror"
-fi
-if test x$wextra = xyes -a \
-    x$wno_missing_field_initializers = xyes -a \
-    x$wno_unused_parameter = xyes; then
-    ERROR_CFLAGS="$ERROR_CFLAGS -Wextra -Wno-missing-field-initializers -Wno-unused-parameter"
-fi
-
-AS_COMPILER_FLAG(-Wdeclaration-after-statement, ERROR_CFLAGS="$ERROR_CFLAGS -Wdeclaration-after-statement")
-AS_COMPILER_FLAG(-Wshadow, ERROR_CFLAGS="$ERROR_CFLAGS -Wshadow")
-AS_COMPILER_FLAG(-Wstrict-prototypes, ERROR_CFLAGS="$ERROR_CFLAGS -Wstrict-prototypes")
-AS_COMPILER_FLAG(-Wmissing-prototypes, ERROR_CFLAGS="$ERROR_CFLAGS -Wmissing-prototypes")
-AS_COMPILER_FLAG(-Wmissing-declarations, ERROR_CFLAGS="$ERROR_CFLAGS -Wmissing-declarations")
+dnl Also used in telepathy-glib:
+dnl   sign-compare \
+dnl   nested-externs \
+dnl   pointer-arith \
+dnl   format-security \
+dnl   init-self \
 
 AM_CFLAGS="$CFLAGS -fno-strict-aliasing -ansi -DDMALLOC $ERROR_CFLAGS"
 AC_SUBST([AM_CFLAGS])
