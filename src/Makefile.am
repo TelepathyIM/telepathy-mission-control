@@ -94,7 +94,6 @@ mission_control_include_HEADERS = \
 
 BUILT_SOURCES = \
 	_gen/all.xml \
-	mcd-service-gen.h \
 	mcd-signals-marshal.h \
 	mcd-signals-marshal.c \
 	mcd-enum-types.c \
@@ -195,10 +194,6 @@ mcd-enum-types.c: Makefile
 	    $(mission_control_include) ) > xgen-getc \
 	&& cp xgen-getc mcd-enum-types.c  \
 	&& rm -f xgen-getc
-
-
-mcd-service-gen.h: $(top_builddir)/xml/_gen/introspect-MissionControl.xml
-	dbus-binding-tool --mode=glib-server --prefix=mcd_service $< > $@
 
 EXTRA_DIST = \
 	client.xml \
