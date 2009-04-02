@@ -153,53 +153,11 @@ const McdDBusProp account_compat_properties[] = {
     { 0 },
 };
 
-static void
-account_request_channel (McSvcAccountInterfaceCompat *self,
-			 const gchar *type,
-			 guint handle,
-			 gint handle_type,
-			 DBusGMethodInvocation *context)
-{
-    GError e = { TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
-        "No longer implemented" };
-
-    dbus_g_method_return_error (context, &e);
-}
-
-static void
-account_request_channel_with_string_handle (McSvcAccountInterfaceCompat *self,
-					    const gchar *type,
-					    const gchar *handle,
-					    gint handle_type,
-					    DBusGMethodInvocation *context)
-{
-    GError e = { TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
-        "No longer implemented" };
-
-    dbus_g_method_return_error (context, &e);
-}
-
-static void
-account_cancel_channel_request (McSvcAccountInterfaceCompat *self,
-				guint in_operation_id,
-				DBusGMethodInvocation *context)
-{
-    GError e = { TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
-        "No longer implemented" };
-
-    dbus_g_method_return_error (context, &e);
-}
-
 void
 account_compat_iface_init (McSvcAccountInterfaceCompatClass *iface,
-			   gpointer iface_data)
+                           gpointer iface_data)
 {
-#define IMPLEMENT(x) mc_svc_account_interface_compat_implement_##x (\
-    iface, account_##x)
-    IMPLEMENT(request_channel);
-    IMPLEMENT(request_channel_with_string_handle);
-    IMPLEMENT(cancel_channel_request);
-#undef IMPLEMENT
+    /* nothing to do */
 }
 
 /**
