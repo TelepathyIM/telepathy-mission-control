@@ -78,9 +78,6 @@ enum
     ACCOUNT_STATUS_CHANGED,
     ACCOUNT_PRESENCE_CHANGED,
     ERROR,
-    PRESENCE_STATUS_REQUESTED,
-    PRESENCE_STATUS_ACTUAL,
-    USED_CHANNELS_COUNT_CHANGED,
     STATUS_ACTUAL,
     LAST_SIGNAL
 };
@@ -215,8 +212,6 @@ _on_presence_requested (McdPresenceFrame * presence_frame,
 	mcd_controller_cancel_shutdown (MCD_CONTROLLER (obj));
     
     /* Emit the AccountStatusChanged signal */
-    g_signal_emit_by_name (G_OBJECT (obj),
-			   "presence-status-requested", presence);
 #ifndef NO_NEW_PRESENCE_SIGNALS
     g_signal_emit_by_name (G_OBJECT (obj),
 			   "presence-requested", presence, presence_message);
@@ -229,7 +224,6 @@ _on_presence_actual (McdPresenceFrame * presence_frame,
 		     gchar * presence_message, McdService * obj)
 {
     /* Emit the AccountStatusChanged signal */
-    g_signal_emit_by_name (G_OBJECT (obj), "presence-status-actual", presence);
 #ifndef NO_NEW_PRESENCE_SIGNALS
     g_signal_emit_by_name (G_OBJECT (obj), "presence-changed", presence, presence_message);
 #endif
@@ -277,52 +271,6 @@ _on_status_actual (McdPresenceFrame *presence_frame,
 }
 
 static void
-_on_dispatcher_channel_added (McdDispatcher *dispatcher,
-			      McdChannel *channel, McdService *obj)
-{
-    /* Nothing to do for now */
-}
-
-static void
-_on_dispatcher_channel_removed (McdDispatcher *dispatcher,
-				McdChannel *channel, McdService *obj)
-{
-    const gchar *chan_type;
-    GQuark chan_type_quark;
-    gint usage;
-    
-    chan_type = mcd_channel_get_channel_type (channel);
-    chan_type_quark = mcd_channel_get_channel_type_quark (channel);
-    usage = mcd_dispatcher_get_channel_type_usage (dispatcher,
-						   chan_type_quark);
-
-    /* Signal that the channel count has changed */
-    g_signal_emit_by_name (G_OBJECT (obj),
-			   "used-channels-count-changed",
-			   chan_type, usage);
-}
-
-static void
-_on_dispatcher_channel_dispatched (McdDispatcher *dispatcher,
-				   McdChannel *channel,
-				   McdService *obj)
-{
-    const gchar *chan_type;
-    GQuark chan_type_quark;
-    gint usage;
-    
-    chan_type = mcd_channel_get_channel_type (channel);
-    chan_type_quark = mcd_channel_get_channel_type_quark (channel);
-    usage = mcd_dispatcher_get_channel_type_usage (dispatcher,
-						   chan_type_quark);
-    
-    /* Signal that the channel count has changed */
-    g_signal_emit_by_name (G_OBJECT (obj),
-			   "used-channels-count-changed",
-			   chan_type, usage);
-}
-
-static void
 mcd_dispose (GObject * obj)
 {
     McdServicePrivate *priv;
@@ -354,20 +302,6 @@ mcd_dispose (GObject * obj)
 	g_object_unref (priv->presence_frame);
     }
 
-    if (priv->dispatcher)
-    {
-	g_signal_handlers_disconnect_by_func (priv->dispatcher,
-					      _on_dispatcher_channel_added,
-					      self);
-	g_signal_handlers_disconnect_by_func (priv->dispatcher,
-					      _on_dispatcher_channel_removed,
-					      self);
-	g_signal_handlers_disconnect_by_func (priv->dispatcher,
-					  _on_dispatcher_channel_dispatched,
-					  self);
-	g_object_unref (priv->dispatcher);
-    }
-
     if (self->main_loop)
     {
 	g_main_loop_quit (self->main_loop);
@@ -389,7 +323,6 @@ mcd_service_constructed (GObject *obj)
     DEBUG ("called");
     g_object_get (obj,
                   "presence-frame", &priv->presence_frame,
-                  "dispatcher", &priv->dispatcher,
 		  NULL);
 
     /* Setup presence signals */
@@ -405,12 +338,6 @@ mcd_service_constructed (GObject *obj)
 		      G_CALLBACK (_on_status_actual), obj);
 
     /* Setup dispatcher signals */
-    g_signal_connect (priv->dispatcher, "channel-added",
-		      G_CALLBACK (_on_dispatcher_channel_added), obj);
-    g_signal_connect (priv->dispatcher, "channel-removed",
-		      G_CALLBACK (_on_dispatcher_channel_removed), obj);
-    g_signal_connect (priv->dispatcher, "dispatched",
-		      G_CALLBACK (_on_dispatcher_channel_dispatched), obj);
 
     mcd_service_obtain_bus_name (MCD_OBJECT (obj));
     mcd_debug_print_tree (obj);
@@ -472,12 +399,6 @@ mcd_service_class_init (McdServiceClass * self)
 		      NULL, NULL, _mcd_marshal_VOID__UINT_STRING_UINT, G_TYPE_NONE,
 		      3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_UINT);
     /* PresenceStatusRequested signal */
-    g_signal_new ("presence-status-requested",
-		  G_OBJECT_CLASS_TYPE (self),
-		  G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		  0,
-		  NULL, NULL, g_cclosure_marshal_VOID__UINT,
-		  G_TYPE_NONE, 1, G_TYPE_UINT);
 #ifndef NO_NEW_PRESENCE_SIGNALS
     /* PresenceRequested signal */
     g_signal_new ("presence-requested",
@@ -487,13 +408,6 @@ mcd_service_class_init (McdServiceClass * self)
 		  NULL, NULL, _mcd_marshal_VOID__UINT_STRING,
 		  G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_STRING);
 #endif
-    /* PresenceStatusActual signal */
-    g_signal_new ("presence-status-actual",
-		  G_OBJECT_CLASS_TYPE (self),
-		  G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		  0,
-		  NULL, NULL, g_cclosure_marshal_VOID__UINT,
-		  G_TYPE_NONE, 1, G_TYPE_UINT);
 #ifndef NO_NEW_PRESENCE_SIGNALS
     /* PresenceChanged signal */
     g_signal_new ("presence-changed",
@@ -503,14 +417,6 @@ mcd_service_class_init (McdServiceClass * self)
 		  NULL, NULL, _mcd_marshal_VOID__UINT_STRING,
 		  G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_STRING);
 #endif
-    /* UsedChannelsCountChanged signal */
-    signals[USED_CHANNELS_COUNT_CHANGED] =
-	g_signal_new ("used-channels-count-changed",
-		      G_OBJECT_CLASS_TYPE (self),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL, _mcd_marshal_VOID__STRING_UINT,
-		      G_TYPE_NONE, 2, G_TYPE_STRING, G_TYPE_UINT);
     /* StatusActual signal */
     signals[STATUS_ACTUAL] =
 	g_signal_new ("status-actual",
