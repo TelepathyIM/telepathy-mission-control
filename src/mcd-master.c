@@ -774,53 +774,6 @@ mcd_master_set_offline_on_idle (McdMaster *master, gboolean offline_on_idle)
     priv->offline_on_idle = offline_on_idle;
 }
 
-void
-mcd_master_request_presence (McdMaster * master,
-			     TpConnectionPresenceType presence,
-			     const gchar * presence_message)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-
-    mcd_presence_frame_request_presence (priv->presence_frame, presence,
-					 presence_message);
-    if (presence >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
-	mcd_master_set_offline_on_idle (master, FALSE);
-}
-
-TpConnectionPresenceType
-mcd_master_get_actual_presence (McdMaster * master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-
-    return mcd_presence_frame_get_actual_presence (priv->presence_frame);
-}
-
-gchar *
-mcd_master_get_actual_presence_message (McdMaster * master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-
-    return g_strdup (
-	mcd_presence_frame_get_actual_presence_message (priv->presence_frame));
-}
-
-TpConnectionPresenceType
-mcd_master_get_requested_presence (McdMaster * master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-
-    return mcd_presence_frame_get_requested_presence (priv->presence_frame);
-}
-
-gchar *
-mcd_master_get_requested_presence_message (McdMaster * master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-
-    return g_strdup (mcd_presence_frame_get_requested_presence_message (
-						    priv->presence_frame));
-}
-
 gboolean
 mcd_master_set_default_presence (McdMaster * master, const gchar *client_id)
 {
@@ -950,21 +903,7 @@ mcd_master_get_account_connection_details (McdMaster * master,
 						 servname, objpath);
 }
 
-gboolean
-mcd_master_get_used_channels_count (McdMaster *master, guint chan_type,
-				    guint * ret, GError ** error)
-{
-    McdMasterPrivate *priv;
-    
-    g_return_val_if_fail (ret != NULL, FALSE);
-    
-    priv = MCD_MASTER_PRIV (master);
-    *ret = mcd_dispatcher_get_channel_type_usage (priv->dispatcher,
-						  chan_type);
-    return TRUE;
-}
-
-McdConnection *
+static McdConnection *
 mcd_master_get_connection (McdMaster *master, const gchar *object_path,
 			   GError **error)
 {
@@ -1060,34 +999,6 @@ mcd_master_add_connection_parameter (McdMaster *master, const gchar *name,
     g_value_init (val, G_VALUE_TYPE (value));
     g_value_copy (value, val);
     g_hash_table_replace (priv->extra_parameters, g_strdup (name), val);
-}
-
-static void
-copy_parameter (gpointer key, gpointer value, gpointer userdata)
-{
-    GHashTable *dest = (GHashTable *)userdata;
-
-    g_hash_table_insert (dest, key, value);
-}
-
-/**
- * mcd_master_get_connection_parameters:
- * @master: the #McdMaster.
- *
- * Get the global connections parameters.
- *
- * Returns: the #GHashTable of the parameters. It has to be destroyed when no
- * longer needed.
- */
-GHashTable *
-mcd_master_get_connection_parameters (McdMaster *master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    GHashTable *ret;
-    
-    ret = g_hash_table_new (g_str_hash, g_str_equal);
-    g_hash_table_foreach (priv->extra_parameters, copy_parameter, ret);
-    return ret;
 }
 
 /**
