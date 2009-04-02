@@ -77,7 +77,6 @@ enum _McdPresenceFrameSignalType
     PRESENCE_REQUESTED,
     
     /* Account specific changes */
-    PRESENCE_CHANGED,
     STATUS_CHANGED,
     
     /* Accumulated changes */
@@ -251,15 +250,6 @@ mcd_presence_frame_class_init (McdPresenceFrameClass * klass)
 		      NULL, NULL,
 		      _mcd_marshal_VOID__INT_STRING,
 		      G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_STRING);
-    mcd_presence_frame_signals[PRESENCE_CHANGED] =
-	g_signal_new ("presence-changed",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_FIRST,
-		      G_STRUCT_OFFSET (McdPresenceFrameClass,
-				       presence_set_signal),
-		      NULL, NULL,
-		      _mcd_marshal_VOID__OBJECT_INT_STRING,
-		      G_TYPE_NONE, 3, MCD_TYPE_ACCOUNT, G_TYPE_INT, G_TYPE_STRING);
     mcd_presence_frame_signals[STATUS_CHANGED] =
 	g_signal_new ("status-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
@@ -511,9 +501,6 @@ on_account_current_presence_changed (McdAccount *account,
 				     const gchar *status, const gchar *message,
 				     McdPresenceFrame *presence_frame)
 {
-    g_signal_emit_by_name (presence_frame, "presence-changed", account,
-			   presence, message);
-
     _mcd_presence_frame_update_actual_presence (presence_frame,
 						message);
 }
