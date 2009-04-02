@@ -40,6 +40,7 @@
 #include "mcd-account-manager.h"
 #include "mcd-misc.h"
 #include "_gen/interfaces.h"
+#include "_gen/svc-request.h"
 
 static void
 online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
@@ -128,6 +129,10 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
                    _mcd_channel_get_request_path (channel), error->message);
 
         err_string = _mcd_build_error_string (error);
+        /* FIXME: ideally the McdChannel should emit this signal itself, and
+         * the Account.Interface.ChannelRequests should catch and re-emit it */
+        mc_svc_channel_request_emit_failed (channel, err_string,
+                                            error->message);
         mc_svc_account_interface_channelrequests_emit_failed (account,
             _mcd_channel_get_request_path (channel),
             err_string, error->message);
@@ -137,6 +142,9 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
     }
     else if (status == MCD_CHANNEL_STATUS_DISPATCHED)
     {
+        /* FIXME: ideally the McdChannel should emit this signal itself, and
+         * the Account.Interface.ChannelRequests should catch and re-emit it */
+        mc_svc_channel_request_emit_succeeded (channel);
         mc_svc_account_interface_channelrequests_emit_succeeded (account,
             _mcd_channel_get_request_path (channel));
 
