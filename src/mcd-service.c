@@ -75,7 +75,6 @@ typedef enum {
 
 enum
 {
-    ACCOUNT_STATUS_CHANGED,
     ACCOUNT_PRESENCE_CHANGED,
     ERROR,
     STATUS_ACTUAL,
@@ -147,11 +146,6 @@ _on_account_status_changed (McdPresenceFrame * presence_frame,
 	presence < TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
 	presence = TP_CONNECTION_PRESENCE_TYPE_AVAILABLE;
 
-    g_signal_emit_by_name (G_OBJECT (obj),
-			   "account-status-changed", connection_status,
-			   presence,
-			   connection_reason,
-			   mcd_account_get_unique_name (account));
 #ifndef NO_NEW_PRESENCE_SIGNALS
     g_signal_emit_by_name (G_OBJECT (obj),
 			   "account-presence-changed", connection_status,
@@ -178,13 +172,6 @@ _on_account_presence_changed (McdPresenceFrame * presence_frame,
 	presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
 	return;
 
-    g_signal_emit_by_name (G_OBJECT (obj),
-			   "account-status-changed",
-			   mcd_presence_frame_get_account_status
-			   (presence_frame, account), presence,
-			   mcd_presence_frame_get_account_status_reason
-			   (presence_frame, account),
-			   mcd_account_get_unique_name (account));
 #ifndef NO_NEW_PRESENCE_SIGNALS
     g_signal_emit_by_name (G_OBJECT (obj),
 			   "account-presence-changed",
@@ -370,15 +357,6 @@ mcd_service_class_init (McdServiceClass * self)
 
     g_type_class_add_private (gobject_class, sizeof (McdServicePrivate));
 
-    /* AccountStatusChanged signal */
-    signals[ACCOUNT_STATUS_CHANGED] =
-	g_signal_new ("account-status-changed",
-		      G_OBJECT_CLASS_TYPE (self),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL, _mcd_marshal_VOID__UINT_UINT_UINT_STRING,
-		      G_TYPE_NONE, 4, G_TYPE_UINT, G_TYPE_UINT,
-		      G_TYPE_UINT, G_TYPE_STRING);
 #ifndef NO_NEW_PRESENCE_SIGNALS
     /* AccountStatusChanged signal */
     signals[ACCOUNT_PRESENCE_CHANGED] =
