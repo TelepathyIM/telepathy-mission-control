@@ -4,7 +4,6 @@
 
 <tp:copyright>Copyright (C) 2008 Nokia Corporation</tp:copyright>
 
-<xi:include href="nmc4.xml"/>
 <xi:include href="nmc5.xml"/>
 
 <tp:generic-types>
