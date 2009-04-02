@@ -116,74 +116,73 @@ typedef struct _McdServicePrivate
     g_assert ((err) != NULL); \
     g_warning ("%s: Returning error '%s'", G_STRFUNC, (err)->message);
 
+/* MC doesn't actually have an equivalent of NotImplemented. Sad face. */
+#define MC_NOT_IMPLEMENTED_SYNC(error) \
+    G_STMT_START { \
+        g_set_error (error, MC_ERROR, MC_NO_ACCOUNTS_ERROR, \
+                     "No longer implemented"); \
+        return FALSE; \
+    } G_STMT_END
+#define MC_NOT_IMPLEMENTED_ASYNC(context) \
+    G_STMT_START { \
+        GError e = { MC_ERROR, MC_NO_ACCOUNTS_ERROR, \
+            "No longer implemented" }; \
+        \
+        dbus_g_method_return_error (context, &e); \
+    } G_STMT_END
+
 /* Dbus interface implementation */
 static gboolean
 mcd_service_set_presence (GObject * obj, gint presence, gchar * message,
 			  GError ** error)
 {
-    if (presence >= LAST_MC_PRESENCE)
-    {
-	g_set_error (error, MC_ERROR, MC_PRESENCE_FAILURE_ERROR,
-		     "Invalid presence");
-	return FALSE;
-    }
-
-    mcd_master_request_presence (MCD_MASTER (obj), presence, message);
-    return TRUE;
+    MC_NOT_IMPLEMENTED_SYNC (error);
 }
 
 static gboolean
 mcd_service_get_presence (GObject *obj, gint *ret, GError **error)
 {
-    *ret = mcd_master_get_requested_presence (MCD_MASTER (obj));
-    return TRUE;
+    MC_NOT_IMPLEMENTED_SYNC (error);
 }
 
 static gboolean
 mcd_service_get_presence_message (GObject *obj, gchar **ret, GError **error)
 {
-    *ret = mcd_master_get_requested_presence_message (MCD_MASTER (obj));
-    return TRUE;
+    MC_NOT_IMPLEMENTED_SYNC (error);
 }
 
 static gboolean
 mcd_service_get_presence_actual (GObject *obj, gint *ret, GError **error)
 {
-    *ret = mcd_master_get_actual_presence (MCD_MASTER (obj));
-    return TRUE;
+    MC_NOT_IMPLEMENTED_SYNC (error);
 }
 
 static gboolean
 mcd_service_get_presence_message_actual (GObject *obj, gchar **ret,
 					 GError **error)
 {
-    *ret = mcd_master_get_actual_presence_message (MCD_MASTER (obj));
-    return TRUE;
+    MC_NOT_IMPLEMENTED_SYNC (error);
 }
 
 static void
 mcd_service_connect_all_with_default_presence (GObject * obj,
 					       DBusGMethodInvocation *mi)
 {
-    gchar *sender = dbus_g_method_get_sender (mi);
-    mcd_master_set_default_presence (MCD_MASTER (obj), sender);
-    g_free (sender);
-    dbus_g_method_return (mi);
+    MC_NOT_IMPLEMENTED_ASYNC (mi);
 }
 
 static gboolean
 mcd_service_get_connection_status (GObject * obj, gchar * account_name,
 				   guint * ret, GError ** error)
 {
-    *ret = mcd_master_get_account_status (MCD_MASTER (obj), account_name);
-    return TRUE;
+    MC_NOT_IMPLEMENTED_SYNC (error);
 }
 
 static gboolean
 mcd_service_get_online_connections (GObject * obj,
 				    gchar *** ret, GError ** error)
 {
-    return mcd_master_get_online_connection_names (MCD_MASTER (obj), ret);
+    MC_NOT_IMPLEMENTED_SYNC (error);
 }
 
 static gboolean
@@ -191,11 +190,7 @@ mcd_service_get_connection (GObject * obj, const gchar * account_name,
 			    gchar ** ret_servname,
 			    gchar ** ret_objpath, GError ** error)
 {
-    return mcd_master_get_account_connection_details (MCD_MASTER (obj),
-						      account_name,
-						      ret_servname,
-						      ret_objpath,
-						      error);
+    MC_NOT_IMPLEMENTED_SYNC (error);
 }
 
 static void
@@ -207,24 +202,7 @@ mcd_service_request_channel (GObject * obj,
 			     guint serial,
 			     DBusGMethodInvocation *mi)
 {
-    struct mcd_channel_request req;
-    GError *err = NULL;
-
-    memset (&req, 0, sizeof (req));
-    req.account_name = account_name;
-    req.channel_type = type;
-    req.channel_handle = handle;
-    req.channel_handle_type = handle_type;
-    req.requestor_serial = serial;
-    req.requestor_client_id = dbus_g_method_get_sender (mi);
-    if (!mcd_master_request_channel (MCD_MASTER (obj), &req, &err))
-    {
-	g_free ((gchar *)req.requestor_client_id);
-	MC_EMIT_ERROR_ASYNC (mi, err);
-	return;
-    }
-    g_free ((gchar *)req.requestor_client_id);
-    dbus_g_method_return (mi);
+    MC_NOT_IMPLEMENTED_ASYNC (mi);
 }
 
 static void
@@ -236,63 +214,21 @@ mcd_service_request_channel_with_string_handle (GObject * obj,
 						guint serial,
 					       	DBusGMethodInvocation *mi)
 {
-    struct mcd_channel_request req;
-    GError *err = NULL;
-
-    memset (&req, 0, sizeof (req));
-    req.account_name = account_name;
-    req.channel_type = type;
-    req.channel_handle_string = handle;
-    req.channel_handle_type = handle_type;
-    req.requestor_serial = serial;
-    req.requestor_client_id = dbus_g_method_get_sender (mi);
-    mcd_controller_cancel_shutdown (MCD_CONTROLLER (obj));
-    if (!mcd_master_request_channel (MCD_MASTER (obj), &req, &err))
-    {
-	g_free ((gchar *)req.requestor_client_id);
-	MC_EMIT_ERROR_ASYNC (mi, err);
-	return;
-    }
-    g_free ((gchar *)req.requestor_client_id);
-    dbus_g_method_return (mi);
+    MC_NOT_IMPLEMENTED_ASYNC (mi);
 }
 
 static void
 mcd_service_cancel_channel_request (GObject * obj, guint operation_id,
 				    DBusGMethodInvocation *mi)
 {
-    GError *err = NULL;
-    gchar *sender = dbus_g_method_get_sender (mi);
-    DEBUG ("%u", operation_id);
-    if (!mcd_master_cancel_channel_request (MCD_MASTER (obj), operation_id,
-					    sender, &err))
-    {
-	g_warning ("%s: channel not found", G_STRFUNC);
-	g_free (sender);
-	dbus_g_method_return (mi);
-	return;
-    }
-    g_free (sender);
-    if (err)
-    {
-	MC_EMIT_ERROR_ASYNC (mi, err);
-	return;
-    }
-    dbus_g_method_return (mi);
+    MC_NOT_IMPLEMENTED_ASYNC (mi);
 }
 
 static gboolean
 mcd_service_get_used_channels_count (GObject * obj, const gchar *chan_type,
 				     guint * ret, GError ** error)
 {
-    if (!mcd_master_get_used_channels_count (MCD_MASTER (obj),
-					     g_quark_from_string (chan_type),
-					     ret, error))
-    {
-	MC_SHOW_ERROR (*error);
-	return FALSE;
-    }
-    return TRUE;
+    MC_NOT_IMPLEMENTED_SYNC (error);
 }
 
 static gboolean
@@ -301,17 +237,7 @@ mcd_service_get_account_for_connection(GObject *obj,
 				       gchar **ret_unique_name,
 				       GError **error)
 {
-    DEBUG ("%s: object_path = %s", __FUNCTION__, object_path);
-    
-    if (!mcd_master_get_account_for_connection (MCD_MASTER (obj),
-						object_path,
-						ret_unique_name,
-						error))
-    {
-	MC_SHOW_ERROR (*error);
-	return FALSE;
-    }
-    return TRUE;
+    MC_NOT_IMPLEMENTED_SYNC (error);
 }
 
 static gboolean
@@ -322,51 +248,7 @@ mcd_service_get_current_status(GObject *obj,
                                GPtrArray **accounts,
                                GError **error)
 {
-    McdMaster *as_master = MCD_MASTER (obj);
-    McdServicePrivate *priv = MCD_OBJECT_PRIV (obj);
-    GList *account_list, *account_node;
-    GType type;
-
-    *status_out = priv->last_status;
-    *presence_out = mcd_master_get_actual_presence (as_master);
-    *requested_presence_out = mcd_master_get_requested_presence (as_master);
-    *accounts = g_ptr_array_new ();
-
-    type = dbus_g_type_get_struct ("GValueArray", G_TYPE_STRING, G_TYPE_UINT,
-				   G_TYPE_UINT, G_TYPE_UINT, G_TYPE_INVALID);
-    account_list = mcd_presence_frame_get_accounts (priv->presence_frame);
-    for (account_node = account_list; account_node != NULL;
-	 account_node = g_list_next (account_node))
-    {
-	McdAccount *account = account_node->data;
-	GValue account_data = { 0, };
-	const gchar *name, *p_status, *p_message;
-	TpConnectionStatus status;
-	TpConnectionStatusReason reason;
-	TpConnectionPresenceType presence;
-
-	name = mcd_account_get_unique_name (account);
-	mcd_account_get_current_presence (account, &presence,
-					  &p_status, &p_message);
-	status = mcd_presence_frame_get_account_status (priv->presence_frame,
-						       	account);
-	reason =
-	    mcd_presence_frame_get_account_status_reason (priv->presence_frame,
-							  account);
-
-	g_value_init (&account_data, type);
-	g_value_take_boxed (&account_data,
-			    dbus_g_type_specialized_construct (type));
-	dbus_g_type_struct_set (&account_data,
-				0, name,
-				1, status,
-				2, presence,
-				3, reason,
-				G_MAXUINT);
-
-	g_ptr_array_add (*accounts, g_value_get_boxed (&account_data));
-    }
-    return TRUE;
+    MC_NOT_IMPLEMENTED_SYNC (error);
 }
 
 static void
@@ -376,98 +258,7 @@ mcd_service_remote_avatar_changed(GObject *obj,
 				  const gchar *token,
 				  DBusGMethodInvocation *mi)
 {
-    McdConnection *connection;
-    GError *error = NULL;
-
-    DEBUG ("%s: object_path = %s, id = %u, token = %s", __FUNCTION__,
-           object_path, contact_id, token);
- 
-    connection = mcd_master_get_connection (MCD_MASTER (obj),
-					    object_path, &error);
-    if (!connection)
-    {
-	MC_EMIT_ERROR_ASYNC (mi, error);
-	return;
-    }
-    /* let the D-Bus call return immediately, there's no need for the caller to
-     * be blocked while we get the avatar */
-    dbus_g_method_return (mi);
-
-    mcd_connection_remote_avatar_changed (connection, contact_id, token);
-}
-
-static void
-_on_filter_process (DBusGProxy *proxy, guint counter, gboolean process)
-{
-    McdDispatcherContext *ctx;
-    GHashTable *ctx_table = g_object_get_data (G_OBJECT (proxy), "table");
-
-    ctx = g_hash_table_lookup (ctx_table, GUINT_TO_POINTER (counter));
-    if (ctx)
-    {
-        DEBUG ("%s: Process channel %d", __FUNCTION__, counter);
-        g_hash_table_remove (ctx_table, GUINT_TO_POINTER (counter));
-        mcd_dispatcher_context_process (ctx, process);
-    }
-}
-
-static void
-_on_filter_new_channel (McdDispatcherContext *ctx, DBusGProxy *proxy)
-{
-    TpConnection *tp_conn;
-    const McdConnection *connection = mcd_dispatcher_context_get_connection (ctx);
-    McdChannel *channel = mcd_dispatcher_context_get_channel (ctx); 
-    static guint counter = 0;
-    GHashTable *ctx_table = g_object_get_data (G_OBJECT (proxy), "table");
-
-    g_hash_table_insert (ctx_table, GUINT_TO_POINTER (++counter), ctx);
-
-    g_object_get (G_OBJECT (connection), "tp-connection", &tp_conn, NULL);
-
-    DEBUG ("%s: Filtering new channel", __FUNCTION__);
-    dbus_g_proxy_call_no_reply (proxy, "FilterChannel",
-				G_TYPE_STRING, TP_PROXY (tp_conn)->bus_name,
-				DBUS_TYPE_G_OBJECT_PATH, TP_PROXY (tp_conn)->object_path,
-				G_TYPE_STRING, mcd_channel_get_channel_type (channel),
-				DBUS_TYPE_G_OBJECT_PATH, mcd_channel_get_object_path (channel),
-				G_TYPE_UINT, mcd_channel_get_handle_type (channel),
-				G_TYPE_UINT, mcd_channel_get_handle (channel),
-				G_TYPE_UINT, counter,
-				G_TYPE_INVALID);
-}
-
-static gboolean
-_ctx_table_remove_foreach (guint counter,
-			   McdDispatcherContext *ctx,
-			   gpointer user_data)
-{
-    mcd_dispatcher_context_process (ctx, TRUE);
-    return TRUE;
-}
-
-static void
-_on_filter_proxy_destroy (DBusGProxy *proxy)
-{
-    McdDispatcher *dispatcher;
-    GHashTable *ctx_table;
-    guint quark;
-    guint flags;
-
-    dispatcher = g_object_get_data (G_OBJECT (proxy), "dispatcher");
-    ctx_table = g_object_get_data (G_OBJECT (proxy), "table");
-    quark = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (proxy), "quark"));
-    flags = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (proxy), "flags"));
-
-    g_hash_table_foreach_remove (ctx_table,
-    				 (GHRFunc) _ctx_table_remove_foreach,
-    				 NULL);
-
-    DEBUG ("Unregistering filter");
-    mcd_dispatcher_unregister_filter (dispatcher,
-				      (McdFilterFunc) _on_filter_new_channel,
-				      quark, flags);
-
-    g_object_unref (proxy);
+    MC_NOT_IMPLEMENTED_ASYNC (mi);
 }
 
 static gboolean
@@ -479,54 +270,7 @@ mcd_service_register_filter(GObject *obj,
 			    guint flags,
 			    GError **error)
 {
-    McdServicePrivate *priv = MCD_OBJECT_PRIV (obj);
-    DBusGProxy *proxy;
-    GHashTable *ctx_table;
-    static gboolean initialized = FALSE;
-    guint quark = g_quark_from_string (channel_type);
-
-    DEBUG ("Registering new filter");
-
-    if (!initialized)
-    {
-        dbus_g_object_register_marshaller (_mcd_marshal_VOID__UINT_BOOLEAN,
-					   G_TYPE_NONE,
-					   G_TYPE_UINT,
-					   G_TYPE_BOOLEAN,
-					   G_TYPE_INVALID);
-        initialized = TRUE;
-    }
-
-    proxy = dbus_g_proxy_new_for_name (tp_get_bus (),
-    				       bus_name,
-    				       object_path,
-    				       "org.freedesktop.Telepathy.MissionControl.Filter");
-
-    ctx_table = g_hash_table_new (g_direct_hash, g_direct_equal);
-    g_object_set_data_full (G_OBJECT (proxy), "table", ctx_table,
-    			    (GDestroyNotify) g_hash_table_destroy);
-    g_object_set_data (G_OBJECT (proxy), "dispatcher", priv->dispatcher);
-    g_object_set_data (G_OBJECT (proxy), "flags", GUINT_TO_POINTER (flags));
-    g_object_set_data (G_OBJECT (proxy), "quark", GUINT_TO_POINTER (quark));
-
-    dbus_g_proxy_add_signal (proxy, "Process",
-			     G_TYPE_UINT,
-			     G_TYPE_BOOLEAN,
-			     G_TYPE_INVALID);
-    dbus_g_proxy_connect_signal (proxy, "Process",
-    				 G_CALLBACK (_on_filter_process),
-    				 NULL, NULL);
-    g_signal_connect (proxy, "destroy",
-    		      G_CALLBACK (_on_filter_proxy_destroy),
-    		      NULL);
-
-    mcd_dispatcher_register_filter (priv->dispatcher,
-    				    (McdFilterFunc) _on_filter_new_channel,
-    				    quark,
-    				    flags, priority,
-    				    proxy);
-
-    return TRUE;
+    MC_NOT_IMPLEMENTED_SYNC (error);
 }
 
 #include "mcd-service-gen.h"
