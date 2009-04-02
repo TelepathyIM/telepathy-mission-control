@@ -76,7 +76,6 @@ typedef enum {
 enum
 {
     ACCOUNT_PRESENCE_CHANGED,
-    ERROR,
     STATUS_ACTUAL,
     LAST_SIGNAL
 };
@@ -368,14 +367,6 @@ mcd_service_class_init (McdServiceClass * self)
 		      G_TYPE_NONE, 5, G_TYPE_UINT, G_TYPE_UINT,
 		      G_TYPE_STRING, G_TYPE_UINT, G_TYPE_STRING);
 #endif
-    /* libmc request_error signal */
-    signals[ERROR] =
-	g_signal_new ("mcd-error",
-		      G_OBJECT_CLASS_TYPE (self),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL, _mcd_marshal_VOID__UINT_STRING_UINT, G_TYPE_NONE,
-		      3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_UINT);
     /* PresenceStatusRequested signal */
 #ifndef NO_NEW_PRESENCE_SIGNALS
     /* PresenceRequested signal */
