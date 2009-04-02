@@ -76,7 +76,6 @@ typedef enum {
 enum
 {
     ACCOUNT_PRESENCE_CHANGED,
-    STATUS_ACTUAL,
     LAST_SIGNAL
 };
 
@@ -250,8 +249,6 @@ _on_status_actual (McdPresenceFrame *presence_frame,
 
     if (status != priv->last_status)
     {
-	g_signal_emit (service, signals[STATUS_ACTUAL], 0, status,
-		       req_presence);
 	priv->last_status = status;
     }
 }
@@ -320,8 +317,6 @@ mcd_service_constructed (GObject *obj)
 		      G_CALLBACK (_on_presence_requested), obj);
     g_signal_connect (priv->presence_frame, "presence-actual",
 		      G_CALLBACK (_on_presence_actual), obj);
-    g_signal_connect (priv->presence_frame, "status-actual",
-		      G_CALLBACK (_on_status_actual), obj);
 
     /* Setup dispatcher signals */
 
@@ -386,14 +381,6 @@ mcd_service_class_init (McdServiceClass * self)
 		  NULL, NULL, _mcd_marshal_VOID__UINT_STRING,
 		  G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_STRING);
 #endif
-    /* StatusActual signal */
-    signals[STATUS_ACTUAL] =
-	g_signal_new ("status-actual",
-		      G_OBJECT_CLASS_TYPE (self),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL, _mcd_marshal_VOID__UINT_UINT,
-		      G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_UINT);
 }
 
 McdService *
