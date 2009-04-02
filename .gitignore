@@ -3,7 +3,6 @@
 *~
 *.swp
 *-gen.h
-*-gen.xml
 *-signals-marshal.[hc]
 *-types.[hc]
 *.stamp
