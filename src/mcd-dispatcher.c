@@ -2658,7 +2658,7 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
 
     client_ready_quark = g_quark_from_static_string ("mcd_client_ready");
 
-    klass->dbus_properties_class.real.interfaces = prop_interfaces,
+    klass->dbus_properties_class.interfaces = prop_interfaces,
     tp_dbus_properties_mixin_class_init (object_class,
         G_STRUCT_OFFSET (McdDispatcherClass, dbus_properties_class));
 }
