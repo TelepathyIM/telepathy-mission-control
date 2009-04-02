@@ -44,8 +44,6 @@
 
 #define COMPAT_REQ_DATA "compat_req"
 
-static guint last_operation_id = 1;
-
 typedef struct
 {
     guint requestor_serial;
@@ -162,25 +160,10 @@ account_request_channel (McSvcAccountInterfaceCompat *self,
 			 gint handle_type,
 			 DBusGMethodInvocation *context)
 {
-    struct mcd_channel_request req;
-    GError *error = NULL;
+    GError e = { TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
+        "No longer implemented" };
 
-    memset (&req, 0, sizeof (req));
-    req.channel_type = type;
-    req.channel_handle = handle;
-    req.channel_handle_type = handle_type;
-    req.requestor_serial = last_operation_id++;
-    req.requestor_client_id = dbus_g_method_get_sender (context);
-    _mcd_account_compat_request_channel_nmc4 (MCD_ACCOUNT (self),
-                                              &req, &error);
-    g_free (req.requestor_client_id);
-    if (error)
-    {
-	dbus_g_method_return_error (context, error);
-	g_error_free (error);
-	return;
-    }
-    mc_svc_account_interface_compat_return_from_request_channel (context, req.requestor_serial);
+    dbus_g_method_return_error (context, &e);
 }
 
 static void
@@ -190,25 +173,10 @@ account_request_channel_with_string_handle (McSvcAccountInterfaceCompat *self,
 					    gint handle_type,
 					    DBusGMethodInvocation *context)
 {
-    struct mcd_channel_request req;
-    GError *error = NULL;
+    GError e = { TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
+        "No longer implemented" };
 
-    memset (&req, 0, sizeof (req));
-    req.channel_type = type;
-    req.channel_handle_string = handle;
-    req.channel_handle_type = handle_type;
-    req.requestor_serial = last_operation_id++;
-    req.requestor_client_id = dbus_g_method_get_sender (context);
-    _mcd_account_compat_request_channel_nmc4 (MCD_ACCOUNT (self),
-                                              &req, &error);
-    g_free (req.requestor_client_id);
-    if (error)
-    {
-	dbus_g_method_return_error (context, error);
-	g_error_free (error);
-	return;
-    }
-    mc_svc_account_interface_compat_return_from_request_channel_with_string_handle (context, req.requestor_serial);
+    dbus_g_method_return_error (context, &e);
 }
 
 static void
@@ -216,12 +184,10 @@ account_cancel_channel_request (McSvcAccountInterfaceCompat *self,
 				guint in_operation_id,
 				DBusGMethodInvocation *context)
 {
-    GError *error;
+    GError e = { TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
+        "No longer implemented" };
 
-    error = g_error_new (TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
-			 "%s is currently just a stub", G_STRFUNC);
-    dbus_g_method_return_error (context, error);
-    g_error_free (error);
+    dbus_g_method_return_error (context, &e);
 }
 
 void
