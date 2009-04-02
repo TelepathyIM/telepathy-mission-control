@@ -436,23 +436,6 @@ _mcd_presence_frame_update_actual_presence (McdPresenceFrame * presence_frame,
     DEBUG ("presence actual: %d", pi.presence);
 }
 
-/* TODO: remove this useless func */
-TpConnectionStatus
-mcd_presence_frame_get_account_status (McdPresenceFrame * presence_frame,
-				       McdAccount *account)
-{
-    return mcd_account_get_connection_status (account);
-}
-
-/* TODO: remove this useless func */
-TpConnectionStatusReason
-mcd_presence_frame_get_account_status_reason (McdPresenceFrame *
-					      presence_frame,
-					      McdAccount * account)
-{
-    return mcd_account_get_connection_status_reason (account);
-}
-
 static void
 on_account_current_presence_changed (McdAccount *account,
 				     TpConnectionPresenceType presence,

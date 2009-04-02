@@ -92,11 +92,6 @@ TpConnectionPresenceType mcd_presence_frame_get_actual_presence
 const gchar *mcd_presence_frame_get_actual_presence_message
     (McdPresenceFrame * presence_frame);
 
-TpConnectionStatus mcd_presence_frame_get_account_status
-    (McdPresenceFrame * presence_frame, McdAccount * account);
-TpConnectionStatusReason mcd_presence_frame_get_account_status_reason
-    (McdPresenceFrame * presence_frame, McdAccount * account);
-
 gboolean mcd_presence_frame_is_stable (McdPresenceFrame *presence_frame);
 
 void mcd_presence_frame_set_account_manager (McdPresenceFrame *presence_frame,
