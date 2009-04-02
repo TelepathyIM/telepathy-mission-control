@@ -126,12 +126,6 @@ _on_presence_requested (McdPresenceFrame * presence_frame,
     else
 	/* If there is a presence request, make sure shutdown is canceled */
 	mcd_controller_cancel_shutdown (MCD_CONTROLLER (obj));
-    
-    /* Emit the AccountStatusChanged signal */
-#ifndef NO_NEW_PRESENCE_SIGNALS
-    g_signal_emit_by_name (G_OBJECT (obj),
-			   "presence-requested", presence, presence_message);
-#endif
 }
 
 static void
@@ -272,15 +266,6 @@ mcd_service_class_init (McdServiceClass * self)
 
     g_type_class_add_private (gobject_class, sizeof (McdServicePrivate));
 
-#ifndef NO_NEW_PRESENCE_SIGNALS
-    /* PresenceRequested signal */
-    g_signal_new ("presence-requested",
-		  G_OBJECT_CLASS_TYPE (self),
-		  G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		  0,
-		  NULL, NULL, _mcd_marshal_VOID__UINT_STRING,
-		  G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_STRING);
-#endif
 #ifndef NO_NEW_PRESENCE_SIGNALS
     /* PresenceChanged signal */
     g_signal_new ("presence-changed",
