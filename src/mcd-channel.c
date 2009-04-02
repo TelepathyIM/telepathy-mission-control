@@ -38,15 +38,23 @@
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/dbus.h>
+#include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
 #include "mcd-channel.h"
 #include "mcd-enum-types.h"
 #include "_gen/gtypes.h"
+#include "_gen/interfaces.h"
+#include "_gen/svc-request.h"
 
 #define MCD_CHANNEL_PRIV(channel) (MCD_CHANNEL (channel)->priv)
 
-G_DEFINE_TYPE (McdChannel, mcd_channel, MCD_TYPE_MISSION);
+static void request_iface_init (gpointer, gpointer);
+
+G_DEFINE_TYPE_WITH_CODE (McdChannel, mcd_channel, MCD_TYPE_MISSION,
+    G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_REQUEST, request_iface_init);
+    G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
+                           tp_dbus_properties_mixin_iface_init))
 
 typedef struct _McdChannelRequestData McdChannelRequestData;
 
@@ -92,6 +100,9 @@ enum _McdChannelPropertyType
 {
     PROP_TP_CHANNEL = 1,
     PROP_OUTGOING,
+    PROP_ACCOUNT_PATH,
+    PROP_REQUESTS,
+    PROP_USER_ACTION_TIME,
 };
 
 #define DEPRECATED_PROPERTY_WARNING \
@@ -332,9 +343,26 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
     case PROP_TP_CHANNEL:
 	g_value_set_object (val, priv->tp_chan);
 	break;
+
     case PROP_OUTGOING:
 	g_value_set_boolean (val, priv->outgoing);
 	break;
+
+    case PROP_ACCOUNT_PATH:
+        /* FIXME: stub */
+        g_value_set_static_boxed (val, "/");
+        break;
+
+    case PROP_USER_ACTION_TIME:
+        /* FIXME: stub */
+        g_value_set_int64 (val, 0);
+        break;
+
+    case PROP_REQUESTS:
+        /* FIXME: stub */
+        g_value_take_boxed (val, g_ptr_array_sized_new (0));
+        break;
+
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
@@ -423,6 +451,20 @@ mcd_channel_status_changed (McdChannel *channel, McdChannelStatus status)
 static void
 mcd_channel_class_init (McdChannelClass * klass)
 {
+    static TpDBusPropertiesMixinPropImpl request_props[] = {
+        { "Account", "account-path", NULL },
+        { "UserActionTime", "user-action-time", NULL },
+        { "Requests", "requests", NULL },
+        { NULL }
+    };
+    static TpDBusPropertiesMixinIfaceImpl prop_interfaces[] = {
+        { MC_IFACE_CHANNEL_REQUEST,
+          tp_dbus_properties_mixin_getter_gobject_properties,
+          NULL,
+          request_props,
+        },
+        { NULL }
+    };
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
     McdMissionClass *mission_class = MCD_MISSION_CLASS (klass);
     g_type_class_add_private (object_class, sizeof (McdChannelPrivate));
@@ -467,6 +509,34 @@ mcd_channel_class_init (McdChannelClass * klass)
                                "True if the channel was requested by us",
                                FALSE,
                                G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+
+    g_object_class_install_property
+        (object_class, PROP_ACCOUNT_PATH,
+         g_param_spec_boxed ("account-path",
+                             "Account",
+                             "Object path of the Account",
+                             DBUS_TYPE_G_OBJECT_PATH,
+                             G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
+    g_object_class_install_property
+        (object_class, PROP_USER_ACTION_TIME,
+         g_param_spec_int64 ("user-action-time",
+                             "UserActionTime",
+                             "Time of user action in seconds since 1970",
+                             G_MININT64, G_MAXINT64, 0,
+                             G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
+    g_object_class_install_property
+        (object_class, PROP_REQUESTS,
+         g_param_spec_boxed ("requests",
+                             "Requests",
+                             "A dbus-glib aa{sv}",
+                             TP_ARRAY_TYPE_QUALIFIED_PROPERTY_VALUE_MAP_LIST,
+                             G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
+    klass->dbus_properties_class.interfaces = prop_interfaces,
+    tp_dbus_properties_mixin_class_init (object_class,
+        G_STRUCT_OFFSET (McdChannelClass, dbus_properties_class));
 }
 
 static void
@@ -1286,3 +1356,45 @@ mcd_channel_get_tp_channel (McdChannel *channel)
     return channel->priv->tp_chan;
 }
 
+static void
+channel_request_proceed (McSvcChannelRequest *iface,
+                         DBusGMethodInvocation *context)
+{
+    McdChannel *self = MCD_CHANNEL (iface);
+    GError ni = { TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
+        "Proceed not yet implemented" };
+
+#if 0
+    mc_svc_channel_request_return_from_proceed (context);
+#endif
+
+    (void) self;
+    dbus_g_method_return_error (context, &ni);
+}
+
+static void
+channel_request_cancel (McSvcChannelRequest *iface,
+                        DBusGMethodInvocation *context)
+{
+    McdChannel *self = MCD_CHANNEL (iface);
+    GError ni = { TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
+        "Cancel not yet implemented" };
+
+#if 0
+    mc_svc_channel_request_return_from_cancel (context);
+#endif
+
+    (void) self;
+    dbus_g_method_return_error (context, &ni);
+}
+
+static void
+request_iface_init (gpointer g_iface,
+                    gpointer iface_data G_GNUC_UNUSED)
+{
+#define IMPLEMENT(x) mc_svc_channel_request_implement_##x (\
+    g_iface, channel_request_##x)
+    IMPLEMENT (proceed);
+    IMPLEMENT (cancel);
+#undef IMPLEMENT
+}
