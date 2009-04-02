@@ -83,8 +83,9 @@ struct _McdChannelRequestData
 
     GHashTable *properties;
     guint target_handle; /* used only if the Requests interface is absent */
-    guint64 user_time;
+    gint64 user_time;
     gchar *preferred_handler;
+    gchar *account_path;
 
     gboolean use_existing;
 };
@@ -349,17 +350,36 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
 	break;
 
     case PROP_ACCOUNT_PATH:
-        /* FIXME: stub */
+        if (priv->request_data != NULL &&
+            priv->request_data->account_path != NULL)
+        {
+            g_value_set_boxed (val, priv->request_data->account_path);
+            break;
+        }
         g_value_set_static_boxed (val, "/");
         break;
 
     case PROP_USER_ACTION_TIME:
-        /* FIXME: stub */
+        if (priv->request_data != NULL)
+        {
+            g_value_set_int64 (val, priv->request_data->user_time);
+            break;
+        }
         g_value_set_int64 (val, 0);
         break;
 
     case PROP_REQUESTS:
-        /* FIXME: stub */
+        if (priv->request_data != NULL &&
+            priv->request_data->properties != NULL)
+        {
+            GPtrArray *arr = g_ptr_array_sized_new (1);
+
+            g_ptr_array_add (arr,
+                             g_hash_table_ref (priv->request_data->properties));
+
+            g_value_take_boxed (val, arr);
+            break;
+        }
         g_value_take_boxed (val, g_ptr_array_sized_new (0));
         break;
 
@@ -1068,6 +1088,8 @@ mcd_channel_get_error (McdChannel *channel)
 
 /**
  * mcd_channel_new_request:
+ * @account: an account.
+ * @dgc: a #DBusGConnection on which to export the ChannelRequest object.
  * @properties: a #GHashTable of desired channel properties.
  * @user_time: user action time.
  * @preferred_handler: well-known name of preferred handler.
@@ -1079,20 +1101,25 @@ mcd_channel_get_error (McdChannel *channel)
  * Returns: a newly created #McdChannel.
  */
 McdChannel *
-mcd_channel_new_request (GHashTable *properties, guint64 user_time,
+mcd_channel_new_request (McdAccount *account,
+                         DBusGConnection *dgc,
+                         GHashTable *properties,
+                         gint64 user_time,
                          const gchar *preferred_handler)
 {
     McdChannel *channel;
     McdChannelRequestData *crd;
+    const gchar *account_path = mcd_account_get_object_path (account);
 
     channel = g_object_new (MCD_TYPE_CHANNEL,
                             "outgoing", TRUE,
                             NULL);
 
     /* TODO: these data could be freed when the channel status becomes
-     * MCD_CHANNEL_STATUS_DISPATCHED */
+     * MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED */
     crd = g_slice_new (McdChannelRequestData);
     crd->path = g_strdup_printf (REQUEST_OBJ_BASE "%u", last_req_id++);
+    crd->account_path = g_strdup (account_path);
     crd->properties = g_hash_table_ref (properties);
     crd->user_time = user_time;
     crd->preferred_handler = g_strdup (preferred_handler);
@@ -1101,6 +1128,12 @@ mcd_channel_new_request (GHashTable *properties, guint64 user_time,
                                                         g_strdup (crd->path));
 
     mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_REQUEST);
+
+    /* This could do with refactoring so that requests are a separate object
+     * that dies at the appropriate time, but for now the path of least
+     * resistance is to have the McdChannel be a ChannelRequest throughout
+     * its lifetime */
+    dbus_g_connection_register_g_object (dgc, crd->path, (GObject *) channel);
 
     return channel;
 }

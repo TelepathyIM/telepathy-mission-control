@@ -154,11 +154,14 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
 
 static McdChannel *
 create_request (McdAccount *account, GHashTable *properties,
-                guint64 user_time, const gchar *preferred_handler,
+                gint64 user_time, const gchar *preferred_handler,
                 gboolean use_existing, GError **error)
 {
     McdChannel *channel;
     GHashTable *props;
+    TpDBusDaemon *dbus_daemon = mcd_account_manager_get_dbus_daemon (
+        mcd_account_get_account_manager (account));
+    DBusGConnection *dgc = tp_proxy_get_dbus_connection (dbus_daemon);
 
     g_return_val_if_fail (error != NULL, NULL);
 
@@ -172,7 +175,7 @@ create_request (McdAccount *account, GHashTable *properties,
     /* We MUST deep-copy the hash-table, as we don't know how dbus-glib will
      * free it */
     props = _mcd_deepcopy_asv (properties);
-    channel = mcd_channel_new_request (props, user_time,
+    channel = mcd_channel_new_request (account, dgc, props, user_time,
                                        preferred_handler);
     g_hash_table_unref (props);
     _mcd_channel_set_request_use_existing (channel, use_existing);
@@ -208,7 +211,7 @@ const McdDBusProp account_channelrequests_properties[] = {
 
 static void
 account_request_common (McdAccount *account, GHashTable *properties,
-                        guint64 user_time, const gchar *preferred_handler,
+                        gint64 user_time, const gchar *preferred_handler,
                         DBusGMethodInvocation *context, gboolean use_existing)
 {
     GError *error = NULL;
