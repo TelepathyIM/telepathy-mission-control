@@ -213,26 +213,6 @@ PKG_CHECK_MODULES(TELEPATHY, telepathy-glib >= 0.7.26)
 AC_SUBST(TELEPATHY_LIBS)
 AC_SUBST(TELEPATHY_CFLAGS)
 
-legacy_enabled="yes"
-AC_MSG_CHECKING(whether to build the old libmissioncontrol-client)
-AC_ARG_ENABLE(legacy,
-	[  --enable-legacy         build libmiccioncontrol-client. default=yes],
-	[
-		AC_MSG_RESULT(${enableval})
-		legacy_enabled="${enableval}"
-	],
-	[
-		AC_MSG_RESULT(yes)
-		legacy_enabled="yes"
-	]
-)
-AM_CONDITIONAL(HAVE_LEGACY, [test x$legacy_enabled = xyes])
-if test "x$legacy_enabled" = "xyes"; then
-    PKG_CHECK_MODULES(LIBTELEPATHY, libtelepathy >= 0.3.0)
-    AC_SUBST(LIBTELEPATHY_LIBS)
-    AC_SUBST(LIBTELEPATHY_CFLAGS)
-fi
-
 GCONF_REQUIRED_VERSION=2.0.0
 PKG_CHECK_MODULES(GCONF, gconf-2.0 >= $GCONF_REQUIRED_VERSION)
 AC_SUBST(GCONF_CFLAGS)
