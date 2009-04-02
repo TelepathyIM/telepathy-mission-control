@@ -85,6 +85,15 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
 
     request_path = ret.value[0]
 
+    cr = bus.get_object(cs.AM, request_path)
+    # FIXME: MC gives CR properties to clients without .DRAFT, but the
+    # CR itself is really still .DRAFT
+    request_props = cr.GetAll(cs.CR + '.DRAFT',
+            dbus_interface=cs.PROPERTIES_IFACE)
+    assert request_props['Account'] == account.object_path
+    assert request_props['Requests'] == [request]
+    assert request_props['UserActionTime'] == user_action_time
+
     # ChannelDispatcher calls AddRequest on chat UI; chat UI ignores it as the
     # request is already known to it.
     # FIXME: it is not, strictly speaking, an API guarantee that the Requests
@@ -96,8 +105,10 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
     request_props = e.args[1]
     assert request_props[cs.CR + '.Account'] == account.object_path
     assert request_props[cs.CR + '.Requests'] == [request]
-    assert request_props[cs.CR + '.PreferredHandler'] == client.bus_name
     assert request_props[cs.CR + '.UserActionTime'] == user_action_time
+    # FIXME: this is not actually in telepathy-spec (although maybe it
+    # should be) - fd.o #21013
+    assert request_props[cs.CR + '.PreferredHandler'] == client.bus_name
 
     q.dbus_return(e.message, signature='')
 
@@ -154,9 +165,13 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
     q.dbus_return(e.message, signature='')
 
     # CR emits Succeeded (or in Mardy's version, Account emits Succeeded)
-    e = q.expect('dbus-signal', path=account.object_path,
-            interface=cs.ACCOUNT_IFACE_NOKIA_REQUESTS, signal='Succeeded',
-            args=[request_path])
+    q.expect_many(
+            EventPattern('dbus-signal', path=account.object_path,
+                interface=cs.ACCOUNT_IFACE_NOKIA_REQUESTS, signal='Succeeded',
+                args=[request_path]),
+            EventPattern('dbus-signal', path=request_path,
+                interface=cs.CR + '.DRAFT', signal='Succeeded'),
+            )
 
     # Close the channel
     channel.close()
