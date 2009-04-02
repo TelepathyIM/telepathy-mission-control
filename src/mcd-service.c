@@ -86,8 +86,6 @@ typedef struct _McdServicePrivate
     McdPresenceFrame *presence_frame;
     McdDispatcher *dispatcher;
 
-    McStatus last_status;
-
     gboolean is_disposed;
 } McdServicePrivate;
 
@@ -136,38 +134,6 @@ mcd_service_disconnect (McdMission *mission)
 }
 
 static void
-_on_status_actual (McdPresenceFrame *presence_frame,
-		   TpConnectionStatus tpstatus,
-		   McdService *service)
-{
-    McdServicePrivate *priv = MCD_OBJECT_PRIV (service);
-    TpConnectionPresenceType req_presence;
-    McStatus status;
-
-    req_presence = mcd_presence_frame_get_requested_presence (presence_frame);
-    switch (tpstatus)
-    {
-    case TP_CONNECTION_STATUS_CONNECTED:
-	status = MC_STATUS_CONNECTED;
-	break;
-    case TP_CONNECTION_STATUS_CONNECTING:
-	status = MC_STATUS_CONNECTING;
-	break;
-    case TP_CONNECTION_STATUS_DISCONNECTED:
-	status = MC_STATUS_DISCONNECTED;
-	break;
-    default:
-	status = MC_STATUS_DISCONNECTED;
-	g_warning ("Unexpected status %d", tpstatus);
-    }
-
-    if (status != priv->last_status)
-    {
-	priv->last_status = status;
-    }
-}
-
-static void
 mcd_dispose (GObject * obj)
 {
     McdServicePrivate *priv;
@@ -186,8 +152,6 @@ mcd_dispose (GObject * obj)
     {
 	g_signal_handlers_disconnect_by_func (priv->presence_frame,
 					      _on_presence_requested, self);
-	g_signal_handlers_disconnect_by_func (priv->presence_frame,
-					      _on_status_actual, self);
 	g_object_unref (priv->presence_frame);
     }
 
@@ -234,7 +198,6 @@ mcd_service_init (McdService * obj)
 
     obj->main_loop = g_main_loop_new (NULL, FALSE);
 
-    priv->last_status = -1;
     DEBUG ("called");
 }
 
