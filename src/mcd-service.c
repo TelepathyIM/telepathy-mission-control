@@ -84,7 +84,6 @@ G_DEFINE_TYPE (McdService, mcd_service, MCD_TYPE_MASTER);
 typedef struct _McdServicePrivate
 {
     McdPresenceFrame *presence_frame;
-    McdDispatcher *dispatcher;
 
     gboolean is_disposed;
 } McdServicePrivate;
@@ -182,8 +181,6 @@ mcd_service_constructed (GObject *obj)
     g_signal_connect (priv->presence_frame, "presence-requested",
 		      G_CALLBACK (_on_presence_requested), obj);
 
-    /* Setup dispatcher signals */
-
     mcd_service_obtain_bus_name (MCD_OBJECT (obj));
     mcd_debug_print_tree (obj);
 
@@ -194,8 +191,6 @@ mcd_service_constructed (GObject *obj)
 static void
 mcd_service_init (McdService * obj)
 {
-    McdServicePrivate *priv = MCD_OBJECT_PRIV (obj);
-
     obj->main_loop = g_main_loop_new (NULL, FALSE);
 
     DEBUG ("called");
