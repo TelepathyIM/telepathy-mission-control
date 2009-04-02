@@ -80,7 +80,6 @@ enum _McdPresenceFrameSignalType
     STATUS_CHANGED,
     
     /* Accumulated changes */
-    PRESENCE_ACTUAL,
     STATUS_ACTUAL,
     
     LAST_SIGNAL
@@ -259,15 +258,6 @@ mcd_presence_frame_class_init (McdPresenceFrameClass * klass)
 		      NULL, NULL,
 		      _mcd_marshal_VOID__OBJECT_INT_INT,
 		      G_TYPE_NONE, 3, MCD_TYPE_ACCOUNT, G_TYPE_INT, G_TYPE_INT);
-    mcd_presence_frame_signals[PRESENCE_ACTUAL] =
-	g_signal_new ("presence-actual",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_FIRST,
-		      G_STRUCT_OFFSET (McdPresenceFrameClass,
-				       presence_actual_signal),
-		      NULL, NULL,
-		      _mcd_marshal_VOID__INT_STRING,
-		      G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_STRING);
     mcd_presence_frame_signals[STATUS_ACTUAL] =
 	g_signal_new ("status-actual",
 		      G_OBJECT_CLASS_TYPE (klass),
@@ -461,9 +451,6 @@ _mcd_presence_frame_update_actual_presence (McdPresenceFrame * presence_frame,
     connection_status = priv->actual_presence->connection_status;
     connection_reason = priv->actual_presence->connection_reason;
 
-    changed = (priv->actual_presence->presence != pi.presence) ||
-              (tp_strdiff (priv->actual_presence->message, presence_message));
-
     mcd_presence_free (priv->actual_presence);
     priv->actual_presence = mcd_presence_new (pi.presence,
 					      presence_message,
@@ -471,11 +458,6 @@ _mcd_presence_frame_update_actual_presence (McdPresenceFrame * presence_frame,
 					      connection_reason);
 
     DEBUG ("presence actual: %d", pi.presence);
-    if (changed)
-    {    
-	g_signal_emit_by_name (G_OBJECT (presence_frame),
-			       "presence-actual", pi.presence, presence_message);
-    }
 }
 
 /* TODO: remove this useless func */
