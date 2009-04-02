@@ -26,17 +26,15 @@ TP_COMPILER_WARNINGS([ERROR_CFLAGS],
    strict-prototypes \
    missing-prototypes \
    missing-declarations \
+   sign-compare \
+   nested-externs \
+   pointer-arith \
+   format-security \
+   init-self \
    ],
   [missing-field-initializers \
    unused-parameter])
 AC_SUBST([ERROR_CFLAGS])
-
-dnl Also used in telepathy-glib:
-dnl   sign-compare \
-dnl   nested-externs \
-dnl   pointer-arith \
-dnl   format-security \
-dnl   init-self \
 
 AM_CFLAGS="$CFLAGS -fno-strict-aliasing -ansi -DDMALLOC $ERROR_CFLAGS"
 AC_SUBST([AM_CFLAGS])
