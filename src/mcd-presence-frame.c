@@ -76,9 +76,6 @@ enum _McdPresenceFrameSignalType
     /* Request */
     PRESENCE_REQUESTED,
     
-    /* Account specific changes */
-    STATUS_CHANGED,
-    
     LAST_SIGNAL
 };
 
@@ -246,15 +243,6 @@ mcd_presence_frame_class_init (McdPresenceFrameClass * klass)
 		      NULL, NULL,
 		      _mcd_marshal_VOID__INT_STRING,
 		      G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_STRING);
-    mcd_presence_frame_signals[STATUS_CHANGED] =
-	g_signal_new ("status-changed",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_FIRST,
-		      G_STRUCT_OFFSET (McdPresenceFrameClass,
-				       status_changed_signal),
-		      NULL, NULL,
-		      _mcd_marshal_VOID__OBJECT_INT_INT,
-		      G_TYPE_NONE, 3, MCD_TYPE_ACCOUNT, G_TYPE_INT, G_TYPE_INT);
 }
 
 static void
@@ -506,13 +494,6 @@ on_account_connection_status_changed (McdAccount *account,
 				      TpConnectionStatusReason reason,
 				      McdPresenceFrame *presence_frame)
 {
-    McdPresenceFramePrivate *priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-    TpConnectionStatus conn_status;
-
-    g_signal_emit (presence_frame, mcd_presence_frame_signals[STATUS_CHANGED],
-		   0, account, status, reason);
-
-    conn_status = priv->actual_status;
     _mcd_presence_frame_update_actual_status (presence_frame);
 }
 
