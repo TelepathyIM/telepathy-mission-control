@@ -426,7 +426,6 @@ _mcd_presence_frame_update_actual_presence (McdPresenceFrame * presence_frame,
     McdActualPresenceInfo pi;
     TpConnectionStatus connection_status;
     TpConnectionStatusReason connection_reason;
-    gboolean changed;
     
     DEBUG ("called");
 
