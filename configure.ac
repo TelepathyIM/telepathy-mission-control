@@ -252,8 +252,6 @@ doc/reference/libmissioncontrol-server/Makefile \
 examples/Makefile \
 libmcclient.pc \
 libmcclient/Makefile \
-libmissioncontrol.pc \
-libmissioncontrol/Makefile \
 m4/Makefile \
 mission-control.pc \
 server/Makefile \
