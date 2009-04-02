@@ -71,15 +71,6 @@ typedef enum {
     MC_STATUS_CONNECTED,
 } McStatus;
 
-/* Signals */
-
-enum
-{
-    ACCOUNT_PRESENCE_CHANGED,
-    LAST_SIGNAL
-};
-
-static guint signals[LAST_SIGNAL] = { 0 };
 static GObjectClass *parent_class = NULL;
 
 #define MCD_OBJECT_PRIV(mission) (G_TYPE_INSTANCE_GET_PRIVATE ((mission), \
@@ -120,66 +111,6 @@ mcd_service_obtain_bus_name (McdService * obj)
 		 MISSION_CONTROL_DBUS_SERVICE);
 	dbus_error_free (&error);
     }
-}
-
-static void
-_on_account_status_changed (McdPresenceFrame * presence_frame,
-			    McdAccount *account,
-			    TpConnectionStatus connection_status,
-			    TpConnectionStatusReason connection_reason,
-			    McdService * obj)
-{
-    TpConnectionPresenceType presence;
-    const gchar *status, *message;
-
-    mcd_account_get_current_presence (account, &presence, &status, &message);
-
-    /* Emit the AccountStatusChanged signal */
-    DEBUG ("Emitting account status changed for %s: status = %d, reason = %d",
-           mcd_account_get_unique_name (account), connection_status,
-           connection_reason);
-
-    /* HACK for old MC compatibility */
-    if (connection_status == TP_CONNECTION_STATUS_CONNECTED &&
-	presence < TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
-	presence = TP_CONNECTION_PRESENCE_TYPE_AVAILABLE;
-
-#ifndef NO_NEW_PRESENCE_SIGNALS
-    g_signal_emit_by_name (G_OBJECT (obj),
-			   "account-presence-changed", connection_status,
-			   presence, message,
-			   connection_reason,
-			   mcd_account_get_unique_name (account));
-#endif
-}
-
-static void
-_on_account_presence_changed (McdPresenceFrame * presence_frame,
-			      McdAccount * account,
-			      TpConnectionPresenceType presence,
-			      gchar * presence_message, McdService * obj)
-{
-    /* Emit the AccountStatusChanged signal */
-    DEBUG ("Emitting presence changed for %s: presence = %d, message = %s",
-           mcd_account_get_unique_name (account), presence,
-           presence_message);
-    
-    /* HACK for old MC compatibility */
-    if (mcd_presence_frame_get_account_status (presence_frame, account)
-       	== TP_CONNECTION_STATUS_CONNECTED &&
-	presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
-	return;
-
-#ifndef NO_NEW_PRESENCE_SIGNALS
-    g_signal_emit_by_name (G_OBJECT (obj),
-			   "account-presence-changed",
-			   mcd_presence_frame_get_account_status
-			   (presence_frame, account), presence,
-			   presence_message,
-			   mcd_presence_frame_get_account_status_reason
-			   (presence_frame, account),
-			   mcd_account_get_unique_name (account));
-#endif
 }
 
 static void
@@ -271,12 +202,6 @@ mcd_dispose (GObject * obj)
     if (priv->presence_frame)
     {
 	g_signal_handlers_disconnect_by_func (priv->presence_frame,
-					      _on_account_status_changed,
-					      self);
-	g_signal_handlers_disconnect_by_func (priv->presence_frame,
-					      _on_account_presence_changed,
-					      self);
-	g_signal_handlers_disconnect_by_func (priv->presence_frame,
 					      _on_presence_requested, self);
 	g_signal_handlers_disconnect_by_func (priv->presence_frame,
 					      _on_presence_actual, self);
@@ -309,10 +234,6 @@ mcd_service_constructed (GObject *obj)
 		  NULL);
 
     /* Setup presence signals */
-    g_signal_connect (priv->presence_frame, "status-changed",
-		      G_CALLBACK (_on_account_status_changed), obj);
-    g_signal_connect (priv->presence_frame, "presence-changed",
-		      G_CALLBACK (_on_account_presence_changed), obj);
     g_signal_connect (priv->presence_frame, "presence-requested",
 		      G_CALLBACK (_on_presence_requested), obj);
     g_signal_connect (priv->presence_frame, "presence-actual",
@@ -351,18 +272,6 @@ mcd_service_class_init (McdServiceClass * self)
 
     g_type_class_add_private (gobject_class, sizeof (McdServicePrivate));
 
-#ifndef NO_NEW_PRESENCE_SIGNALS
-    /* AccountStatusChanged signal */
-    signals[ACCOUNT_PRESENCE_CHANGED] =
-	g_signal_new ("account-presence-changed",
-		      G_OBJECT_CLASS_TYPE (self),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL, _mcd_marshal_VOID__UINT_UINT_UINT_STRING,
-		      G_TYPE_NONE, 5, G_TYPE_UINT, G_TYPE_UINT,
-		      G_TYPE_STRING, G_TYPE_UINT, G_TYPE_STRING);
-#endif
-    /* PresenceStatusRequested signal */
 #ifndef NO_NEW_PRESENCE_SIGNALS
     /* PresenceRequested signal */
     g_signal_new ("presence-requested",
