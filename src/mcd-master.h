@@ -102,15 +102,6 @@ gboolean mcd_master_get_account_connection_details (McdMaster * master,
 						    gchar ** objpath,
 						    GError **error);
 
-gboolean mcd_master_request_channel (McdMaster *master,
-				     const struct mcd_channel_request *req,
-				     GError ** error);
-
-gboolean mcd_master_cancel_channel_request (McdMaster *master,
-					    guint operation_id,
-					    const gchar *requestor_client_id,
-					    GError **error);
-
 gboolean mcd_master_get_used_channels_count (McdMaster *master, guint chan_type,
 					     guint * ret, GError ** error);
 McdConnection *mcd_master_get_connection (McdMaster *master,

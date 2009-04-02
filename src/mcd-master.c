@@ -951,54 +951,6 @@ mcd_master_get_account_connection_details (McdMaster * master,
 }
 
 gboolean
-mcd_master_request_channel (McdMaster *master,
-			    const struct mcd_channel_request *req,
-			    GError ** error)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    McdAccount *account;
-
-    account = mcd_account_manager_lookup_account (priv->account_manager,
-						  req->account_name);
-    if (!account)
-    {
-	if (error)
-	{
-	    g_set_error (error, MC_ERROR, MC_INVALID_ACCOUNT_ERROR,
-			 "No such account %s", req->account_name);
-	}
-	return FALSE;
-    }
-    return _mcd_account_compat_request_channel_nmc4 (account, req, error);
-}
-
-gboolean
-mcd_master_cancel_channel_request (McdMaster *master, guint operation_id,
-				   const gchar *requestor_client_id,
-				   GError **error)
-{
-    const GList *managers, *node;
-
-    g_return_val_if_fail (MCD_IS_MASTER (master), FALSE);
-    g_return_val_if_fail (error == NULL || *error == NULL, FALSE);
-    
-    /* First find out the right manager */
-    managers = mcd_operation_get_missions (MCD_OPERATION (master));
-    if (!managers) return FALSE;
-
-    for (node = managers; node; node = node->next)
-    {
-	if (mcd_manager_cancel_channel_request (MCD_MANAGER (node->data),
-						operation_id,
-						requestor_client_id,
-						error))
-	    return TRUE;
-    }
-
-    return FALSE;
-}
-
-gboolean
 mcd_master_get_used_channels_count (McdMaster *master, guint chan_type,
 				    guint * ret, GError ** error)
 {
