@@ -53,12 +53,6 @@ McdMaster
 
 </para>
 
-<!-- ##### STRUCT mcd_channel_request ##### -->
-<para>
-
-</para>
-
-
 <!-- ##### MACRO mcd_master_new ##### -->
 <para>
 
@@ -143,29 +137,6 @@ McdMaster
 @account_name: 
 @servname: 
 @objpath: 
-@error: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_master_request_channel ##### -->
-<para>
-
-</para>
-
-@master: 
-@req: 
-@error: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_master_cancel_channel_request ##### -->
-<para>
-
-</para>
-
-@master: 
-@operation_id: 
-@requestor_client_id: 
 @error: 
 @Returns: 
 
