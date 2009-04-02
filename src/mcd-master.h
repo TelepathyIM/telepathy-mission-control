@@ -63,8 +63,6 @@ struct _McdMasterClass
     void (*_mc_reserved6) (void);
 };
 
-struct mcd_channel_request;
-
 GType mcd_master_get_type (void);
 #define mcd_master_new()    mcd_master_get_default()
 McdMaster *mcd_master_get_default (void);
