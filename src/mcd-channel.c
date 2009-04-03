@@ -749,7 +749,7 @@ _mcd_channel_create_proxy (McdChannel *channel, TpConnection *connection,
 }
 
 void
-mcd_channel_set_status (McdChannel *channel, McdChannelStatus status)
+_mcd_channel_set_status (McdChannel *channel, McdChannelStatus status)
 {
     DEBUG ("%p, %u", channel, status);
     g_return_if_fail(MCD_IS_CHANNEL(channel));
@@ -1093,7 +1093,7 @@ mcd_channel_take_error (McdChannel *channel, GError *error)
     g_object_set_data_full ((GObject *)channel, CD_ERROR,
                             error, (GDestroyNotify)g_error_free);
     if (error)
-        mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_FAILED);
+        _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_FAILED);
 }
 
 /**
@@ -1157,7 +1157,7 @@ mcd_channel_new_request (McdAccount *account,
     channel->priv->satisfied_requests = g_list_prepend (NULL,
                                                         g_strdup (crd->path));
 
-    mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_REQUEST);
+    _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_REQUEST);
 
     /* This could do with refactoring so that requests are a separate object
      * that dies at the appropriate time, but for now the path of least
@@ -1322,7 +1322,7 @@ copy_status (McdChannel *source, McdChannel *dest)
             mcd_channel_take_error (dest, g_error_copy (error));
         }
         else
-            mcd_channel_set_status (dest, src_priv->status);
+            _mcd_channel_set_status (dest, src_priv->status);
     }
 
     if (dst_priv->status == MCD_CHANNEL_STATUS_FAILED ||

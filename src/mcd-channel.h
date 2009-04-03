@@ -110,7 +110,9 @@ gboolean _mcd_channel_create_proxy (McdChannel *channel,
                                     const gchar *object_path,
                                     const GHashTable *properties);
 
-void mcd_channel_set_status (McdChannel *channel, McdChannelStatus status);
+G_GNUC_INTERNAL
+void _mcd_channel_set_status (McdChannel *channel, McdChannelStatus status);
+
 McdChannelStatus mcd_channel_get_status (McdChannel * channel);
 gboolean mcd_channel_get_members_accepted (McdChannel *channel);
 const gchar* mcd_channel_get_channel_type (McdChannel *channel);
