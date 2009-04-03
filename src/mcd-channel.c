@@ -41,6 +41,7 @@
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
+#include "mcd-account-requests.h"
 #include "mcd-channel.h"
 #include "mcd-enum-types.h"
 #include "_gen/gtypes.h"
@@ -1418,15 +1419,43 @@ channel_request_proceed (McSvcChannelRequest *iface,
                          DBusGMethodInvocation *context)
 {
     McdChannel *self = MCD_CHANNEL (iface);
-    GError ni = { TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
-        "Proceed not yet implemented" };
 
-#if 0
+    if (G_UNLIKELY (self->priv->request_data == NULL))
+    {
+        GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+            "McdChannel is on D-Bus but is not actually a request" };
+
+        /* shouldn't be possible, but this code is quite tangled */
+        g_warning ("%s: channel %p is on D-Bus but not actually a request",
+                   G_STRFUNC, self);
+        dbus_g_method_return_error (context, &na);
+        return;
+    }
+
+    if (G_UNLIKELY (self->priv->request_data->account == NULL))
+    {
+        GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+            "McdChannel has no Account, cannot proceed" };
+
+        /* likewise, shouldn't be possible but this code is quite tangled */
+        g_warning ("%s: channel %p has no Account, so cannot proceed",
+                   G_STRFUNC, self);
+        dbus_g_method_return_error (context, &na);
+        return;
+    }
+
+    if (self->priv->request_data->proceeding)
+    {
+        GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+            "Proceed has already been called; stop calling it" };
+
+        dbus_g_method_return_error (context, &na);
+    }
+
+    self->priv->request_data->proceeding = TRUE;
+    _mcd_account_proceed_with_request (self->priv->request_data->account,
+                                       self);
     mc_svc_channel_request_return_from_proceed (context);
-#endif
-
-    (void) self;
-    dbus_g_method_return_error (context, &ni);
 }
 
 static void
