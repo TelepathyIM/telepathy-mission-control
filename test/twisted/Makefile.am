@@ -4,6 +4,7 @@ TWISTED_BASIC_TESTS = \
 	account-bad-cm.py \
 	account-requests/create-text.py \
 	account-requests/delete-account-during-request.py \
+	dispatcher/already-has-channel.py \
 	dispatcher/dispatch-text.py \
 	do-nothing.py \
 	test-account.py \
