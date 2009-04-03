@@ -181,7 +181,10 @@ create_request (McdAccount *account, GHashTable *properties,
 
     /* we use connect_after, to make sure that other signals (such as
      * RemoveFailedRequest) are emitted before the Failed signal */
-    g_signal_connect_after (channel, "status-changed",
+    /* WARNING: on_channel_status_changed unrefs the McdChannel (!), so we
+     * give it an extra reference, so that we can return a ref from this
+     * function */
+    g_signal_connect_after (g_object_ref (channel), "status-changed",
                             G_CALLBACK (on_channel_status_changed), account);
 
     /* the callback releases this reference */
@@ -209,10 +212,12 @@ account_request_common (McdAccount *account, GHashTable *properties,
                               preferred_handler, use_existing, &error);
     if (error)
     {
+        g_assert (channel == NULL);
         dbus_g_method_return_error (context, error);
         g_error_free (error);
         return;
     }
+
     request_id = _mcd_channel_get_request_path (channel);
     DEBUG ("returning %s", request_id);
     if (use_existing)
@@ -224,6 +229,10 @@ account_request_common (McdAccount *account, GHashTable *properties,
 
     dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
     _mcd_dispatcher_add_request (dispatcher, account, channel);
+
+    /* we still have a ref returned by create_request(), which is no longer
+     * necessary */
+    g_object_unref (channel);
 }
 
 static void
