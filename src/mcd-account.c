@@ -2343,14 +2343,6 @@ _mcd_account_online_request (McdAccount *account,
     return TRUE;
 }
 
-gboolean
-mcd_account_request_channel_nmc4 (McdAccount *account,
-				  const struct mcd_channel_request *req,
-				  GError **error)
-{
-    return _mcd_account_compat_request_channel_nmc4 (account, req, error);
-}
-
 GKeyFile *
 mcd_account_get_keyfile (McdAccount *account)
 {

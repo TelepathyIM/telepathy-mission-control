@@ -23,57 +23,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</
         libmissioncontrol compatible layer.</p>
     </tp:docstring>
 
-    <method name="RequestChannel">
-      <tp:docstring>
-        Requests a channel.
-      </tp:docstring>
-      <arg type="s" name="type" direction="in">
-        <tp:docstring>D-Bus interface name representing the channel type</tp:docstring>
-      </arg>
-      <arg type="u" name="handle" direction="in">
-        <tp:docstring>A nonzero integer handle representing a contact, room,
-          list, etc.</tp:docstring>
-      </arg>
-      <arg type="i" name="handle_type" direction="in">
-        <tp:docstring>A integer representing the channel type</tp:docstring>
-      </arg>
-      <arg type="u" name="operation_id" direction="out">
-        <tp:docstring>A integer representing an operation ID, which can then be
-          used for cancelling the request</tp:docstring>
-      </arg>
-    </method>
-
-    <method name="RequestChannelWithStringHandle">
-      <tp:docstring>
-        Requests a channel by a string handle.
-      </tp:docstring>
-      <arg type="s" name="type" direction="in">
-        <tp:docstring>D-Bus interface name representing the channel type</tp:docstring>
-      </arg>
-      <arg type="s" name="handle" direction="in">
-        <tp:docstring>A string handle representing a contact, room, list,
-          etc.</tp:docstring>
-      </arg>
-      <arg type="i" name="handle_type" direction="in">
-        <tp:docstring>A integer representing the channel type</tp:docstring>
-      </arg>
-      <arg type="u" name="operation_id" direction="out">
-        <tp:docstring>A integer representing an operation ID, which can then be
-          used for cancelling the request</tp:docstring>
-      </arg>
-    </method>
-
-    <method name="CancelChannelRequest">
-      <tp:docstring>
-        Cancel a channel request.
-      </tp:docstring>
-      <arg type="u" name="operation_id" direction="in">
-        <tp:docstring>The operation ID which identifies the channel request;
-          this is the same integet that was passed when making the
-          request</tp:docstring>
-      </arg>
-    </method>
-
     <property name="Profile" type="s" access="readwrite">
       <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
         <p>The name of the profile.</p>

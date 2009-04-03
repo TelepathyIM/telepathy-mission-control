@@ -135,7 +135,7 @@ get_account_connection (const gchar *file_contents, const gchar *path,
         endline = strchr (account_name, '\n');
         if (!endline) break;
 
-        if (len == tab1 - line &&
+        if (line + len == tab1 &&
             strncmp (path, connection_path, len) == 0)
         {
             *p_bus_name = g_strndup (bus_name, tab2 - bus_name);

@@ -17,28 +17,6 @@ interfaces
 <!-- ##### SECTION Stability_Level ##### -->
 
 
-<!-- ##### MACRO MC_IFACE_NMC4 ##### -->
-<para>
-
-</para>
-
-
-
-<!-- ##### MACRO MC_IFACE_QUARK_NMC4 ##### -->
-<para>
-
-</para>
-
-
-
-<!-- ##### FUNCTION mc_iface_quark_nmc4 ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
-
 <!-- ##### MACRO MC_IFACE_ACCOUNT ##### -->
 <para>
 

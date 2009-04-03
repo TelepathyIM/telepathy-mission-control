@@ -63,8 +63,6 @@ struct _McdMasterClass
     void (*_mc_reserved6) (void);
 };
 
-struct mcd_channel_request;
-
 GType mcd_master_get_type (void);
 #define mcd_master_new()    mcd_master_get_default()
 McdMaster *mcd_master_get_default (void);
@@ -101,15 +99,6 @@ gboolean mcd_master_get_account_connection_details (McdMaster * master,
 						    gchar ** servname,
 						    gchar ** objpath,
 						    GError **error);
-
-gboolean mcd_master_request_channel (McdMaster *master,
-				     const struct mcd_channel_request *req,
-				     GError ** error);
-
-gboolean mcd_master_cancel_channel_request (McdMaster *master,
-					    guint operation_id,
-					    const gchar *requestor_client_id,
-					    GError **error);
 
 gboolean mcd_master_get_used_channels_count (McdMaster *master, guint chan_type,
 					     guint * ret, GError ** error);
