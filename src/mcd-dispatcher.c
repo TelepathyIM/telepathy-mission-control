@@ -210,7 +210,13 @@ struct _McdDispatcherPrivate
     GHashTable *clients;
 
     McdMaster *master;
- 
+
+    /* Initially FALSE, meaning we suppress OperationList.DispatchOperations
+     * change notification signals because nobody has retrieved that property
+     * yet. Set to TRUE the first time someone reads the DispatchOperations
+     * property. */
+    gboolean operation_list_active;
+
     gboolean is_disposed;
     
 };
@@ -1627,8 +1633,11 @@ on_operation_finished (McdDispatchOperation *operation,
      * CDO: according to which of these have happened, we run the choosen
      * handler or we don't. */
 
-    mc_svc_channel_dispatcher_interface_operation_list_emit_dispatch_operation_finished (
-        context->dispatcher, mcd_dispatch_operation_get_path (operation));
+    if (context->dispatcher->priv->operation_list_active)
+    {
+        mc_svc_channel_dispatcher_interface_operation_list_emit_dispatch_operation_finished (
+            context->dispatcher, mcd_dispatch_operation_get_path (operation));
+    }
 
     if (mcd_dispatch_operation_is_claimed (operation))
     {
@@ -1722,10 +1731,15 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     {
         context->operation =
             _mcd_dispatch_operation_new (priv->dbus_daemon, channels);
-        mc_svc_channel_dispatcher_interface_operation_list_emit_new_dispatch_operation (
-            dispatcher,
-            mcd_dispatch_operation_get_path (context->operation),
-            mcd_dispatch_operation_get_properties (context->operation));
+
+        if (priv->operation_list_active)
+        {
+            mc_svc_channel_dispatcher_interface_operation_list_emit_new_dispatch_operation (
+                dispatcher,
+                mcd_dispatch_operation_get_path (context->operation),
+                mcd_dispatch_operation_get_properties (context->operation));
+        }
+
         g_signal_connect (context->operation, "finished",
                           G_CALLBACK (on_operation_finished), context);
     }
@@ -1815,6 +1829,10 @@ _mcd_dispatcher_get_property (GObject * obj, guint prop_id,
         {
             GList *iter;
             GPtrArray *operations = g_ptr_array_new ();
+
+            /* Side-effect: from now on, emit change notification signals for
+             * this property */
+            priv->operation_list_active = TRUE;
 
             for (iter = priv->contexts; iter != NULL; iter = iter->next)
             {
@@ -2691,7 +2709,9 @@ mcd_dispatcher_init (McdDispatcher * dispatcher)
     dispatcher->priv = priv;
 
     g_datalist_init (&(priv->interface_filters));
-    
+
+    priv->operation_list_active = FALSE;
+
     priv->channel_handler_hash = mcd_get_channel_handlers ();
 
     priv->clients = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
