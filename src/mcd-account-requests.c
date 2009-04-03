@@ -176,9 +176,8 @@ create_request (McdAccount *account, GHashTable *properties,
      * free it */
     props = _mcd_deepcopy_asv (properties);
     channel = mcd_channel_new_request (account, dgc, props, user_time,
-                                       preferred_handler);
+                                       preferred_handler, use_existing);
     g_hash_table_unref (props);
-    _mcd_channel_set_request_use_existing (channel, use_existing);
 
     /* we use connect_after, to make sure that other signals (such as
      * RemoveFailedRequest) are emitted before the Failed signal */

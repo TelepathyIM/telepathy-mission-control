@@ -101,7 +101,8 @@ McdChannel *mcd_channel_new_request (McdAccount *account,
                                      DBusGConnection *dgc,
                                      GHashTable *properties,
                                      gint64 user_time,
-                                     const gchar *preferred_handler);
+                                     const gchar *preferred_handler,
+                                     gboolean use_existing);
 
 G_GNUC_INTERNAL
 gboolean _mcd_channel_create_proxy (McdChannel *channel,
@@ -158,9 +159,6 @@ G_GNUC_INTERNAL
 guint64 _mcd_channel_get_request_user_action_time (McdChannel *channel);
 G_GNUC_INTERNAL
 const gchar *_mcd_channel_get_request_preferred_handler (McdChannel *channel);
-G_GNUC_INTERNAL
-void _mcd_channel_set_request_use_existing (McdChannel *channel,
-                                            gboolean use_existing);
 G_GNUC_INTERNAL
 gboolean _mcd_channel_get_request_use_existing (McdChannel *channel);
 

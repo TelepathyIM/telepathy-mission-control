@@ -1105,7 +1105,8 @@ mcd_channel_new_request (McdAccount *account,
                          DBusGConnection *dgc,
                          GHashTable *properties,
                          gint64 user_time,
-                         const gchar *preferred_handler)
+                         const gchar *preferred_handler,
+                         gboolean use_existing)
 {
     McdChannel *channel;
     McdChannelRequestData *crd;
@@ -1123,6 +1124,7 @@ mcd_channel_new_request (McdAccount *account,
     crd->properties = g_hash_table_ref (properties);
     crd->user_time = user_time;
     crd->preferred_handler = g_strdup (preferred_handler);
+    crd->use_existing = use_existing;
     channel->priv->request_data = crd;
     channel->priv->satisfied_requests = g_list_prepend (NULL,
                                                         g_strdup (crd->path));
@@ -1221,25 +1223,6 @@ _mcd_channel_get_request_preferred_handler (McdChannel *channel)
     crd = channel->priv->request_data;
     if (G_UNLIKELY (!crd)) return NULL;
     return crd->preferred_handler;
-}
-
-/*
- * _mcd_channel_set_request_use_existing:
- * @channel: the #McdChannel.
- * @use_existing: %TRUE if @channel must be requested via EnsureChannel.
- *
- * Sets the use_existing flag on @channel request.
- */
-void
-_mcd_channel_set_request_use_existing (McdChannel *channel,
-                                       gboolean use_existing)
-{
-    McdChannelRequestData *crd;
-
-    g_return_if_fail (MCD_IS_CHANNEL (channel));
-    crd = channel->priv->request_data;
-    if (G_UNLIKELY (!crd)) return;
-    crd->use_existing = use_existing;
 }
 
 /*
