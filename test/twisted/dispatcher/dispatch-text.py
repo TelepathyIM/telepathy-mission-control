@@ -66,6 +66,13 @@ def test(q, bus, mc):
                 path=kopete.object_path),
             )
 
+    # subscribe to the OperationList interface (MC assumes that until this
+    # property has been retrieved once, nobody cares)
+
+    cd = bus.get_object(cs.CD_BUS_NAME, cs.CD_PATH)
+    cd_props = dbus.Interface(cd, cs.PROPERTIES_IFACE)
+    assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []
+
     channel_properties = dbus.Dictionary(text_fixed_properties,
             signature='sv')
     channel_properties[cs.CHANNEL + '.TargetID'] = 'juliet'
@@ -101,9 +108,6 @@ def test(q, bus, mc):
 
     assert cdo_properties[cs.CDO + '.Channels'] == [(chan.object_path,
         channel_properties)]
-
-    cd = bus.get_object(cs.CD_BUS_NAME, cs.CD_PATH)
-    cd_props = dbus.Interface(cd, cs.PROPERTIES_IFACE)
 
     assert cs.CD_IFACE_OP_LIST in cd_props.Get(cs.CD, 'Interfaces')
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') ==\
