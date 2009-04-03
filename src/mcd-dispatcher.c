@@ -43,6 +43,7 @@
 #include <dbus/dbus-glib-lowlevel.h>
 
 #include "mcd-signals-marshal.h"
+#include "mcd-account-requests.h"
 #include "mcd-connection.h"
 #include "mcd-channel.h"
 #include "mcd-master.h"
@@ -3507,6 +3508,72 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
 }
 
 static void
+dispatcher_request_channel (McdDispatcher *self,
+                            const gchar *account_path,
+                            GHashTable *requested_properties,
+                            gint64 user_action_time,
+                            const gchar *preferred_handler,
+                            DBusGMethodInvocation *context,
+                            gboolean ensure)
+{
+    McdAccountManager *am;
+    McdAccount *account;
+    McdChannel *channel;
+    GError *error = NULL;
+    const gchar *path;
+
+    g_object_get (self->priv->master,
+                  "account-manager", &am,
+                  NULL);
+
+    g_assert (am != NULL);
+
+    account = mcd_account_manager_lookup_account_by_path (am,
+                                                          account_path);
+
+    if (account == NULL)
+    {
+        g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "No such account: %s", account_path);
+        goto despair;
+    }
+
+    /* FIXME: raise InvalidArgument if preferred_handler is syntactically
+     * invalid or does not start with the right thing */
+
+    channel = _mcd_account_create_request (account, requested_properties,
+                                           user_action_time, preferred_handler,
+                                           ensure, FALSE, &error);
+
+    if (channel == NULL)
+    {
+        /* FIXME: ideally this would be emitted as a Failed signal after
+         * Proceed is called, but for the particular failure case here (low
+         * memory) perhaps we don't want to */
+        goto despair;
+    }
+
+    path = _mcd_channel_get_request_path (channel);
+
+    g_assert (path != NULL);
+
+    /* This is OK because the signatures of CreateChannel and EnsureChannel
+     * are the same */
+    mc_svc_channel_dispatcher_return_from_create_channel (context, path);
+
+    _mcd_dispatcher_add_request (self, account, channel);
+
+    /* We've done all we need to with this channel: the ChannelRequests code
+     * keeps it alive as long as is necessary */
+    g_object_unref (channel);
+    return;
+
+despair:
+    dbus_g_method_return_error (context, error);
+    g_error_free (error);
+}
+
+static void
 dispatcher_create_channel (McSvcChannelDispatcher *iface,
                            const gchar *account_path,
                            GHashTable *requested_properties,
@@ -3514,12 +3581,13 @@ dispatcher_create_channel (McSvcChannelDispatcher *iface,
                            const gchar *preferred_handler,
                            DBusGMethodInvocation *context)
 {
-    McdDispatcher *self = MCD_DISPATCHER (iface);
-    GError ni = { TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
-        "CreateChannel not yet implemented" };
-
-    (void) self;
-    dbus_g_method_return_error (context, &ni);
+    dispatcher_request_channel (MCD_DISPATCHER (iface),
+                                account_path,
+                                requested_properties,
+                                user_action_time,
+                                preferred_handler,
+                                context,
+                                FALSE);
 }
 
 static void
@@ -3530,12 +3598,13 @@ dispatcher_ensure_channel (McSvcChannelDispatcher *iface,
                            const gchar *preferred_handler,
                            DBusGMethodInvocation *context)
 {
-    McdDispatcher *self = MCD_DISPATCHER (iface);
-    GError ni = { TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
-        "EnsureChannel not yet implemented" };
-
-    (void) self;
-    dbus_g_method_return_error (context, &ni);
+    dispatcher_request_channel (MCD_DISPATCHER (iface),
+                                account_path,
+                                requested_properties,
+                                user_action_time,
+                                preferred_handler,
+                                context,
+                                TRUE);
 }
 
 static void
