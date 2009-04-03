@@ -47,10 +47,9 @@ void _mcd_account_connect (McdAccount *account, GHashTable *params);
 
 typedef void (*McdOnlineRequestCb) (McdAccount *account, gpointer userdata,
 				    const GError *error);
-gboolean _mcd_account_online_request (McdAccount *account,
-                                      McdOnlineRequestCb callback,
-                                      gpointer userdata,
-                                      GError **imm_error);
+void _mcd_account_online_request (McdAccount *account,
+                                  McdOnlineRequestCb callback,
+                                  gpointer userdata);
 void _mcd_account_request_connection (McdAccount *account);
 G_GNUC_INTERNAL
 void _mcd_account_online_request_completed (McdAccount *account,

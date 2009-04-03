@@ -2301,29 +2301,26 @@ _mcd_account_request_connection (McdAccount *account)
  * @account: the #McdAccount.
  * @callback: a #McdOnlineRequestCb.
  * @userdata: user data to be passed to @callback.
- * @imm_error: pointer to a #GError location, or %NULL.
  *
- * If the account is online, call @callbeck immediately; else, try to put the
+ * If the account is online, call @callback immediately; else, try to put the
  * account online (set its presence to the automatic presence) and eventually
  * invoke @callback.
  *
- * Returns: %TRUE if @callback was/will be invoked, %FALSE otherwise.
+ * @callback is always invoked exactly once.
  */
-gboolean
+void
 _mcd_account_online_request (McdAccount *account,
                              McdOnlineRequestCb callback,
-                             gpointer userdata,
-                             GError **imm_error)
+                             gpointer userdata)
 {
     McdAccountPrivate *priv = account->priv;
-    GError *error = NULL;
 
     DEBUG ("connection status for %s is %d",
            priv->unique_name, priv->conn_status);
     if (priv->conn_status == TP_CONNECTION_STATUS_CONNECTED)
     {
-	/* invoke the callback now */
-	callback (account, userdata, error);
+        /* invoke the callback now */
+        callback (account, userdata, NULL);
     }
     else
     {
@@ -2340,7 +2337,6 @@ _mcd_account_online_request (McdAccount *account,
         data->user_data = userdata;
         priv->online_requests = g_list_append (priv->online_requests, data);
     }
-    return TRUE;
 }
 
 GKeyFile *

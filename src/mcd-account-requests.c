@@ -184,22 +184,9 @@ create_request (McdAccount *account, GHashTable *properties,
     g_signal_connect_after (channel, "status-changed",
                             G_CALLBACK (on_channel_status_changed), account);
 
-    _mcd_account_online_request (account, online_request_cb, channel, error);
-    if (*error)
-    {
-        g_warning ("_mcd_account_online_request: %s",
-                   (*error)->message);
-        mcd_channel_take_error (channel, g_error_copy (*error));
-        /* no unref here, as this will invoke our handler which will
-         * unreference the channel */
-        channel = NULL;
-    }
-    else
-    {
-        /* the channel must be kept alive until online_request_cb is called;
-         * this reference will be removed in that callback */
-        g_object_ref (channel);
-    }
+    /* the callback releases this reference */
+    _mcd_account_online_request (account, online_request_cb,
+                                 g_object_ref (channel));
 
     return channel;
 }
