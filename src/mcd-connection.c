@@ -1991,12 +1991,12 @@ mcd_connection_get_telepathy_details (McdConnection * id,
 static GError *
 map_tp_error_to_mc_error (McdChannel *channel, const GError *error)
 {
-    MCError mc_error_code = MC_CHANNEL_REQUEST_GENERIC_ERROR;
-    
-    g_warning ("Telepathy Error = %s", error->message);
-    
-    /* TODO : Are there still more specific errors we need
-     * to distinguish?
+    McError mc_error_code;
+
+    DEBUG ("Telepathy Error = %s", error->message);
+
+    /* Some TP errors might be a bit too generic for the UIs.
+     * With some guesswork, we can add more precise error reporting here.
      */
     if (mcd_channel_get_channel_type_quark (channel) ==
 	TP_IFACE_QUARK_CHANNEL_TYPE_STREAMED_MEDIA &&
@@ -2004,24 +2004,11 @@ map_tp_error_to_mc_error (McdChannel *channel, const GError *error)
     {
 	mc_error_code = MC_CONTACT_DOES_NOT_SUPPORT_VOICE_ERROR;
     }
-    else if (error->code == TP_ERROR_CHANNEL_BANNED)
-    {
-	mc_error_code = MC_CHANNEL_BANNED_ERROR;
-    }
-    else if (error->code == TP_ERROR_CHANNEL_FULL)
-    {
-	mc_error_code = MC_CHANNEL_FULL_ERROR;
-    }
-    else if (error->code == TP_ERROR_CHANNEL_INVITE_ONLY)
-    {
-	mc_error_code = MC_CHANNEL_INVITE_ONLY_ERROR;
-    }
-    else if (error->code == TP_ERROR_INVALID_HANDLE)
-    {
-	mc_error_code = MC_INVALID_HANDLE_ERROR;
-    }
+    else
+        return g_error_copy (error);
+
     return g_error_new (MC_ERROR, mc_error_code, "Telepathy Error: %s",
-			error->message);
+                        error->message);
 }
 
 static void
