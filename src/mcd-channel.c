@@ -62,6 +62,7 @@ struct _McdChannelPrivate
     guint missed : 1;
     guint is_disposed : 1;
     guint is_aborted : 1;
+    guint constructing : 1;
 
     McdChannelStatus status;
 
@@ -268,7 +269,7 @@ _mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
     }
 }
 
-static inline void
+static void
 _mcd_channel_setup (McdChannel *channel, McdChannelPrivate *priv)
 {
     McdChannel **channel_ptr;
@@ -309,7 +310,7 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
 	    g_object_ref (tp_chan);
 	_mcd_channel_release_tp_channel (channel, TRUE);
 	priv->tp_chan = tp_chan;
-	if (priv->tp_chan)
+        if (priv->tp_chan && !priv->constructing)
 	    _mcd_channel_setup (channel, priv);
 	break;
     case PROP_OUTGOING:
@@ -339,6 +340,20 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
     }
+}
+
+static void
+_mcd_channel_constructed (GObject * object)
+{
+    McdChannelPrivate *priv = MCD_CHANNEL_PRIV (object);
+
+    if (G_OBJECT_CLASS (mcd_channel_parent_class)->constructed)
+        G_OBJECT_CLASS (mcd_channel_parent_class)->constructed (object);
+
+    priv->constructing = FALSE;
+
+    if (priv->tp_chan)
+        _mcd_channel_setup (MCD_CHANNEL (object), priv);
 }
 
 static void
@@ -427,6 +442,7 @@ mcd_channel_class_init (McdChannelClass * klass)
     McdMissionClass *mission_class = MCD_MISSION_CLASS (klass);
     g_type_class_add_private (object_class, sizeof (McdChannelPrivate));
 
+    object_class->constructed = _mcd_channel_constructed;
     object_class->dispose = _mcd_channel_dispose;
     object_class->finalize = _mcd_channel_finalize;
     object_class->set_property = _mcd_channel_set_property;
@@ -479,6 +495,7 @@ mcd_channel_init (McdChannel * obj)
     obj->priv = priv;
 
     priv->close_on_dispose = TRUE;
+    priv->constructing = TRUE;
 }
 
 /**
