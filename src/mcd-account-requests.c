@@ -152,18 +152,17 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
     }
 }
 
-static McdChannel *
-create_request (McdAccount *account, GHashTable *properties,
-                gint64 user_time, const gchar *preferred_handler,
-                gboolean use_existing, GError **error)
+McdChannel *
+_mcd_account_create_request (McdAccount *account, GHashTable *properties,
+                             gint64 user_time, const gchar *preferred_handler,
+                             gboolean use_existing, gboolean proceeding,
+                             GError **error)
 {
     McdChannel *channel;
     GHashTable *props;
     TpDBusDaemon *dbus_daemon = mcd_account_manager_get_dbus_daemon (
         mcd_account_get_account_manager (account));
     DBusGConnection *dgc = tp_proxy_get_dbus_connection (dbus_daemon);
-
-    g_return_val_if_fail (error != NULL, NULL);
 
     if (mcd_mission_get_flags (MCD_MISSION (mcd_master_get_default ())) &
         MCD_SYSTEM_MEMORY_CONSERVED)
@@ -180,6 +179,10 @@ create_request (McdAccount *account, GHashTable *properties,
                                        proceeding);
     g_hash_table_unref (props);
 
+    /* FIXME: this isn't ideal - if the account is deleted, Proceed will fail,
+     * whereas what we want to happen is that Proceed will succeed but
+     * immediately cause a failure to be signalled. It'll do for now though. */
+
     /* we use connect_after, to make sure that other signals (such as
      * RemoveFailedRequest) are emitted before the Failed signal */
     /* WARNING: on_channel_status_changed unrefs the McdChannel (!), so we
@@ -195,6 +198,19 @@ const McdDBusProp account_channelrequests_properties[] = {
     { 0 },
 };
 
+void
+_mcd_account_proceed_with_request (McdAccount *account,
+                                   McdChannel *channel)
+{
+    /* Put the account online if necessary, and when that's finished,
+     * make the actual request. This is the equivalent of Proceed() in the
+     * new API.
+     *
+     * (The callback releases this reference.) */
+    _mcd_account_online_request (account, online_request_cb,
+                                 g_object_ref (channel));
+}
+
 static void
 account_request_common (McdAccount *account, GHashTable *properties,
                         gint64 user_time, const gchar *preferred_handler,
@@ -205,8 +221,9 @@ account_request_common (McdAccount *account, GHashTable *properties,
     McdChannel *channel;
     McdDispatcher *dispatcher;
 
-    channel = create_request (account, properties, user_time,
-                              preferred_handler, use_existing, &error);
+    channel = _mcd_account_create_request (account, properties, user_time,
+                                           preferred_handler, use_existing,
+                                           TRUE /* proceeding */, &error);
 
     if (error)
     {
@@ -216,13 +233,7 @@ account_request_common (McdAccount *account, GHashTable *properties,
         return;
     }
 
-    /* Put the account online if necessary, and when that's finished,
-     * make the actual request. This is the equivalent of Proceed() in the
-     * new API.
-     *
-     * (The callback releases this reference.) */
-    _mcd_account_online_request (account, online_request_cb,
-                                 g_object_ref (channel));
+    _mcd_account_proceed_with_request (account, channel);
 
     request_id = _mcd_channel_get_request_path (channel);
     DEBUG ("returning %s", request_id);
@@ -236,8 +247,8 @@ account_request_common (McdAccount *account, GHashTable *properties,
     dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
     _mcd_dispatcher_add_request (dispatcher, account, channel);
 
-    /* we still have a ref returned by create_request(), which is no longer
-     * necessary at this point */
+    /* we still have a ref returned by _mcd_account_create_request(), which
+     * is no longer necessary at this point */
     g_object_unref (channel);
 }
 
