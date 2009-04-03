@@ -1993,10 +1993,10 @@ map_tp_error_to_mc_error (McdChannel *channel, const GError *error)
 {
     McError mc_error_code;
 
-    g_warning ("Telepathy Error = %s", error->message);
-    
-    /* TODO : Are there still more specific errors we need
-     * to distinguish?
+    DEBUG ("Telepathy Error = %s", error->message);
+
+    /* Some TP errors might be a bit too generic for the UIs.
+     * With some guesswork, we can add more precise error reporting here.
      */
     if (mcd_channel_get_channel_type_quark (channel) ==
 	TP_IFACE_QUARK_CHANNEL_TYPE_STREAMED_MEDIA &&
