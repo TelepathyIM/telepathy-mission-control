@@ -181,5 +181,8 @@ def test(q, bus, mc):
     # HandleWith succeeds
     q.expect('dbus-return', method='HandleWith')
 
+    # Now there are no more active channel dispatch operations
+    assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []
+
 if __name__ == '__main__':
     exec_test(test, {})
