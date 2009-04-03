@@ -21,7 +21,7 @@ def test(q, bus, mc):
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
         }, signature='sv')
 
-    # Two clients want to observe, dispatch and handle channels
+    # Two clients want to observe, approve and handle channels
     empathy = SimulatedClient(q, bus, 'Empathy',
             observe=[text_fixed_properties], approve=[text_fixed_properties],
             handle=[text_fixed_properties], bypass_approval=False)
