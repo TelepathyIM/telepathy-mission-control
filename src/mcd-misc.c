@@ -333,7 +333,7 @@ rename_file (const char *old_name,
 
 static gchar *
 write_to_temp_file (const gchar *contents,
-                    gssize length,
+                    gsize length,
                     const gchar *template,
                     GError **err)
 {

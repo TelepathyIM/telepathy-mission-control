@@ -40,6 +40,8 @@
 #include <glib/gprintf.h>
 #include <glib/gi18n.h>
 
+#include <dbus/dbus-glib-lowlevel.h>
+
 #include "mcd-signals-marshal.h"
 #include "mcd-connection.h"
 #include "mcd-channel.h"
@@ -51,11 +53,13 @@
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/proxy-subclass.h>
+#include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 #include "_gen/interfaces.h"
 #include "_gen/gtypes.h"
 #include "_gen/cli-client.h"
 #include "_gen/cli-client-body.h"
+#include "_gen/svc-dispatcher.h"
 
 #include <libmcclient/mc-errors.h>
 
@@ -64,7 +68,16 @@
 
 #define MCD_DISPATCHER_PRIV(dispatcher) (MCD_DISPATCHER (dispatcher)->priv)
 
-G_DEFINE_TYPE (McdDispatcher, mcd_dispatcher, MCD_TYPE_MISSION);
+static void dispatcher_iface_init (gpointer, gpointer);
+
+G_DEFINE_TYPE_WITH_CODE (McdDispatcher, mcd_dispatcher, MCD_TYPE_MISSION,
+    G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_DISPATCHER,
+                           dispatcher_iface_init);
+    G_IMPLEMENT_INTERFACE (
+        MC_TYPE_SVC_CHANNEL_DISPATCHER_INTERFACE_OPERATION_LIST,
+        NULL);
+    G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
+                           tp_dbus_properties_mixin_iface_init))
 
 struct _McdDispatcherContext
 {
@@ -197,7 +210,13 @@ struct _McdDispatcherPrivate
     GHashTable *clients;
 
     McdMaster *master;
- 
+
+    /* Initially FALSE, meaning we suppress OperationList.DispatchOperations
+     * change notification signals because nobody has retrieved that property
+     * yet. Set to TRUE the first time someone reads the DispatchOperations
+     * property. */
+    gboolean operation_list_active;
+
     gboolean is_disposed;
     
 };
@@ -232,6 +251,8 @@ enum
     PROP_0,
     PROP_DBUS_DAEMON,
     PROP_MCD_MASTER,
+    PROP_INTERFACES,
+    PROP_DISPATCH_OPERATIONS,
 };
 
 enum _McdDispatcherSignalType
@@ -1371,7 +1392,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
 
     sp_timestamp ("run observers");
     channels = context->channels;
-    observer_info = NULL;
+    observer_info = g_hash_table_new (g_str_hash, g_str_equal);
 
     g_hash_table_iter_init (&iter, priv->clients);
     while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &client))
@@ -1420,6 +1441,8 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
 
         g_list_free (observed);
     }
+
+    g_hash_table_destroy (observer_info);
 }
 
 /*
@@ -1610,6 +1633,12 @@ on_operation_finished (McdDispatchOperation *operation,
      * CDO: according to which of these have happened, we run the choosen
      * handler or we don't. */
 
+    if (context->dispatcher->priv->operation_list_active)
+    {
+        mc_svc_channel_dispatcher_interface_operation_list_emit_dispatch_operation_finished (
+            context->dispatcher, mcd_dispatch_operation_get_path (operation));
+    }
+
     if (mcd_dispatch_operation_is_claimed (operation))
     {
         GList *list;
@@ -1702,6 +1731,15 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     {
         context->operation =
             _mcd_dispatch_operation_new (priv->dbus_daemon, channels);
+
+        if (priv->operation_list_active)
+        {
+            mc_svc_channel_dispatcher_interface_operation_list_emit_new_dispatch_operation (
+                dispatcher,
+                mcd_dispatch_operation_get_path (context->operation),
+                mcd_dispatch_operation_get_properties (context->operation));
+        }
+
         g_signal_connect (context->operation, "finished",
                           G_CALLBACK (on_operation_finished), context);
     }
@@ -1762,6 +1800,11 @@ _mcd_dispatcher_set_property (GObject * obj, guint prop_id,
     }
 }
 
+static const char * const interfaces[] = {
+    MC_IFACE_CHANNEL_DISPATCHER_INTERFACE_OPERATION_LIST,
+    NULL
+};
+
 static void
 _mcd_dispatcher_get_property (GObject * obj, guint prop_id,
 			      GValue * val, GParamSpec * pspec)
@@ -1773,9 +1816,53 @@ _mcd_dispatcher_get_property (GObject * obj, guint prop_id,
     case PROP_DBUS_DAEMON:
 	g_value_set_object (val, priv->dbus_daemon);
 	break;
+
     case PROP_MCD_MASTER:
 	g_value_set_object (val, priv->master);
 	break;
+
+    case PROP_INTERFACES:
+        g_value_set_static_boxed (val, interfaces);
+        break;
+
+    case PROP_DISPATCH_OPERATIONS:
+        {
+            GList *iter;
+            GPtrArray *operations = g_ptr_array_new ();
+
+            /* Side-effect: from now on, emit change notification signals for
+             * this property */
+            priv->operation_list_active = TRUE;
+
+            for (iter = priv->contexts; iter != NULL; iter = iter->next)
+            {
+                McdDispatcherContext *context = iter->data;
+
+                if (context->operation != NULL)
+                {
+                    GValueArray *va = g_value_array_new (2);
+
+                    g_value_array_append (va, NULL);
+                    g_value_array_append (va, NULL);
+
+                    g_value_init (va->values + 0, DBUS_TYPE_G_OBJECT_PATH);
+                    g_value_init (va->values + 1,
+                                  TP_HASH_TYPE_STRING_VARIANT_MAP);
+
+                    g_value_set_boxed (va->values + 0,
+                        mcd_dispatch_operation_get_path (context->operation));
+                    g_value_set_boxed (va->values + 1,
+                        mcd_dispatch_operation_get_properties (
+                            context->operation));
+
+                    g_ptr_array_add (operations, va);
+                }
+            }
+
+            g_value_take_boxed (val, operations);
+        }
+        break;
+
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
@@ -2421,7 +2508,9 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
 static void
 mcd_dispatcher_constructed (GObject *object)
 {
+    DBusGConnection *dgc;
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
+    DBusError error = { 0 };
 
     tp_cli_dbus_daemon_connect_to_name_owner_changed (priv->dbus_daemon,
         name_owner_changed_cb, NULL, NULL, object, NULL);
@@ -2431,11 +2520,51 @@ mcd_dispatcher_constructed (GObject *object)
 
     tp_cli_dbus_daemon_call_list_names (priv->dbus_daemon,
         -1, list_names_cb, NULL, NULL, object);
+
+    dgc = TP_PROXY (priv->dbus_daemon)->dbus_connection;
+
+    dbus_bus_request_name (dbus_g_connection_get_connection (dgc),
+                           MCD_CHANNEL_DISPATCHER_BUS_NAME, 0, &error);
+
+    if (dbus_error_is_set (&error))
+    {
+        /* FIXME: put in proper error handling when MC gains the ability to
+         * be the AM or the CD but not both */
+        g_error ("Unable to be the channel dispatcher: %s: %s", error.name,
+                 error.message);
+        dbus_error_free (&error);
+        return;
+    }
+
+    dbus_g_connection_register_g_object (dgc,
+                                         MCD_CHANNEL_DISPATCHER_OBJECT_PATH,
+                                         object);
 }
 
 static void
 mcd_dispatcher_class_init (McdDispatcherClass * klass)
 {
+    static TpDBusPropertiesMixinPropImpl cd_props[] = {
+        { "Interfaces", "interfaces", NULL },
+        { NULL }
+    };
+    static TpDBusPropertiesMixinPropImpl op_list_props[] = {
+        { "DispatchOperations", "dispatch-operations", NULL },
+        { NULL }
+    };
+    static TpDBusPropertiesMixinIfaceImpl prop_interfaces[] = {
+        { MC_IFACE_CHANNEL_DISPATCHER,
+          tp_dbus_properties_mixin_getter_gobject_properties,
+          NULL,
+          cd_props,
+        },
+        { MC_IFACE_CHANNEL_DISPATCHER_INTERFACE_OPERATION_LIST,
+          tp_dbus_properties_mixin_getter_gobject_properties,
+          NULL,
+          op_list_props,
+        },
+        { NULL }
+    };
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
     g_type_class_add_private (object_class, sizeof (McdDispatcherPrivate));
@@ -2513,7 +2642,25 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
                               MCD_TYPE_MASTER,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
 
+    g_object_class_install_property
+        (object_class, PROP_INTERFACES,
+         g_param_spec_boxed ("interfaces", "Interfaces", "Interfaces",
+                             G_TYPE_STRV,
+                             G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
+    g_object_class_install_property
+        (object_class, PROP_DISPATCH_OPERATIONS,
+         g_param_spec_boxed ("dispatch-operations",
+                             "ChannelDispatchOperation details",
+                             "A dbus-glib a(oa{sv})",
+                             MC_ARRAY_TYPE_DISPATCH_OPERATION_DETAILS_LIST,
+                             G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
     client_ready_quark = g_quark_from_static_string ("mcd_client_ready");
+
+    klass->dbus_properties_class.real.interfaces = prop_interfaces,
+    tp_dbus_properties_mixin_class_init (object_class,
+        G_STRUCT_OFFSET (McdDispatcherClass, dbus_properties_class));
 }
 
 static void
@@ -2562,7 +2709,9 @@ mcd_dispatcher_init (McdDispatcher * dispatcher)
     dispatcher->priv = priv;
 
     g_datalist_init (&(priv->interface_filters));
-    
+
+    priv->operation_list_active = FALSE;
+
     priv->channel_handler_hash = mcd_get_channel_handlers ();
 
     priv->clients = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
@@ -3357,3 +3506,45 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
     channel_recover_release_lock (cr);
 }
 
+static void
+dispatcher_create_channel (McSvcChannelDispatcher *iface,
+                           const gchar *account_path,
+                           GHashTable *requested_properties,
+                           gint64 user_action_time,
+                           const gchar *preferred_handler,
+                           DBusGMethodInvocation *context)
+{
+    McdDispatcher *self = MCD_DISPATCHER (iface);
+    GError ni = { TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
+        "CreateChannel not yet implemented" };
+
+    (void) self;
+    dbus_g_method_return_error (context, &ni);
+}
+
+static void
+dispatcher_ensure_channel (McSvcChannelDispatcher *iface,
+                           const gchar *account_path,
+                           GHashTable *requested_properties,
+                           gint64 user_action_time,
+                           const gchar *preferred_handler,
+                           DBusGMethodInvocation *context)
+{
+    McdDispatcher *self = MCD_DISPATCHER (iface);
+    GError ni = { TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
+        "EnsureChannel not yet implemented" };
+
+    (void) self;
+    dbus_g_method_return_error (context, &ni);
+}
+
+static void
+dispatcher_iface_init (gpointer g_iface,
+                       gpointer iface_data G_GNUC_UNUSED)
+{
+#define IMPLEMENT(x) mc_svc_channel_dispatcher_implement_##x (\
+    g_iface, dispatcher_##x)
+    IMPLEMENT (create_channel);
+    IMPLEMENT (ensure_channel);
+#undef IMPLEMENT
+}

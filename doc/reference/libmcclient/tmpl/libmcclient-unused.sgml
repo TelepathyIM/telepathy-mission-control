@@ -94,6 +94,18 @@ cli-account-manager
 cli-account
 
 
+<!-- ##### MACRO MC_IFACE_NMC4 ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### MACRO MC_IFACE_QUARK_NMC4 ##### -->
+<para>
+
+</para>
+
+
 <!-- ##### MACRO MC_STRUCT_TYPE_ACCOUNT_PRESENCE ##### -->
 <para>
 
@@ -126,6 +138,13 @@ cli-account
 @user_data: 
 @destroy: 
 @weak_object: 
+@Returns: 
+
+<!-- ##### FUNCTION mc_iface_quark_nmc4 ##### -->
+<para>
+
+</para>
+
 @Returns: 
 
 <!-- ##### FUNCTION mc_type_dbus_struct_uss ##### -->

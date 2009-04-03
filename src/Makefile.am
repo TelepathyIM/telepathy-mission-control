@@ -57,7 +57,9 @@ nodist_geninclude_HEADERS = \
 	_gen/svc-Account_Manager.h \
 	_gen/svc-Account_Manager_Interface_Creation.h \
 	_gen/svc-Account_Manager_Interface_Query.h \
-	_gen/svc-dispatch-operation.h
+	_gen/svc-dispatcher.h \
+	_gen/svc-dispatch-operation.h \
+	_gen/svc-request.h
 
 nodist_libmissioncontrol_server_la_SOURCES = \
 	_gen/cli-client-body.h \
@@ -77,7 +79,9 @@ nodist_libmissioncontrol_server_la_SOURCES = \
 	_gen/svc-Account_Manager.c \
 	_gen/svc-Account_Manager_Interface_Creation.c \
 	_gen/svc-Account_Manager_Interface_Query.c \
-	_gen/svc-dispatch-operation.c
+	_gen/svc-dispatcher.c \
+	_gen/svc-dispatch-operation.c \
+	_gen/svc-request.c
 
 
 mission_control_include_HEADERS = \
@@ -90,7 +94,6 @@ mission_control_include_HEADERS = \
 
 BUILT_SOURCES = \
 	_gen/all.xml \
-	mcd-service-gen.h \
 	mcd-signals-marshal.h \
 	mcd-signals-marshal.c \
 	mcd-enum-types.c \
@@ -192,14 +195,12 @@ mcd-enum-types.c: Makefile
 	&& cp xgen-getc mcd-enum-types.c  \
 	&& rm -f xgen-getc
 
-
-mcd-service-gen.h: $(top_builddir)/xml/MissionControl-gen.xml
-	dbus-binding-tool --mode=glib-server --prefix=mcd_service $< > $@
-
 EXTRA_DIST = \
 	client.xml \
+	dispatcher.xml \
 	dispatch-operation.xml \
 	mcd-signals-marshal.list \
+	request.xml \
 	stamp-mcd-enum-types.h
 
 # ---- telepathy-glib-style code generation ----
@@ -288,5 +289,4 @@ _gen/svc-%.c _gen/svc-%.h: _gen/%.xml \
 		--include='"_gen/signals-marshal.h"' \
 		--not-implemented-func='tp_dbus_g_method_return_not_implemented' \
 		--allow-unstable \
-		--no-properties \
 		$< Mc_Svc_

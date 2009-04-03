@@ -17,14 +17,6 @@ interfaces-body
 <!-- ##### SECTION Stability_Level ##### -->
 
 
-<!-- ##### FUNCTION mc_iface_quark_nmc4 ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
-
 <!-- ##### FUNCTION mc_iface_quark_account ##### -->
 <para>
 

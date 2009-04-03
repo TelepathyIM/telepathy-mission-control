@@ -76,14 +76,6 @@ enum _McdPresenceFrameSignalType
     /* Request */
     PRESENCE_REQUESTED,
     
-    /* Account specific changes */
-    PRESENCE_CHANGED,
-    STATUS_CHANGED,
-    
-    /* Accumulated changes */
-    PRESENCE_ACTUAL,
-    STATUS_ACTUAL,
-    
     LAST_SIGNAL
 };
 
@@ -251,41 +243,6 @@ mcd_presence_frame_class_init (McdPresenceFrameClass * klass)
 		      NULL, NULL,
 		      _mcd_marshal_VOID__INT_STRING,
 		      G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_STRING);
-    mcd_presence_frame_signals[PRESENCE_CHANGED] =
-	g_signal_new ("presence-changed",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_FIRST,
-		      G_STRUCT_OFFSET (McdPresenceFrameClass,
-				       presence_set_signal),
-		      NULL, NULL,
-		      _mcd_marshal_VOID__OBJECT_INT_STRING,
-		      G_TYPE_NONE, 3, MCD_TYPE_ACCOUNT, G_TYPE_INT, G_TYPE_STRING);
-    mcd_presence_frame_signals[STATUS_CHANGED] =
-	g_signal_new ("status-changed",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_FIRST,
-		      G_STRUCT_OFFSET (McdPresenceFrameClass,
-				       status_changed_signal),
-		      NULL, NULL,
-		      _mcd_marshal_VOID__OBJECT_INT_INT,
-		      G_TYPE_NONE, 3, MCD_TYPE_ACCOUNT, G_TYPE_INT, G_TYPE_INT);
-    mcd_presence_frame_signals[PRESENCE_ACTUAL] =
-	g_signal_new ("presence-actual",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_FIRST,
-		      G_STRUCT_OFFSET (McdPresenceFrameClass,
-				       presence_actual_signal),
-		      NULL, NULL,
-		      _mcd_marshal_VOID__INT_STRING,
-		      G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_STRING);
-    mcd_presence_frame_signals[STATUS_ACTUAL] =
-	g_signal_new ("status-actual",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_FIRST,
-		      0,
-		      NULL, NULL,
-		      g_cclosure_marshal_VOID__INT,
-		      G_TYPE_NONE, 1, G_TYPE_INT);
 }
 
 static void
@@ -457,7 +414,6 @@ _mcd_presence_frame_update_actual_presence (McdPresenceFrame * presence_frame,
     McdActualPresenceInfo pi;
     TpConnectionStatus connection_status;
     TpConnectionStatusReason connection_reason;
-    gboolean changed;
     
     DEBUG ("called");
 
@@ -471,9 +427,6 @@ _mcd_presence_frame_update_actual_presence (McdPresenceFrame * presence_frame,
     connection_status = priv->actual_presence->connection_status;
     connection_reason = priv->actual_presence->connection_reason;
 
-    changed = (priv->actual_presence->presence != pi.presence) ||
-              (tp_strdiff (priv->actual_presence->message, presence_message));
-
     mcd_presence_free (priv->actual_presence);
     priv->actual_presence = mcd_presence_new (pi.presence,
 					      presence_message,
@@ -481,28 +434,6 @@ _mcd_presence_frame_update_actual_presence (McdPresenceFrame * presence_frame,
 					      connection_reason);
 
     DEBUG ("presence actual: %d", pi.presence);
-    if (changed)
-    {    
-	g_signal_emit_by_name (G_OBJECT (presence_frame),
-			       "presence-actual", pi.presence, presence_message);
-    }
-}
-
-/* TODO: remove this useless func */
-TpConnectionStatus
-mcd_presence_frame_get_account_status (McdPresenceFrame * presence_frame,
-				       McdAccount *account)
-{
-    return mcd_account_get_connection_status (account);
-}
-
-/* TODO: remove this useless func */
-TpConnectionStatusReason
-mcd_presence_frame_get_account_status_reason (McdPresenceFrame *
-					      presence_frame,
-					      McdAccount * account)
-{
-    return mcd_account_get_connection_status_reason (account);
 }
 
 static void
@@ -511,9 +442,6 @@ on_account_current_presence_changed (McdAccount *account,
 				     const gchar *status, const gchar *message,
 				     McdPresenceFrame *presence_frame)
 {
-    g_signal_emit_by_name (presence_frame, "presence-changed", account,
-			   presence, message);
-
     _mcd_presence_frame_update_actual_presence (presence_frame,
 						message);
 }
@@ -549,19 +477,7 @@ on_account_connection_status_changed (McdAccount *account,
 				      TpConnectionStatusReason reason,
 				      McdPresenceFrame *presence_frame)
 {
-    McdPresenceFramePrivate *priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-    TpConnectionStatus conn_status;
-
-    g_signal_emit (presence_frame, mcd_presence_frame_signals[STATUS_CHANGED],
-		   0, account, status, reason);
-
-    conn_status = priv->actual_status;
     _mcd_presence_frame_update_actual_status (presence_frame);
-    if (conn_status != priv->actual_status ||
-       	priv->actual_status != TP_CONNECTION_STATUS_CONNECTING)
-	g_signal_emit (presence_frame,
-		       mcd_presence_frame_signals[STATUS_ACTUAL],
-		       0, priv->actual_status);
 }
 
 static void

@@ -63,10 +63,7 @@ struct _McdMasterClass
     void (*_mc_reserved6) (void);
 };
 
-struct mcd_channel_request;
-
 GType mcd_master_get_type (void);
-#define mcd_master_new()    mcd_master_get_default()
 McdMaster *mcd_master_get_default (void);
 
 McdManager *mcd_master_lookup_manager (McdMaster *master,
@@ -74,56 +71,11 @@ McdManager *mcd_master_lookup_manager (McdMaster *master,
 McdDispatcher *mcd_master_get_dispatcher (McdMaster *master);
 TpDBusDaemon *mcd_master_get_dbus_daemon (McdMaster *master);
 
-void mcd_master_request_presence (McdMaster * master,
-				  TpConnectionPresenceType presence,
-				  const gchar * presence_message);
-
-TpConnectionPresenceType mcd_master_get_actual_presence (McdMaster * master);
-gchar *mcd_master_get_actual_presence_message (McdMaster * master);
-
-TpConnectionPresenceType mcd_master_get_requested_presence (McdMaster * master);
-gchar *mcd_master_get_requested_presence_message (McdMaster * master);
-
-gboolean mcd_master_set_default_presence (McdMaster * master,
-					  const gchar *client_id);
-
 void mcd_master_set_default_presence_setting (McdMaster *master,
 					      TpConnectionPresenceType presence);
 
-TpConnectionStatus mcd_master_get_account_status (McdMaster * master,
-						  gchar * account_name);
-
-gboolean mcd_master_get_online_connection_names (McdMaster * master,
-						 gchar *** connected_names);
-
-gboolean mcd_master_get_account_connection_details (McdMaster * master,
-						    const gchar * account_name,
-						    gchar ** servname,
-						    gchar ** objpath,
-						    GError **error);
-
-gboolean mcd_master_request_channel (McdMaster *master,
-				     const struct mcd_channel_request *req,
-				     GError ** error);
-
-gboolean mcd_master_cancel_channel_request (McdMaster *master,
-					    guint operation_id,
-					    const gchar *requestor_client_id,
-					    GError **error);
-
-gboolean mcd_master_get_used_channels_count (McdMaster *master, guint chan_type,
-					     guint * ret, GError ** error);
-McdConnection *mcd_master_get_connection (McdMaster *master,
-					  const gchar *object_path,
-					  GError **error);
-gboolean mcd_master_get_account_for_connection (McdMaster *master,
-						const gchar *object_path,
-						gchar **ret_unique_name,
-						GError **error);
-
 void mcd_master_add_connection_parameter (McdMaster *master, const gchar *name,
 					  const GValue *value);
-GHashTable * mcd_master_get_connection_parameters (McdMaster *master);
 
 void mcd_master_get_nth_account_connection (McdMaster *master, gint i,
 					    McdAccountConnectionFunc *func,

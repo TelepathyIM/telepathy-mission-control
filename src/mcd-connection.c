@@ -466,6 +466,10 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
     McdConnectionPrivate *priv = user_data;
     McdChannel *channel;
 
+    DEBUG ("%s (t=%s, ht=%u, h=%u, suppress=%c)",
+           chan_obj_path, chan_type, handle_type, handle,
+           suppress_handler ? 'T' : 'F');
+
     /* ignore all our own requests (they have always suppress_handler = 1) as
      * well as other requests for which our intervention has not been requested
      * */
@@ -1266,6 +1270,30 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
     gboolean requested = FALSE;
     guint i;
 
+    if (DEBUGGING)
+    {
+        for (i = 0; i < channels->len; i++)
+        {
+            GValueArray *va = g_ptr_array_index (channels, i);
+            const gchar *object_path = g_value_get_boxed (va->values);
+            GHashTable *props = g_value_get_boxed (va->values + 1);
+            GHashTableIter iter;
+            gpointer k, v;
+
+            DEBUG ("%s", object_path);
+
+            g_hash_table_iter_init (&iter, props);
+
+            while (g_hash_table_iter_next (&iter, &k, &v))
+            {
+                gchar *repr = g_strdup_value_contents (v);
+
+                DEBUG("  \"%s\" => %s", (const gchar *) k, repr);
+                g_free (repr);
+            }
+        }
+    }
+
     /* we can completely ignore the channels that arrive while can_dispatch is
      * FALSE: the on_new_channel handler is already recording them */
     if (!priv->can_dispatch) return;
@@ -1347,6 +1375,14 @@ static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
     }
 
     value = g_hash_table_lookup (properties, "Channels");
+
+    if (value == NULL)
+    {
+        g_warning ("%s: no Channels property on %s",
+                   G_STRFUNC, tp_proxy_get_object_path (proxy));
+        return;
+    }
+
     if (!G_VALUE_HOLDS (value, TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST))
     {
         g_warning ("%s: property Channels has type %s, expecting %s",
@@ -1519,6 +1555,8 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
 					   TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
 	return;
     }
+
+    DEBUG ("created %s", obj_path);
 
     _mcd_connection_set_tp_connection (connection, bus_name, obj_path, &error);
     if (G_UNLIKELY (error))

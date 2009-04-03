@@ -11,6 +11,8 @@ import pprint
 import traceback
 import unittest
 
+import dbus
+import dbus.lowlevel
 import dbus.glib
 
 from twisted.internet import reactor
@@ -174,6 +176,10 @@ class EventTest:
 class EventPattern:
     def __init__(self, type, **properties):
         self.type = type
+        self.predicate = lambda x: True
+        if 'predicate' in properties:
+            self.predicate = properties['predicate']
+            del properties['predicate']
         self.properties = properties
 
     def match(self, event):
@@ -187,7 +193,11 @@ class EventPattern:
             except AttributeError:
                 return False
 
-        return True
+        if self.predicate(event):
+            return True
+
+        return False
+
 
 class TimeoutError(Exception):
     pass
@@ -200,6 +210,7 @@ class BaseEventQueue:
 
     def __init__(self, timeout=None):
         self.verbose = False
+        self.past_events = []
 
         if timeout is None:
             self.timeout = 5
@@ -209,6 +220,22 @@ class BaseEventQueue:
     def log(self, s):
         if self.verbose:
             print s
+
+    def flush_past_events(self):
+        self.past_events = []
+
+    def expect_racy(self, type, **kw):
+        pattern = EventPattern(type, **kw)
+
+        for event in self.past_events:
+            if pattern.match(event):
+                self.log('past event handled')
+                map(self.log, format_event(event))
+                self.log('')
+                self.past_events.remove(event)
+                return event
+
+        return self.expect(type, **kw)
 
     def expect(self, type, **kw):
         pattern = EventPattern(type, **kw)
@@ -223,6 +250,7 @@ class BaseEventQueue:
                 self.log('')
                 return event
 
+            self.past_events.append(event)
             self.log('not handled')
             self.log('')
 
@@ -241,6 +269,7 @@ class BaseEventQueue:
                     ret[i] = event
                     break
             else:
+                self.past_events.append(event)
                 self.log('not handled')
                 self.log('')
 
@@ -267,6 +296,8 @@ class IteratingEventQueue(BaseEventQueue):
     def __init__(self, timeout=None):
         BaseEventQueue.__init__(self, timeout)
         self.events = []
+        self._dbus_method_impls = []
+        self._bus = None
 
     def wait(self):
         stop = [False]
@@ -290,6 +321,62 @@ class IteratingEventQueue(BaseEventQueue):
 
     # compatibility
     handle_event = append
+
+    def add_dbus_method_impl(self, cb, **kwargs):
+        self._dbus_method_impls.append(
+                (EventPattern('dbus-method-call', **kwargs), cb))
+
+    def dbus_emit(self, path, iface, name, *a, **k):
+        assert 'signature' in k, k
+        message = dbus.lowlevel.SignalMessage(path, iface, name)
+        message.append(*a, **k)
+        self._bus.send_message(message)
+
+    def dbus_return(self, in_reply_to, *a, **k):
+        assert 'signature' in k, k
+        reply = dbus.lowlevel.MethodReturnMessage(in_reply_to)
+        reply.append(*a, **k)
+        self._bus.send_message(reply)
+
+    def dbus_raise(self, in_reply_to, name, message=None):
+        reply = dbus.lowlevel.ErrorMessage(in_reply_to, name, message)
+        self._bus.send_message(reply)
+
+    def attach_to_bus(self, bus):
+        assert self._bus is None, self._bus
+        self._bus = bus
+        self._dbus_filter_bound_method = self._dbus_filter
+        self._bus.add_message_filter(self._dbus_filter_bound_method)
+
+    def cleanup(self):
+        if self._bus is not None:
+            self._bus.remove_message_filter(self._dbus_filter_bound_method)
+            self._bus = None
+        self._dbus_method_impls = []
+
+    def _dbus_filter(self, bus, message):
+        if isinstance(message, dbus.lowlevel.MethodCallMessage):
+
+            e = Event('dbus-method-call', message=message,
+                interface=message.get_interface(), path=message.get_path(),
+                args=map(unwrap, message.get_args_list(byte_arrays=True)),
+                destination=message.get_destination(),
+                method=message.get_member(),
+                sender=message.get_sender(),
+                handled=False)
+
+            for pair in self._dbus_method_impls:
+                pattern, cb = pair
+                if pattern.match(e):
+                    cb(e)
+                    e.handled = True
+                    break
+
+            self.append(e)
+
+            return dbus.lowlevel.HANDLER_RESULT_HANDLED
+
+        return dbus.lowlevel.HANDLER_RESULT_NOT_YET_HANDLED
 
 class TestEventQueue(BaseEventQueue):
     def __init__(self, events):
@@ -363,11 +450,10 @@ def call_async(test, proxy, method, *args, **kw):
     kw.update({'reply_handler': reply_func, 'error_handler': error_func})
     method_proxy(*args, **kw)
 
-def sync_dbus(bus, q, conn):
+def sync_dbus(bus, q, proxy):
     # Dummy D-Bus method call
-    call_async(q, conn, "InspectHandles", 1, [])
-
-    event = q.expect('dbus-return', method='InspectHandles')
+    call_async(q, dbus.Interface(proxy, dbus.PEER_IFACE), "Ping")
+    event = q.expect('dbus-return', method='Ping')
 
 class ProxyWrapper:
     def __init__(self, object, default, others):

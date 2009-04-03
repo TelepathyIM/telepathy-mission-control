@@ -88,11 +88,6 @@ typedef struct _McdMasterPrivate
 
     /* We create this for our member objects */
     TpDBusDaemon *dbus_daemon;
-    
-    /* if this flag is set, presence should go offline when all conversations
-     * are closed */
-    gboolean offline_on_idle;
-    GHashTable *clients_needing_presence;
 
     GHashTable *extra_parameters;
 
@@ -334,68 +329,6 @@ mcd_master_load_plugins (McdMaster *master)
     g_dir_close (dir);
 }
 
-static TpConnectionPresenceType
-_get_default_presence (McdMasterPrivate *priv)
-{
-    TpConnectionPresenceType presence = priv->default_presence;
-
-    return presence;
-}
-
-static DBusHandlerResult
-dbus_filter_func (DBusConnection *connection,
-		  DBusMessage    *message,
-		  gpointer        data)
-{
-    DBusHandlerResult result = DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-    McdMasterPrivate *priv = (McdMasterPrivate *)data;
-
-    if (dbus_message_is_signal (message,
-				"org.freedesktop.DBus",
-				"NameOwnerChanged")) {
-	const gchar *name = NULL;
-	const gchar *prev_owner = NULL;
-	const gchar *new_owner = NULL;
-	DBusError error = {0};
-
-	dbus_error_init (&error);
-
-	if (!dbus_message_get_args (message,
-				    &error,
-				    DBUS_TYPE_STRING,
-				    &name,
-				    DBUS_TYPE_STRING,
-				    &prev_owner,
-				    DBUS_TYPE_STRING,
-				    &new_owner,
-				    DBUS_TYPE_INVALID)) {
-
-            DEBUG ("error: %s", error.message);
-	    dbus_error_free (&error);
-
-	    return result;
-	}
-
-	if (name && prev_owner && prev_owner[0] != '\0')
-	{
-	    if (g_hash_table_lookup (priv->clients_needing_presence, prev_owner))
-	    {
-                DEBUG ("Process %s which requested default presence is dead", prev_owner);
-		g_hash_table_remove (priv->clients_needing_presence, prev_owner);
-		if (g_hash_table_size (priv->clients_needing_presence) == 0 &&
-		    priv->offline_on_idle)
-		{
-		    mcd_presence_frame_request_presence (priv->presence_frame,
-							 TP_CONNECTION_PRESENCE_TYPE_OFFLINE,
-							 "No active processes");
-		}
-	    }
-	}
-    }
-
-    return result;
-}
-
 static void
 _mcd_master_connect (McdMission * mission)
 {
@@ -534,8 +467,6 @@ _mcd_master_dispose (GObject * object)
     }
     priv->is_disposed = TRUE;
 
-    g_hash_table_destroy (priv->clients_needing_presence);
-
     if (priv->transport_plugins)
     {
 	guint i;
@@ -566,12 +497,6 @@ _mcd_master_dispose (GObject * object)
 
     if (priv->dbus_daemon)
     {
-	DBusGConnection *dbus_connection;
-
-	dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
-	dbus_connection_remove_filter (dbus_g_connection_get_connection
-				       (dbus_connection),
-				       dbus_filter_func, priv);
 	g_object_unref (priv->dbus_daemon);
 	priv->dbus_daemon = NULL;
     }
@@ -583,36 +508,6 @@ _mcd_master_dispose (GObject * object)
     g_object_unref (priv->proxy);
 
     G_OBJECT_CLASS (mcd_master_parent_class)->dispose (object);
-}
-
-static void
-install_dbus_filter (McdMasterPrivate *priv)
-{
-    DBusGConnection *dbus_connection;
-    DBusConnection *dbus_conn;
-    DBusError error;
-
-    /* set up the NameOwnerChange filter */
-
-    dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
-    dbus_conn = dbus_g_connection_get_connection (dbus_connection);
-    dbus_error_init (&error);
-    dbus_connection_add_filter (dbus_conn,
-				dbus_filter_func,
-				priv, NULL);
-    dbus_bus_add_match (dbus_conn,
-			"type='signal'," "interface='org.freedesktop.DBus',"
-			"member='NameOwnerChanged'", &error);
-    if (dbus_error_is_set (&error))
-    {
-	g_warning ("Match rule adding failed");
-	dbus_error_free (&error);
-    }
-
-    /* FIXME: it doesn't really belong here, but for now it's OK. Move it when
-     * we switch to TpDBusDaemon APIs for monitoring D-Bus names */
-    /* There's no point in MC to stay alive if it's disconnected from the bus */
-    dbus_connection_set_exit_on_disconnect (dbus_conn, TRUE);
 }
 
 static GObject *
@@ -636,7 +531,10 @@ mcd_master_constructor (GType type, guint n_params,
 
     _mcd_account_manager_setup (priv->account_manager);
 
-    install_dbus_filter (priv);
+    dbus_connection_set_exit_on_disconnect (
+        dbus_g_connection_get_connection (
+            TP_PROXY (priv->dbus_daemon)->dbus_connection),
+        TRUE);
 
     priv->presence_frame = mcd_presence_frame_new ();
     /* propagate the signals to dispatcher and presence_frame, too */
@@ -747,10 +645,6 @@ mcd_master_init (McdMaster * master)
     if (!default_master)
 	default_master = master;
 
-    priv->clients_needing_presence = g_hash_table_new_full (g_str_hash,
-							    g_str_equal,
-							    g_free, NULL);
-
     priv->extra_parameters = g_hash_table_new_full (g_str_hash, g_str_equal,
 						    g_free, _g_value_free);
 
@@ -763,317 +657,6 @@ mcd_master_get_default (void)
     if (!default_master)
 	default_master = MCD_MASTER (g_object_new (MCD_TYPE_MASTER, NULL));
     return default_master;
-}
-
-static void
-mcd_master_set_offline_on_idle (McdMaster *master, gboolean offline_on_idle)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-
-    DEBUG ("setting offline_on_idle to %d", offline_on_idle);
-    priv->offline_on_idle = offline_on_idle;
-}
-
-void
-mcd_master_request_presence (McdMaster * master,
-			     TpConnectionPresenceType presence,
-			     const gchar * presence_message)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-
-    mcd_presence_frame_request_presence (priv->presence_frame, presence,
-					 presence_message);
-    if (presence >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
-	mcd_master_set_offline_on_idle (master, FALSE);
-}
-
-TpConnectionPresenceType
-mcd_master_get_actual_presence (McdMaster * master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-
-    return mcd_presence_frame_get_actual_presence (priv->presence_frame);
-}
-
-gchar *
-mcd_master_get_actual_presence_message (McdMaster * master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-
-    return g_strdup (
-	mcd_presence_frame_get_actual_presence_message (priv->presence_frame));
-}
-
-TpConnectionPresenceType
-mcd_master_get_requested_presence (McdMaster * master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-
-    return mcd_presence_frame_get_requested_presence (priv->presence_frame);
-}
-
-gchar *
-mcd_master_get_requested_presence_message (McdMaster * master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-
-    return g_strdup (mcd_presence_frame_get_requested_presence_message (
-						    priv->presence_frame));
-}
-
-gboolean
-mcd_master_set_default_presence (McdMaster * master, const gchar *client_id)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    TpConnectionPresenceType presence;
-
-    presence = _get_default_presence (priv);
-    if (presence == TP_CONNECTION_PRESENCE_TYPE_UNSET)
-	return FALSE;
-
-    if (client_id)
-    {
-	if (g_hash_table_lookup (priv->clients_needing_presence, client_id) == NULL)
-	{
-            DEBUG ("New process requesting default presence (%s)", client_id);
-	    g_hash_table_insert (priv->clients_needing_presence,
-				 g_strdup (client_id), GINT_TO_POINTER(1));
-	}
-    }
-
-    if (mcd_presence_frame_get_actual_presence (priv->presence_frame)
-       	>= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE ||
-	!mcd_presence_frame_is_stable (priv->presence_frame) ||
-	/* if we are not connected the presence frame will always be stable,
-	 * but this doesn't mean we must accept this request; maybe another one
-	 * is pending */
-	(!mcd_mission_is_connected (MCD_MISSION (master)) &&
-	 mcd_presence_frame_get_requested_presence (priv->presence_frame)
-	 >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE))
-    {
-        DEBUG ("Default presence requested while connected or "
-               "already connecting");
-	return FALSE;
-    }
-    mcd_master_set_offline_on_idle (master, TRUE);
-    mcd_presence_frame_request_presence (priv->presence_frame, presence, NULL);
-    return TRUE;
-}
-
-TpConnectionStatus
-mcd_master_get_account_status (McdMaster * master, gchar * account_name)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    TpConnectionStatus status;
-    McdAccount *account;
-
-    account = mcd_account_manager_lookup_account (priv->account_manager,
-						  account_name);
-    if (account)
-    {
-	status = mcd_account_get_connection_status (account);
-    }
-    else
-	status = TP_CONNECTION_STATUS_DISCONNECTED;
-    return status;
-}
-
-gboolean
-mcd_master_get_online_connection_names (McdMaster * master,
-					gchar *** connected_names)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    GList *account_list, *account_node;
-    GPtrArray *names = g_ptr_array_new ();
-
-    account_list = mcd_presence_frame_get_accounts (priv->presence_frame);
-    for (account_node = account_list; account_node != NULL;
-	 account_node = account_node->next)
-    {
-	McdAccount *account = account_node->data;
-
-
-	if (mcd_account_get_connection_status (account) ==
-	    TP_CONNECTION_STATUS_CONNECTED)
-	{
-	    g_ptr_array_add (names,
-			     g_strdup (mcd_account_get_unique_name (account)));
-	}
-    }
-
-    if (names->len != 0)
-    {
-	guint i;
-
-	/* Copy the collected names to the array of strings */
-	*connected_names =
-	    (gchar **) g_malloc0 (sizeof (gchar *) * (names->len + 1));
-	for (i = 0; i < names->len; i++)
-	{
-	    *(*connected_names + i) = g_ptr_array_index (names, i);
-	}
-	(*connected_names)[i] = NULL;
-    }
-    g_ptr_array_free (names, TRUE);
-    return TRUE;
-}
-
-gboolean
-mcd_master_get_account_connection_details (McdMaster * master,
-					   const gchar * account_name,
-					   gchar ** servname, gchar ** objpath,
-					   GError **error)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    McdConnection *connection;
-    McdAccount *account;
-
-    account = mcd_account_manager_lookup_account (priv->account_manager,
-						  account_name);
-    if (!account)
-    {
-	if (error)
-	    g_set_error (error, MC_ERROR, MC_INVALID_ACCOUNT_ERROR,
-			 "No such account %s", account_name);
-	return FALSE;
-    }
-
-    connection = mcd_account_get_connection (account);
-    if (!connection)
-    {
-	if (error)
-	    g_set_error (error, MC_ERROR, MC_NO_MATCHING_CONNECTION_ERROR,
-			 "Account %s is not connected", account_name);
-	return FALSE;
-    }
-    return mcd_connection_get_telepathy_details (connection,
-						 servname, objpath);
-}
-
-gboolean
-mcd_master_request_channel (McdMaster *master,
-			    const struct mcd_channel_request *req,
-			    GError ** error)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    McdAccount *account;
-
-    account = mcd_account_manager_lookup_account (priv->account_manager,
-						  req->account_name);
-    if (!account)
-    {
-	if (error)
-	{
-	    g_set_error (error, MC_ERROR, MC_INVALID_ACCOUNT_ERROR,
-			 "No such account %s", req->account_name);
-	}
-	return FALSE;
-    }
-    return _mcd_account_compat_request_channel_nmc4 (account, req, error);
-}
-
-gboolean
-mcd_master_cancel_channel_request (McdMaster *master, guint operation_id,
-				   const gchar *requestor_client_id,
-				   GError **error)
-{
-    const GList *managers, *node;
-
-    g_return_val_if_fail (MCD_IS_MASTER (master), FALSE);
-    g_return_val_if_fail (error == NULL || *error == NULL, FALSE);
-    
-    /* First find out the right manager */
-    managers = mcd_operation_get_missions (MCD_OPERATION (master));
-    if (!managers) return FALSE;
-
-    for (node = managers; node; node = node->next)
-    {
-	if (mcd_manager_cancel_channel_request (MCD_MANAGER (node->data),
-						operation_id,
-						requestor_client_id,
-						error))
-	    return TRUE;
-    }
-
-    return FALSE;
-}
-
-gboolean
-mcd_master_get_used_channels_count (McdMaster *master, guint chan_type,
-				    guint * ret, GError ** error)
-{
-    McdMasterPrivate *priv;
-    
-    g_return_val_if_fail (ret != NULL, FALSE);
-    
-    priv = MCD_MASTER_PRIV (master);
-    *ret = mcd_dispatcher_get_channel_type_usage (priv->dispatcher,
-						  chan_type);
-    return TRUE;
-}
-
-McdConnection *
-mcd_master_get_connection (McdMaster *master, const gchar *object_path,
-			   GError **error)
-{
-    McdConnection *connection;
-    const GList *managers, *node;
-    
-    g_return_val_if_fail (MCD_IS_MASTER (master), NULL);
-    
-    managers = mcd_operation_get_missions (MCD_OPERATION (master));
-    
-    /* MC exits if there aren't any accounts */
-    if (managers == NULL)
-    {
-	if (error)
-	{
-	    g_set_error (error, MC_ERROR, MC_NO_ACCOUNTS_ERROR,
-			 "No accounts configured");
-	}
-	mcd_controller_shutdown (MCD_CONTROLLER (master),
-				 "No accounts configured");
-	return NULL;
-    }
-    
-    node = managers;
-    while (node)
-    {
-	connection = mcd_manager_get_connection (MCD_MANAGER (node->data),
-						 object_path);
-	if (connection)
-	    return connection;
-	node = node->next;
-    }
-    
-    /* Manager not found */
-    if (error)
-    {
-	g_set_error (error, MC_ERROR, MC_NO_MATCHING_CONNECTION_ERROR,
-		     "No matching manager found for connection '%s'",
-		     object_path);
-    }
-    return NULL;
-}
-
-gboolean
-mcd_master_get_account_for_connection (McdMaster *master,
-				       const gchar *object_path,
-				       gchar **ret_unique_name,
-				       GError **error)
-{
-    McdConnection *connection;
-    McdAccount *account;
-
-    connection = mcd_master_get_connection (master, object_path, error);
-    if (connection &&
-	(account = mcd_connection_get_account (connection)))
-    {
-
-	*ret_unique_name = g_strdup (mcd_account_get_unique_name (account));
-	return TRUE;
-    }
-    return FALSE;
 }
 
 void
@@ -1108,34 +691,6 @@ mcd_master_add_connection_parameter (McdMaster *master, const gchar *name,
     g_value_init (val, G_VALUE_TYPE (value));
     g_value_copy (value, val);
     g_hash_table_replace (priv->extra_parameters, g_strdup (name), val);
-}
-
-static void
-copy_parameter (gpointer key, gpointer value, gpointer userdata)
-{
-    GHashTable *dest = (GHashTable *)userdata;
-
-    g_hash_table_insert (dest, key, value);
-}
-
-/**
- * mcd_master_get_connection_parameters:
- * @master: the #McdMaster.
- *
- * Get the global connections parameters.
- *
- * Returns: the #GHashTable of the parameters. It has to be destroyed when no
- * longer needed.
- */
-GHashTable *
-mcd_master_get_connection_parameters (McdMaster *master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    GHashTable *ret;
-    
-    ret = g_hash_table_new (g_str_hash, g_str_equal);
-    g_hash_table_foreach (priv->extra_parameters, copy_parameter, ret);
-    return ret;
 }
 
 /**

@@ -7,10 +7,4 @@ if HAVE_TESTS
 
 SUBDIRS = twisted
 
-if HAVE_LEGACY
-noinst_PROGRAMS = mc-client
-mc_client_SOURCES = mc-client.c
-mc_client_LDADD = $(top_builddir)/libmissioncontrol/libmissioncontrol-client.la
-endif
-
 endif

@@ -17,38 +17,24 @@ AC_HEADER_STDC
 
 # Recommended CFLAGS for pedantic checking, from telepathy-glib
 
-AS_COMPILER_FLAG(-Wall, ERROR_CFLAGS="-Wall", ERROR_CFLAGS="")
-
-AC_ARG_ENABLE([Werror],
-  AC_HELP_STRING([--enable-Werror],[compile with -Werror]),
-  [werror=$enableval], [werror=no])
-
-if test "$werror" = yes; then
-  AS_COMPILER_FLAG([-Werror], [ERROR_CFLAGS="$ERROR_CFLAGS -Werror"])
-fi
-
-#AS_COMPILER_FLAG(-Wextra, wextra=yes, wextra=no)
-AS_COMPILER_FLAG(-Wno-missing-field-initializers,
-        wno_missing_field_initializers=yes,
-        wno_missing_field_initializers=no)
-AS_COMPILER_FLAG(-Wno-unused-parameter,
-        wno_unused_parameter=yes,
-        wno_unused_parameter=no)
-
-if test x$werror = xyes; then
-    ERROR_CFLAGS="$ERROR_CFLAGS -Werror"
-fi
-if test x$wextra = xyes -a \
-    x$wno_missing_field_initializers = xyes -a \
-    x$wno_unused_parameter = xyes; then
-    ERROR_CFLAGS="$ERROR_CFLAGS -Wextra -Wno-missing-field-initializers -Wno-unused-parameter"
-fi
-
-AS_COMPILER_FLAG(-Wdeclaration-after-statement, ERROR_CFLAGS="$ERROR_CFLAGS -Wdeclaration-after-statement")
-AS_COMPILER_FLAG(-Wshadow, ERROR_CFLAGS="$ERROR_CFLAGS -Wshadow")
-AS_COMPILER_FLAG(-Wstrict-prototypes, ERROR_CFLAGS="$ERROR_CFLAGS -Wstrict-prototypes")
-AS_COMPILER_FLAG(-Wmissing-prototypes, ERROR_CFLAGS="$ERROR_CFLAGS -Wmissing-prototypes")
-AS_COMPILER_FLAG(-Wmissing-declarations, ERROR_CFLAGS="$ERROR_CFLAGS -Wmissing-declarations")
+TP_COMPILER_WARNINGS([ERROR_CFLAGS],
+  [false],   dnl <- no -Werror by default
+  [all \
+   extra \
+   declaration-after-statement \
+   shadow \
+   strict-prototypes \
+   missing-prototypes \
+   missing-declarations \
+   sign-compare \
+   nested-externs \
+   pointer-arith \
+   format-security \
+   init-self \
+   ],
+  [missing-field-initializers \
+   unused-parameter])
+AC_SUBST([ERROR_CFLAGS])
 
 AM_CFLAGS="$CFLAGS -fno-strict-aliasing -ansi -DDMALLOC $ERROR_CFLAGS"
 AC_SUBST([AM_CFLAGS])
@@ -213,26 +199,6 @@ PKG_CHECK_MODULES(TELEPATHY, telepathy-glib >= 0.7.26)
 AC_SUBST(TELEPATHY_LIBS)
 AC_SUBST(TELEPATHY_CFLAGS)
 
-legacy_enabled="yes"
-AC_MSG_CHECKING(whether to build the old libmissioncontrol-client)
-AC_ARG_ENABLE(legacy,
-	[  --enable-legacy         build libmiccioncontrol-client. default=yes],
-	[
-		AC_MSG_RESULT(${enableval})
-		legacy_enabled="${enableval}"
-	],
-	[
-		AC_MSG_RESULT(yes)
-		legacy_enabled="yes"
-	]
-)
-AM_CONDITIONAL(HAVE_LEGACY, [test x$legacy_enabled = xyes])
-if test "x$legacy_enabled" = "xyes"; then
-    PKG_CHECK_MODULES(LIBTELEPATHY, libtelepathy >= 0.3.0)
-    AC_SUBST(LIBTELEPATHY_LIBS)
-    AC_SUBST(LIBTELEPATHY_CFLAGS)
-fi
-
 GCONF_REQUIRED_VERSION=2.0.0
 PKG_CHECK_MODULES(GCONF, gconf-2.0 >= $GCONF_REQUIRED_VERSION)
 AC_SUBST(GCONF_CFLAGS)
@@ -269,12 +235,9 @@ doc/Makefile \
 doc/reference/Makefile \
 doc/reference/libmcclient/Makefile \
 doc/reference/libmissioncontrol-server/Makefile \
-doc/reference/libmissioncontrol/Makefile \
 examples/Makefile \
 libmcclient.pc \
 libmcclient/Makefile \
-libmissioncontrol.pc \
-libmissioncontrol/Makefile \
 m4/Makefile \
 mission-control.pc \
 server/Makefile \

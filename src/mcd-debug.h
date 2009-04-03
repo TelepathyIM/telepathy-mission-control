@@ -35,6 +35,7 @@ G_BEGIN_DECLS
 
 #ifdef ENABLE_DEBUG
 
+#define DEBUGGING (_mcd_debug_get_level () > 0)
 #define DEBUG(format, ...) G_STMT_START {   \
     if (_mcd_debug_get_level () > 0)        \
         g_debug ("%s: " format, G_STRFUNC, ##__VA_ARGS__);    \
@@ -48,6 +49,7 @@ G_BEGIN_DECLS
 
 #else /* !defined ENABLE_DEBUG */
 
+#define DEBUGGING (0)
 #define DEBUG(format, ...) do {} while (0)
 
 #endif /* ENABLE_DEBUG */

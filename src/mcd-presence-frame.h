@@ -57,22 +57,6 @@ struct _McdPresenceFrameClass
     void (*presence_requested_signal) (McdPresenceFrame * presence_frame,
 				       TpConnectionPresenceType presence,
 				       const gchar * presence_message);
-    
-    /* Account specific signals */
-    void (*presence_set_signal) (McdPresenceFrame * presence_frame,
-				 McdAccount * account,
-				 TpConnectionPresenceType presence,
-				 const gchar * presence_message);
-    void (*status_changed_signal) (McdPresenceFrame * presence_frame,
-				   McdAccount * account,
-				   TpConnectionStatus connection_status,
-				   TpConnectionStatusReason
-				   connection_reason);
-    
-    /* Aggregate signals */
-    void (*presence_actual_signal) (McdPresenceFrame * presence_frame,
-				    TpConnectionPresenceType presence,
-				    const gchar * presence_message);
 };
 
 GType mcd_presence_frame_get_type (void);
@@ -91,11 +75,6 @@ TpConnectionPresenceType mcd_presence_frame_get_actual_presence
     (McdPresenceFrame * presence_frame);
 const gchar *mcd_presence_frame_get_actual_presence_message
     (McdPresenceFrame * presence_frame);
-
-TpConnectionStatus mcd_presence_frame_get_account_status
-    (McdPresenceFrame * presence_frame, McdAccount * account);
-TpConnectionStatusReason mcd_presence_frame_get_account_status_reason
-    (McdPresenceFrame * presence_frame, McdAccount * account);
 
 gboolean mcd_presence_frame_is_stable (McdPresenceFrame *presence_frame);
 
