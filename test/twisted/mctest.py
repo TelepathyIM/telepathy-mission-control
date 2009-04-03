@@ -258,6 +258,13 @@ class SimulatedChannel(object):
         assert not self.announced
         self.announced = True
         self.conn.channels.append(self)
+        self.q.dbus_emit(self.conn.object_path, cs.CONN,
+                'NewChannel',
+                self.object_path, self.immutable[cs.CHANNEL + '.ChannelType'],
+                self.immutable.get(cs.CHANNEL + '.TargetHandleType', 0),
+                self.immutable.get(cs.CHANNEL + '.TargetHandle', 0),
+                self.immutable.get(cs.CHANNEL + '.Requested', False),
+                signature='osuub')
         self.q.dbus_emit(self.conn.object_path, cs.CONN_IFACE_REQUESTS,
                 'NewChannels', [(self.object_path, self.immutable)],
                 signature='a(oa{sv})')
