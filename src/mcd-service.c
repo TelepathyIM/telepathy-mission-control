@@ -71,21 +71,6 @@ typedef enum {
     MC_STATUS_CONNECTED,
 } McStatus;
 
-/* Signals */
-
-enum
-{
-    ACCOUNT_STATUS_CHANGED,
-    ACCOUNT_PRESENCE_CHANGED,
-    ERROR,
-    PRESENCE_STATUS_REQUESTED,
-    PRESENCE_STATUS_ACTUAL,
-    USED_CHANNELS_COUNT_CHANGED,
-    STATUS_ACTUAL,
-    LAST_SIGNAL
-};
-
-static guint signals[LAST_SIGNAL] = { 0 };
 static GObjectClass *parent_class = NULL;
 
 #define MCD_OBJECT_PRIV(mission) (G_TYPE_INSTANCE_GET_PRIVATE ((mission), \
@@ -99,9 +84,6 @@ G_DEFINE_TYPE (McdService, mcd_service, MCD_TYPE_MASTER);
 typedef struct _McdServicePrivate
 {
     McdPresenceFrame *presence_frame;
-    McdDispatcher *dispatcher;
-
-    McStatus last_status;
 
     gboolean is_disposed;
 } McdServicePrivate;
@@ -129,78 +111,6 @@ mcd_service_obtain_bus_name (McdService * obj)
 }
 
 static void
-_on_account_status_changed (McdPresenceFrame * presence_frame,
-			    McdAccount *account,
-			    TpConnectionStatus connection_status,
-			    TpConnectionStatusReason connection_reason,
-			    McdService * obj)
-{
-    TpConnectionPresenceType presence;
-    const gchar *status, *message;
-
-    mcd_account_get_current_presence (account, &presence, &status, &message);
-
-    /* Emit the AccountStatusChanged signal */
-    DEBUG ("Emitting account status changed for %s: status = %d, reason = %d",
-           mcd_account_get_unique_name (account), connection_status,
-           connection_reason);
-
-    /* HACK for old MC compatibility */
-    if (connection_status == TP_CONNECTION_STATUS_CONNECTED &&
-	presence < TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
-	presence = TP_CONNECTION_PRESENCE_TYPE_AVAILABLE;
-
-    g_signal_emit_by_name (G_OBJECT (obj),
-			   "account-status-changed", connection_status,
-			   presence,
-			   connection_reason,
-			   mcd_account_get_unique_name (account));
-#ifndef NO_NEW_PRESENCE_SIGNALS
-    g_signal_emit_by_name (G_OBJECT (obj),
-			   "account-presence-changed", connection_status,
-			   presence, message,
-			   connection_reason,
-			   mcd_account_get_unique_name (account));
-#endif
-}
-
-static void
-_on_account_presence_changed (McdPresenceFrame * presence_frame,
-			      McdAccount * account,
-			      TpConnectionPresenceType presence,
-			      gchar * presence_message, McdService * obj)
-{
-    /* Emit the AccountStatusChanged signal */
-    DEBUG ("Emitting presence changed for %s: presence = %d, message = %s",
-           mcd_account_get_unique_name (account), presence,
-           presence_message);
-    
-    /* HACK for old MC compatibility */
-    if (mcd_presence_frame_get_account_status (presence_frame, account)
-       	== TP_CONNECTION_STATUS_CONNECTED &&
-	presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
-	return;
-
-    g_signal_emit_by_name (G_OBJECT (obj),
-			   "account-status-changed",
-			   mcd_presence_frame_get_account_status
-			   (presence_frame, account), presence,
-			   mcd_presence_frame_get_account_status_reason
-			   (presence_frame, account),
-			   mcd_account_get_unique_name (account));
-#ifndef NO_NEW_PRESENCE_SIGNALS
-    g_signal_emit_by_name (G_OBJECT (obj),
-			   "account-presence-changed",
-			   mcd_presence_frame_get_account_status
-			   (presence_frame, account), presence,
-			   presence_message,
-			   mcd_presence_frame_get_account_status_reason
-			   (presence_frame, account),
-			   mcd_account_get_unique_name (account));
-#endif
-}
-
-static void
 _on_presence_requested (McdPresenceFrame * presence_frame,
 			TpConnectionPresenceType presence,
 			gchar * presence_message, McdService * obj)
@@ -213,26 +123,6 @@ _on_presence_requested (McdPresenceFrame * presence_frame,
     else
 	/* If there is a presence request, make sure shutdown is canceled */
 	mcd_controller_cancel_shutdown (MCD_CONTROLLER (obj));
-    
-    /* Emit the AccountStatusChanged signal */
-    g_signal_emit_by_name (G_OBJECT (obj),
-			   "presence-status-requested", presence);
-#ifndef NO_NEW_PRESENCE_SIGNALS
-    g_signal_emit_by_name (G_OBJECT (obj),
-			   "presence-requested", presence, presence_message);
-#endif
-}
-
-static void
-_on_presence_actual (McdPresenceFrame * presence_frame,
-		     TpConnectionPresenceType presence,
-		     gchar * presence_message, McdService * obj)
-{
-    /* Emit the AccountStatusChanged signal */
-    g_signal_emit_by_name (G_OBJECT (obj), "presence-status-actual", presence);
-#ifndef NO_NEW_PRESENCE_SIGNALS
-    g_signal_emit_by_name (G_OBJECT (obj), "presence-changed", presence, presence_message);
-#endif
 }
 
 static void
@@ -240,86 +130,6 @@ mcd_service_disconnect (McdMission *mission)
 {
     MCD_MISSION_CLASS (mcd_service_parent_class)->disconnect (mission);
     mcd_controller_shutdown (MCD_CONTROLLER (mission), "Disconnected");
-}
-
-static void
-_on_status_actual (McdPresenceFrame *presence_frame,
-		   TpConnectionStatus tpstatus,
-		   McdService *service)
-{
-    McdServicePrivate *priv = MCD_OBJECT_PRIV (service);
-    TpConnectionPresenceType req_presence;
-    McStatus status;
-
-    req_presence = mcd_presence_frame_get_requested_presence (presence_frame);
-    switch (tpstatus)
-    {
-    case TP_CONNECTION_STATUS_CONNECTED:
-	status = MC_STATUS_CONNECTED;
-	break;
-    case TP_CONNECTION_STATUS_CONNECTING:
-	status = MC_STATUS_CONNECTING;
-	break;
-    case TP_CONNECTION_STATUS_DISCONNECTED:
-	status = MC_STATUS_DISCONNECTED;
-	break;
-    default:
-	status = MC_STATUS_DISCONNECTED;
-	g_warning ("Unexpected status %d", tpstatus);
-    }
-
-    if (status != priv->last_status)
-    {
-	g_signal_emit (service, signals[STATUS_ACTUAL], 0, status,
-		       req_presence);
-	priv->last_status = status;
-    }
-}
-
-static void
-_on_dispatcher_channel_added (McdDispatcher *dispatcher,
-			      McdChannel *channel, McdService *obj)
-{
-    /* Nothing to do for now */
-}
-
-static void
-_on_dispatcher_channel_removed (McdDispatcher *dispatcher,
-				McdChannel *channel, McdService *obj)
-{
-    const gchar *chan_type;
-    GQuark chan_type_quark;
-    gint usage;
-    
-    chan_type = mcd_channel_get_channel_type (channel);
-    chan_type_quark = mcd_channel_get_channel_type_quark (channel);
-    usage = mcd_dispatcher_get_channel_type_usage (dispatcher,
-						   chan_type_quark);
-
-    /* Signal that the channel count has changed */
-    g_signal_emit_by_name (G_OBJECT (obj),
-			   "used-channels-count-changed",
-			   chan_type, usage);
-}
-
-static void
-_on_dispatcher_channel_dispatched (McdDispatcher *dispatcher,
-				   McdChannel *channel,
-				   McdService *obj)
-{
-    const gchar *chan_type;
-    GQuark chan_type_quark;
-    gint usage;
-    
-    chan_type = mcd_channel_get_channel_type (channel);
-    chan_type_quark = mcd_channel_get_channel_type_quark (channel);
-    usage = mcd_dispatcher_get_channel_type_usage (dispatcher,
-						   chan_type_quark);
-    
-    /* Signal that the channel count has changed */
-    g_signal_emit_by_name (G_OBJECT (obj),
-			   "used-channels-count-changed",
-			   chan_type, usage);
 }
 
 static void
@@ -340,32 +150,8 @@ mcd_dispose (GObject * obj)
     if (priv->presence_frame)
     {
 	g_signal_handlers_disconnect_by_func (priv->presence_frame,
-					      _on_account_status_changed,
-					      self);
-	g_signal_handlers_disconnect_by_func (priv->presence_frame,
-					      _on_account_presence_changed,
-					      self);
-	g_signal_handlers_disconnect_by_func (priv->presence_frame,
 					      _on_presence_requested, self);
-	g_signal_handlers_disconnect_by_func (priv->presence_frame,
-					      _on_presence_actual, self);
-	g_signal_handlers_disconnect_by_func (priv->presence_frame,
-					      _on_status_actual, self);
 	g_object_unref (priv->presence_frame);
-    }
-
-    if (priv->dispatcher)
-    {
-	g_signal_handlers_disconnect_by_func (priv->dispatcher,
-					      _on_dispatcher_channel_added,
-					      self);
-	g_signal_handlers_disconnect_by_func (priv->dispatcher,
-					      _on_dispatcher_channel_removed,
-					      self);
-	g_signal_handlers_disconnect_by_func (priv->dispatcher,
-					  _on_dispatcher_channel_dispatched,
-					  self);
-	g_object_unref (priv->dispatcher);
     }
 
     if (self->main_loop)
@@ -389,28 +175,11 @@ mcd_service_constructed (GObject *obj)
     DEBUG ("called");
     g_object_get (obj,
                   "presence-frame", &priv->presence_frame,
-                  "dispatcher", &priv->dispatcher,
 		  NULL);
 
     /* Setup presence signals */
-    g_signal_connect (priv->presence_frame, "status-changed",
-		      G_CALLBACK (_on_account_status_changed), obj);
-    g_signal_connect (priv->presence_frame, "presence-changed",
-		      G_CALLBACK (_on_account_presence_changed), obj);
     g_signal_connect (priv->presence_frame, "presence-requested",
 		      G_CALLBACK (_on_presence_requested), obj);
-    g_signal_connect (priv->presence_frame, "presence-actual",
-		      G_CALLBACK (_on_presence_actual), obj);
-    g_signal_connect (priv->presence_frame, "status-actual",
-		      G_CALLBACK (_on_status_actual), obj);
-
-    /* Setup dispatcher signals */
-    g_signal_connect (priv->dispatcher, "channel-added",
-		      G_CALLBACK (_on_dispatcher_channel_added), obj);
-    g_signal_connect (priv->dispatcher, "channel-removed",
-		      G_CALLBACK (_on_dispatcher_channel_removed), obj);
-    g_signal_connect (priv->dispatcher, "dispatched",
-		      G_CALLBACK (_on_dispatcher_channel_dispatched), obj);
 
     mcd_service_obtain_bus_name (MCD_OBJECT (obj));
     mcd_debug_print_tree (obj);
@@ -422,11 +191,8 @@ mcd_service_constructed (GObject *obj)
 static void
 mcd_service_init (McdService * obj)
 {
-    McdServicePrivate *priv = MCD_OBJECT_PRIV (obj);
-
     obj->main_loop = g_main_loop_new (NULL, FALSE);
 
-    priv->last_status = -1;
     DEBUG ("called");
 }
 
@@ -442,83 +208,6 @@ mcd_service_class_init (McdServiceClass * self)
     mission_class->disconnect = mcd_service_disconnect;
 
     g_type_class_add_private (gobject_class, sizeof (McdServicePrivate));
-
-    /* AccountStatusChanged signal */
-    signals[ACCOUNT_STATUS_CHANGED] =
-	g_signal_new ("account-status-changed",
-		      G_OBJECT_CLASS_TYPE (self),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL, _mcd_marshal_VOID__UINT_UINT_UINT_STRING,
-		      G_TYPE_NONE, 4, G_TYPE_UINT, G_TYPE_UINT,
-		      G_TYPE_UINT, G_TYPE_STRING);
-#ifndef NO_NEW_PRESENCE_SIGNALS
-    /* AccountStatusChanged signal */
-    signals[ACCOUNT_PRESENCE_CHANGED] =
-	g_signal_new ("account-presence-changed",
-		      G_OBJECT_CLASS_TYPE (self),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL, _mcd_marshal_VOID__UINT_UINT_UINT_STRING,
-		      G_TYPE_NONE, 5, G_TYPE_UINT, G_TYPE_UINT,
-		      G_TYPE_STRING, G_TYPE_UINT, G_TYPE_STRING);
-#endif
-    /* libmc request_error signal */
-    signals[ERROR] =
-	g_signal_new ("mcd-error",
-		      G_OBJECT_CLASS_TYPE (self),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL, _mcd_marshal_VOID__UINT_STRING_UINT, G_TYPE_NONE,
-		      3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_UINT);
-    /* PresenceStatusRequested signal */
-    g_signal_new ("presence-status-requested",
-		  G_OBJECT_CLASS_TYPE (self),
-		  G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		  0,
-		  NULL, NULL, g_cclosure_marshal_VOID__UINT,
-		  G_TYPE_NONE, 1, G_TYPE_UINT);
-#ifndef NO_NEW_PRESENCE_SIGNALS
-    /* PresenceRequested signal */
-    g_signal_new ("presence-requested",
-		  G_OBJECT_CLASS_TYPE (self),
-		  G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		  0,
-		  NULL, NULL, _mcd_marshal_VOID__UINT_STRING,
-		  G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_STRING);
-#endif
-    /* PresenceStatusActual signal */
-    g_signal_new ("presence-status-actual",
-		  G_OBJECT_CLASS_TYPE (self),
-		  G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		  0,
-		  NULL, NULL, g_cclosure_marshal_VOID__UINT,
-		  G_TYPE_NONE, 1, G_TYPE_UINT);
-#ifndef NO_NEW_PRESENCE_SIGNALS
-    /* PresenceChanged signal */
-    g_signal_new ("presence-changed",
-		  G_OBJECT_CLASS_TYPE (self),
-		  G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		  0,
-		  NULL, NULL, _mcd_marshal_VOID__UINT_STRING,
-		  G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_STRING);
-#endif
-    /* UsedChannelsCountChanged signal */
-    signals[USED_CHANNELS_COUNT_CHANGED] =
-	g_signal_new ("used-channels-count-changed",
-		      G_OBJECT_CLASS_TYPE (self),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL, _mcd_marshal_VOID__STRING_UINT,
-		      G_TYPE_NONE, 2, G_TYPE_STRING, G_TYPE_UINT);
-    /* StatusActual signal */
-    signals[STATUS_ACTUAL] =
-	g_signal_new ("status-actual",
-		      G_OBJECT_CLASS_TYPE (self),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL, _mcd_marshal_VOID__UINT_UINT,
-		      G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_UINT);
 }
 
 McdService *

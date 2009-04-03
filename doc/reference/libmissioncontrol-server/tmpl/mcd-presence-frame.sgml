@@ -23,25 +23,6 @@ McdPresenceFrame
 </para>
 
 
-<!-- ##### SIGNAL McdPresenceFrame::presence-actual ##### -->
-<para>
-
-</para>
-
-@mcdpresenceframe: the object which received the signal.
-@arg1: 
-@arg2: 
-
-<!-- ##### SIGNAL McdPresenceFrame::presence-changed ##### -->
-<para>
-
-</para>
-
-@mcdpresenceframe: the object which received the signal.
-@arg1: 
-@arg2: 
-@arg3: 
-
 <!-- ##### SIGNAL McdPresenceFrame::presence-requested ##### -->
 <para>
 
@@ -50,24 +31,6 @@ McdPresenceFrame
 @mcdpresenceframe: the object which received the signal.
 @arg1: 
 @arg2: 
-
-<!-- ##### SIGNAL McdPresenceFrame::status-actual ##### -->
-<para>
-
-</para>
-
-@mcdpresenceframe: the object which received the signal.
-@arg1: 
-
-<!-- ##### SIGNAL McdPresenceFrame::status-changed ##### -->
-<para>
-
-</para>
-
-@mcdpresenceframe: the object which received the signal.
-@arg1: 
-@arg2: 
-@arg3: 
 
 <!-- ##### FUNCTION mcd_presence_frame_new ##### -->
 <para>
@@ -120,26 +83,6 @@ McdPresenceFrame
 </para>
 
 @presence_frame: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_presence_frame_get_account_status ##### -->
-<para>
-
-</para>
-
-@presence_frame: 
-@account: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_presence_frame_get_account_status_reason ##### -->
-<para>
-
-</para>
-
-@presence_frame: 
-@account: 
 @Returns: 
 
 
