@@ -187,10 +187,6 @@ create_request (McdAccount *account, GHashTable *properties,
     g_signal_connect_after (g_object_ref (channel), "status-changed",
                             G_CALLBACK (on_channel_status_changed), account);
 
-    /* the callback releases this reference */
-    _mcd_account_online_request (account, online_request_cb,
-                                 g_object_ref (channel));
-
     return channel;
 }
 
@@ -210,6 +206,7 @@ account_request_common (McdAccount *account, GHashTable *properties,
 
     channel = create_request (account, properties, user_time,
                               preferred_handler, use_existing, &error);
+
     if (error)
     {
         g_assert (channel == NULL);
@@ -217,6 +214,14 @@ account_request_common (McdAccount *account, GHashTable *properties,
         g_error_free (error);
         return;
     }
+
+    /* Put the account online if necessary, and when that's finished,
+     * make the actual request. This is the equivalent of Proceed() in the
+     * new API.
+     *
+     * (The callback releases this reference.) */
+    _mcd_account_online_request (account, online_request_cb,
+                                 g_object_ref (channel));
 
     request_id = _mcd_channel_get_request_path (channel);
     DEBUG ("returning %s", request_id);
@@ -231,7 +236,7 @@ account_request_common (McdAccount *account, GHashTable *properties,
     _mcd_dispatcher_add_request (dispatcher, account, channel);
 
     /* we still have a ref returned by create_request(), which is no longer
-     * necessary */
+     * necessary at this point */
     g_object_unref (channel);
 }
 
