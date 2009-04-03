@@ -87,6 +87,7 @@ struct _McdChannelRequestData
     gchar *preferred_handler;
     McdAccount *account;  /* weak ref */
 
+    gboolean proceeding;
     gboolean use_existing;
 };
 
@@ -1124,6 +1125,8 @@ mcd_channel_get_error (McdChannel *channel)
  * @properties: a #GHashTable of desired channel properties.
  * @user_time: user action time.
  * @preferred_handler: well-known name of preferred handler.
+ * @use_existing: use EnsureChannel if %TRUE or CreateChannel if %FALSE
+ * @proceeding: behave as though Proceed has already been called
  *
  * Create a #McdChannel object holding the given properties. The object can
  * then be used to intiate a channel request, by passing it to
@@ -1137,7 +1140,8 @@ mcd_channel_new_request (McdAccount *account,
                          GHashTable *properties,
                          gint64 user_time,
                          const gchar *preferred_handler,
-                         gboolean use_existing)
+                         gboolean use_existing,
+                         gboolean proceeding)
 {
     McdChannel *channel;
     McdChannelRequestData *crd;
@@ -1154,6 +1158,7 @@ mcd_channel_new_request (McdAccount *account,
     crd->user_time = user_time;
     crd->preferred_handler = g_strdup (preferred_handler);
     crd->use_existing = use_existing;
+    crd->proceeding = proceeding;
 
     /* the McdAccount almost certainly lives longer than we do, but in case it
      * doesn't, use a weak ref here */

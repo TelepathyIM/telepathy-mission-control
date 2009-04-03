@@ -176,7 +176,8 @@ create_request (McdAccount *account, GHashTable *properties,
      * free it */
     props = _mcd_deepcopy_asv (properties);
     channel = mcd_channel_new_request (account, dgc, props, user_time,
-                                       preferred_handler, use_existing);
+                                       preferred_handler, use_existing,
+                                       proceeding);
     g_hash_table_unref (props);
 
     /* we use connect_after, to make sure that other signals (such as

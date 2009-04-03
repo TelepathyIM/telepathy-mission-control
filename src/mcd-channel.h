@@ -102,7 +102,8 @@ McdChannel *mcd_channel_new_request (McdAccount *account,
                                      GHashTable *properties,
                                      gint64 user_time,
                                      const gchar *preferred_handler,
-                                     gboolean use_existing);
+                                     gboolean use_existing,
+                                     gboolean proceeding);
 G_GNUC_INTERNAL McdChannel *_mcd_channel_new_undispatched (void);
 
 G_GNUC_INTERNAL
