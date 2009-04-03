@@ -85,7 +85,7 @@ struct _McdChannelRequestData
     guint target_handle; /* used only if the Requests interface is absent */
     gint64 user_time;
     gchar *preferred_handler;
-    gchar *account_path;
+    McdAccount *account;  /* weak ref */
 
     gboolean use_existing;
 };
@@ -351,9 +351,10 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
 
     case PROP_ACCOUNT_PATH:
         if (priv->request_data != NULL &&
-            priv->request_data->account_path != NULL)
+            priv->request_data->account != NULL)
         {
-            g_value_set_boxed (val, priv->request_data->account_path);
+            g_value_set_boxed (val,
+                mcd_account_get_object_path (priv->request_data->account));
             break;
         }
         g_value_set_static_boxed (val, "/");
@@ -390,6 +391,22 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
 }
 
 static void
+mcd_channel_lost_account (gpointer data,
+                          GObject *ex_account)
+{
+    McdChannel *self = MCD_CHANNEL (data);
+
+    DEBUG ("%p: %p", self, ex_account);
+
+    g_assert (self->priv->request_data != NULL);
+    g_assert ((gpointer) self->priv->request_data->account ==
+              (gpointer) ex_account);
+    g_assert (self->priv->status == MCD_CHANNEL_STATUS_FAILED);
+
+    self->priv->request_data->account = NULL;
+}
+
+static void
 _mcd_channel_dispose (GObject * object)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (object);
@@ -402,6 +419,12 @@ _mcd_channel_dispose (GObject * object)
 
     if (priv->request_data)
     {
+        if (priv->request_data->account != NULL)
+        {
+            g_object_weak_unref ((GObject *) priv->request_data->account,
+                                 mcd_channel_lost_account, object);
+        }
+
         channel_request_data_free (priv->request_data);
         priv->request_data = NULL;
     }
@@ -1110,7 +1133,6 @@ mcd_channel_new_request (McdAccount *account,
 {
     McdChannel *channel;
     McdChannelRequestData *crd;
-    const gchar *account_path = mcd_account_get_object_path (account);
 
     channel = g_object_new (MCD_TYPE_CHANNEL,
                             "outgoing", TRUE,
@@ -1120,11 +1142,17 @@ mcd_channel_new_request (McdAccount *account,
      * MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED */
     crd = g_slice_new (McdChannelRequestData);
     crd->path = g_strdup_printf (REQUEST_OBJ_BASE "%u", last_req_id++);
-    crd->account_path = g_strdup (account_path);
     crd->properties = g_hash_table_ref (properties);
     crd->user_time = user_time;
     crd->preferred_handler = g_strdup (preferred_handler);
     crd->use_existing = use_existing;
+
+    /* the McdAccount almost certainly lives longer than we do, but in case it
+     * doesn't, use a weak ref here */
+    g_object_weak_ref ((GObject *) account, mcd_channel_lost_account,
+                       channel);
+    crd->account = account;
+
     channel->priv->request_data = crd;
     channel->priv->satisfied_requests = g_list_prepend (NULL,
                                                         g_strdup (crd->path));
