@@ -678,6 +678,14 @@ mcd_channel_new_from_path (TpConnection *connection, const gchar *object_path,
     return channel;
 }
 
+McdChannel *
+_mcd_channel_new_undispatched (void)
+{
+    return g_object_new (MCD_TYPE_CHANNEL,
+                         "outgoing", FALSE,
+                         NULL);
+}
+
 gboolean
 _mcd_channel_create_proxy_old (McdChannel *channel, TpConnection *connection,
                                const gchar *object_path, const gchar *type,

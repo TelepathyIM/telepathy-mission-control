@@ -495,9 +495,7 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
          * to be used later */
         McdTmpChannelData *tcd;
 
-        channel = g_object_new (MCD_TYPE_CHANNEL,
-                                "outgoing", FALSE,
-                                NULL);
+        channel = _mcd_channel_new_undispatched ();
         tcd = g_slice_new (McdTmpChannelData);
         tcd->object_path = g_strdup (chan_obj_path);
         tcd->channel_type = g_strdup (chan_type);
