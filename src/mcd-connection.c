@@ -495,9 +495,7 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
          * to be used later */
         McdTmpChannelData *tcd;
 
-        channel = g_object_new (MCD_TYPE_CHANNEL,
-                                "outgoing", FALSE,
-                                NULL);
+        channel = _mcd_channel_new_undispatched ();
         tcd = g_slice_new (McdTmpChannelData);
         tcd->object_path = g_strdup (chan_obj_path);
         tcd->channel_type = g_strdup (chan_type);
@@ -507,7 +505,6 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
                                 tcd, mcd_tmp_channel_data_free);
         mcd_operation_take_mission (MCD_OPERATION (connection),
                                     MCD_MISSION (channel));
-        mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_UNDISPATCHED);
     }
 }
 
@@ -1878,7 +1875,7 @@ _mcd_connection_request_channel (McdConnection *connection,
         ret = request_channel_old_iface (connection, channel);
 
     if (ret)
-        mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_REQUESTED);
+        _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_REQUESTED);
     return ret;
 }
 

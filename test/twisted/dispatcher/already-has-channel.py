@@ -1,4 +1,5 @@
-"""Regression test for dispatching an incoming Text channel.
+"""Regression test for dispatching an incoming Text channel that was already
+there before the Connection became ready.
 """
 
 import dbus
@@ -7,14 +8,13 @@ import dbus.service
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
-        create_fakecm_account, enable_fakecm_account, SimulatedChannel
+        create_fakecm_account, SimulatedChannel
 import constants as cs
 
 def test(q, bus, mc):
     params = dbus.Dictionary({"account": "someguy@example.com",
         "password": "secrecy"}, signature='sv')
     cm_name_ref, account = create_fakecm_account(q, bus, mc, params)
-    conn = enable_fakecm_account(q, bus, mc, account, params)
 
     text_fixed_properties = dbus.Dictionary({
         cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
@@ -66,12 +66,46 @@ def test(q, bus, mc):
                 path=kopete.object_path),
             )
 
+    # Enable the account
+    account.Set(cs.ACCOUNT, 'Enabled', True,
+            dbus_interface=cs.PROPERTIES_IFACE)
+
+    requested_presence = dbus.Struct((dbus.UInt32(2L),
+        dbus.String(u'available'), dbus.String(u'')))
+    account.Set(cs.ACCOUNT,
+            'RequestedPresence', requested_presence,
+            dbus_interface=cs.PROPERTIES_IFACE)
+
+    e = q.expect('dbus-method-call', method='RequestConnection',
+            args=['fakeprotocol', params],
+            destination=cs.tp_name_prefix + '.ConnectionManager.fakecm',
+            path=cs.tp_path_prefix + '/ConnectionManager/fakecm',
+            interface=cs.tp_name_prefix + '.ConnectionManager',
+            handled=False)
+
+    # Don't allow the Connection to become ready until we want it to, by
+    # avoiding a return from GetInterfaces
+    conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
+            'myself', implement_get_interfaces=False)
+
+    q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
+
+    q.expect('dbus-method-call', method='Connect',
+            path=conn.object_path, handled=True)
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+
+    get_interfaces_call = q.expect('dbus-method-call', method='GetInterfaces',
+            path=conn.object_path, handled=False)
+
     # subscribe to the OperationList interface (MC assumes that until this
     # property has been retrieved once, nobody cares)
 
     cd = bus.get_object(cs.CD_BUS_NAME, cs.CD_PATH)
     cd_props = dbus.Interface(cd, cs.PROPERTIES_IFACE)
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []
+
+    # Before returning from GetInterfaces, make a Channel spring into
+    # existence
 
     channel_properties = dbus.Dictionary(text_fixed_properties,
             signature='sv')
@@ -87,7 +121,16 @@ def test(q, bus, mc):
     chan = SimulatedChannel(conn, channel_properties)
     chan.announce()
 
-    # A channel dispatch operation is created
+    # Now reply to GetInterfaces and say we have Requests
+    conn.GetInterfaces(get_interfaces_call)
+    q.expect_many(
+            EventPattern('dbus-method-call',
+                interface=cs.PROPERTIES_IFACE, method='GetAll',
+                args=[cs.CONN_IFACE_REQUESTS],
+                path=conn.object_path, handled=True),
+            )
+
+    # A channel dispatch operation is created for the channel we already had
 
     e = q.expect('dbus-signal',
             path=cs.CD_PATH,

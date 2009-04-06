@@ -29,6 +29,7 @@
 #include <glib.h>
 #include <glib-object.h>
 #include <telepathy-glib/channel.h>
+#include <telepathy-glib/dbus-properties-mixin.h>
 
 #include "mcd-mission.h"
 
@@ -78,6 +79,7 @@ struct _McdChannelClass
     void (*status_changed_signal) (McdChannel * channel,
 				   McdChannelStatus status);
     void (*members_accepted_signal) (McdChannel *channel);
+    TpDBusPropertiesMixinClass dbus_properties_class;
     void (*_mc_reserved1) (void);
     void (*_mc_reserved2) (void);
     void (*_mc_reserved3) (void);
@@ -95,9 +97,14 @@ McdChannel *mcd_channel_new_from_path (TpConnection *connection,
                                        const gchar *object_path,
                                        const gchar *type, guint handle,
                                        TpHandleType handle_type);
-McdChannel *mcd_channel_new_request (GHashTable *properties,
-                                     guint64 user_time,
-                                     const gchar *preferred_handler);
+McdChannel *mcd_channel_new_request (McdAccount *account,
+                                     DBusGConnection *dgc,
+                                     GHashTable *properties,
+                                     gint64 user_time,
+                                     const gchar *preferred_handler,
+                                     gboolean use_existing,
+                                     gboolean proceeding);
+G_GNUC_INTERNAL McdChannel *_mcd_channel_new_undispatched (void);
 
 G_GNUC_INTERNAL
 gboolean _mcd_channel_create_proxy (McdChannel *channel,
@@ -105,7 +112,9 @@ gboolean _mcd_channel_create_proxy (McdChannel *channel,
                                     const gchar *object_path,
                                     const GHashTable *properties);
 
-void mcd_channel_set_status (McdChannel *channel, McdChannelStatus status);
+G_GNUC_INTERNAL
+void _mcd_channel_set_status (McdChannel *channel, McdChannelStatus status);
+
 McdChannelStatus mcd_channel_get_status (McdChannel * channel);
 gboolean mcd_channel_get_members_accepted (McdChannel *channel);
 const gchar* mcd_channel_get_channel_type (McdChannel *channel);
@@ -154,9 +163,6 @@ G_GNUC_INTERNAL
 guint64 _mcd_channel_get_request_user_action_time (McdChannel *channel);
 G_GNUC_INTERNAL
 const gchar *_mcd_channel_get_request_preferred_handler (McdChannel *channel);
-G_GNUC_INTERNAL
-void _mcd_channel_set_request_use_existing (McdChannel *channel,
-                                            gboolean use_existing);
 G_GNUC_INTERNAL
 gboolean _mcd_channel_get_request_use_existing (McdChannel *channel);
 

@@ -134,7 +134,8 @@ class SimulatedConnection(object):
         self._identifiers[(type, self._last_handle)] = identifier
         return self._last_handle
 
-    def __init__(self, q, bus, cmname, protocol, account_part, self_ident):
+    def __init__(self, q, bus, cmname, protocol, account_part, self_ident,
+            implement_get_interfaces=True):
         self.q = q
         self.bus = bus
 
@@ -161,9 +162,12 @@ class SimulatedConnection(object):
                 interface=cs.CONN, method='GetSelfHandle')
         q.add_dbus_method_impl(self.GetStatus,
                 path=self.object_path, interface=cs.CONN, method='GetStatus')
-        q.add_dbus_method_impl(self.GetInterfaces,
-                path=self.object_path, interface=cs.CONN,
-                method='GetInterfaces')
+
+        if implement_get_interfaces:
+            q.add_dbus_method_impl(self.GetInterfaces,
+                    path=self.object_path, interface=cs.CONN,
+                    method='GetInterfaces')
+
         q.add_dbus_method_impl(self.InspectHandles,
                 path=self.object_path, interface=cs.CONN,
                 method='InspectHandles')
@@ -254,6 +258,13 @@ class SimulatedChannel(object):
         assert not self.announced
         self.announced = True
         self.conn.channels.append(self)
+        self.q.dbus_emit(self.conn.object_path, cs.CONN,
+                'NewChannel',
+                self.object_path, self.immutable[cs.CHANNEL + '.ChannelType'],
+                self.immutable.get(cs.CHANNEL + '.TargetHandleType', 0),
+                self.immutable.get(cs.CHANNEL + '.TargetHandle', 0),
+                self.immutable.get(cs.CHANNEL + '.Requested', False),
+                signature='osuub')
         self.q.dbus_emit(self.conn.object_path, cs.CONN_IFACE_REQUESTS,
                 'NewChannels', [(self.object_path, self.immutable)],
                 signature='a(oa{sv})')

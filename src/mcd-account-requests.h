@@ -28,11 +28,20 @@
 /* auto-generated stubs */
 #include "_gen/svc-Account_Interface_ChannelRequests.h"
 
+#include "mcd-channel.h"
 #include "mcd-dbusprop.h"
 
 G_BEGIN_DECLS
 
 extern const McdDBusProp account_channelrequests_properties[];
+
+G_GNUC_INTERNAL McdChannel *_mcd_account_create_request (McdAccount *account,
+    GHashTable *properties, gint64 user_action_time,
+    const gchar *preferred_handler, gboolean use_existing,
+    gboolean proceeding, GError **error);
+
+G_GNUC_INTERNAL void _mcd_account_proceed_with_request (McdAccount *account,
+                                                        McdChannel *channel);
 
 void account_channelrequests_iface_init
     (McSvcAccountInterfaceChannelRequestsClass *iface, gpointer iface_data);

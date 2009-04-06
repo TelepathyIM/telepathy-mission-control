@@ -59,8 +59,10 @@ def test(q, bus, mc):
 def test_channel_creation(q, bus, account, client, conn, ensure):
     user_action_time = dbus.Int64(1238582606)
 
+    cd = bus.get_object(cs.CD_BUS_NAME, cs.CD_PATH)
+    cd_props = dbus.Interface(cd, cs.PROPERTIES_IFACE)
+
     # chat UI calls ChannelDispatcher.EnsureChannel or CreateChannel
-    # (or in this case, an equivalent non-standard method on the Account)
     request = dbus.Dictionary({
             cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
             cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
@@ -68,22 +70,15 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
             }, signature='sv')
     account_requests = dbus.Interface(account,
             cs.ACCOUNT_IFACE_NOKIA_REQUESTS)
-    call_async(q, account_requests,
-            (ensure and 'EnsureChannel' or 'Create'),
-            request, user_action_time, client.bus_name)
-
-    # chat UI connects to signals and calls ChannelRequest.Proceed() - but not
-    # in this non-standard API, which fires off the request instantly
-    ret, cm_request_call = q.expect_many(
-            EventPattern('dbus-return',
-                method=(ensure and 'EnsureChannel' or 'Create')),
-            EventPattern('dbus-method-call',
-                interface=cs.CONN_IFACE_REQUESTS,
-                method=(ensure and 'EnsureChannel' or 'CreateChannel'),
-                path=conn.object_path, args=[request], handled=False),
-            )
-
+    call_async(q, cd,
+            (ensure and 'EnsureChannel' or 'CreateChannel'),
+            account.object_path, request, user_action_time, client.bus_name,
+            dbus_interface=cs.CD)
+    ret = q.expect('dbus-return',
+            method=(ensure and 'EnsureChannel' or 'CreateChannel'))
     request_path = ret.value[0]
+
+    # chat UI connects to signals and calls ChannelRequest.Proceed()
 
     cr = bus.get_object(cs.AM, request_path)
     # FIXME: MC gives CR properties to clients without .DRAFT, but the
@@ -94,15 +89,24 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
     assert request_props['Requests'] == [request]
     assert request_props['UserActionTime'] == user_action_time
 
-    # ChannelDispatcher calls AddRequest on chat UI; chat UI ignores it as the
-    # request is already known to it.
-    # FIXME: it is not, strictly speaking, an API guarantee that the Requests
-    # call precedes this
+    cr.Proceed(dbus_interface=cs.CR + '.DRAFT')
 
-    e = q.expect('dbus-method-call', handled=False,
-        interface=cs.HANDLER, method='AddRequest', path=client.object_path)
-    assert e.args[0] == request_path
-    request_props = e.args[1]
+    # FIXME: should the EnsureChannel/CreateChannel call, and the AddRequest
+    # call, be in a defined order? Probably not though, since CMs and Clients
+    # aren't meant to be the same process!
+
+    cm_request_call, add_request_call = q.expect_many(
+            EventPattern('dbus-method-call',
+                interface=cs.CONN_IFACE_REQUESTS,
+                method=(ensure and 'EnsureChannel' or 'CreateChannel'),
+                path=conn.object_path, args=[request], handled=False),
+            EventPattern('dbus-method-call', handled=False,
+                interface=cs.HANDLER, method='AddRequest',
+                path=client.object_path),
+            )
+
+    assert add_request_call.args[0] == request_path
+    request_props = add_request_call.args[1]
     assert request_props[cs.CR + '.Account'] == account.object_path
     assert request_props[cs.CR + '.Requests'] == [request]
     assert request_props[cs.CR + '.UserActionTime'] == user_action_time
@@ -110,7 +114,7 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
     # should be) - fd.o #21013
     assert request_props[cs.CR + '.PreferredHandler'] == client.bus_name
 
-    q.dbus_return(e.message, signature='')
+    q.dbus_return(add_request_call.message, signature='')
 
     # Time passes. A channel is returned.
 

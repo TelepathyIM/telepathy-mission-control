@@ -74,10 +74,8 @@ struct _McdDispatcherClass
 				    GError *error);
 
     /* virtual methods */
-    union {
-        TpDBusPropertiesMixinClass real;
-        GCallback _pad;
-    } dbus_properties_class;
+    TpDBusPropertiesMixinClass dbus_properties_class;
+    void (*_mc_reserved0) (void);
     void (*_mc_reserved1) (void);
     void (*_mc_reserved2) (void);
     void (*_mc_reserved3) (void);
