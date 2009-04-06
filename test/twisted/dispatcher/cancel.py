@@ -53,6 +53,12 @@ def test(q, bus, mc):
                 path=client.object_path),
             )
 
+    test_channel_creation(q, bus, account, client, conn, False)
+    test_channel_creation(q, bus, account, client, conn, True)
+
+def test_channel_creation(q, bus, account, client, conn,
+        cancel_before_proceed):
+
     user_action_time = dbus.Int64(1238582606)
 
     cd = bus.get_object(cs.CD_BUS_NAME, cs.CD_PATH)
@@ -72,8 +78,6 @@ def test(q, bus, mc):
     ret = q.expect('dbus-return', method='CreateChannel')
     request_path = ret.value[0]
 
-    # chat UI connects to signals and calls ChannelRequest.Proceed()
-
     cr = bus.get_object(cs.AM, request_path)
     # FIXME: MC gives CR properties to clients without .DRAFT, but the
     # CR itself is really still .DRAFT
@@ -82,6 +86,30 @@ def test(q, bus, mc):
     assert request_props['Account'] == account.object_path
     assert request_props['Requests'] == [request]
     assert request_props['UserActionTime'] == user_action_time
+
+    if cancel_before_proceed:
+        cr.Cancel(dbus_interface=cs.CR + '.DRAFT')
+
+        accsig, stdsig = q.expect_many(
+                EventPattern('dbus-signal', path=account.object_path,
+                    interface=cs.ACCOUNT_IFACE_NOKIA_REQUESTS,
+                    signal='Failed'),
+                EventPattern('dbus-signal', path=request_path,
+                    interface=cs.CR + '.DRAFT', signal='Failed'),
+                )
+        assert accsig.args[0] == request_path
+        assert accsig.args[1] == cs.CANCELLED
+        assert stdsig.args[0] == cs.CANCELLED
+
+        # the channel request has gone away
+        try:
+            cr.Proceed(dbus_interface=cs.CR + '.DRAFT')
+        except dbus.DBusException, e:
+            pass
+        else:
+            raise AssertionError('Wanted an error')
+
+        return
 
     cr.Proceed(dbus_interface=cs.CR + '.DRAFT')
 
