@@ -166,6 +166,9 @@ const gchar *_mcd_channel_get_request_preferred_handler (McdChannel *channel);
 G_GNUC_INTERNAL
 gboolean _mcd_channel_get_request_use_existing (McdChannel *channel);
 
+G_GNUC_INTERNAL gboolean _mcd_channel_request_cancel (McdChannel *self,
+                                                      GError **error);
+
 G_GNUC_INTERNAL
 void _mcd_channel_copy_details (McdChannel *channel, McdChannel *source);
 G_GNUC_INTERNAL

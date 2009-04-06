@@ -1475,6 +1475,43 @@ channel_request_proceed (McSvcChannelRequest *iface,
     mc_svc_channel_request_return_from_proceed (context);
 }
 
+gboolean
+_mcd_channel_request_cancel (McdChannel *self,
+                             GError **error)
+{
+    McdChannelStatus status = mcd_channel_get_status (self);
+
+    DEBUG ("%p in status %u", self, status);
+
+    if (status == MCD_CHANNEL_STATUS_REQUEST ||
+        status == MCD_CHANNEL_STATUS_REQUESTED ||
+        status == MCD_CHANNEL_STATUS_DISPATCHING)
+    {
+        g_object_ref (self);
+        mcd_channel_take_error (self, g_error_new (TP_ERRORS,
+                                                   TP_ERROR_CANCELLED,
+                                                   "Cancelled"));
+
+        /* REQUESTED is a special case: the channel must not be aborted now,
+         * because we need to explicitly close the channel object when it will
+         * be created by the CM. In that case, mcd_mission_abort() will be
+         * called once the Create/EnsureChannel method returns, if the channel
+         * is ours */
+        if (status != MCD_CHANNEL_STATUS_REQUESTED)
+            mcd_mission_abort (MCD_MISSION (self));
+
+        g_object_unref (self);
+        return TRUE;
+    }
+    else
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+                     "ChannelRequest is not cancellable (status=%u)",
+                     status);
+        return FALSE;
+    }
+}
+
 static void
 channel_request_cancel (McSvcChannelRequest *iface,
                         DBusGMethodInvocation *context)
