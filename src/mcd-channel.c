@@ -1517,15 +1517,17 @@ channel_request_cancel (McSvcChannelRequest *iface,
                         DBusGMethodInvocation *context)
 {
     McdChannel *self = MCD_CHANNEL (iface);
-    GError ni = { TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
-        "Cancel not yet implemented" };
+    GError *error = NULL;
 
-#if 0
-    mc_svc_channel_request_return_from_cancel (context);
-#endif
-
-    (void) self;
-    dbus_g_method_return_error (context, &ni);
+    if (_mcd_channel_request_cancel (self, &error))
+    {
+        mc_svc_channel_request_return_from_cancel (context);
+    }
+    else
+    {
+        dbus_g_method_return_error (context, error);
+        g_error_free (error);
+    }
 }
 
 static void
