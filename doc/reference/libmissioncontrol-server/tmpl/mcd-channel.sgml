@@ -38,7 +38,7 @@ McdChannel
 @mcdchannel: the object which received the signal.
 @arg1: 
 
-<!-- ##### ARG McdChannel:name-ready ##### -->
+<!-- ##### ARG McdChannel:account-path ##### -->
 <para>
 
 </para>
@@ -48,12 +48,17 @@ McdChannel
 
 </para>
 
-<!-- ##### ARG McdChannel:self-handle-ready ##### -->
+<!-- ##### ARG McdChannel:requests ##### -->
 <para>
 
 </para>
 
 <!-- ##### ARG McdChannel:tp-channel ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdChannel:user-action-time ##### -->
 <para>
 
 </para>
@@ -70,30 +75,6 @@ McdChannel
 @MCD_CHANNEL_STATUS_HANDLER_INVOKED: 
 @MCD_CHANNEL_STATUS_DISPATCHED: 
 @MCD_CHANNEL_STATUS_FAILED: 
-
-<!-- ##### FUNCTION mcd_channel_new ##### -->
-<para>
-
-</para>
-
-@channel: 
-@channel_type: 
-@channel_handle: 
-@channel_handle_type: 
-@outgoing: 
-@requestor_serial: 
-@requestor_client_id: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_channel_set_status ##### -->
-<para>
-
-</para>
-
-@channel: 
-@status: 
-
 
 <!-- ##### FUNCTION mcd_channel_get_status ##### -->
 <para>
@@ -159,15 +140,6 @@ McdChannel
 
 
 <!-- ##### FUNCTION mcd_channel_get_flags ##### -->
-<para>
-
-</para>
-
-@channel: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_channel_get_members ##### -->
 <para>
 
 </para>
