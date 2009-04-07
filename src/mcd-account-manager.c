@@ -949,7 +949,6 @@ _mcd_account_manager_store_account_connections (McdAccountManager *manager)
     FILE *file;
 
     g_return_if_fail (MCD_IS_ACCOUNT_MANAGER (manager));
-    g_return_if_fail (account != NULL);
     priv = manager->priv;
 
     file = fopen (priv->account_connections_file, "w");
