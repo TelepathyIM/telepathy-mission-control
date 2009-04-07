@@ -1299,6 +1299,7 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
             handler = client;
             g_list_free (handled_best);
             handled_best = handled;
+            num_channels_best = num_channels;
 
             /* we don't even look for other handlers, if this is the one chosen
              * by the approver */
