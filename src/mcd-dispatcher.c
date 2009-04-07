@@ -1680,18 +1680,50 @@ static void
 on_channel_abort_context (McdChannel *channel, McdDispatcherContext *context)
 {
     const GError *error;
+    GList *li = g_list_find (context->channels, channel);
+
     DEBUG ("Channel %p aborted while in a dispatcher context", channel);
 
-    /* TODO: it's still not clear what we should do with these aborted
-     * channels; for now, we keep them in the context, pretending that nothing
-     * happened -- the channel handler will see that they don't exist anymore
-     */
-
-    /* but if it was a channel request, and it was cancelled, then the whole
+    /* if it was a channel request, and it was cancelled, then the whole
      * context should be aborted */
     error = mcd_channel_get_error (channel);
     if (error && error->code == TP_ERROR_CANCELLED)
         context->cancelled = TRUE;
+
+    /* Losing the channel might mean we get freed, which would make some of
+     * the operations below very unhappy */
+    mcd_dispatcher_context_ref (context);
+
+    if (context->operation)
+    {
+        /* the CDO owns the linked list and we just borrow it; in case it's
+         * the head of the list that we're deleting, we need to ask the CDO
+         * to update our idea of what the list is before emitting any signals.
+         *
+         * FIXME: this is alarmingly fragile */
+        _mcd_dispatch_operation_lose_channel (context->operation, channel,
+                                              &(context->channels));
+
+        if (li != NULL)
+        {
+            /* we used to have a ref to it, until the CDO removed it from the
+             * linked list. (Do not dereference li at this point - it has
+             * been freed!) */
+            g_object_unref (channel);
+        }
+    }
+    else
+    {
+        /* we own the linked list */
+        context->channels = g_list_delete_link (context->channels, li);
+    }
+
+    if (context->channels == NULL)
+    {
+        DEBUG ("Nothing left in this context");
+    }
+
+    mcd_dispatcher_context_unref (context);
 }
 
 static void
@@ -1708,7 +1740,12 @@ on_operation_finished (McdDispatchOperation *operation,
             context->dispatcher, mcd_dispatch_operation_get_path (operation));
     }
 
-    if (mcd_dispatch_operation_is_claimed (operation))
+    if (context->channels == NULL)
+    {
+        DEBUG ("Nothing left to dispatch");
+        mcd_dispatcher_context_handler_done (context);
+    }
+    else if (mcd_dispatch_operation_is_claimed (operation))
     {
         GList *list;
 

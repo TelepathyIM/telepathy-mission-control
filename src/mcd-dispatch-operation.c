@@ -37,6 +37,7 @@
 #include <telepathy-glib/util.h>
 
 #include "mcd-dbusprop.h"
+#include "mcd-misc.h"
 #include "_gen/interfaces.h"
 #include "_gen/gtypes.h"
 
@@ -589,3 +590,58 @@ mcd_dispatch_operation_handle_with (McdDispatchOperation *operation,
     mcd_dispatch_operation_finish (operation);
 }
 
+void
+_mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
+                                      McdChannel *channel,
+                                      GList **channels)
+{
+    GList *li = g_list_find (self->priv->channels, channel);
+    const gchar *object_path;
+
+    if (li == NULL)
+    {
+        return;
+    }
+
+    self->priv->channels = g_list_delete_link (self->priv->channels, li);
+
+    /* Because the McdDispatcherContext has a borrowed copy of our list
+     * of channels, we need to tell it the new head of the list, in case
+     * we've just removed the first link. Further, we need to do this before
+     * emitting any signals.
+     *
+     * This is amazingly fragile. */
+    *channels = self->priv->channels;
+
+    object_path = mcd_channel_get_object_path (channel);
+
+    if (object_path == NULL)
+    {
+        /* This shouldn't happen, but McdChannel is twisty enough that I
+         * can't be sure */
+        g_critical ("McdChannel has already lost its TpChannel: %p",
+            channel);
+    }
+    else
+    {
+        const GError *error = mcd_channel_get_error (channel);
+        gchar *error_name = _mcd_build_error_string (error);
+
+        mc_svc_channel_dispatch_operation_emit_channel_lost (self, object_path,
+                                                             error_name,
+                                                             error->message);
+        g_free (error_name);
+    }
+
+    /* We previously had a ref in the linked list - drop it */
+    g_object_unref (channel);
+
+    if (self->priv->channels == NULL)
+    {
+        /* no channels left, so the CDO finishes */
+        if (!self->priv->finished)
+        {
+            mcd_dispatch_operation_finish (self);
+        }
+    }
+}
