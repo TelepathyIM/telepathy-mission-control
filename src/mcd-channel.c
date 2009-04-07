@@ -260,6 +260,35 @@ mcd_channel_close (McdChannel *channel)
     }
 }
 
+void
+_mcd_channel_undispatchable (McdChannel *channel)
+{
+    McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
+
+    if (priv->tp_chan == NULL ||
+        tp_proxy_get_invalidated (priv->tp_chan) != NULL ||
+        tp_channel_get_channel_type_id (priv->tp_chan) ==
+            TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
+    {
+        return;
+    }
+
+    /* Call Destroy() if possible, or Close() */
+    if (tp_proxy_has_interface_by_id (priv->tp_chan,
+        TP_IFACE_QUARK_CHANNEL_INTERFACE_DESTROYABLE))
+    {
+        tp_cli_channel_interface_destroyable_call_destroy (priv->tp_chan,
+                                                           -1, NULL,
+                                                           NULL, NULL,
+                                                           NULL);
+    }
+    else
+    {
+        tp_cli_channel_call_close (priv->tp_chan, -1, NULL, NULL, NULL,
+                                   NULL);
+    }
+}
+
 static void
 _mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
 {

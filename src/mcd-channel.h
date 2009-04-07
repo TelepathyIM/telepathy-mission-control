@@ -135,8 +135,9 @@ TpChannel *mcd_channel_get_tp_channel (McdChannel *channel);
 void mcd_channel_take_error (McdChannel *channel, GError *error);
 const GError *mcd_channel_get_error (McdChannel *channel);
 
-
 /* not exported: */
+G_GNUC_INTERNAL void _mcd_channel_undispatchable (McdChannel *self);
+
 G_GNUC_INTERNAL
 gboolean _mcd_channel_create_proxy_old (McdChannel *channel,
                                         TpConnection *connection,
