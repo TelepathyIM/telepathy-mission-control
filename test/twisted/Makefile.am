@@ -2,9 +2,11 @@ TWISTED_TESTS =
 
 TWISTED_BASIC_TESTS = \
 	account-bad-cm.py \
+	account-requests/cancel.py \
 	account-requests/create-text.py \
 	account-requests/delete-account-during-request.py \
 	dispatcher/already-has-channel.py \
+	dispatcher/cancel.py \
 	dispatcher/create-text.py \
 	dispatcher/dispatch-text.py \
 	do-nothing.py \

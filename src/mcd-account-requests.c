@@ -277,9 +277,8 @@ account_request_cancel (McSvcAccountInterfaceChannelRequests *self,
                         const gchar *request_id,
                         DBusGMethodInvocation *context)
 {
-    GError *error;
+    GError *error = NULL;
     McdChannel *channel;
-    McdChannelStatus status;
 
     DEBUG ("called for %s", request_id);
     g_return_if_fail (request_id != NULL);
@@ -293,31 +292,8 @@ account_request_cancel (McSvcAccountInterfaceChannelRequests *self,
         return;
     }
 
-    status = mcd_channel_get_status (channel);
-    DEBUG ("channel %p is in status %u", channel, status);
-    if (status == MCD_CHANNEL_STATUS_REQUEST ||
-        status == MCD_CHANNEL_STATUS_REQUESTED ||
-        status == MCD_CHANNEL_STATUS_DISPATCHING)
+    if (!_mcd_channel_request_cancel (channel, &error))
     {
-        g_object_ref (channel);
-        error = g_error_new (TP_ERRORS, TP_ERROR_CANCELLED, "Cancelled");
-        mcd_channel_take_error (channel, error);
-
-        /* REQUESTED is a special case: the channel must not be aborted now,
-         * because we need to explicitly close the channel object when it will
-         * be created by the CM. In that case, mcd_mission_abort() will be
-         * called once the Create/EnsureChannel method returns, if the channel
-         * is ours */
-        if (status != MCD_CHANNEL_STATUS_REQUESTED)
-            mcd_mission_abort (MCD_MISSION (channel));
-
-        g_object_unref (channel);
-    }
-    else
-    {
-        error = g_error_new (TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
-                             "Request %s is not cancellable (%u)",
-                             request_id, status);
         dbus_g_method_return_error (context, error);
         g_error_free (error);
         return;
