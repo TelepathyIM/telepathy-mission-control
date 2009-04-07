@@ -3189,7 +3189,7 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
 }
 
 /*
- * _mcd_dispatcher_send_channels:
+ * _mcd_dispatcher_take_channels:
  * @dispatcher: the #McdDispatcher.
  * @channels: a #GList of #McdChannel elements.
  * @requested: whether the channels were requested by MC.
@@ -3198,7 +3198,7 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
  * function has been called.
  */
 void
-_mcd_dispatcher_send_channels (McdDispatcher *dispatcher, GList *channels,
+_mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
                                gboolean requested)
 {
     GList *list;
@@ -3432,7 +3432,7 @@ channel_recover_release_lock (McdChannelRecover *cr)
             DEBUG ("channel %p is not handled, redispatching", cr->channel);
 
             requested = mcd_channel_is_requested (cr->channel);
-            _mcd_dispatcher_send_channels (cr->dispatcher,
+            _mcd_dispatcher_take_channels (cr->dispatcher,
                                            g_list_prepend (NULL, cr->channel),
                                            requested);
         }

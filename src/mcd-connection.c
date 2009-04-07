@@ -485,7 +485,7 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
         mcd_operation_take_mission (MCD_OPERATION (connection),
                                     MCD_MISSION (channel));
         /* Dispatch the incoming channel */
-        _mcd_dispatcher_send_channels (priv->dispatcher,
+        _mcd_dispatcher_take_channels (priv->dispatcher,
                                        g_list_prepend (NULL, channel),
                                        FALSE);
     }
@@ -1226,7 +1226,7 @@ dispatch_undispatched_channels (McdConnection *connection)
             g_object_set_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA, NULL);
             DEBUG ("Dispatching channel %p", channel);
             /* dispatch the channel */
-            _mcd_dispatcher_send_channels (priv->dispatcher,
+            _mcd_dispatcher_take_channels (priv->dispatcher,
                                            g_list_prepend (NULL, channel),
                                            FALSE);
         }
@@ -1333,7 +1333,7 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
         channel_list = g_list_prepend (channel_list, channel);
     }
 
-    _mcd_dispatcher_send_channels (priv->dispatcher, channel_list, requested);
+    _mcd_dispatcher_take_channels (priv->dispatcher, channel_list, requested);
 }
 
 static void
@@ -1430,7 +1430,7 @@ static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
                 g_object_set_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA,
                                    NULL);
                 /* channel is ready for dispatching */
-                _mcd_dispatcher_send_channels (priv->dispatcher,
+                _mcd_dispatcher_take_channels (priv->dispatcher,
                                                g_list_prepend (NULL, channel),
                                                FALSE);
                 found = TRUE;
@@ -2150,7 +2150,7 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
     }
 
     /* Dispatch the incoming channel */
-    _mcd_dispatcher_send_channels (priv->dispatcher,
+    _mcd_dispatcher_take_channels (priv->dispatcher,
                                    g_list_prepend (NULL, channel),
                                    TRUE);
 }
@@ -2222,7 +2222,7 @@ request_handles_cb (TpConnection *proxy, const GArray *handles,
 	    /* we no longer need the new channel */
 	    g_object_unref (channel);
 	    /* notify the dispatcher again */
-            _mcd_dispatcher_send_channels (priv->dispatcher,
+            _mcd_dispatcher_take_channels (priv->dispatcher,
                                            g_list_prepend (NULL,
                                                            existing_channel),
                                            TRUE);
