@@ -2201,9 +2201,8 @@ create_client_proxy (McdDispatcher *self, McdClient *client)
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
     gchar *bus_name, *object_path;
 
-    bus_name = g_strconcat (MC_FILE_IFACE_CLIENT ".", client->name, NULL);
-    object_path = g_strconcat ("/org/freedesktop/Telepathy/Client/",
-                               client->name, NULL);
+    bus_name = g_strconcat (MC_CLIENT_BUS_NAME_BASE, client->name, NULL);
+    object_path = g_strconcat (MC_CLIENT_OBJECT_PATH_BASE, client->name, NULL);
     client->proxy = g_object_new (TP_TYPE_PROXY,
                                   "dbus-daemon", priv->dbus_daemon,
                                   "object-path", object_path,
@@ -2335,11 +2334,10 @@ create_mcd_client (McdDispatcher *self,
     gchar *filename;
     gboolean file_found = FALSE;
 
-    g_assert (strncmp (MC_FILE_IFACE_CLIENT ".", name,
-          sizeof (MC_FILE_IFACE_CLIENT ".") - 1) == 0);
+    g_assert (g_str_has_prefix (name, MC_CLIENT_BUS_NAME_BASE));
 
     client = g_slice_new0 (McdClient);
-    client->name = g_strdup (name + sizeof (MC_FILE_IFACE_CLIENT ".") - 1);
+    client->name = g_strdup (name + sizeof (MC_CLIENT_BUS_NAME_BASE) - 1);
     client->activatable = activatable;
     if (!activatable)
         client->active = TRUE;
@@ -2404,8 +2402,7 @@ new_names_cb (McdDispatcher *self,
         const char *name = *names;
         names++;
 
-        if (strncmp (MC_FILE_IFACE_CLIENT ".", name,
-                     sizeof (MC_FILE_IFACE_CLIENT ".") - 1) != 0)
+        if (!g_str_has_prefix (name, MC_CLIENT_BUS_NAME_BASE))
         {
             /* This is not a Telepathy Client */
             continue;
