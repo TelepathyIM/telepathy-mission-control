@@ -189,6 +189,10 @@ typedef struct _McdClient
 #define MC_FILE_IFACE_CLIENT_OBSERVER \
     "org.freedesktop.Telepathy.Client.Observer"
 
+/* Analogous to TP_CM_*_BASE */
+#define MC_CLIENT_BUS_NAME_BASE MC_FILE_IFACE_CLIENT "."
+#define MC_CLIENT_OBJECT_PATH_BASE "/org/freedesktop/Telepathy/Client/"
+
 struct _McdDispatcherPrivate
 {
     /* Dispatching contexts */
