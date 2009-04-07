@@ -431,13 +431,15 @@ mcd_dispatch_operation_init (McdDispatchOperation *operation)
  * _mcd_dispatch_operation_new:
  * @dbus_daemon: a #TpDBusDaemon.
  * @channels: a #GList of #McdChannel elements to dispatch.
+ * @possible_handlers: the bus names of possible handlers for these channels.
  *
  * Creates a #McdDispatchOperation. The #GList @channels will be no longer
  * valid after this function has been called.
  */
 McdDispatchOperation *
 _mcd_dispatch_operation_new (TpDBusDaemon *dbus_daemon,
-                             GList *channels)
+                             GList *channels,
+                             const GStrv possible_handlers)
 {
     gpointer *obj;
     obj = g_object_new (MCD_TYPE_DISPATCH_OPERATION,

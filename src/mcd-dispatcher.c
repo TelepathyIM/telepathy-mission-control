@@ -1167,6 +1167,70 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
     mcd_dispatcher_context_handler_done (context);
 }
 
+static GStrv
+mcd_dispatcher_get_possible_handlers (McdDispatcher *self,
+                                      const GList *channels)
+{
+    GList *handlers = NULL;
+    const GList *iter;
+    GHashTableIter client_iter;
+    gpointer client_p;
+    guint n_handlers = 0;
+    guint i;
+    GStrv ret;
+
+    g_hash_table_iter_init (&client_iter, self->priv->clients);
+
+    while (g_hash_table_iter_next (&client_iter, NULL, &client_p))
+    {
+        McdClient *client = client_p;
+        gboolean can_do = TRUE;
+
+        if (client->proxy == NULL ||
+            !(client->interfaces & MCD_CLIENT_HANDLER))
+        {
+            /* not a handler at all */
+            continue;
+        }
+
+        for (iter = channels; iter != NULL; iter = iter->next)
+        {
+            McdChannel *channel = MCD_CHANNEL (iter->data);
+
+            if (!match_filters (channel, client->handler_filters))
+            {
+                can_do = FALSE;
+                break;
+            }
+        }
+
+        if (can_do)
+        {
+            handlers = g_list_prepend (handlers,
+                g_strconcat (MC_CLIENT_BUS_NAME_BASE, client->name, NULL));
+            n_handlers++;
+        }
+    }
+
+    /* if no handlers can take them all, fail */
+    if (handlers == NULL)
+    {
+        return NULL;
+    }
+
+    /* we have at least one handler that can take the whole batch */
+    ret = g_new0 (gchar *, n_handlers + 1);
+
+    for (iter = handlers, i = 0; iter != NULL; iter = iter->next, i++)
+    {
+        ret[i] = iter->data;
+    }
+
+    ret[n_handlers] = NULL;
+    g_list_free (handlers);
+    return ret;
+}
+
 /*
  * mcd_dispatcher_run_handler:
  * @context: the #McdDispatcherContext.
@@ -1175,6 +1239,8 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
  * This functions tries to find a handler to handle @channels, and invokes its
  * HandleChannels method. It returns a list of channels that are still
  * unhandled.
+ *
+ * FIXME: this should use mcd_dispatcher_get_possible_handlers or similar
  */
 static GList *
 mcd_dispatcher_run_handler (McdDispatcherContext *context,
@@ -1670,7 +1736,9 @@ on_operation_finished (McdDispatchOperation *operation,
 /* Entering the state machine */
 static void
 _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
-				     GList *channels, gboolean requested)
+                                     GList *channels,
+                                     const GStrv possible_handlers,
+                                     gboolean requested)
 {
     McdDispatcherContext *context;
     McdDispatcherPrivate *priv;
@@ -1732,7 +1800,8 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     if (!requested)
     {
         context->operation =
-            _mcd_dispatch_operation_new (priv->dbus_daemon, channels);
+            _mcd_dispatch_operation_new (priv->dbus_daemon, channels,
+                                         possible_handlers);
 
         if (priv->operation_list_active)
         {
@@ -3197,12 +3266,48 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
                                gboolean requested)
 {
     GList *list;
+    GStrv possible_handlers;
 
-    for (list = channels; list != NULL; list = list->next)
-        _mcd_channel_set_status (MCD_CHANNEL (list->data),
-                                 MCD_CHANNEL_STATUS_DISPATCHING);
+    if (channels == NULL)
+    {
+        /* trivial case */
+        return;
+    }
 
-    _mcd_dispatcher_enter_state_machine (dispatcher, channels, requested);
+    /* See if there are any handlers that can take all these channels */
+    possible_handlers = mcd_dispatcher_get_possible_handlers (dispatcher,
+                                                              channels);
+
+    if (possible_handlers == NULL)
+    {
+        if (channels->next == NULL)
+        {
+            /* There's exactly one channel and we can't handle it. It must
+             * die. */
+            _mcd_channel_undispatchable (channels->data);
+            g_list_free (channels);
+        }
+        else
+        {
+            /* there are >= 2 channels - split the batch up and try again */
+            while (channels != NULL)
+            {
+                list = channels;
+                channels = g_list_remove_link (channels, list);
+                _mcd_dispatcher_take_channels (dispatcher, list, requested);
+            }
+        }
+    }
+    else
+    {
+        for (list = channels; list != NULL; list = list->next)
+            _mcd_channel_set_status (MCD_CHANNEL (list->data),
+                                     MCD_CHANNEL_STATUS_DISPATCHING);
+
+        _mcd_dispatcher_enter_state_machine (dispatcher, channels,
+                                             possible_handlers, requested);
+        g_strfreev (possible_handlers);
+    }
 }
 
 /**
