@@ -358,6 +358,9 @@ create_unique_name (McdAccountManagerPrivate *priv, const gchar *manager,
     gchar *esc_manager, *esc_protocol, *esc_base;
     GValue *value;
     gint i, len;
+    gsize base_len = sizeof (MC_ACCOUNT_DBUS_OBJECT_BASE) - 1;
+    DBusGConnection *connection = tp_proxy_get_dbus_connection (
+        priv->dbus_daemon);
 
     value = g_hash_table_lookup (params, "account");
     if (value)
@@ -370,9 +373,11 @@ create_unique_name (McdAccountManagerPrivate *priv, const gchar *manager,
     esc_protocol = tp_escape_as_identifier (protocol);
     esc_base = tp_escape_as_identifier (base);
     /* add two chars for the "/" */
-    len = strlen (esc_manager) + strlen (esc_protocol) + strlen (esc_base) + 2;
+    len = strlen (esc_manager) + strlen (esc_protocol) + strlen (esc_base)
+        + base_len + 2;
     path = g_malloc (len + 5);
-    sprintf (path, "%s/%s/%s", esc_manager, esc_protocol, esc_base);
+    sprintf (path, "%s%s/%s/%s", MC_ACCOUNT_DBUS_OBJECT_BASE,
+             esc_manager, esc_protocol, esc_base);
     g_free (esc_manager);
     g_free (esc_protocol);
     g_free (esc_base);
@@ -380,12 +385,15 @@ create_unique_name (McdAccountManagerPrivate *priv, const gchar *manager,
     for (i = 0; i < 1024; i++)
     {
 	sprintf (seq, "%u", i);
-	if (!g_key_file_has_group (priv->keyfile, path))
+	if (!g_key_file_has_group (priv->keyfile, path) &&
+            dbus_g_connection_lookup_g_object (connection, path)
+                == NULL)
 	{
-	    unique_name = path;
+	    unique_name = g_strdup (path + base_len);
 	    break;
 	}
     }
+    g_free (path);
     return unique_name;
 }
 
