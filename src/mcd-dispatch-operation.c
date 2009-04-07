@@ -547,7 +547,7 @@ mcd_dispatch_operation_handle_with (McdDispatchOperation *operation,
         return;
     }
 
-    if (handler_path)
+    if (handler_path != NULL && handler_path[0] != '\0')
     {
         if (strncmp (handler_path, MCD_CLIENT_BASE_NAME,
                      MCD_CLIENT_BASE_NAME_LEN) != 0)
