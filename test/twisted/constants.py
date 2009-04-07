@@ -9,6 +9,7 @@ HT_CONTACT = 1
 HT_ROOM = 2
 
 CHANNEL = tp_name_prefix + ".Channel"
+CHANNEL_IFACE_DESTROYABLE = CHANNEL + ".Interface.Destroyable"
 CHANNEL_IFACE_GROUP = CHANNEL + ".Interface.Group"
 CHANNEL_IFACE_HOLD = CHANNEL + ".Interface.Hold"
 CHANNEL_IFACE_MEDIA_SIGNALLING = CHANNEL + ".Interface.MediaSignalling"
