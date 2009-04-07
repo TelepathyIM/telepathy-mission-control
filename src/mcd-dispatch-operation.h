@@ -58,8 +58,8 @@ struct _McdDispatchOperationClass
 #define MC_DISPATCH_OPERATION_DBUS_OBJECT_BASE "/org/freedesktop/Telepathy/DispatchOperation/"
 
 GType mcd_dispatch_operation_get_type (void);
-McdDispatchOperation *_mcd_dispatch_operation_new (TpDBusDaemon *dbus_daemon,
-                                                   GList *channels);
+G_GNUC_INTERNAL McdDispatchOperation *_mcd_dispatch_operation_new (
+    TpDBusDaemon *dbus_daemon, GList *channels);
 
 const gchar *mcd_dispatch_operation_get_path (McdDispatchOperation *operation);
 GHashTable *mcd_dispatch_operation_get_properties
