@@ -140,6 +140,84 @@ cli-account
 @weak_object: 
 @Returns: 
 
+<!-- ##### FUNCTION mc_cli_account_interface_compat_call_cancel_channel_request ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@timeout_ms: 
+@in_operation_id: 
+@callback: 
+@user_data: 
+@destroy: 
+@weak_object: 
+@Returns: 
+
+<!-- ##### FUNCTION mc_cli_account_interface_compat_call_request_channel ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@timeout_ms: 
+@in_type: 
+@in_handle: 
+@in_handle_type: 
+@callback: 
+@user_data: 
+@destroy: 
+@weak_object: 
+@Returns: 
+
+<!-- ##### FUNCTION mc_cli_account_interface_compat_call_request_channel_with_string_handle ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@timeout_ms: 
+@in_type: 
+@in_handle: 
+@in_handle_type: 
+@callback: 
+@user_data: 
+@destroy: 
+@weak_object: 
+@Returns: 
+
+<!-- ##### USER_FUNCTION mc_cli_account_interface_compat_callback_for_cancel_channel_request ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@error: 
+@user_data: 
+@weak_object: 
+
+<!-- ##### USER_FUNCTION mc_cli_account_interface_compat_callback_for_request_channel ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@out_operation_id: 
+@error: 
+@user_data: 
+@weak_object: 
+
+<!-- ##### USER_FUNCTION mc_cli_account_interface_compat_callback_for_request_channel_with_string_handle ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@out_operation_id: 
+@error: 
+@user_data: 
+@weak_object: 
+
 <!-- ##### FUNCTION mc_iface_quark_nmc4 ##### -->
 <para>
 

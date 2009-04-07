@@ -69,6 +69,16 @@ McdDispatcher
 
 </para>
 
+<!-- ##### ARG McdDispatcher:dispatch-operations ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG McdDispatcher:interfaces ##### -->
+<para>
+
+</para>
+
 <!-- ##### ARG McdDispatcher:mcd-master ##### -->
 <para>
 
@@ -81,16 +91,6 @@ McdDispatcher
 
 @dbus_daemon: 
 @master: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_dispatcher_send ##### -->
-<para>
-
-</para>
-
-@dispatcher: 
-@channel: 
 @Returns: 
 
 

@@ -1,4 +1,8 @@
-AC_INIT(telepathy-mission-control, 5.0.beta65)
+dnl Set the version number to e.g. 5.0.beta42 immediately before a release.
+dnl Set the version number to e.g. 5.0.beta42+ immediately after (this will
+dnl enable -Werror).
+AC_INIT(telepathy-mission-control, 5.0.beta65+)
+
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(Makefile.am)
 AM_INIT_AUTOMAKE([1.9 tar-ustar -Wno-portability])
@@ -15,10 +19,19 @@ AM_PROG_MKDIR_P
 
 AC_HEADER_STDC
 
+case "$PACKAGE_VERSION" in
+  *+)
+    mc_is_release=no
+    ;;
+  *)
+    mc_is_release=yes
+    ;;
+esac
+
 # Recommended CFLAGS for pedantic checking, from telepathy-glib
 
 TP_COMPILER_WARNINGS([ERROR_CFLAGS],
-  [false],   dnl <- no -Werror by default
+  [test "x$mc_is_release" = xno],   dnl <- Disable -Werror in releases
   [all \
    extra \
    declaration-after-statement \
