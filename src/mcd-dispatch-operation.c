@@ -70,6 +70,7 @@ struct _McdDispatchOperationPrivate
 {
     gchar *unique_name;
     gchar *object_path;
+    GStrv possible_handlers;
     GHashTable *properties;
 
     /* Results */
@@ -90,6 +91,7 @@ enum
     PROP_0,
     PROP_DBUS_DAEMON,
     PROP_CHANNELS,
+    PROP_POSSIBLE_HANDLERS,
 };
 
 static void
@@ -165,8 +167,7 @@ get_possible_handlers (TpSvcDBusProperties *self, const gchar *name,
 
     DEBUG ("called for %s", priv->unique_name);
     g_value_init (value, G_TYPE_STRV);
-    g_warning ("%s not implemented", G_STRFUNC);
-    g_value_set_static_boxed (value, NULL);
+    g_value_set_boxed (value, priv->possible_handlers);
 }
 
 
@@ -308,6 +309,7 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
             g_object_unref (priv->dbus_daemon);
         priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
         break;
+
     case PROP_CHANNELS:
         g_assert (priv->channels == NULL);
         priv->channels = g_value_get_pointer (val);
@@ -325,6 +327,13 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
                 g_object_ref (list->data);
         }
         break;
+
+    case PROP_POSSIBLE_HANDLERS:
+        g_assert (priv->possible_handlers == NULL);
+        priv->possible_handlers = g_value_dup_boxed (val);
+        g_assert (priv->possible_handlers != NULL);
+        break;
+
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
         break;
@@ -342,6 +351,11 @@ mcd_dispatch_operation_get_property (GObject *obj, guint prop_id,
     case PROP_DBUS_DAEMON:
         g_value_set_object (val, priv->dbus_daemon);
         break;
+
+    case PROP_POSSIBLE_HANDLERS:
+        g_value_set_boxed (val, priv->possible_handlers);
+        break;
+
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
         break;
@@ -367,6 +381,9 @@ mcd_dispatch_operation_dispose (GObject *object)
 {
     McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (object);
     GList *list;
+
+    g_strfreev (priv->possible_handlers);
+    priv->possible_handlers = NULL;
 
     if (priv->channels)
     {
@@ -411,6 +428,13 @@ mcd_dispatch_operation_class_init (McdDispatchOperationClass * klass)
     g_object_class_install_property (object_class, PROP_CHANNELS,
         g_param_spec_pointer ("channels", "channels", "channels",
                               G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+
+    g_object_class_install_property (object_class, PROP_POSSIBLE_HANDLERS,
+        g_param_spec_boxed ("possible-handlers", "Possible handlers",
+                            "Well-known bus names of possible handlers",
+                            G_TYPE_STRV,
+                            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
+                            G_PARAM_STATIC_STRINGS));
 }
 
 static void
@@ -445,6 +469,7 @@ _mcd_dispatch_operation_new (TpDBusDaemon *dbus_daemon,
     obj = g_object_new (MCD_TYPE_DISPATCH_OPERATION,
                         "dbus-daemon", dbus_daemon,
                         "channels", channels,
+                        "possible-handlers", possible_handlers,
                         NULL);
     return MCD_DISPATCH_OPERATION (obj);
 }
