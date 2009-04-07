@@ -359,7 +359,6 @@ tp_ch_handle_channel_async_callback (DBusGProxy *proxy, DBusGProxyCall *call, vo
   GError *error = NULL;
   dbus_g_proxy_end_call (proxy, call, &error, G_TYPE_INVALID);
   (*(tp_ch_handle_channel_reply)data->cb) (proxy, error, data->userdata);
-  return;
 }
 
 static inline DBusGProxyCall*
@@ -602,8 +601,6 @@ mcd_dispatcher_unregister_filter (McdDispatcher * dispatcher,
 	g_datalist_id_remove_data (&(priv->interface_filters),
 				   channel_type_quark);
     }
-
-    return;
 }
 
 /**
@@ -2210,8 +2207,6 @@ create_client_proxy (McdDispatcher *self, McdClient *client)
                                   NULL);
     g_free (object_path);
     g_free (bus_name);
-
-    return;
 }
 
 static void
