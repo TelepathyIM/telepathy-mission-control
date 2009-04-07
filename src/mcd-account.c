@@ -2130,8 +2130,6 @@ _mcd_account_online_request_completed (McdAccount *account, GError *error)
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     GList *list;
 
-    if (!priv->online_requests) return;
-
     list = priv->online_requests;
 
     while (list)
