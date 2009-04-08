@@ -997,24 +997,6 @@ mcd_channel_get_inviter (McdChannel *channel)
 }
 
 /**
- * mcd_channel_get_self_handle:
- * @channel: the #McdChannel.
- *
- * Gets the self handle (the "self-handle-ready" property tells if this datum
- * is available).
- *
- * Returns: the self handle.
- */
-guint
-mcd_channel_get_self_handle (McdChannel *channel)
-{
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), 0);
-    if (channel->priv->tp_chan)
-        return tp_channel_group_get_self_handle (channel->priv->tp_chan);
-    return 0;
-}
-
-/**
  * mcd_channel_is_missed:
  * @channel: the #McdChannel.
  *
