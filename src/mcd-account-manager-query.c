@@ -96,7 +96,7 @@ match_account_parameter (McdAccount *account, const gchar *name,
     gboolean match = FALSE;
 
     unique_name = mcd_account_get_unique_name (account);
-    keyfile = mcd_account_get_keyfile (account);
+    keyfile = _mcd_account_get_keyfile (account);
     if (g_key_file_has_key (keyfile, unique_name, name, NULL))
     {
 	const gchar *value_str;

@@ -2338,7 +2338,7 @@ _mcd_account_online_request (McdAccount *account,
 }
 
 GKeyFile *
-mcd_account_get_keyfile (McdAccount *account)
+_mcd_account_get_keyfile (McdAccount *account)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     return priv->keyfile;

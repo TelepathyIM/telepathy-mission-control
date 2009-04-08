@@ -84,7 +84,7 @@ gboolean mcd_account_delete (McdAccount *account, GError **error);
 const gchar *mcd_account_get_unique_name (McdAccount *account);
 const gchar *mcd_account_get_object_path (McdAccount *account);
 
-GKeyFile *mcd_account_get_keyfile (McdAccount *account);
+G_GNUC_INTERNAL GKeyFile *_mcd_account_get_keyfile (McdAccount *account);
 
 gboolean mcd_account_is_valid (McdAccount *account);
 gboolean mcd_account_check_validity (McdAccount *account);

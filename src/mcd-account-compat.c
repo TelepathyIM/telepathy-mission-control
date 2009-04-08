@@ -58,7 +58,7 @@ set_profile (TpSvcDBusProperties *self, const gchar *name,
     const gchar *string, *unique_name;
     GKeyFile *keyfile;
 
-    keyfile = mcd_account_get_keyfile (account);
+    keyfile = _mcd_account_get_keyfile (account);
     unique_name = mcd_account_get_unique_name (account);
     string = g_value_get_string (value);
     if (string && string[0] != 0)
@@ -82,7 +82,7 @@ get_profile (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     GKeyFile *keyfile;
     gchar *string;
 
-    keyfile = mcd_account_get_keyfile (account);
+    keyfile = _mcd_account_get_keyfile (account);
     unique_name = mcd_account_get_unique_name (account);
     string = g_key_file_get_string (keyfile, unique_name,
 				    name, NULL);
@@ -109,7 +109,7 @@ set_secondary_vcard_fields (TpSvcDBusProperties *self, const gchar *name,
     const gchar *unique_name, **fields, **field;
     GKeyFile *keyfile;
 
-    keyfile = mcd_account_get_keyfile (account);
+    keyfile = _mcd_account_get_keyfile (account);
     unique_name = mcd_account_get_unique_name (account);
     fields = g_value_get_boxed (value);
     if (fields)
@@ -137,7 +137,7 @@ get_secondary_vcard_fields (TpSvcDBusProperties *self, const gchar *name,
     const gchar *unique_name;
     gchar **fields;
 
-    keyfile = mcd_account_get_keyfile (account);
+    keyfile = _mcd_account_get_keyfile (account);
     unique_name = mcd_account_get_unique_name (account);
     fields = g_key_file_get_string_list (keyfile, unique_name,
 					 name, NULL, NULL);
@@ -174,7 +174,7 @@ mcd_account_compat_get_mc_profile (McdAccount *account)
     gchar *profile_name;
     McProfile *profile = NULL;
 
-    keyfile = mcd_account_get_keyfile (account);
+    keyfile = _mcd_account_get_keyfile (account);
     unique_name = mcd_account_get_unique_name (account);
     profile_name = g_key_file_get_string (keyfile, unique_name,
                                           "Profile", NULL);
