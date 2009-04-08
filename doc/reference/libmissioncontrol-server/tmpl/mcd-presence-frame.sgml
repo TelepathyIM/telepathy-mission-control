@@ -59,15 +59,6 @@ McdPresenceFrame
 @Returns: 
 
 
-<!-- ##### FUNCTION mcd_presence_frame_get_requested_presence_message ##### -->
-<para>
-
-</para>
-
-@presence_frame: 
-@Returns: 
-
-
 <!-- ##### FUNCTION mcd_presence_frame_get_actual_presence ##### -->
 <para>
 
@@ -78,15 +69,6 @@ McdPresenceFrame
 
 
 <!-- ##### FUNCTION mcd_presence_frame_get_actual_presence_message ##### -->
-<para>
-
-</para>
-
-@presence_frame: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_presence_frame_is_stable ##### -->
 <para>
 
 </para>

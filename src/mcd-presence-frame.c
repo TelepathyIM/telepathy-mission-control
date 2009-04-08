@@ -350,20 +350,6 @@ mcd_presence_frame_get_requested_presence (McdPresenceFrame * presence_frame)
 	return TP_CONNECTION_PRESENCE_TYPE_UNSET;
 }
 
-const gchar *
-mcd_presence_frame_get_requested_presence_message (McdPresenceFrame *
-						   presence_frame)
-{
-    McdPresenceFramePrivate *priv;
-    g_return_val_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame), NULL);
-    priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-
-    if (priv->requested_presence)
-	return priv->requested_presence->message;
-    else
-	return NULL;
-}
-
 TpConnectionPresenceType
 mcd_presence_frame_get_actual_presence (McdPresenceFrame * presence_frame)
 {
@@ -550,19 +536,6 @@ mcd_presence_frame_remove_account (McdPresenceFrame * presence_frame,
     return TRUE;
 }
 
-/**
- * mcd_presence_frame_is_stable:
- * @presence_frame: The #McdPresenceFrame.
- *
- * Returns #TRUE if there isn't any account currently trying to connect.
- */
-gboolean
-mcd_presence_frame_is_stable (McdPresenceFrame *presence_frame)
-{
-    McdPresenceFramePrivate *priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-    return priv->actual_status != TP_CONNECTION_STATUS_CONNECTING;
-}
-
 static void
 add_account (gpointer key, gpointer value, gpointer userdata)
 {
@@ -605,11 +578,3 @@ mcd_presence_frame_set_account_manager (McdPresenceFrame *presence_frame,
 		      G_CALLBACK (on_account_validity_changed),
 		      presence_frame);
 }
-
-GList *
-mcd_presence_frame_get_accounts (McdPresenceFrame *presence_frame)
-{
-    McdPresenceFramePrivate *priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-    return priv->accounts;
-}
-
