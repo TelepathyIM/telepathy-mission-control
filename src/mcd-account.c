@@ -134,6 +134,7 @@ struct _McdAccountPrivate
     guint enabled : 1;
     guint valid : 1;
     guint loaded : 1;
+    guint temporary_presence : 1;
 
     /* These fields are used to cache the changed properties */
     GHashTable *changed_properties;
@@ -457,7 +458,8 @@ mcd_account_request_presence_int (McdAccount *account,
 	changed = TRUE;
     }
 
-    if (!changed) return changed;
+    if (!(changed || priv->temporary_presence))
+        return FALSE;
 
     if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE && !priv->connection)
     {
@@ -2393,3 +2395,14 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
     }
 }
 
+void
+_mcd_account_request_temporary_presence (McdAccount *self,
+                                         TpConnectionPresenceType type,
+                                         const gchar *status)
+{
+    /* tell the McdConnection (if it exists) to update our presence, but don't
+     * alter RequestedPresence (so we can go back to the old value later) */
+    g_signal_emit (self, _mcd_account_signals[REQUESTED_PRESENCE_CHANGED],
+                   0, type, status, "");
+    self->priv->temporary_presence = TRUE;
+}

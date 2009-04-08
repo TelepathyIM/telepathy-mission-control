@@ -119,6 +119,8 @@ void mcd_account_get_requested_presence (McdAccount *account,
 					 TpConnectionPresenceType *presence,
 					 const gchar **status,
 					 const gchar **message);
+G_GNUC_INTERNAL void _mcd_account_request_temporary_presence (McdAccount *self,
+    TpConnectionPresenceType type, const gchar *status);
 
 gboolean mcd_account_get_connect_automatically (McdAccount *account);
 void mcd_account_get_automatic_presence (McdAccount *account,
