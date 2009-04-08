@@ -189,6 +189,10 @@ typedef struct _McdClient
 #define MC_FILE_IFACE_CLIENT_OBSERVER \
     "org.freedesktop.Telepathy.Client.Observer"
 
+/* Analogous to TP_CM_*_BASE */
+#define MC_CLIENT_BUS_NAME_BASE MC_FILE_IFACE_CLIENT "."
+#define MC_CLIENT_OBJECT_PATH_BASE "/org/freedesktop/Telepathy/Client/"
+
 struct _McdDispatcherPrivate
 {
     /* Dispatching contexts */
@@ -2197,9 +2201,8 @@ create_client_proxy (McdDispatcher *self, McdClient *client)
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
     gchar *bus_name, *object_path;
 
-    bus_name = g_strconcat (MC_FILE_IFACE_CLIENT ".", client->name, NULL);
-    object_path = g_strconcat ("/org/freedesktop/Telepathy/Client/",
-                               client->name, NULL);
+    bus_name = g_strconcat (MC_CLIENT_BUS_NAME_BASE, client->name, NULL);
+    object_path = g_strconcat (MC_CLIENT_OBJECT_PATH_BASE, client->name, NULL);
     client->proxy = g_object_new (TP_TYPE_PROXY,
                                   "dbus-daemon", priv->dbus_daemon,
                                   "object-path", object_path,
@@ -2331,11 +2334,10 @@ create_mcd_client (McdDispatcher *self,
     gchar *filename;
     gboolean file_found = FALSE;
 
-    g_assert (strncmp (MC_FILE_IFACE_CLIENT ".", name,
-          sizeof (MC_FILE_IFACE_CLIENT ".") - 1) == 0);
+    g_assert (g_str_has_prefix (name, MC_CLIENT_BUS_NAME_BASE));
 
     client = g_slice_new0 (McdClient);
-    client->name = g_strdup (name + sizeof (MC_FILE_IFACE_CLIENT ".") - 1);
+    client->name = g_strdup (name + sizeof (MC_CLIENT_BUS_NAME_BASE) - 1);
     client->activatable = activatable;
     if (!activatable)
         client->active = TRUE;
@@ -2400,8 +2402,7 @@ new_names_cb (McdDispatcher *self,
         const char *name = *names;
         names++;
 
-        if (strncmp (MC_FILE_IFACE_CLIENT ".", name,
-                     sizeof (MC_FILE_IFACE_CLIENT ".") - 1) != 0)
+        if (!g_str_has_prefix (name, MC_CLIENT_BUS_NAME_BASE))
         {
             /* This is not a Telepathy Client */
             continue;
@@ -3538,8 +3539,23 @@ dispatcher_request_channel (McdDispatcher *self,
         goto despair;
     }
 
-    /* FIXME: raise InvalidArgument if preferred_handler is syntactically
-     * invalid or does not start with the right thing */
+    if (!tp_dbus_check_valid_bus_name (preferred_handler,
+                                       TP_DBUS_NAME_TYPE_WELL_KNOWN,
+                                       &error))
+    {
+        /* The error is TP_DBUS_ERROR_INVALID_BUS_NAME, which has no D-Bus
+         * representation; re-map to InvalidArgument. */
+        error->domain = TP_ERRORS;
+        error->code = TP_ERROR_INVALID_ARGUMENT;
+        goto despair;
+    }
+
+    if (!g_str_has_prefix (preferred_handler, MC_CLIENT_BUS_NAME_BASE))
+    {
+        g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "Not a Telepathy Client: %s", preferred_handler);
+        goto despair;
+    }
 
     channel = _mcd_account_create_request (account, requested_properties,
                                            user_action_time, preferred_handler,
