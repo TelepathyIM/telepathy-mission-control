@@ -88,9 +88,6 @@ gboolean mcd_connection_cancel_channel_request (McdConnection *connection,
 						const gchar *requestor_client_id,
 					       	GError **error);
 
-void mcd_connection_set_reconnect (McdConnection *connection,
-                                   gboolean reconnect);
-
 void mcd_connection_connect (McdConnection *connection, GHashTable *params);
 void mcd_connection_close (McdConnection *connection);
 

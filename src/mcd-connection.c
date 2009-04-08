@@ -121,8 +121,6 @@ struct _McdConnectionPrivate
     /* FALSE until we got the first PresencesChanged for the self handle */
     guint got_presences_changed : 1;
 
-    guint auto_reconnect : 1;
-
     gchar *alias;
 
     gboolean is_disposed;
@@ -1133,10 +1131,9 @@ static void proxy_destroyed (DBusGProxy *tp_conn, guint domain, gint code,
 	priv->capabilities_timer = 0;
     }
 
-    if (priv->auto_reconnect &&
-        (priv->abort_reason == TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED ||
-         priv->abort_reason == TP_CONNECTION_STATUS_REASON_NETWORK_ERROR ||
-         priv->abort_reason == TP_CONNECTION_STATUS_REASON_NAME_IN_USE))
+    if (priv->abort_reason == TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED ||
+        priv->abort_reason == TP_CONNECTION_STATUS_REASON_NETWORK_ERROR ||
+        priv->abort_reason == TP_CONNECTION_STATUS_REASON_NAME_IN_USE)
     {
         /* we were disconnected by a network error or by a connection manager
          * crash (in the latter case, we get NoneSpecified as a reason): don't
@@ -1952,7 +1949,6 @@ mcd_connection_init (McdConnection * connection)
     priv->abort_reason = TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
 
     priv->reconnect_interval = INITIAL_RECONNECTION_TIME;
-    priv->auto_reconnect = TRUE;
 }
 
 /* Public methods */
@@ -2483,22 +2479,6 @@ mcd_connection_get_name (McdConnection *connection)
 	return TP_PROXY (priv->tp_conn)->bus_name;
     else
 	return NULL;
-}
-
-/**
- * mcd_connection_set_reconnect:
- * @connection: the #McdConnection.
- * @reconnect: %TRUE to activate auto-reconnection, %FALSE otherwise.
- *
- * Enable/disable the automatic reconnection behaviour on connection lost.
- * By default automatic reconnection is enabled.
- */
-void
-mcd_connection_set_reconnect (McdConnection *connection, gboolean reconnect)
-{
-    g_return_if_fail (MCD_IS_CONNECTION (connection));
-
-    connection->priv->auto_reconnect = reconnect;
 }
 
 /**
