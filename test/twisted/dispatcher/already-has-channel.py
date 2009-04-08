@@ -145,9 +145,8 @@ def test(q, bus, mc):
 
     handlers = cdo_properties[cs.CDO + '.PossibleHandlers'][:]
     handlers.sort()
-    # FIXME: not true
-    #assert handlers == [cs.tp_name_prefix + '.Client.Empathy',
-    #        cs.tp_name_prefix + '.Client.Kopete'], handlers
+    assert handlers == [cs.tp_name_prefix + '.Client.Empathy',
+            cs.tp_name_prefix + '.Client.Kopete'], handlers
 
     assert cdo_properties[cs.CDO + '.Channels'] == [(chan.object_path,
         channel_properties)]

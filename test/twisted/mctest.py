@@ -227,8 +227,30 @@ class SimulatedConnection(object):
     def GetSelfHandle(self, e):
         self.q.dbus_return(e.message, self.self_handle, signature='u')
 
+    def NewChannels(self, channels):
+        for channel in channels:
+            assert not channel.announced
+            channel.announced = True
+            self.channels.append(channel)
+
+            self.q.dbus_emit(self.object_path, cs.CONN,
+                    'NewChannel',
+                    channel.object_path,
+                    channel.immutable[cs.CHANNEL + '.ChannelType'],
+                    channel.immutable.get(cs.CHANNEL + '.TargetHandleType', 0),
+                    channel.immutable.get(cs.CHANNEL + '.TargetHandle', 0),
+                    channel.immutable.get(cs.CHANNEL + '.Requested', False),
+                    signature='osuub')
+
+        self.q.dbus_emit(self.object_path, cs.CONN_IFACE_REQUESTS,
+                'NewChannels',
+                [(channel.object_path, channel.immutable)
+                    for channel in channels],
+                signature='a(oa{sv})')
+
 class SimulatedChannel(object):
-    def __init__(self, conn, immutable, mutable={}):
+    def __init__(self, conn, immutable, mutable={},
+            destroyable=False):
         self.conn = conn
         self.q = conn.q
         self.bus = conn.bus
@@ -251,23 +273,17 @@ class SimulatedChannel(object):
                 path=self.object_path,
                 interface=cs.CHANNEL, method='GetInterfaces')
 
+        if destroyable:
+            self.q.add_dbus_method_impl(self.Close,
+                path=self.object_path,
+                interface=cs.CHANNEL_IFACE_DESTROYABLE,
+                method='Destroy')
+
         self.announced = False
         self.closed = False
 
     def announce(self):
-        assert not self.announced
-        self.announced = True
-        self.conn.channels.append(self)
-        self.q.dbus_emit(self.conn.object_path, cs.CONN,
-                'NewChannel',
-                self.object_path, self.immutable[cs.CHANNEL + '.ChannelType'],
-                self.immutable.get(cs.CHANNEL + '.TargetHandleType', 0),
-                self.immutable.get(cs.CHANNEL + '.TargetHandle', 0),
-                self.immutable.get(cs.CHANNEL + '.Requested', False),
-                signature='osuub')
-        self.q.dbus_emit(self.conn.object_path, cs.CONN_IFACE_REQUESTS,
-                'NewChannels', [(self.object_path, self.immutable)],
-                signature='a(oa{sv})')
+        self.conn.NewChannels([self])
 
     def Close(self, e):
         if not self.closed:

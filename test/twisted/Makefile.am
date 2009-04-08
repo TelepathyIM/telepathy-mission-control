@@ -8,6 +8,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/already-has-channel.py \
 	dispatcher/cancel.py \
 	dispatcher/create-text.py \
+	dispatcher/exploding-bundles.py \
 	dispatcher/fdo-21034.py \
 	dispatcher/dispatch-text.py \
 	do-nothing.py \
