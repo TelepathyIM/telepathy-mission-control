@@ -329,7 +329,7 @@ complete_account_creation (McdAccount *account,
         return;
     }
 
-    ok = mcd_account_set_parameters (account, cad->parameters, &error);
+    ok = _mcd_account_set_parameters (account, cad->parameters, &error);
     if (ok)
     {
 	add_account (account_manager, account);

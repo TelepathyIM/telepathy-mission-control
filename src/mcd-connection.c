@@ -236,8 +236,8 @@ presence_set_status_cb (TpConnection *proxy, const GError *error,
          * been changed -- but we hope it didn't */
         mcd_account_get_requested_presence (priv->account,
                                             &presence, &status, &message);
-        mcd_account_set_current_presence (priv->account,
-                                          presence, status, message);
+        _mcd_account_set_current_presence (priv->account,
+                                           presence, status, message);
     }
 }
 
@@ -376,8 +376,8 @@ on_presences_changed (TpConnection *proxy, GHashTable *presences,
         presence = g_value_get_uint (va->values);
         status = g_value_get_string (va->values + 1);
         message = g_value_get_string (va->values + 2);
-        mcd_account_set_current_presence (priv->account,
-                                          presence, status, message);
+        _mcd_account_set_current_presence (priv->account,
+                                           presence, status, message);
         priv->got_presences_changed = TRUE;
     }
 }
@@ -724,7 +724,7 @@ inspect_handles_cb (TpConnection *proxy, const gchar **names,
     }
     if (names && names[0] != NULL)
     {
-	mcd_account_set_normalized_name (priv->account, names[0]);
+        _mcd_account_set_normalized_name (priv->account, names[0]);
     }
 }
 
@@ -762,7 +762,7 @@ avatars_set_avatar_cb (TpConnection *proxy, const gchar *token,
 	return;
     }
     DEBUG ("received token: %s", token);
-    mcd_account_set_avatar_token (priv->account, token);
+    _mcd_account_set_avatar_token (priv->account, token);
 }
 
 static void
@@ -798,7 +798,8 @@ on_avatar_retrieved (TpConnection *proxy, guint contact_id, const gchar *token,
     if (!prev_token || strcmp (token, prev_token) != 0)
     {
         DEBUG ("received mime-type: %s", mime_type);
-	mcd_account_set_avatar (priv->account, avatar, mime_type, token, NULL);
+        _mcd_account_set_avatar (priv->account, avatar, mime_type, token,
+                                 NULL);
     }
     g_free (prev_token);
 }
@@ -989,9 +990,9 @@ on_aliases_changed (TpConnection *proxy, const GPtrArray *aliases,
             DEBUG ("This is our alias");
 	    if (!priv->alias || strcmp (priv->alias, alias) != 0)
 	    {
-		g_free (priv->alias);
-		priv->alias = alias;
-		mcd_account_set_alias (priv->account, alias);
+                g_free (priv->alias);
+                priv->alias = alias;
+                _mcd_account_set_alias (priv->account, alias);
 	    }
 	    break;
 	}
@@ -1083,17 +1084,19 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
     switch (conn_status)
     {
     case TP_CONNECTION_STATUS_CONNECTING:
-	mcd_account_set_connection_status (priv->account,
-					   conn_status, conn_reason);
-	priv->abort_reason = TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
-	break;
+        _mcd_account_set_connection_status (priv->account,
+                                            conn_status, conn_reason);
+        priv->abort_reason = TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
+        break;
+
     case TP_CONNECTION_STATUS_CONNECTED:
-	{
-	    mcd_account_set_connection_status (priv->account,
-					       conn_status, conn_reason);
-	    priv->reconnect_interval = INITIAL_RECONNECTION_TIME;
-	}
-	break;
+        {
+            _mcd_account_set_connection_status (priv->account,
+                                                conn_status, conn_reason);
+            priv->reconnect_interval = INITIAL_RECONNECTION_TIME;
+        }
+        break;
+
     case TP_CONNECTION_STATUS_DISCONNECTED:
 	/* Connection could die during account status updated if its
 	 * manager is the only one holding the reference to it (manager will
@@ -1111,6 +1114,7 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
 					  NULL, NULL);
 	}
 	break;
+
     default:
 	g_warning ("Unknown telepathy connection status");
     }
@@ -1549,12 +1553,13 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
 
     if (tperror)
     {
-	g_warning ("%s: RequestConnection failed: %s",
-		   G_STRFUNC, tperror->message);
-	mcd_account_set_connection_status (priv->account,
-					   TP_CONNECTION_STATUS_DISCONNECTED,
-					   TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
-	return;
+        g_warning ("%s: RequestConnection failed: %s",
+                   G_STRFUNC, tperror->message);
+
+        _mcd_account_set_connection_status (priv->account,
+            TP_CONNECTION_STATUS_DISCONNECTED,
+            TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
+        return;
     }
 
     DEBUG ("created %s", obj_path);
@@ -1586,9 +1591,9 @@ _mcd_connection_connect_with_params (McdConnection *connection,
     DEBUG ("Trying connect account: %s",
            mcd_account_get_unique_name (priv->account));
 
-    mcd_account_set_connection_status (priv->account,
-                                       TP_CONNECTION_STATUS_CONNECTING,
-                                       TP_CONNECTION_STATUS_REASON_REQUESTED);
+    _mcd_account_set_connection_status (priv->account,
+                                        TP_CONNECTION_STATUS_CONNECTING,
+                                        TP_CONNECTION_STATUS_REASON_REQUESTED);
 
     /* TODO: add extra parameters? */
     tp_cli_connection_manager_call_request_connection (priv->tp_conn_mgr, -1,
@@ -1617,12 +1622,12 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
 
     DEBUG ("%p", connection);
-    mcd_account_set_current_presence (priv->account,
-				      TP_CONNECTION_PRESENCE_TYPE_OFFLINE,
-				      "offline", NULL);
-    mcd_account_set_connection_status (priv->account,
-				       TP_CONNECTION_STATUS_DISCONNECTED, 
-				       priv->abort_reason);
+    _mcd_account_set_current_presence (priv->account,
+                                       TP_CONNECTION_PRESENCE_TYPE_OFFLINE,
+                                       "offline", NULL);
+    _mcd_account_set_connection_status (priv->account,
+                                        TP_CONNECTION_STATUS_DISCONNECTED,
+                                        priv->abort_reason);
     if (priv->tp_conn)
     {
 	/* Disconnect signals */
@@ -2528,9 +2533,9 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
                                        obj_path, error);
     if (!priv->tp_conn)
     {
-        mcd_account_set_connection_status (priv->account,
-                                           TP_CONNECTION_STATUS_DISCONNECTED,
-                                           TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
+        _mcd_account_set_connection_status (priv->account,
+            TP_CONNECTION_STATUS_DISCONNECTED,
+            TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
         return;
     }
     _mcd_account_tp_connection_changed (priv->account);

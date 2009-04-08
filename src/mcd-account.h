@@ -94,22 +94,23 @@ gboolean mcd_account_is_enabled (McdAccount *account);
 const gchar *mcd_account_get_manager_name (McdAccount *account);
 const gchar *mcd_account_get_protocol_name (McdAccount *account);
 
-gboolean mcd_account_set_parameters (McdAccount *account, GHashTable *params,
-				     GError **error);
+G_GNUC_INTERNAL gboolean _mcd_account_set_parameters (McdAccount *account,
+                                                      GHashTable *params,
+                                                      GError **error);
 GHashTable *mcd_account_get_parameters (McdAccount *account);
 gboolean mcd_account_check_parameters (McdAccount *account);
-void mcd_account_set_parameter (McdAccount *account, const gchar *name,
-                                const GValue *value);
+G_GNUC_INTERNAL void _mcd_account_set_parameter (McdAccount *account,
+                                                 const gchar *name,
+                                                 const GValue *value);
 gboolean mcd_account_get_parameter (McdAccount *account, const gchar *name,
                                     GValue *value);
 
 void mcd_account_request_presence (McdAccount *account,
 				   TpConnectionPresenceType type,
 				   const gchar *status, const gchar *message);
-void mcd_account_set_current_presence (McdAccount *account,
-				       TpConnectionPresenceType presence,
-				       const gchar *status,
-				       const gchar *message);
+G_GNUC_INTERNAL void _mcd_account_set_current_presence (McdAccount *account,
+    TpConnectionPresenceType presence, const gchar *status,
+    const gchar *message);
 void mcd_account_get_current_presence (McdAccount *account,
 				       TpConnectionPresenceType *presence,
 				       const gchar **status,
@@ -125,24 +126,28 @@ void mcd_account_get_automatic_presence (McdAccount *account,
 					 const gchar **status,
 					 const gchar **message);
 
-void mcd_account_set_normalized_name (McdAccount *account, const gchar *name);
+G_GNUC_INTERNAL void _mcd_account_set_normalized_name (McdAccount *account,
+                                                       const gchar *name);
 gchar *mcd_account_get_normalized_name (McdAccount *account);
 
-gboolean mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
-				 const gchar *mime_type, const gchar *token,
-				 GError **error);
+G_GNUC_INTERNAL gboolean _mcd_account_set_avatar (McdAccount *account,
+                                                  const GArray *avatar,
+                                                  const gchar *mime_type,
+                                                  const gchar *token,
+                                                  GError **error);
 void mcd_account_get_avatar (McdAccount *account, GArray **avatar,
 			     gchar **mime_type);
-void mcd_account_set_avatar_token (McdAccount *account, const gchar *token);
+G_GNUC_INTERNAL void _mcd_account_set_avatar_token (McdAccount *account,
+                                                    const gchar *token);
 gchar *mcd_account_get_avatar_token (McdAccount *account);
 
-void mcd_account_set_alias (McdAccount *account, const gchar *alias);
+G_GNUC_INTERNAL void _mcd_account_set_alias (McdAccount *account,
+                                             const gchar *alias);
 
 gchar *mcd_account_get_alias (McdAccount *account);
 
-void mcd_account_set_connection_status (McdAccount *account,
-					TpConnectionStatus status,
-					TpConnectionStatusReason reason);
+G_GNUC_INTERNAL void _mcd_account_set_connection_status (McdAccount *account,
+    TpConnectionStatus status, TpConnectionStatusReason reason);
 TpConnectionStatus mcd_account_get_connection_status (McdAccount *account);
 TpConnectionStatusReason mcd_account_get_connection_status_reason (McdAccount *account);
 
@@ -156,8 +161,7 @@ void _mcd_account_tp_connection_changed (McdAccount *account);
 G_GNUC_INTERNAL
 void _mcd_account_load (McdAccount *account, McdAccountLoadCb callback,
                         gpointer user_data);
-G_GNUC_INTERNAL
-void _mcd_account_set_connection (McdAccount *account,
-                                  McdConnection *connection);
+G_GNUC_INTERNAL void _mcd_account_set_connection (McdAccount *account,
+                                                  McdConnection *connection);
 
 #endif

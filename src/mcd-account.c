@@ -736,7 +736,7 @@ set_avatar (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
     va = g_value_get_boxed (value);
     avatar = g_value_get_boxed (va->values);
     mime_type = g_value_get_string (va->values + 1);
-    changed = mcd_account_set_avatar (account, avatar, mime_type, NULL,
+    changed = _mcd_account_set_avatar (account, avatar, mime_type, NULL,
 				      &error);
     if (error)
     {
@@ -1149,8 +1149,8 @@ mcd_account_check_parameters (McdAccount *account)
     return valid;
 }
 
-/**
- * mcd_account_set_parameter:
+/*
+ * _mcd_account_set_parameter:
  * @account: the #McdAccount.
  * @name: the parameter name.
  * @value: a #GValue with the value to set, or %NULL.
@@ -1159,15 +1159,15 @@ mcd_account_check_parameters (McdAccount *account)
  * parameter is unset.
  */
 void
-mcd_account_set_parameter (McdAccount *account, const gchar *name,
-                           const GValue *value)
+_mcd_account_set_parameter (McdAccount *account, const gchar *name,
+                            const GValue *value)
 {
     MCD_ACCOUNT_GET_CLASS (account)->set_parameter (account, name, value);
 }
 
 gboolean
-mcd_account_set_parameters (McdAccount *account, GHashTable *params,
-			    GError **error)
+_mcd_account_set_parameters (McdAccount *account, GHashTable *params,
+                             GError **error)
 {
     McdAccountPrivate *priv = account->priv;
     const TpConnectionManagerParam *param;
@@ -1251,7 +1251,7 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     g_hash_table_iter_init (&iter, params);
     while (g_hash_table_iter_next (&iter, (gpointer)&name, (gpointer)&value))
     {
-        mcd_account_set_parameter (account, name, value);
+        _mcd_account_set_parameter (account, name, value);
     }
 
     if (mcd_account_get_connection_status (account) ==
@@ -1289,7 +1289,7 @@ mcd_account_unset_parameters (McdAccount *account, const gchar **params)
 
     for (param = params; *param != NULL; param++)
     {
-        mcd_account_set_parameter (account, *param, NULL);
+        _mcd_account_set_parameter (account, *param, NULL);
     }
 }
 
@@ -1305,7 +1305,7 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
 
     DEBUG ("called for %s", priv->unique_name);
 
-    if (!mcd_account_set_parameters (account, set, &error))
+    if (!_mcd_account_set_parameters (account, set, &error))
     {
 	if (!error)
 	    g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
@@ -1832,8 +1832,8 @@ mcd_account_request_presence (McdAccount *account,
     }
 }
 
-/**
- * mcd_account_set_current_presence:
+/*
+ * _mcd_account_set_current_presence:
  * @account: the #McdAccount.
  * @presence: a #TpConnectionPresenceType.
  * @status: presence status.
@@ -1842,9 +1842,9 @@ mcd_account_request_presence (McdAccount *account,
  * Set a presence status on the account.
  */
 void
-mcd_account_set_current_presence (McdAccount *account,
-				  TpConnectionPresenceType presence,
-				  const gchar *status, const gchar *message)
+_mcd_account_set_current_presence (McdAccount *account,
+                                   TpConnectionPresenceType presence,
+                                   const gchar *status, const gchar *message)
 {
     McdAccountPrivate *priv = account->priv;
     gboolean changed = FALSE;
@@ -1956,7 +1956,7 @@ mcd_account_get_protocol_name (McdAccount *account)
 }
 
 void
-mcd_account_set_normalized_name (McdAccount *account, const gchar *name)
+_mcd_account_set_normalized_name (McdAccount *account, const gchar *name)
 {
     McdAccountPrivate *priv = account->priv;
     GValue value = { 0, };
@@ -1986,7 +1986,7 @@ mcd_account_get_normalized_name (McdAccount *account)
 }
 
 void
-mcd_account_set_avatar_token (McdAccount *account, const gchar *token)
+_mcd_account_set_avatar_token (McdAccount *account, const gchar *token)
 {
     McdAccountPrivate *priv = account->priv;
 
@@ -2010,7 +2010,7 @@ mcd_account_get_avatar_token (McdAccount *account)
 }
 
 gboolean
-mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
+_mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
 			const gchar *mime_type, const gchar *token,
 			GError **error)
 {
@@ -2105,7 +2105,7 @@ mcd_account_get_avatar (McdAccount *account, GArray **avatar,
 }
 
 void
-mcd_account_set_alias (McdAccount *account, const gchar *alias)
+_mcd_account_set_alias (McdAccount *account, const gchar *alias)
 {
     GValue value = { 0 };
 
@@ -2178,9 +2178,9 @@ process_online_requests (McdAccount *account,
 }
 
 void
-mcd_account_set_connection_status (McdAccount *account,
-				   TpConnectionStatus status,
-				   TpConnectionStatusReason reason)
+_mcd_account_set_connection_status (McdAccount *account,
+                                    TpConnectionStatus status,
+                                    TpConnectionStatusReason reason)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     gboolean changed = FALSE;
@@ -2329,7 +2329,7 @@ _mcd_account_online_request (McdAccount *account,
 
 	/* now the connection should be in connecting state; insert the
 	 * callback in the online_requests hash table, which will be processed
-	 * in the mcd_account_set_connection_status function */
+	 * in the _mcd_account_set_connection_status function */
         data = g_slice_new (McdOnlineRequestData);
         data->callback = callback;
         data->user_data = userdata;
