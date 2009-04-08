@@ -387,13 +387,13 @@ _mcd_connection_setup_presence (McdConnection *connection)
 {
     McdConnectionPrivate *priv =  connection->priv;
 
+    tp_cli_connection_interface_simple_presence_connect_to_presences_changed
+        (priv->tp_conn, on_presences_changed, priv, NULL,
+         (GObject *)connection, NULL);
     tp_cli_dbus_properties_call_get
         (priv->tp_conn, -1, TP_IFACE_CONNECTION_INTERFACE_SIMPLE_PRESENCE,
          "Statuses", presence_get_statuses_cb, priv, NULL,
          (GObject *)connection);
-    tp_cli_connection_interface_simple_presence_connect_to_presences_changed
-        (priv->tp_conn, on_presences_changed, priv, NULL,
-         (GObject *)connection, NULL);
 }
 
 static void
