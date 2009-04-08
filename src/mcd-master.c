@@ -431,27 +431,49 @@ _mcd_master_set_flags (McdMission * mission, McdSystemFlags flags)
     
     if (idle_flag_old != idle_flag_new)
     {
-	if (idle_flag_new)
-	{
-	    /* Save the current presence first */
-	    priv->awake_presence =
-		mcd_presence_frame_get_actual_presence (priv->presence_frame);
-	    if (priv->awake_presence != TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
-		return;
-	    g_free (priv->awake_presence_message);
-	    priv->awake_presence_message = g_strdup
-		(mcd_presence_frame_get_actual_presence_message
-		 (priv->presence_frame));
+        GHashTableIter iter;
+        gpointer v;
 
-	    mcd_presence_frame_request_presence (priv->presence_frame,
-						 TP_CONNECTION_PRESENCE_TYPE_AWAY, NULL);
-	}
-	else
-	{    
-	    mcd_presence_frame_request_presence (priv->presence_frame,
-						 priv->awake_presence,
-						 priv->awake_presence_message);
-	}
+        g_hash_table_iter_init (&iter,
+            mcd_account_manager_get_accounts (priv->account_manager));
+
+        while (g_hash_table_iter_next (&iter, NULL, &v))
+        {
+            McdAccount *account = MCD_ACCOUNT (v);
+
+            if (idle_flag_new)
+            {
+                TpConnectionPresenceType presence;
+
+                /* If the current presence is not Available then we don't go
+                 * auto-away - this avoids (a) manipulating offline accounts
+                 * and (b) messing up people's busy or invisible status */
+                mcd_account_get_current_presence (account, &presence, NULL,
+                                                  NULL);
+
+                if (presence != TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
+                {
+                    continue;
+                }
+
+                /* Set the Connection to be "away" if the CM supports it
+                 * (if not, it'll just fail - no harm done) */
+                _mcd_account_request_temporary_presence (account,
+                    TP_CONNECTION_PRESENCE_TYPE_AWAY, "away");
+            }
+            else
+            {
+                TpConnectionPresenceType presence;
+                const gchar *status;
+                const gchar *message;
+
+                /* Go back to the requested presence */
+                mcd_account_get_requested_presence (account, &presence,
+                                                    &status, &message);
+                mcd_account_request_presence (account, presence, status,
+                                              message);
+            }
+        }
     }
     MCD_MISSION_CLASS (mcd_master_parent_class)->set_flags (mission, flags);
 }
