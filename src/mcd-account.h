@@ -135,11 +135,12 @@ G_GNUC_INTERNAL gboolean _mcd_account_set_avatar (McdAccount *account,
                                                   const gchar *mime_type,
                                                   const gchar *token,
                                                   GError **error);
-void mcd_account_get_avatar (McdAccount *account, GArray **avatar,
-			     gchar **mime_type);
+G_GNUC_INTERNAL void _mcd_account_get_avatar (McdAccount *account,
+                                              GArray **avatar,
+                                              gchar **mime_type);
 G_GNUC_INTERNAL void _mcd_account_set_avatar_token (McdAccount *account,
                                                     const gchar *token);
-gchar *mcd_account_get_avatar_token (McdAccount *account);
+G_GNUC_INTERNAL gchar *_mcd_account_get_avatar_token (McdAccount *account);
 
 G_GNUC_INTERNAL void _mcd_account_set_alias (McdAccount *account,
                                              const gchar *alias);
@@ -153,7 +154,7 @@ TpConnectionStatusReason mcd_account_get_connection_status_reason (McdAccount *a
 
 McdConnection *mcd_account_get_connection (McdAccount *account);
 
-gchar *mcd_account_get_avatar_filename (McdAccount *account);
+G_GNUC_INTERNAL gchar *_mcd_account_get_avatar_filename (McdAccount *account);
 
 /* non-exported methods */
 void _mcd_account_tp_connection_changed (McdAccount *account);

@@ -757,7 +757,7 @@ get_avatar (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     GType type;
     GValueArray *va;
 
-    mcd_account_get_avatar (account, &avatar, &mime_type);
+    _mcd_account_get_avatar (account, &avatar, &mime_type);
     if (!avatar)
         avatar = g_array_new (FALSE, FALSE, 1);
 
@@ -2001,7 +2001,7 @@ _mcd_account_set_avatar_token (McdAccount *account, const gchar *token)
 }
 
 gchar *
-mcd_account_get_avatar_token (McdAccount *account)
+_mcd_account_get_avatar_token (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
 
@@ -2049,7 +2049,7 @@ _mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
     {
         gchar *prev_token;
 
-        prev_token = mcd_account_get_avatar_token (account);
+        prev_token = _mcd_account_get_avatar_token (account);
         g_key_file_set_string (priv->keyfile, priv->unique_name,
                                MC_ACCOUNTS_KEY_AVATAR_TOKEN, token);
         if (!prev_token || strcmp (prev_token, token) != 0)
@@ -2069,8 +2069,8 @@ _mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
 }
 
 void
-mcd_account_get_avatar (McdAccount *account, GArray **avatar,
-		       	gchar **mime_type)
+_mcd_account_get_avatar (McdAccount *account, GArray **avatar,
+                         gchar **mime_type)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     gchar *filename;
@@ -2079,7 +2079,7 @@ mcd_account_get_avatar (McdAccount *account, GArray **avatar,
 					MC_ACCOUNTS_KEY_AVATAR_MIME, NULL);
 
     if (avatar) *avatar = NULL;
-    filename = mcd_account_get_avatar_filename (account);
+    filename = _mcd_account_get_avatar_filename (account);
 
     if (filename && g_file_test (filename, G_FILE_TEST_EXISTS))
     {
@@ -2346,7 +2346,7 @@ _mcd_account_get_keyfile (McdAccount *account)
 
 /* this is public because of mcd-account-compat */
 gchar *
-mcd_account_get_avatar_filename (McdAccount *account)
+_mcd_account_get_avatar_filename (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
     gchar *data_dir, *filename;

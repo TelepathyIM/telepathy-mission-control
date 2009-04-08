@@ -96,7 +96,7 @@ get_avatar_file (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     McdAccount *account = MCD_ACCOUNT (self);
     gchar *string;
 
-    string = mcd_account_get_avatar_filename (account);
+    string = _mcd_account_get_avatar_filename (account);
     g_value_init (value, G_TYPE_STRING);
     g_value_take_string (value, string);
 }

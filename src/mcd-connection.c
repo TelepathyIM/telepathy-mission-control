@@ -793,7 +793,7 @@ on_avatar_retrieved (TpConnection *proxy, guint contact_id, const gchar *token,
     if (priv->setting_avatar) return;
 
     DEBUG ("Avatar retrieved for contact %d, token: %s", contact_id, token);
-    prev_token = mcd_account_get_avatar_token (priv->account);
+    prev_token = _mcd_account_get_avatar_token (priv->account);
 
     if (!prev_token || strcmp (token, prev_token) != 0)
     {
@@ -828,7 +828,7 @@ on_avatar_updated (TpConnection *proxy, guint contact_id, const gchar *token,
     if (priv->setting_avatar) return;
 
     DEBUG ("contact %d, token: %s", contact_id, token);
-    prev_token = mcd_account_get_avatar_token (priv->account);
+    prev_token = _mcd_account_get_avatar_token (priv->account);
 
     if (!prev_token || strcmp (token, prev_token) != 0)
     {
@@ -893,7 +893,7 @@ avatars_request_tokens_cb (TpConnection *proxy, GHashTable *tokens,
     if (token)
 	return;
 
-    mcd_account_get_avatar (priv->account, &avatar, &mime_type);
+    _mcd_account_get_avatar (priv->account, &avatar, &mime_type);
     if (avatar)
     {
         DEBUG ("No avatar set, setting our own");
@@ -935,11 +935,11 @@ _mcd_connection_setup_avatar (McdConnection *connection)
 								     NULL);
     priv->setting_avatar = FALSE;
 
-    mcd_account_get_avatar (priv->account, &avatar, &mime_type);
+    _mcd_account_get_avatar (priv->account, &avatar, &mime_type);
 
     if (avatar)
     {
-	token = mcd_account_get_avatar_token (priv->account);
+	token = _mcd_account_get_avatar_token (priv->account);
 	g_free (token);
 	if (!token)
 	    _mcd_connection_set_avatar (connection, avatar, mime_type);
