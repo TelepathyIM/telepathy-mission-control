@@ -71,6 +71,7 @@ def test(q, bus, mc):
     assert properties.get('RequestedPresence') == \
         dbus.Struct((dbus.UInt32(0L), dbus.String(u''), dbus.String(u''))), \
         properties.get('RequestedPresence')  # FIXME: we should expect 1
+    assert properties.get('HasBeenOnline') == False
 
     # Go online
     requested_presence = dbus.Struct((dbus.UInt32(2L), dbus.String(u'brb'),
@@ -122,6 +123,7 @@ def test(q, bus, mc):
     properties = account.GetAll(cs.ACCOUNT,
             dbus_interface=cs.PROPERTIES_IFACE)
     assert properties is not None
+    assert properties.get('HasBeenOnline') == True
     assert properties.get('RequestedPresence') == requested_presence, \
         properties.get('RequestedPresence')
 

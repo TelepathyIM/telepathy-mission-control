@@ -134,6 +134,7 @@ struct _McdAccountPrivate
     guint enabled : 1;
     guint valid : 1;
     guint loaded : 1;
+    guint has_been_online : 1;
 
     /* These fields are used to cache the changed properties */
     GHashTable *changed_properties;
@@ -667,6 +668,17 @@ get_valid (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 }
 
 static void
+get_has_been_online (TpSvcDBusProperties *self, const gchar *name,
+                     GValue *value)
+{
+    McdAccount *account = MCD_ACCOUNT (self);
+    McdAccountPrivate *priv = account->priv;
+
+    g_value_init (value, G_TYPE_BOOLEAN);
+    g_value_set_boolean (value, priv->has_been_online);
+}
+
+static void
 set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
@@ -1047,6 +1059,7 @@ static const McdDBusProp account_properties[] = {
     { "CurrentPresence", NULL, get_current_presence },
     { "RequestedPresence", set_requested_presence, get_requested_presence },
     { "NormalizedName", NULL, get_normalized_name },
+    { "HasBeenOnline", NULL, get_has_been_online },
     { 0 },
 };
 
@@ -1387,6 +1400,10 @@ mcd_account_setup (McdAccount *account)
     priv->connect_automatically =
 	g_key_file_get_boolean (priv->keyfile, priv->unique_name,
 				MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY, NULL);
+
+    priv->has_been_online =
+	g_key_file_get_boolean (priv->keyfile, priv->unique_name,
+				MC_ACCOUNTS_KEY_HAS_BEEN_ONLINE, NULL);
 
     /* load the automatic presence */
     priv->auto_presence_type =
@@ -2185,6 +2202,11 @@ mcd_account_set_connection_status (McdAccount *account,
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     gboolean changed = FALSE;
 
+    if (status == TP_CONNECTION_STATUS_CONNECTED)
+    {
+        _mcd_account_set_has_been_online (account);
+    }
+
     if (status != priv->conn_status)
     {
 	GValue value = { 0 };
@@ -2393,3 +2415,22 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
     }
 }
 
+void
+_mcd_account_set_has_been_online (McdAccount *account)
+{
+    if (!account->priv->has_been_online)
+    {
+        GValue value = { 0 };
+
+        g_key_file_set_boolean (account->priv->keyfile,
+                                account->priv->unique_name,
+                                MC_ACCOUNTS_KEY_HAS_BEEN_ONLINE, TRUE);
+        account->priv->has_been_online = TRUE;
+        mcd_account_manager_write_conf (account->priv->account_manager);
+
+        g_value_init (&value, G_TYPE_BOOLEAN);
+        g_value_set_boolean (&value, TRUE);
+        mcd_account_changed_property (account, "HasBeenOnline", &value);
+        g_value_unset (&value);
+    }
+}
