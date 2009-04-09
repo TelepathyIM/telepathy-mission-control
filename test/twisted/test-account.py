@@ -101,6 +101,7 @@ def test(q, bus, mc):
         )
     assert account_props.Get(cs.ACCOUNT, 'Icon') == 'im-jabber'
 
+    assert account_props.Get(cs.ACCOUNT, 'HasBeenOnline') == False
     call_async(q, account_props, 'Set', cs.ACCOUNT, 'Nickname', 'Joe Bloggs')
     q.expect_many(
         EventPattern('dbus-signal',
@@ -111,6 +112,18 @@ def test(q, bus, mc):
         EventPattern('dbus-return', method='Set'),
         )
     assert account_props.Get(cs.ACCOUNT, 'Nickname') == 'Joe Bloggs'
+
+    call_async(q, dbus.Interface(account, cs.ACCOUNT_IFACE_NOKIA_COMPAT),
+            'SetHasBeenOnline')
+    q.expect_many(
+        EventPattern('dbus-signal',
+            path=account_path,
+            signal='AccountPropertyChanged',
+            interface=cs.ACCOUNT,
+            args=[{'HasBeenOnline': True}]),
+        EventPattern('dbus-return', method='SetHasBeenOnline'),
+        )
+    assert account_props.Get(cs.ACCOUNT, 'HasBeenOnline') == True
 
     # Delete the account
     assert account_iface.Remove() is None
