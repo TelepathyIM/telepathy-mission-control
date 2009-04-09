@@ -60,6 +60,8 @@ struct _McdDispatchOperationClass
 GType mcd_dispatch_operation_get_type (void);
 G_GNUC_INTERNAL McdDispatchOperation *_mcd_dispatch_operation_new (
     TpDBusDaemon *dbus_daemon, GList *channels, GStrv possible_handlers);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_lose_channel (
+    McdDispatchOperation *self, McdChannel *channel, GList **channels);
 
 const gchar *mcd_dispatch_operation_get_path (McdDispatchOperation *operation);
 GHashTable *mcd_dispatch_operation_get_properties
