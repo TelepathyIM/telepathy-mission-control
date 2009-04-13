@@ -59,7 +59,6 @@ typedef struct _McdPresenceFramePrivate
 
     McdPresence *requested_presence;
     McdPresence *actual_presence;
-    McdPresence *last_presence;
     GList *accounts;
 
     TpConnectionStatus actual_status;
@@ -126,15 +125,6 @@ mcd_presence_free (McdPresence * presence)
     g_free (presence);
 }
 
-static McdPresence *
-mcd_presence_copy (McdPresence * presence)
-{
-    return mcd_presence_new (presence->presence,
-			     presence->message,
-			     presence->connection_status,
-			     presence->connection_reason);
-}
-
 static void
 _mcd_presence_frame_dispose (GObject * object)
 {
@@ -167,8 +157,6 @@ _mcd_presence_frame_finalize (GObject * object)
     mcd_presence_free (priv->actual_presence);
     if (priv->requested_presence)
 	mcd_presence_free (priv->requested_presence);
-    if (priv->last_presence)
-	mcd_presence_free (priv->last_presence);
 
     G_OBJECT_CLASS (mcd_presence_frame_parent_class)->finalize (object);
 }
@@ -255,7 +243,6 @@ mcd_presence_frame_init (McdPresenceFrame * obj)
 					      TP_CONNECTION_STATUS_DISCONNECTED,
 					      TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED);
     priv->requested_presence = NULL;
-    priv->last_presence = NULL;
 
     priv->actual_status = TP_CONNECTION_STATUS_DISCONNECTED;
 }
@@ -268,72 +255,6 @@ mcd_presence_frame_new (void)
     McdPresenceFrame *obj;
     obj = MCD_PRESENCE_FRAME (g_object_new (MCD_TYPE_PRESENCE_FRAME, NULL));
     return obj;
-}
-
-static void
-_mcd_presence_frame_request_presence (McdPresenceFrame * presence_frame,
-				      TpConnectionPresenceType presence,
-				      const gchar * presence_message)
-{
-    McdPresenceFramePrivate *priv;
-    TpConnectionStatus status;
-
-    g_return_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame));
-    priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-
-    if (priv->requested_presence)
-    {
-	mcd_presence_free (priv->requested_presence);
-    }
-
-    if (presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
-    {
-	status = TP_CONNECTION_STATUS_DISCONNECTED;
-    }
-
-    else
-    {
-	status = TP_CONNECTION_STATUS_CONNECTED;
-    }
-
-    priv->requested_presence = mcd_presence_new (presence, presence_message,
-						 status,
-						 TP_CONNECTION_STATUS_REASON_REQUESTED);
-    DEBUG ("Presence %d is being requested", presence);
-
-    g_signal_emit_by_name (presence_frame, "presence-requested",
-			   presence, presence_message);
-}
-
-void
-mcd_presence_frame_request_presence (McdPresenceFrame * presence_frame,
-				     TpConnectionPresenceType presence,
-				     const gchar * presence_message)
-{
-    McdPresenceFramePrivate *priv;
-
-    g_return_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame));
-    priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-
-    if (priv->last_presence)
-    {
-	mcd_presence_free (priv->last_presence);
-    }
-    priv->last_presence = mcd_presence_copy (priv->actual_presence);
-    
-    DEBUG ("updated last_presence = %d, msg = %s",
-           priv->last_presence->presence,
-           priv->last_presence->message);
-
-    if (priv->last_presence->presence == TP_CONNECTION_PRESENCE_TYPE_UNSET)
-    {
-	priv->last_presence->presence = TP_CONNECTION_PRESENCE_TYPE_OFFLINE;
-    }
-
-    DEBUG ("Presence requested: %d", presence);
-    
-    _mcd_presence_frame_request_presence (presence_frame, presence,
-					  presence_message);
 }
 
 TpConnectionPresenceType

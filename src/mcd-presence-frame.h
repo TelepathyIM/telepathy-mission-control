@@ -62,10 +62,6 @@ struct _McdPresenceFrameClass
 GType mcd_presence_frame_get_type (void);
 McdPresenceFrame *mcd_presence_frame_new (void);
 
-void mcd_presence_frame_request_presence (McdPresenceFrame * presence_frame,
-					  TpConnectionPresenceType presence,
-					  const gchar * presence_message);
-
 TpConnectionPresenceType mcd_presence_frame_get_requested_presence
     (McdPresenceFrame * presence_frame);
 
