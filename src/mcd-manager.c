@@ -67,7 +67,6 @@ struct _McdManagerPrivate
     TpConnectionManager *tp_conn_mgr;
 
     guint is_disposed : 1;
-    guint delay_presence_request : 1;
     guint ready : 1;
 };
 
@@ -124,52 +123,6 @@ _find_connection_by_path (gconstpointer data, gconstpointer user_data)
     return ret;
 }
 
-static gboolean
-on_presence_requested_idle (gpointer data)
-{
-    McdManager *manager = MCD_MANAGER (data);
-    McdManagerPrivate *priv = MCD_MANAGER_PRIV (manager);
-    TpConnectionPresenceType requested_presence =
-	mcd_presence_frame_get_requested_presence (priv->presence_frame);
-    TpConnectionPresenceType actual_presence =
-	mcd_presence_frame_get_actual_presence (priv->presence_frame);
-
-    DEBUG ("%d, %d", requested_presence, actual_presence);
-    if ((actual_presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE
-	 || actual_presence == TP_CONNECTION_PRESENCE_TYPE_UNSET)
-	&& (requested_presence != TP_CONNECTION_PRESENCE_TYPE_OFFLINE
-	    && requested_presence != TP_CONNECTION_PRESENCE_TYPE_UNSET))
-    {
-	/* FIXME
-	_mcd_manager_create_connections (manager);
-	*/
-    }
-
-    return FALSE;
-}
-
-static void
-on_presence_requested (McdPresenceFrame * presence_frame,
-		       TpConnectionPresenceType presence,
-		       const gchar * presence_message, gpointer data)
-{
-    McdManagerPrivate *priv;
-
-    DEBUG ("Current connectivity status is %d",
-           mcd_mission_is_connected (MCD_MISSION (data)));
-
-    if (mcd_mission_is_connected (MCD_MISSION (data)))
-    {
-	on_presence_requested_idle(data);
-    }
-    else
-    {
-	priv = MCD_MANAGER_PRIV(data);
-        DEBUG ("Delaying call to on_presence_requested_idle");
-	priv->delay_presence_request = TRUE;
-    }
-}
-
 static void
 _mcd_manager_set_presence_frame (McdManager *manager, McdPresenceFrame *presence_frame)
 {
@@ -182,19 +135,9 @@ _mcd_manager_set_presence_frame (McdManager *manager, McdPresenceFrame *presence
 
     if (priv->presence_frame)
     {
-	g_signal_handlers_disconnect_by_func (G_OBJECT
-					      (priv->presence_frame),
-					      G_CALLBACK
-					      (on_presence_requested), manager);
 	g_object_unref (priv->presence_frame);
     }
     priv->presence_frame = presence_frame;
-    if (priv->presence_frame)
-    {
-	g_signal_connect (G_OBJECT (priv->presence_frame),
-			  "presence-requested",
-			  G_CALLBACK (on_presence_requested), manager);
-    }
 }
 
 static void
@@ -244,15 +187,6 @@ _mcd_manager_dispose (GObject * object)
 static void
 _mcd_manager_connect (McdMission * mission)
 {
-    McdManagerPrivate *priv = MCD_MANAGER_PRIV (mission);
-
-    DEBUG ("delay_presence_request = %d", priv->delay_presence_request);
-    if (priv->delay_presence_request)
-    {
-	priv->delay_presence_request = FALSE;
-	g_idle_add (on_presence_requested_idle, mission);
-        DEBUG ("Added idle func on_presence_requested_idle");
-    }
     MCD_MISSION_CLASS (mcd_manager_parent_class)->connect (mission);
 }
 
