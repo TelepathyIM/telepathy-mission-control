@@ -206,17 +206,6 @@ mcd_presence_frame_get_requested_presence (McdPresenceFrame * presence_frame)
 	return TP_CONNECTION_PRESENCE_TYPE_UNSET;
 }
 
-TpConnectionPresenceType
-mcd_presence_frame_get_actual_presence (McdPresenceFrame * presence_frame)
-{
-    McdPresenceFramePrivate *priv;
-    g_return_val_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame),
-			  TP_CONNECTION_PRESENCE_TYPE_UNSET);
-    priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-
-    return priv->actual_presence->presence;
-}
-
 static void
 _mcd_presence_frame_update_actual_presences (gpointer val, gpointer userdata)
 {
