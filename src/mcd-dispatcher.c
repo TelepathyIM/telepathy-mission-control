@@ -3066,8 +3066,9 @@ mcd_dispatcher_context_get_members (McdDispatcherContext * ctx)
     return NULL;
 }
 
-GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher,
-						    const gchar *protocol)
+GPtrArray *
+_mcd_dispatcher_get_channel_capabilities (McdDispatcher *dispatcher,
+                                          const gchar *protocol)
 {
     McdDispatcherPrivate *priv = dispatcher->priv;
     McdDispatcherArgs args;
@@ -3112,7 +3113,7 @@ GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher,
 }
 
 GPtrArray *
-mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher * dispatcher)
+_mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher *dispatcher)
 {
     McdDispatcherPrivate *priv = dispatcher->priv;
     GHashTableIter iter;

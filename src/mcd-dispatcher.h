@@ -94,13 +94,13 @@ gint mcd_dispatcher_get_channel_type_usage (McdDispatcher * dispatcher,
 
 /* retrieves the channel handlers' capabilities, in a format suitable for being
  * used as a parameter for the telepathy "AdvertiseCapabilities" method */
-GPtrArray *mcd_dispatcher_get_channel_capabilities (McdDispatcher * dispatcher,
-						    const gchar *protocol);
+G_GNUC_INTERNAL GPtrArray *_mcd_dispatcher_get_channel_capabilities (
+    McdDispatcher *dispatcher, const gchar *protocol);
 
 /* retrieves the channel handlers' capabilities, in a format suitable for being
  * used as a parameter for the telepathy "SetSelfCapabilities" method */
-GPtrArray *mcd_dispatcher_get_channel_enhanced_capabilities (
-    McdDispatcher * dispatcher);
+G_GNUC_INTERNAL GPtrArray *_mcd_dispatcher_get_channel_enhanced_capabilities (
+    McdDispatcher *dispatcher);
 
 /* not exported */
 void _mcd_dispatcher_add_request (McdDispatcher *dispatcher,
