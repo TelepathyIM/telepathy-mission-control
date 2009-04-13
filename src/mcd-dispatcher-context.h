@@ -65,23 +65,6 @@ void mcd_dispatcher_add_filter (McdDispatcher *dispatcher,
 void mcd_dispatcher_add_filters (McdDispatcher *dispatcher,
                                  const McdFilter *filters);
 
-void mcd_dispatcher_register_filter (McdDispatcher *dispatcher,
-				     McdFilterFunc filter,
-				     GQuark channel_type_quark,
-				     guint filter_flags,
-				     guint priority,
-				     gpointer user_data);
-
-void mcd_dispatcher_unregister_filter (McdDispatcher *dispatcher,
-				       McdFilterFunc filter,
-				       GQuark channel_type_quark,
-				       guint filter_flags);
-
-void mcd_dispatcher_register_filters (McdDispatcher *dispatcher,
-				      McdFilter *filters,
-				      GQuark channel_type_quark,
-				      guint filter_flags) G_GNUC_DEPRECATED;
-
 /* Context API section
  *
  * The use of gpointer is intentional; we want to make accessing the

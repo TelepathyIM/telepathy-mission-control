@@ -198,7 +198,6 @@ struct _McdDispatcherPrivate
     /* Dispatching contexts */
     GList *contexts;
 
-    GData *interface_filters;
     TpDBusDaemon *dbus_daemon;
 
     /* Channel handlers */
@@ -224,12 +223,6 @@ struct _McdDispatcherPrivate
 
     gboolean is_disposed;
     
-};
-
-struct iface_chains_t
-{
-    GList *chain_in;
-    GList *chain_out;
 };
 
 struct cancel_call_data
@@ -405,47 +398,6 @@ tp_ch_handle_channel_2_async (DBusGProxy *proxy,
 				    G_TYPE_INVALID);
 }
 
-/* REGISTRATION/DEREGISTRATION of filters*/
-
-/* A convenience function for acquiring the chain for particular channel
-type and filter flag combination. */
-
-static GList *
-_mcd_dispatcher_get_filter_chain (McdDispatcher * dispatcher,
-				  GQuark channel_type_quark,
-				  guint filter_flags)
-{
-    McdDispatcherPrivate *priv = dispatcher->priv;
-    struct iface_chains_t *iface_chains;
-    GList *filter_chain = NULL;
-
-    iface_chains =
-	(struct iface_chains_t *)
-	g_datalist_id_get_data (&(priv->interface_filters), channel_type_quark);
-
-    if (iface_chains == NULL)
-    {
-        DEBUG ("No chains for interface %s",
-               g_quark_to_string (channel_type_quark));
-    }
-    else
-	switch (filter_flags)
-	{
-	case MCD_FILTER_IN:
-	    filter_chain = iface_chains->chain_in;
-	    break;
-	case MCD_FILTER_OUT:
-	    filter_chain = iface_chains->chain_out;
-	    break;
-
-	default:
-	    g_warning ("Unsupported filter flag value");
-	    break;
-	}
-
-    return filter_chain;
-}
-
 static GList *
 chain_add_filter (GList *chain,
 		  McdFilterFunc filter,
@@ -463,170 +415,6 @@ chain_add_filter (GList *chain,
 	if (((McdFilter *)elem->data)->priority >= priority) break;
 
     return g_list_insert_before (chain, elem, filter_data);
-}
-
-static GList *
-chain_remove_filter (GList *chain, McdFilterFunc func)
-{
-    GList *elem, *new_chain = NULL;
-
-    /* since in-place modification of a list is error prone (especially if the
-     * same filter has been registered in the same chain with different
-     * priorities), we build a new list with the remaining elements */
-    for (elem = chain; elem; elem = elem->next)
-    {
-	if (((McdFilter *)elem->data)->func == func)
-	    g_slice_free (McdFilter, elem->data);
-	else
-	    new_chain = g_list_append (new_chain, elem->data);
-    }
-    g_list_free (chain);
-
-    return new_chain;
-}
-
-static void
-free_filter_chains (struct iface_chains_t *chains)
-{
-    GList *list;
-    if (chains->chain_in)
-    {
-        for (list = chains->chain_in; list != NULL; list = list->next)
-            g_slice_free (McdFilter, list->data);
-	g_list_free (chains->chain_in);
-    }
-    if (chains->chain_out)
-    {
-        for (list = chains->chain_out; list != NULL; list = list->next)
-            g_slice_free (McdFilter, list->data);
-	g_list_free (chains->chain_out);
-    }
-    g_free (chains);
-}
-
-/**
- * mcd_dispatcher_register_filter:
- * @dispatcher: The #McdDispatcher.
- * @filter: the filter function to be registered.
- * @channel_type_quark: Quark indicating the channel type.
- * @filter_flags: The flags for the filter, such as incoming/outgoing.
- * @priority: The priority of the filter.
- *
- * Indicates to Mission Control that we want to register a filter for a unique
- * combination of channel type/filter flags.
- */
-void
-mcd_dispatcher_register_filter (McdDispatcher *dispatcher,
-			       	McdFilterFunc filter,
-				GQuark channel_type_quark,
-				guint filter_flags, guint priority,
-				gpointer user_data)
-{
-    McdDispatcherPrivate *priv = dispatcher->priv;
-    struct iface_chains_t *iface_chains = NULL;
-
-    /* Check if the interface already has stored data, otherwise create it */
-
-    if (!(iface_chains = g_datalist_id_get_data (&(priv->interface_filters),
-						 channel_type_quark)))
-    {
-	iface_chains = g_new0 (struct iface_chains_t, 1);
-	g_datalist_id_set_data_full (&(priv->interface_filters),
-				     channel_type_quark, iface_chains,
-				     (GDestroyNotify)free_filter_chains);
-    }
-
-    switch (filter_flags)
-    {
-    case MCD_FILTER_IN:
-	iface_chains->chain_in = chain_add_filter (iface_chains->chain_in,
-						   filter, priority, user_data);
-	break;
-    case MCD_FILTER_OUT:
-	iface_chains->chain_out = chain_add_filter (iface_chains->chain_out,
-						    filter, priority, user_data);
-	break;
-    default:
-	g_warning ("Unknown filter flag value!");
-    }
-}
-
-/**
- * mcd_dispatcher_unregister_filter:
- * @dispatcher: The #McdDispatcher.
- * @filter: the filter function to be registered.
- * @channel_type_quark: Quark indicating the channel type.
- * @filter_flags: The flags for the filter, such as incoming/outgoing.
- *
- * Indicates to Mission Control that we will not want to have a filter
- * for particular unique channel type/filter flags combination anymore.
- */
-void
-mcd_dispatcher_unregister_filter (McdDispatcher * dispatcher,
-				  McdFilterFunc filter,
-				  GQuark channel_type_quark,
-				  guint filter_flags)
-{
-    McdDispatcherPrivate *priv = dispatcher->priv;
-
-    /* First, do we have anything registered for that channel type? */
-    struct iface_chains_t *chains =
-	(struct iface_chains_t *)
-	g_datalist_id_get_data (&(priv->interface_filters),
-				channel_type_quark);
-    if (chains == NULL)
-    {
-	g_warning ("Attempting to unregister from an empty filter chain");
-	return;
-    }
-
-    switch (filter_flags)
-    {
-    case MCD_FILTER_IN:
-	/* No worries about memory leaks, as these are function pointers */
-	chains->chain_in = chain_remove_filter(chains->chain_in, filter);
-	break;
-    case MCD_FILTER_OUT:
-	chains->chain_out = chain_remove_filter(chains->chain_out, filter);
-	break;
-    default:
-	g_warning ("Unknown filter flag value!");
-    }
-
-    /* Both chains are empty? We may as well free the struct then */
-
-    if (chains->chain_in == NULL && chains->chain_out == NULL)
-    {
-	/* ? Should we dlclose the plugin as well..? */
-	g_datalist_id_remove_data (&(priv->interface_filters),
-				   channel_type_quark);
-    }
-}
-
-/**
- * mcd_dispatcher_register_filters:
- * @dispatcher: The #McdDispatcher.
- * @filters: a zero-terminated array of #McdFilter elements.
- * @channel_type_quark: Quark indicating the channel type.
- * @filter_flags: The flags for the filter, such as incoming/outgoing.
- *
- * Convenience function to register a batch of filters at once.
- */
-void
-mcd_dispatcher_register_filters (McdDispatcher *dispatcher,
-				 McdFilter *filters,
-				 GQuark channel_type_quark,
-				 guint filter_flags)
-{
-    McdFilter *filter;
-
-    g_return_if_fail (filters != NULL);
-
-    for (filter = filters; filter->func != NULL; filter++)
-	mcd_dispatcher_register_filter (dispatcher, filter->func,
-				       	channel_type_quark,
-					filter_flags, filter->priority,
-					filter->user_data);
 }
 
 /* Returns # of times particular channel type  has been used */
@@ -1780,10 +1568,9 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 {
     McdDispatcherContext *context;
     McdDispatcherPrivate *priv;
-    GList *chain, *list;
+    GList *list;
     McdChannel *channel;
     McdAccount *account;
-    guint n_channels;
 
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
     g_return_if_fail (channels != NULL);
@@ -1798,42 +1585,13 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 
     priv = dispatcher->priv;
 
-    /* old-style filters cannot probably handle more than one channel; so,
-     * invoke them only if we have one single channel to dispatch. */
-    n_channels = g_list_length (channels);
-    if (n_channels == 1)
-    {
-        GQuark chan_type_quark;
-        gint filter_flags;
-
-        channel = MCD_CHANNEL (channels->data);
-        chan_type_quark = mcd_channel_get_channel_type_quark (channel);
-
-        filter_flags = requested ? MCD_FILTER_OUT: MCD_FILTER_IN;
-        chain = _mcd_dispatcher_get_filter_chain (dispatcher,
-                                                  chan_type_quark,
-                                                  filter_flags);
-    }
-    else
-    {
-        DEBUG ("%u channels to dispatch, filters disabled", n_channels);
-        chain = NULL;
-    }
-
-    /* invoke in-process channel filters */
-    /* FIXME: once old-style filters support is removed, we'll just have:
-     *
-     *  chain = priv->filters
-     */
-    chain = g_list_concat (chain, priv->filters);
-
     /* Preparing and filling the context */
     context = g_new0 (McdDispatcherContext, 1);
     context->ref_count = 1;
     context->dispatcher = dispatcher;
     context->account = account;
     context->channels = channels;
-    context->chain = chain;
+    context->chain = priv->filters;
     priv->contexts = g_list_prepend (priv->contexts, context);
     if (!requested)
     {
@@ -1863,7 +1621,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
                                 context);
     }
 
-    if (chain)
+    if (priv->filters != NULL)
     {
         DEBUG ("entering state machine for context %p", context);
 
@@ -2021,11 +1779,6 @@ _mcd_dispatcher_dispose (GObject * object)
 	priv->dbus_daemon = NULL;
     }
 
-    if (priv->interface_filters)
-    {
-	g_datalist_clear (&priv->interface_filters);
-	priv->interface_filters = NULL;
-    }
     G_OBJECT_CLASS (mcd_dispatcher_parent_class)->dispose (object);
 }
 
@@ -2811,8 +2564,6 @@ mcd_dispatcher_init (McdDispatcher * dispatcher)
     priv = G_TYPE_INSTANCE_GET_PRIVATE (dispatcher, MCD_TYPE_DISPATCHER,
                                         McdDispatcherPrivate);
     dispatcher->priv = priv;
-
-    g_datalist_init (&(priv->interface_filters));
 
     priv->operation_list_active = FALSE;
 
