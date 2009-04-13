@@ -88,17 +88,6 @@ McdConnection
 @Returns: 
 
 
-<!-- ##### FUNCTION mcd_connection_remote_avatar_changed ##### -->
-<para>
-
-</para>
-
-@connection: 
-@contact_id: 
-@token: 
-@Returns: 
-
-
 <!-- ##### FUNCTION mcd_connection_close ##### -->
 <para>
 

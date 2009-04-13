@@ -2410,26 +2410,6 @@ mcd_connection_cancel_channel_request (McdConnection *connection,
     return FALSE;
 }
 
-/**
- * mcd_connection_remote_avatar_changed:
- * @connection: the #McdConnection.
- * @contact_id: the own contact id in Telepathy.
- * @token: the new avatar token.
- *
- * This function is to be called when Telepathy signals that our own avatar has
- * been updated. It takes care of checking if the remote avatar has to be
- * retrieved and stored in the account.
- *
- * Returns: %TRUE if the local avatar has been updated.
- */
-gboolean mcd_connection_remote_avatar_changed (McdConnection *connection,
-					       guint contact_id,
-					       const gchar *token)
-{
-    DEBUG ("called, but it's a stub");
-    return FALSE;
-}
-
 void
 mcd_connection_close (McdConnection *connection)
 {
