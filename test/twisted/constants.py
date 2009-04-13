@@ -38,6 +38,7 @@ CONN = tp_name_prefix + ".Connection"
 CONN_IFACE_CONTACTS = CONN + '.Interface.Contacts'
 CONN_IFACE_CONTACT_CAPA = CONN + '.Interface.ContactCapabilities.DRAFT'
 CONN_IFACE_REQUESTS = CONN + '.Interface.Requests'
+CONN_IFACE_SIMPLE_PRESENCE = CONN + '.Interface.SimplePresence'
 
 CONN_STATUS_CONNECTED = 0
 CONN_STATUS_CONNECTING = 1
