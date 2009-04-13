@@ -88,10 +88,6 @@ gboolean mcd_connection_cancel_channel_request (McdConnection *connection,
 						const gchar *requestor_client_id,
 					       	GError **error);
 
-gboolean mcd_connection_get_telepathy_details (McdConnection * id,
-					       gchar ** ret_servname,
-					       gchar ** ret_objpath);
-
 gboolean mcd_connection_remote_avatar_changed (McdConnection *connection,
 					       guint contact_id,
 					       const gchar *token);

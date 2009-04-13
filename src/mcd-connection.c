@@ -1988,25 +1988,6 @@ mcd_connection_get_connection_status_reason (McdConnection *connection)
     return conn_reason;
 }
 
-gboolean
-mcd_connection_get_telepathy_details (McdConnection * id,
-				      gchar ** ret_servname,
-				      gchar ** ret_objpath)
-{
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (id);
-
-    g_return_val_if_fail (priv->tp_conn != NULL, FALSE);
-    g_return_val_if_fail (TP_IS_CONNECTION (priv->tp_conn), FALSE);
-
-    /* Query the properties required for creation of identical TpConn object */
-    *ret_objpath =
-	g_strdup (TP_PROXY (priv->tp_conn)->object_path);
-    *ret_servname =
-	g_strdup (TP_PROXY (priv->tp_conn)->bus_name);
-
-    return TRUE;
-}
-
 static GError *
 map_tp_error_to_mc_error (McdChannel *channel, const GError *error)
 {

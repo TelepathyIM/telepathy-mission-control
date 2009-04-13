@@ -88,17 +88,6 @@ McdConnection
 @Returns: 
 
 
-<!-- ##### FUNCTION mcd_connection_get_telepathy_details ##### -->
-<para>
-
-</para>
-
-@id: 
-@ret_servname: 
-@ret_objpath: 
-@Returns: 
-
-
 <!-- ##### FUNCTION mcd_connection_remote_avatar_changed ##### -->
 <para>
 
