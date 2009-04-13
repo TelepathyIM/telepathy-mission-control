@@ -56,7 +56,6 @@
 #include <dbus/dbus-glib-lowlevel.h>
 
 #include "mcd-master.h"
-#include "mcd-presence-frame.h"
 #include "mcd-proxy.h"
 #include "mcd-manager.h"
 #include "mcd-dispatcher.h"
@@ -78,7 +77,6 @@ G_DEFINE_TYPE (McdMaster, mcd_master, MCD_TYPE_CONTROLLER);
 
 typedef struct _McdMasterPrivate
 {
-    McdPresenceFrame *presence_frame;
     McdAccountManager *account_manager;
     McdDispatcher *dispatcher;
     McdProxy *proxy;
@@ -367,9 +365,6 @@ _mcd_master_get_property (GObject * obj, guint prop_id,
 
     switch (prop_id)
     {
-    case PROP_PRESENCE_FRAME:
-	g_value_set_object (val, priv->presence_frame);
-	break;
     case PROP_DISPATCHER:
 	g_value_set_object (val, priv->dispatcher);
 	break;
@@ -523,10 +518,8 @@ _mcd_master_dispose (GObject * object)
 	priv->dbus_daemon = NULL;
     }
 
-    /* Don't unref() the dispatcher and the presence-frame: they will be
-     * unref()ed by the McdProxy */
+    /* Don't unref() the dispatcher: it will be unref()ed by the McdProxy */
     priv->dispatcher = NULL;
-    priv->presence_frame = NULL;
     g_object_unref (priv->proxy);
 
     G_OBJECT_CLASS (mcd_master_parent_class)->dispose (object);
@@ -558,16 +551,10 @@ mcd_master_constructor (GType type, guint n_params,
             TP_PROXY (priv->dbus_daemon)->dbus_connection),
         TRUE);
 
-    priv->presence_frame = mcd_presence_frame_new ();
-    /* propagate the signals to dispatcher and presence_frame, too */
+    /* propagate the signals to dispatcher, too */
     priv->proxy = mcd_proxy_new (MCD_MISSION (master));
     mcd_operation_take_mission (MCD_OPERATION (priv->proxy),
-				MCD_MISSION (priv->presence_frame));
-    mcd_operation_take_mission (MCD_OPERATION (priv->proxy),
 				MCD_MISSION (priv->dispatcher));
-
-    mcd_presence_frame_set_account_manager (priv->presence_frame,
-					    priv->account_manager);
 
     mcd_master_load_plugins (master);
 
@@ -607,13 +594,6 @@ mcd_master_class_init (McdMasterClass * klass)
     klass->create_manager = mcd_master_create_manager;
 
     /* Properties */
-    g_object_class_install_property
-        (object_class, PROP_PRESENCE_FRAME,
-         g_param_spec_object ("presence-frame",
-                              "Presence frame",
-                              "Presence frame",
-                              MCD_TYPE_PRESENCE_FRAME,
-                              G_PARAM_READABLE));
     g_object_class_install_property
         (object_class, PROP_DISPATCHER,
          g_param_spec_object ("dispatcher",
