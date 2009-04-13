@@ -1899,9 +1899,14 @@ mcd_account_get_requested_presence (McdAccount *account,
 {
     McdAccountPrivate *priv = account->priv;
 
-    *presence = priv->req_presence_type;
-    *status = priv->req_presence_status;
-    *message = priv->req_presence_message;
+    if (presence != NULL)
+        *presence = priv->req_presence_type;
+
+    if (status != NULL)
+        *status = priv->req_presence_status;
+
+    if (message != NULL)
+        *message = priv->req_presence_message;
 }
 
 /* TODO: remove when the relative members will become public */
@@ -1913,9 +1918,14 @@ mcd_account_get_current_presence (McdAccount *account,
 {
     McdAccountPrivate *priv = account->priv;
 
-    *presence = priv->curr_presence_type;
-    *status = priv->curr_presence_status;
-    *message = priv->curr_presence_message;
+    if (presence != NULL)
+        *presence = priv->curr_presence_type;
+
+    if (status != NULL)
+        *status = priv->curr_presence_status;
+
+    if (message != NULL)
+        *message = priv->curr_presence_message;
 }
 
 gboolean
@@ -1934,9 +1944,14 @@ mcd_account_get_automatic_presence (McdAccount *account,
 {
     McdAccountPrivate *priv = account->priv;
 
-    *presence = priv->auto_presence_type;
-    *status = priv->auto_presence_status;
-    *message = priv->auto_presence_message;
+    if (presence != NULL)
+        *presence = priv->auto_presence_type;
+
+    if (status != NULL)
+        *status = priv->auto_presence_status;
+
+    if (message != NULL)
+        *message = priv->auto_presence_message;
 }
 
 /* TODO: remove when the relative members will become public */
