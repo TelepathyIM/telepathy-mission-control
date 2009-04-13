@@ -322,6 +322,13 @@ presence_get_statuses_cb (TpProxy *proxy, const GValue *v_statuses,
                    error->message);
         return;
     }
+    else if (G_VALUE_TYPE (v_statuses) != TP_HASH_TYPE_SIMPLE_STATUS_SPEC_MAP)
+    {
+        g_warning ("%s: Get(Statuses) returned the wrong type: %s",
+                   mcd_account_get_unique_name (priv->account),
+                   G_VALUE_TYPE_NAME (v_statuses));
+        return;
+    }
 
     if (!priv->recognized_presences)
         priv->recognized_presences =
