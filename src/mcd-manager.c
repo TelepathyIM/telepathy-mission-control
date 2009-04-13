@@ -61,7 +61,6 @@ struct _McdManagerPrivate
 {
     gchar *name;
     TpDBusDaemon *dbus_daemon;
-    McdPresenceFrame *presence_frame;
     McdDispatcher *dispatcher;
 
     TpConnectionManager *tp_conn_mgr;
@@ -74,7 +73,6 @@ enum
 {
     PROP_0,
     PROP_NAME,
-    PROP_PRESENCE_FRAME,
     PROP_DISPATCHER,
     PROP_DBUS_DAEMON,
 };
@@ -124,23 +122,6 @@ _find_connection_by_path (gconstpointer data, gconstpointer user_data)
 }
 
 static void
-_mcd_manager_set_presence_frame (McdManager *manager, McdPresenceFrame *presence_frame)
-{
-    McdManagerPrivate *priv = MCD_MANAGER_PRIV (manager);
-    if (presence_frame)
-    {
-	g_return_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame));
-	g_object_ref (presence_frame);
-    }
-
-    if (priv->presence_frame)
-    {
-	g_object_unref (priv->presence_frame);
-    }
-    priv->presence_frame = presence_frame;
-}
-
-static void
 _mcd_manager_finalize (GObject * object)
 {
     McdManagerPrivate *priv = MCD_MANAGER_PRIV (object);
@@ -169,8 +150,6 @@ _mcd_manager_dispose (GObject * object)
 	g_object_unref (priv->dispatcher);
 	priv->dispatcher = NULL;
     }
-    
-    _mcd_manager_set_presence_frame (MCD_MANAGER (object), NULL);
     
     if (priv->tp_conn_mgr)
     {
@@ -270,7 +249,6 @@ _mcd_manager_set_property (GObject * obj, guint prop_id,
 			   const GValue * val, GParamSpec * pspec)
 {
     McdManagerPrivate *priv = MCD_MANAGER_PRIV (obj);
-    McdPresenceFrame *presence_frame;
     McdDispatcher *dispatcher;
 
     switch (prop_id)
@@ -278,10 +256,6 @@ _mcd_manager_set_property (GObject * obj, guint prop_id,
     case PROP_NAME:
 	g_assert (priv->name == NULL);
 	priv->name = g_value_dup_string (val);
-	break;
-    case PROP_PRESENCE_FRAME:
-	presence_frame = g_value_get_object (val);
-	_mcd_manager_set_presence_frame (MCD_MANAGER (obj), presence_frame);
 	break;
     case PROP_DISPATCHER:
 	dispatcher = g_value_get_object (val);
@@ -315,9 +289,6 @@ _mcd_manager_get_property (GObject * obj, guint prop_id,
 
     switch (prop_id)
     {
-    case PROP_PRESENCE_FRAME:
-	g_value_set_object (val, priv->presence_frame);
-	break;
     case PROP_DISPATCHER:
 	g_value_set_object (val, priv->dispatcher);
 	break;
@@ -369,13 +340,6 @@ mcd_manager_class_init (McdManagerClass * klass)
                               NULL,
                               G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
     g_object_class_install_property
-        (object_class, PROP_PRESENCE_FRAME,
-         g_param_spec_object ("presence-frame",
-                              "Presence frame",
-                              "Presence frame",
-                              MCD_TYPE_PRESENCE_FRAME,
-                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property
         (object_class, PROP_DISPATCHER,
          g_param_spec_object ("dispatcher",
                               "Dispatcher",
@@ -405,14 +369,12 @@ mcd_manager_init (McdManager *manager)
 
 McdManager *
 mcd_manager_new (const gchar *unique_name,
-		 McdPresenceFrame * pframe,
 		 McdDispatcher *dispatcher,
 		 TpDBusDaemon *dbus_daemon)
 {
     McdManager *obj;
     obj = MCD_MANAGER (g_object_new (MCD_TYPE_MANAGER,
 				     "name", unique_name,
-				     "presence-frame", pframe,
 				     "dispatcher", dispatcher,
 				     "dbus-daemon", dbus_daemon, NULL));
     return obj;

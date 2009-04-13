@@ -45,7 +45,6 @@ typedef struct _McdManagerClass McdManagerClass;
 #include "mcd-account.h"
 #include "mcd-connection.h"
 #include "mcd-operation.h"
-#include "mcd-presence-frame.h"
 #include "mcd-dispatcher.h"
 
 struct _McdManager
@@ -70,7 +69,6 @@ struct _McdManagerClass
 
 GType mcd_manager_get_type (void);
 McdManager *mcd_manager_new (const gchar *unique_name,
-			     McdPresenceFrame * pframe,
 			     McdDispatcher *dispatcher,
 			     TpDBusDaemon *dbus_daemon);
 

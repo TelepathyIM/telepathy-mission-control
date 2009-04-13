@@ -38,18 +38,12 @@ McdManager
 
 </para>
 
-<!-- ##### ARG McdManager:presence-frame ##### -->
-<para>
-
-</para>
-
 <!-- ##### FUNCTION mcd_manager_new ##### -->
 <para>
 
 </para>
 
 @unique_name: 
-@pframe: 
 @dispatcher: 
 @dbus_daemon: 
 @Returns: 

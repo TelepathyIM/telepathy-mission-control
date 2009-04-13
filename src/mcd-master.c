@@ -584,8 +584,7 @@ mcd_master_create_manager (McdMaster *master, const gchar *unique_name)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
 
-    return mcd_manager_new (unique_name, priv->presence_frame,
-                            priv->dispatcher, priv->dbus_daemon);
+    return mcd_manager_new (unique_name, priv->dispatcher, priv->dbus_daemon);
 }
 
 static void
