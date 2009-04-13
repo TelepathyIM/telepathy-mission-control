@@ -902,27 +902,20 @@ mcd_account_manager_lookup_account (McdAccountManager *account_manager,
     return g_hash_table_lookup (priv->accounts, name);
 }
 
-static gboolean
-find_by_path (gpointer key, gpointer value, gpointer user_data)
-{
-    McdAccount *account = value;
-    const gchar *object_path = user_data;
-
-    if (strcmp (object_path,
-		mcd_account_get_object_path (account)) == 0)
-	return TRUE;
-    return FALSE;
-}
-
-/* NOTE: this might become unused when the presence-frame gets removed */
 McdAccount *
 mcd_account_manager_lookup_account_by_path (McdAccountManager *account_manager,
 					    const gchar *object_path)
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
 
-    return g_hash_table_find (priv->accounts, find_by_path,
-			      (gpointer)object_path);
+    if (!g_str_has_prefix (object_path, MC_ACCOUNT_DBUS_OBJECT_BASE))
+    {
+        /* can't possibly be right */
+        return NULL;
+    }
+
+    return g_hash_table_lookup (priv->accounts,
+        object_path + (sizeof (MC_ACCOUNT_DBUS_OBJECT_BASE) - 1));
 }
 
 /**
