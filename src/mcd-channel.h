@@ -123,7 +123,6 @@ const gchar* mcd_channel_get_object_path (McdChannel *channel);
 void mcd_channel_set_handle (McdChannel *channel, guint handle);
 guint mcd_channel_get_handle (McdChannel *channel);
 TpHandleType mcd_channel_get_handle_type (McdChannel *channel);
-gint mcd_channel_get_flags (McdChannel *channel);
 const gchar *mcd_channel_get_name (McdChannel *channel);
 const gchar *mcd_channel_get_inviter (McdChannel *channel);
 guint mcd_channel_get_self_handle (McdChannel *channel);
