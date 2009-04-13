@@ -1957,29 +1957,6 @@ mcd_connection_init (McdConnection * connection)
 
 /* Public methods */
 
-/* Creates a new connection object. Increases a refcount of account.
- * Uses mcd_get_manager function to get TpConnManager
- */
-McdConnection *
-mcd_connection_new (TpDBusDaemon *dbus_daemon,
-		    const gchar * bus_name,
-		    TpConnectionManager * tp_conn_mgr,
-		    McdAccount * account,
-		    McdDispatcher *dispatcher)
-{
-    McdConnection *mcdconn = NULL;
-    g_return_val_if_fail (dbus_daemon != NULL, NULL);
-    g_return_val_if_fail (TP_IS_CONNECTION_MANAGER (tp_conn_mgr), NULL);
-    g_return_val_if_fail (MCD_IS_ACCOUNT (account), NULL);
-
-    mcdconn = g_object_new (MCD_TYPE_CONNECTION,
-			    "dbus-daemon", dbus_daemon,
-			    "tp-manager", tp_conn_mgr,
-			    "dispatcher", dispatcher,
-			    "account", account, NULL);
-    return mcdconn;
-}
-
 /* Constant getters. These should probably be removed */
 
 McdAccount *

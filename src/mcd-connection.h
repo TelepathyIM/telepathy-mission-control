@@ -70,12 +70,6 @@ struct _McdConnectionClass
 
 GType mcd_connection_get_type (void);
 
-McdConnection *mcd_connection_new (TpDBusDaemon *dbus_daemon,
-				   const gchar * bus_name,
-				   TpConnectionManager * tp_conn_mgr,
-				   McdAccount * account,
-				   McdDispatcher *dispatcher) G_GNUC_DEPRECATED;
-
 const gchar *mcd_connection_get_object_path (McdConnection *connection);
 const gchar *mcd_connection_get_name (McdConnection *connection);
 

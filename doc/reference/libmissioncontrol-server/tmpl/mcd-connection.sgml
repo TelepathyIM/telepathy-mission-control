@@ -48,19 +48,6 @@ McdConnection
 
 </para>
 
-<!-- ##### FUNCTION mcd_connection_new ##### -->
-<para>
-
-</para>
-
-@dbus_daemon: 
-@bus_name: 
-@tp_conn_mgr: 
-@account: 
-@dispatcher: 
-@Returns: 
-
-
 <!-- ##### FUNCTION mcd_connection_get_account ##### -->
 <para>
 
