@@ -361,17 +361,6 @@ mcd_presence_frame_get_actual_presence (McdPresenceFrame * presence_frame)
     return priv->actual_presence->presence;
 }
 
-const gchar *
-mcd_presence_frame_get_actual_presence_message (McdPresenceFrame *
-						presence_frame)
-{
-    McdPresenceFramePrivate *priv;
-    g_return_val_if_fail (MCD_IS_PRESENCE_FRAME (presence_frame), NULL);
-    priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-
-    return priv->actual_presence->message;
-}
-
 static void
 _mcd_presence_frame_update_actual_presences (gpointer val, gpointer userdata)
 {

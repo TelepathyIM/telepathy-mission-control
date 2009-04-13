@@ -68,12 +68,3 @@ McdPresenceFrame
 @Returns: 
 
 
-<!-- ##### FUNCTION mcd_presence_frame_get_actual_presence_message ##### -->
-<para>
-
-</para>
-
-@presence_frame: 
-@Returns: 
-
-
