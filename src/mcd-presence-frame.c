@@ -70,27 +70,6 @@ typedef struct _McdActualPresenceInfo {
     gboolean found;
 } McdActualPresenceInfo;
 
-enum _McdPresenceFrameSignalType
-{
-    /* Request */
-    PRESENCE_REQUESTED,
-    
-    LAST_SIGNAL
-};
-
-static const gchar *presence_statuses[] = {
-    NULL,
-    "offline",
-    "available",
-    "away",
-    "xa",
-    "hidden",
-    "dnd",
-    NULL
-};
-
-static guint mcd_presence_frame_signals[LAST_SIGNAL] = { 0 };
-
 static gboolean
 mcd_presence_frame_remove_account (McdPresenceFrame *presence_frame,
 				   McdAccount *account);
@@ -177,35 +156,6 @@ mcd_presence_frame_disconnect (McdMission *mission)
 }
 
 static void
-request_presence (gpointer key, gpointer value, gpointer userdata)
-{
-    McdAccount *account = value;
-    McdPresence *p = userdata;
-
-    if (!mcd_account_is_valid (account)) return;
-    mcd_account_request_presence (account,
-				  (TpConnectionPresenceType)p->presence,
-				  presence_statuses[p->presence],
-				  p->message);
-}
-
-static void
-presence_requested_signal (McdPresenceFrame *presence_frame,
-			   TpConnectionPresenceType presence, const gchar *presence_message)
-{
-    McdPresenceFramePrivate *priv = MCD_PRESENCE_FRAME_PRIV (presence_frame);
-    GHashTable *accounts;
-    McdPresence p;
-
-    if (!priv->account_manager) return;
-
-    accounts = mcd_account_manager_get_accounts (priv->account_manager);
-    p.presence = presence;
-    p.message = (gchar *)presence_message;
-    g_hash_table_foreach (accounts, request_presence, &p);
-}
-
-static void
 mcd_presence_frame_class_init (McdPresenceFrameClass * klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
@@ -216,21 +166,6 @@ mcd_presence_frame_class_init (McdPresenceFrameClass * klass)
     object_class->dispose = _mcd_presence_frame_dispose;
     object_class->finalize = _mcd_presence_frame_finalize;
     mission_class->disconnect = mcd_presence_frame_disconnect;
-
-    klass->presence_requested_signal = presence_requested_signal;
-
-    /* FIXME: Telepathy doesn't currently registers it's enums to glib so we are compelled to register the 
-     * signal handler's arguments as INTs below */
-    /* signals */
-    mcd_presence_frame_signals[PRESENCE_REQUESTED] =
-	g_signal_new ("presence-requested",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_FIRST,
-		      G_STRUCT_OFFSET (McdPresenceFrameClass,
-				       presence_requested_signal),
-		      NULL, NULL,
-		      _mcd_marshal_VOID__INT_STRING,
-		      G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_STRING);
 }
 
 static void

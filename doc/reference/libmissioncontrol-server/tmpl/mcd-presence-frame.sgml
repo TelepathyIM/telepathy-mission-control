@@ -23,15 +23,6 @@ McdPresenceFrame
 </para>
 
 
-<!-- ##### SIGNAL McdPresenceFrame::presence-requested ##### -->
-<para>
-
-</para>
-
-@mcdpresenceframe: the object which received the signal.
-@arg1: 
-@arg2: 
-
 <!-- ##### FUNCTION mcd_presence_frame_new ##### -->
 <para>
 

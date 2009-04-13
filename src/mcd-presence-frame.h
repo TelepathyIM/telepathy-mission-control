@@ -52,11 +52,6 @@ struct _McdPresenceFrame
 struct _McdPresenceFrameClass
 {
     McdMissionClass parent_class;
-
-    /* Signals */
-    void (*presence_requested_signal) (McdPresenceFrame * presence_frame,
-				       TpConnectionPresenceType presence,
-				       const gchar * presence_message);
 };
 
 GType mcd_presence_frame_get_type (void);
