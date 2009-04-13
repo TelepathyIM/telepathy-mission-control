@@ -83,8 +83,6 @@ G_DEFINE_TYPE (McdService, mcd_service, MCD_TYPE_MASTER);
 
 typedef struct _McdServicePrivate
 {
-    McdPresenceFrame *presence_frame;
-
     gboolean is_disposed;
 } McdServicePrivate;
 
@@ -132,11 +130,6 @@ mcd_dispose (GObject * obj)
 
     priv->is_disposed = TRUE;
 
-    if (priv->presence_frame)
-    {
-	g_object_unref (priv->presence_frame);
-    }
-
     if (self->main_loop)
     {
 	g_main_loop_quit (self->main_loop);
@@ -153,12 +146,7 @@ mcd_dispose (GObject * obj)
 static void
 mcd_service_constructed (GObject *obj)
 {
-    McdServicePrivate *priv = MCD_OBJECT_PRIV (obj);
-
     DEBUG ("called");
-    g_object_get (obj,
-                  "presence-frame", &priv->presence_frame,
-		  NULL);
 
     mcd_service_obtain_bus_name (MCD_OBJECT (obj));
     mcd_debug_print_tree (obj);
