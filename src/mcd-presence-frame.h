@@ -57,9 +57,6 @@ struct _McdPresenceFrameClass
 GType mcd_presence_frame_get_type (void);
 McdPresenceFrame *mcd_presence_frame_new (void);
 
-TpConnectionPresenceType mcd_presence_frame_get_requested_presence
-    (McdPresenceFrame * presence_frame);
-
 void mcd_presence_frame_set_account_manager (McdPresenceFrame *presence_frame,
 					     McdAccountManager *account_manager);
 

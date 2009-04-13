@@ -31,12 +31,3 @@ McdPresenceFrame
 @Returns: 
 
 
-<!-- ##### FUNCTION mcd_presence_frame_get_requested_presence ##### -->
-<para>
-
-</para>
-
-@presence_frame: 
-@Returns: 
-
-

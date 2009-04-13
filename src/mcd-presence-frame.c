@@ -192,7 +192,7 @@ mcd_presence_frame_new (void)
     return obj;
 }
 
-TpConnectionPresenceType
+static TpConnectionPresenceType
 mcd_presence_frame_get_requested_presence (McdPresenceFrame * presence_frame)
 {
     McdPresenceFramePrivate *priv;
