@@ -83,7 +83,7 @@ mcd_account_connection_proceed (McdAccount *account, gboolean success)
 
     /* call next handler, or terminate the chain (emitting proper signal).
      * if everything is fine, call mcd_manager_create_connection() and
-     * mcd_connection_connect () with the dynamic parameters. Remove that call
+     * _mcd_connection_connect () with the dynamic parameters. Remove that call
      * from mcd_manager_create_connection() */
     ctx = g_object_get_qdata ((GObject *)account,
 			      account_connection_context_quark);

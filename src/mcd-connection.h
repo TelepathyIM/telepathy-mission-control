@@ -88,7 +88,8 @@ gboolean mcd_connection_cancel_channel_request (McdConnection *connection,
 						const gchar *requestor_client_id,
 					       	GError **error);
 
-void mcd_connection_connect (McdConnection *connection, GHashTable *params);
+G_GNUC_INTERNAL void _mcd_connection_connect (McdConnection *connection,
+                                              GHashTable *params);
 void mcd_connection_close (McdConnection *connection);
 
 /* not exported */

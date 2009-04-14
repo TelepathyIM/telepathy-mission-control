@@ -285,9 +285,9 @@ _mcd_connection_set_presence (McdConnection * connection,
 
     if (!priv->tp_conn)
     {
-	DEBUG ("tp_conn is NULL");
-	mcd_connection_connect (connection, NULL);
-	return;
+        DEBUG ("tp_conn is NULL");
+        _mcd_connection_connect (connection, NULL);
+        return;
     }
     g_return_if_fail (TP_IS_CONNECTION (priv->tp_conn));
 
@@ -1063,7 +1063,7 @@ static gboolean
 mcd_connection_reconnect (McdConnection *connection)
 {
     DEBUG ("%p", connection);
-    mcd_connection_connect (connection, NULL);
+    _mcd_connection_connect (connection, NULL);
     return FALSE;
 }
 
@@ -2420,15 +2420,15 @@ mcd_connection_close (McdConnection *connection)
     mcd_mission_abort (MCD_MISSION (connection));
 }
 
-/**
- * mcd_connection_connect:
+/*
+ * _mcd_connection_connect:
  * @connection: the #McdConnection.
  * @params: a #GHashTable of connection parameters.
  *
  * Activate @connection. The connection takes ownership of @params.
  */
 void
-mcd_connection_connect (McdConnection *connection, GHashTable *params)
+_mcd_connection_connect (McdConnection *connection, GHashTable *params)
 {
     McdConnectionPrivate *priv;
 

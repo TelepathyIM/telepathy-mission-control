@@ -492,7 +492,7 @@ _mcd_account_connect (McdAccount *account, GHashTable *params)
         connection = mcd_manager_create_connection (priv->manager, account);
         _mcd_account_set_connection (account, connection);
     }
-    mcd_connection_connect (priv->connection, params);
+    _mcd_connection_connect (priv->connection, params);
 }
 
 #ifdef DELAY_PROPERTY_CHANGED
