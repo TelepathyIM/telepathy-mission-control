@@ -287,7 +287,7 @@ _mcd_connection_set_presence (McdConnection * connection,
 
     if (!priv->tp_conn)
     {
-	g_warning ("%s: tp_conn is NULL!", G_STRFUNC);
+	DEBUG ("tp_conn is NULL", G_STRFUNC);
 	mcd_connection_connect (connection, NULL);
 	return;
     }
