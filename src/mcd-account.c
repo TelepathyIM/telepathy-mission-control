@@ -1380,12 +1380,25 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
 }
 
 static void
+account_reconnect (McSvcAccount *service,
+                   DBusGMethodInvocation *context)
+{
+    McdAccount *self = MCD_ACCOUNT (service);
+
+    DEBUG ("%s", mcd_account_get_unique_name (self));
+
+    /* FIXME: stub */
+    mc_svc_account_return_from_reconnect (context);
+}
+
+static void
 account_iface_init (McSvcAccountClass *iface, gpointer iface_data)
 {
 #define IMPLEMENT(x) mc_svc_account_implement_##x (\
     iface, account_##x)
     IMPLEMENT(remove);
     IMPLEMENT(update_parameters);
+    IMPLEMENT(reconnect);
 #undef IMPLEMENT
 }
 
