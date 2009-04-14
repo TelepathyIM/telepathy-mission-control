@@ -70,12 +70,6 @@ struct _McdConnectionClass
 
 GType mcd_connection_get_type (void);
 
-McdConnection *mcd_connection_new (TpDBusDaemon *dbus_daemon,
-				   const gchar * bus_name,
-				   TpConnectionManager * tp_conn_mgr,
-				   McdAccount * account,
-				   McdDispatcher *dispatcher) G_GNUC_DEPRECATED;
-
 const gchar *mcd_connection_get_object_path (McdConnection *connection);
 const gchar *mcd_connection_get_name (McdConnection *connection);
 
@@ -93,16 +87,6 @@ gboolean mcd_connection_cancel_channel_request (McdConnection *connection,
 					       	guint operation_id,
 						const gchar *requestor_client_id,
 					       	GError **error);
-
-gboolean mcd_connection_get_telepathy_details (McdConnection * id,
-					       gchar ** ret_servname,
-					       gchar ** ret_objpath);
-
-gboolean mcd_connection_remote_avatar_changed (McdConnection *connection,
-					       guint contact_id,
-					       const gchar *token);
-void mcd_connection_set_reconnect (McdConnection *connection,
-                                   gboolean reconnect);
 
 void mcd_connection_connect (McdConnection *connection, GHashTable *params);
 void mcd_connection_close (McdConnection *connection);

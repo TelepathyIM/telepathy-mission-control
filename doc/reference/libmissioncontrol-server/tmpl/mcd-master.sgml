@@ -48,11 +48,6 @@ McdMaster
 
 </para>
 
-<!-- ##### ARG McdMaster:presence-frame ##### -->
-<para>
-
-</para>
-
 <!-- ##### FUNCTION mcd_master_set_default_presence_setting ##### -->
 <para>
 

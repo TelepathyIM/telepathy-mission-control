@@ -139,15 +139,6 @@ McdChannel
 @Returns: 
 
 
-<!-- ##### FUNCTION mcd_channel_get_flags ##### -->
-<para>
-
-</para>
-
-@channel: 
-@Returns: 
-
-
 <!-- ##### FUNCTION mcd_channel_get_name ##### -->
 <para>
 

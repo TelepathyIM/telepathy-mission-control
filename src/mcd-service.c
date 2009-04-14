@@ -83,8 +83,6 @@ G_DEFINE_TYPE (McdService, mcd_service, MCD_TYPE_MASTER);
 
 typedef struct _McdServicePrivate
 {
-    McdPresenceFrame *presence_frame;
-
     gboolean is_disposed;
 } McdServicePrivate;
 
@@ -111,21 +109,6 @@ mcd_service_obtain_bus_name (McdService * obj)
 }
 
 static void
-_on_presence_requested (McdPresenceFrame * presence_frame,
-			TpConnectionPresenceType presence,
-			gchar * presence_message, McdService * obj)
-{
-    /* Begin shutdown if it is offline request */
-    if (presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE ||
-	presence == TP_CONNECTION_PRESENCE_TYPE_UNSET)
-	mcd_controller_shutdown (MCD_CONTROLLER (obj),
-				 "Offline presence requested");
-    else
-	/* If there is a presence request, make sure shutdown is canceled */
-	mcd_controller_cancel_shutdown (MCD_CONTROLLER (obj));
-}
-
-static void
 mcd_service_disconnect (McdMission *mission)
 {
     MCD_MISSION_CLASS (mcd_service_parent_class)->disconnect (mission);
@@ -147,13 +130,6 @@ mcd_dispose (GObject * obj)
 
     priv->is_disposed = TRUE;
 
-    if (priv->presence_frame)
-    {
-	g_signal_handlers_disconnect_by_func (priv->presence_frame,
-					      _on_presence_requested, self);
-	g_object_unref (priv->presence_frame);
-    }
-
     if (self->main_loop)
     {
 	g_main_loop_quit (self->main_loop);
@@ -170,16 +146,7 @@ mcd_dispose (GObject * obj)
 static void
 mcd_service_constructed (GObject *obj)
 {
-    McdServicePrivate *priv = MCD_OBJECT_PRIV (obj);
-
     DEBUG ("called");
-    g_object_get (obj,
-                  "presence-frame", &priv->presence_frame,
-		  NULL);
-
-    /* Setup presence signals */
-    g_signal_connect (priv->presence_frame, "presence-requested",
-		      G_CALLBACK (_on_presence_requested), obj);
 
     mcd_service_obtain_bus_name (MCD_OBJECT (obj));
     mcd_debug_print_tree (obj);

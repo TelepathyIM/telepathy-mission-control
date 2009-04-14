@@ -58,6 +58,42 @@ dbus_filter_function (DBusConnection *connection,
       g_message ("Got disconnected from the session bus");
       exit (69); /* EX_UNAVAILABLE */
     }
+  else if (dbus_message_is_method_call (message,
+        "org.freedesktop.Telepathy.MissionControl.RegressionTests",
+        "ChangeSystemFlags"))
+    {
+      DBusMessage *reply;
+      DBusError e;
+      dbus_uint32_t set, unset;
+
+      dbus_error_init (&e);
+
+      if (!dbus_message_get_args (message, &e,
+            'u', &set,
+            'u', &unset,
+            DBUS_TYPE_INVALID))
+        {
+          reply = dbus_message_new_error (message, e.name, e.message);
+          dbus_error_free (&e);
+        }
+      else
+        {
+          McdMission *mission = MCD_MISSION (mcd_master_get_default ());
+          McdSystemFlags flags;
+
+          flags = mcd_mission_get_flags (mission);
+          flags |= set;
+          flags &= ~unset;
+          mcd_mission_set_flags (mission, flags);
+
+          reply = dbus_message_new_method_return (message);
+        }
+
+      if (reply == NULL || !dbus_connection_send (connection, reply, NULL))
+        g_error ("Out of memory");
+
+      return DBUS_HANDLER_RESULT_HANDLED;
+    }
 
   return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }

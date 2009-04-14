@@ -48,19 +48,6 @@ McdConnection
 
 </para>
 
-<!-- ##### FUNCTION mcd_connection_new ##### -->
-<para>
-
-</para>
-
-@dbus_daemon: 
-@bus_name: 
-@tp_conn_mgr: 
-@account: 
-@dispatcher: 
-@Returns: 
-
-
 <!-- ##### FUNCTION mcd_connection_get_account ##### -->
 <para>
 
@@ -98,28 +85,6 @@ McdConnection
 @operation_id: 
 @requestor_client_id: 
 @error: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_connection_get_telepathy_details ##### -->
-<para>
-
-</para>
-
-@id: 
-@ret_servname: 
-@ret_objpath: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_connection_remote_avatar_changed ##### -->
-<para>
-
-</para>
-
-@connection: 
-@contact_id: 
-@token: 
 @Returns: 
 
 

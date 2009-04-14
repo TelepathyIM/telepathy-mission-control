@@ -97,41 +97,6 @@ mcd-dispatcher-context
 @priority: 
 @user_data: 
 
-<!-- ##### FUNCTION mcd_dispatcher_register_filter ##### -->
-<para>
-
-</para>
-
-@dispatcher: 
-@filter: 
-@channel_type_quark: 
-@filter_flags: 
-@priority: 
-@user_data: 
-
-
-<!-- ##### FUNCTION mcd_dispatcher_unregister_filter ##### -->
-<para>
-
-</para>
-
-@dispatcher: 
-@filter: 
-@channel_type_quark: 
-@filter_flags: 
-
-
-<!-- ##### FUNCTION mcd_dispatcher_register_filters ##### -->
-<para>
-
-</para>
-
-@dispatcher: 
-@filters: 
-@channel_type_quark: 
-@filter_flags: 
-
-
 <!-- ##### FUNCTION mcd_dispatcher_context_get_dispatcher ##### -->
 <para>
 

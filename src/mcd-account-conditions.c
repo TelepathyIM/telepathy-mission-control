@@ -48,7 +48,7 @@ store_condition (gpointer key, gpointer value, gpointer userdata)
     gchar condition_key[256];
     GKeyFile *keyfile;
 
-    keyfile = mcd_account_get_keyfile (account);
+    keyfile = _mcd_account_get_keyfile (account);
     unique_name = mcd_account_get_unique_name (account);
     g_snprintf (condition_key, sizeof (condition_key), "condition-%s", name);
     g_key_file_set_string (keyfile, unique_name, condition_key, condition);
@@ -64,7 +64,7 @@ set_condition (TpSvcDBusProperties *self, const gchar *name,
     gchar **keys, **key;
     GHashTable *conditions;
 
-    keyfile = mcd_account_get_keyfile (account);
+    keyfile = _mcd_account_get_keyfile (account);
     unique_name = mcd_account_get_unique_name (account);
     conditions = g_value_get_boxed (value);
     /* first, delete existing conditions */
@@ -112,7 +112,7 @@ GHashTable *mcd_account_get_conditions (McdAccount *account)
     gchar **keys, **key, *condition;
     GHashTable *conditions;
 
-    keyfile = mcd_account_get_keyfile (account);
+    keyfile = _mcd_account_get_keyfile (account);
     unique_name = mcd_account_get_unique_name (account);
     conditions = g_hash_table_new_full (g_str_hash, g_str_equal,
 					g_free, g_free);

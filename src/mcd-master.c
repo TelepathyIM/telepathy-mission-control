@@ -56,7 +56,6 @@
 #include <dbus/dbus-glib-lowlevel.h>
 
 #include "mcd-master.h"
-#include "mcd-presence-frame.h"
 #include "mcd-proxy.h"
 #include "mcd-manager.h"
 #include "mcd-dispatcher.h"
@@ -78,7 +77,6 @@ G_DEFINE_TYPE (McdMaster, mcd_master, MCD_TYPE_CONTROLLER);
 
 typedef struct _McdMasterPrivate
 {
-    McdPresenceFrame *presence_frame;
     McdAccountManager *account_manager;
     McdDispatcher *dispatcher;
     McdProxy *proxy;
@@ -367,9 +365,6 @@ _mcd_master_get_property (GObject * obj, guint prop_id,
 
     switch (prop_id)
     {
-    case PROP_PRESENCE_FRAME:
-	g_value_set_object (val, priv->presence_frame);
-	break;
     case PROP_DISPATCHER:
 	g_value_set_object (val, priv->dispatcher);
 	break;
@@ -431,27 +426,49 @@ _mcd_master_set_flags (McdMission * mission, McdSystemFlags flags)
     
     if (idle_flag_old != idle_flag_new)
     {
-	if (idle_flag_new)
-	{
-	    /* Save the current presence first */
-	    priv->awake_presence =
-		mcd_presence_frame_get_actual_presence (priv->presence_frame);
-	    if (priv->awake_presence != TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
-		return;
-	    g_free (priv->awake_presence_message);
-	    priv->awake_presence_message = g_strdup
-		(mcd_presence_frame_get_actual_presence_message
-		 (priv->presence_frame));
+        GHashTableIter iter;
+        gpointer v;
 
-	    mcd_presence_frame_request_presence (priv->presence_frame,
-						 TP_CONNECTION_PRESENCE_TYPE_AWAY, NULL);
-	}
-	else
-	{    
-	    mcd_presence_frame_request_presence (priv->presence_frame,
-						 priv->awake_presence,
-						 priv->awake_presence_message);
-	}
+        g_hash_table_iter_init (&iter,
+            mcd_account_manager_get_accounts (priv->account_manager));
+
+        while (g_hash_table_iter_next (&iter, NULL, &v))
+        {
+            McdAccount *account = MCD_ACCOUNT (v);
+
+            if (idle_flag_new)
+            {
+                TpConnectionPresenceType presence;
+
+                /* If the current presence is not Available then we don't go
+                 * auto-away - this avoids (a) manipulating offline accounts
+                 * and (b) messing up people's busy or invisible status */
+                mcd_account_get_current_presence (account, &presence, NULL,
+                                                  NULL);
+
+                if (presence != TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
+                {
+                    continue;
+                }
+
+                /* Set the Connection to be "away" if the CM supports it
+                 * (if not, it'll just fail - no harm done) */
+                _mcd_account_request_temporary_presence (account,
+                    TP_CONNECTION_PRESENCE_TYPE_AWAY, "away");
+            }
+            else
+            {
+                TpConnectionPresenceType presence;
+                const gchar *status;
+                const gchar *message;
+
+                /* Go back to the requested presence */
+                mcd_account_get_requested_presence (account, &presence,
+                                                    &status, &message);
+                mcd_account_request_presence (account, presence, status,
+                                              message);
+            }
+        }
     }
     MCD_MISSION_CLASS (mcd_master_parent_class)->set_flags (mission, flags);
 }
@@ -501,10 +518,8 @@ _mcd_master_dispose (GObject * object)
 	priv->dbus_daemon = NULL;
     }
 
-    /* Don't unref() the dispatcher and the presence-frame: they will be
-     * unref()ed by the McdProxy */
+    /* Don't unref() the dispatcher: it will be unref()ed by the McdProxy */
     priv->dispatcher = NULL;
-    priv->presence_frame = NULL;
     g_object_unref (priv->proxy);
 
     G_OBJECT_CLASS (mcd_master_parent_class)->dispose (object);
@@ -536,16 +551,10 @@ mcd_master_constructor (GType type, guint n_params,
             TP_PROXY (priv->dbus_daemon)->dbus_connection),
         TRUE);
 
-    priv->presence_frame = mcd_presence_frame_new ();
-    /* propagate the signals to dispatcher and presence_frame, too */
+    /* propagate the signals to dispatcher, too */
     priv->proxy = mcd_proxy_new (MCD_MISSION (master));
     mcd_operation_take_mission (MCD_OPERATION (priv->proxy),
-				MCD_MISSION (priv->presence_frame));
-    mcd_operation_take_mission (MCD_OPERATION (priv->proxy),
 				MCD_MISSION (priv->dispatcher));
-
-    mcd_presence_frame_set_account_manager (priv->presence_frame,
-					    priv->account_manager);
 
     mcd_master_load_plugins (master);
 
@@ -562,8 +571,7 @@ mcd_master_create_manager (McdMaster *master, const gchar *unique_name)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
 
-    return mcd_manager_new (unique_name, priv->presence_frame,
-                            priv->dispatcher, priv->dbus_daemon);
+    return mcd_manager_new (unique_name, priv->dispatcher, priv->dbus_daemon);
 }
 
 static void
@@ -586,13 +594,6 @@ mcd_master_class_init (McdMasterClass * klass)
     klass->create_manager = mcd_master_create_manager;
 
     /* Properties */
-    g_object_class_install_property
-        (object_class, PROP_PRESENCE_FRAME,
-         g_param_spec_object ("presence-frame",
-                              "Presence frame",
-                              "Presence frame",
-                              MCD_TYPE_PRESENCE_FRAME,
-                              G_PARAM_READABLE));
     g_object_class_install_property
         (object_class, PROP_DISPATCHER,
          g_param_spec_object ("dispatcher",

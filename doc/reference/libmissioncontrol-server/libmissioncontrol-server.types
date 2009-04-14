@@ -7,7 +7,6 @@
 #include <mcd-master.h>
 #include <mcd-mission.h>
 #include <mcd-operation.h>
-#include <mcd-presence-frame.h>
 #include <mcd-proxy.h>
 #include <mcd-provisioning.h>
 #include <mcd-provisioning-factory.h>
@@ -21,7 +20,6 @@ mcd_manager_get_type
 mcd_master_get_type
 mcd_mission_get_type
 mcd_operation_get_type
-mcd_presence_frame_get_type
 mcd_provisioning_get_type
 mcd_provisioning_factory_get_type
 mcd_proxy_get_type

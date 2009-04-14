@@ -104,16 +104,6 @@ McdDispatcher
 @Returns: 
 
 
-<!-- ##### FUNCTION mcd_dispatcher_get_channel_capabilities ##### -->
-<para>
-
-</para>
-
-@dispatcher: 
-@protocol: 
-@Returns: 
-
-
 <!-- ##### FUNCTION mcd_dispatcher_add_filter ##### -->
 <para>
 

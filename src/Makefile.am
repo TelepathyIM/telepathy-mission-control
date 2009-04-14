@@ -142,7 +142,6 @@ libmissioncontrol_server_la_SOURCES = \
 	mcd-master.c \
 	mcd-manager.c \
 	mcd-connection.c \
-	mcd-presence-frame.c \
 	mcd-dispatcher.c \
 	mcd-channel.c \
 	mcd-service.c \

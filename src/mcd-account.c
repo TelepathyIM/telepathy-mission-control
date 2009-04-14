@@ -135,6 +135,7 @@ struct _McdAccountPrivate
     guint valid : 1;
     guint loaded : 1;
     guint has_been_online : 1;
+    guint temporary_presence : 1;
 
     /* These fields are used to cache the changed properties */
     GHashTable *changed_properties;
@@ -458,7 +459,8 @@ mcd_account_request_presence_int (McdAccount *account,
 	changed = TRUE;
     }
 
-    if (!changed) return changed;
+    if (!(changed || priv->temporary_presence))
+        return FALSE;
 
     if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE && !priv->connection)
     {
@@ -748,7 +750,7 @@ set_avatar (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
     va = g_value_get_boxed (value);
     avatar = g_value_get_boxed (va->values);
     mime_type = g_value_get_string (va->values + 1);
-    changed = mcd_account_set_avatar (account, avatar, mime_type, NULL,
+    changed = _mcd_account_set_avatar (account, avatar, mime_type, NULL,
 				      &error);
     if (error)
     {
@@ -769,7 +771,7 @@ get_avatar (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     GType type;
     GValueArray *va;
 
-    mcd_account_get_avatar (account, &avatar, &mime_type);
+    _mcd_account_get_avatar (account, &avatar, &mime_type);
     if (!avatar)
         avatar = g_array_new (FALSE, FALSE, 1);
 
@@ -1162,8 +1164,8 @@ mcd_account_check_parameters (McdAccount *account)
     return valid;
 }
 
-/**
- * mcd_account_set_parameter:
+/*
+ * _mcd_account_set_parameter:
  * @account: the #McdAccount.
  * @name: the parameter name.
  * @value: a #GValue with the value to set, or %NULL.
@@ -1172,15 +1174,15 @@ mcd_account_check_parameters (McdAccount *account)
  * parameter is unset.
  */
 void
-mcd_account_set_parameter (McdAccount *account, const gchar *name,
-                           const GValue *value)
+_mcd_account_set_parameter (McdAccount *account, const gchar *name,
+                            const GValue *value)
 {
     MCD_ACCOUNT_GET_CLASS (account)->set_parameter (account, name, value);
 }
 
 gboolean
-mcd_account_set_parameters (McdAccount *account, GHashTable *params,
-			    GError **error)
+_mcd_account_set_parameters (McdAccount *account, GHashTable *params,
+                             GError **error)
 {
     McdAccountPrivate *priv = account->priv;
     const TpConnectionManagerParam *param;
@@ -1264,7 +1266,7 @@ mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     g_hash_table_iter_init (&iter, params);
     while (g_hash_table_iter_next (&iter, (gpointer)&name, (gpointer)&value))
     {
-        mcd_account_set_parameter (account, name, value);
+        _mcd_account_set_parameter (account, name, value);
     }
 
     if (mcd_account_get_connection_status (account) ==
@@ -1302,7 +1304,7 @@ mcd_account_unset_parameters (McdAccount *account, const gchar **params)
 
     for (param = params; *param != NULL; param++)
     {
-        mcd_account_set_parameter (account, *param, NULL);
+        _mcd_account_set_parameter (account, *param, NULL);
     }
 }
 
@@ -1318,7 +1320,7 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
 
     DEBUG ("called for %s", priv->unique_name);
 
-    if (!mcd_account_set_parameters (account, set, &error))
+    if (!_mcd_account_set_parameters (account, set, &error))
     {
 	if (!error)
 	    g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
@@ -1849,8 +1851,8 @@ mcd_account_request_presence (McdAccount *account,
     }
 }
 
-/**
- * mcd_account_set_current_presence:
+/*
+ * _mcd_account_set_current_presence:
  * @account: the #McdAccount.
  * @presence: a #TpConnectionPresenceType.
  * @status: presence status.
@@ -1859,9 +1861,9 @@ mcd_account_request_presence (McdAccount *account,
  * Set a presence status on the account.
  */
 void
-mcd_account_set_current_presence (McdAccount *account,
-				  TpConnectionPresenceType presence,
-				  const gchar *status, const gchar *message)
+_mcd_account_set_current_presence (McdAccount *account,
+                                   TpConnectionPresenceType presence,
+                                   const gchar *status, const gchar *message)
 {
     McdAccountPrivate *priv = account->priv;
     gboolean changed = FALSE;
@@ -1914,9 +1916,14 @@ mcd_account_get_requested_presence (McdAccount *account,
 {
     McdAccountPrivate *priv = account->priv;
 
-    *presence = priv->req_presence_type;
-    *status = priv->req_presence_status;
-    *message = priv->req_presence_message;
+    if (presence != NULL)
+        *presence = priv->req_presence_type;
+
+    if (status != NULL)
+        *status = priv->req_presence_status;
+
+    if (message != NULL)
+        *message = priv->req_presence_message;
 }
 
 /* TODO: remove when the relative members will become public */
@@ -1928,9 +1935,14 @@ mcd_account_get_current_presence (McdAccount *account,
 {
     McdAccountPrivate *priv = account->priv;
 
-    *presence = priv->curr_presence_type;
-    *status = priv->curr_presence_status;
-    *message = priv->curr_presence_message;
+    if (presence != NULL)
+        *presence = priv->curr_presence_type;
+
+    if (status != NULL)
+        *status = priv->curr_presence_status;
+
+    if (message != NULL)
+        *message = priv->curr_presence_message;
 }
 
 gboolean
@@ -1949,9 +1961,14 @@ mcd_account_get_automatic_presence (McdAccount *account,
 {
     McdAccountPrivate *priv = account->priv;
 
-    *presence = priv->auto_presence_type;
-    *status = priv->auto_presence_status;
-    *message = priv->auto_presence_message;
+    if (presence != NULL)
+        *presence = priv->auto_presence_type;
+
+    if (status != NULL)
+        *status = priv->auto_presence_status;
+
+    if (message != NULL)
+        *message = priv->auto_presence_message;
 }
 
 /* TODO: remove when the relative members will become public */
@@ -1973,7 +1990,7 @@ mcd_account_get_protocol_name (McdAccount *account)
 }
 
 void
-mcd_account_set_normalized_name (McdAccount *account, const gchar *name)
+_mcd_account_set_normalized_name (McdAccount *account, const gchar *name)
 {
     McdAccountPrivate *priv = account->priv;
     GValue value = { 0, };
@@ -2003,7 +2020,7 @@ mcd_account_get_normalized_name (McdAccount *account)
 }
 
 void
-mcd_account_set_avatar_token (McdAccount *account, const gchar *token)
+_mcd_account_set_avatar_token (McdAccount *account, const gchar *token)
 {
     McdAccountPrivate *priv = account->priv;
 
@@ -2018,7 +2035,7 @@ mcd_account_set_avatar_token (McdAccount *account, const gchar *token)
 }
 
 gchar *
-mcd_account_get_avatar_token (McdAccount *account)
+_mcd_account_get_avatar_token (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
 
@@ -2027,7 +2044,7 @@ mcd_account_get_avatar_token (McdAccount *account)
 }
 
 gboolean
-mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
+_mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
 			const gchar *mime_type, const gchar *token,
 			GError **error)
 {
@@ -2066,7 +2083,7 @@ mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
     {
         gchar *prev_token;
 
-        prev_token = mcd_account_get_avatar_token (account);
+        prev_token = _mcd_account_get_avatar_token (account);
         g_key_file_set_string (priv->keyfile, priv->unique_name,
                                MC_ACCOUNTS_KEY_AVATAR_TOKEN, token);
         if (!prev_token || strcmp (prev_token, token) != 0)
@@ -2086,8 +2103,8 @@ mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
 }
 
 void
-mcd_account_get_avatar (McdAccount *account, GArray **avatar,
-		       	gchar **mime_type)
+_mcd_account_get_avatar (McdAccount *account, GArray **avatar,
+                         gchar **mime_type)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     gchar *filename;
@@ -2096,7 +2113,7 @@ mcd_account_get_avatar (McdAccount *account, GArray **avatar,
 					MC_ACCOUNTS_KEY_AVATAR_MIME, NULL);
 
     if (avatar) *avatar = NULL;
-    filename = mcd_account_get_avatar_filename (account);
+    filename = _mcd_account_get_avatar_filename (account);
 
     if (filename && g_file_test (filename, G_FILE_TEST_EXISTS))
     {
@@ -2122,7 +2139,7 @@ mcd_account_get_avatar (McdAccount *account, GArray **avatar,
 }
 
 void
-mcd_account_set_alias (McdAccount *account, const gchar *alias)
+_mcd_account_set_alias (McdAccount *account, const gchar *alias)
 {
     GValue value = { 0 };
 
@@ -2195,9 +2212,9 @@ process_online_requests (McdAccount *account,
 }
 
 void
-mcd_account_set_connection_status (McdAccount *account,
-				   TpConnectionStatus status,
-				   TpConnectionStatusReason reason)
+_mcd_account_set_connection_status (McdAccount *account,
+                                    TpConnectionStatus status,
+                                    TpConnectionStatusReason reason)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     gboolean changed = FALSE;
@@ -2351,7 +2368,7 @@ _mcd_account_online_request (McdAccount *account,
 
 	/* now the connection should be in connecting state; insert the
 	 * callback in the online_requests hash table, which will be processed
-	 * in the mcd_account_set_connection_status function */
+	 * in the _mcd_account_set_connection_status function */
         data = g_slice_new (McdOnlineRequestData);
         data->callback = callback;
         data->user_data = userdata;
@@ -2360,7 +2377,7 @@ _mcd_account_online_request (McdAccount *account,
 }
 
 GKeyFile *
-mcd_account_get_keyfile (McdAccount *account)
+_mcd_account_get_keyfile (McdAccount *account)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     return priv->keyfile;
@@ -2368,7 +2385,7 @@ mcd_account_get_keyfile (McdAccount *account)
 
 /* this is public because of mcd-account-compat */
 gchar *
-mcd_account_get_avatar_filename (McdAccount *account)
+_mcd_account_get_avatar_filename (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
     gchar *data_dir, *filename;
@@ -2433,4 +2450,16 @@ _mcd_account_set_has_been_online (McdAccount *account)
         mcd_account_changed_property (account, "HasBeenOnline", &value);
         g_value_unset (&value);
     }
+}
+
+void
+_mcd_account_request_temporary_presence (McdAccount *self,
+                                         TpConnectionPresenceType type,
+                                         const gchar *status)
+{
+    /* tell the McdConnection (if it exists) to update our presence, but don't
+     * alter RequestedPresence (so we can go back to the old value later) */
+    g_signal_emit (self, _mcd_account_signals[REQUESTED_PRESENCE_CHANGED],
+                   0, type, status, "");
+    self->priv->temporary_presence = TRUE;
 }
