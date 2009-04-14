@@ -153,11 +153,22 @@ const McdDBusProp account_compat_properties[] = {
     { 0 },
 };
 
+static void
+compat_set_has_been_online (McSvcAccountInterfaceCompat *iface,
+                            DBusGMethodInvocation *context)
+{
+    _mcd_account_set_has_been_online (MCD_ACCOUNT (iface));
+    mc_svc_account_interface_compat_return_from_set_has_been_online (context);
+}
+
 void
 account_compat_iface_init (McSvcAccountInterfaceCompatClass *iface,
                            gpointer iface_data)
 {
-    /* nothing to do */
+#define IMPLEMENT(x) mc_svc_account_interface_compat_implement_##x (\
+    iface, compat_##x)
+    IMPLEMENT (set_has_been_online);
+#undef IMPLEMENT
 }
 
 /**

@@ -44,6 +44,7 @@
 #define MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS "AutomaticPresenceStatus"
 #define MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE "AutomaticPresenceMessage"
 #define MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY "ConnectAutomatically"
+#define MC_ACCOUNTS_KEY_HAS_BEEN_ONLINE "HasBeenOnline"
 #define MC_ACCOUNTS_KEY_DATA_DIR "data_dir"
 #define MC_ACCOUNTS_KEY_ALIAS "Nickname"
 #define MC_ACCOUNTS_KEY_SECONDARY_VCARD_FIELDS "secondary_vcard_fields"

@@ -41,6 +41,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</
       </tp:docstring>
     </property>
 
+    <method name="SetHasBeenOnline">
+      <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+        <p>Force MC to believe that this account has been put online
+          successfully at some point in the past.</p>
+      </tp:docstring>
+    </method>
+
   </interface>
 </node>
 <!-- vim:set sw=2 sts=2 et ft=xml: -->
