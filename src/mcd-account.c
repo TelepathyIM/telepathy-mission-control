@@ -464,7 +464,7 @@ mcd_account_request_presence_int (McdAccount *account,
 
     if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE && !priv->connection)
     {
-	mcd_account_connection_begin (account);
+        _mcd_account_connection_begin (account);
     }
 
     g_signal_emit (account,
@@ -1276,7 +1276,7 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
         {
             DEBUG ("resetting connection");
             mcd_connection_close (priv->connection);
-            mcd_account_connection_begin (account);
+            _mcd_account_connection_begin (account);
         }
         else
         {
@@ -2324,7 +2324,7 @@ _mcd_account_request_connection (McdAccount *account)
     McdAccountPrivate *priv = account->priv;
 
     if (!priv->connection)
-        mcd_account_connection_begin (account);
+        _mcd_account_connection_begin (account);
 
     if (priv->auto_presence_type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
 	mcd_account_request_presence_int (account,

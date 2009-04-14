@@ -2455,7 +2455,7 @@ mcd_connection_connect (McdConnection *connection, GHashTable *params)
         if (params)
             _mcd_connection_connect_with_params (connection, params);
         else
-            mcd_account_connection_begin (priv->account);
+            _mcd_account_connection_begin (priv->account);
     }
     else
     {

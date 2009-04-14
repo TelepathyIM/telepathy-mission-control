@@ -51,7 +51,7 @@ context_free (gpointer ptr)
 }
 
 void
-mcd_account_connection_begin (McdAccount *account)
+_mcd_account_connection_begin (McdAccount *account)
 {
     McdAccountConnectionContext *ctx;
 

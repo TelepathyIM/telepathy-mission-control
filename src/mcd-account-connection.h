@@ -33,8 +33,8 @@
 
 G_BEGIN_DECLS
 
-void mcd_account_connection_begin (McdAccount *account);
-inline void _mcd_account_connection_class_init (McdAccountClass *klass);
+G_GNUC_INTERNAL void _mcd_account_connection_begin (McdAccount *account);
+G_GNUC_INTERNAL void _mcd_account_connection_class_init (McdAccountClass *klass);
 
 G_END_DECLS
 
