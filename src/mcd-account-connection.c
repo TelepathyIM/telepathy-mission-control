@@ -34,6 +34,7 @@
 #include "mcd-account-priv.h"
 #include "mcd-account-connection.h"
 #include "mcd-account-manager.h"
+#include "mcd-connection-priv.h"
 
 typedef struct {
     GHashTable *params;

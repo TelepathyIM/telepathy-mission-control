@@ -44,6 +44,7 @@
 #include "mcd-account-requests.h"
 #include "mcd-account-stats.h"
 #include "mcd-connection-plugin.h"
+#include "mcd-connection-priv.h"
 #include "mcd-misc.h"
 #include "mcd-signals-marshal.h"
 #include "mcd-manager.h"

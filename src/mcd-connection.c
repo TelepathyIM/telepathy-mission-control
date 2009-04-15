@@ -34,6 +34,8 @@
  * FIXME
  */
 
+#include "mcd-connection.h"
+
 #include <string.h>
 #include <sys/types.h>
 #include <sched.h>
@@ -54,7 +56,7 @@
 #include <libmcclient/mc-errors.h>
 
 #include "mcd-account-priv.h"
-#include "mcd-connection.h"
+#include "mcd-connection-priv.h"
 #include "mcd-account-connection.h"
 #include "mcd-channel.h"
 #include "mcd-provisioning-factory.h"

@@ -88,18 +88,7 @@ gboolean mcd_connection_cancel_channel_request (McdConnection *connection,
 						const gchar *requestor_client_id,
 					       	GError **error);
 
-G_GNUC_INTERNAL void _mcd_connection_connect (McdConnection *connection,
-                                              GHashTable *params);
 void mcd_connection_close (McdConnection *connection);
-
-/* not exported */
-G_GNUC_INTERNAL
-void _mcd_connection_update_property (McdConnection *connection,
-                                      const gchar *name, const GValue *value);
-G_GNUC_INTERNAL
-void _mcd_connection_set_tp_connection (McdConnection *connection,
-                                        const gchar *bus_name,
-                                        const gchar *obj_path, GError **error);
 
 G_END_DECLS
 #endif /* __MCD_CONNECTION_H__ */
