@@ -229,7 +229,7 @@ mcd_account_loaded (McdAccount *account)
     account->priv->loaded = TRUE;
 
     /* invoke all the callbacks */
-    mcd_object_ready (account, account_ready_quark, NULL);
+    _mcd_object_ready (account, account_ready_quark, NULL);
     _mcd_account_maybe_autoconnect (account);
 }
 
@@ -432,8 +432,8 @@ _mcd_account_load_real (McdAccount *account, McdAccountLoadCb callback,
     if (account->priv->loaded)
         callback (account, NULL, user_data);
     else
-        mcd_object_call_when_ready (account, account_ready_quark,
-                                    (McdReadyCb)callback, user_data);
+        _mcd_object_call_when_ready (account, account_ready_quark,
+                                     (McdReadyCb)callback, user_data);
 }
 
 static void

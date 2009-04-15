@@ -189,17 +189,17 @@ mcd_ready_data_free (McdReadyData *rd)
 }
 
 void
-mcd_object_call_when_ready (gpointer object, GQuark quark, McdReadyCb callback,
-                            gpointer user_data)
+_mcd_object_call_when_ready (gpointer object, GQuark quark, McdReadyCb callback,
+                             gpointer user_data)
 {
-    mcd_object_call_on_struct_when_ready (object, object, quark, callback,
-                                          user_data);
+    _mcd_object_call_on_struct_when_ready (object, object, quark, callback,
+                                           user_data);
 }
 
 void
-mcd_object_call_on_struct_when_ready (gpointer object, gpointer strukt,
-                                      GQuark quark, McdReadyCb callback,
-                                      gpointer user_data)
+_mcd_object_call_on_struct_when_ready (gpointer object, gpointer strukt,
+                                       GQuark quark, McdReadyCb callback,
+                                       gpointer user_data)
 {
     McdReadyData *rd;
     McdReadyCbData *cb;
@@ -225,7 +225,7 @@ mcd_object_call_on_struct_when_ready (gpointer object, gpointer strukt,
 }
 
 void
-mcd_object_ready (gpointer object, GQuark quark, const GError *error)
+_mcd_object_ready (gpointer object, GQuark quark, const GError *error)
 {
     McdReadyData *rd;
 

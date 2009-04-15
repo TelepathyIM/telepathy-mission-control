@@ -45,12 +45,12 @@ gchar *_mcd_build_error_string (const GError *error);
 
 typedef void (*McdReadyCb) (gpointer object, const GError *error,
                             gpointer user_data);
-void mcd_object_call_when_ready (gpointer object, GQuark quark,
-                                 McdReadyCb callback, gpointer user_data);
-void mcd_object_call_on_struct_when_ready (gpointer object, gpointer strukt,
-                                           GQuark quark, McdReadyCb callback,
-                                           gpointer user_data);
-void mcd_object_ready (gpointer object, GQuark quark, const GError *error);
+void _mcd_object_call_when_ready (gpointer object, GQuark quark,
+                                  McdReadyCb callback, gpointer user_data);
+void _mcd_object_call_on_struct_when_ready (gpointer object, gpointer strukt,
+                                            GQuark quark, McdReadyCb callback,
+                                            gpointer user_data);
+void _mcd_object_ready (gpointer object, GQuark quark, const GError *error);
 
 /* not exported */
 #define MC_ARRAY_TYPE_OBJECT (_mcd_type_dbus_ao ())

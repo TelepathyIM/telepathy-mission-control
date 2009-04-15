@@ -89,7 +89,7 @@ on_manager_ready (TpConnectionManager *tp_conn_mgr, const GError *error,
     priv = manager->priv;
     DEBUG ("manager %s is ready", priv->name);
     priv->ready = TRUE;
-    mcd_object_ready (manager, readiness_quark, error);
+    _mcd_object_ready (manager, readiness_quark, error);
 }
 
 static gint
@@ -536,7 +536,7 @@ mcd_manager_call_when_ready (McdManager *manager, McdManagerReadyCb callback,
     if (manager->priv->ready)
         callback (manager, NULL, user_data);
     else
-        mcd_object_call_when_ready (manager, readiness_quark,
-                                    (McdReadyCb)callback, user_data);
+        _mcd_object_call_when_ready (manager, readiness_quark,
+                                     (McdReadyCb)callback, user_data);
 }
 

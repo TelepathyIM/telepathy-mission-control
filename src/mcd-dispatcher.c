@@ -3283,7 +3283,7 @@ get_handled_channels_cb (TpProxy *proxy, const GValue *v_channels,
     else
         g_warning ("%s: Got error: %s", G_STRFUNC, error->message);
 
-    mcd_object_ready (proxy, client_ready_quark, error);
+    _mcd_object_ready (proxy, client_ready_quark, error);
 }
 
 static void
@@ -3303,7 +3303,7 @@ mcd_client_call_when_got_handled_channels (McdClient *client,
                 (client->proxy, -1, MC_IFACE_CLIENT_HANDLER, "HandledChannels",
                  get_handled_channels_cb, client, NULL, NULL);
         }
-        mcd_object_call_on_struct_when_ready
+        _mcd_object_call_on_struct_when_ready
             (client->proxy, client, client_ready_quark, callback, user_data);
     }
 }
