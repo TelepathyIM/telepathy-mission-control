@@ -46,9 +46,7 @@ static guint _mcd_account_signal_connection_process = 0;
 void
 _mcd_account_connection_context_free (McdAccountConnectionContext *c)
 {
-    /* params are borrowed from the account, so don't free them.
-     * FIXME: fragile! */
-
+    g_hash_table_unref (c->params);
     g_free (c);
 }
 

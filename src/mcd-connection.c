@@ -89,6 +89,7 @@ struct _McdConnectionPrivate
 
     /* Account */
     McdAccount *account;
+    GHashTable *params;
 
     /* Associated profile */
     /* McProfile *profile; */
@@ -1618,6 +1619,12 @@ _mcd_connection_finalize (GObject * object)
     if (priv->recognized_presences)
         g_hash_table_destroy (priv->recognized_presences);
 
+    if (priv->params != NULL)
+    {
+        g_hash_table_unref (priv->params);
+        priv->params = NULL;
+    }
+
     G_OBJECT_CLASS (mcd_connection_parent_class)->finalize (object);
 }
 
@@ -2430,7 +2437,7 @@ mcd_connection_close (McdConnection *connection)
  * @connection: the #McdConnection.
  * @params: a #GHashTable of connection parameters.
  *
- * Activate @connection. The connection takes ownership of @params.
+ * Activate @connection. The connection references @params, if non-NULL.
  */
 void
 _mcd_connection_connect (McdConnection *connection, GHashTable *params)
@@ -2454,13 +2461,22 @@ _mcd_connection_connect (McdConnection *connection, GHashTable *params)
     if (mcd_connection_get_connection_status (connection) ==
         TP_CONNECTION_STATUS_DISCONNECTED)
     {
-        g_object_set_data_full ((GObject *)connection, "params", params,
-                                (GDestroyNotify)g_hash_table_destroy);
+        if (connection->priv->params != NULL)
+        {
+            g_hash_table_unref (connection->priv->params);
+            connection->priv->params = NULL;
+        }
 
         if (params)
+        {
+            connection->priv->params = g_hash_table_ref (params);
             _mcd_connection_connect_with_params (connection, params);
+        }
         else
+        {
+            connection->priv->params = NULL;
             _mcd_account_connection_begin (priv->account);
+        }
     }
     else
     {

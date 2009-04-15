@@ -2528,7 +2528,7 @@ _mcd_account_set_connection_context (McdAccount *self,
 {
     g_return_if_fail (MCD_IS_ACCOUNT (self));
 
-    if (self->priv->connection_context == NULL)
+    if (self->priv->connection_context != NULL)
     {
         _mcd_account_connection_context_free (self->priv->connection_context);
     }
