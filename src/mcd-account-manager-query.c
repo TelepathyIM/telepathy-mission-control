@@ -35,6 +35,7 @@
 #include "mcd-account.h"
 #include "mcd-account-manager.h"
 #include "mcd-account-manager-query.h"
+#include "mcd-account-priv.h"
 #include "_gen/interfaces.h"
 
 typedef struct
