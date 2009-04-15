@@ -27,7 +27,9 @@
 #define __MCD_ACCOUNT_PRIV_H__
 
 #include "mcd-account.h"
+#include "mcd-account-compat.h"
 #include "mcd-account-config.h"
+#include "mcd-dbusprop.h"
 
 enum
 {
@@ -125,6 +127,13 @@ _mcd_account_write_conf (McdAccount *account)
 
     mcd_account_manager_write_conf (account_manager);
 }
+
+G_GNUC_INTERNAL void _mcd_account_compat_class_init (McdAccountClass *klass);
+
+extern const McdDBusProp account_compat_properties[];
+
+void account_compat_iface_init (McSvcAccountInterfaceCompatClass *iface,
+				     gpointer iface_data);
 
 #endif /* __MCD_ACCOUNT_PRIV_H__ */
 
