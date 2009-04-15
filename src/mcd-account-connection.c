@@ -43,6 +43,8 @@ typedef struct {
 
 static GQuark account_connection_context_quark;
 
+static guint _mcd_account_signal_connection_process = 0;
+
 static void
 context_free (gpointer ptr)
 {
@@ -103,7 +105,7 @@ mcd_account_connection_proceed (McdAccount *account, gboolean success)
     else
     {
 	/* end of the chain */
-	g_signal_emit (account, _mcd_account_signals[CONNECTION_PROCESS], 0,
+	g_signal_emit (account, _mcd_account_signal_connection_process, 0,
 		       success);
 	if (success)
 	{
@@ -126,7 +128,7 @@ mcd_account_connection_proceed (McdAccount *account, gboolean success)
 inline void
 _mcd_account_connection_class_init (McdAccountClass *klass)
 {
-    _mcd_account_signals[CONNECTION_PROCESS] =
+    _mcd_account_signal_connection_process =
 	g_signal_new ("connection-process",
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_LAST,
