@@ -124,6 +124,8 @@ void account_compat_iface_init (McSvcAccountInterfaceCompatClass *iface,
 
 G_GNUC_INTERNAL void _mcd_account_connection_begin (McdAccount *account);
 G_GNUC_INTERNAL void _mcd_account_connection_class_init (McdAccountClass *klass);
+G_GNUC_INTERNAL McdTransport *_mcd_account_connection_get_transport
+    (McdAccount *account);
 
 extern const McdDBusProp account_channelrequests_properties[];
 

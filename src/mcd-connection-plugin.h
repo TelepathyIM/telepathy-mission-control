@@ -48,10 +48,6 @@ void mcd_plugin_register_account_connection (McdPlugin *plugin,
 					     gint priority,
 					     gpointer userdata);
 
-/* not exported */
-G_GNUC_INTERNAL
-McdTransport *_mcd_account_connection_get_transport (McdAccount *account);
-
 G_END_DECLS
 
 #endif /* __MCD_CONNECTION_PLUGIN_H__ */
