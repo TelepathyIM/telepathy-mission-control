@@ -497,6 +497,8 @@ _mcd_account_connect (McdAccount *account, GHashTable *params)
 {
     McdAccountPrivate *priv = account->priv;
 
+    g_assert (params != NULL);
+
     if (!priv->connection)
     {
         McdConnection *connection;

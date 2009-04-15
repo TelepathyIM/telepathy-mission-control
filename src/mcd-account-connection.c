@@ -70,6 +70,7 @@ _mcd_account_connection_begin (McdAccount *account)
     ctx = g_malloc (sizeof (McdAccountConnectionContext));
     ctx->i_filter = 0;
     ctx->params = _mcd_account_dup_parameters (account);
+    g_assert (ctx->params != NULL);
     _mcd_account_set_connection_context (account, ctx);
     mcd_account_connection_proceed (account, TRUE);
 }
@@ -88,6 +89,7 @@ mcd_account_connection_proceed (McdAccount *account, gboolean success)
      * from mcd_manager_create_connection() */
     ctx = _mcd_account_get_connection_context (account);
     g_return_if_fail (ctx != NULL);
+    g_return_if_fail (ctx->params != NULL);
 
     if (success)
     {
