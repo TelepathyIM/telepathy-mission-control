@@ -155,7 +155,18 @@ enum
     PROP_NAME,
 };
 
-guint _mcd_account_signals[LAST_SIGNAL] = { 0 };
+enum
+{
+    CONNECTION_STATUS_CHANGED,
+    CURRENT_PRESENCE_CHANGED,
+    REQUESTED_PRESENCE_CHANGED,
+    VALIDITY_CHANGED,
+    AVATAR_CHANGED,
+    ALIAS_CHANGED,
+    LAST_SIGNAL
+};
+
+static guint _mcd_account_signals[LAST_SIGNAL] = { 0 };
 static GQuark account_ready_quark = 0;
 
 /*

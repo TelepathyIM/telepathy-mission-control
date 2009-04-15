@@ -31,21 +31,6 @@
 #include "mcd-account-config.h"
 #include "mcd-dbusprop.h"
 
-enum
-{
-    CONNECTION_STATUS_CHANGED,
-    CURRENT_PRESENCE_CHANGED,
-    REQUESTED_PRESENCE_CHANGED,
-    VALIDITY_CHANGED,
-    AVATAR_CHANGED,
-    ALIAS_CHANGED,
-    CONNECTION_PROCESS,
-    PROFILE_SET,
-    LAST_SIGNAL
-};
-
-extern guint _mcd_account_signals[LAST_SIGNAL];
-
 G_GNUC_INTERNAL void _mcd_account_connect (McdAccount *account,
                                            GHashTable *params);
 
