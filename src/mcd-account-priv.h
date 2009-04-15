@@ -29,6 +29,8 @@
 #include "mcd-account.h"
 #include "mcd-account-compat.h"
 #include "mcd-account-config.h"
+#include "mcd-account-requests.h"
+#include "mcd-channel.h"
 #include "mcd-dbusprop.h"
 
 G_GNUC_INTERNAL void _mcd_account_connect (McdAccount *account,
@@ -122,6 +124,19 @@ void account_compat_iface_init (McSvcAccountInterfaceCompatClass *iface,
 
 G_GNUC_INTERNAL void _mcd_account_connection_begin (McdAccount *account);
 G_GNUC_INTERNAL void _mcd_account_connection_class_init (McdAccountClass *klass);
+
+extern const McdDBusProp account_channelrequests_properties[];
+
+G_GNUC_INTERNAL McdChannel *_mcd_account_create_request (McdAccount *account,
+    GHashTable *properties, gint64 user_action_time,
+    const gchar *preferred_handler, gboolean use_existing,
+    gboolean proceeding, GError **error);
+
+G_GNUC_INTERNAL void _mcd_account_proceed_with_request (McdAccount *account,
+                                                        McdChannel *channel);
+
+void account_channelrequests_iface_init
+    (McSvcAccountInterfaceChannelRequestsClass *iface, gpointer iface_data);
 
 #endif /* __MCD_ACCOUNT_PRIV_H__ */
 

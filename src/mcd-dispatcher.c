@@ -43,6 +43,7 @@
 #include <dbus/dbus-glib-lowlevel.h>
 
 #include "mcd-signals-marshal.h"
+#include "mcd-account-priv.h"
 #include "mcd-account-requests.h"
 #include "mcd-connection.h"
 #include "mcd-channel.h"

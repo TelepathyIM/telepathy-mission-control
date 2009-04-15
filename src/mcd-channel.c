@@ -41,6 +41,7 @@
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
+#include "mcd-account-priv.h"
 #include "mcd-account-requests.h"
 #include "mcd-channel.h"
 #include "mcd-enum-types.h"
