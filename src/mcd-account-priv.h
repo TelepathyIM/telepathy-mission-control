@@ -140,5 +140,18 @@ G_GNUC_INTERNAL void _mcd_account_proceed_with_request (McdAccount *account,
 void account_channelrequests_iface_init
     (McSvcAccountInterfaceChannelRequestsClass *iface, gpointer iface_data);
 
+typedef struct _McdAccountConnectionContext McdAccountConnectionContext;
+
+G_GNUC_INTERNAL
+McdAccountConnectionContext *_mcd_account_get_connection_context
+    (McdAccount *self);
+
+G_GNUC_INTERNAL
+void _mcd_account_set_connection_context (McdAccount *self,
+                                          McdAccountConnectionContext *c);
+
+G_GNUC_INTERNAL void _mcd_account_connection_context_free
+    (McdAccountConnectionContext *c);
+
 #endif /* __MCD_ACCOUNT_PRIV_H__ */
 

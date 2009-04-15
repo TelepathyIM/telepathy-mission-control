@@ -36,21 +36,20 @@
 #include "mcd-account-manager.h"
 #include "mcd-connection-priv.h"
 
-typedef struct {
+struct _McdAccountConnectionContext {
     GHashTable *params;
     gint i_filter;
-} McdAccountConnectionContext;
-
-static GQuark account_connection_context_quark;
+};
 
 static guint _mcd_account_signal_connection_process = 0;
 
-static void
-context_free (gpointer ptr)
+void
+_mcd_account_connection_context_free (McdAccountConnectionContext *c)
 {
-    McdAccountConnectionContext *ctx = ptr;
+    /* params are borrowed from the account, so don't free them.
+     * FIXME: fragile! */
 
-    g_free (ctx);
+    g_free (c);
 }
 
 void
@@ -59,9 +58,11 @@ _mcd_account_connection_begin (McdAccount *account)
     McdAccountConnectionContext *ctx;
 
     /* check whether a connection process is already ongoing */
-    if (g_object_get_qdata (G_OBJECT (account),
-                            account_connection_context_quark))
+    if (_mcd_account_get_connection_context (account) != NULL)
+    {
+        DEBUG ("already trying to connect");
         return;
+    }
 
     /* get account params */
     /* create dynamic params HT */
@@ -69,10 +70,7 @@ _mcd_account_connection_begin (McdAccount *account)
     ctx = g_malloc (sizeof (McdAccountConnectionContext));
     ctx->i_filter = 0;
     ctx->params = mcd_account_get_parameters (account);
-    g_object_set_qdata_full ((GObject *)account,
-			     account_connection_context_quark,
-			     ctx, context_free);
-
+    _mcd_account_set_connection_context (account, ctx);
     mcd_account_connection_proceed (account, TRUE);
 }
 
@@ -88,8 +86,7 @@ mcd_account_connection_proceed (McdAccount *account, gboolean success)
      * if everything is fine, call mcd_manager_create_connection() and
      * _mcd_connection_connect () with the dynamic parameters. Remove that call
      * from mcd_manager_create_connection() */
-    ctx = g_object_get_qdata ((GObject *)account,
-			      account_connection_context_quark);
+    ctx = _mcd_account_get_connection_context (account);
     g_return_if_fail (ctx != NULL);
 
     if (success)
@@ -120,8 +117,7 @@ mcd_account_connection_proceed (McdAccount *account, gboolean success)
                                  mcd_account_get_unique_name (account));
             _mcd_account_online_request_completed (account, error);
         }
-	g_object_set_qdata ((GObject *)account,
-			    account_connection_context_quark, NULL);
+        _mcd_account_set_connection_context (account, NULL);
     }
 }
 
@@ -135,7 +131,5 @@ _mcd_account_connection_class_init (McdAccountClass *klass)
 		      0,
 		      NULL, NULL, g_cclosure_marshal_VOID__BOOLEAN,
 		      G_TYPE_NONE, 1, G_TYPE_BOOLEAN);
-
-    account_connection_context_quark = g_quark_from_static_string ("accontext");
 }
 

@@ -109,6 +109,7 @@ struct _McdAccountPrivate
     McdManager *manager;
     McdAccountManager *account_manager;
     McdTransport *transport;
+    McdAccountConnectionContext *connection_context;
     GKeyFile *keyfile;		/* configuration file */
 
     /* connection status */
@@ -1527,7 +1528,8 @@ _mcd_account_finalize (GObject *object)
 static void
 _mcd_account_dispose (GObject *object)
 {
-    McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (object);
+    McdAccount *self = MCD_ACCOUNT (object);
+    McdAccountPrivate *priv = self->priv;
 
     DEBUG ("called for %s", priv->unique_name);
     if (priv->online_requests)
@@ -1555,7 +1557,8 @@ _mcd_account_dispose (GObject *object)
 	priv->manager = NULL;
     }
 
-    _mcd_account_set_connection (MCD_ACCOUNT (object), NULL);
+    _mcd_account_set_connection_context (self, NULL);
+    _mcd_account_set_connection (self, NULL);
 
     G_OBJECT_CLASS (mcd_account_parent_class)->dispose (object);
 }
@@ -2505,4 +2508,26 @@ _mcd_account_connection_get_transport (McdAccount *account)
     g_return_val_if_fail (MCD_IS_ACCOUNT (account), NULL);
 
     return account->priv->transport;
+}
+
+McdAccountConnectionContext *
+_mcd_account_get_connection_context (McdAccount *self)
+{
+    g_return_val_if_fail (MCD_IS_ACCOUNT (self), NULL);
+
+    return self->priv->connection_context;
+}
+
+void
+_mcd_account_set_connection_context (McdAccount *self,
+                                     McdAccountConnectionContext *c)
+{
+    g_return_if_fail (MCD_IS_ACCOUNT (self));
+
+    if (self->priv->connection_context == NULL)
+    {
+        _mcd_account_connection_context_free (self->priv->connection_context);
+    }
+
+    self->priv->connection_context = c;
 }
