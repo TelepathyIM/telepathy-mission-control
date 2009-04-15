@@ -9,7 +9,7 @@ INCLUDES = \
 	   -DMC_DISABLE_DEPRECATED -I$(top_srcdir)
 
 mission_control_includedir = $(includedir)/mission-control
-mission_control_include = \
+mission_control_include_HEADERS = \
 	mcd-account.h \
 	mcd-account-compat.h \
 	mcd-account-conditions.h \
@@ -83,15 +83,6 @@ nodist_libmissioncontrol_server_la_SOURCES = \
 	_gen/svc-dispatch-operation.c \
 	_gen/svc-request.c
 
-
-mission_control_include_HEADERS = \
-	$(mission_control_include) \
-	mcd-account-config.h \
-	mcd-account-priv.h \
-	mcd-enum-types.h \
-	mcd-misc.h \
-	sp_timestamp.h
-
 BUILT_SOURCES = \
 	_gen/all.xml \
 	mcd-signals-marshal.h \
@@ -124,18 +115,22 @@ libmissioncontrol_server_la_SOURCES = \
 	mcd-account.c \
 	mcd-account-compat.c \
 	mcd-account-conditions.c \
+	mcd-account-config.h \
 	mcd-account-connection.c \
 	mcd-account-requests.c \
 	mcd-account-stats.c \
 	mcd-account-manager.c \
 	mcd-account-manager-creation.c \
 	mcd-account-manager-query.c \
+	mcd-account-priv.h \
 	mcd-dbusprop.c \
 	mcd-debug.c \
 	mcd-dispatch-operation.c \
 	mcd-enum-types.c \
+	mcd-enum-types.h \
 	mcd-signals-marshal.c \
 	mcd-misc.c \
+	mcd-misc.h \
 	mcd-mission.c \
 	mcd-operation.c \
 	mcd-controller.c \
@@ -149,7 +144,8 @@ libmissioncontrol_server_la_SOURCES = \
 	mcd-chan-handler.c \
 	mcd-transport.c \
 	mcd-provisioning.c \
-	mcd-provisioning-factory.c 
+	mcd-provisioning-factory.c \
+	sp_timestamp.h
 
 # bin_PROGRAMS = mission-control
 # mission_control_LDFLAGS = -export-dynamic
@@ -171,18 +167,18 @@ libmissioncontrol_server_la_SOURCES = \
 
 mcd-enum-types.h: stamp-mcd-enum-types.h
 	@true
-stamp-mcd-enum-types.h: Makefile $(mission_control_include) mcd-enum-types.c
+stamp-mcd-enum-types.h: Makefile $(mission_control_include_HEADERS) mcd-enum-types.c
 	( cd $(srcdir) && glib-mkenums \
 		--fhead "#ifndef __MCD_ENUM_TYPES_H__\n#define __MCD_ENUM_TYPES_H__\n\n#include \"mcd-mission.h\"\n#include \"mcd-channel.h\"\n#include \"mcd-provisioning.h\"\n#include \"mcd-transport.h\"\n\nG_BEGIN_DECLS\n" \
 		--fprod "/* enumerations from \"@filename@\" */\n" \
 		--vhead "GType @enum_name@_get_type (void) G_GNUC_CONST;\n#define MCD_TYPE_@ENUMSHORT@ (@enum_name@_get_type())\n" \
 		--ftail "G_END_DECLS\n\n#endif /* __MCD_ENUM_TYPES_H__ */" \
-	    $(mission_control_include) ) >> xgen-geth \
+	    $(mission_control_include_HEADERS) ) >> xgen-geth \
 	&& (cmp -s xgen-geth mcd-enum-types.h || cp xgen-geth mcd-enum-types.h ) \
 	&& rm -f xgen-geth \
 	&& echo timestamp > $(@F)
 
-mcd-enum-types.c: Makefile
+mcd-enum-types.c: Makefile $(mission_control_include_HEADERS)
 	( cd $(srcdir) && glib-mkenums \
 		--fhead "#include \"mcd-enum-types.h\"\n#define g_intern_static_string(s) (s)\n" \
 		--fprod "\n/* enumerations from \"@filename@\" */" \
@@ -190,7 +186,7 @@ mcd-enum-types.c: Makefile
 		--vhead "GType\n@enum_name@_get_type (void)\n{\n  static GType etype = 0;\n  if (etype == 0) {\n    static const G@Type@Value values[] = {" \
 		--vprod "      { @VALUENAME@, \"@VALUENAME@\", \"@valuenick@\" }," \
 		--vtail "      { 0, NULL, NULL }\n    };\n    etype = g_@type@_register_static (g_intern_static_string (\"@EnumName@\"), values);\n  }\n  return etype;\n}\n" \
-	    $(mission_control_include) ) > xgen-getc \
+	    $(mission_control_include_HEADERS) ) > xgen-getc \
 	&& cp xgen-getc mcd-enum-types.c  \
 	&& rm -f xgen-getc
 
