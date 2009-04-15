@@ -79,7 +79,7 @@ set_condition (TpSvcDBusProperties *self, const gchar *name,
 
     g_hash_table_foreach (conditions, store_condition, account);
 
-    mcd_account_write_conf (account);
+    _mcd_account_write_conf (account);
 }
 
 static void

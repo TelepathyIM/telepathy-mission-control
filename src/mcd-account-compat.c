@@ -69,7 +69,7 @@ set_profile (TpSvcDBusProperties *self, const gchar *name,
 	g_key_file_remove_key (keyfile, unique_name,
 			       name, NULL);
     }
-    mcd_account_write_conf (account);
+    _mcd_account_write_conf (account);
 
     g_signal_emit (account, _mcd_account_signals[PROFILE_SET], 0);
 }
@@ -125,7 +125,7 @@ set_secondary_vcard_fields (TpSvcDBusProperties *self, const gchar *name,
 	g_key_file_remove_key (keyfile, unique_name,
 			       name, NULL);
     }
-    mcd_account_write_conf (account);
+    _mcd_account_write_conf (account);
 }
 
 static void

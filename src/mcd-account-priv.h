@@ -65,7 +65,7 @@ GList *_mcd_account_get_online_requests (McdAccount *account);
 
 
 static inline void
-mcd_account_write_conf (McdAccount *account)
+_mcd_account_write_conf (McdAccount *account)
 {
     McdAccountManager *account_manager;
 
