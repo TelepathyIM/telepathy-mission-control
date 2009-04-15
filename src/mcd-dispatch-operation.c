@@ -36,6 +36,7 @@
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
+#include "mcd-channel-priv.h"
 #include "mcd-dbusprop.h"
 #include "mcd-misc.h"
 #include "_gen/interfaces.h"

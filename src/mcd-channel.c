@@ -34,6 +34,8 @@
  * FIXME
  */
 
+#include "mcd-channel.h"
+
 #include <glib/gi18n.h>
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/gtypes.h>
@@ -43,7 +45,7 @@
 
 #include "mcd-account-priv.h"
 #include "mcd-account-requests.h"
-#include "mcd-channel.h"
+#include "mcd-channel-priv.h"
 #include "mcd-enum-types.h"
 #include "_gen/gtypes.h"
 #include "_gen/interfaces.h"

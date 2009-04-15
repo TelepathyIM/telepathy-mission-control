@@ -49,6 +49,7 @@
 #include "mcd-channel.h"
 #include "mcd-master.h"
 #include "mcd-chan-handler.h"
+#include "mcd-channel-priv.h"
 #include "mcd-dispatcher-context.h"
 #include "mcd-dispatch-operation.h"
 #include "mcd-misc.h"

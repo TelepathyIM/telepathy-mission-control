@@ -38,6 +38,7 @@
 #include "mcd-account-priv.h"
 #include "mcd-account-requests.h"
 #include "mcd-account-manager.h"
+#include "mcd-channel-priv.h"
 #include "mcd-misc.h"
 #include "_gen/interfaces.h"
 #include "_gen/svc-request.h"
