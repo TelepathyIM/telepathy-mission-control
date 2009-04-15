@@ -65,6 +65,7 @@ typedef struct _McdChannelRequestData McdChannelRequestData;
 struct _McdChannelPrivate
 {
     TpChannel *tp_chan;
+    GError *error;
 
     /* boolean properties */
     guint outgoing : 1;
@@ -114,8 +115,6 @@ enum _McdChannelPropertyType
 
 #define DEPRECATED_PROPERTY_WARNING \
     g_warning ("%s: property %s is deprecated", G_STRFUNC, pspec->name)
-
-#define CD_ERROR    "_error"
 
 static guint mcd_channel_signals[LAST_SIGNAL] = { 0 };
 
@@ -494,6 +493,12 @@ _mcd_channel_finalize (GObject * object)
     {
         g_free (list->data);
         list = g_list_delete_link (list, list);
+    }
+
+    if (priv->error != NULL)
+    {
+        g_error_free (priv->error);
+        priv->error = NULL;
     }
 
     G_OBJECT_CLASS (mcd_channel_parent_class)->finalize (object);
@@ -1131,8 +1136,9 @@ void
 mcd_channel_take_error (McdChannel *channel, GError *error)
 {
     g_return_if_fail (MCD_IS_CHANNEL (channel));
-    g_object_set_data_full ((GObject *)channel, CD_ERROR,
-                            error, (GDestroyNotify)g_error_free);
+
+    channel->priv->error = error;
+
     if (error)
         _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_FAILED);
 }
@@ -1147,7 +1153,8 @@ const GError *
 mcd_channel_get_error (McdChannel *channel)
 {
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    return g_object_get_data ((GObject *)channel, CD_ERROR);
+
+    return channel->priv->error;
 }
 
 /**
