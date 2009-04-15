@@ -58,6 +58,7 @@
 #include "mcd-account-priv.h"
 #include "mcd-channel-priv.h"
 #include "mcd-connection-priv.h"
+#include "mcd-dispatcher-priv.h"
 #include "mcd-account-connection.h"
 #include "mcd-channel.h"
 #include "mcd-provisioning-factory.h"

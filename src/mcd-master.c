@@ -56,6 +56,7 @@
 #include <dbus/dbus-glib-lowlevel.h>
 
 #include "mcd-master.h"
+#include "mcd-master-priv.h"
 #include "mcd-proxy.h"
 #include "mcd-manager.h"
 #include "mcd-dispatcher.h"

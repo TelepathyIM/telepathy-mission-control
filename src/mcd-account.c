@@ -50,6 +50,7 @@
 #include "mcd-signals-marshal.h"
 #include "mcd-manager.h"
 #include "mcd-master.h"
+#include "mcd-master-priv.h"
 #include "mcd-dbusprop.h"
 #include "_gen/interfaces.h"
 #include "_gen/gtypes.h"

@@ -127,6 +127,7 @@ libmissioncontrol_server_la_SOURCES = \
 	mcd-dbusprop.c \
 	mcd-debug.c \
 	mcd-dispatch-operation.c \
+	mcd-dispatch-operation-priv.h \
 	mcd-enum-types.c \
 	mcd-enum-types.h \
 	mcd-signals-marshal.c \
@@ -136,10 +137,12 @@ libmissioncontrol_server_la_SOURCES = \
 	mcd-operation.c \
 	mcd-controller.c \
 	mcd-master.c \
+	mcd-master-priv.h \
 	mcd-manager.c \
 	mcd-connection.c \
 	mcd-connection-priv.h \
 	mcd-dispatcher.c \
+	mcd-dispatcher-priv.h \
 	mcd-channel.c \
 	mcd-channel-priv.h \
 	mcd-service.c \

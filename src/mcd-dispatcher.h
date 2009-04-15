@@ -92,29 +92,6 @@ McdDispatcher *mcd_dispatcher_new (TpDBusDaemon *dbus_daemon,
 gint mcd_dispatcher_get_channel_type_usage (McdDispatcher * dispatcher,
 					    GQuark chan_type_quark);
 
-/* retrieves the channel handlers' capabilities, in a format suitable for being
- * used as a parameter for the telepathy "AdvertiseCapabilities" method */
-G_GNUC_INTERNAL GPtrArray *_mcd_dispatcher_get_channel_capabilities (
-    McdDispatcher *dispatcher, const gchar *protocol);
-
-/* retrieves the channel handlers' capabilities, in a format suitable for being
- * used as a parameter for the telepathy "SetSelfCapabilities" method */
-G_GNUC_INTERNAL GPtrArray *_mcd_dispatcher_get_channel_enhanced_capabilities (
-    McdDispatcher *dispatcher);
-
-/* not exported */
-void _mcd_dispatcher_add_request (McdDispatcher *dispatcher,
-                                  McdAccount *account, McdChannel *channel);
-G_GNUC_INTERNAL void _mcd_dispatcher_take_channels (
-    McdDispatcher *dispatcher, GList *channels, gboolean requested);
-G_GNUC_INTERNAL
-void _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
-                                          McdChannel *channel,
-                                          McdChannel *request);
-G_GNUC_INTERNAL
-void _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
-                                      McdChannel *channel);
-
 G_END_DECLS
 
 #endif /* MCD_DISPATCHER_H */

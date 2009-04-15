@@ -51,7 +51,9 @@
 #include "mcd-chan-handler.h"
 #include "mcd-channel-priv.h"
 #include "mcd-dispatcher-context.h"
+#include "mcd-dispatcher-priv.h"
 #include "mcd-dispatch-operation.h"
+#include "mcd-dispatch-operation-priv.h"
 #include "mcd-misc.h"
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/gtypes.h>
