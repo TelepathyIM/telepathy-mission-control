@@ -69,7 +69,7 @@ _mcd_account_connection_begin (McdAccount *account)
     /* run the handlers */
     ctx = g_malloc (sizeof (McdAccountConnectionContext));
     ctx->i_filter = 0;
-    ctx->params = mcd_account_get_parameters (account);
+    ctx->params = _mcd_account_dup_parameters (account);
     _mcd_account_set_connection_context (account, ctx);
     mcd_account_connection_proceed (account, TRUE);
 }

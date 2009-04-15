@@ -336,6 +336,8 @@ get_parameter (McdAccount *account, const gchar *name, GValue *value)
     return TRUE;
 }
 
+static gboolean mcd_account_check_parameters (McdAccount *account);
+
 static void on_manager_ready (McdManager *manager, const GError *error,
                               gpointer user_data)
 {
@@ -810,7 +812,7 @@ get_parameters (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     McdAccount *account = MCD_ACCOUNT (self);
     GHashTable *parameters;
 
-    parameters = mcd_account_get_parameters (account);
+    parameters = _mcd_account_dup_parameters (account);
     g_value_init (value, TP_HASH_TYPE_STRING_VARIANT_MAP);
     g_value_take_boxed (value, parameters);
 }
@@ -1153,7 +1155,25 @@ account_remove (McSvcAccount *self, DBusGMethodInvocation *context)
     mc_svc_account_return_from_remove (context);
 }
 
-gboolean
+/*
+ * mcd_account_get_parameter:
+ * @account: the #McdAccount.
+ * @name: the parameter name.
+ * @value: a initialized #GValue to receive the parameter value, or %NULL.
+ *
+ * Get the @name parameter for @account.
+ *
+ * Returns: %TRUE if found, %FALSE otherwise.
+ */
+static gboolean
+mcd_account_get_parameter (McdAccount *account, const gchar *name,
+                           GValue *value)
+{
+    return MCD_ACCOUNT_GET_CLASS (account)->get_parameter (account, name,
+                                                           value);
+}
+
+static gboolean
 mcd_account_check_parameters (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
@@ -1350,7 +1370,7 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
     mcd_account_unset_parameters (account, unset);
 
     /* emit the PropertiesChanged signal */
-    parameters = mcd_account_get_parameters (account);
+    parameters = _mcd_account_dup_parameters (account);
     g_value_init (&value, TP_HASH_TYPE_STRING_VARIANT_MAP);
     g_value_take_boxed (&value, parameters);
     mcd_account_changed_property (account, "Parameters", &value);
@@ -1788,16 +1808,16 @@ add_parameter (McdAccount *account, const TpConnectionManagerParam *param,
         tp_g_value_slice_free (value);
 }
 
-/**
- * mcd_account_get_parameters:
+/*
+ * _mcd_account_dup_parameters:
  * @account: the #McdAccount.
  *
  * Get the parameters set for this account.
  *
- * Returns: a #GHashTable containing the account parameters.
+ * Returns: a newly allocated #GHashTable containing the account parameters.
  */
 GHashTable *
-mcd_account_get_parameters (McdAccount *account)
+_mcd_account_dup_parameters (McdAccount *account)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     const TpConnectionManagerParam *param;
@@ -1818,24 +1838,6 @@ mcd_account_get_parameters (McdAccount *account)
         param++;
     }
     return params;
-}
-
-/**
- * mcd_account_get_parameter:
- * @account: the #McdAccount.
- * @name: the parameter name.
- * @value: a initialized #GValue to receive the parameter value, or %NULL.
- *
- * Get the @name parameter for @account.
- *
- * Returns: %TRUE if found, %FALSE otherwise.
- */
-gboolean
-mcd_account_get_parameter (McdAccount *account, const gchar *name,
-                           GValue *value)
-{
-    return MCD_ACCOUNT_GET_CLASS (account)->get_parameter (account, name,
-                                                           value);
 }
 
 /**

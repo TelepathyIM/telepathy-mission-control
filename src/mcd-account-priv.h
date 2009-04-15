@@ -153,5 +153,7 @@ void _mcd_account_set_connection_context (McdAccount *self,
 G_GNUC_INTERNAL void _mcd_account_connection_context_free
     (McdAccountConnectionContext *c);
 
+G_GNUC_INTERNAL GHashTable *_mcd_account_dup_parameters (McdAccount *account);
+
 #endif /* __MCD_ACCOUNT_PRIV_H__ */
 
