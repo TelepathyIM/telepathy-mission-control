@@ -135,5 +135,8 @@ extern const McdDBusProp account_compat_properties[];
 void account_compat_iface_init (McSvcAccountInterfaceCompatClass *iface,
 				     gpointer iface_data);
 
+G_GNUC_INTERNAL void _mcd_account_connection_begin (McdAccount *account);
+G_GNUC_INTERNAL void _mcd_account_connection_class_init (McdAccountClass *klass);
+
 #endif /* __MCD_ACCOUNT_PRIV_H__ */
 

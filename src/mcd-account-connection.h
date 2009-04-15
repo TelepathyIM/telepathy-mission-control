@@ -32,10 +32,6 @@
 #include "mcd-connection-plugin.h"
 
 G_BEGIN_DECLS
-
-G_GNUC_INTERNAL void _mcd_account_connection_begin (McdAccount *account);
-G_GNUC_INTERNAL void _mcd_account_connection_class_init (McdAccountClass *klass);
-
 G_END_DECLS
 
 #endif /* __MCD_ACCOUNT_CONNECTION_H__ */
