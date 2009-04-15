@@ -43,6 +43,7 @@
 #include "mcd-account-connection.h"
 #include "mcd-account-requests.h"
 #include "mcd-account-stats.h"
+#include "mcd-connection-plugin.h"
 #include "mcd-misc.h"
 #include "mcd-signals-marshal.h"
 #include "mcd-manager.h"
@@ -104,6 +105,7 @@ struct _McdAccountPrivate
     McdConnection *connection;
     McdManager *manager;
     McdAccountManager *account_manager;
+    McdTransport *transport;
     GKeyFile *keyfile;		/* configuration file */
 
     /* connection status */
@@ -2462,4 +2464,31 @@ _mcd_account_request_temporary_presence (McdAccount *self,
     g_signal_emit (self, _mcd_account_signals[REQUESTED_PRESENCE_CHANGED],
                    0, type, status, "");
     self->priv->temporary_presence = TRUE;
+}
+
+/**
+ * mcd_account_connection_bind_transport:
+ * @account: the #McdAccount.
+ * @transport: the #McdTransport.
+ *
+ * Set @account as dependent on @transport; connectivity plugins should call
+ * this function in the callback they registered with
+ * mcd_plugin_register_account_connection(). This tells the account manager to
+ * disconnect @account when @transport goes away.
+ */
+void
+mcd_account_connection_bind_transport (McdAccount *account,
+                                       McdTransport *transport)
+{
+    g_return_if_fail (MCD_IS_ACCOUNT (account));
+
+    account->priv->transport = transport;
+}
+
+McdTransport *
+_mcd_account_connection_get_transport (McdAccount *account)
+{
+    g_return_val_if_fail (MCD_IS_ACCOUNT (account), NULL);
+
+    return account->priv->transport;
 }
