@@ -23,6 +23,8 @@
  *
  */
 
+#include "mcd-account-manager.h"
+
 #include <glib/gi18n.h>
 #include <string.h>
 #include <stdio.h>
@@ -33,9 +35,9 @@
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 #include <telepathy-glib/errors.h>
-#include "mcd-account-manager.h"
 #include "mcd-account-manager-query.h"
 #include "mcd-account-manager-creation.h"
+#include "mcd-account-manager-priv.h"
 #include "mcd-account.h"
 #include "mcd-account-config.h"
 #include "mcd-account-priv.h"
@@ -400,13 +402,14 @@ create_unique_name (McdAccountManagerPrivate *priv, const gchar *manager,
 }
 
 void
-mcd_account_manager_create_account (McdAccountManager *account_manager,
-				    const gchar *manager,
-				    const gchar *protocol,
-				    const gchar *display_name,
-				    GHashTable *params,
-                                    McdGetAccountCb callback,
-                                    gpointer user_data, GDestroyNotify destroy)
+_mcd_account_manager_create_account (McdAccountManager *account_manager,
+                                     const gchar *manager,
+                                     const gchar *protocol,
+                                     const gchar *display_name,
+                                     GHashTable *params,
+                                     McdGetAccountCb callback,
+                                     gpointer user_data,
+                                     GDestroyNotify destroy)
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
     McdCreateAccountData *cad;
@@ -485,10 +488,10 @@ account_manager_create_account (McSvcAccountManager *self,
 				GHashTable *parameters,
 				DBusGMethodInvocation *context)
 {
-    mcd_account_manager_create_account (MCD_ACCOUNT_MANAGER (self),
-                                        manager, protocol, display_name,
-                                        parameters,
-                                        create_account_cb, context, NULL);
+    _mcd_account_manager_create_account (MCD_ACCOUNT_MANAGER (self),
+                                         manager, protocol, display_name,
+                                         parameters,
+                                         create_account_cb, context, NULL);
 }
 
 static void
@@ -890,7 +893,7 @@ mcd_account_manager_write_conf (McdAccountManager *account_manager)
 }
 
 GHashTable *
-mcd_account_manager_get_accounts (McdAccountManager *account_manager)
+_mcd_account_manager_get_accounts (McdAccountManager *account_manager)
 {
     return account_manager->priv->accounts;
 }

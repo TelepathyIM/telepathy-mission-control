@@ -35,6 +35,7 @@
 #include "mcd-account.h"
 #include "mcd-account-manager.h"
 #include "mcd-account-manager-creation.h"
+#include "mcd-account-manager-priv.h"
 #include "_gen/interfaces.h"
 
 typedef struct
@@ -118,10 +119,10 @@ account_manager_create_account (McSvcAccountManagerInterfaceCreation *self,
     cd = g_slice_new (McdCreationData);
     cd->properties = g_hash_table_ref (properties);
     cd->context = context;
-    mcd_account_manager_create_account (MCD_ACCOUNT_MANAGER (self),
-                                        manager, protocol, display_name,
-                                        parameters, create_account_cb, cd,
-                                        (GDestroyNotify)mcd_creation_data_free);
+    _mcd_account_manager_create_account (MCD_ACCOUNT_MANAGER (self),
+                                         manager, protocol, display_name,
+                                         parameters, create_account_cb, cd,
+                                         (GDestroyNotify)mcd_creation_data_free);
 }
 
 

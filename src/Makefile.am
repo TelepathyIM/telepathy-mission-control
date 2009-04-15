@@ -121,6 +121,7 @@ libmissioncontrol_server_la_SOURCES = \
 	mcd-account-stats.c \
 	mcd-account-manager.c \
 	mcd-account-manager-creation.c \
+	mcd-account-manager-priv.h \
 	mcd-account-manager-query.c \
 	mcd-account-priv.h \
 	mcd-dbusprop.c \

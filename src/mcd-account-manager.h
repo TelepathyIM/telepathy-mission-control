@@ -76,8 +76,6 @@ McdAccountManager *mcd_account_manager_new (TpDBusDaemon *dbus_daemon);
 TpDBusDaemon *mcd_account_manager_get_dbus_daemon
     (McdAccountManager *account_manager);
 
-void _mcd_account_manager_setup (McdAccountManager *account_manager);
-
 GKeyFile *mcd_account_manager_get_config (McdAccountManager *account_manager);
 void mcd_account_manager_write_conf (McdAccountManager *account_manager);
 
@@ -85,26 +83,5 @@ McdAccount *mcd_account_manager_lookup_account (McdAccountManager *account_manag
 						const gchar *name);
 McdAccount *mcd_account_manager_lookup_account_by_path (McdAccountManager *account_manager,
 						       	const gchar *object_path);
-
-/* for interfaces only */
-G_GNUC_INTERNAL
-GHashTable *mcd_account_manager_get_accounts (McdAccountManager *account_manager);
-
-typedef void (*McdGetAccountCb) (McdAccountManager *account_manager,
-                                 McdAccount *account,
-                                 const GError *error,
-                                 gpointer user_data);
-G_GNUC_INTERNAL
-void mcd_account_manager_create_account (McdAccountManager *account_manager,
-                                         const gchar *manager,
-                                         const gchar *protocol,
-                                         const gchar *display_name,
-                                         GHashTable *params,
-                                         McdGetAccountCb callback,
-                                         gpointer user_data,
-                                         GDestroyNotify destroy);
-G_GNUC_INTERNAL
-void _mcd_account_manager_store_account_connections
-    (McdAccountManager *manager);
 
 #endif

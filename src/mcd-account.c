@@ -41,6 +41,7 @@
 #include "mcd-account-compat.h"
 #include "mcd-account-conditions.h"
 #include "mcd-account-connection.h"
+#include "mcd-account-manager-priv.h"
 #include "mcd-account-requests.h"
 #include "mcd-account-stats.h"
 #include "mcd-connection-plugin.h"

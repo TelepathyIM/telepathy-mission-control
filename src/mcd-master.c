@@ -60,6 +60,7 @@
 #include "mcd-manager.h"
 #include "mcd-dispatcher.h"
 #include "mcd-account-manager.h"
+#include "mcd-account-manager-priv.h"
 #include "mcd-account-conditions.h"
 #include "mcd-account-compat.h"
 #include "mcd-account-priv.h"
@@ -166,7 +167,7 @@ mcd_master_transport_connected (McdMaster *master, McdTransportPlugin *plugin,
     td.plugin = plugin;
     td.transport = transport;
 
-    accounts = mcd_account_manager_get_accounts (priv->account_manager);
+    accounts = _mcd_account_manager_get_accounts (priv->account_manager);
     g_hash_table_foreach (accounts, check_account_transport, &td);
 }
 
@@ -211,7 +212,7 @@ mcd_master_transport_disconnected (McdMaster *master, McdTransportPlugin *plugin
     td.plugin = plugin;
     td.transport = transport;
 
-    accounts = mcd_account_manager_get_accounts (priv->account_manager);
+    accounts = _mcd_account_manager_get_accounts (priv->account_manager);
     g_hash_table_foreach (accounts, disconnect_account_transport, &td);
 }
 
@@ -223,7 +224,7 @@ mcd_master_connect_automatic_accounts (McdMaster *master)
     GHashTableIter iter;
     gpointer ht_key, ht_value;
 
-    accounts = mcd_account_manager_get_accounts (priv->account_manager);
+    accounts = _mcd_account_manager_get_accounts (priv->account_manager);
     g_hash_table_iter_init (&iter, accounts);
     while (g_hash_table_iter_next (&iter, &ht_key, &ht_value))
     {
@@ -430,7 +431,7 @@ _mcd_master_set_flags (McdMission * mission, McdSystemFlags flags)
         gpointer v;
 
         g_hash_table_iter_init (&iter,
-            mcd_account_manager_get_accounts (priv->account_manager));
+            _mcd_account_manager_get_accounts (priv->account_manager));
 
         while (g_hash_table_iter_next (&iter, NULL, &v))
         {

@@ -35,6 +35,7 @@
 #include "mcd-account.h"
 #include "mcd-account-manager.h"
 #include "mcd-account-manager-query.h"
+#include "mcd-account-manager-priv.h"
 #include "mcd-account-priv.h"
 #include "_gen/interfaces.h"
 
@@ -319,10 +320,11 @@ account_manager_find_accounts (McSvcAccountManagerInterfaceQuery *self,
     g_hash_table_foreach (query, parse_query, &fd);
     if (!fd.error)
     {
-	GHashTable *accounts;
-	fd.accounts = g_ptr_array_sized_new (16);
-	accounts = mcd_account_manager_get_accounts (account_manager);
-	g_hash_table_foreach (accounts, find_accounts, &fd);
+        GHashTable *accounts;
+
+        fd.accounts = g_ptr_array_sized_new (16);
+        accounts = _mcd_account_manager_get_accounts (account_manager);
+        g_hash_table_foreach (accounts, find_accounts, &fd);
     }
     g_array_free (fd.params, TRUE);
     for (i = 0; i < fd.properties->len; i++)
