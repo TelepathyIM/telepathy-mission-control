@@ -79,9 +79,6 @@ G_GNUC_INTERNAL void _mcd_account_load (McdAccount *account,
 G_GNUC_INTERNAL void _mcd_account_set_connection (McdAccount *account,
                                                   McdConnection *connection);
 
-G_GNUC_INTERNAL void _mcd_account_set_connection_status (McdAccount *account,
-    TpConnectionStatus status, TpConnectionStatusReason reason);
-
 typedef void (*McdOnlineRequestCb) (McdAccount *account, gpointer userdata,
 				    const GError *error);
 void _mcd_account_online_request (McdAccount *account,

@@ -2224,10 +2224,11 @@ process_online_requests (McdAccount *account,
     _mcd_account_online_request_completed (account, error);
 }
 
-void
-_mcd_account_set_connection_status (McdAccount *account,
-                                    TpConnectionStatus status,
-                                    TpConnectionStatusReason reason)
+static void
+on_conn_status_changed (McdConnection *connection,
+                        TpConnectionStatus status,
+                        TpConnectionStatusReason reason,
+                        McdAccount *account)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     gboolean changed = FALSE;
@@ -2381,7 +2382,7 @@ _mcd_account_online_request (McdAccount *account,
 
 	/* now the connection should be in connecting state; insert the
 	 * callback in the online_requests hash table, which will be processed
-	 * in the _mcd_account_set_connection_status function */
+	 * in the connection-status-changed callback */
         data = g_slice_new (McdOnlineRequestData);
         data->callback = callback;
         data->user_data = userdata;
@@ -2436,6 +2437,9 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
         g_signal_handlers_disconnect_by_func (priv->connection,
                                               on_conn_self_presence_changed,
                                               account);
+        g_signal_handlers_disconnect_by_func (priv->connection,
+                                              on_conn_status_changed,
+                                              account);
         g_object_unref (priv->connection);
     }
     priv->connection = connection;
@@ -2445,6 +2449,8 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
         g_object_ref (connection);
         g_signal_connect (connection, "self-presence-changed",
                           G_CALLBACK (on_conn_self_presence_changed), account);
+        g_signal_connect (connection, "connection-status-changed",
+                          G_CALLBACK (on_conn_status_changed), account);
         g_signal_connect (connection, "abort",
                           G_CALLBACK (on_connection_abort), account);
     }

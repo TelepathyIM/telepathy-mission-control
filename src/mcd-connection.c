@@ -170,6 +170,7 @@ enum
 enum
 {
     SELF_PRESENCE_CHANGED,
+    CONNECTION_STATUS_CHANGED,
     N_SIGNALS
 };
 
@@ -1099,15 +1100,15 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
     switch (conn_status)
     {
     case TP_CONNECTION_STATUS_CONNECTING:
-        _mcd_account_set_connection_status (priv->account,
-                                            conn_status, conn_reason);
+        g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
+                       conn_status, conn_reason);
         priv->abort_reason = TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
         break;
 
     case TP_CONNECTION_STATUS_CONNECTED:
         {
-            _mcd_account_set_connection_status (priv->account,
-                                                conn_status, conn_reason);
+            g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
+                           conn_status, conn_reason);
             priv->reconnect_interval = INITIAL_RECONNECTION_TIME;
         }
         break;
@@ -1571,7 +1572,7 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
         g_warning ("%s: RequestConnection failed: %s",
                    G_STRFUNC, tperror->message);
 
-        _mcd_account_set_connection_status (priv->account,
+        g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
             TP_CONNECTION_STATUS_DISCONNECTED,
             TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
         return;
@@ -1606,9 +1607,9 @@ _mcd_connection_connect_with_params (McdConnection *connection,
     DEBUG ("Trying connect account: %s",
            mcd_account_get_unique_name (priv->account));
 
-    _mcd_account_set_connection_status (priv->account,
-                                        TP_CONNECTION_STATUS_CONNECTING,
-                                        TP_CONNECTION_STATUS_REASON_REQUESTED);
+    g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
+                   TP_CONNECTION_STATUS_CONNECTING,
+                   TP_CONNECTION_STATUS_REASON_REQUESTED);
 
     /* TODO: add extra parameters? */
     tp_cli_connection_manager_call_request_connection (priv->tp_conn_mgr, -1,
@@ -1645,9 +1646,9 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
     DEBUG ("%p", connection);
     g_signal_emit (connection, signals[SELF_PRESENCE_CHANGED], 0,
                    TP_CONNECTION_PRESENCE_TYPE_OFFLINE, "offline", "");
-    _mcd_account_set_connection_status (priv->account,
-                                        TP_CONNECTION_STATUS_DISCONNECTED,
-                                        priv->abort_reason);
+    g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
+                   TP_CONNECTION_STATUS_DISCONNECTED,
+                   priv->abort_reason);
     if (priv->tp_conn)
     {
 	/* Disconnect signals */
@@ -1966,6 +1967,12 @@ mcd_connection_class_init (McdConnectionClass * klass)
         G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED, 0,
         NULL, NULL, _mcd_marshal_VOID__UINT_STRING_STRING,
         G_TYPE_NONE, 3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING);
+
+    signals[CONNECTION_STATUS_CHANGED] = g_signal_new (
+        "connection-status-changed", G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED, 0,
+        NULL, NULL, _mcd_marshal_VOID__UINT_UINT,
+        G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_UINT);
 }
 
 static void
@@ -2568,7 +2575,7 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
                                        obj_path, error);
     if (!priv->tp_conn)
     {
-        _mcd_account_set_connection_status (priv->account,
+        g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
             TP_CONNECTION_STATUS_DISCONNECTED,
             TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
         return;

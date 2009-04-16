@@ -23,6 +23,15 @@ McdConnection
 </para>
 
 
+<!-- ##### SIGNAL McdConnection::connection-status-changed ##### -->
+<para>
+
+</para>
+
+@mcdconnection: the object which received the signal.
+@arg1: 
+@arg2: 
+
 <!-- ##### SIGNAL McdConnection::self-presence-changed ##### -->
 <para>
 
