@@ -1993,21 +1993,6 @@ mcd_connection_get_account (McdConnection * id)
     return priv->account;
 }
 
-TpConnectionStatusReason
-mcd_connection_get_connection_status_reason (McdConnection *connection)
-{
-    McdConnectionPrivate *priv = connection->priv;
-    TpConnectionStatusReason conn_reason;
-
-    if (priv->tp_conn)
-	g_object_get (G_OBJECT (priv->tp_conn),
-		      "status-reason", &conn_reason,
-		      NULL);
-    else
-	conn_reason = TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
-    return conn_reason;
-}
-
 static GError *
 map_tp_error_to_mc_error (McdChannel *channel, const GError *error)
 {
