@@ -292,6 +292,34 @@ _check_presence (McdConnectionPrivate *priv, TpConnectionPresenceType presence,
 }
 
 static void
+_mcd_connection_attempt (McdConnection *connection)
+{
+    g_return_if_fail (connection->priv->tp_conn_mgr != NULL);
+    g_return_if_fail (connection->priv->account != NULL);
+
+    DEBUG ("called for %p, account %s", connection,
+           mcd_account_get_unique_name (connection->priv->account));
+
+    if (priv->reconnect_timer != 0)
+    {
+        g_source_remove (priv->reconnect_timer);
+        priv->reconnect_timer = 0;
+    }
+
+    if (mcd_account_get_connection_status (priv->account) ==
+        TP_CONNECTION_STATUS_DISCONNECTED)
+    {
+        _mcd_account_connection_begin (priv->account);
+    }
+    else
+    {
+        /* Can this happen? We just don't know. */
+        DEBUG ("Not connecting because not disconnected (%i)",
+               mcd_account_get_connection_status (priv->account));
+    }
+}
+
+static void
 _mcd_connection_set_presence (McdConnection * connection,
                               TpConnectionPresenceType presence,
 			      const gchar *status, const gchar *message)
@@ -301,7 +329,7 @@ _mcd_connection_set_presence (McdConnection * connection,
     if (!priv->tp_conn)
     {
         DEBUG ("tp_conn is NULL");
-        _mcd_connection_connect (connection, NULL);
+        _mcd_connection_attempt (connection);
         return;
     }
     g_return_if_fail (TP_IS_CONNECTION (priv->tp_conn));
@@ -1077,7 +1105,7 @@ static gboolean
 mcd_connection_reconnect (McdConnection *connection)
 {
     DEBUG ("%p", connection);
-    _mcd_connection_connect (connection, NULL);
+    _mcd_connection_attempt (connection);
     return FALSE;
 }
 
@@ -2423,9 +2451,6 @@ mcd_connection_close (McdConnection *connection)
  * @params: a #GHashTable of connection parameters
  *
  * Activate @connection.
- *
- * If @params are NULL, tell the account to start connecting. Otherwise,
- * actually connect, using @params.
  */
 void
 _mcd_connection_connect (McdConnection *connection, GHashTable *params)
@@ -2433,6 +2458,7 @@ _mcd_connection_connect (McdConnection *connection, GHashTable *params)
     McdConnectionPrivate *priv;
 
     g_return_if_fail (MCD_IS_CONNECTION (connection));
+    g_return_if_fail (params != NULL);
     priv = connection->priv;
 
     g_return_if_fail (priv->tp_conn_mgr);
@@ -2449,14 +2475,7 @@ _mcd_connection_connect (McdConnection *connection, GHashTable *params)
     if (mcd_account_get_connection_status (priv->account) ==
         TP_CONNECTION_STATUS_DISCONNECTED)
     {
-        if (params)
-        {
-            _mcd_connection_connect_with_params (connection, params);
-        }
-        else
-        {
-            _mcd_account_connection_begin (priv->account);
-        }
+        _mcd_connection_connect_with_params (connection, params);
     }
     else
     {
