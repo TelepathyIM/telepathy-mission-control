@@ -959,16 +959,9 @@ get_connection_status (TpSvcDBusProperties *self,
 		       const gchar *name, GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
-    McdAccountPrivate *priv = account->priv;
-    TpConnectionStatus status;
-
-    if (priv->connection)
-	status = mcd_account_get_connection_status (account);
-    else
-	status = TP_CONNECTION_STATUS_DISCONNECTED;
 
     g_value_init (value, G_TYPE_UINT);
-    g_value_set_uint (value, status);
+    g_value_set_uint (value, account->priv->conn_status);
 }
 
 static void
@@ -976,16 +969,9 @@ get_connection_status_reason (TpSvcDBusProperties *self,
 			      const gchar *name, GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
-    McdAccountPrivate *priv = account->priv;
-    TpConnectionStatusReason reason;
-
-    if (priv->connection)
-	reason = mcd_connection_get_connection_status_reason (priv->connection);
-    else
-	reason = TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
 
     g_value_init (value, G_TYPE_UINT);
-    g_value_set_uint (value, reason);
+    g_value_set_uint (value, account->priv->conn_reason);
 }
 
 static void
