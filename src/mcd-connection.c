@@ -65,6 +65,7 @@
 #include "mcd-misc.h"
 #include "sp_timestamp.h"
 
+#include "mcd-signals-marshal.h"
 #include "_gen/interfaces.h"
 #include "_gen/gtypes.h"
 #include "_gen/cli-Connection_Interface_Contact_Capabilities.h"
@@ -166,6 +167,14 @@ enum
     PROP_DISPATCHER,
 };
 
+enum
+{
+    SELF_PRESENCE_CHANGED,
+    N_SIGNALS
+};
+
+static guint signals[N_SIGNALS] = { 0 };
+
 struct request_id {
     guint requestor_serial;
     const gchar *requestor_client_id;
@@ -242,8 +251,8 @@ presence_set_status_cb (TpConnection *proxy, const GError *error,
          * been changed -- but we hope it didn't */
         mcd_account_get_requested_presence (priv->account,
                                             &presence, &status, &message);
-        _mcd_account_set_current_presence (priv->account,
-                                           presence, status, message);
+        g_signal_emit (weak_object, signals[SELF_PRESENCE_CHANGED], 0,
+                       presence, status, message);
     }
 }
 
@@ -382,8 +391,8 @@ on_presences_changed (TpConnection *proxy, GHashTable *presences,
         presence = g_value_get_uint (va->values);
         status = g_value_get_string (va->values + 1);
         message = g_value_get_string (va->values + 2);
-        _mcd_account_set_current_presence (priv->account,
-                                           presence, status, message);
+        g_signal_emit (weak_object, signals[SELF_PRESENCE_CHANGED], 0,
+                       presence, status, message);
         priv->got_presences_changed = TRUE;
     }
 }
@@ -1634,9 +1643,8 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
 
     DEBUG ("%p", connection);
-    _mcd_account_set_current_presence (priv->account,
-                                       TP_CONNECTION_PRESENCE_TYPE_OFFLINE,
-                                       "offline", NULL);
+    g_signal_emit (connection, signals[SELF_PRESENCE_CHANGED], 0,
+                   TP_CONNECTION_PRESENCE_TYPE_OFFLINE, "offline", "");
     _mcd_account_set_connection_status (priv->account,
                                         TP_CONNECTION_STATUS_DISCONNECTED,
                                         priv->abort_reason);
@@ -1952,6 +1960,12 @@ mcd_connection_class_init (McdConnectionClass * klass)
                               "Account",
                               MCD_TYPE_ACCOUNT,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+
+    signals[SELF_PRESENCE_CHANGED] = g_signal_new ("self-presence-changed",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED, 0,
+        NULL, NULL, _mcd_marshal_VOID__UINT_STRING_STRING,
+        G_TYPE_NONE, 3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING);
 }
 
 static void

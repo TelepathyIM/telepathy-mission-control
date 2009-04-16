@@ -44,10 +44,6 @@ G_GNUC_INTERNAL void _mcd_account_set_parameter (McdAccount *account,
                                                  const gchar *name,
                                                  const GValue *value);
 
-G_GNUC_INTERNAL void _mcd_account_set_current_presence (McdAccount *account,
-    TpConnectionPresenceType presence, const gchar *status,
-    const gchar *message);
-
 G_GNUC_INTERNAL void _mcd_account_request_temporary_presence (McdAccount *self,
     TpConnectionPresenceType type, const gchar *status);
 

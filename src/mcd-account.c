@@ -1862,20 +1862,14 @@ mcd_account_request_presence (McdAccount *account,
     }
 }
 
-/*
- * _mcd_account_set_current_presence:
- * @account: the #McdAccount.
- * @presence: a #TpConnectionPresenceType.
- * @status: presence status.
- * @message: presence status message.
- *
- * Set a presence status on the account.
- */
-void
-_mcd_account_set_current_presence (McdAccount *account,
-                                   TpConnectionPresenceType presence,
-                                   const gchar *status, const gchar *message)
+static void
+on_conn_self_presence_changed (McdConnection *connection,
+                               TpConnectionPresenceType presence,
+                               const gchar *status,
+                               const gchar *message,
+                               gpointer user_data)
 {
+    McdAccount *account = MCD_ACCOUNT (user_data);
     McdAccountPrivate *priv = account->priv;
     gboolean changed = FALSE;
     GValue value = { 0 };
@@ -2426,6 +2420,9 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
     {
         g_signal_handlers_disconnect_by_func (priv->connection,
                                               on_connection_abort, account);
+        g_signal_handlers_disconnect_by_func (priv->connection,
+                                              on_conn_self_presence_changed,
+                                              account);
         g_object_unref (priv->connection);
     }
     priv->connection = connection;
@@ -2433,6 +2430,8 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
     {
         g_return_if_fail (MCD_IS_CONNECTION (connection));
         g_object_ref (connection);
+        g_signal_connect (connection, "self-presence-changed",
+                          G_CALLBACK (on_conn_self_presence_changed), account);
         g_signal_connect (connection, "abort",
                           G_CALLBACK (on_connection_abort), account);
     }
