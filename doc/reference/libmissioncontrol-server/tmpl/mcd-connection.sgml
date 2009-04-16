@@ -76,15 +76,6 @@ McdConnection
 @Returns: 
 
 
-<!-- ##### FUNCTION mcd_connection_get_connection_status ##### -->
-<para>
-
-</para>
-
-@connection: 
-@Returns: 
-
-
 <!-- ##### FUNCTION mcd_connection_request_channel ##### -->
 <para>
 
