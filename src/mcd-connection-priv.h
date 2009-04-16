@@ -30,6 +30,9 @@
 
 G_BEGIN_DECLS
 
+G_GNUC_INTERNAL void _mcd_connection_request_presence (McdConnection *self,
+    TpConnectionPresenceType type, const gchar *status, const gchar *message);
+
 G_GNUC_INTERNAL void _mcd_connection_connect (McdConnection *connection,
                                               GHashTable *params);
 G_GNUC_INTERNAL

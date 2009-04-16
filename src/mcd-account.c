@@ -160,7 +160,6 @@ enum
 enum
 {
     CONNECTION_STATUS_CHANGED,
-    REQUESTED_PRESENCE_CHANGED,
     VALIDITY_CHANGED,
     AVATAR_CHANGED,
     ALIAS_CHANGED,
@@ -480,14 +479,18 @@ mcd_account_request_presence_int (McdAccount *account,
     if (!(changed || priv->temporary_presence))
         return FALSE;
 
-    if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE && !priv->connection)
+    if (priv->connection == NULL)
     {
-        _mcd_account_connection_begin (account);
+        if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
+        {
+            _mcd_account_connection_begin (account);
+        }
     }
-
-    g_signal_emit (account,
-		   _mcd_account_signals[REQUESTED_PRESENCE_CHANGED], 0,
-		   type, status, message);
+    else
+    {
+        _mcd_connection_request_presence (priv->connection,
+                                          type, status, message);
+    }
     return TRUE;
 }
 
@@ -1671,14 +1674,6 @@ mcd_account_class_init (McdAccountClass * klass)
 		      NULL, NULL, _mcd_marshal_VOID__UINT_UINT,
 		      G_TYPE_NONE,
 		      2, G_TYPE_UINT, G_TYPE_UINT);
-    _mcd_account_signals[REQUESTED_PRESENCE_CHANGED] =
-	g_signal_new ("requested-presence-changed",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL, _mcd_marshal_VOID__UINT_STRING_STRING,
-		      G_TYPE_NONE,
-		      3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING);
     _mcd_account_signals[VALIDITY_CHANGED] =
 	g_signal_new ("validity-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
@@ -2481,10 +2476,12 @@ _mcd_account_request_temporary_presence (McdAccount *self,
                                          TpConnectionPresenceType type,
                                          const gchar *status)
 {
-    /* tell the McdConnection (if it exists) to update our presence, but don't
-     * alter RequestedPresence (so we can go back to the old value later) */
-    g_signal_emit (self, _mcd_account_signals[REQUESTED_PRESENCE_CHANGED],
-                   0, type, status, "");
+    if (self->priv->connection != NULL)
+    {
+        _mcd_connection_request_presence (self->priv->connection,
+                                          type, status, "");
+    }
+
     self->priv->temporary_presence = TRUE;
 }
 

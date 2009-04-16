@@ -437,7 +437,8 @@ _mcd_connection_call_disconnect (McdConnection *connection)
 
 }
 
-/* This handler should update the presence of the tp_connection. 
+/* Update the presence of the tp_connection.
+ *
  * Note, that the only presence transition not served by this function 
  * is getting to non-offline state since when presence is offline this object 
  * does not exist.
@@ -445,35 +446,33 @@ _mcd_connection_call_disconnect (McdConnection *connection)
  * So, here we just submit the request to the tp_connection object. The return off 
  * the operation is handled by (yet to be written) handler
  */
-static void
-on_presence_requested (McdAccount *account,
-		       TpConnectionPresenceType presence,
-		       const gchar *status, const gchar *message,
-		       gpointer user_data)
+void
+_mcd_connection_request_presence (McdConnection *self,
+                                  TpConnectionPresenceType presence,
+                                  const gchar *status, const gchar *message)
 {
-    McdConnection *connection = MCD_CONNECTION (user_data);
-    McdConnectionPrivate *priv = connection->priv;
+    g_return_if_fail (MCD_IS_CONNECTION (self));
 
     DEBUG ("Presence requested: %d", presence);
     if (presence == TP_CONNECTION_PRESENCE_TYPE_UNSET) return;
 
     if (presence == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
     {
-	/* Connection Proxy */
-	priv->abort_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
-	mcd_mission_disconnect (MCD_MISSION (connection));
-	_mcd_connection_call_disconnect (connection);
+        /* Connection Proxy */
+        self->priv->abort_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
+        mcd_mission_disconnect (MCD_MISSION (self));
+        _mcd_connection_call_disconnect (self);
 
         /* if a reconnection attempt is scheduled, cancel it */
-        if (priv->reconnect_timer)
+        if (self->priv->reconnect_timer)
         {
-            g_source_remove (priv->reconnect_timer);
-            priv->reconnect_timer = 0;
+            g_source_remove (self->priv->reconnect_timer);
+            self->priv->reconnect_timer = 0;
         }
     }
     else
     {
-        _mcd_connection_set_presence (connection, presence, status, message);
+        _mcd_connection_set_presence (self, presence, status, message);
     }
 }
 
@@ -1709,9 +1708,6 @@ _mcd_connection_dispose (GObject * object)
     if (priv->account)
     {
 	g_signal_handlers_disconnect_by_func (priv->account,
-					      G_CALLBACK
-					      (on_presence_requested), object);
-	g_signal_handlers_disconnect_by_func (priv->account,
 					      G_CALLBACK (on_account_avatar_changed),
 					      object);
 	g_signal_handlers_disconnect_by_func (priv->account,
@@ -1786,9 +1782,6 @@ _mcd_connection_set_property (GObject * obj, guint prop_id,
 	g_return_if_fail (MCD_IS_ACCOUNT (account));
 	g_object_ref (account);
 	priv->account = account;
-	g_signal_connect (priv->account,
-			  "requested-presence-changed",
-			  G_CALLBACK (on_presence_requested), obj);
 	g_signal_connect (priv->account,
 			  "mcd-avatar-changed",
 			  G_CALLBACK (on_account_avatar_changed), obj);
