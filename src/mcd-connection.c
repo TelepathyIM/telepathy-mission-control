@@ -1993,13 +1993,6 @@ mcd_connection_get_account (McdConnection * id)
     return priv->account;
 }
 
-TpConnectionStatus
-mcd_connection_get_connection_status (McdConnection * id)
-{
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (id);
-    return mcd_account_get_connection_status (priv->account);
-}
-
 TpConnectionStatusReason
 mcd_connection_get_connection_status_reason (McdConnection *connection)
 {
@@ -2472,7 +2465,7 @@ _mcd_connection_connect (McdConnection *connection, GHashTable *params)
 	priv->reconnect_timer = 0;
     }
 
-    if (mcd_connection_get_connection_status (connection) ==
+    if (mcd_account_get_connection_status (priv->account) ==
         TP_CONNECTION_STATUS_DISCONNECTED)
     {
         if (connection->priv->params != NULL)
@@ -2495,7 +2488,7 @@ _mcd_connection_connect (McdConnection *connection, GHashTable *params)
     else
     {
         DEBUG ("Not connecting because not disconnected (%i)",
-               mcd_connection_get_connection_status (connection));
+               mcd_account_get_connection_status (priv->account));
     }
 }
 

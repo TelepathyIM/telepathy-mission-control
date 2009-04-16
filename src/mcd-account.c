@@ -963,7 +963,7 @@ get_connection_status (TpSvcDBusProperties *self,
     TpConnectionStatus status;
 
     if (priv->connection)
-	status = mcd_connection_get_connection_status (priv->connection);
+	status = mcd_account_get_connection_status (account);
     else
 	status = TP_CONNECTION_STATUS_DISCONNECTED;
 
