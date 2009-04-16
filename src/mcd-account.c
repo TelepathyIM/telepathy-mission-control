@@ -1221,7 +1221,7 @@ _mcd_account_set_parameter (McdAccount *account, const gchar *name,
 
 gboolean
 _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
-                             GError **error)
+                             const gchar ** unset, GError **error)
 {
     McdAccountPrivate *priv = account->priv;
     const TpConnectionManagerParam *param;
@@ -1308,6 +1308,16 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
         _mcd_account_set_parameter (account, name, value);
     }
 
+    if (unset != NULL)
+    {
+        const gchar **unset_iter;
+
+        for (unset_iter = unset; *unset_iter != NULL; unset_iter++)
+        {
+            _mcd_account_set_parameter (account, *unset_iter, NULL);
+        }
+    }
+
     if (mcd_account_get_connection_status (account) ==
         TP_CONNECTION_STATUS_CONNECTED)
     {
@@ -1336,17 +1346,6 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     return TRUE;
 }
 
-static inline void
-mcd_account_unset_parameters (McdAccount *account, const gchar **params)
-{
-    const gchar **param;
-
-    for (param = params; *param != NULL; param++)
-    {
-        _mcd_account_set_parameter (account, *param, NULL);
-    }
-}
-
 static void
 account_update_parameters (McSvcAccount *self, GHashTable *set,
 			   const gchar **unset, DBusGMethodInvocation *context)
@@ -1359,7 +1358,7 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
 
     DEBUG ("called for %s", priv->unique_name);
 
-    if (!_mcd_account_set_parameters (account, set, &error))
+    if (!_mcd_account_set_parameters (account, set, unset, &error))
     {
 	if (!error)
 	    g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
@@ -1368,8 +1367,6 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
 	g_error_free (error);
 	return;
     }
-
-    mcd_account_unset_parameters (account, unset);
 
     /* emit the PropertiesChanged signal */
     parameters = _mcd_account_dup_parameters (account);
