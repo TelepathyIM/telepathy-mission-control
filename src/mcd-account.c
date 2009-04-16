@@ -160,7 +160,6 @@ enum
 enum
 {
     CONNECTION_STATUS_CHANGED,
-    CURRENT_PRESENCE_CHANGED,
     REQUESTED_PRESENCE_CHANGED,
     VALIDITY_CHANGED,
     AVATAR_CHANGED,
@@ -1659,14 +1658,6 @@ mcd_account_class_init (McdAccountClass * klass)
 		      NULL, NULL, _mcd_marshal_VOID__UINT_UINT,
 		      G_TYPE_NONE,
 		      2, G_TYPE_UINT, G_TYPE_UINT);
-    _mcd_account_signals[CURRENT_PRESENCE_CHANGED] =
-	g_signal_new ("current-presence-changed",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL, _mcd_marshal_VOID__UINT_STRING_STRING,
-		      G_TYPE_NONE,
-		      3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING);
     _mcd_account_signals[REQUESTED_PRESENCE_CHANGED] =
 	g_signal_new ("requested-presence-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
@@ -1920,11 +1911,6 @@ _mcd_account_set_current_presence (McdAccount *account,
     g_value_set_static_string (va->values + 2, message);
     mcd_account_changed_property (account, "CurrentPresence", &value);
     g_value_unset (&value);
-
-    /* TODO: when the McdPresenceFrame is removed, check if this signal is
-     * still used by someone else, or remove it */
-    g_signal_emit (account, _mcd_account_signals[CURRENT_PRESENCE_CHANGED], 0,
-		   presence, status, message);
 }
 
 /* TODO: remove when the relative members will become public */
