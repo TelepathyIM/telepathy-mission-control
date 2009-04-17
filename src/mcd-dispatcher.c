@@ -3029,6 +3029,7 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
     GValue v_requests = { 0, };
     GValue v_account = { 0, };
     GValue v_preferred_handler = { 0, };
+    GValue v_interfaces = { 0, };
     GPtrArray *requests;
     McdRemoveRequestData *rrd;
 
@@ -3070,6 +3071,11 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
                               mcd_account_get_object_path (account));
     g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest"
                          ".Account", &v_account);
+
+    g_value_init (&v_interfaces, G_TYPE_STRV);
+    g_value_set_static_boxed (&v_interfaces, NULL);
+    g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest"
+                         ".Interfaces", &v_interfaces);
 
     g_value_init (&v_preferred_handler, G_TYPE_STRING);
     g_value_set_static_string (&v_preferred_handler,

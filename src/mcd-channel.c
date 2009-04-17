@@ -112,6 +112,7 @@ enum _McdChannelPropertyType
     PROP_REQUESTS,
     PROP_USER_ACTION_TIME,
     PROP_PREFERRED_HANDLER,
+    PROP_INTERFACES,
 };
 
 #define DEPRECATED_PROPERTY_WARNING \
@@ -428,6 +429,11 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
         g_value_take_boxed (val, g_ptr_array_sized_new (0));
         break;
 
+    case PROP_INTERFACES:
+        /* we have no interfaces */
+        g_value_set_static_boxed (val, NULL);
+        break;
+
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
@@ -562,6 +568,7 @@ mcd_channel_class_init (McdChannelClass * klass)
         { "Account", "account-path", NULL },
         { "UserActionTime", "user-action-time", NULL },
         { "PreferredHandler", "preferred-handler", NULL },
+        { "Interfaces", "interfaces", NULL },
         { "Requests", "requests", NULL },
         { NULL }
     };
@@ -649,6 +656,14 @@ mcd_channel_class_init (McdChannelClass * klass)
                              "Requests",
                              "A dbus-glib aa{sv}",
                              TP_ARRAY_TYPE_QUALIFIED_PROPERTY_VALUE_MAP_LIST,
+                             G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
+    g_object_class_install_property
+        (object_class, PROP_INTERFACES,
+         g_param_spec_boxed ("interfaces",
+                             "Interfaces",
+                             "A dbus-glib 'as'",
+                             G_TYPE_STRV,
                              G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
     klass->dbus_properties_class.interfaces = prop_interfaces,
