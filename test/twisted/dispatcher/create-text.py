@@ -88,6 +88,7 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
     assert request_props['Account'] == account.object_path
     assert request_props['Requests'] == [request]
     assert request_props['UserActionTime'] == user_action_time
+    assert request_props['PreferredHandler'] == client.bus_name
 
     cr.Proceed(dbus_interface=cs.CR + '.DRAFT')
 

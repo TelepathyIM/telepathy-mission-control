@@ -37,6 +37,12 @@
           <tp:dbus-ref namespace="org.freedesktop.Telepathy">ChannelDispatcher.DRAFT.CreateChannel</tp:dbus-ref>
           for rationale for ChannelRequest being a separate object.</p>
       </tp:rationale>
+
+      <p>A channel request can be cancelled by any client (not just the one
+        that requested it). This means that the ChannelDispatcher will
+        <tp:dbus-ref namespace="org.freedesktop.Telepathy.Channel">Close</tp:dbus-ref>
+        the resulting channel, or refrain from requesting it at all, rather
+        than dispatching it to a handler.</p>
     </tp:docstring>
 
     <property name="Account" tp:name-for-bindings="Account"
@@ -56,6 +62,20 @@
 
         <p>This corresponds to the _NET_WM_USER_TIME property in
           <a href="http://standards.freedesktop.org/wm-spec/wm-spec-latest.html">EWMH</a>.</p>
+
+        <p>This property is set when the channel request is created,
+          and can never change.</p>
+      </tp:docstring>
+    </property>
+
+    <property name="PreferredHandler" tp:name-for-bindings="Preferred_Handler"
+      type="s" tp:type="DBus_Well_Known_Name" access="read">
+      <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+          <p>Either the well-known bus name (starting with
+            <code>org.freedesktop.Telepathy.Client.</code>)
+            of the preferred handler for this
+            channel, or an empty string to indicate that any handler would be
+            acceptable.</p>
 
         <p>This property is set when the channel request is created,
           and can never change.</p>
