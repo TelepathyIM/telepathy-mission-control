@@ -99,6 +99,7 @@ def test(q, bus, mc):
 
     assert cdo_properties[cs.CDO + '.Account'] == account.object_path
     assert cdo_properties[cs.CDO + '.Connection'] == conn.object_path
+    assert cs.CDO + '.Interfaces' in cdo_properties
 
     handlers = cdo_properties[cs.CDO + '.PossibleHandlers'][:]
     handlers.sort()
