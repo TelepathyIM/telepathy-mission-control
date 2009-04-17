@@ -166,7 +166,7 @@ _gen/interfaces-body.h: _gen/all.xml \
 # (Currently the only "class" is nmc4, but the new API will need "classes"
 # like account, account-manager, ...)
 
-_gen/%.xml: %.xml
+_gen/%.xml: %.xml $(wildcard $(top_srcdir)/xml/*.xml)
 	$(mkdir_p) _gen
 	$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
