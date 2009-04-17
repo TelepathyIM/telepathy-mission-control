@@ -1247,6 +1247,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
 {
     McdDispatcherPrivate *priv = context->dispatcher->priv;
     const GList *cl, *channels;
+    const gchar *dispatch_operation_path = "/";
     GHashTable *observer_info;
     GHashTableIter iter;
     McdClient *client;
@@ -1289,6 +1290,15 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
         /* TODO: there's room for optimization here: reuse the channels_array,
          * if the observed list is the same */
         channels_array = _mcd_channel_details_build_from_list (observed);
+
+        if (context->operation)
+        {
+            dispatch_operation_path =
+                mcd_dispatch_operation_get_path (context->operation);
+        }
+
+        /* will only be passed to the Observer when we break API */
+        (void) dispatch_operation_path;
 
         context->client_locks++;
         mcd_dispatcher_context_ref (context);
