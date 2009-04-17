@@ -2444,6 +2444,10 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
         g_signal_connect (connection, "abort",
                           G_CALLBACK (on_connection_abort), account);
     }
+    else
+    {
+        priv->conn_status = TP_CONNECTION_STATUS_DISCONNECTED;
+    }
 }
 
 void
