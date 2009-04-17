@@ -74,7 +74,8 @@ def test(q, bus, mc):
     request_path = ret.value[0]
 
     e = q.expect('dbus-method-call', handled=False,
-        interface=cs.HANDLER, method='AddRequest', path=client.object_path)
+        interface=cs.HANDLER_IFACE_REQUEST_NOTIFICATION, method='AddRequest',
+        path=client.object_path)
     assert e.args[0] == request_path
 
     q.dbus_return(e.message, signature='')
@@ -99,29 +100,29 @@ def test(q, bus, mc):
         )
 
     # You know that request I told you about? Not going to happen.
-    remove_failed_request = q.expect('dbus-method-call',
-            interface=cs.HANDLER,
-            method='RemoveFailedRequest',
+    remove_request = q.expect('dbus-method-call',
+            interface=cs.HANDLER_IFACE_REQUEST_NOTIFICATION,
+            method='RemoveRequest',
             handled=False)
-    assert remove_failed_request.args[0] == request_path
+    assert remove_request.args[0] == request_path
     # FIXME: the spec should maybe define what error this will be. Currently,
     # it's Disconnected
-    assert remove_failed_request.args[1].startswith(tp_name_prefix + '.Error.')
+    assert remove_request.args[1].startswith(tp_name_prefix + '.Error.')
 
     q.expect_many(
             EventPattern('dbus-signal',
                 path=request_path,
                 interface=cs.CR + '.DRAFT',
                 signal='Failed',
-                args=remove_failed_request.args[1:]),
+                args=remove_request.args[1:]),
             EventPattern('dbus-signal',
                 path=account.object_path,
                 interface=cs.ACCOUNT_IFACE_NOKIA_REQUESTS,
                 signal='Failed',
-                args=remove_failed_request.args),
+                args=remove_request.args),
             )
 
-    q.dbus_return(remove_failed_request.message, signature='')
+    q.dbus_return(remove_request.message, signature='')
 
     # ... and the Connection is told to disconnect, hopefully before the
     # Channel has actually been established

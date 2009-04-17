@@ -93,7 +93,8 @@ def test(q, bus, mc):
     # call precedes this
 
     e = q.expect('dbus-method-call', handled=False,
-        interface=cs.HANDLER, method='AddRequest', path=client.object_path)
+        interface=cs.HANDLER_IFACE_REQUEST_NOTIFICATION, method='AddRequest',
+        path=client.object_path)
     assert e.args[0] == request_path
     q.dbus_return(e.message, signature='')
 

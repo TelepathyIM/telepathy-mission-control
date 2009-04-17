@@ -186,7 +186,7 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
      * immediately cause a failure to be signalled. It'll do for now though. */
 
     /* we use connect_after, to make sure that other signals (such as
-     * RemoveFailedRequest) are emitted before the Failed signal */
+     * RemoveRequest) are emitted before the Failed signal */
     /* WARNING: on_channel_status_changed unrefs the McdChannel (!), so we
      * give it an extra reference, so that we can return a ref from this
      * function */

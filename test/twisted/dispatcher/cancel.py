@@ -118,8 +118,8 @@ def test_channel_creation(q, bus, account, client, conn,
                 interface=cs.CONN_IFACE_REQUESTS, method='CreateChannel',
                 path=conn.object_path, args=[request], handled=False),
             EventPattern('dbus-method-call', handled=False,
-                interface=cs.HANDLER, method='AddRequest',
-                path=client.object_path),
+                interface=cs.HANDLER_IFACE_REQUEST_NOTIFICATION,
+                method='AddRequest', path=client.object_path),
             )
 
     assert add_request_call.args[0] == request_path

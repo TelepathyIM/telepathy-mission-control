@@ -5,6 +5,7 @@
 <xi:include href="../xml/Client.xml"/>
 <xi:include href="../xml/Client_Approver.xml"/>
 <xi:include href="../xml/Client_Handler.xml"/>
+<xi:include href="../xml/Client_Handler_Interface_Request_Notification.xml"/>
 <xi:include href="../xml/Client_Observer.xml"/>
 
 </tp:spec>

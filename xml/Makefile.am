@@ -21,6 +21,7 @@ SPECS = \
 	Client.xml \
 	Client_Approver.xml \
 	Client_Handler.xml \
+	Client_Handler_Interface_Request_Notification.xml \
 	Client_Observer.xml \
         Connection_Interface_Contact_Capabilities.xml
 

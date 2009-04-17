@@ -124,6 +124,7 @@ CLIENT_PATH = tp_path_prefix + '/Client'
 OBSERVER = tp_name_prefix + '.Client.Observer.DRAFT'
 APPROVER = tp_name_prefix + '.Client.Approver.DRAFT'
 HANDLER = tp_name_prefix + '.Client.Handler.DRAFT'
+HANDLER_IFACE_REQUEST_NOTIFICATION = tp_name_prefix + '.Client.Handler.Interface.RequestNotification.DRAFT'
 
 ACCOUNT = tp_name_prefix + '.Account'
 ACCOUNT_IFACE_AVATAR = ACCOUNT + '.Interface.Avatar'

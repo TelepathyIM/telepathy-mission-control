@@ -100,7 +100,8 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
     # call precedes this
 
     e = q.expect('dbus-method-call', handled=False,
-        interface=cs.HANDLER, method='AddRequest', path=client.object_path)
+        interface=cs.HANDLER_IFACE_REQUEST_NOTIFICATION, method='AddRequest',
+        path=client.object_path)
     assert e.args[0] == request_path
     request_props = e.args[1]
     assert request_props[cs.CR + '.Account'] == account.object_path

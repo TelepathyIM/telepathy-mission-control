@@ -326,7 +326,8 @@ def aasv(x):
 
 class SimulatedClient(object):
     def __init__(self, q, bus, clientname,
-            observe=[], approve=[], handle=[], bypass_approval=False):
+            observe=[], approve=[], handle=[], bypass_approval=False,
+            request_notification=True):
         self.q = q
         self.bus = bus
         self.bus_name = '.'.join([cs.tp_name_prefix, 'Client', clientname])
@@ -336,6 +337,7 @@ class SimulatedClient(object):
         self.approve = aasv(approve)
         self.handle = aasv(handle)
         self.bypass_approval = bool(bypass_approval)
+        self.request_notification = bool(request_notification)
         self.handled_channels = dbus.Array([], signature='o')
 
         q.add_dbus_method_impl(self.Get_Interfaces,
@@ -377,6 +379,9 @@ class SimulatedClient(object):
 
         if self.handle:
             ret.append(cs.HANDLER)
+
+        if self.request_notification:
+            ret.append(cs.HANDLER_IFACE_REQUEST_NOTIFICATION)
 
         return ret
 
