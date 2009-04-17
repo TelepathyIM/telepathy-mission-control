@@ -79,6 +79,30 @@ def test(q, bus, mc):
     # Reconnect
     account.Reconnect(dbus_interface=cs.ACCOUNT)
 
+    q.expect('dbus-method-call', method='Disconnect',
+            path=conn.object_path, handled=True)
+
+    e = q.expect('dbus-method-call', method='RequestConnection',
+            args=['fakeprotocol', params],
+            destination=tp_name_prefix + '.ConnectionManager.fakecm',
+            path=tp_path_prefix + '/ConnectionManager/fakecm',
+            interface=tp_name_prefix + '.ConnectionManager',
+            handled=False)
+    conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
+            'myself')
+    q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
+
+    q.expect('dbus-method-call', method='Connect',
+            path=conn.object_path, handled=True)
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+
+    q.expect_many(
+            EventPattern('dbus-method-call',
+                interface=cs.PROPERTIES_IFACE, method='GetAll',
+                args=[cs.CONN_IFACE_REQUESTS],
+                path=conn.object_path, handled=True),
+            )
+
     # Put the account offline
     requested_presence = (dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE), 'offline', '')
     account.Set(cs.ACCOUNT,
