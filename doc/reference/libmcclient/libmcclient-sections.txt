@@ -13,6 +13,7 @@ mc_account_get_display_name
 mc_account_get_icon
 mc_account_is_valid
 mc_account_is_enabled
+mc_account_has_been_online
 mc_account_connects_automatically
 mc_account_get_nickname
 mc_account_get_parameters

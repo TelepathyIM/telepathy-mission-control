@@ -200,6 +200,15 @@ mc-account
 @Returns: 
 
 
+<!-- ##### FUNCTION mc_account_has_been_online ##### -->
+<para>
+
+</para>
+
+@account: 
+@Returns: 
+
+
 <!-- ##### FUNCTION mc_account_connects_automatically ##### -->
 <para>
 

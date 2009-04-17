@@ -101,6 +101,7 @@ const gchar *mc_account_get_display_name (McAccount *account);
 const gchar *mc_account_get_icon (McAccount *account);
 gboolean mc_account_is_valid (McAccount *account);
 gboolean mc_account_is_enabled (McAccount *account);
+gboolean mc_account_has_been_online (McAccount *account);
 gboolean mc_account_connects_automatically (McAccount *account);
 const gchar *mc_account_get_nickname (McAccount *account);
 GHashTable *mc_account_get_parameters (McAccount *account);

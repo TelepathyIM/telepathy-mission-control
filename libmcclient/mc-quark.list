@@ -7,4 +7,5 @@ icon icon
 nickname nickname
 enabled enabled
 valid valid
+has_been_online has-been-online
 connect_automatically connect-automatically

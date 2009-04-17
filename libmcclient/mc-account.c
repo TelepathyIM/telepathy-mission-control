@@ -56,6 +56,7 @@ struct _McAccountProps {
     gchar *icon;
     guint valid : 1;
     guint enabled : 1;
+    guint has_been_online : 1;
     guint connect_automatically : 1;
     guint emit_changed : 1;
     guint emit_connection_status_changed : 1;
@@ -448,6 +449,21 @@ update_enabled (const gchar *name, const GValue *value, gpointer user_data)
 }
 
 static void
+update_has_been_online (const gchar *name, const GValue *value,
+                        gpointer user_data)
+{
+    McAccount *account = MC_ACCOUNT (user_data);
+    McAccountProps *props = account->priv->props;
+
+    props->has_been_online = g_value_get_boolean (value);
+    if (props->emit_changed)
+        g_signal_emit (account, _mc_account_signals[FLAG_CHANGED],
+                       MC_QUARK_HAS_BEEN_ONLINE,
+                       MC_QUARK_HAS_BEEN_ONLINE,
+                       props->has_been_online);
+}
+
+static void
 update_nickname (const gchar *name, const GValue *value, gpointer user_data)
 {
     McAccount *account = MC_ACCOUNT (user_data);
@@ -599,6 +615,7 @@ static const McIfaceProperty account_properties[] =
     { "Icon", "s", update_icon },
     { "Valid", "b", update_valid },
     { "Enabled", "b", update_enabled },
+    { "HasBeenOnline", "b", update_has_been_online },
     { "Nickname", "s", update_nickname },
     { "Parameters", "a{sv}", update_parameters },
     { "AutomaticPresence", "(uss)", update_automatic_presence },
@@ -842,6 +859,22 @@ mc_account_is_enabled (McAccount *account)
     g_return_val_if_fail (MC_IS_ACCOUNT (account), FALSE);
     if (G_UNLIKELY (!account->priv->props)) return FALSE;
     return account->priv->props->enabled;
+}
+
+/**
+ * mc_account_has_been_online:
+ * @account: the #McAccount.
+ *
+ * Returns: %TRUE if the account has ever been online, %FALSE otherwise.
+ * mc_account_call_when_ready() must have been successfully invoked prior to
+ * calling this function.
+ */
+gboolean
+mc_account_has_been_online (McAccount *account)
+{
+    g_return_val_if_fail (MC_IS_ACCOUNT (account), FALSE);
+    if (G_UNLIKELY (!account->priv->props)) return FALSE;
+    return account->priv->props->has_been_online;
 }
 
 /**
