@@ -203,6 +203,16 @@
         </tp:docstring>
       </arg>
 
+      <arg name="Handler_Info" type="a{sv}" direction="in">
+        <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+          <p>Additional information about these channels. No keys are
+            currently defined.</p>
+
+          <p>If keys are defined for this dictionary, all will be optional;
+            handlers MAY safely ignore any entry in this dictionary.</p>
+        </tp:docstring>
+      </arg>
+
       <!-- FIXME: invent a way to say "any error is possible" in spec markup -->
     </method>
 

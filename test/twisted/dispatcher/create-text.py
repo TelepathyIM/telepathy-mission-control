@@ -169,6 +169,9 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
     assert channels[0][0] == channel.object_path, channels
     assert channels[0][1] == channel_immutable, channels
     assert e.args[3] == [request_path], e.args
+    assert e.args[4] == user_action_time
+    assert isinstance(e.args[5], dict)
+    assert len(e.args) == 6
 
     # Handler accepts the Channels
     q.dbus_return(e.message, signature='')

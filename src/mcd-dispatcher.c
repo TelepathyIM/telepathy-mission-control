@@ -1130,6 +1130,7 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
         const gchar *account_path, *connection_path;
         GPtrArray *channels_array, *satisfied_requests;
         McdHandlerCallData *handler_data;
+        GHashTable *handler_info;
 
         connection = mcd_dispatcher_context_get_connection (context);
         connection_path = connection ?
@@ -1166,6 +1167,8 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
                                      MCD_CHANNEL_STATUS_HANDLER_INVOKED);
         }
 
+        handler_info = g_hash_table_new (g_str_hash, g_str_equal);
+
         /* The callback needs to get the dispatcher context, and the channels
          * the handler was asked to handle. The context will keep track of how
          * many channels are still to be dispatched,
@@ -1178,12 +1181,13 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
         mc_cli_client_handler_call_handle_channels (handler->proxy, -1,
             account_path, connection_path,
             channels_array, satisfied_requests, user_action_time,
-            handle_channels_cb,
+            handler_info, handle_channels_cb,
             handler_data, (GDestroyNotify)mcd_handler_call_data_free,
             (GObject *)context->dispatcher);
 
         g_ptr_array_free (satisfied_requests, TRUE);
         _mcd_channel_details_free (channels_array);
+        g_hash_table_unref (handler_info);
     }
     else
     {
