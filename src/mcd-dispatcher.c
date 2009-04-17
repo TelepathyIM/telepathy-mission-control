@@ -1242,6 +1242,40 @@ observe_channels_cb (TpProxy *proxy, const GError *error,
     mcd_dispatcher_context_release_client_lock (context);
 }
 
+/* The returned GPtrArray is allocated, but the contents are borrowed. */
+static GPtrArray *
+collect_satisfied_requests (GList *channels)
+{
+    const GList *c, *r;
+    GHashTable *set = g_hash_table_new (g_str_hash, g_str_equal);
+    GHashTableIter iter;
+    gpointer path;
+    GPtrArray *ret;
+
+    /* collect object paths into a hash table, to drop duplicates */
+    for (c = channels; c != NULL; c = c->next)
+    {
+        const GList *reqs = _mcd_channel_get_satisfied_requests (c->data);
+
+        for (r = reqs; r != NULL; r = r->next)
+        {
+            g_hash_table_insert (set, r->data, r->data);
+        }
+    }
+
+    /* serialize them into a pointer array, which is what dbus-glib wants */
+    ret = g_ptr_array_sized_new (g_hash_table_size (set));
+
+    g_hash_table_iter_init (&iter, set);
+
+    while (g_hash_table_iter_next (&iter, &path, NULL))
+    {
+        g_ptr_array_add (ret, path);
+    }
+
+    return ret;
+}
+
 static void
 mcd_dispatcher_run_observers (McdDispatcherContext *context)
 {
@@ -1263,7 +1297,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
         McdConnection *connection;
         McdAccount *account;
         const gchar *account_path, *connection_path;
-        GPtrArray *channels_array;
+        GPtrArray *channels_array, *satisfied_requests;
 
         if (!client->proxy ||
             !(client->interfaces & MCD_CLIENT_OBSERVER))
@@ -1291,6 +1325,8 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
          * if the observed list is the same */
         channels_array = _mcd_channel_details_build_from_list (observed);
 
+        satisfied_requests = collect_satisfied_requests (observed);
+
         if (context->operation)
         {
             dispatch_operation_path =
@@ -1299,6 +1335,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
 
         /* will only be passed to the Observer when we break API */
         (void) dispatch_operation_path;
+        (void) satisfied_requests;
 
         context->client_locks++;
         mcd_dispatcher_context_ref (context);
@@ -1307,6 +1344,10 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
             observe_channels_cb,
             context, (GDestroyNotify)mcd_dispatcher_context_unref,
             (GObject *)context->dispatcher);
+
+        /* don't free the individual object paths, which are borrowed from the
+         * McdChannel objects */
+        g_ptr_array_free (satisfied_requests, TRUE);
 
         _mcd_channel_details_free (channels_array);
 
