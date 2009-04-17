@@ -160,6 +160,8 @@ def test(q, bus, mc):
             )
     assert e.args[0] == account.object_path, e.args
     assert e.args[1] == conn.object_path, e.args
+    assert e.args[3] == cdo_path, e.args
+    assert e.args[4] == [], e.args      # no requests satisfied
     channels = e.args[2]
     assert len(channels) == 2, channels
     assert (text_chan.object_path, text_channel_properties) in channels

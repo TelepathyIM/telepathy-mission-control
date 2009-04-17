@@ -140,6 +140,8 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
             handled=False)
     assert e.args[0] == account.object_path, e.args
     assert e.args[1] == conn.object_path, e.args
+    assert e.args[3] == '/', e.args         # no dispatch operation
+    assert e.args[4] == [request_path], e.args
     channels = e.args[2]
     assert len(channels) == 1, channels
     assert channels[0][0] == channel.object_path, channels
