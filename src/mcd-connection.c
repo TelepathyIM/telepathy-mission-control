@@ -300,22 +300,22 @@ _mcd_connection_attempt (McdConnection *connection)
     DEBUG ("called for %p, account %s", connection,
            mcd_account_get_unique_name (connection->priv->account));
 
-    if (priv->reconnect_timer != 0)
+    if (connection->priv->reconnect_timer != 0)
     {
-        g_source_remove (priv->reconnect_timer);
-        priv->reconnect_timer = 0;
+        g_source_remove (connection->priv->reconnect_timer);
+        connection->priv->reconnect_timer = 0;
     }
 
-    if (mcd_account_get_connection_status (priv->account) ==
+    if (mcd_account_get_connection_status (connection->priv->account) ==
         TP_CONNECTION_STATUS_DISCONNECTED)
     {
-        _mcd_account_connection_begin (priv->account);
+        _mcd_account_connection_begin (connection->priv->account);
     }
     else
     {
         /* Can this happen? We just don't know. */
         DEBUG ("Not connecting because not disconnected (%i)",
-               mcd_account_get_connection_status (priv->account));
+               mcd_account_get_connection_status (connection->priv->account));
     }
 }
 
