@@ -38,14 +38,11 @@ G_GNUC_INTERNAL void _mcd_account_connect (McdAccount *account,
 
 G_GNUC_INTERNAL gboolean _mcd_account_set_parameters (McdAccount *account,
                                                       GHashTable *params,
+                                                      const gchar **unset,
                                                       GError **error);
 G_GNUC_INTERNAL void _mcd_account_set_parameter (McdAccount *account,
                                                  const gchar *name,
                                                  const GValue *value);
-
-G_GNUC_INTERNAL void _mcd_account_set_current_presence (McdAccount *account,
-    TpConnectionPresenceType presence, const gchar *status,
-    const gchar *message);
 
 G_GNUC_INTERNAL void _mcd_account_request_temporary_presence (McdAccount *self,
     TpConnectionPresenceType type, const gchar *status);
@@ -81,9 +78,6 @@ G_GNUC_INTERNAL void _mcd_account_load (McdAccount *account,
                                         gpointer user_data);
 G_GNUC_INTERNAL void _mcd_account_set_connection (McdAccount *account,
                                                   McdConnection *connection);
-
-G_GNUC_INTERNAL void _mcd_account_set_connection_status (McdAccount *account,
-    TpConnectionStatus status, TpConnectionStatusReason reason);
 
 typedef void (*McdOnlineRequestCb) (McdAccount *account, gpointer userdata,
 				    const GError *error);
@@ -152,6 +146,8 @@ void _mcd_account_set_connection_context (McdAccount *self,
 
 G_GNUC_INTERNAL void _mcd_account_connection_context_free
     (McdAccountConnectionContext *c);
+
+G_GNUC_INTERNAL GHashTable *_mcd_account_dup_parameters (McdAccount *account);
 
 #endif /* __MCD_ACCOUNT_PRIV_H__ */
 

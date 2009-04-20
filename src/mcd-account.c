@@ -160,8 +160,6 @@ enum
 enum
 {
     CONNECTION_STATUS_CHANGED,
-    CURRENT_PRESENCE_CHANGED,
-    REQUESTED_PRESENCE_CHANGED,
     VALIDITY_CHANGED,
     AVATAR_CHANGED,
     ALIAS_CHANGED,
@@ -336,6 +334,8 @@ get_parameter (McdAccount *account, const gchar *name, GValue *value)
     return TRUE;
 }
 
+static gboolean mcd_account_check_parameters (McdAccount *account);
+
 static void on_manager_ready (McdManager *manager, const GError *error,
                               gpointer user_data)
 {
@@ -479,14 +479,18 @@ mcd_account_request_presence_int (McdAccount *account,
     if (!(changed || priv->temporary_presence))
         return FALSE;
 
-    if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE && !priv->connection)
+    if (priv->connection == NULL)
     {
-        _mcd_account_connection_begin (account);
+        if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
+        {
+            _mcd_account_connection_begin (account);
+        }
     }
-
-    g_signal_emit (account,
-		   _mcd_account_signals[REQUESTED_PRESENCE_CHANGED], 0,
-		   type, status, message);
+    else
+    {
+        _mcd_connection_request_presence (priv->connection,
+                                          type, status, message);
+    }
     return TRUE;
 }
 
@@ -494,6 +498,8 @@ void
 _mcd_account_connect (McdAccount *account, GHashTable *params)
 {
     McdAccountPrivate *priv = account->priv;
+
+    g_assert (params != NULL);
 
     if (!priv->connection)
     {
@@ -810,7 +816,7 @@ get_parameters (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     McdAccount *account = MCD_ACCOUNT (self);
     GHashTable *parameters;
 
-    parameters = mcd_account_get_parameters (account);
+    parameters = _mcd_account_dup_parameters (account);
     g_value_init (value, TP_HASH_TYPE_STRING_VARIANT_MAP);
     g_value_take_boxed (value, parameters);
 }
@@ -953,16 +959,9 @@ get_connection_status (TpSvcDBusProperties *self,
 		       const gchar *name, GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
-    McdAccountPrivate *priv = account->priv;
-    TpConnectionStatus status;
-
-    if (priv->connection)
-	status = mcd_connection_get_connection_status (priv->connection);
-    else
-	status = TP_CONNECTION_STATUS_DISCONNECTED;
 
     g_value_init (value, G_TYPE_UINT);
-    g_value_set_uint (value, status);
+    g_value_set_uint (value, account->priv->conn_status);
 }
 
 static void
@@ -970,16 +969,9 @@ get_connection_status_reason (TpSvcDBusProperties *self,
 			      const gchar *name, GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
-    McdAccountPrivate *priv = account->priv;
-    TpConnectionStatusReason reason;
-
-    if (priv->connection)
-	reason = mcd_connection_get_connection_status_reason (priv->connection);
-    else
-	reason = TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
 
     g_value_init (value, G_TYPE_UINT);
-    g_value_set_uint (value, reason);
+    g_value_set_uint (value, account->priv->conn_reason);
 }
 
 static void
@@ -1153,7 +1145,25 @@ account_remove (McSvcAccount *self, DBusGMethodInvocation *context)
     mc_svc_account_return_from_remove (context);
 }
 
-gboolean
+/*
+ * mcd_account_get_parameter:
+ * @account: the #McdAccount.
+ * @name: the parameter name.
+ * @value: a initialized #GValue to receive the parameter value, or %NULL.
+ *
+ * Get the @name parameter for @account.
+ *
+ * Returns: %TRUE if found, %FALSE otherwise.
+ */
+static gboolean
+mcd_account_get_parameter (McdAccount *account, const gchar *name,
+                           GValue *value)
+{
+    return MCD_ACCOUNT_GET_CLASS (account)->get_parameter (account, name,
+                                                           value);
+}
+
+static gboolean
 mcd_account_check_parameters (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
@@ -1199,7 +1209,7 @@ _mcd_account_set_parameter (McdAccount *account, const gchar *name,
 
 gboolean
 _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
-                             GError **error)
+                             const gchar ** unset, GError **error)
 {
     McdAccountPrivate *priv = account->priv;
     const TpConnectionManagerParam *param;
@@ -1286,6 +1296,16 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
         _mcd_account_set_parameter (account, name, value);
     }
 
+    if (unset != NULL)
+    {
+        const gchar **unset_iter;
+
+        for (unset_iter = unset; *unset_iter != NULL; unset_iter++)
+        {
+            _mcd_account_set_parameter (account, *unset_iter, NULL);
+        }
+    }
+
     if (mcd_account_get_connection_status (account) ==
         TP_CONNECTION_STATUS_CONNECTED)
     {
@@ -1314,17 +1334,6 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     return TRUE;
 }
 
-static inline void
-mcd_account_unset_parameters (McdAccount *account, const gchar **params)
-{
-    const gchar **param;
-
-    for (param = params; *param != NULL; param++)
-    {
-        _mcd_account_set_parameter (account, *param, NULL);
-    }
-}
-
 static void
 account_update_parameters (McSvcAccount *self, GHashTable *set,
 			   const gchar **unset, DBusGMethodInvocation *context)
@@ -1337,7 +1346,7 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
 
     DEBUG ("called for %s", priv->unique_name);
 
-    if (!_mcd_account_set_parameters (account, set, &error))
+    if (!_mcd_account_set_parameters (account, set, unset, &error))
     {
 	if (!error)
 	    g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
@@ -1347,10 +1356,8 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
 	return;
     }
 
-    mcd_account_unset_parameters (account, unset);
-
     /* emit the PropertiesChanged signal */
-    parameters = mcd_account_get_parameters (account);
+    parameters = _mcd_account_dup_parameters (account);
     g_value_init (&value, TP_HASH_TYPE_STRING_VARIANT_MAP);
     g_value_take_boxed (&value, parameters);
     mcd_account_changed_property (account, "Parameters", &value);
@@ -1362,12 +1369,34 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
 }
 
 static void
+account_reconnect (McSvcAccount *service,
+                   DBusGMethodInvocation *context)
+{
+    McdAccount *self = MCD_ACCOUNT (service);
+
+    DEBUG ("%s", mcd_account_get_unique_name (self));
+
+    /* FIXME: this isn't quite right. If we've just called RequestConnection
+     * (possibly with out of date parameters) but we haven't got a Connection
+     * back from the CM yet, the old parameters will still be used, I think
+     * (I can't quite make out what actually happens). */
+    mcd_connection_close (self->priv->connection);
+    _mcd_account_connection_begin (self);
+
+    /* FIXME: we shouldn't really return from this method until the
+     * reconnection has actually happened, but that would require less tangled
+     * integration between Account and Connection */
+    mc_svc_account_return_from_reconnect (context);
+}
+
+static void
 account_iface_init (McSvcAccountClass *iface, gpointer iface_data)
 {
 #define IMPLEMENT(x) mc_svc_account_implement_##x (\
     iface, account_##x)
     IMPLEMENT(remove);
     IMPLEMENT(update_parameters);
+    IMPLEMENT(reconnect);
 #undef IMPLEMENT
 }
 
@@ -1640,22 +1669,6 @@ mcd_account_class_init (McdAccountClass * klass)
 		      NULL, NULL, _mcd_marshal_VOID__UINT_UINT,
 		      G_TYPE_NONE,
 		      2, G_TYPE_UINT, G_TYPE_UINT);
-    _mcd_account_signals[CURRENT_PRESENCE_CHANGED] =
-	g_signal_new ("current-presence-changed",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL, _mcd_marshal_VOID__UINT_STRING_STRING,
-		      G_TYPE_NONE,
-		      3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING);
-    _mcd_account_signals[REQUESTED_PRESENCE_CHANGED] =
-	g_signal_new ("requested-presence-changed",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL, _mcd_marshal_VOID__UINT_STRING_STRING,
-		      G_TYPE_NONE,
-		      3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING);
     _mcd_account_signals[VALIDITY_CHANGED] =
 	g_signal_new ("validity-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
@@ -1788,16 +1801,16 @@ add_parameter (McdAccount *account, const TpConnectionManagerParam *param,
         tp_g_value_slice_free (value);
 }
 
-/**
- * mcd_account_get_parameters:
+/*
+ * _mcd_account_dup_parameters:
  * @account: the #McdAccount.
  *
  * Get the parameters set for this account.
  *
- * Returns: a #GHashTable containing the account parameters.
+ * Returns: a newly allocated #GHashTable containing the account parameters.
  */
 GHashTable *
-mcd_account_get_parameters (McdAccount *account)
+_mcd_account_dup_parameters (McdAccount *account)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     const TpConnectionManagerParam *param;
@@ -1818,24 +1831,6 @@ mcd_account_get_parameters (McdAccount *account)
         param++;
     }
     return params;
-}
-
-/**
- * mcd_account_get_parameter:
- * @account: the #McdAccount.
- * @name: the parameter name.
- * @value: a initialized #GValue to receive the parameter value, or %NULL.
- *
- * Get the @name parameter for @account.
- *
- * Returns: %TRUE if found, %FALSE otherwise.
- */
-gboolean
-mcd_account_get_parameter (McdAccount *account, const gchar *name,
-                           GValue *value)
-{
-    return MCD_ACCOUNT_GET_CLASS (account)->get_parameter (account, name,
-                                                           value);
 }
 
 /**
@@ -1870,20 +1865,14 @@ mcd_account_request_presence (McdAccount *account,
     }
 }
 
-/*
- * _mcd_account_set_current_presence:
- * @account: the #McdAccount.
- * @presence: a #TpConnectionPresenceType.
- * @status: presence status.
- * @message: presence status message.
- *
- * Set a presence status on the account.
- */
-void
-_mcd_account_set_current_presence (McdAccount *account,
-                                   TpConnectionPresenceType presence,
-                                   const gchar *status, const gchar *message)
+static void
+on_conn_self_presence_changed (McdConnection *connection,
+                               TpConnectionPresenceType presence,
+                               const gchar *status,
+                               const gchar *message,
+                               gpointer user_data)
 {
+    McdAccount *account = MCD_ACCOUNT (user_data);
     McdAccountPrivate *priv = account->priv;
     gboolean changed = FALSE;
     GValue value = { 0 };
@@ -1919,11 +1908,6 @@ _mcd_account_set_current_presence (McdAccount *account,
     g_value_set_static_string (va->values + 2, message);
     mcd_account_changed_property (account, "CurrentPresence", &value);
     g_value_unset (&value);
-
-    /* TODO: when the McdPresenceFrame is removed, check if this signal is
-     * still used by someone else, or remove it */
-    g_signal_emit (account, _mcd_account_signals[CURRENT_PRESENCE_CHANGED], 0,
-		   presence, status, message);
 }
 
 /* TODO: remove when the relative members will become public */
@@ -2230,10 +2214,11 @@ process_online_requests (McdAccount *account,
     _mcd_account_online_request_completed (account, error);
 }
 
-void
-_mcd_account_set_connection_status (McdAccount *account,
-                                    TpConnectionStatus status,
-                                    TpConnectionStatusReason reason)
+static void
+on_conn_status_changed (McdConnection *connection,
+                        TpConnectionStatus status,
+                        TpConnectionStatusReason reason,
+                        McdAccount *account)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     gboolean changed = FALSE;
@@ -2387,7 +2372,7 @@ _mcd_account_online_request (McdAccount *account,
 
 	/* now the connection should be in connecting state; insert the
 	 * callback in the online_requests hash table, which will be processed
-	 * in the _mcd_account_set_connection_status function */
+	 * in the connection-status-changed callback */
         data = g_slice_new (McdOnlineRequestData);
         data->callback = callback;
         data->user_data = userdata;
@@ -2439,6 +2424,12 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
     {
         g_signal_handlers_disconnect_by_func (priv->connection,
                                               on_connection_abort, account);
+        g_signal_handlers_disconnect_by_func (priv->connection,
+                                              on_conn_self_presence_changed,
+                                              account);
+        g_signal_handlers_disconnect_by_func (priv->connection,
+                                              on_conn_status_changed,
+                                              account);
         g_object_unref (priv->connection);
     }
     priv->connection = connection;
@@ -2446,8 +2437,16 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
     {
         g_return_if_fail (MCD_IS_CONNECTION (connection));
         g_object_ref (connection);
+        g_signal_connect (connection, "self-presence-changed",
+                          G_CALLBACK (on_conn_self_presence_changed), account);
+        g_signal_connect (connection, "connection-status-changed",
+                          G_CALLBACK (on_conn_status_changed), account);
         g_signal_connect (connection, "abort",
                           G_CALLBACK (on_connection_abort), account);
+    }
+    else
+    {
+        priv->conn_status = TP_CONNECTION_STATUS_DISCONNECTED;
     }
 }
 
@@ -2476,10 +2475,12 @@ _mcd_account_request_temporary_presence (McdAccount *self,
                                          TpConnectionPresenceType type,
                                          const gchar *status)
 {
-    /* tell the McdConnection (if it exists) to update our presence, but don't
-     * alter RequestedPresence (so we can go back to the old value later) */
-    g_signal_emit (self, _mcd_account_signals[REQUESTED_PRESENCE_CHANGED],
-                   0, type, status, "");
+    if (self->priv->connection != NULL)
+    {
+        _mcd_connection_request_presence (self->priv->connection,
+                                          type, status, "");
+    }
+
     self->priv->temporary_presence = TRUE;
 }
 
@@ -2524,7 +2525,7 @@ _mcd_account_set_connection_context (McdAccount *self,
 {
     g_return_if_fail (MCD_IS_ACCOUNT (self));
 
-    if (self->priv->connection_context == NULL)
+    if (self->priv->connection_context != NULL)
     {
         _mcd_account_connection_context_free (self->priv->connection_context);
     }

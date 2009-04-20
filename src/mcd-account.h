@@ -92,11 +92,6 @@ gboolean mcd_account_is_enabled (McdAccount *account);
 const gchar *mcd_account_get_manager_name (McdAccount *account);
 const gchar *mcd_account_get_protocol_name (McdAccount *account);
 
-GHashTable *mcd_account_get_parameters (McdAccount *account);
-gboolean mcd_account_check_parameters (McdAccount *account);
-gboolean mcd_account_get_parameter (McdAccount *account, const gchar *name,
-                                    GValue *value);
-
 void mcd_account_request_presence (McdAccount *account,
 				   TpConnectionPresenceType type,
 				   const gchar *status, const gchar *message);

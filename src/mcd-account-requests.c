@@ -60,7 +60,7 @@ online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
     DEBUG ("called");
     connection = mcd_account_get_connection (account);
     g_return_if_fail (connection != NULL);
-    g_return_if_fail (mcd_connection_get_connection_status (connection)
+    g_return_if_fail (mcd_account_get_connection_status (account)
                       == TP_CONNECTION_STATUS_CONNECTED);
 
     if (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_FAILED)
