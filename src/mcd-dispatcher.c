@@ -273,12 +273,9 @@ static guint signals[LAST_SIGNAL] = { 0 };
 static GQuark client_ready_quark = 0;
 
 static void mcd_dispatcher_context_unref (McdDispatcherContext * ctx);
-static void mcd_dispatcher_context_set_channel (McdDispatcherContext *context,
-                                                McdChannel *channel);
 static void on_operation_finished (McdDispatchOperation *operation,
                                    McdDispatcherContext *context);
 
-typedef void (*tp_ch_handle_channel_reply) (DBusGProxy *proxy, GError *error, gpointer userdata);
 
 static inline void
 mcd_dispatcher_context_ref (McdDispatcherContext *context)
@@ -358,59 +355,6 @@ mcd_client_free (McdClient *client)
                     (GFunc)g_hash_table_destroy, NULL);
 }
 
-static void
-tp_ch_handle_channel_async_callback (DBusGProxy *proxy, DBusGProxyCall *call, void *user_data)
-{
-  DBusGAsyncData *data = (DBusGAsyncData*) user_data;
-  GError *error = NULL;
-  dbus_g_proxy_end_call (proxy, call, &error, G_TYPE_INVALID);
-  (*(tp_ch_handle_channel_reply)data->cb) (proxy, error, data->userdata);
-}
-
-static inline DBusGProxyCall*
-tp_ch_handle_channel_async (DBusGProxy *proxy, const char * IN_Bus_Name, const char* IN_Connection, const char * IN_Channel_Type, const char* IN_Channel, const guint IN_Handle_Type, const guint IN_Handle, tp_ch_handle_channel_reply callback, gpointer userdata)
-
-{
-  DBusGAsyncData *stuff;
-  stuff = g_new (DBusGAsyncData, 1);
-  stuff->cb = G_CALLBACK (callback);
-  stuff->userdata = userdata;
-  return dbus_g_proxy_begin_call (proxy, "HandleChannel", tp_ch_handle_channel_async_callback, stuff, g_free, G_TYPE_STRING, IN_Bus_Name, DBUS_TYPE_G_OBJECT_PATH, IN_Connection, G_TYPE_STRING, IN_Channel_Type, DBUS_TYPE_G_OBJECT_PATH, IN_Channel, G_TYPE_UINT, IN_Handle_Type, G_TYPE_UINT, IN_Handle, G_TYPE_INVALID);
-}
-
-static inline DBusGProxyCall *
-tp_ch_handle_channel_2_async (DBusGProxy *proxy,
-			      const char * IN_Bus_Name,
-			      const char* IN_Connection,
-			      const char *IN_Channel_Type,
-			      const char* IN_Channel,
-			      const guint IN_Handle_Type, const guint IN_Handle,
-			      gboolean incoming, guint request_id,
-			      const GHashTable *options,
-			      tp_ch_handle_channel_reply callback,
-			      gpointer userdata)
-
-{
-    DBusGAsyncData *stuff;
-    stuff = g_new (DBusGAsyncData, 1);
-    stuff->cb = G_CALLBACK (callback);
-    stuff->userdata = userdata;
-    return dbus_g_proxy_begin_call (proxy, "HandleChannel2",
-				    tp_ch_handle_channel_async_callback,
-				    stuff, g_free,
-				    G_TYPE_STRING, IN_Bus_Name,
-				    DBUS_TYPE_G_OBJECT_PATH, IN_Connection,
-				    G_TYPE_STRING, IN_Channel_Type,
-				    DBUS_TYPE_G_OBJECT_PATH, IN_Channel,
-				    G_TYPE_UINT, IN_Handle_Type,
-				    G_TYPE_UINT, IN_Handle,
-				    /* New params for version 2: */
-				    G_TYPE_BOOLEAN, incoming,
-				    G_TYPE_UINT, request_id,
-				    dbus_g_type_get_map ("GHashTable", G_TYPE_STRING, G_TYPE_VALUE), options,
-				    G_TYPE_INVALID);
-}
-
 static GList *
 chain_add_filter (GList *chain,
 		  McdFilterFunc filter,
@@ -475,275 +419,6 @@ on_master_abort (McdMaster *master, McdDispatcherPrivate *priv)
 {
     g_object_unref (master);
     priv->master = NULL;
-}
-
-/* CHANNEL HANDLING */
-
-/* Ensure that when the channelhandler dies, the channels do not be
- * left around (e.g. when VOIP UI dies, the call used to hang
- * around)
- */
-static void
-_mcd_dispatcher_channel_handler_destroy_cb (DBusGProxy * channelhandler,
-					   gpointer userdata)
-{
-    McdChannel *channel;
-
-    /* If the channel has already been destroyed, do not bother doing
-     * anything. */
-    if (!userdata || !(G_IS_OBJECT (userdata)) || !(MCD_IS_CHANNEL (userdata)))
-    {
-        DEBUG ("Channel has already been closed. No need to clean up.");
-	return;
-    }
-
-    channel = MCD_CHANNEL (userdata);
-
-    DEBUG ("Channelhandler object been destroyed, chan still valid.");
-    mcd_mission_abort (MCD_MISSION (channel));
-}
-
-static void
-disconnect_proxy_destry_cb (McdChannel *channel, DBusGProxy *channelhandler)
-{
-    g_signal_handlers_disconnect_by_func (channelhandler,
-				    _mcd_dispatcher_channel_handler_destroy_cb,
-				    channel);
-    g_object_unref (channelhandler);
-}
-
-static void
-cancel_proxy_call (McdChannel *channel, struct cancel_call_data *call_data)
-{
-    GError *mc_error = NULL;
-
-    dbus_g_proxy_cancel_call (call_data->handler_proxy, call_data->call);
-    
-    DEBUG ("signalling Handle channel failed");
-    
-    /* We can't reliably map channel handler error codes to MC error
-     * codes. So just using generic error message.
-     */
-    mc_error = g_error_new (MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
-			    "Channel aborted");
-    
-    g_signal_emit (call_data->dispatcher, signals[DISPATCH_FAILED], 0,
-		   channel, mc_error);
-    g_error_free (mc_error);
-}
-
-static void
-_mcd_dispatcher_handle_channel_async_cb (DBusGProxy * proxy, GError * error,
-					 gpointer userdata)
-{
-    McdDispatcherContext *context = userdata;
-    McdDispatcherPrivate *priv = context->dispatcher->priv;
-    McdChannel *channel;
-    const gchar *protocol = NULL;
-    GHashTable *channel_handler;
-    McdChannelHandler *chandler;
-
-    channel = mcd_dispatcher_context_get_channel (context);
-    protocol = mcd_dispatcher_context_get_protocol_name (context);
-
-    channel_handler = g_hash_table_lookup (priv->channel_handler_hash,
-					   mcd_channel_get_channel_type (channel));
-
-    chandler = g_hash_table_lookup (channel_handler, protocol);
-    if (!chandler)
-	chandler = g_hash_table_lookup (channel_handler, "default");
-
-    g_signal_handlers_disconnect_matched (channel, G_SIGNAL_MATCH_FUNC,	0, 0,
-					  NULL, cancel_proxy_call, NULL);
-
-    /* We'll no longer need this proxy instance. */
-    if (proxy && DBUS_IS_G_PROXY (proxy))
-    {
-	g_object_unref (proxy);
-    }
-
-    if (error != NULL)
-    {
-	GError *mc_error = NULL;
-	
-	g_warning ("Handle channel failed: %s", error->message);
-	
-	/* We can't reliably map channel handler error codes to MC error
-	 * codes. So just using generic error message.
-	 */
-	mc_error = g_error_new (MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
-				"Handle channel failed: %s", error->message);
-
-        mcd_channel_take_error (channel, mc_error);
-	g_signal_emit_by_name (context->dispatcher, "dispatch-failed",
-			       channel, mc_error);
-	
-	g_error_free (error);
-	if (channel)
-	    mcd_mission_abort (MCD_MISSION (channel));
-
-        mcd_dispatcher_context_handler_done (context);
-	return;
-    }
-
-    /* In case the channel handler dies unexpectedly, we
-     * may end up in very confused state if we do
-     * nothing. Thus, we'll try to handle the death */
-    
-    {
-	DBusGConnection *dbus_connection;
-	GError *unique_proxy_error = NULL;
-        DBusGProxy *unique_name_proxy;
-	
-	dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
-	
-	unique_name_proxy =
-	    dbus_g_proxy_new_for_name_owner (dbus_connection,
-					     chandler->bus_name,
-					     chandler->obj_path,
-					     "org.freedesktop.Telepathy.ChannelHandler",
-					     &unique_proxy_error);
-	if (unique_proxy_error == NULL)
-	{
-            DEBUG ("Adding the destroy handler support.");
-	    g_signal_connect (unique_name_proxy,
-			      "destroy",
-			      G_CALLBACK (_mcd_dispatcher_channel_handler_destroy_cb),
-			      channel);
-	    g_signal_connect (channel, "abort",
-			      G_CALLBACK(disconnect_proxy_destry_cb),
-			      unique_name_proxy);
-	}
-        else
-            g_error_free (unique_proxy_error);
-    }
-
-    _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_DISPATCHED);
-    g_signal_emit_by_name (context->dispatcher, "dispatched", channel);
-    mcd_dispatcher_context_handler_done (context);
-}
-
-static void
-start_old_channel_handler (McdDispatcherContext *context)
-{
-    McdChannelHandler *chandler = NULL;
-    McdDispatcherPrivate *priv;
-    McdChannel *channel = NULL;
-    const gchar *protocol;
-    GHashTable *channel_handler;
-
-    g_return_if_fail (context);
-
-    priv = context->dispatcher->priv;
-    channel = mcd_dispatcher_context_get_channel (context); 
-    protocol = mcd_dispatcher_context_get_protocol_name (context);
-
-    channel_handler =
-	g_hash_table_lookup (priv->channel_handler_hash,
-			     mcd_channel_get_channel_type (channel));
-
-    if (channel_handler != NULL)
-    {
-        chandler = g_hash_table_lookup (channel_handler, protocol);
-        if (chandler == NULL)
-            chandler = g_hash_table_lookup (channel_handler, "default");
-    }
-
-    if (chandler == NULL)
-    {
-	GError *mc_error;
-        DEBUG ("No handler for channel type %s",
-               mcd_channel_get_channel_type (channel));
-	
-	mc_error = g_error_new (MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
-				"No handler for channel type %s",
-				mcd_channel_get_channel_type (channel));
-        mcd_channel_take_error (channel, mc_error);
-	g_signal_emit_by_name (context->dispatcher, "dispatch-failed", channel,
-			       mc_error);
-        mcd_mission_abort (MCD_MISSION (channel));
-        mcd_dispatcher_context_handler_done (context);
-    }
-    else
-    {
-	struct cancel_call_data *call_data;
-	DBusGProxyCall *call;
-	TpConnection *tp_conn;
-	DBusGProxy *handler_proxy;
-	const McdConnection *connection = mcd_dispatcher_context_get_connection (context);
-	DBusGConnection *dbus_connection;
-
-	dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
-        g_object_get (G_OBJECT (connection),
-                      "tp-connection", &tp_conn, NULL);
-
-	handler_proxy = dbus_g_proxy_new_for_name (dbus_connection,
-							       chandler->bus_name,
-							       chandler->obj_path,
-				"org.freedesktop.Telepathy.ChannelHandler");
-	
-        DEBUG ("Starting chan handler (bus = %s, obj = '%s'): conn = %s, chan_type = %s,"
-               " obj_path = %s, handle_type = %d, handle = %d",
-               chandler->bus_name,
-               chandler->obj_path,
-               TP_PROXY (tp_conn)->object_path,
-               mcd_channel_get_channel_type (channel),
-               mcd_channel_get_object_path (channel),
-               mcd_channel_get_handle_type (channel),
-               mcd_channel_get_handle (channel));
- 
-	if (chandler->version >= 2)
-	{
-	    gboolean outgoing;
-	    guint request_id;
-	    GHashTable *options;
-
-            DEBUG ("new chandler");
-	    g_object_get (channel,
-			  "outgoing", &outgoing,
-			  "requestor-serial", &request_id,
-			  NULL);
-	    options = g_hash_table_new (g_str_hash, g_str_equal);
-	    call = tp_ch_handle_channel_2_async (handler_proxy,
-					/*Connection bus */
-					TP_PROXY (tp_conn)->bus_name,
-					/*Connection path */
-					TP_PROXY (tp_conn)->object_path,
-					/*Channel type */
-					mcd_channel_get_channel_type (channel),
-					/*Object path */
-					mcd_channel_get_object_path (channel),
-					mcd_channel_get_handle_type (channel),
-					mcd_channel_get_handle (channel),
-					!outgoing,
-					request_id,
-					options,
-					_mcd_dispatcher_handle_channel_async_cb,
-					context);
-	    g_hash_table_destroy (options);
-	}
-	else
-	    call = tp_ch_handle_channel_async (handler_proxy,
-					/*Connection bus */
-					TP_PROXY (tp_conn)->bus_name,
-					/*Connection path */
-					TP_PROXY (tp_conn)->object_path,
-					/*Channel type */
-					mcd_channel_get_channel_type (channel),
-					/*Object path */
-					mcd_channel_get_object_path (channel),
-					mcd_channel_get_handle_type (channel),
-					mcd_channel_get_handle (channel),
-					_mcd_dispatcher_handle_channel_async_cb,
-					context);
-	call_data = g_malloc (sizeof (struct cancel_call_data));
-	call_data->call = call;
-	call_data->handler_proxy = handler_proxy;
-	call_data->dispatcher = context->dispatcher;
-	g_signal_connect_data (channel, "abort", G_CALLBACK(cancel_proxy_call),
-			  call_data, (GClosureNotify)g_free, 0);
-        g_object_unref (tp_conn);
-    }
 }
 
 /* returns TRUE if the channel matches one property criteria
@@ -1184,13 +859,7 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
     }
     else
     {
-        DEBUG ("Client.Handler not found, invoking old-style handler");
-        for (cl = unhandled; cl != NULL; cl = cl->next)
-        {
-            mcd_dispatcher_context_set_channel (context,
-                                                MCD_CHANNEL (cl->data));
-            start_old_channel_handler (context);
-        }
+        DEBUG ("Client.Handler not found");
         g_list_free (unhandled);
         unhandled = NULL;
     }
@@ -2785,24 +2454,6 @@ mcd_dispatcher_context_get_connection_object (McdDispatcherContext * ctx)
    
     g_object_unref (tp_conn); 
     return tp_conn;
-}
-
-/*
- * mcd_dispatcher_context_set_channel:
- *
- * Sets the channel to be considered the main channel of the dispatcher
- * context, that is the one that will be retrieved with
- * mcd_dispatcher_context_get_channel(). It's useful only for compatibility
- * with the old code.
- */
-static void
-mcd_dispatcher_context_set_channel (McdDispatcherContext *context,
-                                    McdChannel *channel)
-{
-    g_return_if_fail (context != NULL);
-    g_return_if_fail (channel != NULL);
-
-    context->main_channel = channel;
 }
 
 McdChannel *
