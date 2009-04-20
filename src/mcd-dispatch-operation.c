@@ -134,16 +134,15 @@ get_account (TpSvcDBusProperties *self, const gchar *name, GValue *value)
         g_value_set_static_boxed (value, "/");
 }
 
-static void
-get_channels (TpSvcDBusProperties *self, const gchar *name, GValue *value)
+GPtrArray *
+_mcd_dispatch_operation_dup_channel_details (McdDispatchOperation *self)
 {
     McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (self);
     GPtrArray *channel_array;
     GList *list;
 
-    DEBUG ("called for %s", priv->unique_name);
-
     channel_array = g_ptr_array_sized_new (g_list_length (priv->channels));
+
     for (list = priv->channels; list != NULL; list = list->next)
     {
         McdChannel *channel = MCD_CHANNEL (list->data);
@@ -163,8 +162,19 @@ get_channels (TpSvcDBusProperties *self, const gchar *name, GValue *value)
         g_ptr_array_add (channel_array, g_value_get_boxed (&channel_val));
     }
 
+    return channel_array;
+}
+
+static void
+get_channels (TpSvcDBusProperties *iface, const gchar *name, GValue *value)
+{
+    McdDispatchOperation *self = MCD_DISPATCH_OPERATION (iface);
+
+    DEBUG ("called for %s", self->priv->unique_name);
+
     g_value_init (value, TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST);
-    g_value_take_boxed (value, channel_array);
+    g_value_take_boxed (value,
+                        _mcd_dispatch_operation_dup_channel_details (self));
 }
 
 static void
