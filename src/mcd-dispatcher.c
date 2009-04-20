@@ -2115,6 +2115,7 @@ create_client_proxy (McdDispatcher *self, McdClient *client)
 
     bus_name = g_strconcat (MC_CLIENT_BUS_NAME_BASE, client->name, NULL);
     object_path = g_strconcat (MC_CLIENT_OBJECT_PATH_BASE, client->name, NULL);
+    g_strdelimit (object_path, ".", '/');
     client->proxy = g_object_new (TP_TYPE_PROXY,
                                   "dbus-daemon", priv->dbus_daemon,
                                   "object-path", object_path,
