@@ -88,6 +88,8 @@ struct _McdDispatcherContext
 {
     gint ref_count;
 
+    guint finished : 1;
+
     /* If this flag is TRUE, dispatching must be cancelled ASAP */
     guint cancelled : 1;
 
@@ -311,6 +313,12 @@ mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
     GList *list;
     gint channels_left = 0;
 
+    if (context->finished)
+    {
+        DEBUG ("context %p is already finished", context);
+        return;
+    }
+
     for (list = context->channels; list != NULL; list = list->next)
     {
         McdChannel *channel = MCD_CHANNEL (list->data);
@@ -327,6 +335,7 @@ mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
     DEBUG ("%d channels still dispatching", channels_left);
     if (channels_left == 0)
     {
+        context->finished = TRUE;
         g_signal_emit (context->dispatcher,
                        signals[DISPATCH_COMPLETED], 0, context);
         mcd_dispatcher_context_unref (context);
@@ -918,6 +927,7 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
     McdDispatcherContext *context = call_data->context;
     GList *list;
 
+    mcd_dispatcher_context_ref (context); /* unref is done before return */
     if (error)
     {
         GError *mc_error = NULL;
@@ -957,6 +967,7 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
     }
 
     mcd_dispatcher_context_handler_done (context);
+    mcd_dispatcher_context_unref (context);
 }
 
 static GStrv
