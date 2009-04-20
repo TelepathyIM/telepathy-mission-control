@@ -107,9 +107,6 @@ def test(q, bus, mc):
     assert handlers == [cs.tp_name_prefix + '.Client.Empathy',
             cs.tp_name_prefix + '.Client.Kopete'], handlers
 
-    assert cdo_properties[cs.CDO + '.Channels'] == [(chan.object_path,
-        channel_properties)]
-
     assert cs.CD_IFACE_OP_LIST in cd_props.Get(cs.CD, 'Interfaces')
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') ==\
             [(cdo_path, cdo_properties)]
@@ -155,8 +152,9 @@ def test(q, bus, mc):
                 handled=False),
             )
 
-    assert e.args == [cdo_path, cdo_properties]
-    assert k.args == [cdo_path, cdo_properties]
+    assert e.args == [[(chan.object_path, channel_properties)],
+            cdo_path, cdo_properties]
+    assert k.args == e.args
 
     q.dbus_return(e.message, signature='')
 

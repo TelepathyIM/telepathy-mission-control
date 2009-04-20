@@ -1430,6 +1430,7 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
     g_hash_table_iter_init (&iter, priv->clients);
     while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &client))
     {
+        GPtrArray *channel_details;
         const gchar *dispatch_operation;
         GHashTable *properties;
         gboolean matched = FALSE;
@@ -1454,16 +1455,20 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
             mcd_dispatch_operation_get_path (context->operation);
         properties =
             mcd_dispatch_operation_get_properties (context->operation);
+        channel_details =
+            _mcd_dispatch_operation_dup_channel_details (context->operation);
 
         context->approvers_invoked++;
         _mcd_dispatch_operation_block_finished (context->operation);
 
         mcd_dispatcher_context_ref (context);
         mc_cli_client_approver_call_add_dispatch_operation (client->proxy, -1,
-            dispatch_operation, properties,
+            channel_details, dispatch_operation, properties,
             add_dispatch_operation_cb,
             context, (GDestroyNotify)mcd_dispatcher_context_unref,
             (GObject *)context->dispatcher);
+
+        g_boxed_free (TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST, channel_details);
     }
 
     /* This matches the approvers count set to 1 at the beginning of the

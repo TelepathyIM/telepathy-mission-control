@@ -542,6 +542,10 @@ mcd_dispatch_operation_get_properties (McdDispatchOperation *operation)
 
             if (!property->getprop) continue;
 
+            /* The Channels property is mutable, so cannot be returned
+             * here */
+            if (!tp_strdiff (property->name, "Channels")) continue;
+
             value = g_slice_new0 (GValue);
             property->getprop ((TpSvcDBusProperties *)operation,
                                property->name, value);
