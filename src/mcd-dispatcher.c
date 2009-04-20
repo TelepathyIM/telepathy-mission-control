@@ -2473,13 +2473,6 @@ mcd_dispatcher_context_get_channel_by_type (McdDispatcherContext *context,
     return NULL;
 }
 
-/*Returns an array of the participants in the channel*/
-GPtrArray *
-mcd_dispatcher_context_get_members (McdDispatcherContext * ctx)
-{
-    return NULL;
-}
-
 GPtrArray *
 _mcd_dispatcher_get_channel_capabilities (McdDispatcher *dispatcher,
                                           const gchar *protocol)

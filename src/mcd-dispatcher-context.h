@@ -76,9 +76,9 @@ void mcd_dispatcher_add_filters (McdDispatcher *dispatcher,
 
 McdDispatcher* mcd_dispatcher_context_get_dispatcher (McdDispatcherContext * ctx);
 
-TpChannel *mcd_dispatcher_context_get_channel_object (McdDispatcherContext * ctx);
+TpChannel *mcd_dispatcher_context_get_channel_object (McdDispatcherContext * ctx) G_GNUC_DEPRECATED;
 
-TpConnection *mcd_dispatcher_context_get_connection_object (McdDispatcherContext * ctx);
+TpConnection *mcd_dispatcher_context_get_connection_object (McdDispatcherContext * ctx) G_GNUC_DEPRECATED;
 
 McdChannel * mcd_dispatcher_context_get_channel (McdDispatcherContext * ctx);
 const GList *mcd_dispatcher_context_get_channels
@@ -89,10 +89,6 @@ McdChannel *mcd_dispatcher_context_get_channel_by_type
 McdConnection *mcd_dispatcher_context_get_connection
     (McdDispatcherContext *context);
 
-/*Returns an array of the gchar *  addresses of participants in the channel*/
-GPtrArray *mcd_dispatcher_context_get_members (McdDispatcherContext * ctx)
-    G_GNUC_DEPRECATED;
-
 /* Statemachine API section */
 
 /* Will step through the state machine.
@@ -102,7 +98,7 @@ GPtrArray *mcd_dispatcher_context_get_members (McdDispatcherContext * ctx)
 
 void mcd_dispatcher_context_process (McdDispatcherContext * ctx, gboolean result);
 
-const gchar *mcd_dispatcher_context_get_protocol_name (McdDispatcherContext *);
+const gchar *mcd_dispatcher_context_get_protocol_name (McdDispatcherContext *) G_GNUC_DEPRECATED;
 
 G_END_DECLS
 

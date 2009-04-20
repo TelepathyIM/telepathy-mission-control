@@ -274,8 +274,6 @@ mcd_dispatcher_context_get_channel
 mcd_dispatcher_context_get_channels
 mcd_dispatcher_context_get_channel_by_type
 mcd_dispatcher_context_get_connection
-mcd_dispatcher_context_get_chan_handler
-mcd_dispatcher_context_get_members
 mcd_dispatcher_context_process
 </SECTION>
 
