@@ -927,6 +927,7 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
     McdDispatcherContext *context = call_data->context;
     GList *list;
 
+    mcd_dispatcher_context_ref (context); /* unref is done before return */
     if (error)
     {
         GError *mc_error = NULL;
@@ -966,6 +967,7 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
     }
 
     mcd_dispatcher_context_handler_done (context);
+    mcd_dispatcher_context_unref (context);
 }
 
 static GStrv
