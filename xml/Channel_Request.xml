@@ -99,6 +99,14 @@
       </tp:docstring>
     </property>
 
+    <property name="Interfaces" tp:name-for-bindings="Interfaces"
+      type="as" access="read" tp:type="DBus_Interface[]">
+      <tp:docstring>
+        A list of the extra interfaces provided by this channel request.
+        This property cannot change.
+      </tp:docstring>
+    </property>
+
     <method name="Proceed" tp:name-for-bindings="Proceed">
       <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
         <p>Proceed with the channel request.</p>

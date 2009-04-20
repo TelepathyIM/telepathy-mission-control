@@ -89,6 +89,7 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
     assert request_props['Requests'] == [request]
     assert request_props['UserActionTime'] == user_action_time
     assert request_props['PreferredHandler'] == client.bus_name
+    assert request_props['Interfaces'] == []
 
     cr.Proceed(dbus_interface=cs.CR + '.DRAFT')
 
@@ -114,6 +115,7 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
     # FIXME: this is not actually in telepathy-spec (although maybe it
     # should be) - fd.o #21013
     assert request_props[cs.CR + '.PreferredHandler'] == client.bus_name
+    assert request_props[cs.CR + '.Interfaces'] == []
 
     q.dbus_return(add_request_call.message, signature='')
 
