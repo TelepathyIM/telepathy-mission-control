@@ -111,6 +111,7 @@ enum _McdChannelPropertyType
     PROP_ACCOUNT_PATH,
     PROP_REQUESTS,
     PROP_USER_ACTION_TIME,
+    PROP_PREFERRED_HANDLER,
 };
 
 #define DEPRECATED_PROPERTY_WARNING \
@@ -403,6 +404,15 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
         g_value_set_int64 (val, 0);
         break;
 
+    case PROP_PREFERRED_HANDLER:
+        if (priv->request_data != NULL)
+        {
+            g_value_set_string (val, priv->request_data->preferred_handler);
+            break;
+        }
+        g_value_set_static_string (val, "");
+        break;
+
     case PROP_REQUESTS:
         if (priv->request_data != NULL &&
             priv->request_data->properties != NULL)
@@ -551,6 +561,7 @@ mcd_channel_class_init (McdChannelClass * klass)
     static TpDBusPropertiesMixinPropImpl request_props[] = {
         { "Account", "account-path", NULL },
         { "UserActionTime", "user-action-time", NULL },
+        { "PreferredHandler", "preferred-handler", NULL },
         { "Requests", "requests", NULL },
         { NULL }
     };
@@ -614,6 +625,14 @@ mcd_channel_class_init (McdChannelClass * klass)
                              "Account",
                              "Object path of the Account",
                              DBUS_TYPE_G_OBJECT_PATH,
+                             G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
+    g_object_class_install_property
+        (object_class, PROP_PREFERRED_HANDLER,
+         g_param_spec_string ("preferred-handler",
+                             "PreferredHandler",
+                             "Well-known bus name of the preferred Handler",
+                             NULL,
                              G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property

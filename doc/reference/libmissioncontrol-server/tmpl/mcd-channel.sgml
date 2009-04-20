@@ -48,6 +48,11 @@ McdChannel
 
 </para>
 
+<!-- ##### ARG McdChannel:preferred-handler ##### -->
+<para>
+
+</para>
+
 <!-- ##### ARG McdChannel:requests ##### -->
 <para>
 
