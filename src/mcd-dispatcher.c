@@ -1391,6 +1391,11 @@ add_dispatch_operation_cb (TpProxy *proxy, const GError *error,
         if (context->approvers_invoked == 0)
             mcd_dispatcher_context_release_client_lock (context);
     }
+
+    if (context->operation)
+    {
+        _mcd_dispatch_operation_unblock_finished (context->operation);
+    }
 }
 
 static void
@@ -1440,6 +1445,8 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
             mcd_dispatch_operation_get_properties (context->operation);
 
         context->approvers_invoked++;
+        _mcd_dispatch_operation_block_finished (context->operation);
+
         mcd_dispatcher_context_ref (context);
         mc_cli_client_approver_call_add_dispatch_operation (client->proxy, -1,
             dispatch_operation, properties,
