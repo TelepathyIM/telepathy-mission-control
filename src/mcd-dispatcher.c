@@ -48,7 +48,6 @@
 #include "mcd-connection.h"
 #include "mcd-channel.h"
 #include "mcd-master.h"
-#include "mcd-chan-handler.h"
 #include "mcd-channel-priv.h"
 #include "mcd-dispatcher-context.h"
 #include "mcd-dispatcher-priv.h"
@@ -123,13 +122,6 @@ struct _McdDispatcherContext
     /* Next function in chain */
     guint next_func_index;
 };
-
-typedef struct _McdDispatcherArgs
-{
-    McdDispatcher *dispatcher;
-    const gchar *protocol;
-    GPtrArray *channel_handler_caps;
-} McdDispatcherArgs;
 
 typedef struct
 {
@@ -206,8 +198,6 @@ struct _McdDispatcherPrivate
 
     TpDBusDaemon *dbus_daemon;
 
-    /* Channel handlers */
-    GHashTable *channel_handler_hash;
     /* Array of channel handler's capabilities, stored as a GPtrArray for
      * performance reasons */
     GPtrArray *channel_handler_caps;
@@ -1484,8 +1474,6 @@ _mcd_dispatcher_finalize (GObject * object)
         g_list_free (priv->filters);
     }
 
-    g_hash_table_destroy (priv->channel_handler_hash);
-
     G_OBJECT_CLASS (mcd_dispatcher_parent_class)->finalize (object);
 }
 
@@ -2275,22 +2263,6 @@ _build_channel_capabilities (const gchar *channel_type, guint type_flags,
     g_ptr_array_add (capabilities, g_value_get_boxed (&cap));
 }
 
-
-static void
-_channel_capabilities (gchar *ctype, GHashTable *channel_handler,
-		       McdDispatcherArgs *args)
-{
-    McdChannelHandler *handler;
-
-    handler = g_hash_table_lookup (channel_handler, args->protocol);
-
-    if (!handler)
-	handler = g_hash_table_lookup (channel_handler, "default");
-
-    _build_channel_capabilities (ctype, handler->capabilities,
-                                 args->channel_handler_caps);
-}
-
 static void
 mcd_dispatcher_init (McdDispatcher * dispatcher)
 {
@@ -2301,8 +2273,6 @@ mcd_dispatcher_init (McdDispatcher * dispatcher)
     dispatcher->priv = priv;
 
     priv->operation_list_active = FALSE;
-
-    priv->channel_handler_hash = mcd_get_channel_handlers ();
 
     priv->clients = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
         (GDestroyNotify) mcd_client_free);
@@ -2503,30 +2473,6 @@ mcd_dispatcher_context_get_channel_by_type (McdDispatcherContext *context,
     return NULL;
 }
 
-McdChannelHandler *
-mcd_dispatcher_context_get_chan_handler (McdDispatcherContext * ctx)
-{
-    McdDispatcherPrivate *priv = ctx->dispatcher->priv;
-    McdChannel *channel;
-    const gchar *protocol;
-    McdChannelHandler *chandler;
-    GHashTable *channel_handler;
-    
-    channel = mcd_dispatcher_context_get_channel (ctx);
-    protocol = mcd_dispatcher_context_get_protocol_name (ctx);
-
-    channel_handler =
-	g_hash_table_lookup (priv->channel_handler_hash,
-			     mcd_channel_get_channel_type (channel));
-
-    chandler =  g_hash_table_lookup (channel_handler, protocol);
-    if (!chandler)
-        chandler =  g_hash_table_lookup (channel_handler, "default");
-
-    return chandler;
-     
-}
-
 /*Returns an array of the participants in the channel*/
 GPtrArray *
 mcd_dispatcher_context_get_members (McdDispatcherContext * ctx)
@@ -2539,17 +2485,11 @@ _mcd_dispatcher_get_channel_capabilities (McdDispatcher *dispatcher,
                                           const gchar *protocol)
 {
     McdDispatcherPrivate *priv = dispatcher->priv;
-    McdDispatcherArgs args;
+    GPtrArray *channel_handler_caps;
     GHashTableIter iter;
     gpointer key, value;
 
-    args.dispatcher = dispatcher;
-    args.protocol = protocol;
-    args.channel_handler_caps = g_ptr_array_new ();
-
-    g_hash_table_foreach (priv->channel_handler_hash,
-			  (GHFunc)_channel_capabilities,
-			  &args);
+    channel_handler_caps = g_ptr_array_new ();
 
     /* Add the capabilities from the new-style clients */
     g_hash_table_iter_init (&iter, priv->clients);
@@ -2574,10 +2514,10 @@ _mcd_dispatcher_get_channel_capabilities (McdDispatcher *dispatcher,
             type_flags = 0xffffffff;
 
             _build_channel_capabilities (channel_type, type_flags,
-                                         args.channel_handler_caps);
+                                         channel_handler_caps);
         }
     }
-    return args.channel_handler_caps;
+    return channel_handler_caps;
 }
 
 GPtrArray *

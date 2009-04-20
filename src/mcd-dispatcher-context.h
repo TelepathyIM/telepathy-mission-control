@@ -28,7 +28,6 @@
 
 #include "mcd-dispatcher.h"
 #include "mcd-connection.h"
-#include "mcd-chan-handler.h"
 
 G_BEGIN_DECLS
 
@@ -89,8 +88,6 @@ McdChannel *mcd_dispatcher_context_get_channel_by_type
 
 McdConnection *mcd_dispatcher_context_get_connection
     (McdDispatcherContext *context);
-
-McdChannelHandler * mcd_dispatcher_context_get_chan_handler (McdDispatcherContext * ctx);
 
 /*Returns an array of the gchar *  addresses of participants in the channel*/
 GPtrArray *mcd_dispatcher_context_get_members (McdDispatcherContext * ctx)
