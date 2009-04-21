@@ -70,7 +70,7 @@ def test(q, bus, mc):
     # subscribe to the OperationList interface (MC assumes that until this
     # property has been retrieved once, nobody cares)
 
-    cd = bus.get_object(cs.CD_BUS_NAME, cs.CD_PATH)
+    cd = bus.get_object(cs.CD, cs.CD_PATH)
     cd_props = dbus.Interface(cd, cs.PROPERTIES_IFACE)
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []
 
@@ -111,7 +111,7 @@ def test(q, bus, mc):
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') ==\
             [(cdo_path, cdo_properties)]
 
-    cdo = bus.get_object(cs.CD_BUS_NAME, cdo_path)
+    cdo = bus.get_object(cs.CD, cdo_path)
     cdo_iface = dbus.Interface(cdo, cs.CDO)
 
     # Both Observers are told about the new channel

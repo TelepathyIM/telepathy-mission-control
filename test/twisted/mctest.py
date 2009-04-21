@@ -381,7 +381,7 @@ class SimulatedClient(object):
             ret.append(cs.HANDLER)
 
         if self.request_notification:
-            ret.append(cs.HANDLER_IFACE_REQUEST_NOTIFICATION)
+            ret.append(cs.CLIENT_IFACE_REQUESTS)
 
         return ret
 

@@ -3,10 +3,10 @@ import dbus.service
 from servicetest import Event
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix
 
-client_iface = "org.freedesktop.Telepathy.Client.DRAFT"
-client_observer_iface = "org.freedesktop.Telepathy.Client.Observer.DRAFT"
-client_approver_iface = "org.freedesktop.Telepathy.Client.Approver.DRAFT"
-client_handler_iface = "org.freedesktop.Telepathy.Client.Handler.DRAFT"
+client_iface = "org.freedesktop.Telepathy.Client"
+client_observer_iface = "org.freedesktop.Telepathy.Client.Observer"
+client_approver_iface = "org.freedesktop.Telepathy.Client.Approver"
+client_handler_iface = "org.freedesktop.Telepathy.Client.Handler"
 
 properties_iface = "org.freedesktop.DBus.Properties"
 

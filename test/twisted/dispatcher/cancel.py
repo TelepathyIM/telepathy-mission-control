@@ -61,7 +61,7 @@ def test_channel_creation(q, bus, account, client, conn,
 
     user_action_time = dbus.Int64(1238582606)
 
-    cd = bus.get_object(cs.CD_BUS_NAME, cs.CD_PATH)
+    cd = bus.get_object(cs.CD, cs.CD_PATH)
     cd_props = dbus.Interface(cd, cs.PROPERTIES_IFACE)
 
     # chat UI calls ChannelDispatcher.CreateChannel
@@ -79,23 +79,20 @@ def test_channel_creation(q, bus, account, client, conn,
     request_path = ret.value[0]
 
     cr = bus.get_object(cs.AM, request_path)
-    # FIXME: MC gives CR properties to clients without .DRAFT, but the
-    # CR itself is really still .DRAFT
-    request_props = cr.GetAll(cs.CR + '.DRAFT',
-            dbus_interface=cs.PROPERTIES_IFACE)
+    request_props = cr.GetAll(cs.CR, dbus_interface=cs.PROPERTIES_IFACE)
     assert request_props['Account'] == account.object_path
     assert request_props['Requests'] == [request]
     assert request_props['UserActionTime'] == user_action_time
 
     if cancel_before_proceed:
-        cr.Cancel(dbus_interface=cs.CR + '.DRAFT')
+        cr.Cancel(dbus_interface=cs.CR)
 
         accsig, stdsig = q.expect_many(
                 EventPattern('dbus-signal', path=account.object_path,
                     interface=cs.ACCOUNT_IFACE_NOKIA_REQUESTS,
                     signal='Failed'),
                 EventPattern('dbus-signal', path=request_path,
-                    interface=cs.CR + '.DRAFT', signal='Failed'),
+                    interface=cs.CR, signal='Failed'),
                 )
         assert accsig.args[0] == request_path
         assert accsig.args[1] == cs.CANCELLED
@@ -103,7 +100,7 @@ def test_channel_creation(q, bus, account, client, conn,
 
         # the channel request has gone away
         try:
-            cr.Proceed(dbus_interface=cs.CR + '.DRAFT')
+            cr.Proceed(dbus_interface=cs.CR)
         except dbus.DBusException, e:
             pass
         else:
@@ -111,14 +108,14 @@ def test_channel_creation(q, bus, account, client, conn,
 
         return
 
-    cr.Proceed(dbus_interface=cs.CR + '.DRAFT')
+    cr.Proceed(dbus_interface=cs.CR)
 
     cm_request_call, add_request_call = q.expect_many(
             EventPattern('dbus-method-call',
                 interface=cs.CONN_IFACE_REQUESTS, method='CreateChannel',
                 path=conn.object_path, args=[request], handled=False),
             EventPattern('dbus-method-call', handled=False,
-                interface=cs.HANDLER_IFACE_REQUEST_NOTIFICATION,
+                interface=cs.CLIENT_IFACE_REQUESTS,
                 method='AddRequest', path=client.object_path),
             )
 
@@ -126,7 +123,7 @@ def test_channel_creation(q, bus, account, client, conn,
     q.dbus_return(add_request_call.message, signature='')
 
     # Actually, never mind.
-    cr.Cancel(dbus_interface=cs.CR + '.DRAFT')
+    cr.Cancel(dbus_interface=cs.CR)
 
     # Time passes. A channel is returned.
 
@@ -150,7 +147,7 @@ def test_channel_creation(q, bus, account, client, conn,
             EventPattern('dbus-signal', path=account.object_path,
                 interface=cs.ACCOUNT_IFACE_NOKIA_REQUESTS, signal='Failed'),
             EventPattern('dbus-signal', path=request_path,
-                interface=cs.CR + '.DRAFT', signal='Failed'),
+                interface=cs.CR, signal='Failed'),
             EventPattern('dbus-method-call', path=channel.object_path,
                 interface=cs.CHANNEL, method='Close', handled=True),
             )

@@ -144,7 +144,7 @@ typedef enum
     MCD_CLIENT_APPROVER = 0x1,
     MCD_CLIENT_HANDLER  = 0x2,
     MCD_CLIENT_OBSERVER = 0x4,
-    MCD_CLIENT_HANDLER_REQUEST_NOTIFICATION  = 0x8,
+    MCD_CLIENT_INTERFACE_REQUESTS  = 0x8,
 } McdClientInterface;
 
 typedef struct _McdClient
@@ -183,23 +183,8 @@ typedef struct _McdClient
     GList *observer_filters;
 } McdClient;
 
-/* The same defines as MC_IFACE_CLIENT* from interfaces.h but without the
- * ".DRAFT" suffix, to be used in .client files. Once the interfaces are
- * undrafted, theses defines must be removed.
- */
-#define MC_FILE_IFACE_CLIENT \
-    "org.freedesktop.Telepathy.Client"
-#define MC_FILE_IFACE_CLIENT_APPROVER \
-    "org.freedesktop.Telepathy.Client.Approver"
-#define MC_FILE_IFACE_CLIENT_HANDLER \
-    "org.freedesktop.Telepathy.Client.Handler"
-#define MC_FILE_IFACE_CLIENT_HANDLER_INTERFACE_REQUEST_NOTIFICATION \
-    "org.freedesktop.Telepathy.Client.Handler.Interface.RequestNotification"
-#define MC_FILE_IFACE_CLIENT_OBSERVER \
-    "org.freedesktop.Telepathy.Client.Observer"
-
 /* Analogous to TP_CM_*_BASE */
-#define MC_CLIENT_BUS_NAME_BASE MC_FILE_IFACE_CLIENT "."
+#define MC_CLIENT_BUS_NAME_BASE MC_IFACE_CLIENT "."
 #define MC_CLIENT_OBJECT_PATH_BASE "/org/freedesktop/Telepathy/Client/"
 
 struct _McdDispatcherPrivate
@@ -2080,9 +2065,8 @@ client_add_interface_by_id (McdClient *client)
     if (client->interfaces & MCD_CLIENT_HANDLER)
         tp_proxy_add_interface_by_id (client->proxy,
                                       MC_IFACE_QUARK_CLIENT_HANDLER);
-    if (client->interfaces & MCD_CLIENT_HANDLER_REQUEST_NOTIFICATION)
-        tp_proxy_add_interface_by_id (client->proxy,
-            MC_IFACE_QUARK_CLIENT_HANDLER_INTERFACE_REQUEST_NOTIFICATION);
+    if (client->interfaces & MCD_CLIENT_INTERFACE_REQUESTS)
+        tp_proxy_add_interface_by_id (client->proxy, MC_IFACE_QUARK_CLIENT_INTERFACE_REQUESTS);
     if (client->interfaces & MCD_CLIENT_OBSERVER)
         tp_proxy_add_interface_by_id (client->proxy,
                                       MC_IFACE_QUARK_CLIENT_OBSERVER);
@@ -2108,8 +2092,8 @@ get_interfaces_cb (TpProxy *proxy,
             client->interfaces |= MCD_CLIENT_APPROVER;
         if (strcmp (*arr, MC_IFACE_CLIENT_HANDLER) == 0)
             client->interfaces |= MCD_CLIENT_HANDLER;
-        if (strcmp (*arr, MC_IFACE_CLIENT_HANDLER_INTERFACE_REQUEST_NOTIFICATION) == 0)
-            client->interfaces |= MCD_CLIENT_HANDLER_REQUEST_NOTIFICATION;
+        if (strcmp (*arr, MC_IFACE_CLIENT_INTERFACE_REQUESTS) == 0)
+            client->interfaces |= MCD_CLIENT_INTERFACE_REQUESTS;
         if (strcmp (*arr, MC_IFACE_CLIENT_OBSERVER) == 0)
             client->interfaces |= MCD_CLIENT_OBSERVER;
         arr++;
@@ -2164,20 +2148,20 @@ parse_client_file (McdClient *client, GKeyFile *file)
     guint i;
     gsize len = 0;
 
-    iface_names = g_key_file_get_string_list (file, MC_FILE_IFACE_CLIENT,
+    iface_names = g_key_file_get_string_list (file, MC_IFACE_CLIENT,
                                               "Interfaces", 0, NULL);
     if (!iface_names)
         return;
 
     for (i = 0; iface_names[i] != NULL; i++)
     {
-        if (strcmp (iface_names[i], MC_FILE_IFACE_CLIENT_APPROVER) == 0)
+        if (strcmp (iface_names[i], MC_IFACE_CLIENT_APPROVER) == 0)
             client->interfaces |= MCD_CLIENT_APPROVER;
-        else if (strcmp (iface_names[i], MC_FILE_IFACE_CLIENT_HANDLER) == 0)
+        else if (strcmp (iface_names[i], MC_IFACE_CLIENT_HANDLER) == 0)
             client->interfaces |= MCD_CLIENT_HANDLER;
-        else if (strcmp (iface_names[i], MC_FILE_IFACE_CLIENT_HANDLER_INTERFACE_REQUEST_NOTIFICATION) == 0)
-            client->interfaces |= MCD_CLIENT_HANDLER_REQUEST_NOTIFICATION;
-        else if (strcmp (iface_names[i], MC_FILE_IFACE_CLIENT_OBSERVER) == 0)
+        else if (strcmp (iface_names[i], MC_IFACE_CLIENT_INTERFACE_REQUESTS) == 0)
+            client->interfaces |= MCD_CLIENT_INTERFACE_REQUESTS;
+        else if (strcmp (iface_names[i], MC_IFACE_CLIENT_OBSERVER) == 0)
             client->interfaces |= MCD_CLIENT_OBSERVER;
     }
     g_strfreev (iface_names);
@@ -2187,7 +2171,7 @@ parse_client_file (McdClient *client, GKeyFile *file)
     for (i = 0; i < len; i++)
     {
         if (client->interfaces & MCD_CLIENT_APPROVER &&
-            g_str_has_prefix (groups[i], MC_FILE_IFACE_CLIENT_APPROVER
+            g_str_has_prefix (groups[i], MC_IFACE_CLIENT_APPROVER
                               ".ApproverChannelFilter "))
         {
             client->approver_filters =
@@ -2195,7 +2179,7 @@ parse_client_file (McdClient *client, GKeyFile *file)
                                 parse_client_filter (file, groups[i]));
         }
         else if (client->interfaces & MCD_CLIENT_HANDLER &&
-            g_str_has_prefix (groups[i], MC_FILE_IFACE_CLIENT_HANDLER
+            g_str_has_prefix (groups[i], MC_IFACE_CLIENT_HANDLER
                               ".HandlerChannelFilter "))
         {
             client->handler_filters =
@@ -2203,7 +2187,7 @@ parse_client_file (McdClient *client, GKeyFile *file)
                                 parse_client_filter (file, groups[i]));
         }
         else if (client->interfaces & MCD_CLIENT_OBSERVER &&
-            g_str_has_prefix (groups[i], MC_FILE_IFACE_CLIENT_OBSERVER
+            g_str_has_prefix (groups[i], MC_IFACE_CLIENT_OBSERVER
                               ".ObserverChannelFilter "))
         {
             client->observer_filters =
@@ -2215,7 +2199,7 @@ parse_client_file (McdClient *client, GKeyFile *file)
 
     /* Other client options */
     client->bypass_approver =
-        g_key_file_get_boolean (file, MC_FILE_IFACE_CLIENT_HANDLER,
+        g_key_file_get_boolean (file, MC_IFACE_CLIENT_HANDLER,
                                 "BypassApproval", NULL);
 }
 
@@ -3032,7 +3016,7 @@ on_request_status_changed (McdChannel *channel, McdChannelStatus status,
         error = mcd_channel_get_error (channel);
         err_string = _mcd_build_error_string (error);
         /* no callback, as we don't really care */
-        mc_cli_client_handler_interface_request_notification_call_remove_request
+        mc_cli_client_interface_requests_call_remove_request
             (rrd->handler, -1, rrd->request_path, err_string, error->message,
              NULL, NULL, NULL, NULL);
         g_free (err_string);
@@ -3084,7 +3068,7 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
         return;
     }
 
-    if (!(handler->interfaces & MCD_CLIENT_HANDLER_REQUEST_NOTIFICATION))
+    if (!(handler->interfaces & MCD_CLIENT_INTERFACE_REQUESTS))
     {
         DEBUG ("Default handler %s for request %s doesn't want AddRequest",
                handler->name, _mcd_channel_get_request_path (channel));
@@ -3128,7 +3112,7 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
     g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest"
                          ".PreferredHandler", &v_preferred_handler);
 
-    mc_cli_client_handler_interface_request_notification_call_add_request (
+    mc_cli_client_interface_requests_call_add_request (
         handler->proxy, -1,
         _mcd_channel_get_request_path (channel), properties,
         NULL, NULL, NULL, NULL);

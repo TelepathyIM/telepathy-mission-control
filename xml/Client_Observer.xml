@@ -20,11 +20,11 @@
       02110-1301, USA.</p>
   </tp:license>
 
-  <interface name="org.freedesktop.Telepathy.Client.Observer.DRAFT"
-    tp:causes-havoc="experimental">
+  <interface name="org.freedesktop.Telepathy.Client.Observer"
+    tp:causes-havoc="not yet final">
     <tp:added version="0.17.12">(as a draft)</tp:added>
 
-    <tp:requires interface="org.freedesktop.Telepathy.Client.DRAFT"/>
+    <tp:requires interface="org.freedesktop.Telepathy.Client"/>
 
     <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
       <p>Observers monitor the creation of new channels. This
@@ -56,7 +56,7 @@
           channels, doing the actual data transfer for file transfers,
           setting up the out-of-band connection for Tubes). The
           <tp:dbus-ref
-            namespace="org.freedesktop.Telepathy.Client">Handler.DRAFT</tp:dbus-ref>
+            namespace="org.freedesktop.Telepathy.Client">Handler</tp:dbus-ref>
           is responsible for such tasks.</p>
 
         <p>Handlers MAY, of course, delegate responsibility for these
@@ -163,15 +163,15 @@
           a local client:</p>
 
 <pre>
-[org.freedesktop.Telepathy.Client.DRAFT]
-Interfaces=org.freedesktop.Telepathy.Client.Observer.DRAFT;
+[org.freedesktop.Telepathy.Client]
+Interfaces=org.freedesktop.Telepathy.Client.Observer;
 
-[org.freedesktop.Telepathy.Client.Observer.DRAFT.ObserverChannelFilter 0]
+[org.freedesktop.Telepathy.Client.Observer.ObserverChannelFilter 0]
 org.freedesktop.Telepathy.Channel.Type s=org.freedesktop.Telepathy.Channel.Type.Text
 org.freedesktop.Telepathy.Channel.TargetHandleType u=1
 org.freedesktop.Telepathy.Channel.Requested b=true
 
-[org.freedesktop.Telepathy.Client.Observer.DRAFT.ObserverChannelFilter 1]
+[org.freedesktop.Telepathy.Client.Observer.ObserverChannelFilter 1]
 org.freedesktop.Telepathy.Channel.Type s=org.freedesktop.Telepathy.Channel.Type.Text
 org.freedesktop.Telepathy.Channel.TargetHandleType u=2
 org.freedesktop.Telepathy.Channel.Requested b=true
@@ -205,7 +205,7 @@ org.freedesktop.Telepathy.Channel.Requested b=true
             to avoid the following race: text channel logger (observer) gets
             ObserveChannels, text channel handler gets
             <tp:dbus-ref
-              namespace="org.freedesktop.Telepathy.Client.Handler.DRAFT">HandleChannels</tp:dbus-ref>
+              namespace="org.freedesktop.Telepathy.Client.Handler">HandleChannels</tp:dbus-ref>
             channel handler starts up faster and acknowledges messages,
             logger never sees those messages.</p>
         </tp:rationale>
@@ -256,25 +256,25 @@ org.freedesktop.Telepathy.Channel.Requested b=true
       <arg name="Dispatch_Operation" type="o" direction="in">
         <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
           <p>The path to the <tp:dbus-ref
-              namespace="org.freedesktop.Telepathy">ChannelDispatchOperation.DRAFT</tp:dbus-ref>
+              namespace="org.freedesktop.Telepathy">ChannelDispatchOperation</tp:dbus-ref>
             for these channels, or the special value '/' if there is no
             ChannelDispatchOperation (because the channels were requested, not
             incoming).</p>
 
           <p>If the Observer calls <tp:dbus-ref
-              namespace="org.freedesktop.Telepathy.ChannelDispatchOperation.DRAFT">Claim</tp:dbus-ref>
+              namespace="org.freedesktop.Telepathy.ChannelDispatchOperation">Claim</tp:dbus-ref>
             or <tp:dbus-ref
-              namespace="org.freedesktop.Telepathy.ChannelDispatchOperation.DRAFT">HandleWith</tp:dbus-ref>
+              namespace="org.freedesktop.Telepathy.ChannelDispatchOperation">HandleWith</tp:dbus-ref>
             on the dispatch operation, it MUST be careful to avoid deadlock,
             since these methods cannot return until the Observer has returned
             from <tp:member-ref>ObserveChannels</tp:member-ref>.</p>
 
           <tp:rationale>
             <p>This allows an Observer to <tp:dbus-ref
-                namespace="org.freedesktop.Telepathy.ChannelDispatchOperation.DRAFT">Claim</tp:dbus-ref>
+                namespace="org.freedesktop.Telepathy.ChannelDispatchOperation">Claim</tp:dbus-ref>
               a set of channels without having to match up calls to this method
               with calls to <tp:dbus-ref
-                namespace="org.freedesktop.Telepathy.Client.Approver.DRAFT">AddDispatchOperation</tp:dbus-ref>.</p>
+                namespace="org.freedesktop.Telepathy.Client.Approver">AddDispatchOperation</tp:dbus-ref>.</p>
           </tp:rationale>
         </tp:docstring>
       </arg>
@@ -287,7 +287,7 @@ org.freedesktop.Telepathy.Channel.Requested b=true
             If the same process is an Observer and a Handler, it can be useful
             to be given this information as soon as possible (it will also
             be passed to <tp:dbus-ref
-              namespace="org.freedesktop.Telepathy.Client">Handler.DRAFT.HandleChannels</tp:dbus-ref>).
+              namespace="org.freedesktop.Telepathy.Client">Handler.HandleChannels</tp:dbus-ref>).
           </tp:rationale>
         </tp:docstring>
       </arg>

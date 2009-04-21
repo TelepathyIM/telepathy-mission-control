@@ -20,11 +20,11 @@
       02110-1301, USA.</p>
   </tp:license>
 
-  <interface name="org.freedesktop.Telepathy.Client.Handler.DRAFT"
-    tp:causes-havoc="experimental">
+  <interface name="org.freedesktop.Telepathy.Client.Handler"
+    tp:causes-havoc="not yet final">
     <tp:added version="0.17.12">(as a draft)</tp:added>
 
-    <tp:requires interface="org.freedesktop.Telepathy.Client.DRAFT"/>
+    <tp:requires interface="org.freedesktop.Telepathy.Client"/>
 
     <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
       <p>Handlers are the user interface for a channel. They turn an abstract
@@ -49,7 +49,7 @@
       <p>When a new incoming channel (one with
         <tp:dbus-ref namespace="org.freedesktop.Telepathy.Channel">Requested</tp:dbus-ref>
         = FALSE) is offered to
-        <tp:dbus-ref namespace="org.freedesktop.Telepathy.Client">Approver.DRAFT</tp:dbus-ref>s
+        <tp:dbus-ref namespace="org.freedesktop.Telepathy.Client">Approver</tp:dbus-ref>s
         by the channel dispatcher, it also offers the Approvers a list of all
         the running or activatable handlers whose
         <tp:member-ref>HandlerChannelFilter</tp:member-ref> property
@@ -75,7 +75,7 @@
           or for suitable channels that must be handled separately.</p>
 
         <p>This property works in exactly the same way as the
-          <tp:dbus-ref namespace="org.freedesktop.Telepathy">Client.Observer.DRAFT.ObserverChannelFilter</tp:dbus-ref>
+          <tp:dbus-ref namespace="org.freedesktop.Telepathy">Client.Observer.ObserverChannelFilter</tp:dbus-ref>
           property. In particular, it cannot change while the handler process
           continues to own the corresponding Client bus name.</p>
 
@@ -183,9 +183,9 @@
           <p>The requests satisfied by these channels.</p>
 
           <tp:rationale>
-            <p>If the handler implements RequestNotification, this tells it
+            <p>If the handler implements Requests, this tells it
               that these channels match previous <tp:dbus-ref
-                namespace="org.freedesktop.Telepathy.Client.Handler.Interface.RequestNotification.DRAFT">AddRequest</tp:dbus-ref>
+                namespace="org.freedesktop.Telepathy.Client.Interface.Requests">AddRequest</tp:dbus-ref>
               calls that it may have received.</p>
 
             <p>There can be more than one, if they were EnsureChannel

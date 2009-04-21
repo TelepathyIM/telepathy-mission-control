@@ -17,7 +17,7 @@
 <xi:include href="Client.xml"/>
 <xi:include href="Client_Approver.xml"/>
 <xi:include href="Client_Handler.xml"/>
-<xi:include href="Client_Handler_Interface_Request_Notification.xml"/>
+<xi:include href="Client_Interface_Requests.xml"/>
 <xi:include href="Client_Observer.xml"/>
 
 <xi:include href="Channel_Dispatcher.xml"/>

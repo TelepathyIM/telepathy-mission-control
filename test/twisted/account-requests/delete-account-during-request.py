@@ -74,7 +74,7 @@ def test(q, bus, mc):
     request_path = ret.value[0]
 
     e = q.expect('dbus-method-call', handled=False,
-        interface=cs.HANDLER_IFACE_REQUEST_NOTIFICATION, method='AddRequest',
+        interface=cs.CLIENT_IFACE_REQUESTS, method='AddRequest',
         path=client.object_path)
     assert e.args[0] == request_path
 
@@ -101,7 +101,7 @@ def test(q, bus, mc):
 
     # You know that request I told you about? Not going to happen.
     remove_request = q.expect('dbus-method-call',
-            interface=cs.HANDLER_IFACE_REQUEST_NOTIFICATION,
+            interface=cs.CLIENT_IFACE_REQUESTS,
             method='RemoveRequest',
             handled=False)
     assert remove_request.args[0] == request_path
@@ -111,9 +111,7 @@ def test(q, bus, mc):
 
     q.expect_many(
             EventPattern('dbus-signal',
-                path=request_path,
-                interface=cs.CR + '.DRAFT',
-                signal='Failed',
+                path=request_path, interface=cs.CR, signal='Failed',
                 args=remove_request.args[1:]),
             EventPattern('dbus-signal',
                 path=account.object_path,
