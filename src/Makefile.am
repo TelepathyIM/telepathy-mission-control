@@ -36,7 +36,6 @@ mission_control_include_HEADERS = \
 	mcd-dispatcher.h \
 	mcd-dispatcher-context.h \
 	mcd-service.h \
-	mcd-chan-handler.h \
 	mcd-transport.h \
 	mcd-provisioning.h \
 	mcd-provisioning-factory.h
@@ -147,7 +146,6 @@ libmissioncontrol_server_la_SOURCES = \
 	mcd-channel-priv.h \
 	mcd-service.c \
 	mcd-proxy.c \
-	mcd-chan-handler.c \
 	mcd-transport.c \
 	mcd-provisioning.c \
 	mcd-provisioning-factory.c \

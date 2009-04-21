@@ -278,11 +278,6 @@ mcd_dispatcher_context_process
 </SECTION>
 
 <SECTION>
-<FILE>mcd-chan-handler</FILE>
-mcd_get_channel_handlers
-</SECTION>
-
-<SECTION>
 <FILE>mcd-debug</FILE>
 g_object_ref
 g_object_unref
