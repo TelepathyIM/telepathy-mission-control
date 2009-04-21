@@ -33,6 +33,13 @@ G_GNUC_INTERNAL McdDispatchOperation *_mcd_dispatch_operation_new (
 G_GNUC_INTERNAL void _mcd_dispatch_operation_lose_channel (
     McdDispatchOperation *self, McdChannel *channel, GList **channels);
 
+G_GNUC_INTERNAL GPtrArray *_mcd_dispatch_operation_dup_channel_details (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_block_finished (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_unblock_finished (
+    McdDispatchOperation *self);
+
 G_END_DECLS
 
 #endif

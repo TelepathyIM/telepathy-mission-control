@@ -65,6 +65,7 @@ NOT_IMPLEMENTED = ERROR + '.NotImplemented'
 NOT_AVAILABLE = ERROR + '.NotAvailable'
 PERMISSION_DENIED = ERROR + '.PermissionDenied'
 CANCELLED = ERROR + '.Cancelled'
+NOT_YOURS = ERROR + '.NotYours'
 
 TUBE_PARAMETERS = CHANNEL_IFACE_TUBE + '.Parameters'
 TUBE_STATE = CHANNEL_IFACE_TUBE + '.State'

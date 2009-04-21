@@ -75,6 +75,7 @@ struct _McdDispatchOperationPrivate
     gchar *object_path;
     GStrv possible_handlers;
     GHashTable *properties;
+    gsize block_finished;
 
     /* Results */
     guint finished : 1;
@@ -86,7 +87,11 @@ struct _McdDispatchOperationPrivate
 
     McdConnection *connection;
 
+    /* Owned McdChannels we're dispatching */
     GList *channels;
+    /* Owned McdChannels for which we can't emit ChannelLost yet, in
+     * reverse chronological order */
+    GList *lost_channels;
 };
 
 enum
@@ -129,16 +134,15 @@ get_account (TpSvcDBusProperties *self, const gchar *name, GValue *value)
         g_value_set_static_boxed (value, "/");
 }
 
-static void
-get_channels (TpSvcDBusProperties *self, const gchar *name, GValue *value)
+GPtrArray *
+_mcd_dispatch_operation_dup_channel_details (McdDispatchOperation *self)
 {
     McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (self);
     GPtrArray *channel_array;
     GList *list;
 
-    DEBUG ("called for %s", priv->unique_name);
-
     channel_array = g_ptr_array_sized_new (g_list_length (priv->channels));
+
     for (list = priv->channels; list != NULL; list = list->next)
     {
         McdChannel *channel = MCD_CHANNEL (list->data);
@@ -158,8 +162,19 @@ get_channels (TpSvcDBusProperties *self, const gchar *name, GValue *value)
         g_ptr_array_add (channel_array, g_value_get_boxed (&channel_val));
     }
 
+    return channel_array;
+}
+
+static void
+get_channels (TpSvcDBusProperties *iface, const gchar *name, GValue *value)
+{
+    McdDispatchOperation *self = MCD_DISPATCH_OPERATION (iface);
+
+    DEBUG ("called for %s", self->priv->unique_name);
+
     g_value_init (value, TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST);
-    g_value_take_boxed (value, channel_array);
+    g_value_take_boxed (value,
+                        _mcd_dispatch_operation_dup_channel_details (self));
 }
 
 static void
@@ -200,7 +215,11 @@ mcd_dispatch_operation_finish (McdDispatchOperation *operation)
     McdDispatchOperationPrivate *priv = operation->priv;
 
     priv->finished = TRUE;
-    mc_svc_channel_dispatch_operation_emit_finished (operation);
+
+    if (priv->block_finished == 0)
+    {
+        mc_svc_channel_dispatch_operation_emit_finished (operation);
+    }
 }
 
 static void
@@ -624,6 +643,14 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
         g_critical ("McdChannel has already lost its TpChannel: %p",
             channel);
     }
+    else if (self->priv->block_finished)
+    {
+        /* We're still invoking approvers, so we're not allowed to talk
+         * about it right now. Instead, save the signal for later. */
+        self->priv->lost_channels =
+            g_list_prepend (self->priv->lost_channels,
+                            g_object_ref (channel));
+    }
     else
     {
         const GError *error = mcd_channel_get_error (channel);
@@ -644,6 +671,64 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
         if (!self->priv->finished)
         {
             mcd_dispatch_operation_finish (self);
+        }
+    }
+}
+
+void
+_mcd_dispatch_operation_block_finished (McdDispatchOperation *self)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    g_return_if_fail (!self->priv->finished);
+
+    self->priv->block_finished++;
+}
+
+void
+_mcd_dispatch_operation_unblock_finished (McdDispatchOperation *self)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    g_return_if_fail (self->priv->block_finished > 0);
+
+    self->priv->block_finished--;
+
+    if (self->priv->block_finished == 0)
+    {
+        GList *lost_channels;
+
+        /* get the lost channels into chronological order, and steal them from
+         * the object*/
+        lost_channels = g_list_reverse (self->priv->lost_channels);
+        self->priv->lost_channels = NULL;
+
+        while (lost_channels != NULL)
+        {
+            McdChannel *channel = lost_channels->data;
+            const gchar *object_path = mcd_channel_get_object_path (channel);
+
+            if (object_path == NULL)
+            {
+                /* This shouldn't happen, but McdChannel is twisty enough
+                 * that I can't be sure */
+                g_critical ("McdChannel has already lost its TpChannel: %p",
+                    channel);
+            }
+            else
+            {
+                const GError *error = mcd_channel_get_error (channel);
+                gchar *error_name = _mcd_build_error_string (error);
+
+                mc_svc_channel_dispatch_operation_emit_channel_lost (self,
+                    object_path, error_name, error->message);
+                g_free (error_name);
+            }
+
+            lost_channels = g_list_delete_link (lost_channels, lost_channels);
+        }
+
+        if (self->priv->finished)
+        {
+            mc_svc_channel_dispatch_operation_emit_finished (self);
         }
     }
 }

@@ -10,9 +10,10 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/already-has-channel.py \
 	dispatcher/cancel.py \
 	dispatcher/create-text.py \
+	dispatcher/dispatch-text.py \
 	dispatcher/exploding-bundles.py \
 	dispatcher/fdo-21034.py \
-	dispatcher/dispatch-text.py \
+	dispatcher/lose-text.py \
 	do-nothing.py \
 	test-account.py \
 	test-connect.py
