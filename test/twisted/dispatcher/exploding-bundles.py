@@ -33,13 +33,13 @@ def test(q, bus, mc):
 
     # Two clients want to observe, approve and handle channels. Empathy handles
     # VoIP, Kopete does not.
-    empathy = SimulatedClient(q, bus, 'Empathy',
+    empathy = SimulatedClient(q, bus, 'org.gnome.Empathy',
             observe=[text_fixed_properties, media_fixed_properties],
             approve=[text_fixed_properties, media_fixed_properties],
             handle=[text_fixed_properties, media_fixed_properties],
             bypass_approval=False)
 
-    kopete = SimulatedClient(q, bus, 'Kopete',
+    kopete = SimulatedClient(q, bus, 'org.kde.Kopete',
             observe=[text_fixed_properties], approve=[text_fixed_properties],
             handle=[text_fixed_properties], bypass_approval=False)
 
@@ -136,7 +136,8 @@ def test(q, bus, mc):
 
     handlers = cdo_properties[cs.CDO + '.PossibleHandlers'][:]
     # only Empathy can handle the whole batch
-    assert handlers == [cs.tp_name_prefix + '.Client.Empathy'], handlers
+    assert handlers == [cs.tp_name_prefix + '.Client.org.gnome.Empathy'], \
+            handlers
 
     assert len(cdo_properties[cs.CDO + '.Channels']) == 2
     assert (text_chan.object_path, text_channel_properties) in \
