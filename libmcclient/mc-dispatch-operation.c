@@ -314,6 +314,8 @@ mc_dispatch_operation_class_init (McDispatchOperationClass *klass)
 /**
  * mc_dispatch_operation_new_ready:
  * @dbus: a D-Bus daemon; may not be %NULL
+ * @channels: a #GPtrArray of #GValueArray, each containing the object path
+ *  of a channel and a #GHashTable of its immutable properties
  * @object_path: the D-Bus object path of the ChannelDispatchOperation.
  * @properties: a #GHashTable of properties.
  *
@@ -323,15 +325,39 @@ mc_dispatch_operation_class_init (McDispatchOperationClass *klass)
  * Returns: a new #McDispatchOperation object.
  */
 McDispatchOperation *
-mc_dispatch_operation_new_ready (TpDBusDaemon *dbus, const gchar *object_path,
+mc_dispatch_operation_new_ready (TpDBusDaemon *dbus, const GPtrArray *channels,
+                                 const gchar *object_path,
                                  GHashTable *properties)
 {
-    return g_object_new (MC_TYPE_DISPATCH_OPERATION,
-                         "dbus-daemon", dbus,
-                         "bus-name", MC_CHANNEL_DISPATCHER_DBUS_SERVICE,
-                         "object-path", object_path,
-                         "properties", properties,
-                         NULL);
+    McDispatchOperation *op;
+    /* The implementation of McDispatchOperation assumes the previous
+     * AddDispatchOperation API, where Channels was an immutable property of
+     * the CDO. For the moment we work around that in this function rather
+     * than redesigning the object. */
+    GHashTable *properties_and_channels = g_hash_table_new (g_str_hash,
+                                                            g_str_equal);
+    GValue cv = { 0 };
+
+    g_value_init (&cv, MC_ARRAY_TYPE_CHANNEL_DETAILS_LIST);
+    g_value_set_boxed (&cv, channels);
+
+    /* borrow all keys and values from @properties, then insert @cv too. This
+     * is safe to do without copying, because the GObject properties mechanism
+     * will copy the hash table anyway (and in fact so does this object) */
+    tp_g_hash_table_update (properties_and_channels, properties, NULL, NULL);
+    g_hash_table_insert (properties_and_channels,
+                         MC_IFACE_CHANNEL_DISPATCH_OPERATION ".Channels",
+                         &cv);
+
+    op = g_object_new (MC_TYPE_DISPATCH_OPERATION,
+                       "dbus-daemon", dbus,
+                       "bus-name", MC_CHANNEL_DISPATCHER_DBUS_SERVICE,
+                       "object-path", object_path,
+                       "properties", properties_and_channels,
+                       NULL);
+    g_hash_table_destroy (properties_and_channels);
+
+    return op;
 }
 
 /**
