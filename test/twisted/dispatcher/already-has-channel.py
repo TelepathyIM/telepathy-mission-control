@@ -100,7 +100,7 @@ def test(q, bus, mc):
     # subscribe to the OperationList interface (MC assumes that until this
     # property has been retrieved once, nobody cares)
 
-    cd = bus.get_object(cs.CD_BUS_NAME, cs.CD_PATH)
+    cd = bus.get_object(cs.CD, cs.CD_PATH)
     cd_props = dbus.Interface(cd, cs.PROPERTIES_IFACE)
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []
 
@@ -148,14 +148,11 @@ def test(q, bus, mc):
     assert handlers == [cs.tp_name_prefix + '.Client.Empathy',
             cs.tp_name_prefix + '.Client.Kopete'], handlers
 
-    assert cdo_properties[cs.CDO + '.Channels'] == [(chan.object_path,
-        channel_properties)]
-
     assert cs.CD_IFACE_OP_LIST in cd_props.Get(cs.CD, 'Interfaces')
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') ==\
             [(cdo_path, cdo_properties)]
 
-    cdo = bus.get_object(cs.CD_BUS_NAME, cdo_path)
+    cdo = bus.get_object(cs.CD, cdo_path)
     cdo_iface = dbus.Interface(cdo, cs.CDO)
 
     # Both Observers are told about the new channel
@@ -172,6 +169,8 @@ def test(q, bus, mc):
             )
     assert e.args[0] == account.object_path, e.args
     assert e.args[1] == conn.object_path, e.args
+    assert e.args[3] == cdo_path, e.args
+    assert e.args[4] == [], e.args      # no requests satisfied
     channels = e.args[2]
     assert len(channels) == 1, channels
     assert channels[0][0] == chan.object_path, channels
@@ -196,8 +195,9 @@ def test(q, bus, mc):
                 handled=False),
             )
 
-    assert e.args == [cdo_path, cdo_properties]
-    assert k.args == [cdo_path, cdo_properties]
+    assert e.args == [[(chan.object_path, channel_properties)],
+            cdo_path, cdo_properties]
+    assert k.args == e.args
 
     q.dbus_return(e.message, signature='')
     q.dbus_return(k.message, signature='')

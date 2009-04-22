@@ -21,8 +21,8 @@
       MA 02110-1301, USA.</p>
   </tp:license>
 
-  <interface name="org.freedesktop.Telepathy.ChannelRequest.DRAFT"
-    tp:causes-havoc="experimental">
+  <interface name="org.freedesktop.Telepathy.ChannelRequest"
+    tp:causes-havoc="not yet final">
 
     <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
       <p>A channel request is an object in the ChannelDispatcher representing
@@ -34,7 +34,7 @@
 
       <tp:rationale>
         <p>See
-          <tp:dbus-ref namespace="org.freedesktop.Telepathy">ChannelDispatcher.DRAFT.CreateChannel</tp:dbus-ref>
+          <tp:dbus-ref namespace="org.freedesktop.Telepathy">ChannelDispatcher.CreateChannel</tp:dbus-ref>
           for rationale for ChannelRequest being a separate object.</p>
       </tp:rationale>
 

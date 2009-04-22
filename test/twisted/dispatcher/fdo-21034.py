@@ -45,7 +45,7 @@ def test(q, bus, mc):
                 path=client.object_path),
             )
 
-    cd = bus.get_object(cs.CD_BUS_NAME, cs.CD_PATH)
+    cd = bus.get_object(cs.CD, cs.CD_PATH)
     cd_props = dbus.Interface(cd, cs.PROPERTIES_IFACE)
 
     # chat UI calls ChannelDispatcher.EnsureChannel or CreateChannel

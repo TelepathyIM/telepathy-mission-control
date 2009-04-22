@@ -119,11 +119,12 @@ MEDIA_STREAM_DIRECTION_SEND = 1
 MEDIA_STREAM_DIRECTION_RECEIVE = 2
 MEDIA_STREAM_DIRECTION_BIDIRECTIONAL = 3
 
-CLIENT = tp_name_prefix + '.Client.DRAFT'
+CLIENT = tp_name_prefix + '.Client'
 CLIENT_PATH = tp_path_prefix + '/Client'
-OBSERVER = tp_name_prefix + '.Client.Observer.DRAFT'
-APPROVER = tp_name_prefix + '.Client.Approver.DRAFT'
-HANDLER = tp_name_prefix + '.Client.Handler.DRAFT'
+OBSERVER = tp_name_prefix + '.Client.Observer'
+APPROVER = tp_name_prefix + '.Client.Approver'
+HANDLER = tp_name_prefix + '.Client.Handler'
+CLIENT_IFACE_REQUESTS = CLIENT + '.Interface.Requests'
 
 ACCOUNT = tp_name_prefix + '.Account'
 ACCOUNT_IFACE_AVATAR = ACCOUNT + '.Interface.Avatar'
@@ -137,9 +138,8 @@ AM_IFACE_NOKIA_QUERY = 'com.nokia.AccountManager.Interface.Query'
 AM_PATH = tp_path_prefix + '/AccountManager'
 
 CR = tp_name_prefix + '.ChannelRequest'
-CDO = tp_name_prefix + '.ChannelDispatchOperation.DRAFT'
+CDO = tp_name_prefix + '.ChannelDispatchOperation'
 
-CD = tp_name_prefix + '.ChannelDispatcher.DRAFT'
-CD_BUS_NAME = tp_name_prefix + '.ChannelDispatcher'
-CD_IFACE_OP_LIST = tp_name_prefix + '.ChannelDispatcher.Interface.OperationList.DRAFT'
+CD = tp_name_prefix + '.ChannelDispatcher'
+CD_IFACE_OP_LIST = tp_name_prefix + '.ChannelDispatcher.Interface.OperationList'
 CD_PATH = tp_path_prefix + '/ChannelDispatcher'

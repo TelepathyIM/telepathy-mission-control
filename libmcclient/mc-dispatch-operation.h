@@ -55,6 +55,7 @@ typedef struct {
 } McChannelDetails;
 
 McDispatchOperation *mc_dispatch_operation_new_ready (TpDBusDaemon *dbus,
+                                                      const GPtrArray *channels,
                                                       const gchar *object_path,
                                                       GHashTable *properties);
 

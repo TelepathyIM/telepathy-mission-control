@@ -83,7 +83,7 @@ def test(q, bus, mc):
     # subscribe to the OperationList interface (MC assumes that until this
     # property has been retrieved once, nobody cares)
 
-    cd = bus.get_object(cs.CD_BUS_NAME, cs.CD_PATH)
+    cd = bus.get_object(cs.CD, cs.CD_PATH)
     cd_props = dbus.Interface(cd, cs.PROPERTIES_IFACE)
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []
 
@@ -139,17 +139,11 @@ def test(q, bus, mc):
     assert handlers == [cs.tp_name_prefix + '.Client.org.gnome.Empathy'], \
             handlers
 
-    assert len(cdo_properties[cs.CDO + '.Channels']) == 2
-    assert (text_chan.object_path, text_channel_properties) in \
-            cdo_properties[cs.CDO + '.Channels']
-    assert (media_chan.object_path, media_channel_properties) in \
-            cdo_properties[cs.CDO + '.Channels']
-
     assert cs.CD_IFACE_OP_LIST in cd_props.Get(cs.CD, 'Interfaces')
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') ==\
             [(cdo_path, cdo_properties)]
 
-    cdo = bus.get_object(cs.CD_BUS_NAME, cdo_path)
+    cdo = bus.get_object(cs.CD, cdo_path)
     cdo_iface = dbus.Interface(cdo, cs.CDO)
 
     # Both Observers are told about the new channels
@@ -166,6 +160,8 @@ def test(q, bus, mc):
             )
     assert e.args[0] == account.object_path, e.args
     assert e.args[1] == conn.object_path, e.args
+    assert e.args[3] == cdo_path, e.args
+    assert e.args[4] == [], e.args      # no requests satisfied
     channels = e.args[2]
     assert len(channels) == 2, channels
     assert (text_chan.object_path, text_channel_properties) in channels
@@ -194,9 +190,11 @@ def test(q, bus, mc):
                 interface=cs.APPROVER, method='AddDispatchOperation',
                 handled=False),
             )
-
-    assert e.args == [cdo_path, cdo_properties]
-    assert k.args == [cdo_path, cdo_properties]
+    assert len(e.args[0]) == 2
+    assert (text_chan.object_path, text_channel_properties) in e.args[0]
+    assert (media_chan.object_path, media_channel_properties) in e.args[0]
+    assert e.args[1:] == [cdo_path, cdo_properties]
+    assert k.args == e.args
 
     q.dbus_return(e.message, signature='')
     q.dbus_return(k.message, signature='')
@@ -275,7 +273,7 @@ def test(q, bus, mc):
     # CDO here - we look at the others later.
     e_observe_media, e_observe_text, k_observe_text, \
     e_approve_media, e_approve_text, k_approve_text, \
-    _, _, _, _ = q.expect_many(
+    _, _, _ = q.expect_many(
             EventPattern('dbus-method-call',
                 path=empathy.object_path,
                 interface=cs.OBSERVER, method='ObserveChannels',
@@ -295,21 +293,21 @@ def test(q, bus, mc):
                 path=empathy.object_path,
                 interface=cs.APPROVER, method='AddDispatchOperation',
                 predicate=(lambda e:
-                    e.args[1][cs.CDO + '.Channels'][0][0] ==
+                    e.args[0][0][0] ==
                     media_chan.object_path),
                 handled=False),
             EventPattern('dbus-method-call',
                 path=empathy.object_path,
                 interface=cs.APPROVER, method='AddDispatchOperation',
                 predicate=(lambda e:
-                    e.args[1][cs.CDO + '.Channels'][0][0] ==
+                    e.args[0][0][0] ==
                     text_chan.object_path),
                 handled=False),
             EventPattern('dbus-method-call',
                 path=kopete.object_path,
                 interface=cs.APPROVER, method='AddDispatchOperation',
                 predicate=(lambda e:
-                    e.args[1][cs.CDO + '.Channels'][0][0] ==
+                    e.args[0][0][0] ==
                     text_chan.object_path),
                 handled=False),
             EventPattern('dbus-method-call',
@@ -322,18 +320,12 @@ def test(q, bus, mc):
                 method='Close',
                 path=ext_chan.object_path,
                 handled=True),
+            # we can't distinguish between the two NewDispatchOperation signals
+            # since we no longer see the Channels property (it's mutable)
             EventPattern('dbus-signal',
                 path=cs.CD_PATH,
                 interface=cs.CD_IFACE_OP_LIST,
-                signal='NewDispatchOperation',
-                predicate=(lambda e: e.args[1][cs.CDO + '.Channels'][0][0] ==
-                    media_chan.object_path)),
-            EventPattern('dbus-signal',
-                path=cs.CD_PATH,
-                interface=cs.CD_IFACE_OP_LIST,
-                signal='NewDispatchOperation',
-                predicate=(lambda e: e.args[1][cs.CDO + '.Channels'][0][0] ==
-                    text_chan.object_path)),
+                signal='NewDispatchOperation'),
             )
 
     q.dbus_return(e_observe_media.message, signature='')

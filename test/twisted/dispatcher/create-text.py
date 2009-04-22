@@ -59,7 +59,7 @@ def test(q, bus, mc):
 def test_channel_creation(q, bus, account, client, conn, ensure):
     user_action_time = dbus.Int64(1238582606)
 
-    cd = bus.get_object(cs.CD_BUS_NAME, cs.CD_PATH)
+    cd = bus.get_object(cs.CD, cs.CD_PATH)
     cd_props = dbus.Interface(cd, cs.PROPERTIES_IFACE)
 
     # chat UI calls ChannelDispatcher.EnsureChannel or CreateChannel
@@ -81,17 +81,14 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
     # chat UI connects to signals and calls ChannelRequest.Proceed()
 
     cr = bus.get_object(cs.AM, request_path)
-    # FIXME: MC gives CR properties to clients without .DRAFT, but the
-    # CR itself is really still .DRAFT
-    request_props = cr.GetAll(cs.CR + '.DRAFT',
-            dbus_interface=cs.PROPERTIES_IFACE)
+    request_props = cr.GetAll(cs.CR, dbus_interface=cs.PROPERTIES_IFACE)
     assert request_props['Account'] == account.object_path
     assert request_props['Requests'] == [request]
     assert request_props['UserActionTime'] == user_action_time
     assert request_props['PreferredHandler'] == client.bus_name
     assert request_props['Interfaces'] == []
 
-    cr.Proceed(dbus_interface=cs.CR + '.DRAFT')
+    cr.Proceed(dbus_interface=cs.CR)
 
     # FIXME: should the EnsureChannel/CreateChannel call, and the AddRequest
     # call, be in a defined order? Probably not though, since CMs and Clients
@@ -103,8 +100,8 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
                 method=(ensure and 'EnsureChannel' or 'CreateChannel'),
                 path=conn.object_path, args=[request], handled=False),
             EventPattern('dbus-method-call', handled=False,
-                interface=cs.HANDLER, method='AddRequest',
-                path=client.object_path),
+                interface=cs.CLIENT_IFACE_REQUESTS,
+                method='AddRequest', path=client.object_path),
             )
 
     assert add_request_call.args[0] == request_path
@@ -147,6 +144,8 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
             handled=False)
     assert e.args[0] == account.object_path, e.args
     assert e.args[1] == conn.object_path, e.args
+    assert e.args[3] == '/', e.args         # no dispatch operation
+    assert e.args[4] == [request_path], e.args
     channels = e.args[2]
     assert len(channels) == 1, channels
     assert channels[0][0] == channel.object_path, channels
@@ -167,6 +166,9 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
     assert channels[0][0] == channel.object_path, channels
     assert channels[0][1] == channel_immutable, channels
     assert e.args[3] == [request_path], e.args
+    assert e.args[4] == user_action_time
+    assert isinstance(e.args[5], dict)
+    assert len(e.args) == 6
 
     # Handler accepts the Channels
     q.dbus_return(e.message, signature='')
@@ -177,7 +179,7 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
                 interface=cs.ACCOUNT_IFACE_NOKIA_REQUESTS, signal='Succeeded',
                 args=[request_path]),
             EventPattern('dbus-signal', path=request_path,
-                interface=cs.CR + '.DRAFT', signal='Succeeded'),
+                interface=cs.CR, signal='Succeeded'),
             )
 
     # Close the channel
