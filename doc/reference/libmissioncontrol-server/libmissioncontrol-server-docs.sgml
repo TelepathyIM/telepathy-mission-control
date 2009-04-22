@@ -8,7 +8,6 @@
 
   <chapter>
     <title>libmissioncontrol-server</title>
-    <xi:include href="xml/mcd-presence-frame.xml"/>
     <xi:include href="xml/mcd-master.xml"/>
     <xi:include href="xml/mcd-connection.xml"/>
     <xi:include href="xml/mcd-operation.xml"/>
@@ -19,11 +18,8 @@
     <xi:include href="xml/mcd-proxy.xml"/>
     <xi:include href="xml/mcd-controller.xml"/>
     <xi:include href="xml/mcd-dispatcher.xml"/>
-    <xi:include href="xml/mcd-filtering-int.xml"/>
     <xi:include href="xml/mcd-dispatcher-context.xml"/>
-    <xi:include href="xml/mcd-chan-handler.xml"/>
     <xi:include href="xml/mcd-debug.xml"/>
-    <xi:include href="xml/mcd-service-gen.xml"/>
     <xi:include href="xml/mcd-enum-types.xml"/>
   </chapter>
 </book>

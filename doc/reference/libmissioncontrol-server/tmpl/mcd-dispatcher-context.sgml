@@ -161,24 +161,6 @@ mcd-dispatcher-context
 @Returns: 
 
 
-<!-- ##### FUNCTION mcd_dispatcher_context_get_chan_handler ##### -->
-<para>
-
-</para>
-
-@ctx: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_dispatcher_context_get_members ##### -->
-<para>
-
-</para>
-
-@ctx: 
-@Returns: 
-
-
 <!-- ##### FUNCTION mcd_dispatcher_context_process ##### -->
 <para>
 
