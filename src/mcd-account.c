@@ -267,6 +267,14 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value)
 				g_value_get_boolean (value));
 	break;
     default:
+        if (G_VALUE_HOLDS (value, G_TYPE_STRV))
+        {
+            gchar **strings = g_value_get_boxed (value);
+            g_key_file_set_string_list (priv->keyfile, priv->unique_name, key,
+                                        (const gchar **)strings,
+                                        g_strv_length (strings));
+            break;
+        }
 	g_warning ("Unexpected param type %s", G_VALUE_TYPE_NAME (value));
     }
 }
@@ -283,7 +291,7 @@ get_parameter (McdAccount *account, const gchar *name, GValue *value)
 
     if (value)
     {
-        gchar *v_string = NULL;
+        gchar *v_string = NULL, **v_strings;
         gint v_int = 0;
         gboolean v_bool = FALSE;
 
@@ -325,6 +333,14 @@ get_parameter (McdAccount *account, const gchar *name, GValue *value)
             g_value_set_boolean (value, v_bool);
             break;
         default:
+            if (G_VALUE_HOLDS (value, G_TYPE_STRV))
+            {
+                v_strings = g_key_file_get_string_list (priv->keyfile,
+                                                        priv->unique_name, key,
+                                                        NULL, NULL);
+                g_value_take_boxed (value, v_strings);
+                break;
+            }
             g_warning ("%s: skipping parameter %s, unknown type %s", G_STRFUNC,
                        name, G_VALUE_TYPE_NAME (value));
             return FALSE;
@@ -1113,6 +1129,11 @@ mc_param_type (const TpConnectionManagerParam *param)
 	return G_TYPE_UINT;
     case DBUS_TYPE_BOOLEAN:
 	return G_TYPE_BOOLEAN;
+    case DBUS_TYPE_ARRAY:
+        if (param->dbus_signature[1] == DBUS_TYPE_STRING)
+            return G_TYPE_STRV;
+        /* other array types are not supported:
+         * fall through the default case */
     default:
         g_warning ("skipping parameter %s, unknown type %s",
                    param->name, param->dbus_signature);
