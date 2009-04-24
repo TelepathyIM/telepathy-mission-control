@@ -35,6 +35,8 @@
 #include <telepathy-glib/errors.h>
 #include <telepathy-glib/util.h>
 #include <libmcclient/mc-errors.h>
+#include "_gen/signals-marshal.h"
+#include "_gen/register-dbus-glib-marshallers-body.h"
 
 /*
  * Miscellaneus functions
