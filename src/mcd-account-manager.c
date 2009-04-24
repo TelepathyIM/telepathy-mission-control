@@ -222,7 +222,7 @@ list_connection_names_cb (const gchar * const *names, gsize n,
     gchar *contents = NULL;
     guint i;
 
-    DEBUG ("%u connections", n);
+    DEBUG ("%" G_GSIZE_FORMAT " connections", n);
     g_file_get_contents (priv->account_connections_file, &contents, NULL, NULL);
 
     for (i = 0; i < n; i++)
