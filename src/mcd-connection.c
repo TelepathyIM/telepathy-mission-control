@@ -101,9 +101,6 @@ struct _McdConnectionPrivate
     TpConnection *tp_conn;
     TpProxySignalConnection *new_channel_sc;
 
-    /* Capabilities timer */
-    guint capabilities_timer;
-
     guint reconnect_timer; 	/* timer for reconnection */
     guint reconnect_interval;
 
@@ -111,7 +108,6 @@ struct _McdConnectionPrivate
     GHashTable *recognized_presences;
 
     TpConnectionStatusReason abort_reason;
-    guint got_capabilities : 1;
     guint got_contact_capabilities : 1;
     guint setting_avatar : 1;
     guint has_presence_if : 1;
@@ -554,17 +550,6 @@ _foreach_channel_remove (McdMission * mission, McdOperation * operation)
     mcd_operation_remove_mission (operation, mission);
 }
 
-static gboolean
-on_capabilities_timeout (McdConnection *connection)
-{
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-
-    DEBUG ("got_capabilities is %d", priv->got_capabilities);
-    priv->got_capabilities = TRUE;
-    priv->capabilities_timer = 0;
-    return FALSE;
-}
-
 static void
 capabilities_advertise_cb (TpConnection *proxy, const GPtrArray *out0,
 			   const GError *error, gpointer user_data,
@@ -590,7 +575,6 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
     if (!priv->has_capabilities_if)
     {
         DEBUG ("connection does not support capabilities interface");
-	priv->got_capabilities = TRUE;
 	return;
     }
     protocol_name = mcd_account_get_protocol_name (priv->account);
@@ -603,14 +587,6 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
 									  capabilities_advertise_cb,
 									  priv, NULL,
 									  (GObject *) connection);
-    if (priv->capabilities_timer)
-    {
-	g_warning ("This connection still has dangling capabilities timer on");
-	g_source_remove (priv->capabilities_timer);
-    }
-    priv->capabilities_timer =
-        g_timeout_add_seconds (10, (GSourceFunc)on_capabilities_timeout,
-                               connection);
 
     /* free the connection capabilities */
     type = dbus_g_type_get_struct ("GValueArray", G_TYPE_STRING,
@@ -1062,13 +1038,6 @@ static void proxy_destroyed (DBusGProxy *tp_conn, guint domain, gint code,
     DEBUG ("Proxy destroyed (%s)!", message);
 
     _mcd_connection_release_tp_connection (connection);
-
-    /* Destroy any pending timer */
-    if (priv->capabilities_timer)
-    {
-	g_source_remove (priv->capabilities_timer);
-	priv->capabilities_timer = 0;
-    }
 
     if (priv->abort_reason == TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED ||
         priv->abort_reason == TP_CONNECTION_STATUS_REASON_NETWORK_ERROR ||
@@ -1612,8 +1581,7 @@ _mcd_connection_dispose (GObject * object)
 
     /* Remove any pending source: timer and idle */
     g_source_remove_by_user_data (connection);
-    priv->capabilities_timer = 0;
-    
+
     mcd_operation_foreach (MCD_OPERATION (connection),
 			   (GFunc) _foreach_channel_remove, connection);
 
