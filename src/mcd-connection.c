@@ -201,8 +201,6 @@ static GError * map_tp_error_to_mc_error (McdChannel *channel, const GError *tp_
 static void _mcd_connection_release_tp_connection (McdConnection *connection);
 static gboolean request_channel_new_iface (McdConnection *connection,
                                            McdChannel *channel);
-static gboolean request_channel_old_iface (McdConnection *connection,
-                                           McdChannel *channel);
 
 static void
 mcd_tmp_channel_data_free (gpointer data)
@@ -1916,7 +1914,14 @@ _mcd_connection_request_channel (McdConnection *connection,
     if (priv->has_requests_if)
         ret = request_channel_new_iface (connection, channel);
     else
-        ret = request_channel_old_iface (connection, channel);
+    {
+        mcd_channel_take_error (channel,
+                                g_error_new (TP_ERRORS,
+                                             TP_ERROR_NOT_IMPLEMENTED,
+                                             "No Requests interface"));
+        mcd_mission_abort ((McdMission *) channel);
+        return TRUE;
+    }
 
     if (ret)
         _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_REQUESTED);
@@ -2149,89 +2154,6 @@ request_channel_cb (TpConnection *proxy, const gchar *channel_path,
 }
 
 static void
-request_handles_cb (TpConnection *proxy, const GArray *handles,
-		    const GError *error, gpointer user_data,
-		    GObject *weak_object)
-{
-    McdChannel *channel, *existing_channel;
-    McdConnection *connection = user_data;
-    McdConnectionPrivate *priv = connection->priv;
-    guint chan_handle, chan_handle_type;
-    GQuark chan_type;
-    const GList *channels;
-
-    channel = MCD_CHANNEL (weak_object);
-    
-    if (error != NULL || g_array_index (handles, guint, 0) == 0)
-    {
-	GError *mc_error;
-	const gchar *msg;
-
-	msg = error ? error->message : "got handle 0";
-	g_warning ("Could not map string handle to a valid handle!: %s",
-		   msg);
-	
-	/* Fail dispatch */
-	mc_error = g_error_new (MC_ERROR, MC_INVALID_HANDLE_ERROR,
-		     "Could not map string handle to a valid handle!: %s",
-		     msg);
-        mcd_channel_take_error (channel, mc_error);
-	
-	/* No abort, because we are the only one holding the only reference
-	 * to this temporary channel
-	 */
-	g_object_unref (channel);
-	return;
-    }
-    
-    chan_type = mcd_channel_get_channel_type_quark (channel),
-    chan_handle_type = mcd_channel_get_handle_type (channel),
-    chan_handle = g_array_index (handles, guint, 0);
-    
-    DEBUG ("Got handle %u", chan_handle);
-    
-    /* Check if a telepathy channel has already been created; this could happen
-     * in the case we had a chat window open, the UI crashed and now the same
-     * channel is requested. */
-    channels = mcd_operation_get_missions (MCD_OPERATION (connection));
-    while (channels)
-    {
-	/* for calls, we probably don't want this. TODO: investigate better */
-	if (chan_type == TP_IFACE_QUARK_CHANNEL_TYPE_STREAMED_MEDIA) break;
-
-	existing_channel = MCD_CHANNEL (channels->data);
-        DEBUG ("Chan: %d, handle type %d, channel type %s",
-               mcd_channel_get_handle (existing_channel),
-               mcd_channel_get_handle_type (existing_channel),
-               mcd_channel_get_channel_type (existing_channel));
-	if (chan_handle == mcd_channel_get_handle (existing_channel) &&
-	    chan_handle_type == mcd_channel_get_handle_type (existing_channel) &&
-	    chan_type == mcd_channel_get_channel_type_quark (existing_channel))
-	{
-            DEBUG ("Channel already existing, returning old one");
-            /* FIXME: this situation is weird. We should have checked for the
-             * existance of the channel _before_ getting here, already when
-             * creating the request */
-	    /* we no longer need the new channel */
-	    g_object_unref (channel);
-	    /* notify the dispatcher again */
-            _mcd_dispatcher_take_channels (priv->dispatcher,
-                                           g_list_prepend (NULL,
-                                                           existing_channel),
-                                           TRUE);
-	    return;
-	}
-	channels = channels->next;
-    }
-
-    /* Update our newly acquired information */
-    mcd_channel_set_handle (channel, chan_handle);
-
-    g_return_if_fail (chan_handle != 0);
-    mcd_connection_request_channel (connection, channel);
-}
-
-static void
 common_request_channel_cb (TpConnection *proxy, gboolean yours,
                            const gchar *channel_path, GHashTable *properties,
                            const GError *error,
@@ -2328,56 +2250,6 @@ request_channel_new_iface (McdConnection *connection, McdChannel *channel)
         tp_cli_connection_interface_requests_call_create_channel
             (priv->tp_conn, -1, properties, create_channel_cb,
              connection, NULL, (GObject *)channel);
-    }
-    return TRUE;
-}
-
-static gboolean
-request_channel_old_iface (McdConnection *connection, McdChannel *channel)
-{
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-    guint channel_handle, channel_handle_type;
-
-    channel_handle_type = mcd_channel_get_handle_type (channel);
-    channel_handle = mcd_channel_get_handle (channel);
-
-    if (channel_handle != 0 || channel_handle_type == 0)
-    {
-	TpProxyPendingCall *call;
-        const gchar *channel_type;
-
-        channel_type = mcd_channel_get_channel_type (channel);
-	call = tp_cli_connection_call_request_channel (priv->tp_conn, -1,
-                                                       channel_type,
-                                                       channel_handle_type,
-                                                       channel_handle, TRUE,
-						       request_channel_cb,
-						       connection, NULL,
-						       (GObject *)channel);
-	g_object_set_data ((GObject *)channel, "tp_chan_call", call);
-    }
-    else
-    {
-	/* if channel handle is 0, this means that the channel was requested by
-	 * a string handle; in that case, we must first request a channel
-	 * handle for it */
-        const gchar *name_array[2], *target_id;
-
-        target_id = _mcd_channel_get_target_id (channel);
-        g_return_val_if_fail (target_id != NULL, FALSE);
-        g_return_val_if_fail (channel_handle_type != 0, FALSE);
-
-        name_array[0] = target_id;
-	name_array[1] = NULL;
-
-	/* Channel is temporary and will be added as a child mission
-	 * only when we successfully resolve the handle. */
-	tp_cli_connection_call_request_handles (priv->tp_conn, -1,
-                                                channel_handle_type,
-						name_array,
-						request_handles_cb,
-						connection, NULL,
-						(GObject *)channel);
     }
     return TRUE;
 }
