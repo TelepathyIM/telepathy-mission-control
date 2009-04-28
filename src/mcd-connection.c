@@ -1018,7 +1018,7 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
     }
 }
 
-static void proxy_destroyed (DBusGProxy *tp_conn, guint domain, gint code,
+static void proxy_destroyed (TpConnection *tp_conn, guint domain, gint code,
 			     gchar *message, McdConnection *connection)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
