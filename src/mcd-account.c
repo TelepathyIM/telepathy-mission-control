@@ -1278,7 +1278,7 @@ mcd_account_check_parameters (McdAccount *account)
  * Sets the parameter @name to the value in @value. If @value, is %NULL, the
  * parameter is unset.
  */
-void
+static void
 _mcd_account_set_parameter (McdAccount *account, const gchar *name,
                             const GValue *value)
 {

@@ -40,9 +40,6 @@ G_GNUC_INTERNAL gboolean _mcd_account_set_parameters (McdAccount *account,
                                                       GHashTable *params,
                                                       const gchar **unset,
                                                       GError **error);
-G_GNUC_INTERNAL void _mcd_account_set_parameter (McdAccount *account,
-                                                 const gchar *name,
-                                                 const GValue *value);
 
 G_GNUC_INTERNAL void _mcd_account_request_temporary_presence (McdAccount *self,
     TpConnectionPresenceType type, const gchar *status);
