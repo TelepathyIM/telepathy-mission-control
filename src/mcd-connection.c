@@ -194,9 +194,6 @@ static const gchar **presence_fallbacks[] = {
     _available_fb, _away_fb, _ext_away_fb, _hidden_fb, _busy_fb
 };
 
-static void request_channel_cb (TpConnection *proxy, const gchar *channel_path,
-				const GError *error, gpointer user_data,
-				GObject *weak_object);
 static GError * map_tp_error_to_mc_error (McdChannel *channel, const GError *tp_error);
 static void _mcd_connection_release_tp_connection (McdConnection *connection);
 static gboolean request_channel_new_iface (McdConnection *connection,
@@ -560,62 +557,6 @@ _foreach_channel_remove (McdMission * mission, McdOperation * operation)
     g_assert (MCD_IS_OPERATION (operation));
 
     mcd_operation_remove_mission (operation, mission);
-}
-
-static void
-on_capabilities_changed (TpConnection *proxy, const GPtrArray *caps,
-			 gpointer user_data, GObject *weak_object)
-{
-    McdConnection *connection = user_data;
-    McdConnectionPrivate *priv = connection->priv;
-    McdChannel *channel = MCD_CHANNEL (weak_object);
-    gboolean found = FALSE;
-    GType type;
-    gchar *chan_type;
-    guint chan_handle, chan_handle_type;
-    TpProxyPendingCall *call;
-    guint i;
-
-    DEBUG ("got capabilities for channel %p handle %d, type %s",
-           channel, mcd_channel_get_handle (channel),
-           mcd_channel_get_channel_type (channel));
-    type = dbus_g_type_get_struct ("GValueArray", G_TYPE_UINT, G_TYPE_STRING,
-				   G_TYPE_UINT, G_TYPE_UINT, G_TYPE_UINT,
-				   G_TYPE_UINT, G_TYPE_INVALID);
-    for (i = 0; i < caps->len; i++)
-    {
-	GValue cap = { 0 };
-
-	g_value_init (&cap, type);
-	g_value_set_static_boxed (&cap, g_ptr_array_index(caps, i));
-	dbus_g_type_struct_get (&cap, 0, &chan_handle, 1, &chan_type, G_MAXUINT);
-	if (chan_handle == mcd_channel_get_handle (channel) &&
-	    strcmp (chan_type, mcd_channel_get_channel_type (channel)) == 0)
-	{
-	    found = TRUE;
-	    break;
-	}
-	g_free (chan_type);
-    }
-
-    if (!found) return;
-    /* Return also if the "tp_chan_call" data is set (which means that a
-     * request for this channel has already been made) */
-    if (g_object_get_data (G_OBJECT (channel), "tp_chan_call") != NULL)
-	goto done;
-    chan_handle_type = mcd_channel_get_handle_type (channel);
-    DEBUG ("requesting channel again (type = %s, handle_type = %u, handle = %u)",
-           chan_type, chan_handle_type, chan_handle);
-    call = tp_cli_connection_call_request_channel (priv->tp_conn, -1,
-						   chan_type,
-						   chan_handle_type,
-						   chan_handle, TRUE,
-						   request_channel_cb,
-						   connection, NULL,
-						   (GObject *)channel);
-    g_object_set_data ((GObject *)channel, "tp_chan_call", call);
-done:
-    g_free (chan_type);
 }
 
 static gboolean
@@ -2042,115 +1983,6 @@ map_tp_error_to_mc_error (McdChannel *channel, const GError *error)
 
     return g_error_new (MC_ERROR, mc_error_code, "Telepathy Error: %s",
                         error->message);
-}
-
-static void
-remove_capabilities_refs (gpointer data)
-{
-    struct capabilities_wait_data *cwd = data;
-
-    DEBUG ("called");
-    tp_proxy_signal_connection_disconnect (cwd->signal_connection);
-    g_error_free (cwd->error);
-    g_free (cwd);
-}
-
-static void
-request_channel_cb (TpConnection *proxy, const gchar *channel_path,
-		    const GError *tp_error, gpointer user_data,
-		    GObject *weak_object)
-{
-    McdChannel *channel = MCD_CHANNEL (weak_object);
-    McdConnection *connection = user_data;
-    McdConnectionPrivate *priv = connection->priv;
-    GError *error_on_creation;
-    struct capabilities_wait_data *cwd;
-    GQuark chan_type;
-    TpHandleType chan_handle_type;
-    guint chan_handle;
-    /* We handle only the dbus errors */
-    
-    /* ChannelRequestor *chan_req = (ChannelRequestor *)user_data; */
-    g_object_steal_data (G_OBJECT (channel), "tp_chan_call");
-
-    chan_handle = mcd_channel_get_handle (channel);
-    chan_handle_type = mcd_channel_get_handle_type (channel);
-    chan_type = mcd_channel_get_channel_type_quark (channel);
-
-    cwd = g_object_get_data (G_OBJECT (channel), "error_on_creation");
-    if (cwd)
-    {
-	error_on_creation = cwd->error;
-	g_object_set_data (G_OBJECT (channel), "error_on_creation", NULL);
-    }
-    else
-	error_on_creation = NULL;
-
-    
-    if (tp_error != NULL)
-    {
-        DEBUG ("got error: %s", tp_error->message);
-	if (error_on_creation != NULL)
-	{
-	    /* replace the error, so that the initial one is reported */
-	    tp_error = error_on_creation;
-	}
-
-	if (priv->got_capabilities || error_on_creation)
-	{
-	    /* Faild dispatch */
-	    GError *mc_error = map_tp_error_to_mc_error (channel, tp_error);
-            mcd_channel_take_error (channel, mc_error);
-            mcd_mission_abort ((McdMission *)channel);
-	}
-	else
-	{
-	    /* the channel request has failed probably because we are just
-	     * connected and we didn't recive the contact capabilities yet. In
-	     * this case, wait for this contact's capabilities to arrive */
-            DEBUG ("listening for remote capabilities on channel handle %d, type %d",
-                   chan_handle, mcd_channel_get_handle_type (channel));
-	    /* Store the error, we might need it later */
-	    cwd = g_malloc (sizeof (struct capabilities_wait_data));
-	    cwd->error = g_error_copy (tp_error);
-	    cwd->signal_connection =
-		tp_cli_connection_interface_capabilities_connect_to_capabilities_changed (priv->tp_conn,
-											  on_capabilities_changed,
-											  connection, NULL,
-											  (GObject *)channel,
-											  NULL);
-	    g_object_set_data_full (G_OBJECT (channel), "error_on_creation", cwd,
-				    remove_capabilities_refs);
-	}
-	return;
-    }
-
-    if (channel_path == NULL)
-    {
-	GError *mc_error;
-	g_warning ("Returned channel_path from telepathy is NULL");
-	
-	mc_error = g_error_new (MC_ERROR,
-				MC_CHANNEL_REQUEST_GENERIC_ERROR,
-				"Returned channel_path from telepathy is NULL");
-        mcd_channel_take_error (channel, mc_error);
-        mcd_mission_abort ((McdMission *)channel);
-	return;
-    }
-
-    /* TODO: construct the a{sv} of immutable properties */
-    /* Everything here is well and fine. We can create the channel proxy. */
-    if (!_mcd_channel_create_proxy (channel, priv->tp_conn,
-                                    channel_path, NULL))
-    {
-        mcd_mission_abort ((McdMission *)channel);
-        return;
-    }
-
-    /* Dispatch the incoming channel */
-    _mcd_dispatcher_take_channels (priv->dispatcher,
-                                   g_list_prepend (NULL, channel),
-                                   TRUE);
 }
 
 static void
