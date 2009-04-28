@@ -1426,12 +1426,9 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
 
     if (!_mcd_account_set_parameters (account, set, unset, &error))
     {
-	if (!error)
-	    g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
-			 "Internal error");
-	dbus_g_method_return_error (context, error);
-	g_error_free (error);
-	return;
+        dbus_g_method_return_error (context, error);
+        g_error_free (error);
+        return;
     }
 
     /* emit the PropertiesChanged signal */
