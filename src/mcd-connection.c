@@ -180,11 +180,6 @@ struct request_id {
     const gchar *requestor_client_id;
 };
 
-struct capabilities_wait_data {
-    GError *error; /* error originally received when channel request failed */
-    TpProxySignalConnection *signal_connection;
-};
-
 static const gchar *_available_fb[] = { NULL };
 static const gchar *_away_fb[] = { "away", NULL };
 static const gchar *_ext_away_fb[] = { "xa", "away", NULL };
@@ -560,53 +555,12 @@ _foreach_channel_remove (McdMission * mission, McdOperation * operation)
 }
 
 static gboolean
-on_channel_capabilities_timeout (McdChannel *channel,
-				 McdConnection *connection)
-{
-    struct capabilities_wait_data *cwd;
-    GError *mc_error;
-
-    cwd = g_object_get_data (G_OBJECT (channel), "error_on_creation");
-    if (!cwd) return FALSE;
-
-    /* We reach this point if this channel was waiting for capabilities; we
-     * abort it and return the original error */
-    DEBUG ("channel %p timed out, returning error!", channel);
-
-    mc_error = map_tp_error_to_mc_error (channel, cwd->error);
-    mcd_channel_take_error (channel, mc_error);
-    g_object_set_data (G_OBJECT (channel), "error_on_creation", NULL);
-
-    /* No abort on channel, because we are the only one holding the only
-     * reference to this temporary channel.
-     */
-    return TRUE;
-}
-
-static gboolean
 on_capabilities_timeout (McdConnection *connection)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-    const GList *list, *list_curr;
 
     DEBUG ("got_capabilities is %d", priv->got_capabilities);
     priv->got_capabilities = TRUE;
-    list = mcd_operation_get_missions ((McdOperation *)connection);
-    while (list)
-    {
-        McdChannel *channel = MCD_CHANNEL (list->data);
-        McdChannelStatus status;
-
-	list_curr = list;
-	list = list->next;
-        status = mcd_channel_get_status (channel);
-        if ((status == MCD_CHANNEL_STATUS_REQUEST ||
-             status == MCD_CHANNEL_STATUS_REQUESTED) &&
-            on_channel_capabilities_timeout (channel, connection))
-	{
-            mcd_mission_abort ((McdMission *)channel);
-	}
-    }
     priv->capabilities_timer = 0;
     return FALSE;
 }
