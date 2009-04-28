@@ -72,8 +72,6 @@
 #include "_gen/cli-Connection_Interface_Contact_Capabilities-body.h"
 
 #define INITIAL_RECONNECTION_TIME   1 /* 1 second */
-#define MAX_REF_PRESENCE 4
-#define LAST_MC_PRESENCE (TP_CONNECTION_PRESENCE_TYPE_BUSY + 1)
 
 #define MCD_CONNECTION_PRIV(mcdconn) (MCD_CONNECTION (mcdconn)->priv)
 
@@ -146,12 +144,6 @@ typedef struct
     guint can_have_message : 1;
 } McdPresenceInfo;
 
-struct param_data
-{
-    GSList *pr_params;
-    GHashTable *dest;
-};
-
 enum
 {
     PROP_0,
@@ -170,11 +162,6 @@ enum
 };
 
 static guint signals[N_SIGNALS] = { 0 };
-
-struct request_id {
-    guint requestor_serial;
-    const gchar *requestor_client_id;
-};
 
 static const gchar *_available_fb[] = { NULL };
 static const gchar *_away_fb[] = { "away", NULL };
@@ -2029,13 +2016,10 @@ mcd_connection_cancel_channel_request (McdConnection *connection,
 				       const gchar *requestor_client_id,
 				       GError **error)
 {
-    struct request_id req_id;
     const GList *channels, *node;
     McdChannel *channel;
 
     /* first, see if the channel is in the list of the pending channels */
-    req_id.requestor_serial = operation_id;
-    req_id.requestor_client_id = requestor_client_id;
 
     channels = mcd_operation_get_missions (MCD_OPERATION (connection));
     if (!channels) return FALSE;
