@@ -39,6 +39,7 @@ G_GNUC_INTERNAL void _mcd_account_connect (McdAccount *account,
 G_GNUC_INTERNAL gboolean _mcd_account_set_parameters (McdAccount *account,
                                                       GHashTable *params,
                                                       const gchar **unset,
+                                                      GPtrArray *not_yet,
                                                       GError **error);
 
 G_GNUC_INTERNAL void _mcd_account_request_temporary_presence (McdAccount *self,

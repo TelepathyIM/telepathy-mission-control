@@ -404,7 +404,8 @@ complete_account_creation (McdAccount *account,
         return;
     }
 
-    ok = _mcd_account_set_parameters (account, cad->parameters, NULL, &error);
+    ok = _mcd_account_set_parameters (account, cad->parameters, NULL, NULL,
+                                      &error);
 
     if (ok && cad->properties != NULL)
     {

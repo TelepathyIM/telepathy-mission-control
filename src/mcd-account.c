@@ -1285,9 +1285,27 @@ _mcd_account_set_parameter (McdAccount *account, const gchar *name,
     MCD_ACCOUNT_GET_CLASS (account)->set_parameter (account, name, value);
 }
 
+/*
+ * _mcd_account_set_parameters:
+ * @account: the #McdAccount.
+ * @name: the parameter name.
+ * @params: names and values of parameters to set
+ * @unset: names of parameters to unset
+ * @not_yet: if not %NULL, borrowed names of parameters that cannot take
+ *  effect until Reconnect() is called will be appended to this array
+ *
+ * Alter the account parameters.
+ *
+ * For the moment, the account will automatically be reconnected if anything
+ * is appended to @not_yet, in violation of telepathy-spec (fd.o #21154).
+ *
+ * Returns: %TRUE (possibly appending borrowed strings to @not_yet) on success,
+ *  %FALSE (setting @error) on failure
+ */
 gboolean
 _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
-                             const gchar ** unset, GError **error)
+                             const gchar ** unset, GPtrArray *not_yet,
+                             GError **error)
 {
     McdAccountPrivate *priv = account->priv;
     const TpConnectionManagerParam *param;
@@ -1352,7 +1370,16 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
                                                            param->name);
                     }
                     else
+                    {
+                        if (not_yet != NULL)
+                        {
+                            /* we assume that the TpConnectionManager won't get
+                             * freed */
+                            g_ptr_array_add (not_yet, param->name);
+                        }
+
                         reset_connection = TRUE;
+                    }
                 }
                 g_value_unset (&old);
             }
@@ -1380,6 +1407,23 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
 
         for (unset_iter = unset; *unset_iter != NULL; unset_iter++)
         {
+            if (mcd_account_get_parameter (account, *unset_iter, NULL))
+            {
+                DEBUG ("unsetting %s", *unset_iter);
+                /* pessimistically assume that removing any parameter merits
+                 * reconnection (in a perfect implementation, if the
+                 * Has_Default flag was set we'd check whether the current
+                 * value is the default already) */
+                if (not_yet != NULL)
+                {
+                    /* we assume that the TpConnectionManager won't get
+                     * freed */
+                    g_ptr_array_add (not_yet, (gchar *) *unset_iter);
+                }
+
+                reset_connection = TRUE;
+            }
+
             _mcd_account_set_parameter (account, *unset_iter, NULL);
         }
     }
@@ -1389,6 +1433,7 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     {
         if (reset_connection)
         {
+            /* FIXME: telepathy-spec violation (fd.o #21154) */
             DEBUG ("resetting connection");
             mcd_connection_close (priv->connection);
             _mcd_account_connection_begin (account);
@@ -1421,11 +1466,18 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
     GHashTable *parameters;
     GValue value = { 0 };
     GError *error = NULL;
+    GPtrArray *not_yet;
 
     DEBUG ("called for %s", priv->unique_name);
 
-    if (!_mcd_account_set_parameters (account, set, unset, &error))
+    /* pessimistically assume that every parameter mentioned will be deferred
+     * until reconnection */
+    not_yet = g_ptr_array_sized_new (g_hash_table_size (set) +
+                                     g_strv_length ((gchar **) unset) + 1);
+
+    if (!_mcd_account_set_parameters (account, set, unset, not_yet, &error))
     {
+        g_ptr_array_free (not_yet, TRUE);
         dbus_g_method_return_error (context, error);
         g_error_free (error);
         return;
@@ -1440,7 +1492,13 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
 
     mcd_account_check_validity (account);
     mcd_account_manager_write_conf (priv->account_manager);
+
+    g_ptr_array_add (not_yet, NULL);
+    /* FIXME: return this over D-Bus as a gchar ** (API break) */
+    (void) not_yet->pdata;
+
     mc_svc_account_return_from_update_parameters (context);
+    g_ptr_array_free (not_yet, TRUE);
 }
 
 static void
