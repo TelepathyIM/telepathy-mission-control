@@ -1329,9 +1329,6 @@ _mcd_account_set_parameter (McdAccount *account, const gchar *name,
  *
  * Alter the account parameters.
  *
- * For the moment, the account will automatically be reconnected if anything
- * is appended to @not_yet, in violation of telepathy-spec (fd.o #21154).
- *
  * Returns: %TRUE (possibly appending borrowed strings to @not_yet) on success,
  *  %FALSE (setting @error) on failure
  */
@@ -1464,24 +1461,14 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     if (mcd_account_get_connection_status (account) ==
         TP_CONNECTION_STATUS_CONNECTED)
     {
-        if (reset_connection)
-        {
-            /* FIXME: telepathy-spec violation (fd.o #21154) */
-            DEBUG ("resetting connection");
-            mcd_connection_close (priv->connection);
-            _mcd_account_connection_begin (account);
-        }
-        else
-        {
-            GSList *list;
+        GSList *list;
 
-            for (list = dbus_properties; list != NULL; list = list->next)
-            {
-                name = list->data;
-                DEBUG ("updating parameter %s", name);
-                value = g_hash_table_lookup (params, name);
-                _mcd_connection_update_property (priv->connection, name, value);
-            }
+        for (list = dbus_properties; list != NULL; list = list->next)
+        {
+            name = list->data;
+            DEBUG ("updating parameter %s", name);
+            value = g_hash_table_lookup (params, name);
+            _mcd_connection_update_property (priv->connection, name, value);
         }
     }
     g_slist_free (dbus_properties);
