@@ -1254,6 +1254,61 @@ mcd_connection_recover_channel (McdConnection *connection,
     _mcd_dispatcher_recover_channel (priv->dispatcher, channel);
 }
 
+static void
+mcd_connection_found_channel (McdConnection *self,
+                              const gchar *object_path,
+                              GHashTable *channel_props)
+{
+    const GList *list;
+    gboolean found = FALSE;
+
+    /* find the McdChannel */
+    /* NOTE: we cannot move the mcd_operation_get_missions() call out of
+     * the loop, because mcd_dispatcher_send() can cause the channel to be
+     * destroyed, at which point our list would contain a finalized channel
+     * (and a crash will happen) */
+    list = mcd_operation_get_missions ((McdOperation *) self);
+    for (; list != NULL; list = list->next)
+    {
+        McdChannel *channel = MCD_CHANNEL (list->data);
+        McdTmpChannelData *tcd;
+
+        if (g_strcmp0 (object_path,
+                       mcd_channel_get_object_path (channel)) == 0)
+        {
+            found = TRUE;
+            break;
+        }
+
+        if (mcd_channel_get_status (channel) !=
+            MCD_CHANNEL_STATUS_UNDISPATCHED)
+            continue;
+
+        tcd = g_object_get_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA);
+        if (tcd && strcmp (tcd->object_path, object_path) == 0)
+        {
+            _mcd_channel_create_proxy (channel, self->priv->tp_conn,
+                                       object_path, channel_props);
+            g_object_set_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA,
+                               NULL);
+            /* channel is ready for dispatching */
+            _mcd_dispatcher_take_channels (self->priv->dispatcher,
+                                           g_list_prepend (NULL, channel),
+                                           FALSE);
+            found = TRUE;
+            break;
+        }
+    }
+
+    if (!found)
+    {
+        /* We don't have a McdChannel for this channel, which most likely
+         * means that it was already present on the connection before MC
+         * started. Let's try to recover it */
+        mcd_connection_recover_channel (self, object_path, channel_props);
+    }
+}
+
 static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
                                  const GError *error, gpointer user_data,
                                  GObject *weak_object)
@@ -1293,58 +1348,12 @@ static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
         GValueArray *va;
         const gchar *object_path;
         GHashTable *channel_props;
-        const GList *list;
-        gboolean found = FALSE;
 
         va = g_ptr_array_index (channels, i);
         object_path = g_value_get_boxed (va->values);
         channel_props = g_value_get_boxed (va->values + 1);
-        /* find the McdChannel */
-        /* NOTE: we cannot move the mcd_operation_get_missions() call out of
-         * the loop, because mcd_dispatcher_send() can cause the channel to be
-         * destroyed, at which point our list would contain a finalized channel
-         * (and a crash will happen) */
-        list = mcd_operation_get_missions ((McdOperation *)connection);
-        for (; list != NULL; list = list->next)
-        {
-            McdChannel *channel = MCD_CHANNEL (list->data);
-            McdTmpChannelData *tcd;
 
-            if (g_strcmp0 (object_path,
-                           mcd_channel_get_object_path (channel)) == 0)
-            {
-                found = TRUE;
-                break;
-            }
-
-            if (mcd_channel_get_status (channel) !=
-                MCD_CHANNEL_STATUS_UNDISPATCHED)
-                continue;
-
-            tcd = g_object_get_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA);
-            if (tcd && strcmp (tcd->object_path, object_path) == 0)
-            {
-                _mcd_channel_create_proxy (channel, priv->tp_conn,
-                                           object_path, channel_props);
-                g_object_set_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA,
-                                   NULL);
-                /* channel is ready for dispatching */
-                _mcd_dispatcher_take_channels (priv->dispatcher,
-                                               g_list_prepend (NULL, channel),
-                                               FALSE);
-                found = TRUE;
-                break;
-            }
-        }
-
-        if (!found)
-        {
-            /* We don't have a McdChannel for this channel, which most likely
-             * means that it was already present on the connection before MC
-             * started. Let's try to recover it */
-            mcd_connection_recover_channel (connection,
-                                            object_path, channel_props);
-        }
+        mcd_connection_found_channel (connection, object_path, channel_props);
     }
 
     tp_proxy_signal_connection_disconnect (priv->new_channel_sc);
