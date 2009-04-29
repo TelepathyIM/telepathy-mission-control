@@ -97,7 +97,6 @@ struct _McdConnectionPrivate
 
     /* Telepathy connection */
     TpConnection *tp_conn;
-    TpProxySignalConnection *new_channel_sc;
 
     guint reconnect_timer; 	/* timer for reconnection */
     guint reconnect_interval;
@@ -1280,7 +1279,6 @@ static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
         mcd_connection_found_channel (connection, object_path, channel_props);
     }
 
-    tp_proxy_signal_connection_disconnect (priv->new_channel_sc);
     priv->can_dispatch = TRUE;
 }
 
@@ -1355,11 +1353,9 @@ mcd_connection_setup_pre_requests (McdConnection *connection)
 {
     McdConnectionPrivate *priv = connection->priv;
 
-    /* we've already done this
     tp_cli_connection_connect_to_new_channel
         (priv->tp_conn, on_new_channel, priv, NULL,
          (GObject *)connection, NULL);
-    */
 
     tp_cli_connection_call_list_channels (priv->tp_conn, -1,
         list_channels_cb, priv, NULL, (GObject *) connection);
@@ -2181,11 +2177,6 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
                                (gpointer)connection_ptr);
     tp_connection_call_when_ready (priv->tp_conn, on_connection_ready,
                                    connection_ptr);
-    priv->new_channel_sc =
-        tp_cli_connection_connect_to_new_channel (priv->tp_conn,
-                                                  on_new_channel,
-                                                  priv, NULL,
-                                                  (GObject *)connection, NULL);
 }
 
 /**
