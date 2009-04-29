@@ -519,6 +519,23 @@ command_add (McAccountManager *manager)
 }
 
 static void
+callback_for_update_parameters (TpProxy *proxy,
+                                const gchar **unchanged G_GNUC_UNUSED,
+                                const GError *error,
+                                gpointer user_data,
+                                GObject *weak_object)
+{
+    if (error == NULL) {
+        command.common.ret = 0;
+    }
+    else {
+        fprintf (stderr, "%s %s: %s\n", app_name, command.common.name,
+                 error->message);
+    }
+    g_main_loop_quit (main_loop);
+}
+
+static void
 callback_for_void (TpProxy *proxy,
 		   const GError *error,
 		   gpointer user_data,
@@ -735,7 +752,7 @@ command_update (McAccount *account)
 					       command.update.set,
 					       (const gchar  **)
 					       command.update.unset->pdata,
-					       callback_for_void,
+					       callback_for_update_parameters,
 					       NULL, NULL, NULL);
 }
 

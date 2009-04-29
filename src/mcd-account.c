@@ -1527,10 +1527,9 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
     mcd_account_manager_write_conf (priv->account_manager);
 
     g_ptr_array_add (not_yet, NULL);
-    /* FIXME: return this over D-Bus as a gchar ** (API break) */
-    (void) not_yet->pdata;
 
-    mc_svc_account_return_from_update_parameters (context);
+    mc_svc_account_return_from_update_parameters (context,
+        (const gchar **) not_yet->pdata);
     g_ptr_array_free (not_yet, TRUE);
 }
 
