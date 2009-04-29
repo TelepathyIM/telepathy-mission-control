@@ -1092,47 +1092,6 @@ request_unrequested_channels (McdConnection *connection)
     }
 }
 
-static void
-dispatch_undispatched_channels (McdConnection *connection)
-{
-    McdConnectionPrivate *priv = connection->priv;
-    const GList *channels;
-
-    priv->can_dispatch = TRUE;
-    channels = mcd_operation_get_missions ((McdOperation *)connection);
-
-    DEBUG ("called");
-    while (channels)
-    {
-	McdChannel *channel = MCD_CHANNEL (channels->data);
-
-        if (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_UNDISPATCHED)
-        {
-            /* undispatched channels have no TpProxy associated: create it now
-             */
-            McdTmpChannelData *tcd;
-
-            tcd = g_object_get_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA);
-            if (G_UNLIKELY (!tcd))
-            {
-                g_warning ("Channel %p is undispatched without data", channel);
-                continue;
-            }
-
-            _mcd_channel_create_proxy_old (channel, priv->tp_conn,
-                                           tcd->object_path, tcd->channel_type,
-                                           tcd->handle, tcd->handle_type);
-            g_object_set_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA, NULL);
-            DEBUG ("Dispatching channel %p", channel);
-            /* dispatch the channel */
-            _mcd_dispatcher_take_channels (priv->dispatcher,
-                                           g_list_prepend (NULL, channel),
-                                           FALSE);
-        }
-        channels = channels->next;
-    }
-}
-
 static McdChannel *
 find_channel_by_path (McdConnection *connection, const gchar *object_path)
 {
@@ -1381,6 +1340,67 @@ mcd_connection_setup_requests (McdConnection *connection)
 }
 
 static void
+list_channels_cb (TpConnection *connection,
+                  const GPtrArray *structs,
+                  const GError *error,
+                  gpointer user_data,
+                  GObject *weak_object)
+{
+    McdConnection *self = MCD_CONNECTION (weak_object);
+    guint i;
+
+    if (error)
+    {
+        g_warning ("ListChannels got error: %s", error->message);
+        return;
+    }
+
+    for (i = 0; i < structs->len; i++)
+    {
+        GValueArray *va = g_ptr_array_index (structs, i);
+        const gchar *object_path;
+        const gchar *channel_type;
+        TpHandleType handle_type;
+        TpHandle handle;
+        GHashTable *channel_props;
+
+        object_path = g_value_get_boxed (va->values + 0);
+        channel_type = g_value_get_string (va->values + 1);
+        handle_type = g_value_get_uint (va->values + 2);
+        handle = g_value_get_uint (va->values + 3);
+
+        /* this is not the most efficient thing we could possibly do, but
+         * we're on a fallback path so it's OK to be a bit slow */
+        channel_props = g_hash_table_new (g_str_hash, g_str_equal);
+        g_hash_table_insert (channel_props, TP_IFACE_CHANNEL ".ChannelType",
+                             va->values + 0);
+        g_hash_table_insert (channel_props, TP_IFACE_CHANNEL ".TargetHandleType",
+                             va->values + 1);
+        g_hash_table_insert (channel_props, TP_IFACE_CHANNEL ".TargetHandle",
+                             va->values + 2);
+        mcd_connection_found_channel (self, object_path, channel_props);
+        g_hash_table_destroy (channel_props);
+    }
+
+    self->priv->can_dispatch = TRUE;
+}
+
+static void
+mcd_connection_setup_pre_requests (McdConnection *connection)
+{
+    McdConnectionPrivate *priv = connection->priv;
+
+    /* we've already done this
+    tp_cli_connection_connect_to_new_channel
+        (priv->tp_conn, on_new_channel, priv, NULL,
+         (GObject *)connection, NULL);
+    */
+
+    tp_cli_connection_call_list_channels (priv->tp_conn, -1,
+        list_channels_cb, priv, NULL, (GObject *) connection);
+}
+
+static void
 on_connection_ready (TpConnection *tp_conn, const GError *error,
 		     gpointer user_data)
 {
@@ -1436,7 +1456,7 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
     if (priv->has_requests_if)
         mcd_connection_setup_requests (connection);
     else
-        dispatch_undispatched_channels (connection);
+        mcd_connection_setup_pre_requests (connection);
 
     /* and request all channels */
     request_unrequested_channels (connection);
