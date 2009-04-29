@@ -489,23 +489,6 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
                                        g_list_prepend (NULL, channel),
                                        FALSE);
     }
-    else
-    {
-        /* create a void channel, but no TpProxy yet. Bundle the channel data,
-         * to be used later */
-        McdTmpChannelData *tcd;
-
-        channel = _mcd_channel_new_undispatched ();
-        tcd = g_slice_new (McdTmpChannelData);
-        tcd->object_path = g_strdup (chan_obj_path);
-        tcd->channel_type = g_strdup (chan_type);
-        tcd->handle = handle;
-        tcd->handle_type = handle_type;
-        g_object_set_data_full (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA,
-                                tcd, mcd_tmp_channel_data_free);
-        mcd_operation_take_mission (MCD_OPERATION (connection),
-                                    MCD_MISSION (channel));
-    }
 }
 
 static void
@@ -1130,7 +1113,7 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
     }
 
     /* we can completely ignore the channels that arrive while can_dispatch is
-     * FALSE: the on_new_channel handler is already recording them */
+     * FALSE: they'll also be in Channels in the GetAll(Requests) result */
     if (!priv->can_dispatch) return;
 
     /* first, check if we have to dispatch the channels at all */
@@ -1210,7 +1193,6 @@ mcd_connection_found_channel (McdConnection *self,
     for (; list != NULL; list = list->next)
     {
         McdChannel *channel = MCD_CHANNEL (list->data);
-        McdTmpChannelData *tcd;
 
         if (g_strcmp0 (object_path,
                        mcd_channel_get_object_path (channel)) == 0)
@@ -1222,21 +1204,6 @@ mcd_connection_found_channel (McdConnection *self,
         if (mcd_channel_get_status (channel) !=
             MCD_CHANNEL_STATUS_UNDISPATCHED)
             continue;
-
-        tcd = g_object_get_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA);
-        if (tcd && strcmp (tcd->object_path, object_path) == 0)
-        {
-            _mcd_channel_create_proxy (channel, self->priv->tp_conn,
-                                       object_path, channel_props);
-            g_object_set_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA,
-                               NULL);
-            /* channel is ready for dispatching */
-            _mcd_dispatcher_take_channels (self->priv->dispatcher,
-                                           g_list_prepend (NULL, channel),
-                                           FALSE);
-            found = TRUE;
-            break;
-        }
     }
 
     if (!found)
