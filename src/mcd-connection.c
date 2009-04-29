@@ -1357,15 +1357,15 @@ list_channels_cb (TpConnection *connection,
     {
         GValueArray *va = g_ptr_array_index (structs, i);
         const gchar *object_path;
-        const gchar *channel_type;
-        TpHandleType handle_type;
-        TpHandle handle;
         GHashTable *channel_props;
 
         object_path = g_value_get_boxed (va->values + 0);
-        channel_type = g_value_get_string (va->values + 1);
-        handle_type = g_value_get_uint (va->values + 2);
-        handle = g_value_get_uint (va->values + 3);
+
+        DEBUG ("%s (t=%s, ht=%u, h=%u)",
+               object_path,
+               g_value_get_string (va->values + 1),
+               g_value_get_uint (va->values + 2),
+               g_value_get_uint (va->values + 3));
 
         /* this is not the most efficient thing we could possibly do, but
          * we're on a fallback path so it's OK to be a bit slow */
