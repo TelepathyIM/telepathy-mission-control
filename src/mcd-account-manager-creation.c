@@ -121,7 +121,8 @@ account_manager_create_account (McSvcAccountManagerInterfaceCreation *self,
     cd->context = context;
     _mcd_account_manager_create_account (MCD_ACCOUNT_MANAGER (self),
                                          manager, protocol, display_name,
-                                         parameters, create_account_cb, cd,
+                                         parameters, properties,
+                                         create_account_cb, cd,
                                          (GDestroyNotify)mcd_creation_data_free);
 }
 

@@ -99,6 +99,7 @@ typedef struct
 {
     McdAccountManager *account_manager;
     GHashTable *parameters;
+    GHashTable *properties;
     McdGetAccountCb callback;
     gpointer user_data;
     GDestroyNotify destroy;
@@ -312,6 +313,12 @@ static void
 mcd_create_account_data_free (McdCreateAccountData *cad)
 {
     g_hash_table_unref (cad->parameters);
+
+    if (cad->properties != NULL)
+    {
+        g_hash_table_unref (cad->properties);
+    }
+
     g_slice_free (McdCreateAccountData, cad);
 }
 
@@ -407,6 +414,7 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
                                      const gchar *protocol,
                                      const gchar *display_name,
                                      GHashTable *params,
+                                     GHashTable *properties,
                                      McdGetAccountCb callback,
                                      gpointer user_data,
                                      GDestroyNotify destroy)
@@ -449,6 +457,7 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
         cad = g_slice_new (McdCreateAccountData);
         cad->account_manager = account_manager;
         cad->parameters = g_hash_table_ref (params);
+        cad->properties = (properties ? g_hash_table_ref (properties) : NULL);
         cad->callback = callback;
         cad->user_data = user_data;
         cad->destroy = destroy;
@@ -490,7 +499,7 @@ account_manager_create_account (McSvcAccountManager *self,
 {
     _mcd_account_manager_create_account (MCD_ACCOUNT_MANAGER (self),
                                          manager, protocol, display_name,
-                                         parameters,
+                                         parameters, NULL,
                                          create_account_cb, context, NULL);
 }
 
