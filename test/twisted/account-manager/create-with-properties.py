@@ -44,6 +44,16 @@ def test(q, bus, mc):
         cs.ACCOUNT + '.AutomaticPresence': dbus.Struct((
             dbus.UInt32(cs.PRESENCE_TYPE_BUSY),
             'busy', 'Exploding'), signature='uss'),
+        cs.ACCOUNT + '.Icon': 'quake3arena',
+        cs.ACCOUNT + '.Nickname': 'AnArKi',
+        cs.ACCOUNT + '.ConnectAutomatically': True,
+        cs.ACCOUNT_IFACE_AVATAR + '.Avatar': (dbus.ByteArray('foo'),
+            'image/jpeg'),
+        cs.ACCOUNT_IFACE_NOKIA_COMPAT + '.Profile': 'openarena',
+        cs.ACCOUNT_IFACE_NOKIA_COMPAT + '.SecondaryVCardFields':
+            dbus.Array(['x-ioquake3', 'x-quake3'], signature='s'),
+        cs.ACCOUNT_IFACE_NOKIA_CONDITIONS + '.Condition':
+            dbus.Dictionary({ 'has-quad-damage': ':y' }, signature='ss'),
         }, signature='sv')
 
     call_async(q, creation_iface, 'CreateAccount',
@@ -80,9 +90,28 @@ def test(q, bus, mc):
     assert properties.get('AutomaticPresence') == (cs.PRESENCE_TYPE_BUSY,
             'busy', 'Exploding'), \
         properties.get('AutomaticPresence')
+    assert properties.get('ConnectAutomatically') == True, \
+        properties.get('ConnectAutomatically')
+    assert properties.get('Enabled') == True, \
+        properties.get('Enabled')
+    assert properties.get('Icon') == 'quake3arena', \
+        properties.get('Icon')
+    assert properties.get('Nickname') == 'AnArKi', \
+        properties.get('Nickname')
 
-    # FIXME: doing the same thing with RequestedPresence doesn't work
+    properties = account_props.GetAll(cs.ACCOUNT_IFACE_AVATAR)
+    assert properties.get('Avatar') == ([ord('f'), ord('o'), ord('o')],
+            'image/jpeg')
 
+    properties = account_props.GetAll(cs.ACCOUNT_IFACE_NOKIA_COMPAT)
+    assert properties.get('Profile') == 'openarena'
+    assert sorted(properties.get('SecondaryVCardFields')) == \
+            ['x-ioquake3', 'x-quake3']
+
+    properties = account_props.GetAll(cs.ACCOUNT_IFACE_NOKIA_CONDITIONS)
+    assert properties.get('Condition') == {
+            'has-quad-damage': ':y',
+            }
 
 if __name__ == '__main__':
     exec_test(test, {})
