@@ -57,8 +57,10 @@ mcd_creation_data_free (McdCreationData *cd)
 }
 
 static void
-create_account_cb (McdAccountManager *account_manager, McdAccount *account,
-                   const GError *error, gpointer user_data)
+create_account_with_properties_cb (McdAccountManager *account_manager,
+                                   McdAccount *account,
+                                   const GError *error,
+                                   gpointer user_data)
 {
     McdCreationData *cd = user_data;
     const gchar *object_path;
@@ -106,13 +108,14 @@ create_account_cb (McdAccountManager *account_manager, McdAccount *account,
 }
 
 static void
-account_manager_create_account (McSvcAccountManagerInterfaceCreation *self,
-                                const gchar *manager,
-                                const gchar *protocol,
-                                const gchar *display_name,
-                                GHashTable *parameters,
-                                GHashTable *properties,
-                                DBusGMethodInvocation *context)
+account_manager_create_account_with_properties (
+    McSvcAccountManagerInterfaceCreation *self,
+    const gchar *manager,
+    const gchar *protocol,
+    const gchar *display_name,
+    GHashTable *parameters,
+    GHashTable *properties,
+    DBusGMethodInvocation *context)
 {
     McdCreationData *cd;
 
@@ -122,7 +125,7 @@ account_manager_create_account (McSvcAccountManagerInterfaceCreation *self,
     _mcd_account_manager_create_account (MCD_ACCOUNT_MANAGER (self),
                                          manager, protocol, display_name,
                                          parameters, properties,
-                                         create_account_cb, cd,
+                                         create_account_with_properties_cb, cd,
                                          (GDestroyNotify)mcd_creation_data_free);
 }
 
@@ -131,9 +134,10 @@ void
 account_manager_creation_iface_init (McSvcAccountManagerInterfaceCreationClass *iface,
 				  gpointer iface_data)
 {
-#define IMPLEMENT(x) mc_svc_account_manager_interface_creation_implement_##x (\
-    iface, account_manager_##x)
-    IMPLEMENT(create_account);
+#define IMPLEMENT(x, suffix) \
+    mc_svc_account_manager_interface_creation_implement_##x (\
+    iface, account_manager_##x##suffix)
+    IMPLEMENT(create_account, _with_properties);
 #undef IMPLEMENT
 }
 
