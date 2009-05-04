@@ -662,10 +662,35 @@ get_invalid_accounts (TpSvcDBusProperties *self, const gchar *name,
     accounts_to_gvalue (priv->accounts, FALSE, value);
 }
 
+static void
+get_supported_account_properties (TpSvcDBusProperties *svc,
+                                  const gchar *name,
+                                  GValue *value)
+{
+    static const gchar * const supported[] = {
+        MC_IFACE_ACCOUNT ".AutomaticPresence",
+        MC_IFACE_ACCOUNT ".Enabled",
+        MC_IFACE_ACCOUNT ".Icon",
+        MC_IFACE_ACCOUNT ".Nickname",
+        MC_IFACE_ACCOUNT ".ConnectAutomatically",
+        MC_IFACE_ACCOUNT_INTERFACE_AVATAR ".Avatar",
+        MC_IFACE_ACCOUNT_INTERFACE_COMPAT ".Profile",
+        MC_IFACE_ACCOUNT_INTERFACE_COMPAT ".SecondaryVCardFields",
+        MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS ".Condition",
+        /* FIXME: setting RequestedPresence at create time doesn't work yet */
+        /* MC_IFACE_ACCOUNT ".RequestedPresence", */
+        NULL
+    };
+
+    g_value_init (value, G_TYPE_STRV);
+    g_value_set_static_boxed (value, supported);
+}
+
 static const McdDBusProp account_manager_properties[] = {
     { "ValidAccounts", NULL, get_valid_accounts },
     { "InvalidAccounts", NULL, get_invalid_accounts },
     { "Interfaces", NULL, mcd_dbus_get_interfaces },
+    { "SupportedAccountProperties", NULL, get_supported_account_properties },
     { 0 },
 };
 

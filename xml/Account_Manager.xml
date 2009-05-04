@@ -127,6 +127,70 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
       </arg>
     </signal>
 
+    <property name="SupportedAccountProperties"
+      tp:name-for-bindings="Supported_Account_Properties"
+      type="as" tp:type="DBus_Qualified_Member[]" access="read">
+      <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+        <p>A list of the fully qualified names of properties that can be set
+          via the Properties argument to
+          <tp:member-ref>CreateAccount</tp:member-ref> when an account is
+          created.</p>
+
+        <tp:rationale>
+          <p>Examples of good properties to support here include
+            <tp:dbus-ref
+              namespace="org.freedesktop.Telepathy.Account">Icon</tp:dbus-ref>,
+            <tp:dbus-ref
+              namespace="org.freedesktop.Telepathy.Account">Enabled</tp:dbus-ref>,
+            <tp:dbus-ref
+              namespace="org.freedesktop.Telepathy.Account">Nickname</tp:dbus-ref>,
+            <tp:dbus-ref
+              namespace="org.freedesktop.Telepathy.Account">AutomaticPresence</tp:dbus-ref>,
+            <tp:dbus-ref
+              namespace="org.freedesktop.Telepathy.Account">ConnectAutomatically</tp:dbus-ref>,
+            <tp:dbus-ref
+              namespace="org.freedesktop.Telepathy.Account">RequestedPresence</tp:dbus-ref>
+            and
+            <tp:dbus-ref
+              namespace="org.freedesktop.Telepathy.Account.Interface.Avatar">Avatar</tp:dbus-ref>.
+            </p>
+
+          <p>Examples of properties that would make no sense here include
+            <tp:dbus-ref
+              namespace="org.freedesktop.Telepathy.Account">Valid</tp:dbus-ref>,
+            <tp:dbus-ref
+              namespace="org.freedesktop.Telepathy.Account">Connection</tp:dbus-ref>,
+            <tp:dbus-ref
+              namespace="org.freedesktop.Telepathy.Account">ConnectionStatus</tp:dbus-ref>,
+            <tp:dbus-ref
+              namespace="org.freedesktop.Telepathy.Account">ConnectionStatusReason</tp:dbus-ref>,
+            <tp:dbus-ref
+              namespace="org.freedesktop.Telepathy.Account">CurrentPresence</tp:dbus-ref>
+            and
+            <tp:dbus-ref
+              namespace="org.freedesktop.Telepathy.Account">NormalizedName</tp:dbus-ref>.
+          </p>
+        </tp:rationale>
+
+        <p>This property MUST NOT include include the <tp:dbus-ref
+            namespace="org.freedesktop.Telepathy.Account">DisplayName</tp:dbus-ref>
+          and <tp:dbus-ref
+            namespace="org.freedesktop.Telepathy.Account">Parameters</tp:dbus-ref>
+          properties, which are set using separate arguments.</p>
+
+        <p>This property MAY include the names of properties that, after
+          account creation, will be read-only: this indicates that the property
+          can be set at account creation but not changed later.</p>
+
+        <tp:rationale>
+          <p>For example, an account manager might support migration tools that
+            use this to preserve the <tp:dbus-ref
+              namespace="org.freedesktop.Telepathy.Account">HasBeenOnline</tp:dbus-ref>
+            property, even though that property is usually read-only.</p>
+        </tp:rationale>
+      </tp:docstring>
+    </property>
+
     <method name="CreateAccount" tp:name-for-bindings="Create_Account">
       <tp:docstring>
         Request the creation of a new <tp:dbus-ref

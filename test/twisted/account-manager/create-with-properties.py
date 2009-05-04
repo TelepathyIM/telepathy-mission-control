@@ -25,12 +25,26 @@ def test(q, bus, mc):
     assert properties.get('InvalidAccounts') == [], \
         properties.get('InvalidAccounts')
     interfaces = properties.get('Interfaces')
+    supported = properties.get('SupportedAccountProperties')
 
     # assert that current functionality exists
     assert cs.AM_IFACE_CREATION_DRAFT in interfaces, interfaces
     assert cs.AM_IFACE_NOKIA_QUERY in interfaces, interfaces
 
-    params = dbus.Dictionary({"account": "someguy@example.com",
+    assert (cs.ACCOUNT + '.AutomaticPresence') in supported
+    assert (cs.ACCOUNT + '.Enabled') in supported
+    assert (cs.ACCOUNT + '.Icon') in supported
+    assert (cs.ACCOUNT + '.Nickname') in supported
+    assert (cs.ACCOUNT + '.ConnectAutomatically') in supported
+    assert (cs.ACCOUNT_IFACE_AVATAR + '.Avatar') in supported
+    assert (cs.ACCOUNT_IFACE_NOKIA_COMPAT + '.Profile') in supported
+    assert (cs.ACCOUNT_IFACE_NOKIA_COMPAT + '.SecondaryVCardFields') in supported
+    assert (cs.ACCOUNT_IFACE_NOKIA_CONDITIONS + '.Condition') in supported
+
+    # FIXME: setting RequestedPresence at create time doesn't work yet
+    #assert (cs.ACCOUNT + '.RequestedPresence') in supported
+
+    params = dbus.Dictionary({"account": "anarki@example.com",
         "password": "secrecy"}, signature='sv')
 
     cm_name_ref = dbus.service.BusName(cs.tp_name_prefix +
