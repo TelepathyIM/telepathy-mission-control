@@ -111,13 +111,6 @@ typedef struct
     GDestroyNotify destroy;
 } McdCreateAccountData;
 
-/* Used by the Creation.DRAFT interface */
-typedef struct
-{
-    GHashTable *properties;
-    DBusGMethodInvocation *context;
-} McdCreationData;
-
 enum
 {
     PROP_0,
@@ -335,13 +328,6 @@ mcd_create_account_data_free (McdCreateAccountData *cad)
     g_slice_free (McdCreateAccountData, cad);
 }
 
-static inline void
-mcd_creation_data_free (McdCreationData *cd)
-{
-    g_hash_table_unref (cd->properties);
-    g_slice_free (McdCreationData, cd);
-}
-
 static gboolean
 set_new_account_properties (McdAccount *account,
                             GHashTable *properties,
@@ -384,28 +370,20 @@ create_account_with_properties_cb (McdAccountManager *account_manager,
                                    const GError *error,
                                    gpointer user_data)
 {
-    McdCreationData *cd = user_data;
+    DBusGMethodInvocation *context = user_data;
     const gchar *object_path;
-    GError *err = NULL;
 
     if (G_UNLIKELY (error))
     {
-	dbus_g_method_return_error (cd->context, (GError *)error);
+	dbus_g_method_return_error (context, (GError *)error);
 	return;
     }
 
     g_return_if_fail (MCD_IS_ACCOUNT (account));
 
-    if (!set_new_account_properties (account, cd->properties, &err))
-    {
-        dbus_g_method_return_error (cd->context, err);
-        g_error_free (err);
-        return;
-    }
-
     object_path = mcd_account_get_object_path (account);
     mc_svc_account_manager_interface_creation_return_from_create_account
-        (cd->context, object_path);
+        (context, object_path);
 }
 
 static void
@@ -427,6 +405,12 @@ complete_account_creation (McdAccount *account,
     }
 
     ok = _mcd_account_set_parameters (account, cad->parameters, NULL, &error);
+
+    if (ok && cad->properties != NULL)
+    {
+        ok = set_new_account_properties (account, cad->properties, &error);
+    }
+
     if (ok)
     {
 	add_account (account_manager, account);
@@ -609,16 +593,12 @@ account_manager_create_account_with_properties (
     GHashTable *properties,
     DBusGMethodInvocation *context)
 {
-    McdCreationData *cd;
-
-    cd = g_slice_new (McdCreationData);
-    cd->properties = g_hash_table_ref (properties);
-    cd->context = context;
     _mcd_account_manager_create_account (MCD_ACCOUNT_MANAGER (self),
                                          manager, protocol, display_name,
                                          parameters, properties,
-                                         create_account_with_properties_cb, cd,
-                                         (GDestroyNotify)mcd_creation_data_free);
+                                         create_account_with_properties_cb,
+                                         context,
+                                         NULL);
 }
 
 static void
