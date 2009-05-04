@@ -125,6 +125,67 @@ def test(q, bus, mc):
         )
     assert account_props.Get(cs.ACCOUNT, 'HasBeenOnline') == True
 
+    # Set some properties to invalidly typed values - this currently succeeds
+    # but is a no-op, although in future it should change to raising an
+    # exception
+
+    try:
+        account_props.Set(cs.ACCOUNT, 'DisplayName',
+            dbus.Struct(('wrongly typed',), signature='s'))
+    except dbus.DBusException:
+        pass
+
+    try:
+        account_props.Set(cs.ACCOUNT, 'Icon',
+            dbus.Struct(('wrongly typed',), signature='s'))
+    except dbus.DBusException:
+        pass
+
+    try:
+        account_props.Set(cs.ACCOUNT, 'Enabled',
+            dbus.Struct(('wrongly typed',), signature='s'))
+    except dbus.DBusException:
+        pass
+
+    try:
+        account_props.Set(cs.ACCOUNT, 'Nickname',
+            dbus.Struct(('wrongly typed',), signature='s'))
+    except dbus.DBusException:
+        pass
+
+    try:
+        account_props.Set(cs.ACCOUNT, 'AutomaticPresence',
+            dbus.Struct(('wrongly typed',), signature='s'))
+    except dbus.DBusException:
+        pass
+
+    try:
+        account_props.Set(cs.ACCOUNT, 'ConnectAutomatically',
+            dbus.Struct(('wrongly typed',), signature='s'))
+    except dbus.DBusException:
+        pass
+
+    try:
+        account_props.Set(cs.ACCOUNT, 'RequestedPresence',
+            dbus.Struct(('wrongly typed',), signature='s'))
+    except dbus.DBusException:
+        pass
+
+    try:
+        account_props.Set(cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
+            dbus.Struct(('wrongly typed',), signature='s'))
+    except dbus.DBusException:
+        pass
+
+    # Make sure MC hasn't crashed yet, and make sure some properties are what
+    # we expect them to be
+
+    properties = account_props.GetAll(cs.ACCOUNT)
+    assert properties['DisplayName'] == 'Work account'
+    assert properties['Icon'] == 'im-jabber'
+    properties = account_props.GetAll(cs.ACCOUNT_IFACE_AVATAR)
+    assert properties['Avatar'] == ([], '')
+
     # Delete the account
     assert account_iface.Remove() is None
     account_event, account_manager_event = q.expect_many(
