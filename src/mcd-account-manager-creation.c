@@ -56,6 +56,42 @@ mcd_creation_data_free (McdCreationData *cd)
     g_slice_free (McdCreationData, cd);
 }
 
+static gboolean
+set_new_account_properties (McdAccount *account,
+                            GHashTable *properties,
+                            GError **error)
+{
+    GHashTableIter iter;
+    gpointer key, value;
+    gboolean ok = TRUE;
+
+    g_hash_table_iter_init (&iter, properties);
+
+    while (g_hash_table_iter_next (&iter, &key, &value))
+    {
+        gchar *name = key;
+        gchar *dot, *iface, *pname;
+
+        if ((dot = strrchr (name, '.')) != NULL)
+        {
+            iface = g_strndup (name, dot - name);
+            pname = dot + 1;
+            mcd_dbusprop_set_property (TP_SVC_DBUS_PROPERTIES (account),
+                                      iface, pname, value, error);
+            g_free (iface);
+        }
+        else
+        {
+            g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                         "Malformed property name: %s", name);
+            ok = FALSE;
+            break;
+        }
+    }
+
+    return ok;
+}
+
 static void
 create_account_with_properties_cb (McdAccountManager *account_manager,
                                    McdAccount *account,
@@ -64,9 +100,6 @@ create_account_with_properties_cb (McdAccountManager *account_manager,
 {
     McdCreationData *cd = user_data;
     const gchar *object_path;
-    GHashTableIter iter;
-    gchar *name;
-    GValue *value;
     GError *err = NULL;
 
     if (G_UNLIKELY (error))
@@ -77,31 +110,13 @@ create_account_with_properties_cb (McdAccountManager *account_manager,
 
     g_return_if_fail (MCD_IS_ACCOUNT (account));
 
-    g_hash_table_iter_init (&iter, cd->properties);
-    while (g_hash_table_iter_next (&iter, (gpointer)&name, (gpointer)&value) &&
-           err == NULL)
-    {
-        gchar *dot, *iface, *pname;
-
-        if ((dot = strrchr (name, '.')) != NULL)
-        {
-            iface = g_strndup (name, dot - name);
-            pname = dot + 1;
-            mcd_dbusprop_set_property (TP_SVC_DBUS_PROPERTIES (account),
-                                       iface, pname, value, &err);
-            g_free (iface);
-        }
-        else
-            err = g_error_new (TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                               "Unrecognized property: %s", name);
-    }
-
-    if (err)
+    if (!set_new_account_properties (account, cd->properties, &err))
     {
         dbus_g_method_return_error (cd->context, err);
         g_error_free (err);
-	return;
+        return;
     }
+
     object_path = mcd_account_get_object_path (account);
     mc_svc_account_manager_interface_creation_return_from_create_account
         (cd->context, object_path);
