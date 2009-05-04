@@ -624,6 +624,14 @@ mcd_account_set_string_val (McdAccount *account, const gchar *key,
     const gchar *string;
     gchar *old_string;
 
+    /* We can't raise an error in this API :-( */
+    if (!G_VALUE_HOLDS_STRING (value))
+    {
+        g_warning ("Expected string for %s, but got %s", key,
+                   G_VALUE_TYPE_NAME (value));
+        return FALSE;
+    }
+
     string = g_value_get_string (value);
     old_string = g_key_file_get_string (priv->keyfile, priv->unique_name,
 				       	key, NULL);
@@ -727,6 +735,15 @@ set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
     gboolean enabled;
 
     DEBUG ("called for %s", priv->unique_name);
+
+    /* We can't raise an error in this API :-( */
+    if (!G_VALUE_HOLDS_BOOLEAN (value))
+    {
+        g_warning ("Expected boolean for Enabled, but got %s",
+                   G_VALUE_TYPE_NAME (value));
+        return;
+    }
+
     enabled = g_value_get_boolean (value);
     if (priv->enabled != enabled)
     {
@@ -786,6 +803,16 @@ set_avatar (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
     gboolean changed;
 
     DEBUG ("called for %s", priv->unique_name);
+
+    /* mcd_dbusprop can't return an error, so just spam to stderr and assume
+     * no change. This is saddening - we should be able to raise error. */
+    if (!G_VALUE_HOLDS (value, MC_STRUCT_TYPE_AVATAR))
+    {
+        g_warning ("Unexpected type for Avatar: wanted (ay,s), "
+                   "got %s", G_VALUE_TYPE_NAME (value));
+        return;
+    }
+
     va = g_value_get_boxed (value);
     avatar = g_value_get_boxed (va->values);
     mime_type = g_value_get_string (va->values + 1);
@@ -849,6 +876,16 @@ set_automatic_presence (TpSvcDBusProperties *self,
     GValueArray *va;
 
     DEBUG ("called for %s", priv->unique_name);
+
+    /* mcd_dbusprop can't return an error, so just spam to stderr and assume
+     * no change. This is saddening - we should be able to raise error. */
+    if (!G_VALUE_HOLDS (value, TP_STRUCT_TYPE_SIMPLE_PRESENCE))
+    {
+        g_warning ("Unexpected type for RequestedPresence: wanted (u,s,s), "
+                   "got %s", G_VALUE_TYPE_NAME (value));
+        return;
+    }
+
     va = g_value_get_boxed (value);
     type = g_value_get_uint (va->values);
     status = g_value_get_string (va->values + 1);
@@ -931,6 +968,15 @@ set_connect_automatically (TpSvcDBusProperties *self,
     gboolean connect_automatically;
 
     DEBUG ("called for %s", priv->unique_name);
+
+    /* We can't raise an error in this API :-( */
+    if (!G_VALUE_HOLDS_BOOLEAN (value))
+    {
+        g_warning ("Expected boolean for ConnectAutomatically, but got %s",
+                   G_VALUE_TYPE_NAME (value));
+        return;
+    }
+
     connect_automatically = g_value_get_boolean (value);
     if (priv->connect_automatically != connect_automatically)
     {
@@ -1025,10 +1071,21 @@ set_requested_presence (TpSvcDBusProperties *self,
     GValueArray *va;
 
     DEBUG ("called for %s", priv->unique_name);
+
+    /* mcd_dbusprop can't return an error, so just spam to stderr and assume
+     * no change. This is saddening - we should be able to raise error. */
+    if (!G_VALUE_HOLDS (value, TP_STRUCT_TYPE_SIMPLE_PRESENCE))
+    {
+        g_warning ("Unexpected type for RequestedPresence: wanted (u,s,s), "
+                   "got %s", G_VALUE_TYPE_NAME (value));
+        return;
+    }
+
     va = g_value_get_boxed (value);
     type = (gint)g_value_get_uint (va->values);
     status = g_value_get_string (va->values + 1);
     message = g_value_get_string (va->values + 2);
+
     DEBUG ("setting requested presence: %d, %s, %s", type, status, message);
 
     if (mcd_account_request_presence_int (account, type, status, message))
