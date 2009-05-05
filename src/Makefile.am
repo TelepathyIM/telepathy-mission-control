@@ -16,7 +16,6 @@ mission_control_include_HEADERS = \
 	mcd-account-connection.h \
 	mcd-account-requests.h \
 	mcd-account-manager.h \
-	mcd-account-manager-creation.h \
 	mcd-account-manager-query.h \
 	mcd-account-stats.h \
 	mcd-dbusprop.h \
@@ -119,7 +118,6 @@ libmissioncontrol_server_la_SOURCES = \
 	mcd-account-requests.c \
 	mcd-account-stats.c \
 	mcd-account-manager.c \
-	mcd-account-manager-creation.c \
 	mcd-account-manager-priv.h \
 	mcd-account-manager-query.c \
 	mcd-account-priv.h \

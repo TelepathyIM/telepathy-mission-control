@@ -42,7 +42,7 @@ typedef void (*McdGetAccountCb) (McdAccountManager *account_manager,
 G_GNUC_INTERNAL void _mcd_account_manager_create_account
     (McdAccountManager *account_manager,
      const gchar *manager, const gchar *protocol,
-     const gchar *display_name, GHashTable *params,
+     const gchar *display_name, GHashTable *params, GHashTable *properties,
      McdGetAccountCb callback, gpointer user_data, GDestroyNotify destroy);
 
 G_GNUC_INTERNAL

@@ -32,11 +32,12 @@
 #include <dbus/dbus-glib-lowlevel.h>
 #include <dbus/dbus.h>
 
+#include <telepathy-glib/dbus.h>
+#include <telepathy-glib/enums.h>
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 #include <telepathy-glib/errors.h>
 #include "mcd-account-manager-query.h"
-#include "mcd-account-manager-creation.h"
 #include "mcd-account-manager-priv.h"
 #include "mcd-account.h"
 #include "mcd-account-config.h"
@@ -44,7 +45,9 @@
 #include "mcd-connection-priv.h"
 #include "mcd-dbusprop.h"
 #include "mcd-misc.h"
+
 #include "_gen/interfaces.h"
+#include "_gen/svc-Account_Manager_Interface_Creation.h"
 
 #define WRITE_CONF_DELAY    500
 #define INITIAL_CONFIG_FILE_CONTENTS "# Telepathy accounts\n"
@@ -54,10 +57,13 @@
 
 static void account_manager_iface_init (McSvcAccountManagerClass *iface,
 					gpointer iface_data);
+static void account_manager_creation_iface_init (
+    McSvcAccountManagerInterfaceCreationClass *iface, gpointer iface_data);
 static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
 				   gpointer iface_data);
 
 static const McdDBusProp account_manager_properties[];
+static const McdDBusProp account_manager_creation_properties[];
 
 static const McdInterfaceData account_manager_interfaces[] = {
     MCD_IMPLEMENT_IFACE (mc_svc_account_manager_get_type,
@@ -99,6 +105,7 @@ typedef struct
 {
     McdAccountManager *account_manager;
     GHashTable *parameters;
+    GHashTable *properties;
     McdGetAccountCb callback;
     gpointer user_data;
     GDestroyNotify destroy;
@@ -312,7 +319,71 @@ static void
 mcd_create_account_data_free (McdCreateAccountData *cad)
 {
     g_hash_table_unref (cad->parameters);
+
+    if (cad->properties != NULL)
+    {
+        g_hash_table_unref (cad->properties);
+    }
+
     g_slice_free (McdCreateAccountData, cad);
+}
+
+static gboolean
+set_new_account_properties (McdAccount *account,
+                            GHashTable *properties,
+                            GError **error)
+{
+    GHashTableIter iter;
+    gpointer key, value;
+    gboolean ok = TRUE;
+
+    g_hash_table_iter_init (&iter, properties);
+
+    while (g_hash_table_iter_next (&iter, &key, &value))
+    {
+        gchar *name = key;
+        gchar *dot, *iface, *pname;
+
+        if ((dot = strrchr (name, '.')) != NULL)
+        {
+            iface = g_strndup (name, dot - name);
+            pname = dot + 1;
+            mcd_dbusprop_set_property (TP_SVC_DBUS_PROPERTIES (account),
+                                      iface, pname, value, error);
+            g_free (iface);
+        }
+        else
+        {
+            g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                         "Malformed property name: %s", name);
+            ok = FALSE;
+            break;
+        }
+    }
+
+    return ok;
+}
+
+static void
+create_account_with_properties_cb (McdAccountManager *account_manager,
+                                   McdAccount *account,
+                                   const GError *error,
+                                   gpointer user_data)
+{
+    DBusGMethodInvocation *context = user_data;
+    const gchar *object_path;
+
+    if (G_UNLIKELY (error))
+    {
+	dbus_g_method_return_error (context, (GError *)error);
+	return;
+    }
+
+    g_return_if_fail (MCD_IS_ACCOUNT (account));
+
+    object_path = mcd_account_get_object_path (account);
+    mc_svc_account_manager_interface_creation_return_from_create_account
+        (context, object_path);
 }
 
 static void
@@ -334,6 +405,12 @@ complete_account_creation (McdAccount *account,
     }
 
     ok = _mcd_account_set_parameters (account, cad->parameters, NULL, &error);
+
+    if (ok && cad->properties != NULL)
+    {
+        ok = set_new_account_properties (account, cad->properties, &error);
+    }
+
     if (ok)
     {
 	add_account (account_manager, account);
@@ -407,6 +484,7 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
                                      const gchar *protocol,
                                      const gchar *display_name,
                                      GHashTable *params,
+                                     GHashTable *properties,
                                      McdGetAccountCb callback,
                                      gpointer user_data,
                                      GDestroyNotify destroy)
@@ -449,6 +527,7 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
         cad = g_slice_new (McdCreateAccountData);
         cad->account_manager = account_manager;
         cad->parameters = g_hash_table_ref (params);
+        cad->properties = (properties ? g_hash_table_ref (properties) : NULL);
         cad->callback = callback;
         cad->user_data = user_data;
         cad->destroy = destroy;
@@ -490,7 +569,7 @@ account_manager_create_account (McSvcAccountManager *self,
 {
     _mcd_account_manager_create_account (MCD_ACCOUNT_MANAGER (self),
                                          manager, protocol, display_name,
-                                         parameters,
+                                         parameters, NULL,
                                          create_account_cb, context, NULL);
 }
 
@@ -501,6 +580,35 @@ account_manager_iface_init (McSvcAccountManagerClass *iface,
 #define IMPLEMENT(x) mc_svc_account_manager_implement_##x (\
     iface, account_manager_##x)
     IMPLEMENT(create_account);
+#undef IMPLEMENT
+}
+
+static void
+account_manager_create_account_with_properties (
+    McSvcAccountManagerInterfaceCreation *self,
+    const gchar *manager,
+    const gchar *protocol,
+    const gchar *display_name,
+    GHashTable *parameters,
+    GHashTable *properties,
+    DBusGMethodInvocation *context)
+{
+    _mcd_account_manager_create_account (MCD_ACCOUNT_MANAGER (self),
+                                         manager, protocol, display_name,
+                                         parameters, properties,
+                                         create_account_with_properties_cb,
+                                         context,
+                                         NULL);
+}
+
+static void
+account_manager_creation_iface_init (McSvcAccountManagerInterfaceCreationClass *iface,
+				  gpointer iface_data)
+{
+#define IMPLEMENT(x, suffix) \
+    mc_svc_account_manager_interface_creation_implement_##x (\
+    iface, account_manager_##x##suffix)
+    IMPLEMENT(create_account, _with_properties);
 #undef IMPLEMENT
 }
 
@@ -554,10 +662,39 @@ get_invalid_accounts (TpSvcDBusProperties *self, const gchar *name,
     accounts_to_gvalue (priv->accounts, FALSE, value);
 }
 
+static void
+get_supported_account_properties (TpSvcDBusProperties *svc,
+                                  const gchar *name,
+                                  GValue *value)
+{
+    static const gchar * const supported[] = {
+        MC_IFACE_ACCOUNT ".AutomaticPresence",
+        MC_IFACE_ACCOUNT ".Enabled",
+        MC_IFACE_ACCOUNT ".Icon",
+        MC_IFACE_ACCOUNT ".Nickname",
+        MC_IFACE_ACCOUNT ".ConnectAutomatically",
+        MC_IFACE_ACCOUNT_INTERFACE_AVATAR ".Avatar",
+        MC_IFACE_ACCOUNT_INTERFACE_COMPAT ".Profile",
+        MC_IFACE_ACCOUNT_INTERFACE_COMPAT ".SecondaryVCardFields",
+        MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS ".Condition",
+        /* FIXME: setting RequestedPresence at create time doesn't work yet */
+        /* MC_IFACE_ACCOUNT ".RequestedPresence", */
+        NULL
+    };
+
+    g_value_init (value, G_TYPE_STRV);
+    g_value_set_static_boxed (value, supported);
+}
+
 static const McdDBusProp account_manager_properties[] = {
     { "ValidAccounts", NULL, get_valid_accounts },
     { "InvalidAccounts", NULL, get_invalid_accounts },
     { "Interfaces", NULL, mcd_dbus_get_interfaces },
+    { "SupportedAccountProperties", NULL, get_supported_account_properties },
+    { 0 },
+};
+
+static const McdDBusProp account_manager_creation_properties[] = {
     { 0 },
 };
 
