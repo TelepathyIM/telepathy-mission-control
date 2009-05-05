@@ -77,16 +77,16 @@ void mcd_dbus_init_interfaces (GType g_define_type_id,
 
 void mcd_dbus_init_interfaces_instances (gpointer self);
 
-void mcd_dbusprop_set_property (TpSvcDBusProperties *self,
-				const gchar *interface_name,
-				const gchar *property_name,
-				const GValue *value,
-				GError **error);
-void mcd_dbusprop_get_property (TpSvcDBusProperties *self,
-				const gchar *interface_name,
-				const gchar *property_name,
-				GValue *value,
-				GError **error);
+gboolean mcd_dbusprop_set_property (TpSvcDBusProperties *self,
+                                    const gchar *interface_name,
+                                    const gchar *property_name,
+                                    const GValue *value,
+                                    GError **error);
+gboolean mcd_dbusprop_get_property (TpSvcDBusProperties *self,
+                                    const gchar *interface_name,
+                                    const gchar *property_name,
+                                    GValue *value,
+                                    GError **error);
 
 void dbusprop_set (TpSvcDBusProperties *self,
 		   const gchar *interface_name,
