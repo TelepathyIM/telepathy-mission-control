@@ -616,20 +616,36 @@ mcd_account_changed_property (McdAccount *account, const gchar *key,
 #endif
 }
 
-static gboolean
+typedef enum {
+    SET_RESULT_ERROR,
+    SET_RESULT_UNCHANGED,
+    SET_RESULT_CHANGED
+} SetResult;
+
+/*
+ * mcd_account_set_string_val:
+ * @account: an account
+ * @key: a D-Bus property name that is a string
+ * @value: the new value for that property
+ * @error: set to an error if %SET_RESULT_ERROR is returned
+ *
+ * Returns: %SET_RESULT_CHANGED or %SET_RESULT_UNCHANGED on success,
+ *  %SET_RESULT_ERROR on error
+ */
+static SetResult
 mcd_account_set_string_val (McdAccount *account, const gchar *key,
-			    const GValue *value)
+                            const GValue *value, GError **error)
 {
     McdAccountPrivate *priv = account->priv;
     const gchar *string;
     gchar *old_string;
 
-    /* We can't raise an error in this API :-( */
     if (!G_VALUE_HOLDS_STRING (value))
     {
-        g_warning ("Expected string for %s, but got %s", key,
-                   G_VALUE_TYPE_NAME (value));
-        return FALSE;
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "Expected string for %s, but got %s", key,
+                     G_VALUE_TYPE_NAME (value));
+        return SET_RESULT_ERROR;
     }
 
     string = g_value_get_string (value);
@@ -638,7 +654,7 @@ mcd_account_set_string_val (McdAccount *account, const gchar *key,
     if (!tp_strdiff (old_string, string))
     {
 	g_free (old_string);
-	return FALSE;
+	return SET_RESULT_UNCHANGED;
     }
 
     g_free (old_string);
@@ -653,7 +669,7 @@ mcd_account_set_string_val (McdAccount *account, const gchar *key,
     }
     mcd_account_manager_write_conf (priv->account_manager);
     mcd_account_changed_property (account, key, value);
-    return TRUE;
+    return SET_RESULT_CHANGED;
 }
 
 static void
@@ -677,7 +693,7 @@ set_display_name (TpSvcDBusProperties *self, const gchar *name,
     McdAccountPrivate *priv = account->priv;
 
     DEBUG ("called for %s", priv->unique_name);
-    mcd_account_set_string_val (account, name, value);
+    mcd_account_set_string_val (account, name, value, NULL);
 }
 
 static void
@@ -695,7 +711,7 @@ set_icon (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
     McdAccountPrivate *priv = account->priv;
 
     DEBUG ("called for %s", priv->unique_name);
-    mcd_account_set_string_val (account, name, value);
+    mcd_account_set_string_val (account, name, value, NULL);
 }
 
 static void
@@ -778,9 +794,12 @@ set_nickname (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
     McdAccountPrivate *priv = account->priv;
 
     DEBUG ("called for %s", priv->unique_name);
-    if (mcd_account_set_string_val (account, name, value))
-	g_signal_emit (account, _mcd_account_signals[ALIAS_CHANGED], 0,
-		       g_value_get_string (value));
+    if (mcd_account_set_string_val (account, name, value, NULL)
+        == SET_RESULT_CHANGED)
+    {
+        g_signal_emit (account, _mcd_account_signals[ALIAS_CHANGED], 0,
+                       g_value_get_string (value));
+    }
 }
 
 static void
@@ -2226,7 +2245,7 @@ _mcd_account_set_alias (McdAccount *account, const gchar *alias)
 
     g_value_init (&value, G_TYPE_STRING);
     g_value_set_static_string (&value, alias);
-    mcd_account_set_string_val (account, MC_ACCOUNTS_KEY_ALIAS, &value);
+    mcd_account_set_string_val (account, MC_ACCOUNTS_KEY_ALIAS, &value, NULL);
     g_value_unset (&value);
 }
 
