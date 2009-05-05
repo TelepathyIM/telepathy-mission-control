@@ -125,6 +125,26 @@ def test(q, bus, mc):
         )
     assert account_props.Get(cs.ACCOUNT, 'HasBeenOnline') == True
 
+    call_async(q, account_props, 'Set', cs.ACCOUNT_IFACE_NOKIA_COMPAT,
+            'SecondaryVCardFields',
+            ['x-badger', 'x-mushroom'])
+    # there's no change notification for the Compat properties
+    q.expect_many(
+        EventPattern('dbus-return', method='Set'),
+        )
+    assert account_props.Get(cs.ACCOUNT_IFACE_NOKIA_COMPAT,
+            'SecondaryVCardFields') == ['x-badger', 'x-mushroom']
+
+    call_async(q, account_props, 'Set', cs.ACCOUNT_IFACE_NOKIA_CONDITIONS,
+            'Condition',
+            dbus.Dictionary({':foo': 'bar'}, signature='ss'))
+    # there's no change notification for the Condition
+    q.expect_many(
+        EventPattern('dbus-return', method='Set'),
+        )
+    assert account_props.Get(cs.ACCOUNT_IFACE_NOKIA_CONDITIONS,
+            'Condition') == {':foo': 'bar'}
+
     # Set some properties to invalidly typed values - this currently succeeds
     # but is a no-op, although in future it should change to raising an
     # exception
@@ -179,6 +199,8 @@ def test(q, bus, mc):
     assert properties['Icon'] == 'im-jabber'
     properties = account_props.GetAll(cs.ACCOUNT_IFACE_AVATAR)
     assert properties['Avatar'] == ([], '')
+    properties = account_props.GetAll(cs.ACCOUNT_IFACE_NOKIA_COMPAT)
+    assert properties['SecondaryVCardFields'] == ['x-badger', 'x-mushroom']
 
     # Delete the account
     assert account_iface.Remove() is None
