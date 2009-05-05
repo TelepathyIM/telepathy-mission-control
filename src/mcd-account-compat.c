@@ -60,6 +60,17 @@ set_profile (TpSvcDBusProperties *self, const gchar *name,
     const gchar *string, *unique_name;
     GKeyFile *keyfile;
 
+    if (!G_VALUE_HOLDS_STRING (value))
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "Expected string for Profile, but got %s",
+                     G_VALUE_TYPE_NAME (value));
+        return FALSE;
+    }
+
+    /* FIXME: should we reject profile changes after account creation? */
+    /* FIXME: some sort of validation beyond just the type? */
+
     keyfile = _mcd_account_get_keyfile (account);
     unique_name = mcd_account_get_unique_name (account);
     string = g_value_get_string (value);
@@ -112,6 +123,16 @@ set_secondary_vcard_fields (TpSvcDBusProperties *self, const gchar *name,
     McdAccount *account = MCD_ACCOUNT (self);
     const gchar *unique_name, **fields, **field;
     GKeyFile *keyfile;
+
+    /* FIXME: some sort of validation beyond just the type? */
+
+    if (!G_VALUE_HOLDS (value, G_TYPE_STRV))
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "Expected string-array for SecondaryVCardFields, but "
+                     "got %s", G_VALUE_TYPE_NAME (value));
+        return FALSE;
+    }
 
     keyfile = _mcd_account_get_keyfile (account);
     unique_name = mcd_account_get_unique_name (account);
