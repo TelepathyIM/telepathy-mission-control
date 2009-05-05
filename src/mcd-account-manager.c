@@ -563,14 +563,16 @@ create_account_cb (McdAccountManager *account_manager, McdAccount *account,
 
 static void
 account_manager_create_account (McSvcAccountManager *self,
-			       	const gchar *manager, const gchar *protocol,
-				const gchar *display_name,
-				GHashTable *parameters,
-				DBusGMethodInvocation *context)
+                                const gchar *manager,
+                                const gchar *protocol,
+                                const gchar *display_name,
+                                GHashTable *parameters,
+                                GHashTable *properties,
+                                DBusGMethodInvocation *context)
 {
     _mcd_account_manager_create_account (MCD_ACCOUNT_MANAGER (self),
                                          manager, protocol, display_name,
-                                         parameters, NULL,
+                                         parameters, properties,
                                          create_account_cb, context, NULL);
 }
 
