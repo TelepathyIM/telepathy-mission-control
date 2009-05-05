@@ -2444,6 +2444,7 @@ mcd_connection_close (McdConnection *connection)
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
 
     priv->abort_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
+    _mcd_connection_release_tp_connection (connection);
     mcd_mission_abort (MCD_MISSION (connection));
 }
 
