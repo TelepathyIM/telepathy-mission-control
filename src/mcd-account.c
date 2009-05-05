@@ -1454,6 +1454,21 @@ account_reconnect (McSvcAccount *service,
 
     DEBUG ("%s", mcd_account_get_unique_name (self));
 
+    /* if we can't, or don't want to, connect this method is a no-op */
+    if (!self->priv->enabled ||
+        !self->priv->valid ||
+        self->priv->req_presence_type == TP_CONNECTION_PRESENCE_TYPE_UNSET ||
+        self->priv->req_presence_type == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
+    {
+        DEBUG ("doing nothing (enabled=%c, valid=%c and "
+               "RequestedPresence=%i)",
+               self->priv->enabled ? 'T' : 'F',
+               self->priv->valid ? 'T' : 'F',
+               self->priv->req_presence_type);
+        mc_svc_account_return_from_reconnect (context);
+        return;
+    }
+
     /* FIXME: this isn't quite right. If we've just called RequestConnection
      * (possibly with out of date parameters) but we haven't got a Connection
      * back from the CM yet, the old parameters will still be used, I think
