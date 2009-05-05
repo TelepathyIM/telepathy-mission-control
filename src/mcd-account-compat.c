@@ -52,9 +52,9 @@ typedef struct
     gchar *requestor_client_id;
 } McdAccountCompatReq;
 
-static void
+static gboolean
 set_profile (TpSvcDBusProperties *self, const gchar *name,
-	     const GValue *value)
+             const GValue *value, GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     const gchar *string, *unique_name;
@@ -74,6 +74,8 @@ set_profile (TpSvcDBusProperties *self, const gchar *name,
     _mcd_account_write_conf (account);
 
     g_signal_emit (account, _mcd_account_signal_profile_set, 0);
+
+    return TRUE;
 }
 
 static void
@@ -103,9 +105,9 @@ get_avatar_file (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     g_value_take_string (value, string);
 }
 
-static void
+static gboolean
 set_secondary_vcard_fields (TpSvcDBusProperties *self, const gchar *name,
-			    const GValue *value)
+                            const GValue *value, GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     const gchar *unique_name, **fields, **field;
@@ -128,6 +130,7 @@ set_secondary_vcard_fields (TpSvcDBusProperties *self, const gchar *name,
 			       name, NULL);
     }
     _mcd_account_write_conf (account);
+    return TRUE;
 }
 
 static void

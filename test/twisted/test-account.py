@@ -129,53 +129,47 @@ def test(q, bus, mc):
     # but is a no-op, although in future it should change to raising an
     # exception
 
-    try:
-        account_props.Set(cs.ACCOUNT, 'DisplayName',
-            dbus.Struct(('wrongly typed',), signature='s'))
-    except dbus.DBusException:
-        pass
+    # this variable's D-Bus type must differ from the types of all known
+    # properties
+    badly_typed = dbus.Struct(('wrongly typed',), signature='s')
 
-    try:
-        account_props.Set(cs.ACCOUNT, 'Icon',
-            dbus.Struct(('wrongly typed',), signature='s'))
-    except dbus.DBusException:
-        pass
+    for p in ('DisplayName', 'Icon', 'Enabled', 'Nickname',
+            'AutomaticPresence', 'ConnectAutomatically', 'RequestedPresence'):
+        try:
+            account_props.Set(cs.ACCOUNT, p, badly_typed)
+        except dbus.DBusException, e:
+            assert e.get_dbus_name() == cs.INVALID_ARGUMENT, \
+                    (p, e.get_dbus_name())
+        else:
+            raise AssertionError('Setting %s with wrong type should fail' % p)
 
-    try:
-        account_props.Set(cs.ACCOUNT, 'Enabled',
-            dbus.Struct(('wrongly typed',), signature='s'))
-    except dbus.DBusException:
-        pass
+    for p in ('Avatar',):
+        try:
+            account_props.Set(cs.ACCOUNT_IFACE_AVATAR, p, badly_typed)
+        except dbus.DBusException, e:
+            assert e.get_dbus_name() == cs.INVALID_ARGUMENT, \
+                    (p, e.get_dbus_name())
+        else:
+            raise AssertionError('Setting %s with wrong type should fail' % p)
 
-    try:
-        account_props.Set(cs.ACCOUNT, 'Nickname',
-            dbus.Struct(('wrongly typed',), signature='s'))
-    except dbus.DBusException:
-        pass
+    for p in ('Profile', 'SecondaryVCardFields'):
+        try:
+            account_props.Set(cs.ACCOUNT_IFACE_NOKIA_COMPAT, p, badly_typed)
+        except dbus.DBusException, e:
+            assert e.get_dbus_name() == cs.INVALID_ARGUMENT, \
+                    (p, e.get_dbus_name())
+        else:
+            raise AssertionError('Setting %s with wrong type should fail' % p)
 
-    try:
-        account_props.Set(cs.ACCOUNT, 'AutomaticPresence',
-            dbus.Struct(('wrongly typed',), signature='s'))
-    except dbus.DBusException:
-        pass
-
-    try:
-        account_props.Set(cs.ACCOUNT, 'ConnectAutomatically',
-            dbus.Struct(('wrongly typed',), signature='s'))
-    except dbus.DBusException:
-        pass
-
-    try:
-        account_props.Set(cs.ACCOUNT, 'RequestedPresence',
-            dbus.Struct(('wrongly typed',), signature='s'))
-    except dbus.DBusException:
-        pass
-
-    try:
-        account_props.Set(cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
-            dbus.Struct(('wrongly typed',), signature='s'))
-    except dbus.DBusException:
-        pass
+    for p in ('Conditions',):
+        try:
+            account_props.Set(cs.ACCOUNT_IFACE_NOKIA_CONDITIONS, p,
+                    badly_typed)
+        except dbus.DBusException, e:
+            assert e.get_dbus_name() == cs.INVALID_ARGUMENT, \
+                    (p, e.get_dbus_name())
+        else:
+            raise AssertionError('Setting %s with wrong type should fail' % p)
 
     # Make sure MC hasn't crashed yet, and make sure some properties are what
     # we expect them to be

@@ -30,8 +30,8 @@
 
 G_BEGIN_DECLS
 
-typedef void (*mcd_setprop) (TpSvcDBusProperties *self, const gchar *name,
-			     const GValue *value);
+typedef gboolean (*mcd_setprop) (TpSvcDBusProperties *self, const gchar *name,
+                                 const GValue *value, GError **error);
 typedef void (*mcd_getprop) (TpSvcDBusProperties *self, const gchar *name,
 			     GValue *value);
 typedef void (*McdInterfaceInit) (TpSvcDBusProperties *self);

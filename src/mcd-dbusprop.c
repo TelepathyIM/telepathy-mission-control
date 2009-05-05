@@ -106,8 +106,7 @@ mcd_dbusprop_set_property (TpSvcDBusProperties *self,
     }
     /* we pass property->name, because we know it's a static value and there
      * will be no need to care about its lifetime */
-    property->setprop (self, property->name, value);
-    return TRUE;
+    return property->setprop (self, property->name, value, error);
 }
 
 void

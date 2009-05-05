@@ -685,15 +685,16 @@ mcd_account_get_string_val (McdAccount *account, const gchar *key,
     g_value_take_string (value, string);
 }
 
-static void
+static gboolean
 set_display_name (TpSvcDBusProperties *self, const gchar *name,
-		  const GValue *value)
+                  const GValue *value, GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
 
     DEBUG ("called for %s", priv->unique_name);
-    mcd_account_set_string_val (account, name, value, NULL);
+    return (mcd_account_set_string_val (account, name, value, error)
+            != SET_RESULT_ERROR);
 }
 
 static void
@@ -704,14 +705,16 @@ get_display_name (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     mcd_account_get_string_val (account, name, value);
 }
 
-static void
-set_icon (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
+static gboolean
+set_icon (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
+          GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
 
     DEBUG ("called for %s", priv->unique_name);
-    mcd_account_set_string_val (account, name, value, NULL);
+    return (mcd_account_set_string_val (account, name, value, error)
+            != SET_RESULT_ERROR);
 }
 
 static void
@@ -743,8 +746,9 @@ get_has_been_online (TpSvcDBusProperties *self, const gchar *name,
     g_value_set_boolean (value, priv->has_been_online);
 }
 
-static void
-set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
+static gboolean
+set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
+             GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
@@ -755,9 +759,10 @@ set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
     /* We can't raise an error in this API :-( */
     if (!G_VALUE_HOLDS_BOOLEAN (value))
     {
-        g_warning ("Expected boolean for Enabled, but got %s",
-                   G_VALUE_TYPE_NAME (value));
-        return;
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "Expected boolean for Enabled, but got %s",
+                     G_VALUE_TYPE_NAME (value));
+        return FALSE;
     }
 
     enabled = g_value_get_boolean (value);
@@ -775,6 +780,8 @@ set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
 	mcd_account_manager_write_conf (priv->account_manager);
 	mcd_account_changed_property (account, name, value);
     }
+
+    return TRUE;
 }
 
 static void
@@ -787,19 +794,24 @@ get_enabled (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     g_value_set_boolean (value, priv->enabled);
 }
 
-static void
-set_nickname (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
+static gboolean
+set_nickname (TpSvcDBusProperties *self, const gchar *name,
+              const GValue *value, GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
+    SetResult ret;
 
     DEBUG ("called for %s", priv->unique_name);
-    if (mcd_account_set_string_val (account, name, value, NULL)
-        == SET_RESULT_CHANGED)
+    ret = mcd_account_set_string_val (account, name, value, error);
+
+    if (ret == SET_RESULT_CHANGED)
     {
         g_signal_emit (account, _mcd_account_signals[ALIAS_CHANGED], 0,
                        g_value_get_string (value));
     }
+
+    return (ret != SET_RESULT_ERROR);
 }
 
 static void
@@ -810,41 +822,37 @@ get_nickname (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     mcd_account_get_string_val (account, name, value);
 }
 
-static void
-set_avatar (TpSvcDBusProperties *self, const gchar *name, const GValue *value)
+static gboolean
+set_avatar (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
+            GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
     const gchar *mime_type;
     const GArray *avatar;
     GValueArray *va;
-    GError *error = NULL;
-    gboolean changed;
 
     DEBUG ("called for %s", priv->unique_name);
 
-    /* mcd_dbusprop can't return an error, so just spam to stderr and assume
-     * no change. This is saddening - we should be able to raise error. */
     if (!G_VALUE_HOLDS (value, MC_STRUCT_TYPE_AVATAR))
     {
-        g_warning ("Unexpected type for Avatar: wanted (ay,s), "
-                   "got %s", G_VALUE_TYPE_NAME (value));
-        return;
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "Unexpected type for Avatar: wanted (ay,s), got %s",
+                     G_VALUE_TYPE_NAME (value));
+        return FALSE;
     }
 
     va = g_value_get_boxed (value);
     avatar = g_value_get_boxed (va->values);
     mime_type = g_value_get_string (va->values + 1);
-    changed = _mcd_account_set_avatar (account, avatar, mime_type, NULL,
-				      &error);
-    if (error)
+
+    if (!_mcd_account_set_avatar (account, avatar, mime_type, NULL, error))
     {
-	g_warning ("%s: failed: %s", G_STRFUNC, error->message);
-	g_error_free (error);
-	return;
+        return FALSE;
     }
-    if (changed)
-	mc_svc_account_interface_avatar_emit_avatar_changed (account);
+
+    mc_svc_account_interface_avatar_emit_avatar_changed (account);
+    return TRUE;
 }
 
 static void
@@ -883,9 +891,9 @@ get_parameters (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     g_value_take_boxed (value, parameters);
 }
 
-static void
+static gboolean
 set_automatic_presence (TpSvcDBusProperties *self,
-			const gchar *name, const GValue *value)
+                        const gchar *name, const GValue *value, GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
@@ -896,13 +904,12 @@ set_automatic_presence (TpSvcDBusProperties *self,
 
     DEBUG ("called for %s", priv->unique_name);
 
-    /* mcd_dbusprop can't return an error, so just spam to stderr and assume
-     * no change. This is saddening - we should be able to raise error. */
     if (!G_VALUE_HOLDS (value, TP_STRUCT_TYPE_SIMPLE_PRESENCE))
     {
-        g_warning ("Unexpected type for RequestedPresence: wanted (u,s,s), "
-                   "got %s", G_VALUE_TYPE_NAME (value));
-        return;
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "Unexpected type for RequestedPresence: wanted (u,s,s), "
+                     "got %s", G_VALUE_TYPE_NAME (value));
+        return FALSE;
     }
 
     va = g_value_get_boxed (value);
@@ -952,6 +959,8 @@ set_automatic_presence (TpSvcDBusProperties *self,
 	mcd_account_manager_write_conf (priv->account_manager);
 	mcd_account_changed_property (account, name, value);
     }
+
+    return TRUE;
 }
 
 static void
@@ -978,9 +987,10 @@ get_automatic_presence (TpSvcDBusProperties *self,
     g_value_set_static_string (va->values + 2, message);
 }
 
-static void
+static gboolean
 set_connect_automatically (TpSvcDBusProperties *self,
-			   const gchar *name, const GValue *value)
+                           const gchar *name, const GValue *value,
+                           GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
@@ -988,12 +998,12 @@ set_connect_automatically (TpSvcDBusProperties *self,
 
     DEBUG ("called for %s", priv->unique_name);
 
-    /* We can't raise an error in this API :-( */
     if (!G_VALUE_HOLDS_BOOLEAN (value))
     {
-        g_warning ("Expected boolean for ConnectAutomatically, but got %s",
-                   G_VALUE_TYPE_NAME (value));
-        return;
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "Expected boolean for ConnectAutomatically, but got %s",
+                     G_VALUE_TYPE_NAME (value));
+        return FALSE;
     }
 
     connect_automatically = g_value_get_boolean (value);
@@ -1006,6 +1016,8 @@ set_connect_automatically (TpSvcDBusProperties *self,
 	mcd_account_manager_write_conf (priv->account_manager);
 	mcd_account_changed_property (account, name, value);
     }
+
+    return TRUE;
 }
 
 static void
@@ -1079,9 +1091,10 @@ get_current_presence (TpSvcDBusProperties *self, const gchar *name,
     g_value_set_static_string (va->values + 2, message);
 }
 
-static void
+static gboolean
 set_requested_presence (TpSvcDBusProperties *self,
-			const gchar *name, const GValue *value)
+                        const gchar *name, const GValue *value,
+                        GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
@@ -1091,13 +1104,12 @@ set_requested_presence (TpSvcDBusProperties *self,
 
     DEBUG ("called for %s", priv->unique_name);
 
-    /* mcd_dbusprop can't return an error, so just spam to stderr and assume
-     * no change. This is saddening - we should be able to raise error. */
     if (!G_VALUE_HOLDS (value, TP_STRUCT_TYPE_SIMPLE_PRESENCE))
     {
-        g_warning ("Unexpected type for RequestedPresence: wanted (u,s,s), "
-                   "got %s", G_VALUE_TYPE_NAME (value));
-        return;
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "Unexpected type for RequestedPresence: wanted (u,s,s), "
+                     "got %s", G_VALUE_TYPE_NAME (value));
+        return FALSE;
     }
 
     va = g_value_get_boxed (value);
@@ -1111,6 +1123,8 @@ set_requested_presence (TpSvcDBusProperties *self,
     {
 	mcd_account_changed_property (account, name, value);
     }
+
+    return TRUE;
 }
 
 static void

@@ -54,9 +54,9 @@ store_condition (gpointer key, gpointer value, gpointer userdata)
     g_key_file_set_string (keyfile, unique_name, condition_key, condition);
 }
 
-static void
+static gboolean
 set_condition (TpSvcDBusProperties *self, const gchar *name,
-		const GValue *value)
+               const GValue *value, GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     const gchar *unique_name;
@@ -80,6 +80,7 @@ set_condition (TpSvcDBusProperties *self, const gchar *name,
     g_hash_table_foreach (conditions, store_condition, account);
 
     _mcd_account_write_conf (account);
+    return TRUE;
 }
 
 static void
