@@ -766,6 +766,86 @@ mcd_dispatcher_get_possible_handlers (McdDispatcher *self,
 }
 
 /*
+ * mcd_dispatcher_handle_channels:
+ * @context: the #McdDispatcherContext
+ * @channels: a #GList of borrowed refs to #McdChannel objects, ownership of
+ *  which is stolen by this function
+ * @handler: the selected handler
+ *
+ * Invoke the handler for the given channels.
+ */
+static void
+mcd_dispatcher_handle_channels (McdDispatcherContext *context,
+                                GList *channels,
+                                McdClient *handler)
+{
+    guint64 user_action_time;
+    McdConnection *connection;
+    const gchar *account_path, *connection_path;
+    GPtrArray *channels_array, *satisfied_requests;
+    McdHandlerCallData *handler_data;
+    GHashTable *handler_info;
+    const GList *cl;
+
+    connection = mcd_dispatcher_context_get_connection (context);
+    connection_path = connection ?
+        mcd_connection_get_object_path (connection) : NULL;
+    if (G_UNLIKELY (!connection_path)) connection_path = "/";
+
+    g_assert (context->account != NULL);
+    account_path = mcd_account_get_object_path (context->account);
+    if (G_UNLIKELY (!account_path)) account_path = "/";
+
+    channels_array = _mcd_channel_details_build_from_list (channels);
+
+    user_action_time = 0; /* TODO: if we have a CDO, get it from there */
+    satisfied_requests = g_ptr_array_new ();
+    for (cl = channels; cl != NULL; cl = cl->next)
+    {
+        McdChannel *channel = MCD_CHANNEL (cl->data);
+        const GList *requests;
+        guint64 user_time;
+
+        requests = _mcd_channel_get_satisfied_requests (channel);
+        while (requests)
+        {
+            g_ptr_array_add (satisfied_requests, requests->data);
+            requests = requests->next;
+        }
+
+        /* FIXME: what if we have more than one request? */
+        user_time = _mcd_channel_get_request_user_action_time (channel);
+        if (user_time)
+            user_action_time = user_time;
+
+        _mcd_channel_set_status (channel,
+                                 MCD_CHANNEL_STATUS_HANDLER_INVOKED);
+    }
+
+    handler_info = g_hash_table_new (g_str_hash, g_str_equal);
+
+    /* The callback needs to get the dispatcher context, and the channels
+     * the handler was asked to handle. The context will keep track of how
+     * many channels are still to be dispatched,
+     * still pending. When all of them return, the dispatching is
+     * considered to be completed. */
+    handler_data = g_slice_new (McdHandlerCallData);
+    handler_data->context = context;
+    handler_data->channels = channels;
+    DEBUG ("Invoking handler %s (context %p)", handler->name, context);
+    mc_cli_client_handler_call_handle_channels (handler->proxy, -1,
+        account_path, connection_path,
+        channels_array, satisfied_requests, user_action_time,
+        handler_info, handle_channels_cb,
+        handler_data, (GDestroyNotify)mcd_handler_call_data_free,
+        (GObject *)context->dispatcher);
+
+    g_ptr_array_free (satisfied_requests, TRUE);
+    _mcd_channel_details_free (channels_array);
+    g_hash_table_unref (handler_info);
+}
+
+/*
  * mcd_dispatcher_run_handler:
  * @context: the #McdDispatcherContext.
  * @channels: a #GList of #McdChannel elements to be handled.
@@ -853,69 +933,7 @@ mcd_dispatcher_run_handler (McdDispatcherContext *context,
 
     if (handler)
     {
-        guint64 user_action_time;
-        McdConnection *connection;
-        const gchar *account_path, *connection_path;
-        GPtrArray *channels_array, *satisfied_requests;
-        McdHandlerCallData *handler_data;
-        GHashTable *handler_info;
-
-        connection = mcd_dispatcher_context_get_connection (context);
-        connection_path = connection ?
-            mcd_connection_get_object_path (connection) : NULL;
-        if (G_UNLIKELY (!connection_path)) connection_path = "/";
-
-        g_assert (context->account != NULL);
-        account_path = mcd_account_get_object_path (context->account);
-        if (G_UNLIKELY (!account_path)) account_path = "/";
-
-        channels_array = _mcd_channel_details_build_from_list (handled_best);
-
-        user_action_time = 0; /* TODO: if we have a CDO, get it from there */
-        satisfied_requests = g_ptr_array_new ();
-        for (cl = channels; cl != NULL; cl = cl->next)
-        {
-            McdChannel *channel = MCD_CHANNEL (cl->data);
-            const GList *requests;
-            guint64 user_time;
-
-            requests = _mcd_channel_get_satisfied_requests (channel);
-            while (requests)
-            {
-                g_ptr_array_add (satisfied_requests, requests->data);
-                requests = requests->next;
-            }
-
-            /* FIXME: what if we have more than one request? */
-            user_time = _mcd_channel_get_request_user_action_time (channel);
-            if (user_time)
-                user_action_time = user_time;
-
-            _mcd_channel_set_status (channel,
-                                     MCD_CHANNEL_STATUS_HANDLER_INVOKED);
-        }
-
-        handler_info = g_hash_table_new (g_str_hash, g_str_equal);
-
-        /* The callback needs to get the dispatcher context, and the channels
-         * the handler was asked to handle. The context will keep track of how
-         * many channels are still to be dispatched,
-         * still pending. When all of them return, the dispatching is
-         * considered to be completed. */
-        handler_data = g_slice_new (McdHandlerCallData);
-        handler_data->context = context;
-        handler_data->channels = handled_best;
-        DEBUG ("Invoking handler %s (context %p)", handler->name, context);
-        mc_cli_client_handler_call_handle_channels (handler->proxy, -1,
-            account_path, connection_path,
-            channels_array, satisfied_requests, user_action_time,
-            handler_info, handle_channels_cb,
-            handler_data, (GDestroyNotify)mcd_handler_call_data_free,
-            (GObject *)context->dispatcher);
-
-        g_ptr_array_free (satisfied_requests, TRUE);
-        _mcd_channel_details_free (channels_array);
-        g_hash_table_unref (handler_info);
+        mcd_dispatcher_handle_channels (context, handled_best, handler);
     }
     else
     {
