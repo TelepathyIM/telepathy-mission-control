@@ -845,132 +845,91 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
     g_hash_table_unref (handler_info);
 }
 
-/*
- * mcd_dispatcher_run_handler:
- * @context: the #McdDispatcherContext.
- * @channels: a #GList of #McdChannel elements to be handled.
- *
- * This functions tries to find a handler to handle @channels, and invokes its
- * HandleChannels method. It returns a list of channels that are still
- * unhandled.
- *
- * FIXME: this should use mcd_dispatcher_get_possible_handlers or similar
- */
-static GList *
-mcd_dispatcher_run_handler (McdDispatcherContext *context,
-                            const GList *channels)
-{
-    McdDispatcherPrivate *priv = context->dispatcher->priv;
-    McdClient *handler = NULL;
-    gint num_channels_best, num_channels;
-    const GList *cl;
-    GList *handled_best = NULL, *unhandled;
-    const gchar *approved_handler;
-    GHashTableIter iter;
-    McdClient *client;
-
-    /* The highest priority goes to the handler chosen by the approver */
-    if (context->operation)
-        approved_handler =
-            mcd_dispatch_operation_get_handler (context->operation);
-    else
-        approved_handler = NULL;
-
-    /* TODO: in the McdDispatcherContext there should be a hint on what handler
-     * to invoke */
-    num_channels_best = 0;
-    g_hash_table_iter_init (&iter, priv->clients);
-    while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &client))
-    {
-        GList *handled = NULL;
-        gboolean the_chosen_one;
-
-        if (!client->proxy ||
-            !(client->interfaces & MCD_CLIENT_HANDLER))
-            continue;
-
-        /* count the number of channels supported by this handler; we try to
-         * send the channels to the handler that can handle the most */
-        num_channels = 0;
-        for (cl = channels; cl != NULL; cl = cl->next)
-        {
-            McdChannel *channel = MCD_CHANNEL (cl->data);
-
-            if (match_filters (channel, client->handler_filters))
-            {
-                num_channels++;
-                handled = g_list_prepend (handled, channel);
-            }
-        }
-
-        the_chosen_one =
-            approved_handler != NULL && strcmp (approved_handler,
-                                                client->name) == 0;
-        if (num_channels > num_channels_best || the_chosen_one)
-        {
-            /* this is the best candidate handler so far; remember also the
-             * list of channels it cannot handle */
-            handler = client;
-            g_list_free (handled_best);
-            handled_best = handled;
-            num_channels_best = num_channels;
-
-            /* we don't even look for other handlers, if this is the one chosen
-             * by the approver */
-            if (the_chosen_one) break;
-        }
-        else
-            g_list_free (handled);
-    }
-
-    /* build the list of unhandled channels */
-    unhandled = NULL;
-    for (cl = channels; cl != NULL; cl = cl->next)
-    {
-        if (!g_list_find (handled_best, cl->data))
-            unhandled = g_list_prepend (unhandled, cl->data);
-    }
-
-    if (handler)
-    {
-        mcd_dispatcher_handle_channels (context, handled_best, handler);
-    }
-    else
-    {
-        DEBUG ("Client.Handler not found");
-        g_list_free (unhandled);
-        unhandled = NULL;
-    }
-    return unhandled;
-}
-
 static void
 mcd_dispatcher_run_handlers (McdDispatcherContext *context)
 {
-    GList *channels;
-    GList *unhandled = NULL;
+    McdDispatcher *self = context->dispatcher;
+    GList *channels, *list;
+    gchar **iter;
 
     sp_timestamp ("run handlers");
     mcd_dispatcher_context_ref (context);
 
-    /* call mcd_dispatcher_run_handler until there are no unhandled channels */
+    /* mcd_dispatcher_handle_channels steals this list */
+    channels = g_list_copy (context->channels);
 
-    /* g_list_copy() should have a 'const' parameter. */
-    channels = g_list_copy ((GList *)
-                            mcd_dispatcher_context_get_channels (context));
-    while (channels)
+    /* If there is an approved handler chosen by the Approver, it's the only
+     * one we'll consider. */
+    if (context->operation)
     {
-        unhandled = mcd_dispatcher_run_handler (context, channels);
-        if (g_list_length (unhandled) >= g_list_length (channels))
+        const gchar *approved_handler = mcd_dispatch_operation_get_handler (
+            context->operation);
+
+        if (approved_handler != NULL && approved_handler[0] != '\0')
         {
-            /* this could really be an assertion, but just to be on the safe
-             * side... */
-            g_warning ("Number of unhandled channels not decreasing!");
-            break;
+            gchar *bus_name = g_strconcat (MC_CLIENT_BUS_NAME_BASE,
+                                           approved_handler, NULL);
+            McdClient *handler = g_hash_table_lookup (self->priv->clients,
+                                                      bus_name);
+
+            DEBUG ("Approved handler is %s (still exists: %c)",
+                   bus_name, handler != NULL ? 'Y' : 'N');
+
+            g_free (bus_name);
+
+            /* Maybe the handler has exited since we chose it? Otherwise, it's
+             * the right choice. */
+            if (handler != NULL)
+            {
+                mcd_dispatcher_handle_channels (context, channels, handler);
+                goto finally;
+            }
+
+            /* The approver asked for a particular handler, but that handler
+             * has vanished. If MC was fully spec-compliant, it wouldn't have
+             * replied to the Approver yet, so it could just return an error.
+             * However, that particular part of the flying-car future has not
+             * yet arrived, so try to recover by dispatching to *something*. */
         }
-        g_list_free (channels);
-        channels = unhandled;
     }
+
+    g_assert (context->possible_handlers != NULL);
+
+    for (iter = context->possible_handlers; *iter != NULL; iter++)
+    {
+        McdClient *handler = g_hash_table_lookup (self->priv->clients, *iter);
+
+        DEBUG ("Possible handler: %s (still exists: %c)", *iter,
+               handler != NULL ? 'Y' : 'N');
+
+        if (handler != NULL)
+        {
+            mcd_dispatcher_handle_channels (context, channels, handler);
+            goto finally;
+        }
+    }
+
+    /* All of the usable handlers vanished while we were thinking about it
+     * (this can only happen if non-activatable handlers exit after we
+     * include them in the list of possible handlers, but before we .
+     * We should recover in some better way, perhaps by asking all the
+     * approvers again (?), but for now we'll just close all the channels. */
+
+    DEBUG ("No possible handler still exists, giving up");
+
+    for (list = channels; list != NULL; list = list->next)
+    {
+        McdChannel *channel = MCD_CHANNEL (list->data);
+        GError e = { MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
+            "Handler no longer available" };
+
+        mcd_channel_take_error (channel, g_error_copy (&e));
+        g_signal_emit_by_name (self, "dispatch-failed", channel, &e);
+        mcd_mission_abort (MCD_MISSION (channel));
+    }
+    g_list_free (channels);
+
+finally:
     mcd_dispatcher_context_unref (context);
 }
 
