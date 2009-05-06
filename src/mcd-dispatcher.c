@@ -103,6 +103,8 @@ struct _McdDispatcherContext
     McdChannel *main_channel;
     McdAccount *account;
     McdDispatchOperation *operation;
+    /* bus names (including the common prefix) in preference order */
+    GStrv possible_handlers;
 
     /* This variable is the count of locks that must be removed before handlers
      * can be invoked. Each call to an observer increments this count (and
@@ -1361,11 +1363,11 @@ on_operation_finished (McdDispatchOperation *operation,
     }
 }
 
-/* Entering the state machine */
+/* ownership of channels, possible_handlers is stolen */
 static void
 _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
                                      GList *channels,
-                                     const GStrv possible_handlers,
+                                     GStrv possible_handlers,
                                      gboolean requested)
 {
     McdDispatcherContext *context;
@@ -1394,6 +1396,8 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     context->account = account;
     context->channels = channels;
     context->chain = priv->filters;
+    context->possible_handlers = possible_handlers;
+
     priv->contexts = g_list_prepend (priv->contexts, context);
     if (!requested)
     {
@@ -2456,6 +2460,7 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context)
         priv = MCD_DISPATCHER_PRIV (context->dispatcher);
         priv->contexts = g_list_remove (priv->contexts, context);
 
+        g_strfreev (context->possible_handlers);
         g_free (context->protocol);
         g_free (context);
     }
@@ -2847,7 +2852,6 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
 
         _mcd_dispatcher_enter_state_machine (dispatcher, channels,
                                              possible_handlers, requested);
-        g_strfreev (possible_handlers);
     }
 }
 
@@ -2918,6 +2922,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
                                   McdChannel *channel)
 {
     McdDispatcherContext *context;
+    GList *list;
 
     /* Preparing and filling the context */
     context = g_new0 (McdDispatcherContext, 1);
@@ -2925,6 +2930,11 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     context->dispatcher = dispatcher;
     context->channels = g_list_prepend (NULL, channel);
     context->account = mcd_channel_get_account (channel);
+
+    list = g_list_append (NULL, channel);
+    context->possible_handlers = mcd_dispatcher_get_possible_handlers (
+        dispatcher, list);
+    g_list_free (list);
 
     /* We must ref() the channel, because
      * mcd_dispatcher_context_unref() will unref() it */
