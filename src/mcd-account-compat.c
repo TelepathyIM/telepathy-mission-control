@@ -52,13 +52,24 @@ typedef struct
     gchar *requestor_client_id;
 } McdAccountCompatReq;
 
-static void
+static gboolean
 set_profile (TpSvcDBusProperties *self, const gchar *name,
-	     const GValue *value)
+             const GValue *value, GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     const gchar *string, *unique_name;
     GKeyFile *keyfile;
+
+    if (!G_VALUE_HOLDS_STRING (value))
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "Expected string for Profile, but got %s",
+                     G_VALUE_TYPE_NAME (value));
+        return FALSE;
+    }
+
+    /* FIXME: should we reject profile changes after account creation? */
+    /* FIXME: some sort of validation beyond just the type? */
 
     keyfile = _mcd_account_get_keyfile (account);
     unique_name = mcd_account_get_unique_name (account);
@@ -74,6 +85,8 @@ set_profile (TpSvcDBusProperties *self, const gchar *name,
     _mcd_account_write_conf (account);
 
     g_signal_emit (account, _mcd_account_signal_profile_set, 0);
+
+    return TRUE;
 }
 
 static void
@@ -103,13 +116,23 @@ get_avatar_file (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     g_value_take_string (value, string);
 }
 
-static void
+static gboolean
 set_secondary_vcard_fields (TpSvcDBusProperties *self, const gchar *name,
-			    const GValue *value)
+                            const GValue *value, GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     const gchar *unique_name, **fields, **field;
     GKeyFile *keyfile;
+
+    /* FIXME: some sort of validation beyond just the type? */
+
+    if (!G_VALUE_HOLDS (value, G_TYPE_STRV))
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "Expected string-array for SecondaryVCardFields, but "
+                     "got %s", G_VALUE_TYPE_NAME (value));
+        return FALSE;
+    }
 
     keyfile = _mcd_account_get_keyfile (account);
     unique_name = mcd_account_get_unique_name (account);
@@ -128,6 +151,7 @@ set_secondary_vcard_fields (TpSvcDBusProperties *self, const gchar *name,
 			       name, NULL);
     }
     _mcd_account_write_conf (account);
+    return TRUE;
 }
 
 static void

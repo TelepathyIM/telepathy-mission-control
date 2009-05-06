@@ -63,14 +63,6 @@
 #define MISSION_CONTROL_DBUS_OBJECT  "/org/freedesktop/Telepathy/MissionControl"
 #define MISSION_CONTROL_DBUS_IFACE   "org.freedesktop.Telepathy.MissionControl"
 
-#define LAST_MC_PRESENCE (TP_CONNECTION_PRESENCE_TYPE_BUSY + 1)
-
-typedef enum {
-    MC_STATUS_DISCONNECTED,
-    MC_STATUS_CONNECTING,
-    MC_STATUS_CONNECTED,
-} McStatus;
-
 static GObjectClass *parent_class = NULL;
 
 #define MCD_OBJECT_PRIV(mission) (G_TYPE_INSTANCE_GET_PRIVATE ((mission), \

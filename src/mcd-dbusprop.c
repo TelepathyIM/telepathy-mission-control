@@ -68,7 +68,7 @@ get_interface_properties (TpSvcDBusProperties *object, const gchar *interface)
     return NULL;
 }
 
-void
+gboolean
 mcd_dbusprop_set_property (TpSvcDBusProperties *self,
 			   const gchar *interface_name,
 			   const gchar *property_name,
@@ -84,7 +84,7 @@ mcd_dbusprop_set_property (TpSvcDBusProperties *self,
     {
 	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
 		     "invalid interface: %s", interface_name);
-	return;
+	return FALSE;
     }
 
     /* look for our property */
@@ -95,18 +95,18 @@ mcd_dbusprop_set_property (TpSvcDBusProperties *self,
     {
 	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
 		     "invalid property: %s", property_name);
-	return;
+	return FALSE;
     }
 
     if (!property->setprop)
     {
 	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
 		     "property %s cannot be written", property_name);
-	return;
+	return FALSE;
     }
     /* we pass property->name, because we know it's a static value and there
      * will be no need to care about its lifetime */
-    property->setprop (self, property->name, value);
+    return property->setprop (self, property->name, value, error);
 }
 
 void
@@ -130,7 +130,7 @@ dbusprop_set (TpSvcDBusProperties *self,
     tp_svc_dbus_properties_return_from_set (context);
 }
 
-void
+gboolean
 mcd_dbusprop_get_property (TpSvcDBusProperties *self,
 			   const gchar *interface_name,
 			   const gchar *property_name,
@@ -144,7 +144,7 @@ mcd_dbusprop_get_property (TpSvcDBusProperties *self,
     {
 	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
 		     "invalid interface: %s", interface_name);
-	return;
+	return FALSE;
     }
 
     /* look for our property */
@@ -155,16 +155,17 @@ mcd_dbusprop_get_property (TpSvcDBusProperties *self,
     {
 	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
 		     "invalid property: %s", property_name);
-	return;
+	return FALSE;
     }
 
     if (!property->getprop)
     {
 	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
 		     "property %s cannot be read", property_name);
-	return;
+	return FALSE;
     }
     property->getprop (self, property_name, value);
+    return TRUE;
 }
 
 void

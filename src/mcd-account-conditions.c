@@ -54,15 +54,25 @@ store_condition (gpointer key, gpointer value, gpointer userdata)
     g_key_file_set_string (keyfile, unique_name, condition_key, condition);
 }
 
-static void
+static gboolean
 set_condition (TpSvcDBusProperties *self, const gchar *name,
-		const GValue *value)
+               const GValue *value, GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     const gchar *unique_name;
     GKeyFile *keyfile;
     gchar **keys, **key;
     GHashTable *conditions;
+
+    /* FIXME: some sort of validation beyond just the type? */
+
+    if (!G_VALUE_HOLDS (value, TP_HASH_TYPE_STRING_STRING_MAP))
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "Expected a{s:s} for Condition, but got %s",
+                     G_VALUE_TYPE_NAME (value));
+        return FALSE;
+    }
 
     keyfile = _mcd_account_get_keyfile (account);
     unique_name = mcd_account_get_unique_name (account);
@@ -80,6 +90,7 @@ set_condition (TpSvcDBusProperties *self, const gchar *name,
     g_hash_table_foreach (conditions, store_condition, account);
 
     _mcd_account_write_conf (account);
+    return TRUE;
 }
 
 static void
