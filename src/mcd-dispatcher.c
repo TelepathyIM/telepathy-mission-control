@@ -505,15 +505,19 @@ channel_classes_equals (GHashTable *channel_class1, GHashTable *channel_class2)
     return TRUE;
 }
 
-/* returns TRUE if the channel matches one of the channel filters
+/* if the channel matches one of the channel filters, returns a positive
+ * number that increases with more specific matches; otherwise, returns 0
+ *
+ * (implementation detail: the positive number is 1 + the number of keys in the
+ * largest filter that matched)
  */
-static gboolean
+static guint
 match_filters (McdChannel *channel, GList *filters)
 {
     GHashTable *channel_properties;
-    gboolean matched = FALSE;
     McdChannelStatus status;
     GList *list;
+    guint best_quality = 0;
 
     status = mcd_channel_get_status (channel);
     channel_properties =
@@ -529,6 +533,17 @@ match_filters (McdChannel *channel, GList *filters)
         gboolean filter_matched = TRUE;
         gchar *property_name;
         GValue *filter_value;
+        guint quality;
+
+        /* +1 because the empty hash table matches everything :-) */
+        quality = g_hash_table_size (filter) + 1;
+
+        if (quality <= best_quality)
+        {
+            /* even if this filter matches, there's no way it can be a
+             * better-quality match than the best one we saw so far */
+            continue;
+        }
 
         g_hash_table_iter_init (&filter_iter, filter);
         while (g_hash_table_iter_next (&filter_iter,
@@ -545,12 +560,11 @@ match_filters (McdChannel *channel, GList *filters)
 
         if (filter_matched)
         {
-            matched = TRUE;
-            break;
+            best_quality = quality;
         }
     }
 
-    return matched;
+    return best_quality;
 }
 
 static McdClient *
@@ -566,7 +580,7 @@ get_default_handler (McdDispatcher *dispatcher, McdChannel *channel)
             !(client->interfaces & MCD_CLIENT_HANDLER))
             continue;
 
-        if (match_filters (channel, client->handler_filters))
+        if (match_filters (channel, client->handler_filters) > 0)
             return client;
     }
     return NULL;
@@ -623,6 +637,46 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
     mcd_dispatcher_context_unref (context);
 }
 
+typedef struct
+{
+    McdClient *client;
+    gsize quality;
+} PossibleHandler;
+
+static gint
+possible_handler_cmp (gconstpointer a_,
+                      gconstpointer b_)
+{
+    const PossibleHandler *a = a_;
+    const PossibleHandler *b = b_;
+
+    if (a->client->bypass_approver)
+    {
+        if (!b->client->bypass_approver)
+        {
+            /* BypassApproval wins, so a is better than b */
+            return 1;
+        }
+    }
+    else if (b->client->bypass_approver)
+    {
+        /* BypassApproval wins, so b is better than a */
+        return -1;
+    }
+
+    if (a->quality < b->quality)
+    {
+        return -1;
+    }
+
+    if (b->quality < a->quality)
+    {
+        return 1;
+    }
+
+    return 0;
+}
+
 static GStrv
 mcd_dispatcher_get_possible_handlers (McdDispatcher *self,
                                       const GList *channels)
@@ -640,7 +694,7 @@ mcd_dispatcher_get_possible_handlers (McdDispatcher *self,
     while (g_hash_table_iter_next (&client_iter, NULL, &client_p))
     {
         McdClient *client = client_p;
-        gboolean can_do = TRUE;
+        gsize total_quality = 0;
 
         if (client->proxy == NULL ||
             !(client->interfaces & MCD_CLIENT_HANDLER))
@@ -652,18 +706,29 @@ mcd_dispatcher_get_possible_handlers (McdDispatcher *self,
         for (iter = channels; iter != NULL; iter = iter->next)
         {
             McdChannel *channel = MCD_CHANNEL (iter->data);
+            guint quality;
 
-            if (!match_filters (channel, client->handler_filters))
+            quality = match_filters (channel, client->handler_filters);
+
+            if (quality == 0)
             {
-                can_do = FALSE;
+                total_quality = 0;
                 break;
+            }
+            else
+            {
+                total_quality += quality;
             }
         }
 
-        if (can_do)
+        if (total_quality > 0)
         {
-            handlers = g_list_prepend (handlers,
-                g_strconcat (MC_CLIENT_BUS_NAME_BASE, client->name, NULL));
+            PossibleHandler *ph = g_slice_new0 (PossibleHandler);
+
+            ph->client = client;
+            ph->quality = total_quality;
+
+            handlers = g_list_prepend (handlers, ph);
             n_handlers++;
         }
     }
@@ -674,16 +739,27 @@ mcd_dispatcher_get_possible_handlers (McdDispatcher *self,
         return NULL;
     }
 
-    /* we have at least one handler that can take the whole batch */
+    /* We have at least one handler that can take the whole batch. Sort
+     * the possible handlers, most preferred first (i.e. sort by ascending
+     * quality then reverse) */
+    handlers = g_list_sort (handlers, possible_handler_cmp);
+    handlers = g_list_reverse (handlers);
+
     ret = g_new0 (gchar *, n_handlers + 1);
 
     for (iter = handlers, i = 0; iter != NULL; iter = iter->next, i++)
     {
-        ret[i] = iter->data;
+        PossibleHandler *ph = iter->data;
+
+        ret[i] = g_strconcat (MC_CLIENT_BUS_NAME_BASE,
+                              ph->client->name, NULL);
+        g_slice_free (PossibleHandler, ph);
     }
 
     ret[n_handlers] = NULL;
+
     g_list_free (handlers);
+
     return ret;
 }
 
