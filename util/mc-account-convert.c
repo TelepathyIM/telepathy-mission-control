@@ -579,16 +579,20 @@ static gboolean
 write_account (McAccountManager *am, AccountInfo *ai)
 {
     TpProxyPendingCall *call;
+    GHashTable *empty;
 
+    empty = g_hash_table_new (g_str_hash, g_str_equal);
     call = mc_cli_account_manager_call_create_account (am, -1,
 						       ai->manager,
 						       ai->protocol,
 						       ai->display_name,
 						       ai->parameters,
+                                                       empty,
 						       create_account_cb,
 						       ai,
 						       NULL,
 						       NULL);
+    g_hash_table_unref (empty);
     if (!call) return FALSE;
 
     return TRUE;

@@ -28,6 +28,7 @@ def test(q, bus, mc):
             'fakeprotocol', # Protocol
             'fakeaccount', #Display_Name
             params, # Parameters
+            {}, # Properties
             )
     q.expect('dbus-error', method='CreateAccount')
 
@@ -40,6 +41,7 @@ def test(q, bus, mc):
             'nonexistent-protocol', # Protocol
             'fakeaccount', #Display_Name
             params, # Parameters
+            {}, # Properties
             )
     q.expect('dbus-error', method='CreateAccount')
 
@@ -52,6 +54,7 @@ def test(q, bus, mc):
             'fakeprotocol', # Protocol
             'fakeaccount', #Display_Name
             params, # Parameters
+            {}, # Properties
             )
     q.expect('dbus-error', method='CreateAccount')
 

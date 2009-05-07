@@ -446,6 +446,7 @@ def create_fakecm_account(q, bus, mc, params):
             'fakeprotocol', # Protocol
             'fakeaccount', #Display_Name
             params, # Parameters
+            {}, # Properties
             )
     # The spec has no order guarantee here.
     # FIXME: MC ought to also introspect the CM and find out that the params
