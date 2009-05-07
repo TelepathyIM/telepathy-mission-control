@@ -1686,6 +1686,35 @@ parse_client_filter (GKeyFile *file, const gchar *group)
 }
 
 static void
+get_bypass_approval_cb (TpProxy *proxy,
+                        const GValue *value,
+                        const GError *error,
+                        gpointer user_data,
+                        GObject *weak_object)
+{
+    McdClient *client = user_data;
+
+    if (error != NULL)
+    {
+        DEBUG ("error getting BypassApproval for client %s: %s #%d: %s",
+               tp_proxy_get_object_path (proxy),
+               g_quark_to_string (error->domain), error->code, error->message);
+        client->bypass_approver = FALSE;
+        return;
+    }
+
+    if (!G_VALUE_HOLDS_BOOLEAN (value))
+    {
+        DEBUG ("wrong type for BypassApproval on client %s: %s",
+               tp_proxy_get_object_path (proxy), G_VALUE_TYPE_NAME (value));
+        client->bypass_approver = FALSE;
+        return;
+    }
+
+    client->bypass_approver = g_value_get_boolean (value);
+}
+
+static void
 get_channel_filter_cb (TpProxy *proxy,
                        const GValue *out_Value,
                        const GError *error,
@@ -1703,6 +1732,8 @@ get_channel_filter_cb (TpProxy *proxy,
                g_quark_to_string (error->domain), error->code, error->message);
         return;
     }
+
+    /* FIXME: if the GValue isn't of the right type, don't crash */
 
     filters = g_value_get_boxed (out_Value);
 
@@ -1813,6 +1844,10 @@ get_interfaces_cb (TpProxy *proxy,
         arr++;
     }
 
+    /* FIXME: refactor this stuff to use GetAll (also, I suspect it has a
+     * use-after-free if the client disappears after the D-Bus method call,
+     * but before we get a response) */
+
     client_add_interface_by_id (client);
     if (client->interfaces & MCD_CLIENT_APPROVER)
     {
@@ -1823,6 +1858,10 @@ get_interfaces_cb (TpProxy *proxy,
     }
     if (client->interfaces & MCD_CLIENT_HANDLER)
     {
+        tp_cli_dbus_properties_call_get
+            (client->proxy, -1, MC_IFACE_CLIENT_HANDLER,
+             "BypassApproval", get_bypass_approval_cb,
+             client, NULL, G_OBJECT (self));
         tp_cli_dbus_properties_call_get
             (client->proxy, -1, MC_IFACE_CLIENT_HANDLER,
              "HandlerChannelFilter", get_channel_filter_cb,
