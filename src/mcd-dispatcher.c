@@ -1182,18 +1182,34 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
 static gboolean
 handlers_can_bypass_approval (McdDispatcherContext *context)
 {
-    McdClient *handler;
-    GList *cl;
+    McdDispatcher *self = context->dispatcher;
+    gchar **iter;
 
-    for (cl = context->channels; cl != NULL; cl = cl->next)
+    g_assert (context->possible_handlers != NULL);
+
+    for (iter = context->possible_handlers; *iter != NULL; iter++)
     {
-        McdChannel *channel = MCD_CHANNEL (cl->data);
+        McdClient *handler = g_hash_table_lookup (self->priv->clients,
+                                                  *iter);
 
-        handler = get_default_handler (context->dispatcher, channel);
-        if (!handler || !handler->bypass_approver)
-            return FALSE;
+        /* If the best handler that still exists bypasses approval, then
+         * we're going to bypass approval.
+         *
+         * Also, because handlers are sorted with the best ones first, and
+         * handlers with BypassApproval are "better", we can be sure that if
+         * we've found a handler that still exists and does not bypass
+         * approval, no handler bypasses approval. */
+        if (handler != NULL)
+        {
+            DEBUG ("%s has BypassApproval=%c", *iter,
+                   handler->bypass_approver ? 'T' : 'F');
+            return handler->bypass_approver;
+        }
     }
-    return TRUE;
+
+    /* If no handler still exists, we don't bypass approval, although if that
+     * happens we're basically doomed anyway. */
+    return FALSE;
 }
 
 /* Happens at the end of successful filter chain execution (empty chain
