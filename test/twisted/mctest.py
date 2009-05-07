@@ -364,6 +364,9 @@ class SimulatedClient(object):
         q.add_dbus_method_impl(self.Get_HandlerChannelFilter,
                 path=self.object_path, interface=cs.PROPERTIES_IFACE,
                 method='Get', args=[cs.HANDLER, 'HandlerChannelFilter'])
+        q.add_dbus_method_impl(self.Get_BypassApproval,
+                path=self.object_path, interface=cs.PROPERTIES_IFACE,
+                method='Get', args=[cs.HANDLER, 'BypassApproval'])
         q.add_dbus_method_impl(self.GetAll_Handler, path=self.object_path,
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
                 args=[cs.HANDLER])
@@ -422,6 +425,10 @@ class SimulatedClient(object):
     def Get_HandlerChannelFilter(self, e):
         assert self.handle
         self.q.dbus_return(e.message, self.handle, signature='v')
+
+    def Get_BypassApproval(self, e):
+        assert self.handle
+        self.q.dbus_return(e.message, self.bypass_approval, signature='v')
 
 def create_fakecm_account(q, bus, mc, params):
     """Create a fake connection manager and an account that uses it.
