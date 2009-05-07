@@ -613,7 +613,12 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
 
         for (list = call_data->channels; list != NULL; list = list->next)
         {
-            McdChannel *channel = MCD_CHANNEL (list->data);
+            McdChannel *channel = list->data;
+
+            /* if the channel is no longer in the context, don't even try to
+             * access it */
+            if (!g_list_find (context->channels, channel))
+                continue;
 
             mcd_channel_take_error (channel, g_error_copy (mc_error));
             g_signal_emit_by_name (context->dispatcher, "dispatch-failed",
@@ -629,7 +634,12 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
     {
         for (list = call_data->channels; list != NULL; list = list->next)
         {
-            McdChannel *channel = MCD_CHANNEL (list->data);
+            McdChannel *channel = list->data;
+
+            /* if the channel is no longer in the context, don't even try to
+             * access it */
+            if (!g_list_find (context->channels, channel))
+                continue;
 
             /* TODO: abort the channel if the handler dies */
             _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_DISPATCHED);
