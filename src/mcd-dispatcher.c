@@ -1331,7 +1331,6 @@ on_operation_finished (McdDispatchOperation *operation,
     if (context->channels == NULL)
     {
         DEBUG ("Nothing left to dispatch");
-        mcd_dispatcher_context_handler_done (context);
     }
     else if (mcd_dispatch_operation_is_claimed (operation))
     {
