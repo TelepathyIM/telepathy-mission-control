@@ -268,6 +268,8 @@ mcd_dispatcher_context_ref (McdDispatcherContext *context)
 static void
 mcd_handler_call_data_free (McdHandlerCallData *call_data)
 {
+    DEBUG ("called");
+    mcd_dispatcher_context_unref (call_data->context);
     g_list_free (call_data->channels);
     g_slice_free (McdHandlerCallData, call_data);
 }
@@ -831,6 +833,7 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
      * considered to be completed. */
     handler_data = g_slice_new (McdHandlerCallData);
     handler_data->context = context;
+    mcd_dispatcher_context_ref (context);
     handler_data->channels = channels;
     DEBUG ("Invoking handler %s (context %p)", handler->name, context);
     mc_cli_client_handler_call_handle_channels (handler->proxy, -1,
