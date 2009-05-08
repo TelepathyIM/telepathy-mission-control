@@ -50,7 +50,8 @@ def test(q, bus, mc):
     cm_name_ref = dbus.service.BusName(cs.tp_name_prefix +
             '.ConnectionManager.fakecm', bus=bus)
     account_manager = bus.get_object(cs.AM, cs.AM_PATH)
-    am_iface = dbus.Interface(account_manager, cs.AM)
+    creation_iface = dbus.Interface(account_manager,
+            cs.AM_IFACE_CREATION_DRAFT)
 
     creation_properties = dbus.Dictionary({
         cs.ACCOUNT + '.Enabled': True,
@@ -69,7 +70,7 @@ def test(q, bus, mc):
             dbus.Dictionary({ 'has-quad-damage': ':y' }, signature='ss'),
         }, signature='sv')
 
-    call_async(q, am_iface, 'CreateAccount',
+    call_async(q, creation_iface, 'CreateAccount',
             'fakecm',
             'fakeprotocol',
             'fakeaccount',
