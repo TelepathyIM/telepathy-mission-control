@@ -1271,7 +1271,6 @@ _mcd_dispatcher_context_abort (McdDispatcherContext *context,
          * of just aborting them */
         mcd_mission_abort (MCD_MISSION (channel));
     }
-    mcd_dispatcher_context_unref (context);
 }
 
 static void
@@ -2443,6 +2442,7 @@ mcd_dispatcher_context_process (McdDispatcherContext * context, gboolean result)
 	else
 	{
 	    /* Context would be destroyed somewhere in this call */
+            mcd_dispatcher_context_ref (context);
 	    mcd_dispatcher_run_clients (context);
 	}
     }
@@ -2465,6 +2465,7 @@ mcd_dispatcher_context_process (McdDispatcherContext * context, gboolean result)
         }
         _mcd_dispatcher_context_abort (context, &error);
     }
+    mcd_dispatcher_context_unref (context);
 }
 
 static void
