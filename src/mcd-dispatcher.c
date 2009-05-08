@@ -269,7 +269,7 @@ static void
 mcd_handler_call_data_free (McdHandlerCallData *call_data)
 {
     DEBUG ("called");
-    mcd_dispatcher_context_unref (call_data->context);
+    mcd_dispatcher_context_unref (call_data->context); /* CTXREF03 */
     g_list_free (call_data->channels);
     g_slice_free (McdHandlerCallData, call_data);
 }
@@ -317,7 +317,7 @@ mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
         context->finished = TRUE;
         g_signal_emit (context->dispatcher,
                        signals[DISPATCH_COMPLETED], 0, context);
-        mcd_dispatcher_context_unref (context);
+        mcd_dispatcher_context_unref (context); /* CTXREF09 */
     }
 }
 
@@ -598,7 +598,7 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
     McdDispatcherContext *context = call_data->context;
     GList *list;
 
-    mcd_dispatcher_context_ref (context); /* unref is done before return */
+    mcd_dispatcher_context_ref (context); /* CTXREF02 */
     if (error)
     {
         GError *mc_error = NULL;
@@ -648,7 +648,7 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
     }
 
     mcd_dispatcher_context_handler_done (context);
-    mcd_dispatcher_context_unref (context);
+    mcd_dispatcher_context_unref (context); /* CTXREF02 */
 }
 
 typedef struct
@@ -843,7 +843,7 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
      * considered to be completed. */
     handler_data = g_slice_new (McdHandlerCallData);
     handler_data->context = context;
-    mcd_dispatcher_context_ref (context);
+    mcd_dispatcher_context_ref (context); /* CTXREF03 */
     handler_data->channels = channels;
     DEBUG ("Invoking handler %s (context %p)", handler->name, context);
     mc_cli_client_handler_call_handle_channels (handler->proxy, -1,
@@ -866,7 +866,7 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
     gchar **iter;
 
     sp_timestamp ("run handlers");
-    mcd_dispatcher_context_ref (context);
+    mcd_dispatcher_context_ref (context); /* CTXREF04 */
 
     /* mcd_dispatcher_handle_channels steals this list */
     channels = g_list_copy (context->channels);
@@ -943,7 +943,7 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
     g_list_free (channels);
 
 finally:
-    mcd_dispatcher_context_unref (context);
+    mcd_dispatcher_context_unref (context); /* CTXREF04 */
 }
 
 static void
@@ -1064,12 +1064,13 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
         }
 
         context->client_locks++;
-        mcd_dispatcher_context_ref (context);
+        mcd_dispatcher_context_ref (context); /* CTXREF05 */
         mc_cli_client_observer_call_observe_channels (client->proxy, -1,
             account_path, connection_path, channels_array,
             dispatch_operation_path, satisfied_requests, observer_info,
             observe_channels_cb,
-            context, (GDestroyNotify)mcd_dispatcher_context_unref,
+            context,
+            (GDestroyNotify)mcd_dispatcher_context_unref, /* CTXREF05 */
             (GObject *)context->dispatcher);
 
         /* don't free the individual object paths, which are borrowed from the
@@ -1177,11 +1178,12 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
         context->approvers_invoked++;
         _mcd_dispatch_operation_block_finished (context->operation);
 
-        mcd_dispatcher_context_ref (context);
+        mcd_dispatcher_context_ref (context); /* CTXREF06 */
         mc_cli_client_approver_call_add_dispatch_operation (client->proxy, -1,
             channel_details, dispatch_operation, properties,
             add_dispatch_operation_cb,
-            context, (GDestroyNotify)mcd_dispatcher_context_unref,
+            context,
+            (GDestroyNotify)mcd_dispatcher_context_unref, /* CTXREF06 */
             (GObject *)context->dispatcher);
 
         g_boxed_free (TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST, channel_details);
@@ -1231,7 +1233,7 @@ handlers_can_bypass_approval (McdDispatcherContext *context)
 static void
 mcd_dispatcher_run_clients (McdDispatcherContext *context)
 {
-    mcd_dispatcher_context_ref (context);
+    mcd_dispatcher_context_ref (context); /* CTXREF07 */
     context->client_locks = 1; /* we release this lock at the end of the
                                     function */
 
@@ -1249,7 +1251,7 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
     }
 
     mcd_dispatcher_context_release_client_lock (context);
-    mcd_dispatcher_context_unref (context);
+    mcd_dispatcher_context_unref (context); /* CTXREF07 */
 }
 
 static void
@@ -1289,7 +1291,7 @@ on_channel_abort_context (McdChannel *channel, McdDispatcherContext *context)
 
     /* Losing the channel might mean we get freed, which would make some of
      * the operations below very unhappy */
-    mcd_dispatcher_context_ref (context);
+    mcd_dispatcher_context_ref (context); /* CTXREF08 */
 
     if (context->operation)
     {
@@ -1320,7 +1322,7 @@ on_channel_abort_context (McdChannel *channel, McdDispatcherContext *context)
         DEBUG ("Nothing left in this context");
     }
 
-    mcd_dispatcher_context_unref (context);
+    mcd_dispatcher_context_unref (context); /* CTXREF08 */
 }
 
 static void
@@ -1395,7 +1397,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 
     /* Preparing and filling the context */
     context = g_new0 (McdDispatcherContext, 1);
-    context->ref_count = 1;
+    context->ref_count = 1; /* CTXREF01 */
     context->dispatcher = dispatcher;
     context->account = account;
     context->channels = channels;
@@ -2442,7 +2444,7 @@ mcd_dispatcher_context_process (McdDispatcherContext * context, gboolean result)
 	else
 	{
 	    /* Context would be destroyed somewhere in this call */
-            mcd_dispatcher_context_ref (context);
+            mcd_dispatcher_context_ref (context); /* CTXREF09 */
 	    mcd_dispatcher_run_clients (context);
 	}
     }
@@ -2465,7 +2467,7 @@ mcd_dispatcher_context_process (McdDispatcherContext * context, gboolean result)
         }
         _mcd_dispatcher_context_abort (context, &error);
     }
-    mcd_dispatcher_context_unref (context);
+    mcd_dispatcher_context_unref (context); /* CTXREF01 */
 }
 
 static void
@@ -2971,7 +2973,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
 
     /* Preparing and filling the context */
     context = g_new0 (McdDispatcherContext, 1);
-    context->ref_count = 1;
+    context->ref_count = 1; /* CTXREF09 */
     context->dispatcher = dispatcher;
     context->channels = g_list_prepend (NULL, channel);
     context->account = mcd_channel_get_account (channel);
