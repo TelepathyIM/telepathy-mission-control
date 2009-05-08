@@ -3,7 +3,8 @@
 /*
  * This file is part of mission-control
  *
- * Copyright (C) 2007 Nokia Corporation. 
+ * Copyright (C) 2007-2009 Nokia Corporation.
+ * Copyright (C) 2008 Collabora Ltd.
  *
  * Contact: Naba Kumar  <naba.kumar@nokia.com>
  *

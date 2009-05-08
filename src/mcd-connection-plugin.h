@@ -3,7 +3,7 @@
 /*
  * This file is part of mission-control
  *
- * Copyright (C) 2008 Nokia Corporation. 
+ * Copyright (C) 2008-2009 Nokia Corporation.
  *
  * Contact: Alberto Mardegan  <alberto.mardegan@nokia.com>
  *
