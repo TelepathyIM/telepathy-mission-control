@@ -36,7 +36,6 @@
 #include <telepathy-glib/util.h>
 #include "mcd-account.h"
 #include "mcd-account-priv.h"
-#include "mcd-account-requests.h"
 #include "mcd-account-manager.h"
 #include "mcd-dispatcher-priv.h"
 #include "mcd-channel-priv.h"

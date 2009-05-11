@@ -67,7 +67,6 @@
 #include "mcd-account-priv.h"
 #include "mcd-plugin.h"
 #include "mcd-transport.h"
-#include "mcd-account-connection.h"
 
 #include <libmcclient/mc-errors.h>
 

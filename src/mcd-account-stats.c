@@ -29,7 +29,6 @@
 
 #include "mcd-account.h"
 #include "mcd-account-priv.h"
-#include "mcd-account-stats.h"
 #include "mcd-account-manager.h"
 #include "_gen/interfaces.h"
 #include "_gen/gtypes.h"

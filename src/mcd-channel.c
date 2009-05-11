@@ -44,7 +44,6 @@
 #include <telepathy-glib/util.h>
 
 #include "mcd-account-priv.h"
-#include "mcd-account-requests.h"
 #include "mcd-channel-priv.h"
 #include "mcd-enum-types.h"
 #include "_gen/gtypes.h"

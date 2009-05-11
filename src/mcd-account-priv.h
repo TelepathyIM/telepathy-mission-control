@@ -29,7 +29,6 @@
 #include "mcd-account.h"
 #include "mcd-account-compat.h"
 #include "mcd-account-config.h"
-#include "mcd-account-requests.h"
 #include "mcd-channel.h"
 #include "mcd-dbusprop.h"
 

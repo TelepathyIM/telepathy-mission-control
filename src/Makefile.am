@@ -13,11 +13,7 @@ mission_control_include_HEADERS = \
 	mcd-account.h \
 	mcd-account-compat.h \
 	mcd-account-conditions.h \
-	mcd-account-connection.h \
-	mcd-account-requests.h \
 	mcd-account-manager.h \
-	mcd-account-manager-query.h \
-	mcd-account-stats.h \
 	mcd-debug.h \
 	mcd-dispatch-operation.h \
 	mcd-mission.h \

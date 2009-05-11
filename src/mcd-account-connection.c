@@ -32,7 +32,6 @@
 #include "mcd-master.h"
 #include "mcd-account.h"
 #include "mcd-account-priv.h"
-#include "mcd-account-connection.h"
 #include "mcd-account-manager.h"
 #include "mcd-connection-priv.h"
 
