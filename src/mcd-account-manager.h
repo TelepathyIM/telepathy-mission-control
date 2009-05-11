@@ -25,8 +25,6 @@
 #define __MCD_ACCOUNT_MANAGER_H__
 
 #include <telepathy-glib/dbus.h>
-/* auto-generated stubs */
-#include "_gen/svc-Account_Manager.h"
 
 G_BEGIN_DECLS
 #define MCD_TYPE_ACCOUNT_MANAGER         (mcd_account_manager_get_type ())

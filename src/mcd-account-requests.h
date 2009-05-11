@@ -23,13 +23,7 @@
 #ifndef __MCD_ACCOUNT_REQUESTS_H__
 #define __MCD_ACCOUNT_REQUESTS_H__
 
-#include <telepathy-glib/dbus.h>
-#include <telepathy-glib/enums.h>
-/* auto-generated stubs */
-#include "_gen/svc-Account_Interface_ChannelRequests.h"
-
-#include "mcd-channel.h"
-#include "mcd-dbusprop.h"
+#include <glib.h>
 
 G_BEGIN_DECLS
 G_END_DECLS

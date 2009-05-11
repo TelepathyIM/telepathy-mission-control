@@ -24,20 +24,9 @@
 #ifndef __MCD_ACCOUNT_STATS_H__
 #define __MCD_ACCOUNT_STATS_H__
 
-#include <telepathy-glib/dbus.h>
-#include <telepathy-glib/enums.h>
-/* auto-generated stubs */
-#include "_gen/svc-Account_Interface_Stats.h"
-
-#include "mcd-dbusprop.h"
+#include <glib.h>
 
 G_BEGIN_DECLS
-
-extern const McdDBusProp account_stats_properties[];
-
-void account_stats_iface_init (McSvcAccountInterfaceStatsClass *iface,
-                               gpointer iface_data);
-void account_stats_instance_init (TpSvcDBusProperties *self);
 
 G_END_DECLS
 #endif

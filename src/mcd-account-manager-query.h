@@ -24,19 +24,9 @@
 #ifndef __MCD_ACCOUNT_MANAGER_QUERY_H__
 #define __MCD_ACCOUNT_MANAGER_QUERY_H__
 
-#include <telepathy-glib/dbus.h>
-#include <telepathy-glib/enums.h>
-/* auto-generated stubs */
-#include "_gen/svc-Account_Manager_Interface_Query.h"
-
-#include "mcd-dbusprop.h"
+#include <glib.h>
 
 G_BEGIN_DECLS
-
-extern const McdDBusProp account_manager_query_properties[];
-
-void account_manager_query_iface_init (McSvcAccountManagerInterfaceQueryClass *iface,
-				       gpointer iface_data);
 
 G_END_DECLS
 #endif

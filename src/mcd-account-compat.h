@@ -24,13 +24,9 @@
 #ifndef __MCD_ACCOUNT_COMPAT_H__
 #define __MCD_ACCOUNT_COMPAT_H__
 
-#include <telepathy-glib/dbus.h>
-#include <telepathy-glib/enums.h>
 #include <libmcclient/mc-profile.h>
-/* auto-generated stubs */
-#include "_gen/svc-Account_Interface_Compat.h"
 
-#include "mcd-dbusprop.h"
+#include "mcd-account.h"
 
 G_BEGIN_DECLS
 
