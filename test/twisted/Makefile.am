@@ -13,6 +13,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/already-has-channel.py \
 	dispatcher/bypass-approval.py \
 	dispatcher/cancel.py \
+	dispatcher/capture-bundle.py \
 	dispatcher/create-text.py \
 	dispatcher/dispatch-text.py \
 	dispatcher/exploding-bundles.py \
