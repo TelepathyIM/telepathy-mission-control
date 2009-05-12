@@ -1421,6 +1421,12 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     context->chain = priv->filters;
     context->possible_handlers = possible_handlers;
 
+    DEBUG ("new dispatcher context %p for %s channel %p (%s): %s",
+           context, requested ? "requested" : "unrequested",
+           context->channels->data,
+           context->channels->next == NULL ? "only" : "and more",
+           mcd_channel_get_object_path (context->channels->data));
+
     priv->contexts = g_list_prepend (priv->contexts, context);
     if (!requested)
     {
