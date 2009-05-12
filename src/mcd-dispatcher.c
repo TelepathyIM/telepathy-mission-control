@@ -1722,7 +1722,18 @@ get_bypass_approval_cb (TpProxy *proxy,
                         gpointer user_data,
                         GObject *weak_object)
 {
-    McdClient *client = user_data;
+    McdDispatcher *self = MCD_DISPATCHER (weak_object);
+    const gchar *bus_name = tp_proxy_get_bus_name (proxy);
+    McdClient *client;
+
+    client = g_hash_table_lookup (self->priv->clients, bus_name);
+
+    if (G_UNLIKELY (client == NULL))
+    {
+        DEBUG ("Client %s vanished while we were getting BypassApproval",
+               bus_name);
+        return;
+    }
 
     if (error != NULL)
     {
@@ -1746,14 +1757,26 @@ get_bypass_approval_cb (TpProxy *proxy,
 
 static void
 get_channel_filter_cb (TpProxy *proxy,
-                       const GValue *out_Value,
+                       const GValue *value,
                        const GError *error,
                        gpointer user_data,
                        GObject *weak_object)
 {
-    GList **client_filters = user_data;
+    McdDispatcher *self = MCD_DISPATCHER (weak_object);
+    McdClient *client;
+    const gchar *bus_name = tp_proxy_get_bus_name (proxy);
+    GList **client_filters;
     GPtrArray *filters;
     guint i;
+
+    client = g_hash_table_lookup (self->priv->clients, bus_name);
+
+    if (G_UNLIKELY (client == NULL))
+    {
+        DEBUG ("Client %s vanished while we were getting its Client filters",
+               bus_name);
+        return;
+    }
 
     if (error != NULL)
     {
@@ -1763,9 +1786,32 @@ get_channel_filter_cb (TpProxy *proxy,
         return;
     }
 
-    /* FIXME: if the GValue isn't of the right type, don't crash */
+    if (!G_VALUE_HOLDS (value, TP_ARRAY_TYPE_STRING_VARIANT_MAP_LIST))
+    {
+        DEBUG ("wrong type for filter property on client %s: %s",
+               tp_proxy_get_object_path (proxy), G_VALUE_TYPE_NAME (value));
+        return;
+    }
 
-    filters = g_value_get_boxed (out_Value);
+    switch (GPOINTER_TO_UINT (user_data))
+    {
+        case MCD_CLIENT_OBSERVER:
+            client_filters = &client->observer_filters;
+            break;
+
+        case MCD_CLIENT_APPROVER:
+            client_filters = &client->approver_filters;
+            break;
+
+        case MCD_CLIENT_HANDLER:
+            client_filters = &client->handler_filters;
+            break;
+
+        default:
+            g_assert_not_reached ();
+    }
+
+    filters = g_value_get_boxed (value);
 
     for (i = 0 ; i < filters->len ; i++)
     {
@@ -1856,26 +1902,35 @@ get_interfaces_cb (TpProxy *proxy,
 {
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
     /* McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self); */
-    McdClient *client = user_data;
+    McdClient *client;
     gchar **arr;
+    const gchar *bus_name = tp_proxy_get_bus_name (proxy);
 
     if (error != NULL)
     {
         DEBUG ("Error getting Interfaces for Client %s, assuming none: "
-               "%s %d %s", client->name, g_quark_to_string (error->domain),
-               error->code, error->message);
-        arr = NULL;
+               "%s %d %s", bus_name,
+               g_quark_to_string (error->domain), error->code, error->message);
+        return;
     }
-    else if (!G_VALUE_HOLDS (out_Value, G_TYPE_STRV))
+
+    if (!G_VALUE_HOLDS (out_Value, G_TYPE_STRV))
     {
         DEBUG ("Wrong type getting Interfaces for Client %s, assuming none: "
-               "%s", client->name, G_VALUE_TYPE_NAME (out_Value));
-        arr = NULL;
+               "%s", bus_name, G_VALUE_TYPE_NAME (out_Value));
+        return;
     }
-    else
+
+    client = g_hash_table_lookup (self->priv->clients, bus_name);
+
+    if (G_UNLIKELY (client == NULL))
     {
-        arr = g_value_get_boxed (out_Value);
+        DEBUG ("Client %s vanished while we were getting its interfaces",
+               bus_name);
+        return;
     }
+
+    arr = g_value_get_boxed (out_Value);
 
     while (arr != NULL && *arr != NULL)
     {
@@ -1900,25 +1955,25 @@ get_interfaces_cb (TpProxy *proxy,
         tp_cli_dbus_properties_call_get
             (client->proxy, -1, MC_IFACE_CLIENT_APPROVER,
              "ApproverChannelFilter", get_channel_filter_cb,
-             &client->approver_filters, NULL, G_OBJECT (self));
+             GUINT_TO_POINTER (MCD_CLIENT_APPROVER), NULL, G_OBJECT (self));
     }
     if (client->interfaces & MCD_CLIENT_HANDLER)
     {
         tp_cli_dbus_properties_call_get
             (client->proxy, -1, MC_IFACE_CLIENT_HANDLER,
              "BypassApproval", get_bypass_approval_cb,
-             client, NULL, G_OBJECT (self));
+             NULL, NULL, G_OBJECT (self));
         tp_cli_dbus_properties_call_get
             (client->proxy, -1, MC_IFACE_CLIENT_HANDLER,
              "HandlerChannelFilter", get_channel_filter_cb,
-             &client->handler_filters, NULL, G_OBJECT (self));
+             GUINT_TO_POINTER (MCD_CLIENT_HANDLER), NULL, G_OBJECT (self));
     }
     if (client->interfaces & MCD_CLIENT_OBSERVER)
     {
         tp_cli_dbus_properties_call_get
             (client->proxy, -1, MC_IFACE_CLIENT_OBSERVER,
              "ObserverChannelFilter", get_channel_filter_cb,
-             &client->observer_filters, NULL, G_OBJECT (self));
+             GUINT_TO_POINTER (MCD_CLIENT_OBSERVER), NULL, G_OBJECT (self));
     }
 }
 
@@ -2104,7 +2159,7 @@ create_mcd_client (McdDispatcher *self,
     {
         DEBUG ("No .client file for %s. Ask on D-Bus.", name);
         tp_cli_dbus_properties_call_get (client->proxy, -1,
-            MC_IFACE_CLIENT, "Interfaces", get_interfaces_cb, client,
+            MC_IFACE_CLIENT, "Interfaces", get_interfaces_cb, NULL,
             NULL, G_OBJECT (self));
     }
     else
