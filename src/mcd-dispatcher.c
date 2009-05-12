@@ -1859,7 +1859,23 @@ get_interfaces_cb (TpProxy *proxy,
     McdClient *client = user_data;
     gchar **arr;
 
-    arr = g_value_get_boxed (out_Value);
+    if (error != NULL)
+    {
+        DEBUG ("Error getting Interfaces for Client %s, assuming none: "
+               "%s %d %s", client->name, g_quark_to_string (error->domain),
+               error->code, error->message);
+        arr = NULL;
+    }
+    else if (!G_VALUE_HOLDS (out_Value, G_TYPE_STRV))
+    {
+        DEBUG ("Wrong type getting Interfaces for Client %s, assuming none: "
+               "%s", client->name, G_VALUE_TYPE_NAME (out_Value));
+        arr = NULL;
+    }
+    else
+    {
+        arr = g_value_get_boxed (out_Value);
+    }
 
     while (arr != NULL && *arr != NULL)
     {
