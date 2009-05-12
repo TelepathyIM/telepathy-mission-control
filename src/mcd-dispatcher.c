@@ -1517,7 +1517,8 @@ _mcd_dispatcher_get_property (GObject * obj, guint prop_id,
             {
                 McdDispatcherContext *context = iter->data;
 
-                if (context->operation != NULL)
+                if (context->operation != NULL &&
+                    !_mcd_dispatch_operation_is_finished (context->operation))
                 {
                     GValueArray *va = g_value_array_new (2);
 

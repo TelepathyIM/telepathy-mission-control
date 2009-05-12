@@ -571,6 +571,19 @@ mcd_dispatch_operation_is_claimed (McdDispatchOperation *operation)
     return operation->priv->claimed;
 }
 
+/*
+ * _mcd_dispatch_operation_is_finished:
+ * @self: the #McdDispatchOperation.
+ *
+ * Returns: %TRUE if the operation has finished, %FALSE otherwise.
+ */
+gboolean
+_mcd_dispatch_operation_is_finished (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+    return self->priv->finished;
+}
+
 /**
  * mcd_dispatch_operation_get_handler:
  * @operation: the #McdDispatchOperation.
