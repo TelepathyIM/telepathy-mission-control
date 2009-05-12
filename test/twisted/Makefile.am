@@ -19,6 +19,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/exploding-bundles.py \
 	dispatcher/fdo-21034.py \
 	dispatcher/lose-text.py \
+	dispatcher/vanishing-client.py \
 	do-nothing.py \
 	test-account.py \
 	test-connect.py
