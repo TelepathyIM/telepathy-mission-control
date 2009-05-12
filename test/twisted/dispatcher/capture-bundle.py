@@ -8,7 +8,8 @@ import dbus.service
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
-        create_fakecm_account, enable_fakecm_account, SimulatedChannel
+        create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
+        expect_client_setup
 import constants as cs
 
 def test(q, bus, mc):
@@ -39,41 +40,7 @@ def test(q, bus, mc):
             bypass_approval=False)
 
     # wait for MC to download the properties
-    q.expect_many(
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.CLIENT, 'Interfaces'],
-                path=empathy.object_path),
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.APPROVER, 'ApproverChannelFilter'],
-                path=empathy.object_path),
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.HANDLER, 'HandlerChannelFilter'],
-                path=empathy.object_path),
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.OBSERVER, 'ObserverChannelFilter'],
-                path=empathy.object_path),
-
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.CLIENT, 'Interfaces'],
-                path=kopete.object_path),
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.APPROVER, 'ApproverChannelFilter'],
-                path=kopete.object_path),
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.HANDLER, 'HandlerChannelFilter'],
-                path=kopete.object_path),
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.OBSERVER, 'ObserverChannelFilter'],
-                path=kopete.object_path),
-            )
+    expect_client_setup(q, [empathy, kopete])
 
     # subscribe to the OperationList interface (MC assumes that until this
     # property has been retrieved once, nobody cares)
@@ -216,16 +183,7 @@ def test(q, bus, mc):
             bypass_approval=True)
 
     # wait for MC to download the properties
-    q.expect_many(
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.CLIENT, 'Interfaces'],
-                path=bypass.object_path),
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.HANDLER, 'HandlerChannelFilter'],
-                path=bypass.object_path),
-            )
+    expect_client_setup(q, [bypass])
 
     # From now on, this test must fail if we're asked to approve anything
     approval = [

@@ -514,3 +514,62 @@ def enable_fakecm_account(q, bus, mc, account, expected_params):
             )
 
     return conn
+
+def expect_client_setup(q, clients):
+    patterns = []
+
+    def is_client_setup(e):
+        if e.method == 'Get' and e.args == [cs.CLIENT, 'Interfaces']:
+            return True
+        if e.method == 'GetAll' and e.args == [cs.CLIENT]:
+            return True
+        return False
+
+    def is_approver_setup(e):
+        if e.method == 'Get' and \
+                e.args == [cs.APPROVER, 'ApproverChannelFilter']:
+            return True
+        if e.method == 'GetAll' and e.args == [cs.APPROVER]:
+            return True
+        return False
+
+    def is_observer_setup(e):
+        if e.method == 'Get' and \
+                e.args == [cs.OBSERVER, 'ObserverChannelFilter']:
+            return True
+        if e.method == 'GetAll' and e.args == [cs.OBSERVER]:
+            return True
+        return False
+
+    def is_handler_setup(e):
+        if e.method == 'Get' and \
+                e.args == [cs.HANDLER, 'HandlerChannelFilter']:
+            return True
+        if e.method == 'GetAll' and e.args == [cs.HANDLER]:
+            return True
+        return False
+
+    for client in clients:
+        patterns.append(servicetest.EventPattern('dbus-method-call',
+            interface=cs.PROPERTIES_IFACE,
+            path=client.object_path, handled=True,
+            predicate=is_client_setup))
+
+        if client.observe:
+            patterns.append(servicetest.EventPattern('dbus-method-call',
+                interface=cs.PROPERTIES_IFACE,
+                path=client.object_path, handled=True,
+                predicate=is_observer_setup))
+
+        if client.approve:
+            patterns.append(servicetest.EventPattern('dbus-method-call',
+                interface=cs.PROPERTIES_IFACE,
+                path=client.object_path, handled=True,
+                predicate=is_approver_setup))
+
+        if client.handle:
+            patterns.append(servicetest.EventPattern('dbus-method-call',
+                interface=cs.PROPERTIES_IFACE,
+                path=client.object_path, predicate=is_handler_setup))
+
+    q.expect_many(*patterns)
