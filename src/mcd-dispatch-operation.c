@@ -332,7 +332,7 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
     return object;
 error:
     g_object_unref (object);
-    return NULL;
+    g_return_val_if_reached (NULL);
 }
 
 static void
