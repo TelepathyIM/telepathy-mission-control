@@ -30,9 +30,14 @@
 #include "mcd-account.h"
 #include "mcd-account-compat.h"
 #include "mcd-account-config.h"
-#include "mcd-account-requests.h"
 #include "mcd-channel.h"
 #include "mcd-dbusprop.h"
+
+/* auto-generated stubs */
+#include "_gen/svc-Account_Interface_ChannelRequests.h"
+#include "_gen/svc-Account_Interface_Compat.h"
+#include "_gen/svc-Account_Interface_Conditions.h"
+#include "_gen/svc-Account_Interface_Stats.h"
 
 G_GNUC_INTERNAL void _mcd_account_connect (McdAccount *account,
                                            GHashTable *params);
@@ -147,6 +152,17 @@ G_GNUC_INTERNAL void _mcd_account_connection_context_free
     (McdAccountConnectionContext *c);
 
 G_GNUC_INTERNAL GHashTable *_mcd_account_dup_parameters (McdAccount *account);
+
+extern const McdDBusProp account_conditions_properties[];
+
+void account_conditions_iface_init (McSvcAccountInterfaceConditionsClass *iface,
+				    gpointer iface_data);
+
+extern const McdDBusProp account_stats_properties[];
+
+void account_stats_iface_init (McSvcAccountInterfaceStatsClass *iface,
+                               gpointer iface_data);
+void account_stats_instance_init (TpSvcDBusProperties *self);
 
 #endif /* __MCD_ACCOUNT_PRIV_H__ */
 

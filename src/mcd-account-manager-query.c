@@ -35,9 +35,10 @@
 #include <telepathy-glib/util.h>
 #include "mcd-account.h"
 #include "mcd-account-manager.h"
-#include "mcd-account-manager-query.h"
 #include "mcd-account-manager-priv.h"
 #include "mcd-account-priv.h"
+
+/* auto-generated stubs */
 #include "_gen/interfaces.h"
 
 typedef struct

@@ -24,19 +24,9 @@
 #ifndef __MCD_ACCOUNT_CONDITIONS_H__
 #define __MCD_ACCOUNT_CONDITIONS_H__
 
-#include <telepathy-glib/dbus.h>
-#include <telepathy-glib/enums.h>
-/* auto-generated stubs */
-#include "_gen/svc-Account_Interface_Conditions.h"
-
-#include "mcd-dbusprop.h"
+#include "mcd-account.h"
 
 G_BEGIN_DECLS
-
-extern const McdDBusProp account_conditions_properties[];
-
-void account_conditions_iface_init (McSvcAccountInterfaceConditionsClass *iface,
-				    gpointer iface_data);
 
 GHashTable *mcd_account_get_conditions (McdAccount *account);
 

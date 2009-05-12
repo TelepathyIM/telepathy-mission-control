@@ -45,7 +45,6 @@
 
 #include "mcd-signals-marshal.h"
 #include "mcd-account-priv.h"
-#include "mcd-account-requests.h"
 #include "mcd-connection.h"
 #include "mcd-channel.h"
 #include "mcd-master.h"
