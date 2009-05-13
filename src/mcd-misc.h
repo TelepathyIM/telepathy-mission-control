@@ -29,6 +29,7 @@
 
 #include <glib.h>
 #include <glib-object.h>
+#include <telepathy-glib/dbus.h>
 #include <telepathy-glib/gtypes.h>
 
 G_BEGIN_DECLS
@@ -63,6 +64,11 @@ gboolean _mcd_file_set_contents (const gchar *filename, const gchar *contents,
                                  gssize length, GError **error);
 G_GNUC_INTERNAL
 void _mc_ext_register_dbus_glib_marshallers (void);
+
+gboolean _mcd_dbus_daemon_request_name (TpDBusDaemon *self,
+                                        const gchar *well_known_name,
+                                        gboolean idempotent,
+                                        GError **error);
 
 G_END_DECLS
 #endif /* MCD_MISC_H */

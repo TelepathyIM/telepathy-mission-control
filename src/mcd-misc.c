@@ -3,8 +3,8 @@
 /*
  * This file is part of mission-control
  *
- * Copyright (C) 2007-2009 Nokia Corporation.
- * Copyright (C) 2009 Collabora Ltd.
+ * Copyright (C) 2005-2009 Nokia Corporation.
+ * Copyright (C) 2005-2009 Collabora Ltd.
  *
  * Contact: Alberto Mardegan  <alberto.mardegan@nokia.com>
  *
@@ -38,6 +38,9 @@
 #include <libmcclient/mc-errors.h>
 #include "_gen/signals-marshal.h"
 #include "_gen/register-dbus-glib-marshallers-body.h"
+
+#include <dbus/dbus.h>
+#include <dbus/dbus-glib-lowlevel.h>
 
 /*
  * Miscellaneus functions
@@ -495,3 +498,72 @@ out:
     return retval;
 }
 
+/* Copied from telepathy-glib, licensed under LGPL >= 2.1 */
+/*
+ * _mcd_dbus_daemon_request_name:
+ * @self: a TpDBusDaemon
+ * @well_known_name: a well-known name to acquire
+ * @idempotent: whether to consider it to be a success if this process
+ *              already owns the name
+ * @error: used to raise an error if %FALSE is returned
+ *
+ * Claim the given well-known name without queueing, allowing replacement
+ * or replacing an existing name-owner.
+ */
+gboolean
+_mcd_dbus_daemon_request_name (TpDBusDaemon *self,
+                               const gchar *well_known_name,
+                               gboolean idempotent,
+                               GError **error)
+{
+  TpProxy *as_proxy = (TpProxy *) self;
+  DBusGConnection *gconn = as_proxy->dbus_connection;
+  DBusConnection *dbc = dbus_g_connection_get_connection (gconn);
+  DBusError dbus_error;
+  int result;
+
+  g_return_val_if_fail (TP_IS_DBUS_DAEMON (self), FALSE);
+  g_return_val_if_fail (tp_dbus_check_valid_bus_name (well_known_name,
+        TP_DBUS_NAME_TYPE_WELL_KNOWN, error), FALSE);
+
+  dbus_error_init (&dbus_error);
+  result = dbus_bus_request_name (dbc, well_known_name,
+      DBUS_NAME_FLAG_DO_NOT_QUEUE, &dbus_error);
+
+  switch (result)
+    {
+    case DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER:
+      return TRUE;
+
+    case DBUS_REQUEST_NAME_REPLY_ALREADY_OWNER:
+      if (idempotent)
+        {
+          return TRUE;
+        }
+      else
+        {
+          g_set_error (error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+              "Name '%s' already in use by this process", well_known_name);
+          return FALSE;
+        }
+
+    case DBUS_REQUEST_NAME_REPLY_EXISTS:
+    case DBUS_REQUEST_NAME_REPLY_IN_QUEUE:
+      /* the latter shouldn't actually happen since we said DO_NOT_QUEUE */
+      g_set_error (error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+          "Name '%s' already in use by another process", well_known_name);
+      return FALSE;
+
+    case -1:
+      g_set_error (error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+          "%s: %s", dbus_error.name, dbus_error.message);
+      dbus_error_free (&dbus_error);
+      return FALSE;
+
+    default:
+      g_set_error (error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+          "RequestName('%s') returned %d and I don't know what that means",
+          well_known_name, result);
+      return FALSE;
+    }
+}
