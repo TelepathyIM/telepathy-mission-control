@@ -1756,44 +1756,14 @@ get_bypass_approval_cb (TpProxy *proxy,
 }
 
 static void
-get_channel_filter_cb (TpProxy *proxy,
-                       const GValue *value,
-                       const GError *error,
-                       gpointer user_data,
-                       GObject *weak_object)
+mcd_client_set_filters (McdClient *client,
+                        McdClientInterface interface,
+                        GPtrArray *filters)
 {
-    McdDispatcher *self = MCD_DISPATCHER (weak_object);
-    McdClient *client;
-    const gchar *bus_name = tp_proxy_get_bus_name (proxy);
     GList **client_filters;
-    GPtrArray *filters;
     guint i;
 
-    client = g_hash_table_lookup (self->priv->clients, bus_name);
-
-    if (G_UNLIKELY (client == NULL))
-    {
-        DEBUG ("Client %s vanished while we were getting its Client filters",
-               bus_name);
-        return;
-    }
-
-    if (error != NULL)
-    {
-        DEBUG ("error getting a filter list for client %s: %s #%d: %s",
-               tp_proxy_get_object_path (proxy),
-               g_quark_to_string (error->domain), error->code, error->message);
-        return;
-    }
-
-    if (!G_VALUE_HOLDS (value, TP_ARRAY_TYPE_STRING_VARIANT_MAP_LIST))
-    {
-        DEBUG ("wrong type for filter property on client %s: %s",
-               tp_proxy_get_object_path (proxy), G_VALUE_TYPE_NAME (value));
-        return;
-    }
-
-    switch (GPOINTER_TO_UINT (user_data))
+    switch (interface)
     {
         case MCD_CLIENT_OBSERVER:
             client_filters = &client->observer_filters;
@@ -1810,8 +1780,6 @@ get_channel_filter_cb (TpProxy *proxy,
         default:
             g_assert_not_reached ();
     }
-
-    filters = g_value_get_boxed (value);
 
     for (i = 0 ; i < filters->len ; i++)
     {
@@ -1874,6 +1842,45 @@ get_channel_filter_cb (TpProxy *proxy,
         else
             g_hash_table_destroy (new_channel_class);
     }
+}
+
+static void
+get_channel_filter_cb (TpProxy *proxy,
+                       const GValue *value,
+                       const GError *error,
+                       gpointer user_data,
+                       GObject *weak_object)
+{
+    McdDispatcher *self = MCD_DISPATCHER (weak_object);
+    McdClient *client;
+    const gchar *bus_name = tp_proxy_get_bus_name (proxy);
+
+    client = g_hash_table_lookup (self->priv->clients, bus_name);
+
+    if (G_UNLIKELY (client == NULL))
+    {
+        DEBUG ("Client %s vanished while we were getting its Client filters",
+               bus_name);
+        return;
+    }
+
+    if (error != NULL)
+    {
+        DEBUG ("error getting a filter list for client %s: %s #%d: %s",
+               tp_proxy_get_object_path (proxy),
+               g_quark_to_string (error->domain), error->code, error->message);
+        return;
+    }
+
+    if (!G_VALUE_HOLDS (value, TP_ARRAY_TYPE_STRING_VARIANT_MAP_LIST))
+    {
+        DEBUG ("wrong type for filter property on client %s: %s",
+               tp_proxy_get_object_path (proxy), G_VALUE_TYPE_NAME (value));
+        return;
+    }
+
+    mcd_client_set_filters (client, GPOINTER_TO_UINT (user_data),
+                            g_value_get_boxed (value));
 }
 
 static void
