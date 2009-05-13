@@ -128,8 +128,8 @@ CLIENT_IFACE_REQUESTS = CLIENT + '.Interface.Requests'
 
 ACCOUNT = tp_name_prefix + '.Account'
 ACCOUNT_IFACE_AVATAR = ACCOUNT + '.Interface.Avatar'
-ACCOUNT_IFACE_NOKIA_COMPAT = ACCOUNT + '.Interface.Compat'
-ACCOUNT_IFACE_NOKIA_REQUESTS = ACCOUNT + '.Interface.ChannelRequests'
+ACCOUNT_IFACE_NOKIA_COMPAT = 'com.nokia.Account.Interface.Compat'
+ACCOUNT_IFACE_NOKIA_REQUESTS = 'com.nokia.Account.Interface.ChannelRequests'
 ACCOUNT_IFACE_NOKIA_CONDITIONS = 'com.nokia.Account.Interface.Conditions'
 
 AM = tp_name_prefix + '.AccountManager'
