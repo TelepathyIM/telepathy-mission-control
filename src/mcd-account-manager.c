@@ -29,6 +29,7 @@
 #include <glib/gi18n.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <config.h>
 #include <dbus/dbus-glib-lowlevel.h>
 #include <dbus/dbus.h>
@@ -842,18 +843,21 @@ register_dbus_service (McdAccountManager *account_manager)
     McdAccountManagerPrivate *priv = account_manager->priv;
     DBusGConnection *dbus_connection;
     DBusConnection *connection;
-    DBusError error = { 0 };
+    GError *error = NULL;
 
     dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
     connection = dbus_g_connection_get_connection (dbus_connection);
 
-    dbus_bus_request_name (connection, MC_ACCOUNT_MANAGER_DBUS_SERVICE,
-			   0, &error);
-    if (dbus_error_is_set (&error))
+    if (!_mcd_dbus_daemon_request_name (priv->dbus_daemon,
+                                        MC_ACCOUNT_MANAGER_DBUS_SERVICE,
+                                        TRUE /* idempotent */, &error))
     {
-	g_error ("Failed registering '%s' service: %s",
-		 MC_ACCOUNT_MANAGER_DBUS_SERVICE, error.message);
-	dbus_error_free (&error);
+        /* FIXME: put in proper error handling when MC gains the ability to
+         * be the AM or the CD but not both */
+        g_error ("Failed registering '%s' service: %s",
+                 MC_ACCOUNT_MANAGER_DBUS_SERVICE, error->message);
+        g_error_free (error);
+        exit (1);
     }
 
     if (G_LIKELY (dbus_connection))

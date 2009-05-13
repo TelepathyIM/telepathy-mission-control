@@ -55,6 +55,7 @@
 #include "mcd-dispatcher-context.h"
 #include "mcd-account-compat.h"
 #include "mcd-connection.h"
+#include "mcd-misc.h"
 #include "mcd-service.h"
 
 #include <libmcclient/mc-errors.h>
@@ -82,22 +83,19 @@ typedef struct _McdServicePrivate
 static void
 mcd_service_obtain_bus_name (McdService * obj)
 {
-    DBusError error;
-    DBusGConnection *connection;
-    
-    g_object_get (obj, "dbus-connection", &connection, NULL);
-    
-    dbus_error_init (&error);
-    
+    McdMaster *master = MCD_MASTER (obj);
+    GError *error = NULL;
+
     DEBUG ("Requesting MC dbus service");
-    
-    dbus_bus_request_name (dbus_g_connection_get_connection (connection),
-			   MISSION_CONTROL_DBUS_SERVICE, 0, &error);
-    if (dbus_error_is_set (&error))
+
+    if (!_mcd_dbus_daemon_request_name (mcd_master_get_dbus_daemon (master),
+                                        MISSION_CONTROL_DBUS_SERVICE,
+                                        TRUE /* idempotent */, &error))
     {
-	g_error ("Service name '%s' is already in use - request failed",
-		 MISSION_CONTROL_DBUS_SERVICE);
-	dbus_error_free (&error);
+        g_error ("Failed registering '%s' service: %s",
+                 MISSION_CONTROL_DBUS_SERVICE, error->message);
+        g_error_free (error);
+        exit (1);
     }
 }
 

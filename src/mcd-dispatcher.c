@@ -67,6 +67,7 @@
 
 #include <libmcclient/mc-errors.h>
 
+#include <stdlib.h>
 #include <string.h>
 #include "sp_timestamp.h"
 
@@ -2327,7 +2328,7 @@ mcd_dispatcher_constructed (GObject *object)
 {
     DBusGConnection *dgc;
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
-    DBusError error = { 0 };
+    GError *error = NULL;
 
     tp_cli_dbus_daemon_connect_to_name_owner_changed (priv->dbus_daemon,
         name_owner_changed_cb, NULL, NULL, object, NULL);
@@ -2340,17 +2341,16 @@ mcd_dispatcher_constructed (GObject *object)
 
     dgc = TP_PROXY (priv->dbus_daemon)->dbus_connection;
 
-    dbus_bus_request_name (dbus_g_connection_get_connection (dgc),
-                           MCD_CHANNEL_DISPATCHER_BUS_NAME, 0, &error);
-
-    if (dbus_error_is_set (&error))
+    if (!_mcd_dbus_daemon_request_name (priv->dbus_daemon,
+                                        MCD_CHANNEL_DISPATCHER_BUS_NAME,
+                                        TRUE /* idempotent */, &error))
     {
         /* FIXME: put in proper error handling when MC gains the ability to
          * be the AM or the CD but not both */
-        g_error ("Unable to be the channel dispatcher: %s: %s", error.name,
-                 error.message);
-        dbus_error_free (&error);
-        return;
+        g_error ("Failed registering '%s' service: %s",
+                 MCD_CHANNEL_DISPATCHER_BUS_NAME, error->message);
+        g_error_free (error);
+        exit (1);
     }
 
     dbus_g_connection_register_g_object (dgc,
