@@ -845,7 +845,8 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
     handler_data->context = context;
     mcd_dispatcher_context_ref (context); /* CTXREF03 */
     handler_data->channels = channels;
-    DEBUG ("Invoking handler %s (context %p)", handler->name, context);
+    DEBUG ("calling HandleChannels on %s for context %p", handler->name,
+           context);
     mc_cli_client_handler_call_handle_channels (handler->proxy, -1,
         account_path, connection_path,
         channels_array, satisfied_requests, user_action_time,
@@ -1065,6 +1066,8 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
 
         context->client_locks++;
         mcd_dispatcher_context_ref (context); /* CTXREF05 */
+        DEBUG ("calling ObserveChannels on %s for context %p",
+               client->name, context);
         mc_cli_client_observer_call_observe_channels (client->proxy, -1,
             account_path, connection_path, channels_array,
             dispatch_operation_path, satisfied_requests, observer_info,
@@ -1111,13 +1114,23 @@ add_dispatch_operation_cb (TpProxy *proxy, const GError *error,
 
     if (error)
     {
-        DEBUG ("Failed to add DO on approver: %s", error->message);
+        DEBUG ("AddDispatchOperation %s (context %p) on approver %s failed: "
+               "%s",
+               mcd_dispatch_operation_get_path (context->operation),
+               context, tp_proxy_get_object_path (proxy), error->message);
 
         /* if all approvers fail to add the DO, then we behave as if no
          * approver was registered: i.e., we continue dispatching */
         context->approvers_invoked--;
         if (context->approvers_invoked == 0)
             mcd_dispatcher_context_release_client_lock (context);
+    }
+    else
+    {
+        DEBUG ("Approver %s accepted AddDispatchOperation %s (context %p)",
+               tp_proxy_get_object_path (proxy),
+               mcd_dispatch_operation_get_path (context->operation),
+               context);
     }
 
     if (context->operation)
@@ -1174,6 +1187,10 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
             mcd_dispatch_operation_get_properties (context->operation);
         channel_details =
             _mcd_dispatch_operation_dup_channel_details (context->operation);
+
+        DEBUG ("Calling AddDispatchOperation on approver %s for CDO %s @ %p "
+               "of context %p", client->name, dispatch_operation,
+               context->operation, context);
 
         context->approvers_invoked++;
         _mcd_dispatch_operation_block_finished (context->operation);
@@ -1403,6 +1420,12 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     context->channels = channels;
     context->chain = priv->filters;
     context->possible_handlers = possible_handlers;
+
+    DEBUG ("new dispatcher context %p for %s channel %p (%s): %s",
+           context, requested ? "requested" : "unrequested",
+           context->channels->data,
+           context->channels->next == NULL ? "only" : "and more",
+           mcd_channel_get_object_path (context->channels->data));
 
     priv->contexts = g_list_prepend (priv->contexts, context);
     if (!requested)
@@ -2809,6 +2832,8 @@ on_request_status_changed (McdChannel *channel, McdChannelStatus status,
         error = mcd_channel_get_error (channel);
         err_string = _mcd_build_error_string (error);
         /* no callback, as we don't really care */
+        DEBUG ("calling RemoveRequest on %s for %s",
+               tp_proxy_get_object_path (rrd->handler), rrd->request_path);
         mc_cli_client_interface_requests_call_remove_request
             (rrd->handler, -1, rrd->request_path, err_string, error->message,
              NULL, NULL, NULL, NULL);

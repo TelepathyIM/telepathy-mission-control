@@ -219,7 +219,13 @@ mcd_dispatch_operation_finish (McdDispatchOperation *operation)
 
     if (priv->block_finished == 0)
     {
+        DEBUG ("%s/%p has finished", priv->unique_name, operation);
         mc_svc_channel_dispatch_operation_emit_finished (operation);
+    }
+    else
+    {
+        DEBUG ("%s/%p not finishing just yet", priv->unique_name,
+               operation);
     }
 }
 
@@ -307,6 +313,18 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
     dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
     create_object_path (priv);
 
+    DEBUG ("%s/%p", priv->unique_name, object);
+
+    if (DEBUGGING)
+    {
+        GList *list;
+
+        for (list = priv->channels; list != NULL; list = list->next)
+        {
+            DEBUG ("Channel: %s", mcd_channel_get_object_path (list->data));
+        }
+    }
+
     if (G_LIKELY (dbus_connection))
         dbus_g_connection_register_g_object (dbus_connection,
                                              priv->object_path, object);
@@ -314,7 +332,7 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
     return object;
 error:
     g_object_unref (object);
-    return NULL;
+    g_return_val_if_reached (NULL);
 }
 
 static void
@@ -607,8 +625,11 @@ mcd_dispatch_operation_handle_with (McdDispatchOperation *operation,
     g_return_if_fail (MCD_IS_DISPATCH_OPERATION (operation));
     priv = operation->priv;
 
+    DEBUG ("%s/%p", priv->unique_name, operation);
+
     if (priv->finished)
     {
+        DEBUG ("NotYours: already finished");
         g_set_error (error, TP_ERRORS, TP_ERROR_NOT_YOURS,
                      "CDO already finished");
         return;
@@ -619,6 +640,7 @@ mcd_dispatch_operation_handle_with (McdDispatchOperation *operation,
         if (strncmp (handler_path, MCD_CLIENT_BASE_NAME,
                      MCD_CLIENT_BASE_NAME_LEN) != 0)
         {
+            DEBUG ("InvalidArgument: handler name %s is bad", handler_path);
             g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
                          "Invalid handler name");
             return;
@@ -665,6 +687,8 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
     {
         /* We're still invoking approvers, so we're not allowed to talk
          * about it right now. Instead, save the signal for later. */
+        DEBUG ("%s/%p not losing channel %s just yet", self->priv->unique_name,
+               self, object_path);
         self->priv->lost_channels =
             g_list_prepend (self->priv->lost_channels,
                             g_object_ref (channel));
@@ -674,6 +698,9 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
         const GError *error = mcd_channel_get_error (channel);
         gchar *error_name = _mcd_build_error_string (error);
 
+        DEBUG ("%s/%p losing channel %s: %s: %s",
+               self->priv->unique_name, self, object_path, error_name,
+               error->message);
         mc_svc_channel_dispatch_operation_emit_channel_lost (self, object_path,
                                                              error_name,
                                                              error->message);
@@ -736,6 +763,9 @@ _mcd_dispatch_operation_unblock_finished (McdDispatchOperation *self)
                 const GError *error = mcd_channel_get_error (channel);
                 gchar *error_name = _mcd_build_error_string (error);
 
+                DEBUG ("%s/%p losing channel %s: %s: %s",
+                       self->priv->unique_name, self, object_path, error_name,
+                       error->message);
                 mc_svc_channel_dispatch_operation_emit_channel_lost (self,
                     object_path, error_name, error->message);
                 g_free (error_name);
@@ -746,6 +776,7 @@ _mcd_dispatch_operation_unblock_finished (McdDispatchOperation *self)
 
         if (self->priv->finished)
         {
+            DEBUG ("%s/%p finished", self->priv->unique_name, self);
             mc_svc_channel_dispatch_operation_emit_finished (self);
         }
     }
