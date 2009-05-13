@@ -8,7 +8,8 @@ import dbus.service
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
-        create_fakecm_account, enable_fakecm_account, SimulatedChannel
+        create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
+        expect_client_setup
 import constants as cs
 
 def test(q, bus, mc):
@@ -34,24 +35,7 @@ def test(q, bus, mc):
             interface=cs.APPROVER, method='AddDispatchOperation')
 
     # wait for MC to download the properties
-    q.expect_many(
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.CLIENT, 'Interfaces'],
-                path=client.object_path),
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.APPROVER, 'ApproverChannelFilter'],
-                path=client.object_path),
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.HANDLER, 'HandlerChannelFilter'],
-                path=client.object_path),
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.OBSERVER, 'ObserverChannelFilter'],
-                path=client.object_path),
-            )
+    expect_client_setup(q, [client])
 
     user_action_time = dbus.Int64(1238582606)
 

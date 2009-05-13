@@ -3,7 +3,7 @@ import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix
 from mctest import exec_test, SimulatedConnection, create_fakecm_account,\
-        SimulatedChannel
+        SimulatedChannel, SimulatedClient, expect_client_setup
 import constants as cs
 
 def test(q, bus, mc):
@@ -19,22 +19,10 @@ def test(q, bus, mc):
     caps = dbus.Array([http_fixed_properties], signature='a{sv}')
 
     # Be a Client
-    client_name_ref = dbus.service.BusName(
-            tp_name_prefix + '.Client.downloader', bus=bus)
-
-    e = q.expect('dbus-method-call',
-            interface=cs.PROPERTIES_IFACE, method='Get',
-            args=[cs.CLIENT, 'Interfaces'],
-            handled=False)
-    q.dbus_return(e.message, dbus.Array([cs.HANDLER], signature='s',
-        variant_level=1), signature='v')
-
-    e = q.expect('dbus-method-call',
-            interface=cs.PROPERTIES_IFACE, method='Get',
-            args=[cs.HANDLER, 'HandlerChannelFilter'],
-            handled=False)
-    q.dbus_return(e.message, dbus.Array([http_fixed_properties],
-        signature='a{sv}', variant_level=1), signature='v')
+    client = SimulatedClient(q, bus, 'downloader',
+            observe=[], approve=[], handle=[http_fixed_properties],
+            bypass_approval=False)
+    expect_client_setup(q, [client])
 
     # Create an account
     params = dbus.Dictionary({"account": "someguy@example.com",

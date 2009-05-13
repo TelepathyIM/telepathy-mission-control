@@ -5,6 +5,8 @@ Some handy constants for other tests to share and enjoy.
 from dbus import PROPERTIES_IFACE, INTROSPECTABLE_IFACE
 from servicetest import tp_name_prefix, tp_path_prefix
 
+DBUS_ERROR_NO_REPLY = 'org.freedesktop.DBus.Error.NoReply'
+
 HT_CONTACT = 1
 HT_ROOM = 2
 

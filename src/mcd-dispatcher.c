@@ -1716,56 +1716,30 @@ parse_client_filter (GKeyFile *file, const gchar *group)
 }
 
 static void
-get_bypass_approval_cb (TpProxy *proxy,
-                        const GValue *value,
-                        const GError *error,
-                        gpointer user_data,
-                        GObject *weak_object)
+mcd_client_set_filters (McdClient *client,
+                        McdClientInterface interface,
+                        GPtrArray *filters)
 {
-    McdClient *client = user_data;
-
-    if (error != NULL)
-    {
-        DEBUG ("error getting BypassApproval for client %s: %s #%d: %s",
-               tp_proxy_get_object_path (proxy),
-               g_quark_to_string (error->domain), error->code, error->message);
-        client->bypass_approver = FALSE;
-        return;
-    }
-
-    if (!G_VALUE_HOLDS_BOOLEAN (value))
-    {
-        DEBUG ("wrong type for BypassApproval on client %s: %s",
-               tp_proxy_get_object_path (proxy), G_VALUE_TYPE_NAME (value));
-        client->bypass_approver = FALSE;
-        return;
-    }
-
-    client->bypass_approver = g_value_get_boolean (value);
-}
-
-static void
-get_channel_filter_cb (TpProxy *proxy,
-                       const GValue *out_Value,
-                       const GError *error,
-                       gpointer user_data,
-                       GObject *weak_object)
-{
-    GList **client_filters = user_data;
-    GPtrArray *filters;
+    GList **client_filters;
     guint i;
 
-    if (error != NULL)
+    switch (interface)
     {
-        DEBUG ("error getting a filter list for client %s: %s #%d: %s",
-               tp_proxy_get_object_path (proxy),
-               g_quark_to_string (error->domain), error->code, error->message);
-        return;
+        case MCD_CLIENT_OBSERVER:
+            client_filters = &client->observer_filters;
+            break;
+
+        case MCD_CLIENT_APPROVER:
+            client_filters = &client->approver_filters;
+            break;
+
+        case MCD_CLIENT_HANDLER:
+            client_filters = &client->handler_filters;
+            break;
+
+        default:
+            g_assert_not_reached ();
     }
-
-    /* FIXME: if the GValue isn't of the right type, don't crash */
-
-    filters = g_value_get_boxed (out_Value);
 
     for (i = 0 ; i < filters->len ; i++)
     {
@@ -1831,6 +1805,96 @@ get_channel_filter_cb (TpProxy *proxy,
 }
 
 static void
+get_channel_filter_cb (TpProxy *proxy,
+                       const GValue *value,
+                       const GError *error,
+                       gpointer user_data,
+                       GObject *weak_object)
+{
+    McdDispatcher *self = MCD_DISPATCHER (weak_object);
+    McdClient *client;
+    const gchar *bus_name = tp_proxy_get_bus_name (proxy);
+
+    client = g_hash_table_lookup (self->priv->clients, bus_name);
+
+    if (G_UNLIKELY (client == NULL))
+    {
+        DEBUG ("Client %s vanished while we were getting its Client filters",
+               bus_name);
+        return;
+    }
+
+    if (error != NULL)
+    {
+        DEBUG ("error getting a filter list for client %s: %s #%d: %s",
+               tp_proxy_get_object_path (proxy),
+               g_quark_to_string (error->domain), error->code, error->message);
+        return;
+    }
+
+    if (!G_VALUE_HOLDS (value, TP_ARRAY_TYPE_STRING_VARIANT_MAP_LIST))
+    {
+        DEBUG ("wrong type for filter property on client %s: %s",
+               tp_proxy_get_object_path (proxy), G_VALUE_TYPE_NAME (value));
+        return;
+    }
+
+    mcd_client_set_filters (client, GPOINTER_TO_UINT (user_data),
+                            g_value_get_boxed (value));
+}
+
+static void
+handler_get_all_cb (TpProxy *proxy,
+                    GHashTable *properties,
+                    const GError *error,
+                    gpointer unused G_GNUC_UNUSED,
+                    GObject *weak_object)
+{
+    McdDispatcher *self = MCD_DISPATCHER (weak_object);
+    McdClient *client;
+    const gchar *bus_name = tp_proxy_get_bus_name (proxy);
+    GPtrArray *filters;
+
+    if (error != NULL)
+    {
+        DEBUG ("GetAll(Handler) for client %s failed: %s #%d: %s",
+               bus_name, g_quark_to_string (error->domain), error->code,
+               error->message);
+        return;
+    }
+
+    client = g_hash_table_lookup (self->priv->clients, bus_name);
+
+    if (G_UNLIKELY (client == NULL))
+    {
+        DEBUG ("Client %s vanished while getting its Handler properties",
+               bus_name);
+        return;
+    }
+
+    filters = tp_asv_get_boxed (properties, "HandlerChannelFilter",
+                                TP_ARRAY_TYPE_STRING_VARIANT_MAP_LIST);
+
+    if (filters != NULL)
+    {
+        DEBUG ("%s has %u HandlerChannelFilter entries", client->name,
+               filters->len);
+        mcd_client_set_filters (client, MCD_CLIENT_HANDLER, filters);
+    }
+    else
+    {
+        DEBUG ("%s HandlerChannelFilter absent or wrong type, assuming "
+               "no channels can match", client->name);
+    }
+
+    /* if wrong type or absent, assuming False is reasonable */
+    client->bypass_approver = tp_asv_get_boolean (properties, "BypassApproval",
+                                                  NULL);
+    DEBUG ("%s has BypassApproval=%c", client->name,
+           client->bypass_approver ? 'T' : 'F');
+}
+
+static void
 client_add_interface_by_id (McdClient *client)
 {
     tp_proxy_add_interface_by_id (client->proxy, MC_IFACE_QUARK_CLIENT);
@@ -1856,8 +1920,33 @@ get_interfaces_cb (TpProxy *proxy,
 {
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
     /* McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self); */
-    McdClient *client = user_data;
+    McdClient *client;
     gchar **arr;
+    const gchar *bus_name = tp_proxy_get_bus_name (proxy);
+
+    if (error != NULL)
+    {
+        DEBUG ("Error getting Interfaces for Client %s, assuming none: "
+               "%s %d %s", bus_name,
+               g_quark_to_string (error->domain), error->code, error->message);
+        return;
+    }
+
+    if (!G_VALUE_HOLDS (out_Value, G_TYPE_STRV))
+    {
+        DEBUG ("Wrong type getting Interfaces for Client %s, assuming none: "
+               "%s", bus_name, G_VALUE_TYPE_NAME (out_Value));
+        return;
+    }
+
+    client = g_hash_table_lookup (self->priv->clients, bus_name);
+
+    if (G_UNLIKELY (client == NULL))
+    {
+        DEBUG ("Client %s vanished while we were getting its interfaces",
+               bus_name);
+        return;
+    }
 
     arr = g_value_get_boxed (out_Value);
 
@@ -1874,35 +1963,26 @@ get_interfaces_cb (TpProxy *proxy,
         arr++;
     }
 
-    /* FIXME: refactor this stuff to use GetAll (also, I suspect it has a
-     * use-after-free if the client disappears after the D-Bus method call,
-     * but before we get a response) */
-
     client_add_interface_by_id (client);
     if (client->interfaces & MCD_CLIENT_APPROVER)
     {
         tp_cli_dbus_properties_call_get
             (client->proxy, -1, MC_IFACE_CLIENT_APPROVER,
              "ApproverChannelFilter", get_channel_filter_cb,
-             &client->approver_filters, NULL, G_OBJECT (self));
+             GUINT_TO_POINTER (MCD_CLIENT_APPROVER), NULL, G_OBJECT (self));
     }
     if (client->interfaces & MCD_CLIENT_HANDLER)
     {
-        tp_cli_dbus_properties_call_get
+        tp_cli_dbus_properties_call_get_all
             (client->proxy, -1, MC_IFACE_CLIENT_HANDLER,
-             "BypassApproval", get_bypass_approval_cb,
-             client, NULL, G_OBJECT (self));
-        tp_cli_dbus_properties_call_get
-            (client->proxy, -1, MC_IFACE_CLIENT_HANDLER,
-             "HandlerChannelFilter", get_channel_filter_cb,
-             &client->handler_filters, NULL, G_OBJECT (self));
+             handler_get_all_cb, NULL, NULL, G_OBJECT (self));
     }
     if (client->interfaces & MCD_CLIENT_OBSERVER)
     {
         tp_cli_dbus_properties_call_get
             (client->proxy, -1, MC_IFACE_CLIENT_OBSERVER,
              "ObserverChannelFilter", get_channel_filter_cb,
-             &client->observer_filters, NULL, G_OBJECT (self));
+             GUINT_TO_POINTER (MCD_CLIENT_OBSERVER), NULL, G_OBJECT (self));
     }
 }
 
@@ -2088,7 +2168,7 @@ create_mcd_client (McdDispatcher *self,
     {
         DEBUG ("No .client file for %s. Ask on D-Bus.", name);
         tp_cli_dbus_properties_call_get (client->proxy, -1,
-            MC_IFACE_CLIENT, "Interfaces", get_interfaces_cb, client,
+            MC_IFACE_CLIENT, "Interfaces", get_interfaces_cb, NULL,
             NULL, G_OBJECT (self));
     }
     else
