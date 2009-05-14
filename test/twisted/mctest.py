@@ -50,7 +50,8 @@ def install_colourer():
     return sys.stdout
 
 
-def exec_test_deferred (fun, params, protocol=None, timeout=None):
+def exec_test_deferred (fun, params, protocol=None, timeout=None,
+        preload_mc=True):
     colourer = None
 
     if sys.stdout.isatty():
@@ -63,7 +64,10 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None):
 
     bus = dbus.SessionBus()
     queue.attach_to_bus(bus)
-    mc = make_mc(bus, queue.append, params)
+    if preload_mc:
+        mc = make_mc(bus, queue.append, params)
+    else:
+        mc = None
     error = None
 
     try:
@@ -119,8 +123,9 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None):
     if colourer:
       sys.stdout = colourer.fh
 
-def exec_test(fun, params=None, protocol=None, timeout=None):
-  reactor.callWhenRunning (exec_test_deferred, fun, params, protocol, timeout)
+def exec_test(fun, params=None, protocol=None, timeout=None, preload_mc=True):
+  reactor.callWhenRunning (exec_test_deferred, fun, params, protocol, timeout,
+          preload_mc)
   reactor.run()
 
 class SimulatedConnection(object):
