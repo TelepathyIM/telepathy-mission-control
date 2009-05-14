@@ -25,7 +25,8 @@ TWISTED_BASIC_TESTS = \
 	test-connect.py
 
 TWISTED_SEPARATE_TESTS = \
-	crash-recovery/crash-recovery.py
+	crash-recovery/crash-recovery.py \
+	crash-recovery/client-crash-during-recovery.py
 
 # A debug version of the normal MC executable, which exits cleanly on
 # disconnection from D-Bus (so gcov info gets written out)
