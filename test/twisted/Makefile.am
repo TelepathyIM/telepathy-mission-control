@@ -77,6 +77,7 @@ check-twisted:
 	$(MAKE) -C tools
 	rm -f tools/core
 	rm -f tools/missioncontrol-*.log
+	rm -f accounts/accounts.cfg
 	env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) $(MAKE) check-TESTS \
 		TESTS='$$(TWISTED_BASIC_TESTS)' \
 		TESTS_ENVIRONMENT='$$(COMBINED_TESTS_ENVIRONMENT)'

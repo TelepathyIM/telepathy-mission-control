@@ -30,17 +30,6 @@ elif test -n "$MISSIONCONTROL_TEST_REFDBG"; then
         fi
 fi
 
-# Delete previous Mission Control accounts
-if [ -f "@abs_top_builddir@/test/twisted/accounts/accounts.cfg" ] ; then
-        echo "Delete @abs_top_builddir@/test/twisted/accounts/accounts.cfg"
-        rm -f -- "@abs_top_builddir@/test/twisted/accounts/accounts.cfg"
-fi
-if [ -e "@abs_top_builddir@/test/twisted/accounts/accounts.cfg" ] ; then
-        echo "Error: accounts.cfg file exists:"
-        echo "@abs_top_builddir@/test/twisted/accounts/accounts.cfg"
-        exit 1
-fi
-
 exec @abs_top_builddir@/libtool --mode=execute \
         $MISSIONCONTROL_WRAPPER \
         @abs_top_builddir@/test/twisted/mc-debug-server
