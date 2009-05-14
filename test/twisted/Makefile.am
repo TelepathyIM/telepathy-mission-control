@@ -41,7 +41,16 @@ INCLUDES = \
 TESTS =
 
 TESTS_ENVIRONMENT = \
-	PYTHONPATH=@abs_top_srcdir@/test/twisted:@abs_top_builddir@/test/twisted
+	PYTHONPATH=@abs_top_srcdir@/test/twisted:@abs_top_builddir@/test/twisted \
+	MC_DEBUG=2 \
+	MC_TP_DEBUG=all \
+	MC_CHANDLERS_DIR=@abs_top_builddir@/test/twisted/chandlers \
+	MC_ACCOUNT_DIR=@abs_top_builddir@/test/twisted/accounts \
+	XDG_DATA_HOME=@abs_top_builddir@/test/twisted \
+	XDG_DATA_DIRS=@abs_top_srcdir@/test/twisted \
+	MC_CLIENTS_DIR=@abs_top_builddir@/test/twisted/telepathy/clients \
+	MC_MANAGER_DIR=@abs_top_builddir@/test/twisted/telepathy/managers \
+	G_DEBUG=fatal_criticals
 
 if WANT_TWISTED_TESTS
   TWISTED_TESTS += $(TWISTED_BASIC_TESTS)
@@ -53,6 +62,7 @@ check-twisted:
 	$(MAKE) -C tools
 	rm -f tools/core
 	rm -f tools/missioncontrol-*.log
+	env $(TESTS_ENVIRONMENT) \
 	sh $(srcdir)/tools/with-session-bus.sh --config-file=tools/tmp-session-bus.conf -- $(MAKE) check-TESTS \
 		TESTS="$(TWISTED_TESTS)" \
 		TESTS_ENVIRONMENT="$(TESTS_ENVIRONMENT) $(TEST_PYTHON)"
