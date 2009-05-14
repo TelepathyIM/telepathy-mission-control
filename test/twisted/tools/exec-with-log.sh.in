@@ -19,7 +19,7 @@ export G_DEBUG=fatal_criticals
 #export MC_PROFILE_DIR=
 
 ulimit -c unlimited
-exec > missioncontrol-testing.log 2>&1
+exec > missioncontrol-$$.log 2>&1
 
 if test -n "$MISSIONCONTROL_TEST_VALGRIND"; then
 	export G_DEBUG=gc-friendly
