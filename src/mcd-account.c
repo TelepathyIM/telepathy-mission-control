@@ -1568,23 +1568,40 @@ account_iface_init (McSvcAccountClass *iface, gpointer iface_data)
 }
 
 static void
-register_dbus_service (McdAccount *account)
+register_dbus_service (McdAccount *self,
+                       const GError *error,
+                       gpointer unused G_GNUC_UNUSED)
 {
-    McdAccountPrivate *priv = account->priv;
     DBusGConnection *dbus_connection;
     TpDBusDaemon *dbus_daemon;
 
-    if (!priv->account_manager || !priv->object_path) return;
+    if (error != NULL)
+    {
+        /* due to some tangled error handling, the McdAccount might already
+         * have been freed by the time we get here, so it's no longer safe to
+         * dereference self here! */
+        DEBUG ("%p failed to load: %s code %d: %s", self,
+               g_quark_to_string (error->domain), error->code, error->message);
+        return;
+    }
 
-    dbus_daemon = mcd_account_manager_get_dbus_daemon (priv->account_manager);
+    g_assert (MCD_IS_ACCOUNT (self));
+    /* these are invariants - the account manager is set at construct-time
+     * and the object path is set in mcd_account_setup, both of which are
+     * run before this callback can possibly be invoked */
+    g_assert (self->priv->account_manager != NULL);
+    g_assert (self->priv->object_path != NULL);
+
+    dbus_daemon = mcd_account_manager_get_dbus_daemon (
+        self->priv->account_manager);
     g_return_if_fail (dbus_daemon != NULL);
 
     dbus_connection = TP_PROXY (dbus_daemon)->dbus_connection;
 
     if (G_LIKELY (dbus_connection))
 	dbus_g_connection_register_g_object (dbus_connection,
-					     priv->object_path,
-					     (GObject *)account);
+					     self->priv->object_path,
+					     (GObject *) self);
 }
 
 static gboolean
@@ -1640,7 +1657,7 @@ mcd_account_setup (McdAccount *account)
         mcd_account_loaded (account);
     }
 
-    _mcd_account_load (account, (McdAccountLoadCb)register_dbus_service, NULL);
+    _mcd_account_load (account, register_dbus_service, NULL);
     return TRUE;
 }
 
