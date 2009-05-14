@@ -336,6 +336,8 @@ mcd_client_free (McdClient *client)
                     (GFunc)g_hash_table_destroy, NULL);
     g_list_foreach (client->observer_filters,
                     (GFunc)g_hash_table_destroy, NULL);
+
+    g_slice_free (McdClient, client);
 }
 
 static GList *
