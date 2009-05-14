@@ -235,12 +235,18 @@ _mcd_object_ready (gpointer object, GQuark quark, const GError *error)
 {
     McdReadyData *rd;
 
-    rd = g_object_get_qdata ((GObject *)object, quark);
+    /* steal the qdata so the callbacks won't be invoked again, even if the
+     * object becomes ready or is finalized while still invoking them */
+    rd = g_object_steal_qdata ((GObject *)object, quark);
     if (!rd) return;
+
+    g_object_ref (object);
 
     mcd_object_invoke_ready_callbacks (rd, error);
     rd->strukt = NULL; /* so the callbacks won't be invoked again */
-    g_object_set_qdata ((GObject *)object, quark, NULL);
+    mcd_ready_data_free (rd);
+
+    g_object_unref (object);
 }
 
 
