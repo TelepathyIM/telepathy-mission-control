@@ -51,6 +51,7 @@ BASIC_TESTS_ENVIRONMENT = \
 	MC_ACCOUNT_DIR=@abs_top_builddir@/test/twisted/accounts \
 	XDG_DATA_HOME=@abs_top_builddir@/test/twisted \
 	XDG_DATA_DIRS=@abs_top_srcdir@/test/twisted \
+	XDG_CACHE_DIR=@abs_top_builddir@/test/twisted \
 	MC_CLIENTS_DIR=@abs_top_builddir@/test/twisted/telepathy/clients \
 	MC_MANAGER_DIR=@abs_top_builddir@/test/twisted/telepathy/managers \
 	G_DEBUG=fatal_criticals

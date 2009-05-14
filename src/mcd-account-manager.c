@@ -968,6 +968,24 @@ mcd_account_manager_class_init (McdAccountManagerClass *klass)
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 }
 
+static const gchar *
+get_connections_cache_dir (void)
+{
+    const gchar *from_env = g_getenv ("MC_ACCOUNT_DIR");
+
+    if (from_env != NULL)
+    {
+        return from_env;
+    }
+
+    if ((ACCOUNTS_CACHE_DIR)[0] != '\0')
+    {
+        return ACCOUNTS_CACHE_DIR;
+    }
+
+    return g_get_user_cache_dir ();
+}
+
 static void
 mcd_account_manager_init (McdAccountManager *account_manager)
 {
@@ -984,7 +1002,8 @@ mcd_account_manager_init (McdAccountManager *account_manager)
 					    NULL, unref_account);
 
     priv->account_connections_file =
-        g_build_filename (g_get_tmp_dir (), ".mc_connections", NULL);
+        g_build_filename (get_connections_cache_dir (), ".mc_connections",
+                          NULL);
 
     priv->keyfile = g_key_file_new ();
     conf_filename = get_account_conf_filename ();
