@@ -326,7 +326,14 @@ static void
 mcd_client_free (McdClient *client)
 {
     if (client->proxy)
+    {
+        GError error = { TP_DBUS_ERRORS,
+            TP_DBUS_ERROR_NAME_OWNER_LOST, "Client disappeared" };
+
+        _mcd_object_ready (client->proxy, client_ready_quark, &error);
+
         g_object_unref (client->proxy);
+    }
 
     g_free (client->name);
 
