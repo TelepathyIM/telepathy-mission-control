@@ -305,7 +305,8 @@ add_account (McdAccountManager *account_manager, McdAccount *account)
     const gchar *name;
 
     name = mcd_account_get_unique_name (account);
-    g_hash_table_insert (priv->accounts, (gchar *)name, account);
+    g_hash_table_insert (priv->accounts, (gchar *)name,
+                         g_object_ref (account));
 
     /* if we have to connect to any signals from the account object, this is
      * the place to do it */
@@ -415,21 +416,34 @@ complete_account_creation (McdAccount *account,
 
     if (ok)
     {
-	add_account (account_manager, account);
-	mcd_account_check_validity (account);
+        add_account (account_manager, account);
+
+        if (!mcd_account_check_validity (account))
+        {
+            ok = FALSE;
+            g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                         "The supplied CM parameters were not valid");
+        }
     }
-    else
+
+    if (!ok)
     {
-	mcd_account_delete (account, NULL);
-	g_object_unref (account);
-	account = NULL;
+        mcd_account_delete (account, NULL);
+        g_object_unref (account);
+        account = NULL;
     }
+
     mcd_account_manager_write_conf (account_manager);
 
     cad->callback (account_manager, account, error, cad->user_data);
     if (G_UNLIKELY (error))
         g_error_free (error);
     mcd_create_account_data_free (cad);
+
+    if (account != NULL)
+    {
+        g_object_unref (account);
+    }
 }
 
 static gchar *
@@ -831,6 +845,7 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
         lad->account_lock++;
         add_account (lad->account_manager, account);
         _mcd_account_load (account, account_loaded, lad);
+        g_object_unref (account);
     }
     g_strfreev (accounts);
 
