@@ -227,8 +227,10 @@ mcd_account_loaded (McdAccount *account)
     account->priv->loaded = TRUE;
 
     /* invoke all the callbacks */
+    g_object_ref (account);
     _mcd_object_ready (account, account_ready_quark, NULL);
     _mcd_account_maybe_autoconnect (account);
+    g_object_unref (account);
 }
 
 static void
