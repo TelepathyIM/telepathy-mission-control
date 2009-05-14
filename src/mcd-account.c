@@ -415,13 +415,23 @@ _mcd_account_delete (McdAccount *account, GError **error)
     McdAccountPrivate *priv = account->priv;
     gchar *data_dir_str;
     GDir *data_dir;
+    GError *kf_error = NULL;
 
-    g_key_file_remove_group (priv->keyfile, priv->unique_name, error);
-    if (error && *error)
+    if (!g_key_file_remove_group (priv->keyfile, priv->unique_name,
+                                  &kf_error))
     {
-        g_warning ("Could not remove GConf dir (%s)",
-                   error ? (*error)->message : "");
-        return FALSE;
+        if (kf_error->domain == G_KEY_FILE_ERROR &&
+            kf_error->code == G_KEY_FILE_ERROR_GROUP_NOT_FOUND)
+        {
+            DEBUG ("account not found in key file, doing nothing");
+            g_clear_error (&kf_error);
+        }
+        else
+        {
+            g_warning ("Could not remove group (%s)", kf_error->message);
+            g_propagate_error (error, kf_error);
+            return FALSE;
+        }
     }
 
     data_dir_str = get_account_data_path (priv);
