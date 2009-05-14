@@ -1694,7 +1694,7 @@ _mcd_account_finalize (GObject *object)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (object);
 
-    DEBUG ("called for %s", priv->unique_name);
+    DEBUG ("%p (%s)", object, priv->unique_name);
     if (priv->changed_properties)
 	g_hash_table_destroy (priv->changed_properties);
     if (priv->property_values)
@@ -1725,7 +1725,7 @@ _mcd_account_dispose (GObject *object)
     McdAccount *self = MCD_ACCOUNT (object);
     McdAccountPrivate *priv = self->priv;
 
-    DEBUG ("called for %s", priv->unique_name);
+    DEBUG ("%p (%s)", object, priv->unique_name);
     if (priv->online_requests)
     {
         GError *error;
@@ -1783,6 +1783,8 @@ _mcd_account_constructed (GObject *object)
 {
     GObjectClass *object_class = (GObjectClass *)mcd_account_parent_class;
     McdAccount *account = MCD_ACCOUNT (object);
+
+    DEBUG ("%p (%s)", object, account->priv->unique_name);
 
     mcd_account_setup (account);
 
