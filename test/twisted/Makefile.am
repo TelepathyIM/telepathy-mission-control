@@ -24,6 +24,9 @@ TWISTED_BASIC_TESTS = \
 	test-account.py \
 	test-connect.py
 
+TWISTED_SEPARATE_TESTS = \
+	do-nothing.py
+
 # A debug version of the normal MC executable, which exits cleanly on
 # disconnection from D-Bus (so gcov info gets written out)
 noinst_PROGRAMS = mc-debug-server
@@ -40,7 +43,7 @@ INCLUDES = \
 
 TESTS =
 
-TESTS_ENVIRONMENT = \
+BASIC_TESTS_ENVIRONMENT = \
 	PYTHONPATH=@abs_top_srcdir@/test/twisted:@abs_top_builddir@/test/twisted \
 	MC_DEBUG=2 \
 	MC_TP_DEBUG=all \
@@ -52,20 +55,33 @@ TESTS_ENVIRONMENT = \
 	MC_MANAGER_DIR=@abs_top_builddir@/test/twisted/telepathy/managers \
 	G_DEBUG=fatal_criticals
 
-if WANT_TWISTED_TESTS
-  TWISTED_TESTS += $(TWISTED_BASIC_TESTS)
-endif
+WITH_SESSION_BUS = \
+	sh $(srcdir)/tools/with-session-bus.sh \
+	--config-file=tools/tmp-session-bus.conf --
 
+COMBINED_TESTS_ENVIRONMENT = \
+	$(BASIC_TESTS_ENVIRONMENT) \
+	$(TEST_PYTHON)
+
+SEPARATE_TESTS_ENVIRONMENT = \
+	$(BASIC_TESTS_ENVIRONMENT) \
+	$(WITH_SESSION_BUS) \
+	$(TEST_PYTHON)
+
+if WANT_TWISTED_TESTS
 check-local: check-twisted
+endif
 
 check-twisted:
 	$(MAKE) -C tools
 	rm -f tools/core
 	rm -f tools/missioncontrol-*.log
-	env $(TESTS_ENVIRONMENT) \
-	sh $(srcdir)/tools/with-session-bus.sh --config-file=tools/tmp-session-bus.conf -- $(MAKE) check-TESTS \
-		TESTS="$(TWISTED_TESTS)" \
-		TESTS_ENVIRONMENT="$(TESTS_ENVIRONMENT) $(TEST_PYTHON)"
+	env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) $(MAKE) check-TESTS \
+		TESTS='$$(TWISTED_BASIC_TESTS)' \
+		TESTS_ENVIRONMENT='$$(COMBINED_TESTS_ENVIRONMENT)'
+	$(MAKE) check-TESTS \
+		TESTS='$$(TWISTED_SEPARATE_TESTS)' \
+		TESTS_ENVIRONMENT='$$(SEPARATE_TESTS_ENVIRONMENT)'
 	@if test -e tools/core; then\
 		echo "Core dump exists: tools/core";\
 		exit 1;\
