@@ -140,6 +140,7 @@ struct _McdAccountPrivate
     guint loaded : 1;
     guint has_been_online : 1;
     guint temporary_presence : 1;
+    guint removed : 1;
 
     /* These fields are used to cache the changed properties */
     GHashTable *changed_properties;
@@ -1238,12 +1239,13 @@ mcd_account_delete (McdAccount *account, GError **error)
 }
 
 static void
-account_remove (McSvcAccount *self, DBusGMethodInvocation *context)
+account_remove (McSvcAccount *svc, DBusGMethodInvocation *context)
 {
+    McdAccount *self = MCD_ACCOUNT (svc);
     GError *error = NULL;
 
     DEBUG ("called");
-    if (!mcd_account_delete (MCD_ACCOUNT (self), &error))
+    if (!mcd_account_delete (self, &error))
     {
 	if (!error)
 	    g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
@@ -1252,7 +1254,13 @@ account_remove (McSvcAccount *self, DBusGMethodInvocation *context)
 	g_error_free (error);
 	return;
     }
-    mc_svc_account_emit_removed (self);
+
+    if (!self->priv->removed)
+    {
+        self->priv->removed = TRUE;
+        mc_svc_account_emit_removed (self);
+    }
+
     mc_svc_account_return_from_remove (context);
 }
 
@@ -1745,6 +1753,13 @@ _mcd_account_dispose (GObject *object)
     McdAccountPrivate *priv = self->priv;
 
     DEBUG ("%p (%s)", object, priv->unique_name);
+
+    if (!self->priv->removed)
+    {
+        self->priv->removed = TRUE;
+        mc_svc_account_emit_removed (self);
+    }
+
     if (priv->online_requests)
     {
         GError *error;
