@@ -354,7 +354,7 @@ def aasv(x):
 class SimulatedClient(object):
     def __init__(self, q, bus, clientname,
             observe=[], approve=[], handle=[], bypass_approval=False,
-            request_notification=True):
+            request_notification=True, implement_get_interfaces=True):
         self.q = q
         self.bus = bus
         self.bus_name = '.'.join([cs.tp_name_prefix, 'Client', clientname])
@@ -367,12 +367,13 @@ class SimulatedClient(object):
         self.request_notification = bool(request_notification)
         self.handled_channels = dbus.Array([], signature='o')
 
-        q.add_dbus_method_impl(self.Get_Interfaces,
-                path=self.object_path, interface=cs.PROPERTIES_IFACE,
-                method='Get', args=[cs.CLIENT, 'Interfaces'])
-        q.add_dbus_method_impl(self.GetAll_Client, path=self.object_path,
-                interface=cs.PROPERTIES_IFACE, method='GetAll',
-                args=[cs.CLIENT])
+        if implement_get_interfaces:
+            q.add_dbus_method_impl(self.Get_Interfaces,
+                    path=self.object_path, interface=cs.PROPERTIES_IFACE,
+                    method='Get', args=[cs.CLIENT, 'Interfaces'])
+            q.add_dbus_method_impl(self.GetAll_Client, path=self.object_path,
+                    interface=cs.PROPERTIES_IFACE, method='GetAll',
+                    args=[cs.CLIENT])
 
         q.add_dbus_method_impl(self.Get_ObserverChannelFilter,
                 path=self.object_path, interface=cs.PROPERTIES_IFACE,
@@ -542,7 +543,7 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
 
     return conn
 
-def expect_client_setup(q, clients):
+def expect_client_setup(q, clients, got_interfaces_already=False):
     patterns = []
 
     def is_client_setup(e):
@@ -577,10 +578,11 @@ def expect_client_setup(q, clients):
         return False
 
     for client in clients:
-        patterns.append(servicetest.EventPattern('dbus-method-call',
-            interface=cs.PROPERTIES_IFACE,
-            path=client.object_path, handled=True,
-            predicate=is_client_setup))
+        if not got_interfaces_already:
+            patterns.append(servicetest.EventPattern('dbus-method-call',
+                interface=cs.PROPERTIES_IFACE,
+                path=client.object_path, handled=True,
+                predicate=is_client_setup))
 
         if client.observe:
             patterns.append(servicetest.EventPattern('dbus-method-call',
