@@ -305,7 +305,8 @@ add_account (McdAccountManager *account_manager, McdAccount *account)
     const gchar *name;
 
     name = mcd_account_get_unique_name (account);
-    g_hash_table_insert (priv->accounts, (gchar *)name, account);
+    g_hash_table_insert (priv->accounts, (gchar *)name,
+                         g_object_ref (account));
 
     /* if we have to connect to any signals from the account object, this is
      * the place to do it */
@@ -415,21 +416,34 @@ complete_account_creation (McdAccount *account,
 
     if (ok)
     {
-	add_account (account_manager, account);
-	mcd_account_check_validity (account);
+        add_account (account_manager, account);
+
+        if (!mcd_account_check_validity (account))
+        {
+            ok = FALSE;
+            g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                         "The supplied CM parameters were not valid");
+        }
     }
-    else
+
+    if (!ok)
     {
-	mcd_account_delete (account, NULL);
-	g_object_unref (account);
-	account = NULL;
+        mcd_account_delete (account, NULL);
+        g_object_unref (account);
+        account = NULL;
     }
+
     mcd_account_manager_write_conf (account_manager);
 
     cad->callback (account_manager, account, error, cad->user_data);
     if (G_UNLIKELY (error))
         g_error_free (error);
     mcd_create_account_data_free (cad);
+
+    if (account != NULL)
+    {
+        g_object_unref (account);
+    }
 }
 
 static gchar *
@@ -831,6 +845,7 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
         lad->account_lock++;
         add_account (lad->account_manager, account);
         _mcd_account_load (account, account_loaded, lad);
+        g_object_unref (account);
     }
     g_strfreev (accounts);
 
@@ -953,6 +968,24 @@ mcd_account_manager_class_init (McdAccountManagerClass *klass)
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 }
 
+static const gchar *
+get_connections_cache_dir (void)
+{
+    const gchar *from_env = g_getenv ("MC_ACCOUNT_DIR");
+
+    if (from_env != NULL)
+    {
+        return from_env;
+    }
+
+    if ((ACCOUNTS_CACHE_DIR)[0] != '\0')
+    {
+        return ACCOUNTS_CACHE_DIR;
+    }
+
+    return g_get_user_cache_dir ();
+}
+
 static void
 mcd_account_manager_init (McdAccountManager *account_manager)
 {
@@ -969,7 +1002,8 @@ mcd_account_manager_init (McdAccountManager *account_manager)
 					    NULL, unref_account);
 
     priv->account_connections_file =
-        g_build_filename (g_get_tmp_dir (), ".mc_connections", NULL);
+        g_build_filename (get_connections_cache_dir (), ".mc_connections",
+                          NULL);
 
     priv->keyfile = g_key_file_new ();
     conf_filename = get_account_conf_filename ();

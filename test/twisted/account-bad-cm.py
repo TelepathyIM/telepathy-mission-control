@@ -1,6 +1,5 @@
-print "Skipping test that is known to fail:"
-print "    http://bugs.freedesktop.org/show_bug.cgi?id=20880"
-raise SystemExit(77)
+"""Regression test for https://bugs.freedesktop.org/show_bug.cgi?id=20880
+"""
 
 import dbus
 

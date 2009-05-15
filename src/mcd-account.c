@@ -140,6 +140,7 @@ struct _McdAccountPrivate
     guint loaded : 1;
     guint has_been_online : 1;
     guint temporary_presence : 1;
+    guint removed : 1;
 
     /* These fields are used to cache the changed properties */
     GHashTable *changed_properties;
@@ -227,8 +228,10 @@ mcd_account_loaded (McdAccount *account)
     account->priv->loaded = TRUE;
 
     /* invoke all the callbacks */
+    g_object_ref (account);
     _mcd_object_ready (account, account_ready_quark, NULL);
     _mcd_account_maybe_autoconnect (account);
+    g_object_unref (account);
 }
 
 static void
@@ -412,13 +415,23 @@ _mcd_account_delete (McdAccount *account, GError **error)
     McdAccountPrivate *priv = account->priv;
     gchar *data_dir_str;
     GDir *data_dir;
+    GError *kf_error = NULL;
 
-    g_key_file_remove_group (priv->keyfile, priv->unique_name, error);
-    if (error && *error)
+    if (!g_key_file_remove_group (priv->keyfile, priv->unique_name,
+                                  &kf_error))
     {
-        g_warning ("Could not remove GConf dir (%s)",
-                   error ? (*error)->message : "");
-        return FALSE;
+        if (kf_error->domain == G_KEY_FILE_ERROR &&
+            kf_error->code == G_KEY_FILE_ERROR_GROUP_NOT_FOUND)
+        {
+            DEBUG ("account not found in key file, doing nothing");
+            g_clear_error (&kf_error);
+        }
+        else
+        {
+            g_warning ("Could not remove group (%s)", kf_error->message);
+            g_propagate_error (error, kf_error);
+            return FALSE;
+        }
     }
 
     data_dir_str = get_account_data_path (priv);
@@ -1236,12 +1249,13 @@ mcd_account_delete (McdAccount *account, GError **error)
 }
 
 static void
-account_remove (McSvcAccount *self, DBusGMethodInvocation *context)
+account_remove (McSvcAccount *svc, DBusGMethodInvocation *context)
 {
+    McdAccount *self = MCD_ACCOUNT (svc);
     GError *error = NULL;
 
     DEBUG ("called");
-    if (!mcd_account_delete (MCD_ACCOUNT (self), &error))
+    if (!mcd_account_delete (self, &error))
     {
 	if (!error)
 	    g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
@@ -1250,7 +1264,13 @@ account_remove (McSvcAccount *self, DBusGMethodInvocation *context)
 	g_error_free (error);
 	return;
     }
-    mc_svc_account_emit_removed (self);
+
+    if (!self->priv->removed)
+    {
+        self->priv->removed = TRUE;
+        mc_svc_account_emit_removed (self);
+    }
+
     mc_svc_account_return_from_remove (context);
 }
 
@@ -1566,23 +1586,40 @@ account_iface_init (McSvcAccountClass *iface, gpointer iface_data)
 }
 
 static void
-register_dbus_service (McdAccount *account)
+register_dbus_service (McdAccount *self,
+                       const GError *error,
+                       gpointer unused G_GNUC_UNUSED)
 {
-    McdAccountPrivate *priv = account->priv;
     DBusGConnection *dbus_connection;
     TpDBusDaemon *dbus_daemon;
 
-    if (!priv->account_manager || !priv->object_path) return;
+    if (error != NULL)
+    {
+        /* due to some tangled error handling, the McdAccount might already
+         * have been freed by the time we get here, so it's no longer safe to
+         * dereference self here! */
+        DEBUG ("%p failed to load: %s code %d: %s", self,
+               g_quark_to_string (error->domain), error->code, error->message);
+        return;
+    }
 
-    dbus_daemon = mcd_account_manager_get_dbus_daemon (priv->account_manager);
+    g_assert (MCD_IS_ACCOUNT (self));
+    /* these are invariants - the account manager is set at construct-time
+     * and the object path is set in mcd_account_setup, both of which are
+     * run before this callback can possibly be invoked */
+    g_assert (self->priv->account_manager != NULL);
+    g_assert (self->priv->object_path != NULL);
+
+    dbus_daemon = mcd_account_manager_get_dbus_daemon (
+        self->priv->account_manager);
     g_return_if_fail (dbus_daemon != NULL);
 
     dbus_connection = TP_PROXY (dbus_daemon)->dbus_connection;
 
     if (G_LIKELY (dbus_connection))
 	dbus_g_connection_register_g_object (dbus_connection,
-					     priv->object_path,
-					     (GObject *)account);
+					     self->priv->object_path,
+					     (GObject *) self);
 }
 
 static gboolean
@@ -1638,7 +1675,7 @@ mcd_account_setup (McdAccount *account)
         mcd_account_loaded (account);
     }
 
-    _mcd_account_load (account, (McdAccountLoadCb)register_dbus_service, NULL);
+    _mcd_account_load (account, register_dbus_service, NULL);
     return TRUE;
 }
 
@@ -1694,7 +1731,7 @@ _mcd_account_finalize (GObject *object)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (object);
 
-    DEBUG ("called for %s", priv->unique_name);
+    DEBUG ("%p (%s)", object, priv->unique_name);
     if (priv->changed_properties)
 	g_hash_table_destroy (priv->changed_properties);
     if (priv->property_values)
@@ -1725,7 +1762,14 @@ _mcd_account_dispose (GObject *object)
     McdAccount *self = MCD_ACCOUNT (object);
     McdAccountPrivate *priv = self->priv;
 
-    DEBUG ("called for %s", priv->unique_name);
+    DEBUG ("%p (%s)", object, priv->unique_name);
+
+    if (!self->priv->removed)
+    {
+        self->priv->removed = TRUE;
+        mc_svc_account_emit_removed (self);
+    }
+
     if (priv->online_requests)
     {
         GError *error;
@@ -1783,6 +1827,8 @@ _mcd_account_constructed (GObject *object)
 {
     GObjectClass *object_class = (GObjectClass *)mcd_account_parent_class;
     McdAccount *account = MCD_ACCOUNT (object);
+
+    DEBUG ("%p (%s)", object, account->priv->unique_name);
 
     mcd_account_setup (account);
 

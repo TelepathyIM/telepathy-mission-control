@@ -71,10 +71,11 @@ tags
 /telepathy-mission-control-5*
 test/mc-client
 test/twisted/with-session-bus-*.dbus-monitor-logs
-test/twisted/accounts/accounts.cfg
+/test/twisted/accounts/.mc_connections
+/test/twisted/accounts/accounts.cfg
 /test/twisted/mc-debug-server
 test/twisted/tools/exec-with-log.sh
-test/twisted/tools/missioncontrol-testing.log
+test/twisted/tools/missioncontrol-*.log
 test/twisted/tools/org.freedesktop.Telepathy.MissionControl.service
 test/twisted/tools/tmp-session-bus.conf
 util/mc-account-convert

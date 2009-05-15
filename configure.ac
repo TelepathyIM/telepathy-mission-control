@@ -150,6 +150,16 @@ AC_SUBST(ACCOUNTS_DIR)
 AC_DEFINE_UNQUOTED(ACCOUNTS_DIR,"$ACCOUNTS_DIR", [Directory for storing accounts])
 
 
+AC_ARG_WITH(accounts_cache_dir, AS_HELP_STRING([--with-accounts-cache-dir=<path>],[Directory for account/connection mapping for crash recovery]))
+if test -z "$with_accounts_dir" ; then
+    ACCOUNTS_CACHE_DIR=""
+else
+    ACCOUNTS_CACHE_DIR=$with_accounts_dir
+fi
+AC_SUBST(ACCOUNTS_CACHE_DIR)
+AC_DEFINE_UNQUOTED(ACCOUNTS_CACHE_DIR,"$ACCOUNTS_CACHE_DIR", [Directory for account/connection mapping for crash recovery])
+
+
 AC_ARG_WITH(chandlers_dir, AS_HELP_STRING([--with-chandlers-dir=<path>],[Directory for channel handlers]))
 if test -z "$with_chandlers_dir" ; then
     CHANDLERS_DIR="telepathy/managers"

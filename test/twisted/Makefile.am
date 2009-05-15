@@ -24,6 +24,10 @@ TWISTED_BASIC_TESTS = \
 	test-account.py \
 	test-connect.py
 
+TWISTED_SEPARATE_TESTS = \
+	crash-recovery/crash-recovery.py \
+	crash-recovery/client-crash-during-recovery.py
+
 # A debug version of the normal MC executable, which exits cleanly on
 # disconnection from D-Bus (so gcov info gets written out)
 noinst_PROGRAMS = mc-debug-server
@@ -40,21 +44,47 @@ INCLUDES = \
 
 TESTS =
 
-TESTS_ENVIRONMENT = \
-	PYTHONPATH=@abs_top_srcdir@/test/twisted:@abs_top_builddir@/test/twisted
+BASIC_TESTS_ENVIRONMENT = \
+	PYTHONPATH=@abs_top_srcdir@/test/twisted:@abs_top_builddir@/test/twisted \
+	MC_DEBUG=2 \
+	MC_TP_DEBUG=all \
+	MC_CHANDLERS_DIR=@abs_top_builddir@/test/twisted/chandlers \
+	MC_ACCOUNT_DIR=@abs_top_builddir@/test/twisted/accounts \
+	XDG_DATA_HOME=@abs_top_builddir@/test/twisted \
+	XDG_DATA_DIRS=@abs_top_srcdir@/test/twisted \
+	XDG_CACHE_DIR=@abs_top_builddir@/test/twisted \
+	MC_CLIENTS_DIR=@abs_top_builddir@/test/twisted/telepathy/clients \
+	MC_MANAGER_DIR=@abs_top_builddir@/test/twisted/telepathy/managers \
+	G_DEBUG=fatal_criticals
+
+WITH_SESSION_BUS = \
+	sh $(srcdir)/tools/with-session-bus.sh \
+	--config-file=tools/tmp-session-bus.conf --
+
+COMBINED_TESTS_ENVIRONMENT = \
+	$(BASIC_TESTS_ENVIRONMENT) \
+	$(TEST_PYTHON)
+
+SEPARATE_TESTS_ENVIRONMENT = \
+	$(BASIC_TESTS_ENVIRONMENT) \
+	$(WITH_SESSION_BUS) \
+	$(TEST_PYTHON)
 
 if WANT_TWISTED_TESTS
-  TWISTED_TESTS += $(TWISTED_BASIC_TESTS)
-endif
-
 check-local: check-twisted
+endif
 
 check-twisted:
 	$(MAKE) -C tools
 	rm -f tools/core
-	sh $(srcdir)/tools/with-session-bus.sh --config-file=tools/tmp-session-bus.conf -- $(MAKE) check-TESTS \
-		TESTS="$(TWISTED_TESTS)" \
-		TESTS_ENVIRONMENT="$(TESTS_ENVIRONMENT) $(TEST_PYTHON)"
+	rm -f tools/missioncontrol-*.log
+	rm -f accounts/accounts.cfg
+	env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) $(MAKE) check-TESTS \
+		TESTS='$$(TWISTED_BASIC_TESTS)' \
+		TESTS_ENVIRONMENT='$$(COMBINED_TESTS_ENVIRONMENT)'
+	$(MAKE) check-TESTS \
+		TESTS='$$(TWISTED_SEPARATE_TESTS)' \
+		TESTS_ENVIRONMENT='$$(SEPARATE_TESTS_ENVIRONMENT)'
 	@if test -e tools/core; then\
 		echo "Core dump exists: tools/core";\
 		exit 1;\
