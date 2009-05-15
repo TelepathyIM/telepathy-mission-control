@@ -114,8 +114,9 @@ struct _McdConnectionPrivate
     guint has_contact_capabilities_if : 1;
     guint has_requests_if : 1;
 
-    /* FALSE until the connection is ready for dispatching */
-    guint can_dispatch : 1;
+    /* FALSE until channels announced by NewChannel/NewChannels need to be
+     * dispatched */
+    guint dispatched_initial_channels : 1;
 
     /* FALSE until we got the first PresencesChanged for the self handle */
     guint got_presences_changed : 1;
@@ -475,7 +476,7 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
     if (suppress_handler) return;
 
     /* It's an incoming channel, so we create a new McdChannel for it */
-    if (priv->can_dispatch)
+    if (priv->dispatched_initial_channels)
     {
         channel = mcd_channel_new_from_path (proxy,
                                              chan_obj_path,
@@ -1111,9 +1112,9 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
         }
     }
 
-    /* we can completely ignore the channels that arrive while can_dispatch is
+    /* we can completely ignore the channels that arrive while this is
      * FALSE: they'll also be in Channels in the GetAll(Requests) result */
-    if (!priv->can_dispatch) return;
+    if (!priv->dispatched_initial_channels) return;
 
     /* first, check if we have to dispatch the channels at all */
     if (!MCD_CONNECTION_GET_CLASS (connection)->need_dispatch (connection,
@@ -1279,7 +1280,7 @@ static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
         mcd_connection_found_channel (connection, object_path, channel_props);
     }
 
-    priv->can_dispatch = TRUE;
+    priv->dispatched_initial_channels = TRUE;
 }
 
 static void
@@ -1345,7 +1346,7 @@ list_channels_cb (TpConnection *connection,
         g_hash_table_destroy (channel_props);
     }
 
-    self->priv->can_dispatch = TRUE;
+    self->priv->dispatched_initial_channels = TRUE;
 }
 
 static void
