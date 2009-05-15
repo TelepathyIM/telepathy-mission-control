@@ -140,7 +140,7 @@ class SimulatedConnection(object):
         return self._last_handle
 
     def __init__(self, q, bus, cmname, protocol, account_part, self_ident,
-            implement_get_interfaces=True):
+            implement_get_interfaces=True, has_requests=True):
         self.q = q
         self.bus = bus
 
@@ -157,6 +157,7 @@ class SimulatedConnection(object):
         self.self_ident = self_ident
         self.self_handle = self.ensure_handle(cs.HT_CONTACT, self_ident)
         self.channels = []
+        self.has_requests = has_requests
 
         q.add_dbus_method_impl(self.Connect,
                 path=self.object_path, interface=cs.CONN, method='Connect')
@@ -183,7 +184,12 @@ class SimulatedConnection(object):
 
     def GetInterfaces(self, e):
         # FIXME: when needed, allow altering this return somehow
-        self.q.dbus_return(e.message, [cs.CONN_IFACE_REQUESTS], signature='as')
+        interfaces = []
+
+        if self.has_requests:
+            interfaces.append(cs.CONN_IFACE_REQUESTS)
+
+        self.q.dbus_return(e.message, interfaces, signature='as')
 
     def Connect(self, e):
         self.StatusChanged(cs.CONN_STATUS_CONNECTING,
@@ -219,15 +225,30 @@ class SimulatedConnection(object):
         self.q.dbus_emit(self.object_path, cs.CONN, 'StatusChanged',
                 status, reason, signature='uu')
 
+    def ListChannels(self, e):
+        arr = dbus.Array(signature='(osuu)')
+
+        for c in self.channels:
+            arr.append(dbus.Struct(
+                (channel.object_path,
+                 channel.immutable[cs.CHANNEL + '.ChannelType'],
+                 channel.immutable.get(cs.CHANNEL + '.TargetHandleType', 0),
+                 channel.immutable.get(cs.CHANNEL + '.TargetHandle', 0)
+                ), signature='osuu'))
+
+        self.q.dbus_return(e.message, channels, signature='a(osuu)')
+
     def get_channel_details(self):
         return dbus.Array([(c.object_path, c.immutable)
             for c in self.channels], signature='(oa{sv})')
 
     def GetAll_Requests(self, e):
-        # FIXME: stub: assumes no channels
-        self.q.dbus_return(e.message, {
-            'Channels': self.get_channel_details(),
-        }, signature='a{sv}')
+        if self.has_requests:
+            self.q.dbus_return(e.message, {
+                'Channels': self.get_channel_details(),
+            }, signature='a{sv}')
+        else:
+            self.q.dbus_raise(e.message, cs.NOT_IMPLEMENTED, 'no Requests')
 
     def GetSelfHandle(self, e):
         self.q.dbus_return(e.message, self.self_handle, signature='u')
@@ -247,11 +268,12 @@ class SimulatedConnection(object):
                     channel.immutable.get(cs.CHANNEL + '.Requested', False),
                     signature='osuub')
 
-        self.q.dbus_emit(self.object_path, cs.CONN_IFACE_REQUESTS,
-                'NewChannels',
-                [(channel.object_path, channel.immutable)
-                    for channel in channels],
-                signature='a(oa{sv})')
+        if self.has_requests:
+            self.q.dbus_emit(self.object_path, cs.CONN_IFACE_REQUESTS,
+                    'NewChannels',
+                    [(channel.object_path, channel.immutable)
+                        for channel in channels],
+                    signature='a(oa{sv})')
 
 class SimulatedChannel(object):
     def __init__(self, conn, immutable, mutable={},
@@ -484,7 +506,8 @@ def create_fakecm_account(q, bus, mc, params):
 
     return (cm_name_ref, account)
 
-def enable_fakecm_account(q, bus, mc, account, expected_params):
+def enable_fakecm_account(q, bus, mc, account, expected_params,
+        has_requests=True):
     # Enable the account
     account.Set(cs.ACCOUNT, 'Enabled', True,
             dbus_interface=cs.PROPERTIES_IFACE)
@@ -503,7 +526,7 @@ def enable_fakecm_account(q, bus, mc, account, expected_params):
             handled=False)
 
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
-            'myself')
+            'myself', has_requests=has_requests)
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
@@ -511,12 +534,11 @@ def enable_fakecm_account(q, bus, mc, account, expected_params):
             path=conn.object_path, handled=True)
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
 
-    q.expect_many(
-            servicetest.EventPattern('dbus-method-call',
+    if has_requests:
+        q.expect('dbus-method-call',
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
                 args=[cs.CONN_IFACE_REQUESTS],
-                path=conn.object_path, handled=True),
-            )
+                path=conn.object_path, handled=True)
 
     return conn
 
