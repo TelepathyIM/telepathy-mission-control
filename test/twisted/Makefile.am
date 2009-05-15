@@ -15,6 +15,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/cancel.py \
 	dispatcher/capture-bundle.py \
 	dispatcher/create-text.py \
+	dispatcher/dispatch-obsolete.py \
 	dispatcher/dispatch-text.py \
 	dispatcher/exploding-bundles.py \
 	dispatcher/fdo-21034.py \
