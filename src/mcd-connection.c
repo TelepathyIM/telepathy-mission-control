@@ -1312,6 +1312,24 @@ static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
         object_path = g_value_get_boxed (va->values);
         channel_props = g_value_get_boxed (va->values + 1);
 
+        if (DEBUGGING)
+        {
+            GHashTableIter iter;
+            gpointer k, v;
+
+            DEBUG ("%s", object_path);
+
+            g_hash_table_iter_init (&iter, channel_props);
+
+            while (g_hash_table_iter_next (&iter, &k, &v))
+            {
+                gchar *repr = g_strdup_value_contents (v);
+
+                DEBUG("  \"%s\" => %s", (const gchar *) k, repr);
+                g_free (repr);
+            }
+        }
+
         mcd_connection_found_channel (connection, object_path, channel_props);
     }
 
