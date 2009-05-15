@@ -545,6 +545,10 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
                 args=[cs.CONN_IFACE_REQUESTS],
                 path=conn.object_path, handled=True)
+    else:
+        q.expect('dbus-method-call',
+                interface=cs.CONN, method='ListChannels', args=[],
+                path=conn.object_path, handled=True)
 
     return conn
 
