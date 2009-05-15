@@ -129,16 +129,6 @@ struct _McdConnectionPrivate
 
 typedef struct
 {
-    gchar *object_path;
-    gchar *channel_type;
-    TpHandle handle;
-    TpHandleType handle_type;
-} McdTmpChannelData;
-
-#define MCD_TMP_CHANNEL_DATA    "tmp_channel_data"
-
-typedef struct
-{
     TpConnectionPresenceType presence;
     guint may_set_on_self : 1;
     guint can_have_message : 1;
@@ -176,16 +166,6 @@ static GError * map_tp_error_to_mc_error (McdChannel *channel, const GError *tp_
 static void _mcd_connection_release_tp_connection (McdConnection *connection);
 static gboolean request_channel_new_iface (McdConnection *connection,
                                            McdChannel *channel);
-
-static void
-mcd_tmp_channel_data_free (gpointer data)
-{
-    McdTmpChannelData *tcd = data;
-
-    g_free (tcd->object_path);
-    g_free (tcd->channel_type);
-    g_slice_free (McdTmpChannelData, tcd);
-}
 
 static void
 mcd_presence_info_free (McdPresenceInfo *pi)
