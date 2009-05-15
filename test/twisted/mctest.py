@@ -182,6 +182,11 @@ class SimulatedConnection(object):
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
                 args=[cs.CONN_IFACE_REQUESTS])
 
+        if not has_requests:
+            q.add_dbus_method_impl(self.ListChannels,
+                    path=self.object_path, interface=cs.CONN,
+                    method='ListChannels')
+
     def GetInterfaces(self, e):
         # FIXME: when needed, allow altering this return somehow
         interfaces = []
@@ -230,13 +235,13 @@ class SimulatedConnection(object):
 
         for c in self.channels:
             arr.append(dbus.Struct(
-                (channel.object_path,
-                 channel.immutable[cs.CHANNEL + '.ChannelType'],
-                 channel.immutable.get(cs.CHANNEL + '.TargetHandleType', 0),
-                 channel.immutable.get(cs.CHANNEL + '.TargetHandle', 0)
+                (c.object_path,
+                 c.immutable[cs.CHANNEL + '.ChannelType'],
+                 c.immutable.get(cs.CHANNEL + '.TargetHandleType', 0),
+                 c.immutable.get(cs.CHANNEL + '.TargetHandle', 0)
                 ), signature='osuu'))
 
-        self.q.dbus_return(e.message, channels, signature='a(osuu)')
+        self.q.dbus_return(e.message, arr, signature='a(osuu)')
 
     def get_channel_details(self):
         return dbus.Array([(c.object_path, c.immutable)
