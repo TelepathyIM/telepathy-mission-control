@@ -202,6 +202,19 @@ struct _McdDispatcherPrivate
 
     McdMaster *master;
 
+    /* We don't want to start dispatching until startup has finished. This
+     * is defined as:
+     * - activatable clients have been enumerated (ListActivatableNames)
+     *   (1 lock)
+     * - running clients have been enumerated (ListNames) (1 lock)
+     * - each client found that way has been inspected (1 lock per client
+     *   for Interfaces, + 1 lock per client per subsequent Get/GetAll call)
+     * When nothing more is stopping us from dispatching channels, we start to
+     * do so.
+     * */
+    gsize startup_lock;
+    gboolean startup_completed;
+
     /* Initially FALSE, meaning we suppress OperationList.DispatchOperations
      * change notification signals because nobody has retrieved that property
      * yet. Set to TRUE the first time someone reads the DispatchOperations
@@ -1838,6 +1851,23 @@ mcd_client_set_filters (McdClient *client,
 }
 
 static void
+mcd_dispatcher_release_startup_lock (McdDispatcher *self)
+{
+    if (self->priv->startup_completed)
+        return;
+
+    g_assert (self->priv->startup_lock >= 1);
+
+    self->priv->startup_lock--;
+
+    if (self->priv->startup_lock == 0)
+    {
+        DEBUG ("All initial clients have been inspected");
+        self->priv->startup_completed = TRUE;
+    }
+}
+
+static void
 get_channel_filter_cb (TpProxy *proxy,
                        const GValue *value,
                        const GError *error,
@@ -1854,7 +1884,7 @@ get_channel_filter_cb (TpProxy *proxy,
     {
         DEBUG ("Client %s vanished while we were getting its Client filters",
                bus_name);
-        return;
+        goto finally;
     }
 
     if (error != NULL)
@@ -1862,18 +1892,20 @@ get_channel_filter_cb (TpProxy *proxy,
         DEBUG ("error getting a filter list for client %s: %s #%d: %s",
                tp_proxy_get_object_path (proxy),
                g_quark_to_string (error->domain), error->code, error->message);
-        return;
+        goto finally;
     }
 
     if (!G_VALUE_HOLDS (value, TP_ARRAY_TYPE_STRING_VARIANT_MAP_LIST))
     {
         DEBUG ("wrong type for filter property on client %s: %s",
                tp_proxy_get_object_path (proxy), G_VALUE_TYPE_NAME (value));
-        return;
+        goto finally;
     }
 
     mcd_client_set_filters (client, GPOINTER_TO_UINT (user_data),
                             g_value_get_boxed (value));
+finally:
+    mcd_dispatcher_release_startup_lock (self);
 }
 
 static void
@@ -1893,7 +1925,7 @@ handler_get_all_cb (TpProxy *proxy,
         DEBUG ("GetAll(Handler) for client %s failed: %s #%d: %s",
                bus_name, g_quark_to_string (error->domain), error->code,
                error->message);
-        return;
+        goto finally;
     }
 
     client = g_hash_table_lookup (self->priv->clients, bus_name);
@@ -1902,7 +1934,7 @@ handler_get_all_cb (TpProxy *proxy,
     {
         DEBUG ("Client %s vanished while getting its Handler properties",
                bus_name);
-        return;
+        goto finally;
     }
 
     filters = tp_asv_get_boxed (properties, "HandlerChannelFilter",
@@ -1925,6 +1957,9 @@ handler_get_all_cb (TpProxy *proxy,
                                                   NULL);
     DEBUG ("%s has BypassApproval=%c", client->name,
            client->bypass_approver ? 'T' : 'F');
+
+finally:
+    mcd_dispatcher_release_startup_lock (self);
 }
 
 static void
@@ -1962,14 +1997,14 @@ get_interfaces_cb (TpProxy *proxy,
         DEBUG ("Error getting Interfaces for Client %s, assuming none: "
                "%s %d %s", bus_name,
                g_quark_to_string (error->domain), error->code, error->message);
-        return;
+        goto finally;
     }
 
     if (!G_VALUE_HOLDS (out_Value, G_TYPE_STRV))
     {
         DEBUG ("Wrong type getting Interfaces for Client %s, assuming none: "
                "%s", bus_name, G_VALUE_TYPE_NAME (out_Value));
-        return;
+        goto finally;
     }
 
     client = g_hash_table_lookup (self->priv->clients, bus_name);
@@ -1978,7 +2013,7 @@ get_interfaces_cb (TpProxy *proxy,
     {
         DEBUG ("Client %s vanished while we were getting its interfaces",
                bus_name);
-        return;
+        goto finally;
     }
 
     arr = g_value_get_boxed (out_Value);
@@ -1999,6 +2034,9 @@ get_interfaces_cb (TpProxy *proxy,
     client_add_interface_by_id (client);
     if (client->interfaces & MCD_CLIENT_APPROVER)
     {
+        if (!self->priv->startup_completed)
+            self->priv->startup_lock++;
+
         tp_cli_dbus_properties_call_get
             (client->proxy, -1, MC_IFACE_CLIENT_APPROVER,
              "ApproverChannelFilter", get_channel_filter_cb,
@@ -2006,17 +2044,26 @@ get_interfaces_cb (TpProxy *proxy,
     }
     if (client->interfaces & MCD_CLIENT_HANDLER)
     {
+        if (!self->priv->startup_completed)
+            self->priv->startup_lock++;
+
         tp_cli_dbus_properties_call_get_all
             (client->proxy, -1, MC_IFACE_CLIENT_HANDLER,
              handler_get_all_cb, NULL, NULL, G_OBJECT (self));
     }
     if (client->interfaces & MCD_CLIENT_OBSERVER)
     {
+        if (!self->priv->startup_completed)
+            self->priv->startup_lock++;
+
         tp_cli_dbus_properties_call_get
             (client->proxy, -1, MC_IFACE_CLIENT_OBSERVER,
              "ObserverChannelFilter", get_channel_filter_cb,
              GUINT_TO_POINTER (MCD_CLIENT_OBSERVER), NULL, G_OBJECT (self));
     }
+
+finally:
+    mcd_dispatcher_release_startup_lock (self);
 }
 
 static void
@@ -2200,6 +2247,10 @@ create_mcd_client (McdDispatcher *self,
     if (!file_found)
     {
         DEBUG ("No .client file for %s. Ask on D-Bus.", name);
+
+        if (!self->priv->startup_completed)
+            self->priv->startup_lock++;
+
         tp_cli_dbus_properties_call_get (client->proxy, -1,
             MC_IFACE_CLIENT, "Interfaces", get_interfaces_cb, NULL,
             NULL, G_OBJECT (self));
@@ -2263,6 +2314,9 @@ list_names_cb (TpDBusDaemon *proxy,
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
 
     new_names_cb (self, out0, FALSE);
+
+    /* paired with one of the two locks in _constructed */
+    mcd_dispatcher_release_startup_lock (self);
 }
 
 static void
@@ -2275,6 +2329,9 @@ list_activatable_names_cb (TpDBusDaemon *proxy,
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
 
     new_names_cb (self, out0, TRUE);
+
+    /* paired with one of the two locks in _constructed */
+    mcd_dispatcher_release_startup_lock (self);
 }
 
 static void
@@ -2347,6 +2404,9 @@ mcd_dispatcher_constructed (GObject *object)
 
     tp_cli_dbus_daemon_call_list_names (priv->dbus_daemon,
         -1, list_names_cb, NULL, NULL, object);
+
+    priv->startup_completed = FALSE;
+    priv->startup_lock = 2;   /* ListNames + ListActivatableNames */
 
     dgc = TP_PROXY (priv->dbus_daemon)->dbus_connection;
 
