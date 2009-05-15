@@ -93,7 +93,8 @@ struct _McdAccountManagerPrivate
     GKeyFile *keyfile;		/* configuration file */
     GHashTable *accounts;
 
-    gchar *account_connections_file; /* temporary file */
+    gchar *account_connections_dir;  /* directory for temporary file */
+    gchar *account_connections_file; /* in account_connections_dir */
 };
 
 typedef struct
@@ -1001,8 +1002,9 @@ mcd_account_manager_init (McdAccountManager *account_manager)
     priv->accounts = g_hash_table_new_full (g_str_hash, g_str_equal,
 					    NULL, unref_account);
 
+    priv->account_connections_dir = g_strdup (get_connections_cache_dir ());
     priv->account_connections_file =
-        g_build_filename (get_connections_cache_dir (), ".mc_connections",
+        g_build_filename (priv->account_connections_dir, ".mc_connections",
                           NULL);
 
     priv->keyfile = g_key_file_new ();
@@ -1134,6 +1136,9 @@ _mcd_account_manager_store_account_connections (McdAccountManager *manager)
 
     g_return_if_fail (MCD_IS_ACCOUNT_MANAGER (manager));
     priv = manager->priv;
+
+    /* make $XDG_CACHE_DIR (or whatever) if it doesn't exist */
+    g_mkdir_with_parents (priv->account_connections_dir, 0700);
 
     file = fopen (priv->account_connections_file, "w");
     if (G_UNLIKELY (!file)) return;
