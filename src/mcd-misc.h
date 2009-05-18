@@ -34,13 +34,6 @@
 
 G_BEGIN_DECLS
 
-typedef gboolean (*McdXdgDataSubdirFunc) (const gchar *path,
-                                          const gchar *filename,
-                                          gpointer user_data);
-void _mcd_xdg_data_subdir_foreach (const gchar *subdir,
-                                   McdXdgDataSubdirFunc callback,
-                                   gpointer user_data);
-
 GHashTable *_mcd_deepcopy_asv (GHashTable *asv);
 
 gchar *_mcd_build_error_string (const GError *error);
