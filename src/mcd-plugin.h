@@ -23,6 +23,8 @@
 #ifndef __MCD_PLUGIN_H__
 #define __MCD_PLUGIN_H__
 
+#include <glib.h>
+
 G_BEGIN_DECLS
 
 typedef struct _McdPlugin McdPlugin;
