@@ -51,6 +51,7 @@ BASIC_TESTS_ENVIRONMENT = \
 	PYTHONPATH=@abs_top_srcdir@/test/twisted:@abs_top_builddir@/test/twisted \
 	MC_DEBUG=2 \
 	MC_TP_DEBUG=all \
+	MC_FILTER_PLUGIN_DIR=@abs_top_builddir@/test/twisted/.libs \
 	MC_CHANDLERS_DIR=@abs_top_builddir@/test/twisted/chandlers \
 	MC_ACCOUNT_DIR=@abs_top_builddir@/test/twisted/accounts \
 	XDG_DATA_HOME=@abs_top_builddir@/test/twisted \
