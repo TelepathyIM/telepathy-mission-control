@@ -114,6 +114,8 @@ struct _McdConnectionPrivate
     guint has_contact_capabilities_if : 1;
     guint has_requests_if : 1;
 
+    /* FALSE until the dispatcher has said it's ready for us */
+    guint dispatching_started : 1;
     /* FALSE until channels announced by NewChannel/NewChannels need to be
      * dispatched */
     guint dispatched_initial_channels : 1;
@@ -1415,13 +1417,26 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
     if (priv->has_alias_if)
 	_mcd_connection_setup_alias (connection);
 
-    if (priv->has_requests_if)
-        mcd_connection_setup_requests (connection);
+    _mcd_dispatcher_add_connection (priv->dispatcher, connection);
+}
+
+void
+_mcd_connection_start_dispatching (McdConnection *self)
+{
+    g_return_if_fail (MCD_IS_CONNECTION (self));
+    g_return_if_fail (!self->priv->dispatching_started);
+
+    DEBUG ("%p", self);
+
+    self->priv->dispatching_started = TRUE;
+
+    if (self->priv->has_requests_if)
+        mcd_connection_setup_requests (self);
     else
-        mcd_connection_setup_pre_requests (connection);
+        mcd_connection_setup_pre_requests (self);
 
     /* and request all channels */
-    request_unrequested_channels (connection);
+    request_unrequested_channels (self);
 }
 
 static void

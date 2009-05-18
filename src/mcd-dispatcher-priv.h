@@ -28,6 +28,7 @@
 #define MCD_DISPATCHER_PRIV_H
 
 #include "mcd-dispatcher.h"
+#include "mcd-connection.h"
 
 G_BEGIN_DECLS
 
@@ -53,6 +54,9 @@ void _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
 G_GNUC_INTERNAL
 void _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
                                       McdChannel *channel);
+
+G_GNUC_INTERNAL void _mcd_dispatcher_add_connection (McdDispatcher *self,
+    McdConnection *connection);
 
 G_END_DECLS
 

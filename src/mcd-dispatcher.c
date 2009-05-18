@@ -46,6 +46,7 @@
 #include "mcd-signals-marshal.h"
 #include "mcd-account-priv.h"
 #include "mcd-connection.h"
+#include "mcd-connection-priv.h"
 #include "mcd-channel.h"
 #include "mcd-master.h"
 #include "mcd-channel-priv.h"
@@ -214,6 +215,9 @@ struct _McdDispatcherPrivate
      * */
     gsize startup_lock;
     gboolean startup_completed;
+
+    /* connection => itself, borrowed */
+    GHashTable *connections;
 
     /* Initially FALSE, meaning we suppress OperationList.DispatchOperations
      * change notification signals because nobody has retrieved that property
@@ -1856,14 +1860,27 @@ mcd_dispatcher_release_startup_lock (McdDispatcher *self)
     if (self->priv->startup_completed)
         return;
 
+    DEBUG ("%p (decrementing from %" G_GSIZE_FORMAT ")",
+           self, self->priv->startup_lock);
+
     g_assert (self->priv->startup_lock >= 1);
 
     self->priv->startup_lock--;
 
     if (self->priv->startup_lock == 0)
     {
+        GHashTableIter iter;
+        gpointer k;
+
         DEBUG ("All initial clients have been inspected");
         self->priv->startup_completed = TRUE;
+
+        g_hash_table_iter_init (&iter, self->priv->connections);
+
+        while (g_hash_table_iter_next (&iter, &k, NULL))
+        {
+            _mcd_connection_start_dispatching (k);
+        }
     }
 }
 
@@ -2031,11 +2048,15 @@ get_interfaces_cb (TpProxy *proxy,
         arr++;
     }
 
+    DEBUG ("Client %s", client->name);
+
     client_add_interface_by_id (client);
     if (client->interfaces & MCD_CLIENT_APPROVER)
     {
         if (!self->priv->startup_completed)
             self->priv->startup_lock++;
+
+        DEBUG ("%s is an Approver", client->name);
 
         tp_cli_dbus_properties_call_get
             (client->proxy, -1, MC_IFACE_CLIENT_APPROVER,
@@ -2047,6 +2068,8 @@ get_interfaces_cb (TpProxy *proxy,
         if (!self->priv->startup_completed)
             self->priv->startup_lock++;
 
+        DEBUG ("%s is a Handler", client->name);
+
         tp_cli_dbus_properties_call_get_all
             (client->proxy, -1, MC_IFACE_CLIENT_HANDLER,
              handler_get_all_cb, NULL, NULL, G_OBJECT (self));
@@ -2055,6 +2078,8 @@ get_interfaces_cb (TpProxy *proxy,
     {
         if (!self->priv->startup_completed)
             self->priv->startup_lock++;
+
+        DEBUG ("%s is an Observer", client->name);
 
         tp_cli_dbus_properties_call_get
             (client->proxy, -1, MC_IFACE_CLIENT_OBSERVER,
@@ -2313,6 +2338,8 @@ list_names_cb (TpDBusDaemon *proxy,
 {
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
 
+    DEBUG ("ListNames returned");
+
     new_names_cb (self, out0, FALSE);
 
     /* paired with one of the two locks in _constructed */
@@ -2327,6 +2354,8 @@ list_activatable_names_cb (TpDBusDaemon *proxy,
     GObject *weak_object)
 {
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
+
+    DEBUG ("ListActivatableNames returned");
 
     new_names_cb (self, out0, TRUE);
 
@@ -2396,6 +2425,10 @@ mcd_dispatcher_constructed (GObject *object)
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
     GError *error = NULL;
 
+    DEBUG ("Starting to look for clients");
+    priv->startup_completed = FALSE;
+    priv->startup_lock = 2;   /* ListNames + ListActivatableNames */
+
     tp_cli_dbus_daemon_connect_to_name_owner_changed (priv->dbus_daemon,
         name_owner_changed_cb, NULL, NULL, object, NULL);
 
@@ -2404,9 +2437,6 @@ mcd_dispatcher_constructed (GObject *object)
 
     tp_cli_dbus_daemon_call_list_names (priv->dbus_daemon,
         -1, list_names_cb, NULL, NULL, object);
-
-    priv->startup_completed = FALSE;
-    priv->startup_lock = 2;   /* ListNames + ListActivatableNames */
 
     dgc = TP_PROXY (priv->dbus_daemon)->dbus_connection;
 
@@ -2582,6 +2612,8 @@ mcd_dispatcher_init (McdDispatcher * dispatcher)
 
     priv->clients = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
         (GDestroyNotify) mcd_client_free);
+
+    priv->connections = g_hash_table_new (NULL, NULL);
 }
 
 McdDispatcher *
@@ -3505,4 +3537,38 @@ dispatcher_iface_init (gpointer g_iface,
     IMPLEMENT (create_channel);
     IMPLEMENT (ensure_channel);
 #undef IMPLEMENT
+}
+
+static void
+mcd_dispatcher_lost_connection (gpointer data,
+                                GObject *corpse)
+{
+    McdDispatcher *self = MCD_DISPATCHER (data);
+
+    /* not safe to dereference corpse any more, so just print its address -
+     * that's enough to pair up with add_connection calls */
+    DEBUG ("%p: %p", self, corpse);
+
+    g_hash_table_remove (self->priv->connections, corpse);
+}
+
+void
+_mcd_dispatcher_add_connection (McdDispatcher *self,
+                                McdConnection *connection)
+{
+    g_return_if_fail (MCD_IS_DISPATCHER (self));
+
+    DEBUG ("%p: %p (%s)", self, connection,
+           mcd_connection_get_object_path (connection));
+
+    g_hash_table_insert (self->priv->connections, connection, connection);
+    g_object_weak_ref ((GObject *) connection, mcd_dispatcher_lost_connection,
+                       g_object_ref (self));
+
+    if (self->priv->startup_completed)
+    {
+        _mcd_connection_start_dispatching (connection);
+    }
+    /* else _mcd_connection_start_dispatching will be called when we're ready
+     * for it */
 }
