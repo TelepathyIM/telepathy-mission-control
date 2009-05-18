@@ -55,7 +55,7 @@
 
 #define DELAY_PROPERTY_CHANGED
 
-#define MAX_KEY_LENGTH	64
+#define MAX_KEY_LENGTH (DBUS_MAXIMUM_NAME_LENGTH + 6)
 #define MC_AVATAR_FILENAME	"avatar.bin"
 
 #define MCD_ACCOUNT_PRIV(account) (MCD_ACCOUNT (account)->priv)
