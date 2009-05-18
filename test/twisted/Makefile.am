@@ -31,6 +31,11 @@ TWISTED_SEPARATE_TESTS = \
 	crash-recovery/client-crash-during-recovery.py \
 	dispatcher/create-at-startup.py
 
+# A demo dispatcher plugin
+noinst_LTLIBRARIES = test-plugin.la
+test_plugin_la_SOURCES = test-plugin.c
+test_plugin_la_LDFLAGS = -module -shared -avoid-version -rpath @abs_builddir@
+
 # A debug version of the normal MC executable, which exits cleanly on
 # disconnection from D-Bus (so gcov info gets written out)
 noinst_PROGRAMS = mc-debug-server
