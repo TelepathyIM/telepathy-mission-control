@@ -111,7 +111,6 @@ gboolean mcd_channel_get_members_accepted (McdChannel *channel);
 const gchar* mcd_channel_get_channel_type (McdChannel *channel);
 GQuark mcd_channel_get_channel_type_quark (McdChannel *channel);
 const gchar* mcd_channel_get_object_path (McdChannel *channel);
-void mcd_channel_set_handle (McdChannel *channel, guint handle);
 guint mcd_channel_get_handle (McdChannel *channel);
 TpHandleType mcd_channel_get_handle_type (McdChannel *channel);
 const gchar *mcd_channel_get_name (McdChannel *channel);
