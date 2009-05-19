@@ -95,6 +95,7 @@ check-twisted:
 
 EXTRA_DIST = \
 	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_SEPARATE_TESTS) \
 	telepathy/clients/README \
 	telepathy/managers/fakecm.manager \
 	telepathy/managers/README \
