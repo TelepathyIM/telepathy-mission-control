@@ -312,6 +312,8 @@ mcd_master_load_plugins (McdMaster *master)
 	return;
     }
 
+    DEBUG ("Looking for plugins in %s", plugin_dir);
+
     priv->plugins = g_ptr_array_new ();
     while ((name = g_dir_read_name (dir)))
     {
@@ -329,6 +331,7 @@ mcd_master_load_plugins (McdMaster *master)
 	    if (g_module_symbol (module, MCD_PLUGIN_INIT_FUNC,
 				 (gpointer)&init_func))
 	    {
+                DEBUG ("Initializing plugin %s", name);
 		init_func ((McdPlugin *)master);
 		g_ptr_array_add (priv->plugins, module);
 	    }
