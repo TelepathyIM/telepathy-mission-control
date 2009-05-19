@@ -82,6 +82,7 @@ check-twisted:
 	rm -f tools/core
 	rm -f tools/missioncontrol-*.log
 	rm -f accounts/accounts.cfg
+	rm -f accounts/.mc_connections
 	env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) $(MAKE) check-TESTS \
 		TESTS='$$(TWISTED_BASIC_TESTS)' \
 		TESTS_ENVIRONMENT='$$(COMBINED_TESTS_ENVIRONMENT)'
@@ -107,6 +108,7 @@ EXTRA_DIST = \
 
 CLEANFILES = \
 	accounts/accounts.cfg \
+	accounts/.mc_connections \
 	mc-[1-9]*.log \
 	*.pyc \
 	*/*.pyc \
