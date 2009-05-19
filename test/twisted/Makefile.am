@@ -11,10 +11,12 @@ TWISTED_BASIC_TESTS = \
 	account-requests/create-text.py \
 	account-requests/delete-account-during-request.py \
 	dispatcher/already-has-channel.py \
+	dispatcher/already-has-obsolete.py \
 	dispatcher/bypass-approval.py \
 	dispatcher/cancel.py \
 	dispatcher/capture-bundle.py \
 	dispatcher/create-text.py \
+	dispatcher/dispatch-obsolete.py \
 	dispatcher/dispatch-text.py \
 	dispatcher/exploding-bundles.py \
 	dispatcher/fdo-21034.py \
@@ -26,7 +28,8 @@ TWISTED_BASIC_TESTS = \
 
 TWISTED_SEPARATE_TESTS = \
 	crash-recovery/crash-recovery.py \
-	crash-recovery/client-crash-during-recovery.py
+	crash-recovery/client-crash-during-recovery.py \
+	dispatcher/create-at-startup.py
 
 # A debug version of the normal MC executable, which exits cleanly on
 # disconnection from D-Bus (so gcov info gets written out)

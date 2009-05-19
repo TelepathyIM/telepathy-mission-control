@@ -52,7 +52,7 @@ def test(q, bus, mc):
     # Don't allow the Connection to become ready until we want it to, by
     # avoiding a return from GetInterfaces
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
-            'myself', implement_get_interfaces=False)
+            'myself', implement_get_interfaces=False, has_requests=False)
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
@@ -87,14 +87,11 @@ def test(q, bus, mc):
     chan = SimulatedChannel(conn, channel_properties)
     chan.announce()
 
-    # Now reply to GetInterfaces and say we have Requests
+    # Now reply to GetInterfaces and say we don't have Requests
     conn.GetInterfaces(get_interfaces_call)
-    q.expect_many(
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='GetAll',
-                args=[cs.CONN_IFACE_REQUESTS],
-                path=conn.object_path, handled=True),
-            )
+    q.expect('dbus-method-call',
+            interface=cs.CONN, method='ListChannels', args=[],
+            path=conn.object_path, handled=True)
 
     # MC asks the clients whether they know anything about this channel
     e, k = q.expect_many(

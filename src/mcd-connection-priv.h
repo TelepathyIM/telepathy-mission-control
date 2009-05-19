@@ -44,6 +44,8 @@ void _mcd_connection_set_tp_connection (McdConnection *connection,
                                         const gchar *bus_name,
                                         const gchar *obj_path, GError **error);
 
+G_GNUC_INTERNAL void _mcd_connection_start_dispatching (McdConnection *self);
+
 G_END_DECLS
 
 #endif

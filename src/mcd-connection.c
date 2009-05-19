@@ -97,7 +97,6 @@ struct _McdConnectionPrivate
 
     /* Telepathy connection */
     TpConnection *tp_conn;
-    TpProxySignalConnection *new_channel_sc;
 
     guint reconnect_timer; 	/* timer for reconnection */
     guint reconnect_interval;
@@ -115,8 +114,11 @@ struct _McdConnectionPrivate
     guint has_contact_capabilities_if : 1;
     guint has_requests_if : 1;
 
-    /* FALSE until the connection is ready for dispatching */
-    guint can_dispatch : 1;
+    /* FALSE until the dispatcher has said it's ready for us */
+    guint dispatching_started : 1;
+    /* FALSE until channels announced by NewChannel/NewChannels need to be
+     * dispatched */
+    guint dispatched_initial_channels : 1;
 
     /* FALSE until we got the first PresencesChanged for the self handle */
     guint got_presences_changed : 1;
@@ -126,16 +128,6 @@ struct _McdConnectionPrivate
     gboolean is_disposed;
     
 };
-
-typedef struct
-{
-    gchar *object_path;
-    gchar *channel_type;
-    TpHandle handle;
-    TpHandleType handle_type;
-} McdTmpChannelData;
-
-#define MCD_TMP_CHANNEL_DATA    "tmp_channel_data"
 
 typedef struct
 {
@@ -176,16 +168,6 @@ static GError * map_tp_error_to_mc_error (McdChannel *channel, const GError *tp_
 static void _mcd_connection_release_tp_connection (McdConnection *connection);
 static gboolean request_channel_new_iface (McdConnection *connection,
                                            McdChannel *channel);
-
-static void
-mcd_tmp_channel_data_free (gpointer data)
-{
-    McdTmpChannelData *tcd = data;
-
-    g_free (tcd->object_path);
-    g_free (tcd->channel_type);
-    g_slice_free (McdTmpChannelData, tcd);
-}
 
 static void
 mcd_presence_info_free (McdPresenceInfo *pi)
@@ -496,7 +478,7 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
     if (suppress_handler) return;
 
     /* It's an incoming channel, so we create a new McdChannel for it */
-    if (priv->can_dispatch)
+    if (priv->dispatched_initial_channels)
     {
         channel = mcd_channel_new_from_path (proxy,
                                              chan_obj_path,
@@ -508,23 +490,6 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
         _mcd_dispatcher_take_channels (priv->dispatcher,
                                        g_list_prepend (NULL, channel),
                                        FALSE);
-    }
-    else
-    {
-        /* create a void channel, but no TpProxy yet. Bundle the channel data,
-         * to be used later */
-        McdTmpChannelData *tcd;
-
-        channel = _mcd_channel_new_undispatched ();
-        tcd = g_slice_new (McdTmpChannelData);
-        tcd->object_path = g_strdup (chan_obj_path);
-        tcd->channel_type = g_strdup (chan_type);
-        tcd->handle = handle;
-        tcd->handle_type = handle_type;
-        g_object_set_data_full (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA,
-                                tcd, mcd_tmp_channel_data_free);
-        mcd_operation_take_mission (MCD_OPERATION (connection),
-                                    MCD_MISSION (channel));
     }
 }
 
@@ -1092,47 +1057,6 @@ request_unrequested_channels (McdConnection *connection)
     }
 }
 
-static void
-dispatch_undispatched_channels (McdConnection *connection)
-{
-    McdConnectionPrivate *priv = connection->priv;
-    const GList *channels;
-
-    priv->can_dispatch = TRUE;
-    channels = mcd_operation_get_missions ((McdOperation *)connection);
-
-    DEBUG ("called");
-    while (channels)
-    {
-	McdChannel *channel = MCD_CHANNEL (channels->data);
-
-        if (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_UNDISPATCHED)
-        {
-            /* undispatched channels have no TpProxy associated: create it now
-             */
-            McdTmpChannelData *tcd;
-
-            tcd = g_object_get_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA);
-            if (G_UNLIKELY (!tcd))
-            {
-                g_warning ("Channel %p is undispatched without data", channel);
-                continue;
-            }
-
-            _mcd_channel_create_proxy_old (channel, priv->tp_conn,
-                                           tcd->object_path, tcd->channel_type,
-                                           tcd->handle, tcd->handle_type);
-            g_object_set_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA, NULL);
-            DEBUG ("Dispatching channel %p", channel);
-            /* dispatch the channel */
-            _mcd_dispatcher_take_channels (priv->dispatcher,
-                                           g_list_prepend (NULL, channel),
-                                           FALSE);
-        }
-        channels = channels->next;
-    }
-}
-
 static McdChannel *
 find_channel_by_path (McdConnection *connection, const gchar *object_path)
 {
@@ -1190,9 +1114,9 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
         }
     }
 
-    /* we can completely ignore the channels that arrive while can_dispatch is
-     * FALSE: the on_new_channel handler is already recording them */
-    if (!priv->can_dispatch) return;
+    /* we can completely ignore the channels that arrive while this is
+     * FALSE: they'll also be in Channels in the GetAll(Requests) result */
+    if (!priv->dispatched_initial_channels) return;
 
     /* first, check if we have to dispatch the channels at all */
     if (!MCD_CONNECTION_GET_CLASS (connection)->need_dispatch (connection,
@@ -1254,6 +1178,45 @@ mcd_connection_recover_channel (McdConnection *connection,
     _mcd_dispatcher_recover_channel (priv->dispatcher, channel);
 }
 
+static void
+mcd_connection_found_channel (McdConnection *self,
+                              const gchar *object_path,
+                              GHashTable *channel_props)
+{
+    const GList *list;
+    gboolean found = FALSE;
+
+    /* find the McdChannel */
+    /* NOTE: we cannot move the mcd_operation_get_missions() call out of
+     * the loop, because mcd_dispatcher_send() can cause the channel to be
+     * destroyed, at which point our list would contain a finalized channel
+     * (and a crash will happen) */
+    list = mcd_operation_get_missions ((McdOperation *) self);
+    for (; list != NULL; list = list->next)
+    {
+        McdChannel *channel = MCD_CHANNEL (list->data);
+
+        if (g_strcmp0 (object_path,
+                       mcd_channel_get_object_path (channel)) == 0)
+        {
+            found = TRUE;
+            break;
+        }
+
+        if (mcd_channel_get_status (channel) !=
+            MCD_CHANNEL_STATUS_UNDISPATCHED)
+            continue;
+    }
+
+    if (!found)
+    {
+        /* We don't have a McdChannel for this channel, which most likely
+         * means that it was already present on the connection before MC
+         * started. Let's try to recover it */
+        mcd_connection_recover_channel (self, object_path, channel_props);
+    }
+}
+
 static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
                                  const GError *error, gpointer user_data,
                                  GObject *weak_object)
@@ -1293,62 +1256,33 @@ static void get_all_requests_cb (TpProxy *proxy, GHashTable *properties,
         GValueArray *va;
         const gchar *object_path;
         GHashTable *channel_props;
-        const GList *list;
-        gboolean found = FALSE;
 
         va = g_ptr_array_index (channels, i);
         object_path = g_value_get_boxed (va->values);
         channel_props = g_value_get_boxed (va->values + 1);
-        /* find the McdChannel */
-        /* NOTE: we cannot move the mcd_operation_get_missions() call out of
-         * the loop, because mcd_dispatcher_send() can cause the channel to be
-         * destroyed, at which point our list would contain a finalized channel
-         * (and a crash will happen) */
-        list = mcd_operation_get_missions ((McdOperation *)connection);
-        for (; list != NULL; list = list->next)
+
+        if (DEBUGGING)
         {
-            McdChannel *channel = MCD_CHANNEL (list->data);
-            McdTmpChannelData *tcd;
+            GHashTableIter iter;
+            gpointer k, v;
 
-            if (g_strcmp0 (object_path,
-                           mcd_channel_get_object_path (channel)) == 0)
+            DEBUG ("%s", object_path);
+
+            g_hash_table_iter_init (&iter, channel_props);
+
+            while (g_hash_table_iter_next (&iter, &k, &v))
             {
-                found = TRUE;
-                break;
-            }
+                gchar *repr = g_strdup_value_contents (v);
 
-            if (mcd_channel_get_status (channel) !=
-                MCD_CHANNEL_STATUS_UNDISPATCHED)
-                continue;
-
-            tcd = g_object_get_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA);
-            if (tcd && strcmp (tcd->object_path, object_path) == 0)
-            {
-                _mcd_channel_create_proxy (channel, priv->tp_conn,
-                                           object_path, channel_props);
-                g_object_set_data (G_OBJECT (channel), MCD_TMP_CHANNEL_DATA,
-                                   NULL);
-                /* channel is ready for dispatching */
-                _mcd_dispatcher_take_channels (priv->dispatcher,
-                                               g_list_prepend (NULL, channel),
-                                               FALSE);
-                found = TRUE;
-                break;
+                DEBUG("  \"%s\" => %s", (const gchar *) k, repr);
+                g_free (repr);
             }
         }
 
-        if (!found)
-        {
-            /* We don't have a McdChannel for this channel, which most likely
-             * means that it was already present on the connection before MC
-             * started. Let's try to recover it */
-            mcd_connection_recover_channel (connection,
-                                            object_path, channel_props);
-        }
+        mcd_connection_found_channel (connection, object_path, channel_props);
     }
 
-    tp_proxy_signal_connection_disconnect (priv->new_channel_sc);
-    priv->can_dispatch = TRUE;
+    priv->dispatched_initial_channels = TRUE;
 }
 
 static void
@@ -1369,6 +1303,65 @@ mcd_connection_setup_requests (McdConnection *connection)
     tp_cli_dbus_properties_call_get_all (priv->tp_conn, -1,
         TP_IFACE_CONNECTION_INTERFACE_REQUESTS,
         get_all_requests_cb, priv, NULL, (GObject *)connection);
+}
+
+static void
+list_channels_cb (TpConnection *connection,
+                  const GPtrArray *structs,
+                  const GError *error,
+                  gpointer user_data,
+                  GObject *weak_object)
+{
+    McdConnection *self = MCD_CONNECTION (weak_object);
+    guint i;
+
+    if (error)
+    {
+        g_warning ("ListChannels got error: %s", error->message);
+        return;
+    }
+
+    for (i = 0; i < structs->len; i++)
+    {
+        GValueArray *va = g_ptr_array_index (structs, i);
+        const gchar *object_path;
+        GHashTable *channel_props;
+
+        object_path = g_value_get_boxed (va->values + 0);
+
+        DEBUG ("%s (t=%s, ht=%u, h=%u)",
+               object_path,
+               g_value_get_string (va->values + 1),
+               g_value_get_uint (va->values + 2),
+               g_value_get_uint (va->values + 3));
+
+        /* this is not the most efficient thing we could possibly do, but
+         * we're on a fallback path so it's OK to be a bit slow */
+        channel_props = g_hash_table_new (g_str_hash, g_str_equal);
+        g_hash_table_insert (channel_props, TP_IFACE_CHANNEL ".ChannelType",
+                             va->values + 0);
+        g_hash_table_insert (channel_props, TP_IFACE_CHANNEL ".TargetHandleType",
+                             va->values + 1);
+        g_hash_table_insert (channel_props, TP_IFACE_CHANNEL ".TargetHandle",
+                             va->values + 2);
+        mcd_connection_found_channel (self, object_path, channel_props);
+        g_hash_table_destroy (channel_props);
+    }
+
+    self->priv->dispatched_initial_channels = TRUE;
+}
+
+static void
+mcd_connection_setup_pre_requests (McdConnection *connection)
+{
+    McdConnectionPrivate *priv = connection->priv;
+
+    tp_cli_connection_connect_to_new_channel
+        (priv->tp_conn, on_new_channel, priv, NULL,
+         (GObject *)connection, NULL);
+
+    tp_cli_connection_call_list_channels (priv->tp_conn, -1,
+        list_channels_cb, priv, NULL, (GObject *) connection);
 }
 
 static void
@@ -1424,13 +1417,26 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
     if (priv->has_alias_if)
 	_mcd_connection_setup_alias (connection);
 
-    if (priv->has_requests_if)
-        mcd_connection_setup_requests (connection);
+    _mcd_dispatcher_add_connection (priv->dispatcher, connection);
+}
+
+void
+_mcd_connection_start_dispatching (McdConnection *self)
+{
+    g_return_if_fail (MCD_IS_CONNECTION (self));
+    g_return_if_fail (!self->priv->dispatching_started);
+
+    DEBUG ("%p", self);
+
+    self->priv->dispatching_started = TRUE;
+
+    if (self->priv->has_requests_if)
+        mcd_connection_setup_requests (self);
     else
-        dispatch_undispatched_channels (connection);
+        mcd_connection_setup_pre_requests (self);
 
     /* and request all channels */
-    request_unrequested_channels (connection);
+    request_unrequested_channels (self);
 }
 
 static void
@@ -2187,11 +2193,6 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
                                (gpointer)connection_ptr);
     tp_connection_call_when_ready (priv->tp_conn, on_connection_ready,
                                    connection_ptr);
-    priv->new_channel_sc =
-        tp_cli_connection_connect_to_new_channel (priv->tp_conn,
-                                                  on_new_channel,
-                                                  priv, NULL,
-                                                  (GObject *)connection, NULL);
 }
 
 /**

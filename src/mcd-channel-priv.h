@@ -31,8 +31,6 @@
 
 G_BEGIN_DECLS
 
-G_GNUC_INTERNAL McdChannel *_mcd_channel_new_undispatched (void);
-
 G_GNUC_INTERNAL
 gboolean _mcd_channel_create_proxy (McdChannel *channel,
                                     TpConnection *connection,
@@ -45,12 +43,6 @@ void _mcd_channel_set_status (McdChannel *channel, McdChannelStatus status);
 /* not exported: */
 G_GNUC_INTERNAL void _mcd_channel_undispatchable (McdChannel *self);
 
-G_GNUC_INTERNAL
-gboolean _mcd_channel_create_proxy_old (McdChannel *channel,
-                                        TpConnection *connection,
-                                        const gchar *object_path,
-                                        const gchar *type, guint handle,
-                                        TpHandleType handle_type);
 G_GNUC_INTERNAL
 GHashTable *_mcd_channel_get_immutable_properties (McdChannel *channel);
 

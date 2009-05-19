@@ -88,7 +88,6 @@ struct _McdChannelRequestData
     gchar *path;
 
     GHashTable *properties;
-    guint target_handle; /* used only if the Requests interface is absent */
     gint64 user_time;
     gchar *preferred_handler;
     McdAccount *account;  /* weak ref */
@@ -768,46 +767,6 @@ mcd_channel_new_from_path (TpConnection *connection, const gchar *object_path,
     return channel;
 }
 
-McdChannel *
-_mcd_channel_new_undispatched (void)
-{
-    return g_object_new (MCD_TYPE_CHANNEL,
-                         "outgoing", FALSE,
-                         NULL);
-}
-
-gboolean
-_mcd_channel_create_proxy_old (McdChannel *channel, TpConnection *connection,
-                               const gchar *object_path, const gchar *type,
-                               guint handle, TpHandleType handle_type)
-{
-    GHashTable *props;
-    GValue v_type = { 0 };
-    GValue v_handle = { 0 };
-    GValue v_handle_type = { 0 };
-    gboolean ret;
-
-    props = g_hash_table_new (g_str_hash, g_str_equal);
-
-    g_value_init (&v_type, G_TYPE_STRING);
-    g_value_set_static_string (&v_type, type);
-    g_hash_table_insert (props, TP_IFACE_CHANNEL ".ChannelType", &v_type);
-
-    g_value_init (&v_handle, G_TYPE_UINT);
-    g_value_set_uint (&v_handle, handle);
-    g_hash_table_insert (props, TP_IFACE_CHANNEL ".TargetHandle", &v_handle);
-
-    g_value_init (&v_handle_type, G_TYPE_UINT);
-    g_value_set_uint (&v_handle_type, handle_type);
-    g_hash_table_insert (props, TP_IFACE_CHANNEL ".TargetHandleType",
-                         &v_handle_type);
-
-    ret = _mcd_channel_create_proxy (channel, connection, object_path, props);
-
-    g_hash_table_unref (props);
-    return ret;
-}
-
 /**
  * mcd_channel_create_proxy:
  * @channel: the #McdChannel.
@@ -919,25 +878,6 @@ mcd_channel_get_object_path (McdChannel *channel)
     return priv->tp_chan ? TP_PROXY (priv->tp_chan)->object_path : NULL;
 }
 
-void
-mcd_channel_set_handle (McdChannel *channel, guint handle)
-{
-    McdChannelPrivate *priv;
-
-    g_return_if_fail (MCD_IS_CHANNEL (channel));
-    priv = channel->priv;
-    g_return_if_fail (priv->status != MCD_CHANNEL_STATUS_REQUEST);
-
-    /* we cannot add the handle to the request_data->properties hash table,
-     * because we don't know how the table elements should be allocated. So,
-     * use a separate field in the request_data structure.
-     * In any case, this function is called only if the new Requests interface
-     * is not available on the connection, meaning that we won't directly use
-     * the hash table anyway.
-     */
-    priv->request_data->target_handle = handle;
-}
-
 guint
 mcd_channel_get_handle (McdChannel *channel)
 {
@@ -961,10 +901,9 @@ mcd_channel_get_handle (McdChannel *channel)
             if (valid)
                 return handle;
         }
-        return priv->request_data->target_handle;
     }
-    else
-        return 0;
+
+    return 0;
 }
 
 TpHandleType
