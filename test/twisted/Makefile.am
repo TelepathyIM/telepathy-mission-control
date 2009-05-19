@@ -35,6 +35,9 @@ TWISTED_SEPARATE_TESTS = \
 # A demo dispatcher plugin
 noinst_LTLIBRARIES = test-plugin.la
 test_plugin_la_SOURCES = test-plugin.c
+# these runes are necessary to make libtool build a dlopen()able shared
+# library even though it's not going to be installed - the default for noinst
+# libraries is static
 test_plugin_la_LDFLAGS = -module -shared -avoid-version -rpath @abs_builddir@
 
 # A debug version of the normal MC executable, which exits cleanly on
