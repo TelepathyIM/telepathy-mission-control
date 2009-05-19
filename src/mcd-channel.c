@@ -1186,9 +1186,18 @@ mcd_channel_take_error (McdChannel *channel, GError *error)
 const GError *
 mcd_channel_get_error (McdChannel *channel)
 {
+    McdChannelPrivate *priv;
+
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
 
-    return channel->priv->error;
+    priv = channel->priv;
+    if (priv->error)
+        return priv->error;
+
+    if (priv->tp_chan)
+        return TP_PROXY (priv->tp_chan)->invalidated;
+
+    return NULL;
 }
 
 /**
