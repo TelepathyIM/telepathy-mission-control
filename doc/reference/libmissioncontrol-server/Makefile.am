@@ -74,6 +74,7 @@ INCLUDES = \
 	$(TELEPATHY_CFLAGS)
 GTKDOC_LIBS = \
 	$(top_builddir)/src/libmissioncontrol-server.la \
+	$(top_builddir)/libmcclient/libmcclient.la \
 	$(GCONF_LIBS) \
 	$(GLIB_LIBS) \
 	$(DBUS_LIBS) \
