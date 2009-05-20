@@ -130,6 +130,14 @@ def test(q, bus, mc):
     # Both Approvers now have a flashing icon or something, trying to get the
     # user's attention
 
+    # Using an invalid Handler name should fail
+    call_async(q, cdo_iface, 'HandleWith',
+            cs.tp_name_prefix + '.The.Moon.On.A.Stick')
+    q.expect('dbus-error', method='HandleWith')
+    call_async(q, cdo_iface, 'HandleWith',
+            cs.tp_name_prefix + '.Client.the moon on a stick')
+    q.expect('dbus-error', method='HandleWith')
+
     # The user responds to Empathy first
     call_async(q, cdo_iface, 'HandleWith',
             cs.tp_name_prefix + '.Client.Empathy')
