@@ -140,7 +140,8 @@ class SimulatedConnection(object):
         return self._last_handle
 
     def __init__(self, q, bus, cmname, protocol, account_part, self_ident,
-            implement_get_interfaces=True, has_requests=True):
+            implement_get_interfaces=True, has_requests=True,
+            has_presence=False):
         self.q = q
         self.bus = bus
 
@@ -158,6 +159,7 @@ class SimulatedConnection(object):
         self.self_handle = self.ensure_handle(cs.HT_CONTACT, self_ident)
         self.channels = []
         self.has_requests = has_requests
+        self.has_presence = has_presence
 
         q.add_dbus_method_impl(self.Connect,
                 path=self.object_path, interface=cs.CONN, method='Connect')
@@ -187,12 +189,42 @@ class SimulatedConnection(object):
                     path=self.object_path, interface=cs.CONN,
                     method='ListChannels')
 
+        if has_presence:
+            q.add_dbus_method_impl(self.Get_SimplePresenceStatuses,
+                    path=self.object_path, interface=cs.PROPERTIES_IFACE,
+                    method='Get',
+                    args=[cs.CONN_IFACE_SIMPLE_PRESENCE, 'Statuses'])
+            q.add_dbus_method_impl(self.GetAll_SimplePresence,
+                    path=self.object_path, interface=cs.PROPERTIES_IFACE,
+                    method='GetAll',
+                    args=[cs.CONN_IFACE_SIMPLE_PRESENCE])
+
+        self.statuses = dbus.Dictionary({
+            'available': (cs.PRESENCE_TYPE_AVAILABLE, True, True),
+            'away': (cs.PRESENCE_TYPE_AWAY, True, True),
+            'lunch': (cs.PRESENCE_TYPE_XA, True, True),
+            'busy': (cs.PRESENCE_TYPE_BUSY, True, True),
+            'phone': (cs.PRESENCE_TYPE_BUSY, True, True),
+            'offline': (cs.PRESENCE_TYPE_OFFLINE, False, False),
+            'error': (cs.PRESENCE_TYPE_ERROR, False, False),
+            'unknown': (cs.PRESENCE_TYPE_UNKNOWN, False, False),
+            }, signature='s(ubb)')
+
+    def Get_SimplePresenceStatuses(self, e):
+        self.q.dbus_return(e.message, self.statuses, signature='v')
+
+    def GetAll_SimplePresence(self, e):
+        self.q.dbus_return(e.message,
+                {'Statuses': self.statuses}, signature='a{sv}')
+
     def GetInterfaces(self, e):
-        # FIXME: when needed, allow altering this return somehow
         interfaces = []
 
         if self.has_requests:
             interfaces.append(cs.CONN_IFACE_REQUESTS)
+
+        if self.has_presence:
+            interfaces.append(cs.CONN_IFACE_SIMPLE_PRESENCE)
 
         self.q.dbus_return(e.message, interfaces, signature='as')
 
