@@ -37,6 +37,8 @@ INITIATOR_ID = CHANNEL + '.InitiatorID'
 INTERFACES = CHANNEL + '.Interfaces'
 
 CONN = tp_name_prefix + ".Connection"
+CONN_IFACE_ALIASING = CONN + '.Interface.Aliasing'
+CONN_IFACE_AVATARS = CONN + '.Interface.Avatars'
 CONN_IFACE_CONTACTS = CONN + '.Interface.Contacts'
 CONN_IFACE_CONTACT_CAPA = CONN + '.Interface.ContactCapabilities.DRAFT'
 CONN_IFACE_REQUESTS = CONN + '.Interface.Requests'

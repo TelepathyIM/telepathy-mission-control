@@ -141,7 +141,7 @@ class SimulatedConnection(object):
 
     def __init__(self, q, bus, cmname, protocol, account_part, self_ident,
             implement_get_interfaces=True, has_requests=True,
-            has_presence=False):
+            has_presence=False, has_aliasing=False, has_avatars=False):
         self.q = q
         self.bus = bus
 
@@ -160,6 +160,8 @@ class SimulatedConnection(object):
         self.channels = []
         self.has_requests = has_requests
         self.has_presence = has_presence
+        self.has_aliasing = has_aliasing
+        self.has_avatars = has_avatars
 
         q.add_dbus_method_impl(self.Connect,
                 path=self.object_path, interface=cs.CONN, method='Connect')
@@ -199,6 +201,20 @@ class SimulatedConnection(object):
                     method='GetAll',
                     args=[cs.CONN_IFACE_SIMPLE_PRESENCE])
 
+        if has_aliasing:
+            q.add_dbus_method_impl(self.GetAliasFlags,
+                    path=self.object_path, interface=cs.CONN_IFACE_ALIASING,
+                    method='GetAliasFlags',
+                    args=[])
+
+        if has_avatars:
+            q.add_dbus_method_impl(self.GetAvatarRequirements,
+                    path=self.object_path, interface=cs.CONN_IFACE_AVATARS,
+                    method='GetAvatarRequirements', args=[])
+            q.add_dbus_method_impl(self.GetAll_Avatars,
+                    path=self.object_path, interface=cs.PROPERTIES_IFACE,
+                    method='GetAll', args=[cs.CONN_IFACE_AVATARS])
+
         self.statuses = dbus.Dictionary({
             'available': (cs.PRESENCE_TYPE_AVAILABLE, True, True),
             'away': (cs.PRESENCE_TYPE_AWAY, True, True),
@@ -209,6 +225,26 @@ class SimulatedConnection(object):
             'error': (cs.PRESENCE_TYPE_ERROR, False, False),
             'unknown': (cs.PRESENCE_TYPE_UNKNOWN, False, False),
             }, signature='s(ubb)')
+
+    # not actually very relevant for MC so hard-code 0 for now
+    def GetAliasFlags(self, e):
+        self.q.dbus_return(e.message, 0, signature='u')
+
+    # mostly for the UI's benefit; for now hard-code the requirements from XMPP
+    def GetAvatarRequirements(self, e):
+        self.q.dbus_return(e.message, ['image/jpeg'], 0, 0, 96, 96, 8192,
+                signature='asqqqqu')
+    def GetAll_Avatars(self, e):
+        self.q.dbus_return(e.message, {
+            'SupportedAvatarMIMETypes': ['image/jpeg'],
+            'MinimumAvatarWidth': 0,
+            'RecommendedAvatarWidth': 64,
+            'MaximumAvatarWidth': 96,
+            'MinimumAvatarHeight': 0,
+            'RecommendedAvatarHeight': 64,
+            'MaximumAvatarHeight': 96,
+            'MaximumAvatarBytes': 8192,
+            }, signature='a{sv}')
 
     def Get_SimplePresenceStatuses(self, e):
         self.q.dbus_return(e.message, self.statuses, signature='v')
@@ -222,6 +258,12 @@ class SimulatedConnection(object):
 
         if self.has_requests:
             interfaces.append(cs.CONN_IFACE_REQUESTS)
+
+        if self.has_aliasing:
+            interfaces.append(cs.CONN_IFACE_ALIASING)
+
+        if self.has_avatars:
+            interfaces.append(cs.CONN_IFACE_AVATARS)
 
         if self.has_presence:
             interfaces.append(cs.CONN_IFACE_SIMPLE_PRESENCE)
@@ -545,7 +587,8 @@ def create_fakecm_account(q, bus, mc, params):
     return (cm_name_ref, account)
 
 def enable_fakecm_account(q, bus, mc, account, expected_params,
-        has_requests=True, has_presence=False):
+        has_requests=True, has_presence=False, has_aliasing=False,
+        has_avatars=False):
     # Enable the account
     account.Set(cs.ACCOUNT, 'Enabled', True,
             dbus_interface=cs.PROPERTIES_IFACE)
@@ -564,7 +607,8 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
             handled=False)
 
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
-            'myself', has_requests=has_requests, has_presence=has_presence)
+            'myself', has_requests=has_requests, has_presence=has_presence,
+            has_aliasing=has_aliasing, has_avatars=has_avatars)
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
