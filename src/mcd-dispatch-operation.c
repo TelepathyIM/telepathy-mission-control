@@ -637,7 +637,9 @@ mcd_dispatch_operation_handle_with (McdDispatchOperation *operation,
 
     if (handler_path != NULL && handler_path[0] != '\0')
     {
-        if (!g_str_has_prefix (handler_path, MCD_CLIENT_BASE_NAME))
+        if (!g_str_has_prefix (handler_path, MCD_CLIENT_BASE_NAME) ||
+            !tp_dbus_check_valid_bus_name (handler_path,
+                                           TP_DBUS_NAME_TYPE_WELL_KNOWN, NULL))
         {
             DEBUG ("InvalidArgument: handler name %s is bad", handler_path);
             g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
