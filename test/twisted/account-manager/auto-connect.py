@@ -54,7 +54,7 @@ def test(q, bus, mc):
             handled=False)
 
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
-            'myself', has_presence=True)
+            'myself', has_presence=True, has_aliasing=True)
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
@@ -74,7 +74,11 @@ def test(q, bus, mc):
 
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
 
-    call, e = q.expect_many(
+    set_aliases, set_presence, e = q.expect_many(
+            EventPattern('dbus-method-call',
+                interface=cs.CONN_IFACE_ALIASING, method='SetAliases',
+                args=[{ conn.self_handle: 'JC' }],
+                handled=False),
             EventPattern('dbus-method-call', path=conn.object_path,
                 interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
                 handled=False),
@@ -85,12 +89,14 @@ def test(q, bus, mc):
     assert e.args[0]['ConnectionStatus'] == cs.CONN_STATUS_CONNECTED
     assert e.args[0]['HasBeenOnline'] == True
 
-    q.dbus_return(call.message, signature='')
+    q.dbus_return(set_presence.message, signature='')
 
     e = q.expect('dbus-signal', signal='AccountPropertyChanged',
             path=account_path, interface=cs.ACCOUNT)
     assert e.args[0]['CurrentPresence'] == (cs.PRESENCE_TYPE_AVAILABLE,
             'available', 'My vision is augmented')
+
+    q.dbus_return(set_aliases.message, signature='')
 
 if __name__ == '__main__':
     preseed()
