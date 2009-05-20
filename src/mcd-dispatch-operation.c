@@ -346,8 +346,7 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
     switch (prop_id)
     {
     case PROP_DBUS_DAEMON:
-        if (priv->dbus_daemon)
-            g_object_unref (priv->dbus_daemon);
+        g_assert (priv->dbus_daemon == NULL);
         priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
         break;
 
