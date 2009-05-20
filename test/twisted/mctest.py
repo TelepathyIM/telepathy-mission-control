@@ -588,16 +588,21 @@ def create_fakecm_account(q, bus, mc, params):
 
 def enable_fakecm_account(q, bus, mc, account, expected_params,
         has_requests=True, has_presence=False, has_aliasing=False,
-        has_avatars=False, expect_after_connect=[]):
+        has_avatars=False,
+        requested_presence=(2, 'available', ''),
+        expect_after_connect=[]):
     # Enable the account
     account.Set(cs.ACCOUNT, 'Enabled', True,
             dbus_interface=cs.PROPERTIES_IFACE)
 
-    requested_presence = dbus.Struct((dbus.UInt32(2L),
-        dbus.String(u'available'), dbus.String(u'')))
-    account.Set(cs.ACCOUNT,
-            'RequestedPresence', requested_presence,
-            dbus_interface=cs.PROPERTIES_IFACE)
+    if requested_presence is not None:
+        requested_presence = dbus.Struct(
+                (dbus.UInt32(requested_presence[0]),) +
+                tuple(requested_presence[1:]),
+                signature='uss')
+        account.Set(cs.ACCOUNT,
+                'RequestedPresence', requested_presence,
+                dbus_interface=cs.PROPERTIES_IFACE)
 
     e = q.expect('dbus-method-call', method='RequestConnection',
             args=['fakeprotocol', expected_params],
