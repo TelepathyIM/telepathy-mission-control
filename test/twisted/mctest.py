@@ -588,7 +588,7 @@ def create_fakecm_account(q, bus, mc, params):
 
 def enable_fakecm_account(q, bus, mc, account, expected_params,
         has_requests=True, has_presence=False, has_aliasing=False,
-        has_avatars=False):
+        has_avatars=False, expect_after_connect=[]):
     # Enable the account
     account.Set(cs.ACCOUNT, 'Enabled', True,
             dbus_interface=cs.PROPERTIES_IFACE)
@@ -616,15 +616,26 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
             path=conn.object_path, handled=True)
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
 
+    expect_after_connect = list(expect_after_connect)
+
     if has_requests:
-        q.expect('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='GetAll',
-                args=[cs.CONN_IFACE_REQUESTS],
-                path=conn.object_path, handled=True)
+        expect_after_connect.append(
+                servicetest.EventPattern('dbus-method-call',
+                    interface=cs.PROPERTIES_IFACE, method='GetAll',
+                    args=[cs.CONN_IFACE_REQUESTS],
+                    path=conn.object_path, handled=True))
     else:
-        q.expect('dbus-method-call',
-                interface=cs.CONN, method='ListChannels', args=[],
-                path=conn.object_path, handled=True)
+        expect_after_connect.append(
+                servicetest.EventPattern('dbus-method-call',
+                    interface=cs.CONN, method='ListChannels', args=[],
+                    path=conn.object_path, handled=True))
+
+    events = list(q.expect_many(*expect_after_connect))
+
+    del events[-1]
+
+    if events:
+        return (conn,) + tuple(events)
 
     return conn
 
