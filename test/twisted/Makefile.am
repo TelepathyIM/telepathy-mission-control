@@ -28,6 +28,7 @@ TWISTED_BASIC_TESTS = \
 	test-connect.py
 
 TWISTED_SEPARATE_TESTS = \
+	account-manager/auto-connect.py \
 	crash-recovery/crash-recovery.py \
 	crash-recovery/client-crash-during-recovery.py \
 	dispatcher/create-at-startup.py
