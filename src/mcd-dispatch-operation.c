@@ -231,13 +231,13 @@ mcd_dispatch_operation_finish (McdDispatchOperation *operation)
 
 static void
 dispatch_operation_handle_with (McSvcChannelDispatchOperation *self,
-                                const gchar *handler_path,
+                                const gchar *handler_name,
                                 DBusGMethodInvocation *context)
 {
     GError *error = NULL;
 
     mcd_dispatch_operation_handle_with (MCD_DISPATCH_OPERATION (self),
-                                        handler_path, &error);
+                                        handler_name, &error);
     if (error)
     {
         dbus_g_method_return_error (context, error);
@@ -346,8 +346,7 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
     switch (prop_id)
     {
     case PROP_DBUS_DAEMON:
-        if (priv->dbus_daemon)
-            g_object_unref (priv->dbus_daemon);
+        g_assert (priv->dbus_daemon == NULL);
         priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
         break;
 
@@ -617,7 +616,7 @@ mcd_dispatch_operation_get_handler (McdDispatchOperation *operation)
 
 void
 mcd_dispatch_operation_handle_with (McdDispatchOperation *operation,
-                                    const gchar *handler_path,
+                                    const gchar *handler_name,
                                     GError **error)
 {
     McdDispatchOperationPrivate *priv;
@@ -635,17 +634,18 @@ mcd_dispatch_operation_handle_with (McdDispatchOperation *operation,
         return;
     }
 
-    if (handler_path != NULL && handler_path[0] != '\0')
+    if (handler_name != NULL && handler_name[0] != '\0')
     {
-        if (strncmp (handler_path, MCD_CLIENT_BASE_NAME,
-                     MCD_CLIENT_BASE_NAME_LEN) != 0)
+        if (!g_str_has_prefix (handler_name, MCD_CLIENT_BASE_NAME) ||
+            !tp_dbus_check_valid_bus_name (handler_name,
+                                           TP_DBUS_NAME_TYPE_WELL_KNOWN, NULL))
         {
-            DEBUG ("InvalidArgument: handler name %s is bad", handler_path);
+            DEBUG ("InvalidArgument: handler name %s is bad", handler_name);
             g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
                          "Invalid handler name");
             return;
         }
-        priv->handler = g_strdup (handler_path + MCD_CLIENT_BASE_NAME_LEN);
+        priv->handler = g_strdup (handler_name + MCD_CLIENT_BASE_NAME_LEN);
     }
 
     mcd_dispatch_operation_finish (operation);
