@@ -79,6 +79,16 @@ def test(q, bus, mc):
 
     cdo = bus.get_object(cs.CD, cdo_path)
     cdo_iface = dbus.Interface(cdo, cs.CDO)
+    cdo_props_iface = dbus.Interface(cdo, cs.PROPERTIES_IFACE)
+
+    assert cdo_props_iface.Get(cs.CDO, 'Interfaces') == \
+            cdo_properties[cs.CDO + '.Interfaces']
+    assert cdo_props_iface.Get(cs.CDO, 'Connection') == conn.object_path
+    assert cdo_props_iface.Get(cs.CDO, 'Account') == account.object_path
+    assert cdo_props_iface.Get(cs.CDO, 'Channels') == [(chan.object_path,
+        channel_properties)]
+    assert cdo_props_iface.Get(cs.CDO, 'PossibleHandlers') == \
+            cdo_properties[cs.CDO + '.PossibleHandlers']
 
     # Both Observers are told about the new channel
 
