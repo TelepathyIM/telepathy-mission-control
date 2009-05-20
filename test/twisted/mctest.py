@@ -545,7 +545,7 @@ def create_fakecm_account(q, bus, mc, params):
     return (cm_name_ref, account)
 
 def enable_fakecm_account(q, bus, mc, account, expected_params,
-        has_requests=True):
+        has_requests=True, has_presence=False):
     # Enable the account
     account.Set(cs.ACCOUNT, 'Enabled', True,
             dbus_interface=cs.PROPERTIES_IFACE)
@@ -564,7 +564,7 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
             handled=False)
 
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
-            'myself', has_requests=has_requests)
+            'myself', has_requests=has_requests, has_presence=has_presence)
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
