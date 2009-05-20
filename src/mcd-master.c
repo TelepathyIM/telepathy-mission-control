@@ -281,21 +281,38 @@ mcd_master_unload_plugins (McdMaster *master)
     priv->plugins = NULL;
 }
 
+static const gchar *
+mcd_master_get_plugin_dir (void)
+{
+    const gchar *dir = g_getenv ("MC_FILTER_PLUGIN_DIR");
+
+    if (dir == NULL)
+        dir = MCD_DEFAULT_FILTER_PLUGIN_DIR;
+
+    return dir;
+}
+
 static void
 mcd_master_load_plugins (McdMaster *master)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    const gchar *plugin_dir;
     GDir *dir = NULL;
     GError *error = NULL;
     const gchar *name;
 
-    dir = g_dir_open (MCD_DEFAULT_FILTER_PLUGIN_DIR, 0, &error);
+    plugin_dir = mcd_master_get_plugin_dir ();
+
+    dir = g_dir_open (plugin_dir, 0, &error);
     if (!dir)
     {
-        DEBUG ("Could not open plugin directory: %s", error->message);
+        DEBUG ("Could not open plugin directory %s: %s", plugin_dir,
+               error->message);
 	g_error_free (error);
 	return;
     }
+
+    DEBUG ("Looking for plugins in %s", plugin_dir);
 
     priv->plugins = g_ptr_array_new ();
     while ((name = g_dir_read_name (dir)))
@@ -305,7 +322,7 @@ mcd_master_load_plugins (McdMaster *master)
 
 	if (name[0] == '.' || !g_str_has_suffix (name, ".so")) continue;
 
-	path = g_build_filename (MCD_DEFAULT_FILTER_PLUGIN_DIR, name, NULL);
+	path = g_build_filename (plugin_dir, name, NULL);
 	module = g_module_open (path, 0);
 	g_free (path);
 	if (module)
@@ -314,6 +331,7 @@ mcd_master_load_plugins (McdMaster *master)
 	    if (g_module_symbol (module, MCD_PLUGIN_INIT_FUNC,
 				 (gpointer)&init_func))
 	    {
+                DEBUG ("Initializing plugin %s", name);
 		init_func ((McdPlugin *)master);
 		g_ptr_array_add (priv->plugins, module);
 	    }

@@ -17,6 +17,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/capture-bundle.py \
 	dispatcher/create-text.py \
 	dispatcher/dispatch-obsolete.py \
+	dispatcher/dispatch-rejected-by-plugin.py \
 	dispatcher/dispatch-text.py \
 	dispatcher/exploding-bundles.py \
 	dispatcher/fdo-21034.py \
@@ -30,6 +31,14 @@ TWISTED_SEPARATE_TESTS = \
 	crash-recovery/crash-recovery.py \
 	crash-recovery/client-crash-during-recovery.py \
 	dispatcher/create-at-startup.py
+
+# A demo dispatcher plugin
+noinst_LTLIBRARIES = test-plugin.la
+test_plugin_la_SOURCES = test-plugin.c
+# these runes are necessary to make libtool build a dlopen()able shared
+# library even though it's not going to be installed - the default for noinst
+# libraries is static
+test_plugin_la_LDFLAGS = -module -shared -avoid-version -rpath @abs_builddir@
 
 # A debug version of the normal MC executable, which exits cleanly on
 # disconnection from D-Bus (so gcov info gets written out)
@@ -51,6 +60,7 @@ BASIC_TESTS_ENVIRONMENT = \
 	PYTHONPATH=@abs_top_srcdir@/test/twisted:@abs_top_builddir@/test/twisted \
 	MC_DEBUG=2 \
 	MC_TP_DEBUG=all \
+	MC_FILTER_PLUGIN_DIR=@abs_top_builddir@/test/twisted/.libs \
 	MC_CHANDLERS_DIR=@abs_top_builddir@/test/twisted/chandlers \
 	MC_ACCOUNT_DIR=@abs_top_builddir@/test/twisted/accounts \
 	XDG_DATA_HOME=@abs_top_builddir@/test/twisted \
