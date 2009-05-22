@@ -140,7 +140,8 @@ class SimulatedConnection(object):
         return self._last_handle
 
     def __init__(self, q, bus, cmname, protocol, account_part, self_ident,
-            implement_get_interfaces=True, has_requests=True):
+            implement_get_interfaces=True, has_requests=True,
+            has_presence=False, has_aliasing=False, has_avatars=False):
         self.q = q
         self.bus = bus
 
@@ -158,6 +159,9 @@ class SimulatedConnection(object):
         self.self_handle = self.ensure_handle(cs.HT_CONTACT, self_ident)
         self.channels = []
         self.has_requests = has_requests
+        self.has_presence = has_presence
+        self.has_aliasing = has_aliasing
+        self.has_avatars = has_avatars
 
         q.add_dbus_method_impl(self.Connect,
                 path=self.object_path, interface=cs.CONN, method='Connect')
@@ -187,12 +191,82 @@ class SimulatedConnection(object):
                     path=self.object_path, interface=cs.CONN,
                     method='ListChannels')
 
+        if has_presence:
+            q.add_dbus_method_impl(self.Get_SimplePresenceStatuses,
+                    path=self.object_path, interface=cs.PROPERTIES_IFACE,
+                    method='Get',
+                    args=[cs.CONN_IFACE_SIMPLE_PRESENCE, 'Statuses'])
+            q.add_dbus_method_impl(self.GetAll_SimplePresence,
+                    path=self.object_path, interface=cs.PROPERTIES_IFACE,
+                    method='GetAll',
+                    args=[cs.CONN_IFACE_SIMPLE_PRESENCE])
+
+        if has_aliasing:
+            q.add_dbus_method_impl(self.GetAliasFlags,
+                    path=self.object_path, interface=cs.CONN_IFACE_ALIASING,
+                    method='GetAliasFlags',
+                    args=[])
+
+        if has_avatars:
+            q.add_dbus_method_impl(self.GetAvatarRequirements,
+                    path=self.object_path, interface=cs.CONN_IFACE_AVATARS,
+                    method='GetAvatarRequirements', args=[])
+            q.add_dbus_method_impl(self.GetAll_Avatars,
+                    path=self.object_path, interface=cs.PROPERTIES_IFACE,
+                    method='GetAll', args=[cs.CONN_IFACE_AVATARS])
+
+        self.statuses = dbus.Dictionary({
+            'available': (cs.PRESENCE_TYPE_AVAILABLE, True, True),
+            'away': (cs.PRESENCE_TYPE_AWAY, True, True),
+            'lunch': (cs.PRESENCE_TYPE_XA, True, True),
+            'busy': (cs.PRESENCE_TYPE_BUSY, True, True),
+            'phone': (cs.PRESENCE_TYPE_BUSY, True, True),
+            'offline': (cs.PRESENCE_TYPE_OFFLINE, False, False),
+            'error': (cs.PRESENCE_TYPE_ERROR, False, False),
+            'unknown': (cs.PRESENCE_TYPE_UNKNOWN, False, False),
+            }, signature='s(ubb)')
+
+    # not actually very relevant for MC so hard-code 0 for now
+    def GetAliasFlags(self, e):
+        self.q.dbus_return(e.message, 0, signature='u')
+
+    # mostly for the UI's benefit; for now hard-code the requirements from XMPP
+    def GetAvatarRequirements(self, e):
+        self.q.dbus_return(e.message, ['image/jpeg'], 0, 0, 96, 96, 8192,
+                signature='asqqqqu')
+    def GetAll_Avatars(self, e):
+        self.q.dbus_return(e.message, {
+            'SupportedAvatarMIMETypes': ['image/jpeg'],
+            'MinimumAvatarWidth': 0,
+            'RecommendedAvatarWidth': 64,
+            'MaximumAvatarWidth': 96,
+            'MinimumAvatarHeight': 0,
+            'RecommendedAvatarHeight': 64,
+            'MaximumAvatarHeight': 96,
+            'MaximumAvatarBytes': 8192,
+            }, signature='a{sv}')
+
+    def Get_SimplePresenceStatuses(self, e):
+        self.q.dbus_return(e.message, self.statuses, signature='v')
+
+    def GetAll_SimplePresence(self, e):
+        self.q.dbus_return(e.message,
+                {'Statuses': self.statuses}, signature='a{sv}')
+
     def GetInterfaces(self, e):
-        # FIXME: when needed, allow altering this return somehow
         interfaces = []
 
         if self.has_requests:
             interfaces.append(cs.CONN_IFACE_REQUESTS)
+
+        if self.has_aliasing:
+            interfaces.append(cs.CONN_IFACE_ALIASING)
+
+        if self.has_avatars:
+            interfaces.append(cs.CONN_IFACE_AVATARS)
+
+        if self.has_presence:
+            interfaces.append(cs.CONN_IFACE_SIMPLE_PRESENCE)
 
         self.q.dbus_return(e.message, interfaces, signature='as')
 
@@ -513,16 +587,22 @@ def create_fakecm_account(q, bus, mc, params):
     return (cm_name_ref, account)
 
 def enable_fakecm_account(q, bus, mc, account, expected_params,
-        has_requests=True):
+        has_requests=True, has_presence=False, has_aliasing=False,
+        has_avatars=False,
+        requested_presence=(2, 'available', ''),
+        expect_after_connect=[]):
     # Enable the account
     account.Set(cs.ACCOUNT, 'Enabled', True,
             dbus_interface=cs.PROPERTIES_IFACE)
 
-    requested_presence = dbus.Struct((dbus.UInt32(2L),
-        dbus.String(u'available'), dbus.String(u'')))
-    account.Set(cs.ACCOUNT,
-            'RequestedPresence', requested_presence,
-            dbus_interface=cs.PROPERTIES_IFACE)
+    if requested_presence is not None:
+        requested_presence = dbus.Struct(
+                (dbus.UInt32(requested_presence[0]),) +
+                tuple(requested_presence[1:]),
+                signature='uss')
+        account.Set(cs.ACCOUNT,
+                'RequestedPresence', requested_presence,
+                dbus_interface=cs.PROPERTIES_IFACE)
 
     e = q.expect('dbus-method-call', method='RequestConnection',
             args=['fakeprotocol', expected_params],
@@ -532,7 +612,8 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
             handled=False)
 
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
-            'myself', has_requests=has_requests)
+            'myself', has_requests=has_requests, has_presence=has_presence,
+            has_aliasing=has_aliasing, has_avatars=has_avatars)
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
@@ -540,15 +621,26 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
             path=conn.object_path, handled=True)
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
 
+    expect_after_connect = list(expect_after_connect)
+
     if has_requests:
-        q.expect('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='GetAll',
-                args=[cs.CONN_IFACE_REQUESTS],
-                path=conn.object_path, handled=True)
+        expect_after_connect.append(
+                servicetest.EventPattern('dbus-method-call',
+                    interface=cs.PROPERTIES_IFACE, method='GetAll',
+                    args=[cs.CONN_IFACE_REQUESTS],
+                    path=conn.object_path, handled=True))
     else:
-        q.expect('dbus-method-call',
-                interface=cs.CONN, method='ListChannels', args=[],
-                path=conn.object_path, handled=True)
+        expect_after_connect.append(
+                servicetest.EventPattern('dbus-method-call',
+                    interface=cs.CONN, method='ListChannels', args=[],
+                    path=conn.object_path, handled=True))
+
+    events = list(q.expect_many(*expect_after_connect))
+
+    del events[-1]
+
+    if events:
+        return (conn,) + tuple(events)
 
     return conn
 

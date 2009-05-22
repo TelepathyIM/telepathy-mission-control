@@ -4,7 +4,9 @@ TWISTED_BASIC_TESTS = \
 	account-bad-cm.py \
 	account-manager/auto-away.py \
 	account-manager/create-with-properties.py \
+	account-manager/nickname.py \
 	account-manager/old-create-with-properties.py \
+	account-manager/presence.py \
 	account-manager/reconnect.py \
 	account-manager/update-parameters.py \
 	account-requests/cancel.py \
@@ -28,6 +30,7 @@ TWISTED_BASIC_TESTS = \
 	test-connect.py
 
 TWISTED_SEPARATE_TESTS = \
+	account-manager/auto-connect.py \
 	crash-recovery/crash-recovery.py \
 	crash-recovery/client-crash-during-recovery.py \
 	dispatcher/create-at-startup.py
