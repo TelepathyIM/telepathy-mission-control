@@ -1339,11 +1339,11 @@ list_channels_cb (TpConnection *connection,
          * we're on a fallback path so it's OK to be a bit slow */
         channel_props = g_hash_table_new (g_str_hash, g_str_equal);
         g_hash_table_insert (channel_props, TP_IFACE_CHANNEL ".ChannelType",
-                             va->values + 0);
-        g_hash_table_insert (channel_props, TP_IFACE_CHANNEL ".TargetHandleType",
                              va->values + 1);
-        g_hash_table_insert (channel_props, TP_IFACE_CHANNEL ".TargetHandle",
+        g_hash_table_insert (channel_props, TP_IFACE_CHANNEL ".TargetHandleType",
                              va->values + 2);
+        g_hash_table_insert (channel_props, TP_IFACE_CHANNEL ".TargetHandle",
+                             va->values + 3);
         mcd_connection_found_channel (self, object_path, channel_props);
         g_hash_table_destroy (channel_props);
     }
