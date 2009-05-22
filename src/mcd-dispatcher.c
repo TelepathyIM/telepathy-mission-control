@@ -45,6 +45,7 @@
 
 #include "mcd-signals-marshal.h"
 #include "mcd-account-priv.h"
+#include "mcd-client-priv.h"
 #include "mcd-connection.h"
 #include "mcd-connection-priv.h"
 #include "mcd-channel.h"
@@ -145,7 +146,7 @@ typedef enum
 
 typedef struct _McdClient
 {
-    TpProxy *proxy;
+    McdClientProxy *proxy;
     gchar *name;
     McdClientInterface interfaces;
     gchar **handled_channels;
@@ -178,10 +179,6 @@ typedef struct _McdClient
     GList *handler_filters;
     GList *observer_filters;
 } McdClient;
-
-/* Analogous to TP_CM_*_BASE */
-#define MC_CLIENT_BUS_NAME_BASE MC_IFACE_CLIENT "."
-#define MC_CLIENT_OBJECT_PATH_BASE "/org/freedesktop/Telepathy/Client/"
 
 struct _McdDispatcherPrivate
 {
@@ -244,7 +241,7 @@ typedef struct
 
 typedef struct
 {
-    TpProxy *handler;
+    McdClientProxy *handler;
     gchar *request_path;
 } McdRemoveRequestData;
 
@@ -1982,17 +1979,19 @@ finally:
 static void
 client_add_interface_by_id (McdClient *client)
 {
-    tp_proxy_add_interface_by_id (client->proxy, MC_IFACE_QUARK_CLIENT);
+    TpProxy *proxy = (TpProxy *) client->proxy;
+
+    tp_proxy_add_interface_by_id (proxy, MC_IFACE_QUARK_CLIENT);
     if (client->interfaces & MCD_CLIENT_APPROVER)
-        tp_proxy_add_interface_by_id (client->proxy,
+        tp_proxy_add_interface_by_id (proxy,
                                       MC_IFACE_QUARK_CLIENT_APPROVER);
     if (client->interfaces & MCD_CLIENT_HANDLER)
-        tp_proxy_add_interface_by_id (client->proxy,
+        tp_proxy_add_interface_by_id (proxy,
                                       MC_IFACE_QUARK_CLIENT_HANDLER);
     if (client->interfaces & MCD_CLIENT_INTERFACE_REQUESTS)
-        tp_proxy_add_interface_by_id (client->proxy, MC_IFACE_QUARK_CLIENT_INTERFACE_REQUESTS);
+        tp_proxy_add_interface_by_id (proxy, MC_IFACE_QUARK_CLIENT_INTERFACE_REQUESTS);
     if (client->interfaces & MCD_CLIENT_OBSERVER)
-        tp_proxy_add_interface_by_id (client->proxy,
+        tp_proxy_add_interface_by_id (proxy,
                                       MC_IFACE_QUARK_CLIENT_OBSERVER);
 }
 
@@ -2089,24 +2088,6 @@ get_interfaces_cb (TpProxy *proxy,
 
 finally:
     mcd_dispatcher_release_startup_lock (self);
-}
-
-static void
-create_client_proxy (McdDispatcher *self, McdClient *client)
-{
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
-    gchar *bus_name, *object_path;
-
-    bus_name = g_strconcat (MC_CLIENT_BUS_NAME_BASE, client->name, NULL);
-    object_path = g_strconcat (MC_CLIENT_OBJECT_PATH_BASE, client->name, NULL);
-    g_strdelimit (object_path, ".", '/');
-    client->proxy = g_object_new (TP_TYPE_PROXY,
-                                  "dbus-daemon", priv->dbus_daemon,
-                                  "object-path", object_path,
-                                  "bus-name", bus_name,
-                                  NULL);
-    g_free (object_path);
-    g_free (bus_name);
 }
 
 static void
@@ -2234,7 +2215,7 @@ create_mcd_client (McdDispatcher *self,
     g_assert (g_str_has_prefix (name, MC_CLIENT_BUS_NAME_BASE));
 
     client = g_slice_new0 (McdClient);
-    client->name = g_strdup (name + sizeof (MC_CLIENT_BUS_NAME_BASE) - 1);
+    client->name = g_strdup (name + MC_CLIENT_BUS_NAME_BASE_LEN);
     client->activatable = activatable;
     if (!activatable)
         client->active = TRUE;
@@ -2267,7 +2248,8 @@ create_mcd_client (McdDispatcher *self,
         g_free (filename);
     }
 
-    create_client_proxy (self, client);
+    client->proxy = _mcd_client_proxy_new (self->priv->dbus_daemon,
+                                           client->name);
 
     if (!file_found)
     {
@@ -2306,6 +2288,15 @@ new_names_cb (McdDispatcher *self,
         if (!g_str_has_prefix (name, MC_CLIENT_BUS_NAME_BASE))
         {
             /* This is not a Telepathy Client */
+            continue;
+        }
+
+        if (!_mcd_client_check_valid_name (name + MC_CLIENT_BUS_NAME_BASE_LEN,
+                                           NULL))
+        {
+            /* This is probably meant to be a Telepathy Client, but it's not */
+            DEBUG ("Ignoring invalid Client name: %s",
+                   name + MC_CLIENT_BUS_NAME_BASE_LEN);
             continue;
         }
 
