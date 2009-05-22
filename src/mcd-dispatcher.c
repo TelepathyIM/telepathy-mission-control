@@ -3381,6 +3381,7 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
      */
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
     priv = dispatcher->priv;
+    g_return_if_fail (priv->startup_completed);
 
     cr = g_slice_new0 (McdChannelRecover);
     cr->channel = g_object_ref (channel);
