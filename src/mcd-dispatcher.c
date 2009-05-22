@@ -1939,7 +1939,7 @@ handler_get_all_cb (TpProxy *proxy,
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
     McdClient *client;
     const gchar *bus_name = tp_proxy_get_bus_name (proxy);
-    GPtrArray *filters;
+    GPtrArray *filters, *channels;
 
     if (error != NULL)
     {
@@ -1978,6 +1978,36 @@ handler_get_all_cb (TpProxy *proxy,
                                                   NULL);
     DEBUG ("%s has BypassApproval=%c", client->name,
            client->bypass_approver ? 'T' : 'F');
+
+    channels = tp_asv_get_boxed (properties, "HandledChannels",
+                                 MC_ARRAY_TYPE_OBJECT);
+
+    if (channels != NULL)
+    {
+        GStrv tmp;
+        guint i;
+
+        DEBUG ("%s is handling %u channels:", client->name, channels->len);
+
+        tmp = g_new0 (gchar *, channels->len + 1);
+
+        for (i = 0; i < channels->len; i++)
+        {
+            tmp[i] = g_strdup (g_ptr_array_index (channels, i));
+            DEBUG ("%s", tmp[i]);
+        }
+
+        tmp[i] = NULL;
+
+        client->handled_channels = tmp;
+    }
+    else
+    {
+        DEBUG ("%s HandledChannels absent or wrong type, assuming none",
+               client->name);
+
+        client->handled_channels = g_new0 (gchar *, 1);
+    }
 
 finally:
     mcd_dispatcher_release_startup_lock (self);
@@ -3351,29 +3381,9 @@ get_handled_channels_cb (TpProxy *proxy, const GValue *v_channels,
     DEBUG ("called");
     client->got_handled_channels = TRUE;
 
-    if (G_LIKELY (!error))
-    {
-        if (G_LIKELY (G_VALUE_TYPE (v_channels) == MC_ARRAY_TYPE_OBJECT))
-        {
-            GPtrArray *a_channels;
-            gchar **channels;
-            guint i;
-
-            g_return_if_fail (client->handled_channels == NULL);
-            a_channels = g_value_get_boxed (v_channels);
-            channels = g_malloc ((a_channels->len + 1) * sizeof (char *));
-
-            for (i = 0; i < a_channels->len; i++)
-                channels[i] = g_strdup (g_ptr_array_index (a_channels, i));
-            channels[i] = NULL;
-            client->handled_channels = channels;
-        }
-        else
-            g_warning ("%s: client %s returned wrong type %s", G_STRFUNC,
-                       client->name, G_VALUE_TYPE_NAME (v_channels));
-    }
-    else
-        g_warning ("%s: Got error: %s", G_STRFUNC, error->message);
+    /* we should have discovered the handled channels (possibly none of them)
+     * already */
+    g_assert (client->handled_channels != NULL);
 
     _mcd_object_ready (proxy, client_ready_quark, error);
 }
