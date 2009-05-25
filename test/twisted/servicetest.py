@@ -241,6 +241,23 @@ class IteratingEventQueue(BaseEventQueue):
         self._dbus_filter_bound_method = self._dbus_filter
         self._bus.add_message_filter(self._dbus_filter_bound_method)
 
+        self._bus.add_signal_receiver(
+                lambda *args, **kw:
+                    self.append(
+                        Event('dbus-signal',
+                            path=unwrap(kw['path']),
+                            signal=kw['member'],
+                            args=map(unwrap, args),
+                            interface=kw['interface'])),
+                None,
+                None,
+                None,
+                path_keyword='path',
+                member_keyword='member',
+                interface_keyword='interface',
+                byte_arrays=True,
+                )
+
     def cleanup(self):
         if self._bus is not None:
             self._bus.remove_message_filter(self._dbus_filter_bound_method)
@@ -370,22 +387,6 @@ def make_mc(bus, event_func, params):
         tp_name_prefix + '.MissionControl',
         tp_path_prefix + '/MissionControl')
     assert mc is not None
-
-    bus.add_signal_receiver(
-        lambda *args, **kw:
-            event_func(
-                Event('dbus-signal',
-                    path=unwrap(kw['path']),
-                    signal=kw['member'], args=map(unwrap, args),
-                    interface=kw['interface'])),
-        None,       # signal name
-        None,       # interface
-        mc._named_service,
-        path_keyword='path',
-        member_keyword='member',
-        interface_keyword='interface',
-        byte_arrays=True
-        )
 
     return mc
 
