@@ -2273,9 +2273,9 @@ create_mcd_client (McdDispatcher *self,
  * Telepathy clients and create McdClient objects for each of them.
  */
 static void
-new_names_cb (McdDispatcher *self,
-              const gchar **names,
-              gboolean activatable)
+mcd_dispatcher_add_clients (McdDispatcher *self,
+                            const gchar **names,
+                            gboolean activatable)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
   
@@ -2321,23 +2321,6 @@ new_names_cb (McdDispatcher *self,
 }
 
 static void
-list_names_cb (TpDBusDaemon *proxy,
-    const gchar **out0,
-    const GError *error,
-    gpointer user_data,
-    GObject *weak_object)
-{
-    McdDispatcher *self = MCD_DISPATCHER (weak_object);
-
-    DEBUG ("ListNames returned");
-
-    new_names_cb (self, out0, FALSE);
-
-    /* paired with one of the two locks in _constructed */
-    mcd_dispatcher_release_startup_lock (self);
-}
-
-static void
 list_activatable_names_cb (TpDBusDaemon *proxy,
     const gchar **out0,
     const GError *error,
@@ -2348,10 +2331,31 @@ list_activatable_names_cb (TpDBusDaemon *proxy,
 
     DEBUG ("ListActivatableNames returned");
 
-    new_names_cb (self, out0, TRUE);
+    mcd_dispatcher_add_clients (self, out0, TRUE);
 
-    /* paired with one of the two locks in _constructed */
+    /* paired with the lock taken in _constructed */
     mcd_dispatcher_release_startup_lock (self);
+}
+
+static void
+list_names_cb (TpDBusDaemon *proxy,
+    const gchar **out0,
+    const GError *error,
+    gpointer user_data,
+    GObject *weak_object)
+{
+    McdDispatcher *self = MCD_DISPATCHER (weak_object);
+
+    DEBUG ("ListNames returned");
+
+    mcd_dispatcher_add_clients (self, out0, FALSE);
+
+    tp_cli_dbus_daemon_call_list_activatable_names (self->priv->dbus_daemon,
+        -1, list_activatable_names_cb, NULL, NULL, weak_object);
+    /* deliberately not calling mcd_dispatcher_release_startup_lock here -
+     * this function is "lock-neutral" (we would take a lock for
+     * ListActivatableNames then release the one used for ListNames),
+     * so simplify by doing nothing */
 }
 
 static void
@@ -2368,10 +2372,8 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
     if (g_strcmp0 (arg1, "") == 0 && g_strcmp0 (arg2, "") != 0)
     {
         /* the name appeared on the bus */
-        gchar *names[2] = {NULL, NULL};
-        names[0] = g_strdup (arg0);
-        new_names_cb (self, (const gchar **) names, FALSE);
-        g_free (names[0]);
+        const gchar *names[2] = { arg0, NULL};
+        mcd_dispatcher_add_clients (self, (const gchar **) names, FALSE);
     }
     else if (g_strcmp0 (arg1, "") != 0 && g_strcmp0 (arg2, "") == 0)
     {
@@ -2418,13 +2420,10 @@ mcd_dispatcher_constructed (GObject *object)
 
     DEBUG ("Starting to look for clients");
     priv->startup_completed = FALSE;
-    priv->startup_lock = 2;   /* ListNames + ListActivatableNames */
+    priv->startup_lock = 1;   /* the ListNames call we're about to make */
 
     tp_cli_dbus_daemon_connect_to_name_owner_changed (priv->dbus_daemon,
         name_owner_changed_cb, NULL, NULL, object, NULL);
-
-    tp_cli_dbus_daemon_call_list_activatable_names (priv->dbus_daemon,
-        -1, list_activatable_names_cb, NULL, NULL, object);
 
     tp_cli_dbus_daemon_call_list_names (priv->dbus_daemon,
         -1, list_names_cb, NULL, NULL, object);
