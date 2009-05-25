@@ -2209,8 +2209,6 @@ create_mcd_client (McdDispatcher *self,
 {
     /* McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self); */
     McdClient *client;
-    gchar *filename;
-    gboolean file_found = FALSE;
 
     g_assert (g_str_has_prefix (name, MC_CLIENT_BUS_NAME_BASE));
 
@@ -2219,7 +2217,21 @@ create_mcd_client (McdDispatcher *self,
     client->activatable = activatable;
     if (!activatable)
         client->active = TRUE;
+
+    client->proxy = _mcd_client_proxy_new (self->priv->dbus_daemon,
+                                           client->name);
+
     DEBUG ("McdClient created for %s", name);
+
+    return client;
+}
+
+static void
+mcd_client_start_introspection (McdClient *client,
+                                McdDispatcher *dispatcher)
+{
+    gchar *filename;
+    gboolean file_found = FALSE;
 
     /* The .client file is not mandatory as per the spec. However if it
      * exists, it is better to read it than activating the service to read the
@@ -2235,7 +2247,7 @@ create_mcd_client (McdDispatcher *self,
         g_key_file_load_from_file (file, filename, 0, &error);
         if (G_LIKELY (!error))
         {
-            DEBUG ("File found for %s: %s", name, filename);
+            DEBUG ("File found for %s: %s", client->name, filename);
             parse_client_file (client, file);
             file_found = TRUE;
         }
@@ -2248,25 +2260,19 @@ create_mcd_client (McdDispatcher *self,
         g_free (filename);
     }
 
-    client->proxy = _mcd_client_proxy_new (self->priv->dbus_daemon,
-                                           client->name);
-
     if (!file_found)
     {
-        DEBUG ("No .client file for %s. Ask on D-Bus.", name);
+        DEBUG ("No .client file for %s. Ask on D-Bus.", client->name);
 
-        if (!self->priv->startup_completed)
-            self->priv->startup_lock++;
+        if (!dispatcher->priv->startup_completed)
+            dispatcher->priv->startup_lock++;
 
         tp_cli_dbus_properties_call_get (client->proxy, -1,
             MC_IFACE_CLIENT, "Interfaces", get_interfaces_cb, NULL,
-            NULL, G_OBJECT (self));
+            NULL, G_OBJECT (dispatcher));
     }
     else
         client_add_interface_by_id (client);
-
-
-    return client;
 }
 
 /* Check the list of strings whether they are valid well-known names of
@@ -2316,8 +2322,11 @@ mcd_dispatcher_add_client (McdDispatcher *self,
 
     DEBUG ("Register client %s", name);
 
-    g_hash_table_insert (priv->clients, g_strdup (name),
-        create_mcd_client (self, name, activatable));
+    client = create_mcd_client (self, name, activatable);
+
+    g_hash_table_insert (priv->clients, g_strdup (name), client);
+
+    mcd_client_start_introspection (client, self);
 }
 
 static void
