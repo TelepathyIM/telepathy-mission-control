@@ -2397,11 +2397,16 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
 
-    if (g_strcmp0 (old_owner, "") == 0 && g_strcmp0 (new_owner, "") != 0)
+    /* dbus-glib guarantees this */
+    g_assert (name != NULL);
+    g_assert (old_owner != NULL);
+    g_assert (new_owner != NULL);
+
+    if (old_owner[0] == '\0' && new_owner[0] != '\0')
     {
         mcd_dispatcher_add_client (self, name, FALSE);
     }
-    else if (g_strcmp0 (old_owner, "") != 0 && g_strcmp0 (new_owner, "") == 0)
+    else if (old_owner[0] != '\0' && new_owner[0] == '\0')
     {
         /* The name disappeared from the bus */
         McdClient *client;
@@ -2422,7 +2427,7 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
             }
         }
     }
-    else if (g_strcmp0 (old_owner, "") != 0 && g_strcmp0 (new_owner, "") != 0)
+    else if (old_owner[0] != '\0' && new_owner[0] != '\0')
     {
         /* Atomic ownership handover - handle this like an exit + startup */
         name_owner_changed_cb (proxy, name, old_owner, "", user_data,
@@ -2433,8 +2438,8 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
     else
     {
         /* dbus-daemon is sick */
-        g_warning ("%s: Malformed message from the D-Bus daemon about '%s'",
-                   G_STRFUNC, name);
+        DEBUG ("Malformed message from the D-Bus daemon about '%s' "
+               "('%s' -> '%s')", name, old_owner, new_owner);
     }
 }
 
