@@ -18,6 +18,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/cancel.py \
 	dispatcher/capture-bundle.py \
 	dispatcher/create-text.py \
+	dispatcher/dispatch-activatable.py \
 	dispatcher/dispatch-obsolete.py \
 	dispatcher/dispatch-rejected-by-plugin.py \
 	dispatcher/dispatch-text.py \
