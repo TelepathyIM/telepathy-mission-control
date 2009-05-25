@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=org.freedesktop.Telepathy.Client.AbiWord
+Exec=/bin/sh /home/smcv/Collabora/telepathy/mc/test/twisted/tools/fake-startup.sh org.freedesktop.Telepathy.Client.AbiWord
