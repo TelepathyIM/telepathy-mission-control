@@ -30,18 +30,93 @@
 #include <telepathy-glib/errors.h>
 #include <telepathy-glib/proxy-subclass.h>
 
+#include "mcd-debug.h"
 #include "_gen/interfaces.h"
 
 G_DEFINE_TYPE (McdClientProxy, _mcd_client_proxy, TP_TYPE_PROXY);
 
+enum
+{
+    S_READY,
+    N_SIGNALS
+};
+
+static guint signals[N_SIGNALS] = { 0 };
+
 struct _McdClientProxyPrivate
 {
-  guint dummy:1;
+    gchar *unique_name;
+    gboolean ready;
 };
 
 static void
 _mcd_client_proxy_init (McdClientProxy *self)
 {
+    self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, MCD_TYPE_CLIENT_PROXY,
+                                              McdClientProxyPrivate);
+}
+
+static gboolean
+mcd_client_proxy_emit_ready (gpointer data)
+{
+    McdClientProxy *self = data;
+
+    if (self->priv->ready)
+        return FALSE;
+
+    self->priv->ready = TRUE;
+
+    g_signal_emit (self, signals[S_READY], 0);
+
+    return FALSE;
+}
+
+static void
+mcd_client_proxy_unique_name_cb (TpDBusDaemon *dbus_daemon,
+                                 const gchar *unique_name,
+                                 const GError *error,
+                                 gpointer unused G_GNUC_UNUSED,
+                                 GObject *weak_object)
+{
+    McdClientProxy *self = MCD_CLIENT_PROXY (weak_object);
+
+    if (error != NULL)
+    {
+        DEBUG ("Error getting unique name, assuming not active: %s %d: %s",
+               g_quark_to_string (error->domain), error->code, error->message);
+        unique_name = "";
+    }
+
+    self->priv->unique_name = g_strdup (unique_name);
+
+    mcd_client_proxy_emit_ready (self);
+}
+
+static void
+mcd_client_proxy_constructed (GObject *object)
+{
+    McdClientProxy *self = MCD_CLIENT_PROXY (object);
+    void (*chain_up) (GObject *) =
+        ((GObjectClass *) _mcd_client_proxy_parent_class)->constructed;
+
+    if (chain_up != NULL)
+    {
+        chain_up (object);
+    }
+
+    if (self->priv->unique_name == NULL)
+    {
+        tp_cli_dbus_daemon_call_get_name_owner (tp_proxy_get_dbus_daemon (self),
+                                                -1,
+                                                tp_proxy_get_bus_name (self),
+                                                mcd_client_proxy_unique_name_cb,
+                                                NULL, NULL, (GObject *) self);
+    }
+    else
+    {
+        g_idle_add_full (G_PRIORITY_HIGH, mcd_client_proxy_emit_ready,
+                         g_object_ref (self), g_object_unref);
+    }
 }
 
 static void
@@ -50,6 +125,14 @@ _mcd_client_proxy_class_init (McdClientProxyClass *klass)
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
     g_type_class_add_private (object_class, sizeof (McdClientProxyPrivate));
+
+    object_class->constructed = mcd_client_proxy_constructed;
+
+    signals[S_READY] = g_signal_new ("ready", G_OBJECT_CLASS_TYPE (klass),
+                                     G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+                                     0, NULL, NULL,
+                                     g_cclosure_marshal_VOID__VOID,
+                                     G_TYPE_NONE, 0);
 }
 
 gboolean
