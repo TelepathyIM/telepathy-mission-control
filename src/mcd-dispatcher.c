@@ -2226,12 +2226,23 @@ create_mcd_client (McdDispatcher *self,
     return client;
 }
 
+/* FIXME: eventually this whole chain should move into McdClientProxy */
 static void
-mcd_client_start_introspection (McdClient *client,
+mcd_client_start_introspection (McdClientProxy *proxy,
                                 McdDispatcher *dispatcher)
 {
     gchar *filename;
     gboolean file_found = FALSE;
+    McdClient *client;
+    const gchar *bus_name = tp_proxy_get_bus_name (proxy);
+
+    client = g_hash_table_lookup (dispatcher->priv->clients, bus_name);
+
+    if (client == NULL)
+    {
+        DEBUG ("Client %s vanished before it became ready", bus_name);
+        goto finally;
+    }
 
     /* The .client file is not mandatory as per the spec. However if it
      * exists, it is better to read it than activating the service to read the
@@ -2273,6 +2284,10 @@ mcd_client_start_introspection (McdClient *client,
     }
     else
         client_add_interface_by_id (client);
+
+finally:
+    /* paired with the lock taken when we made the McdClient */
+    mcd_dispatcher_release_startup_lock (dispatcher);
 }
 
 /* Check the list of strings whether they are valid well-known names of
@@ -2322,11 +2337,17 @@ mcd_dispatcher_add_client (McdDispatcher *self,
 
     DEBUG ("Register client %s", name);
 
+    /* paired with one in mcd_client_start_introspection */
+    if (!self->priv->startup_completed)
+        self->priv->startup_lock++;
+
     client = create_mcd_client (self, name, activatable);
 
     g_hash_table_insert (priv->clients, g_strdup (name), client);
 
-    mcd_client_start_introspection (client, self);
+    g_signal_connect (client->proxy, "ready",
+                      G_CALLBACK (mcd_client_start_introspection),
+                      self);
 }
 
 static void
