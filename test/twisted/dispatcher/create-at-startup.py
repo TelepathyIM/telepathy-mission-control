@@ -132,7 +132,7 @@ def test(q, bus, unused):
 
     # Now that the dispatcher is ready to go, we start looking for channels,
     # and also make the actual request
-    _, cm_request_call, get_handled_channels_call = q.expect_many(
+    _, cm_request_call = q.expect_many(
             EventPattern('dbus-method-call',
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
                 args=[cs.CONN_IFACE_REQUESTS],
@@ -140,16 +140,7 @@ def test(q, bus, unused):
             EventPattern('dbus-method-call',
                 interface=cs.CONN_IFACE_REQUESTS, method='CreateChannel',
                 path=conn.object_path, args=[request], handled=False),
-            EventPattern('dbus-method-call',
-                path=client.object_path,
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.HANDLER, 'HandledChannels'],
-                handled=False),
             )
-    # FIXME: this Get(HandledChannels) could be done implicitly by the GetAll
-    # during basic Handler setup, if MC was refactored more
-    q.dbus_return(get_handled_channels_call.message, dbus.Array(signature='o'),
-            signature='v')
 
     # Time passes. A channel is returned.
 
@@ -176,6 +167,11 @@ def test(q, bus, unused):
             path=client.object_path,
             interface=cs.OBSERVER, method='ObserveChannels',
             handled=False)
+
+    # ... but currently there's no guarantee that they'll be in the right
+    # order, so swap them if necessary (FIXME: take this out)
+    if a.args[3] == '/':
+        a, e = e, a
 
     assert a.args[0] == account.object_path, a.args
     assert a.args[1] == conn.object_path, a.args

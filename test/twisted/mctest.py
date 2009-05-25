@@ -471,6 +471,9 @@ class SimulatedClient(object):
         q.add_dbus_method_impl(self.Get_HandlerChannelFilter,
                 path=self.object_path, interface=cs.PROPERTIES_IFACE,
                 method='Get', args=[cs.HANDLER, 'HandlerChannelFilter'])
+        q.add_dbus_method_impl(self.Get_HandledChannels,
+                path=self.object_path, interface=cs.PROPERTIES_IFACE,
+                method='Get', args=[cs.HANDLER, 'HandledChannels'])
         q.add_dbus_method_impl(self.Get_BypassApproval,
                 path=self.object_path, interface=cs.PROPERTIES_IFACE,
                 method='Get', args=[cs.HANDLER, 'BypassApproval'])
@@ -528,6 +531,9 @@ class SimulatedClient(object):
             'HandledChannels': self.handled_channels,
             },
                 signature='a{sv}')
+
+    def Get_HandledChannels(self, e):
+        self.q.dbus_return(e.message, self.handled_channels, signature='v')
 
     def Get_HandlerChannelFilter(self, e):
         assert self.handle
