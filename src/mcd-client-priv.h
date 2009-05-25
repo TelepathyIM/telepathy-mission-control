@@ -67,7 +67,8 @@ G_GNUC_INTERNAL GType _mcd_client_proxy_get_type (void);
                               McdClientProxyClass))
 
 G_GNUC_INTERNAL McdClientProxy *_mcd_client_proxy_new (
-    TpDBusDaemon *dbus_daemon, const gchar *name_suffix);
+    TpDBusDaemon *dbus_daemon, const gchar *name_suffix,
+    const gchar *unique_name_if_known);
 
 G_GNUC_INTERNAL gboolean _mcd_client_check_valid_name (
     const gchar *name_suffix, GError **error);

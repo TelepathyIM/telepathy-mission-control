@@ -2240,7 +2240,8 @@ finish:
 static McdClient *
 create_mcd_client (McdDispatcher *self,
                    const gchar *name,
-                   gboolean activatable)
+                   gboolean activatable,
+                   const gchar *owner)
 {
     /* McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self); */
     McdClient *client;
@@ -2254,7 +2255,7 @@ create_mcd_client (McdDispatcher *self,
         client->active = TRUE;
 
     client->proxy = _mcd_client_proxy_new (self->priv->dbus_daemon,
-                                           client->name);
+                                           client->name, owner);
 
     DEBUG ("McdClient created for %s", name);
 
@@ -2350,7 +2351,8 @@ finally:
 static void
 mcd_dispatcher_add_client (McdDispatcher *self,
                            const gchar *name,
-                           gboolean activatable)
+                           gboolean activatable,
+                           const gchar *owner)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
     McdClient *client;
@@ -2395,7 +2397,7 @@ mcd_dispatcher_add_client (McdDispatcher *self,
     if (!self->priv->startup_completed)
         self->priv->startup_lock++;
 
-    client = create_mcd_client (self, name, activatable);
+    client = create_mcd_client (self, name, activatable, owner);
 
     g_hash_table_insert (priv->clients, g_strdup (name), client);
 
@@ -2426,7 +2428,7 @@ list_activatable_names_cb (TpDBusDaemon *proxy,
 
         while (*iter != NULL)
         {
-            mcd_dispatcher_add_client (self, *iter, TRUE);
+            mcd_dispatcher_add_client (self, *iter, TRUE, NULL);
             iter++;
         }
     }
@@ -2457,7 +2459,7 @@ list_names_cb (TpDBusDaemon *proxy,
 
         while (*iter != NULL)
         {
-            mcd_dispatcher_add_client (self, *iter, FALSE);
+            mcd_dispatcher_add_client (self, *iter, FALSE, NULL);
             iter++;
         }
     }
@@ -2488,7 +2490,7 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
 
     if (old_owner[0] == '\0' && new_owner[0] != '\0')
     {
-        mcd_dispatcher_add_client (self, name, FALSE);
+        mcd_dispatcher_add_client (self, name, FALSE, new_owner);
     }
     else if (old_owner[0] != '\0' && new_owner[0] == '\0')
     {
