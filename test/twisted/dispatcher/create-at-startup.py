@@ -168,11 +168,6 @@ def test(q, bus, unused):
             interface=cs.OBSERVER, method='ObserveChannels',
             handled=False)
 
-    # ... but currently there's no guarantee that they'll be in the right
-    # order, so swap them if necessary (FIXME: take this out)
-    if a.args[3] == '/':
-        a, e = e, a
-
     assert a.args[0] == account.object_path, a.args
     assert a.args[1] == conn.object_path, a.args
     assert a.args[3] != '/', a.args         # there is a dispatch operation
