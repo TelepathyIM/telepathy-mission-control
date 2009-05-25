@@ -1788,6 +1788,13 @@ mcd_client_set_filters (McdClient *client,
             g_assert_not_reached ();
     }
 
+    if (*client_filters != NULL)
+    {
+        g_list_foreach (*client_filters, (GFunc) g_hash_table_destroy, NULL);
+        g_list_free (*client_filters);
+        *client_filters = NULL;
+    }
+
     for (i = 0 ; i < filters->len ; i++)
     {
         GHashTable *channel_class = g_ptr_array_index (filters, i);
@@ -2283,7 +2290,26 @@ mcd_client_start_introspection (McdClientProxy *proxy,
             NULL, G_OBJECT (dispatcher));
     }
     else
+    {
         client_add_interface_by_id (client);
+
+        if ((client->interfaces & MCD_CLIENT_HANDLER) != 0 &&
+            _mcd_client_proxy_is_active (proxy))
+        {
+            DEBUG ("%s is an active, activatable Handler", client->name);
+
+            /* We need to investigate whether it is handling any channels */
+
+            if (!dispatcher->priv->startup_completed)
+                dispatcher->priv->startup_lock++;
+
+            tp_cli_dbus_properties_call_get_all (client->proxy, -1,
+                                                 MC_IFACE_CLIENT_HANDLER,
+                                                 handler_get_all_cb,
+                                                 NULL, NULL,
+                                                 G_OBJECT (dispatcher));
+        }
+    }
 
 finally:
     /* paired with the lock taken when we made the McdClient */
