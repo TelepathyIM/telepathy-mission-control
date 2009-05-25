@@ -56,6 +56,25 @@ _mcd_client_proxy_init (McdClientProxy *self)
                                               McdClientProxyPrivate);
 }
 
+gboolean
+_mcd_client_proxy_is_active (McdClientProxy *self)
+{
+    g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), FALSE);
+    g_return_val_if_fail (self->priv->ready, FALSE);
+
+    return self->priv->unique_name != NULL &&
+        self->priv->unique_name[0] != '\0';
+}
+
+const gchar *
+_mcd_client_proxy_get_unique_name (McdClientProxy *self)
+{
+    g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), NULL);
+    g_return_val_if_fail (self->priv->ready, NULL);
+
+    return self->priv->unique_name;
+}
+
 static gboolean
 mcd_client_proxy_emit_ready (gpointer data)
 {

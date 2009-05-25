@@ -72,6 +72,10 @@ G_GNUC_INTERNAL McdClientProxy *_mcd_client_proxy_new (
 G_GNUC_INTERNAL gboolean _mcd_client_check_valid_name (
     const gchar *name_suffix, GError **error);
 
+G_GNUC_INTERNAL gboolean _mcd_client_proxy_is_active (McdClientProxy *self);
+G_GNUC_INTERNAL const gchar *_mcd_client_proxy_get_unique_name (
+    McdClientProxy *self);
+
 /* Analogous to TP_CM_*_BASE */
 #define MC_CLIENT_BUS_NAME_BASE MC_IFACE_CLIENT "."
 #define MC_CLIENT_OBJECT_PATH_BASE "/org/freedesktop/Telepathy/Client/"
