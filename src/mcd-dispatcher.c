@@ -1084,6 +1084,8 @@ collect_satisfied_requests (GList *channels)
         g_ptr_array_add (ret, path);
     }
 
+    g_hash_table_destroy (set);
+
     return ret;
 }
 
