@@ -1696,6 +1696,7 @@ _mcd_dispatcher_dispose (GObject * object)
     }
 
     g_hash_table_destroy (priv->clients);
+    g_hash_table_destroy (priv->connections);
 
     if (priv->master)
     {
