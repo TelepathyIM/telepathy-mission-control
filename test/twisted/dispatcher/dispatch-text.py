@@ -24,6 +24,7 @@ def test(q, bus, mc):
         }, signature='sv')
 
     empathy_bus = dbus.bus.BusConnection()
+    empathy_bus.set_exit_on_disconnect(False)   # we'll disconnect later
     kopete_bus = dbus.bus.BusConnection()
     q.attach_to_bus(empathy_bus)
     q.attach_to_bus(kopete_bus)
@@ -197,8 +198,8 @@ def test(q, bus, mc):
     channel_properties[cs.CHANNEL + '.Requested'] = False
     channel_properties[cs.CHANNEL + '.Interfaces'] = dbus.Array(signature='s')
 
-    chan = SimulatedChannel(conn, channel_properties)
-    chan.announce()
+    claimed_chan = SimulatedChannel(conn, channel_properties)
+    claimed_chan.announce()
 
     # A channel dispatch operation is created
 
@@ -244,7 +245,7 @@ def test(q, bus, mc):
     assert e.args[4] == [], e.args      # no requests satisfied
     channels = e.args[2]
     assert len(channels) == 1, channels
-    assert channels[0][0] == chan.object_path, channels
+    assert channels[0][0] == claimed_chan.object_path, channels
     assert channels[0][1] == channel_properties, channels
 
     assert k.args == e.args
@@ -266,7 +267,7 @@ def test(q, bus, mc):
                 handled=False),
             )
 
-    assert e.args == [[(chan.object_path, channel_properties)],
+    assert e.args == [[(claimed_chan.object_path, channel_properties)],
             cdo_path, cdo_properties]
     assert k.args == e.args
 
@@ -289,6 +290,30 @@ def test(q, bus, mc):
 
     # Now there are no more active channel dispatch operations
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []
+
+    empathy.release_name()
+
+    e = q.expect('dbus-signal',
+            signal='NameOwnerChanged',
+            predicate=(lambda e:
+                e.args[0] == empathy.bus_name and e.args[2] == ''),
+            )
+    empathy_unique_name = e.args[1]
+
+    empathy_bus.flush()
+    empathy_bus.close()
+
+    # In response, the channels that were being handled by Empathy are closed
+    q.expect_many(
+            EventPattern('dbus-signal',
+                signal='NameOwnerChanged',
+                predicate=(lambda e:
+                    e.args[0] == empathy_unique_name and e.args[2] == '')),
+            EventPattern('dbus-method-call',
+                path=chan.object_path, method='Close'),
+            EventPattern('dbus-method-call',
+                path=claimed_chan.object_path, method='Close'),
+            )
 
 if __name__ == '__main__':
     exec_test(test, {})

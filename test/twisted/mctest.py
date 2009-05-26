@@ -485,6 +485,9 @@ class SimulatedClient(object):
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
                 args=[cs.HANDLER])
 
+    def release_name(self):
+        del self._bus_name_ref
+
     def get_interfaces(self):
         ret = dbus.Array([], signature='s', variant_level=1)
 
