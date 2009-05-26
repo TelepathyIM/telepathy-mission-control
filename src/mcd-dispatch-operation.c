@@ -32,6 +32,8 @@
 #include <string.h>
 
 #include <dbus/dbus.h>
+#include <dbus/dbus-glib-lowlevel.h>
+
 #include <glib/gi18n.h>
 #include <glib/gstdio.h>
 #include <telepathy-glib/gtypes.h>
@@ -80,8 +82,8 @@ struct _McdDispatchOperationPrivate
 
     /* Results */
     guint finished : 1;
-    guint claimed : 1;
     gchar *handler;
+    gchar *claimer;
 
     /* DBUS connection */
     TpDBusDaemon *dbus_daemon;
@@ -263,7 +265,7 @@ dispatch_operation_claim (McSvcChannelDispatchOperation *self,
         return;
     }
 
-    priv->claimed = TRUE;
+    priv->claimer = dbus_g_method_get_sender (context);
     mc_svc_channel_dispatch_operation_return_from_claim (context);
 
     mcd_dispatch_operation_finish (MCD_DISPATCH_OPERATION (self));
@@ -585,7 +587,14 @@ gboolean
 mcd_dispatch_operation_is_claimed (McdDispatchOperation *operation)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (operation), FALSE);
-    return operation->priv->claimed;
+    return (operation->priv->claimer != NULL);
+}
+
+const gchar *
+_mcd_dispatch_operation_get_claimer (McdDispatchOperation *operation)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (operation), NULL);
+    return operation->priv->claimer;
 }
 
 /*
