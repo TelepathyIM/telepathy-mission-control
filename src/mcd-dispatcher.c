@@ -1357,9 +1357,15 @@ _mcd_dispatcher_context_abort (McdDispatcherContext *context,
 {
     GList *list;
 
-    g_return_if_fail(context);
+    g_return_if_fail (context);
 
-    for (list = context->channels; list != NULL; list = list->next)
+    /* make a temporary copy, which is destroyed during the loop - otherwise
+     * we'll be trying to iterate over context->channels at the same time
+     * that mcd_mission_abort results in modifying it, which would be bad */
+    list = g_list_copy (context->channels);
+    g_list_foreach (list, (GFunc) g_object_ref, NULL);
+
+    while (list != NULL)
     {
         McdChannel *channel = MCD_CHANNEL (list->data);
 
@@ -1369,6 +1375,9 @@ _mcd_dispatcher_context_abort (McdDispatcherContext *context,
         /* FIXME: try to dispatch the channels to another handler, instead
          * of just aborting them */
         mcd_mission_abort (MCD_MISSION (channel));
+
+        g_object_unref (channel);
+        list = g_list_delete_link (list, list);
     }
 }
 
