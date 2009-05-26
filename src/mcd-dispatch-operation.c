@@ -414,6 +414,7 @@ mcd_dispatch_operation_finalize (GObject *object)
 
     g_free (priv->handler);
     g_free (priv->object_path);
+    g_free (priv->claimer);
 
     G_OBJECT_CLASS (mcd_dispatch_operation_parent_class)->finalize (object);
 }
