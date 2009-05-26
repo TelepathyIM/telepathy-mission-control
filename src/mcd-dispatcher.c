@@ -2374,6 +2374,7 @@ mcd_dispatcher_add_client (McdDispatcher *self,
     }
 
     client = g_hash_table_lookup (priv->clients, name);
+
     if (client)
     {
         /* This Telepathy Client is already known so don't create it
@@ -2385,6 +2386,7 @@ mcd_dispatcher_add_client (McdDispatcher *self,
         }
         else
         {
+            _mcd_client_proxy_set_active (client->proxy, owner);
             client->active = TRUE;
         }
 
@@ -2494,12 +2496,17 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
     }
     else if (old_owner[0] != '\0' && new_owner[0] == '\0')
     {
-        /* The name disappeared from the bus */
+        /* The name disappeared from the bus. It might be either well-known
+         * or unique */
         McdClient *client;
 
         client = g_hash_table_lookup (priv->clients, name);
+
         if (client)
         {
+            client->active = FALSE;
+            _mcd_client_proxy_set_inactive (client->proxy);
+
             if (!client->activatable)
                 g_hash_table_remove (priv->clients, name);
             else

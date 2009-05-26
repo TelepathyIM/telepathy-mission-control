@@ -296,3 +296,22 @@ _mcd_client_proxy_new (TpDBusDaemon *dbus_daemon,
 
     return self;
 }
+
+void
+_mcd_client_proxy_set_inactive (McdClientProxy *self)
+{
+    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
+
+    g_free (self->priv->unique_name);
+    self->priv->unique_name = NULL;
+}
+
+void
+_mcd_client_proxy_set_active (McdClientProxy *self,
+                              const gchar *unique_name)
+{
+    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
+
+    g_free (self->priv->unique_name);
+    self->priv->unique_name = g_strdup (unique_name);
+}
