@@ -1116,6 +1116,9 @@ mcd_channel_take_error (McdChannel *channel, GError *error)
 {
     g_return_if_fail (MCD_IS_CHANNEL (channel));
 
+    if (channel->priv->error != NULL)
+        g_error_free (channel->priv->error);
+
     channel->priv->error = error;
 
     if (error)
