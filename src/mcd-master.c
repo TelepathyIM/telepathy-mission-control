@@ -374,6 +374,8 @@ _mcd_master_finalize (GObject * object)
 
     g_free (priv->awake_presence_message);
 
+    g_hash_table_destroy (priv->extra_parameters);
+
     G_OBJECT_CLASS (mcd_master_parent_class)->finalize (object);
 }
 
