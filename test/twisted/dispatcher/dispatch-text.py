@@ -2,6 +2,7 @@
 """
 
 import dbus
+import dbus.bus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
@@ -22,11 +23,15 @@ def test(q, bus, mc):
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
         }, signature='sv')
 
+    empathy_bus = dbus.bus.BusConnection()
+    kopete_bus = dbus.bus.BusConnection()
+    q.attach_to_bus(empathy_bus)
+    q.attach_to_bus(kopete_bus)
     # Two clients want to observe, approve and handle channels
-    empathy = SimulatedClient(q, bus, 'Empathy',
+    empathy = SimulatedClient(q, empathy_bus, 'Empathy',
             observe=[text_fixed_properties], approve=[text_fixed_properties],
             handle=[text_fixed_properties], bypass_approval=False)
-    kopete = SimulatedClient(q, bus, 'Kopete',
+    kopete = SimulatedClient(q, kopete_bus, 'Kopete',
             observe=[text_fixed_properties], approve=[text_fixed_properties],
             handle=[text_fixed_properties], bypass_approval=False)
 
@@ -114,8 +119,8 @@ def test(q, bus, mc):
     assert k.args == e.args
 
     # Both Observers indicate that they are ready to proceed
-    q.dbus_return(k.message, signature='')
-    q.dbus_return(e.message, signature='')
+    q.dbus_return(k.message, bus=empathy_bus, signature='')
+    q.dbus_return(e.message, bus=kopete_bus, signature='')
 
     # The Approvers are next
 
@@ -134,8 +139,8 @@ def test(q, bus, mc):
             cdo_path, cdo_properties]
     assert k.args == e.args
 
-    q.dbus_return(e.message, signature='')
-    q.dbus_return(k.message, signature='')
+    q.dbus_return(e.message, bus=empathy_bus, signature='')
+    q.dbus_return(k.message, bus=kopete_bus, signature='')
 
     # Both Approvers now have a flashing icon or something, trying to get the
     # user's attention
@@ -159,7 +164,7 @@ def test(q, bus, mc):
             handled=False)
 
     # Empathy accepts the channels
-    q.dbus_return(e.message, signature='')
+    q.dbus_return(e.message, bus=empathy_bus, signature='')
 
     # FIXME: this shouldn't happen until after HandleChannels has succeeded,
     # but MC currently does this as soon as HandleWith is called (fd.o #21003)
@@ -245,8 +250,8 @@ def test(q, bus, mc):
     assert k.args == e.args
 
     # Both Observers indicate that they are ready to proceed
-    q.dbus_return(k.message, signature='')
-    q.dbus_return(e.message, signature='')
+    q.dbus_return(k.message, bus=kopete_bus, signature='')
+    q.dbus_return(e.message, bus=empathy_bus, signature='')
 
     # The Approvers are next
 
@@ -265,8 +270,8 @@ def test(q, bus, mc):
             cdo_path, cdo_properties]
     assert k.args == e.args
 
-    q.dbus_return(e.message, signature='')
-    q.dbus_return(k.message, signature='')
+    q.dbus_return(e.message, bus=empathy_bus, signature='')
+    q.dbus_return(k.message, bus=kopete_bus, signature='')
 
     # Both Approvers now have a flashing icon or something, trying to get the
     # user's attention
