@@ -190,7 +190,10 @@ class IteratingEventQueue(BaseEventQueue):
         BaseEventQueue.__init__(self, timeout)
         self.events = []
         self._dbus_method_impls = []
-        self._bus = None
+        self._buses = []
+        # a message filter which will claim we handled everything
+        self._dbus_dev_null = \
+                lambda bus, message: dbus.lowlevel.HANDLER_RESULT_HANDLED
 
     def wait(self):
         stop = [False]
@@ -215,33 +218,62 @@ class IteratingEventQueue(BaseEventQueue):
     # compatibility
     handle_event = append
 
-    def add_dbus_method_impl(self, cb, **kwargs):
+    def add_dbus_method_impl(self, cb, bus=None, **kwargs):
+        if bus is None:
+            bus = self._buses[0]
+
         self._dbus_method_impls.append(
                 (EventPattern('dbus-method-call', **kwargs), cb))
 
     def dbus_emit(self, path, iface, name, *a, **k):
+        bus = k.pop('bus', self._buses[0])
         assert 'signature' in k, k
         message = dbus.lowlevel.SignalMessage(path, iface, name)
         message.append(*a, **k)
-        self._bus.send_message(message)
+        bus.send_message(message)
 
     def dbus_return(self, in_reply_to, *a, **k):
+        bus = k.pop('bus', self._buses[0])
         assert 'signature' in k, k
         reply = dbus.lowlevel.MethodReturnMessage(in_reply_to)
         reply.append(*a, **k)
-        self._bus.send_message(reply)
+        bus.send_message(reply)
 
-    def dbus_raise(self, in_reply_to, name, message=None):
+    def dbus_raise(self, in_reply_to, name, message=None, bus=None):
+        if bus is None:
+            bus = self._buses[0]
+
         reply = dbus.lowlevel.ErrorMessage(in_reply_to, name, message)
-        self._bus.send_message(reply)
+        bus.send_message(reply)
 
     def attach_to_bus(self, bus):
-        assert self._bus is None, self._bus
-        self._bus = bus
-        self._dbus_filter_bound_method = self._dbus_filter
-        self._bus.add_message_filter(self._dbus_filter_bound_method)
+        if not self._buses:
+            # first-time setup
+            self._dbus_filter_bound_method = self._dbus_filter
 
-        self._bus.add_signal_receiver(
+        self._buses.append(bus)
+
+        # Only subscribe to messages on the first bus connection (assumed to
+        # be the shared session bus connection used by the simulated connection
+        # manager and most of the test suite), not on subsequent bus
+        # connections (assumed to represent extra clients).
+        #
+        # When we receive a method call on the other bus connections, ignore
+        # it - the eavesdropping filter installed on the first bus connection
+        # will see it too.
+        #
+        # This is highly counter-intuitive, but it means our messages are in
+        # a guaranteed order (we don't have races between messages arriving on
+        # various connections).
+        if len(self._buses) > 1:
+            bus.add_message_filter(self._dbus_dev_null)
+            return
+
+        bus.add_match_string("")    # eavesdrop, like dbus-monitor does
+
+        bus.add_message_filter(self._dbus_filter_bound_method)
+
+        bus.add_signal_receiver(
                 lambda *args, **kw:
                     self.append(
                         Event('dbus-signal',
@@ -259,18 +291,29 @@ class IteratingEventQueue(BaseEventQueue):
                 )
 
     def cleanup(self):
-        if self._bus is not None:
-            self._bus.remove_message_filter(self._dbus_filter_bound_method)
-            self._bus = None
+        if self._buses:
+            self._buses[0].remove_message_filter(self._dbus_filter_bound_method)
+        for bus in self._buses[1:]:
+            bus.remove_message_filter(self._dbus_dev_null)
+
+        self._buses = []
         self._dbus_method_impls = []
 
     def _dbus_filter(self, bus, message):
         if isinstance(message, dbus.lowlevel.MethodCallMessage):
 
+            destination = message.get_destination()
+            sender = message.get_sender()
+
+            if (destination == 'org.freedesktop.DBus' or
+                    sender == self._buses[0].get_unique_name()):
+                # suppress reply and don't make an Event
+                return dbus.lowlevel.HANDLER_RESULT_HANDLED
+
             e = Event('dbus-method-call', message=message,
                 interface=message.get_interface(), path=message.get_path(),
                 args=map(unwrap, message.get_args_list(byte_arrays=True)),
-                destination=message.get_destination(),
+                destination=str(destination),
                 method=message.get_member(),
                 sender=message.get_sender(),
                 handled=False)
