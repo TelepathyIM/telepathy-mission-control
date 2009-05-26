@@ -38,7 +38,7 @@ def test(q, bus, mc):
 
     q.expect('dbus-signal', path=account.object_path,
             interface=cs.ACCOUNT, signal='AccountPropertyChanged',
-            predicate=lambda e: e.args[0]['CurrentPresence'] == presence)
+            predicate=lambda e: e.args[0].get('CurrentPresence') == presence)
 
     # Change requested presence after going online
     presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_AWAY), 'away',
@@ -61,7 +61,7 @@ def test(q, bus, mc):
 
     q.expect('dbus-signal', path=account.object_path,
             interface=cs.ACCOUNT, signal='AccountPropertyChanged',
-            predicate=lambda e: e.args[0]['CurrentPresence'] == presence)
+            predicate=lambda e: e.args[0].get('CurrentPresence') == presence)
 
 if __name__ == '__main__':
     exec_test(test, {})
