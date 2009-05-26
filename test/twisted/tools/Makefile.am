@@ -11,11 +11,14 @@ exec-with-log.sh: exec-with-log.sh.in Makefile
 # in tarballs are non-portable (and automake 1.8 doesn't let us build
 # non-archaic tarballs)
 org.freedesktop.Telepathy.%.service: %.service.in
-	sed -e "s|[@]abs_top_builddir[@]|@abs_top_builddir@|g" $< > $@
+	sed \
+		-e "s|[@]abs_top_srcdir[@]|@abs_top_srcdir@|g" \
+		-e "s|[@]abs_top_builddir[@]|@abs_top_builddir@|g" \
+		$< > $@
 
 # D-Bus service file for testing
-service_in_files = MissionControl.service.in
-service_files = org.freedesktop.Telepathy.MissionControl.service
+service_in_files = MissionControl.service.in Client.AbiWord.service.in
+service_files = $(patsubst %.in,org.freedesktop.Telepathy.%, $(service_in_files))
 
 # D-Bus config file for testing
 conf_in_files = tmp-session-bus.conf.in
@@ -27,6 +30,7 @@ EXTRA_DIST = \
 	$(service_in_files) \
 	$(conf_in_files) \
 	exec-with-log.sh.in \
+	fake-startup.sh \
 	with-session-bus.sh
 
 CLEANFILES = \
