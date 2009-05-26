@@ -928,6 +928,7 @@ _mcd_account_manager_finalize (GObject *object)
 	write_conf (priv->keyfile);
     g_key_file_free (priv->keyfile);
 
+    g_free (priv->account_connections_dir);
     remove (priv->account_connections_file);
     g_free (priv->account_connections_file);
 
