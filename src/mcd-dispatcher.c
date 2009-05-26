@@ -55,6 +55,7 @@
 #include "mcd-dispatcher-priv.h"
 #include "mcd-dispatch-operation.h"
 #include "mcd-dispatch-operation-priv.h"
+#include "mcd-handler-map-priv.h"
 #include "mcd-misc.h"
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/gtypes.h>
@@ -149,7 +150,6 @@ typedef struct _McdClient
     McdClientProxy *proxy;
     gchar *name;
     McdClientInterface interfaces;
-    gchar **handled_channels;
     guint bypass_approver : 1;
 
     /* If a client was in the ListActivatableNames list, it must not be
@@ -195,6 +195,8 @@ struct _McdDispatcherPrivate
     /* hash table containing clients
      * char *bus_name -> McdClient */
     GHashTable *clients;
+
+    McdHandlerMap *handler_map;
 
     McdMaster *master;
 
@@ -613,6 +615,25 @@ get_default_handler (McdDispatcher *dispatcher, McdChannel *channel)
 }
 
 static void
+mcd_dispatcher_set_channel_handled_by (McdDispatcher *self,
+                                       McdChannel *channel,
+                                       const gchar *unique_name)
+{
+    const gchar *path;
+
+    g_assert (unique_name != NULL);
+
+    path = mcd_channel_get_object_path (channel);
+
+    _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_DISPATCHED);
+
+    _mcd_handler_map_set_channel_handled (self->priv->handler_map,
+                                          channel, unique_name);
+
+    g_signal_emit_by_name (self, "dispatched", channel);
+}
+
+static void
 handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
                     GObject *weak_object)
 {
@@ -647,7 +668,7 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
                                    channel, mc_error);
 
             /* FIXME: try to dispatch the channels to another handler, instead
-             * of just aborting them */
+             * of just aborting them? */
             mcd_mission_abort (MCD_MISSION (channel));
         }
         g_error_free (mc_error);
@@ -657,15 +678,44 @@ handle_channels_cb (TpProxy *proxy, const GError *error, gpointer user_data,
         for (list = call_data->channels; list != NULL; list = list->next)
         {
             McdChannel *channel = list->data;
+            const gchar *unique_name;
 
             /* if the channel is no longer in the context, don't even try to
              * access it */
             if (!g_list_find (context->channels, channel))
                 continue;
 
-            /* TODO: abort the channel if the handler dies */
-            _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_DISPATCHED);
-            g_signal_emit_by_name (context->dispatcher, "dispatched", channel);
+            unique_name = _mcd_client_proxy_get_unique_name (MCD_CLIENT_PROXY (proxy));
+
+            /* This should always be false in practice - either we already know
+             * the handler's unique name (because active handlers' unique names
+             * are discovered before their handler filters), or the handler
+             * is activatable and was not running, the handler filter came
+             * from a .client file, and the bus daemon activated the handler
+             * as a side-effect of HandleChannels (in which case
+             * NameOwnerChanged should have already been emitted by the time
+             * we got a reply to HandleChannels).
+             *
+             * We recover by whining to stderr and closing the channels, in the
+             * interests of at least failing visibly.
+             *
+             * If dbus-glib exposed more of the details of the D-Bus message
+             * passing system, then we could just look at the sender of the
+             * reply and bypass this rubbish...
+             */
+            if (G_UNLIKELY (unique_name == NULL || unique_name[0] == '\0'))
+            {
+                g_warning ("Client %s returned successfully but doesn't "
+                           "exist? dbus-daemon bug suspected",
+                           tp_proxy_get_bus_name (proxy));
+                g_warning ("Closing channel %s as a result",
+                           mcd_channel_get_object_path (channel));
+                mcd_mission_abort ((McdMission *) channel);
+                continue;
+            }
+
+            mcd_dispatcher_set_channel_handled_by (context->dispatcher,
+                                                   channel, unique_name);
         }
     }
 
@@ -1393,9 +1443,8 @@ on_operation_finished (McdDispatchOperation *operation,
         {
             McdChannel *channel = MCD_CHANNEL (list->data);
 
-            /* TODO: abort the channel if the handler dies */
-            _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_DISPATCHED);
-            g_signal_emit_by_name (context->dispatcher, "dispatched", channel);
+            mcd_dispatcher_set_channel_handled_by (context->dispatcher,
+                channel, _mcd_dispatch_operation_get_claimer (operation));
         }
 
         mcd_dispatcher_context_handler_done (context);
@@ -1620,6 +1669,12 @@ _mcd_dispatcher_dispose (GObject * object)
 	return;
     }
     priv->is_disposed = TRUE;
+
+    if (priv->handler_map)
+    {
+        g_object_unref (priv->handler_map);
+        priv->handler_map = NULL;
+    }
 
     g_hash_table_destroy (priv->clients);
 
@@ -1934,10 +1989,12 @@ handler_get_all_cb (TpProxy *proxy,
                     gpointer unused G_GNUC_UNUSED,
                     GObject *weak_object)
 {
+    McdClientProxy *client_proxy = MCD_CLIENT_PROXY (proxy);
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
     McdClient *client;
     const gchar *bus_name = tp_proxy_get_bus_name (proxy);
     GPtrArray *filters, *channels;
+    const gchar *unique_name;
 
     if (error != NULL)
     {
@@ -1980,31 +2037,34 @@ handler_get_all_cb (TpProxy *proxy,
     channels = tp_asv_get_boxed (properties, "HandledChannels",
                                  MC_ARRAY_TYPE_OBJECT);
 
-    if (channels != NULL)
+    unique_name = _mcd_client_proxy_get_unique_name (client_proxy);
+
+    /* This function is only called in response to the McdClientProxy
+     * signalling ready, which means it knows whether it has a unique name
+     * (is running) or not */
+    g_assert (unique_name != NULL);
+
+    if (unique_name[0] == '\0')
     {
-        GStrv tmp;
+        /* if it said it was handling channels but it doesn't seem to exist,
+         * then we don't believe it */
+        DEBUG ("%s doesn't seem to exist, assuming no channels handled",
+               client->name);
+    }
+    else if (channels != NULL)
+    {
         guint i;
-
-        DEBUG ("%s is handling %u channels:", client->name, channels->len);
-
-        tmp = g_new0 (gchar *, channels->len + 1);
 
         for (i = 0; i < channels->len; i++)
         {
-            tmp[i] = g_strdup (g_ptr_array_index (channels, i));
-            DEBUG ("%s", tmp[i]);
+            const gchar *path = g_ptr_array_index (channels, i);
+
+            DEBUG ("%s (%s) is handling %s", client->name, unique_name,
+                   path);
+
+            _mcd_handler_map_set_path_handled (self->priv->handler_map,
+                                               path, unique_name);
         }
-
-        tmp[i] = NULL;
-
-        client->handled_channels = tmp;
-    }
-    else
-    {
-        DEBUG ("%s HandledChannels absent or wrong type, assuming none",
-               client->name);
-
-        client->handled_channels = g_new0 (gchar *, 1);
     }
 
 finally:
@@ -2508,16 +2568,16 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
             _mcd_client_proxy_set_inactive (client->proxy);
 
             if (!client->activatable)
-                g_hash_table_remove (priv->clients, name);
-            else
             {
-                client->active = FALSE;
-                if (client->handled_channels)
-                {
-                    g_strfreev (client->handled_channels);
-                    client->handled_channels = NULL;
-                }
+                g_hash_table_remove (priv->clients, name);
             }
+        }
+
+        if (old_owner[0] == ':')
+        {
+            /* it's a unique name - maybe it was handling some channels? */
+            _mcd_handler_map_set_handler_crashed (priv->handler_map,
+                                                  old_owner);
         }
     }
     else if (old_owner[0] != '\0' && new_owner[0] != '\0')
@@ -2727,6 +2787,8 @@ mcd_dispatcher_init (McdDispatcher * dispatcher)
 
     priv->clients = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
         (GDestroyNotify) mcd_client_free);
+
+    priv->handler_map = _mcd_handler_map_new ();
 
     priv->connections = g_hash_table_new (NULL, NULL);
 }
@@ -3383,9 +3445,8 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
                                  McdChannel *channel)
 {
     McdDispatcherPrivate *priv;
-    GHashTableIter iter;
-    gpointer client_p;
     const gchar *path;
+    const gchar *unique_name;
     gboolean requested;
 
     /* we must check if the channel is already being handled by some client; to
@@ -3397,38 +3458,26 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
     g_return_if_fail (priv->startup_completed);
 
     path = mcd_channel_get_object_path (channel);
+    unique_name = _mcd_handler_map_get_handler (priv->handler_map, path);
 
-    g_hash_table_iter_init (&iter, priv->clients);
-
-    while (g_hash_table_iter_next (&iter, NULL, &client_p))
+    if (unique_name != NULL)
     {
-        McdClient *client = client_p;
-        guint i;
-
-        if (!client->proxy ||
-            !client->active ||
-            !(client->interfaces & MCD_CLIENT_HANDLER))
-            continue;
-
-        for (i = 0; client->handled_channels[i] != NULL; i++)
-        {
-            if (!tp_strdiff (path, client->handled_channels[i]))
-            {
-                DEBUG ("Channel %s is already handled by %s", path,
-                       client->name);
-                _mcd_channel_set_status (channel,
-                                         MCD_CHANNEL_STATUS_DISPATCHED);
-                return;
-            }
-        }
+        DEBUG ("Channel %s is already handled by process %s",
+               path, unique_name);
+        _mcd_channel_set_status (channel,
+                                 MCD_CHANNEL_STATUS_DISPATCHED);
+        _mcd_handler_map_set_channel_handled (priv->handler_map, channel,
+                                              unique_name);
     }
+    else
+    {
+        DEBUG ("%s is unhandled, redispatching", path);
 
-    /* if we haven't returned early, then the channel must be unhandled */
-    DEBUG ("%s is unhandled, redispatching", path);
-
-    requested = mcd_channel_is_requested (channel);
-    _mcd_dispatcher_take_channels (dispatcher, g_list_prepend (NULL, channel),
-                                   requested);
+        requested = mcd_channel_is_requested (channel);
+        _mcd_dispatcher_take_channels (dispatcher,
+                                       g_list_prepend (NULL, channel),
+                                       requested);
+    }
 }
 
 static void
