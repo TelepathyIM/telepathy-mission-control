@@ -125,6 +125,8 @@ libmissioncontrol_server_la_SOURCES = \
 	mcd-dispatch-operation-priv.h \
 	mcd-enum-types.c \
 	mcd-enum-types.h \
+	mcd-handler-map.c \
+	mcd-handler-map-priv.h \
 	mcd-signals-marshal.c \
 	mcd-misc.c \
 	mcd-misc.h \
