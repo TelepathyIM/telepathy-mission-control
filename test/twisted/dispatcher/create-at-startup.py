@@ -55,20 +55,6 @@ def test(q, bus, unused):
 
     # service-activate MC and immediately make a request
     mc = make_mc(bus, q.append)
-    q.expect_many(
-            EventPattern('dbus-signal',
-                path='/org/freedesktop/DBus',
-                interface='org.freedesktop.DBus', signal='NameOwnerChanged',
-                predicate=lambda e: e.args[0] == cs.AM and e.args[2]),
-            EventPattern('dbus-signal',
-                path='/org/freedesktop/DBus',
-                interface='org.freedesktop.DBus', signal='NameOwnerChanged',
-                predicate=lambda e: e.args[0] == cs.CD and e.args[2]),
-            EventPattern('dbus-signal',
-                path='/org/freedesktop/DBus',
-                interface='org.freedesktop.DBus', signal='NameOwnerChanged',
-                predicate=lambda e: e.args[0] == cs.MC and e.args[2]),
-            )
 
     account = bus.get_object(cs.MC,
             cs.tp_path_prefix +
@@ -95,7 +81,7 @@ def test(q, bus, unused):
     request_path = ret.value[0]
 
     # chat UI connects to signals and calls ChannelRequest.Proceed()
-    cr = bus.get_object(cs.AM, request_path)
+    cr = bus.get_object(cs.MC, request_path)
     request_props = cr.GetAll(cs.CR, dbus_interface=cs.PROPERTIES_IFACE)
     assert request_props['Account'] == account.object_path
     assert request_props['Requests'] == [request]
@@ -103,7 +89,7 @@ def test(q, bus, unused):
     assert request_props['PreferredHandler'] == client.bus_name
     assert request_props['Interfaces'] == []
 
-    cr.Proceed(dbus_interface=cs.CR)
+    call_async(q, cr, 'Proceed', dbus_interface=cs.CR)
 
     e = q.expect('dbus-method-call', method='RequestConnection',
             args=['fakeprotocol', {
