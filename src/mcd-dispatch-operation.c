@@ -409,6 +409,9 @@ mcd_dispatch_operation_finalize (GObject *object)
 {
     McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (object);
 
+    g_strfreev (priv->possible_handlers);
+    priv->possible_handlers = NULL;
+
     if (priv->properties)
         g_hash_table_unref (priv->properties);
 
@@ -424,9 +427,6 @@ mcd_dispatch_operation_dispose (GObject *object)
 {
     McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (object);
     GList *list;
-
-    g_strfreev (priv->possible_handlers);
-    priv->possible_handlers = NULL;
 
     if (priv->channels)
     {

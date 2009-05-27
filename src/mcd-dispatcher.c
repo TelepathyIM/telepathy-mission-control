@@ -353,10 +353,18 @@ mcd_client_free (McdClient *client)
 
     g_list_foreach (client->approver_filters,
                     (GFunc)g_hash_table_destroy, NULL);
+    g_list_free (client->approver_filters);
+    client->approver_filters = NULL;
+
     g_list_foreach (client->handler_filters,
                     (GFunc)g_hash_table_destroy, NULL);
+    g_list_free (client->handler_filters);
+    client->handler_filters = NULL;
+
     g_list_foreach (client->observer_filters,
                     (GFunc)g_hash_table_destroy, NULL);
+    g_list_free (client->observer_filters);
+    client->observer_filters = NULL;
 
     g_slice_free (McdClient, client);
 }
@@ -1076,6 +1084,8 @@ collect_satisfied_requests (GList *channels)
         g_ptr_array_add (ret, path);
     }
 
+    g_hash_table_destroy (set);
+
     return ret;
 }
 
@@ -1349,9 +1359,15 @@ _mcd_dispatcher_context_abort (McdDispatcherContext *context,
 {
     GList *list;
 
-    g_return_if_fail(context);
+    g_return_if_fail (context);
 
-    for (list = context->channels; list != NULL; list = list->next)
+    /* make a temporary copy, which is destroyed during the loop - otherwise
+     * we'll be trying to iterate over context->channels at the same time
+     * that mcd_mission_abort results in modifying it, which would be bad */
+    list = g_list_copy (context->channels);
+    g_list_foreach (list, (GFunc) g_object_ref, NULL);
+
+    while (list != NULL)
     {
         McdChannel *channel = MCD_CHANNEL (list->data);
 
@@ -1361,6 +1377,9 @@ _mcd_dispatcher_context_abort (McdDispatcherContext *context,
         /* FIXME: try to dispatch the channels to another handler, instead
          * of just aborting them */
         mcd_mission_abort (MCD_MISSION (channel));
+
+        g_object_unref (channel);
+        list = g_list_delete_link (list, list);
     }
 }
 
@@ -1677,6 +1696,7 @@ _mcd_dispatcher_dispose (GObject * object)
     }
 
     g_hash_table_destroy (priv->clients);
+    g_hash_table_destroy (priv->connections);
 
     if (priv->master)
     {

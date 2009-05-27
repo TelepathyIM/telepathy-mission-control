@@ -20,6 +20,7 @@ if test -n "$MISSIONCONTROL_TEST_VALGRIND"; then
 	MISSIONCONTROL_WRAPPER="$MISSIONCONTROL_WRAPPER -v"
 	MISSIONCONTROL_WRAPPER="$MISSIONCONTROL_WRAPPER --suppressions=@abs_top_srcdir@/test/twisted/tools/valgrind.supp"
 	MISSIONCONTROL_WRAPPER="$MISSIONCONTROL_WRAPPER --gen-suppressions=all"
+	MISSIONCONTROL_WRAPPER="$MISSIONCONTROL_WRAPPER --show-reachable=yes"
 elif test -n "$MISSIONCONTROL_TEST_REFDBG"; then
         if test -z "$REFDBG_OPTIONS" ; then
                 REFDBG_OPTIONS="btnum=10"

@@ -63,11 +63,13 @@ def test(q, bus, mc):
 
     e, _ = q.expect_many(
             EventPattern('dbus-signal', signal='AccountPropertyChanged',
-                path=account_path, interface=cs.ACCOUNT),
+                path=account_path, interface=cs.ACCOUNT,
+                predicate=(lambda e: e.args[0].get('ConnectionStatus') ==
+                    cs.CONN_STATUS_CONNECTING)),
             EventPattern('dbus-method-call', method='Connect',
                 path=conn.object_path, handled=True, interface=cs.CONN),
             )
-    assert e.args[0]['Connection'] == conn.object_path
+    assert e.args[0].get('Connection') in (conn.object_path, None)
     assert e.args[0]['ConnectionStatus'] == cs.CONN_STATUS_CONNECTING
     assert e.args[0]['ConnectionStatusReason'] == \
             cs.CONN_STATUS_REASON_REQUESTED
@@ -83,16 +85,17 @@ def test(q, bus, mc):
                 interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
                 handled=False),
             EventPattern('dbus-signal', signal='AccountPropertyChanged',
-                path=account_path, interface=cs.ACCOUNT),
+                path=account_path, interface=cs.ACCOUNT,
+                predicate=lambda e: 'ConnectionStatus' in e.args[0]),
             )
 
     assert e.args[0]['ConnectionStatus'] == cs.CONN_STATUS_CONNECTED
-    assert e.args[0]['HasBeenOnline'] == True
 
     q.dbus_return(set_presence.message, signature='')
 
     e = q.expect('dbus-signal', signal='AccountPropertyChanged',
-            path=account_path, interface=cs.ACCOUNT)
+            path=account_path, interface=cs.ACCOUNT,
+            predicate=lambda e: 'CurrentPresence' in e.args[0])
     assert e.args[0]['CurrentPresence'] == (cs.PRESENCE_TYPE_AVAILABLE,
             'available', 'My vision is augmented')
 

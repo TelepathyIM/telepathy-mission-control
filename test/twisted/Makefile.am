@@ -59,18 +59,20 @@ INCLUDES = \
 
 TESTS =
 
+TMPSUFFIX = foo
+
 BASIC_TESTS_ENVIRONMENT = \
 	PYTHONPATH=@abs_top_srcdir@/test/twisted:@abs_top_builddir@/test/twisted \
 	MC_DEBUG=2 \
 	MC_TP_DEBUG=all \
 	MC_FILTER_PLUGIN_DIR=@abs_top_builddir@/test/twisted/.libs \
-	MC_CHANDLERS_DIR=@abs_top_builddir@/test/twisted/chandlers \
-	MC_ACCOUNT_DIR=@abs_top_builddir@/test/twisted/accounts \
-	XDG_DATA_HOME=@abs_top_builddir@/test/twisted \
+	MC_CHANDLERS_DIR=@abs_top_srcdir@/test/twisted/chandlers \
+	MC_ACCOUNT_DIR=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX) \
+	XDG_DATA_HOME=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX) \
 	XDG_DATA_DIRS=@abs_top_srcdir@/test/twisted \
-	XDG_CACHE_DIR=@abs_top_builddir@/test/twisted \
-	MC_CLIENTS_DIR=@abs_top_builddir@/test/twisted/telepathy/clients \
-	MC_MANAGER_DIR=@abs_top_builddir@/test/twisted/telepathy/managers \
+	XDG_CACHE_DIR=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX) \
+	MC_CLIENTS_DIR=@abs_top_srcdir@/test/twisted/telepathy/clients \
+	MC_MANAGER_DIR=@abs_top_srcdir@/test/twisted/telepathy/managers \
 	G_DEBUG=fatal_criticals
 
 WITH_SESSION_BUS = \
@@ -94,18 +96,35 @@ check-twisted:
 	$(MAKE) -C tools
 	rm -f tools/core
 	rm -f tools/missioncontrol-*.log
-	rm -f accounts/accounts.cfg
-	rm -f accounts/.mc_connections
-	env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) $(MAKE) check-TESTS \
-		TESTS='$$(TWISTED_BASIC_TESTS)' \
-		TESTS_ENVIRONMENT='$$(COMBINED_TESTS_ENVIRONMENT)'
-	$(MAKE) check-TESTS \
-		TESTS='$$(TWISTED_SEPARATE_TESTS)' \
-		TESTS_ENVIRONMENT='$$(SEPARATE_TESTS_ENVIRONMENT)'
+	mkdir tmp-$$$$ && { \
+		$(MAKE) check-combined TMPSUFFIX=$$$$; \
+		e=$$?; \
+		rm -rf tmp-$$$$; \
+	exit $$e; }
+	for TESTS in $(TWISTED_SEPARATE_TESTS); do export TESTS; ( \
+	rm -rf tmp-$$$$ && mkdir tmp-$$$$ && { \
+		e=0; \
+		$(MAKE) check-separate \
+			TMPSUFFIX=$$$$ \
+			TESTS=$$TESTS \
+		|| e=$$?; \
+		rm -rf tmp-$$$$; \
+	}; exit $$e ) || exit $$?; done
 	@if test -e tools/core; then\
 		echo "Core dump exists: tools/core";\
 		exit 1;\
 	fi
+
+check-combined:
+	env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) \
+	$(MAKE) check-TESTS \
+		TESTS='$$(TWISTED_BASIC_TESTS)' \
+		TESTS_ENVIRONMENT='$$(COMBINED_TESTS_ENVIRONMENT)'
+
+check-separate:
+	echo "Running $(TESTS) in tmp-$(TMPSUFFIX)"
+	$(MAKE) check-TESTS \
+		TESTS_ENVIRONMENT='$$(SEPARATE_TESTS_ENVIRONMENT)'
 
 EXTRA_DIST = \
 	$(TWISTED_BASIC_TESTS) \
