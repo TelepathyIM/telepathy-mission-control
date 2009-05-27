@@ -161,19 +161,15 @@ _mcd_handler_map_set_path_handled (McdHandlerMap *self,
 
     if (counter == NULL)
     {
-        counter = g_slice_new0 (gsize);
+        counter = g_slice_new (gsize);
+        *counter = 1;
+        g_hash_table_insert (self->priv->handler_processes,
+                             g_strdup (unique_name), counter);
     }
     else
     {
-        /* take ownership */
-        g_hash_table_steal (self->priv->handler_processes,
-                            unique_name);
+        ++*counter;
     }
-
-    ++*counter;
-
-    g_hash_table_insert (self->priv->handler_processes,
-                         g_strdup (unique_name), counter);
 }
 
 static void
