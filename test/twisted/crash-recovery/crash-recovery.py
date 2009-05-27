@@ -76,6 +76,20 @@ def test(q, bus, unused):
 
     # service-activate MC
     mc = make_mc(bus, q.append)
+    q.expect_many(
+            EventPattern('dbus-signal',
+                path='/org/freedesktop/DBus',
+                interface='org.freedesktop.DBus', signal='NameOwnerChanged',
+                predicate=lambda e: e.args[0] == cs.AM and e.args[2]),
+            EventPattern('dbus-signal',
+                path='/org/freedesktop/DBus',
+                interface='org.freedesktop.DBus', signal='NameOwnerChanged',
+                predicate=lambda e: e.args[0] == cs.CD and e.args[2]),
+            EventPattern('dbus-signal',
+                path='/org/freedesktop/DBus',
+                interface='org.freedesktop.DBus', signal='NameOwnerChanged',
+                predicate=lambda e: e.args[0] == cs.MC and e.args[2]),
+            )
 
     # we're told about the other channel as an observer...
     e = q.expect('dbus-method-call',

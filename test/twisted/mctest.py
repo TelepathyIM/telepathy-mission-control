@@ -450,21 +450,24 @@ class SimulatedClient(object):
             q.add_dbus_method_impl(self.Get_Interfaces,
                     path=self.object_path, interface=cs.PROPERTIES_IFACE,
                     method='Get', args=[cs.CLIENT, 'Interfaces'])
-            q.add_dbus_method_impl(self.GetAll_Client, path=self.object_path,
+            q.add_dbus_method_impl(self.GetAll_Client,
+                    path=self.object_path,
                     interface=cs.PROPERTIES_IFACE, method='GetAll',
                     args=[cs.CLIENT])
 
         q.add_dbus_method_impl(self.Get_ObserverChannelFilter,
                 path=self.object_path, interface=cs.PROPERTIES_IFACE,
                 method='Get', args=[cs.OBSERVER, 'ObserverChannelFilter'])
-        q.add_dbus_method_impl(self.GetAll_Observer, path=self.object_path,
+        q.add_dbus_method_impl(self.GetAll_Observer,
+                path=self.object_path,
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
                 args=[cs.OBSERVER])
 
         q.add_dbus_method_impl(self.Get_ApproverChannelFilter,
                 path=self.object_path, interface=cs.PROPERTIES_IFACE,
                 method='Get', args=[cs.APPROVER, 'ApproverChannelFilter'])
-        q.add_dbus_method_impl(self.GetAll_Approver, path=self.object_path,
+        q.add_dbus_method_impl(self.GetAll_Approver,
+                path=self.object_path,
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
                 args=[cs.APPROVER])
 
@@ -477,9 +480,13 @@ class SimulatedClient(object):
         q.add_dbus_method_impl(self.Get_BypassApproval,
                 path=self.object_path, interface=cs.PROPERTIES_IFACE,
                 method='Get', args=[cs.HANDLER, 'BypassApproval'])
-        q.add_dbus_method_impl(self.GetAll_Handler, path=self.object_path,
+        q.add_dbus_method_impl(self.GetAll_Handler,
+                path=self.object_path,
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
                 args=[cs.HANDLER])
+
+    def release_name(self):
+        del self._bus_name_ref
 
     def get_interfaces(self):
         ret = dbus.Array([], signature='s', variant_level=1)
@@ -499,29 +506,32 @@ class SimulatedClient(object):
         return ret
 
     def Get_Interfaces(self, e):
-        self.q.dbus_return(e.message, self.get_interfaces(), signature='v')
+        self.q.dbus_return(e.message, self.get_interfaces(), signature='v',
+                bus=self.bus)
 
     def GetAll_Client(self, e):
         self.q.dbus_return(e.message, {'Interfaces': self.get_interfaces()},
-                signature='a{sv}')
+                signature='a{sv}', bus=self.bus)
 
     def GetAll_Observer(self, e):
         assert self.observe
         self.q.dbus_return(e.message, {'ObserverChannelFilter': self.observe},
-                signature='a{sv}')
+                signature='a{sv}', bus=self.bus)
 
     def Get_ObserverChannelFilter(self, e):
         assert self.observe
-        self.q.dbus_return(e.message, self.observe, signature='v')
+        self.q.dbus_return(e.message, self.observe, signature='v',
+                bus=self.bus)
 
     def GetAll_Approver(self, e):
         assert self.approve
         self.q.dbus_return(e.message, {'ApproverChannelFilter': self.approve},
-                signature='a{sv}')
+                signature='a{sv}', bus=self.bus)
 
     def Get_ApproverChannelFilter(self, e):
         assert self.approve
-        self.q.dbus_return(e.message, self.approve, signature='v')
+        self.q.dbus_return(e.message, self.approve, signature='v',
+                bus=self.bus)
 
     def GetAll_Handler(self, e):
         assert self.handle
@@ -530,18 +540,21 @@ class SimulatedClient(object):
             'BypassApproval': self.bypass_approval,
             'HandledChannels': self.handled_channels,
             },
-                signature='a{sv}')
+                signature='a{sv}', bus=self.bus)
 
     def Get_HandledChannels(self, e):
-        self.q.dbus_return(e.message, self.handled_channels, signature='v')
+        self.q.dbus_return(e.message, self.handled_channels, signature='v',
+                bus=self.bus)
 
     def Get_HandlerChannelFilter(self, e):
         assert self.handle
-        self.q.dbus_return(e.message, self.handle, signature='v')
+        self.q.dbus_return(e.message, self.handle, signature='v',
+                bus=self.bus)
 
     def Get_BypassApproval(self, e):
         assert self.handle
-        self.q.dbus_return(e.message, self.bypass_approval, signature='v')
+        self.q.dbus_return(e.message, self.bypass_approval, signature='v',
+                bus=self.bus)
 
 def create_fakecm_account(q, bus, mc, params):
     """Create a fake connection manager and an account that uses it.

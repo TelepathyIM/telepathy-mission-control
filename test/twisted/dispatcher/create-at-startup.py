@@ -55,6 +55,21 @@ def test(q, bus, unused):
 
     # service-activate MC and immediately make a request
     mc = make_mc(bus, q.append)
+    q.expect_many(
+            EventPattern('dbus-signal',
+                path='/org/freedesktop/DBus',
+                interface='org.freedesktop.DBus', signal='NameOwnerChanged',
+                predicate=lambda e: e.args[0] == cs.AM and e.args[2]),
+            EventPattern('dbus-signal',
+                path='/org/freedesktop/DBus',
+                interface='org.freedesktop.DBus', signal='NameOwnerChanged',
+                predicate=lambda e: e.args[0] == cs.CD and e.args[2]),
+            EventPattern('dbus-signal',
+                path='/org/freedesktop/DBus',
+                interface='org.freedesktop.DBus', signal='NameOwnerChanged',
+                predicate=lambda e: e.args[0] == cs.MC and e.args[2]),
+            )
+
     account = bus.get_object(cs.MC,
             cs.tp_path_prefix +
             '/Account/fakecm/fakeprotocol/jc_2edenton_40unatco_2eint')
