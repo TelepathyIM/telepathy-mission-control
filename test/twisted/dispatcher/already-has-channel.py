@@ -96,23 +96,6 @@ def test(q, bus, mc):
                 path=conn.object_path, handled=True),
             )
 
-    # MC asks the clients whether they know anything about this channel
-    e, k = q.expect_many(
-            EventPattern('dbus-method-call',
-                path=empathy.object_path,
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.HANDLER, 'HandledChannels'],
-                handled=False),
-            EventPattern('dbus-method-call',
-                path=kopete.object_path,
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.HANDLER, 'HandledChannels'],
-                handled=False),
-            )
-    # they don't
-    q.dbus_return(e.message, dbus.Array([], signature='o'), signature='v')
-    q.dbus_return(k.message, dbus.Array([], signature='o'), signature='v')
-
     # A channel dispatch operation is created for the channel we already had
 
     e = q.expect('dbus-signal',

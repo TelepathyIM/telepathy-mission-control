@@ -77,16 +77,6 @@ def test(q, bus, unused):
     # service-activate MC
     mc = make_mc(bus, q.append)
 
-    e = q.expect('dbus-method-call',
-            args=[cs.HANDLER, 'HandledChannels'],
-            path=client.object_path,
-            handled=False,
-            interface=cs.PROPERTIES_IFACE,
-            method='Get')
-    # Empathy is handling one of the channels
-    q.dbus_return(e.message, dbus.Array([handled_chan.object_path],
-        signature='o'), signature='v')
-
     # we're told about the other channel as an observer...
     e = q.expect('dbus-method-call',
             path=client.object_path,

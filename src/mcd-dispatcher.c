@@ -157,8 +157,6 @@ typedef struct _McdClient
      */
     guint activatable : 1;
     guint active : 1;
-    guint got_handled_channels : 1;
-    guint getting_handled_channels : 1;
 
     /* Channel filters
      * A channel filter is a GHashTable of
@@ -1788,6 +1786,13 @@ mcd_client_set_filters (McdClient *client,
             g_assert_not_reached ();
     }
 
+    if (*client_filters != NULL)
+    {
+        g_list_foreach (*client_filters, (GFunc) g_hash_table_destroy, NULL);
+        g_list_free (*client_filters);
+        *client_filters = NULL;
+    }
+
     for (i = 0 ; i < filters->len ; i++)
     {
         GHashTable *channel_class = g_ptr_array_index (filters, i);
@@ -1932,7 +1937,7 @@ handler_get_all_cb (TpProxy *proxy,
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
     McdClient *client;
     const gchar *bus_name = tp_proxy_get_bus_name (proxy);
-    GPtrArray *filters;
+    GPtrArray *filters, *channels;
 
     if (error != NULL)
     {
@@ -1971,6 +1976,36 @@ handler_get_all_cb (TpProxy *proxy,
                                                   NULL);
     DEBUG ("%s has BypassApproval=%c", client->name,
            client->bypass_approver ? 'T' : 'F');
+
+    channels = tp_asv_get_boxed (properties, "HandledChannels",
+                                 MC_ARRAY_TYPE_OBJECT);
+
+    if (channels != NULL)
+    {
+        GStrv tmp;
+        guint i;
+
+        DEBUG ("%s is handling %u channels:", client->name, channels->len);
+
+        tmp = g_new0 (gchar *, channels->len + 1);
+
+        for (i = 0; i < channels->len; i++)
+        {
+            tmp[i] = g_strdup (g_ptr_array_index (channels, i));
+            DEBUG ("%s", tmp[i]);
+        }
+
+        tmp[i] = NULL;
+
+        client->handled_channels = tmp;
+    }
+    else
+    {
+        DEBUG ("%s HandledChannels absent or wrong type, assuming none",
+               client->name);
+
+        client->handled_channels = g_new0 (gchar *, 1);
+    }
 
 finally:
     mcd_dispatcher_release_startup_lock (self);
@@ -2205,12 +2240,11 @@ finish:
 static McdClient *
 create_mcd_client (McdDispatcher *self,
                    const gchar *name,
-                   gboolean activatable)
+                   gboolean activatable,
+                   const gchar *owner)
 {
     /* McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self); */
     McdClient *client;
-    gchar *filename;
-    gboolean file_found = FALSE;
 
     g_assert (g_str_has_prefix (name, MC_CLIENT_BUS_NAME_BASE));
 
@@ -2219,7 +2253,32 @@ create_mcd_client (McdDispatcher *self,
     client->activatable = activatable;
     if (!activatable)
         client->active = TRUE;
+
+    client->proxy = _mcd_client_proxy_new (self->priv->dbus_daemon,
+                                           client->name, owner);
+
     DEBUG ("McdClient created for %s", name);
+
+    return client;
+}
+
+/* FIXME: eventually this whole chain should move into McdClientProxy */
+static void
+mcd_client_start_introspection (McdClientProxy *proxy,
+                                McdDispatcher *dispatcher)
+{
+    gchar *filename;
+    gboolean file_found = FALSE;
+    McdClient *client;
+    const gchar *bus_name = tp_proxy_get_bus_name (proxy);
+
+    client = g_hash_table_lookup (dispatcher->priv->clients, bus_name);
+
+    if (client == NULL)
+    {
+        DEBUG ("Client %s vanished before it became ready", bus_name);
+        goto finally;
+    }
 
     /* The .client file is not mandatory as per the spec. However if it
      * exists, it is better to read it than activating the service to read the
@@ -2235,7 +2294,7 @@ create_mcd_client (McdDispatcher *self,
         g_key_file_load_from_file (file, filename, 0, &error);
         if (G_LIKELY (!error))
         {
-            DEBUG ("File found for %s: %s", name, filename);
+            DEBUG ("File found for %s: %s", client->name, filename);
             parse_client_file (client, file);
             file_found = TRUE;
         }
@@ -2248,25 +2307,42 @@ create_mcd_client (McdDispatcher *self,
         g_free (filename);
     }
 
-    client->proxy = _mcd_client_proxy_new (self->priv->dbus_daemon,
-                                           client->name);
-
     if (!file_found)
     {
-        DEBUG ("No .client file for %s. Ask on D-Bus.", name);
+        DEBUG ("No .client file for %s. Ask on D-Bus.", client->name);
 
-        if (!self->priv->startup_completed)
-            self->priv->startup_lock++;
+        if (!dispatcher->priv->startup_completed)
+            dispatcher->priv->startup_lock++;
 
         tp_cli_dbus_properties_call_get (client->proxy, -1,
             MC_IFACE_CLIENT, "Interfaces", get_interfaces_cb, NULL,
-            NULL, G_OBJECT (self));
+            NULL, G_OBJECT (dispatcher));
     }
     else
+    {
         client_add_interface_by_id (client);
 
+        if ((client->interfaces & MCD_CLIENT_HANDLER) != 0 &&
+            _mcd_client_proxy_is_active (proxy))
+        {
+            DEBUG ("%s is an active, activatable Handler", client->name);
 
-    return client;
+            /* We need to investigate whether it is handling any channels */
+
+            if (!dispatcher->priv->startup_completed)
+                dispatcher->priv->startup_lock++;
+
+            tp_cli_dbus_properties_call_get_all (client->proxy, -1,
+                                                 MC_IFACE_CLIENT_HANDLER,
+                                                 handler_get_all_cb,
+                                                 NULL, NULL,
+                                                 G_OBJECT (dispatcher));
+        }
+    }
+
+finally:
+    /* paired with the lock taken when we made the McdClient */
+    mcd_dispatcher_release_startup_lock (dispatcher);
 }
 
 /* Check the list of strings whether they are valid well-known names of
@@ -2275,7 +2351,8 @@ create_mcd_client (McdDispatcher *self,
 static void
 mcd_dispatcher_add_client (McdDispatcher *self,
                            const gchar *name,
-                           gboolean activatable)
+                           gboolean activatable,
+                           const gchar *owner)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
     McdClient *client;
@@ -2316,8 +2393,17 @@ mcd_dispatcher_add_client (McdDispatcher *self,
 
     DEBUG ("Register client %s", name);
 
-    g_hash_table_insert (priv->clients, g_strdup (name),
-        create_mcd_client (self, name, activatable));
+    /* paired with one in mcd_client_start_introspection */
+    if (!self->priv->startup_completed)
+        self->priv->startup_lock++;
+
+    client = create_mcd_client (self, name, activatable, owner);
+
+    g_hash_table_insert (priv->clients, g_strdup (name), client);
+
+    g_signal_connect (client->proxy, "ready",
+                      G_CALLBACK (mcd_client_start_introspection),
+                      self);
 }
 
 static void
@@ -2342,7 +2428,7 @@ list_activatable_names_cb (TpDBusDaemon *proxy,
 
         while (*iter != NULL)
         {
-            mcd_dispatcher_add_client (self, *iter, TRUE);
+            mcd_dispatcher_add_client (self, *iter, TRUE, NULL);
             iter++;
         }
     }
@@ -2373,7 +2459,7 @@ list_names_cb (TpDBusDaemon *proxy,
 
         while (*iter != NULL)
         {
-            mcd_dispatcher_add_client (self, *iter, FALSE);
+            mcd_dispatcher_add_client (self, *iter, FALSE, NULL);
             iter++;
         }
     }
@@ -2404,7 +2490,7 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
 
     if (old_owner[0] == '\0' && new_owner[0] != '\0')
     {
-        mcd_dispatcher_add_client (self, name, FALSE);
+        mcd_dispatcher_add_client (self, name, FALSE, new_owner);
     }
     else if (old_owner[0] != '\0' && new_owner[0] == '\0')
     {
@@ -3285,155 +3371,57 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
     }
 }
 
-static void
-get_handled_channels_cb (TpProxy *proxy, const GValue *v_channels,
-                         const GError *error, gpointer user_data,
-                         GObject *weak_object)
-{
-    McdClient *client = user_data;
-
-    DEBUG ("called");
-    client->got_handled_channels = TRUE;
-
-    if (G_LIKELY (!error))
-    {
-        if (G_LIKELY (G_VALUE_TYPE (v_channels) == MC_ARRAY_TYPE_OBJECT))
-        {
-            GPtrArray *a_channels;
-            gchar **channels;
-            guint i;
-
-            g_return_if_fail (client->handled_channels == NULL);
-            a_channels = g_value_get_boxed (v_channels);
-            channels = g_malloc ((a_channels->len + 1) * sizeof (char *));
-
-            for (i = 0; i < a_channels->len; i++)
-                channels[i] = g_strdup (g_ptr_array_index (a_channels, i));
-            channels[i] = NULL;
-            client->handled_channels = channels;
-        }
-        else
-            g_warning ("%s: client %s returned wrong type %s", G_STRFUNC,
-                       client->name, G_VALUE_TYPE_NAME (v_channels));
-    }
-    else
-        g_warning ("%s: Got error: %s", G_STRFUNC, error->message);
-
-    _mcd_object_ready (proxy, client_ready_quark, error);
-}
-
-static void
-mcd_client_call_when_got_handled_channels (McdClient *client,
-                                           McdReadyCb callback,
-                                           gpointer user_data)
-{
-    DEBUG ("called");
-    if (client->got_handled_channels)
-        callback (client, NULL, user_data);
-    else
-    {
-        if (!client->getting_handled_channels)
-        {
-            client->getting_handled_channels = TRUE;
-            tp_cli_dbus_properties_call_get
-                (client->proxy, -1, MC_IFACE_CLIENT_HANDLER, "HandledChannels",
-                 get_handled_channels_cb, client, NULL, NULL);
-        }
-        _mcd_object_call_on_struct_when_ready
-            (client->proxy, client, client_ready_quark, callback, user_data);
-    }
-}
-
-static void
-channel_recover_release_lock (McdChannelRecover *cr)
-{
-    DEBUG ("called on %p (locks = %d)", cr, cr->handler_locks);
-    cr->handler_locks--;
-    if (cr->handler_locks == 0)
-    {
-        /* re-dispatch unhandled channels */
-        if (!cr->handled)
-        {
-            gboolean requested;
-
-            DEBUG ("channel %p is not handled, redispatching", cr->channel);
-
-            requested = mcd_channel_is_requested (cr->channel);
-            _mcd_dispatcher_take_channels (cr->dispatcher,
-                                           g_list_prepend (NULL, cr->channel),
-                                           requested);
-        }
-        g_object_unref (cr->channel);
-        g_slice_free (McdChannelRecover, cr);
-    }
-}
-
-static void
-check_handled_channels (gpointer object, const GError *error,
-                        gpointer user_data)
-{
-    McdClient *client = object;
-    McdChannelRecover *cr = user_data;
-
-    DEBUG ("called");
-    if (G_LIKELY (!error) && client->handled_channels != NULL)
-    {
-        const gchar *path;
-        gint i;
-
-        path = mcd_channel_get_object_path (cr->channel);
-        for (i = 0; client->handled_channels[i] != NULL; i++)
-        {
-            if (g_strcmp0 (path, client->handled_channels[i]) == 0)
-            {
-                DEBUG ("Channel %s is handled by %s", path, client->name);
-                cr->handled = TRUE;
-                _mcd_channel_set_status (cr->channel,
-                                         MCD_CHANNEL_STATUS_DISPATCHED);
-                break;
-            }
-        }
-    }
-
-    channel_recover_release_lock (cr);
-}
-
 void
 _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
                                  McdChannel *channel)
 {
     McdDispatcherPrivate *priv;
     GHashTableIter iter;
-    McdClient *client;
-    McdChannelRecover *cr;
+    gpointer client_p;
+    const gchar *path;
+    gboolean requested;
 
     /* we must check if the channel is already being handled by some client; to
      * do this, we can examine the active handlers' "HandledChannel" property.
+     * By now, we should already have done this, because startup has completed.
      */
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
     priv = dispatcher->priv;
     g_return_if_fail (priv->startup_completed);
 
-    cr = g_slice_new0 (McdChannelRecover);
-    cr->channel = g_object_ref (channel);
-    cr->dispatcher = dispatcher;
-    cr->handler_locks = 1;
+    path = mcd_channel_get_object_path (channel);
 
     g_hash_table_iter_init (&iter, priv->clients);
-    while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &client))
+
+    while (g_hash_table_iter_next (&iter, NULL, &client_p))
     {
+        McdClient *client = client_p;
+        guint i;
+
         if (!client->proxy ||
             !client->active ||
             !(client->interfaces & MCD_CLIENT_HANDLER))
             continue;
 
-        cr->handler_locks++;
-        mcd_client_call_when_got_handled_channels (client,
-                                                   check_handled_channels,
-                                                   cr);
+        for (i = 0; client->handled_channels[i] != NULL; i++)
+        {
+            if (!tp_strdiff (path, client->handled_channels[i]))
+            {
+                DEBUG ("Channel %s is already handled by %s", path,
+                       client->name);
+                _mcd_channel_set_status (channel,
+                                         MCD_CHANNEL_STATUS_DISPATCHED);
+                return;
+            }
+        }
     }
-    /* this pairs with the initial lock set to 1 */
-    channel_recover_release_lock (cr);
+
+    /* if we haven't returned early, then the channel must be unhandled */
+    DEBUG ("%s is unhandled, redispatching", path);
+
+    requested = mcd_channel_is_requested (channel);
+    _mcd_dispatcher_take_channels (dispatcher, g_list_prepend (NULL, channel),
+                                   requested);
 }
 
 static void
