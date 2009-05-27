@@ -865,9 +865,9 @@ register_dbus_service (McdAccountManager *account_manager)
     dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
     connection = dbus_g_connection_get_connection (dbus_connection);
 
-    if (!_mcd_dbus_daemon_request_name (priv->dbus_daemon,
-                                        MC_ACCOUNT_MANAGER_DBUS_SERVICE,
-                                        TRUE /* idempotent */, &error))
+    if (!tp_dbus_daemon_request_name (priv->dbus_daemon,
+                                      MC_ACCOUNT_MANAGER_DBUS_SERVICE,
+                                      TRUE /* idempotent */, &error))
     {
         /* FIXME: put in proper error handling when MC gains the ability to
          * be the AM or the CD but not both */
