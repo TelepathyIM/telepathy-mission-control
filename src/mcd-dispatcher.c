@@ -45,6 +45,7 @@
 
 #include "mcd-signals-marshal.h"
 #include "mcd-account-priv.h"
+#include "mcd-client-priv.h"
 #include "mcd-connection.h"
 #include "mcd-connection-priv.h"
 #include "mcd-channel.h"
@@ -145,7 +146,7 @@ typedef enum
 
 typedef struct _McdClient
 {
-    TpProxy *proxy;
+    McdClientProxy *proxy;
     gchar *name;
     McdClientInterface interfaces;
     gchar **handled_channels;
@@ -178,10 +179,6 @@ typedef struct _McdClient
     GList *handler_filters;
     GList *observer_filters;
 } McdClient;
-
-/* Analogous to TP_CM_*_BASE */
-#define MC_CLIENT_BUS_NAME_BASE MC_IFACE_CLIENT "."
-#define MC_CLIENT_OBJECT_PATH_BASE "/org/freedesktop/Telepathy/Client/"
 
 struct _McdDispatcherPrivate
 {
@@ -244,7 +241,7 @@ typedef struct
 
 typedef struct
 {
-    TpProxy *handler;
+    McdClientProxy *handler;
     gchar *request_path;
 } McdRemoveRequestData;
 
@@ -1982,17 +1979,19 @@ finally:
 static void
 client_add_interface_by_id (McdClient *client)
 {
-    tp_proxy_add_interface_by_id (client->proxy, MC_IFACE_QUARK_CLIENT);
+    TpProxy *proxy = (TpProxy *) client->proxy;
+
+    tp_proxy_add_interface_by_id (proxy, MC_IFACE_QUARK_CLIENT);
     if (client->interfaces & MCD_CLIENT_APPROVER)
-        tp_proxy_add_interface_by_id (client->proxy,
+        tp_proxy_add_interface_by_id (proxy,
                                       MC_IFACE_QUARK_CLIENT_APPROVER);
     if (client->interfaces & MCD_CLIENT_HANDLER)
-        tp_proxy_add_interface_by_id (client->proxy,
+        tp_proxy_add_interface_by_id (proxy,
                                       MC_IFACE_QUARK_CLIENT_HANDLER);
     if (client->interfaces & MCD_CLIENT_INTERFACE_REQUESTS)
-        tp_proxy_add_interface_by_id (client->proxy, MC_IFACE_QUARK_CLIENT_INTERFACE_REQUESTS);
+        tp_proxy_add_interface_by_id (proxy, MC_IFACE_QUARK_CLIENT_INTERFACE_REQUESTS);
     if (client->interfaces & MCD_CLIENT_OBSERVER)
-        tp_proxy_add_interface_by_id (client->proxy,
+        tp_proxy_add_interface_by_id (proxy,
                                       MC_IFACE_QUARK_CLIENT_OBSERVER);
 }
 
@@ -2089,24 +2088,6 @@ get_interfaces_cb (TpProxy *proxy,
 
 finally:
     mcd_dispatcher_release_startup_lock (self);
-}
-
-static void
-create_client_proxy (McdDispatcher *self, McdClient *client)
-{
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
-    gchar *bus_name, *object_path;
-
-    bus_name = g_strconcat (MC_CLIENT_BUS_NAME_BASE, client->name, NULL);
-    object_path = g_strconcat (MC_CLIENT_OBJECT_PATH_BASE, client->name, NULL);
-    g_strdelimit (object_path, ".", '/');
-    client->proxy = g_object_new (TP_TYPE_PROXY,
-                                  "dbus-daemon", priv->dbus_daemon,
-                                  "object-path", object_path,
-                                  "bus-name", bus_name,
-                                  NULL);
-    g_free (object_path);
-    g_free (bus_name);
 }
 
 static void
@@ -2234,7 +2215,7 @@ create_mcd_client (McdDispatcher *self,
     g_assert (g_str_has_prefix (name, MC_CLIENT_BUS_NAME_BASE));
 
     client = g_slice_new0 (McdClient);
-    client->name = g_strdup (name + sizeof (MC_CLIENT_BUS_NAME_BASE) - 1);
+    client->name = g_strdup (name + MC_CLIENT_BUS_NAME_BASE_LEN);
     client->activatable = activatable;
     if (!activatable)
         client->active = TRUE;
@@ -2267,7 +2248,8 @@ create_mcd_client (McdDispatcher *self,
         g_free (filename);
     }
 
-    create_client_proxy (self, client);
+    client->proxy = _mcd_client_proxy_new (self->priv->dbus_daemon,
+                                           client->name);
 
     if (!file_found)
     {
@@ -2291,107 +2273,149 @@ create_mcd_client (McdDispatcher *self,
  * Telepathy clients and create McdClient objects for each of them.
  */
 static void
-new_names_cb (McdDispatcher *self,
-              const gchar **names,
-              gboolean activatable)
+mcd_dispatcher_add_client (McdDispatcher *self,
+                           const gchar *name,
+                           gboolean activatable)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
-  
-    while (names != NULL && *names != NULL)
+    McdClient *client;
+
+    if (!g_str_has_prefix (name, MC_CLIENT_BUS_NAME_BASE))
     {
-        McdClient *client;
-        const char *name = *names;
-        names++;
-
-        if (!g_str_has_prefix (name, MC_CLIENT_BUS_NAME_BASE))
-        {
-            /* This is not a Telepathy Client */
-            continue;
-        }
-
-        client = g_hash_table_lookup (priv->clients, name);
-        if (client)
-        {
-            /* This Telepathy Client is already known so don't create it
-             * again. However, set the activatable bit now.
-             */
-            if (activatable)
-                client->activatable = TRUE;
-            else
-                client->active = TRUE;
-            continue;
-        }
-
-        DEBUG ("Register client %s", name);
-
-        g_hash_table_insert (priv->clients, g_strdup (name),
-            create_mcd_client (self, name, activatable));
+        /* This is not a Telepathy Client */
+        return;
     }
-}
 
-static void
-list_names_cb (TpDBusDaemon *proxy,
-    const gchar **out0,
-    const GError *error,
-    gpointer user_data,
-    GObject *weak_object)
-{
-    McdDispatcher *self = MCD_DISPATCHER (weak_object);
+    if (!_mcd_client_check_valid_name (name + MC_CLIENT_BUS_NAME_BASE_LEN,
+                                       NULL))
+    {
+        /* This is probably meant to be a Telepathy Client, but it's not */
+        DEBUG ("Ignoring invalid Client name: %s",
+               name + MC_CLIENT_BUS_NAME_BASE_LEN);
 
-    DEBUG ("ListNames returned");
+        return;
+    }
 
-    new_names_cb (self, out0, FALSE);
+    client = g_hash_table_lookup (priv->clients, name);
+    if (client)
+    {
+        /* This Telepathy Client is already known so don't create it
+         * again. However, set the activatable bit now.
+         */
+        if (activatable)
+        {
+            client->activatable = TRUE;
+        }
+        else
+        {
+            client->active = TRUE;
+        }
 
-    /* paired with one of the two locks in _constructed */
-    mcd_dispatcher_release_startup_lock (self);
+        return;
+    }
+
+    DEBUG ("Register client %s", name);
+
+    g_hash_table_insert (priv->clients, g_strdup (name),
+        create_mcd_client (self, name, activatable));
 }
 
 static void
 list_activatable_names_cb (TpDBusDaemon *proxy,
-    const gchar **out0,
+    const gchar **names,
     const GError *error,
     gpointer user_data,
     GObject *weak_object)
 {
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
 
-    DEBUG ("ListActivatableNames returned");
+    if (error != NULL)
+    {
+        DEBUG ("ListActivatableNames returned error, assuming none: %s %d: %s",
+               g_quark_to_string (error->domain), error->code, error->message);
+    }
+    else if (names != NULL)
+    {
+        const gchar **iter = names;
 
-    new_names_cb (self, out0, TRUE);
+        DEBUG ("ListActivatableNames returned");
 
-    /* paired with one of the two locks in _constructed */
+        while (*iter != NULL)
+        {
+            mcd_dispatcher_add_client (self, *iter, TRUE);
+            iter++;
+        }
+    }
+
+    /* paired with the lock taken in _constructed */
     mcd_dispatcher_release_startup_lock (self);
 }
 
 static void
+list_names_cb (TpDBusDaemon *proxy,
+    const gchar **names,
+    const GError *error,
+    gpointer user_data,
+    GObject *weak_object)
+{
+    McdDispatcher *self = MCD_DISPATCHER (weak_object);
+
+    if (error != NULL)
+    {
+        DEBUG ("ListNames returned error, assuming none: %s %d: %s",
+               g_quark_to_string (error->domain), error->code, error->message);
+    }
+    else if (names != NULL)
+    {
+        const gchar **iter = names;
+
+        DEBUG ("ListNames returned");
+
+        while (*iter != NULL)
+        {
+            mcd_dispatcher_add_client (self, *iter, FALSE);
+            iter++;
+        }
+    }
+
+    tp_cli_dbus_daemon_call_list_activatable_names (self->priv->dbus_daemon,
+        -1, list_activatable_names_cb, NULL, NULL, weak_object);
+    /* deliberately not calling mcd_dispatcher_release_startup_lock here -
+     * this function is "lock-neutral" (we would take a lock for
+     * ListActivatableNames then release the one used for ListNames),
+     * so simplify by doing nothing */
+}
+
+static void
 name_owner_changed_cb (TpDBusDaemon *proxy,
-    const gchar *arg0,
-    const gchar *arg1,
-    const gchar *arg2,
+    const gchar *name,
+    const gchar *old_owner,
+    const gchar *new_owner,
     gpointer user_data,
     GObject *weak_object)
 {
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
 
-    if (g_strcmp0 (arg1, "") == 0 && g_strcmp0 (arg2, "") != 0)
+    /* dbus-glib guarantees this */
+    g_assert (name != NULL);
+    g_assert (old_owner != NULL);
+    g_assert (new_owner != NULL);
+
+    if (old_owner[0] == '\0' && new_owner[0] != '\0')
     {
-        /* the name appeared on the bus */
-        gchar *names[2] = {NULL, NULL};
-        names[0] = g_strdup (arg0);
-        new_names_cb (self, (const gchar **) names, FALSE);
-        g_free (names[0]);
+        mcd_dispatcher_add_client (self, name, FALSE);
     }
-    else if (g_strcmp0 (arg1, "") != 0 && g_strcmp0 (arg2, "") == 0)
+    else if (old_owner[0] != '\0' && new_owner[0] == '\0')
     {
         /* The name disappeared from the bus */
         McdClient *client;
 
-        client = g_hash_table_lookup (priv->clients, arg0);
+        client = g_hash_table_lookup (priv->clients, name);
         if (client)
         {
             if (!client->activatable)
-                g_hash_table_remove (priv->clients, arg0);
+                g_hash_table_remove (priv->clients, name);
             else
             {
                 client->active = FALSE;
@@ -2403,18 +2427,19 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
             }
         }
     }
-    else if (g_strcmp0 (arg1, "") != 0 && g_strcmp0 (arg2, "") != 0)
+    else if (old_owner[0] != '\0' && new_owner[0] != '\0')
     {
-        /* The name's ownership changed. Does the Telepathy spec allow that?
-         * TODO: Do something smart
-         */
-        g_warning ("%s: The ownership of name '%s' changed", G_STRFUNC, arg0);
+        /* Atomic ownership handover - handle this like an exit + startup */
+        name_owner_changed_cb (proxy, name, old_owner, "", user_data,
+                               weak_object);
+        name_owner_changed_cb (proxy, name, "", new_owner, user_data,
+                               weak_object);
     }
     else
     {
         /* dbus-daemon is sick */
-        g_warning ("%s: Malformed message from the D-Bus daemon about '%s'",
-                   G_STRFUNC, arg0);
+        DEBUG ("Malformed message from the D-Bus daemon about '%s' "
+               "('%s' -> '%s')", name, old_owner, new_owner);
     }
 }
 
@@ -2427,13 +2452,10 @@ mcd_dispatcher_constructed (GObject *object)
 
     DEBUG ("Starting to look for clients");
     priv->startup_completed = FALSE;
-    priv->startup_lock = 2;   /* ListNames + ListActivatableNames */
+    priv->startup_lock = 1;   /* the ListNames call we're about to make */
 
     tp_cli_dbus_daemon_connect_to_name_owner_changed (priv->dbus_daemon,
         name_owner_changed_cb, NULL, NULL, object, NULL);
-
-    tp_cli_dbus_daemon_call_list_activatable_names (priv->dbus_daemon,
-        -1, list_activatable_names_cb, NULL, NULL, object);
 
     tp_cli_dbus_daemon_call_list_names (priv->dbus_daemon,
         -1, list_names_cb, NULL, NULL, object);
@@ -3390,6 +3412,7 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
      */
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
     priv = dispatcher->priv;
+    g_return_if_fail (priv->startup_completed);
 
     cr = g_slice_new0 (McdChannelRecover);
     cr->channel = g_object_ref (channel);

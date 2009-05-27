@@ -18,6 +18,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/cancel.py \
 	dispatcher/capture-bundle.py \
 	dispatcher/create-text.py \
+	dispatcher/dispatch-activatable.py \
 	dispatcher/dispatch-obsolete.py \
 	dispatcher/dispatch-rejected-by-plugin.py \
 	dispatcher/dispatch-text.py \
@@ -111,6 +112,7 @@ EXTRA_DIST = \
 	$(TWISTED_BASIC_TESTS) \
 	$(TWISTED_SEPARATE_TESTS) \
 	telepathy/clients/README \
+	telepathy/clients/AbiWord.client \
 	telepathy/managers/fakecm.manager \
 	telepathy/managers/README \
 	constants.py \

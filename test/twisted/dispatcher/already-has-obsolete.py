@@ -154,7 +154,6 @@ def test(q, bus, mc):
     channels = e.args[2]
     assert len(channels) == 1, channels
     assert channels[0][0] == chan.object_path, channels
-    assert channels[0][1] == channel_properties, channels
 
     assert k.args == e.args
 
@@ -175,8 +174,11 @@ def test(q, bus, mc):
                 handled=False),
             )
 
-    assert e.args == [[(chan.object_path, channel_properties)],
-            cdo_path, cdo_properties]
+    assert len(e.args) == 3
+    assert len(e.args[0]) == 1
+    assert e.args[0][0][0] == chan.object_path
+    assert e.args[1] == cdo_path
+    assert e.args[2] == cdo_properties
     assert k.args == e.args
 
     q.dbus_return(e.message, signature='')

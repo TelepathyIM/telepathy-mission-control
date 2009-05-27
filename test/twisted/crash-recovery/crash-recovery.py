@@ -72,6 +72,7 @@ def test(q, bus, unused):
     client = SimulatedClient(q, bus, 'Empathy',
             observe=[text_fixed_properties], approve=[text_fixed_properties],
             handle=[text_fixed_properties], bypass_approval=False)
+    client.handled_channels.append(handled_chan.object_path)
 
     # service-activate MC
     mc = make_mc(bus, q.append)
