@@ -637,7 +637,7 @@ _mcd_channel_dispose (GObject * object)
 	return;
 
     priv->is_disposed = TRUE;
-    _mcd_channel_release_tp_channel (MCD_CHANNEL (object), TRUE);
+    _mcd_channel_release_tp_channel (MCD_CHANNEL (object), FALSE);
     G_OBJECT_CLASS (mcd_channel_parent_class)->dispose (object);
 }
 
