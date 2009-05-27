@@ -145,25 +145,6 @@ mcd_client_proxy_constructed (GObject *object)
 }
 
 static void
-mcd_client_proxy_get_property (GObject *object,
-                               guint property,
-                               GValue *value,
-                               GParamSpec *param_spec)
-{
-    McdClientProxy *self = MCD_CLIENT_PROXY (object);
-
-    switch (property)
-    {
-        case PROP_UNIQUE_NAME:
-            g_value_set_string (value, self->priv->unique_name);
-            break;
-
-        default:
-            G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property, param_spec);
-    }
-}
-
-static void
 mcd_client_proxy_set_property (GObject *object,
                                guint property,
                                const GValue *value,
@@ -191,7 +172,6 @@ _mcd_client_proxy_class_init (McdClientProxyClass *klass)
     g_type_class_add_private (object_class, sizeof (McdClientProxyPrivate));
 
     object_class->constructed = mcd_client_proxy_constructed;
-    object_class->get_property = mcd_client_proxy_get_property;
     object_class->set_property = mcd_client_proxy_set_property;
 
     signals[S_READY] = g_signal_new ("ready", G_OBJECT_CLASS_TYPE (klass),
@@ -205,7 +185,7 @@ _mcd_client_proxy_class_init (McdClientProxyClass *klass)
             "The D-Bus unique name of this client, \"\" if not running or "
             "NULL if unknown",
             NULL,
-            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
+            G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY |
             G_PARAM_STATIC_STRINGS));
 
 }
