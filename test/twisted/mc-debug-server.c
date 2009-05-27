@@ -34,17 +34,25 @@
 
 #include "mcd-service.h"
 
+static McdService *mcd = NULL;
+
+static gboolean
+the_end (gpointer data)
+{
+    g_main_loop_quit (data);
+
+    return FALSE;
+}
 
 static void
-on_abort (McdService * mcd)
+on_abort (gpointer unused G_GNUC_UNUSED)
 {
-    g_debug ("Exiting now ...");
+    g_debug ("McdService aborted, unreffing it");
 
     mcd_debug_print_tree (mcd);
 
     g_object_unref (mcd);
-    g_debug ("MC now exits .. bye bye");
-    exit (0);
+    mcd = NULL;
 }
 
 static DBusHandlerResult
@@ -55,8 +63,13 @@ dbus_filter_function (DBusConnection *connection,
   if (dbus_message_is_signal (message, DBUS_INTERFACE_LOCAL, "Disconnected") &&
       !tp_strdiff (dbus_message_get_path (message), DBUS_PATH_LOCAL))
     {
+      /* MC initialization sets exit on disconnect - turn it off again, so we
+       * get a graceful exit instead (to keep gcov happy) */
+      dbus_connection_set_exit_on_disconnect (connection, FALSE);
+
       g_message ("Got disconnected from the session bus");
-      exit (69); /* EX_UNAVAILABLE */
+
+      mcd_mission_abort ((McdMission *) mcd);
     }
   else if (dbus_message_is_method_call (message,
         "org.freedesktop.Telepathy.MissionControl.RegressionTests",
@@ -102,10 +115,10 @@ int
 main (int argc, char **argv)
 {
     TpDBusDaemon *bus_daemon = NULL;
-    McdService *mcd = NULL;
     GError *error = NULL;
     DBusConnection *connection;
     int ret = 1;
+    GMainLoop *teardown_loop;
 
     g_type_init ();
 
@@ -132,25 +145,34 @@ main (int argc, char **argv)
     mcd = mcd_service_new ();
 
     /* Listen for suicide notification */
-    g_signal_connect_after (mcd, "abort", G_CALLBACK (on_abort), mcd);
+    g_signal_connect_after (mcd, "abort", G_CALLBACK (on_abort), NULL);
 
     /* connect */
     mcd_mission_connect (MCD_MISSION (mcd));
 
-    /* MC initialization sets exit on disconnect - turn it off again, so we
-     * get a graceful exit from the above handler instead (to keep gcov
-     * happy) */
     dbus_connection_set_exit_on_disconnect (connection, FALSE);
 
     mcd_service_run (MCD_OBJECT (mcd));
 
     ret = 0;
 
+    teardown_loop = g_main_loop_new (NULL, FALSE);
+
+    /* 30 seconds is enough time for a D-Bus call to finish, which should mean
+     * everything has settled down by then - we keep running in the background
+     * until it's all over. This means valgrind gets complete information. */
+    g_timeout_add_seconds_full (G_PRIORITY_DEFAULT, 30, the_end,
+        teardown_loop, (GDestroyNotify) g_main_loop_unref);
+
+    g_main_loop_run (teardown_loop);
+
 out:
     if (bus_daemon != NULL)
     {
         g_object_unref (bus_daemon);
     }
+
+    g_message ("Exiting with %d", ret);
 
     return ret;
 }
