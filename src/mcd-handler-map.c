@@ -37,7 +37,7 @@ struct _McdHandlerMapPrivate
     GHashTable *channel_processes;
     /* owned gchar *unique_name => malloc'd gsize, number of channels */
     GHashTable *handler_processes;
-    /* owned gchar *object_path => ref'd TpChannel */
+    /* owned gchar *object_path => ref'd McdChannel */
     GHashTable *handled_channels;
 };
 
