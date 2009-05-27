@@ -279,7 +279,9 @@ def test(q, bus, mc):
 
     # The user responds to Empathy first, and Empathy decides it wants the
     # channel for itself
-    call_async(q, cdo_iface, 'Claim')
+    empathy_cdo = empathy_bus.get_object(cdo.bus_name, cdo.object_path)
+    empathy_cdo_iface = dbus.Interface(empathy_cdo, cs.CDO)
+    call_async(q, empathy_cdo_iface, 'Claim')
 
     q.expect_many(
             EventPattern('dbus-signal', path=cdo_path, signal='Finished'),
