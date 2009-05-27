@@ -245,10 +245,13 @@ _mcd_handler_map_set_handler_crashed (McdHandlerMap *self,
 
         while (g_hash_table_iter_next (&iter, &path_p, &name_p))
         {
-            DEBUG ("%s lost its handler %s", (const gchar *) path_p,
-                   (const gchar *) name_p);
-            paths = g_list_prepend (paths, g_strdup (path_p));
-            g_hash_table_iter_remove (&iter);
+            if (!tp_strdiff (name_p, unique_name))
+            {
+                DEBUG ("%s lost its handler %s", (const gchar *) path_p,
+                       (const gchar *) name_p);
+                paths = g_list_prepend (paths, g_strdup (path_p));
+                g_hash_table_iter_remove (&iter);
+            }
         }
 
         while (paths != NULL)
