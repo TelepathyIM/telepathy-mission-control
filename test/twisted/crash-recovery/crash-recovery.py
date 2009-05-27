@@ -74,9 +74,10 @@ def test(q, bus, unused):
             handle=[text_fixed_properties], bypass_approval=False)
     client.handled_channels.append(handled_chan.object_path)
 
-    # service-activate MC
+    # Service-activate MC.
+    # We're told about the other channel as an observer...
     mc = make_mc(bus, q.append)
-    q.expect_many(
+    _, _, _, e = q.expect_many(
             EventPattern('dbus-signal',
                 path='/org/freedesktop/DBus',
                 interface='org.freedesktop.DBus', signal='NameOwnerChanged',
@@ -89,13 +90,12 @@ def test(q, bus, unused):
                 path='/org/freedesktop/DBus',
                 interface='org.freedesktop.DBus', signal='NameOwnerChanged',
                 predicate=lambda e: e.args[0] == cs.MC and e.args[2]),
+            EventPattern('dbus-method-call',
+                path=client.object_path,
+                interface=cs.OBSERVER, method='ObserveChannels',
+                handled=False),
             )
 
-    # we're told about the other channel as an observer...
-    e = q.expect('dbus-method-call',
-            path=client.object_path,
-            interface=cs.OBSERVER, method='ObserveChannels',
-            handled=False)
     assert e.args[1] == conn.object_path, e.args
     channels = e.args[2]
     assert channels[0][0] == unhandled_chan.object_path, channels
