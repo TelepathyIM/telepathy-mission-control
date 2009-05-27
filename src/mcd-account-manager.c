@@ -758,6 +758,7 @@ write_conf (gpointer userdata)
     gsize len;
 
     DEBUG ("called");
+    g_source_remove (write_conf_id);
     write_conf_id = 0;
 
     data = g_key_file_to_data (keyfile, &len, &error);
@@ -925,7 +926,10 @@ _mcd_account_manager_finalize (GObject *object)
     McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (object);
 
     if (write_conf_id)
-	write_conf (priv->keyfile);
+    {
+        write_conf (priv->keyfile);
+        g_assert (write_conf_id == 0);
+    }
     g_key_file_free (priv->keyfile);
 
     g_free (priv->account_connections_dir);
