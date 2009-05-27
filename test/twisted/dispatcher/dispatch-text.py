@@ -6,7 +6,7 @@ import dbus.bus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async
+        call_async, sync_dbus
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
         expect_client_setup
@@ -293,6 +293,79 @@ def test(q, bus, mc):
     # Now there are no more active channel dispatch operations
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []
 
+    # A third channel
+    channel_properties = dbus.Dictionary(text_fixed_properties,
+            signature='sv')
+    channel_properties[cs.CHANNEL + '.TargetID'] = 'benvolio'
+    channel_properties[cs.CHANNEL + '.TargetHandle'] = \
+            conn.ensure_handle(cs.HT_CONTACT, 'benvolio')
+    channel_properties[cs.CHANNEL + '.InitiatorID'] = 'benvolio'
+    channel_properties[cs.CHANNEL + '.InitiatorHandle'] = \
+            conn.ensure_handle(cs.HT_CONTACT, 'benvolio')
+    channel_properties[cs.CHANNEL + '.Requested'] = False
+    channel_properties[cs.CHANNEL + '.Interfaces'] = dbus.Array(signature='s')
+
+    third_chan = SimulatedChannel(conn, channel_properties)
+    third_chan.announce()
+
+    # third_chan should not be closed
+    q.unforbid_events(forbidden)
+    forbidden.append(EventPattern('dbus-method-call', method='Close',
+        path=third_chan.object_path))
+    q.forbid_events(forbidden)
+
+    # A channel dispatch operation is created
+
+    e = q.expect('dbus-signal',
+            path=cs.CD_PATH,
+            interface=cs.CD_IFACE_OP_LIST,
+            signal='NewDispatchOperation')
+
+    cdo_path = e.args[0]
+    cdo_properties = e.args[1]
+
+    cdo = bus.get_object(cs.CD, cdo_path)
+    cdo_iface = dbus.Interface(cdo, cs.CDO)
+
+    e, k = q.expect_many(
+            EventPattern('dbus-method-call',
+                path=empathy.object_path,
+                interface=cs.OBSERVER, method='ObserveChannels',
+                handled=False),
+            EventPattern('dbus-method-call',
+                path=kopete.object_path,
+                interface=cs.OBSERVER, method='ObserveChannels',
+                handled=False),
+            )
+    q.dbus_return(k.message, bus=kopete_bus, signature='')
+    q.dbus_return(e.message, bus=empathy_bus, signature='')
+
+    e, k = q.expect_many(
+            EventPattern('dbus-method-call',
+                path=empathy.object_path,
+                interface=cs.APPROVER, method='AddDispatchOperation',
+                handled=False),
+            EventPattern('dbus-method-call',
+                path=kopete.object_path,
+                interface=cs.APPROVER, method='AddDispatchOperation',
+                handled=False),
+            )
+    q.dbus_return(e.message, bus=empathy_bus, signature='')
+    q.dbus_return(k.message, bus=kopete_bus, signature='')
+
+    # Kopete closes this one
+    kopete_cdo = kopete_bus.get_object(cdo.bus_name, cdo.object_path)
+    kopete_cdo_iface = dbus.Interface(kopete_cdo, cs.CDO)
+    call_async(q, kopete_cdo_iface, 'Claim')
+
+    q.expect_many(
+            EventPattern('dbus-signal', path=cdo_path, signal='Finished'),
+            EventPattern('dbus-signal', path=cs.CD_PATH,
+                signal='DispatchOperationFinished', args=[cdo_path]),
+            EventPattern('dbus-return', method='Claim'),
+            )
+
+    # Empathy crashes
     empathy.release_name()
 
     e = q.expect('dbus-signal',
@@ -305,7 +378,8 @@ def test(q, bus, mc):
     empathy_bus.flush()
     empathy_bus.close()
 
-    # In response, the channels that were being handled by Empathy are closed
+    # In response, the channels that were being handled by Empathy are closed.
+    # Kopete's channel is *not* closed.
     q.expect_many(
             EventPattern('dbus-signal',
                 signal='NameOwnerChanged',
@@ -316,6 +390,9 @@ def test(q, bus, mc):
             EventPattern('dbus-method-call',
                 path=claimed_chan.object_path, method='Close'),
             )
+
+    sync_dbus(bus, q, mc)
+    q.unforbid_events(forbidden)
 
 if __name__ == '__main__':
     exec_test(test, {})
