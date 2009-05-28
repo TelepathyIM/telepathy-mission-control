@@ -1518,7 +1518,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 
     /* Preparing and filling the context */
     context = g_new0 (McdDispatcherContext, 1);
-    DEBUG ("CTXREF01 on %p", context);
+    DEBUG ("CTXREF11 on %p", context);
     context->ref_count = 1;
     context->dispatcher = dispatcher;
     context->account = account;
@@ -1561,6 +1561,8 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
                                 context);
     }
 
+    mcd_dispatcher_context_ref (context, "CTXREF01");
+
     if (priv->filters != NULL)
     {
         DEBUG ("entering state machine for context %p", context);
@@ -1574,6 +1576,8 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
                "starting the channel handler", context);
 	mcd_dispatcher_run_clients (context);
     }
+
+    mcd_dispatcher_context_unref (context, "CTXREF11");
 }
 
 static void
@@ -3395,7 +3399,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
 
     /* Preparing and filling the context */
     context = g_new0 (McdDispatcherContext, 1);
-    DEBUG ("CTXREF09 on %p", context);
+    DEBUG ("CTXREF12 on %p", context);
     context->ref_count = 1;
     context->dispatcher = dispatcher;
     context->channels = g_list_prepend (NULL, channel);
@@ -3409,8 +3413,11 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     /* We must ref() the channel, because
      * mcd_dispatcher_context_unref() will unref() it */
     g_object_ref (channel);
+    mcd_dispatcher_context_ref (context, "CTXREF09");
     mcd_dispatcher_run_handlers (context);
     /* the context will be unreferenced once it leaves the state machine */
+
+    mcd_dispatcher_context_unref (context, "CTXREF12");
 }
 
 static McdDispatcherContext *
