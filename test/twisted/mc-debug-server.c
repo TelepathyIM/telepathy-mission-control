@@ -172,10 +172,14 @@ main (int argc, char **argv)
     g_main_loop_run (teardown_loop);
 
 out:
+
     if (bus_daemon != NULL)
     {
+        dbus_connection_flush (connection);
         g_object_unref (bus_daemon);
     }
+
+    dbus_shutdown ();
 
     g_message ("Exiting with %d", ret);
 
