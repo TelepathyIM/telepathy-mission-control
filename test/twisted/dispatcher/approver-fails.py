@@ -122,6 +122,16 @@ def test(q, bus, mc):
     # Empathy rejects the channels
     q.dbus_raise(e.message, cs.NOT_AVAILABLE, 'Still drunk', bus=empathy_bus)
 
+    q.expect_many(
+            EventPattern('dbus-method-call', path=chan.object_path,
+                interface=cs.CHANNEL, method='Close', handled=True),
+            EventPattern('dbus-signal', path=cdo.object_path,
+                interface=cs.CDO, signal='Finished'),
+            EventPattern('dbus-signal', path=cd.object_path,
+                interface=cs.CD_IFACE_OP_LIST,
+                signal='DispatchOperationFinished'),
+            )
+
     # Now there are no more active channel dispatch operations
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []
 
