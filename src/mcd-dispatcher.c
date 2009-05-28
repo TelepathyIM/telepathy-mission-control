@@ -334,7 +334,6 @@ mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
         context->finished = TRUE;
         g_signal_emit (context->dispatcher,
                        signals[DISPATCH_COMPLETED], 0, context);
-        mcd_dispatcher_context_unref (context, "CTXREF09");
     }
 }
 
@@ -977,9 +976,6 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
              * the right choice. */
             if (handler != NULL)
             {
-                /* released by mcd_dispatcher_context_handler_done */
-                mcd_dispatcher_context_ref (context, "CTXREF09");
-
                 mcd_dispatcher_handle_channels (context, channels, handler);
                 goto finally;
             }
@@ -1003,9 +999,6 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
 
         if (handler != NULL)
         {
-            /* released by mcd_dispatcher_context_handler_done */
-            mcd_dispatcher_context_ref (context, "CTXREF09");
-
             mcd_dispatcher_handle_channels (context, channels, handler);
             goto finally;
         }
@@ -1496,9 +1489,6 @@ on_operation_finished (McdDispatchOperation *operation,
             mcd_dispatcher_set_channel_handled_by (context->dispatcher,
                 channel, _mcd_dispatch_operation_get_claimer (operation));
         }
-
-        /* released by mcd_dispatcher_context_handler_done */
-        mcd_dispatcher_context_ref (context, "CTXREF09");
 
         mcd_dispatcher_context_handler_done (context);
 
