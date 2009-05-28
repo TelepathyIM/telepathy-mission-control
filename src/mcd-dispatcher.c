@@ -1407,19 +1407,19 @@ on_channel_abort_context (McdChannel *channel, McdDispatcherContext *context)
          * FIXME: this is alarmingly fragile */
         _mcd_dispatch_operation_lose_channel (context->operation, channel,
                                               &(context->channels));
-
-        if (li != NULL)
-        {
-            /* we used to have a ref to it, until the CDO removed it from the
-             * linked list. (Do not dereference li at this point - it has
-             * been freed!) */
-            g_object_unref (channel);
-        }
     }
     else
     {
         /* we own the linked list */
         context->channels = g_list_delete_link (context->channels, li);
+    }
+
+    if (li != NULL)
+    {
+        /* we used to have a ref to it, until it was removed from the linked
+         * list, either by us or by the CDO. (Do not dereference li at this
+         * point - it has been freed!) */
+        g_object_unref (channel);
     }
 
     if (context->channels == NULL)
