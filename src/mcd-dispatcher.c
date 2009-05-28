@@ -1350,6 +1350,9 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
     context->client_locks = 1; /* we release this lock at the end of the
                                     function */
 
+    /* CTXREF09 is released after all client locks are released */
+    mcd_dispatcher_context_ref (context, "CTXREF09");
+
     mcd_dispatcher_run_observers (context);
 
     if (context->operation)
@@ -1575,7 +1578,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
         DEBUG ("No filters found for context %p, "
                "starting the channel handler", context);
 
-        mcd_dispatcher_context_ref (context, "CTXREF09");
 	mcd_dispatcher_run_clients (context);
     }
 
@@ -2868,8 +2870,6 @@ mcd_dispatcher_context_process (McdDispatcherContext * context, gboolean result)
 	}
 	else
 	{
-	    /* Context would be destroyed somewhere in this call */
-            mcd_dispatcher_context_ref (context, "CTXREF09");
 	    mcd_dispatcher_run_clients (context);
 	}
     }
