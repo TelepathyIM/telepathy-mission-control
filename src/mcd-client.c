@@ -283,7 +283,7 @@ _mcd_client_proxy_set_inactive (McdClientProxy *self)
     g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
 
     g_free (self->priv->unique_name);
-    self->priv->unique_name = NULL;
+    self->priv->unique_name = g_strdup ("");
 }
 
 void
