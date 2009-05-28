@@ -1471,6 +1471,13 @@ on_operation_finished (McdDispatchOperation *operation,
     if (context->channels == NULL)
     {
         DEBUG ("Nothing left to dispatch");
+
+        if (context->client_locks > 0)
+        {
+            /* this would have been released when all the locks were released,
+             * but now we're never going to do that */
+            mcd_dispatcher_context_unref (context, "CTXREF13");
+        }
     }
     else if (mcd_dispatch_operation_is_claimed (operation))
     {
@@ -1494,6 +1501,7 @@ on_operation_finished (McdDispatchOperation *operation,
 
         /* this would have been released when all the locks were released, but
          * we're never going to do that */
+        g_assert (context->client_locks > 0);
         mcd_dispatcher_context_unref (context, "CTXREF13");
     }
     else
