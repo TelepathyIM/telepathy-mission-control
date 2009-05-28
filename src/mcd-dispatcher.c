@@ -2855,7 +2855,9 @@ mcd_dispatcher_context_process (McdDispatcherContext * context, gboolean result)
 	    context->next_func_index++;
 	    
             DEBUG ("Next filter");
+            mcd_dispatcher_context_ref (context, "CTXREF10");
 	    filter->func (context, filter->user_data);
+            mcd_dispatcher_context_unref (context, "CTXREF10");
 	    return; /*State machine goes on...*/
 	}
 	else
