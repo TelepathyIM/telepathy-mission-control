@@ -1487,7 +1487,14 @@ on_operation_finished (McdDispatchOperation *operation,
                 channel, _mcd_dispatch_operation_get_claimer (operation));
         }
 
+        /* released by mcd_dispatcher_context_handler_done */
+        mcd_dispatcher_context_ref (context, "CTXREF09");
+
         mcd_dispatcher_context_handler_done (context);
+
+        /* this would have been released when all the locks were released, but
+         * we're never going to do that */
+        mcd_dispatcher_context_unref (context, "CTXREF13");
     }
     else
     {
