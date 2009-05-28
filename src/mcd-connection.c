@@ -400,7 +400,6 @@ disconnect_cb (TpConnection *proxy, const GError *error, gpointer user_data,
 {
     if (error)
 	g_warning ("Disconnect failed: %s", error->message);
-    g_object_unref (proxy);
 }
 
 static void
@@ -1535,7 +1534,7 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
 					      connection);
 
 	_mcd_connection_call_disconnect (connection);
-	/* g_object_unref (priv->tp_conn) is done in the disconnect_cb */
+	g_object_unref (priv->tp_conn);
 	priv->tp_conn = NULL;
 	_mcd_account_tp_connection_changed (priv->account);
     }
@@ -1579,7 +1578,8 @@ _mcd_connection_dispose (GObject * object)
 			   (GFunc) _foreach_channel_remove, connection);
 
     _mcd_connection_release_tp_connection (connection);
-    
+    g_assert (priv->tp_conn == NULL);
+
     if (priv->account)
     {
 	g_signal_handlers_disconnect_by_func (priv->account,
