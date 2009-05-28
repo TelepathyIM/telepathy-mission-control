@@ -436,6 +436,16 @@ mcd_dispatch_operation_dispose (GObject *object)
         priv->channels = NULL;
     }
 
+    if (priv->lost_channels != NULL)
+    {
+        g_warning ("%s still has unsignalled lost channels at dispose time",
+                   priv->unique_name);
+        for (list = priv->lost_channels; list != NULL; list = list->next)
+            g_object_unref (list->data);
+        g_list_free (priv->lost_channels);
+        priv->lost_channels = NULL;
+    }
+
     if (priv->connection)
     {
         g_object_unref (priv->connection);
