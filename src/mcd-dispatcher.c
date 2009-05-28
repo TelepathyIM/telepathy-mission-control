@@ -1038,7 +1038,9 @@ mcd_dispatcher_context_release_client_lock (McdDispatcherContext *context)
     if (context->client_locks == 0)
     {
         /* no observers left, let's go on with the dispatching */
+        mcd_dispatcher_context_ref (context, "CTXREF09");
         mcd_dispatcher_run_handlers (context);
+        mcd_dispatcher_context_unref (context, "CTXREF13");
     }
 }
 
@@ -1350,8 +1352,8 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
     context->client_locks = 1; /* we release this lock at the end of the
                                     function */
 
-    /* CTXREF09 is released after all client locks are released */
-    mcd_dispatcher_context_ref (context, "CTXREF09");
+    /* CTXREF13 is released after all client locks are released */
+    mcd_dispatcher_context_ref (context, "CTXREF13");
 
     mcd_dispatcher_run_observers (context);
 
