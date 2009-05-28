@@ -70,8 +70,10 @@ online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
         return;
     }
 
-    /* the connection will take ownership of the channel, so the reference we
-     * are holding is passed to it */
+    /* the connection will take ownership of the channel if and only if it
+     * has no parent; we expect it to have no parent, and the connection will
+     * become its parent */
+    g_assert (mcd_mission_get_parent ((McdMission *) channel) == NULL);
     mcd_connection_request_channel (connection, channel);
 }
 
