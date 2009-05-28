@@ -120,6 +120,21 @@ mcd_client_proxy_unique_name_cb (TpDBusDaemon *dbus_daemon,
 }
 
 static void
+mcd_client_proxy_finalize (GObject *object)
+{
+    McdClientProxy *self = MCD_CLIENT_PROXY (object);
+    void (*chain_up) (GObject *) =
+        ((GObjectClass *) _mcd_client_proxy_parent_class)->finalize;
+
+    g_free (self->priv->unique_name);
+
+    if (chain_up != NULL)
+    {
+        chain_up (object);
+    }
+}
+
+static void
 mcd_client_proxy_constructed (GObject *object)
 {
     McdClientProxy *self = MCD_CLIENT_PROXY (object);
@@ -174,6 +189,7 @@ _mcd_client_proxy_class_init (McdClientProxyClass *klass)
     g_type_class_add_private (object_class, sizeof (McdClientProxyPrivate));
 
     object_class->constructed = mcd_client_proxy_constructed;
+    object_class->finalize = mcd_client_proxy_finalize;
     object_class->set_property = mcd_client_proxy_set_property;
 
     signals[S_READY] = g_signal_new ("ready", G_OBJECT_CLASS_TYPE (klass),
