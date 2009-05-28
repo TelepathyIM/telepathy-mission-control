@@ -109,10 +109,12 @@ mcd_client_proxy_unique_name_cb (TpDBusDaemon *dbus_daemon,
     {
         DEBUG ("Error getting unique name, assuming not active: %s %d: %s",
                g_quark_to_string (error->domain), error->code, error->message);
-        unique_name = "";
+        _mcd_client_proxy_set_inactive (self);
     }
-
-    self->priv->unique_name = g_strdup (unique_name);
+    else
+    {
+        _mcd_client_proxy_set_active (self, unique_name);
+    }
 
     mcd_client_proxy_emit_ready (self);
 }
