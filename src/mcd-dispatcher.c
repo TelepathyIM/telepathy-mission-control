@@ -3637,6 +3637,7 @@ mcd_dispatcher_lost_connection (gpointer data,
     DEBUG ("%p: %p", self, corpse);
 
     g_hash_table_remove (self->priv->connections, corpse);
+    g_object_unref (self);
 }
 
 void
