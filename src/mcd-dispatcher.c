@@ -948,9 +948,6 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
     GList *channels, *list;
     gchar **iter;
 
-    /* released by mcd_dispatcher_context_handler_done */
-    mcd_dispatcher_context_ref (context, "CTXREF09");
-
     sp_timestamp ("run handlers");
     mcd_dispatcher_context_ref (context, "CTXREF04");
 
@@ -980,6 +977,9 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
              * the right choice. */
             if (handler != NULL)
             {
+                /* released by mcd_dispatcher_context_handler_done */
+                mcd_dispatcher_context_ref (context, "CTXREF09");
+
                 mcd_dispatcher_handle_channels (context, channels, handler);
                 goto finally;
             }
@@ -1003,6 +1003,9 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
 
         if (handler != NULL)
         {
+            /* released by mcd_dispatcher_context_handler_done */
+            mcd_dispatcher_context_ref (context, "CTXREF09");
+
             mcd_dispatcher_handle_channels (context, channels, handler);
             goto finally;
         }
