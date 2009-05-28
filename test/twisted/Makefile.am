@@ -18,6 +18,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/bypass-approval.py \
 	dispatcher/cancel.py \
 	dispatcher/capture-bundle.py \
+	dispatcher/create-handler-fails.py \
 	dispatcher/create-text.py \
 	dispatcher/dispatch-activatable.py \
 	dispatcher/dispatch-obsolete.py \
