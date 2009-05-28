@@ -74,7 +74,7 @@ G_DEFINE_TYPE_WITH_CODE (McdDispatchOperation, mcd_dispatch_operation,
 
 struct _McdDispatchOperationPrivate
 {
-    gchar *unique_name;
+    const gchar *unique_name;   /* borrowed from object_path */
     gchar *object_path;
     GStrv possible_handlers;
     GHashTable *properties;
