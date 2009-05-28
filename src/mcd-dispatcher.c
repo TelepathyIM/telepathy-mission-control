@@ -3574,11 +3574,14 @@ dispatcher_request_channel (McdDispatcher *self,
     /* We've done all we need to with this channel: the ChannelRequests code
      * keeps it alive as long as is necessary */
     g_object_unref (channel);
-    return;
+    goto finally;
 
 despair:
     dbus_g_method_return_error (context, error);
     g_error_free (error);
+
+finally:
+    g_object_unref (am);
 }
 
 static void
