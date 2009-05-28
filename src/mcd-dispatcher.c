@@ -1518,7 +1518,8 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 
     /* Preparing and filling the context */
     context = g_new0 (McdDispatcherContext, 1);
-    context->ref_count = 1; /* CTXREF01 */
+    DEBUG ("CTXREF01 on %p", context);
+    context->ref_count = 1;
     context->dispatcher = dispatcher;
     context->account = account;
     context->channels = channels;
@@ -3392,7 +3393,8 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
 
     /* Preparing and filling the context */
     context = g_new0 (McdDispatcherContext, 1);
-    context->ref_count = 1; /* CTXREF09 */
+    DEBUG ("CTXREF09 on %p", context);
+    context->ref_count = 1;
     context->dispatcher = dispatcher;
     context->channels = g_list_prepend (NULL, channel);
     context->account = mcd_channel_get_account (channel);
