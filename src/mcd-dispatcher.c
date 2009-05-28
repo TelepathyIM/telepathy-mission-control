@@ -306,35 +306,15 @@ mcd_handler_call_data_free (McdHandlerCallData *call_data)
 static void
 mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
 {
-    GList *list;
-    gint channels_left = 0;
-
     if (context->finished)
     {
         DEBUG ("context %p is already finished", context);
         return;
     }
 
-    for (list = context->channels; list != NULL; list = list->next)
-    {
-        McdChannel *channel = MCD_CHANNEL (list->data);
-        McdChannelStatus status;
-
-        status = mcd_channel_get_status (channel);
-        if (status == MCD_CHANNEL_STATUS_DISPATCHING ||
-            status == MCD_CHANNEL_STATUS_HANDLER_INVOKED)
-            channels_left++;
-        /* TODO: recognize those channels whose dispatch failed, and
-         * re-dispatch them to another handler */
-    }
-
-    DEBUG ("%d channels still dispatching", channels_left);
-    if (channels_left == 0)
-    {
-        context->finished = TRUE;
-        g_signal_emit (context->dispatcher,
-                       signals[DISPATCH_COMPLETED], 0, context);
-    }
+    context->finished = TRUE;
+    g_signal_emit (context->dispatcher,
+                   signals[DISPATCH_COMPLETED], 0, context);
 }
 
 static void
