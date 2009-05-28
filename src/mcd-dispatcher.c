@@ -948,6 +948,9 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
     GList *channels, *list;
     gchar **iter;
 
+    /* released by mcd_dispatcher_context_handler_done */
+    mcd_dispatcher_context_ref (context, "CTXREF09");
+
     sp_timestamp ("run handlers");
     mcd_dispatcher_context_ref (context, "CTXREF04");
 
@@ -1038,7 +1041,6 @@ mcd_dispatcher_context_release_client_lock (McdDispatcherContext *context)
     if (context->client_locks == 0)
     {
         /* no observers left, let's go on with the dispatching */
-        mcd_dispatcher_context_ref (context, "CTXREF09");
         mcd_dispatcher_run_handlers (context);
         mcd_dispatcher_context_unref (context, "CTXREF13");
     }
@@ -3417,7 +3419,6 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     /* We must ref() the channel, because
      * mcd_dispatcher_context_unref() will unref() it */
     g_object_ref (channel);
-    mcd_dispatcher_context_ref (context, "CTXREF09");
     mcd_dispatcher_run_handlers (context);
     /* the context will be unreferenced once it leaves the state machine */
 
