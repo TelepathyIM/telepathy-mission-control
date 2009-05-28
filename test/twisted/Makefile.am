@@ -119,6 +119,32 @@ check-twisted:
 		exit 1;\
 	fi
 
+check-torture:
+	mkdir tmp-$$$$ && { \
+		$(MAKE) _check-torture TMPSUFFIX=$$$$; \
+		e=$$?; \
+		rm -rf tmp-$$$$; \
+	exit $$e; }
+
+TORTURE_TESTS = \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS)
+
+_check-torture:
+	env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) \
+	$(MAKE) check-TESTS \
+		TESTS='$$(TORTURE_TESTS)' \
+		TESTS_ENVIRONMENT='$$(COMBINED_TESTS_ENVIRONMENT)'
+
 check-combined:
 	env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) \
 	$(MAKE) check-TESTS \
