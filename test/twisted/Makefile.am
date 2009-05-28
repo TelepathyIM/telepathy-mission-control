@@ -12,6 +12,7 @@ TWISTED_BASIC_TESTS = \
 	account-requests/cancel.py \
 	account-requests/create-text.py \
 	account-requests/delete-account-during-request.py \
+	dispatcher/approver-fails.py \
 	dispatcher/already-has-channel.py \
 	dispatcher/already-has-obsolete.py \
 	dispatcher/bypass-approval.py \
@@ -24,6 +25,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/dispatch-text.py \
 	dispatcher/exploding-bundles.py \
 	dispatcher/fdo-21034.py \
+	dispatcher/handle-channels-fails.py \
 	dispatcher/lose-text.py \
 	dispatcher/undispatchable.py \
 	dispatcher/vanishing-client.py \
