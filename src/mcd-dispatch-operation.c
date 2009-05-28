@@ -781,6 +781,7 @@ _mcd_dispatch_operation_unblock_finished (McdDispatchOperation *self)
                 g_free (error_name);
             }
 
+            g_object_unref (channel);
             lost_channels = g_list_delete_link (lost_channels, lost_channels);
         }
 
