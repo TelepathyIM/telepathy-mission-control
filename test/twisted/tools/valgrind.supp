@@ -869,3 +869,54 @@
    fun:g_test_run
    fun:main
 }
+
+{
+   dlopen initialization
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlopen@@GLIBC_2.1
+   fun:g_module_open
+   fun:mcd_master_constructor
+   fun:g_object_newv
+   fun:g_object_new_valist
+   fun:g_object_new
+   fun:mcd_service_new
+   fun:main
+}
+
+{
+   more dlopen initialization
+   Memcheck:Leak
+   fun:malloc
+   fun:add_to_global
+   fun:dl_open_worker
+   fun:_dl_catch_error
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlopen@@GLIBC_2.1
+   fun:g_module_open
+   fun:mcd_master_constructor
+   fun:g_object_newv
+   fun:g_object_new_valist
+   fun:g_object_new
+   fun:mcd_service_new
+   fun:main
+}
+
+{
+   GType startup
+   Memcheck:Leak
+   fun:realloc
+   fun:g_realloc
+   fun:type_node_any_new_W
+   fun:type_node_new_W
+   fun:g_type_register_static
+   fun:g_param_type_register_static
+   fun:g_param_spec_types_init
+   fun:g_type_init_with_debug_flags
+   fun:g_type_init
+   fun:main
+}
