@@ -246,8 +246,11 @@ list_connection_names_cb (const gchar * const *names, gsize n,
             DEBUG ("Killing connection");
             proxy = tp_connection_new (priv->dbus_daemon, names[i], NULL, NULL);
             if (proxy)
+            {
                 tp_cli_connection_call_disconnect (proxy, -1, NULL, NULL,
                                                    NULL, NULL);
+                g_object_unref (proxy);
+            }
         }
     }
     g_free (contents);
