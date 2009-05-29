@@ -20,6 +20,8 @@ lcov-report:
 lcov-check:
 	$(MAKE) lcov-reset
 	$(MAKE) check
+	sleep `expr $${MC_LINGER_TIME:-5}`
+	sleep 1
 	$(MAKE) lcov-report
 
 ## vim:set ft=automake:

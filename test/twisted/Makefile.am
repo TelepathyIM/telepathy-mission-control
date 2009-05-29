@@ -12,11 +12,13 @@ TWISTED_BASIC_TESTS = \
 	account-requests/cancel.py \
 	account-requests/create-text.py \
 	account-requests/delete-account-during-request.py \
+	dispatcher/approver-fails.py \
 	dispatcher/already-has-channel.py \
 	dispatcher/already-has-obsolete.py \
 	dispatcher/bypass-approval.py \
 	dispatcher/cancel.py \
 	dispatcher/capture-bundle.py \
+	dispatcher/create-handler-fails.py \
 	dispatcher/create-text.py \
 	dispatcher/dispatch-activatable.py \
 	dispatcher/dispatch-obsolete.py \
@@ -24,7 +26,9 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/dispatch-text.py \
 	dispatcher/exploding-bundles.py \
 	dispatcher/fdo-21034.py \
+	dispatcher/handle-channels-fails.py \
 	dispatcher/lose-text.py \
+	dispatcher/undispatchable.py \
 	dispatcher/vanishing-client.py \
 	do-nothing.py \
 	test-account.py \
@@ -114,6 +118,32 @@ check-twisted:
 		echo "Core dump exists: tools/core";\
 		exit 1;\
 	fi
+
+check-torture:
+	mkdir tmp-$$$$ && { \
+		$(MAKE) _check-torture TMPSUFFIX=$$$$; \
+		e=$$?; \
+		rm -rf tmp-$$$$; \
+	exit $$e; }
+
+TORTURE_TESTS = \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_BASIC_TESTS)
+
+_check-torture:
+	env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) \
+	$(MAKE) check-TESTS \
+		TESTS='$$(TORTURE_TESTS)' \
+		TESTS_ENVIRONMENT='$$(COMBINED_TESTS_ENVIRONMENT)'
 
 check-combined:
 	env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) \

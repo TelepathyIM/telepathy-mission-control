@@ -109,12 +109,29 @@ mcd_client_proxy_unique_name_cb (TpDBusDaemon *dbus_daemon,
     {
         DEBUG ("Error getting unique name, assuming not active: %s %d: %s",
                g_quark_to_string (error->domain), error->code, error->message);
-        unique_name = "";
+        _mcd_client_proxy_set_inactive (self);
+    }
+    else
+    {
+        _mcd_client_proxy_set_active (self, unique_name);
     }
 
-    self->priv->unique_name = g_strdup (unique_name);
-
     mcd_client_proxy_emit_ready (self);
+}
+
+static void
+mcd_client_proxy_finalize (GObject *object)
+{
+    McdClientProxy *self = MCD_CLIENT_PROXY (object);
+    void (*chain_up) (GObject *) =
+        ((GObjectClass *) _mcd_client_proxy_parent_class)->finalize;
+
+    g_free (self->priv->unique_name);
+
+    if (chain_up != NULL)
+    {
+        chain_up (object);
+    }
 }
 
 static void
@@ -172,6 +189,7 @@ _mcd_client_proxy_class_init (McdClientProxyClass *klass)
     g_type_class_add_private (object_class, sizeof (McdClientProxyPrivate));
 
     object_class->constructed = mcd_client_proxy_constructed;
+    object_class->finalize = mcd_client_proxy_finalize;
     object_class->set_property = mcd_client_proxy_set_property;
 
     signals[S_READY] = g_signal_new ("ready", G_OBJECT_CLASS_TYPE (klass),
@@ -283,7 +301,7 @@ _mcd_client_proxy_set_inactive (McdClientProxy *self)
     g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
 
     g_free (self->priv->unique_name);
-    self->priv->unique_name = NULL;
+    self->priv->unique_name = g_strdup ("");
 }
 
 void

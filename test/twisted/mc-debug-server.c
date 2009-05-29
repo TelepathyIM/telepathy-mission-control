@@ -119,6 +119,7 @@ main (int argc, char **argv)
     DBusConnection *connection;
     int ret = 1;
     GMainLoop *teardown_loop;
+    guint linger_time = 5;
 
     g_type_init ();
 
@@ -158,19 +159,27 @@ main (int argc, char **argv)
 
     teardown_loop = g_main_loop_new (NULL, FALSE);
 
-    /* 30 seconds is enough time for a D-Bus call to finish, which should mean
-     * everything has settled down by then - we keep running in the background
-     * until it's all over. This means valgrind gets complete information. */
-    g_timeout_add_seconds_full (G_PRIORITY_DEFAULT, 30, the_end,
+    if (g_getenv ("MC_LINGER_TIME") != NULL)
+      {
+        linger_time = g_ascii_strtoull (g_getenv ("MC_LINGER_TIME"), NULL, 10);
+      }
+
+    /* Keep running in the background until it's all over. This means valgrind
+     * and refdbg can get complete information. */
+    g_timeout_add_seconds_full (G_PRIORITY_DEFAULT, linger_time, the_end,
         teardown_loop, (GDestroyNotify) g_main_loop_unref);
 
     g_main_loop_run (teardown_loop);
 
 out:
+
     if (bus_daemon != NULL)
     {
+        dbus_connection_flush (connection);
         g_object_unref (bus_daemon);
     }
+
+    dbus_shutdown ();
 
     g_message ("Exiting with %d", ret);
 

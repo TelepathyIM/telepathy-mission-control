@@ -74,7 +74,7 @@ G_DEFINE_TYPE_WITH_CODE (McdDispatchOperation, mcd_dispatch_operation,
 
 struct _McdDispatchOperationPrivate
 {
-    gchar *unique_name;
+    const gchar *unique_name;   /* borrowed from object_path */
     gchar *object_path;
     GStrv possible_handlers;
     GHashTable *properties;
@@ -436,6 +436,16 @@ mcd_dispatch_operation_dispose (GObject *object)
         priv->channels = NULL;
     }
 
+    if (priv->lost_channels != NULL)
+    {
+        g_warning ("%s still has unsignalled lost channels at dispose time",
+                   priv->unique_name);
+        for (list = priv->lost_channels; list != NULL; list = list->next)
+            g_object_unref (list->data);
+        g_list_free (priv->lost_channels);
+        priv->lost_channels = NULL;
+    }
+
     if (priv->connection)
     {
         g_object_unref (priv->connection);
@@ -781,6 +791,7 @@ _mcd_dispatch_operation_unblock_finished (McdDispatchOperation *self)
                 g_free (error_name);
             }
 
+            g_object_unref (channel);
             lost_channels = g_list_delete_link (lost_channels, lost_channels);
         }
 
