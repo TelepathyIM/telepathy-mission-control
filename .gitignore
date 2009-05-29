@@ -79,5 +79,6 @@ test/twisted/tools/missioncontrol-*.log
 test/twisted/tools/tmp-session-bus.conf
 /test/twisted/tools/*.service
 /test/twisted/tmp-*/
-util/mc-account-convert
-util/mc-tool
+/util/mc-account-convert
+/util/mc-tool
+/util/mc-wait-for-name
