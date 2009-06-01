@@ -126,7 +126,7 @@ check-torture:
 		rm -rf tmp-$$$$; \
 	exit $$e; }
 
-TORTURE_TESTS = \
+MANY_TESTS = \
 	$(TWISTED_BASIC_TESTS) \
 	$(TWISTED_BASIC_TESTS) \
 	$(TWISTED_BASIC_TESTS) \
@@ -138,6 +138,19 @@ TORTURE_TESTS = \
 	$(TWISTED_BASIC_TESTS) \
 	$(TWISTED_BASIC_TESTS) \
 	$(TWISTED_BASIC_TESTS)
+
+TORTURE_TESTS = \
+	$(MANY_TESTS) \
+	$(MANY_TESTS) \
+	$(MANY_TESTS) \
+	$(MANY_TESTS) \
+	$(MANY_TESTS) \
+	$(MANY_TESTS) \
+	$(MANY_TESTS) \
+	$(MANY_TESTS) \
+	$(MANY_TESTS) \
+	$(MANY_TESTS) \
+	$(MANY_TESTS)
 
 _check-torture:
 	env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) \
