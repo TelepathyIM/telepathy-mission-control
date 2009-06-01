@@ -2627,6 +2627,11 @@ mcd_account_connection_ready_cb (McdAccount *account,
     g_return_if_fail (MCD_IS_ACCOUNT (account));
     g_return_if_fail (connection == priv->connection);
 
+    /* FIXME: ideally, on protocols with server-stored nicknames, this should
+     * only be done if the local Nickname has been changed since last time we
+     * were online; Aliasing doesn't currently offer a way to tell whether
+     * this is such a protocol, though. */
+
     nickname = mcd_account_get_alias (account);
 
     if (nickname != NULL)
