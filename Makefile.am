@@ -9,7 +9,11 @@ endif
 SUBDIRS += doc test
 
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = libmcclient.pc mission-control.pc
+pkgconfig_DATA = libmcclient.pc
+
+if ENABLE_PLUGINS
+pkgconfig_DATA += mission-control.pc
+endif
 
 DISTCHECK_CONFIGURE_FLAGS = --enable-gtk-doc
 
