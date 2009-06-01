@@ -148,6 +148,7 @@ enum
 
 enum
 {
+    READY,
     SELF_PRESENCE_CHANGED,
     CONNECTION_STATUS_CHANGED,
     N_SIGNALS
@@ -1417,6 +1418,8 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
 	_mcd_connection_setup_alias (connection);
 
     _mcd_dispatcher_add_connection (priv->dispatcher, connection);
+
+    g_signal_emit (connection, signals[READY], 0);
 }
 
 void
@@ -1850,6 +1853,12 @@ mcd_connection_class_init (McdConnectionClass * klass)
         G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED, 0,
         NULL, NULL, _mcd_marshal_VOID__UINT_UINT,
         G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_UINT);
+
+    signals[READY] = g_signal_new ("ready",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED, 0,
+        NULL, NULL, g_cclosure_marshal_VOID__VOID,
+        G_TYPE_NONE, 0);
 }
 
 static void
@@ -2208,3 +2217,11 @@ mcd_connection_get_tp_connection (McdConnection *connection)
     return connection->priv->tp_conn;
 }
 
+gboolean
+_mcd_connection_is_ready (McdConnection *self)
+{
+    g_return_val_if_fail (MCD_IS_CONNECTION (self), FALSE);
+
+    return (self->priv->tp_conn != NULL) &&
+        tp_connection_is_ready (self->priv->tp_conn);
+}

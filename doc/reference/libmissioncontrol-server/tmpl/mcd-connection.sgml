@@ -32,6 +32,13 @@ McdConnection
 @arg1: 
 @arg2: 
 
+<!-- ##### SIGNAL McdConnection::ready ##### -->
+<para>
+
+</para>
+
+@mcdconnection: the object which received the signal.
+
 <!-- ##### SIGNAL McdConnection::self-presence-changed ##### -->
 <para>
 

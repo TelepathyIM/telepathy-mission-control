@@ -46,6 +46,8 @@ void _mcd_connection_set_tp_connection (McdConnection *connection,
 
 G_GNUC_INTERNAL void _mcd_connection_start_dispatching (McdConnection *self);
 
+G_GNUC_INTERNAL gboolean _mcd_connection_is_ready (McdConnection *self);
+
 G_END_DECLS
 
 #endif
