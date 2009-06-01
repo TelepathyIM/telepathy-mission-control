@@ -54,6 +54,8 @@
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/connection.h>
 #include <telepathy-glib/proxy-subclass.h>
+#include <telepathy-glib/util.h>
+
 #include <libmcclient/mc-errors.h>
 
 #include "mcd-account-priv.h"
@@ -150,6 +152,7 @@ enum
 {
     READY,
     SELF_PRESENCE_CHANGED,
+    SELF_NICKNAME_CHANGED,
     CONNECTION_STATUS_CHANGED,
     N_SIGNALS
 };
@@ -832,34 +835,33 @@ on_aliases_changed (TpConnection *proxy, const GPtrArray *aliases,
 		    gpointer user_data, GObject *weak_object)
 {
     McdConnectionPrivate *priv = user_data;
-    GType type;
-    gchar *alias;
-    guint contact;
+    guint self_handle;
     guint i;
 
     DEBUG ("called");
-    type = dbus_g_type_get_struct ("GValueArray", G_TYPE_UINT, G_TYPE_STRING,
-				   G_TYPE_INVALID);
+
+    self_handle = tp_connection_get_self_handle (proxy);
+
     for (i = 0; i < aliases->len; i++)
     {
-	GValue data = { 0 };
+        GValueArray *structure = g_ptr_array_index (aliases, i);
 
-	g_value_init (&data, type);
-	g_value_set_static_boxed (&data, g_ptr_array_index(aliases, i));
-	dbus_g_type_struct_get (&data, 0, &contact, 1, &alias, G_MAXUINT);
-        DEBUG ("Got alias for contact %u: %s", contact, alias);
-	if (contact == tp_connection_get_self_handle (proxy))
-	{
-            DEBUG ("This is our alias");
-	    if (!priv->alias || strcmp (priv->alias, alias) != 0)
-	    {
+        if (g_value_get_uint (structure->values) == self_handle)
+        {
+            const gchar *alias = g_value_get_string (structure->values + 1);
+
+            DEBUG ("Our alias on %s changed to %s",
+                   tp_proxy_get_object_path (proxy), alias);
+
+            if (priv->alias == NULL || tp_strdiff (priv->alias, alias))
+            {
                 g_free (priv->alias);
-                priv->alias = alias;
-                _mcd_account_set_alias (priv->account, alias);
-	    }
-	    break;
-	}
-	g_free (alias);
+                priv->alias = g_strdup (alias);
+                g_signal_emit (weak_object, signals[SELF_NICKNAME_CHANGED],
+                               0, alias);
+            }
+            break;
+        }
     }
 }
 
@@ -1829,6 +1831,12 @@ mcd_connection_class_init (McdConnectionClass * klass)
         G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED, 0,
         NULL, NULL, _mcd_marshal_VOID__UINT_STRING_STRING,
         G_TYPE_NONE, 3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING);
+
+    signals[SELF_NICKNAME_CHANGED] = g_signal_new ("self-nickname-changed",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED, 0,
+        NULL, NULL, g_cclosure_marshal_VOID__STRING,
+        G_TYPE_NONE, 1, G_TYPE_STRING);
 
     signals[CONNECTION_STATUS_CHANGED] = g_signal_new (
         "connection-status-changed", G_OBJECT_CLASS_TYPE (klass),

@@ -2345,8 +2345,10 @@ _mcd_account_get_avatar (McdAccount *account, GArray **avatar,
     g_free (filename);
 }
 
-void
-_mcd_account_set_alias (McdAccount *account, const gchar *alias)
+static void
+mcd_account_connection_self_nickname_changed_cb (McdAccount *account,
+                                                 const gchar *alias,
+                                                 McdConnection *connection)
 {
     GValue value = { 0 };
 
@@ -2677,6 +2679,10 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
             g_signal_connect_swapped (connection, "ready",
                 G_CALLBACK (mcd_account_connection_ready_cb), account);
         }
+
+        g_signal_connect_swapped (connection, "self-nickname-changed",
+                G_CALLBACK (mcd_account_connection_self_nickname_changed_cb),
+                account);
 
         g_signal_connect (connection, "self-presence-changed",
                           G_CALLBACK (on_conn_self_presence_changed), account);

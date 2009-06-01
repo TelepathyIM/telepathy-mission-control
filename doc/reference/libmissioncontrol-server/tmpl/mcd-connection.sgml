@@ -39,6 +39,14 @@ McdConnection
 
 @mcdconnection: the object which received the signal.
 
+<!-- ##### SIGNAL McdConnection::self-nickname-changed ##### -->
+<para>
+
+</para>
+
+@mcdconnection: the object which received the signal.
+@arg1: 
+
 <!-- ##### SIGNAL McdConnection::self-presence-changed ##### -->
 <para>
 
