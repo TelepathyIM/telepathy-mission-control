@@ -115,7 +115,7 @@ def test(q, bus, mc):
 
     # This is normally a C API, only exposed to D-Bus here for testing
     secret_debug_api = dbus.Interface(bus.get_object(cs.AM, "/"),
-        'org.freedesktop.Telepathy.MissionControl.RegressionTests')
+        'org.freedesktop.Telepathy.MissionControl5.RegressionTests')
     MCD_SYSTEM_IDLE = 32
 
     # Set the idle flag

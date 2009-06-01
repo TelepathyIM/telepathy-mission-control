@@ -6,13 +6,13 @@ INCLUDES = $(DBUS_CFLAGS) $(TELEPATHY_CFLAGS) -I$(top_srcdir) \
 
 if HAVE_SERVER
 
-EXTRA_DIST = org.freedesktop.Telepathy.MissionControl.service.in \
+EXTRA_DIST = org.freedesktop.Telepathy.MissionControl5.service.in \
 	     org.freedesktop.Telepathy.AccountManager.service.in
-CLEANFILES = org.freedesktop.Telepathy.MissionControl.service \
+CLEANFILES = org.freedesktop.Telepathy.MissionControl5.service \
 	     org.freedesktop.Telepathy.AccountManager.service
 
 servicefiledir=$(prefix)/share/dbus-1/services
-servicefile_DATA=org.freedesktop.Telepathy.MissionControl.service \
+servicefile_DATA=org.freedesktop.Telepathy.MissionControl5.service \
 		 org.freedesktop.Telepathy.AccountManager.service
 
 %.service: %.service.in Makefile
