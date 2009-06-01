@@ -55,5 +55,16 @@ def test(q, bus, mc):
 
     q.dbus_return(e.message, signature='')
 
+    someone_else = conn.ensure_handle(cs.HT_CONTACT, 'alberto@example.com')
+
+    # Another client changes our alias remotely
+    q.dbus_emit(conn.object_path, cs.CONN_IFACE_ALIASING, 'AliasesChanged',
+            dbus.Array([(conn.self_handle, 'wjt'), (someone_else, 'mardy')],
+                signature='(us)'), signature='a(us)')
+
+    q.expect('dbus-signal', path=account.object_path,
+            signal='AccountPropertyChanged', interface=cs.ACCOUNT,
+            args=[{'Nickname': 'wjt'}])
+
 if __name__ == '__main__':
     exec_test(test, {})
