@@ -873,20 +873,23 @@ aliasing_set_aliases_cb (TpConnection *proxy, const GError *error,
     }
 }
 
-static void
-_mcd_connection_set_alias (McdConnection *connection,
-			   const gchar *alias)
+void
+_mcd_connection_set_nickname (McdConnection *connection,
+                              const gchar *nickname)
 {
     McdConnectionPrivate *priv = connection->priv;
     GHashTable *aliases;
     TpHandle self_handle;
 
-    DEBUG ("setting alias '%s'", alias);
+    if (!priv->has_alias_if)
+        return;
+
+    DEBUG ("setting nickname '%s' using Aliasing", nickname);
 
     aliases = g_hash_table_new (NULL, NULL);
     self_handle = tp_connection_get_self_handle (priv->tp_conn);
-    g_hash_table_insert (aliases, GINT_TO_POINTER(self_handle),
-			 (gchar *)alias);
+    g_hash_table_insert (aliases, GUINT_TO_POINTER (self_handle),
+                         (gchar *) nickname);
     tp_cli_connection_interface_aliasing_call_set_aliases (priv->tp_conn, -1,
 							   aliases,
 							   aliasing_set_aliases_cb,
@@ -896,30 +899,15 @@ _mcd_connection_set_alias (McdConnection *connection,
 }
 
 static void
-on_account_alias_changed (McdAccount *account, const gchar *alias,
-			  McdConnection *connection)
-{
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-
-    if (!priv->has_alias_if) return;
-    _mcd_connection_set_alias (connection, alias);
-}
-
-static void
 _mcd_connection_setup_alias (McdConnection *connection)
 {
     McdConnectionPrivate *priv = connection->priv;
-    gchar *alias;
 
     tp_cli_connection_interface_aliasing_connect_to_aliases_changed (priv->tp_conn,
 								     on_aliases_changed,
 								     priv, NULL,
 								     (GObject *)connection,
 								     NULL);
-    alias = mcd_account_get_alias (priv->account);
-    if (alias && (!priv->alias || strcmp (priv->alias, alias) != 0))
-	_mcd_connection_set_alias (connection, alias);
-    g_free (alias);
 }
 
 static gboolean
@@ -1588,9 +1576,6 @@ _mcd_connection_dispose (GObject * object)
 	g_signal_handlers_disconnect_by_func (priv->account,
 					      G_CALLBACK (on_account_avatar_changed),
 					      object);
-	g_signal_handlers_disconnect_by_func (priv->account,
-					      G_CALLBACK (on_account_alias_changed),
-					      object);
         g_signal_handlers_disconnect_by_func (priv->account,
                                               G_CALLBACK (on_account_removed),
                                               object);
@@ -1663,9 +1648,6 @@ _mcd_connection_set_property (GObject * obj, guint prop_id,
 	g_signal_connect (priv->account,
 			  "mcd-avatar-changed",
 			  G_CALLBACK (on_account_avatar_changed), obj);
-	g_signal_connect (priv->account,
-			  "alias-changed",
-			  G_CALLBACK (on_account_alias_changed), obj);
         g_signal_connect (priv->account, "removed",
                           G_CALLBACK (on_account_removed),
                           obj);
