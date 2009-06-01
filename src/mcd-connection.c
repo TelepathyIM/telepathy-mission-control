@@ -191,28 +191,6 @@ presence_set_status_cb (TpConnection *proxy, const GError *error,
 		   G_STRFUNC, mcd_account_get_unique_name (priv->account),
                    error->message);
     }
-    /* We rely on the PresenceChanged signal to update our presence, but:
-     * - it is not emitted if the presence doesn't change
-     * - we miss a few emissions, while we wait for the readiness
-     *
-     * For this reasons, until we don't get the first PresenceChanged for our
-     * self handle, just copy the account requested presence as current
-     * presence.
-     * FIXME: remove this code is things in things in SimplePresence interface
-     * are changed.
-     */
-    if (!priv->got_presences_changed)
-    {
-        TpConnectionPresenceType presence;
-        const gchar *status, *message;
-
-        /* this is not really correct, as the requested presence might have
-         * been changed -- but we hope it didn't */
-        mcd_account_get_requested_presence (priv->account,
-                                            &presence, &status, &message);
-        g_signal_emit (weak_object, signals[SELF_PRESENCE_CHANGED], 0,
-                       presence, status, message);
-    }
 }
 
 static gboolean
@@ -385,13 +363,41 @@ on_presences_changed (TpConnection *proxy, GHashTable *presences,
 }
 
 static void
+mcd_connection_initial_presence_cb (TpConnection *proxy,
+                                    GHashTable *presences,
+                                    const GError *error,
+                                    gpointer user_data,
+                                    GObject *weak_object)
+{
+    if (error != NULL)
+    {
+        DEBUG ("GetPresences([SelfHandle]) failed: %s", error->message);
+        return;
+    }
+
+    on_presences_changed (proxy, presences, user_data, weak_object);
+}
+
+static void
 _mcd_connection_setup_presence (McdConnection *connection)
 {
     McdConnectionPrivate *priv =  connection->priv;
+    GArray *self_handle_array;
+    guint self_handle;
 
     tp_cli_connection_interface_simple_presence_connect_to_presences_changed
         (priv->tp_conn, on_presences_changed, priv, NULL,
          (GObject *)connection, NULL);
+
+    self_handle_array = g_array_new (FALSE, FALSE, sizeof (guint));
+    self_handle = tp_connection_get_self_handle (priv->tp_conn);
+    g_array_append_val (self_handle_array, self_handle);
+    tp_cli_connection_interface_simple_presence_call_get_presences
+        (priv->tp_conn, -1, self_handle_array,
+         mcd_connection_initial_presence_cb, priv, NULL,
+         (GObject *) connection);
+    g_array_free (self_handle_array, TRUE);
+
     tp_cli_dbus_properties_call_get
         (priv->tp_conn, -1, TP_IFACE_CONNECTION_INTERFACE_SIMPLE_PRESENCE,
          "Statuses", presence_get_statuses_cb, priv, NULL,

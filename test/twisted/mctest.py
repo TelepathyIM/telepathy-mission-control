@@ -192,6 +192,12 @@ class SimulatedConnection(object):
                     method='ListChannels')
 
         if has_presence:
+            q.add_dbus_method_impl(self.SetPresence, path=self.object_path,
+                    interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
+                    method='SetPresence')
+            q.add_dbus_method_impl(self.GetPresences, path=self.object_path,
+                    interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
+                    method='GetPresences')
             q.add_dbus_method_impl(self.Get_SimplePresenceStatuses,
                     path=self.object_path, interface=cs.PROPERTIES_IFACE,
                     method='Get',
@@ -225,6 +231,8 @@ class SimulatedConnection(object):
             'error': (cs.PRESENCE_TYPE_ERROR, False, False),
             'unknown': (cs.PRESENCE_TYPE_UNKNOWN, False, False),
             }, signature='s(ubb)')
+        self.presence = dbus.Struct((cs.PRESENCE_TYPE_OFFLINE, 'offline', ''),
+                signature='uss')
 
     # not actually very relevant for MC so hard-code 0 for now
     def GetAliasFlags(self, e):
@@ -245,6 +253,35 @@ class SimulatedConnection(object):
             'MaximumAvatarHeight': 96,
             'MaximumAvatarBytes': 8192,
             }, signature='a{sv}')
+
+    def GetPresences(self, e):
+        ret = dbus.Dictionary(signature='u(uss)')
+        contacts = e.args[0]
+        for contact in contacts:
+            if contact == self.self_handle:
+                ret[contact] = self.presence
+            else:
+                # stub - MC doesn't care
+                ret[contact] = dbus.Struct(
+                        (cs.PRESENCE_TYPE_UNKNOWN, 'unknown', ''),
+                        signature='uss')
+        self.q.dbus_return(e.message, ret, signature='a{u(uss)}')
+
+    def SetPresence(self, e):
+        if e.args[0] in self.statuses:
+            presence = dbus.Struct((self.statuses[e.args[0]][0],
+                    e.args[0], e.args[1]), signature='uss')
+
+            if presence != self.presence:
+                self.presence = presence
+                self.q.dbus_emit(self.object_path,
+                        cs.CONN_IFACE_SIMPLE_PRESENCE, 'PresencesChanged',
+                        { self.self_handle : presence },
+                        signature='a{u(uss)}')
+
+            self.q.dbus_return(e.message, signature='')
+        else:
+            self.q.dbus_raise(cs.INVALID_ARGUMENT, 'Unknown status')
 
     def Get_SimplePresenceStatuses(self, e):
         self.q.dbus_return(e.message, self.statuses, signature='v')
@@ -639,6 +676,8 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
     q.expect('dbus-method-call', method='Connect',
             path=conn.object_path, handled=True)
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+    conn.presence = dbus.Struct((cs.PRESENCE_TYPE_AVAILABLE, 'available', ''),
+            signature='uss')
 
     expect_after_connect = list(expect_after_connect)
 

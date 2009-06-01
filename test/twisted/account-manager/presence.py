@@ -28,10 +28,9 @@ def test(q, bus, mc):
                     interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
                     method='SetPresence',
                     args=list(presence[1:]),
-                    handled=False),
+                    handled=True),
                 ])
 
-    q.dbus_return(e.message, signature='')
     q.dbus_emit(conn.object_path, cs.CONN_IFACE_SIMPLE_PRESENCE,
             'PresencesChanged', {conn.self_handle: presence},
             signature='a{u(uss)}')
@@ -49,15 +48,7 @@ def test(q, bus, mc):
     e = q.expect('dbus-method-call',
         interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
         args=list(presence[1:]),
-        handled=False)
-
-    # Set returns immediately; the change happens asynchronously
-    q.expect('dbus-return', method='Set')
-
-    q.dbus_return(e.message, signature='')
-    q.dbus_emit(conn.object_path, cs.CONN_IFACE_SIMPLE_PRESENCE,
-            'PresencesChanged', {conn.self_handle: presence},
-            signature='a{u(uss)}')
+        handled=True)
 
     q.expect('dbus-signal', path=account.object_path,
             interface=cs.ACCOUNT, signal='AccountPropertyChanged',

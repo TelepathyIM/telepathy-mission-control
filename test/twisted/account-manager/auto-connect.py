@@ -83,7 +83,7 @@ def test(q, bus, mc):
                 handled=False),
             EventPattern('dbus-method-call', path=conn.object_path,
                 interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
-                handled=False),
+                handled=True),
             EventPattern('dbus-signal', signal='AccountPropertyChanged',
                 path=account_path, interface=cs.ACCOUNT,
                 predicate=lambda e: 'ConnectionStatus' in e.args[0]),
@@ -91,11 +91,11 @@ def test(q, bus, mc):
 
     assert e.args[0]['ConnectionStatus'] == cs.CONN_STATUS_CONNECTED
 
-    q.dbus_return(set_presence.message, signature='')
-
     e = q.expect('dbus-signal', signal='AccountPropertyChanged',
             path=account_path, interface=cs.ACCOUNT,
-            predicate=lambda e: 'CurrentPresence' in e.args[0])
+            predicate=lambda e: 'CurrentPresence' in e.args[0]
+                and e.args[0]['CurrentPresence'][2] != '')
+
     assert e.args[0]['CurrentPresence'] == (cs.PRESENCE_TYPE_AVAILABLE,
             'available', 'My vision is augmented')
 
