@@ -18,8 +18,8 @@ servicefile_DATA=org.freedesktop.Telepathy.MissionControl5.service \
 %.service: %.service.in Makefile
 	sed -e 's![@]libexecdir[@]!$(libexecdir)!' $< > $@
 
-libexec_PROGRAMS = mission-control
-mission_control_SOURCES = mc-server.c
-mission_control_LDADD = $(top_builddir)/src/libmissioncontrol-server.la
+libexec_PROGRAMS = mission-control-5
+mission_control_5_SOURCES = mc-server.c
+mission_control_5_LDADD = $(top_builddir)/src/libmissioncontrol-server.la
 
 endif
