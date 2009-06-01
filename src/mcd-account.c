@@ -2618,14 +2618,52 @@ _mcd_account_load (McdAccount *account, McdAccountLoadCb callback,
 }
 
 static void
+mcd_account_self_handle_inspected_cb (TpConnection *connection,
+                                      const gchar **names,
+                                      const GError *error,
+                                      gpointer user_data,
+                                      GObject *weak_object)
+{
+    McdAccount *self = MCD_ACCOUNT (weak_object);
+
+    if (error)
+    {
+        g_warning ("%s: InspectHandles failed: %s", G_STRFUNC, error->message);
+        return;
+    }
+
+    if (names != NULL && names[0] != NULL)
+    {
+        _mcd_account_set_normalized_name (self, names[0]);
+    }
+}
+
+static void
 mcd_account_connection_ready_cb (McdAccount *account,
                                  McdConnection *connection)
 {
     McdAccountPrivate *priv = account->priv;
     gchar *nickname;
+    TpConnection *tp_connection;
+    GArray *self_handle_array;
+    guint self_handle;
 
     g_return_if_fail (MCD_IS_ACCOUNT (account));
     g_return_if_fail (connection == priv->connection);
+
+    tp_connection = mcd_connection_get_tp_connection (connection);
+    g_return_if_fail (tp_connection != NULL);
+
+    self_handle_array = g_array_sized_new (FALSE, FALSE, sizeof (guint), 1);
+    self_handle = tp_connection_get_self_handle (tp_connection);
+    g_array_append_val (self_handle_array, self_handle);
+    tp_cli_connection_call_inspect_handles (tp_connection, -1,
+                                            TP_HANDLE_TYPE_CONTACT,
+                                            self_handle_array,
+                                            mcd_account_self_handle_inspected_cb,
+                                            NULL, NULL,
+                                            (GObject *) account);
+    g_array_free (self_handle_array, TRUE);
 
     /* FIXME: ideally, on protocols with server-stored nicknames, this should
      * only be done if the local Nickname has been changed since last time we

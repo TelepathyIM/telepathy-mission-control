@@ -577,44 +577,6 @@ _mcd_connection_setup_contact_capabilities (McdConnection *connection)
 }
 
 static void
-inspect_handles_cb (TpConnection *proxy, const gchar **names,
-		    const GError *error, gpointer user_data,
-		    GObject *weak_object)
-{
-    McdConnectionPrivate *priv = user_data;
-
-    if (error)
-    {
-	g_warning ("%s: InspectHandles failed: %s", G_STRFUNC, error->message);
-	return;
-    }
-    if (names && names[0] != NULL)
-    {
-        _mcd_account_set_normalized_name (priv->account, names[0]);
-    }
-}
-
-static void
-_mcd_connection_get_normalized_name (McdConnection *connection)
-{
-    McdConnectionPrivate *priv = connection->priv;
-    GArray *handles;
-    TpHandle self_handle;
-
-    g_return_if_fail (priv->tp_conn != NULL);
-
-    handles = g_array_sized_new (FALSE, FALSE, sizeof (guint), 1);
-    self_handle = tp_connection_get_self_handle (priv->tp_conn);
-    g_array_append_val (handles, self_handle);
-    tp_cli_connection_call_inspect_handles (priv->tp_conn, -1,
-					    TP_HANDLE_TYPE_CONTACT,
-					    handles,
-					    inspect_handles_cb, priv, NULL,
-					    (GObject *)connection);
-    g_array_free (handles, TRUE); 
-}
-
-static void
 avatars_set_avatar_cb (TpConnection *proxy, const gchar *token,
 		       const GError *error, gpointer user_data,
 		       GObject *weak_object)
@@ -1376,8 +1338,6 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
 
     DEBUG ("connection is ready");
     priv = MCD_CONNECTION_PRIV (connection);
-
-    _mcd_connection_get_normalized_name (connection);
 
     priv->has_presence_if = tp_proxy_has_interface_by_id
         (tp_conn, TP_IFACE_QUARK_CONNECTION_INTERFACE_SIMPLE_PRESENCE);
