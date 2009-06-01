@@ -64,7 +64,7 @@ missing
 mission-control.pc
 patches/
 stamp-*
-server/mission-control
+/server/mission-control-5
 /server/org.freedesktop.Telepathy.AccountManager.service
 /server/org.freedesktop.Telepathy.MissionControl5.service
 tags
