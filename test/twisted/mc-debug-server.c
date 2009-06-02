@@ -72,7 +72,7 @@ dbus_filter_function (DBusConnection *connection,
       mcd_mission_abort ((McdMission *) mcd);
     }
   else if (dbus_message_is_method_call (message,
-        "org.freedesktop.Telepathy.MissionControl.RegressionTests",
+        "org.freedesktop.Telepathy.MissionControl5.RegressionTests",
         "ChangeSystemFlags"))
     {
       DBusMessage *reply;

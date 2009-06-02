@@ -200,7 +200,7 @@ AC_ARG_ENABLE(examples,
 AM_CONDITIONAL(HAVE_EXAMPLES, [test x$examples_enabled = xyes])
 
 server_enabled="yes"
-AC_MSG_CHECKING(whether to build the sample server)
+AC_MSG_CHECKING(whether to build the daemon)
 AC_ARG_ENABLE(server,
 	[  --enable-server         build server. default=yes],
 	[
@@ -213,6 +213,25 @@ AC_ARG_ENABLE(server,
 	]
 )
 AM_CONDITIONAL(HAVE_SERVER, [test x$server_enabled = xyes])
+
+plugins_enabled="no"
+AC_MSG_CHECKING(whether to support plugins)
+AC_ARG_ENABLE(plugins,
+	[  --enable-plugins          support plugins. default=no],
+	[
+		AC_MSG_RESULT(${enableval})
+		plugins_enabled="${enableval}"
+	],
+	[
+		AC_MSG_RESULT(no)
+		plugins_enabled="no"
+	]
+)
+AM_CONDITIONAL(ENABLE_PLUGINS, [test x$plugins_enabled = xyes])
+if test "x$plugins_enabled" = xyes
+then
+  AC_DEFINE([ENABLE_PLUGINS], [1], [Define if plugins should be enabled])
+fi
 
 PKG_CHECK_MODULES(DBUS, [dbus-1 >= 0.51, dbus-glib-1 >= 0.51], have_dbus=yes, have_dbus=no)
 AC_SUBST(DBUS_CFLAGS)
@@ -231,9 +250,12 @@ PKG_CHECK_MODULES(GLIB, glib-2.0 gobject-2.0)
 AC_SUBST(GLIB_LIBS)
 AC_SUBST(GLIB_CFLAGS)
 
-PKG_CHECK_MODULES(GMODULE, gmodule-no-export-2.0)
-AC_SUBST(GMODULE_LIBS)
-AC_SUBST(GMODULE_CFLAGS)
+if test "x$plugins_enabled" = xyes
+then
+  PKG_CHECK_MODULES(GMODULE, gmodule-no-export-2.0)
+  AC_SUBST(GMODULE_LIBS)
+  AC_SUBST(GMODULE_CFLAGS)
+fi
 
 dnl docs/Makefile.am needs to know whether it's an out of tree build
 dnl (srcdir != builddir)

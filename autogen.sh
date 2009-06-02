@@ -31,6 +31,6 @@ for arg in $*; do
 done
 
 if test $run_configure = true; then
-    echo "Running ./configure --enable-gtk-doc $*"
-    ./configure --enable-gtk-doc "$@"
+    echo "Running ./configure --enable-gtk-doc --enable-plugins $*"
+    ./configure --enable-gtk-doc --enable-plugins "$@"
 fi

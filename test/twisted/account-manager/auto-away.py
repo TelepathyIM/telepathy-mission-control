@@ -6,11 +6,6 @@ from mctest import exec_test, SimulatedConnection, create_fakecm_account,\
         SimulatedChannel
 import constants as cs
 
-class PresenceConnection(SimulatedConnection):
-    def GetInterfaces(self, e):
-        self.q.dbus_return(e.message, [cs.CONN_IFACE_REQUESTS,
-            cs.CONN_IFACE_SIMPLE_PRESENCE], signature='as')
-
 def test(q, bus, mc):
     cm_name_ref = dbus.service.BusName(
             tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
@@ -65,8 +60,14 @@ def test(q, bus, mc):
             interface=tp_name_prefix + '.ConnectionManager',
             handled=False)
 
-    conn = PresenceConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
-            'myself')
+    conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
+            'myself', has_presence=True)
+    conn.statuses = dbus.Dictionary({
+            'available': (cs.PRESENCE_TYPE_AVAILABLE, True, True),
+            'away': (cs.PRESENCE_TYPE_AWAY, True, True),
+            'busy': (cs.PRESENCE_TYPE_BUSY, True, True),
+            'offline': (cs.PRESENCE_TYPE_OFFLINE, False, False),
+        }, signature='s(ubb)')
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
@@ -77,34 +78,35 @@ def test(q, bus, mc):
 
     # Connect succeeds
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+    conn.presence = dbus.Struct((cs.PRESENCE_TYPE_AVAILABLE, 'available', ''),
+            signature='uss')
 
     # MC does some setup, including fetching the list of Channels
 
-    _, get_statuses = q.expect_many(
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='GetAll',
-                args=[cs.CONN_IFACE_REQUESTS],
-                path=conn.object_path, handled=True),
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.CONN_IFACE_SIMPLE_PRESENCE, 'Statuses'],
-                path=conn.object_path, handled=False),
-            )
-    q.dbus_return(get_statuses.message,
-            dbus.Dictionary({
-                'available': (cs.PRESENCE_TYPE_AVAILABLE, True, True),
-                'away': (cs.PRESENCE_TYPE_AWAY, True, True),
-                'busy': (cs.PRESENCE_TYPE_BUSY, True, True),
-                'offline': (cs.PRESENCE_TYPE_OFFLINE, False, False),
-            }, signature='s(ubb)'),
-            signature='v')
+    get_statuses = q.expect('dbus-method-call',
+            interface=cs.PROPERTIES_IFACE, method='Get',
+            args=[cs.CONN_IFACE_SIMPLE_PRESENCE, 'Statuses'],
+            path=conn.object_path, handled=True)
 
-    e = q.expect('dbus-method-call',
-            path=conn.object_path,
-            interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
-            args=['available', 'staring at the sea'],
-            handled=False)
-    q.dbus_return(e.message, signature='')
+    call, signal = q.expect_many(
+            EventPattern('dbus-method-call',
+                path=conn.object_path,
+                interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
+                args=['available', 'staring at the sea'],
+                handled=True),
+            EventPattern('dbus-signal',
+                path=account.object_path,
+                interface=cs.ACCOUNT, signal='AccountPropertyChanged',
+                predicate = lambda e: 'CurrentPresence' in e.args[0]),
+            )
+    assert signal.args[0]['CurrentPresence'] == (cs.PRESENCE_TYPE_AVAILABLE,
+        'available', '')
+
+    e = q.expect('dbus-signal',
+            path=account.object_path,
+            interface=cs.ACCOUNT, signal='AccountPropertyChanged',
+            predicate = lambda e: 'CurrentPresence' in e.args[0])
+    assert e.args[0]['CurrentPresence'] == requested_presence
 
     # Check the requested presence is online
     properties = account.GetAll(cs.ACCOUNT,
@@ -115,7 +117,7 @@ def test(q, bus, mc):
 
     # This is normally a C API, only exposed to D-Bus here for testing
     secret_debug_api = dbus.Interface(bus.get_object(cs.AM, "/"),
-        'org.freedesktop.Telepathy.MissionControl.RegressionTests')
+        'org.freedesktop.Telepathy.MissionControl5.RegressionTests')
     MCD_SYSTEM_IDLE = 32
 
     # Set the idle flag
@@ -126,8 +128,7 @@ def test(q, bus, mc):
             path=conn.object_path,
             interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
             args=['away', ''],
-            handled=False)
-    q.dbus_return(e.message, signature='')
+            handled=True)
 
     # Unset the idle flag
     secret_debug_api.ChangeSystemFlags(dbus.UInt32(0),
@@ -139,8 +140,7 @@ def test(q, bus, mc):
             path=conn.object_path,
             interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
             args=['available', 'staring at the sea'],
-            handled=False)
-    q.dbus_return(e.message, signature='')
+            handled=True)
 
     # Go to a non-Available status
     requested_presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_BUSY),
@@ -152,8 +152,7 @@ def test(q, bus, mc):
             path=conn.object_path,
             interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
             args=['busy', 'in the great below'],
-            handled=False)
-    q.dbus_return(e.message, signature='')
+            handled=True)
 
     forbidden = [EventPattern('dbus-method-call',
             path=conn.object_path,

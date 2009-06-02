@@ -22,7 +22,6 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/create-text.py \
 	dispatcher/dispatch-activatable.py \
 	dispatcher/dispatch-obsolete.py \
-	dispatcher/dispatch-rejected-by-plugin.py \
 	dispatcher/dispatch-text.py \
 	dispatcher/exploding-bundles.py \
 	dispatcher/fdo-21034.py \
@@ -34,11 +33,17 @@ TWISTED_BASIC_TESTS = \
 	test-account.py \
 	test-connect.py
 
+if ENABLE_PLUGINS
+TWISTED_BASIC_TESTS += \
+	dispatcher/dispatch-rejected-by-plugin.py
+endif
+
 TWISTED_SEPARATE_TESTS = \
 	account-manager/auto-connect.py \
 	crash-recovery/crash-recovery.py \
 	dispatcher/create-at-startup.py
 
+if ENABLE_PLUGINS
 # A demo dispatcher plugin
 noinst_LTLIBRARIES = test-plugin.la
 test_plugin_la_SOURCES = test-plugin.c
@@ -46,6 +51,7 @@ test_plugin_la_SOURCES = test-plugin.c
 # library even though it's not going to be installed - the default for noinst
 # libraries is static
 test_plugin_la_LDFLAGS = -module -shared -avoid-version -rpath @abs_builddir@
+endif
 
 # A debug version of the normal MC executable, which exits cleanly on
 # disconnection from D-Bus (so gcov info gets written out)

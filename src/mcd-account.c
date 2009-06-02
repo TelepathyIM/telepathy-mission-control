@@ -161,7 +161,6 @@ enum
     CONNECTION_STATUS_CHANGED,
     VALIDITY_CHANGED,
     AVATAR_CHANGED,
-    ALIAS_CHANGED,
     LAST_SIGNAL
 };
 
@@ -816,10 +815,11 @@ set_nickname (TpSvcDBusProperties *self, const gchar *name,
     DEBUG ("called for %s", priv->unique_name);
     ret = mcd_account_set_string_val (account, name, value, error);
 
-    if (ret == SET_RESULT_CHANGED)
+    if (ret == SET_RESULT_CHANGED && priv->connection != NULL)
     {
-        g_signal_emit (account, _mcd_account_signals[ALIAS_CHANGED], 0,
-                       g_value_get_string (value));
+        /* this is a no-op if the connection doesn't support it */
+        _mcd_connection_set_nickname (priv->connection,
+                                      g_value_get_string (value));
     }
 
     return (ret != SET_RESULT_ERROR);
@@ -1897,13 +1897,6 @@ mcd_account_class_init (McdAccountClass * klass)
 		      G_TYPE_NONE, 2,
 		      dbus_g_type_get_collection ("GArray", G_TYPE_UCHAR),
 		      G_TYPE_STRING);
-    _mcd_account_signals[ALIAS_CHANGED] =
-	g_signal_new ("alias-changed",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL, g_cclosure_marshal_VOID__STRING,
-		      G_TYPE_NONE, 1, G_TYPE_STRING);
     _mcd_account_compat_class_init (klass);
     _mcd_account_connection_class_init (klass);
 
@@ -2352,8 +2345,10 @@ _mcd_account_get_avatar (McdAccount *account, GArray **avatar,
     g_free (filename);
 }
 
-void
-_mcd_account_set_alias (McdAccount *account, const gchar *alias)
+static void
+mcd_account_connection_self_nickname_changed_cb (McdAccount *account,
+                                                 const gchar *alias,
+                                                 McdConnection *connection)
 {
     GValue value = { 0 };
 
@@ -2622,6 +2617,70 @@ _mcd_account_load (McdAccount *account, McdAccountLoadCb callback,
     MCD_ACCOUNT_GET_CLASS (account)->load (account, callback, user_data);
 }
 
+static void
+mcd_account_self_handle_inspected_cb (TpConnection *connection,
+                                      const gchar **names,
+                                      const GError *error,
+                                      gpointer user_data,
+                                      GObject *weak_object)
+{
+    McdAccount *self = MCD_ACCOUNT (weak_object);
+
+    if (error)
+    {
+        g_warning ("%s: InspectHandles failed: %s", G_STRFUNC, error->message);
+        return;
+    }
+
+    if (names != NULL && names[0] != NULL)
+    {
+        _mcd_account_set_normalized_name (self, names[0]);
+    }
+}
+
+static void
+mcd_account_connection_ready_cb (McdAccount *account,
+                                 McdConnection *connection)
+{
+    McdAccountPrivate *priv = account->priv;
+    gchar *nickname;
+    TpConnection *tp_connection;
+    GArray *self_handle_array;
+    guint self_handle;
+
+    g_return_if_fail (MCD_IS_ACCOUNT (account));
+    g_return_if_fail (connection == priv->connection);
+
+    tp_connection = mcd_connection_get_tp_connection (connection);
+    g_return_if_fail (tp_connection != NULL);
+
+    self_handle_array = g_array_sized_new (FALSE, FALSE, sizeof (guint), 1);
+    self_handle = tp_connection_get_self_handle (tp_connection);
+    g_array_append_val (self_handle_array, self_handle);
+    tp_cli_connection_call_inspect_handles (tp_connection, -1,
+                                            TP_HANDLE_TYPE_CONTACT,
+                                            self_handle_array,
+                                            mcd_account_self_handle_inspected_cb,
+                                            NULL, NULL,
+                                            (GObject *) account);
+    g_array_free (self_handle_array, TRUE);
+
+    /* FIXME: ideally, on protocols with server-stored nicknames, this should
+     * only be done if the local Nickname has been changed since last time we
+     * were online; Aliasing doesn't currently offer a way to tell whether
+     * this is such a protocol, though. */
+
+    nickname = mcd_account_get_alias (account);
+
+    if (nickname != NULL)
+    {
+        /* this is a no-op if the connection doesn't support it */
+        _mcd_connection_set_nickname (connection, nickname);
+    }
+
+    g_free (nickname);
+}
+
 void
 _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
 {
@@ -2641,13 +2700,33 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
         g_signal_handlers_disconnect_by_func (priv->connection,
                                               on_conn_status_changed,
                                               account);
+        g_signal_handlers_disconnect_by_func (priv->connection,
+                                              mcd_account_connection_ready_cb,
+                                              account);
         g_object_unref (priv->connection);
     }
+
     priv->connection = connection;
+
     if (connection)
     {
         g_return_if_fail (MCD_IS_CONNECTION (connection));
         g_object_ref (connection);
+
+        if (_mcd_connection_is_ready (connection))
+        {
+            mcd_account_connection_ready_cb (account, connection);
+        }
+        else
+        {
+            g_signal_connect_swapped (connection, "ready",
+                G_CALLBACK (mcd_account_connection_ready_cb), account);
+        }
+
+        g_signal_connect_swapped (connection, "self-nickname-changed",
+                G_CALLBACK (mcd_account_connection_self_nickname_changed_cb),
+                account);
+
         g_signal_connect (connection, "self-presence-changed",
                           G_CALLBACK (on_conn_self_presence_changed), account);
         g_signal_connect (connection, "connection-status-changed",

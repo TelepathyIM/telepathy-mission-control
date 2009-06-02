@@ -48,6 +48,8 @@
  * is subject to all device control.
  */
 
+#include <config.h>
+
 #include <glib/gi18n.h>
 #include <gconf/gconf-client.h>
 #include <gmodule.h>
@@ -265,6 +267,7 @@ on_transport_status_changed (McdTransportPlugin *plugin,
     }
 }
 
+#ifdef ENABLE_PLUGINS
 static void
 mcd_master_unload_plugins (McdMaster *master)
 {
@@ -346,6 +349,7 @@ mcd_master_load_plugins (McdMaster *master)
     }
     g_dir_close (dir);
 }
+#endif
 
 static void
 _mcd_master_connect (McdMission * mission)
@@ -523,10 +527,12 @@ _mcd_master_dispose (GObject * object)
 	priv->transport_plugins = NULL;
     }
 
+#ifdef ENABLE_PLUGINS
     if (priv->plugins)
     {
 	mcd_master_unload_plugins (MCD_MASTER (object));
     }
+#endif
 
     if (priv->account_manager)
     {
@@ -578,7 +584,9 @@ mcd_master_constructor (GType type, guint n_params,
     mcd_operation_take_mission (MCD_OPERATION (priv->proxy),
 				MCD_MISSION (priv->dispatcher));
 
+#ifdef ENABLE_PLUGINS
     mcd_master_load_plugins (master);
+#endif
 
     /* we assume that at this point all transport plugins have been registered.
      * We get the active transports and check whether some accounts should be

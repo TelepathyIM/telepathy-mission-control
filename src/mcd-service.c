@@ -61,9 +61,7 @@
 #include <libmcclient/mc-errors.h>
 
 /* DBus service specifics */
-#define MISSION_CONTROL_DBUS_SERVICE "org.freedesktop.Telepathy.MissionControl"
-#define MISSION_CONTROL_DBUS_OBJECT  "/org/freedesktop/Telepathy/MissionControl"
-#define MISSION_CONTROL_DBUS_IFACE   "org.freedesktop.Telepathy.MissionControl"
+#define MISSION_CONTROL_DBUS_SERVICE "org.freedesktop.Telepathy.MissionControl5"
 
 static GObjectClass *parent_class = NULL;
 

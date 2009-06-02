@@ -54,6 +54,8 @@
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/connection.h>
 #include <telepathy-glib/proxy-subclass.h>
+#include <telepathy-glib/util.h>
+
 #include <libmcclient/mc-errors.h>
 
 #include "mcd-account-priv.h"
@@ -148,7 +150,9 @@ enum
 
 enum
 {
+    READY,
     SELF_PRESENCE_CHANGED,
+    SELF_NICKNAME_CHANGED,
     CONNECTION_STATUS_CHANGED,
     N_SIGNALS
 };
@@ -186,28 +190,6 @@ presence_set_status_cb (TpConnection *proxy, const GError *error,
         g_warning ("%s: Setting presence of %s failed: %s",
 		   G_STRFUNC, mcd_account_get_unique_name (priv->account),
                    error->message);
-    }
-    /* We rely on the PresenceChanged signal to update our presence, but:
-     * - it is not emitted if the presence doesn't change
-     * - we miss a few emissions, while we wait for the readiness
-     *
-     * For this reasons, until we don't get the first PresenceChanged for our
-     * self handle, just copy the account requested presence as current
-     * presence.
-     * FIXME: remove this code is things in things in SimplePresence interface
-     * are changed.
-     */
-    if (!priv->got_presences_changed)
-    {
-        TpConnectionPresenceType presence;
-        const gchar *status, *message;
-
-        /* this is not really correct, as the requested presence might have
-         * been changed -- but we hope it didn't */
-        mcd_account_get_requested_presence (priv->account,
-                                            &presence, &status, &message);
-        g_signal_emit (weak_object, signals[SELF_PRESENCE_CHANGED], 0,
-                       presence, status, message);
     }
 }
 
@@ -381,13 +363,41 @@ on_presences_changed (TpConnection *proxy, GHashTable *presences,
 }
 
 static void
+mcd_connection_initial_presence_cb (TpConnection *proxy,
+                                    GHashTable *presences,
+                                    const GError *error,
+                                    gpointer user_data,
+                                    GObject *weak_object)
+{
+    if (error != NULL)
+    {
+        DEBUG ("GetPresences([SelfHandle]) failed: %s", error->message);
+        return;
+    }
+
+    on_presences_changed (proxy, presences, user_data, weak_object);
+}
+
+static void
 _mcd_connection_setup_presence (McdConnection *connection)
 {
     McdConnectionPrivate *priv =  connection->priv;
+    GArray *self_handle_array;
+    guint self_handle;
 
     tp_cli_connection_interface_simple_presence_connect_to_presences_changed
         (priv->tp_conn, on_presences_changed, priv, NULL,
          (GObject *)connection, NULL);
+
+    self_handle_array = g_array_new (FALSE, FALSE, sizeof (guint));
+    self_handle = tp_connection_get_self_handle (priv->tp_conn);
+    g_array_append_val (self_handle_array, self_handle);
+    tp_cli_connection_interface_simple_presence_call_get_presences
+        (priv->tp_conn, -1, self_handle_array,
+         mcd_connection_initial_presence_cb, priv, NULL,
+         (GObject *) connection);
+    g_array_free (self_handle_array, TRUE);
+
     tp_cli_dbus_properties_call_get
         (priv->tp_conn, -1, TP_IFACE_CONNECTION_INTERFACE_SIMPLE_PRESENCE,
          "Statuses", presence_get_statuses_cb, priv, NULL,
@@ -570,44 +580,6 @@ _mcd_connection_setup_contact_capabilities (McdConnection *connection)
 
     /* free the connection capabilities (FIXME) */
     g_ptr_array_free (contact_capabilities, TRUE);
-}
-
-static void
-inspect_handles_cb (TpConnection *proxy, const gchar **names,
-		    const GError *error, gpointer user_data,
-		    GObject *weak_object)
-{
-    McdConnectionPrivate *priv = user_data;
-
-    if (error)
-    {
-	g_warning ("%s: InspectHandles failed: %s", G_STRFUNC, error->message);
-	return;
-    }
-    if (names && names[0] != NULL)
-    {
-        _mcd_account_set_normalized_name (priv->account, names[0]);
-    }
-}
-
-static void
-_mcd_connection_get_normalized_name (McdConnection *connection)
-{
-    McdConnectionPrivate *priv = connection->priv;
-    GArray *handles;
-    TpHandle self_handle;
-
-    g_return_if_fail (priv->tp_conn != NULL);
-
-    handles = g_array_sized_new (FALSE, FALSE, sizeof (guint), 1);
-    self_handle = tp_connection_get_self_handle (priv->tp_conn);
-    g_array_append_val (handles, self_handle);
-    tp_cli_connection_call_inspect_handles (priv->tp_conn, -1,
-					    TP_HANDLE_TYPE_CONTACT,
-					    handles,
-					    inspect_handles_cb, priv, NULL,
-					    (GObject *)connection);
-    g_array_free (handles, TRUE); 
 }
 
 static void
@@ -831,34 +803,33 @@ on_aliases_changed (TpConnection *proxy, const GPtrArray *aliases,
 		    gpointer user_data, GObject *weak_object)
 {
     McdConnectionPrivate *priv = user_data;
-    GType type;
-    gchar *alias;
-    guint contact;
+    guint self_handle;
     guint i;
 
     DEBUG ("called");
-    type = dbus_g_type_get_struct ("GValueArray", G_TYPE_UINT, G_TYPE_STRING,
-				   G_TYPE_INVALID);
+
+    self_handle = tp_connection_get_self_handle (proxy);
+
     for (i = 0; i < aliases->len; i++)
     {
-	GValue data = { 0 };
+        GValueArray *structure = g_ptr_array_index (aliases, i);
 
-	g_value_init (&data, type);
-	g_value_set_static_boxed (&data, g_ptr_array_index(aliases, i));
-	dbus_g_type_struct_get (&data, 0, &contact, 1, &alias, G_MAXUINT);
-        DEBUG ("Got alias for contact %u: %s", contact, alias);
-	if (contact == tp_connection_get_self_handle (proxy))
-	{
-            DEBUG ("This is our alias");
-	    if (!priv->alias || strcmp (priv->alias, alias) != 0)
-	    {
+        if (g_value_get_uint (structure->values) == self_handle)
+        {
+            const gchar *alias = g_value_get_string (structure->values + 1);
+
+            DEBUG ("Our alias on %s changed to %s",
+                   tp_proxy_get_object_path (proxy), alias);
+
+            if (priv->alias == NULL || tp_strdiff (priv->alias, alias))
+            {
                 g_free (priv->alias);
-                priv->alias = alias;
-                _mcd_account_set_alias (priv->account, alias);
-	    }
-	    break;
-	}
-	g_free (alias);
+                priv->alias = g_strdup (alias);
+                g_signal_emit (weak_object, signals[SELF_NICKNAME_CHANGED],
+                               0, alias);
+            }
+            break;
+        }
     }
 }
 
@@ -872,20 +843,23 @@ aliasing_set_aliases_cb (TpConnection *proxy, const GError *error,
     }
 }
 
-static void
-_mcd_connection_set_alias (McdConnection *connection,
-			   const gchar *alias)
+void
+_mcd_connection_set_nickname (McdConnection *connection,
+                              const gchar *nickname)
 {
     McdConnectionPrivate *priv = connection->priv;
     GHashTable *aliases;
     TpHandle self_handle;
 
-    DEBUG ("setting alias '%s'", alias);
+    if (!priv->has_alias_if)
+        return;
+
+    DEBUG ("setting nickname '%s' using Aliasing", nickname);
 
     aliases = g_hash_table_new (NULL, NULL);
     self_handle = tp_connection_get_self_handle (priv->tp_conn);
-    g_hash_table_insert (aliases, GINT_TO_POINTER(self_handle),
-			 (gchar *)alias);
+    g_hash_table_insert (aliases, GUINT_TO_POINTER (self_handle),
+                         (gchar *) nickname);
     tp_cli_connection_interface_aliasing_call_set_aliases (priv->tp_conn, -1,
 							   aliases,
 							   aliasing_set_aliases_cb,
@@ -895,30 +869,15 @@ _mcd_connection_set_alias (McdConnection *connection,
 }
 
 static void
-on_account_alias_changed (McdAccount *account, const gchar *alias,
-			  McdConnection *connection)
-{
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-
-    if (!priv->has_alias_if) return;
-    _mcd_connection_set_alias (connection, alias);
-}
-
-static void
 _mcd_connection_setup_alias (McdConnection *connection)
 {
     McdConnectionPrivate *priv = connection->priv;
-    gchar *alias;
 
     tp_cli_connection_interface_aliasing_connect_to_aliases_changed (priv->tp_conn,
 								     on_aliases_changed,
 								     priv, NULL,
 								     (GObject *)connection,
 								     NULL);
-    alias = mcd_account_get_alias (priv->account);
-    if (alias && (!priv->alias || strcmp (priv->alias, alias) != 0))
-	_mcd_connection_set_alias (connection, alias);
-    g_free (alias);
 }
 
 static gboolean
@@ -1386,8 +1345,6 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
     DEBUG ("connection is ready");
     priv = MCD_CONNECTION_PRIV (connection);
 
-    _mcd_connection_get_normalized_name (connection);
-
     priv->has_presence_if = tp_proxy_has_interface_by_id
         (tp_conn, TP_IFACE_QUARK_CONNECTION_INTERFACE_SIMPLE_PRESENCE);
     priv->has_avatars_if = tp_proxy_has_interface_by_id (tp_conn,
@@ -1417,6 +1374,8 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
 	_mcd_connection_setup_alias (connection);
 
     _mcd_dispatcher_add_connection (priv->dispatcher, connection);
+
+    g_signal_emit (connection, signals[READY], 0);
 }
 
 void
@@ -1585,9 +1544,6 @@ _mcd_connection_dispose (GObject * object)
 	g_signal_handlers_disconnect_by_func (priv->account,
 					      G_CALLBACK (on_account_avatar_changed),
 					      object);
-	g_signal_handlers_disconnect_by_func (priv->account,
-					      G_CALLBACK (on_account_alias_changed),
-					      object);
         g_signal_handlers_disconnect_by_func (priv->account,
                                               G_CALLBACK (on_account_removed),
                                               object);
@@ -1660,9 +1616,6 @@ _mcd_connection_set_property (GObject * obj, guint prop_id,
 	g_signal_connect (priv->account,
 			  "mcd-avatar-changed",
 			  G_CALLBACK (on_account_avatar_changed), obj);
-	g_signal_connect (priv->account,
-			  "alias-changed",
-			  G_CALLBACK (on_account_alias_changed), obj);
         g_signal_connect (priv->account, "removed",
                           G_CALLBACK (on_account_removed),
                           obj);
@@ -1845,11 +1798,23 @@ mcd_connection_class_init (McdConnectionClass * klass)
         NULL, NULL, _mcd_marshal_VOID__UINT_STRING_STRING,
         G_TYPE_NONE, 3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING);
 
+    signals[SELF_NICKNAME_CHANGED] = g_signal_new ("self-nickname-changed",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED, 0,
+        NULL, NULL, g_cclosure_marshal_VOID__STRING,
+        G_TYPE_NONE, 1, G_TYPE_STRING);
+
     signals[CONNECTION_STATUS_CHANGED] = g_signal_new (
         "connection-status-changed", G_OBJECT_CLASS_TYPE (klass),
         G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED, 0,
         NULL, NULL, _mcd_marshal_VOID__UINT_UINT,
         G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_UINT);
+
+    signals[READY] = g_signal_new ("ready",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED, 0,
+        NULL, NULL, g_cclosure_marshal_VOID__VOID,
+        G_TYPE_NONE, 0);
 }
 
 static void
@@ -2208,3 +2173,11 @@ mcd_connection_get_tp_connection (McdConnection *connection)
     return connection->priv->tp_conn;
 }
 
+gboolean
+_mcd_connection_is_ready (McdConnection *self)
+{
+    g_return_val_if_fail (MCD_IS_CONNECTION (self), FALSE);
+
+    return (self->priv->tp_conn != NULL) &&
+        tp_connection_is_ready (self->priv->tp_conn);
+}

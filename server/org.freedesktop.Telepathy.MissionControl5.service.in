@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=org.freedesktop.Telepathy.MissionControl5
+Exec=@libexecdir@/mission-control-5
