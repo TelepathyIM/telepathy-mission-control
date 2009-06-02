@@ -232,7 +232,13 @@ list_connection_names_cb (const gchar * const *names, gsize n,
     guint i;
 
     DEBUG ("%" G_GSIZE_FORMAT " connections", n);
-    g_file_get_contents (priv->account_connections_file, &contents, NULL, NULL);
+
+    /* if the file has no contents, we don't really care why */
+    if (!g_file_get_contents (priv->account_connections_file, &contents,
+                              NULL, NULL))
+    {
+        contents = NULL;
+    }
 
     for (i = 0; i < n; i++)
     {
