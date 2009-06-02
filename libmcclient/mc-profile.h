@@ -117,6 +117,8 @@ const gchar *mc_profile_get_default_setting (McProfile *id,
 					     const gchar *setting);
 const gchar *mc_profile_get_vcard_mangle (McProfile *id, const gchar *vcard_field);
 
+GKeyFile *mc_profile_get_keyfile (McProfile *profile);
+
 /* presences */
 const gchar * const *mc_profile_presences_list (McProfile *id);
 gchar *mc_profile_presence_get_name (McProfile *id,

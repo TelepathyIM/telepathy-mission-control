@@ -1118,6 +1118,27 @@ mc_profile_get_vcard_mangle (McProfile *id, const gchar *vcard_field)
 }
 
 /**
+ * mc_profile_get_keyfile:
+ * @profile: the #McProfile.
+ *
+ * Gets the #GKeyFile which holds the profile data. This function should be
+ * used only when there is not a specific function to access the desired
+ * information, and it may be that in future version it will just return %NULL
+ * if the McProfile implementation changes and is not based on #GKeyfile
+ * anymore.
+ *
+ * Returns: the #GKeyfile associated with @profile, or %NULL.
+ */
+GKeyFile *
+mc_profile_get_keyfile (McProfile *profile)
+{
+    McProfilePrivate *priv;
+
+    get_private_and_load_or_return_val (profile, NULL);
+    return priv->keyfile;
+}
+
+/**
  * mc_profile_presences_list:
  * @id: The #McProfile.
  *
