@@ -728,8 +728,13 @@ avatars_request_tokens_cb (TpConnection *proxy, GHashTable *tokens,
 
     self_handle = tp_connection_get_self_handle (proxy);
     token = g_hash_table_lookup (tokens, GUINT_TO_POINTER (self_handle));
+
     if (token)
-	return;
+    {
+        /* act as though the avatar had changed to this */
+        on_avatar_updated (proxy, self_handle, token, priv, weak_object);
+        return;
+    }
 
     _mcd_account_get_avatar (priv->account, &avatar, &mime_type);
     if (avatar)
