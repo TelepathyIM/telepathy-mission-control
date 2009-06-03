@@ -41,6 +41,7 @@ endif
 
 TWISTED_SEPARATE_TESTS = \
 	account-manager/auto-connect.py \
+	account-manager/avatar-persist.py \
 	account-manager/avatar-refresh.py \
 	crash-recovery/crash-recovery.py \
 	dispatcher/create-at-startup.py
