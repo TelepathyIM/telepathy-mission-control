@@ -29,6 +29,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/fdo-21034.py \
 	dispatcher/handle-channels-fails.py \
 	dispatcher/lose-text.py \
+	dispatcher/recover-from-disconnect.py \
 	dispatcher/undispatchable.py \
 	dispatcher/vanishing-client.py \
 	do-nothing.py \
