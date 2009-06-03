@@ -42,7 +42,7 @@ def test(q, bus, mc):
             handled=False)
 
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
-            'myself')
+            'myself', has_presence=True)
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
@@ -55,6 +55,11 @@ def test(q, bus, mc):
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
 
     q.expect_many(
+            EventPattern('dbus-method-call',
+                interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
+                method='SetPresence',
+                args=list(presence[1:]),
+                handled=True),
             EventPattern('dbus-method-call',
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
                 args=[cs.CONN_IFACE_REQUESTS],
@@ -75,7 +80,7 @@ def test(q, bus, mc):
             handled=False)
 
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
-            'myself')
+            'myself', has_presence=True)
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
@@ -88,6 +93,11 @@ def test(q, bus, mc):
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
 
     q.expect_many(
+            EventPattern('dbus-method-call',
+                interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
+                method='SetPresence',
+                args=list(presence[1:]),
+                handled=True),
             EventPattern('dbus-method-call',
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
                 args=[cs.CONN_IFACE_REQUESTS],
