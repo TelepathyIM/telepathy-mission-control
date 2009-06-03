@@ -262,6 +262,7 @@ _mcd_connection_set_presence (McdConnection * connection,
 			      const gchar *status, const gchar *message)
 {
     McdConnectionPrivate *priv = connection->priv;
+    const gchar *adj_status = status;
 
     if (!priv->tp_conn)
     {
@@ -271,12 +272,26 @@ _mcd_connection_set_presence (McdConnection * connection,
     }
     g_return_if_fail (TP_IS_CONNECTION (priv->tp_conn));
 
-    if (!priv->has_presence_if) return;
+    if (!priv->has_presence_if)
+    {
+        DEBUG ("Presence not supported on this connection");
+        return;
+    }
 
-    if (_check_presence (priv, presence, &status))
+    if (_check_presence (priv, presence, &adj_status))
+    {
+        DEBUG ("Setting status '%s' of type %u ('%s' was requested)",
+               adj_status, presence, status);
+
         tp_cli_connection_interface_simple_presence_call_set_presence
-            (priv->tp_conn, -1, status, message, presence_set_status_cb,
+            (priv->tp_conn, -1, adj_status, message, presence_set_status_cb,
              priv, NULL, (GObject *)connection);
+    }
+    else
+    {
+        DEBUG ("Unable to set status '%s', or anything suitable for type %u",
+               status, presence);
+    }
 }
 
 
