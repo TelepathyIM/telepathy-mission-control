@@ -1505,6 +1505,8 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
 
     if (priv->recognized_presences)
         g_hash_table_remove_all (priv->recognized_presences);
+
+  priv->dispatching_started = FALSE;
 }
 
 static void
