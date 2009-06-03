@@ -941,14 +941,6 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
 	 * will hold a temporary ref to it.
 	 */
 	priv->abort_reason = conn_reason;
-	
-	if (conn_reason != TP_CONNECTION_STATUS_REASON_REQUESTED &&
-	    conn_reason != TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED)
-	{
-	    mcd_account_request_presence (priv->account,
-					  TP_CONNECTION_PRESENCE_TYPE_UNSET,
-					  NULL, NULL);
-	}
 	break;
 
     default:
