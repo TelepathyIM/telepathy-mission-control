@@ -122,7 +122,7 @@ create_props (TpProxy *proxy, GHashTable *props)
     McAccountPrivate *priv = account->priv;
 
     priv->stats_props = g_slice_new0 (McAccountStatsProps);
-    _mc_iface_update_props (account_stats_properties, props, account, NULL, 0);
+    _mc_iface_update_props (account_stats_properties, props, account);
 }
 
 static void
@@ -136,7 +136,7 @@ on_stats_changed (TpProxy *proxy, GHashTable *properties, gpointer user_data,
     if (G_UNLIKELY (!priv->stats_props)) return;
 
     _mc_iface_update_props (account_stats_properties, properties,
-                            account, NULL, 0);
+                            account);
 }
 
 static void

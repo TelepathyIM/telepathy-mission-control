@@ -132,7 +132,6 @@ gboolean _mc_iface_is_ready (gpointer object, GQuark iface);
 GType _mc_gtype_from_dbus_signature (const gchar *signature);
 
 void _mc_iface_update_props (const McIfaceProperty *props_definition,
-                             GHashTable *properties, gpointer proxy_props,
-                             const gchar *iface_name, gsize iface_name_len);
+                             GHashTable *properties, gpointer proxy_props);
 
 #endif

@@ -2316,10 +2316,15 @@ _mcd_account_get_avatar (McdAccount *account, GArray **avatar,
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     gchar *filename;
 
-    *mime_type = g_key_file_get_string (priv->keyfile, priv->unique_name,
-					MC_ACCOUNTS_KEY_AVATAR_MIME, NULL);
+    if (mime_type != NULL)
+        *mime_type = g_key_file_get_string (priv->keyfile, priv->unique_name,
+                                            MC_ACCOUNTS_KEY_AVATAR_MIME, NULL);
 
-    if (avatar) *avatar = NULL;
+    if (avatar == NULL)
+        return;
+
+    *avatar = NULL;
+
     filename = _mcd_account_get_avatar_filename (account);
 
     if (filename && g_file_test (filename, G_FILE_TEST_EXISTS))

@@ -636,7 +636,7 @@ create_props (TpProxy *proxy, GHashTable *props)
     McAccountPrivate *priv = account->priv;
 
     priv->props = g_malloc0 (sizeof (McAccountProps));
-    _mc_iface_update_props (account_properties, props, account, NULL, 0);
+    _mc_iface_update_props (account_properties, props, account);
     priv->props->emit_changed = TRUE;
 }
 
@@ -650,7 +650,7 @@ on_account_property_changed (TpProxy *proxy, GHashTable *props,
     /* if the GetAll method hasn't returned yet, we do nothing */
     if (G_UNLIKELY (!priv->props)) return;
 
-    _mc_iface_update_props (account_properties, props, account, NULL, 0);
+    _mc_iface_update_props (account_properties, props, account);
     if (priv->props->emit_connection_status_changed)
     {
 	g_signal_emit (account,

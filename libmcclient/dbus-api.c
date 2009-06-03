@@ -32,10 +32,6 @@
 #include "_gen/gtypes-body.h"
 #include "_gen/interfaces-body.h"
 
-/* interface + dot + property name + zero terminator */
-#define MC_QUALIFIED_PROPERTY_NAME_LEN \
-    (DBUS_MAXIMUM_NAME_LENGTH + 1 + DBUS_MAXIMUM_NAME_LENGTH + 1)
-
 #define MC_IFACE_IS_READY(iface_data) (*(iface_data->props_data_ptr) != NULL)
 
 typedef struct _McIfaceStatus McIfaceStatus;
@@ -391,37 +387,21 @@ _mc_gtype_from_dbus_signature (const gchar *signature)
 
 void
 _mc_iface_update_props (const McIfaceProperty *props_definition,
-                        GHashTable *properties, gpointer proxy_props,
-                        const gchar *iface_name, gsize iface_name_len)
+                        GHashTable *properties, gpointer proxy_props)
 {
     const McIfaceProperty *prop;
-    gchar qualified_name[MC_QUALIFIED_PROPERTY_NAME_LEN], *name_ptr = NULL;
-
-    if (iface_name)
-    {
-        g_return_if_fail (iface_name_len <= DBUS_MAXIMUM_NAME_LENGTH);
-        strcpy (qualified_name, iface_name);
-        name_ptr = qualified_name + iface_name_len;
-        *name_ptr = '.';
-        name_ptr++;
-    }
 
     for (prop = props_definition; prop->name != NULL; prop++)
     {
         GValue *value;
         GType type;
 
-        g_return_if_fail (strlen (prop->name) <= DBUS_MAXIMUM_NAME_LENGTH);
-        if (name_ptr)
-        {
-            strcpy (name_ptr, prop->name);
-            value = g_hash_table_lookup (properties, qualified_name);
-        }
-        else
-            value = g_hash_table_lookup (properties, prop->name);
+        value = g_hash_table_lookup (properties, prop->name);
+
         if (!value) continue;
 
         type = _mc_gtype_from_dbus_signature (prop->dbus_signature);
+
         if (G_LIKELY (G_VALUE_HOLDS (value, type)))
         {
             prop->update_property (prop->name, value, proxy_props);

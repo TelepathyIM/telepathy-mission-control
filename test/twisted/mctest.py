@@ -141,7 +141,8 @@ class SimulatedConnection(object):
 
     def __init__(self, q, bus, cmname, protocol, account_part, self_ident,
             implement_get_interfaces=True, has_requests=True,
-            has_presence=False, has_aliasing=False, has_avatars=False):
+            has_presence=False, has_aliasing=False, has_avatars=False,
+            avatars_persist=True):
         self.q = q
         self.bus = bus
 
@@ -162,6 +163,13 @@ class SimulatedConnection(object):
         self.has_presence = has_presence
         self.has_aliasing = has_aliasing
         self.has_avatars = has_avatars
+        self.avatars_persist = avatars_persist
+
+        if self.avatars_persist:
+            self.avatar = dbus.Struct((dbus.ByteArray('my old avatar'),
+                'text/plain'), signature='ays')
+        else:
+            self.avatar = None
 
         q.add_dbus_method_impl(self.Connect,
                 path=self.object_path, interface=cs.CONN, method='Connect')
@@ -220,6 +228,12 @@ class SimulatedConnection(object):
             q.add_dbus_method_impl(self.GetAll_Avatars,
                     path=self.object_path, interface=cs.PROPERTIES_IFACE,
                     method='GetAll', args=[cs.CONN_IFACE_AVATARS])
+            q.add_dbus_method_impl(self.GetKnownAvatarTokens,
+                    path=self.object_path, interface=cs.CONN_IFACE_AVATARS,
+                    method='GetKnownAvatarTokens')
+            q.add_dbus_method_impl(self.SetAvatar,
+                    path=self.object_path, interface=cs.CONN_IFACE_AVATARS,
+                    method='SetAvatar')
 
         self.statuses = dbus.Dictionary({
             'available': (cs.PRESENCE_TYPE_AVAILABLE, True, True),
@@ -253,6 +267,28 @@ class SimulatedConnection(object):
             'MaximumAvatarHeight': 96,
             'MaximumAvatarBytes': 8192,
             }, signature='a{sv}')
+
+    def GetKnownAvatarTokens(self, e):
+        ret = dbus.Dictionary(signature='us')
+
+        # the user has an avatar already; nobody else does
+        if self.self_handle in e.args[0]:
+            if self.avatar is None:
+                ret[self.self_handle] = ''
+            else:
+                # we just stringify the avatar as the token
+                ret[self.self_handle] = str(self.avatar[0])
+
+        self.q.dbus_return(e.message, ret, signature='a{us}')
+
+    def SetAvatar(self, e):
+        self.avatar = dbus.Struct(e.args, signature='ays')
+
+        # we just stringify the avatar as the token
+        self.q.dbus_return(e.message, str(self.avatar[0]), signature='s')
+        self.q.dbus_emit(self.object_path, cs.CONN_IFACE_AVATARS,
+                'AvatarRetrieved', self.self_handle, str(self.avatar[0]),
+                self.avatar[0], self.avatar[1], signature='usays')
 
     def GetPresences(self, e):
         ret = dbus.Dictionary(signature='u(uss)')
@@ -644,7 +680,7 @@ def create_fakecm_account(q, bus, mc, params):
 
 def enable_fakecm_account(q, bus, mc, account, expected_params,
         has_requests=True, has_presence=False, has_aliasing=False,
-        has_avatars=False,
+        has_avatars=False, avatars_persist=True,
         requested_presence=(2, 'available', ''),
         expect_after_connect=[]):
     # Enable the account
@@ -669,7 +705,8 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
 
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
             'myself', has_requests=has_requests, has_presence=has_presence,
-            has_aliasing=has_aliasing, has_avatars=has_avatars)
+            has_aliasing=has_aliasing, has_avatars=has_avatars,
+            avatars_persist=avatars_persist)
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
