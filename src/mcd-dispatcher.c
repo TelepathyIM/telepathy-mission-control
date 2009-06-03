@@ -2650,9 +2650,9 @@ mcd_dispatcher_constructed (GObject *object)
 
     dgc = TP_PROXY (priv->dbus_daemon)->dbus_connection;
 
-    if (!_mcd_dbus_daemon_request_name (priv->dbus_daemon,
-                                        MCD_CHANNEL_DISPATCHER_BUS_NAME,
-                                        TRUE /* idempotent */, &error))
+    if (!tp_dbus_daemon_request_name (priv->dbus_daemon,
+                                      MCD_CHANNEL_DISPATCHER_BUS_NAME,
+                                      TRUE /* idempotent */, &error))
     {
         /* FIXME: put in proper error handling when MC gains the ability to
          * be the AM or the CD but not both */

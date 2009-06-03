@@ -86,9 +86,9 @@ mcd_service_obtain_bus_name (McdService * obj)
 
     DEBUG ("Requesting MC dbus service");
 
-    if (!_mcd_dbus_daemon_request_name (mcd_master_get_dbus_daemon (master),
-                                        MISSION_CONTROL_DBUS_SERVICE,
-                                        TRUE /* idempotent */, &error))
+    if (!tp_dbus_daemon_request_name (mcd_master_get_dbus_daemon (master),
+                                      MISSION_CONTROL_DBUS_SERVICE,
+                                      TRUE /* idempotent */, &error))
     {
         g_error ("Failed registering '%s' service: %s",
                  MISSION_CONTROL_DBUS_SERVICE, error->message);
