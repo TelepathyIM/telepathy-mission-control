@@ -160,7 +160,6 @@ enum
 {
     CONNECTION_STATUS_CHANGED,
     VALIDITY_CHANGED,
-    AVATAR_CHANGED,
     LAST_SIGNAL
 };
 
@@ -1888,15 +1887,7 @@ mcd_account_class_init (McdAccountClass * klass)
 		      NULL, NULL, g_cclosure_marshal_VOID__BOOLEAN,
 		      G_TYPE_NONE, 1,
 		      G_TYPE_BOOLEAN);
-    _mcd_account_signals[AVATAR_CHANGED] =
-	g_signal_new ("mcd-avatar-changed",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL, _mcd_marshal_VOID__BOXED_STRING,
-		      G_TYPE_NONE, 2,
-		      dbus_g_type_get_collection ("GArray", G_TYPE_UCHAR),
-		      G_TYPE_STRING);
+
     _mcd_account_compat_class_init (klass);
     _mcd_account_connection_class_init (klass);
 
@@ -2301,8 +2292,11 @@ _mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
     {
         g_key_file_remove_key (priv->keyfile, priv->unique_name,
                                MC_ACCOUNTS_KEY_AVATAR_TOKEN, NULL);
-        g_signal_emit (account, _mcd_account_signals[AVATAR_CHANGED], 0,
-                       avatar, mime_type);
+        /* this is a no-op if the connection doesn't support avatars */
+        if (priv->connection != NULL)
+        {
+            _mcd_connection_set_avatar (priv->connection, avatar, mime_type);
+        }
     }
 
     mcd_account_manager_write_conf (priv->account_manager);

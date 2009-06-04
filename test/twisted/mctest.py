@@ -271,12 +271,11 @@ class SimulatedConnection(object):
     def GetKnownAvatarTokens(self, e):
         ret = dbus.Dictionary(signature='us')
 
-        # the user has an avatar already; nobody else does
+        # the user has an avatar already, if they persist; nobody else does
         if self.self_handle in e.args[0]:
-            if self.avatar is None:
-                ret[self.self_handle] = ''
-            else:
+            if self.avatar is not None:
                 # we just stringify the avatar as the token
+                # (also, empty avatar => no avatar => empty token)
                 ret[self.self_handle] = str(self.avatar[0])
 
         self.q.dbus_return(e.message, ret, signature='a{us}')

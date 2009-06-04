@@ -695,11 +695,15 @@ on_avatar_updated (TpConnection *proxy, guint contact_id, const gchar *token,
     g_free (prev_token);
 }
 
-static void
-_mcd_connection_set_avatar (McdConnection *connection, const GArray *avatar,
-			    const gchar *mime_type)
+void
+_mcd_connection_set_avatar (McdConnection *connection,
+                            const GArray *avatar,
+                            const gchar *mime_type)
 {
     McdConnectionPrivate *priv = connection->priv;
+
+    if (!priv->has_avatars_if)
+        return;
 
     DEBUG ("called");
     if (avatar->len > 0 && avatar->len < G_MAXUINT)
@@ -739,8 +743,13 @@ avatars_request_tokens_cb (TpConnection *proxy, GHashTable *tokens,
 
     self_handle = tp_connection_get_self_handle (proxy);
     token = g_hash_table_lookup (tokens, GUINT_TO_POINTER (self_handle));
+
     if (token)
-	return;
+    {
+        /* act as though the avatar had changed to this */
+        on_avatar_updated (proxy, self_handle, token, priv, weak_object);
+        return;
+    }
 
     _mcd_account_get_avatar (priv->account, &avatar, &mime_type);
     if (avatar)
@@ -750,16 +759,6 @@ avatars_request_tokens_cb (TpConnection *proxy, GHashTable *tokens,
         g_array_free (avatar, TRUE);
     }
     g_free (mime_type);
-}
-
-static void
-on_account_avatar_changed (McdAccount *account, const GArray *avatar,
-			   const gchar *mime_type, McdConnection *connection)
-{
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-
-    if (!priv->has_avatars_if) return;
-    _mcd_connection_set_avatar (connection, avatar, mime_type);
 }
 
 static void
@@ -1550,9 +1549,6 @@ _mcd_connection_dispose (GObject * object)
 
     if (priv->account)
     {
-	g_signal_handlers_disconnect_by_func (priv->account,
-					      G_CALLBACK (on_account_avatar_changed),
-					      object);
         g_signal_handlers_disconnect_by_func (priv->account,
                                               G_CALLBACK (on_account_removed),
                                               object);
@@ -1622,9 +1618,6 @@ _mcd_connection_set_property (GObject * obj, guint prop_id,
 	g_return_if_fail (MCD_IS_ACCOUNT (account));
 	g_object_ref (account);
 	priv->account = account;
-	g_signal_connect (priv->account,
-			  "mcd-avatar-changed",
-			  G_CALLBACK (on_account_avatar_changed), obj);
         g_signal_connect (priv->account, "removed",
                           G_CALLBACK (on_account_removed),
                           obj);
