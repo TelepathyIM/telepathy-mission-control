@@ -262,6 +262,7 @@ _mcd_connection_set_presence (McdConnection * connection,
 			      const gchar *status, const gchar *message)
 {
     McdConnectionPrivate *priv = connection->priv;
+    const gchar *adj_status = status;
 
     if (!priv->tp_conn)
     {
@@ -271,12 +272,26 @@ _mcd_connection_set_presence (McdConnection * connection,
     }
     g_return_if_fail (TP_IS_CONNECTION (priv->tp_conn));
 
-    if (!priv->has_presence_if) return;
+    if (!priv->has_presence_if)
+    {
+        DEBUG ("Presence not supported on this connection");
+        return;
+    }
 
-    if (_check_presence (priv, presence, &status))
+    if (_check_presence (priv, presence, &adj_status))
+    {
+        DEBUG ("Setting status '%s' of type %u ('%s' was requested)",
+               adj_status, presence, status);
+
         tp_cli_connection_interface_simple_presence_call_set_presence
-            (priv->tp_conn, -1, status, message, presence_set_status_cb,
+            (priv->tp_conn, -1, adj_status, message, presence_set_status_cb,
              priv, NULL, (GObject *)connection);
+    }
+    else
+    {
+        DEBUG ("Unable to set status '%s', or anything suitable for type %u",
+               status, presence);
+    }
 }
 
 
@@ -926,14 +941,6 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
 	 * will hold a temporary ref to it.
 	 */
 	priv->abort_reason = conn_reason;
-	
-	if (conn_reason != TP_CONNECTION_STATUS_REASON_REQUESTED &&
-	    conn_reason != TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED)
-	{
-	    mcd_account_request_presence (priv->account,
-					  TP_CONNECTION_PRESENCE_TYPE_UNSET,
-					  NULL, NULL);
-	}
 	break;
 
     default:
@@ -1505,6 +1512,8 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
 
     if (priv->recognized_presences)
         g_hash_table_remove_all (priv->recognized_presences);
+
+  priv->dispatching_started = FALSE;
 }
 
 static void
@@ -2133,8 +2142,26 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
 
     g_return_if_fail (MCD_IS_CONNECTION (connection));
     priv = connection->priv;
+
+    if (priv->tp_conn != NULL)
+    {
+        if (G_UNLIKELY (!tp_strdiff (tp_proxy_get_object_path (priv->tp_conn),
+                                     obj_path)))
+        {
+            /* not really meant to happen */
+            g_warning ("%s: We already have %s", G_STRFUNC,
+                       tp_proxy_get_object_path (priv->tp_conn));
+            return;
+        }
+
+        DEBUG ("releasing old connection first");
+        _mcd_connection_release_tp_connection (connection);
+    }
+
+    g_assert (priv->tp_conn == NULL);
     priv->tp_conn = tp_connection_new (priv->dbus_daemon, bus_name,
                                        obj_path, error);
+    DEBUG ("new connection is %p", priv->tp_conn);
     if (!priv->tp_conn)
     {
         g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,

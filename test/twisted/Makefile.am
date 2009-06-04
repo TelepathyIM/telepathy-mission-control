@@ -9,6 +9,7 @@ TWISTED_BASIC_TESTS = \
 	account-manager/old-create-with-properties.py \
 	account-manager/presence.py \
 	account-manager/reconnect.py \
+	account-manager/recover-from-disconnect.py \
 	account-manager/update-parameters.py \
 	account-requests/cancel.py \
 	account-requests/create-text.py \
@@ -28,6 +29,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/fdo-21034.py \
 	dispatcher/handle-channels-fails.py \
 	dispatcher/lose-text.py \
+	dispatcher/recover-from-disconnect.py \
 	dispatcher/undispatchable.py \
 	dispatcher/vanishing-client.py \
 	do-nothing.py \
