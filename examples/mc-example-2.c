@@ -229,12 +229,12 @@ find_accounts (McAccountManager *am)
     g_value_init (&v_true, G_TYPE_BOOLEAN);
     g_value_set_boolean (&v_true, TRUE);
     g_hash_table_insert (params,
-			 "org.freedesktop.Telepathy.Account.Enabled",
+			 MC_IFACE_ACCOUNT ".Enabled",
 			 &v_true);
     g_value_init (&v_profile, G_TYPE_STRING);
     g_value_set_static_string (&v_profile, "sip");
     g_hash_table_insert (params,
-			 "org.freedesktop.Telepathy.Account.Interface.Compat.Profile",
+			 MC_IFACE_ACCOUNT_INTERFACE_COMPAT ".Profile",
 			 &v_profile);
     mc_cli_account_manager_interface_query_call_find_accounts (am, -1, 
 							       params,
