@@ -1,0 +1,125 @@
+===========================
+telepathy-mission-control 5
+===========================
+
+Telepathy Mission Control 5 is an account manager and channel dispatcher for
+the Telepathy framework, allowing user interfaces and other clients
+to share connections to real-time communication services without conflicting.
+It implements the AccountManager and ChannelDispatcher D-Bus APIs as described
+by telepathy-spec.
+
+The account manager part stores real time communication account details,
+connects to the stored accounts on request, and sets the accounts' presence,
+nickname and avatar according to requests from Telepathy user interfaces and
+other components.
+
+The channel dispatcher part responds to incoming communication channels
+(message streams, voice/video calls, file transfers etc.) by dispatching
+them to suitable user interfaces, and requests outgoing communication
+channels according to requests from a Telepathy UI.
+
+Telepathy is a D-Bus framework for unifying real time communication,
+including instant messaging, voice calls and video calls. It abstracts
+differences between protocols to provide a unified interface for
+applications.
+
+Mission Control currently also provides a C API. Please note that this API is
+subject to rapid change (see below).
+
+Requirements
+============
+
+Building Mission Control requires:
+  GLib, GObject <http://ftp.gnome.org/pub/GNOME/sources/glib/>
+  libdbus <http://dbus.freedesktop.org/releases/dbus/>
+  The D-Bus GLib bindings <http://dbus.freedesktop.org/releases/dbus-glib/>
+  telepathy-glib <http://telepathy.freedesktop.org/releases/telepathy-glib/>
+
+  GNU make <http://www.gnu.org/software/make/>
+  pkg-config <http://ftp.gnome.org/pub/GNOME/sources/pkg-config/>
+  libxslt, xsltproc <http://xmlsoft.org/XSLT/>
+  Python <http://www.python.org/>
+
+and can also make use of:
+  gtkdoc <http://ftp.gnome.org/pub/GNOME/sources/gtk-doc/>
+
+See configure.ac for full details, including versions required.
+Of the packages listed above, only GLib, GObject, libdbus, dbus-glib and
+telepathy-glib are required at runtime.
+
+Building from git also requires the GNU build system (Autoconf, Automake,
+libtool).
+
+Bugs, feature requests and to-do list
+=====================================
+
+Report all bugs, feature requests and "to-do" items here:
+  <https://bugs.freedesktop.org/enter_bug.cgi?product=Telepathy&component=telepathy-mission-control>
+
+D-Bus API stability
+===================
+
+Interfaces described as stable in the Telepathy Specification
+<http://telepathy.freedesktop.org/spec/> are considered stable and will not
+generally have incompatible changes.
+
+All other interfaces (including draft interfaces and Nokia-specific
+extensions) are subject to change.
+
+C API stability
+===============
+
+libmcclient is a client library for communicating with Mission Control. It
+is not necessarily suitable for communication with any other Telepathy
+AccountManager or ChannelDispatcher implementations, and will probably be
+phased out eventually, in favour of library support in telepathy-glib.
+
+libmissioncontrol-server contains most of the implementation of MC, and can
+be used to produce a derivative of MC containing desktop- or device-specific
+behaviour, like Maemo's proprietary osso-mission-control package. It is only
+built and installed as a library if Mission Control is configured with
+the --enable-plugins option; this is not recommended on mainstream Linux
+distributions.
+
+At this stage in development, neither library is considered stable; only
+depend on them if you have control over the specific version of MC you're
+using.
+
+Versioning
+==========
+
+Starting from version 5.1.0, Mission Control follows the same Linux-style
+odd/even minor versioning policy as most other Telepathy components: the 5.1.x
+series are development releases, and 5.2.x will be the first stable branch.
+
+Intermediate versions built from the git repository have a "+" suffix on the
+version number, so version "5.1.0+" could be any snapshot taken between 5.1.0
+and 5.1.1.
+
+Contact info
+============
+
+Mission Control was originally written by Nokia Corporation for the Maemo
+platform, but it is now maintained by the Telepathy project:
+  <http://telepathy.freedesktop.org/>
+  <mailto:telepathy@lists.freedesktop.org>
+  <irc://irc.freenode.net/telepathy>
+
+Hacking
+=======
+
+The current development version of MC is available from the
+'master' branch in the git repository:
+  <git://git.collabora.co.uk/git/telepathy-mission-control.git>
+  <git+ssh://git.collabora.co.uk/git/telepathy-mission-control.git>
+  <http://git.collabora.co.uk/?p=telepathy-mission-control.git> (gitweb)
+
+Stable branches will be made available from branches with names like
+'telepathy-mission-control-5.2' in the same repository.
+
+Contributions for review should be attached to bugs in freedesktop.org
+Bugzilla, with the "patch" tag. If there's no relevant bug, open one:
+  <https://bugs.freedesktop.org/enter_bug.cgi?product=Telepathy&component=telepathy-mission-control>
+
+MC does not yet follow <http://telepathy.freedesktop.org/wiki/Style>. Please
+follow the style used in the current code.
