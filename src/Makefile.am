@@ -97,10 +97,15 @@ lib_LTLIBRARIES = libmissioncontrol-server.la
 libmissioncontrol_server_la_LIBADD += $(GMODULE_LIBS)
 
 libmissioncontrol_server_la_LDFLAGS = \
-	-export-symbols-regex '^((mc_)|(mcd_)|(mission_control_))' \
-	-version-info "10":"0":"4"
+	-export-symbols-regex '^((mc_)|(mcd_)|(mission_control_))'
+
+if ENABLE_MC_SERVER_SO6
 # the redundant quoting here is to prevent the libtool command line from
 # looking like an error message in an oddly named file
+libmissioncontrol_server_la_LDFLAGS += -version-info "10":"0":"4"
+else
+libmissioncontrol_server_la_LDFLAGS += -release $(VERSION)
+endif
 
 mission_control_includedir = $(includedir)/mission-control
 mission_control_include_HEADERS = $(mc_headers)
@@ -111,9 +116,9 @@ nodist_geninclude_HEADERS = $(mc_gen_headers)
 INCLUDES += \
 	$(GMODULE_CFLAGS) \
 	-DMCD_DEFAULT_FILTER_PLUGIN_DIR=\"@pluginlibdir@\"
-else
+else # ENABLE_PLUGINS
 noinst_LTLIBRARIES = libmissioncontrol-server.la
-endif
+endif # ENABLE_PLUGINS
 
 libmissioncontrol_server_la_SOURCES = \
 	mcd-account.c \
