@@ -501,9 +501,6 @@ mcd_account_request_presence_int (McdAccount *account,
 	changed = TRUE;
     }
 
-    if (!(changed || priv->temporary_presence))
-        return FALSE;
-
     if (priv->connection == NULL)
     {
         if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
@@ -516,7 +513,8 @@ mcd_account_request_presence_int (McdAccount *account,
         _mcd_connection_request_presence (priv->connection,
                                           type, status, message);
     }
-    return TRUE;
+
+    return changed;
 }
 
 void
