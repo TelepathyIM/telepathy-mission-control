@@ -139,7 +139,6 @@ struct _McdAccountPrivate
     guint valid : 1;
     guint loaded : 1;
     guint has_been_online : 1;
-    guint temporary_presence : 1;
     guint removed : 1;
 
     /* These fields are used to cache the changed properties */
@@ -501,9 +500,6 @@ mcd_account_request_presence_int (McdAccount *account,
 	changed = TRUE;
     }
 
-    if (!(changed || priv->temporary_presence))
-        return FALSE;
-
     if (priv->connection == NULL)
     {
         if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
@@ -516,7 +512,8 @@ mcd_account_request_presence_int (McdAccount *account,
         _mcd_connection_request_presence (priv->connection,
                                           type, status, message);
     }
-    return TRUE;
+
+    return changed;
 }
 
 void
@@ -2769,8 +2766,6 @@ _mcd_account_request_temporary_presence (McdAccount *self,
         _mcd_connection_request_presence (self->priv->connection,
                                           type, status, "");
     }
-
-    self->priv->temporary_presence = TRUE;
 }
 
 /**
