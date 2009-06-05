@@ -80,10 +80,15 @@ libmcclient_la_LIBADD = \
 	$(GLIB_LIBS)
 
 libmcclient_la_LDFLAGS = \
-	-export-symbols-regex "^(mc_)|(mission_control_)" \
-	-version-info "10":"0":"4"
+	-export-symbols-regex "^(mc_)|(mission_control_)"
+
+if ENABLE_MC_CLIENT_SO6
 # the redundant quoting here is to prevent the libtool command line from
 # looking like an error message in an oddly named file
+libmcclient_la_LDFLAGS += -version-info "10":"0":"4"
+else
+libmcclient_la_LDFLAGS += -release $(VERSION)
+endif
 
 %-marshal.h: %-marshal.list Makefile.am
 	glib-genmarshal --header --prefix=$(subst -,_,$*)_marshal $< > $*-marshal.h

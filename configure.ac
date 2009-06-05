@@ -1,7 +1,7 @@
 dnl Set the version number to e.g. 5.0.beta42 immediately before a release.
 dnl Set the version number to e.g. 5.0.beta42+ immediately after (this will
 dnl enable -Werror).
-AC_INIT(telepathy-mission-control, 5.0.beta74+)
+AC_INIT(telepathy-mission-control, 5.1.0)
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(Makefile.am)
@@ -213,6 +213,36 @@ AC_ARG_ENABLE(server,
 	]
 )
 AM_CONDITIONAL(HAVE_SERVER, [test x$server_enabled = xyes])
+
+ENABLE_MC_CLIENT_SO6="no"
+AC_MSG_CHECKING(whether to pretend libmcclient is stable)
+AC_ARG_ENABLE(mcclient-so6,
+	[  --enable-mcclient-so6    pretend libmcclient is ABI-stable],
+	[
+		AC_MSG_RESULT(${enableval})
+		ENABLE_MC_CLIENT_SO6="${enableval}"
+	],
+	[
+		AC_MSG_RESULT(no)
+		ENABLE_MC_CLIENT_SO6="no"
+	]
+)
+AM_CONDITIONAL(ENABLE_MC_CLIENT_SO6, [test "x$ENABLE_MC_CLIENT_SO6" = xyes])
+
+ENABLE_MC_SERVER_SO6="no"
+AC_MSG_CHECKING(whether to pretend libmissioncontrol-server is stable)
+AC_ARG_ENABLE(mcserver-so6,
+	[  --enable-mcserver-so6    pretend libmissioncontrol-server is ABI-stable],
+	[
+		AC_MSG_RESULT(${enableval})
+		ENABLE_MC_SERVER_SO6="${enableval}"
+	],
+	[
+		AC_MSG_RESULT(no)
+		ENABLE_MC_SERVER_SO6="no"
+	]
+)
+AM_CONDITIONAL(ENABLE_MC_SERVER_SO6, [test "x$ENABLE_MC_SERVER_SO6" = xyes])
 
 plugins_enabled="no"
 AC_MSG_CHECKING(whether to support plugins)

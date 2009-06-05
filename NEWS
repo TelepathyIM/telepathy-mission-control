@@ -1,0 +1,52 @@
+telepathy-mission-control 5.1.0 (2009-06-05)
+============================================
+
+The "beta 75 would have been silly" release.
+
+After months of development, this is the first numbered release of Mission
+Control 5. We jumped straight to 5.1 in order to use the Linux-style odd/even
+versioning seen in the other Telepathy components, so the 5.1.x development
+branch will lead to the 5.2.x stable branch.
+
+Changes since Mission Control 4 are too numerous to list here, but here are
+the major architectural changes.
+
+The proprietary MissionControl API no longer exists; the daemon is a
+telepathy-spec-compliant AccountManager, and also a telepathy-spec-compliant
+ChannelDispatcher. Consequences of this include:
+
+* Clients are no longer expected to implement the ChannelHandler interface.
+  Instead, they may implement the Observer, Approver and/or Handler interfaces
+  specified in telepathy-spec.
+
+* The design of channel dispatching copes better with having multiple user
+  interface components installed.
+
+* Accounts' presence, avatar and nickname are now independent (stored
+  per-account), allowing for more precise control by UIs.
+
+* Accounts no longer have to belong to a "profile", although they still can
+  (albeit only by using a non-standard extension).
+
+Accounts are now stored in a flat file, rather than by abusing GConf. The
+included mc-account-convert tool might be able to convert MC 4 accounts to
+the MC 5 format, if you're lucky.
+
+libmissioncontrol-server has changed its API and ABI considerably, and is not
+yet considered stable in its new form either. It is no longer installed by
+default (in a normal configuration it'll just be compiled into the daemon).
+
+libmissioncontrol (based on libtelepathy and also known as
+libmissioncontrol-client) no longer exists, and has been replaced by
+libmcclient (based on telepathy-glib).
+
+Mission Control 5 is not a drop-in replacement for Mission Control 4, and
+cannot be used by Mission-Control-4-based applications like Empathy 2.26
+and the Maemo 4 platform. However, both versions can be installed
+independently in the same directory prefix, to facilitate porting from one to
+the other.
+
+Known regressions since Mission Control 4:
+
+* There is no gnome-keyring integration yet.
+* The client and server library APIs are not considered to be stable yet.
