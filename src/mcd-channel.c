@@ -38,25 +38,24 @@
 #include "mcd-channel.h"
 
 #include <glib/gi18n.h>
-#include <telepathy-glib/interfaces.h>
-#include <telepathy-glib/gtypes.h>
+
 #include <telepathy-glib/dbus.h>
+#include <telepathy-glib/gtypes.h>
+#include <telepathy-glib/interfaces.h>
+#include <telepathy-glib/svc-channel-request.h>
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
 #include "mcd-account-priv.h"
 #include "mcd-channel-priv.h"
 #include "mcd-enum-types.h"
-#include "_gen/gtypes.h"
-#include "_gen/interfaces.h"
-#include "_gen/svc-request.h"
 
 #define MCD_CHANNEL_PRIV(channel) (MCD_CHANNEL (channel)->priv)
 
 static void request_iface_init (gpointer, gpointer);
 
 G_DEFINE_TYPE_WITH_CODE (McdChannel, mcd_channel, MCD_TYPE_MISSION,
-    G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_REQUEST, request_iface_init);
+    G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_CHANNEL_REQUEST, request_iface_init);
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
                            tp_dbus_properties_mixin_iface_init))
 
@@ -578,7 +577,7 @@ mcd_channel_class_init (McdChannelClass * klass)
         { NULL }
     };
     static TpDBusPropertiesMixinIfaceImpl prop_interfaces[] = {
-        { MC_IFACE_CHANNEL_REQUEST,
+        { TP_IFACE_CHANNEL_REQUEST,
           tp_dbus_properties_mixin_getter_gobject_properties,
           NULL,
           request_props,
@@ -1444,7 +1443,7 @@ mcd_channel_get_tp_channel (McdChannel *channel)
 }
 
 static void
-channel_request_proceed (McSvcChannelRequest *iface,
+channel_request_proceed (TpSvcChannelRequest *iface,
                          DBusGMethodInvocation *context)
 {
     McdChannel *self = MCD_CHANNEL (iface);
@@ -1484,7 +1483,7 @@ channel_request_proceed (McSvcChannelRequest *iface,
     self->priv->request_data->proceeding = TRUE;
     _mcd_account_proceed_with_request (self->priv->request_data->account,
                                        self);
-    mc_svc_channel_request_return_from_proceed (context);
+    tp_svc_channel_request_return_from_proceed (context);
 }
 
 gboolean
@@ -1525,7 +1524,7 @@ _mcd_channel_request_cancel (McdChannel *self,
 }
 
 static void
-channel_request_cancel (McSvcChannelRequest *iface,
+channel_request_cancel (TpSvcChannelRequest *iface,
                         DBusGMethodInvocation *context)
 {
     McdChannel *self = MCD_CHANNEL (iface);
@@ -1533,7 +1532,7 @@ channel_request_cancel (McSvcChannelRequest *iface,
 
     if (_mcd_channel_request_cancel (self, &error))
     {
-        mc_svc_channel_request_return_from_cancel (context);
+        tp_svc_channel_request_return_from_cancel (context);
     }
     else
     {
@@ -1546,7 +1545,7 @@ static void
 request_iface_init (gpointer g_iface,
                     gpointer iface_data G_GNUC_UNUSED)
 {
-#define IMPLEMENT(x) mc_svc_channel_request_implement_##x (\
+#define IMPLEMENT(x) tp_svc_channel_request_implement_##x (\
     g_iface, channel_request_##x)
     IMPLEMENT (proceed);
     IMPLEMENT (cancel);

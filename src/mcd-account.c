@@ -35,6 +35,7 @@
 #include <glib/gstdio.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/interfaces.h>
+#include <telepathy-glib/svc-account.h>
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
@@ -60,21 +61,21 @@
 
 #define MCD_ACCOUNT_PRIV(account) (MCD_ACCOUNT (account)->priv)
 
-static void account_iface_init (McSvcAccountClass *iface,
+static void account_iface_init (TpSvcAccountClass *iface,
 			       	gpointer iface_data);
 static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
 				   gpointer iface_data);
-static void account_avatar_iface_init (McSvcAccountInterfaceAvatarClass *iface,
+static void account_avatar_iface_init (TpSvcAccountInterfaceAvatarClass *iface,
 				       gpointer iface_data);
 
 static const McdDBusProp account_properties[];
 static const McdDBusProp account_avatar_properties[];
 
 static const McdInterfaceData account_interfaces[] = {
-    MCD_IMPLEMENT_IFACE (mc_svc_account_get_type, account, MC_IFACE_ACCOUNT),
-    MCD_IMPLEMENT_IFACE (mc_svc_account_interface_avatar_get_type,
+    MCD_IMPLEMENT_IFACE (tp_svc_account_get_type, account, TP_IFACE_ACCOUNT),
+    MCD_IMPLEMENT_IFACE (tp_svc_account_interface_avatar_get_type,
 			 account_avatar,
-			 MC_IFACE_ACCOUNT_INTERFACE_AVATAR),
+			 TP_IFACE_ACCOUNT_INTERFACE_AVATAR),
     MCD_IMPLEMENT_IFACE (mc_svc_account_interface_channelrequests_get_type,
 			 account_channelrequests,
 			 MC_IFACE_ACCOUNT_INTERFACE_CHANNELREQUESTS),
@@ -548,7 +549,7 @@ emit_property_changed (gpointer userdata)
     McdAccountPrivate *priv = account->priv;
 
     DEBUG ("called");
-    mc_svc_account_emit_account_property_changed (account,
+    tp_svc_account_emit_account_property_changed (account,
 						  priv->changed_properties);
 
     g_hash_table_remove_all (priv->changed_properties);
@@ -615,7 +616,7 @@ mcd_account_changed_property (McdAccount *account, const gchar *key,
     DEBUG ("called: %s", key);
     properties = g_hash_table_new (g_str_hash, g_str_equal);
     g_hash_table_insert (properties, (gpointer)key, (gpointer)value);
-    mc_svc_account_emit_account_property_changed (account,
+    tp_svc_account_emit_account_property_changed (account,
 						  properties);
 
     g_hash_table_destroy (properties);
@@ -841,7 +842,7 @@ set_avatar (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
 
     DEBUG ("called for %s", priv->unique_name);
 
-    if (!G_VALUE_HOLDS (value, MC_STRUCT_TYPE_AVATAR))
+    if (!G_VALUE_HOLDS (value, TP_STRUCT_TYPE_AVATAR))
     {
         g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
                      "Unexpected type for Avatar: wanted (ay,s), got %s",
@@ -858,7 +859,7 @@ set_avatar (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
         return FALSE;
     }
 
-    mc_svc_account_interface_avatar_emit_avatar_changed (account);
+    tp_svc_account_interface_avatar_emit_avatar_changed (account);
     return TRUE;
 }
 
@@ -1193,7 +1194,7 @@ static const McdDBusProp account_avatar_properties[] = {
 };
 
 static void
-account_avatar_iface_init (McSvcAccountInterfaceAvatarClass *iface,
+account_avatar_iface_init (TpSvcAccountInterfaceAvatarClass *iface,
 			   gpointer iface_data)
 {
 }
@@ -1245,7 +1246,7 @@ mcd_account_delete (McdAccount *account, GError **error)
 }
 
 static void
-account_remove (McSvcAccount *svc, DBusGMethodInvocation *context)
+account_remove (TpSvcAccount *svc, DBusGMethodInvocation *context)
 {
     McdAccount *self = MCD_ACCOUNT (svc);
     GError *error = NULL;
@@ -1264,10 +1265,10 @@ account_remove (McSvcAccount *svc, DBusGMethodInvocation *context)
     if (!self->priv->removed)
     {
         self->priv->removed = TRUE;
-        mc_svc_account_emit_removed (self);
+        tp_svc_account_emit_removed (self);
     }
 
-    mc_svc_account_return_from_remove (context);
+    tp_svc_account_return_from_remove (context);
 }
 
 /*
@@ -1492,7 +1493,7 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
 }
 
 static void
-account_update_parameters (McSvcAccount *self, GHashTable *set,
+account_update_parameters (TpSvcAccount *self, GHashTable *set,
 			   const gchar **unset, DBusGMethodInvocation *context)
 {
     McdAccount *account = MCD_ACCOUNT (self);
@@ -1529,13 +1530,13 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
 
     g_ptr_array_add (not_yet, NULL);
 
-    mc_svc_account_return_from_update_parameters (context,
+    tp_svc_account_return_from_update_parameters (context,
         (const gchar **) not_yet->pdata);
     g_ptr_array_free (not_yet, TRUE);
 }
 
 static void
-account_reconnect (McSvcAccount *service,
+account_reconnect (TpSvcAccount *service,
                    DBusGMethodInvocation *context)
 {
     McdAccount *self = MCD_ACCOUNT (service);
@@ -1553,7 +1554,7 @@ account_reconnect (McSvcAccount *service,
                self->priv->enabled ? 'T' : 'F',
                self->priv->valid ? 'T' : 'F',
                self->priv->req_presence_type);
-        mc_svc_account_return_from_reconnect (context);
+        tp_svc_account_return_from_reconnect (context);
         return;
     }
 
@@ -1567,13 +1568,13 @@ account_reconnect (McSvcAccount *service,
     /* FIXME: we shouldn't really return from this method until the
      * reconnection has actually happened, but that would require less tangled
      * integration between Account and Connection */
-    mc_svc_account_return_from_reconnect (context);
+    tp_svc_account_return_from_reconnect (context);
 }
 
 static void
-account_iface_init (McSvcAccountClass *iface, gpointer iface_data)
+account_iface_init (TpSvcAccountClass *iface, gpointer iface_data)
 {
-#define IMPLEMENT(x) mc_svc_account_implement_##x (\
+#define IMPLEMENT(x) tp_svc_account_implement_##x (\
     iface, account_##x)
     IMPLEMENT(remove);
     IMPLEMENT(update_parameters);
@@ -1763,7 +1764,7 @@ _mcd_account_dispose (GObject *object)
     if (!self->priv->removed)
     {
         self->priv->removed = TRUE;
-        mc_svc_account_emit_removed (self);
+        tp_svc_account_emit_removed (self);
     }
 
     if (priv->online_requests)
@@ -2282,7 +2283,7 @@ _mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
         g_key_file_set_string (priv->keyfile, priv->unique_name,
                                MC_ACCOUNTS_KEY_AVATAR_TOKEN, token);
         if (!prev_token || strcmp (prev_token, token) != 0)
-            mc_svc_account_interface_avatar_emit_avatar_changed (account);
+            tp_svc_account_interface_avatar_emit_avatar_changed (account);
         g_free (prev_token);
     }
     else

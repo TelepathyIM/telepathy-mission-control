@@ -1,0 +1,20 @@
+<tp:spec
+    xmlns:tp="http://telepathy.freedesktop.org/wiki/DbusSpec#extensions-v0"
+    xmlns:xi="http://www.w3.org/2001/XInclude">
+
+<tp:copyright>Copyright (C) 2008 Nokia Corporation</tp:copyright>
+
+<xi:include href="../xml/Account_Interface_ChannelRequests.xml"/>
+<xi:include href="../xml/Account_Interface_Compat.xml"/>
+<xi:include href="../xml/Account_Interface_Conditions.xml"/>
+<xi:include href="../xml/Account_Interface_Stats.xml"/>
+
+<xi:include href="../xml/Account_Manager_Interface_Query.xml"/>
+<xi:include href="../xml/Account_Manager_Interface_Creation.xml"/>
+
+<xi:include href="../xml/Connection_Interface_Contact_Capabilities.xml"/>
+
+<xi:include href="../xml/generic-types.xml"/>
+<xi:include href="../xml/telepathy-types.xml"/>
+
+</tp:spec>

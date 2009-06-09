@@ -29,7 +29,7 @@
 #include <glib.h>
 #include <glib-object.h>
 
-#include <telepathy-glib/proxy.h>
+#include <telepathy-glib/client.h>
 
 G_BEGIN_DECLS
 
@@ -39,13 +39,13 @@ typedef struct _McdClientProxyPrivate McdClientProxyPrivate;
 
 struct _McdClientProxy
 {
-  TpProxy parent;
+  TpClient parent;
   McdClientProxyPrivate *priv;
 };
 
 struct _McdClientProxyClass
 {
-  TpProxyClass parent_class;
+  TpClientClass parent_class;
 };
 
 G_GNUC_INTERNAL GType _mcd_client_proxy_get_type (void);
@@ -81,10 +81,7 @@ G_GNUC_INTERNAL void _mcd_client_proxy_set_inactive (McdClientProxy *self);
 G_GNUC_INTERNAL void _mcd_client_proxy_set_active (McdClientProxy *self,
                                                    const gchar *unique_name);
 
-/* Analogous to TP_CM_*_BASE */
-#define MC_CLIENT_BUS_NAME_BASE MC_IFACE_CLIENT "."
-#define MC_CLIENT_OBJECT_PATH_BASE "/org/freedesktop/Telepathy/Client/"
-#define MC_CLIENT_BUS_NAME_BASE_LEN (sizeof (MC_CLIENT_BUS_NAME_BASE) - 1)
+#define MC_CLIENT_BUS_NAME_BASE_LEN (sizeof (TP_CLIENT_BUS_NAME_BASE) - 1)
 
 G_END_DECLS
 

@@ -27,13 +27,13 @@
 #include "mcd-client-priv.h"
 
 #include <telepathy-glib/dbus.h>
+#include <telepathy-glib/defs.h>
 #include <telepathy-glib/errors.h>
 #include <telepathy-glib/proxy-subclass.h>
 
 #include "mcd-debug.h"
-#include "_gen/interfaces.h"
 
-G_DEFINE_TYPE (McdClientProxy, _mcd_client_proxy, TP_TYPE_PROXY);
+G_DEFINE_TYPE (McdClientProxy, _mcd_client_proxy, TP_TYPE_CLIENT);
 
 enum
 {
@@ -273,8 +273,8 @@ _mcd_client_proxy_new (TpDBusDaemon *dbus_daemon,
     g_return_val_if_fail (_mcd_client_check_valid_name (name_suffix, NULL),
                           NULL);
 
-    bus_name = g_strconcat (MC_CLIENT_BUS_NAME_BASE, name_suffix, NULL);
-    object_path = g_strconcat (MC_CLIENT_OBJECT_PATH_BASE, name_suffix, NULL);
+    bus_name = g_strconcat (TP_CLIENT_BUS_NAME_BASE, name_suffix, NULL);
+    object_path = g_strconcat (TP_CLIENT_OBJECT_PATH_BASE, name_suffix, NULL);
     g_strdelimit (object_path, ".", '/');
 
     g_assert (tp_dbus_check_valid_bus_name (bus_name,

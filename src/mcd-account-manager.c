@@ -39,6 +39,8 @@
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 #include <telepathy-glib/errors.h>
+#include <telepathy-glib/interfaces.h>
+#include <telepathy-glib/svc-account-manager.h>
 #include "mcd-account-manager-priv.h"
 #include "mcd-account.h"
 #include "mcd-account-config.h"
@@ -56,7 +58,7 @@
 #define MCD_ACCOUNT_MANAGER_PRIV(account_manager) \
     (MCD_ACCOUNT_MANAGER (account_manager)->priv)
 
-static void account_manager_iface_init (McSvcAccountManagerClass *iface,
+static void account_manager_iface_init (TpSvcAccountManagerClass *iface,
 					gpointer iface_data);
 static void account_manager_creation_iface_init (
     McSvcAccountManagerInterfaceCreationClass *iface, gpointer iface_data);
@@ -67,9 +69,9 @@ static const McdDBusProp account_manager_properties[];
 static const McdDBusProp account_manager_creation_properties[];
 
 static const McdInterfaceData account_manager_interfaces[] = {
-    MCD_IMPLEMENT_IFACE (mc_svc_account_manager_get_type,
+    MCD_IMPLEMENT_IFACE (tp_svc_account_manager_get_type,
 			 account_manager,
-			 MC_IFACE_ACCOUNT_MANAGER),
+			 TP_IFACE_ACCOUNT_MANAGER),
     MCD_IMPLEMENT_IFACE (mc_svc_account_manager_interface_query_get_type,
 			 account_manager_query,
 			 MC_IFACE_ACCOUNT_MANAGER_INTERFACE_QUERY),
@@ -275,7 +277,7 @@ on_account_validity_changed (McdAccount *account, gboolean valid,
     const gchar *object_path;
 
     object_path = mcd_account_get_object_path (account);
-    mc_svc_account_manager_emit_account_validity_changed (account_manager,
+    tp_svc_account_manager_emit_account_validity_changed (account_manager,
 							  object_path,
 							  valid);
 }
@@ -287,7 +289,7 @@ on_account_removed (McdAccount *account, McdAccountManager *account_manager)
     const gchar *name, *object_path;
 
     object_path = mcd_account_get_object_path (account);
-    mc_svc_account_manager_emit_account_removed (account_manager, object_path);
+    tp_svc_account_manager_emit_account_removed (account_manager, object_path);
 
     name = mcd_account_get_unique_name (account);
     g_hash_table_remove (priv->accounts, name);
@@ -583,11 +585,11 @@ create_account_cb (McdAccountManager *account_manager, McdAccount *account,
 
     g_return_if_fail (MCD_IS_ACCOUNT (account));
     object_path = mcd_account_get_object_path (account);
-    mc_svc_account_manager_return_from_create_account (context, object_path);
+    tp_svc_account_manager_return_from_create_account (context, object_path);
 }
 
 static void
-account_manager_create_account (McSvcAccountManager *self,
+account_manager_create_account (TpSvcAccountManager *self,
                                 const gchar *manager,
                                 const gchar *protocol,
                                 const gchar *display_name,
@@ -602,10 +604,10 @@ account_manager_create_account (McSvcAccountManager *self,
 }
 
 static void
-account_manager_iface_init (McSvcAccountManagerClass *iface,
+account_manager_iface_init (TpSvcAccountManagerClass *iface,
 			    gpointer iface_data)
 {
-#define IMPLEMENT(x) mc_svc_account_manager_implement_##x (\
+#define IMPLEMENT(x) tp_svc_account_manager_implement_##x (\
     iface, account_manager_##x)
     IMPLEMENT(create_account);
 #undef IMPLEMENT
@@ -696,17 +698,17 @@ get_supported_account_properties (TpSvcDBusProperties *svc,
                                   GValue *value)
 {
     static const gchar * const supported[] = {
-        MC_IFACE_ACCOUNT ".AutomaticPresence",
-        MC_IFACE_ACCOUNT ".Enabled",
-        MC_IFACE_ACCOUNT ".Icon",
-        MC_IFACE_ACCOUNT ".Nickname",
-        MC_IFACE_ACCOUNT ".ConnectAutomatically",
-        MC_IFACE_ACCOUNT_INTERFACE_AVATAR ".Avatar",
+        TP_IFACE_ACCOUNT ".AutomaticPresence",
+        TP_IFACE_ACCOUNT ".Enabled",
+        TP_IFACE_ACCOUNT ".Icon",
+        TP_IFACE_ACCOUNT ".Nickname",
+        TP_IFACE_ACCOUNT ".ConnectAutomatically",
+        TP_IFACE_ACCOUNT_INTERFACE_AVATAR ".Avatar",
         MC_IFACE_ACCOUNT_INTERFACE_COMPAT ".Profile",
         MC_IFACE_ACCOUNT_INTERFACE_COMPAT ".SecondaryVCardFields",
         MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS ".Condition",
         /* FIXME: setting RequestedPresence at create time doesn't work yet */
-        /* MC_IFACE_ACCOUNT ".RequestedPresence", */
+        /* TP_IFACE_ACCOUNT ".RequestedPresence", */
         NULL
     };
 
