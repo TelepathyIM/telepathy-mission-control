@@ -6,7 +6,6 @@ TWISTED_BASIC_TESTS = \
 	account-manager/avatar.py \
 	account-manager/create-with-properties.py \
 	account-manager/nickname.py \
-	account-manager/old-create-with-properties.py \
 	account-manager/presence.py \
 	account-manager/reconnect.py \
 	account-manager/recover-from-disconnect.py \
