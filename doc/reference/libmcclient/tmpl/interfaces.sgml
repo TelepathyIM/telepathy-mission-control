@@ -149,25 +149,3 @@ interfaces
 @Returns: 
 
 
-<!-- ##### MACRO MC_IFACE_ACCOUNT_MANAGER_INTERFACE_CREATION ##### -->
-<para>
-
-</para>
-
-
-
-<!-- ##### MACRO MC_IFACE_QUARK_ACCOUNT_MANAGER_INTERFACE_CREATION ##### -->
-<para>
-
-</para>
-
-
-
-<!-- ##### FUNCTION mc_iface_quark_account_manager_interface_creation ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
-

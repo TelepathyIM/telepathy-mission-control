@@ -231,8 +231,6 @@ mc_account_manager_init (McAccountManager *self)
 					     McAccountManagerPrivate);
 
     tp_proxy_add_interface_by_id ((TpProxy *)self,
-	MC_IFACE_QUARK_ACCOUNT_MANAGER_INTERFACE_CREATION);
-    tp_proxy_add_interface_by_id ((TpProxy *)self,
 	MC_IFACE_QUARK_ACCOUNT_MANAGER_INTERFACE_QUERY);
 }
 

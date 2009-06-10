@@ -94,7 +94,19 @@ cli-account-manager
 cli-account
 
 
+<!-- ##### MACRO MC_IFACE_ACCOUNT_MANAGER_INTERFACE_CREATION ##### -->
+<para>
+
+</para>
+
+
 <!-- ##### MACRO MC_IFACE_NMC4 ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### MACRO MC_IFACE_QUARK_ACCOUNT_MANAGER_INTERFACE_CREATION ##### -->
 <para>
 
 </para>
@@ -217,6 +229,42 @@ cli-account
 @error: 
 @user_data: 
 @weak_object: 
+
+<!-- ##### FUNCTION mc_cli_account_manager_interface_creation_call_create_account ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@timeout_ms: 
+@in_Connection_Manager: 
+@in_Protocol: 
+@in_Display_Name: 
+@in_Parameters: 
+@in_Properties: 
+@callback: 
+@user_data: 
+@destroy: 
+@weak_object: 
+@Returns: 
+
+<!-- ##### USER_FUNCTION mc_cli_account_manager_interface_creation_callback_for_create_account ##### -->
+<para>
+
+</para>
+
+@proxy: 
+@out_Account: 
+@error: 
+@user_data: 
+@weak_object: 
+
+<!-- ##### FUNCTION mc_iface_quark_account_manager_interface_creation ##### -->
+<para>
+
+</para>
+
+@Returns: 
 
 <!-- ##### FUNCTION mc_iface_quark_nmc4 ##### -->
 <para>
