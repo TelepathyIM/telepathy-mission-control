@@ -367,8 +367,9 @@ get_parameter (McdAccount *account, const gchar *name, GValue *value)
 
     if (value)
     {
-        gchar *v_string = NULL, **v_strings;
-        gint v_int = 0;
+        gchar *v_string = NULL;
+        gint64 v_int = 0;
+        guint64 v_uint = 0;
         gboolean v_bool = FALSE;
 
         switch (G_VALUE_TYPE (value))
@@ -378,31 +379,49 @@ get_parameter (McdAccount *account, const gchar *name, GValue *value)
                                               key, NULL);
             g_value_take_string (value, v_string);
             break;
+
         case G_TYPE_INT:
             v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
                                             key, NULL);
             g_value_set_int (value, v_int);
             break;
+
         case G_TYPE_INT64:
-            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
-                                            key, NULL);
+            v_int = tp_g_key_file_get_int64 (priv->keyfile, priv->unique_name,
+                                             key, NULL);
             g_value_set_int64 (value, v_int);
             break;
+
         case G_TYPE_UCHAR:
             v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
                                             key, NULL);
+
+            if (v_int < 0 || v_int > 0xFF)
+            {
+                return FALSE;
+            }
+
             g_value_set_uchar (value, v_int);
             break;
+
         case G_TYPE_UINT:
-            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
-                                            key, NULL);
-            g_value_set_uint (value, v_int);
+            v_uint = tp_g_key_file_get_uint64 (priv->keyfile,
+                                               priv->unique_name, key, NULL);
+
+            if (v_uint > 0xFFFFFFFFU)
+            {
+                return FALSE;
+            }
+
+            g_value_set_uint (value, v_uint);
             break;
+
         case G_TYPE_UINT64:
-            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
-                                            key, NULL);
-            g_value_set_uint64 (value, v_int);
+            v_uint = tp_g_key_file_get_uint64 (priv->keyfile,
+                                               priv->unique_name, key, NULL);
+            g_value_set_uint64 (value, v_uint);
             break;
+
         case G_TYPE_BOOLEAN:
             v_bool = g_key_file_get_boolean (priv->keyfile, priv->unique_name,
                                              key, NULL);
@@ -411,15 +430,18 @@ get_parameter (McdAccount *account, const gchar *name, GValue *value)
         default:
             if (G_VALUE_HOLDS (value, G_TYPE_STRV))
             {
-                v_strings = g_key_file_get_string_list (priv->keyfile,
+                gchar **v = g_key_file_get_string_list (priv->keyfile,
                                                         priv->unique_name, key,
                                                         NULL, NULL);
-                g_value_take_boxed (value, v_strings);
-                break;
+
+                g_value_take_boxed (value, v);
             }
-            g_warning ("%s: skipping parameter %s, unknown type %s", G_STRFUNC,
-                       name, G_VALUE_TYPE_NAME (value));
-            return FALSE;
+            else
+            {
+                g_warning ("%s: skipping parameter %s, unknown type %s",
+                           G_STRFUNC, name, G_VALUE_TYPE_NAME (value));
+                return FALSE;
+            }
         }
     }
 
