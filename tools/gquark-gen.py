@@ -26,8 +26,28 @@ import sys
 import os.path
 from getopt import gnu_getopt
 
-from libglibcodegen import Signature, type_to_gtype, cmp_by_name, \
-        camelcase_to_lower, get_docstring
+from libglibcodegen import Signature, type_to_gtype, cmp_by_name, get_docstring
+
+def camelcase_to_lower(s):
+    out ="";
+    out += s[0].lower()
+    last_upper=False
+    if s[0].isupper():
+        last_upper=True
+    for i in range(1,len(s)):
+        if s[i].isupper():
+            if last_upper:
+                if (i+1) < len(s) and  s[i+1].islower():
+                    out += "_" + s[i].lower()
+                else:
+                    out += s[i].lower()
+            else:
+                out += "_" + s[i].lower()
+            last_upper=True
+        else:
+            out += s[i]
+            last_upper=False
+    return out
 
 
 NS_TP = "http://telepathy.freedesktop.org/wiki/DbusSpec#extensions-v0"
