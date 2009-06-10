@@ -307,16 +307,51 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value)
 	g_key_file_set_boolean (priv->keyfile, priv->unique_name, key,
 				g_value_get_boolean (value));
 	break;
+
+    case G_TYPE_UCHAR:
+        g_key_file_set_integer (priv->keyfile, priv->unique_name, key,
+                                g_value_get_uchar (value));
+        break;
+
+    case G_TYPE_UINT64:
+        g_snprintf (buf, sizeof (buf), "%" G_GUINT64_FORMAT,
+                    g_value_get_uint64 (value));
+        g_key_file_set_string (priv->keyfile, priv->unique_name, key,
+                               buf);
+        break;
+
+    case G_TYPE_INT64:
+        g_snprintf (buf, sizeof (buf), "%" G_GINT64_FORMAT,
+                    g_value_get_int64 (value));
+        g_key_file_set_string (priv->keyfile, priv->unique_name, key,
+                               buf);
+        break;
+
+    case G_TYPE_DOUBLE:
+        g_key_file_set_double (priv->keyfile, priv->unique_name, key,
+                               g_value_get_double (value));
+        break;
+
     default:
         if (G_VALUE_HOLDS (value, G_TYPE_STRV))
         {
             gchar **strings = g_value_get_boxed (value);
+
             g_key_file_set_string_list (priv->keyfile, priv->unique_name, key,
                                         (const gchar **)strings,
                                         g_strv_length (strings));
-            break;
         }
-	g_warning ("Unexpected param type %s", G_VALUE_TYPE_NAME (value));
+        else if (G_VALUE_HOLDS (value, DBUS_TYPE_G_OBJECT_PATH))
+        {
+            const gchar *path = g_value_get_boxed (value);
+
+            g_key_file_set_string (priv->keyfile, priv->unique_name, key,
+                                   path);
+        }
+        else
+        {
+            g_warning ("Unexpected param type %s", G_VALUE_TYPE_NAME (value));
+        }
     }
 }
 
