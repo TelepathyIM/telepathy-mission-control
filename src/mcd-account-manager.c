@@ -325,6 +325,11 @@ add_account (McdAccountManager *account_manager, McdAccount *account)
 		      account_manager);
     g_signal_connect (account, "removed", G_CALLBACK (on_account_removed),
 		      account_manager);
+
+    /* if the account is already valid, synthesize a signal indicating that
+     * it's been added */
+    if (mcd_account_is_valid (account))
+        on_account_validity_changed (account, TRUE, account_manager);
 }
 
 static void
