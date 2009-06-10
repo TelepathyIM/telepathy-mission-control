@@ -217,9 +217,42 @@ value_is_same (const GValue *val1, const GValue *val2)
         return g_value_get_double (val1) == g_value_get_double (val2);
 
     default:
-        g_warning ("%s: unexpected type %s",
-                   G_STRFUNC, G_VALUE_TYPE_NAME (val1));
-        return FALSE;
+        if (G_VALUE_TYPE (val1) == DBUS_TYPE_G_OBJECT_PATH)
+        {
+            return !tp_strdiff (g_value_get_boxed (val1),
+                                g_value_get_boxed (val2));
+        }
+        else if (G_VALUE_TYPE (val1) == G_TYPE_STRV)
+        {
+            gchar **left = g_value_get_boxed (val1);
+            gchar **right = g_value_get_boxed (val2);
+
+            if (left == NULL || right == NULL ||
+                *left == NULL || *right == NULL)
+            {
+                return ((left == NULL || *left == NULL) &&
+                        (right == NULL || *right == NULL));
+            }
+
+            while (*left != NULL || *right != NULL)
+            {
+                if (tp_strdiff (*left, *right))
+                {
+                    return FALSE;
+                }
+
+                left++;
+                right++;
+            }
+
+            return TRUE;
+        }
+        else
+        {
+            g_warning ("%s: unexpected type %s",
+                       G_STRFUNC, G_VALUE_TYPE_NAME (val1));
+            return FALSE;
+        }
     }
 }
 
