@@ -990,18 +990,13 @@ get_avatar (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     McdAccount *account = MCD_ACCOUNT (self);
     gchar *mime_type;
     GArray *avatar = NULL;
-    GType type;
+    GType type = MC_STRUCT_TYPE_AVATAR;
     GValueArray *va;
 
     _mcd_account_get_avatar (account, &avatar, &mime_type);
     if (!avatar)
         avatar = g_array_new (FALSE, FALSE, 1);
 
-    type = dbus_g_type_get_struct ("GValueArray",
-				   dbus_g_type_get_collection ("GArray",
-							       G_TYPE_UCHAR),
-				   G_TYPE_STRING,
-				   G_TYPE_INVALID);
     g_value_init (value, type);
     g_value_take_boxed (value, dbus_g_type_specialized_construct (type));
     va = (GValueArray *) g_value_get_boxed (value);
