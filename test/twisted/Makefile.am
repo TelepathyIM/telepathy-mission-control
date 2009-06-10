@@ -21,6 +21,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/cancel.py \
 	dispatcher/capture-bundle.py \
 	dispatcher/create-handler-fails.py \
+	dispatcher/create-no-preferred-handler.py \
 	dispatcher/create-text.py \
 	dispatcher/dispatch-activatable.py \
 	dispatcher/dispatch-obsolete.py \
