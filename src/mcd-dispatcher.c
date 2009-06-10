@@ -3534,6 +3534,10 @@ dispatcher_request_channel (McdDispatcher *self,
     GError *error = NULL;
     const gchar *path;
 
+    g_return_if_fail (account_path != NULL);
+    g_return_if_fail (requested_properties != NULL);
+    g_return_if_fail (preferred_handler != NULL);
+
     g_object_get (self->priv->master,
                   "account-manager", &am,
                   NULL);
@@ -3550,22 +3554,25 @@ dispatcher_request_channel (McdDispatcher *self,
         goto despair;
     }
 
-    if (!tp_dbus_check_valid_bus_name (preferred_handler,
-                                       TP_DBUS_NAME_TYPE_WELL_KNOWN,
-                                       &error))
+    if (preferred_handler[0] != '\0')
     {
-        /* The error is TP_DBUS_ERROR_INVALID_BUS_NAME, which has no D-Bus
-         * representation; re-map to InvalidArgument. */
-        error->domain = TP_ERRORS;
-        error->code = TP_ERROR_INVALID_ARGUMENT;
-        goto despair;
-    }
+        if (!tp_dbus_check_valid_bus_name (preferred_handler,
+                                           TP_DBUS_NAME_TYPE_WELL_KNOWN,
+                                           &error))
+        {
+            /* The error is TP_DBUS_ERROR_INVALID_BUS_NAME, which has no D-Bus
+             * representation; re-map to InvalidArgument. */
+            error->domain = TP_ERRORS;
+            error->code = TP_ERROR_INVALID_ARGUMENT;
+            goto despair;
+        }
 
-    if (!g_str_has_prefix (preferred_handler, MC_CLIENT_BUS_NAME_BASE))
-    {
-        g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                     "Not a Telepathy Client: %s", preferred_handler);
-        goto despair;
+        if (!g_str_has_prefix (preferred_handler, MC_CLIENT_BUS_NAME_BASE))
+        {
+            g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                         "Not a Telepathy Client: %s", preferred_handler);
+            goto despair;
+        }
     }
 
     channel = _mcd_account_create_request (account, requested_properties,
