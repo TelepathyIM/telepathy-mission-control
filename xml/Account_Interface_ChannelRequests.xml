@@ -22,7 +22,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</
       <p>The ChannelRequests interface provides methods to create and cancel channel requests, and signals to monitor them.</p>
     </tp:docstring>
 
-    <method name="Create">
+    <method name="Create" tp:name-for-bindings="Create">
       <tp:docstring>
         Create a channel request.
       </tp:docstring>
@@ -209,7 +209,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</
 
     </method>
 
-    <method name="Cancel">
+    <method name="Cancel" tp:name-for-bindings="Cancel">
       <tp:docstring>
         <p>Cancel a channel request. The precise effect depends on the
           current progress of the request.</p>

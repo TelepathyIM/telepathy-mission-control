@@ -27,7 +27,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</
       </tp:rationale>
     </tp:docstring>
 
-    <method name="FindAccounts">
+    <method name="FindAccounts"
+      tp:name-for-bindings="Find_Accounts">
       <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
         <p>Find all accounts which match the search query.</p>
         <p>An empty parameter should return all accounts</p>

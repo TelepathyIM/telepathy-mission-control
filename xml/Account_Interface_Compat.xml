@@ -41,7 +41,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</
       </tp:docstring>
     </property>
 
-    <method name="SetHasBeenOnline">
+    <method name="SetHasBeenOnline"
+      tp:name-for-bindings="Set_Has_Been_Online">
       <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
         <p>Force MC to believe that this account has been put online
           successfully at some point in the past.</p>
