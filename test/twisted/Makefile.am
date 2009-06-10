@@ -7,6 +7,7 @@ TWISTED_BASIC_TESTS = \
 	account-manager/create-with-properties.py \
 	account-manager/nickname.py \
 	account-manager/old-create-with-properties.py \
+	account-manager/param-types.py \
 	account-manager/presence.py \
 	account-manager/reconnect.py \
 	account-manager/recover-from-disconnect.py \
@@ -187,6 +188,7 @@ EXTRA_DIST = \
 	telepathy/clients/README \
 	telepathy/clients/AbiWord.client \
 	telepathy/managers/fakecm.manager \
+	telepathy/managers/onewitheverything.manager \
 	telepathy/managers/README \
 	constants.py \
         fakeclient.py \

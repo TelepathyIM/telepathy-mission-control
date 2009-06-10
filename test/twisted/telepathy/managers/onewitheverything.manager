@@ -1,0 +1,45 @@
+[Protocol serializable]
+# All the types for which telepathy-spec defines a serialization
+param-s=s required
+param-o=o
+param-b=b
+param-q=q
+param-u=u
+param-t=t
+param-n=n
+param-i=i
+param-x=x
+param-d=d
+param-as=as
+
+[Protocol defaults]
+# All the types, plus a default for each
+param-s=s
+default-s=foo
+param-o=o
+default-o=/foo
+param-b=b
+default-b=true
+param-q=q
+default-q=1
+param-u=u
+default-u=1
+param-t=t
+default-t=1
+param-n=n
+default-n=-1
+param-i=i
+default-i=-1
+param-x=x
+default-x=-1
+param-d=d
+default-d=1.5
+param-as=as
+default-as=foo;bar;baz;
+
+[Protocol flags]
+# All the flags
+param-account=s required register
+param-name=s register
+param-key=s required register secret
+param-com.example.Badgerable.Badgers=s dbus-property
