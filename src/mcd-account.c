@@ -207,10 +207,15 @@ value_is_same (const GValue *val1, const GValue *val2)
     case G_TYPE_UINT:
     case G_TYPE_BOOLEAN:
         return val1->data[0].v_uint == val2->data[0].v_uint;
+
     case G_TYPE_INT64:
         return g_value_get_int64 (val1) == g_value_get_int64 (val2);
     case G_TYPE_UINT64:
         return g_value_get_uint64 (val1) == g_value_get_uint64 (val2);
+
+    case G_TYPE_DOUBLE:
+        return g_value_get_double (val1) == g_value_get_double (val2);
+
     default:
         g_warning ("%s: unexpected type %s",
                    G_STRFUNC, G_VALUE_TYPE_NAME (val1));
