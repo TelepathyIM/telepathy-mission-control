@@ -371,6 +371,7 @@ get_parameter (McdAccount *account, const gchar *name, GValue *value)
         gint64 v_int = 0;
         guint64 v_uint = 0;
         gboolean v_bool = FALSE;
+        double v_double = 0.0;
 
         switch (G_VALUE_TYPE (value))
         {
@@ -427,6 +428,13 @@ get_parameter (McdAccount *account, const gchar *name, GValue *value)
                                              key, NULL);
             g_value_set_boolean (value, v_bool);
             break;
+
+        case G_TYPE_DOUBLE:
+            v_double = g_key_file_get_double (priv->keyfile, priv->unique_name,
+                                             key, NULL);
+            g_value_set_double (value, v_double);
+            break;
+
         default:
             if (G_VALUE_HOLDS (value, G_TYPE_STRV))
             {
@@ -435,6 +443,20 @@ get_parameter (McdAccount *account, const gchar *name, GValue *value)
                                                         NULL, NULL);
 
                 g_value_take_boxed (value, v);
+            }
+            else if (G_VALUE_HOLDS (value, DBUS_TYPE_G_OBJECT_PATH))
+            {
+                v_string = g_key_file_get_string (priv->keyfile,
+                                                  priv->unique_name, key,
+                                                  NULL);
+
+                if (!tp_dbus_check_valid_object_path (v_string, NULL))
+                {
+                    g_free (v_string);
+                    return FALSE;
+                }
+
+                g_value_take_boxed (value, v_string);
             }
             else
             {
