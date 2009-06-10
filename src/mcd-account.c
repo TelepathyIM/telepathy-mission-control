@@ -1340,14 +1340,30 @@ mc_param_type (const TpConnectionManagerParam *param)
     {
     case DBUS_TYPE_STRING:
 	return G_TYPE_STRING;
+
     case DBUS_TYPE_INT16:
     case DBUS_TYPE_INT32:
 	return G_TYPE_INT;
+
     case DBUS_TYPE_UINT16:
     case DBUS_TYPE_UINT32:
 	return G_TYPE_UINT;
+
     case DBUS_TYPE_BOOLEAN:
 	return G_TYPE_BOOLEAN;
+
+    case DBUS_TYPE_DOUBLE:
+        return G_TYPE_DOUBLE;
+
+    case DBUS_TYPE_OBJECT_PATH:
+        return DBUS_TYPE_G_OBJECT_PATH;
+
+    case DBUS_TYPE_INT64:
+        return G_TYPE_INT64;
+
+    case DBUS_TYPE_UINT64:
+        return G_TYPE_UINT64;
+
     case DBUS_TYPE_ARRAY:
         if (param->dbus_signature[1] == DBUS_TYPE_STRING)
             return G_TYPE_STRV;
