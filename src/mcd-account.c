@@ -274,6 +274,7 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value)
 {
     McdAccountPrivate *priv = account->priv;
     gchar key[MAX_KEY_LENGTH];
+    gchar buf[21];  /* enough for '-' + the 19 digits of 2**63 + '\0' */
 
     g_snprintf (key, sizeof (key), "param-%s", name);
 
@@ -290,14 +291,18 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value)
 	g_key_file_set_string (priv->keyfile, priv->unique_name, key,
 			       g_value_get_string (value));
 	break;
+
     case G_TYPE_UINT:
-	g_key_file_set_integer (priv->keyfile, priv->unique_name, key,
-				g_value_get_uint (value));
-	break;
+        g_snprintf (buf, sizeof (buf), "%u", g_value_get_uint (value));
+        g_key_file_set_string (priv->keyfile, priv->unique_name, key,
+                               buf);
+        break;
+
     case G_TYPE_INT:
 	g_key_file_set_integer (priv->keyfile, priv->unique_name, key,
 				g_value_get_int (value));
 	break;
+
     case G_TYPE_BOOLEAN:
 	g_key_file_set_boolean (priv->keyfile, priv->unique_name, key,
 				g_value_get_boolean (value));
