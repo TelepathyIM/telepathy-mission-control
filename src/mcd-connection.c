@@ -956,8 +956,7 @@ static void proxy_destroyed (TpConnection *tp_conn, guint domain, gint code,
     _mcd_connection_release_tp_connection (connection);
 
     if (priv->abort_reason == TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED ||
-        priv->abort_reason == TP_CONNECTION_STATUS_REASON_NETWORK_ERROR ||
-        priv->abort_reason == TP_CONNECTION_STATUS_REASON_NAME_IN_USE)
+        priv->abort_reason == TP_CONNECTION_STATUS_REASON_NETWORK_ERROR)
     {
         /* we were disconnected by a network error or by a connection manager
          * crash (in the latter case, we get NoneSpecified as a reason): don't
