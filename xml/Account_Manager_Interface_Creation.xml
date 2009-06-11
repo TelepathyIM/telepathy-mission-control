@@ -24,7 +24,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</
 
     </tp:docstring>
 
-    <method name="CreateAccount">
+    <method name="CreateAccount"
+      tp:name-for-bindings="Create_Account">
       <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
         <p>Request the creation of a new account, and sets the given properties on it.</p>
 

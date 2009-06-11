@@ -242,6 +242,7 @@ mc_account_class_init (McAccountClass *klass)
     _mc_ext_register_dbus_glib_marshallers ();
 
     proxy_class->interface = MC_IFACE_QUARK_ACCOUNT;
+    tp_proxy_init_known_interfaces ();
     tp_proxy_or_subclass_hook_on_interface_add (type, mc_cli_account_add_signals);
 
     tp_proxy_subclass_add_error_mapping (type, TP_ERROR_PREFIX, TP_ERRORS,

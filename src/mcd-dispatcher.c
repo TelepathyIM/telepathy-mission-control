@@ -2701,6 +2701,7 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
     object_class->finalize = _mcd_dispatcher_finalize;
     object_class->dispose = _mcd_dispatcher_dispose;
 
+    tp_proxy_init_known_interfaces ();
     tp_proxy_or_subclass_hook_on_interface_add
         (TP_TYPE_PROXY, mc_cli_client_add_signals);
 

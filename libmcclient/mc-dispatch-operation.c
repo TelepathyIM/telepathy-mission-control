@@ -301,6 +301,7 @@ mc_dispatch_operation_class_init (McDispatchOperationClass *klass)
     _mc_ext_register_dbus_glib_marshallers ();
 
     proxy_class->interface = MC_IFACE_QUARK_CHANNEL_DISPATCH_OPERATION;
+    tp_proxy_init_known_interfaces ();
     tp_proxy_or_subclass_hook_on_interface_add (type, mc_cli_dispatch_operation_add_signals);
 
     tp_proxy_subclass_add_error_mapping (type, TP_ERROR_PREFIX, TP_ERRORS,

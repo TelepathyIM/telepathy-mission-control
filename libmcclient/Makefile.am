@@ -181,6 +181,7 @@ _gen/cli-%-body.h _gen/cli-%.h: _gen/%.xml \
 	$(PYTHON) $(tools_dir)/glib-client-gen.py \
 		--group=`echo $* | tr x- x_` \
 		--iface-quark-prefix=MC_IFACE_QUARK \
+		--tp-proxy-api=0.7.6 \
 		$< Mc_Cli _gen/cli-$*
 
 _gen/svc-%.c _gen/svc-%.h: _gen/%.xml \

@@ -7,8 +7,8 @@
       (1970-01-01T00:00:00Z)</tp:docstring>
   </tp:simple-type>
 
-  <tp:simple-type name="Unix_Timestamp64" type="t">
-    <tp:docstring>An unsigned 64-bit integer representing time as the number
+  <tp:simple-type name="Unix_Timestamp64" type="x">
+    <tp:docstring>A signed 64-bit integer representing time as the number
       of seconds elapsed since the Unix epoch
       (1970-01-01T00:00:00Z)</tp:docstring>
 
