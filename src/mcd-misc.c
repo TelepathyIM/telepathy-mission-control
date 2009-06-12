@@ -413,6 +413,8 @@ _mcd_file_set_contents (const gchar *filename, const gchar *contents,
     gchar *tmp_filename;
     gboolean retval;
     GError *rename_error = NULL;
+    gchar *old_contents = NULL;
+    gsize old_length = 0;
 
     g_return_val_if_fail (filename != NULL, FALSE);
     g_return_val_if_fail (error == NULL || *error == NULL, FALSE);
@@ -421,6 +423,22 @@ _mcd_file_set_contents (const gchar *filename, const gchar *contents,
 
     if (length == -1)
         length = strlen (contents);
+
+    /* no real error handling needed here - if g_file_get_contents fails
+     * (probably because the file doesn't exist), then old_contents remains
+     * NULL, and we do want to rewrite the file */
+    if (g_file_get_contents (filename, &old_contents, &old_length, NULL))
+    {
+        gboolean unchanged = (((gsize) length) == old_length &&
+                              memcmp (contents, old_contents, length) == 0);
+
+        g_free (old_contents);
+
+        if (unchanged)
+        {
+            return TRUE;
+        }
+    }
 
     tmp_filename = write_to_temp_file (contents, length, filename, error);
 
