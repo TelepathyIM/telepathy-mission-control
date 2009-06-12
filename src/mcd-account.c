@@ -207,14 +207,52 @@ value_is_same (const GValue *val1, const GValue *val2)
     case G_TYPE_UINT:
     case G_TYPE_BOOLEAN:
         return val1->data[0].v_uint == val2->data[0].v_uint;
+
     case G_TYPE_INT64:
         return g_value_get_int64 (val1) == g_value_get_int64 (val2);
     case G_TYPE_UINT64:
         return g_value_get_uint64 (val1) == g_value_get_uint64 (val2);
+
+    case G_TYPE_DOUBLE:
+        return g_value_get_double (val1) == g_value_get_double (val2);
+
     default:
-        g_warning ("%s: unexpected type %s",
-                   G_STRFUNC, G_VALUE_TYPE_NAME (val1));
-        return FALSE;
+        if (G_VALUE_TYPE (val1) == DBUS_TYPE_G_OBJECT_PATH)
+        {
+            return !tp_strdiff (g_value_get_boxed (val1),
+                                g_value_get_boxed (val2));
+        }
+        else if (G_VALUE_TYPE (val1) == G_TYPE_STRV)
+        {
+            gchar **left = g_value_get_boxed (val1);
+            gchar **right = g_value_get_boxed (val2);
+
+            if (left == NULL || right == NULL ||
+                *left == NULL || *right == NULL)
+            {
+                return ((left == NULL || *left == NULL) &&
+                        (right == NULL || *right == NULL));
+            }
+
+            while (*left != NULL || *right != NULL)
+            {
+                if (tp_strdiff (*left, *right))
+                {
+                    return FALSE;
+                }
+
+                left++;
+                right++;
+            }
+
+            return TRUE;
+        }
+        else
+        {
+            g_warning ("%s: unexpected type %s",
+                       G_STRFUNC, G_VALUE_TYPE_NAME (val1));
+            return FALSE;
+        }
     }
 }
 
@@ -236,6 +274,7 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value)
 {
     McdAccountPrivate *priv = account->priv;
     gchar key[MAX_KEY_LENGTH];
+    gchar buf[21];  /* enough for '-' + the 19 digits of 2**63 + '\0' */
 
     g_snprintf (key, sizeof (key), "param-%s", name);
 
@@ -252,28 +291,67 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value)
 	g_key_file_set_string (priv->keyfile, priv->unique_name, key,
 			       g_value_get_string (value));
 	break;
+
     case G_TYPE_UINT:
-	g_key_file_set_integer (priv->keyfile, priv->unique_name, key,
-				g_value_get_uint (value));
-	break;
+        g_snprintf (buf, sizeof (buf), "%u", g_value_get_uint (value));
+        g_key_file_set_string (priv->keyfile, priv->unique_name, key,
+                               buf);
+        break;
+
     case G_TYPE_INT:
 	g_key_file_set_integer (priv->keyfile, priv->unique_name, key,
 				g_value_get_int (value));
 	break;
+
     case G_TYPE_BOOLEAN:
 	g_key_file_set_boolean (priv->keyfile, priv->unique_name, key,
 				g_value_get_boolean (value));
 	break;
+
+    case G_TYPE_UCHAR:
+        g_key_file_set_integer (priv->keyfile, priv->unique_name, key,
+                                g_value_get_uchar (value));
+        break;
+
+    case G_TYPE_UINT64:
+        g_snprintf (buf, sizeof (buf), "%" G_GUINT64_FORMAT,
+                    g_value_get_uint64 (value));
+        g_key_file_set_string (priv->keyfile, priv->unique_name, key,
+                               buf);
+        break;
+
+    case G_TYPE_INT64:
+        g_snprintf (buf, sizeof (buf), "%" G_GINT64_FORMAT,
+                    g_value_get_int64 (value));
+        g_key_file_set_string (priv->keyfile, priv->unique_name, key,
+                               buf);
+        break;
+
+    case G_TYPE_DOUBLE:
+        g_key_file_set_double (priv->keyfile, priv->unique_name, key,
+                               g_value_get_double (value));
+        break;
+
     default:
         if (G_VALUE_HOLDS (value, G_TYPE_STRV))
         {
             gchar **strings = g_value_get_boxed (value);
+
             g_key_file_set_string_list (priv->keyfile, priv->unique_name, key,
                                         (const gchar **)strings,
                                         g_strv_length (strings));
-            break;
         }
-	g_warning ("Unexpected param type %s", G_VALUE_TYPE_NAME (value));
+        else if (G_VALUE_HOLDS (value, DBUS_TYPE_G_OBJECT_PATH))
+        {
+            const gchar *path = g_value_get_boxed (value);
+
+            g_key_file_set_string (priv->keyfile, priv->unique_name, key,
+                                   path);
+        }
+        else
+        {
+            g_warning ("Unexpected param type %s", G_VALUE_TYPE_NAME (value));
+        }
     }
 }
 
@@ -289,9 +367,11 @@ get_parameter (McdAccount *account, const gchar *name, GValue *value)
 
     if (value)
     {
-        gchar *v_string = NULL, **v_strings;
-        gint v_int = 0;
+        gchar *v_string = NULL;
+        gint64 v_int = 0;
+        guint64 v_uint = 0;
         gboolean v_bool = FALSE;
+        double v_double = 0.0;
 
         switch (G_VALUE_TYPE (value))
         {
@@ -300,48 +380,90 @@ get_parameter (McdAccount *account, const gchar *name, GValue *value)
                                               key, NULL);
             g_value_take_string (value, v_string);
             break;
+
         case G_TYPE_INT:
             v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
                                             key, NULL);
             g_value_set_int (value, v_int);
             break;
+
         case G_TYPE_INT64:
-            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
-                                            key, NULL);
+            v_int = tp_g_key_file_get_int64 (priv->keyfile, priv->unique_name,
+                                             key, NULL);
             g_value_set_int64 (value, v_int);
             break;
+
         case G_TYPE_UCHAR:
             v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
                                             key, NULL);
+
+            if (v_int < 0 || v_int > 0xFF)
+            {
+                return FALSE;
+            }
+
             g_value_set_uchar (value, v_int);
             break;
+
         case G_TYPE_UINT:
-            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
-                                            key, NULL);
-            g_value_set_uint (value, v_int);
+            v_uint = tp_g_key_file_get_uint64 (priv->keyfile,
+                                               priv->unique_name, key, NULL);
+
+            if (v_uint > 0xFFFFFFFFU)
+            {
+                return FALSE;
+            }
+
+            g_value_set_uint (value, v_uint);
             break;
+
         case G_TYPE_UINT64:
-            v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
-                                            key, NULL);
-            g_value_set_uint64 (value, v_int);
+            v_uint = tp_g_key_file_get_uint64 (priv->keyfile,
+                                               priv->unique_name, key, NULL);
+            g_value_set_uint64 (value, v_uint);
             break;
+
         case G_TYPE_BOOLEAN:
             v_bool = g_key_file_get_boolean (priv->keyfile, priv->unique_name,
                                              key, NULL);
             g_value_set_boolean (value, v_bool);
             break;
+
+        case G_TYPE_DOUBLE:
+            v_double = g_key_file_get_double (priv->keyfile, priv->unique_name,
+                                             key, NULL);
+            g_value_set_double (value, v_double);
+            break;
+
         default:
             if (G_VALUE_HOLDS (value, G_TYPE_STRV))
             {
-                v_strings = g_key_file_get_string_list (priv->keyfile,
+                gchar **v = g_key_file_get_string_list (priv->keyfile,
                                                         priv->unique_name, key,
                                                         NULL, NULL);
-                g_value_take_boxed (value, v_strings);
-                break;
+
+                g_value_take_boxed (value, v);
             }
-            g_warning ("%s: skipping parameter %s, unknown type %s", G_STRFUNC,
-                       name, G_VALUE_TYPE_NAME (value));
-            return FALSE;
+            else if (G_VALUE_HOLDS (value, DBUS_TYPE_G_OBJECT_PATH))
+            {
+                v_string = g_key_file_get_string (priv->keyfile,
+                                                  priv->unique_name, key,
+                                                  NULL);
+
+                if (!tp_dbus_check_valid_object_path (v_string, NULL))
+                {
+                    g_free (v_string);
+                    return FALSE;
+                }
+
+                g_value_take_boxed (value, v_string);
+            }
+            else
+            {
+                g_warning ("%s: skipping parameter %s, unknown type %s",
+                           G_STRFUNC, name, G_VALUE_TYPE_NAME (value));
+                return FALSE;
+            }
         }
     }
 
@@ -868,18 +990,13 @@ get_avatar (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     McdAccount *account = MCD_ACCOUNT (self);
     gchar *mime_type;
     GArray *avatar = NULL;
-    GType type;
+    GType type = MC_STRUCT_TYPE_AVATAR;
     GValueArray *va;
 
     _mcd_account_get_avatar (account, &avatar, &mime_type);
     if (!avatar)
         avatar = g_array_new (FALSE, FALSE, 1);
 
-    type = dbus_g_type_get_struct ("GValueArray",
-				   dbus_g_type_get_collection ("GArray",
-							       G_TYPE_UCHAR),
-				   G_TYPE_STRING,
-				   G_TYPE_INVALID);
     g_value_init (value, type);
     g_value_take_boxed (value, dbus_g_type_specialized_construct (type));
     va = (GValueArray *) g_value_get_boxed (value);
@@ -1218,14 +1335,30 @@ mc_param_type (const TpConnectionManagerParam *param)
     {
     case DBUS_TYPE_STRING:
 	return G_TYPE_STRING;
+
     case DBUS_TYPE_INT16:
     case DBUS_TYPE_INT32:
 	return G_TYPE_INT;
+
     case DBUS_TYPE_UINT16:
     case DBUS_TYPE_UINT32:
 	return G_TYPE_UINT;
+
     case DBUS_TYPE_BOOLEAN:
 	return G_TYPE_BOOLEAN;
+
+    case DBUS_TYPE_DOUBLE:
+        return G_TYPE_DOUBLE;
+
+    case DBUS_TYPE_OBJECT_PATH:
+        return DBUS_TYPE_G_OBJECT_PATH;
+
+    case DBUS_TYPE_INT64:
+        return G_TYPE_INT64;
+
+    case DBUS_TYPE_UINT64:
+        return G_TYPE_UINT64;
+
     case DBUS_TYPE_ARRAY:
         if (param->dbus_signature[1] == DBUS_TYPE_STRING)
             return G_TYPE_STRV;

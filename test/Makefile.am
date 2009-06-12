@@ -7,4 +7,12 @@ if HAVE_TESTS
 
 SUBDIRS = twisted
 
+noinst_PROGRAMS = \
+    test-value-is-same
+
+TESTS = $(noinst_PROGRAMS)
+
+test_value_is_same_SOURCES = value-is-same.c
+test_value_is_same_LDADD = $(top_builddir)/src/libmissioncontrol-server.la
+
 endif
