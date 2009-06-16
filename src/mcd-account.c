@@ -2866,6 +2866,7 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
     else
     {
         priv->conn_status = TP_CONNECTION_STATUS_DISCONNECTED;
+        priv->transport = NULL;
     }
 }
 
