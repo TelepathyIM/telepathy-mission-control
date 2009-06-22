@@ -50,7 +50,7 @@ mc_gen_headers = \
 	_gen/svc-dispatch-operation.h \
 	_gen/svc-request.h
 
-nodist_libmissioncontrol_server_la_SOURCES = \
+nodist_libmcd_convenience_la_SOURCES = \
 	_gen/cli-client-body.h \
 	_gen/cli-Connection_Interface_Contact_Capabilities-body.h \
 	_gen/gtypes-body.h \
@@ -80,21 +80,28 @@ BUILT_SOURCES = \
 	mcd-enum-types.c \
 	mcd-enum-types.h \
 	stamp-mcd-enum-types.h \
-	$(nodist_libmissioncontrol_server_la_SOURCES) \
+	$(nodist_libmcd_convenience_la_SOURCES) \
 	$(mc_gen_headers)
  
 CLEANFILES = $(BUILT_SOURCES)
 
-libmissioncontrol_server_la_LIBADD = \
+libmcd_convenience_la_LIBADD = \
 	$(top_builddir)/libmcclient/libmcclient.la \
 	$(GCONF_LIBS) \
 	$(TELEPATHY_LIBS) \
 	$(DBUS_LIBS) \
 	$(GLIB_LIBS)
 
+noinst_LTLIBRARIES = libmcd-convenience.la
+
 if ENABLE_PLUGINS
+# When plugins are enabled, libmissioncontrol-server.la is a shared library
+# that wraps the convenience library
 lib_LTLIBRARIES = libmissioncontrol-server.la
-libmissioncontrol_server_la_LIBADD += $(GMODULE_LIBS)
+libmissioncontrol_server_la_SOURCES =
+libmissioncontrol_server_la_LIBADD = \
+	libmcd-convenience.la \
+	$(GMODULE_LIBS)
 
 libmissioncontrol_server_la_LDFLAGS = \
 	-export-symbols-regex '^((mc_)|(mcd_)|(mission_control_))'
@@ -116,11 +123,15 @@ nodist_geninclude_HEADERS = $(mc_gen_headers)
 INCLUDES += \
 	$(GMODULE_CFLAGS) \
 	-DMCD_DEFAULT_FILTER_PLUGIN_DIR=\"@pluginlibdir@\"
-else # ENABLE_PLUGINS
-noinst_LTLIBRARIES = libmissioncontrol-server.la
-endif # ENABLE_PLUGINS
+else # ! ENABLE_PLUGINS
+# When plugins are not enabled, libmissioncontrol-server.la is just a copy of
+# the convenience library
+noinst_LTLIBRARIES += libmissioncontrol-server.la
+libmissioncontrol_server_la_SOURCES =
+libmissioncontrol_server_la_LIBADD = $(builddir)/libmcd-convenience.la
+endif # ! ENABLE_PLUGINS
 
-libmissioncontrol_server_la_SOURCES = \
+libmcd_convenience_la_SOURCES = \
 	mcd-account.c \
 	mcd-account-compat.c \
 	mcd-account-conditions.c \
