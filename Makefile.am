@@ -18,3 +18,4 @@ endif
 DISTCHECK_CONFIGURE_FLAGS = --enable-gtk-doc
 
 include tools/lcov.am
+include tools/telepathy.am

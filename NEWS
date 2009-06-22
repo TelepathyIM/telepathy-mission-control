@@ -1,3 +1,36 @@
+telepathy-mission-control 5.1.2 (UNRELEASED)
+============================================
+
+...
+
+telepathy-mission-control 5.1.1 (2009-06-16)
+============================================
+
+The "Beautiful And Damned" release.
+
+Fixes:
+
+* fd.o #22169: allowed PreferredHandler to be empty when requesting a
+  channel (smcv)
+
+* Updated code generation from telepathy-glib and followed the recommendations
+  of telepathy-glib 0.7.6's NEWS, fixing some possible assertion
+  failures (smcv)
+
+* Ensured that AccountValidityChanged will be emitted if an account is added
+  in an already-valid state (smcv)
+
+* fd.o #21377: added support for 64-bit integers, doubles and object paths as
+  CM parameters, did some work towards supporting bytes as CM parameters,
+  and fixed serialization of large 32-bit unsigned integers and
+  deserialization of integers of large magnitude (smcv)
+
+* fd.o #21299: prevented automatic reconnection after Name_In_Use error (smcv)
+
+* fd.o #22201: avoided rewriting accounts.cfg if nothing changed (smcv)
+
+* Ensured that the transport was reset when a Connection disconnected (mardy)
+
 telepathy-mission-control 5.1.0 (2009-06-05)
 ============================================
 

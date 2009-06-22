@@ -1,0 +1,4557 @@
+For changes since 4.1.7 see also `git log`.
+In distributed tarballs, the placeholder ChangeLog is replaced by the git log.
+
+Changelog till 2008-09-16:
+
+=== telepathy-mission-control 5.0.beta32 ===
+
+2008-09-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-manager.c:
+	Don't call any methods on the McdManager if construction fails;
+	instead, call them from the constructor.
+
+=== telepathy-mission-control 5.0.beta31 ===
+
+2008-09-05  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-account.[hc], src/mcd-connection.c:
+	Emit the PropertiesChanged signal when the Telepathy connection is
+	created and destroyed.
+
+=== telepathy-mission-control 5.0.beta30 ===
+
+2008-09-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-manager.c:
+	Make the constructor return a NULL object if the manager file is not
+	found.
+
+=== telepathy-mission-control 5.0.beta29 ===
+
+2008-08-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Cancel the _call_when_ready() callback if che connection object is
+	deleted.
+
+	* src/mcd-master.c:
+	Change the order in which objects are instantiated, so that
+	McdDispatcher is available when McdManagers need it.
+
+=== telepathy-mission-control 5.0.beta28 ===
+
+2008-08-26  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-account-manager.[hc], src/mcd-master.c, src/mcd-service.c:
+	Allow the McdAccountManager to be subclassed; rework the
+	initialization process of some objects to make it more sane.
+
+	* src/mcd-dbusprop.c:
+	Make derived objects work.
+
+2008-08-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* xml/Account_Interface_Conditions.xml:
+	Add missing tp:type to specifications.
+
+=== telepathy-mission-control 5.0.beta27 ===
+
+2008-08-22  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* xml/Account_Interface_Avatar.xml, xml/Makefile.am,
+	xml/MissionControl.xml, xml/all.xml:
+	Add missing struct types.
+
+	* src/mcd-channel.c:
+	Cancel the _call_when_ready() callback if che channel object is
+	deleted.
+
+	* src/mcd-account.c:
+	As per the specs, return the connection bus name, and not its object
+	path.
+
+2008-08-21  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-account-compat.c:
+	Add a return statement on an error condition.
+
+=== telepathy-mission-control 5.0.beta26 ===
+
+2008-08-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-service.c:
+	Remove mission_control_error_quark(), and wonder why it was there.
+
+	* configure.ac:
+	Remove -Wextra, it breaks the build unless some -Wno-* are options are
+	available too.
+
+	* libmissioncontrol/test.c:
+	Remove unused functions.
+
+2008-08-13  Simon McVittie  <simon.mcvittie@collabora.co.uk>
+
+	* autogen.sh, configure.ac, debian/control, debian/rules:
+	Use and require automake 1.9 and tar-ustar, to make distributable
+	tarballs without missing files (mostly copied from telepathy-glib)
+
+	* various:
+	Add some more svn:ignore patterns
+
+	* autogen.sh: Enable gtk-doc by default
+
+	* src/Makefile.am:
+	Avoid exporting internal symbols
+
+	* libmcclient/Makefile.am, libmissioncontrol/Makefile.am,
+	src/Makefile.am:
+	Quote libtool c:r:a arguments so they don't look like errors to vim
+
+	* Makefile.am, configure.ac, m4/Makefile.am (added),
+	m4/as-compiler-flag.m4 (added, copied from autostars via
+	telepathy-glib):
+	Enable more warnings (the recommended warnings from telepathy-glib)
+	and make them actually take effect
+
+	* various:
+	Fix declarations with unspecified arguments (foo ()) so they correctly
+	have no arguments (foo (void))
+
+	* various:
+	Make functions static if they are internal to a translation unit
+
+	* src/Makefile.am, libmissioncontrol/Makefile.am,
+	libmcclient/Makefile.am:
+	Give generated marshallers proper definitions
+
+	* src/mcd-account-conditions.c, util/mc-account-convert.c:
+	Use g_snprintf (snprintf is C99 and so requires a feature-test macro)
+
+	* various:
+	Use guint rather than gint when iterating over a GArray, GPtrArray,
+	etc. (fixing signed/unsigned comparison warnings)
+
+	* src/mcd-manager.c:
+	Order #includes according to Telepathy coding style
+
+	* src/mcd-account-manager-query.c:
+	Remove unused internal code
+
+	* src/mcd-manager.c:
+	Use feature test macro _POSIX_C_SOURCE to declare that we expect a
+	POSIX environment, so we can use strtok_r
+
+	* various:
+	Stop using C99/C++-style local variable declarations
+
+	* util/mc-account-convert.c, libmissioncontrol/mc-protocol.c:
+	Don't shadow a local variable with a more narrowly scoped local of the
+	same name
+
+	* examples/mc-example.c, test/mc-client.c, configure.ac,
+	examples/Makefile.am, test/Makefile.am:
+	Build (but do not install) example and test by default, and fix them
+	so they actually compile
+
+	* test/Makefile.am:
+	Fix out-of-tree builds
+
+	* src/Makefile.am, src/mcd-*.c:
+	Rename signals marshallers to _mcd_* so they're not in the library
+	ABI, and use g_cclosure_* where possible rather than duplicating them
+
+	* src/mcd-service.c:
+	Fix the marshaller for McdService::presence-requested to match the
+	signal's arguments
+
+	* configure.ac, src/Makefile.am, libmissioncontrol/Makefile.am:
+	Check for GModule, and explicitly depend on it in the libraries that
+	use it
+
+	* libmcclient/Makefile.am:
+	Don't add a useless dependency on gconf
+
+	* libmcclient.pc.in, libmissioncontrol.pc.in:
+	Remove dependencies' CFLAGS and LIBS from the Libs, Cflags lines -
+	the Requires line will already provide those - and add
+	Requires.private for various missing dependencies
+
+	* various:
+	Avoid warnings when implementing deprecated functions
+
+	* various:
+	Remove all C++-style // comments, they don't work in -ansi mode
+
+	* libmissioncontrol/mc-account-manager-proxy.c:
+	Fix inclusion of generated implementations
+
+	* libmcclient/Makefile.am, libmissioncontrol/Makefile.am,
+	src/Makefile.am, configure.ac:
+	Use gmodule-no-export-2.0 and remove -export-dynamic from libraries'
+	linker flags - libraries export selected dynamic symbols anyway, and
+	-export-dynamic exports *all* symbols, defeating -export-symbols-regex
+
+=== telepathy-mission-control 5.0.beta25 ===
+
+2008-07-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/mc-profile.[hc]:
+	Add a mc_profile_get_filename() function, to retrive the pathname of
+	the .profile file. Applications can therefore parse the profiles
+	themselves, and look for application specific data.
+
+=== telepathy-mission-control 5.0.beta24 ===
+
+2008-07-21  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/mc-account.c:
+	Allow the various *_get_presence() methods to pass NULL for those
+	fields the caller is not interested in.
+
+	* libmcclient/mc-account-manager.c:
+	Free the Manager properties on finalization, that were being leaked.
+
+=== telepathy-mission-control 5.0.beta23 ===
+
+2008-07-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/mc-account-conditions.c, libmcclient/mc-account.[hc]:
+	Remove the const modifier when returning a GHashTable, since all GLib
+	functions would require a cast to use it.
+
+	* libmcclient/mc-account-conditions.c, libmcclient/mc-account.h:
+	Rename mc_account_set_conditions() to mc_account_conditions_set(), as
+	it should have been since the beginning.
+
+	* libmcclient/mc-account-compat.c,
+	libmcclient/mc-account-conditions.c:
+	Add missing documentation.
+
+	* src/mcd-connection.c:
+	Don't automatically attempt reconnecting after a connection error.
+	Instead, unset the requested presence so that it can be set again.
+
+=== telepathy-mission-control 5.0.beta22 ===
+
+2008-07-09  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* doc/reference/libmcclient/libmcclient-sections.txt,
+	doc/reference/libmcclient/tmpl/mc-account.sgml,
+	libmcclient/mc-account-avatar.c, libmcclient/mc-account-compat.c,
+	libmcclient/mc-account-conditions.c, libmcclient/mc-account-priv.h,
+	libmcclient/mc-account.[hc]:
+	Add mc_account_call_when_iface_ready() and
+	mc_account_call_when_all_ready().
+
+	* libmcclient/dbus-api.[hc]:
+	Add an internal API to let a single callback be invoked when a set of
+	interfaces are ready.
+
+	* libmcclient/dbus-api.[hc]:
+	When monitoring an interface, allow the interface to be specified by a
+	GQuark, rather than have a separate API for each one.
+
+2008-07-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/dbus-api.[hc]:
+	Add code to allow the call_when_ready family of function to be
+	cancelled when a weakly-referenced GObject is destroyed.
+
+=== telepathy-mission-control 5.0.beta21 ===
+
+2008-07-07  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac, libmissioncontrol/Makefile.am:
+	libmissioncontrol is the only module depending on libtelepathy.
+
+=== telepathy-mission-control 5.0.beta20 ===
+
+2008-07-07  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient.pc.in:
+	Add telepathy-glib compilation flags and libraries.
+
+=== telepathy-mission-control 5.0.beta19 ===
+
+2008-07-04  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-master.[hc], src/mcd-service.c:
+	Implement mcd_service_get_connection().
+
+2008-07-01  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/mc-account.[hc]:
+	Remove mc_account_set_current_presence(), which should have never been
+	existed as the property is read-only.
+
+=== telepathy-mission-control 5.0.beta18 ===
+
+2008-07-01  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* doc/reference/libmcclient/Makefile.am:
+	Implemented a workaround for gtkdoc to recognize the DBus specialized
+	types. McAccount signal documentation is now generated.
+
+	* doc/reference/libmcclient/libmcclient.types:
+	Re-enable signal documentation for McAccount; it doesn't work, but
+	it's not the reason why the build was failing.
+
+=== telepathy-mission-control 5.0.beta17 ===
+
+2008-06-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* doc/reference/libmcclient/libmcclient.types:
+	Disable generation of McAccount signal documentation as it breaks the
+	build for yet unknown reasons.
+
+	* libmcclient/mc-account.[hc]:
+	Add documentation for the base interface of McAccount.
+
+=== telepathy-mission-control 5.0.beta16 ===
+
+2008-06-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac, doc/reference/Makefile.am,
+	doc/reference/libmcclient/*, tools/Makefile.am,
+	tools/doc-generator.xsl, tools/glib-client-gen.py,
+	tools/libglibcodegen.py, tools/libtpcodegen.py, xml/Makefile.am,
+	xml/all.xml, xml/generic-types.xml:
+	Build documentation for libmcclient.
+
+	* src/mcd-account-compat.c, xml/Account_Interface_Compat.xml:
+	Implement the old channel request APIs in the Compat interface, so
+	that it's possible to request channels from libmcclient.
+
+	* src/mcd-connection.c:
+	When dealing with the channel type, use its GQuark rather than the
+	full string.
+
+2008-06-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Don't return the same channel when a second call is requested to the
+	same contact.
+
+=== telepathy-mission-control 5.0.beta15 ===
+
+2008-06-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/Makefile.am:
+	Ensure _gen/ directory is created before using it (fixes compilation).
+
+=== telepathy-mission-control 5.0.beta14 ===
+
+2008-06-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-remap.h:
+	Rename GTypes that were conflicting with libmcclient.
+
+2008-06-26  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/account-manager.xml, libmcclient/mc-account-manager.c:
+	Support the new interface in libmcclient.
+
+	* src/Makefile.am, src/mcd-account-manager-creation.[hc],
+	src/mcd-account-manager.[hc],
+	xml/Account_Manager_Interface_Creation.xml, xml/nmc5.xml:
+	Add a new BDus interface to the AccountManager to request the creation
+	of an account and atomic setting of properties.
+
+	* src/mcd-dbusprop.[hc]:
+	Add API to internally set a property.
+
+2008-06-24  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/mc-profile.[hc]:
+	Add mc_profile_get_default_setting().
+
+	* libmcclient/mc-account-compat.c, libmcclient/mc-account.h:
+	Add mc_account_compat_set_profile(), and rename
+	mc_account_set_secondary_vcard_fields() into the more consistent
+	mc_account_compat_set_secondary_vcard_fields().
+
+	* libmcclient/mc-profile.[hc]:
+	Add mc_profile_get_manager_name().
+
+	* libmcclient/mc-account-manager.c:
+	Emit a GObject signal when a new account is created.
+
+2008-06-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/Makefile.am, libmcclient/mc-account.h:
+	Move the mc-quark.[hc] files into _gen/.
+
+	* libmcclient/mc-account-avatar.c, libmcclient/mc-account-compat.c,
+	libmcclient/mc-account-conditions.c, libmcclient/mc-account.[hc]:
+	Add methods for setting Account properties.
+
+=== telepathy-mission-control 5.0.beta13 ===
+
+2008-06-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/Makefile.am, libmissioncontrol/*.h:
+	Rename symbols potentially conflicting with libmcclient: change the prefix
+	from `mc_' to `omc_'.
+
+2008-06-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* tools/glib-client-gen.py:
+	Remove generation of reentrant blocking calls.
+
+=== telepathy-mission-control 5.0.beta12 ===
+
+2008-06-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/mc-account-avatar.c, libmcclient/mc-account-compat.c,
+	libmcclient/mc-account-conditions.c, libmcclient/mc-account-manager.c,
+	libmcclient/mc-account.c:
+	Correct pointer casting so that no warning are emitted when GCC 4.2 is
+	used.
+
+	* src/Makefile.am:
+	Explicitly link to DBus libraries. Fixes: #1988768.
+
+=== telepathy-mission-control 5.0.beta11 ===
+
+2008-06-17  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* examples/mc-example.c:
+	Update example to make use of new MC APIs.
+
+	* libmcclient/mc-account-manager.[hc],
+	libmcclient/mc-signals-marshal.list:
+	Implement getting/monitoring of AccountManager properties.
+
+	* libmcclient/mc-account-avatar.c, libmcclient/mc-account-priv.h,
+	libmcclient/mc-account.c, libmcclient/mc-signals-marshal.list:
+	Watch for properties changes in the Avatar interface.
+
+2008-06-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/Makefile.am, libmcclient/mc-account-priv.h,
+	libmcclient/mc-account.[hc], libmcclient/mc-quark.list,
+	libmcclient/mc-signals-marshal.list, tools/gquark-gen.py:
+	Watch for properties changes in the Account interface, and emit proper
+	signal.
+	Added a script to generate GQuark function helpers from a text file.
+
+2008-06-13  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/dbus-api.[hc], libmcclient/mc-account-avatar.c,
+	libmcclient/mc-account-compat.c, libmcclient/mc-account-conditions.c,
+	libmcclient/mc-account-priv.h, libmcclient/mc-account.c:
+	Make interface properties code more generic so that it can be used for
+	any TpProxy object.
+
+2008-06-12  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/Makefile.am, libmcclient/mc-account-conditions.c,
+	libmcclient/mc-account-priv.h, libmcclient/mc-account.[hc]:
+	Add Conditions interface.
+
+2008-06-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/Makefile.am, libmcclient/mc-account-compat.c,
+	libmcclient/mc-account-priv.h, libmcclient/mc-account.[hc]:
+	Add Compat interface.
+
+	* libmcclient/Makefile.am, libmcclient/mc-account-avatar.c,
+	libmcclient/mc-account-priv.h, libmcclient/mc-account.[hc]:
+	Add getters for all the Account properties.
+	Refactor the code to easy plugging in interfaces.
+	Add Avatar interface.
+
+2008-06-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/mc-account.[hc]:
+	Add code to retrieve the basic Account properties.
+
+=== telepathy-mission-control 5.0.beta10 ===
+
+2008-06-03  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c, src/mcd-manager.[hc], src/mcd-master.c:
+	Remove some unused code.
+
+2008-06-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-account.c, src/mcd-connection.[hc]:
+	Properly change Nickname on the connection, when it's changed on the
+	account.
+	Remove an unused function and optimize some code.
+
+2008-05-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Rewrite mapping of TpErrors to McErrors, fixing a crash.
+
+2008-05-29  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c, src/mcd-connection.c:
+	Use the new tp_XXX_call_when_ready() APIs.
+
+	* examples/mc-example.c:
+	Update example program.
+
+	* libmcclient/Makefile.am, libmcclient/mc-profile.[hc]:
+	Add McProfile APIs to access profiles.
+
+2008-05-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/Makefile.am, libmcclient/mc-errors.[hc], src/*:
+	Make libmissioncontrol-server not depend on libmissioncontrol-client
+	(dpend on libmcclient, instead).
+
+=== telepathy-mission-control 5.0.beta9 ===
+
+2008-05-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* Makefile.am, configure.ac, util/Makefile.am,
+	util/mc-account-convert.c:
+	Add account conversion tool from accounts created with MC < 5.0.
+
+	* src/mcd-presence-frame.c:
+	Remove references to accounts when they are deleted.
+
+	* libmcclient/dbus-api.h, libmcclient/mc-account-manager.c,
+	libmcclient/mc-account.[hc]:
+	Register signal marshallers, and avoid using the name ``unique_name''
+	inside the library, as it has a special meaning in DBus terminology.
+
+2008-05-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/account.xml, libmcclient/mc-account.c,
+	libmissioncontrol/Makefile.am,
+	libmissioncontrol/mc-account-proxy.[hc],
+	libmissioncontrol/mc-account.c, src/Makefile.am, src/mcd-account.[hc],
+	src/mcd-connection.c, xml/Account.xml,
+	xml/Account_Interface_Avatar.xml, xml/Makefile.am, xml/nmc5.xml:
+	Move the Avatar property into a separate interface; add it to
+	libmcclient and modify libmissioncontrol to continue to work properly.
+
+2008-05-20  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-account-manager.c, src/mcd-account.c, src/mcd-dbusprop.[hc]:
+	Automatically compute the value of the ``Interfaces'' DBus property.
+
+2008-05-19  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/Makefile.am, libmcclient/account-manager.xml,
+	libmcclient/account.xml, libmcclient/mc-account-manager.[hc],
+	libmcclient/mc-account.[hc]:
+	Rewrite generation of code so that interfaces are correctly
+	implemented.
+
+	* tools/libglibcodegen.py:
+	Fix demarshalling of DBus type "ao".
+
+	* libmcclient/Makefile.am:
+	Add support for all known interfaces.
+
+	* libmcclient/mc-account.c:
+	Move the post-initialization code inside the constructor.
+
+	* libmcclient/mc-account.[hc]:
+	Remove the property retrival/monitoring code: the same functionality
+	will be implemented in telepathy-glib.
+
+2008-05-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmcclient/mc-account.[hc]:
+	Add a few APIs for retrieving DBus properties.
+
+2008-05-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* Makefile.am, configure.ac, examples/Makefile.am,
+	examples/mc-example.c:
+	Add a directory for examples.
+
+	* libmcclient/dbus-api.h, libmcclient/mc-account-manager.c,
+	libmcclient/mc-account.[hc]:
+	Fix creation of TpProxies.
+
+=== telepathy-mission-control 5.0.beta8 ===
+
+2008-05-13  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* doc/reference/libmissioncontrol-server/tmpl/mcd-dispatcher.sgml,
+	src/Makefile.am, src/mcd-account-config.h,
+	src/mcd-account-connection.[hc], src/mcd-account-manager-query.c,
+	src/mcd-account-manager.c, src/mcd-account-priv.h, src/mcd-account.c,
+	src/mcd-connection-plugin.h, src/mcd-connection.[hc],
+	src/mcd-manager.c, src/mcd-master.[hc], src/mcd-plugin.h:
+	Add support for account connection plugins.
+
+2008-05-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-account-conditions.[hc], src/mcd-master.c:
+	When a transport gets connected, check account conditions and connect
+	the account if they are satisfied.
+
+2008-04-29  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/Makefile.am, src/mcd-master.c, src/mcd-plugin.h,
+	src/mcd-signals-marshal.list, src/mcd-transport.[hc]:
+	Implement McdTransportPlugin interface.
+
+	* src/Makefile.am, src/mcd-dispatcher-context.h, src/mcd-dispatcher.c,
+	src/mcd-master.c, src/mcd-plugin.h:
+	Move plugin loading mechanism into McdMaster and make it generic for
+	more types of plugins.
+
+2008-04-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-account-manager-query.c:
+	Use tp_strdiff() to avoid crashes when one of the strings is NULL.
+
+=== telepathy-mission-control 5.0.beta7 ===
+
+2008-04-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-service.c:
+	Implement two hacks to make the presence signal behave as they did in
+	MC4.
+
+	* src/mcd-manager.c:
+	Use the actual-status signal instead of the removed presence-stable.
+
+=== telepathy-mission-control 5.0.beta6 ===
+
+2008-04-15  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account.c:
+	Fix a bug with display name clearing in the previous release.
+
+=== telepathy-mission-control 5.0.beta5 ===
+
+2008-04-15  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account.c:
+	If the display name is set to an empty string, consider it NULL.
+
+	* src/mcd-presence-frame.c, src/mcd-service.c:
+	Properly report presence and status signals.
+
+2008-04-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-account.c:
+	Prevent disabled accounts from going online.
+	When an account gets disabled, put it offline.
+
+=== telepathy-mission-control 5.0.beta4 ===
+
+2008-04-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account.c:
+	Have the McAccountMonitor emit the Enabled and Disabled signals as
+	appropriate.
+
+	* src/mcd-account-compat.[hc], src/mcd-account-conditions.[hc],
+	src/mcd-account-manager-query.[hc], src/mcd-account-manager.c,
+	src/mcd-account.c, src/mcd-dbusprop.[hc]:
+	Rewrite the interface registration mechanism. Implement the
+	''Interfaces'' property for the Account class.
+
+	* src/Makefile.am, src/mcd-account-conditions.[hc], src/mcd-account.c,
+	xml/Account_Interface_Conditions.xml, xml/Makefile.am, xml/nmc5.xml:
+	Implement the Account Conditions interface (set/get properties only,
+	no real functionality yet).
+
+=== telepathy-mission-control 5.0.beta3 ===
+
+2008-04-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-cli.c:
+	Don't require any parameters on account creation.
+
+	* src/mcd-account-manager-query.[hc],
+	xml/Account_Manager_Interface_Query.xml:
+	Implement the account query API.
+
+	* tools/libglibcodegen.py:
+	Make the "ao" DBus type map to a C GPtrArray.
+
+	* src/mcd-dbusprop.[hc]:
+	Implement a DBus independent function for getting interface
+	properties.
+
+=== telepathy-mission-control 5.0.beta2 ===
+
+2008-04-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-cli.c:
+	Fix the mc-account tool so that accounts can be created.
+
+	* libmissioncontrol/mc.c:
+	Mark the end of output arguments of the DBus call.
+
+=== telepathy-mission-control 5.0.beta1 ===
+
+2008-04-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-account-manager.c:
+	Create the account configuration file, if it does not exist.
+
+	* src/mcd-master.c:
+	Implement get_connection_names().
+
+2008-03-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c:
+	Don't try to close the channel, if the proxy is already invalidated.
+
+=== telepathy-mission-control 4.64 ===
+
+2008-03-12  Alberto Mardegan  <mardy@users.sourceforge.net>
+
+	* src/mcd-service.c:
+	Fix a crash when dispatching a channel to external filters.
+	Fixes: #1912653, bugs.freedesktop.org#14968.
+
+=== telepathy-mission-control 4.63 ===
+
+2008-03-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	Patch from Sjoerd <sjoerd.simons@collabora.co.uk>:
+	* src/mcd-channel.c:
+	Make the "on_close" function static, as it should always have been.
+	Fixes: #1910142.
+
+	* libmissioncontrol/Makefile.am:
+	Revert unnecessary version bump.
+
+	* src/mcd-account-manager.[hc]:
+	Register object with DBus.
+
+2008-03-07  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/Makefile.am, src/mcd-account-manager.h, src/mcd-account.h:
+	Implement server-side stubs.
+
+	* Makefile.am, configure.ac, libmcclient.pc.in, libmcclient/*,
+	libmissioncontrol/dbus-api.h, xml/Account.xml,
+	xml/Account_Manager.xml, xml/Makefile.am, xml/all.xml:
+	Add Account and AccountManager specifications, and implement stubs in
+	libmcclient.
+
+=== telepathy-mission-control 4.62 ===
+
+2008-03-06  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c:
+	Rewrite the loop break condition to avoid a warning.
+
+=== telepathy-mission-control 4.61 ===
+
+2008-03-04  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.[hc]:
+	Implement mcd_channel_get_inviter().
+
+2008-03-03  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac, libmissioncontrol/mission-control.[hc]:
+	Don't drop libtelepathy completely, but retain API/ABI compatibility.
+
+2008-02-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
+	* libmissioncontrol/mission-control.h:
+	Fix typo (outcoming -> outgoing). Fixes: #1903876.
+
+	* libmissioncontrol/mc-manager.[hc], src/mcd-channel.[hc],
+	src/mcd-connection.[hc], src/mcd-manager.c:
+	Migrate from libtelepathy to telepathy-glib.
+
+2008-02-18  Simon McVittie  <simon.mcvittie@collabora.co.uk>
+
+	* libmissioncontrol.pc.in: require newer libtelepathy, telepathy-glib
+
+	* libmissioncontrol/dbus-api.[ch], libmissioncontrol/mission-control.h:
+	move MissionControl D-Bus interface constants into a new shared header,
+	and auto-generate GTypes and enums from XML (in theory - currently
+	there are none)
+
+	* libmissioncontrol/cli-nmc4.[ch]: add McCliNMC4, a TpProxy subclass
+	representing the MC 4.x D-Bus API
+
+	* libmissioncontrol/svc-nmc4.[ch]: add McSvcNMC4, a GInterface
+	representing the MC 4.x D-Bus API
+
+	* libmissioncontrol/Makefile.am: auto-generate stuff for McCliNMC4,
+	McSvcNMC4 and dbus-api.h
+
+	* xml/, doc/Makefile.am: move mcd-dbus-services.xml to nmc4.xml,
+	add all.xml (this is to fit in better with telepathy-glib code-gen)
+
+	* configure.ac: check for mkdir -p
+
+	* doc/reference/libmissioncontrol/Makefile.am: fix out-of-tree build
+	against generated headers
+
+	* doc/reference/libmissioncontrol-server/libmissioncontrol-server.types:
+	reconstruct missing file which broke distcheck
+
+	* Makefile.am: use --enable-gtk-doc when running distcheck
+
+2008-02-15  Simon McVittie  <simon.mcvittie@collabora.co.uk>
+
+	* tools/: update from telepathy-glib/telepathy-spec and pull in
+	a fairly complete set of code-gen tools (which will actually be used
+	in a follow-up patch)
+
+	* configure.ac: Check for Python (the code-gen tools use it).
+	Require telepathy-glib 0.7.1 and libtelepathy 0.3.2
+
+	* xml/MissionControl.xml: Use tp: namespace prefix in preparation for
+	extending use of telepathy-glib code generation tools
+
+=== telepathy-mission-control 4.60 ===
+
+2008-02-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Fix the comparison of pending channels (the condition on the channel
+	type was inverted).
+	Fixes: http://bugzilla.gnome.org/show_bug.cgi?id=511063
+
+=== telepathy-mission-control 4.59 ===
+
+2008-02-06  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-chan-handler.[hc], src/mcd-dispatcher.c:
+	Introduce a HandlerVersion parameter in the .chandler files, that
+	makes MC call a HandleChannel2 method on them; this provides a boolean
+	indicating the channel direction, and the same request_id as returned
+	by mission_control_request_channel().
+
+	* src/mcd-connection.c:
+	Don't update the avatar while we are setting it.
+
+	* libmissioncontrol/mission-control.[hc]:
+	Invoke the callback from an idle function, so that the clients can get
+	their request ID before the callback gets executed.
+
+2008-02-05  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-dispatcher.c:
+	Watch for every channel handler's lifetime, and not only for stream
+	channels.
+
+=== telepathy-mission-control 4.58 ===
+
+2008-01-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-profile.[hc]:
+	Introduce videp-p2p capability.
+	Add a DefaultAccountName setting.
+	Add a Priority setting.
+
+=== telepathy-mission-control 4.57 ===
+
+2008-01-24  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
+	* src/mcd-connection.c:
+	Use new API for requesting avatars.
+
+	* src/mcd-connection.c:
+	Avoid requesting the avatars interface more than once.
+
+2008-01-22  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-monitor.c:
+	If a GConf key is deleted, report its value as NULL.
+
+=== telepathy-mission-control 4.56 ===
+
+2008-01-17  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-presence-frame.c:
+	#include <telepathy-glib/util.h> to suppress a warning.
+
+=== telepathy-mission-control 4.55 ===
+
+2008-01-15  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	Patch from Simon McVittie <smcvittie@users.sourceforge.net>:
+	* configure.ac, server/Makefile.am:
+	Since recursive variable expansion is troublesome for configure.ac,
+	have the Makefile generate the DBus service file. Fixes: #1871127.
+
+=== telepathy-mission-control 4.54 ===
+
+2008-01-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* server/org.freedesktop.Telepathy.MissionControl.service.in:
+	Updated to find mission-control in @libexecdir@. Fixes: #1871127.
+
+=== telepathy-mission-control 4.53 ===
+
+2008-01-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
+	* src/mcd-presence-frame.c:
+	Emit presence signals when the status message is changed.
+	Fixes: #1864568.
+
+	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
+	* libmissioncontrol/mission-control-signals-marshal.list,
+	libmissioncontrol/mission-control.c:
+	Register the PresenceChanged and ActualPresenceChanged signals.
+	Fixes: 31862760.
+
+	* server/Makefile.am:
+	Move mission-control binary to $libexecdir. Fixes: #1827691.
+
+	Patch from Alban Crequy <albancrequy@users.sourceforge.net>:
+	* src/mcd-connection.c:
+	Duplicate the channel_type string, because the original one might be
+	freed while we are still using it. Fixes: #1849202.
+
+2008-01-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	If the server doesn't store the avatar, we must set it everytime we
+	connect. Fixes: #1825366.
+
+=== telepathy-mission-control 4.52 ===
+
+2007-12-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account.c:
+	Use a timestamp as avatar ID, instead of a random number (which is not
+	necessarily unique).
+
+2007-12-17  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account.c:
+	Don't leak avatar data on mc_account_set_avatar().
+
+=== telepathy-mission-control 4.51 ===
+
+2007-12-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
+	* configure.ac, libmissioncontrol/mission-control.[hc],
+	src/mcd-channel.c:
+	Do not use deprecated libtp symbols. Fixes: #1831105.
+
+2007-11-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Use a list of structures to keep track of the pending channels: in
+	this way we take into account also the handle type and the channel
+	type.
+
+=== telepathy-mission-control 4.50 ===
+
+2007-11-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Compare also the channel handle type, before asserting that two
+	channels are the same.
+
+2007-11-06  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mission-control.c:
+	Fix an error in a for cycle enumerating accounts and a GCC warning.
+
+=== telepathy-mission-control 4.49 ===
+
+2007-10-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-presence-frame.c:
+	When removing the last account, unset the requested presence.
+
+	* src/mcd-manager.c:
+	When an account gets enabled, check for the requested presence, not
+	for the actual.
+
+=== telepathy-mission-control 4.48 ===
+
+2007-10-17  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-manager.c:
+	Create the connection manager proxy just before actually using it;
+	fixes a potential crash.
+
+	* libmissioncontrol/mc-profile.[hc]:
+	Add mc_profile_get_avatar_mime_type() for getting the preferred avatar
+	MIME type.
+
+2007-10-12  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Fix typo: allow requesting channels with handle_type = 0.
+
+=== telepathy-mission-control 4.47 ===
+
+2007-10-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-monitor.c:
+	When an account changes, update internal data before emitting the
+	account-changed signal.
+
+=== telepathy-mission-control 4.46 ===
+
+2007-10-05  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c:
+	Handle possible error from DBus.
+
+=== telepathy-mission-control 4.45 ===
+
+2007-10-04  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account.c:
+	Fix a crash: strcmp could be called with NULL parameters.
+
+	* libmissioncontrol/mc-account-monitor.c:
+	Unref the GConf client.
+
+=== telepathy-mission-control 4.44 ===
+
+2007-09-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c, src/mcd-master.[hc]:
+	Add mcd_master_add_connection_parameter() API for passing connection
+	parameters to all the connection managers that support them, for all
+	accounts.
+
+	* src/mcd-connection.[hc], src/mcd-manager.c:
+	Add the mcd_connection_connect() API (renaming the static one that was
+	already using that name) and call it explicitly after the connection
+	is created.
+
+2007-09-26  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mission-control.c:
+	Fix a memory leak.
+
+=== telepathy-mission-control 4.43 ===
+
+2007-09-26  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Fix a memory leak.
+
+2007-09-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-master.c:
+	Store a copy of the presence message string, since it could be freed
+	anytime. Possibly fixes a crash.
+
+=== telepathy-mission-control 4.42 ===
+
+2007-09-24  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Fix mapping of Telepathy channel full/inviteonly/banned errors.
+
+	* libmissioncontrol/mc-account.c:
+	Immediately update display/normalized name, without waiting for GConf
+	notification. Fixes: #1797819.
+
+	* src/mcd-connection.c:
+	Fix possible crash happening when alias is NULL.
+
+=== telepathy-mission-control 4.41 ===
+
+2007-09-20  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-service.c, xml/MissionControl.xml:
+	Add signals with an additional the presence message parameter, and
+	deprecate old ones.
+
+=== telepathy-mission-control 4.40 ===
+
+2007-09-20  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-monitor.c:
+	Set the account enabled flag to FALSE, before emitting the
+	account-disabled signal.
+
+=== telepathy-mission-control 4.39 ===
+
+2007-09-17  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	Check for glib tools only after testing for glib itself.
+	Fixes: #1795921.
+
+	* libmissioncontrol/Makefile.am:
+	Add signal marshallers list file to EXTRA_DIST.
+
+2007-09-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-monitor.c,
+	libmissioncontrol/mc-account-priv.h, libmissioncontrol/mc-account.c:
+	Cache normalized and display name, instead of always retrieving them
+	from GConf.
+
+	* libmissioncontrol/mc-account-monitor.c,
+	libmissioncontrol/mc-account-priv.h, libmissioncontrol/mc-account.c:
+	Move account enabledness related code to McAccount, avoiding some
+	GConf lookups.
+
+	* libmissioncontrol/mc-account.c:
+	Cache the profile name, since it's not going to change.
+
+2007-09-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Fix possible crash when trying to display a NULL GError.
+
+=== telepathy-mission-control 4.38 ===
+
+2007-09-05  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mission-control.c:
+	Add some more checks to the
+	mission_control_request_channel_with_string_handle_and_vcard_field
+	function, and fix a reference leak.
+
+=== telepathy-mission-control 4.37 ===
+
+2007-08-31  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Listen to the AvatarUpdated signal, instead of relying on eds-sync
+	doing that. With a compile-time switch, old behaviour is still
+	possible. Fixes: #1763009.
+
+	* libmissioncontrol/mc-account.[hc]:
+	Add mc_account_set_avatar_from_data() API. Partially fixes #1763009.
+
+	* src/mcd-connection.c:
+	Increase timeout for receiving capabilities.
+
+=== telepathy-mission-control 4.36 ===
+
+2007-08-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account.[hc]:
+	Add mc_account_set_secondary_vcard_fields() API to set all secondary
+	VCard fields at once.
+
+2007-08-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-master.c:
+	When an account parameter changes, perform reconnection only if
+	requested presence is online.
+
+=== telepathy-mission-control 4.35 ===
+
+2007-08-21  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/Makefile.am:
+	Remove compilation flags, they are to be specified in configure.ac or
+	in debian/rules. Fixes: #1772178.
+
+	* libmissioncontrol/mc-profile.c: (_mc_profile_load):
+	Strip spaces from presence names. Fixes: #1772539.
+
+	* src/mcd-connection.c:
+	Allow requesting a channel with handle 0 if channel handle type is
+	also 0. Turn a g_assert into a g_return_val_if_fail.
+	Fixes: #1772597.
+
+2007-08-20  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol.pc.in, libmissioncontrol/Makefile.am,
+	src/Makefile.am:
+	Merge libmissioncontrol and libmissioncontrol-config into a single
+	library, called libmissioncontrol-client.
+
+=== telepathy-mission-control 4.34 ===
+
+2007-08-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-chan-handler.c, src/mcd-connection.c,
+	src/mcd-dispatcher-context.h, src/mcd-dispatcher.[hc]:
+	Allow per protocol channel handlers.
+
+2007-08-13  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/Makefile.am:
+	* src/Makefile.am:
+	Use soname version properly.
+
+=== telepathy-mission-control 4.33 ===
+
+2007-08-09  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/Makefile.am:
+	Remove mcd-enum-types.c from the installed files.
+
+	* libmissioncontrol/Makefile.am:
+	Add mc-enum-types.h to the list of headers to be installed.
+
+	* libmissioncontrol/mc-profile.[hc]:
+	Add mc_profiles_list_by_protocol() API.
+
+=== telepathy-mission-control 4.32 ===
+
+2007-08-06  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol.pc.in, mission-control.pc.in:
+	Update required version of libtelepathy.
+
+	* src/Makefile.am:
+	Bump libmissioncontrol-server soname, to resolve ABI breakage.
+
+2007-08-03  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	Correct version dependency for libtelepathy. Thanks to Ross Burton for
+	pointing this out.
+
+	* doc/reference/libmissioncontrol/libmissioncontrol-sections.txt:
+	Add documentation for mc_account_{set,get}_alias. Fixes: #1763010.
+
+	* libmissioncontrol/Makefile.am:
+	Bump libmissioncontrol-config soname, to resolve ABI breakage.
+
+=== telepathy-mission-control 4.31 ===
+
+2007-08-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	Patch from Will Thompson:
+	* libmissioncontrol/mc-manager.c:
+	Properly scan the list nodes.
+
+2007-08-01  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Correctly report telepathy's InvalidHandle error.
+
+=== telepathy-mission-control 4.30 ===
+
+2007-07-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-manager.[hc], src/mcd-master.c:
+	If an account parameter changes when a corresponding connection is not
+	there, create the connection and try to connect it.
+
+=== telepathy-mission-control 4.29 ===
+
+2007-07-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mission-control.c:
+	Don't strip the '+' out of the TEL field.
+
+	* src/mcd-channel.[hc]:
+	New mcd_channel_leave() API for removing the self handle from a
+	channel.
+
+	* src/mcd-channel.c:
+	Use a synchronous call for getting the self handle.
+
+2007-07-09  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* doc/reference/libmissioncontrol/libmissioncontrol-docs.sgml,
+	doc/reference/libmissioncontrol/libmissioncontrol-sections.txt:
+	Remove mc.c file documentation.
+
+	* src/mcd-connection.c:
+	Use asynchronous call to connect the connection.
+
+=== telepathy-mission-control 4.28 ===
+
+2007-06-29  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Set the account status to CONNECTING as soon as connection process
+	start. Fix some memory leaks.
+
+2007-06-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-provisioning-factory.c:
+	Fix function name: mcd_provisioning_factory_add instead of
+	mcd_provisioning_factory_add_provisioning.
+	Use g_str_{hash,equal} for the services hash table.
+
+2007-06-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Implement getting of connection parameters through a provisioning
+	service.
+
+	* src/mcd-provisioning.[hc]:
+	Add mcd_provisioning_cancel_request() API.
+
+=== telepathy-mission-control 4.27 ===
+
+2007-06-26  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-master.c:
+	When requesting a channel from offline presence, monitor the requestor
+	process's lifetime to eventually reset the presence back to offline.
+	Fixes: NB#57390.
+
+2007-06-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	Patch from Xavier Claessens <zdra@users.sourceforge.net>:
+	* libmissioncontrol/mission-control.[hc],
+	src/mcd-dispatcher-context.h, src/mcd-dispatcher.c, src/mcd-service.c,
+	src/mcd-signals-marshal.list, xml/MissionControl.xml:
+	Implement D-Bus API for channel filtering.
+
+	* src/mcd-dispatcher-context.h, src/mcd-dispatcher.c,
+	src/mcd-connection.[hc:
+	Remove the const keyword from the values returned by the getter
+	functions, as these objects are not supposed to be constant.
+
+	Patch from Jaap Haitsma <jaap@haitsma.org>:
+	* src/mcd-mission.c:
+	Set the correct type for the McdSystemFlags parameter in the
+	flags-changed signal.
+
+=== telepathy-mission-control 4.26 ===
+
+2007-06-19  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-monitor.c:
+	Revert the fix for McAccountMonitor reference counting: the object
+	must never be disposed, or invocations of mc_account_lookup() might
+	return different objects for the same account.
+
+=== telepathy-mission-control 4.25 ===
+
+2007-06-15  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac: Version 4.25.
+
+	* libmissioncontrol/mc-account-monitor.c:
+	Turn a (wrong) assertion into a runtime check. Fixes: NB#54826.
+
+	* src/mcd-connection.c, src/mcd-master.c:
+	Don't crash if we fail to retrieve account or profile data.
+	Fixes: NB#59649.
+
+	* libmissioncontrol/mc-account.c:
+	Fix reference leaks.
+
+2007-06-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Don't let libtelepathy connect the connection by itself; this ensure
+	we don't lose any status changed signal. Fixes: NB#54624.
+
+	* src/mcd-channel.c:
+	Check for the group interface, before using it.
+
+2007-06-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-monitor.c:
+	Let the object be actually destroyed, sometimes.
+	Fixes: #1729826.
+
+=== telepathy-mission-control 4.24 ===
+
+2007-06-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac: Version 4.24.
+
+	* src/mcd-provisioning.[hc], src/mcd-provisioning-factory.c:
+	Add virtual method request_parameters() to McdProvisioning interface.
+	Add docstrings.
+
+2007-06-01  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/Makefile.am: Fixed enum generation.
+
+	* src/mcd-provisioning-factory.h, src/mcd-provisioning.c,
+	src/mcd-provisioning.h, src/Makefile.am,
+	src/mcd-provisioning-factory.c: Added provisioning classes.
+
+2007-05-31  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.[hc], src/mcd-master.c:
+	If an account parameter change, disconnect and reconnect it.
+
+	* libmissioncontrol/Makefile.am,
+	libmissioncontrol/mc-account-monitor.c:
+	Add param-changed signal on McAccountMonitor: will be emitted whenever
+	a connection parameter changes for an account.
+
+	* libmissioncontrol/mc-account.c:
+	When looking up an account, also accept the normalized name as a key.
+
+=== telepathy-mission-control 4.23 ===
+
+2007-05-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac: Version 4.23.
+
+2007-05-30  Onne Gorter  <onne.gorter@nokia.com>
+
+	* libmissioncontrol/mission-control.c:
+	(mission_control_request_channel_with_string_handle_and_vcard_field
+	):
+	Modify TEL mangling again, just strip out special chars, then pass it
+	verbatim
+
+2007-05-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-profile.c:
+	Avoid possible crashes/critical warnings.
+
+	* libmissioncontrol/mc-profile.[hc]:
+	Add "supports-roster" capability.
+
+	Patch from Sjoerd <sjoerd.simons@collabora.co.uk>:
+	* src/mcd-connection.c:
+	Fix usage of gint/gsize types for AMD64. Fixes #1718949.
+
+2007-05-29  Onne Gorter  <onne.gorter@nokia.com>
+
+	* libmissioncontrol/mc-profile.c: (mc_profile_finalize),
+	(_mc_profile_load), (mc_profile_get_default_setting):
+	* libmissioncontrol/mc-profile.h:
+	* libmissioncontrol/mission-control.c:
+	(mission_control_request_channel_with_string_handle_and_vcard_field
+	):
+	Added support for Mangle-TEL and other fields
+	TEL field is handled specially if no Mangle-TEL is defined
+
+2007-05-28  Onne Gorter  <onne.gorter@nokia.com>
+
+	* libmissioncontrol/mission-control.c:
+	(mission_control_request_channel_with_string_handle_and_vcard_field
+	):
+	* libmissioncontrol/mission-control.h:
+	add request_channel with string handle and vcard field, to give mission
+	control a way to mangle e.g. TEL to tel:number
+
+	the old request_cannel_with_string_handle calls the new function with NULL
+	vcard field
+
+	TODO: provisioning, or the profiles should turn the mangling into
+	something configurable at one point.
+
+=== telepathy-mission-control 4.22 ===
+
+2007-05-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac: Version 4.22.
+
+	* src/mcd-service.c:
+	Let AccountStatusChanges signal be emitted even on connecting.
+	Fixes: #1716701.
+
+	* libmissioncontrol.pc.in:
+	* mission-control.pc.in:
+	Fix pkg-config requirements. Fixes: #1713514.
+
+	* src/mcd-channel.[hc]:
+	Add mcd_channel_is_missed() method to know if a channel has been
+	accepted by the local user.
+
+	* src/mcd-dispatcher.c:	
+	If a channel is aborted right before the channel handle starts, report
+	a dispatch failure.
+
+2007-05-04  Onne Gorter  <onne.gorter@nokia.com>
+
+	* libmissioncontrol/mc-account.c: (_filter_secondary_vcard_field):
+	* libmissioncontrol/mc-account.h:
+	Fix minor issue with secondary field, add
+	mc_account_get_secondary_vcard_fields() function
+
+2007-05-04  Onne Gorter  <onne.gorter@nokia.com>
+
+	* libmissioncontrol/mc-account-priv.h:
+	* libmissioncontrol/mc-account.c: (_filter_vcard_field),
+	(_filter_secondary_vcard_field), (mc_accounts_list_by_vcard_field):
+	* libmissioncontrol/mc-account.h:
+	Add mc_accounts_list_by_secondary_vcard_field to retrieve all configured
+	accounts that support a vcard fields as their secondary means of access.
+	Usefull for sip that can call TEL fields through a gateway.
+
+2007-05-04  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Make sure the connection status is retrieved every time a connection
+	is created.
+
+2007-05-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mission-control.[hc], src/mcd-master.[hc],
+	src/mcd-service.c, xml/MissionControl.xml:
+	Add methods for retrieving the actual and requested presence messages.
+
+	* src/mcd-connection.c:
+	Don't set account status to CONNECTING if we don't have a Telepathy
+	connection.
+
+	* src/mcd-service.c:
+	Make sure only valid presence values can be requested. Fixes #1711163.
+
+2007-04-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* server/Makefile.am:
+	Fix server build: use local libmissioncontrol-config.
+
+2007-04-24  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	Patch from shiyee:
+	* libmissioncontrol/mc-manager.c:
+	Add GError initialization. Fixes #1705225.
+
+=== telepathy-mission-control 4.21 ===
+
+2007-04-19  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac: Version 4.21.
+
+	* libmissioncontrol/mc-account-priv.h:
+	* libmissioncontrol/mc-account.[hc]:
+	* libmissioncontrol/mc-profile.[hc]:
+	Ability to set/get the account alias.
+
+	* src/mcd-connection.c:
+	Set the account alias upon connection, and listen to its changes.
+
+2007-04-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account.c:
+	Unset the account properties when the passed string is NULL. Also,
+	unset the display name if the passed value is the empty string.
+
+2007-04-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-chan-handler.c:
+	Invert the order of scanning of the .chandlers files, to give them the
+	correct priority.
+
+=== telepathy-mission-control 4.20 ===
+
+2007-03-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac: Version 4.20.
+
+	* libmissioncontrol/mc-account-monitor.c:
+	On "account-deleted", let the account object live while the signal is
+	emitted. Fixes #1688539.
+
+	* libmissioncontrol/mc-manager.c, libmissioncontrol/mc-profile.c:
+	Fix file existance test.
+
+2007-03-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-manager.c, libmissioncontrol/mc-profile.c:
+	Pass missing NULL to g_build_filename()...
+
+	* src/mcd-connection.c:
+	Make sure we don't access the presence array with index -1.
+
+=== telepathy-mission-control 4.19 ===
+
+2007-03-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac: Rename package and tag version 4.19.
+
+	* doc/reference/libmissioncontrol-server/tmpl/*.sgml:
+	Automatic update.
+
+	* configure.ac, libmissioncontrol/mc-profile.c,
+	libmissioncontrol/mc-manager.c, src/mcd-chan-handler.c:
+	Move to XDG compliant directory location for Telepathy data files.
+
+2007-03-21  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-monitor.c:
+	Make clear in documentation that the account name passed with the
+	McAccountMonitor signals is not the display name.
+
+	* src/mcd-manager.c:
+	Fix possible critical messages.
+
+	* Makefile.am, configure.ac, doc/Makefile.am,
+	libmissioncontrol/Makefile.am, src/Makefile.am, tools/*, xml/*:
+	Build MissionControl D-Bus interface documentation from the embedded
+	docstrings found in D-Bus service XML file.
+
+2007-03-21  Naba Kumar  <naba.kumar@nokia.com>
+
+	* autogen.sh: Added autogen script
+
+2007-03-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-profile.c:
+	Gracefully handle the lack of a Capabilities field in the .profile
+	config file.
+
+	* configure.ac:
+	Use the autotools' "datadir" variable to determine the location of the
+	profiles.
+
+2007-03-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* doc/*:
+	Move libmissioncontrol documentation to a subdirectory and setup a
+	tree for libmissioncontrol-server docs.
+
+2007-03-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac: Version 4.18.
+
+	* src/mcd-dispatcher-context.h, src/mcd-dispatcher.c:
+	Rewrite filter API to allow single filter registration and execution
+	priority.
+
+2007-03-13  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-mission.c, src/mcd-controller.c, src/mcd-chan-handler.c,
+	src/mcd-connection.c, src/mcd-operation.c, src/mcd-service.c,
+	src/mcd-channel.c, src/mcd-manager.c, src/mcd-proxy.c,
+	src/mcd-dispatcher.c, src/mcd-debug.c,
+	src/mcd-master.c, src/mcd-presence-frame.c: Added API section docs.
+
+2007-03-13  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	Patch from Xavier Claessens:
+	* src/mcd-channel.c, src/mcd-connection.c:
+	Apply patch from Xavier Claessens to make MC server build with
+	gcc 4.x.
+
+2007-03-12  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-cli.c,
+	libmissioncontrol/mc-account.[hc], libmissioncontrol/mc-manager.[hc],
+	libmissioncontrol/mc-profile.[hc], libmissioncontrol/mc-protocol.[hc],
+	libmissioncontrol/test.c:
+	Deprecate mc_{account,profile,protocol,manager}_free() and substitute
+	them with g_object_unref().
+
+	* libmissioncontrol/mc-account.c:
+	Correct documentation: mc_account_lookup*() does increment the
+	reference count.
+
+2007-03-09  Naba Kumar  <naba.kumar@nokia.com>
+	
+	* configure.ac: Version 4.17.
+
+	* configure.ac, server/Makefile.am: Fixed server conditional build
+	and simplified enable args.
+
+	* configure.ac: Removed date from version number.
+	* test/Makefile.am, configure.ac, server/Makefile.am,
+	Makefile.am: Fixed conditional build of server and test.
+
+2007-03-09  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac, server/Makefile.am,
+	server/com.nokia.chavo.mission_control.service.in,
+	server/org.freedesktop.Telepathy.MissionControl.service.in,
+	xml/mcd-dbus-services.xml, libmissioncontrol/mission-control.h,
+	src/mcd-service.c:
+	Change DBus paths to org.freedesktop.Telepathy.MissionControl.
+
+	* Makefile.am, com.nokia.chavo.mission_control.service.in,
+	configure.ac, server/Makefile.am, test/Makefile.am, test/mc-server.c:
+	Moving mc-server into a separate directory, and add a configure switch
+	to install it as the mission-control server. Move the DBus service
+	file to the same directory.
+
+2007-03-05  Naba Kumar  <naba.kumar@nokia.com>
+
+	* configure.ac, debian/changlog: Bumped version to 4.16.
+	
+	* (removed) LICENSE: Removed because it is redundant with COPYING file.
+
+	* test/mc-server.c, test/mc-client.c, debian/copyright,
+	src/mcd-master.h, src/mcd-presence-frame.h, src/mcd-mission.c,
+	src/mcd-controller.c, src/mcd-chan-handler.c, src/mcd-mission.h,
+	src/mcd-controller.h, src/mcd-chan-handler.h, src/mcd-connection.c,
+	src/mcd-operation.c, src/mcd-service.c, src/mcd-connection.h,
+	src/mcd-operation.h, src/mcd-service.h, src/mcd-channel.c,
+	src/mcd-manager.c, src/mcd-channel.h, src/mcd-dispatcher-context.h,
+	src/mcd-manager.h, src/mcd-proxy.c, src/mcd-main.c,
+	src/mcd-dispatcher.c, src/mcd-debug.c, src/mcd-proxy.h,
+	src/mcd-dispatcher.h, src/mcd-debug.h, src/mcd-master.c,
+	src/mcd-presence-frame.c, COPYING, libmissioncontrol/mc-protocol.c,
+	libmissioncontrol/mc-account.h, libmissioncontrol/mc-account-cli.c,
+	libmissioncontrol/mc.c, libmissioncontrol/mission-control.c,
+	libmissioncontrol/mc-account-monitor-priv.h,
+	libmissioncontrol/mc-profile.h, libmissioncontrol/mc-protocol.h
+	libmissioncontrol/mc.h, libmissioncontrol/mission-control.h,
+	libmissioncontrol/mc-manager.c, libmissioncontrol/mc-manager.h,
+	libmissioncontrol/mc-account-priv.h,
+	libmissioncontrol/mc-account-monitor.c, libmissioncontrol/test.c,
+	libmissioncontrol/mc-protocol-priv.h,
+	libmissioncontrol/mc-account-monitor.h, libmissioncontrol/mc-account.c,
+	libmissioncontrol/mc-manager-priv.h, libmissioncontrol/mc-profile.c:
+	Set lisence to LGPL.
+	
+2007-03-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	Version 4.15.
+
+	* libmissioncontrol/mc-account-monitor.c:
+	Don't emit notifications when the avatar token changes; "avatar_id" is
+	the key to be monitored.
+
+	* libmissioncontrol/mc-account-priv.h:
+	* libmissioncontrol/mc-account.[hc]:
+	* src/mcd-connection.c:
+	Introduce a new GConf key for the accounts, "avatar_id", which is
+	meant to change whenever the avatar image changes.
+
+2007-02-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 4.14.
+
+	* libmissioncontrol/mission-control.c:
+	* xml/mcd-dbus-services.xml:
+	Make the D-Bus methods store the presence in an unsigned integer.
+
+	* libmissioncontrol/mc-account.c:
+	* src/mcd-connection.c:
+	Implement clearing of avatars.
+
+	* configure.ac:
+	* debian/control:
+	* libmissioncontrol/mission-control.[hc]:
+	* src/mcd-channel.[hc]:
+	* src/mcd-connection.c:
+	Support for libtelepathy version 0.0.50.
+
+2007-02-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-monitor.c:
+	After emitting the "account-created" signal, check if the account is
+	already enabled and, in case, emit "account-enabled".
+
+2007-02-16  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account.c:
+	Make sure all the data has been flushed into the GConf DB before
+	enabling an account.
+
+	* configure.ac:
+	* debian/changelog:
+	Version 4.13.
+
+	* libmissioncontrol/mc-account.c:
+	Create account data directory if it not exists.
+
+	* src/mcd-connection.[hc], src/mcd-master.c:
+	Monitor account changes and call mcd_connection_account_changed() to
+	update the avatar.
+
+	* src/mcd-connection.c:
+	Connect the "destroy" signal only after making sure the proxy is
+	valid.
+
+2007-02-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 4.12.
+
+	* configure.ac:
+	* src/mcd-chan-handler.c:
+	Make the channel handler location path configurable.
+
+	* src/Makefile.am:
+	* src/mcd-service.c:
+	Set a prefix when calling dbus-binding-tool.
+
+	* configure.ac:
+	* debian/changelog:
+	Version 4.11.
+
+2007-02-13  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account.c:
+	Fix typo in accessing the GConf key.
+
+2007-02-07  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 4.10.
+
+2007-02-06  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account-monitor.h:
+	Add include guards.
+
+	* src/mcd-channel.[hc]:
+	Add mcd_channel_get_name() for getting the Telepathy name of the
+	channel.
+
+2007-02-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account.c:
+	* src/mcd-connection.c:
+	Allow setting NULL as avatar filename.
+
+2007-01-31  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account.[hc]:
+	* libmissioncontrol/mc-profile.[hc]:
+	Remove deprecated *_supports_invisible() APIs.
+
+	* libmissioncontrol/test.c:
+	* src/mcd-master.c:
+	Use new APIs for testing if invisible presence is supported.
+
+2007-01-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 4.9.
+
+	* libmissioncontrol/mc-account.c:
+	Avoid duplicating code too much.
+
+	* libmissioncontrol/mc-account.[hc]:
+	Add mc_account_set_avatar_mime_type() (only for MC).
+
+	* libmissioncontrol/mission-control.c:
+	Implement D-Bus call to MC's RemoteAvatarChanged method.
+
+	* src/mcd-connection.[hc], src/mcd-dispatcher.h, src/mcd-master.[hc],
+	src/mcd-service.c, xml/mcd-dbus-services.xml:
+	Implement remote_avatar_changed method, for retrieving our own avatar.
+
+	* libmissioncontrol/mc-account.c:
+	Fix avatar copy function, unset token when setting the avatar.
+
+2007-01-29  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 4.8.
+
+	* src/mcd-connection.c:
+	Set the avatar when connecting.
+
+	* libmissioncontrol/mc-account.[hc]:
+	Add mc_account_set_avatar_token(), to be used by MC when updating the
+	avatar.
+
+	* libmissioncontrol/mc-profile.[hc]:
+	Add "supports-avatars" capability to profiles.
+
+	* configure.ac:
+	Allow setting the account data base directory.
+
+	* libmissioncontrol/mc-account-priv.h:
+	* libmissioncontrol/mc-account.c:
+	Implement mc_account_{get,set}_avatar() APIs. On account
+	creation/deletion, create/delete the account data directory.
+
+2007-01-26  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mission-control.[hc]:
+	Add a TpConn parameter to mission_control_remote_avatar_changed API.
+
+	* doc/reference/mission-control-sections.txt:
+	* doc/reference/tmpl/mc-account.sgml:
+	* doc/reference/tmpl/mission-control.sgml:
+	* libmissioncontrol/mc-account.[hc]:
+	* libmissioncontrol/mission-control.[hc]:
+	Stubs for new APIs: mc_account_{set,get}_avatar() for setting/getting
+	the account avatar in GConf, and
+	mission_control_remote_avatar_changed() method for signalling that the
+	own avatar has been changed in the server.
+
+2007-01-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 4.7.
+
+	* src/mcd-connection.c: (on_presence_requested):
+	Disconnect the connection before closing it.
+
+2007-01-22  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 4.6.
+
+	* src/mcd-connection.[hc]:
+	* src/mcd-manager.c:
+	When disabling accounts, emit the AccountStatusChanged signal with the
+	reason "requested". Fixes NB#50067.
+
+	* libmissioncontrol/mission-control.c:
+	Don't make a D-Bus call whenever we want to know if MC is running.
+
+	* libmissioncontrol/mission-control.c:
+	Don't register a D-Bus filter for every instance; instead, install
+	only a global filter and maintain a list of the objects which must be
+	notified of the "ServiceEnded" signal.
+
+2007-01-19  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* doc/reference/mission-control-sections.txt:
+	* doc/reference/tmpl/mission-control-unused.sgml:
+	* doc/reference/tmpl/mission-control.sgml:
+	* libmissioncontrol/mission-control.h:
+	Documentation updates.
+
+	* libmissioncontrol/mission-control.c:
+	Added mission_control_free_account_statuses() API to free the array of
+	the account states returned in the callback function of
+	mission_control_get_current_status().
+
+2007-01-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 4.5.
+
+	* libmissioncontrol/mc-account-monitor.h:
+	Make apps which use only McAccountMonitor compile.
+
+2007-01-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 4.4.
+
+	* libmissioncontrol/mc-account.c: (_add_one_setting):
+	Add support for 32-bit integer parameters.
+
+	* libmissioncontrol/mission-control.[hc]:
+	* src/mcd-service.c:
+	* xml/mcd-dbus-services.xml:
+	Added a new method, mission_control_get_current_status(), for querying
+	the global status of MC: presence, connection status, and all
+	accounts' states too.
+
+	* src/mcd-connection.c: (_mcd_connection_setup):
+	Fix possible memleak.
+
+	* src/mcd-manager.c: (_find_connection_by_path):
+	Fix possible segfault.
+
+2007-01-17  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-account.h:
+	* libmissioncontrol/mc-profile.[hc]:
+	Mark some functions as deprecated, and remove some unused code.
+
+	* libmissioncontrol/mc-account-monitor.[hc]:
+	Add new API mc_account_monitor_get_supported_presences() for listing
+	all presences supported in any account.
+
+	* libmissioncontrol/Makefile.am:
+	* libmissioncontrol/mc-account.[hc]:
+	* libmissioncontrol/mc-profile.[hc]:
+	* libmissioncontrol/mission-control.h:
+	Add new APIs in McAccount and McProfile for retrieving the supported
+	presences, and to test if one presence state is supported.
+
+2007-01-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 4.3.
+
+	* libmissioncontrol/mission-control.[hc]:
+	Let the ..._request_channel() method return an operation id to be used
+	for cancelling the channel request.
+
+2007-01-11  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/*.[ch], libmissioncontrol/*.[ch], test/*.[ch], debian/copying,
+	COPYING, LICENSE: Updated license headers.
+	
+2007-01-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 4.2.
+
+2007-01-09  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-profile.c:
+	* src/mcd-channel.c:
+	* src/mcd-connection.c:
+	* src/mcd-debug.c:
+	* src/mcd-dispatcher.c:
+	* src/mcd-master.c:
+	* src/mcd-service.c:
+	Memleak hunting!
+
+	* libmissioncontrol/mc-account-cli.c:
+	* libmissioncontrol/mc-account.[hc]:
+	* libmissioncontrol/mission-control.c:
+	* libmissioncontrol/test.c:
+	Rewritten McAccount's API: now the mc_account_get_{unique,display,
+	normalized}_name() functions return a const string, not to be freed.
+
+2007-01-05  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/rules:
+	* libmissioncontrol.pc.in:
+	* libmissioncontrol/mc-profile.c:
+	Turn the profiles' directory into a configure switch, and make it
+	available in pkg-config too.
+
+	* src/mcd-master.c:
+	Implement "default-presence" property.
+
+2007-01-04  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/*.[ch], libmissioncontrol/*.[ch], test/*.[ch], debian/copying,
+	COPYING: Added license headers.
+	
+2007-01-04  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-master.[hc]:
+	Add a method for setting the default presence, instead of retrieving
+	it from a hardcoded GConf key.
+
+	* src/mcd-dispatcher.c:
+	* src/mcd-master.c:
+	* src/mcd-proxy.c:
+	Correct object disposal so all reference counts end up at zero.
+
+2007-01-03  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-chan-handler.c:
+	Remove unnecessary parameters, use g_error() for reporting errors and
+	aborting.
+
+2007-01-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mission-control.[hc]:
+	Make the operation_id counter a static variable, since it must be
+	unique in the context of a process. Remove its usage in functions
+	which are not supposed to be cancelled.
+
+	* Makefile.am:
+	* configure.ac:
+	* test/Makefile.am:
+	* test/mc-server.c:
+	Create a client and a server basic test applications.
+
+	* libmissioncontrol/mission-control.c:
+	Don't use a negative value for indicating an error in the connection
+	status.
+
+	* configure.ac:
+	* debian/changelog:
+	Version 4.1.
+
+	* libmissioncontrol/mission-control.c:
+	Don't free the GError after the callback invocation; let the callback
+	handler take care of it.
+
+	* src/mcd-service.c:
+	Free error after calling dbus_g_method_return_error().
+
+	* libmissioncontrol/mission-control.[hc]:
+	Make mission_control_cancel_channel_request return a gboolean.
+
+2006-12-29  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Remove unused properties.
+
+	* src/mcd-channel.c:
+	* src/mcd-connection.c:
+	Since libtelepathy doesn't synthesize the StatusChanger and Closed
+	signals, take care of proxy destruction by monitoring the "destroy"
+	signal.
+
+2006-12-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.h, src/mcd-connection.[hc], src/mcd-manager.[hc],
+	src/mcd-master.[hc], src/mcd-service.c:
+	Unify request_channel and request_channel_with_string_handle
+	implementations, removing some duplicate code.
+
+	* doc/reference/tmpl/mission-control.sgml:
+	* libmissioncontrol/mc-account-monitor.c:
+	* libmissioncontrol/mission-control.c:
+	Don't emit the "Error" signal if MC is not running (the error is being
+	reported by the API anyway). Some documentation updates.
+
+	* src/mcd-service.c:
+	* xml/mcd-dbus-services.xml:
+	Remove the CancelLastRequest call completely.
+
+2006-12-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mission-control.[hc]:
+	Modify all synchronous functions by adding a GError parameter and
+	removing the "Error" signal. Modify asynchronous functions, and add a
+	callback function for error reporting.
+
+2006-12-19  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Reset the abort reason when reconnecting. Don't use the "network
+	error" reason when we don't know the real reason for an early
+	disconnection. Fixes NB#50067.
+
+	* doc/mc-dbus-iface.html:
+	D-Bus docs updated.
+
+	* libmissioncontrol/mission-control.[hc]:
+	Removed mission_control_cancel_last_request() API, and all related
+	code.
+
+2006-12-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c: (_mcd_connection_status_changed_cb):
+	Initiate auto-reconnection even in the case where we get disconnected
+	with no reason specified. Fixes NB#42727.
+
+	* src/mcd-connection.c: (_mcd_connection_setup):
+	If opening a new Telepathy connection fails, set the account status to
+	disconnected. This will help the clients to notify the user that we
+	couldn't connect, and also eliminates some critical warnings.
+
+2006-12-15  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Releasing version 4.0.
+
+	* libmissioncontrol/mission-control.c:
+	Emit Error signal whenever needed.
+
+	* src/mcd-service.c:
+	Correctly set up so that errors will be shown as g_warnings.
+
+	* configure.ac, debian/changelog,
+	libmissioncontrol/mission-control.c,
+	src/mcd-connection.c, src/mcd-manager.c:
+	Merge in all changes till version 3.17.
+
+	* libmissioncontrol/mission-control-signals-marshal.list,
+	libmissioncontrol/mission-control.[hc], src/mcd-channel.[hc],
+	src/mcd-connection.[hc], src/mcd-manager.[hc], src/mcd-master.[hc],
+	src/mcd-service.c, src/mcd-signals-marshal.list,
+	xml/mcd-dbus-services.xml:
+	Rewrite the D-Bus interface: remove the client-pid and serial
+	parameters from most calls, and instead consider the sender of the
+	D-Bus calls.
+	Turn the request_channel* functions into async calls.
+
+2006-12-12  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 3.15.
+
+2006-12-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c: (_mcd_connection_set_presence):
+	Add the weak pointer only after we are sure it's not NULL.
+
+2006-12-08  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* doc/reference/Makefile.am:
+	* doc/reference/mission-control.types:
+	Support for signals documentation.
+
+	* libmissioncontrol/mc-manager.c, libmissioncontrol/mc-profile.c,
+	libmissioncontrol/mc-protocol.c, libmissioncontrol/mc-protocol.h,
+	doc/reference/tmpl/*:
+	Add some API documentation.
+
+2006-12-07  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* debian/rules, libmissioncontrol/mc-account-monitor.c,
+	libmissioncontrol/mc-account.c, libmissioncontrol/mc.c,
+	libmissioncontrol/mission-control.c:
+	Documenting MC API.
+
+	* configure.ac:
+	* debian/changelog:
+	Version 3.14.
+
+	* src/mcd-presence-frame.c: (mcd_presence_frame_disconnect),
+	(mcd_presence_frame_class_init):
+	When we get disconnected, clear the requested presence.
+	Fixes NB#49144.
+
+2006-12-05  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c: (_mcd_connection_release_tp_connection):
+	Set the account status to disconnected, regardless whether the
+	Telepathy connection is there or not.
+
+	* src/mcd-service.c:
+	Reintroduce the handler for the status-actual signal from
+	McdPresenceFrame, but now exit only if there are no connections;
+	connections in disconnected state will prevent MC from exiting, since
+	they are supposed to be trying tor reconnect.
+
+	* src/mcd-connection.c: (_mcd_connection_status_changed_cb),
+	(_mcd_connection_setup):
+	Set the account status to "connecting" as soon as the connection gets
+	disconnected because of network error.
+
+	* doc/mc-dbus-iface.html, libmissioncontrol/mission-control.c,
+	src/mcd-service.c, src/mcd-signals-marshal.list,
+	xml/mcd-dbus-services.xml:
+	Add the last requested presence as a parameter for the StatusActual
+	DBus signal.
+
+2006-12-04  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Instead of a fixed interval timer for reconnection, double the time at
+	every attempt (but make it no longer than half a hour anyway).
+
+	* src/mcd-connection.c:
+	If the connection is disconnected, don't abort it; instead, set up a
+	timer and try to reconnect it later. Fixes NB#49028.
+
+	* src/mcd-connection.c:
+	Don't leave the interface proxies around: store them as weak pointers.
+
+	* src/mcd-service.c:
+	Don't shutdown when the presence goes offline, since the cause could
+	be a network error.
+	Don't shutdown when status-actual signal is emitted with DISCONNECTED
+	state (again, could be a network error); remove the _on_status_actual
+	signal handler.
+	Instead, shutdown when McdService gets disconnected.
+
+	* src/mcd-manager.c:
+	Remove the on_account_status_changed() handler from Mcdmanager, since
+	it was useless (it was called when the connection had already been
+	removed).
+
+2006-12-01  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mission-control.c:
+	* libmissioncontrol/mission-control.h:
+	Move gtk-doc comments from .h to .c and clean them up.
+
+2006-11-30  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* Makefile.am:
+	* configure.ac:
+	* doc/*:
+	Add initial support for gtk-doc.
+
+	* xml/mcd-dbus-services.xml:
+	Naming all input parameters.
+
+	* doc/mc-dbus-iface.html:
+	Including short HTML documentation of the DBus MC interface.
+
+2006-11-29  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 3.13.
+
+	* libmissioncontrol/mission-control.[ch], src/mcd-service.c,
+	xml/mcd-dbus-services.xml:
+	Implement the StatusActual signal. Fixes NB#42727.
+
+2006-11-28  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 3.12.
+
+2006-11-24  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-master.c: (_mcd_master_init_account_monitoring),
+	(_mcd_master_dispose_account_monitoring), (_mcd_master_dispose):
+	Remove unused variables and release the account monitor on McdMaster
+	disposal.
+
+2006-11-22  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-master.c, src/mcd-master.h, src/mcd-service.c,
+	xml/mcd-dbus-services.xml:
+	Remove channel usage count test for determining whether to go
+	automatically offline. Instead, rewrite the
+	connect-all_with_default_presence() method to make it asyncronous and
+	store the DBus sender strings to determine if the processes which
+	requested the default presence are alive; if they are all dead, switch
+	back to offline presence (unless the user manually switched it to
+	online).
+
+2006-11-20  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-profile.c: (_mc_profile_load):
+	Retrieve localized display name for the profile. Fixes NB#47596.
+
+2006-11-20  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mission-control.c:
+	(mission_control_cancel_last_request):
+	Since cancel_last_request is broken, but someone might still be using
+	it, make it call cancel_last_channel_request.
+
+	* src/mcd-connection.c: (_mcd_connection_get_normalized_name),
+	(_mcd_connection_status_changed_cb):
+	When the connection is established, inspect the self handle and set
+	the normalized name into the account.
+
+2006-11-17  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 3.11.
+
+	* libmissioncontrol/mc-account-priv.h:
+	* libmissioncontrol/mc-account.c: (mc_account_get_normalized_name),
+	(mc_account_set_normalized_name):
+	* libmissioncontrol/mc-account.h:
+	Add mc_account_{get,set}_normalized_name() to the API.
+
+	* libmissioncontrol/mission-control.c: (mission_control_new):
+	Don't listen to every dbus message, but only to NameOwnerChange.
+
+	* libmissioncontrol/mission-control.c,
+	libmissioncontrol/mission-control.h, src/mcd-connection.c,
+	src/mcd-connection.h, src/mcd-manager.c, src/mcd-manager.h,
+	src/mcd-master.c, src/mcd-master.h, src/mcd-service.c,
+	xml/mcd-dbus-services.xml:
+	Introduce new API: mission_control_cancel_channel_request() for
+	cancelling a channel request identified by the operation_id now
+	returned by mission_control_request_channel_with_string_handle().
+
+2006-11-15  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c:
+	Completely rewritten presence implementation. Correctly handles all
+	telepathy well-known statuses and uses much less memory.
+
+2006-11-14  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-manager.c: (_mcd_manager_nuke_connections):
+	Reset the error to NULL, or there'll be problem on the next iteration
+	of the loop.
+
+2006-11-13  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 3.10.
+
+	* src/mcd-manager.c: (on_presence_requested),
+	(mcd_manager_request_channel_with_string_handle):
+	* src/mcd-master.c:
+	(mcd_master_request_channel_with_string_handle):
+	* src/mcd-service.c:
+	(mcd_service_request_channel_with_string_handle):
+	Make sure we go online before attempting to request a channel.
+	Fixes NB#47136.
+
+2006-11-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mission-control.c: (dbus_filter_func),
+	(mission_control_dispose), (mission_control_class_init),
+	(mission_control_new):
+	Implemented "ServiceEnded" signal: this will be emitted whenever a
+	mission-control process terminates.
+
+2006-11-09  Naba Kumar  <naba.kumar@nokia.com>
+
+	* libmissioncontrol/mc-account-cli.c: Fixed account addition and
+	removal. Changed how parameters are specified.
+	
+2006-11-09  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 3.9.
+
+	* libmissioncontrol/mc-account-cli.c: (show_help), (main):
+	Correct program name in mc-account help screen.
+
+	* src/mcd-dispatcher.c: (_mcd_dispatcher_send):
+	Was still using "suppress-handler" property of McdChannel; change it
+	to "outgoing". Fixes NB#46811.
+
+2006-11-03  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-operation.c: (_mcd_operation_take_mission):
+	When reparenting, inherit all possible statuses from the parent
+	mission.
+
+2006-11-03  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 3.8.
+
+	* src/mcd-operation.c: (_mcd_operation_take_mission):
+	Inherit the "connected" status from the parent mission.
+
+2006-11-03  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-connection.c: Remove timer and idle sources
+	when connection object is destroyed. Fixes bug #46307
+
+2006-11-03  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* libmissioncontrol/mc-account.c: (_account_name_from_key):
+	* libmissioncontrol/test.c: (test_mc_account_list),
+	(test_account_monitor), (main):
+	Fix compilation warnings.
+
+2006-11-02  Naba Kumar  <naba.kumar@nokia.com>
+
+	* libmissioncontrol/mc-account-priv.h,
+	libmissioncontrol/mc-account-monitor.c,
+	libmissioncontrol/mc-account.c: Emit account-created signal
+	only when the account is 'complete' and do not enable
+	the account by default (let the accounts creation wizard
+	enable it when it is finished creating the account). Only
+	mark deleted accounts by a 'deleted' flag so that the account
+	is still usabled/accesible after deletion and set up a timer
+	to expunge deleted accounts after 2 secs. mc_accounts_list()
+	will now only return 'complete' accounts and not anything that
+	is found in gconf database. Accounts that have been marked
+	deleted are considered incomplete. Fixes NB#46297
+
+	* configure.ac, debian/control: Bumped version to 3.7
+	
+2006-11-01  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c: (_mcd_channel_dispose):
+	* src/mcd-operation.c: (_mcd_operation_dispose),
+	(_mcd_operation_remove_mission):
+	Clean some more debug messages.
+
+	* src/mcd-debug.c: (mcd_debug_get_level):
+	* src/mcd-debug.h:
+	Add mcd_debug_get_level() function.
+
+	* configure.ac:
+	* debian/changelog:
+	Version 3.6.
+
+	* debian/rules:
+	Compile with G_DISABLE_CAST_CHECKS.
+
+	* configure.ac:
+	Add independent configure flags for checks/cast checks/asserts.
+
+	* src/mcd-debug.c: (mcd_debug_ref), (mcd_debug_unref),
+	(mcd_debug_print_tree), (mcd_debug_init):
+	* src/mcd-debug.h:
+	Introduce a MC_DEBUG environment variable to turn on/off some
+	debugging informations.
+
+2006-10-31  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mc-profile.c: (mc_profile_get_unique_name),
+	(mc_profile_get_configuration_ui), (mc_profile_get_display_name),
+	(mc_profile_get_icon_name), (mc_profile_get_branding_icon_name),
+	(mc_profile_get_supports_invisible), (mc_profile_get_protocol),
+	(mc_profile_get_protocol_name), (mc_profile_get_vcard_field),
+	(mc_profile_get_default_account_domain),
+	(mc_profile_is_default_for_vcard_field),
+	(mc_profile_get_capabilities), (mc_profile_get_default_setting):
+	Take out the calls to _mc_profile_load() from g_return* checks, since
+	we want it to be executed anyway.
+
+	* configure.ac:
+	Allow disabling of GLIB checks (G_DISABLE_ASSERT, G_DISABLE_CHECKS).
+
+2006-10-27  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-dispatcher-context.h:
+	* src/mcd-master.c: (mcd_master_set_offline_on_idle):
+	Minor cleanups, removed some unnecessary code.
+
+2006-10-26  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c: (_mcd_connection_release_tp_connection):
+	Removed some unused code about contacts' precences.
+
+2006-10-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 3.5.
+
+2006-10-24  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-manager.c: (abort_requested_channel),
+	(abort_requested_channels), (on_presence_requested):
+	If mission-control is going online because of some channel request
+	and the user cancels the connectivity setup, we must notify the UI
+	about these requested channels being aborted (fixes NB#43666).
+
+	* libmissioncontrol/mc-account.c: (mc_accounts_list):
+	Removed duplicate call to _mc_account_monitor_list() (fixes NB#39642).
+
+2006-10-23  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 3.4.
+
+	* src/mcd-master.c: (mcd_master_set_default_presence):
+	Avoid setting the default presence if we are disconnected but a
+	presence has already been requested (fixes #44124).
+
+	* src/mcd-connection.c: (presence_str_to_enum),
+	(_mcd_connection_set_fallback_presences),
+	(_mcd_connection_presence_enable), (_mcd_connection_set_presence):
+	Remodel the presence fallback structure, and return the actually
+	selected presence in the AccountStatusChanged signal (fixes #42138).
+	* src/mcd-presence-frame.c:
+	(_mcd_presence_frame_update_actual_presences),
+	(_mcd_presence_frame_update_actual_presence):
+	Correct the way the actual presence is computed.
+
+2006-10-20  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c: (_mcd_connection_new_channel_cb),
+	(on_capabilities_changed), (on_channel_capabilities_timeout),
+	(on_capabilities_timeout), (_mcd_connection_setup_capabilities),
+	(_mcd_connection_status_changed_cb),
+	(mcd_async_request_chan_callback),
+	(mcd_async_request_handle_callback):
+	Wait for capabilities: if a call fails within 5 seconds from the
+	connection establishment, wait for the contact's CapabilitiesChanged
+	signal and try again in case we receive any (fixes #36260).
+	For outgoing channels, ignore the NewChannel handler; instead, perform
+	the channel creation when the RequestChannel method returns.
+
+	* src/mcd-connection.c: (on_channel_capabilities_timeout),
+	(map_tp_error_to_mc_error), (mcd_async_request_chan_callback):
+	Report MC_CONTACT_DOES_NOT_SUPPORT_VOICE_ERROR only for StreamedMedia
+	channels (better fix for #43777).
+
+2006-10-20  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 3.3.
+
+	* libmissioncontrol/makefile.am:
+	Fix libmissioncontrol-config library version.
+
+2006-10-19  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 3.2.
+
+	* src/mcd-channel.c: (_mcd_channel_set_property),
+	(_mcd_channel_get_property), (mcd_channel_class_init),
+	(mcd_channel_new):
+	* src/mcd-channel.h:
+	* src/mcd-connection.c: (_mcd_connection_new_channel_cb),
+	(mcd_connection_request_channel),
+	(mcd_connection_request_channel_with_string_handle):
+	* src/mcd-dispatcher.c: (_mcd_dispatcher_enter_state_machine):
+	Substitute the "suppress-handler" property from McdChannel with
+	"outgoing" and handle it accordingly.
+	Ignore unexpected NewChannel signals which have the suppress_handler
+	flag set (fixes #43446).
+
+	* src/mcd-dispatcher.c:
+	Fix some crashes that happened randomly when the channel was closed
+	shortly after creation.
+
+	* src/mcd-connection.c: (map_tp_error_to_mc_error):
+	Fix error code returned to the UI in case of missing capabilities
+	(fixes #43777).
+
+2006-10-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c: (mcd_channel_new):
+	* src/mcd-channel.h:
+	Use TelepathyConnectionHandleType instead of guint.
+
+	* src/mcd-master.c: (_on_dispatcher_channel_removed),
+	(mcd_master_set_offline_on_idle):
+	Don't go offline if channels other than text/streamed are closed.
+
+2006-10-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 3.1.
+
+2006-10-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c: (_mcd_connection_new_channel_cb),
+	(mcd_async_request_handle_callback):
+	Rewritten the check for existing channels: compare the channel type,
+	and not the channel handle type (fixes #43422).
+
+	* libmissioncontrol/mc-account-priv.h:
+	Revert the accounts path back to "/apps/telepathy/mc/accounts".
+
+2006-10-18  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-master.c: (mcd_master_get_online_connection_names):
+	Add a NULL pointer at the end of the connection names array (fixes
+	#43192).
+
+2006-10-17  Naba Kumar  <naba.kumar@nokia.com>
+
+	* libmissioncontrol/mc-account-priv.h: Fixed account gconf path.
+
+	* libmissioncontrol/mc-*.[ch]: Moved accounts/profiles/managers code
+	in libmissioncontrol.
+	* Makefile.am, src/Makefile.am, libmissioncontrol/Makefile.am,
+	xml/Makefile.am: Fixed Makefile.am files for proper installation and
+	packaging.
+	* configure.ac: Removed dependency on account library.
+	* libmissioncontrol.pc.in: Updated library flags.
+	* libmissioncontrol/mission-control.[ch], src/*.[ch]: Updated to use
+	new accounts api.
+	
+2006-10-13  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c: (on_channel_members_changed),
+	(mcd_channel_new):
+	* src/mcd-connection.c: (_mcd_connection_presence_enable),
+	(_mcd_connection_new_channel_cb), (_mcd_connection_finalize),
+	(_mcd_connection_release_tp_connection):
+	* src/mcd-dispatcher.c: (mcd_dispatcher_get_channel_type_usage):
+	* src/mcd-manager.c: (on_presence_requested),
+	(_mcd_manager_finalize):
+	* src/mcd-mission.c: (_mcd_mission_set_mode), (_mcd_set_property):
+	* src/mcd-operation.c: (_mcd_operation_remove_mission):
+	* src/mcd-service.c: (_on_dispatcher_channel_removed),
+	(_on_dispatcher_channel_dispatched):
+	Remove some g_debug()s.
+
+2006-10-11  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 2.6.
+
+2006-10-10  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c: (_mcd_channel_release_tp_channel):
+	Don't close Telepathy Contact List channels.
+
+	* src/mcd-master.c:
+	(mcd_master_request_channel_with_string_handle):
+	Make sure the connectivity is up (or has been requested) before
+	attempting to request a channel (fixes #42822).
+
+2006-10-09  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version 2.5.
+
+2006-10-09  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c: (mcd_channel_class_init):
+	* src/mcd-connection.c: (mcd_async_request_handle_callback):
+	* src/mcd-dispatcher.c: (_mcd_dispatcher_handle_channel_async_cb),
+	(channel_on_state_machine), (_mcd_dispatcher_send):
+	If the requested channel is already open, return it (works for both
+	incoming and outgoing channels).
+
+2006-10-06  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-manager.c: (_mcd_manager_set_presence_frame),
+	(_mcd_manager_dispose), (_mcd_manager_set_property):
+	Move the setting of the "presence-frame" property to a separate
+	function, since beacuse of the G_PARAM_CONSTRUCT_ONLY flag we were
+	not allowed to set it via a g_object_set().
+
+2006-10-06  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-proxy.c: (mcd_proxy_class_init):
+	Set McdProxy as a subclass of McdOperation.
+	Install "proxy-object" property.
+
+	* src/mcd-master.c: (_mcd_master_dispose), (mcd_master_init):
+	Create a proxy for forwarding McdMission signals to the McdDispatcher
+	and McdPresenceFrame.
+
+2006-10-05  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-dispatcher.c: (_mcd_dispatcher_handle_channel_async_cb),
+	(mcd_dispatcher_init):
+	Moved away all mode-setting stuff into the filters.
+
+2006-10-05  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Releasing MC 2.4.
+
+2006-10-05  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-master.c: (mcd_master_set_default_presence):
+	Conditions rewritten for better consistency.
+
+2006-10-05  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-master.c: (mcd_master_set_default_presence):
+	Don't allow setting the default presence if a presence
+	has already been requested.
+
+2006-10-04  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Releasing version 2.3
+
+2006-10-04  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-chan-handler.c: (_mcd_channel_handler_packer),
+	(_mcd_channel_handlers_read_conf_files):
+	* src/mcd-chan-handler.h:
+	* src/mcd-connection.c: (_mcd_connection_advertise_capabilities),
+	(_mcd_connection_status_changed_cb):
+	* src/mcd-dispatcher.c: (_mcd_dispatcher_finalize),
+	(_build_channel_capabilities), (mcd_dispatcher_init),
+	(mcd_dispatcher_get_channel_capabilities):
+	* src/mcd-dispatcher.h:
+	Added support for channel handlers' capabilities.
+
+2006-10-04  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-dispatcher.c: (_mcd_dispatcher_remove_channel_watch),
+	(mcd_dispatcher_init):
+	Removed some old "exit_after_last_channel" stuff, which is now handled
+	in mcd-master under the name "offline_on_idle".
+
+2006-10-04  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	Version number++.
+
+	* src/mcd-master.c: (mcd_master_set_default_presence):
+	Add some more checks before setting "offline_on_idle".
+
+2006-10-03  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mission-control.c:
+	(mission_control_set_presence):
+	Don't ignore requests for offline presence if MC is not running: fixes
+	bug #42150.
+
+2006-10-03  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-service.c: (mcd_dispose), (mcd_service_init):
+	Disconnecting handlers. Also keep a reference to presence_frame and
+	dispatcher as long signals are connected to them.
+
+2006-10-03  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-master.c: (_on_dispatcher_channel_removed),
+	(_mcd_master_dispose), (mcd_master_init),
+	(mcd_master_set_offline_on_idle), (mcd_master_request_presence),
+	(mcd_master_set_default_presence):
+	If online presence was not requested directly by the user, when the
+	last conversation channel is closed set the presence to offline again.
+	Fixes bug #42013.
+
+2006-10-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* libmissioncontrol/mission-control.h:
+	Added declaration for mission_control_get_used_channels_count()
+	(closes bug #42020).
+
+2006-10-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* configure.ac:
+	* debian/changelog:
+	* debian/control:
+	New maintainer, new version.
+
+2006-10-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-manager.c: (requested_channel_process),
+	(on_presence_stable), (requested_channel_free),
+	(request_channel_delayed), (_mcd_manager_finalize),
+	(_mcd_manager_set_property), (mcd_manager_request_channel),
+	(mcd_manager_request_channel_with_string_handle):
+	If channel creation fails because the connection has not been set up
+	yet, store the channel request in a structure, and process it once the
+	"presence-stable" signal has been catched.
+
+	* src/mcd-presence-frame.c: (mcd_presence_frame_class_init),
+	(mcd_presence_frame_init), (_mcd_presence_frame_request_presence),
+	(_mcd_presence_frame_check_stable),
+	(_mcd_presence_frame_update_stable),
+	(mcd_presence_frame_set_account_status),
+	(mcd_presence_frame_is_stable):
+	* src/mcd-presence-frame.h:
+	* src/mcd-signals-marshal.list:
+	Add mcd_presence_frame_is_stable() function and "presence-stable"
+	signal.
+
+2006-10-02  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c: (mcd_async_request_handle_callback):
+	Check for errors must be done before using the function parameters,
+	since in case of error they may be unset.
+
+2006-09-29  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-manager.c: (_mcd_manager_dispose):
+	Use the "presence-frame" property to clean up in dispose.
+
+2006-09-29  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-service.c: Fix bug on error handling: g_propagate_error()
+	itself takes care of freeing the error.
+
+2006-09-27  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-connection.c: Restore channel object in cases where
+	handle == 0 in NewChannel events.
+	
+	* src/mcd-service.c: Do not emit channel failed errors when
+	there is no requestor. Start shutdown timer if offline presence
+	is requested.
+
+	* src/mcd-connection.c, src/mcd-channel.c: Added type checks,
+	debug prints and ref accounting.
+	
+	* src/mcd-dispatcher.c: Fixed memory corruption that would
+	lead to randon crashes when a channel is destroyed.
+
+	* src/mcd-channel.c: Close channel on abort.
+	* src/dispatcher.c: Fixed flag to set.
+
+2006-09-26  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c: (_mcd_connection_status_changed_cb):
+	_mcd_connection_set_presence() must be called in all cases.
+
+2006-09-26  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-master.c:
+        Fix the gconf path name.
+	* src/mcd-mission.c: (_mcd_mission_set_mode):
+        Only set the mode when not already done.
+
+2006-09-26  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-dispatcher.c: (mcd_dispatcher_get_channel_type_usage),
+	(_mcd_dispatcher_enter_state_machine),
+	(mcd_dispatcher_context_process):
+        Rename next_func_id to next_func_index.
+
+2006-09-26  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-presence-frame.c: Emit status changed and presence
+	changed in the right order.
+	* src/mcd-service.c: Do not emit CONNECTING state to the interface,
+	cause the ui doesn't handle it correctly.
+	* src/mcd-connection.c: Pass connection status reason correctly.
+	
+2006-09-26  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-channel.c: (on_tp_channel_closed),
+	(_mcd_channel_set_property), (mcd_channel_get_members):
+        Correct an assertion and put one more.
+
+2006-09-25  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-channel.c: (mcd_channel_get_members):
+        Removed an unneeded if.
+
+2006-09-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c: (on_channel_members_changed),
+	(mcd_channel_new): Fix typo: signal "member-accepted" should be
+	"members-accepted".
+
+2006-09-25  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-manager.c: Create connection objects only if they
+	are not already created.
+	
+	* src/mcd-presence-frame.h, src/mcd-controller.c, 
+	src/mcd-connection.c, src/mcd-service.c,
+	src/mcd-signals-marshal.list, src/mcd-presence-frame.c:
+	Defined a new 'status-actual' signal that acts as the accumulated
+	connection signal for all accounts. Shutdown MC if accumulated
+	connection status gets to DISCONNECTED (i.e. all accounts has
+	got to disconnected state). Also when created a new connection,
+	it might fail immidiately and we may not have a chance to capture
+	the status changed signal. Take care of that if the status is
+	disconnected just after creating a connection.
+
+2006-09-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c: (_mcd_channel_set_property),
+	(mcd_channel_new): Only make assertions if the telepathy channel being
+	set is not NULL.
+
+	* src/mcd-connection.c: (_mcd_connection_status_changed_cb):
+	Add connection status to debug output.
+
+2006-09-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c: (_mcd_connection_status_changed_cb):
+	Rewrote the function using a switch() on the connection status.
+	Calls to dbus_g_proxy_disconnect_signal() have been removed,
+	since the dispose or abort functions should take care of them.
+
+2006-09-25  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c: (_mcd_connection_status_changed_cb):
+	Move the call to mcd_presence_frame_set_account_status() before the
+	call to _mcd_connection_set_presence(), because otherwise the
+	requested presence will not be set successfully.
+
+2006-09-23  Naba Kumar  <naba.kumar@nokia.com>
+	
+	* src/mcd-mission.c, src/mcd-mission.h, src/mcd-connection.c,
+	src/mcd-service.c, src/mcd-operation.c, src/mcd-manager.c,
+	src/mcd-proxy.c, src/mcd-dispatcher.c, src/mcd-master.c,
+	src/mcd-presence-frame.c: Removed bunch of virtual functions for
+	system states, instead used a generic flags that could be
+	set or unset. All system states now use this flags api.
+	
+	* src/mcd-connection.c: Abort connection correctly by holding a
+	temporary reference to it (because it is not not know in advance
+	if the object would die during updating of account connection status).
+	
+	* src/mcd-operation.c: Disconnect listening to abort signal in
+	dispose.
+	
+	* src/mcd-manager.c: Used gtk idle to call on_presence_request_idle()
+	in _mcd_manager_connect() (just like it's been done in
+	on_presence_requested()). The call in _connect() was just a delayed
+	invokation.
+
+2006-09-22  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-channel.c: (_mcd_channel_release_tp_channel):
+        Put some more debug.
+	* src/mcd-connection.c: (_mcd_connection_status_changed_cb),
+	(_mcd_connection_release_tp_connection), (_mcd_connection_dispose):
+        Disconnect tp_conn seperately.
+	* src/mcd-manager.c: (mcd_manager_remove_account):
+        Call mcd_mission_abort instead of emiting the signal.
+	* src/mcd-master.c: (_mcd_master_on_account_enabled):
+        Add account to manager first and then presence_frame.
+	* src/mcd-presence-frame.c: (mcd_presence_frame_add_account),
+	(mcd_presence_frame_remove_account): Do not set presence/status of the
+        account yourself on add/remove of account.
+
+2006-09-22  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c: (_mcd_connection_set_presence),
+	(_mcd_connection_status_changed_cb):
+	Avoid calling mcd_presence_frame_set_account_status() if
+	the presence-frame is gone.
+
+	* src/mcd-manager.c: (_mcd_manager_disconnect),
+	(mcd_manager_class_init):
+	Abort all connections when getting disconnected.
+
+	* src/mcd-master.c: (_mcd_master_disconnect),
+	(mcd_master_get_account_status),
+	(mcd_master_get_account_connection_details):
+	unref() the accounts returned by rtcom_account_lookup().
+
+	* src/mcd-mission.c: (mcd_mission_class_init):
+	Added "dimmed" and "lit" signals.
+
+2006-09-22  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-dispatcher.c: (_mcd_dispatcher_handle_channel_async_cb):
+        no need to unref DBusConnection.
+
+2006-09-22  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-channel.c: (_mcd_channel_dispose),
+	(mcd_channel_get_members):
+	* src/mcd-connection.c: (_mcd_connection_dispose):
+	* src/mcd-dispatcher-context.h:
+	* src/mcd-dispatcher.c: (on_master_abort),
+	(_mcd_dispatcher_handle_channel_async_cb),
+	(_mcd_dispatcher_start_channel_handler),
+	(_mcd_dispatcher_set_property),
+	(mcd_dispatcher_context_get_channel_object),
+	(mcd_dispatcher_context_get_connection),
+	(mcd_dispatcher_context_get_connection_object):
+	* src/mcd-manager.c: (_mcd_manager_create_connection),
+	(_mcd_manager_create_connections), (_find_connection),
+	(_find_connection_by_path), (on_account_status_changed),
+	(_mcd_manager_set_property), (_mcd_manager_get_property),
+	(mcd_manager_can_handle_account), (mcd_manager_add_account),
+	(mcd_manager_remove_account):
+	* src/mcd-master.c: (_manager_has_account),
+	(_mcd_master_find_manager), (_is_manager_responsible),
+	(_mcd_master_find_potential_manager),
+	(_mcd_master_on_account_enabled),
+	(_mcd_master_on_account_disabled),
+	(_mcd_master_init_account_monitoring), (_get_default_presence),
+	(mcd_master_init), (mcd_master_get_account_for_connection):
+	* src/mcd-mission.c: (on_parent_abort), (_mcd_mission_set_parent),
+	(_mcd_set_property):
+	* src/mcd-presence-frame.c:
+	(_mcd_presence_frame_update_actual_presence),
+	(mcd_presence_frame_set_account_presence),
+	(mcd_presence_frame_set_account_status),
+	(mcd_presence_frame_add_account),
+	(mcd_presence_frame_remove_account):
+	* src/mcd-presence-frame.h:
+	* src/mcd-service.c: (mcd_service_init):
+        - Attempt to add support for setting the account presence on the fly
+        as soon as it get's enabled/disabled.
+        - Fixed reference leaks.
+
+2006-09-22  Naba Kumar  <naba.kumar@nokia.com>
+	
+	* src/mcd-master.h, src/mcd-presence-frame.h,
+	src/mcd-connection.c, src/mcd-service.c,
+	src/mcd-manager.c, src/mcd-dispatcher.c,
+	src/Makefile.am, src/mcd-master.c,
+	src/mcd-presence-frame.c,
+	libmissioncontrol/mission-control.c,
+	libmissioncontrol/mission-control.h,
+	libmissioncontrol/Makefile.am: Removed deprecated codes.
+	
+	* configure.ac: Removed dead code.
+
+2006-09-22  Naba Kumar  <naba.kumar@nokia.com>
+	
+	* src/mcd-debug.h, src/mcd-debug.c,
+	src/mcd-service.c, src/mcd-mission.c, src/mcd-controller.c,
+	src/mcd-mission.h, src/Makefile.am: Added a hierarchy printing
+	debug function. Moved all debug codes to mcd-debug.[ch].
+
+2006-09-22  Naba Kumar  <naba.kumar@nokia.com>
+	
+	* src/mcd-operation.c: Abort children when abort requested on
+	operation.
+	
+2006-09-22  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-mission.c: (mcd_mission_ref), (mcd_mission_unref):
+	Add McdMission's reference count to g_debug information.
+
+2006-09-21  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-manager.c: (on_presence_requested),
+	(_mcd_manager_connect), (mcd_manager_class_init):
+	Call on_presence_request_idle() only after the connection has
+	been set up.
+
+2006-09-21  Naba Kumar  <naba.kumar@nokia.com>
+
+	* debian/control, debian/mission-control-dev.install,
+	debian/mission-control.install, debian/libmissioncontrol-dev.install,
+	debian/libmissioncontrol.install: Removed no longer used dependencies.
+	Device implementation of mission-control has been moved outside
+	this package.
+	
+	* mission-control.pc.in: Added libmissioncontrol-server in LIBS.
+	
+	* src/mcd-device-controller.c, src/mcd-main.c, configure.ac,
+	src/mcd-device-controller.h: No longer any device specific code.
+	
+	* src/Makefile.am: Disable build for the daemon for now.
+	
+	* src/mcd-service.c, src/mcd-service.h: Fixed include file.
+
+	* (removed) mcd-filtering.c, (removed) mcd-filtering.h,
+	mcd-connection.c: Removed dead files and code.
+
+	* (removed) src/mcd-object.c, (added) src/mcd-service.c,
+	(removed) src/mcd-object.h, (added) src/mcd-service.h,
+	src/mcd-device-controller.h, src/Makefile.am: Renamed files
+	to mcd-service.[c,h].
+
+	* src/mcd-object.[ch], mcd-device-controller.[ch],
+	src/mcd-main.c: Renamed class McdObject to more appropriate
+	McdService.
+	
+	* src/mcd-device-controller.c: Fixed compile errors.
+
+	* src/Makefile.am, xml/mcd-dbus-services.xml: Generate service
+	header files as mcd-service-gen.h instead of mcd-dbus-services-gen.h.
+	
+	* src/mcd-object.c, src/mcd-object.h: Use mcd-service-gen.h
+	for dbus service methods. Register dbus interface to the class in
+	class init and register dbus object in instance init. Use dbus
+	connection object from master instead of creating one by itself.
+	
+	src/mcd-connection.c: Use only dbus connection object from master.
+	src/mcd-master.c: Flush dbus connection object before exit.
+	
+	* src/mcd-device-controller.c, src/mcd-device-controller.h: Fixed
+	class structure and cleaned up.
+
+2006-09-21  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c: (_mcd_connection_status_changed_cb):
+	When a connection is created, set its presence status according to 
+	what is currently requested in the presence frame.
+
+2006-09-20  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-dbus-services.c, mcd-object.c: Moved dbus services to
+	McdObject class definition.
+	
+	* src/mcd-object.c, src/mcd-object.h, src/mcd-controller.c,
+	src/mcd-controller.h,
+	(new) src/mcd-device-controller.c, src/mcd-main.c
+	(new) src/mcd-device-controller.h, src/Makefile.am,
+	src/mcd-master.c: Separated libmissioncontrol-server library
+	from the main application. Separated device specific logic
+	away from the server library and into application (daemon).
+	
+	* src/mcd-init.c, src/mcd-telepathy-handler.c, 
+	src/mcd-dsm.c, src/mcd-dsm.h, src/mcd.h,
+	mcd-dus-services.c: Removed dead files.
+
+2006-09-19  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-channel.c: (_mcd_channel_dispose):
+	Set the is_disposed member to TRUE in the dispose() method.
+	* src/mcd-presence-frame.c: (_mcd_presence_frame_dispose),
+	(_mcd_presence_frame_finalize), (mcd_presence_frame_class_init):
+	Move the call to g_hash_table_destroy() from the finalize()
+	method to the dispose() one, since this table holds references to
+	other objects.
+
+2006-09-19  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-chan-handler.c: (_mcd_channel_handler_free),
+	(_mcd_channel_handler_packer):
+	* src/mcd-chan-handler.h:
+	* src/mcd-dispatcher-context.h:
+	* src/mcd-dispatcher.c: (_mcd_dispatcher_handle_channel_async_cb),
+	(_mcd_dispatcher_start_channel_handler),
+	(mcd_dispatcher_context_get_chan_handler):
+        - Rename ChannelHandler to McdChannelHandler.
+        - Implement a getter for the McdChannelHandler object.
+
+2006-09-19  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-connection.c: (_mcd_connection_new_channel_cb):
+	Fix updating of pending channels' hash table when a new channel is
+	added.
+
+2006-09-12  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* libmissioncontrol/mission-control.c:
+	(_missioncontrol_register_signal_marshallers),
+	(mission_control_init), (mission_control_dispose),
+	(mission_control_class_init), (mission_control_get_type),
+	(mission_control_new), (mission_control_set_presence),
+	(mission_control_get_presence),
+	(mission_control_get_presence_actual),
+	(mission_control_request_channel),
+	(mission_control_request_channel_with_string_handle),
+	(mission_control_connect_all_with_default_presence),
+	(mission_control_get_connection_status),
+	(mission_control_get_online_connections),
+	(mission_control_get_connection),
+	(mission_control_cancel_last_request),
+	(mission_control_get_account_for_connection),
+	(mission_control_get_used_channels_count), (_handle_mcd_errors),
+	(set_presence_async_cb), (request_channel_async_cb),
+	(request_channel_with_string_handle_async_cb),
+	(connect_all_with_default_presence_async_cb), (check_for_accounts),
+	(check_mc_running), (cancel_last_request_async_cb):
+        Merge changes from old mc.
+	* src/mcd-dispatcher.c: (mcd_dispatcher_register_filter_chain),
+	(_mcd_dispatcher_enter_state_machine):
+        Add some more info to the debug output.
+
+2006-09-08  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-channel.c: Removed construct only flags for the
+	properties.
+
+	* src/mcd-main.c: Shutdown 3rd party services correctly.
+
+	* src/mcd-mission.c, src/mcd-operation.c: Release reference to
+	parent mission on its abort signal.
+
+2006-09-08  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-dispatcher.c: (on_object_abort),
+	(_mcd_dispatcher_set_property):
+        Watch for abort signal and unref the object on abort.
+	* src/mcd-master.c: (_mcd_master_dispose), (mcd_master_class_init):
+        Master should also over-ride the dispose method to unref all the
+        member objects.
+
+2006-09-08  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-manager.c: Nuke stale telepathy connections before
+	mission control takes over the job.
+
+	* src/mcd-connection.cm, src/mcd-channel.c, src/mcd-channel.h:
+	Get rid of hacky pending request sturct and instead use Channel
+	object themselfs as pending channels. Implemented get/set
+	channel status.
+
+	* xml/mcd-dbus-services.xml: Introduced GetUsedChannelsCount
+	method again.
+	
+	* src/mcd-dbus-services.c: Reordered dbus method implementations
+	and defined them as static functions.
+	
+2006-09-08  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-main.c: (_shutdown_3rd_party_services),
+	(_raise_3rd_party_services), (main):
+        Raise 3rd-party services on start-up and shut them down on abort.
+	* src/mcd-master.c: (_mcd_master_get_property),
+	(mcd_master_class_init):
+        Add 'dbus-connection' property to McdMaster.
+
+2006-09-08  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-mission.c: (mcd_mission_class_init):
+        Register McdMode as a GType rather than a GEnum.
+
+2006-09-08  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-dispatcher-context.h:
+	* src/mcd-dispatcher.c: (_mcd_dispatcher_enter_state_machine),
+	(mcd_dispatcher_context_process):
+        Rename mcd_process_sm to mcd_dispatcher_context_process. Remove
+        mcd_cancel_sm
+
+2006-09-08  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-object.c: Listen and respond to channel dispached and
+	friends signals.
+	
+	* src/mcd-connection.c: Removed dead code and notify channel
+	abort if telepathy connection is disconnected.
+	
+	* src/mcd-channel.c, src/mcd-channel.h: Defined channel status enum
+	and a notification signal for it.
+	
+	* src/mcd-signals-marshal.list, src/mcd-dispatcher.c,
+	src/mcd-dispatcher.h: Implemented
+	channel-added, channel-removed, dispached, dispatch-failed signals.
+	and emit dispatch failed error messages.
+	
+	* configure.ac, src/Makefile.am, src/mcd-mission.c: Generate enum
+	types dynamically.
+	
+	* src/mcd-master.c: Make dispatcher a property of master.
+
+2006-09-07  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-dispatcher-context.h:
+	* src/mcd-dispatcher.c: (_mcd_dispatcher_handle_channel_async_cb),
+	(_mcd_dispatcher_start_channel_handler),
+	(_mcd_dispatcher_drop_channel_handler),
+	(_mcd_dispatcher_leave_state_machine), (on_channel_abort_context),
+	(_mcd_dispatcher_enter_state_machine), (mcd_process_sm),
+	(mcd_dispatcher_context_free),
+	(mcd_dispatcher_context_get_channel_object),
+	(mcd_dispatcher_context_get_dispatcher),
+	(mcd_dispatcher_context_get_connection_object),
+	(mcd_dispatcher_context_get_channel),
+	(mcd_dispatcher_context_get_data),
+	(mcd_dispatcher_context_get_connection),
+	(mcd_dispatcher_context_get_members),
+	(mcd_dispatcher_context_set_abort_fn),
+	(mcd_dispatcher_context_set_data):
+        Rename all sm_context_t to McdDispatcherContext and also the functions
+        related to this sturcture.
+
+2006-09-07  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-object.c: Cancel shutdown if a new presence was
+	requested which is not offline.
+	
+	* src/mcd-mission.c, src/mcd-mission.h: Use better ref/unref
+	wrapper.
+
+2006-09-07  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-dispatcher-context.h:
+	* src/mcd-dispatcher.c:
+        Remove wrapper functions for lock/unlock.
+
+2006-09-07  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-dispatcher-context.h:
+	* src/mcd-dispatcher.c: (_mcd_dispatcher_handle_channel_async_cb),
+	(_mcd_dispatcher_start_channel_handler), (mcdf_ctx_get_connection):
+        Removed some more wrapper functions.
+
+2006-09-07  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-object.c, src/mcd-mission.c, src/mcd-connection.c,
+	src/mcd-channel.c, src/mcd-main.c, src/mcd-dispatcher.c: Fixed 'abort'
+	signals and object life cycles. Exit mission-control on shutdown
+	timeout. Fixed state machine context handling.
+
+2006-09-07  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-dispatcher-context.h:
+	* src/mcd-dispatcher.c:
+        Removed the device state related wrapper functions.
+
+2006-09-07  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-dispatcher-context.h:
+	* src/mcd-dispatcher.c: (_mcd_dispatcher_handle_channel_async_cb),
+	(_mcd_dispatcher_start_channel_handler), (mcdf_ctx_get_channel):
+        Removed the channel-related wrapper functions.
+
+2006-09-07  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-dispatcher-context.h:
+	* src/mcd-dispatcher.c: (_mcd_dispatcher_enter_state_machine),
+	(mcdf_ctx_get_display_state): Update device_state API to use booleans
+        instead of enums.
+	* src/mcd-mission.c: (mcd_mission_class_init): register mode by its
+        GType rather than as enum.
+
+2006-09-07  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-controller.c, src/mcd-mission.h,
+	src/mcd-controller.h, src/mcd-operation.c
+	src/mcd-main.c, src/mcd-master.c: Fixed mission-control shutdown
+	and object abort signals.
+
+	* src/mcd-dispatcher.c: Moved context creation in enter state
+	machine.
+	
+	* src/mcd-object.c, xml/mcd-dbus-services.xml,
+	src/mcd-signals-marshal.list, src/mcd-dbus-services.c:
+	Fixed method parameters.
+
+	* src/mcd-connection.c, src/mcd-channel.c, src/mcd-manager.c,
+	src/mcd-dispatcher.c, src/mcd-master.c,
+	src/mcd-operation.c, src/mcd-operation.h: Removed get_children()
+	method because there is similar get_missions() method and fixed
+	several memory corruptions. Fixed filters chains initialization.
+	Disabled filters for now (until	the filters are fixed).
+
+2006-09-07  Alberto Mardegan  <alberto.mardegan@nokia.com>
+
+	* src/mcd-mission.c: (mcd_mode_get_type), (_mcd_mission_set_mode),
+	(mcd_mission_class_init): Register the McdMode enum.
+
+2006-09-06  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-connection.c,	src/mcd-dispatcher.c: Pass handle and
+	handle_type correctly. Fixed channel handlers launching.
+
+	* src/mcd-connection.c, src/mcd-channel.c,
+	src/mcd-dispatcher.c, src/mcd-master.c: Fixed dispatcher
+	propagation and channel properties.
+
+	*  src/mcd-dispatcher-context.h, src/mcd-dispatcher.c:
+        Implement the lock/unlock function for the filters.
+        Port some more functions from the old mission-control.
+	
+	* src/Makefile.am:
+        Also distribute mcd-dispatcher-context.h
+
+2006-09-06  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-dispatcher.[c,h], src/mcd-dispatcher-context.h:
+	separated plugin context API from main dispatcher API.
+
+	* src/mcd-connection.c, src/mcd-connection.h,
+	src/mcd-manager.c, src/mcd-manager.h,
+	src/mcd-dispatcher.c, src/mcd-master.c,
+	src/mcd-dispatcher.h: Passed down dispatcher and dispatch
+	new channels.
+
+2006-09-05  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-master.h, src/mcd-object.c, src/mcd-manager.c,
+	src/mcd-dbus-services.c, src/mcd-manager.h,
+	src/mcd-master.c: Implemented new method 
+	mcd_get_account_for_connection() properly.
+
+	* src/mcd-object.c: Implemented mission control error quark.
+	
+	* src/mcd-dbus-services.c: Implemented new method
+	mcd_get_account_for_connection()
+	
+	* libmissioncontrol/mission-control.c, 
+	libmissioncontrol/mission-control.h, 
+	libmissioncontrol/mission-control-signals-marshal.list: Restored
+	libmissioncontrol from old MC.
+
+	* src/mcd-dispatcher.c, src/mcd-dispatcher.h: Added get/set
+	dispatcher methods in context.
+
+	* src/mcd-dispatcher.h: Fixed build error.
+
+	* src/mcd-chan-handler.c: Added missing file.
+
+	* src/mcd-master.h, src/mcd-chan-handler.h,
+	src/mcd-dbus-services.c, src/mcd-dispatcher.c,
+	src/Makefile.am, src/mcd-master.c, src/mcd-dispatcher.h:
+	Implemented missing pieces in dispatcher.
+
+	* src/mcd-dbus-services.c: Fixed build error due to
+	change in function name.
+
+2006-09-04  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-channel.c: Implemented mcd_channel_get_members().
+	
+	* src/mcd-master.h, src/mcd-connection.c,
+	src/mcd-connection.h, src/mcd-channel.c,
+	src/mcd-manager.c, src/mcd-channel.h,
+	src/mcd-dbus-services.c, src/mcd-manager.h,
+	src/mcd-master.c: Implemented channel request stack.
+
+2006-09-03  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-controller.c, rc/mcd-channel.c,
+	mrc/mcd-channel.h, src/mcd-dispatcher.c, src/mcd-dispatcher.h:
+	Ported filtering codes.
+
+2006-08-30  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/Makefile.am, mission-control.pc.in: Install header files and
+	fixed include path.
+	
+	* src/mcd-connection.c, src/mcd-channel.c, src/mcd-channel.h: Added
+	extra channel parameters.
+
+2006-08-30  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-connection.c: (_mcd_connection_free_presence_info),
+	(_find_handle), (_mcd_connection_map_status_to_presences),
+	(_mcd_connection_presence_update_cb),
+	(_mcd_connection_store_tp_self_handle),
+	(_mcd_connection_get_tp_status_cb),
+	(_mcd_connection_set_fallback_presences),
+	(_mcd_connection_presence_enable), (on_presence_requested),
+	(_foreach_channel_remove), (_mcd_connection_status_changed_cb),
+	(_mcd_connection_setup), (_mcd_connection_dispose),
+	(_mcd_connection_set_property),
+	(mcd_connection_get_telepathy_details):
+	* src/mcd-connection.h:
+	* src/mcd-controller.c: (_mcd_controller_device_mode_cb),
+	(_mcd_controller_device_state_filter_func),
+	(_mcd_mode_to_mce_mode), (_mcd_controller_set_mode):
+	* src/mcd-dispatcher.c: (_mcd_dispatcher_load_filters),
+	(_mcd_dispatcher_unload_filters), (mcd_dispatcher_init),
+	(mcd_dispatcher_new), (channel_usage_counter),
+	(mcdf_get_channel_type_usage), (on_channel_members_changed),
+	(mcd_get_filter_chain), (mcd_register_filter_chain),
+	(mcd_unregister_filter_chain),
+	(mcd_dispatcher_remove_channel_watch), (get_local_pending_cb),
+	(mcd_dispatcher_add_channel_watch), (on_channel_closed),
+	(dispose_channel_request), (dispose_state_machine_data),
+	(mcd_cancel_sm), (enter_state_machine),
+	(mcdf_ctx_get_dbus_connection), (mcdf_ctx_get_account),
+	(mcdf_ctx_get_profile), (mcdf_ctx_set_data):
+	* src/mcd-dispatcher.h:
+	* src/mcd-filtering.c: (mcdf_ctx_get_channel_object),
+	(mcdf_ctx_get_request_chan_type_quark),
+	(mcdf_ctx_get_request_chan_type),
+	(mcdf_ctx_get_request_conninfo_proxy),
+	(mcdf_ctx_get_request_conninfo_account_name),
+	(mcdf_ctx_get_request_conninfo_self_handle),
+	(mcdf_ctx_get_request_obj_path),
+	(mcdf_ctx_get_request_handle_type), (mcdf_ctx_get_request_handle),
+	(mcdf_ctx_get_book), (mcdf_ctx_get_dbus_connection),
+	(mcdf_ctx_get_display_state), (mcdf_ctx_get_battery_state),
+	(mcdf_ctx_get_keylock_state), (mcdf_ctx_get_lowmem_state),
+	(mcdf_ctx_get_data), (mcdf_ctx_get_flags),
+	(mcdf_ctx_get_account), (mcdf_ctx_get_profile),
+	(_contact_handles_to_strings), (mcdf_ctx_get_members),
+	(mcdf_ctx_set_abort_fn), (mcdf_ctx_set_data),
+	(dispose_channel_request), (dispose_state_machine_data),
+	(start_channel_handler), (drop_channel_handler), (mcd_process_sm),
+	(mcd_cancel_sm), (enter_state_machine),
+	(mcd_async_request_chan_callback), (mcd_get_filter_chain),
+	(mcd_register_filter_chain), (mcd_unregister_filter_chain),
+	(on_channel_closed), (on_channel_memberschanged),
+	(get_local_pending_cb), (channel_usage_counter),
+	(mcdf_get_channel_type_usage), (mcdf_set_tklock_unlocked),
+	(remove_channel_watch), (add_channel_watch), (set_voip_mode),
+	(set_tklock), (channelhandler_destroy_cb),
+	(handle_channel_async_cb):
+	* src/mcd-filtering.h:
+	* src/mcd-manager.c: (_mcd_manager_create_connections),
+	(_find_connection), (on_account_status_changed),
+	(on_presence_requested_idle), (_mcd_manager_set_property),
+	(mcd_manager_new), (mcd_manager_get_account_connection):
+	* src/mcd-master.c: (_mcd_master_init_managers),
+	(_get_default_presence), (_is_manager_responsible),
+	(_mcd_master_find_manager), (_mcd_master_sleep),
+	(mcd_master_get_account_status),
+	(mcd_master_get_online_connection_names),
+	(mcd_master_get_account_connection_details):
+	* src/mcd-master.h:
+	* src/mcd-mission.c: (_mcd_mission_dispose),
+	(_mcd_mission_finalize), (mcd_mission_class_init):
+	* src/mcd-mission.h:
+	* src/mcd-object.c: (_on_account_status_changed),
+	(_on_account_presence_changed), (_on_presence_requested),
+	(_on_presence_actual), (mcd_object_get):
+	* src/mcd-operation.c: (_mcd_operation_dispose),
+	(_mcd_operation_remove_mission), (mcd_operation_get_children):
+	* src/mcd-operation.h:
+	* src/mcd-presence-frame.c: (_presence_to_status),
+	(_mcd_presence_frame_request_presence),
+	(mcd_presence_frame_request_presence),
+	(mcd_presence_frame_cancel_last_request),
+	(_mcd_presence_frame_update_actual_presences),
+	(_mcd_presence_frame_update_actual_presence),
+	(mcd_presence_frame_set_account_presence),
+	(mcd_presence_frame_set_account_status):
+	* src/mcd-presence-frame.h:
+	* src/mcd-proxy.c: (_mcd_proxy_abort),
+	(_mcd_proxy_connect_signals), (_mcd_proxy_disconnect_signals),
+	(_mcd_proxy_dispose), (mcd_proxy_new):
+	* src/mcd-proxy.h: Fix indentation.
+
+2006-08-30  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-filtering.[c,h]: Moved codes from old MC.
+
+2006-08-30  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/Makefile.am: Treat warnings as errors.
+	* src/mcd-controller.c: (_mcd_controller_set_mode): remove unused
+        varriable.
+	* src/mcd-dispatcher.c: (on_channel_members_changed),
+	(get_local_pending_cb), (mcd_dispatcher_add_channel_watch),
+	(mcdf_ctx_set_abort_fn):
+	* src/mcd-dispatcher.h:
+	* src/mcd-manager.c: (mcd_manager_init):
+	* src/mcd-mission.c: (mcd_mission_get_mode): Small fixes to make
+        mc built with the latest changes.
+
+2006-08-30  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-mission.c: Fixed compiler warnings.
+
+2006-08-29  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* libmissioncontrol/mission-control.c:
+	(mission_control_get_presence),
+	(mission_control_get_presence_actual):
+	* src/Makefile.am:
+	* src/mcd-chan-handler.h:
+	* src/mcd-connection.c: (_mcd_connection_status_changed_cb):
+	* src/mcd-controller.c: (_mcd_controller_device_mode_cb),
+	(_mcd_controller_device_state_filter_func),
+	(_mcd_mode_to_mce_mode), (_mcd_controller_set_mode),
+	(mcd_controller_class_init):
+	* src/mcd-dispatcher.c: (_mcd_dispatcher_send),
+	(_mcd_dispatcher_load_filters), (_mcd_dispatcher_unload_filters),
+	(_mcd_dispatcher_set_property), (_mcd_dispatcher_get_property),
+	(_mcd_dispatcher_dispose), (mcd_dispatcher_class_init),
+	(mcd_dispatcher_init), (mcd_dispatcher_new),
+	(channel_usage_counter), (mcdf_get_channel_type_usage),
+	(on_channel_memberschanged), (mcd_get_filter_chain),
+	(mcd_register_filter_chain), (mcd_unregister_filter_chain),
+	(mcd_dispatcher_remove_channel_watch),
+	(mcd_dispatcher_add_channel_watch), (on_channel_closed),
+	(start_channel_handler), (drop_channel_handler), (mcd_process_sm),
+	(dispose_channel_request), (dispose_state_machine_data),
+	(mcd_cancel_sm), (enter_state_machine),
+	(mcdf_ctx_get_channel_object),
+	(mcdf_ctx_get_request_chan_type_quark),
+	(mcdf_ctx_get_request_chan_type), (mcdf_ctx_get_request_obj_path),
+	(mcdf_ctx_get_request_handle_type), (mcdf_ctx_get_request_handle),
+	(mcdf_ctx_get_book), (mcdf_ctx_get_dbus_connection),
+	(mcdf_ctx_get_display_state), (mcdf_ctx_get_battery_state),
+	(mcdf_ctx_get_keylock_state), (mcdf_ctx_get_data),
+	(mcdf_ctx_get_account), (mcdf_ctx_get_profile),
+	(mcdf_ctx_get_members), (mcdf_ctx_set_abort_fn),
+	(mcdf_ctx_set_data):
+	* src/mcd-dispatcher.h:
+	* src/mcd-filtering.c:
+	(mcdf_ctx_get_data), (mcdf_ctx_get_account),
+	(mcdf_ctx_get_profile), (mcd_get_filter_chain),
+	(mcd_register_filter_chain), (mcd_unregister_filter_chain):
+	* src/mcd-filtering.h:
+	* src/mcd-manager.c: (on_account_status_changed),
+	(mcd_manager_class_init), (mcd_manager_init), (mcd_manager_new),
+	(mcd_manager_get_account_connection):
+	* src/mcd-manager.h:
+	* src/mcd-master.c: (_mcd_master_init_managers),
+	(_mcd_master_find_manager), (mcd_master_init),
+	(mcd_master_get_account_connection_details):
+	* src/mcd-mission.c: (_mcd_mission_set_mode),
+	(_mcd_mission_get_mode), (_mcd_set_property), (_mcd_get_property),
+	(mcd_mission_class_init), (mcd_mission_set_mode),
+	(mcd_mission_get_mode):
+	* src/mcd-mission.h:
+	* src/mcd-object.c:
+	* src/mcd-operation.c:
+	* src/mcd-operation.h:
+        Trying to port dispatcher with working code from the old mc.
+
+2006-08-26  Naba Kumar  <naba.kumar@nokia.com>
+
+	* (new) src/mcd-proxy.[c,h], src/Makefile.am: Implemented
+	proxy class.
+	
+2006-08-21  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-presence-frame.c: (mcd_presence_free): No need to check for
+        NULL before calling g_free() on a pointer.
+
+2006-08-18  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-manager.c: Removed an unneeded function:
+        mcd_manager_get_account_status.
+
+2006-08-18  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-dbus-services.c: (mcd_cancel_last_request):
+	* src/mcd-master.c: (mcd_master_cancel_last_request):
+	* src/mcd-master.h:
+	* src/mcd-presence-frame.c: (mcd_presence_new),
+	(mcd_presence_free), (mcd_presence_copy),
+	(_mcd_presence_frame_finalize), (mcd_presence_frame_init),
+	(_mcd_presence_frame_request_presence),
+	(mcd_presence_frame_request_presence),
+	(mcd_presence_frame_cancel_last_request):
+	* src/mcd-presence-frame.h:
+        Implement CancelLastRequest.
+
+2006-08-18  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-connection.c: (mcd_connection_get_telepathy_details):
+	* src/mcd-connection.h:
+	* src/mcd-dbus-services.c: (mcd_get_connection):
+	* src/mcd-manager.c: (_find_connection),
+	(mcd_manager_get_account_connection):
+	* src/mcd-manager.h:
+	* src/mcd-master.c: (_is_manager_responsible),
+	(_mcd_master_find_manager),
+	(mcd_master_get_online_connection_names),
+	(mcd_master_get_account_connection_details):
+	* src/mcd-master.h:
+        Implement GetConnection.
+
+2006-08-17  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-dbus-services.c: (mcd_get_online_connections):
+	* src/mcd-master.c: (mcd_master_get_online_connection_names):
+	* src/mcd-master.h: Implement GetOnlineConnections.
+
+2006-08-17  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-dbus-services.c: (mcd_get_connection_status):
+	* src/mcd-manager.c: (on_presence_requested_idle),
+	(mcd_manager_get_account_status):
+	* src/mcd-master.c: (mcd_master_get_account_status):
+	* src/mcd-master.h: Implement GetConnectionStatus.
+	* src/mcd-presence-frame.c: (_presence_to_status),
+	(_mcd_presence_frame_update_actual_presence): Refactor: Put the
+        presence to status translation into a static inline function.
+
+2006-08-17  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-dbus-services.c: (mcd_connect_all_with_default_presence),
+	(mcd_request_channel), (mcd_request_channel_with_string_handle):
+	* src/mcd-master.c: (_get_default_presence),
+	(mcd_master_set_default_presence):
+	* src/mcd-master.h:
+        Implement ConnectAllWithDefaultPresence.
+
+2006-08-16  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-dbus-services.c: (mcd_get_presence),
+	(mcd_get_presence_actual):
+	* src/mcd-master.c: (mcd_master_get_actual_presence),
+	(mcd_master_get_requested_presence):
+	* src/mcd-master.h: Implement GetPresence and GetPresenceActual.
+
+2006-08-16  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-mission.c, src/mcd-operation.c, src/mcd-controller,
+	src/mcd-master.c, src/mcd-object: Added some class documents.
+	
+2006-08-16  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-manager.c: (on_presence_requested_idle): Corrected the logic
+        for deciding wether to create the connection manager and connections.
+
+2006-08-16  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-connection.c: (_mcd_connection_set_property): One more line
+        break makes code a bit clearer.
+	* src/mcd-manager.c: (on_presence_requested_idle): Only create TP
+        connection manager and connections if they are not already created.
+	* src/mcd-object.c: (_on_account_presence_changed),
+	(mcd_object_get): Handle presence-changed and emit the appropriate
+        signal on the dbus.
+	* src/mcd-presence-frame.c: (mcd_presence_frame_class_init),
+	(mcd_presence_frame_set_account_presence): rename presence-set signal to
+        pressence-changed.
+
+2006-08-15  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-master.c: (_mcd_master_sleep): Only set presence to away
+	automatically if the current presence is AVAILABLE.
+
+2006-08-15  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-controller.c: (_mcd_controller_on_sleep_timeout),
+	(_mcd_controller_inactivity_cb): Introduce a timeout function for
+	auto-away
+	* src/mcd-master.c: (_mcd_master_sleep), (_mcd_master_wakeup),
+	(mcd_master_class_init): Override sleep/wakeup to implement auto-away.
+	* src/mcd-presence-frame.c:
+	(mcd_presence_frame_get_actual_presence),
+	(mcd_presence_frame_get_actual_presence_message): 
+	* src/mcd-presence-frame.h: Add API to support querying actual presence.
+
+2006-08-15  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-connection.c: (_mcd_connection_presence_enable): 
+	BUGFIX: assuming wrong type of user_data in a callback, which
+	made mc segfault when setting the presence to away.
+
+2006-08-15  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-connection.c: (on_presence_requested): A small indentation
+	fix.
+	* src/mcd-presence-frame.c: (_mcd_presence_frame_finalize),
+	(mcd_presence_frame_set_account_status): save the previous status of
+	accounts before updating it and call
+	_presence_frame_set_account_presence() only when needed.
+
+2006-08-14  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-presence-frame.c: (_mcd_presence_frame_finalize),
+	(mcd_presence_frame_init),
+	(mcd_presence_frame_get_requested_presence),
+	(_mcd_presence_frame_update_actual_presence),
+	(mcd_presence_frame_get_account_presence),
+	(mcd_presence_frame_get_account_status),
+	(mcd_presence_frame_get_account_status_reason),
+	(mcd_presence_frame_set_accounts): Keep track of actual presence
+	seperately then the requested presence. assume UNSET to be the
+	lowest presence level rather than OFFLINE.
+
+2006-08-14  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-connection.c: (_mcd_connection_set_property): Use
+	connect_after instead of connect so that the signal handler is called
+	after all other signal handlers.
+	* src/mcd-manager.c: (on_presence_requested_idle),
+	(on_presence_requested): set the presence in an idle handler.
+
+2006-08-11  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-connection.c: (mcd_connection_class_init): Fixed a small typo in
+	naba's last commit.
+
+2006-08-11  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-connection.c: (_mcd_connection_setup): Emit a dbus signal
+	on connecting the accounts
+	* src/mcd-object.c: (_on_presence_actual), (mcd_object_get): Rename
+	presence-settled to presence-actual.
+	* src/mcd-presence-frame.c: (mcd_presence_frame_class_init),
+	(_mcd_presence_frame_update_actual_presences),
+	(_mcd_presence_frame_update_actual_presence),
+	(mcd_presence_frame_set_account_presence),
+	(mcd_presence_frame_set_account_status): Rename
+	presence-settled to presence-actual and try to emit presence-actual
+	signal when it's time to do so.
+	* src/mcd-presence-frame.h: Rename
+	presence-settled to presence-actual.
+
+2006-08-10  Naba Kumar  <naba.kumar@nokia.com>
+	
+	* src/mcd-connection.c: Fixed property param spec.
+
+	* src/mcd-connection.c: Implemented presence status changes
+	from telepathy connection.
+
+	* src/mcd-connection.c: Backported new changes from old mission
+	control.
+
+2006-08-09  Zeeshan Ali  <zeeshan.ali@nokia.com>
+
+	* src/mcd-object.c: (_on_presence_settled), (mcd_object_get):
+	Emit PresenceStatusActual signal when/if received from the
+	presence-frame
+
+2006-08-09  Zeeshan Ali  <zeeshan.ali@nokia.com>
+    
+	* ChangeLog: Starting to maintain a ChangeLog from now on.
+
+	* src/mcd-master.h, src/mcd-presence-frame.h, src/mcd-object.c
+	src/mcd-connection.c, src/mcd.h, src/mcd-manager.c, src/mcd-master.c
+	src/mcd-presence-frame.c: Converting from 
+	TelepathyConnectionPresenceType to McPresence
+	
+	* libmissioncontrol/mission-control.[ch]: Moved code from old
+	missioncontrol.
+
+2006-08-09  Zeeshan Ali  <zeeshan.ali@nokia.com>
+    
+	* src/*.h, src/*.c: emit the AccountStatusChanged? signal on the dbus so
+	that presence 
+
+2006-08-09  Zeeshan Ali  <zeeshan.ali@nokia.com>
+    
+	* src/*.h, src/*.c: applet can update itself. 
+
+2006-08-08  Zeeshan Ali  <zeeshan.ali@nokia.com>
+    
+	* src/*.h, src/*.c: You can go now go online, then offline and then
+	again online and so on without causing a segfault. :)
+
+2006-08-03  Zeeshan Ali  <zeeshan.ali@nokia.com>
+    
+	* src/*.h, src/*.c: Use the dbus bus that started us rather than the
+	session bus. 
+
+2006-08-03  Zeeshan Ali  <zeeshan.ali@nokia.com>
+    
+	* src/*.h, src/*.c:
+	Figure-out and save the new state on presence change.
+
+2006-07-27  Zeeshan Ali  <zeeshan.ali@nokia.com>
+    
+	* src/*.h, src/*.c:
+	Renamed mcd_master_set_presence() to mcd_master_request_presence()
+
+2006-07-27  Zeeshan Ali  <zeeshan.ali@nokia.com>
+    
+	* src/*.h, src/*.c:
+	Renamed the object varriable according to the new API (athough the code
+	is commented out atm)
+
+2006-07-27  Zeeshan Ali  <zeeshan.ali@nokia.com>
+    
+	* src/*.h, src/*.c:
+	Renamed the MCObject structures to McdObject? 
+
+2006-07-26  Zeeshan Ali  <zeeshan.ali@nokia.com>
+    
+	* src/*.h, src/*.c:
+	Setting the indentation according to the gnu coding style
+
+2006-07-26  Zeeshan Ali  <zeeshan.ali@nokia.com>
+    
+	* src/*.h, src/*.c:
+	g_object_new expects a NULL in the end (bugfix)
+
+2006-07-26  Zeeshan Ali  <zeeshan.ali@nokia.com>
+    
+	* src/*.h, src/*.c:
+	Connecting the chain of SetPresence? 
+
+2006-07-26  Zeeshan Ali  <zeeshan.ali@nokia.com>
+    
+	* src/*.h, src/*.c:
+	DBUS_API_SUBJECT_TO_CHANGE declaration is enough in one place
+	(Makefile.am)
+
+2006-07-25  Zeeshan Ali  <zeeshan.ali@nokia.com>
+    
+	* src/*.h, src/*.c: Corrected the verion in debian/changelog
+
+2006-07-25  Zeeshan Ali  <zeeshan.ali@nokia.com>
+    
+	* src/*.h, src/*.c: Imported signals to mcd-object from the old version
+
+2006-07-25  Zeeshan Ali  <zeeshan.ali@nokia.com>
+    
+	* src/*.h, src/*.c: Moved some more code from the old mission-control
+
+2006-07-25  Zeeshan Ali  <zeeshan.ali@nokia.com>
+    
+	* src/*.h, src/*.c: Updated the version string in configure.ac and debian files
+	
+
+2006-06-12  Naba Kumar  <naba.kumar@nokia.com>
+    
+	* src/mcd-presence-frame.h, src/mcd-connection.c
+	src/mcd-connection.h, src/mcd-channel.c
+	src/mcd-manager.c, src/mcd-channel.h
+	src/mcd-signals-marshal.list, src/mcd-dispatcher.c
+	src/Makefile.am, src/mcd-dispatcher.h
+	src/mcd-presence-frame.c: New implementation of channel class. Futher
+	implementation of connection and presence-frame classes. Initial
+	implementation of dispatcher class.
+
+2006-06-02  Naba Kumar  <naba.kumar@nokia.com>
+    
+	* src/mcd-connection.c, src/mcd-operation.c, src/mcd-master.h,
+	src/mcd-presence-frame.h,  src/mcd-connection.h,
+	src/mcd-operation.h, src/mcd-manager.c,
+	src/mcd-signals-marshal.list, src/mcd-manager.h,
+	src/mcd-mission.c, src/mcd-controller.c,
+	src/mcd-mission.h, src/Makefile.am,
+	src/mcd-controller.h, src/mcd-master.c,
+	src/mcd-presence-frame.c: Fixed all classess to build. Partial
+	implementation of all classes.
+
+2006-06-01  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-connection.c, src/mcd-master.h, src/mcd-presence-frame.h,
+	src/mcd-connection.h, src/mcd-manager.c, src/mcd-manager.h,
+	src/mcd-controller.c, src/Makefile.am, src/mcd-master.c,
+	src/mcd-presence-frame.c: Created master, manager
+	and presence frame classes and initial structure.
+
+2006-06-01  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-mission.[c,h], src/mcd-operation.[c,h],
+	src/mcd-controller.[c,h], src/mcd-connection.[c,h], src/Makefile.am:
+	Added initial mission control structure.
+	
+2006-05-26  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-init.c, src/mcd-object.c, src/mcd-telepathy-handler.c,
+	src/mcd-object.h, src/mcd-dbus-services.c, src/mcd-filtering.c:
+	Cleanups.
+
+	* src/mcd-dbus-services.c: Refactored common code into
+	_mcd_get_default_presence().
+
+	* src/mcd-dbus-services.c: Refactored common code into
+	_mcd_request_channel().
+
+	* src/mcd-object.c, src/mcd-telepathy-handler.c, src/mcd-object.h:
+	Made mcd_free_presence_info() easier to use.
+
+	* src/mcd-dbus-services.c: Made mcd_cancel_last_request() use
+	_mcd_set_presence().
+
+	* src/mcd-object.c, src/mcd-telepathy-handler.c:
+	_mcd_status_changed_handler() duplicated a lot of code from
+	mcd_set_account_presence().
+
+2006-05-24  Naba Kumar  <naba.kumar@nokia.com>
+
+	* libmissioncontrol/mission-control.h, src/mcd.h,
+	src/mcd-filtering.c(mcd_async_request_chan_callback): Added
+	MC_CONTACT_DOES_NOT_SUPPORT_VOICE_ERROR.
+
+	* src/mcd-filtering.c, src/mcd-object.c,
+	src/mcd-telepathy-handler.c: Minor cleanups.
+
+	* src/mcd-object.c: Don't try to connect the same account more
+	than once. g_hash_table_insert() will call the key_destroy_func
+	on the key if it is already present. This corrupted the object
+	path that was being used as the key.
+
+	* src/mcd-object.c, src/mcd-telepathy-handler.c,
+	src/mcd-object.h, src/mcd-dbus-services.c, src/mcd-filtering.c,
+	xml/mcd-dbus-services.xml, libmissioncontrol/mission-control.c,
+	libmissioncontrol/mission-control.h: Added presence-status-actual
+	signal which reflects the combined status of out accounts.
+	presence-status-requested was fixed to be emitted when a presence
+	is actually requested.
+
+2006-05-23  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-object.c: Don't clear exit_after_last_channel flag when
+	mcd_connect_all_with_default_presence() is called.
+	Partial fix for bug #27122.
+
+	* src/mcd-init.c: Re-connect all accounts even when connectivity
+	is already connected. Fixes bug #30344.
+
+2006-05-19  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-object.c: Set new connection status to CONNECTING.
+	Fixes bug #29265.
+
+2006-05-19  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-dbus-services.c, src/mcd-dsm.c, src/mcd-filtering.c,
+	src/mcd-init.c,	src/mcd-object.c, src/mcd-telepathy-handler.c,
+	src/mcd-object.h: Andrei's changes to .manager file reading and
+	minor refactoring + debugging output additions.
+
+2006-05-17  Naba Kumar  <naba.kumar@nokia.com>
+	* src/mcd-object.c: Don't hog the CPU and prevent gabble from
+	doing real work.
+
+2006-05-16  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-dbus-services.c, xml/mcd-dbus-services.xml,
+	libmissioncontrol/mission-control.[c|h]: Added
+	GetUsedChannelsCount DBUS method with libmissioncontrol
+	bindings to query for ongoing VoIP calls etc. This fixes bug
+	#29651.
+
+2006-05-12  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-filtering.c (start_channel_handler): A few mcd-error
+	signal emits were missing when we had trouble handling the
+	channel. The emits should fix bug #26504.
+
+2006-05-12  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-object.[c|h], src/mcd-telepathy-handler.c:
+	Reverted _mcd_connection_destroyed_cb removal from yesterday
+	since apparently both this and the recent libtelepathy addition
+	are needed by someone.
+
+2006-05-12  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-object.c: Connection status is now also updated when
+	starting to connect an account. This fixes bug #29265.
+
+	* src/mcd-object.c, src/mcd-signals-marshal.list,
+	xml/mcd-dbus-services.xml, libmissioncontrol/mission-control.c,
+	libmissioncontrol/mission-control-signals-marshal.list:
+	Added PresenceStatusRequested signal which is emitted whenever a
+	presence change is requested. Emitting can happen due to a request
+	from application, auto-away etc.
+
+2006-05-11  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-object.[c|h], src/mcd-telepathy-handler.c:
+	Due to recent changes in libtelepathy, mission control is no
+	longer responsible for detecting destroyed connections. Thus,
+	_mcd_connection_destroyed_cb and the associated helper struct
+	destroy_signal_data have been removed as obsolete. Part of
+	fix for bug #28543.
+
+2006-05-09  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-object.c, src/mcd-telepathy-handler.c,
+	src/mcd-signals-marshal.list, xml/mcd-dbus-services.xml,
+	libmissioncontrol/mission-control.c,
+	libmissioncontrol/mission-control-signals-marshal.list: Backed off
+	the AccountStatusChanged signal modifications done by Tuomas, as
+	we've been requested to do this differently.
+
+	* src/mcd-dsm.c (_close_channel): Mission Control attempted to
+	close chanels with wrong type of pointer when shutdown_ind signal
+	has been received, effectively causing a crash. Now channels are
+	closed properly.
+
+	* src/mcd-filtering.[c|h] (add_channel_watch),
+	(remove_channel_watch): Mission Control will have to monitor
+	MembersChanged signals for VOIP calls in order to know whether the
+	T&K lock needs to be be locked when the call ends. The locking
+	functionality has also been added to MC. MC also provides a method
+	available for filters to indicate whether filters opened the T&K
+	lock.
+
+	* src/mcd-object.[c|h]: A flag has been added to Mission Control
+	for keeping track of T&K unlock operations done by the
+	filters. It's needed to know whether we need to lock T&K again
+	when call ends.
+	
+	* src/mcd-init.c (_mcd_setup_device_state_monitoring): Mission
+	Control will request information about the T&K lock status on
+	startup, otherwise we might not know the lock status during the
+	first VOIP call.
+
+2006-05-08  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-object.[c|h], src/mcd-dbus-services.c,
+	src/mcd-filtering.c: Presence and connectivity are set offline
+	after the last channel closes in case the channel was initiated
+	from those conditions. This fixes bug #27122.
+
+	* src/mcd-object.c, src/mcd-telepathy-handler.c,
+	src/mcd-signals-marshal.list, xml/mcd-dbus-services.xml,
+	libmissioncontrol/mission-control.c,
+	libmissioncontrol/mission-control-signals-marshal.list:
+	AccountStatusChanged signal API changed. Added last requested
+	presence as the signal's second parameter.
+
+	* src/mcd-dbus-services.c: Connectivity is now handled also in
+	ConnectAllWithDefaultPresence method. This fixes bug #26797.
+
+2006-05-05  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-dbus-services.c: Cancellation for the pending MC
+	shutdown has been added to situations where it makes sense.
+
+	* src/mcd-init.c (_mcd_iap_cb): When we've been disconnected in an
+	uncontrollable manner, set presence to offline to match reality.
+
+	* src/mcd-dsm.c (_mcd_state_filter_func): The fix for the T&K lock
+	tracking was still not quite right. Corrected a flawed comparison.
+
+	* src/mcd-init.c: Emit an error signal to indicate when we've lost
+	network connectivity in an uncontrolled manner.
+
+2006-05-04  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-init.c (_mcd_inactivity_cb): Fix the autoaway state
+	book-keeping to complete the bug #23758 fix.
+
+	* src/mcd-object.c (mcd_set_presence_autoaway): Do not touch the
+	away message string when going to autoaway.
+
+2006-05-03  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-dbus-services.c: Added implementation of the presence
+	revert operation when a request is cancelled.
+	
+	* src/mcd-object.[c|h]: Added support for storing the previous
+	presence data when doing a request, so that we can 'cancel' the
+	request.
+
+	* src/mcd.h: MC_NETWORK_ERROR has been added to supported error
+	signals.
+
+	* libmissioncontrol/mission-control.c (_handle_mcd_errors):
+	Support emission of 'generic' errors that are not directly caused
+	by the request performed by the current application. They will
+	have PID parameter value 0. Added method
+	mission_control_cancel_last_request() that can be used to cancel
+	the last method call (currently only really supports the
+	mission_control_request_channel_with_string_handle() cancellation).
+
+	* src/mcd-object.c (_mcd_connect_account_from_hash): Emit
+	MC_NETWORK_ERROR if creation of a connection failed.
+
+	* libmissioncontrol/mission-control.[c|h]: Added the
+	mission_control_connect_all_with_default_presence() method to the
+	API to connect all accounts with default presence when we're not
+	yet offline. MC_NETWORK_ERROR has been added to error signals.
+
+	* src/mcd-dbus-services.c (mcd_connect_all_with_default_presence):
+	Added a handler for the ConnectAllWithDefaultPresence D-BUS
+	method. It will connect all accounts with the default presence
+	value from GConf if we're not online yet.
+
+	* xml/mcd-dbus-services.xml: Added the definition of the new
+	method ConnectAllWithDefaultPresence. Added CancelLastRequest
+	method definition.
+
+2006-05-02  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-init.c, src/Makefile.am, configure.ac: The plugin directory
+	location is now provided by the autotools files instead of being
+	hardcoded in the Mission Control.
+
+	* mission-control.pc.in (pluginlibdir): We now provide the plugin
+	library location in the package configuration file for other
+	interested components (i.e. the filters)
+
+2006-04-28  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-object.[c|h], src/mcd-telepathy-handler.c: Main presence
+	is now updated when going autoaway thus fixing bug #23758.
+	Added just-in-time fetching of available presence states:
+	In case the presence interface doesn't exist yet when status
+	changes to connected but becomes available later, the presence
+	options are fetched when setting the account's presence. This fixes
+	the related race condition.
+
+2006-04-27  Naba Kumar  <naba.kumar@nokia.com>
+
+	* libmissioncontrol/mission-control.[c|h]: Libmissioncontrol methods
+	will now check whether there are any enabled accounts before doing
+	anything that will invoke Mission Control.  Initial experimental
+	code for the request cancellation support has been added, but it's
+	not yet tested.
+
+2006-04-25  Naba Kumar  <naba.kumar@nokia.com>
+
+	* libmissioncontrol/mission-control.[c|h]
+	(mission_control_get_presence): We now check whether the Mission
+	Control is present on the D-BUS in order to avoid unnecessary
+	starting it up when we're offline and want to know our presence.
+
+	* src/mcd-dsm.c (mcd_shutdown_ind_cb): Mission Control will now
+	explicitly call close for all channels in order to fix the bug
+	#25155, in case there will be some connection manager that does
+	not do it while disconnecting a connection.
+
+2006-04-24  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-filtering.h: The channel type quark getter prototype
+	name mismatched the implementation. Fixed.
+
+	* src/mcd.h: Moved some definitions to mcd-filtering.h, because
+	plugins need access to the same D-BUS service.
+
+2006-04-23  Naba Kumar <naba.kumar@nokia.com>
+
+	* src/mcd-dbus-services.c: Fixed a build breakage.
+
+2006-04-21  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-init.c (_mcd_inactivity_cb): Mission Control should now
+	no longer enter autoaway when there is an ongoing VOIP call.
+
+2006-04-21  Naba Kumar  <naba.kumar@nokia.com>
+
+	* libmissioncontrol/mission-control.h, src/mcd.h,
+	src/mcd-dbus-services.c: Added MC_NO_ACCOUNTS_ERROR.
+	The error is sent in response to all the DBUS methods in case
+	there aren't any enabled accounts. MC also exits in that case.
+
+	* src/mcd-dbus-services.c: On channel requests in disconnected
+	state, presence setting is now read from GConf.
+
+	* src/mcd-init.c: Minor change on e_book_open() function call's
+	parameters to fix bug #26998.
+
+2006-04-20  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-filtering.c: Merged some upstream fixes from Andrei to
+	the VOIP mode handling.
+
+2006-04-19  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd.h: Added definitions for the MCE service calls.
+
+	* src/mcd-filtering.c (remove_channel_watch): When we have no
+	longer VOIP calls going, exit from VOIP mode to the normal mode by
+	sending a request to the MCE.
+	(add_channel_watch): When we have a VOIP call going, send a
+	request to the MCE to enter the VOIP mode.
+
+2006-04-12  Naba Kumar  <naba.kumar@nokia.com>
+
+	* libmissioncontrol/mission-control.[c|h], src/mcd-object.c,
+	src/mcd-signals-marshal.list, src/mcd-filtering.c,
+	src/src/chan-handler.h, xml/mcd-dbus-services.xml,
+	libmissioncontrol/mission-control-signals-marshal.list: Provided
+	the requested further improvements in the libmissioncontrol error
+	reporting, so that individual clients get only error signals that
+	are relevant to them.
+
+	* src/mcd-filtering.[c|h]: The filtering API has been updated to
+	provide access to the RtcomAccount and RtcomProfile for the
+	current channel request. Also, the API now includes a helper for
+	getting the list of addresses for the participants of current
+	channel.
+
+2006-04-11  Naba Kumar  <naba.kumar@nokia.com>
+
+	* configure.ac: Version number upgraded.
+
+	* xml/mcd-dbus-services.xml: The method definitions have been
+	changed to include the serial number of the operation. Error
+	signal has been added.
+
+	* debian/control (Depends): Added dependency for the galago-daemon
+	version that no longer appears to have issues when being started
+	by Mission Control.
+
+	* libmissioncontrol/mission-control.c: Support for receiving the
+	Error signal from the missioncontrol. Do not emit the signal based
+	on g_error anymore.
+
+	* src/mcd.h, libmissioncontrol/missioncontrol.h: The error domain
+	quark definition has been removed, as it's no longer used.
+
+	* src/mcd-init.c: The environmental variable check to determine
+	whether we should launch galago and friends has been disabled and
+	the startup is done by default.
+
+	* src/mcd-telepathy-handler.c: Use of some obsolete context
+	members has been removed, other cleanups.
+
+	* src/mcd-chan-handler.h (struct chan_handler_req_t): The channel
+	handler request structure has been cleaned of some now unnecessary
+	members. The channel type is now represented as a quark.
+
+	* src/mcd-filtering.[c|h]: The filtering context and the access
+	API for it had some cleanups. We also keep up a count of the
+	channel instances per channel type. Part of the fix for bug #25260
+	is also here.
+
+	* src/mcd-object.[c|h]: Support for the counting of channels per
+	channel type has been added. Some obsolete code has been
+	removed. We now emit error signal to provide applications calling
+	MCD through libmissioncontrol information about error situations
+	(bug #25260).
+
+	* src/mcd-dbus-services.c: We now emit error signal to provide
+	applications calling MCD through libmissioncontrol information
+	about error situations (bug #25260). Some obsolete code has been
+	eliminated.
+
+2006-04-09  Naba Kumar  <naba.kumar@nokia.com>
+	* src/mcd-object.c, src/mcd-telepathy-handler.c: Rearranged
+	"destroy" signal disconnection and connection object unreferencing
+	so that MC behaves nicely when connecting accounts with invalid
+	passwords. Now MC also exits after last account disconnects. These
+	fix bug 25951.
+
+	* src/mcd-dbus-services.c: Reconnecting the accounts which were
+	lost due to a Connection Manager crash is now possible.
+
+	* src/mcd-object.c: Minor change to call tp_key_value_list_free
+	for freeing the keyval list
+
+2006-04-06  Naba Kumar  <naba.kumar@nokia.com>
+
+	* libmissioncontrol/mission-control-signals-marshal.list: The
+	"error" signal signature has been added.
+
+	* src/mcd-dbus-services.c,
+	libmissioncontrol/missioncontrol.c,
+	libmissioncontrol/missioncontrol.h: Partial fix for the bug 25260;
+	instead of pringing warnings, MissionControl sets GError
+	approriately, so libmissioncontrol can emit error signals
+	instead. Libmissioncontrol will now also free the allocated
+	account names to avoid memory leaks (fixing bug 25272).
+
+	* src/mcd.h: Some definitions needed by bug 25260 work were added.
+
+2006-04-06  Naba Kumar <naba.kumar@nokia.com>
+	* src/mcd-init.c, src/mcd-object.[c|h]: Mission Control will now
+	listen for accidentally destroyed connections (for example when
+	a Connection Manager crashes).
+
+	* src/mcd-init.c, src/mcd-object.c, mcd-dbus-services.c: Fixed
+	emission of account-status-changed signal in case Connectivity
+	is lost during it's establishment.
+
+	* src/mcd-init.c, src/mcd-object.[c|h]: Added reading of
+	MC_RAISE_SERVICES environment variable to decide if external
+	daemons are started/stopped
+
+2006-04-05  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-object.c (mcd_dispose, mcd_connect_all_accounts): The
+	shutdown/startup of Galago is currently disabled
+
+	* src/mcd-init.c: When Connectivity is lost, Mission Control will
+	wait for a moment and only then exit if Connectivity does not
+	return.
+
+	* src/mcd-filtering.[c|h]: Added getter for the self handle
+	property of the connection.
+
+2006-04-04  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-telepathy-handler.c: _mcd_free_presence_info was moved
+	into mcd-object.c and is now public.
+
+	* src/mcd-object.[c|h]: Mission Control will now start Galago when
+	accounts are connected and shut it when Mission Control exists. 
+
+	* src/mcd-init.c (_mcd_read_account_settings): Minor memory leak
+	fixes
+
+2006-04-03  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-object.c: Minor changes to internal filter functionality
+	calls to be in sync with the naming conventions.
+
+	* src/mcd-filtering.[c|h]: Major updates to the context getters and
+	context structure.
+	
+	* src/mcd-filtering-int.h: The filter processing internal function
+	definitions have been separated here.
+
+2006-03-30  Naba Kumar  <naba.kumar@nokia.com>
+
+	* debian/control, debian/mission-control-dev.install
+	debian/changelog, debian/libmissioncontrol-dev.install
+	src/Makefile.am, configure.ac, 	mission-control.pc.in
+	Makefile.am: Split mission-control and filters and have
+	separate mission-control development package.
+
+	* filter-plugins/mcd-filter-common.h,
+	filter-plugins/mcd-text-filter-plugin.c,
+	filter-plugins/mcd-filter-plugins.h,
+	filter-plugins/mcd-filter-common.c,
+	filter-plugins/mcd-voip-filter-plugin.c: Moved the filters
+	to mission-control-filters/src in repository.
+
+	* filters-plugins/*: Removed dead directory.
+
+2006-03-30  Naba Kumar  <naba.kumar@nokia.com>
+
+	* filter-plugins/Makefile.am (libmcd_text_filter_la_SOURCES)
+	(libmcd_voip_filter_la_SOURCES): While compiling plugins, also use
+	the new common plugin code file.
+
+	* filter-plugins/mcd-text-filter-plugin.[c|h]: As the plugins
+	shared most of their code, the overlapping part was moved into
+	separate source and header files. Minor error handling fixes also
+	included.
+
+2006-03-30  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-filtering.c: Naming of functions was unified a
+	bit. Error messages now include the function where things went
+	wrong. Memory allocation done with g_new0.
+
+2006-03-29  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-object.[c|h], src/mcd-telepathy-handler.c,
+	src/mcd-dbus-services.c, src/mcd-filtering.c,
+	src/mcd-chan-handler.h, filter-plugins/mcd-text-filter-plugin.c,
+	filter-plugins/mcd-voip-filter-plugin.c: The
+	(mission_control_request_channel_with_string_handle) now works
+	properly.
+
+2006-03-28  Naba Kumar  <naba.kumar@nokia.com>
+
+	* libmissioncontrol/mission-control.[c|h]: API changes:
+	(mission_control_request_channel) no longer uses ChaVoAddress, but
+	takes the handle and handle type directly instead. Added
+	(mission_control_request_channel_with_string_handle) function as
+	requested.
+
+	* libmissioncontrol/chavo-utils.[c|h]: Chavo-utils have been made
+	obsolete and removed.
+
+	* src/mcd-main.c (main): While initializing the MC, use the new
+	getter function for the actual MC object.
+
+	* src/mcd-filtering.c: Changed the filtering implementation to
+	pluginize it. Added the support functions for the pluginized
+	filters (registration/unregistration, context manipulation etc).
+
+	* src/mcd-dbus-services.c (mcd_request_channel): Changed the
+	function API as requested to make the ChaVoAddress structure
+	unnecessary.
+	(mcd_request_channel_with_string_handle): Added initial version of
+	the channel request function variant that supports the handle as a
+	string.
+	(mcd_get_connection): Ensure that we do not attempt to access an
+	invalid TpConn object, which would cause a crash.
+
+	* src/mcd-telepathy-handler.c (_mcd_new_channel_handler): Collect
+	new channel requests with directionality info so that they can be
+	handled by the filter plugins.
+
+	* src/mcd-object.[c|h]: Clean the filter plugins and channel request
+	hash while disposing mission control. Mission Control has been
+	singletonized. Corresponding changes to the header.
+
+	* src/mcd-init.c: Load the filter plugins. Read only the enabled
+	accounts.
+
+	* filter-plugins/*, debian/mission-control.install, Makefile.am:
+	The filters have been separated to dynamically loadable libraries.
+
+2006-03-22  Naba Kumar  <naba.kumar@nokia.com>
+
+	* libmissioncontrol/Makefile.am: Added util library to build
+	flags/libs.
+
+	* libmissioncontrol/chavo-utils.[c|h]: Removed the now obsolete
+	ChavoAccount definition, as well as its helper function.
+
+	* xml/mcd-dbus-services.xml: Updated RequestChannel method signature.
+
+	* src/mcd-dbus-services.c (mcd_request_channel): The channel type
+	is now a string, instead of an enum. Removed now unnecessary
+	mapping from an enum to a string.
+
+	* src/filter-type-voip.c (filter3_invoke_voipengine): Fixed a
+	couple of warnings by adding the missing casts.
+
+	* src/mcd-init.c (_mcd_read_account_settings): We progressed to
+	next item in a GList with g_slist_next. While it worked, it's not
+	really the right thing to do.
+
+	* libmissioncontrol/mission-control.[c|h]: Libmissioncontrol now
+	uses the string identifiers for the channels instead of the old
+	enum system. Libmissioncontrol now also uses RtcomAccounts instead
+	of the old ChavoAccount.
+	
+	* configure.ac: Version number updated.
+
+2006-03-21  Naba Kumar  <naba.kumar@nokia.com>
+
+	* configure.ac: Bumped up the version to 0.7. util library is no
+	longer a dependency (control file also updated
+	accordingly). util library version 0.0.3 or newer is required.
+
+	* src/mcd-init.c (_mcd_read_account_settings): Account settings
+	are now read with the util library instead of the deprecated
+	util library.
+
+2006-03-17  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-filtering.c (mcd_async_request_chan_callback): No longer
+	call the filter chain for outgoing requests (fixes bug #24105)
+
+2006-03-15  Naba Kumar  <naba.kumar@nokia.com>
+
+	* configure.ac: Version number update.
+
+	* src/mcd-telepathy-handler.c (_mcd_free_presence_info): Presence
+	information memory handling fixes.
+
+	* src/mcd-object.[c|h] (_mcd_disconnect_account_from_hash): Emit the
+	AccountStatusChanged signal only if we're doing
+	auto-disconnect. PresenceUpdate signal handling/crash fix.
+
+	* src/filter-type-text.c: A missing licence header was added.
+
+	* src/mcd-init.c: Connectivity is now used only on
+	ARM. Connectivity handling fixes. When returning from autoaway,
+	preceding presence value is restored.Added listener for system
+	state events.
+
+	* src/mcd-filtering.c: A missing licence header was added. VOIP
+	filter support was added.
+
+	* src/Makefile.am (mission_control_SOURCES),
+	src/filter-type-voip.c: VOIP filter functions added to build.
+
+2006-03-08  Naba Kumar  <naba.kumar@nokia.com>
+
+	* src/mcd-telepathy-handler.c (_mcd_status_changed_handler):
+	Support added for handling of pending channel requests.
+	* src/mcd-object.h: Added device state info structure needed for
+	the DSM filters.
+	* src/mcd-object.c, src/mcd-dbus-services: Support added for use
+	of Connectivity on ARM.
+	* src/mcd-init.c (mcd_init): Added setup for DSM event
+	monitoring. Also, support added for use of Connectivity on ARM.
+	* src/mcd-filtering.c: mcd_async_request_chan_callback moved here.
+	* src/Makefile.am (mission_control_SOURCES): mcd-dsm.c added to
+	build (Contains the callbacks for device state book-keeping).
+	* src/filter-type-text.c: Added filter functions for battery low,
+	display and keylock. Contacts plugin is again used.
+	* configure.ac: Version updated.
+	
+
+2006-03-02  Naba Kumar  <naba.kumar@nokia.com>
+
+	* configure.ac: Version updated to 0.2
+	* src/mission-control.[c|h]:
+	* src/mcd-object.[c|h]:
+	  - Dispose handling problems should now be fixed.	
+	* src/mcd-dbus-services.c: (_mcd_async_request_chan_callback) Some
+	missing error handling was added
+
+	* configure.ac:
+	* debian/control:
+	* src/mcd-object.[c|h]:
+	* src/mcd-filtering.[c|h]:
+	* src/mcd-init.c:
+	* src/filter-type-text.c
+	* src/mcd-telepathy-handler.c
+	  - Added support for contact filtering, merged with other changes.
+
+	* src/mcd-dbus-services.c:
+	* src/mcd-object.[c|h]:
+	  - AccountStatusChange signal support was completed and some
+	  related presence handling bugs (at least #23194) fixed.
+
