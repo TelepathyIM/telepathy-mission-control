@@ -15,7 +15,8 @@ EXTRA_DIST = \
     lcov.am \
     libtpcodegen.py \
     libglibcodegen.py \
-    spec-to-introspect.xsl
+    spec-to-introspect.xsl \
+    telepathy.am
 
 CLEANFILES = libglibcodegen.pyc libglibcodegen.pyo
 
