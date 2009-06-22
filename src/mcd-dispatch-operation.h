@@ -26,8 +26,6 @@
 
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/enums.h>
-/* auto-generated stubs */
-#include "_gen/svc-dispatch-operation.h"
 
 G_BEGIN_DECLS
 #define MCD_TYPE_DISPATCH_OPERATION         (mcd_dispatch_operation_get_type ())

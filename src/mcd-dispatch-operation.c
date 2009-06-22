@@ -36,15 +36,16 @@
 
 #include <glib/gi18n.h>
 #include <glib/gstdio.h>
+
 #include <telepathy-glib/gtypes.h>
+#include <telepathy-glib/interfaces.h>
+#include <telepathy-glib/svc-channel-dispatch-operation.h>
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
 #include "mcd-channel-priv.h"
 #include "mcd-dbusprop.h"
 #include "mcd-misc.h"
-#include "_gen/interfaces.h"
-#include "_gen/gtypes.h"
 
 #define MCD_CLIENT_BASE_NAME "org.freedesktop.Telepathy.Client."
 #define MCD_CLIENT_BASE_NAME_LEN (sizeof (MCD_CLIENT_BASE_NAME) - 1)
@@ -52,7 +53,7 @@
 #define MCD_DISPATCH_OPERATION_PRIV(operation) (MCD_DISPATCH_OPERATION (operation)->priv)
 
 static void
-dispatch_operation_iface_init (McSvcChannelDispatchOperationClass *iface,
+dispatch_operation_iface_init (TpSvcChannelDispatchOperationClass *iface,
                                gpointer iface_data);
 static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
                                    gpointer iface_data);
@@ -60,9 +61,9 @@ static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
 static const McdDBusProp dispatch_operation_properties[];
 
 static const McdInterfaceData dispatch_operation_interfaces[] = {
-    MCD_IMPLEMENT_IFACE (mc_svc_channel_dispatch_operation_get_type,
+    MCD_IMPLEMENT_IFACE (tp_svc_channel_dispatch_operation_get_type,
                          dispatch_operation,
-                         MC_IFACE_CHANNEL_DISPATCH_OPERATION),
+                         TP_IFACE_CHANNEL_DISPATCH_OPERATION),
     { G_TYPE_INVALID, }
 };
 
@@ -222,7 +223,7 @@ mcd_dispatch_operation_finish (McdDispatchOperation *operation)
     if (priv->block_finished == 0)
     {
         DEBUG ("%s/%p has finished", priv->unique_name, operation);
-        mc_svc_channel_dispatch_operation_emit_finished (operation);
+        tp_svc_channel_dispatch_operation_emit_finished (operation);
     }
     else
     {
@@ -232,7 +233,7 @@ mcd_dispatch_operation_finish (McdDispatchOperation *operation)
 }
 
 static void
-dispatch_operation_handle_with (McSvcChannelDispatchOperation *self,
+dispatch_operation_handle_with (TpSvcChannelDispatchOperation *self,
                                 const gchar *handler_name,
                                 DBusGMethodInvocation *context)
 {
@@ -246,11 +247,11 @@ dispatch_operation_handle_with (McSvcChannelDispatchOperation *self,
         g_error_free (error);
     }
     else
-        mc_svc_channel_dispatch_operation_return_from_handle_with (context);
+        tp_svc_channel_dispatch_operation_return_from_handle_with (context);
 }
 
 static void
-dispatch_operation_claim (McSvcChannelDispatchOperation *self,
+dispatch_operation_claim (TpSvcChannelDispatchOperation *self,
                           DBusGMethodInvocation *context)
 {
     McdDispatchOperationPrivate *priv;
@@ -266,16 +267,16 @@ dispatch_operation_claim (McSvcChannelDispatchOperation *self,
     }
 
     priv->claimer = dbus_g_method_get_sender (context);
-    mc_svc_channel_dispatch_operation_return_from_claim (context);
+    tp_svc_channel_dispatch_operation_return_from_claim (context);
 
     mcd_dispatch_operation_finish (MCD_DISPATCH_OPERATION (self));
 }
 
 static void
-dispatch_operation_iface_init (McSvcChannelDispatchOperationClass *iface,
+dispatch_operation_iface_init (TpSvcChannelDispatchOperationClass *iface,
                                gpointer iface_data)
 {
-#define IMPLEMENT(x) mc_svc_channel_dispatch_operation_implement_##x (\
+#define IMPLEMENT(x) tp_svc_channel_dispatch_operation_implement_##x (\
     iface, dispatch_operation_##x)
     IMPLEMENT(handle_with);
     IMPLEMENT(claim);
@@ -580,7 +581,7 @@ mcd_dispatch_operation_get_properties (McdDispatchOperation *operation)
             value = g_slice_new0 (GValue);
             property->getprop ((TpSvcDBusProperties *)operation,
                                property->name, value);
-            name = g_strconcat (MC_IFACE_CHANNEL_DISPATCH_OPERATION, ".",
+            name = g_strconcat (TP_IFACE_CHANNEL_DISPATCH_OPERATION, ".",
                                 property->name, NULL);
             g_hash_table_insert (priv->properties, name, value);
         }
@@ -721,7 +722,7 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
         DEBUG ("%s/%p losing channel %s: %s: %s",
                self->priv->unique_name, self, object_path, error_name,
                error->message);
-        mc_svc_channel_dispatch_operation_emit_channel_lost (self, object_path,
+        tp_svc_channel_dispatch_operation_emit_channel_lost (self, object_path,
                                                              error_name,
                                                              error->message);
         g_free (error_name);
@@ -786,7 +787,7 @@ _mcd_dispatch_operation_unblock_finished (McdDispatchOperation *self)
                 DEBUG ("%s/%p losing channel %s: %s: %s",
                        self->priv->unique_name, self, object_path, error_name,
                        error->message);
-                mc_svc_channel_dispatch_operation_emit_channel_lost (self,
+                tp_svc_channel_dispatch_operation_emit_channel_lost (self,
                     object_path, error_name, error->message);
                 g_free (error_name);
             }
@@ -798,7 +799,7 @@ _mcd_dispatch_operation_unblock_finished (McdDispatchOperation *self)
         if (self->priv->finished)
         {
             DEBUG ("%s/%p finished", self->priv->unique_name, self);
-            mc_svc_channel_dispatch_operation_emit_finished (self);
+            tp_svc_channel_dispatch_operation_emit_finished (self);
         }
     }
 }
