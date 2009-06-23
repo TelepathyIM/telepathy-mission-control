@@ -20,6 +20,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
   </tp:license>
   <interface name="com.nokia.Account.Interface.Stats">
 
+    <tp:mapping name="Channel_Count_Map">
+      <tp:docstring>A mapping from strings representing channel types to their usage count</tp:docstring>
+      <tp:member type="s" name="Key"/>
+      <tp:member type="u" name="Value"/>
+    </tp:mapping>
+
     <property name="ChannelCount" tp:name-for-bindings="Channel_Count"
       type="a{su}" tp:type="Channel_Count_Map" access="read">
       <tp:docstring>
