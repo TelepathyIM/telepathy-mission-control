@@ -23,6 +23,8 @@
 	from="Telepathy specification (SimplePresence)"/>
     <tp:external-type name="Conn_Mgr_Param_Flags" type="u"
 	from="Telepathy specification (ConnectionManager)"/>
+    <tp:external-type name="Requestable_Channel_Class" type="(a{sv}as)"
+      from="Telepathy specification (Requests)"/>
 </tp:generic-types>
 
 <xi:include href="generic-types.xml"/>
