@@ -105,6 +105,8 @@ dbus_filter_function (DBusConnection *connection,
       if (reply == NULL || !dbus_connection_send (connection, reply, NULL))
         g_error ("Out of memory");
 
+      dbus_message_unref (reply);
+
       return DBUS_HANDLER_RESULT_HANDLED;
     }
 
