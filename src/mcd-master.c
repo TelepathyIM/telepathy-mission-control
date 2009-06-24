@@ -98,6 +98,8 @@ typedef struct _McdMasterPrivate
     GList *account_connections;
 
     gboolean is_disposed;
+    gboolean low_memory;
+    gboolean idle;
 } McdMasterPrivate;
 
 enum
@@ -441,16 +443,18 @@ _mcd_master_set_property (GObject *obj, guint prop_id,
 static void
 _mcd_master_set_flags (McdMission * mission, McdSystemFlags flags)
 {
-    McdSystemFlags idle_flag_old, idle_flag_new;
+    gboolean idle_flag_old;
     McdMasterPrivate *priv;
 
     g_return_if_fail (MCD_IS_MASTER (mission));
     priv = MCD_MASTER_PRIV (MCD_MASTER (mission));
 
-    idle_flag_old = MCD_MISSION_GET_FLAGS_MASKED (mission, MCD_SYSTEM_IDLE);
-    idle_flag_new = flags & MCD_SYSTEM_IDLE;
-    
-    if (idle_flag_old != idle_flag_new)
+    priv->low_memory = ((flags & MCD_SYSTEM_MEMORY_CONSERVED) != 0);
+
+    idle_flag_old = priv->idle;
+    priv->idle = ((flags & MCD_SYSTEM_IDLE) != 0);
+
+    if (idle_flag_old != priv->idle)
     {
         GHashTableIter iter;
         gpointer v;
@@ -462,7 +466,7 @@ _mcd_master_set_flags (McdMission * mission, McdSystemFlags flags)
         {
             McdAccount *account = MCD_ACCOUNT (v);
 
-            if (idle_flag_new)
+            if (priv->idle)
             {
                 TpConnectionPresenceType presence;
 
@@ -911,3 +915,54 @@ finish:
     return ret;
 }
 
+gboolean
+mcd_master_has_low_memory (McdMaster *master)
+{
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+
+    return priv->low_memory;
+}
+
+/* For the moment, this is implemented in terms of McdSystemFlags. */
+void
+mcd_master_set_low_memory (McdMaster *master,
+                           gboolean low_memory)
+{
+    McdMission *mission = MCD_MISSION (master);
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+
+    /* this will set priv->low_memory as a side-effect */
+    if (low_memory)
+    {
+        MCD_MISSION_SET_FLAGS_MASKED (mission, MCD_SYSTEM_MEMORY_CONSERVED);
+    }
+    else
+    {
+        MCD_MISSION_UNSET_FLAGS_MASKED (mission, MCD_SYSTEM_MEMORY_CONSERVED);
+    }
+
+    g_assert (priv->low_memory == low_memory);
+}
+
+/* For the moment, this is implemented in terms of McdSystemFlags. When
+ * McdSystemFlags are abolished, move the processing from set_flags to
+ * this function. */
+void
+mcd_master_set_idle (McdMaster *master,
+                     gboolean idle)
+{
+    McdMission *mission = MCD_MISSION (master);
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+
+    /* this will set priv->idle as a side-effect */
+    if (idle)
+    {
+        MCD_MISSION_SET_FLAGS_MASKED (mission, MCD_SYSTEM_IDLE);
+    }
+    else
+    {
+        MCD_MISSION_UNSET_FLAGS_MASKED (mission, MCD_SYSTEM_IDLE);
+    }
+
+    g_assert (priv->idle == idle);
+}
