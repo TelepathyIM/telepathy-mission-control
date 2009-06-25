@@ -626,9 +626,6 @@ mcd_account_request_presence_int (McdAccount *account,
     McdAccountPrivate *priv = account->priv;
     gboolean changed = FALSE;
 
-    if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE && !priv->enabled)
-	return FALSE;
-
     if (priv->req_presence_type != type)
     {
 	priv->req_presence_type = type;
@@ -645,6 +642,11 @@ mcd_account_request_presence_int (McdAccount *account,
 	g_free (priv->req_presence_message);
 	priv->req_presence_message = g_strdup (message);
 	changed = TRUE;
+    }
+
+    if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE && !priv->enabled)
+    {
+        return changed;
     }
 
     if (priv->connection == NULL)
