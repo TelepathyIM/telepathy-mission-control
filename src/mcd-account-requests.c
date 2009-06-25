@@ -170,8 +170,7 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
         mcd_account_get_account_manager (account));
     DBusGConnection *dgc = tp_proxy_get_dbus_connection (dbus_daemon);
 
-    if (mcd_mission_get_flags (MCD_MISSION (mcd_master_get_default ())) &
-        MCD_SYSTEM_MEMORY_CONSERVED)
+    if (mcd_master_has_low_memory (mcd_master_get_default ()))
     {
         g_set_error (error, MC_ERROR, MC_LOWMEM_ERROR, "Insufficient memory");
         return NULL;
