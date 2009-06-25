@@ -110,12 +110,6 @@ enum
 };
 
 typedef struct {
-    McdMaster *master;
-    McdTransportPlugin *plugin;
-    McdTransport *transport;
-} TransportData;
-
-typedef struct {
     gint priority;
     McdAccountConnectionFunc func;
     gpointer userdata;
