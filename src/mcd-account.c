@@ -176,21 +176,39 @@ static void
 _mcd_account_maybe_autoconnect (McdAccount *account)
 {
     McdAccountPrivate *priv;
+    McdMaster *master;
 
     g_return_if_fail (MCD_IS_ACCOUNT (account));
     priv = account->priv;
 
-    if (priv->enabled &&
-        priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED &&
-        priv->connect_automatically)
+    if (!priv->enabled)
     {
-        McdMaster *master = mcd_master_get_default ();
-        if (_mcd_master_account_conditions_satisfied (master, account))
-        {
-            DEBUG ("connecting account %s", priv->unique_name);
-            _mcd_account_request_connection (account);
-        }
+        DEBUG ("%s not Enabled", priv->unique_name);
+        return;
     }
+
+    if (priv->conn_status != TP_CONNECTION_STATUS_DISCONNECTED)
+    {
+        DEBUG ("%s already connected", priv->unique_name);
+        return;
+    }
+
+    if (!priv->connect_automatically)
+    {
+        DEBUG ("%s does not ConnectAutomatically", priv->unique_name);
+        return;
+    }
+
+    master = mcd_master_get_default ();
+
+    if (!_mcd_master_account_conditions_satisfied (master, account))
+    {
+        DEBUG ("%s conditions not satisfied", priv->unique_name);
+        return;
+    }
+
+    DEBUG ("connecting account %s", priv->unique_name);
+    _mcd_account_request_connection (account);
 }
 
 static gboolean
