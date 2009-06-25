@@ -1092,6 +1092,21 @@ get_parameters (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 }
 
 static gboolean
+_presence_type_is_settable (TpConnectionPresenceType type)
+{
+    switch (type)
+    {
+        case TP_CONNECTION_PRESENCE_TYPE_UNSET:
+        case TP_CONNECTION_PRESENCE_TYPE_UNKNOWN:
+        case TP_CONNECTION_PRESENCE_TYPE_ERROR:
+            return FALSE;
+
+        default:
+            return TRUE;
+    }
+}
+
+static gboolean
 _presence_type_is_online (TpConnectionPresenceType type)
 {
     switch (type)
@@ -1346,6 +1361,13 @@ set_requested_presence (TpSvcDBusProperties *self,
     type = (gint)g_value_get_uint (va->values);
     status = g_value_get_string (va->values + 1);
     message = g_value_get_string (va->values + 2);
+
+    if (!_presence_type_is_settable (type))
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "RequestedPresence %d cannot be set on yourself", type);
+        return FALSE;
+    }
 
     DEBUG ("setting requested presence: %d, %s, %s", type, status, message);
 
