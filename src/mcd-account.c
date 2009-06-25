@@ -1092,6 +1092,22 @@ get_parameters (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 }
 
 static gboolean
+_presence_type_is_online (TpConnectionPresenceType type)
+{
+    switch (type)
+    {
+        case TP_CONNECTION_PRESENCE_TYPE_UNSET:
+        case TP_CONNECTION_PRESENCE_TYPE_OFFLINE:
+        case TP_CONNECTION_PRESENCE_TYPE_UNKNOWN:
+        case TP_CONNECTION_PRESENCE_TYPE_ERROR:
+            return FALSE;
+
+        default:
+            return TRUE;
+    }
+}
+
+static gboolean
 set_automatic_presence (TpSvcDBusProperties *self,
                         const gchar *name, const GValue *value, GError **error)
 {
@@ -1107,7 +1123,7 @@ set_automatic_presence (TpSvcDBusProperties *self,
     if (!G_VALUE_HOLDS (value, TP_STRUCT_TYPE_SIMPLE_PRESENCE))
     {
         g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                     "Unexpected type for RequestedPresence: wanted (u,s,s), "
+                     "Unexpected type for AutomaticPresence: wanted (u,s,s), "
                      "got %s", G_VALUE_TYPE_NAME (value));
         return FALSE;
     }
@@ -1116,6 +1132,15 @@ set_automatic_presence (TpSvcDBusProperties *self,
     type = g_value_get_uint (va->values);
     status = g_value_get_string (va->values + 1);
     message = g_value_get_string (va->values + 2);
+
+    if (!_presence_type_is_online (type))
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "AutomaticPresence must be an online presence, not %d",
+                     type);
+        return FALSE;
+    }
+
     DEBUG ("setting automatic presence: %d, %s, %s", type, status, message);
 
     if (priv->auto_presence_type != type)
@@ -1869,6 +1894,14 @@ mcd_account_setup (McdAccount *account)
     priv->auto_presence_type =
 	g_key_file_get_integer (priv->keyfile, priv->unique_name,
 				MC_ACCOUNTS_KEY_AUTO_PRESENCE_TYPE, NULL);
+
+    /* If invalid or something, force it to AVAILABLE - we want the auto
+     * presence type to be an online status */
+    if (!_presence_type_is_online (priv->auto_presence_type))
+    {
+        priv->auto_presence_type = TP_CONNECTION_PRESENCE_TYPE_AVAILABLE;
+    }
+
     priv->auto_presence_status =
 	g_key_file_get_string (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS,
@@ -2112,6 +2145,10 @@ mcd_account_init (McdAccount *account)
 					MCD_TYPE_ACCOUNT,
 					McdAccountPrivate);
     account->priv = priv;
+
+    priv->auto_presence_type = TP_CONNECTION_PRESENCE_TYPE_AVAILABLE;
+    priv->auto_presence_status = g_strdup ("available");
+    priv->auto_presence_message = g_strdup ("");
 
     /* initializes the interfaces */
     mcd_dbus_init_interfaces_instances (account);
