@@ -84,8 +84,6 @@ typedef struct _McdMasterPrivate
     McdAccountManager *account_manager;
     McdDispatcher *dispatcher;
     McdProxy *proxy;
-    TpConnectionPresenceType awake_presence;
-    gchar *awake_presence_message;
 
     /* We create this for our member objects */
     TpDBusDaemon *dbus_daemon;
@@ -361,8 +359,6 @@ _mcd_master_finalize (GObject * object)
 
     g_list_foreach (priv->account_connections, (GFunc)g_free, NULL);
     g_list_free (priv->account_connections);
-
-    g_free (priv->awake_presence_message);
 
     g_hash_table_destroy (priv->extra_parameters);
 
