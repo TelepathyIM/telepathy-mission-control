@@ -233,21 +233,7 @@ mcd_master_connect_automatic_accounts (McdMaster *master)
     g_hash_table_iter_init (&iter, accounts);
     while (g_hash_table_iter_next (&iter, &ht_key, &ht_value))
     {
-        McdAccount *account = MCD_ACCOUNT (ht_value);
-
-        if (mcd_account_is_valid (account) &&
-            mcd_account_is_enabled (account) &&
-            mcd_account_get_connect_automatically (account) &&
-            mcd_account_get_connection_status (account) ==
-            TP_CONNECTION_STATUS_DISCONNECTED)
-        {
-            /* if the account conditions are satisfied, connect */
-            if (_mcd_master_account_conditions_satisfied (master, account))
-            {
-                DEBUG ("conditions matched");
-                _mcd_account_connect_with_auto_presence (account);
-            }
-        }
+        _mcd_account_maybe_autoconnect (ht_value);
     }
 }
 
