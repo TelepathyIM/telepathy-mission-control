@@ -847,7 +847,7 @@ set_display_name (TpSvcDBusProperties *self, const gchar *name,
     McdAccountPrivate *priv = account->priv;
 
     DEBUG ("called for %s", priv->unique_name);
-    return (mcd_account_set_string_val (account, name, value, error)
+    return (mcd_account_set_string_val (account, "DisplayName", value, error)
             != SET_RESULT_ERROR);
 }
 
@@ -867,7 +867,7 @@ set_icon (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
     McdAccountPrivate *priv = account->priv;
 
     DEBUG ("called for %s", priv->unique_name);
-    return (mcd_account_set_string_val (account, name, value, error)
+    return (mcd_account_set_string_val (account, "Icon", value, error)
             != SET_RESULT_ERROR);
 }
 
@@ -932,7 +932,7 @@ set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
 			       	enabled);
 	priv->enabled = enabled;
 	mcd_account_manager_write_conf (priv->account_manager);
-	mcd_account_changed_property (account, name, value);
+	mcd_account_changed_property (account, "Enabled", value);
     }
 
     return TRUE;
@@ -957,7 +957,7 @@ set_nickname (TpSvcDBusProperties *self, const gchar *name,
     SetResult ret;
 
     DEBUG ("called for %s", priv->unique_name);
-    ret = mcd_account_set_string_val (account, name, value, error);
+    ret = mcd_account_set_string_val (account, "Nickname", value, error);
 
     if (ret == SET_RESULT_CHANGED && priv->connection != NULL)
     {
@@ -1107,7 +1107,7 @@ set_automatic_presence (TpSvcDBusProperties *self,
     if (changed)
     {
 	mcd_account_manager_write_conf (priv->account_manager);
-	mcd_account_changed_property (account, name, value);
+	mcd_account_changed_property (account, "AutomaticPresence", value);
     }
 
     return TRUE;
@@ -1164,7 +1164,7 @@ set_connect_automatically (TpSvcDBusProperties *self,
 			       	connect_automatically);
 	priv->connect_automatically = connect_automatically;
 	mcd_account_manager_write_conf (priv->account_manager);
-	mcd_account_changed_property (account, name, value);
+	mcd_account_changed_property (account, "ConnectAutomatically", value);
     }
 
     return TRUE;
@@ -1271,7 +1271,7 @@ set_requested_presence (TpSvcDBusProperties *self,
 
     if (mcd_account_request_presence_int (account, type, status, message))
     {
-	mcd_account_changed_property (account, name, value);
+	mcd_account_changed_property (account, "RequestedPresence", value);
     }
 
     return TRUE;
