@@ -125,57 +125,45 @@ static McdMaster *default_master = NULL;
 
 
 static void
-check_account_transport (gpointer key, gpointer value, gpointer userdata)
-{
-    McdAccount *account = MCD_ACCOUNT (value);
-    TransportData *td = userdata;
-    GHashTable *conditions;
-
-    /* get all enabled accounts, which have the "ConnectAutomatically" flag set
-     * and that are not connected */
-    if (!mcd_account_is_valid (account) ||
-        !mcd_account_is_enabled (account) ||
-	!mcd_account_get_connect_automatically (account) ||
-	mcd_account_get_connection_status (account) ==
-       	TP_CONNECTION_STATUS_CONNECTED) 
-	return;
-
-    DEBUG ("account %s would like to connect",
-           mcd_account_get_unique_name (account));
-    conditions = mcd_account_get_conditions (account);
-    if (mcd_transport_plugin_check_conditions (td->plugin, td->transport,
-					       conditions))
-    {
-        DEBUG ("conditions matched");
-        _mcd_account_connect_with_auto_presence (account);
-        if (g_hash_table_size (conditions) > 0)
-            mcd_account_connection_bind_transport (account, td->transport);
-    }
-    g_hash_table_unref (conditions);
-}
-
-static void
 mcd_master_transport_connected (McdMaster *master, McdTransportPlugin *plugin,
 				McdTransport *transport)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     GHashTable *accounts;
-    TransportData td;
     GHashTableIter iter;
-    gpointer k, v;
+    gpointer v;
 
     DEBUG ("%s", mcd_transport_get_name (plugin, transport));
-
-    td.master = master;
-    td.plugin = plugin;
-    td.transport = transport;
 
     accounts = _mcd_account_manager_get_accounts (priv->account_manager);
     g_hash_table_iter_init (&iter, accounts);
 
-    while (g_hash_table_iter_next (&iter, &k, &v))
+    while (g_hash_table_iter_next (&iter, NULL, &v))
     {
-        check_account_transport (k, v, &td);
+        McdAccount *account = MCD_ACCOUNT (v);
+        GHashTable *conditions;
+
+        /* get all enabled accounts, which have the "ConnectAutomatically"
+         * flag set and that are not connected */
+        if (!mcd_account_is_valid (account) ||
+            !mcd_account_is_enabled (account) ||
+            !mcd_account_get_connect_automatically (account) ||
+            mcd_account_get_connection_status (account) ==
+            TP_CONNECTION_STATUS_CONNECTED)
+            continue;
+
+        DEBUG ("account %s would like to connect",
+               mcd_account_get_unique_name (account));
+        conditions = mcd_account_get_conditions (account);
+        if (mcd_transport_plugin_check_conditions (plugin, transport,
+                                                   conditions))
+        {
+            DEBUG ("conditions matched");
+            _mcd_account_connect_with_auto_presence (account);
+            if (g_hash_table_size (conditions) > 0)
+                mcd_account_connection_bind_transport (account, transport);
+        }
+        g_hash_table_unref (conditions);
     }
 }
 
