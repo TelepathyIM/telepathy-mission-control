@@ -144,7 +144,6 @@ struct _McdAccountPrivate
 
     /* These fields are used to cache the changed properties */
     GHashTable *changed_properties;
-    GArray *property_values;
     guint properties_source;
 };
 
@@ -712,9 +711,6 @@ emit_property_changed (gpointer userdata)
 
     g_hash_table_remove_all (priv->changed_properties);
 
-    g_array_free (priv->property_values, TRUE);
-    priv->property_values = NULL;
-
     priv->properties_source = 0;
     return FALSE;
 }
@@ -732,7 +728,6 @@ mcd_account_changed_property (McdAccount *account, const gchar *key,
 {
 #ifdef DELAY_PROPERTY_CHANGED
     McdAccountPrivate *priv = account->priv;
-    GValue *val;
 
     DEBUG ("called: %s", key);
     if (priv->changed_properties &&
@@ -750,24 +745,18 @@ mcd_account_changed_property (McdAccount *account, const gchar *key,
     {
 	priv->changed_properties =
 	    g_hash_table_new_full (g_str_hash, g_str_equal,
-				   NULL, (GDestroyNotify)g_value_unset);
+				   NULL,
+                                   (GDestroyNotify) tp_g_value_slice_free);
     }
 
     if (priv->properties_source == 0)
     {
         DEBUG ("First changed property");
-	priv->property_values = g_array_sized_new (FALSE, FALSE,
-						   sizeof (GValue), 4);
 	priv->properties_source = g_timeout_add (10, emit_property_changed,
 						 account);
     }
-    g_array_append_vals (priv->property_values, value, 1);
-    val = &g_array_index (priv->property_values, GValue,
-			  priv->property_values->len - 1);
-    memset (val, 0, sizeof (GValue));
-    g_value_init (val, G_VALUE_TYPE (value));
-    g_value_copy (value, val);
-    g_hash_table_insert (priv->changed_properties, (gpointer)key, val);
+    g_hash_table_insert (priv->changed_properties, (gpointer) key,
+                         tp_g_value_slice_dup (value));
 #else
     GHashTable *properties;
 
@@ -1900,8 +1889,6 @@ _mcd_account_finalize (GObject *object)
     DEBUG ("%p (%s)", object, priv->unique_name);
     if (priv->changed_properties)
 	g_hash_table_destroy (priv->changed_properties);
-    if (priv->property_values)
-	g_array_free (priv->property_values, TRUE);
     if (priv->properties_source != 0)
 	g_source_remove (priv->properties_source);
 
