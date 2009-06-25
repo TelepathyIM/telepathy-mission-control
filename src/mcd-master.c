@@ -168,54 +168,43 @@ mcd_master_transport_connected (McdMaster *master, McdTransportPlugin *plugin,
 }
 
 static void
-disconnect_account_transport (gpointer key, gpointer value, gpointer userdata)
-{
-    McdAccount *account = MCD_ACCOUNT (value);
-    TransportData *td = userdata;
-
-    if (td->transport == _mcd_account_connection_get_transport (account))
-    {
-        McdConnection *connection;
-
-        DEBUG ("account %s must disconnect",
-               mcd_account_get_unique_name (account));
-        connection = mcd_account_get_connection (account);
-        if (connection)
-            mcd_connection_close (connection);
-	mcd_account_connection_bind_transport (account, NULL);
-
-        /* it may be that there is another transport to which the account can
-         * reconnect */
-        if (_mcd_master_account_conditions_satisfied (td->master, account))
-        {
-            DEBUG ("conditions matched");
-            _mcd_account_connect_with_auto_presence (account);
-        }
-    }
-}
-
-static void
 mcd_master_transport_disconnected (McdMaster *master, McdTransportPlugin *plugin,
 				   McdTransport *transport)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     GHashTable *accounts;
-    TransportData td;
     GHashTableIter iter;
     gpointer v;
 
     DEBUG ("%s", mcd_transport_get_name (plugin, transport));
-
-    td.master = master;
-    td.plugin = plugin;
-    td.transport = transport;
 
     accounts = _mcd_account_manager_get_accounts (priv->account_manager);
     g_hash_table_iter_init (&iter, accounts);
 
     while (g_hash_table_iter_next (&iter, NULL, &v))
     {
-        disconnect_account_transport (NULL, v, &td);
+        McdAccount *account = MCD_ACCOUNT (v);
+
+        if (transport == _mcd_account_connection_get_transport (account))
+        {
+            McdConnection *connection;
+
+            DEBUG ("account %s must disconnect",
+                   mcd_account_get_unique_name (account));
+            connection = mcd_account_get_connection (account);
+            if (connection)
+                mcd_connection_close (connection);
+            mcd_account_connection_bind_transport (account, NULL);
+
+            /* it may be that there is another transport to which the account
+             * can reconnect */
+            if (_mcd_master_account_conditions_satisfied (master, account))
+            {
+                DEBUG ("conditions matched");
+                _mcd_account_connect_with_auto_presence (account);
+            }
+
+        }
     }
 }
 
