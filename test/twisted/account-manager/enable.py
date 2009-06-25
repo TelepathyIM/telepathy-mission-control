@@ -20,10 +20,6 @@ def test(q, bus, mc):
     call_async(q, account_props, 'Set', cs.ACCOUNT, 'RequestedPresence',
             (dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE), 'offline', ''))
     q.expect('dbus-return', method='Set')
-    q.expect('dbus-signal', signal='AccountPropertyChanged',
-            predicate=lambda e:
-                e.args[0].get('RequestedPresence', (None, None, None))[1]
-                    == 'offline')
 
     call_async(q, account_props, 'Set', cs.ACCOUNT, 'Enabled', False)
     q.expect('dbus-return', method='Set')

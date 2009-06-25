@@ -1806,7 +1806,6 @@ account_reconnect (TpSvcAccount *service,
     /* if we can't, or don't want to, connect this method is a no-op */
     if (!self->priv->enabled ||
         !self->priv->valid ||
-        self->priv->req_presence_type == TP_CONNECTION_PRESENCE_TYPE_UNSET ||
         self->priv->req_presence_type == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
     {
         DEBUG ("doing nothing (enabled=%c, valid=%c and "
@@ -2167,6 +2166,10 @@ mcd_account_init (McdAccount *account)
 					MCD_TYPE_ACCOUNT,
 					McdAccountPrivate);
     account->priv = priv;
+
+    priv->req_presence_type = TP_CONNECTION_PRESENCE_TYPE_OFFLINE;
+    priv->req_presence_status = g_strdup ("offline");
+    priv->req_presence_message = g_strdup ("");
 
     priv->auto_presence_type = TP_CONNECTION_PRESENCE_TYPE_AVAILABLE;
     priv->auto_presence_status = g_strdup ("available");

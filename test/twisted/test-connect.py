@@ -48,19 +48,6 @@ def test(q, bus, mc):
     assert account.Get(cs.ACCOUNT, 'Valid',
             dbus_interface=cs.PROPERTIES_IFACE)
 
-    # Check the requested presence is offline
-    properties = account.GetAll(cs.ACCOUNT,
-            dbus_interface=cs.PROPERTIES_IFACE)
-    assert properties is not None
-    # the requested presence is defined by Connection_Presence_Type:
-    #  Connection_Presence_Type_Unset = 0
-    #  Connection_Presence_Type_Offline = 1
-    #  Connection_Presence_Type_Available = 2
-    assert properties.get('RequestedPresence') == \
-        dbus.Struct((dbus.UInt32(0L), dbus.String(u''), dbus.String(u''))), \
-        properties.get('RequestedPresence')  # FIXME: we should expect 1
-    assert properties.get('HasBeenOnline') == False
-
     # Go online
     requested_presence = dbus.Struct((dbus.UInt32(2L), dbus.String(u'brb'),
                 dbus.String(u'Be back soon!')))
