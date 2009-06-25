@@ -35,5 +35,9 @@ G_GNUC_INTERNAL
 gboolean _mcd_master_account_conditions_satisfied (McdMaster *master,
                                                    McdAccount *account);
 
+void _mcd_master_get_nth_account_connection (McdMaster *master, gint i,
+                                             McdAccountConnectionFunc *func,
+                                             gpointer *userdata);
+
 G_END_DECLS
 #endif

@@ -813,9 +813,10 @@ mcd_plugin_register_account_connection (McdPlugin *plugin,
 }
 
 void
-mcd_master_get_nth_account_connection (McdMaster *master, gint i,
-				       McdAccountConnectionFunc *func,
-				       gpointer *userdata)
+_mcd_master_get_nth_account_connection (McdMaster *master,
+                                        gint i,
+                                        McdAccountConnectionFunc *func,
+                                        gpointer *userdata)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     McdAccountConnectionData *acd;
