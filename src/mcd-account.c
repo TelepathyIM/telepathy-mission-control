@@ -2813,14 +2813,10 @@ _mcd_account_request_connection (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
 
-    if (!priv->connection)
-        _mcd_account_connection_begin (account);
-
-    if (priv->auto_presence_type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
-	mcd_account_request_presence_int (account,
-					  priv->auto_presence_type,
-					  priv->auto_presence_status,
-					  priv->auto_presence_message);
+    mcd_account_request_presence (account,
+                                  priv->auto_presence_type,
+                                  priv->auto_presence_status,
+                                  priv->auto_presence_message);
 }
 
 /*
