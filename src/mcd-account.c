@@ -288,8 +288,49 @@ mcd_account_loaded (McdAccount *account)
 
     /* invoke all the callbacks */
     g_object_ref (account);
+
     _mcd_object_ready (account, account_ready_quark, NULL);
+
+    if (account->priv->online_requests != NULL)
+    {
+        /* if we have established that the account is not valid or is
+         * disabled, cancel all requests */
+        if (!account->priv->valid || !account->priv->enabled)
+        {
+            /* FIXME: pick better errors and put them in telepathy-spec? */
+            GError e = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+                "account isn't Valid (not enough information to put it "
+                    "online)" };
+            GList *list;
+
+            if (account->priv->valid)
+            {
+                e.message = "account isn't Enabled";
+            }
+
+            list = account->priv->online_requests;
+            account->priv->online_requests = NULL;
+
+            for (/* already initialized */ ;
+                 list != NULL;
+                 list = g_list_delete_link (list, list))
+            {
+                McdOnlineRequestData *data = list->data;
+
+                data->callback (account, data->user_data, &e);
+                g_slice_free (McdOnlineRequestData, data);
+            }
+        }
+
+        /* otherwise, we want to go online now */
+        if (account->priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED)
+        {
+            _mcd_account_request_connection (account);
+        }
+    }
+
     _mcd_account_maybe_autoconnect (account);
+
     g_object_unref (account);
 }
 
@@ -2750,7 +2791,7 @@ _mcd_account_online_request (McdAccount *account,
         return;
     }
 
-    if (!priv->valid)
+    if (priv->loaded && !priv->valid)
     {
         /* FIXME: pick a better error and put it in telepathy-spec? */
         GError e = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
@@ -2761,7 +2802,7 @@ _mcd_account_online_request (McdAccount *account,
         return;
     }
 
-    if (!priv->enabled)
+    if (priv->loaded && !priv->enabled)
     {
         /* FIXME: pick a better error and put it in telepathy-spec? */
         GError e = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
@@ -2773,7 +2814,7 @@ _mcd_account_online_request (McdAccount *account,
     }
 
     /* listen to the StatusChanged signal */
-    if (priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED)
+    if (priv->loaded && priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED)
         _mcd_account_request_connection (account);
 
     /* now the connection should be in connecting state; insert the
