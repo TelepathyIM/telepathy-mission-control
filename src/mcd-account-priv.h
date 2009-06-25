@@ -88,7 +88,7 @@ typedef void (*McdOnlineRequestCb) (McdAccount *account, gpointer userdata,
 void _mcd_account_online_request (McdAccount *account,
                                   McdOnlineRequestCb callback,
                                   gpointer userdata);
-void _mcd_account_request_connection (McdAccount *account);
+void _mcd_account_connect_with_auto_presence (McdAccount *account);
 G_GNUC_INTERNAL
 void _mcd_account_online_request_completed (McdAccount *account,
                                             GError *error);

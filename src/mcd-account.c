@@ -213,7 +213,7 @@ _mcd_account_maybe_autoconnect (McdAccount *account)
     }
 
     DEBUG ("connecting account %s", priv->unique_name);
-    _mcd_account_request_connection (account);
+    _mcd_account_connect_with_auto_presence (account);
 }
 
 static gboolean
@@ -325,7 +325,7 @@ mcd_account_loaded (McdAccount *account)
         /* otherwise, we want to go online now */
         if (account->priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED)
         {
-            _mcd_account_request_connection (account);
+            _mcd_account_connect_with_auto_presence (account);
         }
     }
 
@@ -2802,14 +2802,16 @@ mcd_account_check_validity (McdAccount *account)
 }
 
 /*
- * _mcd_account_request_connection:
+ * _mcd_account_connect_with_auto_presence:
  * @account: the #McdAccount.
  *
- * Request the account to go online. If an automatic presence is specified, set
- * it.
+ * Request the account to go online with the configured AutomaticPresence.
+ * This is appropriate in these situations:
+ * - going online automatically because we've gained connectivity
+ * - going online automatically in order to request a channel
  */
 void
-_mcd_account_request_connection (McdAccount *account)
+_mcd_account_connect_with_auto_presence (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
 
@@ -2873,7 +2875,7 @@ _mcd_account_online_request (McdAccount *account,
 
     /* listen to the StatusChanged signal */
     if (priv->loaded && priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED)
-        _mcd_account_request_connection (account);
+        _mcd_account_connect_with_auto_presence (account);
 
     /* now the connection should be in connecting state; insert the
      * callback in the online_requests hash table, which will be processed

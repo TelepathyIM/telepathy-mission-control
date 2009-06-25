@@ -151,7 +151,7 @@ check_account_transport (gpointer key, gpointer value, gpointer userdata)
 					       conditions))
     {
         DEBUG ("conditions matched");
-        _mcd_account_request_connection (account);
+        _mcd_account_connect_with_auto_presence (account);
         if (g_hash_table_size (conditions) > 0)
             mcd_account_connection_bind_transport (account, td->transport);
     }
@@ -198,7 +198,7 @@ disconnect_account_transport (gpointer key, gpointer value, gpointer userdata)
         if (_mcd_master_account_conditions_satisfied (td->master, account))
         {
             DEBUG ("conditions matched");
-            _mcd_account_request_connection (account);
+            _mcd_account_connect_with_auto_presence (account);
         }
     }
 }
@@ -245,7 +245,7 @@ mcd_master_connect_automatic_accounts (McdMaster *master)
             if (_mcd_master_account_conditions_satisfied (master, account))
             {
                 DEBUG ("conditions matched");
-                _mcd_account_request_connection (account);
+                _mcd_account_connect_with_auto_presence (account);
             }
         }
     }
