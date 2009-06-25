@@ -86,7 +86,6 @@ typedef struct _McdMasterPrivate
     McdProxy *proxy;
     TpConnectionPresenceType awake_presence;
     gchar *awake_presence_message;
-    TpConnectionPresenceType default_presence;
 
     /* We create this for our member objects */
     TpDBusDaemon *dbus_daemon;
@@ -109,7 +108,6 @@ enum
     PROP_DBUS_CONNECTION,
     PROP_DBUS_DAEMON,
     PROP_DISPATCHER,
-    PROP_DEFAULT_PRESENCE,
     PROP_ACCOUNT_MANAGER,
 };
 
@@ -389,9 +387,6 @@ _mcd_master_get_property (GObject * obj, guint prop_id,
 	g_value_set_pointer (val,
 			     TP_PROXY (priv->dbus_daemon)->dbus_connection);
 	break;
-    case PROP_DEFAULT_PRESENCE:
-	g_value_set_uint (val, priv->default_presence);
-	break;
     case PROP_ACCOUNT_MANAGER:
 	g_value_set_object (val, priv->account_manager);
 	break;
@@ -412,9 +407,6 @@ _mcd_master_set_property (GObject *obj, guint prop_id,
     case PROP_DBUS_DAEMON:
 	g_assert (priv->dbus_daemon == NULL);
 	priv->dbus_daemon = g_value_dup_object (val);
-	break;
-    case PROP_DEFAULT_PRESENCE:
-	priv->default_presence = g_value_get_uint (val);
 	break;
     case PROP_ACCOUNT_MANAGER:
 	g_assert (priv->account_manager == NULL);
@@ -634,13 +626,6 @@ mcd_master_class_init (McdMasterClass * klass)
                                "D-Bus Connection",
                                "D-Bus Connection",
                                G_PARAM_READABLE));
-    g_object_class_install_property
-        (object_class, PROP_DEFAULT_PRESENCE,
-         g_param_spec_uint ("default-presence",
-                            "Default presence",
-                            "Default presence",
-                            0, TP_CONNECTION_PRESENCE_TYPE_UNSET, 0,
-                            G_PARAM_READWRITE));
 
     g_object_class_install_property
         (object_class, PROP_ACCOUNT_MANAGER,
@@ -678,14 +663,6 @@ mcd_master_get_default (void)
     if (!default_master)
 	default_master = MCD_MASTER (g_object_new (MCD_TYPE_MASTER, NULL));
     return default_master;
-}
-
-void
-mcd_master_set_default_presence_setting (McdMaster *master,
-					 TpConnectionPresenceType presence)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    priv->default_presence = presence;
 }
 
 /**
