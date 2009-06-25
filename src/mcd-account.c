@@ -2724,29 +2724,51 @@ _mcd_account_online_request (McdAccount *account,
                              gpointer userdata)
 {
     McdAccountPrivate *priv = account->priv;
+    McdOnlineRequestData *data;
 
     DEBUG ("connection status for %s is %d",
            priv->unique_name, priv->conn_status);
     if (priv->conn_status == TP_CONNECTION_STATUS_CONNECTED)
     {
         /* invoke the callback now */
+        DEBUG ("%s is already connected", priv->unique_name);
         callback (account, userdata, NULL);
+        return;
     }
-    else
-    {
-        McdOnlineRequestData *data;
-	/* listen to the StatusChanged signal */
-       	if (priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED)
-            _mcd_account_request_connection (account);
 
-	/* now the connection should be in connecting state; insert the
-	 * callback in the online_requests hash table, which will be processed
-	 * in the connection-status-changed callback */
-        data = g_slice_new (McdOnlineRequestData);
-        data->callback = callback;
-        data->user_data = userdata;
-        priv->online_requests = g_list_append (priv->online_requests, data);
+    if (!priv->valid)
+    {
+        /* FIXME: pick a better error and put it in telepathy-spec? */
+        GError e = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+            "account isn't Valid (not enough information to put it online)" };
+
+        DEBUG ("%s: %s", priv->unique_name, e.message);
+        callback (account, userdata, &e);
+        return;
     }
+
+    if (!priv->enabled)
+    {
+        /* FIXME: pick a better error and put it in telepathy-spec? */
+        GError e = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+            "account isn't Enabled" };
+
+        DEBUG ("%s: %s", priv->unique_name, e.message);
+        callback (account, userdata, &e);
+        return;
+    }
+
+    /* listen to the StatusChanged signal */
+    if (priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED)
+        _mcd_account_request_connection (account);
+
+    /* now the connection should be in connecting state; insert the
+     * callback in the online_requests hash table, which will be processed
+     * in the connection-status-changed callback */
+    data = g_slice_new (McdOnlineRequestData);
+    data->callback = callback;
+    data->user_data = userdata;
+    priv->online_requests = g_list_append (priv->online_requests, data);
 }
 
 GKeyFile *
