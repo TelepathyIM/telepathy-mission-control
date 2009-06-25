@@ -644,9 +644,19 @@ mcd_account_request_presence_int (McdAccount *account,
 	changed = TRUE;
     }
 
-    if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE && !priv->enabled)
+    if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
     {
-        return changed;
+        if (!priv->enabled)
+        {
+            DEBUG ("%s not Enabled", priv->unique_name);
+            return changed;
+        }
+
+        if (!priv->valid)
+        {
+            DEBUG ("%s not Valid", priv->unique_name);
+            return changed;
+        }
     }
 
     if (priv->connection == NULL)
