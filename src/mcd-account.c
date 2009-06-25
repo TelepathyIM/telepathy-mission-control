@@ -1657,6 +1657,7 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     }
     g_slist_free (dbus_properties);
 
+    mcd_account_check_validity (account);
     _mcd_account_maybe_autoconnect (account);
     return TRUE;
 }
@@ -1694,7 +1695,6 @@ account_update_parameters (TpSvcAccount *self, GHashTable *set,
     mcd_account_changed_property (account, "Parameters", &value);
     g_value_unset (&value);
 
-    mcd_account_check_validity (account);
     mcd_account_manager_write_conf (priv->account_manager);
 
     g_ptr_array_add (not_yet, NULL);
