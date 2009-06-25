@@ -171,7 +171,7 @@ static GQuark account_ready_quark = 0;
  *
  * Check whether automatic connection should happen (and attempt it if needed).
  */
-static void
+void
 _mcd_account_maybe_autoconnect (McdAccount *account)
 {
     McdAccountPrivate *priv;
