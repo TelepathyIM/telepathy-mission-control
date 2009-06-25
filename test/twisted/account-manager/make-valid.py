@@ -84,6 +84,41 @@ def test(q, bus, unused):
                 predicate=lambda e: e.args[0] == cs.CD),
             )
 
+    # Trying to make a channel on account 1 doesn't work, because it's
+    # not valid
+
+    account_path = (cs.tp_path_prefix + '/Account/' + account1_id)
+
+    cd = bus.get_object(cs.CD, cs.CD_PATH)
+
+    user_action_time = dbus.Int64(1238582606)
+    request = dbus.Dictionary({
+            cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
+            cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+            cs.CHANNEL + '.TargetID': 'juliet',
+            }, signature='sv')
+    call_async(q, cd, 'CreateChannel',
+            account_path, request, user_action_time, "",
+            dbus_interface=cs.CD)
+    ret = q.expect('dbus-return', method='CreateChannel')
+    request_path = ret.value[0]
+
+    cr = bus.get_object(cs.CD, request_path)
+    request_props = cr.GetAll(cs.CR, dbus_interface=cs.PROPERTIES_IFACE)
+    assert request_props['Account'] == account_path
+    assert request_props['Requests'] == [request]
+    assert request_props['UserActionTime'] == user_action_time
+    assert request_props['PreferredHandler'] == ""
+    assert request_props['Interfaces'] == []
+
+    sync_dbus(bus, q, mc)
+
+    cr.Proceed(dbus_interface=cs.CR)
+
+    # FIXME: error isn't specified (NotAvailable perhaps?)
+    q.expect('dbus-signal', path=cr.object_path,
+            interface=cs.CR, signal='Failed')
+
     # Make account 1 valid: it should connect automatically
 
     account_path = (cs.tp_path_prefix + '/Account/' + account1_id)
