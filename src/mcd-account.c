@@ -1165,6 +1165,11 @@ set_connect_automatically (TpSvcDBusProperties *self,
 	priv->connect_automatically = connect_automatically;
 	mcd_account_manager_write_conf (priv->account_manager);
 	mcd_account_changed_property (account, "ConnectAutomatically", value);
+
+        if (connect_automatically)
+        {
+            _mcd_account_maybe_autoconnect (account);
+        }
     }
 
     return TRUE;
