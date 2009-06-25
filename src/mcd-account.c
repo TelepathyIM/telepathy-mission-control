@@ -2684,6 +2684,15 @@ mcd_account_check_validity (McdAccount *account)
 	g_value_init (&value, G_TYPE_BOOLEAN);
 	g_value_set_boolean (&value, valid);
 	mcd_account_changed_property (account, "Valid", &value);
+
+        if (valid)
+        {
+            /* newly valid - try setting requested presence again */
+            mcd_account_request_presence_int (account,
+                                              priv->req_presence_type,
+                                              priv->req_presence_status,
+                                              priv->req_presence_message);
+        }
     }
     return valid;
 }
