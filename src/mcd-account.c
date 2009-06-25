@@ -936,6 +936,10 @@ set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
 
         if (enabled)
         {
+            mcd_account_request_presence_int (account,
+                                              priv->req_presence_type,
+                                              priv->req_presence_status,
+                                              priv->req_presence_message);
             _mcd_account_maybe_autoconnect (account);
         }
     }
