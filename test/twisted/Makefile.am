@@ -4,6 +4,7 @@ TWISTED_BASIC_TESTS = \
 	account-bad-cm.py \
 	account-manager/auto-away.py \
 	account-manager/avatar.py \
+	account-manager/create-auto-connect.py \
 	account-manager/create-with-properties.py \
 	account-manager/nickname.py \
 	account-manager/old-create-with-properties.py \
