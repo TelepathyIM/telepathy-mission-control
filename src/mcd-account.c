@@ -933,6 +933,11 @@ set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
 	priv->enabled = enabled;
 	mcd_account_manager_write_conf (priv->account_manager);
 	mcd_account_changed_property (account, "Enabled", value);
+
+        if (enabled)
+        {
+            _mcd_account_maybe_autoconnect (account);
+        }
     }
 
     return TRUE;
