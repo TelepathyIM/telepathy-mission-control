@@ -687,8 +687,8 @@ mcd_master_add_connection_parameter (McdMaster *master, const gchar *name,
     g_hash_table_replace (priv->extra_parameters, g_strdup (name), val);
 }
 
-/**
- * mcd_master_lookup_manager:
+/*
+ * _mcd_master_lookup_manager:
  * @master: the #McdMaster.
  * @unique_name: the name of the manager.
  *
@@ -699,8 +699,8 @@ mcd_master_add_connection_parameter (McdMaster *master, const gchar *name,
  * will stay alive as long as needed.
  */
 McdManager *
-mcd_master_lookup_manager (McdMaster *master,
-			   const gchar *unique_name)
+_mcd_master_lookup_manager (McdMaster *master,
+                            const gchar *unique_name)
 {
     const GList *managers, *list;
     McdManager *manager;

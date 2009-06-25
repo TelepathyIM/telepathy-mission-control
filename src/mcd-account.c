@@ -562,7 +562,7 @@ load_manager (McdAccount *account)
 
     if (G_UNLIKELY (!priv->manager_name)) return FALSE;
     master = mcd_master_get_default ();
-    priv->manager = mcd_master_lookup_manager (master, priv->manager_name);
+    priv->manager = _mcd_master_lookup_manager (master, priv->manager_name);
     if (priv->manager)
     {
 	g_object_ref (priv->manager);
