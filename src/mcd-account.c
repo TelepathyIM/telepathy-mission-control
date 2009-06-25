@@ -187,6 +187,12 @@ _mcd_account_maybe_autoconnect (McdAccount *account)
         return;
     }
 
+    if (!priv->valid)
+    {
+        DEBUG ("%s not Valid", priv->unique_name);
+        return;
+    }
+
     if (priv->conn_status != TP_CONNECTION_STATUS_DISCONNECTED)
     {
         DEBUG ("%s already connected", priv->unique_name);
