@@ -2635,7 +2635,8 @@ mcd_account_check_validity (McdAccount *account)
     McdAccountPrivate *priv = account->priv;
     gboolean valid;
 
-    valid = mcd_account_check_parameters (account);
+    valid = (priv->loaded && mcd_account_check_parameters (account));
+
     if (valid != priv->valid)
     {
 	GValue value = { 0 };
