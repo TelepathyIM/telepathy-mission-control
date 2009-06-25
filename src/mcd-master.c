@@ -161,6 +161,8 @@ mcd_master_transport_connected (McdMaster *master, McdTransportPlugin *plugin,
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     GHashTable *accounts;
     TransportData td;
+    GHashTableIter iter;
+    gpointer k, v;
 
     DEBUG ("%s", mcd_transport_get_name (plugin, transport));
 
@@ -169,7 +171,12 @@ mcd_master_transport_connected (McdMaster *master, McdTransportPlugin *plugin,
     td.transport = transport;
 
     accounts = _mcd_account_manager_get_accounts (priv->account_manager);
-    g_hash_table_foreach (accounts, check_account_transport, &td);
+    g_hash_table_iter_init (&iter, accounts);
+
+    while (g_hash_table_iter_next (&iter, &k, &v))
+    {
+        check_account_transport (k, v, &td);
+    }
 }
 
 static void
