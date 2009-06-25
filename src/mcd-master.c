@@ -201,6 +201,8 @@ mcd_master_transport_disconnected (McdMaster *master, McdTransportPlugin *plugin
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     GHashTable *accounts;
     TransportData td;
+    GHashTableIter iter;
+    gpointer v;
 
     DEBUG ("%s", mcd_transport_get_name (plugin, transport));
 
@@ -209,7 +211,12 @@ mcd_master_transport_disconnected (McdMaster *master, McdTransportPlugin *plugin
     td.transport = transport;
 
     accounts = _mcd_account_manager_get_accounts (priv->account_manager);
-    g_hash_table_foreach (accounts, disconnect_account_transport, &td);
+    g_hash_table_iter_init (&iter, accounts);
+
+    while (g_hash_table_iter_next (&iter, NULL, &v))
+    {
+        disconnect_account_transport (NULL, v, &td);
+    }
 }
 
 static void
