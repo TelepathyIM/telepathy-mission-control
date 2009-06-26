@@ -112,10 +112,6 @@ def test(q, bus, mc):
             interface=cs.CHANNEL, method='Close', args=[],
             handled=True)
 
-    e = q.expect('dbus-signal',
-            path=cdo_path, interface=cs.CDO, signal='ChannelLost')
-    assert e.args[0] == chan.object_path
-
     q.expect_many(
             EventPattern('dbus-signal', path=cdo_path,
                 interface=cs.CDO, signal='Finished'),
