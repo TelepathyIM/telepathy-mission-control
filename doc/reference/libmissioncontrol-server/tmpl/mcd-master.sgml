@@ -38,22 +38,8 @@ McdMaster
 
 </para>
 
-<!-- ##### ARG McdMaster:default-presence ##### -->
-<para>
-
-</para>
-
 <!-- ##### ARG McdMaster:dispatcher ##### -->
 <para>
 
 </para>
-
-<!-- ##### FUNCTION mcd_master_set_default_presence_setting ##### -->
-<para>
-
-</para>
-
-@master: 
-@presence: 
-
 

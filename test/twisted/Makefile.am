@@ -4,7 +4,10 @@ TWISTED_BASIC_TESTS = \
 	account-bad-cm.py \
 	account-manager/auto-away.py \
 	account-manager/avatar.py \
+	account-manager/create-auto-connect.py \
 	account-manager/create-with-properties.py \
+	account-manager/enable.py \
+	account-manager/enable-auto-connect.py \
 	account-manager/nickname.py \
 	account-manager/old-create-with-properties.py \
 	account-manager/param-types.py \
@@ -21,6 +24,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/bypass-approval.py \
 	dispatcher/cancel.py \
 	dispatcher/capture-bundle.py \
+	dispatcher/connect-for-request.py \
 	dispatcher/create-handler-fails.py \
 	dispatcher/create-lowmem.py \
 	dispatcher/create-no-preferred-handler.py \
@@ -33,6 +37,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/handle-channels-fails.py \
 	dispatcher/lose-text.py \
 	dispatcher/recover-from-disconnect.py \
+	dispatcher/request-disabled-account.py \
 	dispatcher/undispatchable.py \
 	dispatcher/vanishing-client.py \
 	do-nothing.py \
@@ -48,6 +53,7 @@ TWISTED_SEPARATE_TESTS = \
 	account-manager/auto-connect.py \
 	account-manager/avatar-persist.py \
 	account-manager/avatar-refresh.py \
+	account-manager/make-valid.py \
 	crash-recovery/crash-recovery.py \
 	dispatcher/create-at-startup.py
 

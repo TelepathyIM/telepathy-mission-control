@@ -47,6 +47,7 @@
 #include "mcd-account-priv.h"
 #include "mcd-connection-priv.h"
 #include "mcd-dbusprop.h"
+#include "mcd-master-priv.h"
 #include "mcd-misc.h"
 
 #include "_gen/interfaces.h"
@@ -191,7 +192,7 @@ recover_connection (McdAccountManager *account_manager, gchar *file_contents,
     master = mcd_master_get_default ();
     g_return_val_if_fail (MCD_IS_MASTER (master), FALSE);
 
-    manager = mcd_master_lookup_manager (master, manager_name);
+    manager = _mcd_master_lookup_manager (master, manager_name);
     if (G_UNLIKELY (!manager))
     {
         DEBUG ("Manager %s not found", manager_name);
@@ -708,12 +709,11 @@ get_supported_account_properties (TpSvcDBusProperties *svc,
         TP_IFACE_ACCOUNT ".Icon",
         TP_IFACE_ACCOUNT ".Nickname",
         TP_IFACE_ACCOUNT ".ConnectAutomatically",
+        TP_IFACE_ACCOUNT ".RequestedPresence",
         TP_IFACE_ACCOUNT_INTERFACE_AVATAR ".Avatar",
         MC_IFACE_ACCOUNT_INTERFACE_COMPAT ".Profile",
         MC_IFACE_ACCOUNT_INTERFACE_COMPAT ".SecondaryVCardFields",
         MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS ".Condition",
-        /* FIXME: setting RequestedPresence at create time doesn't work yet */
-        /* TP_IFACE_ACCOUNT ".RequestedPresence", */
         NULL
     };
 

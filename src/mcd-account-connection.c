@@ -31,6 +31,7 @@
 #include <config.h>
 
 #include "mcd-master.h"
+#include "mcd-master-priv.h"
 #include "mcd-account.h"
 #include "mcd-account-priv.h"
 #include "mcd-account-manager.h"
@@ -91,9 +92,9 @@ mcd_account_connection_proceed (McdAccount *account, gboolean success)
 
     if (success)
     {
-	master = mcd_master_get_default ();
-	mcd_master_get_nth_account_connection (master, ctx->i_filter++,
-					       &func, &userdata);
+        master = mcd_master_get_default ();
+        _mcd_master_get_nth_account_connection (master, ctx->i_filter++,
+                                                &func, &userdata);
     }
     if (func)
     {
