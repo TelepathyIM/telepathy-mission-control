@@ -1,9 +1,11 @@
-telepathy-mission-control 5.1.2 (UNRELEASED)
+telepathy-mission-control 5.1.2 (2009-06-26)
 ============================================
+
+The "don't cross the stream engines" release.
 
 Dependencies:
 
-* telepathy-glib >= 0.7.32
+* telepathy-glib >= 0.7.32 (or 0.7.33 if you want to run the regression tests)
 
 Enhancements:
 
