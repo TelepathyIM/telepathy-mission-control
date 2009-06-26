@@ -1348,6 +1348,15 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
     mcd_dispatcher_context_unref (context, "CTXREF07");
 }
 
+/*
+ * _mcd_dispatcher_context_abort:
+ *
+ * Abort processing of all the channels in the @context, as if they could not
+ * be dispatched.
+ *
+ * This should only be invoked because filter plugins want to terminate a
+ * channel.
+ */
 static void
 _mcd_dispatcher_context_abort (McdDispatcherContext *context,
                                const GError *error)
@@ -1369,9 +1378,7 @@ _mcd_dispatcher_context_abort (McdDispatcherContext *context,
         if (mcd_channel_get_error (channel) == NULL)
             mcd_channel_take_error (channel, g_error_copy (error));
 
-        /* FIXME: try to dispatch the channels to another handler, instead
-         * of just aborting them */
-        mcd_mission_abort (MCD_MISSION (channel));
+        _mcd_channel_undispatchable (channel);
 
         g_object_unref (channel);
         list = g_list_delete_link (list, list);
