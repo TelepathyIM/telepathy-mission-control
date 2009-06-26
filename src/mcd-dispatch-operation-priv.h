@@ -43,6 +43,8 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_unblock_finished (
     McdDispatchOperation *self);
 G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_claimer (
     McdDispatchOperation *operation);
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_finish (
+    McdDispatchOperation *operation);
 
 G_END_DECLS
 
