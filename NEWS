@@ -1,7 +1,51 @@
 telepathy-mission-control 5.1.2 (UNRELEASED)
 ============================================
 
-...
+Dependencies:
+
+* telepathy-glib >= 0.7.32
+
+Enhancements:
+
+* Stop generating duplicate bindings in the daemon for interfaces that are
+  now available in telepathy-glib 0.7.32
+
+Fixes:
+
+* Fix a subtle use-after-free that can crash MC if more than 4 distinct
+  properties change in a 10ms interval (!)
+
+* Make various fixes to putting accounts online:
+  - ConnectAutomatically takes effect immediately
+  - Fix a race between loading accounts and requesting channels
+  - Never consider accounts to be Valid until they've loaded, meaning that we
+    never try to put an account online before we've loaded its parameters (!)
+  - Don't connect (automatically or by request) unless the account is Valid
+  - Don't connect in order to satisfy a channel request unless the account is
+    both Valid and Enabled
+  - Allow setting RequestedPresence on disabled accounts, fixing creation of
+    accounts that already have a RequestedPresence
+  - Improve regression test coverage considerably
+  - If an account's parameters change and it becomes Valid, consider putting it
+    online
+  - If an account becomes enabled after an online presence was requested, try
+    to put it online
+
+* Change the default RequestedPresence on startup from UNSET to OFFLINE
+
+* Simplify API for low memory indication
+
+* Delete some unnecessary code from McdMaster, and simplify some redundant code
+
+* Forbid setting AutomaticPresence to a non-online status
+
+* Forbid setting RequestedPresence to a status that can't be set on yourself
+
+* Fix a memory leak and some races in the regression tests
+
+* Turn the daemon into a convenience library so one of the tests can link it
+  statically even if it's eventually going to be a shared library, fixing
+  make check with --enable-plugins
 
 telepathy-mission-control 5.1.1 (2009-06-16)
 ============================================
