@@ -247,8 +247,8 @@ on_channel_ready (TpChannel *tp_chan, const GError *error, gpointer user_data)
 	_mcd_channel_setup_group (channel);
 }
 
-static void
-mcd_channel_close (McdChannel *channel)
+void
+_mcd_channel_close (McdChannel *channel)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
 
@@ -311,7 +311,7 @@ _mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
 					      channel);
 
 	if (close_channel)
-            mcd_channel_close (channel);
+            _mcd_channel_close (channel);
 
 	/* Destroy our proxy */
 	g_object_unref (priv->tp_chan);
@@ -553,7 +553,7 @@ mcd_channel_abort (McdMission *mission)
     /* Don't release the TpChannel, because we might still be asked to retrieve
      * its properties or object path; instead, just close the channel */
     if (priv->close_on_dispose)
-        mcd_channel_close (channel);
+        _mcd_channel_close (channel);
 
     /* chain up with the parent */
     MCD_MISSION_CLASS (mcd_channel_parent_class)->abort (mission);
