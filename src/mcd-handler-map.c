@@ -24,6 +24,7 @@
  */
 
 #include "config.h"
+#include "mcd-channel-priv.h"
 #include "mcd-handler-map-priv.h"
 
 #include <telepathy-glib/util.h>
@@ -262,8 +263,9 @@ _mcd_handler_map_set_handler_crashed (McdHandlerMap *self,
 
             if (channel != NULL)
             {
-                DEBUG ("Aborting channel %s", path);
-                mcd_mission_abort ((McdMission *) channel);
+                DEBUG ("Closing channel %s", path);
+                /* channel will get aborted when it actually closes */
+                _mcd_channel_close (channel);
             }
             else
             {
