@@ -75,7 +75,7 @@ main (int argc,
     }
 
   g_type_init ();
-  bus_daemon = tp_dbus_daemon_dup (NULL);
+  bus_daemon = tp_dbus_daemon_dup (&error);
 
   if (bus_daemon == NULL)
     {
