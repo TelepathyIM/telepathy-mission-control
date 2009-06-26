@@ -697,7 +697,7 @@ handle_channels_cb (TpClient *proxy, const GError *error, gpointer user_data,
                            tp_proxy_get_bus_name (proxy));
                 g_warning ("Closing channel %s as a result",
                            mcd_channel_get_object_path (channel));
-                mcd_mission_abort ((McdMission *) channel);
+                _mcd_channel_undispatchable (channel);
                 continue;
             }
 
