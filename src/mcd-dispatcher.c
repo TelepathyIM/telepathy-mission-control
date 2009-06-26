@@ -998,7 +998,7 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
 
         mcd_channel_take_error (channel, g_error_copy (&e));
         g_signal_emit_by_name (self, "dispatch-failed", channel, &e);
-        mcd_mission_abort (MCD_MISSION (channel));
+        _mcd_channel_undispatchable (channel);
     }
     g_list_free (channels);
 
