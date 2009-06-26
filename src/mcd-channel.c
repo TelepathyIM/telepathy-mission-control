@@ -194,14 +194,9 @@ proxy_destroyed (TpProxy *self, guint domain, gint code, gchar *message,
 {
     McdChannel *channel = user_data;
 
-    DEBUG ("Channel proxy destroyed (%s)!", message);
-    /*
-    McdChannelPrivate *priv = channel->priv;
-    g_object_unref (priv->tp_chan);
-    priv->tp_chan = NULL;
-    */
+    DEBUG ("Channel proxy invalidated: %s %d: %s",
+           g_quark_to_string (domain), code, message);
     mcd_mission_abort (MCD_MISSION (channel));
-    DEBUG ("Channel closed");
 }
 
 static inline void
