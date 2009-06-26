@@ -655,8 +655,8 @@ handle_channels_cb (TpClient *proxy, const GError *error, gpointer user_data,
                                    channel, mc_error);
 
             /* FIXME: try to dispatch the channels to another handler, instead
-             * of just aborting them? */
-            mcd_mission_abort (MCD_MISSION (channel));
+             * of just destroying them? */
+            _mcd_channel_undispatchable (channel);
         }
         g_error_free (mc_error);
     }
