@@ -122,8 +122,7 @@ static guint mcd_channel_signals[LAST_SIGNAL] = { 0 };
 static guint last_req_id = 1;
 
 
-static void _mcd_channel_release_tp_channel (McdChannel *channel,
-					     gboolean close_channel);
+static void _mcd_channel_release_tp_channel (McdChannel *channel);
 static void on_proxied_channel_status_changed (McdChannel *source,
                                                McdChannelStatus status,
                                                McdChannel *dest);
@@ -312,7 +311,7 @@ _mcd_channel_undispatchable (McdChannel *channel)
 }
 
 static void
-_mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
+_mcd_channel_release_tp_channel (McdChannel *channel)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
     if (priv->tp_chan)
@@ -323,9 +322,6 @@ _mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
 	g_signal_handlers_disconnect_by_func (G_OBJECT (priv->tp_chan),
 					      G_CALLBACK (proxy_destroyed),
 					      channel);
-
-	if (close_channel)
-            _mcd_channel_close (channel);
 
 	/* Destroy our proxy */
 	g_object_unref (priv->tp_chan);
@@ -373,7 +369,7 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
 	tp_chan = g_value_get_object (val);
 	if (tp_chan)
 	    g_object_ref (tp_chan);
-	_mcd_channel_release_tp_channel (channel, TRUE);
+	_mcd_channel_release_tp_channel (channel);
 	priv->tp_chan = tp_chan;
         if (priv->tp_chan && !priv->constructing)
 	    _mcd_channel_setup (channel, priv);
@@ -511,8 +507,7 @@ _mcd_channel_dispose (GObject * object)
         priv->request_data = NULL;
     }
 
-    _mcd_channel_release_tp_channel (MCD_CHANNEL (object),
-                                     priv->close_on_dispose);
+    _mcd_channel_release_tp_channel (MCD_CHANNEL (object));
     G_OBJECT_CLASS (mcd_channel_parent_class)->dispose (object);
 }
 
@@ -564,10 +559,6 @@ mcd_channel_abort (McdMission *mission)
                                      "Channel aborted");
         mcd_channel_take_error (channel, error);
     }
-    /* Don't release the TpChannel, because we might still be asked to retrieve
-     * its properties or object path; instead, just close the channel */
-    if (priv->close_on_dispose)
-        _mcd_channel_close (channel);
 
     /* chain up with the parent */
     MCD_MISSION_CLASS (mcd_channel_parent_class)->abort (mission);
@@ -698,7 +689,6 @@ mcd_channel_init (McdChannel * obj)
 					McdChannelPrivate);
     obj->priv = priv;
 
-    priv->close_on_dispose = TRUE;
     priv->constructing = TRUE;
 }
 
@@ -1445,7 +1435,6 @@ _mcd_channel_copy_details (McdChannel *channel, McdChannel *source)
     g_return_if_fail (MCD_IS_CHANNEL (source));
 
     channel->priv->tp_chan = g_object_ref (source->priv->tp_chan);
-    channel->priv->close_on_dispose = FALSE;
 }
 
 TpChannel *
