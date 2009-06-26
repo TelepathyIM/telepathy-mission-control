@@ -251,15 +251,34 @@ void
 _mcd_channel_close (McdChannel *channel)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
+    const GError *invalidated;
 
-    if (priv->tp_chan &&
-        !TP_PROXY (priv->tp_chan)->invalidated &&
-        tp_channel_get_channel_type_id (priv->tp_chan) !=
+    if (priv->tp_chan == NULL)
+    {
+        DEBUG ("Not closing %p: no TpChannel", channel);
+        return;
+    }
+
+    invalidated = TP_PROXY (priv->tp_chan)->invalidated;
+
+    if (invalidated != NULL)
+    {
+        DEBUG ("Not closing %p, already invalidated: %s %d: %s",
+               channel, g_quark_to_string (invalidated->domain),
+               invalidated->code, invalidated->message);
+        return;
+    }
+
+    if (tp_channel_get_channel_type_id (priv->tp_chan) ==
         TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
     {
-        DEBUG ("Requesting telepathy to Close() the channel");
-        tp_cli_channel_call_close (priv->tp_chan, -1, NULL, NULL, NULL, NULL);
+        DEBUG ("Not closing %p, it's a ContactList", channel);
+        return;
     }
+
+    DEBUG ("%p: calling Close() on %s", channel,
+           mcd_channel_get_object_path (channel));
+    tp_cli_channel_call_close (priv->tp_chan, -1, NULL, NULL, NULL, NULL);
 }
 
 void
