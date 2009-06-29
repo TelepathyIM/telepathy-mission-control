@@ -49,6 +49,10 @@ elif test -n "$MISSIONCONTROL_TEST_REFDBG"; then
         fi
 fi
 
+if test "z$MC_EXECUTABLE" = z; then
+        MC_EXECUTABLE=@abs_top_builddir@/test/twisted/mc-debug-server
+fi
+
 exec @abs_top_builddir@/libtool --mode=execute \
         $MISSIONCONTROL_WRAPPER \
-        @abs_top_builddir@/test/twisted/mc-debug-server
+        $MC_EXECUTABLE
