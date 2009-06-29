@@ -1,7 +1,8 @@
 TWISTED_TESTS =
 
 TWISTED_BASIC_TESTS = \
-	account-bad-cm.py \
+	account-manager/account-basics.py \
+	account-manager/bad-cm.py \
 	account-manager/auto-away.py \
 	account-manager/avatar.py \
 	account-manager/create-auto-connect.py \
@@ -14,6 +15,7 @@ TWISTED_BASIC_TESTS = \
 	account-manager/presence.py \
 	account-manager/reconnect.py \
 	account-manager/recover-from-disconnect.py \
+	account-manager/request-online.py \
 	account-manager/update-parameters.py \
 	account-requests/cancel.py \
 	account-requests/create-text.py \
@@ -39,10 +41,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/recover-from-disconnect.py \
 	dispatcher/request-disabled-account.py \
 	dispatcher/undispatchable.py \
-	dispatcher/vanishing-client.py \
-	do-nothing.py \
-	test-account.py \
-	test-connect.py
+	dispatcher/vanishing-client.py
 
 if ENABLE_PLUGINS
 TWISTED_BASIC_TESTS += \
