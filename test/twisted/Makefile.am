@@ -159,42 +159,22 @@ check-twisted:
 
 check-torture:
 	mkdir tmp-$$$$ && { \
-		$(MAKE) _check-torture TMPSUFFIX=$$$$; \
+		env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) \
+			$(MAKE) _check-torture TMPSUFFIX=$$$$; \
 		e=$$?; \
 		rm -rf tmp-$$$$; \
 	exit $$e; }
 
-MANY_TESTS = \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS)
-
-TORTURE_TESTS = \
-	$(MANY_TESTS) \
-	$(MANY_TESTS) \
-	$(MANY_TESTS) \
-	$(MANY_TESTS) \
-	$(MANY_TESTS) \
-	$(MANY_TESTS) \
-	$(MANY_TESTS) \
-	$(MANY_TESTS) \
-	$(MANY_TESTS) \
-	$(MANY_TESTS) \
-	$(MANY_TESTS)
+TORTURE_REPEATS = 100
 
 _check-torture:
-	env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) \
-	$(MAKE) check-TESTS \
-		TESTS='$$(TORTURE_TESTS)' \
-		TESTS_ENVIRONMENT='$$(COMBINED_TESTS_ENVIRONMENT)'
+	for i in `seq 1 $(TORTURE_REPEATS)`; do \
+		$(MAKE) check-TESTS \
+			TESTS='$$(TWISTED_BASIC_TESTS)' \
+			TESTS_ENVIRONMENT='$$(COMBINED_TESTS_ENVIRONMENT)'; \
+		e=$$?; \
+		test z$$e = z0 || break; \
+	done
 
 check-combined:
 	env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) \
