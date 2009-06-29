@@ -115,7 +115,16 @@ SEPARATE_TESTS_ENVIRONMENT = \
 
 if WANT_TWISTED_TESTS
 check-local: check-twisted
-endif
+
+if HAVE_SERVER
+
+installcheck-local: installcheck-twisted
+installcheck-twisted:
+	$(MAKE) check-twisted MC_EXECUTABLE=@libexecdir@/mission-control-5
+
+endif # HAVE_SERVER
+
+endif # WANT_TWISTED_TESTS
 
 check-twisted:
 	$(MAKE) -C tools
