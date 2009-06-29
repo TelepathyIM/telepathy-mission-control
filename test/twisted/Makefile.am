@@ -3,7 +3,6 @@ TWISTED_TESTS =
 TWISTED_BASIC_TESTS = \
 	account-manager/account-basics.py \
 	account-manager/bad-cm.py \
-	account-manager/auto-away.py \
 	account-manager/avatar.py \
 	account-manager/create-auto-connect.py \
 	account-manager/create-with-properties.py \
@@ -28,7 +27,6 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/capture-bundle.py \
 	dispatcher/connect-for-request.py \
 	dispatcher/create-handler-fails.py \
-	dispatcher/create-lowmem.py \
 	dispatcher/create-no-preferred-handler.py \
 	dispatcher/create-text.py \
 	dispatcher/dispatch-activatable.py \
@@ -47,6 +45,14 @@ if ENABLE_PLUGINS
 TWISTED_BASIC_TESTS += \
 	dispatcher/dispatch-rejected-by-plugin.py
 endif
+
+# Tests that aren't to be run if we're running the real (installed) MC,
+# because they rely on special behaviour of mc-debug-server
+TWISTED_SPECIAL_BUILD_TESTS = \
+	account-manager/auto-away.py \
+	dispatcher/create-lowmem.py
+
+TWISTED_BASIC_TESTS += $(TWISTED_SPECIAL_BUILD_TESTS)
 
 TWISTED_SEPARATE_TESTS = \
 	account-manager/auto-connect.py \
@@ -120,7 +126,9 @@ if HAVE_SERVER
 
 installcheck-local: installcheck-twisted
 installcheck-twisted:
-	$(MAKE) check-twisted MC_EXECUTABLE=@libexecdir@/mission-control-5
+	$(MAKE) check-twisted \
+		TWISTED_SPECIAL_BUILD_TESTS= \
+		MC_EXECUTABLE=@libexecdir@/mission-control-5
 
 endif # HAVE_SERVER
 
