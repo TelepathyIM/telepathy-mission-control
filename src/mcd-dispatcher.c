@@ -2842,52 +2842,183 @@ mcd_dispatcher_new (TpDBusDaemon *dbus_daemon, McdMaster *master)
     return obj;
 }
 
-/* The new state machine walker function for pluginized filters*/
+/**
+ * mcd_dispatcher_context_proceed:
+ * @context: a #McdDispatcherContext
+ *
+ * Must be called by plugin filters exactly once per invocation of the filter
+ * function, to proceed with processing of the @context. This does nothing
+ * if @context has already finished.
+ */
+void
+mcd_dispatcher_context_proceed (McdDispatcherContext *context)
+{
+    GError error = { TP_ERRORS, 0, NULL };
+    McdFilter *filter;
 
+    if (context->cancelled)
+    {
+        error.code = TP_ERROR_CANCELLED;
+        error.message = "Channel request cancelled";
+        _mcd_dispatcher_context_abort (context, &error);
+        goto no_more;
+    }
+
+    if (context->channels == NULL)
+    {
+        DEBUG ("No channels left");
+        goto no_more;
+    }
+
+    filter = g_list_nth_data (context->chain, context->next_func_index);
+
+    if (filter != NULL)
+    {
+        context->next_func_index++;
+        DEBUG ("Next filter");
+        mcd_dispatcher_context_ref (context, "CTXREF10");
+        filter->func (context, filter->user_data);
+        mcd_dispatcher_context_unref (context, "CTXREF10");
+        /* The state machine goes on... this function will be invoked again
+         * (perhaps recursively, or perhaps later) by filter->func. */
+        return;
+    }
+
+    mcd_dispatcher_run_clients (context);
+
+no_more:
+    mcd_dispatcher_context_unref (context, "CTXREF01");
+}
+
+/**
+ * mcd_dispatcher_context_forget_all:
+ * @context: a #McdDispatcherContext
+ *
+ * Stop processing channels in @context, but do not close them. They will
+ * no longer be dispatched, and the ChannelDispatchOperation (if any)
+ * will emit ChannelLost.
+ */
+void
+mcd_dispatcher_context_forget_all (McdDispatcherContext *context)
+{
+    GList *list;
+
+    g_return_if_fail (context);
+
+    /* make a temporary copy, which is destroyed during the loop - otherwise
+     * we'll be trying to iterate over context->channels at the same time
+     * that mcd_mission_abort results in modifying it, which would be bad */
+    list = g_list_copy (context->channels);
+    g_list_foreach (list, (GFunc) g_object_ref, NULL);
+
+    while (list != NULL)
+    {
+        mcd_mission_abort (list->data);
+        g_object_unref (list->data);
+        list = g_list_delete_link (list, list);
+    }
+
+    g_return_if_fail (context->channels == NULL);
+}
+
+/**
+ * mcd_dispatcher_context_destroy_all:
+ * @context: a #McdDispatcherContext
+ *
+ * Consider all channels in the #McdDispatcherContext to be undispatchable,
+ * and close them destructively. Information loss might result.
+ *
+ * Plugins must still call mcd_dispatcher_context_proceed() afterwards,
+ * to release their reference to the dispatcher context.
+ */
+void
+mcd_dispatcher_context_destroy_all (McdDispatcherContext *context)
+{
+    GList *list;
+
+    g_return_if_fail (context);
+
+    list = g_list_copy (context->channels);
+    g_list_foreach (list, (GFunc) g_object_ref, NULL);
+
+    while (list != NULL)
+    {
+        _mcd_channel_undispatchable (list->data);
+        g_object_unref (list->data);
+        list = g_list_delete_link (list, list);
+    }
+
+    mcd_dispatcher_context_forget_all (context);
+}
+
+/**
+ * mcd_dispatcher_context_close_all:
+ * @context: a #McdDispatcherContext
+ * @reason: a reason code
+ * @message: a message to be used if applicable, which should be "" if
+ *  no message is appropriate
+ *
+ * Close all channels in the #McdDispatcherContext. If @reason is not
+ * %TP_CHANNEL_GROUP_CHANGE_REASON_NONE and/or @message is non-empty,
+ * attempt to use the RemoveMembersWithReason D-Bus method to specify
+ * a message and reason, falling back to the Close method if that doesn't
+ * work.
+ *
+ * Plugins must still call mcd_dispatcher_context_proceed() afterwards,
+ * to release their reference to the dispatcher context.
+ */
+void
+mcd_dispatcher_context_close_all (McdDispatcherContext *context,
+                                  TpChannelGroupChangeReason reason,
+                                  const gchar *message)
+{
+    GList *list;
+
+    g_return_if_fail (context);
+
+    if (message == NULL)
+    {
+        message = "";
+    }
+
+    list = g_list_copy (context->channels);
+    g_list_foreach (list, (GFunc) g_object_ref, NULL);
+
+    while (list != NULL)
+    {
+        _mcd_channel_depart (list->data, reason, message);
+        g_object_unref (list->data);
+        list = g_list_delete_link (list, list);
+    }
+
+    mcd_dispatcher_context_forget_all (context);
+}
+
+/**
+ * mcd_dispatcher_context_process:
+ * @context: a #McdDispatcherContext
+ * @result: %FALSE if the channels are to be destroyed
+ *
+ * Continue to process the @context.
+ *
+ * mcd_dispatcher_context_process (c, TRUE) is exactly equivalent to
+ * mcd_dispatcher_context_proceed (c), which should be used instead in new
+ * code.
+ *
+ * mcd_dispatcher_context_process (c, TRUE) is exactly equivalent to
+ * mcd_dispatcher_context_destroy_all (c) followed by
+ * mcd_dispatcher_context_proceed (c), which should be used instead in new
+ * code.
+ */
 void
 mcd_dispatcher_context_process (McdDispatcherContext * context, gboolean result)
 {
-    if (result && !context->cancelled)
+    if (!result)
     {
-	McdFilter *filter;
-
-	filter = g_list_nth_data (context->chain, context->next_func_index);
-	/* Do we still have functions to go through? */
-	if (filter)
-	{
-	    context->next_func_index++;
-	    
-            DEBUG ("Next filter");
-            mcd_dispatcher_context_ref (context, "CTXREF10");
-	    filter->func (context, filter->user_data);
-            mcd_dispatcher_context_unref (context, "CTXREF10");
-	    return; /*State machine goes on...*/
-	}
-	else
-	{
-	    mcd_dispatcher_run_clients (context);
-	}
+        mcd_dispatcher_context_destroy_all (context);
     }
-    else
-    {
-        GError error;
 
-        if (context->cancelled)
-        {
-            error.domain = TP_ERRORS;
-            error.code = TP_ERROR_CANCELLED;
-            error.message = "Context cancelled";
-        }
-        else
-        {
-            DEBUG ("Filters failed, disposing request");
-            error.domain = TP_ERRORS;
-            error.code = TP_ERROR_NOT_AVAILABLE;
-            error.message = "Filters failed";
-        }
-        _mcd_dispatcher_context_abort (context, &error);
-    }
-    mcd_dispatcher_context_unref (context, "CTXREF01");
+    mcd_dispatcher_context_proceed (context);
 }
 
 static void
