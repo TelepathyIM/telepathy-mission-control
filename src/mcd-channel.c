@@ -1554,3 +1554,97 @@ request_iface_init (gpointer g_iface,
     IMPLEMENT (cancel);
 #undef IMPLEMENT
 }
+
+static void
+mcd_channel_depart_cb (TpChannel *channel,
+                       const GError *error,
+                       gpointer data G_GNUC_UNUSED,
+                       GObject *weak_object G_GNUC_UNUSED)
+{
+    if (error == NULL)
+    {
+        DEBUG ("successful");
+        return;
+    }
+
+    DEBUG ("failed to depart, calling Close instead: %s %d: %s",
+           g_quark_to_string (error->domain), error->code, error->message);
+    tp_cli_channel_call_close (channel, -1, NULL, NULL, NULL, NULL);
+}
+
+typedef struct {
+    TpChannelGroupChangeReason reason;
+    gchar *message;
+} DepartData;
+
+static void
+mcd_channel_ready_to_depart_cb (TpChannel *channel,
+                                const GError *error,
+                                gpointer data)
+{
+    DepartData *d = data;
+
+    if (error != NULL)
+    {
+        DEBUG ("%s %d: %s", g_quark_to_string (error->domain), error->code,
+               error->message);
+        g_free (d->message);
+        g_slice_free (DepartData, d);
+        return;
+    }
+
+    if (tp_proxy_has_interface_by_id (channel,
+                                      TP_IFACE_QUARK_CHANNEL_INTERFACE_GROUP))
+    {
+        GArray *a = g_array_sized_new (FALSE, FALSE, sizeof (guint), 1);
+        guint self_handle = tp_channel_group_get_self_handle (channel);
+
+        g_array_append_val (a, self_handle);
+
+        tp_cli_channel_interface_group_call_remove_members_with_reason (
+            channel, -1, a, d->message, d->reason,
+            mcd_channel_depart_cb, NULL, NULL, NULL);
+
+        g_array_free (a, TRUE);
+        g_free (d->message);
+        g_slice_free (DepartData, d);
+    }
+}
+
+void
+_mcd_channel_depart (McdChannel *channel,
+                     TpChannelGroupChangeReason reason,
+                     const gchar *message)
+{
+    DepartData *d;
+    const GError *invalidated;
+
+    g_return_if_fail (MCD_IS_CHANNEL (channel));
+
+    g_return_if_fail (channel->priv->tp_chan != NULL);
+    g_return_if_fail (message != NULL);
+
+    invalidated = tp_proxy_get_invalidated (channel->priv->tp_chan);
+
+    if (invalidated != NULL)
+    {
+        DEBUG ("%s %d: %s", g_quark_to_string (invalidated->domain),
+               invalidated->code, invalidated->message);
+        return;
+    }
+
+    if (message[0] == '\0' && reason == TP_CHANNEL_GROUP_CHANGE_REASON_NONE)
+    {
+        /* exactly equivalent to Close(), so skip the Group interface */
+        tp_cli_channel_call_close (channel->priv->tp_chan, -1,
+                                   NULL, NULL, NULL, NULL);
+        return;
+    }
+
+    d = g_slice_new (DepartData);
+    d->reason = reason;
+    d->message = g_strdup (message == NULL ? "" : message);
+
+    tp_channel_call_when_ready (channel->priv->tp_chan,
+                                mcd_channel_ready_to_depart_cb, d);
+}
