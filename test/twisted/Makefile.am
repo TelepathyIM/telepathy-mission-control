@@ -32,6 +32,9 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/dispatch-activatable.py \
 	dispatcher/dispatch-obsolete.py \
 	dispatcher/dispatch-text.py \
+	dispatcher/ensure-and-redispatch.py \
+	dispatcher/ensure-is-approval.py \
+	dispatcher/ensure-rapidly.py \
 	dispatcher/exploding-bundles.py \
 	dispatcher/fdo-21034.py \
 	dispatcher/handle-channels-fails.py \
