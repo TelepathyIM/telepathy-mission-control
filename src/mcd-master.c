@@ -51,7 +51,6 @@
 #include <config.h>
 
 #include <glib/gi18n.h>
-#include <gconf/gconf-client.h>
 #include <gmodule.h>
 #include <string.h>
 #include <dbus/dbus.h>

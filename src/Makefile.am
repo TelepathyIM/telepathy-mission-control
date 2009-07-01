@@ -1,5 +1,4 @@
 INCLUDES = \
-	   $(GCONF_CFLAGS) \
 	   $(TELEPATHY_CFLAGS) \
 	   $(DBUS_CFLAGS) \
 	   $(GLIB_CFLAGS) \
@@ -73,7 +72,6 @@ CLEANFILES = $(BUILT_SOURCES)
 
 libmcd_convenience_la_LIBADD = \
 	$(top_builddir)/libmcclient/libmcclient.la \
-	$(GCONF_LIBS) \
 	$(TELEPATHY_LIBS) \
 	$(DBUS_LIBS) \
 	$(GLIB_LIBS)
@@ -85,9 +83,7 @@ if ENABLE_PLUGINS
 # that wraps the convenience library
 lib_LTLIBRARIES = libmissioncontrol-server.la
 libmissioncontrol_server_la_SOURCES =
-libmissioncontrol_server_la_LIBADD = \
-	libmcd-convenience.la \
-	$(GMODULE_LIBS)
+libmissioncontrol_server_la_LIBADD = libmcd-convenience.la
 
 libmissioncontrol_server_la_LDFLAGS = \
 	-export-symbols-regex '^((mc_)|(mcd_)|(mission_control_))'
@@ -106,6 +102,8 @@ mission_control_include_HEADERS = $(mc_headers)
 genincludedir = $(mission_control_includedir)/_gen
 nodist_geninclude_HEADERS = $(mc_gen_headers)
 
+# We need GModule to load plugins
+libmcd_convenience_la_LIBADD += $(GMODULE_LIBS)
 INCLUDES += \
 	$(GMODULE_CFLAGS) \
 	-DMCD_DEFAULT_FILTER_PLUGIN_DIR=\"@pluginlibdir@\"
