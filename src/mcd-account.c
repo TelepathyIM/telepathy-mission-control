@@ -1672,20 +1672,21 @@ account_reconnect (McSvcAccount *service,
                    DBusGMethodInvocation *context)
 {
     McdAccount *self = MCD_ACCOUNT (service);
+    McdAccountPrivate *priv = self->priv;
 
     DEBUG ("%s", mcd_account_get_unique_name (self));
 
     /* if we can't, or don't want to, connect this method is a no-op */
-    if (!self->priv->enabled ||
-        !self->priv->valid ||
-        self->priv->req_presence_type == TP_CONNECTION_PRESENCE_TYPE_UNSET ||
-        self->priv->req_presence_type == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
+    if (!priv->enabled ||
+        !priv->valid ||
+        priv->req_presence_type == TP_CONNECTION_PRESENCE_TYPE_UNSET ||
+        priv->req_presence_type == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
     {
         DEBUG ("doing nothing (enabled=%c, valid=%c and "
                "RequestedPresence=%i)",
-               self->priv->enabled ? 'T' : 'F',
-               self->priv->valid ? 'T' : 'F',
-               self->priv->req_presence_type);
+               priv->enabled ? 'T' : 'F',
+               priv->valid ? 'T' : 'F',
+               priv->req_presence_type);
         mc_svc_account_return_from_reconnect (context);
         return;
     }
@@ -1694,8 +1695,8 @@ account_reconnect (McSvcAccount *service,
      * (possibly with out of date parameters) but we haven't got a Connection
      * back from the CM yet, the old parameters will still be used, I think
      * (I can't quite make out what actually happens). */
-    if (self->priv->connection)
-        mcd_connection_close (self->priv->connection);
+    if (priv->connection)
+        mcd_connection_close (priv->connection);
     _mcd_account_connection_begin (self);
 
     /* FIXME: we shouldn't really return from this method until the
