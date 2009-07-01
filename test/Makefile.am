@@ -17,7 +17,9 @@ noinst_PROGRAMS = \
 
 TESTS = $(noinst_PROGRAMS)
 
+# This test needs linking against the convenience library, so it can use
+# MC internals.
 test_value_is_same_SOURCES = value-is-same.c
-test_value_is_same_LDADD = $(top_builddir)/src/libmissioncontrol-server.la
+test_value_is_same_LDADD = $(top_builddir)/src/libmcd-convenience.la
 
 endif

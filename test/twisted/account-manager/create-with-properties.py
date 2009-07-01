@@ -1,3 +1,22 @@
+# Copyright (C) 2009 Nokia Corporation
+# Copyright (C) 2009 Collabora Ltd.
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+# 02110-1301 USA
+
+import dbus
 import dbus
 import dbus.service
 
@@ -41,8 +60,7 @@ def test(q, bus, mc):
     assert (cs.ACCOUNT_IFACE_NOKIA_COMPAT + '.SecondaryVCardFields') in supported
     assert (cs.ACCOUNT_IFACE_NOKIA_CONDITIONS + '.Condition') in supported
 
-    # FIXME: setting RequestedPresence at create time doesn't work yet
-    #assert (cs.ACCOUNT + '.RequestedPresence') in supported
+    assert (cs.ACCOUNT + '.RequestedPresence') in supported
 
     params = dbus.Dictionary({"account": "anarki@example.com",
         "password": "secrecy"}, signature='sv')
@@ -57,6 +75,9 @@ def test(q, bus, mc):
         cs.ACCOUNT + '.AutomaticPresence': dbus.Struct((
             dbus.UInt32(cs.PRESENCE_TYPE_BUSY),
             'busy', 'Exploding'), signature='uss'),
+        cs.ACCOUNT + '.RequestedPresence': dbus.Struct((
+            dbus.UInt32(cs.PRESENCE_TYPE_AWAY),
+            'away', 'Respawning'), signature='uss'),
         cs.ACCOUNT + '.Icon': 'quake3arena',
         cs.ACCOUNT + '.Nickname': 'AnArKi',
         cs.ACCOUNT + '.ConnectAutomatically': True,
@@ -80,13 +101,14 @@ def test(q, bus, mc):
     # FIXME: MC ought to also introspect the CM and find out that the params
     # are in fact sufficient
 
-    a_signal, am_signal, ret = q.expect_many(
+    a_signal, am_signal, ret, rc = q.expect_many(
             EventPattern('dbus-signal',
                 signal='AccountPropertyChanged', interface=cs.ACCOUNT,
                 predicate=(lambda e: 'Valid' in e.args[0])),
             EventPattern('dbus-signal', path=cs.AM_PATH,
                 signal='AccountValidityChanged', interface=cs.AM),
             EventPattern('dbus-return', method='CreateAccount'),
+            EventPattern('dbus-method-call', method='RequestConnection'),
             )
     account_path = ret.value[0]
     assert am_signal.args == [account_path, True], am_signal.args
@@ -103,6 +125,9 @@ def test(q, bus, mc):
     assert properties.get('AutomaticPresence') == (cs.PRESENCE_TYPE_BUSY,
             'busy', 'Exploding'), \
         properties.get('AutomaticPresence')
+    assert properties.get('RequestedPresence') == (cs.PRESENCE_TYPE_AWAY,
+            'away', 'Respawning'), \
+        properties.get('RequestedPresence')
     assert properties.get('ConnectAutomatically') == True, \
         properties.get('ConnectAutomatically')
     assert properties.get('Enabled') == True, \

@@ -1,3 +1,22 @@
+# Copyright (C) 2009 Nokia Corporation
+# Copyright (C) 2009 Collabora Ltd.
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+# 02110-1301 USA
+
+import dbus
 """Regression test for dispatching an incoming Text channel.
 """
 
@@ -54,18 +73,21 @@ def test(q, bus, mc):
 
     # This ID is special-cased by the test-plugin plugin, which rejects
     # channels to or from it
+    target = 'rick.astley@example.com'
     channel_properties = dbus.Dictionary(text_fixed_properties,
             signature='sv')
-    channel_properties[cs.CHANNEL + '.TargetID'] = 'rick.astley@example.com'
+    channel_properties[cs.CHANNEL + '.TargetID'] = target
     channel_properties[cs.CHANNEL + '.TargetHandle'] = \
-            conn.ensure_handle(cs.HT_CONTACT, 'rick.astley@example.com')
-    channel_properties[cs.CHANNEL + '.InitiatorID'] = 'rick.astley@example.com'
+            conn.ensure_handle(cs.HT_CONTACT, target)
+    channel_properties[cs.CHANNEL + '.InitiatorID'] = target
     channel_properties[cs.CHANNEL + '.InitiatorHandle'] = \
-            conn.ensure_handle(cs.HT_CONTACT, 'rick.astley@example.com')
+            conn.ensure_handle(cs.HT_CONTACT, target)
     channel_properties[cs.CHANNEL + '.Requested'] = False
-    channel_properties[cs.CHANNEL + '.Interfaces'] = dbus.Array(signature='s')
+    channel_properties[cs.CHANNEL + '.Interfaces'] = \
+            dbus.Array([cs.CHANNEL_IFACE_DESTROYABLE, cs.CHANNEL_IFACE_GROUP,
+                ],signature='s')
 
-    chan = SimulatedChannel(conn, channel_properties)
+    chan = SimulatedChannel(conn, channel_properties, group=True)
     chan.announce()
 
     # A channel dispatch operation is created
@@ -88,14 +110,12 @@ def test(q, bus, mc):
             cs.tp_name_prefix + '.Client.Kopete'], handlers
 
     # The plugin realises we've been rickrolled, and responds
-    q.expect('dbus-method-call',
+    e = q.expect('dbus-method-call',
             path=chan.object_path,
-            interface=cs.CHANNEL, method='Close', args=[],
-            handled=True)
-
-    e = q.expect('dbus-signal',
-            path=cdo_path, interface=cs.CDO, signal='ChannelLost')
-    assert e.args[0] == chan.object_path
+            interface=cs.CHANNEL_IFACE_DESTROYABLE, method='Destroy', args=[],
+            handled=False)
+    # treat it like Close
+    chan.Close(e)
 
     q.expect_many(
             EventPattern('dbus-signal', path=cdo_path,
@@ -105,6 +125,115 @@ def test(q, bus, mc):
                 signal='DispatchOperationFinished',
                 args=[cdo_path]),
             )
+
+    # This ID is also special-cased
+    target = 'mc.hammer@example.com'
+    channel_properties = dbus.Dictionary(text_fixed_properties,
+            signature='sv')
+    channel_properties[cs.CHANNEL + '.TargetID'] = target
+    channel_properties[cs.CHANNEL + '.TargetHandle'] = \
+            conn.ensure_handle(cs.HT_CONTACT, target)
+    channel_properties[cs.CHANNEL + '.InitiatorID'] = target
+    channel_properties[cs.CHANNEL + '.InitiatorHandle'] = \
+            conn.ensure_handle(cs.HT_CONTACT, target)
+    channel_properties[cs.CHANNEL + '.Requested'] = False
+    channel_properties[cs.CHANNEL + '.Interfaces'] = \
+            dbus.Array([cs.CHANNEL_IFACE_DESTROYABLE, cs.CHANNEL_IFACE_GROUP,
+                ],signature='s')
+
+    chan = SimulatedChannel(conn, channel_properties, group=True)
+    chan.announce()
+
+    # A channel dispatch operation is created
+
+    e = q.expect('dbus-signal',
+            path=cs.CD_PATH,
+            interface=cs.CD_IFACE_OP_LIST,
+            signal='NewDispatchOperation')
+
+    cdo_path = e.args[0]
+    cdo_properties = e.args[1]
+
+    assert cdo_properties[cs.CDO + '.Account'] == account.object_path
+    assert cdo_properties[cs.CDO + '.Connection'] == conn.object_path
+    assert cs.CDO + '.Interfaces' in cdo_properties
+
+    handlers = cdo_properties[cs.CDO + '.PossibleHandlers'][:]
+    handlers.sort()
+    assert handlers == [cs.tp_name_prefix + '.Client.Empathy',
+            cs.tp_name_prefix + '.Client.Kopete'], handlers
+
+    # The plugin realises it's MC Hammer, and responds
+    e = q.expect('dbus-method-call',
+            path=chan.object_path,
+            interface=cs.CHANNEL_IFACE_DESTROYABLE, method='Destroy', args=[],
+            handled=False)
+    # treat it like Close
+    chan.Close(e)
+
+    q.expect_many(
+            EventPattern('dbus-signal', path=cdo_path,
+                interface=cs.CDO, signal='Finished'),
+            EventPattern('dbus-signal', path=cs.CD_PATH,
+                interface=cs.CD_IFACE_OP_LIST,
+                signal='DispatchOperationFinished',
+                args=[cdo_path]),
+            )
+
+    # This ID is *also* special-cased
+    target = 'hammertime@example.com'
+    channel_properties = dbus.Dictionary(text_fixed_properties,
+            signature='sv')
+    channel_properties[cs.CHANNEL + '.TargetID'] = target
+    channel_properties[cs.CHANNEL + '.TargetHandle'] = \
+            conn.ensure_handle(cs.HT_CONTACT, target)
+    channel_properties[cs.CHANNEL + '.InitiatorID'] = target
+    channel_properties[cs.CHANNEL + '.InitiatorHandle'] = \
+            conn.ensure_handle(cs.HT_CONTACT, target)
+    channel_properties[cs.CHANNEL + '.Requested'] = False
+    channel_properties[cs.CHANNEL + '.Interfaces'] = \
+            dbus.Array([cs.CHANNEL_IFACE_DESTROYABLE, cs.CHANNEL_IFACE_GROUP,
+                ],signature='s')
+
+    chan = SimulatedChannel(conn, channel_properties, group=True)
+    chan.announce()
+
+    # A channel dispatch operation is created
+
+    e = q.expect('dbus-signal',
+            path=cs.CD_PATH,
+            interface=cs.CD_IFACE_OP_LIST,
+            signal='NewDispatchOperation')
+
+    cdo_path = e.args[0]
+    cdo_properties = e.args[1]
+
+    assert cdo_properties[cs.CDO + '.Account'] == account.object_path
+    assert cdo_properties[cs.CDO + '.Connection'] == conn.object_path
+    assert cs.CDO + '.Interfaces' in cdo_properties
+
+    handlers = cdo_properties[cs.CDO + '.PossibleHandlers'][:]
+    handlers.sort()
+    assert handlers == [cs.tp_name_prefix + '.Client.Empathy',
+            cs.tp_name_prefix + '.Client.Kopete'], handlers
+
+    # The plugin realises it's MC Hammer, and responds
+    _, _, e = q.expect_many(
+            EventPattern('dbus-signal', path=cdo_path,
+                interface=cs.CDO, signal='Finished'),
+            EventPattern('dbus-signal', path=cs.CD_PATH,
+                interface=cs.CD_IFACE_OP_LIST,
+                signal='DispatchOperationFinished',
+                args=[cdo_path]),
+            EventPattern('dbus-method-call',
+                path=chan.object_path,
+                interface=cs.CHANNEL_IFACE_GROUP,
+                method='RemoveMembersWithReason', args=[[conn.self_handle],
+                    "Can't touch this", cs.GROUP_REASON_PERMISSION_DENIED],
+                handled=False),
+            )
+    q.dbus_return(e.message, signature='')
+    chan.close()
 
 if __name__ == '__main__':
     exec_test(test, {})

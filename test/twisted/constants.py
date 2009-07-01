@@ -1,3 +1,21 @@
+# Copyright (C) 2009 Nokia Corporation
+# Copyright (C) 2009 Collabora Ltd.
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+# 02110-1301 USA
+
 """
 Some handy constants for other tests to share and enjoy.
 """
@@ -51,6 +69,19 @@ CONN_STATUS_DISCONNECTED = 2
 CONN_STATUS_REASON_NONE = 0
 CONN_STATUS_REASON_REQUESTED = 1
 CONN_STATUS_REASON_NETWORK_ERROR = 2
+
+GROUP_REASON_NONE = 0
+GROUP_REASON_OFFLINE = 1
+GROUP_REASON_KICKED = 2
+GROUP_REASON_BUSY = 3
+GROUP_REASON_INVITED = 4
+GROUP_REASON_BANNED = 5
+GROUP_REASON_ERROR = 6
+GROUP_REASON_INVALID_CONTACT = 7
+GROUP_REASON_NO_ANSWER = 8
+GROUP_REASON_RENAMED = 9
+GROUP_REASON_PERMISSION_DENIED = 10
+GROUP_REASON_SEPARATED = 11
 
 PRESENCE_TYPE_UNSET = 0
 PRESENCE_TYPE_OFFLINE = 1

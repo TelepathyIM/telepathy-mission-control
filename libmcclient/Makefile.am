@@ -8,7 +8,7 @@ INCLUDES = \
 	-DG_LOG_DOMAIN=\"mc-client\"
 
 BUILT_SOURCES = \
-	_gen/all.xml \
+	_gen/libmcclient.xml \
 	mc-signals-marshal.c \
 	mc-signals-marshal.h \
 	$(nodist_libmcclient_la_SOURCES) \
@@ -99,6 +99,7 @@ endif
 
 EXTRA_DIST = \
 	$(libmcclient_include_DATA) \
+	libmcclient.xml \
 	account.xml \
 	account-manager.xml \
 	client.xml \
@@ -117,19 +118,19 @@ _gen/%-quark.c _gen/%-quark.h: %-quark.list \
 		--quark-prefix=MC_QUARK \
 		$< $*_quark _gen/$*-quark
 
-_gen/all.xml: $(top_srcdir)/xml/all.xml $(wildcard $(top_srcdir)/xml/*.xml)
+_gen/libmcclient.xml: libmcclient.xml $(wildcard $(top_srcdir)/xml/*.xml)
 	$(mkdir_p) _gen
 	$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
 
 # Generated files which can be done for all "classes" at once
 
-_gen/gtypes.h _gen/gtypes-body.h: _gen/all.xml \
+_gen/gtypes.h _gen/gtypes-body.h: _gen/libmcclient.xml \
 	$(top_srcdir)/tools/glib-gtypes-generator.py
 	$(PYTHON) $(top_srcdir)/tools/glib-gtypes-generator.py \
 		$< _gen/gtypes mc
 
-_gen/signals-marshal.list: _gen/all.xml \
+_gen/signals-marshal.list: _gen/libmcclient.xml \
 	$(tools_dir)/glib-signals-marshal-gen.py
 	$(PYTHON) $(tools_dir)/glib-signals-marshal-gen.py $< > $@
 
@@ -139,18 +140,18 @@ _gen/signals-marshal.h: _gen/signals-marshal.list
 _gen/signals-marshal.c: _gen/signals-marshal.list
 	$(GLIB_GENMARSHAL) --body --prefix=_mc_ext_marshal $< > $@
 
-_gen/register-dbus-glib-marshallers-body.h: _gen/all.xml \
+_gen/register-dbus-glib-marshallers-body.h: _gen/libmcclient.xml \
 	$(tools_dir)/glib-client-marshaller-gen.py
 	$(PYTHON) $(tools_dir)/glib-client-marshaller-gen.py $< \
 		_mc_ext > $@
 
-_gen/enums.h: _gen/all.xml $(tools_dir)/c-constants-generator.xsl
+_gen/enums.h: _gen/libmcclient.xml $(tools_dir)/c-constants-generator.xsl
 	$(XSLTPROC) $(XSLTPROCFLAGS) \
 		--stringparam mixed-case-prefix mc \
 		$(tools_dir)/c-constants-generator.xsl \
 		$< > $@
 
-_gen/interfaces.h: _gen/all.xml \
+_gen/interfaces.h: _gen/libmcclient.xml \
 	$(tools_dir)/glib-interfaces-generator.xsl \
 	$(tools_dir)/c-interfaces-generator.xsl
 	$(XSLTPROC) $(XSLTPROCFLAGS) \
@@ -158,7 +159,7 @@ _gen/interfaces.h: _gen/all.xml \
 		$(tools_dir)/glib-interfaces-generator.xsl \
 		$< > $@
 
-_gen/interfaces-body.h: _gen/all.xml \
+_gen/interfaces-body.h: _gen/libmcclient.xml \
 	$(tools_dir)/glib-interfaces-body-generator.xsl \
 	$(tools_dir)/c-interfaces-generator.xsl
 	$(XSLTPROC) $(XSLTPROCFLAGS) \

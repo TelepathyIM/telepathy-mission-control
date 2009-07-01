@@ -32,9 +32,12 @@
 
 #include <dbus/dbus-glib-lowlevel.h>
 #include <libmcclient/mc-errors.h>
-#include <telepathy-glib/svc-generic.h>
+
 #include <telepathy-glib/gtypes.h>
+#include <telepathy-glib/svc-channel-request.h>
+#include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
+
 #include "mcd-account.h"
 #include "mcd-account-priv.h"
 #include "mcd-account-manager.h"
@@ -42,7 +45,6 @@
 #include "mcd-channel-priv.h"
 #include "mcd-misc.h"
 #include "_gen/interfaces.h"
-#include "_gen/svc-request.h"
 
 static void
 online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
@@ -135,7 +137,7 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
         err_string = _mcd_build_error_string (error);
         /* FIXME: ideally the McdChannel should emit this signal itself, and
          * the Account.Interface.ChannelRequests should catch and re-emit it */
-        mc_svc_channel_request_emit_failed (channel, err_string,
+        tp_svc_channel_request_emit_failed (channel, err_string,
                                             error->message);
         mc_svc_account_interface_channelrequests_emit_failed (account,
             _mcd_channel_get_request_path (channel),
@@ -148,7 +150,7 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
     {
         /* FIXME: ideally the McdChannel should emit this signal itself, and
          * the Account.Interface.ChannelRequests should catch and re-emit it */
-        mc_svc_channel_request_emit_succeeded (channel);
+        tp_svc_channel_request_emit_succeeded (channel);
         mc_svc_account_interface_channelrequests_emit_succeeded (account,
             _mcd_channel_get_request_path (channel));
 
@@ -168,8 +170,7 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
         mcd_account_get_account_manager (account));
     DBusGConnection *dgc = tp_proxy_get_dbus_connection (dbus_daemon);
 
-    if (mcd_mission_get_flags (MCD_MISSION (mcd_master_get_default ())) &
-        MCD_SYSTEM_MEMORY_CONSERVED)
+    if (mcd_master_has_low_memory (mcd_master_get_default ()))
     {
         g_set_error (error, MC_ERROR, MC_LOWMEM_ERROR, "Insufficient memory");
         return NULL;

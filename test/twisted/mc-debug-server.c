@@ -2,7 +2,8 @@
 /*
  * This file is part of mission-control
  *
- * Copyright (C) 2007 Nokia Corporation. 
+ * Copyright (C) 2007-2009 Nokia Corporation
+ * Copyright (C) 2009 Collabora Ltd.
  *
  * Contact: Naba Kumar  <naba.kumar@nokia.com>
  *
@@ -104,6 +105,8 @@ dbus_filter_function (DBusConnection *connection,
 
       if (reply == NULL || !dbus_connection_send (connection, reply, NULL))
         g_error ("Out of memory");
+
+      dbus_message_unref (reply);
 
       return DBUS_HANDLER_RESULT_HANDLED;
     }

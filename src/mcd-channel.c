@@ -38,25 +38,24 @@
 #include "mcd-channel.h"
 
 #include <glib/gi18n.h>
-#include <telepathy-glib/interfaces.h>
-#include <telepathy-glib/gtypes.h>
+
 #include <telepathy-glib/dbus.h>
+#include <telepathy-glib/gtypes.h>
+#include <telepathy-glib/interfaces.h>
+#include <telepathy-glib/svc-channel-request.h>
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
 #include "mcd-account-priv.h"
 #include "mcd-channel-priv.h"
 #include "mcd-enum-types.h"
-#include "_gen/gtypes.h"
-#include "_gen/interfaces.h"
-#include "_gen/svc-request.h"
 
 #define MCD_CHANNEL_PRIV(channel) (MCD_CHANNEL (channel)->priv)
 
 static void request_iface_init (gpointer, gpointer);
 
 G_DEFINE_TYPE_WITH_CODE (McdChannel, mcd_channel, MCD_TYPE_MISSION,
-    G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_REQUEST, request_iface_init);
+    G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_CHANNEL_REQUEST, request_iface_init);
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
                            tp_dbus_properties_mixin_iface_init))
 
@@ -123,8 +122,7 @@ static guint mcd_channel_signals[LAST_SIGNAL] = { 0 };
 static guint last_req_id = 1;
 
 
-static void _mcd_channel_release_tp_channel (McdChannel *channel,
-					     gboolean close_channel);
+static void _mcd_channel_release_tp_channel (McdChannel *channel);
 static void on_proxied_channel_status_changed (McdChannel *source,
                                                McdChannelStatus status,
                                                McdChannel *dest);
@@ -195,14 +193,9 @@ proxy_destroyed (TpProxy *self, guint domain, gint code, gchar *message,
 {
     McdChannel *channel = user_data;
 
-    DEBUG ("Channel proxy destroyed (%s)!", message);
-    /*
-    McdChannelPrivate *priv = channel->priv;
-    g_object_unref (priv->tp_chan);
-    priv->tp_chan = NULL;
-    */
+    DEBUG ("Channel proxy invalidated: %s %d: %s",
+           g_quark_to_string (domain), code, message);
     mcd_mission_abort (MCD_MISSION (channel));
-    DEBUG ("Channel closed");
 }
 
 static inline void
@@ -248,19 +241,38 @@ on_channel_ready (TpChannel *tp_chan, const GError *error, gpointer user_data)
 	_mcd_channel_setup_group (channel);
 }
 
-static void
-mcd_channel_close (McdChannel *channel)
+void
+_mcd_channel_close (McdChannel *channel)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
+    const GError *invalidated;
 
-    if (priv->tp_chan &&
-        !TP_PROXY (priv->tp_chan)->invalidated &&
-        tp_channel_get_channel_type_id (priv->tp_chan) !=
+    if (priv->tp_chan == NULL)
+    {
+        DEBUG ("Not closing %p: no TpChannel", channel);
+        return;
+    }
+
+    invalidated = TP_PROXY (priv->tp_chan)->invalidated;
+
+    if (invalidated != NULL)
+    {
+        DEBUG ("Not closing %p, already invalidated: %s %d: %s",
+               channel, g_quark_to_string (invalidated->domain),
+               invalidated->code, invalidated->message);
+        return;
+    }
+
+    if (tp_channel_get_channel_type_id (priv->tp_chan) ==
         TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
     {
-        DEBUG ("Requesting telepathy to Close() the channel");
-        tp_cli_channel_call_close (priv->tp_chan, -1, NULL, NULL, NULL, NULL);
+        DEBUG ("Not closing %p, it's a ContactList", channel);
+        return;
     }
+
+    DEBUG ("%p: calling Close() on %s", channel,
+           mcd_channel_get_object_path (channel));
+    tp_cli_channel_call_close (priv->tp_chan, -1, NULL, NULL, NULL, NULL);
 }
 
 void
@@ -299,7 +311,7 @@ _mcd_channel_undispatchable (McdChannel *channel)
 }
 
 static void
-_mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
+_mcd_channel_release_tp_channel (McdChannel *channel)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
     if (priv->tp_chan)
@@ -310,9 +322,6 @@ _mcd_channel_release_tp_channel (McdChannel *channel, gboolean close_channel)
 	g_signal_handlers_disconnect_by_func (G_OBJECT (priv->tp_chan),
 					      G_CALLBACK (proxy_destroyed),
 					      channel);
-
-	if (close_channel)
-            mcd_channel_close (channel);
 
 	/* Destroy our proxy */
 	g_object_unref (priv->tp_chan);
@@ -360,7 +369,7 @@ _mcd_channel_set_property (GObject * obj, guint prop_id,
 	tp_chan = g_value_get_object (val);
 	if (tp_chan)
 	    g_object_ref (tp_chan);
-	_mcd_channel_release_tp_channel (channel, TRUE);
+	_mcd_channel_release_tp_channel (channel);
 	priv->tp_chan = tp_chan;
         if (priv->tp_chan && !priv->constructing)
 	    _mcd_channel_setup (channel, priv);
@@ -498,8 +507,7 @@ _mcd_channel_dispose (GObject * object)
         priv->request_data = NULL;
     }
 
-    _mcd_channel_release_tp_channel (MCD_CHANNEL (object),
-                                     priv->close_on_dispose);
+    _mcd_channel_release_tp_channel (MCD_CHANNEL (object));
     G_OBJECT_CLASS (mcd_channel_parent_class)->dispose (object);
 }
 
@@ -551,10 +559,6 @@ mcd_channel_abort (McdMission *mission)
                                      "Channel aborted");
         mcd_channel_take_error (channel, error);
     }
-    /* Don't release the TpChannel, because we might still be asked to retrieve
-     * its properties or object path; instead, just close the channel */
-    if (priv->close_on_dispose)
-        mcd_channel_close (channel);
 
     /* chain up with the parent */
     MCD_MISSION_CLASS (mcd_channel_parent_class)->abort (mission);
@@ -578,7 +582,7 @@ mcd_channel_class_init (McdChannelClass * klass)
         { NULL }
     };
     static TpDBusPropertiesMixinIfaceImpl prop_interfaces[] = {
-        { MC_IFACE_CHANNEL_REQUEST,
+        { TP_IFACE_CHANNEL_REQUEST,
           tp_dbus_properties_mixin_getter_gobject_properties,
           NULL,
           request_props,
@@ -685,7 +689,6 @@ mcd_channel_init (McdChannel * obj)
 					McdChannelPrivate);
     obj->priv = priv;
 
-    priv->close_on_dispose = TRUE;
     priv->constructing = TRUE;
 }
 
@@ -1432,7 +1435,6 @@ _mcd_channel_copy_details (McdChannel *channel, McdChannel *source)
     g_return_if_fail (MCD_IS_CHANNEL (source));
 
     channel->priv->tp_chan = g_object_ref (source->priv->tp_chan);
-    channel->priv->close_on_dispose = FALSE;
 }
 
 TpChannel *
@@ -1444,7 +1446,7 @@ mcd_channel_get_tp_channel (McdChannel *channel)
 }
 
 static void
-channel_request_proceed (McSvcChannelRequest *iface,
+channel_request_proceed (TpSvcChannelRequest *iface,
                          DBusGMethodInvocation *context)
 {
     McdChannel *self = MCD_CHANNEL (iface);
@@ -1484,7 +1486,7 @@ channel_request_proceed (McSvcChannelRequest *iface,
     self->priv->request_data->proceeding = TRUE;
     _mcd_account_proceed_with_request (self->priv->request_data->account,
                                        self);
-    mc_svc_channel_request_return_from_proceed (context);
+    tp_svc_channel_request_return_from_proceed (context);
 }
 
 gboolean
@@ -1525,7 +1527,7 @@ _mcd_channel_request_cancel (McdChannel *self,
 }
 
 static void
-channel_request_cancel (McSvcChannelRequest *iface,
+channel_request_cancel (TpSvcChannelRequest *iface,
                         DBusGMethodInvocation *context)
 {
     McdChannel *self = MCD_CHANNEL (iface);
@@ -1533,7 +1535,7 @@ channel_request_cancel (McSvcChannelRequest *iface,
 
     if (_mcd_channel_request_cancel (self, &error))
     {
-        mc_svc_channel_request_return_from_cancel (context);
+        tp_svc_channel_request_return_from_cancel (context);
     }
     else
     {
@@ -1546,9 +1548,103 @@ static void
 request_iface_init (gpointer g_iface,
                     gpointer iface_data G_GNUC_UNUSED)
 {
-#define IMPLEMENT(x) mc_svc_channel_request_implement_##x (\
+#define IMPLEMENT(x) tp_svc_channel_request_implement_##x (\
     g_iface, channel_request_##x)
     IMPLEMENT (proceed);
     IMPLEMENT (cancel);
 #undef IMPLEMENT
+}
+
+static void
+mcd_channel_depart_cb (TpChannel *channel,
+                       const GError *error,
+                       gpointer data G_GNUC_UNUSED,
+                       GObject *weak_object G_GNUC_UNUSED)
+{
+    if (error == NULL)
+    {
+        DEBUG ("successful");
+        return;
+    }
+
+    DEBUG ("failed to depart, calling Close instead: %s %d: %s",
+           g_quark_to_string (error->domain), error->code, error->message);
+    tp_cli_channel_call_close (channel, -1, NULL, NULL, NULL, NULL);
+}
+
+typedef struct {
+    TpChannelGroupChangeReason reason;
+    gchar *message;
+} DepartData;
+
+static void
+mcd_channel_ready_to_depart_cb (TpChannel *channel,
+                                const GError *error,
+                                gpointer data)
+{
+    DepartData *d = data;
+
+    if (error != NULL)
+    {
+        DEBUG ("%s %d: %s", g_quark_to_string (error->domain), error->code,
+               error->message);
+        g_free (d->message);
+        g_slice_free (DepartData, d);
+        return;
+    }
+
+    if (tp_proxy_has_interface_by_id (channel,
+                                      TP_IFACE_QUARK_CHANNEL_INTERFACE_GROUP))
+    {
+        GArray *a = g_array_sized_new (FALSE, FALSE, sizeof (guint), 1);
+        guint self_handle = tp_channel_group_get_self_handle (channel);
+
+        g_array_append_val (a, self_handle);
+
+        tp_cli_channel_interface_group_call_remove_members_with_reason (
+            channel, -1, a, d->message, d->reason,
+            mcd_channel_depart_cb, NULL, NULL, NULL);
+
+        g_array_free (a, TRUE);
+        g_free (d->message);
+        g_slice_free (DepartData, d);
+    }
+}
+
+void
+_mcd_channel_depart (McdChannel *channel,
+                     TpChannelGroupChangeReason reason,
+                     const gchar *message)
+{
+    DepartData *d;
+    const GError *invalidated;
+
+    g_return_if_fail (MCD_IS_CHANNEL (channel));
+
+    g_return_if_fail (channel->priv->tp_chan != NULL);
+    g_return_if_fail (message != NULL);
+
+    invalidated = tp_proxy_get_invalidated (channel->priv->tp_chan);
+
+    if (invalidated != NULL)
+    {
+        DEBUG ("%s %d: %s", g_quark_to_string (invalidated->domain),
+               invalidated->code, invalidated->message);
+        return;
+    }
+
+    if (message[0] == '\0' && reason == TP_CHANNEL_GROUP_CHANGE_REASON_NONE)
+    {
+        /* exactly equivalent to Close(), so skip the Group interface */
+        tp_cli_channel_call_close (channel->priv->tp_chan, -1,
+                                   NULL, NULL, NULL, NULL);
+        return;
+    }
+
+    d = g_slice_new (DepartData);
+    d->reason = reason;
+    d->message = g_strdup (message == NULL ? "" : message);
+
+    tp_channel_call_when_ready (channel->priv->tp_chan,
+                                mcd_channel_ready_to_depart_cb, d);
 }

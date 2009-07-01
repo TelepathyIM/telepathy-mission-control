@@ -1,3 +1,87 @@
+telepathy-mission-control 5.1.3 (UNRELEASED)
+============================================
+
+???
+
+telepathy-mission-control 5.1.2 (2009-06-26)
+============================================
+
+The "don't cross the stream engines" release.
+
+Dependencies:
+
+* telepathy-glib >= 0.7.32 (or 0.7.33 if you want to run the regression tests)
+
+Enhancements:
+
+* Stop generating duplicate bindings in the daemon for interfaces that are
+  now available in telepathy-glib 0.7.32
+
+Fixes:
+
+* Fix a subtle use-after-free that can crash MC if more than 4 distinct
+  properties change in a 10ms interval (!)
+
+* Make various fixes to putting accounts online:
+  - ConnectAutomatically takes effect immediately
+  - Fix a race between loading accounts and requesting channels
+  - Never consider accounts to be Valid until they've loaded, meaning that we
+    never try to put an account online before we've loaded its parameters (!)
+  - Don't connect (automatically or by request) unless the account is Valid
+  - Don't connect in order to satisfy a channel request unless the account is
+    both Valid and Enabled
+  - Allow setting RequestedPresence on disabled accounts, fixing creation of
+    accounts that already have a RequestedPresence
+  - Improve regression test coverage considerably
+  - If an account's parameters change and it becomes Valid, consider putting it
+    online
+  - If an account becomes enabled after an online presence was requested, try
+    to put it online
+
+* Change the default RequestedPresence on startup from UNSET to OFFLINE
+
+* Simplify API for low memory indication
+
+* Delete some unnecessary code from McdMaster, and simplify some redundant code
+
+* Forbid setting AutomaticPresence to a non-online status
+
+* Forbid setting RequestedPresence to a status that can't be set on yourself
+
+* Fix a memory leak and some races in the regression tests
+
+* Turn the daemon into a convenience library so one of the tests can link it
+  statically even if it's eventually going to be a shared library, fixing
+  make check with --enable-plugins
+
+telepathy-mission-control 5.1.1 (2009-06-16)
+============================================
+
+The "Beautiful And Damned" release.
+
+Fixes:
+
+* fd.o #22169: allowed PreferredHandler to be empty when requesting a
+  channel (smcv)
+
+* Updated code generation from telepathy-glib and followed the recommendations
+  of telepathy-glib 0.7.6's NEWS, fixing some possible assertion
+  failures (smcv)
+
+* Ensured that AccountValidityChanged will be emitted if an account is added
+  in an already-valid state (smcv)
+
+* fd.o #21377: added support for 64-bit integers, doubles and object paths as
+  CM parameters, did some work towards supporting bytes as CM parameters,
+  and fixed serialization of large 32-bit unsigned integers and
+  deserialization of integers of large magnitude (smcv)
+
+* fd.o #21299: prevented automatic reconnection after Name_In_Use error (smcv)
+
+* fd.o #22201: avoided rewriting accounts.cfg if nothing changed (smcv)
+
+* Ensured that the transport was reset when a Connection disconnected (mardy)
+
 telepathy-mission-control 5.1.0 (2009-06-05)
 ============================================
 

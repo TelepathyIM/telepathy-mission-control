@@ -26,9 +26,6 @@
 
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/enums.h>
-/* auto-generated stubs */
-#include "_gen/svc-Account.h"
-#include "_gen/svc-Account_Interface_Avatar.h"
 
 G_BEGIN_DECLS
 #define MCD_TYPE_ACCOUNT         (mcd_account_get_type ())

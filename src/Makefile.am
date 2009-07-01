@@ -32,26 +32,18 @@ mc_headers = \
 	mcd-provisioning-factory.h
 
 mc_gen_headers = \
-	_gen/cli-client.h \
 	_gen/cli-Connection_Interface_Contact_Capabilities.h \
 	_gen/enums.h \
 	_gen/interfaces.h \
 	_gen/gtypes.h \
-	_gen/svc-Account.h \
-	_gen/svc-Account_Interface_Avatar.h \
 	_gen/svc-Account_Interface_ChannelRequests.h \
 	_gen/svc-Account_Interface_Compat.h \
 	_gen/svc-Account_Interface_Conditions.h \
 	_gen/svc-Account_Interface_Stats.h \
-	_gen/svc-Account_Manager.h \
 	_gen/svc-Account_Manager_Interface_Creation.h \
-	_gen/svc-Account_Manager_Interface_Query.h \
-	_gen/svc-dispatcher.h \
-	_gen/svc-dispatch-operation.h \
-	_gen/svc-request.h
+	_gen/svc-Account_Manager_Interface_Query.h
 
-nodist_libmissioncontrol_server_la_SOURCES = \
-	_gen/cli-client-body.h \
+nodist_libmcd_convenience_la_SOURCES = \
 	_gen/cli-Connection_Interface_Contact_Capabilities-body.h \
 	_gen/gtypes-body.h \
 	_gen/interfaces-body.h \
@@ -59,42 +51,43 @@ nodist_libmissioncontrol_server_la_SOURCES = \
 	_gen/signals-marshal.c \
 	_gen/signals-marshal.h \
 	_gen/signals-marshal.list \
-	_gen/svc-Account.c \
-	_gen/svc-Account_Interface_Avatar.c \
 	_gen/svc-Account_Interface_ChannelRequests.c \
 	_gen/svc-Account_Interface_Compat.c \
 	_gen/svc-Account_Interface_Conditions.c \
 	_gen/svc-Account_Interface_Stats.c \
-	_gen/svc-Account_Manager.c \
 	_gen/svc-Account_Manager_Interface_Creation.c \
 	_gen/svc-Account_Manager_Interface_Query.c \
-	_gen/svc-dispatcher.c \
-	_gen/svc-dispatch-operation.c \
-	_gen/svc-request.c \
 	$(mc_gen_headers)
 
 BUILT_SOURCES = \
-	_gen/all.xml \
+	_gen/mcd.xml \
 	mcd-signals-marshal.h \
 	mcd-signals-marshal.c \
 	mcd-enum-types.c \
 	mcd-enum-types.h \
 	stamp-mcd-enum-types.h \
-	$(nodist_libmissioncontrol_server_la_SOURCES) \
+	$(nodist_libmcd_convenience_la_SOURCES) \
 	$(mc_gen_headers)
  
 CLEANFILES = $(BUILT_SOURCES)
 
-libmissioncontrol_server_la_LIBADD = \
+libmcd_convenience_la_LIBADD = \
 	$(top_builddir)/libmcclient/libmcclient.la \
 	$(GCONF_LIBS) \
 	$(TELEPATHY_LIBS) \
 	$(DBUS_LIBS) \
 	$(GLIB_LIBS)
 
+noinst_LTLIBRARIES = libmcd-convenience.la
+
 if ENABLE_PLUGINS
+# When plugins are enabled, libmissioncontrol-server.la is a shared library
+# that wraps the convenience library
 lib_LTLIBRARIES = libmissioncontrol-server.la
-libmissioncontrol_server_la_LIBADD += $(GMODULE_LIBS)
+libmissioncontrol_server_la_SOURCES =
+libmissioncontrol_server_la_LIBADD = \
+	libmcd-convenience.la \
+	$(GMODULE_LIBS)
 
 libmissioncontrol_server_la_LDFLAGS = \
 	-export-symbols-regex '^((mc_)|(mcd_)|(mission_control_))'
@@ -116,11 +109,15 @@ nodist_geninclude_HEADERS = $(mc_gen_headers)
 INCLUDES += \
 	$(GMODULE_CFLAGS) \
 	-DMCD_DEFAULT_FILTER_PLUGIN_DIR=\"@pluginlibdir@\"
-else # ENABLE_PLUGINS
-noinst_LTLIBRARIES = libmissioncontrol-server.la
-endif # ENABLE_PLUGINS
+else # ! ENABLE_PLUGINS
+# When plugins are not enabled, libmissioncontrol-server.la is just a copy of
+# the convenience library
+noinst_LTLIBRARIES += libmissioncontrol-server.la
+libmissioncontrol_server_la_SOURCES =
+libmissioncontrol_server_la_LIBADD = $(builddir)/libmcd-convenience.la
+endif # ! ENABLE_PLUGINS
 
-libmissioncontrol_server_la_SOURCES = \
+libmcd_convenience_la_SOURCES = \
 	mcd-account.c \
 	mcd-account-compat.c \
 	mcd-account-conditions.c \
@@ -210,6 +207,7 @@ mcd-enum-types.c: Makefile $(mc_headers)
 	&& rm -f xgen-getc
 
 EXTRA_DIST = \
+	mcd.xml \
 	client.xml \
 	dispatcher.xml \
 	dispatch-operation.xml \
@@ -221,6 +219,11 @@ EXTRA_DIST = \
 
 tools_dir = $(top_srcdir)/tools
 
+_gen/mcd.xml: mcd.xml $(wildcard $(top_srcdir)/xml/*.xml)
+	$(mkdir_p) _gen
+	$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
+		$< > $@
+
 _gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml)
 	$(mkdir_p) _gen
 	$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
@@ -228,12 +231,12 @@ _gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml)
 
 # Generated files which can be done for all "classes" at once
 
-_gen/gtypes.h _gen/gtypes-body.h: _gen/all.xml \
+_gen/gtypes.h _gen/gtypes-body.h: _gen/mcd.xml \
 	$(top_srcdir)/tools/glib-gtypes-generator.py
 	$(PYTHON) $(top_srcdir)/tools/glib-gtypes-generator.py \
 		$< _gen/gtypes mc
 
-_gen/signals-marshal.list: _gen/all.xml \
+_gen/signals-marshal.list: _gen/mcd.xml \
 	$(tools_dir)/glib-signals-marshal-gen.py
 	$(PYTHON) $(tools_dir)/glib-signals-marshal-gen.py $< > $@
 
@@ -245,18 +248,18 @@ _gen/signals-marshal.c: _gen/signals-marshal.list
 	$(GLIB_GENMARSHAL) --body --prefix=_mc_ext_marshal $<; } \
 	> $@
 
-_gen/register-dbus-glib-marshallers-body.h: _gen/all.xml \
+_gen/register-dbus-glib-marshallers-body.h: _gen/mcd.xml \
 	$(tools_dir)/glib-client-marshaller-gen.py
 	$(PYTHON) $(tools_dir)/glib-client-marshaller-gen.py $< \
 		_mc_ext > $@
 
-_gen/enums.h: _gen/all.xml $(tools_dir)/c-constants-generator.xsl
+_gen/enums.h: _gen/mcd.xml $(tools_dir)/c-constants-generator.xsl
 	$(XSLTPROC) $(XSLTPROCFLAGS) \
 		--stringparam mixed-case-prefix mc \
 		$(tools_dir)/c-constants-generator.xsl \
 		$< > $@
 
-_gen/interfaces.h: _gen/all.xml \
+_gen/interfaces.h: _gen/mcd.xml \
 	$(tools_dir)/glib-interfaces-generator.xsl \
 	$(tools_dir)/c-interfaces-generator.xsl
 	$(XSLTPROC) $(XSLTPROCFLAGS) \
@@ -264,7 +267,7 @@ _gen/interfaces.h: _gen/all.xml \
 		$(tools_dir)/glib-interfaces-generator.xsl \
 		$< > $@
 
-_gen/interfaces-body.h: _gen/all.xml \
+_gen/interfaces-body.h: _gen/mcd.xml \
 	$(tools_dir)/glib-interfaces-body-generator.xsl \
 	$(tools_dir)/c-interfaces-generator.xsl
 	$(XSLTPROC) $(XSLTPROCFLAGS) \

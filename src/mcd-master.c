@@ -84,9 +84,6 @@ typedef struct _McdMasterPrivate
     McdAccountManager *account_manager;
     McdDispatcher *dispatcher;
     McdProxy *proxy;
-    TpConnectionPresenceType awake_presence;
-    gchar *awake_presence_message;
-    TpConnectionPresenceType default_presence;
 
     /* We create this for our member objects */
     TpDBusDaemon *dbus_daemon;
@@ -98,6 +95,8 @@ typedef struct _McdMasterPrivate
     GList *account_connections;
 
     gboolean is_disposed;
+    gboolean low_memory;
+    gboolean idle;
 } McdMasterPrivate;
 
 enum
@@ -107,15 +106,8 @@ enum
     PROP_DBUS_CONNECTION,
     PROP_DBUS_DAEMON,
     PROP_DISPATCHER,
-    PROP_DEFAULT_PRESENCE,
     PROP_ACCOUNT_MANAGER,
 };
-
-typedef struct {
-    McdMaster *master;
-    McdTransportPlugin *plugin;
-    McdTransport *transport;
-} TransportData;
 
 typedef struct {
     gint priority;
@@ -127,77 +119,45 @@ static McdMaster *default_master = NULL;
 
 
 static void
-check_account_transport (gpointer key, gpointer value, gpointer userdata)
-{
-    McdAccount *account = MCD_ACCOUNT (value);
-    TransportData *td = userdata;
-    GHashTable *conditions;
-
-    /* get all enabled accounts, which have the "ConnectAutomatically" flag set
-     * and that are not connected */
-    if (!mcd_account_is_valid (account) ||
-        !mcd_account_is_enabled (account) ||
-	!mcd_account_get_connect_automatically (account) ||
-	mcd_account_get_connection_status (account) ==
-       	TP_CONNECTION_STATUS_CONNECTED) 
-	return;
-
-    DEBUG ("account %s would like to connect",
-           mcd_account_get_unique_name (account));
-    conditions = mcd_account_get_conditions (account);
-    if (mcd_transport_plugin_check_conditions (td->plugin, td->transport,
-					       conditions))
-    {
-        DEBUG ("conditions matched");
-        _mcd_account_request_connection (account);
-        if (g_hash_table_size (conditions) > 0)
-            mcd_account_connection_bind_transport (account, td->transport);
-    }
-    g_hash_table_unref (conditions);
-}
-
-static void
 mcd_master_transport_connected (McdMaster *master, McdTransportPlugin *plugin,
 				McdTransport *transport)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     GHashTable *accounts;
-    TransportData td;
+    GHashTableIter iter;
+    gpointer v;
 
     DEBUG ("%s", mcd_transport_get_name (plugin, transport));
 
-    td.master = master;
-    td.plugin = plugin;
-    td.transport = transport;
-
     accounts = _mcd_account_manager_get_accounts (priv->account_manager);
-    g_hash_table_foreach (accounts, check_account_transport, &td);
-}
+    g_hash_table_iter_init (&iter, accounts);
 
-static void
-disconnect_account_transport (gpointer key, gpointer value, gpointer userdata)
-{
-    McdAccount *account = MCD_ACCOUNT (value);
-    TransportData *td = userdata;
-
-    if (td->transport == _mcd_account_connection_get_transport (account))
+    while (g_hash_table_iter_next (&iter, NULL, &v))
     {
-        McdConnection *connection;
+        McdAccount *account = MCD_ACCOUNT (v);
+        GHashTable *conditions;
 
-        DEBUG ("account %s must disconnect",
+        /* get all enabled accounts, which have the "ConnectAutomatically"
+         * flag set and that are not connected */
+        if (!mcd_account_is_valid (account) ||
+            !mcd_account_is_enabled (account) ||
+            !mcd_account_get_connect_automatically (account) ||
+            mcd_account_get_connection_status (account) ==
+            TP_CONNECTION_STATUS_CONNECTED)
+            continue;
+
+        DEBUG ("account %s would like to connect",
                mcd_account_get_unique_name (account));
-        connection = mcd_account_get_connection (account);
-        if (connection)
-            mcd_connection_close (connection);
-	mcd_account_connection_bind_transport (account, NULL);
-
-        /* it may be that there is another transport to which the account can
-         * reconnect */
-        if (_mcd_master_account_conditions_satisfied (td->master, account))
+        conditions = mcd_account_get_conditions (account);
+        if (mcd_transport_plugin_check_conditions (plugin, transport,
+                                                   conditions))
         {
             DEBUG ("conditions matched");
-            _mcd_account_request_connection (account);
+            _mcd_account_connect_with_auto_presence (account);
+            if (g_hash_table_size (conditions) > 0)
+                mcd_account_connection_bind_transport (account, transport);
         }
+        g_hash_table_unref (conditions);
     }
 }
 
@@ -207,16 +167,39 @@ mcd_master_transport_disconnected (McdMaster *master, McdTransportPlugin *plugin
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     GHashTable *accounts;
-    TransportData td;
+    GHashTableIter iter;
+    gpointer v;
 
     DEBUG ("%s", mcd_transport_get_name (plugin, transport));
 
-    td.master = master;
-    td.plugin = plugin;
-    td.transport = transport;
-
     accounts = _mcd_account_manager_get_accounts (priv->account_manager);
-    g_hash_table_foreach (accounts, disconnect_account_transport, &td);
+    g_hash_table_iter_init (&iter, accounts);
+
+    while (g_hash_table_iter_next (&iter, NULL, &v))
+    {
+        McdAccount *account = MCD_ACCOUNT (v);
+
+        if (transport == _mcd_account_connection_get_transport (account))
+        {
+            McdConnection *connection;
+
+            DEBUG ("account %s must disconnect",
+                   mcd_account_get_unique_name (account));
+            connection = mcd_account_get_connection (account);
+            if (connection)
+                mcd_connection_close (connection);
+            mcd_account_connection_bind_transport (account, NULL);
+
+            /* it may be that there is another transport to which the account
+             * can reconnect */
+            if (_mcd_master_account_conditions_satisfied (master, account))
+            {
+                DEBUG ("conditions matched");
+                _mcd_account_connect_with_auto_presence (account);
+            }
+
+        }
+    }
 }
 
 static void
@@ -231,21 +214,7 @@ mcd_master_connect_automatic_accounts (McdMaster *master)
     g_hash_table_iter_init (&iter, accounts);
     while (g_hash_table_iter_next (&iter, &ht_key, &ht_value))
     {
-        McdAccount *account = MCD_ACCOUNT (ht_value);
-
-        if (mcd_account_is_valid (account) &&
-            mcd_account_is_enabled (account) &&
-            mcd_account_get_connect_automatically (account) &&
-            mcd_account_get_connection_status (account) ==
-            TP_CONNECTION_STATUS_DISCONNECTED)
-        {
-            /* if the account conditions are satisfied, connect */
-            if (_mcd_master_account_conditions_satisfied (master, account))
-            {
-                DEBUG ("conditions matched");
-                _mcd_account_request_connection (account);
-            }
-        }
+        _mcd_account_maybe_autoconnect (ht_value);
     }
 }
 
@@ -376,8 +345,6 @@ _mcd_master_finalize (GObject * object)
     g_list_foreach (priv->account_connections, (GFunc)g_free, NULL);
     g_list_free (priv->account_connections);
 
-    g_free (priv->awake_presence_message);
-
     g_hash_table_destroy (priv->extra_parameters);
 
     G_OBJECT_CLASS (mcd_master_parent_class)->finalize (object);
@@ -401,9 +368,6 @@ _mcd_master_get_property (GObject * obj, guint prop_id,
 	g_value_set_pointer (val,
 			     TP_PROXY (priv->dbus_daemon)->dbus_connection);
 	break;
-    case PROP_DEFAULT_PRESENCE:
-	g_value_set_uint (val, priv->default_presence);
-	break;
     case PROP_ACCOUNT_MANAGER:
 	g_value_set_object (val, priv->account_manager);
 	break;
@@ -425,9 +389,6 @@ _mcd_master_set_property (GObject *obj, guint prop_id,
 	g_assert (priv->dbus_daemon == NULL);
 	priv->dbus_daemon = g_value_dup_object (val);
 	break;
-    case PROP_DEFAULT_PRESENCE:
-	priv->default_presence = g_value_get_uint (val);
-	break;
     case PROP_ACCOUNT_MANAGER:
 	g_assert (priv->account_manager == NULL);
 	priv->account_manager = g_value_dup_object (val);
@@ -441,16 +402,18 @@ _mcd_master_set_property (GObject *obj, guint prop_id,
 static void
 _mcd_master_set_flags (McdMission * mission, McdSystemFlags flags)
 {
-    McdSystemFlags idle_flag_old, idle_flag_new;
+    gboolean idle_flag_old;
     McdMasterPrivate *priv;
 
     g_return_if_fail (MCD_IS_MASTER (mission));
     priv = MCD_MASTER_PRIV (MCD_MASTER (mission));
 
-    idle_flag_old = MCD_MISSION_GET_FLAGS_MASKED (mission, MCD_SYSTEM_IDLE);
-    idle_flag_new = flags & MCD_SYSTEM_IDLE;
-    
-    if (idle_flag_old != idle_flag_new)
+    priv->low_memory = ((flags & MCD_SYSTEM_MEMORY_CONSERVED) != 0);
+
+    idle_flag_old = priv->idle;
+    priv->idle = ((flags & MCD_SYSTEM_IDLE) != 0);
+
+    if (idle_flag_old != priv->idle)
     {
         GHashTableIter iter;
         gpointer v;
@@ -462,7 +425,7 @@ _mcd_master_set_flags (McdMission * mission, McdSystemFlags flags)
         {
             McdAccount *account = MCD_ACCOUNT (v);
 
-            if (idle_flag_new)
+            if (priv->idle)
             {
                 TpConnectionPresenceType presence;
 
@@ -644,13 +607,6 @@ mcd_master_class_init (McdMasterClass * klass)
                                "D-Bus Connection",
                                "D-Bus Connection",
                                G_PARAM_READABLE));
-    g_object_class_install_property
-        (object_class, PROP_DEFAULT_PRESENCE,
-         g_param_spec_uint ("default-presence",
-                            "Default presence",
-                            "Default presence",
-                            0, TP_CONNECTION_PRESENCE_TYPE_UNSET, 0,
-                            G_PARAM_READWRITE));
 
     g_object_class_install_property
         (object_class, PROP_ACCOUNT_MANAGER,
@@ -690,14 +646,6 @@ mcd_master_get_default (void)
     return default_master;
 }
 
-void
-mcd_master_set_default_presence_setting (McdMaster *master,
-					 TpConnectionPresenceType presence)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    priv->default_presence = presence;
-}
-
 /**
  * mcd_master_add_connection_parameter:
  * @master: the #McdMaster.
@@ -724,8 +672,8 @@ mcd_master_add_connection_parameter (McdMaster *master, const gchar *name,
     g_hash_table_replace (priv->extra_parameters, g_strdup (name), val);
 }
 
-/**
- * mcd_master_lookup_manager:
+/*
+ * _mcd_master_lookup_manager:
  * @master: the #McdMaster.
  * @unique_name: the name of the manager.
  *
@@ -736,8 +684,8 @@ mcd_master_add_connection_parameter (McdMaster *master, const gchar *name,
  * will stay alive as long as needed.
  */
 McdManager *
-mcd_master_lookup_manager (McdMaster *master,
-			   const gchar *unique_name)
+_mcd_master_lookup_manager (McdMaster *master,
+                            const gchar *unique_name)
 {
     const GList *managers, *list;
     McdManager *manager;
@@ -850,9 +798,10 @@ mcd_plugin_register_account_connection (McdPlugin *plugin,
 }
 
 void
-mcd_master_get_nth_account_connection (McdMaster *master, gint i,
-				       McdAccountConnectionFunc *func,
-				       gpointer *userdata)
+_mcd_master_get_nth_account_connection (McdMaster *master,
+                                        gint i,
+                                        McdAccountConnectionFunc *func,
+                                        gpointer *userdata)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     McdAccountConnectionData *acd;
@@ -911,3 +860,54 @@ finish:
     return ret;
 }
 
+gboolean
+mcd_master_has_low_memory (McdMaster *master)
+{
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+
+    return priv->low_memory;
+}
+
+/* For the moment, this is implemented in terms of McdSystemFlags. */
+void
+mcd_master_set_low_memory (McdMaster *master,
+                           gboolean low_memory)
+{
+    McdMission *mission = MCD_MISSION (master);
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+
+    /* this will set priv->low_memory as a side-effect */
+    if (low_memory)
+    {
+        MCD_MISSION_SET_FLAGS_MASKED (mission, MCD_SYSTEM_MEMORY_CONSERVED);
+    }
+    else
+    {
+        MCD_MISSION_UNSET_FLAGS_MASKED (mission, MCD_SYSTEM_MEMORY_CONSERVED);
+    }
+
+    g_assert (priv->low_memory == low_memory);
+}
+
+/* For the moment, this is implemented in terms of McdSystemFlags. When
+ * McdSystemFlags are abolished, move the processing from set_flags to
+ * this function. */
+void
+mcd_master_set_idle (McdMaster *master,
+                     gboolean idle)
+{
+    McdMission *mission = MCD_MISSION (master);
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+
+    /* this will set priv->idle as a side-effect */
+    if (idle)
+    {
+        MCD_MISSION_SET_FLAGS_MASKED (mission, MCD_SYSTEM_IDLE);
+    }
+    else
+    {
+        MCD_MISSION_UNSET_FLAGS_MASKED (mission, MCD_SYSTEM_IDLE);
+    }
+
+    g_assert (priv->idle == idle);
+}

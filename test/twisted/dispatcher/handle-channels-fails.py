@@ -1,3 +1,22 @@
+# Copyright (C) 2009 Nokia Corporation
+# Copyright (C) 2009 Collabora Ltd.
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+# 02110-1301 USA
+
+import dbus
 """Regression test for dispatching an incoming Text channel.
 """
 
@@ -116,16 +135,21 @@ def test(q, bus, mc):
             cs.tp_name_prefix + '.Client.Empathy')
 
     # Empathy is asked to handle the channels
-    e = q.expect('dbus-method-call',
-            path=empathy.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
-            handled=False)
+    e, _, _, _ = q.expect_many(
+            EventPattern('dbus-method-call',
+                path=empathy.object_path,
+                interface=cs.HANDLER, method='HandleChannels',
+                handled=False),
+            # FIXME: currently HandleWith succeeds immediately, rather than
+            # failing when HandleChannels fails (fd.o #21003)
+            EventPattern('dbus-return', method='HandleWith'),
+            EventPattern('dbus-signal', interface=cs.CDO, signal='Finished'),
+            EventPattern('dbus-signal', interface=cs.CD_IFACE_OP_LIST,
+                signal='DispatchOperationFinished'),
+            )
 
     # Empathy rejects the channels
     q.dbus_raise(e.message, cs.NOT_AVAILABLE, 'Blind drunk', bus=empathy_bus)
-
-    # FIXME: currently HandleWith succeeds
-    q.expect('dbus-return', method='HandleWith')
 
     # Now there are no more active channel dispatch operations
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []

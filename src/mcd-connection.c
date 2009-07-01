@@ -1918,6 +1918,7 @@ common_request_channel_cb (TpConnection *proxy, gboolean yours,
     if (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_FAILED)
     {
         DEBUG ("Channel %p was cancelled, aborting", channel);
+        _mcd_channel_close (channel);
         mcd_mission_abort (MCD_MISSION (channel));
     }
 

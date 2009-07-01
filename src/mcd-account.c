@@ -35,6 +35,7 @@
 #include <glib/gstdio.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/interfaces.h>
+#include <telepathy-glib/svc-account.h>
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
@@ -60,21 +61,21 @@
 
 #define MCD_ACCOUNT_PRIV(account) (MCD_ACCOUNT (account)->priv)
 
-static void account_iface_init (McSvcAccountClass *iface,
+static void account_iface_init (TpSvcAccountClass *iface,
 			       	gpointer iface_data);
 static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
 				   gpointer iface_data);
-static void account_avatar_iface_init (McSvcAccountInterfaceAvatarClass *iface,
+static void account_avatar_iface_init (TpSvcAccountInterfaceAvatarClass *iface,
 				       gpointer iface_data);
 
 static const McdDBusProp account_properties[];
 static const McdDBusProp account_avatar_properties[];
 
 static const McdInterfaceData account_interfaces[] = {
-    MCD_IMPLEMENT_IFACE (mc_svc_account_get_type, account, MC_IFACE_ACCOUNT),
-    MCD_IMPLEMENT_IFACE (mc_svc_account_interface_avatar_get_type,
+    MCD_IMPLEMENT_IFACE (tp_svc_account_get_type, account, TP_IFACE_ACCOUNT),
+    MCD_IMPLEMENT_IFACE (tp_svc_account_interface_avatar_get_type,
 			 account_avatar,
-			 MC_IFACE_ACCOUNT_INTERFACE_AVATAR),
+			 TP_IFACE_ACCOUNT_INTERFACE_AVATAR),
     MCD_IMPLEMENT_IFACE (mc_svc_account_interface_channelrequests_get_type,
 			 account_channelrequests,
 			 MC_IFACE_ACCOUNT_INTERFACE_CHANNELREQUESTS),
@@ -143,7 +144,6 @@ struct _McdAccountPrivate
 
     /* These fields are used to cache the changed properties */
     GHashTable *changed_properties;
-    GArray *property_values;
     guint properties_source;
 };
 
@@ -171,25 +171,49 @@ static GQuark account_ready_quark = 0;
  *
  * Check whether automatic connection should happen (and attempt it if needed).
  */
-static void
+void
 _mcd_account_maybe_autoconnect (McdAccount *account)
 {
     McdAccountPrivate *priv;
+    McdMaster *master;
 
     g_return_if_fail (MCD_IS_ACCOUNT (account));
     priv = account->priv;
 
-    if (priv->enabled &&
-        priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED &&
-        priv->connect_automatically)
+    if (!priv->enabled)
     {
-        McdMaster *master = mcd_master_get_default ();
-        if (_mcd_master_account_conditions_satisfied (master, account))
-        {
-            DEBUG ("connecting account %s", priv->unique_name);
-            _mcd_account_request_connection (account);
-        }
+        DEBUG ("%s not Enabled", priv->unique_name);
+        return;
     }
+
+    if (!priv->valid)
+    {
+        DEBUG ("%s not Valid", priv->unique_name);
+        return;
+    }
+
+    if (priv->conn_status != TP_CONNECTION_STATUS_DISCONNECTED)
+    {
+        DEBUG ("%s already connected", priv->unique_name);
+        return;
+    }
+
+    if (!priv->connect_automatically)
+    {
+        DEBUG ("%s does not ConnectAutomatically", priv->unique_name);
+        return;
+    }
+
+    master = mcd_master_get_default ();
+
+    if (!_mcd_master_account_conditions_satisfied (master, account))
+    {
+        DEBUG ("%s conditions not satisfied", priv->unique_name);
+        return;
+    }
+
+    DEBUG ("connecting account %s", priv->unique_name);
+    _mcd_account_connect_with_auto_presence (account);
 }
 
 static gboolean
@@ -264,8 +288,49 @@ mcd_account_loaded (McdAccount *account)
 
     /* invoke all the callbacks */
     g_object_ref (account);
+
     _mcd_object_ready (account, account_ready_quark, NULL);
+
+    if (account->priv->online_requests != NULL)
+    {
+        /* if we have established that the account is not valid or is
+         * disabled, cancel all requests */
+        if (!account->priv->valid || !account->priv->enabled)
+        {
+            /* FIXME: pick better errors and put them in telepathy-spec? */
+            GError e = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+                "account isn't Valid (not enough information to put it "
+                    "online)" };
+            GList *list;
+
+            if (account->priv->valid)
+            {
+                e.message = "account isn't Enabled";
+            }
+
+            list = account->priv->online_requests;
+            account->priv->online_requests = NULL;
+
+            for (/* already initialized */ ;
+                 list != NULL;
+                 list = g_list_delete_link (list, list))
+            {
+                McdOnlineRequestData *data = list->data;
+
+                data->callback (account, data->user_data, &e);
+                g_slice_free (McdOnlineRequestData, data);
+            }
+        }
+
+        /* otherwise, we want to go online now */
+        if (account->priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED)
+        {
+            _mcd_account_connect_with_auto_presence (account);
+        }
+    }
+
     _mcd_account_maybe_autoconnect (account);
+
     g_object_unref (account);
 }
 
@@ -497,7 +562,7 @@ load_manager (McdAccount *account)
 
     if (G_UNLIKELY (!priv->manager_name)) return FALSE;
     master = mcd_master_get_default ();
-    priv->manager = mcd_master_lookup_manager (master, priv->manager_name);
+    priv->manager = _mcd_master_lookup_manager (master, priv->manager_name);
     if (priv->manager)
     {
 	g_object_ref (priv->manager);
@@ -601,9 +666,6 @@ mcd_account_request_presence_int (McdAccount *account,
     McdAccountPrivate *priv = account->priv;
     gboolean changed = FALSE;
 
-    if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE && !priv->enabled)
-	return FALSE;
-
     if (priv->req_presence_type != type)
     {
 	priv->req_presence_type = type;
@@ -620,6 +682,21 @@ mcd_account_request_presence_int (McdAccount *account,
 	g_free (priv->req_presence_message);
 	priv->req_presence_message = g_strdup (message);
 	changed = TRUE;
+    }
+
+    if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
+    {
+        if (!priv->enabled)
+        {
+            DEBUG ("%s not Enabled", priv->unique_name);
+            return changed;
+        }
+
+        if (!priv->valid)
+        {
+            DEBUG ("%s not Valid", priv->unique_name);
+            return changed;
+        }
     }
 
     if (priv->connection == NULL)
@@ -670,13 +747,10 @@ emit_property_changed (gpointer userdata)
     McdAccountPrivate *priv = account->priv;
 
     DEBUG ("called");
-    mc_svc_account_emit_account_property_changed (account,
+    tp_svc_account_emit_account_property_changed (account,
 						  priv->changed_properties);
 
     g_hash_table_remove_all (priv->changed_properties);
-
-    g_array_free (priv->property_values, TRUE);
-    priv->property_values = NULL;
 
     priv->properties_source = 0;
     return FALSE;
@@ -695,7 +769,6 @@ mcd_account_changed_property (McdAccount *account, const gchar *key,
 {
 #ifdef DELAY_PROPERTY_CHANGED
     McdAccountPrivate *priv = account->priv;
-    GValue *val;
 
     DEBUG ("called: %s", key);
     if (priv->changed_properties &&
@@ -713,31 +786,25 @@ mcd_account_changed_property (McdAccount *account, const gchar *key,
     {
 	priv->changed_properties =
 	    g_hash_table_new_full (g_str_hash, g_str_equal,
-				   NULL, (GDestroyNotify)g_value_unset);
+				   NULL,
+                                   (GDestroyNotify) tp_g_value_slice_free);
     }
 
     if (priv->properties_source == 0)
     {
         DEBUG ("First changed property");
-	priv->property_values = g_array_sized_new (FALSE, FALSE,
-						   sizeof (GValue), 4);
 	priv->properties_source = g_timeout_add (10, emit_property_changed,
 						 account);
     }
-    g_array_append_vals (priv->property_values, value, 1);
-    val = &g_array_index (priv->property_values, GValue,
-			  priv->property_values->len - 1);
-    memset (val, 0, sizeof (GValue));
-    g_value_init (val, G_VALUE_TYPE (value));
-    g_value_copy (value, val);
-    g_hash_table_insert (priv->changed_properties, (gpointer)key, val);
+    g_hash_table_insert (priv->changed_properties, (gpointer) key,
+                         tp_g_value_slice_dup (value));
 #else
     GHashTable *properties;
 
     DEBUG ("called: %s", key);
     properties = g_hash_table_new (g_str_hash, g_str_equal);
     g_hash_table_insert (properties, (gpointer)key, (gpointer)value);
-    mc_svc_account_emit_account_property_changed (account,
+    tp_svc_account_emit_account_property_changed (account,
 						  properties);
 
     g_hash_table_destroy (properties);
@@ -907,6 +974,15 @@ set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
 	priv->enabled = enabled;
 	mcd_account_manager_write_conf (priv->account_manager);
 	mcd_account_changed_property (account, name, value);
+
+        if (enabled)
+        {
+            mcd_account_request_presence_int (account,
+                                              priv->req_presence_type,
+                                              priv->req_presence_status,
+                                              priv->req_presence_message);
+            _mcd_account_maybe_autoconnect (account);
+        }
     }
 
     return TRUE;
@@ -963,7 +1039,7 @@ set_avatar (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
 
     DEBUG ("called for %s", priv->unique_name);
 
-    if (!G_VALUE_HOLDS (value, MC_STRUCT_TYPE_AVATAR))
+    if (!G_VALUE_HOLDS (value, TP_STRUCT_TYPE_AVATAR))
     {
         g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
                      "Unexpected type for Avatar: wanted (ay,s), got %s",
@@ -980,7 +1056,7 @@ set_avatar (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
         return FALSE;
     }
 
-    mc_svc_account_interface_avatar_emit_avatar_changed (account);
+    tp_svc_account_interface_avatar_emit_avatar_changed (account);
     return TRUE;
 }
 
@@ -990,7 +1066,7 @@ get_avatar (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     McdAccount *account = MCD_ACCOUNT (self);
     gchar *mime_type;
     GArray *avatar = NULL;
-    GType type = MC_STRUCT_TYPE_AVATAR;
+    GType type = TP_STRUCT_TYPE_AVATAR;
     GValueArray *va;
 
     _mcd_account_get_avatar (account, &avatar, &mime_type);
@@ -1016,6 +1092,37 @@ get_parameters (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 }
 
 static gboolean
+_presence_type_is_settable (TpConnectionPresenceType type)
+{
+    switch (type)
+    {
+        case TP_CONNECTION_PRESENCE_TYPE_UNSET:
+        case TP_CONNECTION_PRESENCE_TYPE_UNKNOWN:
+        case TP_CONNECTION_PRESENCE_TYPE_ERROR:
+            return FALSE;
+
+        default:
+            return TRUE;
+    }
+}
+
+static gboolean
+_presence_type_is_online (TpConnectionPresenceType type)
+{
+    switch (type)
+    {
+        case TP_CONNECTION_PRESENCE_TYPE_UNSET:
+        case TP_CONNECTION_PRESENCE_TYPE_OFFLINE:
+        case TP_CONNECTION_PRESENCE_TYPE_UNKNOWN:
+        case TP_CONNECTION_PRESENCE_TYPE_ERROR:
+            return FALSE;
+
+        default:
+            return TRUE;
+    }
+}
+
+static gboolean
 set_automatic_presence (TpSvcDBusProperties *self,
                         const gchar *name, const GValue *value, GError **error)
 {
@@ -1031,7 +1138,7 @@ set_automatic_presence (TpSvcDBusProperties *self,
     if (!G_VALUE_HOLDS (value, TP_STRUCT_TYPE_SIMPLE_PRESENCE))
     {
         g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                     "Unexpected type for RequestedPresence: wanted (u,s,s), "
+                     "Unexpected type for AutomaticPresence: wanted (u,s,s), "
                      "got %s", G_VALUE_TYPE_NAME (value));
         return FALSE;
     }
@@ -1040,6 +1147,15 @@ set_automatic_presence (TpSvcDBusProperties *self,
     type = g_value_get_uint (va->values);
     status = g_value_get_string (va->values + 1);
     message = g_value_get_string (va->values + 2);
+
+    if (!_presence_type_is_online (type))
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "AutomaticPresence must be an online presence, not %d",
+                     type);
+        return FALSE;
+    }
+
     DEBUG ("setting automatic presence: %d, %s, %s", type, status, message);
 
     if (priv->auto_presence_type != type)
@@ -1139,6 +1255,11 @@ set_connect_automatically (TpSvcDBusProperties *self,
 	priv->connect_automatically = connect_automatically;
 	mcd_account_manager_write_conf (priv->account_manager);
 	mcd_account_changed_property (account, name, value);
+
+        if (connect_automatically)
+        {
+            _mcd_account_maybe_autoconnect (account);
+        }
     }
 
     return TRUE;
@@ -1241,6 +1362,13 @@ set_requested_presence (TpSvcDBusProperties *self,
     status = g_value_get_string (va->values + 1);
     message = g_value_get_string (va->values + 2);
 
+    if (!_presence_type_is_settable (type))
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "RequestedPresence %d cannot be set on yourself", type);
+        return FALSE;
+    }
+
     DEBUG ("setting requested presence: %d, %s, %s", type, status, message);
 
     if (mcd_account_request_presence_int (account, type, status, message))
@@ -1310,7 +1438,7 @@ static const McdDBusProp account_avatar_properties[] = {
 };
 
 static void
-account_avatar_iface_init (McSvcAccountInterfaceAvatarClass *iface,
+account_avatar_iface_init (TpSvcAccountInterfaceAvatarClass *iface,
 			   gpointer iface_data)
 {
 }
@@ -1378,7 +1506,7 @@ mcd_account_delete (McdAccount *account, GError **error)
 }
 
 static void
-account_remove (McSvcAccount *svc, DBusGMethodInvocation *context)
+account_remove (TpSvcAccount *svc, DBusGMethodInvocation *context)
 {
     McdAccount *self = MCD_ACCOUNT (svc);
     GError *error = NULL;
@@ -1397,10 +1525,10 @@ account_remove (McSvcAccount *svc, DBusGMethodInvocation *context)
     if (!self->priv->removed)
     {
         self->priv->removed = TRUE;
-        mc_svc_account_emit_removed (self);
+        tp_svc_account_emit_removed (self);
     }
 
-    mc_svc_account_return_from_remove (context);
+    tp_svc_account_return_from_remove (context);
 }
 
 /*
@@ -1620,12 +1748,13 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     }
     g_slist_free (dbus_properties);
 
+    mcd_account_check_validity (account);
     _mcd_account_maybe_autoconnect (account);
     return TRUE;
 }
 
 static void
-account_update_parameters (McSvcAccount *self, GHashTable *set,
+account_update_parameters (TpSvcAccount *self, GHashTable *set,
 			   const gchar **unset, DBusGMethodInvocation *context)
 {
     McdAccount *account = MCD_ACCOUNT (self);
@@ -1657,18 +1786,17 @@ account_update_parameters (McSvcAccount *self, GHashTable *set,
     mcd_account_changed_property (account, "Parameters", &value);
     g_value_unset (&value);
 
-    mcd_account_check_validity (account);
     mcd_account_manager_write_conf (priv->account_manager);
 
     g_ptr_array_add (not_yet, NULL);
 
-    mc_svc_account_return_from_update_parameters (context,
+    tp_svc_account_return_from_update_parameters (context,
         (const gchar **) not_yet->pdata);
     g_ptr_array_free (not_yet, TRUE);
 }
 
 static void
-account_reconnect (McSvcAccount *service,
+account_reconnect (TpSvcAccount *service,
                    DBusGMethodInvocation *context)
 {
     McdAccount *self = MCD_ACCOUNT (service);
@@ -1679,15 +1807,14 @@ account_reconnect (McSvcAccount *service,
     /* if we can't, or don't want to, connect this method is a no-op */
     if (!priv->enabled ||
         !priv->valid ||
-        priv->req_presence_type == TP_CONNECTION_PRESENCE_TYPE_UNSET ||
         priv->req_presence_type == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
     {
         DEBUG ("doing nothing (enabled=%c, valid=%c and "
                "RequestedPresence=%i)",
-               priv->enabled ? 'T' : 'F',
-               priv->valid ? 'T' : 'F',
-               priv->req_presence_type);
-        mc_svc_account_return_from_reconnect (context);
+               self->priv->enabled ? 'T' : 'F',
+               self->priv->valid ? 'T' : 'F',
+               self->priv->req_presence_type);
+        tp_svc_account_return_from_reconnect (context);
         return;
     }
 
@@ -1702,13 +1829,13 @@ account_reconnect (McSvcAccount *service,
     /* FIXME: we shouldn't really return from this method until the
      * reconnection has actually happened, but that would require less tangled
      * integration between Account and Connection */
-    mc_svc_account_return_from_reconnect (context);
+    tp_svc_account_return_from_reconnect (context);
 }
 
 static void
-account_iface_init (McSvcAccountClass *iface, gpointer iface_data)
+account_iface_init (TpSvcAccountClass *iface, gpointer iface_data)
 {
-#define IMPLEMENT(x) mc_svc_account_implement_##x (\
+#define IMPLEMENT(x) tp_svc_account_implement_##x (\
     iface, account_##x)
     IMPLEMENT(remove);
     IMPLEMENT(update_parameters);
@@ -1790,6 +1917,15 @@ mcd_account_setup (McdAccount *account)
     priv->auto_presence_type =
 	g_key_file_get_integer (priv->keyfile, priv->unique_name,
 				MC_ACCOUNTS_KEY_AUTO_PRESENCE_TYPE, NULL);
+
+    /* If invalid or something, force it to AVAILABLE - we want the auto
+     * presence type to be an online status */
+    if (!_presence_type_is_online (priv->auto_presence_type))
+    {
+        priv->auto_presence_type = TP_CONNECTION_PRESENCE_TYPE_AVAILABLE;
+        priv->auto_presence_status = "available";
+    }
+
     priv->auto_presence_status =
 	g_key_file_get_string (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS,
@@ -1865,8 +2001,6 @@ _mcd_account_finalize (GObject *object)
     DEBUG ("%p (%s)", object, priv->unique_name);
     if (priv->changed_properties)
 	g_hash_table_destroy (priv->changed_properties);
-    if (priv->property_values)
-	g_array_free (priv->property_values, TRUE);
     if (priv->properties_source != 0)
 	g_source_remove (priv->properties_source);
 
@@ -1898,7 +2032,7 @@ _mcd_account_dispose (GObject *object)
     if (!self->priv->removed)
     {
         self->priv->removed = TRUE;
-        mc_svc_account_emit_removed (self);
+        tp_svc_account_emit_removed (self);
     }
 
     if (priv->online_requests)
@@ -2035,6 +2169,14 @@ mcd_account_init (McdAccount *account)
 					MCD_TYPE_ACCOUNT,
 					McdAccountPrivate);
     account->priv = priv;
+
+    priv->req_presence_type = TP_CONNECTION_PRESENCE_TYPE_OFFLINE;
+    priv->req_presence_status = g_strdup ("offline");
+    priv->req_presence_message = g_strdup ("");
+
+    priv->auto_presence_type = TP_CONNECTION_PRESENCE_TYPE_AVAILABLE;
+    priv->auto_presence_status = g_strdup ("available");
+    priv->auto_presence_message = g_strdup ("");
 
     /* initializes the interfaces */
     mcd_dbus_init_interfaces_instances (account);
@@ -2417,7 +2559,7 @@ _mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
         g_key_file_set_string (priv->keyfile, priv->unique_name,
                                MC_ACCOUNTS_KEY_AVATAR_TOKEN, token);
         if (!prev_token || strcmp (prev_token, token) != 0)
-            mc_svc_account_interface_avatar_emit_avatar_changed (account);
+            tp_svc_account_interface_avatar_emit_avatar_changed (account);
         g_free (prev_token);
     }
     else
@@ -2636,7 +2778,8 @@ mcd_account_check_validity (McdAccount *account)
     McdAccountPrivate *priv = account->priv;
     gboolean valid;
 
-    valid = mcd_account_check_parameters (account);
+    valid = (priv->loaded && mcd_account_check_parameters (account));
+
     if (valid != priv->valid)
     {
 	GValue value = { 0 };
@@ -2648,30 +2791,37 @@ mcd_account_check_validity (McdAccount *account)
 	g_value_init (&value, G_TYPE_BOOLEAN);
 	g_value_set_boolean (&value, valid);
 	mcd_account_changed_property (account, "Valid", &value);
+
+        if (valid)
+        {
+            /* newly valid - try setting requested presence again */
+            mcd_account_request_presence_int (account,
+                                              priv->req_presence_type,
+                                              priv->req_presence_status,
+                                              priv->req_presence_message);
+        }
     }
     return valid;
 }
 
 /*
- * _mcd_account_request_connection:
+ * _mcd_account_connect_with_auto_presence:
  * @account: the #McdAccount.
  *
- * Request the account to go online. If an automatic presence is specified, set
- * it.
+ * Request the account to go online with the configured AutomaticPresence.
+ * This is appropriate in these situations:
+ * - going online automatically because we've gained connectivity
+ * - going online automatically in order to request a channel
  */
 void
-_mcd_account_request_connection (McdAccount *account)
+_mcd_account_connect_with_auto_presence (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
 
-    if (!priv->connection)
-        _mcd_account_connection_begin (account);
-
-    if (priv->auto_presence_type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
-	mcd_account_request_presence_int (account,
-					  priv->auto_presence_type,
-					  priv->auto_presence_status,
-					  priv->auto_presence_message);
+    mcd_account_request_presence (account,
+                                  priv->auto_presence_type,
+                                  priv->auto_presence_status,
+                                  priv->auto_presence_message);
 }
 
 /*
@@ -2692,29 +2842,51 @@ _mcd_account_online_request (McdAccount *account,
                              gpointer userdata)
 {
     McdAccountPrivate *priv = account->priv;
+    McdOnlineRequestData *data;
 
     DEBUG ("connection status for %s is %d",
            priv->unique_name, priv->conn_status);
     if (priv->conn_status == TP_CONNECTION_STATUS_CONNECTED)
     {
         /* invoke the callback now */
+        DEBUG ("%s is already connected", priv->unique_name);
         callback (account, userdata, NULL);
+        return;
     }
-    else
-    {
-        McdOnlineRequestData *data;
-	/* listen to the StatusChanged signal */
-       	if (priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED)
-            _mcd_account_request_connection (account);
 
-	/* now the connection should be in connecting state; insert the
-	 * callback in the online_requests hash table, which will be processed
-	 * in the connection-status-changed callback */
-        data = g_slice_new (McdOnlineRequestData);
-        data->callback = callback;
-        data->user_data = userdata;
-        priv->online_requests = g_list_append (priv->online_requests, data);
+    if (priv->loaded && !priv->valid)
+    {
+        /* FIXME: pick a better error and put it in telepathy-spec? */
+        GError e = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+            "account isn't Valid (not enough information to put it online)" };
+
+        DEBUG ("%s: %s", priv->unique_name, e.message);
+        callback (account, userdata, &e);
+        return;
     }
+
+    if (priv->loaded && !priv->enabled)
+    {
+        /* FIXME: pick a better error and put it in telepathy-spec? */
+        GError e = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+            "account isn't Enabled" };
+
+        DEBUG ("%s: %s", priv->unique_name, e.message);
+        callback (account, userdata, &e);
+        return;
+    }
+
+    /* listen to the StatusChanged signal */
+    if (priv->loaded && priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED)
+        _mcd_account_connect_with_auto_presence (account);
+
+    /* now the connection should be in connecting state; insert the
+     * callback in the online_requests hash table, which will be processed
+     * in the connection-status-changed callback */
+    data = g_slice_new (McdOnlineRequestData);
+    data->callback = callback;
+    data->user_data = userdata;
+    priv->online_requests = g_list_append (priv->online_requests, data);
 }
 
 GKeyFile *
@@ -2868,6 +3040,7 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
     else
     {
         priv->conn_status = TP_CONNECTION_STATUS_DISCONNECTED;
+        priv->transport = NULL;
     }
 }
 

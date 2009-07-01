@@ -1,16 +1,20 @@
 TWISTED_TESTS =
 
 TWISTED_BASIC_TESTS = \
-	account-bad-cm.py \
-	account-manager/auto-away.py \
+	account-manager/account-basics.py \
+	account-manager/bad-cm.py \
 	account-manager/avatar.py \
+	account-manager/create-auto-connect.py \
 	account-manager/create-with-properties.py \
+	account-manager/enable.py \
+	account-manager/enable-auto-connect.py \
 	account-manager/nickname.py \
 	account-manager/old-create-with-properties.py \
 	account-manager/param-types.py \
 	account-manager/presence.py \
 	account-manager/reconnect.py \
 	account-manager/recover-from-disconnect.py \
+	account-manager/request-online.py \
 	account-manager/update-parameters.py \
 	account-requests/cancel.py \
 	account-requests/create-text.py \
@@ -21,32 +25,43 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/bypass-approval.py \
 	dispatcher/cancel.py \
 	dispatcher/capture-bundle.py \
+	dispatcher/connect-for-request.py \
 	dispatcher/create-handler-fails.py \
 	dispatcher/create-no-preferred-handler.py \
 	dispatcher/create-text.py \
 	dispatcher/dispatch-activatable.py \
 	dispatcher/dispatch-obsolete.py \
 	dispatcher/dispatch-text.py \
+	dispatcher/ensure-and-redispatch.py \
+	dispatcher/ensure-is-approval.py \
+	dispatcher/ensure-rapidly.py \
 	dispatcher/exploding-bundles.py \
 	dispatcher/fdo-21034.py \
 	dispatcher/handle-channels-fails.py \
 	dispatcher/lose-text.py \
 	dispatcher/recover-from-disconnect.py \
+	dispatcher/request-disabled-account.py \
 	dispatcher/undispatchable.py \
-	dispatcher/vanishing-client.py \
-	do-nothing.py \
-	test-account.py \
-	test-connect.py
+	dispatcher/vanishing-client.py
 
 if ENABLE_PLUGINS
 TWISTED_BASIC_TESTS += \
 	dispatcher/dispatch-rejected-by-plugin.py
 endif
 
+# Tests that aren't to be run if we're running the real (installed) MC,
+# because they rely on special behaviour of mc-debug-server
+TWISTED_SPECIAL_BUILD_TESTS = \
+	account-manager/auto-away.py \
+	dispatcher/create-lowmem.py
+
+TWISTED_BASIC_TESTS += $(TWISTED_SPECIAL_BUILD_TESTS)
+
 TWISTED_SEPARATE_TESTS = \
 	account-manager/auto-connect.py \
 	account-manager/avatar-persist.py \
 	account-manager/avatar-refresh.py \
+	account-manager/make-valid.py \
 	crash-recovery/crash-recovery.py \
 	dispatcher/create-at-startup.py
 
@@ -85,6 +100,8 @@ BASIC_TESTS_ENVIRONMENT = \
 	MC_FILTER_PLUGIN_DIR=@abs_top_builddir@/test/twisted/.libs \
 	MC_CHANDLERS_DIR=@abs_top_srcdir@/test/twisted/chandlers \
 	MC_ACCOUNT_DIR=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX) \
+	XDG_CONFIG_HOME=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX) \
+	XDG_CONFIG_DIRS=@abs_top_srcdir@/test/twisted \
 	XDG_DATA_HOME=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX) \
 	XDG_DATA_DIRS=@abs_top_srcdir@/test/twisted \
 	XDG_CACHE_DIR=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX) \
@@ -107,7 +124,18 @@ SEPARATE_TESTS_ENVIRONMENT = \
 
 if WANT_TWISTED_TESTS
 check-local: check-twisted
-endif
+
+if HAVE_SERVER
+
+installcheck-local: installcheck-twisted
+installcheck-twisted:
+	$(MAKE) check-twisted \
+		TWISTED_SPECIAL_BUILD_TESTS= \
+		MC_EXECUTABLE=@libexecdir@/mission-control-5
+
+endif # HAVE_SERVER
+
+endif # WANT_TWISTED_TESTS
 
 check-twisted:
 	$(MAKE) -C tools
@@ -134,42 +162,22 @@ check-twisted:
 
 check-torture:
 	mkdir tmp-$$$$ && { \
-		$(MAKE) _check-torture TMPSUFFIX=$$$$; \
+		env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) \
+			$(MAKE) _check-torture TMPSUFFIX=$$$$; \
 		e=$$?; \
 		rm -rf tmp-$$$$; \
 	exit $$e; }
 
-MANY_TESTS = \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS) \
-	$(TWISTED_BASIC_TESTS)
-
-TORTURE_TESTS = \
-	$(MANY_TESTS) \
-	$(MANY_TESTS) \
-	$(MANY_TESTS) \
-	$(MANY_TESTS) \
-	$(MANY_TESTS) \
-	$(MANY_TESTS) \
-	$(MANY_TESTS) \
-	$(MANY_TESTS) \
-	$(MANY_TESTS) \
-	$(MANY_TESTS) \
-	$(MANY_TESTS)
+TORTURE_REPEATS = 100
 
 _check-torture:
-	env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) \
-	$(MAKE) check-TESTS \
-		TESTS='$$(TORTURE_TESTS)' \
-		TESTS_ENVIRONMENT='$$(COMBINED_TESTS_ENVIRONMENT)'
+	for i in `seq 1 $(TORTURE_REPEATS)`; do \
+		$(MAKE) check-TESTS \
+			TESTS='$$(TWISTED_BASIC_TESTS)' \
+			TESTS_ENVIRONMENT='$$(COMBINED_TESTS_ENVIRONMENT)'; \
+		e=$$?; \
+		test z$$e = z0 || break; \
+	done
 
 check-combined:
 	env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) \
