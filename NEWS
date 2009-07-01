@@ -1,7 +1,36 @@
-telepathy-mission-control 5.1.3 (UNRELEASED)
+telepathy-mission-control 5.1.3 (2009-07-01)
 ============================================
 
-???
+The "wilting" release.
+
+Enhancements:
+
+* Improve test coverage, including EnsureChannel (smcv)
+
+* In tests, add the ability to test an installed MC binary (installcheck)
+  (smcv)
+
+Fixes:
+
+* Make sure that ChannelDispatchOperations emit Finished before they are
+  unreffed for the last time (smcv)
+
+* Stop mcd_mission_abort() from implicitly closing channels, meaning that
+  when Close() has an extra protocol-level meaning (for instance, when using
+  an IRC proxy), we don't respond to connection loss by departing from all
+  channels. Instead, explicitly close channels whenever desired (smcv)
+
+* Add API for plugins to destroy channels, close channels with a reason,
+  or "forget" (do not dispatch) channels (smcv)
+
+* In situations where channels can't be handled, use Destroy() to terminate
+  them, if available (smcv)
+
+* In wait-for-name, initialize error properly if we can't connect to D-Bus
+  (smcv)
+
+* In tests, restructure `make check-torture` so it doesn't exceed command-line
+  length limits (smcv)
 
 telepathy-mission-control 5.1.2 (2009-06-26)
 ============================================
