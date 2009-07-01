@@ -1694,7 +1694,8 @@ account_reconnect (McSvcAccount *service,
      * (possibly with out of date parameters) but we haven't got a Connection
      * back from the CM yet, the old parameters will still be used, I think
      * (I can't quite make out what actually happens). */
-    mcd_connection_close (self->priv->connection);
+    if (self->priv->connection)
+        mcd_connection_close (self->priv->connection);
     _mcd_account_connection_begin (self);
 
     /* FIXME: we shouldn't really return from this method until the
