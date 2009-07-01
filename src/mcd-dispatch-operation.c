@@ -213,10 +213,15 @@ properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 #undef IMPLEMENT
 }
 
-static void
-mcd_dispatch_operation_finish (McdDispatchOperation *operation)
+gboolean
+_mcd_dispatch_operation_finish (McdDispatchOperation *operation)
 {
     McdDispatchOperationPrivate *priv = operation->priv;
+
+    if (priv->finished)
+    {
+        return FALSE;
+    }
 
     priv->finished = TRUE;
 
@@ -230,6 +235,8 @@ mcd_dispatch_operation_finish (McdDispatchOperation *operation)
         DEBUG ("%s/%p not finishing just yet", priv->unique_name,
                operation);
     }
+
+    return TRUE;
 }
 
 static void
@@ -269,7 +276,7 @@ dispatch_operation_claim (TpSvcChannelDispatchOperation *self,
     priv->claimer = dbus_g_method_get_sender (context);
     tp_svc_channel_dispatch_operation_return_from_claim (context);
 
-    mcd_dispatch_operation_finish (MCD_DISPATCH_OPERATION (self));
+    _mcd_dispatch_operation_finish (MCD_DISPATCH_OPERATION (self));
 }
 
 static void
@@ -439,8 +446,6 @@ mcd_dispatch_operation_dispose (GObject *object)
 
     if (priv->lost_channels != NULL)
     {
-        g_warning ("%s still has unsignalled lost channels at dispose time",
-                   priv->unique_name);
         for (list = priv->lost_channels; list != NULL; list = list->next)
             g_object_unref (list->data);
         g_list_free (priv->lost_channels);
@@ -669,7 +674,7 @@ mcd_dispatch_operation_handle_with (McdDispatchOperation *operation,
         priv->handler = g_strdup (handler_name + MCD_CLIENT_BASE_NAME_LEN);
     }
 
-    mcd_dispatch_operation_finish (operation);
+    _mcd_dispatch_operation_finish (operation);
 }
 
 void
@@ -733,11 +738,8 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
 
     if (self->priv->channels == NULL)
     {
-        /* no channels left, so the CDO finishes */
-        if (!self->priv->finished)
-        {
-            mcd_dispatch_operation_finish (self);
-        }
+        /* no channels left, so the CDO finishes (if it hasn't already) */
+        _mcd_dispatch_operation_finish (self);
     }
 }
 

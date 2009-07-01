@@ -445,7 +445,7 @@ class SimulatedConnection(object):
 
 class SimulatedChannel(object):
     def __init__(self, conn, immutable, mutable={},
-            destroyable=False):
+            destroyable=False, group=False):
         self.conn = conn
         self.q = conn.q
         self.bus = conn.bus
@@ -474,8 +474,47 @@ class SimulatedChannel(object):
                 interface=cs.CHANNEL_IFACE_DESTROYABLE,
                 method='Destroy')
 
+        if group:
+            self.q.add_dbus_method_impl(self.GetGroupFlags,
+                path=self.object_path,
+                interface=cs.CHANNEL_IFACE_GROUP,
+                method='GetGroupFlags')
+            self.q.add_dbus_method_impl(self.GetSelfHandle,
+                path=self.object_path,
+                interface=cs.CHANNEL_IFACE_GROUP,
+                method='GetSelfHandle')
+            self.q.add_dbus_method_impl(self.GetAllMembers,
+                path=self.object_path,
+                interface=cs.CHANNEL_IFACE_GROUP,
+                method='GetAllMembers')
+            self.q.add_dbus_method_impl(self.GetLocalPendingMembersWithInfo,
+                path=self.object_path,
+                interface=cs.CHANNEL_IFACE_GROUP,
+                method='GetLocalPendingMembersWithInfo')
+            self.properties[cs.CHANNEL_IFACE_GROUP + '.SelfHandle'] \
+                    = self.conn.self_handle
+
         self.announced = False
         self.closed = False
+
+    def GetGroupFlags(self, e):
+        self.q.dbus_return(e.message, 0, signature='u')
+
+    def GetSelfHandle(self, e):
+        self.q.dbus_return(e.message,
+                self.properties[cs.CHANNEL_IFACE_GROUP + '.SelfHandle'],
+                signature='u')
+
+    def GetAllMembers(self, e):
+        # stub
+        self.q.dbus_return(e.message,
+                [self.properties[cs.CHANNEL_IFACE_GROUP + '.SelfHandle']],
+                [], [],
+                signature='auauau')
+
+    def GetLocalPendingMembersWithInfo(self, e):
+        # stub
+        self.q.dbus_return(e.message, [], signature='a(uuus)')
 
     def announce(self):
         self.conn.NewChannels([self])

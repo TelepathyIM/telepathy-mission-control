@@ -74,6 +74,12 @@ void _mcd_channel_copy_details (McdChannel *channel, McdChannel *source);
 G_GNUC_INTERNAL
 void _mcd_channel_set_request_proxy (McdChannel *channel, McdChannel *source);
 
+void _mcd_channel_close (McdChannel *channel);
+
+G_GNUC_INTERNAL void _mcd_channel_depart (McdChannel *channel,
+                                          TpChannelGroupChangeReason reason,
+                                          const gchar *message);
+
 G_END_DECLS
 #endif
 
