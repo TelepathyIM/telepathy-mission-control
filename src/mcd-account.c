@@ -39,6 +39,9 @@
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
+#include <libmcclient/mc-gtypes.h>
+#include <libmcclient/mc-interfaces.h>
+
 #include "mcd-account-priv.h"
 #include "mcd-account-compat.h"
 #include "mcd-account-conditions.h"
@@ -51,8 +54,6 @@
 #include "mcd-master.h"
 #include "mcd-master-priv.h"
 #include "mcd-dbusprop.h"
-#include "_gen/interfaces.h"
-#include "_gen/gtypes.h"
 
 #define DELAY_PROPERTY_CHANGED
 

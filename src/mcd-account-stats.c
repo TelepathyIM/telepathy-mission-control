@@ -27,15 +27,15 @@
 #include <glib.h>
 #include <config.h>
 
+#include <libmcclient/mc-gtypes.h>
+#include <libmcclient/mc-interfaces.h>
+
 #include "mcd-account.h"
 #include "mcd-account-priv.h"
 #include "mcd-account-manager.h"
-#include "_gen/interfaces.h"
-#include "_gen/gtypes.h"
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/util.h>
-
 
 static GHashTable *
 mcd_account_get_channel_count (McdAccount *account)

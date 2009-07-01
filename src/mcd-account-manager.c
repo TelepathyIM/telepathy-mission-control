@@ -34,6 +34,8 @@
 #include <dbus/dbus-glib-lowlevel.h>
 #include <dbus/dbus.h>
 
+#include <libmcclient/mc-interfaces.h>
+
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/enums.h>
 #include <telepathy-glib/svc-generic.h>
@@ -50,7 +52,6 @@
 #include "mcd-master-priv.h"
 #include "mcd-misc.h"
 
-#include "_gen/interfaces.h"
 #include "_gen/svc-Account_Manager_Interface_Creation.h"
 
 #define WRITE_CONF_DELAY    500

@@ -34,8 +34,6 @@ mc_headers = \
 mc_gen_headers = \
 	_gen/cli-Connection_Interface_Contact_Capabilities.h \
 	_gen/enums.h \
-	_gen/interfaces.h \
-	_gen/gtypes.h \
 	_gen/svc-Account_Interface_ChannelRequests.h \
 	_gen/svc-Account_Interface_Compat.h \
 	_gen/svc-Account_Interface_Conditions.h \
@@ -45,8 +43,6 @@ mc_gen_headers = \
 
 nodist_libmcd_convenience_la_SOURCES = \
 	_gen/cli-Connection_Interface_Contact_Capabilities-body.h \
-	_gen/gtypes-body.h \
-	_gen/interfaces-body.h \
 	_gen/register-dbus-glib-marshallers-body.h \
 	_gen/signals-marshal.c \
 	_gen/signals-marshal.h \
@@ -231,11 +227,6 @@ _gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml)
 
 # Generated files which can be done for all "classes" at once
 
-_gen/gtypes.h _gen/gtypes-body.h: _gen/mcd.xml \
-	$(top_srcdir)/tools/glib-gtypes-generator.py
-	$(PYTHON) $(top_srcdir)/tools/glib-gtypes-generator.py \
-		$< _gen/gtypes mc
-
 _gen/signals-marshal.list: _gen/mcd.xml \
 	$(tools_dir)/glib-signals-marshal-gen.py
 	$(PYTHON) $(tools_dir)/glib-signals-marshal-gen.py $< > $@
@@ -257,22 +248,6 @@ _gen/enums.h: _gen/mcd.xml $(tools_dir)/c-constants-generator.xsl
 	$(XSLTPROC) $(XSLTPROCFLAGS) \
 		--stringparam mixed-case-prefix mc \
 		$(tools_dir)/c-constants-generator.xsl \
-		$< > $@
-
-_gen/interfaces.h: _gen/mcd.xml \
-	$(tools_dir)/glib-interfaces-generator.xsl \
-	$(tools_dir)/c-interfaces-generator.xsl
-	$(XSLTPROC) $(XSLTPROCFLAGS) \
-		--stringparam mixed-case-prefix mc \
-		$(tools_dir)/glib-interfaces-generator.xsl \
-		$< > $@
-
-_gen/interfaces-body.h: _gen/mcd.xml \
-	$(tools_dir)/glib-interfaces-body-generator.xsl \
-	$(tools_dir)/c-interfaces-generator.xsl
-	$(XSLTPROC) $(XSLTPROCFLAGS) \
-		--stringparam mixed-case-prefix mc \
-		$(tools_dir)/glib-interfaces-body-generator.xsl \
 		$< > $@
 
 
