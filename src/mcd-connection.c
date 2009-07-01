@@ -2024,9 +2024,9 @@ mcd_connection_cancel_channel_request (McdConnection *connection,
 void
 mcd_connection_close (McdConnection *connection)
 {
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
+    g_return_if_fail (MCD_IS_CONNECTION (connection));
 
-    priv->abort_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
+    connection->priv->abort_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
     _mcd_connection_release_tp_connection (connection);
     mcd_mission_abort (MCD_MISSION (connection));
 }
