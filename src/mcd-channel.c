@@ -69,7 +69,6 @@ struct _McdChannelPrivate
     /* boolean properties */
     guint outgoing : 1;
     guint has_group_if : 1;
-    guint close_on_dispose : 1;
     guint members_accepted : 1;
     guint missed : 1;
     guint is_disposed : 1;
