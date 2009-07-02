@@ -1925,11 +1925,14 @@ mcd_account_setup (McdAccount *account)
         priv->auto_presence_type = TP_CONNECTION_PRESENCE_TYPE_AVAILABLE;
         priv->auto_presence_status = g_strdup ("available");
     }
+    else
+    {
+        priv->auto_presence_status =
+            g_key_file_get_string (priv->keyfile, priv->unique_name,
+                                   MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS,
+                                   NULL);
+    }
 
-    priv->auto_presence_status =
-	g_key_file_get_string (priv->keyfile, priv->unique_name,
-			       MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS,
-			       NULL);
     priv->auto_presence_message =
 	g_key_file_get_string (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE,
