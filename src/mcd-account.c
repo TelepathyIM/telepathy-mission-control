@@ -1923,7 +1923,7 @@ mcd_account_setup (McdAccount *account)
     if (!_presence_type_is_online (priv->auto_presence_type))
     {
         priv->auto_presence_type = TP_CONNECTION_PRESENCE_TYPE_AVAILABLE;
-        priv->auto_presence_status = "available";
+        priv->auto_presence_status = g_strdup ("available");
     }
 
     priv->auto_presence_status =
