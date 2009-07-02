@@ -35,13 +35,15 @@
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/util.h>
+
+#include <libmcclient/mc-interfaces.h>
+
 #include "mcd-account.h"
 #include "mcd-account-priv.h"
 #include "mcd-account-compat.h"
 #include "mcd-account-manager.h"
 #include "mcd-misc.h"
 #include "mcd-service.h"
-#include "_gen/interfaces.h"
 
 #define COMPAT_REQ_DATA "compat_req"
 
