@@ -31,7 +31,9 @@
 #include <config.h>
 
 #include <dbus/dbus-glib-lowlevel.h>
+
 #include <libmcclient/mc-errors.h>
+#include <libmcclient/mc-interfaces.h>
 
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/svc-channel-request.h>
@@ -44,7 +46,6 @@
 #include "mcd-dispatcher-priv.h"
 #include "mcd-channel-priv.h"
 #include "mcd-misc.h"
-#include "_gen/interfaces.h"
 
 static void
 online_request_cb (McdAccount *account, gpointer userdata, const GError *error)

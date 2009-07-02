@@ -45,6 +45,7 @@ def test(q, bus, mc):
         'i': dbus.Int32(-42),
         'x': dbus.Int64(-1 * 0x7FFFffffFFFFffffL),
         'd': 4.5,
+        'y': dbus.Byte(42),
         'as': dbus.Array(['one', 'two', 'three'], signature='s')
         }, signature='sv')
 

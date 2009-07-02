@@ -30,6 +30,8 @@
 #include <glib/gi18n.h>
 #include <config.h>
 
+#include <libmcclient/mc-interfaces.h>
+
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/util.h>
@@ -37,9 +39,6 @@
 #include "mcd-account-manager.h"
 #include "mcd-account-manager-priv.h"
 #include "mcd-account-priv.h"
-
-/* auto-generated stubs */
-#include "_gen/interfaces.h"
 
 typedef struct
 {
