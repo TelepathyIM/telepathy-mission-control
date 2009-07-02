@@ -1464,6 +1464,9 @@ mc_param_type (const TpConnectionManagerParam *param)
     case DBUS_TYPE_STRING:
 	return G_TYPE_STRING;
 
+    case DBUS_TYPE_BYTE:
+        return G_TYPE_UCHAR;
+
     case DBUS_TYPE_INT16:
     case DBUS_TYPE_INT32:
 	return G_TYPE_INT;

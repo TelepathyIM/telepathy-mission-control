@@ -11,6 +11,7 @@ param-i=i
 param-x=x
 param-d=d
 param-as=as
+param-y=y
 
 [Protocol defaults]
 # All the types, plus a default for each
@@ -36,6 +37,8 @@ param-d=d
 default-d=1.5
 param-as=as
 default-as=foo;bar;baz;
+param-y=y
+default-y=1
 
 [Protocol flags]
 # All the flags
