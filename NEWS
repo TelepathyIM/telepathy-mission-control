@@ -1,7 +1,31 @@
-telepathy-mission-control 5.1.4 (UNRELEASED)
+telepathy-mission-control 5.1.4 (2009-07-08)
 ============================================
 
-???
+The "I only came here seeking peas" release.
+
+Dependencies:
+
+* fd.o #22332: GConf is no longer required (if it is not available, then the
+  MC 4 to MC 5 migration tool, mc-account-convert, will not be built)
+
+Enhancements:
+
+* fd.o #21378: support connection manager parameters whose value is a single
+  byte (smcv)
+
+* Add simple man pages for the daemon and utilities (smcv)
+
+Fixes:
+
+* fd.o #22670: don't assume a client has crashed just because it has lost a
+  well-known name (smcv)
+
+* Don't use the AutomaticPresence status from account configuration unless the
+  presence type is an online presence (mardy)
+
+* fd.o #22585: remove symbols from libmissioncontrol-server that collide with
+  symbols in libmcclient, allowing the telepathy-mission-control daemon to be
+  statically linked on platforms that don't want to support plugins (smcv)
 
 telepathy-mission-control 5.1.3 (2009-07-01)
 ============================================
@@ -36,6 +60,8 @@ Fixes:
 
 * In tests, restructure `make check-torture` so it doesn't exceed command-line
   length limits (smcv)
+
+* Use g_file_set_contents to overwrite files (mardy)
 
 telepathy-mission-control 5.1.2 (2009-06-26)
 ============================================
