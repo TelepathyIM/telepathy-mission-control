@@ -1,0 +1,17 @@
+.TH MC-ACCOUNT-CONVERT "1" "July 2009" "Telepathy" "Utilities"
+\" Copyright © 2009 Collabora Ltd. <http://www.collabora.co.uk/>
+\" This document may be distributed under the same terms as
+\" telepathy-mission-control itself.
+.SH NAME
+mc-account-convert \- migrate Mission Control 4 accounts to Mission Control 5
+.SH SYNOPSIS
+.B mc-account-convert
+.SH DESCRIPTION
+.B mc-account-convert
+reads the current user's GConf configuration for accounts stored by
+Mission Control 4, and creates the corresponding accounts in Mission Control 5
+(or any compatible Telepathy
+.BR AccountManager ).
+The account manager is assumed to be running already.
+.SH OPTIONS
+There are no command-line options.

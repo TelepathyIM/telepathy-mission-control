@@ -1,0 +1,204 @@
+.TH MC-TOOL "1" "July 2009" "Telepathy" "Utilities"
+\" Copyright © 2009 Collabora Ltd. <http://www.collabora.co.uk/>
+\" This document may be distributed under the same terms as
+\" telepathy-mission-control itself.
+.SH NAME
+mc-tool \- manipulate Mission Control accounts from the command line
+.SH SYNOPSIS
+
+.B mc-tool list
+.PP
+
+.B mc-tool add
+.I PROFILE
+.I DISPLAY-NAME
+.IR "" [ PARAMETER-SETTINGS ...]
+.PP
+
+.B mc-tool add
+.IR MANAGER / PROTOCOL " [" PARAMETER-SETTINGS ...]
+.PP
+
+.B mc-tool update
+.IR ACCOUNT " [" PARAMETER-SETTINGS ...]
+.PP
+
+.B mc-tool display
+.I ACCOUNT DISPLAY-NAME
+.PP
+
+.B mc-tool nick
+.I ACCOUNT NICKNAME
+.PP
+
+.B mc-tool icon
+.I ACCOUNT ICON
+.PP
+
+.B mc-tool show
+.I ACCOUNT
+.PP
+
+.B mc-tool get
+.I ACCOUNT
+.IR PARAMETER " [" PARAMETER ...]
+.PP
+
+.B mc-tool auto-presence
+.IR ACCOUNT " " STATUS " [" MESSAGE ]
+.PP
+
+.B mc-tool request
+.IR ACCOUNT " " STATUS " [" MESSAGE ]
+.PP
+
+.B mc-tool auto-connect
+.I ACCOUNT
+.BR on | off
+.PP
+
+.B mc-tool remove
+.I ACCOUNT
+.PP
+
+.SH DESCRIPTION
+
+.BR mc-tool 's
+usage depends on its first argument (the "command")
+
+.SS SPECIFYING ACCOUNTS
+Where an account name is needed, it may be given as a full object path
+(e.g.
+.BR /org/freedesktop/Telepathy/Account/gabble/jabber/example ),
+or as the unique account-specific suffix (e.g.
+.BR gabble/jabber/example ).
+
+.SS SPECIFYING PARAMETER SETTINGS
+Many commands take arguments that represent Telepathy connection manager
+parameters (see the Telepathy Specification for details of these). Each
+argument has the following form:
+.PP
+.IB TYPE : NAME = VALUE
+.PP
+where
+.I TYPE
+is either
+.BR int ", " uint ", " bool ", or "
+.BR string
+(other parameter types exist, but are currently unsupported by
+.BR mc-tool ),
+.I NAME
+is the name of the connection manager parameter (e.g.
+.BR account " or " password ),
+and
+.I VALUE
+is the parameter's value (with integers in decimal, and booleans as
+.BR 0 " or " 1 ).
+.PP
+The
+.B update
+command also accepts arguments of the form
+.BI clear: NAME
+which delete the named parameter from the account configuration.
+.SS LIST
+.B mc-tool list
+lists the available accounts.
+
+.SS ADD
+.B mc-tool add
+adds an account. The connection manager and protocol can either be given
+as the name of a Mission Control
+.IR profile ,
+(e.g.
+.BR gtalk ),
+or as a slash-separated connection manager name and protocol (e.g.
+.BR gabble/jabber ).
+
+.SS DISPLAY
+.B mc-tool display
+.I ACCOUNT DISPLAY-NAME
+sets the
+.B DisplayName
+property of
+.IR ACCOUNT " to " DISPLAY-NAME.
+
+.SS NICK
+.B mc-tool nick
+.I ACCOUNT NICKNAME
+sets the
+.B Nickname
+property of
+.IR ACCOUNT " to " NICKNAME .
+
+.SS ICON
+.B mc-tool icon
+.I ACCOUNT ICON
+sets the
+.B Icon
+property of
+.IR ACCOUNT " to " ICON .
+
+.SS SHOW
+.B mc-tool show
+.I ACCOUNT
+shows information about
+.IR ACCOUNT .
+
+.SS GET
+.B mc-tool get
+.I ACCOUNT
+.IR PARAMETER " [" PARAMETER ...]
+shows the values of the given parameters of
+.IR ACCOUNT .
+
+.SS ENABLE
+.B mc-tool enable
+.I ACCOUNT
+sets the
+.B Enabled
+property of
+.IR ACCOUNT " to"
+.BR True .
+
+.SS DISABLE
+.B mc-tool disable
+.I ACCOUNT
+sets the
+.B Enabled
+property of
+.IR ACCOUNT " to"
+.BR False .
+
+.SS AUTO-PRESENCE
+.B mc-tool auto-presence
+.IR ACCOUNT " " STATUS " [" MESSAGE ]
+sets the
+.B AutomaticPresence
+property of
+.IR ACCOUNT " to"
+.IR STATUS " with optional message " MESSAGE .
+
+.SS REQUEST
+.B mc-tool request
+.IR ACCOUNT " " STATUS " [" MESSAGE ]
+sets the
+.B RequestedPresence
+property of
+.IR ACCOUNT " to"
+.IR STATUS " with optional message " MESSAGE ;
+this is how you tell an account to connect or go offline, for example.
+
+.SS AUTO-CONNECT
+.B mc-tool auto-connect
+.I ACCOUNT
+.B on
+sets the
+.B ConnectAutomatically
+property of
+.IR ACCOUNT " to"
+.BR True .
+.B mc-tool auto-connect
+.I ACCOUNT
+.B off
+sets it to
+.BR False .

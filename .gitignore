@@ -84,3 +84,4 @@ test/twisted/tools/tmp-session-bus.conf
 /util/mc-account-convert
 /util/mc-tool
 /util/mc-wait-for-name
+/util/mc-wait-for-name.1
