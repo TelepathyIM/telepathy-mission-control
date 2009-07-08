@@ -1,0 +1,32 @@
+.TH MISSION-CONTROL-5 "8" "July 2009" "Telepathy" "D-Bus services"
+\" Copyright © 2009 Collabora Ltd. <http://www.collabora.co.uk/>
+\" This document may be distributed under the same terms as
+\" telepathy-mission-control itself.
+.SH NAME
+mission-control-5 \- Telepathy account manager/chanel dispatcher
+.SH SYNOPSIS
+\fB@libexecdir@/mission\-control\-5\fR
+.SH DESCRIPTION
+Mission Control 5 implements the AccountManager and ChannelDispatcher services
+described in the Telepathy D-Bus specification, allowing clients like
+.BR empathy (1)
+to store account details, connect to accounts, request communication channels,
+and have channels dispatched to them.
+.PP
+It is a D-Bus service which runs on the session bus, and should usually be
+started automatically by D-Bus activation. However, it might be useful to
+start it manually for debugging.
+.SH OPTIONS
+There are no command-line options.
+.SH ENVIRONMENT
+.TP
+\fBMC_DEBUG\fR=\fIlevel\fR
+May be set to 1 or 2 to enable partial or full debug output from Mission
+Control itself.
+.TP
+\fBMC_TP_DEBUG\fR=\fItype\fR
+May be set to "all" for full debug output from telepathy-glib, or various
+undocumented options (which may change from telepathy-glib release to release)
+to filter the output. See telepathy-glib source code for the available options.
+.SH SEE ALSO
+.IR http://telepathy.freedesktop.org/
