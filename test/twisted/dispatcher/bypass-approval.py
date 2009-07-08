@@ -25,7 +25,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async
+        call_async, sync_dbus
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
         expect_client_setup
@@ -272,6 +272,19 @@ def test(q, bus, mc):
             handled=False)
     # Kopete accepts the channels
     q.dbus_return(e.message, signature='')
+
+    # Regression test for fd.o #22670
+
+    closure = [
+            EventPattern('dbus-method-call', method='Close'),
+            ]
+
+    q.forbid_events(closure)
+
+    bypass.release_name()
+    sync_dbus(bus, q, mc)
+
+    q.unforbid_events(closure)
 
 if __name__ == '__main__':
     exec_test(test, {})
