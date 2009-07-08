@@ -2614,11 +2614,10 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
             }
         }
 
-        if (old_owner[0] == ':')
+        if (name[0] == ':')
         {
             /* it's a unique name - maybe it was handling some channels? */
-            _mcd_handler_map_set_handler_crashed (priv->handler_map,
-                                                  old_owner);
+            _mcd_handler_map_set_handler_crashed (priv->handler_map, name);
         }
     }
     else if (old_owner[0] != '\0' && new_owner[0] != '\0')
