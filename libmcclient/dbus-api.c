@@ -297,34 +297,6 @@ call_when_all_ready_cb (TpProxy *proxy, const GError *error,
 }
 
 void
-_mc_iface_call_when_all_ready (TpProxy *proxy, GType type,
-			       McIfaceWhenReadyCb callback,
-			       gpointer user_data, GDestroyNotify destroy,
-			       GObject *weak_object, va_list ifaces)
-{
-    GQuark iface;
-    MultiCbData *mcbd;
-
-    mcbd = g_slice_new0 (MultiCbData);
-    mcbd->callback = callback;
-    mcbd->user_data = user_data;
-    mcbd->destroy = destroy;
-    mcbd->ref_count = 1;
-
-    for (iface = va_arg (ifaces, GQuark); iface != 0;
-	 iface = va_arg (ifaces, GQuark))
-    {
-	mcbd->remaining_ifaces++;
-	mcbd->ref_count++;
-	_mc_iface_call_when_ready (proxy, type, iface,
-				   call_when_all_ready_cb,
-				   mcbd, multi_cb_data_free, weak_object);
-    }
-    va_end (ifaces);
-    multi_cb_data_free (mcbd);
-}
-
-void
 _mc_iface_call_when_all_readyv (TpProxy *proxy, GType type,
 				McIfaceWhenReadyCb callback,
 				gpointer user_data, GDestroyNotify destroy,
@@ -340,6 +312,7 @@ _mc_iface_call_when_all_readyv (TpProxy *proxy, GType type,
     mcbd->user_data = user_data;
     mcbd->destroy = destroy;
     mcbd->ref_count = 1;
+    mcbd->remaining_ifaces = 1; /* lock released at the end of this function */
 
     for (i = 0; i < n_ifaces; i++)
     {
@@ -350,6 +323,10 @@ _mc_iface_call_when_all_readyv (TpProxy *proxy, GType type,
 				   call_when_all_ready_cb,
 				   mcbd, multi_cb_data_free, weak_object);
     }
+
+    /* release the initial lock set to remaining_ifaces */
+    call_when_all_ready_cb (proxy, NULL, mcbd, weak_object);
+
     multi_cb_data_free (mcbd);
 }
 
