@@ -199,6 +199,14 @@ _check_presence (McdConnectionPrivate *priv, TpConnectionPresenceType presence,
 {
     const gchar **fallbacks;
 
+    if (priv->recognized_presences == NULL ||
+        g_hash_table_size (priv->recognized_presences) == 0)
+    {
+        DEBUG ("account %s: recognized presences unknown, not setting "
+               "presence yet", mcd_account_get_unique_name (priv->account));
+        return FALSE;
+    }
+
     if (presence == TP_CONNECTION_PRESENCE_TYPE_UNSET || *status == NULL)
         return FALSE;
 
