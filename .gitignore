@@ -65,6 +65,7 @@ mission-control.pc
 patches/
 stamp-*
 /server/mission-control-5
+/server/mission-control-5.8
 /server/org.freedesktop.Telepathy.AccountManager.service
 /server/org.freedesktop.Telepathy.MissionControl5.service
 tags
@@ -83,3 +84,4 @@ test/twisted/tools/tmp-session-bus.conf
 /util/mc-account-convert
 /util/mc-tool
 /util/mc-wait-for-name
+/util/mc-wait-for-name.1

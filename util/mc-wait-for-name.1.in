@@ -1,0 +1,34 @@
+.TH MC-WAIT-FOR-NAME "1" "July 2009" "Telepathy" "Utilities"
+\" Copyright © 2009 Collabora Ltd. <http://www.collabora.co.uk/>
+\" This document may be distributed under the same terms as
+\" telepathy-mission-control itself.
+.SH NAME
+mc-wait-for-name \- run until a D-Bus name appears on the session bus
+.SH SYNOPSIS
+.B mc-wait-for-name
+.I WELL-KNOWN-NAME
+.PP
+.nf
+.B [D-BUS Service]
+.BI Name= org.freedesktop.Telepathy.Client.Something
+.BI Exec=@bindir@/mc-wait-for-name " org.freedesktop.Telepathy.Client.Something"
+.fi
+.SH DESCRIPTION
+.B mc-wait-for-name
+runs until a bus name appears, then exits successfully. This can be used as a
+service-activation helper for a bus name that is not directly activatable, but
+will be provided automatically (after a while) by the desktop session.
+.SH EXIT STATUS
+.TP
+0
+The bus name eventually appeared
+.TP
+Non-zero
+mc-wait-for-name was unable to connect to the session bus, or some other error
+occurred
+.SH OPTIONS
+There are no additional command-line options.
+.SH BUGS
+If the requested well-known bus name never appears, then
+.B mc-wait-for-name
+will only exit when the session bus terminates.
