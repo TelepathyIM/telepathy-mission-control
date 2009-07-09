@@ -312,6 +312,7 @@ _mc_iface_call_when_all_readyv (TpProxy *proxy, GType type,
     mcbd->user_data = user_data;
     mcbd->destroy = destroy;
     mcbd->ref_count = 1;
+    mcbd->remaining_ifaces = 1; /* lock released at the end of this function */
 
     for (i = 0; i < n_ifaces; i++)
     {
@@ -322,6 +323,10 @@ _mc_iface_call_when_all_readyv (TpProxy *proxy, GType type,
 				   call_when_all_ready_cb,
 				   mcbd, multi_cb_data_free, weak_object);
     }
+
+    /* release the initial lock set to remaining_ifaces */
+    call_when_all_ready_cb (proxy, NULL, mcbd, weak_object);
+
     multi_cb_data_free (mcbd);
 }
 
