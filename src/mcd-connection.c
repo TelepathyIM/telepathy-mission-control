@@ -226,13 +226,23 @@ _check_presence (McdConnectionPrivate *priv, TpConnectionPresenceType presence,
 
     /* assume that "available" is always supported -- otherwise, an error will
      * be returned by SetPresence, but it's not a big loss */
-    if (*fallbacks == NULL)
-        *fallbacks = "available";
 
-    DEBUG ("account %s: presence %s not supported, setting %s",
-           mcd_account_get_unique_name (priv->account),
-           *status, *fallbacks);
-    *status = *fallbacks;
+    if (*fallbacks != NULL)
+    {
+        DEBUG ("account %s: presence %s not supported, setting %s",
+               mcd_account_get_unique_name (priv->account), *status,
+               *fallbacks);
+        *status = *fallbacks;
+    }
+    else
+    {
+        DEBUG ("account %s: presence %s not supported and no fallback is "
+               "supported either, trying \"available\" and hoping for the "
+               "best...", mcd_account_get_unique_name (priv->account),
+               *status);
+        *status = "available";
+    }
+
     return TRUE;
 }
 
