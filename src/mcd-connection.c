@@ -159,12 +159,12 @@ enum
 
 static guint signals[N_SIGNALS] = { 0 };
 
-static const gchar *_available_fb[] = { NULL };
-static const gchar *_away_fb[] = { "away", NULL };
-static const gchar *_ext_away_fb[] = { "xa", "away", NULL };
-static const gchar *_hidden_fb[] = { "hidden", "dnd", "busy", "away", NULL };
-static const gchar *_busy_fb[] = { "busy", "dnd", "away", NULL };
-static const gchar **presence_fallbacks[] = {
+static const gchar * const _available_fb[] = { NULL };
+static const gchar * const _away_fb[] = { "away", NULL };
+static const gchar * const _ext_away_fb[] = { "xa", "away", NULL };
+static const gchar * const _hidden_fb[] = { "hidden", "dnd", "busy", "away", NULL };
+static const gchar * const _busy_fb[] = { "busy", "dnd", "away", NULL };
+static const gchar * const *presence_fallbacks[] = {
     _available_fb, _away_fb, _ext_away_fb, _hidden_fb, _busy_fb
 };
 
@@ -197,7 +197,15 @@ static gboolean
 _check_presence (McdConnectionPrivate *priv, TpConnectionPresenceType presence,
                  const gchar **status)
 {
-    const gchar **fallbacks;
+    const gchar * const *fallbacks;
+
+    if (priv->recognized_presences == NULL ||
+        g_hash_table_size (priv->recognized_presences) == 0)
+    {
+        DEBUG ("account %s: recognized presences unknown, not setting "
+               "presence yet", mcd_account_get_unique_name (priv->account));
+        return FALSE;
+    }
 
     if (presence == TP_CONNECTION_PRESENCE_TYPE_UNSET || *status == NULL)
         return FALSE;
@@ -218,13 +226,23 @@ _check_presence (McdConnectionPrivate *priv, TpConnectionPresenceType presence,
 
     /* assume that "available" is always supported -- otherwise, an error will
      * be returned by SetPresence, but it's not a big loss */
-    if (*fallbacks == NULL)
-        *fallbacks = "available";
 
-    DEBUG ("account %s: presence %s not supported, setting %s",
-           mcd_account_get_unique_name (priv->account),
-           *status, *fallbacks);
-    *status = *fallbacks;
+    if (*fallbacks != NULL)
+    {
+        DEBUG ("account %s: presence %s not supported, setting %s",
+               mcd_account_get_unique_name (priv->account), *status,
+               *fallbacks);
+        *status = *fallbacks;
+    }
+    else
+    {
+        DEBUG ("account %s: presence %s not supported and no fallback is "
+               "supported either, trying \"available\" and hoping for the "
+               "best...", mcd_account_get_unique_name (priv->account),
+               *status);
+        *status = "available";
+    }
+
     return TRUE;
 }
 
