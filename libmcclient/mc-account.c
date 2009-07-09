@@ -786,16 +786,26 @@ mc_account_call_when_all_ready (McAccount *account,
 				GDestroyNotify destroy,
 				GObject *weak_object, ...)
 {
-    va_list ifaces;
+    GPtrArray *ifaces;
+    GQuark iface;
+    va_list ifaces_va;
 
-    va_start (ifaces, weak_object);
+    ifaces = g_ptr_array_sized_new (8);
 
-    _mc_iface_call_when_all_ready ((TpProxy *)account,
-			       MC_TYPE_ACCOUNT,
-			       (McIfaceWhenReadyCb)callback,
-			       user_data, destroy, weak_object,
-			       ifaces);
-    va_end (ifaces);
+    va_start (ifaces_va, weak_object);
+    for (iface = va_arg (ifaces_va, GQuark); iface != 0;
+	 iface = va_arg (ifaces_va, GQuark))
+    {
+        g_ptr_array_add (ifaces, GUINT_TO_POINTER (iface));
+    }
+    va_end (ifaces_va);
+
+    _mc_iface_call_when_all_readyv ((TpProxy *)account, MC_TYPE_ACCOUNT,
+                                    (McIfaceWhenReadyCb)callback,
+                                    user_data, destroy, weak_object,
+                                    ifaces->len, (GQuark *)ifaces->pdata);
+
+    g_ptr_array_free (ifaces, TRUE);
 }
 
 /**
