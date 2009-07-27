@@ -19,6 +19,7 @@ TWISTED_BASIC_TESTS = \
 	account-requests/cancel.py \
 	account-requests/create-text.py \
 	account-requests/delete-account-during-request.py \
+	capabilities/legacy-caps.py \
 	dispatcher/approver-fails.py \
 	dispatcher/already-has-channel.py \
 	dispatcher/already-has-obsolete.py \
