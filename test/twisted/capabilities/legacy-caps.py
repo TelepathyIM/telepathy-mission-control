@@ -65,7 +65,7 @@ def test(q, bus, mc):
         "password": "secrecy"}, signature='sv')
     cm_name_ref, account = create_fakecm_account(q, bus, mc, params)
     conn = enable_fakecm_account(q, bus, mc, account, params,
-            has_old_caps=True,
+            extra_interfaces=[cs.CONN_IFACE_CAPS],
             expect_after_connect=[
                 EventPattern('dbus-method-call', handled=False,
                     interface=cs.CONN_IFACE_CAPS,
