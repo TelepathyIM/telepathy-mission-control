@@ -52,7 +52,22 @@ def test(q, bus, mc):
     # wait for MC to download the properties
     expect_client_setup(q, [media_call])
 
-    def check_correct_caps(e):
+    def check_legacy_caps(e):
+        # Because MC has no idea how to map Client capabilities into legacy
+        # capabilities, it assumes that every client has all the flags in
+        # the world. In this example we have (only) a StreamedMedia client
+        # and a stream-tube client, so that's what MC will tell us.
+        add = e.args[0]
+        remove = e.args[1]
+
+        assert (cs.CHANNEL_TYPE_STREAMED_MEDIA, 2L**32-1) in add
+        assert (cs.CHANNEL_TYPE_STREAM_TUBE, 2L**32-1) in add
+        assert len(add) == 2
+        assert len(remove) == 0
+
+        return True
+
+    def check_draft_1_caps(e):
         # Because MC has no idea how to map Client capabilities into legacy
         # capabilities, it assumes that every client has all the flags in
         # the world. In this example we have (only) a StreamedMedia client
@@ -69,12 +84,17 @@ def test(q, bus, mc):
         "password": "secrecy"}, signature='sv')
     cm_name_ref, account = create_fakecm_account(q, bus, mc, params)
     conn = enable_fakecm_account(q, bus, mc, account, params,
-            extra_interfaces=[cs.CONN_IFACE_CONTACT_CAPS_DRAFT1],
+            extra_interfaces=[cs.CONN_IFACE_CONTACT_CAPS_DRAFT1,
+                cs.CONN_IFACE_CAPS],
             expect_after_connect=[
                 EventPattern('dbus-method-call', handled=False,
                     interface=cs.CONN_IFACE_CONTACT_CAPS_DRAFT1,
                     method='SetSelfCapabilities',
-                    predicate=check_correct_caps),
+                    predicate=check_draft_1_caps),
+                EventPattern('dbus-method-call', handled=False,
+                    interface=cs.CONN_IFACE_CAPS,
+                    method='AdvertiseCapabilities',
+                    predicate=check_legacy_caps),
                 ])
 
 if __name__ == '__main__':

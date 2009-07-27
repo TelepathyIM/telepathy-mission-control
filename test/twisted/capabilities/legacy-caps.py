@@ -46,7 +46,7 @@ def test(q, bus, mc):
     # wait for MC to download the properties
     expect_client_setup(q, [media_call])
 
-    def check_correct_caps(e):
+    def check_legacy_caps(e):
         # Because MC has no idea how to map Client capabilities into legacy
         # capabilities, it assumes that every client has all the flags in
         # the world. In this example we have (only) a StreamedMedia client
@@ -70,7 +70,7 @@ def test(q, bus, mc):
                 EventPattern('dbus-method-call', handled=False,
                     interface=cs.CONN_IFACE_CAPS,
                     method='AdvertiseCapabilities',
-                    predicate=check_correct_caps),
+                    predicate=check_legacy_caps),
                 ])
 
 if __name__ == '__main__':
