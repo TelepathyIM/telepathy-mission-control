@@ -14,7 +14,4 @@
 
 <xi:include href="../xml/Connection_Interface_Contact_Capabilities.xml"/>
 
-<xi:include href="../xml/generic-types.xml"/>
-<xi:include href="../xml/telepathy-types.xml"/>
-
 </tp:spec>
