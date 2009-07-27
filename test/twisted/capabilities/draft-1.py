@@ -68,10 +68,6 @@ def test(q, bus, mc):
         return True
 
     def check_draft_1_caps(e):
-        # Because MC has no idea how to map Client capabilities into legacy
-        # capabilities, it assumes that every client has all the flags in
-        # the world. In this example we have (only) a StreamedMedia client
-        # and a stream-tube client, so that's what MC will tell us.
         aasv = e.args[0]
 
         assert media_fixed_properties in aasv
