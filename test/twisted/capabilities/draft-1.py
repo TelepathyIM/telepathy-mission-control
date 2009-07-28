@@ -37,8 +37,14 @@ def test(q, bus, mc):
     # is activatable.
 
     # this must match the .client file
-    abi_fixed_properties = dbus.Dictionary({
+    abi_contact_fixed_properties = dbus.Dictionary({
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_STREAM_TUBE,
+        cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+        cs.CHANNEL_TYPE_STREAM_TUBE + '.Service': 'x-abiword',
+        }, signature='sv')
+    abi_room_fixed_properties = dbus.Dictionary({
+        cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_STREAM_TUBE,
+        cs.CHANNEL + '.TargetHandleType': cs.HT_ROOM,
         cs.CHANNEL_TYPE_STREAM_TUBE + '.Service': 'x-abiword',
         }, signature='sv')
 
@@ -52,6 +58,8 @@ def test(q, bus, mc):
     # wait for MC to download the properties
     expect_client_setup(q, [media_call])
 
+    had = []
+
     def check_legacy_caps(e):
         # Because MC has no idea how to map Client capabilities into legacy
         # capabilities, it assumes that every client has all the flags in
@@ -62,18 +70,29 @@ def test(q, bus, mc):
 
         assert (cs.CHANNEL_TYPE_STREAMED_MEDIA, 2L**32-1) in add
         assert (cs.CHANNEL_TYPE_STREAM_TUBE, 2L**32-1) in add
-        assert len(add) == 2
+
+        # MC puts StreamTube in the list twice - arguably a bug, but
+        # CMs should cope. So, don't assert about the length of the list
+        for item in add:
+            assert item in (
+                    (cs.CHANNEL_TYPE_STREAMED_MEDIA, 2L**32-1),
+                    (cs.CHANNEL_TYPE_STREAM_TUBE, 2L**32-1),
+                    )
+
         assert len(remove) == 0
 
+        had.append('legacy')
         return True
 
     def check_draft_1_caps(e):
         aasv = e.args[0]
 
         assert media_fixed_properties in aasv
-        assert abi_fixed_properties in aasv
-        assert len(aasv) == 2
+        assert abi_room_fixed_properties in aasv
+        assert abi_contact_fixed_properties in aasv
+        assert len(aasv) == 3
 
+        had.append('draft-1')
         return True
 
     params = dbus.Dictionary({"account": "someguy@example.com",
@@ -92,6 +111,11 @@ def test(q, bus, mc):
                     method='AdvertiseCapabilities',
                     predicate=check_legacy_caps),
                 ])
+
+    # MC currently calls AdvertiseCapabilities first, and changing this
+    # risks causing regressions (the test case in telepathy-gabble assumes
+    # this order).
+    assert had == ['legacy', 'draft-1']
 
 if __name__ == '__main__':
     exec_test(test, {})
