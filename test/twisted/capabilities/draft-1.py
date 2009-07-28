@@ -52,6 +52,8 @@ def test(q, bus, mc):
     # wait for MC to download the properties
     expect_client_setup(q, [media_call])
 
+    had = []
+
     def check_legacy_caps(e):
         # Because MC has no idea how to map Client capabilities into legacy
         # capabilities, it assumes that every client has all the flags in
@@ -65,6 +67,7 @@ def test(q, bus, mc):
         assert len(add) == 2
         assert len(remove) == 0
 
+        had.append('legacy')
         return True
 
     def check_draft_1_caps(e):
@@ -74,6 +77,7 @@ def test(q, bus, mc):
         assert abi_fixed_properties in aasv
         assert len(aasv) == 2
 
+        had.append('draft-1')
         return True
 
     params = dbus.Dictionary({"account": "someguy@example.com",
@@ -92,6 +96,11 @@ def test(q, bus, mc):
                     method='AdvertiseCapabilities',
                     predicate=check_legacy_caps),
                 ])
+
+    # MC currently calls AdvertiseCapabilities first, and changing this
+    # risks causing regressions (the test case in telepathy-gabble assumes
+    # this order).
+    assert had == ['legacy', 'draft-1']
 
 if __name__ == '__main__':
     exec_test(test, {})
