@@ -37,8 +37,14 @@ def test(q, bus, mc):
     # is activatable.
 
     # this must match the .client file
-    abi_fixed_properties = dbus.Dictionary({
+    abi_contact_fixed_properties = dbus.Dictionary({
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_STREAM_TUBE,
+        cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+        cs.CHANNEL_TYPE_STREAM_TUBE + '.Service': 'x-abiword',
+        }, signature='sv')
+    abi_room_fixed_properties = dbus.Dictionary({
+        cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_STREAM_TUBE,
+        cs.CHANNEL + '.TargetHandleType': cs.HT_ROOM,
         cs.CHANNEL_TYPE_STREAM_TUBE + '.Service': 'x-abiword',
         }, signature='sv')
 
@@ -64,7 +70,15 @@ def test(q, bus, mc):
 
         assert (cs.CHANNEL_TYPE_STREAMED_MEDIA, 2L**32-1) in add
         assert (cs.CHANNEL_TYPE_STREAM_TUBE, 2L**32-1) in add
-        assert len(add) == 2
+
+        # MC puts StreamTube in the list twice - arguably a bug, but
+        # CMs should cope. So, don't assert about the length of the list
+        for item in add:
+            assert item in (
+                    (cs.CHANNEL_TYPE_STREAMED_MEDIA, 2L**32-1),
+                    (cs.CHANNEL_TYPE_STREAM_TUBE, 2L**32-1),
+                    )
+
         assert len(remove) == 0
 
         had.append('legacy')
@@ -74,8 +88,9 @@ def test(q, bus, mc):
         aasv = e.args[0]
 
         assert media_fixed_properties in aasv
-        assert abi_fixed_properties in aasv
-        assert len(aasv) == 2
+        assert abi_room_fixed_properties in aasv
+        assert abi_contact_fixed_properties in aasv
+        assert len(aasv) == 3
 
         had.append('draft-1')
         return True
