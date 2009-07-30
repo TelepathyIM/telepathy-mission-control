@@ -108,7 +108,7 @@ else # ! ENABLE_PLUGINS
 # the convenience library
 noinst_LTLIBRARIES += libmissioncontrol-server.la
 libmissioncontrol_server_la_SOURCES =
-libmissioncontrol_server_la_LIBADD = $(builddir)/libmcd-convenience.la
+libmissioncontrol_server_la_LIBADD = libmcd-convenience.la
 endif # ! ENABLE_PLUGINS
 
 libmcd_convenience_la_SOURCES = \
