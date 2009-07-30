@@ -1,7 +1,28 @@
-telepathy-mission-control 5.1.5 (UNRELEASED)
+telepathy-mission-control 5.2.0 (2009-07-30)
 ============================================
 
-???
+The "too many timeouts, reducing the advertised EDNS UDP packet size to 512
+octets" release.
+
+This is the first release of a new 5.2.x stable branch, available in git as
+the 'telepathy-mission-control-5.2' branch. Feature development will continue
+in the 5.3.x series.
+
+Enhancements:
+
+* Update ContactCapabilities draft to the version in telepathy-spec 0.17.26
+  (smcv)
+
+* Add regression tests for Capabilities, and for ContactCapabilities draft 1
+  (smcv)
+
+Fixes:
+
+* McdConnection: fix a rare crash if no fallbacks for a presence are
+  supported (smcv)
+
+* libmcclient: avoid invoking callback twice if the object is already
+  ready (mardy)
 
 telepathy-mission-control 5.1.4 (2009-07-09)
 ============================================
