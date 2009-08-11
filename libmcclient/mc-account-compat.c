@@ -37,11 +37,12 @@ struct _McAccountCompatProps {
 };
 
 static void create_props (TpProxy *proxy, GHashTable *props);
+static void setup_props_monitor (TpProxy *proxy, GQuark interface);
 
 static McIfaceDescription iface_description = {
     G_STRUCT_OFFSET (McAccountPrivate, compat_props),
     create_props,
-    NULL,
+    setup_props_monitor,
 };
 
 
@@ -134,9 +135,13 @@ mc_account_compat_call_when_ready (McAccount *account,
     iface_data.props_data_ptr = (gpointer)&account->priv->compat_props;
     iface_data.create_props = create_props;
 
-    _mc_iface_call_when_ready_int ((TpProxy *)account,
+    if (_mc_iface_call_when_ready_int ((TpProxy *)account,
 				   (McIfaceWhenReadyCb)callback, user_data,
-				   &iface_data);
+                                       &iface_data))
+    {
+        setup_props_monitor ((TpProxy *)account,
+                             MC_IFACE_QUARK_ACCOUNT_INTERFACE_COMPAT);
+    }
 }
 
 /**
@@ -186,6 +191,28 @@ mc_account_compat_get_secondary_vcard_fields (McAccount *account)
     if (G_UNLIKELY (!account->priv->compat_props)) return NULL;
     return (const gchar * const *)
         account->priv->compat_props->secondary_vcard_fields;
+}
+
+static void
+on_compat_property_changed (TpProxy *proxy, GHashTable *properties,
+                            gpointer user_data, GObject *weak_object)
+{
+    McAccount *account = MC_ACCOUNT (proxy);
+    McAccountPrivate *priv = account->priv;
+
+    /* if the GetAll method hasn't returned yet, we do nothing */
+    if (G_UNLIKELY (!priv->compat_props)) return;
+
+    _mc_iface_update_props (account_compat_properties, properties, account);
+}
+
+static void
+setup_props_monitor (TpProxy *proxy, GQuark interface)
+{
+    McAccount *account = MC_ACCOUNT (proxy);
+
+    mc_cli_account_interface_compat_connect_to_compat_property_changed
+        (account, on_compat_property_changed, NULL, NULL, NULL, NULL);
 }
 
 /**
