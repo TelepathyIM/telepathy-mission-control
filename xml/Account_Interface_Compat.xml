@@ -49,6 +49,23 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</
       </tp:docstring>
     </method>
 
+    <signal name="CompatPropertyChanged"
+      tp:name-for-bindings="Compat_Property_Changed">
+      <tp:docstring>
+        The values of one or more properties on this interface may have
+        changed.
+      </tp:docstring>
+
+      <arg name="Properties" type="a{sv}">
+        <tp:docstring>
+          A map from property names in this namespace (e.g.
+          <tp:member-ref>SecondaryVCardFields</tp:member-ref>) to
+          values. Properties whose values have not changed SHOULD be
+          omitted, but this need not be done.
+        </tp:docstring>
+      </arg>
+    </signal>
+
   </interface>
 </node>
 <!-- vim:set sw=2 sts=2 et ft=xml: -->
