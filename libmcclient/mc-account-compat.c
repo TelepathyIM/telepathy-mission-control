@@ -33,7 +33,7 @@
 struct _McAccountCompatProps {
     gchar *avatar_file;
     gchar *profile;
-    const gchar **secondary_vcard_fields;
+    gchar **secondary_vcard_fields;
 };
 
 static void create_props (TpProxy *proxy, GHashTable *props);
@@ -58,7 +58,7 @@ _mc_account_compat_props_free (McAccountCompatProps *props)
 {
     g_free (props->profile);
     g_free (props->avatar_file);
-    g_strfreev ((gchar **)props->secondary_vcard_fields);
+    g_strfreev (props->secondary_vcard_fields);
     g_slice_free (McAccountCompatProps, props);
 }
 
@@ -89,7 +89,7 @@ update_secondary_vcard_fields (const gchar *name, const GValue *value,
     McAccount *account = MC_ACCOUNT (user_data);
     McAccountCompatProps *props = account->priv->compat_props;
 
-    g_strfreev ((gchar **)props->secondary_vcard_fields);
+    g_strfreev (props->secondary_vcard_fields);
     props->secondary_vcard_fields = g_value_dup_boxed (value);
 }
 
@@ -184,7 +184,8 @@ mc_account_compat_get_secondary_vcard_fields (McAccount *account)
     g_return_val_if_fail (MC_IS_ACCOUNT (account), NULL);
 
     if (G_UNLIKELY (!account->priv->compat_props)) return NULL;
-    return account->priv->compat_props->secondary_vcard_fields;
+    return (const gchar * const *)
+        account->priv->compat_props->secondary_vcard_fields;
 }
 
 /**
