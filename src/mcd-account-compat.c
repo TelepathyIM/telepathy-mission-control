@@ -55,6 +55,20 @@ typedef struct
     gchar *requestor_client_id;
 } McdAccountCompatReq;
 
+static void
+emit_compat_property_changed (McdAccount *account, const gchar *key,
+			      const GValue *value)
+{
+    GHashTable *properties;
+
+    properties = g_hash_table_new (g_str_hash, g_str_equal);
+    g_hash_table_insert (properties, (gpointer)key, (gpointer)value);
+
+    mc_svc_account_interface_compat_emit_compat_property_changed (account,
+                                                                  properties);
+    g_hash_table_destroy (properties);
+}
+
 static gboolean
 set_profile (TpSvcDBusProperties *self, const gchar *name,
              const GValue *value, GError **error)
@@ -154,6 +168,8 @@ set_secondary_vcard_fields (TpSvcDBusProperties *self, const gchar *name,
 			       name, NULL);
     }
     _mcd_account_write_conf (account);
+
+    emit_compat_property_changed (account, name, value);
     return TRUE;
 }
 
