@@ -59,7 +59,7 @@ _mc_account_compat_props_free (McAccountCompatProps *props)
     g_free (props->profile);
     g_free (props->avatar_file);
     g_strfreev ((gchar **)props->secondary_vcard_fields);
-    g_free (props);
+    g_slice_free (McAccountCompatProps, props);
 }
 
 static void
@@ -94,7 +94,7 @@ create_props (TpProxy *proxy, GHashTable *props)
     McAccount *account = MC_ACCOUNT (proxy);
     McAccountPrivate *priv = account->priv;
 
-    priv->compat_props = g_malloc0 (sizeof (McAccountCompatProps));
+    priv->compat_props = g_slice_new0 (McAccountCompatProps);
     g_hash_table_foreach (props, update_property, account);
 }
 
