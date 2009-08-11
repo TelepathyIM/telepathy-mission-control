@@ -63,30 +63,43 @@ _mc_account_compat_props_free (McAccountCompatProps *props)
 }
 
 static void
-update_property (gpointer key, gpointer ht_value, gpointer user_data)
+update_profile (const gchar *name, const GValue *value, gpointer user_data)
 {
-    McAccount *account = user_data;
+    McAccount *account = MC_ACCOUNT (user_data);
     McAccountCompatProps *props = account->priv->compat_props;
-    GValue *value = ht_value;
-    const gchar *name = key;
 
-    if (strcmp (name, "Profile") == 0)
-    {
-	g_free (props->profile);
-	props->profile = g_value_dup_string (value);
-    }
-    else if (strcmp (name, "AvatarFile") == 0)
-    {
-	g_free (props->avatar_file);
-	props->avatar_file = g_value_dup_string (value);
-    }
-    else if (strcmp (name, "SecondaryVCardFields") == 0)
-    {
-	g_strfreev ((gchar **)props->secondary_vcard_fields);
-	props->secondary_vcard_fields = g_value_get_boxed (value);
-	_mc_gvalue_stolen (value);
-    }
+    g_free (props->profile);
+    props->profile = g_value_dup_string (value);
 }
+
+static void
+update_avatar_file (const gchar *name, const GValue *value, gpointer user_data)
+{
+    McAccount *account = MC_ACCOUNT (user_data);
+    McAccountCompatProps *props = account->priv->compat_props;
+
+    g_free (props->avatar_file);
+    props->avatar_file = g_value_dup_string (value);
+}
+
+static void
+update_secondary_vcard_fields (const gchar *name, const GValue *value,
+                               gpointer user_data)
+{
+    McAccount *account = MC_ACCOUNT (user_data);
+    McAccountCompatProps *props = account->priv->compat_props;
+
+    g_strfreev ((gchar **)props->secondary_vcard_fields);
+    props->secondary_vcard_fields = g_value_dup_boxed (value);
+}
+
+static const McIfaceProperty account_compat_properties[] =
+{
+    { "Profile", "s", update_profile },
+    { "AvatarFile", "s", update_avatar_file },
+    { "SecondaryVCardFields", "as", update_secondary_vcard_fields },
+    { NULL, NULL, NULL }
+};
 
 static void
 create_props (TpProxy *proxy, GHashTable *props)
@@ -95,7 +108,7 @@ create_props (TpProxy *proxy, GHashTable *props)
     McAccountPrivate *priv = account->priv;
 
     priv->compat_props = g_slice_new0 (McAccountCompatProps);
-    g_hash_table_foreach (props, update_property, account);
+    _mc_iface_update_props (account_compat_properties, props, account);
 }
 
 /**
