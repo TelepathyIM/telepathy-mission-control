@@ -111,7 +111,7 @@ _mcd_account_write_conf (McdAccount *account)
     account_manager = mcd_account_get_account_manager (account);
     g_return_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager));
 
-    mcd_account_manager_write_conf (account_manager);
+    mcd_account_manager_write_conf_async (account_manager, NULL, NULL);
 }
 
 G_GNUC_INTERNAL void _mcd_account_compat_class_init (McdAccountClass *klass);

@@ -452,7 +452,7 @@ complete_account_creation (McdAccount *account,
         account = NULL;
     }
 
-    mcd_account_manager_write_conf (account_manager);
+    mcd_account_manager_write_conf_async (account_manager, NULL, NULL);
 
     cad->callback (account_manager, account, error, cad->user_data);
     if (G_UNLIKELY (error))
