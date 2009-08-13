@@ -1094,6 +1094,64 @@ mcd_account_manager_write_conf (McdAccountManager *account_manager)
                                 account_manager->priv->keyfile, NULL);
 }
 
+/**
+ * McdAccountManagerWriteConfCb:
+ * @account_manager: the #McdAccountManager
+ * @error: a set #GError on failure or %NULL if there was no error
+ * @user_data: user data
+ *
+ * The callback from mcd_account_manager_write_conf_async(). If the config
+ * writing was successful, @error will be %NULL, otherwise it will be set
+ * with the appropriate error.
+ */
+
+/**
+ * mcd_account_manager_write_conf_async:
+ * @account_manager: the #McdAccountManager
+ * @callback: a callback to be called on write success or failure
+ * @user_data: data to be passed to @callback
+ *
+ * Write the account manager configuration to disk. This is an asynchronous
+ * version of mcd_account_manager_write_conf() and should always used in favour
+ * of its synchronous version.
+ */
+void
+mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
+                                      McdAccountManagerWriteConfCb callback,
+                                      gpointer user_data)
+{
+    GKeyFile *keyfile;
+    GError *error = NULL;
+    gchar *filename, *data;
+    gsize len;
+
+    g_return_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager));
+
+    keyfile = account_manager->priv->keyfile;
+
+    DEBUG ("called");
+
+    data = g_key_file_to_data (keyfile, &len, &error);
+
+    if (error == NULL)
+    {
+        filename = get_account_conf_filename ();
+        _mcd_file_set_contents (filename, data, len, &error);
+        g_free (filename);
+        g_free (data);
+    }
+
+    if (callback != NULL)
+    {
+        callback (account_manager, error, user_data);
+    }
+
+    if (error != NULL)
+    {
+        g_error_free (error);
+    }
+}
+
 GHashTable *
 _mcd_account_manager_get_accounts (McdAccountManager *account_manager)
 {

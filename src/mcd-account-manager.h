@@ -77,6 +77,14 @@ TpDBusDaemon *mcd_account_manager_get_dbus_daemon
 GKeyFile *mcd_account_manager_get_config (McdAccountManager *account_manager);
 void mcd_account_manager_write_conf (McdAccountManager *account_manager);
 
+typedef void (McdAccountManagerWriteConfCb) (McdAccountManager *account_manager,
+                                             const GError *error,
+                                             gpointer user_data);
+
+void mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
+                                           McdAccountManagerWriteConfCb callback,
+                                           gpointer user_data);
+
 McdAccount *mcd_account_manager_lookup_account (McdAccountManager *account_manager,
 						const gchar *name);
 McdAccount *mcd_account_manager_lookup_account_by_path (McdAccountManager *account_manager,
