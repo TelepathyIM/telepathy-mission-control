@@ -594,13 +594,36 @@ get_account_data_path (McdAccountPrivate *priv)
 	return g_build_filename (base, priv->unique_name, NULL);
 }
 
-static gboolean
-_mcd_account_delete (McdAccount *account, GError **error)
+typedef struct
+{
+    McdAccount *account;
+    McdAccountDeleteCb callback;
+    gpointer user_data;
+} AccountDeleteData;
+
+static void
+_mcd_account_delete_write_conf_cb (McdAccountManager *account_manager,
+                                   const GError *error,
+                                   gpointer user_data)
+{
+    AccountDeleteData *data = (AccountDeleteData *) user_data;
+
+    if (data->callback != NULL)
+        data->callback (data->account, error, data->user_data);
+
+    g_slice_free (AccountDeleteData, data);
+}
+
+static void
+_mcd_account_delete (McdAccount *account,
+                     McdAccountDeleteCb callback,
+                     gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
     gchar *data_dir_str;
     GDir *data_dir;
     GError *kf_error = NULL;
+    AccountDeleteData *delete_data;
 
     if (!g_key_file_remove_group (priv->keyfile, priv->unique_name,
                                   &kf_error))
@@ -614,8 +637,9 @@ _mcd_account_delete (McdAccount *account, GError **error)
         else
         {
             g_warning ("Could not remove group (%s)", kf_error->message);
-            g_propagate_error (error, kf_error);
-            return FALSE;
+            callback (account, kf_error, user_data);
+            g_error_free (kf_error);
+            return;
         }
     }
 
@@ -635,8 +659,15 @@ _mcd_account_delete (McdAccount *account, GError **error)
         g_rmdir (data_dir_str);
     }
     g_free (data_dir_str);
-    mcd_account_manager_write_conf_async (priv->account_manager, NULL, NULL);
-    return TRUE;
+
+    delete_data = g_slice_new0 (AccountDeleteData);
+    delete_data->account = account;
+    delete_data->callback = callback;
+    delete_data->user_data = user_data;
+
+    mcd_account_manager_write_conf_async (priv->account_manager,
+                                          _mcd_account_delete_write_conf_cb,
+                                          delete_data);
 }
 
 static void
@@ -1503,36 +1534,54 @@ mc_param_type (const TpConnectionManagerParam *param)
     return G_TYPE_INVALID;
 }
 
-gboolean
-mcd_account_delete (McdAccount *account, GError **error)
+void
+mcd_account_delete (McdAccount *account, McdAccountDeleteCb callback,
+                    gpointer user_data)
 {
-    return MCD_ACCOUNT_GET_CLASS (account)->delete (account, error);
+    return MCD_ACCOUNT_GET_CLASS (account)->delete (account, callback, user_data);
+}
+
+typedef struct
+{
+    McdAccount *self;
+    DBusGMethodInvocation *context;
+} RemoveMethodData;
+
+static void
+account_remove_delete_cb (McdAccount *account, const GError *error,
+                          gpointer user_data)
+{
+    RemoveMethodData *data = (RemoveMethodData *) user_data;
+
+    if (error != NULL)
+    {
+        dbus_g_method_return_error (data->context, error);
+        return;
+    }
+
+    if (!data->self->priv->removed)
+    {
+        data->self->priv->removed = TRUE;
+        tp_svc_account_emit_removed (data->self);
+    }
+
+    tp_svc_account_return_from_remove (data->context);
+
+    g_slice_free (RemoveMethodData, data);
 }
 
 static void
 account_remove (TpSvcAccount *svc, DBusGMethodInvocation *context)
 {
     McdAccount *self = MCD_ACCOUNT (svc);
-    GError *error = NULL;
+    RemoveMethodData *data;
+
+    data = g_slice_new0 (RemoveMethodData);
+    data->self = self;
+    data->context = context;
 
     DEBUG ("called");
-    if (!mcd_account_delete (self, &error))
-    {
-	if (!error)
-	    g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
-			 "Internal error");
-	dbus_g_method_return_error (context, error);
-	g_error_free (error);
-	return;
-    }
-
-    if (!self->priv->removed)
-    {
-        self->priv->removed = TRUE;
-        tp_svc_account_emit_removed (self);
-    }
-
-    tp_svc_account_return_from_remove (context);
+    mcd_account_delete (self, account_remove_delete_cb, data);
 }
 
 /*

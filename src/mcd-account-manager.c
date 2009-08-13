@@ -447,7 +447,7 @@ complete_account_creation (McdAccount *account,
 
     if (!ok)
     {
-        mcd_account_delete (account, NULL);
+        mcd_account_delete (account, NULL, NULL);
         g_object_unref (account);
         account = NULL;
     }
