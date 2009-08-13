@@ -1082,6 +1082,14 @@ mcd_account_manager_get_dbus_daemon (McdAccountManager *account_manager)
     return account_manager->priv->dbus_daemon;
 }
 
+/**
+ * mcd_account_manager_write_conf:
+ * @account_manager: the #McdAccountManager
+ *
+ * Write the account manager configuration to disk.
+ *
+ * Deprecated: Use mcd_account_manager_write_conf_async() in all code.
+ */
 void
 mcd_account_manager_write_conf (McdAccountManager *account_manager)
 {
