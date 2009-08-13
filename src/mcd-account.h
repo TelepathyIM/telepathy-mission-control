@@ -54,6 +54,9 @@ typedef void (*McdAccountLoadCb) (McdAccount *account,
 typedef void (*McdAccountDeleteCb) (McdAccount *account,
                                     const GError *error,
                                     gpointer user_data);
+typedef void (*McdAccountSetParameterCb) (McdAccount *account,
+                                          const GError *error,
+                                          gpointer user_data);
 
 struct _McdAccountClass
 {
@@ -61,7 +64,9 @@ struct _McdAccountClass
     gboolean (*get_parameter) (McdAccount *account, const gchar *name,
                                GValue *value);
     void (*set_parameter) (McdAccount *account, const gchar *name,
-                           const GValue *value);
+                           const GValue *value,
+                           McdAccountSetParameterCb callback,
+                           gpointer user_data);
     void (*delete) (McdAccount *account, McdAccountDeleteCb callback,
                     gpointer user_data);
     void (*load) (McdAccount *account, McdAccountLoadCb callback,

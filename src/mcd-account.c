@@ -336,7 +336,8 @@ mcd_account_loaded (McdAccount *account)
 }
 
 static void
-set_parameter (McdAccount *account, const gchar *name, const GValue *value)
+set_parameter (McdAccount *account, const gchar *name, const GValue *value,
+               McdAccountSetParameterCb callback, gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
     gchar key[MAX_KEY_LENGTH];
@@ -348,7 +349,7 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value)
     {
         g_key_file_remove_key (priv->keyfile, priv->unique_name, key, NULL);
         DEBUG ("unset param %s", name);
-        return;
+        goto out;
     }
 
     switch (G_VALUE_TYPE (value))
@@ -418,6 +419,12 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value)
         {
             g_warning ("Unexpected param type %s", G_VALUE_TYPE_NAME (value));
         }
+    }
+
+out:
+    if (callback != NULL)
+    {
+      callback (account, NULL, user_data);
     }
 }
 
@@ -1635,15 +1642,20 @@ mcd_account_check_parameters (McdAccount *account)
  * @account: the #McdAccount.
  * @name: the parameter name.
  * @value: a #GValue with the value to set, or %NULL.
+ * @callback: a function to be called on success or failure
+ * @user_data: data to be passed to @callback
  *
  * Sets the parameter @name to the value in @value. If @value, is %NULL, the
  * parameter is unset.
  */
 static void
 _mcd_account_set_parameter (McdAccount *account, const gchar *name,
-                            const GValue *value)
+                            const GValue *value,
+                            McdAccountSetParameterCb callback,
+                            gpointer user_data)
 {
-    MCD_ACCOUNT_GET_CLASS (account)->set_parameter (account, name, value);
+    MCD_ACCOUNT_GET_CLASS (account)->set_parameter (account, name, value,
+                                                    callback, user_data);
 }
 
 /*
@@ -1756,7 +1768,7 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     g_hash_table_iter_init (&iter, params);
     while (g_hash_table_iter_next (&iter, (gpointer)&name, (gpointer)&value))
     {
-        _mcd_account_set_parameter (account, name, value);
+        _mcd_account_set_parameter (account, name, value, NULL, NULL);
     }
 
     if (unset != NULL)
@@ -1782,7 +1794,7 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
                 reset_connection = TRUE;
             }
 
-            _mcd_account_set_parameter (account, *unset_iter, NULL);
+            _mcd_account_set_parameter (account, *unset_iter, NULL, NULL, NULL);
         }
     }
 
