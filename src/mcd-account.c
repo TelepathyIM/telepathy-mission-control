@@ -207,7 +207,7 @@ _mcd_account_maybe_autoconnect (McdAccount *account)
 
     master = mcd_master_get_default ();
 
-    if (!_mcd_master_account_conditions_satisfied (master, account))
+    if (!_mcd_master_account_replace_transport (master, account))
     {
         DEBUG ("%s conditions not satisfied", priv->unique_name);
         return;
