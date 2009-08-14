@@ -1173,21 +1173,43 @@ get_avatar (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     g_value_take_string (va->values + 1, mime_type);
 }
 
-static void
-get_parameters (TpSvcDBusProperties *self, const gchar *name, GValue *value)
+typedef struct
 {
-    GHashTable *parameters = NULL;
+    mcddbus_get_cb callback;
+    gpointer user_data;
+} GetParametersPropData;
 
-    /* TODO FIXME RIGHT NOW: move to async dbus properties solution
-     * so we can call dup_parameters
-     * parameters = _mcd_account_dup_parameters (account);
-     * For now, just return an empty asv.
-     */
-    parameters = g_hash_table_new_full (g_str_hash, g_str_equal,
-        NULL, (GDestroyNotify) tp_g_value_slice_free);
+static void
+get_parameters_dup_parameters_cb (McdAccount *account,
+                                  GHashTable *params, gpointer user_data)
+{
+    TpSvcDBusProperties *self = TP_SVC_DBUS_PROPERTIES (account);
+    GetParametersPropData *data = (GetParametersPropData *) user_data;
+    GValue *value;
 
-    g_value_init (value, TP_HASH_TYPE_STRING_VARIANT_MAP);
-    g_value_take_boxed (value, parameters);
+    value = tp_g_value_slice_new_take_boxed (TP_HASH_TYPE_STRING_VARIANT_MAP,
+                                             params);
+
+    if (data->callback != NULL)
+      data->callback (self, value, NULL, data->user_data);
+
+    tp_g_value_slice_free (value);
+    g_slice_free (GetParametersPropData, data);
+}
+
+static void
+get_parameters_async (TpSvcDBusProperties *self, const gchar *name,
+                      mcddbus_get_cb callback, gpointer user_data)
+{
+    McdAccount *account = MCD_ACCOUNT (self);
+    GetParametersPropData *data;
+
+    data = g_slice_new0 (GetParametersPropData);
+    data->callback = callback;
+    data->user_data = user_data;
+
+    _mcd_account_dup_parameters (account, get_parameters_dup_parameters_cb,
+        data);
 }
 
 static gboolean
@@ -1518,7 +1540,7 @@ static const McdDBusProp account_properties[] = {
     { "Valid", NULL, get_valid },
     { "Enabled", set_enabled, get_enabled },
     { "Nickname", set_nickname, get_nickname },
-    { "Parameters", NULL, get_parameters },
+    { "Parameters", NULL, NULL, get_parameters_async },
     { "AutomaticPresence", set_automatic_presence, get_automatic_presence },
     { "ConnectAutomatically", set_connect_automatically, get_connect_automatically },
     { "Connection", NULL, get_connection },
