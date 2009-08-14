@@ -68,12 +68,11 @@ get_interface_properties (TpSvcDBusProperties *object, const gchar *interface)
     return NULL;
 }
 
-gboolean
-mcd_dbusprop_set_property (TpSvcDBusProperties *self,
-			   const gchar *interface_name,
-			   const gchar *property_name,
-			   const GValue *value,
-			   GError **error)
+static const McdDBusProp *
+get_mcddbusprop (TpSvcDBusProperties *self,
+                 const gchar *interface_name,
+                 const gchar *property_name,
+                 GError **error)
 {
     const McdDBusProp *prop_array, *property;
 
@@ -82,28 +81,47 @@ mcd_dbusprop_set_property (TpSvcDBusProperties *self,
     prop_array = get_interface_properties (self, interface_name);
     if (!prop_array)
     {
-	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-		     "invalid interface: %s", interface_name);
-	return FALSE;
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "invalid interface: %s", interface_name);
+        return NULL;
     }
 
     /* look for our property */
     for (property = prop_array; property->name != NULL; property++)
-	if (strcmp (property->name, property_name) == 0)
-	    break;
+        if (strcmp (property->name, property_name) == 0)
+            break;
+
     if (!property->name)
     {
-	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-		     "invalid property: %s", property_name);
-	return FALSE;
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "invalid property: %s", property_name);
+        return NULL;
     }
+
+    return property;
+}
+
+gboolean
+mcd_dbusprop_set_property (TpSvcDBusProperties *self,
+                           const gchar *interface_name,
+                           const gchar *property_name,
+                           const GValue *value,
+                           GError **error)
+{
+    const McdDBusProp *property;
+
+    property = get_mcddbusprop (self, interface_name, property_name, error);
+
+    if (property == NULL)
+      return FALSE;
 
     if (!property->setprop)
     {
-	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-		     "property %s cannot be written", property_name);
-	return FALSE;
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "property %s cannot be written", property_name);
+        return FALSE;
     }
+
     /* we pass property->name, because we know it's a static value and there
      * will be no need to care about its lifetime */
     return property->setprop (self, property->name, value, error);
@@ -132,38 +150,25 @@ dbusprop_set (TpSvcDBusProperties *self,
 
 gboolean
 mcd_dbusprop_get_property (TpSvcDBusProperties *self,
-			   const gchar *interface_name,
-			   const gchar *property_name,
-			   GValue *value,
-			   GError **error)
+                           const gchar *interface_name,
+                           const gchar *property_name,
+                           GValue *value,
+                           GError **error)
 {
-    const McdDBusProp *prop_array, *property;
+    const McdDBusProp *property;
 
-    prop_array = get_interface_properties (self, interface_name);
-    if (!prop_array)
-    {
-	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-		     "invalid interface: %s", interface_name);
-	return FALSE;
-    }
+    property = get_mcddbusprop (self, interface_name, property_name, error);
 
-    /* look for our property */
-    for (property = prop_array; property->name != NULL; property++)
-	if (strcmp (property->name, property_name) == 0)
-	    break;
-    if (!property->name)
-    {
-	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-		     "invalid property: %s", property_name);
-	return FALSE;
-    }
+    if (property == NULL)
+      return FALSE;
 
     if (!property->getprop)
     {
-	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-		     "property %s cannot be read", property_name);
-	return FALSE;
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "property %s cannot be read", property_name);
+        return FALSE;
     }
+
     property->getprop (self, property_name, value);
     return TRUE;
 }
