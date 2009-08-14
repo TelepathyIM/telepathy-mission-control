@@ -33,6 +33,7 @@ main (int argc, char **argv)
     McdService *mcd;
 
     g_type_init ();
+    g_set_application_name ("Account manager");
 
     mcd = mcd_service_new ();
     
