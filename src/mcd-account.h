@@ -48,6 +48,16 @@ struct _McdAccount
     McdAccountPrivate *priv;
 };
 
+typedef enum
+{
+  MCD_ACCOUNT_ERROR_SET_PARAMETER,
+  MCD_ACCOUNT_ERROR_GET_PARAMETER,
+} McdAccountError;
+
+GQuark mcd_account_error_quark (void);
+
+#define MCD_ACCOUNT_ERROR (mcd_account_error_quark ())
+
 typedef void (*McdAccountLoadCb) (McdAccount *account,
                                   const GError *error,
                                   gpointer user_data);

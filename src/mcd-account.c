@@ -166,6 +166,17 @@ enum
 static guint _mcd_account_signals[LAST_SIGNAL] = { 0 };
 static GQuark account_ready_quark = 0;
 
+GQuark
+mcd_account_error_quark (void)
+{
+    static GQuark quark = 0;
+
+    if (quark == 0)
+        quark = g_quark_from_static_string ("mcd-account-error");
+
+    return quark;
+}
+
 /*
  * _mcd_account_maybe_autoconnect:
  * @account: the #McdAccount.
