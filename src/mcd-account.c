@@ -363,6 +363,7 @@ mcd_account_loaded (McdAccount *account)
 typedef struct
 {
     McdAccount *account;
+    gchar *name;
     McdAccountSetParameterCb callback;
     gpointer user_data;
 } KeyringSetData;
@@ -380,6 +381,10 @@ keyring_set_cb (GnomeKeyringResult result,
                      "Failed to set item in keyring: %s",
                      gnome_keyring_result_to_message (result));
     }
+    else
+    {
+        DEBUG ("Set secret parameter %s in keyring", data->name);
+    }
 
     if (data->callback != NULL)
         data->callback (data->account, error, data->user_data);
@@ -387,6 +392,7 @@ keyring_set_cb (GnomeKeyringResult result,
     if (error != NULL)
         g_error_free (error);
 
+    g_free (data->name);
     g_slice_free (KeyringSetData, data);
 }
 #endif
@@ -412,27 +418,34 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value,
     {
         if (gnome_keyring_is_available ())
         {
-            gchar *display_name;
-            KeyringSetData *data;
+            if (G_VALUE_TYPE (value) != G_TYPE_STRING)
+            {
+                g_warning ("Cannot set non-string secret parameter %s in keyring; "
+                           "falling back to storing in keyfile", name);
+            }
+            else
+            {
+                gchar *display_name;
+                KeyringSetData *data;
 
-            data = g_slice_new0 (KeyringSetData);
-            data->account = account;
-            data->callback = callback;
-            data->user_data = user_data;
+                data = g_slice_new0 (KeyringSetData);
+                data->account = account;
+                data->name = g_strdup (name);
+                data->callback = callback;
+                data->user_data = user_data;
 
-            display_name = g_strdup_printf ("Password for account %s",
-                                            priv->unique_name);
+                display_name = g_strdup_printf ("Password for account %s",
+                                                priv->unique_name);
 
-            /* TODO: this assumes the secret to store is a password (ie. is
-             * a string. */
-            gnome_keyring_store_password (&keyring_schema, GNOME_KEYRING_DEFAULT,
-                                          display_name, g_value_get_string (value),
-                                          keyring_set_cb, data, NULL,
-                                          "account", priv->unique_name,
-                                          "param", name,
-                                          NULL);
-            g_free (display_name);
-            return;
+                gnome_keyring_store_password (&keyring_schema, GNOME_KEYRING_DEFAULT,
+                                              display_name, g_value_get_string (value),
+                                              keyring_set_cb, data, NULL,
+                                              "account", priv->unique_name,
+                                              "param", name,
+                                              NULL);
+                g_free (display_name);
+                return;
+            }
         }
         else
         {
@@ -533,6 +546,7 @@ static GType mc_param_type (const TpConnectionManagerParam *param);
 typedef struct
 {
     McdAccount *account;
+    gchar *name;
     McdAccountGetParameterCb callback;
     gpointer user_data;
 } KeyringGetData;
@@ -553,6 +567,7 @@ keyring_get_cb (GnomeKeyringResult result, const gchar* password,
     }
     else
     {
+        DEBUG ("Successfully got secret parameter %s from keyring", data->name);
         value = tp_g_value_slice_new_string (password);
     }
 
@@ -565,6 +580,7 @@ keyring_get_cb (GnomeKeyringResult result, const gchar* password,
     if (error != NULL)
         g_error_free (error);
 
+    g_free (data->name);
     g_slice_free (KeyringGetData, data);
 }
 #endif
@@ -590,6 +606,8 @@ get_parameter (McdAccount *account, const gchar *name,
     param = mcd_manager_get_protocol_param (priv->manager,
                                             priv->protocol_name, name);
 
+    type = mc_param_type (param);
+
     if (param != NULL && param->flags & TP_CONN_MGR_PARAM_FLAG_SECRET)
         is_secret = TRUE;
 
@@ -598,19 +616,27 @@ get_parameter (McdAccount *account, const gchar *name,
     {
         if (gnome_keyring_is_available ())
         {
-          KeyringGetData *data;
+            if (type != G_TYPE_STRING)
+            {
+                g_warning ("Not looking for non-string secret parameter %s in keyring", name);
+            }
+            else
+            {
+                KeyringGetData *data;
 
-          data = g_slice_new0 (KeyringGetData);
-          data->account = account;
-          data->callback = callback;
-          data->user_data = user_data;
+                data = g_slice_new0 (KeyringGetData);
+                data->account = account;
+                data->name = g_strdup (name);
+                data->callback = callback;
+                data->user_data = user_data;
 
-          gnome_keyring_find_password (&keyring_schema,
-                                       keyring_get_cb, data, NULL,
-                                       "account", priv->unique_name,
-                                       "param", name,
-                                       NULL);
-          return;
+                gnome_keyring_find_password (&keyring_schema,
+                                             keyring_get_cb, data, NULL,
+                                             "account", priv->unique_name,
+                                             "param", name,
+                                             NULL);
+                return;
+            }
         }
         else
         {
@@ -623,8 +649,6 @@ get_parameter (McdAccount *account, const gchar *name,
     g_snprintf (key, sizeof (key), "param-%s", name);
     if (!g_key_file_has_key (priv->keyfile, priv->unique_name, key, NULL))
         goto error;
-
-    type = mc_param_type (param);
 
     switch (type)
     {
