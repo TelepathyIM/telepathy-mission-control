@@ -856,6 +856,15 @@ _mcd_account_delete_write_conf_cb (McdAccountManager *account_manager,
     g_slice_free (AccountDeleteData, data);
 }
 
+#if ENABLE_GNOME_KEYRING
+static void
+keyring_delete_cb (GnomeKeyringResult result, gpointer user_data)
+{
+    gchar *name = (gchar *) user_data;
+    DEBUG ("Deleted secret parameter %s from keyring", name);
+}
+#endif
+
 static void
 _mcd_account_delete (McdAccount *account,
                      McdAccountDeleteCb callback,
@@ -901,6 +910,39 @@ _mcd_account_delete (McdAccount *account,
         g_rmdir (data_dir_str);
     }
     g_free (data_dir_str);
+
+#if ENABLE_GNOME_KEYRING
+    /* Delete any secret parameters from the keyring */
+    if (gnome_keyring_is_available ())
+    {
+        const TpConnectionManagerParam *params, *p;
+
+        params = mcd_manager_get_parameters (priv->manager, priv->protocol_name);
+
+        for (p = params; p->name != NULL; p++)
+        {
+            if (p->flags & TP_CONN_MGR_PARAM_FLAG_SECRET
+                && mc_param_type (p) == G_TYPE_STRING)
+            {
+                gchar *name;
+
+                name = g_strdup (p->name);
+                gnome_keyring_delete_password (&keyring_schema,
+                                               keyring_delete_cb,
+                                               name,
+                                               (GDestroyNotify) g_free,
+                                               "account", priv->unique_name,
+                                               "param", name,
+                                               NULL);
+            }
+        }
+    }
+    else
+    {
+        g_warning ("GNOME keyring not available: cannot delete secret "
+                   "parameters from keyring");
+    }
+#endif
 
     delete_data = g_slice_new0 (AccountDeleteData);
     delete_data->account = account;
