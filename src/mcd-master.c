@@ -191,7 +191,7 @@ mcd_master_transport_disconnected (McdMaster *master, McdTransportPlugin *plugin
 
             /* it may be that there is another transport to which the account
              * can reconnect */
-            if (_mcd_master_account_conditions_satisfied (master, account))
+            if (_mcd_master_account_replace_transport (master, account))
             {
                 DEBUG ("conditions matched");
                 _mcd_account_connect_with_auto_presence (account);
@@ -816,8 +816,8 @@ _mcd_master_get_nth_account_connection (McdMaster *master,
 }
 
 gboolean
-_mcd_master_account_conditions_satisfied (McdMaster *master,
-                                          McdAccount *account)
+_mcd_master_account_replace_transport (McdMaster *master,
+                                       McdAccount *account)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     GHashTable *conditions;
