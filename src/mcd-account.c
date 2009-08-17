@@ -66,6 +66,9 @@ GnomeKeyringPasswordSchema keyring_schema = {
         { NULL, 0 }
     }
 };
+
+#define MCD_GNOME_KEYRING_GROUP_NAME "group"
+#define MCD_GNOME_KEYRING_KEY_NAME "key"
 #endif
 
 #define DELAY_PROPERTY_CHANGED
@@ -359,6 +362,95 @@ mcd_account_loaded (McdAccount *account)
     g_object_unref (account);
 }
 
+static gboolean
+keyfile_set_value (GKeyFile *keyfile,
+                   const gchar *group_name,
+                   const gchar *key_name,
+                   const GValue *value,
+                   GError **error)
+{
+    gchar buf[21];  /* enough for '-' + the 19 digits of 2**63 + '\0' */
+
+    if (!value)
+    {
+        g_key_file_remove_key (keyfile, group_name, key_name, NULL);
+        DEBUG ("unset param %s", key_name);
+        return TRUE;
+    }
+
+    switch (G_VALUE_TYPE (value))
+    {
+    case G_TYPE_STRING:
+        g_key_file_set_string (keyfile, group_name, key_name,
+                               g_value_get_string (value));
+        break;
+
+    case G_TYPE_UINT:
+        g_snprintf (buf, sizeof (buf), "%u", g_value_get_uint (value));
+        g_key_file_set_string (keyfile, group_name, key_name,
+                               buf);
+        break;
+
+    case G_TYPE_INT:
+        g_key_file_set_integer (keyfile, group_name, key_name,
+                                g_value_get_int (value));
+        break;
+
+    case G_TYPE_BOOLEAN:
+        g_key_file_set_boolean (keyfile, group_name, key_name,
+                                g_value_get_boolean (value));
+        break;
+
+    case G_TYPE_UCHAR:
+        g_key_file_set_integer (keyfile, group_name, key_name,
+                                g_value_get_uchar (value));
+        break;
+
+    case G_TYPE_UINT64:
+        g_snprintf (buf, sizeof (buf), "%" G_GUINT64_FORMAT,
+                    g_value_get_uint64 (value));
+        g_key_file_set_string (keyfile, group_name, key_name,
+                               buf);
+        break;
+
+    case G_TYPE_INT64:
+        g_snprintf (buf, sizeof (buf), "%" G_GINT64_FORMAT,
+                    g_value_get_int64 (value));
+        g_key_file_set_string (keyfile, group_name, key_name,
+                               buf);
+        break;
+
+    case G_TYPE_DOUBLE:
+        g_key_file_set_double (keyfile, group_name, key_name,
+                               g_value_get_double (value));
+        break;
+
+    default:
+        if (G_VALUE_HOLDS (value, G_TYPE_STRV))
+        {
+            gchar **strings = g_value_get_boxed (value);
+
+            g_key_file_set_string_list (keyfile, group_name, key_name,
+                                        (const gchar **)strings,
+                                        g_strv_length (strings));
+        }
+        else if (G_VALUE_HOLDS (value, DBUS_TYPE_G_OBJECT_PATH))
+        {
+            const gchar *path = g_value_get_boxed (value);
+
+            g_key_file_set_string (keyfile, group_name, key_name,
+                                   path);
+        }
+        else
+        {
+            g_warning ("Unexpected param type %s", G_VALUE_TYPE_NAME (value));
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
 #if ENABLE_GNOME_KEYRING
 typedef struct
 {
@@ -403,9 +495,9 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value,
 {
     McdAccountPrivate *priv = account->priv;
     gchar key[MAX_KEY_LENGTH];
-    gchar buf[21];  /* enough for '-' + the 19 digits of 2**63 + '\0' */
     const TpConnectionManagerParam *param;
     gboolean is_secret = FALSE;
+    GError *error = NULL;
 
     param = mcd_manager_get_protocol_param (priv->manager,
                                             priv->protocol_name, name);
@@ -418,45 +510,52 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value,
     {
         if (gnome_keyring_is_available ())
         {
-            if (G_VALUE_TYPE (value) != G_TYPE_STRING)
+            gchar *display_name;
+            KeyringSetData *data;
+
+            data = g_slice_new0 (KeyringSetData);
+            data->account = account;
+            data->name = g_strdup (name);
+            data->callback = callback;
+            data->user_data = user_data;
+
+            display_name = g_strdup_printf ("account: %s; param: %s",
+                                            priv->unique_name, name);
+
+            if (value != NULL)
             {
-                g_warning ("Cannot set non-string secret parameter %s in keyring; "
-                           "falling back to storing in keyfile", name);
+                GKeyFile *keyfile;
+                gchar *keyfile_data;
+
+                /* TODO: handle errors */
+                keyfile = g_key_file_new ();
+                keyfile_set_value (keyfile, MCD_GNOME_KEYRING_GROUP_NAME,
+                                   MCD_GNOME_KEYRING_KEY_NAME, value, &error);
+
+                keyfile_data = g_key_file_get_value (keyfile,
+                                                     MCD_GNOME_KEYRING_GROUP_NAME,
+                                                     MCD_GNOME_KEYRING_KEY_NAME, &error);
+
+                gnome_keyring_store_password (&keyring_schema, GNOME_KEYRING_DEFAULT,
+                                              display_name, keyfile_data,
+                                              keyring_set_cb, data, NULL,
+                                              "account", priv->unique_name,
+                                              "param", name,
+                                              NULL);
+
+                g_free (keyfile_data);
+                g_key_file_free (keyfile);
             }
             else
             {
-                gchar *display_name;
-                KeyringSetData *data;
-
-                data = g_slice_new0 (KeyringSetData);
-                data->account = account;
-                data->name = g_strdup (name);
-                data->callback = callback;
-                data->user_data = user_data;
-
-                display_name = g_strdup_printf ("Password for account %s",
-                                                priv->unique_name);
-
-                if (value != NULL)
-                {
-                    gnome_keyring_store_password (&keyring_schema, GNOME_KEYRING_DEFAULT,
-                                                  display_name, g_value_get_string (value),
-                                                  keyring_set_cb, data, NULL,
-                                                  "account", priv->unique_name,
-                                                  "param", name,
-                                                  NULL);
-                }
-                else
-                {
-                    gnome_keyring_delete_password (&keyring_schema, keyring_set_cb,
-                                                   data, NULL,
-                                                   "account", priv->unique_name,
-                                                   "param", name,
-                                                   NULL);
-                }
-                g_free (display_name);
-                return;
+                gnome_keyring_delete_password (&keyring_schema, keyring_set_cb,
+                                               data, NULL,
+                                               "account", priv->unique_name,
+                                               "param", name,
+                                               NULL);
             }
+            g_free (display_name);
+            return;
         }
         else
         {
@@ -468,87 +567,136 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value,
 
     g_snprintf (key, sizeof (key), "param-%s", name);
 
-    if (!value)
+    keyfile_set_value (priv->keyfile, priv->unique_name, key,
+                       value, &error);
+
+    if (callback != NULL)
     {
-        g_key_file_remove_key (priv->keyfile, priv->unique_name, key, NULL);
-        DEBUG ("unset param %s", name);
-        goto out;
+        callback (account, error, user_data);
     }
 
-    switch (G_VALUE_TYPE (value))
+    if (error != NULL)
+        g_error_free (error);
+}
+
+static GValue *
+keyfile_get_value (GKeyFile *keyfile,
+                   const gchar *group_name,
+                   const gchar *key_name,
+                   GType type,
+                   GError **error)
+{
+    GValue *value = NULL;
+
+    gchar *v_string = NULL;
+    gint64 v_int = 0;
+    guint64 v_uint = 0;
+    gboolean v_bool = FALSE;
+    double v_double = 0.0;
+
+    switch (type)
     {
     case G_TYPE_STRING:
-	g_key_file_set_string (priv->keyfile, priv->unique_name, key,
-			       g_value_get_string (value));
-	break;
-
-    case G_TYPE_UINT:
-        g_snprintf (buf, sizeof (buf), "%u", g_value_get_uint (value));
-        g_key_file_set_string (priv->keyfile, priv->unique_name, key,
-                               buf);
+        v_string = g_key_file_get_string (keyfile, group_name,
+                                          key_name, error);
+        value = tp_g_value_slice_new_take_string (v_string);
         break;
 
     case G_TYPE_INT:
-	g_key_file_set_integer (priv->keyfile, priv->unique_name, key,
-				g_value_get_int (value));
-	break;
-
-    case G_TYPE_BOOLEAN:
-	g_key_file_set_boolean (priv->keyfile, priv->unique_name, key,
-				g_value_get_boolean (value));
-	break;
-
-    case G_TYPE_UCHAR:
-        g_key_file_set_integer (priv->keyfile, priv->unique_name, key,
-                                g_value_get_uchar (value));
-        break;
-
-    case G_TYPE_UINT64:
-        g_snprintf (buf, sizeof (buf), "%" G_GUINT64_FORMAT,
-                    g_value_get_uint64 (value));
-        g_key_file_set_string (priv->keyfile, priv->unique_name, key,
-                               buf);
+        v_int = g_key_file_get_integer (keyfile, group_name,
+                                        key_name, error);
+        value = tp_g_value_slice_new_int (v_int);
         break;
 
     case G_TYPE_INT64:
-        g_snprintf (buf, sizeof (buf), "%" G_GINT64_FORMAT,
-                    g_value_get_int64 (value));
-        g_key_file_set_string (priv->keyfile, priv->unique_name, key,
-                               buf);
+        v_int = tp_g_key_file_get_int64 (keyfile, group_name,
+                                         key_name, error);
+        value = tp_g_value_slice_new_int64 (v_int);
         break;
 
-    case G_TYPE_DOUBLE:
-        g_key_file_set_double (priv->keyfile, priv->unique_name, key,
-                               g_value_get_double (value));
-        break;
+    case G_TYPE_UINT:
+        v_uint = tp_g_key_file_get_uint64 (keyfile,
+                                           group_name, key_name, error);
 
-    default:
-        if (G_VALUE_HOLDS (value, G_TYPE_STRV))
+        if (v_uint > 0xFFFFFFFFU)
         {
-            gchar **strings = g_value_get_boxed (value);
-
-            g_key_file_set_string_list (priv->keyfile, priv->unique_name, key,
-                                        (const gchar **)strings,
-                                        g_strv_length (strings));
-        }
-        else if (G_VALUE_HOLDS (value, DBUS_TYPE_G_OBJECT_PATH))
-        {
-            const gchar *path = g_value_get_boxed (value);
-
-            g_key_file_set_string (priv->keyfile, priv->unique_name, key,
-                                   path);
+            /* TODO: set an error */
         }
         else
         {
-            g_warning ("Unexpected param type %s", G_VALUE_TYPE_NAME (value));
+            value = tp_g_value_slice_new_uint (v_uint);
+        }
+        break;
+
+    case G_TYPE_UCHAR:
+        v_int = g_key_file_get_integer (keyfile, group_name,
+                                        key_name, error);
+
+        if (v_int < 0 || v_int > 0xFF)
+        {
+            /* TODO: set an error */
+        }
+        else
+        {
+            value = tp_g_value_slice_new (G_TYPE_UCHAR);
+            g_value_set_uchar (value, v_int);
+        }
+        break;
+
+    case G_TYPE_UINT64:
+        v_uint = tp_g_key_file_get_uint64 (keyfile,
+                                           group_name, key_name, error);
+
+        value = tp_g_value_slice_new_uint64 (v_uint);
+        break;
+
+    case G_TYPE_BOOLEAN:
+        v_bool = g_key_file_get_boolean (keyfile, group_name,
+                                         key_name, NULL);
+
+        value = tp_g_value_slice_new_boolean (v_bool);
+        break;
+
+    case G_TYPE_DOUBLE:
+        v_double = g_key_file_get_double (keyfile, group_name,
+                                          key_name, NULL);
+
+        value = tp_g_value_slice_new_double (v_double);
+        break;
+
+    default:
+        if (type == G_TYPE_STRV)
+        {
+            gchar **v = g_key_file_get_string_list (keyfile,
+                                                    group_name, key_name,
+                                                    NULL, error);
+
+            value = tp_g_value_slice_new_take_boxed (G_TYPE_STRV, v);
+        }
+        else if (type == DBUS_TYPE_G_OBJECT_PATH)
+        {
+            v_string = g_key_file_get_string (keyfile,
+                                              group_name, key_name,
+                                              error);
+
+            if (!tp_dbus_check_valid_object_path (v_string, NULL))
+            {
+                g_free (v_string);
+                /* TODO: set an error */
+            }
+            else
+            {
+                value = tp_g_value_slice_new_take_object_path (v_string);
+            }
+        }
+        else
+        {
+            g_warning ("%s: cannot get property %s, unknown type %s",
+                       G_STRFUNC, key_name, g_type_name (type));
         }
     }
 
-out:
-    if (callback != NULL)
-    {
-      callback (account, NULL, user_data);
-    }
+    return value;
 }
 
 static GType mc_param_type (const TpConnectionManagerParam *param);
@@ -558,6 +706,7 @@ typedef struct
 {
     McdAccount *account;
     gchar *name;
+    GType type;
     McdAccountGetParameterCb callback;
     gpointer user_data;
 } KeyringGetData;
@@ -569,6 +718,7 @@ keyring_get_cb (GnomeKeyringResult result, const gchar* password,
     KeyringGetData *data = (KeyringGetData *) user_data;
     GValue *value = NULL;
     GError *error = NULL;
+    GKeyFile *keyfile = NULL;
 
     if (result != GNOME_KEYRING_RESULT_OK)
     {
@@ -579,11 +729,21 @@ keyring_get_cb (GnomeKeyringResult result, const gchar* password,
     else
     {
         DEBUG ("Successfully got secret parameter %s from keyring", data->name);
-        value = tp_g_value_slice_new_string (password);
+
+        keyfile = g_key_file_new ();
+        g_key_file_set_value (keyfile, MCD_GNOME_KEYRING_GROUP_NAME,
+            MCD_GNOME_KEYRING_KEY_NAME, password);
+
+        value = keyfile_get_value (keyfile, MCD_GNOME_KEYRING_GROUP_NAME,
+                                   MCD_GNOME_KEYRING_KEY_NAME,
+                                   data->type, &error);
     }
 
     if (data->callback != NULL)
         data->callback (data->account, value, error, data->user_data);
+
+    if (keyfile != NULL)
+        g_key_file_free (keyfile);
 
     if (value != NULL)
         tp_g_value_slice_free (value);
@@ -608,12 +768,6 @@ get_parameter (McdAccount *account, const gchar *name,
     GValue *value = NULL;
     GType type;
 
-    gchar *v_string = NULL;
-    gint64 v_int = 0;
-    guint64 v_uint = 0;
-    gboolean v_bool = FALSE;
-    double v_double = 0.0;
-
     param = mcd_manager_get_protocol_param (priv->manager,
                                             priv->protocol_name, name);
 
@@ -627,27 +781,21 @@ get_parameter (McdAccount *account, const gchar *name,
     {
         if (gnome_keyring_is_available ())
         {
-            if (type != G_TYPE_STRING)
-            {
-                g_warning ("Not looking for non-string secret parameter %s in keyring", name);
-            }
-            else
-            {
-                KeyringGetData *data;
+            KeyringGetData *data;
 
-                data = g_slice_new0 (KeyringGetData);
-                data->account = account;
-                data->name = g_strdup (name);
-                data->callback = callback;
-                data->user_data = user_data;
+            data = g_slice_new0 (KeyringGetData);
+            data->account = account;
+            data->name = g_strdup (name);
+            data->type = type;
+            data->callback = callback;
+            data->user_data = user_data;
 
-                gnome_keyring_find_password (&keyring_schema,
-                                             keyring_get_cb, data, NULL,
-                                             "account", priv->unique_name,
-                                             "param", name,
-                                             NULL);
-                return;
-            }
+            gnome_keyring_find_password (&keyring_schema,
+                                         keyring_get_cb, data, NULL,
+                                         "account", priv->unique_name,
+                                         "param", name,
+                                         NULL);
+            return;
         }
         else
         {
@@ -658,103 +806,13 @@ get_parameter (McdAccount *account, const gchar *name,
 #endif
 
     g_snprintf (key, sizeof (key), "param-%s", name);
-    if (!g_key_file_has_key (priv->keyfile, priv->unique_name, key, NULL))
-        goto error;
-
-    switch (type)
+    if (g_key_file_has_key (priv->keyfile, priv->unique_name, key, NULL))
     {
-    case G_TYPE_STRING:
-        v_string = g_key_file_get_string (priv->keyfile, priv->unique_name,
-                                          key, NULL);
-        value = tp_g_value_slice_new_take_string (v_string);
-        break;
-
-    case G_TYPE_INT:
-        v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
-                                        key, NULL);
-        value = tp_g_value_slice_new_int (v_int);
-        break;
-
-    case G_TYPE_INT64:
-        v_int = tp_g_key_file_get_int64 (priv->keyfile, priv->unique_name,
-                                         key, NULL);
-        value = tp_g_value_slice_new_int64 (v_int);
-        break;
-
-    case G_TYPE_UINT:
-        v_uint = tp_g_key_file_get_uint64 (priv->keyfile,
-                                           priv->unique_name, key, NULL);
-
-        if (v_uint > 0xFFFFFFFFU)
-        {
-            goto error;
-        }
-
-        value = tp_g_value_slice_new_uint (v_uint);
-        break;
-
-    case G_TYPE_UCHAR:
-        v_int = g_key_file_get_integer (priv->keyfile, priv->unique_name,
-                                        key, NULL);
-
-        if (v_int < 0 || v_int > 0xFF)
-        {
-            goto error;
-        }
-        value = tp_g_value_slice_new (G_TYPE_UCHAR);
-        g_value_set_uchar (value, v_int);
-        break;
-
-    case G_TYPE_UINT64:
-        v_uint = tp_g_key_file_get_uint64 (priv->keyfile,
-                                           priv->unique_name, key, NULL);
-
-        value = tp_g_value_slice_new_uint64 (v_uint);
-        break;
-
-    case G_TYPE_BOOLEAN:
-        v_bool = g_key_file_get_boolean (priv->keyfile, priv->unique_name,
-                                         key, NULL);
-
-        value = tp_g_value_slice_new_boolean (v_bool);
-        break;
-
-    case G_TYPE_DOUBLE:
-        v_double = g_key_file_get_double (priv->keyfile, priv->unique_name,
-                                          key, NULL);
-
-        value = tp_g_value_slice_new_double (v_double);
-        break;
-
-    default:
-        if (type == G_TYPE_STRV)
-        {
-            gchar **v = g_key_file_get_string_list (priv->keyfile,
-                                                    priv->unique_name, key,
-                                                    NULL, NULL);
-
-            value = tp_g_value_slice_new_take_boxed (G_TYPE_STRV, v);
-        }
-        else if (type == DBUS_TYPE_G_OBJECT_PATH)
-        {
-            v_string = g_key_file_get_string (priv->keyfile,
-                                              priv->unique_name, key,
-                                              NULL);
-
-            if (!tp_dbus_check_valid_object_path (v_string, NULL))
-            {
-                g_free (v_string);
-                goto error;
-            }
-
-            value = tp_g_value_slice_new_take_object_path (v_string);
-        }
-        else
-        {
-            g_warning ("%s: cannot get property %s, unknown type %s",
-                       G_STRFUNC, name, g_type_name (type));
-            goto error;
-        }
+        value = keyfile_get_value (priv->keyfile, priv->unique_name, key, type, &error);
+    }
+    else
+    {
+        /* TODO: set an error */
     }
 
     if (value != NULL)
@@ -765,12 +823,13 @@ get_parameter (McdAccount *account, const gchar *name,
 
         return;
     }
-
-error:
-    if (callback != NULL)
-        callback (account, NULL, error, user_data);
-    if (error != NULL)
-        g_error_free (error);
+    else
+    {
+        if (callback != NULL)
+            callback (account, NULL, error, user_data);
+        if (error != NULL)
+            g_error_free (error);
+    }
 }
 
 
