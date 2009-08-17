@@ -527,14 +527,13 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value,
                 GKeyFile *keyfile;
                 gchar *keyfile_data;
 
-                /* TODO: handle errors */
                 keyfile = g_key_file_new ();
                 keyfile_set_value (keyfile, MCD_GNOME_KEYRING_GROUP_NAME,
-                                   MCD_GNOME_KEYRING_KEY_NAME, value, &error);
+                                   MCD_GNOME_KEYRING_KEY_NAME, value, NULL);
 
                 keyfile_data = g_key_file_get_value (keyfile,
                                                      MCD_GNOME_KEYRING_GROUP_NAME,
-                                                     MCD_GNOME_KEYRING_KEY_NAME, &error);
+                                                     MCD_GNOME_KEYRING_KEY_NAME, NULL);
 
                 gnome_keyring_store_password (&keyring_schema, GNOME_KEYRING_DEFAULT,
                                               display_name, keyfile_data,
@@ -620,7 +619,9 @@ keyfile_get_value (GKeyFile *keyfile,
 
         if (v_uint > 0xFFFFFFFFU)
         {
-            /* TODO: set an error */
+            g_set_error (error, MCD_ACCOUNT_ERROR,
+                         MCD_ACCOUNT_ERROR_GET_PARAMETER,
+                         "Integer is out of range");
         }
         else
         {
@@ -634,7 +635,9 @@ keyfile_get_value (GKeyFile *keyfile,
 
         if (v_int < 0 || v_int > 0xFF)
         {
-            /* TODO: set an error */
+            g_set_error (error, MCD_ACCOUNT_ERROR,
+                         MCD_ACCOUNT_ERROR_GET_PARAMETER,
+                         "Integer is out of range");
         }
         else
         {
@@ -681,8 +684,10 @@ keyfile_get_value (GKeyFile *keyfile,
 
             if (!tp_dbus_check_valid_object_path (v_string, NULL))
             {
+                g_set_error (error, MCD_ACCOUNT_ERROR,
+                             MCD_ACCOUNT_ERROR_GET_PARAMETER,
+                             "Invalid object path %s", v_string);
                 g_free (v_string);
-                /* TODO: set an error */
             }
             else
             {
@@ -812,7 +817,9 @@ get_parameter (McdAccount *account, const gchar *name,
     }
     else
     {
-        /* TODO: set an error */
+        g_set_error (&error, MCD_ACCOUNT_ERROR,
+                     MCD_ACCOUNT_ERROR_GET_PARAMETER,
+                     "Keyfile does not have key %s", key);
     }
 
     if (value != NULL)
