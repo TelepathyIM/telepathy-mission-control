@@ -383,7 +383,7 @@ keyring_set_cb (GnomeKeyringResult result,
     }
     else
     {
-        DEBUG ("Set secret parameter %s in keyring", data->name);
+        DEBUG ("Set/deleted secret parameter %s in keyring", data->name);
     }
 
     if (data->callback != NULL)
@@ -437,12 +437,23 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value,
                 display_name = g_strdup_printf ("Password for account %s",
                                                 priv->unique_name);
 
-                gnome_keyring_store_password (&keyring_schema, GNOME_KEYRING_DEFAULT,
-                                              display_name, g_value_get_string (value),
-                                              keyring_set_cb, data, NULL,
-                                              "account", priv->unique_name,
-                                              "param", name,
-                                              NULL);
+                if (value != NULL)
+                {
+                    gnome_keyring_store_password (&keyring_schema, GNOME_KEYRING_DEFAULT,
+                                                  display_name, g_value_get_string (value),
+                                                  keyring_set_cb, data, NULL,
+                                                  "account", priv->unique_name,
+                                                  "param", name,
+                                                  NULL);
+                }
+                else
+                {
+                    gnome_keyring_delete_password (&keyring_schema, keyring_set_cb,
+                                                   data, NULL,
+                                                   "account", priv->unique_name,
+                                                   "param", name,
+                                                   NULL);
+                }
                 g_free (display_name);
                 return;
             }
