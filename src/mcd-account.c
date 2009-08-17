@@ -740,9 +740,8 @@ get_parameter (McdAccount *account, const gchar *name,
         }
         else
         {
-            g_warning ("%s: skipping parameter %s, unknown type %s",
-                       G_STRFUNC, name,
-                       value ? G_VALUE_TYPE_NAME (value) : "(null)");
+            g_warning ("%s: cannot get property %s, unknown type %s",
+                       G_STRFUNC, name, g_type_name (type));
             goto error;
         }
     }
