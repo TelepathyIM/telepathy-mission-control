@@ -706,6 +706,10 @@ keyfile_get_value (GKeyFile *keyfile,
 
 static GType mc_param_type (const TpConnectionManagerParam *param);
 
+static void get_parameter_from_file (McdAccount *account, const gchar *name,
+                                     McdAccountGetParameterCb callback,
+                                     gpointer user_data);
+
 #if ENABLE_GNOME_KEYRING
 typedef struct
 {
@@ -727,9 +731,12 @@ keyring_get_cb (GnomeKeyringResult result, const gchar* password,
 
     if (result != GNOME_KEYRING_RESULT_OK)
     {
-        g_set_error (&error, MCD_ACCOUNT_ERROR, MCD_ACCOUNT_ERROR_GET_PARAMETER,
-                     "Failed to get item from keyring: %s",
-                     gnome_keyring_result_to_message (result));
+        g_warning ("Failed to get item from keyring: %s",
+                   gnome_keyring_result_to_message (result));
+        g_warning ("Falling back to looking in the keyfile");
+
+        get_parameter_from_file (data->account, data->name,
+                                 data->callback, data->user_data);
     }
     else
     {
@@ -742,19 +749,19 @@ keyring_get_cb (GnomeKeyringResult result, const gchar* password,
         value = keyfile_get_value (keyfile, MCD_GNOME_KEYRING_GROUP_NAME,
                                    MCD_GNOME_KEYRING_KEY_NAME,
                                    data->type, &error);
-    }
 
-    if (data->callback != NULL)
-        data->callback (data->account, value, error, data->user_data);
+        if (data->callback != NULL)
+            data->callback (data->account, value, error, data->user_data);
 
-    if (keyfile != NULL)
+
         g_key_file_free (keyfile);
 
-    if (value != NULL)
-        tp_g_value_slice_free (value);
+        if (value != NULL)
+            tp_g_value_slice_free (value);
 
-    if (error != NULL)
-        g_error_free (error);
+        if (error != NULL)
+            g_error_free (error);
+    }
 
     g_free (data->name);
     g_slice_free (KeyringGetData, data);
@@ -766,11 +773,8 @@ get_parameter (McdAccount *account, const gchar *name,
                McdAccountGetParameterCb callback, gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
-    gchar key[MAX_KEY_LENGTH];
     const TpConnectionManagerParam *param;
     gboolean is_secret = FALSE;
-    GError *error = NULL;
-    GValue *value = NULL;
     GType type;
 
     param = mcd_manager_get_protocol_param (priv->manager,
@@ -810,6 +814,24 @@ get_parameter (McdAccount *account, const gchar *name,
     }
 #endif
 
+    get_parameter_from_file (account, name, callback, user_data);
+}
+
+static void
+get_parameter_from_file (McdAccount *account, const gchar *name,
+                         McdAccountGetParameterCb callback, gpointer user_data)
+{
+    McdAccountPrivate *priv = account->priv;
+    gchar key[MAX_KEY_LENGTH];
+    const TpConnectionManagerParam *param;
+    GError *error = NULL;
+    GValue *value = NULL;
+    GType type;
+
+    param = mcd_manager_get_protocol_param (priv->manager,
+                                            priv->protocol_name, name);
+    type = mc_param_type (param);
+
     g_snprintf (key, sizeof (key), "param-%s", name);
     if (g_key_file_has_key (priv->keyfile, priv->unique_name, key, NULL))
     {
@@ -822,21 +844,14 @@ get_parameter (McdAccount *account, const gchar *name,
                      "Keyfile does not have key %s", key);
     }
 
+    if (callback != NULL)
+      callback (account, value, error, user_data);
+
     if (value != NULL)
-    {
-        if (callback != NULL)
-            callback (account, value, NULL, user_data);
         tp_g_value_slice_free (value);
 
-        return;
-    }
-    else
-    {
-        if (callback != NULL)
-            callback (account, NULL, error, user_data);
-        if (error != NULL)
-            g_error_free (error);
-    }
+    if (error != NULL)
+        g_error_free (error);
 }
 
 
