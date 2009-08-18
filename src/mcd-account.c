@@ -465,6 +465,7 @@ keyring_set_cb (GnomeKeyringResult result,
                 gpointer user_data)
 {
     KeyringSetData *data = (KeyringSetData *) user_data;
+    McdAccountPrivate *priv = data->account->priv;
     GError *error = NULL;
 
     if (result != GNOME_KEYRING_RESULT_OK)
@@ -476,6 +477,12 @@ keyring_set_cb (GnomeKeyringResult result,
     else
     {
         DEBUG ("Set/deleted secret parameter %s in keyring", data->name);
+
+        if (g_key_file_remove_key (priv->keyfile, priv->unique_name,
+                                   data->name, NULL))
+        {
+            DEBUG ("Removed secret parameter %s from keyfile", data->name);
+        }
     }
 
     if (data->callback != NULL)
