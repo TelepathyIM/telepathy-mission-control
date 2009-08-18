@@ -486,7 +486,7 @@ create_unique_name (McdAccountManagerPrivate *priv, const gchar *manager,
 	base = "account";
 
     esc_manager = tp_escape_as_identifier (manager);
-    esc_protocol = g_strcanon (g_strdup (protocol), "-", "_");
+    esc_protocol = g_strdelimit (g_strdup (protocol), "-", '_');
     esc_base = tp_escape_as_identifier (base);
     /* add two chars for the "/" */
     len = strlen (esc_manager) + strlen (esc_protocol) + strlen (esc_base)
