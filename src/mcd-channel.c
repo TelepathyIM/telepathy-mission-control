@@ -144,12 +144,17 @@ on_members_changed (TpChannel *proxy, const gchar *message,
 {
     McdChannelPrivate *priv = channel->priv;
     TpHandle self_handle;
+    TpHandle conn_self_handle = 0;
+    TpHandle removed_handle = 0;
     guint i;
 
-    DEBUG ("called (actor %u, reason %u, self_handle %u)",
-           actor, reason, tp_channel_group_get_self_handle (proxy));
-
     self_handle = tp_channel_group_get_self_handle (proxy);
+    conn_self_handle =
+      tp_connection_get_self_handle (tp_channel_borrow_connection (proxy));
+
+    DEBUG ("called (actor %u, reason %u, self_handle %u, conn_self_handle %u)",
+           actor, reason, tp_channel_group_get_self_handle (proxy),
+           conn_self_handle);
 
     if (added && added->len > 0)
     {
@@ -170,15 +175,18 @@ on_members_changed (TpChannel *proxy, const gchar *message,
 	}
     }
 
-    if (removed && removed->len > 0 && actor != self_handle)
+    if (removed && removed->len > 0 &&
+        (actor == 0 || (actor != self_handle && actor != conn_self_handle)))
     {
         for (i = 0; i < removed->len; i++)
         {
-            DEBUG ("removed member %u", g_array_index (removed, guint, i));
-            if (actor == g_array_index (removed, guint, i))
+            removed_handle = g_array_index (removed, guint, i);
+            DEBUG ("removed member %u", removed_handle);
+            if (removed_handle == self_handle ||
+                removed_handle == conn_self_handle)
             {
-                /* the remote removed itself; if we didn't accept the call,
-                 * it's a missed channel */
+                /* We are removed (end of call), marking as missed, if not
+                 * already accespted the call */
                 if (!priv->members_accepted) priv->missed = TRUE;
                 break;
             }
