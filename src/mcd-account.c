@@ -2724,8 +2724,6 @@ on_conn_status_changed (McdConnection *connection,
 				      &value);
 	g_value_unset (&value);
 	changed = TRUE;
-
-	process_online_requests (account, status, reason);
     }
     if (reason != priv->conn_reason)
     {
@@ -2738,6 +2736,8 @@ on_conn_status_changed (McdConnection *connection,
 	g_value_unset (&value);
 	changed = TRUE;
     }
+
+    process_online_requests (account, status, reason);
 
     if (changed)
 	g_signal_emit (account,
