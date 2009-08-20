@@ -286,30 +286,30 @@ show (gchar const *what, gchar const *value)
 static TpConnectionPresenceType
 get_presence_type_for_status(char const *status)
 {
-    if (g_strcasecmp(status, "unset") == 0)
+    if (g_ascii_strcasecmp(status, "unset") == 0)
 	return TP_CONNECTION_PRESENCE_TYPE_UNSET;
-    if (g_strcasecmp(status, "unknown") == 0)
+    if (g_ascii_strcasecmp(status, "unknown") == 0)
 	return TP_CONNECTION_PRESENCE_TYPE_UNKNOWN;
-    if (g_strcasecmp(status, "offline") == 0)
+    if (g_ascii_strcasecmp(status, "offline") == 0)
 	return TP_CONNECTION_PRESENCE_TYPE_OFFLINE;
-    if (g_strcasecmp(status, "available") == 0 ||
-	g_strcasecmp(status, "online") == 0)
+    if (g_ascii_strcasecmp(status, "available") == 0 ||
+	g_ascii_strcasecmp(status, "online") == 0)
 	return TP_CONNECTION_PRESENCE_TYPE_AVAILABLE;
-    if (g_strcasecmp(status, "away") == 0 ||
-	g_strcasecmp(status, "brb") == 0)
+    if (g_ascii_strcasecmp(status, "away") == 0 ||
+	g_ascii_strcasecmp(status, "brb") == 0)
 	return TP_CONNECTION_PRESENCE_TYPE_AWAY;
-    if (g_strcasecmp(status, "xa") == 0 ||
-	g_strcasecmp(status, "extended-away") == 0 ||
-	g_strcasecmp(status, "extendedaway") == 0)
+    if (g_ascii_strcasecmp(status, "xa") == 0 ||
+	g_ascii_strcasecmp(status, "extended-away") == 0 ||
+	g_ascii_strcasecmp(status, "extendedaway") == 0)
 	return TP_CONNECTION_PRESENCE_TYPE_EXTENDED_AWAY;
-    if (g_strcasecmp(status, "hidden") == 0)
+    if (g_ascii_strcasecmp(status, "hidden") == 0)
 	return TP_CONNECTION_PRESENCE_TYPE_HIDDEN;
-    if (g_strcasecmp(status, "busy") == 0 ||
-	g_strcasecmp(status, "dnd") == 0 ||
-	g_strcasecmp(status, "do_not_disturb") == 0 ||
-	g_strcasecmp(status, "donotdisturb") == 0)
+    if (g_ascii_strcasecmp(status, "busy") == 0 ||
+	g_ascii_strcasecmp(status, "dnd") == 0 ||
+	g_ascii_strcasecmp(status, "do_not_disturb") == 0 ||
+	g_ascii_strcasecmp(status, "donotdisturb") == 0)
 	return TP_CONNECTION_PRESENCE_TYPE_BUSY;
-    if (g_strcasecmp(status, "error") == 0)
+    if (g_ascii_strcasecmp(status, "error") == 0)
 	return TP_CONNECTION_PRESENCE_TYPE_ERROR;
 
     return TP_CONNECTION_PRESENCE_TYPE_UNKNOWN;
@@ -1041,13 +1041,13 @@ parse (int argc, char **argv)
 	command.ready.account = command_auto_connect;
 	command.common.account = argv[2];
 	if (argv[3] == NULL ||
-	    g_strcasecmp (argv[3], "on") == 0 ||
-	    g_strcasecmp (argv[3], "true") == 0 ||
-	    g_strcasecmp (argv[3], "1") == 0)
+	    g_ascii_strcasecmp (argv[3], "on") == 0 ||
+	    g_ascii_strcasecmp (argv[3], "true") == 0 ||
+	    g_ascii_strcasecmp (argv[3], "1") == 0)
 	    command.boolean.value = TRUE;
-	else if (g_strcasecmp (argv[3], "off") == 0 ||
-		 g_strcasecmp (argv[3], "false") == 0 ||
-		 g_strcasecmp (argv[3], "0") == 0)
+	else if (g_ascii_strcasecmp (argv[3], "off") == 0 ||
+		 g_ascii_strcasecmp (argv[3], "false") == 0 ||
+		 g_ascii_strcasecmp (argv[3], "0") == 0)
 	    command.boolean.value = FALSE;
 	else
 	    show_help ("Invalid auto-connect command.");
