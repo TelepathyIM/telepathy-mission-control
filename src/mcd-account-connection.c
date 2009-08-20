@@ -74,8 +74,10 @@ _mcd_account_connection_begin (McdAccount *account)
     mcd_account_connection_proceed (account, TRUE);
 }
 
-void 
-mcd_account_connection_proceed (McdAccount *account, gboolean success)
+void
+mcd_account_connection_proceed_with_reason (McdAccount *account,
+                                            gboolean success,
+                                            TpConnectionStatusReason reason)
 {
     McdAccountConnectionContext *ctx;
     McdAccountConnectionFunc func = NULL;
@@ -111,15 +113,18 @@ mcd_account_connection_proceed (McdAccount *account, gboolean success)
 	}
         else
         {
-            GError *error;
-
-            error = g_error_new (TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
-                                 "Plugins refused connection to account %s",
-                                 mcd_account_get_unique_name (account));
-            _mcd_account_online_request_completed (account, error);
+            _mcd_account_set_connection_status
+                (account, TP_CONNECTION_STATUS_DISCONNECTED, reason);
         }
         _mcd_account_set_connection_context (account, NULL);
     }
+}
+
+void
+mcd_account_connection_proceed (McdAccount *account, gboolean success)
+{
+    mcd_account_connection_proceed_with_reason
+        (account, success, TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED);
 }
 
 inline void
