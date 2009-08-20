@@ -2706,6 +2706,14 @@ on_conn_status_changed (McdConnection *connection,
                         TpConnectionStatusReason reason,
                         McdAccount *account)
 {
+    _mcd_account_set_connection_status (account, status, reason);
+}
+
+void
+_mcd_account_set_connection_status (McdAccount *account,
+                                    TpConnectionStatus status,
+                                    TpConnectionStatusReason reason)
+{
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     gboolean changed = FALSE;
 
