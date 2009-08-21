@@ -62,7 +62,8 @@ struct _McdAccountClass
     gboolean (*delete) (McdAccount *account, GError **error);
     void (*load) (McdAccount *account, McdAccountLoadCb callback,
                   gpointer user_data);
-    void (*_mc_reserved5) (void);
+    gboolean (*check_request) (McdAccount *account, GHashTable *request,
+                               GError **error);
     void (*_mc_reserved6) (void);
     void (*_mc_reserved7) (void);
 };
@@ -115,5 +116,8 @@ TpConnectionStatus mcd_account_get_connection_status (McdAccount *account);
 TpConnectionStatusReason mcd_account_get_connection_status_reason (McdAccount *account);
 
 McdConnection *mcd_account_get_connection (McdAccount *account);
+
+gboolean mcd_account_check_request (McdAccount *account, GHashTable *request,
+                                    GError **error);
 
 #endif

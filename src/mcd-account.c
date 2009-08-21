@@ -2125,6 +2125,7 @@ mcd_account_class_init (McdAccountClass * klass)
     klass->set_parameter = set_parameter;
     klass->delete = _mcd_account_delete;
     klass->load = _mcd_account_load_real;
+    klass->check_request = _mcd_account_check_request_real;
 
     g_object_class_install_property
         (object_class, PROP_DBUS_DAEMON,
