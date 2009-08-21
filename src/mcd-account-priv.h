@@ -165,5 +165,8 @@ void account_stats_iface_init (McSvcAccountInterfaceStatsClass *iface,
                                gpointer iface_data);
 void account_stats_instance_init (TpSvcDBusProperties *self);
 
-#endif /* __MCD_ACCOUNT_PRIV_H__ */
+G_GNUC_INTERNAL gboolean _mcd_account_check_request_real (McdAccount *account,
+                                                          GHashTable *request,
+                                                          GError **error);
 
+#endif /* __MCD_ACCOUNT_PRIV_H__ */
