@@ -171,9 +171,8 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
         mcd_account_get_account_manager (account));
     DBusGConnection *dgc = tp_proxy_get_dbus_connection (dbus_daemon);
 
-    if (mcd_master_has_low_memory (mcd_master_get_default ()))
+    if (!mcd_account_check_request (account, properties, error))
     {
-        g_set_error (error, MC_ERROR, MC_LOWMEM_ERROR, "Insufficient memory");
         return NULL;
     }
 
@@ -320,3 +319,34 @@ account_channelrequests_iface_init (McSvcAccountInterfaceChannelRequestsClass *i
 #undef IMPLEMENT
 }
 
+gboolean
+mcd_account_check_request (McdAccount *account, GHashTable *request,
+                           GError **error)
+{
+    gboolean (*impl) (McdAccount *account, GHashTable *request,
+                      GError **error);
+
+    g_return_val_if_fail (MCD_IS_ACCOUNT (account), FALSE);
+    g_return_val_if_fail (request != NULL, FALSE);
+
+    impl = MCD_ACCOUNT_GET_CLASS (account)->check_request;
+
+    if (impl == NULL)
+        return TRUE;
+
+    return impl (account, request, error);
+}
+
+/* Default implementation of check_request */
+gboolean
+_mcd_account_check_request_real (McdAccount *account, GHashTable *request,
+                                 GError **error)
+{
+    if (mcd_master_has_low_memory (mcd_master_get_default ()))
+    {
+        g_set_error (error, MC_ERROR, MC_LOWMEM_ERROR, "Insufficient memory");
+        return FALSE;
+    }
+
+    return TRUE;
+}
