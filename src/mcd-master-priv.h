@@ -32,8 +32,8 @@
 G_BEGIN_DECLS
 
 G_GNUC_INTERNAL
-gboolean _mcd_master_account_conditions_satisfied (McdMaster *master,
-                                                   McdAccount *account);
+gboolean _mcd_master_account_replace_transport (McdMaster *master,
+                                                McdAccount *account);
 
 void _mcd_master_get_nth_account_connection (McdMaster *master, gint i,
                                              McdAccountConnectionFunc *func,

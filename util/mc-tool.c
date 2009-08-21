@@ -283,6 +283,13 @@ show (gchar const *what, gchar const *value)
     return printf ("%12s: %s\n", what, value);
 }
 
+static int
+show_presence (gchar const *what, struct presence *presence)
+{
+  return printf ("%12s: %s (%d) \"%s\"\n", what, presence->status,
+    presence->type, presence->message);
+}
+
 static TpConnectionPresenceType
 get_presence_type_for_status(char const *status)
 {
@@ -583,13 +590,13 @@ command_show (McAccount *account)
 
     mc_account_get_automatic_presence (account, &automatic.type,
 				       &automatic.status, &automatic.message);
-    show ("Automatic", automatic.status);
+    show_presence ("Automatic", &automatic);
     mc_account_get_current_presence (account, &current.type,
 				     &current.status, &current.message);
-    show ("Current", current.status);
+    show_presence ("Current", &current);
     mc_account_get_requested_presence (account, &requested.type,
 				       &requested.status, &requested.message);
-    show ("Requested", requested.status);
+    show_presence ("Requested", &requested);
     puts ("");
     parameters = mc_account_get_parameters (account);
 
