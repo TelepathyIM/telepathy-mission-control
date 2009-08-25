@@ -2481,21 +2481,27 @@ mcd_client_start_introspection (McdClientProxy *proxy,
     {
         client_add_interface_by_id (client);
 
-        if ((client->interfaces & MCD_CLIENT_HANDLER) != 0 &&
-            _mcd_client_proxy_is_active (proxy))
+        if ((client->interfaces & MCD_CLIENT_HANDLER) != 0)
         {
-            DEBUG ("%s is an active, activatable Handler", client->name);
+            if (_mcd_client_proxy_is_active (proxy))
+            {
+                DEBUG ("%s is an active, activatable Handler", client->name);
 
-            /* We need to investigate whether it is handling any channels */
+                /* We need to investigate whether it is handling any channels */
 
-            if (!dispatcher->priv->startup_completed)
-                dispatcher->priv->startup_lock++;
+                if (!dispatcher->priv->startup_completed)
+                    dispatcher->priv->startup_lock++;
 
-            tp_cli_dbus_properties_call_get_all (client->proxy, -1,
-                                                 TP_IFACE_CLIENT_HANDLER,
-                                                 handler_get_all_cb,
-                                                 NULL, NULL,
-                                                 G_OBJECT (dispatcher));
+                tp_cli_dbus_properties_call_get_all (client->proxy, -1,
+                                                     TP_IFACE_CLIENT_HANDLER,
+                                                     handler_get_all_cb,
+                                                     NULL, NULL,
+                                                     G_OBJECT (dispatcher));
+            }
+            else
+            {
+                DEBUG ("%s is a Handler but not active", client->name);
+            }
         }
     }
 
