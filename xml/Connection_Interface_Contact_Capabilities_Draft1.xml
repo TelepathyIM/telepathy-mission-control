@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<node name="/Connection_Interface_Contact_Capabilities" xmlns:tp="http://telepathy.freedesktop.org/wiki/DbusSpec#extensions-v0">
+<node name="/Connection_Interface_Contact_Capabilities_Draft1" xmlns:tp="http://telepathy.freedesktop.org/wiki/DbusSpec#extensions-v0">
   <tp:copyright> Copyright (C) 2005, 2006, 2008 Collabora Limited </tp:copyright>
   <tp:copyright> Copyright (C) 2005, 2006, 2008 Nokia Corporation </tp:copyright>
   <tp:copyright> Copyright (C) 2006 INdT </tp:copyright>
@@ -101,7 +101,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</
            Now there is a fix, so we don't use the workaround anymore.
         -->
       <arg direction="out" type="a{ua(a{sv}as)}"
-           tp:type="Contact_Capabilities_Map" name="Contact_Capabilities">
+           tp:type="Contact_Capabilities_Map_1" name="Contact_Capabilities">
         <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
           An array of structures containing:
           <ul>
@@ -126,7 +126,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</
     <signal name="ContactCapabilitiesChanged"
             tp:name-for-bindings="Contact_Capabilities_Changed">
       <arg name="caps" type="a{ua(a{sv}as)}"
-           tp:type="Contact_Capabilities_Map">
+           tp:type="Contact_Capabilities_Map_1">
         <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
           All the capabilities of the contacts
         </tp:docstring>
@@ -144,8 +144,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</
       </tp:docstring>
     </signal>
 
-  <tp:mapping name="Contact_Capabilities_Map"
-              array-name="Contact_Capabilities_Map_List">
+  <tp:mapping name="Contact_Capabilities_Map_1"
+              array-name="Contact_Capabilities_Map_1_List">
     <tp:docstring>A mapping from contact handle to their capabilities.
     </tp:docstring>
     <tp:member type="u" name="Key" tp:type="Contact_Handle">
