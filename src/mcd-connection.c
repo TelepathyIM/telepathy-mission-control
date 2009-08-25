@@ -569,6 +569,12 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
     GType type;
     guint i;
 
+    if (priv->has_contact_capabilities_draft2_if)
+    {
+        DEBUG ("ContactCapabilities draft 2 in use, avoiding Capabilities");
+        return;
+    }
+
     if (!priv->has_capabilities_if)
     {
         DEBUG ("connection does not support capabilities interface");
@@ -1407,7 +1413,8 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
 }
 
 void
-_mcd_connection_start_dispatching (McdConnection *self)
+_mcd_connection_start_dispatching (McdConnection *self,
+                                   GPtrArray *client_caps)
 {
     g_return_if_fail (MCD_IS_CONNECTION (self));
     g_return_if_fail (!self->priv->dispatching_started);
@@ -1421,8 +1428,27 @@ _mcd_connection_start_dispatching (McdConnection *self)
     else
         mcd_connection_setup_pre_requests (self);
 
+    _mcd_connection_update_client_caps (self, client_caps);
+
     /* and request all channels */
     request_unrequested_channels (self);
+}
+
+void
+_mcd_connection_update_client_caps (McdConnection *self,
+                                    GPtrArray *client_caps)
+{
+    g_return_if_fail (MCD_IS_CONNECTION (self));
+
+    if (!self->priv->has_contact_capabilities_draft2_if)
+    {
+        DEBUG ("ContactCapabilities.DRAFT2 unsupported");
+        return;
+    }
+
+    DEBUG ("Sending client caps to connection");
+    mc_cli_connection_interface_contact_capabilities_draft2_call_update_capabilities
+      (self->priv->tp_conn, -1, client_caps, NULL, NULL, NULL, NULL);
 }
 
 static void
