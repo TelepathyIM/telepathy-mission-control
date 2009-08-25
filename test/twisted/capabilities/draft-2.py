@@ -115,5 +115,27 @@ def test(q, bus, mc):
                     predicate=check_draft_2_caps),
                 ])
 
+    irssi_fixed_properties = dbus.Dictionary({
+        cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
+        cs.CHANNEL + '.TargetHandleType': cs.HT_ROOM,
+        }, signature='sv')
+    irssi = SimulatedClient(q, bus, 'Irssi',
+            observe=[], approve=[], handle=[irssi_fixed_properties],
+            cap_tokens=[],
+            bypass_approval=False)
+
+    # wait for MC to download the properties
+    expect_client_setup(q, [irssi])
+
+    e = q.expect('dbus-method-call', handled=False,
+        interface=cs.CONN_IFACE_CONTACT_CAPS_DRAFT2,
+        method='UpdateCapabilities')
+
+    assert len(e.args[0]) == 1
+    struct = e.args[0][0]
+    assert struct[0] == cs.CLIENT + '.Irssi'
+    assert struct[1] == [irssi_fixed_properties]
+    assert struct[2] == []
+
 if __name__ == '__main__':
     exec_test(test, {})
