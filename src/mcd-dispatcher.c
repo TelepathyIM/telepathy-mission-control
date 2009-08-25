@@ -60,6 +60,8 @@
 
 #include <telepathy-glib/defs.h>
 #include <telepathy-glib/gtypes.h>
+#include <telepathy-glib/handle-repo.h>
+#include <telepathy-glib/handle-repo-dynamic.h>
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/proxy-subclass.h>
 #include <telepathy-glib/svc-channel-dispatcher.h>
@@ -174,6 +176,10 @@ typedef struct _McdClient
     GList *approver_filters;
     GList *handler_filters;
     GList *observer_filters;
+
+    /* Handler.Capabilities, represented as handles taken from
+     * dispatcher->priv->string_pool */
+    TpHandleSet *capability_tokens;
 } McdClient;
 
 struct _McdDispatcherPrivate
@@ -220,8 +226,11 @@ struct _McdDispatcherPrivate
      * property. */
     gboolean operation_list_active;
 
+    /* Not really handles as such, but TpHandleRepoIface gives us a convenient
+     * reference-counted string pool */
+    TpHandleRepoIface *string_pool;
+
     gboolean is_disposed;
-    
 };
 
 struct cancel_call_data
@@ -344,6 +353,9 @@ mcd_client_free (McdClient *client)
                     (GFunc)g_hash_table_destroy, NULL);
     g_list_free (client->observer_filters);
     client->observer_filters = NULL;
+
+    tp_handle_set_destroy (client->capability_tokens);
+    client->capability_tokens = NULL;
 
     g_slice_free (McdClient, client);
 }
@@ -1730,6 +1742,12 @@ _mcd_dispatcher_dispose (GObject * object)
 	priv->dbus_daemon = NULL;
     }
 
+    if (priv->string_pool != NULL)
+    {
+        g_object_unref (priv->string_pool);
+        priv->string_pool = NULL;
+    }
+
     G_OBJECT_CLASS (mcd_dispatcher_parent_class)->dispose (object);
 }
 
@@ -2354,6 +2372,8 @@ create_mcd_client (McdDispatcher *self,
     if (!activatable)
         client->active = TRUE;
 
+    client->capability_tokens = tp_handle_set_new (self->priv->string_pool);
+
     client->proxy = (TpClient *) _mcd_client_proxy_new (
         self->priv->dbus_daemon, client->name, owner);
 
@@ -2828,6 +2848,10 @@ mcd_dispatcher_init (McdDispatcher * dispatcher)
     priv->handler_map = _mcd_handler_map_new ();
 
     priv->connections = g_hash_table_new (NULL, NULL);
+
+    /* Dummy handle type, we're just using this as a string pool */
+    priv->string_pool = tp_dynamic_handle_repo_new (TP_HANDLE_TYPE_CONTACT,
+                                                    NULL, NULL);
 }
 
 McdDispatcher *
