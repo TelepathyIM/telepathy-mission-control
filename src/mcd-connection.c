@@ -71,7 +71,9 @@
 
 #include "mcd-signals-marshal.h"
 #include "_gen/cli-Connection_Interface_Contact_Capabilities_Draft1.h"
+#include "_gen/cli-Connection_Interface_Contact_Capabilities_Draft2.h"
 #include "_gen/cli-Connection_Interface_Contact_Capabilities_Draft1-body.h"
+#include "_gen/cli-Connection_Interface_Contact_Capabilities_Draft2-body.h"
 
 #define INITIAL_RECONNECTION_TIME   1 /* 1 second */
 
@@ -114,6 +116,7 @@ struct _McdConnectionPrivate
     guint has_alias_if : 1;
     guint has_capabilities_if : 1;
     guint has_contact_capabilities_draft1_if : 1;
+    guint has_contact_capabilities_draft2_if : 1;
     guint has_requests_if : 1;
 
     /* FALSE until the dispatcher has said it's ready for us */
@@ -1378,6 +1381,8 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
 							      TP_IFACE_QUARK_CONNECTION_INTERFACE_CAPABILITIES);
     priv->has_contact_capabilities_draft1_if = tp_proxy_has_interface_by_id (tp_conn,
         MC_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES_DRAFT1);
+    priv->has_contact_capabilities_draft2_if = tp_proxy_has_interface_by_id (tp_conn,
+        MC_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES_DRAFT2);
     priv->has_requests_if = tp_proxy_has_interface_by_id (tp_conn,
         TP_IFACE_QUARK_CONNECTION_INTERFACE_REQUESTS);
 
@@ -1757,6 +1762,22 @@ _mcd_connection_request_channel (McdConnection *connection,
 }
 
 static void
+mcd_connection_add_signals (TpProxy *self,
+                            guint quark,
+                            DBusGProxy *proxy,
+                            gpointer data)
+{
+    mc_cli_Connection_Interface_Contact_Capabilities_Draft1_add_signals (self,
+                                                                         quark,
+                                                                         proxy,
+                                                                         data);
+    mc_cli_Connection_Interface_Contact_Capabilities_Draft2_add_signals (self,
+                                                                         quark,
+                                                                         proxy,
+                                                                         data);
+}
+
+static void
 mcd_connection_class_init (McdConnectionClass * klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
@@ -1773,9 +1794,8 @@ mcd_connection_class_init (McdConnectionClass * klass)
     _mc_ext_register_dbus_glib_marshallers ();
 
     tp_connection_init_known_interfaces ();
-    tp_proxy_or_subclass_hook_on_interface_add
-        (TP_TYPE_CONNECTION,
-         mc_cli_Connection_Interface_Contact_Capabilities_Draft1_add_signals);
+    tp_proxy_or_subclass_hook_on_interface_add (TP_TYPE_CONNECTION,
+                                                mcd_connection_add_signals);
 
     /* Properties */
     g_object_class_install_property

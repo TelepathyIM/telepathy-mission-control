@@ -32,6 +32,7 @@ mc_headers = \
 
 mc_gen_headers = \
 	_gen/cli-Connection_Interface_Contact_Capabilities_Draft1.h \
+	_gen/cli-Connection_Interface_Contact_Capabilities_Draft2.h \
 	_gen/enums.h \
 	_gen/svc-Account_Interface_ChannelRequests.h \
 	_gen/svc-Account_Interface_Compat.h \
@@ -42,6 +43,7 @@ mc_gen_headers = \
 
 nodist_libmcd_convenience_la_SOURCES = \
 	_gen/cli-Connection_Interface_Contact_Capabilities_Draft1-body.h \
+	_gen/cli-Connection_Interface_Contact_Capabilities_Draft2-body.h \
 	_gen/register-dbus-glib-marshallers-body.h \
 	_gen/signals-marshal.c \
 	_gen/signals-marshal.h \
