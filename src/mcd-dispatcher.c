@@ -2013,6 +2013,23 @@ mcd_dispatcher_append_client_caps (McdDispatcher *self,
                            &context);
     g_ptr_array_add (cap_tokens, NULL);
 
+    if (DEBUGGING)
+    {
+        guint i;
+
+        DEBUG ("%s%s:", TP_CLIENT_BUS_NAME_BASE, client->name);
+
+        DEBUG ("- %u channel filters", filters->len);
+        DEBUG ("- %u capability tokens:", cap_tokens->len - 1);
+
+        for (i = 0; i < cap_tokens->len - 1; i++)
+        {
+            DEBUG ("    %s", (gchar *) g_ptr_array_index (cap_tokens, i));
+        }
+
+        DEBUG ("-end-");
+    }
+
     va = g_value_array_new (3);
     g_value_array_append (va, NULL);
     g_value_array_append (va, NULL);
