@@ -59,8 +59,11 @@ def test(q, bus, mc):
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_STREAMED_MEDIA,
         }, signature='sv')
     media_call = SimulatedClient(q, bus, 'MediaCall',
-            observe=[], approve=[],
-            handle=[media_fixed_properties], bypass_approval=False)
+            observe=[], approve=[], handle=[media_fixed_properties],
+            cap_tokens=[cs.CHANNEL_IFACE_MEDIA_SIGNALLING + '/ice-udp',
+                cs.CHANNEL_IFACE_MEDIA_SIGNALLING + '/audio/speex',
+                cs.CHANNEL_IFACE_MEDIA_SIGNALLING + '/video/theora'],
+            bypass_approval=False)
 
     # wait for MC to download the properties
     expect_client_setup(q, [media_call])
@@ -84,6 +87,18 @@ def test(q, bus, mc):
         assert abi_room_fixed_properties in filters[cs.CLIENT + '.AbiWord']
         assert abi_contact_fixed_properties in filters[cs.CLIENT + '.AbiWord']
         assert len(filters[cs.CLIENT + '.AbiWord']) == 2
+
+        assert len(tokens[cs.CLIENT + '.MediaCall']) == 3
+        assert cs.CHANNEL_IFACE_MEDIA_SIGNALLING + '/ice-udp' in \
+                tokens[cs.CLIENT + '.MediaCall']
+        assert cs.CHANNEL_IFACE_MEDIA_SIGNALLING + '/audio/speex' in \
+                tokens[cs.CLIENT + '.MediaCall']
+        assert cs.CHANNEL_IFACE_MEDIA_SIGNALLING + '/video/theora' in \
+                tokens[cs.CLIENT + '.MediaCall']
+
+        assert len(tokens[cs.CLIENT + '.AbiWord']) == 2
+        assert 'com.example.Foo' in tokens[cs.CLIENT + '.AbiWord']
+        assert 'com.example.Bar' in tokens[cs.CLIENT + '.AbiWord']
 
         return True
 
