@@ -2040,6 +2040,31 @@ finally:
     mcd_dispatcher_release_startup_lock (self);
 }
 
+/* This is NULL-safe for the last argument, for ease of use with
+ * tp_asv_get_boxed */
+static void
+mcd_client_add_cap_tokens (McdClient *client,
+                           McdDispatcher *dispatcher,
+                           const gchar * const *cap_tokens)
+{
+    guint i;
+
+    if (cap_tokens == NULL)
+        return;
+
+    for (i = 0; cap_tokens[i] != NULL; i++)
+    {
+        TpHandle handle = tp_handle_ensure (dispatcher->priv->string_pool,
+                                            cap_tokens[i], NULL, NULL);
+
+        if (handle != 0)
+        {
+            tp_handle_set_add (client->capability_tokens, handle);
+            tp_handle_unref (dispatcher->priv->string_pool, handle);
+        }
+    }
+}
+
 static void
 handler_get_all_cb (TpProxy *proxy,
                     GHashTable *properties,
@@ -2091,6 +2116,10 @@ handler_get_all_cb (TpProxy *proxy,
                                                   NULL);
     DEBUG ("%s has BypassApproval=%c", client->name,
            client->bypass_approver ? 'T' : 'F');
+
+    mcd_client_add_cap_tokens (client, self,
+                               tp_asv_get_boxed (properties, "Capabilities",
+                                                 G_TYPE_STRV));
 
     channels = tp_asv_get_boxed (properties, "HandledChannels",
                                  MC_ARRAY_TYPE_OBJECT);
@@ -2244,9 +2273,11 @@ finally:
 }
 
 static void
-parse_client_file (McdClient *client, GKeyFile *file)
+parse_client_file (McdDispatcher *self,
+                   McdClient *client,
+                   GKeyFile *file)
 {
-    gchar **iface_names, **groups;
+    gchar **iface_names, **groups, **cap_tokens;
     guint i;
     gsize len = 0;
 
@@ -2303,6 +2334,14 @@ parse_client_file (McdClient *client, GKeyFile *file)
     client->bypass_approver =
         g_key_file_get_boolean (file, TP_IFACE_CLIENT_HANDLER,
                                 "BypassApproval", NULL);
+
+    cap_tokens = g_key_file_get_keys (file,
+                                      TP_IFACE_CLIENT_HANDLER ".Capabilities",
+                                      NULL,
+                                      NULL);
+    mcd_client_add_cap_tokens (client, self,
+                               (const gchar * const *) cap_tokens);
+    g_strfreev (cap_tokens);
 }
 
 static gchar *
@@ -2415,7 +2454,7 @@ mcd_client_start_introspection (McdClientProxy *proxy,
         if (G_LIKELY (!error))
         {
             DEBUG ("File found for %s: %s", client->name, filename);
-            parse_client_file (client, file);
+            parse_client_file (dispatcher, client, file);
             file_found = TRUE;
         }
         else
