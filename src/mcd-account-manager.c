@@ -115,6 +115,9 @@ typedef struct
     McdGetAccountCb callback;
     gpointer user_data;
     GDestroyNotify destroy;
+
+    gboolean ok;
+    GError *error;
 } McdCreateAccountData;
 
 enum
@@ -346,6 +349,9 @@ mcd_create_account_data_free (McdCreateAccountData *cad)
         g_hash_table_unref (cad->properties);
     }
 
+    if (G_UNLIKELY (cad->error))
+        g_error_free (cad->error);
+
     g_slice_free (McdCreateAccountData, cad);
 }
 
@@ -408,14 +414,77 @@ create_account_with_properties_cb (McdAccountManager *account_manager,
 }
 
 static void
+complete_account_creation_finish (McdAccount *account, gboolean valid,
+                                  gpointer user_data)
+{
+    McdCreateAccountData *cad = (McdCreateAccountData *) user_data;
+    McdAccountManager *account_manager;
+
+    account_manager = cad->account_manager;
+
+    if (!valid)
+    {
+        cad->ok = FALSE;
+        g_set_error (&cad->error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                         "The supplied CM parameters were not valid");
+    }
+
+    if (!cad->ok)
+    {
+        mcd_account_delete (account, NULL, NULL);
+        g_object_unref (account);
+        account = NULL;
+    }
+
+    mcd_account_manager_write_conf_async (account_manager, NULL, NULL);
+
+    if (cad->callback != NULL)
+        cad->callback (account_manager, account, cad->error, cad->user_data);
+    mcd_create_account_data_free (cad);
+
+    if (account != NULL)
+    {
+        g_object_unref (account);
+    }
+
+}
+
+static void
+complete_account_creation_set_cb (McdAccount *account, GPtrArray *not_yet,
+                                  const GError *set_error, gpointer user_data)
+{
+    McdCreateAccountData *cad = user_data;
+    McdAccountManager *account_manager;
+    cad->ok = (set_error == NULL);
+
+    account_manager = cad->account_manager;
+
+    if (cad->ok && cad->properties != NULL)
+    {
+        cad->ok = set_new_account_properties (account, cad->properties, &cad->error);
+    }
+
+    if (cad->ok)
+    {
+        add_account (account_manager, account);
+        mcd_account_check_validity (account, complete_account_creation_finish, cad);
+    }
+    else
+    {
+        complete_account_creation_finish (account, TRUE, cad);
+    }
+
+    g_ptr_array_foreach (not_yet, (GFunc) g_free, NULL);
+    g_ptr_array_free (not_yet, TRUE);
+}
+
+static void
 complete_account_creation (McdAccount *account,
                            const GError *cb_error,
                            gpointer user_data)
 {
     McdCreateAccountData *cad = user_data;
     McdAccountManager *account_manager;
-    GError *error = NULL;
-    gboolean ok;
 
     account_manager = cad->account_manager;
     if (G_UNLIKELY (cb_error))
@@ -425,44 +494,9 @@ complete_account_creation (McdAccount *account,
         return;
     }
 
-    ok = _mcd_account_set_parameters (account, cad->parameters, NULL, NULL,
-                                      &error);
-
-    if (ok && cad->properties != NULL)
-    {
-        ok = set_new_account_properties (account, cad->properties, &error);
-    }
-
-    if (ok)
-    {
-        add_account (account_manager, account);
-
-        if (!mcd_account_check_validity (account))
-        {
-            ok = FALSE;
-            g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                         "The supplied CM parameters were not valid");
-        }
-    }
-
-    if (!ok)
-    {
-        mcd_account_delete (account, NULL, NULL);
-        g_object_unref (account);
-        account = NULL;
-    }
-
-    mcd_account_manager_write_conf_async (account_manager, NULL, NULL);
-
-    cad->callback (account_manager, account, error, cad->user_data);
-    if (G_UNLIKELY (error))
-        g_error_free (error);
-    mcd_create_account_data_free (cad);
-
-    if (account != NULL)
-    {
-        g_object_unref (account);
-    }
+    _mcd_account_set_parameters (account, cad->parameters, NULL,
+                                 complete_account_creation_set_cb,
+                                 cad);
 }
 
 static gchar *
@@ -566,6 +600,7 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
         cad->callback = callback;
         cad->user_data = user_data;
         cad->destroy = destroy;
+        cad->error = NULL;
         _mcd_account_load (account, complete_account_creation, cad);
     }
     else

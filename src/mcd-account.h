@@ -57,12 +57,17 @@ typedef void (*McdAccountDeleteCb) (McdAccount *account,
 typedef void (*McdAccountSetParameterCb) (McdAccount *account,
                                           const GError *error,
                                           gpointer user_data);
+typedef void (*McdAccountGetParameterCb) (McdAccount *account,
+                                          const GValue *value,
+                                          const GError *error,
+                                          gpointer user_data);
 
 struct _McdAccountClass
 {
     GObjectClass parent_class;
-    gboolean (*get_parameter) (McdAccount *account, const gchar *name,
-                               GValue *value);
+    void (*get_parameter) (McdAccount *account, const gchar *name,
+                           McdAccountGetParameterCb callback,
+                           gpointer user_data);
     void (*set_parameter) (McdAccount *account, const gchar *name,
                            const GValue *value,
                            McdAccountSetParameterCb callback,
@@ -92,7 +97,13 @@ const gchar *mcd_account_get_unique_name (McdAccount *account);
 const gchar *mcd_account_get_object_path (McdAccount *account);
 
 gboolean mcd_account_is_valid (McdAccount *account);
-gboolean mcd_account_check_validity (McdAccount *account);
+
+typedef void (*McdAccountCheckValidityCb) (McdAccount *account,
+                                           gboolean valid,
+                                           gpointer user_data);
+void mcd_account_check_validity (McdAccount *account,
+                                 McdAccountCheckValidityCb callback,
+                                 gpointer user_data);
 
 gboolean mcd_account_is_enabled (McdAccount *account);
 
