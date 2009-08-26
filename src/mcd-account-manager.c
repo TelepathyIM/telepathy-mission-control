@@ -130,6 +130,17 @@ static guint write_conf_id = 0;
 
 static void register_dbus_service (McdAccountManager *account_manager);
 
+GQuark
+mcd_account_manager_error_quark (void)
+{
+    static GQuark quark = 0;
+
+    if (quark == 0)
+        quark = g_quark_from_static_string ("mcd-account-manager-error");
+
+    return quark;
+}
+
 static gboolean
 get_account_connection (const gchar *file_contents, const gchar *path,
                         gchar **p_bus_name, gchar **p_account_name)
@@ -471,6 +482,9 @@ complete_account_creation_set_cb (McdAccount *account, GPtrArray *not_yet,
     }
     else
     {
+        g_set_error (&cad->error, MCD_ACCOUNT_MANAGER_ERROR,
+                     MCD_ACCOUNT_MANAGER_ERROR_SET_PARAMETER,
+                     "Failed to set parameter: %s", set_error->message);
         complete_account_creation_finish (account, TRUE, cad);
     }
 

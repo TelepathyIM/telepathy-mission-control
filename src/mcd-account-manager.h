@@ -64,6 +64,14 @@ struct _McdAccountManagerClass
     void (*_mc_reserved7) (void);
 };
 
+typedef enum
+{
+  MCD_ACCOUNT_MANAGER_ERROR_SET_PARAMETER,
+} McdAccountManagerError;
+
+GQuark mcd_account_manager_error_quark (void);
+
+#define MCD_ACCOUNT_MANAGER_ERROR (mcd_account_manager_error_quark ())
 
 #define MC_ACCOUNT_MANAGER_DBUS_SERVICE "org.freedesktop.Telepathy.AccountManager"
 #define MC_ACCOUNT_MANAGER_DBUS_OBJECT "/org/freedesktop/Telepathy/AccountManager"
