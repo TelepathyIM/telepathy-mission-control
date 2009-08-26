@@ -125,6 +125,9 @@ struct _McdConnectionPrivate
     /* FALSE until we got the first PresencesChanged for the self handle */
     guint got_presences_changed : 1;
 
+    /* FALSE until mcd_connection_close() is called */
+    guint closed : 1;
+
     gchar *alias;
 
     gboolean is_disposed;
@@ -1420,14 +1423,81 @@ _mcd_connection_start_dispatching (McdConnection *self)
     request_unrequested_channels (self);
 }
 
+typedef struct {
+    /* really a McdConnection *, but g_object_add_weak_pointer wants a
+     * gpointer */
+    gpointer mcd_connection;
+} RequestConnectionData;
+
+static RequestConnectionData *
+request_connection_data_new (McdConnection *connection)
+{
+    RequestConnectionData *rcd = g_slice_new (RequestConnectionData);
+
+    rcd->mcd_connection = connection;
+    g_object_add_weak_pointer (rcd->mcd_connection, &rcd->mcd_connection);
+    return rcd;
+}
+
+static void
+request_connection_data_free (gpointer p)
+{
+    RequestConnectionData *rcd = p;
+
+    if (rcd->mcd_connection != NULL)
+    {
+        g_object_remove_weak_pointer (rcd->mcd_connection,
+                                      &rcd->mcd_connection);
+        rcd->mcd_connection = NULL;
+    }
+
+    g_slice_free (RequestConnectionData, rcd);
+}
+
 static void
 request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
-		       const gchar *obj_path, const GError *tperror,
-		       gpointer user_data, GObject *weak_object)
+                       const gchar *obj_path, const GError *tperror,
+                       gpointer user_data, GObject *weak_object)
 {
-    McdConnection *connection = MCD_CONNECTION (weak_object);
-    McdConnectionPrivate *priv = user_data;
+    RequestConnectionData *rcd = user_data;
+    McdConnection *connection = rcd->mcd_connection;
+    McdConnectionPrivate *priv;
     GError *error = NULL;
+
+    if (connection == NULL || connection->priv->closed)
+    {
+        DEBUG ("RequestConnection returned after we'd decided not to use this "
+               "connection");
+
+        /* We no longer want this connection, in fact */
+        if (tperror != NULL)
+        {
+            DEBUG ("It failed anyway: %s", tperror->message);
+        }
+        else
+        {
+            /* no point in making a TpConnection for something we're just
+             * going to throw away */
+            DBusGProxy *tmp_proxy = dbus_g_proxy_new_for_name
+                (tp_proxy_get_dbus_connection (proxy),
+                 bus_name, obj_path, TP_IFACE_CONNECTION);
+
+            DEBUG ("Disconnecting it: %s", obj_path);
+            dbus_g_proxy_call_no_reply (tmp_proxy, "Disconnect",
+                                        G_TYPE_INVALID);
+        }
+
+        if (connection != NULL)
+        {
+            g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
+                           TP_CONNECTION_STATUS_DISCONNECTED,
+                           TP_CONNECTION_STATUS_REASON_REQUESTED);
+        }
+
+        return;
+    }
+
+    priv = connection->priv;
 
     if (tperror)
     {
@@ -1473,12 +1543,17 @@ _mcd_connection_connect_with_params (McdConnection *connection,
                    TP_CONNECTION_STATUS_CONNECTING,
                    TP_CONNECTION_STATUS_REASON_REQUESTED);
 
-    /* TODO: add extra parameters? */
+    /* If the McdConnection gets aborted (which results in it being freed!),
+     * we need to kill off the Connection. So, we can't use connection as the
+     * weak_object.
+     *
+     * A better design in MC 5.3.x would be for the McdConnection to have
+     * a ref held for the duration of this call, not be freed, and signal
+     * that it is no longer useful in some way other than getting aborted. */
     tp_cli_connection_manager_call_request_connection (priv->tp_conn_mgr, -1,
-						       protocol_name, params,
-						       request_connection_cb,
-						       priv, NULL,
-						       (GObject *)connection);
+        protocol_name, params, request_connection_cb,
+        request_connection_data_new (connection), request_connection_data_free,
+        NULL);
 }
 
 static void
@@ -2045,6 +2120,7 @@ mcd_connection_close (McdConnection *connection)
 {
     g_return_if_fail (MCD_IS_CONNECTION (connection));
 
+    connection->priv->closed = TRUE;
     connection->priv->abort_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
     _mcd_connection_release_tp_connection (connection);
     mcd_mission_abort (MCD_MISSION (connection));
