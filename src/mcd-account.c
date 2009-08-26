@@ -2190,6 +2190,7 @@ mcd_account_init (McdAccount *account)
     mcd_dbus_init_interfaces_instances (account);
 
     priv->conn_status = TP_CONNECTION_STATUS_DISCONNECTED;
+    priv->conn_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
 }
 
 McdAccount *
