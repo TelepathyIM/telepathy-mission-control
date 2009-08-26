@@ -115,11 +115,14 @@ def test(q, bus, mc):
                     predicate=check_draft_2_caps),
                 ])
 
+    irssi_bus = dbus.bus.BusConnection()
+    irssi_bus.set_exit_on_disconnect(False)   # we'll disconnect later
+    q.attach_to_bus(irssi_bus)
     irssi_fixed_properties = dbus.Dictionary({
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
         cs.CHANNEL + '.TargetHandleType': cs.HT_ROOM,
         }, signature='sv')
-    irssi = SimulatedClient(q, bus, 'Irssi',
+    irssi = SimulatedClient(q, irssi_bus, 'Irssi',
             observe=[], approve=[], handle=[irssi_fixed_properties],
             cap_tokens=[],
             bypass_approval=False)
@@ -135,6 +138,22 @@ def test(q, bus, mc):
     struct = e.args[0][0]
     assert struct[0] == cs.CLIENT + '.Irssi'
     assert struct[1] == [irssi_fixed_properties]
+    assert struct[2] == []
+
+    # When Irssi exits, the CM is told it has gone
+    irssi.release_name()
+    del irssi
+    irssi_bus.flush()
+    irssi_bus.close()
+
+    e = q.expect('dbus-method-call', handled=False,
+        interface=cs.CONN_IFACE_CONTACT_CAPS_DRAFT2,
+        method='UpdateCapabilities')
+
+    assert len(e.args[0]) == 1
+    struct = e.args[0][0]
+    assert struct[0] == cs.CLIENT + '.Irssi'
+    assert struct[1] == []
     assert struct[2] == []
 
 if __name__ == '__main__':

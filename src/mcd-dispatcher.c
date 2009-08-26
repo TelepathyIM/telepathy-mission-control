@@ -325,20 +325,8 @@ mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
 }
 
 static void
-mcd_client_free (McdClient *client)
+mcd_client_become_incapable (McdClient *client)
 {
-    if (client->proxy)
-    {
-        GError error = { TP_DBUS_ERRORS,
-            TP_DBUS_ERROR_NAME_OWNER_LOST, "Client disappeared" };
-
-        _mcd_object_ready (client->proxy, client_ready_quark, &error);
-
-        g_object_unref (client->proxy);
-    }
-
-    g_free (client->name);
-
     g_list_foreach (client->approver_filters,
                     (GFunc)g_hash_table_destroy, NULL);
     g_list_free (client->approver_filters);
@@ -354,8 +342,29 @@ mcd_client_free (McdClient *client)
     g_list_free (client->observer_filters);
     client->observer_filters = NULL;
 
-    tp_handle_set_destroy (client->capability_tokens);
-    client->capability_tokens = NULL;
+    if (client->capability_tokens != NULL)
+    {
+        tp_handle_set_destroy (client->capability_tokens);
+        client->capability_tokens = NULL;
+    }
+}
+
+static void
+mcd_client_free (McdClient *client)
+{
+    if (client->proxy)
+    {
+        GError error = { TP_DBUS_ERRORS,
+            TP_DBUS_ERROR_NAME_OWNER_LOST, "Client disappeared" };
+
+        _mcd_object_ready (client->proxy, client_ready_quark, &error);
+
+        g_object_unref (client->proxy);
+    }
+
+    mcd_client_become_incapable (client);
+
+    g_free (client->name);
 
     g_slice_free (McdClient, client);
 }
@@ -1992,9 +2001,7 @@ mcd_dispatcher_append_client_caps (McdDispatcher *self,
 {
     GPtrArray *filters = g_ptr_array_sized_new (
         g_list_length (client->handler_filters));
-    GPtrArray *cap_tokens = g_ptr_array_sized_new (
-        tp_handle_set_size (client->capability_tokens) + 1);
-    TokenAppendContext context = { self->priv->string_pool, cap_tokens };
+    GPtrArray *cap_tokens;
     GValueArray *va;
     GList *list;
 
@@ -2009,8 +2016,21 @@ mcd_dispatcher_append_client_caps (McdDispatcher *self,
         g_ptr_array_add (filters, copy);
     }
 
-    tp_handle_set_foreach (client->capability_tokens, append_token_to_ptrs,
-                           &context);
+    if (client->capability_tokens == NULL)
+    {
+        cap_tokens = g_ptr_array_sized_new (1);
+    }
+    else
+    {
+        TokenAppendContext context = { self->priv->string_pool, NULL };
+
+        cap_tokens = g_ptr_array_sized_new (
+            tp_handle_set_size (client->capability_tokens) + 1);
+        context.array = cap_tokens;
+        tp_handle_set_foreach (client->capability_tokens, append_token_to_ptrs,
+                               &context);
+    }
+
     g_ptr_array_add (cap_tokens, NULL);
 
     if (DEBUGGING)
@@ -2803,6 +2823,11 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
 
             if (!client->activatable)
             {
+                /* in ContactCapabilities.DRAFT2 we indicate the disappearance
+                 * of a client by giving it an empty set of capabilities and
+                 * filters */
+                mcd_client_become_incapable (client);
+                mcd_dispatcher_update_client_caps (self, client);
                 g_hash_table_remove (priv->clients, name);
             }
         }
