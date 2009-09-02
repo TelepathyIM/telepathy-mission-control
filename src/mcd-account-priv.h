@@ -172,4 +172,6 @@ G_GNUC_INTERNAL gboolean _mcd_account_check_request_real (McdAccount *account,
                                                           GHashTable *request,
                                                           GError **error);
 
+G_GNUC_INTERNAL gboolean _mcd_account_get_always_on (McdAccount *self);
+
 #endif /* __MCD_ACCOUNT_PRIV_H__ */

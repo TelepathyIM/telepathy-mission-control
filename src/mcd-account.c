@@ -142,6 +142,7 @@ struct _McdAccountPrivate
     guint loaded : 1;
     guint has_been_online : 1;
     guint removed : 1;
+    guint always_on : 1;
 
     /* These fields are used to cache the changed properties */
     GHashTable *changed_properties;
@@ -154,6 +155,7 @@ enum
     PROP_DBUS_DAEMON,
     PROP_ACCOUNT_MANAGER,
     PROP_NAME,
+    PROP_ALWAYS_ON,
 };
 
 enum
@@ -952,7 +954,6 @@ set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
 
     DEBUG ("called for %s", priv->unique_name);
 
-    /* We can't raise an error in this API :-( */
     if (!G_VALUE_HOLDS_BOOLEAN (value))
     {
         g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
@@ -962,6 +963,15 @@ set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
     }
 
     enabled = g_value_get_boolean (value);
+
+    if (priv->always_on && !enabled)
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_PERMISSION_DENIED,
+                     "Account %s cannot be disabled",
+                     priv->unique_name);
+        return FALSE;
+    }
+
     if (priv->enabled != enabled)
     {
 	if (!enabled)
@@ -1248,6 +1258,15 @@ set_connect_automatically (TpSvcDBusProperties *self,
     }
 
     connect_automatically = g_value_get_boolean (value);
+
+    if (priv->always_on && !connect_automatically)
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_PERMISSION_DENIED,
+                     "Account %s always connects automatically",
+                     priv->unique_name);
+        return FALSE;
+    }
+
     if (priv->connect_automatically != connect_automatically)
     {
 	g_key_file_set_boolean (priv->keyfile, priv->unique_name,
@@ -1362,6 +1381,13 @@ set_requested_presence (TpSvcDBusProperties *self,
     type = (gint)g_value_get_uint (va->values);
     status = g_value_get_string (va->values + 1);
     message = g_value_get_string (va->values + 2);
+
+    if (priv->always_on && !_presence_type_is_online (type))
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_PERMISSION_DENIED,
+                     "Account %s cannot be taken offline", priv->unique_name);
+        return FALSE;
+    }
 
     if (!_presence_type_is_settable (type))
     {
@@ -1905,13 +1931,17 @@ mcd_account_setup (McdAccount *account)
     priv->object_path = g_strconcat (MC_ACCOUNT_DBUS_OBJECT_BASE,
 				     priv->unique_name, NULL);
 
-    priv->enabled =
-	g_key_file_get_boolean (priv->keyfile, priv->unique_name,
-				MC_ACCOUNTS_KEY_ENABLED, NULL);
+    if (!priv->always_on)
+    {
+        priv->enabled =
+            g_key_file_get_boolean (priv->keyfile, priv->unique_name,
+                                    MC_ACCOUNTS_KEY_ENABLED, NULL);
 
-    priv->connect_automatically =
-	g_key_file_get_boolean (priv->keyfile, priv->unique_name,
-				MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY, NULL);
+        priv->connect_automatically =
+            g_key_file_get_boolean (priv->keyfile, priv->unique_name,
+                                    MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY,
+                                    NULL);
+    }
 
     priv->has_been_online =
 	g_key_file_get_boolean (priv->keyfile, priv->unique_name,
@@ -1968,10 +1998,25 @@ set_property (GObject *obj, guint prop_id,
          * its lifetime is longer than the McdAccount's */
         priv->account_manager = g_value_get_object (val);
 	break;
+
     case PROP_NAME:
 	g_assert (priv->unique_name == NULL);
 	priv->unique_name = g_value_dup_string (val);
 	break;
+
+    case PROP_ALWAYS_ON:
+        priv->always_on = g_value_get_boolean (val);
+
+        if (priv->always_on)
+        {
+            priv->enabled = TRUE;
+            priv->connect_automatically = TRUE;
+            priv->req_presence_type = priv->auto_presence_type;
+            priv->req_presence_status = g_strdup (priv->auto_presence_status);
+            priv->req_presence_message = g_strdup (priv->auto_presence_message);
+        }
+
+        break;
 
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -2144,6 +2189,13 @@ mcd_account_class_init (McdAccountClass * klass)
                               NULL,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
+    g_object_class_install_property
+        (object_class, PROP_ALWAYS_ON,
+         g_param_spec_boolean ("always-on", "Always on?", "Always on?",
+                              FALSE,
+                              G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY |
+                              G_PARAM_STATIC_STRINGS));
+
     /* Signals */
     _mcd_account_signals[CONNECTION_STATUS_CHANGED] =
 	g_signal_new ("connection-status-changed",
@@ -2181,6 +2233,10 @@ mcd_account_init (McdAccount *account)
     priv->req_presence_type = TP_CONNECTION_PRESENCE_TYPE_OFFLINE;
     priv->req_presence_status = g_strdup ("offline");
     priv->req_presence_message = g_strdup ("");
+
+    priv->always_on = FALSE;
+    priv->enabled = FALSE;
+    priv->connect_automatically = FALSE;
 
     priv->auto_presence_type = TP_CONNECTION_PRESENCE_TYPE_AVAILABLE;
     priv->auto_presence_status = g_strdup ("available");
@@ -3163,4 +3219,12 @@ _mcd_account_set_connection_context (McdAccount *self,
     }
 
     self->priv->connection_context = c;
+}
+
+gboolean
+_mcd_account_get_always_on (McdAccount *self)
+{
+    g_return_val_if_fail (MCD_IS_ACCOUNT (self), FALSE);
+
+    return self->priv->always_on;
 }

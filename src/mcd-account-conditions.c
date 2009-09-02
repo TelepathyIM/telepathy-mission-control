@@ -77,9 +77,18 @@ set_condition (TpSvcDBusProperties *self, const gchar *name,
         return FALSE;
     }
 
-    keyfile = _mcd_account_get_keyfile (account);
     unique_name = mcd_account_get_unique_name (account);
     conditions = g_value_get_boxed (value);
+
+    if (_mcd_account_get_always_on (account))
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_PERMISSION_DENIED,
+                     "Account %s conditions cannot be changed",
+                     unique_name);
+        return FALSE;
+    }
+
+    keyfile = _mcd_account_get_keyfile (account);
     /* first, delete existing conditions */
     keys = g_key_file_get_keys (keyfile, unique_name, NULL, NULL);
     for (key = keys; *key != NULL; key++)
