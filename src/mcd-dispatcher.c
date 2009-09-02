@@ -1028,7 +1028,10 @@ observe_channels_cb (TpClient *proxy, const GError *error,
 
     /* we display the error just for debugging, but we don't really care */
     if (error)
-        DEBUG ("Observer returned error: %s", error->message);
+        DEBUG ("Observer %s returned error: %s",
+               tp_proxy_get_object_path (proxy), error->message);
+    else
+        DEBUG ("success from %s", tp_proxy_get_object_path (proxy));
 
     if (context->operation)
     {
