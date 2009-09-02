@@ -35,6 +35,8 @@
  * FIXME
  */
 
+#include <config.h>
+
 #include <stdlib.h>
 #include "mcd-debug.h"
 #include "mcd-operation.h"
@@ -117,8 +119,12 @@ void mcd_debug_init ()
     gchar *mc_debug_str;
 
     mc_debug_str = getenv ("MC_DEBUG");
+
     if (mc_debug_str)
 	mcd_debug_level = atoi (mc_debug_str);
+
+    if (mcd_debug_level >= 1)
+        g_debug ("%s version %s", PACKAGE, VERSION);
 }
 
 void
