@@ -755,7 +755,7 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
         has_avatars=False, avatars_persist=True,
         extra_interfaces=[],
         requested_presence=(2, 'available', ''),
-        expect_after_connect=[]):
+        expect_before_connect=[], expect_after_connect=[]):
     # Enable the account
     account.Set(cs.ACCOUNT, 'Enabled', True,
             dbus_interface=cs.PROPERTIES_IFACE)
@@ -783,6 +783,11 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
+    if expect_before_connect:
+        events = list(q.expect_many(*expect_before_connect))
+    else:
+        events = []
+
     q.expect('dbus-method-call', method='Connect',
             path=conn.object_path, handled=True)
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
@@ -801,7 +806,7 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
                     interface=cs.CONN, method='ListChannels', args=[],
                     path=conn.object_path, handled=True))
 
-    events = list(q.expect_many(*expect_after_connect))
+    events = events + list(q.expect_many(*expect_after_connect))
 
     del events[-1]
 
