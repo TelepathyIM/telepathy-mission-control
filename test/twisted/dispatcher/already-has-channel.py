@@ -73,7 +73,13 @@ def test(q, bus, mc):
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
             'myself', implement_get_interfaces=False)
 
+
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
+
+    # this is the pre-Connect one
+    e = q.expect('dbus-method-call', method='GetInterfaces',
+            path=conn.object_path, handled=False)
+    q.dbus_raise(e.message, cs.DISCONNECTED, 'Not connected yet')
 
     q.expect('dbus-method-call', method='Connect',
             path=conn.object_path, handled=True)
