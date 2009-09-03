@@ -217,10 +217,12 @@ properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 static void
 mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
 {
+    DEBUG ("%s/%p: finished", self->priv->unique_name, self);
     tp_svc_channel_dispatch_operation_emit_finished (self);
 
     if (self->priv->claim_context != NULL)
     {
+        DEBUG ("Replying to Claim call from %s", self->priv->claimer);
         tp_svc_channel_dispatch_operation_return_from_claim (self->priv->claim_context);
         self->priv->claim_context = NULL;
     }
@@ -233,6 +235,7 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation)
 
     if (priv->finished)
     {
+        DEBUG ("already finished!");
         return FALSE;
     }
 
@@ -281,6 +284,8 @@ dispatch_operation_claim (TpSvcChannelDispatchOperation *self,
     {
         GError *error = g_error_new (TP_ERRORS, TP_ERROR_NOT_YOURS,
                                      "CDO already finished");
+        DEBUG ("Giving error to %s: %s", dbus_g_method_get_sender (context),
+               error->message);
         dbus_g_method_return_error (context, error);
         g_error_free (error);
         return;
@@ -290,6 +295,7 @@ dispatch_operation_claim (TpSvcChannelDispatchOperation *self,
     g_assert (priv->claim_context == NULL);
     priv->claimer = dbus_g_method_get_sender (context);
     priv->claim_context = context;
+    DEBUG ("Claiming on behalf of %s", priv->claimer);
 
     _mcd_dispatch_operation_finish (MCD_DISPATCH_OPERATION (self));
 }
