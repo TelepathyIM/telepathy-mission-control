@@ -31,11 +31,15 @@
 #include "mcd-plugin.h"
 #include "mcd-transport.h"
 
+#include <telepathy-glib/enums.h>
+
 G_BEGIN_DECLS
 
 typedef void (*McdAccountConnectionFunc) (McdAccount *account, GHashTable *parameters, gpointer userdata);
 
 void mcd_account_connection_proceed (McdAccount *account, gboolean success);
+void mcd_account_connection_proceed_with_reason
+    (McdAccount *account, gboolean success, TpConnectionStatusReason reason);
 void mcd_account_connection_bind_transport (McdAccount *account,
                                             McdTransport *transport);
 

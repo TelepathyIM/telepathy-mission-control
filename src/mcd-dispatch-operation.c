@@ -85,6 +85,7 @@ struct _McdDispatchOperationPrivate
     guint finished : 1;
     gchar *handler;
     gchar *claimer;
+    DBusGMethodInvocation *claim_context;
 
     /* DBUS connection */
     TpDBusDaemon *dbus_daemon;
@@ -213,6 +214,20 @@ properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 #undef IMPLEMENT
 }
 
+static void
+mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
+{
+    DEBUG ("%s/%p: finished", self->priv->unique_name, self);
+    tp_svc_channel_dispatch_operation_emit_finished (self);
+
+    if (self->priv->claim_context != NULL)
+    {
+        DEBUG ("Replying to Claim call from %s", self->priv->claimer);
+        tp_svc_channel_dispatch_operation_return_from_claim (self->priv->claim_context);
+        self->priv->claim_context = NULL;
+    }
+}
+
 gboolean
 _mcd_dispatch_operation_finish (McdDispatchOperation *operation)
 {
@@ -220,6 +235,7 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation)
 
     if (priv->finished)
     {
+        DEBUG ("already finished!");
         return FALSE;
     }
 
@@ -228,7 +244,7 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation)
     if (priv->block_finished == 0)
     {
         DEBUG ("%s/%p has finished", priv->unique_name, operation);
-        tp_svc_channel_dispatch_operation_emit_finished (operation);
+        mcd_dispatch_operation_actually_finish (operation);
     }
     else
     {
@@ -268,13 +284,18 @@ dispatch_operation_claim (TpSvcChannelDispatchOperation *self,
     {
         GError *error = g_error_new (TP_ERRORS, TP_ERROR_NOT_YOURS,
                                      "CDO already finished");
+        DEBUG ("Giving error to %s: %s", dbus_g_method_get_sender (context),
+               error->message);
         dbus_g_method_return_error (context, error);
         g_error_free (error);
         return;
     }
 
+    g_assert (priv->claimer == NULL);
+    g_assert (priv->claim_context == NULL);
     priv->claimer = dbus_g_method_get_sender (context);
-    tp_svc_channel_dispatch_operation_return_from_claim (context);
+    priv->claim_context = context;
+    DEBUG ("Claiming on behalf of %s", priv->claimer);
 
     _mcd_dispatch_operation_finish (MCD_DISPATCH_OPERATION (self));
 }
@@ -801,7 +822,7 @@ _mcd_dispatch_operation_unblock_finished (McdDispatchOperation *self)
         if (self->priv->finished)
         {
             DEBUG ("%s/%p finished", self->priv->unique_name, self);
-            tp_svc_channel_dispatch_operation_emit_finished (self);
+            mcd_dispatch_operation_actually_finish (self);
         }
     }
 }

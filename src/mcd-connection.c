@@ -102,6 +102,9 @@ struct _McdConnectionPrivate
     /* Telepathy connection */
     TpConnection *tp_conn;
 
+    /* Things to do before calling Connect */
+    guint tasks_before_connect;
+
     guint reconnect_timer; 	/* timer for reconnection */
     guint reconnect_interval;
 
@@ -127,6 +130,9 @@ struct _McdConnectionPrivate
 
     /* FALSE until we got the first PresencesChanged for the self handle */
     guint got_presences_changed : 1;
+
+    /* FALSE until mcd_connection_close() is called */
+    guint closed : 1;
 
     gchar *alias;
 
@@ -351,7 +357,17 @@ presence_get_statuses_cb (TpProxy *proxy, const GValue *v_statuses,
 
     DEBUG ("account %s:", mcd_account_get_unique_name (priv->account));
     statuses = g_value_get_boxed (v_statuses);
+
+    g_return_if_fail (statuses != NULL);
+
+    /* This function can be called both before and after Connect() - before
+     * CONNECTED the Connection tells us the presences it believes it will
+     * probably support, and after CONNECTED it tells us the presences it
+     * *actually* supports (which might be less numerous). */
+    g_hash_table_remove_all (priv->recognized_presences);
+
     g_hash_table_iter_init (&iter, statuses);
+
     while (g_hash_table_iter_next (&iter, &ht_key, &ht_value))
     {
         GValueArray *va = ht_value;
@@ -1452,13 +1468,189 @@ _mcd_connection_update_client_caps (McdConnection *self,
 }
 
 static void
-request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
-		       const gchar *obj_path, const GError *tperror,
-		       gpointer user_data, GObject *weak_object)
+mcd_connection_done_task_before_connect (McdConnection *self)
 {
-    McdConnection *connection = MCD_CONNECTION (weak_object);
-    McdConnectionPrivate *priv = user_data;
+    if (--self->priv->tasks_before_connect == 0)
+    {
+        if (self->priv->tp_conn == NULL)
+        {
+            DEBUG ("TpConnection went away, not doing anything");
+        }
+
+        DEBUG ("%s: Calling Connect()",
+               tp_proxy_get_object_path (self->priv->tp_conn));
+        tp_cli_connection_call_connect (self->priv->tp_conn, -1, connect_cb,
+                                        self->priv, NULL, (GObject *) self);
+    }
+}
+
+static void
+mcd_connection_early_get_statuses_cb (TpProxy *proxy,
+                                      const GValue *v_statuses,
+                                      const GError *error,
+                                      gpointer user_data,
+                                      GObject *weak_object)
+{
+    McdConnection *self = MCD_CONNECTION (weak_object);
+
+    if (self->priv->tp_conn != (TpConnection *) proxy)
+    {
+        DEBUG ("Connection %p has been replaced with %p, stopping",
+               proxy, self->priv->tp_conn);
+        return;
+    }
+
+    /* This is before we called Connect(), and may or may not be before
+     * connection-ready has been signalled. */
+
+    if (error == NULL)
+    {
+        DEBUG ("%s: Early Get(Statuses) succeeded",
+               tp_proxy_get_object_path (proxy));
+
+        /* This will trigger a call to SetPresence, but don't wait for that to
+         * finish before calling Connect (there's no need to). */
+        presence_get_statuses_cb (proxy, v_statuses, error, self->priv,
+                                  weak_object);
+    }
+    else
+    {
+        DEBUG ("%s: Early Get(Statuses) failed (not a problem, will try "
+               "again later): %s #%d: %s",
+               tp_proxy_get_object_path (proxy),
+               g_quark_to_string (error->domain), error->code, error->message);
+    }
+
+    mcd_connection_done_task_before_connect (self);
+}
+
+static void
+mcd_connection_early_get_interfaces_cb (TpConnection *tp_conn,
+                                        const gchar **interfaces,
+                                        const GError *error,
+                                        gpointer user_data,
+                                        GObject *weak_object)
+{
+    McdConnection *self = MCD_CONNECTION (weak_object);
+    const gchar **iter;
+
+    if (self->priv->tp_conn != tp_conn)
+    {
+        DEBUG ("Connection %p has been replaced with %p, stopping",
+               tp_conn, self->priv->tp_conn);
+        return;
+    }
+
+    if (error != NULL)
+    {
+        DEBUG ("%s: Early GetInterfaces failed (not a problem, will try "
+               "again later): %s #%d: %s",
+               tp_proxy_get_object_path (tp_conn),
+               g_quark_to_string (error->domain), error->code, error->message);
+    }
+    else
+    {
+        for (iter = interfaces; *iter != NULL; iter++)
+        {
+            GQuark q = g_quark_try_string (*iter);
+
+            /* if the interface is not recognised, q will just be 0 */
+
+            if (q == TP_IFACE_QUARK_CONNECTION_INTERFACE_SIMPLE_PRESENCE)
+            {
+                /* nail on the interface (TpConnection will eventually know
+                 * how to do this for itself) */
+                tp_proxy_add_interface_by_id ((TpProxy *) tp_conn, q);
+                self->priv->has_presence_if = TRUE;
+
+                self->priv->tasks_before_connect++;
+
+                tp_cli_dbus_properties_call_get (tp_conn, -1,
+                    TP_IFACE_CONNECTION_INTERFACE_SIMPLE_PRESENCE, "Statuses",
+                    mcd_connection_early_get_statuses_cb, NULL, NULL,
+                    (GObject *) self);
+            }
+        }
+    }
+
+    mcd_connection_done_task_before_connect (self);
+}
+
+typedef struct {
+    /* really a McdConnection *, but g_object_add_weak_pointer wants a
+     * gpointer */
+    gpointer mcd_connection;
+} RequestConnectionData;
+
+static RequestConnectionData *
+request_connection_data_new (McdConnection *connection)
+{
+    RequestConnectionData *rcd = g_slice_new (RequestConnectionData);
+
+    rcd->mcd_connection = connection;
+    g_object_add_weak_pointer (rcd->mcd_connection, &rcd->mcd_connection);
+    return rcd;
+}
+
+static void
+request_connection_data_free (gpointer p)
+{
+    RequestConnectionData *rcd = p;
+
+    if (rcd->mcd_connection != NULL)
+    {
+        g_object_remove_weak_pointer (rcd->mcd_connection,
+                                      &rcd->mcd_connection);
+        rcd->mcd_connection = NULL;
+    }
+
+    g_slice_free (RequestConnectionData, rcd);
+}
+
+static void
+request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
+                       const gchar *obj_path, const GError *tperror,
+                       gpointer user_data, GObject *weak_object)
+{
+    RequestConnectionData *rcd = user_data;
+    McdConnection *connection = rcd->mcd_connection;
+    McdConnectionPrivate *priv;
     GError *error = NULL;
+
+    if (connection == NULL || connection->priv->closed)
+    {
+        DEBUG ("RequestConnection returned after we'd decided not to use this "
+               "connection");
+
+        /* We no longer want this connection, in fact */
+        if (tperror != NULL)
+        {
+            DEBUG ("It failed anyway: %s", tperror->message);
+        }
+        else
+        {
+            /* no point in making a TpConnection for something we're just
+             * going to throw away */
+            DBusGProxy *tmp_proxy = dbus_g_proxy_new_for_name
+                (tp_proxy_get_dbus_connection (proxy),
+                 bus_name, obj_path, TP_IFACE_CONNECTION);
+
+            DEBUG ("Disconnecting it: %s", obj_path);
+            dbus_g_proxy_call_no_reply (tmp_proxy, "Disconnect",
+                                        G_TYPE_INVALID);
+        }
+
+        if (connection != NULL)
+        {
+            g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
+                           TP_CONNECTION_STATUS_DISCONNECTED,
+                           TP_CONNECTION_STATUS_REASON_REQUESTED);
+        }
+
+        return;
+    }
+
+    priv = connection->priv;
 
     if (tperror)
     {
@@ -1481,11 +1673,13 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
 	return;
     }
 
-    /* FIXME we don't know the status of the connection yet, but calling
-     * Connect shouldn't cause any harm
-     * https://bugs.freedesktop.org/show_bug.cgi?id=14620 */
-    tp_cli_connection_call_connect (priv->tp_conn, -1, connect_cb, priv, NULL,
-				    (GObject *)connection);
+    priv->tasks_before_connect = 1;
+
+    /* TpConnection doesn't yet know how to get this information before
+     * the Connection goes to CONNECTED, so we'll have to do it ourselves */
+    tp_cli_connection_call_get_interfaces (priv->tp_conn, -1,
+        mcd_connection_early_get_interfaces_cb, NULL, NULL,
+        (GObject *) connection);
 }
 
 static void
@@ -1504,12 +1698,17 @@ _mcd_connection_connect_with_params (McdConnection *connection,
                    TP_CONNECTION_STATUS_CONNECTING,
                    TP_CONNECTION_STATUS_REASON_REQUESTED);
 
-    /* TODO: add extra parameters? */
+    /* If the McdConnection gets aborted (which results in it being freed!),
+     * we need to kill off the Connection. So, we can't use connection as the
+     * weak_object.
+     *
+     * A better design in MC 5.3.x would be for the McdConnection to have
+     * a ref held for the duration of this call, not be freed, and signal
+     * that it is no longer useful in some way other than getting aborted. */
     tp_cli_connection_manager_call_request_connection (priv->tp_conn_mgr, -1,
-						       protocol_name, params,
-						       request_connection_cb,
-						       priv, NULL,
-						       (GObject *)connection);
+        protocol_name, params, request_connection_cb,
+        request_connection_data_new (connection), request_connection_data_free,
+        NULL);
 }
 
 static void
@@ -2091,6 +2290,7 @@ mcd_connection_close (McdConnection *connection)
 {
     g_return_if_fail (MCD_IS_CONNECTION (connection));
 
+    connection->priv->closed = TRUE;
     connection->priv->abort_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
     _mcd_connection_release_tp_connection (connection);
     mcd_mission_abort (MCD_MISSION (connection));

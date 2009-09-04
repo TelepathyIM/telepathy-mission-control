@@ -1,3 +1,31 @@
+telepathy-mission-control 5.2.1 (2009-08-26)
+============================================
+
+The "secret cake" release.
+
+Enhancements:
+
+* Add change notification in the Compat interface (mardy)
+
+* Make the low-memory check overridable by subclasses (smcv)
+
+* Complete online requests with error on DISCONNECTED -> DISCONNECTED
+  transition (i.e. cancellation) (mardy)
+
+* Set the initial connection status reason to Requested, since None_Specified
+  usually means "generic error" (mardy)
+
+Fixes:
+
+* fd.o #23509: wait for observers and approvers to finish initial processing
+  before letting Claim() finish (smcv)
+
+* Don't allow transition from one transport to another (smcv)
+
+* If a transport plugin stops a connection before RequestConnection has even
+  returned, remember that, and disconnect that Connection later when it does
+  turn up (smcv)
+
 telepathy-mission-control 5.2.0 (2009-07-30)
 ============================================
 

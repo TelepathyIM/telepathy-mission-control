@@ -103,6 +103,7 @@ NOT_AVAILABLE = ERROR + '.NotAvailable'
 PERMISSION_DENIED = ERROR + '.PermissionDenied'
 CANCELLED = ERROR + '.Cancelled'
 NOT_YOURS = ERROR + '.NotYours'
+DISCONNECTED = ERROR + '.Disconnected'
 
 TUBE_PARAMETERS = CHANNEL_IFACE_TUBE + '.Parameters'
 TUBE_STATE = CHANNEL_IFACE_TUBE + '.State'

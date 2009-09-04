@@ -1049,7 +1049,15 @@ observe_channels_cb (TpClient *proxy, const GError *error,
 
     /* we display the error just for debugging, but we don't really care */
     if (error)
-        DEBUG ("Observer returned error: %s", error->message);
+        DEBUG ("Observer %s returned error: %s",
+               tp_proxy_get_object_path (proxy), error->message);
+    else
+        DEBUG ("success from %s", tp_proxy_get_object_path (proxy));
+
+    if (context->operation)
+    {
+        _mcd_dispatch_operation_unblock_finished (context->operation);
+    }
 
     mcd_dispatcher_context_release_client_lock (context);
 }
@@ -1151,6 +1159,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
         {
             dispatch_operation_path =
                 mcd_dispatch_operation_get_path (context->operation);
+            _mcd_dispatch_operation_block_finished (context->operation);
         }
 
         context->client_locks++;

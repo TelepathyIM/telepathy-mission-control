@@ -101,8 +101,6 @@ def test(q, bus, mc):
             )
     assert e.args[0].get('Connection') in (conn.object_path, None)
     assert e.args[0]['ConnectionStatus'] == cs.CONN_STATUS_CONNECTING
-    assert e.args[0]['ConnectionStatusReason'] == \
-            cs.CONN_STATUS_REASON_REQUESTED
 
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
 
