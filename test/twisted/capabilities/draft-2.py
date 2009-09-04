@@ -105,15 +105,23 @@ def test(q, bus, mc):
     params = dbus.Dictionary({"account": "someguy@example.com",
         "password": "secrecy"}, signature='sv')
     cm_name_ref, account = create_fakecm_account(q, bus, mc, params)
-    conn = enable_fakecm_account(q, bus, mc, account, params,
+    conn, before, after = enable_fakecm_account(q, bus, mc, account, params,
             extra_interfaces=[cs.CONN_IFACE_CONTACT_CAPS_DRAFT2,
                 cs.CONN_IFACE_CAPS],
+            expect_before_connect=[
+                EventPattern('dbus-method-call', handled=False,
+                    interface=cs.CONN_IFACE_CONTACT_CAPS_DRAFT2,
+                    method='UpdateCapabilities',
+                    predicate=check_draft_2_caps),
+                ],
             expect_after_connect=[
                 EventPattern('dbus-method-call', handled=False,
                     interface=cs.CONN_IFACE_CONTACT_CAPS_DRAFT2,
                     method='UpdateCapabilities',
                     predicate=check_draft_2_caps),
                 ])
+    q.dbus_return(before.message, signature='')
+    q.dbus_return(after.message, signature='')
 
     irssi_bus = dbus.bus.BusConnection()
     irssi_bus.set_exit_on_disconnect(False)   # we'll disconnect later
