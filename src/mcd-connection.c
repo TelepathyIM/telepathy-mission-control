@@ -1570,6 +1570,32 @@ mcd_connection_early_get_interfaces_cb (TpConnection *tp_conn,
                     mcd_connection_early_get_statuses_cb, NULL, NULL,
                     (GObject *) self);
             }
+            else if (q == MC_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES_DRAFT2)
+            {
+                GPtrArray *client_caps;
+
+                /* nail on the interface (TpConnection will eventually know
+                 * how to do this for itself) */
+                tp_proxy_add_interface_by_id ((TpProxy *) tp_conn, q);
+                self->priv->has_contact_capabilities_draft2_if = TRUE;
+
+                /* we don't need to delay Connect for this, it can be
+                 * fire-and-forget */
+
+                client_caps = _mcd_dispatcher_dup_client_caps (
+                    self->priv->dispatcher);
+
+                if (client_caps != NULL)
+                {
+                    _mcd_connection_update_client_caps (self, client_caps);
+                    g_ptr_array_foreach (client_caps,
+                                         (GFunc) g_value_array_free, NULL);
+                    g_ptr_array_free (client_caps, TRUE);
+                }
+                /* else the McdDispatcher hasn't sorted itself out yet, so
+                 * we can't usefully pre-load capabilities - we'll be told
+                 * the real capabilities as soon as it has worked them out */
+            }
         }
     }
 
