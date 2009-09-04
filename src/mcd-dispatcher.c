@@ -4042,6 +4042,32 @@ mcd_dispatcher_lost_connection (gpointer data,
     g_object_unref (self);
 }
 
+GPtrArray *
+_mcd_dispatcher_dup_client_caps (McdDispatcher *self)
+{
+    GPtrArray *vas;
+    GHashTableIter iter;
+    gpointer p;
+
+    g_return_val_if_fail (MCD_IS_DISPATCHER (self), NULL);
+
+    vas = g_ptr_array_sized_new (g_hash_table_size (self->priv->clients));
+
+    if (!self->priv->startup_completed)
+    {
+        return NULL;
+    }
+
+    g_hash_table_iter_init (&iter, self->priv->clients);
+
+    while (g_hash_table_iter_next (&iter, NULL, &p))
+    {
+        mcd_dispatcher_append_client_caps (self, p, vas);
+    }
+
+    return vas;
+}
+
 void
 _mcd_dispatcher_add_connection (McdDispatcher *self,
                                 McdConnection *connection)
@@ -4057,18 +4083,7 @@ _mcd_dispatcher_add_connection (McdDispatcher *self,
 
     if (self->priv->startup_completed)
     {
-        GHashTableIter iter;
-        gpointer p;
-        GPtrArray *vas;
-
-        vas = g_ptr_array_sized_new (g_hash_table_size (self->priv->clients));
-
-        g_hash_table_iter_init (&iter, self->priv->clients);
-
-        while (g_hash_table_iter_next (&iter, NULL, &p))
-        {
-            mcd_dispatcher_append_client_caps (self, p, vas);
-        }
+        GPtrArray *vas = _mcd_dispatcher_dup_client_caps (self);
 
         _mcd_connection_start_dispatching (connection, vas);
 

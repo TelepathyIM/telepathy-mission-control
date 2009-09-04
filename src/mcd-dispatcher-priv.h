@@ -58,6 +58,9 @@ void _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
 G_GNUC_INTERNAL void _mcd_dispatcher_add_connection (McdDispatcher *self,
     McdConnection *connection);
 
+G_GNUC_INTERNAL GPtrArray *_mcd_dispatcher_dup_client_caps (
+    McdDispatcher *self);
+
 G_END_DECLS
 
 #endif /* MCD_DISPATCHER_H */
