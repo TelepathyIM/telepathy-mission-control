@@ -58,5 +58,7 @@ gboolean _mcd_file_set_contents (const gchar *filename, const gchar *contents,
 G_GNUC_INTERNAL
 void _mc_ext_register_dbus_glib_marshallers (void);
 
+G_GNUC_INTERNAL int _mcd_chmod_private (const gchar *filename);
+
 G_END_DECLS
 #endif /* MCD_MISC_H */
