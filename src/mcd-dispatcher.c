@@ -118,7 +118,6 @@ struct _McdDispatcherContext
     McdDispatcher *dispatcher;
 
     GList *channels;
-    McdChannel *main_channel;
     McdAccount *account;
     McdDispatchOperation *operation;
     /* bus names (including the common prefix) in preference order */
@@ -3450,10 +3449,8 @@ McdChannel *
 mcd_dispatcher_context_get_channel (McdDispatcherContext * ctx)
 {
     g_return_val_if_fail (ctx, 0);
-    if (ctx->main_channel)
-        return ctx->main_channel;
-    else
-        return ctx->channels ? MCD_CHANNEL (ctx->channels->data) : NULL;
+
+    return ctx->channels ? MCD_CHANNEL (ctx->channels->data) : NULL;
 }
 
 /**
