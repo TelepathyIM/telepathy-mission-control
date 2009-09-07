@@ -75,6 +75,11 @@ def test(q, bus, mc):
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
+    # this is the pre-Connect one
+    e = q.expect('dbus-method-call', method='GetInterfaces',
+            path=conn.object_path, handled=False)
+    q.dbus_raise(e.message, cs.DISCONNECTED, 'Not connected yet')
+
     q.expect('dbus-method-call', method='Connect',
             path=conn.object_path, handled=True)
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)

@@ -86,6 +86,9 @@ def test(q, bus, mc):
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
     account_path = (cs.tp_path_prefix + '/Account/' + account_id)
+    account = bus.get_object(
+        cs.tp_name_prefix + '.AccountManager',
+        account_path)
 
     e, _ = q.expect_many(
             EventPattern('dbus-signal', signal='AccountPropertyChanged',
@@ -122,12 +125,8 @@ def test(q, bus, mc):
 
     assert e.args[0]['ConnectionStatus'] == cs.CONN_STATUS_CONNECTED
 
-    e = q.expect('dbus-signal', signal='AccountPropertyChanged',
-            path=account_path, interface=cs.ACCOUNT,
-            predicate=lambda e: 'CurrentPresence' in e.args[0]
-                and e.args[0]['CurrentPresence'][2] != '')
-
-    assert e.args[0]['CurrentPresence'] == (cs.PRESENCE_TYPE_AVAILABLE,
+    assert account.Get(cs.ACCOUNT, 'CurrentPresence',
+            dbus_interface=cs.PROPERTIES_IFACE) == (cs.PRESENCE_TYPE_AVAILABLE,
             'available', 'My vision is augmented')
 
     q.dbus_return(set_aliases.message, signature='')

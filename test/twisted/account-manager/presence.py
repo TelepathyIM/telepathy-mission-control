@@ -36,27 +36,57 @@ def test(q, bus, mc):
     account_iface = dbus.Interface(account, cs.ACCOUNT)
     account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)
 
+    # Go online with a particular presence
     presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_BUSY), 'busy',
             'Fighting conspiracies'), signature='uss')
 
-    conn, e = enable_fakecm_account(q, bus, mc, account, params,
+    log = []
+
+    # FIXME: using predicate for its side-effects here is weird
+
+    conn, _, _, _, _, _, _ = enable_fakecm_account(q, bus, mc, account, params,
             has_presence=True,
             requested_presence=presence,
-            expect_after_connect=[
+            expect_before_connect=[
+                EventPattern('dbus-method-call',
+                    interface=cs.CONN, method='GetInterfaces',
+                    args=[],
+                    handled=True,
+                    predicate=(lambda e: log.append('GetInterfaces') or True)),
+                EventPattern('dbus-method-call',
+                    interface=cs.PROPERTIES_IFACE, method='Get',
+                    args=[cs.CONN_IFACE_SIMPLE_PRESENCE, 'Statuses'],
+                    handled=True,
+                    predicate=(lambda e: log.append('Get(Statuses)[1]') or True)),
                 EventPattern('dbus-method-call',
                     interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
                     method='SetPresence',
                     args=list(presence[1:]),
-                    handled=True),
+                    handled=True,
+                    predicate=(lambda e: log.append('SetPresence[1]') or True)),
+                ],
+            expect_after_connect=[
+                EventPattern('dbus-method-call',
+                    interface=cs.PROPERTIES_IFACE, method='Get',
+                    args=[cs.CONN_IFACE_SIMPLE_PRESENCE, 'Statuses'],
+                    handled=True,
+                    predicate=(lambda e: log.append('Get(Statuses)[2]') or True)),
+                EventPattern('dbus-method-call',
+                    interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
+                    method='SetPresence',
+                    args=list(presence[1:]),
+                    handled=True,
+                    predicate=(lambda e: log.append('SetPresence[2]') or True)),
+                EventPattern('dbus-signal', path=account.object_path,
+                    interface=cs.ACCOUNT, signal='AccountPropertyChanged',
+                    predicate=lambda e:
+                        e.args[0].get('CurrentPresence') == presence and
+                        (log.append('APC(CurrentPresence)') or True)),
                 ])
 
-    q.dbus_emit(conn.object_path, cs.CONN_IFACE_SIMPLE_PRESENCE,
-            'PresencesChanged', {conn.self_handle: presence},
-            signature='a{u(uss)}')
-
-    q.expect('dbus-signal', path=account.object_path,
-            interface=cs.ACCOUNT, signal='AccountPropertyChanged',
-            predicate=lambda e: e.args[0].get('CurrentPresence') == presence)
+    # The events before Connect must happen in this order
+    assert log == ['GetInterfaces', 'Get(Statuses)[1]', 'SetPresence[1]',
+            'Get(Statuses)[2]', 'SetPresence[2]', 'APC(CurrentPresence)']
 
     # Change requested presence after going online
     presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_AWAY), 'away',
