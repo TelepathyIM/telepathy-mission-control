@@ -18,6 +18,8 @@ AC_PROG_LIBTOOL
 AM_PROG_MKDIR_P
 
 AC_HEADER_STDC
+AC_CHECK_HEADERS([sys/stat.h sys/types.h])
+AC_CHECK_FUNCS([umask])
 
 case "$PACKAGE_VERSION" in
   *+)
