@@ -253,6 +253,7 @@ _mcd_channel_close (McdChannel *channel)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
     const GError *invalidated;
+    GQuark channel_type;
 
     if (priv->tp_chan == NULL)
     {
@@ -270,10 +271,17 @@ _mcd_channel_close (McdChannel *channel)
         return;
     }
 
-    if (tp_channel_get_channel_type_id (priv->tp_chan) ==
-        TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
+    channel_type = tp_channel_get_channel_type_id (priv->tp_chan);
+
+    if (channel_type == TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
     {
         DEBUG ("Not closing %p, it's a ContactList", channel);
+        return;
+    }
+
+    if (channel_type == TP_IFACE_QUARK_CHANNEL_TYPE_TUBES)
+    {
+        DEBUG ("Not closing %p, it's an old Tubes channel", channel);
         return;
     }
 
