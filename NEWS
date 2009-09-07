@@ -1,3 +1,31 @@
+telepathy-mission-control 5.2.2 (2009-09-07)
+============================================
+
+The "St. Pancreas" release.
+
+Enhancements:
+
+* Better debug output under various circumstances, including outputting the
+  version number on startup (smcv)
+
+* Add the concept of always-on accounts, which can't be disabled or otherwise
+  put offline (smcv)
+
+* Try to set initial presence before calling Connect (smcv)
+
+Fixes:
+
+* fd.o #23778: make sure account details (including passwords) are stored in
+  directories readable only by the user. Distributions wanting this fix
+  without any other changes should cherry-pick git commits 16c55625,
+  2a42ac03, c16f40ec and 3558c3b2 (smcv)
+
+* Replace deprecated g_strcasecmp with g_ascii_strcasecmp (Jonh Wendell)
+
+* Don't close old-style Tubes channels if they can't be dispatched, since
+  that closes the new-style StreamTube/DBusTube channels that everyone
+  should be using, as a side-effect (smcv)
+
 telepathy-mission-control 5.2.1 (2009-08-26)
 ============================================
 
