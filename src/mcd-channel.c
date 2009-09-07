@@ -308,6 +308,12 @@ _mcd_channel_undispatchable (McdChannel *channel)
         return;
     }
 
+    if (channel_type == TP_IFACE_QUARK_CHANNEL_TYPE_TUBES)
+    {
+        DEBUG ("%p is an old Tubes channel, not closing", channel);
+        return;
+    }
+
     DEBUG ("%p: %s", channel, mcd_channel_get_object_path (channel));
 
     /* Call Destroy() if possible, or Close() */
