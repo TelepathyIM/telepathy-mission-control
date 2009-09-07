@@ -36,6 +36,9 @@
 #include <telepathy-glib/errors.h>
 #include <telepathy-glib/util.h>
 #include <libmcclient/mc-errors.h>
+
+#include "mcd-debug.h"
+
 #include "_gen/signals-marshal.h"
 #include "_gen/register-dbus-glib-marshallers-body.h"
 
@@ -222,4 +225,32 @@ _mcd_file_set_contents (const gchar *filename, const gchar *contents,
     }
 
     return g_file_set_contents (filename, contents, length, error);
+}
+
+int
+_mcd_chmod_private (const gchar *filename)
+{
+    struct stat buf;
+    int ret;
+
+    ret = g_stat (filename, &buf);
+
+    if (ret < 0)
+    {
+        DEBUG ("g_stat: %s", g_strerror (errno));
+        return ret;
+    }
+
+    if ((buf.st_mode & 0077) != 0)
+    {
+        DEBUG ("chmod go-rwx %s", filename);
+        ret = g_chmod (filename, (buf.st_mode & ~0077));
+
+        if (ret < 0)
+        {
+            DEBUG ("g_chmod: %s", g_strerror (errno));
+        }
+    }
+
+    return ret;
 }
