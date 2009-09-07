@@ -2592,7 +2592,8 @@ _mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
     data_dir = get_account_data_path (priv);
     filename = g_build_filename (data_dir, MC_AVATAR_FILENAME, NULL);
     if (!g_file_test (data_dir, G_FILE_TEST_EXISTS))
-	g_mkdir_with_parents (data_dir, 0777);
+	g_mkdir_with_parents (data_dir, 0700);
+    _mcd_chmod_private (data_dir);
     g_free (data_dir);
 
     if (G_LIKELY(avatar) && avatar->len > 0)

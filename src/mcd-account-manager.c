@@ -1035,7 +1035,8 @@ mcd_account_manager_init (McdAccountManager *account_manager)
     if (!g_file_test (conf_filename, G_FILE_TEST_EXISTS))
     {
 	gchar *dirname = g_path_get_dirname (conf_filename);
-	g_mkdir_with_parents (dirname, 0777);
+	g_mkdir_with_parents (dirname, 0700);
+        _mcd_chmod_private (dirname);
 	g_free (dirname);
 
         DEBUG ("Creating file");
@@ -1161,6 +1162,7 @@ _mcd_account_manager_store_account_connections (McdAccountManager *manager)
 
     /* make $XDG_CACHE_DIR (or whatever) if it doesn't exist */
     g_mkdir_with_parents (priv->account_connections_dir, 0700);
+    _mcd_chmod_private (priv->account_connections_dir);
 
     file = fopen (priv->account_connections_file, "w");
     if (G_UNLIKELY (!file)) return;
