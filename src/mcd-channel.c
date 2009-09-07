@@ -248,8 +248,9 @@ on_channel_ready (TpChannel *tp_chan, const GError *error, gpointer user_data)
 	_mcd_channel_setup_group (channel);
 }
 
-void
-_mcd_channel_close (McdChannel *channel)
+static gboolean
+mcd_channel_should_close (McdChannel *channel,
+                          const gchar *verb)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
     const GError *invalidated;
@@ -257,31 +258,44 @@ _mcd_channel_close (McdChannel *channel)
 
     if (priv->tp_chan == NULL)
     {
-        DEBUG ("Not closing %p: no TpChannel", channel);
-        return;
+        DEBUG ("Not %s %p: no TpChannel", verb, channel);
+        return FALSE;
     }
 
     invalidated = TP_PROXY (priv->tp_chan)->invalidated;
 
     if (invalidated != NULL)
     {
-        DEBUG ("Not closing %p, already invalidated: %s %d: %s",
-               channel, g_quark_to_string (invalidated->domain),
+        DEBUG ("Not %s %p, already invalidated: %s %d: %s",
+               verb, channel, g_quark_to_string (invalidated->domain),
                invalidated->code, invalidated->message);
-        return;
+        return FALSE;
     }
 
     channel_type = tp_channel_get_channel_type_id (priv->tp_chan);
 
     if (channel_type == TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
     {
-        DEBUG ("Not closing %p, it's a ContactList", channel);
-        return;
+        DEBUG ("Not %s %p, it's a ContactList", verb, channel);
+        return FALSE;
     }
 
     if (channel_type == TP_IFACE_QUARK_CHANNEL_TYPE_TUBES)
     {
-        DEBUG ("Not closing %p, it's an old Tubes channel", channel);
+        DEBUG ("Not %s %p, it's an old Tubes channel", verb, channel);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+void
+_mcd_channel_close (McdChannel *channel)
+{
+    McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
+
+    if (!mcd_channel_should_close (channel, "closing"))
+    {
         return;
     }
 
@@ -294,31 +308,9 @@ void
 _mcd_channel_undispatchable (McdChannel *channel)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
-    GQuark channel_type;
 
-    if (priv->tp_chan == NULL)
+    if (!mcd_channel_should_close (channel, "destroying"))
     {
-        DEBUG ("%p has no TpChannel, not closing", channel);
-        return;
-    }
-
-    if (tp_proxy_get_invalidated (priv->tp_chan) != NULL)
-    {
-        DEBUG ("%p already closed, not closing", channel);
-        return;
-    }
-
-    channel_type = tp_channel_get_channel_type_id (priv->tp_chan);
-
-    if (channel_type == TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
-    {
-        DEBUG ("%p is a contact list, not closing", channel);
-        return;
-    }
-
-    if (channel_type == TP_IFACE_QUARK_CHANNEL_TYPE_TUBES)
-    {
-        DEBUG ("%p is an old Tubes channel, not closing", channel);
         return;
     }
 
