@@ -50,6 +50,13 @@
 
 #include <config.h>
 
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+
 #include <glib/gi18n.h>
 #include <gmodule.h>
 #include <string.h>
@@ -527,6 +534,11 @@ mcd_master_constructor (GType type, guint n_params,
     priv = MCD_MASTER_PRIV (master);
 
     g_return_val_if_fail (master != NULL, NULL);
+
+#ifdef HAVE_UMASK
+    /* mask out group and other rwx bits when creating files */
+    umask (0077);
+#endif
 
     if (!priv->account_manager)
 	priv->account_manager = mcd_account_manager_new (priv->dbus_daemon);
