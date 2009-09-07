@@ -286,14 +286,25 @@ void
 _mcd_channel_undispatchable (McdChannel *channel)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
+    GQuark channel_type;
 
-    if (priv->tp_chan == NULL ||
-        tp_proxy_get_invalidated (priv->tp_chan) != NULL ||
-        tp_channel_get_channel_type_id (priv->tp_chan) ==
-            TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
+    if (priv->tp_chan == NULL)
     {
-        DEBUG ("%p has no TpChannel, already closed or is a contact list",
-               channel);
+        DEBUG ("%p has no TpChannel, not closing", channel);
+        return;
+    }
+
+    if (tp_proxy_get_invalidated (priv->tp_chan) != NULL)
+    {
+        DEBUG ("%p already closed, not closing", channel);
+        return;
+    }
+
+    channel_type = tp_channel_get_channel_type_id (priv->tp_chan);
+
+    if (channel_type == TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
+    {
+        DEBUG ("%p is a contact list, not closing", channel);
         return;
     }
 
