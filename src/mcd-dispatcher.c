@@ -113,16 +113,22 @@ struct _McdDispatcherContext
 
     /* The number of observers that have not yet returned from ObserveChannels.
      * Until they have done so, we can't allow the dispatch operation to
-     * finish. */
+     * finish. This is a client lock.
+     *
+     * One instance of CTXREF05 is held for each pending observer. */
     gsize observers_pending;
+
     /* The number of approvers that have not yet returned from
      * AddDispatchOperation. Until they have done so, we can't allow the
-     * dispatch operation to finish. */
+     * dispatch operation to finish. This is a client lock.
+     *
+     * One instance of CTXREF06 is held for each pending approver. */
     gsize approvers_pending;
-    /* This variable is the count of locks that must be removed before handlers
-     * can be invoked, for reasons other than invoking observers.
-     * When the variable gets back to 0 and observers_pending is also 0,
-     * handlers are run. */
+
+    /* The number of other miscellaneous locks preventing
+     * handlers from running; there's only one now, which is temporary.
+     *
+     * CTXREF07 is held while this lock is active. */
     gint client_locks;
 
     gchar *protocol;
