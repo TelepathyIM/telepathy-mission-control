@@ -105,6 +105,11 @@ struct _McdDispatcherContext
      * CTXREF14 is held while we await approval. */
     guint awaiting_approval : 1;
 
+    /* If TRUE, we're still working out what Observers and Approvers to
+     * run. This is a temporary client lock. CTXREF07 is held while this
+     * lock is active. */
+    guint invoking_clients : 1;
+
     McdDispatcher *dispatcher;
 
     GList *channels;
@@ -127,12 +132,6 @@ struct _McdDispatcherContext
      *
      * One instance of CTXREF06 is held for each pending approver. */
     gsize approvers_pending;
-
-    /* The number of other miscellaneous locks preventing
-     * handlers from running; there's only one now, which is temporary.
-     *
-     * CTXREF07 is held while this lock is active. */
-    gint client_locks;
 
     gchar *protocol;
 
@@ -1025,7 +1024,7 @@ finally:
 static void
 mcd_dispatcher_context_check_client_locks (McdDispatcherContext *context)
 {
-    if (context->client_locks == 0 &&
+    if (!context->invoking_clients &&
         context->observers_pending == 0 &&
         context->approvers_pending == 0 &&
         !context->awaiting_approval)
@@ -1033,15 +1032,6 @@ mcd_dispatcher_context_check_client_locks (McdDispatcherContext *context)
         /* no observers etc. left */
         mcd_dispatcher_run_handlers (context);
     }
-}
-
-static void
-mcd_dispatcher_context_release_client_lock (McdDispatcherContext *context)
-{
-    DEBUG ("called on %p, locks = %d", context, context->client_locks);
-    g_return_if_fail (context->client_locks > 0);
-    context->client_locks--;
-    mcd_dispatcher_context_check_client_locks (context);
 }
 
 static void
@@ -1371,8 +1361,7 @@ static void
 mcd_dispatcher_run_clients (McdDispatcherContext *context)
 {
     mcd_dispatcher_context_ref (context, "CTXREF07");
-    context->client_locks = 1; /* we release this lock at the end of the
-                                    function */
+    context->invoking_clients = TRUE;
 
     mcd_dispatcher_run_observers (context);
 
@@ -1387,7 +1376,8 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
             mcd_dispatcher_run_approvers (context);
     }
 
-    mcd_dispatcher_context_release_client_lock (context);
+    context->invoking_clients = FALSE;
+    mcd_dispatcher_context_check_client_locks (context);
     mcd_dispatcher_context_unref (context, "CTXREF07");
 }
 
