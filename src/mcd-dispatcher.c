@@ -1032,7 +1032,6 @@ mcd_dispatcher_context_check_client_locks (McdDispatcherContext *context)
     {
         /* no observers etc. left */
         mcd_dispatcher_run_handlers (context);
-        mcd_dispatcher_context_unref (context, "CTXREF13");
     }
 }
 
@@ -1235,7 +1234,12 @@ add_dispatch_operation_cb (TpClient *proxy, const GError *error,
                tp_proxy_get_object_path (proxy),
                mcd_dispatch_operation_get_path (context->operation),
                context);
-        context->awaiting_approval = TRUE;
+
+        if (!context->awaiting_approval)
+        {
+            context->awaiting_approval = TRUE;
+            mcd_dispatcher_context_ref (context, "CTXREF14");
+        }
     }
 
     /* If all approvers fail to add the DO, then we behave as if no
@@ -1369,9 +1373,6 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
     mcd_dispatcher_context_ref (context, "CTXREF07");
     context->client_locks = 1; /* we release this lock at the end of the
                                     function */
-
-    /* CTXREF13 is released after all client locks are released */
-    mcd_dispatcher_context_ref (context, "CTXREF13");
 
     mcd_dispatcher_run_observers (context);
 
@@ -1509,9 +1510,9 @@ on_operation_finished (McdDispatchOperation *operation,
 
         if (context->awaiting_approval)
         {
-            /* this would have been released when all the locks were released,
-             * but now we're never going to do that */
-            mcd_dispatcher_context_unref (context, "CTXREF13");
+            /* this would have been released when awaiting_approval changed to
+             * FALSE, but now we're never going to do that */
+            mcd_dispatcher_context_unref (context, "CTXREF14");
         }
     }
     else if (mcd_dispatch_operation_is_claimed (operation))
@@ -1531,16 +1532,21 @@ on_operation_finished (McdDispatchOperation *operation,
 
         mcd_dispatcher_context_handler_done (context);
 
-        /* this would have been released when all the locks were released, but
-         * we're never going to do that */
+        /* this would have been released when awaiting_approval changed to
+         * FALSE, but now we're never going to do that */
         g_assert (context->awaiting_approval);
-        mcd_dispatcher_context_unref (context, "CTXREF13");
+        mcd_dispatcher_context_unref (context, "CTXREF14");
     }
     else
     {
         /* this is the lock set in mcd_dispatcher_run_approvers(): releasing
          * this will make the handlers run */
-        context->awaiting_approval = FALSE;
+        if (context->awaiting_approval)
+        {
+            context->awaiting_approval = FALSE;
+            mcd_dispatcher_context_unref (context, "CTXREF14");
+        }
+
         mcd_dispatcher_context_check_client_locks (context);
     }
 
