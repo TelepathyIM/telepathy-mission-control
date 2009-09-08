@@ -99,6 +99,9 @@ struct _McdDispatcherContext
      * phase should be skipped */
     guint skip_approval : 1;
 
+    /* If TRUE, at least one Approver has accepted the CDO. */
+    guint awaiting_approval : 1;
+
     McdDispatcher *dispatcher;
 
     GList *channels;
@@ -112,14 +115,15 @@ struct _McdDispatcherContext
      * Until they have done so, we can't allow the dispatch operation to
      * finish. */
     gsize observers_pending;
+    /* The number of approvers that have not yet returned from
+     * AddDispatchOperation. Until they have done so, we can't allow the
+     * dispatch operation to finish. */
+    gsize approvers_pending;
     /* This variable is the count of locks that must be removed before handlers
      * can be invoked, for reasons other than invoking observers.
      * When the variable gets back to 0 and observers_pending is also 0,
      * handlers are run. */
     gint client_locks;
-
-    /* Number of approvers that we invoked */
-    gint approvers_invoked;
 
     gchar *protocol;
 
@@ -1012,7 +1016,10 @@ finally:
 static void
 mcd_dispatcher_context_check_client_locks (McdDispatcherContext *context)
 {
-    if (context->client_locks == 0 && context->observers_pending == 0)
+    if (context->client_locks == 0 &&
+        context->observers_pending == 0 &&
+        context->approvers_pending == 0 &&
+        !context->awaiting_approval)
     {
         /* no observers etc. left */
         mcd_dispatcher_run_handlers (context);
@@ -1185,7 +1192,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
 }
 
 /*
- * mcd_dispatcher_context_approver_not_invoked:
+ * mcd_dispatcher_context_release_pending_approver:
  * @context: the #McdDispatcherContext.
  *
  * This function is called when an approver returned error on
@@ -1193,13 +1200,11 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
  * have contacted. If all of them fail, then we continue the dispatching.
  */
 static void
-mcd_dispatcher_context_approver_not_invoked (McdDispatcherContext *context)
+mcd_dispatcher_context_release_pending_approver (McdDispatcherContext *context)
 {
-    g_return_if_fail (context->approvers_invoked > 0);
-    context->approvers_invoked--;
-
-    if (context->approvers_invoked == 0)
-        mcd_dispatcher_context_release_client_lock (context);
+    g_return_if_fail (context->approvers_pending > 0);
+    context->approvers_pending--;
+    mcd_dispatcher_context_check_client_locks (context);
 }
 
 static void
@@ -1214,12 +1219,6 @@ add_dispatch_operation_cb (TpClient *proxy, const GError *error,
                "%s",
                mcd_dispatch_operation_get_path (context->operation),
                context, tp_proxy_get_object_path (proxy), error->message);
-
-        /* if all approvers fail to add the DO, then we behave as if no
-         * approver was registered: i.e., we continue dispatching */
-        context->approvers_invoked--;
-        if (context->approvers_invoked == 0)
-            mcd_dispatcher_context_release_client_lock (context);
     }
     else
     {
@@ -1227,7 +1226,14 @@ add_dispatch_operation_cb (TpClient *proxy, const GError *error,
                tp_proxy_get_object_path (proxy),
                mcd_dispatch_operation_get_path (context->operation),
                context);
+        context->awaiting_approval = TRUE;
     }
+
+    /* If all approvers fail to add the DO, then we behave as if no
+     * approver was registered: i.e., we continue dispatching. If at least
+     * one approver accepted it, then we can still continue dispatching,
+     * since it will be stalled until awaiting_approval becomes FALSE. */
+    mcd_dispatcher_context_release_pending_approver (context);
 
     if (context->operation)
     {
@@ -1255,9 +1261,8 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
     /* we temporarily increment this count and decrement it at the end of the
      * function, to make sure it won't become 0 while we are still invoking
      * approvers */
-    context->approvers_invoked = 1;
+    context->approvers_pending = 1;
 
-    context->client_locks++;
     channels = context->channels;
     g_hash_table_iter_init (&iter, priv->clients);
     while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &client))
@@ -1294,7 +1299,7 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
                "of context %p", client->name, dispatch_operation,
                context->operation, context);
 
-        context->approvers_invoked++;
+        context->approvers_pending++;
         _mcd_dispatch_operation_block_finished (context->operation);
 
         mcd_dispatcher_context_ref (context, "CTXREF06");
@@ -1310,7 +1315,7 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
 
     /* This matches the approvers count set to 1 at the beginning of the
      * function */
-    mcd_dispatcher_context_approver_not_invoked (context);
+    mcd_dispatcher_context_release_pending_approver (context);
 }
 
 static gboolean
@@ -1477,11 +1482,21 @@ on_operation_finished (McdDispatchOperation *operation,
             context->dispatcher, mcd_dispatch_operation_get_path (operation));
     }
 
+    /* Because of our calls to _mcd_dispatch_operation_block_finished,
+     * this cannot happen until all observers and all approvers have
+     * returned from ObserveChannels or AddDispatchOperation, respectively.
+     *
+     * (However, in observe_channels_cb we unblock finished a moment
+     * before we decrement observers_pending, so we can't actually assert
+     * that here.) */
+
+    g_assert (context->approvers_pending == 0);
+
     if (context->channels == NULL)
     {
         DEBUG ("Nothing left to dispatch");
 
-        if (context->client_locks > 0)
+        if (context->awaiting_approval)
         {
             /* this would have been released when all the locks were released,
              * but now we're never going to do that */
@@ -1507,14 +1522,15 @@ on_operation_finished (McdDispatchOperation *operation,
 
         /* this would have been released when all the locks were released, but
          * we're never going to do that */
-        g_assert (context->client_locks > 0);
+        g_assert (context->awaiting_approval);
         mcd_dispatcher_context_unref (context, "CTXREF13");
     }
     else
     {
         /* this is the lock set in mcd_dispatcher_run_approvers(): releasing
          * this will make the handlers run */
-        mcd_dispatcher_context_release_client_lock (context);
+        context->awaiting_approval = FALSE;
+        mcd_dispatcher_context_check_client_locks (context);
     }
 }
 
@@ -3633,7 +3649,7 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
 
             context = find_context_from_channel (dispatcher, channel);
             DEBUG ("channel %p is in context %p", channel, context);
-            if (context->approvers_invoked > 0)
+            if (context->approvers_pending > 0 || context->awaiting_approval)
             {
                 /* the existing channel is waiting for approval; but since the
                  * same channel has been requested, the approval operation must
