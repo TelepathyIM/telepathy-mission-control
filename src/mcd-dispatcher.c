@@ -396,7 +396,10 @@ mcd_dispatcher_get_channel_type_usage (McdDispatcher * dispatcher,
                      status == MCD_CHANNEL_STATUS_DISPATCHED) &&
                     mcd_channel_get_channel_type_quark (channel) ==
                     chan_type_quark)
+                {
+                    DEBUG ("Channel %p is active", channel);
                     usage_counter++;
+                }
                 channels = channels->next;
             }
             connections = connections->next;

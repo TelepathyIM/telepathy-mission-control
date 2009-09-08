@@ -64,6 +64,7 @@ typedef enum
                                       */
     MCD_CHANNEL_STATUS_FAILED,       /* Channel creation failed, or channel
                                         could not be dispached to a handler */
+    MCD_CHANNEL_STATUS_ABORTED,      /* Channel has been aborted */
 } McdChannelStatus;
 
 struct _McdChannel
