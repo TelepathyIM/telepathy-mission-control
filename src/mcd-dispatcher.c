@@ -110,6 +110,10 @@ struct _McdDispatcherContext
      * lock is active. */
     guint invoking_clients : 1;
 
+    /* If TRUE, either we've already arranged for the channels to get a
+     * handler, or there are no channels left. */
+    guint channels_handled : 1;
+
     McdDispatcher *dispatcher;
 
     GList *channels;
@@ -1030,7 +1034,11 @@ mcd_dispatcher_context_check_client_locks (McdDispatcherContext *context)
         !context->awaiting_approval)
     {
         /* no observers etc. left */
-        mcd_dispatcher_run_handlers (context);
+        if (!context->channels_handled)
+        {
+            context->channels_handled = TRUE;
+            mcd_dispatcher_run_handlers (context);
+        }
     }
 }
 
@@ -1498,12 +1506,7 @@ on_operation_finished (McdDispatchOperation *operation,
     {
         DEBUG ("Nothing left to dispatch");
 
-        if (context->awaiting_approval)
-        {
-            /* this would have been released when awaiting_approval changed to
-             * FALSE, but now we're never going to do that */
-            mcd_dispatcher_context_unref (context, "CTXREF14");
-        }
+        context->channels_handled = TRUE;
     }
     else if (mcd_dispatch_operation_is_claimed (operation))
     {
@@ -1521,25 +1524,17 @@ on_operation_finished (McdDispatchOperation *operation,
         }
 
         mcd_dispatcher_context_handler_done (context);
+        g_assert (!context->channels_handled);
+        context->channels_handled = TRUE;
+    }
 
-        /* this would have been released when awaiting_approval changed to
-         * FALSE, but now we're never going to do that */
-        g_assert (context->awaiting_approval);
+    if (context->awaiting_approval)
+    {
+        context->awaiting_approval = FALSE;
         mcd_dispatcher_context_unref (context, "CTXREF14");
     }
-    else
-    {
-        /* this is the lock set in mcd_dispatcher_run_approvers(): releasing
-         * this will make the handlers run */
-        if (context->awaiting_approval)
-        {
-            context->awaiting_approval = FALSE;
-            mcd_dispatcher_context_unref (context, "CTXREF14");
-        }
 
-        mcd_dispatcher_context_check_client_locks (context);
-    }
-
+    mcd_dispatcher_context_check_client_locks (context);
     mcd_dispatcher_context_unref (context, "CTXREF15");
 }
 
