@@ -108,11 +108,14 @@ struct _McdDispatcherContext
     /* bus names (including the common prefix) in preference order */
     GStrv possible_handlers;
 
+    /* The number of observers that have not yet returned from ObserveChannels.
+     * Until they have done so, we can't allow the dispatch operation to
+     * finish. */
+    gsize observers_pending;
     /* This variable is the count of locks that must be removed before handlers
-     * can be invoked. Each call to an observer increments this count (and
-     * decrements it on return), and for unrequested channels we have an
-     * approver lock, too.
-     * When the variable gets back to 0, handlers are run. */
+     * can be invoked, for reasons other than invoking observers.
+     * When the variable gets back to 0 and observers_pending is also 0,
+     * handlers are run. */
     gint client_locks;
 
     /* Number of approvers that we invoked */
@@ -1007,17 +1010,33 @@ finally:
 }
 
 static void
-mcd_dispatcher_context_release_client_lock (McdDispatcherContext *context)
+mcd_dispatcher_context_check_client_locks (McdDispatcherContext *context)
 {
-    g_return_if_fail (context->client_locks > 0);
-    DEBUG ("called on %p, locks = %d", context, context->client_locks);
-    context->client_locks--;
-    if (context->client_locks == 0)
+    if (context->client_locks == 0 && context->observers_pending == 0)
     {
-        /* no observers left, let's go on with the dispatching */
+        /* no observers etc. left */
         mcd_dispatcher_run_handlers (context);
         mcd_dispatcher_context_unref (context, "CTXREF13");
     }
+}
+
+static void
+mcd_dispatcher_context_release_client_lock (McdDispatcherContext *context)
+{
+    DEBUG ("called on %p, locks = %d", context, context->client_locks);
+    g_return_if_fail (context->client_locks > 0);
+    context->client_locks--;
+    mcd_dispatcher_context_check_client_locks (context);
+}
+
+static void
+mcd_dispatcher_context_release_pending_observer (McdDispatcherContext *context)
+{
+    DEBUG ("called on %p, %" G_GSIZE_FORMAT " pending",
+           context, context->observers_pending);
+    g_return_if_fail (context->observers_pending > 0);
+    context->observers_pending--;
+    mcd_dispatcher_context_check_client_locks (context);
 }
 
 static void
@@ -1038,7 +1057,7 @@ observe_channels_cb (TpClient *proxy, const GError *error,
         _mcd_dispatch_operation_unblock_finished (context->operation);
     }
 
-    mcd_dispatcher_context_release_client_lock (context);
+    mcd_dispatcher_context_release_pending_observer (context);
 }
 
 /* The returned GPtrArray is allocated, but the contents are borrowed. */
@@ -1141,7 +1160,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
             _mcd_dispatch_operation_block_finished (context->operation);
         }
 
-        context->client_locks++;
+        context->observers_pending++;
         mcd_dispatcher_context_ref (context, "CTXREF05");
         DEBUG ("calling ObserveChannels on %s for context %p",
                client->name, context);
