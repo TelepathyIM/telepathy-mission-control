@@ -99,7 +99,10 @@ struct _McdDispatcherContext
      * phase should be skipped */
     guint skip_approval : 1;
 
-    /* If TRUE, at least one Approver has accepted the CDO. */
+    /* If TRUE, at least one Approver has accepted the CDO. This is a
+     * client lock.
+     *
+     * CTXREF14 is held while we await approval. */
     guint awaiting_approval : 1;
 
     McdDispatcher *dispatcher;
@@ -1482,6 +1485,8 @@ on_operation_finished (McdDispatchOperation *operation,
      * CDO: according to which of these have happened, we run the choosen
      * handler or we don't. */
 
+    mcd_dispatcher_context_ref (context, "CTXREF15");
+
     if (context->dispatcher->priv->operation_list_active)
     {
         tp_svc_channel_dispatcher_interface_operation_list_emit_dispatch_operation_finished (
@@ -1538,6 +1543,8 @@ on_operation_finished (McdDispatchOperation *operation,
         context->awaiting_approval = FALSE;
         mcd_dispatcher_context_check_client_locks (context);
     }
+
+    mcd_dispatcher_context_unref (context, "CTXREF15");
 }
 
 /* ownership of channels, possible_handlers is stolen */
