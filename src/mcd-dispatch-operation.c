@@ -255,22 +255,34 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation)
     return TRUE;
 }
 
+static gboolean mcd_dispatch_operation_check_handle_with (
+    McdDispatchOperation *self, const gchar *handler_name, GError **error);
+
 static void
-dispatch_operation_handle_with (TpSvcChannelDispatchOperation *self,
+dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
                                 const gchar *handler_name,
                                 DBusGMethodInvocation *context)
 {
     GError *error = NULL;
+    McdDispatchOperation *self = MCD_DISPATCH_OPERATION (cdo);
 
-    _mcd_dispatch_operation_handle_with (MCD_DISPATCH_OPERATION (self),
-                                        handler_name, &error);
-    if (error)
+    DEBUG ("%s/%p", self->priv->unique_name, self);
+
+    if (!mcd_dispatch_operation_check_handle_with (self, handler_name, &error))
     {
         dbus_g_method_return_error (context, error);
         g_error_free (error);
+        return;
     }
-    else
-        tp_svc_channel_dispatch_operation_return_from_handle_with (context);
+
+    if (handler_name != NULL && handler_name[0] != '\0')
+    {
+        self->priv->handler = g_strdup (handler_name +
+                                        MCD_CLIENT_BASE_NAME_LEN);
+    }
+
+    _mcd_dispatch_operation_finish (self);
+    tp_svc_channel_dispatch_operation_return_from_handle_with (context);
 }
 
 static void
@@ -696,29 +708,18 @@ mcd_dispatch_operation_check_handle_with (McdDispatchOperation *self,
 }
 
 void
-_mcd_dispatch_operation_handle_with (McdDispatchOperation *operation,
-                                     const gchar *handler_name,
-                                     GError **error)
+_mcd_dispatch_operation_approve (McdDispatchOperation *self)
 {
-    McdDispatchOperationPrivate *priv;
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
 
-    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (operation));
-    priv = operation->priv;
+    DEBUG ("%s/%p", self->priv->unique_name, self);
 
-    DEBUG ("%s/%p", priv->unique_name, operation);
-
-    if (!mcd_dispatch_operation_check_handle_with (operation, handler_name,
-                                                   error))
+    if (!mcd_dispatch_operation_check_handle_with (self, NULL, NULL))
     {
         return;
     }
 
-    if (handler_name != NULL && handler_name[0] != '\0')
-    {
-        priv->handler = g_strdup (handler_name + MCD_CLIENT_BASE_NAME_LEN);
-    }
-
-    _mcd_dispatch_operation_finish (operation);
+    _mcd_dispatch_operation_finish (self);
 }
 
 void

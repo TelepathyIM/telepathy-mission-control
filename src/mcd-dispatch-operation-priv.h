@@ -59,9 +59,8 @@ G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_claimed
     (McdDispatchOperation *operation);
 G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_handler
     (McdDispatchOperation *operation);
-G_GNUC_INTERNAL void _mcd_dispatch_operation_handle_with
-    (McdDispatchOperation *operation, const gchar *handler_path,
-     GError **error);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_approve
+    (McdDispatchOperation *self);
 
 #define MCD_TYPE_DISPATCH_OPERATION         (_mcd_dispatch_operation_get_type ())
 #define MCD_DISPATCH_OPERATION(o)           (G_TYPE_CHECK_INSTANCE_CAST ((o), MCD_TYPE_DISPATCH_OPERATION, McdDispatchOperation))

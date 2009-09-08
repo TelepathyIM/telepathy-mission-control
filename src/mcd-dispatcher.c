@@ -3658,8 +3658,7 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
                  * same channel has been requested, the approval operation must
                  * terminate */
                 if (G_LIKELY (context->operation))
-                    _mcd_dispatch_operation_handle_with (context->operation,
-                                                        NULL, NULL);
+                    _mcd_dispatch_operation_approve (context->operation);
             }
             else
                 context->skip_approval = TRUE;
