@@ -67,7 +67,7 @@ static const McdInterfaceData dispatch_operation_interfaces[] = {
     { G_TYPE_INVALID, }
 };
 
-G_DEFINE_TYPE_WITH_CODE (McdDispatchOperation, mcd_dispatch_operation,
+G_DEFINE_TYPE_WITH_CODE (McdDispatchOperation, _mcd_dispatch_operation,
                          G_TYPE_OBJECT,
     MCD_DBUS_INIT_INTERFACES (dispatch_operation_interfaces);
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES, properties_iface_init);
@@ -262,7 +262,7 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *self,
 {
     GError *error = NULL;
 
-    mcd_dispatch_operation_handle_with (MCD_DISPATCH_OPERATION (self),
+    _mcd_dispatch_operation_handle_with (MCD_DISPATCH_OPERATION (self),
                                         handler_name, &error);
     if (error)
     {
@@ -327,7 +327,7 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
                                     GObjectConstructParam *params)
 {
     GObjectClass *object_class =
-        (GObjectClass *)mcd_dispatch_operation_parent_class;
+        (GObjectClass *)_mcd_dispatch_operation_parent_class;
     GObject *object;
     McdDispatchOperation *operation;
     McdDispatchOperationPrivate *priv;
@@ -448,7 +448,7 @@ mcd_dispatch_operation_finalize (GObject *object)
     g_free (priv->object_path);
     g_free (priv->claimer);
 
-    G_OBJECT_CLASS (mcd_dispatch_operation_parent_class)->finalize (object);
+    G_OBJECT_CLASS (_mcd_dispatch_operation_parent_class)->finalize (object);
 }
 
 static void
@@ -484,11 +484,11 @@ mcd_dispatch_operation_dispose (GObject *object)
         g_object_unref (priv->dbus_daemon);
         priv->dbus_daemon = NULL;
     }
-    G_OBJECT_CLASS (mcd_dispatch_operation_parent_class)->dispose (object);
+    G_OBJECT_CLASS (_mcd_dispatch_operation_parent_class)->dispose (object);
 }
 
 static void
-mcd_dispatch_operation_class_init (McdDispatchOperationClass * klass)
+_mcd_dispatch_operation_class_init (McdDispatchOperationClass * klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
     g_type_class_add_private (object_class,
@@ -518,7 +518,7 @@ mcd_dispatch_operation_class_init (McdDispatchOperationClass * klass)
 }
 
 static void
-mcd_dispatch_operation_init (McdDispatchOperation *operation)
+_mcd_dispatch_operation_init (McdDispatchOperation *operation)
 {
     McdDispatchOperationPrivate *priv;
 
@@ -554,21 +554,21 @@ _mcd_dispatch_operation_new (TpDBusDaemon *dbus_daemon,
     return MCD_DISPATCH_OPERATION (obj);
 }
 
-/**
- * mcd_dispatch_operation_get_path:
+/*
+ * _mcd_dispatch_operation_get_path:
  * @operation: the #McdDispatchOperation.
  *
  * Returns: the D-Bus object path of @operation.
  */
 const gchar *
-mcd_dispatch_operation_get_path (McdDispatchOperation *operation)
+_mcd_dispatch_operation_get_path (McdDispatchOperation *operation)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (operation), NULL);
     return operation->priv->object_path;
 }
 
-/**
- * mcd_dispatch_operation_get_properties:
+/*
+ * _mcd_dispatch_operation_get_properties:
  * @operation: the #McdDispatchOperation.
  *
  * Gets the immutable properties of @operation.
@@ -577,7 +577,7 @@ mcd_dispatch_operation_get_path (McdDispatchOperation *operation)
  * not incremented.
  */
 GHashTable *
-mcd_dispatch_operation_get_properties (McdDispatchOperation *operation)
+_mcd_dispatch_operation_get_properties (McdDispatchOperation *operation)
 {
     McdDispatchOperationPrivate *priv;
 
@@ -615,14 +615,14 @@ mcd_dispatch_operation_get_properties (McdDispatchOperation *operation)
     return priv->properties;
 }
 
-/**
- * mcd_dispatch_operation_is_claimed:
+/*
+ * _mcd_dispatch_operation_is_claimed:
  * @operation: the #McdDispatchOperation.
  *
  * Returns: %TRUE if the operation was claimed, %FALSE otherwise.
  */
 gboolean
-mcd_dispatch_operation_is_claimed (McdDispatchOperation *operation)
+_mcd_dispatch_operation_is_claimed (McdDispatchOperation *operation)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (operation), FALSE);
     return (operation->priv->claimer != NULL);
@@ -648,14 +648,14 @@ _mcd_dispatch_operation_is_finished (McdDispatchOperation *self)
     return self->priv->finished;
 }
 
-/**
- * mcd_dispatch_operation_get_handler:
+/*
+ * _mcd_dispatch_operation_get_handler:
  * @operation: the #McdDispatchOperation.
  *
  * Returns: the well-known name of the choosen channel handler.
  */
 const gchar *
-mcd_dispatch_operation_get_handler (McdDispatchOperation *operation)
+_mcd_dispatch_operation_get_handler (McdDispatchOperation *operation)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (operation), NULL);
     return operation->priv->handler;
@@ -696,9 +696,9 @@ mcd_dispatch_operation_check_handle_with (McdDispatchOperation *self,
 }
 
 void
-mcd_dispatch_operation_handle_with (McdDispatchOperation *operation,
-                                    const gchar *handler_name,
-                                    GError **error)
+_mcd_dispatch_operation_handle_with (McdDispatchOperation *operation,
+                                     const gchar *handler_name,
+                                     GError **error)
 {
     McdDispatchOperationPrivate *priv;
 

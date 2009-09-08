@@ -53,7 +53,6 @@
 #include "mcd-channel-priv.h"
 #include "mcd-dispatcher-context.h"
 #include "mcd-dispatcher-priv.h"
-#include "mcd-dispatch-operation.h"
 #include "mcd-dispatch-operation-priv.h"
 #include "mcd-handler-map-priv.h"
 #include "mcd-misc.h"
@@ -954,7 +953,7 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
      * one we'll consider. */
     if (context->operation)
     {
-        const gchar *approved_handler = mcd_dispatch_operation_get_handler (
+        const gchar *approved_handler = _mcd_dispatch_operation_get_handler (
             context->operation);
 
         if (approved_handler != NULL && approved_handler[0] != '\0')
@@ -1169,7 +1168,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
         if (context->operation)
         {
             dispatch_operation_path =
-                mcd_dispatch_operation_get_path (context->operation);
+                _mcd_dispatch_operation_get_path (context->operation);
             _mcd_dispatch_operation_block_finished (context->operation);
         }
 
@@ -1223,14 +1222,14 @@ add_dispatch_operation_cb (TpClient *proxy, const GError *error,
     {
         DEBUG ("AddDispatchOperation %s (context %p) on approver %s failed: "
                "%s",
-               mcd_dispatch_operation_get_path (context->operation),
+               _mcd_dispatch_operation_get_path (context->operation),
                context, tp_proxy_get_object_path (proxy), error->message);
     }
     else
     {
         DEBUG ("Approver %s accepted AddDispatchOperation %s (context %p)",
                tp_proxy_get_object_path (proxy),
-               mcd_dispatch_operation_get_path (context->operation),
+               _mcd_dispatch_operation_get_path (context->operation),
                context);
 
         if (!context->awaiting_approval)
@@ -1300,9 +1299,9 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
         if (!matched) continue;
 
         dispatch_operation =
-            mcd_dispatch_operation_get_path (context->operation);
+            _mcd_dispatch_operation_get_path (context->operation);
         properties =
-            mcd_dispatch_operation_get_properties (context->operation);
+            _mcd_dispatch_operation_get_properties (context->operation);
         channel_details =
             _mcd_dispatch_operation_dup_channel_details (context->operation);
 
@@ -1489,7 +1488,7 @@ on_operation_finished (McdDispatchOperation *operation,
     if (context->dispatcher->priv->operation_list_active)
     {
         tp_svc_channel_dispatcher_interface_operation_list_emit_dispatch_operation_finished (
-            context->dispatcher, mcd_dispatch_operation_get_path (operation));
+            context->dispatcher, _mcd_dispatch_operation_get_path (operation));
     }
 
     /* Because of our calls to _mcd_dispatch_operation_block_finished,
@@ -1508,7 +1507,7 @@ on_operation_finished (McdDispatchOperation *operation,
 
         context->channels_handled = TRUE;
     }
-    else if (mcd_dispatch_operation_is_claimed (operation))
+    else if (_mcd_dispatch_operation_is_claimed (operation))
     {
         GList *list;
 
@@ -1591,8 +1590,8 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
         {
             tp_svc_channel_dispatcher_interface_operation_list_emit_new_dispatch_operation (
                 dispatcher,
-                mcd_dispatch_operation_get_path (context->operation),
-                mcd_dispatch_operation_get_properties (context->operation));
+                _mcd_dispatch_operation_get_path (context->operation),
+                _mcd_dispatch_operation_get_properties (context->operation));
         }
 
         g_signal_connect (context->operation, "finished",
@@ -1711,9 +1710,9 @@ _mcd_dispatcher_get_property (GObject * obj, guint prop_id,
                                   TP_HASH_TYPE_STRING_VARIANT_MAP);
 
                     g_value_set_boxed (va->values + 0,
-                        mcd_dispatch_operation_get_path (context->operation));
+                        _mcd_dispatch_operation_get_path (context->operation));
                     g_value_set_boxed (va->values + 1,
-                        mcd_dispatch_operation_get_properties (
+                        _mcd_dispatch_operation_get_properties (
                             context->operation));
 
                     g_ptr_array_add (operations, va);
@@ -3103,7 +3102,7 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
             {
                 tp_svc_channel_dispatcher_interface_operation_list_emit_dispatch_operation_finished (
                     context->dispatcher,
-                    mcd_dispatch_operation_get_path (context->operation));
+                    _mcd_dispatch_operation_get_path (context->operation));
             }
 
             g_object_unref (context->operation);
@@ -3659,7 +3658,7 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
                  * same channel has been requested, the approval operation must
                  * terminate */
                 if (G_LIKELY (context->operation))
-                    mcd_dispatch_operation_handle_with (context->operation,
+                    _mcd_dispatch_operation_handle_with (context->operation,
                                                         NULL, NULL);
             }
             else

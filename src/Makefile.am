@@ -11,7 +11,6 @@ mc_headers = \
 	mcd-account-conditions.h \
 	mcd-account-manager.h \
 	mcd-debug.h \
-	mcd-dispatch-operation.h \
 	mcd-mission.h \
 	mcd-operation.h \
 	mcd-master.h \
