@@ -157,16 +157,6 @@ libmcd_convenience_la_SOURCES = \
 	sp_timestamp.h \
 	$(mc_headers)
 
-# bin_PROGRAMS = mission-control
-# mission_control_LDFLAGS = -export-dynamic
-# 
-# mission_control_LDADD = $(GCONF_LIBS) $(TELEPATHY_LIBS) \
-# 		       	$(top_builddir)/libmissioncontrol/libmissioncontrol-config.la \
-# 		       	libmissioncontrol-server.la
-#
-# mission_control_SOURCES = \
-# 	mcd-main.c
-
 %-signals-marshal.h: %-signals-marshal.list Makefile
 	glib-genmarshal --header --prefix=_$(subst -,_,$*)_marshal $< > $*-signals-marshal.h
 
