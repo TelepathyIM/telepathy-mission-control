@@ -41,6 +41,9 @@ def test(q, bus, mc):
         cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
         }, signature='sv')
+    vague_fixed_properties = dbus.Dictionary({
+        cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
+        }, signature='sv')
 
     empathy_bus = dbus.bus.BusConnection()
     q.attach_to_bus(empathy_bus)
@@ -48,8 +51,15 @@ def test(q, bus, mc):
             observe=[text_fixed_properties], approve=[text_fixed_properties],
             handle=[text_fixed_properties], bypass_approval=False)
 
+    # Kopete's filter is less specific than Empathy's, so we'll prefer Empathy
+    kopete_bus = dbus.bus.BusConnection()
+    q.attach_to_bus(kopete_bus)
+    kopete = SimulatedClient(q, kopete_bus, 'Kopete',
+            observe=[], approve=[],
+            handle=[vague_fixed_properties], bypass_approval=False)
+
     # wait for MC to download the properties
-    expect_client_setup(q, [empathy])
+    expect_client_setup(q, [empathy, kopete])
 
     # subscribe to the OperationList interface (MC assumes that until this
     # property has been retrieved once, nobody cares)
@@ -86,8 +96,11 @@ def test(q, bus, mc):
     assert cdo_properties[cs.CDO + '.Connection'] == conn.object_path
     assert cs.CDO + '.Interfaces' in cdo_properties
 
+    # In this test Empathy's filter has more things in it than Kopete's, so
+    # MC will prefer Empathy
     handlers = cdo_properties[cs.CDO + '.PossibleHandlers'][:]
-    assert handlers == [cs.tp_name_prefix + '.Client.Empathy'], handlers
+    assert handlers == [cs.tp_name_prefix + '.Client.Empathy',
+            cs.tp_name_prefix + '.Client.Kopete'], handlers
 
     assert cs.CD_IFACE_OP_LIST in cd_props.Get(cs.CD, 'Interfaces')
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') ==\
@@ -150,6 +163,23 @@ def test(q, bus, mc):
 
     # Empathy rejects the channels
     q.dbus_raise(e.message, cs.NOT_AVAILABLE, 'Blind drunk', bus=empathy_bus)
+
+    # Kopete is asked to handle the channels
+    (k,) = q.expect_many(
+            EventPattern(
+                'dbus-method-call',
+                path=kopete.object_path,
+                interface=cs.HANDLER, method='HandleChannels',
+                handled=False),
+            )
+
+    # Kopete rejects the channels too
+    q.dbus_raise(k.message, cs.NOT_AVAILABLE, 'Also blind drunk',
+            bus=kopete_bus)
+
+    # MC gives up and closes the channel
+    q.expect('dbus-method-call', path=chan.object_path,
+            interface=cs.CHANNEL, method='Close', args=[])
 
     # Now there are no more active channel dispatch operations
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []
