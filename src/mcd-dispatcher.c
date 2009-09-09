@@ -1608,22 +1608,12 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
                                 context);
     }
 
-    if (priv->filters != NULL)
-    {
-        DEBUG ("entering state machine for context %p", context);
+    DEBUG ("entering state machine for context %p", context);
 
-        sp_timestamp ("invoke internal filters");
+    sp_timestamp ("invoke internal filters");
 
-        mcd_dispatcher_context_ref (context, "CTXREF01");
-        mcd_dispatcher_context_proceed (context);
-    }
-    else
-    {
-        DEBUG ("No filters found for context %p, "
-               "starting the channel handler", context);
-
-	mcd_dispatcher_run_clients (context);
-    }
+    mcd_dispatcher_context_ref (context, "CTXREF01");
+    mcd_dispatcher_context_proceed (context);
 
     mcd_dispatcher_context_unref (context, "CTXREF11");
 }
