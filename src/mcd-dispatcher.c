@@ -3051,7 +3051,7 @@ mcd_dispatcher_context_close_all (McdDispatcherContext *context,
  * mcd_dispatcher_context_proceed (c), which should be used instead in new
  * code.
  *
- * mcd_dispatcher_context_process (c, TRUE) is exactly equivalent to
+ * mcd_dispatcher_context_process (c, FALSE) is exactly equivalent to
  * mcd_dispatcher_context_destroy_all (c) followed by
  * mcd_dispatcher_context_proceed (c), which should be used instead in new
  * code.
