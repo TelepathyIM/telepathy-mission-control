@@ -1615,7 +1615,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
         sp_timestamp ("invoke internal filters");
 
         mcd_dispatcher_context_ref (context, "CTXREF01");
-	mcd_dispatcher_context_process (context, TRUE);
+        mcd_dispatcher_context_proceed (context);
     }
     else
     {
