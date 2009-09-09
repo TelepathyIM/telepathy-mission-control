@@ -122,6 +122,10 @@ struct _McdDispatcherContext
     /* bus names (including the common prefix) in preference order */
     GStrv possible_handlers;
 
+    /* set of handlers we already tried
+     * dup'd bus name (string) => arbitrary non-NULL pointer */
+    GHashTable *failed_handlers;
+
     /* The number of observers that have not yet returned from ObserveChannels.
      * Until they have done so, we can't allow the dispatch operation to
      * finish. This is a client lock.
@@ -638,6 +642,8 @@ mcd_dispatcher_set_channel_handled_by (McdDispatcher *self,
     g_signal_emit_by_name (self, "dispatched", channel);
 }
 
+static void mcd_dispatcher_run_handlers (McdDispatcherContext *context);
+
 static void
 handle_channels_cb (TpClient *proxy, const GError *error, gpointer user_data,
                     GObject *weak_object)
@@ -649,34 +655,20 @@ handle_channels_cb (TpClient *proxy, const GError *error, gpointer user_data,
     mcd_dispatcher_context_ref (context, "CTXREF02");
     if (error)
     {
-        GError *mc_error = NULL;
+        DEBUG ("error: %s", error->message);
 
-        g_warning ("%s got error: %s", G_STRFUNC, error->message);
+        /* we created this in mcd_dispatcher_run_handlers, so it had better
+         * exist */
+        g_assert (context->failed_handlers != NULL);
 
-        /* We can't reliably map channel handler error codes to MC error
-         * codes. So just using generic error message.
-         */
-        mc_error = g_error_new (MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
-                                "Handle channel failed: %s", error->message);
+         /* the value is an arbitrary non-NULL pointer - the hash table itself
+          * will do nicely */
+        g_hash_table_insert (context->failed_handlers,
+                             g_strdup (tp_proxy_get_bus_name (proxy)),
+                             context->failed_handlers);
 
-        for (list = call_data->channels; list != NULL; list = list->next)
-        {
-            McdChannel *channel = list->data;
-
-            /* if the channel is no longer in the context, don't even try to
-             * access it */
-            if (!g_list_find (context->channels, channel))
-                continue;
-
-            mcd_channel_take_error (channel, g_error_copy (mc_error));
-            g_signal_emit_by_name (context->dispatcher, "dispatch-failed",
-                                   channel, mc_error);
-
-            /* FIXME: try to dispatch the channels to another handler, instead
-             * of just destroying them? */
-            _mcd_channel_undispatchable (channel);
-        }
-        g_error_free (mc_error);
+        /* try again */
+        mcd_dispatcher_run_handlers (context);
     }
     else
     {
@@ -946,6 +938,13 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
     sp_timestamp ("run handlers");
     mcd_dispatcher_context_ref (context, "CTXREF04");
 
+    if (context->failed_handlers == NULL)
+    {
+        context->failed_handlers = g_hash_table_new_full (g_str_hash,
+                                                          g_str_equal,
+                                                          g_free, NULL);
+    }
+
     /* mcd_dispatcher_handle_channels steals this list */
     channels = g_list_copy (context->channels);
 
@@ -962,15 +961,19 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
                                            approved_handler, NULL);
             McdClient *handler = g_hash_table_lookup (self->priv->clients,
                                                       bus_name);
+            gboolean failed = (g_hash_table_lookup (context->failed_handlers,
+                                                    bus_name) != NULL);
 
-            DEBUG ("Approved handler is %s (still exists: %c)",
-                   bus_name, handler != NULL ? 'Y' : 'N');
+            DEBUG ("Approved handler is %s (still exists: %c, "
+                   "already failed: %c)", bus_name,
+                   handler != NULL ? 'Y' : 'N',
+                   failed ? 'Y' : 'N');
 
             g_free (bus_name);
 
-            /* Maybe the handler has exited since we chose it? Otherwise, it's
-             * the right choice. */
-            if (handler != NULL)
+            /* Maybe the handler has exited since we chose it, or maybe we
+             * already tried it? Otherwise, it's the right choice. */
+            if (handler != NULL && !failed)
             {
                 mcd_dispatcher_handle_channels (context, channels, handler);
                 goto finally;
@@ -989,11 +992,13 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
     for (iter = context->possible_handlers; *iter != NULL; iter++)
     {
         McdClient *handler = g_hash_table_lookup (self->priv->clients, *iter);
+        gboolean failed = (g_hash_table_lookup (context->failed_handlers,
+                                                *iter) != NULL);
 
-        DEBUG ("Possible handler: %s (still exists: %c)", *iter,
-               handler != NULL ? 'Y' : 'N');
+        DEBUG ("Possible handler: %s (still exists: %c, already failed: %c)",
+               *iter, handler != NULL ? 'Y' : 'N', failed ? 'Y' : 'N');
 
-        if (handler != NULL)
+        if (handler != NULL && !failed)
         {
             mcd_dispatcher_handle_channels (context, channels, handler);
             goto finally;
@@ -3123,6 +3128,11 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
         /* remove the context from the list of active contexts */
         priv = MCD_DISPATCHER_PRIV (context->dispatcher);
         priv->contexts = g_list_remove (priv->contexts, context);
+
+        if (context->failed_handlers != NULL)
+        {
+            g_hash_table_destroy (context->failed_handlers);
+        }
 
         g_strfreev (context->possible_handlers);
         g_free (context->protocol);
