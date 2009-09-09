@@ -93,10 +93,10 @@ struct _McdDispatcherContext
     /* If this flag is TRUE, dispatching must be cancelled ASAP */
     guint cancelled : 1;
 
-    /* This is set to TRUE if the incoming channel being dispatched has being
-     * requested before the approvers could be run; in that case, the approval
-     * phase should be skipped */
-    guint skip_approval : 1;
+    /* If TRUE, either the channels being dispatched were requested, or they
+     * were pre-approved by being returned as a response to another request,
+     * or a client approved processing with arbitrary handlers */
+    guint approved : 1;
 
     /* If TRUE, at least one Approver has accepted the CDO. This is a
      * client lock.
@@ -1029,8 +1029,7 @@ mcd_dispatcher_context_check_client_locks (McdDispatcherContext *context)
 {
     if (!context->invoking_clients &&
         context->observers_pending == 0 &&
-        context->approvers_pending == 0 &&
-        !context->awaiting_approval)
+        context->approved)
     {
         /* no observers etc. left */
         if (!context->channels_handled)
@@ -1209,6 +1208,15 @@ mcd_dispatcher_context_release_pending_approver (McdDispatcherContext *context)
 {
     g_return_if_fail (context->approvers_pending > 0);
     context->approvers_pending--;
+
+    if (context->approvers_pending == 0 &&
+        !context->awaiting_approval)
+    {
+        DEBUG ("No approver accepted the channels; considering them to be "
+               "approved");
+        context->approved = TRUE;
+    }
+
     mcd_dispatcher_context_check_client_locks (context);
 }
 
@@ -1372,14 +1380,19 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
 
     mcd_dispatcher_run_observers (context);
 
+    /* if we have a dispatch operation, it means that the channels were not
+     * requested: start the Approvers */
     if (context->operation)
     {
-        /* if we have a dispatch operation, it means that the channels were not
-         * requested: start the Approvers */
+        /* but if the handlers have the BypassApproval flag set, then don't
+         *
+         * FIXME: we should really run BypassApproval handlers as a separate
+         * stage, rather than considering the existence of a BypassApproval
+         * handler to constitute approval - this is fd.o #23687 */
+        if (handlers_can_bypass_approval (context))
+            context->approved = TRUE;
 
-        /* but if the handlers have the BypassApproval flag set, then don't */
-        if (!context->skip_approval &&
-            !handlers_can_bypass_approval (context))
+        if (!context->approved)
             mcd_dispatcher_run_approvers (context);
     }
 
@@ -1530,6 +1543,7 @@ on_operation_finished (McdDispatchOperation *operation,
     if (context->awaiting_approval)
     {
         context->awaiting_approval = FALSE;
+        context->approved = TRUE;
         mcd_dispatcher_context_unref (context, "CTXREF14");
     }
 
@@ -1580,8 +1594,14 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
            mcd_channel_get_object_path (context->channels->data));
 
     priv->contexts = g_list_prepend (priv->contexts, context);
-    if (!requested)
+
+    if (requested)
     {
+        context->approved = TRUE;
+    }
+    else
+    {
+        context->approved = FALSE;
         context->operation =
             _mcd_dispatch_operation_new (priv->dbus_daemon, channels,
                                          possible_handlers);
@@ -3651,7 +3671,9 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
                     _mcd_dispatch_operation_approve (context->operation);
             }
             else
-                context->skip_approval = TRUE;
+            {
+                context->approved = TRUE;
+            }
         }
         DEBUG ("channel %p is proxying %p", request, channel);
     }
