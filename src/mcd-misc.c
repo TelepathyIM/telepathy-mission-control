@@ -26,8 +26,6 @@
 
 #include "mcd-misc.h"
 #include <errno.h>
-#define __USE_POSIX
-#define __USE_BSD
 #include <glib/gstdio.h>
 #include <fcntl.h>
 #include <stdio.h>
