@@ -17,22 +17,6 @@ mcd-debug
 <!-- ##### SECTION Stability_Level ##### -->
 
 
-<!-- ##### MACRO g_object_ref ##### -->
-<para>
-
-</para>
-
-@obj: 
-
-
-<!-- ##### MACRO g_object_unref ##### -->
-<para>
-
-</para>
-
-@obj: 
-
-
 <!-- ##### FUNCTION mcd_debug_init ##### -->
 <para>
 

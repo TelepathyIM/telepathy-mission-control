@@ -44,30 +44,19 @@
 gint mcd_debug_level = 0;
 
 gpointer
-mcd_debug_ref (gpointer obj, const gchar *filename, gint linenum)
+mcd_debug_ref (gpointer obj,
+               const gchar *filename G_GNUC_UNUSED,
+               gint linenum G_GNUC_UNUSED)
 {
-    /* Function reference untouchable by macro processing */
-    gpointer (*untouchable_ref) (gpointer object);
-    
-    untouchable_ref = g_object_ref;
-    if (mcd_debug_level >= 2)
-	g_debug ("[%s:%d]: Referencing (%d) object %p of type %s",
-		 filename, linenum, G_OBJECT (obj)->ref_count,
-		 obj, G_OBJECT_TYPE_NAME(obj));
-    return untouchable_ref (obj);
+    return g_object_ref (obj);
 }
 
 void
-mcd_debug_unref (gpointer obj, const gchar *filename, gint linenum)
+mcd_debug_unref (gpointer obj,
+                 const gchar *filename G_GNUC_UNUSED,
+                 gint linenum G_GNUC_UNUSED)
 {
-    void (*untouchable_unref) (gpointer object);
-    
-    untouchable_unref = g_object_unref;
-    if (mcd_debug_level >= 2)
-	g_debug ("[%s:%d]: Unreferencing (%d) object %p of type %s",
-		 filename, linenum, G_OBJECT (obj)->ref_count, obj,
-		 G_OBJECT_TYPE_NAME(obj));
-    untouchable_unref (obj);
+    g_object_unref (obj);
 }
 
 static void
