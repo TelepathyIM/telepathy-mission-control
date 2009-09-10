@@ -2171,11 +2171,8 @@ mcd_client_add_cap_tokens (McdClient *client,
         TpHandle handle = tp_handle_ensure (dispatcher->priv->string_pool,
                                             cap_tokens[i], NULL, NULL);
 
-        if (handle != 0)
-        {
-            tp_handle_set_add (client->capability_tokens, handle);
-            tp_handle_unref (dispatcher->priv->string_pool, handle);
-        }
+        tp_handle_set_add (client->capability_tokens, handle);
+        tp_handle_unref (dispatcher->priv->string_pool, handle);
     }
 }
 
