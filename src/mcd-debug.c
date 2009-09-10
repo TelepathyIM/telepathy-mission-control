@@ -38,6 +38,9 @@
 #include <config.h>
 
 #include <stdlib.h>
+
+#include <telepathy-glib/debug.h>
+
 #include "mcd-debug.h"
 #include "mcd-operation.h"
 
@@ -89,12 +92,27 @@ mcd_debug_print_tree_real (gpointer object, gint level)
     g_string_free (indent_str, TRUE);
 }
 
+/* We don't really have debug categories yet */
+
+typedef enum {
+    MCD_DEBUG_MISC = 1 << 0,
+    MCD_DEBUG_TREES = 1 << 1
+} McdDebugCategory;
+
+static GDebugKey const keys[] = {
+    { "misc", MCD_DEBUG_MISC },
+    { "trees", MCD_DEBUG_TREES },
+    { NULL, 0 }
+};
+
+static McdDebugCategory categories = 0;
+
 void
 mcd_debug_print_tree (gpointer object)
 {
     g_return_if_fail (MCD_IS_MISSION (object));
 
-    if (mcd_debug_level >= 2)
+    if ((categories & MCD_DEBUG_TREES) != 0)
     {
 	g_debug ("Object Hierarchy of object %p", object);
 	g_debug ("[");
@@ -106,11 +124,41 @@ mcd_debug_print_tree (gpointer object)
 void mcd_debug_init ()
 {
     gchar *mc_debug_str;
+    guint level;
 
     mc_debug_str = getenv ("MC_DEBUG");
 
     if (mc_debug_str)
-	mcd_debug_level = atoi (mc_debug_str);
+    {
+        /* historically, MC_DEBUG was an integer; try that first */
+        level = atoi (mc_debug_str);
+
+        /* if it wasn't an integer; try interpreting it as a
+         * telepathy-glib-style flags-word */
+        if (level == 0)
+        {
+            guint nkeys;
+
+            /* count the debug keys */
+            for (nkeys = 0; keys[nkeys].value != 0; nkeys++) /* do nothing */ ;
+
+            categories = g_parse_debug_string (mc_debug_str, keys, nkeys);
+            tp_debug_set_flags (mc_debug_str);
+
+            /* mcd-debug.h uses the value of mcd_debug_level directly, so
+             * we need to set it nonzero to get uncategorized messages */
+            if ((categories & MCD_DEBUG_MISC) != 0 && mcd_debug_level == 0)
+            {
+                mcd_debug_level = 1;
+            }
+        }
+        else
+        {
+            /* this is API, and will also try to set up categories from the
+             * level */
+            mcd_debug_set_level (level);
+        }
+    }
 
     if (mcd_debug_level >= 1)
         g_debug ("%s version %s", PACKAGE, VERSION);
@@ -120,5 +168,19 @@ void
 mcd_debug_set_level (gint level)
 {
     mcd_debug_level = level;
+
+    if (level >= 1)
+    {
+        categories |= MCD_DEBUG_MISC;
+    }
+    else
+    {
+        categories = 0;
+    }
+
+    if (level >= 2)
+    {
+        categories |= MCD_DEBUG_TREES;
+    }
 }
 
