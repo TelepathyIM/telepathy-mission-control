@@ -24,9 +24,50 @@
 #ifndef __MCD_DISPATCH_OPERATION_PRIV_H__
 #define __MCD_DISPATCH_OPERATION_PRIV_H__
 
-#include "mcd-dispatch-operation.h"
+#include <telepathy-glib/dbus.h>
+#include <telepathy-glib/enums.h>
 
 G_BEGIN_DECLS
+
+typedef struct _McdDispatchOperation McdDispatchOperation;
+typedef struct _McdDispatchOperationPrivate McdDispatchOperationPrivate;
+typedef struct _McdDispatchOperationClass McdDispatchOperationClass;
+
+#include "mcd-account.h"
+
+struct _McdDispatchOperation
+{
+    GObject parent;
+    McdDispatchOperationPrivate *priv;
+};
+
+struct _McdDispatchOperationClass
+{
+    GObjectClass parent_class;
+};
+
+
+#define MC_DISPATCH_OPERATION_DBUS_OBJECT_BASE "/org/freedesktop/Telepathy/DispatchOperation/"
+
+G_GNUC_INTERNAL GType _mcd_dispatch_operation_get_type (void);
+
+G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_path
+    (McdDispatchOperation *operation);
+G_GNUC_INTERNAL GHashTable *_mcd_dispatch_operation_get_properties
+    (McdDispatchOperation *operation);
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_claimed
+    (McdDispatchOperation *operation);
+G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_handler
+    (McdDispatchOperation *operation);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_approve
+    (McdDispatchOperation *self);
+
+#define MCD_TYPE_DISPATCH_OPERATION         (_mcd_dispatch_operation_get_type ())
+#define MCD_DISPATCH_OPERATION(o)           (G_TYPE_CHECK_INSTANCE_CAST ((o), MCD_TYPE_DISPATCH_OPERATION, McdDispatchOperation))
+#define MCD_DISPATCH_OPERATION_CLASS(k)     (G_TYPE_CHECK_CLASS_CAST((k), MCD_TYPE_DISPATCH_OPERATION, McdDispatchOperationClass))
+#define MCD_IS_DISPATCH_OPERATION(o)        (G_TYPE_CHECK_INSTANCE_TYPE ((o), MCD_TYPE_DISPATCH_OPERATION))
+#define MCD_IS_DISPATCH_OPERATION_CLASS(k)  (G_TYPE_CHECK_CLASS_TYPE ((k), MCD_TYPE_DISPATCH_OPERATION))
+#define MCD_DISPATCH_OPERATION_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), MCD_TYPE_DISPATCH_OPERATION, McdDispatchOperationClass))
 
 G_GNUC_INTERNAL McdDispatchOperation *_mcd_dispatch_operation_new (
     TpDBusDaemon *dbus_daemon, GList *channels, GStrv possible_handlers);
