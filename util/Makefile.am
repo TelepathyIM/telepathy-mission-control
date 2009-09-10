@@ -12,7 +12,9 @@ dist_man1_MANS = mc-tool.1
 
 man1_MANS = mc-wait-for-name.1
 
-EXTRA_DIST = $(man1_MANS:%=%.in)
+EXTRA_DIST = \
+    $(man1_MANS:%=%.in) \
+    mc-account-convert.1
 CLEANFILES = $(man1_MANS)
 
 mc-wait-for-name.1: mc-wait-for-name.1.in Makefile

@@ -31,6 +31,7 @@ EXTRA_DIST = \
 	$(conf_in_files) \
 	exec-with-log.sh.in \
 	fake-startup.sh \
+	valgrind.supp \
 	with-session-bus.sh
 
 CLEANFILES = \

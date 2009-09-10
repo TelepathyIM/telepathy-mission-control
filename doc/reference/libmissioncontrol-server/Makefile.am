@@ -43,8 +43,7 @@ CFILE_GLOB=$(top_srcdir)/src/*.c
 
 # Header files to ignore when scanning.
 # e.g. IGNORE_HFILES=gtkdebug.h gtkintl.h
-IGNORE_HFILES= mcd-filtering-int.h \
-	       stamp-mcd-enum-types.h \
+IGNORE_HFILES= stamp-mcd-enum-types.h \
 	       mcd-service-gen.h \
 	       mcd-signals-marshal.h
 
