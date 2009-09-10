@@ -2099,14 +2099,7 @@ mcd_dispatcher_release_startup_lock (McdDispatcher *self)
         DEBUG ("All initial clients have been inspected");
         self->priv->startup_completed = TRUE;
 
-        vas = g_ptr_array_sized_new (g_hash_table_size (self->priv->clients));
-
-        g_hash_table_iter_init (&iter, self->priv->clients);
-
-        while (g_hash_table_iter_next (&iter, NULL, &p))
-        {
-            mcd_dispatcher_append_client_caps (self, p, vas);
-        }
+        vas = _mcd_dispatcher_dup_client_caps (self);
 
         g_hash_table_iter_init (&iter, self->priv->connections);
 
