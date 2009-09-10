@@ -1,3 +1,22 @@
+telepathy-mission-control 5.2.4 (UNRELEASED)
+============================================
+
+???
+
+telepathy-mission-control 5.2.3 (2009-09-10)
+============================================
+
+The "Morden, via Bank" release.
+
+Fixes:
+
+* fd.o #23807: even if someone without gconf headers makes the tarball, ship
+  the necessary files so people with gconf headers can compile it (smcv)
+
+* Resync what's in git with what's in tarball releases: remove some unused
+  source files from git, add more support files to tarballs, and don't
+  distribute any generated source in tarballs (smcv)
+
 telepathy-mission-control 5.2.2 (2009-09-07)
 ============================================
 
