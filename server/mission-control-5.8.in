@@ -20,9 +20,16 @@ start it manually for debugging.
 There are no command-line options.
 .SH ENVIRONMENT
 .TP
-\fBMC_DEBUG\fR=\fIlevel\fR
-May be set to 1 or 2 to enable partial or full debug output from Mission
-Control itself.
+\fBMC_DEBUG=all\fR or \fBMC_DEBUG=\fIcategory\fR[\fB,\fIcategory\fR...]
+May be set to "all" for full debug output from Mission Control and
+telepathy-glib, or various undocumented category names (which may change from
+release to release) to filter the output. See Mission Control and
+telepathy-glib source code for the available categories.
+.TP
+\fBMC_DEBUG=\fIlevel\fR
+Set a numeric debug level for Mission Control itself (but not telepathy-glib).
+Level 0 logs nothing, level 1 logs most messages, and level 2 logs all
+messages.
 .TP
 \fBMC_TP_DEBUG\fR=\fItype\fR
 May be set to "all" for full debug output from telepathy-glib, or various
