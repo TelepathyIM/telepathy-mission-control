@@ -27,9 +27,11 @@
 #include <glib.h>
 
 #include <telepathy-glib/debug.h>
+#include <telepathy-glib/debug-sender.h>
 
 #include "mcd-service.h"
 
+static TpDebugSender *debug_sender;
 
 static void
 on_abort (McdService * mcd)
@@ -50,6 +52,20 @@ main (int argc, char **argv)
 
     g_type_init ();
 
+    /* Keep a ref to the default TpDebugSender for the lifetime of the
+     * McdMaster, so it will persist for the lifetime of MC, and subsequent
+     * calls to tp_debug_sender_dup() will return it again */
+    debug_sender = tp_debug_sender_dup ();
+
+    /* Send all debug messages through the Telepathy infrastructure.
+     *
+     * Unlike CMs, we don't have "subdomains" within MC yet, so we don't want
+     * to exclude any domains. However, telepathy-glib 0.7.36 doesn't handle
+     * exclude=NULL correctly; use a dummy non-NULL argument until a release
+     * fixes fd.o#23843. */
+    g_log_set_default_handler (tp_debug_sender_log_handler,
+        "<all the domains please>");
+
     mcd_debug_init ();
     tp_debug_set_flags (g_getenv ("MC_TP_DEBUG"));
 
@@ -62,6 +78,8 @@ main (int argc, char **argv)
     mcd_mission_connect (MCD_MISSION (mcd));
 
     mcd_service_run (MCD_OBJECT (mcd));
+
+    g_object_unref (debug_sender);
 
     return 0;
 }

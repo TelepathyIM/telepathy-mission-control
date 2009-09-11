@@ -42,12 +42,6 @@ G_BEGIN_DECLS
         g_debug ("%s: " format, G_STRFUNC, ##__VA_ARGS__);    \
 } G_STMT_END
 
-/* reference count debugging */
-#ifndef g_object_ref
-#define g_object_ref(obj)    (mcd_debug_ref (obj, __FILE__, __LINE__))
-#define g_object_unref(obj)  (mcd_debug_unref (obj, __FILE__, __LINE__))
-#endif
-
 #else /* !defined ENABLE_DEBUG */
 
 #define DEBUGGING (0)
@@ -65,8 +59,10 @@ static inline gint _mcd_debug_get_level (void)
     return mcd_debug_level;
 }
 
-gpointer mcd_debug_ref (gpointer obj, const gchar *filename, gint linenum);
-void mcd_debug_unref (gpointer obj, const gchar *filename, gint linenum);
+gpointer mcd_debug_ref (gpointer obj, const gchar *filename, gint linenum)
+    G_GNUC_DEPRECATED;
+void mcd_debug_unref (gpointer obj, const gchar *filename, gint linenum)
+    G_GNUC_DEPRECATED;
 
 void mcd_debug_print_tree (gpointer obj);
 
