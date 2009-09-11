@@ -112,7 +112,7 @@ mcd_debug_print_tree (gpointer object)
 {
     g_return_if_fail (MCD_IS_MISSION (object));
 
-    if ((categories & MCD_DEBUG_TREES) != 0)
+    if (categories & MCD_DEBUG_TREES)
     {
 	g_debug ("Object Hierarchy of object %p", object);
 	g_debug ("[");
