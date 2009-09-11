@@ -19,7 +19,7 @@
 import dbus
 
 """Regression test for pushing clients' capabilities into a CM with
-draft 2 of ContactCapabilities.
+ContactCapabilities (final version, which is the same as draft 2).
 """
 
 import dbus
@@ -68,7 +68,7 @@ def test(q, bus, mc):
     # wait for MC to download the properties
     expect_client_setup(q, [media_call])
 
-    def check_draft_2_caps(e):
+    def check_contact_caps(e):
         structs = e.args[0]
 
         filters = {}
@@ -106,19 +106,19 @@ def test(q, bus, mc):
         "password": "secrecy"}, signature='sv')
     cm_name_ref, account = create_fakecm_account(q, bus, mc, params)
     conn, before, after = enable_fakecm_account(q, bus, mc, account, params,
-            extra_interfaces=[cs.CONN_IFACE_CONTACT_CAPS_DRAFT2,
+            extra_interfaces=[cs.CONN_IFACE_CONTACT_CAPS,
                 cs.CONN_IFACE_CAPS],
             expect_before_connect=[
                 EventPattern('dbus-method-call', handled=False,
-                    interface=cs.CONN_IFACE_CONTACT_CAPS_DRAFT2,
+                    interface=cs.CONN_IFACE_CONTACT_CAPS,
                     method='UpdateCapabilities',
-                    predicate=check_draft_2_caps),
+                    predicate=check_contact_caps),
                 ],
             expect_after_connect=[
                 EventPattern('dbus-method-call', handled=False,
-                    interface=cs.CONN_IFACE_CONTACT_CAPS_DRAFT2,
+                    interface=cs.CONN_IFACE_CONTACT_CAPS,
                     method='UpdateCapabilities',
-                    predicate=check_draft_2_caps),
+                    predicate=check_contact_caps),
                 ])
     q.dbus_return(before.message, signature='')
     q.dbus_return(after.message, signature='')
@@ -139,7 +139,7 @@ def test(q, bus, mc):
     expect_client_setup(q, [irssi])
 
     e = q.expect('dbus-method-call', handled=False,
-        interface=cs.CONN_IFACE_CONTACT_CAPS_DRAFT2,
+        interface=cs.CONN_IFACE_CONTACT_CAPS,
         method='UpdateCapabilities')
 
     assert len(e.args[0]) == 1
@@ -155,7 +155,7 @@ def test(q, bus, mc):
     irssi_bus.close()
 
     e = q.expect('dbus-method-call', handled=False,
-        interface=cs.CONN_IFACE_CONTACT_CAPS_DRAFT2,
+        interface=cs.CONN_IFACE_CONTACT_CAPS,
         method='UpdateCapabilities')
 
     assert len(e.args[0]) == 1

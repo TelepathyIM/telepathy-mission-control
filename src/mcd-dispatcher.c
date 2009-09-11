@@ -2822,7 +2822,7 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
 
             if (!client->activatable)
             {
-                /* in ContactCapabilities.DRAFT2 we indicate the disappearance
+                /* in ContactCapabilities we indicate the disappearance
                  * of a client by giving it an empty set of capabilities and
                  * filters */
                 mcd_client_become_incapable (client);
