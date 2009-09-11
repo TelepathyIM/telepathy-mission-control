@@ -1607,6 +1607,7 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
             DEBUG ("Disconnecting it: %s", obj_path);
             dbus_g_proxy_call_no_reply (tmp_proxy, "Disconnect",
                                         G_TYPE_INVALID);
+            g_object_unref (tmp_proxy);
         }
 
         if (connection != NULL)
