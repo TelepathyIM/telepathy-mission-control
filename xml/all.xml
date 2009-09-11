@@ -25,6 +25,8 @@
 	from="Telepathy specification (ConnectionManager)"/>
     <tp:external-type name="Requestable_Channel_Class" type="(a{sv}as)"
       from="Telepathy specification (Requests)"/>
+    <tp:external-type name="Handler_Capability_Token" type="s"
+	from="Telepathy specification (Handler)"/>
 </tp:generic-types>
 
 <xi:include href="generic-types.xml"/>

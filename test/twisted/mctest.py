@@ -577,7 +577,8 @@ def aasv(x):
 
 class SimulatedClient(object):
     def __init__(self, q, bus, clientname,
-            observe=[], approve=[], handle=[], bypass_approval=False,
+            observe=[], approve=[], handle=[],
+            cap_tokens=[], bypass_approval=False,
             request_notification=True, implement_get_interfaces=True):
         self.q = q
         self.bus = bus
@@ -590,6 +591,7 @@ class SimulatedClient(object):
         self.bypass_approval = bool(bypass_approval)
         self.request_notification = bool(request_notification)
         self.handled_channels = dbus.Array([], signature='o')
+        self.cap_tokens = dbus.Array(cap_tokens, signature='s')
 
         if implement_get_interfaces:
             q.add_dbus_method_impl(self.Get_Interfaces,
@@ -619,6 +621,9 @@ class SimulatedClient(object):
         q.add_dbus_method_impl(self.Get_HandlerChannelFilter,
                 path=self.object_path, interface=cs.PROPERTIES_IFACE,
                 method='Get', args=[cs.HANDLER, 'HandlerChannelFilter'])
+        q.add_dbus_method_impl(self.Get_Capabilities,
+                path=self.object_path, interface=cs.PROPERTIES_IFACE,
+                method='Get', args=[cs.HANDLER, 'Capabilities'])
         q.add_dbus_method_impl(self.Get_HandledChannels,
                 path=self.object_path, interface=cs.PROPERTIES_IFACE,
                 method='Get', args=[cs.HANDLER, 'HandledChannels'])
@@ -684,8 +689,13 @@ class SimulatedClient(object):
             'HandlerChannelFilter': self.handle,
             'BypassApproval': self.bypass_approval,
             'HandledChannels': self.handled_channels,
+            'Capabilities': self.cap_tokens,
             },
                 signature='a{sv}', bus=self.bus)
+
+    def Get_Capabilities(self, e):
+        self.q.dbus_return(e.message, self.cap_tokens, signature='v',
+                bus=self.bus)
 
     def Get_HandledChannels(self, e):
         self.q.dbus_return(e.message, self.handled_channels, signature='v',

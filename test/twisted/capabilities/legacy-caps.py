@@ -20,10 +20,6 @@ import dbus
 
 """Regression test for pushing clients' capabilities into an old CM, with only
 the old Capabilities interface.
-
-Until MC supports ContactCapabilities draft 2, this test will also apply to
-versions of Gabble that implement old Capabilities, and ContactCapabilities
-draft 1, but not draft 2.
 """
 
 import dbus

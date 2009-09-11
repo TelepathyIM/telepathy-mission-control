@@ -31,6 +31,7 @@ mc_headers = \
 	mcd-provisioning-factory.h
 
 mc_gen_headers = \
+	_gen/cli-Connection_Interface_Contact_Capabilities_Draft1.h \
 	_gen/cli-Connection_Interface_Contact_Capabilities.h \
 	_gen/enums.h \
 	_gen/svc-Account_Interface_ChannelRequests.h \
@@ -41,6 +42,7 @@ mc_gen_headers = \
 	_gen/svc-Account_Manager_Interface_Query.h
 
 nodist_libmcd_convenience_la_SOURCES = \
+	_gen/cli-Connection_Interface_Contact_Capabilities_Draft1-body.h \
 	_gen/cli-Connection_Interface_Contact_Capabilities-body.h \
 	_gen/register-dbus-glib-marshallers-body.h \
 	_gen/signals-marshal.c \

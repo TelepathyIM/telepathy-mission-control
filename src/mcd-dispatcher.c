@@ -59,6 +59,8 @@
 
 #include <telepathy-glib/defs.h>
 #include <telepathy-glib/gtypes.h>
+#include <telepathy-glib/handle-repo.h>
+#include <telepathy-glib/handle-repo-dynamic.h>
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/proxy-subclass.h>
 #include <telepathy-glib/svc-channel-dispatcher.h>
@@ -196,6 +198,10 @@ typedef struct _McdClient
     GList *approver_filters;
     GList *handler_filters;
     GList *observer_filters;
+
+    /* Handler.Capabilities, represented as handles taken from
+     * dispatcher->priv->string_pool */
+    TpHandleSet *capability_tokens;
 } McdClient;
 
 struct _McdDispatcherPrivate
@@ -242,8 +248,11 @@ struct _McdDispatcherPrivate
      * property. */
     gboolean operation_list_active;
 
+    /* Not really handles as such, but TpHandleRepoIface gives us a convenient
+     * reference-counted string pool */
+    TpHandleRepoIface *string_pool;
+
     gboolean is_disposed;
-    
 };
 
 struct cancel_call_data
@@ -338,20 +347,8 @@ mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
 }
 
 static void
-mcd_client_free (McdClient *client)
+mcd_client_become_incapable (McdClient *client)
 {
-    if (client->proxy)
-    {
-        GError error = { TP_DBUS_ERRORS,
-            TP_DBUS_ERROR_NAME_OWNER_LOST, "Client disappeared" };
-
-        _mcd_object_ready (client->proxy, client_ready_quark, &error);
-
-        g_object_unref (client->proxy);
-    }
-
-    g_free (client->name);
-
     g_list_foreach (client->approver_filters,
                     (GFunc)g_hash_table_destroy, NULL);
     g_list_free (client->approver_filters);
@@ -366,6 +363,30 @@ mcd_client_free (McdClient *client)
                     (GFunc)g_hash_table_destroy, NULL);
     g_list_free (client->observer_filters);
     client->observer_filters = NULL;
+
+    if (client->capability_tokens != NULL)
+    {
+        tp_handle_set_destroy (client->capability_tokens);
+        client->capability_tokens = NULL;
+    }
+}
+
+static void
+mcd_client_free (McdClient *client)
+{
+    if (client->proxy)
+    {
+        GError error = { TP_DBUS_ERRORS,
+            TP_DBUS_ERROR_NAME_OWNER_LOST, "Client disappeared" };
+
+        _mcd_object_ready (client->proxy, client_ready_quark, &error);
+
+        g_object_unref (client->proxy);
+    }
+
+    mcd_client_become_incapable (client);
+
+    g_free (client->name);
 
     g_slice_free (McdClient, client);
 }
@@ -1792,6 +1813,12 @@ _mcd_dispatcher_dispose (GObject * object)
 	priv->dbus_daemon = NULL;
     }
 
+    if (priv->string_pool != NULL)
+    {
+        g_object_unref (priv->string_pool);
+        priv->string_pool = NULL;
+    }
+
     G_OBJECT_CLASS (mcd_dispatcher_parent_class)->dispose (object);
 }
 
@@ -2013,6 +2040,96 @@ mcd_client_set_filters (McdClient *client,
     }
 }
 
+typedef struct {
+    TpHandleRepoIface *repo;
+    GPtrArray *array;
+} TokenAppendContext;
+
+static void
+append_token_to_ptrs (TpHandleSet *unused G_GNUC_UNUSED,
+                      TpHandle handle,
+                      gpointer data)
+{
+    TokenAppendContext *context = data;
+
+    g_ptr_array_add (context->array,
+                     g_strdup (tp_handle_inspect (context->repo, handle)));
+}
+
+static void
+mcd_dispatcher_append_client_caps (McdDispatcher *self,
+                                   McdClient *client,
+                                   GPtrArray *vas)
+{
+    GPtrArray *filters = g_ptr_array_sized_new (
+        g_list_length (client->handler_filters));
+    GPtrArray *cap_tokens;
+    GValueArray *va;
+    GList *list;
+
+    for (list = client->handler_filters; list != NULL; list = list->next)
+    {
+        GHashTable *copy = g_hash_table_new_full (g_str_hash, g_str_equal,
+            g_free, (GDestroyNotify) tp_g_value_slice_free);
+
+        tp_g_hash_table_update (copy, list->data,
+                                (GBoxedCopyFunc) g_strdup,
+                                (GBoxedCopyFunc) tp_g_value_slice_dup);
+        g_ptr_array_add (filters, copy);
+    }
+
+    if (client->capability_tokens == NULL)
+    {
+        cap_tokens = g_ptr_array_sized_new (1);
+    }
+    else
+    {
+        TokenAppendContext context = { self->priv->string_pool, NULL };
+
+        cap_tokens = g_ptr_array_sized_new (
+            tp_handle_set_size (client->capability_tokens) + 1);
+        context.array = cap_tokens;
+        tp_handle_set_foreach (client->capability_tokens, append_token_to_ptrs,
+                               &context);
+    }
+
+    g_ptr_array_add (cap_tokens, NULL);
+
+    if (DEBUGGING)
+    {
+        guint i;
+
+        DEBUG ("%s%s:", TP_CLIENT_BUS_NAME_BASE, client->name);
+
+        DEBUG ("- %u channel filters", filters->len);
+        DEBUG ("- %u capability tokens:", cap_tokens->len - 1);
+
+        for (i = 0; i < cap_tokens->len - 1; i++)
+        {
+            DEBUG ("    %s", (gchar *) g_ptr_array_index (cap_tokens, i));
+        }
+
+        DEBUG ("-end-");
+    }
+
+    va = g_value_array_new (3);
+    g_value_array_append (va, NULL);
+    g_value_array_append (va, NULL);
+    g_value_array_append (va, NULL);
+
+    g_value_init (va->values + 0, G_TYPE_STRING);
+    g_value_init (va->values + 1, TP_ARRAY_TYPE_CHANNEL_CLASS_LIST);
+    g_value_init (va->values + 2, G_TYPE_STRV);
+
+    g_value_take_string (va->values + 0,
+                         g_strconcat (TP_CLIENT_BUS_NAME_BASE, client->name,
+                                      NULL));
+    g_value_take_boxed (va->values + 1, filters);
+    g_value_take_boxed (va->values + 2, g_ptr_array_free (cap_tokens, FALSE));
+
+    g_ptr_array_add (vas, va);
+}
+
 static void
 mcd_dispatcher_release_startup_lock (McdDispatcher *self)
 {
@@ -2029,17 +2146,23 @@ mcd_dispatcher_release_startup_lock (McdDispatcher *self)
     if (self->priv->startup_lock == 0)
     {
         GHashTableIter iter;
-        gpointer k;
+        gpointer p;
+        GPtrArray *vas;
 
         DEBUG ("All initial clients have been inspected");
         self->priv->startup_completed = TRUE;
 
+        vas = _mcd_dispatcher_dup_client_caps (self);
+
         g_hash_table_iter_init (&iter, self->priv->connections);
 
-        while (g_hash_table_iter_next (&iter, &k, NULL))
+        while (g_hash_table_iter_next (&iter, &p, NULL))
         {
-            _mcd_connection_start_dispatching (k);
+            _mcd_connection_start_dispatching (p, vas);
         }
+
+        g_ptr_array_foreach (vas, (GFunc) g_value_array_free, NULL);
+        g_ptr_array_free (vas, TRUE);
     }
 }
 
@@ -2082,6 +2205,61 @@ get_channel_filter_cb (TpProxy *proxy,
                             g_value_get_boxed (value));
 finally:
     mcd_dispatcher_release_startup_lock (self);
+}
+
+/* This is NULL-safe for the last argument, for ease of use with
+ * tp_asv_get_boxed */
+static void
+mcd_client_add_cap_tokens (McdClient *client,
+                           McdDispatcher *dispatcher,
+                           const gchar * const *cap_tokens)
+{
+    guint i;
+
+    if (cap_tokens == NULL)
+        return;
+
+    for (i = 0; cap_tokens[i] != NULL; i++)
+    {
+        TpHandle handle = tp_handle_ensure (dispatcher->priv->string_pool,
+                                            cap_tokens[i], NULL, NULL);
+
+        tp_handle_set_add (client->capability_tokens, handle);
+        tp_handle_unref (dispatcher->priv->string_pool, handle);
+    }
+}
+
+static void
+mcd_dispatcher_update_client_caps (McdDispatcher *self,
+                                   McdClient *client)
+{
+    GPtrArray *vas;
+    GHashTableIter iter;
+    gpointer k;
+
+    /* If we haven't finished inspecting initial clients yet, we'll push all
+     * the client caps into all connections when we do, so do nothing.
+     *
+     * If we don't have any connections, on the other hand, then there's
+     * nothing to do. */
+    if (!self->priv->startup_completed
+        || g_hash_table_size (self->priv->connections) == 0)
+    {
+        return;
+    }
+
+    vas = g_ptr_array_sized_new (1);
+    mcd_dispatcher_append_client_caps (self, client, vas);
+
+    g_hash_table_iter_init (&iter, self->priv->connections);
+
+    while (g_hash_table_iter_next (&iter, &k, NULL))
+    {
+        _mcd_connection_update_client_caps (k, vas);
+    }
+
+    g_ptr_array_foreach (vas, (GFunc) g_value_array_free, NULL);
+    g_ptr_array_free (vas, TRUE);
 }
 
 static void
@@ -2136,6 +2314,10 @@ handler_get_all_cb (TpProxy *proxy,
     DEBUG ("%s has BypassApproval=%c", client->name,
            client->bypass_approver ? 'T' : 'F');
 
+    mcd_client_add_cap_tokens (client, self,
+                               tp_asv_get_boxed (properties, "Capabilities",
+                                                 G_TYPE_STRV));
+
     channels = tp_asv_get_boxed (properties, "HandledChannels",
                                  MC_ARRAY_TYPE_OBJECT);
 
@@ -2168,6 +2350,8 @@ handler_get_all_cb (TpProxy *proxy,
                                                path, unique_name);
         }
     }
+
+    mcd_dispatcher_update_client_caps (self, client);
 
 finally:
     mcd_dispatcher_release_startup_lock (self);
@@ -2288,9 +2472,11 @@ finally:
 }
 
 static void
-parse_client_file (McdClient *client, GKeyFile *file)
+parse_client_file (McdDispatcher *self,
+                   McdClient *client,
+                   GKeyFile *file)
 {
-    gchar **iface_names, **groups;
+    gchar **iface_names, **groups, **cap_tokens;
     guint i;
     gsize len = 0;
 
@@ -2347,6 +2533,14 @@ parse_client_file (McdClient *client, GKeyFile *file)
     client->bypass_approver =
         g_key_file_get_boolean (file, TP_IFACE_CLIENT_HANDLER,
                                 "BypassApproval", NULL);
+
+    cap_tokens = g_key_file_get_keys (file,
+                                      TP_IFACE_CLIENT_HANDLER ".Capabilities",
+                                      NULL,
+                                      NULL);
+    mcd_client_add_cap_tokens (client, self,
+                               (const gchar * const *) cap_tokens);
+    g_strfreev (cap_tokens);
 }
 
 static gchar *
@@ -2416,6 +2610,8 @@ create_mcd_client (McdDispatcher *self,
     if (!activatable)
         client->active = TRUE;
 
+    client->capability_tokens = tp_handle_set_new (self->priv->string_pool);
+
     client->proxy = (TpClient *) _mcd_client_proxy_new (
         self->priv->dbus_daemon, client->name, owner);
 
@@ -2457,7 +2653,7 @@ mcd_client_start_introspection (McdClientProxy *proxy,
         if (G_LIKELY (!error))
         {
             DEBUG ("File found for %s: %s", client->name, filename);
-            parse_client_file (client, file);
+            parse_client_file (dispatcher, client, file);
             file_found = TRUE;
         }
         else
@@ -2484,21 +2680,28 @@ mcd_client_start_introspection (McdClientProxy *proxy,
     {
         client_add_interface_by_id (client);
 
-        if ((client->interfaces & MCD_CLIENT_HANDLER) != 0 &&
-            _mcd_client_proxy_is_active (proxy))
+        if ((client->interfaces & MCD_CLIENT_HANDLER) != 0)
         {
-            DEBUG ("%s is an active, activatable Handler", client->name);
+            if (_mcd_client_proxy_is_active (proxy))
+            {
+                DEBUG ("%s is an active, activatable Handler", client->name);
 
-            /* We need to investigate whether it is handling any channels */
+                /* We need to investigate whether it is handling any channels */
 
-            if (!dispatcher->priv->startup_completed)
-                dispatcher->priv->startup_lock++;
+                if (!dispatcher->priv->startup_completed)
+                    dispatcher->priv->startup_lock++;
 
-            tp_cli_dbus_properties_call_get_all (client->proxy, -1,
-                                                 TP_IFACE_CLIENT_HANDLER,
-                                                 handler_get_all_cb,
-                                                 NULL, NULL,
-                                                 G_OBJECT (dispatcher));
+                tp_cli_dbus_properties_call_get_all (client->proxy, -1,
+                                                     TP_IFACE_CLIENT_HANDLER,
+                                                     handler_get_all_cb,
+                                                     NULL, NULL,
+                                                     G_OBJECT (dispatcher));
+            }
+            else
+            {
+                DEBUG ("%s is a Handler but not active", client->name);
+                mcd_dispatcher_update_client_caps (dispatcher, client);
+            }
         }
     }
 
@@ -2672,6 +2875,11 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
 
             if (!client->activatable)
             {
+                /* in ContactCapabilities we indicate the disappearance
+                 * of a client by giving it an empty set of capabilities and
+                 * filters */
+                mcd_client_become_incapable (client);
+                mcd_dispatcher_update_client_caps (self, client);
                 g_hash_table_remove (priv->clients, name);
             }
         }
@@ -2890,6 +3098,10 @@ mcd_dispatcher_init (McdDispatcher * dispatcher)
     priv->handler_map = _mcd_handler_map_new ();
 
     priv->connections = g_hash_table_new (NULL, NULL);
+
+    /* Dummy handle type, we're just using this as a string pool */
+    priv->string_pool = tp_dynamic_handle_repo_new (TP_HANDLE_TYPE_CONTACT,
+                                                    NULL, NULL);
 }
 
 McdDispatcher *
@@ -3879,6 +4091,32 @@ mcd_dispatcher_lost_connection (gpointer data,
     g_object_unref (self);
 }
 
+GPtrArray *
+_mcd_dispatcher_dup_client_caps (McdDispatcher *self)
+{
+    GPtrArray *vas;
+    GHashTableIter iter;
+    gpointer p;
+
+    g_return_val_if_fail (MCD_IS_DISPATCHER (self), NULL);
+
+    vas = g_ptr_array_sized_new (g_hash_table_size (self->priv->clients));
+
+    if (!self->priv->startup_completed)
+    {
+        return NULL;
+    }
+
+    g_hash_table_iter_init (&iter, self->priv->clients);
+
+    while (g_hash_table_iter_next (&iter, NULL, &p))
+    {
+        mcd_dispatcher_append_client_caps (self, p, vas);
+    }
+
+    return vas;
+}
+
 void
 _mcd_dispatcher_add_connection (McdDispatcher *self,
                                 McdConnection *connection)
@@ -3894,7 +4132,12 @@ _mcd_dispatcher_add_connection (McdDispatcher *self,
 
     if (self->priv->startup_completed)
     {
-        _mcd_connection_start_dispatching (connection);
+        GPtrArray *vas = _mcd_dispatcher_dup_client_caps (self);
+
+        _mcd_connection_start_dispatching (connection, vas);
+
+        g_ptr_array_foreach (vas, (GFunc) g_value_array_free, NULL);
+        g_ptr_array_free (vas, TRUE);
     }
     /* else _mcd_connection_start_dispatching will be called when we're ready
      * for it */
