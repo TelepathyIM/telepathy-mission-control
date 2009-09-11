@@ -137,12 +137,8 @@ void mcd_debug_init ()
          * telepathy-glib-style flags-word */
         if (level == 0)
         {
-            guint nkeys;
-
-            /* count the debug keys */
-            for (nkeys = 0; keys[nkeys].value != 0; nkeys++) /* do nothing */ ;
-
-            categories = g_parse_debug_string (mc_debug_str, keys, nkeys);
+            categories = g_parse_debug_string (mc_debug_str, keys,
+                                               G_N_ELEMENTS (keys) - 1);
             tp_debug_set_flags (mc_debug_str);
 
             /* mcd-debug.h uses the value of mcd_debug_level directly, so
