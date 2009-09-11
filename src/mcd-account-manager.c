@@ -488,8 +488,11 @@ complete_account_creation_set_cb (McdAccount *account, GPtrArray *not_yet,
         complete_account_creation_finish (account, TRUE, cad);
     }
 
-    g_ptr_array_foreach (not_yet, (GFunc) g_free, NULL);
-    g_ptr_array_free (not_yet, TRUE);
+    if (not_yet != NULL)
+    {
+        g_ptr_array_foreach (not_yet, (GFunc) g_free, NULL);
+        g_ptr_array_free (not_yet, TRUE);
+    }
 }
 
 static void
