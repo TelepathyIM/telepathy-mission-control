@@ -23,6 +23,7 @@ SPECS = \
 	Client_Handler.xml \
 	Client_Interface_Requests.xml \
 	Client_Observer.xml \
+        Connection_Interface_Contact_Capabilities.xml \
         Connection_Interface_Contact_Capabilities_Draft1.xml
 
 
