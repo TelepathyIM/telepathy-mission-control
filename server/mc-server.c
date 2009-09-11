@@ -79,10 +79,7 @@ main (int argc, char **argv)
 
     mcd_service_run (MCD_OBJECT (mcd));
 
-    if (debug_sender != NULL)
-    {
-        g_object_unref (debug_sender);
-    }
+    g_object_unref (debug_sender);
 
     return 0;
 }
