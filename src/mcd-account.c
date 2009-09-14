@@ -1019,7 +1019,7 @@ _mcd_account_delete (McdAccount *account,
 
         params = mcd_manager_get_parameters (priv->manager, priv->protocol_name);
 
-        for (p = params; p->name != NULL; p++)
+        for (p = params; p != NULL && p->name != NULL; p++)
         {
             if (p->flags & TP_CONN_MGR_PARAM_FLAG_SECRET
                 && mc_param_type (p) == G_TYPE_STRING)
