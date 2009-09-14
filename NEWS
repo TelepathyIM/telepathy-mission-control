@@ -1,7 +1,43 @@
-telepathy-mission-control 5.2.4 (UNRELEASED)
+telepathy-mission-control 5.3.0 (UNRELEASED)
 ============================================
 
-???
+The "displatcher" release, starting a new development branch.
+
+Enhancements:
+
+* fd.o#20903: support the final version of ContactCapabilities, from
+  telepathy-spec 0.17.28 (smcv)
+
+* mc-tool: show full Presence information (sjoerd)
+
+* Use the "mcd" G_LOG_DOMAIN (smcv)
+
+* fd.o#23501: support TpDebugSender (smcv)
+
+* Stop #define'ing g_object_ref, g_object_unref (smcv)
+
+* fd.o#22705: support MC_DEBUG=all (smcv)
+
+Fixes:
+
+* Escape "-" in protocol names in Account names, as required by the Telepathy
+  spec (sjoerd)
+
+* fd.o #23818: if HandleChannels fails, try all Handlers in sequence before
+  giving up (smcv)
+
+* Refactor client locking in McdDispatcher to be more obviously correct (smcv)
+
+* Don't define macros used in glibc feature-test internals, possibly fixing
+  failure to build from source on Debian GNU/kFreeBSD (smcv)
+
+* Fix a reference leak when shooting down an unwanted Connection (wjt/smcv)
+
+* fd.o#23921: force dbus-daemon to re-detect .service files on MC startup,
+  as a partial workaround for D-Bus bug fd.o#23925 (George Goldberg)
+
+* This release also includes all bugfixes from stable-branch versions up to
+  and including 5.2.3.
 
 telepathy-mission-control 5.2.3 (2009-09-10)
 ============================================

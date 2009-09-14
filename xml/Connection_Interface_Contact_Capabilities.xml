@@ -20,7 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</
   </tp:license>
   <interface name="org.freedesktop.Telepathy.Connection.Interface.ContactCapabilities">
     <tp:requires interface="org.freedesktop.Telepathy.Connection"/>
-    <tp:added version="0.17.UNRELEASED">(as stable API)</tp:added>
+    <tp:added version="0.17.28">(as stable API)</tp:added>
 
     <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
       <p>Contact capabilities describe the channel classes which may be
