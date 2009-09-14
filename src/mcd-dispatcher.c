@@ -530,7 +530,9 @@ channel_classes_equals (GHashTable *channel_class1, GHashTable *channel_class2)
  * largest filter that matched)
  */
 static guint
-match_filters (McdChannel *channel, GList *filters)
+match_filters (McdChannel *channel,
+               GList *filters,
+               gboolean assume_requested)
 {
     GHashTable *channel_properties;
     McdChannelStatus status;
@@ -570,8 +572,18 @@ match_filters (McdChannel *channel, GList *filters)
                                        (gpointer *) &property_name,
                                        (gpointer *) &filter_value))
         {
-            if (! match_property (channel_properties, property_name,
-                                filter_value))
+            if (assume_requested &&
+                ! tp_strdiff (property_name, TP_IFACE_CHANNEL ".Requested"))
+            {
+                if (! G_VALUE_HOLDS_BOOLEAN (filter_value) ||
+                    ! g_value_get_boolean (filter_value))
+                {
+                    filter_matched = FALSE;
+                    break;
+                }
+            }
+            else if (! match_property (channel_properties, property_name,
+                                       filter_value))
             {
                 filter_matched = FALSE;
                 break;
@@ -594,6 +606,9 @@ mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
     GHashTableIter iter;
     McdClient *client;
 
+    /* FIXME: return the "most preferred" handler, not just any handler that
+     * can take it */
+
     g_hash_table_iter_init (&iter, dispatcher->priv->clients);
     while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &client))
     {
@@ -601,7 +616,7 @@ mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
             !(client->interfaces & MCD_CLIENT_HANDLER))
             continue;
 
-        if (match_filters (channel, client->handler_filters) > 0)
+        if (match_filters (channel, client->handler_filters, TRUE) > 0)
             return client;
     }
     return NULL;
@@ -787,7 +802,7 @@ mcd_dispatcher_get_possible_handlers (McdDispatcher *self,
             McdChannel *channel = MCD_CHANNEL (iter->data);
             guint quality;
 
-            quality = match_filters (channel, client->handler_filters);
+            quality = match_filters (channel, client->handler_filters, FALSE);
 
             if (quality == 0)
             {
@@ -1120,7 +1135,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
         {
             McdChannel *channel = MCD_CHANNEL (cl->data);
 
-            if (match_filters (channel, client->observer_filters))
+            if (match_filters (channel, client->observer_filters, FALSE))
                 observed = g_list_prepend (observed, channel);
         }
         if (!observed) continue;
@@ -1262,7 +1277,7 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
         {
             McdChannel *channel = MCD_CHANNEL (cl->data);
 
-            if (match_filters (channel, client->approver_filters))
+            if (match_filters (channel, client->approver_filters, FALSE))
             {
                 matched = TRUE;
                 break;
