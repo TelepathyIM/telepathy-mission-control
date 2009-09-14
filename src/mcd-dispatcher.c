@@ -1897,7 +1897,7 @@ parse_client_filter (GKeyFile *file, const gchar *group)
                 }
                 else
                 {
-                    g_value_set_uint64 (value, x);
+                    g_value_set_int64 (value, x);
                     g_hash_table_insert (filter, file_property, value);
                 }
                 g_free (str);
