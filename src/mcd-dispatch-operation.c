@@ -25,7 +25,6 @@
  */
 
 #include "config.h"
-#include "mcd-dispatch-operation.h"
 #include "mcd-dispatch-operation-priv.h"
 
 #include <stdio.h>
