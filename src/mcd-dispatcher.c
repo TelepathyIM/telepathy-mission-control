@@ -626,7 +626,8 @@ match_filters (McdChannel *channel, GList *filters)
 }
 
 static McdClient *
-get_default_handler (McdDispatcher *dispatcher, McdChannel *channel)
+mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
+                                      McdChannel *channel)
 {
     GHashTableIter iter;
     McdClient *client;
@@ -3634,7 +3635,7 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
 
     priv = dispatcher->priv;
 
-    handler = get_default_handler (dispatcher, channel);
+    handler = mcd_dispatcher_guess_request_handler (dispatcher, channel);
     if (!handler)
     {
         /* No handler found. But it's possible that by the time that the
