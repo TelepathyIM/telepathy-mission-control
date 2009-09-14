@@ -2175,6 +2175,16 @@ set_parameters_data_free (SetParametersData *data)
 }
 
 static void
+set_parameters_maybe_autoconnect_cb (McdAccount *account,
+                                     gboolean valid,
+                                     gpointer user_data G_GNUC_UNUSED)
+{
+    /* Strictly speaking this doesn't need to be called unless valid is TRUE,
+     * but calling it in all cases gives us clearer debug output */
+    _mcd_account_maybe_autoconnect (account);
+}
+
+static void
 set_parameters_finish (SetParametersData *data)
 {
     McdAccountPrivate *priv = data->account->priv;
@@ -2195,8 +2205,8 @@ set_parameters_finish (SetParametersData *data)
         }
     }
 
-    mcd_account_check_validity (data->account, NULL, NULL);
-    _mcd_account_maybe_autoconnect (data->account);
+    mcd_account_check_validity (data->account,
+                                set_parameters_maybe_autoconnect_cb, NULL);
 
     if (data->callback != NULL)
     {
