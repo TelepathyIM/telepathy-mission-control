@@ -3455,9 +3455,15 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
 
     if (channels == NULL)
     {
-        /* trivial case */
+        DEBUG ("trivial case - no channels");
         return;
     }
+
+    DEBUG ("%s channel %p (%s): %s",
+           requested ? "requested" : "unrequested",
+           channels->data,
+           channels->next == NULL ? "only" : "and more",
+           mcd_channel_get_object_path (channels->data));
 
     /* See if there are any handlers that can take all these channels */
     possible_handlers = mcd_dispatcher_get_possible_handlers (dispatcher,
@@ -3467,14 +3473,15 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
     {
         if (channels->next == NULL)
         {
-            /* There's exactly one channel and we can't handle it. It must
-             * die. */
+            DEBUG ("One channel, which cannot be handled");
             _mcd_channel_undispatchable (channels->data);
             g_list_free (channels);
         }
         else
         {
-            /* there are >= 2 channels - split the batch up and try again */
+            DEBUG ("Two or more channels, which cannot all be handled - "
+                   "will split up the batch and try again");
+
             while (channels != NULL)
             {
                 list = channels;
@@ -3485,6 +3492,8 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
     }
     else
     {
+        DEBUG ("possible handlers found, dispatching");
+
         for (list = channels; list != NULL; list = list->next)
             _mcd_channel_set_status (MCD_CHANNEL (list->data),
                                      MCD_CHANNEL_STATUS_DISPATCHING);
