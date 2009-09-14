@@ -3,10 +3,23 @@ telepathy-mission-control 5.3.0 (UNRELEASED)
 
 The "displatcher" release, starting a new development branch.
 
+Dependencies:
+
+* The GNOME Keyring library is a new optional dependency (only if configured
+  with --enable-gnome-keyring=yes or --enable-gnome-keyring=auto).
+  
+  If it is enabled, having the library at runtime is required, but having the
+  daemon itself is optional - the current plain-text storage will be used for
+  passwords if the keyring daemon is not available.
+
 Enhancements:
 
 * fd.o#20903: support the final version of ContactCapabilities, from
   telepathy-spec 0.17.28 (smcv)
+
+* fd.o#22231: add optional gnome-keyring integration. This is off by default,
+  but distributions should consider configuring MC with --enable-gnome-keyring
+  to get this functionality. (jonnylamb/smcv)
 
 * mc-tool: show full Presence information (sjoerd)
 
@@ -35,6 +48,12 @@ Fixes:
 
 * fd.o#23921: force dbus-daemon to re-detect .service files on MC startup,
   as a partial workaround for D-Bus bug fd.o#23925 (George Goldberg)
+
+* fd.o#23935: call AddRequest if appropriate even on clients that match only
+  channels with Requested=true, and use requested channels' complete
+  properties in preference to the properties that were requested (smcv)
+
+* Make signed values in .client files work instead of g_critical'ing (smcv)
 
 * This release also includes all bugfixes from stable-branch versions up to
   and including 5.2.3.
