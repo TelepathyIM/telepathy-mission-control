@@ -578,11 +578,13 @@ match_filters (McdChannel *channel, GList *filters)
     guint best_quality = 0;
 
     status = mcd_channel_get_status (channel);
-    channel_properties =
-        (status == MCD_CHANNEL_STATUS_REQUEST ||
-         status == MCD_CHANNEL_STATUS_REQUESTED) ?
-        _mcd_channel_get_requested_properties (channel) :
-        _mcd_channel_get_immutable_properties (channel);
+
+    channel_properties = _mcd_channel_get_immutable_properties (channel);
+
+    if (channel_properties == NULL)
+    {
+        channel_properties = _mcd_channel_get_requested_properties (channel);
+    }
 
     for (list = filters; list != NULL; list = list->next)
     {
