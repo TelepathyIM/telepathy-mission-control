@@ -567,7 +567,7 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value,
         }
         else
         {
-            g_warning ("GNOME keyring not available: will not save secret "
+            g_message ("GNOME keyring not available: will not save secret "
                        "parameters in the keyring");
         }
     }
@@ -740,9 +740,9 @@ keyring_get_cb (GnomeKeyringResult result, const gchar* password,
 
     if (result != GNOME_KEYRING_RESULT_OK)
     {
-        g_warning ("Failed to get item from keyring: %s",
+        g_message ("Failed to get item from keyring: %s",
                    gnome_keyring_result_to_message (result));
-        g_warning ("Falling back to looking in the keyfile");
+        g_message ("Falling back to looking in the keyfile");
 
         get_parameter_from_file (data->account, data->name,
                                  data->callback, data->user_data);
@@ -817,7 +817,7 @@ get_parameter (McdAccount *account, const gchar *name,
         }
         else
         {
-            g_warning ("GNOME keyring not available: will not look in the "
+            g_message ("GNOME keyring not available: will not look in the "
                        "keyring for secret parameter: %s", name);
         }
     }
@@ -1039,7 +1039,7 @@ _mcd_account_delete (McdAccount *account,
     }
     else
     {
-        g_warning ("GNOME keyring not available: cannot delete secret "
+        g_message ("GNOME keyring not available: cannot delete secret "
                    "parameters from keyring");
     }
 #endif
