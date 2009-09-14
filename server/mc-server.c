@@ -51,6 +51,7 @@ main (int argc, char **argv)
     McdService *mcd;
 
     g_type_init ();
+    g_set_application_name ("Account manager");
 
     /* Keep a ref to the default TpDebugSender for the lifetime of the
      * McdMaster, so it will persist for the lifetime of MC, and subsequent

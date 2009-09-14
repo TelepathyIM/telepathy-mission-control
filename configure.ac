@@ -265,6 +265,27 @@ then
   AC_DEFINE([ENABLE_PLUGINS], [1], [Define if plugins should be enabled])
 fi
 
+keyring_enabled="no"
+AC_MSG_CHECKING(whether to build with gnome-keyring support)
+AC_ARG_ENABLE(gnome-keyring,
+        [ --enable-gnome-keyring    build with gnome-keyring support. default=no],
+        [
+                AC_MSG_RESULT(${enableval})
+                keyring_enabled="${enableval}"
+        ],
+        [
+                AC_MSG_RESULT(no)
+                keyring_enabled="no"
+        ]
+)
+AM_CONDITIONAL(ENABLE_GNOME_KEYRING, [test x$keyring_enabled = xyes])
+if test "x$keyring_enabled" = xyes
+then
+  AC_DEFINE([ENABLE_GNOME_KEYRING], [1], [Define whether gnome-keyring support is enabled])
+else
+  AC_DEFINE([ENABLE_GNOME_KEYRING], [0], [Define whether gnome-keyring support is enabled])
+fi
+
 PKG_CHECK_MODULES(DBUS, [dbus-1 >= 0.51, dbus-glib-1 >= 0.51], have_dbus=yes, have_dbus=no)
 AC_SUBST(DBUS_CFLAGS)
 AC_SUBST(DBUS_LIBS)
@@ -289,6 +310,13 @@ then
   PKG_CHECK_MODULES(GMODULE, gmodule-no-export-2.0)
   AC_SUBST(GMODULE_LIBS)
   AC_SUBST(GMODULE_CFLAGS)
+fi
+
+if test "x$keyring_enabled" = xyes
+then
+  PKG_CHECK_MODULES(GNOME_KEYRING, gnome-keyring-1)
+  AC_SUBST(GNOME_KEYRING_LIBS)
+  AC_SUBST(GNOME_KEYRING_CFLAGS)
 fi
 
 dnl docs/Makefile.am needs to know whether it's an out of tree build

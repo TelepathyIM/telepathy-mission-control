@@ -26,6 +26,7 @@
 
 #include <string.h>
 #include <telepathy-glib/errors.h>
+#include <telepathy-glib/util.h>
 #include "mcd-dbusprop.h"
 #include "mcd-debug.h"
 
@@ -68,12 +69,11 @@ get_interface_properties (TpSvcDBusProperties *object, const gchar *interface)
     return NULL;
 }
 
-gboolean
-mcd_dbusprop_set_property (TpSvcDBusProperties *self,
-			   const gchar *interface_name,
-			   const gchar *property_name,
-			   const GValue *value,
-			   GError **error)
+static const McdDBusProp *
+get_mcddbusprop (TpSvcDBusProperties *self,
+                 const gchar *interface_name,
+                 const gchar *property_name,
+                 GError **error)
 {
     const McdDBusProp *prop_array, *property;
 
@@ -82,28 +82,47 @@ mcd_dbusprop_set_property (TpSvcDBusProperties *self,
     prop_array = get_interface_properties (self, interface_name);
     if (!prop_array)
     {
-	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-		     "invalid interface: %s", interface_name);
-	return FALSE;
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "invalid interface: %s", interface_name);
+        return NULL;
     }
 
     /* look for our property */
     for (property = prop_array; property->name != NULL; property++)
-	if (strcmp (property->name, property_name) == 0)
-	    break;
+        if (strcmp (property->name, property_name) == 0)
+            break;
+
     if (!property->name)
     {
-	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-		     "invalid property: %s", property_name);
-	return FALSE;
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "invalid property: %s", property_name);
+        return NULL;
     }
+
+    return property;
+}
+
+gboolean
+mcd_dbusprop_set_property (TpSvcDBusProperties *self,
+                           const gchar *interface_name,
+                           const gchar *property_name,
+                           const GValue *value,
+                           GError **error)
+{
+    const McdDBusProp *property;
+
+    property = get_mcddbusprop (self, interface_name, property_name, error);
+
+    if (property == NULL)
+      return FALSE;
 
     if (!property->setprop)
     {
-	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-		     "property %s cannot be written", property_name);
-	return FALSE;
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "property %s cannot be written", property_name);
+        return FALSE;
     }
+
     /* we pass property->name, because we know it's a static value and there
      * will be no need to care about its lifetime */
     return property->setprop (self, property->name, value, error);
@@ -132,110 +151,167 @@ dbusprop_set (TpSvcDBusProperties *self,
 
 gboolean
 mcd_dbusprop_get_property (TpSvcDBusProperties *self,
-			   const gchar *interface_name,
-			   const gchar *property_name,
-			   GValue *value,
-			   GError **error)
+                           const gchar *interface_name,
+                           const gchar *property_name,
+                           GValue *value,
+                           GError **error)
 {
-    const McdDBusProp *prop_array, *property;
+    const McdDBusProp *property;
 
-    prop_array = get_interface_properties (self, interface_name);
-    if (!prop_array)
-    {
-	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-		     "invalid interface: %s", interface_name);
-	return FALSE;
-    }
+    property = get_mcddbusprop (self, interface_name, property_name, error);
 
-    /* look for our property */
-    for (property = prop_array; property->name != NULL; property++)
-	if (strcmp (property->name, property_name) == 0)
-	    break;
-    if (!property->name)
-    {
-	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-		     "invalid property: %s", property_name);
-	return FALSE;
-    }
+    if (property == NULL)
+      return FALSE;
 
     if (!property->getprop)
     {
-	g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-		     "property %s cannot be read", property_name);
-	return FALSE;
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "property %s cannot be read", property_name);
+        return FALSE;
     }
+
     property->getprop (self, property_name, value);
     return TRUE;
 }
 
+static void
+dbusprop_get_cb (TpSvcDBusProperties *self, const GValue *value,
+                 const GError *error, gpointer user_data)
+{
+  DBusGMethodInvocation *context = (DBusGMethodInvocation *) user_data;
+
+  tp_svc_dbus_properties_return_from_get (context, value);
+}
+
 void
 dbusprop_get (TpSvcDBusProperties *self,
-	      const gchar *interface_name,
-	      const gchar *property_name,
-	      DBusGMethodInvocation *context)
+              const gchar *interface_name,
+              const gchar *property_name,
+              DBusGMethodInvocation *context)
 {
     GValue value = { 0 };
     GError *error = NULL;
+    const McdDBusProp *property;
 
     DEBUG ("%s, %s", interface_name, property_name);
 
-    mcd_dbusprop_get_property (self, interface_name, property_name,
-			       &value, &error);
-    if (error)
+    /* Look whether the property can support async getting */
+    property = get_mcddbusprop (self, interface_name, property_name, NULL);
+    if (property != NULL && property->async_getprop != NULL)
     {
-	dbus_g_method_return_error (context, error);
-	g_error_free (error);
-	return;
+      property->async_getprop (self, property_name, dbusprop_get_cb, context);
     }
+    else
+    {
+        /* The normal route */
+        mcd_dbusprop_get_property (self, interface_name, property_name,
+                                   &value, &error);
 
-    tp_svc_dbus_properties_return_from_get (context, &value);
-    g_value_unset (&value);
+        if (error)
+        {
+            dbus_g_method_return_error (context, error);
+            g_error_free (error);
+            return;
+        }
+
+        tp_svc_dbus_properties_return_from_get (context, &value);
+        g_value_unset (&value);
+    }
 }
 
-static void
-free_prop_val (gpointer val)
+typedef struct
 {
-    GValue *value = val;
+    TpSvcDBusProperties *self;
+    DBusGMethodInvocation *context;
+    GHashTable *properties;
+    const McdDBusProp *property;
+} GetAllData;
 
-    g_value_unset (value);
-    g_free (value);
+static void
+get_all_iter (TpSvcDBusProperties *self,
+              const GValue *value,
+              const GError *error,
+              gpointer user_data)
+{
+    GetAllData *data = (GetAllData *) user_data;
+
+    if (self != NULL && value != NULL)
+    {
+        /* This is actually a callback */
+        g_hash_table_insert (data->properties, (gchar *) data->property->name,
+                             tp_g_value_slice_dup (value));
+
+        data->property++;
+    }
+
+    if (data->property->name != NULL)
+    {
+        if (data->property->async_getprop)
+        {
+          data->property->async_getprop (data->self, data->property->name,
+                                         get_all_iter, data);
+        }
+        else if (data->property->getprop)
+        {
+            GValue *out;
+
+            out = g_malloc0 (sizeof (GValue));
+            data->property->getprop (data->self, data->property->name, out);
+            g_hash_table_insert (data->properties, (gchar *) data->property->name,
+                tp_g_value_slice_dup (out));
+            g_value_unset (out);
+            g_free (out);
+
+            data->property++;
+            get_all_iter (NULL, NULL, NULL, data);
+        }
+        else
+        {
+            data->property++;
+            get_all_iter (NULL, NULL, NULL, data);
+        }
+    }
+    else
+    {
+      tp_svc_dbus_properties_return_from_get_all (data->context,
+                                                  data->properties);
+      g_hash_table_destroy (data->properties);
+      g_slice_free (GetAllData, data);
+
+    }
 }
 
 void
 dbusprop_get_all (TpSvcDBusProperties *self,
-		  const gchar *interface_name,
-		  DBusGMethodInvocation *context)
+                  const gchar *interface_name,
+                  DBusGMethodInvocation *context)
 {
-    const McdDBusProp *prop_array, *property;
-    GHashTable *properties;
+    const McdDBusProp *prop_array;
     GError *error = NULL;
+    GetAllData *data;
 
     DEBUG ("%s", interface_name);
 
     prop_array = get_interface_properties (self, interface_name);
     if (!prop_array)
     {
-	g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-		     "invalid interface: %s", interface_name);
-	dbus_g_method_return_error (context, error);
-	g_error_free (error);
-	return;
+        g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "invalid interface: %s", interface_name);
+        dbus_g_method_return_error (context, error);
+        g_error_free (error);
+        return;
     }
 
-    properties = g_hash_table_new_full (g_str_hash, g_str_equal,
-					NULL, free_prop_val);
-    for (property = prop_array; property->name != NULL; property++)
-    {
-	GValue *value;
+    data = g_slice_new0 (GetAllData);
+    data->self = self;
+    data->context = context;
 
-	if (!property->getprop) continue;
+    data->properties = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                              NULL, (GDestroyNotify) tp_g_value_slice_free);
 
-	value = g_malloc0 (sizeof (GValue));
-	property->getprop (self, property->name, value);
-	g_hash_table_insert (properties, (gchar *)property->name, value);
-    }
-    tp_svc_dbus_properties_return_from_get_all (context, properties);
-    g_hash_table_destroy (properties);
+    data->property = prop_array;
+
+    get_all_iter (NULL, NULL, NULL, data);
 }
 
 void

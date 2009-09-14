@@ -48,18 +48,42 @@ struct _McdAccount
     McdAccountPrivate *priv;
 };
 
+typedef enum
+{
+  MCD_ACCOUNT_ERROR_SET_PARAMETER,
+  MCD_ACCOUNT_ERROR_GET_PARAMETER,
+} McdAccountError;
+
+GQuark mcd_account_error_quark (void);
+
+#define MCD_ACCOUNT_ERROR (mcd_account_error_quark ())
+
 typedef void (*McdAccountLoadCb) (McdAccount *account,
                                   const GError *error,
                                   gpointer user_data);
+typedef void (*McdAccountDeleteCb) (McdAccount *account,
+                                    const GError *error,
+                                    gpointer user_data);
+typedef void (*McdAccountSetParameterCb) (McdAccount *account,
+                                          const GError *error,
+                                          gpointer user_data);
+typedef void (*McdAccountGetParameterCb) (McdAccount *account,
+                                          const GValue *value,
+                                          const GError *error,
+                                          gpointer user_data);
 
 struct _McdAccountClass
 {
     GObjectClass parent_class;
-    gboolean (*get_parameter) (McdAccount *account, const gchar *name,
-                               GValue *value);
+    void (*get_parameter) (McdAccount *account, const gchar *name,
+                           McdAccountGetParameterCb callback,
+                           gpointer user_data);
     void (*set_parameter) (McdAccount *account, const gchar *name,
-                           const GValue *value);
-    gboolean (*delete) (McdAccount *account, GError **error);
+                           const GValue *value,
+                           McdAccountSetParameterCb callback,
+                           gpointer user_data);
+    void (*delete) (McdAccount *account, McdAccountDeleteCb callback,
+                    gpointer user_data);
     void (*load) (McdAccount *account, McdAccountLoadCb callback,
                   gpointer user_data);
     gboolean (*check_request) (McdAccount *account, GHashTable *request,
@@ -77,13 +101,20 @@ McdAccount *mcd_account_new (McdAccountManager *account_manager,
 
 McdAccountManager *mcd_account_get_account_manager (McdAccount *account);
 
-gboolean mcd_account_delete (McdAccount *account, GError **error);
+void mcd_account_delete (McdAccount *account, McdAccountDeleteCb callback,
+                         gpointer user_data);
 
 const gchar *mcd_account_get_unique_name (McdAccount *account);
 const gchar *mcd_account_get_object_path (McdAccount *account);
 
 gboolean mcd_account_is_valid (McdAccount *account);
-gboolean mcd_account_check_validity (McdAccount *account);
+
+typedef void (*McdAccountCheckValidityCb) (McdAccount *account,
+                                           gboolean valid,
+                                           gpointer user_data);
+void mcd_account_check_validity (McdAccount *account,
+                                 McdAccountCheckValidityCb callback,
+                                 gpointer user_data);
 
 gboolean mcd_account_is_enabled (McdAccount *account);
 

@@ -51,11 +51,27 @@ _mcd_account_connection_context_free (McdAccountConnectionContext *c)
     g_free (c);
 }
 
-void
-_mcd_account_connection_begin (McdAccount *account)
+static void
+connection_begin_dup_params_cb (McdAccount *account, GHashTable *params,
+                                gpointer user_data)
 {
     McdAccountConnectionContext *ctx;
 
+    /* get account params */
+    /* create dynamic params HT */
+    /* run the handlers */
+    ctx = g_malloc (sizeof (McdAccountConnectionContext));
+    ctx->i_filter = 0;
+
+    ctx->params = params;
+    g_assert (ctx->params != NULL);
+    _mcd_account_set_connection_context (account, ctx);
+    mcd_account_connection_proceed (account, TRUE);
+}
+
+void
+_mcd_account_connection_begin (McdAccount *account)
+{
     /* check whether a connection process is already ongoing */
     if (_mcd_account_get_connection_context (account) != NULL)
     {
@@ -63,15 +79,7 @@ _mcd_account_connection_begin (McdAccount *account)
         return;
     }
 
-    /* get account params */
-    /* create dynamic params HT */
-    /* run the handlers */
-    ctx = g_malloc (sizeof (McdAccountConnectionContext));
-    ctx->i_filter = 0;
-    ctx->params = _mcd_account_dup_parameters (account);
-    g_assert (ctx->params != NULL);
-    _mcd_account_set_connection_context (account, ctx);
-    mcd_account_connection_proceed (account, TRUE);
+    _mcd_account_dup_parameters (account, connection_begin_dup_params_cb, NULL);
 }
 
 void

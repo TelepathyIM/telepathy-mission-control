@@ -64,6 +64,14 @@ struct _McdAccountManagerClass
     void (*_mc_reserved7) (void);
 };
 
+typedef enum
+{
+  MCD_ACCOUNT_MANAGER_ERROR_SET_PARAMETER,
+} McdAccountManagerError;
+
+GQuark mcd_account_manager_error_quark (void);
+
+#define MCD_ACCOUNT_MANAGER_ERROR (mcd_account_manager_error_quark ())
 
 #define MC_ACCOUNT_MANAGER_DBUS_SERVICE "org.freedesktop.Telepathy.AccountManager"
 #define MC_ACCOUNT_MANAGER_DBUS_OBJECT "/org/freedesktop/Telepathy/AccountManager"
@@ -76,6 +84,14 @@ TpDBusDaemon *mcd_account_manager_get_dbus_daemon
 
 GKeyFile *mcd_account_manager_get_config (McdAccountManager *account_manager);
 void mcd_account_manager_write_conf (McdAccountManager *account_manager);
+
+typedef void (McdAccountManagerWriteConfCb) (McdAccountManager *account_manager,
+                                             const GError *error,
+                                             gpointer user_data);
+
+void mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
+                                           McdAccountManagerWriteConfCb callback,
+                                           gpointer user_data);
 
 McdAccount *mcd_account_manager_lookup_account (McdAccountManager *account_manager,
 						const gchar *name);
