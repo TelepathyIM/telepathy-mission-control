@@ -6,6 +6,10 @@ INCLUDES = \
 	   -DG_LOG_DOMAIN=\"mcd\" \
 	   -DMC_DISABLE_DEPRECATED -I$(top_srcdir)
 
+if ENABLE_GNOME_KEYRING
+INCLUDES += $(GNOME_KEYRING_CFLAGS)
+endif
+
 mc_headers = \
 	mcd-account.h \
 	mcd-account-compat.h \
@@ -72,6 +76,10 @@ libmcd_convenience_la_LIBADD = \
 	$(TELEPATHY_LIBS) \
 	$(DBUS_LIBS) \
 	$(GLIB_LIBS)
+
+if ENABLE_GNOME_KEYRING
+libmcd_convenience_la_LIBADD += $(GNOME_KEYRING_LIBS)
+endif
 
 noinst_LTLIBRARIES = libmcd-convenience.la
 

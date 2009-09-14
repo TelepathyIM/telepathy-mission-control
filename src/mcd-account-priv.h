@@ -43,11 +43,17 @@ G_GNUC_INTERNAL void _mcd_account_maybe_autoconnect (McdAccount *account);
 G_GNUC_INTERNAL void _mcd_account_connect (McdAccount *account,
                                            GHashTable *params);
 
-G_GNUC_INTERNAL gboolean _mcd_account_set_parameters (McdAccount *account,
-                                                      GHashTable *params,
-                                                      const gchar **unset,
-                                                      GPtrArray *not_yet,
-                                                      GError **error);
+
+typedef void (McdAccountSetParametersCb) (McdAccount *account,
+                                          GPtrArray *not_yet,
+                                          const GError *error,
+                                          gpointer user_data);
+
+G_GNUC_INTERNAL void _mcd_account_set_parameters (McdAccount *account,
+                                                  GHashTable *params,
+                                                  const gchar **unset,
+                                                  McdAccountSetParametersCb callback,
+                                                  gpointer user_data);
 
 G_GNUC_INTERNAL void _mcd_account_request_temporary_presence (McdAccount *self,
     TpConnectionPresenceType type, const gchar *status);
@@ -114,7 +120,7 @@ _mcd_account_write_conf (McdAccount *account)
     account_manager = mcd_account_get_account_manager (account);
     g_return_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager));
 
-    mcd_account_manager_write_conf (account_manager);
+    mcd_account_manager_write_conf_async (account_manager, NULL, NULL);
 }
 
 G_GNUC_INTERNAL void _mcd_account_compat_class_init (McdAccountClass *klass);
@@ -155,7 +161,13 @@ void _mcd_account_set_connection_context (McdAccount *self,
 G_GNUC_INTERNAL void _mcd_account_connection_context_free
     (McdAccountConnectionContext *c);
 
-G_GNUC_INTERNAL GHashTable *_mcd_account_dup_parameters (McdAccount *account);
+typedef void (*McdAccountDupParametersCb) (McdAccount *account,
+                                           GHashTable *params,
+                                           gpointer user_data);
+
+G_GNUC_INTERNAL void _mcd_account_dup_parameters (McdAccount *account,
+                                                  McdAccountDupParametersCb callback,
+                                                  gpointer user_data);
 
 extern const McdDBusProp account_conditions_properties[];
 

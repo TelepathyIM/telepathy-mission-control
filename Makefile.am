@@ -15,7 +15,7 @@ if ENABLE_PLUGINS
 pkgconfig_DATA += mission-control.pc
 endif
 
-DISTCHECK_CONFIGURE_FLAGS = --enable-gtk-doc
+DISTCHECK_CONFIGURE_FLAGS = --enable-gtk-doc --disable-gnome-keyring
 
 include tools/lcov.am
 include tools/telepathy.am

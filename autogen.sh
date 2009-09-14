@@ -30,7 +30,9 @@ for arg in $*; do
     esac
 done
 
+default_args="--enable-gtk-doc --enable-plugins --enable-gnome-keyring=auto"
+
 if test $run_configure = true; then
-    echo "Running ./configure --enable-gtk-doc --enable-plugins $*"
-    ./configure --enable-gtk-doc --enable-plugins "$@"
+    echo "Running ./configure $default_args $*"
+    ./configure $default_args "$@"
 fi

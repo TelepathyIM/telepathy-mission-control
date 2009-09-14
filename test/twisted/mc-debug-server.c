@@ -23,6 +23,8 @@
  *
  */
 
+#include "config.h"
+
 #include <stdlib.h>
 #include <unistd.h>
 #include <glib.h>
@@ -33,9 +35,17 @@
 #include <telepathy-glib/debug.h>
 #include <telepathy-glib/util.h>
 
+#if ENABLE_GNOME_KEYRING
+#include <gnome-keyring.h>
+#endif
+
 #include "mcd-service.h"
 
 static McdService *mcd = NULL;
+
+#if ENABLE_GNOME_KEYRING
+static gchar *keyring_name = NULL;
+#endif
 
 static gboolean
 the_end (gpointer data)
@@ -123,8 +133,13 @@ main (int argc, char **argv)
     int ret = 1;
     GMainLoop *teardown_loop;
     guint linger_time = 5;
+#if ENABLE_GNOME_KEYRING
+    GnomeKeyringResult result;
+#endif
 
     g_type_init ();
+
+    g_set_application_name ("Mission Control regression tests");
 
     mcd_debug_init ();
     tp_debug_set_flags (g_getenv ("MC_TP_DEBUG"));
@@ -145,6 +160,50 @@ main (int argc, char **argv)
     connection = dbus_g_connection_get_connection (
         ((TpProxy *) bus_daemon)->dbus_connection);
     dbus_connection_add_filter (connection, dbus_filter_function, NULL, NULL);
+
+#if ENABLE_GNOME_KEYRING
+    while (TRUE)
+    {
+        keyring_name = g_strdup_printf ("mc-test-%u", g_random_int ());
+        result = gnome_keyring_create_sync (keyring_name, "");
+
+        if (result == GNOME_KEYRING_RESULT_OK)
+        {
+            break;
+        }
+        else if (result == GNOME_KEYRING_RESULT_KEYRING_ALREADY_EXISTS)
+        {
+            g_free (keyring_name);
+            continue;
+        }
+        else
+        {
+            g_free (keyring_name);
+            keyring_name = NULL;
+            break;
+        }
+    }
+
+    if (keyring_name != NULL)
+    {
+        if ((result = gnome_keyring_set_default_keyring_sync (keyring_name)) ==
+             GNOME_KEYRING_RESULT_OK)
+        {
+            g_debug ("Successfully set up temporary keyring %s for tests",
+                     keyring_name);
+        }
+        else
+        {
+            g_warning ("Failed to set %s as the default kerying: %s",
+                       keyring_name, gnome_keyring_result_to_message (result));
+        }
+    }
+    else
+    {
+        g_debug ("Failed to create keyring %s: %s", keyring_name,
+                 gnome_keyring_result_to_message (result));
+    }
+#endif
 
     mcd = mcd_service_new ();
 
@@ -183,6 +242,23 @@ out:
     }
 
     dbus_shutdown ();
+
+#if ENABLE_GNOME_KEYRING
+    if (keyring_name != NULL)
+    {
+	if ((result = gnome_keyring_delete_sync (keyring_name)) ==
+	    GNOME_KEYRING_RESULT_OK)
+	{
+	    g_debug ("Successfully removed temporary keyring %s", keyring_name);
+	}
+	else
+	{
+	    g_warning ("Failed to remove temporary keyring %s", keyring_name);
+	}
+
+	g_free (keyring_name);
+    }
+#endif
 
     g_message ("Exiting with %d", ret);
 

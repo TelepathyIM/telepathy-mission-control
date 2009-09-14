@@ -34,7 +34,13 @@ G_BEGIN_DECLS
 typedef gboolean (*mcd_setprop) (TpSvcDBusProperties *self, const gchar *name,
                                  const GValue *value, GError **error);
 typedef void (*mcd_getprop) (TpSvcDBusProperties *self, const gchar *name,
-			     GValue *value);
+                             GValue *value);
+
+typedef void (*mcddbus_get_cb) (TpSvcDBusProperties *self, const GValue *value,
+                                const GError *error, gpointer user_data);
+typedef void (*mcd_async_getprop) (TpSvcDBusProperties *self, const gchar *name,
+                                   mcddbus_get_cb callback, gpointer user_data);
+
 typedef void (*McdInterfaceInit) (TpSvcDBusProperties *self);
 
 typedef struct _McdDBusProp
@@ -42,6 +48,7 @@ typedef struct _McdDBusProp
     const gchar *name;
     mcd_setprop setprop;
     mcd_getprop getprop;
+    mcd_async_getprop async_getprop;
 } McdDBusProp;
 
 typedef struct _McdInterfaceData

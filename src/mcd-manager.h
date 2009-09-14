@@ -77,6 +77,10 @@ const gchar *mcd_manager_get_name (McdManager *manager);
 const TpConnectionManagerParam *
 mcd_manager_get_parameters (McdManager *manager, const gchar *protocol);
 
+const TpConnectionManagerParam *
+mcd_manager_get_protocol_param (McdManager *manager, const gchar *protocol,
+                                const gchar *param);
+
 McdConnection *mcd_manager_create_connection (McdManager *manager,
 					      McdAccount *account);
 

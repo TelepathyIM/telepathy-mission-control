@@ -115,6 +115,9 @@ typedef struct
     McdGetAccountCb callback;
     gpointer user_data;
     GDestroyNotify destroy;
+
+    gboolean ok;
+    GError *error;
 } McdCreateAccountData;
 
 enum
@@ -126,6 +129,17 @@ enum
 static guint write_conf_id = 0;
 
 static void register_dbus_service (McdAccountManager *account_manager);
+
+GQuark
+mcd_account_manager_error_quark (void)
+{
+    static GQuark quark = 0;
+
+    if (quark == 0)
+        quark = g_quark_from_static_string ("mcd-account-manager-error");
+
+    return quark;
+}
 
 static gboolean
 get_account_connection (const gchar *file_contents, const gchar *path,
@@ -346,6 +360,9 @@ mcd_create_account_data_free (McdCreateAccountData *cad)
         g_hash_table_unref (cad->properties);
     }
 
+    if (G_UNLIKELY (cad->error))
+        g_error_free (cad->error);
+
     g_slice_free (McdCreateAccountData, cad);
 }
 
@@ -408,14 +425,83 @@ create_account_with_properties_cb (McdAccountManager *account_manager,
 }
 
 static void
+complete_account_creation_finish (McdAccount *account, gboolean valid,
+                                  gpointer user_data)
+{
+    McdCreateAccountData *cad = (McdCreateAccountData *) user_data;
+    McdAccountManager *account_manager;
+
+    account_manager = cad->account_manager;
+
+    if (!valid)
+    {
+        cad->ok = FALSE;
+        g_set_error (&cad->error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                         "The supplied CM parameters were not valid");
+    }
+
+    if (!cad->ok)
+    {
+        mcd_account_delete (account, NULL, NULL);
+        g_object_unref (account);
+        account = NULL;
+    }
+
+    mcd_account_manager_write_conf_async (account_manager, NULL, NULL);
+
+    if (cad->callback != NULL)
+        cad->callback (account_manager, account, cad->error, cad->user_data);
+    mcd_create_account_data_free (cad);
+
+    if (account != NULL)
+    {
+        g_object_unref (account);
+    }
+
+}
+
+static void
+complete_account_creation_set_cb (McdAccount *account, GPtrArray *not_yet,
+                                  const GError *set_error, gpointer user_data)
+{
+    McdCreateAccountData *cad = user_data;
+    McdAccountManager *account_manager;
+    cad->ok = (set_error == NULL);
+
+    account_manager = cad->account_manager;
+
+    if (cad->ok && cad->properties != NULL)
+    {
+        cad->ok = set_new_account_properties (account, cad->properties, &cad->error);
+    }
+
+    if (cad->ok)
+    {
+        add_account (account_manager, account);
+        mcd_account_check_validity (account, complete_account_creation_finish, cad);
+    }
+    else
+    {
+        g_set_error (&cad->error, MCD_ACCOUNT_MANAGER_ERROR,
+                     MCD_ACCOUNT_MANAGER_ERROR_SET_PARAMETER,
+                     "Failed to set parameter: %s", set_error->message);
+        complete_account_creation_finish (account, TRUE, cad);
+    }
+
+    if (not_yet != NULL)
+    {
+        g_ptr_array_foreach (not_yet, (GFunc) g_free, NULL);
+        g_ptr_array_free (not_yet, TRUE);
+    }
+}
+
+static void
 complete_account_creation (McdAccount *account,
                            const GError *cb_error,
                            gpointer user_data)
 {
     McdCreateAccountData *cad = user_data;
     McdAccountManager *account_manager;
-    GError *error = NULL;
-    gboolean ok;
 
     account_manager = cad->account_manager;
     if (G_UNLIKELY (cb_error))
@@ -425,44 +511,9 @@ complete_account_creation (McdAccount *account,
         return;
     }
 
-    ok = _mcd_account_set_parameters (account, cad->parameters, NULL, NULL,
-                                      &error);
-
-    if (ok && cad->properties != NULL)
-    {
-        ok = set_new_account_properties (account, cad->properties, &error);
-    }
-
-    if (ok)
-    {
-        add_account (account_manager, account);
-
-        if (!mcd_account_check_validity (account))
-        {
-            ok = FALSE;
-            g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                         "The supplied CM parameters were not valid");
-        }
-    }
-
-    if (!ok)
-    {
-        mcd_account_delete (account, NULL);
-        g_object_unref (account);
-        account = NULL;
-    }
-
-    mcd_account_manager_write_conf (account_manager);
-
-    cad->callback (account_manager, account, error, cad->user_data);
-    if (G_UNLIKELY (error))
-        g_error_free (error);
-    mcd_create_account_data_free (cad);
-
-    if (account != NULL)
-    {
-        g_object_unref (account);
-    }
+    _mcd_account_set_parameters (account, cad->parameters, NULL,
+                                 complete_account_creation_set_cb,
+                                 cad);
 }
 
 static gchar *
@@ -566,6 +617,7 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
         cad->callback = callback;
         cad->user_data = user_data;
         cad->destroy = destroy;
+        cad->error = NULL;
         _mcd_account_load (account, complete_account_creation, cad);
     }
     else
@@ -1083,6 +1135,14 @@ mcd_account_manager_get_dbus_daemon (McdAccountManager *account_manager)
     return account_manager->priv->dbus_daemon;
 }
 
+/**
+ * mcd_account_manager_write_conf:
+ * @account_manager: the #McdAccountManager
+ *
+ * Write the account manager configuration to disk.
+ *
+ * Deprecated: Use mcd_account_manager_write_conf_async() in all code.
+ */
 void
 mcd_account_manager_write_conf (McdAccountManager *account_manager)
 {
@@ -1093,6 +1153,64 @@ mcd_account_manager_write_conf (McdAccountManager *account_manager)
         write_conf_id =
             g_timeout_add_full (G_PRIORITY_HIGH, WRITE_CONF_DELAY, write_conf,
                                 account_manager->priv->keyfile, NULL);
+}
+
+/**
+ * McdAccountManagerWriteConfCb:
+ * @account_manager: the #McdAccountManager
+ * @error: a set #GError on failure or %NULL if there was no error
+ * @user_data: user data
+ *
+ * The callback from mcd_account_manager_write_conf_async(). If the config
+ * writing was successful, @error will be %NULL, otherwise it will be set
+ * with the appropriate error.
+ */
+
+/**
+ * mcd_account_manager_write_conf_async:
+ * @account_manager: the #McdAccountManager
+ * @callback: a callback to be called on write success or failure
+ * @user_data: data to be passed to @callback
+ *
+ * Write the account manager configuration to disk. This is an asynchronous
+ * version of mcd_account_manager_write_conf() and should always used in favour
+ * of its synchronous version.
+ */
+void
+mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
+                                      McdAccountManagerWriteConfCb callback,
+                                      gpointer user_data)
+{
+    GKeyFile *keyfile;
+    GError *error = NULL;
+    gchar *filename, *data;
+    gsize len;
+
+    g_return_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager));
+
+    keyfile = account_manager->priv->keyfile;
+
+    DEBUG ("called");
+
+    data = g_key_file_to_data (keyfile, &len, &error);
+
+    if (error == NULL)
+    {
+        filename = get_account_conf_filename ();
+        _mcd_file_set_contents (filename, data, len, &error);
+        g_free (filename);
+        g_free (data);
+    }
+
+    if (callback != NULL)
+    {
+        callback (account_manager, error, user_data);
+    }
+
+    if (error != NULL)
+    {
+        g_error_free (error);
+    }
 }
 
 GHashTable *
