@@ -17,7 +17,8 @@
 # 02110-1301 USA
 
 import dbus
-"""Regression test for https://bugs.freedesktop.org/show_bug.cgi?id=22169
+"""Regression test for https://bugs.freedesktop.org/show_bug.cgi?id=22169,
+and for http://bugs.freedesktop.org/show_bug.cgi?id=23935
 """
 
 import dbus
@@ -40,10 +41,15 @@ def test(q, bus, mc):
         cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
         }, signature='sv')
+    # Emulate a handler that only wants to get outgoing channels, as a
+    # regression test for <http://bugs.freedesktop.org/show_bug.cgi?id=23935>,
+    # in which those didn't work
+    text_requested = dbus.Dictionary(text_fixed_properties, signature='sv')
+    text_requested[cs.CHANNEL + '.Requested'] = True
 
     client = SimulatedClient(q, bus, 'Empathy',
             observe=[text_fixed_properties], approve=[text_fixed_properties],
-            handle=[text_fixed_properties], bypass_approval=False)
+            handle=[text_requested], bypass_approval=False)
 
     # No Approver should be invoked at any point during this test, because the
     # Channel was Requested
