@@ -27,9 +27,6 @@ from mctest import exec_test, create_fakecm_account, SimulatedConnection, \
 import constants as cs
 
 def test(q, bus, mc):
-    account_manager = bus.get_object(cs.AM, cs.AM_PATH)
-    account_manager_iface = dbus.Interface(account_manager, cs.AM)
-
     params = dbus.Dictionary({"account": "smcv@example.com",
         "password": "secrecy"}, signature='sv')
     (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
