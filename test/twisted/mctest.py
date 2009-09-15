@@ -874,3 +874,7 @@ def expect_client_setup(q, clients, got_interfaces_already=False):
                 path=client.object_path, predicate=is_handler_setup))
 
     q.expect_many(*patterns)
+
+def get_account_manager(bus):
+    return bus.get_object(cs.AM, cs.AM_PATH,
+            follow_name_owner_changes=True)

@@ -22,7 +22,7 @@ import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
-from mctest import exec_test, create_fakecm_account
+from mctest import exec_test, create_fakecm_account, get_account_manager
 import constants as cs
 
 def test(q, bus, mc):
@@ -31,7 +31,7 @@ def test(q, bus, mc):
             bus=bus)
 
     # Get the AccountManager interface
-    account_manager = bus.get_object(cs.AM, cs.AM_PATH)
+    account_manager = get_account_manager(bus)
     account_manager_iface = dbus.Interface(account_manager, cs.AM)
 
     params = dbus.Dictionary({
