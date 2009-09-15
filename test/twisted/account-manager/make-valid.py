@@ -233,4 +233,4 @@ def test(q, bus, unused):
 
 if __name__ == '__main__':
     preseed()
-    exec_test(test, {})
+    exec_test(test, {}, preload_mc=False)

@@ -83,6 +83,18 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
     queue.attach_to_bus(bus)
     if preload_mc:
         mc = make_mc(bus, queue.append, params)
+
+        try:
+            bus.get_name_owner(cs.AM)
+        except dbus.DBusException, e:
+            queue.expect('dbus-signal', signal='NameOwnerChanged',
+                    predicate=lambda e: e.args[0] == cs.AM and e.args[2])
+
+        try:
+            bus.get_name_owner(cs.CD)
+        except dbus.DBusException, e:
+            queue.expect('dbus-signal', signal='NameOwnerChanged',
+                    predicate=lambda e: e.args[0] == cs.CD and e.args[2])
     else:
         mc = None
     error = None
