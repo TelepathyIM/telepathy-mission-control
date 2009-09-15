@@ -95,7 +95,7 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
         error = e
 
     try:
-        am_props_iface = dbus.Interface(bus.get_object(cs.AM, cs.AM_PATH),
+        am_props_iface = dbus.Interface(get_account_manager(bus),
                 cs.PROPERTIES_IFACE)
         am_props = am_props_iface.GetAll(cs.AM)
 
@@ -708,7 +708,7 @@ def create_fakecm_account(q, bus, mc, params):
             cs.tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
 
     # Get the AccountManager interface
-    account_manager = bus.get_object(cs.AM, cs.AM_PATH)
+    account_manager = get_account_manager(bus)
     account_manager_iface = dbus.Interface(account_manager, cs.AM)
 
     # Create an account
