@@ -917,15 +917,59 @@ _mcd_connection_set_nickname (McdConnection *connection,
 }
 
 static void
+_mcd_connection_get_aliases_cb (TpConnection *proxy,
+                                GHashTable *aliases,
+                                const GError *error,
+                                gpointer user_data,
+                                GObject *weak_object)
+{
+    McdConnectionPrivate *priv = user_data;
+    guint self_handle;
+    const gchar *alias;
+
+    DEBUG ("called");
+
+    if (error != NULL)
+    {
+        DEBUG ("GetAliases([SelfHandle]) failed: %s", error->message);
+        return;
+    }
+
+    self_handle = tp_connection_get_self_handle (proxy);
+
+    alias = g_hash_table_lookup (aliases,GUINT_TO_POINTER (self_handle));
+
+    if (alias != NULL &&
+        (priv->alias == NULL || tp_strdiff (priv->alias, alias)))
+    {
+            g_free (priv->alias);
+            priv->alias = g_strdup (alias);
+            g_signal_emit (weak_object, signals[SELF_NICKNAME_CHANGED], 0,
+                           alias);
+    }
+}
+
+static void
 _mcd_connection_setup_alias (McdConnection *connection)
 {
     McdConnectionPrivate *priv = connection->priv;
+    GArray *self_handle_array;
+    guint self_handle;
+
+    self_handle_array = g_array_sized_new (FALSE, FALSE, sizeof (guint), 1);
+    self_handle = tp_connection_get_self_handle (priv->tp_conn);
+    g_array_append_val (self_handle_array, self_handle);
 
     tp_cli_connection_interface_aliasing_connect_to_aliases_changed (priv->tp_conn,
 								     on_aliases_changed,
 								     priv, NULL,
 								     (GObject *)connection,
 								     NULL);
+
+    tp_cli_connection_interface_aliasing_call_get_aliases
+        (priv->tp_conn, -1, self_handle_array, _mcd_connection_get_aliases_cb,
+         priv, NULL, (GObject *) connection);
+    g_array_free (self_handle_array, TRUE);
 }
 
 static gboolean
