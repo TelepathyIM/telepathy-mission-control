@@ -310,6 +310,80 @@ value_is_same (const GValue *val1, const GValue *val2)
     }
 }
 
+static void set_parameter (McdAccount *account, const gchar *name,
+                           const GValue *value,
+                           McdAccountSetParameterCb callback,
+                           gpointer user_data);
+static void get_parameter_from_file (McdAccount *account, const gchar *name,
+                                     McdAccountGetParameterCb callback,
+                                     gpointer user_data);
+
+#if ENABLE_GNOME_KEYRING
+static void
+_migrate_secrets_set_cb (McdAccount *account,
+                         const GError *error,
+                         gpointer user_data)
+{
+    McdAccountPrivate *priv = account->priv;
+    const gchar *name = user_data;
+
+    if (error != NULL)
+    {
+        DEBUG ("Failed to set secret parameter %s: %s", name, error->message);
+    }
+    else
+    {
+        DEBUG ("Successfully migrated secret parameter %s from keyfile "
+               "to keyring", name);
+
+        /* Every secret which is migrated will cause the conf to be written. I
+         * guess this isn't such a big deal as it'll only happen for secret
+         * parameters on each account (in reality only one parameter), and only
+         * once, on startup. */
+        mcd_account_manager_write_conf_async (priv->account_manager, NULL, NULL);
+    }
+}
+
+static void
+_migrate_secrets_get_cb (McdAccount *account,
+                         const GValue *value,
+                         const GError *error,
+                         gpointer user_data)
+{
+    const gchar *name = user_data;
+
+    if (error != NULL || value == NULL)
+        return;
+
+    set_parameter (account, name, value, _migrate_secrets_set_cb,
+                   user_data);
+}
+
+static void
+_mcd_account_migrate_secrets (McdAccount *account)
+{
+    McdAccountPrivate *priv = account->priv;
+    const TpConnectionManagerParam *params, *p;
+
+    if (priv->manager == NULL || priv->protocol_name == NULL)
+        return;
+
+    params = mcd_manager_get_parameters (priv->manager, priv->protocol_name);
+
+    for (p = params; p->name != NULL; p++)
+    {
+        if (p->flags & TP_CONN_MGR_PARAM_FLAG_SECRET)
+        {
+            get_parameter_from_file (account, p->name, _migrate_secrets_get_cb,
+                                     p->name);
+
+        }
+    }
+
+
+}
+#endif
+
 static void
 mcd_account_loaded (McdAccount *account)
 {
@@ -360,6 +434,10 @@ mcd_account_loaded (McdAccount *account)
     }
 
     _mcd_account_maybe_autoconnect (account);
+
+#if ENABLE_GNOME_KEYRING
+    _mcd_account_migrate_secrets (account);
+#endif
 
     g_object_unref (account);
 }
@@ -719,10 +797,6 @@ keyfile_get_value (GKeyFile *keyfile,
 }
 
 static GType mc_param_type (const TpConnectionManagerParam *param);
-
-static void get_parameter_from_file (McdAccount *account, const gchar *name,
-                                     McdAccountGetParameterCb callback,
-                                     gpointer user_data);
 
 #if ENABLE_GNOME_KEYRING
 typedef struct
