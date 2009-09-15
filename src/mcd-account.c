@@ -368,6 +368,9 @@ _mcd_account_migrate_secrets (McdAccount *account)
     if (priv->manager == NULL || priv->protocol_name == NULL)
         return;
 
+    if (!gnome_keyring_is_available ())
+      return;
+
     params = mcd_manager_get_parameters (priv->manager, priv->protocol_name);
 
     for (p = params; p->name != NULL; p++)
@@ -379,8 +382,6 @@ _mcd_account_migrate_secrets (McdAccount *account)
 
         }
     }
-
-
 }
 #endif
 
