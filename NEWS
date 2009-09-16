@@ -1,7 +1,22 @@
 telepathy-mission-control 5.3.1 (UNRELEASED)
 ============================================
 
-...
+Enhancements:
+
+* Automatically migrate passwords and other secrets from accounts.cfg into the
+  GNOME keyring (if enabled and available) on MC startup (jonnylamb)
+
+Fixes:
+
+* Deal with the user's alias in a race-free way by calling GetAliases as well
+  as binding to the AliasesChanged signal (smcv/mardy)
+
+* Fix some race conditions in the regression tests (smcv)
+
+* Fix mcd_dispatcher_get_channel_type_usage sometimes counting aborted
+  channels, by introducing MCD_CHANNEL_STATUS_ABORTED (mardy)
+
+All fixes from stable release 5.2.4 have been incorporated in this release.
 
 telepathy-mission-control 5.3.0 (2009-09-14)
 ============================================
