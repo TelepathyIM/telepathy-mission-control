@@ -50,14 +50,6 @@ G_BEGIN_DECLS
 
 typedef enum
 {
-    MCD_MODE_UNKNOWN,
-    MCD_MODE_NORMAL,
-    MCD_MODE_RESTRICTED,
-    MCD_MODE_CALL
-} McdMode;
-
-typedef enum
-{
     MCD_SYSTEM_CONNECTED          = 1,
     MCD_SYSTEM_MEMORY_CONSERVED   = 1 << 1,
     MCD_SYSTEM_POWER_CONSERVED    = 1 << 2,
@@ -84,7 +76,7 @@ struct _McdMissionClass
     void (*disconnected_signal) (McdMission * mission);
     
     void (*flags_changed_signal) (McdMission *mission, McdSystemFlags flags);
-    void (*mode_set_signal) (McdMission * mission, McdMode mode);
+    void (*_former_mode_set_signal) (void);
 
     void (*abort_signal) (McdMission * mission);
     
@@ -97,8 +89,8 @@ struct _McdMissionClass
     void (*set_flags) (McdMission *mission, McdSystemFlags flags);
     McdSystemFlags (*get_flags) (McdMission *mission);
     
-    void (*set_mode) (McdMission * mission, McdMode mode);
-    McdMode (*get_mode) (McdMission * mission);
+    void (*_former_set_mode) (void);
+    void (*_former_get_mode) (void);
     
     void (*abort) (McdMission * mission);
 };
@@ -118,9 +110,6 @@ void mcd_mission_disconnect (McdMission * mission);
 
 void mcd_mission_set_flags (McdMission * mission, McdSystemFlags flags);
 McdSystemFlags mcd_mission_get_flags (McdMission * mission);
-
-void mcd_mission_set_mode (McdMission * mission, McdMode mode);
-McdMode mcd_mission_get_mode (McdMission * mission);
 
 G_END_DECLS
 #endif /* MCD_MISSION_H */

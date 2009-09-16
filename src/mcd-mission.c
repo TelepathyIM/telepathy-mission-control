@@ -65,8 +65,7 @@ typedef struct _McdMissionPrivate
 {
     McdMission *parent;
     McdSystemFlags flags;
-    McdMode mode;
-    
+
     gboolean is_disposed;
 
 } McdMissionPrivate;
@@ -76,7 +75,6 @@ enum _McdMissionSignalType
     CONNECTED,
     DISCONNECTED,
     FLAGS_CHANGED,
-    MODE_SET,
     PARENT_SET,
     ABORT,
     LAST_SIGNAL
@@ -86,7 +84,6 @@ enum _McdMissionPropertyType
 {
     PROP_0,
     PROP_SYSTEM_FLAGS,
-    PROP_MODE,
     PROP_PARENT
 };
 
@@ -146,37 +143,10 @@ _mcd_mission_get_flags (McdMission * mission)
 {
     McdMissionPrivate *priv;
 
-    g_return_val_if_fail (MCD_IS_MISSION (mission), MCD_MODE_UNKNOWN);
+    g_return_val_if_fail (MCD_IS_MISSION (mission), 0);
     priv = MCD_MISSION_PRIV (mission);
 
     return priv->flags;
-}
-
-static void
-_mcd_mission_set_mode (McdMission * mission, McdMode mode)
-{
-    McdMissionPrivate *priv;
-
-    g_return_if_fail (MCD_IS_MISSION (mission));
-    priv = MCD_MISSION_PRIV (mission);
-
-    if (priv->mode != mode)
-    {
-        priv->mode = mode;
-
-        g_signal_emit_by_name (mission, "mode-set", mode);
-    }
-}
-
-static McdMode
-_mcd_mission_get_mode (McdMission * mission)
-{
-    McdMissionPrivate *priv;
-
-    g_return_val_if_fail (MCD_IS_MISSION (mission), MCD_MODE_UNKNOWN);
-    priv = MCD_MISSION_PRIV (mission);
-
-    return priv->mode;
 }
 
 static void
@@ -276,9 +246,6 @@ _mcd_set_property (GObject * object, guint prop_id, const GValue * val,
     case PROP_SYSTEM_FLAGS:
 	mcd_mission_set_flags (mission, g_value_get_enum (val));
 	break;
-    case PROP_MODE:
-	mcd_mission_set_mode (mission, g_value_get_int (val));
-	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
 	break;
@@ -298,9 +265,6 @@ _mcd_get_property (GObject * object, guint prop_id, GValue * val,
 	break;
     case PROP_SYSTEM_FLAGS:
 	g_value_set_enum (val, mcd_mission_get_flags (mission));
-	break;
-    case PROP_MODE:
-	g_value_set_enum (val, mcd_mission_get_mode (mission));
 	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -326,8 +290,6 @@ mcd_mission_class_init (McdMissionClass * klass)
     klass->disconnect = _mcd_mission_disconnect;
     klass->set_flags = _mcd_mission_set_flags;
     klass->get_flags = _mcd_mission_get_flags;
-    klass->set_mode = _mcd_mission_set_mode;
-    klass->get_mode = _mcd_mission_get_mode;
 
     klass->set_parent = _mcd_mission_set_parent;
 
@@ -357,12 +319,6 @@ mcd_mission_class_init (McdMissionClass * klass)
 							   flags_changed_signal),
 		      NULL, NULL, g_cclosure_marshal_VOID__FLAGS, G_TYPE_NONE,
 		      1, MCD_TYPE_SYSTEM_FLAGS);
-    mcd_mission_signals[MODE_SET] =
-	g_signal_new ("mode-set", G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_FIRST, G_STRUCT_OFFSET (McdMissionClass,
-							   mode_set_signal),
-		      NULL, NULL, g_cclosure_marshal_VOID__ENUM, G_TYPE_NONE,
-		      1, MCD_TYPE_MODE);
     mcd_mission_signals[PARENT_SET] =
 	g_signal_new ("parent-set", G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_FIRST, G_STRUCT_OFFSET (McdMissionClass,
@@ -378,13 +334,6 @@ mcd_mission_class_init (McdMissionClass * klass)
                               "Parent mission",
                               MCD_TYPE_MISSION,
                               G_PARAM_READWRITE));
-    g_object_class_install_property
-        (object_class, PROP_MODE,
-         g_param_spec_enum ("mode",
-                            "Platform-specific modes",
-                            "Platform-specific modes",
-                            MCD_TYPE_MODE, MCD_MODE_NORMAL,
-                            G_PARAM_READWRITE));
     g_object_class_install_property
         (object_class, PROP_SYSTEM_FLAGS,
          g_param_spec_flags ("system-flags",
@@ -444,20 +393,6 @@ mcd_mission_set_flags (McdMission * mission, McdSystemFlags flags)
 {
     g_return_if_fail (MCD_IS_MISSION (mission));
     MCD_MISSION_GET_CLASS (mission)->set_flags (mission, flags);
-}
-
-McdMode
-mcd_mission_get_mode (McdMission * mission)
-{
-    g_return_val_if_fail (MCD_IS_MISSION (mission), MCD_MODE_UNKNOWN);
-    return MCD_MISSION_GET_CLASS (mission)->get_mode (mission);
-}
-
-void
-mcd_mission_set_mode (McdMission * mission, McdMode mode)
-{
-    g_return_if_fail (MCD_IS_MISSION (mission));
-    MCD_MISSION_GET_CLASS (mission)->set_mode (mission, mode);
 }
 
 gboolean
