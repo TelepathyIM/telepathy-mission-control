@@ -52,8 +52,6 @@
 #include "mcd-master-priv.h"
 #include "mcd-misc.h"
 
-#include "_gen/svc-Account_Manager_Interface_Creation.h"
-
 #define WRITE_CONF_DELAY    500
 #define INITIAL_CONFIG_FILE_CONTENTS "# Telepathy accounts\n"
 
@@ -62,13 +60,10 @@
 
 static void account_manager_iface_init (TpSvcAccountManagerClass *iface,
 					gpointer iface_data);
-static void account_manager_creation_iface_init (
-    McSvcAccountManagerInterfaceCreationClass *iface, gpointer iface_data);
 static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
 				   gpointer iface_data);
 
 static const McdDBusProp account_manager_properties[];
-static const McdDBusProp account_manager_creation_properties[];
 
 static const McdInterfaceData account_manager_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_account_manager_get_type,
@@ -77,9 +72,6 @@ static const McdInterfaceData account_manager_interfaces[] = {
     MCD_IMPLEMENT_IFACE (mc_svc_account_manager_interface_query_get_type,
 			 account_manager_query,
 			 MC_IFACE_ACCOUNT_MANAGER_INTERFACE_QUERY),
-    MCD_IMPLEMENT_IFACE (mc_svc_account_manager_interface_creation_get_type,
-			 account_manager_creation,
-			 MC_IFACE_ACCOUNT_MANAGER_INTERFACE_CREATION),
     { G_TYPE_INVALID, }
 };
 
@@ -403,28 +395,6 @@ set_new_account_properties (McdAccount *account,
 }
 
 static void
-create_account_with_properties_cb (McdAccountManager *account_manager,
-                                   McdAccount *account,
-                                   const GError *error,
-                                   gpointer user_data)
-{
-    DBusGMethodInvocation *context = user_data;
-    const gchar *object_path;
-
-    if (G_UNLIKELY (error))
-    {
-	dbus_g_method_return_error (context, (GError *)error);
-	return;
-    }
-
-    g_return_if_fail (MCD_IS_ACCOUNT (account));
-
-    object_path = mcd_account_get_object_path (account);
-    mc_svc_account_manager_interface_creation_return_from_create_account
-        (context, object_path);
-}
-
-static void
 complete_account_creation_finish (McdAccount *account, gboolean valid,
                                   gpointer user_data)
 {
@@ -673,35 +643,6 @@ account_manager_iface_init (TpSvcAccountManagerClass *iface,
 }
 
 static void
-account_manager_create_account_with_properties (
-    McSvcAccountManagerInterfaceCreation *self,
-    const gchar *manager,
-    const gchar *protocol,
-    const gchar *display_name,
-    GHashTable *parameters,
-    GHashTable *properties,
-    DBusGMethodInvocation *context)
-{
-    _mcd_account_manager_create_account (MCD_ACCOUNT_MANAGER (self),
-                                         manager, protocol, display_name,
-                                         parameters, properties,
-                                         create_account_with_properties_cb,
-                                         context,
-                                         NULL);
-}
-
-static void
-account_manager_creation_iface_init (McSvcAccountManagerInterfaceCreationClass *iface,
-				  gpointer iface_data)
-{
-#define IMPLEMENT(x, suffix) \
-    mc_svc_account_manager_interface_creation_implement_##x (\
-    iface, account_manager_##x##suffix)
-    IMPLEMENT(create_account, _with_properties);
-#undef IMPLEMENT
-}
-
-static void
 accounts_to_gvalue (GHashTable *accounts, gboolean valid, GValue *value)
 {
     static GType ao_type = G_TYPE_INVALID;
@@ -779,10 +720,6 @@ static const McdDBusProp account_manager_properties[] = {
     { "InvalidAccounts", NULL, get_invalid_accounts },
     { "Interfaces", NULL, mcd_dbus_get_interfaces },
     { "SupportedAccountProperties", NULL, get_supported_account_properties },
-    { 0 },
-};
-
-static const McdDBusProp account_manager_creation_properties[] = {
     { 0 },
 };
 

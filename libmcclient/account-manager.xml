@@ -3,7 +3,6 @@
     xmlns:xi="http://www.w3.org/2001/XInclude">
 
 <xi:include href="../xml/Account_Manager.xml"/>
-<xi:include href="../xml/Account_Manager_Interface_Creation.xml"/>
 <xi:include href="../xml/Account_Manager_Interface_Query.xml"/>
 
 </tp:spec>

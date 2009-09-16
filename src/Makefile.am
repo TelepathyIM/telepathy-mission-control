@@ -42,7 +42,6 @@ mc_gen_headers = \
 	_gen/svc-Account_Interface_Compat.h \
 	_gen/svc-Account_Interface_Conditions.h \
 	_gen/svc-Account_Interface_Stats.h \
-	_gen/svc-Account_Manager_Interface_Creation.h \
 	_gen/svc-Account_Manager_Interface_Query.h
 
 nodist_libmcd_convenience_la_SOURCES = \
@@ -56,7 +55,6 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/svc-Account_Interface_Compat.c \
 	_gen/svc-Account_Interface_Conditions.c \
 	_gen/svc-Account_Interface_Stats.c \
-	_gen/svc-Account_Manager_Interface_Creation.c \
 	_gen/svc-Account_Manager_Interface_Query.c \
 	mcd-enum-types.c \
 	mcd-enum-types.h \

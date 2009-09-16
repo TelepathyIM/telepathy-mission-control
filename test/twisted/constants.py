@@ -171,7 +171,6 @@ ACCOUNT_IFACE_NOKIA_REQUESTS = 'com.nokia.Account.Interface.ChannelRequests'
 ACCOUNT_IFACE_NOKIA_CONDITIONS = 'com.nokia.Account.Interface.Conditions'
 
 AM = tp_name_prefix + '.AccountManager'
-AM_IFACE_CREATION_DRAFT = AM + '.Interface.Creation.DRAFT'
 AM_IFACE_NOKIA_QUERY = 'com.nokia.AccountManager.Interface.Query'
 AM_PATH = tp_path_prefix + '/AccountManager'
 

@@ -45,7 +45,6 @@ def test(q, bus, mc):
     interfaces = properties.get('Interfaces')
 
     # assert that current functionality exists
-    assert cs.AM_IFACE_CREATION_DRAFT in interfaces, interfaces
     assert cs.AM_IFACE_NOKIA_QUERY in interfaces, interfaces
 
     params = dbus.Dictionary({"account": "someguy@example.com",

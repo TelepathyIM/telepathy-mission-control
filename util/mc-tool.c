@@ -514,7 +514,7 @@ command_add (McAccountManager *manager)
     }
 
     return NULL !=
-	mc_cli_account_manager_interface_creation_call_create_account
+	mc_cli_account_manager_call_create_account
 	    (manager, 25000,
 	     command.add.manager,
 	     command.add.protocol,

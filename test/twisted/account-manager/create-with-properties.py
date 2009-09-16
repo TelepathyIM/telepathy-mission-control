@@ -47,7 +47,6 @@ def test(q, bus, mc):
     supported = properties.get('SupportedAccountProperties')
 
     # assert that current functionality exists
-    assert cs.AM_IFACE_CREATION_DRAFT in interfaces, interfaces
     assert cs.AM_IFACE_NOKIA_QUERY in interfaces, interfaces
 
     assert (cs.ACCOUNT + '.AutomaticPresence') in supported

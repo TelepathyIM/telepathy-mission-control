@@ -225,37 +225,6 @@ mc-account-manager
 @Returns: 
 
 
-<!-- ##### USER_FUNCTION mc_cli_account_manager_interface_creation_callback_for_create_account ##### -->
-<para>
-
-</para>
-
-@proxy: 
-@out_Account: 
-@error: 
-@user_data: 
-@weak_object: 
-
-
-<!-- ##### FUNCTION mc_cli_account_manager_interface_creation_call_create_account ##### -->
-<para>
-
-</para>
-
-@proxy: 
-@timeout_ms: 
-@in_Connection_Manager: 
-@in_Protocol: 
-@in_Display_Name: 
-@in_Parameters: 
-@in_Properties: 
-@callback: 
-@user_data: 
-@destroy: 
-@weak_object: 
-@Returns: 
-
-
 <!-- ##### USER_FUNCTION mc_cli_account_manager_interface_query_callback_for_find_accounts ##### -->
 <para>
 
