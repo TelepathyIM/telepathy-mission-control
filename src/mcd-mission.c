@@ -387,10 +387,10 @@ mcd_mission_class_init (McdMissionClass * klass)
                             G_PARAM_READWRITE));
     g_object_class_install_property
         (object_class, PROP_SYSTEM_FLAGS,
-         g_param_spec_enum ("system-flags",
+         g_param_spec_flags ("system-flags",
                             "System flags",
                             "Mission control system flags",
-                            MCD_TYPE_MODE, MCD_MODE_NORMAL,
+                            MCD_TYPE_SYSTEM_FLAGS, 0,
                             G_PARAM_READWRITE));
 }
 
