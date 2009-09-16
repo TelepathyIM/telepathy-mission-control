@@ -28,7 +28,8 @@ import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
-from mctest import exec_test, SimulatedConnection, create_fakecm_account
+from mctest import exec_test, SimulatedConnection, create_fakecm_account, \
+        make_mc
 import constants as cs
 
 cm_name_ref = dbus.service.BusName(
@@ -69,18 +70,25 @@ avatar_token=Deus Ex
     account_connections_file.write("")
     account_connections_file.close()
 
-def test(q, bus, mc):
+def test(q, bus, unused):
+
     expected_params = {
             'account': 'jc.denton@unatco.int',
             'password': 'ionstorm',
             }
 
-    e = q.expect('dbus-method-call', method='RequestConnection',
-            args=['fakeprotocol', expected_params],
-            destination=cs.tp_name_prefix + '.ConnectionManager.fakecm',
-            path=cs.tp_path_prefix + '/ConnectionManager/fakecm',
-            interface=cs.tp_name_prefix + '.ConnectionManager',
-            handled=False)
+    mc = make_mc(bus, q.append)
+
+    e, _ = q.expect_many(
+            EventPattern('dbus-method-call', method='RequestConnection',
+                args=['fakeprotocol', expected_params],
+                destination=cs.tp_name_prefix + '.ConnectionManager.fakecm',
+                path=cs.tp_path_prefix + '/ConnectionManager/fakecm',
+                interface=cs.tp_name_prefix + '.ConnectionManager',
+                handled=False),
+            EventPattern('dbus-signal', signal='NameOwnerChanged',
+                    predicate=lambda e: e.args[0] == cs.AM and e.args[2]),
+            )
 
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
             'myself', has_avatars=True, avatars_persist=False)
@@ -120,4 +128,4 @@ def test(q, bus, mc):
 
 if __name__ == '__main__':
     preseed()
-    exec_test(test, {})
+    exec_test(test, {}, preload_mc=False)

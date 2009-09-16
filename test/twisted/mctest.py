@@ -83,6 +83,18 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
     queue.attach_to_bus(bus)
     if preload_mc:
         mc = make_mc(bus, queue.append, params)
+
+        try:
+            bus.get_name_owner(cs.AM)
+        except dbus.DBusException, e:
+            queue.expect('dbus-signal', signal='NameOwnerChanged',
+                    predicate=lambda e: e.args[0] == cs.AM and e.args[2])
+
+        try:
+            bus.get_name_owner(cs.CD)
+        except dbus.DBusException, e:
+            queue.expect('dbus-signal', signal='NameOwnerChanged',
+                    predicate=lambda e: e.args[0] == cs.CD and e.args[2])
     else:
         mc = None
     error = None
@@ -95,7 +107,7 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
         error = e
 
     try:
-        am_props_iface = dbus.Interface(bus.get_object(cs.AM, cs.AM_PATH),
+        am_props_iface = dbus.Interface(get_account_manager(bus),
                 cs.PROPERTIES_IFACE)
         am_props = am_props_iface.GetAll(cs.AM)
 
@@ -718,7 +730,7 @@ def create_fakecm_account(q, bus, mc, params):
             cs.tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
 
     # Get the AccountManager interface
-    account_manager = bus.get_object(cs.AM, cs.AM_PATH)
+    account_manager = get_account_manager(bus)
     account_manager_iface = dbus.Interface(account_manager, cs.AM)
 
     # Create an account
@@ -884,3 +896,7 @@ def expect_client_setup(q, clients, got_interfaces_already=False):
                 path=client.object_path, predicate=is_handler_setup))
 
     q.expect_many(*patterns)
+
+def get_account_manager(bus):
+    return bus.get_object(cs.AM, cs.AM_PATH,
+            follow_name_owner_changes=True)
