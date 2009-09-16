@@ -165,27 +165,15 @@ _mcd_operation_disconnect (McdMission * mission)
 }
 
 static void
-_mcd_operation_set_flags (McdMission * mission, McdSystemFlags flags)
-{
-    McdOperationPrivate *priv = MCD_OPERATION_PRIV (mission);
-    g_list_foreach (priv->missions, (GFunc) mcd_mission_set_flags,
-		    GINT_TO_POINTER (flags));
-    MCD_MISSION_CLASS (mcd_operation_parent_class)->set_flags (mission, flags);
-}
-
-static void
 _mcd_operation_take_mission (McdOperation * operation, McdMission * mission)
 {
     McdOperationPrivate *priv = MCD_OPERATION_PRIV (operation);
-    McdSystemFlags flags;
 
     priv->missions = g_list_prepend (priv->missions, mission);
     mcd_mission_set_parent (mission, MCD_MISSION (operation));
 
     if (mcd_mission_is_connected (MCD_MISSION (operation)))
 	mcd_mission_connect (mission);
-    flags = mcd_mission_get_flags (MCD_MISSION (operation));
-    mcd_mission_set_flags (mission, flags);
 
     g_signal_connect (mission, "abort",
 		      G_CALLBACK (on_mission_abort), operation);
@@ -223,7 +211,6 @@ mcd_operation_class_init (McdOperationClass * klass)
 
     mission_class->connect = _mcd_operation_connect;
     mission_class->disconnect = _mcd_operation_disconnect;
-    mission_class->set_flags = _mcd_operation_set_flags;
 
     klass->take_mission = _mcd_operation_take_mission;
     klass->remove_mission = _mcd_operation_remove_mission;

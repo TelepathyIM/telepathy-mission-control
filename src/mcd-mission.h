@@ -39,25 +39,6 @@ G_BEGIN_DECLS
 #define MCD_IS_MISSION_CLASS(k)  (G_TYPE_CHECK_CLASS_TYPE ((k), MCD_TYPE_MISSION))
 #define MCD_MISSION_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), MCD_TYPE_MISSION, McdMissionClass))
 
-#define MCD_MISSION_GET_FLAGS_MASKED(mission, flags) \
-    (mcd_mission_get_flags (mission) & flags)
-
-#define MCD_MISSION_SET_FLAGS_MASKED(mission, flags) \
-    (mcd_mission_set_flags (mission, mcd_mission_get_flags (mission) | flags))
-
-#define MCD_MISSION_UNSET_FLAGS_MASKED(mission, flags) \
-    (mcd_mission_set_flags (mission, mcd_mission_get_flags (mission) & (~flags)))
-
-typedef enum
-{
-    MCD_SYSTEM_CONNECTED          = 1,
-    MCD_SYSTEM_MEMORY_CONSERVED   = 1 << 1,
-    MCD_SYSTEM_POWER_CONSERVED    = 1 << 2,
-    MCD_SYSTEM_SCREEN_BLANKED     = 1 << 3,
-    MCD_SYSTEM_LOCKED             = 1 << 4,
-    MCD_SYSTEM_IDLE               = 1 << 5
-} McdSystemFlags;
-
 typedef struct _McdMission McdMission;
 typedef struct _McdMissionClass McdMissionClass;
 
@@ -75,7 +56,7 @@ struct _McdMissionClass
     void (*connected_signal) (McdMission * mission);
     void (*disconnected_signal) (McdMission * mission);
     
-    void (*flags_changed_signal) (McdMission *mission, McdSystemFlags flags);
+    void (*_former_flags_changed_signal) (void);
     void (*_former_mode_set_signal) (void);
 
     void (*abort_signal) (McdMission * mission);
@@ -86,8 +67,8 @@ struct _McdMissionClass
     void (*connect) (McdMission * mission);
     void (*disconnect) (McdMission * mission);
     
-    void (*set_flags) (McdMission *mission, McdSystemFlags flags);
-    McdSystemFlags (*get_flags) (McdMission *mission);
+    void (*_former_set_flags) (void);
+    void (*_former_get_flags) (void);
     
     void (*_former_set_mode) (void);
     void (*_former_get_mode) (void);
@@ -107,9 +88,6 @@ void mcd_mission_set_parent (McdMission * mission, McdMission * parent);
 
 void mcd_mission_connect (McdMission * mission);
 void mcd_mission_disconnect (McdMission * mission);
-
-void mcd_mission_set_flags (McdMission * mission, McdSystemFlags flags);
-McdSystemFlags mcd_mission_get_flags (McdMission * mission);
 
 G_END_DECLS
 #endif /* MCD_MISSION_H */

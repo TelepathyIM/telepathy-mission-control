@@ -66,6 +66,9 @@ on_abort (gpointer unused G_GNUC_UNUSED)
     mcd = NULL;
 }
 
+#define MCD_SYSTEM_MEMORY_CONSERVED (1 << 1)
+#define MCD_SYSTEM_IDLE (1 << 5)
+
 static DBusHandlerResult
 dbus_filter_function (DBusConnection *connection,
                       DBusMessage *message,
