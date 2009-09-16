@@ -44,14 +44,6 @@ McdMission
 
 @mcdmission: the object which received the signal.
 
-<!-- ##### SIGNAL McdMission::flags-changed ##### -->
-<para>
-
-</para>
-
-@mcdmission: the object which received the signal.
-@arg1: 
-
 <!-- ##### SIGNAL McdMission::parent-set ##### -->
 <para>
 
@@ -63,50 +55,6 @@ McdMission
 <para>
 
 </para>
-
-<!-- ##### ARG McdMission:system-flags ##### -->
-<para>
-
-</para>
-
-<!-- ##### MACRO MCD_MISSION_GET_FLAGS_MASKED ##### -->
-<para>
-
-</para>
-
-@mission: 
-@flags: 
-
-
-<!-- ##### MACRO MCD_MISSION_SET_FLAGS_MASKED ##### -->
-<para>
-
-</para>
-
-@mission: 
-@flags: 
-
-
-<!-- ##### MACRO MCD_MISSION_UNSET_FLAGS_MASKED ##### -->
-<para>
-
-</para>
-
-@mission: 
-@flags: 
-
-
-<!-- ##### ENUM McdSystemFlags ##### -->
-<para>
-
-</para>
-
-@MCD_SYSTEM_CONNECTED: 
-@MCD_SYSTEM_MEMORY_CONSERVED: 
-@MCD_SYSTEM_POWER_CONSERVED: 
-@MCD_SYSTEM_SCREEN_BLANKED: 
-@MCD_SYSTEM_LOCKED: 
-@MCD_SYSTEM_IDLE: 
 
 <!-- ##### FUNCTION mcd_mission_new ##### -->
 <para>
@@ -165,23 +113,5 @@ McdMission
 </para>
 
 @mission: 
-
-
-<!-- ##### FUNCTION mcd_mission_set_flags ##### -->
-<para>
-
-</para>
-
-@mission: 
-@flags: 
-
-
-<!-- ##### FUNCTION mcd_mission_get_flags ##### -->
-<para>
-
-</para>
-
-@mission: 
-@Returns: 
 
 

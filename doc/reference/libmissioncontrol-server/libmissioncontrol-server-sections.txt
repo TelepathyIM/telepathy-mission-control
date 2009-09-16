@@ -106,11 +106,6 @@ MCD_MANAGER_GET_CLASS
 <SECTION>
 <FILE>mcd-mission</FILE>
 McdMission
-MCD_MISSION_GET_FLAGS_MASKED
-MCD_MISSION_SET_FLAGS_MASKED
-MCD_MISSION_UNSET_FLAGS_MASKED
-McdMode
-McdSystemFlags
 <TITLE>McdMission</TITLE>
 mcd_mission_new
 mcd_mission_is_connected
@@ -119,10 +114,6 @@ mcd_mission_abort
 mcd_mission_set_parent
 mcd_mission_connect
 mcd_mission_disconnect
-mcd_mission_set_flags
-mcd_mission_get_flags
-mcd_mission_set_mode
-mcd_mission_get_mode
 <SUBSECTION Standard>
 MCD_MISSION
 MCD_IS_MISSION
@@ -217,10 +208,6 @@ mcd_debug_print_tree
 
 <SECTION>
 <FILE>mcd-enum-types</FILE>
-mcd_mode_get_type
-MCD_TYPE_MODE
-mcd_system_flags_get_type
-MCD_TYPE_SYSTEM_FLAGS
 mcd_channel_status_get_type
 MCD_TYPE_CHANNEL_STATUS
 </SECTION>
