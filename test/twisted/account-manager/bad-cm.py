@@ -24,7 +24,7 @@ import dbus
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
 from fakecm import start_fake_connection_manager
-from mctest import exec_test
+from mctest import exec_test, get_account_manager
 import constants as cs
 
 FakeCM_bus_name = "com.example.FakeCM"
@@ -33,7 +33,7 @@ ConnectionManager_object_path = "/com/example/FakeCM/ConnectionManager"
 
 def test(q, bus, mc):
     # Get the AccountManager interface
-    account_manager = bus.get_object(cs.AM, cs.AM_PATH)
+    account_manager = get_account_manager(bus)
     account_manager_iface = dbus.Interface(account_manager, cs.AM)
 
     # Create an account with a bad Connection_Manager - it should fail
