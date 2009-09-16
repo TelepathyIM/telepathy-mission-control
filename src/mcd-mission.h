@@ -77,7 +77,6 @@ struct _McdMissionClass
 };
 
 GType mcd_mission_get_type (void);
-McdMission *mcd_mission_new (void);
 
 gboolean mcd_mission_is_connected (McdMission * mission);
 

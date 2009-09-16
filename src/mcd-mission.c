@@ -297,16 +297,6 @@ mcd_mission_init (McdMission * obj)
 
 /* Public methods */
 
-McdMission *
-mcd_mission_new (void)
-{
-    McdMission *obj;
-
-    obj = MCD_MISSION (g_object_new (MCD_TYPE_MISSION, NULL));
-
-    return obj;
-}
-
 void
 mcd_mission_connect (McdMission * mission)
 {
