@@ -1448,7 +1448,7 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
     priv->has_contact_capabilities_draft1_if = tp_proxy_has_interface_by_id (tp_conn,
         MC_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES_DRAFT1);
     priv->has_contact_capabilities_if = tp_proxy_has_interface_by_id (tp_conn,
-        MC_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES);
+        TP_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES);
     priv->has_requests_if = tp_proxy_has_interface_by_id (tp_conn,
         TP_IFACE_QUARK_CONNECTION_INTERFACE_REQUESTS);
 
@@ -1507,7 +1507,7 @@ _mcd_connection_update_client_caps (McdConnection *self,
     }
 
     DEBUG ("Sending client caps to connection");
-    mc_cli_connection_interface_contact_capabilities_call_update_capabilities
+    tp_cli_connection_interface_contact_capabilities_call_update_capabilities
       (self->priv->tp_conn, -1, client_caps, NULL, NULL, NULL, NULL);
 }
 
@@ -1614,7 +1614,7 @@ mcd_connection_early_get_interfaces_cb (TpConnection *tp_conn,
                     mcd_connection_early_get_statuses_cb, NULL, NULL,
                     (GObject *) self);
             }
-            else if (q == MC_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES)
+            else if (q == TP_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES)
             {
                 GPtrArray *client_caps;
 

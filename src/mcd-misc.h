@@ -47,11 +47,6 @@ void _mcd_object_call_on_struct_when_ready (gpointer object, gpointer strukt,
                                             gpointer user_data);
 void _mcd_object_ready (gpointer object, GQuark quark, const GError *error);
 
-/* not exported */
-#define MC_ARRAY_TYPE_OBJECT (_mcd_type_dbus_ao ())
-G_GNUC_INTERNAL
-GType _mcd_type_dbus_ao (void);
-
 G_GNUC_INTERNAL
 gboolean _mcd_file_set_contents (const gchar *filename, const gchar *contents,
                                  gssize length, GError **error);

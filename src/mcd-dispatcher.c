@@ -2340,7 +2340,7 @@ handler_get_all_cb (TpProxy *proxy,
                                                  G_TYPE_STRV));
 
     channels = tp_asv_get_boxed (properties, "HandledChannels",
-                                 MC_ARRAY_TYPE_OBJECT);
+                                 TP_ARRAY_TYPE_OBJECT_PATH_LIST);
 
     unique_name = _mcd_client_proxy_get_unique_name (client_proxy);
 
