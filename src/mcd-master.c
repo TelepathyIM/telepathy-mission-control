@@ -406,69 +406,6 @@ _mcd_master_set_property (GObject *obj, guint prop_id,
 }
 
 static void
-_mcd_master_set_flags (McdMission * mission, McdSystemFlags flags)
-{
-    gboolean idle_flag_old;
-    McdMasterPrivate *priv;
-
-    g_return_if_fail (MCD_IS_MASTER (mission));
-    priv = MCD_MASTER_PRIV (MCD_MASTER (mission));
-
-    priv->low_memory = ((flags & MCD_SYSTEM_MEMORY_CONSERVED) != 0);
-
-    idle_flag_old = priv->idle;
-    priv->idle = ((flags & MCD_SYSTEM_IDLE) != 0);
-
-    if (idle_flag_old != priv->idle)
-    {
-        GHashTableIter iter;
-        gpointer v;
-
-        g_hash_table_iter_init (&iter,
-            _mcd_account_manager_get_accounts (priv->account_manager));
-
-        while (g_hash_table_iter_next (&iter, NULL, &v))
-        {
-            McdAccount *account = MCD_ACCOUNT (v);
-
-            if (priv->idle)
-            {
-                TpConnectionPresenceType presence;
-
-                /* If the current presence is not Available then we don't go
-                 * auto-away - this avoids (a) manipulating offline accounts
-                 * and (b) messing up people's busy or invisible status */
-                mcd_account_get_current_presence (account, &presence, NULL,
-                                                  NULL);
-
-                if (presence != TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
-                {
-                    continue;
-                }
-
-                /* Set the Connection to be "away" if the CM supports it
-                 * (if not, it'll just fail - no harm done) */
-                _mcd_account_request_temporary_presence (account,
-                    TP_CONNECTION_PRESENCE_TYPE_AWAY, "away");
-            }
-            else
-            {
-                TpConnectionPresenceType presence;
-                const gchar *status;
-                const gchar *message;
-
-                /* Go back to the requested presence */
-                mcd_account_get_requested_presence (account, &presence,
-                                                    &status, &message);
-                mcd_account_request_presence (account, presence, status,
-                                              message);
-            }
-        }
-    }
-    MCD_MISSION_CLASS (mcd_master_parent_class)->set_flags (mission, flags);
-}
-
-static void
 _mcd_master_dispose (GObject * object)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (object);
@@ -593,7 +530,6 @@ mcd_master_class_init (McdMasterClass * klass)
 
     mission_class->connect = _mcd_master_connect;
     mission_class->disconnect = _mcd_master_disconnect;
-    mission_class->set_flags = _mcd_master_set_flags;
 
     klass->create_manager = mcd_master_create_manager;
 
@@ -884,20 +820,9 @@ void
 mcd_master_set_low_memory (McdMaster *master,
                            gboolean low_memory)
 {
-    McdMission *mission = MCD_MISSION (master);
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
 
-    /* this will set priv->low_memory as a side-effect */
-    if (low_memory)
-    {
-        MCD_MISSION_SET_FLAGS_MASKED (mission, MCD_SYSTEM_MEMORY_CONSERVED);
-    }
-    else
-    {
-        MCD_MISSION_UNSET_FLAGS_MASKED (mission, MCD_SYSTEM_MEMORY_CONSERVED);
-    }
-
-    g_assert (priv->low_memory == low_memory);
+    priv->low_memory = low_memory;
 }
 
 /* For the moment, this is implemented in terms of McdSystemFlags. When
@@ -907,18 +832,56 @@ void
 mcd_master_set_idle (McdMaster *master,
                      gboolean idle)
 {
-    McdMission *mission = MCD_MISSION (master);
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    gboolean idle_flag_old;
 
-    /* this will set priv->idle as a side-effect */
-    if (idle)
-    {
-        MCD_MISSION_SET_FLAGS_MASKED (mission, MCD_SYSTEM_IDLE);
-    }
-    else
-    {
-        MCD_MISSION_UNSET_FLAGS_MASKED (mission, MCD_SYSTEM_IDLE);
-    }
+    idle_flag_old = priv->idle;
+    priv->idle = idle != 0;
 
-    g_assert (priv->idle == idle);
+    if (idle_flag_old != priv->idle)
+    {
+        GHashTableIter iter;
+        gpointer v;
+
+        g_hash_table_iter_init (&iter,
+            _mcd_account_manager_get_accounts (priv->account_manager));
+
+        while (g_hash_table_iter_next (&iter, NULL, &v))
+        {
+            McdAccount *account = MCD_ACCOUNT (v);
+
+            if (priv->idle)
+            {
+                TpConnectionPresenceType presence;
+
+                /* If the current presence is not Available then we don't go
+                 * auto-away - this avoids (a) manipulating offline accounts
+                 * and (b) messing up people's busy or invisible status */
+                mcd_account_get_current_presence (account, &presence, NULL,
+                                                  NULL);
+
+                if (presence != TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
+                {
+                    continue;
+                }
+
+                /* Set the Connection to be "away" if the CM supports it
+                 * (if not, it'll just fail - no harm done) */
+                _mcd_account_request_temporary_presence (account,
+                    TP_CONNECTION_PRESENCE_TYPE_AWAY, "away");
+            }
+            else
+            {
+                TpConnectionPresenceType presence;
+                const gchar *status;
+                const gchar *message;
+
+                /* Go back to the requested presence */
+                mcd_account_get_requested_presence (account, &presence,
+                                                    &status, &message);
+                mcd_account_request_presence (account, presence, status,
+                                              message);
+            }
+        }
+    }
 }
