@@ -2,22 +2,6 @@
 <FILE>mcd-master</FILE>
 <TITLE>McdMaster</TITLE>
 McdMaster
-mcd_channel_request
-mcd_master_new
-mcd_master_request_presence
-mcd_master_get_actual_presence
-mcd_master_get_requested_presence
-mcd_master_set_default_presence
-mcd_master_set_default_presence_setting
-mcd_master_get_account_status
-mcd_master_get_online_connection_names
-mcd_master_get_account_connection_details
-mcd_master_cancel_last_presence_request
-mcd_master_request_channel
-mcd_master_cancel_channel_request
-mcd_master_get_used_channels_count
-mcd_master_get_connection
-mcd_master_get_account_for_connection
 <SUBSECTION Standard>
 MCD_MASTER
 MCD_IS_MASTER
@@ -31,14 +15,9 @@ MCD_MASTER_GET_CLASS
 <SECTION>
 <FILE>mcd-connection</FILE>
 McdConnection
-mcd_connection_new
 mcd_connection_get_account
-mcd_connection_get_connection_status
 mcd_connection_request_channel
 mcd_connection_cancel_channel_request
-mcd_connection_get_telepathy_details
-mcd_connection_remote_avatar_changed
-mcd_connection_account_changed
 mcd_connection_close
 <SUBSECTION Standard>
 MCD_CONNECTION
@@ -87,9 +66,6 @@ MCD_IS_SERVICE_CLASS
 McdChannel
 McdChannelStatus
 <TITLE>McdChannel</TITLE>
-mcd_channel_request
-mcd_channel_new
-mcd_channel_set_status
 mcd_channel_get_status
 mcd_channel_get_members_accepted
 mcd_channel_get_channel_type
@@ -97,8 +73,6 @@ mcd_channel_get_channel_type_quark
 mcd_channel_get_object_path
 mcd_channel_get_handle
 mcd_channel_get_handle_type
-mcd_channel_get_flags
-mcd_channel_get_members
 mcd_channel_get_name
 mcd_channel_is_requested
 mcd_channel_get_account
@@ -117,13 +91,6 @@ MCD_CHANNEL_GET_CLASS
 <TITLE>McdManager</TITLE>
 McdManager
 mcd_manager_new
-mcd_manager_add_account
-mcd_manager_can_handle_account
-mcd_manager_get_account_by_name
-mcd_manager_remove_account
-mcd_manager_get_accounts
-mcd_manager_get_account_connection
-mcd_manager_request_channel
 mcd_manager_cancel_channel_request
 mcd_manager_get_connection
 <SUBSECTION Standard>
@@ -202,12 +169,9 @@ MCD_CONTROLLER_GET_CLASS
 <SECTION>
 <FILE>mcd-dispatcher</FILE>
 McdDispatcher
-McdDispatcherStatus
 <TITLE>McdDispatcher</TITLE>
 mcd_dispatcher_new
-mcd_dispatcher_send
 mcd_dispatcher_get_channel_type_usage
-mcd_dispatcher_get_channel_capabilities
 mcd_dispatcher_add_filter
 mcd_dispatcher_add_filters
 <SUBSECTION Standard>
@@ -233,9 +197,6 @@ MCD_FILTER_PRIORITY_USER
 MCD_FILTER_PRIORITY_NOTICE
 MCD_FILTER_PRIORITY_LOW
 McdFilter
-mcd_dispatcher_register_filter
-mcd_dispatcher_unregister_filter
-mcd_dispatcher_register_filters
 mcd_dispatcher_context_get_dispatcher
 mcd_dispatcher_context_get_channel_object
 mcd_dispatcher_context_get_connection_object
@@ -248,8 +209,6 @@ mcd_dispatcher_context_process
 
 <SECTION>
 <FILE>mcd-debug</FILE>
-g_object_ref
-g_object_unref
 mcd_debug_init
 mcd_debug_ref
 mcd_debug_unref
