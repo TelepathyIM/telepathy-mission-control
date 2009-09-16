@@ -62,7 +62,7 @@ struct _McdMissionClass
     void (*abort_signal) (McdMission * mission);
     
     /* Virtual methods */
-    void (*set_parent) (McdMission * mission, McdMission * parent);
+    void (*_former_set_parent) (void);
     
     void (*connect) (McdMission * mission);
     void (*disconnect) (McdMission * mission);
@@ -83,7 +83,6 @@ gboolean mcd_mission_is_connected (McdMission * mission);
 McdMission *mcd_mission_get_parent (McdMission * mission);
 
 void mcd_mission_abort (McdMission * mission);
-void mcd_mission_set_parent (McdMission * mission, McdMission * parent);
 
 void mcd_mission_connect (McdMission * mission);
 void mcd_mission_disconnect (McdMission * mission);

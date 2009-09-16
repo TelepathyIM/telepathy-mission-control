@@ -82,15 +82,6 @@ McdMission
 @mission: 
 
 
-<!-- ##### FUNCTION mcd_mission_set_parent ##### -->
-<para>
-
-</para>
-
-@mission: 
-@parent: 
-
-
 <!-- ##### FUNCTION mcd_mission_connect ##### -->
 <para>
 

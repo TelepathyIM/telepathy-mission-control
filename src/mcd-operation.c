@@ -40,6 +40,7 @@
 
 #include <glib/gi18n.h>
 #include "mcd-operation.h"
+#include "mcd-mission-priv.h"
 
 #define MCD_OPERATION_PRIV(operation) (G_TYPE_INSTANCE_GET_PRIVATE ((operation), \
 				       MCD_TYPE_OPERATION, \
@@ -170,7 +171,7 @@ _mcd_operation_take_mission (McdOperation * operation, McdMission * mission)
     McdOperationPrivate *priv = MCD_OPERATION_PRIV (operation);
 
     priv->missions = g_list_prepend (priv->missions, mission);
-    mcd_mission_set_parent (mission, MCD_MISSION (operation));
+    _mcd_mission_set_parent (mission, MCD_MISSION (operation));
 
     if (mcd_mission_is_connected (MCD_MISSION (operation)))
 	mcd_mission_connect (mission);
@@ -190,7 +191,7 @@ _mcd_operation_remove_mission (McdOperation * operation, McdMission * mission)
     _mcd_operation_disconnect_mission (mission, operation);
     
     priv->missions = g_list_remove (priv->missions, mission);
-    mcd_mission_set_parent (mission, NULL);
+    _mcd_mission_set_parent (mission, NULL);
     
     g_signal_emit_by_name (G_OBJECT (operation), "mission-removed", mission);
 

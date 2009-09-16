@@ -50,7 +50,7 @@
  */
 
 #include <glib/gi18n.h>
-#include "mcd-mission.h"
+#include "mcd-mission-priv.h"
 #include "mcd-enum-types.h"
 
 #define MCD_MISSION_PRIV(mission) (G_TYPE_INSTANCE_GET_PRIVATE ((mission), \
@@ -121,10 +121,10 @@ static void
 on_parent_abort (McdMission *parent, McdMission *mission)
 {
     DEBUG ("called");
-    mcd_mission_set_parent (mission, NULL);
+    _mcd_mission_set_parent (mission, NULL);
 }
 
-static void
+void
 _mcd_mission_set_parent (McdMission * mission, McdMission * parent)
 {
     McdMissionPrivate *priv;
@@ -209,7 +209,7 @@ _mcd_set_property (GObject * object, guint prop_id, const GValue * val,
     switch (prop_id)
     {
     case PROP_PARENT:
-	mcd_mission_set_parent (mission, g_value_get_object (val));
+	_mcd_mission_set_parent (mission, g_value_get_object (val));
 	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -250,8 +250,6 @@ mcd_mission_class_init (McdMissionClass * klass)
     klass->abort = _mcd_mission_abort;
     klass->connect = _mcd_mission_connect;
     klass->disconnect = _mcd_mission_disconnect;
-
-    klass->set_parent = _mcd_mission_set_parent;
 
     /* signals */
     mcd_mission_signals[ABORT] =
@@ -327,13 +325,6 @@ mcd_mission_is_connected (McdMission * mission)
     priv = MCD_MISSION_PRIV (mission);
 
     return priv->connected;
-}
-
-void
-mcd_mission_set_parent (McdMission * mission, McdMission * parent)
-{
-    g_return_if_fail (MCD_IS_MISSION (mission));
-    MCD_MISSION_GET_CLASS (mission)->set_parent (mission, parent);
 }
 
 McdMission *

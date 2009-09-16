@@ -141,6 +141,7 @@ libmcd_convenience_la_SOURCES = \
 	mcd-misc.c \
 	mcd-misc.h \
 	mcd-mission.c \
+	mcd-mission-priv.h \
 	mcd-operation.c \
 	mcd-controller.c \
 	mcd-master.c \
