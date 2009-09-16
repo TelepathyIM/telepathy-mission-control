@@ -1,7 +1,19 @@
-telepathy-mission-control 5.2.4 (UNRELEASED)
+telepathy-mission-control 5.2.4 (2009-09-16)
 ============================================
 
-???
+The "High Barnet" release.
+
+Fixes:
+
+* Deal with the user's alias in a race-free way by calling GetAliases as well
+  as binding to the AliasesChanged signal (smcv/mardy)
+
+* Fix a reference leak when recovering from a connection being cancelled before
+  RequestConnection has returned (smcv)
+
+* Stop abusing glibc internal feature-test macros (smcv)
+
+* Fix some race conditions in the regression tests (smcv)
 
 telepathy-mission-control 5.2.3 (2009-09-10)
 ============================================
