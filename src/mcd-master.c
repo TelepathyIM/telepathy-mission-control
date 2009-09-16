@@ -327,23 +327,6 @@ mcd_master_load_plugins (McdMaster *master)
 #endif
 
 static void
-_mcd_master_connect (McdMission * mission)
-{
-    MCD_MISSION_CLASS (mcd_master_parent_class)->connect (mission);
-    /*if (mission->main_presence.presence_enum != TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
-     * mcd_connect_all_accounts(mission); */
-
-}
-
-static void
-_mcd_master_disconnect (McdMission * mission)
-{
-    DEBUG ("called");
-
-    MCD_MISSION_CLASS (mcd_master_parent_class)->disconnect (mission);
-}
-
-static void
 _mcd_master_finalize (GObject * object)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (object);
@@ -519,7 +502,6 @@ static void
 mcd_master_class_init (McdMasterClass * klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
-    McdMissionClass *mission_class = MCD_MISSION_CLASS (klass);
     g_type_class_add_private (object_class, sizeof (McdMasterPrivate));
 
     object_class->constructor = mcd_master_constructor;
@@ -527,9 +509,6 @@ mcd_master_class_init (McdMasterClass * klass)
     object_class->get_property = _mcd_master_get_property;
     object_class->set_property = _mcd_master_set_property;
     object_class->dispose = _mcd_master_dispose;
-
-    mission_class->connect = _mcd_master_connect;
-    mission_class->disconnect = _mcd_master_disconnect;
 
     klass->create_manager = mcd_master_create_manager;
 
