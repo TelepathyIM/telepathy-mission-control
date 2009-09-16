@@ -578,6 +578,7 @@ keyring_set_cb (GnomeKeyringResult result,
         g_error_free (error);
 
     g_free (data->name);
+    g_object_unref (data->account);
     g_slice_free (KeyringSetData, data);
 }
 #endif
@@ -607,7 +608,7 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value,
             KeyringSetData *data;
 
             data = g_slice_new0 (KeyringSetData);
-            data->account = account;
+            data->account = g_object_ref (account);
             data->name = g_strdup (name);
             data->callback = callback;
             data->user_data = user_data;
