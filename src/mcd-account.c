@@ -1967,6 +1967,7 @@ mcd_account_setup (McdAccount *account)
                                    NULL);
     }
 
+    g_free (priv->auto_presence_message);
     priv->auto_presence_message =
 	g_key_file_get_string (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE,
