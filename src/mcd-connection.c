@@ -1025,8 +1025,12 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
     }
 }
 
-static void proxy_destroyed (TpConnection *tp_conn, guint domain, gint code,
-			     gchar *message, McdConnection *connection)
+static void
+mcd_connection_invalidated_cb (TpConnection *tp_conn,
+                               guint domain,
+                               gint code,
+                               gchar *message,
+                               McdConnection *connection)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
     DEBUG ("Proxy destroyed (%s)!", message);
@@ -1755,9 +1759,8 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
 	g_signal_handlers_disconnect_by_func (priv->tp_conn,
 					      G_CALLBACK (on_connection_status_changed),
 					      connection);
-	g_signal_handlers_disconnect_by_func (G_OBJECT (priv->tp_conn),
-					      G_CALLBACK (proxy_destroyed),
-					      connection);
+        g_signal_handlers_disconnect_by_func (G_OBJECT (priv->tp_conn),
+            G_CALLBACK (mcd_connection_invalidated_cb), connection);
 
 	_mcd_connection_call_disconnect (connection);
 	g_object_unref (priv->tp_conn);
@@ -2430,7 +2433,7 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
 
     /* Setup signals */
     g_signal_connect (priv->tp_conn, "invalidated",
-                      G_CALLBACK (proxy_destroyed), connection);
+                      G_CALLBACK (mcd_connection_invalidated_cb), connection);
     g_signal_connect (priv->tp_conn, "notify::status",
                       G_CALLBACK (on_connection_status_changed),
                       connection);
