@@ -1,5 +1,12 @@
-telepathy-mission-control 5.3.1 (UNRELEASED)
+telepathy-mission-control 5.3.1 (2009-09-18)
 ============================================
+
+The "only available in Belgium" release.
+
+Dependencies:
+
+* Python >= 2.5 is now required for compilation
+* telepathy-glib >= 0.7.37 is now required
 
 Enhancements:
 
@@ -24,7 +31,8 @@ Fixes:
 
 * Fix some minor memory leaks (smcv)
 
-All fixes from stable release 5.2.5 have been incorporated in this release.
+All fixes from stable releases 5.2.4 and 5.2.5 have been incorporated in this
+release.
 
 telepathy-mission-control 5.3.0 (2009-09-14)
 ============================================
@@ -35,7 +43,7 @@ Dependencies:
 
 * The GNOME Keyring library is a new optional dependency (only if configured
   with --enable-gnome-keyring=yes or --enable-gnome-keyring=auto).
-  
+
   If it is enabled, having the library at runtime is required, but having the
   daemon itself is optional - the current plain-text storage will be used for
   passwords if the keyring daemon is not available.
