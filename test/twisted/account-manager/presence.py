@@ -77,13 +77,12 @@ def test(q, bus, mc):
                 EventPattern('dbus-signal', path=account.object_path,
                     interface=cs.ACCOUNT, signal='AccountPropertyChanged',
                     predicate=lambda e:
-                        e.args[0].get('CurrentPresence') == presence and
-                        (log.append('APC(CurrentPresence)') or True)),
+                        e.args[0].get('CurrentPresence') == presence),
                 ])
 
     # The events before Connect must happen in this order
     assert log == ['GetInterfaces', 'Get(Statuses)[1]', 'SetPresence[1]',
-            'Get(Statuses)[2]', 'SetPresence[2]', 'APC(CurrentPresence)']
+            'Get(Statuses)[2]', 'SetPresence[2]'], log
 
     # Change requested presence after going online
     presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_AWAY), 'away',

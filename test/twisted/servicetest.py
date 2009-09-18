@@ -445,7 +445,8 @@ class ProxyWrapper:
 def make_mc(bus, event_func, params):
     mc = bus.get_object(
         tp_name_prefix + '.MissionControl5',
-        tp_path_prefix + '/MissionControl5')
+        tp_path_prefix + '/MissionControl5',
+        follow_name_owner_changes=True)
     assert mc is not None
 
     return mc

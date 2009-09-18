@@ -16,7 +16,15 @@ Fixes:
 * Fix mcd_dispatcher_get_channel_type_usage sometimes counting aborted
   channels, by introducing MCD_CHANNEL_STATUS_ABORTED (mardy)
 
-All fixes from stable release 5.2.4 have been incorporated in this release.
+* If we see too many transitions from CONNECTED to DISCONNECTED state (i.e.
+  we get kicked off by the server more than 3 times in 2 minutes), stop
+  reconnecting; also, don't reset the exponential backoff until we've been
+  connected for 2 minutes. This avoids reconnecting in a tight loop if the
+  server lets us connect, then immediately drops our connection. (smcv)
+
+* Fix some minor memory leaks (smcv)
+
+All fixes from stable release 5.2.5 have been incorporated in this release.
 
 telepathy-mission-control 5.3.0 (2009-09-14)
 ============================================
