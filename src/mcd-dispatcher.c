@@ -975,6 +975,8 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
     McdDispatcher *self = context->dispatcher;
     GList *channels, *list;
     gchar **iter;
+    const gchar *approved_handler = _mcd_dispatch_operation_get_handler (
+        context->operation);
 
     sp_timestamp ("run handlers");
     mcd_dispatcher_context_ref (context, "CTXREF04");
@@ -991,41 +993,36 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
 
     /* If there is an approved handler chosen by the Approver, it's the only
      * one we'll consider. */
-    if (context->operation)
+
+    if (approved_handler != NULL && approved_handler[0] != '\0')
     {
-        const gchar *approved_handler = _mcd_dispatch_operation_get_handler (
-            context->operation);
+        gchar *bus_name = g_strconcat (TP_CLIENT_BUS_NAME_BASE,
+                                       approved_handler, NULL);
+        McdClient *handler = g_hash_table_lookup (self->priv->clients,
+                                                  bus_name);
+        gboolean failed = (g_hash_table_lookup (context->failed_handlers,
+                                                bus_name) != NULL);
 
-        if (approved_handler != NULL && approved_handler[0] != '\0')
+        DEBUG ("Approved handler is %s (still exists: %c, "
+               "already failed: %c)", bus_name,
+               handler != NULL ? 'Y' : 'N',
+               failed ? 'Y' : 'N');
+
+        g_free (bus_name);
+
+        /* Maybe the handler has exited since we chose it, or maybe we
+         * already tried it? Otherwise, it's the right choice. */
+        if (handler != NULL && !failed)
         {
-            gchar *bus_name = g_strconcat (TP_CLIENT_BUS_NAME_BASE,
-                                           approved_handler, NULL);
-            McdClient *handler = g_hash_table_lookup (self->priv->clients,
-                                                      bus_name);
-            gboolean failed = (g_hash_table_lookup (context->failed_handlers,
-                                                    bus_name) != NULL);
-
-            DEBUG ("Approved handler is %s (still exists: %c, "
-                   "already failed: %c)", bus_name,
-                   handler != NULL ? 'Y' : 'N',
-                   failed ? 'Y' : 'N');
-
-            g_free (bus_name);
-
-            /* Maybe the handler has exited since we chose it, or maybe we
-             * already tried it? Otherwise, it's the right choice. */
-            if (handler != NULL && !failed)
-            {
-                mcd_dispatcher_handle_channels (context, channels, handler);
-                goto finally;
-            }
-
-            /* The approver asked for a particular handler, but that handler
-             * has vanished. If MC was fully spec-compliant, it wouldn't have
-             * replied to the Approver yet, so it could just return an error.
-             * However, that particular part of the flying-car future has not
-             * yet arrived, so try to recover by dispatching to *something*. */
+            mcd_dispatcher_handle_channels (context, channels, handler);
+            goto finally;
         }
+
+        /* The approver asked for a particular handler, but that handler
+         * has vanished. If MC was fully spec-compliant, it wouldn't have
+         * replied to the Approver yet, so it could just return an error.
+         * However, that particular part of the flying-car future has not
+         * yet arrived, so try to recover by dispatching to *something*. */
     }
 
     g_assert (context->possible_handlers != NULL);
@@ -1109,11 +1106,7 @@ observe_channels_cb (TpClient *proxy, const GError *error,
     else
         DEBUG ("success from %s", tp_proxy_get_object_path (proxy));
 
-    if (context->operation)
-    {
-        _mcd_dispatch_operation_unblock_finished (context->operation);
-    }
-
+    _mcd_dispatch_operation_unblock_finished (context->operation);
     mcd_dispatcher_context_release_pending_observer (context);
 }
 
@@ -1300,10 +1293,7 @@ add_dispatch_operation_cb (TpClient *proxy, const GError *error,
      * since it will be stalled until awaiting_approval becomes FALSE. */
     mcd_dispatcher_context_release_pending_approver (context);
 
-    if (context->operation)
-    {
-        _mcd_dispatch_operation_unblock_finished (context->operation);
-    }
+    _mcd_dispatch_operation_unblock_finished (context->operation);
 }
 
 static void
@@ -1320,7 +1310,6 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
     GHashTableIter iter;
     McdClient *client;
 
-    g_return_if_fail (context->operation != NULL);
     g_return_if_fail (_mcd_dispatch_operation_needs_approval (
         context->operation));
     sp_timestamp ("run approvers");
@@ -1505,21 +1494,13 @@ on_channel_abort_context (McdChannel *channel, McdDispatcherContext *context)
      * the operations below very unhappy */
     mcd_dispatcher_context_ref (context, "CTXREF08");
 
-    if (context->operation)
-    {
-        /* the CDO owns the linked list and we just borrow it; in case it's
-         * the head of the list that we're deleting, we need to ask the CDO
-         * to update our idea of what the list is before emitting any signals.
-         *
-         * FIXME: this is alarmingly fragile */
-        _mcd_dispatch_operation_lose_channel (context->operation, channel,
-                                              &(context->channels));
-    }
-    else
-    {
-        /* we own the linked list */
-        context->channels = g_list_delete_link (context->channels, li);
-    }
+    /* the CDO owns the linked list and we just borrow it; in case it's
+     * the head of the list that we're deleting, we need to ask the CDO
+     * to update our idea of what the list is before emitting any signals.
+     *
+     * FIXME: this is alarmingly fragile */
+    _mcd_dispatch_operation_lose_channel (context->operation, channel,
+                                          &(context->channels));
 
     if (li != NULL)
     {
@@ -3373,25 +3354,19 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
                 G_CALLBACK (on_channel_abort_context), context);
             g_object_unref (channel);
         }
-        /* disposing the dispatch operation also frees the channels list */
-        if (context->operation)
+        g_signal_handlers_disconnect_by_func (context->operation,
+                                              on_operation_finished,
+                                              context);
+
+        if (_mcd_dispatch_operation_finish (context->operation) &&
+            context->dispatcher->priv->operation_list_active)
         {
-            g_signal_handlers_disconnect_by_func (context->operation,
-                                                  on_operation_finished,
-                                                  context);
-
-            if (_mcd_dispatch_operation_finish (context->operation) &&
-                context->dispatcher->priv->operation_list_active)
-            {
-                tp_svc_channel_dispatcher_interface_operation_list_emit_dispatch_operation_finished (
-                    context->dispatcher,
-                    _mcd_dispatch_operation_get_path (context->operation));
-            }
-
-            g_object_unref (context->operation);
+            tp_svc_channel_dispatcher_interface_operation_list_emit_dispatch_operation_finished (
+                context->dispatcher,
+                _mcd_dispatch_operation_get_path (context->operation));
         }
-        else
-            g_list_free (context->channels);
+
+        g_object_unref (context->operation);
 
         /* remove the context from the list of active contexts */
         priv = MCD_DISPATCHER_PRIV (context->dispatcher);
@@ -3956,8 +3931,7 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
                 /* the existing channel is waiting for approval; but since the
                  * same channel has been requested, the approval operation must
                  * terminate */
-                if (G_LIKELY (context->operation))
-                    _mcd_dispatch_operation_approve (context->operation);
+                _mcd_dispatch_operation_approve (context->operation);
             }
             else
             {
