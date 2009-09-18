@@ -1210,12 +1210,13 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
 
         satisfied_requests = collect_satisfied_requests (observed);
 
-        if (context->operation)
+        if (_mcd_dispatch_operation_needs_approval (context->operation))
         {
             dispatch_operation_path =
                 _mcd_dispatch_operation_get_path (context->operation);
-            _mcd_dispatch_operation_block_finished (context->operation);
         }
+
+        _mcd_dispatch_operation_block_finished (context->operation);
 
         context->observers_pending++;
         mcd_dispatcher_context_ref (context, "CTXREF05");
@@ -1320,6 +1321,8 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
     McdClient *client;
 
     g_return_if_fail (context->operation != NULL);
+    g_return_if_fail (_mcd_dispatch_operation_needs_approval (
+        context->operation));
     sp_timestamp ("run approvers");
 
     /* we temporarily increment this count and decrement it at the end of the
@@ -1426,9 +1429,9 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
 
     mcd_dispatcher_run_observers (context);
 
-    /* if we have a dispatch operation, it means that the channels were not
-     * requested: start the Approvers */
-    if (context->operation)
+    /* if the dispatch operation thinks the channels were not
+     * requested, start the Approvers */
+    if (_mcd_dispatch_operation_needs_approval (context->operation))
     {
         /* but if the handlers have the BypassApproval flag set, then don't
          *
@@ -1544,7 +1547,9 @@ on_operation_finished (McdDispatchOperation *operation,
 
     mcd_dispatcher_context_ref (context, "CTXREF15");
 
-    if (context->dispatcher->priv->operation_list_active)
+    /* don't emit the signal if the CDO never appeared on D-Bus */
+    if (context->dispatcher->priv->operation_list_active &&
+        _mcd_dispatch_operation_needs_approval (operation))
     {
         tp_svc_channel_dispatcher_interface_operation_list_emit_dispatch_operation_finished (
             context->dispatcher, _mcd_dispatch_operation_get_path (operation));
@@ -1641,6 +1646,15 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 
     priv->contexts = g_list_prepend (priv->contexts, context);
 
+    /* FIXME: what should we do when the channels are a mixture of Requested
+     * and unRequested? At the moment we act as though they're all Requested;
+     * perhaps we should act as though they're all unRequested, or split up the
+     * bundle? */
+
+    context->operation =
+        _mcd_dispatch_operation_new (priv->dbus_daemon, !requested, channels,
+                                     possible_handlers);
+
     if (requested)
     {
         context->approved = TRUE;
@@ -1648,9 +1662,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     else
     {
         context->approved = FALSE;
-        context->operation =
-            _mcd_dispatch_operation_new (priv->dbus_daemon, channels,
-                                         possible_handlers);
 
         if (priv->operation_list_active)
         {
@@ -1753,7 +1764,8 @@ _mcd_dispatcher_get_property (GObject * obj, guint prop_id,
             {
                 McdDispatcherContext *context = iter->data;
 
-                if (context->operation != NULL &&
+                if (_mcd_dispatch_operation_needs_approval (context->operation)
+                    &&
                     !_mcd_dispatch_operation_is_finished (context->operation))
                 {
                     GValueArray *va = g_value_array_new (2);
@@ -3875,6 +3887,10 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     context->possible_handlers = mcd_dispatcher_get_possible_handlers (
         dispatcher, list);
     g_list_free (list);
+
+    context->operation = _mcd_dispatch_operation_new (
+        dispatcher->priv->dbus_daemon, FALSE, context->channels,
+        context->possible_handlers);
 
     /* We must ref() the channel, because
      * mcd_dispatcher_context_unref() will unref() it */

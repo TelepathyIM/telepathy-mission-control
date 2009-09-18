@@ -80,6 +80,10 @@ struct _McdDispatchOperationPrivate
     GHashTable *properties;
     gsize block_finished;
 
+    /* If FALSE, we're not actually on D-Bus; an object path is reserved,
+     * but we're inaccessible. */
+    guint needs_approval : 1;
+
     /* Results */
     guint finished : 1;
     gchar *handler;
@@ -104,6 +108,7 @@ enum
     PROP_DBUS_DAEMON,
     PROP_CHANNELS,
     PROP_POSSIBLE_HANDLERS,
+    PROP_NEEDS_APPROVAL,
 };
 
 static void
@@ -355,7 +360,8 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
     dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
     create_object_path (priv);
 
-    DEBUG ("%s/%p", priv->unique_name, object);
+    DEBUG ("%s/%p: needs_approval=%c", priv->unique_name, object,
+           priv->needs_approval ? 'T' : 'F');
 
     if (DEBUGGING)
     {
@@ -367,7 +373,9 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
         }
     }
 
-    if (G_LIKELY (dbus_connection))
+    /* If approval is not needed, we don't appear on D-Bus (and approvers
+     * don't run) */
+    if (priv->needs_approval && G_LIKELY (dbus_connection))
         dbus_g_connection_register_g_object (dbus_connection,
                                              priv->object_path, object);
 
@@ -416,6 +424,10 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
         g_assert (priv->possible_handlers != NULL);
         break;
 
+    case PROP_NEEDS_APPROVAL:
+        priv->needs_approval = g_value_get_boolean (val);
+        break;
+
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
         break;
@@ -436,6 +448,10 @@ mcd_dispatch_operation_get_property (GObject *obj, guint prop_id,
 
     case PROP_POSSIBLE_HANDLERS:
         g_value_set_boxed (val, priv->possible_handlers);
+        break;
+
+    case PROP_NEEDS_APPROVAL:
+        g_value_set_boolean (val, priv->needs_approval);
         break;
 
     default:
@@ -526,6 +542,13 @@ _mcd_dispatch_operation_class_init (McdDispatchOperationClass * klass)
                             G_TYPE_STRV,
                             G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
                             G_PARAM_STATIC_STRINGS));
+
+    g_object_class_install_property (object_class, PROP_NEEDS_APPROVAL,
+        g_param_spec_boolean ("needs-approval", "Needs approval?",
+                              "TRUE if this CDO should run Approvers and "
+                              "appear on D-Bus", FALSE,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
+                              G_PARAM_STATIC_STRINGS));
 }
 
 static void
@@ -553,6 +576,7 @@ _mcd_dispatch_operation_init (McdDispatchOperation *operation)
  */
 McdDispatchOperation *
 _mcd_dispatch_operation_new (TpDBusDaemon *dbus_daemon,
+                             gboolean needs_approval,
                              GList *channels,
                              const GStrv possible_handlers)
 {
@@ -561,7 +585,9 @@ _mcd_dispatch_operation_new (TpDBusDaemon *dbus_daemon,
                         "dbus-daemon", dbus_daemon,
                         "channels", channels,
                         "possible-handlers", possible_handlers,
+                        "needs-approval", needs_approval,
                         NULL);
+
     return MCD_DISPATCH_OPERATION (obj);
 }
 
@@ -637,6 +663,14 @@ _mcd_dispatch_operation_is_claimed (McdDispatchOperation *operation)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (operation), FALSE);
     return (operation->priv->claimer != NULL);
+}
+
+gboolean
+_mcd_dispatch_operation_needs_approval (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+
+    return self->priv->needs_approval;
 }
 
 const gchar *
