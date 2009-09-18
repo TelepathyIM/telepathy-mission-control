@@ -2743,16 +2743,19 @@ mcd_account_setup (McdAccount *account)
     if (!_presence_type_is_online (priv->auto_presence_type))
     {
         priv->auto_presence_type = TP_CONNECTION_PRESENCE_TYPE_AVAILABLE;
+        g_free (priv->auto_presence_status);
         priv->auto_presence_status = g_strdup ("available");
     }
     else
     {
+        g_free (priv->auto_presence_status);
         priv->auto_presence_status =
             g_key_file_get_string (priv->keyfile, priv->unique_name,
                                    MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS,
                                    NULL);
     }
 
+    g_free (priv->auto_presence_message);
     priv->auto_presence_message =
 	g_key_file_get_string (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE,
