@@ -1,7 +1,26 @@
-telepathy-mission-control 5.2.5 (UNRELEASED)
+telepathy-mission-control 5.2.5 (2009-09-18)
 ============================================
 
-...
+The "Mornington Crescent" release.
+
+Fixes:
+
+* If we see too many transitions from CONNECTED to DISCONNECTED state (i.e.
+  we get kicked off by the server more than 3 times in 2 minutes), stop
+  reconnecting; also, don't reset the exponential backoff until we've been
+  connected for 2 minutes. This avoids reconnecting in a tight loop if the
+  server lets us connect, then immediately drops our connection. (smcv)
+
+* fd.o#23935: call AddRequest if appropriate even on clients that match only
+  channels with Requested=true, and use requested channels' complete
+  properties in preference to the properties that were requested (smcv)
+
+* Make signed values in .client files work instead of g_critical'ing (smcv)
+
+* Add MCD_CHANNEL_STATUS_ABORTED to avoid sometimes counting aborted channels
+  in mcd_dispatcher_get_channel_type_usage (mardy)
+
+* Fix some minor memory leaks (smcv)
 
 telepathy-mission-control 5.2.4 (2009-09-16)
 ============================================
