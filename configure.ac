@@ -71,31 +71,15 @@ if test -z "$XSLTPROC"; then
     AC_MSG_ERROR([xsltproc (from the libxslt source package) is required])
 fi
 
-PYTHON=
-AC_CHECK_PROGS([PYTHON], [python2.3 python2.4 python2.5 python])
-if test -z "$PYTHON"; then
-    AC_MSG_ERROR([Python is required to compile this package])
+AM_PATH_PYTHON([2.5])
+AC_MSG_CHECKING([for enough Python for the tests])
+mc_want_twisted_tests=no
+if $PYTHON -c "import twisted.internet.reactor, dbus.mainloop.glib"\
+    >/dev/null 2>&1; then
+    mc_want_twisted_tests=yes
 fi
-
-# Check for a python >= 2.4 with twisted to run python tests
-AC_MSG_CHECKING([for Python >= 2.4 with Twisted and XMPP protocol support])
-for TEST_PYTHON in python2.4 python2.5 python; do
-  if $TEST_PYTHON -c "from sys import version_info;
-      raise SystemExit(version_info < (2, 4, 0, 'final', 0))" \
-      >/dev/null 2>&1; then
-    if $TEST_PYTHON -c "import twisted.words.xish.domish,
-        twisted.words.protocols.jabber, twisted.internet.reactor" \
-        >/dev/null 2>&1; then
-      AC_MSG_RESULT([$TEST_PYTHON])
-      AM_CONDITIONAL([WANT_TWISTED_TESTS], true)
-      break
-    else
-      TEST_PYTHON=false
-    fi
-  fi
-done
-AC_SUBST(TEST_PYTHON)
-AM_CONDITIONAL([WANT_TWISTED_TESTS], test false != "$TEST_PYTHON")
+AC_MSG_RESULT([$mc_want_twisted_tests])
+AM_CONDITIONAL([WANT_TWISTED_TESTS], test yes = "$mc_want_twisted_tests")
 
 AC_ARG_ENABLE(debug,            [  --disable-debug               compile without debug code],[enable_debug=${enableval}], enable_debug=yes )
 if test "x$enable_debug" = "xyes"; then

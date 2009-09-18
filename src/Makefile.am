@@ -2,7 +2,6 @@ INCLUDES = \
 	   $(TELEPATHY_CFLAGS) \
 	   $(DBUS_CFLAGS) \
 	   $(GLIB_CFLAGS) \
-	   -DDBUS_API_SUBJECT_TO_CHANGE \
 	   -DG_LOG_DOMAIN=\"mcd\" \
 	   -DMC_DISABLE_DEPRECATED -I$(top_srcdir)
 
