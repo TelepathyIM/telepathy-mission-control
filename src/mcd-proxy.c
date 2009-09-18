@@ -76,10 +76,6 @@ _mcd_proxy_connect_signals (McdProxy * proxy)
 			      G_CALLBACK (mcd_mission_connect), proxy);
     g_signal_connect_swapped (priv->proxy_object, "disconnected",
 			      G_CALLBACK (mcd_mission_disconnect), proxy);
-    g_signal_connect_swapped (priv->proxy_object, "flags-changed",
-			      G_CALLBACK (mcd_mission_set_flags), proxy);
-    g_signal_connect_swapped (priv->proxy_object, "mode-set",
-			      G_CALLBACK (mcd_mission_set_mode), proxy);
     g_signal_connect_swapped (priv->proxy_object, "abort",
 			      G_CALLBACK (_mcd_proxy_abort), proxy);
 }
@@ -94,12 +90,6 @@ _mcd_proxy_disconnect_signals (McdProxy * proxy)
 					  proxy);
     g_signal_handlers_disconnect_by_func (priv->proxy_object,
 					  G_CALLBACK (mcd_mission_disconnect),
-					  proxy);
-    g_signal_handlers_disconnect_by_func (priv->proxy_object,
-					  G_CALLBACK (mcd_mission_set_flags),
-					  proxy);
-    g_signal_handlers_disconnect_by_func (priv->proxy_object,
-					  G_CALLBACK (mcd_mission_set_mode),
 					  proxy);
     g_signal_handlers_disconnect_by_func (priv->proxy_object,
 					  G_CALLBACK (_mcd_proxy_abort), proxy);

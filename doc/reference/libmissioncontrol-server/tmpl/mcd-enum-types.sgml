@@ -17,36 +17,6 @@ mcd-enum-types
 <!-- ##### SECTION Stability_Level ##### -->
 
 
-<!-- ##### FUNCTION mcd_mode_get_type ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
-
-<!-- ##### MACRO MCD_TYPE_MODE ##### -->
-<para>
-
-</para>
-
-
-
-<!-- ##### FUNCTION mcd_system_flags_get_type ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
-
-<!-- ##### MACRO MCD_TYPE_SYSTEM_FLAGS ##### -->
-<para>
-
-</para>
-
-
-
 <!-- ##### FUNCTION mcd_channel_status_get_type ##### -->
 <para>
 

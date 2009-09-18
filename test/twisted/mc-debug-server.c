@@ -66,6 +66,9 @@ on_abort (gpointer unused G_GNUC_UNUSED)
     mcd = NULL;
 }
 
+#define MCD_SYSTEM_MEMORY_CONSERVED (1 << 1)
+#define MCD_SYSTEM_IDLE (1 << 5)
+
 static DBusHandlerResult
 dbus_filter_function (DBusConnection *connection,
                       DBusMessage *message,
@@ -102,13 +105,27 @@ dbus_filter_function (DBusConnection *connection,
         }
       else
         {
-          McdMission *mission = MCD_MISSION (mcd_master_get_default ());
-          McdSystemFlags flags;
+          McdMaster *master = mcd_master_get_default ();
 
-          flags = mcd_mission_get_flags (mission);
-          flags |= set;
-          flags &= ~unset;
-          mcd_mission_set_flags (mission, flags);
+          if (set & MCD_SYSTEM_IDLE)
+            {
+              mcd_master_set_idle (master, TRUE);
+            }
+
+          if (set & MCD_SYSTEM_MEMORY_CONSERVED)
+            {
+              mcd_master_set_low_memory (master, TRUE);
+            }
+
+          if (unset & MCD_SYSTEM_IDLE)
+            {
+              mcd_master_set_idle (master, FALSE);
+            }
+
+          if (unset & MCD_SYSTEM_MEMORY_CONSERVED)
+            {
+              mcd_master_set_low_memory (master, FALSE);
+            }
 
           reply = dbus_message_new_method_return (message);
         }

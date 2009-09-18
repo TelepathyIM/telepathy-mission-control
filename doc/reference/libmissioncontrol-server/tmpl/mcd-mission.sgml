@@ -44,22 +44,6 @@ McdMission
 
 @mcdmission: the object which received the signal.
 
-<!-- ##### SIGNAL McdMission::flags-changed ##### -->
-<para>
-
-</para>
-
-@mcdmission: the object which received the signal.
-@arg1: 
-
-<!-- ##### SIGNAL McdMission::mode-set ##### -->
-<para>
-
-</para>
-
-@mcdmission: the object which received the signal.
-@arg1: 
-
 <!-- ##### SIGNAL McdMission::parent-set ##### -->
 <para>
 
@@ -67,77 +51,10 @@ McdMission
 
 @mcdmission: the object which received the signal.
 
-<!-- ##### ARG McdMission:mode ##### -->
-<para>
-
-</para>
-
 <!-- ##### ARG McdMission:parent ##### -->
 <para>
 
 </para>
-
-<!-- ##### ARG McdMission:system-flags ##### -->
-<para>
-
-</para>
-
-<!-- ##### MACRO MCD_MISSION_GET_FLAGS_MASKED ##### -->
-<para>
-
-</para>
-
-@mission: 
-@flags: 
-
-
-<!-- ##### MACRO MCD_MISSION_SET_FLAGS_MASKED ##### -->
-<para>
-
-</para>
-
-@mission: 
-@flags: 
-
-
-<!-- ##### MACRO MCD_MISSION_UNSET_FLAGS_MASKED ##### -->
-<para>
-
-</para>
-
-@mission: 
-@flags: 
-
-
-<!-- ##### ENUM McdMode ##### -->
-<para>
-
-</para>
-
-@MCD_MODE_UNKNOWN: 
-@MCD_MODE_NORMAL: 
-@MCD_MODE_RESTRICTED: 
-@MCD_MODE_CALL: 
-
-<!-- ##### ENUM McdSystemFlags ##### -->
-<para>
-
-</para>
-
-@MCD_SYSTEM_CONNECTED: 
-@MCD_SYSTEM_MEMORY_CONSERVED: 
-@MCD_SYSTEM_POWER_CONSERVED: 
-@MCD_SYSTEM_SCREEN_BLANKED: 
-@MCD_SYSTEM_LOCKED: 
-@MCD_SYSTEM_IDLE: 
-
-<!-- ##### FUNCTION mcd_mission_new ##### -->
-<para>
-
-</para>
-
-@Returns: 
-
 
 <!-- ##### FUNCTION mcd_mission_is_connected ##### -->
 <para>
@@ -165,15 +82,6 @@ McdMission
 @mission: 
 
 
-<!-- ##### FUNCTION mcd_mission_set_parent ##### -->
-<para>
-
-</para>
-
-@mission: 
-@parent: 
-
-
 <!-- ##### FUNCTION mcd_mission_connect ##### -->
 <para>
 
@@ -188,41 +96,5 @@ McdMission
 </para>
 
 @mission: 
-
-
-<!-- ##### FUNCTION mcd_mission_set_flags ##### -->
-<para>
-
-</para>
-
-@mission: 
-@flags: 
-
-
-<!-- ##### FUNCTION mcd_mission_get_flags ##### -->
-<para>
-
-</para>
-
-@mission: 
-@Returns: 
-
-
-<!-- ##### FUNCTION mcd_mission_set_mode ##### -->
-<para>
-
-</para>
-
-@mission: 
-@mode: 
-
-
-<!-- ##### FUNCTION mcd_mission_get_mode ##### -->
-<para>
-
-</para>
-
-@mission: 
-@Returns: 
 
 

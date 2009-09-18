@@ -39,33 +39,6 @@ G_BEGIN_DECLS
 #define MCD_IS_MISSION_CLASS(k)  (G_TYPE_CHECK_CLASS_TYPE ((k), MCD_TYPE_MISSION))
 #define MCD_MISSION_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), MCD_TYPE_MISSION, McdMissionClass))
 
-#define MCD_MISSION_GET_FLAGS_MASKED(mission, flags) \
-    (mcd_mission_get_flags (mission) & flags)
-
-#define MCD_MISSION_SET_FLAGS_MASKED(mission, flags) \
-    (mcd_mission_set_flags (mission, mcd_mission_get_flags (mission) | flags))
-
-#define MCD_MISSION_UNSET_FLAGS_MASKED(mission, flags) \
-    (mcd_mission_set_flags (mission, mcd_mission_get_flags (mission) & (~flags)))
-
-typedef enum
-{
-    MCD_MODE_UNKNOWN,
-    MCD_MODE_NORMAL,
-    MCD_MODE_RESTRICTED,
-    MCD_MODE_CALL
-} McdMode;
-
-typedef enum
-{
-    MCD_SYSTEM_CONNECTED          = 1,
-    MCD_SYSTEM_MEMORY_CONSERVED   = 1 << 1,
-    MCD_SYSTEM_POWER_CONSERVED    = 1 << 2,
-    MCD_SYSTEM_SCREEN_BLANKED     = 1 << 3,
-    MCD_SYSTEM_LOCKED             = 1 << 4,
-    MCD_SYSTEM_IDLE               = 1 << 5
-} McdSystemFlags;
-
 typedef struct _McdMission McdMission;
 typedef struct _McdMissionClass McdMissionClass;
 
@@ -83,44 +56,36 @@ struct _McdMissionClass
     void (*connected_signal) (McdMission * mission);
     void (*disconnected_signal) (McdMission * mission);
     
-    void (*flags_changed_signal) (McdMission *mission, McdSystemFlags flags);
-    void (*mode_set_signal) (McdMission * mission, McdMode mode);
+    void (*_former_flags_changed_signal) (void);
+    void (*_former_mode_set_signal) (void);
 
     void (*abort_signal) (McdMission * mission);
     
     /* Virtual methods */
-    void (*set_parent) (McdMission * mission, McdMission * parent);
+    void (*_former_set_parent) (void);
     
     void (*connect) (McdMission * mission);
     void (*disconnect) (McdMission * mission);
     
-    void (*set_flags) (McdMission *mission, McdSystemFlags flags);
-    McdSystemFlags (*get_flags) (McdMission *mission);
+    void (*_former_set_flags) (void);
+    void (*_former_get_flags) (void);
     
-    void (*set_mode) (McdMission * mission, McdMode mode);
-    McdMode (*get_mode) (McdMission * mission);
+    void (*_former_set_mode) (void);
+    void (*_former_get_mode) (void);
     
     void (*abort) (McdMission * mission);
 };
 
 GType mcd_mission_get_type (void);
-McdMission *mcd_mission_new (void);
 
 gboolean mcd_mission_is_connected (McdMission * mission);
 
 McdMission *mcd_mission_get_parent (McdMission * mission);
 
 void mcd_mission_abort (McdMission * mission);
-void mcd_mission_set_parent (McdMission * mission, McdMission * parent);
 
 void mcd_mission_connect (McdMission * mission);
 void mcd_mission_disconnect (McdMission * mission);
-
-void mcd_mission_set_flags (McdMission * mission, McdSystemFlags flags);
-McdSystemFlags mcd_mission_get_flags (McdMission * mission);
-
-void mcd_mission_set_mode (McdMission * mission, McdMode mode);
-McdMode mcd_mission_get_mode (McdMission * mission);
 
 G_END_DECLS
 #endif /* MCD_MISSION_H */
