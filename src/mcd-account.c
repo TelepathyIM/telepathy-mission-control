@@ -2403,7 +2403,12 @@ set_parameters_iter_param (McdAccount *account,
         {
             g_ptr_array_add (data->not_yet, g_strdup (data->param->name));
         }
+    }
 
+    if (account != NULL)
+    {
+        /* Regardless of whether the parameter changed or not, move on
+         * one parameter so we don't get in recursivey death. */
         data->param++;
     }
 
