@@ -1862,8 +1862,17 @@ _mcd_connection_dispose (GObject * object)
 
     priv->is_disposed = TRUE;
 
-    /* Remove any pending source: timer and idle */
-    g_source_remove_by_user_data (connection);
+    if (priv->probation_timer)
+    {
+        g_source_remove (priv->probation_timer);
+        priv->probation_timer = 0;
+    }
+
+    if (priv->reconnect_timer)
+    {
+        g_source_remove (priv->reconnect_timer);
+        priv->reconnect_timer = 0;
+    }
 
     mcd_operation_foreach (MCD_OPERATION (connection),
 			   (GFunc) _foreach_channel_remove, connection);
