@@ -91,18 +91,21 @@ _mcd_client_proxy_get_unique_name (McdClientProxy *self)
     return self->priv->unique_name;
 }
 
-static gboolean
-mcd_client_proxy_emit_ready (gpointer data)
+static void
+mcd_client_proxy_emit_ready (McdClientProxy *self)
 {
-    McdClientProxy *self = data;
-
     if (self->priv->ready)
-        return FALSE;
+        return;
 
     self->priv->ready = TRUE;
 
     g_signal_emit (self, signals[S_READY], 0);
+}
 
+static gboolean
+mcd_client_proxy_introspect (gpointer data)
+{
+    mcd_client_proxy_emit_ready (data);
     return FALSE;
 }
 
@@ -126,7 +129,7 @@ mcd_client_proxy_unique_name_cb (TpDBusDaemon *dbus_daemon,
         _mcd_client_proxy_set_active (self, unique_name);
     }
 
-    mcd_client_proxy_emit_ready (self);
+    mcd_client_proxy_introspect (self);
 }
 
 static void
@@ -185,7 +188,7 @@ mcd_client_proxy_constructed (GObject *object)
     }
     else
     {
-        g_idle_add_full (G_PRIORITY_HIGH, mcd_client_proxy_emit_ready,
+        g_idle_add_full (G_PRIORITY_HIGH, mcd_client_proxy_introspect,
                          g_object_ref (self), g_object_unref);
     }
 }
