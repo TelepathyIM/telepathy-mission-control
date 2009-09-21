@@ -2463,8 +2463,8 @@ finally:
 }
 
 static void
-parse_client_file (McdDispatcher *self,
-                   McdClient *client,
+parse_client_file (McdClient *client,
+                   TpHandleRepoIface *string_pool,
                    GKeyFile *file)
 {
     gchar **iface_names, **groups, **cap_tokens;
@@ -2529,7 +2529,7 @@ parse_client_file (McdDispatcher *self,
                                       TP_IFACE_CLIENT_HANDLER ".Capabilities",
                                       NULL,
                                       NULL);
-    mcd_client_add_cap_tokens (client, self->priv->string_pool,
+    mcd_client_add_cap_tokens (client, string_pool,
                                (const gchar * const *) cap_tokens);
     g_strfreev (cap_tokens);
 }
@@ -2644,7 +2644,7 @@ mcd_client_start_introspection (McdClientProxy *proxy,
         if (G_LIKELY (!error))
         {
             DEBUG ("File found for %s: %s", client->name, filename);
-            parse_client_file (dispatcher, client, file);
+            parse_client_file (client, dispatcher->priv->string_pool, file);
             file_found = TRUE;
         }
         else
