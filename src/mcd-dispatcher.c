@@ -2202,7 +2202,7 @@ finally:
  * tp_asv_get_boxed */
 static void
 mcd_client_add_cap_tokens (McdClient *client,
-                           McdDispatcher *dispatcher,
+                           TpHandleRepoIface *string_pool,
                            const gchar * const *cap_tokens)
 {
     guint i;
@@ -2212,11 +2212,11 @@ mcd_client_add_cap_tokens (McdClient *client,
 
     for (i = 0; cap_tokens[i] != NULL; i++)
     {
-        TpHandle handle = tp_handle_ensure (dispatcher->priv->string_pool,
+        TpHandle handle = tp_handle_ensure (string_pool,
                                             cap_tokens[i], NULL, NULL);
 
         tp_handle_set_add (client->capability_tokens, handle);
-        tp_handle_unref (dispatcher->priv->string_pool, handle);
+        tp_handle_unref (string_pool, handle);
     }
 }
 
@@ -2305,7 +2305,7 @@ handler_get_all_cb (TpProxy *proxy,
     DEBUG ("%s has BypassApproval=%c", client->name,
            client->bypass_approver ? 'T' : 'F');
 
-    mcd_client_add_cap_tokens (client, self,
+    mcd_client_add_cap_tokens (client, self->priv->string_pool,
                                tp_asv_get_boxed (properties, "Capabilities",
                                                  G_TYPE_STRV));
 
@@ -2529,7 +2529,7 @@ parse_client_file (McdDispatcher *self,
                                       TP_IFACE_CLIENT_HANDLER ".Capabilities",
                                       NULL,
                                       NULL);
-    mcd_client_add_cap_tokens (client, self,
+    mcd_client_add_cap_tokens (client, self->priv->string_pool,
                                (const gchar * const *) cap_tokens);
     g_strfreev (cap_tokens);
 }
