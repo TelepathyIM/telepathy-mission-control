@@ -2604,7 +2604,7 @@ create_mcd_client (McdDispatcher *self,
     client->capability_tokens = tp_handle_set_new (self->priv->string_pool);
 
     client->proxy = (TpClient *) _mcd_client_proxy_new (
-        self->priv->dbus_daemon, client->name, owner);
+        self->priv->dbus_daemon, self->priv->string_pool, client->name, owner);
 
     DEBUG ("McdClient created for %s", name);
 

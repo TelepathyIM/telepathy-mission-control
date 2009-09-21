@@ -30,6 +30,7 @@
 #include <glib-object.h>
 
 #include <telepathy-glib/client.h>
+#include <telepathy-glib/handle-repo.h>
 
 G_BEGIN_DECLS
 
@@ -67,8 +68,8 @@ G_GNUC_INTERNAL GType _mcd_client_proxy_get_type (void);
                               McdClientProxyClass))
 
 G_GNUC_INTERNAL McdClientProxy *_mcd_client_proxy_new (
-    TpDBusDaemon *dbus_daemon, const gchar *name_suffix,
-    const gchar *unique_name_if_known);
+    TpDBusDaemon *dbus_daemon, TpHandleRepoIface *string_pool,
+    const gchar *name_suffix, const gchar *unique_name_if_known);
 
 G_GNUC_INTERNAL gboolean _mcd_client_check_valid_name (
     const gchar *name_suffix, GError **error);

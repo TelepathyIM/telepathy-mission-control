@@ -38,6 +38,7 @@ G_DEFINE_TYPE (McdClientProxy, _mcd_client_proxy, TP_TYPE_CLIENT);
 enum
 {
     PROP_0,
+    PROP_STRING_POOL,
     PROP_UNIQUE_NAME,
 };
 
@@ -51,6 +52,7 @@ static guint signals[N_SIGNALS] = { 0 };
 
 struct _McdClientProxyPrivate
 {
+    TpHandleRepoIface *string_pool;
     gchar *unique_name;
     gboolean ready;
 };
@@ -120,6 +122,25 @@ mcd_client_proxy_unique_name_cb (TpDBusDaemon *dbus_daemon,
 }
 
 static void
+mcd_client_proxy_dispose (GObject *object)
+{
+    McdClientProxy *self = MCD_CLIENT_PROXY (object);
+    void (*chain_up) (GObject *) =
+        ((GObjectClass *) _mcd_client_proxy_parent_class)->dispose;
+
+    if (self->priv->string_pool != NULL)
+    {
+        g_object_unref (self->priv->string_pool);
+        self->priv->string_pool = NULL;
+    }
+
+    if (chain_up != NULL)
+    {
+        chain_up (object);
+    }
+}
+
+static void
 mcd_client_proxy_finalize (GObject *object)
 {
     McdClientProxy *self = MCD_CLIENT_PROXY (object);
@@ -171,6 +192,11 @@ mcd_client_proxy_set_property (GObject *object,
 
     switch (property)
     {
+        case PROP_STRING_POOL:
+            g_assert (self->priv->string_pool == NULL);
+            self->priv->string_pool = g_value_dup_object (value);
+            break;
+
         case PROP_UNIQUE_NAME:
             g_assert (self->priv->unique_name == NULL);
             self->priv->unique_name = g_value_dup_string (value);
@@ -189,6 +215,7 @@ _mcd_client_proxy_class_init (McdClientProxyClass *klass)
     g_type_class_add_private (object_class, sizeof (McdClientProxyPrivate));
 
     object_class->constructed = mcd_client_proxy_constructed;
+    object_class->dispose = mcd_client_proxy_dispose;
     object_class->finalize = mcd_client_proxy_finalize;
     object_class->set_property = mcd_client_proxy_set_property;
 
@@ -197,6 +224,14 @@ _mcd_client_proxy_class_init (McdClientProxyClass *klass)
                                      0, NULL, NULL,
                                      g_cclosure_marshal_VOID__VOID,
                                      G_TYPE_NONE, 0);
+
+    g_object_class_install_property (object_class, PROP_STRING_POOL,
+        g_param_spec_object ("string-pool", "String pool",
+            "TpHandleRepoIface used to intern strings representing capability "
+            "tokens",
+            G_TYPE_OBJECT,
+            G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY |
+            G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property (object_class, PROP_UNIQUE_NAME,
         g_param_spec_string ("unique-name", "Unique name",
@@ -264,6 +299,7 @@ _mcd_client_check_valid_name (const gchar *name_suffix,
 
 McdClientProxy *
 _mcd_client_proxy_new (TpDBusDaemon *dbus_daemon,
+                       TpHandleRepoIface *string_pool,
                        const gchar *name_suffix,
                        const gchar *unique_name_if_known)
 {
@@ -284,6 +320,7 @@ _mcd_client_proxy_new (TpDBusDaemon *dbus_daemon,
 
     self = g_object_new (MCD_TYPE_CLIENT_PROXY,
                          "dbus-daemon", dbus_daemon,
+                         "string-pool", string_pool,
                          "object-path", object_path,
                          "bus-name", bus_name,
                          "unique-name", unique_name_if_known,
