@@ -2137,6 +2137,7 @@ check_parameters_get_param_cb (McdAccount *account, const GValue *value,
     if ((account != NULL && value == NULL) || error != NULL)
     {
         data->callback (data->account, FALSE, data->user_data);
+        g_slice_free (CheckParameterData, data);
     }
     else
     {
