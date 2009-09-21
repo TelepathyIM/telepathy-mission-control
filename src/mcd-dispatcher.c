@@ -286,7 +286,6 @@ enum _McdDispatcherSignalType
 };
 
 static guint signals[LAST_SIGNAL] = { 0 };
-static GQuark client_ready_quark = 0;
 
 static void mcd_dispatcher_context_unref (McdDispatcherContext * ctx,
                                           const gchar *tag);
@@ -368,11 +367,6 @@ mcd_client_free (McdClient *client)
 {
     if (client->proxy)
     {
-        GError error = { TP_DBUS_ERRORS,
-            TP_DBUS_ERROR_NAME_OWNER_LOST, "Client disappeared" };
-
-        _mcd_object_ready (client->proxy, client_ready_quark, &error);
-
         g_object_unref (client->proxy);
     }
 
@@ -3068,8 +3062,6 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
                              "A dbus-glib a(oa{sv})",
                              TP_ARRAY_TYPE_DISPATCH_OPERATION_DETAILS_LIST,
                              G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
-
-    client_ready_quark = g_quark_from_static_string ("mcd_client_ready");
 
     klass->dbus_properties_class.interfaces = prop_interfaces,
     tp_dbus_properties_mixin_class_init (object_class,
