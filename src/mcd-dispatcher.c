@@ -170,7 +170,6 @@ typedef struct _McdClient
      * removed when it disappear from the bus.
      */
     guint activatable : 1;
-    guint active : 1;
 
     /* Channel filters
      * A channel filter is a GHashTable of
@@ -2592,8 +2591,6 @@ create_mcd_client (McdDispatcher *self,
     client = g_slice_new0 (McdClient);
     client->name = g_strdup (name + MC_CLIENT_BUS_NAME_BASE_LEN);
     client->activatable = activatable;
-    if (!activatable)
-        client->active = TRUE;
 
     client->capability_tokens = tp_handle_set_new (self->priv->string_pool);
 
@@ -2738,7 +2735,6 @@ mcd_dispatcher_add_client (McdDispatcher *self,
         {
             _mcd_client_proxy_set_active ((McdClientProxy *) client->proxy,
                                           owner);
-            client->active = TRUE;
         }
 
         return;
@@ -2879,7 +2875,6 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
 
         if (client)
         {
-            client->active = FALSE;
             _mcd_client_proxy_set_inactive ((McdClientProxy *) client->proxy);
 
             if (!client->activatable)
