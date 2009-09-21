@@ -1585,11 +1585,11 @@ on_operation_finished (McdDispatchOperation *operation,
     mcd_dispatcher_context_unref (context, "CTXREF15");
 }
 
-/* ownership of channels, possible_handlers is stolen */
+/* ownership of @channels is stolen */
 static void
 _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
                                      GList *channels,
-                                     GStrv possible_handlers,
+                                     const gchar * const *possible_handlers,
                                      gboolean requested)
 {
     McdDispatcherContext *context;
@@ -1635,8 +1635,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 
     context->operation = _mcd_dispatch_operation_new (priv->dbus_daemon,
         !requested, channels, (const gchar * const *) possible_handlers);
-
-    g_strfreev (possible_handlers);
 
     if (requested)
     {
@@ -3777,8 +3775,10 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
                                      MCD_CHANNEL_STATUS_DISPATCHING);
 
         _mcd_dispatcher_enter_state_machine (dispatcher, channels,
-                                             possible_handlers, requested);
+            (const gchar * const *) possible_handlers, requested);
     }
+
+    g_strfreev (possible_handlers);
 }
 
 /**
