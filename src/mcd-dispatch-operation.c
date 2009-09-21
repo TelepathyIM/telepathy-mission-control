@@ -578,7 +578,7 @@ McdDispatchOperation *
 _mcd_dispatch_operation_new (TpDBusDaemon *dbus_daemon,
                              gboolean needs_approval,
                              GList *channels,
-                             const GStrv possible_handlers)
+                             const gchar * const *possible_handlers)
 {
     gpointer *obj;
     obj = g_object_new (MCD_TYPE_DISPATCH_OPERATION,
@@ -691,6 +691,13 @@ _mcd_dispatch_operation_is_finished (McdDispatchOperation *self)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
     return self->priv->finished;
+}
+
+const gchar * const *
+_mcd_dispatch_operation_get_possible_handlers (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), NULL);
+    return (const gchar * const *) self->priv->possible_handlers;
 }
 
 /*

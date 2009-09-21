@@ -71,7 +71,7 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_approve
 
 G_GNUC_INTERNAL McdDispatchOperation *_mcd_dispatch_operation_new (
     TpDBusDaemon *dbus_daemon, gboolean needs_approval, GList *channels,
-    GStrv possible_handlers);
+    const gchar * const *possible_handlers);
 G_GNUC_INTERNAL void _mcd_dispatch_operation_lose_channel (
     McdDispatchOperation *self, McdChannel *channel, GList **channels);
 
@@ -88,6 +88,9 @@ G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_claimer (
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_finish (
     McdDispatchOperation *operation);
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_needs_approval (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL
+const gchar * const *_mcd_dispatch_operation_get_possible_handlers (
     McdDispatchOperation *self);
 
 G_END_DECLS

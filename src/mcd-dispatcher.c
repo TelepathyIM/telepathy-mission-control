@@ -120,8 +120,6 @@ struct _McdDispatcherContext
     GList *channels;
     McdAccount *account;
     McdDispatchOperation *operation;
-    /* bus names (including the common prefix) in preference order */
-    GStrv possible_handlers;
 
     /* set of handlers we already tried
      * dup'd bus name (string) => arbitrary non-NULL pointer */
@@ -974,7 +972,8 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
 {
     McdDispatcher *self = context->dispatcher;
     GList *channels, *list;
-    gchar **iter;
+    const gchar * const *possible_handlers;
+    const gchar * const *iter;
     const gchar *approved_handler = _mcd_dispatch_operation_get_handler (
         context->operation);
 
@@ -1025,9 +1024,10 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
          * yet arrived, so try to recover by dispatching to *something*. */
     }
 
-    g_assert (context->possible_handlers != NULL);
+    possible_handlers = _mcd_dispatch_operation_get_possible_handlers (
+        context->operation);
 
-    for (iter = context->possible_handlers; *iter != NULL; iter++)
+    for (iter = possible_handlers; iter != NULL && *iter != NULL; iter++)
     {
         McdClient *handler = g_hash_table_lookup (self->priv->clients, *iter);
         gboolean failed = (g_hash_table_lookup (context->failed_handlers,
@@ -1378,11 +1378,13 @@ static gboolean
 handlers_can_bypass_approval (McdDispatcherContext *context)
 {
     McdDispatcher *self = context->dispatcher;
-    gchar **iter;
+    const gchar * const *possible_handlers;
+    const gchar * const *iter;
 
-    g_assert (context->possible_handlers != NULL);
+    possible_handlers = _mcd_dispatch_operation_get_possible_handlers (
+        context->operation);
 
-    for (iter = context->possible_handlers; *iter != NULL; iter++)
+    for (iter = possible_handlers; iter != NULL && *iter != NULL; iter++)
     {
         McdClient *handler = g_hash_table_lookup (self->priv->clients,
                                                   *iter);
@@ -1617,7 +1619,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     context->account = account;
     context->channels = channels;
     context->chain = priv->filters;
-    context->possible_handlers = possible_handlers;
 
     DEBUG ("new dispatcher context %p for %s channel %p (%s): %s",
            context, requested ? "requested" : "unrequested",
@@ -1632,9 +1633,10 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
      * perhaps we should act as though they're all unRequested, or split up the
      * bundle? */
 
-    context->operation =
-        _mcd_dispatch_operation_new (priv->dbus_daemon, !requested, channels,
-                                     possible_handlers);
+    context->operation = _mcd_dispatch_operation_new (priv->dbus_daemon,
+        !requested, channels, (const gchar * const *) possible_handlers);
+
+    g_strfreev (possible_handlers);
 
     if (requested)
     {
@@ -3376,8 +3378,6 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
         {
             g_hash_table_destroy (context->failed_handlers);
         }
-
-        g_strfreev (context->possible_handlers);
         g_free (context->protocol);
         g_free (context);
     }
@@ -3849,6 +3849,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
 {
     McdDispatcherContext *context;
     GList *list;
+    GStrv possible_handlers;
 
     /* Preparing and filling the context */
     context = g_new0 (McdDispatcherContext, 1);
@@ -3859,13 +3860,15 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     context->account = mcd_channel_get_account (channel);
 
     list = g_list_append (NULL, channel);
-    context->possible_handlers = mcd_dispatcher_get_possible_handlers (
-        dispatcher, list);
+    possible_handlers = mcd_dispatcher_get_possible_handlers (dispatcher,
+                                                              list);
     g_list_free (list);
 
     context->operation = _mcd_dispatch_operation_new (
         dispatcher->priv->dbus_daemon, FALSE, context->channels,
-        context->possible_handlers);
+        (const gchar * const *) possible_handlers);
+
+    g_strfreev (possible_handlers);
 
     /* We must ref() the channel, because
      * mcd_dispatcher_context_unref() will unref() it */
