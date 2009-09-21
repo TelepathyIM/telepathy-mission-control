@@ -84,6 +84,10 @@ struct _McdDispatchOperationPrivate
      * but we're inaccessible. */
     guint needs_approval : 1;
 
+    /* set of handlers we already tried
+     * dup'd bus name (string) => arbitrary non-NULL pointer */
+    GHashTable *failed_handlers;
+
     /* Results */
     guint finished : 1;
     gchar *handler;
@@ -470,6 +474,11 @@ mcd_dispatch_operation_finalize (GObject *object)
 
     if (priv->properties)
         g_hash_table_unref (priv->properties);
+
+    if (priv->failed_handlers != NULL)
+    {
+        g_hash_table_unref (priv->failed_handlers);
+    }
 
     g_free (priv->handler);
     g_free (priv->object_path);
@@ -889,4 +898,40 @@ _mcd_dispatch_operation_unblock_finished (McdDispatchOperation *self)
             mcd_dispatch_operation_actually_finish (self);
         }
     }
+}
+
+void
+_mcd_dispatch_operation_set_handler_failed (McdDispatchOperation *self,
+                                            const gchar *bus_name)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    g_return_if_fail (bus_name != NULL);
+
+    if (self->priv->failed_handlers == NULL)
+    {
+        self->priv->failed_handlers = g_hash_table_new_full (g_str_hash,
+                                                             g_str_equal,
+                                                             g_free, NULL);
+    }
+
+    /* the value is an arbitrary non-NULL pointer - the hash table itself
+     * will do nicely */
+    g_hash_table_insert (self->priv->failed_handlers, g_strdup (bus_name),
+                         self->priv->failed_handlers);
+}
+
+gboolean
+_mcd_dispatch_operation_get_handler_failed (McdDispatchOperation *self,
+                                            const gchar *bus_name)
+{
+    /* return TRUE on error so we can't get an infinite loop of trying the
+     * same handler */
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), TRUE);
+    g_return_val_if_fail (bus_name != NULL, TRUE);
+
+    if (self->priv->failed_handlers == NULL)
+        return FALSE;
+
+    return (g_hash_table_lookup (self->priv->failed_handlers, bus_name)
+            != NULL);
 }

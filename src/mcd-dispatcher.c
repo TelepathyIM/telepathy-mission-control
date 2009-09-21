@@ -121,10 +121,6 @@ struct _McdDispatcherContext
     McdAccount *account;
     McdDispatchOperation *operation;
 
-    /* set of handlers we already tried
-     * dup'd bus name (string) => arbitrary non-NULL pointer */
-    GHashTable *failed_handlers;
-
     /* The number of observers that have not yet returned from ObserveChannels.
      * Until they have done so, we can't allow the dispatch operation to
      * finish. This is a client lock.
@@ -696,15 +692,8 @@ handle_channels_cb (TpClient *proxy, const GError *error, gpointer user_data,
     {
         DEBUG ("error: %s", error->message);
 
-        /* we created this in mcd_dispatcher_run_handlers, so it had better
-         * exist */
-        g_assert (context->failed_handlers != NULL);
-
-         /* the value is an arbitrary non-NULL pointer - the hash table itself
-          * will do nicely */
-        g_hash_table_insert (context->failed_handlers,
-                             g_strdup (tp_proxy_get_bus_name (proxy)),
-                             context->failed_handlers);
+        _mcd_dispatch_operation_set_handler_failed (context->operation,
+            tp_proxy_get_bus_name (proxy));
 
         /* try again */
         mcd_dispatcher_run_handlers (context);
@@ -980,13 +969,6 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
     sp_timestamp ("run handlers");
     mcd_dispatcher_context_ref (context, "CTXREF04");
 
-    if (context->failed_handlers == NULL)
-    {
-        context->failed_handlers = g_hash_table_new_full (g_str_hash,
-                                                          g_str_equal,
-                                                          g_free, NULL);
-    }
-
     /* mcd_dispatcher_handle_channels steals this list */
     channels = g_list_copy (context->channels);
 
@@ -999,8 +981,8 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
                                        approved_handler, NULL);
         McdClient *handler = g_hash_table_lookup (self->priv->clients,
                                                   bus_name);
-        gboolean failed = (g_hash_table_lookup (context->failed_handlers,
-                                                bus_name) != NULL);
+        gboolean failed = _mcd_dispatch_operation_get_handler_failed
+            (context->operation, bus_name);
 
         DEBUG ("Approved handler is %s (still exists: %c, "
                "already failed: %c)", bus_name,
@@ -1030,8 +1012,8 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
     for (iter = possible_handlers; iter != NULL && *iter != NULL; iter++)
     {
         McdClient *handler = g_hash_table_lookup (self->priv->clients, *iter);
-        gboolean failed = (g_hash_table_lookup (context->failed_handlers,
-                                                *iter) != NULL);
+        gboolean failed = _mcd_dispatch_operation_get_handler_failed
+            (context->operation, *iter);
 
         DEBUG ("Possible handler: %s (still exists: %c, already failed: %c)",
                *iter, handler != NULL ? 'Y' : 'N', failed ? 'Y' : 'N');
@@ -3372,10 +3354,6 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
         priv = MCD_DISPATCHER_PRIV (context->dispatcher);
         priv->contexts = g_list_remove (priv->contexts, context);
 
-        if (context->failed_handlers != NULL)
-        {
-            g_hash_table_destroy (context->failed_handlers);
-        }
         g_free (context->protocol);
         g_free (context);
     }
