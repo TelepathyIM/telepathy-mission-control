@@ -3476,8 +3476,7 @@ mcd_dispatcher_context_get_channel_by_type (McdDispatcherContext *context,
 }
 
 GPtrArray *
-_mcd_dispatcher_get_channel_capabilities (McdDispatcher *dispatcher,
-                                          const gchar *protocol)
+_mcd_dispatcher_get_channel_capabilities (McdDispatcher *dispatcher)
 {
     McdDispatcherPrivate *priv = dispatcher->priv;
     GPtrArray *channel_handler_caps;

@@ -586,7 +586,6 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
     GPtrArray *capabilities;
     const gchar *removed = NULL;
-    const gchar *protocol_name;
     GType type;
     guint i;
 
@@ -601,9 +600,7 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
         DEBUG ("connection does not support capabilities interface");
 	return;
     }
-    protocol_name = mcd_account_get_protocol_name (priv->account);
-    capabilities = _mcd_dispatcher_get_channel_capabilities (priv->dispatcher,
-                                                             protocol_name);
+    capabilities = _mcd_dispatcher_get_channel_capabilities (priv->dispatcher);
     DEBUG ("advertising capabilities");
     tp_cli_connection_interface_capabilities_call_advertise_capabilities (priv->tp_conn, -1,
 									  capabilities,
