@@ -876,15 +876,12 @@ mcd_dispatcher_get_possible_handlers (McdDispatcher *self,
 /*
  * mcd_dispatcher_handle_channels:
  * @context: the #McdDispatcherContext
- * @channels: a #GList of borrowed refs to #McdChannel objects, ownership of
- *  which is stolen by this function
  * @handler: the selected handler
  *
  * Invoke the handler for the given channels.
  */
 static void
 mcd_dispatcher_handle_channels (McdDispatcherContext *context,
-                                GList *channels,
                                 McdClient *handler)
 {
     guint64 user_action_time;
@@ -893,6 +890,7 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
     GPtrArray *channels_array, *satisfied_requests;
     McdHandlerCallData *handler_data;
     GHashTable *handler_info;
+    GList *channels;
     const GList *cl;
 
     connection = mcd_dispatcher_context_get_connection (context);
@@ -902,6 +900,9 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
 
     account_path = _mcd_dispatch_operation_get_account_path
         (context->operation);
+
+    /* we consume this copy by putting it in the McdHandlerCallData */
+    channels = g_list_copy (context->channels);
 
     channels_array = _mcd_channel_details_build_from_list (channels);
 
@@ -967,9 +968,6 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
     sp_timestamp ("run handlers");
     mcd_dispatcher_context_ref (context, "CTXREF04");
 
-    /* mcd_dispatcher_handle_channels steals this list */
-    channels = g_list_copy (context->channels);
-
     /* If there is an approved handler chosen by the Approver, it's the only
      * one we'll consider. */
 
@@ -993,7 +991,7 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
          * already tried it? Otherwise, it's the right choice. */
         if (handler != NULL && !failed)
         {
-            mcd_dispatcher_handle_channels (context, channels, handler);
+            mcd_dispatcher_handle_channels (context, handler);
             goto finally;
         }
 
@@ -1018,7 +1016,7 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
 
         if (handler != NULL && !failed)
         {
-            mcd_dispatcher_handle_channels (context, channels, handler);
+            mcd_dispatcher_handle_channels (context, handler);
             goto finally;
         }
     }
@@ -1031,6 +1029,8 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
 
     DEBUG ("No possible handler still exists, giving up");
 
+    channels = g_list_copy (context->channels);
+
     for (list = channels; list != NULL; list = list->next)
     {
         McdChannel *channel = MCD_CHANNEL (list->data);
@@ -1041,6 +1041,7 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
         g_signal_emit_by_name (self, "dispatch-failed", channel, &e);
         _mcd_channel_undispatchable (channel);
     }
+
     g_list_free (channels);
 
 finally:
