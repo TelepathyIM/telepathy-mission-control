@@ -163,7 +163,6 @@ typedef struct _McdClient
 {
     McdClientProxy *proxy;
     McdClientInterface interfaces;
-    guint bypass_approver : 1;
 
     /* Handler.Capabilities, represented as handles taken from
      * dispatcher->priv->string_pool */
@@ -707,6 +706,7 @@ handle_channels_cb (TpClient *proxy, const GError *error, gpointer user_data,
 typedef struct
 {
     McdClient *client;
+    gboolean bypass;
     gsize quality;
 } PossibleHandler;
 
@@ -717,15 +717,15 @@ possible_handler_cmp (gconstpointer a_,
     const PossibleHandler *a = a_;
     const PossibleHandler *b = b_;
 
-    if (a->client->bypass_approver)
+    if (a->bypass)
     {
-        if (!b->client->bypass_approver)
+        if (!b->bypass)
         {
             /* BypassApproval wins, so a is better than b */
             return 1;
         }
     }
-    else if (b->client->bypass_approver)
+    else if (b->bypass)
     {
         /* BypassApproval wins, so b is better than a */
         return -1;
@@ -795,6 +795,7 @@ mcd_dispatcher_get_possible_handlers (McdDispatcher *self,
             PossibleHandler *ph = g_slice_new0 (PossibleHandler);
 
             ph->client = client;
+            ph->bypass = _mcd_client_proxy_get_bypass_approval (client->proxy);
             ph->quality = total_quality;
 
             handlers = g_list_prepend (handlers, ph);
@@ -1341,9 +1342,11 @@ handlers_can_bypass_approval (McdDispatcherContext *context)
          * approval, no handler bypasses approval. */
         if (handler != NULL)
         {
-            DEBUG ("%s has BypassApproval=%c", *iter,
-                   handler->bypass_approver ? 'T' : 'F');
-            return handler->bypass_approver;
+            gboolean bypass = _mcd_client_proxy_get_bypass_approval (
+                handler->proxy);
+
+            DEBUG ("%s has BypassApproval=%c", *iter, bypass ? 'T' : 'F');
+            return bypass;
         }
     }
 
@@ -2226,6 +2229,7 @@ handler_get_all_cb (TpProxy *proxy,
     const gchar *bus_name = tp_proxy_get_bus_name (proxy);
     GPtrArray *filters, *channels;
     const gchar *unique_name;
+    gboolean bypass;
 
     if (error != NULL)
     {
@@ -2260,10 +2264,9 @@ handler_get_all_cb (TpProxy *proxy,
     }
 
     /* if wrong type or absent, assuming False is reasonable */
-    client->bypass_approver = tp_asv_get_boolean (properties, "BypassApproval",
-                                                  NULL);
-    DEBUG ("%s has BypassApproval=%c", bus_name,
-           client->bypass_approver ? 'T' : 'F');
+    bypass = tp_asv_get_boolean (properties, "BypassApproval", NULL);
+    _mcd_client_proxy_set_bypass_approval (client->proxy, bypass);
+    DEBUG ("%s has BypassApproval=%c", bus_name, bypass ? 'T' : 'F');
 
     mcd_client_add_cap_tokens (client, self->priv->string_pool,
                                tp_asv_get_boxed (properties, "Capabilities",
@@ -2433,6 +2436,7 @@ parse_client_file (McdClient *client,
     GList *approver_filters = NULL;
     GList *observer_filters = NULL;
     GList *handler_filters = NULL;
+    gboolean bypass;
 
     iface_names = g_key_file_get_string_list (file, TP_IFACE_CLIENT,
                                               "Interfaces", 0, NULL);
@@ -2491,9 +2495,9 @@ parse_client_file (McdClient *client,
                                             handler_filters);
 
     /* Other client options */
-    client->bypass_approver =
-        g_key_file_get_boolean (file, TP_IFACE_CLIENT_HANDLER,
-                                "BypassApproval", NULL);
+    bypass = g_key_file_get_boolean (file, TP_IFACE_CLIENT_HANDLER,
+                                     "BypassApproval", NULL);
+    _mcd_client_proxy_set_bypass_approval (client->proxy, bypass);
 
     cap_tokens = g_key_file_get_keys (file,
                                       TP_IFACE_CLIENT_HANDLER ".Capabilities",

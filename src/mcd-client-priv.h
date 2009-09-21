@@ -97,6 +97,8 @@ G_GNUC_INTERNAL const GList *_mcd_client_proxy_get_observer_filters
     (McdClientProxy *self);
 G_GNUC_INTERNAL const GList *_mcd_client_proxy_get_handler_filters
     (McdClientProxy *self);
+G_GNUC_INTERNAL gboolean _mcd_client_proxy_get_bypass_approval
+    (McdClientProxy *self);
 
 G_GNUC_INTERNAL void _mcd_client_proxy_take_approver_filters
     (McdClientProxy *self, GList *filters);
@@ -104,6 +106,8 @@ G_GNUC_INTERNAL void _mcd_client_proxy_take_observer_filters
     (McdClientProxy *self, GList *filters);
 G_GNUC_INTERNAL void _mcd_client_proxy_take_handler_filters
     (McdClientProxy *self, GList *filters);
+G_GNUC_INTERNAL void _mcd_client_proxy_set_bypass_approval
+    (McdClientProxy *self, gboolean bypass);
 
 #define MC_CLIENT_BUS_NAME_BASE_LEN (sizeof (TP_CLIENT_BUS_NAME_BASE) - 1)
 

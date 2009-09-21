@@ -56,6 +56,7 @@ struct _McdClientProxyPrivate
     TpHandleRepoIface *string_pool;
     gchar *unique_name;
     gboolean ready;
+    gboolean bypass_approval;
 
     /* If a client was in the ListActivatableNames list, it must not be
      * removed when it disappear from the bus.
@@ -536,3 +537,19 @@ _mcd_client_proxy_take_handler_filters (McdClientProxy *self,
     self->priv->handler_filters = filters;
 }
 
+gboolean
+_mcd_client_proxy_get_bypass_approval (McdClientProxy *self)
+{
+    g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), FALSE);
+
+    return self->priv->bypass_approval;
+}
+
+void
+_mcd_client_proxy_set_bypass_approval (McdClientProxy *self,
+                                       gboolean bypass)
+{
+    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
+
+    self->priv->bypass_approval = bypass;
+}
