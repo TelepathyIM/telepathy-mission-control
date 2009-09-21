@@ -91,6 +91,20 @@ G_GNUC_INTERNAL void _mcd_client_proxy_set_activatable (McdClientProxy *self);
 G_GNUC_INTERNAL gchar *_mcd_client_proxy_find_client_file (
     const gchar *client_name);
 
+G_GNUC_INTERNAL const GList *_mcd_client_proxy_get_approver_filters
+    (McdClientProxy *self);
+G_GNUC_INTERNAL const GList *_mcd_client_proxy_get_observer_filters
+    (McdClientProxy *self);
+G_GNUC_INTERNAL const GList *_mcd_client_proxy_get_handler_filters
+    (McdClientProxy *self);
+
+G_GNUC_INTERNAL void _mcd_client_proxy_take_approver_filters
+    (McdClientProxy *self, GList *filters);
+G_GNUC_INTERNAL void _mcd_client_proxy_take_observer_filters
+    (McdClientProxy *self, GList *filters);
+G_GNUC_INTERNAL void _mcd_client_proxy_take_handler_filters
+    (McdClientProxy *self, GList *filters);
+
 #define MC_CLIENT_BUS_NAME_BASE_LEN (sizeof (TP_CLIENT_BUS_NAME_BASE) - 1)
 
 G_END_DECLS

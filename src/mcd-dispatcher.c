@@ -166,25 +166,6 @@ typedef struct _McdClient
     McdClientInterface interfaces;
     guint bypass_approver : 1;
 
-    /* Channel filters
-     * A channel filter is a GHashTable of
-     * - key: gchar *property_name
-     * - value: GValue of one of the allowed types on the ObserverChannelFilter
-     *          spec. The following matching is observed:
-     *           * G_TYPE_STRING: 's'
-     *           * G_TYPE_BOOLEAN: 'b'
-     *           * DBUS_TYPE_G_OBJECT_PATH: 'o'
-     *           * G_TYPE_UINT64: 'y' (8b), 'q' (16b), 'u' (32b), 't' (64b)
-     *           * G_TYPE_INT64:            'n' (16b), 'i' (32b), 'x' (64b)
-     *
-     * The list can be NULL if there is no filter, or the filters are not yet
-     * retrieven from the D-Bus *ChannelFitler properties. In the last case,
-     * the dispatcher just don't dispatch to this client.
-     */
-    GList *approver_filters;
-    GList *handler_filters;
-    GList *observer_filters;
-
     /* Handler.Capabilities, represented as handles taken from
      * dispatcher->priv->string_pool */
     TpHandleSet *capability_tokens;
@@ -334,20 +315,12 @@ mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
 static void
 mcd_client_become_incapable (McdClient *client)
 {
-    g_list_foreach (client->approver_filters,
-                    (GFunc)g_hash_table_destroy, NULL);
-    g_list_free (client->approver_filters);
-    client->approver_filters = NULL;
-
-    g_list_foreach (client->handler_filters,
-                    (GFunc)g_hash_table_destroy, NULL);
-    g_list_free (client->handler_filters);
-    client->handler_filters = NULL;
-
-    g_list_foreach (client->observer_filters,
-                    (GFunc)g_hash_table_destroy, NULL);
-    g_list_free (client->observer_filters);
-    client->observer_filters = NULL;
+    _mcd_client_proxy_take_approver_filters ((McdClientProxy *) client->proxy,
+                                             NULL);
+    _mcd_client_proxy_take_observer_filters ((McdClientProxy *) client->proxy,
+                                             NULL);
+    _mcd_client_proxy_take_handler_filters ((McdClientProxy *) client->proxy,
+                                            NULL);
 
     if (client->capability_tokens != NULL)
     {
@@ -359,12 +332,12 @@ mcd_client_become_incapable (McdClient *client)
 static void
 mcd_client_free (McdClient *client)
 {
+    mcd_client_become_incapable (client);
+
     if (client->proxy)
     {
         g_object_unref (client->proxy);
     }
-
-    mcd_client_become_incapable (client);
 
     g_free (client->name);
 
@@ -639,7 +612,10 @@ mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
             !(client->interfaces & MCD_CLIENT_HANDLER))
             continue;
 
-        if (match_filters (channel, client->handler_filters, TRUE) > 0)
+        if (match_filters (channel,
+            _mcd_client_proxy_get_handler_filters (
+                (McdClientProxy *) client->proxy),
+            TRUE) > 0)
             return client;
     }
     return NULL;
@@ -806,7 +782,10 @@ mcd_dispatcher_get_possible_handlers (McdDispatcher *self,
             McdChannel *channel = MCD_CHANNEL (iter->data);
             guint quality;
 
-            quality = match_filters (channel, client->handler_filters, FALSE);
+            quality = match_filters (channel,
+                _mcd_client_proxy_get_handler_filters (
+                    (McdClientProxy *) client->proxy),
+                FALSE);
 
             if (quality == 0)
             {
@@ -1151,7 +1130,10 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
         {
             McdChannel *channel = MCD_CHANNEL (cl->data);
 
-            if (match_filters (channel, client->observer_filters, FALSE))
+            if (match_filters (channel,
+                _mcd_client_proxy_get_observer_filters (
+                    (McdClientProxy *) client->proxy),
+                FALSE))
                 observed = g_list_prepend (observed, channel);
         }
         if (!observed) continue;
@@ -1303,7 +1285,10 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
         {
             McdChannel *channel = MCD_CHANNEL (cl->data);
 
-            if (match_filters (channel, client->approver_filters, FALSE))
+            if (match_filters (channel,
+                _mcd_client_proxy_get_approver_filters ((McdClientProxy *)
+                    client->proxy),
+                FALSE))
             {
                 matched = TRUE;
                 break;
@@ -1928,33 +1913,8 @@ mcd_client_set_filters (McdClient *client,
                         McdClientInterface interface,
                         GPtrArray *filters)
 {
-    GList **client_filters;
+    GList *client_filters = NULL;
     guint i;
-
-    switch (interface)
-    {
-        case MCD_CLIENT_OBSERVER:
-            client_filters = &client->observer_filters;
-            break;
-
-        case MCD_CLIENT_APPROVER:
-            client_filters = &client->approver_filters;
-            break;
-
-        case MCD_CLIENT_HANDLER:
-            client_filters = &client->handler_filters;
-            break;
-
-        default:
-            g_assert_not_reached ();
-    }
-
-    if (*client_filters != NULL)
-    {
-        g_list_foreach (*client_filters, (GFunc) g_hash_table_destroy, NULL);
-        g_list_free (*client_filters);
-        *client_filters = NULL;
-    }
 
     for (i = 0 ; i < filters->len ; i++)
     {
@@ -2012,10 +1972,31 @@ mcd_client_set_filters (McdClient *client,
         }
 
         if (valid_filter)
-            *client_filters = g_list_prepend
-                (*client_filters, new_channel_class);
+            client_filters = g_list_prepend (client_filters,
+                                             new_channel_class);
         else
             g_hash_table_destroy (new_channel_class);
+    }
+
+    switch (interface)
+    {
+        case MCD_CLIENT_OBSERVER:
+            _mcd_client_proxy_take_observer_filters (
+                (McdClientProxy *) client->proxy, client_filters);
+            break;
+
+        case MCD_CLIENT_APPROVER:
+            _mcd_client_proxy_take_approver_filters (
+                (McdClientProxy *) client->proxy, client_filters);
+            break;
+
+        case MCD_CLIENT_HANDLER:
+            _mcd_client_proxy_take_handler_filters (
+                (McdClientProxy *) client->proxy, client_filters);
+            break;
+
+        default:
+            g_assert_not_reached ();
     }
 }
 
@@ -2040,13 +2021,15 @@ mcd_dispatcher_append_client_caps (McdDispatcher *self,
                                    McdClient *client,
                                    GPtrArray *vas)
 {
+    const GList *handler_filters = _mcd_client_proxy_get_handler_filters (
+        (McdClientProxy *) client->proxy);
     GPtrArray *filters = g_ptr_array_sized_new (
-        g_list_length (client->handler_filters));
+        g_list_length ((GList *) handler_filters));
     GPtrArray *cap_tokens;
     GValueArray *va;
     const GList *list;
 
-    for (list = client->handler_filters; list != NULL; list = list->next)
+    for (list = handler_filters; list != NULL; list = list->next)
     {
         GHashTable *copy = g_hash_table_new_full (g_str_hash, g_str_equal,
             g_free, (GDestroyNotify) tp_g_value_slice_free);
@@ -2458,6 +2441,9 @@ parse_client_file (McdClient *client,
     gchar **iface_names, **groups, **cap_tokens;
     guint i;
     gsize len = 0;
+    GList *approver_filters = NULL;
+    GList *observer_filters = NULL;
+    GList *handler_filters = NULL;
 
     iface_names = g_key_file_get_string_list (file, TP_IFACE_CLIENT,
                                               "Interfaces", 0, NULL);
@@ -2485,28 +2471,35 @@ parse_client_file (McdClient *client,
             g_str_has_prefix (groups[i], TP_IFACE_CLIENT_APPROVER
                               ".ApproverChannelFilter "))
         {
-            client->approver_filters =
-                g_list_prepend (client->approver_filters,
+            approver_filters =
+                g_list_prepend (approver_filters,
                                 parse_client_filter (file, groups[i]));
         }
         else if (client->interfaces & MCD_CLIENT_HANDLER &&
             g_str_has_prefix (groups[i], TP_IFACE_CLIENT_HANDLER
                               ".HandlerChannelFilter "))
         {
-            client->handler_filters =
-                g_list_prepend (client->handler_filters,
+            handler_filters =
+                g_list_prepend (handler_filters,
                                 parse_client_filter (file, groups[i]));
         }
         else if (client->interfaces & MCD_CLIENT_OBSERVER &&
             g_str_has_prefix (groups[i], TP_IFACE_CLIENT_OBSERVER
                               ".ObserverChannelFilter "))
         {
-            client->observer_filters =
-                g_list_prepend (client->observer_filters,
+            observer_filters =
+                g_list_prepend (observer_filters,
                                 parse_client_filter (file, groups[i]));
         }
     }
     g_strfreev (groups);
+
+    _mcd_client_proxy_take_approver_filters ((McdClientProxy *) client->proxy,
+                                             approver_filters);
+    _mcd_client_proxy_take_observer_filters ((McdClientProxy *) client->proxy,
+                                             observer_filters);
+    _mcd_client_proxy_take_handler_filters ((McdClientProxy *) client->proxy,
+                                            handler_filters);
 
     /* Other client options */
     client->bypass_approver =
@@ -3400,7 +3393,10 @@ _mcd_dispatcher_get_channel_capabilities (McdDispatcher *dispatcher)
         McdClient *client = value;
         const GList *list;
 
-        for (list = client->handler_filters; list != NULL; list = list->next)
+        for (list = _mcd_client_proxy_get_handler_filters (
+                (McdClientProxy *) client->proxy);
+             list != NULL;
+             list = list->next)
         {
             GHashTable *channel_class = list->data;
             const gchar *channel_type;
@@ -3436,7 +3432,10 @@ _mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher *dispatcher)
         McdClient *client = value;
         const GList *list;
 
-        for (list = client->handler_filters; list != NULL; list = list->next)
+        for (list = _mcd_client_proxy_get_handler_filters (
+                (McdClientProxy *) client->proxy);
+             list != NULL;
+             list = list->next)
         {
             GHashTable *channel_class = list->data;
             guint i;

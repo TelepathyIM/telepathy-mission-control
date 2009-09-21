@@ -61,6 +61,25 @@ struct _McdClientProxyPrivate
      * removed when it disappear from the bus.
      */
     gboolean activatable;
+
+    /* Channel filters
+     * A channel filter is a GHashTable of
+     * - key: gchar *property_name
+     * - value: GValue of one of the allowed types on the ObserverChannelFilter
+     *          spec. The following matching is observed:
+     *           * G_TYPE_STRING: 's'
+     *           * G_TYPE_BOOLEAN: 'b'
+     *           * DBUS_TYPE_G_OBJECT_PATH: 'o'
+     *           * G_TYPE_UINT64: 'y' (8b), 'q' (16b), 'u' (32b), 't' (64b)
+     *           * G_TYPE_INT64:            'n' (16b), 'i' (32b), 'x' (64b)
+     *
+     * The list can be NULL if there is no filter, or the filters are not yet
+     * retrieven from the D-Bus *ChannelFitler properties. In the last case,
+     * the dispatcher just don't dispatch to this client.
+     */
+    GList *approver_filters;
+    GList *handler_filters;
+    GList *observer_filters;
 };
 
 gchar *
@@ -224,6 +243,10 @@ mcd_client_proxy_finalize (GObject *object)
         ((GObjectClass *) _mcd_client_proxy_parent_class)->finalize;
 
     g_free (self->priv->unique_name);
+
+    _mcd_client_proxy_take_approver_filters (self, NULL);
+    _mcd_client_proxy_take_observer_filters (self, NULL);
+    _mcd_client_proxy_take_handler_filters (self, NULL);
 
     if (chain_up != NULL)
     {
@@ -445,3 +468,71 @@ _mcd_client_proxy_set_activatable (McdClientProxy *self)
 
     self->priv->activatable = TRUE;
 }
+
+const GList *
+_mcd_client_proxy_get_approver_filters (McdClientProxy *self)
+{
+    g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), NULL);
+
+    return self->priv->approver_filters;
+}
+
+const GList *
+_mcd_client_proxy_get_observer_filters (McdClientProxy *self)
+{
+    g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), NULL);
+
+    return self->priv->observer_filters;
+}
+
+const GList *
+_mcd_client_proxy_get_handler_filters (McdClientProxy *self)
+{
+    g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), NULL);
+
+    return self->priv->handler_filters;
+}
+
+static void
+mcd_client_proxy_free_client_filters (GList **client_filters)
+{
+    g_assert (client_filters != NULL);
+
+    if (*client_filters != NULL)
+    {
+        g_list_foreach (*client_filters, (GFunc) g_hash_table_destroy, NULL);
+        g_list_free (*client_filters);
+        *client_filters = NULL;
+    }
+}
+
+void
+_mcd_client_proxy_take_approver_filters (McdClientProxy *self,
+                                         GList *filters)
+{
+    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
+
+    mcd_client_proxy_free_client_filters (&(self->priv->approver_filters));
+    self->priv->approver_filters = filters;
+}
+
+void
+_mcd_client_proxy_take_observer_filters (McdClientProxy *self,
+                                         GList *filters)
+{
+    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
+
+    mcd_client_proxy_free_client_filters (&(self->priv->observer_filters));
+    self->priv->observer_filters = filters;
+}
+
+void
+_mcd_client_proxy_take_handler_filters (McdClientProxy *self,
+                                        GList *filters)
+{
+    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
+
+    mcd_client_proxy_free_client_filters (&(self->priv->handler_filters));
+    self->priv->handler_filters = filters;
+}
+
