@@ -554,12 +554,12 @@ channel_classes_equals (GHashTable *channel_class1, GHashTable *channel_class2)
  */
 static guint
 match_filters (McdChannel *channel,
-               GList *filters,
+               const GList *filters,
                gboolean assume_requested)
 {
     GHashTable *channel_properties;
     McdChannelStatus status;
-    GList *list;
+    const GList *list;
     guint best_quality = 0;
 
     status = mcd_channel_get_status (channel);
@@ -2044,7 +2044,7 @@ mcd_dispatcher_append_client_caps (McdDispatcher *self,
         g_list_length (client->handler_filters));
     GPtrArray *cap_tokens;
     GValueArray *va;
-    GList *list;
+    const GList *list;
 
     for (list = client->handler_filters; list != NULL; list = list->next)
     {
@@ -3398,7 +3398,7 @@ _mcd_dispatcher_get_channel_capabilities (McdDispatcher *dispatcher)
     while (g_hash_table_iter_next (&iter, &key, &value)) 
     {
         McdClient *client = value;
-        GList *list;
+        const GList *list;
 
         for (list = client->handler_filters; list != NULL; list = list->next)
         {
@@ -3434,7 +3434,7 @@ _mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher *dispatcher)
     while (g_hash_table_iter_next (&iter, &key, &value)) 
     {
         McdClient *client = value;
-        GList *list;
+        const GList *list;
 
         for (list = client->handler_filters; list != NULL; list = list->next)
         {
