@@ -38,6 +38,7 @@ G_DEFINE_TYPE (McdClientProxy, _mcd_client_proxy, TP_TYPE_CLIENT);
 enum
 {
     PROP_0,
+    PROP_ACTIVATABLE,
     PROP_STRING_POOL,
     PROP_UNIQUE_NAME,
 };
@@ -55,6 +56,11 @@ struct _McdClientProxyPrivate
     TpHandleRepoIface *string_pool;
     gchar *unique_name;
     gboolean ready;
+
+    /* If a client was in the ListActivatableNames list, it must not be
+     * removed when it disappear from the bus.
+     */
+    gboolean activatable;
 };
 
 static void
@@ -80,6 +86,15 @@ _mcd_client_proxy_is_active (McdClientProxy *self)
 
     return self->priv->unique_name != NULL &&
         self->priv->unique_name[0] != '\0';
+}
+
+gboolean
+_mcd_client_proxy_is_activatable (McdClientProxy *self)
+{
+    g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), FALSE);
+    g_return_val_if_fail (self->priv->ready, FALSE);
+
+    return self->priv->activatable;
 }
 
 const gchar *
@@ -203,6 +218,10 @@ mcd_client_proxy_set_property (GObject *object,
 
     switch (property)
     {
+        case PROP_ACTIVATABLE:
+            self->priv->activatable = g_value_get_boolean (value);
+            break;
+
         case PROP_STRING_POOL:
             g_assert (self->priv->string_pool == NULL);
             self->priv->string_pool = g_value_dup_object (value);
@@ -235,6 +254,11 @@ _mcd_client_proxy_class_init (McdClientProxyClass *klass)
                                      0, NULL, NULL,
                                      g_cclosure_marshal_VOID__VOID,
                                      G_TYPE_NONE, 0);
+
+    g_object_class_install_property (object_class, PROP_ACTIVATABLE,
+        g_param_spec_boolean ("activatable", "Activatable?",
+            "TRUE if this client can be service-activated", FALSE,
+            G_PARAM_WRITABLE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property (object_class, PROP_STRING_POOL,
         g_param_spec_object ("string-pool", "String pool",
@@ -312,7 +336,8 @@ McdClientProxy *
 _mcd_client_proxy_new (TpDBusDaemon *dbus_daemon,
                        TpHandleRepoIface *string_pool,
                        const gchar *name_suffix,
-                       const gchar *unique_name_if_known)
+                       const gchar *unique_name_if_known,
+                       gboolean activatable)
 {
     McdClientProxy *self;
     gchar *bus_name, *object_path;
@@ -335,6 +360,7 @@ _mcd_client_proxy_new (TpDBusDaemon *dbus_daemon,
                          "object-path", object_path,
                          "bus-name", bus_name,
                          "unique-name", unique_name_if_known,
+                         "activatable", activatable,
                          NULL);
 
     g_free (object_path);
@@ -360,4 +386,12 @@ _mcd_client_proxy_set_active (McdClientProxy *self,
 
     g_free (self->priv->unique_name);
     self->priv->unique_name = g_strdup (unique_name);
+}
+
+void
+_mcd_client_proxy_set_activatable (McdClientProxy *self)
+{
+    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
+
+    self->priv->activatable = TRUE;
 }

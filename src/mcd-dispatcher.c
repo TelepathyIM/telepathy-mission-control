@@ -166,11 +166,6 @@ typedef struct _McdClient
     McdClientInterface interfaces;
     guint bypass_approver : 1;
 
-    /* If a client was in the ListActivatableNames list, it must not be
-     * removed when it disappear from the bus.
-     */
-    guint activatable : 1;
-
     /* Channel filters
      * A channel filter is a GHashTable of
      * - key: gchar *property_name
@@ -2590,12 +2585,12 @@ create_mcd_client (McdDispatcher *self,
 
     client = g_slice_new0 (McdClient);
     client->name = g_strdup (name + MC_CLIENT_BUS_NAME_BASE_LEN);
-    client->activatable = activatable;
 
     client->capability_tokens = tp_handle_set_new (self->priv->string_pool);
 
     client->proxy = (TpClient *) _mcd_client_proxy_new (
-        self->priv->dbus_daemon, self->priv->string_pool, client->name, owner);
+        self->priv->dbus_daemon, self->priv->string_pool, client->name, owner,
+        activatable);
 
     DEBUG ("McdClient created for %s", name);
 
@@ -2729,7 +2724,8 @@ mcd_dispatcher_add_client (McdDispatcher *self,
          */
         if (activatable)
         {
-            client->activatable = TRUE;
+            _mcd_client_proxy_set_activatable
+                ((McdClientProxy *) client->proxy);
         }
         else
         {
@@ -2877,7 +2873,8 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
         {
             _mcd_client_proxy_set_inactive ((McdClientProxy *) client->proxy);
 
-            if (!client->activatable)
+            if (!_mcd_client_proxy_is_activatable
+                ((McdClientProxy *) client->proxy))
             {
                 /* in ContactCapabilities we indicate the disappearance
                  * of a client by giving it an empty set of capabilities and
