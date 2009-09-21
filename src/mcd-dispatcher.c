@@ -162,7 +162,6 @@ typedef enum
 typedef struct _McdClient
 {
     McdClientProxy *proxy;
-    gchar *name;
     McdClientInterface interfaces;
     guint bypass_approver : 1;
 
@@ -335,8 +334,6 @@ mcd_client_free (McdClient *client)
     {
         g_object_unref (client->proxy);
     }
-
-    g_free (client->name);
 
     g_slice_free (McdClient, client);
 }
@@ -823,8 +820,7 @@ mcd_dispatcher_get_possible_handlers (McdDispatcher *self,
     {
         PossibleHandler *ph = iter->data;
 
-        ret[i] = g_strconcat (TP_CLIENT_BUS_NAME_BASE,
-                              ph->client->name, NULL);
+        ret[i] = g_strdup (tp_proxy_get_bus_name (ph->client->proxy));
         g_slice_free (PossibleHandler, ph);
     }
 
@@ -903,8 +899,8 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
     handler_data->context = context;
     mcd_dispatcher_context_ref (context, "CTXREF03");
     handler_data->channels = channels;
-    DEBUG ("calling HandleChannels on %s for context %p", handler->name,
-           context);
+    DEBUG ("calling HandleChannels on %s for context %p",
+           tp_proxy_get_bus_name (handler->proxy), context);
     tp_cli_client_handler_call_handle_channels ((TpClient *) handler->proxy,
         -1, account_path, connection_path,
         channels_array, satisfied_requests, user_action_time,
@@ -1157,7 +1153,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
         context->observers_pending++;
         mcd_dispatcher_context_ref (context, "CTXREF05");
         DEBUG ("calling ObserveChannels on %s for context %p",
-               client->name, context);
+               tp_proxy_get_bus_name (client->proxy), context);
         tp_cli_client_observer_call_observe_channels (
             (TpClient *) client->proxy, -1,
             account_path, connection_path, channels_array,
@@ -1298,8 +1294,8 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
             _mcd_dispatch_operation_dup_channel_details (context->operation);
 
         DEBUG ("Calling AddDispatchOperation on approver %s for CDO %s @ %p "
-               "of context %p", client->name, dispatch_operation,
-               context->operation, context);
+               "of context %p", tp_proxy_get_bus_name (client->proxy),
+               dispatch_operation, context->operation, context);
 
         context->approvers_pending++;
         _mcd_dispatch_operation_block_finished (context->operation);
@@ -2056,7 +2052,7 @@ mcd_dispatcher_append_client_caps (McdDispatcher *self,
     {
         guint i;
 
-        DEBUG ("%s%s:", TP_CLIENT_BUS_NAME_BASE, client->name);
+        DEBUG ("%s:", tp_proxy_get_bus_name (client->proxy));
 
         DEBUG ("- %u channel filters", filters->len);
         DEBUG ("- %u capability tokens:", cap_tokens->len - 1);
@@ -2078,9 +2074,7 @@ mcd_dispatcher_append_client_caps (McdDispatcher *self,
     g_value_init (va->values + 1, TP_ARRAY_TYPE_CHANNEL_CLASS_LIST);
     g_value_init (va->values + 2, G_TYPE_STRV);
 
-    g_value_take_string (va->values + 0,
-                         g_strconcat (TP_CLIENT_BUS_NAME_BASE, client->name,
-                                      NULL));
+    g_value_set_string (va->values + 0, tp_proxy_get_bus_name (client->proxy));
     g_value_take_boxed (va->values + 1, filters);
     g_value_take_boxed (va->values + 2, g_ptr_array_free (cap_tokens, FALSE));
 
@@ -2255,20 +2249,20 @@ handler_get_all_cb (TpProxy *proxy,
 
     if (filters != NULL)
     {
-        DEBUG ("%s has %u HandlerChannelFilter entries", client->name,
+        DEBUG ("%s has %u HandlerChannelFilter entries", bus_name,
                filters->len);
         mcd_client_set_filters (client, MCD_CLIENT_HANDLER, filters);
     }
     else
     {
         DEBUG ("%s HandlerChannelFilter absent or wrong type, assuming "
-               "no channels can match", client->name);
+               "no channels can match", bus_name);
     }
 
     /* if wrong type or absent, assuming False is reasonable */
     client->bypass_approver = tp_asv_get_boolean (properties, "BypassApproval",
                                                   NULL);
-    DEBUG ("%s has BypassApproval=%c", client->name,
+    DEBUG ("%s has BypassApproval=%c", bus_name,
            client->bypass_approver ? 'T' : 'F');
 
     mcd_client_add_cap_tokens (client, self->priv->string_pool,
@@ -2290,7 +2284,7 @@ handler_get_all_cb (TpProxy *proxy,
         /* if it said it was handling channels but it doesn't seem to exist,
          * then we don't believe it */
         DEBUG ("%s doesn't seem to exist, assuming no channels handled",
-               client->name);
+               bus_name);
     }
     else if (channels != NULL)
     {
@@ -2300,7 +2294,7 @@ handler_get_all_cb (TpProxy *proxy,
         {
             const gchar *path = g_ptr_array_index (channels, i);
 
-            DEBUG ("%s (%s) is handling %s", client->name, unique_name,
+            DEBUG ("%s (%s) is handling %s", bus_name, unique_name,
                    path);
 
             _mcd_handler_map_set_path_handled (self->priv->handler_map,
@@ -2385,7 +2379,7 @@ get_interfaces_cb (TpProxy *proxy,
         arr++;
     }
 
-    DEBUG ("Client %s", client->name);
+    DEBUG ("Client %s", bus_name);
 
     client_add_interface_by_id (client);
     if (client->interfaces & MCD_CLIENT_APPROVER)
@@ -2393,7 +2387,7 @@ get_interfaces_cb (TpProxy *proxy,
         if (!self->priv->startup_completed)
             self->priv->startup_lock++;
 
-        DEBUG ("%s is an Approver", client->name);
+        DEBUG ("%s is an Approver", bus_name);
 
         tp_cli_dbus_properties_call_get
             (client->proxy, -1, TP_IFACE_CLIENT_APPROVER,
@@ -2405,7 +2399,7 @@ get_interfaces_cb (TpProxy *proxy,
         if (!self->priv->startup_completed)
             self->priv->startup_lock++;
 
-        DEBUG ("%s is a Handler", client->name);
+        DEBUG ("%s is a Handler", bus_name);
 
         tp_cli_dbus_properties_call_get_all
             (client->proxy, -1, TP_IFACE_CLIENT_HANDLER,
@@ -2416,7 +2410,7 @@ get_interfaces_cb (TpProxy *proxy,
         if (!self->priv->startup_completed)
             self->priv->startup_lock++;
 
-        DEBUG ("%s is an Observer", client->name);
+        DEBUG ("%s is an Observer", bus_name);
 
         tp_cli_dbus_properties_call_get
             (client->proxy, -1, TP_IFACE_CLIENT_OBSERVER,
@@ -2522,13 +2516,13 @@ create_mcd_client (McdDispatcher *self,
     g_assert (g_str_has_prefix (name, TP_CLIENT_BUS_NAME_BASE));
 
     client = g_slice_new0 (McdClient);
-    client->name = g_strdup (name + MC_CLIENT_BUS_NAME_BASE_LEN);
 
     client->capability_tokens = tp_handle_set_new (self->priv->string_pool);
 
     client->proxy = _mcd_client_proxy_new (
-        self->priv->dbus_daemon, self->priv->string_pool, client->name, owner,
-        activatable);
+        self->priv->dbus_daemon, self->priv->string_pool,
+        name + MC_CLIENT_BUS_NAME_BASE_LEN,
+        owner, activatable);
 
     DEBUG ("McdClient created for %s", name);
 
@@ -2557,7 +2551,8 @@ mcd_client_start_introspection (McdClientProxy *proxy,
      * exists, it is better to read it than activating the service to read the
      * D-Bus properties.
      */
-    filename = _mcd_client_proxy_find_client_file (client->name);
+    filename = _mcd_client_proxy_find_client_file (
+        bus_name + MC_CLIENT_BUS_NAME_BASE_LEN);
     if (filename)
     {
         GKeyFile *file;
@@ -2567,7 +2562,7 @@ mcd_client_start_introspection (McdClientProxy *proxy,
         g_key_file_load_from_file (file, filename, 0, &error);
         if (G_LIKELY (!error))
         {
-            DEBUG ("File found for %s: %s", client->name, filename);
+            DEBUG ("File found for %s: %s", bus_name, filename);
             parse_client_file (client, dispatcher->priv->string_pool, file);
             file_found = TRUE;
         }
@@ -2582,7 +2577,7 @@ mcd_client_start_introspection (McdClientProxy *proxy,
 
     if (!file_found)
     {
-        DEBUG ("No .client file for %s. Ask on D-Bus.", client->name);
+        DEBUG ("No .client file for %s. Ask on D-Bus.", bus_name);
 
         if (!dispatcher->priv->startup_completed)
             dispatcher->priv->startup_lock++;
@@ -2599,7 +2594,7 @@ mcd_client_start_introspection (McdClientProxy *proxy,
         {
             if (_mcd_client_proxy_is_active (proxy))
             {
-                DEBUG ("%s is an active, activatable Handler", client->name);
+                DEBUG ("%s is an active, activatable Handler", bus_name);
 
                 /* We need to investigate whether it is handling any channels */
 
@@ -2614,7 +2609,7 @@ mcd_client_start_introspection (McdClientProxy *proxy,
             }
             else
             {
-                DEBUG ("%s is a Handler but not active", client->name);
+                DEBUG ("%s is a Handler but not active", bus_name);
                 mcd_dispatcher_update_client_caps (dispatcher, client);
             }
         }
@@ -3547,12 +3542,14 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
     if (!(handler->interfaces & MCD_CLIENT_INTERFACE_REQUESTS))
     {
         DEBUG ("Default handler %s for request %s doesn't want AddRequest",
-               handler->name, _mcd_channel_get_request_path (channel));
+               tp_proxy_get_bus_name (handler->proxy),
+               _mcd_channel_get_request_path (channel));
         return;
     }
 
     DEBUG ("Calling AddRequest on default handler %s for request %s",
-           handler->name, _mcd_channel_get_request_path (channel));
+           tp_proxy_get_bus_name (handler->proxy),
+           _mcd_channel_get_request_path (channel));
 
     properties = g_hash_table_new (g_str_hash, g_str_equal);
 
