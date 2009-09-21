@@ -65,6 +65,14 @@ _mcd_client_proxy_init (McdClientProxy *self)
 }
 
 gboolean
+_mcd_client_proxy_is_ready (McdClientProxy *self)
+{
+    g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), FALSE);
+
+    return self->priv->ready;
+}
+
+gboolean
 _mcd_client_proxy_is_active (McdClientProxy *self)
 {
     g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), FALSE);
