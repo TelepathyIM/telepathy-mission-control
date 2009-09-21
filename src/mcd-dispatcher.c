@@ -2522,56 +2522,6 @@ parse_client_file (McdClient *client,
     g_strfreev (cap_tokens);
 }
 
-static gchar *
-find_client_file (const gchar *client_name)
-{
-    const gchar * const *dirs;
-    const gchar *dirname;
-    const gchar *env_dirname;
-    gchar *filename, *absolute_filepath;
-
-    /* 
-     * The full path is $XDG_DATA_DIRS/telepathy/clients/clientname.client
-     * or $XDG_DATA_HOME/telepathy/clients/clientname.client
-     * For testing purposes, we also look for $MC_CLIENTS_DIR/clientname.client
-     * if $MC_CLIENTS_DIR is set.
-     */
-    filename = g_strdup_printf ("%s.client", client_name);
-    env_dirname = g_getenv ("MC_CLIENTS_DIR");
-    if (env_dirname)
-    {
-        absolute_filepath = g_build_filename (env_dirname, filename, NULL);
-        if (g_file_test (absolute_filepath, G_FILE_TEST_IS_REGULAR))
-            goto finish;
-        g_free (absolute_filepath);
-    }
-
-    dirname = g_get_user_data_dir ();
-    if (G_LIKELY (dirname))
-    {
-        absolute_filepath = g_build_filename (dirname, "telepathy/clients",
-                                              filename, NULL);
-        if (g_file_test (absolute_filepath, G_FILE_TEST_IS_REGULAR))
-            goto finish;
-        g_free (absolute_filepath);
-    }
-
-    dirs = g_get_system_data_dirs ();
-    for (dirname = *dirs; dirname != NULL; dirs++, dirname = *dirs)
-    {
-        absolute_filepath = g_build_filename (dirname, "telepathy/clients",
-                                              filename, NULL);
-        if (g_file_test (absolute_filepath, G_FILE_TEST_IS_REGULAR))
-            goto finish;
-        g_free (absolute_filepath);
-    }
-
-    absolute_filepath = NULL;
-finish:
-    g_free (filename);
-    return absolute_filepath;
-}
-
 static McdClient *
 create_mcd_client (McdDispatcher *self,
                    const gchar *name,
@@ -2619,7 +2569,7 @@ mcd_client_start_introspection (McdClientProxy *proxy,
      * exists, it is better to read it than activating the service to read the
      * D-Bus properties.
      */
-    filename = find_client_file (client->name);
+    filename = _mcd_client_proxy_find_client_file (client->name);
     if (filename)
     {
         GKeyFile *file;
