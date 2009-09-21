@@ -97,6 +97,7 @@ struct _McdDispatchOperationPrivate
     /* DBUS connection */
     TpDBusDaemon *dbus_daemon;
 
+    McdAccount *account;
     McdConnection *connection;
 
     /* Owned McdChannels we're dispatching */
@@ -133,18 +134,10 @@ get_connection (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 static void
 get_account (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 {
-    McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (self);
-    McdAccount *account;
-    const gchar *object_path;
-
-    DEBUG ("called for %s", priv->unique_name);
     g_value_init (value, DBUS_TYPE_G_OBJECT_PATH);
-    if (priv->connection &&
-        (account = mcd_connection_get_account (priv->connection)) &&
-        (object_path = mcd_account_get_object_path (account)))
-        g_value_set_boxed (value, object_path);
-    else
-        g_value_set_static_boxed (value, "/");
+    g_value_set_boxed (value,
+        _mcd_dispatch_operation_get_account_path
+            (MCD_DISPATCH_OPERATION (self)));
 }
 
 GPtrArray *
@@ -409,12 +402,34 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
         priv->channels = g_value_get_pointer (val);
         if (G_LIKELY (priv->channels))
         {
-            /* get the connection from the first channel */
+            /* get the connection and account from the first channel */
             McdChannel *channel = MCD_CHANNEL (priv->channels->data);
+
             priv->connection = (McdConnection *)
                 mcd_mission_get_parent (MCD_MISSION (channel));
+
             if (G_LIKELY (priv->connection))
+            {
                 g_object_ref (priv->connection);
+            }
+            else
+            {
+                /* shouldn't happen? */
+                g_warning ("Channel has no Connection?!");
+            }
+
+            priv->account = mcd_channel_get_account (channel);
+
+            if (G_LIKELY (priv->account != NULL))
+            {
+                g_object_ref (priv->account);
+            }
+            else
+            {
+                /* shouldn't happen? */
+                g_warning ("Channel given to McdDispatchOperation has no "
+                           "Account?!");
+            }
 
             /* reference the channels */
             for (list = priv->channels; list != NULL; list = list->next)
@@ -515,6 +530,12 @@ mcd_dispatch_operation_dispose (GObject *object)
         priv->connection = NULL;
     }
 
+    if (priv->account != NULL)
+    {
+        g_object_unref (priv->account);
+        priv->account = NULL;
+    }
+
     if (priv->dbus_daemon)
     {
         g_object_unref (priv->dbus_daemon);
@@ -611,6 +632,30 @@ _mcd_dispatch_operation_get_path (McdDispatchOperation *operation)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (operation), NULL);
     return operation->priv->object_path;
+}
+
+/*
+ * _mcd_dispatch_operation_get_account_path:
+ * @operation: the #McdDispatchOperation.
+ *
+ * Returns: the D-Bus object path of the Account associated with @operation,
+ *    or "/" if none.
+ */
+const gchar *
+_mcd_dispatch_operation_get_account_path (McdDispatchOperation *self)
+{
+    const gchar *path;
+
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), "/");
+
+    if (self->priv->account == NULL)
+        return "/";
+
+    path = mcd_account_get_object_path (self->priv->account);
+
+    g_return_val_if_fail (path != NULL, "/");
+
+    return path;
 }
 
 /*

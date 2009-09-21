@@ -118,7 +118,6 @@ struct _McdDispatcherContext
     McdDispatcher *dispatcher;
 
     GList *channels;
-    McdAccount *account;
     McdDispatchOperation *operation;
 
     /* The number of observers that have not yet returned from ObserveChannels.
@@ -901,9 +900,8 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
         mcd_connection_get_object_path (connection) : NULL;
     if (G_UNLIKELY (!connection_path)) connection_path = "/";
 
-    g_assert (context->account != NULL);
-    account_path = mcd_account_get_object_path (context->account);
-    if (G_UNLIKELY (!account_path)) account_path = "/";
+    account_path = _mcd_dispatch_operation_get_account_path
+        (context->operation);
 
     channels_array = _mcd_channel_details_build_from_list (channels);
 
@@ -1153,7 +1151,6 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
     {
         GList *observed = NULL;
         McdConnection *connection;
-        McdAccount *account;
         const gchar *account_path, *connection_path;
         GPtrArray *channels_array, *satisfied_requests;
 
@@ -1175,9 +1172,8 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
         g_assert (connection != NULL);
         connection_path = mcd_connection_get_object_path (connection);
 
-        account = mcd_connection_get_account (connection);
-        g_assert (account != NULL);
-        account_path = mcd_account_get_object_path (account);
+        account_path = _mcd_dispatch_operation_get_account_path
+            (context->operation);
 
         /* TODO: there's room for optimization here: reuse the channels_array,
          * if the observed list is the same */
@@ -1598,7 +1594,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     DEBUG ("CTXREF11 on %p", context);
     context->ref_count = 1;
     context->dispatcher = dispatcher;
-    context->account = account;
     context->channels = channels;
     context->chain = priv->filters;
 
@@ -3834,7 +3829,6 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     context->ref_count = 1;
     context->dispatcher = dispatcher;
     context->channels = g_list_prepend (NULL, channel);
-    context->account = mcd_channel_get_account (channel);
 
     list = g_list_append (NULL, channel);
     possible_handlers = mcd_dispatcher_get_possible_handlers (dispatcher,
