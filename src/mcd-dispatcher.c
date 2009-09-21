@@ -153,16 +153,14 @@ typedef struct
 
 typedef enum
 {
-    MCD_CLIENT_APPROVER = 0x1,
-    MCD_CLIENT_HANDLER  = 0x2,
-    MCD_CLIENT_OBSERVER = 0x4,
-    MCD_CLIENT_INTERFACE_REQUESTS  = 0x8,
+    MCD_CLIENT_APPROVER,
+    MCD_CLIENT_HANDLER,
+    MCD_CLIENT_OBSERVER
 } McdClientInterface;
 
 typedef struct _McdClient
 {
     McdClientProxy *proxy;
-    McdClientInterface interfaces;
 } McdClient;
 
 struct _McdDispatcherPrivate
@@ -593,7 +591,8 @@ mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
     while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &client))
     {
         if (!client->proxy ||
-            !(client->interfaces & MCD_CLIENT_HANDLER))
+            !tp_proxy_has_interface_by_id (client->proxy,
+                                           TP_IFACE_QUARK_CLIENT_HANDLER))
             continue;
 
         if (match_filters (channel,
@@ -755,7 +754,8 @@ mcd_dispatcher_get_possible_handlers (McdDispatcher *self,
         gsize total_quality = 0;
 
         if (client->proxy == NULL ||
-            !(client->interfaces & MCD_CLIENT_HANDLER))
+            !tp_proxy_has_interface_by_id (client->proxy,
+                                           TP_IFACE_QUARK_CLIENT_HANDLER))
         {
             /* not a handler at all */
             continue;
@@ -1106,7 +1106,8 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
         GPtrArray *channels_array, *satisfied_requests;
 
         if (!client->proxy ||
-            !(client->interfaces & MCD_CLIENT_OBSERVER))
+            !tp_proxy_has_interface_by_id (client->proxy,
+                                           TP_IFACE_QUARK_CLIENT_OBSERVER))
             continue;
 
         for (cl = channels; cl != NULL; cl = cl->next)
@@ -1261,7 +1262,8 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
         gboolean matched = FALSE;
 
         if (!client->proxy ||
-            !(client->interfaces & MCD_CLIENT_APPROVER))
+            !tp_proxy_has_interface_by_id (client->proxy,
+                                           TP_IFACE_QUARK_CLIENT_APPROVER))
             continue;
 
         for (cl = channels; cl != NULL; cl = cl->next)
@@ -2306,22 +2308,37 @@ finally:
 }
 
 static void
-client_add_interface_by_id (McdClient *client)
+maybe_add_client_interface (TpProxy *proxy,
+                            const gchar *name)
 {
-    TpProxy *proxy = (TpProxy *) client->proxy;
+    if (strcmp (name, TP_IFACE_CLIENT_APPROVER) == 0)
+    {
+        DEBUG ("%s is an Approver", tp_proxy_get_bus_name (proxy));
 
-    tp_proxy_add_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT);
-    if (client->interfaces & MCD_CLIENT_APPROVER)
         tp_proxy_add_interface_by_id (proxy,
                                       TP_IFACE_QUARK_CLIENT_APPROVER);
-    if (client->interfaces & MCD_CLIENT_HANDLER)
+    }
+    else if (strcmp (name, TP_IFACE_CLIENT_HANDLER) == 0)
+    {
+        DEBUG ("%s is a Handler", tp_proxy_get_bus_name (proxy));
+
         tp_proxy_add_interface_by_id (proxy,
                                       TP_IFACE_QUARK_CLIENT_HANDLER);
-    if (client->interfaces & MCD_CLIENT_INTERFACE_REQUESTS)
-        tp_proxy_add_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT_INTERFACE_REQUESTS);
-    if (client->interfaces & MCD_CLIENT_OBSERVER)
+    }
+    else if (strcmp (name, TP_IFACE_CLIENT_INTERFACE_REQUESTS) == 0)
+    {
+        DEBUG ("%s supports Requests", tp_proxy_get_bus_name (proxy));
+
+        tp_proxy_add_interface_by_id (proxy,
+                                      TP_IFACE_QUARK_CLIENT_INTERFACE_REQUESTS);
+    }
+    else if (strcmp (name, TP_IFACE_CLIENT_OBSERVER) == 0)
+    {
+        DEBUG ("%s is an Observer", tp_proxy_get_bus_name (proxy));
+
         tp_proxy_add_interface_by_id (proxy,
                                       TP_IFACE_QUARK_CLIENT_OBSERVER);
+    }
 }
 
 static void
@@ -2365,21 +2382,13 @@ get_interfaces_cb (TpProxy *proxy,
 
     while (arr != NULL && *arr != NULL)
     {
-        if (strcmp (*arr, TP_IFACE_CLIENT_APPROVER) == 0)
-            client->interfaces |= MCD_CLIENT_APPROVER;
-        if (strcmp (*arr, TP_IFACE_CLIENT_HANDLER) == 0)
-            client->interfaces |= MCD_CLIENT_HANDLER;
-        if (strcmp (*arr, TP_IFACE_CLIENT_INTERFACE_REQUESTS) == 0)
-            client->interfaces |= MCD_CLIENT_INTERFACE_REQUESTS;
-        if (strcmp (*arr, TP_IFACE_CLIENT_OBSERVER) == 0)
-            client->interfaces |= MCD_CLIENT_OBSERVER;
+        maybe_add_client_interface (proxy, *arr);
         arr++;
     }
 
     DEBUG ("Client %s", bus_name);
 
-    client_add_interface_by_id (client);
-    if (client->interfaces & MCD_CLIENT_APPROVER)
+    if (tp_proxy_has_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT_APPROVER))
     {
         if (!self->priv->startup_completed)
             self->priv->startup_lock++;
@@ -2391,7 +2400,8 @@ get_interfaces_cb (TpProxy *proxy,
              "ApproverChannelFilter", get_channel_filter_cb,
              GUINT_TO_POINTER (MCD_CLIENT_APPROVER), NULL, G_OBJECT (self));
     }
-    if (client->interfaces & MCD_CLIENT_HANDLER)
+
+    if (tp_proxy_has_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT_HANDLER))
     {
         if (!self->priv->startup_completed)
             self->priv->startup_lock++;
@@ -2402,7 +2412,8 @@ get_interfaces_cb (TpProxy *proxy,
             (client->proxy, -1, TP_IFACE_CLIENT_HANDLER,
              handler_get_all_cb, NULL, NULL, G_OBJECT (self));
     }
-    if (client->interfaces & MCD_CLIENT_OBSERVER)
+
+    if (tp_proxy_has_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT_OBSERVER))
     {
         if (!self->priv->startup_completed)
             self->priv->startup_lock++;
@@ -2427,6 +2438,7 @@ parse_client_file (McdClient *client,
     gchar **iface_names, **groups, **cap_tokens;
     guint i;
     gsize len = 0;
+    gboolean is_approver, is_handler, is_observer;
     GList *approver_filters = NULL;
     GList *observer_filters = NULL;
     GList *handler_filters = NULL;
@@ -2439,22 +2451,23 @@ parse_client_file (McdClient *client,
 
     for (i = 0; iface_names[i] != NULL; i++)
     {
-        if (strcmp (iface_names[i], TP_IFACE_CLIENT_APPROVER) == 0)
-            client->interfaces |= MCD_CLIENT_APPROVER;
-        else if (strcmp (iface_names[i], TP_IFACE_CLIENT_HANDLER) == 0)
-            client->interfaces |= MCD_CLIENT_HANDLER;
-        else if (strcmp (iface_names[i], TP_IFACE_CLIENT_INTERFACE_REQUESTS) == 0)
-            client->interfaces |= MCD_CLIENT_INTERFACE_REQUESTS;
-        else if (strcmp (iface_names[i], TP_IFACE_CLIENT_OBSERVER) == 0)
-            client->interfaces |= MCD_CLIENT_OBSERVER;
+        maybe_add_client_interface ((TpProxy *) client->proxy,
+                                    iface_names[i]);
     }
     g_strfreev (iface_names);
+
+    is_approver = tp_proxy_has_interface_by_id (client->proxy,
+                                                TP_IFACE_QUARK_CLIENT_APPROVER);
+    is_observer = tp_proxy_has_interface_by_id (client->proxy,
+                                                TP_IFACE_QUARK_CLIENT_OBSERVER);
+    is_handler = tp_proxy_has_interface_by_id (client->proxy,
+                                               TP_IFACE_QUARK_CLIENT_HANDLER);
 
     /* parse filtering rules */
     groups = g_key_file_get_groups (file, &len);
     for (i = 0; i < len; i++)
     {
-        if (client->interfaces & MCD_CLIENT_APPROVER &&
+        if (is_approver &&
             g_str_has_prefix (groups[i], TP_IFACE_CLIENT_APPROVER
                               ".ApproverChannelFilter "))
         {
@@ -2462,7 +2475,7 @@ parse_client_file (McdClient *client,
                 g_list_prepend (approver_filters,
                                 parse_client_filter (file, groups[i]));
         }
-        else if (client->interfaces & MCD_CLIENT_HANDLER &&
+        else if (is_handler &&
             g_str_has_prefix (groups[i], TP_IFACE_CLIENT_HANDLER
                               ".HandlerChannelFilter "))
         {
@@ -2470,7 +2483,7 @@ parse_client_file (McdClient *client,
                 g_list_prepend (handler_filters,
                                 parse_client_filter (file, groups[i]));
         }
-        else if (client->interfaces & MCD_CLIENT_OBSERVER &&
+        else if (is_observer &&
             g_str_has_prefix (groups[i], TP_IFACE_CLIENT_OBSERVER
                               ".ObserverChannelFilter "))
         {
@@ -2584,9 +2597,7 @@ mcd_client_start_introspection (McdClientProxy *proxy,
     }
     else
     {
-        client_add_interface_by_id (client);
-
-        if ((client->interfaces & MCD_CLIENT_HANDLER) != 0)
+        if (tp_proxy_has_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT_HANDLER))
         {
             if (_mcd_client_proxy_is_active (proxy))
             {
@@ -3535,7 +3546,8 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
         return;
     }
 
-    if (!(handler->interfaces & MCD_CLIENT_INTERFACE_REQUESTS))
+    if (!tp_proxy_has_interface_by_id (handler->proxy,
+        TP_IFACE_QUARK_CLIENT_INTERFACE_REQUESTS))
     {
         DEBUG ("Default handler %s for request %s doesn't want AddRequest",
                tp_proxy_get_bus_name (handler->proxy),
