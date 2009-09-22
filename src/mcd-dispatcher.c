@@ -2256,40 +2256,6 @@ finally:
 }
 
 static void
-maybe_add_client_interface (TpProxy *proxy,
-                            const gchar *name)
-{
-    if (strcmp (name, TP_IFACE_CLIENT_APPROVER) == 0)
-    {
-        DEBUG ("%s is an Approver", tp_proxy_get_bus_name (proxy));
-
-        tp_proxy_add_interface_by_id (proxy,
-                                      TP_IFACE_QUARK_CLIENT_APPROVER);
-    }
-    else if (strcmp (name, TP_IFACE_CLIENT_HANDLER) == 0)
-    {
-        DEBUG ("%s is a Handler", tp_proxy_get_bus_name (proxy));
-
-        tp_proxy_add_interface_by_id (proxy,
-                                      TP_IFACE_QUARK_CLIENT_HANDLER);
-    }
-    else if (strcmp (name, TP_IFACE_CLIENT_INTERFACE_REQUESTS) == 0)
-    {
-        DEBUG ("%s supports Requests", tp_proxy_get_bus_name (proxy));
-
-        tp_proxy_add_interface_by_id (proxy,
-                                      TP_IFACE_QUARK_CLIENT_INTERFACE_REQUESTS);
-    }
-    else if (strcmp (name, TP_IFACE_CLIENT_OBSERVER) == 0)
-    {
-        DEBUG ("%s is an Observer", tp_proxy_get_bus_name (proxy));
-
-        tp_proxy_add_interface_by_id (proxy,
-                                      TP_IFACE_QUARK_CLIENT_OBSERVER);
-    }
-}
-
-static void
 get_interfaces_cb (TpProxy *proxy,
                    const GValue *out_Value,
                    const GError *error,
@@ -2299,7 +2265,6 @@ get_interfaces_cb (TpProxy *proxy,
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
     /* McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self); */
     McdClientProxy *client;
-    gchar **arr;
     const gchar *bus_name = tp_proxy_get_bus_name (proxy);
 
     if (error != NULL)
@@ -2326,13 +2291,7 @@ get_interfaces_cb (TpProxy *proxy,
         goto finally;
     }
 
-    arr = g_value_get_boxed (out_Value);
-
-    while (arr != NULL && *arr != NULL)
-    {
-        maybe_add_client_interface (proxy, *arr);
-        arr++;
-    }
+    _mcd_client_proxy_add_interfaces (client, g_value_get_boxed (out_Value));
 
     DEBUG ("Client %s", bus_name);
 
@@ -2396,10 +2355,8 @@ parse_client_file (McdClientProxy *client,
     if (!iface_names)
         return;
 
-    for (i = 0; iface_names[i] != NULL; i++)
-    {
-        maybe_add_client_interface ((TpProxy *) client, iface_names[i]);
-    }
+    _mcd_client_proxy_add_interfaces (client,
+                                      (const gchar * const *) iface_names);
     g_strfreev (iface_names);
 
     is_approver = tp_proxy_has_interface_by_id (client,

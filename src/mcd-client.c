@@ -160,6 +160,27 @@ _mcd_client_proxy_add_cap_tokens (McdClientProxy *self,
     }
 }
 
+void
+_mcd_client_proxy_add_interfaces (McdClientProxy *self,
+                                  const gchar * const *interfaces)
+{
+    guint i;
+
+    if (interfaces == NULL)
+        return;
+
+    for (i = 0; interfaces[i] != NULL; i++)
+    {
+        if (tp_dbus_check_valid_interface_name (interfaces[i], NULL))
+        {
+            GQuark q = g_quark_from_string (interfaces[i]);
+
+            DEBUG ("%s: %s", tp_proxy_get_bus_name (self), interfaces[i]);
+            tp_proxy_add_interface_by_id ((TpProxy *) self, q);
+        }
+    }
+}
+
 static void
 _mcd_client_proxy_init (McdClientProxy *self)
 {

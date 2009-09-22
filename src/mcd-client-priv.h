@@ -88,6 +88,9 @@ G_GNUC_INTERNAL void _mcd_client_proxy_set_active (McdClientProxy *self,
                                                    const gchar *unique_name);
 G_GNUC_INTERNAL void _mcd_client_proxy_set_activatable (McdClientProxy *self);
 
+G_GNUC_INTERNAL void _mcd_client_proxy_add_interfaces (McdClientProxy *self,
+    const gchar * const *interfaces);
+
 G_GNUC_INTERNAL gchar *_mcd_client_proxy_find_client_file (
     const gchar *client_name);
 
