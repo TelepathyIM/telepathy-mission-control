@@ -31,6 +31,7 @@
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/defs.h>
 #include <telepathy-glib/errors.h>
+#include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/proxy-subclass.h>
 #include <telepathy-glib/util.h>
@@ -884,4 +885,94 @@ _mcd_client_proxy_become_incapable (McdClientProxy *self)
     _mcd_client_proxy_take_observer_filters (self, NULL);
     _mcd_client_proxy_take_handler_filters (self, NULL);
     _mcd_client_proxy_clear_capability_tokens (self);
+}
+
+typedef struct {
+    TpHandleRepoIface *repo;
+    GPtrArray *array;
+} TokenAppendContext;
+
+static void
+append_token_to_ptrs (TpHandleSet *unused G_GNUC_UNUSED,
+                      TpHandle handle,
+                      gpointer data)
+{
+    TokenAppendContext *context = data;
+
+    g_ptr_array_add (context->array,
+                     g_strdup (tp_handle_inspect (context->repo, handle)));
+}
+
+GValueArray *
+_mcd_client_proxy_dup_handler_capabilities (McdClientProxy *self)
+{
+    GPtrArray *filters;
+    GPtrArray *cap_tokens;
+    GValueArray *va;
+    const GList *list;
+
+    g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), NULL);
+
+    filters = g_ptr_array_sized_new (
+        g_list_length (self->priv->handler_filters));
+
+    for (list = self->priv->handler_filters; list != NULL; list = list->next)
+    {
+        GHashTable *copy = g_hash_table_new_full (g_str_hash, g_str_equal,
+            g_free, (GDestroyNotify) tp_g_value_slice_free);
+
+        tp_g_hash_table_update (copy, list->data,
+                                (GBoxedCopyFunc) g_strdup,
+                                (GBoxedCopyFunc) tp_g_value_slice_dup);
+        g_ptr_array_add (filters, copy);
+    }
+
+    if (self->priv->capability_tokens == NULL)
+    {
+        cap_tokens = g_ptr_array_sized_new (1);
+    }
+    else
+    {
+        TokenAppendContext context = { self->priv->string_pool, NULL };
+
+        cap_tokens = g_ptr_array_sized_new (
+            tp_handle_set_size (self->priv->capability_tokens) + 1);
+        context.array = cap_tokens;
+        tp_handle_set_foreach (self->priv->capability_tokens,
+                               append_token_to_ptrs, &context);
+    }
+
+    g_ptr_array_add (cap_tokens, NULL);
+
+    if (DEBUGGING)
+    {
+        guint i;
+
+        DEBUG ("%s:", tp_proxy_get_bus_name (self));
+
+        DEBUG ("- %u channel filters", filters->len);
+        DEBUG ("- %u capability tokens:", cap_tokens->len - 1);
+
+        for (i = 0; i < cap_tokens->len - 1; i++)
+        {
+            DEBUG ("    %s", (gchar *) g_ptr_array_index (cap_tokens, i));
+        }
+
+        DEBUG ("-end-");
+    }
+
+    va = g_value_array_new (3);
+    g_value_array_append (va, NULL);
+    g_value_array_append (va, NULL);
+    g_value_array_append (va, NULL);
+
+    g_value_init (va->values + 0, G_TYPE_STRING);
+    g_value_init (va->values + 1, TP_ARRAY_TYPE_CHANNEL_CLASS_LIST);
+    g_value_init (va->values + 2, G_TYPE_STRV);
+
+    g_value_set_string (va->values + 0, tp_proxy_get_bus_name (self));
+    g_value_take_boxed (va->values + 1, filters);
+    g_value_take_boxed (va->values + 2, g_ptr_array_free (cap_tokens, FALSE));
+
+    return va;
 }
