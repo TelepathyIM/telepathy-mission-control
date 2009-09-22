@@ -583,3 +583,12 @@ _mcd_client_proxy_peek_capability_tokens (McdClientProxy *self)
     g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), NULL);
     return self->priv->capability_tokens;
 }
+
+void
+_mcd_client_proxy_become_incapable (McdClientProxy *self)
+{
+    _mcd_client_proxy_take_approver_filters (self, NULL);
+    _mcd_client_proxy_take_observer_filters (self, NULL);
+    _mcd_client_proxy_take_handler_filters (self, NULL);
+    _mcd_client_proxy_clear_capability_tokens (self);
+}

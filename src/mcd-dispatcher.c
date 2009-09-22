@@ -305,18 +305,9 @@ mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
 }
 
 static void
-mcd_client_become_incapable (McdClient *client)
-{
-    _mcd_client_proxy_take_approver_filters (client->proxy, NULL);
-    _mcd_client_proxy_take_observer_filters (client->proxy, NULL);
-    _mcd_client_proxy_take_handler_filters (client->proxy, NULL);
-    _mcd_client_proxy_clear_capability_tokens (client->proxy);
-}
-
-static void
 mcd_client_free (McdClient *client)
 {
-    mcd_client_become_incapable (client);
+    _mcd_client_proxy_become_incapable (client->proxy);
 
     if (client->proxy)
     {
@@ -2816,7 +2807,7 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
                 /* in ContactCapabilities we indicate the disappearance
                  * of a client by giving it an empty set of capabilities and
                  * filters */
-                mcd_client_become_incapable (client);
+                _mcd_client_proxy_become_incapable (client->proxy);
                 mcd_dispatcher_update_client_caps (self, client);
                 g_hash_table_remove (priv->clients, name);
             }
