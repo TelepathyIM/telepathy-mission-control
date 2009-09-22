@@ -1781,23 +1781,10 @@ get_channel_filter_cb (TpProxy *proxy,
                        GObject *weak_object)
 {
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
-    McdClientProxy *client;
-    const gchar *bus_name = tp_proxy_get_bus_name (proxy);
-
-    client = g_hash_table_lookup (self->priv->clients, bus_name);
-
-    if (G_UNLIKELY (client == NULL))
-    {
-        DEBUG ("Client %s vanished while we were getting its Client filters",
-               bus_name);
-        goto finally;
-    }
 
     _mcd_client_proxy_set_channel_filters (MCD_CLIENT_PROXY (proxy),
                                            value, error,
                                            GPOINTER_TO_UINT (user_data));
-
-finally:
     mcd_dispatcher_release_startup_lock (self);
 }
 
