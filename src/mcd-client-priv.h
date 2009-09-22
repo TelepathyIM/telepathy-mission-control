@@ -125,6 +125,16 @@ G_GNUC_INTERNAL TpHandleSet *_mcd_client_proxy_peek_capability_tokens
 G_GNUC_INTERNAL GValueArray *_mcd_client_proxy_dup_handler_capabilities (
     McdClientProxy *self);
 
+typedef enum
+{
+    MCD_CLIENT_APPROVER,
+    MCD_CLIENT_HANDLER,
+    MCD_CLIENT_OBSERVER
+} McdClientInterface;
+
+G_GNUC_INTERNAL void _mcd_client_proxy_set_filters (McdClientProxy *client,
+    McdClientInterface interface, GPtrArray *filters);
+
 #define MC_CLIENT_BUS_NAME_BASE_LEN (sizeof (TP_CLIENT_BUS_NAME_BASE) - 1)
 
 G_END_DECLS

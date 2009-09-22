@@ -150,13 +150,6 @@ typedef struct
     gboolean handled;
 } McdChannelRecover;
 
-typedef enum
-{
-    MCD_CLIENT_APPROVER,
-    MCD_CLIENT_HANDLER,
-    MCD_CLIENT_OBSERVER
-} McdClientInterface;
-
 struct _McdDispatcherPrivate
 {
     /* Dispatching contexts */
@@ -1745,98 +1738,6 @@ _mcd_dispatcher_dispose (GObject * object)
 }
 
 static void
-mcd_client_set_filters (McdClientProxy *client,
-                        McdClientInterface interface,
-                        GPtrArray *filters)
-{
-    GList *client_filters = NULL;
-    guint i;
-
-    for (i = 0 ; i < filters->len ; i++)
-    {
-        GHashTable *channel_class = g_ptr_array_index (filters, i);
-        GHashTable *new_channel_class;
-        GHashTableIter iter;
-        gchar *property_name;
-        GValue *property_value;
-        gboolean valid_filter = TRUE;
-
-        new_channel_class = g_hash_table_new_full
-            (g_str_hash, g_str_equal, g_free,
-             (GDestroyNotify) tp_g_value_slice_free);
-
-        g_hash_table_iter_init (&iter, channel_class);
-        while (g_hash_table_iter_next (&iter, (gpointer *) &property_name,
-                                       (gpointer *) &property_value)) 
-        {
-            GValue *filter_value;
-            GType property_type = G_VALUE_TYPE (property_value);
-
-            if (property_type == G_TYPE_BOOLEAN ||
-                property_type == G_TYPE_STRING ||
-                property_type == DBUS_TYPE_G_OBJECT_PATH)
-            {
-                filter_value = tp_g_value_slice_new
-                    (G_VALUE_TYPE (property_value));
-                g_value_copy (property_value, filter_value);
-            }
-            else if (property_type == G_TYPE_UCHAR ||
-                     property_type == G_TYPE_UINT ||
-                     property_type == G_TYPE_UINT64)
-            {
-                filter_value = tp_g_value_slice_new (G_TYPE_UINT64);
-                g_value_transform (property_value, filter_value);
-            }
-            else if (property_type == G_TYPE_INT ||
-                     property_type == G_TYPE_INT64)
-            {
-                filter_value = tp_g_value_slice_new (G_TYPE_INT64);
-                g_value_transform (property_value, filter_value);
-            }
-            else
-            {
-                /* invalid type, do not add this filter */
-                g_warning ("%s: Property %s has an invalid type (%s)",
-                           G_STRFUNC, property_name,
-                           g_type_name (G_VALUE_TYPE (property_value)));
-                valid_filter = FALSE;
-                break;
-            }
-
-            g_hash_table_insert (new_channel_class, g_strdup (property_name),
-                                 filter_value);
-        }
-
-        if (valid_filter)
-            client_filters = g_list_prepend (client_filters,
-                                             new_channel_class);
-        else
-            g_hash_table_destroy (new_channel_class);
-    }
-
-    switch (interface)
-    {
-        case MCD_CLIENT_OBSERVER:
-            _mcd_client_proxy_take_observer_filters (client,
-                                                     client_filters);
-            break;
-
-        case MCD_CLIENT_APPROVER:
-            _mcd_client_proxy_take_approver_filters (client,
-                                                     client_filters);
-            break;
-
-        case MCD_CLIENT_HANDLER:
-            _mcd_client_proxy_take_handler_filters (client,
-                                                    client_filters);
-            break;
-
-        default:
-            g_assert_not_reached ();
-    }
-}
-
-static void
 mcd_dispatcher_release_startup_lock (McdDispatcher *self)
 {
     if (self->priv->startup_completed)
@@ -1907,8 +1808,8 @@ get_channel_filter_cb (TpProxy *proxy,
         goto finally;
     }
 
-    mcd_client_set_filters (client, GPOINTER_TO_UINT (user_data),
-                            g_value_get_boxed (value));
+    _mcd_client_proxy_set_filters (client, GPOINTER_TO_UINT (user_data),
+                                   g_value_get_boxed (value));
 finally:
     mcd_dispatcher_release_startup_lock (self);
 }
@@ -1985,7 +1886,7 @@ handler_get_all_cb (TpProxy *proxy,
     {
         DEBUG ("%s has %u HandlerChannelFilter entries", bus_name,
                filters->len);
-        mcd_client_set_filters (client, MCD_CLIENT_HANDLER, filters);
+        _mcd_client_proxy_set_filters (client, MCD_CLIENT_HANDLER, filters);
     }
     else
     {
