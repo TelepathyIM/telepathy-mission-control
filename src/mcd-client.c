@@ -352,7 +352,7 @@ parse_client_file (McdClientProxy *client,
     g_strfreev (cap_tokens);
 }
 
-void
+static void
 _mcd_client_proxy_set_filters (McdClientProxy *client,
                                McdClientInterface interface,
                                GPtrArray *filters)
@@ -588,6 +588,30 @@ _mcd_client_proxy_set_handler_properties (McdClientProxy *self,
                                               TP_ARRAY_TYPE_OBJECT_PATH_LIST);
 
     return TRUE;
+}
+
+void
+_mcd_client_proxy_set_channel_filters (McdClientProxy *self,
+                                       const GValue *value,
+                                       const GError *error,
+                                       McdClientInterface iface)
+{
+    if (error != NULL)
+    {
+        DEBUG ("error getting a filter list for client %s: %s #%d: %s",
+               tp_proxy_get_object_path (self),
+               g_quark_to_string (error->domain), error->code, error->message);
+        return;
+    }
+
+    if (!G_VALUE_HOLDS (value, TP_ARRAY_TYPE_STRING_VARIANT_MAP_LIST))
+    {
+        DEBUG ("wrong type for filter property on client %s: %s",
+               tp_proxy_get_object_path (self), G_VALUE_TYPE_NAME (value));
+        return;
+    }
+
+    _mcd_client_proxy_set_filters (self, iface, g_value_get_boxed (value));
 }
 
 gboolean

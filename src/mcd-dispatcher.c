@@ -1793,23 +1793,10 @@ get_channel_filter_cb (TpProxy *proxy,
         goto finally;
     }
 
-    if (error != NULL)
-    {
-        DEBUG ("error getting a filter list for client %s: %s #%d: %s",
-               tp_proxy_get_object_path (proxy),
-               g_quark_to_string (error->domain), error->code, error->message);
-        goto finally;
-    }
+    _mcd_client_proxy_set_channel_filters (MCD_CLIENT_PROXY (proxy),
+                                           value, error,
+                                           GPOINTER_TO_UINT (user_data));
 
-    if (!G_VALUE_HOLDS (value, TP_ARRAY_TYPE_STRING_VARIANT_MAP_LIST))
-    {
-        DEBUG ("wrong type for filter property on client %s: %s",
-               tp_proxy_get_object_path (proxy), G_VALUE_TYPE_NAME (value));
-        goto finally;
-    }
-
-    _mcd_client_proxy_set_filters (client, GPOINTER_TO_UINT (user_data),
-                                   g_value_get_boxed (value));
 finally:
     mcd_dispatcher_release_startup_lock (self);
 }

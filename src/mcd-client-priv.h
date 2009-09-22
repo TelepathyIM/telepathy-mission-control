@@ -120,8 +120,8 @@ typedef enum
     MCD_CLIENT_OBSERVER
 } McdClientInterface;
 
-G_GNUC_INTERNAL void _mcd_client_proxy_set_filters (McdClientProxy *client,
-    McdClientInterface interface, GPtrArray *filters);
+G_GNUC_INTERNAL void _mcd_client_proxy_set_channel_filters (McdClientProxy *self,
+    const GValue *value, const GError *error, McdClientInterface iface);
 
 G_GNUC_INTERNAL gboolean _mcd_client_proxy_set_handler_properties (
     McdClientProxy *client, GHashTable *properties, const GError *error,
