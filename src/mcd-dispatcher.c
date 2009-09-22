@@ -1828,14 +1828,13 @@ handler_get_all_cb (TpProxy *proxy,
                     gpointer unused G_GNUC_UNUSED,
                     GObject *weak_object)
 {
-    McdClientProxy *client_proxy = MCD_CLIENT_PROXY (proxy);
+    McdClientProxy *client = MCD_CLIENT_PROXY (proxy);
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
-    McdClientProxy *client;
     const gchar *bus_name = tp_proxy_get_bus_name (proxy);
     const GPtrArray *channels = NULL;
     const gchar *unique_name;
 
-    if (!_mcd_client_proxy_set_handler_properties (client_proxy,
+    if (!_mcd_client_proxy_set_handler_properties (client,
                                                    properties,
                                                    error,
                                                    &channels))
@@ -1843,16 +1842,7 @@ handler_get_all_cb (TpProxy *proxy,
         goto finally;
     }
 
-    client = g_hash_table_lookup (self->priv->clients, bus_name);
-
-    if (G_UNLIKELY (client == NULL))
-    {
-        DEBUG ("Client %s vanished while getting its Handler properties",
-               bus_name);
-        goto finally;
-    }
-
-    unique_name = _mcd_client_proxy_get_unique_name (client_proxy);
+    unique_name = _mcd_client_proxy_get_unique_name (client);
 
     /* This function is only called in (indirect) response to the
      * McdClientProxy signalling unique-name-known */
@@ -1896,7 +1886,7 @@ get_interfaces_cb (TpProxy *proxy,
 {
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
     /* McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self); */
-    McdClientProxy *client;
+    McdClientProxy *client = MCD_CLIENT_PROXY (proxy);
     const gchar *bus_name = tp_proxy_get_bus_name (proxy);
 
     if (error != NULL)
@@ -1911,15 +1901,6 @@ get_interfaces_cb (TpProxy *proxy,
     {
         DEBUG ("Wrong type getting Interfaces for Client %s, assuming none: "
                "%s", bus_name, G_VALUE_TYPE_NAME (out_Value));
-        goto finally;
-    }
-
-    client = g_hash_table_lookup (self->priv->clients, bus_name);
-
-    if (G_UNLIKELY (client == NULL))
-    {
-        DEBUG ("Client %s vanished while we were getting its interfaces",
-               bus_name);
         goto finally;
     }
 
@@ -1971,24 +1952,15 @@ finally:
 
 /* FIXME: eventually this whole chain should move into McdClientProxy */
 static void
-mcd_client_start_introspection (McdClientProxy *proxy,
+mcd_client_start_introspection (McdClientProxy *client,
                                 McdDispatcher *dispatcher)
 {
     gboolean file_found;
-    McdClientProxy *client;
-    const gchar *bus_name = tp_proxy_get_bus_name (proxy);
+    const gchar *bus_name = tp_proxy_get_bus_name (client);
 
-    g_signal_handlers_disconnect_by_func (proxy,
+    g_signal_handlers_disconnect_by_func (client,
                                           mcd_client_start_introspection,
                                           dispatcher);
-
-    client = g_hash_table_lookup (dispatcher->priv->clients, bus_name);
-
-    if (client == NULL)
-    {
-        DEBUG ("Client %s vanished before it became ready", bus_name);
-        goto finally;
-    }
 
     /* The .client file is not mandatory as per the spec. However if it
      * exists, it is better to read it than activating the service to read the
@@ -2009,9 +1981,9 @@ mcd_client_start_introspection (McdClientProxy *proxy,
     }
     else
     {
-        if (tp_proxy_has_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT_HANDLER))
+        if (tp_proxy_has_interface_by_id (client, TP_IFACE_QUARK_CLIENT_HANDLER))
         {
-            if (_mcd_client_proxy_is_active (proxy))
+            if (_mcd_client_proxy_is_active (client))
             {
                 DEBUG ("%s is an active, activatable Handler", bus_name);
 
@@ -2034,7 +2006,6 @@ mcd_client_start_introspection (McdClientProxy *proxy,
         }
     }
 
-finally:
     /* paired with the lock taken when we made the McdClientProxy */
     mcd_dispatcher_release_startup_lock (dispatcher);
 }
