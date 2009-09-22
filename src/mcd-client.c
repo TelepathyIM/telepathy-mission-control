@@ -422,21 +422,24 @@ _mcd_client_check_valid_name (const gchar *name_suffix,
 McdClientProxy *
 _mcd_client_proxy_new (TpDBusDaemon *dbus_daemon,
                        TpHandleRepoIface *string_pool,
-                       const gchar *name_suffix,
+                       const gchar *well_known_name,
                        const gchar *unique_name_if_known,
                        gboolean activatable)
 {
     McdClientProxy *self;
-    gchar *bus_name, *object_path;
+    const gchar *name_suffix;
+    gchar *object_path;
 
+    g_return_val_if_fail (g_str_has_prefix (well_known_name,
+                                            TP_CLIENT_BUS_NAME_BASE), NULL);
+    name_suffix = well_known_name + MC_CLIENT_BUS_NAME_BASE_LEN;
     g_return_val_if_fail (_mcd_client_check_valid_name (name_suffix, NULL),
                           NULL);
 
-    bus_name = g_strconcat (TP_CLIENT_BUS_NAME_BASE, name_suffix, NULL);
-    object_path = g_strconcat (TP_CLIENT_OBJECT_PATH_BASE, name_suffix, NULL);
+    object_path = g_strconcat ("/", well_known_name, NULL);
     g_strdelimit (object_path, ".", '/');
 
-    g_assert (tp_dbus_check_valid_bus_name (bus_name,
+    g_assert (tp_dbus_check_valid_bus_name (well_known_name,
                                             TP_DBUS_NAME_TYPE_WELL_KNOWN,
                                             NULL));
     g_assert (tp_dbus_check_valid_object_path (object_path, NULL));
@@ -445,13 +448,12 @@ _mcd_client_proxy_new (TpDBusDaemon *dbus_daemon,
                          "dbus-daemon", dbus_daemon,
                          "string-pool", string_pool,
                          "object-path", object_path,
-                         "bus-name", bus_name,
+                         "bus-name", well_known_name,
                          "unique-name", unique_name_if_known,
                          "activatable", activatable,
                          NULL);
 
     g_free (object_path);
-    g_free (bus_name);
 
     return self;
 }

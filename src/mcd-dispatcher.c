@@ -2498,8 +2498,7 @@ create_mcd_client (McdDispatcher *self,
 
     client = _mcd_client_proxy_new (
         self->priv->dbus_daemon, self->priv->string_pool,
-        name + MC_CLIENT_BUS_NAME_BASE_LEN,
-        owner, activatable);
+        name, owner, activatable);
 
     DEBUG ("McdClientProxy created for %s", name);
 
