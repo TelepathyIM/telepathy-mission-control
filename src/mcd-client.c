@@ -64,6 +64,7 @@ struct _McdClientProxyPrivate
     TpHandleSet *capability_tokens;
 
     gchar *unique_name;
+    gboolean introspect_started;
     gboolean ready;
     gboolean bypass_approval;
 
@@ -508,7 +509,6 @@ gboolean
 _mcd_client_proxy_is_active (McdClientProxy *self)
 {
     g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), FALSE);
-    g_return_val_if_fail (self->priv->ready, FALSE);
 
     return self->priv->unique_name != NULL &&
         self->priv->unique_name[0] != '\0';
@@ -518,7 +518,6 @@ gboolean
 _mcd_client_proxy_is_activatable (McdClientProxy *self)
 {
     g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), FALSE);
-    g_return_val_if_fail (self->priv->ready, FALSE);
 
     return self->priv->activatable;
 }
@@ -527,20 +526,8 @@ const gchar *
 _mcd_client_proxy_get_unique_name (McdClientProxy *self)
 {
     g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), NULL);
-    g_return_val_if_fail (self->priv->ready, NULL);
 
     return self->priv->unique_name;
-}
-
-static void
-mcd_client_proxy_emit_ready (McdClientProxy *self)
-{
-    if (self->priv->ready)
-        return;
-
-    self->priv->ready = TRUE;
-
-    g_signal_emit (self, signals[S_UNIQUE_NAME_KNOWN], 0);
 }
 
 gboolean
@@ -653,7 +640,14 @@ _mcd_client_proxy_parse_client_file (McdClientProxy *self)
 static gboolean
 mcd_client_proxy_introspect (gpointer data)
 {
-    mcd_client_proxy_emit_ready (data);
+    McdClientProxy *self = data;
+
+    if (!self->priv->introspect_started)
+    {
+        self->priv->introspect_started = TRUE;
+        g_signal_emit (self, signals[S_UNIQUE_NAME_KNOWN], 0);
+    }
+
     return FALSE;
 }
 
