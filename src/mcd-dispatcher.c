@@ -1858,15 +1858,14 @@ handler_get_all_cb (TpProxy *proxy,
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
     McdClientProxy *client;
     const gchar *bus_name = tp_proxy_get_bus_name (proxy);
-    GPtrArray *filters, *channels;
+    const GPtrArray *channels = NULL;
     const gchar *unique_name;
-    gboolean bypass;
 
-    if (error != NULL)
+    if (!_mcd_client_proxy_set_handler_properties (client_proxy,
+                                                   properties,
+                                                   error,
+                                                   &channels))
     {
-        DEBUG ("GetAll(Handler) for client %s failed: %s #%d: %s",
-               bus_name, g_quark_to_string (error->domain), error->code,
-               error->message);
         goto finally;
     }
 
@@ -1878,32 +1877,6 @@ handler_get_all_cb (TpProxy *proxy,
                bus_name);
         goto finally;
     }
-
-    filters = tp_asv_get_boxed (properties, "HandlerChannelFilter",
-                                TP_ARRAY_TYPE_STRING_VARIANT_MAP_LIST);
-
-    if (filters != NULL)
-    {
-        DEBUG ("%s has %u HandlerChannelFilter entries", bus_name,
-               filters->len);
-        _mcd_client_proxy_set_filters (client, MCD_CLIENT_HANDLER, filters);
-    }
-    else
-    {
-        DEBUG ("%s HandlerChannelFilter absent or wrong type, assuming "
-               "no channels can match", bus_name);
-    }
-
-    /* if wrong type or absent, assuming False is reasonable */
-    bypass = tp_asv_get_boolean (properties, "BypassApproval", NULL);
-    _mcd_client_proxy_set_bypass_approval (client, bypass);
-    DEBUG ("%s has BypassApproval=%c", bus_name, bypass ? 'T' : 'F');
-
-    _mcd_client_proxy_add_cap_tokens (client,
-        tp_asv_get_boxed (properties, "Capabilities", G_TYPE_STRV));
-
-    channels = tp_asv_get_boxed (properties, "HandledChannels",
-                                 TP_ARRAY_TYPE_OBJECT_PATH_LIST);
 
     unique_name = _mcd_client_proxy_get_unique_name (client_proxy);
 

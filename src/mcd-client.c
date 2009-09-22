@@ -543,6 +543,54 @@ mcd_client_proxy_emit_ready (McdClientProxy *self)
 }
 
 gboolean
+_mcd_client_proxy_set_handler_properties (McdClientProxy *self,
+                                          GHashTable *properties,
+                                          const GError *error,
+                                          const GPtrArray **handled_channels)
+{
+    const gchar *bus_name = tp_proxy_get_bus_name (self);
+    GPtrArray *filters;
+    gboolean bypass;
+
+    if (error != NULL)
+    {
+        DEBUG ("GetAll(Handler) for client %s failed: %s #%d: %s",
+               bus_name, g_quark_to_string (error->domain), error->code,
+               error->message);
+        return FALSE;
+    }
+
+    filters = tp_asv_get_boxed (properties, "HandlerChannelFilter",
+                                TP_ARRAY_TYPE_STRING_VARIANT_MAP_LIST);
+
+    if (filters != NULL)
+    {
+        DEBUG ("%s has %u HandlerChannelFilter entries", bus_name,
+               filters->len);
+        _mcd_client_proxy_set_filters (self, MCD_CLIENT_HANDLER, filters);
+    }
+    else
+    {
+        DEBUG ("%s HandlerChannelFilter absent or wrong type, assuming "
+               "no channels can match", bus_name);
+    }
+
+    /* if wrong type or absent, assuming False is reasonable */
+    bypass = tp_asv_get_boolean (properties, "BypassApproval", NULL);
+    _mcd_client_proxy_set_bypass_approval (self, bypass);
+    DEBUG ("%s has BypassApproval=%c", bus_name, bypass ? 'T' : 'F');
+
+    _mcd_client_proxy_add_cap_tokens (self,
+        tp_asv_get_boxed (properties, "Capabilities", G_TYPE_STRV));
+
+    if (handled_channels != NULL)
+        *handled_channels = tp_asv_get_boxed (properties, "HandledChannels",
+                                              TP_ARRAY_TYPE_OBJECT_PATH_LIST);
+
+    return TRUE;
+}
+
+gboolean
 _mcd_client_proxy_parse_client_file (McdClientProxy *self)
 {
     gboolean file_found = FALSE;

@@ -123,6 +123,10 @@ typedef enum
 G_GNUC_INTERNAL void _mcd_client_proxy_set_filters (McdClientProxy *client,
     McdClientInterface interface, GPtrArray *filters);
 
+G_GNUC_INTERNAL gboolean _mcd_client_proxy_set_handler_properties (
+    McdClientProxy *client, GHashTable *properties, const GError *error,
+    const GPtrArray **handled_channels);
+
 #define MC_CLIENT_BUS_NAME_BASE_LEN (sizeof (TP_CLIENT_BUS_NAME_BASE) - 1)
 
 G_END_DECLS
