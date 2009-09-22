@@ -271,20 +271,25 @@ mcd_client_proxy_constructed (GObject *object)
     McdClientProxy *self = MCD_CLIENT_PROXY (object);
     void (*chain_up) (GObject *) =
         ((GObjectClass *) _mcd_client_proxy_parent_class)->constructed;
+    const gchar *bus_name;
 
     if (chain_up != NULL)
     {
         chain_up (object);
     }
 
+    bus_name = tp_proxy_get_bus_name (self);
+
     self->priv->capability_tokens = tp_handle_set_new (
         self->priv->string_pool);
+
+    DEBUG ("%s", bus_name);
 
     if (self->priv->unique_name == NULL)
     {
         tp_cli_dbus_daemon_call_get_name_owner (tp_proxy_get_dbus_daemon (self),
                                                 -1,
-                                                tp_proxy_get_bus_name (self),
+                                                bus_name,
                                                 mcd_client_proxy_unique_name_cb,
                                                 NULL, NULL, (GObject *) self);
     }
