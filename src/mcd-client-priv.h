@@ -104,11 +104,6 @@ G_GNUC_INTERNAL gboolean _mcd_client_proxy_get_bypass_approval
     (McdClientProxy *self);
 
 G_GNUC_INTERNAL void _mcd_client_proxy_become_incapable (McdClientProxy *self);
-G_GNUC_INTERNAL void _mcd_client_proxy_set_bypass_approval
-    (McdClientProxy *self, gboolean bypass);
-
-G_GNUC_INTERNAL void _mcd_client_proxy_add_cap_tokens (McdClientProxy *self,
-    const gchar * const *cap_tokens);
 
 G_GNUC_INTERNAL GValueArray *_mcd_client_proxy_dup_handler_capabilities (
     McdClientProxy *self);

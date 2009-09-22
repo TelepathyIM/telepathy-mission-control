@@ -271,6 +271,9 @@ parse_client_filter (GKeyFile *file, const gchar *group)
     return filter;
 }
 
+static void _mcd_client_proxy_add_cap_tokens (McdClientProxy *self,
+                                              const gchar * const *cap_tokens);
+
 static void
 parse_client_file (McdClientProxy *client,
                    GKeyFile *file)
@@ -341,7 +344,7 @@ parse_client_file (McdClientProxy *client,
     /* Other client options */
     bypass = g_key_file_get_boolean (file, TP_IFACE_CLIENT_HANDLER,
                                      "BypassApproval", NULL);
-    _mcd_client_proxy_set_bypass_approval (client, bypass);
+    client->priv->bypass_approval = bypass;
 
     cap_tokens = g_key_file_get_keys (file,
                                       TP_IFACE_CLIENT_HANDLER ".Capabilities",
@@ -446,13 +449,11 @@ _mcd_client_proxy_set_filters (McdClientProxy *client,
 
 /* This is NULL-safe for the last argument, for ease of use with
  * tp_asv_get_boxed */
-void
+static void
 _mcd_client_proxy_add_cap_tokens (McdClientProxy *self,
                                   const gchar * const *cap_tokens)
 {
     guint i;
-
-    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
 
     if (cap_tokens == NULL)
         return;
@@ -577,7 +578,7 @@ _mcd_client_proxy_set_handler_properties (McdClientProxy *self,
 
     /* if wrong type or absent, assuming False is reasonable */
     bypass = tp_asv_get_boolean (properties, "BypassApproval", NULL);
-    _mcd_client_proxy_set_bypass_approval (self, bypass);
+    self->priv->bypass_approval = bypass;
     DEBUG ("%s has BypassApproval=%c", bus_name, bypass ? 'T' : 'F');
 
     _mcd_client_proxy_add_cap_tokens (self,
@@ -1021,15 +1022,6 @@ _mcd_client_proxy_get_bypass_approval (McdClientProxy *self)
     g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), FALSE);
 
     return self->priv->bypass_approval;
-}
-
-void
-_mcd_client_proxy_set_bypass_approval (McdClientProxy *self,
-                                       gboolean bypass)
-{
-    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
-
-    self->priv->bypass_approval = bypass;
 }
 
 void
