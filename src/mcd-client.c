@@ -50,6 +50,7 @@ enum
 
 enum
 {
+    S_READY,
     S_UNIQUE_NAME_KNOWN,
     N_SIGNALS
 };
@@ -64,6 +65,7 @@ struct _McdClientProxyPrivate
     TpHandleSet *capability_tokens;
 
     gchar *unique_name;
+    guint ready_lock;
     gboolean introspect_started;
     gboolean ready;
     gboolean bypass_approval;
@@ -92,6 +94,36 @@ struct _McdClientProxyPrivate
     GList *handler_filters;
     GList *observer_filters;
 };
+
+void
+_mcd_client_proxy_inc_ready_lock (McdClientProxy *self)
+{
+    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
+
+    if (self->priv->ready)
+        return;
+
+    g_return_if_fail (self->priv->ready_lock > 0);
+
+    self->priv->ready_lock++;
+}
+
+void
+_mcd_client_proxy_dec_ready_lock (McdClientProxy *self)
+{
+    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
+
+    if (self->priv->ready)
+        return;
+
+    g_return_if_fail (self->priv->ready_lock > 0);
+
+    if (--self->priv->ready_lock == 0)
+    {
+        self->priv->ready = TRUE;
+        g_signal_emit (self, signals[S_READY], 0);
+    }
+}
 
 static void _mcd_client_proxy_take_approver_filters
     (McdClientProxy *self, GList *filters);
@@ -495,6 +527,8 @@ _mcd_client_proxy_init (McdClientProxy *self)
 {
     self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, MCD_TYPE_CLIENT_PROXY,
                                               McdClientProxyPrivate);
+    /* paired with first call to mcd_client_proxy_introspect */
+    self->priv->ready_lock = 1;
 }
 
 gboolean
@@ -646,6 +680,7 @@ mcd_client_proxy_introspect (gpointer data)
     {
         self->priv->introspect_started = TRUE;
         g_signal_emit (self, signals[S_UNIQUE_NAME_KNOWN], 0);
+        _mcd_client_proxy_dec_ready_lock (self);
     }
 
     return FALSE;
@@ -795,6 +830,13 @@ _mcd_client_proxy_class_init (McdClientProxyClass *klass)
     object_class->set_property = mcd_client_proxy_set_property;
 
     signals[S_UNIQUE_NAME_KNOWN] = g_signal_new ("unique-name-known",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+        0, NULL, NULL,
+        g_cclosure_marshal_VOID__VOID,
+        G_TYPE_NONE, 0);
+
+    signals[S_READY] = g_signal_new ("ready",
         G_OBJECT_CLASS_TYPE (klass),
         G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
         0, NULL, NULL,

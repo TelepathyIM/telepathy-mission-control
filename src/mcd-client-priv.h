@@ -122,6 +122,9 @@ G_GNUC_INTERNAL gboolean _mcd_client_proxy_set_handler_properties (
     McdClientProxy *client, GHashTable *properties, const GError *error,
     const GPtrArray **handled_channels);
 
+G_GNUC_INTERNAL void _mcd_client_proxy_inc_ready_lock (McdClientProxy *self);
+G_GNUC_INTERNAL void _mcd_client_proxy_dec_ready_lock (McdClientProxy *self);
+
 #define MC_CLIENT_BUS_NAME_BASE_LEN (sizeof (TP_CLIENT_BUS_NAME_BASE) - 1)
 
 G_END_DECLS
