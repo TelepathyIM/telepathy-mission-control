@@ -2380,7 +2380,6 @@ finally:
 
 static void
 parse_client_file (McdClientProxy *client,
-                   TpHandleRepoIface *string_pool,
                    GKeyFile *file)
 {
     gchar **iface_names, **groups, **cap_tokens;
@@ -2496,7 +2495,7 @@ mcd_client_start_introspection (McdClientProxy *proxy,
         if (G_LIKELY (!error))
         {
             DEBUG ("File found for %s: %s", bus_name, filename);
-            parse_client_file (client, dispatcher->priv->string_pool, file);
+            parse_client_file (client, file);
             file_found = TRUE;
         }
         else
