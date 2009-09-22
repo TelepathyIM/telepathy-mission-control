@@ -2010,6 +2010,16 @@ mcd_client_start_introspection (McdClientProxy *client,
     mcd_dispatcher_release_startup_lock (dispatcher);
 }
 
+static void
+mcd_dispatcher_client_ready_cb (McdClientProxy *client,
+                                McdDispatcher *dispatcher)
+{
+    DEBUG ("%s", tp_proxy_get_bus_name (client));
+
+    /* FIXME: in theory, the McdDispatcher might not still be alive at this
+     * point? */
+}
+
 /* Check the list of strings whether they are valid well-known names of
  * Telepathy clients and create McdClientProxy objects for each of them.
  */
@@ -2068,6 +2078,10 @@ mcd_dispatcher_add_client (McdDispatcher *self,
         name, owner, activatable);
 
     g_hash_table_insert (priv->clients, g_strdup (name), client);
+
+    g_signal_connect (client, "ready",
+                      G_CALLBACK (mcd_dispatcher_client_ready_cb),
+                      self);
 
     g_signal_connect (client, "unique-name-known",
                       G_CALLBACK (mcd_client_start_introspection),
