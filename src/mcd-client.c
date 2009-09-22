@@ -26,10 +26,14 @@
 #include "config.h"
 #include "mcd-client-priv.h"
 
+#include <errno.h>
+
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/defs.h>
 #include <telepathy-glib/errors.h>
+#include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/proxy-subclass.h>
+#include <telepathy-glib/util.h>
 
 #include "mcd-debug.h"
 
@@ -137,6 +141,209 @@ finish:
     return absolute_filepath;
 }
 
+static GHashTable *
+parse_client_filter (GKeyFile *file, const gchar *group)
+{
+    GHashTable *filter;
+    gchar **keys;
+    gsize len = 0;
+    guint i;
+
+    filter = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
+                                    (GDestroyNotify) tp_g_value_slice_free);
+
+    keys = g_key_file_get_keys (file, group, &len, NULL);
+    for (i = 0; i < len; i++)
+    {
+        const gchar *key;
+        const gchar *space;
+        gchar *file_property;
+        gchar file_property_type;
+
+        key = keys[i];
+        space = g_strrstr (key, " ");
+
+        if (space == NULL || space[1] == '\0' || space[2] != '\0')
+        {
+            g_warning ("Invalid key %s in client file", key);
+            continue;
+        }
+        file_property_type = space[1];
+        file_property = g_strndup (key, space - key);
+
+        switch (file_property_type)
+        {
+        case 'q':
+        case 'u':
+        case 't': /* unsigned integer */
+            {
+                /* g_key_file_get_integer cannot be used because we need
+                 * to support 64 bits */
+                guint x;
+                GValue *value = tp_g_value_slice_new (G_TYPE_UINT64);
+                gchar *str = g_key_file_get_string (file, group, key,
+                                                    NULL);
+                errno = 0;
+                x = g_ascii_strtoull (str, NULL, 0);
+                if (errno != 0)
+                {
+                    g_warning ("Invalid unsigned integer '%s' in client"
+                               " file", str);
+                }
+                else
+                {
+                    g_value_set_uint64 (value, x);
+                    g_hash_table_insert (filter, file_property, value);
+                }
+                g_free (str);
+                break;
+            }
+
+        case 'y':
+        case 'n':
+        case 'i':
+        case 'x': /* signed integer */
+            {
+                gint x;
+                GValue *value = tp_g_value_slice_new (G_TYPE_INT64);
+                gchar *str = g_key_file_get_string (file, group, key, NULL);
+                errno = 0;
+                x = g_ascii_strtoll (str, NULL, 0);
+                if (errno != 0)
+                {
+                    g_warning ("Invalid signed integer '%s' in client"
+                               " file", str);
+                }
+                else
+                {
+                    g_value_set_int64 (value, x);
+                    g_hash_table_insert (filter, file_property, value);
+                }
+                g_free (str);
+                break;
+            }
+
+        case 'b':
+            {
+                GValue *value = tp_g_value_slice_new (G_TYPE_BOOLEAN);
+                gboolean b = g_key_file_get_boolean (file, group, key, NULL);
+                g_value_set_boolean (value, b);
+                g_hash_table_insert (filter, file_property, value);
+                break;
+            }
+
+        case 's':
+            {
+                GValue *value = tp_g_value_slice_new (G_TYPE_STRING);
+                gchar *str = g_key_file_get_string (file, group, key, NULL);
+
+                g_value_take_string (value, str);
+                g_hash_table_insert (filter, file_property, value);
+                break;
+            }
+
+        case 'o':
+            {
+                GValue *value = tp_g_value_slice_new
+                    (DBUS_TYPE_G_OBJECT_PATH);
+                gchar *str = g_key_file_get_string (file, group, key, NULL);
+
+                g_value_take_boxed (value, str);
+                g_hash_table_insert (filter, file_property, value);
+                break;
+            }
+
+        default:
+            g_warning ("Invalid key %s in client file", key);
+            continue;
+        }
+    }
+    g_strfreev (keys);
+
+    return filter;
+}
+
+static void
+parse_client_file (McdClientProxy *client,
+                   GKeyFile *file)
+{
+    gchar **iface_names, **groups, **cap_tokens;
+    guint i;
+    gsize len = 0;
+    gboolean is_approver, is_handler, is_observer;
+    GList *approver_filters = NULL;
+    GList *observer_filters = NULL;
+    GList *handler_filters = NULL;
+    gboolean bypass;
+
+    iface_names = g_key_file_get_string_list (file, TP_IFACE_CLIENT,
+                                              "Interfaces", 0, NULL);
+    if (!iface_names)
+        return;
+
+    _mcd_client_proxy_add_interfaces (client,
+                                      (const gchar * const *) iface_names);
+    g_strfreev (iface_names);
+
+    is_approver = tp_proxy_has_interface_by_id (client,
+                                                TP_IFACE_QUARK_CLIENT_APPROVER);
+    is_observer = tp_proxy_has_interface_by_id (client,
+                                                TP_IFACE_QUARK_CLIENT_OBSERVER);
+    is_handler = tp_proxy_has_interface_by_id (client,
+                                               TP_IFACE_QUARK_CLIENT_HANDLER);
+
+    /* parse filtering rules */
+    groups = g_key_file_get_groups (file, &len);
+    for (i = 0; i < len; i++)
+    {
+        if (is_approver &&
+            g_str_has_prefix (groups[i], TP_IFACE_CLIENT_APPROVER
+                              ".ApproverChannelFilter "))
+        {
+            approver_filters =
+                g_list_prepend (approver_filters,
+                                parse_client_filter (file, groups[i]));
+        }
+        else if (is_handler &&
+            g_str_has_prefix (groups[i], TP_IFACE_CLIENT_HANDLER
+                              ".HandlerChannelFilter "))
+        {
+            handler_filters =
+                g_list_prepend (handler_filters,
+                                parse_client_filter (file, groups[i]));
+        }
+        else if (is_observer &&
+            g_str_has_prefix (groups[i], TP_IFACE_CLIENT_OBSERVER
+                              ".ObserverChannelFilter "))
+        {
+            observer_filters =
+                g_list_prepend (observer_filters,
+                                parse_client_filter (file, groups[i]));
+        }
+    }
+    g_strfreev (groups);
+
+    _mcd_client_proxy_take_approver_filters (client,
+                                             approver_filters);
+    _mcd_client_proxy_take_observer_filters (client,
+                                             observer_filters);
+    _mcd_client_proxy_take_handler_filters (client,
+                                            handler_filters);
+
+    /* Other client options */
+    bypass = g_key_file_get_boolean (file, TP_IFACE_CLIENT_HANDLER,
+                                     "BypassApproval", NULL);
+    _mcd_client_proxy_set_bypass_approval (client, bypass);
+
+    cap_tokens = g_key_file_get_keys (file,
+                                      TP_IFACE_CLIENT_HANDLER ".Capabilities",
+                                      NULL,
+                                      NULL);
+    _mcd_client_proxy_add_cap_tokens (client,
+                                      (const gchar * const *) cap_tokens);
+    g_strfreev (cap_tokens);
+}
+
 /* This is NULL-safe for the last argument, for ease of use with
  * tp_asv_get_boxed */
 void
@@ -233,6 +440,41 @@ mcd_client_proxy_emit_ready (McdClientProxy *self)
     self->priv->ready = TRUE;
 
     g_signal_emit (self, signals[S_READY], 0);
+}
+
+gboolean
+_mcd_client_proxy_parse_client_file (McdClientProxy *self)
+{
+    gboolean file_found = FALSE;
+    gchar *filename;
+    const gchar *bus_name = tp_proxy_get_bus_name (self);
+
+    filename = _mcd_client_proxy_find_client_file (
+        bus_name + MC_CLIENT_BUS_NAME_BASE_LEN);
+
+    if (filename)
+    {
+        GKeyFile *file;
+        GError *error = NULL;
+
+        file = g_key_file_new ();
+        g_key_file_load_from_file (file, filename, 0, &error);
+        if (G_LIKELY (!error))
+        {
+            DEBUG ("File found for %s: %s", bus_name, filename);
+            parse_client_file (self, file);
+            file_found = TRUE;
+        }
+        else
+        {
+            g_warning ("Loading file %s failed: %s", filename, error->message);
+            g_error_free (error);
+        }
+        g_key_file_free (file);
+        g_free (filename);
+    }
+
+    return file_found;
 }
 
 static gboolean

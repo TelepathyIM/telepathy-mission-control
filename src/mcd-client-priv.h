@@ -93,6 +93,8 @@ G_GNUC_INTERNAL void _mcd_client_proxy_add_interfaces (McdClientProxy *self,
 
 G_GNUC_INTERNAL gchar *_mcd_client_proxy_find_client_file (
     const gchar *client_name);
+G_GNUC_INTERNAL gboolean _mcd_client_proxy_parse_client_file (
+    McdClientProxy *self);
 
 G_GNUC_INTERNAL const GList *_mcd_client_proxy_get_approver_filters
     (McdClientProxy *self);
