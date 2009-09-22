@@ -1978,6 +1978,10 @@ mcd_client_start_introspection (McdClientProxy *proxy,
     McdClientProxy *client;
     const gchar *bus_name = tp_proxy_get_bus_name (proxy);
 
+    g_signal_handlers_disconnect_by_func (proxy,
+                                          mcd_client_start_introspection,
+                                          dispatcher);
+
     client = g_hash_table_lookup (dispatcher->priv->clients, bus_name);
 
     if (client == NULL)
