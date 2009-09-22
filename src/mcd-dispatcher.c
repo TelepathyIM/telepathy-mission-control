@@ -2486,25 +2486,6 @@ parse_client_file (McdClientProxy *client,
     g_strfreev (cap_tokens);
 }
 
-static McdClientProxy *
-create_mcd_client (McdDispatcher *self,
-                   const gchar *name,
-                   gboolean activatable,
-                   const gchar *owner)
-{
-    McdClientProxy *client;
-
-    g_assert (g_str_has_prefix (name, TP_CLIENT_BUS_NAME_BASE));
-
-    client = _mcd_client_proxy_new (
-        self->priv->dbus_daemon, self->priv->string_pool,
-        name, owner, activatable);
-
-    DEBUG ("McdClientProxy created for %s", name);
-
-    return client;
-}
-
 /* FIXME: eventually this whole chain should move into McdClientProxy */
 static void
 mcd_client_start_introspection (McdClientProxy *proxy,
@@ -2647,7 +2628,9 @@ mcd_dispatcher_add_client (McdDispatcher *self,
     if (!self->priv->startup_completed)
         self->priv->startup_lock++;
 
-    client = create_mcd_client (self, name, activatable, owner);
+    client = _mcd_client_proxy_new (
+        self->priv->dbus_daemon, self->priv->string_pool,
+        name, owner, activatable);
 
     g_hash_table_insert (priv->clients, g_strdup (name), client);
 
