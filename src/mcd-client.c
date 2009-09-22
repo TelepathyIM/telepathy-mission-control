@@ -137,6 +137,29 @@ finish:
     return absolute_filepath;
 }
 
+/* This is NULL-safe for the last argument, for ease of use with
+ * tp_asv_get_boxed */
+void
+_mcd_client_proxy_add_cap_tokens (McdClientProxy *self,
+                                  const gchar * const *cap_tokens)
+{
+    guint i;
+
+    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
+
+    if (cap_tokens == NULL)
+        return;
+
+    for (i = 0; cap_tokens[i] != NULL; i++)
+    {
+        TpHandle handle = tp_handle_ensure (self->priv->string_pool,
+                                            cap_tokens[i], NULL, NULL);
+
+        tp_handle_set_add (self->priv->capability_tokens, handle);
+        tp_handle_unref (self->priv->string_pool, handle);
+    }
+}
+
 static void
 _mcd_client_proxy_init (McdClientProxy *self)
 {

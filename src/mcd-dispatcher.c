@@ -2128,29 +2128,6 @@ finally:
     mcd_dispatcher_release_startup_lock (self);
 }
 
-/* This is NULL-safe for the last argument, for ease of use with
- * tp_asv_get_boxed */
-static void
-mcd_client_add_cap_tokens (McdClientProxy *client,
-                           TpHandleRepoIface *string_pool,
-                           const gchar * const *cap_tokens)
-{
-    guint i;
-
-    if (cap_tokens == NULL)
-        return;
-
-    for (i = 0; cap_tokens[i] != NULL; i++)
-    {
-        TpHandle handle = tp_handle_ensure (string_pool,
-                                            cap_tokens[i], NULL, NULL);
-
-        tp_handle_set_add (
-            _mcd_client_proxy_peek_capability_tokens (client), handle);
-        tp_handle_unref (string_pool, handle);
-    }
-}
-
 static void
 mcd_dispatcher_update_client_caps (McdDispatcher *self,
                                    McdClientProxy *client)
@@ -2236,9 +2213,8 @@ handler_get_all_cb (TpProxy *proxy,
     _mcd_client_proxy_set_bypass_approval (client, bypass);
     DEBUG ("%s has BypassApproval=%c", bus_name, bypass ? 'T' : 'F');
 
-    mcd_client_add_cap_tokens (client, self->priv->string_pool,
-                               tp_asv_get_boxed (properties, "Capabilities",
-                                                 G_TYPE_STRV));
+    _mcd_client_proxy_add_cap_tokens (client,
+        tp_asv_get_boxed (properties, "Capabilities", G_TYPE_STRV));
 
     channels = tp_asv_get_boxed (properties, "HandledChannels",
                                  TP_ARRAY_TYPE_OBJECT_PATH_LIST);
@@ -2481,8 +2457,8 @@ parse_client_file (McdClientProxy *client,
                                       TP_IFACE_CLIENT_HANDLER ".Capabilities",
                                       NULL,
                                       NULL);
-    mcd_client_add_cap_tokens (client, string_pool,
-                               (const gchar * const *) cap_tokens);
+    _mcd_client_proxy_add_cap_tokens (client,
+                                      (const gchar * const *) cap_tokens);
     g_strfreev (cap_tokens);
 }
 
