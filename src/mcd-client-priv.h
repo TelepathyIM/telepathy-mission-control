@@ -91,8 +91,6 @@ G_GNUC_INTERNAL void _mcd_client_proxy_set_activatable (McdClientProxy *self);
 G_GNUC_INTERNAL void _mcd_client_proxy_add_interfaces (McdClientProxy *self,
     const gchar * const *interfaces);
 
-G_GNUC_INTERNAL gchar *_mcd_client_proxy_find_client_file (
-    const gchar *client_name);
 G_GNUC_INTERNAL gboolean _mcd_client_proxy_parse_client_file (
     McdClientProxy *self);
 
@@ -106,21 +104,11 @@ G_GNUC_INTERNAL gboolean _mcd_client_proxy_get_bypass_approval
     (McdClientProxy *self);
 
 G_GNUC_INTERNAL void _mcd_client_proxy_become_incapable (McdClientProxy *self);
-G_GNUC_INTERNAL void _mcd_client_proxy_take_approver_filters
-    (McdClientProxy *self, GList *filters);
-G_GNUC_INTERNAL void _mcd_client_proxy_take_observer_filters
-    (McdClientProxy *self, GList *filters);
-G_GNUC_INTERNAL void _mcd_client_proxy_take_handler_filters
-    (McdClientProxy *self, GList *filters);
 G_GNUC_INTERNAL void _mcd_client_proxy_set_bypass_approval
     (McdClientProxy *self, gboolean bypass);
 
 G_GNUC_INTERNAL void _mcd_client_proxy_add_cap_tokens (McdClientProxy *self,
     const gchar * const *cap_tokens);
-G_GNUC_INTERNAL void _mcd_client_proxy_clear_capability_tokens
-    (McdClientProxy *self);
-G_GNUC_INTERNAL TpHandleSet *_mcd_client_proxy_peek_capability_tokens
-    (McdClientProxy *self);
 
 G_GNUC_INTERNAL GValueArray *_mcd_client_proxy_dup_handler_capabilities (
     McdClientProxy *self);

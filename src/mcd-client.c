@@ -92,7 +92,14 @@ struct _McdClientProxyPrivate
     GList *observer_filters;
 };
 
-gchar *
+static void _mcd_client_proxy_take_approver_filters
+    (McdClientProxy *self, GList *filters);
+static void _mcd_client_proxy_take_observer_filters
+    (McdClientProxy *self, GList *filters);
+static void _mcd_client_proxy_take_handler_filters
+    (McdClientProxy *self, GList *filters);
+
+static gchar *
 _mcd_client_proxy_find_client_file (const gchar *client_name)
 {
     const gchar * const *dirs;
@@ -954,29 +961,14 @@ _mcd_client_proxy_set_bypass_approval (McdClientProxy *self,
 }
 
 void
-_mcd_client_proxy_clear_capability_tokens (McdClientProxy *self)
-{
-    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
-
-    tp_handle_set_destroy (self->priv->capability_tokens);
-    self->priv->capability_tokens = tp_handle_set_new (
-        self->priv->string_pool);
-}
-
-TpHandleSet *
-_mcd_client_proxy_peek_capability_tokens (McdClientProxy *self)
-{
-    g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), NULL);
-    return self->priv->capability_tokens;
-}
-
-void
 _mcd_client_proxy_become_incapable (McdClientProxy *self)
 {
     _mcd_client_proxy_take_approver_filters (self, NULL);
     _mcd_client_proxy_take_observer_filters (self, NULL);
     _mcd_client_proxy_take_handler_filters (self, NULL);
-    _mcd_client_proxy_clear_capability_tokens (self);
+    tp_handle_set_destroy (self->priv->capability_tokens);
+    self->priv->capability_tokens = tp_handle_set_new (
+        self->priv->string_pool);
 }
 
 typedef struct {
