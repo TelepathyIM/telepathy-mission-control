@@ -1837,14 +1837,6 @@ mcd_client_set_filters (McdClientProxy *client,
 }
 
 static void
-mcd_dispatcher_append_client_caps (McdDispatcher *self,
-                                   McdClientProxy *client,
-                                   GPtrArray *vas)
-{
-    g_ptr_array_add (vas, _mcd_client_proxy_dup_handler_capabilities (client));
-}
-
-static void
 mcd_dispatcher_release_startup_lock (McdDispatcher *self)
 {
     if (self->priv->startup_completed)
@@ -1941,7 +1933,7 @@ mcd_dispatcher_update_client_caps (McdDispatcher *self,
     }
 
     vas = g_ptr_array_sized_new (1);
-    mcd_dispatcher_append_client_caps (self, client, vas);
+    g_ptr_array_add (vas, _mcd_client_proxy_dup_handler_capabilities (client));
 
     g_hash_table_iter_init (&iter, self->priv->connections);
 
@@ -3626,7 +3618,8 @@ _mcd_dispatcher_dup_client_caps (McdDispatcher *self)
 
     while (g_hash_table_iter_next (&iter, NULL, &p))
     {
-        mcd_dispatcher_append_client_caps (self, p, vas);
+        g_ptr_array_add (vas,
+                         _mcd_client_proxy_dup_handler_capabilities (p));
     }
 
     return vas;
