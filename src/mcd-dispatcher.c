@@ -1854,9 +1854,8 @@ handler_get_all_cb (TpProxy *proxy,
 
     unique_name = _mcd_client_proxy_get_unique_name (client_proxy);
 
-    /* This function is only called in response to the McdClientProxy
-     * signalling ready, which means it knows whether it has a unique name
-     * (is running) or not */
+    /* This function is only called in (indirect) response to the
+     * McdClientProxy signalling unique-name-known */
     g_assert (unique_name != NULL);
 
     if (unique_name[0] == '\0')
@@ -2095,7 +2094,7 @@ mcd_dispatcher_add_client (McdDispatcher *self,
 
     g_hash_table_insert (priv->clients, g_strdup (name), client);
 
-    g_signal_connect (client, "ready",
+    g_signal_connect (client, "unique-name-known",
                       G_CALLBACK (mcd_client_start_introspection),
                       self);
 }

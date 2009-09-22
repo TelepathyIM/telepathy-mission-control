@@ -50,7 +50,7 @@ enum
 
 enum
 {
-    S_READY,
+    S_UNIQUE_NAME_KNOWN,
     N_SIGNALS
 };
 
@@ -540,7 +540,7 @@ mcd_client_proxy_emit_ready (McdClientProxy *self)
 
     self->priv->ready = TRUE;
 
-    g_signal_emit (self, signals[S_READY], 0);
+    g_signal_emit (self, signals[S_UNIQUE_NAME_KNOWN], 0);
 }
 
 gboolean
@@ -800,11 +800,12 @@ _mcd_client_proxy_class_init (McdClientProxyClass *klass)
     object_class->finalize = mcd_client_proxy_finalize;
     object_class->set_property = mcd_client_proxy_set_property;
 
-    signals[S_READY] = g_signal_new ("ready", G_OBJECT_CLASS_TYPE (klass),
-                                     G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-                                     0, NULL, NULL,
-                                     g_cclosure_marshal_VOID__VOID,
-                                     G_TYPE_NONE, 0);
+    signals[S_UNIQUE_NAME_KNOWN] = g_signal_new ("unique-name-known",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+        0, NULL, NULL,
+        g_cclosure_marshal_VOID__VOID,
+        G_TYPE_NONE, 0);
 
     g_object_class_install_property (object_class, PROP_ACTIVATABLE,
         g_param_spec_boolean ("activatable", "Activatable?",
