@@ -163,10 +163,6 @@ typedef struct _McdClient
 {
     McdClientProxy *proxy;
     McdClientInterface interfaces;
-
-    /* Handler.Capabilities, represented as handles taken from
-     * dispatcher->priv->string_pool */
-    TpHandleSet *capability_tokens;
 } McdClient;
 
 struct _McdDispatcherPrivate
@@ -316,12 +312,7 @@ mcd_client_become_incapable (McdClient *client)
     _mcd_client_proxy_take_approver_filters (client->proxy, NULL);
     _mcd_client_proxy_take_observer_filters (client->proxy, NULL);
     _mcd_client_proxy_take_handler_filters (client->proxy, NULL);
-
-    if (client->capability_tokens != NULL)
-    {
-        tp_handle_set_destroy (client->capability_tokens);
-        client->capability_tokens = NULL;
-    }
+    _mcd_client_proxy_clear_capability_tokens (client->proxy);
 }
 
 static void
@@ -2022,6 +2013,8 @@ mcd_dispatcher_append_client_caps (McdDispatcher *self,
     GPtrArray *cap_tokens;
     GValueArray *va;
     const GList *list;
+    TpHandleSet *capability_tokens =
+        _mcd_client_proxy_peek_capability_tokens (client->proxy);
 
     for (list = handler_filters; list != NULL; list = list->next)
     {
@@ -2034,7 +2027,7 @@ mcd_dispatcher_append_client_caps (McdDispatcher *self,
         g_ptr_array_add (filters, copy);
     }
 
-    if (client->capability_tokens == NULL)
+    if (capability_tokens == NULL)
     {
         cap_tokens = g_ptr_array_sized_new (1);
     }
@@ -2043,9 +2036,9 @@ mcd_dispatcher_append_client_caps (McdDispatcher *self,
         TokenAppendContext context = { self->priv->string_pool, NULL };
 
         cap_tokens = g_ptr_array_sized_new (
-            tp_handle_set_size (client->capability_tokens) + 1);
+            tp_handle_set_size (capability_tokens) + 1);
         context.array = cap_tokens;
-        tp_handle_set_foreach (client->capability_tokens, append_token_to_ptrs,
+        tp_handle_set_foreach (capability_tokens, append_token_to_ptrs,
                                &context);
     }
 
@@ -2178,7 +2171,8 @@ mcd_client_add_cap_tokens (McdClient *client,
         TpHandle handle = tp_handle_ensure (string_pool,
                                             cap_tokens[i], NULL, NULL);
 
-        tp_handle_set_add (client->capability_tokens, handle);
+        tp_handle_set_add (
+            _mcd_client_proxy_peek_capability_tokens (client->proxy), handle);
         tp_handle_unref (string_pool, handle);
     }
 }
@@ -2520,8 +2514,6 @@ create_mcd_client (McdDispatcher *self,
     g_assert (g_str_has_prefix (name, TP_CLIENT_BUS_NAME_BASE));
 
     client = g_slice_new0 (McdClient);
-
-    client->capability_tokens = tp_handle_set_new (self->priv->string_pool);
 
     client->proxy = _mcd_client_proxy_new (
         self->priv->dbus_daemon, self->priv->string_pool,

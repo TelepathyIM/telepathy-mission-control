@@ -109,6 +109,11 @@ G_GNUC_INTERNAL void _mcd_client_proxy_take_handler_filters
 G_GNUC_INTERNAL void _mcd_client_proxy_set_bypass_approval
     (McdClientProxy *self, gboolean bypass);
 
+G_GNUC_INTERNAL void _mcd_client_proxy_clear_capability_tokens
+    (McdClientProxy *self);
+G_GNUC_INTERNAL TpHandleSet *_mcd_client_proxy_peek_capability_tokens
+    (McdClientProxy *self);
+
 #define MC_CLIENT_BUS_NAME_BASE_LEN (sizeof (TP_CLIENT_BUS_NAME_BASE) - 1)
 
 G_END_DECLS

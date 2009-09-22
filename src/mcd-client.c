@@ -54,6 +54,10 @@ static guint signals[N_SIGNALS] = { 0 };
 struct _McdClientProxyPrivate
 {
     TpHandleRepoIface *string_pool;
+    /* Handler.Capabilities, represented as handles taken from
+     * dispatcher->priv->string_pool */
+    TpHandleSet *capability_tokens;
+
     gchar *unique_name;
     gboolean ready;
     gboolean bypass_approval;
@@ -226,6 +230,12 @@ mcd_client_proxy_dispose (GObject *object)
 
     if (self->priv->string_pool != NULL)
     {
+        if (self->priv->capability_tokens != NULL)
+        {
+            tp_handle_set_destroy (self->priv->capability_tokens);
+            self->priv->capability_tokens = NULL;
+        }
+
         g_object_unref (self->priv->string_pool);
         self->priv->string_pool = NULL;
     }
@@ -266,6 +276,9 @@ mcd_client_proxy_constructed (GObject *object)
     {
         chain_up (object);
     }
+
+    self->priv->capability_tokens = tp_handle_set_new (
+        self->priv->string_pool);
 
     if (self->priv->unique_name == NULL)
     {
@@ -552,4 +565,21 @@ _mcd_client_proxy_set_bypass_approval (McdClientProxy *self,
     g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
 
     self->priv->bypass_approval = bypass;
+}
+
+void
+_mcd_client_proxy_clear_capability_tokens (McdClientProxy *self)
+{
+    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
+
+    tp_handle_set_destroy (self->priv->capability_tokens);
+    self->priv->capability_tokens = tp_handle_set_new (
+        self->priv->string_pool);
+}
+
+TpHandleSet *
+_mcd_client_proxy_peek_capability_tokens (McdClientProxy *self)
+{
+    g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), NULL);
+    return self->priv->capability_tokens;
 }
