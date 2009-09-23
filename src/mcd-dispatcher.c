@@ -1931,8 +1931,6 @@ get_interfaces_cb (TpProxy *proxy,
                    gpointer user_data,
                    GObject *weak_object)
 {
-    McdDispatcher *self = MCD_DISPATCHER (weak_object);
-    /* McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self); */
     McdClientProxy *client = MCD_CLIENT_PROXY (proxy);
     const gchar *bus_name = tp_proxy_get_bus_name (proxy);
 
@@ -1964,7 +1962,7 @@ get_interfaces_cb (TpProxy *proxy,
         tp_cli_dbus_properties_call_get
             (client, -1, TP_IFACE_CLIENT_APPROVER,
              "ApproverChannelFilter", get_channel_filter_cb,
-             GUINT_TO_POINTER (MCD_CLIENT_APPROVER), NULL, G_OBJECT (self));
+             GUINT_TO_POINTER (MCD_CLIENT_APPROVER), NULL, NULL);
     }
 
     if (tp_proxy_has_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT_HANDLER))
@@ -1975,7 +1973,7 @@ get_interfaces_cb (TpProxy *proxy,
 
         tp_cli_dbus_properties_call_get_all
             (client, -1, TP_IFACE_CLIENT_HANDLER,
-             handler_get_all_cb, NULL, NULL, G_OBJECT (self));
+             handler_get_all_cb, NULL, NULL, NULL);
     }
 
     if (tp_proxy_has_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT_OBSERVER))
@@ -1987,7 +1985,7 @@ get_interfaces_cb (TpProxy *proxy,
         tp_cli_dbus_properties_call_get
             (client, -1, TP_IFACE_CLIENT_OBSERVER,
              "ObserverChannelFilter", get_channel_filter_cb,
-             GUINT_TO_POINTER (MCD_CLIENT_OBSERVER), NULL, G_OBJECT (self));
+             GUINT_TO_POINTER (MCD_CLIENT_OBSERVER), NULL, NULL);
     }
 
 finally:
@@ -2020,7 +2018,7 @@ mcd_client_start_introspection (McdClientProxy *client,
 
         tp_cli_dbus_properties_call_get (client, -1,
             TP_IFACE_CLIENT, "Interfaces", get_interfaces_cb, NULL,
-            NULL, G_OBJECT (dispatcher));
+            NULL, NULL);
     }
     else
     {
@@ -2037,8 +2035,7 @@ mcd_client_start_introspection (McdClientProxy *client,
                 tp_cli_dbus_properties_call_get_all (client, -1,
                                                      TP_IFACE_CLIENT_HANDLER,
                                                      handler_get_all_cb,
-                                                     NULL, NULL,
-                                                     G_OBJECT (dispatcher));
+                                                     NULL, NULL, NULL);
             }
             else
             {
