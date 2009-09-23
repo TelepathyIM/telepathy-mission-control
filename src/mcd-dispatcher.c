@@ -1743,6 +1743,12 @@ mcd_dispatcher_release_startup_lock (McdDispatcher *self)
     if (self->priv->startup_completed)
         return;
 
+    /* If we haven't started to dispatch channels, and now we're
+     * self-destructing, we certainly don't want to start dispatching channels
+     * to whatever's left of our handlers. */
+    if (self->priv->is_disposed)
+        return;
+
     DEBUG ("%p (decrementing from %" G_GSIZE_FORMAT ")",
            self, self->priv->startup_lock);
 
