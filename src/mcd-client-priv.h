@@ -88,12 +88,6 @@ G_GNUC_INTERNAL void _mcd_client_proxy_set_active (McdClientProxy *self,
                                                    const gchar *unique_name);
 G_GNUC_INTERNAL void _mcd_client_proxy_set_activatable (McdClientProxy *self);
 
-G_GNUC_INTERNAL void _mcd_client_proxy_add_interfaces (McdClientProxy *self,
-    const gchar * const *interfaces);
-
-G_GNUC_INTERNAL gboolean _mcd_client_proxy_parse_client_file (
-    McdClientProxy *self);
-
 G_GNUC_INTERNAL const GList *_mcd_client_proxy_get_approver_filters
     (McdClientProxy *self);
 G_GNUC_INTERNAL const GList *_mcd_client_proxy_get_observer_filters
@@ -107,14 +101,6 @@ G_GNUC_INTERNAL void _mcd_client_proxy_become_incapable (McdClientProxy *self);
 
 G_GNUC_INTERNAL GValueArray *_mcd_client_proxy_dup_handler_capabilities (
     McdClientProxy *self);
-
-G_GNUC_INTERNAL void _mcd_client_proxy_get_interfaces_cb (TpProxy *proxy,
-    const GValue *out_Value, const GError *error,
-    gpointer user_data G_GNUC_UNUSED, GObject *weak_object G_GNUC_UNUSED);
-
-G_GNUC_INTERNAL void _mcd_client_proxy_handler_get_all_cb (
-    TpProxy *proxy, GHashTable *properties, const GError *error,
-    gpointer p, GObject *o);
 
 G_GNUC_INTERNAL void _mcd_client_proxy_inc_ready_lock (McdClientProxy *self);
 G_GNUC_INTERNAL void _mcd_client_proxy_dec_ready_lock (McdClientProxy *self);

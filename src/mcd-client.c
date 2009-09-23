@@ -314,6 +314,8 @@ parse_client_filter (GKeyFile *file, const gchar *group)
 
 static void _mcd_client_proxy_add_cap_tokens (McdClientProxy *self,
                                               const gchar * const *cap_tokens);
+static void _mcd_client_proxy_add_interfaces (McdClientProxy *self,
+                                              const gchar * const *interfaces);
 
 static void
 parse_client_file (McdClientProxy *client,
@@ -509,7 +511,7 @@ _mcd_client_proxy_add_cap_tokens (McdClientProxy *self,
     }
 }
 
-void
+static void
 _mcd_client_proxy_add_interfaces (McdClientProxy *self,
                                   const gchar * const *interfaces)
 {
@@ -572,7 +574,7 @@ _mcd_client_proxy_get_unique_name (McdClientProxy *self)
     return self->priv->unique_name;
 }
 
-void
+static void
 _mcd_client_proxy_handler_get_all_cb (TpProxy *proxy,
                                       GHashTable *properties,
                                       const GError *error,
@@ -679,7 +681,7 @@ finally:
     _mcd_client_proxy_dec_ready_lock (self);
 }
 
-void
+static void
 _mcd_client_proxy_get_interfaces_cb (TpProxy *proxy,
                                      const GValue *out_Value,
                                      const GError *error,
@@ -747,7 +749,7 @@ finally:
     _mcd_client_proxy_dec_ready_lock (self);
 }
 
-gboolean
+static gboolean
 _mcd_client_proxy_parse_client_file (McdClientProxy *self)
 {
     gboolean file_found = FALSE;
