@@ -1865,20 +1865,6 @@ mcd_dispatcher_release_startup_lock (McdDispatcher *self)
 }
 
 static void
-get_channel_filter_cb (TpProxy *proxy,
-                       const GValue *value,
-                       const GError *error,
-                       gpointer user_data,
-                       GObject *weak_object)
-{
-    McdClientProxy *client = MCD_CLIENT_PROXY (proxy);
-
-    _mcd_client_proxy_set_channel_filters (client, value, error,
-                                           GPOINTER_TO_UINT (user_data));
-    _mcd_client_proxy_dec_ready_lock (client);
-}
-
-static void
 mcd_dispatcher_update_client_caps (McdDispatcher *self,
                                    McdClientProxy *client)
 {
@@ -1948,7 +1934,7 @@ get_interfaces_cb (TpProxy *proxy,
 
         tp_cli_dbus_properties_call_get
             (client, -1, TP_IFACE_CLIENT_APPROVER,
-             "ApproverChannelFilter", get_channel_filter_cb,
+             "ApproverChannelFilter", _mcd_client_proxy_get_channel_filter_cb,
              GUINT_TO_POINTER (MCD_CLIENT_APPROVER), NULL, NULL);
     }
 
@@ -1971,7 +1957,7 @@ get_interfaces_cb (TpProxy *proxy,
 
         tp_cli_dbus_properties_call_get
             (client, -1, TP_IFACE_CLIENT_OBSERVER,
-             "ObserverChannelFilter", get_channel_filter_cb,
+             "ObserverChannelFilter", _mcd_client_proxy_get_channel_filter_cb,
              GUINT_TO_POINTER (MCD_CLIENT_OBSERVER), NULL, NULL);
     }
 

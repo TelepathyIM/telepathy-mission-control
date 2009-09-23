@@ -115,8 +115,8 @@ typedef enum
     MCD_CLIENT_OBSERVER
 } McdClientInterface;
 
-G_GNUC_INTERNAL void _mcd_client_proxy_set_channel_filters (McdClientProxy *self,
-    const GValue *value, const GError *error, McdClientInterface iface);
+G_GNUC_INTERNAL void _mcd_client_proxy_get_channel_filter_cb (TpProxy *proxy,
+    const GValue *value, const GError *error, gpointer user_data, GObject *o);
 
 G_GNUC_INTERNAL void _mcd_client_proxy_handler_get_all_cb (
     TpProxy *proxy, GHashTable *properties, const GError *error,

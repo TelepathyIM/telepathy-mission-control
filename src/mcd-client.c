@@ -643,27 +643,34 @@ finally:
 }
 
 void
-_mcd_client_proxy_set_channel_filters (McdClientProxy *self,
-                                       const GValue *value,
-                                       const GError *error,
-                                       McdClientInterface iface)
+_mcd_client_proxy_get_channel_filter_cb (TpProxy *proxy,
+                                         const GValue *value,
+                                         const GError *error,
+                                         gpointer user_data,
+                                         GObject *o G_GNUC_UNUSED)
 {
+    McdClientProxy *self = MCD_CLIENT_PROXY (proxy);
+    McdClientInterface iface = GPOINTER_TO_UINT (user_data);
+
     if (error != NULL)
     {
         DEBUG ("error getting a filter list for client %s: %s #%d: %s",
                tp_proxy_get_object_path (self),
                g_quark_to_string (error->domain), error->code, error->message);
-        return;
+        goto finally;
     }
 
     if (!G_VALUE_HOLDS (value, TP_ARRAY_TYPE_STRING_VARIANT_MAP_LIST))
     {
         DEBUG ("wrong type for filter property on client %s: %s",
                tp_proxy_get_object_path (self), G_VALUE_TYPE_NAME (value));
-        return;
+        goto finally;
     }
 
     _mcd_client_proxy_set_filters (self, iface, g_value_get_boxed (value));
+
+finally:
+    _mcd_client_proxy_dec_ready_lock (self);
 }
 
 gboolean
