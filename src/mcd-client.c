@@ -97,6 +97,13 @@ struct _McdClientProxyPrivate
     GList *observer_filters;
 };
 
+typedef enum
+{
+    MCD_CLIENT_APPROVER,
+    MCD_CLIENT_HANDLER,
+    MCD_CLIENT_OBSERVER
+} McdClientInterface;
+
 void
 _mcd_client_proxy_inc_ready_lock (McdClientProxy *self)
 {
@@ -642,7 +649,7 @@ finally:
     _mcd_client_proxy_dec_ready_lock (self);
 }
 
-void
+static void
 _mcd_client_proxy_get_channel_filter_cb (TpProxy *proxy,
                                          const GValue *value,
                                          const GError *error,

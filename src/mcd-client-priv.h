@@ -108,15 +108,6 @@ G_GNUC_INTERNAL void _mcd_client_proxy_become_incapable (McdClientProxy *self);
 G_GNUC_INTERNAL GValueArray *_mcd_client_proxy_dup_handler_capabilities (
     McdClientProxy *self);
 
-typedef enum
-{
-    MCD_CLIENT_APPROVER,
-    MCD_CLIENT_HANDLER,
-    MCD_CLIENT_OBSERVER
-} McdClientInterface;
-
-G_GNUC_INTERNAL void _mcd_client_proxy_get_channel_filter_cb (TpProxy *proxy,
-    const GValue *value, const GError *error, gpointer user_data, GObject *o);
 G_GNUC_INTERNAL void _mcd_client_proxy_get_interfaces_cb (TpProxy *proxy,
     const GValue *out_Value, const GError *error,
     gpointer user_data G_GNUC_UNUSED, GObject *weak_object G_GNUC_UNUSED);
