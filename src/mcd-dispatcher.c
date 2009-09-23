@@ -1818,10 +1818,11 @@ get_channel_filter_cb (TpProxy *proxy,
                        GObject *weak_object)
 {
     McdDispatcher *self = MCD_DISPATCHER (weak_object);
+    McdClientProxy *client = MCD_CLIENT_PROXY (proxy);
 
-    _mcd_client_proxy_set_channel_filters (MCD_CLIENT_PROXY (proxy),
-                                           value, error,
+    _mcd_client_proxy_set_channel_filters (client, value, error,
                                            GPOINTER_TO_UINT (user_data));
+    _mcd_client_proxy_dec_ready_lock (client);
     mcd_dispatcher_release_startup_lock (self);
 }
 
@@ -1911,6 +1912,7 @@ handler_get_all_cb (TpProxy *proxy,
     mcd_dispatcher_update_client_caps (self, client);
 
 finally:
+    _mcd_client_proxy_dec_ready_lock (client);
     mcd_dispatcher_release_startup_lock (self);
 }
 
@@ -1947,6 +1949,8 @@ get_interfaces_cb (TpProxy *proxy,
 
     if (tp_proxy_has_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT_APPROVER))
     {
+        _mcd_client_proxy_inc_ready_lock (client);
+
         if (!self->priv->startup_completed)
             self->priv->startup_lock++;
 
@@ -1960,6 +1964,8 @@ get_interfaces_cb (TpProxy *proxy,
 
     if (tp_proxy_has_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT_HANDLER))
     {
+        _mcd_client_proxy_inc_ready_lock (client);
+
         if (!self->priv->startup_completed)
             self->priv->startup_lock++;
 
@@ -1972,6 +1978,8 @@ get_interfaces_cb (TpProxy *proxy,
 
     if (tp_proxy_has_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT_OBSERVER))
     {
+        _mcd_client_proxy_inc_ready_lock (client);
+
         if (!self->priv->startup_completed)
             self->priv->startup_lock++;
 
@@ -1984,6 +1992,7 @@ get_interfaces_cb (TpProxy *proxy,
     }
 
 finally:
+    _mcd_client_proxy_dec_ready_lock (client);
     mcd_dispatcher_release_startup_lock (self);
 }
 
@@ -2009,6 +2018,8 @@ mcd_client_start_introspection (McdClientProxy *client,
     {
         DEBUG ("No .client file for %s. Ask on D-Bus.", bus_name);
 
+        _mcd_client_proxy_inc_ready_lock (client);
+
         if (!dispatcher->priv->startup_completed)
             dispatcher->priv->startup_lock++;
 
@@ -2025,6 +2036,8 @@ mcd_client_start_introspection (McdClientProxy *client,
                 DEBUG ("%s is an active, activatable Handler", bus_name);
 
                 /* We need to investigate whether it is handling any channels */
+
+                _mcd_client_proxy_inc_ready_lock (client);
 
                 if (!dispatcher->priv->startup_completed)
                     dispatcher->priv->startup_lock++;
@@ -2043,7 +2056,9 @@ mcd_client_start_introspection (McdClientProxy *client,
         }
     }
 
-    /* paired with the lock taken when we made the McdClientProxy */
+    /* paired with the lock taken when we made the McdClientProxy; the client's
+     * corresponding lock will be released when we return from this
+     * unique-name-known signal handler */
     mcd_dispatcher_release_startup_lock (dispatcher);
 }
 
@@ -2106,6 +2121,8 @@ mcd_dispatcher_add_client (McdDispatcher *self,
     /* paired with one in mcd_client_start_introspection - if
      * unique-name-known is never received, then we'll never start
      * dispatching, but that can only happen during dispose */
+    /* this automatically has a corresponding client ready lock, for
+     * unique-name-known */
     if (!self->priv->startup_completed)
         self->priv->startup_lock++;
 
