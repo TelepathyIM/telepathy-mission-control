@@ -1737,9 +1737,6 @@ mcd_dispatcher_client_capabilities_changed_cb (McdClientProxy *client,
     }
 }
 
-static void mcd_client_start_introspection (McdClientProxy *client,
-                                            McdDispatcher *dispatcher);
-
 static void mcd_dispatcher_client_ready_cb (McdClientProxy *client,
                                             McdDispatcher *dispatcher);
 
@@ -1747,10 +1744,6 @@ static void
 mcd_dispatcher_discard_client (McdDispatcher *self,
                                McdClientProxy *client)
 {
-    g_signal_handlers_disconnect_by_func (client,
-                                          mcd_client_start_introspection,
-                                          self);
-
     g_signal_handlers_disconnect_by_func (client,
         mcd_dispatcher_client_capabilities_changed_cb, self);
 
@@ -1897,60 +1890,6 @@ mcd_dispatcher_update_client_caps (McdDispatcher *self,
     g_ptr_array_free (vas, TRUE);
 }
 
-/* FIXME: eventually this whole chain should move into McdClientProxy */
-static void
-mcd_client_start_introspection (McdClientProxy *client,
-                                McdDispatcher *dispatcher)
-{
-    gboolean file_found;
-    const gchar *bus_name = tp_proxy_get_bus_name (client);
-
-    g_signal_handlers_disconnect_by_func (client,
-                                          mcd_client_start_introspection,
-                                          dispatcher);
-
-    /* The .client file is not mandatory as per the spec. However if it
-     * exists, it is better to read it than activating the service to read the
-     * D-Bus properties.
-     */
-    file_found = _mcd_client_proxy_parse_client_file (client);
-
-    if (!file_found)
-    {
-        DEBUG ("No .client file for %s. Ask on D-Bus.", bus_name);
-
-        _mcd_client_proxy_inc_ready_lock (client);
-
-        tp_cli_dbus_properties_call_get (client, -1,
-            TP_IFACE_CLIENT, "Interfaces", _mcd_client_proxy_get_interfaces_cb,
-            NULL, NULL, NULL);
-    }
-    else
-    {
-        if (tp_proxy_has_interface_by_id (client, TP_IFACE_QUARK_CLIENT_HANDLER))
-        {
-            if (_mcd_client_proxy_is_active (client))
-            {
-                DEBUG ("%s is an active, activatable Handler", bus_name);
-
-                /* We need to investigate whether it is handling any channels */
-
-                _mcd_client_proxy_inc_ready_lock (client);
-
-                tp_cli_dbus_properties_call_get_all (client, -1,
-                    TP_IFACE_CLIENT_HANDLER,
-                    _mcd_client_proxy_handler_get_all_cb,
-                    NULL, NULL, NULL);
-            }
-            else
-            {
-                DEBUG ("%s is a Handler but not active", bus_name);
-                mcd_dispatcher_update_client_caps (dispatcher, client);
-            }
-        }
-    }
-}
-
 static void
 mcd_dispatcher_client_ready_cb (McdClientProxy *client,
                                 McdDispatcher *dispatcher)
@@ -2035,10 +1974,6 @@ mcd_dispatcher_add_client (McdDispatcher *self,
 
     g_signal_connect (client, "handler-capabilities-changed",
                       G_CALLBACK (mcd_dispatcher_client_capabilities_changed_cb),
-                      self);
-
-    g_signal_connect (client, "unique-name-known",
-                      G_CALLBACK (mcd_client_start_introspection),
                       self);
 }
 

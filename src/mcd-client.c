@@ -51,7 +51,6 @@ enum
 enum
 {
     S_READY,
-    S_UNIQUE_NAME_KNOWN,
     S_IS_HANDLING_CHANNEL,
     S_HANDLER_CAPABILITIES_CHANGED,
     N_SIGNALS
@@ -787,14 +786,56 @@ static gboolean
 mcd_client_proxy_introspect (gpointer data)
 {
     McdClientProxy *self = data;
+    const gchar *bus_name = tp_proxy_get_bus_name (self);
 
-    if (!self->priv->introspect_started)
+    if (self->priv->introspect_started)
     {
-        self->priv->introspect_started = TRUE;
-        g_signal_emit (self, signals[S_UNIQUE_NAME_KNOWN], 0);
-        _mcd_client_proxy_dec_ready_lock (self);
+        return FALSE;
     }
 
+    self->priv->introspect_started = TRUE;
+
+    /* The .client file is not mandatory as per the spec. However if it
+     * exists, it is better to read it than activating the service to read the
+     * D-Bus properties.
+     */
+    if (!_mcd_client_proxy_parse_client_file (self))
+    {
+        DEBUG ("No .client file for %s. Ask on D-Bus.", bus_name);
+
+        _mcd_client_proxy_inc_ready_lock (self);
+
+        tp_cli_dbus_properties_call_get (self, -1,
+            TP_IFACE_CLIENT, "Interfaces", _mcd_client_proxy_get_interfaces_cb,
+            NULL, NULL, NULL);
+    }
+    else
+    {
+        if (tp_proxy_has_interface_by_id (self, TP_IFACE_QUARK_CLIENT_HANDLER))
+        {
+            if (_mcd_client_proxy_is_active (self))
+            {
+                DEBUG ("%s is an active, activatable Handler", bus_name);
+
+                /* We need to investigate whether it is handling any channels */
+
+                _mcd_client_proxy_inc_ready_lock (self);
+
+                tp_cli_dbus_properties_call_get_all (self, -1,
+                    TP_IFACE_CLIENT_HANDLER,
+                    _mcd_client_proxy_handler_get_all_cb,
+                    NULL, NULL, NULL);
+            }
+            else
+            {
+                DEBUG ("%s is a Handler but not active", bus_name);
+                g_signal_emit (self,
+                               signals[S_HANDLER_CAPABILITIES_CHANGED], 0);
+            }
+        }
+    }
+
+    _mcd_client_proxy_dec_ready_lock (self);
     return FALSE;
 }
 
@@ -940,13 +981,6 @@ _mcd_client_proxy_class_init (McdClientProxyClass *klass)
     object_class->dispose = mcd_client_proxy_dispose;
     object_class->finalize = mcd_client_proxy_finalize;
     object_class->set_property = mcd_client_proxy_set_property;
-
-    signals[S_UNIQUE_NAME_KNOWN] = g_signal_new ("unique-name-known",
-        G_OBJECT_CLASS_TYPE (klass),
-        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-        0, NULL, NULL,
-        g_cclosure_marshal_VOID__VOID,
-        G_TYPE_NONE, 0);
 
     signals[S_READY] = g_signal_new ("ready",
         G_OBJECT_CLASS_TYPE (klass),
