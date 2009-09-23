@@ -177,8 +177,7 @@ struct _McdDispatcherPrivate
      * - activatable clients have been enumerated (ListActivatableNames)
      *   (1 lock)
      * - running clients have been enumerated (ListNames) (1 lock)
-     * - each client found that way has been inspected (1 lock per client
-     *   for Interfaces, + 1 lock per client per subsequent Get/GetAll call)
+     * - each client found that way is ready (1 lock per client)
      * When nothing more is stopping us from dispatching channels, we start to
      * do so.
      * */
@@ -1709,9 +1708,19 @@ mcd_dispatcher_discard_client (McdDispatcher *self,
     g_signal_handlers_disconnect_by_func (client,
                                           mcd_client_start_introspection,
                                           self);
+
     g_signal_handlers_disconnect_by_func (client,
                                           mcd_dispatcher_client_ready_cb,
                                           self);
+
+    if (!_mcd_client_proxy_is_ready (client))
+    {
+        /* we'll never receive the ready signal now, so release the lock that
+         * it would otherwise have released */
+        DEBUG ("client %s disappeared before it became ready - treating it "
+               "as ready for our purposes", tp_proxy_get_bus_name (client));
+        mcd_dispatcher_client_ready_cb (client, self);
+    }
 }
 
 static void
@@ -1737,9 +1746,6 @@ _mcd_dispatcher_dispose (GObject * object)
 
     while (g_hash_table_iter_next (&iter, NULL, &client_p))
     {
-        /* The client hasn't necessarily found out its unique name yet, so
-         * the startup lock might never get unlocked. However, if we're
-         * already shutting down, we don't want to start dispatching anyway. */
         mcd_dispatcher_discard_client ((McdDispatcher *) object, client_p);
         g_hash_table_iter_remove (&iter);
     }
@@ -1817,13 +1823,11 @@ get_channel_filter_cb (TpProxy *proxy,
                        gpointer user_data,
                        GObject *weak_object)
 {
-    McdDispatcher *self = MCD_DISPATCHER (weak_object);
     McdClientProxy *client = MCD_CLIENT_PROXY (proxy);
 
     _mcd_client_proxy_set_channel_filters (client, value, error,
                                            GPOINTER_TO_UINT (user_data));
     _mcd_client_proxy_dec_ready_lock (client);
-    mcd_dispatcher_release_startup_lock (self);
 }
 
 static void
@@ -1913,7 +1917,6 @@ handler_get_all_cb (TpProxy *proxy,
 
 finally:
     _mcd_client_proxy_dec_ready_lock (client);
-    mcd_dispatcher_release_startup_lock (self);
 }
 
 static void
@@ -1951,9 +1954,6 @@ get_interfaces_cb (TpProxy *proxy,
     {
         _mcd_client_proxy_inc_ready_lock (client);
 
-        if (!self->priv->startup_completed)
-            self->priv->startup_lock++;
-
         DEBUG ("%s is an Approver", bus_name);
 
         tp_cli_dbus_properties_call_get
@@ -1966,9 +1966,6 @@ get_interfaces_cb (TpProxy *proxy,
     {
         _mcd_client_proxy_inc_ready_lock (client);
 
-        if (!self->priv->startup_completed)
-            self->priv->startup_lock++;
-
         DEBUG ("%s is a Handler", bus_name);
 
         tp_cli_dbus_properties_call_get_all
@@ -1980,9 +1977,6 @@ get_interfaces_cb (TpProxy *proxy,
     {
         _mcd_client_proxy_inc_ready_lock (client);
 
-        if (!self->priv->startup_completed)
-            self->priv->startup_lock++;
-
         DEBUG ("%s is an Observer", bus_name);
 
         tp_cli_dbus_properties_call_get
@@ -1993,7 +1987,6 @@ get_interfaces_cb (TpProxy *proxy,
 
 finally:
     _mcd_client_proxy_dec_ready_lock (client);
-    mcd_dispatcher_release_startup_lock (self);
 }
 
 /* FIXME: eventually this whole chain should move into McdClientProxy */
@@ -2020,9 +2013,6 @@ mcd_client_start_introspection (McdClientProxy *client,
 
         _mcd_client_proxy_inc_ready_lock (client);
 
-        if (!dispatcher->priv->startup_completed)
-            dispatcher->priv->startup_lock++;
-
         tp_cli_dbus_properties_call_get (client, -1,
             TP_IFACE_CLIENT, "Interfaces", get_interfaces_cb, NULL,
             NULL, G_OBJECT (dispatcher));
@@ -2039,9 +2029,6 @@ mcd_client_start_introspection (McdClientProxy *client,
 
                 _mcd_client_proxy_inc_ready_lock (client);
 
-                if (!dispatcher->priv->startup_completed)
-                    dispatcher->priv->startup_lock++;
-
                 tp_cli_dbus_properties_call_get_all (client, -1,
                                                      TP_IFACE_CLIENT_HANDLER,
                                                      handler_get_all_cb,
@@ -2055,11 +2042,6 @@ mcd_client_start_introspection (McdClientProxy *client,
             }
         }
     }
-
-    /* paired with the lock taken when we made the McdClientProxy; the client's
-     * corresponding lock will be released when we return from this
-     * unique-name-known signal handler */
-    mcd_dispatcher_release_startup_lock (dispatcher);
 }
 
 static void
@@ -2067,6 +2049,13 @@ mcd_dispatcher_client_ready_cb (McdClientProxy *client,
                                 McdDispatcher *dispatcher)
 {
     DEBUG ("%s", tp_proxy_get_bus_name (client));
+
+    g_signal_handlers_disconnect_by_func (client,
+                                          mcd_dispatcher_client_ready_cb,
+                                          dispatcher);
+
+    /* paired with the one in mcd_dispatcher_add_client */
+    mcd_dispatcher_release_startup_lock (dispatcher);
 }
 
 /* Check the list of strings whether they are valid well-known names of
@@ -2118,11 +2107,8 @@ mcd_dispatcher_add_client (McdDispatcher *self,
 
     DEBUG ("Register client %s", name);
 
-    /* paired with one in mcd_client_start_introspection - if
-     * unique-name-known is never received, then we'll never start
-     * dispatching, but that can only happen during dispose */
-    /* this automatically has a corresponding client ready lock, for
-     * unique-name-known */
+    /* paired with one in mcd_dispatcher_client_ready_cb, when the
+     * McdClientProxy is ready */
     if (!self->priv->startup_completed)
         self->priv->startup_lock++;
 
@@ -2271,11 +2257,6 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
                 _mcd_client_proxy_become_incapable (client);
                 mcd_dispatcher_update_client_caps (self, client);
 
-                /* This disconnects from unique-name-known without unlocking
-                 * the startup lock, but in practice the unique name was set
-                 * to "" by the _mcd_client_proxy_set_inactive call above, so
-                 * any startup lock held on the client's behalf has already
-                 * been released. */
                 mcd_dispatcher_discard_client (self, client);
                 g_hash_table_remove (priv->clients, name);
             }
