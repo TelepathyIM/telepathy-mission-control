@@ -1695,6 +1695,48 @@ _mcd_dispatcher_finalize (GObject * object)
     G_OBJECT_CLASS (mcd_dispatcher_parent_class)->finalize (object);
 }
 
+static void
+mcd_dispatcher_client_handling_channel_cb (McdClientProxy *client,
+                                           const gchar *object_path,
+                                           McdDispatcher *self)
+{
+    const gchar *bus_name = tp_proxy_get_bus_name (client);
+    const gchar *unique_name = _mcd_client_proxy_get_unique_name (client);
+
+    if (unique_name == NULL || unique_name[0] == '\0')
+    {
+        /* if it said it was handling channels but it doesn't seem to exist
+         * (or worse, doesn't know whether it exists) then we don't believe
+         * it */
+        DEBUG ("%s doesn't seem to exist, assuming it's not handling %s",
+               bus_name, object_path);
+        return;
+    }
+
+    DEBUG ("%s (%s) is handling %s", bus_name, unique_name,
+           object_path);
+
+    _mcd_handler_map_set_path_handled (self->priv->handler_map,
+                                       object_path, unique_name);
+}
+
+static void mcd_dispatcher_update_client_caps (McdDispatcher *self,
+                                               McdClientProxy *client);
+
+static void
+mcd_dispatcher_client_capabilities_changed_cb (McdClientProxy *client,
+                                               McdDispatcher *self)
+{
+    /* Ignore the last known capabilities of clients that have already exited,
+     * unless we can reactivate them. */
+
+    if (_mcd_client_proxy_is_activatable (client) ||
+        _mcd_client_proxy_is_active (client))
+    {
+        mcd_dispatcher_update_client_caps (self, client);
+    }
+}
+
 static void mcd_client_start_introspection (McdClientProxy *client,
                                             McdDispatcher *dispatcher);
 
@@ -1708,6 +1750,12 @@ mcd_dispatcher_discard_client (McdDispatcher *self,
     g_signal_handlers_disconnect_by_func (client,
                                           mcd_client_start_introspection,
                                           self);
+
+    g_signal_handlers_disconnect_by_func (client,
+        mcd_dispatcher_client_capabilities_changed_cb, self);
+
+    g_signal_handlers_disconnect_by_func (client,
+        mcd_dispatcher_client_handling_channel_cb, self);
 
     g_signal_handlers_disconnect_by_func (client,
                                           mcd_dispatcher_client_ready_cb,
@@ -1871,51 +1919,8 @@ handler_get_all_cb (TpProxy *proxy,
                     GObject *weak_object)
 {
     McdClientProxy *client = MCD_CLIENT_PROXY (proxy);
-    McdDispatcher *self = MCD_DISPATCHER (weak_object);
-    const gchar *bus_name = tp_proxy_get_bus_name (proxy);
-    const GPtrArray *channels = NULL;
-    const gchar *unique_name;
 
-    if (!_mcd_client_proxy_set_handler_properties (client,
-                                                   properties,
-                                                   error,
-                                                   &channels))
-    {
-        goto finally;
-    }
-
-    unique_name = _mcd_client_proxy_get_unique_name (client);
-
-    /* This function is only called in (indirect) response to the
-     * McdClientProxy signalling unique-name-known */
-    g_assert (unique_name != NULL);
-
-    if (unique_name[0] == '\0')
-    {
-        /* if it said it was handling channels but it doesn't seem to exist,
-         * then we don't believe it */
-        DEBUG ("%s doesn't seem to exist, assuming no channels handled",
-               bus_name);
-    }
-    else if (channels != NULL)
-    {
-        guint i;
-
-        for (i = 0; i < channels->len; i++)
-        {
-            const gchar *path = g_ptr_array_index (channels, i);
-
-            DEBUG ("%s (%s) is handling %s", bus_name, unique_name,
-                   path);
-
-            _mcd_handler_map_set_path_handled (self->priv->handler_map,
-                                               path, unique_name);
-        }
-    }
-
-    mcd_dispatcher_update_client_caps (self, client);
-
-finally:
+    _mcd_client_proxy_set_handler_properties (client, properties, error);
     _mcd_client_proxy_dec_ready_lock (client);
 }
 
@@ -2120,6 +2125,14 @@ mcd_dispatcher_add_client (McdDispatcher *self,
 
     g_signal_connect (client, "ready",
                       G_CALLBACK (mcd_dispatcher_client_ready_cb),
+                      self);
+
+    g_signal_connect (client, "is-handling-channel",
+                      G_CALLBACK (mcd_dispatcher_client_handling_channel_cb),
+                      self);
+
+    g_signal_connect (client, "handler-capabilities-changed",
+                      G_CALLBACK (mcd_dispatcher_client_capabilities_changed_cb),
                       self);
 
     g_signal_connect (client, "unique-name-known",

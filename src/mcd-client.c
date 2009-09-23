@@ -52,6 +52,8 @@ enum
 {
     S_READY,
     S_UNIQUE_NAME_KNOWN,
+    S_IS_HANDLING_CHANNEL,
+    S_HANDLER_CAPABILITIES_CHANGED,
     N_SIGNALS
 };
 
@@ -564,14 +566,14 @@ _mcd_client_proxy_get_unique_name (McdClientProxy *self)
     return self->priv->unique_name;
 }
 
-gboolean
+void
 _mcd_client_proxy_set_handler_properties (McdClientProxy *self,
                                           GHashTable *properties,
-                                          const GError *error,
-                                          const GPtrArray **handled_channels)
+                                          const GError *error)
 {
     const gchar *bus_name = tp_proxy_get_bus_name (self);
     GPtrArray *filters;
+    GPtrArray *handled_channels;
     gboolean bypass;
 
     if (error != NULL)
@@ -579,7 +581,7 @@ _mcd_client_proxy_set_handler_properties (McdClientProxy *self,
         DEBUG ("GetAll(Handler) for client %s failed: %s #%d: %s",
                bus_name, g_quark_to_string (error->domain), error->code,
                error->message);
-        return FALSE;
+        return;
     }
 
     filters = tp_asv_get_boxed (properties, "HandlerChannelFilter",
@@ -604,12 +606,34 @@ _mcd_client_proxy_set_handler_properties (McdClientProxy *self,
 
     _mcd_client_proxy_add_cap_tokens (self,
         tp_asv_get_boxed (properties, "Capabilities", G_TYPE_STRV));
+    g_signal_emit (self, signals[S_HANDLER_CAPABILITIES_CHANGED], 0);
 
-    if (handled_channels != NULL)
-        *handled_channels = tp_asv_get_boxed (properties, "HandledChannels",
-                                              TP_ARRAY_TYPE_OBJECT_PATH_LIST);
+    /* by now, we at least know whether the client is running or not */
+    g_assert (self->priv->unique_name != NULL);
 
-    return TRUE;
+    /* If our unique name is "", then we're not *really* handling these
+     * channels - they're the last known information from before the
+     * client exited - so don't claim them.
+     *
+     * At the moment, McdDispatcher deals with the transition from active
+     * to inactive in a centralized way, so we don't need to signal that. */
+    if (self->priv->unique_name[0] != '\0')
+    {
+        guint i;
+
+        handled_channels = tp_asv_get_boxed (properties, "HandledChannels",
+                                             TP_ARRAY_TYPE_OBJECT_PATH_LIST);
+
+        if (handled_channels != NULL)
+        {
+            for (i = 0; i < handled_channels->len; i++)
+            {
+                const gchar *path = g_ptr_array_index (handled_channels, i);
+
+                g_signal_emit (self, signals[S_IS_HANDLING_CHANNEL], 0, path);
+            }
+        }
+    }
 }
 
 void
@@ -837,6 +861,23 @@ _mcd_client_proxy_class_init (McdClientProxyClass *klass)
         G_TYPE_NONE, 0);
 
     signals[S_READY] = g_signal_new ("ready",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+        0, NULL, NULL,
+        g_cclosure_marshal_VOID__VOID,
+        G_TYPE_NONE, 0);
+
+    /* Never emitted until after the unique name is known */
+    signals[S_IS_HANDLING_CHANNEL] = g_signal_new ("is-handling-channel",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+        0, NULL, NULL,
+        g_cclosure_marshal_VOID__STRING,
+        G_TYPE_NONE, 1, G_TYPE_STRING);
+
+    /* Never emitted until after the unique name is known */
+    signals[S_HANDLER_CAPABILITIES_CHANGED] = g_signal_new (
+        "handler-capabilities-changed",
         G_OBJECT_CLASS_TYPE (klass),
         G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
         0, NULL, NULL,

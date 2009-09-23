@@ -118,9 +118,8 @@ typedef enum
 G_GNUC_INTERNAL void _mcd_client_proxy_set_channel_filters (McdClientProxy *self,
     const GValue *value, const GError *error, McdClientInterface iface);
 
-G_GNUC_INTERNAL gboolean _mcd_client_proxy_set_handler_properties (
-    McdClientProxy *client, GHashTable *properties, const GError *error,
-    const GPtrArray **handled_channels);
+G_GNUC_INTERNAL void _mcd_client_proxy_set_handler_properties (
+    McdClientProxy *client, GHashTable *properties, const GError *error);
 
 G_GNUC_INTERNAL void _mcd_client_proxy_inc_ready_lock (McdClientProxy *self);
 G_GNUC_INTERNAL void _mcd_client_proxy_dec_ready_lock (McdClientProxy *self);
