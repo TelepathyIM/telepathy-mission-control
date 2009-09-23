@@ -117,6 +117,9 @@ typedef enum
 
 G_GNUC_INTERNAL void _mcd_client_proxy_get_channel_filter_cb (TpProxy *proxy,
     const GValue *value, const GError *error, gpointer user_data, GObject *o);
+G_GNUC_INTERNAL void _mcd_client_proxy_get_interfaces_cb (TpProxy *proxy,
+    const GValue *out_Value, const GError *error,
+    gpointer user_data G_GNUC_UNUSED, GObject *weak_object G_GNUC_UNUSED);
 
 G_GNUC_INTERNAL void _mcd_client_proxy_handler_get_all_cb (
     TpProxy *proxy, GHashTable *properties, const GError *error,

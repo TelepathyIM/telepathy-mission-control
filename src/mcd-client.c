@@ -673,6 +673,74 @@ finally:
     _mcd_client_proxy_dec_ready_lock (self);
 }
 
+void
+_mcd_client_proxy_get_interfaces_cb (TpProxy *proxy,
+                                     const GValue *out_Value,
+                                     const GError *error,
+                                     gpointer user_data G_GNUC_UNUSED,
+                                     GObject *weak_object G_GNUC_UNUSED)
+{
+    McdClientProxy *self = MCD_CLIENT_PROXY (proxy);
+    const gchar *bus_name = tp_proxy_get_bus_name (proxy);
+
+    if (error != NULL)
+    {
+        DEBUG ("Error getting Interfaces for Client %s, assuming none: "
+               "%s %d %s", bus_name,
+               g_quark_to_string (error->domain), error->code, error->message);
+        goto finally;
+    }
+
+    if (!G_VALUE_HOLDS (out_Value, G_TYPE_STRV))
+    {
+        DEBUG ("Wrong type getting Interfaces for Client %s, assuming none: "
+               "%s", bus_name, G_VALUE_TYPE_NAME (out_Value));
+        goto finally;
+    }
+
+    _mcd_client_proxy_add_interfaces (self, g_value_get_boxed (out_Value));
+
+    DEBUG ("Client %s", bus_name);
+
+    if (tp_proxy_has_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT_APPROVER))
+    {
+        _mcd_client_proxy_inc_ready_lock (self);
+
+        DEBUG ("%s is an Approver", bus_name);
+
+        tp_cli_dbus_properties_call_get
+            (self, -1, TP_IFACE_CLIENT_APPROVER,
+             "ApproverChannelFilter", _mcd_client_proxy_get_channel_filter_cb,
+             GUINT_TO_POINTER (MCD_CLIENT_APPROVER), NULL, NULL);
+    }
+
+    if (tp_proxy_has_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT_HANDLER))
+    {
+        _mcd_client_proxy_inc_ready_lock (self);
+
+        DEBUG ("%s is a Handler", bus_name);
+
+        tp_cli_dbus_properties_call_get_all
+            (self, -1, TP_IFACE_CLIENT_HANDLER,
+             _mcd_client_proxy_handler_get_all_cb, NULL, NULL, NULL);
+    }
+
+    if (tp_proxy_has_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT_OBSERVER))
+    {
+        _mcd_client_proxy_inc_ready_lock (self);
+
+        DEBUG ("%s is an Observer", bus_name);
+
+        tp_cli_dbus_properties_call_get
+            (self, -1, TP_IFACE_CLIENT_OBSERVER,
+             "ObserverChannelFilter", _mcd_client_proxy_get_channel_filter_cb,
+             GUINT_TO_POINTER (MCD_CLIENT_OBSERVER), NULL, NULL);
+    }
+
+finally:
+    _mcd_client_proxy_dec_ready_lock (self);
+}
+
 gboolean
 _mcd_client_proxy_parse_client_file (McdClientProxy *self)
 {
