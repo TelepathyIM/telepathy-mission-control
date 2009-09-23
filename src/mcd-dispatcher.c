@@ -1696,11 +1696,31 @@ _mcd_dispatcher_finalize (GObject * object)
     G_OBJECT_CLASS (mcd_dispatcher_parent_class)->finalize (object);
 }
 
+static void mcd_client_start_introspection (McdClientProxy *client,
+                                            McdDispatcher *dispatcher);
+
+static void mcd_dispatcher_client_ready_cb (McdClientProxy *client,
+                                            McdDispatcher *dispatcher);
+
+static void
+mcd_dispatcher_discard_client (McdDispatcher *self,
+                               McdClientProxy *client)
+{
+    g_signal_handlers_disconnect_by_func (client,
+                                          mcd_client_start_introspection,
+                                          self);
+    g_signal_handlers_disconnect_by_func (client,
+                                          mcd_dispatcher_client_ready_cb,
+                                          self);
+}
+
 static void
 _mcd_dispatcher_dispose (GObject * object)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
-    
+    gpointer client_p;
+    GHashTableIter iter;
+
     if (priv->is_disposed)
     {
 	return;
@@ -1711,6 +1731,17 @@ _mcd_dispatcher_dispose (GObject * object)
     {
         g_object_unref (priv->handler_map);
         priv->handler_map = NULL;
+    }
+
+    g_hash_table_iter_init (&iter, priv->clients);
+
+    while (g_hash_table_iter_next (&iter, NULL, &client_p))
+    {
+        /* The client hasn't necessarily found out its unique name yet, so
+         * the startup lock might never get unlocked. However, if we're
+         * already shutting down, we don't want to start dispatching anyway. */
+        mcd_dispatcher_discard_client ((McdDispatcher *) object, client_p);
+        g_hash_table_iter_remove (&iter);
     }
 
     g_hash_table_destroy (priv->clients);
@@ -2021,9 +2052,6 @@ mcd_dispatcher_client_ready_cb (McdClientProxy *client,
                                 McdDispatcher *dispatcher)
 {
     DEBUG ("%s", tp_proxy_get_bus_name (client));
-
-    /* FIXME: in theory, the McdDispatcher might not still be alive at this
-     * point? */
 }
 
 /* Check the list of strings whether they are valid well-known names of
@@ -2075,7 +2103,9 @@ mcd_dispatcher_add_client (McdDispatcher *self,
 
     DEBUG ("Register client %s", name);
 
-    /* paired with one in mcd_client_start_introspection */
+    /* paired with one in mcd_client_start_introspection - if
+     * unique-name-known is never received, then we'll never start
+     * dispatching, but that can only happen during dispose */
     if (!self->priv->startup_completed)
         self->priv->startup_lock++;
 
@@ -2223,6 +2253,13 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
                  * filters */
                 _mcd_client_proxy_become_incapable (client);
                 mcd_dispatcher_update_client_caps (self, client);
+
+                /* This disconnects from unique-name-known without unlocking
+                 * the startup lock, but in practice the unique name was set
+                 * to "" by the _mcd_client_proxy_set_inactive call above, so
+                 * any startup lock held on the client's behalf has already
+                 * been released. */
+                mcd_dispatcher_discard_client (self, client);
                 g_hash_table_remove (priv->clients, name);
             }
         }
