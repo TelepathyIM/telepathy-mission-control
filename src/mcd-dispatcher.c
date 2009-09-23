@@ -1912,19 +1912,6 @@ mcd_dispatcher_update_client_caps (McdDispatcher *self,
 }
 
 static void
-handler_get_all_cb (TpProxy *proxy,
-                    GHashTable *properties,
-                    const GError *error,
-                    gpointer unused G_GNUC_UNUSED,
-                    GObject *weak_object)
-{
-    McdClientProxy *client = MCD_CLIENT_PROXY (proxy);
-
-    _mcd_client_proxy_set_handler_properties (client, properties, error);
-    _mcd_client_proxy_dec_ready_lock (client);
-}
-
-static void
 get_interfaces_cb (TpProxy *proxy,
                    const GValue *out_Value,
                    const GError *error,
@@ -1973,7 +1960,7 @@ get_interfaces_cb (TpProxy *proxy,
 
         tp_cli_dbus_properties_call_get_all
             (client, -1, TP_IFACE_CLIENT_HANDLER,
-             handler_get_all_cb, NULL, NULL, NULL);
+             _mcd_client_proxy_handler_get_all_cb, NULL, NULL, NULL);
     }
 
     if (tp_proxy_has_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT_OBSERVER))
@@ -2033,9 +2020,9 @@ mcd_client_start_introspection (McdClientProxy *client,
                 _mcd_client_proxy_inc_ready_lock (client);
 
                 tp_cli_dbus_properties_call_get_all (client, -1,
-                                                     TP_IFACE_CLIENT_HANDLER,
-                                                     handler_get_all_cb,
-                                                     NULL, NULL, NULL);
+                    TP_IFACE_CLIENT_HANDLER,
+                    _mcd_client_proxy_handler_get_all_cb,
+                    NULL, NULL, NULL);
             }
             else
             {

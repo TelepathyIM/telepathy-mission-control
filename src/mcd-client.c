@@ -567,10 +567,13 @@ _mcd_client_proxy_get_unique_name (McdClientProxy *self)
 }
 
 void
-_mcd_client_proxy_set_handler_properties (McdClientProxy *self,
-                                          GHashTable *properties,
-                                          const GError *error)
+_mcd_client_proxy_handler_get_all_cb (TpProxy *proxy,
+                                      GHashTable *properties,
+                                      const GError *error,
+                                      gpointer p G_GNUC_UNUSED,
+                                      GObject *o G_GNUC_UNUSED)
 {
+    McdClientProxy *self = MCD_CLIENT_PROXY (proxy);
     const gchar *bus_name = tp_proxy_get_bus_name (self);
     GPtrArray *filters;
     GPtrArray *handled_channels;
@@ -581,7 +584,7 @@ _mcd_client_proxy_set_handler_properties (McdClientProxy *self,
         DEBUG ("GetAll(Handler) for client %s failed: %s #%d: %s",
                bus_name, g_quark_to_string (error->domain), error->code,
                error->message);
-        return;
+        goto finally;
     }
 
     filters = tp_asv_get_boxed (properties, "HandlerChannelFilter",
@@ -634,6 +637,9 @@ _mcd_client_proxy_set_handler_properties (McdClientProxy *self,
             }
         }
     }
+
+finally:
+    _mcd_client_proxy_dec_ready_lock (self);
 }
 
 void
