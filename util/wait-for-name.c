@@ -68,7 +68,9 @@ main (int argc,
 
   g_set_prgname ("mc-wait-for-name");
 
-  if (argc != 2)
+  if (argc != 2 ||
+      !tp_dbus_check_valid_bus_name (argv[1], TP_DBUS_NAME_TYPE_WELL_KNOWN,
+        NULL))
     {
       g_message ("Usage: mc-wait-for-name com.example.SomeBusName");
       return 2;
