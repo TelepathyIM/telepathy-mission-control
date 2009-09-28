@@ -109,6 +109,10 @@ mc_account_conditions_call_when_ready (McAccount *account,
     iface_data.props_data_ptr = (gpointer)&account->priv->conditions_props;
     iface_data.create_props = create_props;
 
+    /* Normally it would be necessary to use the value returned by this
+     * function to decide whether to set up change-notification. However,
+     * Conditions doesn't have change notification anyway, so ignore the
+     * return. (This is a Coverity CHECKED_RETURN false-positive.) */
     _mc_iface_call_when_ready_int ((TpProxy *)account,
 				   (McIfaceWhenReadyCb)callback, user_data,
 				   &iface_data);
