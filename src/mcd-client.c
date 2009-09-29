@@ -597,6 +597,9 @@ _mcd_client_proxy_handler_get_all_cb (TpProxy *proxy,
         goto finally;
     }
 
+    /* by now, we at least know whether the client is running or not */
+    g_assert (self->priv->unique_name != NULL);
+
     filters = tp_asv_get_boxed (properties, "HandlerChannelFilter",
                                 TP_ARRAY_TYPE_STRING_VARIANT_MAP_LIST);
 
@@ -617,12 +620,15 @@ _mcd_client_proxy_handler_get_all_cb (TpProxy *proxy,
     self->priv->bypass_approval = bypass;
     DEBUG ("%s has BypassApproval=%c", bus_name, bypass ? 'T' : 'F');
 
-    _mcd_client_proxy_add_cap_tokens (self,
-        tp_asv_get_boxed (properties, "Capabilities", G_TYPE_STRV));
-    g_signal_emit (self, signals[S_HANDLER_CAPABILITIES_CHANGED], 0);
-
-    /* by now, we at least know whether the client is running or not */
-    g_assert (self->priv->unique_name != NULL);
+    /* don't emit handler-capabilities-changed if we're not actually available
+     * any more - if that's the case, then we already signalled our loss of
+     * any capabilities */
+    if (self->priv->unique_name[0] != '\0' || self->priv->activatable)
+    {
+        _mcd_client_proxy_add_cap_tokens (self,
+            tp_asv_get_boxed (properties, "Capabilities", G_TYPE_STRV));
+        g_signal_emit (self, signals[S_HANDLER_CAPABILITIES_CHANGED], 0);
+    }
 
     /* If our unique name is "", then we're not *really* handling these
      * channels - they're the last known information from before the
@@ -832,6 +838,8 @@ mcd_client_proxy_introspect (gpointer data)
             }
             else
             {
+                /* for us to have ever started introspecting, it must be
+                 * activatable */
                 DEBUG ("%s is a Handler but not active", bus_name);
 
                 /* FIXME: we emit this even if the capabilities we got from the
@@ -1157,7 +1165,9 @@ _mcd_client_proxy_set_inactive (McdClientProxy *self)
 
     if (!self->priv->activatable)
     {
-        /* a handler that is neither running nor activatable is useless */
+        /* in ContactCapabilities we indicate the disappearance
+         * of a client by giving it an empty set of capabilities and
+         * filters */
         _mcd_client_proxy_become_incapable (self);
     }
 }
@@ -1258,12 +1268,20 @@ _mcd_client_proxy_get_bypass_approval (McdClientProxy *self)
 static void
 _mcd_client_proxy_become_incapable (McdClientProxy *self)
 {
+    gboolean handler_was_capable = (self->priv->handler_filters != NULL ||
+        tp_handle_set_size (self->priv->capability_tokens) > 0);
+
     _mcd_client_proxy_take_approver_filters (self, NULL);
     _mcd_client_proxy_take_observer_filters (self, NULL);
     _mcd_client_proxy_take_handler_filters (self, NULL);
     tp_handle_set_destroy (self->priv->capability_tokens);
     self->priv->capability_tokens = tp_handle_set_new (
         self->priv->string_pool);
+
+    if (handler_was_capable)
+    {
+        g_signal_emit (self, signals[S_HANDLER_CAPABILITIES_CHANGED], 0);
+    }
 }
 
 typedef struct {

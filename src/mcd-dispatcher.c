@@ -1724,14 +1724,7 @@ static void
 mcd_dispatcher_client_capabilities_changed_cb (McdClientProxy *client,
                                                McdDispatcher *self)
 {
-    /* Ignore the last known capabilities of clients that have already exited,
-     * unless we can reactivate them. */
-
-    if (_mcd_client_proxy_is_activatable (client) ||
-        _mcd_client_proxy_is_active (client))
-    {
-        mcd_dispatcher_update_client_caps (self, client);
-    }
+    mcd_dispatcher_update_client_caps (self, client);
 }
 
 static void mcd_dispatcher_client_ready_cb (McdClientProxy *client,
@@ -2094,11 +2087,6 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
 
             if (!_mcd_client_proxy_is_activatable (client))
             {
-                /* in ContactCapabilities we indicate the disappearance
-                 * of a client by giving it an empty set of capabilities and
-                 * filters */
-                mcd_dispatcher_update_client_caps (self, client);
-
                 mcd_dispatcher_discard_client (self, client);
                 _mcd_client_registry_remove (priv->clients, name);
             }
