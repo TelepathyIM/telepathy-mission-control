@@ -1729,6 +1729,8 @@ mcd_dispatcher_client_capabilities_changed_cb (McdClientProxy *client,
 
 static void mcd_dispatcher_client_ready_cb (McdClientProxy *client,
                                             McdDispatcher *dispatcher);
+static void mcd_dispatcher_client_gone_cb (McdClientProxy *client,
+                                           McdDispatcher *self);
 
 static void
 mcd_dispatcher_discard_client (McdDispatcher *self,
@@ -1744,6 +1746,10 @@ mcd_dispatcher_discard_client (McdDispatcher *self,
                                           mcd_dispatcher_client_ready_cb,
                                           self);
 
+    g_signal_handlers_disconnect_by_func (client,
+                                          mcd_dispatcher_client_gone_cb,
+                                          self);
+
     if (!_mcd_client_proxy_is_ready (client))
     {
         /* we'll never receive the ready signal now, so release the lock that
@@ -1752,6 +1758,15 @@ mcd_dispatcher_discard_client (McdDispatcher *self,
                "as ready for our purposes", tp_proxy_get_bus_name (client));
         mcd_dispatcher_client_ready_cb (client, self);
     }
+}
+
+static void
+mcd_dispatcher_client_gone_cb (McdClientProxy *client,
+                               McdDispatcher *self)
+{
+    mcd_dispatcher_discard_client (self, client);
+    _mcd_client_registry_remove (self->priv->clients,
+                                 tp_proxy_get_bus_name (client));
 }
 
 static void
@@ -1954,6 +1969,10 @@ mcd_dispatcher_add_client (McdDispatcher *self,
                       G_CALLBACK (mcd_dispatcher_client_ready_cb),
                       self);
 
+    g_signal_connect (client, "gone",
+                      G_CALLBACK (mcd_dispatcher_client_gone_cb),
+                      self);
+
     g_signal_connect (client, "is-handling-channel",
                       G_CALLBACK (mcd_dispatcher_client_handling_channel_cb),
                       self);
@@ -2084,12 +2103,6 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
         if (client)
         {
             _mcd_client_proxy_set_inactive (client);
-
-            if (!_mcd_client_proxy_is_activatable (client))
-            {
-                mcd_dispatcher_discard_client (self, client);
-                _mcd_client_registry_remove (priv->clients, name);
-            }
         }
 
         if (name[0] == ':')

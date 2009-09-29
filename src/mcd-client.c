@@ -53,6 +53,7 @@ enum
     S_READY,
     S_IS_HANDLING_CHANNEL,
     S_HANDLER_CAPABILITIES_CHANGED,
+    S_GONE,
     N_SIGNALS
 };
 
@@ -1014,6 +1015,13 @@ _mcd_client_proxy_class_init (McdClientProxyClass *klass)
         g_cclosure_marshal_VOID__VOID,
         G_TYPE_NONE, 0);
 
+    signals[S_GONE] = g_signal_new ("gone",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+        0, NULL, NULL,
+        g_cclosure_marshal_VOID__VOID,
+        G_TYPE_NONE, 0);
+
     /* Never emitted until after the unique name is known */
     signals[S_IS_HANDLING_CHANNEL] = g_signal_new ("is-handling-channel",
         G_OBJECT_CLASS_TYPE (klass),
@@ -1169,6 +1177,8 @@ _mcd_client_proxy_set_inactive (McdClientProxy *self)
          * of a client by giving it an empty set of capabilities and
          * filters */
         _mcd_client_proxy_become_incapable (self);
+
+        g_signal_emit (self, signals[S_GONE], 0);
     }
 }
 
