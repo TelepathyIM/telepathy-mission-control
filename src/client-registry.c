@@ -52,6 +52,9 @@ struct _McdClientRegistryPrivate
   TpHandleRepoIface *string_pool;
 };
 
+static void mcd_client_registry_gone_cb (McdClientProxy *client,
+    McdClientRegistry *self);
+
 McdClientProxy *
 _mcd_client_registry_add_new (McdClientRegistry *self,
     const gchar *well_known_name,
@@ -70,6 +73,10 @@ _mcd_client_registry_add_new (McdClientRegistry *self,
     g_hash_table_insert (self->priv->clients, g_strdup (well_known_name),
         client);
 
+    g_signal_connect (client, "gone",
+                      G_CALLBACK (mcd_client_registry_gone_cb),
+                      self);
+
     g_signal_emit (self, signals[S_CLIENT_ADDED], 0, client);
 
     return client;
@@ -83,12 +90,29 @@ _mcd_client_registry_lookup (McdClientRegistry *self,
   return g_hash_table_lookup (self->priv->clients, well_known_name);
 }
 
-gboolean
+static void
+mcd_client_registry_disconnect_client_signals (gpointer k G_GNUC_UNUSED,
+    gpointer v,
+    gpointer data)
+{
+  g_signal_handlers_disconnect_by_func (v, mcd_client_registry_gone_cb, data);
+}
+
+static void
 _mcd_client_registry_remove (McdClientRegistry *self,
     const gchar *well_known_name)
 {
-  g_return_val_if_fail (MCD_IS_CLIENT_REGISTRY (self), FALSE);
-  return g_hash_table_remove (self->priv->clients, well_known_name);
+  McdClientProxy *client;
+
+  client = g_hash_table_lookup (self->priv->clients, well_known_name);
+
+  if (client != NULL)
+    {
+      mcd_client_registry_disconnect_client_signals (NULL,
+          client, self);
+    }
+
+  g_hash_table_remove (self->priv->clients, well_known_name);
 }
 
 guint
@@ -194,6 +218,9 @@ mcd_client_registry_dispose (GObject *object)
 
   if (self->priv->clients != NULL)
     {
+      g_hash_table_foreach (self->priv->clients,
+          mcd_client_registry_disconnect_client_signals, self);
+
       g_hash_table_destroy (self->priv->clients);
       self->priv->clients = NULL;
     }
@@ -233,4 +260,11 @@ _mcd_client_registry_new (TpDBusDaemon *dbus_daemon)
   return g_object_new (MCD_TYPE_CLIENT_REGISTRY,
       "dbus-daemon", dbus_daemon,
       NULL);
+}
+
+static void
+mcd_client_registry_gone_cb (McdClientProxy *client,
+    McdClientRegistry *self)
+{
+  _mcd_client_registry_remove (self, tp_proxy_get_bus_name (client));
 }

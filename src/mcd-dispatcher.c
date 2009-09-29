@@ -1765,8 +1765,6 @@ mcd_dispatcher_client_gone_cb (McdClientProxy *client,
                                McdDispatcher *self)
 {
     mcd_dispatcher_discard_client (self, client);
-    _mcd_client_registry_remove (self->priv->clients,
-                                 tp_proxy_get_bus_name (client));
 }
 
 static void
