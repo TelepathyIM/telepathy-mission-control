@@ -31,6 +31,14 @@ enum
   PROP_DBUS_DAEMON
 };
 
+enum
+{
+    S_CLIENT_ADDED,
+    N_SIGNALS
+};
+
+static guint signals[N_SIGNALS] = { 0 };
+
 struct _McdClientRegistryPrivate
 {
   /* hash table containing clients
@@ -61,6 +69,9 @@ _mcd_client_registry_add_new (McdClientRegistry *self,
         activatable);
     g_hash_table_insert (self->priv->clients, g_strdup (well_known_name),
         client);
+
+    g_signal_emit (self, signals[S_CLIENT_ADDED], 0, client);
+
     return client;
 }
 
@@ -207,6 +218,13 @@ _mcd_client_registry_class_init (McdClientRegistryClass *cls)
       g_param_spec_object ("dbus-daemon", "D-Bus daemon", "D-Bus daemon",
         TP_TYPE_DBUS_DAEMON,
         G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
+
+  signals[S_CLIENT_ADDED] = g_signal_new ("client-added",
+      G_OBJECT_CLASS_TYPE (cls),
+      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+      0, NULL, NULL,
+      g_cclosure_marshal_VOID__OBJECT,
+      G_TYPE_NONE, 1, MCD_TYPE_CLIENT_PROXY);
 }
 
 McdClientRegistry *

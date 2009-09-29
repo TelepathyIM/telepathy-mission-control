@@ -1770,6 +1770,33 @@ mcd_dispatcher_client_gone_cb (McdClientProxy *client,
 }
 
 static void
+mcd_dispatcher_client_added_cb (McdClientRegistry *clients G_GNUC_UNUSED,
+                                McdClientProxy *client,
+                                McdDispatcher *self)
+{
+    /* paired with one in mcd_dispatcher_client_ready_cb, when the
+     * McdClientProxy is ready */
+    if (!self->priv->startup_completed)
+        self->priv->startup_lock++;
+
+    g_signal_connect (client, "ready",
+                      G_CALLBACK (mcd_dispatcher_client_ready_cb),
+                      self);
+
+    g_signal_connect (client, "gone",
+                      G_CALLBACK (mcd_dispatcher_client_gone_cb),
+                      self);
+
+    g_signal_connect (client, "is-handling-channel",
+                      G_CALLBACK (mcd_dispatcher_client_handling_channel_cb),
+                      self);
+
+    g_signal_connect (client, "handler-capabilities-changed",
+                      G_CALLBACK (mcd_dispatcher_client_capabilities_changed_cb),
+                      self);
+}
+
+static void
 _mcd_dispatcher_dispose (GObject * object)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
@@ -1797,6 +1824,10 @@ _mcd_dispatcher_dispose (GObject * object)
         {
             mcd_dispatcher_discard_client ((McdDispatcher *) object, client_p);
         }
+
+        g_signal_handlers_disconnect_by_func (priv->clients,
+                                              mcd_dispatcher_client_added_cb,
+                                              object);
 
         g_object_unref (priv->clients);
         priv->clients = NULL;
@@ -1904,7 +1935,7 @@ mcd_dispatcher_client_ready_cb (McdClientProxy *client,
                                           mcd_dispatcher_client_ready_cb,
                                           dispatcher);
 
-    /* paired with the one in mcd_dispatcher_add_client */
+    /* paired with the one in mcd_dispatcher_client_added_cb */
     mcd_dispatcher_release_startup_lock (dispatcher);
 }
 
@@ -1957,29 +1988,8 @@ mcd_dispatcher_add_client (McdDispatcher *self,
 
     DEBUG ("Register client %s", name);
 
-    /* paired with one in mcd_dispatcher_client_ready_cb, when the
-     * McdClientProxy is ready */
-    if (!self->priv->startup_completed)
-        self->priv->startup_lock++;
-
     client = _mcd_client_registry_add_new (self->priv->clients,
         name, owner, activatable);
-
-    g_signal_connect (client, "ready",
-                      G_CALLBACK (mcd_dispatcher_client_ready_cb),
-                      self);
-
-    g_signal_connect (client, "gone",
-                      G_CALLBACK (mcd_dispatcher_client_gone_cb),
-                      self);
-
-    g_signal_connect (client, "is-handling-channel",
-                      G_CALLBACK (mcd_dispatcher_client_handling_channel_cb),
-                      self);
-
-    g_signal_connect (client, "handler-capabilities-changed",
-                      G_CALLBACK (mcd_dispatcher_client_capabilities_changed_cb),
-                      self);
 }
 
 static void
@@ -2126,6 +2136,8 @@ mcd_dispatcher_constructed (GObject *object)
     GError *error = NULL;
 
     priv->clients = _mcd_client_registry_new (priv->dbus_daemon);
+    g_signal_connect (priv->clients, "client-added",
+                      G_CALLBACK (mcd_dispatcher_client_added_cb), object);
 
     DEBUG ("Starting to look for clients");
     priv->startup_completed = FALSE;
