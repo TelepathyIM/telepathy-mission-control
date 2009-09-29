@@ -131,6 +131,8 @@ libmcd_convenience_la_SOURCES = \
 	mcd-account-priv.h \
 	mcd-client.c \
 	mcd-client-priv.h \
+	client-registry.c \
+	client-registry.h \
 	mcd-dbusprop.c \
 	mcd-dbusprop.h \
 	mcd-debug.c \
