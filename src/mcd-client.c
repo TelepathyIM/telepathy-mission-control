@@ -94,6 +94,8 @@ struct _McdClientProxyPrivate
     GList *approver_filters;
     GList *handler_filters;
     GList *observer_filters;
+
+    gboolean disposed;
 };
 
 typedef enum
@@ -831,6 +833,11 @@ mcd_client_proxy_introspect (gpointer data)
             else
             {
                 DEBUG ("%s is a Handler but not active", bus_name);
+
+                /* FIXME: we emit this even if the capabilities we got from the
+                 * .client file match those we already had, possibly causing
+                 * redundant UpdateCapabilities calls - however, those are
+                 * harmless */
                 g_signal_emit (self,
                                signals[S_HANDLER_CAPABILITIES_CHANGED], 0);
             }
@@ -843,17 +850,14 @@ mcd_client_proxy_introspect (gpointer data)
 
 static void
 mcd_client_proxy_unique_name_cb (TpDBusDaemon *dbus_daemon,
+                                 const gchar *well_known_name G_GNUC_UNUSED,
                                  const gchar *unique_name,
-                                 const GError *error,
-                                 gpointer unused G_GNUC_UNUSED,
-                                 GObject *weak_object)
+                                 gpointer user_data)
 {
-    McdClientProxy *self = MCD_CLIENT_PROXY (weak_object);
+    McdClientProxy *self = MCD_CLIENT_PROXY (user_data);
 
-    if (error != NULL)
+    if (unique_name == NULL || unique_name[0] == '\0')
     {
-        DEBUG ("Error getting unique name, assuming not active: %s %d: %s",
-               g_quark_to_string (error->domain), error->code, error->message);
         _mcd_client_proxy_set_inactive (self);
     }
     else
@@ -870,6 +874,16 @@ mcd_client_proxy_dispose (GObject *object)
     McdClientProxy *self = MCD_CLIENT_PROXY (object);
     void (*chain_up) (GObject *) =
         ((GObjectClass *) _mcd_client_proxy_parent_class)->dispose;
+
+    if (self->priv->disposed)
+        return;
+
+    self->priv->disposed = TRUE;
+
+    tp_dbus_daemon_cancel_name_owner_watch (tp_proxy_get_dbus_daemon (self),
+                                            tp_proxy_get_bus_name (self),
+                                            mcd_client_proxy_unique_name_cb,
+                                            self);
 
     if (self->priv->string_pool != NULL)
     {
@@ -928,16 +942,17 @@ mcd_client_proxy_constructed (GObject *object)
 
     DEBUG ("%s", bus_name);
 
-    if (self->priv->unique_name == NULL)
+    tp_dbus_daemon_watch_name_owner (tp_proxy_get_dbus_daemon (self),
+                                     bus_name,
+                                     mcd_client_proxy_unique_name_cb,
+                                     self, NULL);
+
+    if (self->priv->unique_name != NULL)
     {
-        tp_cli_dbus_daemon_call_get_name_owner (tp_proxy_get_dbus_daemon (self),
-                                                -1,
-                                                bus_name,
-                                                mcd_client_proxy_unique_name_cb,
-                                                NULL, NULL, (GObject *) self);
-    }
-    else
-    {
+        /* we already know who we are, so we can skip straight to the
+         * introspection. It's safe to call mcd_client_proxy_introspect
+         * any number of times, so we don't need to guard against
+         * duplication */
         g_idle_add_full (G_PRIORITY_HIGH, mcd_client_proxy_introspect,
                          g_object_ref (self), g_object_unref);
     }
