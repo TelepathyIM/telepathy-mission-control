@@ -2095,16 +2095,7 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
     else if (old_owner[0] != '\0' && new_owner[0] == '\0')
     {
         /* The name disappeared from the bus. It might be either well-known
-         * or unique */
-        McdClientProxy *client;
-
-        client = _mcd_client_registry_lookup (priv->clients, name);
-
-        if (client)
-        {
-            _mcd_client_proxy_set_inactive (client);
-        }
-
+         * (handled within McdClientProxy) or unique (handled here) */
         if (name[0] == ':')
         {
             /* it's a unique name - maybe it was handling some channels? */
