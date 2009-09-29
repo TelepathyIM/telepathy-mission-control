@@ -707,7 +707,7 @@ possible_handler_cmp (gconstpointer a_,
 }
 
 static GStrv
-mcd_dispatcher_get_possible_handlers (McdDispatcher *self,
+mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
                                       const GList *channels)
 {
     GList *handlers = NULL;
@@ -3611,7 +3611,7 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
            mcd_channel_get_object_path (channels->data));
 
     /* See if there are any handlers that can take all these channels */
-    possible_handlers = mcd_dispatcher_get_possible_handlers (dispatcher,
+    possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
                                                               channels);
 
     if (possible_handlers == NULL)
@@ -3728,7 +3728,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     context->channels = g_list_prepend (NULL, channel);
 
     list = g_list_append (NULL, channel);
-    possible_handlers = mcd_dispatcher_get_possible_handlers (dispatcher,
+    possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
                                                               list);
     g_list_free (list);
 
