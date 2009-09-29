@@ -21,14 +21,18 @@ will be provided automatically (after a while) by the desktop session.
 .SH EXIT STATUS
 .TP
 0
-The bus name eventually appeared
+The bus name eventually appeared.
 .TP
-Non-zero
-mc-wait-for-name was unable to connect to the session bus, or some other error
-occurred
+64 (EX_USAGE)
+Invocation error (too many or too few arguments, or the bus name given was
+not a syntactically valid well-known bus name).
+.TP
+69 (EX_UNAVAILABLE)
+mc-wait-for-name was unable to connect to the session bus.
+.TP
+75 (EX_TEMPFAIL)
+The name did not appear within a reasonable time.
 .SH OPTIONS
 There are no additional command-line options.
 .SH BUGS
-If the requested well-known bus name never appears, then
-.B mc-wait-for-name
-will only exit when the session bus terminates.
+The "reasonable time" to wait is currently hard-coded.
