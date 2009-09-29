@@ -42,6 +42,7 @@
 
 #include <dbus/dbus-glib-lowlevel.h>
 
+#include "client-registry.h"
 #include "mcd-signals-marshal.h"
 #include "mcd-account-priv.h"
 #include "mcd-client-priv.h"
@@ -166,7 +167,7 @@ struct _McdDispatcherPrivate
 
     /* hash table containing clients
      * char *bus_name -> McdClientProxy */
-    GHashTable *clients;
+    McdClientRegistry *clients;
 
     McdHandlerMap *handler_map;
 
@@ -192,10 +193,6 @@ struct _McdDispatcherPrivate
      * yet. Set to TRUE the first time someone reads the DispatchOperations
      * property. */
     gboolean operation_list_active;
-
-    /* Not really handles as such, but TpHandleRepoIface gives us a convenient
-     * reference-counted string pool */
-    TpHandleRepoIface *string_pool;
 
     gboolean is_disposed;
 };
@@ -551,7 +548,7 @@ mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
     /* FIXME: return the "most preferred" handler, not just any handler that
      * can take it */
 
-    g_hash_table_iter_init (&iter, dispatcher->priv->clients);
+    _mcd_client_registry_init_hash_iter (dispatcher->priv->clients, &iter);
     while (g_hash_table_iter_next (&iter, NULL, &client))
     {
         if (!tp_proxy_has_interface_by_id (client,
@@ -709,7 +706,7 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
     guint i;
     GStrv ret;
 
-    g_hash_table_iter_init (&client_iter, self->priv->clients);
+    _mcd_client_registry_init_hash_iter (self->priv->clients, &client_iter);
 
     while (g_hash_table_iter_next (&client_iter, NULL, &client_p))
     {
@@ -887,7 +884,7 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
     {
         gchar *bus_name = g_strconcat (TP_CLIENT_BUS_NAME_BASE,
                                        approved_handler, NULL);
-        McdClientProxy *handler = g_hash_table_lookup (
+        McdClientProxy *handler = _mcd_client_registry_lookup (
             self->priv->clients, bus_name);
         gboolean failed = _mcd_dispatch_operation_get_handler_failed
             (context->operation, bus_name);
@@ -919,8 +916,8 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
 
     for (iter = possible_handlers; iter != NULL && *iter != NULL; iter++)
     {
-        McdClientProxy *handler = g_hash_table_lookup (self->priv->clients,
-                                                       *iter);
+        McdClientProxy *handler = _mcd_client_registry_lookup (
+            self->priv->clients, *iter);
         gboolean failed = _mcd_dispatch_operation_get_handler_failed
             (context->operation, *iter);
 
@@ -1060,7 +1057,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
     channels = context->channels;
     observer_info = g_hash_table_new (g_str_hash, g_str_equal);
 
-    g_hash_table_iter_init (&iter, priv->clients);
+    _mcd_client_registry_init_hash_iter (priv->clients, &iter);
     while (g_hash_table_iter_next (&iter, NULL, &client_p))
     {
         McdClientProxy *client = MCD_CLIENT_PROXY (client_p);
@@ -1216,7 +1213,7 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
     context->approvers_pending = 1;
 
     channels = context->channels;
-    g_hash_table_iter_init (&iter, priv->clients);
+    _mcd_client_registry_init_hash_iter (priv->clients, &iter);
     while (g_hash_table_iter_next (&iter, NULL, &client_p))
     {
         McdClientProxy *client = MCD_CLIENT_PROXY (client_p);
@@ -1286,8 +1283,8 @@ handlers_can_bypass_approval (McdDispatcherContext *context)
 
     for (iter = possible_handlers; iter != NULL && *iter != NULL; iter++)
     {
-        McdClientProxy *handler = g_hash_table_lookup (self->priv->clients,
-                                                       *iter);
+        McdClientProxy *handler = _mcd_client_registry_lookup (
+            self->priv->clients, *iter);
 
         /* If the best handler that still exists bypasses approval, then
          * we're going to bypass approval.
@@ -1768,8 +1765,6 @@ static void
 _mcd_dispatcher_dispose (GObject * object)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
-    gpointer client_p;
-    GHashTableIter iter;
 
     if (priv->is_disposed)
     {
@@ -1783,15 +1778,23 @@ _mcd_dispatcher_dispose (GObject * object)
         priv->handler_map = NULL;
     }
 
-    g_hash_table_iter_init (&iter, priv->clients);
-
-    while (g_hash_table_iter_next (&iter, NULL, &client_p))
+    if (priv->clients != NULL)
     {
-        mcd_dispatcher_discard_client ((McdDispatcher *) object, client_p);
-        g_hash_table_iter_remove (&iter);
+        gpointer client_p;
+        GHashTableIter iter;
+
+        _mcd_client_registry_init_hash_iter (priv->clients, &iter);
+
+        while (g_hash_table_iter_next (&iter, NULL, &client_p))
+        {
+            mcd_dispatcher_discard_client ((McdDispatcher *) object, client_p);
+            g_hash_table_iter_remove (&iter);
+        }
+
+        g_object_unref (priv->clients);
+        priv->clients = NULL;
     }
 
-    g_hash_table_destroy (priv->clients);
     g_hash_table_destroy (priv->connections);
 
     if (priv->master)
@@ -1804,12 +1807,6 @@ _mcd_dispatcher_dispose (GObject * object)
     {
 	g_object_unref (priv->dbus_daemon);
 	priv->dbus_daemon = NULL;
-    }
-
-    if (priv->string_pool != NULL)
-    {
-        g_object_unref (priv->string_pool);
-        priv->string_pool = NULL;
     }
 
     G_OBJECT_CLASS (mcd_dispatcher_parent_class)->dispose (object);
@@ -1932,7 +1929,7 @@ mcd_dispatcher_add_client (McdDispatcher *self,
         return;
     }
 
-    client = g_hash_table_lookup (priv->clients, name);
+    client = _mcd_client_registry_lookup (priv->clients, name);
 
     if (client)
     {
@@ -1958,11 +1955,8 @@ mcd_dispatcher_add_client (McdDispatcher *self,
     if (!self->priv->startup_completed)
         self->priv->startup_lock++;
 
-    client = _mcd_client_proxy_new (
-        self->priv->dbus_daemon, self->priv->string_pool,
+    client = _mcd_client_registry_add_new (self->priv->clients,
         name, owner, activatable);
-
-    g_hash_table_insert (priv->clients, g_strdup (name), client);
 
     g_signal_connect (client, "ready",
                       G_CALLBACK (mcd_dispatcher_client_ready_cb),
@@ -2093,7 +2087,7 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
          * or unique */
         McdClientProxy *client;
 
-        client = g_hash_table_lookup (priv->clients, name);
+        client = _mcd_client_registry_lookup (priv->clients, name);
 
         if (client)
         {
@@ -2108,7 +2102,7 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
                 mcd_dispatcher_update_client_caps (self, client);
 
                 mcd_dispatcher_discard_client (self, client);
-                g_hash_table_remove (priv->clients, name);
+                _mcd_client_registry_remove (priv->clients, name);
             }
         }
 
@@ -2140,6 +2134,8 @@ mcd_dispatcher_constructed (GObject *object)
     DBusGConnection *dgc;
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
     GError *error = NULL;
+
+    priv->clients = _mcd_client_registry_new (priv->dbus_daemon);
 
     DEBUG ("Starting to look for clients");
     priv->startup_completed = FALSE;
@@ -2318,16 +2314,9 @@ mcd_dispatcher_init (McdDispatcher * dispatcher)
 
     priv->operation_list_active = FALSE;
 
-    priv->clients = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
-        g_object_unref);
-
     priv->handler_map = _mcd_handler_map_new ();
 
     priv->connections = g_hash_table_new (NULL, NULL);
-
-    /* Dummy handle type, we're just using this as a string pool */
-    priv->string_pool = tp_dynamic_handle_repo_new (TP_HANDLE_TYPE_CONTACT,
-                                                    NULL, NULL);
 }
 
 McdDispatcher *
@@ -2671,7 +2660,7 @@ _mcd_dispatcher_get_channel_capabilities (McdDispatcher *dispatcher)
     channel_handler_caps = g_ptr_array_new ();
 
     /* Add the capabilities from the new-style clients */
-    g_hash_table_iter_init (&iter, priv->clients);
+    _mcd_client_registry_init_hash_iter (priv->clients, &iter);
     while (g_hash_table_iter_next (&iter, &key, &value))
     {
         McdClientProxy *client = value;
@@ -2709,7 +2698,7 @@ _mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher *dispatcher)
     gpointer key, value;
     GPtrArray *caps = g_ptr_array_new ();
 
-    g_hash_table_iter_init (&iter, priv->clients);
+    _mcd_client_registry_init_hash_iter (priv->clients, &iter);
     while (g_hash_table_iter_next (&iter, &key, &value))
     {
         McdClientProxy *client = value;
@@ -3334,14 +3323,15 @@ _mcd_dispatcher_dup_client_caps (McdDispatcher *self)
 
     g_return_val_if_fail (MCD_IS_DISPATCHER (self), NULL);
 
-    vas = g_ptr_array_sized_new (g_hash_table_size (self->priv->clients));
+    vas = g_ptr_array_sized_new (
+        _mcd_client_registry_size (self->priv->clients));
 
     if (!self->priv->startup_completed)
     {
         return NULL;
     }
 
-    g_hash_table_iter_init (&iter, self->priv->clients);
+    _mcd_client_registry_init_hash_iter (self->priv->clients, &iter);
 
     while (g_hash_table_iter_next (&iter, NULL, &p))
     {
