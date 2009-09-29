@@ -85,7 +85,7 @@ struct _McdDispatchOperationPrivate
     guint needs_approval : 1;
 
     /* set of handlers we already tried
-     * dup'd bus name (string) => arbitrary non-NULL pointer */
+     * dup'd bus name (string) => dummy non-NULL pointer */
     GHashTable *failed_handlers;
 
     /* Results */
