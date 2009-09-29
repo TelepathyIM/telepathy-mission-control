@@ -97,8 +97,6 @@ G_GNUC_INTERNAL const GList *_mcd_client_proxy_get_handler_filters
 G_GNUC_INTERNAL gboolean _mcd_client_proxy_get_bypass_approval
     (McdClientProxy *self);
 
-G_GNUC_INTERNAL void _mcd_client_proxy_become_incapable (McdClientProxy *self);
-
 G_GNUC_INTERNAL GValueArray *_mcd_client_proxy_dup_handler_capabilities (
     McdClientProxy *self);
 

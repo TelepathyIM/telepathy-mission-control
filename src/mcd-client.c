@@ -1139,13 +1139,27 @@ _mcd_client_proxy_new (TpDBusDaemon *dbus_daemon,
     return self;
 }
 
+static void _mcd_client_proxy_become_incapable (McdClientProxy *self);
+
 void
 _mcd_client_proxy_set_inactive (McdClientProxy *self)
 {
     g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
 
+    /* if unique name is already "" (i.e. known to be inactive), do nothing */
+    if (self->priv->unique_name != NULL && self->priv->unique_name[0] == '\0')
+    {
+        return;
+    }
+
     g_free (self->priv->unique_name);
     self->priv->unique_name = g_strdup ("");
+
+    if (!self->priv->activatable)
+    {
+        /* a handler that is neither running nor activatable is useless */
+        _mcd_client_proxy_become_incapable (self);
+    }
 }
 
 void
@@ -1241,7 +1255,7 @@ _mcd_client_proxy_get_bypass_approval (McdClientProxy *self)
     return self->priv->bypass_approval;
 }
 
-void
+static void
 _mcd_client_proxy_become_incapable (McdClientProxy *self)
 {
     _mcd_client_proxy_take_approver_filters (self, NULL);

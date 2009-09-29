@@ -2097,7 +2097,6 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
                 /* in ContactCapabilities we indicate the disappearance
                  * of a client by giving it an empty set of capabilities and
                  * filters */
-                _mcd_client_proxy_become_incapable (client);
                 mcd_dispatcher_update_client_caps (self, client);
 
                 mcd_dispatcher_discard_client (self, client);
