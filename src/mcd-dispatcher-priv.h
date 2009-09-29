@@ -35,7 +35,7 @@ G_BEGIN_DECLS
 /* retrieves the channel handlers' capabilities, in a format suitable for being
  * used as a parameter for the telepathy "AdvertiseCapabilities" method */
 G_GNUC_INTERNAL GPtrArray *_mcd_dispatcher_get_channel_capabilities (
-    McdDispatcher *dispatcher, const gchar *protocol);
+    McdDispatcher *dispatcher);
 
 /* retrieves the channel handlers' capabilities, in a format suitable for being
  * used as a parameter for the telepathy "SetSelfCapabilities" method */

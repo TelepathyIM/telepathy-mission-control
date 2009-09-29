@@ -80,6 +80,14 @@ struct _McdDispatchOperationPrivate
     GHashTable *properties;
     gsize block_finished;
 
+    /* If FALSE, we're not actually on D-Bus; an object path is reserved,
+     * but we're inaccessible. */
+    guint needs_approval : 1;
+
+    /* set of handlers we already tried
+     * dup'd bus name (string) => dummy non-NULL pointer */
+    GHashTable *failed_handlers;
+
     /* Results */
     guint finished : 1;
     gchar *handler;
@@ -89,6 +97,7 @@ struct _McdDispatchOperationPrivate
     /* DBUS connection */
     TpDBusDaemon *dbus_daemon;
 
+    McdAccount *account;
     McdConnection *connection;
 
     /* Owned McdChannels we're dispatching */
@@ -104,6 +113,7 @@ enum
     PROP_DBUS_DAEMON,
     PROP_CHANNELS,
     PROP_POSSIBLE_HANDLERS,
+    PROP_NEEDS_APPROVAL,
 };
 
 static void
@@ -124,18 +134,10 @@ get_connection (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 static void
 get_account (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 {
-    McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (self);
-    McdAccount *account;
-    const gchar *object_path;
-
-    DEBUG ("called for %s", priv->unique_name);
     g_value_init (value, DBUS_TYPE_G_OBJECT_PATH);
-    if (priv->connection &&
-        (account = mcd_connection_get_account (priv->connection)) &&
-        (object_path = mcd_account_get_object_path (account)))
-        g_value_set_boxed (value, object_path);
-    else
-        g_value_set_static_boxed (value, "/");
+    g_value_set_boxed (value,
+        _mcd_dispatch_operation_get_account_path
+            (MCD_DISPATCH_OPERATION (self)));
 }
 
 GPtrArray *
@@ -355,7 +357,8 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
     dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
     create_object_path (priv);
 
-    DEBUG ("%s/%p", priv->unique_name, object);
+    DEBUG ("%s/%p: needs_approval=%c", priv->unique_name, object,
+           priv->needs_approval ? 'T' : 'F');
 
     if (DEBUGGING)
     {
@@ -367,7 +370,9 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
         }
     }
 
-    if (G_LIKELY (dbus_connection))
+    /* If approval is not needed, we don't appear on D-Bus (and approvers
+     * don't run) */
+    if (priv->needs_approval && G_LIKELY (dbus_connection))
         dbus_g_connection_register_g_object (dbus_connection,
                                              priv->object_path, object);
 
@@ -397,12 +402,34 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
         priv->channels = g_value_get_pointer (val);
         if (G_LIKELY (priv->channels))
         {
-            /* get the connection from the first channel */
+            /* get the connection and account from the first channel */
             McdChannel *channel = MCD_CHANNEL (priv->channels->data);
+
             priv->connection = (McdConnection *)
                 mcd_mission_get_parent (MCD_MISSION (channel));
+
             if (G_LIKELY (priv->connection))
+            {
                 g_object_ref (priv->connection);
+            }
+            else
+            {
+                /* shouldn't happen? */
+                g_warning ("Channel has no Connection?!");
+            }
+
+            priv->account = mcd_channel_get_account (channel);
+
+            if (G_LIKELY (priv->account != NULL))
+            {
+                g_object_ref (priv->account);
+            }
+            else
+            {
+                /* shouldn't happen? */
+                g_warning ("Channel given to McdDispatchOperation has no "
+                           "Account?!");
+            }
 
             /* reference the channels */
             for (list = priv->channels; list != NULL; list = list->next)
@@ -414,6 +441,10 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
         g_assert (priv->possible_handlers == NULL);
         priv->possible_handlers = g_value_dup_boxed (val);
         g_assert (priv->possible_handlers != NULL);
+        break;
+
+    case PROP_NEEDS_APPROVAL:
+        priv->needs_approval = g_value_get_boolean (val);
         break;
 
     default:
@@ -438,6 +469,10 @@ mcd_dispatch_operation_get_property (GObject *obj, guint prop_id,
         g_value_set_boxed (val, priv->possible_handlers);
         break;
 
+    case PROP_NEEDS_APPROVAL:
+        g_value_set_boolean (val, priv->needs_approval);
+        break;
+
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
         break;
@@ -454,6 +489,11 @@ mcd_dispatch_operation_finalize (GObject *object)
 
     if (priv->properties)
         g_hash_table_unref (priv->properties);
+
+    if (priv->failed_handlers != NULL)
+    {
+        g_hash_table_unref (priv->failed_handlers);
+    }
 
     g_free (priv->handler);
     g_free (priv->object_path);
@@ -488,6 +528,12 @@ mcd_dispatch_operation_dispose (GObject *object)
     {
         g_object_unref (priv->connection);
         priv->connection = NULL;
+    }
+
+    if (priv->account != NULL)
+    {
+        g_object_unref (priv->account);
+        priv->account = NULL;
     }
 
     if (priv->dbus_daemon)
@@ -526,6 +572,13 @@ _mcd_dispatch_operation_class_init (McdDispatchOperationClass * klass)
                             G_TYPE_STRV,
                             G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
                             G_PARAM_STATIC_STRINGS));
+
+    g_object_class_install_property (object_class, PROP_NEEDS_APPROVAL,
+        g_param_spec_boolean ("needs-approval", "Needs approval?",
+                              "TRUE if this CDO should run Approvers and "
+                              "appear on D-Bus", FALSE,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
+                              G_PARAM_STATIC_STRINGS));
 }
 
 static void
@@ -553,15 +606,18 @@ _mcd_dispatch_operation_init (McdDispatchOperation *operation)
  */
 McdDispatchOperation *
 _mcd_dispatch_operation_new (TpDBusDaemon *dbus_daemon,
+                             gboolean needs_approval,
                              GList *channels,
-                             const GStrv possible_handlers)
+                             const gchar * const *possible_handlers)
 {
     gpointer *obj;
     obj = g_object_new (MCD_TYPE_DISPATCH_OPERATION,
                         "dbus-daemon", dbus_daemon,
                         "channels", channels,
                         "possible-handlers", possible_handlers,
+                        "needs-approval", needs_approval,
                         NULL);
+
     return MCD_DISPATCH_OPERATION (obj);
 }
 
@@ -576,6 +632,30 @@ _mcd_dispatch_operation_get_path (McdDispatchOperation *operation)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (operation), NULL);
     return operation->priv->object_path;
+}
+
+/*
+ * _mcd_dispatch_operation_get_account_path:
+ * @operation: the #McdDispatchOperation.
+ *
+ * Returns: the D-Bus object path of the Account associated with @operation,
+ *    or "/" if none.
+ */
+const gchar *
+_mcd_dispatch_operation_get_account_path (McdDispatchOperation *self)
+{
+    const gchar *path;
+
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), "/");
+
+    if (self->priv->account == NULL)
+        return "/";
+
+    path = mcd_account_get_object_path (self->priv->account);
+
+    g_return_val_if_fail (path != NULL, "/");
+
+    return path;
 }
 
 /*
@@ -639,6 +719,14 @@ _mcd_dispatch_operation_is_claimed (McdDispatchOperation *operation)
     return (operation->priv->claimer != NULL);
 }
 
+gboolean
+_mcd_dispatch_operation_needs_approval (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+
+    return self->priv->needs_approval;
+}
+
 const gchar *
 _mcd_dispatch_operation_get_claimer (McdDispatchOperation *operation)
 {
@@ -657,6 +745,13 @@ _mcd_dispatch_operation_is_finished (McdDispatchOperation *self)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
     return self->priv->finished;
+}
+
+const gchar * const *
+_mcd_dispatch_operation_get_possible_handlers (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), NULL);
+    return (const gchar * const *) self->priv->possible_handlers;
 }
 
 /*
@@ -848,4 +943,40 @@ _mcd_dispatch_operation_unblock_finished (McdDispatchOperation *self)
             mcd_dispatch_operation_actually_finish (self);
         }
     }
+}
+
+void
+_mcd_dispatch_operation_set_handler_failed (McdDispatchOperation *self,
+                                            const gchar *bus_name)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    g_return_if_fail (bus_name != NULL);
+
+    if (self->priv->failed_handlers == NULL)
+    {
+        self->priv->failed_handlers = g_hash_table_new_full (g_str_hash,
+                                                             g_str_equal,
+                                                             g_free, NULL);
+    }
+
+    /* the value is an arbitrary non-NULL pointer - the hash table itself
+     * will do nicely */
+    g_hash_table_insert (self->priv->failed_handlers, g_strdup (bus_name),
+                         self->priv->failed_handlers);
+}
+
+gboolean
+_mcd_dispatch_operation_get_handler_failed (McdDispatchOperation *self,
+                                            const gchar *bus_name)
+{
+    /* return TRUE on error so we can't get an infinite loop of trying the
+     * same handler */
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), TRUE);
+    g_return_val_if_fail (bus_name != NULL, TRUE);
+
+    if (self->priv->failed_handlers == NULL)
+        return FALSE;
+
+    return (g_hash_table_lookup (self->priv->failed_handlers, bus_name)
+            != NULL);
 }

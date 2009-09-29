@@ -53,6 +53,8 @@ G_GNUC_INTERNAL GType _mcd_dispatch_operation_get_type (void);
 
 G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_path
     (McdDispatchOperation *operation);
+G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_account_path
+    (McdDispatchOperation *self);
 G_GNUC_INTERNAL GHashTable *_mcd_dispatch_operation_get_properties
     (McdDispatchOperation *operation);
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_claimed
@@ -70,7 +72,8 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_approve
 #define MCD_DISPATCH_OPERATION_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), MCD_TYPE_DISPATCH_OPERATION, McdDispatchOperationClass))
 
 G_GNUC_INTERNAL McdDispatchOperation *_mcd_dispatch_operation_new (
-    TpDBusDaemon *dbus_daemon, GList *channels, GStrv possible_handlers);
+    TpDBusDaemon *dbus_daemon, gboolean needs_approval, GList *channels,
+    const gchar * const *possible_handlers);
 G_GNUC_INTERNAL void _mcd_dispatch_operation_lose_channel (
     McdDispatchOperation *self, McdChannel *channel, GList **channels);
 
@@ -86,6 +89,16 @@ G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_claimer (
     McdDispatchOperation *operation);
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_finish (
     McdDispatchOperation *operation);
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_needs_approval (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL
+const gchar * const *_mcd_dispatch_operation_get_possible_handlers (
+    McdDispatchOperation *self);
+
+G_GNUC_INTERNAL void _mcd_dispatch_operation_set_handler_failed (
+    McdDispatchOperation *self, const gchar *bus_name);
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_get_handler_failed (
+    McdDispatchOperation *self, const gchar *bus_name);
 
 G_END_DECLS
 
