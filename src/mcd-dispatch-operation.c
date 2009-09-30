@@ -141,6 +141,9 @@ struct _McdDispatchOperationPrivate
     /* If TRUE, either we've already arranged for the channels to get a
      * handler, or there are no channels left. */
     gboolean channels_handled;
+
+    /* If TRUE, we're dispatching a channel request and it was cancelled */
+    gboolean cancelled;
 };
 
 static void _mcd_dispatch_operation_check_finished (
@@ -267,6 +270,20 @@ _mcd_dispatch_operation_get_channels_handled (McdDispatchOperation *self)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
     return self->priv->channels_handled;
+}
+
+gboolean
+_mcd_dispatch_operation_get_cancelled (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+    return self->priv->cancelled;
+}
+
+void
+_mcd_dispatch_operation_set_cancelled (McdDispatchOperation *self)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    self->priv->cancelled = TRUE;
 }
 
 enum

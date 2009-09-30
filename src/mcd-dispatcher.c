@@ -90,9 +90,6 @@ struct _McdDispatcherContext
 {
     gint ref_count;
 
-    /* If this flag is TRUE, dispatching must be cancelled ASAP */
-    guint cancelled : 1;
-
     McdDispatcher *dispatcher;
 
     GList *channels;
@@ -1236,7 +1233,7 @@ on_channel_abort_context (McdChannel *channel, McdDispatcherContext *context)
      * context should be aborted */
     error = mcd_channel_get_error (channel);
     if (error && error->code == TP_ERROR_CANCELLED)
-        context->cancelled = TRUE;
+        _mcd_dispatch_operation_set_cancelled (context->operation);
 
     /* Losing the channel might mean we get freed, which would make some of
      * the operations below very unhappy */
@@ -1883,7 +1880,7 @@ mcd_dispatcher_context_proceed (McdDispatcherContext *context)
     GError error = { TP_ERRORS, 0, NULL };
     McdFilter *filter;
 
-    if (context->cancelled)
+    if (_mcd_dispatch_operation_get_cancelled (context->operation))
     {
         error.code = TP_ERROR_CANCELLED;
         error.message = "Channel request cancelled";
