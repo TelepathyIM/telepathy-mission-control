@@ -363,6 +363,8 @@ mcd_client_registry_constructed (GObject *object)
 
   g_return_if_fail (self->priv->dbus_daemon != NULL);
 
+  DEBUG ("Starting to look for clients");
+
   /* FIXME: ideally, this would be a more specific match, using arg0prefix
    * (when dbus-daemon supports that, which it doesn't yet) so we only get
    * new clients. */

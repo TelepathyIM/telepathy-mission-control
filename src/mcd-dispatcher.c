@@ -1909,8 +1909,6 @@ mcd_dispatcher_constructed (GObject *object)
                       G_CALLBACK (mcd_dispatcher_client_registry_ready_cb),
                       object);
 
-    DEBUG ("Starting to look for clients");
-
     tp_cli_dbus_daemon_connect_to_name_owner_changed (priv->dbus_daemon,
         name_owner_changed_cb, NULL, NULL, object, NULL);
 
