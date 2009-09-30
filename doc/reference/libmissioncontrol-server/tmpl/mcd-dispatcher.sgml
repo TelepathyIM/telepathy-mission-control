@@ -23,22 +23,6 @@ McdDispatcher
 </para>
 
 
-<!-- ##### SIGNAL McdDispatcher::channel-added ##### -->
-<para>
-
-</para>
-
-@mcddispatcher: the object which received the signal.
-@arg1: 
-
-<!-- ##### SIGNAL McdDispatcher::channel-removed ##### -->
-<para>
-
-</para>
-
-@mcddispatcher: the object which received the signal.
-@arg1: 
-
 <!-- ##### SIGNAL McdDispatcher::dispatched ##### -->
 <para>
 

@@ -215,8 +215,6 @@ enum
 
 enum _McdDispatcherSignalType
 {
-    CHANNEL_ADDED,
-    CHANNEL_REMOVED,
     DISPATCHED,
     LAST_SIGNAL
 };
@@ -1934,24 +1932,6 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
     object_class->finalize = _mcd_dispatcher_finalize;
     object_class->dispose = _mcd_dispatcher_dispose;
 
-    signals[CHANNEL_ADDED] =
-	g_signal_new ("channel_added",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      G_STRUCT_OFFSET (McdDispatcherClass,
-				       channel_added_signal),
-		      NULL, NULL, g_cclosure_marshal_VOID__OBJECT,
-		      G_TYPE_NONE, 1, MCD_TYPE_CHANNEL);
-    
-    signals[CHANNEL_REMOVED] =
-	g_signal_new ("channel_removed",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      G_STRUCT_OFFSET (McdDispatcherClass,
-				       channel_removed_signal),
-		      NULL, NULL, g_cclosure_marshal_VOID__OBJECT,
-		      G_TYPE_NONE, 1, MCD_TYPE_CHANNEL);
-    
     signals[DISPATCHED] =
 	g_signal_new ("dispatched",
 		      G_OBJECT_CLASS_TYPE (klass),
