@@ -72,6 +72,9 @@ G_GNUC_INTERNAL McdClientProxy *_mcd_client_registry_lookup (
 G_GNUC_INTERNAL GPtrArray *_mcd_client_registry_dup_client_caps (
     McdClientRegistry *self);
 
+G_GNUC_INTERNAL gboolean _mcd_client_registry_is_ready (
+    McdClientRegistry *self);
+
 /* Temporary API for porting */
 
 G_GNUC_INTERNAL McdClientProxy *_mcd_client_registry_add_new (
@@ -79,6 +82,11 @@ G_GNUC_INTERNAL McdClientProxy *_mcd_client_registry_add_new (
     const gchar *unique_name_if_known, gboolean activatable);
 G_GNUC_INTERNAL void _mcd_client_registry_init_hash_iter (
     McdClientRegistry *self, GHashTableIter *iter);
+
+G_GNUC_INTERNAL void _mcd_client_registry_inc_startup_lock (
+    McdClientRegistry *self);
+G_GNUC_INTERNAL void _mcd_client_registry_dec_startup_lock (
+    McdClientRegistry *self);
 
 G_END_DECLS
 

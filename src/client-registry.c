@@ -23,6 +23,8 @@
 
 #include <telepathy-glib/handle-repo-dynamic.h>
 
+#include "mcd-debug.h"
+
 G_DEFINE_TYPE (McdClientRegistry, _mcd_client_registry, G_TYPE_OBJECT)
 
 enum
@@ -51,7 +53,55 @@ struct _McdClientRegistryPrivate
   /* Not really handles as such, but TpHandleRepoIface gives us a convenient
    * reference-counted string pool */
   TpHandleRepoIface *string_pool;
+
+  /* We don't want to start dispatching until startup has finished. This
+   * is defined as:
+   * - activatable clients have been enumerated (ListActivatableNames)
+   *   (1 lock)
+   * - running clients have been enumerated (ListNames) (1 lock)
+   * - each client found that way is ready (1 lock per client)
+   * When nothing more is stopping us from dispatching channels, we signal
+   * ready.
+   * */
+  gsize startup_lock;
+  gboolean startup_completed;
 };
+
+void
+_mcd_client_registry_inc_startup_lock (McdClientRegistry *self)
+{
+  g_return_if_fail (MCD_IS_CLIENT_REGISTRY (self));
+
+  if (!self->priv->startup_completed)
+    {
+      DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
+          self->priv->startup_lock, self->priv->startup_lock + 1);
+      g_return_if_fail (self->priv->startup_lock > 0);
+      self->priv->startup_lock++;
+    }
+}
+
+void
+_mcd_client_registry_dec_startup_lock (McdClientRegistry *self)
+{
+  g_return_if_fail (MCD_IS_CLIENT_REGISTRY (self));
+
+  if (self->priv->startup_completed)
+    return;
+
+  DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
+      self->priv->startup_lock, self->priv->startup_lock - 1);
+
+  g_return_if_fail (self->priv->startup_lock > 0);
+
+  self->priv->startup_lock--;
+
+  if (self->priv->startup_lock == 0)
+    {
+      self->priv->startup_completed = TRUE;
+      g_signal_emit (self, signals[S_READY], 0);
+    }
+}
 
 static void mcd_client_registry_gone_cb (McdClientProxy *client,
     McdClientRegistry *self);
@@ -129,6 +179,9 @@ _mcd_client_registry_init (McdClientRegistry *self)
   self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, MCD_TYPE_CLIENT_REGISTRY,
       McdClientRegistryPrivate);
 
+  self->priv->startup_completed = FALSE;
+  /* the ListNames call we'll make in _constructed is the initial lock */
+  self->priv->startup_lock = 1;
   self->priv->clients = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
       g_object_unref);
 }
@@ -290,4 +343,11 @@ _mcd_client_registry_dup_client_caps (McdClientRegistry *self)
     }
 
   return vas;
+}
+
+gboolean
+_mcd_client_registry_is_ready (McdClientRegistry *self)
+{
+  g_return_val_if_fail (MCD_IS_CLIENT_REGISTRY (self), FALSE);
+  return self->priv->startup_completed;
 }
