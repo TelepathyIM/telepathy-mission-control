@@ -115,13 +115,6 @@ _mcd_client_registry_remove (McdClientRegistry *self,
   g_hash_table_remove (self->priv->clients, well_known_name);
 }
 
-guint
-_mcd_client_registry_size (McdClientRegistry *self)
-{
-  g_return_val_if_fail (MCD_IS_CLIENT_REGISTRY (self), 0);
-  return g_hash_table_size (self->priv->clients);
-}
-
 void _mcd_client_registry_init_hash_iter (McdClientRegistry *self,
     GHashTableIter *iter)
 {
@@ -267,4 +260,26 @@ mcd_client_registry_gone_cb (McdClientProxy *client,
     McdClientRegistry *self)
 {
   _mcd_client_registry_remove (self, tp_proxy_get_bus_name (client));
+}
+
+GPtrArray *
+_mcd_client_registry_dup_client_caps (McdClientRegistry *self)
+{
+  GPtrArray *vas;
+  GHashTableIter iter;
+  gpointer p;
+
+  g_return_val_if_fail (MCD_IS_CLIENT_REGISTRY (self), NULL);
+
+  vas = g_ptr_array_sized_new (g_hash_table_size (self->priv->clients));
+
+  g_hash_table_iter_init (&iter, self->priv->clients);
+
+  while (g_hash_table_iter_next (&iter, NULL, &p))
+    {
+      g_ptr_array_add (vas,
+          _mcd_client_proxy_dup_handler_capabilities (p));
+    }
+
+  return vas;
 }

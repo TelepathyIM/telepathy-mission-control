@@ -1876,7 +1876,7 @@ mcd_dispatcher_release_startup_lock (McdDispatcher *self)
         DEBUG ("All initial clients have been inspected");
         self->priv->startup_completed = TRUE;
 
-        vas = _mcd_dispatcher_dup_client_caps (self);
+        vas = _mcd_client_registry_dup_client_caps (self->priv->clients);
 
         g_hash_table_iter_init (&iter, self->priv->connections);
 
@@ -3314,32 +3314,20 @@ mcd_dispatcher_lost_connection (gpointer data,
     g_object_unref (self);
 }
 
+/* FIXME: this only needs to exist because McdConnection calls it in order
+ * to preload caps before Connect */
 GPtrArray *
 _mcd_dispatcher_dup_client_caps (McdDispatcher *self)
 {
-    GPtrArray *vas;
-    GHashTableIter iter;
-    gpointer p;
-
     g_return_val_if_fail (MCD_IS_DISPATCHER (self), NULL);
 
-    vas = g_ptr_array_sized_new (
-        _mcd_client_registry_size (self->priv->clients));
-
+    /* if we're not ready, return NULL to tell the connection not to preload */
     if (!self->priv->startup_completed)
     {
         return NULL;
     }
 
-    _mcd_client_registry_init_hash_iter (self->priv->clients, &iter);
-
-    while (g_hash_table_iter_next (&iter, NULL, &p))
-    {
-        g_ptr_array_add (vas,
-                         _mcd_client_proxy_dup_handler_capabilities (p));
-    }
-
-    return vas;
+    return _mcd_client_registry_dup_client_caps (self->priv->clients);
 }
 
 void
@@ -3357,7 +3345,8 @@ _mcd_dispatcher_add_connection (McdDispatcher *self,
 
     if (self->priv->startup_completed)
     {
-        GPtrArray *vas = _mcd_dispatcher_dup_client_caps (self);
+        GPtrArray *vas =
+            _mcd_client_registry_dup_client_caps (self->priv->clients);
 
         _mcd_connection_start_dispatching (connection, vas);
 
