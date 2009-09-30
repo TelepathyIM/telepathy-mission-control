@@ -33,17 +33,75 @@ enum
 
 struct _McdClientRegistryPrivate
 {
+  /* hash table containing clients
+   * owned gchar * well_known_name -> owned McdClientProxy */
+  GHashTable *clients;
+
   TpDBusDaemon *dbus_daemon;
+
   /* Not really handles as such, but TpHandleRepoIface gives us a convenient
    * reference-counted string pool */
   TpHandleRepoIface *string_pool;
 };
+
+McdClientProxy *
+_mcd_client_registry_add_new (McdClientRegistry *self,
+    const gchar *well_known_name,
+    const gchar *unique_name_if_known,
+    gboolean activatable)
+{
+  McdClientProxy *client;
+
+  g_return_val_if_fail (MCD_IS_CLIENT_REGISTRY (self), NULL);
+  g_return_val_if_fail (g_hash_table_lookup (self->priv->clients,
+        well_known_name) == NULL, NULL);
+
+    client = _mcd_client_proxy_new (self->priv->dbus_daemon,
+        self->priv->string_pool, well_known_name, unique_name_if_known,
+        activatable);
+    g_hash_table_insert (self->priv->clients, g_strdup (well_known_name),
+        client);
+    return client;
+}
+
+McdClientProxy *
+_mcd_client_registry_lookup (McdClientRegistry *self,
+    const gchar *well_known_name)
+{
+  g_return_val_if_fail (MCD_IS_CLIENT_REGISTRY (self), NULL);
+  return g_hash_table_lookup (self->priv->clients, well_known_name);
+}
+
+gboolean
+_mcd_client_registry_remove (McdClientRegistry *self,
+    const gchar *well_known_name)
+{
+  g_return_val_if_fail (MCD_IS_CLIENT_REGISTRY (self), FALSE);
+  return g_hash_table_remove (self->priv->clients, well_known_name);
+}
+
+guint
+_mcd_client_registry_size (McdClientRegistry *self)
+{
+  g_return_val_if_fail (MCD_IS_CLIENT_REGISTRY (self), 0);
+  return g_hash_table_size (self->priv->clients);
+}
+
+void _mcd_client_registry_init_hash_iter (McdClientRegistry *self,
+    GHashTableIter *iter)
+{
+  g_return_if_fail (MCD_IS_CLIENT_REGISTRY (self));
+  g_hash_table_iter_init (iter, self->priv->clients);
+}
 
 static void
 _mcd_client_registry_init (McdClientRegistry *self)
 {
   self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, MCD_TYPE_CLIENT_REGISTRY,
       McdClientRegistryPrivate);
+
+  self->priv->clients = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
+      g_object_unref);
 }
 
 static void
@@ -121,6 +179,12 @@ mcd_client_registry_dispose (GObject *object)
     {
       g_object_unref (self->priv->string_pool);
       self->priv->string_pool = NULL;
+    }
+
+  if (self->priv->clients != NULL)
+    {
+      g_hash_table_destroy (self->priv->clients);
+      self->priv->clients = NULL;
     }
 
   if (chain_up != NULL)

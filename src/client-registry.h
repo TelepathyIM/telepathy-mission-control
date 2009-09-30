@@ -26,6 +26,8 @@
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/handle-repo.h>
 
+#include "mcd-client-priv.h"
+
 G_BEGIN_DECLS
 
 typedef struct _McdClientRegistry McdClientRegistry;
@@ -63,6 +65,20 @@ GType _mcd_client_registry_get_type (void);
 
 G_GNUC_INTERNAL McdClientRegistry *_mcd_client_registry_new (
     TpDBusDaemon *dbus_daemon);
+
+G_GNUC_INTERNAL McdClientProxy *_mcd_client_registry_lookup (
+    McdClientRegistry *self, const gchar *well_known_name);
+
+/* Temporary API for porting */
+
+G_GNUC_INTERNAL McdClientProxy *_mcd_client_registry_add_new (
+    McdClientRegistry *self, const gchar *well_known_name,
+    const gchar *unique_name_if_known, gboolean activatable);
+G_GNUC_INTERNAL guint _mcd_client_registry_size (McdClientRegistry *self);
+G_GNUC_INTERNAL gboolean _mcd_client_registry_remove (McdClientRegistry *self,
+    const gchar *well_known_name);
+G_GNUC_INTERNAL void _mcd_client_registry_init_hash_iter (
+    McdClientRegistry *self, GHashTableIter *iter);
 
 G_END_DECLS
 
