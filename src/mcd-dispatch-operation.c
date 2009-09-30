@@ -110,6 +110,12 @@ struct _McdDispatchOperationPrivate
      * or a client approved processing with arbitrary handlers */
     gboolean approved;
 
+    /* If TRUE, we're still working out what Observers and Approvers to
+     * run. This is a temporary client lock; a reference must be held
+     * while it is TRUE (in the McdDispatcherContext, CTXREF07 ensures this).
+     */
+    gboolean invoking_early_clients;
+
     /* The number of observers that have not yet returned from ObserveChannels.
      * Until they have done so, we can't allow the dispatch operation to
      * finish. This is a client lock.
@@ -205,6 +211,22 @@ _mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
 
     _mcd_dispatch_operation_check_finished (self);
     g_object_unref (self);
+}
+
+gboolean
+_mcd_dispatch_operation_is_invoking_early_clients (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+    return self->priv->invoking_early_clients;
+}
+
+void
+_mcd_dispatch_operation_set_invoking_early_clients (McdDispatchOperation *self,
+                                                    gboolean value)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    g_return_if_fail (self->priv->invoking_early_clients == !value);
+    self->priv->invoking_early_clients = value;
 }
 
 enum

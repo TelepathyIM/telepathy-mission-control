@@ -99,11 +99,6 @@ struct _McdDispatcherContext
      * CTXREF14 is held while we await approval. */
     guint awaiting_approval : 1;
 
-    /* If TRUE, we're still working out what Observers and Approvers to
-     * run. This is a temporary client lock. CTXREF07 is held while this
-     * lock is active. */
-    guint invoking_clients : 1;
-
     /* If TRUE, either we've already arranged for the channels to get a
      * handler, or there are no channels left. */
     guint channels_handled : 1;
@@ -887,7 +882,7 @@ finally:
 static void
 mcd_dispatcher_context_check_client_locks (McdDispatcherContext *context)
 {
-    if (!context->invoking_clients &&
+    if (!_mcd_dispatch_operation_is_invoking_early_clients (context->operation) &&
         !_mcd_dispatch_operation_has_observers_pending (context->operation) &&
         _mcd_dispatch_operation_is_approved (context->operation))
     {
@@ -1195,7 +1190,8 @@ static void
 mcd_dispatcher_run_clients (McdDispatcherContext *context)
 {
     mcd_dispatcher_context_ref (context, "CTXREF07");
-    context->invoking_clients = TRUE;
+    _mcd_dispatch_operation_set_invoking_early_clients (context->operation,
+                                                        TRUE);
 
     mcd_dispatcher_run_observers (context);
 
@@ -1216,7 +1212,8 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
             mcd_dispatcher_run_approvers (context);
     }
 
-    context->invoking_clients = FALSE;
+    _mcd_dispatch_operation_set_invoking_early_clients (context->operation,
+                                                        FALSE);
     mcd_dispatcher_context_check_client_locks (context);
     mcd_dispatcher_context_unref (context, "CTXREF07");
 }
