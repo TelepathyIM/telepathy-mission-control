@@ -1040,7 +1040,7 @@ _mcd_dispatch_operation_is_approved (McdDispatchOperation *self)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
 
-    return self->priv->approved;
+    return (self->priv->approved || !self->priv->needs_approval);
 }
 
 void

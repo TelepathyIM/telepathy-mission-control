@@ -1437,14 +1437,8 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     context->operation = _mcd_dispatch_operation_new (priv->clients,
         !requested, channels, (const gchar * const *) possible_handlers);
 
-    if (requested)
+    if (!requested)
     {
-        _mcd_dispatch_operation_set_approved (context->operation);
-    }
-    else
-    {
-        /* McdDispatchOperation defaults to being unapproved */
-
         if (priv->operation_list_active)
         {
             tp_svc_channel_dispatcher_interface_operation_list_emit_new_dispatch_operation (
