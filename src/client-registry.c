@@ -120,27 +120,27 @@ _mcd_client_registry_add_new (McdClientRegistry *self,
   g_return_val_if_fail (g_hash_table_lookup (self->priv->clients,
         well_known_name) == NULL, NULL);
 
-    client = _mcd_client_proxy_new (self->priv->dbus_daemon,
-        self->priv->string_pool, well_known_name, unique_name_if_known,
-        activatable);
-    g_hash_table_insert (self->priv->clients, g_strdup (well_known_name),
-        client);
+  client = _mcd_client_proxy_new (self->priv->dbus_daemon,
+      self->priv->string_pool, well_known_name, unique_name_if_known,
+      activatable);
+  g_hash_table_insert (self->priv->clients, g_strdup (well_known_name),
+      client);
 
-    /* paired with one in mcd_client_registry_ready_cb, when the
-     * McdClientProxy is ready */
-    _mcd_client_registry_inc_startup_lock (self);
+  /* paired with one in mcd_client_registry_ready_cb, when the
+   * McdClientProxy is ready */
+  _mcd_client_registry_inc_startup_lock (self);
 
-    g_signal_connect (client, "ready",
-                      G_CALLBACK (mcd_client_registry_ready_cb),
-                      self);
+  g_signal_connect (client, "ready",
+                    G_CALLBACK (mcd_client_registry_ready_cb),
+                    self);
 
-    g_signal_connect (client, "gone",
-                      G_CALLBACK (mcd_client_registry_gone_cb),
-                      self);
+  g_signal_connect (client, "gone",
+                    G_CALLBACK (mcd_client_registry_gone_cb),
+                    self);
 
-    g_signal_emit (self, signals[S_CLIENT_ADDED], 0, client);
+  g_signal_emit (self, signals[S_CLIENT_ADDED], 0, client);
 
-    return client;
+  return client;
 }
 
 McdClientProxy *
