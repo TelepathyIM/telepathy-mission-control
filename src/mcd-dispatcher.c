@@ -90,8 +90,6 @@ struct _McdDispatcherContext
 {
     gint ref_count;
 
-    guint finished : 1;
-
     /* If this flag is TRUE, dispatching must be cancelled ASAP */
     guint cancelled : 1;
 
@@ -235,29 +233,6 @@ mcd_handler_call_data_free (McdHandlerCallData *call_data)
     mcd_dispatcher_context_unref (call_data->context, "CTXREF03");
     g_list_free (call_data->channels);
     g_slice_free (McdHandlerCallData, call_data);
-}
-
-/*
- * mcd_dispatcher_context_handler_done:
- * @context: the #McdDispatcherContext.
- * 
- * Called to informs the @context that handling of a channel is completed,
- * either because a channel handler has returned from the HandleChannel(s)
- * call, or because there was an error in calling the handler. 
- * This function checks the status of all the channels in @context, and when
- * there is nothing left to do (either because all channels are dispatched, or
- * because it's impossible to dispatch them) it destroys the @context.
- */
-static void
-mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
-{
-    if (context->finished)
-    {
-        DEBUG ("context %p is already finished", context);
-        return;
-    }
-
-    context->finished = TRUE;
 }
 
 static GList *
@@ -620,7 +595,6 @@ handle_channels_cb (TpClient *proxy, const GError *error, gpointer user_data,
         }
     }
 
-    mcd_dispatcher_context_handler_done (context);
     mcd_dispatcher_context_unref (context, "CTXREF02");
 }
 
@@ -1438,7 +1412,6 @@ on_operation_finished (McdDispatchOperation *operation,
                 channel, _mcd_dispatch_operation_get_claimer (operation));
         }
 
-        mcd_dispatcher_context_handler_done (context);
         g_assert (!context->channels_handled);
         context->channels_handled = TRUE;
     }
