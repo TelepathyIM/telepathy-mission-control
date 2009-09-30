@@ -218,7 +218,6 @@ enum _McdDispatcherSignalType
     CHANNEL_ADDED,
     CHANNEL_REMOVED,
     DISPATCHED,
-    DISPATCH_COMPLETED,
     LAST_SIGNAL
 };
 
@@ -257,8 +256,7 @@ mcd_handler_call_data_free (McdHandlerCallData *call_data)
  * call, or because there was an error in calling the handler. 
  * This function checks the status of all the channels in @context, and when
  * there is nothing left to do (either because all channels are dispatched, or
- * because it's impossible to dispatch them) it emits the "dispatch-completed"
- * signal and destroys the @context.
+ * because it's impossible to dispatch them) it destroys the @context.
  */
 static void
 mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
@@ -270,8 +268,6 @@ mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
     }
 
     context->finished = TRUE;
-    g_signal_emit (context->dispatcher,
-                   signals[DISPATCH_COMPLETED], 0, context);
 }
 
 static GList *
@@ -1964,22 +1960,6 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
 				       dispatched_signal),
 		      NULL, NULL, g_cclosure_marshal_VOID__OBJECT,
 		      G_TYPE_NONE, 1, MCD_TYPE_CHANNEL);
-
-    /**
-     * McdDispatcher::dispatch-completed:
-     * @dispatcher: the #McdDispatcher.
-     * @context: a #McdDispatcherContext.
-     *
-     * This signal is emitted when a dispatch operation has terminated. One can
-     * inspect @context to get the status of the channels.
-     * After this signal returns, @context is no longer valid.
-     */
-    signals[DISPATCH_COMPLETED] =
-        g_signal_new ("dispatch-completed",
-                      G_OBJECT_CLASS_TYPE (klass),
-                      G_SIGNAL_RUN_LAST,
-                      0, NULL, NULL, g_cclosure_marshal_VOID__POINTER,
-                      G_TYPE_NONE, 1, G_TYPE_POINTER);
 
     /* Properties */
     g_object_class_install_property
