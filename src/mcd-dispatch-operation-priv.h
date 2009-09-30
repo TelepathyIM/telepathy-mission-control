@@ -96,6 +96,8 @@ G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_needs_approval (
 G_GNUC_INTERNAL
 const gchar * const *_mcd_dispatch_operation_get_possible_handlers (
     McdDispatchOperation *self);
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_handlers_can_bypass_approval
+   (McdDispatchOperation *self);
 
 G_GNUC_INTERNAL void _mcd_dispatch_operation_set_handler_failed (
     McdDispatchOperation *self, const gchar *bus_name);

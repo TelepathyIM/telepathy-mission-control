@@ -1216,43 +1216,6 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
     mcd_dispatcher_context_release_pending_approver (context);
 }
 
-static gboolean
-handlers_can_bypass_approval (McdDispatcherContext *context)
-{
-    McdDispatcher *self = context->dispatcher;
-    const gchar * const *possible_handlers;
-    const gchar * const *iter;
-
-    possible_handlers = _mcd_dispatch_operation_get_possible_handlers (
-        context->operation);
-
-    for (iter = possible_handlers; iter != NULL && *iter != NULL; iter++)
-    {
-        McdClientProxy *handler = _mcd_client_registry_lookup (
-            self->priv->clients, *iter);
-
-        /* If the best handler that still exists bypasses approval, then
-         * we're going to bypass approval.
-         *
-         * Also, because handlers are sorted with the best ones first, and
-         * handlers with BypassApproval are "better", we can be sure that if
-         * we've found a handler that still exists and does not bypass
-         * approval, no handler bypasses approval. */
-        if (handler != NULL)
-        {
-            gboolean bypass = _mcd_client_proxy_get_bypass_approval (
-                handler);
-
-            DEBUG ("%s has BypassApproval=%c", *iter, bypass ? 'T' : 'F');
-            return bypass;
-        }
-    }
-
-    /* If no handler still exists, we don't bypass approval, although if that
-     * happens we're basically doomed anyway. */
-    return FALSE;
-}
-
 /* Happens at the end of successful filter chain execution (empty chain
  * is always successful)
  */
@@ -1273,7 +1236,8 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
          * FIXME: we should really run BypassApproval handlers as a separate
          * stage, rather than considering the existence of a BypassApproval
          * handler to constitute approval - this is fd.o #23687 */
-        if (handlers_can_bypass_approval (context))
+        if (_mcd_dispatch_operation_handlers_can_bypass_approval
+            (context->operation))
             context->approved = TRUE;
 
         if (!context->approved)
