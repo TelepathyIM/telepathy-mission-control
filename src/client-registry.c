@@ -103,6 +103,8 @@ _mcd_client_registry_dec_startup_lock (McdClientRegistry *self)
     }
 }
 
+static void mcd_client_registry_ready_cb (McdClientProxy *client,
+    McdClientRegistry *self);
 static void mcd_client_registry_gone_cb (McdClientProxy *client,
     McdClientRegistry *self);
 
@@ -123,6 +125,14 @@ _mcd_client_registry_add_new (McdClientRegistry *self,
         activatable);
     g_hash_table_insert (self->priv->clients, g_strdup (well_known_name),
         client);
+
+    /* paired with one in mcd_client_registry_ready_cb, when the
+     * McdClientProxy is ready */
+    _mcd_client_registry_inc_startup_lock (self);
+
+    g_signal_connect (client, "ready",
+                      G_CALLBACK (mcd_client_registry_ready_cb),
+                      self);
 
     g_signal_connect (client, "gone",
                       G_CALLBACK (mcd_client_registry_gone_cb),
@@ -146,7 +156,17 @@ mcd_client_registry_disconnect_client_signals (gpointer k G_GNUC_UNUSED,
     gpointer v,
     gpointer data)
 {
+  g_signal_handlers_disconnect_by_func (v, mcd_client_registry_ready_cb, data);
   g_signal_handlers_disconnect_by_func (v, mcd_client_registry_gone_cb, data);
+
+  if (!_mcd_client_proxy_is_ready (v))
+    {
+      /* we'll never receive the ready signal now, so release the lock that
+       * it would otherwise have released */
+      DEBUG ("client %s disappeared before it became ready - treating it "
+             "as ready for our purposes", tp_proxy_get_bus_name (v));
+      mcd_client_registry_ready_cb (v, data);
+    }
 }
 
 static void
@@ -314,6 +334,19 @@ _mcd_client_registry_new (TpDBusDaemon *dbus_daemon)
   return g_object_new (MCD_TYPE_CLIENT_REGISTRY,
       "dbus-daemon", dbus_daemon,
       NULL);
+}
+
+static void
+mcd_client_registry_ready_cb (McdClientProxy *client,
+    McdClientRegistry *self)
+{
+  DEBUG ("%s", tp_proxy_get_bus_name (client));
+
+  g_signal_handlers_disconnect_by_func (client,
+      mcd_client_registry_ready_cb, self);
+
+  /* paired with the one in _mcd_client_registry_add_new */
+  _mcd_client_registry_dec_startup_lock (self);
 }
 
 static void

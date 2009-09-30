@@ -1715,8 +1715,6 @@ mcd_dispatcher_client_capabilities_changed_cb (McdClientProxy *client,
     mcd_dispatcher_update_client_caps (self, client);
 }
 
-static void mcd_dispatcher_client_ready_cb (McdClientProxy *client,
-                                            McdDispatcher *dispatcher);
 static void mcd_dispatcher_client_gone_cb (McdClientProxy *client,
                                            McdDispatcher *self);
 
@@ -1731,21 +1729,8 @@ mcd_dispatcher_discard_client (McdDispatcher *self,
         mcd_dispatcher_client_handling_channel_cb, self);
 
     g_signal_handlers_disconnect_by_func (client,
-                                          mcd_dispatcher_client_ready_cb,
-                                          self);
-
-    g_signal_handlers_disconnect_by_func (client,
                                           mcd_dispatcher_client_gone_cb,
                                           self);
-
-    if (!_mcd_client_proxy_is_ready (client))
-    {
-        /* we'll never receive the ready signal now, so release the lock that
-         * it would otherwise have released */
-        DEBUG ("client %s disappeared before it became ready - treating it "
-               "as ready for our purposes", tp_proxy_get_bus_name (client));
-        mcd_dispatcher_client_ready_cb (client, self);
-    }
 }
 
 static void
@@ -1760,14 +1745,6 @@ mcd_dispatcher_client_added_cb (McdClientRegistry *clients,
                                 McdClientProxy *client,
                                 McdDispatcher *self)
 {
-    /* paired with one in mcd_dispatcher_client_ready_cb, when the
-     * McdClientProxy is ready */
-    _mcd_client_registry_inc_startup_lock (clients);
-
-    g_signal_connect (client, "ready",
-                      G_CALLBACK (mcd_dispatcher_client_ready_cb),
-                      self);
-
     g_signal_connect (client, "gone",
                       G_CALLBACK (mcd_dispatcher_client_gone_cb),
                       self);
@@ -1892,20 +1869,6 @@ mcd_dispatcher_update_client_caps (McdDispatcher *self,
 
     g_ptr_array_foreach (vas, (GFunc) g_value_array_free, NULL);
     g_ptr_array_free (vas, TRUE);
-}
-
-static void
-mcd_dispatcher_client_ready_cb (McdClientProxy *client,
-                                McdDispatcher *dispatcher)
-{
-    DEBUG ("%s", tp_proxy_get_bus_name (client));
-
-    g_signal_handlers_disconnect_by_func (client,
-                                          mcd_dispatcher_client_ready_cb,
-                                          dispatcher);
-
-    /* paired with the one in mcd_dispatcher_client_added_cb */
-    _mcd_client_registry_dec_startup_lock (dispatcher->priv->clients);
 }
 
 /* Check the list of strings whether they are valid well-known names of
