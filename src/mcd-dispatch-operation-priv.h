@@ -83,10 +83,6 @@ G_GNUC_INTERNAL GPtrArray *_mcd_dispatch_operation_dup_channel_details (
     McdDispatchOperation *self);
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_finished (
     McdDispatchOperation *self);
-G_GNUC_INTERNAL void _mcd_dispatch_operation_block_finished (
-    McdDispatchOperation *self);
-G_GNUC_INTERNAL void _mcd_dispatch_operation_unblock_finished (
-    McdDispatchOperation *self);
 G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_claimer (
     McdDispatchOperation *operation);
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_finish (

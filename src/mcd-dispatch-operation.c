@@ -78,7 +78,6 @@ struct _McdDispatchOperationPrivate
     gchar *object_path;
     GStrv possible_handlers;
     GHashTable *properties;
-    gsize block_finished;
 
     /* If FALSE, we're not actually on D-Bus; an object path is reserved,
      * but we're inaccessible. */
@@ -128,6 +127,16 @@ struct _McdDispatchOperationPrivate
     gsize ado_pending;
 };
 
+static void _mcd_dispatch_operation_check_finished (
+    McdDispatchOperation *self);
+
+static inline gboolean
+mcd_dispatch_operation_may_finish (McdDispatchOperation *self)
+{
+    return (self->priv->observers_pending == 0 &&
+            self->priv->ado_pending == 0);
+}
+
 gboolean
 _mcd_dispatch_operation_has_observers_pending (McdDispatchOperation *self)
 {
@@ -139,9 +148,9 @@ void
 _mcd_dispatch_operation_inc_observers_pending (McdDispatchOperation *self)
 {
     g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    g_return_if_fail (!self->priv->finished);
 
     g_object_ref (self);
-    _mcd_dispatch_operation_block_finished (self);
 
     DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
            self->priv->observers_pending,
@@ -159,7 +168,7 @@ _mcd_dispatch_operation_dec_observers_pending (McdDispatchOperation *self)
     g_return_if_fail (self->priv->observers_pending > 0);
     self->priv->observers_pending--;
 
-    _mcd_dispatch_operation_unblock_finished (self);
+    _mcd_dispatch_operation_check_finished (self);
     g_object_unref (self);
 }
 
@@ -174,9 +183,9 @@ void
 _mcd_dispatch_operation_inc_ado_pending (McdDispatchOperation *self)
 {
     g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    g_return_if_fail (!self->priv->finished);
 
     g_object_ref (self);
-    _mcd_dispatch_operation_block_finished (self);
 
     DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
            self->priv->ado_pending,
@@ -194,7 +203,7 @@ _mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
     g_return_if_fail (self->priv->ado_pending > 0);
     self->priv->ado_pending--;
 
-    _mcd_dispatch_operation_unblock_finished (self);
+    _mcd_dispatch_operation_check_finished (self);
     g_object_unref (self);
 }
 
@@ -333,7 +342,7 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation)
 
     priv->finished = TRUE;
 
-    if (priv->block_finished == 0)
+    if (mcd_dispatch_operation_may_finish (operation))
     {
         DEBUG ("%s/%p has finished", priv->unique_name, operation);
         mcd_dispatch_operation_actually_finish (operation);
@@ -953,7 +962,7 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
         g_critical ("McdChannel has already lost its TpChannel: %p",
             channel);
     }
-    else if (self->priv->block_finished)
+    else if (!mcd_dispatch_operation_may_finish (self))
     {
         /* We're still invoking approvers, so we're not allowed to talk
          * about it right now. Instead, save the signal for later. */
@@ -987,24 +996,10 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
     }
 }
 
-void
-_mcd_dispatch_operation_block_finished (McdDispatchOperation *self)
+static void
+_mcd_dispatch_operation_check_finished (McdDispatchOperation *self)
 {
-    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
-    g_return_if_fail (!self->priv->finished);
-
-    self->priv->block_finished++;
-}
-
-void
-_mcd_dispatch_operation_unblock_finished (McdDispatchOperation *self)
-{
-    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
-    g_return_if_fail (self->priv->block_finished > 0);
-
-    self->priv->block_finished--;
-
-    if (self->priv->block_finished == 0)
+    if (mcd_dispatch_operation_may_finish (self))
     {
         GList *lost_channels;
 
