@@ -331,6 +331,27 @@ mcd_client_registry_list_names_cb (TpDBusDaemon *proxy,
 }
 
 static void
+mcd_client_registry_name_owner_changed_cb (TpDBusDaemon *proxy,
+    const gchar *name,
+    const gchar *old_owner,
+    const gchar *new_owner,
+    gpointer user_data G_GNUC_UNUSED,
+    GObject *weak_object)
+{
+  McdClientRegistry *self = MCD_CLIENT_REGISTRY (weak_object);
+
+  /* dbus-glib guarantees this */
+  g_assert (name != NULL);
+  g_assert (old_owner != NULL);
+  g_assert (new_owner != NULL);
+
+  if (old_owner[0] == '\0' && new_owner[0] != '\0')
+    {
+      _mcd_client_registry_found_name (self, name, new_owner, FALSE);
+    }
+}
+
+static void
 mcd_client_registry_constructed (GObject *object)
 {
   McdClientRegistry *self = MCD_CLIENT_REGISTRY (object);
@@ -342,9 +363,11 @@ mcd_client_registry_constructed (GObject *object)
 
   g_return_if_fail (self->priv->dbus_daemon != NULL);
 
-  /* FIXME: strictly speaking, we should connect to NameOwnerChanged
-   * *before* calling ListNames. This will be fixed when the NameOwnerChanged
-   * handling moves here too. */
+  /* FIXME: ideally, this would be a more specific match, using arg0prefix
+   * (when dbus-daemon supports that, which it doesn't yet) so we only get
+   * new clients. */
+  tp_cli_dbus_daemon_connect_to_name_owner_changed (self->priv->dbus_daemon,
+      mcd_client_registry_name_owner_changed_cb, NULL, NULL, object, NULL);
 
   tp_cli_dbus_daemon_call_list_names (self->priv->dbus_daemon, -1,
       mcd_client_registry_list_names_cb, NULL, NULL, object);

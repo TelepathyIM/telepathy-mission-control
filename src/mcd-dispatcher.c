@@ -1887,34 +1887,11 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
     g_assert (old_owner != NULL);
     g_assert (new_owner != NULL);
 
-    if (old_owner[0] == '\0' && new_owner[0] != '\0')
+    if (name[0] == ':' && new_owner[0] == '\0')
     {
-        _mcd_client_registry_found_name (self->priv->clients,
-                                         name, new_owner, FALSE);
-    }
-    else if (old_owner[0] != '\0' && new_owner[0] == '\0')
-    {
-        /* The name disappeared from the bus. It might be either well-known
-         * (handled within McdClientProxy) or unique (handled here) */
-        if (name[0] == ':')
-        {
-            /* it's a unique name - maybe it was handling some channels? */
-            _mcd_handler_map_set_handler_crashed (priv->handler_map, name);
-        }
-    }
-    else if (old_owner[0] != '\0' && new_owner[0] != '\0')
-    {
-        /* Atomic ownership handover - handle this like an exit + startup */
-        name_owner_changed_cb (proxy, name, old_owner, "", user_data,
-                               weak_object);
-        name_owner_changed_cb (proxy, name, "", new_owner, user_data,
-                               weak_object);
-    }
-    else
-    {
-        /* dbus-daemon is sick */
-        DEBUG ("Malformed message from the D-Bus daemon about '%s' "
-               "('%s' -> '%s')", name, old_owner, new_owner);
+        /* A unique name disappeared from the bus. It might be handling
+         * channels? */
+        _mcd_handler_map_set_handler_crashed (priv->handler_map, name);
     }
 }
 
