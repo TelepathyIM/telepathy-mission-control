@@ -104,7 +104,11 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_set_handler_failed (
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_get_handler_failed (
     McdDispatchOperation *self, const gchar *bus_name);
 
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_approved (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_set_approved (
+    McdDispatchOperation *self);
+
 G_END_DECLS
 
 #endif
-

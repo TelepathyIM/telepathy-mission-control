@@ -93,11 +93,6 @@ struct _McdDispatcherContext
     /* If this flag is TRUE, dispatching must be cancelled ASAP */
     guint cancelled : 1;
 
-    /* If TRUE, either the channels being dispatched were requested, or they
-     * were pre-approved by being returned as a response to another request,
-     * or a client approved processing with arbitrary handlers */
-    guint approved : 1;
-
     /* If TRUE, at least one Approver has accepted the CDO. This is a
      * client lock.
      *
@@ -908,7 +903,7 @@ mcd_dispatcher_context_check_client_locks (McdDispatcherContext *context)
 {
     if (!context->invoking_clients &&
         context->observers_pending == 0 &&
-        context->approved)
+        _mcd_dispatch_operation_is_approved (context->operation))
     {
         /* no observers etc. left */
         if (!context->channels_handled)
@@ -1092,7 +1087,7 @@ mcd_dispatcher_context_release_pending_approver (McdDispatcherContext *context)
     {
         DEBUG ("No approver accepted the channels; considering them to be "
                "approved");
-        context->approved = TRUE;
+        _mcd_dispatch_operation_set_approved (context->operation);
     }
 
     mcd_dispatcher_context_check_client_locks (context);
@@ -1238,9 +1233,9 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
          * handler to constitute approval - this is fd.o #23687 */
         if (_mcd_dispatch_operation_handlers_can_bypass_approval
             (context->operation))
-            context->approved = TRUE;
+            _mcd_dispatch_operation_set_approved (context->operation);
 
-        if (!context->approved)
+        if (!_mcd_dispatch_operation_is_approved (context->operation))
             mcd_dispatcher_run_approvers (context);
     }
 
@@ -1384,7 +1379,7 @@ on_operation_finished (McdDispatchOperation *operation,
     if (context->awaiting_approval)
     {
         context->awaiting_approval = FALSE;
-        context->approved = TRUE;
+        _mcd_dispatch_operation_set_approved (context->operation);
         mcd_dispatcher_context_unref (context, "CTXREF14");
     }
 
@@ -1444,11 +1439,11 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 
     if (requested)
     {
-        context->approved = TRUE;
+        _mcd_dispatch_operation_set_approved (context->operation);
     }
     else
     {
-        context->approved = FALSE;
+        /* McdDispatchOperation defaults to being unapproved */
 
         if (priv->operation_list_active)
         {
@@ -2706,7 +2701,7 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
             }
             else
             {
-                context->approved = TRUE;
+                _mcd_dispatch_operation_set_approved (context->operation);
             }
         }
         DEBUG ("channel %p is proxying %p", request, channel);

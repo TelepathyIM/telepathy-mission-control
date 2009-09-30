@@ -105,6 +105,11 @@ struct _McdDispatchOperationPrivate
     /* Owned McdChannels for which we can't emit ChannelLost yet, in
      * reverse chronological order */
     GList *lost_channels;
+
+    /* If TRUE, either the channels being dispatched were requested, or they
+     * were pre-approved by being returned as a response to another request,
+     * or a client approved processing with arbitrary handlers */
+    gboolean approved;
 };
 
 enum
@@ -1028,4 +1033,19 @@ _mcd_dispatch_operation_handlers_can_bypass_approval (
     /* If no handler still exists, we don't bypass approval, although if that
      * happens we're basically doomed anyway. */
     return FALSE;
+}
+
+gboolean
+_mcd_dispatch_operation_is_approved (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+
+    return self->priv->approved;
+}
+
+void
+_mcd_dispatch_operation_set_approved (McdDispatchOperation *self)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    self->priv->approved = TRUE;
 }
