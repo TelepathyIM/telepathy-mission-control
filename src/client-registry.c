@@ -241,6 +241,96 @@ _mcd_client_registry_init (McdClientRegistry *self)
 }
 
 static void
+mcd_client_registry_list_activatable_names_cb (TpDBusDaemon *proxy,
+    const gchar **names,
+    const GError *error,
+    gpointer user_data,
+    GObject *weak_object)
+{
+  McdClientRegistry *self = MCD_CLIENT_REGISTRY (weak_object);
+
+  if (error != NULL)
+    {
+      DEBUG ("ListActivatableNames returned error, assuming none: %s %d: %s",
+          g_quark_to_string (error->domain), error->code, error->message);
+    }
+  else if (names != NULL)
+    {
+      const gchar **iter = names;
+
+      DEBUG ("ListActivatableNames returned");
+
+      while (*iter != NULL)
+        {
+          _mcd_client_registry_found_name (self, *iter, NULL, TRUE);
+          iter++;
+        }
+    }
+
+  /* paired with the lock taken when the McdClientRegistry was constructed */
+  _mcd_client_registry_dec_startup_lock (self);
+}
+
+static void
+mcd_client_registry_reload_config_cb (TpDBusDaemon *proxy,
+    const GError *error,
+    gpointer user_data,
+    GObject *weak_object)
+{
+  if (error != NULL)
+    {
+      DEBUG ("ReloadConfig returned error. Recent .service files may not "
+          "be found: %s %d: %s",
+          g_quark_to_string (error->domain), error->code, error->message);
+    }
+
+  tp_cli_dbus_daemon_call_list_activatable_names (proxy, -1,
+      mcd_client_registry_list_activatable_names_cb,
+      NULL, NULL, weak_object);
+  /* deliberately not calling _mcd_client_registry_dec_startup_lock here -
+   * this function is "lock-neutral", similarly to list_names_cb (we would
+   * take a lock for ListActivatableNames then release the one used for
+   * ReloadConfig), so simplify by doing nothing */
+}
+
+static void
+mcd_client_registry_list_names_cb (TpDBusDaemon *proxy,
+    const gchar **names,
+    const GError *error,
+    gpointer user_data,
+    GObject *weak_object)
+{
+  McdClientRegistry *self = MCD_CLIENT_REGISTRY (weak_object);
+
+  if (error != NULL)
+    {
+      DEBUG ("ListNames returned error, assuming none: %s %d: %s",
+          g_quark_to_string (error->domain), error->code, error->message);
+    }
+  else if (names != NULL)
+    {
+      const gchar **iter = names;
+
+      DEBUG ("ListNames returned");
+
+      while (*iter != NULL)
+        {
+          _mcd_client_registry_found_name (self, *iter, NULL, FALSE);
+          iter++;
+        }
+    }
+
+  /* Call reload config because the dbus daemon often fails to notice newly
+   * installed .service files on its own. */
+  tp_cli_dbus_daemon_call_reload_config (proxy, -1,
+      mcd_client_registry_reload_config_cb, NULL, NULL, weak_object);
+  /* deliberately not calling _mcd_client_registry_dec_startup_lock here -
+   * this function is "lock-neutral" (we would take a lock for ReloadConfig
+   * then release the one used for ListNames), so simplify by doing
+   * nothing */
+}
+
+static void
 mcd_client_registry_constructed (GObject *object)
 {
   McdClientRegistry *self = MCD_CLIENT_REGISTRY (object);
@@ -251,6 +341,13 @@ mcd_client_registry_constructed (GObject *object)
     chain_up (object);
 
   g_return_if_fail (self->priv->dbus_daemon != NULL);
+
+  /* FIXME: strictly speaking, we should connect to NameOwnerChanged
+   * *before* calling ListNames. This will be fixed when the NameOwnerChanged
+   * handling moves here too. */
+
+  tp_cli_dbus_daemon_call_list_names (self->priv->dbus_daemon, -1,
+      mcd_client_registry_list_names_cb, NULL, NULL, object);
 
   /* Dummy handle type, we're just using this as a string pool */
   self->priv->string_pool = tp_dynamic_handle_repo_new (TP_HANDLE_TYPE_CONTACT,
