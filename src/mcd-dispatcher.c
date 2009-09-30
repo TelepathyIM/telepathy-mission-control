@@ -1788,7 +1788,6 @@ _mcd_dispatcher_dispose (GObject * object)
         while (g_hash_table_iter_next (&iter, NULL, &client_p))
         {
             mcd_dispatcher_discard_client ((McdDispatcher *) object, client_p);
-            g_hash_table_iter_remove (&iter);
         }
 
         g_object_unref (priv->clients);
