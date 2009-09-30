@@ -42,6 +42,11 @@ struct _McdHandlerMapPrivate
     GHashTable *handled_channels;
 };
 
+enum {
+    PROP_0,
+    PROP_DBUS_DAEMON
+};
+
 static void
 slice_free_gsize (gpointer p)
 {
@@ -70,6 +75,46 @@ _mcd_handler_map_init (McdHandlerMap *self)
 }
 
 static void
+_mcd_handler_map_get_property (GObject *object,
+                               guint prop_id,
+                               GValue *value,
+                               GParamSpec *pspec)
+{
+    McdHandlerMap *self = MCD_HANDLER_MAP (object);
+
+    switch (prop_id)
+    {
+        case PROP_DBUS_DAEMON:
+            g_value_set_object (value, self->priv->dbus_daemon);
+            break;
+
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    }
+}
+
+static void
+_mcd_handler_map_set_property (GObject *object,
+                               guint prop_id,
+                               const GValue *value,
+                               GParamSpec *pspec)
+{
+    McdHandlerMap *self = MCD_HANDLER_MAP (object);
+
+    switch (prop_id)
+    {
+        case PROP_DBUS_DAEMON:
+            g_assert (self->priv->dbus_daemon == NULL); /* construct-only */
+            self->priv->dbus_daemon =
+                TP_DBUS_DAEMON (g_value_dup_object (value));
+            break;
+
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    }
+}
+
+static void
 _mcd_handler_map_dispose (GObject *object)
 {
     McdHandlerMap *self = MCD_HANDLER_MAP (object);
@@ -78,6 +123,12 @@ _mcd_handler_map_dispose (GObject *object)
     {
         g_hash_table_destroy (self->priv->handled_channels);
         self->priv->handled_channels = NULL;
+    }
+
+    if (self->priv->dbus_daemon != NULL)
+    {
+        g_object_unref (self->priv->dbus_daemon);
+        self->priv->dbus_daemon = NULL;
     }
 
     G_OBJECT_CLASS (_mcd_handler_map_parent_class)->dispose (object);
@@ -111,12 +162,19 @@ _mcd_handler_map_class_init (McdHandlerMapClass *klass)
     g_type_class_add_private (object_class, sizeof (McdHandlerMapPrivate));
     object_class->dispose = _mcd_handler_map_dispose;
     object_class->finalize = _mcd_handler_map_finalize;
+
+    g_object_class_install_property (object_class, PROP_DBUS_DAEMON,
+        g_param_spec_object ("dbus-daemon", "D-Bus daemon", "D-Bus daemon",
+            TP_TYPE_DBUS_DAEMON,
+            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
+            G_PARAM_STATIC_STRINGS));
 }
 
 McdHandlerMap *
-_mcd_handler_map_new (void)
+_mcd_handler_map_new (TpDBusDaemon *dbus_daemon)
 {
     return g_object_new (MCD_TYPE_HANDLER_MAP,
+                         "dbus-daemon", dbus_daemon,
                          NULL);
 }
 

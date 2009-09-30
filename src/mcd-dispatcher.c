@@ -1902,6 +1902,8 @@ mcd_dispatcher_constructed (GObject *object)
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
     GError *error = NULL;
 
+    priv->handler_map = _mcd_handler_map_new (priv->dbus_daemon);
+
     priv->clients = _mcd_client_registry_new (priv->dbus_daemon);
     g_signal_connect (priv->clients, "client-added",
                       G_CALLBACK (mcd_dispatcher_client_added_cb), object);
@@ -2078,8 +2080,6 @@ mcd_dispatcher_init (McdDispatcher * dispatcher)
     dispatcher->priv = priv;
 
     priv->operation_list_active = FALSE;
-
-    priv->handler_map = _mcd_handler_map_new ();
 
     priv->connections = g_hash_table_new (NULL, NULL);
 }
