@@ -126,6 +126,12 @@ G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_invoking_early_clients (
 G_GNUC_INTERNAL void _mcd_dispatch_operation_set_invoking_early_clients (
     McdDispatchOperation *self, gboolean value);
 
+/* Client lock while waiting for approvers' opinion */
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_awaiting_approval (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_set_awaiting_approval (
+    McdDispatchOperation *self, gboolean value);
+
 G_END_DECLS
 
 #endif

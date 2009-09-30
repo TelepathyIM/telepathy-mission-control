@@ -93,12 +93,6 @@ struct _McdDispatcherContext
     /* If this flag is TRUE, dispatching must be cancelled ASAP */
     guint cancelled : 1;
 
-    /* If TRUE, at least one Approver has accepted the CDO. This is a
-     * client lock.
-     *
-     * CTXREF14 is held while we await approval. */
-    guint awaiting_approval : 1;
-
     /* If TRUE, either we've already arranged for the channels to get a
      * handler, or there are no channels left. */
     guint channels_handled : 1;
@@ -1058,7 +1052,7 @@ mcd_dispatcher_context_release_pending_approver (McdDispatcherContext *context)
     _mcd_dispatch_operation_dec_ado_pending (context->operation);
 
     if (!_mcd_dispatch_operation_has_ado_pending (context->operation) &&
-        !context->awaiting_approval)
+        !_mcd_dispatch_operation_is_awaiting_approval (context->operation))
     {
         DEBUG ("No approver accepted the channels; considering them to be "
                "approved");
@@ -1088,9 +1082,10 @@ add_dispatch_operation_cb (TpClient *proxy, const GError *error,
                _mcd_dispatch_operation_get_path (context->operation),
                context);
 
-        if (!context->awaiting_approval)
+        if (!_mcd_dispatch_operation_is_awaiting_approval (context->operation))
         {
-            context->awaiting_approval = TRUE;
+            _mcd_dispatch_operation_set_awaiting_approval (context->operation,
+                                                           TRUE);
             mcd_dispatcher_context_ref (context, "CTXREF14");
         }
     }
@@ -1347,9 +1342,10 @@ on_operation_finished (McdDispatchOperation *operation,
         context->channels_handled = TRUE;
     }
 
-    if (context->awaiting_approval)
+    if (_mcd_dispatch_operation_is_awaiting_approval (context->operation))
     {
-        context->awaiting_approval = FALSE;
+        _mcd_dispatch_operation_set_awaiting_approval (context->operation,
+                                                       FALSE);
         _mcd_dispatch_operation_set_approved (context->operation);
         mcd_dispatcher_context_unref (context, "CTXREF14");
     }
@@ -2658,7 +2654,7 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
             context = find_context_from_channel (dispatcher, channel);
             DEBUG ("channel %p is in context %p", channel, context);
             if (_mcd_dispatch_operation_has_ado_pending (context->operation)
-                || context->awaiting_approval)
+                || _mcd_dispatch_operation_is_awaiting_approval (context->operation))
             {
                 /* the existing channel is waiting for approval; but since the
                  * same channel has been requested, the approval operation must

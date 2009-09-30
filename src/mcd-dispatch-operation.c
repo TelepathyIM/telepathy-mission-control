@@ -110,6 +110,12 @@ struct _McdDispatchOperationPrivate
      * or a client approved processing with arbitrary handlers */
     gboolean approved;
 
+    /* If TRUE, at least one Approver accepted this dispatch operation, and
+     * we're waiting for one of them to call HandleWith or Claim. This is a
+     * client lock; a reference must be held while it is TRUE (in the
+     * McdDispatcherContext, CTXREF14 ensures this). */
+    gboolean awaiting_approval;
+
     /* If TRUE, we're still working out what Observers and Approvers to
      * run. This is a temporary client lock; a reference must be held
      * while it is TRUE (in the McdDispatcherContext, CTXREF07 ensures this).
@@ -227,6 +233,21 @@ _mcd_dispatch_operation_set_invoking_early_clients (McdDispatchOperation *self,
     g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
     g_return_if_fail (self->priv->invoking_early_clients == !value);
     self->priv->invoking_early_clients = value;
+}
+
+gboolean
+_mcd_dispatch_operation_is_awaiting_approval (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+    return self->priv->awaiting_approval;
+}
+
+void
+_mcd_dispatch_operation_set_awaiting_approval (McdDispatchOperation *self,
+                                               gboolean value)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    self->priv->awaiting_approval = value;
 }
 
 enum
