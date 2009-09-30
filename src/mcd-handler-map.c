@@ -33,6 +33,7 @@ G_DEFINE_TYPE (McdHandlerMap, _mcd_handler_map, G_TYPE_OBJECT);
 
 struct _McdHandlerMapPrivate
 {
+    TpDBusDaemon *dbus_daemon;
     /* The handler for each channel currently being handled
      * owned gchar *object_path => owned gchar *unique_name */
     GHashTable *channel_processes;
@@ -114,6 +115,11 @@ _mcd_handler_map_set_property (GObject *object,
     }
 }
 
+static void mcd_handler_map_name_owner_cb (TpDBusDaemon *dbus_daemon,
+                                           const gchar *name,
+                                           const gchar *new_owner,
+                                           gpointer user_data);
+
 static void
 _mcd_handler_map_dispose (GObject *object)
 {
@@ -123,6 +129,25 @@ _mcd_handler_map_dispose (GObject *object)
     {
         g_hash_table_destroy (self->priv->handled_channels);
         self->priv->handled_channels = NULL;
+    }
+
+    if (self->priv->handler_processes != NULL)
+    {
+        GHashTableIter iter;
+        gpointer k;
+
+        g_assert (self->priv->dbus_daemon != NULL);
+
+        g_hash_table_iter_init (&iter, self->priv->handler_processes);
+
+        while (g_hash_table_iter_next (&iter, &k, NULL))
+        {
+            tp_dbus_daemon_cancel_name_owner_watch (self->priv->dbus_daemon,
+                k, mcd_handler_map_name_owner_cb, object);
+        }
+
+        g_hash_table_destroy (self->priv->handler_processes);
+        self->priv->handler_processes = NULL;
     }
 
     if (self->priv->dbus_daemon != NULL)
@@ -145,12 +170,6 @@ _mcd_handler_map_finalize (GObject *object)
         self->priv->channel_processes = NULL;
     }
 
-    if (self->priv->handler_processes != NULL)
-    {
-        g_hash_table_destroy (self->priv->handler_processes);
-        self->priv->handler_processes = NULL;
-    }
-
     G_OBJECT_CLASS (_mcd_handler_map_parent_class)->finalize (object);
 }
 
@@ -161,6 +180,8 @@ _mcd_handler_map_class_init (McdHandlerMapClass *klass)
 
     g_type_class_add_private (object_class, sizeof (McdHandlerMapPrivate));
     object_class->dispose = _mcd_handler_map_dispose;
+    object_class->get_property = _mcd_handler_map_get_property;
+    object_class->set_property = _mcd_handler_map_set_property;
     object_class->finalize = _mcd_handler_map_finalize;
 
     g_object_class_install_property (object_class, PROP_DBUS_DAEMON,
@@ -208,6 +229,8 @@ _mcd_handler_map_set_path_handled (McdHandlerMap *self,
 
         if (--*counter == 0)
         {
+            tp_dbus_daemon_cancel_name_owner_watch (self->priv->dbus_daemon,
+                old, mcd_handler_map_name_owner_cb, self);
             g_hash_table_remove (self->priv->handler_processes, old);
         }
     }
@@ -224,6 +247,9 @@ _mcd_handler_map_set_path_handled (McdHandlerMap *self,
         *counter = 1;
         g_hash_table_insert (self->priv->handler_processes,
                              g_strdup (unique_name), counter);
+        tp_dbus_daemon_watch_name_owner (self->priv->dbus_daemon, unique_name,
+                                         mcd_handler_map_name_owner_cb, self,
+                                         NULL);
     }
     else
     {
@@ -283,7 +309,7 @@ _mcd_handler_map_set_channel_handled (McdHandlerMap *self,
     _mcd_handler_map_set_path_handled (self, path, unique_name);
 }
 
-void
+static void
 _mcd_handler_map_set_handler_crashed (McdHandlerMap *self,
                                       const gchar *unique_name)
 {
@@ -296,6 +322,10 @@ _mcd_handler_map_set_handler_crashed (McdHandlerMap *self,
         gpointer path_p, name_p;
         GList *paths = NULL;
 
+        tp_dbus_daemon_cancel_name_owner_watch (self->priv->dbus_daemon,
+                                                unique_name,
+                                                mcd_handler_map_name_owner_cb,
+                                                self);
         g_hash_table_remove (self->priv->handler_processes, unique_name);
 
         /* This is O(number of channels being handled) but then again
@@ -333,5 +363,17 @@ _mcd_handler_map_set_handler_crashed (McdHandlerMap *self,
             paths = g_list_delete_link (paths, paths);
             g_free (path);
         }
+    }
+}
+
+static void
+mcd_handler_map_name_owner_cb (TpDBusDaemon *dbus_daemon,
+                               const gchar *name,
+                               const gchar *new_owner,
+                               gpointer user_data)
+{
+    if (new_owner == NULL || new_owner[0] == '\0')
+    {
+        _mcd_handler_map_set_handler_crashed (user_data, name);
     }
 }

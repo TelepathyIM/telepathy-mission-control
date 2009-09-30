@@ -1872,30 +1872,6 @@ mcd_dispatcher_update_client_caps (McdDispatcher *self,
 }
 
 static void
-name_owner_changed_cb (TpDBusDaemon *proxy,
-    const gchar *name,
-    const gchar *old_owner,
-    const gchar *new_owner,
-    gpointer user_data,
-    GObject *weak_object)
-{
-    McdDispatcher *self = MCD_DISPATCHER (weak_object);
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
-
-    /* dbus-glib guarantees this */
-    g_assert (name != NULL);
-    g_assert (old_owner != NULL);
-    g_assert (new_owner != NULL);
-
-    if (name[0] == ':' && new_owner[0] == '\0')
-    {
-        /* A unique name disappeared from the bus. It might be handling
-         * channels? */
-        _mcd_handler_map_set_handler_crashed (priv->handler_map, name);
-    }
-}
-
-static void
 mcd_dispatcher_constructed (GObject *object)
 {
     DBusGConnection *dgc;
@@ -1910,9 +1886,6 @@ mcd_dispatcher_constructed (GObject *object)
     g_signal_connect (priv->clients, "ready",
                       G_CALLBACK (mcd_dispatcher_client_registry_ready_cb),
                       object);
-
-    tp_cli_dbus_daemon_connect_to_name_owner_changed (priv->dbus_daemon,
-        name_owner_changed_cb, NULL, NULL, object, NULL);
 
     dgc = TP_PROXY (priv->dbus_daemon)->dbus_connection;
 

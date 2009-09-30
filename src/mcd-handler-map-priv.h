@@ -78,9 +78,6 @@ void _mcd_handler_map_set_channel_handled (McdHandlerMap *self,
                                            McdChannel *channel,
                                            const gchar *unique_name);
 
-void _mcd_handler_map_set_handler_crashed (McdHandlerMap *self,
-                                           const gchar *unique_name);
-
 G_END_DECLS
 
 #endif
