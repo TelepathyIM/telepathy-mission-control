@@ -156,12 +156,6 @@ struct cancel_call_data
 
 typedef struct
 {
-    McdDispatcherContext *context;
-    GList *channels;
-} McdHandlerCallData;
-
-typedef struct
-{
     TpClient *handler;
     gchar *request_path;
 } McdRemoveRequestData;
@@ -191,12 +185,9 @@ mcd_dispatcher_context_ref (McdDispatcherContext *context,
 }
 
 static void
-mcd_handler_call_data_free (McdHandlerCallData *call_data)
+mcd_dispatcher_context_unref_3 (gpointer p)
 {
-    DEBUG ("called");
-    mcd_dispatcher_context_unref (call_data->context, "CTXREF03");
-    g_list_free (call_data->channels);
-    g_slice_free (McdHandlerCallData, call_data);
+    mcd_dispatcher_context_unref (p, "CTXREF03");
 }
 
 static GList *
@@ -501,8 +492,7 @@ static void
 handle_channels_cb (TpClient *proxy, const GError *error, gpointer user_data,
                     GObject *weak_object)
 {
-    McdHandlerCallData *call_data = user_data;
-    McdDispatcherContext *context = call_data->context;
+    McdDispatcherContext *context = user_data;
     GList *list;
 
     mcd_dispatcher_context_ref (context, "CTXREF02");
@@ -518,15 +508,10 @@ handle_channels_cb (TpClient *proxy, const GError *error, gpointer user_data,
     }
     else
     {
-        for (list = call_data->channels; list != NULL; list = list->next)
+        for (list = context->channels; list != NULL; list = list->next)
         {
             McdChannel *channel = list->data;
             const gchar *unique_name;
-
-            /* if the channel is no longer in the context, don't even try to
-             * access it */
-            if (!g_list_find (context->channels, channel))
-                continue;
 
             unique_name = _mcd_client_proxy_get_unique_name (MCD_CLIENT_PROXY (proxy));
 
@@ -709,9 +694,7 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
     McdConnection *connection;
     const gchar *account_path, *connection_path;
     GPtrArray *channels_array, *satisfied_requests;
-    McdHandlerCallData *handler_data;
     GHashTable *handler_info;
-    GList *channels;
     const GList *cl;
 
     connection = mcd_dispatcher_context_get_connection (context);
@@ -722,14 +705,11 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
     account_path = _mcd_dispatch_operation_get_account_path
         (context->operation);
 
-    /* we consume this copy by putting it in the McdHandlerCallData */
-    channels = g_list_copy (context->channels);
-
-    channels_array = _mcd_channel_details_build_from_list (channels);
+    channels_array = _mcd_channel_details_build_from_list (context->channels);
 
     user_action_time = 0; /* TODO: if we have a CDO, get it from there */
     satisfied_requests = g_ptr_array_new ();
-    for (cl = channels; cl != NULL; cl = cl->next)
+    for (cl = context->channels; cl != NULL; cl = cl->next)
     {
         McdChannel *channel = MCD_CHANNEL (cl->data);
         const GList *requests;
@@ -758,17 +738,14 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
      * many channels are still to be dispatched,
      * still pending. When all of them return, the dispatching is
      * considered to be completed. */
-    handler_data = g_slice_new (McdHandlerCallData);
-    handler_data->context = context;
     mcd_dispatcher_context_ref (context, "CTXREF03");
-    handler_data->channels = channels;
     DEBUG ("calling HandleChannels on %s for context %p",
            tp_proxy_get_bus_name (handler), context);
     tp_cli_client_handler_call_handle_channels ((TpClient *) handler,
         -1, account_path, connection_path,
         channels_array, satisfied_requests, user_action_time,
         handler_info, handle_channels_cb,
-        handler_data, (GDestroyNotify)mcd_handler_call_data_free,
+        context, mcd_dispatcher_context_unref_3,
         (GObject *)context->dispatcher);
 
     g_ptr_array_free (satisfied_requests, TRUE);
