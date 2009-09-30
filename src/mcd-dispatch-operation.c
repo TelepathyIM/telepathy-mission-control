@@ -176,6 +176,7 @@ _mcd_dispatch_operation_inc_ado_pending (McdDispatchOperation *self)
     g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
 
     g_object_ref (self);
+    _mcd_dispatch_operation_block_finished (self);
 
     DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
            self->priv->ado_pending,
@@ -193,6 +194,7 @@ _mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
     g_return_if_fail (self->priv->ado_pending > 0);
     self->priv->ado_pending--;
 
+    _mcd_dispatch_operation_unblock_finished (self);
     g_object_unref (self);
 }
 

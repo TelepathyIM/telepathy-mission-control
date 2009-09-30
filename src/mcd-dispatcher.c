@@ -1105,8 +1105,6 @@ add_dispatch_operation_cb (TpClient *proxy, const GError *error,
      * one approver accepted it, then we can still continue dispatching,
      * since it will be stalled until awaiting_approval becomes FALSE. */
     mcd_dispatcher_context_release_pending_approver (context);
-
-    _mcd_dispatch_operation_unblock_finished (context->operation);
 }
 
 static void
@@ -1172,7 +1170,6 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
                dispatch_operation, context->operation, context);
 
         _mcd_dispatch_operation_inc_ado_pending (context->operation);
-        _mcd_dispatch_operation_block_finished (context->operation);
 
         mcd_dispatcher_context_ref (context, "CTXREF06");
         tp_cli_client_approver_call_add_dispatch_operation (
