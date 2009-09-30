@@ -87,8 +87,8 @@ struct _McdDispatchOperationPrivate
      * dup'd bus name (string) => dummy non-NULL pointer */
     GHashTable *failed_handlers;
 
-    /* Results */
-    guint finished : 1;
+    /* if TRUE, we will emit finished as soon as we can */
+    gboolean wants_to_finish;
     gchar *handler;
     gchar *claimer;
     DBusGMethodInvocation *claim_context;
@@ -154,7 +154,7 @@ void
 _mcd_dispatch_operation_inc_observers_pending (McdDispatchOperation *self)
 {
     g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
-    g_return_if_fail (!self->priv->finished);
+    g_return_if_fail (!self->priv->wants_to_finish);
 
     g_object_ref (self);
 
@@ -189,7 +189,7 @@ void
 _mcd_dispatch_operation_inc_ado_pending (McdDispatchOperation *self)
 {
     g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
-    g_return_if_fail (!self->priv->finished);
+    g_return_if_fail (!self->priv->wants_to_finish);
 
     g_object_ref (self);
 
@@ -356,13 +356,13 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation)
 {
     McdDispatchOperationPrivate *priv = operation->priv;
 
-    if (priv->finished)
+    if (priv->wants_to_finish)
     {
-        DEBUG ("already finished!");
+        DEBUG ("already finished (or about to)!");
         return FALSE;
     }
 
-    priv->finished = TRUE;
+    priv->wants_to_finish = TRUE;
 
     if (mcd_dispatch_operation_may_finish (operation))
     {
@@ -415,10 +415,10 @@ dispatch_operation_claim (TpSvcChannelDispatchOperation *self,
     McdDispatchOperationPrivate *priv;
 
     priv = MCD_DISPATCH_OPERATION_PRIV (self);
-    if (priv->finished)
+    if (priv->wants_to_finish)
     {
         GError *error = g_error_new (TP_ERRORS, TP_ERROR_NOT_YOURS,
-                                     "CDO already finished");
+                                     "CDO already finished (or trying to)");
         DEBUG ("Giving error to %s: %s", dbus_g_method_get_sender (context),
                error->message);
         dbus_g_method_return_error (context, error);
@@ -880,7 +880,9 @@ gboolean
 _mcd_dispatch_operation_is_finished (McdDispatchOperation *self)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
-    return self->priv->finished;
+    /* if we want to finish, and we can, then we have */
+    return (self->priv->wants_to_finish &&
+            mcd_dispatch_operation_may_finish (self));
 }
 
 const gchar * const *
@@ -910,7 +912,7 @@ mcd_dispatch_operation_check_handle_with (McdDispatchOperation *self,
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
 
-    if (self->priv->finished)
+    if (self->priv->wants_to_finish)
     {
         DEBUG ("NotYours: already finished");
         g_set_error (error, TP_ERRORS, TP_ERROR_NOT_YOURS,
@@ -1059,7 +1061,7 @@ _mcd_dispatch_operation_check_finished (McdDispatchOperation *self)
             lost_channels = g_list_delete_link (lost_channels, lost_channels);
         }
 
-        if (self->priv->finished)
+        if (self->priv->wants_to_finish)
         {
             DEBUG ("%s/%p finished", self->priv->unique_name, self);
             mcd_dispatch_operation_actually_finish (self);
