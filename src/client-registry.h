@@ -77,7 +77,7 @@ G_GNUC_INTERNAL gboolean _mcd_client_registry_is_ready (
 
 /* Temporary API for porting */
 
-G_GNUC_INTERNAL McdClientProxy *_mcd_client_registry_add_new (
+G_GNUC_INTERNAL void _mcd_client_registry_found_name (
     McdClientRegistry *self, const gchar *well_known_name,
     const gchar *unique_name_if_known, gboolean activatable);
 G_GNUC_INTERNAL void _mcd_client_registry_init_hash_iter (

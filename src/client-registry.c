@@ -21,6 +21,7 @@
 
 #include "client-registry.h"
 
+#include <telepathy-glib/defs.h>
 #include <telepathy-glib/handle-repo-dynamic.h>
 
 #include "mcd-debug.h"
@@ -108,17 +109,52 @@ static void mcd_client_registry_ready_cb (McdClientProxy *client,
 static void mcd_client_registry_gone_cb (McdClientProxy *client,
     McdClientRegistry *self);
 
-McdClientProxy *
-_mcd_client_registry_add_new (McdClientRegistry *self,
+void
+_mcd_client_registry_found_name (McdClientRegistry *self,
     const gchar *well_known_name,
     const gchar *unique_name_if_known,
     gboolean activatable)
 {
   McdClientProxy *client;
 
-  g_return_val_if_fail (MCD_IS_CLIENT_REGISTRY (self), NULL);
-  g_return_val_if_fail (g_hash_table_lookup (self->priv->clients,
-        well_known_name) == NULL, NULL);
+  g_return_if_fail (MCD_IS_CLIENT_REGISTRY (self));
+
+  if (!g_str_has_prefix (well_known_name, TP_CLIENT_BUS_NAME_BASE))
+    {
+      /* This is not a Telepathy Client */
+      return;
+    }
+
+  if (!_mcd_client_check_valid_name (
+        well_known_name + MC_CLIENT_BUS_NAME_BASE_LEN, NULL))
+    {
+      /* This is probably meant to be a Telepathy Client, but it's not */
+      DEBUG ("Ignoring invalid Client name: %s",
+          well_known_name + MC_CLIENT_BUS_NAME_BASE_LEN);
+      return;
+    }
+
+  client = g_hash_table_lookup (self->priv->clients, well_known_name);
+
+  if (client != NULL)
+    {
+      if (activatable)
+        {
+          /* We already knew that it was active, but now we also know that
+           * it is activatable */
+          _mcd_client_proxy_set_activatable (client);
+        }
+      else
+        {
+          /* We already knew that it was activatable, but now we also know
+           * that it is active */
+          _mcd_client_proxy_set_active (client, unique_name_if_known);
+        }
+
+      return;
+    }
+
+  DEBUG ("Registering client %s", well_known_name);
 
   client = _mcd_client_proxy_new (self->priv->dbus_daemon,
       self->priv->string_pool, well_known_name, unique_name_if_known,
@@ -139,8 +175,6 @@ _mcd_client_registry_add_new (McdClientRegistry *self,
                     self);
 
   g_signal_emit (self, signals[S_CLIENT_ADDED], 0, client);
-
-  return client;
 }
 
 McdClientProxy *
@@ -345,7 +379,7 @@ mcd_client_registry_ready_cb (McdClientProxy *client,
   g_signal_handlers_disconnect_by_func (client,
       mcd_client_registry_ready_cb, self);
 
-  /* paired with the one in _mcd_client_registry_add_new */
+  /* paired with the one in _mcd_client_registry_found_name */
   _mcd_client_registry_dec_startup_lock (self);
 }
 

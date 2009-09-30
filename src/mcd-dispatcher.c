@@ -1871,59 +1871,6 @@ mcd_dispatcher_update_client_caps (McdDispatcher *self,
     g_ptr_array_free (vas, TRUE);
 }
 
-/* Check the list of strings whether they are valid well-known names of
- * Telepathy clients and create McdClientProxy objects for each of them.
- */
-static void
-mcd_dispatcher_add_client (McdDispatcher *self,
-                           const gchar *name,
-                           gboolean activatable,
-                           const gchar *owner)
-{
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
-    McdClientProxy *client;
-
-    if (!g_str_has_prefix (name, TP_CLIENT_BUS_NAME_BASE))
-    {
-        /* This is not a Telepathy Client */
-        return;
-    }
-
-    if (!_mcd_client_check_valid_name (name + MC_CLIENT_BUS_NAME_BASE_LEN,
-                                       NULL))
-    {
-        /* This is probably meant to be a Telepathy Client, but it's not */
-        DEBUG ("Ignoring invalid Client name: %s",
-               name + MC_CLIENT_BUS_NAME_BASE_LEN);
-
-        return;
-    }
-
-    client = _mcd_client_registry_lookup (priv->clients, name);
-
-    if (client)
-    {
-        /* This Telepathy Client is already known so don't create it
-         * again. However, set the activatable bit now.
-         */
-        if (activatable)
-        {
-            _mcd_client_proxy_set_activatable (client);
-        }
-        else
-        {
-            _mcd_client_proxy_set_active (client, owner);
-        }
-
-        return;
-    }
-
-    DEBUG ("Register client %s", name);
-
-    client = _mcd_client_registry_add_new (self->priv->clients,
-        name, owner, activatable);
-}
-
 static void
 list_activatable_names_cb (TpDBusDaemon *proxy,
     const gchar **names,
@@ -1946,7 +1893,8 @@ list_activatable_names_cb (TpDBusDaemon *proxy,
 
         while (*iter != NULL)
         {
-            mcd_dispatcher_add_client (self, *iter, TRUE, NULL);
+            _mcd_client_registry_found_name (self->priv->clients,
+                                             *iter, NULL, TRUE);
             iter++;
         }
     }
@@ -1999,7 +1947,8 @@ list_names_cb (TpDBusDaemon *proxy,
 
         while (*iter != NULL)
         {
-            mcd_dispatcher_add_client (self, *iter, FALSE, NULL);
+            _mcd_client_registry_found_name (self->priv->clients,
+                                             *iter, NULL, FALSE);
             iter++;
         }
     }
@@ -2032,7 +1981,8 @@ name_owner_changed_cb (TpDBusDaemon *proxy,
 
     if (old_owner[0] == '\0' && new_owner[0] != '\0')
     {
-        mcd_dispatcher_add_client (self, name, FALSE, new_owner);
+        _mcd_client_registry_found_name (self->priv->clients,
+                                         name, new_owner, FALSE);
     }
     else if (old_owner[0] != '\0' && new_owner[0] == '\0')
     {
