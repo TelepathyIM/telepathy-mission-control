@@ -108,8 +108,6 @@ void mcd_dispatcher_context_proceed (McdDispatcherContext *context);
 
 void mcd_dispatcher_context_process (McdDispatcherContext * ctx, gboolean result);
 
-const gchar *mcd_dispatcher_context_get_protocol_name (McdDispatcherContext *) G_GNUC_DEPRECATED;
-
 G_END_DECLS
 
 #endif

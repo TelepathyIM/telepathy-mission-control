@@ -132,8 +132,6 @@ struct _McdDispatcherContext
      * One instance of CTXREF06 is held for each pending approver. */
     gsize approvers_pending;
 
-    gchar *protocol;
-
     /* State-machine internal data fields: */
     GList *chain;
 
@@ -2191,7 +2189,6 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
         priv = MCD_DISPATCHER_PRIV (context->dispatcher);
         priv->contexts = g_list_remove (priv->contexts, context);
 
-        g_free (context->protocol);
         g_free (context);
     }
 }
@@ -2370,22 +2367,6 @@ _mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher *dispatcher)
     }
 
     return caps;
-}
-
-const gchar *
-mcd_dispatcher_context_get_protocol_name (McdDispatcherContext *context)
-{
-    McdConnection *conn;
-    McdAccount *account;
-
-    if (!context->protocol)
-    {
-	conn = mcd_dispatcher_context_get_connection (context);
-	account = mcd_connection_get_account (conn);
-	context->protocol = g_strdup (mcd_account_get_protocol_name (account));
-    }
-    
-    return context->protocol;
 }
 
 static void
