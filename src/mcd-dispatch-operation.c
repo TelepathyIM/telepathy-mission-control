@@ -137,6 +137,10 @@ struct _McdDispatchOperationPrivate
      * A reference is held for each pending approver (and in the
      * McdDispatcherContext, one instance of CTXREF06 is held for each). */
     gsize ado_pending;
+
+    /* If TRUE, either we've already arranged for the channels to get a
+     * handler, or there are no channels left. */
+    gboolean channels_handled;
 };
 
 static void _mcd_dispatch_operation_check_finished (
@@ -248,6 +252,21 @@ _mcd_dispatch_operation_set_awaiting_approval (McdDispatchOperation *self,
 {
     g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
     self->priv->awaiting_approval = value;
+}
+
+void
+_mcd_dispatch_operation_set_channels_handled (McdDispatchOperation *self,
+                                              gboolean value)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    self->priv->channels_handled = value;
+}
+
+gboolean
+_mcd_dispatch_operation_get_channels_handled (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+    return self->priv->channels_handled;
 }
 
 enum

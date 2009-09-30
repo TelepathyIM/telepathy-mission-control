@@ -93,10 +93,6 @@ struct _McdDispatcherContext
     /* If this flag is TRUE, dispatching must be cancelled ASAP */
     guint cancelled : 1;
 
-    /* If TRUE, either we've already arranged for the channels to get a
-     * handler, or there are no channels left. */
-    guint channels_handled : 1;
-
     McdDispatcher *dispatcher;
 
     GList *channels;
@@ -881,9 +877,10 @@ mcd_dispatcher_context_check_client_locks (McdDispatcherContext *context)
         _mcd_dispatch_operation_is_approved (context->operation))
     {
         /* no observers etc. left */
-        if (!context->channels_handled)
+        if (!_mcd_dispatch_operation_get_channels_handled (context->operation))
         {
-            context->channels_handled = TRUE;
+            _mcd_dispatch_operation_set_channels_handled (context->operation,
+                                                          TRUE);
             mcd_dispatcher_run_handlers (context);
         }
     }
@@ -1321,7 +1318,8 @@ on_operation_finished (McdDispatchOperation *operation,
     {
         DEBUG ("Nothing left to dispatch");
 
-        context->channels_handled = TRUE;
+        _mcd_dispatch_operation_set_channels_handled (context->operation,
+                                                      TRUE);
     }
     else if (_mcd_dispatch_operation_is_claimed (operation))
     {
@@ -1338,8 +1336,10 @@ on_operation_finished (McdDispatchOperation *operation,
                 channel, _mcd_dispatch_operation_get_claimer (operation));
         }
 
-        g_assert (!context->channels_handled);
-        context->channels_handled = TRUE;
+        g_assert (!_mcd_dispatch_operation_get_channels_handled
+                  (context->operation));
+        _mcd_dispatch_operation_set_channels_handled (context->operation,
+                                                      TRUE);
     }
 
     if (_mcd_dispatch_operation_is_awaiting_approval (context->operation))
