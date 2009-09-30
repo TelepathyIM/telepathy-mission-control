@@ -23,6 +23,8 @@
 #define MCD_CLIENT_REGISTRY_H
 
 #include <glib-object.h>
+#include <telepathy-glib/dbus.h>
+#include <telepathy-glib/handle-repo.h>
 
 G_BEGIN_DECLS
 
@@ -58,6 +60,9 @@ GType _mcd_client_registry_get_type (void);
 #define MCD_CLIENT_REGISTRY_GET_CLASS(obj) \
   (G_TYPE_INSTANCE_GET_CLASS ((obj), MCD_TYPE_CLIENT_REGISTRY, \
                               McdClientRegistryClass))
+
+G_GNUC_INTERNAL McdClientRegistry *_mcd_client_registry_new (
+    TpDBusDaemon *dbus_daemon);
 
 G_END_DECLS
 
