@@ -296,20 +296,16 @@ handled_channel_invalidated_cb (TpChannel *channel,
 
 void
 _mcd_handler_map_set_channel_handled (McdHandlerMap *self,
-                                      McdChannel *channel,
+                                      TpChannel *channel,
                                       const gchar *unique_name)
 {
-    const gchar *path = mcd_channel_get_object_path (channel);
-    TpChannel *tp_channel;
-
-    tp_channel = mcd_channel_get_tp_channel (channel);
-    g_return_if_fail (tp_channel != NULL);
+    const gchar *path = tp_proxy_get_object_path (channel);
 
     g_hash_table_insert (self->priv->handled_channels,
                          g_strdup (path),
-                         g_object_ref (tp_channel));
+                         g_object_ref (channel));
 
-    g_signal_connect (tp_channel, "invalidated",
+    g_signal_connect (channel, "invalidated",
                       G_CALLBACK (handled_channel_invalidated_cb),
                       g_object_ref (self));
 

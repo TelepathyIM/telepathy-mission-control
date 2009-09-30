@@ -515,15 +515,18 @@ mcd_dispatcher_set_channel_handled_by (McdDispatcher *self,
                                        const gchar *unique_name)
 {
     const gchar *path;
+    TpChannel *tp_channel;
 
     g_assert (unique_name != NULL);
 
     path = mcd_channel_get_object_path (channel);
+    tp_channel = mcd_channel_get_tp_channel (channel);
+    g_return_if_fail (tp_channel != NULL);
 
     _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_DISPATCHED);
 
     _mcd_handler_map_set_channel_handled (self->priv->handler_map,
-                                          channel, unique_name);
+                                          tp_channel, unique_name);
 }
 
 static void mcd_dispatcher_run_handlers (McdDispatcherContext *context);
@@ -2754,6 +2757,7 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
     const gchar *path;
     const gchar *unique_name;
     gboolean requested;
+    TpChannel *tp_channel;
 
     /* we must check if the channel is already being handled by some client; to
      * do this, we can examine the active handlers' "HandledChannel" property.
@@ -2765,6 +2769,9 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
         dispatcher->priv->clients));
 
     path = mcd_channel_get_object_path (channel);
+    tp_channel = mcd_channel_get_tp_channel (channel);
+    g_return_if_fail (tp_channel != NULL);
+
     unique_name = _mcd_handler_map_get_handler (priv->handler_map, path);
 
     if (unique_name != NULL)
@@ -2773,7 +2780,7 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
                path, unique_name);
         _mcd_channel_set_status (channel,
                                  MCD_CHANNEL_STATUS_DISPATCHED);
-        _mcd_handler_map_set_channel_handled (priv->handler_map, channel,
+        _mcd_handler_map_set_channel_handled (priv->handler_map, tp_channel,
                                               unique_name);
     }
     else
