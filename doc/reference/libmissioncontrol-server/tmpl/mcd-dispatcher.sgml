@@ -47,15 +47,6 @@ McdDispatcher
 @mcddispatcher: the object which received the signal.
 @arg1: 
 
-<!-- ##### SIGNAL McdDispatcher::dispatch-failed ##### -->
-<para>
-
-</para>
-
-@mcddispatcher: the object which received the signal.
-@arg1: 
-@arg2: 
-
 <!-- ##### SIGNAL McdDispatcher::dispatched ##### -->
 <para>
 

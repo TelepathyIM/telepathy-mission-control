@@ -70,9 +70,7 @@ struct _McdDispatcherClass
 				    McdChannel *channel);
     void (*dispatched_signal) (McdDispatcher * dispatcher,
 			       McdChannel * channel);
-    void (*dispatch_failed_signal) (McdDispatcher * dispatcher,
-				    McdChannel * channel,
-				    GError *error);
+    void (*_former_dispatch_failed_signal) (void);
 
     /* virtual methods */
     TpDBusPropertiesMixinClass dbus_properties_class;

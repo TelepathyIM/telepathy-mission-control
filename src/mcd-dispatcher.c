@@ -218,7 +218,6 @@ enum _McdDispatcherSignalType
     CHANNEL_ADDED,
     CHANNEL_REMOVED,
     DISPATCHED,
-    DISPATCH_FAILED,
     DISPATCH_COMPLETED,
     LAST_SIGNAL
 };
@@ -936,7 +935,6 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
             "Handler no longer available" };
 
         mcd_channel_take_error (channel, g_error_copy (&e));
-        g_signal_emit_by_name (self, "dispatch-failed", channel, &e);
         _mcd_channel_undispatchable (channel);
     }
 
@@ -1966,15 +1964,6 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
 				       dispatched_signal),
 		      NULL, NULL, g_cclosure_marshal_VOID__OBJECT,
 		      G_TYPE_NONE, 1, MCD_TYPE_CHANNEL);
-    
-    signals[DISPATCH_FAILED] =
-	g_signal_new ("dispatch-failed",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      G_STRUCT_OFFSET (McdDispatcherClass,
-				       dispatch_failed_signal),
-		      NULL, NULL, _mcd_marshal_VOID__OBJECT_POINTER,
-		      G_TYPE_NONE, 2, MCD_TYPE_CHANNEL, G_TYPE_POINTER);
 
     /**
      * McdDispatcher::dispatch-completed:
