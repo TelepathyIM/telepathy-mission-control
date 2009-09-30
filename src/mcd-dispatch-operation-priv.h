@@ -27,6 +27,8 @@
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/enums.h>
 
+#include "client-registry.h"
+
 G_BEGIN_DECLS
 
 typedef struct _McdDispatchOperation McdDispatchOperation;
@@ -72,8 +74,8 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_approve
 #define MCD_DISPATCH_OPERATION_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), MCD_TYPE_DISPATCH_OPERATION, McdDispatchOperationClass))
 
 G_GNUC_INTERNAL McdDispatchOperation *_mcd_dispatch_operation_new (
-    TpDBusDaemon *dbus_daemon, gboolean needs_approval, GList *channels,
-    const gchar * const *possible_handlers);
+    McdClientRegistry *client_registry, gboolean needs_approval,
+    GList *channels, const gchar * const *possible_handlers);
 G_GNUC_INTERNAL void _mcd_dispatch_operation_lose_channel (
     McdDispatchOperation *self, McdChannel *channel, GList **channels);
 

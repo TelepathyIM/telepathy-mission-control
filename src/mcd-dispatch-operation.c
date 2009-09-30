@@ -94,8 +94,8 @@ struct _McdDispatchOperationPrivate
     gchar *claimer;
     DBusGMethodInvocation *claim_context;
 
-    /* DBUS connection */
-    TpDBusDaemon *dbus_daemon;
+    /* Reference to a global registry of clients */
+    McdClientRegistry *client_registry;
 
     McdAccount *account;
     McdConnection *connection;
@@ -110,8 +110,8 @@ struct _McdDispatchOperationPrivate
 enum
 {
     PROP_0,
-    PROP_DBUS_DAEMON,
     PROP_CHANNELS,
+    PROP_CLIENT_REGISTRY,
     PROP_POSSIBLE_HANDLERS,
     PROP_NEEDS_APPROVAL,
 };
@@ -344,7 +344,6 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
     GObject *object;
     McdDispatchOperation *operation;
     McdDispatchOperationPrivate *priv;
-    DBusGConnection *dbus_connection;
 
     object = object_class->constructor (type, n_params, params);
     operation = MCD_DISPATCH_OPERATION (object);
@@ -352,9 +351,9 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
     g_return_val_if_fail (operation != NULL, NULL);
     priv = operation->priv;
 
-    if (!priv->dbus_daemon) goto error;
+    if (!priv->client_registry)
+        goto error;
 
-    dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
     create_object_path (priv);
 
     DEBUG ("%s/%p: needs_approval=%c", priv->unique_name, object,
@@ -372,9 +371,22 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
 
     /* If approval is not needed, we don't appear on D-Bus (and approvers
      * don't run) */
-    if (priv->needs_approval && G_LIKELY (dbus_connection))
-        dbus_g_connection_register_g_object (dbus_connection,
-                                             priv->object_path, object);
+    if (priv->needs_approval)
+    {
+        TpDBusDaemon *dbus_daemon;
+        DBusGConnection *dbus_connection;
+
+        g_object_get (priv->client_registry,
+                      "dbus-daemon", &dbus_daemon,
+                      NULL);
+        dbus_connection = tp_proxy_get_dbus_connection (dbus_daemon);
+
+        if (G_LIKELY (dbus_connection))
+            dbus_g_connection_register_g_object (dbus_connection,
+                                                 priv->object_path, object);
+
+        g_object_unref (dbus_daemon);
+    }
 
     return object;
 error:
@@ -392,9 +404,9 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
 
     switch (prop_id)
     {
-    case PROP_DBUS_DAEMON:
-        g_assert (priv->dbus_daemon == NULL);
-        priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
+    case PROP_CLIENT_REGISTRY:
+        g_assert (priv->client_registry == NULL); /* construct-only */
+        priv->client_registry = MCD_CLIENT_REGISTRY (g_value_dup_object (val));
         break;
 
     case PROP_CHANNELS:
@@ -461,8 +473,8 @@ mcd_dispatch_operation_get_property (GObject *obj, guint prop_id,
 
     switch (prop_id)
     {
-    case PROP_DBUS_DAEMON:
-        g_value_set_object (val, priv->dbus_daemon);
+    case PROP_CLIENT_REGISTRY:
+        g_value_set_object (val, priv->client_registry);
         break;
 
     case PROP_POSSIBLE_HANDLERS:
@@ -536,10 +548,10 @@ mcd_dispatch_operation_dispose (GObject *object)
         priv->account = NULL;
     }
 
-    if (priv->dbus_daemon)
+    if (priv->client_registry != NULL)
     {
-        g_object_unref (priv->dbus_daemon);
-        priv->dbus_daemon = NULL;
+        g_object_unref (priv->client_registry);
+        priv->client_registry = NULL;
     }
     G_OBJECT_CLASS (_mcd_dispatch_operation_parent_class)->dispose (object);
 }
@@ -557,10 +569,12 @@ _mcd_dispatch_operation_class_init (McdDispatchOperationClass * klass)
     object_class->set_property = mcd_dispatch_operation_set_property;
     object_class->get_property = mcd_dispatch_operation_get_property;
 
-    g_object_class_install_property (object_class, PROP_DBUS_DAEMON,
-        g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
-							  TP_TYPE_DBUS_DAEMON,
-							  G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property (object_class, PROP_CLIENT_REGISTRY,
+        g_param_spec_object ("client-registry", "Client registry",
+            "Reference to a global registry of Telepathy clients",
+            MCD_TYPE_CLIENT_REGISTRY,
+            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
+            G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property (object_class, PROP_CHANNELS,
         g_param_spec_pointer ("channels", "channels", "channels",
@@ -597,7 +611,7 @@ _mcd_dispatch_operation_init (McdDispatchOperation *operation)
 
 /*
  * _mcd_dispatch_operation_new:
- * @dbus_daemon: a #TpDBusDaemon.
+ * @client_registry: the client registry.
  * @channels: a #GList of #McdChannel elements to dispatch.
  * @possible_handlers: the bus names of possible handlers for these channels.
  *
@@ -605,14 +619,14 @@ _mcd_dispatch_operation_init (McdDispatchOperation *operation)
  * valid after this function has been called.
  */
 McdDispatchOperation *
-_mcd_dispatch_operation_new (TpDBusDaemon *dbus_daemon,
+_mcd_dispatch_operation_new (McdClientRegistry *client_registry,
                              gboolean needs_approval,
                              GList *channels,
                              const gchar * const *possible_handlers)
 {
     gpointer *obj;
     obj = g_object_new (MCD_TYPE_DISPATCH_OPERATION,
-                        "dbus-daemon", dbus_daemon,
+                        "client-registry", client_registry,
                         "channels", channels,
                         "possible-handlers", possible_handlers,
                         "needs-approval", needs_approval,

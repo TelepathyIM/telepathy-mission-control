@@ -1475,7 +1475,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
      * perhaps we should act as though they're all unRequested, or split up the
      * bundle? */
 
-    context->operation = _mcd_dispatch_operation_new (priv->dbus_daemon,
+    context->operation = _mcd_dispatch_operation_new (priv->clients,
         !requested, channels, (const gchar * const *) possible_handlers);
 
     if (requested)
@@ -2669,7 +2669,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     g_list_free (list);
 
     context->operation = _mcd_dispatch_operation_new (
-        dispatcher->priv->dbus_daemon, FALSE, context->channels,
+        dispatcher->priv->clients, FALSE, context->channels,
         (const gchar * const *) possible_handlers);
 
     g_strfreev (possible_handlers);
