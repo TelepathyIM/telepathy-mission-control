@@ -66,8 +66,7 @@ struct _McdDispatcherClass
     /* signals */
     void (*_former_channel_added_signal) (void);
     void (*_former_channel_removed_signal) (void);
-    void (*dispatched_signal) (McdDispatcher * dispatcher,
-			       McdChannel * channel);
+    void (*_former_dispatched_signal) (void);
     void (*_former_dispatch_failed_signal) (void);
 
     /* virtual methods */

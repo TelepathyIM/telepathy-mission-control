@@ -213,14 +213,6 @@ enum
     PROP_DISPATCH_OPERATIONS,
 };
 
-enum _McdDispatcherSignalType
-{
-    DISPATCHED,
-    LAST_SIGNAL
-};
-
-static guint signals[LAST_SIGNAL] = { 0 };
-
 static void mcd_dispatcher_context_unref (McdDispatcherContext * ctx,
                                           const gchar *tag);
 static void on_operation_finished (McdDispatchOperation *operation,
@@ -559,8 +551,6 @@ mcd_dispatcher_set_channel_handled_by (McdDispatcher *self,
 
     _mcd_handler_map_set_channel_handled (self->priv->handler_map,
                                           channel, unique_name);
-
-    g_signal_emit_by_name (self, "dispatched", channel);
 }
 
 static void mcd_dispatcher_run_handlers (McdDispatcherContext *context);
@@ -1931,15 +1921,6 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
     object_class->get_property = _mcd_dispatcher_get_property;
     object_class->finalize = _mcd_dispatcher_finalize;
     object_class->dispose = _mcd_dispatcher_dispose;
-
-    signals[DISPATCHED] =
-	g_signal_new ("dispatched",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      G_STRUCT_OFFSET (McdDispatcherClass,
-				       dispatched_signal),
-		      NULL, NULL, g_cclosure_marshal_VOID__OBJECT,
-		      G_TYPE_NONE, 1, MCD_TYPE_CHANNEL);
 
     /* Properties */
     g_object_class_install_property

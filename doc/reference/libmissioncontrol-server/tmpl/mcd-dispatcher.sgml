@@ -23,14 +23,6 @@ McdDispatcher
 </para>
 
 
-<!-- ##### SIGNAL McdDispatcher::dispatched ##### -->
-<para>
-
-</para>
-
-@mcddispatcher: the object which received the signal.
-@arg1: 
-
 <!-- ##### ARG McdDispatcher:dbus-daemon ##### -->
 <para>
 
