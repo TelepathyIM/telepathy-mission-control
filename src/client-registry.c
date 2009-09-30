@@ -34,6 +34,7 @@ enum
 enum
 {
     S_CLIENT_ADDED,
+    S_READY,
     N_SIGNALS
 };
 
@@ -245,6 +246,13 @@ _mcd_client_registry_class_init (McdClientRegistryClass *cls)
       0, NULL, NULL,
       g_cclosure_marshal_VOID__OBJECT,
       G_TYPE_NONE, 1, MCD_TYPE_CLIENT_PROXY);
+
+  signals[S_READY] = g_signal_new ("ready",
+      G_OBJECT_CLASS_TYPE (cls),
+      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+      0, NULL, NULL,
+      g_cclosure_marshal_VOID__VOID,
+      G_TYPE_NONE, 0);
 }
 
 McdClientRegistry *

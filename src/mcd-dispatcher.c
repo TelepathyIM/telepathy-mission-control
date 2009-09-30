@@ -1795,6 +1795,14 @@ mcd_dispatcher_client_added_cb (McdClientRegistry *clients G_GNUC_UNUSED,
 }
 
 static void
+mcd_dispatcher_client_registry_ready_cb (McdClientRegistry *clients,
+                                         McdClientProxy *client,
+                                         McdDispatcher *self)
+{
+    DEBUG ("client registry ready");
+}
+
+static void
 _mcd_dispatcher_dispose (GObject * object)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
@@ -1826,6 +1834,9 @@ _mcd_dispatcher_dispose (GObject * object)
         g_signal_handlers_disconnect_by_func (priv->clients,
                                               mcd_dispatcher_client_added_cb,
                                               object);
+
+        g_signal_handlers_disconnect_by_func (priv->clients,
+            mcd_dispatcher_client_registry_ready_cb, object);
 
         g_object_unref (priv->clients);
         priv->clients = NULL;
@@ -2136,6 +2147,9 @@ mcd_dispatcher_constructed (GObject *object)
     priv->clients = _mcd_client_registry_new (priv->dbus_daemon);
     g_signal_connect (priv->clients, "client-added",
                       G_CALLBACK (mcd_dispatcher_client_added_cb), object);
+    g_signal_connect (priv->clients, "ready",
+                      G_CALLBACK (mcd_dispatcher_client_registry_ready_cb),
+                      object);
 
     DEBUG ("Starting to look for clients");
     priv->startup_completed = FALSE;
