@@ -68,11 +68,9 @@ struct _McdClientRegistryPrivate
   gboolean startup_completed;
 };
 
-void
+static void
 _mcd_client_registry_inc_startup_lock (McdClientRegistry *self)
 {
-  g_return_if_fail (MCD_IS_CLIENT_REGISTRY (self));
-
   if (!self->priv->startup_completed)
     {
       DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
@@ -82,11 +80,9 @@ _mcd_client_registry_inc_startup_lock (McdClientRegistry *self)
     }
 }
 
-void
+static void
 _mcd_client_registry_dec_startup_lock (McdClientRegistry *self)
 {
-  g_return_if_fail (MCD_IS_CLIENT_REGISTRY (self));
-
   if (self->priv->startup_completed)
     return;
 
@@ -109,15 +105,13 @@ static void mcd_client_registry_ready_cb (McdClientProxy *client,
 static void mcd_client_registry_gone_cb (McdClientProxy *client,
     McdClientRegistry *self);
 
-void
+static void
 _mcd_client_registry_found_name (McdClientRegistry *self,
     const gchar *well_known_name,
     const gchar *unique_name_if_known,
     gboolean activatable)
 {
   McdClientProxy *client;
-
-  g_return_if_fail (MCD_IS_CLIENT_REGISTRY (self));
 
   if (!g_str_has_prefix (well_known_name, TP_CLIENT_BUS_NAME_BASE))
     {
