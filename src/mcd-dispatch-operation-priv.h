@@ -76,6 +76,13 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_approve
 G_GNUC_INTERNAL McdDispatchOperation *_mcd_dispatch_operation_new (
     McdClientRegistry *client_registry, gboolean needs_approval,
     GList *channels, const gchar * const *possible_handlers);
+
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_has_channel (
+    McdDispatchOperation *self, McdChannel *channel);
+G_GNUC_INTERNAL const GList *_mcd_dispatch_operation_peek_channels (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL GList *_mcd_dispatch_operation_dup_channels (
+    McdDispatchOperation *self);
 G_GNUC_INTERNAL void _mcd_dispatch_operation_lose_channel (
     McdDispatchOperation *self, McdChannel *channel, GList **channels);
 

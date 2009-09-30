@@ -1215,3 +1215,29 @@ _mcd_dispatch_operation_set_approved (McdDispatchOperation *self)
     g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
     self->priv->approved = TRUE;
 }
+
+gboolean
+_mcd_dispatch_operation_has_channel (McdDispatchOperation *self,
+                                     McdChannel *channel)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+    return (g_list_find (self->priv->channels, channel) != NULL);
+}
+
+const GList *
+_mcd_dispatch_operation_peek_channels (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), NULL);
+    return self->priv->channels;
+}
+
+GList *
+_mcd_dispatch_operation_dup_channels (McdDispatchOperation *self)
+{
+    GList *copy;
+
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), NULL);
+    copy = g_list_copy (self->priv->channels);
+    g_list_foreach (copy, (GFunc) g_object_ref, NULL);
+    return copy;
+}
