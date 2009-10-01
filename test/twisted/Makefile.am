@@ -48,6 +48,7 @@ TWISTED_BASIC_TESTS = \
 
 if ENABLE_PLUGINS
 TWISTED_BASIC_TESTS += \
+	dispatcher/create-delayed-by-plugin.py \
 	dispatcher/dispatch-delayed-by-plugin.py \
 	dispatcher/dispatch-rejected-by-plugin.py
 endif
