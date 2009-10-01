@@ -39,7 +39,7 @@ struct _McdHandlerMapPrivate
     GHashTable *channel_processes;
     /* owned gchar *unique_name => malloc'd gsize, number of channels */
     GHashTable *handler_processes;
-    /* owned gchar *object_path => ref'd McdChannel */
+    /* owned gchar *object_path => ref'd TpChannel */
     GHashTable *handled_channels;
 };
 
@@ -258,15 +258,18 @@ _mcd_handler_map_set_path_handled (McdHandlerMap *self,
 }
 
 static void
-handled_channel_aborted_cb (McdChannel *channel,
-                            gpointer user_data)
+handled_channel_invalidated_cb (TpChannel *channel,
+                                guint domain,
+                                gint code,
+                                const gchar *message,
+                                gpointer user_data)
 {
     McdHandlerMap *self = MCD_HANDLER_MAP (user_data);
-    const gchar *path = mcd_channel_get_object_path (channel);
+    const gchar *path = tp_proxy_get_object_path (channel);
     gchar *handler;
 
     g_signal_handlers_disconnect_by_func (channel,
-                                          handled_channel_aborted_cb,
+                                          handled_channel_invalidated_cb,
                                           user_data);
 
     handler = g_hash_table_lookup (self->priv->channel_processes, path);
@@ -297,13 +300,17 @@ _mcd_handler_map_set_channel_handled (McdHandlerMap *self,
                                       const gchar *unique_name)
 {
     const gchar *path = mcd_channel_get_object_path (channel);
+    TpChannel *tp_channel;
+
+    tp_channel = mcd_channel_get_tp_channel (channel);
+    g_return_if_fail (tp_channel != NULL);
 
     g_hash_table_insert (self->priv->handled_channels,
                          g_strdup (path),
-                         g_object_ref (channel));
+                         g_object_ref (tp_channel));
 
-    g_signal_connect (channel, "abort",
-                      G_CALLBACK (handled_channel_aborted_cb),
+    g_signal_connect (tp_channel, "invalidated",
+                      G_CALLBACK (handled_channel_invalidated_cb),
                       g_object_ref (self));
 
     _mcd_handler_map_set_path_handled (self, path, unique_name);
@@ -346,18 +353,17 @@ _mcd_handler_map_set_handler_crashed (McdHandlerMap *self,
         while (paths != NULL)
         {
             gchar *path = paths->data;
-            McdChannel *channel = g_hash_table_lookup (
+            TpChannel *channel = g_hash_table_lookup (
                 self->priv->handled_channels, path);
 
-            if (channel != NULL)
+            /* this is NULL-safe */
+            if (_mcd_tp_channel_should_close (channel, "closing"))
             {
                 DEBUG ("Closing channel %s", path);
-                /* channel will get aborted when it actually closes */
-                _mcd_channel_close (channel);
-            }
-            else
-            {
-                DEBUG ("No McdChannel for %s, not aborting it", path);
+                /* the corresponding McdChannel will get aborted when the
+                 * Channel actually closes */
+                tp_cli_channel_call_close (channel, -1,
+                                           NULL, NULL, NULL, NULL);
             }
 
             paths = g_list_delete_link (paths, paths);
