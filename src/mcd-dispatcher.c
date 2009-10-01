@@ -937,8 +937,8 @@ observe_channels_cb (TpClient *proxy, const GError *error,
     else
         DEBUG ("success from %s", tp_proxy_get_object_path (proxy));
 
-    _mcd_dispatch_operation_unblock_finished (context->operation);
     mcd_dispatcher_context_release_pending_observer (context);
+    _mcd_dispatch_operation_unblock_finished (context->operation);
 }
 
 /* The returned GPtrArray is allocated, but the contents are borrowed. */
@@ -1343,13 +1343,9 @@ on_operation_finished (McdDispatchOperation *operation,
 
     /* Because of our calls to _mcd_dispatch_operation_block_finished,
      * this cannot happen until all observers and all approvers have
-     * returned from ObserveChannels or AddDispatchOperation, respectively.
-     *
-     * (However, in observe_channels_cb we unblock finished a moment
-     * before we decrement observers_pending, so we can't actually assert
-     * that here.) */
-
+     * returned from ObserveChannels or AddDispatchOperation, respectively. */
     g_assert (context->approvers_pending == 0);
+    g_assert (context->observers_pending == 0);
 
     if (context->channels == NULL)
     {
