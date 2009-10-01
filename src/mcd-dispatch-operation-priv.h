@@ -109,6 +109,13 @@ G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_approved (
 G_GNUC_INTERNAL void _mcd_dispatch_operation_set_approved (
     McdDispatchOperation *self);
 
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_has_observers_pending (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_inc_observers_pending (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_dec_observers_pending (
+    McdDispatchOperation *self);
+
 G_END_DECLS
 
 #endif

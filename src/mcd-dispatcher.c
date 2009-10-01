@@ -113,13 +113,6 @@ struct _McdDispatcherContext
     GList *channels;
     McdDispatchOperation *operation;
 
-    /* The number of observers that have not yet returned from ObserveChannels.
-     * Until they have done so, we can't allow the dispatch operation to
-     * finish. This is a client lock.
-     *
-     * One instance of CTXREF05 is held for each pending observer. */
-    gsize observers_pending;
-
     /* The number of approvers that have not yet returned from
      * AddDispatchOperation. Until they have done so, we can't allow the
      * dispatch operation to finish. This is a client lock.
@@ -902,7 +895,7 @@ static void
 mcd_dispatcher_context_check_client_locks (McdDispatcherContext *context)
 {
     if (!context->invoking_clients &&
-        context->observers_pending == 0 &&
+        !_mcd_dispatch_operation_has_observers_pending (context->operation) &&
         _mcd_dispatch_operation_is_approved (context->operation))
     {
         /* no observers etc. left */
@@ -917,10 +910,7 @@ mcd_dispatcher_context_check_client_locks (McdDispatcherContext *context)
 static void
 mcd_dispatcher_context_release_pending_observer (McdDispatcherContext *context)
 {
-    DEBUG ("called on %p, %" G_GSIZE_FORMAT " pending",
-           context, context->observers_pending);
-    g_return_if_fail (context->observers_pending > 0);
-    context->observers_pending--;
+    _mcd_dispatch_operation_dec_observers_pending (context->operation);
     mcd_dispatcher_context_check_client_locks (context);
 }
 
@@ -1042,9 +1032,9 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
         }
 
         _mcd_dispatch_operation_block_finished (context->operation);
-
-        context->observers_pending++;
+        _mcd_dispatch_operation_inc_observers_pending (context->operation);
         mcd_dispatcher_context_ref (context, "CTXREF05");
+
         DEBUG ("calling ObserveChannels on %s for context %p",
                tp_proxy_get_bus_name (client), context);
         tp_cli_client_observer_call_observe_channels (
@@ -1345,7 +1335,8 @@ on_operation_finished (McdDispatchOperation *operation,
      * this cannot happen until all observers and all approvers have
      * returned from ObserveChannels or AddDispatchOperation, respectively. */
     g_assert (context->approvers_pending == 0);
-    g_assert (context->observers_pending == 0);
+    g_assert (!_mcd_dispatch_operation_has_observers_pending
+              (context->operation));
 
     if (context->channels == NULL)
     {

@@ -110,7 +110,48 @@ struct _McdDispatchOperationPrivate
      * were pre-approved by being returned as a response to another request,
      * or a client approved processing with arbitrary handlers */
     gboolean approved;
+
+    /* The number of observers that have not yet returned from ObserveChannels.
+     * Until they have done so, we can't allow the dispatch operation to
+     * finish. This is a client lock.
+     *
+     * A reference is held for each pending observer (and in the
+     * McdDispatcherContext, one instance of CTXREF05 is held for each). */
+    gsize observers_pending;
 };
+
+gboolean
+_mcd_dispatch_operation_has_observers_pending (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+    return (self->priv->observers_pending > 0);
+}
+
+void
+_mcd_dispatch_operation_inc_observers_pending (McdDispatchOperation *self)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+
+    g_object_ref (self);
+
+    DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
+           self->priv->observers_pending,
+           self->priv->observers_pending + 1);
+    self->priv->observers_pending++;
+}
+
+void
+_mcd_dispatch_operation_dec_observers_pending (McdDispatchOperation *self)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
+           self->priv->observers_pending,
+           self->priv->observers_pending - 1);
+    g_return_if_fail (self->priv->observers_pending > 0);
+    self->priv->observers_pending--;
+
+    g_object_unref (self);
+}
 
 enum
 {
