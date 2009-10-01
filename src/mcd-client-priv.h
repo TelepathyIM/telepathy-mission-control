@@ -69,7 +69,7 @@ G_GNUC_INTERNAL GType _mcd_client_proxy_get_type (void);
 
 G_GNUC_INTERNAL McdClientProxy *_mcd_client_proxy_new (
     TpDBusDaemon *dbus_daemon, TpHandleRepoIface *string_pool,
-    const gchar *name_suffix, const gchar *unique_name_if_known,
+    const gchar *well_known_name, const gchar *unique_name_if_known,
     gboolean activatable);
 
 G_GNUC_INTERNAL gboolean _mcd_client_proxy_is_ready (McdClientProxy *self);
@@ -88,9 +88,6 @@ G_GNUC_INTERNAL void _mcd_client_proxy_set_active (McdClientProxy *self,
                                                    const gchar *unique_name);
 G_GNUC_INTERNAL void _mcd_client_proxy_set_activatable (McdClientProxy *self);
 
-G_GNUC_INTERNAL gchar *_mcd_client_proxy_find_client_file (
-    const gchar *client_name);
-
 G_GNUC_INTERNAL const GList *_mcd_client_proxy_get_approver_filters
     (McdClientProxy *self);
 G_GNUC_INTERNAL const GList *_mcd_client_proxy_get_observer_filters
@@ -101,19 +98,12 @@ G_GNUC_INTERNAL gboolean _mcd_client_proxy_get_bypass_approval
     (McdClientProxy *self);
 
 G_GNUC_INTERNAL void _mcd_client_proxy_become_incapable (McdClientProxy *self);
-G_GNUC_INTERNAL void _mcd_client_proxy_take_approver_filters
-    (McdClientProxy *self, GList *filters);
-G_GNUC_INTERNAL void _mcd_client_proxy_take_observer_filters
-    (McdClientProxy *self, GList *filters);
-G_GNUC_INTERNAL void _mcd_client_proxy_take_handler_filters
-    (McdClientProxy *self, GList *filters);
-G_GNUC_INTERNAL void _mcd_client_proxy_set_bypass_approval
-    (McdClientProxy *self, gboolean bypass);
 
-G_GNUC_INTERNAL void _mcd_client_proxy_clear_capability_tokens
-    (McdClientProxy *self);
-G_GNUC_INTERNAL TpHandleSet *_mcd_client_proxy_peek_capability_tokens
-    (McdClientProxy *self);
+G_GNUC_INTERNAL GValueArray *_mcd_client_proxy_dup_handler_capabilities (
+    McdClientProxy *self);
+
+G_GNUC_INTERNAL void _mcd_client_proxy_inc_ready_lock (McdClientProxy *self);
+G_GNUC_INTERNAL void _mcd_client_proxy_dec_ready_lock (McdClientProxy *self);
 
 #define MC_CLIENT_BUS_NAME_BASE_LEN (sizeof (TP_CLIENT_BUS_NAME_BASE) - 1)
 

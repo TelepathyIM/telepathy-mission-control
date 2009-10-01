@@ -26,10 +26,15 @@
 #include "config.h"
 #include "mcd-client-priv.h"
 
+#include <errno.h>
+
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/defs.h>
 #include <telepathy-glib/errors.h>
+#include <telepathy-glib/gtypes.h>
+#include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/proxy-subclass.h>
+#include <telepathy-glib/util.h>
 
 #include "mcd-debug.h"
 
@@ -46,6 +51,8 @@ enum
 enum
 {
     S_READY,
+    S_IS_HANDLING_CHANNEL,
+    S_HANDLER_CAPABILITIES_CHANGED,
     N_SIGNALS
 };
 
@@ -59,6 +66,8 @@ struct _McdClientProxyPrivate
     TpHandleSet *capability_tokens;
 
     gchar *unique_name;
+    guint ready_lock;
+    gboolean introspect_started;
     gboolean ready;
     gboolean bypass_approval;
 
@@ -87,7 +96,51 @@ struct _McdClientProxyPrivate
     GList *observer_filters;
 };
 
-gchar *
+typedef enum
+{
+    MCD_CLIENT_APPROVER,
+    MCD_CLIENT_HANDLER,
+    MCD_CLIENT_OBSERVER
+} McdClientInterface;
+
+void
+_mcd_client_proxy_inc_ready_lock (McdClientProxy *self)
+{
+    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
+
+    if (self->priv->ready)
+        return;
+
+    g_return_if_fail (self->priv->ready_lock > 0);
+
+    self->priv->ready_lock++;
+}
+
+void
+_mcd_client_proxy_dec_ready_lock (McdClientProxy *self)
+{
+    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
+
+    if (self->priv->ready)
+        return;
+
+    g_return_if_fail (self->priv->ready_lock > 0);
+
+    if (--self->priv->ready_lock == 0)
+    {
+        self->priv->ready = TRUE;
+        g_signal_emit (self, signals[S_READY], 0);
+    }
+}
+
+static void _mcd_client_proxy_take_approver_filters
+    (McdClientProxy *self, GList *filters);
+static void _mcd_client_proxy_take_observer_filters
+    (McdClientProxy *self, GList *filters);
+static void _mcd_client_proxy_take_handler_filters
+    (McdClientProxy *self, GList *filters);
+
+static gchar *
 _mcd_client_proxy_find_client_file (const gchar *client_name)
 {
     const gchar * const *dirs;
@@ -137,11 +190,355 @@ finish:
     return absolute_filepath;
 }
 
+static GHashTable *
+parse_client_filter (GKeyFile *file, const gchar *group)
+{
+    GHashTable *filter;
+    gchar **keys;
+    gsize len = 0;
+    guint i;
+
+    filter = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
+                                    (GDestroyNotify) tp_g_value_slice_free);
+
+    keys = g_key_file_get_keys (file, group, &len, NULL);
+    for (i = 0; i < len; i++)
+    {
+        const gchar *key;
+        const gchar *space;
+        gchar *file_property;
+        gchar file_property_type;
+
+        key = keys[i];
+        space = g_strrstr (key, " ");
+
+        if (space == NULL || space[1] == '\0' || space[2] != '\0')
+        {
+            g_warning ("Invalid key %s in client file", key);
+            continue;
+        }
+        file_property_type = space[1];
+        file_property = g_strndup (key, space - key);
+
+        switch (file_property_type)
+        {
+        case 'q':
+        case 'u':
+        case 't': /* unsigned integer */
+            {
+                /* g_key_file_get_integer cannot be used because we need
+                 * to support 64 bits */
+                guint x;
+                GValue *value = tp_g_value_slice_new (G_TYPE_UINT64);
+                gchar *str = g_key_file_get_string (file, group, key,
+                                                    NULL);
+                errno = 0;
+                x = g_ascii_strtoull (str, NULL, 0);
+                if (errno != 0)
+                {
+                    g_warning ("Invalid unsigned integer '%s' in client"
+                               " file", str);
+                }
+                else
+                {
+                    g_value_set_uint64 (value, x);
+                    g_hash_table_insert (filter, file_property, value);
+                }
+                g_free (str);
+                break;
+            }
+
+        case 'y':
+        case 'n':
+        case 'i':
+        case 'x': /* signed integer */
+            {
+                gint x;
+                GValue *value = tp_g_value_slice_new (G_TYPE_INT64);
+                gchar *str = g_key_file_get_string (file, group, key, NULL);
+                errno = 0;
+                x = g_ascii_strtoll (str, NULL, 0);
+                if (errno != 0)
+                {
+                    g_warning ("Invalid signed integer '%s' in client"
+                               " file", str);
+                }
+                else
+                {
+                    g_value_set_int64 (value, x);
+                    g_hash_table_insert (filter, file_property, value);
+                }
+                g_free (str);
+                break;
+            }
+
+        case 'b':
+            {
+                GValue *value = tp_g_value_slice_new (G_TYPE_BOOLEAN);
+                gboolean b = g_key_file_get_boolean (file, group, key, NULL);
+                g_value_set_boolean (value, b);
+                g_hash_table_insert (filter, file_property, value);
+                break;
+            }
+
+        case 's':
+            {
+                GValue *value = tp_g_value_slice_new (G_TYPE_STRING);
+                gchar *str = g_key_file_get_string (file, group, key, NULL);
+
+                g_value_take_string (value, str);
+                g_hash_table_insert (filter, file_property, value);
+                break;
+            }
+
+        case 'o':
+            {
+                GValue *value = tp_g_value_slice_new
+                    (DBUS_TYPE_G_OBJECT_PATH);
+                gchar *str = g_key_file_get_string (file, group, key, NULL);
+
+                g_value_take_boxed (value, str);
+                g_hash_table_insert (filter, file_property, value);
+                break;
+            }
+
+        default:
+            g_warning ("Invalid key %s in client file", key);
+            continue;
+        }
+    }
+    g_strfreev (keys);
+
+    return filter;
+}
+
+static void _mcd_client_proxy_add_cap_tokens (McdClientProxy *self,
+                                              const gchar * const *cap_tokens);
+static void _mcd_client_proxy_add_interfaces (McdClientProxy *self,
+                                              const gchar * const *interfaces);
+
+static void
+parse_client_file (McdClientProxy *client,
+                   GKeyFile *file)
+{
+    gchar **iface_names, **groups, **cap_tokens;
+    guint i;
+    gsize len = 0;
+    gboolean is_approver, is_handler, is_observer;
+    GList *approver_filters = NULL;
+    GList *observer_filters = NULL;
+    GList *handler_filters = NULL;
+    gboolean bypass;
+
+    iface_names = g_key_file_get_string_list (file, TP_IFACE_CLIENT,
+                                              "Interfaces", 0, NULL);
+    if (!iface_names)
+        return;
+
+    _mcd_client_proxy_add_interfaces (client,
+                                      (const gchar * const *) iface_names);
+    g_strfreev (iface_names);
+
+    is_approver = tp_proxy_has_interface_by_id (client,
+                                                TP_IFACE_QUARK_CLIENT_APPROVER);
+    is_observer = tp_proxy_has_interface_by_id (client,
+                                                TP_IFACE_QUARK_CLIENT_OBSERVER);
+    is_handler = tp_proxy_has_interface_by_id (client,
+                                               TP_IFACE_QUARK_CLIENT_HANDLER);
+
+    /* parse filtering rules */
+    groups = g_key_file_get_groups (file, &len);
+    for (i = 0; i < len; i++)
+    {
+        if (is_approver &&
+            g_str_has_prefix (groups[i], TP_IFACE_CLIENT_APPROVER
+                              ".ApproverChannelFilter "))
+        {
+            approver_filters =
+                g_list_prepend (approver_filters,
+                                parse_client_filter (file, groups[i]));
+        }
+        else if (is_handler &&
+            g_str_has_prefix (groups[i], TP_IFACE_CLIENT_HANDLER
+                              ".HandlerChannelFilter "))
+        {
+            handler_filters =
+                g_list_prepend (handler_filters,
+                                parse_client_filter (file, groups[i]));
+        }
+        else if (is_observer &&
+            g_str_has_prefix (groups[i], TP_IFACE_CLIENT_OBSERVER
+                              ".ObserverChannelFilter "))
+        {
+            observer_filters =
+                g_list_prepend (observer_filters,
+                                parse_client_filter (file, groups[i]));
+        }
+    }
+    g_strfreev (groups);
+
+    _mcd_client_proxy_take_approver_filters (client,
+                                             approver_filters);
+    _mcd_client_proxy_take_observer_filters (client,
+                                             observer_filters);
+    _mcd_client_proxy_take_handler_filters (client,
+                                            handler_filters);
+
+    /* Other client options */
+    bypass = g_key_file_get_boolean (file, TP_IFACE_CLIENT_HANDLER,
+                                     "BypassApproval", NULL);
+    client->priv->bypass_approval = bypass;
+
+    cap_tokens = g_key_file_get_keys (file,
+                                      TP_IFACE_CLIENT_HANDLER ".Capabilities",
+                                      NULL,
+                                      NULL);
+    _mcd_client_proxy_add_cap_tokens (client,
+                                      (const gchar * const *) cap_tokens);
+    g_strfreev (cap_tokens);
+}
+
+static void
+_mcd_client_proxy_set_filters (McdClientProxy *client,
+                               McdClientInterface interface,
+                               GPtrArray *filters)
+{
+    GList *client_filters = NULL;
+    guint i;
+
+    for (i = 0 ; i < filters->len ; i++)
+    {
+        GHashTable *channel_class = g_ptr_array_index (filters, i);
+        GHashTable *new_channel_class;
+        GHashTableIter iter;
+        gchar *property_name;
+        GValue *property_value;
+        gboolean valid_filter = TRUE;
+
+        new_channel_class = g_hash_table_new_full
+            (g_str_hash, g_str_equal, g_free,
+             (GDestroyNotify) tp_g_value_slice_free);
+
+        g_hash_table_iter_init (&iter, channel_class);
+        while (g_hash_table_iter_next (&iter, (gpointer *) &property_name,
+                                       (gpointer *) &property_value)) 
+        {
+            GValue *filter_value;
+            GType property_type = G_VALUE_TYPE (property_value);
+
+            if (property_type == G_TYPE_BOOLEAN ||
+                property_type == G_TYPE_STRING ||
+                property_type == DBUS_TYPE_G_OBJECT_PATH)
+            {
+                filter_value = tp_g_value_slice_new
+                    (G_VALUE_TYPE (property_value));
+                g_value_copy (property_value, filter_value);
+            }
+            else if (property_type == G_TYPE_UCHAR ||
+                     property_type == G_TYPE_UINT ||
+                     property_type == G_TYPE_UINT64)
+            {
+                filter_value = tp_g_value_slice_new (G_TYPE_UINT64);
+                g_value_transform (property_value, filter_value);
+            }
+            else if (property_type == G_TYPE_INT ||
+                     property_type == G_TYPE_INT64)
+            {
+                filter_value = tp_g_value_slice_new (G_TYPE_INT64);
+                g_value_transform (property_value, filter_value);
+            }
+            else
+            {
+                /* invalid type, do not add this filter */
+                g_warning ("%s: Property %s has an invalid type (%s)",
+                           G_STRFUNC, property_name,
+                           g_type_name (G_VALUE_TYPE (property_value)));
+                valid_filter = FALSE;
+                break;
+            }
+
+            g_hash_table_insert (new_channel_class, g_strdup (property_name),
+                                 filter_value);
+        }
+
+        if (valid_filter)
+            client_filters = g_list_prepend (client_filters,
+                                             new_channel_class);
+        else
+            g_hash_table_destroy (new_channel_class);
+    }
+
+    switch (interface)
+    {
+        case MCD_CLIENT_OBSERVER:
+            _mcd_client_proxy_take_observer_filters (client,
+                                                     client_filters);
+            break;
+
+        case MCD_CLIENT_APPROVER:
+            _mcd_client_proxy_take_approver_filters (client,
+                                                     client_filters);
+            break;
+
+        case MCD_CLIENT_HANDLER:
+            _mcd_client_proxy_take_handler_filters (client,
+                                                    client_filters);
+            break;
+
+        default:
+            g_assert_not_reached ();
+    }
+}
+
+/* This is NULL-safe for the last argument, for ease of use with
+ * tp_asv_get_boxed */
+static void
+_mcd_client_proxy_add_cap_tokens (McdClientProxy *self,
+                                  const gchar * const *cap_tokens)
+{
+    guint i;
+
+    if (cap_tokens == NULL)
+        return;
+
+    for (i = 0; cap_tokens[i] != NULL; i++)
+    {
+        TpHandle handle = tp_handle_ensure (self->priv->string_pool,
+                                            cap_tokens[i], NULL, NULL);
+
+        tp_handle_set_add (self->priv->capability_tokens, handle);
+        tp_handle_unref (self->priv->string_pool, handle);
+    }
+}
+
+static void
+_mcd_client_proxy_add_interfaces (McdClientProxy *self,
+                                  const gchar * const *interfaces)
+{
+    guint i;
+
+    if (interfaces == NULL)
+        return;
+
+    for (i = 0; interfaces[i] != NULL; i++)
+    {
+        if (tp_dbus_check_valid_interface_name (interfaces[i], NULL))
+        {
+            GQuark q = g_quark_from_string (interfaces[i]);
+
+            DEBUG ("%s: %s", tp_proxy_get_bus_name (self), interfaces[i]);
+            tp_proxy_add_interface_by_id ((TpProxy *) self, q);
+        }
+    }
+}
+
 static void
 _mcd_client_proxy_init (McdClientProxy *self)
 {
     self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, MCD_TYPE_CLIENT_PROXY,
                                               McdClientProxyPrivate);
+    /* paired with first call to mcd_client_proxy_introspect */
+    self->priv->ready_lock = 1;
 }
 
 gboolean
@@ -156,7 +553,6 @@ gboolean
 _mcd_client_proxy_is_active (McdClientProxy *self)
 {
     g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), FALSE);
-    g_return_val_if_fail (self->priv->ready, FALSE);
 
     return self->priv->unique_name != NULL &&
         self->priv->unique_name[0] != '\0';
@@ -166,7 +562,6 @@ gboolean
 _mcd_client_proxy_is_activatable (McdClientProxy *self)
 {
     g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), FALSE);
-    g_return_val_if_fail (self->priv->ready, FALSE);
 
     return self->priv->activatable;
 }
@@ -175,26 +570,274 @@ const gchar *
 _mcd_client_proxy_get_unique_name (McdClientProxy *self)
 {
     g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), NULL);
-    g_return_val_if_fail (self->priv->ready, NULL);
 
     return self->priv->unique_name;
 }
 
 static void
-mcd_client_proxy_emit_ready (McdClientProxy *self)
+_mcd_client_proxy_handler_get_all_cb (TpProxy *proxy,
+                                      GHashTable *properties,
+                                      const GError *error,
+                                      gpointer p G_GNUC_UNUSED,
+                                      GObject *o G_GNUC_UNUSED)
 {
-    if (self->priv->ready)
-        return;
+    McdClientProxy *self = MCD_CLIENT_PROXY (proxy);
+    const gchar *bus_name = tp_proxy_get_bus_name (self);
+    GPtrArray *filters;
+    GPtrArray *handled_channels;
+    gboolean bypass;
 
-    self->priv->ready = TRUE;
+    if (error != NULL)
+    {
+        DEBUG ("GetAll(Handler) for client %s failed: %s #%d: %s",
+               bus_name, g_quark_to_string (error->domain), error->code,
+               error->message);
+        goto finally;
+    }
 
-    g_signal_emit (self, signals[S_READY], 0);
+    filters = tp_asv_get_boxed (properties, "HandlerChannelFilter",
+                                TP_ARRAY_TYPE_STRING_VARIANT_MAP_LIST);
+
+    if (filters != NULL)
+    {
+        DEBUG ("%s has %u HandlerChannelFilter entries", bus_name,
+               filters->len);
+        _mcd_client_proxy_set_filters (self, MCD_CLIENT_HANDLER, filters);
+    }
+    else
+    {
+        DEBUG ("%s HandlerChannelFilter absent or wrong type, assuming "
+               "no channels can match", bus_name);
+    }
+
+    /* if wrong type or absent, assuming False is reasonable */
+    bypass = tp_asv_get_boolean (properties, "BypassApproval", NULL);
+    self->priv->bypass_approval = bypass;
+    DEBUG ("%s has BypassApproval=%c", bus_name, bypass ? 'T' : 'F');
+
+    _mcd_client_proxy_add_cap_tokens (self,
+        tp_asv_get_boxed (properties, "Capabilities", G_TYPE_STRV));
+    g_signal_emit (self, signals[S_HANDLER_CAPABILITIES_CHANGED], 0);
+
+    /* by now, we at least know whether the client is running or not */
+    g_assert (self->priv->unique_name != NULL);
+
+    /* If our unique name is "", then we're not *really* handling these
+     * channels - they're the last known information from before the
+     * client exited - so don't claim them.
+     *
+     * At the moment, McdDispatcher deals with the transition from active
+     * to inactive in a centralized way, so we don't need to signal that. */
+    if (self->priv->unique_name[0] != '\0')
+    {
+        guint i;
+
+        handled_channels = tp_asv_get_boxed (properties, "HandledChannels",
+                                             TP_ARRAY_TYPE_OBJECT_PATH_LIST);
+
+        if (handled_channels != NULL)
+        {
+            for (i = 0; i < handled_channels->len; i++)
+            {
+                const gchar *path = g_ptr_array_index (handled_channels, i);
+
+                g_signal_emit (self, signals[S_IS_HANDLING_CHANNEL], 0, path);
+            }
+        }
+    }
+
+finally:
+    _mcd_client_proxy_dec_ready_lock (self);
+}
+
+static void
+_mcd_client_proxy_get_channel_filter_cb (TpProxy *proxy,
+                                         const GValue *value,
+                                         const GError *error,
+                                         gpointer user_data,
+                                         GObject *o G_GNUC_UNUSED)
+{
+    McdClientProxy *self = MCD_CLIENT_PROXY (proxy);
+    McdClientInterface iface = GPOINTER_TO_UINT (user_data);
+
+    if (error != NULL)
+    {
+        DEBUG ("error getting a filter list for client %s: %s #%d: %s",
+               tp_proxy_get_object_path (self),
+               g_quark_to_string (error->domain), error->code, error->message);
+        goto finally;
+    }
+
+    if (!G_VALUE_HOLDS (value, TP_ARRAY_TYPE_STRING_VARIANT_MAP_LIST))
+    {
+        DEBUG ("wrong type for filter property on client %s: %s",
+               tp_proxy_get_object_path (self), G_VALUE_TYPE_NAME (value));
+        goto finally;
+    }
+
+    _mcd_client_proxy_set_filters (self, iface, g_value_get_boxed (value));
+
+finally:
+    _mcd_client_proxy_dec_ready_lock (self);
+}
+
+static void
+_mcd_client_proxy_get_interfaces_cb (TpProxy *proxy,
+                                     const GValue *out_Value,
+                                     const GError *error,
+                                     gpointer user_data G_GNUC_UNUSED,
+                                     GObject *weak_object G_GNUC_UNUSED)
+{
+    McdClientProxy *self = MCD_CLIENT_PROXY (proxy);
+    const gchar *bus_name = tp_proxy_get_bus_name (proxy);
+
+    if (error != NULL)
+    {
+        DEBUG ("Error getting Interfaces for Client %s, assuming none: "
+               "%s %d %s", bus_name,
+               g_quark_to_string (error->domain), error->code, error->message);
+        goto finally;
+    }
+
+    if (!G_VALUE_HOLDS (out_Value, G_TYPE_STRV))
+    {
+        DEBUG ("Wrong type getting Interfaces for Client %s, assuming none: "
+               "%s", bus_name, G_VALUE_TYPE_NAME (out_Value));
+        goto finally;
+    }
+
+    _mcd_client_proxy_add_interfaces (self, g_value_get_boxed (out_Value));
+
+    DEBUG ("Client %s", bus_name);
+
+    if (tp_proxy_has_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT_APPROVER))
+    {
+        _mcd_client_proxy_inc_ready_lock (self);
+
+        DEBUG ("%s is an Approver", bus_name);
+
+        tp_cli_dbus_properties_call_get
+            (self, -1, TP_IFACE_CLIENT_APPROVER,
+             "ApproverChannelFilter", _mcd_client_proxy_get_channel_filter_cb,
+             GUINT_TO_POINTER (MCD_CLIENT_APPROVER), NULL, NULL);
+    }
+
+    if (tp_proxy_has_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT_HANDLER))
+    {
+        _mcd_client_proxy_inc_ready_lock (self);
+
+        DEBUG ("%s is a Handler", bus_name);
+
+        tp_cli_dbus_properties_call_get_all
+            (self, -1, TP_IFACE_CLIENT_HANDLER,
+             _mcd_client_proxy_handler_get_all_cb, NULL, NULL, NULL);
+    }
+
+    if (tp_proxy_has_interface_by_id (proxy, TP_IFACE_QUARK_CLIENT_OBSERVER))
+    {
+        _mcd_client_proxy_inc_ready_lock (self);
+
+        DEBUG ("%s is an Observer", bus_name);
+
+        tp_cli_dbus_properties_call_get
+            (self, -1, TP_IFACE_CLIENT_OBSERVER,
+             "ObserverChannelFilter", _mcd_client_proxy_get_channel_filter_cb,
+             GUINT_TO_POINTER (MCD_CLIENT_OBSERVER), NULL, NULL);
+    }
+
+finally:
+    _mcd_client_proxy_dec_ready_lock (self);
+}
+
+static gboolean
+_mcd_client_proxy_parse_client_file (McdClientProxy *self)
+{
+    gboolean file_found = FALSE;
+    gchar *filename;
+    const gchar *bus_name = tp_proxy_get_bus_name (self);
+
+    filename = _mcd_client_proxy_find_client_file (
+        bus_name + MC_CLIENT_BUS_NAME_BASE_LEN);
+
+    if (filename)
+    {
+        GKeyFile *file;
+        GError *error = NULL;
+
+        file = g_key_file_new ();
+        g_key_file_load_from_file (file, filename, 0, &error);
+        if (G_LIKELY (!error))
+        {
+            DEBUG ("File found for %s: %s", bus_name, filename);
+            parse_client_file (self, file);
+            file_found = TRUE;
+        }
+        else
+        {
+            g_warning ("Loading file %s failed: %s", filename, error->message);
+            g_error_free (error);
+        }
+        g_key_file_free (file);
+        g_free (filename);
+    }
+
+    return file_found;
 }
 
 static gboolean
 mcd_client_proxy_introspect (gpointer data)
 {
-    mcd_client_proxy_emit_ready (data);
+    McdClientProxy *self = data;
+    const gchar *bus_name = tp_proxy_get_bus_name (self);
+
+    if (self->priv->introspect_started)
+    {
+        return FALSE;
+    }
+
+    self->priv->introspect_started = TRUE;
+
+    /* The .client file is not mandatory as per the spec. However if it
+     * exists, it is better to read it than activating the service to read the
+     * D-Bus properties.
+     */
+    if (!_mcd_client_proxy_parse_client_file (self))
+    {
+        DEBUG ("No .client file for %s. Ask on D-Bus.", bus_name);
+
+        _mcd_client_proxy_inc_ready_lock (self);
+
+        tp_cli_dbus_properties_call_get (self, -1,
+            TP_IFACE_CLIENT, "Interfaces", _mcd_client_proxy_get_interfaces_cb,
+            NULL, NULL, NULL);
+    }
+    else
+    {
+        if (tp_proxy_has_interface_by_id (self, TP_IFACE_QUARK_CLIENT_HANDLER))
+        {
+            if (_mcd_client_proxy_is_active (self))
+            {
+                DEBUG ("%s is an active, activatable Handler", bus_name);
+
+                /* We need to investigate whether it is handling any channels */
+
+                _mcd_client_proxy_inc_ready_lock (self);
+
+                tp_cli_dbus_properties_call_get_all (self, -1,
+                    TP_IFACE_CLIENT_HANDLER,
+                    _mcd_client_proxy_handler_get_all_cb,
+                    NULL, NULL, NULL);
+            }
+            else
+            {
+                DEBUG ("%s is a Handler but not active", bus_name);
+                g_signal_emit (self,
+                               signals[S_HANDLER_CAPABILITIES_CHANGED], 0);
+            }
+        }
+    }
+
+    _mcd_client_proxy_dec_ready_lock (self);
     return FALSE;
 }
 
@@ -271,20 +914,25 @@ mcd_client_proxy_constructed (GObject *object)
     McdClientProxy *self = MCD_CLIENT_PROXY (object);
     void (*chain_up) (GObject *) =
         ((GObjectClass *) _mcd_client_proxy_parent_class)->constructed;
+    const gchar *bus_name;
 
     if (chain_up != NULL)
     {
         chain_up (object);
     }
 
+    bus_name = tp_proxy_get_bus_name (self);
+
     self->priv->capability_tokens = tp_handle_set_new (
         self->priv->string_pool);
+
+    DEBUG ("%s", bus_name);
 
     if (self->priv->unique_name == NULL)
     {
         tp_cli_dbus_daemon_call_get_name_owner (tp_proxy_get_dbus_daemon (self),
                                                 -1,
-                                                tp_proxy_get_bus_name (self),
+                                                bus_name,
                                                 mcd_client_proxy_unique_name_cb,
                                                 NULL, NULL, (GObject *) self);
     }
@@ -336,11 +984,29 @@ _mcd_client_proxy_class_init (McdClientProxyClass *klass)
     object_class->finalize = mcd_client_proxy_finalize;
     object_class->set_property = mcd_client_proxy_set_property;
 
-    signals[S_READY] = g_signal_new ("ready", G_OBJECT_CLASS_TYPE (klass),
-                                     G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-                                     0, NULL, NULL,
-                                     g_cclosure_marshal_VOID__VOID,
-                                     G_TYPE_NONE, 0);
+    signals[S_READY] = g_signal_new ("ready",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+        0, NULL, NULL,
+        g_cclosure_marshal_VOID__VOID,
+        G_TYPE_NONE, 0);
+
+    /* Never emitted until after the unique name is known */
+    signals[S_IS_HANDLING_CHANNEL] = g_signal_new ("is-handling-channel",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+        0, NULL, NULL,
+        g_cclosure_marshal_VOID__STRING,
+        G_TYPE_NONE, 1, G_TYPE_STRING);
+
+    /* Never emitted until after the unique name is known */
+    signals[S_HANDLER_CAPABILITIES_CHANGED] = g_signal_new (
+        "handler-capabilities-changed",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+        0, NULL, NULL,
+        g_cclosure_marshal_VOID__VOID,
+        G_TYPE_NONE, 0);
 
     g_object_class_install_property (object_class, PROP_ACTIVATABLE,
         g_param_spec_boolean ("activatable", "Activatable?",
@@ -422,21 +1088,24 @@ _mcd_client_check_valid_name (const gchar *name_suffix,
 McdClientProxy *
 _mcd_client_proxy_new (TpDBusDaemon *dbus_daemon,
                        TpHandleRepoIface *string_pool,
-                       const gchar *name_suffix,
+                       const gchar *well_known_name,
                        const gchar *unique_name_if_known,
                        gboolean activatable)
 {
     McdClientProxy *self;
-    gchar *bus_name, *object_path;
+    const gchar *name_suffix;
+    gchar *object_path;
 
+    g_return_val_if_fail (g_str_has_prefix (well_known_name,
+                                            TP_CLIENT_BUS_NAME_BASE), NULL);
+    name_suffix = well_known_name + MC_CLIENT_BUS_NAME_BASE_LEN;
     g_return_val_if_fail (_mcd_client_check_valid_name (name_suffix, NULL),
                           NULL);
 
-    bus_name = g_strconcat (TP_CLIENT_BUS_NAME_BASE, name_suffix, NULL);
-    object_path = g_strconcat (TP_CLIENT_OBJECT_PATH_BASE, name_suffix, NULL);
+    object_path = g_strconcat ("/", well_known_name, NULL);
     g_strdelimit (object_path, ".", '/');
 
-    g_assert (tp_dbus_check_valid_bus_name (bus_name,
+    g_assert (tp_dbus_check_valid_bus_name (well_known_name,
                                             TP_DBUS_NAME_TYPE_WELL_KNOWN,
                                             NULL));
     g_assert (tp_dbus_check_valid_object_path (object_path, NULL));
@@ -445,13 +1114,12 @@ _mcd_client_proxy_new (TpDBusDaemon *dbus_daemon,
                          "dbus-daemon", dbus_daemon,
                          "string-pool", string_pool,
                          "object-path", object_path,
-                         "bus-name", bus_name,
+                         "bus-name", well_known_name,
                          "unique-name", unique_name_if_known,
                          "activatable", activatable,
                          NULL);
 
     g_free (object_path);
-    g_free (bus_name);
 
     return self;
 }
@@ -559,36 +1227,102 @@ _mcd_client_proxy_get_bypass_approval (McdClientProxy *self)
 }
 
 void
-_mcd_client_proxy_set_bypass_approval (McdClientProxy *self,
-                                       gboolean bypass)
-{
-    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
-
-    self->priv->bypass_approval = bypass;
-}
-
-void
-_mcd_client_proxy_clear_capability_tokens (McdClientProxy *self)
-{
-    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
-
-    tp_handle_set_destroy (self->priv->capability_tokens);
-    self->priv->capability_tokens = tp_handle_set_new (
-        self->priv->string_pool);
-}
-
-TpHandleSet *
-_mcd_client_proxy_peek_capability_tokens (McdClientProxy *self)
-{
-    g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), NULL);
-    return self->priv->capability_tokens;
-}
-
-void
 _mcd_client_proxy_become_incapable (McdClientProxy *self)
 {
     _mcd_client_proxy_take_approver_filters (self, NULL);
     _mcd_client_proxy_take_observer_filters (self, NULL);
     _mcd_client_proxy_take_handler_filters (self, NULL);
-    _mcd_client_proxy_clear_capability_tokens (self);
+    tp_handle_set_destroy (self->priv->capability_tokens);
+    self->priv->capability_tokens = tp_handle_set_new (
+        self->priv->string_pool);
+}
+
+typedef struct {
+    TpHandleRepoIface *repo;
+    GPtrArray *array;
+} TokenAppendContext;
+
+static void
+append_token_to_ptrs (TpHandleSet *unused G_GNUC_UNUSED,
+                      TpHandle handle,
+                      gpointer data)
+{
+    TokenAppendContext *context = data;
+
+    g_ptr_array_add (context->array,
+                     g_strdup (tp_handle_inspect (context->repo, handle)));
+}
+
+GValueArray *
+_mcd_client_proxy_dup_handler_capabilities (McdClientProxy *self)
+{
+    GPtrArray *filters;
+    GPtrArray *cap_tokens;
+    GValueArray *va;
+    const GList *list;
+
+    g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), NULL);
+
+    filters = g_ptr_array_sized_new (
+        g_list_length (self->priv->handler_filters));
+
+    for (list = self->priv->handler_filters; list != NULL; list = list->next)
+    {
+        GHashTable *copy = g_hash_table_new_full (g_str_hash, g_str_equal,
+            g_free, (GDestroyNotify) tp_g_value_slice_free);
+
+        tp_g_hash_table_update (copy, list->data,
+                                (GBoxedCopyFunc) g_strdup,
+                                (GBoxedCopyFunc) tp_g_value_slice_dup);
+        g_ptr_array_add (filters, copy);
+    }
+
+    if (self->priv->capability_tokens == NULL)
+    {
+        cap_tokens = g_ptr_array_sized_new (1);
+    }
+    else
+    {
+        TokenAppendContext context = { self->priv->string_pool, NULL };
+
+        cap_tokens = g_ptr_array_sized_new (
+            tp_handle_set_size (self->priv->capability_tokens) + 1);
+        context.array = cap_tokens;
+        tp_handle_set_foreach (self->priv->capability_tokens,
+                               append_token_to_ptrs, &context);
+    }
+
+    g_ptr_array_add (cap_tokens, NULL);
+
+    if (DEBUGGING)
+    {
+        guint i;
+
+        DEBUG ("%s:", tp_proxy_get_bus_name (self));
+
+        DEBUG ("- %u channel filters", filters->len);
+        DEBUG ("- %u capability tokens:", cap_tokens->len - 1);
+
+        for (i = 0; i < cap_tokens->len - 1; i++)
+        {
+            DEBUG ("    %s", (gchar *) g_ptr_array_index (cap_tokens, i));
+        }
+
+        DEBUG ("-end-");
+    }
+
+    va = g_value_array_new (3);
+    g_value_array_append (va, NULL);
+    g_value_array_append (va, NULL);
+    g_value_array_append (va, NULL);
+
+    g_value_init (va->values + 0, G_TYPE_STRING);
+    g_value_init (va->values + 1, TP_ARRAY_TYPE_CHANNEL_CLASS_LIST);
+    g_value_init (va->values + 2, G_TYPE_STRV);
+
+    g_value_set_string (va->values + 0, tp_proxy_get_bus_name (self));
+    g_value_take_boxed (va->values + 1, filters);
+    g_value_take_boxed (va->values + 2, g_ptr_array_free (cap_tokens, FALSE));
+
+    return va;
 }
