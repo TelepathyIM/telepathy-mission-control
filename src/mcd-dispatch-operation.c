@@ -118,6 +118,14 @@ struct _McdDispatchOperationPrivate
      * A reference is held for each pending observer (and in the
      * McdDispatcherContext, one instance of CTXREF05 is held for each). */
     gsize observers_pending;
+
+    /* The number of approvers that have not yet returned from
+     * AddDispatchOperation. Until they have done so, we can't allow the
+     * dispatch operation to finish. This is a client lock.
+     *
+     * A reference is held for each pending approver (and in the
+     * McdDispatcherContext, one instance of CTXREF06 is held for each). */
+    gsize ado_pending;
 };
 
 gboolean
@@ -152,6 +160,39 @@ _mcd_dispatch_operation_dec_observers_pending (McdDispatchOperation *self)
     self->priv->observers_pending--;
 
     _mcd_dispatch_operation_unblock_finished (self);
+    g_object_unref (self);
+}
+
+gboolean
+_mcd_dispatch_operation_has_ado_pending (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+    return (self->priv->ado_pending > 0);
+}
+
+void
+_mcd_dispatch_operation_inc_ado_pending (McdDispatchOperation *self)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+
+    g_object_ref (self);
+
+    DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
+           self->priv->ado_pending,
+           self->priv->ado_pending + 1);
+    self->priv->ado_pending++;
+}
+
+void
+_mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
+           self->priv->ado_pending,
+           self->priv->ado_pending - 1);
+    g_return_if_fail (self->priv->ado_pending > 0);
+    self->priv->ado_pending--;
+
     g_object_unref (self);
 }
 

@@ -113,13 +113,6 @@ struct _McdDispatcherContext
     GList *channels;
     McdDispatchOperation *operation;
 
-    /* The number of approvers that have not yet returned from
-     * AddDispatchOperation. Until they have done so, we can't allow the
-     * dispatch operation to finish. This is a client lock.
-     *
-     * One instance of CTXREF06 is held for each pending approver. */
-    gsize approvers_pending;
-
     /* State-machine internal data fields: */
     GList *chain;
 
@@ -1067,10 +1060,9 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
 static void
 mcd_dispatcher_context_release_pending_approver (McdDispatcherContext *context)
 {
-    g_return_if_fail (context->approvers_pending > 0);
-    context->approvers_pending--;
+    _mcd_dispatch_operation_dec_ado_pending (context->operation);
 
-    if (context->approvers_pending == 0 &&
+    if (!_mcd_dispatch_operation_has_ado_pending (context->operation) &&
         !context->awaiting_approval)
     {
         DEBUG ("No approver accepted the channels; considering them to be "
@@ -1138,7 +1130,7 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
     /* we temporarily increment this count and decrement it at the end of the
      * function, to make sure it won't become 0 while we are still invoking
      * approvers */
-    context->approvers_pending = 1;
+    _mcd_dispatch_operation_inc_ado_pending (context->operation);
 
     channels = context->channels;
     _mcd_client_registry_init_hash_iter (priv->clients, &iter);
@@ -1179,7 +1171,7 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
                "of context %p", tp_proxy_get_bus_name (client),
                dispatch_operation, context->operation, context);
 
-        context->approvers_pending++;
+        _mcd_dispatch_operation_inc_ado_pending (context->operation);
         _mcd_dispatch_operation_block_finished (context->operation);
 
         mcd_dispatcher_context_ref (context, "CTXREF06");
@@ -1332,7 +1324,7 @@ on_operation_finished (McdDispatchOperation *operation,
     /* Because of our calls to _mcd_dispatch_operation_block_finished,
      * this cannot happen until all observers and all approvers have
      * returned from ObserveChannels or AddDispatchOperation, respectively. */
-    g_assert (context->approvers_pending == 0);
+    g_assert (!_mcd_dispatch_operation_has_ado_pending (context->operation));
     g_assert (!_mcd_dispatch_operation_has_observers_pending
               (context->operation));
 
@@ -2671,7 +2663,8 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
 
             context = find_context_from_channel (dispatcher, channel);
             DEBUG ("channel %p is in context %p", channel, context);
-            if (context->approvers_pending > 0 || context->awaiting_approval)
+            if (_mcd_dispatch_operation_has_ado_pending (context->operation)
+                || context->awaiting_approval)
             {
                 /* the existing channel is waiting for approval; but since the
                  * same channel has been requested, the approval operation must
