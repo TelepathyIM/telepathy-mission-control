@@ -1225,7 +1225,6 @@ static void
 on_channel_abort_context (McdChannel *channel, McdDispatcherContext *context)
 {
     const GError *error;
-    GList *li = g_list_find (context->channels, channel);
 
     DEBUG ("Channel %p aborted while in a dispatcher context", channel);
 
@@ -1246,14 +1245,6 @@ on_channel_abort_context (McdChannel *channel, McdDispatcherContext *context)
      * FIXME: this is alarmingly fragile */
     _mcd_dispatch_operation_lose_channel (context->operation, channel,
                                           &(context->channels));
-
-    if (li != NULL)
-    {
-        /* we used to have a ref to it, until it was removed from the linked
-         * list, either by us or by the CDO. (Do not dereference li at this
-         * point - it has been freed!) */
-        g_object_unref (channel);
-    }
 
     if (context->channels == NULL)
     {
@@ -1377,6 +1368,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 
     context->operation = _mcd_dispatch_operation_new (priv->clients,
         !requested, channels, (const gchar * const *) possible_handlers);
+    /* ownership of @channels is stolen, but the GObject references are not */
 
     if (!requested)
     {
@@ -1392,11 +1384,13 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
                           G_CALLBACK (on_operation_finished), context);
     }
 
+    /* FIXME: we've just donated @channels to the McdDispatchOperation, so
+     * this relies on the fact that it hasn't had a chance to free anything
+     * yet */
     for (list = channels; list != NULL; list = list->next)
     {
         channel = MCD_CHANNEL (list->data);
 
-        g_object_ref (channel); /* We hold separate refs for state machine */
         g_signal_connect_after (channel, "abort",
                                 G_CALLBACK (on_channel_abort_context),
                                 context);
@@ -2066,7 +2060,6 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
             McdChannel *channel = MCD_CHANNEL (list->data);
             g_signal_handlers_disconnect_by_func (channel,
                 G_CALLBACK (on_channel_abort_context), context);
-            g_object_unref (channel);
         }
         g_signal_handlers_disconnect_by_func (context->operation,
                                               on_operation_finished,
@@ -2565,14 +2558,13 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     context->operation = _mcd_dispatch_operation_new (
         dispatcher->priv->clients, FALSE, context->channels,
         (const gchar * const *) possible_handlers);
+    /* Ownership of context->channels is stolen (context borrows it from
+     * context->operation); the GObject reference is not stolen from our
+     * caller, however. */
 
     g_strfreev (possible_handlers);
 
-    /* We must ref() the channel, because
-     * mcd_dispatcher_context_unref() will unref() it */
-    g_object_ref (channel);
     mcd_dispatcher_run_handlers (context);
-    /* the context will be unreferenced once it leaves the state machine */
 
     mcd_dispatcher_context_unref (context, "CTXREF12");
 }
