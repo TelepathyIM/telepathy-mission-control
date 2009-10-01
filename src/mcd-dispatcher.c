@@ -928,7 +928,6 @@ observe_channels_cb (TpClient *proxy, const GError *error,
         DEBUG ("success from %s", tp_proxy_get_object_path (proxy));
 
     mcd_dispatcher_context_release_pending_observer (context);
-    _mcd_dispatch_operation_unblock_finished (context->operation);
 }
 
 /* The returned GPtrArray is allocated, but the contents are borrowed. */
@@ -1031,7 +1030,6 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
                 _mcd_dispatch_operation_get_path (context->operation);
         }
 
-        _mcd_dispatch_operation_block_finished (context->operation);
         _mcd_dispatch_operation_inc_observers_pending (context->operation);
         mcd_dispatcher_context_ref (context, "CTXREF05");
 
