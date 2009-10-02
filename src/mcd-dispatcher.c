@@ -590,7 +590,8 @@ possible_handler_cmp (gconstpointer a_,
 
 static GStrv
 mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
-                                      const GList *channels)
+                                      const GList *channels,
+                                      const gchar *must_have_unique_name)
 {
     GList *handlers = NULL;
     const GList *iter;
@@ -606,6 +607,15 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
     {
         McdClientProxy *client = MCD_CLIENT_PROXY (client_p);
         gsize total_quality = 0;
+
+        if (must_have_unique_name != NULL &&
+            tp_strdiff (must_have_unique_name,
+                        _mcd_client_proxy_get_unique_name (client)))
+        {
+            /* we're trying to redispatch to an existing handler, and this is
+             * not it */
+            continue;
+        }
 
         if (!tp_proxy_has_interface_by_id (client,
                                            TP_IFACE_QUARK_CLIENT_HANDLER))
@@ -2435,7 +2445,8 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
 
     /* See if there are any handlers that can take all these channels */
     possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
-                                                              channels);
+                                                              channels,
+                                                              NULL);
 
     if (possible_handlers == NULL)
     {
@@ -2552,7 +2563,8 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
 
     list = g_list_append (NULL, request);
     possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
-                                                              list);
+                                                              list,
+                                                              NULL);
     g_list_free (list);
 
     context->operation = _mcd_dispatch_operation_new (
