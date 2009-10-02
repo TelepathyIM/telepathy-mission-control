@@ -2531,13 +2531,13 @@ on_redispatched_channel_status_changed (McdChannel *channel,
 /*
  * _mcd_dispatcher_reinvoke_handler:
  * @dispatcher: The #McdDispatcher.
- * @channel: a #McdChannel.
+ * @request: a #McdChannel.
  *
- * Re-invoke the channel handler for @channel.
+ * Re-invoke the channel handler for @request.
  */
 static void
 _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
-                                  McdChannel *channel)
+                                  McdChannel *request)
 {
     McdDispatcherContext *context;
     GList *list;
@@ -2548,9 +2548,9 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     DEBUG ("CTXREF12 on %p", context);
     context->ref_count = 1;
     context->dispatcher = dispatcher;
-    context->channels = g_list_prepend (NULL, channel);
+    context->channels = g_list_prepend (NULL, request);
 
-    list = g_list_append (NULL, channel);
+    list = g_list_append (NULL, request);
     possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
                                                               list);
     g_list_free (list);
