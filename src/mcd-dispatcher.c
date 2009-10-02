@@ -2530,13 +2530,39 @@ mcd_dispatcher_add_filters (McdDispatcher *dispatcher,
 }
 
 static void
-on_redispatched_channel_status_changed (McdChannel *channel,
-                                        McdChannelStatus status)
+mcd_dispatcher_finish_reinvocation (McdChannel *request)
 {
-    if (status == MCD_CHANNEL_STATUS_DISPATCHED)
+    _mcd_channel_set_status (request, MCD_CHANNEL_STATUS_DISPATCHED);
+    /* no need to keep it around any more */
+    mcd_mission_abort (MCD_MISSION (request));
+}
+
+static void
+reinvoke_handle_channels_cb (TpClient *client,
+                             const GError *error,
+                             gpointer user_data G_GNUC_UNUSED,
+                             GObject *weak_object)
+{
+    McdChannel *request = MCD_CHANNEL (weak_object);
+
+    if (error != NULL)
     {
-        mcd_mission_abort (MCD_MISSION (channel));
+        /* The handler is already dealing with this channel, but refuses to
+         * re-handle it. Oh well, we tried. */
+        DEBUG ("handler %s refused re-notification about channel %p:%s: "
+               "%s:%d: %s", tp_proxy_get_bus_name (client),
+               request, mcd_channel_get_object_path (request),
+               g_quark_to_string (error->domain), error->code, error->message);
     }
+    else
+    {
+        DEBUG ("handler %s successfully notified about channel %p:%s",
+               tp_proxy_get_bus_name (client),
+               request, mcd_channel_get_object_path (request));
+    }
+
+    /* either way, consider the request to have been dispatched */
+    mcd_dispatcher_finish_reinvocation (request);
 }
 
 /*
@@ -2550,35 +2576,107 @@ static void
 _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
                                   McdChannel *request)
 {
-    McdDispatcherContext *context;
-    GList *list;
+    GList *request_as_list;
+    const gchar *handler_unique;
     GStrv possible_handlers;
+    GPtrArray *details;
+    GPtrArray *satisfied_requests;
+    GHashTable *handler_info;
+    TpChannel *channel;
+    TpConnection *connection;
+    const gchar *connection_path;
+    McdAccount *account;
+    const gchar *account_path;
+    const GList *requests;
+    guint64 user_action_time;
+    McdClientProxy *handler;
 
-    /* Preparing and filling the context */
-    context = g_new0 (McdDispatcherContext, 1);
-    DEBUG ("CTXREF12 on %p", context);
-    context->ref_count = 1;
-    context->dispatcher = dispatcher;
-    context->channels = g_list_prepend (NULL, request);
+    request_as_list = g_list_append (NULL, request);
 
-    list = g_list_append (NULL, request);
+    /* the unique name (process) of the current handler */
+    handler_unique = _mcd_handler_map_get_handler (
+        dispatcher->priv->handler_map,
+        mcd_channel_get_object_path (request));
+
+    /* work out how to invoke that process - any of its well-known names
+     * will do */
     possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
-                                                              list,
-                                                              NULL);
-    g_list_free (list);
+                                                              request_as_list,
+                                                              handler_unique);
 
-    context->operation = _mcd_dispatch_operation_new (
-        dispatcher->priv->clients, FALSE, context->channels,
-        (const gchar * const *) possible_handlers);
-    /* Ownership of context->channels is stolen (context borrows it from
-     * context->operation); the GObject reference is not stolen from our
-     * caller, however. */
+    if (possible_handlers == NULL || possible_handlers[0] == NULL)
+    {
+        /* The process is still running (otherwise it wouldn't be in the
+         * handler map), but none of its well-known names is still
+         * interested in channels of that sort. Oh well, not our problem.
+         */
+        DEBUG ("process %s no longer interested in this channel, not "
+               "reinvoking", handler_unique);
+        mcd_dispatcher_finish_reinvocation (request);
+        goto finally;
+    }
 
+    handler = _mcd_client_registry_lookup (dispatcher->priv->clients,
+                                           possible_handlers[0]);
+
+    if (handler == NULL)
+    {
+        DEBUG ("Handler %s does not exist in client registry, not "
+               "reinvoking", possible_handlers[0]);
+        mcd_dispatcher_finish_reinvocation (request);
+        return;
+    }
+
+    /* This is deliberately not the same call as for normal dispatching,
+     * and it doesn't go through a dispatch operation - the error handling
+     * is completely different, because the channel is already being
+     * handled perfectly well. */
+
+    /* FIXME: gathering the arguments for HandleChannels is duplicated between
+     * this function and mcd_dispatcher_handle_channels */
+
+    account = mcd_channel_get_account (request);
+    account_path = account == NULL ? "/"
+        : mcd_account_get_object_path (account);
+
+    if (G_UNLIKELY (account_path == NULL))    /* can't happen? */
+        account_path = "/";
+
+    channel = mcd_channel_get_tp_channel (request);
+    g_assert (channel != NULL);
+    connection = tp_channel_borrow_connection (channel);
+    g_assert (connection != NULL);
+    connection_path = tp_proxy_get_object_path (connection);
+    g_assert (connection_path != NULL);
+
+    details = _mcd_channel_details_build_from_list (request_as_list);
+
+    satisfied_requests = g_ptr_array_new ();
+
+    for (requests = _mcd_channel_get_satisfied_requests (request);
+         requests != NULL;
+         requests = requests->next)
+    {
+        g_ptr_array_add (satisfied_requests, requests->data);
+    }
+
+    user_action_time = _mcd_channel_get_request_user_action_time (request);
+    handler_info = g_hash_table_new (g_str_hash, g_str_equal);
+
+    _mcd_channel_set_status (request, MCD_CHANNEL_STATUS_HANDLER_INVOKED);
+
+    tp_cli_client_handler_call_handle_channels ((TpClient *) handler,
+        -1, account_path, connection_path, details,
+        satisfied_requests, user_action_time, handler_info,
+        reinvoke_handle_channels_cb, NULL, NULL, (GObject *) request);
+
+    g_ptr_array_free (satisfied_requests, TRUE);
+    _mcd_channel_details_free (details);
+    g_hash_table_unref (handler_info);
+
+finally:
+    g_list_free (request_as_list);
     g_strfreev (possible_handlers);
-
-    mcd_dispatcher_run_handlers (context);
-
-    mcd_dispatcher_context_unref (context, "CTXREF12");
 }
 
 static McdDispatcherContext *
@@ -2609,16 +2707,12 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
      * is not, @request must mirror the status of @channel */
     if (status == MCD_CHANNEL_STATUS_DISPATCHED)
     {
+
         DEBUG ("reinvoking handler on channel %p", channel);
 
         /* copy the object path and the immutable properties from the
          * existing channel */
         _mcd_channel_copy_details (request, channel);
-
-        /* destroy the McdChannel object after it is dispatched */
-        g_signal_connect_after
-            (request, "status-changed",
-             G_CALLBACK (on_redispatched_channel_status_changed), NULL);
 
         _mcd_dispatcher_reinvoke_handler (dispatcher, request);
     }
