@@ -1309,7 +1309,8 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
      * bundle? */
 
     context->operation = _mcd_dispatch_operation_new (priv->clients,
-        !requested, channels, (const gchar * const *) possible_handlers);
+        priv->handler_map, !requested, channels,
+        (const gchar * const *) possible_handlers);
     /* ownership of @channels is stolen, but the GObject references are not */
 
     priv->operations = g_list_prepend (priv->operations, context->operation);

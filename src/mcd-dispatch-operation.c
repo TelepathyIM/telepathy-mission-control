@@ -102,6 +102,9 @@ struct _McdDispatchOperationPrivate
     gchar *claimer;
     DBusGMethodInvocation *claim_context;
 
+    /* Reference to a global handler map */
+    McdHandlerMap *handler_map;
+
     /* Reference to a global registry of clients */
     McdClientRegistry *client_registry;
 
@@ -334,6 +337,7 @@ enum
     PROP_0,
     PROP_CHANNELS,
     PROP_CLIENT_REGISTRY,
+    PROP_HANDLER_MAP,
     PROP_POSSIBLE_HANDLERS,
     PROP_NEEDS_APPROVAL,
 };
@@ -574,7 +578,7 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
     g_return_val_if_fail (operation != NULL, NULL);
     priv = operation->priv;
 
-    if (!priv->client_registry)
+    if (!priv->client_registry || !priv->handler_map)
         goto error;
 
     create_object_path (priv);
@@ -662,6 +666,11 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
         priv->client_registry = MCD_CLIENT_REGISTRY (g_value_dup_object (val));
         break;
 
+    case PROP_HANDLER_MAP:
+        g_assert (priv->handler_map == NULL); /* construct-only */
+        priv->handler_map = MCD_HANDLER_MAP (g_value_dup_object (val));
+        break;
+
     case PROP_CHANNELS:
         g_assert (priv->channels == NULL);
         priv->channels = g_value_get_pointer (val);
@@ -735,6 +744,10 @@ mcd_dispatch_operation_get_property (GObject *obj, guint prop_id,
     {
     case PROP_CLIENT_REGISTRY:
         g_value_set_object (val, priv->client_registry);
+        break;
+
+    case PROP_HANDLER_MAP:
+        g_value_set_object (val, priv->handler_map);
         break;
 
     case PROP_POSSIBLE_HANDLERS:
@@ -813,6 +826,12 @@ mcd_dispatch_operation_dispose (GObject *object)
         priv->account = NULL;
     }
 
+    if (priv->handler_map != NULL)
+    {
+        g_object_unref (priv->handler_map);
+        priv->handler_map = NULL;
+    }
+
     if (priv->client_registry != NULL)
     {
         g_object_unref (priv->client_registry);
@@ -838,6 +857,13 @@ _mcd_dispatch_operation_class_init (McdDispatchOperationClass * klass)
         g_param_spec_object ("client-registry", "Client registry",
             "Reference to a global registry of Telepathy clients",
             MCD_TYPE_CLIENT_REGISTRY,
+            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
+            G_PARAM_STATIC_STRINGS));
+
+    g_object_class_install_property (object_class, PROP_HANDLER_MAP,
+        g_param_spec_object ("handler-map", "Handler map",
+            "Reference to a global map from handled channels to handlers",
+            MCD_TYPE_HANDLER_MAP,
             G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
             G_PARAM_STATIC_STRINGS));
 
@@ -891,6 +917,7 @@ _mcd_dispatch_operation_init (McdDispatchOperation *operation)
 /*
  * _mcd_dispatch_operation_new:
  * @client_registry: the client registry.
+ * @handler_map: the handler map
  * @channels: a #GList of #McdChannel elements to dispatch.
  * @possible_handlers: the bus names of possible handlers for these channels.
  *
@@ -899,6 +926,7 @@ _mcd_dispatch_operation_init (McdDispatchOperation *operation)
  */
 McdDispatchOperation *
 _mcd_dispatch_operation_new (McdClientRegistry *client_registry,
+                             McdHandlerMap *handler_map,
                              gboolean needs_approval,
                              GList *channels,
                              const gchar * const *possible_handlers)
@@ -906,6 +934,7 @@ _mcd_dispatch_operation_new (McdClientRegistry *client_registry,
     gpointer *obj;
     obj = g_object_new (MCD_TYPE_DISPATCH_OPERATION,
                         "client-registry", client_registry,
+                        "handler-map", handler_map,
                         "channels", channels,
                         "possible-handlers", possible_handlers,
                         "needs-approval", needs_approval,

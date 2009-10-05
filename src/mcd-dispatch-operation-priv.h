@@ -28,6 +28,7 @@
 #include <telepathy-glib/enums.h>
 
 #include "client-registry.h"
+#include "mcd-handler-map-priv.h"
 
 G_BEGIN_DECLS
 
@@ -74,8 +75,9 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_approve
 #define MCD_DISPATCH_OPERATION_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), MCD_TYPE_DISPATCH_OPERATION, McdDispatchOperationClass))
 
 G_GNUC_INTERNAL McdDispatchOperation *_mcd_dispatch_operation_new (
-    McdClientRegistry *client_registry, gboolean needs_approval,
-    GList *channels, const gchar * const *possible_handlers);
+    McdClientRegistry *client_registry, McdHandlerMap *handler_map,
+    gboolean needs_approval, GList *channels,
+    const gchar * const *possible_handlers);
 
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_has_channel (
     McdDispatchOperation *self, McdChannel *channel);
