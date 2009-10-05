@@ -128,11 +128,11 @@ struct _McdDispatchOperationPrivate
      * McdDispatcherContext, CTXREF14 ensures this). */
     gboolean awaiting_approval;
 
-    /* If TRUE, we're still working out what Observers and Approvers to
+    /* If FALSE, we're still working out what Observers and Approvers to
      * run. This is a temporary client lock; a reference must be held
-     * while it is TRUE (in the McdDispatcherContext, CTXREF07 ensures this).
+     * for as long as it is FALSE.
      */
-    gboolean invoking_early_clients;
+    gboolean invoked_early_clients;
 
     /* The number of observers that have not yet returned from ObserveChannels.
      * Until they have done so, we can't allow the dispatch operation to
@@ -251,17 +251,13 @@ _mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
 }
 
 void
-_mcd_dispatch_operation_set_invoking_early_clients (McdDispatchOperation *self,
-                                                    gboolean value)
+_mcd_dispatch_operation_set_invoked_early_clients (McdDispatchOperation *self)
 {
     g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
-    g_return_if_fail (self->priv->invoking_early_clients == !value);
-    self->priv->invoking_early_clients = value;
+    g_return_if_fail (self->priv->invoked_early_clients == FALSE);
+    self->priv->invoked_early_clients = TRUE;
 
-    if (!value)
-    {
-        _mcd_dispatch_operation_check_client_locks (self);
-    }
+    _mcd_dispatch_operation_check_client_locks (self);
 }
 
 gboolean
@@ -289,7 +285,7 @@ _mcd_dispatch_operation_get_cancelled (McdDispatchOperation *self)
 void
 _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 {
-    if (!self->priv->invoking_early_clients &&
+    if (self->priv->invoked_early_clients &&
         !_mcd_dispatch_operation_has_observers_pending (self) &&
         _mcd_dispatch_operation_is_approved (self))
     {

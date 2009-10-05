@@ -1065,8 +1065,6 @@ static void
 mcd_dispatcher_run_clients (McdDispatcherContext *context)
 {
     mcd_dispatcher_context_ref (context, "CTXREF07");
-    _mcd_dispatch_operation_set_invoking_early_clients (context->operation,
-                                                        TRUE);
 
     mcd_dispatcher_run_observers (context);
 
@@ -1087,8 +1085,7 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
             mcd_dispatcher_run_approvers (context);
     }
 
-    _mcd_dispatch_operation_set_invoking_early_clients (context->operation,
-                                                        FALSE);
+    _mcd_dispatch_operation_set_invoked_early_clients (context->operation);
     mcd_dispatcher_context_unref (context, "CTXREF07");
 }
 

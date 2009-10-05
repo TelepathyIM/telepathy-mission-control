@@ -127,11 +127,9 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_inc_ado_pending (
 G_GNUC_INTERNAL void _mcd_dispatch_operation_dec_ado_pending (
     McdDispatchOperation *self);
 
-/* Temporary client lock while starting observers/approvers */
-G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_invoking_early_clients (
+/* Temporary client lock until observers/approvers have been started */
+G_GNUC_INTERNAL void _mcd_dispatch_operation_set_invoked_early_clients (
     McdDispatchOperation *self);
-G_GNUC_INTERNAL void _mcd_dispatch_operation_set_invoking_early_clients (
-    McdDispatchOperation *self, gboolean value);
 
 /* Client lock while waiting for approvers' opinion */
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_awaiting_approval (
