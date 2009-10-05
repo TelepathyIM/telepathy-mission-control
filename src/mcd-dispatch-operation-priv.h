@@ -58,8 +58,6 @@ G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_path
     (McdDispatchOperation *operation);
 G_GNUC_INTERNAL GHashTable *_mcd_dispatch_operation_get_properties
     (McdDispatchOperation *operation);
-G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_handler
-    (McdDispatchOperation *operation);
 G_GNUC_INTERNAL void _mcd_dispatch_operation_approve
     (McdDispatchOperation *self);
 

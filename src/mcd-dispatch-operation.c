@@ -1090,19 +1090,6 @@ _mcd_dispatch_operation_get_possible_handlers (McdDispatchOperation *self)
     return (const gchar * const *) self->priv->possible_handlers;
 }
 
-/*
- * _mcd_dispatch_operation_get_handler:
- * @operation: the #McdDispatchOperation.
- *
- * Returns: the well-known name of the choosen channel handler.
- */
-const gchar *
-_mcd_dispatch_operation_get_handler (McdDispatchOperation *operation)
-{
-    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (operation), NULL);
-    return operation->priv->handler;
-}
-
 static gboolean
 mcd_dispatch_operation_check_handle_with (McdDispatchOperation *self,
                                           const gchar *handler_name,
@@ -1749,15 +1736,14 @@ _mcd_dispatch_operation_run_handlers (McdDispatchOperation *self)
     GList *channels, *list;
     const gchar * const *possible_handlers;
     const gchar * const *iter;
-    const gchar *approved_handler = _mcd_dispatch_operation_get_handler (self);
 
     /* If there is an approved handler chosen by the Approver, it's the only
      * one we'll consider. */
 
-    if (approved_handler != NULL && approved_handler[0] != '\0')
+    if (self->priv->handler != NULL && self->priv->handler[0] != '\0')
     {
         gchar *bus_name = g_strconcat (TP_CLIENT_BUS_NAME_BASE,
-                                       approved_handler, NULL);
+                                       self->priv->handler, NULL);
         McdClientProxy *handler = _mcd_client_registry_lookup (
             self->priv->client_registry, bus_name);
         gboolean failed = _mcd_dispatch_operation_get_handler_failed (self,
