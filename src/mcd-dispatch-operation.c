@@ -238,21 +238,6 @@ _mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
 }
 
 gboolean
-_mcd_dispatch_operation_is_awaiting_approval (McdDispatchOperation *self)
-{
-    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
-    return self->priv->awaiting_approval;
-}
-
-void
-_mcd_dispatch_operation_set_awaiting_approval (McdDispatchOperation *self,
-                                               gboolean value)
-{
-    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
-    self->priv->awaiting_approval = value;
-}
-
-gboolean
 _mcd_dispatch_operation_get_cancelled (McdDispatchOperation *self)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
@@ -492,9 +477,9 @@ mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
         self->priv->channels_handled = TRUE;
     }
 
-    if (_mcd_dispatch_operation_is_awaiting_approval (self))
+    if (self->priv->awaiting_approval)
     {
-        _mcd_dispatch_operation_set_awaiting_approval (self, FALSE);
+        self->priv->awaiting_approval = FALSE;
         _mcd_dispatch_operation_set_approved (self);
     }
 
@@ -1118,7 +1103,7 @@ _mcd_dispatch_operation_approve (McdDispatchOperation *self)
     DEBUG ("%s/%p", self->priv->unique_name, self);
 
     if (self->priv->ado_pending > 0
-        || _mcd_dispatch_operation_is_awaiting_approval (self))
+        || self->priv->awaiting_approval)
     {
         /* the existing channel is waiting for approval; but since the
          * same channel has been requested, the approval operation must
@@ -1558,9 +1543,9 @@ add_dispatch_operation_cb (TpClient *proxy,
                tp_proxy_get_object_path (proxy),
                _mcd_dispatch_operation_get_path (self), self);
 
-        if (!_mcd_dispatch_operation_is_awaiting_approval (self))
+        if (!self->priv->awaiting_approval)
         {
-            _mcd_dispatch_operation_set_awaiting_approval (self, TRUE);
+            self->priv->awaiting_approval = TRUE;
         }
     }
 

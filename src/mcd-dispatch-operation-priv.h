@@ -85,12 +85,6 @@ G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_finished (
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_needs_approval (
     McdDispatchOperation *self);
 
-/* Client lock while waiting for approvers' opinion */
-G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_awaiting_approval (
-    McdDispatchOperation *self);
-G_GNUC_INTERNAL void _mcd_dispatch_operation_set_awaiting_approval (
-    McdDispatchOperation *self, gboolean value);
-
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_get_cancelled (
     McdDispatchOperation *self);
 
