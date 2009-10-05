@@ -1508,7 +1508,7 @@ collect_satisfied_requests (GList *channels)
     return ret;
 }
 
-void
+static void
 _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
 {
     const GList *cl;
@@ -1620,15 +1620,12 @@ add_dispatch_operation_cb (TpClient *proxy,
     _mcd_dispatch_operation_dec_ado_pending (self);
 }
 
-void
+static void
 _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
 {
     const GList *cl;
     GHashTableIter iter;
     gpointer client_p;
-
-    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
-    g_return_if_fail (_mcd_dispatch_operation_needs_approval (self));
 
     /* we temporarily increment this count and decrement it at the end of the
      * function, to make sure it won't become 0 while we are still invoking
@@ -1687,4 +1684,28 @@ _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
     /* This matches the approvers count set to 1 at the beginning of the
      * function */
     _mcd_dispatch_operation_dec_ado_pending (self);
+}
+
+void
+_mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
+{
+    _mcd_dispatch_operation_run_observers (self);
+
+    /* if the dispatch operation thinks the channels were not
+     * requested, start the Approvers */
+    if (_mcd_dispatch_operation_needs_approval (self))
+    {
+        /* but if the handlers have the BypassApproval flag set, then don't
+         *
+         * FIXME: we should really run BypassApproval handlers as a separate
+         * stage, rather than considering the existence of a BypassApproval
+         * handler to constitute approval - this is fd.o #23687 */
+        if (_mcd_dispatch_operation_handlers_can_bypass_approval (self))
+            _mcd_dispatch_operation_set_approved (self);
+
+        if (!_mcd_dispatch_operation_is_approved (self))
+            _mcd_dispatch_operation_run_approvers (self);
+    }
+
+    _mcd_dispatch_operation_set_invoked_early_clients (self);
 }

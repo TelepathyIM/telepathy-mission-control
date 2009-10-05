@@ -668,37 +668,6 @@ finally:
     mcd_dispatcher_context_unref (context, "CTXREF04");
 }
 
-/* Happens at the end of successful filter chain execution (empty chain
- * is always successful)
- */
-static void
-mcd_dispatcher_run_clients (McdDispatcherContext *context)
-{
-    mcd_dispatcher_context_ref (context, "CTXREF07");
-
-    _mcd_dispatch_operation_run_observers (context->operation);
-
-    /* if the dispatch operation thinks the channels were not
-     * requested, start the Approvers */
-    if (_mcd_dispatch_operation_needs_approval (context->operation))
-    {
-        /* but if the handlers have the BypassApproval flag set, then don't
-         *
-         * FIXME: we should really run BypassApproval handlers as a separate
-         * stage, rather than considering the existence of a BypassApproval
-         * handler to constitute approval - this is fd.o #23687 */
-        if (_mcd_dispatch_operation_handlers_can_bypass_approval
-            (context->operation))
-            _mcd_dispatch_operation_set_approved (context->operation);
-
-        if (!_mcd_dispatch_operation_is_approved (context->operation))
-            _mcd_dispatch_operation_run_approvers (context->operation);
-    }
-
-    _mcd_dispatch_operation_set_invoked_early_clients (context->operation);
-    mcd_dispatcher_context_unref (context, "CTXREF07");
-}
-
 /*
  * _mcd_dispatcher_context_abort:
  *
@@ -1386,7 +1355,7 @@ mcd_dispatcher_context_proceed (McdDispatcherContext *context)
         return;
     }
 
-    mcd_dispatcher_run_clients (context);
+    _mcd_dispatch_operation_run_clients (context->operation);
 
 no_more:
     mcd_dispatcher_context_unref (context, "CTXREF01");
