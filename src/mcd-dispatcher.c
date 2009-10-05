@@ -572,8 +572,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
            channels->next == NULL ? "only" : "and more",
            mcd_channel_get_object_path (channels->data));
 
-    priv->contexts = g_list_prepend (priv->contexts, context);
-
     /* FIXME: what should we do when the channels are a mixture of Requested
      * and unRequested? At the moment we act as though they're all Requested;
      * perhaps we should act as though they're all unRequested, or split up the
@@ -1261,8 +1259,6 @@ static void
 mcd_dispatcher_context_unref (McdDispatcherContext * context,
                               const gchar *tag)
 {
-    McdDispatcherPrivate *priv;
-
     /* FIXME: check for leaks */
     g_return_if_fail (context);
     g_return_if_fail (context->ref_count > 0);
@@ -1272,15 +1268,7 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
     if (context->ref_count == 0)
     {
         DEBUG ("freeing the context %p", context);
-
-        priv = MCD_DISPATCHER_PRIV (context->dispatcher);
-
         g_object_unref (context->operation);
-
-        /* remove the context from the list of active contexts */
-        priv = MCD_DISPATCHER_PRIV (context->dispatcher);
-        priv->contexts = g_list_remove (priv->contexts, context);
-
         g_free (context);
     }
 }
