@@ -531,16 +531,6 @@ on_operation_finished (McdDispatchOperation *operation,
     }
 }
 
-static void
-mcd_dispatcher_op_ready_to_dispatch_cb (McdDispatchOperation *operation,
-                                        McdDispatcherContext *context)
-{
-    g_signal_handlers_disconnect_by_func (operation,
-        mcd_dispatcher_op_ready_to_dispatch_cb, context);
-
-    mcd_dispatcher_context_unref (context, "CTXREF15");
-}
-
 /* ownership of @channels is stolen */
 static void
 _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
@@ -606,11 +596,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
         g_signal_connect (context->operation, "finished",
                           G_CALLBACK (on_operation_finished), dispatcher);
     }
-
-    mcd_dispatcher_context_ref (context, "CTXREF15");
-    g_signal_connect (context->operation, "ready-to-dispatch",
-                      G_CALLBACK (mcd_dispatcher_op_ready_to_dispatch_cb),
-                      context);
 
     DEBUG ("entering state machine for context %p", context);
 
