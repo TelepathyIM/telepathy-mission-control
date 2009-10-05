@@ -1429,5 +1429,8 @@ void _mcd_dispatch_operation_handle_channels_cb (McdDispatchOperation *self,
             mcd_dispatch_operation_set_channel_handled_by (self, channel,
                                                            unique_name);
         }
+
+        /* emit Finished, if we haven't already */
+        _mcd_dispatch_operation_finish (self);
     }
 }
