@@ -114,6 +114,9 @@ struct _McdDispatcherPrivate
     /* Dispatching contexts */
     GList *contexts;
 
+    /* Channel dispatch operations */
+    GList *operations;
+
     TpDBusDaemon *dbus_daemon;
 
     /* Array of channel handler's capabilities, stored as a GPtrArray for
@@ -1351,6 +1354,8 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
         !requested, channels, (const gchar * const *) possible_handlers);
     /* ownership of @channels is stolen, but the GObject references are not */
 
+    priv->operations = g_list_prepend (priv->operations, context->operation);
+
     if (!requested)
     {
         if (priv->operation_list_active)
@@ -1440,13 +1445,12 @@ _mcd_dispatcher_get_property (GObject * obj, guint prop_id,
              * this property */
             priv->operation_list_active = TRUE;
 
-            for (iter = priv->contexts; iter != NULL; iter = iter->next)
+            for (iter = priv->operations; iter != NULL; iter = iter->next)
             {
-                McdDispatcherContext *context = iter->data;
+                McdDispatchOperation *op = iter->data;
 
-                if (_mcd_dispatch_operation_needs_approval (context->operation)
-                    &&
-                    !_mcd_dispatch_operation_is_finished (context->operation))
+                if (_mcd_dispatch_operation_needs_approval (op) &&
+                    !_mcd_dispatch_operation_is_finished (op))
                 {
                     GValueArray *va = g_value_array_new (2);
 
@@ -1458,10 +1462,9 @@ _mcd_dispatcher_get_property (GObject * obj, guint prop_id,
                                   TP_HASH_TYPE_STRING_VARIANT_MAP);
 
                     g_value_set_boxed (va->values + 0,
-                        _mcd_dispatch_operation_get_path (context->operation));
+                        _mcd_dispatch_operation_get_path (op));
                     g_value_set_boxed (va->values + 1,
-                        _mcd_dispatch_operation_get_properties (
-                            context->operation));
+                        _mcd_dispatch_operation_get_properties (op));
 
                     g_ptr_array_add (operations, va);
                 }
@@ -2034,6 +2037,11 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
                 context->dispatcher,
                 _mcd_dispatch_operation_get_path (context->operation));
         }
+
+        priv = MCD_DISPATCHER_PRIV (context->dispatcher);
+
+        /* remove the context from the list of active contexts */
+        priv->operations = g_list_remove (priv->operations, context->operation);
 
         g_object_unref (context->operation);
 
@@ -2634,18 +2642,19 @@ finally:
     g_strfreev (possible_handlers);
 }
 
-static McdDispatcherContext *
-find_context_from_channel (McdDispatcher *dispatcher, McdChannel *channel)
+static McdDispatchOperation *
+find_operation_from_channel (McdDispatcher *dispatcher,
+                             McdChannel *channel)
 {
     GList *list;
 
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    for (list = dispatcher->priv->contexts; list != NULL; list = list->next)
+    for (list = dispatcher->priv->operations; list != NULL; list = list->next)
     {
-        McdDispatcherContext *context = list->data;
+        McdDispatchOperation *op = list->data;
 
-        if (_mcd_dispatch_operation_has_channel (context->operation, channel))
-            return context;
+        if (_mcd_dispatch_operation_has_channel (op, channel))
+            return op;
     }
     return NULL;
 }
@@ -2676,21 +2685,23 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
         _mcd_channel_set_request_proxy (request, channel);
         if (status == MCD_CHANNEL_STATUS_DISPATCHING)
         {
-            McdDispatcherContext *context;
+            McdDispatchOperation *op = find_operation_from_channel (dispatcher,
+                                                                    channel);
 
-            context = find_context_from_channel (dispatcher, channel);
-            DEBUG ("channel %p is in context %p", channel, context);
-            if (_mcd_dispatch_operation_has_ado_pending (context->operation)
-                || _mcd_dispatch_operation_is_awaiting_approval (context->operation))
+            g_return_if_fail (op != NULL);
+
+            DEBUG ("channel %p is in CDO %p", channel, op);
+            if (_mcd_dispatch_operation_has_ado_pending (op)
+                || _mcd_dispatch_operation_is_awaiting_approval (op))
             {
                 /* the existing channel is waiting for approval; but since the
                  * same channel has been requested, the approval operation must
                  * terminate */
-                _mcd_dispatch_operation_approve (context->operation);
+                _mcd_dispatch_operation_approve (op);
             }
             else
             {
-                _mcd_dispatch_operation_set_approved (context->operation);
+                _mcd_dispatch_operation_set_approved (op);
             }
         }
         DEBUG ("channel %p is proxying %p", request, channel);
