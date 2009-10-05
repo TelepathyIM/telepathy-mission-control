@@ -1165,11 +1165,12 @@ static void
 mcd_dispatcher_op_ready_to_dispatch_cb (McdDispatchOperation *operation,
                                         McdDispatcherContext *context)
 {
+    g_signal_handlers_disconnect_by_func (operation,
+        mcd_dispatcher_op_ready_to_dispatch_cb, context);
+
     /* This is emitted when the HandleWith() or Claimed() are invoked on the
      * CDO: according to which of these have happened, we run the choosen
      * handler or we don't. */
-
-    mcd_dispatcher_context_ref (context, "CTXREF15");
 
     /* Because of our calls to _mcd_dispatch_operation_block_finished,
      * this cannot happen until all observers and all approvers have
@@ -1255,10 +1256,12 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 
         g_signal_connect (context->operation, "finished",
                           G_CALLBACK (on_operation_finished), dispatcher);
-        g_signal_connect (context->operation, "ready-to-dispatch",
-                          G_CALLBACK (mcd_dispatcher_op_ready_to_dispatch_cb),
-                          context);
     }
+
+    mcd_dispatcher_context_ref (context, "CTXREF15");
+    g_signal_connect (context->operation, "ready-to-dispatch",
+                      G_CALLBACK (mcd_dispatcher_op_ready_to_dispatch_cb),
+                      context);
 
     DEBUG ("entering state machine for context %p", context);
 
@@ -1918,9 +1921,6 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
 
         g_signal_handlers_disconnect_by_func (context->operation,
             mcd_dispatcher_run_handlers, context);
-
-        g_signal_handlers_disconnect_by_func (context->operation,
-            mcd_dispatcher_op_ready_to_dispatch_cb, context);
 
         /* may emit finished */
         if (_mcd_dispatch_operation_finish (context->operation))
