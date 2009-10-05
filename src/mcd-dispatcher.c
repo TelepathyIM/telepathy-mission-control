@@ -1013,30 +1013,6 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
     g_hash_table_destroy (observer_info);
 }
 
-/*
- * mcd_dispatcher_context_release_pending_approver:
- * @context: the #McdDispatcherContext.
- *
- * This function is called when an approver returned error on
- * AddDispatchOperation(), and is used to keep track of how many approvers we
- * have contacted. If all of them fail, then we continue the dispatching.
- */
-static void
-mcd_dispatcher_context_release_pending_approver (McdDispatcherContext *context)
-{
-    _mcd_dispatch_operation_dec_ado_pending (context->operation);
-
-    if (!_mcd_dispatch_operation_has_ado_pending (context->operation) &&
-        !_mcd_dispatch_operation_is_awaiting_approval (context->operation))
-    {
-        DEBUG ("No approver accepted the channels; considering them to be "
-               "approved");
-        _mcd_dispatch_operation_set_approved (context->operation);
-    }
-
-    _mcd_dispatch_operation_check_client_locks (context->operation);
-}
-
 static void
 add_dispatch_operation_cb (TpClient *proxy, const GError *error,
                            gpointer user_data, GObject *weak_object)
@@ -1069,7 +1045,7 @@ add_dispatch_operation_cb (TpClient *proxy, const GError *error,
      * approver was registered: i.e., we continue dispatching. If at least
      * one approver accepted it, then we can still continue dispatching,
      * since it will be stalled until awaiting_approval becomes FALSE. */
-    mcd_dispatcher_context_release_pending_approver (context);
+    _mcd_dispatch_operation_dec_ado_pending (context->operation);
 }
 
 static void
@@ -1150,7 +1126,7 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
 
     /* This matches the approvers count set to 1 at the beginning of the
      * function */
-    mcd_dispatcher_context_release_pending_approver (context);
+    _mcd_dispatch_operation_dec_ado_pending (context->operation);
 }
 
 /* Happens at the end of successful filter chain execution (empty chain

@@ -232,6 +232,17 @@ _mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
     self->priv->ado_pending--;
 
     _mcd_dispatch_operation_check_finished (self);
+
+    if (!_mcd_dispatch_operation_has_ado_pending (self) &&
+        !_mcd_dispatch_operation_is_awaiting_approval (self))
+    {
+        DEBUG ("No approver accepted the channels; considering them to be "
+               "approved");
+        _mcd_dispatch_operation_set_approved (self);
+    }
+
+    _mcd_dispatch_operation_check_client_locks (self);
+
     g_object_unref (self);
 }
 
