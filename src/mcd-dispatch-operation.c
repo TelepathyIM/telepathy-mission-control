@@ -1017,8 +1017,7 @@ _mcd_dispatch_operation_approve (McdDispatchOperation *self)
 
 void
 _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
-                                      McdChannel *channel,
-                                      GList **channels)
+                                      McdChannel *channel)
 {
     GList *li = g_list_find (self->priv->channels, channel);
     const gchar *object_path;
@@ -1029,14 +1028,6 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
     }
 
     self->priv->channels = g_list_delete_link (self->priv->channels, li);
-
-    /* Because the McdDispatcherContext has a borrowed copy of our list
-     * of channels, we need to tell it the new head of the list, in case
-     * we've just removed the first link. Further, we need to do this before
-     * emitting any signals.
-     *
-     * This is amazingly fragile. */
-    *channels = self->priv->channels;
 
     object_path = mcd_channel_get_object_path (channel);
 

@@ -92,7 +92,6 @@ struct _McdDispatcherContext
 
     McdDispatcher *dispatcher;
 
-    GList *channels;
     McdDispatchOperation *operation;
 
     /* State-machine internal data fields: */
@@ -490,7 +489,7 @@ handle_channels_cb (TpClient *proxy, const GError *error, gpointer user_data,
                     GObject *weak_object)
 {
     McdDispatcherContext *context = user_data;
-    GList *list;
+    const GList *list;
 
     mcd_dispatcher_context_ref (context, "CTXREF02");
     if (error)
@@ -505,7 +504,9 @@ handle_channels_cb (TpClient *proxy, const GError *error, gpointer user_data,
     }
     else
     {
-        for (list = context->channels; list != NULL; list = list->next)
+        for (list = _mcd_dispatch_operation_peek_channels (context->operation);
+             list != NULL;
+             list = list->next)
         {
             McdChannel *channel = list->data;
             const gchar *unique_name;
@@ -712,11 +713,15 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
     account_path = _mcd_dispatch_operation_get_account_path
         (context->operation);
 
-    channels_array = _mcd_channel_details_build_from_list (context->channels);
+    channels_array = _mcd_dispatch_operation_dup_channel_details
+        (context->operation);
 
     user_action_time = 0; /* TODO: if we have a CDO, get it from there */
     satisfied_requests = g_ptr_array_new ();
-    for (cl = context->channels; cl != NULL; cl = cl->next)
+
+    for (cl = _mcd_dispatch_operation_peek_channels (context->operation);
+         cl != NULL;
+         cl = cl->next)
     {
         McdChannel *channel = MCD_CHANNEL (cl->data);
         const GList *requests;
@@ -835,7 +840,7 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
 
     DEBUG ("No possible handler still exists, giving up");
 
-    channels = g_list_copy (context->channels);
+    channels = _mcd_dispatch_operation_dup_channels (context->operation);
 
     for (list = channels; list != NULL; list = list->next)
     {
@@ -845,6 +850,7 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
 
         mcd_channel_take_error (channel, g_error_copy (&e));
         _mcd_channel_undispatchable (channel);
+        g_object_unref (channel);
     }
 
     g_list_free (channels);
@@ -946,7 +952,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
     gpointer client_p;
 
     sp_timestamp ("run observers");
-    channels = context->channels;
+    channels = _mcd_dispatch_operation_peek_channels (context->operation);
     observer_info = g_hash_table_new (g_str_hash, g_str_equal);
 
     _mcd_client_registry_init_hash_iter (priv->clients, &iter);
@@ -1101,7 +1107,7 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
      * approvers */
     _mcd_dispatch_operation_inc_ado_pending (context->operation);
 
-    channels = context->channels;
+    channels = _mcd_dispatch_operation_peek_channels (context->operation);
     _mcd_client_registry_init_hash_iter (priv->clients, &iter);
     while (g_hash_table_iter_next (&iter, NULL, &client_p))
     {
@@ -1212,10 +1218,9 @@ _mcd_dispatcher_context_abort (McdDispatcherContext *context,
     g_return_if_fail (context);
 
     /* make a temporary copy, which is destroyed during the loop - otherwise
-     * we'll be trying to iterate over context->channels at the same time
+     * we'll be trying to iterate over the list at the same time
      * that mcd_mission_abort results in modifying it, which would be bad */
-    list = g_list_copy (context->channels);
-    g_list_foreach (list, (GFunc) g_object_ref, NULL);
+    list = _mcd_dispatch_operation_dup_channels (context->operation);
 
     while (list != NULL)
     {
@@ -1248,15 +1253,9 @@ on_channel_abort_context (McdChannel *channel, McdDispatcherContext *context)
      * the operations below very unhappy */
     mcd_dispatcher_context_ref (context, "CTXREF08");
 
-    /* the CDO owns the linked list and we just borrow it; in case it's
-     * the head of the list that we're deleting, we need to ask the CDO
-     * to update our idea of what the list is before emitting any signals.
-     *
-     * FIXME: this is alarmingly fragile */
-    _mcd_dispatch_operation_lose_channel (context->operation, channel,
-                                          &(context->channels));
+    _mcd_dispatch_operation_lose_channel (context->operation, channel);
 
-    if (context->channels == NULL)
+    if (_mcd_dispatch_operation_peek_channels (context->operation) == NULL)
     {
         DEBUG ("Nothing left in this context");
     }
@@ -1289,7 +1288,7 @@ on_operation_finished (McdDispatchOperation *operation,
     g_assert (!_mcd_dispatch_operation_has_observers_pending
               (context->operation));
 
-    if (context->channels == NULL)
+    if (_mcd_dispatch_operation_peek_channels (context->operation) == NULL)
     {
         DEBUG ("Nothing left to dispatch");
 
@@ -1298,12 +1297,14 @@ on_operation_finished (McdDispatchOperation *operation,
     }
     else if (_mcd_dispatch_operation_is_claimed (operation))
     {
-        GList *list;
+        const GList *list;
 
         /* we don't release the client lock, in order to not run the handlers.
          * But we have to mark all channels as dispatched, and free the
          * @context */
-        for (list = context->channels; list != NULL; list = list->next)
+        for (list = _mcd_dispatch_operation_peek_channels (context->operation);
+             list != NULL;
+             list = list->next)
         {
             McdChannel *channel = MCD_CHANNEL (list->data);
 
@@ -1360,14 +1361,13 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     DEBUG ("CTXREF11 on %p", context);
     context->ref_count = 1;
     context->dispatcher = dispatcher;
-    context->channels = channels;
     context->chain = priv->filters;
 
     DEBUG ("new dispatcher context %p for %s channel %p (%s): %s",
            context, requested ? "requested" : "unrequested",
-           context->channels->data,
-           context->channels->next == NULL ? "only" : "and more",
-           mcd_channel_get_object_path (context->channels->data));
+           channels->data,
+           channels->next == NULL ? "only" : "and more",
+           mcd_channel_get_object_path (channels->data));
 
     priv->contexts = g_list_prepend (priv->contexts, context);
 
@@ -1892,7 +1892,7 @@ mcd_dispatcher_context_proceed (McdDispatcherContext *context)
         goto no_more;
     }
 
-    if (context->channels == NULL)
+    if (_mcd_dispatch_operation_peek_channels (context->operation) == NULL)
     {
         DEBUG ("No channels left");
         goto no_more;
@@ -1934,10 +1934,9 @@ mcd_dispatcher_context_forget_all (McdDispatcherContext *context)
     g_return_if_fail (context);
 
     /* make a temporary copy, which is destroyed during the loop - otherwise
-     * we'll be trying to iterate over context->channels at the same time
+     * we'll be trying to iterate over the list at the same time
      * that mcd_mission_abort results in modifying it, which would be bad */
-    list = g_list_copy (context->channels);
-    g_list_foreach (list, (GFunc) g_object_ref, NULL);
+    list = _mcd_dispatch_operation_dup_channels (context->operation);
 
     while (list != NULL)
     {
@@ -1946,7 +1945,9 @@ mcd_dispatcher_context_forget_all (McdDispatcherContext *context)
         list = g_list_delete_link (list, list);
     }
 
-    g_return_if_fail (context->channels == NULL);
+    /* There should now be none left (they all aborted) */
+    g_return_if_fail (_mcd_dispatch_operation_peek_channels
+                      (context->operation) == NULL);
 }
 
 /**
@@ -1966,8 +1967,7 @@ mcd_dispatcher_context_destroy_all (McdDispatcherContext *context)
 
     g_return_if_fail (context);
 
-    list = g_list_copy (context->channels);
-    g_list_foreach (list, (GFunc) g_object_ref, NULL);
+    list = _mcd_dispatch_operation_dup_channels (context->operation);
 
     while (list != NULL)
     {
@@ -2009,8 +2009,7 @@ mcd_dispatcher_context_close_all (McdDispatcherContext *context,
         message = "";
     }
 
-    list = g_list_copy (context->channels);
-    g_list_foreach (list, (GFunc) g_object_ref, NULL);
+    list = _mcd_dispatch_operation_dup_channels (context->operation);
 
     while (list != NULL)
     {
@@ -2065,11 +2064,16 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
     if (context->ref_count == 0)
     {
         DEBUG ("freeing the context %p", context);
-        for (list = context->channels; list != NULL; list = list->next)
+
+        for (list = _mcd_dispatch_operation_dup_channels (context->operation);
+             list != NULL;
+             list = g_list_delete_link (list, list))
         {
             McdChannel *channel = MCD_CHANNEL (list->data);
+
             g_signal_handlers_disconnect_by_func (channel,
                 G_CALLBACK (on_channel_abort_context), context);
+            g_object_unref (channel);
         }
         g_signal_handlers_disconnect_by_func (context->operation,
                                               on_operation_finished,
@@ -2122,10 +2126,11 @@ mcd_dispatcher_context_get_dispatcher (McdDispatcherContext * ctx)
 McdConnection *
 mcd_dispatcher_context_get_connection (McdDispatcherContext *context)
 {
-    g_return_val_if_fail (context, NULL);
-    g_return_val_if_fail (context->channels != NULL, NULL);
+    const GList *channels = mcd_dispatcher_context_get_channels (context);
+
+    g_return_val_if_fail (channels != NULL, NULL);
     return MCD_CONNECTION (mcd_mission_get_parent
-                           (MCD_MISSION (context->channels->data)));
+                           (MCD_MISSION (channels->data)));
 }
 
 TpConnection *
@@ -2145,9 +2150,9 @@ mcd_dispatcher_context_get_connection_object (McdDispatcherContext * ctx)
 McdChannel *
 mcd_dispatcher_context_get_channel (McdDispatcherContext * ctx)
 {
-    g_return_val_if_fail (ctx, 0);
+    const GList *channels = mcd_dispatcher_context_get_channels (ctx);
 
-    return ctx->channels ? MCD_CHANNEL (ctx->channels->data) : NULL;
+    return channels ? MCD_CHANNEL (channels->data) : NULL;
 }
 
 /**
@@ -2160,7 +2165,7 @@ const GList *
 mcd_dispatcher_context_get_channels (McdDispatcherContext *context)
 {
     g_return_val_if_fail (context != NULL, NULL);
-    return context->channels;
+    return _mcd_dispatch_operation_peek_channels (context->operation);
 }
 
 /**
@@ -2174,10 +2179,12 @@ McdChannel *
 mcd_dispatcher_context_get_channel_by_type (McdDispatcherContext *context,
                                             GQuark type)
 {
-    GList *list;
+    const GList *list;
 
     g_return_val_if_fail (context != NULL, NULL);
-    for (list = context->channels; list != NULL; list = list->next)
+    for (list = mcd_dispatcher_context_get_channels (context);
+         list != NULL;
+         list = list->next)
     {
         McdChannel *channel = MCD_CHANNEL (list->data);
 
@@ -2689,7 +2696,7 @@ find_context_from_channel (McdDispatcher *dispatcher, McdChannel *channel)
     {
         McdDispatcherContext *context = list->data;
 
-        if (g_list_find (context->channels, channel))
+        if (_mcd_dispatch_operation_has_channel (context->operation, channel))
             return context;
     }
     return NULL;
