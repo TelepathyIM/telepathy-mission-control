@@ -376,11 +376,8 @@ match_filters (McdChannel *channel,
                gboolean assume_requested)
 {
     GHashTable *channel_properties;
-    McdChannelStatus status;
     const GList *list;
     guint best_quality = 0;
-
-    status = mcd_channel_get_status (channel);
 
     channel_properties = _mcd_channel_get_immutable_properties (channel);
 
