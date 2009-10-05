@@ -121,9 +121,6 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_set_awaiting_approval (
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_get_cancelled (
     McdDispatchOperation *self);
 
-G_GNUC_INTERNAL void _mcd_dispatch_operation_handle_channels_cb (
-    McdDispatchOperation *self, TpClient *client, const GError *error);
-
 G_GNUC_INTERNAL void _mcd_dispatch_operation_run_clients (
     McdDispatchOperation *self);
 

@@ -36,6 +36,7 @@
 #include <glib/gi18n.h>
 #include <glib/gstdio.h>
 
+#include <telepathy-glib/defs.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/svc-channel-dispatch-operation.h>
@@ -45,6 +46,8 @@
 #include "mcd-channel-priv.h"
 #include "mcd-dbusprop.h"
 #include "mcd-misc.h"
+
+#include <libmcclient/mc-errors.h>
 
 #define MCD_CLIENT_BASE_NAME "org.freedesktop.Telepathy.Client."
 #define MCD_CLIENT_BASE_NAME_LEN (sizeof (MCD_CLIENT_BASE_NAME) - 1)
@@ -75,7 +78,6 @@ G_DEFINE_TYPE_WITH_CODE (McdDispatchOperation, _mcd_dispatch_operation,
 enum
 {
     S_READY_TO_DISPATCH,
-    S_RUN_HANDLERS,
     N_SIGNALS
 };
 
@@ -277,6 +279,8 @@ _mcd_dispatch_operation_is_approved (McdDispatchOperation *self)
     return (self->priv->approved || !self->priv->needs_approval);
 }
 
+static void _mcd_dispatch_operation_run_handlers (McdDispatchOperation *self);
+
 static void
 _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 {
@@ -289,7 +293,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
         if (!self->priv->channels_handled)
         {
             self->priv->channels_handled = TRUE;
-            g_signal_emit (self, signals[S_RUN_HANDLERS], 0);
+            _mcd_dispatch_operation_run_handlers (self);
         }
     }
 }
@@ -928,13 +932,6 @@ _mcd_dispatch_operation_class_init (McdDispatchOperationClass * klass)
         0, NULL, NULL,
         g_cclosure_marshal_VOID__VOID,
         G_TYPE_NONE, 0);
-
-    signals[S_RUN_HANDLERS] = g_signal_new ("run-handlers",
-        G_OBJECT_CLASS_TYPE (klass),
-        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-        0, NULL, NULL,
-        g_cclosure_marshal_VOID__VOID,
-        G_TYPE_NONE, 0);
 }
 
 static void
@@ -1378,10 +1375,14 @@ _mcd_dispatch_operation_dup_channels (McdDispatchOperation *self)
     return copy;
 }
 
-void _mcd_dispatch_operation_handle_channels_cb (McdDispatchOperation *self,
-                                                 TpClient *client,
-                                                 const GError *error)
+static void
+_mcd_dispatch_operation_handle_channels_cb (TpClient *client,
+                                            const GError *error,
+                                            gpointer user_data,
+                                            GObject *weak G_GNUC_UNUSED)
 {
+    McdDispatchOperation *self = user_data;
+
     if (error)
     {
         DEBUG ("error: %s", error->message);
@@ -1390,7 +1391,7 @@ void _mcd_dispatch_operation_handle_channels_cb (McdDispatchOperation *self,
             tp_proxy_get_bus_name (client));
 
         /* try again */
-        g_signal_emit (self, signals[S_RUN_HANDLERS], 0);
+        _mcd_dispatch_operation_run_handlers (self);
     }
     else
     {
@@ -1692,4 +1693,150 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
 
     self->priv->invoked_early_clients = TRUE;
     _mcd_dispatch_operation_check_client_locks (self);
+}
+
+/*
+ * mcd_dispatch_operation_handle_channels:
+ * @self: the dispatch operation
+ * @handler: the selected handler
+ *
+ * Invoke the handler for the given channels.
+ */
+static void
+mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
+                                        McdClientProxy *handler)
+{
+    guint64 user_action_time;
+    const gchar *account_path, *connection_path;
+    GPtrArray *channels_array, *satisfied_requests;
+    GHashTable *handler_info;
+    const GList *cl;
+
+    connection_path = _mcd_dispatch_operation_get_connection_path (self);
+    account_path = _mcd_dispatch_operation_get_account_path (self);
+    channels_array = _mcd_dispatch_operation_dup_channel_details (self);
+
+    user_action_time = 0; /* TODO: if we have a CDO, get it from there */
+    satisfied_requests = g_ptr_array_new ();
+
+    for (cl = self->priv->channels; cl != NULL; cl = cl->next)
+    {
+        McdChannel *channel = MCD_CHANNEL (cl->data);
+        const GList *requests;
+        guint64 user_time;
+
+        requests = _mcd_channel_get_satisfied_requests (channel);
+        while (requests)
+        {
+            g_ptr_array_add (satisfied_requests, requests->data);
+            requests = requests->next;
+        }
+
+        /* FIXME: what if we have more than one request? */
+        user_time = _mcd_channel_get_request_user_action_time (channel);
+        if (user_time)
+            user_action_time = user_time;
+
+        _mcd_channel_set_status (channel,
+                                 MCD_CHANNEL_STATUS_HANDLER_INVOKED);
+    }
+
+    handler_info = g_hash_table_new (g_str_hash, g_str_equal);
+
+    DEBUG ("calling HandleChannels on %s for op %p",
+           tp_proxy_get_bus_name (handler), self);
+    tp_cli_client_handler_call_handle_channels ((TpClient *) handler,
+        -1, account_path, connection_path,
+        channels_array, satisfied_requests, user_action_time,
+        handler_info, _mcd_dispatch_operation_handle_channels_cb,
+        g_object_ref (self), g_object_unref, NULL);
+
+    g_ptr_array_free (satisfied_requests, TRUE);
+    _mcd_channel_details_free (channels_array);
+    g_hash_table_unref (handler_info);
+}
+
+void
+_mcd_dispatch_operation_run_handlers (McdDispatchOperation *self)
+{
+    GList *channels, *list;
+    const gchar * const *possible_handlers;
+    const gchar * const *iter;
+    const gchar *approved_handler = _mcd_dispatch_operation_get_handler (self);
+
+    /* If there is an approved handler chosen by the Approver, it's the only
+     * one we'll consider. */
+
+    if (approved_handler != NULL && approved_handler[0] != '\0')
+    {
+        gchar *bus_name = g_strconcat (TP_CLIENT_BUS_NAME_BASE,
+                                       approved_handler, NULL);
+        McdClientProxy *handler = _mcd_client_registry_lookup (
+            self->priv->client_registry, bus_name);
+        gboolean failed = _mcd_dispatch_operation_get_handler_failed (self,
+            bus_name);
+
+        DEBUG ("Approved handler is %s (still exists: %c, "
+               "already failed: %c)", bus_name,
+               handler != NULL ? 'Y' : 'N',
+               failed ? 'Y' : 'N');
+
+        g_free (bus_name);
+
+        /* Maybe the handler has exited since we chose it, or maybe we
+         * already tried it? Otherwise, it's the right choice. */
+        if (handler != NULL && !failed)
+        {
+            mcd_dispatch_operation_handle_channels (self, handler);
+            return;
+        }
+
+        /* The approver asked for a particular handler, but that handler
+         * has vanished. If MC was fully spec-compliant, it wouldn't have
+         * replied to the Approver yet, so it could just return an error.
+         * However, that particular part of the flying-car future has not
+         * yet arrived, so try to recover by dispatching to *something*. */
+    }
+
+    possible_handlers = _mcd_dispatch_operation_get_possible_handlers (self);
+
+    for (iter = possible_handlers; iter != NULL && *iter != NULL; iter++)
+    {
+        McdClientProxy *handler = _mcd_client_registry_lookup (
+            self->priv->client_registry, *iter);
+        gboolean failed = _mcd_dispatch_operation_get_handler_failed
+            (self, *iter);
+
+        DEBUG ("Possible handler: %s (still exists: %c, already failed: %c)",
+               *iter, handler != NULL ? 'Y' : 'N', failed ? 'Y' : 'N');
+
+        if (handler != NULL && !failed)
+        {
+            mcd_dispatch_operation_handle_channels (self, handler);
+            return;
+        }
+    }
+
+    /* All of the usable handlers vanished while we were thinking about it
+     * (this can only happen if non-activatable handlers exit after we
+     * include them in the list of possible handlers, but before we .
+     * We should recover in some better way, perhaps by asking all the
+     * approvers again (?), but for now we'll just close all the channels. */
+
+    DEBUG ("No possible handler still exists, giving up");
+
+    channels = _mcd_dispatch_operation_dup_channels (self);
+
+    for (list = channels; list != NULL; list = list->next)
+    {
+        McdChannel *channel = MCD_CHANNEL (list->data);
+        GError e = { MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
+            "Handler no longer available" };
+
+        mcd_channel_take_error (channel, g_error_copy (&e));
+        _mcd_channel_undispatchable (channel);
+        g_object_unref (channel);
+    }
+
+    g_list_free (channels);
 }

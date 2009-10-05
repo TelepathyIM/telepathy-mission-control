@@ -304,17 +304,6 @@ mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
     return NULL;
 }
 
-static void mcd_dispatcher_run_handlers (McdDispatchOperation *op);
-
-static void
-handle_channels_cb (TpClient *proxy, const GError *error, gpointer user_data,
-                    GObject *weak_object)
-{
-    McdDispatchOperation *op = user_data;
-
-    _mcd_dispatch_operation_handle_channels_cb (op, proxy, error);
-}
-
 typedef struct
 {
     McdClientProxy *client;
@@ -479,175 +468,6 @@ mcd_dispatcher_borrow_channel_connection_path (McdChannel *channel)
 }
 
 /*
- * mcd_dispatcher_handle_channels:
- * @context: the #McdDispatcherContext
- * @handler: the selected handler
- *
- * Invoke the handler for the given channels.
- */
-static void
-mcd_dispatcher_handle_channels (McdDispatchOperation *op,
-                                McdClientProxy *handler)
-{
-    guint64 user_action_time;
-    const gchar *account_path, *connection_path;
-    GPtrArray *channels_array, *satisfied_requests;
-    GHashTable *handler_info;
-    const GList *cl;
-
-    cl = _mcd_dispatch_operation_peek_channels (op);
-
-    if (G_LIKELY (cl != NULL))
-    {
-        connection_path =
-            mcd_dispatcher_borrow_channel_connection_path (cl->data);
-    }
-    else
-    {
-        /* FIXME: make this provably untrue */
-        connection_path = "/";
-    }
-
-    account_path = _mcd_dispatch_operation_get_account_path (op);
-
-    channels_array = _mcd_dispatch_operation_dup_channel_details (op);
-
-    user_action_time = 0; /* TODO: if we have a CDO, get it from there */
-    satisfied_requests = g_ptr_array_new ();
-
-    for (cl = _mcd_dispatch_operation_peek_channels (op);
-         cl != NULL;
-         cl = cl->next)
-    {
-        McdChannel *channel = MCD_CHANNEL (cl->data);
-        const GList *requests;
-        guint64 user_time;
-
-        requests = _mcd_channel_get_satisfied_requests (channel);
-        while (requests)
-        {
-            g_ptr_array_add (satisfied_requests, requests->data);
-            requests = requests->next;
-        }
-
-        /* FIXME: what if we have more than one request? */
-        user_time = _mcd_channel_get_request_user_action_time (channel);
-        if (user_time)
-            user_action_time = user_time;
-
-        _mcd_channel_set_status (channel,
-                                 MCD_CHANNEL_STATUS_HANDLER_INVOKED);
-    }
-
-    handler_info = g_hash_table_new (g_str_hash, g_str_equal);
-
-    DEBUG ("calling HandleChannels on %s for op %p",
-           tp_proxy_get_bus_name (handler), op);
-    tp_cli_client_handler_call_handle_channels ((TpClient *) handler,
-        -1, account_path, connection_path,
-        channels_array, satisfied_requests, user_action_time,
-        handler_info, handle_channels_cb,
-        g_object_ref (op), g_object_unref, NULL);
-
-    g_ptr_array_free (satisfied_requests, TRUE);
-    _mcd_channel_details_free (channels_array);
-    g_hash_table_unref (handler_info);
-}
-
-static void
-mcd_dispatcher_run_handlers (McdDispatchOperation *op)
-{
-    GList *channels, *list;
-    const gchar * const *possible_handlers;
-    const gchar * const *iter;
-    const gchar *approved_handler = _mcd_dispatch_operation_get_handler (op);
-    McdClientRegistry *client_registry;
-
-    g_object_get (op,
-                  "client-registry", &client_registry,
-                  NULL);
-
-    /* If there is an approved handler chosen by the Approver, it's the only
-     * one we'll consider. */
-
-    if (approved_handler != NULL && approved_handler[0] != '\0')
-    {
-        gchar *bus_name = g_strconcat (TP_CLIENT_BUS_NAME_BASE,
-                                       approved_handler, NULL);
-        McdClientProxy *handler = _mcd_client_registry_lookup (
-            client_registry, bus_name);
-        gboolean failed = _mcd_dispatch_operation_get_handler_failed (op,
-            bus_name);
-
-        DEBUG ("Approved handler is %s (still exists: %c, "
-               "already failed: %c)", bus_name,
-               handler != NULL ? 'Y' : 'N',
-               failed ? 'Y' : 'N');
-
-        g_free (bus_name);
-
-        /* Maybe the handler has exited since we chose it, or maybe we
-         * already tried it? Otherwise, it's the right choice. */
-        if (handler != NULL && !failed)
-        {
-            mcd_dispatcher_handle_channels (op, handler);
-            goto finally;
-        }
-
-        /* The approver asked for a particular handler, but that handler
-         * has vanished. If MC was fully spec-compliant, it wouldn't have
-         * replied to the Approver yet, so it could just return an error.
-         * However, that particular part of the flying-car future has not
-         * yet arrived, so try to recover by dispatching to *something*. */
-    }
-
-    possible_handlers = _mcd_dispatch_operation_get_possible_handlers (op);
-
-    for (iter = possible_handlers; iter != NULL && *iter != NULL; iter++)
-    {
-        McdClientProxy *handler = _mcd_client_registry_lookup (
-            client_registry, *iter);
-        gboolean failed = _mcd_dispatch_operation_get_handler_failed
-            (op, *iter);
-
-        DEBUG ("Possible handler: %s (still exists: %c, already failed: %c)",
-               *iter, handler != NULL ? 'Y' : 'N', failed ? 'Y' : 'N');
-
-        if (handler != NULL && !failed)
-        {
-            mcd_dispatcher_handle_channels (op, handler);
-            goto finally;
-        }
-    }
-
-    /* All of the usable handlers vanished while we were thinking about it
-     * (this can only happen if non-activatable handlers exit after we
-     * include them in the list of possible handlers, but before we .
-     * We should recover in some better way, perhaps by asking all the
-     * approvers again (?), but for now we'll just close all the channels. */
-
-    DEBUG ("No possible handler still exists, giving up");
-
-    channels = _mcd_dispatch_operation_dup_channels (op);
-
-    for (list = channels; list != NULL; list = list->next)
-    {
-        McdChannel *channel = MCD_CHANNEL (list->data);
-        GError e = { MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
-            "Handler no longer available" };
-
-        mcd_channel_take_error (channel, g_error_copy (&e));
-        _mcd_channel_undispatchable (channel);
-        g_object_unref (channel);
-    }
-
-    g_list_free (channels);
-
-finally:
-    g_object_unref (client_registry);
-}
-
-/*
  * _mcd_dispatcher_context_abort:
  *
  * Abort processing of all the channels in the @context, as if they could not
@@ -769,9 +589,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
         priv->handler_map, !requested, channels,
         (const gchar * const *) possible_handlers);
     /* ownership of @channels is stolen, but the GObject references are not */
-
-    g_signal_connect (context->operation, "run-handlers",
-                      G_CALLBACK (mcd_dispatcher_run_handlers), NULL);
 
     if (!requested)
     {
@@ -2021,7 +1838,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
      * handled perfectly well. */
 
     /* FIXME: gathering the arguments for HandleChannels is duplicated between
-     * this function and mcd_dispatcher_handle_channels */
+     * this function and mcd_dispatch_operation_handle_channels */
 
     account = mcd_channel_get_account (request);
     account_path = account == NULL ? "/"
