@@ -250,13 +250,6 @@ _mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
     g_object_unref (self);
 }
 
-gboolean
-_mcd_dispatch_operation_is_invoking_early_clients (McdDispatchOperation *self)
-{
-    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
-    return self->priv->invoking_early_clients;
-}
-
 void
 _mcd_dispatch_operation_set_invoking_early_clients (McdDispatchOperation *self,
                                                     gboolean value)
@@ -318,7 +311,7 @@ _mcd_dispatch_operation_set_cancelled (McdDispatchOperation *self)
 void
 _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 {
-    if (!_mcd_dispatch_operation_is_invoking_early_clients (self) &&
+    if (!self->priv->invoking_early_clients &&
         !_mcd_dispatch_operation_has_observers_pending (self) &&
         _mcd_dispatch_operation_is_approved (self))
     {
