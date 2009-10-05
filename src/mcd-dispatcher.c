@@ -739,24 +739,6 @@ mcd_dispatcher_op_ready_to_dispatch_cb (McdDispatchOperation *operation,
     g_signal_handlers_disconnect_by_func (operation,
         mcd_dispatcher_op_ready_to_dispatch_cb, context);
 
-    /* This is emitted when the HandleWith() or Claimed() are invoked on the
-     * CDO: according to which of these have happened, we run the choosen
-     * handler or we don't. */
-
-    /* Because of our calls to _mcd_dispatch_operation_block_finished,
-     * this cannot happen until all observers and all approvers have
-     * returned from ObserveChannels or AddDispatchOperation, respectively. */
-    g_assert (!_mcd_dispatch_operation_has_ado_pending (context->operation));
-    g_assert (!_mcd_dispatch_operation_has_observers_pending
-              (context->operation));
-
-    if (_mcd_dispatch_operation_is_awaiting_approval (context->operation))
-    {
-        _mcd_dispatch_operation_set_awaiting_approval (context->operation,
-                                                       FALSE);
-        _mcd_dispatch_operation_set_approved (context->operation);
-    }
-
     mcd_dispatcher_context_unref (context, "CTXREF15");
 }
 

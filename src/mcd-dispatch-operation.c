@@ -474,6 +474,12 @@ mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
         self->priv->channels_handled = TRUE;
     }
 
+    if (_mcd_dispatch_operation_is_awaiting_approval (self))
+    {
+        _mcd_dispatch_operation_set_awaiting_approval (self, FALSE);
+        _mcd_dispatch_operation_set_approved (self);
+    }
+
     g_signal_emit (self, signals[S_READY_TO_DISPATCH], 0);
 
     if (self->priv->claim_context != NULL)
