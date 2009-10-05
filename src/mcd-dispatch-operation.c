@@ -625,6 +625,9 @@ error:
     g_return_val_if_reached (NULL);
 }
 
+static void _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
+                                                  McdChannel *channel);
+
 static void
 mcd_dispatch_operation_channel_aborted_cb (McdChannel *channel,
                                            McdDispatchOperation *self)
@@ -1140,7 +1143,7 @@ _mcd_dispatch_operation_approve (McdDispatchOperation *self)
     _mcd_dispatch_operation_finish (self);
 }
 
-void
+static void
 _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
                                       McdChannel *channel)
 {

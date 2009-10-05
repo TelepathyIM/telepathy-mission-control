@@ -85,8 +85,6 @@ G_GNUC_INTERNAL const GList *_mcd_dispatch_operation_peek_channels (
     McdDispatchOperation *self);
 G_GNUC_INTERNAL GList *_mcd_dispatch_operation_dup_channels (
     McdDispatchOperation *self);
-G_GNUC_INTERNAL void _mcd_dispatch_operation_lose_channel (
-    McdDispatchOperation *self, McdChannel *channel);
 
 G_GNUC_INTERNAL GPtrArray *_mcd_dispatch_operation_dup_channel_details (
     McdDispatchOperation *self);
