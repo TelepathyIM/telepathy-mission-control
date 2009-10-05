@@ -238,7 +238,7 @@ _mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
     _mcd_dispatch_operation_check_finished (self);
 
     if (!_mcd_dispatch_operation_has_ado_pending (self) &&
-        !_mcd_dispatch_operation_is_awaiting_approval (self))
+        !self->priv->awaiting_approval)
     {
         DEBUG ("No approver accepted the channels; considering them to be "
                "approved");
