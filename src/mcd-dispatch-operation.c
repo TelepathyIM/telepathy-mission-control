@@ -578,6 +578,32 @@ error:
 }
 
 static void
+mcd_dispatch_operation_channel_aborted_cb (McdChannel *channel,
+                                           McdDispatchOperation *self)
+{
+    const GError *error;
+
+    g_object_ref (self);    /* FIXME: use a GObject closure or something */
+
+    DEBUG ("Channel %p aborted while in a dispatch operation", channel);
+
+    /* if it was a channel request, and it was cancelled, then the whole
+     * context should be aborted */
+    error = mcd_channel_get_error (channel);
+    if (error && error->code == TP_ERROR_CANCELLED)
+        _mcd_dispatch_operation_set_cancelled (self);
+
+    _mcd_dispatch_operation_lose_channel (self, channel);
+
+    if (_mcd_dispatch_operation_peek_channels (self) == NULL)
+    {
+        DEBUG ("Nothing left in this context");
+    }
+
+    g_object_unref (self);
+}
+
+static void
 mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
                                      const GValue *val, GParamSpec *pspec)
 {
@@ -626,9 +652,16 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
                            "Account?!");
             }
 
-            /* reference the channels */
+            /* reference the channels and connect to their signals */
             for (list = priv->channels; list != NULL; list = list->next)
+            {
                 g_object_ref (list->data);
+
+                g_signal_connect_after (list->data, "abort",
+                    G_CALLBACK (mcd_dispatch_operation_channel_aborted_cb),
+                    operation);
+
+            }
         }
         break;
 
@@ -706,7 +739,12 @@ mcd_dispatch_operation_dispose (GObject *object)
     if (priv->channels)
     {
         for (list = priv->channels; list != NULL; list = list->next)
+        {
+            g_signal_handlers_disconnect_by_func (list->data,
+                mcd_dispatch_operation_channel_aborted_cb, object);
             g_object_unref (list->data);
+        }
+
         g_list_free (priv->channels);
         priv->channels = NULL;
     }

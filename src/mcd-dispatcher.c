@@ -1237,33 +1237,6 @@ _mcd_dispatcher_context_abort (McdDispatcherContext *context,
 }
 
 static void
-on_channel_abort_context (McdChannel *channel, McdDispatcherContext *context)
-{
-    const GError *error;
-
-    DEBUG ("Channel %p aborted while in a dispatcher context", channel);
-
-    /* if it was a channel request, and it was cancelled, then the whole
-     * context should be aborted */
-    error = mcd_channel_get_error (channel);
-    if (error && error->code == TP_ERROR_CANCELLED)
-        _mcd_dispatch_operation_set_cancelled (context->operation);
-
-    /* Losing the channel might mean we get freed, which would make some of
-     * the operations below very unhappy */
-    mcd_dispatcher_context_ref (context, "CTXREF08");
-
-    _mcd_dispatch_operation_lose_channel (context->operation, channel);
-
-    if (_mcd_dispatch_operation_peek_channels (context->operation) == NULL)
-    {
-        DEBUG ("Nothing left in this context");
-    }
-
-    mcd_dispatcher_context_unref (context, "CTXREF08");
-}
-
-static void
 on_operation_finished (McdDispatchOperation *operation,
                        McdDispatcherContext *context)
 {
@@ -1339,8 +1312,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 {
     McdDispatcherContext *context;
     McdDispatcherPrivate *priv;
-    GList *list;
-    McdChannel *channel;
     McdAccount *account;
 
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
@@ -1377,9 +1348,8 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
      * bundle? */
 
     context->operation = _mcd_dispatch_operation_new (priv->clients,
-        !requested, g_list_copy (channels),
-        (const gchar * const *) possible_handlers);
-    /* the copy of @channels is stolen, but the GObject references are not */
+        !requested, channels, (const gchar * const *) possible_handlers);
+    /* ownership of @channels is stolen, but the GObject references are not */
 
     if (!requested)
     {
@@ -1394,17 +1364,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
         g_signal_connect (context->operation, "finished",
                           G_CALLBACK (on_operation_finished), context);
     }
-
-    for (list = channels; list != NULL; list = list->next)
-    {
-        channel = MCD_CHANNEL (list->data);
-
-        g_signal_connect_after (channel, "abort",
-                                G_CALLBACK (on_channel_abort_context),
-                                context);
-    }
-
-    g_list_free (channels);
 
     DEBUG ("entering state machine for context %p", context);
 
@@ -2053,7 +2012,6 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
                               const gchar *tag)
 {
     McdDispatcherPrivate *priv;
-    GList *list;
 
     /* FIXME: check for leaks */
     g_return_if_fail (context);
@@ -2065,16 +2023,6 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
     {
         DEBUG ("freeing the context %p", context);
 
-        for (list = _mcd_dispatch_operation_dup_channels (context->operation);
-             list != NULL;
-             list = g_list_delete_link (list, list))
-        {
-            McdChannel *channel = MCD_CHANNEL (list->data);
-
-            g_signal_handlers_disconnect_by_func (channel,
-                G_CALLBACK (on_channel_abort_context), context);
-            g_object_unref (channel);
-        }
         g_signal_handlers_disconnect_by_func (context->operation,
                                               on_operation_finished,
                                               context);
