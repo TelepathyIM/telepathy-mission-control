@@ -88,10 +88,6 @@ G_GNUC_INTERNAL
 const gchar * const *_mcd_dispatch_operation_get_possible_handlers (
     McdDispatchOperation *self);
 
-/* AddDispatchOperation calls */
-G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_has_ado_pending (
-    McdDispatchOperation *self);
-
 /* Client lock while waiting for approvers' opinion */
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_awaiting_approval (
     McdDispatchOperation *self);

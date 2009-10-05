@@ -200,13 +200,6 @@ _mcd_dispatch_operation_dec_observers_pending (McdDispatchOperation *self)
     g_object_unref (self);
 }
 
-gboolean
-_mcd_dispatch_operation_has_ado_pending (McdDispatchOperation *self)
-{
-    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
-    return (self->priv->ado_pending > 0);
-}
-
 static void
 _mcd_dispatch_operation_inc_ado_pending (McdDispatchOperation *self)
 {
@@ -231,7 +224,7 @@ _mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
 
     _mcd_dispatch_operation_check_finished (self);
 
-    if (!_mcd_dispatch_operation_has_ado_pending (self) &&
+    if (self->priv->ado_pending == 0 &&
         !self->priv->awaiting_approval)
     {
         DEBUG ("No approver accepted the channels; considering them to be "
@@ -278,7 +271,7 @@ static void
 _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 {
     if (self->priv->invoked_early_clients &&
-        !_mcd_dispatch_operation_has_ado_pending (self) &&
+        self->priv->ado_pending == 0 &&
         self->priv->observers_pending == 0 &&
         _mcd_dispatch_operation_is_approved (self))
     {
@@ -1131,7 +1124,7 @@ _mcd_dispatch_operation_approve (McdDispatchOperation *self)
 
     DEBUG ("%s/%p", self->priv->unique_name, self);
 
-    if (_mcd_dispatch_operation_has_ado_pending (self)
+    if (self->priv->ado_pending > 0
         || _mcd_dispatch_operation_is_awaiting_approval (self))
     {
         /* the existing channel is waiting for approval; but since the
