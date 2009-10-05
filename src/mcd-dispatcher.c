@@ -1153,7 +1153,6 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
 
     _mcd_dispatch_operation_set_invoking_early_clients (context->operation,
                                                         FALSE);
-    _mcd_dispatch_operation_check_client_locks (context->operation);
     mcd_dispatcher_context_unref (context, "CTXREF07");
 }
 

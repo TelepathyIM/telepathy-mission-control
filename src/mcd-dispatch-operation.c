@@ -261,6 +261,11 @@ _mcd_dispatch_operation_set_invoking_early_clients (McdDispatchOperation *self,
     g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
     g_return_if_fail (self->priv->invoking_early_clients == !value);
     self->priv->invoking_early_clients = value;
+
+    if (!value)
+    {
+        _mcd_dispatch_operation_check_client_locks (self);
+    }
 }
 
 gboolean
