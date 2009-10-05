@@ -161,6 +161,9 @@ struct _McdDispatchOperationPrivate
 static void _mcd_dispatch_operation_check_finished (
     McdDispatchOperation *self);
 
+static void _mcd_dispatch_operation_check_client_locks (
+    McdDispatchOperation *self);
+
 static inline gboolean
 mcd_dispatch_operation_may_finish (McdDispatchOperation *self)
 {
@@ -175,10 +178,9 @@ _mcd_dispatch_operation_has_observers_pending (McdDispatchOperation *self)
     return (self->priv->observers_pending > 0);
 }
 
-void
+static void
 _mcd_dispatch_operation_inc_observers_pending (McdDispatchOperation *self)
 {
-    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
     g_return_if_fail (!self->priv->wants_to_finish);
 
     g_object_ref (self);
@@ -189,10 +191,9 @@ _mcd_dispatch_operation_inc_observers_pending (McdDispatchOperation *self)
     self->priv->observers_pending++;
 }
 
-void
+static void
 _mcd_dispatch_operation_dec_observers_pending (McdDispatchOperation *self)
 {
-    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
     DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
            self->priv->observers_pending,
            self->priv->observers_pending - 1);
@@ -211,10 +212,9 @@ _mcd_dispatch_operation_has_ado_pending (McdDispatchOperation *self)
     return (self->priv->ado_pending > 0);
 }
 
-void
+static void
 _mcd_dispatch_operation_inc_ado_pending (McdDispatchOperation *self)
 {
-    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
     g_return_if_fail (!self->priv->wants_to_finish);
 
     g_object_ref (self);
@@ -225,10 +225,9 @@ _mcd_dispatch_operation_inc_ado_pending (McdDispatchOperation *self)
     self->priv->ado_pending++;
 }
 
-void
+static void
 _mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
 {
-    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
     DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
            self->priv->ado_pending,
            self->priv->ado_pending - 1);
@@ -248,16 +247,6 @@ _mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
     _mcd_dispatch_operation_check_client_locks (self);
 
     g_object_unref (self);
-}
-
-void
-_mcd_dispatch_operation_set_invoked_early_clients (McdDispatchOperation *self)
-{
-    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
-    g_return_if_fail (self->priv->invoked_early_clients == FALSE);
-    self->priv->invoked_early_clients = TRUE;
-
-    _mcd_dispatch_operation_check_client_locks (self);
 }
 
 gboolean
@@ -282,7 +271,13 @@ _mcd_dispatch_operation_get_cancelled (McdDispatchOperation *self)
     return self->priv->cancelled;
 }
 
-void
+static inline gboolean
+_mcd_dispatch_operation_is_approved (McdDispatchOperation *self)
+{
+    return (self->priv->approved || !self->priv->needs_approval);
+}
+
+static void
 _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 {
     if (self->priv->invoked_early_clients &&
@@ -1085,13 +1080,6 @@ _mcd_dispatch_operation_needs_approval (McdDispatchOperation *self)
     return self->priv->needs_approval;
 }
 
-const gchar *
-_mcd_dispatch_operation_get_claimer (McdDispatchOperation *operation)
-{
-    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (operation), NULL);
-    return operation->priv->claimer;
-}
-
 /*
  * _mcd_dispatch_operation_is_finished:
  * @self: the #McdDispatchOperation.
@@ -1282,13 +1270,10 @@ _mcd_dispatch_operation_check_finished (McdDispatchOperation *self)
     }
 }
 
-void
+static void
 _mcd_dispatch_operation_set_handler_failed (McdDispatchOperation *self,
                                             const gchar *bus_name)
 {
-    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
-    g_return_if_fail (bus_name != NULL);
-
     if (self->priv->failed_handlers == NULL)
     {
         self->priv->failed_handlers = g_hash_table_new_full (g_str_hash,
@@ -1351,14 +1336,6 @@ _mcd_dispatch_operation_handlers_can_bypass_approval (
     /* If no handler still exists, we don't bypass approval, although if that
      * happens we're basically doomed anyway. */
     return FALSE;
-}
-
-gboolean
-_mcd_dispatch_operation_is_approved (McdDispatchOperation *self)
-{
-    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
-
-    return (self->priv->approved || !self->priv->needs_approval);
 }
 
 void
@@ -1707,5 +1684,6 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
             _mcd_dispatch_operation_run_approvers (self);
     }
 
-    _mcd_dispatch_operation_set_invoked_early_clients (self);
+    self->priv->invoked_early_clients = TRUE;
+    _mcd_dispatch_operation_check_client_locks (self);
 }
