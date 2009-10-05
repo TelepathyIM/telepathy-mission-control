@@ -49,7 +49,24 @@ def test(q, bus, mc):
     expect_client_setup(q, [client])
 
     channel = test_channel_creation(q, bus, account, client, conn)
+
+    # After the channel has been dispatched, a handler that would normally
+    # be a closer match turns up. Regardless, we should not redispatch to it.
+    # For the better client to be treated as if it's in a different process,
+    # it needs its own D-Bus connection.
+    better_bus = dbus.bus.BusConnection()
+    q.attach_to_bus(better_bus)
+    better = SimulatedClient(q, better_bus, 'BetterMatch',
+            observe=[], approve=[],
+            handle=[channel.immutable], bypass_approval=False)
+    expect_client_setup(q, [better])
+
     test_channel_redispatch(q, bus, account, client, conn, channel)
+    test_channel_redispatch(q, bus, account, client, conn, channel,
+            ungrateful_handler=True)
+    client.release_name()
+    test_channel_redispatch(q, bus, account, client, conn, channel,
+            client_gone=True)
     channel.close()
 
 def test_channel_creation(q, bus, account, client, conn):
@@ -168,13 +185,30 @@ def test_channel_creation(q, bus, account, client, conn):
 
     return channel
 
-def test_channel_redispatch(q, bus, account, client, conn, channel):
+def test_channel_redispatch(q, bus, account, client, conn, channel,
+        ungrateful_handler=False, client_gone=False):
+
     user_action_time = dbus.Int64(1244444444)
 
-    # Because we create no new channels, nothing should be observed.
     forbidden = [
+            # Because we create no new channels, nothing should be observed.
             EventPattern('dbus-method-call', method='ObserveChannels'),
+            # Even though there is a better handler on a different unique
+            # name, the channels must not be re-dispatched to it.
+            EventPattern('dbus-method-call', method='HandleChannels',
+                predicate=lambda e: e.path != client.object_path),
+            # If the handler rejects the re-handle call, the channel must not
+            # be closed.
+            EventPattern('dbus-method-call', method='Close'),
             ]
+
+    if client_gone:
+        # There's nothing to call these methods on any more.
+        forbidden.append(EventPattern('dbus-method-call',
+            method='HandleChannels'))
+        forbidden.append(EventPattern('dbus-method-call',
+            method='AddRequest'))
+
     q.forbid_events(forbidden)
 
     cd = bus.get_object(cs.CD, cs.CD_PATH)
@@ -204,48 +238,60 @@ def test_channel_redispatch(q, bus, account, client, conn, channel):
 
     cr.Proceed(dbus_interface=cs.CR)
 
-    cm_request_call, add_request_call = q.expect_many(
-            EventPattern('dbus-method-call',
-                interface=cs.CONN_IFACE_REQUESTS,
-                method='EnsureChannel',
-                path=conn.object_path, args=[request], handled=False),
-            EventPattern('dbus-method-call', handled=False,
-                interface=cs.CLIENT_IFACE_REQUESTS,
-                method='AddRequest', path=client.object_path),
-            )
+    cm_request_pattern = EventPattern('dbus-method-call',
+        interface=cs.CONN_IFACE_REQUESTS,
+        method='EnsureChannel',
+        path=conn.object_path, args=[request], handled=False)
 
-    assert add_request_call.args[0] == request_path
-    request_props = add_request_call.args[1]
-    assert request_props[cs.CR + '.Account'] == account.object_path
-    assert request_props[cs.CR + '.Requests'] == [request]
-    assert request_props[cs.CR + '.UserActionTime'] == user_action_time
-    assert request_props[cs.CR + '.PreferredHandler'] == client.bus_name
-    assert request_props[cs.CR + '.Interfaces'] == []
+    if client_gone:
+        (cm_request_call,) = q.expect_many(cm_request_pattern)
+        add_request_call = None
+    else:
+        (cm_request_call, add_request_call) = q.expect_many(
+                cm_request_pattern,
+                EventPattern('dbus-method-call', handled=False,
+                    interface=cs.CLIENT_IFACE_REQUESTS,
+                    method='AddRequest', path=client.object_path),
+                )
 
-    q.dbus_return(add_request_call.message, signature='')
+    if add_request_call is not None:
+        assert add_request_call.args[0] == request_path
+        request_props = add_request_call.args[1]
+        assert request_props[cs.CR + '.Account'] == account.object_path
+        assert request_props[cs.CR + '.Requests'] == [request]
+        assert request_props[cs.CR + '.UserActionTime'] == user_action_time
+        assert request_props[cs.CR + '.PreferredHandler'] == client.bus_name
+        assert request_props[cs.CR + '.Interfaces'] == []
+
+        q.dbus_return(add_request_call.message, signature='')
 
     # Time passes. The same channel is returned.
     q.dbus_return(cm_request_call.message, False, # <- Yours
             channel.object_path, channel.immutable, signature='boa{sv}')
 
-    # Handler is re-invoked
-    e = q.expect('dbus-method-call',
-            path=client.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
-            handled=False)
-    assert e.args[0] == account.object_path, e.args
-    assert e.args[1] == conn.object_path, e.args
-    channels = e.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == channel.object_path, channels
-    assert channels[0][1] == channel.immutable, channels
-    assert e.args[3] == [request_path], e.args
-    assert e.args[4] == user_action_time
-    assert isinstance(e.args[5], dict)
-    assert len(e.args) == 6
+    if not client_gone:
+        # Handler is re-invoked
+        e = q.expect('dbus-method-call',
+                path=client.object_path,
+                interface=cs.HANDLER, method='HandleChannels',
+                handled=False)
+        assert e.args[0] == account.object_path, e.args
+        assert e.args[1] == conn.object_path, e.args
+        channels = e.args[2]
+        assert len(channels) == 1, channels
+        assert channels[0][0] == channel.object_path, channels
+        assert channels[0][1] == channel.immutable, channels
+        assert e.args[3] == [request_path], e.args
+        assert e.args[4] == user_action_time
+        assert isinstance(e.args[5], dict)
+        assert len(e.args) == 6
 
-    # Handler accepts the Channels
-    q.dbus_return(e.message, signature='')
+        if ungrateful_handler:
+            q.dbus_raise(e.message, cs.INVALID_ARGUMENT,
+                    'I am very strict in my misunderstanding of telepathy-spec')
+        else:
+            # Handler accepts the Channels
+            q.dbus_return(e.message, signature='')
 
     # CR emits Succeeded (or in Mardy's version, Account emits Succeeded)
     q.expect_many(
