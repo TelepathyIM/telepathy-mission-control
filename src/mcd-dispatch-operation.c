@@ -286,6 +286,7 @@ void
 _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 {
     if (self->priv->invoked_early_clients &&
+        !_mcd_dispatch_operation_has_ado_pending (self) &&
         !_mcd_dispatch_operation_has_observers_pending (self) &&
         _mcd_dispatch_operation_is_approved (self))
     {
