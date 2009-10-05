@@ -302,13 +302,6 @@ _mcd_dispatch_operation_get_cancelled (McdDispatchOperation *self)
 }
 
 void
-_mcd_dispatch_operation_set_cancelled (McdDispatchOperation *self)
-{
-    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
-    self->priv->cancelled = TRUE;
-}
-
-void
 _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 {
     if (!self->priv->invoking_early_clients &&
@@ -635,7 +628,7 @@ mcd_dispatch_operation_channel_aborted_cb (McdChannel *channel,
      * context should be aborted */
     error = mcd_channel_get_error (channel);
     if (error && error->code == TP_ERROR_CANCELLED)
-        _mcd_dispatch_operation_set_cancelled (self);
+        self->priv->cancelled = TRUE;
 
     _mcd_dispatch_operation_lose_channel (self, channel);
 
