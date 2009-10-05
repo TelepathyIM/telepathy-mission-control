@@ -1133,12 +1133,27 @@ static void
 on_operation_finished (McdDispatchOperation *operation,
                        McdDispatcher *self)
 {
+    GList *its_link;
+
+    g_signal_handlers_disconnect_by_func (operation,
+                                          on_operation_finished,
+                                          self);
+
     /* don't emit the signal if the CDO never appeared on D-Bus */
     if (self->priv->operation_list_active &&
         _mcd_dispatch_operation_needs_approval (operation))
     {
         tp_svc_channel_dispatcher_interface_operation_list_emit_dispatch_operation_finished (
             self, _mcd_dispatch_operation_get_path (operation));
+    }
+
+    its_link = g_list_find (self->priv->operations, operation);
+
+    if (its_link != NULL)
+    {
+        self->priv->operations = g_list_delete_link (self->priv->operations,
+                                                     its_link);
+        g_object_unref (operation);
     }
 }
 
@@ -1219,8 +1234,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
         (const gchar * const *) possible_handlers);
     /* ownership of @channels is stolen, but the GObject references are not */
 
-    priv->operations = g_list_prepend (priv->operations, context->operation);
-
     g_signal_connect (context->operation, "run-handlers",
                       G_CALLBACK (mcd_dispatcher_run_handlers), context);
 
@@ -1233,6 +1246,9 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
                 _mcd_dispatch_operation_get_path (context->operation),
                 _mcd_dispatch_operation_get_properties (context->operation));
         }
+
+        priv->operations = g_list_prepend (priv->operations,
+                                           g_object_ref (context->operation));
 
         g_signal_connect (context->operation, "finished",
                           G_CALLBACK (on_operation_finished), dispatcher);
@@ -1471,6 +1487,16 @@ mcd_dispatcher_client_registry_ready_cb (McdClientRegistry *clients,
 }
 
 static void
+drop_each_operation (gpointer operation,
+                     gpointer dispatcher)
+{
+    g_signal_handlers_disconnect_by_func (operation,
+                                          on_operation_finished,
+                                          dispatcher);
+    g_object_unref (operation);
+}
+
+static void
 _mcd_dispatcher_dispose (GObject * object)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
@@ -1480,6 +1506,13 @@ _mcd_dispatcher_dispose (GObject * object)
 	return;
     }
     priv->is_disposed = TRUE;
+
+    if (priv->operations != NULL)
+    {
+        g_list_foreach (priv->operations, drop_each_operation, object);
+        g_list_free (priv->operations);
+        priv->operations = NULL;
+    }
 
     if (priv->handler_map)
     {
@@ -1902,14 +1935,7 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
         g_signal_handlers_disconnect_by_func (context->operation,
             mcd_dispatcher_run_handlers, context);
 
-        g_signal_handlers_disconnect_by_func (context->operation,
-                                              on_operation_finished,
-                                              context->dispatcher);
-
         priv = MCD_DISPATCHER_PRIV (context->dispatcher);
-
-        /* remove the context from the list of active contexts */
-        priv->operations = g_list_remove (priv->operations, context->operation);
 
         g_object_unref (context->operation);
 
