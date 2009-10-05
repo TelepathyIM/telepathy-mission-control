@@ -1274,7 +1274,7 @@ _mcd_dispatch_operation_get_handler_failed (McdDispatchOperation *self,
             != NULL);
 }
 
-gboolean
+static gboolean
 _mcd_dispatch_operation_handlers_can_bypass_approval (
     McdDispatchOperation *self)
 {
