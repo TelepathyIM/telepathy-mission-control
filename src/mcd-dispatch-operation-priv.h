@@ -150,6 +150,9 @@ G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_get_cancelled (
 G_GNUC_INTERNAL void _mcd_dispatch_operation_check_client_locks (
     McdDispatchOperation *self);
 
+G_GNUC_INTERNAL void _mcd_dispatch_operation_handle_channels_cb (
+    McdDispatchOperation *self, TpClient *client, const GError *error);
+
 G_END_DECLS
 
 #endif
