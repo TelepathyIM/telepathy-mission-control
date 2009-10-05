@@ -2003,19 +2003,14 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
             mcd_dispatcher_run_handlers, context);
 
         g_signal_handlers_disconnect_by_func (context->operation,
-                                              on_operation_finished,
-                                              context->dispatcher);
-
-        g_signal_handlers_disconnect_by_func (context->operation,
             mcd_dispatcher_op_ready_to_dispatch_cb, context);
 
-        if (_mcd_dispatch_operation_finish (context->operation) &&
-            context->dispatcher->priv->operation_list_active)
-        {
-            tp_svc_channel_dispatcher_interface_operation_list_emit_dispatch_operation_finished (
-                context->dispatcher,
-                _mcd_dispatch_operation_get_path (context->operation));
-        }
+        /* may emit finished */
+        _mcd_dispatch_operation_finish (context->operation);
+
+        g_signal_handlers_disconnect_by_func (context->operation,
+                                              on_operation_finished,
+                                              context->dispatcher);
 
         priv = MCD_DISPATCHER_PRIV (context->dispatcher);
 
