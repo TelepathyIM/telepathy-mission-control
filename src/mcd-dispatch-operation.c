@@ -309,19 +309,40 @@ enum
     PROP_NEEDS_APPROVAL,
 };
 
+/*
+ * _mcd_dispatch_operation_get_connection_path:
+ * @self: the #McdDispatchOperation.
+ *
+ * Returns: the D-Bus object path of the Connection associated with @self,
+ *    or "/" if none.
+ */
+static const gchar *
+_mcd_dispatch_operation_get_connection_path (McdDispatchOperation *self)
+{
+    const gchar *path;
+
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), "/");
+
+    if (self->priv->connection == NULL)
+        return "/";
+
+    path = mcd_connection_get_object_path (self->priv->connection);
+
+    g_return_val_if_fail (path != NULL, "/");
+
+    return path;
+}
+
 static void
 get_connection (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 {
     McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (self);
-    const gchar *object_path;
 
     DEBUG ("called for %s", priv->unique_name);
     g_value_init (value, DBUS_TYPE_G_OBJECT_PATH);
-    if (priv->connection &&
-        (object_path = mcd_connection_get_object_path (priv->connection)))
-        g_value_set_boxed (value, object_path);
-    else
-        g_value_set_static_boxed (value, "/");
+    g_value_set_boxed (value,
+        _mcd_dispatch_operation_get_connection_path
+            (MCD_DISPATCH_OPERATION (self)));
 }
 
 static void
