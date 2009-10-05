@@ -72,6 +72,14 @@ G_DEFINE_TYPE_WITH_CODE (McdDispatchOperation, _mcd_dispatch_operation,
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES, properties_iface_init);
     )
 
+enum
+{
+    S_READY_TO_DISPATCH,
+    N_SIGNALS
+};
+
+static guint signals[N_SIGNALS] = { 0 };
+
 struct _McdDispatchOperationPrivate
 {
     const gchar *unique_name;   /* borrowed from object_path */
@@ -399,6 +407,7 @@ mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
 {
     DEBUG ("%s/%p: finished", self->priv->unique_name, self);
     tp_svc_channel_dispatch_operation_emit_finished (self);
+    g_signal_emit (self, signals[S_READY_TO_DISPATCH], 0);
 
     if (self->priv->claim_context != NULL)
     {
@@ -814,6 +823,13 @@ _mcd_dispatch_operation_class_init (McdDispatchOperationClass * klass)
                               "appear on D-Bus", FALSE,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
                               G_PARAM_STATIC_STRINGS));
+
+    signals[S_READY_TO_DISPATCH] = g_signal_new ("ready-to-dispatch",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+        0, NULL, NULL,
+        g_cclosure_marshal_VOID__VOID,
+        G_TYPE_NONE, 0);
 }
 
 static void

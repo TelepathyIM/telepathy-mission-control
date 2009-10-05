@@ -1243,12 +1243,6 @@ static void
 on_operation_finished (McdDispatchOperation *operation,
                        McdDispatcherContext *context)
 {
-    /* This is emitted when the HandleWith() or Claimed() are invoked on the
-     * CDO: according to which of these have happened, we run the choosen
-     * handler or we don't. */
-
-    mcd_dispatcher_context_ref (context, "CTXREF15");
-
     /* don't emit the signal if the CDO never appeared on D-Bus */
     if (context->dispatcher->priv->operation_list_active &&
         _mcd_dispatch_operation_needs_approval (operation))
@@ -1256,6 +1250,17 @@ on_operation_finished (McdDispatchOperation *operation,
         tp_svc_channel_dispatcher_interface_operation_list_emit_dispatch_operation_finished (
             context->dispatcher, _mcd_dispatch_operation_get_path (operation));
     }
+}
+
+static void
+mcd_dispatcher_op_ready_to_dispatch_cb (McdDispatchOperation *operation,
+                                        McdDispatcherContext *context)
+{
+    /* This is emitted when the HandleWith() or Claimed() are invoked on the
+     * CDO: according to which of these have happened, we run the choosen
+     * handler or we don't. */
+
+    mcd_dispatcher_context_ref (context, "CTXREF15");
 
     /* Because of our calls to _mcd_dispatch_operation_block_finished,
      * this cannot happen until all observers and all approvers have
@@ -1368,6 +1373,9 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 
         g_signal_connect (context->operation, "finished",
                           G_CALLBACK (on_operation_finished), context);
+        g_signal_connect (context->operation, "ready-to-dispatch",
+                          G_CALLBACK (mcd_dispatcher_op_ready_to_dispatch_cb),
+                          context);
     }
 
     DEBUG ("entering state machine for context %p", context);
@@ -2029,6 +2037,9 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
         g_signal_handlers_disconnect_by_func (context->operation,
                                               on_operation_finished,
                                               context);
+
+        g_signal_handlers_disconnect_by_func (context->operation,
+            mcd_dispatcher_op_ready_to_dispatch_cb, context);
 
         if (_mcd_dispatch_operation_finish (context->operation) &&
             context->dispatcher->priv->operation_list_active)
