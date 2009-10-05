@@ -183,12 +183,6 @@ mcd_dispatcher_context_ref (McdDispatcherContext *context,
     context->ref_count++;
 }
 
-static void
-mcd_dispatcher_context_unref_3 (gpointer p)
-{
-    mcd_dispatcher_context_unref (p, "CTXREF03");
-}
-
 static GList *
 chain_add_filter (GList *chain,
 		  McdFilterFunc filter,
@@ -310,19 +304,15 @@ mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
     return NULL;
 }
 
-static void mcd_dispatcher_run_handlers (McdDispatchOperation *op,
-                                         McdDispatcherContext *context);
+static void mcd_dispatcher_run_handlers (McdDispatchOperation *op);
 
 static void
 handle_channels_cb (TpClient *proxy, const GError *error, gpointer user_data,
                     GObject *weak_object)
 {
-    McdDispatcherContext *context = user_data;
+    McdDispatchOperation *op = user_data;
 
-    mcd_dispatcher_context_ref (context, "CTXREF02");
-    _mcd_dispatch_operation_handle_channels_cb (context->operation,
-                                                proxy, error);
-    mcd_dispatcher_context_unref (context, "CTXREF02");
+    _mcd_dispatch_operation_handle_channels_cb (op, proxy, error);
 }
 
 typedef struct
@@ -496,7 +486,7 @@ mcd_dispatcher_borrow_channel_connection_path (McdChannel *channel)
  * Invoke the handler for the given channels.
  */
 static void
-mcd_dispatcher_handle_channels (McdDispatcherContext *context,
+mcd_dispatcher_handle_channels (McdDispatchOperation *op,
                                 McdClientProxy *handler)
 {
     guint64 user_action_time;
@@ -505,7 +495,7 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
     GHashTable *handler_info;
     const GList *cl;
 
-    cl = _mcd_dispatch_operation_peek_channels (context->operation);
+    cl = _mcd_dispatch_operation_peek_channels (op);
 
     if (G_LIKELY (cl != NULL))
     {
@@ -518,16 +508,14 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
         connection_path = "/";
     }
 
-    account_path = _mcd_dispatch_operation_get_account_path
-        (context->operation);
+    account_path = _mcd_dispatch_operation_get_account_path (op);
 
-    channels_array = _mcd_dispatch_operation_dup_channel_details
-        (context->operation);
+    channels_array = _mcd_dispatch_operation_dup_channel_details (op);
 
     user_action_time = 0; /* TODO: if we have a CDO, get it from there */
     satisfied_requests = g_ptr_array_new ();
 
-    for (cl = _mcd_dispatch_operation_peek_channels (context->operation);
+    for (cl = _mcd_dispatch_operation_peek_channels (op);
          cl != NULL;
          cl = cl->next)
     {
@@ -553,20 +541,13 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
 
     handler_info = g_hash_table_new (g_str_hash, g_str_equal);
 
-    /* The callback needs to get the dispatcher context, and the channels
-     * the handler was asked to handle. The context will keep track of how
-     * many channels are still to be dispatched,
-     * still pending. When all of them return, the dispatching is
-     * considered to be completed. */
-    mcd_dispatcher_context_ref (context, "CTXREF03");
-    DEBUG ("calling HandleChannels on %s for context %p",
-           tp_proxy_get_bus_name (handler), context);
+    DEBUG ("calling HandleChannels on %s for op %p",
+           tp_proxy_get_bus_name (handler), op);
     tp_cli_client_handler_call_handle_channels ((TpClient *) handler,
         -1, account_path, connection_path,
         channels_array, satisfied_requests, user_action_time,
         handler_info, handle_channels_cb,
-        context, mcd_dispatcher_context_unref_3,
-        (GObject *)context->dispatcher);
+        g_object_ref (op), g_object_unref, NULL);
 
     g_ptr_array_free (satisfied_requests, TRUE);
     _mcd_channel_details_free (channels_array);
@@ -574,18 +555,17 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
 }
 
 static void
-mcd_dispatcher_run_handlers (McdDispatchOperation *op,
-                             McdDispatcherContext *context)
+mcd_dispatcher_run_handlers (McdDispatchOperation *op)
 {
-    McdDispatcher *self = context->dispatcher;
     GList *channels, *list;
     const gchar * const *possible_handlers;
     const gchar * const *iter;
-    const gchar *approved_handler = _mcd_dispatch_operation_get_handler (
-        context->operation);
+    const gchar *approved_handler = _mcd_dispatch_operation_get_handler (op);
+    McdClientRegistry *client_registry;
 
-    sp_timestamp ("run handlers");
-    mcd_dispatcher_context_ref (context, "CTXREF04");
+    g_object_get (op,
+                  "client-registry", &client_registry,
+                  NULL);
 
     /* If there is an approved handler chosen by the Approver, it's the only
      * one we'll consider. */
@@ -595,9 +575,9 @@ mcd_dispatcher_run_handlers (McdDispatchOperation *op,
         gchar *bus_name = g_strconcat (TP_CLIENT_BUS_NAME_BASE,
                                        approved_handler, NULL);
         McdClientProxy *handler = _mcd_client_registry_lookup (
-            self->priv->clients, bus_name);
-        gboolean failed = _mcd_dispatch_operation_get_handler_failed
-            (context->operation, bus_name);
+            client_registry, bus_name);
+        gboolean failed = _mcd_dispatch_operation_get_handler_failed (op,
+            bus_name);
 
         DEBUG ("Approved handler is %s (still exists: %c, "
                "already failed: %c)", bus_name,
@@ -610,7 +590,7 @@ mcd_dispatcher_run_handlers (McdDispatchOperation *op,
          * already tried it? Otherwise, it's the right choice. */
         if (handler != NULL && !failed)
         {
-            mcd_dispatcher_handle_channels (context, handler);
+            mcd_dispatcher_handle_channels (op, handler);
             goto finally;
         }
 
@@ -621,22 +601,21 @@ mcd_dispatcher_run_handlers (McdDispatchOperation *op,
          * yet arrived, so try to recover by dispatching to *something*. */
     }
 
-    possible_handlers = _mcd_dispatch_operation_get_possible_handlers (
-        context->operation);
+    possible_handlers = _mcd_dispatch_operation_get_possible_handlers (op);
 
     for (iter = possible_handlers; iter != NULL && *iter != NULL; iter++)
     {
         McdClientProxy *handler = _mcd_client_registry_lookup (
-            self->priv->clients, *iter);
+            client_registry, *iter);
         gboolean failed = _mcd_dispatch_operation_get_handler_failed
-            (context->operation, *iter);
+            (op, *iter);
 
         DEBUG ("Possible handler: %s (still exists: %c, already failed: %c)",
                *iter, handler != NULL ? 'Y' : 'N', failed ? 'Y' : 'N');
 
         if (handler != NULL && !failed)
         {
-            mcd_dispatcher_handle_channels (context, handler);
+            mcd_dispatcher_handle_channels (op, handler);
             goto finally;
         }
     }
@@ -649,7 +628,7 @@ mcd_dispatcher_run_handlers (McdDispatchOperation *op,
 
     DEBUG ("No possible handler still exists, giving up");
 
-    channels = _mcd_dispatch_operation_dup_channels (context->operation);
+    channels = _mcd_dispatch_operation_dup_channels (op);
 
     for (list = channels; list != NULL; list = list->next)
     {
@@ -665,7 +644,7 @@ mcd_dispatcher_run_handlers (McdDispatchOperation *op,
     g_list_free (channels);
 
 finally:
-    mcd_dispatcher_context_unref (context, "CTXREF04");
+    g_object_unref (client_registry);
 }
 
 /*
@@ -792,7 +771,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     /* ownership of @channels is stolen, but the GObject references are not */
 
     g_signal_connect (context->operation, "run-handlers",
-                      G_CALLBACK (mcd_dispatcher_run_handlers), context);
+                      G_CALLBACK (mcd_dispatcher_run_handlers), NULL);
 
     if (!requested)
     {
@@ -1488,9 +1467,6 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
     if (context->ref_count == 0)
     {
         DEBUG ("freeing the context %p", context);
-
-        g_signal_handlers_disconnect_by_func (context->operation,
-            mcd_dispatcher_run_handlers, context);
 
         priv = MCD_DISPATCHER_PRIV (context->dispatcher);
 
