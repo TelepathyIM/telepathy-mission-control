@@ -485,7 +485,8 @@ mcd_dispatcher_set_channel_handled_by (McdDispatcher *self,
                                           tp_channel, unique_name);
 }
 
-static void mcd_dispatcher_run_handlers (McdDispatcherContext *context);
+static void mcd_dispatcher_run_handlers (McdDispatchOperation *op,
+                                         McdDispatcherContext *context);
 
 static void
 handle_channels_cb (TpClient *proxy, const GError *error, gpointer user_data,
@@ -503,7 +504,7 @@ handle_channels_cb (TpClient *proxy, const GError *error, gpointer user_data,
             tp_proxy_get_bus_name (proxy));
 
         /* try again */
-        mcd_dispatcher_run_handlers (context);
+        mcd_dispatcher_run_handlers (context->operation, context);
     }
     else
     {
@@ -769,7 +770,8 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
 }
 
 static void
-mcd_dispatcher_run_handlers (McdDispatcherContext *context)
+mcd_dispatcher_run_handlers (McdDispatchOperation *op,
+                             McdDispatcherContext *context)
 {
     McdDispatcher *self = context->dispatcher;
     GList *channels, *list;
@@ -863,27 +865,10 @@ finally:
 }
 
 static void
-mcd_dispatcher_context_check_client_locks (McdDispatcherContext *context)
-{
-    if (!_mcd_dispatch_operation_is_invoking_early_clients (context->operation) &&
-        !_mcd_dispatch_operation_has_observers_pending (context->operation) &&
-        _mcd_dispatch_operation_is_approved (context->operation))
-    {
-        /* no observers etc. left */
-        if (!_mcd_dispatch_operation_get_channels_handled (context->operation))
-        {
-            _mcd_dispatch_operation_set_channels_handled (context->operation,
-                                                          TRUE);
-            mcd_dispatcher_run_handlers (context);
-        }
-    }
-}
-
-static void
 mcd_dispatcher_context_release_pending_observer (McdDispatcherContext *context)
 {
     _mcd_dispatch_operation_dec_observers_pending (context->operation);
-    mcd_dispatcher_context_check_client_locks (context);
+    _mcd_dispatch_operation_check_client_locks (context->operation);
 }
 
 static void
@@ -1049,7 +1034,7 @@ mcd_dispatcher_context_release_pending_approver (McdDispatcherContext *context)
         _mcd_dispatch_operation_set_approved (context->operation);
     }
 
-    mcd_dispatcher_context_check_client_locks (context);
+    _mcd_dispatch_operation_check_client_locks (context->operation);
 }
 
 static void
@@ -1199,7 +1184,7 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
 
     _mcd_dispatch_operation_set_invoking_early_clients (context->operation,
                                                         FALSE);
-    mcd_dispatcher_context_check_client_locks (context);
+    _mcd_dispatch_operation_check_client_locks (context->operation);
     mcd_dispatcher_context_unref (context, "CTXREF07");
 }
 
@@ -1307,7 +1292,7 @@ mcd_dispatcher_op_ready_to_dispatch_cb (McdDispatchOperation *operation,
         mcd_dispatcher_context_unref (context, "CTXREF14");
     }
 
-    mcd_dispatcher_context_check_client_locks (context);
+    _mcd_dispatch_operation_check_client_locks (context->operation);
     mcd_dispatcher_context_unref (context, "CTXREF15");
 }
 
@@ -1360,6 +1345,9 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     /* ownership of @channels is stolen, but the GObject references are not */
 
     priv->operations = g_list_prepend (priv->operations, context->operation);
+
+    g_signal_connect (context->operation, "run-handlers",
+                      G_CALLBACK (mcd_dispatcher_run_handlers), context);
 
     if (!requested)
     {
@@ -2033,6 +2021,9 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
     if (context->ref_count == 0)
     {
         DEBUG ("freeing the context %p", context);
+
+        g_signal_handlers_disconnect_by_func (context->operation,
+            mcd_dispatcher_run_handlers, context);
 
         g_signal_handlers_disconnect_by_func (context->operation,
                                               on_operation_finished,

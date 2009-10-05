@@ -149,6 +149,9 @@ G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_get_cancelled (
 G_GNUC_INTERNAL void _mcd_dispatch_operation_set_cancelled (
     McdDispatchOperation *self);
 
+G_GNUC_INTERNAL void _mcd_dispatch_operation_check_client_locks (
+    McdDispatchOperation *self);
+
 G_END_DECLS
 
 #endif

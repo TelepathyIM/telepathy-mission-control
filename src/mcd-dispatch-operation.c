@@ -75,6 +75,7 @@ G_DEFINE_TYPE_WITH_CODE (McdDispatchOperation, _mcd_dispatch_operation,
 enum
 {
     S_READY_TO_DISPATCH,
+    S_RUN_HANDLERS,
     N_SIGNALS
 };
 
@@ -292,6 +293,23 @@ _mcd_dispatch_operation_set_cancelled (McdDispatchOperation *self)
 {
     g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
     self->priv->cancelled = TRUE;
+}
+
+void
+_mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
+{
+    if (!_mcd_dispatch_operation_is_invoking_early_clients (self) &&
+        !_mcd_dispatch_operation_has_observers_pending (self) &&
+        _mcd_dispatch_operation_is_approved (self))
+    {
+        /* no observers etc. left */
+        if (!_mcd_dispatch_operation_get_channels_handled (self))
+        {
+            _mcd_dispatch_operation_set_channels_handled (self,
+                                                          TRUE);
+            g_signal_emit (self, signals[S_RUN_HANDLERS], 0);
+        }
+    }
 }
 
 enum
@@ -825,6 +843,13 @@ _mcd_dispatch_operation_class_init (McdDispatchOperationClass * klass)
                               G_PARAM_STATIC_STRINGS));
 
     signals[S_READY_TO_DISPATCH] = g_signal_new ("ready-to-dispatch",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+        0, NULL, NULL,
+        g_cclosure_marshal_VOID__VOID,
+        G_TYPE_NONE, 0);
+
+    signals[S_RUN_HANDLERS] = g_signal_new ("run-handlers",
         G_OBJECT_CLASS_TYPE (klass),
         G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
         0, NULL, NULL,
