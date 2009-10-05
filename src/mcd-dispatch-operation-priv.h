@@ -148,6 +148,8 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_handle_channels_cb (
 
 G_GNUC_INTERNAL void _mcd_dispatch_operation_run_observers (
     McdDispatchOperation *self);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_run_approvers (
+    McdDispatchOperation *self);
 
 G_END_DECLS
 

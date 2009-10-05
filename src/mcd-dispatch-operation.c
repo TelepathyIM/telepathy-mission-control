@@ -1585,3 +1585,106 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
 
     g_hash_table_destroy (observer_info);
 }
+
+static void
+add_dispatch_operation_cb (TpClient *proxy,
+                           const GError *error,
+                           gpointer user_data,
+                           GObject *weak_object)
+{
+    McdDispatchOperation *self = user_data;
+
+    if (error)
+    {
+        DEBUG ("AddDispatchOperation %s (%p) on approver %s failed: "
+               "%s",
+               _mcd_dispatch_operation_get_path (self), self,
+               tp_proxy_get_object_path (proxy), error->message);
+    }
+    else
+    {
+        DEBUG ("Approver %s accepted AddDispatchOperation %s (%p)",
+               tp_proxy_get_object_path (proxy),
+               _mcd_dispatch_operation_get_path (self), self);
+
+        if (!_mcd_dispatch_operation_is_awaiting_approval (self))
+        {
+            _mcd_dispatch_operation_set_awaiting_approval (self, TRUE);
+        }
+    }
+
+    /* If all approvers fail to add the DO, then we behave as if no
+     * approver was registered: i.e., we continue dispatching. If at least
+     * one approver accepted it, then we can still continue dispatching,
+     * since it will be stalled until awaiting_approval becomes FALSE. */
+    _mcd_dispatch_operation_dec_ado_pending (self);
+}
+
+void
+_mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
+{
+    const GList *cl;
+    GHashTableIter iter;
+    gpointer client_p;
+
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    g_return_if_fail (_mcd_dispatch_operation_needs_approval (self));
+
+    /* we temporarily increment this count and decrement it at the end of the
+     * function, to make sure it won't become 0 while we are still invoking
+     * approvers */
+    _mcd_dispatch_operation_inc_ado_pending (self);
+
+    _mcd_client_registry_init_hash_iter (self->priv->client_registry, &iter);
+    while (g_hash_table_iter_next (&iter, NULL, &client_p))
+    {
+        McdClientProxy *client = MCD_CLIENT_PROXY (client_p);
+        GPtrArray *channel_details;
+        const gchar *dispatch_operation;
+        GHashTable *properties;
+        gboolean matched = FALSE;
+
+        if (!tp_proxy_has_interface_by_id (client,
+                                           TP_IFACE_QUARK_CLIENT_APPROVER))
+            continue;
+
+        for (cl = self->priv->channels; cl != NULL; cl = cl->next)
+        {
+            McdChannel *channel = MCD_CHANNEL (cl->data);
+            GHashTable *channel_properties;
+
+            channel_properties = _mcd_channel_get_immutable_properties (channel);
+            g_assert (channel_properties != NULL);
+
+            if (_mcd_client_match_filters (channel_properties,
+                _mcd_client_proxy_get_approver_filters (client),
+                FALSE))
+            {
+                matched = TRUE;
+                break;
+            }
+        }
+        if (!matched) continue;
+
+        dispatch_operation = _mcd_dispatch_operation_get_path (self);
+        properties = _mcd_dispatch_operation_get_properties (self);
+        channel_details = _mcd_dispatch_operation_dup_channel_details (self);
+
+        DEBUG ("Calling AddDispatchOperation on approver %s for CDO %s @ %p",
+               tp_proxy_get_bus_name (client), dispatch_operation, self);
+
+        _mcd_dispatch_operation_inc_ado_pending (self);
+
+        tp_cli_client_approver_call_add_dispatch_operation (
+            (TpClient *) client, -1,
+            channel_details, dispatch_operation, properties,
+            add_dispatch_operation_cb,
+            g_object_ref (self), g_object_unref, NULL);
+
+        g_boxed_free (TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST, channel_details);
+    }
+
+    /* This matches the approvers count set to 1 at the beginning of the
+     * function */
+    _mcd_dispatch_operation_dec_ado_pending (self);
+}

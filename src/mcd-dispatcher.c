@@ -668,115 +668,6 @@ finally:
     mcd_dispatcher_context_unref (context, "CTXREF04");
 }
 
-static void
-add_dispatch_operation_cb (TpClient *proxy, const GError *error,
-                           gpointer user_data, GObject *weak_object)
-{
-    McdDispatchOperation *op = user_data;
-
-    if (error)
-    {
-        DEBUG ("AddDispatchOperation %s (%p) on approver %s failed: "
-               "%s",
-               _mcd_dispatch_operation_get_path (op), op,
-               tp_proxy_get_object_path (proxy), error->message);
-    }
-    else
-    {
-        DEBUG ("Approver %s accepted AddDispatchOperation %s (%p)",
-               tp_proxy_get_object_path (proxy),
-               _mcd_dispatch_operation_get_path (op), op);
-
-        if (!_mcd_dispatch_operation_is_awaiting_approval (op))
-        {
-            _mcd_dispatch_operation_set_awaiting_approval (op, TRUE);
-        }
-    }
-
-    /* If all approvers fail to add the DO, then we behave as if no
-     * approver was registered: i.e., we continue dispatching. If at least
-     * one approver accepted it, then we can still continue dispatching,
-     * since it will be stalled until awaiting_approval becomes FALSE. */
-    _mcd_dispatch_operation_dec_ado_pending (op);
-}
-
-static void
-mcd_dispatcher_run_approvers (McdDispatcherContext *context)
-{
-    McdDispatcherPrivate *priv = context->dispatcher->priv;
-    const GList *cl, *channels;
-    GHashTableIter iter;
-    gpointer client_p;
-
-    g_return_if_fail (_mcd_dispatch_operation_needs_approval (
-        context->operation));
-    sp_timestamp ("run approvers");
-
-    /* we temporarily increment this count and decrement it at the end of the
-     * function, to make sure it won't become 0 while we are still invoking
-     * approvers */
-    _mcd_dispatch_operation_inc_ado_pending (context->operation);
-
-    channels = _mcd_dispatch_operation_peek_channels (context->operation);
-    _mcd_client_registry_init_hash_iter (priv->clients, &iter);
-    while (g_hash_table_iter_next (&iter, NULL, &client_p))
-    {
-        McdClientProxy *client = MCD_CLIENT_PROXY (client_p);
-        GPtrArray *channel_details;
-        const gchar *dispatch_operation;
-        GHashTable *properties;
-        gboolean matched = FALSE;
-
-        if (!tp_proxy_has_interface_by_id (client,
-                                           TP_IFACE_QUARK_CLIENT_APPROVER))
-            continue;
-
-        for (cl = channels; cl != NULL; cl = cl->next)
-        {
-            McdChannel *channel = MCD_CHANNEL (cl->data);
-            GHashTable *channel_properties;
-
-            channel_properties = _mcd_channel_get_immutable_properties (channel);
-            g_assert (channel_properties != NULL);
-
-            if (_mcd_client_match_filters (channel_properties,
-                _mcd_client_proxy_get_approver_filters (client),
-                FALSE))
-            {
-                matched = TRUE;
-                break;
-            }
-        }
-        if (!matched) continue;
-
-        dispatch_operation =
-            _mcd_dispatch_operation_get_path (context->operation);
-        properties =
-            _mcd_dispatch_operation_get_properties (context->operation);
-        channel_details =
-            _mcd_dispatch_operation_dup_channel_details (context->operation);
-
-        DEBUG ("Calling AddDispatchOperation on approver %s for CDO %s @ %p "
-               "of context %p", tp_proxy_get_bus_name (client),
-               dispatch_operation, context->operation, context);
-
-        _mcd_dispatch_operation_inc_ado_pending (context->operation);
-
-        tp_cli_client_approver_call_add_dispatch_operation (
-            (TpClient *) client, -1,
-            channel_details, dispatch_operation, properties,
-            add_dispatch_operation_cb,
-            g_object_ref (context->operation), g_object_unref,
-            (GObject *)context->dispatcher);
-
-        g_boxed_free (TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST, channel_details);
-    }
-
-    /* This matches the approvers count set to 1 at the beginning of the
-     * function */
-    _mcd_dispatch_operation_dec_ado_pending (context->operation);
-}
-
 /* Happens at the end of successful filter chain execution (empty chain
  * is always successful)
  */
@@ -801,7 +692,7 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
             _mcd_dispatch_operation_set_approved (context->operation);
 
         if (!_mcd_dispatch_operation_is_approved (context->operation))
-            mcd_dispatcher_run_approvers (context);
+            _mcd_dispatch_operation_run_approvers (context->operation);
     }
 
     _mcd_dispatch_operation_set_invoked_early_clients (context->operation);
