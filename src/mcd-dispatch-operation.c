@@ -1060,19 +1060,6 @@ _mcd_dispatch_operation_get_properties (McdDispatchOperation *operation)
     return priv->properties;
 }
 
-/*
- * _mcd_dispatch_operation_is_claimed:
- * @operation: the #McdDispatchOperation.
- *
- * Returns: %TRUE if the operation was claimed, %FALSE otherwise.
- */
-gboolean
-_mcd_dispatch_operation_is_claimed (McdDispatchOperation *operation)
-{
-    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (operation), FALSE);
-    return (operation->priv->claimer != NULL);
-}
-
 gboolean
 _mcd_dispatch_operation_needs_approval (McdDispatchOperation *self)
 {
