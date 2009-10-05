@@ -370,7 +370,7 @@ get_account (TpSvcDBusProperties *self, const gchar *name, GValue *value)
             (MCD_DISPATCH_OPERATION (self)));
 }
 
-GPtrArray *
+static GPtrArray *
 _mcd_dispatch_operation_dup_channel_details (McdDispatchOperation *self)
 {
     McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (self);
