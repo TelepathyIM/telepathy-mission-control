@@ -451,6 +451,8 @@ mcd_dispatch_operation_set_channel_handled_by (McdDispatchOperation *self,
 static void
 mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
 {
+    g_object_ref (self);
+
     DEBUG ("%s/%p: finished", self->priv->unique_name, self);
     tp_svc_channel_dispatch_operation_emit_finished (self);
 
@@ -492,6 +494,8 @@ mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
         tp_svc_channel_dispatch_operation_return_from_claim (self->priv->claim_context);
         self->priv->claim_context = NULL;
     }
+
+    g_object_unref (self);
 }
 
 gboolean
@@ -1673,6 +1677,8 @@ _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
 void
 _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
 {
+    g_object_ref (self);
+
     _mcd_dispatch_operation_run_observers (self);
 
     /* if the dispatch operation thinks the channels were not
@@ -1693,6 +1699,8 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
 
     self->priv->invoked_early_clients = TRUE;
     _mcd_dispatch_operation_check_client_locks (self);
+
+    g_object_unref (self);
 }
 
 /*
