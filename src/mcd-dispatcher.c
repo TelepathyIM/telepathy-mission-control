@@ -865,13 +865,6 @@ finally:
 }
 
 static void
-mcd_dispatcher_context_release_pending_observer (McdDispatcherContext *context)
-{
-    _mcd_dispatch_operation_dec_observers_pending (context->operation);
-    _mcd_dispatch_operation_check_client_locks (context->operation);
-}
-
-static void
 observe_channels_cb (TpClient *proxy, const GError *error,
                      gpointer user_data, GObject *weak_object)
 {
@@ -884,7 +877,7 @@ observe_channels_cb (TpClient *proxy, const GError *error,
     else
         DEBUG ("success from %s", tp_proxy_get_object_path (proxy));
 
-    mcd_dispatcher_context_release_pending_observer (context);
+    _mcd_dispatch_operation_dec_observers_pending (context->operation);
 }
 
 /* The returned GPtrArray is allocated, but the contents are borrowed. */

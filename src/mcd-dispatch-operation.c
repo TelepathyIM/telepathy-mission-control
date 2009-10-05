@@ -197,6 +197,7 @@ _mcd_dispatch_operation_dec_observers_pending (McdDispatchOperation *self)
     self->priv->observers_pending--;
 
     _mcd_dispatch_operation_check_finished (self);
+    _mcd_dispatch_operation_check_client_locks (self);
     g_object_unref (self);
 }
 
