@@ -515,7 +515,7 @@ mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
     g_object_unref (self);
 }
 
-gboolean
+static void
 _mcd_dispatch_operation_finish (McdDispatchOperation *operation)
 {
     McdDispatchOperationPrivate *priv = operation->priv;
@@ -523,7 +523,7 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation)
     if (priv->wants_to_finish)
     {
         DEBUG ("already finished (or about to)!");
-        return FALSE;
+        return;
     }
 
     priv->wants_to_finish = TRUE;
@@ -538,8 +538,6 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation)
         DEBUG ("%s/%p not finishing just yet", priv->unique_name,
                operation);
     }
-
-    return TRUE;
 }
 
 static gboolean mcd_dispatch_operation_check_handle_with (

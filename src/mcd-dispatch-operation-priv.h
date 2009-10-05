@@ -82,8 +82,6 @@ G_GNUC_INTERNAL GList *_mcd_dispatch_operation_dup_channels (
 
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_finished (
     McdDispatchOperation *self);
-G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_finish (
-    McdDispatchOperation *operation);
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_needs_approval (
     McdDispatchOperation *self);
 G_GNUC_INTERNAL
