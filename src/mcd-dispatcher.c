@@ -1923,7 +1923,11 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
             mcd_dispatcher_op_ready_to_dispatch_cb, context);
 
         /* may emit finished */
-        _mcd_dispatch_operation_finish (context->operation);
+        if (_mcd_dispatch_operation_finish (context->operation))
+        {
+            DEBUG ("Operation wasn't finished when context was unreffed down "
+                   "to nothing!");
+        }
 
         g_signal_handlers_disconnect_by_func (context->operation,
                                               on_operation_finished,
