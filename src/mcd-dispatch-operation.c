@@ -242,7 +242,7 @@ _mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
     {
         DEBUG ("No approver accepted the channels; considering them to be "
                "approved");
-        _mcd_dispatch_operation_set_approved (self);
+        self->priv->approved = TRUE;
     }
 
     _mcd_dispatch_operation_check_client_locks (self);
