@@ -279,21 +279,6 @@ _mcd_dispatch_operation_set_awaiting_approval (McdDispatchOperation *self,
     self->priv->awaiting_approval = value;
 }
 
-void
-_mcd_dispatch_operation_set_channels_handled (McdDispatchOperation *self,
-                                              gboolean value)
-{
-    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
-    self->priv->channels_handled = value;
-}
-
-gboolean
-_mcd_dispatch_operation_get_channels_handled (McdDispatchOperation *self)
-{
-    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
-    return self->priv->channels_handled;
-}
-
 gboolean
 _mcd_dispatch_operation_get_cancelled (McdDispatchOperation *self)
 {
@@ -309,10 +294,9 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
         _mcd_dispatch_operation_is_approved (self))
     {
         /* no observers etc. left */
-        if (!_mcd_dispatch_operation_get_channels_handled (self))
+        if (!self->priv->channels_handled)
         {
-            _mcd_dispatch_operation_set_channels_handled (self,
-                                                          TRUE);
+            self->priv->channels_handled = TRUE;
             g_signal_emit (self, signals[S_RUN_HANDLERS], 0);
         }
     }
@@ -456,7 +440,7 @@ mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
     if (self->priv->channels == NULL)
     {
         DEBUG ("Nothing left to dispatch");
-        _mcd_dispatch_operation_set_channels_handled (self, TRUE);
+        self->priv->channels_handled = TRUE;
     }
 
     if (self->priv->claimer != NULL)
@@ -473,8 +457,8 @@ mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
                 self->priv->claimer);
         }
 
-        g_assert (!_mcd_dispatch_operation_get_channels_handled (self));
-        _mcd_dispatch_operation_set_channels_handled (self, TRUE);
+        g_assert (!self->priv->channels_handled);
+        self->priv->channels_handled = TRUE;
     }
 
     g_signal_emit (self, signals[S_READY_TO_DISPATCH], 0);
