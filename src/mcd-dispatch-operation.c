@@ -453,6 +453,12 @@ mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
     DEBUG ("%s/%p: finished", self->priv->unique_name, self);
     tp_svc_channel_dispatch_operation_emit_finished (self);
 
+    if (self->priv->channels == NULL)
+    {
+        DEBUG ("Nothing left to dispatch");
+        _mcd_dispatch_operation_set_channels_handled (self, TRUE);
+    }
+
     if (self->priv->claimer != NULL)
     {
         const GList *list;

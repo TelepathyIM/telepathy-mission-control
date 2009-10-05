@@ -1158,14 +1158,6 @@ mcd_dispatcher_op_ready_to_dispatch_cb (McdDispatchOperation *operation,
     g_assert (!_mcd_dispatch_operation_has_observers_pending
               (context->operation));
 
-    if (_mcd_dispatch_operation_peek_channels (context->operation) == NULL)
-    {
-        DEBUG ("Nothing left to dispatch");
-
-        _mcd_dispatch_operation_set_channels_handled (context->operation,
-                                                      TRUE);
-    }
-
     if (_mcd_dispatch_operation_is_awaiting_approval (context->operation))
     {
         _mcd_dispatch_operation_set_awaiting_approval (context->operation,
