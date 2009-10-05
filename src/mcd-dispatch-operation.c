@@ -1288,14 +1288,12 @@ _mcd_dispatch_operation_set_handler_failed (McdDispatchOperation *self,
                          self->priv->failed_handlers);
 }
 
-gboolean
+static gboolean
 _mcd_dispatch_operation_get_handler_failed (McdDispatchOperation *self,
                                             const gchar *bus_name)
 {
-    /* return TRUE on error so we can't get an infinite loop of trying the
-     * same handler */
-    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), TRUE);
-    g_return_val_if_fail (bus_name != NULL, TRUE);
+    g_assert (MCD_IS_DISPATCH_OPERATION (self));
+    g_assert (bus_name != NULL);
 
     if (self->priv->failed_handlers == NULL)
         return FALSE;
