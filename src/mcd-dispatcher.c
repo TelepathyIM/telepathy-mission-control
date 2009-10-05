@@ -1905,18 +1905,7 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
             g_return_if_fail (op != NULL);
 
             DEBUG ("channel %p is in CDO %p", channel, op);
-            if (_mcd_dispatch_operation_has_ado_pending (op)
-                || _mcd_dispatch_operation_is_awaiting_approval (op))
-            {
-                /* the existing channel is waiting for approval; but since the
-                 * same channel has been requested, the approval operation must
-                 * terminate */
-                _mcd_dispatch_operation_approve (op);
-            }
-            else
-            {
-                _mcd_dispatch_operation_set_approved (op);
-            }
+            _mcd_dispatch_operation_approve (op);
         }
         DEBUG ("channel %p is proxying %p", request, channel);
     }

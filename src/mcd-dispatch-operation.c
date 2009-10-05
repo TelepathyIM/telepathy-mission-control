@@ -465,6 +465,8 @@ mcd_dispatch_operation_set_channel_handled_by (McdDispatchOperation *self,
                                           tp_channel, unique_name);
 }
 
+static void _mcd_dispatch_operation_set_approved (McdDispatchOperation *self);
+
 static void
 mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
 {
@@ -1129,12 +1131,23 @@ _mcd_dispatch_operation_approve (McdDispatchOperation *self)
 
     DEBUG ("%s/%p", self->priv->unique_name, self);
 
-    if (!mcd_dispatch_operation_check_handle_with (self, NULL, NULL))
+    if (_mcd_dispatch_operation_has_ado_pending (self)
+        || _mcd_dispatch_operation_is_awaiting_approval (self))
     {
-        return;
-    }
+        /* the existing channel is waiting for approval; but since the
+         * same channel has been requested, the approval operation must
+         * terminate */
+        if (!mcd_dispatch_operation_check_handle_with (self, NULL, NULL))
+        {
+            return;
+        }
 
-    _mcd_dispatch_operation_finish (self);
+        _mcd_dispatch_operation_finish (self);
+    }
+    else
+    {
+        _mcd_dispatch_operation_set_approved (self);
+    }
 }
 
 static void
@@ -1309,7 +1322,7 @@ _mcd_dispatch_operation_handlers_can_bypass_approval (
     return FALSE;
 }
 
-void
+static void
 _mcd_dispatch_operation_set_approved (McdDispatchOperation *self)
 {
     g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
