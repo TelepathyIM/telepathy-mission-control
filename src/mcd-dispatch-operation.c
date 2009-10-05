@@ -1344,6 +1344,7 @@ _mcd_dispatch_operation_set_approved (McdDispatchOperation *self)
 {
     g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
     self->priv->approved = TRUE;
+    _mcd_dispatch_operation_check_client_locks (self);
 }
 
 gboolean

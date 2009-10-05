@@ -1160,7 +1160,6 @@ mcd_dispatcher_op_ready_to_dispatch_cb (McdDispatchOperation *operation,
         _mcd_dispatch_operation_set_awaiting_approval (context->operation,
                                                        FALSE);
         _mcd_dispatch_operation_set_approved (context->operation);
-        _mcd_dispatch_operation_check_client_locks (context->operation);
         mcd_dispatcher_context_unref (context, "CTXREF14");
     }
 
