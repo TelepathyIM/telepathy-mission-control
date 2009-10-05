@@ -619,6 +619,22 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
     return ret;
 }
 
+static const gchar *
+mcd_dispatcher_borrow_channel_connection_path (McdChannel *channel)
+{
+    TpChannel *tp_channel;
+    TpConnection *tp_connection;
+    const gchar *connection_path;
+
+    tp_channel = mcd_channel_get_tp_channel (channel);
+    g_return_val_if_fail (tp_channel != NULL, "/");
+    tp_connection = tp_channel_borrow_connection (tp_channel);
+    g_return_val_if_fail (tp_connection != NULL, "/");
+    connection_path = tp_proxy_get_object_path (tp_connection);
+    g_return_val_if_fail (connection_path != NULL, "/");
+    return connection_path;
+}
+
 /*
  * mcd_dispatcher_handle_channels:
  * @context: the #McdDispatcherContext
@@ -631,16 +647,23 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
                                 McdClientProxy *handler)
 {
     guint64 user_action_time;
-    McdConnection *connection;
     const gchar *account_path, *connection_path;
     GPtrArray *channels_array, *satisfied_requests;
     GHashTable *handler_info;
     const GList *cl;
 
-    connection = mcd_dispatcher_context_get_connection (context);
-    connection_path = connection ?
-        mcd_connection_get_object_path (connection) : NULL;
-    if (G_UNLIKELY (!connection_path)) connection_path = "/";
+    cl = _mcd_dispatch_operation_peek_channels (context->operation);
+
+    if (G_LIKELY (cl != NULL))
+    {
+        connection_path =
+            mcd_dispatcher_borrow_channel_connection_path (cl->data);
+    }
+    else
+    {
+        /* FIXME: make this provably untrue */
+        connection_path = "/";
+    }
 
     account_path = _mcd_dispatch_operation_get_account_path
         (context->operation);
@@ -2413,8 +2436,6 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     GPtrArray *details;
     GPtrArray *satisfied_requests;
     GHashTable *handler_info;
-    TpChannel *channel;
-    TpConnection *connection;
     const gchar *connection_path;
     McdAccount *account;
     const gchar *account_path;
@@ -2473,12 +2494,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     if (G_UNLIKELY (account_path == NULL))    /* can't happen? */
         account_path = "/";
 
-    channel = mcd_channel_get_tp_channel (request);
-    g_assert (channel != NULL);
-    connection = tp_channel_borrow_connection (channel);
-    g_assert (connection != NULL);
-    connection_path = tp_proxy_get_object_path (connection);
-    g_assert (connection_path != NULL);
+    connection_path = mcd_dispatcher_borrow_channel_connection_path (request);
 
     details = _mcd_channel_details_build_from_list (request_as_list);
 
