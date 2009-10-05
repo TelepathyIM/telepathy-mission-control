@@ -171,7 +171,7 @@ enum
 static void mcd_dispatcher_context_unref (McdDispatcherContext * ctx,
                                           const gchar *tag);
 static void on_operation_finished (McdDispatchOperation *operation,
-                                   McdDispatcherContext *context);
+                                   McdDispatcher *self);
 
 
 static inline void
@@ -1241,14 +1241,14 @@ _mcd_dispatcher_context_abort (McdDispatcherContext *context,
 
 static void
 on_operation_finished (McdDispatchOperation *operation,
-                       McdDispatcherContext *context)
+                       McdDispatcher *self)
 {
     /* don't emit the signal if the CDO never appeared on D-Bus */
-    if (context->dispatcher->priv->operation_list_active &&
+    if (self->priv->operation_list_active &&
         _mcd_dispatch_operation_needs_approval (operation))
     {
         tp_svc_channel_dispatcher_interface_operation_list_emit_dispatch_operation_finished (
-            context->dispatcher, _mcd_dispatch_operation_get_path (operation));
+            self, _mcd_dispatch_operation_get_path (operation));
     }
 }
 
@@ -1372,7 +1372,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
         }
 
         g_signal_connect (context->operation, "finished",
-                          G_CALLBACK (on_operation_finished), context);
+                          G_CALLBACK (on_operation_finished), dispatcher);
         g_signal_connect (context->operation, "ready-to-dispatch",
                           G_CALLBACK (mcd_dispatcher_op_ready_to_dispatch_cb),
                           context);
@@ -2036,7 +2036,7 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
 
         g_signal_handlers_disconnect_by_func (context->operation,
                                               on_operation_finished,
-                                              context);
+                                              context->dispatcher);
 
         g_signal_handlers_disconnect_by_func (context->operation,
             mcd_dispatcher_op_ready_to_dispatch_cb, context);
