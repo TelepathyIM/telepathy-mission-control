@@ -337,6 +337,30 @@ get_connection (TpSvcDBusProperties *self, const gchar *name, GValue *value)
             (MCD_DISPATCH_OPERATION (self)));
 }
 
+/*
+ * _mcd_dispatch_operation_get_account_path:
+ * @operation: the #McdDispatchOperation.
+ *
+ * Returns: the D-Bus object path of the Account associated with @operation,
+ *    or "/" if none.
+ */
+static const gchar *
+_mcd_dispatch_operation_get_account_path (McdDispatchOperation *self)
+{
+    const gchar *path;
+
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), "/");
+
+    if (self->priv->account == NULL)
+        return "/";
+
+    path = mcd_account_get_object_path (self->priv->account);
+
+    g_return_val_if_fail (path != NULL, "/");
+
+    return path;
+}
+
 static void
 get_account (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 {
@@ -986,30 +1010,6 @@ _mcd_dispatch_operation_get_path (McdDispatchOperation *operation)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (operation), NULL);
     return operation->priv->object_path;
-}
-
-/*
- * _mcd_dispatch_operation_get_account_path:
- * @operation: the #McdDispatchOperation.
- *
- * Returns: the D-Bus object path of the Account associated with @operation,
- *    or "/" if none.
- */
-const gchar *
-_mcd_dispatch_operation_get_account_path (McdDispatchOperation *self)
-{
-    const gchar *path;
-
-    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), "/");
-
-    if (self->priv->account == NULL)
-        return "/";
-
-    path = mcd_account_get_object_path (self->priv->account);
-
-    g_return_val_if_fail (path != NULL, "/");
-
-    return path;
 }
 
 /*

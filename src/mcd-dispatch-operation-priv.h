@@ -56,8 +56,6 @@ G_GNUC_INTERNAL GType _mcd_dispatch_operation_get_type (void);
 
 G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_path
     (McdDispatchOperation *operation);
-G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_account_path
-    (McdDispatchOperation *self);
 G_GNUC_INTERNAL GHashTable *_mcd_dispatch_operation_get_properties
     (McdDispatchOperation *operation);
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_claimed
