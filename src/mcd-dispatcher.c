@@ -371,20 +371,12 @@ channel_classes_equals (GHashTable *channel_class1, GHashTable *channel_class2)
  * largest filter that matched)
  */
 static guint
-match_filters (McdChannel *channel,
+match_filters (GHashTable *channel_properties,
                const GList *filters,
                gboolean assume_requested)
 {
-    GHashTable *channel_properties;
     const GList *list;
     guint best_quality = 0;
-
-    channel_properties = _mcd_channel_get_immutable_properties (channel);
-
-    if (channel_properties == NULL)
-    {
-        channel_properties = _mcd_channel_get_requested_properties (channel);
-    }
 
     for (list = filters; list != NULL; list = list->next)
     {
@@ -441,11 +433,14 @@ static McdClientProxy *
 mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
                                       McdChannel *channel)
 {
+    GHashTable *channel_properties;
     GHashTableIter iter;
     gpointer client;
 
     /* FIXME: return the "most preferred" handler, not just any handler that
      * can take it */
+
+    channel_properties = _mcd_channel_get_requested_properties (channel);
 
     _mcd_client_registry_init_hash_iter (dispatcher->priv->clients, &iter);
     while (g_hash_table_iter_next (&iter, NULL, &client))
@@ -454,7 +449,7 @@ mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
                                            TP_IFACE_QUARK_CLIENT_HANDLER))
             continue;
 
-        if (match_filters (channel,
+        if (match_filters (channel_properties,
             _mcd_client_proxy_get_handler_filters (client),
             TRUE) > 0)
             return client;
@@ -629,9 +624,17 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
         for (iter = channels; iter != NULL; iter = iter->next)
         {
             McdChannel *channel = MCD_CHANNEL (iter->data);
+            GHashTable *properties;
             guint quality;
 
-            quality = match_filters (channel,
+            properties = _mcd_channel_get_immutable_properties (channel);
+
+            if (properties == NULL)
+            {
+                properties = _mcd_channel_get_requested_properties (channel);
+            }
+
+            quality = match_filters (properties,
                 _mcd_client_proxy_get_handler_filters (client),
                 FALSE);
 
@@ -949,8 +952,12 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
         for (cl = channels; cl != NULL; cl = cl->next)
         {
             McdChannel *channel = MCD_CHANNEL (cl->data);
+            GHashTable *properties;
 
-            if (match_filters (channel,
+            properties = _mcd_channel_get_immutable_properties (channel);
+            g_assert (properties != NULL);
+
+            if (match_filters (properties,
                 _mcd_client_proxy_get_observer_filters (client),
                 FALSE))
                 observed = g_list_prepend (observed, channel);
@@ -1078,8 +1085,12 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
         for (cl = channels; cl != NULL; cl = cl->next)
         {
             McdChannel *channel = MCD_CHANNEL (cl->data);
+            GHashTable *channel_properties;
 
-            if (match_filters (channel,
+            channel_properties = _mcd_channel_get_immutable_properties (channel);
+            g_assert (channel_properties != NULL);
+
+            if (match_filters (channel_properties,
                 _mcd_client_proxy_get_approver_filters (client),
                 FALSE))
             {
