@@ -105,9 +105,6 @@ G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_get_handler_failed (
 G_GNUC_INTERNAL void _mcd_dispatch_operation_set_approved (
     McdDispatchOperation *self);
 
-G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_has_observers_pending (
-    McdDispatchOperation *self);
-
 /* AddDispatchOperation calls */
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_has_ado_pending (
     McdDispatchOperation *self);

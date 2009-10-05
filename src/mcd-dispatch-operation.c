@@ -173,13 +173,6 @@ mcd_dispatch_operation_may_finish (McdDispatchOperation *self)
             self->priv->ado_pending == 0);
 }
 
-gboolean
-_mcd_dispatch_operation_has_observers_pending (McdDispatchOperation *self)
-{
-    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
-    return (self->priv->observers_pending > 0);
-}
-
 static void
 _mcd_dispatch_operation_inc_observers_pending (McdDispatchOperation *self)
 {
@@ -286,7 +279,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 {
     if (self->priv->invoked_early_clients &&
         !_mcd_dispatch_operation_has_ado_pending (self) &&
-        !_mcd_dispatch_operation_has_observers_pending (self) &&
+        self->priv->observers_pending == 0 &&
         _mcd_dispatch_operation_is_approved (self))
     {
         /* no observers etc. left */
