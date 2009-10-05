@@ -1076,13 +1076,6 @@ _mcd_dispatch_operation_is_finished (McdDispatchOperation *self)
             mcd_dispatch_operation_may_finish (self));
 }
 
-const gchar * const *
-_mcd_dispatch_operation_get_possible_handlers (McdDispatchOperation *self)
-{
-    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), NULL);
-    return (const gchar * const *) self->priv->possible_handlers;
-}
-
 static gboolean
 mcd_dispatch_operation_check_handle_with (McdDispatchOperation *self,
                                           const gchar *handler_name,
@@ -1738,8 +1731,7 @@ void
 _mcd_dispatch_operation_run_handlers (McdDispatchOperation *self)
 {
     GList *channels, *list;
-    const gchar * const *possible_handlers;
-    const gchar * const *iter;
+    gchar **iter;
 
     /* If there is an approved handler chosen by the Approver, it's the only
      * one we'll consider. */
@@ -1775,9 +1767,9 @@ _mcd_dispatch_operation_run_handlers (McdDispatchOperation *self)
          * yet arrived, so try to recover by dispatching to *something*. */
     }
 
-    possible_handlers = _mcd_dispatch_operation_get_possible_handlers (self);
-
-    for (iter = possible_handlers; iter != NULL && *iter != NULL; iter++)
+    for (iter = self->priv->possible_handlers;
+         iter != NULL && *iter != NULL;
+         iter++)
     {
         McdClientProxy *handler = _mcd_client_registry_lookup (
             self->priv->client_registry, *iter);
