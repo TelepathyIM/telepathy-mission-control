@@ -2008,6 +2008,8 @@ list_activatable_names_cb (TpDBusDaemon *proxy,
     mcd_dispatcher_release_startup_lock (self);
 }
 
+#if 0
+
 static void
 reload_config_cb (TpDBusDaemon *proxy,
     const GError *error,
@@ -2029,6 +2031,8 @@ reload_config_cb (TpDBusDaemon *proxy,
      * take a lock for ListActivatableNames then release the one used for
      * ReloadConfig), so simplify by doing nothing */
 }
+
+#endif
 
 static void
 list_names_cb (TpDBusDaemon *proxy,
@@ -2057,10 +2061,19 @@ list_names_cb (TpDBusDaemon *proxy,
         }
     }
 
+#if 0
+    /* Don't kick the daemon so reload its config as this causes bad
+     * side-effects wrt. service activation, see
+     * https://bugs.freedesktop.org/show_bug.cgi?id=24350 */
+
     /* Call reload config because the dbus daemon often fails to notice newly
      * installed .service files on its own. */
     tp_cli_dbus_daemon_call_reload_config (self->priv->dbus_daemon, -1,
         reload_config_cb, NULL, NULL, weak_object);
+#else
+    tp_cli_dbus_daemon_call_list_activatable_names (self->priv->dbus_daemon,
+        -1, list_activatable_names_cb, NULL, NULL, weak_object);
+#endif
     /* deliberately not calling mcd_dispatcher_release_startup_lock here -
      * this function is "lock-neutral" (we would take a lock for ReloadConfig
      * then release the one used for ListNames), so simplify by doing
