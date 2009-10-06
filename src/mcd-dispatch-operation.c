@@ -1455,3 +1455,133 @@ void _mcd_dispatch_operation_handle_channels_cb (McdDispatchOperation *self,
         _mcd_dispatch_operation_finish (self);
     }
 }
+
+static void
+observe_channels_cb (TpClient *proxy, const GError *error,
+                     gpointer user_data, GObject *weak_object)
+{
+    McdDispatchOperation *self = user_data;
+
+    /* we display the error just for debugging, but we don't really care */
+    if (error)
+        DEBUG ("Observer %s returned error: %s",
+               tp_proxy_get_object_path (proxy), error->message);
+    else
+        DEBUG ("success from %s", tp_proxy_get_object_path (proxy));
+
+    _mcd_dispatch_operation_dec_observers_pending (self);
+}
+
+/* The returned GPtrArray is allocated, but the contents are borrowed. */
+static GPtrArray *
+collect_satisfied_requests (GList *channels)
+{
+    const GList *c, *r;
+    GHashTable *set = g_hash_table_new (g_str_hash, g_str_equal);
+    GHashTableIter iter;
+    gpointer path;
+    GPtrArray *ret;
+
+    /* collect object paths into a hash table, to drop duplicates */
+    for (c = channels; c != NULL; c = c->next)
+    {
+        const GList *reqs = _mcd_channel_get_satisfied_requests (c->data);
+
+        for (r = reqs; r != NULL; r = r->next)
+        {
+            g_hash_table_insert (set, r->data, r->data);
+        }
+    }
+
+    /* serialize them into a pointer array, which is what dbus-glib wants */
+    ret = g_ptr_array_sized_new (g_hash_table_size (set));
+
+    g_hash_table_iter_init (&iter, set);
+
+    while (g_hash_table_iter_next (&iter, &path, NULL))
+    {
+        g_ptr_array_add (ret, path);
+    }
+
+    g_hash_table_destroy (set);
+
+    return ret;
+}
+
+void
+_mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
+{
+    const GList *cl;
+    const gchar *dispatch_operation_path = "/";
+    GHashTable *observer_info;
+    GHashTableIter iter;
+    gpointer client_p;
+
+    observer_info = g_hash_table_new (g_str_hash, g_str_equal);
+
+    _mcd_client_registry_init_hash_iter (self->priv->client_registry, &iter);
+
+    while (g_hash_table_iter_next (&iter, NULL, &client_p))
+    {
+        McdClientProxy *client = MCD_CLIENT_PROXY (client_p);
+        GList *observed = NULL;
+        const gchar *account_path, *connection_path;
+        GPtrArray *channels_array, *satisfied_requests;
+
+        if (!tp_proxy_has_interface_by_id (client,
+                                           TP_IFACE_QUARK_CLIENT_OBSERVER))
+            continue;
+
+        for (cl = self->priv->channels; cl != NULL; cl = cl->next)
+        {
+            McdChannel *channel = MCD_CHANNEL (cl->data);
+            GHashTable *properties;
+
+            properties = _mcd_channel_get_immutable_properties (channel);
+            g_assert (properties != NULL);
+
+            if (_mcd_client_match_filters (properties,
+                _mcd_client_proxy_get_observer_filters (client),
+                FALSE))
+                observed = g_list_prepend (observed, channel);
+        }
+        if (!observed) continue;
+
+        /* build up the parameters and invoke the observer */
+
+        connection_path = _mcd_dispatch_operation_get_connection_path (self);
+        account_path = _mcd_dispatch_operation_get_account_path (self);
+
+        /* TODO: there's room for optimization here: reuse the channels_array,
+         * if the observed list is the same */
+        channels_array = _mcd_channel_details_build_from_list (observed);
+
+        satisfied_requests = collect_satisfied_requests (observed);
+
+        if (_mcd_dispatch_operation_needs_approval (self))
+        {
+            dispatch_operation_path = _mcd_dispatch_operation_get_path (self);
+        }
+
+        _mcd_dispatch_operation_inc_observers_pending (self);
+
+        DEBUG ("calling ObserveChannels on %s for CDO %p",
+               tp_proxy_get_bus_name (client), self);
+        tp_cli_client_observer_call_observe_channels (
+            (TpClient *) client, -1,
+            account_path, connection_path, channels_array,
+            dispatch_operation_path, satisfied_requests, observer_info,
+            observe_channels_cb,
+            g_object_ref (self), g_object_unref, NULL);
+
+        /* don't free the individual object paths, which are borrowed from the
+         * McdChannel objects */
+        g_ptr_array_free (satisfied_requests, TRUE);
+
+        _mcd_channel_details_free (channels_array);
+
+        g_list_free (observed);
+    }
+
+    g_hash_table_destroy (observer_info);
+}

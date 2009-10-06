@@ -146,6 +146,9 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_check_client_locks (
 G_GNUC_INTERNAL void _mcd_dispatch_operation_handle_channels_cb (
     McdDispatchOperation *self, TpClient *client, const GError *error);
 
+G_GNUC_INTERNAL void _mcd_dispatch_operation_run_observers (
+    McdDispatchOperation *self);
+
 G_END_DECLS
 
 #endif
