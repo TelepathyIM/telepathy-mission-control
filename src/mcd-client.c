@@ -1387,3 +1387,152 @@ _mcd_client_proxy_dup_handler_capabilities (McdClientProxy *self)
 
     return va;
 }
+
+/* returns TRUE if the channel matches one property criteria
+ */
+gboolean
+_mcd_client_match_property (GHashTable *channel_properties,
+                            gchar *property_name,
+                            GValue *filter_value)
+{
+    GType filter_type = G_VALUE_TYPE (filter_value);
+
+    g_assert (G_IS_VALUE (filter_value));
+
+    if (filter_type == G_TYPE_STRING)
+    {
+        const gchar *string;
+
+        string = tp_asv_get_string (channel_properties, property_name);
+        if (!string)
+            return FALSE;
+
+        return !tp_strdiff (string, g_value_get_string (filter_value));
+    }
+
+    if (filter_type == DBUS_TYPE_G_OBJECT_PATH)
+    {
+        const gchar *path;
+
+        path = tp_asv_get_object_path (channel_properties, property_name);
+        if (!path)
+            return FALSE;
+
+        return !tp_strdiff (path, g_value_get_boxed (filter_value));
+    }
+
+    if (filter_type == G_TYPE_BOOLEAN)
+    {
+        gboolean valid;
+        gboolean b;
+
+        b = tp_asv_get_boolean (channel_properties, property_name, &valid);
+        if (!valid)
+            return FALSE;
+
+        return !!b == !!g_value_get_boolean (filter_value);
+    }
+
+    if (filter_type == G_TYPE_UCHAR || filter_type == G_TYPE_UINT ||
+        filter_type == G_TYPE_UINT64)
+    {
+        gboolean valid;
+        guint64 i;
+
+        i = tp_asv_get_uint64 (channel_properties, property_name, &valid);
+        if (!valid)
+            return FALSE;
+
+        if (filter_type == G_TYPE_UCHAR)
+            return i == g_value_get_uchar (filter_value);
+        else if (filter_type == G_TYPE_UINT)
+            return i == g_value_get_uint (filter_value);
+        else
+            return i == g_value_get_uint64 (filter_value);
+    }
+
+    if (filter_type == G_TYPE_INT || filter_type == G_TYPE_INT64)
+    {
+        gboolean valid;
+        gint64 i;
+
+        i = tp_asv_get_int64 (channel_properties, property_name, &valid);
+        if (!valid)
+            return FALSE;
+
+        if (filter_type == G_TYPE_INT)
+            return i == g_value_get_int (filter_value);
+        else
+            return i == g_value_get_int64 (filter_value);
+    }
+
+    g_warning ("%s: Invalid type: %s",
+               G_STRFUNC, g_type_name (filter_type));
+    return FALSE;
+}
+
+/* if the channel matches one of the channel filters, returns a positive
+ * number that increases with more specific matches; otherwise, returns 0
+ *
+ * (implementation detail: the positive number is 1 + the number of keys in the
+ * largest filter that matched)
+ */
+guint
+_mcd_client_match_filters (GHashTable *channel_properties,
+                           const GList *filters,
+                           gboolean assume_requested)
+{
+    const GList *list;
+    guint best_quality = 0;
+
+    for (list = filters; list != NULL; list = list->next)
+    {
+        GHashTable *filter = list->data;
+        GHashTableIter filter_iter;
+        gboolean filter_matched = TRUE;
+        gchar *property_name;
+        GValue *filter_value;
+        guint quality;
+
+        /* +1 because the empty hash table matches everything :-) */
+        quality = g_hash_table_size (filter) + 1;
+
+        if (quality <= best_quality)
+        {
+            /* even if this filter matches, there's no way it can be a
+             * better-quality match than the best one we saw so far */
+            continue;
+        }
+
+        g_hash_table_iter_init (&filter_iter, filter);
+        while (g_hash_table_iter_next (&filter_iter,
+                                       (gpointer *) &property_name,
+                                       (gpointer *) &filter_value))
+        {
+            if (assume_requested &&
+                ! tp_strdiff (property_name, TP_IFACE_CHANNEL ".Requested"))
+            {
+                if (! G_VALUE_HOLDS_BOOLEAN (filter_value) ||
+                    ! g_value_get_boolean (filter_value))
+                {
+                    filter_matched = FALSE;
+                    break;
+                }
+            }
+            else if (! _mcd_client_match_property (channel_properties,
+                                                   property_name,
+                                                   filter_value))
+            {
+                filter_matched = FALSE;
+                break;
+            }
+        }
+
+        if (filter_matched)
+        {
+            best_quality = quality;
+        }
+    }
+
+    return best_quality;
+}
