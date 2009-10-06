@@ -1377,8 +1377,9 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
      * bundle? */
 
     context->operation = _mcd_dispatch_operation_new (priv->clients,
-        !requested, channels, (const gchar * const *) possible_handlers);
-    /* ownership of @channels is stolen, but the GObject references are not */
+        !requested, g_list_copy (channels),
+        (const gchar * const *) possible_handlers);
+    /* the copy of @channels is stolen, but the GObject references are not */
 
     if (!requested)
     {
@@ -1394,9 +1395,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
                           G_CALLBACK (on_operation_finished), context);
     }
 
-    /* FIXME: we've just donated @channels to the McdDispatchOperation, so
-     * this relies on the fact that it hasn't had a chance to free anything
-     * yet */
     for (list = channels; list != NULL; list = list->next)
     {
         channel = MCD_CHANNEL (list->data);
@@ -1405,6 +1403,8 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
                                 G_CALLBACK (on_channel_abort_context),
                                 context);
     }
+
+    g_list_free (channels);
 
     DEBUG ("entering state machine for context %p", context);
 
