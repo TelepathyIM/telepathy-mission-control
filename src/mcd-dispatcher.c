@@ -119,10 +119,6 @@ struct _McdDispatcherPrivate
 
     TpDBusDaemon *dbus_daemon;
 
-    /* Array of channel handler's capabilities, stored as a GPtrArray for
-     * performance reasons */
-    GPtrArray *channel_handler_caps;
-
     /* list of McdFilter elements */
     GList *filters;
 
