@@ -176,7 +176,9 @@ on_members_changed (TpChannel *proxy, const gchar *message,
     }
 
     if (removed && removed->len > 0 &&
-        (actor == 0 || (actor != self_handle && actor != conn_self_handle)))
+        (actor == 0 ||
+         reason == TP_CHANNEL_GROUP_CHANGE_REASON_ERROR ||
+         (actor != self_handle && actor != conn_self_handle)))
     {
         for (i = 0; i < removed->len; i++)
         {
