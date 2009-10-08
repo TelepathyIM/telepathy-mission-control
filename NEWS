@@ -8,7 +8,19 @@ Enhancements:
   (instead of 1) on wrong arguments, and EX_USAGE (instead of g_critical()
   and never terminating) if the requested bus name is not valid (smcv)
 
+* fd.o#24120 (partial): refactor McdDispatcher as follows:
+  + always have a McdDispatchOperation for each McdDispatcherContext, even if
+    no approval is needed
+  + start to migrate bits of the dispatching state machine into the dispatch
+    operation to reduce the size of mcd-dispatcher.c
+  + move client logic into McdClientProxy, removing the McdClient struct
+  (smcv)
+
 Fixes:
+
+* Don't call ReloadConfig() on the dbus-daemon (reopening fd.o#23921), to avoid
+  triggering fd.o#24350 in dbus-daemon and causing service-activations to
+  fail (sjoerd)
 
 * mc_account_conditions_call_when_ready: explain why it's OK to ignore the
   result of mc_iface_call_when_ready_int, which was a Coverity false-positive
@@ -24,6 +36,10 @@ Fixes:
 
 * Add a regression test for dispatching and requests being delayed while
   waiting for a plugin to make an asynchronous request for permission (smcv)
+
+* Don't leak check_parameters_get_param_cb closure on error (smcv)
+
+All fixes from stable release 5.2.6 have been incorporated in this release.
 
 telepathy-mission-control 5.3.1 (2009-09-18)
 ============================================
