@@ -1,7 +1,31 @@
-telepathy-mission-control 5.2.6 (UNRELEASED)
+telepathy-mission-control 5.2.6 (2009-10-08)
 ============================================
 
-...
+The "Tooting Bec" release.
+
+Enhancements:
+
+* mc-wait-for-name: give up after 5 minutes and exit EX_TEMPFAIL. Also exit
+  with EX_UNAVAILABLE (instead of 1) if the session bus doesn't work, EX_USAGE
+  (instead of 1) on wrong arguments, and EX_USAGE (instead of g_critical()
+  and never terminating) if the requested bus name is not valid (smcv)
+
+Fixes:
+
+* mc_account_conditions_call_when_ready: explain why it's OK to ignore the
+  result of mc_iface_call_when_ready_int, which was a Coverity false-positive
+  (smcv)
+
+* Consider calls to be potentially-missed if they terminate for reason ERROR,
+  even if we're the actor, because that's what happens in Gabble >= 0.8.4
+  if the streaming implementation (i.e. telepathy-farsight) discovers that
+  none of the candidates work and calls Error() (smcv)
+
+* Fix a race condition in the test account-manager/make-valid.py, which
+  would sometimes incorrectly make it fail (smcv)
+
+* Add a regression test for dispatching and requests being delayed while
+  waiting for a plugin to make an asynchronous request for permission (smcv)
 
 telepathy-mission-control 5.2.5 (2009-09-18)
 ============================================
