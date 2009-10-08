@@ -23,6 +23,9 @@
 #include "mcd-plugin.h"
 #include "mcd-debug.h"
 
+#include <dbus/dbus.h>
+#include <dbus/dbus-glib-lowlevel.h>
+
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/util.h>
 
@@ -128,6 +131,82 @@ reject_mc_hammer (McdDispatcherContext *ctx,
     mcd_dispatcher_context_process (ctx, TRUE);
 }
 
+static void
+permission_cb (DBusPendingCall *pc,
+    gpointer data)
+{
+    McdDispatcherContext *ctx = data;
+    DBusMessage *message = dbus_pending_call_steal_reply (pc);
+
+    if (dbus_message_get_type (message) == DBUS_MESSAGE_TYPE_ERROR)
+    {
+        DEBUG ("Permission denied for %p", ctx);
+        mcd_dispatcher_context_close_all (ctx,
+            TP_CHANNEL_GROUP_CHANGE_REASON_PERMISSION_DENIED,
+            "Computer says no");
+    }
+    else
+    {
+        DEBUG ("Permission granted for %p", ctx);
+    }
+
+    dbus_message_unref (message);
+    dbus_pending_call_unref (pc);
+}
+
+static void
+ask_for_permission (McdDispatcherContext *ctx, gpointer user_data)
+{
+    McdChannel *channel = mcd_dispatcher_context_get_channel (ctx);
+
+    DEBUG ("%p", ctx);
+
+    if (!tp_strdiff (mcd_channel_get_name (channel), "policy@example.com"))
+    {
+        TpDBusDaemon *dbus_daemon = tp_dbus_daemon_dup (NULL);
+        DBusGConnection *gconn = tp_proxy_get_dbus_connection (dbus_daemon);
+        DBusConnection *libdbus = dbus_g_connection_get_connection (gconn);
+        DBusPendingCall *pc = NULL;
+        DBusMessage *message;
+
+        /* in a real policy-mechanism you'd give some details, like the
+         * channel's properties or object path */
+        message = dbus_message_new_method_call ("com.example.Policy",
+            "/com/example/Policy", "com.example.Policy", "RequestPermission");
+
+        if (!dbus_connection_send_with_reply (libdbus, message,
+              &pc, -1))
+            g_error ("out of memory");
+
+        dbus_message_unref (message);
+
+        if (pc == NULL)
+        {
+            DEBUG ("got disconnected from D-Bus...");
+            goto proceed;
+        }
+
+        /* pc is unreffed by permission_cb */
+
+        DEBUG ("Waiting for permission for %p", ctx);
+
+        if (dbus_pending_call_get_completed (pc))
+        {
+            permission_cb (pc, ctx);
+            goto proceed;
+        }
+
+        if (!dbus_pending_call_set_notify (pc, permission_cb, ctx,
+              (DBusFreeFunction) mcd_dispatcher_context_proceed))
+            g_error ("Out of memory");
+
+        return;
+    }
+
+proceed:
+    mcd_dispatcher_context_proceed (ctx);
+}
+
 static const McdFilter my_filters[] = {
       { reject_rickrolling, MCD_FILTER_PRIORITY_CRITICAL,
       "Never gonna give you up" },
@@ -135,6 +214,7 @@ static const McdFilter my_filters[] = {
       "Can't touch this" },
       { reject_mc_hammer, MCD_FILTER_PRIORITY_CRITICAL,
       "Stop! Hammer time" },
+      { ask_for_permission, MCD_FILTER_PRIORITY_SYSTEM, "May I?" },
       { NULL }
 };
 
