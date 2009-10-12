@@ -150,6 +150,10 @@ struct _McdDispatchOperationPrivate
 
     /* If TRUE, we're dispatching a channel request and it was cancelled */
     gboolean cancelled;
+
+    /* if TRUE, these channels were requested "behind our back", so stop
+     * after observers */
+    gboolean observe_only;
 };
 
 static void _mcd_dispatch_operation_check_finished (
@@ -253,7 +257,8 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
         _mcd_dispatch_operation_is_approved (self))
     {
         /* no observers etc. left */
-        if (!self->priv->channels_handled)
+        if (!self->priv->channels_handled &&
+            !self->priv->observe_only)
         {
             self->priv->channels_handled = TRUE;
             _mcd_dispatch_operation_run_handlers (self);
@@ -269,6 +274,7 @@ enum
     PROP_HANDLER_MAP,
     PROP_POSSIBLE_HANDLERS,
     PROP_NEEDS_APPROVAL,
+    PROP_OBSERVE_ONLY,
 };
 
 /*
@@ -608,6 +614,18 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
     if (!priv->client_registry || !priv->handler_map)
         goto error;
 
+    if (priv->possible_handlers == NULL && !priv->observe_only)
+    {
+        g_critical ("!observe_only => possible_handlers must not be NULL");
+        goto error;
+    }
+
+    if (priv->needs_approval && priv->observe_only)
+    {
+        g_critical ("observe_only => needs_approval must not be TRUE");
+        goto error;
+    }
+
     create_object_path (priv);
 
     DEBUG ("%s/%p: needs_approval=%c", priv->unique_name, object,
@@ -752,11 +770,14 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
     case PROP_POSSIBLE_HANDLERS:
         g_assert (priv->possible_handlers == NULL);
         priv->possible_handlers = g_value_dup_boxed (val);
-        g_assert (priv->possible_handlers != NULL);
         break;
 
     case PROP_NEEDS_APPROVAL:
         priv->needs_approval = g_value_get_boolean (val);
+        break;
+
+    case PROP_OBSERVE_ONLY:
+        priv->observe_only = g_value_get_boolean (val);
         break;
 
     default:
@@ -787,6 +808,10 @@ mcd_dispatch_operation_get_property (GObject *obj, guint prop_id,
 
     case PROP_NEEDS_APPROVAL:
         g_value_set_boolean (val, priv->needs_approval);
+        break;
+
+    case PROP_OBSERVE_ONLY:
+        g_value_set_boolean (val, priv->observe_only);
         break;
 
     default:
@@ -915,6 +940,14 @@ _mcd_dispatch_operation_class_init (McdDispatchOperationClass * klass)
                               "appear on D-Bus", FALSE,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
                               G_PARAM_STATIC_STRINGS));
+
+    g_object_class_install_property (object_class, PROP_OBSERVE_ONLY,
+        g_param_spec_boolean ("observe-only", "Observe only?",
+                              "TRUE if this CDO should stop dispatching "
+                              "as soon as Observers have been run",
+                              FALSE,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
+                              G_PARAM_STATIC_STRINGS));
 }
 
 static void
@@ -945,6 +978,7 @@ McdDispatchOperation *
 _mcd_dispatch_operation_new (McdClientRegistry *client_registry,
                              McdHandlerMap *handler_map,
                              gboolean needs_approval,
+                             gboolean observe_only,
                              GList *channels,
                              const gchar * const *possible_handlers)
 {
@@ -955,6 +989,7 @@ _mcd_dispatch_operation_new (McdClientRegistry *client_registry,
                         "channels", channels,
                         "possible-handlers", possible_handlers,
                         "needs-approval", needs_approval,
+                        "observe-only", observe_only,
                         NULL);
 
     return MCD_DISPATCH_OPERATION (obj);
