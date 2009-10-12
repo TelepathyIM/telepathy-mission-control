@@ -552,7 +552,7 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
          * We assume that channels without suppress_handler are incoming. */
         _mcd_dispatcher_take_channels (priv->dispatcher,
                                        g_list_prepend (NULL, channel),
-                                       ! suppress_handler, suppress_handler);
+                                       suppress_handler, suppress_handler);
     }
 }
 
