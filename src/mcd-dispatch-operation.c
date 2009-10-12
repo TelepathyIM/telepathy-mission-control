@@ -983,6 +983,13 @@ _mcd_dispatch_operation_new (McdClientRegistry *client_registry,
                              const gchar * const *possible_handlers)
 {
     gpointer *obj;
+
+    /* possible-handlers is only allowed to be NULL if we're only observing */
+    g_return_val_if_fail (possible_handlers != NULL || observe_only, NULL);
+    /* channels that we will only observe should not need approval - so at
+     * least one must be false */
+    g_return_val_if_fail (!(observe_only && needs_approval), NULL);
+
     obj = g_object_new (MCD_TYPE_DISPATCH_OPERATION,
                         "client-registry", client_registry,
                         "handler-map", handler_map,

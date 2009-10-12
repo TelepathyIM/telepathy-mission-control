@@ -546,6 +546,8 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
     g_return_if_fail (channels != NULL);
     g_return_if_fail (MCD_IS_CHANNEL (channels->data));
+    g_return_if_fail (requested || !only_observe);
+    g_return_if_fail (possible_handlers != NULL || only_observe);
 
     account = mcd_channel_get_account (channels->data);
     if (G_UNLIKELY (!account))
@@ -1625,10 +1627,12 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
 
     if (only_observe)
     {
+        g_return_if_fail (requested);
+
         /* these channels were requested "behind our back", so only call
          * ObserveChannels on them */
         _mcd_dispatcher_enter_state_machine (dispatcher, channels, NULL,
-                                             requested, TRUE);
+                                             TRUE, TRUE);
         g_list_free (channels);
         return;
     }
