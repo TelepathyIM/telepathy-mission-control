@@ -1266,6 +1266,12 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
         channel_list = g_list_prepend (channel_list, channel);
     }
 
+    if (!requested)
+    {
+        /* we always dispatch unrequested (incoming) channels */
+        only_observe = FALSE;
+    }
+
     _mcd_dispatcher_take_channels (priv->dispatcher, channel_list, requested,
                                    only_observe);
 }
