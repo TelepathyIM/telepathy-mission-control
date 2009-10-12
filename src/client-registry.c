@@ -266,28 +266,6 @@ mcd_client_registry_list_activatable_names_cb (TpDBusDaemon *proxy,
 }
 
 static void
-mcd_client_registry_reload_config_cb (TpDBusDaemon *proxy,
-    const GError *error,
-    gpointer user_data,
-    GObject *weak_object)
-{
-  if (error != NULL)
-    {
-      DEBUG ("ReloadConfig returned error. Recent .service files may not "
-          "be found: %s %d: %s",
-          g_quark_to_string (error->domain), error->code, error->message);
-    }
-
-  tp_cli_dbus_daemon_call_list_activatable_names (proxy, -1,
-      mcd_client_registry_list_activatable_names_cb,
-      NULL, NULL, weak_object);
-  /* deliberately not calling _mcd_client_registry_dec_startup_lock here -
-   * this function is "lock-neutral", similarly to list_names_cb (we would
-   * take a lock for ListActivatableNames then release the one used for
-   * ReloadConfig), so simplify by doing nothing */
-}
-
-static void
 mcd_client_registry_list_names_cb (TpDBusDaemon *proxy,
     const gchar **names,
     const GError *error,
@@ -314,14 +292,13 @@ mcd_client_registry_list_names_cb (TpDBusDaemon *proxy,
         }
     }
 
-  /* Call reload config because the dbus daemon often fails to notice newly
-   * installed .service files on its own. */
-  tp_cli_dbus_daemon_call_reload_config (proxy, -1,
-      mcd_client_registry_reload_config_cb, NULL, NULL, weak_object);
+  tp_cli_dbus_daemon_call_list_activatable_names (proxy, -1,
+      mcd_client_registry_list_activatable_names_cb,
+      NULL, NULL, weak_object);
   /* deliberately not calling _mcd_client_registry_dec_startup_lock here -
-   * this function is "lock-neutral" (we would take a lock for ReloadConfig
-   * then release the one used for ListNames), so simplify by doing
-   * nothing */
+   * this function is "lock-neutral", similarly to list_names_cb (we would
+   * take a lock for ListActivatableNames then release the one used for
+   * ReloadConfig), so simplify by doing nothing */
 }
 
 static void
