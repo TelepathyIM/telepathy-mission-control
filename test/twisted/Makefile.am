@@ -31,6 +31,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/create-handler-fails.py \
 	dispatcher/create-no-preferred-handler.py \
 	dispatcher/create-text.py \
+	dispatcher/created-behind-our-back.py \
 	dispatcher/dispatch-activatable.py \
 	dispatcher/dispatch-obsolete.py \
 	dispatcher/dispatch-text.py \
