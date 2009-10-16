@@ -1539,6 +1539,22 @@ _mcd_client_match_filters (GHashTable *channel_properties,
 }
 
 static const gchar *
+borrow_channel_account_path (McdChannel *channel)
+{
+    McdAccount *account;
+    const gchar *account_path;
+
+    account = mcd_channel_get_account (channel);
+    account_path = account == NULL ? "/"
+        : mcd_account_get_object_path (account);
+
+    if (G_UNLIKELY (account_path == NULL))    /* can't happen? */
+        account_path = "/";
+
+    return account_path;
+}
+
+static const gchar *
 borrow_channel_connection_path (McdChannel *channel)
 {
     TpChannel *tp_channel;
@@ -1557,7 +1573,6 @@ borrow_channel_connection_path (McdChannel *channel)
 void
 _mcd_client_proxy_handle_channels (McdClientProxy *self,
     gint timeout_ms,
-    const gchar *account_path,
     const GList *channels,
     gint64 user_action_time,
     GHashTable *handler_info,
@@ -1607,7 +1622,7 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
     }
 
     tp_cli_client_handler_call_handle_channels ((TpClient *) self,
-        timeout_ms, account_path,
+        timeout_ms, borrow_channel_account_path (channels->data),
         borrow_channel_connection_path (channels->data), channel_details,
         requests_satisfied, user_action_time, handler_info,
         callback, user_data, destroy, weak_object);

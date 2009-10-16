@@ -1759,8 +1759,6 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     GList *request_as_list;
     const gchar *handler_unique;
     GStrv possible_handlers;
-    McdAccount *account;
-    const gchar *account_path;
     McdClientProxy *handler;
 
     request_as_list = g_list_append (NULL, request);
@@ -1807,15 +1805,8 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     /* FIXME: gathering the arguments for HandleChannels is duplicated between
      * this function and mcd_dispatch_operation_handle_channels */
 
-    account = mcd_channel_get_account (request);
-    account_path = account == NULL ? "/"
-        : mcd_account_get_object_path (account);
-
-    if (G_UNLIKELY (account_path == NULL))    /* can't happen? */
-        account_path = "/";
-
     _mcd_client_proxy_handle_channels (handler,
-        -1, account_path, request_as_list,
+        -1, request_as_list,
         0, /* the request's user action time will be used automatically */
         NULL, /* no extra handler_info */
         reinvoke_handle_channels_cb, NULL, NULL, (GObject *) request);

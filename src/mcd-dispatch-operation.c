@@ -1663,15 +1663,10 @@ static void
 mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
                                         McdClientProxy *handler)
 {
-    const gchar *account_path;
-
-    account_path = _mcd_dispatch_operation_get_account_path (self);
-
     DEBUG ("calling HandleChannels on %s for op %p",
            tp_proxy_get_bus_name (handler), self);
     _mcd_client_proxy_handle_channels (handler,
-        -1, account_path,
-        self->priv->channels, self->priv->handle_with_time,
+        -1, self->priv->channels, self->priv->handle_with_time,
         NULL, _mcd_dispatch_operation_handle_channels_cb,
         g_object_ref (self), g_object_unref, NULL);
 }
