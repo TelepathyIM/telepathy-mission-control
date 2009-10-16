@@ -1560,7 +1560,7 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
     const gchar *account_path,
     const GList *channels,
     const GPtrArray *requests_satisfied,
-    guint64 user_action_time,
+    gint64 user_action_time,
     GHashTable *handler_info,
     tp_cli_client_handler_callback_for_handle_channels callback,
     gpointer user_data,
@@ -1568,11 +1568,22 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
     GObject *weak_object)
 {
     GPtrArray *channel_details;
+    const GList *iter;
 
     g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
     g_return_if_fail (channels != NULL);
 
     channel_details = _mcd_channel_details_build_from_list (channels);
+
+    for (iter = channels; iter != NULL; iter = iter->next)
+    {
+        gint64 req_time = 0;
+
+        _mcd_channel_get_satisfied_requests (iter->data, &req_time);
+
+        if (req_time > user_action_time)
+            user_action_time = req_time;
+    }
 
     tp_cli_client_handler_call_handle_channels ((TpClient *) self,
         timeout_ms, account_path,

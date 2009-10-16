@@ -1678,18 +1678,13 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
     {
         McdChannel *channel = MCD_CHANNEL (cl->data);
         const GList *requests;
-        gint64 req_time;
 
-        requests = _mcd_channel_get_satisfied_requests (channel,
-                                                        &req_time);
+        requests = _mcd_channel_get_satisfied_requests (channel, NULL);
         while (requests)
         {
             g_ptr_array_add (satisfied_requests, requests->data);
             requests = requests->next;
         }
-
-        if (req_time > user_action_time)
-            user_action_time = req_time;
 
         _mcd_channel_set_status (channel,
                                  MCD_CHANNEL_STATUS_HANDLER_INVOKED);

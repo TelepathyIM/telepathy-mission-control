@@ -116,7 +116,7 @@ G_GNUC_INTERNAL guint _mcd_client_match_filters (
 G_GNUC_INTERNAL void _mcd_client_proxy_handle_channels (McdClientProxy *self,
     gint timeout_ms, const gchar *account_path,
     const GList *channels, const GPtrArray *requests_satisfied,
-    guint64 user_action_time, GHashTable *handler_info,
+    gint64 user_action_time, GHashTable *handler_info,
     tp_cli_client_handler_callback_for_handle_channels callback,
     gpointer user_data, GDestroyNotify destroy, GObject *weak_object);
 
