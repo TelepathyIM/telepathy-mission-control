@@ -1113,12 +1113,7 @@ _mcd_channel_details_build_from_list (const GList *channels)
 void
 _mcd_channel_details_free (GPtrArray *channels)
 {
-    GValue value = { 0, };
-
-    /* to free the array, put it into a GValue */
-    g_value_init (&value, TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST);
-    g_value_take_boxed (&value, channels);
-    g_value_unset (&value);
+    g_boxed_free (TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST, channels);
 }
 
 /*
