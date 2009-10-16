@@ -1078,6 +1078,7 @@ _mcd_channel_details_build_from_list (const GList *channels)
 {
     GPtrArray *channel_array;
     const GList *list;
+    GType type = TP_STRUCT_TYPE_CHANNEL_DETAILS;
 
     channel_array = g_ptr_array_sized_new (g_list_length ((GList *) channels));
 
@@ -1086,11 +1087,9 @@ _mcd_channel_details_build_from_list (const GList *channels)
         McdChannel *channel = MCD_CHANNEL (list->data);
         GHashTable *properties;
         GValue channel_val = { 0, };
-        GType type;
 
         properties = _mcd_channel_get_immutable_properties (channel);
 
-        type = TP_STRUCT_TYPE_CHANNEL_DETAILS;
         g_value_init (&channel_val, type);
         g_value_take_boxed (&channel_val,
                             dbus_g_type_specialized_construct (type));
