@@ -1074,12 +1074,13 @@ _mcd_channel_get_immutable_properties (McdChannel *channel)
  * with _mcd_channel_details_free().
  */
 GPtrArray *
-_mcd_channel_details_build_from_list (GList *channels)
+_mcd_channel_details_build_from_list (const GList *channels)
 {
     GPtrArray *channel_array;
-    GList *list;
+    const GList *list;
 
-    channel_array = g_ptr_array_sized_new (g_list_length (channels));
+    channel_array = g_ptr_array_sized_new (g_list_length ((GList *) channels));
+
     for (list = channels; list != NULL; list = list->next)
     {
         McdChannel *channel = MCD_CHANNEL (list->data);
