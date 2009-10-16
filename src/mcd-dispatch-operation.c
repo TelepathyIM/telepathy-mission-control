@@ -346,37 +346,6 @@ get_account (TpSvcDBusProperties *self, const gchar *name, GValue *value)
             (MCD_DISPATCH_OPERATION (self)));
 }
 
-static GPtrArray *
-_mcd_dispatch_operation_dup_channel_details (McdDispatchOperation *self)
-{
-    McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (self);
-    GPtrArray *channel_array;
-    GList *list;
-
-    channel_array = g_ptr_array_sized_new (g_list_length (priv->channels));
-
-    for (list = priv->channels; list != NULL; list = list->next)
-    {
-        McdChannel *channel = MCD_CHANNEL (list->data);
-        GHashTable *properties;
-        GValue channel_val = { 0, };
-
-        properties = _mcd_channel_get_immutable_properties (channel);
-
-        g_value_init (&channel_val, TP_STRUCT_TYPE_CHANNEL_DETAILS);
-        g_value_take_boxed (&channel_val,
-            dbus_g_type_specialized_construct (TP_STRUCT_TYPE_CHANNEL_DETAILS));
-        dbus_g_type_struct_set (&channel_val,
-                                0, mcd_channel_get_object_path (channel),
-                                1, properties,
-                                G_MAXUINT);
-
-        g_ptr_array_add (channel_array, g_value_get_boxed (&channel_val));
-    }
-
-    return channel_array;
-}
-
 static void
 get_channels (TpSvcDBusProperties *iface, const gchar *name, GValue *value)
 {
@@ -386,7 +355,7 @@ get_channels (TpSvcDBusProperties *iface, const gchar *name, GValue *value)
 
     g_value_init (value, TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST);
     g_value_take_boxed (value,
-                        _mcd_dispatch_operation_dup_channel_details (self));
+        _mcd_channel_details_build_from_list (self->priv->channels));
 }
 
 static void
@@ -1626,7 +1595,8 @@ _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
 
         dispatch_operation = _mcd_dispatch_operation_get_path (self);
         properties = _mcd_dispatch_operation_get_properties (self);
-        channel_details = _mcd_dispatch_operation_dup_channel_details (self);
+        channel_details =
+            _mcd_channel_details_build_from_list (self->priv->channels);
 
         DEBUG ("Calling AddDispatchOperation on approver %s for CDO %s @ %p",
                tp_proxy_get_bus_name (client), dispatch_operation, self);
