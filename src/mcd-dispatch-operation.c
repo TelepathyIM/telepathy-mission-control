@@ -1689,13 +1689,12 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
 {
     guint64 user_action_time;
     const gchar *account_path, *connection_path;
-    GPtrArray *channels_array, *satisfied_requests;
+    GPtrArray *satisfied_requests;
     GHashTable *handler_info;
     const GList *cl;
 
     connection_path = _mcd_dispatch_operation_get_connection_path (self);
     account_path = _mcd_dispatch_operation_get_account_path (self);
-    channels_array = _mcd_dispatch_operation_dup_channel_details (self);
 
     user_action_time = 0; /* TODO: if we have a CDO, get it from there */
     satisfied_requests = g_ptr_array_new ();
@@ -1728,12 +1727,11 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
            tp_proxy_get_bus_name (handler), self);
     _mcd_client_proxy_handle_channels (handler,
         -1, account_path, connection_path,
-        channels_array, satisfied_requests, user_action_time,
+        self->priv->channels, satisfied_requests, user_action_time,
         handler_info, _mcd_dispatch_operation_handle_channels_cb,
         g_object_ref (self), g_object_unref, NULL);
 
     g_ptr_array_free (satisfied_requests, TRUE);
-    _mcd_channel_details_free (channels_array);
     g_hash_table_unref (handler_info);
 }
 

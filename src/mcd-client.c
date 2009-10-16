@@ -36,6 +36,7 @@
 #include <telepathy-glib/proxy-subclass.h>
 #include <telepathy-glib/util.h>
 
+#include "mcd-channel-priv.h"
 #include "mcd-debug.h"
 
 G_DEFINE_TYPE (McdClientProxy, _mcd_client_proxy, TP_TYPE_CLIENT);
@@ -1542,7 +1543,7 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
     gint timeout_ms,
     const gchar *account_path,
     const gchar *connection_path,
-    const GPtrArray *channel_details,
+    const GList *channels,
     const GPtrArray *requests_satisfied,
     guint64 user_action_time,
     GHashTable *handler_info,
@@ -1551,10 +1552,16 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
     GDestroyNotify destroy,
     GObject *weak_object)
 {
+    GPtrArray *channel_details;
+
     g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
+
+    channel_details = _mcd_channel_details_build_from_list (channels);
 
     tp_cli_client_handler_call_handle_channels ((TpClient *) self,
         timeout_ms, account_path, connection_path, channel_details,
         requests_satisfied, user_action_time, handler_info,
         callback, user_data, destroy, weak_object);
+
+    _mcd_channel_details_free (channel_details);
 }

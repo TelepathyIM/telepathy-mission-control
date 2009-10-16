@@ -1775,7 +1775,6 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     GList *request_as_list;
     const gchar *handler_unique;
     GStrv possible_handlers;
-    GPtrArray *details;
     GPtrArray *satisfied_requests;
     GHashTable *handler_info;
     const gchar *connection_path;
@@ -1838,8 +1837,6 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
 
     connection_path = mcd_dispatcher_borrow_channel_connection_path (request);
 
-    details = _mcd_channel_details_build_from_list (request_as_list);
-
     satisfied_requests = g_ptr_array_new ();
 
     for (requests = _mcd_channel_get_satisfied_requests (request);
@@ -1855,12 +1852,11 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     _mcd_channel_set_status (request, MCD_CHANNEL_STATUS_HANDLER_INVOKED);
 
     _mcd_client_proxy_handle_channels (handler,
-        -1, account_path, connection_path, details,
+        -1, account_path, connection_path, request_as_list,
         satisfied_requests, user_action_time, handler_info,
         reinvoke_handle_channels_cb, NULL, NULL, (GObject *) request);
 
     g_ptr_array_free (satisfied_requests, TRUE);
-    _mcd_channel_details_free (details);
     g_hash_table_unref (handler_info);
 
 finally:
