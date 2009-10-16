@@ -1538,11 +1538,26 @@ _mcd_client_match_filters (GHashTable *channel_properties,
     return best_quality;
 }
 
+static const gchar *
+borrow_channel_connection_path (McdChannel *channel)
+{
+    TpChannel *tp_channel;
+    TpConnection *tp_connection;
+    const gchar *connection_path;
+
+    tp_channel = mcd_channel_get_tp_channel (channel);
+    g_return_val_if_fail (tp_channel != NULL, "/");
+    tp_connection = tp_channel_borrow_connection (tp_channel);
+    g_return_val_if_fail (tp_connection != NULL, "/");
+    connection_path = tp_proxy_get_object_path (tp_connection);
+    g_return_val_if_fail (connection_path != NULL, "/");
+    return connection_path;
+}
+
 void
 _mcd_client_proxy_handle_channels (McdClientProxy *self,
     gint timeout_ms,
     const gchar *account_path,
-    const gchar *connection_path,
     const GList *channels,
     const GPtrArray *requests_satisfied,
     guint64 user_action_time,
@@ -1555,11 +1570,13 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
     GPtrArray *channel_details;
 
     g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
+    g_return_if_fail (channels != NULL);
 
     channel_details = _mcd_channel_details_build_from_list (channels);
 
     tp_cli_client_handler_call_handle_channels ((TpClient *) self,
-        timeout_ms, account_path, connection_path, channel_details,
+        timeout_ms, account_path,
+        borrow_channel_connection_path (channels->data), channel_details,
         requests_satisfied, user_action_time, handler_info,
         callback, user_data, destroy, weak_object);
 

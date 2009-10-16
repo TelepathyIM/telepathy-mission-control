@@ -452,22 +452,6 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
     return ret;
 }
 
-static const gchar *
-mcd_dispatcher_borrow_channel_connection_path (McdChannel *channel)
-{
-    TpChannel *tp_channel;
-    TpConnection *tp_connection;
-    const gchar *connection_path;
-
-    tp_channel = mcd_channel_get_tp_channel (channel);
-    g_return_val_if_fail (tp_channel != NULL, "/");
-    tp_connection = tp_channel_borrow_connection (tp_channel);
-    g_return_val_if_fail (tp_connection != NULL, "/");
-    connection_path = tp_proxy_get_object_path (tp_connection);
-    g_return_val_if_fail (connection_path != NULL, "/");
-    return connection_path;
-}
-
 /*
  * _mcd_dispatcher_context_abort:
  *
@@ -1777,7 +1761,6 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     GStrv possible_handlers;
     GPtrArray *satisfied_requests;
     GHashTable *handler_info;
-    const gchar *connection_path;
     McdAccount *account;
     const gchar *account_path;
     const GList *requests;
@@ -1835,8 +1818,6 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     if (G_UNLIKELY (account_path == NULL))    /* can't happen? */
         account_path = "/";
 
-    connection_path = mcd_dispatcher_borrow_channel_connection_path (request);
-
     satisfied_requests = g_ptr_array_new ();
 
     for (requests = _mcd_channel_get_satisfied_requests (request);
@@ -1852,7 +1833,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     _mcd_channel_set_status (request, MCD_CHANNEL_STATUS_HANDLER_INVOKED);
 
     _mcd_client_proxy_handle_channels (handler,
-        -1, account_path, connection_path, request_as_list,
+        -1, account_path, request_as_list,
         satisfied_requests, user_action_time, handler_info,
         reinvoke_handle_channels_cb, NULL, NULL, (GObject *) request);
 
