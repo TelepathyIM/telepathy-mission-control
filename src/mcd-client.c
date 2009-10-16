@@ -1588,6 +1588,8 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
     g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
     g_return_if_fail (channels != NULL);
 
+    DEBUG ("calling HandleChannels on %s", tp_proxy_get_bus_name (self));
+
     channel_details = _mcd_channel_details_build_from_list (channels);
     requests_satisfied = g_ptr_array_new ();
 
