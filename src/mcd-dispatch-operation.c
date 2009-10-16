@@ -1669,7 +1669,7 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
         g_object_ref (self), g_object_unref, NULL);
 }
 
-void
+static void
 _mcd_dispatch_operation_run_handlers (McdDispatchOperation *self)
 {
     GList *channels, *list;
