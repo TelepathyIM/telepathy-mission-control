@@ -1665,15 +1665,8 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
 {
     const gchar *account_path;
     GHashTable *handler_info;
-    const GList *cl;
 
     account_path = _mcd_dispatch_operation_get_account_path (self);
-
-    for (cl = self->priv->channels; cl != NULL; cl = cl->next)
-    {
-        _mcd_channel_set_status (cl->data,
-                                 MCD_CHANNEL_STATUS_HANDLER_INVOKED);
-    }
 
     handler_info = g_hash_table_new (g_str_hash, g_str_equal);
 

@@ -1817,8 +1817,6 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
 
     handler_info = g_hash_table_new (g_str_hash, g_str_equal);
 
-    _mcd_channel_set_status (request, MCD_CHANNEL_STATUS_HANDLER_INVOKED);
-
     _mcd_client_proxy_handle_channels (handler,
         -1, account_path, request_as_list,
         0, /* the request's user action time will be used automatically */

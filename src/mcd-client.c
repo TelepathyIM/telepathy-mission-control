@@ -1592,6 +1592,9 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
 
         if (req_time > user_action_time)
             user_action_time = req_time;
+
+        _mcd_channel_set_status (iter->data,
+                                 MCD_CHANNEL_STATUS_HANDLER_INVOKED);
     }
 
     tp_cli_client_handler_call_handle_channels ((TpClient *) self,
