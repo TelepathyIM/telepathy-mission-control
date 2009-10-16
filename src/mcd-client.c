@@ -1576,6 +1576,15 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
     channel_details = _mcd_channel_details_build_from_list (channels);
     requests_satisfied = g_ptr_array_new ();
 
+    if (handler_info == NULL)
+    {
+        handler_info = g_hash_table_new (g_str_hash, g_str_equal);
+    }
+    else
+    {
+        g_hash_table_ref (handler_info);
+    }
+
     for (iter = channels; iter != NULL; iter = iter->next)
     {
         gint64 req_time = 0;
@@ -1605,4 +1614,5 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
 
     _mcd_channel_details_free (channel_details);
     g_ptr_array_free (requests_satisfied, TRUE);
+    g_hash_table_unref (handler_info);
 }

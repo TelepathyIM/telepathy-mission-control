@@ -1664,21 +1664,16 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
                                         McdClientProxy *handler)
 {
     const gchar *account_path;
-    GHashTable *handler_info;
 
     account_path = _mcd_dispatch_operation_get_account_path (self);
-
-    handler_info = g_hash_table_new (g_str_hash, g_str_equal);
 
     DEBUG ("calling HandleChannels on %s for op %p",
            tp_proxy_get_bus_name (handler), self);
     _mcd_client_proxy_handle_channels (handler,
         -1, account_path,
         self->priv->channels, self->priv->handle_with_time,
-        handler_info, _mcd_dispatch_operation_handle_channels_cb,
+        NULL, _mcd_dispatch_operation_handle_channels_cb,
         g_object_ref (self), g_object_unref, NULL);
-
-    g_hash_table_unref (handler_info);
 }
 
 void
