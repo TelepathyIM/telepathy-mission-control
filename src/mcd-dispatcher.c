@@ -1854,7 +1854,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
 
     _mcd_channel_set_status (request, MCD_CHANNEL_STATUS_HANDLER_INVOKED);
 
-    tp_cli_client_handler_call_handle_channels ((TpClient *) handler,
+    _mcd_client_proxy_handle_channels (handler,
         -1, account_path, connection_path, details,
         satisfied_requests, user_action_time, handler_info,
         reinvoke_handle_channels_cb, NULL, NULL, (GObject *) request);

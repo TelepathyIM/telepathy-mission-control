@@ -1536,3 +1536,25 @@ _mcd_client_match_filters (GHashTable *channel_properties,
 
     return best_quality;
 }
+
+void
+_mcd_client_proxy_handle_channels (McdClientProxy *self,
+    gint timeout_ms,
+    const gchar *account_path,
+    const gchar *connection_path,
+    const GPtrArray *channel_details,
+    const GPtrArray *requests_satisfied,
+    guint64 user_action_time,
+    GHashTable *handler_info,
+    tp_cli_client_handler_callback_for_handle_channels callback,
+    gpointer user_data,
+    GDestroyNotify destroy,
+    GObject *weak_object)
+{
+    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
+
+    tp_cli_client_handler_call_handle_channels ((TpClient *) self,
+        timeout_ms, account_path, connection_path, channel_details,
+        requests_satisfied, user_action_time, handler_info,
+        callback, user_data, destroy, weak_object);
+}

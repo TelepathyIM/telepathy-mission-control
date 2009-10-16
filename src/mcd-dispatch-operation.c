@@ -1726,7 +1726,7 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
 
     DEBUG ("calling HandleChannels on %s for op %p",
            tp_proxy_get_bus_name (handler), self);
-    tp_cli_client_handler_call_handle_channels ((TpClient *) handler,
+    _mcd_client_proxy_handle_channels (handler,
         -1, account_path, connection_path,
         channels_array, satisfied_requests, user_action_time,
         handler_info, _mcd_dispatch_operation_handle_channels_cb,
