@@ -1802,9 +1802,6 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
      * is completely different, because the channel is already being
      * handled perfectly well. */
 
-    /* FIXME: gathering the arguments for HandleChannels is duplicated between
-     * this function and mcd_dispatch_operation_handle_channels */
-
     _mcd_client_proxy_handle_channels (handler,
         -1, request_as_list,
         0, /* the request's user action time will be used automatically */
