@@ -119,13 +119,11 @@ struct _McdDispatchOperationPrivate
 
     /* If TRUE, at least one Approver accepted this dispatch operation, and
      * we're waiting for one of them to call HandleWith or Claim. This is a
-     * client lock; a reference must be held while it is TRUE (in the
-     * McdDispatcherContext, CTXREF14 ensures this). */
+     * client lock; a reference is held while it is TRUE. */
     gboolean awaiting_approval;
 
     /* If FALSE, we're still working out what Observers and Approvers to
-     * run. This is a temporary client lock; a reference must be held
-     * for as long as it is FALSE.
+     * run. This is a temporary client lock.
      */
     gboolean invoked_early_clients;
 
@@ -133,16 +131,14 @@ struct _McdDispatchOperationPrivate
      * Until they have done so, we can't allow the dispatch operation to
      * finish. This is a client lock.
      *
-     * A reference is held for each pending observer (and in the
-     * McdDispatcherContext, one instance of CTXREF05 is held for each). */
+     * A reference is held for each pending observer. */
     gsize observers_pending;
 
     /* The number of approvers that have not yet returned from
      * AddDispatchOperation. Until they have done so, we can't allow the
      * dispatch operation to finish. This is a client lock.
      *
-     * A reference is held for each pending approver (and in the
-     * McdDispatcherContext, one instance of CTXREF06 is held for each). */
+     * A reference is held for each pending approver. */
     gsize ado_pending;
 
     /* If TRUE, either we've already arranged for the channels to get a
@@ -1623,6 +1619,8 @@ _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
     _mcd_dispatch_operation_dec_ado_pending (self);
 }
 
+/* After this function is called, the McdDispatchOperation takes over its
+ * own life-cycle, and the caller needn't hold an explicit reference to it. */
 void
 _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
 {
