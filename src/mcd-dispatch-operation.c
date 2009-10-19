@@ -253,13 +253,37 @@ static void _mcd_dispatch_operation_run_handlers (McdDispatchOperation *self);
 static void
 _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 {
-    if (self->priv->invoked_observers_if_needed &&
-        self->priv->invoked_approvers_if_needed &&
-        self->priv->ado_pending == 0 &&
-        self->priv->observers_pending == 0 &&
-        _mcd_dispatch_operation_is_approved (self) &&
-        !self->priv->calling_handle_channels &&
-        !self->priv->channels_handled)
+    /* we may not continue until we've called all the Observers, and they've
+     * all replied "I'm ready" */
+    if (!self->priv->invoked_observers_if_needed ||
+        self->priv->observers_pending > 0)
+    {
+        return;
+    }
+
+    /* if we've called the first Approver, we may not continue until we've
+     * called them all, and they all replied "I'm ready" */
+    if (self->priv->ado_pending > 0)
+    {
+        return;
+    }
+
+    /* if we've called one Handler, we may not continue until it responds
+     * with an error */
+    if (self->priv->calling_handle_channels)
+    {
+        return;
+    }
+
+    /* if a handler has claimed or accepted the channels, we have nothing to
+     * do */
+    if (self->priv->channels_handled)
+    {
+        return;
+    }
+
+    if (self->priv->invoked_approvers_if_needed &&
+        _mcd_dispatch_operation_is_approved (self))
     {
         if (!self->priv->observe_only)
         {
