@@ -248,7 +248,9 @@ _mcd_dispatch_operation_is_approved (McdDispatchOperation *self)
     return (self->priv->approved || !self->priv->needs_approval);
 }
 
-static void _mcd_dispatch_operation_try_next_handler (
+static gboolean _mcd_dispatch_operation_try_next_handler (
+    McdDispatchOperation *self);
+static void _mcd_dispatch_operation_close_as_undispatchable (
     McdDispatchOperation *self);
 
 static void
@@ -292,7 +294,10 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
     if (self->priv->invoked_approvers_if_needed &&
         _mcd_dispatch_operation_is_approved (self))
     {
-        _mcd_dispatch_operation_try_next_handler (self);
+        if (!_mcd_dispatch_operation_try_next_handler (self))
+        {
+            _mcd_dispatch_operation_close_as_undispatchable (self);
+        }
     }
 }
 
@@ -1716,10 +1721,9 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
         g_object_ref (self), g_object_unref, NULL);
 }
 
-static void
+static gboolean
 _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
 {
-    GList *channels, *list;
     gchar **iter;
 
     /* If there is an approved handler chosen by the Approver, it's the only
@@ -1746,7 +1750,7 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
         if (handler != NULL && !failed)
         {
             mcd_dispatch_operation_handle_channels (self, handler);
-            return;
+            return TRUE;
         }
 
         /* The approver asked for a particular handler, but that handler
@@ -1771,10 +1775,17 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
         if (handler != NULL && !failed)
         {
             mcd_dispatch_operation_handle_channels (self, handler);
-            return;
+            return TRUE;
         }
     }
 
+    return FALSE;
+}
+
+static void
+_mcd_dispatch_operation_close_as_undispatchable (McdDispatchOperation *self)
+{
+    GList *channels, *list;
     /* All of the usable handlers vanished while we were thinking about it
      * (this can only happen if non-activatable handlers exit after we
      * include them in the list of possible handlers, but before we .
