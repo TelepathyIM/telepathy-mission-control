@@ -1725,6 +1725,7 @@ static gboolean
 _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
 {
     gchar **iter;
+    gboolean is_approved = _mcd_dispatch_operation_is_approved (self);
 
     /* If there is an approved handler chosen by the Approver, it's the only
      * one we'll consider. */
@@ -1747,7 +1748,8 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
 
         /* Maybe the handler has exited since we chose it, or maybe we
          * already tried it? Otherwise, it's the right choice. */
-        if (handler != NULL && !failed)
+        if (handler != NULL && !failed &&
+            (is_approved || _mcd_client_proxy_get_bypass_approval (handler)))
         {
             mcd_dispatch_operation_handle_channels (self, handler);
             return TRUE;
@@ -1772,7 +1774,8 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
         DEBUG ("Possible handler: %s (still exists: %c, already failed: %c)",
                *iter, handler != NULL ? 'Y' : 'N', failed ? 'Y' : 'N');
 
-        if (handler != NULL && !failed)
+        if (handler != NULL && !failed &&
+            (is_approved || _mcd_client_proxy_get_bypass_approval (handler)))
         {
             mcd_dispatch_operation_handle_channels (self, handler);
             return TRUE;
