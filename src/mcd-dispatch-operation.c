@@ -282,13 +282,16 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
         return;
     }
 
+    /* If we're only meant to be observing, do nothing */
+    if (self->priv->observe_only)
+    {
+        return;
+    }
+
     if (self->priv->invoked_approvers_if_needed &&
         _mcd_dispatch_operation_is_approved (self))
     {
-        if (!self->priv->observe_only)
-        {
-            _mcd_dispatch_operation_run_handlers (self);
-        }
+        _mcd_dispatch_operation_run_handlers (self);
     }
 }
 
