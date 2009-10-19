@@ -122,10 +122,11 @@ struct _McdDispatchOperationPrivate
      * client lock; a reference is held while it is TRUE. */
     gboolean awaiting_approval;
 
-    /* If FALSE, we're still working out what Observers and Approvers to
-     * run. This is a temporary client lock.
+    /* If FALSE, we're still working out what Observers and/or Approvers to
+     * run. These are temporary client locks.
      */
-    gboolean invoked_early_clients;
+    gboolean invoked_observers_if_needed;
+    gboolean invoked_approvers_if_needed;
 
     /* The number of observers that have not yet returned from ObserveChannels.
      * Until they have done so, we can't allow the dispatch operation to
@@ -248,7 +249,8 @@ static void _mcd_dispatch_operation_run_handlers (McdDispatchOperation *self);
 static void
 _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 {
-    if (self->priv->invoked_early_clients &&
+    if (self->priv->invoked_observers_if_needed &&
+        self->priv->invoked_approvers_if_needed &&
         self->priv->ado_pending == 0 &&
         self->priv->observers_pending == 0 &&
         _mcd_dispatch_operation_is_approved (self))
@@ -1627,6 +1629,8 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
     g_object_ref (self);
 
     _mcd_dispatch_operation_run_observers (self);
+    self->priv->invoked_observers_if_needed = TRUE;
+    _mcd_dispatch_operation_check_client_locks (self);
 
     /* if the dispatch operation thinks the channels were not
      * requested, start the Approvers */
@@ -1644,7 +1648,7 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
             _mcd_dispatch_operation_run_approvers (self);
     }
 
-    self->priv->invoked_early_clients = TRUE;
+    self->priv->invoked_approvers_if_needed = TRUE;
     _mcd_dispatch_operation_check_client_locks (self);
 
     g_object_unref (self);
