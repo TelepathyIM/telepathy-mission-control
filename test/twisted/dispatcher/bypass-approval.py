@@ -261,6 +261,35 @@ def test(q, bus, mc):
 
     q.unforbid_events(closure)
 
+    # Bring back that handler
+    del bypass
+    bypass = SimulatedClient(q, bus, 'Kopete.BypassApproval',
+            observe=[], approve=[],
+            handle=[urgent_fixed_properties], bypass_approval=True)
+    expect_client_setup(q, [bypass])
+
+    # Another channel that bypasses approval comes in, but the handler that
+    # bypasses approval fails.
+
+    cdo_iface, chan, channel_properties, observe_events = announce_common(q,
+            bus, empathy, kopete, account, conn, cd_props, True)
+
+    # Both Observers indicate that they are ready to proceed
+    for e in observe_events:
+        q.dbus_return(e.message, signature='')
+
+    # Kopete's BypassApproval part is asked to handle the channels
+    e = q.expect('dbus-method-call',
+            path=bypass.object_path,
+            interface=cs.HANDLER, method='HandleChannels',
+            handled=False)
+    # Kopete's BypassApproval part fails to accept the channels
+    q.dbus_raise(e.message, 'com.example.Broken', 'No way')
+
+    # MC recovers by running the approvers and doing what they say
+    expect_and_exercise_approval(q, bus, chan, channel_properties,
+            empathy, kopete, cdo_iface, cd_props)
+
 if __name__ == '__main__':
     exec_test(test, {})
 
