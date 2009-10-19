@@ -64,15 +64,10 @@ struct _McdDispatcherClass
     McdMissionClass parent_class;
 
     /* signals */
-    void (*channel_added_signal) (McdDispatcher *dispatcher,
-				  McdChannel *channel);
-    void (*channel_removed_signal) (McdDispatcher *dispatcher,
-				    McdChannel *channel);
-    void (*dispatched_signal) (McdDispatcher * dispatcher,
-			       McdChannel * channel);
-    void (*dispatch_failed_signal) (McdDispatcher * dispatcher,
-				    McdChannel * channel,
-				    GError *error);
+    void (*_former_channel_added_signal) (void);
+    void (*_former_channel_removed_signal) (void);
+    void (*_former_dispatched_signal) (void);
+    void (*_former_dispatch_failed_signal) (void);
 
     /* virtual methods */
     TpDBusPropertiesMixinClass dbus_properties_class;

@@ -90,8 +90,6 @@ struct _McdDispatcherContext
 {
     gint ref_count;
 
-    guint finished : 1;
-
     /* If this flag is TRUE, dispatching must be cancelled ASAP */
     guint cancelled : 1;
 
@@ -133,8 +131,6 @@ struct _McdDispatcherContext
      *
      * One instance of CTXREF06 is held for each pending approver. */
     gsize approvers_pending;
-
-    gchar *protocol;
 
     /* State-machine internal data fields: */
     GList *chain;
@@ -213,18 +209,6 @@ enum
     PROP_DISPATCH_OPERATIONS,
 };
 
-enum _McdDispatcherSignalType
-{
-    CHANNEL_ADDED,
-    CHANNEL_REMOVED,
-    DISPATCHED,
-    DISPATCH_FAILED,
-    DISPATCH_COMPLETED,
-    LAST_SIGNAL
-};
-
-static guint signals[LAST_SIGNAL] = { 0 };
-
 static void mcd_dispatcher_context_unref (McdDispatcherContext * ctx,
                                           const gchar *tag);
 static void on_operation_finished (McdDispatchOperation *operation,
@@ -247,32 +231,6 @@ mcd_handler_call_data_free (McdHandlerCallData *call_data)
     mcd_dispatcher_context_unref (call_data->context, "CTXREF03");
     g_list_free (call_data->channels);
     g_slice_free (McdHandlerCallData, call_data);
-}
-
-/*
- * mcd_dispatcher_context_handler_done:
- * @context: the #McdDispatcherContext.
- * 
- * Called to informs the @context that handling of a channel is completed,
- * either because a channel handler has returned from the HandleChannel(s)
- * call, or because there was an error in calling the handler. 
- * This function checks the status of all the channels in @context, and when
- * there is nothing left to do (either because all channels are dispatched, or
- * because it's impossible to dispatch them) it emits the "dispatch-completed"
- * signal and destroys the @context.
- */
-static void
-mcd_dispatcher_context_handler_done (McdDispatcherContext *context)
-{
-    if (context->finished)
-    {
-        DEBUG ("context %p is already finished", context);
-        return;
-    }
-
-    context->finished = TRUE;
-    g_signal_emit (context->dispatcher,
-                   signals[DISPATCH_COMPLETED], 0, context);
 }
 
 static GList *
@@ -566,8 +524,6 @@ mcd_dispatcher_set_channel_handled_by (McdDispatcher *self,
 
     _mcd_handler_map_set_channel_handled (self->priv->handler_map,
                                           channel, unique_name);
-
-    g_signal_emit_by_name (self, "dispatched", channel);
 }
 
 static void mcd_dispatcher_run_handlers (McdDispatcherContext *context);
@@ -637,7 +593,6 @@ handle_channels_cb (TpClient *proxy, const GError *error, gpointer user_data,
         }
     }
 
-    mcd_dispatcher_context_handler_done (context);
     mcd_dispatcher_context_unref (context, "CTXREF02");
 }
 
@@ -936,7 +891,6 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
             "Handler no longer available" };
 
         mcd_channel_take_error (channel, g_error_copy (&e));
-        g_signal_emit_by_name (self, "dispatch-failed", channel, &e);
         _mcd_channel_undispatchable (channel);
     }
 
@@ -1456,7 +1410,6 @@ on_operation_finished (McdDispatchOperation *operation,
                 channel, _mcd_dispatch_operation_get_claimer (operation));
         }
 
-        mcd_dispatcher_context_handler_done (context);
         g_assert (!context->channels_handled);
         context->channels_handled = TRUE;
     }
@@ -1940,58 +1893,6 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
     object_class->finalize = _mcd_dispatcher_finalize;
     object_class->dispose = _mcd_dispatcher_dispose;
 
-    signals[CHANNEL_ADDED] =
-	g_signal_new ("channel_added",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      G_STRUCT_OFFSET (McdDispatcherClass,
-				       channel_added_signal),
-		      NULL, NULL, g_cclosure_marshal_VOID__OBJECT,
-		      G_TYPE_NONE, 1, MCD_TYPE_CHANNEL);
-    
-    signals[CHANNEL_REMOVED] =
-	g_signal_new ("channel_removed",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      G_STRUCT_OFFSET (McdDispatcherClass,
-				       channel_removed_signal),
-		      NULL, NULL, g_cclosure_marshal_VOID__OBJECT,
-		      G_TYPE_NONE, 1, MCD_TYPE_CHANNEL);
-    
-    signals[DISPATCHED] =
-	g_signal_new ("dispatched",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      G_STRUCT_OFFSET (McdDispatcherClass,
-				       dispatched_signal),
-		      NULL, NULL, g_cclosure_marshal_VOID__OBJECT,
-		      G_TYPE_NONE, 1, MCD_TYPE_CHANNEL);
-    
-    signals[DISPATCH_FAILED] =
-	g_signal_new ("dispatch-failed",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      G_STRUCT_OFFSET (McdDispatcherClass,
-				       dispatch_failed_signal),
-		      NULL, NULL, _mcd_marshal_VOID__OBJECT_POINTER,
-		      G_TYPE_NONE, 2, MCD_TYPE_CHANNEL, G_TYPE_POINTER);
-
-    /**
-     * McdDispatcher::dispatch-completed:
-     * @dispatcher: the #McdDispatcher.
-     * @context: a #McdDispatcherContext.
-     *
-     * This signal is emitted when a dispatch operation has terminated. One can
-     * inspect @context to get the status of the channels.
-     * After this signal returns, @context is no longer valid.
-     */
-    signals[DISPATCH_COMPLETED] =
-        g_signal_new ("dispatch-completed",
-                      G_OBJECT_CLASS_TYPE (klass),
-                      G_SIGNAL_RUN_LAST,
-                      0, NULL, NULL, g_cclosure_marshal_VOID__POINTER,
-                      G_TYPE_NONE, 1, G_TYPE_POINTER);
-
     /* Properties */
     g_object_class_install_property
         (object_class, PROP_DBUS_DAEMON,
@@ -2288,7 +2189,6 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
         priv = MCD_DISPATCHER_PRIV (context->dispatcher);
         priv->contexts = g_list_remove (priv->contexts, context);
 
-        g_free (context->protocol);
         g_free (context);
     }
 }
@@ -2467,22 +2367,6 @@ _mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher *dispatcher)
     }
 
     return caps;
-}
-
-const gchar *
-mcd_dispatcher_context_get_protocol_name (McdDispatcherContext *context)
-{
-    McdConnection *conn;
-    McdAccount *account;
-
-    if (!context->protocol)
-    {
-	conn = mcd_dispatcher_context_get_connection (context);
-	account = mcd_connection_get_account (conn);
-	context->protocol = g_strdup (mcd_account_get_protocol_name (account));
-    }
-    
-    return context->protocol;
 }
 
 static void
