@@ -26,6 +26,8 @@
 #ifndef MCD_HANDLER_MAP_H_
 #define MCD_HANDLER_MAP_H_
 
+#include <telepathy-glib/dbus.h>
+
 #include "mcd-channel.h"
 
 G_BEGIN_DECLS
@@ -63,7 +65,7 @@ struct _McdHandlerMapClass
     GObjectClass parent_class;
 };
 
-McdHandlerMap *_mcd_handler_map_new (void);
+McdHandlerMap *_mcd_handler_map_new (TpDBusDaemon *dbus_daemon);
 
 const gchar *_mcd_handler_map_get_handler (McdHandlerMap *self,
                                            const gchar *channel_path);
@@ -74,9 +76,6 @@ void _mcd_handler_map_set_path_handled (McdHandlerMap *self,
 
 void _mcd_handler_map_set_channel_handled (McdHandlerMap *self,
                                            McdChannel *channel,
-                                           const gchar *unique_name);
-
-void _mcd_handler_map_set_handler_crashed (McdHandlerMap *self,
                                            const gchar *unique_name);
 
 G_END_DECLS

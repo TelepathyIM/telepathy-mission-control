@@ -42,6 +42,7 @@
 
 #include <dbus/dbus-glib-lowlevel.h>
 
+#include "client-registry.h"
 #include "mcd-signals-marshal.h"
 #include "mcd-account-priv.h"
 #include "mcd-client-priv.h"
@@ -166,23 +167,11 @@ struct _McdDispatcherPrivate
 
     /* hash table containing clients
      * char *bus_name -> McdClientProxy */
-    GHashTable *clients;
+    McdClientRegistry *clients;
 
     McdHandlerMap *handler_map;
 
     McdMaster *master;
-
-    /* We don't want to start dispatching until startup has finished. This
-     * is defined as:
-     * - activatable clients have been enumerated (ListActivatableNames)
-     *   (1 lock)
-     * - running clients have been enumerated (ListNames) (1 lock)
-     * - each client found that way is ready (1 lock per client)
-     * When nothing more is stopping us from dispatching channels, we start to
-     * do so.
-     * */
-    gsize startup_lock;
-    gboolean startup_completed;
 
     /* connection => itself, borrowed */
     GHashTable *connections;
@@ -192,10 +181,6 @@ struct _McdDispatcherPrivate
      * yet. Set to TRUE the first time someone reads the DispatchOperations
      * property. */
     gboolean operation_list_active;
-
-    /* Not really handles as such, but TpHandleRepoIface gives us a convenient
-     * reference-counted string pool */
-    TpHandleRepoIface *string_pool;
 
     gboolean is_disposed;
 };
@@ -551,7 +536,7 @@ mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
     /* FIXME: return the "most preferred" handler, not just any handler that
      * can take it */
 
-    g_hash_table_iter_init (&iter, dispatcher->priv->clients);
+    _mcd_client_registry_init_hash_iter (dispatcher->priv->clients, &iter);
     while (g_hash_table_iter_next (&iter, NULL, &client))
     {
         if (!tp_proxy_has_interface_by_id (client,
@@ -709,7 +694,7 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
     guint i;
     GStrv ret;
 
-    g_hash_table_iter_init (&client_iter, self->priv->clients);
+    _mcd_client_registry_init_hash_iter (self->priv->clients, &client_iter);
 
     while (g_hash_table_iter_next (&client_iter, NULL, &client_p))
     {
@@ -887,7 +872,7 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
     {
         gchar *bus_name = g_strconcat (TP_CLIENT_BUS_NAME_BASE,
                                        approved_handler, NULL);
-        McdClientProxy *handler = g_hash_table_lookup (
+        McdClientProxy *handler = _mcd_client_registry_lookup (
             self->priv->clients, bus_name);
         gboolean failed = _mcd_dispatch_operation_get_handler_failed
             (context->operation, bus_name);
@@ -919,8 +904,8 @@ mcd_dispatcher_run_handlers (McdDispatcherContext *context)
 
     for (iter = possible_handlers; iter != NULL && *iter != NULL; iter++)
     {
-        McdClientProxy *handler = g_hash_table_lookup (self->priv->clients,
-                                                       *iter);
+        McdClientProxy *handler = _mcd_client_registry_lookup (
+            self->priv->clients, *iter);
         gboolean failed = _mcd_dispatch_operation_get_handler_failed
             (context->operation, *iter);
 
@@ -1060,7 +1045,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
     channels = context->channels;
     observer_info = g_hash_table_new (g_str_hash, g_str_equal);
 
-    g_hash_table_iter_init (&iter, priv->clients);
+    _mcd_client_registry_init_hash_iter (priv->clients, &iter);
     while (g_hash_table_iter_next (&iter, NULL, &client_p))
     {
         McdClientProxy *client = MCD_CLIENT_PROXY (client_p);
@@ -1216,7 +1201,7 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
     context->approvers_pending = 1;
 
     channels = context->channels;
-    g_hash_table_iter_init (&iter, priv->clients);
+    _mcd_client_registry_init_hash_iter (priv->clients, &iter);
     while (g_hash_table_iter_next (&iter, NULL, &client_p))
     {
         McdClientProxy *client = MCD_CLIENT_PROXY (client_p);
@@ -1286,8 +1271,8 @@ handlers_can_bypass_approval (McdDispatcherContext *context)
 
     for (iter = possible_handlers; iter != NULL && *iter != NULL; iter++)
     {
-        McdClientProxy *handler = g_hash_table_lookup (self->priv->clients,
-                                                       *iter);
+        McdClientProxy *handler = _mcd_client_registry_lookup (
+            self->priv->clients, *iter);
 
         /* If the best handler that still exists bypasses approval, then
          * we're going to bypass approval.
@@ -1727,18 +1712,11 @@ static void
 mcd_dispatcher_client_capabilities_changed_cb (McdClientProxy *client,
                                                McdDispatcher *self)
 {
-    /* Ignore the last known capabilities of clients that have already exited,
-     * unless we can reactivate them. */
-
-    if (_mcd_client_proxy_is_activatable (client) ||
-        _mcd_client_proxy_is_active (client))
-    {
-        mcd_dispatcher_update_client_caps (self, client);
-    }
+    mcd_dispatcher_update_client_caps (self, client);
 }
 
-static void mcd_dispatcher_client_ready_cb (McdClientProxy *client,
-                                            McdDispatcher *dispatcher);
+static void mcd_dispatcher_client_gone_cb (McdClientProxy *client,
+                                           McdDispatcher *self);
 
 static void
 mcd_dispatcher_discard_client (McdDispatcher *self,
@@ -1751,25 +1729,62 @@ mcd_dispatcher_discard_client (McdDispatcher *self,
         mcd_dispatcher_client_handling_channel_cb, self);
 
     g_signal_handlers_disconnect_by_func (client,
-                                          mcd_dispatcher_client_ready_cb,
+                                          mcd_dispatcher_client_gone_cb,
                                           self);
+}
 
-    if (!_mcd_client_proxy_is_ready (client))
+static void
+mcd_dispatcher_client_gone_cb (McdClientProxy *client,
+                               McdDispatcher *self)
+{
+    mcd_dispatcher_discard_client (self, client);
+}
+
+static void
+mcd_dispatcher_client_added_cb (McdClientRegistry *clients,
+                                McdClientProxy *client,
+                                McdDispatcher *self)
+{
+    g_signal_connect (client, "gone",
+                      G_CALLBACK (mcd_dispatcher_client_gone_cb),
+                      self);
+
+    g_signal_connect (client, "is-handling-channel",
+                      G_CALLBACK (mcd_dispatcher_client_handling_channel_cb),
+                      self);
+
+    g_signal_connect (client, "handler-capabilities-changed",
+                      G_CALLBACK (mcd_dispatcher_client_capabilities_changed_cb),
+                      self);
+}
+
+static void
+mcd_dispatcher_client_registry_ready_cb (McdClientRegistry *clients,
+                                         McdDispatcher *self)
+{
+    GHashTableIter iter;
+    gpointer p;
+    GPtrArray *vas;
+
+    DEBUG ("All initial clients have been inspected");
+
+    vas = _mcd_client_registry_dup_client_caps (clients);
+
+    g_hash_table_iter_init (&iter, self->priv->connections);
+
+    while (g_hash_table_iter_next (&iter, &p, NULL))
     {
-        /* we'll never receive the ready signal now, so release the lock that
-         * it would otherwise have released */
-        DEBUG ("client %s disappeared before it became ready - treating it "
-               "as ready for our purposes", tp_proxy_get_bus_name (client));
-        mcd_dispatcher_client_ready_cb (client, self);
+        _mcd_connection_start_dispatching (p, vas);
     }
+
+    g_ptr_array_foreach (vas, (GFunc) g_value_array_free, NULL);
+    g_ptr_array_free (vas, TRUE);
 }
 
 static void
 _mcd_dispatcher_dispose (GObject * object)
 {
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
-    gpointer client_p;
-    GHashTableIter iter;
 
     if (priv->is_disposed)
     {
@@ -1783,15 +1798,29 @@ _mcd_dispatcher_dispose (GObject * object)
         priv->handler_map = NULL;
     }
 
-    g_hash_table_iter_init (&iter, priv->clients);
-
-    while (g_hash_table_iter_next (&iter, NULL, &client_p))
+    if (priv->clients != NULL)
     {
-        mcd_dispatcher_discard_client ((McdDispatcher *) object, client_p);
-        g_hash_table_iter_remove (&iter);
+        gpointer client_p;
+        GHashTableIter iter;
+
+        _mcd_client_registry_init_hash_iter (priv->clients, &iter);
+
+        while (g_hash_table_iter_next (&iter, NULL, &client_p))
+        {
+            mcd_dispatcher_discard_client ((McdDispatcher *) object, client_p);
+        }
+
+        g_signal_handlers_disconnect_by_func (priv->clients,
+                                              mcd_dispatcher_client_added_cb,
+                                              object);
+
+        g_signal_handlers_disconnect_by_func (priv->clients,
+            mcd_dispatcher_client_registry_ready_cb, object);
+
+        g_object_unref (priv->clients);
+        priv->clients = NULL;
     }
 
-    g_hash_table_destroy (priv->clients);
     g_hash_table_destroy (priv->connections);
 
     if (priv->master)
@@ -1806,55 +1835,7 @@ _mcd_dispatcher_dispose (GObject * object)
 	priv->dbus_daemon = NULL;
     }
 
-    if (priv->string_pool != NULL)
-    {
-        g_object_unref (priv->string_pool);
-        priv->string_pool = NULL;
-    }
-
     G_OBJECT_CLASS (mcd_dispatcher_parent_class)->dispose (object);
-}
-
-static void
-mcd_dispatcher_release_startup_lock (McdDispatcher *self)
-{
-    if (self->priv->startup_completed)
-        return;
-
-    /* If we haven't started to dispatch channels, and now we're
-     * self-destructing, we certainly don't want to start dispatching channels
-     * to whatever's left of our handlers. */
-    if (self->priv->is_disposed)
-        return;
-
-    DEBUG ("%p (decrementing from %" G_GSIZE_FORMAT ")",
-           self, self->priv->startup_lock);
-
-    g_assert (self->priv->startup_lock >= 1);
-
-    self->priv->startup_lock--;
-
-    if (self->priv->startup_lock == 0)
-    {
-        GHashTableIter iter;
-        gpointer p;
-        GPtrArray *vas;
-
-        DEBUG ("All initial clients have been inspected");
-        self->priv->startup_completed = TRUE;
-
-        vas = _mcd_dispatcher_dup_client_caps (self);
-
-        g_hash_table_iter_init (&iter, self->priv->connections);
-
-        while (g_hash_table_iter_next (&iter, &p, NULL))
-        {
-            _mcd_connection_start_dispatching (p, vas);
-        }
-
-        g_ptr_array_foreach (vas, (GFunc) g_value_array_free, NULL);
-        g_ptr_array_free (vas, TRUE);
-    }
 }
 
 static void
@@ -1870,7 +1851,7 @@ mcd_dispatcher_update_client_caps (McdDispatcher *self,
      *
      * If we don't have any connections, on the other hand, then there's
      * nothing to do. */
-    if (!self->priv->startup_completed
+    if (!_mcd_client_registry_is_ready (self->priv->clients)
         || g_hash_table_size (self->priv->connections) == 0)
     {
         return;
@@ -1891,278 +1872,20 @@ mcd_dispatcher_update_client_caps (McdDispatcher *self,
 }
 
 static void
-mcd_dispatcher_client_ready_cb (McdClientProxy *client,
-                                McdDispatcher *dispatcher)
-{
-    DEBUG ("%s", tp_proxy_get_bus_name (client));
-
-    g_signal_handlers_disconnect_by_func (client,
-                                          mcd_dispatcher_client_ready_cb,
-                                          dispatcher);
-
-    /* paired with the one in mcd_dispatcher_add_client */
-    mcd_dispatcher_release_startup_lock (dispatcher);
-}
-
-/* Check the list of strings whether they are valid well-known names of
- * Telepathy clients and create McdClientProxy objects for each of them.
- */
-static void
-mcd_dispatcher_add_client (McdDispatcher *self,
-                           const gchar *name,
-                           gboolean activatable,
-                           const gchar *owner)
-{
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
-    McdClientProxy *client;
-
-    if (!g_str_has_prefix (name, TP_CLIENT_BUS_NAME_BASE))
-    {
-        /* This is not a Telepathy Client */
-        return;
-    }
-
-    if (!_mcd_client_check_valid_name (name + MC_CLIENT_BUS_NAME_BASE_LEN,
-                                       NULL))
-    {
-        /* This is probably meant to be a Telepathy Client, but it's not */
-        DEBUG ("Ignoring invalid Client name: %s",
-               name + MC_CLIENT_BUS_NAME_BASE_LEN);
-
-        return;
-    }
-
-    client = g_hash_table_lookup (priv->clients, name);
-
-    if (client)
-    {
-        /* This Telepathy Client is already known so don't create it
-         * again. However, set the activatable bit now.
-         */
-        if (activatable)
-        {
-            _mcd_client_proxy_set_activatable (client);
-        }
-        else
-        {
-            _mcd_client_proxy_set_active (client, owner);
-        }
-
-        return;
-    }
-
-    DEBUG ("Register client %s", name);
-
-    /* paired with one in mcd_dispatcher_client_ready_cb, when the
-     * McdClientProxy is ready */
-    if (!self->priv->startup_completed)
-        self->priv->startup_lock++;
-
-    client = _mcd_client_proxy_new (
-        self->priv->dbus_daemon, self->priv->string_pool,
-        name, owner, activatable);
-
-    g_hash_table_insert (priv->clients, g_strdup (name), client);
-
-    g_signal_connect (client, "ready",
-                      G_CALLBACK (mcd_dispatcher_client_ready_cb),
-                      self);
-
-    g_signal_connect (client, "is-handling-channel",
-                      G_CALLBACK (mcd_dispatcher_client_handling_channel_cb),
-                      self);
-
-    g_signal_connect (client, "handler-capabilities-changed",
-                      G_CALLBACK (mcd_dispatcher_client_capabilities_changed_cb),
-                      self);
-}
-
-static void
-list_activatable_names_cb (TpDBusDaemon *proxy,
-    const gchar **names,
-    const GError *error,
-    gpointer user_data,
-    GObject *weak_object)
-{
-    McdDispatcher *self = MCD_DISPATCHER (weak_object);
-
-    if (error != NULL)
-    {
-        DEBUG ("ListActivatableNames returned error, assuming none: %s %d: %s",
-               g_quark_to_string (error->domain), error->code, error->message);
-    }
-    else if (names != NULL)
-    {
-        const gchar **iter = names;
-
-        DEBUG ("ListActivatableNames returned");
-
-        while (*iter != NULL)
-        {
-            mcd_dispatcher_add_client (self, *iter, TRUE, NULL);
-            iter++;
-        }
-    }
-
-    /* paired with the lock taken in _constructed */
-    mcd_dispatcher_release_startup_lock (self);
-}
-
-#if 0
-
-static void
-reload_config_cb (TpDBusDaemon *proxy,
-    const GError *error,
-    gpointer user_data,
-    GObject *weak_object)
-{
-    McdDispatcher *self = MCD_DISPATCHER (weak_object);
-
-    if (error != NULL)
-    {
-        DEBUG ("ReloadConfig returned error. Recent .service files may not be found: %s %d: %s",
-               g_quark_to_string (error->domain), error->code, error->message);
-    }
-
-    tp_cli_dbus_daemon_call_list_activatable_names (self->priv->dbus_daemon,
-        -1, list_activatable_names_cb, NULL, NULL, weak_object);
-    /* deliberately not calling mcd_dispatcher_release_startup_lock here -
-     * this function is "lock-neutral", similarly to list_names_cb (we would
-     * take a lock for ListActivatableNames then release the one used for
-     * ReloadConfig), so simplify by doing nothing */
-}
-
-#endif
-
-static void
-list_names_cb (TpDBusDaemon *proxy,
-    const gchar **names,
-    const GError *error,
-    gpointer user_data,
-    GObject *weak_object)
-{
-    McdDispatcher *self = MCD_DISPATCHER (weak_object);
-
-    if (error != NULL)
-    {
-        DEBUG ("ListNames returned error, assuming none: %s %d: %s",
-               g_quark_to_string (error->domain), error->code, error->message);
-    }
-    else if (names != NULL)
-    {
-        const gchar **iter = names;
-
-        DEBUG ("ListNames returned");
-
-        while (*iter != NULL)
-        {
-            mcd_dispatcher_add_client (self, *iter, FALSE, NULL);
-            iter++;
-        }
-    }
-
-#if 0
-    /* Don't kick the daemon so reload its config as this causes bad
-     * side-effects wrt. service activation, see
-     * https://bugs.freedesktop.org/show_bug.cgi?id=24350 */
-
-    /* Call reload config because the dbus daemon often fails to notice newly
-     * installed .service files on its own. */
-    tp_cli_dbus_daemon_call_reload_config (self->priv->dbus_daemon, -1,
-        reload_config_cb, NULL, NULL, weak_object);
-#else
-    tp_cli_dbus_daemon_call_list_activatable_names (self->priv->dbus_daemon,
-        -1, list_activatable_names_cb, NULL, NULL, weak_object);
-#endif
-    /* deliberately not calling mcd_dispatcher_release_startup_lock here -
-     * this function is "lock-neutral" (we would take a lock for ReloadConfig
-     * then release the one used for ListNames), so simplify by doing
-     * nothing */
-}
-
-static void
-name_owner_changed_cb (TpDBusDaemon *proxy,
-    const gchar *name,
-    const gchar *old_owner,
-    const gchar *new_owner,
-    gpointer user_data,
-    GObject *weak_object)
-{
-    McdDispatcher *self = MCD_DISPATCHER (weak_object);
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
-
-    /* dbus-glib guarantees this */
-    g_assert (name != NULL);
-    g_assert (old_owner != NULL);
-    g_assert (new_owner != NULL);
-
-    if (old_owner[0] == '\0' && new_owner[0] != '\0')
-    {
-        mcd_dispatcher_add_client (self, name, FALSE, new_owner);
-    }
-    else if (old_owner[0] != '\0' && new_owner[0] == '\0')
-    {
-        /* The name disappeared from the bus. It might be either well-known
-         * or unique */
-        McdClientProxy *client;
-
-        client = g_hash_table_lookup (priv->clients, name);
-
-        if (client)
-        {
-            _mcd_client_proxy_set_inactive (client);
-
-            if (!_mcd_client_proxy_is_activatable (client))
-            {
-                /* in ContactCapabilities we indicate the disappearance
-                 * of a client by giving it an empty set of capabilities and
-                 * filters */
-                _mcd_client_proxy_become_incapable (client);
-                mcd_dispatcher_update_client_caps (self, client);
-
-                mcd_dispatcher_discard_client (self, client);
-                g_hash_table_remove (priv->clients, name);
-            }
-        }
-
-        if (name[0] == ':')
-        {
-            /* it's a unique name - maybe it was handling some channels? */
-            _mcd_handler_map_set_handler_crashed (priv->handler_map, name);
-        }
-    }
-    else if (old_owner[0] != '\0' && new_owner[0] != '\0')
-    {
-        /* Atomic ownership handover - handle this like an exit + startup */
-        name_owner_changed_cb (proxy, name, old_owner, "", user_data,
-                               weak_object);
-        name_owner_changed_cb (proxy, name, "", new_owner, user_data,
-                               weak_object);
-    }
-    else
-    {
-        /* dbus-daemon is sick */
-        DEBUG ("Malformed message from the D-Bus daemon about '%s' "
-               "('%s' -> '%s')", name, old_owner, new_owner);
-    }
-}
-
-static void
 mcd_dispatcher_constructed (GObject *object)
 {
     DBusGConnection *dgc;
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
     GError *error = NULL;
 
-    DEBUG ("Starting to look for clients");
-    priv->startup_completed = FALSE;
-    priv->startup_lock = 1;   /* the ListNames call we're about to make */
+    priv->handler_map = _mcd_handler_map_new (priv->dbus_daemon);
 
-    tp_cli_dbus_daemon_connect_to_name_owner_changed (priv->dbus_daemon,
-        name_owner_changed_cb, NULL, NULL, object, NULL);
-
-    tp_cli_dbus_daemon_call_list_names (priv->dbus_daemon,
-        -1, list_names_cb, NULL, NULL, object);
+    priv->clients = _mcd_client_registry_new (priv->dbus_daemon);
+    g_signal_connect (priv->clients, "client-added",
+                      G_CALLBACK (mcd_dispatcher_client_added_cb), object);
+    g_signal_connect (priv->clients, "ready",
+                      G_CALLBACK (mcd_dispatcher_client_registry_ready_cb),
+                      object);
 
     dgc = TP_PROXY (priv->dbus_daemon)->dbus_connection;
 
@@ -2331,16 +2054,7 @@ mcd_dispatcher_init (McdDispatcher * dispatcher)
 
     priv->operation_list_active = FALSE;
 
-    priv->clients = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
-        g_object_unref);
-
-    priv->handler_map = _mcd_handler_map_new ();
-
     priv->connections = g_hash_table_new (NULL, NULL);
-
-    /* Dummy handle type, we're just using this as a string pool */
-    priv->string_pool = tp_dynamic_handle_repo_new (TP_HANDLE_TYPE_CONTACT,
-                                                    NULL, NULL);
 }
 
 McdDispatcher *
@@ -2684,7 +2398,7 @@ _mcd_dispatcher_get_channel_capabilities (McdDispatcher *dispatcher)
     channel_handler_caps = g_ptr_array_new ();
 
     /* Add the capabilities from the new-style clients */
-    g_hash_table_iter_init (&iter, priv->clients);
+    _mcd_client_registry_init_hash_iter (priv->clients, &iter);
     while (g_hash_table_iter_next (&iter, &key, &value))
     {
         McdClientProxy *client = value;
@@ -2722,7 +2436,7 @@ _mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher *dispatcher)
     gpointer key, value;
     GPtrArray *caps = g_ptr_array_new ();
 
-    g_hash_table_iter_init (&iter, priv->clients);
+    _mcd_client_registry_init_hash_iter (priv->clients, &iter);
     while (g_hash_table_iter_next (&iter, &key, &value))
     {
         McdClientProxy *client = value;
@@ -3163,7 +2877,8 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
      */
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
     priv = dispatcher->priv;
-    g_return_if_fail (priv->startup_completed);
+    g_return_if_fail (_mcd_client_registry_is_ready (
+        dispatcher->priv->clients));
 
     path = mcd_channel_get_object_path (channel);
     unique_name = _mcd_handler_map_get_handler (priv->handler_map, path);
@@ -3338,31 +3053,20 @@ mcd_dispatcher_lost_connection (gpointer data,
     g_object_unref (self);
 }
 
+/* FIXME: this only needs to exist because McdConnection calls it in order
+ * to preload caps before Connect */
 GPtrArray *
 _mcd_dispatcher_dup_client_caps (McdDispatcher *self)
 {
-    GPtrArray *vas;
-    GHashTableIter iter;
-    gpointer p;
-
     g_return_val_if_fail (MCD_IS_DISPATCHER (self), NULL);
 
-    vas = g_ptr_array_sized_new (g_hash_table_size (self->priv->clients));
-
-    if (!self->priv->startup_completed)
+    /* if we're not ready, return NULL to tell the connection not to preload */
+    if (!_mcd_client_registry_is_ready (self->priv->clients))
     {
         return NULL;
     }
 
-    g_hash_table_iter_init (&iter, self->priv->clients);
-
-    while (g_hash_table_iter_next (&iter, NULL, &p))
-    {
-        g_ptr_array_add (vas,
-                         _mcd_client_proxy_dup_handler_capabilities (p));
-    }
-
-    return vas;
+    return _mcd_client_registry_dup_client_caps (self->priv->clients);
 }
 
 void
@@ -3378,9 +3082,10 @@ _mcd_dispatcher_add_connection (McdDispatcher *self,
     g_object_weak_ref ((GObject *) connection, mcd_dispatcher_lost_connection,
                        g_object_ref (self));
 
-    if (self->priv->startup_completed)
+    if (_mcd_client_registry_is_ready (self->priv->clients))
     {
-        GPtrArray *vas = _mcd_dispatcher_dup_client_caps (self);
+        GPtrArray *vas =
+            _mcd_client_registry_dup_client_caps (self->priv->clients);
 
         _mcd_connection_start_dispatching (connection, vas);
 
