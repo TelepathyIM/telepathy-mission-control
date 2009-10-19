@@ -156,6 +156,10 @@ struct _McdDispatchOperationPrivate
     /* If TRUE, we're in the middle of calling HandleChannels. This is a
      * client lock. */
     gboolean calling_handle_channels;
+
+    /* If TRUE, we've tried all the BypassApproval handlers, which happens
+     * before we run approvers. */
+    gboolean tried_handlers_before_approval;
 };
 
 static void _mcd_dispatch_operation_check_finished (
@@ -252,6 +256,7 @@ static gboolean _mcd_dispatch_operation_try_next_handler (
     McdDispatchOperation *self);
 static void _mcd_dispatch_operation_close_as_undispatchable (
     McdDispatchOperation *self);
+static gboolean mcd_dispatch_operation_idle_run_approvers (gpointer p);
 
 static void
 _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
@@ -291,12 +296,25 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
         return;
     }
 
-    if (self->priv->invoked_approvers_if_needed &&
-        _mcd_dispatch_operation_is_approved (self))
+    if (self->priv->invoked_approvers_if_needed)
+    {
+        if (_mcd_dispatch_operation_is_approved (self))
+        {
+            if (!_mcd_dispatch_operation_try_next_handler (self))
+            {
+                _mcd_dispatch_operation_close_as_undispatchable (self);
+            }
+        }
+    }
+    else if (!self->priv->tried_handlers_before_approval)
     {
         if (!_mcd_dispatch_operation_try_next_handler (self))
         {
-            _mcd_dispatch_operation_close_as_undispatchable (self);
+            self->priv->tried_handlers_before_approval = TRUE;
+
+            g_idle_add_full (G_PRIORITY_HIGH,
+                             mcd_dispatch_operation_idle_run_approvers,
+                             g_object_ref (self), g_object_unref);
         }
     }
 }
@@ -1665,14 +1683,6 @@ mcd_dispatch_operation_idle_run_approvers (gpointer p)
 
     if (_mcd_dispatch_operation_needs_approval (self))
     {
-        /* Bypass approval if a handler has BypassApproval
-         *
-         * FIXME: we should really run BypassApproval handlers as a separate
-         * stage, rather than considering the existence of a BypassApproval
-         * handler to constitute general approval - this is fd.o #23687 */
-        if (_mcd_dispatch_operation_handlers_can_bypass_approval (self))
-            _mcd_dispatch_operation_set_approved (self);
-
         if (!_mcd_dispatch_operation_is_approved (self))
             _mcd_dispatch_operation_run_approvers (self);
     }
@@ -1692,11 +1702,24 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
 
     _mcd_dispatch_operation_run_observers (self);
     self->priv->invoked_observers_if_needed = TRUE;
-    _mcd_dispatch_operation_check_client_locks (self);
 
-    g_idle_add_full (G_PRIORITY_HIGH,
-                     mcd_dispatch_operation_idle_run_approvers,
-                     g_object_ref (self), g_object_unref);
+    /* If nobody is bypassing approval, then we want to run approvers as soon
+     * as possible, without waiting for observers, to improve responsiveness.
+     * (The regression test dispatcher/exploding-bundles.py asserts that we
+     * do this.)
+     *
+     * However, if a handler bypasses approval, we must wait til the observers
+     * return, then run that handler, then proceed with the other handlers. */
+    if (!_mcd_dispatch_operation_handlers_can_bypass_approval (self))
+    {
+        self->priv->tried_handlers_before_approval = TRUE;
+
+        g_idle_add_full (G_PRIORITY_HIGH,
+                         mcd_dispatch_operation_idle_run_approvers,
+                         g_object_ref (self), g_object_unref);
+    }
+
+    _mcd_dispatch_operation_check_client_locks (self);
 
     g_object_unref (self);
 }
