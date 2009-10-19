@@ -1625,6 +1625,31 @@ _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
     _mcd_dispatch_operation_dec_ado_pending (self);
 }
 
+static gboolean
+mcd_dispatch_operation_idle_run_approvers (gpointer p)
+{
+    McdDispatchOperation *self = p;
+
+    if (_mcd_dispatch_operation_needs_approval (self))
+    {
+        /* Bypass approval if a handler has BypassApproval
+         *
+         * FIXME: we should really run BypassApproval handlers as a separate
+         * stage, rather than considering the existence of a BypassApproval
+         * handler to constitute general approval - this is fd.o #23687 */
+        if (_mcd_dispatch_operation_handlers_can_bypass_approval (self))
+            _mcd_dispatch_operation_set_approved (self);
+
+        if (!_mcd_dispatch_operation_is_approved (self))
+            _mcd_dispatch_operation_run_approvers (self);
+    }
+
+    self->priv->invoked_approvers_if_needed = TRUE;
+    _mcd_dispatch_operation_check_client_locks (self);
+
+    return FALSE;
+}
+
 /* After this function is called, the McdDispatchOperation takes over its
  * own life-cycle, and the caller needn't hold an explicit reference to it. */
 void
@@ -1636,24 +1661,9 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
     self->priv->invoked_observers_if_needed = TRUE;
     _mcd_dispatch_operation_check_client_locks (self);
 
-    /* if the dispatch operation thinks the channels were not
-     * requested, start the Approvers */
-    if (_mcd_dispatch_operation_needs_approval (self))
-    {
-        /* but if the handlers have the BypassApproval flag set, then don't
-         *
-         * FIXME: we should really run BypassApproval handlers as a separate
-         * stage, rather than considering the existence of a BypassApproval
-         * handler to constitute approval - this is fd.o #23687 */
-        if (_mcd_dispatch_operation_handlers_can_bypass_approval (self))
-            _mcd_dispatch_operation_set_approved (self);
-
-        if (!_mcd_dispatch_operation_is_approved (self))
-            _mcd_dispatch_operation_run_approvers (self);
-    }
-
-    self->priv->invoked_approvers_if_needed = TRUE;
-    _mcd_dispatch_operation_check_client_locks (self);
+    g_idle_add_full (G_PRIORITY_HIGH,
+                     mcd_dispatch_operation_idle_run_approvers,
+                     g_object_ref (self), g_object_unref);
 
     g_object_unref (self);
 }
