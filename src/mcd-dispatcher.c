@@ -819,7 +819,7 @@ static void
 observe_channels_cb (TpClient *proxy, const GError *error,
                      gpointer user_data, GObject *weak_object)
 {
-    McdDispatcherContext *context = user_data;
+    McdDispatchOperation *op = user_data;
 
     /* we display the error just for debugging, but we don't really care */
     if (error)
@@ -828,7 +828,7 @@ observe_channels_cb (TpClient *proxy, const GError *error,
     else
         DEBUG ("success from %s", tp_proxy_get_object_path (proxy));
 
-    _mcd_dispatch_operation_dec_observers_pending (context->operation);
+    _mcd_dispatch_operation_dec_observers_pending (op);
 }
 
 /* The returned GPtrArray is allocated, but the contents are borrowed. */
@@ -865,12 +865,6 @@ collect_satisfied_requests (GList *channels)
     g_hash_table_destroy (set);
 
     return ret;
-}
-
-static void
-mcd_dispatcher_context_unref_5 (gpointer p)
-{
-    mcd_dispatcher_context_unref (p, "CTXREF05");
 }
 
 static void
@@ -936,7 +930,6 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
         }
 
         _mcd_dispatch_operation_inc_observers_pending (context->operation);
-        mcd_dispatcher_context_ref (context, "CTXREF05");
 
         DEBUG ("calling ObserveChannels on %s for context %p",
                tp_proxy_get_bus_name (client), context);
@@ -945,8 +938,7 @@ mcd_dispatcher_run_observers (McdDispatcherContext *context)
             account_path, connection_path, channels_array,
             dispatch_operation_path, satisfied_requests, observer_info,
             observe_channels_cb,
-            context,
-            mcd_dispatcher_context_unref_5,
+            g_object_ref (context->operation), g_object_unref,
             (GObject *)context->dispatcher);
 
         /* don't free the individual object paths, which are borrowed from the
@@ -965,26 +957,24 @@ static void
 add_dispatch_operation_cb (TpClient *proxy, const GError *error,
                            gpointer user_data, GObject *weak_object)
 {
-    McdDispatcherContext *context = user_data;
+    McdDispatchOperation *op = user_data;
 
     if (error)
     {
-        DEBUG ("AddDispatchOperation %s (context %p) on approver %s failed: "
+        DEBUG ("AddDispatchOperation %s (%p) on approver %s failed: "
                "%s",
-               _mcd_dispatch_operation_get_path (context->operation),
-               context, tp_proxy_get_object_path (proxy), error->message);
+               _mcd_dispatch_operation_get_path (op), op,
+               tp_proxy_get_object_path (proxy), error->message);
     }
     else
     {
-        DEBUG ("Approver %s accepted AddDispatchOperation %s (context %p)",
+        DEBUG ("Approver %s accepted AddDispatchOperation %s (%p)",
                tp_proxy_get_object_path (proxy),
-               _mcd_dispatch_operation_get_path (context->operation),
-               context);
+               _mcd_dispatch_operation_get_path (op), op);
 
-        if (!_mcd_dispatch_operation_is_awaiting_approval (context->operation))
+        if (!_mcd_dispatch_operation_is_awaiting_approval (op))
         {
-            _mcd_dispatch_operation_set_awaiting_approval (context->operation,
-                                                           TRUE);
+            _mcd_dispatch_operation_set_awaiting_approval (op, TRUE);
         }
     }
 
@@ -992,13 +982,7 @@ add_dispatch_operation_cb (TpClient *proxy, const GError *error,
      * approver was registered: i.e., we continue dispatching. If at least
      * one approver accepted it, then we can still continue dispatching,
      * since it will be stalled until awaiting_approval becomes FALSE. */
-    _mcd_dispatch_operation_dec_ado_pending (context->operation);
-}
-
-static void
-mcd_dispatcher_context_unref_6 (gpointer p)
-{
-    mcd_dispatcher_context_unref (p, "CTXREF06");
+    _mcd_dispatch_operation_dec_ado_pending (op);
 }
 
 static void
@@ -1063,13 +1047,11 @@ mcd_dispatcher_run_approvers (McdDispatcherContext *context)
 
         _mcd_dispatch_operation_inc_ado_pending (context->operation);
 
-        mcd_dispatcher_context_ref (context, "CTXREF06");
         tp_cli_client_approver_call_add_dispatch_operation (
             (TpClient *) client, -1,
             channel_details, dispatch_operation, properties,
             add_dispatch_operation_cb,
-            context,
-            mcd_dispatcher_context_unref_6,
+            g_object_ref (context->operation), g_object_unref,
             (GObject *)context->dispatcher);
 
         g_boxed_free (TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST, channel_details);
