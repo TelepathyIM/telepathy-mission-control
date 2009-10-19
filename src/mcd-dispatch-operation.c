@@ -248,7 +248,8 @@ _mcd_dispatch_operation_is_approved (McdDispatchOperation *self)
     return (self->priv->approved || !self->priv->needs_approval);
 }
 
-static void _mcd_dispatch_operation_run_handlers (McdDispatchOperation *self);
+static void _mcd_dispatch_operation_try_next_handler (
+    McdDispatchOperation *self);
 
 static void
 _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
@@ -291,7 +292,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
     if (self->priv->invoked_approvers_if_needed &&
         _mcd_dispatch_operation_is_approved (self))
     {
-        _mcd_dispatch_operation_run_handlers (self);
+        _mcd_dispatch_operation_try_next_handler (self);
     }
 }
 
@@ -1716,7 +1717,7 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
 }
 
 static void
-_mcd_dispatch_operation_run_handlers (McdDispatchOperation *self)
+_mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
 {
     GList *channels, *list;
     gchar **iter;
