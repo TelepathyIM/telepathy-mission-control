@@ -152,6 +152,10 @@ struct _McdDispatchOperationPrivate
     /* if TRUE, these channels were requested "behind our back", so stop
      * after observers */
     gboolean observe_only;
+
+    /* If TRUE, we're in the middle of calling HandleChannels. This is a
+     * client lock. */
+    gboolean calling_handle_channels;
 };
 
 static void _mcd_dispatch_operation_check_finished (
@@ -253,13 +257,12 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
         self->priv->invoked_approvers_if_needed &&
         self->priv->ado_pending == 0 &&
         self->priv->observers_pending == 0 &&
-        _mcd_dispatch_operation_is_approved (self))
+        _mcd_dispatch_operation_is_approved (self) &&
+        !self->priv->calling_handle_channels &&
+        !self->priv->channels_handled)
     {
-        /* no observers etc. left */
-        if (!self->priv->channels_handled &&
-            !self->priv->observe_only)
+        if (!self->priv->observe_only)
         {
-            self->priv->channels_handled = TRUE;
             _mcd_dispatch_operation_run_handlers (self);
         }
     }
@@ -1338,9 +1341,6 @@ _mcd_dispatch_operation_handle_channels_cb (TpClient *client,
 
         _mcd_dispatch_operation_set_handler_failed (self,
             tp_proxy_get_bus_name (client));
-
-        /* try again */
-        _mcd_dispatch_operation_run_handlers (self);
     }
     else
     {
@@ -1386,7 +1386,11 @@ _mcd_dispatch_operation_handle_channels_cb (TpClient *client,
 
         /* emit Finished, if we haven't already */
         _mcd_dispatch_operation_finish (self);
+        self->priv->channels_handled = TRUE;
     }
+
+    self->priv->calling_handle_channels = FALSE;
+    _mcd_dispatch_operation_check_client_locks (self);
 }
 
 static void
@@ -1665,6 +1669,9 @@ static void
 mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
                                         McdClientProxy *handler)
 {
+    g_assert (!self->priv->calling_handle_channels);
+    self->priv->calling_handle_channels = TRUE;
+
     _mcd_client_proxy_handle_channels (handler,
         -1, self->priv->channels, self->priv->handle_with_time,
         NULL, _mcd_dispatch_operation_handle_channels_cb,
@@ -1737,6 +1744,8 @@ _mcd_dispatch_operation_run_handlers (McdDispatchOperation *self)
      * approvers again (?), but for now we'll just close all the channels. */
 
     DEBUG ("No possible handler still exists, giving up");
+    _mcd_dispatch_operation_finish (self);
+    self->priv->channels_handled = TRUE;
 
     channels = _mcd_dispatch_operation_dup_channels (self);
 
