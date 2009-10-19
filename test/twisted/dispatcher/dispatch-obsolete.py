@@ -146,7 +146,16 @@ def test(q, bus, mc):
                 handled=False),
             )
 
-    assert e.args == [channels, cdo_path, cdo_properties]
+    assert e.args[1:] == [cdo_path, cdo_properties]
+    channels = e.args[0]
+    assert len(channels) == 1, channels
+    assert channels[0][0] == chan.object_path, channels
+    # the announced channel properties are some subset of what it actually has
+    for key in channels[0][1]:
+        assert channel_properties[key] == channels[0][1][key], key
+    assert cs.CHANNEL + '.TargetHandleType' in channels[0][1]
+    assert cs.CHANNEL + '.ChannelType' in channels[0][1]
+    assert cs.CHANNEL + '.TargetHandle' in channels[0][1]
     assert k.args == e.args
 
     q.dbus_return(e.message, signature='')
