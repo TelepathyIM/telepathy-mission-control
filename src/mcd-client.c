@@ -1559,7 +1559,6 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
     gint timeout_ms,
     const gchar *account_path,
     const GList *channels,
-    const GPtrArray *requests_satisfied,
     gint64 user_action_time,
     GHashTable *handler_info,
     tp_cli_client_handler_callback_for_handle_channels callback,
@@ -1568,18 +1567,28 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
     GObject *weak_object)
 {
     GPtrArray *channel_details;
+    GPtrArray *requests_satisfied;
     const GList *iter;
 
     g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
     g_return_if_fail (channels != NULL);
 
     channel_details = _mcd_channel_details_build_from_list (channels);
+    requests_satisfied = g_ptr_array_new ();
 
     for (iter = channels; iter != NULL; iter = iter->next)
     {
         gint64 req_time = 0;
+        const GList *requests;
 
-        _mcd_channel_get_satisfied_requests (iter->data, &req_time);
+        for (requests = _mcd_channel_get_satisfied_requests (iter->data,
+                                                             &req_time);
+             requests != NULL;
+             requests = requests->next)
+        {
+            /* list of borrowed object paths */
+            g_ptr_array_add (requests_satisfied, requests->data);
+        }
 
         if (req_time > user_action_time)
             user_action_time = req_time;
@@ -1592,4 +1601,5 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
         callback, user_data, destroy, weak_object);
 
     _mcd_channel_details_free (channel_details);
+    g_ptr_array_free (requests_satisfied, TRUE);
 }

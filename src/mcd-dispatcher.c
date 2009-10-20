@@ -1759,11 +1759,9 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     GList *request_as_list;
     const gchar *handler_unique;
     GStrv possible_handlers;
-    GPtrArray *satisfied_requests;
     GHashTable *handler_info;
     McdAccount *account;
     const gchar *account_path;
-    const GList *requests;
     McdClientProxy *handler;
 
     request_as_list = g_list_append (NULL, request);
@@ -1817,27 +1815,16 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     if (G_UNLIKELY (account_path == NULL))    /* can't happen? */
         account_path = "/";
 
-    satisfied_requests = g_ptr_array_new ();
-
-    for (requests = _mcd_channel_get_satisfied_requests (request, NULL);
-         requests != NULL;
-         requests = requests->next)
-    {
-        g_ptr_array_add (satisfied_requests, requests->data);
-    }
-
     handler_info = g_hash_table_new (g_str_hash, g_str_equal);
 
     _mcd_channel_set_status (request, MCD_CHANNEL_STATUS_HANDLER_INVOKED);
 
     _mcd_client_proxy_handle_channels (handler,
         -1, account_path, request_as_list,
-        satisfied_requests,
         0, /* the request's user action time will be used automatically */
         handler_info,
         reinvoke_handle_channels_cb, NULL, NULL, (GObject *) request);
 
-    g_ptr_array_free (satisfied_requests, TRUE);
     g_hash_table_unref (handler_info);
 
 finally:

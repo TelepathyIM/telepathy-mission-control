@@ -1663,30 +1663,15 @@ static void
 mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
                                         McdClientProxy *handler)
 {
-    gint64 user_action_time;
     const gchar *account_path;
-    GPtrArray *satisfied_requests;
     GHashTable *handler_info;
     const GList *cl;
 
     account_path = _mcd_dispatch_operation_get_account_path (self);
 
-    user_action_time = self->priv->handle_with_time;
-    satisfied_requests = g_ptr_array_new ();
-
     for (cl = self->priv->channels; cl != NULL; cl = cl->next)
     {
-        McdChannel *channel = MCD_CHANNEL (cl->data);
-        const GList *requests;
-
-        requests = _mcd_channel_get_satisfied_requests (channel, NULL);
-        while (requests)
-        {
-            g_ptr_array_add (satisfied_requests, requests->data);
-            requests = requests->next;
-        }
-
-        _mcd_channel_set_status (channel,
+        _mcd_channel_set_status (cl->data,
                                  MCD_CHANNEL_STATUS_HANDLER_INVOKED);
     }
 
@@ -1696,11 +1681,10 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
            tp_proxy_get_bus_name (handler), self);
     _mcd_client_proxy_handle_channels (handler,
         -1, account_path,
-        self->priv->channels, satisfied_requests, user_action_time,
+        self->priv->channels, self->priv->handle_with_time,
         handler_info, _mcd_dispatch_operation_handle_channels_cb,
         g_object_ref (self), g_object_unref, NULL);
 
-    g_ptr_array_free (satisfied_requests, TRUE);
     g_hash_table_unref (handler_info);
 }
 
