@@ -288,6 +288,7 @@ mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
      * can take it */
 
     channel_properties = _mcd_channel_get_requested_properties (channel);
+    g_assert (channel_properties != NULL); /* all requests should have these */
 
     _mcd_client_registry_init_hash_iter (dispatcher->priv->clients, &iter);
     while (g_hash_table_iter_next (&iter, NULL, &client))
@@ -392,6 +393,10 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
             if (properties == NULL)
             {
                 properties = _mcd_channel_get_requested_properties (channel);
+                /* the only way we should ever fail to have the immutable
+                 * properties is if it's a request, in which case it has
+                 * requested properties instead */
+                g_assert (properties != NULL);
             }
 
             quality = _mcd_client_match_filters (properties,
