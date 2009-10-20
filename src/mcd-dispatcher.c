@@ -423,9 +423,29 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
         }
     }
 
-    /* if no handlers can take them all, fail */
+    /* if no handlers can take them all, fail - unless the channels are
+     * a request that specified a preferred handler, in which case assume
+     * it's suitable */
     if (handlers == NULL)
     {
+        const gchar *preferred_handler = NULL;
+
+        if (channels->data != NULL)
+        {
+            preferred_handler =
+                _mcd_channel_get_request_preferred_handler (channels->data);
+        }
+
+        if (preferred_handler != NULL && preferred_handler[0] != '\0' &&
+            _mcd_client_registry_lookup (self->priv->clients,
+                                         preferred_handler) != NULL)
+        {
+            ret = g_new0 (gchar *, 2);
+            ret[0] = g_strdup (preferred_handler);
+            ret[1] = NULL;
+            return ret;
+        }
+
         return NULL;
     }
 
