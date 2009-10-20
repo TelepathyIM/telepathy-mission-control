@@ -865,6 +865,8 @@ mcd_client_proxy_unique_name_cb (TpDBusDaemon *dbus_daemon,
 {
     McdClientProxy *self = MCD_CLIENT_PROXY (user_data);
 
+    g_object_ref (self);
+
     if (unique_name == NULL || unique_name[0] == '\0')
     {
         _mcd_client_proxy_set_inactive (self);
@@ -875,6 +877,8 @@ mcd_client_proxy_unique_name_cb (TpDBusDaemon *dbus_daemon,
     }
 
     mcd_client_proxy_introspect (self);
+
+    g_object_unref (self);
 }
 
 static void
