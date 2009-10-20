@@ -718,7 +718,8 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
 
     case PROP_CHANNELS:
         g_assert (priv->channels == NULL);
-        priv->channels = g_value_get_pointer (val);
+        priv->channels = g_list_copy (g_value_get_pointer (val));
+
         if (G_LIKELY (priv->channels))
         {
             /* get the connection and account from the first channel */
