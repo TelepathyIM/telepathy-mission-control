@@ -80,6 +80,10 @@ G_GNUC_INTERNAL void _mcd_channel_depart (McdChannel *channel,
                                           TpChannelGroupChangeReason reason,
                                           const gchar *message);
 
+/* NULL-safe for @channel; @verb is for debug */
+G_GNUC_INTERNAL gboolean _mcd_tp_channel_should_close (TpChannel *channel,
+                                                       const gchar *verb);
+
 G_END_DECLS
 #endif
 

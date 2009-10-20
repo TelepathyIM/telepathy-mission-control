@@ -26,9 +26,8 @@
 #ifndef MCD_HANDLER_MAP_H_
 #define MCD_HANDLER_MAP_H_
 
+#include <telepathy-glib/channel.h>
 #include <telepathy-glib/dbus.h>
-
-#include "mcd-channel.h"
 
 G_BEGIN_DECLS
 
@@ -75,7 +74,7 @@ void _mcd_handler_map_set_path_handled (McdHandlerMap *self,
                                         const gchar *unique_name);
 
 void _mcd_handler_map_set_channel_handled (McdHandlerMap *self,
-                                           McdChannel *channel,
+                                           TpChannel *channel,
                                            const gchar *unique_name);
 
 G_END_DECLS

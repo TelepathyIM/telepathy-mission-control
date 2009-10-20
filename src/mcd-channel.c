@@ -250,41 +250,44 @@ on_channel_ready (TpChannel *tp_chan, const GError *error, gpointer user_data)
 	_mcd_channel_setup_group (channel);
 }
 
-static gboolean
-mcd_channel_should_close (McdChannel *channel,
-                          const gchar *verb)
+gboolean
+_mcd_tp_channel_should_close (TpChannel *channel,
+                              const gchar *verb)
 {
-    McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
     const GError *invalidated;
+    const gchar *object_path;
     GQuark channel_type;
 
-    if (priv->tp_chan == NULL)
+    if (channel == NULL)
     {
-        DEBUG ("Not %s %p: no TpChannel", verb, channel);
+        DEBUG ("Not %s NULL channel", verb);
         return FALSE;
     }
 
-    invalidated = TP_PROXY (priv->tp_chan)->invalidated;
+    invalidated = tp_proxy_get_invalidated (channel);
+    object_path = tp_proxy_get_object_path (channel);
 
     if (invalidated != NULL)
     {
-        DEBUG ("Not %s %p, already invalidated: %s %d: %s",
-               verb, channel, g_quark_to_string (invalidated->domain),
+        DEBUG ("Not %s %p:%s, already invalidated: %s %d: %s",
+               verb, channel, object_path,
+               g_quark_to_string (invalidated->domain),
                invalidated->code, invalidated->message);
         return FALSE;
     }
 
-    channel_type = tp_channel_get_channel_type_id (priv->tp_chan);
+    channel_type = tp_channel_get_channel_type_id (channel);
 
     if (channel_type == TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
     {
-        DEBUG ("Not %s %p, it's a ContactList", verb, channel);
+        DEBUG ("Not %s %p:%s, it's a ContactList", verb, channel, object_path);
         return FALSE;
     }
 
     if (channel_type == TP_IFACE_QUARK_CHANNEL_TYPE_TUBES)
     {
-        DEBUG ("Not %s %p, it's an old Tubes channel", verb, channel);
+        DEBUG ("Not %s %p:%s, it's an old Tubes channel", verb, channel,
+               object_path);
         return FALSE;
     }
 
@@ -296,7 +299,7 @@ _mcd_channel_close (McdChannel *channel)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
 
-    if (!mcd_channel_should_close (channel, "closing"))
+    if (!_mcd_tp_channel_should_close (priv->tp_chan, "closing"))
     {
         return;
     }
@@ -311,7 +314,7 @@ _mcd_channel_undispatchable (McdChannel *channel)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
 
-    if (!mcd_channel_should_close (channel, "destroying"))
+    if (!_mcd_tp_channel_should_close (priv->tp_chan, "destroying"))
     {
         return;
     }
