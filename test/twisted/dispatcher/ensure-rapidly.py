@@ -191,9 +191,7 @@ def test_channel_creation(q, bus, account, client, conn):
     assert channels[0][1] == channel_immutable, channels
     assert sorted(e.args[3]) == sorted([cr1.object_path,
         cr2.object_path]), e.args
-    # FIXME: we ought to define which of these it should be, probably the
-    # larger (because that was the last relevant user input)
-    assert e.args[4] in [user_action_time1, user_action_time2]
+    assert e.args[4] == user_action_time2, (e.args[4], user_action_time2)
     assert isinstance(e.args[5], dict)
     assert len(e.args) == 6
 

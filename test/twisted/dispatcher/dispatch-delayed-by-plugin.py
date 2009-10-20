@@ -253,7 +253,7 @@ def test(q, bus, mc):
     assert channels[0][0] == chan.object_path, channels
     assert channels[0][1] == chan.immutable, channels
     assert e.args[3] == [request_path], e.args
-    # FIXME: untrue: assert e.args[4] == user_action_time
+    assert e.args[4] == user_action_time, (e.args[4], user_action_time)
     assert isinstance(e.args[5], dict)
     assert len(e.args) == 6
 
