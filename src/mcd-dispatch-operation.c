@@ -93,6 +93,7 @@ struct _McdDispatchOperationPrivate
     /* if TRUE, we will emit finished as soon as we can */
     gboolean wants_to_finish;
     gchar *handler;
+    gint64 handle_with_time;
     gchar *claimer;
     DBusGMethodInvocation *claim_context;
 
@@ -495,6 +496,7 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
 {
     GError *error = NULL;
     McdDispatchOperation *self = MCD_DISPATCH_OPERATION (cdo);
+    GTimeVal now = { 0, 0 };
 
     DEBUG ("%s/%p", self->priv->unique_name, self);
 
@@ -504,6 +506,9 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
         g_error_free (error);
         return;
     }
+
+    g_get_current_time (&now);
+    self->priv->handle_with_time = now.tv_sec;
 
     if (handler_name != NULL && handler_name[0] != '\0')
     {
@@ -1666,7 +1671,7 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
 
     account_path = _mcd_dispatch_operation_get_account_path (self);
 
-    user_action_time = 0; /* TODO: if we have a CDO, get it from there */
+    user_action_time = self->priv->handle_with_time;
     satisfied_requests = g_ptr_array_new ();
 
     for (cl = self->priv->channels; cl != NULL; cl = cl->next)
