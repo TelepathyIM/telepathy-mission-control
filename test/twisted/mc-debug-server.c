@@ -161,6 +161,13 @@ main (int argc, char **argv)
     mcd_debug_init ();
     tp_debug_set_flags (g_getenv ("MC_TP_DEBUG"));
 
+    /* Not all warnings are fatal due to MC spamming warnings (fd.o #23486),
+     * but GLib and GObject warnings are pretty serious */
+    g_log_set_fatal_mask ("GLib",
+        G_LOG_FATAL_MASK | G_LOG_LEVEL_CRITICAL | G_LOG_LEVEL_WARNING);
+    g_log_set_fatal_mask ("GLib-GObject",
+        G_LOG_FATAL_MASK | G_LOG_LEVEL_CRITICAL | G_LOG_LEVEL_WARNING);
+
     bus_daemon = tp_dbus_daemon_dup (&error);
 
     if (bus_daemon == NULL)
