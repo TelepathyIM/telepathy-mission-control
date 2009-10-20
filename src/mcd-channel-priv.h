@@ -58,7 +58,8 @@ GHashTable *_mcd_channel_get_requested_properties (McdChannel *channel);
 G_GNUC_INTERNAL
 const gchar *_mcd_channel_get_request_path (McdChannel *channel);
 G_GNUC_INTERNAL
-const GList *_mcd_channel_get_satisfied_requests (McdChannel *channel);
+const GList *_mcd_channel_get_satisfied_requests (McdChannel *channel,
+                                                  gint64 *get_latest_time);
 G_GNUC_INTERNAL
 guint64 _mcd_channel_get_request_user_action_time (McdChannel *channel);
 G_GNUC_INTERNAL

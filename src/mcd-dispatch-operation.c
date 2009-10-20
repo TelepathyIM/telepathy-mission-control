@@ -1415,7 +1415,8 @@ collect_satisfied_requests (GList *channels)
     /* collect object paths into a hash table, to drop duplicates */
     for (c = channels; c != NULL; c = c->next)
     {
-        const GList *reqs = _mcd_channel_get_satisfied_requests (c->data);
+        const GList *reqs = _mcd_channel_get_satisfied_requests (c->data,
+                                                                 NULL);
 
         for (r = reqs; r != NULL; r = r->next)
         {
@@ -1657,7 +1658,7 @@ static void
 mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
                                         McdClientProxy *handler)
 {
-    guint64 user_action_time;
+    gint64 user_action_time;
     const gchar *account_path;
     GPtrArray *satisfied_requests;
     GHashTable *handler_info;
@@ -1672,19 +1673,18 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
     {
         McdChannel *channel = MCD_CHANNEL (cl->data);
         const GList *requests;
-        guint64 user_time;
+        gint64 req_time;
 
-        requests = _mcd_channel_get_satisfied_requests (channel);
+        requests = _mcd_channel_get_satisfied_requests (channel,
+                                                        &req_time);
         while (requests)
         {
             g_ptr_array_add (satisfied_requests, requests->data);
             requests = requests->next;
         }
 
-        /* FIXME: what if we have more than one request? */
-        user_time = _mcd_channel_get_request_user_action_time (channel);
-        if (user_time)
-            user_action_time = user_time;
+        if (req_time > user_action_time)
+            user_action_time = req_time;
 
         _mcd_channel_set_status (channel,
                                  MCD_CHANNEL_STATUS_HANDLER_INVOKED);

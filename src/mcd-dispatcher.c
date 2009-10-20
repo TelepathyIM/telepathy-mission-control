@@ -1764,7 +1764,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     McdAccount *account;
     const gchar *account_path;
     const GList *requests;
-    guint64 user_action_time;
+    gint64 user_action_time;
     McdClientProxy *handler;
 
     request_as_list = g_list_append (NULL, request);
@@ -1820,14 +1820,14 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
 
     satisfied_requests = g_ptr_array_new ();
 
-    for (requests = _mcd_channel_get_satisfied_requests (request);
+    for (requests = _mcd_channel_get_satisfied_requests (request,
+                                                         &user_action_time);
          requests != NULL;
          requests = requests->next)
     {
         g_ptr_array_add (satisfied_requests, requests->data);
     }
 
-    user_action_time = _mcd_channel_get_request_user_action_time (request);
     handler_info = g_hash_table_new (g_str_hash, g_str_equal);
 
     _mcd_channel_set_status (request, MCD_CHANNEL_STATUS_HANDLER_INVOKED);
