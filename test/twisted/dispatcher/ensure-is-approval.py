@@ -38,6 +38,14 @@ def test(q, bus, mc):
     cm_name_ref, account = create_fakecm_account(q, bus, mc, params)
     conn = enable_fakecm_account(q, bus, mc, account, params)
 
+    # One client (Kopete) has less specific filters than the other (Empathy),
+    # to make sure that the dispatcher would normally prefer Empathy; this
+    # means that when we use Kopete as the preferred handler, we know that
+    # if Kopete is invoked, then preferring the preferred handler correctly
+    # took precedence over the normal logic.
+    vague_fixed_properties = dbus.Dictionary({
+        cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
+        }, signature='sv')
     text_fixed_properties = dbus.Dictionary({
         cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
@@ -52,8 +60,8 @@ def test(q, bus, mc):
             observe=[text_fixed_properties], approve=[text_fixed_properties],
             handle=[text_fixed_properties], bypass_approval=False)
     kopete = SimulatedClient(q, kopete_bus, 'Kopete',
-            observe=[text_fixed_properties], approve=[text_fixed_properties],
-            handle=[text_fixed_properties], bypass_approval=False)
+            observe=[vague_fixed_properties], approve=[vague_fixed_properties],
+            handle=[vague_fixed_properties], bypass_approval=False)
 
     # wait for MC to download the properties
     expect_client_setup(q, [empathy, kopete])
@@ -94,7 +102,7 @@ def test(q, bus, mc):
     assert cs.CDO + '.Interfaces' in cdo_properties
 
     handlers = cdo_properties[cs.CDO + '.PossibleHandlers'][:]
-    handlers.sort()
+    # Empathy has a more specific filter, so it comes first
     assert handlers == [cs.tp_name_prefix + '.Client.Empathy',
             cs.tp_name_prefix + '.Client.Kopete'], handlers
 
@@ -190,8 +198,7 @@ def test(q, bus, mc):
     assert request_props[cs.CR + '.Account'] == account.object_path
     assert request_props[cs.CR + '.Requests'] == [request]
     assert request_props[cs.CR + '.UserActionTime'] == user_action_time
-    # FIXME: untrue
-    # assert request_props[cs.CR + '.PreferredHandler'] == kopete.bus_name
+    assert request_props[cs.CR + '.PreferredHandler'] == kopete.bus_name
     assert request_props[cs.CR + '.Interfaces'] == []
 
     # UI connects to signals and calls ChannelRequest.Proceed()
@@ -228,7 +235,7 @@ def test(q, bus, mc):
     # channel
 
     e = q.expect('dbus-method-call',
-            # FIXME: untrue: path=kopete.object_path,
+            path=kopete.object_path,
             interface=cs.HANDLER, method='HandleChannels',
             handled=False)
     assert e.args[0] == account.object_path, e.args
@@ -242,13 +249,7 @@ def test(q, bus, mc):
     assert isinstance(e.args[5], dict)
     assert len(e.args) == 6
 
-    # Handler accepts the Channels
-    if e.path == kopete.object_path:
-        q.dbus_return(e.message, bus=kopete_bus, signature='')
-    elif e.path == empathy.object_path:
-        q.dbus_return(e.message, bus=empathy_bus, signature='')
-    else:
-        assert False, "%s is neither Empathy nor Kopete" % e.path
+    q.dbus_return(e.message, bus=kopete_bus, signature='')
 
     # FIXME: this shouldn't happen until after HandleChannels has succeeded,
     # but MC currently does this as soon as HandleWith is called (fd.o #21003)
