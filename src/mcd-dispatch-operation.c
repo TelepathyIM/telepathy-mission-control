@@ -558,9 +558,13 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
         g_object_get (priv->client_registry,
                       "dbus-daemon", &dbus_daemon,
                       NULL);
+
+        /* can be NULL if we have fallen off the bus (in the real MC libdbus
+         * would exit in this situation, but in the debug build, we stay
+         * active briefly) */
         dbus_connection = tp_proxy_get_dbus_connection (dbus_daemon);
 
-        if (G_LIKELY (dbus_connection))
+        if (G_LIKELY (dbus_connection != NULL))
             dbus_g_connection_register_g_object (dbus_connection,
                                                  priv->object_path, object);
 
