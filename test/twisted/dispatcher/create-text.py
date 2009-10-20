@@ -70,9 +70,11 @@ def test(q, bus, mc):
     test_channel_creation(q, bus, account, client, conn, False)
     test_channel_creation(q, bus, account, client, conn, True)
     test_channel_creation(q, bus, account, client, conn, False, unsuitable)
+    test_channel_creation(q, bus, account, client, conn, False, unsuitable,
+            cs.CHANNEL_TYPE_STREAMED_MEDIA)
 
 def test_channel_creation(q, bus, account, client, conn,
-        ensure=False, prefer=None):
+        ensure=False, prefer=None, channel_type=cs.CHANNEL_TYPE_TEXT):
     user_action_time = dbus.Int64(1238582606)
 
     if prefer is None:
@@ -83,7 +85,7 @@ def test_channel_creation(q, bus, account, client, conn,
 
     # chat UI calls ChannelDispatcher.EnsureChannel or CreateChannel
     request = dbus.Dictionary({
-            cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
+            cs.CHANNEL + '.ChannelType': channel_type,
             cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
@@ -113,27 +115,34 @@ def test_channel_creation(q, bus, account, client, conn,
     # call, be in a defined order? Probably not though, since CMs and Clients
     # aren't meant to be the same process!
 
-    cm_request_call, add_request_call = q.expect_many(
-            EventPattern('dbus-method-call',
+    if channel_type == cs.CHANNEL_TYPE_TEXT:
+        cm_request_call, add_request_call = q.expect_many(
+                EventPattern('dbus-method-call',
+                    interface=cs.CONN_IFACE_REQUESTS,
+                    method=(ensure and 'EnsureChannel' or 'CreateChannel'),
+                    path=conn.object_path, args=[request], handled=False),
+                # FIXME: we should get AddRequest in the other case, too
+                EventPattern('dbus-method-call', handled=False,
+                    interface=cs.CLIENT_IFACE_REQUESTS,
+                    method='AddRequest'),
+                )
+
+        assert add_request_call.args[0] == request_path
+        # FIXME: untrue:
+        # assert add_request_call.path == prefer.object_path
+        request_props = add_request_call.args[1]
+        assert request_props[cs.CR + '.Account'] == account.object_path
+        assert request_props[cs.CR + '.Requests'] == [request]
+        assert request_props[cs.CR + '.UserActionTime'] == user_action_time
+        assert request_props[cs.CR + '.PreferredHandler'] == prefer.bus_name
+        assert request_props[cs.CR + '.Interfaces'] == []
+
+        q.dbus_return(add_request_call.message, signature='')
+    else:
+        cm_request_call = q.expect('dbus-method-call',
                 interface=cs.CONN_IFACE_REQUESTS,
                 method=(ensure and 'EnsureChannel' or 'CreateChannel'),
-                path=conn.object_path, args=[request], handled=False),
-            EventPattern('dbus-method-call', handled=False,
-                interface=cs.CLIENT_IFACE_REQUESTS,
-                method='AddRequest'),
-            )
-
-    assert add_request_call.args[0] == request_path
-    # FIXME: untrue:
-    # assert add_request_call.path == prefer.object_path
-    request_props = add_request_call.args[1]
-    assert request_props[cs.CR + '.Account'] == account.object_path
-    assert request_props[cs.CR + '.Requests'] == [request]
-    assert request_props[cs.CR + '.UserActionTime'] == user_action_time
-    assert request_props[cs.CR + '.PreferredHandler'] == prefer.bus_name
-    assert request_props[cs.CR + '.Interfaces'] == []
-
-    q.dbus_return(add_request_call.message, signature='')
+                path=conn.object_path, args=[request], handled=False)
 
     # Time passes. A channel is returned.
 
@@ -156,22 +165,23 @@ def test_channel_creation(q, bus, account, client, conn,
                 channel.object_path, channel.immutable, signature='oa{sv}')
     channel.announce()
 
-    # Observer should get told, processing waits for it
-    e = q.expect('dbus-method-call',
-            path=client.object_path,
-            interface=cs.OBSERVER, method='ObserveChannels',
-            handled=False)
-    assert e.args[0] == account.object_path, e.args
-    assert e.args[1] == conn.object_path, e.args
-    assert e.args[3] == '/', e.args         # no dispatch operation
-    assert e.args[4] == [request_path], e.args
-    channels = e.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == channel.object_path, channels
-    assert channels[0][1] == channel_immutable, channels
+    if channel_type == cs.CHANNEL_TYPE_TEXT:
+        # Observer should get told, processing waits for it
+        e = q.expect('dbus-method-call',
+                path=client.object_path,
+                interface=cs.OBSERVER, method='ObserveChannels',
+                handled=False)
+        assert e.args[0] == account.object_path, e.args
+        assert e.args[1] == conn.object_path, e.args
+        assert e.args[3] == '/', e.args         # no dispatch operation
+        assert e.args[4] == [request_path], e.args
+        channels = e.args[2]
+        assert len(channels) == 1, channels
+        assert channels[0][0] == channel.object_path, channels
+        assert channels[0][1] == channel_immutable, channels
 
-    # Observer says "OK, go"
-    q.dbus_return(e.message, signature='')
+        # Observer says "OK, go"
+        q.dbus_return(e.message, signature='')
 
     # Handler is next
     e = q.expect('dbus-method-call',
