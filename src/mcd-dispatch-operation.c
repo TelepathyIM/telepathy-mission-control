@@ -625,7 +625,7 @@ mcd_dispatch_operation_channel_aborted_cb (McdChannel *channel,
     DEBUG ("Channel %p aborted while in a dispatch operation", channel);
 
     /* if it was a channel request, and it was cancelled, then the whole
-     * context should be aborted */
+     * dispatch operation should be aborted, closing any related channels */
     error = mcd_channel_get_error (channel);
     if (error && error->code == TP_ERROR_CANCELLED)
         self->priv->cancelled = TRUE;
