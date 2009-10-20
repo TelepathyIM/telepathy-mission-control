@@ -746,13 +746,17 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
         break;
 
     case PROP_CHANNELS:
+        /* because this is construct-only, we can assert that: */
         g_assert (priv->channels == NULL);
+        g_assert (priv->handler == NULL);
+
         priv->channels = g_list_copy (g_value_get_pointer (val));
 
         if (G_LIKELY (priv->channels))
         {
             /* get the connection and account from the first channel */
             McdChannel *channel = MCD_CHANNEL (priv->channels->data);
+            const gchar *preferred_handler;
 
             priv->connection = (McdConnection *)
                 mcd_mission_get_parent (MCD_MISSION (channel));
@@ -765,6 +769,23 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
             {
                 /* shouldn't happen? */
                 g_warning ("Channel has no Connection?!");
+            }
+
+            /* if the first channel is actually a channel request, get the
+             * preferred handler from it */
+            preferred_handler =
+                _mcd_channel_get_request_preferred_handler (channel);
+
+            if (preferred_handler != NULL &&
+                g_str_has_prefix (preferred_handler, MCD_CLIENT_BASE_NAME) &&
+                tp_dbus_check_valid_bus_name (preferred_handler,
+                                              TP_DBUS_NAME_TYPE_WELL_KNOWN,
+                                              NULL))
+            {
+                DEBUG ("Extracted preferred handler: %s",
+                       preferred_handler);
+                priv->handler = g_strdup (preferred_handler +
+                                          MCD_CLIENT_BASE_NAME_LEN);
             }
 
             priv->account = mcd_channel_get_account (channel);
