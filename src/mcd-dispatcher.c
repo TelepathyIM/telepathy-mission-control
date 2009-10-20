@@ -1853,6 +1853,9 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
     }
     else
     {
+        const gchar *preferred_handler =
+            _mcd_channel_get_request_preferred_handler (request);
+
         _mcd_channel_set_request_proxy (request, channel);
         if (status == MCD_CHANNEL_STATUS_DISPATCHING)
         {
@@ -1862,7 +1865,7 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
             g_return_if_fail (op != NULL);
 
             DEBUG ("channel %p is in CDO %p", channel, op);
-            _mcd_dispatch_operation_approve (op);
+            _mcd_dispatch_operation_approve (op, preferred_handler);
         }
         DEBUG ("channel %p is proxying %p", request, channel);
     }
