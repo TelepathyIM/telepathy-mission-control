@@ -115,34 +115,26 @@ def test_channel_creation(q, bus, account, client, conn,
     # call, be in a defined order? Probably not though, since CMs and Clients
     # aren't meant to be the same process!
 
-    if channel_type == cs.CHANNEL_TYPE_TEXT:
-        cm_request_call, add_request_call = q.expect_many(
-                EventPattern('dbus-method-call',
-                    interface=cs.CONN_IFACE_REQUESTS,
-                    method=(ensure and 'EnsureChannel' or 'CreateChannel'),
-                    path=conn.object_path, args=[request], handled=False),
-                # FIXME: we should get AddRequest in the other case, too
-                EventPattern('dbus-method-call', handled=False,
-                    interface=cs.CLIENT_IFACE_REQUESTS,
-                    method='AddRequest'),
-                )
-
-        assert add_request_call.args[0] == request_path
-        # FIXME: untrue:
-        # assert add_request_call.path == prefer.object_path
-        request_props = add_request_call.args[1]
-        assert request_props[cs.CR + '.Account'] == account.object_path
-        assert request_props[cs.CR + '.Requests'] == [request]
-        assert request_props[cs.CR + '.UserActionTime'] == user_action_time
-        assert request_props[cs.CR + '.PreferredHandler'] == prefer.bus_name
-        assert request_props[cs.CR + '.Interfaces'] == []
-
-        q.dbus_return(add_request_call.message, signature='')
-    else:
-        cm_request_call = q.expect('dbus-method-call',
+    cm_request_call, add_request_call = q.expect_many(
+            EventPattern('dbus-method-call',
                 interface=cs.CONN_IFACE_REQUESTS,
                 method=(ensure and 'EnsureChannel' or 'CreateChannel'),
-                path=conn.object_path, args=[request], handled=False)
+                path=conn.object_path, args=[request], handled=False),
+            EventPattern('dbus-method-call', handled=False,
+                interface=cs.CLIENT_IFACE_REQUESTS,
+                method='AddRequest'),
+            )
+
+    assert add_request_call.args[0] == request_path
+    assert add_request_call.path == prefer.object_path
+    request_props = add_request_call.args[1]
+    assert request_props[cs.CR + '.Account'] == account.object_path
+    assert request_props[cs.CR + '.Requests'] == [request]
+    assert request_props[cs.CR + '.UserActionTime'] == user_action_time
+    assert request_props[cs.CR + '.PreferredHandler'] == prefer.bus_name
+    assert request_props[cs.CR + '.Interfaces'] == []
+
+    q.dbus_return(add_request_call.message, signature='')
 
     # Time passes. A channel is returned.
 
