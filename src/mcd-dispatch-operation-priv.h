@@ -27,6 +27,8 @@
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/enums.h>
 
+#include "client-registry.h"
+
 G_BEGIN_DECLS
 
 typedef struct _McdDispatchOperation McdDispatchOperation;
@@ -72,18 +74,14 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_approve
 #define MCD_DISPATCH_OPERATION_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), MCD_TYPE_DISPATCH_OPERATION, McdDispatchOperationClass))
 
 G_GNUC_INTERNAL McdDispatchOperation *_mcd_dispatch_operation_new (
-    TpDBusDaemon *dbus_daemon, gboolean needs_approval, GList *channels,
-    const gchar * const *possible_handlers);
+    McdClientRegistry *client_registry, gboolean needs_approval,
+    GList *channels, const gchar * const *possible_handlers);
 G_GNUC_INTERNAL void _mcd_dispatch_operation_lose_channel (
     McdDispatchOperation *self, McdChannel *channel, GList **channels);
 
 G_GNUC_INTERNAL GPtrArray *_mcd_dispatch_operation_dup_channel_details (
     McdDispatchOperation *self);
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_finished (
-    McdDispatchOperation *self);
-G_GNUC_INTERNAL void _mcd_dispatch_operation_block_finished (
-    McdDispatchOperation *self);
-G_GNUC_INTERNAL void _mcd_dispatch_operation_unblock_finished (
     McdDispatchOperation *self);
 G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_claimer (
     McdDispatchOperation *operation);
@@ -94,13 +92,56 @@ G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_needs_approval (
 G_GNUC_INTERNAL
 const gchar * const *_mcd_dispatch_operation_get_possible_handlers (
     McdDispatchOperation *self);
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_handlers_can_bypass_approval
+   (McdDispatchOperation *self);
 
 G_GNUC_INTERNAL void _mcd_dispatch_operation_set_handler_failed (
     McdDispatchOperation *self, const gchar *bus_name);
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_get_handler_failed (
     McdDispatchOperation *self, const gchar *bus_name);
 
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_approved (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_set_approved (
+    McdDispatchOperation *self);
+
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_has_observers_pending (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_inc_observers_pending (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_dec_observers_pending (
+    McdDispatchOperation *self);
+
+/* AddDispatchOperation calls */
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_has_ado_pending (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_inc_ado_pending (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_dec_ado_pending (
+    McdDispatchOperation *self);
+
+/* Temporary client lock while starting observers/approvers */
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_invoking_early_clients (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_set_invoking_early_clients (
+    McdDispatchOperation *self, gboolean value);
+
+/* Client lock while waiting for approvers' opinion */
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_awaiting_approval (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_set_awaiting_approval (
+    McdDispatchOperation *self, gboolean value);
+
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_get_channels_handled (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_set_channels_handled (
+    McdDispatchOperation *self, gboolean value);
+
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_get_cancelled (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_set_cancelled (
+    McdDispatchOperation *self);
+
 G_END_DECLS
 
 #endif
-

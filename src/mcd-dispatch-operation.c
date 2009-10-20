@@ -78,7 +78,6 @@ struct _McdDispatchOperationPrivate
     gchar *object_path;
     GStrv possible_handlers;
     GHashTable *properties;
-    gsize block_finished;
 
     /* If FALSE, we're not actually on D-Bus; an object path is reserved,
      * but we're inaccessible. */
@@ -88,14 +87,14 @@ struct _McdDispatchOperationPrivate
      * dup'd bus name (string) => dummy non-NULL pointer */
     GHashTable *failed_handlers;
 
-    /* Results */
-    guint finished : 1;
+    /* if TRUE, we will emit finished as soon as we can */
+    gboolean wants_to_finish;
     gchar *handler;
     gchar *claimer;
     DBusGMethodInvocation *claim_context;
 
-    /* DBUS connection */
-    TpDBusDaemon *dbus_daemon;
+    /* Reference to a global registry of clients */
+    McdClientRegistry *client_registry;
 
     McdAccount *account;
     McdConnection *connection;
@@ -105,13 +104,193 @@ struct _McdDispatchOperationPrivate
     /* Owned McdChannels for which we can't emit ChannelLost yet, in
      * reverse chronological order */
     GList *lost_channels;
+
+    /* If TRUE, either the channels being dispatched were requested, or they
+     * were pre-approved by being returned as a response to another request,
+     * or a client approved processing with arbitrary handlers */
+    gboolean approved;
+
+    /* If TRUE, at least one Approver accepted this dispatch operation, and
+     * we're waiting for one of them to call HandleWith or Claim. This is a
+     * client lock; a reference must be held while it is TRUE (in the
+     * McdDispatcherContext, CTXREF14 ensures this). */
+    gboolean awaiting_approval;
+
+    /* If TRUE, we're still working out what Observers and Approvers to
+     * run. This is a temporary client lock; a reference must be held
+     * while it is TRUE (in the McdDispatcherContext, CTXREF07 ensures this).
+     */
+    gboolean invoking_early_clients;
+
+    /* The number of observers that have not yet returned from ObserveChannels.
+     * Until they have done so, we can't allow the dispatch operation to
+     * finish. This is a client lock.
+     *
+     * A reference is held for each pending observer (and in the
+     * McdDispatcherContext, one instance of CTXREF05 is held for each). */
+    gsize observers_pending;
+
+    /* The number of approvers that have not yet returned from
+     * AddDispatchOperation. Until they have done so, we can't allow the
+     * dispatch operation to finish. This is a client lock.
+     *
+     * A reference is held for each pending approver (and in the
+     * McdDispatcherContext, one instance of CTXREF06 is held for each). */
+    gsize ado_pending;
+
+    /* If TRUE, either we've already arranged for the channels to get a
+     * handler, or there are no channels left. */
+    gboolean channels_handled;
+
+    /* If TRUE, we're dispatching a channel request and it was cancelled */
+    gboolean cancelled;
 };
+
+static void _mcd_dispatch_operation_check_finished (
+    McdDispatchOperation *self);
+
+static inline gboolean
+mcd_dispatch_operation_may_finish (McdDispatchOperation *self)
+{
+    return (self->priv->observers_pending == 0 &&
+            self->priv->ado_pending == 0);
+}
+
+gboolean
+_mcd_dispatch_operation_has_observers_pending (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+    return (self->priv->observers_pending > 0);
+}
+
+void
+_mcd_dispatch_operation_inc_observers_pending (McdDispatchOperation *self)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    g_return_if_fail (!self->priv->wants_to_finish);
+
+    g_object_ref (self);
+
+    DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
+           self->priv->observers_pending,
+           self->priv->observers_pending + 1);
+    self->priv->observers_pending++;
+}
+
+void
+_mcd_dispatch_operation_dec_observers_pending (McdDispatchOperation *self)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
+           self->priv->observers_pending,
+           self->priv->observers_pending - 1);
+    g_return_if_fail (self->priv->observers_pending > 0);
+    self->priv->observers_pending--;
+
+    _mcd_dispatch_operation_check_finished (self);
+    g_object_unref (self);
+}
+
+gboolean
+_mcd_dispatch_operation_has_ado_pending (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+    return (self->priv->ado_pending > 0);
+}
+
+void
+_mcd_dispatch_operation_inc_ado_pending (McdDispatchOperation *self)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    g_return_if_fail (!self->priv->wants_to_finish);
+
+    g_object_ref (self);
+
+    DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
+           self->priv->ado_pending,
+           self->priv->ado_pending + 1);
+    self->priv->ado_pending++;
+}
+
+void
+_mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
+           self->priv->ado_pending,
+           self->priv->ado_pending - 1);
+    g_return_if_fail (self->priv->ado_pending > 0);
+    self->priv->ado_pending--;
+
+    _mcd_dispatch_operation_check_finished (self);
+    g_object_unref (self);
+}
+
+gboolean
+_mcd_dispatch_operation_is_invoking_early_clients (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+    return self->priv->invoking_early_clients;
+}
+
+void
+_mcd_dispatch_operation_set_invoking_early_clients (McdDispatchOperation *self,
+                                                    gboolean value)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    g_return_if_fail (self->priv->invoking_early_clients == !value);
+    self->priv->invoking_early_clients = value;
+}
+
+gboolean
+_mcd_dispatch_operation_is_awaiting_approval (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+    return self->priv->awaiting_approval;
+}
+
+void
+_mcd_dispatch_operation_set_awaiting_approval (McdDispatchOperation *self,
+                                               gboolean value)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    self->priv->awaiting_approval = value;
+}
+
+void
+_mcd_dispatch_operation_set_channels_handled (McdDispatchOperation *self,
+                                              gboolean value)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    self->priv->channels_handled = value;
+}
+
+gboolean
+_mcd_dispatch_operation_get_channels_handled (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+    return self->priv->channels_handled;
+}
+
+gboolean
+_mcd_dispatch_operation_get_cancelled (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+    return self->priv->cancelled;
+}
+
+void
+_mcd_dispatch_operation_set_cancelled (McdDispatchOperation *self)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    self->priv->cancelled = TRUE;
+}
 
 enum
 {
     PROP_0,
-    PROP_DBUS_DAEMON,
     PROP_CHANNELS,
+    PROP_CLIENT_REGISTRY,
     PROP_POSSIBLE_HANDLERS,
     PROP_NEEDS_APPROVAL,
 };
@@ -234,15 +413,15 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation)
 {
     McdDispatchOperationPrivate *priv = operation->priv;
 
-    if (priv->finished)
+    if (priv->wants_to_finish)
     {
-        DEBUG ("already finished!");
+        DEBUG ("already finished (or about to)!");
         return FALSE;
     }
 
-    priv->finished = TRUE;
+    priv->wants_to_finish = TRUE;
 
-    if (priv->block_finished == 0)
+    if (mcd_dispatch_operation_may_finish (operation))
     {
         DEBUG ("%s/%p has finished", priv->unique_name, operation);
         mcd_dispatch_operation_actually_finish (operation);
@@ -293,10 +472,10 @@ dispatch_operation_claim (TpSvcChannelDispatchOperation *self,
     McdDispatchOperationPrivate *priv;
 
     priv = MCD_DISPATCH_OPERATION_PRIV (self);
-    if (priv->finished)
+    if (priv->wants_to_finish)
     {
         GError *error = g_error_new (TP_ERRORS, TP_ERROR_NOT_YOURS,
-                                     "CDO already finished");
+                                     "CDO already finished (or trying to)");
         DEBUG ("Giving error to %s: %s", dbus_g_method_get_sender (context),
                error->message);
         dbus_g_method_return_error (context, error);
@@ -344,7 +523,6 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
     GObject *object;
     McdDispatchOperation *operation;
     McdDispatchOperationPrivate *priv;
-    DBusGConnection *dbus_connection;
 
     object = object_class->constructor (type, n_params, params);
     operation = MCD_DISPATCH_OPERATION (object);
@@ -352,9 +530,9 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
     g_return_val_if_fail (operation != NULL, NULL);
     priv = operation->priv;
 
-    if (!priv->dbus_daemon) goto error;
+    if (!priv->client_registry)
+        goto error;
 
-    dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
     create_object_path (priv);
 
     DEBUG ("%s/%p: needs_approval=%c", priv->unique_name, object,
@@ -372,9 +550,26 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
 
     /* If approval is not needed, we don't appear on D-Bus (and approvers
      * don't run) */
-    if (priv->needs_approval && G_LIKELY (dbus_connection))
-        dbus_g_connection_register_g_object (dbus_connection,
-                                             priv->object_path, object);
+    if (priv->needs_approval)
+    {
+        TpDBusDaemon *dbus_daemon;
+        DBusGConnection *dbus_connection;
+
+        g_object_get (priv->client_registry,
+                      "dbus-daemon", &dbus_daemon,
+                      NULL);
+
+        /* can be NULL if we have fallen off the bus (in the real MC libdbus
+         * would exit in this situation, but in the debug build, we stay
+         * active briefly) */
+        dbus_connection = tp_proxy_get_dbus_connection (dbus_daemon);
+
+        if (G_LIKELY (dbus_connection != NULL))
+            dbus_g_connection_register_g_object (dbus_connection,
+                                                 priv->object_path, object);
+
+        g_object_unref (dbus_daemon);
+    }
 
     return object;
 error:
@@ -392,9 +587,9 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
 
     switch (prop_id)
     {
-    case PROP_DBUS_DAEMON:
-        g_assert (priv->dbus_daemon == NULL);
-        priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
+    case PROP_CLIENT_REGISTRY:
+        g_assert (priv->client_registry == NULL); /* construct-only */
+        priv->client_registry = MCD_CLIENT_REGISTRY (g_value_dup_object (val));
         break;
 
     case PROP_CHANNELS:
@@ -461,8 +656,8 @@ mcd_dispatch_operation_get_property (GObject *obj, guint prop_id,
 
     switch (prop_id)
     {
-    case PROP_DBUS_DAEMON:
-        g_value_set_object (val, priv->dbus_daemon);
+    case PROP_CLIENT_REGISTRY:
+        g_value_set_object (val, priv->client_registry);
         break;
 
     case PROP_POSSIBLE_HANDLERS:
@@ -536,10 +731,10 @@ mcd_dispatch_operation_dispose (GObject *object)
         priv->account = NULL;
     }
 
-    if (priv->dbus_daemon)
+    if (priv->client_registry != NULL)
     {
-        g_object_unref (priv->dbus_daemon);
-        priv->dbus_daemon = NULL;
+        g_object_unref (priv->client_registry);
+        priv->client_registry = NULL;
     }
     G_OBJECT_CLASS (_mcd_dispatch_operation_parent_class)->dispose (object);
 }
@@ -557,10 +752,12 @@ _mcd_dispatch_operation_class_init (McdDispatchOperationClass * klass)
     object_class->set_property = mcd_dispatch_operation_set_property;
     object_class->get_property = mcd_dispatch_operation_get_property;
 
-    g_object_class_install_property (object_class, PROP_DBUS_DAEMON,
-        g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
-							  TP_TYPE_DBUS_DAEMON,
-							  G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property (object_class, PROP_CLIENT_REGISTRY,
+        g_param_spec_object ("client-registry", "Client registry",
+            "Reference to a global registry of Telepathy clients",
+            MCD_TYPE_CLIENT_REGISTRY,
+            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
+            G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property (object_class, PROP_CHANNELS,
         g_param_spec_pointer ("channels", "channels", "channels",
@@ -597,7 +794,7 @@ _mcd_dispatch_operation_init (McdDispatchOperation *operation)
 
 /*
  * _mcd_dispatch_operation_new:
- * @dbus_daemon: a #TpDBusDaemon.
+ * @client_registry: the client registry.
  * @channels: a #GList of #McdChannel elements to dispatch.
  * @possible_handlers: the bus names of possible handlers for these channels.
  *
@@ -605,14 +802,14 @@ _mcd_dispatch_operation_init (McdDispatchOperation *operation)
  * valid after this function has been called.
  */
 McdDispatchOperation *
-_mcd_dispatch_operation_new (TpDBusDaemon *dbus_daemon,
+_mcd_dispatch_operation_new (McdClientRegistry *client_registry,
                              gboolean needs_approval,
                              GList *channels,
                              const gchar * const *possible_handlers)
 {
     gpointer *obj;
     obj = g_object_new (MCD_TYPE_DISPATCH_OPERATION,
-                        "dbus-daemon", dbus_daemon,
+                        "client-registry", client_registry,
                         "channels", channels,
                         "possible-handlers", possible_handlers,
                         "needs-approval", needs_approval,
@@ -744,7 +941,9 @@ gboolean
 _mcd_dispatch_operation_is_finished (McdDispatchOperation *self)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
-    return self->priv->finished;
+    /* if we want to finish, and we can, then we have */
+    return (self->priv->wants_to_finish &&
+            mcd_dispatch_operation_may_finish (self));
 }
 
 const gchar * const *
@@ -774,7 +973,7 @@ mcd_dispatch_operation_check_handle_with (McdDispatchOperation *self,
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
 
-    if (self->priv->finished)
+    if (self->priv->wants_to_finish)
     {
         DEBUG ("NotYours: already finished");
         g_set_error (error, TP_ERRORS, TP_ERROR_NOT_YOURS,
@@ -848,7 +1047,7 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
         g_critical ("McdChannel has already lost its TpChannel: %p",
             channel);
     }
-    else if (self->priv->block_finished)
+    else if (!mcd_dispatch_operation_may_finish (self))
     {
         /* We're still invoking approvers, so we're not allowed to talk
          * about it right now. Instead, save the signal for later. */
@@ -882,24 +1081,10 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
     }
 }
 
-void
-_mcd_dispatch_operation_block_finished (McdDispatchOperation *self)
+static void
+_mcd_dispatch_operation_check_finished (McdDispatchOperation *self)
 {
-    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
-    g_return_if_fail (!self->priv->finished);
-
-    self->priv->block_finished++;
-}
-
-void
-_mcd_dispatch_operation_unblock_finished (McdDispatchOperation *self)
-{
-    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
-    g_return_if_fail (self->priv->block_finished > 0);
-
-    self->priv->block_finished--;
-
-    if (self->priv->block_finished == 0)
+    if (mcd_dispatch_operation_may_finish (self))
     {
         GList *lost_channels;
 
@@ -937,7 +1122,7 @@ _mcd_dispatch_operation_unblock_finished (McdDispatchOperation *self)
             lost_channels = g_list_delete_link (lost_channels, lost_channels);
         }
 
-        if (self->priv->finished)
+        if (self->priv->wants_to_finish)
         {
             DEBUG ("%s/%p finished", self->priv->unique_name, self);
             mcd_dispatch_operation_actually_finish (self);
@@ -979,4 +1164,54 @@ _mcd_dispatch_operation_get_handler_failed (McdDispatchOperation *self,
 
     return (g_hash_table_lookup (self->priv->failed_handlers, bus_name)
             != NULL);
+}
+
+gboolean
+_mcd_dispatch_operation_handlers_can_bypass_approval (
+    McdDispatchOperation *self)
+{
+    gchar **iter;
+
+    for (iter = self->priv->possible_handlers;
+         iter != NULL && *iter != NULL;
+         iter++)
+    {
+        McdClientProxy *handler = _mcd_client_registry_lookup (
+            self->priv->client_registry, *iter);
+
+        /* If the best handler that still exists bypasses approval, then
+         * we're going to bypass approval.
+         *
+         * Also, because handlers are sorted with the best ones first, and
+         * handlers with BypassApproval are "better", we can be sure that if
+         * we've found a handler that still exists and does not bypass
+         * approval, no handler bypasses approval. */
+        if (handler != NULL)
+        {
+            gboolean bypass = _mcd_client_proxy_get_bypass_approval (
+                handler);
+
+            DEBUG ("%s has BypassApproval=%c", *iter, bypass ? 'T' : 'F');
+            return bypass;
+        }
+    }
+
+    /* If no handler still exists, we don't bypass approval, although if that
+     * happens we're basically doomed anyway. */
+    return FALSE;
+}
+
+gboolean
+_mcd_dispatch_operation_is_approved (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+
+    return (self->priv->approved || !self->priv->needs_approval);
+}
+
+void
+_mcd_dispatch_operation_set_approved (McdDispatchOperation *self)
+{
+    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
+    self->priv->approved = TRUE;
 }
