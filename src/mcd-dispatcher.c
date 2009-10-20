@@ -2624,7 +2624,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
         DEBUG ("Handler %s does not exist in client registry, not "
                "reinvoking", possible_handlers[0]);
         mcd_dispatcher_finish_reinvocation (request);
-        return;
+        goto finally;
     }
 
     /* This is deliberately not the same call as for normal dispatching,
