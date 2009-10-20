@@ -536,7 +536,6 @@ on_operation_finished (McdDispatchOperation *operation,
     }
 }
 
-/* ownership of @channels is stolen */
 static void
 _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
                                      GList *channels,
@@ -583,8 +582,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     context->operation = _mcd_dispatch_operation_new (priv->clients,
         priv->handler_map, !requested, channels,
         (const gchar * const *) possible_handlers);
-
-    g_list_free (channels);
 
     if (!requested)
     {
@@ -1677,6 +1674,7 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
 
         _mcd_dispatcher_enter_state_machine (dispatcher, channels,
             (const gchar * const *) possible_handlers, requested);
+        g_list_free (channels);
     }
 
     g_strfreev (possible_handlers);
