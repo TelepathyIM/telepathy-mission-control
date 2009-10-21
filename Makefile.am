@@ -6,7 +6,7 @@ if HAVE_EXAMPLES
 SUBDIRS += examples
 endif
 
-SUBDIRS += doc test
+SUBDIRS += test doc
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libmcclient.pc
