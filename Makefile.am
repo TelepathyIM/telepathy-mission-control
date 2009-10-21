@@ -1,12 +1,19 @@
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = m4 tools xml libmcclient src server util
+SUBDIRS = \
+    m4 \
+    tools \
+    xml \
+    libmcclient \
+    src \
+    server \
+    util \
+    test \
+    doc
 
 if HAVE_EXAMPLES
 SUBDIRS += examples
 endif
-
-SUBDIRS += test doc
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libmcclient.pc
