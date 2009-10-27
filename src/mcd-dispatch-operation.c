@@ -609,12 +609,12 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
 }
 
 static void
-dispatch_operation_claim (TpSvcChannelDispatchOperation *self,
+dispatch_operation_claim (TpSvcChannelDispatchOperation *cdo,
                           DBusGMethodInvocation *context)
 {
-    McdDispatchOperationPrivate *priv;
+    McdDispatchOperation *self = MCD_DISPATCH_OPERATION (cdo);
+    McdDispatchOperationPrivate *priv = self->priv;
 
-    priv = MCD_DISPATCH_OPERATION_PRIV (self);
     if (priv->wants_to_finish)
     {
         GError *error = g_error_new (TP_ERRORS, TP_ERROR_NOT_YOURS,
@@ -634,7 +634,7 @@ dispatch_operation_claim (TpSvcChannelDispatchOperation *self,
 
     g_queue_push_tail (priv->approvals,
                        approval_new (APPROVAL_TYPE_CLAIM));
-    _mcd_dispatch_operation_finish (MCD_DISPATCH_OPERATION (self));
+    _mcd_dispatch_operation_finish (self);
 }
 
 static void
