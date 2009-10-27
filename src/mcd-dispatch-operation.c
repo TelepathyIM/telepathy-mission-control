@@ -149,9 +149,8 @@ struct _McdDispatchOperationPrivate
     gboolean approved;
 
     /* If TRUE, at least one Approver accepted this dispatch operation, and
-     * we're waiting for one of them to call HandleWith or Claim. This is a
-     * client lock; a reference is held while it is TRUE. */
-    gboolean awaiting_approval;
+     * we're waiting for one of them to call HandleWith or Claim. */
+    gboolean accepted_by_an_approver;
 
     /* If FALSE, we're still working out what Observers and/or Approvers to
      * run. These are temporary client locks.
@@ -262,8 +261,7 @@ _mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
 
     _mcd_dispatch_operation_check_finished (self);
 
-    if (self->priv->ado_pending == 0 &&
-        !self->priv->awaiting_approval)
+    if (self->priv->ado_pending == 0 && !self->priv->accepted_by_an_approver)
     {
         DEBUG ("No approver accepted the channels; considering them to be "
                "approved");
@@ -543,11 +541,6 @@ mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
 
     DEBUG ("%s/%p: finished", self->priv->unique_name, self);
     tp_svc_channel_dispatch_operation_emit_finished (self);
-
-    if (self->priv->awaiting_approval)
-    {
-        self->priv->awaiting_approval = FALSE;
-    }
 
     _mcd_dispatch_operation_check_client_locks (self);
 
@@ -1251,8 +1244,7 @@ _mcd_dispatch_operation_approve (McdDispatchOperation *self,
                                         MCD_CLIENT_BASE_NAME_LEN);
     }
 
-    if (self->priv->ado_pending > 0
-        || self->priv->awaiting_approval)
+    if (self->priv->ado_pending > 0 || self->priv->accepted_by_an_approver)
     {
         /* the existing channel is waiting for approval; but since the
          * same channel has been requested, the approval operation must
@@ -1693,16 +1685,16 @@ add_dispatch_operation_cb (TpClient *proxy,
                tp_proxy_get_object_path (proxy),
                _mcd_dispatch_operation_get_path (self), self);
 
-        if (!self->priv->awaiting_approval)
+        if (!self->priv->accepted_by_an_approver)
         {
-            self->priv->awaiting_approval = TRUE;
+            self->priv->accepted_by_an_approver = TRUE;
         }
     }
 
     /* If all approvers fail to add the DO, then we behave as if no
      * approver was registered: i.e., we continue dispatching. If at least
      * one approver accepted it, then we can still continue dispatching,
-     * since it will be stalled until awaiting_approval becomes FALSE. */
+     * since it will be stalled until an approval is received. */
     _mcd_dispatch_operation_dec_ado_pending (self);
 }
 
