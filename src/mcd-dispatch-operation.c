@@ -77,7 +77,9 @@ G_DEFINE_TYPE_WITH_CODE (McdDispatchOperation, _mcd_dispatch_operation,
 
 typedef enum {
     APPROVAL_TYPE_REQUESTED,
-    APPROVAL_TYPE_FINISHED,
+    APPROVAL_TYPE_HANDLE_WITH,
+    APPROVAL_TYPE_CLAIM,
+    APPROVAL_TYPE_CHANNELS_LOST,
     APPROVAL_TYPE_NO_APPROVERS
 } ApprovalType;
 
@@ -534,8 +536,6 @@ mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
     if (self->priv->awaiting_approval)
     {
         self->priv->awaiting_approval = FALSE;
-        g_queue_push_tail (self->priv->approvals,
-                           approval_new (APPROVAL_TYPE_FINISHED));
         _mcd_dispatch_operation_check_client_locks (self);
     }
 
@@ -604,6 +604,8 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
                                         MCD_CLIENT_BASE_NAME_LEN);
     }
 
+    g_queue_push_tail (self->priv->approvals,
+                       approval_new (APPROVAL_TYPE_HANDLE_WITH));
     _mcd_dispatch_operation_finish (self);
     tp_svc_channel_dispatch_operation_return_from_handle_with (context);
 }
@@ -632,6 +634,8 @@ dispatch_operation_claim (TpSvcChannelDispatchOperation *self,
     priv->claim_context = context;
     DEBUG ("Claiming on behalf of %s", priv->claimer);
 
+    g_queue_push_tail (priv->approvals,
+                       approval_new (APPROVAL_TYPE_CLAIM));
     _mcd_dispatch_operation_finish (MCD_DISPATCH_OPERATION (self));
 }
 
@@ -1254,6 +1258,8 @@ _mcd_dispatch_operation_approve (McdDispatchOperation *self,
             return;
         }
 
+        g_queue_push_tail (self->priv->approvals,
+                           approval_new (APPROVAL_TYPE_REQUESTED));
         _mcd_dispatch_operation_finish (self);
     }
     else
