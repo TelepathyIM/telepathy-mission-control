@@ -1254,14 +1254,6 @@ _mcd_dispatch_operation_approve (McdDispatchOperation *self,
     g_queue_push_tail (self->priv->approvals,
                        approval_new (APPROVAL_TYPE_REQUESTED));
 
-    if (self->priv->ado_pending > 0 || self->priv->accepted_by_an_approver)
-    {
-        /* the existing channel is waiting for approval; but since the
-         * same channel has been requested, the approval operation must
-         * terminate */
-        _mcd_dispatch_operation_finish (self);
-    }
-
     _mcd_dispatch_operation_check_client_locks (self);
 }
 
