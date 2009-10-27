@@ -75,6 +75,32 @@ G_DEFINE_TYPE_WITH_CODE (McdDispatchOperation, _mcd_dispatch_operation,
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES, properties_iface_init);
     )
 
+typedef enum {
+    APPROVAL_TYPE_REQUESTED,
+    APPROVAL_TYPE_FINISHED,
+    APPROVAL_TYPE_NO_APPROVERS
+} ApprovalType;
+
+typedef struct {
+    ApprovalType type;
+    /* will later include DBusGMethodInvocation etc. */
+} Approval;
+
+static Approval *
+approval_new (ApprovalType type)
+{
+    Approval *approval = g_slice_new (Approval);
+
+    approval->type = type;
+    return approval;
+}
+
+static void
+approval_free (Approval *approval)
+{
+    g_slice_free (Approval, approval);
+}
+
 struct _McdDispatchOperationPrivate
 {
     const gchar *unique_name;   /* borrowed from object_path */
@@ -96,6 +122,9 @@ struct _McdDispatchOperationPrivate
     gint64 handle_with_time;
     gchar *claimer;
     DBusGMethodInvocation *claim_context;
+
+    /* queue of Approval */
+    GQueue *approvals;
 
     /* Reference to a global handler map */
     McdHandlerMap *handler_map;
@@ -236,7 +265,8 @@ _mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
     {
         DEBUG ("No approver accepted the channels; considering them to be "
                "approved");
-        self->priv->approved = TRUE;
+        g_queue_push_tail (self->priv->approvals,
+                           approval_new (APPROVAL_TYPE_NO_APPROVERS));
     }
 
     _mcd_dispatch_operation_check_client_locks (self);
@@ -254,7 +284,8 @@ _mcd_dispatch_operation_get_cancelled (McdDispatchOperation *self)
 static inline gboolean
 _mcd_dispatch_operation_is_approved (McdDispatchOperation *self)
 {
-    return (self->priv->approved || !self->priv->needs_approval);
+    return (!self->priv->needs_approval ||
+            !g_queue_is_empty (self->priv->approvals));
 }
 
 static gboolean _mcd_dispatch_operation_try_next_handler (
@@ -468,8 +499,6 @@ mcd_dispatch_operation_set_channel_handled_by (McdDispatchOperation *self,
                                           tp_channel, unique_name);
 }
 
-static void _mcd_dispatch_operation_set_approved (McdDispatchOperation *self);
-
 static void
 mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
 {
@@ -505,7 +534,9 @@ mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
     if (self->priv->awaiting_approval)
     {
         self->priv->awaiting_approval = FALSE;
-        _mcd_dispatch_operation_set_approved (self);
+        g_queue_push_tail (self->priv->approvals,
+                           approval_new (APPROVAL_TYPE_FINISHED));
+        _mcd_dispatch_operation_check_client_locks (self);
     }
 
     if (self->priv->claim_context != NULL)
@@ -945,6 +976,14 @@ mcd_dispatch_operation_dispose (GObject *object)
         g_object_unref (priv->client_registry);
         priv->client_registry = NULL;
     }
+
+    if (priv->approvals != NULL)
+    {
+        g_queue_foreach (priv->approvals, (GFunc) approval_free, NULL);
+        g_queue_free (priv->approvals);
+        priv->approvals = NULL;
+    }
+
     G_OBJECT_CLASS (_mcd_dispatch_operation_parent_class)->dispose (object);
 }
 
@@ -1011,6 +1050,7 @@ _mcd_dispatch_operation_init (McdDispatchOperation *operation)
                                         MCD_TYPE_DISPATCH_OPERATION,
                                         McdDispatchOperationPrivate);
     operation->priv = priv;
+    operation->priv->approvals = g_queue_new ();
 
     /* initializes the interfaces */
     mcd_dbus_init_interfaces_instances (operation);
@@ -1218,7 +1258,9 @@ _mcd_dispatch_operation_approve (McdDispatchOperation *self,
     }
     else
     {
-        _mcd_dispatch_operation_set_approved (self);
+        g_queue_push_tail (self->priv->approvals,
+                           approval_new (APPROVAL_TYPE_REQUESTED));
+        _mcd_dispatch_operation_check_client_locks (self);
     }
 }
 
@@ -1392,14 +1434,6 @@ _mcd_dispatch_operation_handlers_can_bypass_approval (
     /* If no handler still exists, we don't bypass approval, although if that
      * happens we're basically doomed anyway. */
     return FALSE;
-}
-
-static void
-_mcd_dispatch_operation_set_approved (McdDispatchOperation *self)
-{
-    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
-    self->priv->approved = TRUE;
-    _mcd_dispatch_operation_check_client_locks (self);
 }
 
 gboolean
