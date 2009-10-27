@@ -148,7 +148,7 @@ def test(q, bus, mc):
             cs.tp_name_prefix + '.Client.Empathy')
 
     # Empathy is asked to handle the channels
-    e, _, _, _ = q.expect_many(
+    e, _ = q.expect_many(
             EventPattern('dbus-method-call',
                 path=empathy.object_path,
                 interface=cs.HANDLER, method='HandleChannels',
@@ -156,9 +156,6 @@ def test(q, bus, mc):
             # FIXME: currently HandleWith succeeds immediately, rather than
             # failing when HandleChannels fails (fd.o #21003)
             EventPattern('dbus-return', method='HandleWith'),
-            EventPattern('dbus-signal', interface=cs.CDO, signal='Finished'),
-            EventPattern('dbus-signal', interface=cs.CD_IFACE_OP_LIST,
-                signal='DispatchOperationFinished'),
             )
 
     # Empathy rejects the channels
@@ -177,9 +174,14 @@ def test(q, bus, mc):
     q.dbus_raise(k.message, cs.NOT_AVAILABLE, 'Also blind drunk',
             bus=kopete_bus)
 
-    # MC gives up and closes the channel
-    q.expect('dbus-method-call', path=chan.object_path,
-            interface=cs.CHANNEL, method='Close', args=[])
+    # MC gives up and closes the channel. This is the end of the CDO.
+    q.expect_many(
+            EventPattern('dbus-method-call', path=chan.object_path,
+                interface=cs.CHANNEL, method='Close', args=[]),
+            EventPattern('dbus-signal', interface=cs.CDO, signal='Finished'),
+            EventPattern('dbus-signal', interface=cs.CD_IFACE_OP_LIST,
+                signal='DispatchOperationFinished'),
+            )
 
     # Now there are no more active channel dispatch operations
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []

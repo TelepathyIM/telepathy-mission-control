@@ -610,7 +610,6 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
     g_queue_push_tail (self->priv->approvals,
                        approval_new (APPROVAL_TYPE_HANDLE_WITH));
     _mcd_dispatch_operation_check_client_locks (self);
-    _mcd_dispatch_operation_finish (self);
     tp_svc_channel_dispatch_operation_return_from_handle_with (context);
 }
 
@@ -642,7 +641,6 @@ dispatch_operation_claim (TpSvcChannelDispatchOperation *cdo,
     g_queue_push_tail (priv->approvals,
                        approval_new (APPROVAL_TYPE_CLAIM));
     _mcd_dispatch_operation_check_client_locks (self);
-    _mcd_dispatch_operation_finish (self);
 }
 
 static void
