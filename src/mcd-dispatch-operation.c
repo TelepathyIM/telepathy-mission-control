@@ -340,8 +340,8 @@ get_connection (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     DEBUG ("called for %s", priv->unique_name);
     g_value_init (value, DBUS_TYPE_G_OBJECT_PATH);
     g_value_set_boxed (value,
-        _mcd_dispatch_operation_get_connection_path
-            (MCD_DISPATCH_OPERATION (self)));
+        _mcd_dispatch_operation_get_connection_path (
+            MCD_DISPATCH_OPERATION (self)));
 }
 
 static void
