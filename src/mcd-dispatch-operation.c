@@ -340,6 +340,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
         DEBUG ("Nothing left to dispatch");
         _mcd_dispatch_operation_finish (self);
         self->priv->channels_handled = TRUE;
+        return;
     }
 
     /* if we've been claimed, respond, then do not call HandleChannels */
