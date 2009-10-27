@@ -168,8 +168,13 @@ static void _mcd_dispatch_operation_check_finished (
 static void _mcd_dispatch_operation_check_client_locks (
     McdDispatchOperation *self);
 
+/* To give clients time to connect to our "destructive" signals (ChannelLost
+ * and Finished), we guarantee not to emit them if we have called methods on
+ * an observer or approver, but they have not returned.
+ *
+ * Returns: TRUE if we may emit Finished or ChannelLost */
 static inline gboolean
-mcd_dispatch_operation_may_finish (McdDispatchOperation *self)
+mcd_dispatch_operation_may_signal_finished (McdDispatchOperation *self)
 {
     return (self->priv->observers_pending == 0 &&
             self->priv->ado_pending == 0);
@@ -526,7 +531,7 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation)
 
     priv->wants_to_finish = TRUE;
 
-    if (mcd_dispatch_operation_may_finish (operation))
+    if (mcd_dispatch_operation_may_signal_finished (operation))
     {
         DEBUG ("%s/%p has finished", priv->unique_name, operation);
         mcd_dispatch_operation_actually_finish (operation);
@@ -1132,7 +1137,7 @@ _mcd_dispatch_operation_is_finished (McdDispatchOperation *self)
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
     /* if we want to finish, and we can, then we have */
     return (self->priv->wants_to_finish &&
-            mcd_dispatch_operation_may_finish (self));
+            mcd_dispatch_operation_may_signal_finished (self));
 }
 
 static gboolean
@@ -1240,7 +1245,7 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
         g_critical ("McdChannel has already lost its TpChannel: %p",
             channel);
     }
-    else if (!mcd_dispatch_operation_may_finish (self))
+    else if (!mcd_dispatch_operation_may_signal_finished (self))
     {
         /* We're still invoking approvers, so we're not allowed to talk
          * about it right now. Instead, save the signal for later. */
@@ -1277,7 +1282,7 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
 static void
 _mcd_dispatch_operation_check_finished (McdDispatchOperation *self)
 {
-    if (mcd_dispatch_operation_may_finish (self))
+    if (mcd_dispatch_operation_may_signal_finished (self))
     {
         GList *lost_channels;
 
