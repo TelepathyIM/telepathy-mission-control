@@ -1471,7 +1471,9 @@ collect_satisfied_requests (GList *channels)
     gpointer path;
     GPtrArray *ret;
 
-    /* collect object paths into a hash table, to drop duplicates */
+    /* collect object paths into a hash table, to drop duplicates
+     * FIXME (fd.o #24763): this shouldn't be necessary, because there should
+     * never be duplicates, unless my analysis is wrong? */
     for (c = channels; c != NULL; c = c->next)
     {
         const GList *reqs = _mcd_channel_get_satisfied_requests (c->data);
