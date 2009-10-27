@@ -1244,27 +1244,18 @@ _mcd_dispatch_operation_approve (McdDispatchOperation *self,
                                         MCD_CLIENT_BASE_NAME_LEN);
     }
 
+    g_queue_push_tail (self->priv->approvals,
+                       approval_new (APPROVAL_TYPE_REQUESTED));
+
     if (self->priv->ado_pending > 0 || self->priv->accepted_by_an_approver)
     {
         /* the existing channel is waiting for approval; but since the
          * same channel has been requested, the approval operation must
          * terminate */
-        if (!mcd_dispatch_operation_check_handle_with (self, preferred_handler,
-                                                       NULL))
-        {
-            return;
-        }
-
-        g_queue_push_tail (self->priv->approvals,
-                           approval_new (APPROVAL_TYPE_REQUESTED));
         _mcd_dispatch_operation_finish (self);
     }
-    else
-    {
-        g_queue_push_tail (self->priv->approvals,
-                           approval_new (APPROVAL_TYPE_REQUESTED));
-        _mcd_dispatch_operation_check_client_locks (self);
-    }
+
+    _mcd_dispatch_operation_check_client_locks (self);
 }
 
 static void
