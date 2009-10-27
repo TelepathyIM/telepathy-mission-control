@@ -295,6 +295,8 @@ static gboolean _mcd_dispatch_operation_try_next_handler (
 static void _mcd_dispatch_operation_close_as_undispatchable (
     McdDispatchOperation *self);
 static gboolean mcd_dispatch_operation_idle_run_approvers (gpointer p);
+static void mcd_dispatch_operation_set_channel_handled_by (
+    McdDispatchOperation *self, McdChannel *channel, const gchar *unique_name);
 
 static void
 _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
@@ -331,6 +333,39 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
     /* If we're only meant to be observing, do nothing */
     if (self->priv->observe_only)
     {
+        return;
+    }
+
+    if (self->priv->channels == NULL)
+    {
+        DEBUG ("Nothing left to dispatch");
+        self->priv->channels_handled = TRUE;
+    }
+
+    /* if we've been claimed, respond, then do not call HandleChannels */
+    if (self->priv->claim_context != NULL)
+    {
+        const GList *list;
+
+        g_assert (!self->priv->channels_handled);
+        self->priv->channels_handled = TRUE;
+
+        g_assert (self->priv->claimer != NULL);
+
+        for (list = self->priv->channels; list != NULL; list = list->next)
+        {
+            McdChannel *channel = MCD_CHANNEL (list->data);
+
+            mcd_dispatch_operation_set_channel_handled_by (self, channel,
+                self->priv->claimer);
+        }
+
+        DEBUG ("Replying to Claim call from %s", self->priv->claimer);
+
+        tp_svc_channel_dispatch_operation_return_from_claim (
+            self->priv->claim_context);
+        self->priv->claim_context = NULL;
+
         return;
     }
 
@@ -509,42 +544,12 @@ mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
     DEBUG ("%s/%p: finished", self->priv->unique_name, self);
     tp_svc_channel_dispatch_operation_emit_finished (self);
 
-    if (self->priv->channels == NULL)
-    {
-        DEBUG ("Nothing left to dispatch");
-        self->priv->channels_handled = TRUE;
-    }
-
-    if (self->priv->claimer != NULL)
-    {
-        const GList *list;
-
-        /* we don't release the client lock, in order to not run the handlers,
-         * but we do have to mark all channels as dispatched */
-        for (list = self->priv->channels; list != NULL; list = list->next)
-        {
-            McdChannel *channel = MCD_CHANNEL (list->data);
-
-            mcd_dispatch_operation_set_channel_handled_by (self, channel,
-                self->priv->claimer);
-        }
-
-        g_assert (!self->priv->channels_handled);
-        self->priv->channels_handled = TRUE;
-    }
-
     if (self->priv->awaiting_approval)
     {
         self->priv->awaiting_approval = FALSE;
-        _mcd_dispatch_operation_check_client_locks (self);
     }
 
-    if (self->priv->claim_context != NULL)
-    {
-        DEBUG ("Replying to Claim call from %s", self->priv->claimer);
-        tp_svc_channel_dispatch_operation_return_from_claim (self->priv->claim_context);
-        self->priv->claim_context = NULL;
-    }
+    _mcd_dispatch_operation_check_client_locks (self);
 
     g_object_unref (self);
 }
