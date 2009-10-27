@@ -621,10 +621,11 @@ dispatch_operation_claim (TpSvcChannelDispatchOperation *cdo,
     McdDispatchOperation *self = MCD_DISPATCH_OPERATION (cdo);
     McdDispatchOperationPrivate *priv = self->priv;
 
-    if (priv->wants_to_finish)
+    if (self->priv->wants_to_finish ||
+        !g_queue_is_empty (self->priv->approvals))
     {
         GError *error = g_error_new (TP_ERRORS, TP_ERROR_NOT_YOURS,
-                                     "CDO already finished (or trying to)");
+                                     "CDO already finished or approved");
         DEBUG ("Giving error to %s: %s", dbus_g_method_get_sender (context),
                error->message);
         dbus_g_method_return_error (context, error);
@@ -1196,11 +1197,12 @@ mcd_dispatch_operation_check_handle_with (McdDispatchOperation *self,
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
 
-    if (self->priv->wants_to_finish)
+    if (self->priv->wants_to_finish ||
+        !g_queue_is_empty (self->priv->approvals))
     {
-        DEBUG ("NotYours: already finished");
+        DEBUG ("NotYours: already finished or approved");
         g_set_error (error, TP_ERRORS, TP_ERROR_NOT_YOURS,
-                     "CDO already finished");
+                     "CDO already finished or approved");
         return FALSE;
     }
 
