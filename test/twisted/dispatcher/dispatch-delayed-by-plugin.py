@@ -260,11 +260,11 @@ def test(q, bus, mc):
     # Handler accepts the Channels
     q.dbus_return(e.message, signature='')
 
-    # FIXME: this shouldn't happen until after HandleChannels has succeeded,
-    # but MC currently does this as soon as HandleWith is called (fd.o #21003)
-    #q.expect('dbus-signal', path=cdo_path, signal='Finished')
-    #q.expect('dbus-signal', path=cs.CD_PATH,
-    #    signal='DispatchOperationFinished', args=[cdo_path])
+    q.expect_many(
+            EventPattern('dbus-signal', interface=cs.CDO, signal='Finished'),
+            EventPattern('dbus-signal', interface=cs.CD_IFACE_OP_LIST,
+                signal='DispatchOperationFinished'),
+            )
 
     sync_dbus(bus, q, mc)
 
