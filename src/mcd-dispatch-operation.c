@@ -194,6 +194,7 @@ struct _McdDispatchOperationPrivate
 
 static void _mcd_dispatch_operation_check_finished (
     McdDispatchOperation *self);
+static void _mcd_dispatch_operation_finish (McdDispatchOperation *);
 
 static void _mcd_dispatch_operation_check_client_locks (
     McdDispatchOperation *self);
@@ -337,6 +338,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
     if (self->priv->channels == NULL)
     {
         DEBUG ("Nothing left to dispatch");
+        _mcd_dispatch_operation_finish (self);
         self->priv->channels_handled = TRUE;
     }
 
@@ -363,6 +365,8 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
         tp_svc_channel_dispatch_operation_return_from_claim (
             self->priv->claim_context);
         self->priv->claim_context = NULL;
+
+        _mcd_dispatch_operation_finish (self);
 
         return;
     }
