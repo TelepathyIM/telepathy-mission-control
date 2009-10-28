@@ -1779,7 +1779,11 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
 {
     g_object_ref (self);
 
-    _mcd_dispatch_operation_run_observers (self);
+    if (self->priv->channels != NULL)
+    {
+        _mcd_dispatch_operation_run_observers (self);
+    }
+
     self->priv->invoked_observers_if_needed = TRUE;
 
     /* If nobody is bypassing approval, then we want to run approvers as soon
@@ -1789,7 +1793,8 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
      *
      * However, if a handler bypasses approval, we must wait til the observers
      * return, then run that handler, then proceed with the other handlers. */
-    if (!_mcd_dispatch_operation_handlers_can_bypass_approval (self))
+    if (!_mcd_dispatch_operation_handlers_can_bypass_approval (self)
+        && self->priv->channels != NULL)
     {
         self->priv->tried_handlers_before_approval = TRUE;
 
