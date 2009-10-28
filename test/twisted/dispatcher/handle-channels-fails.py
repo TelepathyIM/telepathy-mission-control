@@ -167,23 +167,22 @@ def test(q, bus, mc):
     sync_dbus(bus, q, mc)
     q.unforbid_events(forbidden)
 
-    if 0: # FIXME: in future this should be what happens...
-        # I'm Feeling Lucky. It might work if I try again? Maybe?
-        call_async(q, cdo_iface, 'HandleWith',
-                cs.tp_name_prefix + '.Client.Empathy')
+    # I'm Feeling Lucky. It might work if I try again? Maybe?
+    call_async(q, cdo_iface, 'HandleWith',
+            cs.tp_name_prefix + '.Client.Empathy')
 
-        # Empathy is asked to handle the channels, again
-        e = q.expect('dbus-method-call',
-                path=empathy.object_path,
-                interface=cs.HANDLER, method='HandleChannels',
-                handled=False)
+    # Empathy is asked to handle the channels, again
+    e = q.expect('dbus-method-call',
+            path=empathy.object_path,
+            interface=cs.HANDLER, method='HandleChannels',
+            handled=False)
 
-        # Empathy rejects the channels, again
-        q.dbus_raise(e.message, cs.NOT_CAPABLE, 'Still drunk', bus=empathy_bus)
+    # Empathy rejects the channels, again
+    q.dbus_raise(e.message, cs.NOT_CAPABLE, 'Still drunk', bus=empathy_bus)
 
-        e = q.expect('dbus-error', method='HandleWith')
-        assert e.error.get_dbus_name() == cs.NOT_CAPABLE
-        assert e.error.get_dbus_message() == 'Still drunk'
+    e = q.expect('dbus-error', method='HandleWith')
+    assert e.error.get_dbus_name() == cs.NOT_CAPABLE
+    assert e.error.get_dbus_message() == 'Still drunk'
 
     # OK, OK, is anyone else competent enough to handle them?
     # (Also, assert that MC doesn't offer them back to Empathy, knowing that
