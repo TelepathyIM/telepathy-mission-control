@@ -148,15 +148,10 @@ def test(q, bus, mc):
             cs.tp_name_prefix + '.Client.Empathy')
 
     # Empathy is asked to handle the channels
-    e, _ = q.expect_many(
-            EventPattern('dbus-method-call',
-                path=empathy.object_path,
-                interface=cs.HANDLER, method='HandleChannels',
-                handled=False),
-            # FIXME: currently HandleWith succeeds immediately, rather than
-            # failing when HandleChannels fails (fd.o #21003)
-            EventPattern('dbus-return', method='HandleWith'),
-            )
+    e = q.expect('dbus-method-call',
+            path=empathy.object_path,
+            interface=cs.HANDLER, method='HandleChannels',
+            handled=False)
 
     # Empathy rejects the channels
     q.dbus_raise(e.message, cs.NOT_AVAILABLE, 'Blind drunk', bus=empathy_bus)
@@ -176,6 +171,7 @@ def test(q, bus, mc):
 
     # MC gives up and closes the channel. This is the end of the CDO.
     q.expect_many(
+            EventPattern('dbus-error', method='HandleWith'),
             EventPattern('dbus-method-call', path=chan.object_path,
                 interface=cs.CHANNEL, method='Close', args=[]),
             EventPattern('dbus-signal', interface=cs.CDO, signal='Finished'),

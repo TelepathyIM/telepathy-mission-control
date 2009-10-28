@@ -85,9 +85,28 @@ typedef enum {
 
 typedef struct {
     ApprovalType type;
-    /* NULL unless type is CLAIM */
+    /* NULL unless type is REQUESTED or HANDLE_WITH; may be NULL even in those
+     * cases, to signify "any handler will do" */
+    gchar *client_bus_name;
+    /* NULL unless type is CLAIM or HANDLE_WITH */
     DBusGMethodInvocation *context;
 } Approval;
+
+static Approval *
+approval_new_handle_with (const gchar *client_bus_name,
+                          DBusGMethodInvocation *context)
+{
+    Approval *approval = g_slice_new0 (Approval);
+
+    g_assert (context != NULL);
+
+    if (client_bus_name != NULL && client_bus_name[0] != '\0')
+        approval->client_bus_name = g_strdup (client_bus_name);
+
+    approval->type = APPROVAL_TYPE_HANDLE_WITH;
+    approval->context = context;
+    return approval;
+}
 
 static Approval *
 approval_new_claim (DBusGMethodInvocation *context)
@@ -108,6 +127,7 @@ approval_new (ApprovalType type)
     switch (type)
     {
         case APPROVAL_TYPE_CLAIM:
+        case APPROVAL_TYPE_HANDLE_WITH:
             g_assert_not_reached ();
         default:
             {} /* do nothing */
@@ -148,6 +168,8 @@ struct _McdDispatchOperationPrivate
 
     /* queue of Approval */
     GQueue *approvals;
+    /* if not NULL, the handler that accepted it */
+    TpClient *successful_handler;
 
     /* Reference to a global handler map */
     McdHandlerMap *handler_map;
@@ -607,6 +629,12 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation)
      * to close */
     GError not_yours = { TP_ERRORS, TP_ERROR_NOT_YOURS,
         "Channel handled by someone else (or all channels were lost)" };
+    const gchar *successful_handler = NULL;
+
+    if (priv->successful_handler != NULL)
+    {
+        successful_handler = tp_proxy_get_bus_name (priv->successful_handler);
+    }
 
     if (priv->wants_to_finish)
     {
@@ -629,6 +657,43 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation)
                        dbus_g_method_get_sender (approval->context));
                 dbus_g_method_return_error (approval->context, &not_yours);
                 approval->context = NULL;
+                break;
+
+            case APPROVAL_TYPE_HANDLE_WITH:
+                g_assert (approval->context != NULL);
+
+                if (successful_handler != NULL)
+                {
+                    /* Some Handler got it. If this Approver would have been
+                     * happy with that Handler, then it succeeds, otherwise,
+                     * it loses. */
+                    if (approval->client_bus_name == NULL ||
+                        !tp_strdiff (approval->client_bus_name,
+                                     successful_handler))
+                    {
+                        DEBUG ("successful HandleWith, channel went to %s",
+                               successful_handler);
+                        tp_svc_channel_dispatch_operation_return_from_handle_with (
+                            approval->context);
+                    }
+                    else
+                    {
+                        DEBUG ("HandleWith -> NotYours: wanted %s but "
+                               "%s got it instead", approval->client_bus_name,
+                               successful_handler);
+                        dbus_g_method_return_error (approval->context,
+                                                    &not_yours);
+                    }
+                }
+                else
+                {
+                    /* Handling finished for some other reason: perhaps the
+                     * channel was claimed, or perhaps we ran out of channels.
+                     * For now, represent that as NotYours */
+                    DEBUG ("HandleWith -> NotYours: no handler got it");
+                    dbus_g_method_return_error (approval->context, &not_yours);
+                }
+
                 break;
 
             default:
@@ -682,9 +747,8 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
     }
 
     g_queue_push_tail (self->priv->approvals,
-                       approval_new (APPROVAL_TYPE_HANDLE_WITH));
+                       approval_new_handle_with (handler_name, context));
     _mcd_dispatch_operation_check_client_locks (self);
-    tp_svc_channel_dispatch_operation_return_from_handle_with (context);
 }
 
 static void
@@ -1004,6 +1068,12 @@ mcd_dispatch_operation_dispose (GObject *object)
 {
     McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (object);
     GList *list;
+
+    if (priv->successful_handler != NULL)
+    {
+        g_object_unref (priv->successful_handler);
+        priv->successful_handler = NULL;
+    }
 
     if (priv->channels)
     {
@@ -1588,7 +1658,10 @@ _mcd_dispatch_operation_handle_channels_cb (TpClient *client,
                                                            unique_name);
         }
 
-        /* emit Finished, if we haven't already */
+        /* emit Finished, if we haven't already; but first make a note of the
+         * handler we used, so we can reply to all the HandleWith calls with
+         * success or failure */
+        self->priv->successful_handler = g_object_ref (client);
         _mcd_dispatch_operation_finish (self);
         self->priv->channels_handled = TRUE;
     }
