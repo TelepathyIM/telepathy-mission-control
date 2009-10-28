@@ -1525,6 +1525,7 @@ _mcd_dispatch_operation_set_handler_failed (McdDispatchOperation *self,
                                             const GError *error)
 {
     GList *iter, *next;
+    gchar **handler;
 
     if (self->priv->failed_handlers == NULL)
     {
@@ -1558,6 +1559,23 @@ _mcd_dispatch_operation_set_handler_failed (McdDispatchOperation *self,
             g_queue_delete_link (self->priv->approvals, iter);
         }
     }
+
+    for (handler = self->priv->possible_handlers;
+         handler != NULL && *handler != NULL;
+         handler++)
+    {
+        if (g_hash_table_lookup (self->priv->failed_handlers, *handler)
+            == NULL)
+        {
+            /* we'll try this one soon */
+            return;
+        }
+    }
+
+    DEBUG ("All possible handlers failed, giving up");
+    _mcd_dispatch_operation_finish (self, error->domain, error->code,
+                                    "%s", error->message);
+    _mcd_dispatch_operation_close_as_undispatchable (self);
 }
 
 static gboolean

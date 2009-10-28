@@ -204,9 +204,8 @@ def test(q, bus, mc):
 
     e = q.expect('dbus-error', method='HandleWith')
 
-    if 0: # FIXME: at the moment the error is a generic "no more handlers"
-        assert e.error.get_dbus_name() == cs.NOT_AVAILABLE
-        assert e.error.get_dbus_message() == 'Also blind drunk'
+    assert e.error.get_dbus_name() == cs.NOT_AVAILABLE
+    assert e.error.get_dbus_message() == 'Also blind drunk'
 
     # MC gives up and closes the channel. This is the end of the CDO.
     q.expect_many(
