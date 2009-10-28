@@ -2045,8 +2045,7 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
         /* Maybe the handler has exited since we chose it, or maybe we
          * already tried it? Otherwise, it's the right choice. */
         if (handler != NULL &&
-            (approval->type == APPROVAL_TYPE_HANDLE_WITH || !failed) &&
-            (is_approved || _mcd_client_proxy_get_bypass_approval (handler)))
+            (approval->type == APPROVAL_TYPE_HANDLE_WITH || !failed))
         {
             mcd_dispatch_operation_handle_channels (self, handler);
             return TRUE;
