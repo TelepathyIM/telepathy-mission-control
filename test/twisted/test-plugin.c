@@ -58,7 +58,6 @@ reject_rickrolling (McdDispatcherContext *ctx,
     {
         DEBUG ("rickrolling detected, closing channel %s", object_path);
         mcd_dispatcher_context_destroy_all (ctx);
-        return;
     }
 
     mcd_dispatcher_context_proceed (ctx);
@@ -92,7 +91,6 @@ reject_with_reason (McdDispatcherContext *ctx,
         mcd_dispatcher_context_close_all (ctx,
             TP_CHANNEL_GROUP_CHANGE_REASON_PERMISSION_DENIED,
             "Can't touch this");
-        return;
     }
 
     mcd_dispatcher_context_proceed (ctx);
