@@ -2024,9 +2024,12 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
     gboolean is_approved = _mcd_dispatch_operation_is_approved (self);
     Approval *approval = g_queue_peek_head (self->priv->approvals);
 
-    /* If there is an approved handler chosen by the Approver, it's the only
-     * one we'll consider. */
-
+    /* If there is a preferred Handler chosen by the first Approver or
+     * request, it's the first one we'll consider. We'll even consider
+     * it even if its filter doesn't match.
+     *
+     * In the case of an Approver calling HandleWith, we'll also try again
+     * even if it already failed - perhaps the Approver is feeling lucky. */
     if (approval != NULL && approval->client_bus_name != NULL)
     {
         McdClientProxy *handler = _mcd_client_registry_lookup (
@@ -2041,7 +2044,8 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
 
         /* Maybe the handler has exited since we chose it, or maybe we
          * already tried it? Otherwise, it's the right choice. */
-        if (handler != NULL && !failed &&
+        if (handler != NULL &&
+            (approval->type == APPROVAL_TYPE_HANDLE_WITH || !failed) &&
             (is_approved || _mcd_client_proxy_get_bypass_approval (handler)))
         {
             mcd_dispatch_operation_handle_channels (self, handler);
