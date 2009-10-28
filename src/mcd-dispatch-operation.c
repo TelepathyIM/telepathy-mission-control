@@ -588,8 +588,11 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation)
     }
     else
     {
-        DEBUG ("%s/%p not finishing just yet", priv->unique_name,
-               operation);
+        DEBUG ("%s/%p not finishing just yet: "
+               "waiting for %" G_GSIZE_FORMAT " observers, "
+               "%" G_GSIZE_FORMAT " approvers",
+               priv->unique_name, operation,
+               priv->observers_pending, priv->ado_pending);
     }
 }
 
@@ -1300,8 +1303,11 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
     {
         /* We're still invoking approvers, so we're not allowed to talk
          * about it right now. Instead, save the signal for later. */
-        DEBUG ("%s/%p not losing channel %s just yet", self->priv->unique_name,
-               self, object_path);
+        DEBUG ("%s/%p not losing channel %s just yet: "
+               "waiting for %" G_GSIZE_FORMAT " observers, "
+               "%" G_GSIZE_FORMAT " approvers",
+               self->priv->unique_name, self, object_path,
+               self->priv->observers_pending, self->priv->ado_pending);
         self->priv->lost_channels =
             g_list_prepend (self->priv->lost_channels,
                             g_object_ref (channel));
@@ -1376,6 +1382,14 @@ _mcd_dispatch_operation_check_finished (McdDispatchOperation *self)
             DEBUG ("%s/%p finished", self->priv->unique_name, self);
             mcd_dispatch_operation_actually_finish (self);
         }
+    }
+    else if (self->priv->wants_to_finish)
+    {
+        DEBUG ("%s/%p still unable to finish: "
+               "waiting for %" G_GSIZE_FORMAT " observers, "
+               "%" G_GSIZE_FORMAT " approvers",
+               self->priv->unique_name, self,
+               self->priv->observers_pending, self->priv->ado_pending);
     }
 }
 
