@@ -2051,11 +2051,20 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
             return TRUE;
         }
 
-        /* The approver asked for a particular handler, but that handler
-         * has vanished. If MC was fully spec-compliant, it wouldn't have
-         * replied to the Approver yet, so it could just return an error.
-         * However, that particular part of the flying-car future has not
-         * yet arrived, so try to recover by dispatching to *something*. */
+        /* If the Handler has disappeared, a HandleWith call should fail,
+         * but a request (for which the client_bus_name is merely advisory)
+         * can legitimately try more handlers. */
+        if (approval->type == APPROVAL_TYPE_HANDLE_WITH)
+        {
+            GError gone = { TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
+                "The requested Handler does not exist" };
+
+            g_queue_pop_head (self->priv->approvals);
+            dbus_g_method_return_error (approval->context, &gone);
+            approval->context = NULL;
+            approval_free (approval);
+            return TRUE;
+        }
     }
 
     for (iter = self->priv->possible_handlers;
