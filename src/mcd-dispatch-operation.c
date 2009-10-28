@@ -85,13 +85,33 @@ typedef enum {
 
 typedef struct {
     ApprovalType type;
-    /* will later include DBusGMethodInvocation etc. */
+    /* NULL unless type is CLAIM */
+    DBusGMethodInvocation *context;
 } Approval;
+
+static Approval *
+approval_new_claim (DBusGMethodInvocation *context)
+{
+    Approval *approval = g_slice_new0 (Approval);
+
+    g_assert (context != NULL);
+    approval->type = APPROVAL_TYPE_CLAIM;
+    approval->context = context;
+    return approval;
+}
 
 static Approval *
 approval_new (ApprovalType type)
 {
-    Approval *approval = g_slice_new (Approval);
+    Approval *approval = g_slice_new0 (Approval);
+
+    switch (type)
+    {
+        case APPROVAL_TYPE_CLAIM:
+            g_assert_not_reached ();
+        default:
+            {} /* do nothing */
+    }
 
     approval->type = type;
     return approval;
@@ -100,6 +120,9 @@ approval_new (ApprovalType type)
 static void
 approval_free (Approval *approval)
 {
+    /* we should have replied to the method call by now */
+    g_assert (approval->context == NULL);
+
     g_slice_free (Approval, approval);
 }
 
@@ -122,8 +145,6 @@ struct _McdDispatchOperationPrivate
     gboolean wants_to_finish;
     gchar *handler;
     gint64 handle_with_time;
-    gchar *claimer;
-    DBusGMethodInvocation *claim_context;
 
     /* queue of Approval */
     GQueue *approvals;
@@ -301,6 +322,8 @@ static void mcd_dispatch_operation_set_channel_handled_by (
 static void
 _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 {
+    Approval *approval;
+
     /* we may not continue until we've called all the Observers, and they've
      * all replied "I'm ready" */
     if (!self->priv->invoked_observers_if_needed ||
@@ -349,29 +372,34 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
         return;
     }
 
+    approval = g_queue_peek_head (self->priv->approvals);
+
     /* if we've been claimed, respond, then do not call HandleChannels */
-    if (self->priv->claim_context != NULL)
+    if (approval != NULL && approval->type == APPROVAL_TYPE_CLAIM)
     {
         const GList *list;
+        const gchar *caller = dbus_g_method_get_sender (approval->context);
+
+        /* remove this approval from the list, so it won't be treated as a
+         * failure */
+        g_queue_pop_head (self->priv->approvals);
 
         g_assert (!self->priv->channels_handled);
         self->priv->channels_handled = TRUE;
-
-        g_assert (self->priv->claimer != NULL);
 
         for (list = self->priv->channels; list != NULL; list = list->next)
         {
             McdChannel *channel = MCD_CHANNEL (list->data);
 
             mcd_dispatch_operation_set_channel_handled_by (self, channel,
-                self->priv->claimer);
+                caller);
         }
 
-        DEBUG ("Replying to Claim call from %s", self->priv->claimer);
+        DEBUG ("Replying to Claim call from %s", caller);
 
         tp_svc_channel_dispatch_operation_return_from_claim (
-            self->priv->claim_context);
-        self->priv->claim_context = NULL;
+            approval->context);
+        approval->context = NULL;
 
         _mcd_dispatch_operation_finish (self);
 
@@ -573,6 +601,12 @@ static void
 _mcd_dispatch_operation_finish (McdDispatchOperation *operation)
 {
     McdDispatchOperationPrivate *priv = operation->priv;
+    Approval *approval;
+    /* FIXME: if we're finishing because there are no channels left, this
+     * should be replaced by the invalidated reason for the last channel
+     * to close */
+    GError not_yours = { TP_ERRORS, TP_ERROR_NOT_YOURS,
+        "Channel handled by someone else (or all channels were lost)" };
 
     if (priv->wants_to_finish)
     {
@@ -581,6 +615,26 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation)
     }
 
     priv->wants_to_finish = TRUE;
+
+    for (approval = g_queue_pop_head (priv->approvals);
+         approval != NULL;
+         approval = g_queue_pop_head (priv->approvals))
+    {
+        switch (approval->type)
+        {
+            case APPROVAL_TYPE_CLAIM:
+                /* someone else got it - either another Claim() or a handler */
+                g_assert (approval->context != NULL);
+                DEBUG ("denying Claim call from %s",
+                       dbus_g_method_get_sender (approval->context));
+                dbus_g_method_return_error (approval->context, &not_yours);
+                approval->context = NULL;
+                break;
+
+            default:
+                {} /* do nothing */
+        }
+    }
 
     if (mcd_dispatch_operation_may_signal_finished (operation))
     {
@@ -640,11 +694,10 @@ dispatch_operation_claim (TpSvcChannelDispatchOperation *cdo,
     McdDispatchOperation *self = MCD_DISPATCH_OPERATION (cdo);
     McdDispatchOperationPrivate *priv = self->priv;
 
-    if (self->priv->wants_to_finish ||
-        !g_queue_is_empty (self->priv->approvals))
+    if (self->priv->channels_handled)
     {
         GError *error = g_error_new (TP_ERRORS, TP_ERROR_NOT_YOURS,
-                                     "CDO already finished or approved");
+                                     "CDO already finished");
         DEBUG ("Giving error to %s: %s", dbus_g_method_get_sender (context),
                error->message);
         dbus_g_method_return_error (context, error);
@@ -652,14 +705,7 @@ dispatch_operation_claim (TpSvcChannelDispatchOperation *cdo,
         return;
     }
 
-    g_assert (priv->claimer == NULL);
-    g_assert (priv->claim_context == NULL);
-    priv->claimer = dbus_g_method_get_sender (context);
-    priv->claim_context = context;
-    DEBUG ("Claiming on behalf of %s", priv->claimer);
-
-    g_queue_push_tail (priv->approvals,
-                       approval_new (APPROVAL_TYPE_CLAIM));
+    g_queue_push_tail (priv->approvals, approval_new_claim (context));
     _mcd_dispatch_operation_check_client_locks (self);
 }
 
@@ -949,7 +995,6 @@ mcd_dispatch_operation_finalize (GObject *object)
 
     g_free (priv->handler);
     g_free (priv->object_path);
-    g_free (priv->claimer);
 
     G_OBJECT_CLASS (_mcd_dispatch_operation_parent_class)->finalize (object);
 }
