@@ -207,7 +207,8 @@ static void _mcd_dispatch_operation_check_client_locks (
 static inline gboolean
 mcd_dispatch_operation_may_signal_finished (McdDispatchOperation *self)
 {
-    return (self->priv->observers_pending == 0 &&
+    return (self->priv->invoked_observers_if_needed &&
+            self->priv->observers_pending == 0 &&
             self->priv->ado_pending == 0);
 }
 
@@ -1808,13 +1809,16 @@ void
 _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
 {
     g_object_ref (self);
+    DEBUG ("%s %p", self->priv->unique_name, self);
 
     if (self->priv->channels != NULL)
     {
         _mcd_dispatch_operation_run_observers (self);
     }
 
+    DEBUG ("All necessary observers invoked");
     self->priv->invoked_observers_if_needed = TRUE;
+    /* we call check_finished before returning */
 
     /* If nobody is bypassing approval, then we want to run approvers as soon
      * as possible, without waiting for observers, to improve responsiveness.
@@ -1833,6 +1837,8 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
                          g_object_ref (self), g_object_unref);
     }
 
+    DEBUG ("Checking finished/locks");
+    _mcd_dispatch_operation_check_finished (self);
     _mcd_dispatch_operation_check_client_locks (self);
 
     g_object_unref (self);
