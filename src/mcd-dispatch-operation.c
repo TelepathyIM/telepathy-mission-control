@@ -215,10 +215,6 @@ struct _McdDispatchOperationPrivate
      * A reference is held for each pending approver. */
     gsize ado_pending;
 
-    /* If TRUE, either we've already arranged for the channels to get a
-     * handler, or there are no channels left. */
-    gboolean channels_handled;
-
     /* If TRUE, we're dispatching a channel request and it was cancelled */
     gboolean cancelled;
 
@@ -373,9 +369,9 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 
     /* if a handler has claimed or accepted the channels, we have nothing to
      * do */
-    if (self->priv->channels_handled)
+    if (self->priv->wants_to_finish)
     {
-        DEBUG ("channels already handled");
+        DEBUG ("already finished (or finishing)");
         return;
     }
 
@@ -397,9 +393,6 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
         /* remove this approval from the list, so it won't be treated as a
          * failure */
         g_queue_pop_head (self->priv->approvals);
-
-        g_assert (!self->priv->channels_handled);
-        self->priv->channels_handled = TRUE;
 
         for (list = self->priv->channels; list != NULL; list = list->next)
         {
@@ -750,7 +743,7 @@ dispatch_operation_claim (TpSvcChannelDispatchOperation *cdo,
     McdDispatchOperation *self = MCD_DISPATCH_OPERATION (cdo);
     McdDispatchOperationPrivate *priv = self->priv;
 
-    if (self->priv->channels_handled)
+    if (self->priv->wants_to_finish)
     {
         GError *error = g_error_new (TP_ERRORS, TP_ERROR_NOT_YOURS,
                                      "CDO already finished");
@@ -1441,7 +1434,6 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
     {
         /* no channels left, so the CDO finishes (if it hasn't already) */
         _mcd_dispatch_operation_finish (self);
-        self->priv->channels_handled = TRUE;
     }
 }
 
@@ -1656,7 +1648,6 @@ _mcd_dispatch_operation_handle_channels_cb (TpClient *client,
          * success or failure */
         self->priv->successful_handler = g_object_ref (client);
         _mcd_dispatch_operation_finish (self);
-        self->priv->channels_handled = TRUE;
     }
 
     self->priv->calling_handle_channels = FALSE;
@@ -2051,7 +2042,6 @@ _mcd_dispatch_operation_close_as_undispatchable (McdDispatchOperation *self)
 
     DEBUG ("No possible handler still exists, giving up");
     _mcd_dispatch_operation_finish (self);
-    self->priv->channels_handled = TRUE;
 
     channels = _mcd_dispatch_operation_dup_channels (self);
 
