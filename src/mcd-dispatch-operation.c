@@ -305,6 +305,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
     if (!self->priv->invoked_observers_if_needed ||
         self->priv->observers_pending > 0)
     {
+        DEBUG ("waiting for Observers");
         return;
     }
 
@@ -312,6 +313,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
      * called them all, and they all replied "I'm ready" */
     if (self->priv->ado_pending > 0)
     {
+        DEBUG ("waiting for AddDispatchOperation to return");
         return;
     }
 
@@ -319,6 +321,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
      * with an error */
     if (self->priv->calling_handle_channels)
     {
+        DEBUG ("waiting for HandleChannels to return");
         return;
     }
 
@@ -326,12 +329,14 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
      * do */
     if (self->priv->channels_handled)
     {
+        DEBUG ("channels already handled");
         return;
     }
 
     /* If we're only meant to be observing, do nothing */
     if (self->priv->observe_only)
     {
+        DEBUG ("only observing");
         return;
     }
 
@@ -376,16 +381,27 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
     {
         if (_mcd_dispatch_operation_is_approved (self))
         {
+            DEBUG ("trying next handler");
+
             if (!_mcd_dispatch_operation_try_next_handler (self))
             {
+                DEBUG ("ran out of handlers");
                 _mcd_dispatch_operation_close_as_undispatchable (self);
             }
+        }
+        else
+        {
+            DEBUG ("waiting for approval");
         }
     }
     else if (!self->priv->tried_handlers_before_approval)
     {
+        DEBUG ("trying next pre-approval handler");
+
         if (!_mcd_dispatch_operation_try_next_handler (self))
         {
+            DEBUG ("ran out of pre-approval handlers");
+
             self->priv->tried_handlers_before_approval = TRUE;
 
             g_idle_add_full (G_PRIORITY_HIGH,
