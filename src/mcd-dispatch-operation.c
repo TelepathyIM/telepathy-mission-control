@@ -386,14 +386,6 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
         return;
     }
 
-    if (self->priv->channels == NULL)
-    {
-        DEBUG ("Nothing left to dispatch");
-        _mcd_dispatch_operation_finish (self);
-        self->priv->channels_handled = TRUE;
-        return;
-    }
-
     approval = g_queue_peek_head (self->priv->approvals);
 
     /* if we've been claimed, respond, then do not call HandleChannels */
@@ -1449,6 +1441,7 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
     {
         /* no channels left, so the CDO finishes (if it hasn't already) */
         _mcd_dispatch_operation_finish (self);
+        self->priv->channels_handled = TRUE;
     }
 }
 
