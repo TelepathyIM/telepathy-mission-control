@@ -348,7 +348,7 @@ _mcd_dispatch_operation_is_approved (McdDispatchOperation *self)
 static gboolean _mcd_dispatch_operation_try_next_handler (
     McdDispatchOperation *self);
 static void _mcd_dispatch_operation_close_as_undispatchable (
-    McdDispatchOperation *self);
+    McdDispatchOperation *self, const GError *error);
 static gboolean mcd_dispatch_operation_idle_run_approvers (gpointer p);
 static void mcd_dispatch_operation_set_channel_handled_by (
     McdDispatchOperation *self, McdChannel *channel, const gchar *unique_name);
@@ -444,8 +444,12 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 
             if (!_mcd_dispatch_operation_try_next_handler (self))
             {
+                GError incapable = { TP_ERRORS, TP_ERROR_NOT_CAPABLE,
+                    "No possible handler still exists, giving up" };
+
                 DEBUG ("ran out of handlers");
-                _mcd_dispatch_operation_close_as_undispatchable (self);
+                _mcd_dispatch_operation_close_as_undispatchable (self,
+                                                                 &incapable);
             }
         }
         else
@@ -1572,10 +1576,8 @@ _mcd_dispatch_operation_set_handler_failed (McdDispatchOperation *self,
         }
     }
 
-    DEBUG ("All possible handlers failed, giving up");
-    _mcd_dispatch_operation_finish (self, error->domain, error->code,
-                                    "%s", error->message);
-    _mcd_dispatch_operation_close_as_undispatchable (self);
+    DEBUG ("All possible handlers failed: failing with the last error");
+    _mcd_dispatch_operation_close_as_undispatchable (self, error);
 }
 
 static gboolean
@@ -2109,18 +2111,20 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
 }
 
 static void
-_mcd_dispatch_operation_close_as_undispatchable (McdDispatchOperation *self)
+_mcd_dispatch_operation_close_as_undispatchable (McdDispatchOperation *self,
+                                                 const GError *error)
 {
     GList *channels, *list;
+
     /* All of the usable handlers vanished while we were thinking about it
      * (this can only happen if non-activatable handlers exit after we
      * include them in the list of possible handlers, but before we .
      * We should recover in some better way, perhaps by asking all the
      * approvers again (?), but for now we'll just close all the channels. */
 
-    DEBUG ("No possible handler still exists, giving up");
-    _mcd_dispatch_operation_finish (self, TP_ERRORS, TP_ERROR_NOT_CAPABLE,
-                                    "No possible handler still exists");
+    DEBUG ("%s", error->message);
+    _mcd_dispatch_operation_finish (self, error->domain, error->code,
+                                    "%s", error->message);
 
     channels = _mcd_dispatch_operation_dup_channels (self);
 
