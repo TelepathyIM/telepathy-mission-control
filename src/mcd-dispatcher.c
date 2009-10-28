@@ -1162,9 +1162,8 @@ mcd_dispatcher_context_proceed (McdDispatcherContext *context)
         return;
     }
 
+no_more:    /* either no more filters, or no more channels */
     _mcd_dispatch_operation_run_clients (context->operation);
-
-no_more:
     mcd_dispatcher_context_unref (context, "CTXREF01");
 }
 
