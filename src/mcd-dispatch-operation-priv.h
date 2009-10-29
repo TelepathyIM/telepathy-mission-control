@@ -100,6 +100,11 @@ G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_cm_name (
 G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_connection_path (
     McdDispatchOperation *self);
 
+G_GNUC_INTERNAL void _mcd_dispatch_operation_start_plugin_delay (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL void _mcd_dispatch_operation_end_plugin_delay (
+    McdDispatchOperation *self);
+
 G_GNUC_INTERNAL void _mcd_dispatch_operation_leave_channels (
     McdDispatchOperation *self, TpChannelGroupChangeReason reason,
     const gchar *message);

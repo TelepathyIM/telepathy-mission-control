@@ -252,6 +252,8 @@ struct _McdDispatchOperationPrivate
     /* If TRUE, we've tried all the BypassApproval handlers, which happens
      * before we run approvers. */
     gboolean tried_handlers_before_approval;
+
+    gsize plugins_pending;
 };
 
 static void _mcd_dispatch_operation_check_finished (
@@ -372,6 +374,12 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
         self->priv->observers_pending > 0)
     {
         DEBUG ("waiting for Observers");
+        return;
+    }
+
+    if (self->priv->plugins_pending > 0)
+    {
+        DEBUG ("waiting for plugins to stop delaying");
         return;
     }
 
@@ -2172,6 +2180,29 @@ _mcd_dispatch_operation_close_as_undispatchable (McdDispatchOperation *self,
     }
 
     g_list_free (channels);
+}
+
+void
+_mcd_dispatch_operation_start_plugin_delay (McdDispatchOperation *self)
+{
+    g_object_ref (self);
+    DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
+           self->priv->plugins_pending,
+           self->priv->plugins_pending + 1);
+    self->priv->plugins_pending++;
+}
+
+void
+_mcd_dispatch_operation_end_plugin_delay (McdDispatchOperation *self)
+{
+    DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
+           self->priv->plugins_pending,
+           self->priv->plugins_pending - 1);
+    g_return_if_fail (self->priv->plugins_pending > 0);
+    self->priv->plugins_pending--;
+
+    _mcd_dispatch_operation_check_client_locks (self);
+    g_object_unref (self);
 }
 
 void
