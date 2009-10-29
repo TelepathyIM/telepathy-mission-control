@@ -91,6 +91,15 @@ G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_get_cancelled (
 G_GNUC_INTERNAL void _mcd_dispatch_operation_run_clients (
     McdDispatchOperation *self);
 
+G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_account_path (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_protocol (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_cm_name (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_connection_path (
+    McdDispatchOperation *self);
+
 G_GNUC_INTERNAL void _mcd_dispatch_operation_leave_channels (
     McdDispatchOperation *self, TpChannelGroupChangeReason reason,
     const gchar *message);

@@ -500,7 +500,7 @@ enum
  * Returns: the D-Bus object path of the Connection associated with @self,
  *    or "/" if none.
  */
-static const gchar *
+const gchar *
 _mcd_dispatch_operation_get_connection_path (McdDispatchOperation *self)
 {
     const gchar *path;
@@ -529,6 +529,30 @@ get_connection (TpSvcDBusProperties *self, const gchar *name, GValue *value)
             MCD_DISPATCH_OPERATION (self)));
 }
 
+const gchar *
+_mcd_dispatch_operation_get_cm_name (McdDispatchOperation *self)
+{
+    const gchar *ret;
+
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), NULL);
+    g_return_val_if_fail (self->priv->account != NULL, NULL);
+    ret = mcd_account_get_manager_name (self->priv->account);
+    g_return_val_if_fail (ret != NULL, NULL);
+    return ret;
+}
+
+const gchar *
+_mcd_dispatch_operation_get_protocol (McdDispatchOperation *self)
+{
+    const gchar *ret;
+
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), NULL);
+    g_return_val_if_fail (self->priv->account != NULL, NULL);
+    ret = mcd_account_get_protocol_name (self->priv->account);
+    g_return_val_if_fail (ret != NULL, NULL);
+    return ret;
+}
+
 /*
  * _mcd_dispatch_operation_get_account_path:
  * @operation: the #McdDispatchOperation.
@@ -536,7 +560,7 @@ get_connection (TpSvcDBusProperties *self, const gchar *name, GValue *value)
  * Returns: the D-Bus object path of the Account associated with @operation,
  *    or "/" if none.
  */
-static const gchar *
+const gchar *
 _mcd_dispatch_operation_get_account_path (McdDispatchOperation *self)
 {
     const gchar *path;
