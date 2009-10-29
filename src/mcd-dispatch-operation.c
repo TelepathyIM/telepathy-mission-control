@@ -178,7 +178,6 @@ struct _McdDispatchOperationPrivate
      * this is NotYours, and on failure, it's something else */
     GError *result;
 
-    gchar *handler;
     gint64 handle_with_time;
 
     /* queue of Approval */
