@@ -2149,3 +2149,76 @@ _mcd_dispatch_operation_close_as_undispatchable (McdDispatchOperation *self,
 
     g_list_free (channels);
 }
+
+void
+_mcd_dispatch_operation_forget_channels (McdDispatchOperation *self)
+{
+    /* make a temporary copy, which is destroyed during the loop - otherwise
+     * we'll be trying to iterate over the list at the same time
+     * that mcd_mission_abort results in modifying it, which would be bad */
+    GList *list = _mcd_dispatch_operation_dup_channels (self);
+
+    while (list != NULL)
+    {
+        mcd_mission_abort (list->data);
+        g_object_unref (list->data);
+        list = g_list_delete_link (list, list);
+    }
+
+    /* There should now be none left (they all aborted) */
+    g_return_if_fail (self->priv->channels == NULL);
+}
+
+void
+_mcd_dispatch_operation_leave_channels (McdDispatchOperation *self,
+                                        TpChannelGroupChangeReason reason,
+                                        const gchar *message)
+{
+    GList *list;
+
+    if (message == NULL)
+    {
+        message = "";
+    }
+
+    list = _mcd_dispatch_operation_dup_channels (self);
+
+    while (list != NULL)
+    {
+        _mcd_channel_depart (list->data, reason, message);
+        g_object_unref (list->data);
+        list = g_list_delete_link (list, list);
+    }
+
+    _mcd_dispatch_operation_forget_channels (self);
+}
+
+void
+_mcd_dispatch_operation_close_channels (McdDispatchOperation *self)
+{
+    GList *list = _mcd_dispatch_operation_dup_channels (self);
+
+    while (list != NULL)
+    {
+        _mcd_channel_close (list->data);
+        g_object_unref (list->data);
+        list = g_list_delete_link (list, list);
+    }
+
+    _mcd_dispatch_operation_forget_channels (self);
+}
+
+void
+_mcd_dispatch_operation_destroy_channels (McdDispatchOperation *self)
+{
+    GList *list = _mcd_dispatch_operation_dup_channels (self);
+
+    while (list != NULL)
+    {
+        _mcd_channel_undispatchable (list->data);
+        g_object_unref (list->data);
+        list = g_list_delete_link (list, list);
+    }
+
+    _mcd_dispatch_operation_forget_channels (self);
+}

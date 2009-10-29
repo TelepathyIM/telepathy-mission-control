@@ -1178,25 +1178,8 @@ no_more:    /* either no more filters, or no more channels */
 void
 mcd_dispatcher_context_forget_all (McdDispatcherContext *context)
 {
-    GList *list;
-
     g_return_if_fail (context);
-
-    /* make a temporary copy, which is destroyed during the loop - otherwise
-     * we'll be trying to iterate over the list at the same time
-     * that mcd_mission_abort results in modifying it, which would be bad */
-    list = _mcd_dispatch_operation_dup_channels (context->operation);
-
-    while (list != NULL)
-    {
-        mcd_mission_abort (list->data);
-        g_object_unref (list->data);
-        list = g_list_delete_link (list, list);
-    }
-
-    /* There should now be none left (they all aborted) */
-    g_return_if_fail (_mcd_dispatch_operation_peek_channels
-                      (context->operation) == NULL);
+    _mcd_dispatch_operation_forget_channels (context->operation);
 }
 
 /**
@@ -1212,20 +1195,8 @@ mcd_dispatcher_context_forget_all (McdDispatcherContext *context)
 void
 mcd_dispatcher_context_destroy_all (McdDispatcherContext *context)
 {
-    GList *list;
-
     g_return_if_fail (context);
-
-    list = _mcd_dispatch_operation_dup_channels (context->operation);
-
-    while (list != NULL)
-    {
-        _mcd_channel_undispatchable (list->data);
-        g_object_unref (list->data);
-        list = g_list_delete_link (list, list);
-    }
-
-    mcd_dispatcher_context_forget_all (context);
+    _mcd_dispatch_operation_destroy_channels (context->operation);
 }
 
 /**
@@ -1249,25 +1220,9 @@ mcd_dispatcher_context_close_all (McdDispatcherContext *context,
                                   TpChannelGroupChangeReason reason,
                                   const gchar *message)
 {
-    GList *list;
-
     g_return_if_fail (context);
-
-    if (message == NULL)
-    {
-        message = "";
-    }
-
-    list = _mcd_dispatch_operation_dup_channels (context->operation);
-
-    while (list != NULL)
-    {
-        _mcd_channel_depart (list->data, reason, message);
-        g_object_unref (list->data);
-        list = g_list_delete_link (list, list);
-    }
-
-    mcd_dispatcher_context_forget_all (context);
+    _mcd_dispatch_operation_leave_channels (context->operation, reason,
+                                            message);
 }
 
 /**
@@ -1291,7 +1246,7 @@ mcd_dispatcher_context_process (McdDispatcherContext * context, gboolean result)
 {
     if (!result)
     {
-        mcd_dispatcher_context_destroy_all (context);
+        _mcd_dispatch_operation_destroy_channels (context->operation);
     }
 
     mcd_dispatcher_context_proceed (context);
