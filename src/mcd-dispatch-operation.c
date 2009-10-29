@@ -120,6 +120,18 @@ approval_new_claim (DBusGMethodInvocation *context)
 }
 
 static Approval *
+approval_new_requested (const gchar *preferred_bus_name)
+{
+    Approval *approval = g_slice_new0 (Approval);
+
+    if (preferred_bus_name != NULL && preferred_bus_name[0] != '\0')
+        approval->client_bus_name = g_strdup (preferred_bus_name);
+
+    approval->type = APPROVAL_TYPE_REQUESTED;
+    return approval;
+}
+
+static Approval *
 approval_new (ApprovalType type)
 {
     Approval *approval = g_slice_new0 (Approval);
@@ -128,6 +140,7 @@ approval_new (ApprovalType type)
     {
         case APPROVAL_TYPE_CLAIM:
         case APPROVAL_TYPE_HANDLE_WITH:
+        case APPROVAL_TYPE_REQUESTED:
             g_assert_not_reached ();
         default:
             {} /* do nothing */
@@ -738,12 +751,6 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
     g_get_current_time (&now);
     self->priv->handle_with_time = now.tv_sec;
 
-    if (handler_name != NULL && handler_name[0] != '\0')
-    {
-        self->priv->handler = g_strdup (handler_name +
-                                        MCD_CLIENT_BASE_NAME_LEN);
-    }
-
     g_queue_push_tail (self->priv->approvals,
                        approval_new_handle_with (handler_name, context));
     _mcd_dispatch_operation_check_client_locks (self);
@@ -917,7 +924,7 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
     case PROP_CHANNELS:
         /* because this is construct-only, we can assert that: */
         g_assert (priv->channels == NULL);
-        g_assert (priv->handler == NULL);
+        g_assert (g_queue_is_empty (priv->approvals));
 
         priv->channels = g_list_copy (g_value_get_pointer (val));
 
@@ -953,8 +960,8 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
             {
                 DEBUG ("Extracted preferred handler: %s",
                        preferred_handler);
-                priv->handler = g_strdup (preferred_handler +
-                                          MCD_CLIENT_BASE_NAME_LEN);
+                g_queue_push_tail (priv->approvals,
+                                   approval_new_requested (preferred_handler));
             }
 
             priv->account = mcd_channel_get_account (channel);
@@ -1058,7 +1065,6 @@ mcd_dispatch_operation_finalize (GObject *object)
         priv->result = NULL;
     }
 
-    g_free (priv->handler);
     g_free (priv->object_path);
 
     G_OBJECT_CLASS (_mcd_dispatch_operation_parent_class)->finalize (object);
@@ -1388,14 +1394,8 @@ _mcd_dispatch_operation_approve (McdDispatchOperation *self,
         preferred_handler = "";
     }
 
-    if (preferred_handler[0] != '\0')
-    {
-        self->priv->handler = g_strdup (preferred_handler +
-                                        MCD_CLIENT_BASE_NAME_LEN);
-    }
-
     g_queue_push_tail (self->priv->approvals,
-                       approval_new (APPROVAL_TYPE_REQUESTED));
+                       approval_new_requested (preferred_handler));
 
     _mcd_dispatch_operation_check_client_locks (self);
 }
@@ -2022,25 +2022,22 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
 {
     gchar **iter;
     gboolean is_approved = _mcd_dispatch_operation_is_approved (self);
+    Approval *approval = g_queue_peek_head (self->priv->approvals);
 
     /* If there is an approved handler chosen by the Approver, it's the only
      * one we'll consider. */
 
-    if (self->priv->handler != NULL && self->priv->handler[0] != '\0')
+    if (approval != NULL && approval->client_bus_name != NULL)
     {
-        gchar *bus_name = g_strconcat (TP_CLIENT_BUS_NAME_BASE,
-                                       self->priv->handler, NULL);
         McdClientProxy *handler = _mcd_client_registry_lookup (
-            self->priv->client_registry, bus_name);
+            self->priv->client_registry, approval->client_bus_name);
         gboolean failed = _mcd_dispatch_operation_get_handler_failed (self,
-            bus_name);
+            approval->client_bus_name);
 
         DEBUG ("Approved handler is %s (still exists: %c, "
-               "already failed: %c)", bus_name,
+               "already failed: %c)", approval->client_bus_name,
                handler != NULL ? 'Y' : 'N',
                failed ? 'Y' : 'N');
-
-        g_free (bus_name);
 
         /* Maybe the handler has exited since we chose it, or maybe we
          * already tried it? Otherwise, it's the right choice. */
