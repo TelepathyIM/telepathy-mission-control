@@ -178,6 +178,15 @@ struct _McdDispatchOperationPrivate
      * this is NotYours, and on failure, it's something else */
     GError *result;
 
+    /* The time of the latest call to HandleWith(), for focus-stealing
+     * prevention.
+     *
+     * This is shared between calls, so if the user makes contradictory
+     * choices, like HandleWith("...Empathy") and HandleWith("...Kopete") in
+     * quick succession, the channel will be handled with Empathy, but the
+     * timestamp for focus-stealing purposes will be that of the call that
+     * wanted Kopete; we consider this to be reasonable, since the user did
+     * expect *something* to happen at the time of the second call. */
     gint64 handle_with_time;
 
     /* queue of Approval */
