@@ -986,9 +986,11 @@ _mcd_dispatch_operation_new (McdClientRegistry *client_registry,
 
     /* possible-handlers is only allowed to be NULL if we're only observing */
     g_return_val_if_fail (possible_handlers != NULL || observe_only, NULL);
-    /* channels that we will only observe should not need approval - so at
-     * least one must be false */
-    g_return_val_if_fail (!(observe_only && needs_approval), NULL);
+
+    /* If we're only observing, then the channels were requested "behind MC's
+     * back", so they can't need approval (i.e. observe_only implies
+     * !needs_approval) */
+    g_return_val_if_fail (!observe_only || !needs_approval, NULL);
 
     obj = g_object_new (MCD_TYPE_DISPATCH_OPERATION,
                         "client-registry", client_registry,
