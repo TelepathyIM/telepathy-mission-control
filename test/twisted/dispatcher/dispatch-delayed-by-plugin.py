@@ -89,8 +89,8 @@ def test(q, bus, mc):
 
     policy_bus_name_ref = dbus.service.BusName('com.example.Policy', bus)
 
-    # Throughout this entire test, we should never be asked to handle a
-    # channel.
+    # For the beginning of this test, we should never be asked to handle
+    # a channel.
     forbidden = [
             EventPattern('dbus-method-call', method='HandleChannels'),
             ]
@@ -180,6 +180,93 @@ def test(q, bus, mc):
                 signal='DispatchOperationFinished', args=[cdo_path]),
             EventPattern('dbus-return', method='Claim'),
             )
+
+    sync_dbus(bus, q, mc)
+
+    # From now on we no longer want to forbid HandleChannels, but we do want
+    # to forbid AddDispatchOperation
+    q.unforbid_events(forbidden)
+    forbidden = [
+            EventPattern('dbus-method-call', method='AddDispatchOperation'),
+            ]
+    q.forbid_events(forbidden)
+
+    # Try yet again
+    policy_request, chan, cdo_path = signal_channel_expect_query(q, bus,
+            account, conn)
+
+    # Before the policy service replies, someone requests the same channel
+
+    user_action_time = dbus.Int64(1238582606)
+    call_async(q, cd, 'EnsureChannel',
+            account.object_path, chan.immutable, user_action_time,
+            kopete.bus_name, dbus_interface=cs.CD)
+    ret, add_request_call = q.expect_many(
+            EventPattern('dbus-return', method='EnsureChannel'),
+            EventPattern('dbus-method-call', handled=False,
+                interface=cs.CLIENT_IFACE_REQUESTS,
+                method='AddRequest'), # FIXME: path=kopete.object_path),
+            )
+    request_path = ret.value[0]
+
+    cr = bus.get_object(cs.CD, request_path)
+    cr.Proceed(dbus_interface=cs.CR)
+
+    cm_request_call = q.expect('dbus-method-call',
+            interface=cs.CONN_IFACE_REQUESTS,
+            method='EnsureChannel',
+            path=conn.object_path, args=[chan.immutable], handled=False)
+
+    q.dbus_return(add_request_call.message, signature='')
+
+    # Time passes. The CM returns the existing channel, and the policy
+    # service gets round to replying
+
+    q.dbus_return(cm_request_call.message, False,
+            chan.object_path, chan.immutable, signature='boa{sv}')
+
+    q.dbus_return(policy_request.message, signature='')
+
+    e, k = q.expect_many(
+            EventPattern('dbus-method-call',
+                path=empathy.object_path,
+                interface=cs.OBSERVER, method='ObserveChannels',
+                handled=False),
+            EventPattern('dbus-method-call',
+                path=kopete.object_path,
+                interface=cs.OBSERVER, method='ObserveChannels',
+                handled=False),
+            )
+
+    # Both Observers indicate that they are ready to proceed
+    q.dbus_return(k.message, signature='')
+    q.dbus_return(e.message, signature='')
+
+    e = q.expect('dbus-method-call',
+            # FIXME: untrue: path=kopete.object_path,
+            interface=cs.HANDLER, method='HandleChannels',
+            handled=False)
+    assert e.args[0] == account.object_path, e.args
+    assert e.args[1] == conn.object_path, e.args
+    channels = e.args[2]
+    assert len(channels) == 1, channels
+    assert channels[0][0] == chan.object_path, channels
+    assert channels[0][1] == chan.immutable, channels
+    assert e.args[3] == [request_path], e.args
+    # FIXME: untrue: assert e.args[4] == user_action_time
+    assert isinstance(e.args[5], dict)
+    assert len(e.args) == 6
+
+    # Handler accepts the Channels
+    q.dbus_return(e.message, signature='')
+
+    # FIXME: this shouldn't happen until after HandleChannels has succeeded,
+    # but MC currently does this as soon as HandleWith is called (fd.o #21003)
+    #q.expect('dbus-signal', path=cdo_path, signal='Finished')
+    #q.expect('dbus-signal', path=cs.CD_PATH,
+    #    signal='DispatchOperationFinished', args=[cdo_path])
+
+    sync_dbus(bus, q, mc)
 
 if __name__ == '__main__':
     exec_test(test, {})

@@ -457,26 +457,6 @@ mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
     return NULL;
 }
 
-static void
-mcd_dispatcher_set_channel_handled_by (McdDispatcher *self,
-                                       McdChannel *channel,
-                                       const gchar *unique_name)
-{
-    const gchar *path;
-    TpChannel *tp_channel;
-
-    g_assert (unique_name != NULL);
-
-    path = mcd_channel_get_object_path (channel);
-    tp_channel = mcd_channel_get_tp_channel (channel);
-    g_return_if_fail (tp_channel != NULL);
-
-    _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_DISPATCHED);
-
-    _mcd_handler_map_set_channel_handled (self->priv->handler_map,
-                                          tp_channel, unique_name);
-}
-
 static void mcd_dispatcher_run_handlers (McdDispatchOperation *op,
                                          McdDispatcherContext *context);
 
@@ -485,62 +465,10 @@ handle_channels_cb (TpClient *proxy, const GError *error, gpointer user_data,
                     GObject *weak_object)
 {
     McdDispatcherContext *context = user_data;
-    const GList *list;
 
     mcd_dispatcher_context_ref (context, "CTXREF02");
-    if (error)
-    {
-        DEBUG ("error: %s", error->message);
-
-        _mcd_dispatch_operation_set_handler_failed (context->operation,
-            tp_proxy_get_bus_name (proxy));
-
-        /* try again */
-        mcd_dispatcher_run_handlers (context->operation, context);
-    }
-    else
-    {
-        for (list = _mcd_dispatch_operation_peek_channels (context->operation);
-             list != NULL;
-             list = list->next)
-        {
-            McdChannel *channel = list->data;
-            const gchar *unique_name;
-
-            unique_name = _mcd_client_proxy_get_unique_name (MCD_CLIENT_PROXY (proxy));
-
-            /* This should always be false in practice - either we already know
-             * the handler's unique name (because active handlers' unique names
-             * are discovered before their handler filters), or the handler
-             * is activatable and was not running, the handler filter came
-             * from a .client file, and the bus daemon activated the handler
-             * as a side-effect of HandleChannels (in which case
-             * NameOwnerChanged should have already been emitted by the time
-             * we got a reply to HandleChannels).
-             *
-             * We recover by whining to stderr and closing the channels, in the
-             * interests of at least failing visibly.
-             *
-             * If dbus-glib exposed more of the details of the D-Bus message
-             * passing system, then we could just look at the sender of the
-             * reply and bypass this rubbish...
-             */
-            if (G_UNLIKELY (unique_name == NULL || unique_name[0] == '\0'))
-            {
-                g_warning ("Client %s returned successfully but doesn't "
-                           "exist? dbus-daemon bug suspected",
-                           tp_proxy_get_bus_name (proxy));
-                g_warning ("Closing channel %s as a result",
-                           mcd_channel_get_object_path (channel));
-                _mcd_channel_undispatchable (channel);
-                continue;
-            }
-
-            mcd_dispatcher_set_channel_handled_by (context->dispatcher,
-                                                   channel, unique_name);
-        }
-    }
-
+    _mcd_dispatch_operation_handle_channels_cb (context->operation,
+                                                proxy, error);
     mcd_dispatcher_context_unref (context, "CTXREF02");
 }
 
@@ -691,6 +619,22 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
     return ret;
 }
 
+static const gchar *
+mcd_dispatcher_borrow_channel_connection_path (McdChannel *channel)
+{
+    TpChannel *tp_channel;
+    TpConnection *tp_connection;
+    const gchar *connection_path;
+
+    tp_channel = mcd_channel_get_tp_channel (channel);
+    g_return_val_if_fail (tp_channel != NULL, "/");
+    tp_connection = tp_channel_borrow_connection (tp_channel);
+    g_return_val_if_fail (tp_connection != NULL, "/");
+    connection_path = tp_proxy_get_object_path (tp_connection);
+    g_return_val_if_fail (connection_path != NULL, "/");
+    return connection_path;
+}
+
 /*
  * mcd_dispatcher_handle_channels:
  * @context: the #McdDispatcherContext
@@ -703,16 +647,23 @@ mcd_dispatcher_handle_channels (McdDispatcherContext *context,
                                 McdClientProxy *handler)
 {
     guint64 user_action_time;
-    McdConnection *connection;
     const gchar *account_path, *connection_path;
     GPtrArray *channels_array, *satisfied_requests;
     GHashTable *handler_info;
     const GList *cl;
 
-    connection = mcd_dispatcher_context_get_connection (context);
-    connection_path = connection ?
-        mcd_connection_get_object_path (connection) : NULL;
-    if (G_UNLIKELY (!connection_path)) connection_path = "/";
+    cl = _mcd_dispatch_operation_peek_channels (context->operation);
+
+    if (G_LIKELY (cl != NULL))
+    {
+        connection_path =
+            mcd_dispatcher_borrow_channel_connection_path (cl->data);
+    }
+    else
+    {
+        /* FIXME: make this provably untrue */
+        connection_path = "/";
+    }
 
     account_path = _mcd_dispatch_operation_get_account_path
         (context->operation);
@@ -1137,8 +1088,6 @@ static void
 mcd_dispatcher_run_clients (McdDispatcherContext *context)
 {
     mcd_dispatcher_context_ref (context, "CTXREF07");
-    _mcd_dispatch_operation_set_invoking_early_clients (context->operation,
-                                                        TRUE);
 
     mcd_dispatcher_run_observers (context);
 
@@ -1159,8 +1108,7 @@ mcd_dispatcher_run_clients (McdDispatcherContext *context)
             mcd_dispatcher_run_approvers (context);
     }
 
-    _mcd_dispatch_operation_set_invoking_early_clients (context->operation,
-                                                        FALSE);
+    _mcd_dispatch_operation_set_invoked_early_clients (context->operation);
     mcd_dispatcher_context_unref (context, "CTXREF07");
 }
 
@@ -1230,42 +1178,11 @@ mcd_dispatcher_op_ready_to_dispatch_cb (McdDispatchOperation *operation,
     g_assert (!_mcd_dispatch_operation_has_observers_pending
               (context->operation));
 
-    if (_mcd_dispatch_operation_peek_channels (context->operation) == NULL)
-    {
-        DEBUG ("Nothing left to dispatch");
-
-        _mcd_dispatch_operation_set_channels_handled (context->operation,
-                                                      TRUE);
-    }
-    else if (_mcd_dispatch_operation_is_claimed (operation))
-    {
-        const GList *list;
-
-        /* we don't release the client lock, in order to not run the handlers.
-         * But we have to mark all channels as dispatched, and free the
-         * @context */
-        for (list = _mcd_dispatch_operation_peek_channels (context->operation);
-             list != NULL;
-             list = list->next)
-        {
-            McdChannel *channel = MCD_CHANNEL (list->data);
-
-            mcd_dispatcher_set_channel_handled_by (context->dispatcher,
-                channel, _mcd_dispatch_operation_get_claimer (operation));
-        }
-
-        g_assert (!_mcd_dispatch_operation_get_channels_handled
-                  (context->operation));
-        _mcd_dispatch_operation_set_channels_handled (context->operation,
-                                                      TRUE);
-    }
-
     if (_mcd_dispatch_operation_is_awaiting_approval (context->operation))
     {
         _mcd_dispatch_operation_set_awaiting_approval (context->operation,
                                                        FALSE);
         _mcd_dispatch_operation_set_approved (context->operation);
-        _mcd_dispatch_operation_check_client_locks (context->operation);
         mcd_dispatcher_context_unref (context, "CTXREF14");
     }
 
@@ -2003,19 +1920,18 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
             mcd_dispatcher_run_handlers, context);
 
         g_signal_handlers_disconnect_by_func (context->operation,
-                                              on_operation_finished,
-                                              context->dispatcher);
-
-        g_signal_handlers_disconnect_by_func (context->operation,
             mcd_dispatcher_op_ready_to_dispatch_cb, context);
 
-        if (_mcd_dispatch_operation_finish (context->operation) &&
-            context->dispatcher->priv->operation_list_active)
+        /* may emit finished */
+        if (_mcd_dispatch_operation_finish (context->operation))
         {
-            tp_svc_channel_dispatcher_interface_operation_list_emit_dispatch_operation_finished (
-                context->dispatcher,
-                _mcd_dispatch_operation_get_path (context->operation));
+            DEBUG ("Operation wasn't finished when context was unreffed down "
+                   "to nothing!");
         }
+
+        g_signal_handlers_disconnect_by_func (context->operation,
+                                              on_operation_finished,
+                                              context->dispatcher);
 
         priv = MCD_DISPATCHER_PRIV (context->dispatcher);
 
@@ -2524,8 +2440,6 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     GPtrArray *details;
     GPtrArray *satisfied_requests;
     GHashTable *handler_info;
-    TpChannel *channel;
-    TpConnection *connection;
     const gchar *connection_path;
     McdAccount *account;
     const gchar *account_path;
@@ -2584,12 +2498,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     if (G_UNLIKELY (account_path == NULL))    /* can't happen? */
         account_path = "/";
 
-    channel = mcd_channel_get_tp_channel (request);
-    g_assert (channel != NULL);
-    connection = tp_channel_borrow_connection (channel);
-    g_assert (connection != NULL);
-    connection_path = tp_proxy_get_object_path (connection);
-    g_assert (connection_path != NULL);
+    connection_path = mcd_dispatcher_borrow_channel_connection_path (request);
 
     details = _mcd_channel_details_build_from_list (request_as_list);
 

@@ -128,11 +128,11 @@ struct _McdDispatchOperationPrivate
      * McdDispatcherContext, CTXREF14 ensures this). */
     gboolean awaiting_approval;
 
-    /* If TRUE, we're still working out what Observers and Approvers to
+    /* If FALSE, we're still working out what Observers and Approvers to
      * run. This is a temporary client lock; a reference must be held
-     * while it is TRUE (in the McdDispatcherContext, CTXREF07 ensures this).
+     * for as long as it is FALSE.
      */
-    gboolean invoking_early_clients;
+    gboolean invoked_early_clients;
 
     /* The number of observers that have not yet returned from ObserveChannels.
      * Until they have done so, we can't allow the dispatch operation to
@@ -242,7 +242,7 @@ _mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
     {
         DEBUG ("No approver accepted the channels; considering them to be "
                "approved");
-        _mcd_dispatch_operation_set_approved (self);
+        self->priv->approved = TRUE;
     }
 
     _mcd_dispatch_operation_check_client_locks (self);
@@ -251,17 +251,13 @@ _mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
 }
 
 void
-_mcd_dispatch_operation_set_invoking_early_clients (McdDispatchOperation *self,
-                                                    gboolean value)
+_mcd_dispatch_operation_set_invoked_early_clients (McdDispatchOperation *self)
 {
     g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
-    g_return_if_fail (self->priv->invoking_early_clients == !value);
-    self->priv->invoking_early_clients = value;
+    g_return_if_fail (self->priv->invoked_early_clients == FALSE);
+    self->priv->invoked_early_clients = TRUE;
 
-    if (!value)
-    {
-        _mcd_dispatch_operation_check_client_locks (self);
-    }
+    _mcd_dispatch_operation_check_client_locks (self);
 }
 
 gboolean
@@ -279,21 +275,6 @@ _mcd_dispatch_operation_set_awaiting_approval (McdDispatchOperation *self,
     self->priv->awaiting_approval = value;
 }
 
-void
-_mcd_dispatch_operation_set_channels_handled (McdDispatchOperation *self,
-                                              gboolean value)
-{
-    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
-    self->priv->channels_handled = value;
-}
-
-gboolean
-_mcd_dispatch_operation_get_channels_handled (McdDispatchOperation *self)
-{
-    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
-    return self->priv->channels_handled;
-}
-
 gboolean
 _mcd_dispatch_operation_get_cancelled (McdDispatchOperation *self)
 {
@@ -304,15 +285,15 @@ _mcd_dispatch_operation_get_cancelled (McdDispatchOperation *self)
 void
 _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 {
-    if (!self->priv->invoking_early_clients &&
+    if (self->priv->invoked_early_clients &&
+        !_mcd_dispatch_operation_has_ado_pending (self) &&
         !_mcd_dispatch_operation_has_observers_pending (self) &&
         _mcd_dispatch_operation_is_approved (self))
     {
         /* no observers etc. left */
-        if (!_mcd_dispatch_operation_get_channels_handled (self))
+        if (!self->priv->channels_handled)
         {
-            _mcd_dispatch_operation_set_channels_handled (self,
-                                                          TRUE);
+            self->priv->channels_handled = TRUE;
             g_signal_emit (self, signals[S_RUN_HANDLERS], 0);
         }
     }
@@ -428,10 +409,55 @@ properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 }
 
 static void
+mcd_dispatch_operation_set_channel_handled_by (McdDispatchOperation *self,
+                                               McdChannel *channel,
+                                               const gchar *unique_name)
+{
+    const gchar *path;
+    TpChannel *tp_channel;
+
+    g_assert (unique_name != NULL);
+
+    path = mcd_channel_get_object_path (channel);
+    tp_channel = mcd_channel_get_tp_channel (channel);
+    g_return_if_fail (tp_channel != NULL);
+
+    _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_DISPATCHED);
+
+    _mcd_handler_map_set_channel_handled (self->priv->handler_map,
+                                          tp_channel, unique_name);
+}
+
+static void
 mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
 {
     DEBUG ("%s/%p: finished", self->priv->unique_name, self);
     tp_svc_channel_dispatch_operation_emit_finished (self);
+
+    if (self->priv->channels == NULL)
+    {
+        DEBUG ("Nothing left to dispatch");
+        self->priv->channels_handled = TRUE;
+    }
+
+    if (self->priv->claimer != NULL)
+    {
+        const GList *list;
+
+        /* we don't release the client lock, in order to not run the handlers,
+         * but we do have to mark all channels as dispatched */
+        for (list = self->priv->channels; list != NULL; list = list->next)
+        {
+            McdChannel *channel = MCD_CHANNEL (list->data);
+
+            mcd_dispatch_operation_set_channel_handled_by (self, channel,
+                self->priv->claimer);
+        }
+
+        g_assert (!self->priv->channels_handled);
+        self->priv->channels_handled = TRUE;
+    }
+
     g_signal_emit (self, signals[S_READY_TO_DISPATCH], 0);
 
     if (self->priv->claim_context != NULL)
@@ -1319,6 +1345,7 @@ _mcd_dispatch_operation_set_approved (McdDispatchOperation *self)
 {
     g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
     self->priv->approved = TRUE;
+    _mcd_dispatch_operation_check_client_locks (self);
 }
 
 gboolean
@@ -1345,4 +1372,65 @@ _mcd_dispatch_operation_dup_channels (McdDispatchOperation *self)
     copy = g_list_copy (self->priv->channels);
     g_list_foreach (copy, (GFunc) g_object_ref, NULL);
     return copy;
+}
+
+void _mcd_dispatch_operation_handle_channels_cb (McdDispatchOperation *self,
+                                                 TpClient *client,
+                                                 const GError *error)
+{
+    if (error)
+    {
+        DEBUG ("error: %s", error->message);
+
+        _mcd_dispatch_operation_set_handler_failed (self,
+            tp_proxy_get_bus_name (client));
+
+        /* try again */
+        g_signal_emit (self, signals[S_RUN_HANDLERS], 0);
+    }
+    else
+    {
+        const GList *list;
+
+        for (list = self->priv->channels; list != NULL; list = list->next)
+        {
+            McdChannel *channel = list->data;
+            const gchar *unique_name;
+
+            unique_name = _mcd_client_proxy_get_unique_name (MCD_CLIENT_PROXY (client));
+
+            /* This should always be false in practice - either we already know
+             * the handler's unique name (because active handlers' unique names
+             * are discovered before their handler filters), or the handler
+             * is activatable and was not running, the handler filter came
+             * from a .client file, and the bus daemon activated the handler
+             * as a side-effect of HandleChannels (in which case
+             * NameOwnerChanged should have already been emitted by the time
+             * we got a reply to HandleChannels).
+             *
+             * We recover by whining to stderr and closing the channels, in the
+             * interests of at least failing visibly.
+             *
+             * If dbus-glib exposed more of the details of the D-Bus message
+             * passing system, then we could just look at the sender of the
+             * reply and bypass this rubbish...
+             */
+            if (G_UNLIKELY (unique_name == NULL || unique_name[0] == '\0'))
+            {
+                g_warning ("Client %s returned successfully but doesn't "
+                           "exist? dbus-daemon bug suspected",
+                           tp_proxy_get_bus_name (client));
+                g_warning ("Closing channel %s as a result",
+                           mcd_channel_get_object_path (channel));
+                _mcd_channel_undispatchable (channel);
+                continue;
+            }
+
+            mcd_dispatch_operation_set_channel_handled_by (self, channel,
+                                                           unique_name);
+        }
+
+        /* emit Finished, if we haven't already */
+        _mcd_dispatch_operation_finish (self);
+    }
 }
