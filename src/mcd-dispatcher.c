@@ -119,10 +119,6 @@ struct _McdDispatcherPrivate
 
     TpDBusDaemon *dbus_daemon;
 
-    /* Array of channel handler's capabilities, stored as a GPtrArray for
-     * performance reasons */
-    GPtrArray *channel_handler_caps;
-
     /* list of McdFilter elements */
     GList *filters;
 
@@ -571,8 +567,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
            channels->data,
            channels->next == NULL ? "only" : "and more",
            mcd_channel_get_object_path (channels->data));
-
-    priv->contexts = g_list_prepend (priv->contexts, context);
 
     /* FIXME: what should we do when the channels are a mixture of Requested
      * and unRequested? At the moment we act as though they're all Requested;
@@ -1261,8 +1255,6 @@ static void
 mcd_dispatcher_context_unref (McdDispatcherContext * context,
                               const gchar *tag)
 {
-    McdDispatcherPrivate *priv;
-
     /* FIXME: check for leaks */
     g_return_if_fail (context);
     g_return_if_fail (context->ref_count > 0);
@@ -1272,15 +1264,7 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
     if (context->ref_count == 0)
     {
         DEBUG ("freeing the context %p", context);
-
-        priv = MCD_DISPATCHER_PRIV (context->dispatcher);
-
         g_object_unref (context->operation);
-
-        /* remove the context from the list of active contexts */
-        priv = MCD_DISPATCHER_PRIV (context->dispatcher);
-        priv->contexts = g_list_remove (priv->contexts, context);
-
         g_free (context);
     }
 }
@@ -1917,18 +1901,7 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
             g_return_if_fail (op != NULL);
 
             DEBUG ("channel %p is in CDO %p", channel, op);
-            if (_mcd_dispatch_operation_has_ado_pending (op)
-                || _mcd_dispatch_operation_is_awaiting_approval (op))
-            {
-                /* the existing channel is waiting for approval; but since the
-                 * same channel has been requested, the approval operation must
-                 * terminate */
-                _mcd_dispatch_operation_approve (op);
-            }
-            else
-            {
-                _mcd_dispatch_operation_set_approved (op);
-            }
+            _mcd_dispatch_operation_approve (op);
         }
         DEBUG ("channel %p is proxying %p", request, channel);
     }

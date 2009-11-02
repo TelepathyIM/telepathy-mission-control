@@ -56,13 +56,7 @@ G_GNUC_INTERNAL GType _mcd_dispatch_operation_get_type (void);
 
 G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_path
     (McdDispatchOperation *operation);
-G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_account_path
-    (McdDispatchOperation *self);
 G_GNUC_INTERNAL GHashTable *_mcd_dispatch_operation_get_properties
-    (McdDispatchOperation *operation);
-G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_claimed
-    (McdDispatchOperation *operation);
-G_GNUC_INTERNAL const gchar *_mcd_dispatch_operation_get_handler
     (McdDispatchOperation *operation);
 G_GNUC_INTERNAL void _mcd_dispatch_operation_approve
     (McdDispatchOperation *self);
@@ -86,37 +80,10 @@ G_GNUC_INTERNAL const GList *_mcd_dispatch_operation_peek_channels (
 G_GNUC_INTERNAL GList *_mcd_dispatch_operation_dup_channels (
     McdDispatchOperation *self);
 
-G_GNUC_INTERNAL GPtrArray *_mcd_dispatch_operation_dup_channel_details (
-    McdDispatchOperation *self);
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_finished (
     McdDispatchOperation *self);
-G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_finish (
-    McdDispatchOperation *operation);
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_needs_approval (
     McdDispatchOperation *self);
-G_GNUC_INTERNAL
-const gchar * const *_mcd_dispatch_operation_get_possible_handlers (
-    McdDispatchOperation *self);
-G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_handlers_can_bypass_approval
-   (McdDispatchOperation *self);
-
-G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_get_handler_failed (
-    McdDispatchOperation *self, const gchar *bus_name);
-G_GNUC_INTERNAL void _mcd_dispatch_operation_set_approved (
-    McdDispatchOperation *self);
-
-G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_has_observers_pending (
-    McdDispatchOperation *self);
-
-/* AddDispatchOperation calls */
-G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_has_ado_pending (
-    McdDispatchOperation *self);
-
-/* Client lock while waiting for approvers' opinion */
-G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_awaiting_approval (
-    McdDispatchOperation *self);
-G_GNUC_INTERNAL void _mcd_dispatch_operation_set_awaiting_approval (
-    McdDispatchOperation *self, gboolean value);
 
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_get_cancelled (
     McdDispatchOperation *self);
