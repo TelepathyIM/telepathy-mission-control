@@ -28,6 +28,7 @@
 #include <telepathy-glib/enums.h>
 
 #include "client-registry.h"
+#include "mcd-handler-map-priv.h"
 
 G_BEGIN_DECLS
 
@@ -74,10 +75,16 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_approve
 #define MCD_DISPATCH_OPERATION_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), MCD_TYPE_DISPATCH_OPERATION, McdDispatchOperationClass))
 
 G_GNUC_INTERNAL McdDispatchOperation *_mcd_dispatch_operation_new (
-    McdClientRegistry *client_registry, gboolean needs_approval,
-    GList *channels, const gchar * const *possible_handlers);
-G_GNUC_INTERNAL void _mcd_dispatch_operation_lose_channel (
-    McdDispatchOperation *self, McdChannel *channel, GList **channels);
+    McdClientRegistry *client_registry, McdHandlerMap *handler_map,
+    gboolean needs_approval, GList *channels,
+    const gchar * const *possible_handlers);
+
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_has_channel (
+    McdDispatchOperation *self, McdChannel *channel);
+G_GNUC_INTERNAL const GList *_mcd_dispatch_operation_peek_channels (
+    McdDispatchOperation *self);
+G_GNUC_INTERNAL GList *_mcd_dispatch_operation_dup_channels (
+    McdDispatchOperation *self);
 
 G_GNUC_INTERNAL GPtrArray *_mcd_dispatch_operation_dup_channel_details (
     McdDispatchOperation *self);
@@ -139,7 +146,8 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_set_channels_handled (
 
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_get_cancelled (
     McdDispatchOperation *self);
-G_GNUC_INTERNAL void _mcd_dispatch_operation_set_cancelled (
+
+G_GNUC_INTERNAL void _mcd_dispatch_operation_check_client_locks (
     McdDispatchOperation *self);
 
 G_END_DECLS

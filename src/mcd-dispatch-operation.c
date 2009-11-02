@@ -72,6 +72,15 @@ G_DEFINE_TYPE_WITH_CODE (McdDispatchOperation, _mcd_dispatch_operation,
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES, properties_iface_init);
     )
 
+enum
+{
+    S_READY_TO_DISPATCH,
+    S_RUN_HANDLERS,
+    N_SIGNALS
+};
+
+static guint signals[N_SIGNALS] = { 0 };
+
 struct _McdDispatchOperationPrivate
 {
     const gchar *unique_name;   /* borrowed from object_path */
@@ -92,6 +101,9 @@ struct _McdDispatchOperationPrivate
     gchar *handler;
     gchar *claimer;
     DBusGMethodInvocation *claim_context;
+
+    /* Reference to a global handler map */
+    McdHandlerMap *handler_map;
 
     /* Reference to a global registry of clients */
     McdClientRegistry *client_registry;
@@ -188,6 +200,7 @@ _mcd_dispatch_operation_dec_observers_pending (McdDispatchOperation *self)
     self->priv->observers_pending--;
 
     _mcd_dispatch_operation_check_finished (self);
+    _mcd_dispatch_operation_check_client_locks (self);
     g_object_unref (self);
 }
 
@@ -223,14 +236,18 @@ _mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
     self->priv->ado_pending--;
 
     _mcd_dispatch_operation_check_finished (self);
-    g_object_unref (self);
-}
 
-gboolean
-_mcd_dispatch_operation_is_invoking_early_clients (McdDispatchOperation *self)
-{
-    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
-    return self->priv->invoking_early_clients;
+    if (!_mcd_dispatch_operation_has_ado_pending (self) &&
+        !self->priv->awaiting_approval)
+    {
+        DEBUG ("No approver accepted the channels; considering them to be "
+               "approved");
+        _mcd_dispatch_operation_set_approved (self);
+    }
+
+    _mcd_dispatch_operation_check_client_locks (self);
+
+    g_object_unref (self);
 }
 
 void
@@ -240,6 +257,11 @@ _mcd_dispatch_operation_set_invoking_early_clients (McdDispatchOperation *self,
     g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
     g_return_if_fail (self->priv->invoking_early_clients == !value);
     self->priv->invoking_early_clients = value;
+
+    if (!value)
+    {
+        _mcd_dispatch_operation_check_client_locks (self);
+    }
 }
 
 gboolean
@@ -280,10 +302,20 @@ _mcd_dispatch_operation_get_cancelled (McdDispatchOperation *self)
 }
 
 void
-_mcd_dispatch_operation_set_cancelled (McdDispatchOperation *self)
+_mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 {
-    g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
-    self->priv->cancelled = TRUE;
+    if (!self->priv->invoking_early_clients &&
+        !_mcd_dispatch_operation_has_observers_pending (self) &&
+        _mcd_dispatch_operation_is_approved (self))
+    {
+        /* no observers etc. left */
+        if (!_mcd_dispatch_operation_get_channels_handled (self))
+        {
+            _mcd_dispatch_operation_set_channels_handled (self,
+                                                          TRUE);
+            g_signal_emit (self, signals[S_RUN_HANDLERS], 0);
+        }
+    }
 }
 
 enum
@@ -291,6 +323,7 @@ enum
     PROP_0,
     PROP_CHANNELS,
     PROP_CLIENT_REGISTRY,
+    PROP_HANDLER_MAP,
     PROP_POSSIBLE_HANDLERS,
     PROP_NEEDS_APPROVAL,
 };
@@ -399,6 +432,7 @@ mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
 {
     DEBUG ("%s/%p: finished", self->priv->unique_name, self);
     tp_svc_channel_dispatch_operation_emit_finished (self);
+    g_signal_emit (self, signals[S_READY_TO_DISPATCH], 0);
 
     if (self->priv->claim_context != NULL)
     {
@@ -530,7 +564,7 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
     g_return_val_if_fail (operation != NULL, NULL);
     priv = operation->priv;
 
-    if (!priv->client_registry)
+    if (!priv->client_registry || !priv->handler_map)
         goto error;
 
     create_object_path (priv);
@@ -577,6 +611,35 @@ error:
     g_return_val_if_reached (NULL);
 }
 
+static void _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
+                                                  McdChannel *channel);
+
+static void
+mcd_dispatch_operation_channel_aborted_cb (McdChannel *channel,
+                                           McdDispatchOperation *self)
+{
+    const GError *error;
+
+    g_object_ref (self);    /* FIXME: use a GObject closure or something */
+
+    DEBUG ("Channel %p aborted while in a dispatch operation", channel);
+
+    /* if it was a channel request, and it was cancelled, then the whole
+     * dispatch operation should be aborted, closing any related channels */
+    error = mcd_channel_get_error (channel);
+    if (error && error->code == TP_ERROR_CANCELLED)
+        self->priv->cancelled = TRUE;
+
+    _mcd_dispatch_operation_lose_channel (self, channel);
+
+    if (_mcd_dispatch_operation_peek_channels (self) == NULL)
+    {
+        DEBUG ("Nothing left in this context");
+    }
+
+    g_object_unref (self);
+}
+
 static void
 mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
                                      const GValue *val, GParamSpec *pspec)
@@ -590,6 +653,11 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
     case PROP_CLIENT_REGISTRY:
         g_assert (priv->client_registry == NULL); /* construct-only */
         priv->client_registry = MCD_CLIENT_REGISTRY (g_value_dup_object (val));
+        break;
+
+    case PROP_HANDLER_MAP:
+        g_assert (priv->handler_map == NULL); /* construct-only */
+        priv->handler_map = MCD_HANDLER_MAP (g_value_dup_object (val));
         break;
 
     case PROP_CHANNELS:
@@ -626,9 +694,16 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
                            "Account?!");
             }
 
-            /* reference the channels */
+            /* reference the channels and connect to their signals */
             for (list = priv->channels; list != NULL; list = list->next)
+            {
                 g_object_ref (list->data);
+
+                g_signal_connect_after (list->data, "abort",
+                    G_CALLBACK (mcd_dispatch_operation_channel_aborted_cb),
+                    operation);
+
+            }
         }
         break;
 
@@ -658,6 +733,10 @@ mcd_dispatch_operation_get_property (GObject *obj, guint prop_id,
     {
     case PROP_CLIENT_REGISTRY:
         g_value_set_object (val, priv->client_registry);
+        break;
+
+    case PROP_HANDLER_MAP:
+        g_value_set_object (val, priv->handler_map);
         break;
 
     case PROP_POSSIBLE_HANDLERS:
@@ -706,7 +785,12 @@ mcd_dispatch_operation_dispose (GObject *object)
     if (priv->channels)
     {
         for (list = priv->channels; list != NULL; list = list->next)
+        {
+            g_signal_handlers_disconnect_by_func (list->data,
+                mcd_dispatch_operation_channel_aborted_cb, object);
             g_object_unref (list->data);
+        }
+
         g_list_free (priv->channels);
         priv->channels = NULL;
     }
@@ -729,6 +813,12 @@ mcd_dispatch_operation_dispose (GObject *object)
     {
         g_object_unref (priv->account);
         priv->account = NULL;
+    }
+
+    if (priv->handler_map != NULL)
+    {
+        g_object_unref (priv->handler_map);
+        priv->handler_map = NULL;
     }
 
     if (priv->client_registry != NULL)
@@ -759,6 +849,13 @@ _mcd_dispatch_operation_class_init (McdDispatchOperationClass * klass)
             G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
             G_PARAM_STATIC_STRINGS));
 
+    g_object_class_install_property (object_class, PROP_HANDLER_MAP,
+        g_param_spec_object ("handler-map", "Handler map",
+            "Reference to a global map from handled channels to handlers",
+            MCD_TYPE_HANDLER_MAP,
+            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
+            G_PARAM_STATIC_STRINGS));
+
     g_object_class_install_property (object_class, PROP_CHANNELS,
         g_param_spec_pointer ("channels", "channels", "channels",
                               G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
@@ -776,6 +873,20 @@ _mcd_dispatch_operation_class_init (McdDispatchOperationClass * klass)
                               "appear on D-Bus", FALSE,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
                               G_PARAM_STATIC_STRINGS));
+
+    signals[S_READY_TO_DISPATCH] = g_signal_new ("ready-to-dispatch",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+        0, NULL, NULL,
+        g_cclosure_marshal_VOID__VOID,
+        G_TYPE_NONE, 0);
+
+    signals[S_RUN_HANDLERS] = g_signal_new ("run-handlers",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+        0, NULL, NULL,
+        g_cclosure_marshal_VOID__VOID,
+        G_TYPE_NONE, 0);
 }
 
 static void
@@ -795,6 +906,7 @@ _mcd_dispatch_operation_init (McdDispatchOperation *operation)
 /*
  * _mcd_dispatch_operation_new:
  * @client_registry: the client registry.
+ * @handler_map: the handler map
  * @channels: a #GList of #McdChannel elements to dispatch.
  * @possible_handlers: the bus names of possible handlers for these channels.
  *
@@ -803,6 +915,7 @@ _mcd_dispatch_operation_init (McdDispatchOperation *operation)
  */
 McdDispatchOperation *
 _mcd_dispatch_operation_new (McdClientRegistry *client_registry,
+                             McdHandlerMap *handler_map,
                              gboolean needs_approval,
                              GList *channels,
                              const gchar * const *possible_handlers)
@@ -810,6 +923,7 @@ _mcd_dispatch_operation_new (McdClientRegistry *client_registry,
     gpointer *obj;
     obj = g_object_new (MCD_TYPE_DISPATCH_OPERATION,
                         "client-registry", client_registry,
+                        "handler-map", handler_map,
                         "channels", channels,
                         "possible-handlers", possible_handlers,
                         "needs-approval", needs_approval,
@@ -1015,10 +1129,9 @@ _mcd_dispatch_operation_approve (McdDispatchOperation *self)
     _mcd_dispatch_operation_finish (self);
 }
 
-void
+static void
 _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
-                                      McdChannel *channel,
-                                      GList **channels)
+                                      McdChannel *channel)
 {
     GList *li = g_list_find (self->priv->channels, channel);
     const gchar *object_path;
@@ -1029,14 +1142,6 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
     }
 
     self->priv->channels = g_list_delete_link (self->priv->channels, li);
-
-    /* Because the McdDispatcherContext has a borrowed copy of our list
-     * of channels, we need to tell it the new head of the list, in case
-     * we've just removed the first link. Further, we need to do this before
-     * emitting any signals.
-     *
-     * This is amazingly fragile. */
-    *channels = self->priv->channels;
 
     object_path = mcd_channel_get_object_path (channel);
 
@@ -1214,4 +1319,30 @@ _mcd_dispatch_operation_set_approved (McdDispatchOperation *self)
 {
     g_return_if_fail (MCD_IS_DISPATCH_OPERATION (self));
     self->priv->approved = TRUE;
+}
+
+gboolean
+_mcd_dispatch_operation_has_channel (McdDispatchOperation *self,
+                                     McdChannel *channel)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
+    return (g_list_find (self->priv->channels, channel) != NULL);
+}
+
+const GList *
+_mcd_dispatch_operation_peek_channels (McdDispatchOperation *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), NULL);
+    return self->priv->channels;
+}
+
+GList *
+_mcd_dispatch_operation_dup_channels (McdDispatchOperation *self)
+{
+    GList *copy;
+
+    g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), NULL);
+    copy = g_list_copy (self->priv->channels);
+    g_list_foreach (copy, (GFunc) g_object_ref, NULL);
+    return copy;
 }
