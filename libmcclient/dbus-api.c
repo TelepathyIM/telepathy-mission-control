@@ -111,6 +111,7 @@ properties_get_all_cb (TpProxy *proxy, GHashTable *props,
     if (error == NULL)
 	iface_status->create_props (proxy, props);
 
+    iface_status->contexts = g_slist_reverse (iface_status->contexts);
     for (list = iface_status->contexts; list; list = list->next)
     {
 	ctx = list->data;
