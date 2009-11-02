@@ -148,38 +148,73 @@ def test(q, bus, mc):
             cs.tp_name_prefix + '.Client.Empathy')
 
     # Empathy is asked to handle the channels
-    e, _, _, _ = q.expect_many(
-            EventPattern('dbus-method-call',
-                path=empathy.object_path,
-                interface=cs.HANDLER, method='HandleChannels',
-                handled=False),
-            # FIXME: currently HandleWith succeeds immediately, rather than
-            # failing when HandleChannels fails (fd.o #21003)
-            EventPattern('dbus-return', method='HandleWith'),
-            EventPattern('dbus-signal', interface=cs.CDO, signal='Finished'),
-            EventPattern('dbus-signal', interface=cs.CD_IFACE_OP_LIST,
-                signal='DispatchOperationFinished'),
-            )
+    e = q.expect('dbus-method-call',
+            path=empathy.object_path,
+            interface=cs.HANDLER, method='HandleChannels',
+            handled=False)
 
     # Empathy rejects the channels
     q.dbus_raise(e.message, cs.NOT_AVAILABLE, 'Blind drunk', bus=empathy_bus)
 
+    e = q.expect('dbus-error', method='HandleWith')
+    assert e.error.get_dbus_name() == cs.NOT_AVAILABLE
+    assert e.error.get_dbus_message() == 'Blind drunk'
+
+    # The channels no longer count as having been approved. Check that MC
+    # doesn't carry on regardless
+    forbidden = [EventPattern('dbus-method-call', method='HandleChannels')]
+    q.forbid_events(forbidden)
+    sync_dbus(bus, q, mc)
+    q.unforbid_events(forbidden)
+
+    # I'm Feeling Lucky. It might work if I try again? Maybe?
+    call_async(q, cdo_iface, 'HandleWith',
+            cs.tp_name_prefix + '.Client.Empathy')
+
+    # Empathy is asked to handle the channels, again
+    e = q.expect('dbus-method-call',
+            path=empathy.object_path,
+            interface=cs.HANDLER, method='HandleChannels',
+            handled=False)
+
+    # Empathy rejects the channels, again
+    q.dbus_raise(e.message, cs.NOT_CAPABLE, 'Still drunk', bus=empathy_bus)
+
+    e = q.expect('dbus-error', method='HandleWith')
+    assert e.error.get_dbus_name() == cs.NOT_CAPABLE
+    assert e.error.get_dbus_message() == 'Still drunk'
+
+    # OK, OK, is anyone else competent enough to handle them?
+    # (Also, assert that MC doesn't offer them back to Empathy, knowing that
+    # it already tried and failed)
+    forbidden = [EventPattern('dbus-method-call', method='HandleChannels',
+        path=empathy.object_path)]
+    q.forbid_events(forbidden)
+    call_async(q, cdo_iface, 'HandleWith', '')
+
     # Kopete is asked to handle the channels
-    (k,) = q.expect_many(
-            EventPattern(
-                'dbus-method-call',
+    k = q.expect('dbus-method-call',
                 path=kopete.object_path,
                 interface=cs.HANDLER, method='HandleChannels',
-                handled=False),
-            )
+                handled=False)
 
     # Kopete rejects the channels too
     q.dbus_raise(k.message, cs.NOT_AVAILABLE, 'Also blind drunk',
             bus=kopete_bus)
 
-    # MC gives up and closes the channel
-    q.expect('dbus-method-call', path=chan.object_path,
-            interface=cs.CHANNEL, method='Close', args=[])
+    e = q.expect('dbus-error', method='HandleWith')
+
+    assert e.error.get_dbus_name() == cs.NOT_AVAILABLE
+    assert e.error.get_dbus_message() == 'Also blind drunk'
+
+    # MC gives up and closes the channel. This is the end of the CDO.
+    q.expect_many(
+            EventPattern('dbus-method-call', path=chan.object_path,
+                interface=cs.CHANNEL, method='Close', args=[]),
+            EventPattern('dbus-signal', interface=cs.CDO, signal='Finished'),
+            EventPattern('dbus-signal', interface=cs.CD_IFACE_OP_LIST,
+                signal='DispatchOperationFinished'),
+            )
 
     # Now there are no more active channel dispatch operations
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []
