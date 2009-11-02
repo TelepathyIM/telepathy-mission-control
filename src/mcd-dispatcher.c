@@ -536,7 +536,8 @@ static void
 _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
                                      GList *channels,
                                      const gchar * const *possible_handlers,
-                                     gboolean requested)
+                                     gboolean requested,
+                                     gboolean only_observe)
 {
     McdDispatcherContext *context;
     McdDispatcherPrivate *priv;
@@ -545,6 +546,8 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
     g_return_if_fail (channels != NULL);
     g_return_if_fail (MCD_IS_CHANNEL (channels->data));
+    g_return_if_fail (requested || !only_observe);
+    g_return_if_fail (possible_handlers != NULL || only_observe);
 
     account = mcd_channel_get_account (channels->data);
     if (G_UNLIKELY (!account))
@@ -574,7 +577,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
      * bundle? */
 
     context->operation = _mcd_dispatch_operation_new (priv->clients,
-        priv->handler_map, !requested, channels,
+        priv->handler_map, !requested, only_observe, channels,
         (const gchar * const *) possible_handlers);
 
     if (!requested)
@@ -1605,7 +1608,7 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
  */
 void
 _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
-                               gboolean requested)
+                               gboolean requested, gboolean only_observe)
 {
     GList *list;
     GStrv possible_handlers;
@@ -1621,6 +1624,18 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
            channels->data,
            channels->next == NULL ? "only" : "and more",
            mcd_channel_get_object_path (channels->data));
+
+    if (only_observe)
+    {
+        g_return_if_fail (requested);
+
+        /* these channels were requested "behind our back", so only call
+         * ObserveChannels on them */
+        _mcd_dispatcher_enter_state_machine (dispatcher, channels, NULL,
+                                             TRUE, TRUE);
+        g_list_free (channels);
+        return;
+    }
 
     /* See if there are any handlers that can take all these channels */
     possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
@@ -1644,7 +1659,8 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
             {
                 list = channels;
                 channels = g_list_remove_link (channels, list);
-                _mcd_dispatcher_take_channels (dispatcher, list, requested);
+                _mcd_dispatcher_take_channels (dispatcher, list, requested,
+                                               FALSE);
             }
         }
     }
@@ -1657,7 +1673,7 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
                                      MCD_CHANNEL_STATUS_DISPATCHING);
 
         _mcd_dispatcher_enter_state_machine (dispatcher, channels,
-            (const gchar * const *) possible_handlers, requested);
+            (const gchar * const *) possible_handlers, requested, FALSE);
         g_list_free (channels);
     }
 
@@ -1948,7 +1964,8 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
         requested = mcd_channel_is_requested (channel);
         _mcd_dispatcher_take_channels (dispatcher,
                                        g_list_prepend (NULL, channel),
-                                       requested);
+                                       requested,
+                                       FALSE);
     }
 }
 

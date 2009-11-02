@@ -70,7 +70,7 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_approve
 
 G_GNUC_INTERNAL McdDispatchOperation *_mcd_dispatch_operation_new (
     McdClientRegistry *client_registry, McdHandlerMap *handler_map,
-    gboolean needs_approval, GList *channels,
+    gboolean needs_approval, gboolean observe_only, GList *channels,
     const gchar * const *possible_handlers);
 
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_has_channel (
