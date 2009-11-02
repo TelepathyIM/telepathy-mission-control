@@ -119,30 +119,27 @@ struct _McdDispatchOperationPrivate
 
     /* If TRUE, at least one Approver accepted this dispatch operation, and
      * we're waiting for one of them to call HandleWith or Claim. This is a
-     * client lock; a reference must be held while it is TRUE (in the
-     * McdDispatcherContext, CTXREF14 ensures this). */
+     * client lock; a reference is held while it is TRUE. */
     gboolean awaiting_approval;
 
-    /* If FALSE, we're still working out what Observers and Approvers to
-     * run. This is a temporary client lock; a reference must be held
-     * for as long as it is FALSE.
+    /* If FALSE, we're still working out what Observers and/or Approvers to
+     * run. These are temporary client locks.
      */
-    gboolean invoked_early_clients;
+    gboolean invoked_observers_if_needed;
+    gboolean invoked_approvers_if_needed;
 
     /* The number of observers that have not yet returned from ObserveChannels.
      * Until they have done so, we can't allow the dispatch operation to
      * finish. This is a client lock.
      *
-     * A reference is held for each pending observer (and in the
-     * McdDispatcherContext, one instance of CTXREF05 is held for each). */
+     * A reference is held for each pending observer. */
     gsize observers_pending;
 
     /* The number of approvers that have not yet returned from
      * AddDispatchOperation. Until they have done so, we can't allow the
      * dispatch operation to finish. This is a client lock.
      *
-     * A reference is held for each pending approver (and in the
-     * McdDispatcherContext, one instance of CTXREF06 is held for each). */
+     * A reference is held for each pending approver. */
     gsize ado_pending;
 
     /* If TRUE, either we've already arranged for the channels to get a
@@ -155,6 +152,14 @@ struct _McdDispatchOperationPrivate
     /* if TRUE, these channels were requested "behind our back", so stop
      * after observers */
     gboolean observe_only;
+
+    /* If TRUE, we're in the middle of calling HandleChannels. This is a
+     * client lock. */
+    gboolean calling_handle_channels;
+
+    /* If TRUE, we've tried all the BypassApproval handlers, which happens
+     * before we run approvers. */
+    gboolean tried_handlers_before_approval;
 };
 
 static void _mcd_dispatch_operation_check_finished (
@@ -247,22 +252,69 @@ _mcd_dispatch_operation_is_approved (McdDispatchOperation *self)
     return (self->priv->approved || !self->priv->needs_approval);
 }
 
-static void _mcd_dispatch_operation_run_handlers (McdDispatchOperation *self);
+static gboolean _mcd_dispatch_operation_try_next_handler (
+    McdDispatchOperation *self);
+static void _mcd_dispatch_operation_close_as_undispatchable (
+    McdDispatchOperation *self);
+static gboolean mcd_dispatch_operation_idle_run_approvers (gpointer p);
 
 static void
 _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 {
-    if (self->priv->invoked_early_clients &&
-        self->priv->ado_pending == 0 &&
-        self->priv->observers_pending == 0 &&
-        _mcd_dispatch_operation_is_approved (self))
+    /* we may not continue until we've called all the Observers, and they've
+     * all replied "I'm ready" */
+    if (!self->priv->invoked_observers_if_needed ||
+        self->priv->observers_pending > 0)
     {
-        /* no observers etc. left */
-        if (!self->priv->channels_handled &&
-            !self->priv->observe_only)
+        return;
+    }
+
+    /* if we've called the first Approver, we may not continue until we've
+     * called them all, and they all replied "I'm ready" */
+    if (self->priv->ado_pending > 0)
+    {
+        return;
+    }
+
+    /* if we've called one Handler, we may not continue until it responds
+     * with an error */
+    if (self->priv->calling_handle_channels)
+    {
+        return;
+    }
+
+    /* if a handler has claimed or accepted the channels, we have nothing to
+     * do */
+    if (self->priv->channels_handled)
+    {
+        return;
+    }
+
+    /* If we're only meant to be observing, do nothing */
+    if (self->priv->observe_only)
+    {
+        return;
+    }
+
+    if (self->priv->invoked_approvers_if_needed)
+    {
+        if (_mcd_dispatch_operation_is_approved (self))
         {
-            self->priv->channels_handled = TRUE;
-            _mcd_dispatch_operation_run_handlers (self);
+            if (!_mcd_dispatch_operation_try_next_handler (self))
+            {
+                _mcd_dispatch_operation_close_as_undispatchable (self);
+            }
+        }
+    }
+    else if (!self->priv->tried_handlers_before_approval)
+    {
+        if (!_mcd_dispatch_operation_try_next_handler (self))
+        {
+            self->priv->tried_handlers_before_approval = TRUE;
+
+            g_idle_add_full (G_PRIORITY_HIGH,
+                             mcd_dispatch_operation_idle_run_approvers,
+                             g_object_ref (self), g_object_unref);
         }
     }
 }
@@ -1342,9 +1394,6 @@ _mcd_dispatch_operation_handle_channels_cb (TpClient *client,
 
         _mcd_dispatch_operation_set_handler_failed (self,
             tp_proxy_get_bus_name (client));
-
-        /* try again */
-        _mcd_dispatch_operation_run_handlers (self);
     }
     else
     {
@@ -1390,7 +1439,11 @@ _mcd_dispatch_operation_handle_channels_cb (TpClient *client,
 
         /* emit Finished, if we haven't already */
         _mcd_dispatch_operation_finish (self);
+        self->priv->channels_handled = TRUE;
     }
+
+    self->priv->calling_handle_channels = FALSE;
+    _mcd_dispatch_operation_check_client_locks (self);
 }
 
 static void
@@ -1627,30 +1680,49 @@ _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
     _mcd_dispatch_operation_dec_ado_pending (self);
 }
 
+static gboolean
+mcd_dispatch_operation_idle_run_approvers (gpointer p)
+{
+    McdDispatchOperation *self = p;
+
+    if (_mcd_dispatch_operation_needs_approval (self))
+    {
+        if (!_mcd_dispatch_operation_is_approved (self))
+            _mcd_dispatch_operation_run_approvers (self);
+    }
+
+    self->priv->invoked_approvers_if_needed = TRUE;
+    _mcd_dispatch_operation_check_client_locks (self);
+
+    return FALSE;
+}
+
+/* After this function is called, the McdDispatchOperation takes over its
+ * own life-cycle, and the caller needn't hold an explicit reference to it. */
 void
 _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
 {
     g_object_ref (self);
 
     _mcd_dispatch_operation_run_observers (self);
+    self->priv->invoked_observers_if_needed = TRUE;
 
-    /* if the dispatch operation thinks the channels were not
-     * requested, start the Approvers */
-    if (_mcd_dispatch_operation_needs_approval (self))
+    /* If nobody is bypassing approval, then we want to run approvers as soon
+     * as possible, without waiting for observers, to improve responsiveness.
+     * (The regression test dispatcher/exploding-bundles.py asserts that we
+     * do this.)
+     *
+     * However, if a handler bypasses approval, we must wait til the observers
+     * return, then run that handler, then proceed with the other handlers. */
+    if (!_mcd_dispatch_operation_handlers_can_bypass_approval (self))
     {
-        /* but if the handlers have the BypassApproval flag set, then don't
-         *
-         * FIXME: we should really run BypassApproval handlers as a separate
-         * stage, rather than considering the existence of a BypassApproval
-         * handler to constitute approval - this is fd.o #23687 */
-        if (_mcd_dispatch_operation_handlers_can_bypass_approval (self))
-            _mcd_dispatch_operation_set_approved (self);
+        self->priv->tried_handlers_before_approval = TRUE;
 
-        if (!_mcd_dispatch_operation_is_approved (self))
-            _mcd_dispatch_operation_run_approvers (self);
+        g_idle_add_full (G_PRIORITY_HIGH,
+                         mcd_dispatch_operation_idle_run_approvers,
+                         g_object_ref (self), g_object_unref);
     }
 
-    self->priv->invoked_early_clients = TRUE;
     _mcd_dispatch_operation_check_client_locks (self);
 
     g_object_unref (self);
@@ -1667,17 +1739,20 @@ static void
 mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
                                         McdClientProxy *handler)
 {
+    g_assert (!self->priv->calling_handle_channels);
+    self->priv->calling_handle_channels = TRUE;
+
     _mcd_client_proxy_handle_channels (handler,
         -1, self->priv->channels, self->priv->handle_with_time,
         NULL, _mcd_dispatch_operation_handle_channels_cb,
         g_object_ref (self), g_object_unref, NULL);
 }
 
-void
-_mcd_dispatch_operation_run_handlers (McdDispatchOperation *self)
+static gboolean
+_mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
 {
-    GList *channels, *list;
     gchar **iter;
+    gboolean is_approved = _mcd_dispatch_operation_is_approved (self);
 
     /* If there is an approved handler chosen by the Approver, it's the only
      * one we'll consider. */
@@ -1700,10 +1775,11 @@ _mcd_dispatch_operation_run_handlers (McdDispatchOperation *self)
 
         /* Maybe the handler has exited since we chose it, or maybe we
          * already tried it? Otherwise, it's the right choice. */
-        if (handler != NULL && !failed)
+        if (handler != NULL && !failed &&
+            (is_approved || _mcd_client_proxy_get_bypass_approval (handler)))
         {
             mcd_dispatch_operation_handle_channels (self, handler);
-            return;
+            return TRUE;
         }
 
         /* The approver asked for a particular handler, but that handler
@@ -1725,13 +1801,21 @@ _mcd_dispatch_operation_run_handlers (McdDispatchOperation *self)
         DEBUG ("Possible handler: %s (still exists: %c, already failed: %c)",
                *iter, handler != NULL ? 'Y' : 'N', failed ? 'Y' : 'N');
 
-        if (handler != NULL && !failed)
+        if (handler != NULL && !failed &&
+            (is_approved || _mcd_client_proxy_get_bypass_approval (handler)))
         {
             mcd_dispatch_operation_handle_channels (self, handler);
-            return;
+            return TRUE;
         }
     }
 
+    return FALSE;
+}
+
+static void
+_mcd_dispatch_operation_close_as_undispatchable (McdDispatchOperation *self)
+{
+    GList *channels, *list;
     /* All of the usable handlers vanished while we were thinking about it
      * (this can only happen if non-activatable handlers exit after we
      * include them in the list of possible handlers, but before we .
@@ -1739,6 +1823,8 @@ _mcd_dispatch_operation_run_handlers (McdDispatchOperation *self)
      * approvers again (?), but for now we'll just close all the channels. */
 
     DEBUG ("No possible handler still exists, giving up");
+    _mcd_dispatch_operation_finish (self);
+    self->priv->channels_handled = TRUE;
 
     channels = _mcd_dispatch_operation_dup_channels (self);
 
