@@ -8,15 +8,51 @@ Enhancements:
   (instead of 1) on wrong arguments, and EX_USAGE (instead of g_critical()
   and never terminating) if the requested bus name is not valid (smcv)
 
-* fd.o#24120 (partial): refactor McdDispatcher as follows:
+* fd.o #23651: strongly prefer the PreferredHandler for a channel request, and
+  try dispatching to it even if its HandlerChannelFilters do not indicate that
+  it could handle the channel, since this is very useful for clients like
+  nautilus-sendto (smcv)
+
+* fd.o#24120: refactor McdDispatcher quite extensively:
   + always have a McdDispatchOperation for each McdDispatcherContext, even if
     no approval is needed
-  + start to migrate bits of the dispatching state machine into the dispatch
-    operation to reduce the size of mcd-dispatcher.c
+  + migrate the dispatching state machine into the dispatch operation
   + move client logic into McdClientProxy, removing the McdClient struct
+  + migrate Client discovery and the client registry into a new class
+    McdClientRegistry
+  + remove many unused signals
+  + use McdDispatcherContext for the plugin API and nothing else
   (smcv)
 
+* McdHandlerMap: operate in terms of TpChannel, not McdChannel, to make the
+  code less tightly coupled; watch for channels closing and client crashing
+  internally, rather than relying on other modules (smcv)
+
+* Run the regression tests with GLib and GObject warnings set to fatal (smcv)
+
 Fixes:
+
+* fd.o #23687: if all Handlers with BypassApproval fail, notify approvers
+  and wait for approval before trying other Handlers (smcv)
+
+* fd.o #24474: notify Observers about channels that were requested without
+  going via MC, e.g. by Empathy 2.28.x (smcv)
+
+* fd.o #21003: delay the return from HandleWith until HandleChannels has
+  succeeded or failed, and pass on errors; do not consider HandleWith(H) to
+  be general approval for the channel to be handled with handlers other
+  than H (smcv)
+
+* fd.o #24637: don't emit Finished until the channel dispatch operation has
+  really finished (smcv)
+
+* Fix a possible use-after-free when noting that a client has gone away (smcv)
+
+* Avoid re-dispatching a re-requested channel to a different handler (smcv)
+
+* When calling HandleChannels, use the most recent user-action time from among
+  all requests that led to this channel, and all HandleWith() calls for this
+  channel dispatch operation (smcv)
 
 * Don't call ReloadConfig() on the dbus-daemon (reopening fd.o#23921), to avoid
   triggering fd.o#24350 in dbus-daemon and causing service-activations to
@@ -38,6 +74,8 @@ Fixes:
   waiting for a plugin to make an asynchronous request for permission (smcv)
 
 * Don't leak check_parameters_get_param_cb closure on error (smcv)
+
+* In libmcclient, invoke callbacks for GetAll() in the right order (mardy)
 
 All fixes from stable release 5.2.6 have been incorporated in this release.
 
