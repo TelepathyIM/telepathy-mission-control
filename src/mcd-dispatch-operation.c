@@ -362,24 +362,48 @@ static void _mcd_dispatch_operation_close_as_undispatchable (
 static gboolean mcd_dispatch_operation_idle_run_approvers (gpointer p);
 static void mcd_dispatch_operation_set_channel_handled_by (
     McdDispatchOperation *self, McdChannel *channel, const gchar *unique_name);
+static gboolean _mcd_dispatch_operation_handlers_can_bypass_approval (
+    McdDispatchOperation *self);
 
 static void
 _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 {
     Approval *approval;
 
-    /* we may not continue until we've called all the Observers, and they've
-     * all replied "I'm ready" */
-    if (!self->priv->invoked_observers_if_needed ||
-        self->priv->observers_pending > 0)
+    if (!self->priv->invoked_observers_if_needed)
     {
-        DEBUG ("waiting for Observers");
+        DEBUG ("waiting for Observers to be called");
         return;
     }
 
     if (self->priv->plugins_pending > 0)
     {
         DEBUG ("waiting for plugins to stop delaying");
+        return;
+    }
+
+    /* If nobody is bypassing approval, then we want to run approvers as soon
+     * as possible, without waiting for observers, to improve responsiveness.
+     * (The regression test dispatcher/exploding-bundles.py asserts that we
+     * do this.)
+     *
+     * However, if a handler bypasses approval, we must wait til the observers
+     * return, then run that handler, then proceed with the other handlers. */
+    if (!self->priv->tried_handlers_before_approval &&
+        !_mcd_dispatch_operation_handlers_can_bypass_approval (self)
+        && self->priv->channels != NULL)
+    {
+        self->priv->tried_handlers_before_approval = TRUE;
+
+        g_idle_add_full (G_PRIORITY_HIGH,
+                         mcd_dispatch_operation_idle_run_approvers,
+                         g_object_ref (self), g_object_unref);
+    }
+
+    /* we may not continue until we've called all the Observers, and they've
+     * all replied "I'm ready" */
+    if (self->priv->observers_pending > 0)
+    {
         return;
     }
 
@@ -2031,24 +2055,6 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
 
     DEBUG ("All necessary observers invoked");
     self->priv->invoked_observers_if_needed = TRUE;
-    /* we call check_finished before returning */
-
-    /* If nobody is bypassing approval, then we want to run approvers as soon
-     * as possible, without waiting for observers, to improve responsiveness.
-     * (The regression test dispatcher/exploding-bundles.py asserts that we
-     * do this.)
-     *
-     * However, if a handler bypasses approval, we must wait til the observers
-     * return, then run that handler, then proceed with the other handlers. */
-    if (!_mcd_dispatch_operation_handlers_can_bypass_approval (self)
-        && self->priv->channels != NULL)
-    {
-        self->priv->tried_handlers_before_approval = TRUE;
-
-        g_idle_add_full (G_PRIORITY_HIGH,
-                         mcd_dispatch_operation_idle_run_approvers,
-                         g_object_ref (self), g_object_unref);
-    }
 
     DEBUG ("Checking finished/locks");
     _mcd_dispatch_operation_check_finished (self);
