@@ -93,6 +93,7 @@ struct _McdDispatchOperationPrivate
     /* if TRUE, we will emit finished as soon as we can */
     gboolean wants_to_finish;
     gchar *handler;
+    gint64 handle_with_time;
     gchar *claimer;
     DBusGMethodInvocation *claim_context;
 
@@ -346,37 +347,6 @@ get_account (TpSvcDBusProperties *self, const gchar *name, GValue *value)
             (MCD_DISPATCH_OPERATION (self)));
 }
 
-static GPtrArray *
-_mcd_dispatch_operation_dup_channel_details (McdDispatchOperation *self)
-{
-    McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (self);
-    GPtrArray *channel_array;
-    GList *list;
-
-    channel_array = g_ptr_array_sized_new (g_list_length (priv->channels));
-
-    for (list = priv->channels; list != NULL; list = list->next)
-    {
-        McdChannel *channel = MCD_CHANNEL (list->data);
-        GHashTable *properties;
-        GValue channel_val = { 0, };
-
-        properties = _mcd_channel_get_immutable_properties (channel);
-
-        g_value_init (&channel_val, TP_STRUCT_TYPE_CHANNEL_DETAILS);
-        g_value_take_boxed (&channel_val,
-            dbus_g_type_specialized_construct (TP_STRUCT_TYPE_CHANNEL_DETAILS));
-        dbus_g_type_struct_set (&channel_val,
-                                0, mcd_channel_get_object_path (channel),
-                                1, properties,
-                                G_MAXUINT);
-
-        g_ptr_array_add (channel_array, g_value_get_boxed (&channel_val));
-    }
-
-    return channel_array;
-}
-
 static void
 get_channels (TpSvcDBusProperties *iface, const gchar *name, GValue *value)
 {
@@ -386,7 +356,7 @@ get_channels (TpSvcDBusProperties *iface, const gchar *name, GValue *value)
 
     g_value_init (value, TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST);
     g_value_take_boxed (value,
-                        _mcd_dispatch_operation_dup_channel_details (self));
+        _mcd_channel_details_build_from_list (self->priv->channels));
 }
 
 static void
@@ -526,6 +496,7 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
 {
     GError *error = NULL;
     McdDispatchOperation *self = MCD_DISPATCH_OPERATION (cdo);
+    GTimeVal now = { 0, 0 };
 
     DEBUG ("%s/%p", self->priv->unique_name, self);
 
@@ -535,6 +506,9 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
         g_error_free (error);
         return;
     }
+
+    g_get_current_time (&now);
+    self->priv->handle_with_time = now.tv_sec;
 
     if (handler_name != NULL && handler_name[0] != '\0')
     {
@@ -1450,7 +1424,8 @@ collect_satisfied_requests (GList *channels)
      * never be duplicates, unless my analysis is wrong? */
     for (c = channels; c != NULL; c = c->next)
     {
-        const GList *reqs = _mcd_channel_get_satisfied_requests (c->data);
+        const GList *reqs = _mcd_channel_get_satisfied_requests (c->data,
+                                                                 NULL);
 
         for (r = reqs; r != NULL; r = r->next)
         {
@@ -1630,7 +1605,8 @@ _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
 
         dispatch_operation = _mcd_dispatch_operation_get_path (self);
         properties = _mcd_dispatch_operation_get_properties (self);
-        channel_details = _mcd_dispatch_operation_dup_channel_details (self);
+        channel_details =
+            _mcd_channel_details_build_from_list (self->priv->channels);
 
         DEBUG ("Calling AddDispatchOperation on approver %s for CDO %s @ %p",
                tp_proxy_get_bus_name (client), dispatch_operation, self);
@@ -1691,54 +1667,10 @@ static void
 mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
                                         McdClientProxy *handler)
 {
-    guint64 user_action_time;
-    const gchar *account_path, *connection_path;
-    GPtrArray *channels_array, *satisfied_requests;
-    GHashTable *handler_info;
-    const GList *cl;
-
-    connection_path = _mcd_dispatch_operation_get_connection_path (self);
-    account_path = _mcd_dispatch_operation_get_account_path (self);
-    channels_array = _mcd_dispatch_operation_dup_channel_details (self);
-
-    user_action_time = 0; /* TODO: if we have a CDO, get it from there */
-    satisfied_requests = g_ptr_array_new ();
-
-    for (cl = self->priv->channels; cl != NULL; cl = cl->next)
-    {
-        McdChannel *channel = MCD_CHANNEL (cl->data);
-        const GList *requests;
-        guint64 user_time;
-
-        requests = _mcd_channel_get_satisfied_requests (channel);
-        while (requests)
-        {
-            g_ptr_array_add (satisfied_requests, requests->data);
-            requests = requests->next;
-        }
-
-        /* FIXME: what if we have more than one request? */
-        user_time = _mcd_channel_get_request_user_action_time (channel);
-        if (user_time)
-            user_action_time = user_time;
-
-        _mcd_channel_set_status (channel,
-                                 MCD_CHANNEL_STATUS_HANDLER_INVOKED);
-    }
-
-    handler_info = g_hash_table_new (g_str_hash, g_str_equal);
-
-    DEBUG ("calling HandleChannels on %s for op %p",
-           tp_proxy_get_bus_name (handler), self);
-    tp_cli_client_handler_call_handle_channels ((TpClient *) handler,
-        -1, account_path, connection_path,
-        channels_array, satisfied_requests, user_action_time,
-        handler_info, _mcd_dispatch_operation_handle_channels_cb,
+    _mcd_client_proxy_handle_channels (handler,
+        -1, self->priv->channels, self->priv->handle_with_time,
+        NULL, _mcd_dispatch_operation_handle_channels_cb,
         g_object_ref (self), g_object_unref, NULL);
-
-    g_ptr_array_free (satisfied_requests, TRUE);
-    _mcd_channel_details_free (channels_array);
-    g_hash_table_unref (handler_info);
 }
 
 void

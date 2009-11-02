@@ -452,22 +452,6 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
     return ret;
 }
 
-static const gchar *
-mcd_dispatcher_borrow_channel_connection_path (McdChannel *channel)
-{
-    TpChannel *tp_channel;
-    TpConnection *tp_connection;
-    const gchar *connection_path;
-
-    tp_channel = mcd_channel_get_tp_channel (channel);
-    g_return_val_if_fail (tp_channel != NULL, "/");
-    tp_connection = tp_channel_borrow_connection (tp_channel);
-    g_return_val_if_fail (tp_connection != NULL, "/");
-    connection_path = tp_proxy_get_object_path (tp_connection);
-    g_return_val_if_fail (connection_path != NULL, "/");
-    return connection_path;
-}
-
 /*
  * _mcd_dispatcher_context_abort:
  *
@@ -1775,14 +1759,6 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     GList *request_as_list;
     const gchar *handler_unique;
     GStrv possible_handlers;
-    GPtrArray *details;
-    GPtrArray *satisfied_requests;
-    GHashTable *handler_info;
-    const gchar *connection_path;
-    McdAccount *account;
-    const gchar *account_path;
-    const GList *requests;
-    guint64 user_action_time;
     McdClientProxy *handler;
 
     request_as_list = g_list_append (NULL, request);
@@ -1826,42 +1802,11 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
      * is completely different, because the channel is already being
      * handled perfectly well. */
 
-    /* FIXME: gathering the arguments for HandleChannels is duplicated between
-     * this function and mcd_dispatch_operation_handle_channels */
-
-    account = mcd_channel_get_account (request);
-    account_path = account == NULL ? "/"
-        : mcd_account_get_object_path (account);
-
-    if (G_UNLIKELY (account_path == NULL))    /* can't happen? */
-        account_path = "/";
-
-    connection_path = mcd_dispatcher_borrow_channel_connection_path (request);
-
-    details = _mcd_channel_details_build_from_list (request_as_list);
-
-    satisfied_requests = g_ptr_array_new ();
-
-    for (requests = _mcd_channel_get_satisfied_requests (request);
-         requests != NULL;
-         requests = requests->next)
-    {
-        g_ptr_array_add (satisfied_requests, requests->data);
-    }
-
-    user_action_time = _mcd_channel_get_request_user_action_time (request);
-    handler_info = g_hash_table_new (g_str_hash, g_str_equal);
-
-    _mcd_channel_set_status (request, MCD_CHANNEL_STATUS_HANDLER_INVOKED);
-
-    tp_cli_client_handler_call_handle_channels ((TpClient *) handler,
-        -1, account_path, connection_path, details,
-        satisfied_requests, user_action_time, handler_info,
+    _mcd_client_proxy_handle_channels (handler,
+        -1, request_as_list,
+        0, /* the request's user action time will be used automatically */
+        NULL, /* no extra handler_info */
         reinvoke_handle_channels_cb, NULL, NULL, (GObject *) request);
-
-    g_ptr_array_free (satisfied_requests, TRUE);
-    _mcd_channel_details_free (details);
-    g_hash_table_unref (handler_info);
 
 finally:
     g_list_free (request_as_list);

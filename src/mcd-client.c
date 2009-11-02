@@ -36,6 +36,7 @@
 #include <telepathy-glib/proxy-subclass.h>
 #include <telepathy-glib/util.h>
 
+#include "mcd-channel-priv.h"
 #include "mcd-debug.h"
 
 G_DEFINE_TYPE (McdClientProxy, _mcd_client_proxy, TP_TYPE_CLIENT);
@@ -1535,4 +1536,100 @@ _mcd_client_match_filters (GHashTable *channel_properties,
     }
 
     return best_quality;
+}
+
+static const gchar *
+borrow_channel_account_path (McdChannel *channel)
+{
+    McdAccount *account;
+    const gchar *account_path;
+
+    account = mcd_channel_get_account (channel);
+    account_path = account == NULL ? "/"
+        : mcd_account_get_object_path (account);
+
+    if (G_UNLIKELY (account_path == NULL))    /* can't happen? */
+        account_path = "/";
+
+    return account_path;
+}
+
+static const gchar *
+borrow_channel_connection_path (McdChannel *channel)
+{
+    TpChannel *tp_channel;
+    TpConnection *tp_connection;
+    const gchar *connection_path;
+
+    tp_channel = mcd_channel_get_tp_channel (channel);
+    g_return_val_if_fail (tp_channel != NULL, "/");
+    tp_connection = tp_channel_borrow_connection (tp_channel);
+    g_return_val_if_fail (tp_connection != NULL, "/");
+    connection_path = tp_proxy_get_object_path (tp_connection);
+    g_return_val_if_fail (connection_path != NULL, "/");
+    return connection_path;
+}
+
+void
+_mcd_client_proxy_handle_channels (McdClientProxy *self,
+    gint timeout_ms,
+    const GList *channels,
+    gint64 user_action_time,
+    GHashTable *handler_info,
+    tp_cli_client_handler_callback_for_handle_channels callback,
+    gpointer user_data,
+    GDestroyNotify destroy,
+    GObject *weak_object)
+{
+    GPtrArray *channel_details;
+    GPtrArray *requests_satisfied;
+    const GList *iter;
+
+    g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
+    g_return_if_fail (channels != NULL);
+
+    DEBUG ("calling HandleChannels on %s", tp_proxy_get_bus_name (self));
+
+    channel_details = _mcd_channel_details_build_from_list (channels);
+    requests_satisfied = g_ptr_array_new ();
+
+    if (handler_info == NULL)
+    {
+        handler_info = g_hash_table_new (g_str_hash, g_str_equal);
+    }
+    else
+    {
+        g_hash_table_ref (handler_info);
+    }
+
+    for (iter = channels; iter != NULL; iter = iter->next)
+    {
+        gint64 req_time = 0;
+        const GList *requests;
+
+        for (requests = _mcd_channel_get_satisfied_requests (iter->data,
+                                                             &req_time);
+             requests != NULL;
+             requests = requests->next)
+        {
+            /* list of borrowed object paths */
+            g_ptr_array_add (requests_satisfied, requests->data);
+        }
+
+        if (req_time > user_action_time)
+            user_action_time = req_time;
+
+        _mcd_channel_set_status (iter->data,
+                                 MCD_CHANNEL_STATUS_HANDLER_INVOKED);
+    }
+
+    tp_cli_client_handler_call_handle_channels ((TpClient *) self,
+        timeout_ms, borrow_channel_account_path (channels->data),
+        borrow_channel_connection_path (channels->data), channel_details,
+        requests_satisfied, user_action_time, handler_info,
+        callback, user_data, destroy, weak_object);
+
+    _mcd_channel_details_free (channel_details);
+    g_ptr_array_free (requests_satisfied, TRUE);
+    g_hash_table_unref (handler_info);
 }
