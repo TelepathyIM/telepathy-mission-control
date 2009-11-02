@@ -46,6 +46,17 @@ def test(q, bus, mc):
             observe=[text_fixed_properties], approve=[text_fixed_properties],
             handle=[text_fixed_properties], bypass_approval=False)
 
+    # This client doesn't say it can handle channels, but if it requests one
+    # for itself, we'll at least try dispatching to it.
+    #
+    # A real-world use case for this is if a client wants to request channels,
+    # and handle the channels that it, itself, requested, but not handle
+    # anything requested by others: for instance, nautilus-sendto behaves
+    # like this. See fd.o #23651
+    unsuitable = SimulatedClient(q, bus, 'Unsuitable',
+            observe=[], approve=[], handle=[], is_handler=True,
+            bypass_approval=False)
+
     # No Approver should be invoked at any point during this test, because the
     # Channel was Requested
     def fail_on_approval(e):
@@ -54,20 +65,27 @@ def test(q, bus, mc):
             interface=cs.APPROVER, method='AddDispatchOperation')
 
     # wait for MC to download the properties
-    expect_client_setup(q, [client])
+    expect_client_setup(q, [client, unsuitable])
 
     test_channel_creation(q, bus, account, client, conn, False)
     test_channel_creation(q, bus, account, client, conn, True)
+    test_channel_creation(q, bus, account, client, conn, False, unsuitable)
+    test_channel_creation(q, bus, account, client, conn, False, unsuitable,
+            cs.CHANNEL_TYPE_STREAMED_MEDIA)
 
-def test_channel_creation(q, bus, account, client, conn, ensure):
+def test_channel_creation(q, bus, account, client, conn,
+        ensure=False, prefer=None, channel_type=cs.CHANNEL_TYPE_TEXT):
     user_action_time = dbus.Int64(1238582606)
+
+    if prefer is None:
+        prefer = client
 
     cd = bus.get_object(cs.CD, cs.CD_PATH)
     cd_props = dbus.Interface(cd, cs.PROPERTIES_IFACE)
 
     # chat UI calls ChannelDispatcher.EnsureChannel or CreateChannel
     request = dbus.Dictionary({
-            cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
+            cs.CHANNEL + '.ChannelType': channel_type,
             cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
@@ -75,7 +93,7 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
             cs.ACCOUNT_IFACE_NOKIA_REQUESTS)
     call_async(q, cd,
             (ensure and 'EnsureChannel' or 'CreateChannel'),
-            account.object_path, request, user_action_time, client.bus_name,
+            account.object_path, request, user_action_time, prefer.bus_name,
             dbus_interface=cs.CD)
     ret = q.expect('dbus-return',
             method=(ensure and 'EnsureChannel' or 'CreateChannel'))
@@ -88,7 +106,7 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
     assert request_props['Account'] == account.object_path
     assert request_props['Requests'] == [request]
     assert request_props['UserActionTime'] == user_action_time
-    assert request_props['PreferredHandler'] == client.bus_name
+    assert request_props['PreferredHandler'] == prefer.bus_name
     assert request_props['Interfaces'] == []
 
     cr.Proceed(dbus_interface=cs.CR)
@@ -104,17 +122,16 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
                 path=conn.object_path, args=[request], handled=False),
             EventPattern('dbus-method-call', handled=False,
                 interface=cs.CLIENT_IFACE_REQUESTS,
-                method='AddRequest', path=client.object_path),
+                method='AddRequest'),
             )
 
     assert add_request_call.args[0] == request_path
+    assert add_request_call.path == prefer.object_path
     request_props = add_request_call.args[1]
     assert request_props[cs.CR + '.Account'] == account.object_path
     assert request_props[cs.CR + '.Requests'] == [request]
     assert request_props[cs.CR + '.UserActionTime'] == user_action_time
-    # FIXME: this is not actually in telepathy-spec (although maybe it
-    # should be) - fd.o #21013
-    assert request_props[cs.CR + '.PreferredHandler'] == client.bus_name
+    assert request_props[cs.CR + '.PreferredHandler'] == prefer.bus_name
     assert request_props[cs.CR + '.Interfaces'] == []
 
     q.dbus_return(add_request_call.message, signature='')
@@ -140,26 +157,27 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
                 channel.object_path, channel.immutable, signature='oa{sv}')
     channel.announce()
 
-    # Observer should get told, processing waits for it
-    e = q.expect('dbus-method-call',
-            path=client.object_path,
-            interface=cs.OBSERVER, method='ObserveChannels',
-            handled=False)
-    assert e.args[0] == account.object_path, e.args
-    assert e.args[1] == conn.object_path, e.args
-    assert e.args[3] == '/', e.args         # no dispatch operation
-    assert e.args[4] == [request_path], e.args
-    channels = e.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == channel.object_path, channels
-    assert channels[0][1] == channel_immutable, channels
+    if channel_type == cs.CHANNEL_TYPE_TEXT:
+        # Observer should get told, processing waits for it
+        e = q.expect('dbus-method-call',
+                path=client.object_path,
+                interface=cs.OBSERVER, method='ObserveChannels',
+                handled=False)
+        assert e.args[0] == account.object_path, e.args
+        assert e.args[1] == conn.object_path, e.args
+        assert e.args[3] == '/', e.args         # no dispatch operation
+        assert e.args[4] == [request_path], e.args
+        channels = e.args[2]
+        assert len(channels) == 1, channels
+        assert channels[0][0] == channel.object_path, channels
+        assert channels[0][1] == channel_immutable, channels
 
-    # Observer says "OK, go"
-    q.dbus_return(e.message, signature='')
+        # Observer says "OK, go"
+        q.dbus_return(e.message, signature='')
 
     # Handler is next
     e = q.expect('dbus-method-call',
-            path=client.object_path,
+            path=prefer.object_path,
             interface=cs.HANDLER, method='HandleChannels',
             handled=False)
     assert e.args[0] == account.object_path, e.args

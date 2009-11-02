@@ -131,8 +131,6 @@ def test_channel_creation(q, bus, account, client, conn, lowmem):
     assert request_props[cs.CR + '.Account'] == account.object_path
     assert request_props[cs.CR + '.Requests'] == [request]
     assert request_props[cs.CR + '.UserActionTime'] == user_action_time
-    # FIXME: this is not actually in telepathy-spec (although maybe it
-    # should be) - fd.o #21013
     assert request_props[cs.CR + '.PreferredHandler'] == client.bus_name
     assert request_props[cs.CR + '.Interfaces'] == []
 

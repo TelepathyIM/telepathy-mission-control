@@ -272,32 +272,43 @@ channel_classes_equals (GHashTable *channel_class1, GHashTable *channel_class2)
     return TRUE;
 }
 
+static GList *mcd_dispatcher_list_possible_handlers (McdDispatcher *self,
+    const GList *channels, const gchar *must_have_unique_name,
+    gboolean assume_requested);
+
 static McdClientProxy *
 mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
                                       McdChannel *channel)
 {
-    GHashTable *channel_properties;
-    GHashTableIter iter;
-    gpointer client;
+    const gchar *preferred_handler =
+        _mcd_channel_get_request_preferred_handler (channel);
+    GList *channel_as_list;
+    GList *sorted_handlers;
 
-    /* FIXME: return the "most preferred" handler, not just any handler that
-     * can take it */
-
-    channel_properties = _mcd_channel_get_requested_properties (channel);
-    g_assert (channel_properties != NULL); /* all requests should have these */
-
-    _mcd_client_registry_init_hash_iter (dispatcher->priv->clients, &iter);
-    while (g_hash_table_iter_next (&iter, NULL, &client))
+    if (preferred_handler != NULL && preferred_handler[0] != '\0')
     {
-        if (!tp_proxy_has_interface_by_id (client,
-                                           TP_IFACE_QUARK_CLIENT_HANDLER))
-            continue;
+        McdClientProxy *client = _mcd_client_registry_lookup (
+            dispatcher->priv->clients, preferred_handler);
 
-        if (_mcd_client_match_filters (channel_properties,
-            _mcd_client_proxy_get_handler_filters (client),
-            TRUE) > 0)
+        if (client != NULL)
             return client;
     }
+
+    channel_as_list = g_list_append (NULL, channel);
+
+    sorted_handlers = mcd_dispatcher_list_possible_handlers (dispatcher,
+                                                             channel_as_list,
+                                                             NULL,
+                                                             TRUE);
+
+    if (sorted_handlers != NULL)
+    {
+        McdClientProxy *first = sorted_handlers->data;
+
+        g_list_free (sorted_handlers);
+        return first;
+    }
+
     return NULL;
 }
 
@@ -342,18 +353,17 @@ possible_handler_cmp (gconstpointer a_,
     return 0;
 }
 
-static GStrv
-mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
-                                      const GList *channels,
-                                      const gchar *must_have_unique_name)
+static GList *
+mcd_dispatcher_list_possible_handlers (McdDispatcher *self,
+                                       const GList *channels,
+                                       const gchar *must_have_unique_name,
+                                       gboolean assume_requested)
 {
     GList *handlers = NULL;
     const GList *iter;
+    GList *handlers_iter;
     GHashTableIter client_iter;
     gpointer client_p;
-    guint n_handlers = 0;
-    guint i;
-    GStrv ret;
 
     _mcd_client_registry_init_hash_iter (self->priv->clients, &client_iter);
 
@@ -397,7 +407,7 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
 
             quality = _mcd_client_match_filters (properties,
                 _mcd_client_proxy_get_handler_filters (client),
-                FALSE);
+                assume_requested);
 
             if (quality == 0)
             {
@@ -419,14 +429,37 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
             ph->quality = total_quality;
 
             handlers = g_list_prepend (handlers, ph);
-            n_handlers++;
         }
     }
 
-    /* if no handlers can take them all, fail */
+    /* if no handlers can take them all, fail - unless the channels are
+     * a request that specified a preferred handler, in which case assume
+     * it's suitable */
     if (handlers == NULL)
     {
-        return NULL;
+        McdClientProxy *client;
+        const gchar *preferred_handler = NULL;
+
+        if (channels->data != NULL)
+        {
+            preferred_handler =
+                _mcd_channel_get_request_preferred_handler (channels->data);
+        }
+
+        if (preferred_handler == NULL || preferred_handler[0] == '\0')
+        {
+            return NULL;
+        }
+
+        client = _mcd_client_registry_lookup (self->priv->clients,
+                                              preferred_handler);
+
+        if (client == NULL)
+        {
+            return NULL;
+        }
+
+        return g_list_append (NULL, client);
     }
 
     /* We have at least one handler that can take the whole batch. Sort
@@ -435,14 +468,41 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
     handlers = g_list_sort (handlers, possible_handler_cmp);
     handlers = g_list_reverse (handlers);
 
+    /* convert in-place from a list of PossibleHandler to a list of
+     * McdClientProxy */
+    for (handlers_iter = handlers;
+         handlers_iter != NULL;
+         handlers_iter = handlers_iter->next)
+    {
+        PossibleHandler *ph = handlers_iter->data;
+
+        handlers_iter->data = ph->client;
+        g_slice_free (PossibleHandler, ph);
+    }
+
+    return handlers;
+}
+
+static GStrv
+mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
+                                      const GList *channels,
+                                      const gchar *must_have_unique_name)
+{
+    GList *handlers = mcd_dispatcher_list_possible_handlers (self,
+        channels, must_have_unique_name, FALSE);
+    guint n_handlers = g_list_length (handlers);
+    guint i;
+    GStrv ret;
+    const GList *iter;
+
+    if (handlers == NULL)
+        return NULL;
+
     ret = g_new0 (gchar *, n_handlers + 1);
 
     for (iter = handlers, i = 0; iter != NULL; iter = iter->next, i++)
     {
-        PossibleHandler *ph = iter->data;
-
-        ret[i] = g_strdup (tp_proxy_get_bus_name (ph->client));
-        g_slice_free (PossibleHandler, ph);
+        ret[i] = g_strdup (tp_proxy_get_bus_name (iter->data));
     }
 
     ret[n_handlers] = NULL;
@@ -1853,6 +1913,9 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
     }
     else
     {
+        const gchar *preferred_handler =
+            _mcd_channel_get_request_preferred_handler (request);
+
         _mcd_channel_set_request_proxy (request, channel);
         if (status == MCD_CHANNEL_STATUS_DISPATCHING)
         {
@@ -1862,7 +1925,7 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
             g_return_if_fail (op != NULL);
 
             DEBUG ("channel %p is in CDO %p", channel, op);
-            _mcd_dispatch_operation_approve (op);
+            _mcd_dispatch_operation_approve (op, preferred_handler);
         }
         DEBUG ("channel %p is proxying %p", request, channel);
     }

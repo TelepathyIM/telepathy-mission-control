@@ -591,7 +591,8 @@ class SimulatedClient(object):
     def __init__(self, q, bus, clientname,
             observe=[], approve=[], handle=[],
             cap_tokens=[], bypass_approval=False,
-            request_notification=True, implement_get_interfaces=True):
+            request_notification=True, implement_get_interfaces=True,
+            is_handler=None):
         self.q = q
         self.bus = bus
         self.bus_name = '.'.join([cs.tp_name_prefix, 'Client', clientname])
@@ -604,6 +605,10 @@ class SimulatedClient(object):
         self.request_notification = bool(request_notification)
         self.handled_channels = dbus.Array([], signature='o')
         self.cap_tokens = dbus.Array(cap_tokens, signature='s')
+        self.is_handler = is_handler
+
+        if self.is_handler is None:
+            self.is_handler = bool(handle)
 
         if implement_get_interfaces:
             q.add_dbus_method_impl(self.Get_Interfaces,
@@ -659,7 +664,7 @@ class SimulatedClient(object):
         if self.approve:
             ret.append(cs.APPROVER)
 
-        if self.handle:
+        if self.is_handler:
             ret.append(cs.HANDLER)
 
         if self.request_notification:
@@ -696,7 +701,7 @@ class SimulatedClient(object):
                 bus=self.bus)
 
     def GetAll_Handler(self, e):
-        assert self.handle
+        assert self.is_handler
         self.q.dbus_return(e.message, {
             'HandlerChannelFilter': self.handle,
             'BypassApproval': self.bypass_approval,

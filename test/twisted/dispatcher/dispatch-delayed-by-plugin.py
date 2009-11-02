@@ -205,7 +205,7 @@ def test(q, bus, mc):
             EventPattern('dbus-return', method='EnsureChannel'),
             EventPattern('dbus-method-call', handled=False,
                 interface=cs.CLIENT_IFACE_REQUESTS,
-                method='AddRequest'), # FIXME: path=kopete.object_path),
+                method='AddRequest', path=kopete.object_path),
             )
     request_path = ret.value[0]
 
@@ -243,7 +243,7 @@ def test(q, bus, mc):
     q.dbus_return(e.message, signature='')
 
     e = q.expect('dbus-method-call',
-            # FIXME: untrue: path=kopete.object_path,
+            path=kopete.object_path,
             interface=cs.HANDLER, method='HandleChannels',
             handled=False)
     assert e.args[0] == account.object_path, e.args
