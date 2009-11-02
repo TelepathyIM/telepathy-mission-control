@@ -105,6 +105,14 @@ G_GNUC_INTERNAL void _mcd_client_proxy_dec_ready_lock (McdClientProxy *self);
 
 #define MC_CLIENT_BUS_NAME_BASE_LEN (sizeof (TP_CLIENT_BUS_NAME_BASE) - 1)
 
+G_GNUC_INTERNAL gboolean _mcd_client_match_property (
+    GHashTable *channel_properties, gchar *property_name,
+    GValue *filter_value);
+
+G_GNUC_INTERNAL guint _mcd_client_match_filters (
+    GHashTable *channel_properties, const GList *filters,
+    gboolean assume_requested);
+
 G_END_DECLS
 
 #endif
