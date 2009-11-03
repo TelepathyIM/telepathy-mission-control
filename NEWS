@@ -1,7 +1,10 @@
 telepathy-mission-control 5.3.3 (UNRELEASED)
 ============================================
 
-...
+Fixes:
+
+* fd.o #24875: avoid a dependency on GLib >= 2.22 which was accidentally
+  introduced in 5.3.2
 
 telepathy-mission-control 5.3.2 (2009-11-02)
 ============================================
