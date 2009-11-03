@@ -33,6 +33,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/create-text.py \
 	dispatcher/created-behind-our-back.py \
 	dispatcher/dispatch-activatable.py \
+	dispatcher/dispatch-delayed-by-mini-plugin.py \
 	dispatcher/dispatch-obsolete.py \
 	dispatcher/dispatch-text.py \
 	dispatcher/ensure-and-redispatch.py \
