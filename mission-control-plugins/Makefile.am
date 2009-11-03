@@ -14,7 +14,8 @@ plugins_includedir = \
 	$(includedir)/mission-control-@MCP_API_VERSION@/mission-control-plugins
 
 plugins_include_HEADERS = \
-	mission-control-plugins.h
+	mission-control-plugins.h \
+	dispatch-operation.h
 
 libmission_control_plugins_la_LDFLAGS = \
 	-export-symbols-regex "^(mcp_)" \
@@ -26,4 +27,6 @@ libmission_control_plugins_la_LIBADD = \
 	$(GLIB_LIBS)
 
 libmission_control_plugins_la_SOURCES = \
-	dummy.c
+	dummy.c \
+	dispatch-operation.c \
+	implementation.h

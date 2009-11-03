@@ -25,7 +25,7 @@
 #include <glib-object.h>
 
 #define MCP_IN_MISSION_CONTROL_PLUGINS_H
-/* include sub-headers here */
+#include <mission-control-plugins/dispatch-operation.h>
 #undef  MCP_IN_MISSION_CONTROL_PLUGINS_H
 
 #define MCP_PLUGIN_REF_NTH_OBJECT_SYMBOL "mcp_plugin_ref_nth_object"
