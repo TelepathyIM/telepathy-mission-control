@@ -30,6 +30,30 @@ case "$PACKAGE_VERSION" in
     ;;
 esac
 
+# If API has been removed or changed since last release, change MCP_API (which
+# is part of the directory name under /usr/include) to the version that
+# changed it
+MCP_API_VERSION=5.3
+AC_SUBST([MCP_API_VERSION])
+
+# If ABI has been removed or changed since last release
+#     increment current
+#     set age and revision to 0
+# else if ABI has been added since last release
+#     increment age and current
+#     set revision to 0
+# else if library source has changed since last release
+#     increment revision
+MCP_LT_CURRENT=0
+MCP_LT_REVISION=0
+MCP_LT_AGE=0
+AC_SUBST([MCP_LT_CURRENT])
+AC_SUBST([MCP_LT_REVISION])
+AC_SUBST([MCP_LT_AGE])
+# The ABI version appears in the name of the plugin directory
+MCP_ABI_VERSION=`expr ${MCP_LT_CURRENT} - ${MCP_LT_AGE}`
+AC_SUBST([MCP_ABI_VERSION])
+
 # Recommended CFLAGS for pedantic checking, from telepathy-glib
 
 TP_COMPILER_WARNINGS([ERROR_CFLAGS],
@@ -337,6 +361,8 @@ libmcclient.pc \
 libmcclient/Makefile \
 m4/Makefile \
 mission-control.pc \
+mission-control-plugins.pc \
+mission-control-plugins/Makefile \
 server/Makefile \
 src/Makefile \
 test/Makefile \

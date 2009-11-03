@@ -1,0 +1,14 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+MCP_API_VERSION=@MCP_API_VERSION@
+MCP_ABI_VERSION=@MCP_ABI_VERSION@
+plugindir=${libdir}/mission-control-plugins.@MCP_ABI_VERSION@
+
+Name: mission-control-plugins
+Description: Mission Control plugin API
+Requires: telepathy-glib
+Version: @VERSION@
+Libs: -L${libdir} -lmission-control-plugins
+Cflags: -I${includedir}/mission-control-${MCP_API_VERSION}

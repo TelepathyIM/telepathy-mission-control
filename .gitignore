@@ -62,6 +62,7 @@ ltmain.sh
 /m4/lt~obsolete.m4
 missing
 mission-control.pc
+/mission-control-plugins.pc
 patches/
 stamp-*
 /server/mission-control-5

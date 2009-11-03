@@ -4,6 +4,7 @@ SUBDIRS = \
     m4 \
     tools \
     xml \
+    mission-control-plugins \
     libmcclient \
     src \
     server \
@@ -16,7 +17,7 @@ SUBDIRS += examples
 endif
 
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = libmcclient.pc
+pkgconfig_DATA = libmcclient.pc mission-control-plugins.pc
 
 if ENABLE_PLUGINS
 pkgconfig_DATA += mission-control.pc
