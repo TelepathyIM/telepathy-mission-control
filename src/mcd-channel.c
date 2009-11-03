@@ -1525,9 +1525,9 @@ channel_request_proceed (TpSvcChannelRequest *iface,
     }
 
     self->priv->request_data->proceeding = TRUE;
+    tp_svc_channel_request_return_from_proceed (context);
     _mcd_account_proceed_with_request (self->priv->request_data->account,
                                        self);
-    tp_svc_channel_request_return_from_proceed (context);
 }
 
 gboolean
