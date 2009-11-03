@@ -45,7 +45,10 @@
 
 #include "mcd-channel-priv.h"
 #include "mcd-dbusprop.h"
+#include "mcd-master-priv.h"
 #include "mcd-misc.h"
+#include "plugin-dispatch-operation.h"
+#include "plugin-loader.h"
 
 #include <libmcclient/mc-errors.h>
 
@@ -253,7 +256,9 @@ struct _McdDispatchOperationPrivate
      * before we run approvers. */
     gboolean tried_handlers_before_approval;
 
+    McdPluginDispatchOperation *plugin_api;
     gsize plugins_pending;
+    gboolean did_post_observer_actions;
 };
 
 static void _mcd_dispatch_operation_check_finished (
@@ -380,6 +385,16 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
     {
         DEBUG ("waiting for plugins to stop delaying");
         return;
+    }
+
+    /* Check whether plugins' requests to close channels later should be
+     * honoured. We want to do this before running Approvers (if any). */
+    if (self->priv->observers_pending == 0 &&
+        !self->priv->did_post_observer_actions)
+    {
+        _mcd_plugin_dispatch_operation_observers_finished (
+            self->priv->plugin_api);
+        self->priv->did_post_observer_actions = TRUE;
     }
 
     /* If nobody is bypassing approval, then we want to run approvers as soon
@@ -934,6 +949,8 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
         g_object_unref (dbus_daemon);
     }
 
+    priv->plugin_api = _mcd_plugin_dispatch_operation_new (operation);
+
     return object;
 error:
     g_object_unref (object);
@@ -1143,6 +1160,12 @@ mcd_dispatch_operation_dispose (GObject *object)
 {
     McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (object);
     GList *list;
+
+    if (priv->plugin_api != NULL)
+    {
+        g_object_unref (priv->plugin_api);
+        priv->plugin_api = NULL;
+    }
 
     if (priv->successful_handler != NULL)
     {
@@ -2050,7 +2073,21 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
 
     if (self->priv->channels != NULL)
     {
+        const GList *mini_plugins;
+
+        DEBUG ("Running observers");
         _mcd_dispatch_operation_run_observers (self);
+
+        for (mini_plugins = _mcd_plugin_loader_list_objects ();
+             mini_plugins != NULL;
+             mini_plugins = mini_plugins->next)
+        {
+            if (MCP_IS_DISPATCH_OPERATION_POLICY (mini_plugins->data))
+            {
+                mcp_dispatch_operation_policy_check (mini_plugins->data,
+                    MCP_DISPATCH_OPERATION (self->priv->plugin_api));
+            }
+        }
     }
 
     DEBUG ("All necessary observers invoked");
