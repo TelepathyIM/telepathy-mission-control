@@ -35,6 +35,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/dispatch-activatable.py \
 	dispatcher/dispatch-delayed-by-mini-plugin.py \
 	dispatcher/dispatch-obsolete.py \
+	dispatcher/dispatch-rejected-by-mini-plugin.py \
 	dispatcher/dispatch-text.py \
 	dispatcher/ensure-and-redispatch.py \
 	dispatcher/ensure-is-approval.py \

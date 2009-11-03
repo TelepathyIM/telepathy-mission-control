@@ -30,6 +30,8 @@
 
 #define DEBUG g_debug
 
+/* ------ TestPermissionPlugin -------------------------------------- */
+
 typedef struct {
     GObject parent;
 } TestPermissionPlugin;
@@ -182,15 +184,94 @@ cdo_policy_iface_init (McpDispatchOperationPolicyIface *iface,
       test_permission_plugin_check_cdo);
 }
 
+/* ------ TestRejectionPlugin --------------------------------------- */
+
+typedef struct {
+    GObject parent;
+} TestRejectionPlugin;
+
+typedef struct {
+    GObjectClass parent_class;
+} TestRejectionPluginClass;
+
+GType test_rejection_plugin_get_type (void) G_GNUC_CONST;
+static void rej_cdo_policy_iface_init (McpDispatchOperationPolicyIface *,
+    gpointer);
+
+G_DEFINE_TYPE_WITH_CODE (TestRejectionPlugin, test_rejection_plugin,
+    G_TYPE_OBJECT,
+    G_IMPLEMENT_INTERFACE (MCP_TYPE_DISPATCH_OPERATION_POLICY,
+      rej_cdo_policy_iface_init))
+
+static void
+test_rejection_plugin_init (TestRejectionPlugin *self)
+{
+}
+
+static void
+test_rejection_plugin_class_init (TestRejectionPluginClass *cls)
+{
+}
+
+static void
+test_rejection_plugin_check_cdo (McpDispatchOperationPolicy *policy,
+    McpDispatchOperation *dispatch_operation)
+{
+  GHashTable *properties = mcp_dispatch_operation_ref_nth_channel_properties (
+      dispatch_operation, 0);
+  const gchar *target_id;
+
+  DEBUG ("enter");
+
+  if (properties == NULL)
+    {
+      DEBUG ("no channels!?");
+      return;
+    }
+
+  /* currently this example just checks the first channel */
+
+  target_id = tp_asv_get_string (properties, TP_IFACE_CHANNEL ".TargetID");
+
+  if (!tp_strdiff (target_id, "rick.astley@example.net"))
+    {
+      DEBUG ("rickrolling detected, destroying channels immediately!");
+      mcp_dispatch_operation_destroy_channels (dispatch_operation, FALSE);
+    }
+  else if (!tp_strdiff (target_id, "mc.hammer@example.net"))
+    {
+      DEBUG ("MC Hammer detected, leaving channels when observers have run");
+      mcp_dispatch_operation_leave_channels (dispatch_operation, TRUE,
+          TP_CHANNEL_GROUP_CHANGE_REASON_PERMISSION_DENIED,
+          "Can't touch this");
+    }
+
+  g_hash_table_unref (properties);
+}
+
+static void
+rej_cdo_policy_iface_init (McpDispatchOperationPolicyIface *iface,
+    gpointer unused G_GNUC_UNUSED)
+{
+  mcp_dispatch_operation_policy_iface_implement_check (iface,
+      test_rejection_plugin_check_cdo);
+}
+
+/* ------ Initialization -------------------------------------------- */
+
 GObject *
 mcp_plugin_ref_nth_object (guint n)
 {
-  DEBUG ("Initializing mcp-plugin");
+  DEBUG ("Initializing mcp-plugin (n=%u)", n);
 
   switch (n)
     {
     case 0:
       return g_object_new (test_permission_plugin_get_type (),
+          NULL);
+
+    case 1:
+      return g_object_new (test_rejection_plugin_get_type (),
           NULL);
 
     default:
