@@ -30,6 +30,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/connect-for-request.py \
 	dispatcher/create-handler-fails.py \
 	dispatcher/create-no-preferred-handler.py \
+	dispatcher/create-rejected-by-mini-plugin.py \
 	dispatcher/create-text.py \
 	dispatcher/created-behind-our-back.py \
 	dispatcher/dispatch-activatable.py \

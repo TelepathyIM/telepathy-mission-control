@@ -197,9 +197,13 @@ typedef struct {
 GType test_rejection_plugin_get_type (void) G_GNUC_CONST;
 static void rej_cdo_policy_iface_init (McpDispatchOperationPolicyIface *,
     gpointer);
+static void rej_req_policy_iface_init (McpRequestPolicyIface *,
+    gpointer);
 
 G_DEFINE_TYPE_WITH_CODE (TestRejectionPlugin, test_rejection_plugin,
     G_TYPE_OBJECT,
+    G_IMPLEMENT_INTERFACE (MCP_TYPE_REQUEST_POLICY,
+      rej_req_policy_iface_init);
     G_IMPLEMENT_INTERFACE (MCP_TYPE_DISPATCH_OPERATION_POLICY,
       rej_cdo_policy_iface_init))
 
@@ -255,6 +259,43 @@ rej_cdo_policy_iface_init (McpDispatchOperationPolicyIface *iface,
 {
   mcp_dispatch_operation_policy_iface_implement_check (iface,
       test_rejection_plugin_check_cdo);
+}
+
+static void
+test_rejection_plugin_check_request (McpRequestPolicy *policy,
+    McpRequest *request)
+{
+  GHashTable *properties = mcp_request_ref_nth_request (request, 0);
+
+  DEBUG ("%s", G_STRFUNC);
+
+  if (!tp_strdiff (
+        tp_asv_get_string (properties, TP_IFACE_CHANNEL ".ChannelType"),
+        "com.example.ForbiddenChannel"))
+    {
+      DEBUG ("Forbidden channel detected, denying request");
+      mcp_request_deny (request, TP_ERRORS, TP_ERROR_PERMISSION_DENIED,
+          "No, you don't");
+    }
+
+  if (mcp_request_find_request_by_type (request,
+        0, g_quark_from_static_string ("com.example.ForbiddenChannel"),
+        NULL, NULL))
+    {
+      DEBUG ("Forbidden channel detected, denying request");
+      mcp_request_deny (request, TP_ERRORS, TP_ERROR_PERMISSION_DENIED,
+          "No, you don't");
+    }
+
+  g_hash_table_unref (properties);
+}
+
+static void
+rej_req_policy_iface_init (McpRequestPolicyIface *iface,
+    gpointer unused G_GNUC_UNUSED)
+{
+  mcp_request_policy_iface_implement_check (iface,
+      test_rejection_plugin_check_request);
 }
 
 /* ------ Initialization -------------------------------------------- */
