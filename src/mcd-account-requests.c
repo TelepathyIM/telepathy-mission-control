@@ -46,6 +46,8 @@
 #include "mcd-dispatcher-priv.h"
 #include "mcd-channel-priv.h"
 #include "mcd-misc.h"
+#include "plugin-loader.h"
+#include "plugin-request.h"
 
 static void
 online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
@@ -207,13 +209,53 @@ void
 _mcd_account_proceed_with_request (McdAccount *account,
                                    McdChannel *channel)
 {
+    McdPluginRequest *plugin_api = NULL;
+    GError *error = NULL;
+    const GList *mini_plugins;
+
+    g_object_ref (channel);
+
+    for (mini_plugins = _mcd_plugin_loader_list_objects ();
+         mini_plugins != NULL;
+         mini_plugins = mini_plugins->next)
+    {
+        if (MCP_IS_REQUEST_POLICY (mini_plugins->data))
+        {
+            DEBUG ("Checking request with policy");
+
+            /* Lazily create a plugin-API object if anything cares */
+            if (plugin_api == NULL)
+            {
+                plugin_api = _mcd_plugin_request_new (account, channel);
+            }
+
+            mcp_request_policy_check (mini_plugins->data,
+                                      MCP_REQUEST (plugin_api));
+        }
+    }
+
+    error = _mcd_plugin_request_dup_denial (plugin_api);
+
+    if (error != NULL)
+    {
+        g_message ("request denied by plugin: %s", error->message);
+        mcd_channel_take_error (channel, error);
+        goto finally;
+    }
+
+    DEBUG ("Starting online request");
     /* Put the account online if necessary, and when that's finished,
-     * make the actual request. This is the equivalent of Proceed() in the
-     * new API.
-     *
-     * (The callback releases this reference.) */
+     * make the actual request. (The callback releases this reference.) */
     _mcd_account_online_request (account, online_request_cb,
                                  g_object_ref (channel));
+
+finally:
+    if (plugin_api != NULL)
+    {
+        g_object_unref (plugin_api);
+    }
+
+    g_object_unref (channel);
 }
 
 static void
