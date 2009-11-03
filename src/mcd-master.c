@@ -76,6 +76,7 @@
 #include "mcd-account-priv.h"
 #include "mcd-plugin.h"
 #include "mcd-transport.h"
+#include "plugin-loader.h"
 
 #include <libmcclient/mc-errors.h>
 
@@ -481,6 +482,9 @@ mcd_master_constructor (GType type, guint n_params,
 #ifdef ENABLE_MCD_PLUGINS
     mcd_master_load_mcd_plugins (master);
 #endif
+
+    /* This newer plugin API is currently always enabled */
+    _mcd_plugin_loader_init ();
 
     /* we assume that at this point all transport plugins have been registered.
      * We get the active transports and check whether some accounts should be

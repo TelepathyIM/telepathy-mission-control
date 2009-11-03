@@ -1,8 +1,10 @@
 INCLUDES = \
 	   $(TELEPATHY_CFLAGS) \
 	   $(DBUS_CFLAGS) \
+	   $(GMODULE_CFLAGS) \
 	   $(GLIB_CFLAGS) \
 	   -DG_LOG_DOMAIN=\"mcd\" \
+	   -DMCD_PLUGIN_LOADER_DIR=\"@libdir@/mission-control-plugins.@MCP_ABI_VERSION@\" \
 	   -DMC_DISABLE_DEPRECATED -I$(top_srcdir)
 
 if ENABLE_GNOME_KEYRING
@@ -71,6 +73,7 @@ CLEANFILES = $(BUILT_SOURCES)
 libmcd_convenience_la_LIBADD = \
 	$(top_builddir)/libmcclient/libmcclient.la \
 	$(TELEPATHY_LIBS) \
+	$(GMODULE_LIBS) \
 	$(DBUS_LIBS) \
 	$(GLIB_LIBS)
 
@@ -81,8 +84,8 @@ endif
 noinst_LTLIBRARIES = libmcd-convenience.la
 
 if ENABLE_MCD_PLUGINS
-# When plugins are enabled, libmissioncontrol-server.la is a shared library
-# that wraps the convenience library
+# When this older plugin API is enabled, libmissioncontrol-server.la is a
+# shared library that wraps the convenience library
 lib_LTLIBRARIES = libmissioncontrol-server.la
 libmissioncontrol_server_la_SOURCES =
 libmissioncontrol_server_la_LIBADD = libmcd-convenience.la
@@ -104,14 +107,11 @@ mission_control_include_HEADERS = $(mc_headers)
 genincludedir = $(mission_control_includedir)/_gen
 nodist_geninclude_HEADERS = $(mc_gen_headers)
 
-# We need GModule to load plugins
-libmcd_convenience_la_LIBADD += $(GMODULE_LIBS)
 INCLUDES += \
-	$(GMODULE_CFLAGS) \
 	-DMCD_DEFAULT_FILTER_PLUGIN_DIR=\"@pluginlibdir@\"
 else # ! ENABLE_MCD_PLUGINS
-# When plugins are not enabled, libmissioncontrol-server.la is just a copy of
-# the convenience library
+# When this older plugin API is not enabled, libmissioncontrol-server.la is
+# just a copy of the convenience library
 noinst_LTLIBRARIES += libmissioncontrol-server.la
 libmissioncontrol_server_la_SOURCES =
 libmissioncontrol_server_la_LIBADD = libmcd-convenience.la
@@ -160,6 +160,8 @@ libmcd_convenience_la_SOURCES = \
 	mcd-transport.c \
 	mcd-provisioning.c \
 	mcd-provisioning-factory.c \
+	plugin-loader.c \
+	plugin-loader.h \
 	sp_timestamp.h \
 	$(mc_headers)
 
