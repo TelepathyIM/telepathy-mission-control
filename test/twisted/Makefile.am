@@ -73,13 +73,18 @@ TWISTED_SEPARATE_TESTS = \
 	crash-recovery/crash-recovery.py \
 	dispatcher/create-at-startup.py
 
-if ENABLE_MCD_PLUGINS
-# A demo dispatcher plugin
-noinst_LTLIBRARIES = test-plugin.la
-test_plugin_la_SOURCES = test-plugin.c
+# A demo dispatcher plugin (new, minimal API)
+noinst_LTLIBRARIES = mcp-plugin.la
+mcp_plugin_la_SOURCES = mcp-plugin.c
 # these runes are necessary to make libtool build a dlopen()able shared
 # library even though it's not going to be installed - the default for noinst
 # libraries is static
+mcp_plugin_la_LDFLAGS = -module -shared -avoid-version -rpath @abs_builddir@
+
+if ENABLE_MCD_PLUGINS
+# A demo dispatcher plugin (old API, with access to MCD internals)
+noinst_LTLIBRARIES += test-plugin.la
+test_plugin_la_SOURCES = test-plugin.c
 test_plugin_la_LDFLAGS = -module -shared -avoid-version -rpath @abs_builddir@
 endif
 
