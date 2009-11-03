@@ -406,7 +406,9 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
      * return, then run that handler, then proceed with the other handlers. */
     if (!self->priv->tried_handlers_before_approval &&
         !_mcd_dispatch_operation_handlers_can_bypass_approval (self)
-        && self->priv->channels != NULL)
+        && self->priv->channels != NULL &&
+        ! _mcd_plugin_dispatch_operation_will_terminate (
+            self->priv->plugin_api))
     {
         self->priv->tried_handlers_before_approval = TRUE;
 

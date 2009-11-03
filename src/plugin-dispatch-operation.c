@@ -377,6 +377,13 @@ _mcd_plugin_dispatch_operation_observers_finished (
     }
 }
 
+gboolean
+_mcd_plugin_dispatch_operation_will_terminate (
+    McdPluginDispatchOperation *self)
+{
+  return (self->after_observers != PLUGIN_ACTION_NONE);
+}
+
 static void
 plugin_iface_init (McpDispatchOperationIface *iface,
     gpointer unused G_GNUC_UNUSED)

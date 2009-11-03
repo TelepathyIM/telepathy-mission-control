@@ -62,6 +62,9 @@ McdPluginDispatchOperation *_mcd_plugin_dispatch_operation_new (
 G_GNUC_INTERNAL void _mcd_plugin_dispatch_operation_observers_finished (
     McdPluginDispatchOperation *self);
 
+G_GNUC_INTERNAL gboolean _mcd_plugin_dispatch_operation_will_terminate (
+    McdPluginDispatchOperation *self);
+
 G_END_DECLS
 
 #endif
