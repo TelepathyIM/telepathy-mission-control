@@ -25,6 +25,22 @@
 
 G_BEGIN_DECLS
 
+struct _McpRequestIface {
+    GTypeInterface parent;
+
+    /* Account */
+    const gchar * (*get_account_path) (McpRequest *self);
+    const gchar * (*get_protocol) (McpRequest *self);
+    const gchar * (*get_cm_name) (McpRequest *self);
+
+    gint64 (*get_user_action_time) (McpRequest *self);
+    guint (*get_n_requests) (McpRequest *self);
+    GHashTable * (*ref_nth_request) (McpRequest *self, guint n);
+
+    void (*deny) (McpRequest *self, GQuark domain, gint code,
+        const gchar *message);
+};
+
 struct _McpDispatchOperationIface {
     GTypeInterface parent;
 
