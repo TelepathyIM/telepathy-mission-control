@@ -47,7 +47,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/undispatchable.py \
 	dispatcher/vanishing-client.py
 
-if ENABLE_PLUGINS
+if ENABLE_MCD_PLUGINS
 TWISTED_BASIC_TESTS += \
 	dispatcher/create-delayed-by-plugin.py \
 	dispatcher/dispatch-delayed-by-plugin.py \
@@ -73,7 +73,7 @@ TWISTED_SEPARATE_TESTS = \
 	crash-recovery/crash-recovery.py \
 	dispatcher/create-at-startup.py
 
-if ENABLE_PLUGINS
+if ENABLE_MCD_PLUGINS
 # A demo dispatcher plugin
 noinst_LTLIBRARIES = test-plugin.la
 test_plugin_la_SOURCES = test-plugin.c

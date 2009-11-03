@@ -19,7 +19,7 @@ endif
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libmcclient.pc mission-control-plugins.pc
 
-if ENABLE_PLUGINS
+if ENABLE_MCD_PLUGINS
 pkgconfig_DATA += mission-control.pc
 endif
 

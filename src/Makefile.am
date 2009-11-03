@@ -80,7 +80,7 @@ endif
 
 noinst_LTLIBRARIES = libmcd-convenience.la
 
-if ENABLE_PLUGINS
+if ENABLE_MCD_PLUGINS
 # When plugins are enabled, libmissioncontrol-server.la is a shared library
 # that wraps the convenience library
 lib_LTLIBRARIES = libmissioncontrol-server.la
@@ -109,13 +109,13 @@ libmcd_convenience_la_LIBADD += $(GMODULE_LIBS)
 INCLUDES += \
 	$(GMODULE_CFLAGS) \
 	-DMCD_DEFAULT_FILTER_PLUGIN_DIR=\"@pluginlibdir@\"
-else # ! ENABLE_PLUGINS
+else # ! ENABLE_MCD_PLUGINS
 # When plugins are not enabled, libmissioncontrol-server.la is just a copy of
 # the convenience library
 noinst_LTLIBRARIES += libmissioncontrol-server.la
 libmissioncontrol_server_la_SOURCES =
 libmissioncontrol_server_la_LIBADD = libmcd-convenience.la
-endif # ! ENABLE_PLUGINS
+endif # ! ENABLE_MCD_PLUGINS
 
 libmcd_convenience_la_SOURCES = \
 	mcd-account.c \

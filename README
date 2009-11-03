@@ -78,7 +78,7 @@ libmissioncontrol-server contains most of the implementation of MC, and can
 be used to produce a derivative of MC containing desktop- or device-specific
 behaviour, like Maemo's proprietary osso-mission-control package. It is only
 built and installed as a library if Mission Control is configured with
-the --enable-plugins option; this is not recommended on mainstream Linux
+the --enable-mcd-plugins option; this is not recommended on mainstream Linux
 distributions.
 
 At this stage in development, neither library is considered stable; only

@@ -256,21 +256,21 @@ AM_CONDITIONAL(ENABLE_MC_SERVER_SO6, [test "x$ENABLE_MC_SERVER_SO6" = xyes])
 
 plugins_enabled="no"
 AC_MSG_CHECKING(whether to support plugins)
-AC_ARG_ENABLE(plugins,
-	[  --enable-plugins          support plugins. default=no],
+AC_ARG_ENABLE(mcd-plugins,
+	[  --enable-mcd-plugins       support plugins that use internal APIs. default=no],
 	[
 		AC_MSG_RESULT(${enableval})
-		plugins_enabled="${enableval}"
+		mcd_plugins_enabled="${enableval}"
 	],
 	[
 		AC_MSG_RESULT(no)
-		plugins_enabled="no"
+		mcd_plugins_enabled="no"
 	]
 )
-AM_CONDITIONAL(ENABLE_PLUGINS, [test x$plugins_enabled = xyes])
-if test "x$plugins_enabled" = xyes
+AM_CONDITIONAL(ENABLE_MCD_PLUGINS, [test x$mcd_plugins_enabled = xyes])
+if test "x$mcd_plugins_enabled" = xyes
 then
-  AC_DEFINE([ENABLE_PLUGINS], [1], [Define if plugins should be enabled])
+  AC_DEFINE([ENABLE_MCD_PLUGINS], [1], [Define if MCD plugins should be enabled])
 fi
 
 keyring_enabled="no"

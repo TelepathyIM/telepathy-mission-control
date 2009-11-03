@@ -96,7 +96,7 @@ typedef struct _McdMasterPrivate
 
     GHashTable *extra_parameters;
 
-    GPtrArray *plugins;
+    GPtrArray *mcd_plugins;
     GPtrArray *transport_plugins;
     GList *account_connections;
 
@@ -242,21 +242,21 @@ on_transport_status_changed (McdTransportPlugin *plugin,
     }
 }
 
-#ifdef ENABLE_PLUGINS
+#ifdef ENABLE_MCD_PLUGINS
 static void
-mcd_master_unload_plugins (McdMaster *master)
+mcd_master_unload_mcd_plugins (McdMaster *master)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     GModule *module;
     guint i;
 
-    for (i = 0; i < priv->plugins->len; i++)
+    for (i = 0; i < priv->mcd_plugins->len; i++)
     {
-	module = g_ptr_array_index (priv->plugins, i);
+	module = g_ptr_array_index (priv->mcd_plugins, i);
 	g_module_close (module);
     }
-    g_ptr_array_free (priv->plugins, TRUE);
-    priv->plugins = NULL;
+    g_ptr_array_free (priv->mcd_plugins, TRUE);
+    priv->mcd_plugins = NULL;
 }
 
 static const gchar *
@@ -271,7 +271,7 @@ mcd_master_get_plugin_dir (void)
 }
 
 static void
-mcd_master_load_plugins (McdMaster *master)
+mcd_master_load_mcd_plugins (McdMaster *master)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     const gchar *plugin_dir;
@@ -292,7 +292,7 @@ mcd_master_load_plugins (McdMaster *master)
 
     DEBUG ("Looking for plugins in %s", plugin_dir);
 
-    priv->plugins = g_ptr_array_new ();
+    priv->mcd_plugins = g_ptr_array_new ();
     while ((name = g_dir_read_name (dir)))
     {
 	GModule *module;
@@ -311,7 +311,7 @@ mcd_master_load_plugins (McdMaster *master)
 	    {
                 DEBUG ("Initializing plugin %s", name);
 		init_func ((McdPlugin *)master);
-		g_ptr_array_add (priv->plugins, module);
+		g_ptr_array_add (priv->mcd_plugins, module);
 	    }
 	    else
                 DEBUG ("Error looking up symbol " MCD_PLUGIN_INIT_FUNC
@@ -416,10 +416,10 @@ _mcd_master_dispose (GObject * object)
 	priv->transport_plugins = NULL;
     }
 
-#ifdef ENABLE_PLUGINS
-    if (priv->plugins)
+#ifdef ENABLE_MCD_PLUGINS
+    if (priv->mcd_plugins)
     {
-	mcd_master_unload_plugins (MCD_MASTER (object));
+	mcd_master_unload_mcd_plugins (MCD_MASTER (object));
     }
 #endif
 
@@ -478,8 +478,8 @@ mcd_master_constructor (GType type, guint n_params,
     mcd_operation_take_mission (MCD_OPERATION (priv->proxy),
 				MCD_MISSION (priv->dispatcher));
 
-#ifdef ENABLE_PLUGINS
-    mcd_master_load_plugins (master);
+#ifdef ENABLE_MCD_PLUGINS
+    mcd_master_load_mcd_plugins (master);
 #endif
 
     /* we assume that at this point all transport plugins have been registered.
