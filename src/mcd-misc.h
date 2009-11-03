@@ -55,5 +55,9 @@ void _mc_ext_register_dbus_glib_marshallers (void);
 
 G_GNUC_INTERNAL int _mcd_chmod_private (const gchar *filename);
 
+G_GNUC_INTERNAL GError *_mcd_g_error_new_valist (GQuark domain, gint code,
+                                                 const gchar *format,
+                                                 va_list ap);
+
 G_END_DECLS
 #endif /* MCD_MISC_H */

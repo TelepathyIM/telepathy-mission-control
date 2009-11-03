@@ -242,3 +242,17 @@ _mcd_chmod_private (const gchar *filename)
 
     return ret;
 }
+
+/* FIXME: fd.o#24876: remove this when we depend on GLib 2.22 */
+GError *
+_mcd_g_error_new_valist (GQuark domain,
+                         gint code,
+                         const gchar *format,
+                         va_list ap)
+{
+    gchar *message = g_strdup_vprintf (format, ap);
+    GError *error = g_error_new_literal (domain, code, message);
+
+    g_free (message);
+    return error;
+}
