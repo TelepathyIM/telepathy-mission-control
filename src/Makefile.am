@@ -72,6 +72,7 @@ CLEANFILES = $(BUILT_SOURCES)
 
 libmcd_convenience_la_LIBADD = \
 	$(top_builddir)/libmcclient/libmcclient.la \
+	$(top_builddir)/mission-control-plugins/libmission-control-plugins.la \
 	$(TELEPATHY_LIBS) \
 	$(GMODULE_LIBS) \
 	$(DBUS_LIBS) \
@@ -160,6 +161,8 @@ libmcd_convenience_la_SOURCES = \
 	mcd-transport.c \
 	mcd-provisioning.c \
 	mcd-provisioning-factory.c \
+	plugin-dispatch-operation.c \
+	plugin-dispatch-operation.h \
 	plugin-loader.c \
 	plugin-loader.h \
 	sp_timestamp.h \
