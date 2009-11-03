@@ -165,6 +165,8 @@ libmcd_convenience_la_SOURCES = \
 	plugin-dispatch-operation.h \
 	plugin-loader.c \
 	plugin-loader.h \
+	plugin-request.c \
+	plugin-request.h \
 	sp_timestamp.h \
 	$(mc_headers)
 
