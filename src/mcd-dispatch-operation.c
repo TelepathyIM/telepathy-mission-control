@@ -1565,7 +1565,7 @@ _mcd_dispatch_operation_set_handler_failed (McdDispatchOperation *self,
         if (approval->type == APPROVAL_TYPE_HANDLE_WITH &&
             !tp_strdiff (approval->client_bus_name, bus_name))
         {
-            dbus_g_method_return_error (approval->context, error);
+            dbus_g_method_return_error (approval->context, (GError *) error);
             approval->context = NULL;
             approval_free (approval);
             g_queue_delete_link (self->priv->approvals, iter);

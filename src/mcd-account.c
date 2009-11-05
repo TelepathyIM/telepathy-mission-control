@@ -2072,7 +2072,7 @@ account_remove_delete_cb (McdAccount *account, const GError *error,
 
     if (error != NULL)
     {
-        dbus_g_method_return_error (data->context, error);
+        dbus_g_method_return_error (data->context, (GError *) error);
         return;
     }
 
