@@ -50,6 +50,7 @@
 #include "mcd-account-priv.h"
 #include "mcd-channel-priv.h"
 #include "mcd-enum-types.h"
+#include "request.h"
 
 #define MCD_CHANNEL_PRIV(channel) (MCD_CHANNEL (channel)->priv)
 
@@ -79,6 +80,7 @@ struct _McdChannelPrivate
     McdChannelStatus status;
 
     McdChannelRequestData *request_data;
+    McdRequest *request;
     GList *satisfied_requests;
     gint64 latest_request_time;
 };
@@ -481,6 +483,12 @@ _mcd_channel_dispose (GObject * object)
 	return;
 
     priv->is_disposed = TRUE;
+
+    if (priv->request != NULL)
+    {
+        g_object_unref (priv->request);
+        priv->request = NULL;
+    }
 
     if (priv->request_data)
     {
@@ -1118,6 +1126,8 @@ mcd_channel_new_request (McdAccount *account,
     channel = g_object_new (MCD_TYPE_CHANNEL,
                             "outgoing", TRUE,
                             NULL);
+
+    channel->priv->request = _mcd_request_new (account);
 
     /* TODO: these data could be freed when the channel status becomes
      * MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED */
