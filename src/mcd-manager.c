@@ -91,6 +91,12 @@ on_manager_ready (TpConnectionManager *tp_conn_mgr, const GError *error,
     DEBUG ("manager %s is ready", priv->name);
     priv->ready = TRUE;
     _mcd_object_ready (manager, readiness_quark, error);
+
+    if (error)
+    {
+        /* if instrospection failed, this object is useless: abort it */
+        mcd_mission_abort (MCD_MISSION (manager));
+    }
 }
 
 static gint

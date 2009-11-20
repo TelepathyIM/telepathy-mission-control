@@ -549,6 +549,10 @@ static void on_manager_ready (McdManager *manager, const GError *error,
     if (error)
     {
         DEBUG ("got error: %s", error->message);
+
+        /* we are not interested in the manager anymore */
+        g_object_unref (priv->manager);
+        priv->manager = NULL;
     }
     else
     {
