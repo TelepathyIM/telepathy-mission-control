@@ -159,6 +159,7 @@ struct _McdAccountPrivate
     guint always_on : 1;
 
     /* These fields are used to cache the changed properties */
+    gboolean properties_frozen;
     GHashTable *changed_properties;
     guint properties_source;
 };
@@ -1249,8 +1250,33 @@ emit_property_changed (gpointer userdata)
         g_hash_table_remove_all (priv->changed_properties);
     }
 
-    priv->properties_source = 0;
+    if (priv->properties_source != 0)
+    {
+      g_source_remove (priv->properties_source);
+      priv->properties_source = 0;
+    }
     return FALSE;
+}
+
+static void
+mcd_account_freeze_properties (McdAccount *self)
+{
+    g_return_if_fail (!self->priv->properties_frozen);
+    DEBUG ("%s", self->priv->unique_name);
+    self->priv->properties_frozen = TRUE;
+}
+
+static void
+mcd_account_thaw_properties (McdAccount *self)
+{
+    g_return_if_fail (self->priv->properties_frozen);
+    DEBUG ("%s", self->priv->unique_name);
+    self->priv->properties_frozen = FALSE;
+
+    if (g_hash_table_size (self->priv->changed_properties) != 0)
+    {
+        emit_property_changed (self);
+    }
 }
 
 /*
@@ -1273,7 +1299,6 @@ mcd_account_changed_property (McdAccount *account, const gchar *key,
 	 * emission of the signal now, so that the property will appear in two
 	 * separate signals */
         DEBUG ("Forcibly emit PropertiesChanged now");
-	g_source_remove (priv->properties_source);
 	emit_property_changed (account);
     }
 
@@ -3589,14 +3614,21 @@ _mcd_account_set_connection_status (McdAccount *account,
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     gboolean changed = FALSE;
 
+    DEBUG ("%s: %u because %u", priv->unique_name, status, reason);
+
     if (status == TP_CONNECTION_STATUS_CONNECTED)
     {
         _mcd_account_set_has_been_online (account);
     }
 
+    mcd_account_freeze_properties (account);
+
     if (status != priv->conn_status)
     {
 	GValue value = { 0 };
+
+        DEBUG ("changing connection status from %u to %u", priv->conn_status,
+               status);
 	priv->conn_status = status;
 	g_value_init (&value, G_TYPE_UINT);
 	g_value_set_uint (&value, status);
@@ -3608,6 +3640,9 @@ _mcd_account_set_connection_status (McdAccount *account,
     if (reason != priv->conn_reason)
     {
 	GValue value = { 0 };
+
+        DEBUG ("changing connection status reason from %u to %u",
+               priv->conn_reason, reason);
 	priv->conn_reason = reason;
 	g_value_init (&value, G_TYPE_UINT);
 	g_value_set_uint (&value, reason);
@@ -3616,6 +3651,8 @@ _mcd_account_set_connection_status (McdAccount *account,
 	g_value_unset (&value);
 	changed = TRUE;
     }
+
+    mcd_account_thaw_properties (account);
 
     process_online_requests (account, status, reason);
 

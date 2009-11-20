@@ -98,18 +98,13 @@ def test(q, bus, unused):
         cs.tp_name_prefix + '.AccountManager',
         account_path)
 
-    e, _ = q.expect_many(
-            EventPattern('dbus-signal', signal='AccountPropertyChanged',
-                path=account_path, interface=cs.ACCOUNT,
-                predicate=(lambda e: e.args[0].get('ConnectionStatus') ==
-                    cs.CONN_STATUS_CONNECTING)),
-            EventPattern('dbus-method-call', method='Connect',
-                path=conn.object_path, handled=True, interface=cs.CONN),
-            )
-    assert e.args[0].get('Connection') in (conn.object_path, None)
-    assert e.args[0]['ConnectionStatus'] == cs.CONN_STATUS_CONNECTING
-    assert e.args[0].get('ConnectionStatusReason') in \
-            (cs.CONN_STATUS_REASON_REQUESTED, None)
+    q.expect('dbus-method-call', method='Connect', path=conn.object_path,
+            handled=True, interface=cs.CONN)
+
+    props = account.GetAll(cs.ACCOUNT, dbus_interface=cs.PROPERTIES_IFACE)
+    assert props['Connection'] == conn.object_path
+    assert props['ConnectionStatus'] == cs.CONN_STATUS_CONNECTING
+    assert props['ConnectionStatusReason'] == cs.CONN_STATUS_REASON_REQUESTED
 
     print "becoming connected"
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)

@@ -99,16 +99,8 @@ def test(q, bus, unused):
 
     account_path = (cs.tp_path_prefix + '/Account/' + account_id)
 
-    e, _ = q.expect_many(
-            EventPattern('dbus-signal', signal='AccountPropertyChanged',
-                path=account_path, interface=cs.ACCOUNT,
-                predicate=(lambda e: e.args[0].get('ConnectionStatus') ==
-                    cs.CONN_STATUS_CONNECTING)),
-            EventPattern('dbus-method-call', method='Connect',
-                path=conn.object_path, handled=True, interface=cs.CONN),
-            )
-    assert e.args[0].get('Connection') in (conn.object_path, None)
-    assert e.args[0]['ConnectionStatus'] == cs.CONN_STATUS_CONNECTING
+    q.expect('dbus-method-call', method='Connect',
+                path=conn.object_path, handled=True, interface=cs.CONN)
 
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
 
