@@ -224,7 +224,7 @@ _mcd_account_maybe_autoconnect (McdAccount *account)
 
     if (priv->conn_status != TP_CONNECTION_STATUS_DISCONNECTED)
     {
-        DEBUG ("%s already connected", priv->unique_name);
+        DEBUG ("%s already connecting/connected", priv->unique_name);
         return;
     }
 
