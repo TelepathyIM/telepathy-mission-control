@@ -122,7 +122,7 @@ mcd_account_connection_proceed_with_reason (McdAccount *account,
         else
         {
             _mcd_account_set_connection_status
-                (account, TP_CONNECTION_STATUS_DISCONNECTED, reason);
+                (account, TP_CONNECTION_STATUS_DISCONNECTED, reason, NULL);
         }
         _mcd_account_set_connection_context (account, NULL);
     }

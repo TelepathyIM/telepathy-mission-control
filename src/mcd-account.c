@@ -3601,15 +3601,17 @@ static void
 on_conn_status_changed (McdConnection *connection,
                         TpConnectionStatus status,
                         TpConnectionStatusReason reason,
+                        TpConnection *tp_conn,
                         McdAccount *account)
 {
-    _mcd_account_set_connection_status (account, status, reason);
+    _mcd_account_set_connection_status (account, status, reason, tp_conn);
 }
 
 void
 _mcd_account_set_connection_status (McdAccount *account,
                                     TpConnectionStatus status,
-                                    TpConnectionStatusReason reason)
+                                    TpConnectionStatusReason reason,
+                                    TpConnection *tp_conn)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     gboolean changed = FALSE;
@@ -3651,6 +3653,9 @@ _mcd_account_set_connection_status (McdAccount *account,
 	g_value_unset (&value);
 	changed = TRUE;
     }
+    DEBUG ("TpConnection changed to %p", tp_conn);
+
+    _mcd_account_tp_connection_changed (account, tp_conn);
 
     mcd_account_thaw_properties (account);
 
@@ -3677,11 +3682,22 @@ mcd_account_get_connection_status_reason (McdAccount *account)
 }
 
 void
-_mcd_account_tp_connection_changed (McdAccount *account)
+_mcd_account_tp_connection_changed (McdAccount *account,
+                                    TpConnection *tp_conn)
 {
     GValue value = { 0 };
 
-    get_connection ((TpSvcDBusProperties *)account, "Connection", &value);
+    g_value_init (&value, DBUS_TYPE_G_OBJECT_PATH);
+
+    if (tp_conn == NULL)
+    {
+        g_value_set_static_boxed (&value, "/");
+    }
+    else
+    {
+        g_value_set_boxed (&value, tp_proxy_get_object_path (tp_conn));
+    }
+
     mcd_account_changed_property (account, "Connection", &value);
     g_value_unset (&value);
 
