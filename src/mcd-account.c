@@ -1662,7 +1662,9 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     gboolean reset_connection;
 
     DEBUG ("called");
-    if (G_UNLIKELY (!priv->manager && !load_manager (account)))
+    g_return_val_if_fail (priv->loaded, FALSE);
+
+    if (G_UNLIKELY (!priv->manager))
     {
         g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
                      "Manager %s not found", priv->manager_name);
