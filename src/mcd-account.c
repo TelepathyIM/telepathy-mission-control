@@ -71,8 +71,6 @@ GnomeKeyringPasswordSchema keyring_schema = {
 #define MCD_GNOME_KEYRING_KEY_NAME "key"
 #endif
 
-#define DELAY_PROPERTY_CHANGED
-
 #define MAX_KEY_LENGTH (DBUS_MAXIMUM_NAME_LENGTH + 6)
 #define MC_AVATAR_FILENAME	"avatar.bin"
 
@@ -1236,7 +1234,6 @@ _mcd_account_connect (McdAccount *account, GHashTable *params)
     _mcd_connection_connect (priv->connection, params);
 }
 
-#ifdef DELAY_PROPERTY_CHANGED
 static gboolean
 emit_property_changed (gpointer userdata)
 {
@@ -1252,7 +1249,6 @@ emit_property_changed (gpointer userdata)
     priv->properties_source = 0;
     return FALSE;
 }
-#endif
 
 /*
  * This function is responsible of emitting the AccountPropertyChanged signal.
@@ -1264,7 +1260,6 @@ static void
 mcd_account_changed_property (McdAccount *account, const gchar *key,
 			      const GValue *value)
 {
-#ifdef DELAY_PROPERTY_CHANGED
     McdAccountPrivate *priv = account->priv;
 
     DEBUG ("called: %s", key);
@@ -1297,17 +1292,6 @@ mcd_account_changed_property (McdAccount *account, const gchar *key,
     }
     g_hash_table_insert (priv->changed_properties, (gpointer) key,
                          tp_g_value_slice_dup (value));
-#else
-    GHashTable *properties;
-
-    DEBUG ("called: %s", key);
-    properties = g_hash_table_new (g_str_hash, g_str_equal);
-    g_hash_table_insert (properties, (gpointer)key, (gpointer)value);
-    tp_svc_account_emit_account_property_changed (account,
-						  properties);
-
-    g_hash_table_destroy (properties);
-#endif
 }
 
 typedef enum {
