@@ -1274,14 +1274,6 @@ mcd_account_changed_property (McdAccount *account, const gchar *key,
 	emit_property_changed (account);
     }
 
-    if (G_UNLIKELY (!priv->changed_properties))
-    {
-	priv->changed_properties =
-	    g_hash_table_new_full (g_str_hash, g_str_equal,
-				   NULL,
-                                   (GDestroyNotify) tp_g_value_slice_free);
-    }
-
     if (priv->properties_source == 0)
     {
         DEBUG ("First changed property");
@@ -3023,6 +3015,9 @@ mcd_account_init (McdAccount *account)
 
     priv->conn_status = TP_CONNECTION_STATUS_DISCONNECTED;
     priv->conn_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
+
+    priv->changed_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
+        NULL, (GDestroyNotify) tp_g_value_slice_free);
 }
 
 McdAccount *
