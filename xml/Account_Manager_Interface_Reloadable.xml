@@ -1,0 +1,37 @@
+<?xml version="1.0" ?>
+<node name="/Account_Manager_Interface_Reloadable" xmlns:tp="http://telepathy.freedesktop.org/wiki/DbusSpec#extensions-v0">
+  <tp:copyright>Copyright (C) 2009 Nokia Corporation</tp:copyright>
+  <tp:license xmlns="http://www.w3.org/1999/xhtml">
+    <p>This library is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; either
+version 2.1 of the License, or (at your option) any later version.</p>
+
+<p>This library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.</p>
+
+<p>You should have received a copy of the GNU Lesser General Public
+License along with this library; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</p>
+  </tp:license>
+  <interface name="org.freedesktop.Telepathy.AccountManager.Interface.Reloadable.DRAFT">
+    <tp:requires interface="org.freedesktop.Telepathy.AccountManager"/>
+    <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+      <p>The Reloadable interface provides a way to reload accounts.</p>
+    </tp:docstring>
+
+    <method name="Reload" tp:name-for-bindings="Reload">
+      <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+        <p>Request the reloading of all accounts. The AccountManager SHOULD
+        attempt the reloading of all accounts and emit <tp:dbus-ref
+          namespace="org.freedesktop.Telepathy.AccountManager">AccountValidityChanged</tp:dbus-ref>
+        for all those accounts whose validity has changed as a result of the
+        reloading.</p>
+      </tp:docstring>
+    </method>
+
+  </interface>
+</node>
+<!-- vim:set sw=2 sts=2 et ft=xml: -->
