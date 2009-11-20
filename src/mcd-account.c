@@ -3626,6 +3626,34 @@ _mcd_account_set_connection_status (McdAccount *account,
 
     mcd_account_freeze_properties (account);
 
+    if (priv->tp_connection != tp_conn)
+    {
+        GValue value = { 0 };
+        const gchar *path;
+
+        if (priv->tp_connection != NULL)
+        {
+            g_object_unref (priv->tp_connection);
+        }
+
+        if (tp_conn != NULL)
+        {
+            priv->tp_connection = g_object_ref (tp_conn);
+            path = tp_proxy_get_object_path (tp_conn);
+        }
+        else
+        {
+            priv->tp_connection = NULL;
+            path = "/";
+        }
+
+        g_value_init (&value, DBUS_TYPE_G_OBJECT_PATH);
+        g_value_set_boxed (&value, path);
+        mcd_account_changed_property (account, "Connection", &value);
+        g_value_unset (&value);
+        changed = TRUE;
+    }
+
     if (status != priv->conn_status)
     {
 	GValue value = { 0 };
@@ -3997,9 +4025,6 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
     {
         g_return_if_fail (MCD_IS_CONNECTION (connection));
         g_object_ref (connection);
-
-        priv->tp_connection =
-            g_object_ref (mcd_connection_get_tp_connection (connection));
 
         if (_mcd_connection_is_ready (connection))
         {
