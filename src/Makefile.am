@@ -38,7 +38,8 @@ mc_gen_headers = \
 	_gen/svc-Account_Interface_Conditions.h \
 	_gen/svc-Account_Interface_Stats.h \
 	_gen/svc-Account_Manager_Interface_Creation.h \
-	_gen/svc-Account_Manager_Interface_Query.h
+	_gen/svc-Account_Manager_Interface_Query.h \
+	_gen/svc-Account_Manager_Interface_Reloadable.h
 
 nodist_libmcd_convenience_la_SOURCES = \
 	_gen/cli-Connection_Interface_Contact_Capabilities-body.h \
@@ -52,6 +53,7 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/svc-Account_Interface_Stats.c \
 	_gen/svc-Account_Manager_Interface_Creation.c \
 	_gen/svc-Account_Manager_Interface_Query.c \
+	_gen/svc-Account_Manager_Interface_Reloadable.c \
 	mcd-enum-types.c \
 	mcd-enum-types.h \
 	mcd-signals-marshal.c \
@@ -121,6 +123,7 @@ libmcd_convenience_la_SOURCES = \
 	mcd-account-manager.c \
 	mcd-account-manager-priv.h \
 	mcd-account-manager-query.c \
+	mcd-account-manager-reloadable.c \
 	mcd-account-priv.h \
 	mcd-client.c \
 	mcd-client-priv.h \

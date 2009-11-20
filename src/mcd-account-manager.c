@@ -80,6 +80,9 @@ static const McdInterfaceData account_manager_interfaces[] = {
     MCD_IMPLEMENT_IFACE (mc_svc_account_manager_interface_creation_get_type,
 			 account_manager_creation,
 			 MC_IFACE_ACCOUNT_MANAGER_INTERFACE_CREATION),
+    MCD_IMPLEMENT_IFACE (mc_svc_account_manager_interface_reloadable_get_type,
+			 account_manager_reloadable,
+			 MC_IFACE_ACCOUNT_MANAGER_INTERFACE_RELOADABLE),
     { G_TYPE_INVALID, }
 };
 

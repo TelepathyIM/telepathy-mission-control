@@ -140,6 +140,7 @@ struct _McdAccountPrivate
     guint enabled : 1;
     guint valid : 1;
     guint loaded : 1;
+    guint reloading : 1;
     guint has_been_online : 1;
     guint removed : 1;
     guint always_on : 1;
@@ -286,8 +287,9 @@ value_is_same (const GValue *val1, const GValue *val2)
 static void
 mcd_account_loaded (McdAccount *account)
 {
-    g_return_if_fail (!account->priv->loaded);
+    g_return_if_fail ((!account->priv->loaded) || account->priv->reloading);
     account->priv->loaded = TRUE;
+    account->priv->reloading = FALSE;
 
     /* invoke all the callbacks */
     g_object_ref (account);
@@ -3243,3 +3245,37 @@ _mcd_account_get_always_on (McdAccount *self)
 
     return self->priv->always_on;
 }
+
+void
+_mcd_account_reload (McdAccount *self)
+{
+    McdAccountPrivate *priv;
+
+    g_return_if_fail (MCD_IS_ACCOUNT (self));
+    priv = self->priv;
+
+    /* Reloading performs different actions according to the account state. */
+
+    if (!priv->loaded)
+    {
+        DEBUG ("account %s is still being loaded, not reloading",
+               priv->unique_name);
+        return;
+    }
+
+    if (!priv->manager)
+    {
+        DEBUG ("reloading manager for account %s", priv->unique_name);
+        priv->reloading = TRUE;
+
+        load_manager (self);
+    }
+    else
+    {
+        /* reloading the manager when it couldn't load before is the only
+         * reloading action supported at the moment.
+         * But others might be added here */
+        DEBUG ("reloading account %s: nothing to do", priv->unique_name);
+    }
+}
+

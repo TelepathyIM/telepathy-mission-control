@@ -30,6 +30,7 @@
 
 /* auto-generated stubs */
 #include "_gen/svc-Account_Manager_Interface_Query.h"
+#include "_gen/svc-Account_Manager_Interface_Reloadable.h"
 
 G_BEGIN_DECLS
 
@@ -58,6 +59,10 @@ extern const McdDBusProp account_manager_query_properties[];
 
 void account_manager_query_iface_init (McSvcAccountManagerInterfaceQueryClass *iface,
 				       gpointer iface_data);
+
+extern const McdDBusProp account_manager_reloadable_properties[];
+void account_manager_reloadable_iface_init (McSvcAccountManagerInterfaceReloadableClass *iface,
+                                            gpointer iface_data);
 
 G_END_DECLS
 
