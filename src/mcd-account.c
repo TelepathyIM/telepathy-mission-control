@@ -556,7 +556,7 @@ static void on_manager_ready (McdManager *manager, const GError *error,
     }
     else
     {
-        priv->valid = mcd_account_check_parameters (account);
+        mcd_account_check_validity (account);
     }
     mcd_account_loaded (account);
 }
@@ -1591,6 +1591,8 @@ mcd_account_check_parameters (McdAccount *account)
     gboolean valid;
 
     DEBUG ("called for %s", priv->unique_name);
+    if (!priv->manager) return FALSE;
+
     param = mcd_manager_get_parameters (priv->manager, priv->protocol_name);
     if (!param) return FALSE;
     valid = TRUE;
@@ -2859,7 +2861,7 @@ mcd_account_check_validity (McdAccount *account)
     McdAccountPrivate *priv = account->priv;
     gboolean valid;
 
-    valid = (priv->loaded && mcd_account_check_parameters (account));
+    valid = mcd_account_check_parameters (account);
 
     if (valid != priv->valid)
     {
@@ -2867,19 +2869,24 @@ mcd_account_check_validity (McdAccount *account)
         DEBUG ("Account validity changed (old: %d, new: %d)",
                priv->valid, valid);
 	priv->valid = valid;
-	g_signal_emit (account, _mcd_account_signals[VALIDITY_CHANGED], 0,
-		       valid);
-	g_value_init (&value, G_TYPE_BOOLEAN);
-	g_value_set_boolean (&value, valid);
-	mcd_account_changed_property (account, "Valid", &value);
 
-        if (valid)
+        /* If the account is still being loaded, keep quiet */
+        if (priv->loaded)
         {
-            /* newly valid - try setting requested presence again */
-            mcd_account_request_presence_int (account,
-                                              priv->req_presence_type,
-                                              priv->req_presence_status,
-                                              priv->req_presence_message);
+            g_signal_emit (account, _mcd_account_signals[VALIDITY_CHANGED], 0,
+                           valid);
+            g_value_init (&value, G_TYPE_BOOLEAN);
+            g_value_set_boolean (&value, valid);
+            mcd_account_changed_property (account, "Valid", &value);
+
+            if (valid)
+            {
+                /* newly valid - try setting requested presence again */
+                mcd_account_request_presence_int (account,
+                                                  priv->req_presence_type,
+                                                  priv->req_presence_status,
+                                                  priv->req_presence_message);
+            }
         }
     }
     return valid;
