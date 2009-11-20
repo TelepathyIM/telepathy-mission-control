@@ -37,7 +37,7 @@
 
 #define _POSIX_C_SOURCE 200112L  /* for strtok_r() */
 #include "config.h"
-#include "mcd-manager.h"
+#include "mcd-manager-priv.h"
 #include "mcd-misc.h"
 
 #include <stdio.h>
@@ -545,5 +545,13 @@ mcd_manager_call_when_ready (McdManager *manager, McdManagerReadyCb callback,
     else
         _mcd_object_call_when_ready (manager, readiness_quark,
                                      (McdReadyCb)callback, user_data);
+}
+
+gboolean
+_mcd_manager_is_ready (McdManager *manager)
+{
+    g_return_val_if_fail (MCD_IS_MANAGER (manager), FALSE);
+
+    return manager->priv->ready;
 }
 

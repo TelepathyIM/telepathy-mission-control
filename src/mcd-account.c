@@ -50,7 +50,7 @@
 #include "mcd-connection-priv.h"
 #include "mcd-misc.h"
 #include "mcd-signals-marshal.h"
-#include "mcd-manager.h"
+#include "mcd-manager-priv.h"
 #include "mcd-master.h"
 #include "mcd-master-priv.h"
 #include "mcd-dbusprop.h"
@@ -1593,7 +1593,9 @@ mcd_account_check_parameters (McdAccount *account)
     gboolean valid;
 
     DEBUG ("called for %s", priv->unique_name);
-    if (!priv->manager) return FALSE;
+    /* do not proceed if the manager is not there or it's not ready */
+    if (!priv->manager || !_mcd_manager_is_ready (priv->manager))
+        return FALSE;
 
     param = mcd_manager_get_parameters (priv->manager, priv->protocol_name);
     if (!param) return FALSE;
