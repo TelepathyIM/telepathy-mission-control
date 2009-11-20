@@ -119,6 +119,7 @@ struct _McdAccountPrivate
     gchar *manager_name;
     gchar *protocol_name;
 
+    TpConnection *tp_connection;
     McdConnection *connection;
     McdManager *manager;
     McdAccountManager *account_manager;
@@ -3917,12 +3918,20 @@ mcd_account_connection_ready_cb (McdAccount *account,
     TpConnection *tp_connection;
     GArray *self_handle_array;
     guint self_handle;
+    TpConnectionStatus status;
+    TpConnectionStatusReason reason;
 
     g_return_if_fail (MCD_IS_ACCOUNT (account));
     g_return_if_fail (connection == priv->connection);
 
     tp_connection = mcd_connection_get_tp_connection (connection);
     g_return_if_fail (tp_connection != NULL);
+    g_return_if_fail (priv->tp_connection == NULL ||
+                      tp_connection == priv->tp_connection);
+
+    status = tp_connection_get_status (tp_connection, &reason);
+    _mcd_account_set_connection_status (account, status, reason,
+                                        tp_connection);
 
     self_handle_array = g_array_sized_new (FALSE, FALSE, sizeof (guint), 1);
     self_handle = tp_connection_get_self_handle (tp_connection);
@@ -3976,12 +3985,21 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
         g_object_unref (priv->connection);
     }
 
+    if (priv->tp_connection != NULL)
+    {
+        g_object_unref (priv->tp_connection);
+        priv->tp_connection = NULL;
+    }
+
     priv->connection = connection;
 
     if (connection)
     {
         g_return_if_fail (MCD_IS_CONNECTION (connection));
         g_object_ref (connection);
+
+        priv->tp_connection =
+            g_object_ref (mcd_connection_get_tp_connection (connection));
 
         if (_mcd_connection_is_ready (connection))
         {
