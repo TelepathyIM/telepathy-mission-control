@@ -1,6 +1,7 @@
 INCLUDES = $(TELEPATHY_CFLAGS) -I$(top_srcdir)
 
 bin_PROGRAMS = mc-tool mc-wait-for-name
+dist_bin_SCRIPTS = mc-reload
 
 mc_tool_SOURCES = mc-tool.c
 mc_tool_LDADD = $(TELEPATHY_LIBS) $(top_builddir)/libmcclient/libmcclient.la

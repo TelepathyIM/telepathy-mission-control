@@ -1,0 +1,6 @@
+#! /bin/sh
+
+dbus-send --dest=org.freedesktop.Telepathy.AccountManager \
+    /org/freedesktop/Telepathy/AccountManager \
+    org.freedesktop.Telepathy.AccountManager.Interface.Reloadable.Reload
+
