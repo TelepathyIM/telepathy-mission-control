@@ -41,6 +41,8 @@
 
 #include <telepathy-glib/debug.h>
 
+#include <mission-control-plugins/mission-control-plugins.h>
+
 #include "mcd-debug.h"
 #include "mcd-operation.h"
 
@@ -156,6 +158,8 @@ void mcd_debug_init ()
         }
     }
 
+    mcp_set_debug ((mcd_debug_level >= 1));
+
     if (mcd_debug_level >= 1)
         g_debug ("%s version %s", PACKAGE, VERSION);
 }
@@ -164,6 +168,8 @@ void
 mcd_debug_set_level (gint level)
 {
     mcd_debug_level = level;
+
+    mcp_set_debug ((mcd_debug_level >= 1));
 
     if (level >= 1)
     {
