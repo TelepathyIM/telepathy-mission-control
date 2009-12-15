@@ -88,6 +88,12 @@ mcp_read_dir (const gchar *path)
       gchar *full_path;
       GModule *module;
 
+      if (!g_str_has_prefix (entry, "mcp-"))
+        {
+          DEBUG ("%s isn't a plugin (doesn't start with mcp-)", entry);
+          continue;
+        }
+
       if (!g_str_has_suffix (entry, "." G_MODULE_SUFFIX))
         {
           DEBUG ("%s is not a loadable module", entry);
