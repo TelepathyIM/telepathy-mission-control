@@ -389,11 +389,5 @@ gboolean
 _mcd_account_check_request_real (McdAccount *account, GHashTable *request,
                                  GError **error)
 {
-    if (mcd_master_has_low_memory (mcd_master_get_default ()))
-    {
-        g_set_error (error, MC_ERROR, MC_LOWMEM_ERROR, "Insufficient memory");
-        return FALSE;
-    }
-
     return TRUE;
 }
