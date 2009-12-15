@@ -1,5 +1,4 @@
-/* Mission Control plugin API (merged header).
- * #include <mission-control-plugins/mission-control-plugins.h>.
+/* Mission Control plugin API - loader
  *
  * Copyright (C) 2009 Nokia Corporation
  * Copyright (C) 2009 Collabora Ltd.
@@ -19,25 +18,20 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef MCP_MISSION_CONTROL_PLUGINS_H
-#define MCP_MISSION_CONTROL_PLUGINS_H
+#ifndef MCP_LOADER_H
+#define MCP_LOADER_H
 
-#include <glib-object.h>
-
-#define MCP_IN_MISSION_CONTROL_PLUGINS_H
-#include <mission-control-plugins/dispatch-operation.h>
-#include <mission-control-plugins/dispatch-operation-policy.h>
-#include <mission-control-plugins/loader.h>
-#include <mission-control-plugins/request.h>
-#include <mission-control-plugins/request-policy.h>
-#undef  MCP_IN_MISSION_CONTROL_PLUGINS_H
-
-#define MCP_PLUGIN_REF_NTH_OBJECT_SYMBOL "mcp_plugin_ref_nth_object"
+#ifndef MCP_IN_MISSION_CONTROL_PLUGINS_H
+#error Use <mission-control-plugins/mission-control-plugins.h> instead
+#endif
 
 G_BEGIN_DECLS
 
-/* not actually implemented in this library, see loader.c */
-GObject *mcp_plugin_ref_nth_object (guint n);
+void mcp_add_object (gpointer object);
+
+void mcp_read_dir (const gchar *path);
+
+const GList *mcp_list_objects (void);
 
 G_END_DECLS
 

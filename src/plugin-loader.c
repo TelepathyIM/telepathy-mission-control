@@ -23,81 +23,7 @@
 #include "config.h"
 #include "plugin-loader.h"
 
-#include <gmodule.h>
 #include <mission-control-plugins/mission-control-plugins.h>
-
-#include "mcd-debug.h"
-
-static GList *plugins = NULL;
-
-static void
-mcd_plugin_loader_read_dir (const gchar *path)
-{
-  GError *error = NULL;
-  GDir *dir = g_dir_open (path, 0, &error);
-  const gchar *entry;
-
-  if (dir == NULL)
-    {
-      DEBUG ("could not load plugins from %s: %s", path, error->message);
-      g_error_free (error);
-      return;
-    }
-
-  for (entry = g_dir_read_name (dir);
-      entry != NULL;
-      entry = g_dir_read_name (dir))
-    {
-      gchar *full_path;
-      GModule *module;
-
-      if (!g_str_has_suffix (entry, "." G_MODULE_SUFFIX))
-        {
-          DEBUG ("%s is not a loadable module or a libtool library", entry);
-          continue;
-        }
-
-      full_path = g_build_filename (path, entry, NULL);
-
-      module = g_module_open (full_path, G_MODULE_BIND_LOCAL);
-
-      if (module != NULL)
-        {
-          gpointer symbol;
-
-          if (g_module_symbol (module, MCP_PLUGIN_REF_NTH_OBJECT_SYMBOL,
-                &symbol))
-            {
-              GObject *(* ref_nth) (guint) = symbol;
-              guint n = 0;
-              GObject *object;
-
-              /* In practice, approximately no GModules can safely be unloaded.
-               * For those that can, if there's ever a need for it, we can add
-               * an API for "please don't make me resident". */
-              g_module_make_resident (module);
-
-              for (object = ref_nth (n);
-                  object != NULL;
-                  object = ref_nth (++n))
-                {
-                  plugins = g_list_prepend (plugins, object);
-                }
-
-              DEBUG ("%u plugin object(s) found in %s", n, entry);
-            }
-          else
-            {
-              DEBUG ("%s does not have symbol %s", entry,
-                  MCP_PLUGIN_REF_NTH_OBJECT_SYMBOL);
-            }
-        }
-
-      g_free (full_path);
-    }
-
-  g_dir_close (dir);
-}
 
 void
 _mcd_plugin_loader_init (void)
@@ -107,11 +33,5 @@ _mcd_plugin_loader_init (void)
   if (dir == NULL)
     dir = MCD_PLUGIN_LOADER_DIR;
 
-  mcd_plugin_loader_read_dir (dir);
-}
-
-const GList *
-_mcd_plugin_loader_list_objects (void)
-{
-  return plugins;
+  mcp_read_dir (dir);
 }

@@ -215,7 +215,7 @@ _mcd_account_proceed_with_request (McdAccount *account,
 
     g_object_ref (channel);
 
-    for (mini_plugins = _mcd_plugin_loader_list_objects ();
+    for (mini_plugins = mcp_list_objects ();
          mini_plugins != NULL;
          mini_plugins = mini_plugins->next)
     {

@@ -17,6 +17,7 @@ plugins_include_HEADERS = \
 	mission-control-plugins.h \
 	dispatch-operation.h \
 	dispatch-operation-policy.h \
+	loader.h \
 	request.h \
 	request-policy.h
 
@@ -33,5 +34,6 @@ libmission_control_plugins_la_SOURCES = \
 	dispatch-operation.c \
 	dispatch-operation-policy.c \
 	implementation.h \
+	loader.c \
 	request.c \
 	request-policy.c

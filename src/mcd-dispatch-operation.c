@@ -2080,7 +2080,7 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
         DEBUG ("Running observers");
         _mcd_dispatch_operation_run_observers (self);
 
-        for (mini_plugins = _mcd_plugin_loader_list_objects ();
+        for (mini_plugins = mcp_list_objects ();
              mini_plugins != NULL;
              mini_plugins = mini_plugins->next)
         {

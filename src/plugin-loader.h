@@ -28,7 +28,6 @@
 G_BEGIN_DECLS
 
 G_GNUC_INTERNAL void _mcd_plugin_loader_init (void);
-G_GNUC_INTERNAL const GList *_mcd_plugin_loader_list_objects (void);
 
 G_END_DECLS
 
