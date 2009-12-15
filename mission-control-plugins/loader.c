@@ -22,9 +22,34 @@
 
 #include <gmodule.h>
 #include <mission-control-plugins/mission-control-plugins.h>
+#include <mission-control-plugins/debug-internal.h>
 
-/* no debugging for now */
-#define DEBUG(...) do { } while (0)
+static gboolean debugging = FALSE;
+
+void
+mcp_set_debug (gboolean debug)
+{
+  debugging = debug;
+}
+
+gboolean
+_mcp_is_debugging (void)
+{
+  return debugging;
+}
+
+void
+_mcp_debug (const gchar *format, ...)
+{
+  if (debugging)
+    {
+      va_list args;
+
+      va_start (args, format);
+      g_logv (G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, format, args);
+      va_end (args);
+    }
+}
 
 static GList *plugins = NULL;
 

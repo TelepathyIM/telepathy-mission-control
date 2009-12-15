@@ -1,4 +1,4 @@
-/* Mission Control plugin API - loader
+/* Mission Control plugin API - debug
  *
  * Copyright (C) 2009 Nokia Corporation
  * Copyright (C) 2009 Collabora Ltd.
@@ -18,23 +18,37 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef MCP_LOADER_H
-#define MCP_LOADER_H
+#ifndef MCP_DEBUG_INTERNAL_H
+#define MCP_DEBUG_INTERNAL_H
 
-#ifndef MCP_IN_MISSION_CONTROL_PLUGINS_H
-#error Use <mission-control-plugins/mission-control-plugins.h> instead
-#endif
+#include "config.h"
+
+#include <glib.h>
 
 G_BEGIN_DECLS
 
-void mcp_set_debug (gboolean debug);
-
-void mcp_add_object (gpointer object);
-
-void mcp_read_dir (const gchar *path);
-
-const GList *mcp_list_objects (void);
+gboolean _mcp_is_debugging (void);
+void _mcp_debug (const gchar *format, ...) G_GNUC_PRINTF (1, 2);
 
 G_END_DECLS
+
+#ifdef ENABLE_DEBUG
+
+#undef DEBUG
+#define DEBUG(format, ...) \
+  _mcp_debug ("%s: " format, G_STRFUNC, ##__VA_ARGS__)
+
+#undef DEBUGGING
+#define DEBUGGING _mcp_is_debugging ()
+
+#else /* !defined (ENABLE_DEBUG) */
+
+#undef DEBUG
+#define DEBUG(format, ...) do {} while (0)
+
+#undef DEBUGGING
+#define DEBUGGING 0
+
+#endif /* !defined (ENABLE_DEBUG) */
 
 #endif

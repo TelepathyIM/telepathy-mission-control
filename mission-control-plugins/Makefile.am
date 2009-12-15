@@ -31,6 +31,7 @@ libmission_control_plugins_la_LIBADD = \
 	$(GLIB_LIBS)
 
 libmission_control_plugins_la_SOURCES = \
+	debug-internal.h \
 	dispatch-operation.c \
 	dispatch-operation-policy.c \
 	implementation.h \
