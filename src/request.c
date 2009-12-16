@@ -28,6 +28,7 @@
 
 enum {
     PROP_0,
+    PROP_USE_EXISTING,
     PROP_ACCOUNT,
     PROP_ACCOUNT_PATH,
     PROP_USER_ACTION_TIME,
@@ -37,6 +38,7 @@ enum {
 struct _McdRequest {
     GObject parent;
 
+    gboolean use_existing;
     McdAccount *account;
     gint64 user_action_time;
     gchar *preferred_handler;
@@ -85,6 +87,10 @@ _mcd_request_get_property (GObject *object,
 
   switch (prop_id)
     {
+    case PROP_USE_EXISTING:
+      g_value_set_boolean (value, self->use_existing);
+      break;
+
     case PROP_ACCOUNT:
       g_value_set_object (value, self->account);
       break;
@@ -124,6 +130,10 @@ _mcd_request_set_property (GObject *object,
 
   switch (prop_id)
     {
+    case PROP_USE_EXISTING:
+      self->use_existing = g_value_get_boolean (value);
+      break;
+
     case PROP_ACCOUNT:
       g_assert (self->account == NULL); /* construct-only */
       self->account = g_value_dup_object (value);
@@ -194,6 +204,13 @@ _mcd_request_class_init (
   object_class->dispose = _mcd_request_dispose;
   object_class->finalize = _mcd_request_finalize;
 
+  g_object_class_install_property (object_class, PROP_USE_EXISTING,
+      g_param_spec_boolean ("use-existing", "Use EnsureChannel?",
+          "TRUE if EnsureChannel should be used for this request",
+          FALSE,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
+          G_PARAM_STATIC_STRINGS));
+
   g_object_class_install_property (object_class, PROP_ACCOUNT,
       g_param_spec_object ("account", "Account",
           "The underlying McdAccount",
@@ -221,13 +238,15 @@ _mcd_request_class_init (
 }
 
 McdRequest *
-_mcd_request_new (McdAccount *account,
+_mcd_request_new (gboolean use_existing,
+    McdAccount *account,
     gint64 user_action_time,
     const gchar *preferred_handler)
 {
   McdRequest *self;
 
   self = g_object_new (MCD_TYPE_REQUEST,
+      "use-existing", use_existing,
       "account", account,
       "user-action-time", user_action_time,
       "preferred-handler", preferred_handler,
@@ -235,6 +254,12 @@ _mcd_request_new (McdAccount *account,
   DEBUG ("%p (for %p)", self, account);
 
   return self;
+}
+
+gboolean
+_mcd_request_get_use_existing (McdRequest *self)
+{
+  return self->use_existing;
 }
 
 McdAccount *

@@ -90,7 +90,6 @@ struct _McdChannelRequestData
     GHashTable *properties;
 
     gboolean proceeding;
-    gboolean use_existing;
 };
 
 enum _McdChannelSignalType
@@ -1080,7 +1079,8 @@ mcd_channel_new_request (McdAccount *account,
                             "outgoing", TRUE,
                             NULL);
 
-    channel->priv->request = _mcd_request_new (account, user_time,
+    channel->priv->request = _mcd_request_new (use_existing, account,
+                                               user_time,
                                                preferred_handler);
     path = _mcd_request_get_object_path (channel->priv->request);
 
@@ -1088,7 +1088,6 @@ mcd_channel_new_request (McdAccount *account,
      * MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED */
     crd = g_slice_new (McdChannelRequestData);
     crd->properties = g_hash_table_ref (properties);
-    crd->use_existing = use_existing;
     crd->proceeding = proceeding;
 
     channel->priv->request_data = crd;
@@ -1210,12 +1209,12 @@ _mcd_channel_get_request_preferred_handler (McdChannel *channel)
 gboolean
 _mcd_channel_get_request_use_existing (McdChannel *channel)
 {
-    McdChannelRequestData *crd;
-
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), FALSE);
-    crd = channel->priv->request_data;
-    if (G_UNLIKELY (!crd)) return FALSE;
-    return crd->use_existing;
+
+    if (G_UNLIKELY (channel->priv->request == NULL))
+        return FALSE;
+
+    return _mcd_request_get_use_existing (channel->priv->request);
 }
 
 /**
