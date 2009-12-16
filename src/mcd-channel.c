@@ -632,6 +632,7 @@ mcd_channel_init (McdChannel * obj)
 					McdChannelPrivate);
     obj->priv = priv;
 
+    priv->status = MCD_CHANNEL_STATUS_UNDISPATCHED;
     priv->constructing = TRUE;
 }
 
