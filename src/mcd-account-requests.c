@@ -210,7 +210,7 @@ static void
 ready_to_request_cb (McdRequest *request,
                      McdChannel *channel)
 {
-    GError *error = _mcd_request_dup_denial (request);
+    GError *error = _mcd_request_dup_failure (request);
 
     /* if we didn't ref the channel, disconnecting the signal could
      * destroy it */

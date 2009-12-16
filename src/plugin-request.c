@@ -226,7 +226,7 @@ plugin_req_deny (McpRequest *obj,
 
   g_return_if_fail (self != NULL);
 
-  _mcd_request_deny (self->real_request, domain, code, message);
+  _mcd_request_set_failure (self->real_request, domain, code, message);
 }
 
 /* an arbitrary constant, to detect use-after-free or wrong pointers */

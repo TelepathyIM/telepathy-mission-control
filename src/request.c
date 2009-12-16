@@ -50,9 +50,9 @@ struct _McdRequest {
     gchar *object_path;
     gsize delay;
 
-    GQuark domain;
-    gint code;
-    gchar *message;
+    GQuark failure_domain;
+    gint failure_code;
+    gchar *failure_message;
 
     gboolean proceeding;
 };
@@ -209,7 +209,7 @@ _mcd_request_finalize (GObject *object)
 
   g_free (self->preferred_handler);
   g_free (self->object_path);
-  g_free (self->message);
+  g_free (self->failure_message);
 
   if (self->properties != NULL)
     {
@@ -367,26 +367,27 @@ _mcd_request_end_delay (McdRequest *self)
 }
 
 void
-_mcd_request_deny (McdRequest *self,
+_mcd_request_set_failure (McdRequest *self,
     GQuark domain,
     gint code,
     const gchar *message)
 {
-  if (self->domain == 0)
+  if (self->failure_domain == 0)
     {
       DEBUG ("Request denied: %s %d: %s", g_quark_to_string (domain),
           code, message);
-      self->domain = domain;
-      self->code = code;
-      self->message = g_strdup (message);
+      self->failure_domain = domain;
+      self->failure_code = code;
+      self->failure_message = g_strdup (message);
     }
 }
 
 GError *
-_mcd_request_dup_denial (McdRequest *self)
+_mcd_request_dup_failure (McdRequest *self)
 {
-  if (self->domain == 0)
+  if (self->failure_domain == 0)
     return NULL;
 
-  return g_error_new_literal (self->domain, self->code, self->message);
+  return g_error_new_literal (self->failure_domain, self->failure_code,
+      self->failure_message);
 }
