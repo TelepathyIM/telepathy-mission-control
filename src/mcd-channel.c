@@ -90,7 +90,6 @@ struct _McdChannelRequestData
     gchar *path;
 
     GHashTable *properties;
-    gchar *preferred_handler;
 
     gboolean proceeding;
     gboolean use_existing;
@@ -133,7 +132,6 @@ channel_request_data_free (McdChannelRequestData *crd)
 {
     DEBUG ("called for %p", crd);
     g_hash_table_unref (crd->properties);
-    g_free (crd->preferred_handler);
     g_free (crd->path);
     g_slice_free (McdChannelRequestData, crd);
 }
@@ -407,9 +405,10 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
         break;
 
     case PROP_PREFERRED_HANDLER:
-        if (priv->request_data != NULL)
+        if (priv->request != NULL)
         {
-            g_value_set_string (val, priv->request_data->preferred_handler);
+            g_object_get_property ((GObject *) priv->request,
+                                   "preferred-handler", val);
             break;
         }
         g_value_set_static_string (val, "");
@@ -1086,14 +1085,14 @@ mcd_channel_new_request (McdAccount *account,
                             "outgoing", TRUE,
                             NULL);
 
-    channel->priv->request = _mcd_request_new (account, user_time);
+    channel->priv->request = _mcd_request_new (account, user_time,
+                                               preferred_handler);
 
     /* TODO: these data could be freed when the channel status becomes
      * MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED */
     crd = g_slice_new (McdChannelRequestData);
     crd->path = g_strdup_printf (REQUEST_OBJ_BASE "%u", last_req_id++);
     crd->properties = g_hash_table_ref (properties);
-    crd->preferred_handler = g_strdup (preferred_handler);
     crd->use_existing = use_existing;
     crd->proceeding = proceeding;
 
@@ -1197,12 +1196,12 @@ _mcd_channel_get_request_user_action_time (McdChannel *channel)
 const gchar *
 _mcd_channel_get_request_preferred_handler (McdChannel *channel)
 {
-    McdChannelRequestData *crd;
-
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    crd = channel->priv->request_data;
-    if (G_UNLIKELY (!crd)) return NULL;
-    return crd->preferred_handler;
+
+    if (G_UNLIKELY (channel->priv->request == NULL))
+        return NULL;
+
+    return _mcd_request_get_preferred_handler (channel->priv->request);
 }
 
 /*
