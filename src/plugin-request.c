@@ -38,9 +38,6 @@ struct _McdPluginRequest {
     GObject parent;
     McdAccount *account;
     McdRequest *real_request;
-    GQuark domain;
-    gint code;
-    gchar *message;
 };
 
 struct _McdPluginRequestClass {
@@ -111,21 +108,6 @@ plugin_req_dispose (GObject *object)
 }
 
 static void
-plugin_req_finalize (GObject *object)
-{
-  McdPluginRequest *self = (McdPluginRequest *) object;
-  GObjectFinalizeFunc finalize =
-    G_OBJECT_CLASS (_mcd_plugin_request_parent_class)->finalize;
-
-  DEBUG ("%p", object);
-
-  g_free (self->message);
-
-  if (finalize != NULL)
-    finalize (object);
-}
-
-static void
 _mcd_plugin_request_class_init (
     McdPluginRequestClass *cls)
 {
@@ -133,7 +115,6 @@ _mcd_plugin_request_class_init (
 
   object_class->set_property = plugin_req_set_property;
   object_class->dispose = plugin_req_dispose;
-  object_class->finalize = plugin_req_finalize;
 
   g_object_class_install_property (object_class, PROP_REAL_REQUEST,
       g_param_spec_object ("real-request", "Real channel request",
@@ -245,25 +226,7 @@ plugin_req_deny (McpRequest *obj,
 
   g_return_if_fail (self != NULL);
 
-  if (self->domain == 0)
-    {
-      DEBUG ("Request denied: %s %d: %s", g_quark_to_string (domain),
-          code, message);
-      self->domain = domain;
-      self->code = code;
-      self->message = g_strdup (message);
-    }
-}
-
-GError *
-_mcd_plugin_request_dup_denial (McdPluginRequest *self)
-{
-  g_return_val_if_fail (self != NULL, NULL);
-
-  if (self->domain == 0)
-    return NULL;
-
-  return g_error_new_literal (self->domain, self->code, self->message);
+  _mcd_request_deny (self->real_request, domain, code, message);
 }
 
 /* an arbitrary constant, to detect use-after-free or wrong pointers */

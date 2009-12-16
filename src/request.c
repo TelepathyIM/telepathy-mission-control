@@ -37,6 +37,8 @@ enum {
     PROP_PREFERRED_HANDLER
 };
 
+static guint sig_id_ready_to_request = 0;
+
 struct _McdRequest {
     GObject parent;
 
@@ -47,6 +49,10 @@ struct _McdRequest {
     gchar *preferred_handler;
     gchar *object_path;
     gsize delay;
+
+    GQuark domain;
+    gint code;
+    gchar *message;
 
     gboolean proceeding;
 };
@@ -67,6 +73,7 @@ _mcd_request_init (McdRequest *self)
 {
   DEBUG ("%p", self);
 
+  self->delay = 1;
   self->object_path = g_strdup_printf (REQUEST_OBJ_BASE "%u", last_req_id++);
 }
 
@@ -202,6 +209,7 @@ _mcd_request_finalize (GObject *object)
 
   g_free (self->preferred_handler);
   g_free (self->object_path);
+  g_free (self->message);
 
   if (self->properties != NULL)
     {
@@ -262,6 +270,10 @@ _mcd_request_class_init (
          "Preferred handler for this request, or the empty string",
          "",
          G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
+
+  sig_id_ready_to_request = g_signal_new ("ready-to-request",
+      G_OBJECT_CLASS_TYPE (cls), G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+      g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
 }
 
 McdRequest *
@@ -348,8 +360,33 @@ _mcd_request_end_delay (McdRequest *self)
 
     if (--self->delay == 0)
     {
-      /* FIXME: stub */
+      g_signal_emit (self, sig_id_ready_to_request, 0);
     }
 
     g_object_unref (self);
+}
+
+void
+_mcd_request_deny (McdRequest *self,
+    GQuark domain,
+    gint code,
+    const gchar *message)
+{
+  if (self->domain == 0)
+    {
+      DEBUG ("Request denied: %s %d: %s", g_quark_to_string (domain),
+          code, message);
+      self->domain = domain;
+      self->code = code;
+      self->message = g_strdup (message);
+    }
+}
+
+GError *
+_mcd_request_dup_denial (McdRequest *self)
+{
+  if (self->domain == 0)
+    return NULL;
+
+  return g_error_new_literal (self->domain, self->code, self->message);
 }

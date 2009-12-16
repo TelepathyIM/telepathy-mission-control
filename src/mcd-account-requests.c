@@ -48,6 +48,7 @@
 #include "mcd-misc.h"
 #include "plugin-loader.h"
 #include "plugin-request.h"
+#include "request.h"
 
 static void
 online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
@@ -205,12 +206,41 @@ const McdDBusProp account_channelrequests_properties[] = {
     { 0 },
 };
 
+static void
+ready_to_request_cb (McdRequest *request,
+                     McdChannel *channel)
+{
+    GError *error = _mcd_request_dup_denial (request);
+
+    /* if we didn't ref the channel, disconnecting the signal could
+     * destroy it */
+    g_object_ref (channel);
+    g_signal_handlers_disconnect_by_func (request, ready_to_request_cb,
+                                          channel);
+
+    if (error != NULL)
+    {
+        g_message ("request denied by plugin: %s", error->message);
+        mcd_channel_take_error (channel, error);
+    }
+    else
+    {
+        DEBUG ("Starting online request");
+        /* Put the account online if necessary, and when that's finished,
+         * make the actual request. (The callback releases this reference.) */
+        _mcd_account_online_request (_mcd_request_get_account (request),
+                                     online_request_cb,
+                                     g_object_ref (channel));
+    }
+
+    g_object_unref (channel);
+}
+
 void
 _mcd_account_proceed_with_request (McdAccount *account,
                                    McdChannel *channel)
 {
     McdPluginRequest *plugin_api = NULL;
-    GError *error = NULL;
     const GList *mini_plugins;
 
     g_object_ref (channel);
@@ -235,31 +265,15 @@ _mcd_account_proceed_with_request (McdAccount *account,
         }
     }
 
-    /* no plugin_api implies no plugins, from which it follows that there *
-     * can be no error as there is nothing whch could create one:         */
-    if (plugin_api != NULL)
-    {
-        error = _mcd_plugin_request_dup_denial (plugin_api);
-    }
+    g_signal_connect_data (_mcd_channel_get_request (channel),
+                           "ready-to-request",
+                           G_CALLBACK (ready_to_request_cb),
+                           g_object_ref (channel),
+                           (GClosureNotify) g_object_unref,
+                           0);
 
-    if (error != NULL)
-    {
-        g_message ("request denied by plugin: %s", error->message);
-        mcd_channel_take_error (channel, error);
-        goto finally;
-    }
-
-    DEBUG ("Starting online request");
-    /* Put the account online if necessary, and when that's finished,
-     * make the actual request. (The callback releases this reference.) */
-    _mcd_account_online_request (account, online_request_cb,
-                                 g_object_ref (channel));
-
-finally:
-    if (plugin_api != NULL)
-    {
-        g_object_unref (plugin_api);
-    }
+    /* this is paired with the delay set when the request was created */
+    _mcd_request_end_delay (_mcd_channel_get_request (channel));
 
     g_object_unref (channel);
 }

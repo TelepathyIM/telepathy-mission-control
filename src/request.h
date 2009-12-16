@@ -62,6 +62,12 @@ G_GNUC_INTERNAL const gchar *_mcd_request_get_object_path (McdRequest *self);
 
 G_GNUC_INTERNAL gboolean _mcd_request_set_proceeding (McdRequest *self);
 
+G_GNUC_INTERNAL void _mcd_request_start_delay (McdRequest *self);
+G_GNUC_INTERNAL void _mcd_request_end_delay (McdRequest *self);
+G_GNUC_INTERNAL void _mcd_request_deny (McdRequest *self,
+    GQuark domain, gint code, const gchar *message);
+G_GNUC_INTERNAL GError *_mcd_request_dup_denial (McdRequest *self);
+
 G_END_DECLS
 
 #endif
