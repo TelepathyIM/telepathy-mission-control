@@ -1127,7 +1127,7 @@ mcd_channel_new_request (McdAccount *account,
                             "outgoing", TRUE,
                             NULL);
 
-    channel->priv->request = _mcd_request_new (account);
+    channel->priv->request = _mcd_request_new (account, user_time);
 
     /* TODO: these data could be freed when the channel status becomes
      * MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED */
