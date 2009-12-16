@@ -126,20 +126,22 @@ get_channel_from_request (McdAccount *account, const gchar *request_id)
 }
 
 static void
-on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
-                           McdAccount *account)
+on_request_completed (McdRequest *request,
+                      gboolean successful,
+                      McdChannel *channel)
 {
-    const GError *error;
+    McdAccount *account = _mcd_request_get_account (request);
 
-    if (status == MCD_CHANNEL_STATUS_FAILED)
+    if (!successful)
     {
+        GError *error = _mcd_request_dup_failure (request);
         gchar *err_string;
-        error = mcd_channel_get_error (channel);
+
         g_warning ("Channel request %s failed, error: %s",
                    _mcd_channel_get_request_path (channel), error->message);
 
         err_string = _mcd_build_error_string (error);
-        /* FIXME: ideally the McdChannel should emit this signal itself, and
+        /* FIXME: ideally the McdRequest should emit this signal itself, and
          * the Account.Interface.ChannelRequests should catch and re-emit it */
         tp_svc_channel_request_emit_failed (channel, err_string,
                                             error->message);
@@ -148,18 +150,19 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
             err_string, error->message);
         g_free (err_string);
 
-        g_object_unref (channel);
+        g_error_free (error);
     }
-    else if (status == MCD_CHANNEL_STATUS_DISPATCHED)
+    else
     {
-        /* FIXME: ideally the McdChannel should emit this signal itself, and
+        /* FIXME: ideally the McdRequest should emit this signal itself, and
          * the Account.Interface.ChannelRequests should catch and re-emit it */
         tp_svc_channel_request_emit_succeeded (channel);
         mc_svc_account_interface_channelrequests_emit_succeeded (account,
             _mcd_channel_get_request_path (channel));
-
-        g_object_unref (channel);
     }
+
+    g_signal_handlers_disconnect_by_func (request, on_request_completed,
+                                          channel);
 }
 
 McdChannel *
@@ -193,11 +196,12 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
 
     /* we use connect_after, to make sure that other signals (such as
      * RemoveRequest) are emitted before the Failed signal */
-    /* WARNING: on_channel_status_changed unrefs the McdChannel (!), so we
-     * give it an extra reference, so that we can return a ref from this
-     * function */
-    g_signal_connect_after (g_object_ref (channel), "status-changed",
-                            G_CALLBACK (on_channel_status_changed), account);
+    g_signal_connect_data (_mcd_channel_get_request (channel),
+                           "completed",
+                            G_CALLBACK (on_request_completed),
+                            g_object_ref (channel),
+                            (GClosureNotify) g_object_unref,
+                            G_CONNECT_AFTER);
 
     return channel;
 }

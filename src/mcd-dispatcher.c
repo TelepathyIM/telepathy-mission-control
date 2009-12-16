@@ -1505,20 +1505,17 @@ remove_request_data_free (McdRemoveRequestData *rrd)
 }
 
 static void
-on_request_status_changed (McdChannel *channel, McdChannelStatus status,
-                           McdRemoveRequestData *rrd)
+on_request_completed (McdRequest *request,
+                      gboolean successful,
+                      McdRemoveRequestData *rrd)
 {
-    if (status != MCD_CHANNEL_STATUS_FAILED &&
-        status != MCD_CHANNEL_STATUS_DISPATCHED)
-        return;
+    DEBUG ("called, successful=%i", successful);
 
-    DEBUG ("called, %u", status);
-    if (status == MCD_CHANNEL_STATUS_FAILED)
+    if (!successful)
     {
-        const GError *error;
-        gchar *err_string;
-        error = mcd_channel_get_error (channel);
-        err_string = _mcd_build_error_string (error);
+        GError *error = _mcd_request_dup_failure (request);
+        gchar *err_string = _mcd_build_error_string (error);
+
         /* no callback, as we don't really care */
         DEBUG ("calling RemoveRequest on %s for %s",
                tp_proxy_get_object_path (rrd->handler), rrd->request_path);
@@ -1526,12 +1523,12 @@ on_request_status_changed (McdChannel *channel, McdChannelStatus status,
             (rrd->handler, -1, rrd->request_path, err_string, error->message,
              NULL, NULL, NULL, NULL);
         g_free (err_string);
+        g_error_free (error);
     }
 
     /* we don't need the McdRemoveRequestData anymore */
     remove_request_data_free (rrd);
-    g_signal_handlers_disconnect_by_func (channel, on_request_status_changed,
-                                          rrd);
+    g_signal_handlers_disconnect_by_func (request, on_request_completed, rrd);
 }
 
 /*
@@ -1638,8 +1635,8 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
     g_object_ref (handler);
     /* we must watch whether the request fails and in that case call
      * RemoveRequest */
-    g_signal_connect (channel, "status-changed",
-                      G_CALLBACK (on_request_status_changed), rrd);
+    g_signal_connect (_mcd_channel_get_request (channel), "completed",
+                      G_CALLBACK (on_request_completed), rrd);
 }
 
 /*
