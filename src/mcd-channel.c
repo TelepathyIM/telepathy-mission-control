@@ -810,18 +810,7 @@ mcd_channel_get_members_accepted (McdChannel *channel)
 const gchar *
 mcd_channel_get_channel_type (McdChannel *channel)
 {
-    McdChannelPrivate *priv;
-
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    priv = channel->priv;
-    if (priv->tp_chan)
-        return tp_channel_get_channel_type (priv->tp_chan);
-
-    if (G_LIKELY (priv->request_data && priv->request_data->properties))
-        return tp_asv_get_string (priv->request_data->properties,
-                                  TP_IFACE_CHANNEL ".ChannelType");
-
-    return NULL;
+    return g_quark_to_string (mcd_channel_get_channel_type_quark (channel));
 }
 
 GQuark
