@@ -50,6 +50,7 @@ struct _McdRequest {
     gchar *object_path;
     gsize delay;
 
+    gboolean is_complete;
     GQuark failure_domain;
     gint failure_code;
     gchar *failure_message;
@@ -367,19 +368,44 @@ _mcd_request_end_delay (McdRequest *self)
 }
 
 void
+_mcd_request_set_success (McdRequest *self)
+{
+  if (!self->is_complete)
+    {
+      DEBUG ("Request succeeded");
+      self->is_complete = TRUE;
+    }
+  else
+    {
+      DEBUG ("Ignoring an attempt to fail after already complete");
+    }
+}
+
+void
 _mcd_request_set_failure (McdRequest *self,
     GQuark domain,
     gint code,
     const gchar *message)
 {
-  if (self->failure_domain == 0)
+  if (!self->is_complete)
     {
-      DEBUG ("Request denied: %s %d: %s", g_quark_to_string (domain),
+      DEBUG ("Request failed: %s %d: %s", g_quark_to_string (domain),
           code, message);
+      self->is_complete = TRUE;
       self->failure_domain = domain;
       self->failure_code = code;
       self->failure_message = g_strdup (message);
     }
+  else
+    {
+      DEBUG ("Ignoring an attempt to fail after already complete");
+    }
+}
+
+gboolean
+_mcd_request_is_complete (McdRequest *self)
+{
+  return self->is_complete;
 }
 
 GError *

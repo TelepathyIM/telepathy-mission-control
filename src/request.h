@@ -64,6 +64,9 @@ G_GNUC_INTERNAL gboolean _mcd_request_set_proceeding (McdRequest *self);
 
 G_GNUC_INTERNAL void _mcd_request_start_delay (McdRequest *self);
 G_GNUC_INTERNAL void _mcd_request_end_delay (McdRequest *self);
+
+G_GNUC_INTERNAL gboolean _mcd_request_is_complete (McdRequest *self);
+G_GNUC_INTERNAL void _mcd_request_set_success (McdRequest *self);
 G_GNUC_INTERNAL void _mcd_request_set_failure (McdRequest *self,
     GQuark domain, gint code, const gchar *message);
 G_GNUC_INTERNAL GError *_mcd_request_dup_failure (McdRequest *self);
