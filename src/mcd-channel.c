@@ -87,8 +87,6 @@ struct _McdChannelPrivate
 
 struct _McdChannelRequestData
 {
-    gchar *path;
-
     GHashTable *properties;
 
     gboolean proceeding;
@@ -118,9 +116,6 @@ enum _McdChannelPropertyType
 
 static guint mcd_channel_signals[LAST_SIGNAL] = { 0 };
 
-#define REQUEST_OBJ_BASE "/com/nokia/MissionControl/requests/r"
-static guint last_req_id = 1;
-
 
 static void _mcd_channel_release_tp_channel (McdChannel *channel);
 static void on_proxied_channel_status_changed (McdChannel *source,
@@ -132,7 +127,6 @@ channel_request_data_free (McdChannelRequestData *crd)
 {
     DEBUG ("called for %p", crd);
     g_hash_table_unref (crd->properties);
-    g_free (crd->path);
     g_slice_free (McdChannelRequestData, crd);
 }
 
@@ -1080,6 +1074,7 @@ mcd_channel_new_request (McdAccount *account,
 {
     McdChannel *channel;
     McdChannelRequestData *crd;
+    const gchar *path;
 
     channel = g_object_new (MCD_TYPE_CHANNEL,
                             "outgoing", TRUE,
@@ -1087,18 +1082,18 @@ mcd_channel_new_request (McdAccount *account,
 
     channel->priv->request = _mcd_request_new (account, user_time,
                                                preferred_handler);
+    path = _mcd_request_get_object_path (channel->priv->request);
 
     /* TODO: these data could be freed when the channel status becomes
      * MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED */
     crd = g_slice_new (McdChannelRequestData);
-    crd->path = g_strdup_printf (REQUEST_OBJ_BASE "%u", last_req_id++);
     crd->properties = g_hash_table_ref (properties);
     crd->use_existing = use_existing;
     crd->proceeding = proceeding;
 
     channel->priv->request_data = crd;
     channel->priv->satisfied_requests = g_list_prepend (NULL,
-                                                        g_strdup (crd->path));
+                                                        g_strdup (path));
     channel->priv->latest_request_time = user_time;
 
     _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_REQUEST);
@@ -1107,7 +1102,7 @@ mcd_channel_new_request (McdAccount *account,
      * that dies at the appropriate time, but for now the path of least
      * resistance is to have the McdChannel be a ChannelRequest throughout
      * its lifetime */
-    dbus_g_connection_register_g_object (dgc, crd->path, (GObject *) channel);
+    dbus_g_connection_register_g_object (dgc, path, (GObject *) channel);
 
     return channel;
 }
@@ -1139,11 +1134,12 @@ _mcd_channel_get_requested_properties (McdChannel *channel)
 const gchar *
 _mcd_channel_get_request_path (McdChannel *channel)
 {
-    McdChannelRequestData *crd;
-
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    crd = channel->priv->request_data;
-    return crd ? crd->path : NULL;
+
+    if (channel->priv->request == NULL)
+        return NULL;
+
+    return _mcd_request_get_object_path (channel->priv->request);
 }
 
 /*

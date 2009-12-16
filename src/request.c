@@ -40,6 +40,7 @@ struct _McdRequest {
     McdAccount *account;
     gint64 user_action_time;
     gchar *preferred_handler;
+    gchar *object_path;
 };
 
 struct _McdRequestClass {
@@ -49,10 +50,16 @@ struct _McdRequestClass {
 G_DEFINE_TYPE_WITH_CODE (McdRequest, _mcd_request, G_TYPE_OBJECT,
     /* no interfaces yet: */ (void) 0)
 
+#define REQUEST_OBJ_BASE "/com/nokia/MissionControl/requests/r"
+
+static guint last_req_id = 1;
+
 static void
 _mcd_request_init (McdRequest *self)
 {
   DEBUG ("%p", self);
+
+  self->object_path = g_strdup_printf (REQUEST_OBJ_BASE "%u", last_req_id++);
 }
 
 static void
@@ -169,6 +176,7 @@ _mcd_request_finalize (GObject *object)
   DEBUG ("%p", object);
 
   g_free (self->preferred_handler);
+  g_free (self->object_path);
 
   if (finalize != NULL)
     finalize (object);
@@ -248,4 +256,10 @@ _mcd_request_get_preferred_handler (McdRequest *self)
     return "";
 
   return self->preferred_handler;
+}
+
+const gchar *
+_mcd_request_get_object_path (McdRequest *self)
+{
+  return self->object_path;
 }
