@@ -43,6 +43,8 @@ struct _McdRequest {
     gint64 user_action_time;
     gchar *preferred_handler;
     gchar *object_path;
+
+    gboolean proceeding;
 };
 
 struct _McdRequestClass {
@@ -287,4 +289,14 @@ const gchar *
 _mcd_request_get_object_path (McdRequest *self)
 {
   return self->object_path;
+}
+
+gboolean
+_mcd_request_set_proceeding (McdRequest *self)
+{
+  if (self->proceeding)
+    return FALSE;
+
+  self->proceeding = TRUE;
+  return TRUE;
 }

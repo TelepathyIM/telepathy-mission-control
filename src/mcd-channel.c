@@ -89,7 +89,6 @@ struct _McdChannelRequestData
 {
     GHashTable *properties;
 
-    gboolean proceeding;
 };
 
 enum _McdChannelSignalType
@@ -1088,7 +1087,9 @@ mcd_channel_new_request (McdAccount *account,
      * MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED */
     crd = g_slice_new (McdChannelRequestData);
     crd->properties = g_hash_table_ref (properties);
-    crd->proceeding = proceeding;
+
+    if (proceeding)
+        _mcd_request_set_proceeding (channel->priv->request);
 
     channel->priv->request_data = crd;
     channel->priv->satisfied_requests = g_list_prepend (NULL,
@@ -1382,7 +1383,7 @@ channel_request_proceed (TpSvcChannelRequest *iface,
         return;
     }
 
-    if (self->priv->request_data->proceeding)
+    if (!_mcd_request_set_proceeding (self->priv->request))
     {
         GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
             "Proceed has already been called; stop calling it" };
@@ -1390,7 +1391,6 @@ channel_request_proceed (TpSvcChannelRequest *iface,
         dbus_g_method_return_error (context, &na);
     }
 
-    self->priv->request_data->proceeding = TRUE;
     tp_svc_channel_request_return_from_proceed (context);
     _mcd_account_proceed_with_request (account, self);
 }
