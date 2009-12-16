@@ -38,6 +38,7 @@ enum {
 };
 
 static guint sig_id_ready_to_request = 0;
+static guint sig_id_completed = 0;
 
 struct _McdRequest {
     GObject parent;
@@ -275,6 +276,10 @@ _mcd_request_class_init (
   sig_id_ready_to_request = g_signal_new ("ready-to-request",
       G_OBJECT_CLASS_TYPE (cls), G_SIGNAL_RUN_LAST, 0, NULL, NULL,
       g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
+
+  sig_id_completed = g_signal_new ("completed",
+      G_OBJECT_CLASS_TYPE (cls), G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+      g_cclosure_marshal_VOID__BOOLEAN, G_TYPE_NONE, 1, G_TYPE_BOOLEAN);
 }
 
 McdRequest *
@@ -374,6 +379,7 @@ _mcd_request_set_success (McdRequest *self)
     {
       DEBUG ("Request succeeded");
       self->is_complete = TRUE;
+      g_signal_emit (self, sig_id_completed, 0, TRUE);
     }
   else
     {
@@ -395,6 +401,7 @@ _mcd_request_set_failure (McdRequest *self,
       self->failure_domain = domain;
       self->failure_code = code;
       self->failure_message = g_strdup (message);
+      g_signal_emit (self, sig_id_completed, 0, FALSE);
     }
   else
     {
