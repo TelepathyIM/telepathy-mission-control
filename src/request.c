@@ -23,6 +23,7 @@
 #include "request.h"
 
 #include <dbus/dbus-glib.h>
+#include <telepathy-glib/gtypes.h>
 
 #include "mcd-debug.h"
 
@@ -31,6 +32,7 @@ enum {
     PROP_USE_EXISTING,
     PROP_ACCOUNT,
     PROP_ACCOUNT_PATH,
+    PROP_PROPERTIES,
     PROP_USER_ACTION_TIME,
     PROP_PREFERRED_HANDLER
 };
@@ -40,6 +42,7 @@ struct _McdRequest {
 
     gboolean use_existing;
     McdAccount *account;
+    GHashTable *properties;
     gint64 user_action_time;
     gchar *preferred_handler;
     gchar *object_path;
@@ -101,6 +104,10 @@ _mcd_request_get_property (GObject *object,
       g_value_set_boxed (value, mcd_account_get_object_path (self->account));
       break;
 
+    case PROP_PROPERTIES:
+      g_value_set_boxed (value, self->properties);
+      break;
+
     case PROP_PREFERRED_HANDLER:
       if (self->preferred_handler == NULL)
         {
@@ -139,6 +146,11 @@ _mcd_request_set_property (GObject *object,
     case PROP_ACCOUNT:
       g_assert (self->account == NULL); /* construct-only */
       self->account = g_value_dup_object (value);
+      break;
+
+    case PROP_PROPERTIES:
+      g_assert (self->properties == NULL); /* construct-only */
+      self->properties = g_hash_table_ref (g_value_get_boxed (value));
       break;
 
     case PROP_USER_ACTION_TIME:
@@ -190,6 +202,12 @@ _mcd_request_finalize (GObject *object)
   g_free (self->preferred_handler);
   g_free (self->object_path);
 
+  if (self->properties != NULL)
+    {
+      g_hash_table_unref (self->properties);
+      self->properties = NULL;
+    }
+
   if (finalize != NULL)
     finalize (object);
 }
@@ -226,6 +244,12 @@ _mcd_request_class_init (
           DBUS_TYPE_G_OBJECT_PATH,
           G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (object_class, PROP_PROPERTIES,
+       g_param_spec_boxed ("properties", "Properties",
+         "Properties requested for the channel",
+         TP_HASH_TYPE_QUALIFIED_PROPERTY_VALUE_MAP,
+         G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
+
   g_object_class_install_property (object_class, PROP_USER_ACTION_TIME,
        g_param_spec_int64 ("user-action-time", "UserActionTime",
          "Time of user action in seconds since 1970",
@@ -242,6 +266,7 @@ _mcd_request_class_init (
 McdRequest *
 _mcd_request_new (gboolean use_existing,
     McdAccount *account,
+    GHashTable *properties,
     gint64 user_action_time,
     const gchar *preferred_handler)
 {
@@ -250,6 +275,7 @@ _mcd_request_new (gboolean use_existing,
   self = g_object_new (MCD_TYPE_REQUEST,
       "use-existing", use_existing,
       "account", account,
+      "properties", properties,
       "user-action-time", user_action_time,
       "preferred-handler", preferred_handler,
       NULL);
@@ -299,4 +325,10 @@ _mcd_request_set_proceeding (McdRequest *self)
 
   self->proceeding = TRUE;
   return TRUE;
+}
+
+GHashTable *
+_mcd_request_get_properties (McdRequest *self)
+{
+  return self->properties;
 }

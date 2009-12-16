@@ -79,16 +79,9 @@ struct _McdChannelPrivate
 
     McdChannelStatus status;
 
-    McdChannelRequestData *request_data;
     McdRequest *request;
     GList *satisfied_requests;
     gint64 latest_request_time;
-};
-
-struct _McdChannelRequestData
-{
-    GHashTable *properties;
-
 };
 
 enum _McdChannelSignalType
@@ -119,14 +112,6 @@ static void _mcd_channel_release_tp_channel (McdChannel *channel);
 static void on_proxied_channel_status_changed (McdChannel *source,
                                                McdChannelStatus status,
                                                McdChannel *dest);
-
-static void
-channel_request_data_free (McdChannelRequestData *crd)
-{
-    DEBUG ("called for %p", crd);
-    g_hash_table_unref (crd->properties);
-    g_slice_free (McdChannelRequestData, crd);
-}
 
 static void
 on_members_changed (TpChannel *proxy, const gchar *message,
@@ -407,13 +392,13 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
         break;
 
     case PROP_REQUESTS:
-        if (priv->request_data != NULL &&
-            priv->request_data->properties != NULL)
+        if (priv->request != NULL)
         {
             GPtrArray *arr = g_ptr_array_sized_new (1);
 
             g_ptr_array_add (arr,
-                             g_hash_table_ref (priv->request_data->properties));
+                g_hash_table_ref (
+                    _mcd_request_get_properties (priv->request)));
 
             g_value_take_boxed (val, arr);
             break;
@@ -461,12 +446,6 @@ _mcd_channel_dispose (GObject * object)
     {
         g_object_unref (priv->request);
         priv->request = NULL;
-    }
-
-    if (priv->request_data)
-    {
-        channel_request_data_free (priv->request_data);
-        priv->request_data = NULL;
     }
 
     _mcd_channel_release_tp_channel (MCD_CHANNEL (object));
@@ -823,11 +802,12 @@ mcd_channel_get_channel_type_quark (McdChannel *channel)
     if (priv->tp_chan)
         return tp_channel_get_channel_type_id (priv->tp_chan);
 
-    if (G_LIKELY (priv->request_data && priv->request_data->properties))
+    if (G_LIKELY (priv->request != NULL))
     {
-        const gchar *type;
-        type = tp_asv_get_string (priv->request_data->properties,
-                                  TP_IFACE_CHANNEL ".ChannelType");
+        GHashTable *properties = _mcd_request_get_properties (priv->request);
+        const gchar *type = tp_asv_get_string (properties,
+            TP_IFACE_CHANNEL ".ChannelType");
+
         return g_quark_from_string (type);
     }
 
@@ -852,19 +832,12 @@ mcd_channel_get_handle (McdChannel *channel)
     if (priv->tp_chan)
         return tp_channel_get_handle (priv->tp_chan, NULL);
 
-    if (G_LIKELY (priv->request_data))
+    if (G_LIKELY (priv->request != NULL))
     {
-        if (priv->request_data->properties)
-        {
-            gboolean valid;
-            guint handle;
+        GHashTable *properties = _mcd_request_get_properties (priv->request);
 
-            handle = tp_asv_get_uint32 (priv->request_data->properties,
-                                        TP_IFACE_CHANNEL ".TargetHandle",
-                                        &valid);
-            if (valid)
-                return handle;
-        }
+        return tp_asv_get_uint32 (properties,
+            TP_IFACE_CHANNEL ".TargetHandle", NULL);
     }
 
     return 0;
@@ -879,11 +852,16 @@ mcd_channel_get_handle_type (McdChannel *channel)
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), 0);
     priv = channel->priv;
     if (priv->tp_chan)
+    {
         tp_channel_get_handle (priv->tp_chan, &handle_type);
-    else if (G_LIKELY (priv->request_data && priv->request_data->properties))
-        handle_type = tp_asv_get_uint32
-            (priv->request_data->properties,
-             TP_IFACE_CHANNEL ".TargetHandleType", NULL);
+    }
+    else if (G_LIKELY (priv->request != NULL))
+    {
+        GHashTable *properties = _mcd_request_get_properties (priv->request);
+
+        handle_type = tp_asv_get_uint32 (properties,
+            TP_IFACE_CHANNEL ".TargetHandle", NULL);
+    }
 
     return handle_type;
 }
@@ -905,12 +883,14 @@ mcd_channel_get_name (McdChannel *channel)
 
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
     priv = channel->priv;
+
     if (priv->tp_chan)
         properties = tp_channel_borrow_immutable_properties (priv->tp_chan);
-    else if (G_LIKELY (priv->request_data))
-        properties = priv->request_data->properties;
+    else if (G_LIKELY (priv->request != NULL))
+        properties = _mcd_request_get_properties (priv->request);
 
     if (!properties) return NULL;
+
     return tp_asv_get_string (properties, TP_IFACE_CHANNEL ".TargetID");
 }
 
@@ -1060,27 +1040,22 @@ mcd_channel_new_request (McdAccount *account,
                          gboolean proceeding)
 {
     McdChannel *channel;
-    McdChannelRequestData *crd;
     const gchar *path;
 
     channel = g_object_new (MCD_TYPE_CHANNEL,
                             "outgoing", TRUE,
                             NULL);
 
+    /* TODO: this could be freed when the channel status becomes
+     * MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED? */
     channel->priv->request = _mcd_request_new (use_existing, account,
-                                               user_time,
+                                               properties, user_time,
                                                preferred_handler);
     path = _mcd_request_get_object_path (channel->priv->request);
-
-    /* TODO: these data could be freed when the channel status becomes
-     * MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED */
-    crd = g_slice_new (McdChannelRequestData);
-    crd->properties = g_hash_table_ref (properties);
 
     if (proceeding)
         _mcd_request_set_proceeding (channel->priv->request);
 
-    channel->priv->request_data = crd;
     channel->priv->satisfied_requests = g_list_prepend (NULL,
                                                         g_strdup (path));
     channel->priv->latest_request_time = user_time;
@@ -1105,12 +1080,12 @@ mcd_channel_new_request (McdAccount *account,
 GHashTable *
 _mcd_channel_get_requested_properties (McdChannel *channel)
 {
-    McdChannelRequestData *crd;
-
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    crd = channel->priv->request_data;
-    if (G_UNLIKELY (!crd)) return NULL;
-    return crd->properties;
+
+    if (channel->priv->request == NULL)
+        return NULL;
+
+    return _mcd_request_get_properties (channel->priv->request);
 }
 
 /*
