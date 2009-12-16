@@ -90,9 +90,7 @@ struct _McdChannelRequestData
     gchar *path;
 
     GHashTable *properties;
-    gint64 user_time;
     gchar *preferred_handler;
-    McdAccount *account;  /* weak ref */
 
     gboolean proceeding;
     gboolean use_existing;
@@ -389,20 +387,20 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
 	break;
 
     case PROP_ACCOUNT_PATH:
-        if (priv->request_data != NULL &&
-            priv->request_data->account != NULL)
+        if (priv->request != NULL)
         {
-            g_value_set_boxed (val,
-                mcd_account_get_object_path (priv->request_data->account));
+            g_object_get_property ((GObject *) priv->request,
+                                   "account-path", val);
             break;
         }
         g_value_set_static_boxed (val, "/");
         break;
 
     case PROP_USER_ACTION_TIME:
-        if (priv->request_data != NULL)
+        if (priv->request != NULL)
         {
-            g_value_set_int64 (val, priv->request_data->user_time);
+            g_object_get_property ((GObject *) priv->request,
+                                   "user-action-time", val);
             break;
         }
         g_value_set_int64 (val, 0);
@@ -458,22 +456,6 @@ _mcd_channel_constructed (GObject * object)
 }
 
 static void
-mcd_channel_lost_account (gpointer data,
-                          GObject *ex_account)
-{
-    McdChannel *self = MCD_CHANNEL (data);
-
-    DEBUG ("%p: %p", self, ex_account);
-
-    g_assert (self->priv->request_data != NULL);
-    g_assert ((gpointer) self->priv->request_data->account ==
-              (gpointer) ex_account);
-    g_assert (self->priv->status == MCD_CHANNEL_STATUS_FAILED);
-
-    self->priv->request_data->account = NULL;
-}
-
-static void
 _mcd_channel_dispose (GObject * object)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (object);
@@ -492,12 +474,6 @@ _mcd_channel_dispose (GObject * object)
 
     if (priv->request_data)
     {
-        if (priv->request_data->account != NULL)
-        {
-            g_object_weak_unref ((GObject *) priv->request_data->account,
-                                 mcd_channel_lost_account, object);
-        }
-
         channel_request_data_free (priv->request_data);
         priv->request_data = NULL;
     }
@@ -1134,16 +1110,9 @@ mcd_channel_new_request (McdAccount *account,
     crd = g_slice_new (McdChannelRequestData);
     crd->path = g_strdup_printf (REQUEST_OBJ_BASE "%u", last_req_id++);
     crd->properties = g_hash_table_ref (properties);
-    crd->user_time = user_time;
     crd->preferred_handler = g_strdup (preferred_handler);
     crd->use_existing = use_existing;
     crd->proceeding = proceeding;
-
-    /* the McdAccount almost certainly lives longer than we do, but in case it
-     * doesn't, use a weak ref here */
-    g_object_weak_ref ((GObject *) account, mcd_channel_lost_account,
-                       channel);
-    crd->account = account;
 
     channel->priv->request_data = crd;
     channel->priv->satisfied_requests = g_list_prepend (NULL,
@@ -1227,12 +1196,12 @@ _mcd_channel_get_satisfied_requests (McdChannel *channel,
 guint64
 _mcd_channel_get_request_user_action_time (McdChannel *channel)
 {
-    McdChannelRequestData *crd;
-
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), 0);
-    crd = channel->priv->request_data;
-    if (G_UNLIKELY (!crd)) return 0;
-    return crd->user_time;
+
+    if (G_UNLIKELY (!channel->priv->request))
+        return 0;
+
+    return _mcd_request_get_user_action_time (channel->priv->request);
 }
 
 /*
@@ -1408,8 +1377,9 @@ channel_request_proceed (TpSvcChannelRequest *iface,
                          DBusGMethodInvocation *context)
 {
     McdChannel *self = MCD_CHANNEL (iface);
+    McdAccount *account;
 
-    if (G_UNLIKELY (self->priv->request_data == NULL))
+    if (G_UNLIKELY (self->priv->request == NULL))
     {
         GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
             "McdChannel is on D-Bus but is not actually a request" };
@@ -1421,7 +1391,9 @@ channel_request_proceed (TpSvcChannelRequest *iface,
         return;
     }
 
-    if (G_UNLIKELY (self->priv->request_data->account == NULL))
+    account = _mcd_request_get_account (self->priv->request);
+
+    if (G_UNLIKELY (account == NULL))
     {
         GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
             "McdChannel has no Account, cannot proceed" };
@@ -1443,8 +1415,7 @@ channel_request_proceed (TpSvcChannelRequest *iface,
 
     self->priv->request_data->proceeding = TRUE;
     tp_svc_channel_request_return_from_proceed (context);
-    _mcd_account_proceed_with_request (self->priv->request_data->account,
-                                       self);
+    _mcd_account_proceed_with_request (account, self);
 }
 
 gboolean
