@@ -538,6 +538,10 @@ mcd_channel_status_changed (McdChannel *channel, McdChannelStatus status)
         {
             _mcd_request_set_success (channel->priv->request);
         }
+        else if (status == MCD_CHANNEL_STATUS_HANDLER_INVOKED)
+        {
+            _mcd_request_set_uncancellable (channel->priv->request);
+        }
     }
 }
 
@@ -1403,10 +1407,9 @@ _mcd_channel_request_cancel (McdChannel *self,
 
     DEBUG ("%p in status %u", self, status);
 
-    if (status == MCD_CHANNEL_STATUS_REQUEST ||
-        status == MCD_CHANNEL_STATUS_REQUESTED ||
-        status == MCD_CHANNEL_STATUS_DISPATCHING)
+    if (_mcd_request_get_cancellable (self->priv->request))
     {
+        DEBUG ("cancellable");
         g_object_ref (self);
         mcd_channel_take_error (self, g_error_new (TP_ERRORS,
                                                    TP_ERROR_CANCELLED,
@@ -1425,6 +1428,7 @@ _mcd_channel_request_cancel (McdChannel *self,
     }
     else
     {
+        DEBUG ("no longer cancellable");
         g_set_error (error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
                      "ChannelRequest is not cancellable (status=%u)",
                      status);

@@ -52,6 +52,7 @@ struct _McdRequest {
     gsize delay;
 
     gboolean is_complete;
+    gboolean cancellable;
     GQuark failure_domain;
     gint failure_code;
     gchar *failure_message;
@@ -76,6 +77,7 @@ _mcd_request_init (McdRequest *self)
   DEBUG ("%p", self);
 
   self->delay = 1;
+  self->cancellable = TRUE;
   self->object_path = g_strdup_printf (REQUEST_OBJ_BASE "%u", last_req_id++);
 }
 
@@ -379,6 +381,7 @@ _mcd_request_set_success (McdRequest *self)
     {
       DEBUG ("Request succeeded");
       self->is_complete = TRUE;
+      self->cancellable = FALSE;
       g_signal_emit (self, sig_id_completed, 0, TRUE);
     }
   else
@@ -398,6 +401,7 @@ _mcd_request_set_failure (McdRequest *self,
       DEBUG ("Request failed: %s %d: %s", g_quark_to_string (domain),
           code, message);
       self->is_complete = TRUE;
+      self->cancellable = FALSE;
       self->failure_domain = domain;
       self->failure_code = code;
       self->failure_message = g_strdup (message);
@@ -423,4 +427,16 @@ _mcd_request_dup_failure (McdRequest *self)
 
   return g_error_new_literal (self->failure_domain, self->failure_code,
       self->failure_message);
+}
+
+gboolean
+_mcd_request_get_cancellable (McdRequest *self)
+{
+  return self->cancellable;
+}
+
+void
+_mcd_request_set_uncancellable (McdRequest *self)
+{
+  self->cancellable = FALSE;
 }

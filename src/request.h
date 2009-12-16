@@ -71,6 +71,9 @@ G_GNUC_INTERNAL void _mcd_request_set_failure (McdRequest *self,
     GQuark domain, gint code, const gchar *message);
 G_GNUC_INTERNAL GError *_mcd_request_dup_failure (McdRequest *self);
 
+G_GNUC_INTERNAL gboolean _mcd_request_get_cancellable (McdRequest *self);
+G_GNUC_INTERNAL void _mcd_request_set_uncancellable (McdRequest *self);
+
 G_END_DECLS
 
 #endif
