@@ -266,6 +266,49 @@ _mcd_plugin_request_dup_denial (McdPluginRequest *self)
   return g_error_new_literal (self->domain, self->code, self->message);
 }
 
+/* an arbitrary constant, to detect use-after-free or wrong pointers */
+#define DELAY_MAGIC 0xC953
+
+typedef struct {
+    gsize magic;
+    McdPluginRequest *self;
+} RealDelay;
+
+static McpRequestDelay *
+plugin_req_start_delay (McpRequest *obj)
+{
+  McdPluginRequest *self = MCD_PLUGIN_REQUEST (obj);
+  RealDelay *delay;
+
+  DEBUG ("%p", self);
+
+  g_return_val_if_fail (self != NULL, NULL);
+  delay = g_slice_new (RealDelay);
+  delay->magic = DELAY_MAGIC;
+  delay->self = g_object_ref (obj);
+  _mcd_channel_start_request_delay (self->real_request);
+  return (McpRequestDelay *) delay;
+}
+
+static void
+plugin_req_end_delay (McpRequest *obj,
+    McpRequestDelay *delay)
+{
+  McdPluginRequest *self = MCD_PLUGIN_REQUEST (obj);
+  RealDelay *real_delay = (RealDelay *) delay;
+
+  DEBUG ("%p", self);
+
+  g_return_if_fail (self != NULL);
+  g_return_if_fail (real_delay->self == self);
+  g_return_if_fail (real_delay->magic == DELAY_MAGIC);
+
+  real_delay->magic = ~(DELAY_MAGIC);
+  real_delay->self = NULL;
+  _mcd_channel_end_request_delay (self->real_request);
+  g_object_unref (self);
+}
+
 static void
 plugin_iface_init (McpRequestIface *iface,
     gpointer unused G_GNUC_UNUSED)
@@ -281,4 +324,6 @@ plugin_iface_init (McpRequestIface *iface,
   iface->ref_nth_request = plugin_req_ref_nth_request;
 
   iface->deny = plugin_req_deny;
+  iface->start_delay = plugin_req_start_delay;
+  iface->end_delay = plugin_req_end_delay;
 }

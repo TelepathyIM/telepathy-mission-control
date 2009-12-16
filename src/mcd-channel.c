@@ -1518,3 +1518,19 @@ _mcd_channel_depart (McdChannel *channel,
     tp_channel_call_when_ready (channel->priv->tp_chan,
                                 mcd_channel_ready_to_depart_cb, d);
 }
+
+void
+_mcd_channel_start_request_delay (McdChannel *channel)
+{
+    g_return_if_fail (MCD_IS_CHANNEL (channel));
+    g_object_ref (channel);
+    /* FIXME: stub */
+}
+
+void
+_mcd_channel_end_request_delay (McdChannel *channel)
+{
+    g_return_if_fail (MCD_IS_CHANNEL (channel));
+    /* FIXME: stub */
+    g_object_unref (channel);
+}
