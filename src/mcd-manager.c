@@ -389,27 +389,6 @@ mcd_manager_get_connection (McdManager * manager, const gchar *object_path)
     }
 }
 
-gboolean
-mcd_manager_cancel_channel_request (McdManager *manager, guint operation_id,
-				    const gchar *requestor_client_id,
-				    GError **error)
-{
-    const GList *connections, *node;
-
-    connections = mcd_operation_get_missions (MCD_OPERATION (manager));
-    if (!connections) return FALSE;
-
-    for (node = connections; node; node = node->next)
-    {
-	if (mcd_connection_cancel_channel_request (MCD_CONNECTION (node->data),
-						   operation_id,
-						   requestor_client_id,
-						   error))
-	    return TRUE;
-    }
-    return FALSE;
-}
-
 /**
  * mcd_manager_get_unique_name:
  * @manager: the #McdManager.

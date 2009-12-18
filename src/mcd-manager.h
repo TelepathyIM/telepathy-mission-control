@@ -81,9 +81,6 @@ mcd_manager_get_protocol_param (McdManager *manager, const gchar *protocol,
 McdConnection *mcd_manager_create_connection (McdManager *manager,
 					      McdAccount *account);
 
-gboolean mcd_manager_cancel_channel_request (McdManager *manager, guint operation_id,
-					     const gchar *requestor_client_pid, GError **error);
-
 McdConnection *mcd_manager_get_connection (McdManager *manager,
 					   const gchar *object_path);
 TpConnectionManager *mcd_manager_get_tp_proxy (McdManager *manager);
