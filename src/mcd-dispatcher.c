@@ -74,6 +74,9 @@
 
 #define MCD_DISPATCHER_PRIV(dispatcher) (MCD_DISPATCHER (dispatcher)->priv)
 
+#define CAN_VOIP \
+  (MC_PROFILE_CAPABILITY_VOICE_P2P | MC_PROFILE_CAPABILITY_VIDEO_P2P)
+
 static void dispatcher_iface_init (gpointer, gpointer);
 
 G_DEFINE_TYPE_WITH_CODE (McdDispatcher, mcd_dispatcher, MCD_TYPE_MISSION,
@@ -3209,14 +3212,32 @@ mcd_dispatcher_context_get_channel_by_type (McdDispatcherContext *context,
     return NULL;
 }
 
+static gboolean
+_mcd_voip_suppressed (McdAccount *account)
+{
+  /* if there is a profile _and_ it has no voice/video caps *
+   * then we consider VOIP to be suppressed in this profile */
+  if (account != NULL)
+    {
+      McProfile *p = mcd_account_compat_get_mc_profile (account);
+
+      if (p != NULL)
+        return (mc_profile_get_capabilities (p) & CAN_VOIP) == 0;
+    }
+
+  return FALSE;
+}
+
 GPtrArray *
 _mcd_dispatcher_get_channel_capabilities (McdDispatcher *dispatcher,
+                                          McdAccount *account,
                                           const gchar *protocol)
 {
     McdDispatcherPrivate *priv = dispatcher->priv;
     GPtrArray *channel_handler_caps;
     GHashTableIter iter;
     gpointer key, value;
+    gboolean no_voip = _mcd_voip_suppressed (account);
 
     channel_handler_caps = g_ptr_array_new ();
 
@@ -3231,16 +3252,19 @@ _mcd_dispatcher_get_channel_capabilities (McdDispatcher *dispatcher,
         {
             GHashTable *channel_class = list->data;
             const gchar *channel_type;
-            guint type_flags;
+            guint type_flags = 0xffffffff;
 
             channel_type = tp_asv_get_string (channel_class,
                                               TP_IFACE_CHANNEL ".ChannelType");
             if (!channel_type) continue;
 
+            if (no_voip && !tp_strdiff (TP_IFACE_CHANNEL_TYPE_STREAMED_MEDIA,
+                    channel_type))
+              continue;
+
             /* There is currently no way to map the HandlerChannelFilter client
              * property into type-specific capabilities. Let's pretend we
              * support everything. */
-            type_flags = 0xffffffff;
 
             _build_channel_capabilities (channel_type, type_flags,
                                          channel_handler_caps);
@@ -3250,12 +3274,14 @@ _mcd_dispatcher_get_channel_capabilities (McdDispatcher *dispatcher,
 }
 
 GPtrArray *
-_mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher *dispatcher)
+_mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher *dispatcher,
+                                                   McdAccount *account)
 {
     McdDispatcherPrivate *priv = dispatcher->priv;
     GHashTableIter iter;
     gpointer key, value;
     GPtrArray *caps = g_ptr_array_new ();
+    gboolean no_voip = _mcd_voip_suppressed (account);
 
     g_hash_table_iter_init (&iter, priv->clients);
     while (g_hash_table_iter_next (&iter, &key, &value)) 
@@ -3268,6 +3294,18 @@ _mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher *dispatcher)
             GHashTable *channel_class = list->data;
             guint i;
             gboolean already_in_caps = FALSE;
+
+            /* skip VOIP related caps if VOIP is suppressed */
+            if (no_voip)
+              {
+                const gchar *type;
+
+                type = tp_asv_get_string (channel_class,
+                                          TP_IFACE_CHANNEL ".ChannelType");
+
+                if (!tp_strdiff (type, TP_IFACE_CHANNEL_TYPE_STREAMED_MEDIA))
+                  continue;
+              }
 
             /* Check if the filter is already in the caps variable */
             for (i = 0 ; i < caps->len ; i++)

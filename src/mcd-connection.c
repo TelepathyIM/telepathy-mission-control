@@ -594,6 +594,7 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
     }
     protocol_name = mcd_account_get_protocol_name (priv->account);
     capabilities = _mcd_dispatcher_get_channel_capabilities (priv->dispatcher,
+                                                             priv->account,
                                                              protocol_name);
     DEBUG ("advertising capabilities");
     tp_cli_connection_interface_capabilities_call_advertise_capabilities (priv->tp_conn, -1,
@@ -624,7 +625,7 @@ _mcd_connection_setup_contact_capabilities (McdConnection *connection)
 	return;
     }
     contact_capabilities = _mcd_dispatcher_get_channel_enhanced_capabilities
-      (priv->dispatcher);
+      (priv->dispatcher, priv->account);
 
     DEBUG ("advertising capabilities");
 
