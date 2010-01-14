@@ -268,6 +268,8 @@ enum _McdDispatcherSignalType
 static guint signals[LAST_SIGNAL] = { 0 };
 static GQuark client_ready_quark = 0;
 
+static void _mcd_maybe_suppress_voip (McdDispatcherContext *ctx, gpointer data);
+
 static void mcd_dispatcher_context_unref (McdDispatcherContext * ctx,
                                           const gchar *tag);
 static void on_operation_finished (McdDispatchOperation *operation,
@@ -2683,7 +2685,8 @@ static void
 mcd_dispatcher_constructed (GObject *object)
 {
     DBusGConnection *dgc;
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
+    McdDispatcher *self = MCD_DISPATCHER (object);
+    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (self);
     GError *error = NULL;
 
     DEBUG ("Starting to look for clients");
@@ -2709,6 +2712,9 @@ mcd_dispatcher_constructed (GObject *object)
         g_error_free (error);
         exit (1);
     }
+
+    mcd_dispatcher_add_filter (self, _mcd_maybe_suppress_voip,
+        MCD_FILTER_PRIORITY_CRITICAL, NULL);
 
     dbus_g_connection_register_g_object (dgc,
                                          MCD_CHANNEL_DISPATCHER_OBJECT_PATH,
@@ -3226,6 +3232,28 @@ _mcd_voip_suppressed (McdAccount *account)
     }
 
   return FALSE;
+}
+
+static void
+_mcd_maybe_suppress_voip (McdDispatcherContext *ctx, gpointer data)
+{
+  DEBUG ("checking to see whether we should kill this channel bundle");
+  /* VoIP not suppressed for this account */
+  if (_mcd_voip_suppressed (ctx->account))
+    {
+      McdChannel *channel = mcd_dispatcher_context_get_channel_by_type (ctx,
+          TP_IFACE_QUARK_CHANNEL_TYPE_STREAMED_MEDIA);
+
+      /* no streamed media channel in this bundle, can't be VoIP */
+      if (channel != NULL)
+        {
+          DEBUG ("VoIP is suppressed on account &"
+              " streamed media channel present");
+          mcd_dispatcher_context_destroy_all (ctx);
+        }
+    }
+
+  mcd_dispatcher_context_proceed (ctx);
 }
 
 GPtrArray *
