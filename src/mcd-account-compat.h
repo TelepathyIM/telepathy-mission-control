@@ -32,5 +32,7 @@ G_BEGIN_DECLS
 
 McProfile *mcd_account_compat_get_mc_profile (McdAccount *account);
 
+gboolean mcd_account_compat_voip_suppressed (McdAccount *account);
+
 G_END_DECLS
 #endif
