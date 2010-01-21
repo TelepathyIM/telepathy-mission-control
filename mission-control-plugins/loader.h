@@ -21,7 +21,7 @@
 #ifndef MCP_LOADER_H
 #define MCP_LOADER_H
 
-#ifndef MCP_IN_MISSION_CONTROL_PLUGINS_H
+#ifndef _MCP_IN_MISSION_CONTROL_PLUGINS_H
 #error Use <mission-control-plugins/mission-control-plugins.h> instead
 #endif
 
