@@ -27,6 +27,11 @@
 
 G_BEGIN_DECLS
 
+/* not actually implemented in this library, see loader.c */
+GObject *mcp_plugin_ref_nth_object (guint n);
+
+#define MCP_PLUGIN_REF_NTH_OBJECT_SYMBOL "mcp_plugin_ref_nth_object"
+
 void mcp_set_debug (gboolean debug);
 
 void mcp_add_object (gpointer object);
