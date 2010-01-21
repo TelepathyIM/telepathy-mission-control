@@ -20,12 +20,40 @@
  *
  */
 
+/**
+ * SECTION:loader
+ * @title: Plugin loader and global functions
+ * @short_description: Writing a plugin, or loading plugins
+ * @see_also:
+ * @include: mission-control-plugins/mission-control-plugins.h
+ *
+ * To write plugins for Mission Control, build a GModule whose name starts
+ * with "mcp-" and ends with %G_MODULE_SUFFIX, for instance mcp-testplugin.so
+ * on Linux or mcp-testplugin.dll on Windows. It must be installed in the
+ * directory given by the ${plugindir} variable in the mission-control-plugins
+ * pkg-config file.
+ *
+ * Each plugin must contain an extern (public) function called
+ * mcp_plugin_ref_nth_object() which behaves as documented here. Mission
+ * Control will call that function to load the plugin.
+ *
+ * Mission Control also uses functions from this part of the library, to load
+ * the plugins.
+ */
+
 #include <gmodule.h>
 #include <mission-control-plugins/mission-control-plugins.h>
 #include <mission-control-plugins/debug-internal.h>
 
 static gboolean debugging = FALSE;
 
+/**
+ * mcp_set_debug:
+ * @debug: whether to log debug output
+ *
+ * Set whether debug output will be produced via g_debug() for the plugin
+ * loader. Plugins shouldn't normally need to call this function.
+ */
 void
 mcp_set_debug (gboolean debug)
 {
@@ -57,9 +85,15 @@ static GList *plugins = NULL;
  * mcp_add_object:
  * @object: an object implementing one or more plugin interfaces
  *
+ * Add an object to the list of "plugin objects". Mission Control does this
+ * automatically for the objects returned by mcp_plugin_ref_nth_object(),
+ * so you should only need to use this if you're embedding part of Mission
+ * Control in a larger process.
+ *
  * As currently implemented, these objects are never unreferenced.
  *
- * Add an object to the list of plugin objects.
+ * Mission Control uses this function to load its plugins; plugins shouldn't
+ * call it.
  */
 void
 mcp_add_object (gpointer object)
@@ -70,27 +104,40 @@ mcp_add_object (gpointer object)
 }
 
 /**
+ * MCP_PLUGIN_REF_NTH_OBJECT_SYMBOL:
+ *
+ * A string constant whose value is the name mcp_plugin_ref_nth_object().
+ */
+
+/**
  * mcp_plugin_ref_nth_object:
  * @n: object number, starting from 0
  *
  * Implemented by each plugin (not implemented in this library!) as a hook
  * point; it will be called repeatedly with an increasing argument, and must
- * return a GObject reference each time, until it returns NULL.
+ * return a #GObject reference each time, until it returns %NULL.
+ *
+ * Mission Control will query each object for the #GInterface<!-- -->s it
+ * implements, and behave accordingly; for instance, the objects might
+ * implement #McpRequestPolicy and/or #McpDispatchOperationPolicy.
  *
  * As currently implemented, these objects are never unreferenced.
  *
- * Returns: a new reference to a #GObject, or NULL if @n is at least the number
- *  of objects supported by this plugin
+ * Returns: a new reference to a #GObject, or %NULL if @n is at least the
+ *  number of objects supported by this plugin
  */
 
 /**
  * mcp_read_dir:
  * @path: full path to a plugins directory
  *
- * Read plugins from the given path. Any file with suffix G_MODULE_SUFFIX is
- * considered as a potential plugin, and loaded; if it contains the symbol
- * mcp_plugin_ref_nth_object(), it's made resident, then that symbol is called
- * as a function.
+ * Read plugins from the given path. Any file with prefix "mcp-" and suffix
+ * %G_MODULE_SUFFIX is considered as a potential plugin, and loaded; if it
+ * contains the symbol mcp_plugin_ref_nth_object(), the plugin is made
+ * resident, then that symbol is called as a function until it returns %NULL.
+ *
+ * Mission Control uses this function to load its plugins; plugins shouldn't
+ * call it.
  */
 void
 mcp_read_dir (const gchar *path)
@@ -173,6 +220,9 @@ mcp_read_dir (const gchar *path)
  * mcp_list_objects:
  *
  * Return a list of objects that might implement plugin interfaces.
+ *
+ * Mission Control uses this function to iterate through the loaded plugin
+ * objects; plugins shouldn't need to call it.
  *
  * Returns: a constant list of plugin objects
  */
