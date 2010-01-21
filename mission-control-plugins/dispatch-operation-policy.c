@@ -18,6 +18,50 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+/**
+ * SECTION:dispatch-operation-policy
+ * @title: McpDispatchOperationPolicy
+ * @short_description: Dispatch Operation policy object, implemented by plugins
+ * @see_also: #McpDispatchOperation
+ * @include: mission-control-plugins/mission-control-plugins.h
+ *
+ * Plugins may implement #McpDispatchOperationPolicy in order to apply policy
+ * to Telepathy channel dispatch operations passing through the Channel
+ * Dispatcher part of Mission Control. This interface behaves rather like the
+ * Observer clients in the Telepathy specification, and has access to the same
+ * information, but runs within the Mission Control process rather than being
+ * invoked over D-Bus.
+ *
+ * To do so, the plugin must implement a #GObject subclass that implements
+ * #McpDispatchOperationPolicy, then return an instance of that subclass from
+ * mcp_plugin_ref_nth_object().
+ *
+ * The contents of the #McpDispatchOperationPolicyIface struct are not public,
+ * so to provide an implementation of the check method,
+ * plugins should call mcp_dispatch_operation_policy_iface_implement_check()
+ * from the interface initialization function, like this:
+ *
+ * <example><programlisting>
+ * G_DEFINE_TYPE_WITH_CODE (MyPlugin, my_plugin,
+ *    G_TYPE_OBJECT,
+ *    G_IMPLEMENT_INTERFACE (...);
+ *    G_IMPLEMENT_INTERFACE (MCP_TYPE_DISPATCH_OPERATION_POLICY,
+ *      cdo_policy_iface_init);
+ *    G_IMPLEMENT_INTERFACE (...))
+ * /<!-- -->* ... *<!-- -->/
+ * static void
+ * cdo_policy_iface_init (McpDispatchOperationPolicyIface *iface,
+ *     gpointer unused G_GNUC_UNUSED)
+ * {
+ *   mcp_dispatch_operation_policy_iface_implement_check (iface,
+ *       my_plugin_check_cdo);
+ * }
+ * </programlisting></example>
+ *
+ * A single object can implement more than one interface; for instance, it
+ * may be useful to combine this interface with #McpRequestPolicy.
+ */
+
 #include <mission-control-plugins/mission-control-plugins.h>
 
 struct _McpDispatchOperationPolicyIface {
@@ -57,6 +101,21 @@ mcp_dispatch_operation_policy_get_type (void)
   return type;
 }
 
+/**
+ * mcp_dispatch_operation_policy_check:
+ * @policy: an implementation of this interface, provided by a plugin
+ * @dispatch_operation: an object representing a dispatch operation, i.e.
+ *  a bundle of channels being dispatched
+ *
+ * Check what to do with a bundle of channels. Implementations of this method
+ * can use methods on @dispatch_operation to examine the channels, delay
+ * dispatching, close the channels, etc. in order to impose whatever policy
+ * the plugin requires.
+ *
+ * Mission Control calls this function in each plugin after invoking
+ * Observers, but before Approvers, and without waiting for Observers to
+ * reply.
+ */
 void
 mcp_dispatch_operation_policy_check (McpDispatchOperationPolicy *policy,
     McpDispatchOperation *dispatch_operation)
@@ -70,6 +129,12 @@ mcp_dispatch_operation_policy_check (McpDispatchOperationPolicy *policy,
     iface->check (policy, dispatch_operation);
 }
 
+/**
+ * mcp_dispatch_operation_policy_iface_implement_check:
+ * @iface: the interface
+ * @impl: an implementation of the virtual method
+ *  mcp_dispatch_operation_policy_check()
+ */
 void
 mcp_dispatch_operation_policy_iface_implement_check (
     McpDispatchOperationPolicyIface *iface,
