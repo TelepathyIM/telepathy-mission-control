@@ -18,6 +18,25 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+/**
+ * SECTION:dispatch-operation
+ * @title: McpDispatchOperation
+ * @short_description: Dispatch operation object, implemented by Mission Control
+ * @see_also: #McpDispatchOperationPolicy
+ * @include: mission-control-plugins/mission-control-plugins.h
+ *
+ * This object represents a Telepathy ChannelDispatchOperation object, as used
+ * by Approvers. A ChannelDispatchOperation represents a bundle of one or more
+ * Telepathy Channels being dispatched to user interfaces or other clients.
+ *
+ * The virtual method mcd_dispatch_operation_policy_check() receives an object
+ * provided by Mission Control that implements this interface. It can be
+ * used to inspect the channels, delay dispatching of the bundle until the
+ * plugin is ready to continue, or close the channels in various ways.
+ *
+ * Only Mission Control should implement this interface.
+ */
+
 #include <mission-control-plugins/mission-control-plugins.h>
 #include <mission-control-plugins/implementation.h>
 
@@ -56,6 +75,16 @@ mcp_dispatch_operation_get_type (void)
   return type;
 }
 
+/**
+ * mcp_dispatch_operation_get_account_path:
+ * @self: a dispatch operation
+ *
+ * <!-- -->
+ *
+ * Returns: the D-Bus object path of the Account with which the channels are
+ *  associated. The string is owned by @self and must not be freed; it is
+ *  only valid as long as a reference to @self is held.
+ */
 const gchar *
 mcp_dispatch_operation_get_account_path (McpDispatchOperation *self)
 {
@@ -66,6 +95,16 @@ mcp_dispatch_operation_get_account_path (McpDispatchOperation *self)
   return iface->get_account_path (self);
 }
 
+/**
+ * mcp_dispatch_operation_get_connection_path:
+ * @self: a dispatch operation
+ *
+ * <!-- -->
+ *
+ * Returns: the D-Bus object path of the Connection with which the channels are
+ *  associated. The string is owned by @self and must not be freed; it is
+ *  only valid as long as a reference to @self is held.
+ */
 const gchar *
 mcp_dispatch_operation_get_connection_path (McpDispatchOperation *self)
 {
@@ -76,6 +115,17 @@ mcp_dispatch_operation_get_connection_path (McpDispatchOperation *self)
   return iface->get_connection_path (self);
 }
 
+/**
+ * mcp_dispatch_operation_get_protocol:
+ * @self: a dispatch operation
+ *
+ * <!-- -->
+ *
+ * Returns: the Telepathy identifier for the protocol, such as 'jabber' or
+ *  'icq' (the Protocol type in telepathy-spec). The string is owned by @self
+ *  and must not be freed; it is only valid as long as a reference to @self
+ *  is held.
+ */
 const gchar *
 mcp_dispatch_operation_get_protocol (McpDispatchOperation *self)
 {
@@ -86,6 +136,17 @@ mcp_dispatch_operation_get_protocol (McpDispatchOperation *self)
   return iface->get_protocol (self);
 }
 
+/**
+ * mcp_dispatch_operation_get_cm_name:
+ * @self: a dispatch operation
+ *
+ * <!-- -->
+ *
+ * Returns: the short name of the Telepathy connection manager, such as
+ *  'gabble' or 'haze' (the Connection_Manager_Name type in telepathy-spec).
+ *  The string is owned by @self and must not be freed; it is only valid as
+ *  long as a reference to @self is held.
+ */
 const gchar *
 mcp_dispatch_operation_get_cm_name (McpDispatchOperation *self)
 {
@@ -96,6 +157,14 @@ mcp_dispatch_operation_get_cm_name (McpDispatchOperation *self)
   return iface->get_cm_name (self);
 }
 
+/**
+ * mcp_dispatch_operation_get_n_channels:
+ * @self: a dispatch operation
+ *
+ * <!-- -->
+ *
+ * Returns: the number of channels in this dispatch operation.
+ */
 guint
 mcp_dispatch_operation_get_n_channels (McpDispatchOperation *self)
 {
@@ -106,6 +175,19 @@ mcp_dispatch_operation_get_n_channels (McpDispatchOperation *self)
   return iface->get_n_channels (self);
 }
 
+/**
+ * mcp_dispatch_operation_get_nth_channel_path:
+ * @self: a dispatch operation
+ * @n: index of the channel to inspect
+ *
+ * <!-- -->
+ *
+ * Returns: the D-Bus object path of the @n'th channel (starting from 0), or
+ *  %NULL if @n is greater than or equal to
+ *  mcp_dispatch_operation_get_n_channels().
+ *  The string is owned by @self and must not be freed; it is only valid as
+ *  long as a reference to @self is held.
+ */
 const gchar *
 mcp_dispatch_operation_get_nth_channel_path (McpDispatchOperation *self,
     guint n)
@@ -123,6 +205,22 @@ mcp_dispatch_operation_get_nth_channel_path (McpDispatchOperation *self,
   return iface->get_nth_channel_path (self, n);
 }
 
+/**
+ * mcp_dispatch_operation_ref_nth_channel_properties:
+ * @self: a dispatch operation
+ * @n: index of the channel to inspect
+ *
+ * Return the immutable properties of the @n'th channel (starting from 0), or
+ * %NULL if @n is greater than or equal to
+ * mcp_dispatch_operation_get_n_channels().
+ *
+ * The keys of the hash table are strings and the values are in #GValue
+ * structures, using the same representation as dbus-glib, tp_asv_get_string()
+ * etc. Do not add or remove entries in this hash table.
+ *
+ * Returns: a reference to a hash table, which must be released with
+ *  g_hash_table_unref() by the caller
+ */
 GHashTable *
 mcp_dispatch_operation_ref_nth_channel_properties (McpDispatchOperation *self,
     guint n)
@@ -140,6 +238,21 @@ mcp_dispatch_operation_ref_nth_channel_properties (McpDispatchOperation *self,
   return iface->ref_nth_channel_properties (self, n);
 }
 
+/**
+ * mcp_dispatch_operation_start_delay:
+ * @self: a dispatch operation
+ *
+ * Start to delay the dispatch operation, for instance while waiting for
+ * an asynchronous operation to finish. The returned token must be passed to
+ * mcp_dispatch_operation_end_delay() exactly once, at which point dispatching
+ * will continue and the token becomes invalid.
+ *
+ * This is similar to an Observer delaying the return from ObserveChannels,
+ * except that there is no time limit - a dispatch operation policy plugin
+ * can delay the dispatch operation indefinitely.
+ *
+ * Returns: a token which can be used to end the delay
+ */
 McpDispatchOperationDelay *
 mcp_dispatch_operation_start_delay (McpDispatchOperation *self)
 {
@@ -150,6 +263,14 @@ mcp_dispatch_operation_start_delay (McpDispatchOperation *self)
   return iface->start_delay (self);
 }
 
+/**
+ * mcp_dispatch_operation_end_delay:
+ * @self: a dispatch operation
+ * @delay: a token obtained by calling mcp_dispatch_operation_start_delay()
+ *  on @self previously
+ *
+ * Stop delaying the dispatch operation, allowing dispatching to proceed.
+ */
 void
 mcp_dispatch_operation_end_delay (McpDispatchOperation *self,
     McpDispatchOperationDelay *delay)
@@ -162,6 +283,18 @@ mcp_dispatch_operation_end_delay (McpDispatchOperation *self,
   iface->end_delay (self, delay);
 }
 
+/**
+ * mcp_dispatch_operation_leave_channels:
+ * @self: a dispatch operation
+ * @wait_for_observers: if %FALSE, leave the channels immediately; if %TRUE
+ *  (usually recommended), wait for Observers to reply first
+ * @reason: the reason code to give
+ * @message: a human-readable message provided by the user, or either the
+ *  empty string or %NULL if no message has been provided
+ *
+ * Leave all channels in this bundle by using RemoveMembersWithReason if the
+ * channel has the Group interface, or Close if not.
+ */
 void
 mcp_dispatch_operation_leave_channels (McpDispatchOperation *self,
     gboolean wait_for_observers,
@@ -179,6 +312,14 @@ mcp_dispatch_operation_leave_channels (McpDispatchOperation *self,
   iface->leave_channels (self, wait_for_observers, reason, message);
 }
 
+/**
+ * mcp_dispatch_operation_close_channels:
+ * @self: a dispatch operation
+ * @wait_for_observers: if %FALSE, close the channels immediately; if %TRUE
+ *  (usually recommended), wait for Observers to reply first
+ *
+ * Close all channels in this bundle by using the Close D-Bus method.
+ */
 void
 mcp_dispatch_operation_close_channels (McpDispatchOperation *self,
     gboolean wait_for_observers)
@@ -190,6 +331,15 @@ mcp_dispatch_operation_close_channels (McpDispatchOperation *self,
   iface->close_channels (self, wait_for_observers);
 }
 
+/**
+ * mcp_dispatch_operation_destroy_channels:
+ * @self: a dispatch operation
+ * @wait_for_observers: if %FALSE, close the channels immediately; if %TRUE
+ *  (usually recommended), wait for Observers to reply first
+ *
+ * Close all channels in this bundle destructively, by using the Destroy D-Bus
+ * method if implemented, or the Close D-Bus method if not.
+ */
 void
 mcp_dispatch_operation_destroy_channels (McpDispatchOperation *self,
     gboolean wait_for_observers)
@@ -201,6 +351,33 @@ mcp_dispatch_operation_destroy_channels (McpDispatchOperation *self,
   iface->destroy_channels (self, wait_for_observers);
 }
 
+/**
+ * mcp_dispatch_operation_find_channel_by_type:
+ * @self: a dispatch operation
+ * @start_from: index at which to start searching, usually 0
+ * @handle_type: the handle type to match
+ * @channel_type: the channel type to match
+ * @ret_index: if not %NULL, used to return the index of the first matching
+ *  channel, suitable for use with
+ *  mcp_dispatch_operation_get_nth_channel_path() etc.
+ * @ret_dup_path: if not %NULL, used to return the object path of the first
+ *  matching channel, which must be freed with g_free()
+ * @ret_ref_immutable_properties: if not %NULL, used to return a reference to
+ *  immutable properties, as if via
+ *  mcp_dispatch_operation_ref_nth_channel_properties(), which must be
+ *  released with g_hash_table_unref()
+ * @ret_ref_channel: if not %NULL, used to return a #TpChannel, which is not
+ *  guaranteed to be ready immediately, and must be released with
+ *  g_object_unref()
+ *
+ * Attempt to find a channel matching the given handle type and channel type
+ * in the bundle. This is an easy way to test whether the bundle contains any
+ * channels of interest to a particular plugin.
+ *
+ * Returns: %TRUE if a matching channel was found, or %FALSE (without touching
+ *  @ret_index, @ret_dup_path, @ret_ref_immutable_properties or
+ *  @ret_ref_channel) if not
+ */
 gboolean
 mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
     guint start_from,
@@ -265,6 +442,16 @@ mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
   return FALSE;
 }
 
+/**
+ * mcp_dispatch_operation_ref_connection:
+ * @self: a dispatch operation
+ *
+ * Return a #TpConnection object. It is not guaranteed to be ready immediately;
+ * use tp_connection_call_when_ready().
+ *
+ * Returns: a reference to a #TpConnection, which must be released with
+ *  g_object_unref() by the caller
+ */
 TpConnection *
 mcp_dispatch_operation_ref_connection (McpDispatchOperation *self)
 {
@@ -283,6 +470,17 @@ mcp_dispatch_operation_ref_connection (McpDispatchOperation *self)
   return connection;
 }
 
+/**
+ * mcp_dispatch_operation_ref_nth_channel:
+ * @self: a dispatch operation
+ * @n: index of the channel to inspect
+ *
+ * Return a #TpChannel object. It is not guaranteed to be ready immediately;
+ * use tp_channel_call_when_ready().
+ *
+ * Returns: a reference to a #TpChannel, which must be released with
+ *  g_object_unref() by the caller, or %NULL if @n is too large
+ */
 TpChannel *
 mcp_dispatch_operation_ref_nth_channel (McpDispatchOperation *self,
     guint n)
