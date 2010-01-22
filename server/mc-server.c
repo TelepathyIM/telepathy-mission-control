@@ -61,11 +61,8 @@ main (int argc, char **argv)
     /* Send all debug messages through the Telepathy infrastructure.
      *
      * Unlike CMs, we don't have "subdomains" within MC yet, so we don't want
-     * to exclude any domains. However, telepathy-glib 0.7.36 doesn't handle
-     * exclude=NULL correctly; use a dummy non-NULL argument until a release
-     * fixes fd.o#23843. */
-    g_log_set_default_handler (tp_debug_sender_log_handler,
-        "<all the domains please>");
+     * to exclude any domains. */
+    g_log_set_default_handler (tp_debug_sender_log_handler, NULL);
 
     mcd_debug_init ();
     tp_debug_set_flags (g_getenv ("MC_TP_DEBUG"));
