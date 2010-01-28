@@ -606,7 +606,21 @@ mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
                                       McdChannel *channel)
 {
     GHashTableIter iter;
-    McdClient *client;
+    McdClient *client = NULL;
+
+    const gchar *preferred =
+        _mcd_channel_get_request_preferred_handler (channel);
+
+    /* backport from 5.3.x - This is looked up in a client registry there, *
+     * but no such beast exists in 5.2.x, I believe this is the nearest    *
+     * equivalent: (a preferred handler matches regardless of its filters) */
+    if (preferred != NULL && preferred[0] != '\0')
+    {
+        client = g_hash_table_lookup (dispatcher->priv->clients, preferred);
+
+        if (client != NULL)
+            return client;
+    }
 
     /* FIXME: return the "most preferred" handler, not just any handler that
      * can take it */
