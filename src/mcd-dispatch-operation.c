@@ -382,16 +382,37 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
         break;
 
     case PROP_CHANNELS:
+        /* because this is construct-only, we can assert that: */
         g_assert (priv->channels == NULL);
+        g_assert (priv->handler == NULL);
+
         priv->channels = g_value_get_pointer (val);
         if (G_LIKELY (priv->channels))
         {
             /* get the connection from the first channel */
             McdChannel *channel = MCD_CHANNEL (priv->channels->data);
+            const gchar *preferred_handler;
             priv->connection = (McdConnection *)
                 mcd_mission_get_parent (MCD_MISSION (channel));
             if (G_LIKELY (priv->connection))
                 g_object_ref (priv->connection);
+
+            /* if the first channel is actually a channel request, get the
+             * preferred handler from it */
+            preferred_handler =
+              _mcd_channel_get_request_preferred_handler (channel);
+
+            if (preferred_handler != NULL &&
+                g_str_has_prefix (preferred_handler, MCD_CLIENT_BASE_NAME) &&
+                tp_dbus_check_valid_bus_name (preferred_handler,
+                                              TP_DBUS_NAME_TYPE_WELL_KNOWN,
+                                              NULL))
+            {
+                DEBUG ("Extracted preferred handler: %s",
+                       preferred_handler);
+                priv->handler = g_strdup (preferred_handler +
+                                          MCD_CLIENT_BASE_NAME_LEN);
+            }
 
             /* reference the channels */
             for (list = priv->channels; list != NULL; list = list->next)
@@ -825,4 +846,27 @@ _mcd_dispatch_operation_unblock_finished (McdDispatchOperation *self)
             mcd_dispatch_operation_actually_finish (self);
         }
     }
+}
+
+gboolean
+mcd_dispatch_operation_check_handler (const gchar *handler)
+{
+    /* NULL-safety: treat both NULL and "" as "unspecified" */
+    if (handler == NULL)
+      return FALSE;
+
+    DEBUG ("handler: '%s'", handler);
+
+    if (!g_str_has_prefix (handler, MCD_CLIENT_BASE_NAME) ||
+        !tp_dbus_check_valid_bus_name (handler,
+                                       TP_DBUS_NAME_TYPE_WELL_KNOWN, NULL))
+    {
+        DEBUG ("handler name '%s' is bad", handler);
+        return FALSE;
+    }
+
+    if (*handler != '\0')
+      return TRUE;
+
+    return FALSE;
 }

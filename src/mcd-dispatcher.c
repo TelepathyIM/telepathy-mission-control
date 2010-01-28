@@ -3705,6 +3705,12 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
     }
     else
     {
+        const gchar *preferred_handler =
+            _mcd_channel_get_request_preferred_handler (request);
+
+        if (!mcd_dispatch_operation_check_handler (preferred_handler))
+            preferred_handler = NULL;
+
         _mcd_channel_set_request_proxy (request, channel);
         if (status == MCD_CHANNEL_STATUS_DISPATCHING)
         {
@@ -3719,7 +3725,8 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
                  * terminate */
                 if (G_LIKELY (context->operation))
                     mcd_dispatch_operation_handle_with (context->operation,
-                                                        NULL, NULL);
+                                                        preferred_handler,
+                                                        NULL);
             }
             else
                 context->skip_approval = TRUE;

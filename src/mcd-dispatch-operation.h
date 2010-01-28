@@ -67,5 +67,7 @@ void mcd_dispatch_operation_handle_with (McdDispatchOperation *operation,
                                          const gchar *handler_path,
                                          GError **error);
 
+gboolean mcd_dispatch_operation_check_handler (const gchar *handler);
+
 G_END_DECLS
 #endif
