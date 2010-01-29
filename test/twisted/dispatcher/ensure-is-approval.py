@@ -189,7 +189,7 @@ def test(q, bus, mc):
             EventPattern('dbus-return', method='EnsureChannel'),
             EventPattern('dbus-method-call', handled=False,
                 interface=cs.CLIENT_IFACE_REQUESTS,
-                method='AddRequest'), # FIXME: path=kopete.object_path),
+                method='AddRequest', path=kopete.object_path),
             )
     request_path = ret.value[0]
 
@@ -218,13 +218,7 @@ def test(q, bus, mc):
             method='EnsureChannel',
             path=conn.object_path, args=[request], handled=False)
 
-    # FIXME: we should be able to assert that this goes to Kopete, above
-    if add_request_call.path == kopete.object_path:
-        q.dbus_return(add_request_call.message, bus=kopete_bus, signature='')
-    elif add_request_call.path == empathy.object_path:
-        q.dbus_return(add_request_call.message, bus=empathy_bus, signature='')
-    else:
-        assert False, "%s is neither Empathy nor Kopete" % add_request_call.path
+    q.dbus_return(add_request_call.message, bus=kopete_bus, signature='')
 
     # Time passes. The CM returns the existing channel
 
