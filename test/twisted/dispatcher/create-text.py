@@ -80,8 +80,6 @@ def test_channel_creation(q, bus, account, client, conn,
     if prefer is None:
         prefer = client
 
-    print "test_channel_creation:: prefer is : ", prefer.bus_name, "\n"
-
     cd = bus.get_object(cs.CD, cs.CD_PATH)
     cd_props = dbus.Interface(cd, cs.PROPERTIES_IFACE)
 
