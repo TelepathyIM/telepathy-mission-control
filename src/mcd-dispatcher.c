@@ -614,10 +614,12 @@ mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
     /* backport from 5.3.x - This is looked up in a client registry there, *
      * but no such beast exists in 5.2.x, I believe this is the nearest    *
      * equivalent: (a preferred handler matches regardless of its filters) */
+    DEBUG ("looking up '%s' in dispatcher client list", preferred);
     if (preferred != NULL && preferred[0] != '\0')
     {
         client = g_hash_table_lookup (dispatcher->priv->clients, preferred);
 
+        DEBUG ("'%s' maps to client %p, returning", preferred, client);
         if (client != NULL)
             return client;
     }
@@ -843,17 +845,44 @@ mcd_dispatcher_get_possible_handlers (McdDispatcher *self,
         }
     }
 
+    /* If we have at least one handler that can take the whole batch. Sort
+     * the possible handlers, most preferred first (i.e. sort by ascending
+     * quality then reverse) */
+    if (handlers != NULL)
+    {
+        handlers = g_list_sort (handlers, possible_handler_cmp);
+        handlers = g_list_reverse (handlers);
+    }
+
+    /* tack a preferred handler onto the front of the list if we have one  */
+    if (channels != NULL && channels->data != NULL)
+    {
+        const gchar *preferred =
+          _mcd_channel_get_request_preferred_handler (channels->data);
+
+        DEBUG ("preferred candidate: %s", preferred);
+
+        if (preferred != NULL && *preferred != '\0')
+        {
+            McdClient *client =
+                g_hash_table_lookup (self->priv->clients, preferred);
+            if (client != NULL)
+            {
+                PossibleHandler *ph = g_slice_new0 (PossibleHandler);
+                DEBUG ("candidate '%s' maps to client '%s'",
+                       preferred, client->name);
+                ph->client = client;
+                handlers = g_list_prepend (handlers, ph);
+                n_handlers++;
+            }
+        }
+    }
+
     /* if no handlers can take them all, fail */
     if (handlers == NULL)
     {
         return NULL;
     }
-
-    /* We have at least one handler that can take the whole batch. Sort
-     * the possible handlers, most preferred first (i.e. sort by ascending
-     * quality then reverse) */
-    handlers = g_list_sort (handlers, possible_handler_cmp);
-    handlers = g_list_reverse (handlers);
 
     ret = g_new0 (gchar *, n_handlers + 1);
 
@@ -3721,9 +3750,11 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
     {
         const gchar *preferred_handler =
             _mcd_channel_get_request_preferred_handler (request);
+        DEBUG ("preferred_handler (possible): %s", preferred_handler);
 
         if (!mcd_dispatch_operation_check_handler (preferred_handler))
             preferred_handler = NULL;
+        DEBUG ("preferred_handler (verified): %s", preferred_handler);
 
         _mcd_channel_set_request_proxy (request, channel);
         if (status == MCD_CHANNEL_STATUS_DISPATCHING)
