@@ -45,6 +45,9 @@
 #include "mcd-misc.h"
 #include "mcd-service.h"
 
+#define CAN_VOIP \
+  (MC_PROFILE_CAPABILITY_VOICE_P2P | MC_PROFILE_CAPABILITY_VIDEO_P2P)
+
 #define COMPAT_REQ_DATA "compat_req"
 
 static guint _mcd_account_signal_profile_set = 0;
@@ -241,6 +244,29 @@ mcd_account_compat_get_mc_profile (McdAccount *account)
     }
     return profile;
 }
+
+/**
+ * mcd_account_compat_voip_suppressed:
+ * @account: the #McdAccount.
+ *
+ * Returns: whether the account profile forbids VoIP
+ */
+gboolean
+mcd_account_compat_voip_suppressed (McdAccount *account)
+{
+  /* if there is a profile _and_ it has no voice/video caps *
+   * then we consider VOIP to be suppressed in this profile */
+  if (account != NULL)
+    {
+      McProfile *p = mcd_account_compat_get_mc_profile (account);
+
+      if (p != NULL)
+        return (mc_profile_get_capabilities (p) & CAN_VOIP) == 0;
+    }
+
+  return FALSE;
+}
+
 
 inline void
 _mcd_account_compat_class_init (McdAccountClass *klass)
