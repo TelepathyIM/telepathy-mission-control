@@ -1,7 +1,24 @@
-telepathy-mission-control 5.2.7 (UNRELEASED)
+telepathy-mission-control 5.2.8 (UNRELEASED)
 ============================================
 
-...
+Fixes:
+
+* preferred handlers: actually preferring a channel's preferred handler
+  backported from 5.3.x (fledermaus)
+
+* new managers (eg 3rd party protocol plugins) no longer require a restart 
+  to appear (fledermaus, mardy)
+
+Enhancements:
+
+* voip functionality for a channel is suppressed if the account profile lacks
+  both video and voice p2p capabilities (fledermaus)
+
+Notes:
+
+* there is no 5.2.7 release, it was skipped to avoid confusion due to an
+  accidental version bump to 5.2.7 in the Maemo branch which escaped into 
+  the real world.
 
 telepathy-mission-control 5.2.6 (2009-10-08)
 ============================================
