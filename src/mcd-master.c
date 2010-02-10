@@ -461,6 +461,11 @@ mcd_master_constructor (GType type, guint n_params,
     umask (0077);
 #endif
 
+    /* This newer plugin API is currently always enabled       */
+    /* .... and is enabled before anything else as potentially *
+     * any mcd component could have a new-API style plugin     */
+    _mcd_plugin_loader_init ();
+
     if (!priv->account_manager)
 	priv->account_manager = mcd_account_manager_new (priv->dbus_daemon);
 
@@ -482,9 +487,6 @@ mcd_master_constructor (GType type, guint n_params,
 #ifdef ENABLE_MCD_PLUGINS
     mcd_master_load_mcd_plugins (master);
 #endif
-
-    /* This newer plugin API is currently always enabled */
-    _mcd_plugin_loader_init ();
 
     /* we assume that at this point all transport plugins have been registered.
      * We get the active transports and check whether some accounts should be
