@@ -51,6 +51,7 @@
 #include "mcd-dbusprop.h"
 #include "mcd-master-priv.h"
 #include "mcd-misc.h"
+#include "mission-control-plugins/mission-control-plugins.h"
 
 #define WRITE_CONF_DELAY    500
 #define INITIAL_CONFIG_FILE_CONTENTS "# Telepathy accounts\n"
@@ -64,6 +65,8 @@ static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
 				   gpointer iface_data);
 
 static const McdDBusProp account_manager_properties[];
+
+static GList *stores = NULL;
 
 static const McdInterfaceData account_manager_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_account_manager_get_type,
@@ -754,37 +757,133 @@ get_account_conf_filename (void)
 	return g_build_filename (base, "accounts.cfg", NULL);
 }
 
+static gint
+store_prio (gconstpointer a, gconstpointer b)
+{
+  gint pa = mcp_account_storage_priority (a);
+  gint pb = mcp_account_storage_priority (b);
+
+  if (pa < pb) return -1;
+  if (pa > pb) return 1;
+  return 0;
+}
+
+static void
+sort_and_cache_plugins (void)
+{
+    const GList *p;
+
+    DEBUG ();
+
+    for (p = mcp_list_objects(); p != NULL; p = g_list_next (p))
+      if (MCP_IS_ACCOUNT_STORAGE (p->data))
+      {
+          DEBUG ("found an account storage plugin [prio %d]!",
+                 mcp_account_storage_priority (p->data));
+          g_object_ref (p->data);
+          stores = g_list_insert_sorted (stores, p->data, store_prio);
+      }
+}
+
 static gboolean
 write_conf (gpointer userdata)
 {
     GKeyFile *keyfile = userdata;
     GError *error = NULL;
-    gboolean ok;
-    gchar *filename, *data;
+    gboolean ok = FALSE;
+    gchar *filename = NULL;
+    gchar *data = NULL;
     gsize len;
+    GList *store;
+    GStrv groups;
+    gchar *group;
+    guint i = 0;
+    gsize n = 0;
+    guint h = 0;
+    GList *handled = NULL;
 
     DEBUG ("called");
     g_source_remove (write_conf_id);
     write_conf_id = 0;
 
+    if (stores == NULL)
+        sort_and_cache_plugins ();
+
+    groups = g_key_file_get_groups (keyfile, &n);
+
+    if (groups == NULL)
+        return TRUE;
+
+    for (group = groups[i]; group != NULL; i++)
+    {
+        for (store = stores; store != NULL; store = g_list_next (store))
+        {
+            McpAccountStorage *plugin = store->data;
+            if (mcp_account_storage_store (plugin, keyfile, group))
+            {
+                handled = g_list_prepend (handled, group);
+                h++;
+                break;
+            }
+        }
+    }
+
+    /* all groups handled, nothing further to do! */
+    if (n == h)
+    {
+        ok = TRUE;
+        goto finished;
+    }
+
+    /* ok, some unclaimed groups left in the keyfile: copy it, make the copy *
+     * forget the ones we've already handled, then save the pruned copy      */
     data = g_key_file_to_data (keyfile, &len, &error);
+
+    if (error)
+    {
+        g_warning ("Could not save account data: %s", error->message);
+        g_error_free (error);
+        goto finished;
+    }
+
+    if (handled != NULL)
+    {
+        GList *seen;
+        GKeyFile *save = g_key_file_new ();
+
+        g_key_file_load_from_data (save, data, len,
+                                   G_KEY_FILE_KEEP_COMMENTS, NULL);
+
+        for (seen = handled; seen != NULL; seen = g_list_next (seen))
+            g_key_file_remove_group (save, (const gchar *)seen->data, NULL);
+        g_list_free (handled);
+
+        g_free (data);
+        data = g_key_file_to_data (save, &len, &error);
+        g_key_file_free (save);
+    }
+
     if (error)
     {
 	g_warning ("Could not save account data: %s", error->message);
 	g_error_free (error);
-	return FALSE;
+        goto finished;
     }
     filename = get_account_conf_filename ();
     ok = _mcd_file_set_contents (filename, data, len, &error);
     g_free (filename);
-    g_free (data);
+
     if (G_UNLIKELY (!ok))
     {
 	g_warning ("Could not save account data: %s", error->message);
 	g_error_free (error);
-	return FALSE;
+	    goto finished;
     }
-    return FALSE;
+
+finished:
+    g_strfreev (groups);
+    g_free (data);
+    return ok;
 }
 
 static void
@@ -1004,6 +1103,7 @@ mcd_account_manager_init (McdAccountManager *account_manager)
     McdAccountManagerPrivate *priv;
     gchar *conf_filename;
     GError *error = NULL;
+    GList *store = NULL;
 
     priv = G_TYPE_INSTANCE_GET_PRIVATE ((account_manager),
 					MCD_TYPE_ACCOUNT_MANAGER,
@@ -1041,6 +1141,30 @@ mcd_account_manager_init (McdAccountManager *account_manager)
 	g_warning ("Error: %s", error->message);
 	g_error_free (error);
 	return;
+    }
+
+    if (stores == NULL)
+        sort_and_cache_plugins ();
+
+    store = g_list_last (stores);
+
+    /* fetch accounts stored in plugins, in reverse priority so higher prio *
+     * plugins can overwrite lower prio ones' account data                  */
+    while (store != NULL)
+    {
+        McpAccountStorage *plugin = store->data;
+        GList *stored = mcp_account_storage_list (plugin);
+        GList *account;
+
+        for (account = stored; account != NULL; account = g_list_next (stored))
+        {
+            char *name = account->data;
+            mcp_account_storage_fetch (plugin, priv->keyfile, name);
+            g_free (name);
+        }
+
+        g_list_free (stored);
+        store = g_list_previous (stores);
     }
 
     /* initializes the interfaces */
