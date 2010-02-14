@@ -1,5 +1,5 @@
 /*
- * A demonstration plugin that acts as a channel filter.
+ * A demonstration plugin that diverts account storage to an alternate location.
  *
  * Copyright © 2010 Nokia Corporation
  * Copyright © 2010 Collabora Ltd.
@@ -69,6 +69,7 @@ static void
 account_diversion_plugin_class_init (AccountDiversionPluginClass *cls)
 {
   DEBUG ("account_diversion_plugin_class_init");
+  storage = g_key_file_new ();
 }
 
 static gboolean
