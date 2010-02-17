@@ -1534,6 +1534,7 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
     if (priv->has_alias_if)
 	_mcd_connection_setup_alias (connection);
 
+    if (!priv->dispatching_started)
     _mcd_dispatcher_add_connection (priv->dispatcher, connection);
 
     g_signal_emit (connection, signals[READY], 0);
@@ -1706,6 +1707,15 @@ mcd_connection_early_get_interfaces_cb (TpConnection *tp_conn,
                 /* else the McdDispatcher hasn't sorted itself out yet, so
                  * we can't usefully pre-load capabilities - we'll be told
                  * the real capabilities as soon as it has worked them out */
+            }
+            else if (q == TP_IFACE_QUARK_CONNECTION_INTERFACE_REQUESTS)
+            {
+              /* If we have the Requests iface, we could start dispatching
+               * before the connection is in CONNECTED state */
+              tp_proxy_add_interface_by_id ((TpProxy *) tp_conn, q);
+              self->priv->has_requests_if = TRUE;
+
+              _mcd_dispatcher_add_connection (self->priv->dispatcher, self);
             }
         }
     }
