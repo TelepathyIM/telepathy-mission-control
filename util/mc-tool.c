@@ -29,6 +29,7 @@
 #include <glib-object.h>
 
 #include <telepathy-glib/dbus.h>
+#include <telepathy-glib/defs.h>
 #include <libmcclient/mc-account-manager.h>
 #include <libmcclient/mc-account.h>
 #include <libmcclient/mc-profile.h>
@@ -1131,6 +1132,15 @@ main (int argc, char **argv)
     else {
 	command.common.account = prefix (command.common.account);
 	a = mc_account_new (daemon, command.common.account);
+
+	if (a == NULL)
+	{
+	    fprintf (stderr, "%s %s: '%s' is not a valid account name\n",
+		     app_name, command.common.name,
+		     strip (command.common.account));
+	    goto out;
+	}
+
 	mc_account_call_when_ready (a, account_ready, NULL);
     }
     g_object_unref (daemon);
@@ -1138,6 +1148,7 @@ main (int argc, char **argv)
     main_loop = g_main_loop_new (NULL, FALSE);
     g_main_loop_run (main_loop);
 
+out:
     if (am) g_object_unref (am);
     if (a) g_object_unref (a);
 

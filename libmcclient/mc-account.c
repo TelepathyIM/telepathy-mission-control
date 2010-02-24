@@ -699,6 +699,8 @@ mc_account_call_when_ready (McAccount *account, McAccountWhenReadyCb callback,
 {
     McIfaceData iface_data;
 
+    g_return_if_fail (account != NULL);
+
     iface_data.id = MC_IFACE_QUARK_ACCOUNT;
     iface_data.props_data_ptr = (gpointer)&account->priv->props;
     iface_data.create_props = create_props;
