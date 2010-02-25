@@ -3739,3 +3739,15 @@ _mcd_account_get_always_on (McdAccount *self)
 
     return self->priv->always_on;
 }
+
+gboolean
+mcd_account_parameter_is_secret (McdAccount *self, const gchar *name)
+{
+    McdAccountPrivate *priv = self->priv;
+    const TpConnectionManagerParam *param;
+
+    param = mcd_manager_get_protocol_param (priv->manager,
+                                            priv->protocol_name, name);
+
+    return (param != NULL && param->flags & TP_CONN_MGR_PARAM_FLAG_SECRET);
+}
