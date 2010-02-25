@@ -27,6 +27,9 @@
 
 G_BEGIN_DECLS
 
+#define ACCOUNT_STORAGE_PLUGIN_PRIO_DEFAULT 0
+#define ACCOUNT_STORAGE_PLUGIN_PRIO_KEYRING 65536
+
 /* API for plugins to implement */
 typedef struct _McpAccountStorage McpAccountStorage;
 typedef struct _McpAccountStorageIface McpAccountStorageIface;
@@ -47,39 +50,75 @@ typedef struct _McpAccountStorageIface McpAccountStorageIface;
 GType mcp_account_storage_get_type (void) G_GNUC_CONST;
 
 /* virtual methods */
-gint mcp_account_storage_priority (const McpAccountStorage *storage);
-
-gboolean mcp_account_storage_fetch (const McpAccountStorage *storage,
-    GKeyFile *accts,
-    const gchar *key);
-
-gboolean mcp_account_storage_store (const McpAccountStorage *storage,
-    const GKeyFile *accts,
-    const gchar *key);
-
-gboolean mcp_account_storage_remove (const McpAccountStorage *storage,
-    const gchar *key);
-
-GList *mcp_account_storage_list (const McpAccountStorage *storage);
-
-void mcp_account_storage_iface_set_priority (McpAccountStorageIface *iface,
+void
+mcp_account_storage_iface_set_priority (McpAccountStorageIface *iface,
     guint prio);
 
-void mcp_account_storage_iface_implement_fetch (McpAccountStorageIface *iface,
-    gboolean (*method) (const McpAccountStorage *,
-        GKeyFile *,
+void mcp_account_storage_iface_set_name (McpAccountStorageIface *iface,
+    const gchar *name);
+
+void mcp_account_storage_iface_set_desc (McpAccountStorageIface *iface,
+    const gchar *desc);
+
+void mcp_account_storage_iface_implement_get (McpAccountStorageIface *iface,
+    gboolean (*method) (
+        const McpAccountStorage *,
+        const McpAccount *,
+        const gchar *,
         const gchar *));
 
-void mcp_account_storage_iface_implement_store (McpAccountStorageIface *iface,
-    gboolean (*method) (const McpAccountStorage *,
-        const GKeyFile *,
+void mcp_account_storage_iface_implement_set (McpAccountStorageIface *iface,
+    gboolean (*method) (
+        const McpAccountStorage *,
+        const McpAccount *,
+        const gchar *,
+        const gchar *,
         const gchar *));
 
-void mcp_account_storage_iface_implement_remove (McpAccountStorageIface *iface,
-    gboolean (*method) (const McpAccountStorage *, const gchar *));
+void mcp_account_storage_iface_implement_delete (McpAccountStorageIface *iface,
+    gboolean (*method) (
+        const McpAccountStorage *,
+        const McpAccount *,
+        const gchar *,
+        const gchar *));
 
 void mcp_account_storage_iface_implement_list (McpAccountStorageIface *iface,
-    GList * (*method) (const McpAccountStorage *));
+    GList * (*method) (
+        const McpAccountStorage *,
+        const McpAccount *));
+
+void
+mcp_account_storage_iface_implement_commit (McpAccountStorageIface *iface,
+    gboolean (*method) (const McpAccountStorage *, const McpAccount *am));
+
+gint mcp_account_storage_priority (const McpAccountStorage *storage);
+
+gboolean mcp_account_storage_get (const McpAccountStorage *storage,
+    McpAccount *am,
+    const gchar *acct,
+    const gchar *key);
+
+gboolean mcp_account_storage_set (const McpAccountStorage *storage,
+    const McpAccount *am,
+    const gchar *acct,
+    const gchar *key,
+    const gchar *val);
+
+gboolean mcp_account_storage_delete (const McpAccountStorage *storage,
+    const McpAccount *am,
+    const gchar *acct,
+    const gchar *key);
+
+gboolean
+mcp_account_storage_commit (const McpAccountStorage *storage,
+    const McpAccount *am);
+
+GList *mcp_account_storage_list (const McpAccountStorage *storage,
+    const McpAccount *am);
+
+const gchar *mcp_account_storage_name (const McpAccountStorage *storage);
+
+const gchar *mcp_account_storage_description (const McpAccountStorage *storage);
 
 G_END_DECLS
 

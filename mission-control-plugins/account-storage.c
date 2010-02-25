@@ -49,9 +49,13 @@
  *     gpointer unused G_GNUC_UNUSED)
  * {
  *   mcp_account_storage_iface_set_priority (iface, 0);
- *   mcp_account_storage_iface_implement_fetch (iface, _plugin_fetch);
- *   mcp_account_storage_iface_implement_store (iface, _plugin_store);
- *   mcp_account_storage_iface_implement_list  (iface, _plugin_list);
+ *   mcp_account_storage_iface_set_name (iface, "foo")
+ *   mcp_account_storage_iface_set_desc (iface, "The FOO storage backend");
+ *   mcp_account_storage_iface_implement_get    (iface, _plugin_getval);
+ *   mcp_account_storage_iface_implement_set    (iface, _plugin_setval);
+ *   mcp_account_storage_iface_implement_delete (iface, _plugin_delete);
+ *   mcp_account_storage_iface_implement_commit (iface, _plugin_commit);
+ *   mcp_account_storage_iface_implement_list   (iface, _plugin_list);
  * /<!-- -->* ... *<!-- -->/
  * }
  * </programlisting></example>
@@ -61,28 +65,116 @@
  * an account storage plugin in an account storage object, though.
  */
 
+#include <src/mcd-signals-marshal.h>
+#include <src/mcd-debug.h>
+
 #include <mission-control-plugins/mission-control-plugins.h>
 #include <mission-control-plugins/implementation.h>
 #include <glib/gmessages.h>
+
+enum
+{
+  CREATED,
+  ALTERED,
+  TOGGLED,
+  DELETED,
+  NO_SIGNAL
+};
+
+static guint signals[NO_SIGNAL] = { 0 };
 
 struct _McpAccountStorageIface
 {
   GTypeInterface parent;
 
   guint priority;
+  const gchar *name;
+  const gchar *desc;
 
-  /* save group parameters from gkeyfile to plugin's store, TRUE on success */
-  gboolean (*store) (const McpAccountStorage *,const GKeyFile *, const gchar *);
+  gboolean (*set) (
+      const McpAccountStorage *self,
+      const McpAccount *am,
+      const gchar *acct,
+      const gchar *key,
+      const gchar *val);
 
-  /* read group parameters from plugin storage into gkeyfile, true on SUCCESS */
-  gboolean (*fetch) (const McpAccountStorage *,GKeyFile *, const gchar *);
+  gboolean (*get) (
+      const McpAccountStorage *self,
+      const McpAccount *am,
+      const gchar *acct,
+      const gchar *key);
 
-  /* remove group from plugin storage, TRUE on success */
-  gboolean (*remove) (const McpAccountStorage *,const gchar *);
+  gboolean (*delete) (
+      const McpAccountStorage *self,
+      const McpAccount *am,
+      const gchar *acct,
+      const gchar *key);
 
-  /* list groups (ie accounts (gchar *)) in this plugin's storage */
-  GList * (*list) (const McpAccountStorage *);
+  gboolean (*commit) (
+      const McpAccountStorage *self,
+      const McpAccount *am);
+
+  GList * (*list) (
+      const McpAccountStorage *self,
+      const McpAccount *am);
 };
+
+static void
+class_init (gpointer klass,
+    gpointer data)
+{
+  GType type = G_TYPE_FROM_CLASS (klass);
+
+  /**
+   * McpAccountStorage::created
+   * @account: the unique name of the created account
+   *
+   * emitted if an external entity creates an account
+   * in the backend the emitting plugin handles
+   **/
+  signals[CREATED] = g_signal_new ("created",
+      type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+      _mcd_marshal_VOID__STRING, G_TYPE_NONE,
+      1, G_TYPE_STRING);
+
+  /**
+   * McpAccountStorage::altered
+   * @account: the unique name of the created account
+   *
+   * emitted if an external entity alters an account
+   * in the backend the emitting plugin handles
+   **/
+  signals[ALTERED] = g_signal_new ("altered",
+      type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+      _mcd_marshal_VOID__STRING, G_TYPE_NONE,
+      1, G_TYPE_STRING);
+
+  /**
+   * McpAccountStorage::deleted
+   * @account: the unique name of the created account
+   *
+   * emitted if an external entity deletes an account
+   * in the backend the emitting plugin handles
+   **/
+  signals[DELETED] = g_signal_new ("deleted",
+      type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+      _mcd_marshal_VOID__STRING, G_TYPE_NONE,
+      1, G_TYPE_STRING);
+
+  /**
+   * McpAccountStorage::toggled
+   * @account: the unique name of the created account
+   * @enabled: #gboolean indicating whether the account is enabled
+   *
+   * emitted if an external entity enables/disables an account
+   * in the backend the emitting plugin handles
+   **/
+  signals[TOGGLED] = g_signal_new ("toggled",
+      type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+      _mcd_marshal_VOID__STRING_BOOLEAN, G_TYPE_NONE,
+      2, G_TYPE_STRING, G_TYPE_BOOLEAN);
+
+}
 
 GType
 mcp_account_storage_get_type (void)
@@ -97,7 +189,7 @@ mcp_account_storage_get_type (void)
           sizeof (McpAccountStorageIface),
           NULL, /* base_init      */
           NULL, /* base_finalize  */
-          NULL, /* class_init     */
+          class_init, /* class_init     */
           NULL, /* class_finalize */
           NULL, /* class_data     */
           0,    /* instance_size  */
@@ -109,6 +201,8 @@ mcp_account_storage_get_type (void)
       type = g_type_register_static (G_TYPE_INTERFACE,
           "McpAccountStorage", &info, 0);
       g_type_interface_add_prerequisite (type, G_TYPE_OBJECT);
+
+      g_debug ("%s -> %lu", g_type_name (type), type);
 
       g_once_init_leave (&once, 1);
     }
@@ -124,35 +218,68 @@ mcp_account_storage_iface_set_priority (McpAccountStorageIface *iface,
 }
 
 void
-mcp_account_storage_iface_implement_fetch (McpAccountStorageIface *iface,
-    gboolean (*method) (const McpAccountStorage *, GKeyFile *,
-        const gchar *))
+mcp_account_storage_iface_set_name (McpAccountStorageIface *iface,
+    const gchar *name)
 {
-  iface->fetch = method;
+  iface->name = name;
 }
 
 void
-mcp_account_storage_iface_implement_store (McpAccountStorageIface *iface,
-    gboolean (*method) (const McpAccountStorage *, const GKeyFile *,
-        const gchar *))
+mcp_account_storage_iface_set_desc (McpAccountStorageIface *iface,
+    const gchar *desc)
 {
-  iface->store = method;
+  iface->desc = desc;
 }
 
 void
-mcp_account_storage_iface_implement_remove (McpAccountStorageIface *iface,
-    gboolean (*method) (const McpAccountStorage *, const gchar *))
+mcp_account_storage_iface_implement_get (McpAccountStorageIface *iface,
+    gboolean (*method) (
+        const McpAccountStorage *,
+        const McpAccount *,
+        const gchar *,
+        const gchar *))
 {
-  iface->remove = method;
+  iface->get = method;
+}
+
+void
+mcp_account_storage_iface_implement_set (McpAccountStorageIface *iface,
+    gboolean (*method) (
+        const McpAccountStorage *,
+        const McpAccount *,
+        const gchar *,
+        const gchar *,
+        const gchar *))
+{
+  iface->set = method;
+}
+
+void
+mcp_account_storage_iface_implement_delete (McpAccountStorageIface *iface,
+    gboolean (*method) (
+        const McpAccountStorage *,
+        const McpAccount *,
+        const gchar *,
+        const gchar *))
+{
+  iface->delete = method;
+}
+
+void
+mcp_account_storage_iface_implement_commit (McpAccountStorageIface *iface,
+    gboolean (*method) (const McpAccountStorage *, const McpAccount *am))
+{
+  iface->commit = method;
 }
 
 void
 mcp_account_storage_iface_implement_list (McpAccountStorageIface *iface,
-    GList * (*method) (const McpAccountStorage *))
+    GList * (*method) (
+        const McpAccountStorage *,
+        const McpAccount *))
 {
   iface->list = method;
 }
-
 
 gint
 mcp_account_storage_priority (const McpAccountStorage *storage)
@@ -165,46 +292,88 @@ mcp_account_storage_priority (const McpAccountStorage *storage)
 }
 
 gboolean
-mcp_account_storage_fetch (const McpAccountStorage *storage,
-    GKeyFile *accts,
+mcp_account_storage_get (const McpAccountStorage *storage,
+    McpAccount *am,
+    const gchar *acct,
     const gchar *key)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
+  DEBUG ();
   g_return_val_if_fail (iface != NULL, FALSE);
 
-  return iface->fetch (storage, accts, key);
+  return iface->get (storage, am, acct, key);
 }
 
 gboolean
-mcp_account_storage_store (const McpAccountStorage *storage,
-    const GKeyFile *accts,
-    const gchar *key)
+mcp_account_storage_set (const McpAccountStorage *storage,
+    const McpAccount *am,
+    const gchar *acct,
+    const gchar *key,
+    const gchar *val)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
+  DEBUG ();
   g_return_val_if_fail (iface != NULL, FALSE);
 
-  return iface->store (storage, accts, key);
+  return iface->set (storage, am, acct, key, val);
 }
 
 gboolean
-mcp_account_storage_remove (const McpAccountStorage *storage,
+mcp_account_storage_delete (const McpAccountStorage *storage,
+    const McpAccount *am,
+    const gchar *acct,
     const gchar *key)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
+  DEBUG ();
   g_return_val_if_fail (iface != NULL, FALSE);
 
-  return iface->remove (storage, key);
+  return iface->delete (storage, am, acct, key);
+}
+
+gboolean
+mcp_account_storage_commit (const McpAccountStorage *storage,
+    const McpAccount *am)
+{
+  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
+
+  DEBUG ();
+  g_return_val_if_fail (iface != NULL, FALSE);
+
+  return iface->commit (storage, am);
 }
 
 GList *
-mcp_account_storage_list (const McpAccountStorage *storage)
+mcp_account_storage_list (const McpAccountStorage *storage,
+    const McpAccount *am)
+{
+  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
+
+  DEBUG ();
+  g_return_val_if_fail (iface != NULL, NULL);
+
+  return iface->list (storage, am);
+}
+
+const gchar *
+mcp_account_storage_name (const McpAccountStorage *storage)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
   g_return_val_if_fail (iface != NULL, NULL);
 
-  return iface->list (storage);
+  return iface->name;
+}
+
+const gchar *
+mcp_account_storage_description (const McpAccountStorage *storage)
+{
+  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
+
+  g_return_val_if_fail (iface != NULL, NULL);
+
+  return iface->desc;
 }
