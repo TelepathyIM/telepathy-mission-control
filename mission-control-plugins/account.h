@@ -1,0 +1,67 @@
+/* Mission Control plugin API - internals, for MC to use for account storage
+ *
+ * Copyright © 2010 Nokia Corporation
+ * Copyright © 2010 Collabora Ltd.
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+#ifndef MCP_ACCOUNT_H
+#define MCP_ACCOUNT_H
+
+#ifndef MCP_IN_MISSION_CONTROL_PLUGINS_H
+#error Use <mission-control-plugins/mission-control-plugins.h> instead
+#endif
+
+#include <mission-control-plugins/request.h>
+
+G_BEGIN_DECLS
+
+typedef struct _McpAccount McpAccount;
+typedef struct _McpAccountIface McpAccountIface;
+
+#define MCP_TYPE_ACCOUNT (mcp_account_get_type ())
+
+#define MCP_ACCOUNT(o) \
+  (G_TYPE_CHECK_INSTANCE_CAST ((o), MCP_TYPE_ACCOUNT, McpAccount))
+
+#define MCP_IS_ACCOUNT(o) \
+  (G_TYPE_CHECK_INSTANCE_TYPE ((o), MCP_TYPE_ACCOUNT))
+
+#define MCP_ACCOUNT_GET_IFACE(o) \
+  (G_TYPE_INSTANCE_GET_INTERFACE ((o), MCP_TYPE_ACCOUNT, McpAccountIface))
+
+GType mcp_account_get_type (void) G_GNUC_CONST;
+
+void mcp_account_set_value (const McpAccount *mcpa,
+    const gchar *acct,
+    const gchar *key,
+    const gchar *value);
+
+gchar * mcp_account_get_value (const McpAccount *mcpa,
+    const gchar *acct,
+    const gchar *key);
+
+gboolean mcp_account_parameter_is_secret (const McpAccount *mcpa,
+    const gchar *acct,
+    const gchar *key);
+
+void mcp_account_parameter_make_secret (const McpAccount *mcpa,
+    const gchar *acct,
+    const gchar *key);
+
+G_END_DECLS
+
+#endif
