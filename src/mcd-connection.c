@@ -1537,6 +1537,8 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
     if (!priv->dispatching_started)
     _mcd_dispatcher_add_connection (priv->dispatcher, connection);
 
+    request_unrequested_channels (connection);
+
     g_signal_emit (connection, signals[READY], 0);
 }
 
@@ -1559,9 +1561,6 @@ _mcd_connection_start_dispatching (McdConnection *self,
     /* FIXME: why is this here? if we need to update caps before and after   *
      * connected, it should be in the call_when_ready callback.              */
     _mcd_connection_update_client_caps (self, client_caps);
-
-    /* and request all channels */
-    request_unrequested_channels (self);
 }
 
 void
