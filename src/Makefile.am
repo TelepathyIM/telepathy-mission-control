@@ -16,6 +16,8 @@ mc_headers = \
 	mcd-account-compat.h \
 	mcd-account-conditions.h \
 	mcd-account-manager.h \
+	mcd-account-manager-default.h \
+	mcd-account-manager-keyring.h \
 	mcd-debug.h \
 	mcd-mission.h \
 	mcd-operation.h \
@@ -129,6 +131,8 @@ libmcd_convenience_la_SOURCES = \
 	mcd-account-manager.c \
 	mcd-account-manager-priv.h \
 	mcd-account-manager-query.c \
+	mcd-account-manager-default.c \
+	mcd-account-manager-keyring.c \
 	mcd-account-priv.h \
 	mcd-client.c \
 	mcd-client-priv.h \
@@ -167,6 +171,8 @@ libmcd_convenience_la_SOURCES = \
 	plugin-loader.h \
 	plugin-request.c \
 	plugin-request.h \
+	plugin-account.c \
+	plugin-account.h \
 	sp_timestamp.h \
 	$(mc_headers)
 
