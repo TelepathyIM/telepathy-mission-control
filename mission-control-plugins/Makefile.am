@@ -15,6 +15,7 @@ plugins_includedir = \
 
 plugins_include_HEADERS = \
 	mission-control-plugins.h \
+	account.h \
 	account-storage.h \
 	dispatch-operation.h \
 	dispatch-operation-policy.h \
@@ -31,8 +32,15 @@ libmission_control_plugins_la_LIBADD = \
 	$(DBUS_LIBS) \
 	$(GLIB_LIBS)
 
+$(top_srcdir)/src/mcd-signals-marshal.h:
+	@cd $(top_srcdir)/src && $(MAKE) $(@F)
+
+libmission_control_plugins_la_DEPENDENCIES = \
+	$(top_srcdir)/src/mcd-signals-marshal.h
+
 libmission_control_plugins_la_SOURCES = \
 	debug-internal.h \
+	account.c \
 	account-storage.c \
 	dispatch-operation.c \
 	dispatch-operation-policy.c \
