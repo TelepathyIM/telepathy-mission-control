@@ -1556,6 +1556,8 @@ _mcd_connection_start_dispatching (McdConnection *self,
     else
         mcd_connection_setup_pre_requests (self);
 
+    /* FIXME: why is this here? if we need to update caps before and after   *
+     * connected, it should be in the call_when_ready callback.              */
     _mcd_connection_update_client_caps (self, client_caps);
 
     /* and request all channels */
@@ -1587,6 +1589,11 @@ mcd_connection_done_task_before_connect (McdConnection *self)
         if (self->priv->tp_conn == NULL)
         {
             DEBUG ("TpConnection went away, not doing anything");
+        }
+
+        if (self->priv->has_requests_if)
+        {
+            _mcd_dispatcher_add_connection (self->priv->dispatcher, self);
         }
 
         DEBUG ("%s: Calling Connect()",
@@ -1714,8 +1721,6 @@ mcd_connection_early_get_interfaces_cb (TpConnection *tp_conn,
                * before the connection is in CONNECTED state */
               tp_proxy_add_interface_by_id ((TpProxy *) tp_conn, q);
               self->priv->has_requests_if = TRUE;
-
-              _mcd_dispatcher_add_connection (self->priv->dispatcher, self);
             }
         }
     }
