@@ -73,17 +73,11 @@ def test(q, bus, mc):
     # Connect succeeds
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
 
-    q.expect_many(
-            EventPattern('dbus-method-call',
-                interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
-                method='SetPresence',
-                args=list(presence[1:]),
-                handled=True),
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='GetAll',
-                args=[cs.CONN_IFACE_REQUESTS],
-                path=conn.object_path, handled=True),
-            )
+    q.expect('dbus-method-call',
+             interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
+             method='SetPresence',
+             args=list(presence[1:]),
+             handled=True)
 
     # Connection falls over for a miscellaneous reason
     conn.StatusChanged(cs.CONN_STATUS_DISCONNECTED,
@@ -111,17 +105,11 @@ def test(q, bus, mc):
     # Connect succeeds
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
 
-    q.expect_many(
-            EventPattern('dbus-method-call',
-                interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
-                method='SetPresence',
-                args=list(presence[1:]),
-                handled=True),
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='GetAll',
-                args=[cs.CONN_IFACE_REQUESTS],
-                path=conn.object_path, handled=True),
-            )
+    q.expect('dbus-method-call',
+             interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
+             method='SetPresence',
+             args=list(presence[1:]),
+             handled=True)
 
 if __name__ == '__main__':
     exec_test(test, {})
