@@ -55,22 +55,6 @@
 #include "mcd-master-priv.h"
 #include "mcd-dbusprop.h"
 
-#if ENABLE_GNOME_KEYRING
-#include <gnome-keyring.h>
-
-GnomeKeyringPasswordSchema keyring_schema = {
-    GNOME_KEYRING_ITEM_GENERIC_SECRET,
-    {
-        { "account", GNOME_KEYRING_ATTRIBUTE_TYPE_STRING },
-        { "param", GNOME_KEYRING_ATTRIBUTE_TYPE_STRING },
-        { NULL, 0 }
-    }
-};
-
-#define MCD_GNOME_KEYRING_GROUP_NAME "group"
-#define MCD_GNOME_KEYRING_KEY_NAME "key"
-#endif
-
 #define DELAY_PROPERTY_CHANGED
 
 #define MAX_KEY_LENGTH (DBUS_MAXIMUM_NAME_LENGTH + 6)
@@ -318,73 +302,6 @@ static void get_parameter_from_file (McdAccount *account, const gchar *name,
                                      McdAccountGetParameterCb callback,
                                      gpointer user_data);
 
-#if ENABLE_GNOME_KEYRING
-static void
-_migrate_secrets_set_cb (McdAccount *account,
-                         const GError *error,
-                         gpointer user_data)
-{
-    McdAccountPrivate *priv = account->priv;
-    const gchar *name = user_data;
-
-    if (error != NULL)
-    {
-        DEBUG ("Failed to set secret parameter %s: %s", name, error->message);
-    }
-    else
-    {
-        DEBUG ("Successfully migrated secret parameter %s from keyfile "
-               "to keyring", name);
-
-        /* Every secret which is migrated will cause the conf to be written. I
-         * guess this isn't such a big deal as it'll only happen for secret
-         * parameters on each account (in reality only one parameter), and only
-         * once, on startup. */
-        mcd_account_manager_write_conf_async (priv->account_manager, NULL, NULL);
-    }
-}
-
-static void
-_migrate_secrets_get_cb (McdAccount *account,
-                         const GValue *value,
-                         const GError *error,
-                         gpointer user_data)
-{
-    const gchar *name = user_data;
-
-    if (error != NULL || value == NULL)
-        return;
-
-    set_parameter (account, name, value, _migrate_secrets_set_cb,
-                   user_data);
-}
-
-static void
-_mcd_account_migrate_secrets (McdAccount *account)
-{
-    McdAccountPrivate *priv = account->priv;
-    const TpConnectionManagerParam *params, *p;
-
-    if (priv->manager == NULL || priv->protocol_name == NULL)
-        return;
-
-    if (!gnome_keyring_is_available ())
-      return;
-
-    params = mcd_manager_get_parameters (priv->manager, priv->protocol_name);
-
-    for (p = params; p != NULL && p->name != NULL; p++)
-    {
-        if (p->flags & TP_CONN_MGR_PARAM_FLAG_SECRET)
-        {
-            get_parameter_from_file (account, p->name, _migrate_secrets_get_cb,
-                                     p->name);
-
-        }
-    }
-}
-#endif
-
 static void
 mcd_account_loaded (McdAccount *account)
 {
@@ -435,10 +352,6 @@ mcd_account_loaded (McdAccount *account)
     }
 
     _mcd_account_maybe_autoconnect (account);
-
-#if ENABLE_GNOME_KEYRING
-    _mcd_account_migrate_secrets (account);
-#endif
 
     g_object_unref (account);
 }
@@ -532,131 +445,13 @@ keyfile_set_value (GKeyFile *keyfile,
     return TRUE;
 }
 
-#if ENABLE_GNOME_KEYRING
-typedef struct
-{
-    McdAccount *account;
-    gchar *name;
-    McdAccountSetParameterCb callback;
-    gpointer user_data;
-} KeyringSetData;
-
-static void
-keyring_set_cb (GnomeKeyringResult result,
-                gpointer user_data)
-{
-    KeyringSetData *data = (KeyringSetData *) user_data;
-    McdAccountPrivate *priv = data->account->priv;
-    GError *error = NULL;
-    gchar *param;
-
-    if (result != GNOME_KEYRING_RESULT_OK)
-    {
-        g_set_error (&error, MCD_ACCOUNT_ERROR, MCD_ACCOUNT_ERROR_SET_PARAMETER,
-                     "Failed to set item in keyring: %s",
-                     gnome_keyring_result_to_message (result));
-    }
-    else
-    {
-        DEBUG ("Set/deleted secret parameter %s in keyring", data->name);
-
-        param = g_strdup_printf ("param-%s", data->name);
-
-        if (g_key_file_remove_key (priv->keyfile, priv->unique_name,
-                                   param, NULL))
-        {
-            DEBUG ("Removed secret parameter %s from keyfile", data->name);
-        }
-
-        g_free (param);
-    }
-
-    if (data->callback != NULL)
-        data->callback (data->account, error, data->user_data);
-
-    if (error != NULL)
-        g_error_free (error);
-
-    g_free (data->name);
-    g_object_unref (data->account);
-    g_slice_free (KeyringSetData, data);
-}
-#endif
-
 static void
 set_parameter (McdAccount *account, const gchar *name, const GValue *value,
                McdAccountSetParameterCb callback, gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
     gchar key[MAX_KEY_LENGTH];
-    const TpConnectionManagerParam *param;
-    gboolean is_secret = FALSE;
     GError *error = NULL;
-
-    param = mcd_manager_get_protocol_param (priv->manager,
-                                            priv->protocol_name, name);
-
-    if (param != NULL && param->flags & TP_CONN_MGR_PARAM_FLAG_SECRET)
-        is_secret = TRUE;
-
-#if ENABLE_GNOME_KEYRING
-    if (is_secret)
-    {
-        if (gnome_keyring_is_available ())
-        {
-            gchar *display_name;
-            KeyringSetData *data;
-
-            data = g_slice_new0 (KeyringSetData);
-            data->account = g_object_ref (account);
-            data->name = g_strdup (name);
-            data->callback = callback;
-            data->user_data = user_data;
-
-            display_name = g_strdup_printf ("account: %s; param: %s",
-                                            priv->unique_name, name);
-
-            if (value != NULL)
-            {
-                GKeyFile *keyfile;
-                gchar *keyfile_data;
-
-                keyfile = g_key_file_new ();
-                keyfile_set_value (keyfile, MCD_GNOME_KEYRING_GROUP_NAME,
-                                   MCD_GNOME_KEYRING_KEY_NAME, value, NULL);
-
-                keyfile_data = g_key_file_get_value (keyfile,
-                                                     MCD_GNOME_KEYRING_GROUP_NAME,
-                                                     MCD_GNOME_KEYRING_KEY_NAME, NULL);
-
-                gnome_keyring_store_password (&keyring_schema, GNOME_KEYRING_DEFAULT,
-                                              display_name, keyfile_data,
-                                              keyring_set_cb, data, NULL,
-                                              "account", priv->unique_name,
-                                              "param", name,
-                                              NULL);
-
-                g_free (keyfile_data);
-                g_key_file_free (keyfile);
-            }
-            else
-            {
-                gnome_keyring_delete_password (&keyring_schema, keyring_set_cb,
-                                               data, NULL,
-                                               "account", priv->unique_name,
-                                               "param", name,
-                                               NULL);
-            }
-            g_free (display_name);
-            return;
-        }
-        else
-        {
-            g_message ("GNOME keyring not available: will not save secret "
-                       "parameters in the keyring");
-        }
-    }
-#endif
 
     g_snprintf (key, sizeof (key), "param-%s", name);
 
@@ -800,110 +595,10 @@ keyfile_get_value (GKeyFile *keyfile,
 
 static GType mc_param_type (const TpConnectionManagerParam *param);
 
-#if ENABLE_GNOME_KEYRING
-typedef struct
-{
-    McdAccount *account;
-    gchar *name;
-    GType type;
-    McdAccountGetParameterCb callback;
-    gpointer user_data;
-} KeyringGetData;
-
-static void
-keyring_get_cb (GnomeKeyringResult result, const gchar* password,
-                gpointer user_data)
-{
-    KeyringGetData *data = (KeyringGetData *) user_data;
-    GValue *value = NULL;
-    GError *error = NULL;
-    GKeyFile *keyfile = NULL;
-
-    if (result != GNOME_KEYRING_RESULT_OK)
-    {
-        g_message ("Failed to get item from keyring: %s",
-                   gnome_keyring_result_to_message (result));
-        g_message ("Falling back to looking in the keyfile");
-
-        get_parameter_from_file (data->account, data->name,
-                                 data->callback, data->user_data);
-    }
-    else
-    {
-        DEBUG ("Successfully got secret parameter %s from keyring", data->name);
-
-        keyfile = g_key_file_new ();
-        g_key_file_set_value (keyfile, MCD_GNOME_KEYRING_GROUP_NAME,
-            MCD_GNOME_KEYRING_KEY_NAME, password);
-
-        value = keyfile_get_value (keyfile, MCD_GNOME_KEYRING_GROUP_NAME,
-                                   MCD_GNOME_KEYRING_KEY_NAME,
-                                   data->type, &error);
-
-        if (data->callback != NULL)
-            data->callback (data->account, value, error, data->user_data);
-
-
-        g_key_file_free (keyfile);
-
-        if (value != NULL)
-            tp_g_value_slice_free (value);
-
-        if (error != NULL)
-            g_error_free (error);
-    }
-
-    g_free (data->name);
-    g_slice_free (KeyringGetData, data);
-}
-#endif
-
 static void
 get_parameter (McdAccount *account, const gchar *name,
                McdAccountGetParameterCb callback, gpointer user_data)
 {
-    McdAccountPrivate *priv = account->priv;
-    const TpConnectionManagerParam *param;
-    gboolean is_secret = FALSE;
-    GType type;
-
-    param = mcd_manager_get_protocol_param (priv->manager,
-                                            priv->protocol_name, name);
-
-    type = mc_param_type (param);
-
-    if (param != NULL && param->flags & TP_CONN_MGR_PARAM_FLAG_SECRET)
-        is_secret = TRUE;
-
-#if ENABLE_GNOME_KEYRING
-    if (is_secret)
-    {
-        if (gnome_keyring_is_available ())
-        {
-            KeyringGetData *data;
-
-            data = g_slice_new0 (KeyringGetData);
-            data->account = account;
-            data->name = g_strdup (name);
-            data->type = type;
-            data->callback = callback;
-            data->user_data = user_data;
-
-            gnome_keyring_find_password (&keyring_schema,
-                                         keyring_get_cb, data, NULL,
-                                         "account", priv->unique_name,
-                                         "param", name,
-                                         NULL);
-            return;
-        }
-        else
-        {
-            g_message ("GNOME keyring not available: will not look in the "
-                       "keyring for secret parameter: %s", name);
-        }
-    }
-#endif
-
     get_parameter_from_file (account, name, callback, user_data);
 }
 
@@ -1037,15 +732,6 @@ _mcd_account_delete_write_conf_cb (McdAccountManager *account_manager,
     g_slice_free (AccountDeleteData, data);
 }
 
-#if ENABLE_GNOME_KEYRING
-static void
-keyring_delete_cb (GnomeKeyringResult result, gpointer user_data)
-{
-    gchar *name = (gchar *) user_data;
-    DEBUG ("Deleted secret parameter %s from keyring", name);
-}
-#endif
-
 static void
 _mcd_account_delete (McdAccount *account,
                      McdAccountDeleteCb callback,
@@ -1091,39 +777,6 @@ _mcd_account_delete (McdAccount *account,
         g_rmdir (data_dir_str);
     }
     g_free (data_dir_str);
-
-#if ENABLE_GNOME_KEYRING
-    /* Delete any secret parameters from the keyring */
-    if (gnome_keyring_is_available ())
-    {
-        const TpConnectionManagerParam *params, *p;
-
-        params = mcd_manager_get_parameters (priv->manager, priv->protocol_name);
-
-        for (p = params; p != NULL && p->name != NULL; p++)
-        {
-            if (p->flags & TP_CONN_MGR_PARAM_FLAG_SECRET
-                && mc_param_type (p) == G_TYPE_STRING)
-            {
-                gchar *name;
-
-                name = g_strdup (p->name);
-                gnome_keyring_delete_password (&keyring_schema,
-                                               keyring_delete_cb,
-                                               name,
-                                               (GDestroyNotify) g_free,
-                                               "account", priv->unique_name,
-                                               "param", name,
-                                               NULL);
-            }
-        }
-    }
-    else
-    {
-        g_message ("GNOME keyring not available: cannot delete secret "
-                   "parameters from keyring");
-    }
-#endif
 
     delete_data = g_slice_new0 (AccountDeleteData);
     delete_data->account = account;
