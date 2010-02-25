@@ -72,6 +72,27 @@ struct _McpDispatchOperationIface {
         gboolean wait_for_observers);
 };
 
+struct _McpAccountIface {
+  GTypeInterface parent;
+
+  void (*set_value) (const McpAccount *ma,
+      const gchar *acct,
+      const gchar *key,
+      const gchar *value);
+
+  gchar * (*get_value) (const McpAccount *ma,
+      const gchar *acct,
+      const gchar *key);
+
+  gboolean (*is_secret) (const McpAccount *ma,
+      const gchar *acct,
+      const gchar *key);
+
+  void (* make_secret) (const McpAccount *ma,
+      const gchar *acct,
+      const gchar *key);
+};
+
 G_END_DECLS
 
 #endif
