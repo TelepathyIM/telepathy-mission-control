@@ -27,17 +27,6 @@
 
 #include <glib.h>
 
-enum {
-  PROP_KEYFILE = 1,
-  PROP_SECRETS,
-};
-
-struct _McdPluginAccountManager {
-  GObject parent;
-  GKeyFile *file;
-  GKeyFile *secrets;
-};
-
 struct _McdPluginAccountManagerClass {
     GObjectClass parent;
 };
@@ -52,6 +41,8 @@ G_DEFINE_TYPE_WITH_CODE (McdPluginAccountManager, mcd_plugin_account_manager, \
 static void
 mcd_plugin_account_manager_init (McdPluginAccountManager *self)
 {
+  self->keyfile = g_key_file_new ();
+  self->secrets = g_key_file_new ();
 }
 
 static void
@@ -60,18 +51,8 @@ plugin_account_manager_set_property (GObject *object,
     const GValue *value,
     GParamSpec *pspec)
 {
-  McdPluginAccountManager *self = (McdPluginAccountManager *) object;
-
   switch (prop_id)
     {
-      case PROP_KEYFILE:
-        self->file = g_value_get_pointer (value);
-        break;
-
-      case PROP_SECRETS:
-        self->secrets = g_value_get_pointer (value);
-        break;
-
       default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
         break;
@@ -85,7 +66,9 @@ plugin_account_manager_dispose (GObject *object)
   GObjectFinalizeFunc dispose =
     G_OBJECT_CLASS (mcd_plugin_account_manager_parent_class)->dispose;
 
-  self->file = NULL;
+  g_key_file_free (self->keyfile);
+  g_key_file_free (self->secrets);
+  self->keyfile = NULL;
   self->secrets = NULL;
 
   if (dispose != NULL)
@@ -104,33 +87,19 @@ plugin_account_manager_finalize (GObject *object)
 }
 
 static void
-mcd_plugin_account_manager_class_init (
-    McdPluginAccountManagerClass *cls)
+mcd_plugin_account_manager_class_init (McdPluginAccountManagerClass *cls)
 {
   GObjectClass *object_class = (GObjectClass *) cls;
 
   object_class->set_property = plugin_account_manager_set_property;
   object_class->dispose = plugin_account_manager_dispose;
   object_class->finalize = plugin_account_manager_finalize;
-
-  g_object_class_install_property (object_class, PROP_KEYFILE,
-      g_param_spec_pointer ("keyfile", "GKeyFile pointer",
-          "The internal storage (a gkeyfile) used by the account manager",
-          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
-
-  g_object_class_install_property (object_class, PROP_SECRETS,
-      g_param_spec_pointer ("secrets", "GKeyFile secrets map",
-          "The keyfile used to remember which params are secret",
-          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
 }
 
 McdPluginAccountManager *
-mcd_plugin_account_manager_new (GKeyFile *file, GKeyFile *secrets)
+mcd_plugin_account_manager_new ()
 {
-  return g_object_new (MCD_TYPE_PLUGIN_ACCOUNT_MANAGER,
-      "keyfile", file,
-      "secrets", secrets,
-      NULL);
+  return g_object_new (MCD_TYPE_PLUGIN_ACCOUNT_MANAGER, NULL);
 }
 
 static gchar *
@@ -139,7 +108,7 @@ get_value (const McpAccountManager *ma,
     const gchar *key)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
-  return g_key_file_get_value (self->file, acct, key, NULL);
+  return g_key_file_get_value (self->keyfile, acct, key, NULL);
 }
 
 static void
@@ -149,7 +118,7 @@ set_value (const McpAccountManager *ma,
     const gchar *value)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
-  g_key_file_set_string (self->file, acct, key, value);
+  g_key_file_set_string (self->keyfile, acct, key, value);
 }
 
 static gboolean

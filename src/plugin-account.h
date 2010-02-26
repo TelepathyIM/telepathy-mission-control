@@ -30,7 +30,12 @@
 
 G_BEGIN_DECLS
 
-typedef struct _McdPluginAccountManager McdPluginAccountManager;
+typedef struct {
+  GObject parent;
+  GKeyFile *keyfile;
+  GKeyFile *secrets;
+} McdPluginAccountManager;
+
 typedef struct _McdPluginAccountManagerClass McdPluginAccountManagerClass;
 typedef struct _McdPluginAccountManagerPrivate McdPluginAccountManagerPrivate;
 
@@ -56,8 +61,7 @@ G_GNUC_INTERNAL GType mcd_plugin_account_manager_get_type (void);
   (G_TYPE_INSTANCE_GET_CLASS ((o), MCD_TYPE_PLUGIN_ACCOUNT_MANAGER, \
       McdPluginAccountManagerClass))
 
-McdPluginAccountManager *mcd_plugin_account_manager_new (GKeyFile *m,
-    GKeyFile *s);
+McdPluginAccountManager *mcd_plugin_account_manager_new (void);
 
 G_END_DECLS
 
