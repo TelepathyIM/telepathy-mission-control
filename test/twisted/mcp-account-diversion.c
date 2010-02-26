@@ -90,7 +90,7 @@ _create_config (void)
 
 static gboolean
 _set (const McpAccountStorage *self,
-    const McpAccount *am,
+    const McpAccountManager *am,
     const gchar *acct,
     const gchar *key,
     const gchar *val)
@@ -105,7 +105,7 @@ _set (const McpAccountStorage *self,
 
 static gboolean
 _get (const McpAccountStorage *self,
-    const McpAccount *am,
+    const McpAccountManager *am,
     const gchar *acct,
     const gchar *key)
 {
@@ -118,7 +118,7 @@ _get (const McpAccountStorage *self,
       if (v == NULL)
         return FALSE;
 
-      mcp_account_set_value (am, acct, key, v);
+      mcp_account_manager_set_value (am, acct, key, v);
       g_free (v);
     }
   else
@@ -131,7 +131,7 @@ _get (const McpAccountStorage *self,
         {
           gchar *v = g_key_file_get_string (adp->keyfile, acct, keys[i], NULL);
           if (v != NULL)
-            mcp_account_set_value (am, acct, keys[i], v);
+            mcp_account_manager_set_value (am, acct, keys[i], v);
           g_free (v);
         }
 
@@ -143,7 +143,7 @@ _get (const McpAccountStorage *self,
 
 static gboolean
 _delete (const McpAccountStorage *self,
-      const McpAccount *am,
+      const McpAccountManager *am,
       const gchar *acct,
       const gchar *key)
 {
@@ -172,7 +172,7 @@ _delete (const McpAccountStorage *self,
 
 static gboolean
 _commit (const McpAccountStorage *self,
-    const McpAccount *am)
+    const McpAccountManager *am)
 {
   gsize n;
   gchar *data;
@@ -195,7 +195,7 @@ _commit (const McpAccountStorage *self,
 
 static GList *
 _list (const McpAccountStorage *self,
-    const McpAccount *am)
+    const McpAccountManager *am)
 {
   gsize i;
   gsize n;

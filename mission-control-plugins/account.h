@@ -18,8 +18,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef MCP_ACCOUNT_H
-#define MCP_ACCOUNT_H
+#ifndef MCP_ACCOUNT_MANAGER_H
+#define MCP_ACCOUNT_MANAGER_H
 
 #ifndef MCP_IN_MISSION_CONTROL_PLUGINS_H
 #error Use <mission-control-plugins/mission-control-plugins.h> instead
@@ -29,36 +29,38 @@
 
 G_BEGIN_DECLS
 
-typedef struct _McpAccount McpAccount;
-typedef struct _McpAccountIface McpAccountIface;
+typedef struct _McpAccountManager McpAccountManager;
+typedef struct _McpAccountManagerIface McpAccountManagerIface;
 
-#define MCP_TYPE_ACCOUNT (mcp_account_get_type ())
+#define MCP_TYPE_ACCOUNT_MANAGER (mcp_account_manager_get_type ())
 
-#define MCP_ACCOUNT(o) \
-  (G_TYPE_CHECK_INSTANCE_CAST ((o), MCP_TYPE_ACCOUNT, McpAccount))
+#define MCP_ACCOUNT_MANAGER(o) \
+  (G_TYPE_CHECK_INSTANCE_CAST ((o), MCP_TYPE_ACCOUNT_MANAGER, \
+      McpAccountManager))
 
-#define MCP_IS_ACCOUNT(o) \
-  (G_TYPE_CHECK_INSTANCE_TYPE ((o), MCP_TYPE_ACCOUNT))
+#define MCP_IS_ACCOUNT_MANAGER(o) \
+  (G_TYPE_CHECK_INSTANCE_TYPE ((o), MCP_TYPE_ACCOUNT_MANAGER))
 
-#define MCP_ACCOUNT_GET_IFACE(o) \
-  (G_TYPE_INSTANCE_GET_INTERFACE ((o), MCP_TYPE_ACCOUNT, McpAccountIface))
+#define MCP_ACCOUNT_MANAGER_GET_IFACE(o) \
+  (G_TYPE_INSTANCE_GET_INTERFACE ((o), MCP_TYPE_ACCOUNT_MANAGER, \
+      McpAccountManagerIface))
 
-GType mcp_account_get_type (void) G_GNUC_CONST;
+GType mcp_account_manager_get_type (void) G_GNUC_CONST;
 
-void mcp_account_set_value (const McpAccount *mcpa,
+void mcp_account_manager_set_value (const McpAccountManager *mcpa,
     const gchar *acct,
     const gchar *key,
     const gchar *value);
 
-gchar * mcp_account_get_value (const McpAccount *mcpa,
+gchar * mcp_account_manager_get_value (const McpAccountManager *mcpa,
     const gchar *acct,
     const gchar *key);
 
-gboolean mcp_account_parameter_is_secret (const McpAccount *mcpa,
+gboolean mcp_account_manager_parameter_is_secret (const McpAccountManager *mcpa,
     const gchar *acct,
     const gchar *key);
 
-void mcp_account_parameter_make_secret (const McpAccount *mcpa,
+void mcp_account_manager_parameter_make_secret (const McpAccountManager *mcpa,
     const gchar *acct,
     const gchar *key);
 

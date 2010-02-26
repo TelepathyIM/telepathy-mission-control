@@ -42,11 +42,11 @@ struct _McdPluginAccountClass {
     GObjectClass parent;
 };
 
-static void plugin_iface_init (McpAccountIface *iface,
+static void plugin_iface_init (McpAccountManagerIface *iface,
     gpointer unused G_GNUC_UNUSED);
 
 G_DEFINE_TYPE_WITH_CODE (McdPluginAccount, mcd_plugin_account, G_TYPE_OBJECT,
-    G_IMPLEMENT_INTERFACE (MCP_TYPE_ACCOUNT, plugin_iface_init))
+    G_IMPLEMENT_INTERFACE (MCP_TYPE_ACCOUNT_MANAGER, plugin_iface_init))
 
 static void
 mcd_plugin_account_init (McdPluginAccount *self)
@@ -133,7 +133,7 @@ mcd_plugin_account_new (GKeyFile *file, GKeyFile *secrets)
 }
 
 static gchar *
-get_value (const McpAccount *ma,
+get_value (const McpAccountManager *ma,
     const gchar *acct,
     const gchar *key)
 {
@@ -142,7 +142,7 @@ get_value (const McpAccount *ma,
 }
 
 static void
-set_value (const McpAccount *ma,
+set_value (const McpAccountManager *ma,
     const gchar *acct,
     const gchar *key,
     const gchar *value)
@@ -152,7 +152,7 @@ set_value (const McpAccount *ma,
 }
 
 static gboolean
-is_secret (const McpAccount *ma,
+is_secret (const McpAccountManager *ma,
     const gchar *acct,
     const gchar *key)
 {
@@ -162,7 +162,7 @@ is_secret (const McpAccount *ma,
 }
 
 static void
-make_secret (const McpAccount *ma,
+make_secret (const McpAccountManager *ma,
     const gchar *acct,
     const gchar *key)
 {
@@ -172,7 +172,7 @@ make_secret (const McpAccount *ma,
 }
 
 static void
-plugin_iface_init (McpAccountIface *iface,
+plugin_iface_init (McpAccountManagerIface *iface,
     gpointer unused G_GNUC_UNUSED)
 {
   DEBUG ();

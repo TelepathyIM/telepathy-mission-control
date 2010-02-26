@@ -22,7 +22,7 @@
 #include <mission-control-plugins/implementation.h>
 
 GType
-mcp_account_get_type (void)
+mcp_account_manager_get_type (void)
 {
   static gsize once = 0;
   static GType type = 0;
@@ -30,7 +30,7 @@ mcp_account_get_type (void)
   if (g_once_init_enter (&once))
     {
       static const GTypeInfo info = {
-          sizeof (McpAccountIface),
+          sizeof (McpAccountManagerIface),
           NULL, /* base_init */
           NULL, /* base_finalize */
           NULL, /* class_init */
@@ -42,7 +42,8 @@ mcp_account_get_type (void)
           NULL /* value_table */
       };
 
-      type = g_type_register_static (G_TYPE_INTERFACE, "McpAccount", &info, 0);
+      type = g_type_register_static (G_TYPE_INTERFACE,
+          "McpAccountManager", &info, 0);
       g_type_interface_add_prerequisite (type, G_TYPE_OBJECT);
       g_once_init_leave (&once, 1);
     }
@@ -51,12 +52,12 @@ mcp_account_get_type (void)
 }
 
 void
-mcp_account_set_value (const McpAccount *mcpa,
+mcp_account_manager_set_value (const McpAccountManager *mcpa,
     const gchar *acct,
     const gchar *key,
     const gchar *value)
 {
-  McpAccountIface *iface = MCP_ACCOUNT_GET_IFACE (mcpa);
+  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
 
   g_return_if_fail (iface != NULL);
   g_return_if_fail (iface->set_value != NULL);
@@ -65,11 +66,11 @@ mcp_account_set_value (const McpAccount *mcpa,
 }
 
 gchar *
-mcp_account_get_value (const McpAccount *mcpa,
+mcp_account_manager_get_value (const McpAccountManager *mcpa,
     const gchar *acct,
     const gchar *key)
 {
-  McpAccountIface *iface = MCP_ACCOUNT_GET_IFACE (mcpa);
+  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
 
   g_return_val_if_fail (iface != NULL, NULL);
   g_return_val_if_fail (iface->set_value != NULL, NULL);
@@ -78,11 +79,11 @@ mcp_account_get_value (const McpAccount *mcpa,
 }
 
 gboolean
-mcp_account_parameter_is_secret (const McpAccount *mcpa,
+mcp_account_manager_parameter_is_secret (const McpAccountManager *mcpa,
     const gchar *acct,
     const gchar *key)
 {
-  McpAccountIface *iface = MCP_ACCOUNT_GET_IFACE (mcpa);
+  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
 
   g_return_val_if_fail (iface != NULL, FALSE);
   g_return_val_if_fail (iface->is_secret != NULL, FALSE);
@@ -91,11 +92,11 @@ mcp_account_parameter_is_secret (const McpAccount *mcpa,
 }
 
 void
-mcp_account_parameter_make_secret (const McpAccount *mcpa,
+mcp_account_manager_parameter_make_secret (const McpAccountManager *mcpa,
     const gchar *acct,
     const gchar *key)
 {
-  McpAccountIface *iface = MCP_ACCOUNT_GET_IFACE (mcpa);
+  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
 
   g_return_if_fail (iface != NULL);
   g_return_if_fail (iface->make_secret != NULL);

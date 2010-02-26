@@ -63,14 +63,14 @@ void mcp_account_storage_iface_set_desc (McpAccountStorageIface *iface,
 void mcp_account_storage_iface_implement_get (McpAccountStorageIface *iface,
     gboolean (*method) (
         const McpAccountStorage *,
-        const McpAccount *,
+        const McpAccountManager *,
         const gchar *,
         const gchar *));
 
 void mcp_account_storage_iface_implement_set (McpAccountStorageIface *iface,
     gboolean (*method) (
         const McpAccountStorage *,
-        const McpAccount *,
+        const McpAccountManager *,
         const gchar *,
         const gchar *,
         const gchar *));
@@ -78,43 +78,43 @@ void mcp_account_storage_iface_implement_set (McpAccountStorageIface *iface,
 void mcp_account_storage_iface_implement_delete (McpAccountStorageIface *iface,
     gboolean (*method) (
         const McpAccountStorage *,
-        const McpAccount *,
+        const McpAccountManager *,
         const gchar *,
         const gchar *));
 
 void mcp_account_storage_iface_implement_list (McpAccountStorageIface *iface,
     GList * (*method) (
         const McpAccountStorage *,
-        const McpAccount *));
+        const McpAccountManager *));
 
 void
 mcp_account_storage_iface_implement_commit (McpAccountStorageIface *iface,
-    gboolean (*method) (const McpAccountStorage *, const McpAccount *am));
+    gboolean (*method) (const McpAccountStorage *, const McpAccountManager *am));
 
 gint mcp_account_storage_priority (const McpAccountStorage *storage);
 
 gboolean mcp_account_storage_get (const McpAccountStorage *storage,
-    McpAccount *am,
+    McpAccountManager *am,
     const gchar *acct,
     const gchar *key);
 
 gboolean mcp_account_storage_set (const McpAccountStorage *storage,
-    const McpAccount *am,
+    const McpAccountManager *am,
     const gchar *acct,
     const gchar *key,
     const gchar *val);
 
 gboolean mcp_account_storage_delete (const McpAccountStorage *storage,
-    const McpAccount *am,
+    const McpAccountManager *am,
     const gchar *acct,
     const gchar *key);
 
 gboolean
 mcp_account_storage_commit (const McpAccountStorage *storage,
-    const McpAccount *am);
+    const McpAccountManager *am);
 
 GList *mcp_account_storage_list (const McpAccountStorage *storage,
-    const McpAccount *am);
+    const McpAccountManager *am);
 
 const gchar *mcp_account_storage_name (const McpAccountStorage *storage);
 

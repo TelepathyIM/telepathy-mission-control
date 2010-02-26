@@ -177,7 +177,7 @@ created_cb (GObject *storage, const gchar *name, gpointer data)
 
     /* actually fetch the data into our GKeyFile from the plugin: */
     DEBUG ("-> mcp_account_storage_get");
-    if (mcp_account_storage_get (plugin, MCP_ACCOUNT (pa), name, NULL))
+    if (mcp_account_storage_get (plugin, MCP_ACCOUNT_MANAGER (pa), name, NULL))
     {
         account = mclass->account_new (manager, name);
     }
@@ -229,7 +229,7 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
 
     account = g_hash_table_lookup (manager->priv->accounts, name);
     DEBUG ("-> mcp_account_storage_delete");
-    mcp_account_storage_delete (storage, MCP_ACCOUNT (pa), name, NULL);
+    mcp_account_storage_delete (storage, MCP_ACCOUNT_MANAGER (pa), name, NULL);
 
     if (account != NULL)
         g_hash_table_remove (manager->priv->accounts, name);
@@ -240,7 +240,7 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
         DEBUG ("%s -> mcp_account_storage_delete",
                mcp_account_storage_name (p));
         if (p != storage)
-            mcp_account_storage_delete (p, MCP_ACCOUNT (pa), name, NULL);
+            mcp_account_storage_delete (p, MCP_ACCOUNT_MANAGER (pa), name, NULL);
     }
 
     g_object_unref (pa);
@@ -474,7 +474,7 @@ on_account_removed (McdAccount *account, McdAccountManager *account_manager)
         McpAccountStorage *plugin = store->data;
         DEBUG ("plugin %s; removing %s",
                mcp_account_storage_name (plugin), name);
-        mcp_account_storage_delete (plugin, MCP_ACCOUNT (pa), name, NULL);
+        mcp_account_storage_delete (plugin, MCP_ACCOUNT_MANAGER (pa), name, NULL);
     }
 
     g_object_unref (pa);
@@ -967,7 +967,7 @@ write_conf (gpointer userdata)
             for (store = stores; store != NULL; store = g_list_next (store))
             {
                 McpAccountStorage *plugin = store->data;
-                McpAccount *ma = MCP_ACCOUNT (pa);
+                McpAccountManager *ma = MCP_ACCOUNT_MANAGER (pa);
                 const gchar *pn = mcp_account_storage_name (plugin);
                 if (done)
                 {
@@ -989,7 +989,7 @@ write_conf (gpointer userdata)
 
     for (store = stores; store != NULL; store = g_list_next (store))
     {
-        McpAccount *ma = MCP_ACCOUNT (pa);
+        McpAccountManager *ma = MCP_ACCOUNT_MANAGER (pa);
         McpAccountStorage *plugin = store->data;
         const gchar *pname = mcp_account_storage_name (plugin);
         DEBUG ("flushing plugin %s to long term storage", pname);
@@ -1252,7 +1252,7 @@ mcd_account_manager_init (McdAccountManager *account_manager)
     {
         GList *account;
         McpAccountStorage *plugin = store->data;
-        GList *stored = mcp_account_storage_list (plugin, MCP_ACCOUNT (pa));
+        GList *stored = mcp_account_storage_list (plugin, MCP_ACCOUNT_MANAGER (pa));
         const gchar *pname = mcp_account_storage_name (plugin);
         const gint prio = mcp_account_storage_priority (plugin);
 
@@ -1262,7 +1262,7 @@ mcd_account_manager_init (McdAccountManager *account_manager)
         {
             char *name = account->data;
             DEBUG ("fetching %s from plugin %s [prio: %d]", name, pname, prio);
-            mcp_account_storage_get (plugin, MCP_ACCOUNT (pa), name, NULL);
+            mcp_account_storage_get (plugin, MCP_ACCOUNT_MANAGER (pa), name, NULL);
             g_free (name);
         }
 
@@ -1378,7 +1378,7 @@ mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
             gboolean done = FALSE;
             gchar *set = keys[j];
             gchar *val = g_key_file_get_value (keyfile, grp, set, NULL);
-            McpAccount *ma = MCP_ACCOUNT (pa);
+            McpAccountManager *ma = MCP_ACCOUNT_MANAGER (pa);
 
             /* the param- prefix gets whacked on in the layer above us:     *
              * mcd-account et al don't know it exists so don't pass it back */
@@ -1386,7 +1386,7 @@ mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
             {
                 const gchar *p = set + strlen (PARAM_PREFIX);
                 if (mcd_account_parameter_is_secret (acct, p))
-                    mcp_account_parameter_make_secret (ma, grp, set);
+                    mcp_account_manager_parameter_make_secret (ma, grp, set);
             }
 
             for (store = stores; store != NULL; store = g_list_next (store))
@@ -1411,7 +1411,7 @@ mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
 
     for (store = stores; store != NULL; store = g_list_next (store))
     {
-        McpAccount *ma = MCP_ACCOUNT (pa);
+        McpAccountManager *ma = MCP_ACCOUNT_MANAGER (pa);
         McpAccountStorage *plugin = store->data;
         const gchar *pname = mcp_account_storage_name (plugin);
         DEBUG ("flushing plugin %s to long term storage", pname);

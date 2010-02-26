@@ -93,30 +93,30 @@ struct _McpAccountStorageIface
 
   gboolean (*set) (
       const McpAccountStorage *self,
-      const McpAccount *am,
+      const McpAccountManager *am,
       const gchar *acct,
       const gchar *key,
       const gchar *val);
 
   gboolean (*get) (
       const McpAccountStorage *self,
-      const McpAccount *am,
+      const McpAccountManager *am,
       const gchar *acct,
       const gchar *key);
 
   gboolean (*delete) (
       const McpAccountStorage *self,
-      const McpAccount *am,
+      const McpAccountManager *am,
       const gchar *acct,
       const gchar *key);
 
   gboolean (*commit) (
       const McpAccountStorage *self,
-      const McpAccount *am);
+      const McpAccountManager *am);
 
   GList * (*list) (
       const McpAccountStorage *self,
-      const McpAccount *am);
+      const McpAccountManager *am);
 };
 
 static void
@@ -235,7 +235,7 @@ void
 mcp_account_storage_iface_implement_get (McpAccountStorageIface *iface,
     gboolean (*method) (
         const McpAccountStorage *,
-        const McpAccount *,
+        const McpAccountManager *,
         const gchar *,
         const gchar *))
 {
@@ -246,7 +246,7 @@ void
 mcp_account_storage_iface_implement_set (McpAccountStorageIface *iface,
     gboolean (*method) (
         const McpAccountStorage *,
-        const McpAccount *,
+        const McpAccountManager *,
         const gchar *,
         const gchar *,
         const gchar *))
@@ -258,7 +258,7 @@ void
 mcp_account_storage_iface_implement_delete (McpAccountStorageIface *iface,
     gboolean (*method) (
         const McpAccountStorage *,
-        const McpAccount *,
+        const McpAccountManager *,
         const gchar *,
         const gchar *))
 {
@@ -267,7 +267,7 @@ mcp_account_storage_iface_implement_delete (McpAccountStorageIface *iface,
 
 void
 mcp_account_storage_iface_implement_commit (McpAccountStorageIface *iface,
-    gboolean (*method) (const McpAccountStorage *, const McpAccount *am))
+    gboolean (*method) (const McpAccountStorage *, const McpAccountManager *am))
 {
   iface->commit = method;
 }
@@ -276,7 +276,7 @@ void
 mcp_account_storage_iface_implement_list (McpAccountStorageIface *iface,
     GList * (*method) (
         const McpAccountStorage *,
-        const McpAccount *))
+        const McpAccountManager *))
 {
   iface->list = method;
 }
@@ -293,7 +293,7 @@ mcp_account_storage_priority (const McpAccountStorage *storage)
 
 gboolean
 mcp_account_storage_get (const McpAccountStorage *storage,
-    McpAccount *am,
+    McpAccountManager *am,
     const gchar *acct,
     const gchar *key)
 {
@@ -307,7 +307,7 @@ mcp_account_storage_get (const McpAccountStorage *storage,
 
 gboolean
 mcp_account_storage_set (const McpAccountStorage *storage,
-    const McpAccount *am,
+    const McpAccountManager *am,
     const gchar *acct,
     const gchar *key,
     const gchar *val)
@@ -322,7 +322,7 @@ mcp_account_storage_set (const McpAccountStorage *storage,
 
 gboolean
 mcp_account_storage_delete (const McpAccountStorage *storage,
-    const McpAccount *am,
+    const McpAccountManager *am,
     const gchar *acct,
     const gchar *key)
 {
@@ -336,7 +336,7 @@ mcp_account_storage_delete (const McpAccountStorage *storage,
 
 gboolean
 mcp_account_storage_commit (const McpAccountStorage *storage,
-    const McpAccount *am)
+    const McpAccountManager *am)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
@@ -348,7 +348,7 @@ mcp_account_storage_commit (const McpAccountStorage *storage,
 
 GList *
 mcp_account_storage_list (const McpAccountStorage *storage,
-    const McpAccount *am)
+    const McpAccountManager *am)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 

@@ -74,7 +74,7 @@ mcd_account_manager_keyring_class_init (McdAccountManagerKeyringClass *cls)
 #if ENABLE_GNOME_KEYRING
 static gboolean
 _set (const McpAccountStorage *self,
-    const McpAccount *am,
+    const McpAccountManager *am,
     const gchar *acct,
     const gchar *key,
     const gchar *val)
@@ -83,7 +83,7 @@ _set (const McpAccountStorage *self,
 
   /* uninterested in non-secret parameters */
   DEBUG ("parameter %s", key);
-  if (!mcp_account_parameter_is_secret (am, acct, key))
+  if (!mcp_account_manager_parameter_is_secret (am, acct, key))
     return FALSE;
 
   DEBUG ("parameter %s is SECRET", key);
@@ -105,7 +105,7 @@ _set (const McpAccountStorage *self,
 
 static gboolean
 _get (const McpAccountStorage *self,
-    const McpAccount *am,
+    const McpAccountManager *am,
     const gchar *acct,
     const gchar *key)
 {
@@ -122,8 +122,8 @@ _get (const McpAccountStorage *self,
         return FALSE;
 
       /* if it's from the keyring, we remember it is a secret */
-      mcp_account_parameter_make_secret (am, acct, key);
-      mcp_account_set_value (am, acct, key, v);
+      mcp_account_manager_parameter_make_secret (am, acct, key);
+      mcp_account_manager_set_value (am, acct, key, v);
 
       g_free (v);
     }
@@ -140,8 +140,8 @@ _get (const McpAccountStorage *self,
             continue;
 
           /* if it's from the keyring, we remember it is a secret */
-          mcp_account_parameter_make_secret (am, acct, keys[i]);
-          mcp_account_set_value (am, acct, keys[i], v);
+          mcp_account_manager_parameter_make_secret (am, acct, keys[i]);
+          mcp_account_manager_set_value (am, acct, keys[i], v);
 
           g_free (v);
         }
@@ -154,7 +154,7 @@ _get (const McpAccountStorage *self,
 
 static gboolean
 _delete (const McpAccountStorage *self,
-      const McpAccount *am,
+      const McpAccountManager *am,
       const gchar *acct,
       const gchar *key)
 {
@@ -199,7 +199,7 @@ _delete (const McpAccountStorage *self,
 
 static void
 _commit_remove_account (const McpAccountStorage *self,
-    const McpAccount *am,
+    const McpAccountManager *am,
     const gchar *acct)
 {
   GList *i;
@@ -249,7 +249,7 @@ _commit_set_cb (GnomeKeyringResult result,
 
 static gboolean
 _commit (const McpAccountStorage *self,
-    const McpAccount *am)
+    const McpAccountManager *am)
 {
   gpointer acct;
   GHashTableIter account;
@@ -344,7 +344,7 @@ _commit (const McpAccountStorage *self,
 
 static void
 _load_from_keyring (const McpAccountStorage *self,
-    const McpAccount *am)
+    const McpAccountManager *am)
 {
   GList *i;
   GList *items;
@@ -460,7 +460,7 @@ _load_from_keyring (const McpAccountStorage *self,
 
 static GList *
 _list (const McpAccountStorage *self,
-    const McpAccount *am)
+    const McpAccountManager *am)
 {
   gsize i;
   gsize n;
@@ -487,7 +487,7 @@ _list (const McpAccountStorage *self,
 
 static gboolean
 _set (const McpAccountStorage *self,
-    const McpAccount *am,
+    const McpAccountManager *am,
     const gchar *acct,
     const gchar *key,
     const gchar *val)
@@ -498,7 +498,7 @@ _set (const McpAccountStorage *self,
 
 static gboolean
 _get (const McpAccountStorage *self,
-    const McpAccount *am,
+    const McpAccountManager *am,
     const gchar *acct,
     const gchar *key)
 {
@@ -508,7 +508,7 @@ _get (const McpAccountStorage *self,
 
 static gboolean
 _delete (const McpAccountStorage *self,
-      const McpAccount *am,
+      const McpAccountManager *am,
       const gchar *acct,
       const gchar *key)
 {
@@ -519,7 +519,7 @@ _delete (const McpAccountStorage *self,
 
 static gboolean
 _commit (const McpAccountStorage *self,
-    const McpAccount *am)
+    const McpAccountManager *am)
 {
   DISABLED_WARNING;
   return FALSE;
@@ -527,7 +527,7 @@ _commit (const McpAccountStorage *self,
 
 static GList *
 _list (const McpAccountStorage *self,
-    const McpAccount *am)
+    const McpAccountManager *am)
 {
   DISABLED_WARNING;
   return NULL;
