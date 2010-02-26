@@ -69,7 +69,6 @@ static void
 account_diversion_plugin_class_init (AccountDiversionPluginClass *cls)
 {
   DEBUG ("account_diversion_plugin_class_init");
-  storage = g_key_file_new ();
 }
 
 static gboolean
