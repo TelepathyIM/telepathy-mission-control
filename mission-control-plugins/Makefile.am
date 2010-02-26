@@ -8,6 +8,8 @@ INCLUDES = \
 	-DMCP_API_VERSION=@MCP_API_VERSION@ \
 	-DMCP_ABI_VERSION=@MCP_ABI_VERSION@
 
+EXTRA_DIST = mcp-signals-marshal.list
+
 lib_LTLIBRARIES = libmission-control-plugins.la
 
 plugins_includedir = \
@@ -21,7 +23,8 @@ plugins_include_HEADERS = \
 	dispatch-operation-policy.h \
 	loader.h \
 	request.h \
-	request-policy.h
+	request-policy.h \
+	mcp-signals-marshal.h
 
 libmission_control_plugins_la_LDFLAGS = \
 	-export-symbols-regex "^(mcp_)" \
@@ -32,12 +35,6 @@ libmission_control_plugins_la_LIBADD = \
 	$(DBUS_LIBS) \
 	$(GLIB_LIBS)
 
-$(top_srcdir)/src/mcd-signals-marshal.h:
-	@cd $(top_srcdir)/src && $(MAKE) $(@F)
-
-libmission_control_plugins_la_DEPENDENCIES = \
-	$(top_srcdir)/src/mcd-signals-marshal.h
-
 libmission_control_plugins_la_SOURCES = \
 	debug-internal.h \
 	account.c \
@@ -47,4 +44,15 @@ libmission_control_plugins_la_SOURCES = \
 	implementation.h \
 	loader.c \
 	request.c \
-	request-policy.c
+	request-policy.c \
+	mcp-signals-marshal.c \
+	mcp-signals-marshal.h
+
+%-signals-marshal.h: %-signals-marshal.list Makefile
+	glib-genmarshal --header --prefix=_$(subst -,_,$(notdir $*))_marshal $< \
+	  > $*-signals-marshal.h
+
+%-signals-marshal.c: %-signals-marshal.list Makefile
+	{ echo '#include "$(notdir $*)-signals-marshal.h"' && \
+	  glib-genmarshal --body --prefix=_$(subst -,_,$(notdir $*))_marshal $<; } \
+	    > $*-signals-marshal.c
