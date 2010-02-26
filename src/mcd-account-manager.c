@@ -95,8 +95,7 @@ struct _McdAccountManagerPrivate
     /* DBUS connection */
     TpDBusDaemon *dbus_daemon;
 
-    GKeyFile *keyfile;		/* configuration file */
-    GKeyFile *secrets;      /* acct->key : secret? */
+    McdPluginAccountManager *plugin_manager;
     GHashTable *accounts;
 
     gchar *account_connections_dir;  /* directory for temporary file */
@@ -108,12 +107,6 @@ typedef struct
     McdAccountManager *account_manager;
     gint account_lock;
 } McdLoadAccountsData;
-
-typedef struct
-{
-    GKeyFile *keyfile;
-    GKeyFile *secrets;
-} WriteConfData;
 
 typedef struct
 {
@@ -169,9 +162,7 @@ created_cb (GObject *storage, const gchar *name, gpointer data)
     McdAccountManagerClass *mclass = MCD_ACCOUNT_MANAGER_GET_CLASS (manager);
     McdLoadAccountsData *lad = g_slice_new (McdLoadAccountsData);
     McdAccount *account = NULL;
-    McdPluginAccountManager *pa = mcd_plugin_account_manager_new (priv->keyfile,
-                                                                  priv->secrets);
-
+    McdPluginAccountManager *pa = priv->plugin_manager;
     lad->account_manager = manager;
     lad->account_lock = 1; /* will be released at the end of this function */
 
@@ -224,8 +215,7 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
     McpAccountStorage *storage = MCP_ACCOUNT_STORAGE (plugin);
     McdAccountManager *manager = MCD_ACCOUNT_MANAGER (data);
     McdAccountManager *account = NULL;
-    McdPluginAccountManager *pa = mcd_plugin_account_manager_new (manager->priv->keyfile,
-                                                                  manager->priv->secrets);
+    McdPluginAccountManager *pa = manager->priv->plugin_manager;
 
     account = g_hash_table_lookup (manager->priv->accounts, name);
     DEBUG ("-> mcp_account_storage_delete");
@@ -457,9 +447,7 @@ static void
 on_account_removed (McdAccount *account, McdAccountManager *account_manager)
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
-    McdPluginAccountManager *pa =
-      mcd_plugin_account_manager_new (account_manager->priv->keyfile,
-                                      account_manager->priv->secrets);
+    McdPluginAccountManager *pa = priv->plugin_manager;
     const gchar *name, *object_path;
     GList *store;
 
@@ -701,7 +689,7 @@ create_unique_name (McdAccountManagerPrivate *priv, const gchar *manager,
     for (i = 0; i < 1024; i++)
     {
 	sprintf (seq, "%u", i);
-	if (!g_key_file_has_group (priv->keyfile, path) &&
+	if (!g_key_file_has_group (priv->plugin_manager->keyfile, path) &&
             dbus_g_connection_lookup_g_object (connection, path)
                 == NULL)
 	{
@@ -745,12 +733,12 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
     g_return_if_fail (unique_name != NULL);
 
     /* create the basic GConf keys */
-    g_key_file_set_string (priv->keyfile, unique_name,
+    g_key_file_set_string (priv->plugin_manager->keyfile, unique_name,
 			   MC_ACCOUNTS_KEY_MANAGER, manager);
-    g_key_file_set_string (priv->keyfile, unique_name,
+    g_key_file_set_string (priv->plugin_manager->keyfile, unique_name,
 			   MC_ACCOUNTS_KEY_PROTOCOL, protocol);
     if (display_name)
-	g_key_file_set_string (priv->keyfile, unique_name,
+	g_key_file_set_string (priv->plugin_manager->keyfile, unique_name,
 			       MC_ACCOUNTS_KEY_DISPLAY_NAME, display_name);
 
     account = MCD_ACCOUNT_MANAGER_GET_CLASS (account_manager)->account_new
@@ -913,27 +901,11 @@ properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 #undef IMPLEMENT
 }
 
-static WriteConfData *
-make_write_conf_data (GKeyFile *keyfile, GKeyFile *secrets)
-{
-    WriteConfData *data = g_slice_new0 (WriteConfData);
-    data->keyfile = keyfile;
-    data->secrets = secrets;
-    return data;
-}
-
-static void
-free_write_conf_data (WriteConfData *data)
-{
-    g_slice_free (WriteConfData, data);
-}
-
 static gboolean
 write_conf (gpointer userdata)
 {
-    WriteConfData *data = userdata;
-    GKeyFile *keyfile = data->keyfile;
-    GKeyFile *secrets = data->secrets;
+    McdPluginAccountManager *pa = g_object_ref (userdata);
+    GKeyFile *keyfile = pa->keyfile;
     GList *store;
     GStrv groups;
     gchar *grp;
@@ -941,8 +913,6 @@ write_conf (gpointer userdata)
     guint j = 0;
     gsize k = 0;
     gsize n = 0;
-    McdPluginAccountManager *pa = mcd_plugin_account_manager_new (keyfile,
-                                                                  secrets);
 
     DEBUG ("called");
     g_source_remove (write_conf_id);
@@ -998,8 +968,6 @@ write_conf (gpointer userdata)
     }
 
     g_object_unref (pa);
-    free_write_conf_data (data);
-
     return TRUE;
 }
 
@@ -1053,7 +1021,7 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
     lad->account_manager = account_manager;
     lad->account_lock = 1; /* will be released at the end of this function */
 
-    accounts = g_key_file_get_groups (priv->keyfile, NULL);
+    accounts = g_key_file_get_groups (priv->plugin_manager->keyfile, NULL);
     for (name = accounts; *name != NULL; name++)
     {
         McdAccount *account;
@@ -1149,12 +1117,12 @@ _mcd_account_manager_finalize (GObject *object)
 
     if (write_conf_id)
     {
-        WriteConfData *data =
-          make_write_conf_data (priv->keyfile, priv->secrets);
-        write_conf (data);
+        write_conf (priv->plugin_manager);
         g_assert (write_conf_id == 0);
     }
-    g_key_file_free (priv->keyfile);
+
+    g_object_unref (priv->plugin_manager);
+    priv->plugin_manager = NULL;
 
     g_free (priv->account_connections_dir);
     remove (priv->account_connections_file);
@@ -1221,7 +1189,7 @@ mcd_account_manager_init (McdAccountManager *account_manager)
 {
     McdAccountManagerPrivate *priv;
     GList *store = NULL;
-    McdPluginAccountManager *pa = NULL;
+    McpAccountManager *ma;
 
     DEBUG ("");
 
@@ -1229,6 +1197,9 @@ mcd_account_manager_init (McdAccountManager *account_manager)
 					MCD_TYPE_ACCOUNT_MANAGER,
 					McdAccountManagerPrivate);
     account_manager->priv = priv;
+
+    priv->plugin_manager = mcd_plugin_account_manager_new ();
+    ma = MCP_ACCOUNT_MANAGER (priv->plugin_manager);
     priv->accounts = g_hash_table_new_full (g_str_hash, g_str_equal,
                                             NULL, unref_account);
 
@@ -1236,9 +1207,6 @@ mcd_account_manager_init (McdAccountManager *account_manager)
     priv->account_connections_file =
         g_build_filename (priv->account_connections_dir, ".mc_connections",
                           NULL);
-    priv->secrets = g_key_file_new ();
-    priv->keyfile = g_key_file_new ();
-    pa = mcd_plugin_account_manager_new (priv->keyfile, priv->secrets);
 
     DEBUG ("loading plugins");
 
@@ -1253,7 +1221,7 @@ mcd_account_manager_init (McdAccountManager *account_manager)
     {
         GList *account;
         McpAccountStorage *plugin = store->data;
-        GList *stored = mcp_account_storage_list (plugin, MCP_ACCOUNT_MANAGER (pa));
+        GList *stored = mcp_account_storage_list (plugin, ma);
         const gchar *pname = mcp_account_storage_name (plugin);
         const gint prio = mcp_account_storage_priority (plugin);
 
@@ -1263,7 +1231,7 @@ mcd_account_manager_init (McdAccountManager *account_manager)
         {
             char *name = account->data;
             DEBUG ("fetching %s from plugin %s [prio: %d]", name, pname, prio);
-            mcp_account_storage_get (plugin, MCP_ACCOUNT_MANAGER (pa), name, NULL);
+            mcp_account_storage_get (plugin, ma, name, NULL);
             g_free (name);
         }
 
@@ -1272,7 +1240,6 @@ mcd_account_manager_init (McdAccountManager *account_manager)
         store = g_list_previous (store);
     }
 
-    g_object_unref (pa);
     /* initializes the interfaces */
     mcd_dbus_init_interfaces_instances (account_manager);
 }
@@ -1316,8 +1283,8 @@ mcd_account_manager_write_conf (McdAccountManager *account_manager)
     /* FIXME: this (reasonably) assumes that there is only one
      * McdAccountManager object running, since the write_conf_id is a static
      * variable */
-    WriteConfData *data = make_write_conf_data (account_manager->priv->keyfile,
-                                                account_manager->priv->secrets);
+    McdPluginAccountManager *data = account_manager->priv->plugin_manager;
+
     if (write_conf_id == 0) 
         write_conf_id =
             g_timeout_add_full (G_PRIORITY_HIGH, WRITE_CONF_DELAY, write_conf,
@@ -1356,14 +1323,13 @@ mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
     guint i = 0;
     gsize n = 0;
     gchar *grp;
-    McdPluginAccountManager *pa = NULL;
+    McpAccountManager *ma;
 
     g_return_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager));
 
-    keyfile = account_manager->priv->keyfile;
+    keyfile = account_manager->priv->plugin_manager->keyfile;
     groups = g_key_file_get_groups (keyfile, &n);
-    pa = mcd_plugin_account_manager_new (keyfile, account_manager->priv->secrets);
-
+    ma = MCP_ACCOUNT_MANAGER (account_manager->priv->plugin_manager);
     DEBUG ("called (writing %" G_GSIZE_FORMAT " accounts)", n);
 
     for (grp = groups[i]; grp != NULL; grp = groups[++i])
@@ -1379,7 +1345,6 @@ mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
             gboolean done = FALSE;
             gchar *set = keys[j];
             gchar *val = g_key_file_get_value (keyfile, grp, set, NULL);
-            McpAccountManager *ma = MCP_ACCOUNT_MANAGER (pa);
 
             /* the param- prefix gets whacked on in the layer above us:     *
              * mcd-account et al don't know it exists so don't pass it back */
@@ -1412,14 +1377,11 @@ mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
 
     for (store = stores; store != NULL; store = g_list_next (store))
     {
-        McpAccountManager *ma = MCP_ACCOUNT_MANAGER (pa);
         McpAccountStorage *plugin = store->data;
         const gchar *pname = mcp_account_storage_name (plugin);
         DEBUG ("flushing plugin %s to long term storage", pname);
         mcp_account_storage_commit (plugin, ma);
     }
-
-    g_object_unref (pa);
 
     if (callback != NULL)
         callback (account_manager, NULL, user_data);
@@ -1467,7 +1429,7 @@ mcd_account_manager_get_config (McdAccountManager *account_manager)
 {
     g_return_val_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager), NULL);
 
-    return account_manager->priv->keyfile;
+    return account_manager->priv->plugin_manager->keyfile;
 }
 
 /*
