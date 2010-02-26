@@ -1535,7 +1535,7 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
 	_mcd_connection_setup_alias (connection);
 
     if (!priv->dispatching_started)
-    _mcd_dispatcher_add_connection (priv->dispatcher, connection);
+        _mcd_dispatcher_add_connection (priv->dispatcher, connection);
 
     request_unrequested_channels (connection);
 
