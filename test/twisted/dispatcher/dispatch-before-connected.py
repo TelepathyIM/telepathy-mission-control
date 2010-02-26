@@ -77,10 +77,10 @@ def test(q, bus, mc):
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
-    e = q.expect('dbus-signal', signal='StatusChanged')
-
-    # Connection should be in "Connecting" status for this test.
-    assert e.args == [cs.CONN_STATUS_CONNECTING, cs.CONN_STATUS_REASON_REQUESTED]
+    e = q.expect('dbus-signal', signal='StatusChanged',
+                 predicate=lambda e: e.args == \
+                     [cs.CONN_STATUS_CONNECTING,
+                      cs.CONN_STATUS_REASON_REQUESTED])
 
     channel_properties = dbus.Dictionary(verification_filter, signature='sv')
     channel_properties[cs.CHANNEL + '.TargetID'] = ''
