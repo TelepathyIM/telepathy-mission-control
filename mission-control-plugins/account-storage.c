@@ -65,10 +65,10 @@
  * an account storage plugin in an account storage object, though.
  */
 
-#include <src/mcd-signals-marshal.h>
 #include <src/mcd-debug.h>
 
 #include <mission-control-plugins/mission-control-plugins.h>
+#include <mission-control-plugins/mcp-signals-marshal.h>
 #include <mission-control-plugins/implementation.h>
 #include <glib/gmessages.h>
 
@@ -134,7 +134,7 @@ class_init (gpointer klass,
    **/
   signals[CREATED] = g_signal_new ("created",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
-      _mcd_marshal_VOID__STRING, G_TYPE_NONE,
+      _mcp_marshal_VOID__STRING, G_TYPE_NONE,
       1, G_TYPE_STRING);
 
   /**
@@ -146,7 +146,7 @@ class_init (gpointer klass,
    **/
   signals[ALTERED] = g_signal_new ("altered",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
-      _mcd_marshal_VOID__STRING, G_TYPE_NONE,
+      _mcp_marshal_VOID__STRING, G_TYPE_NONE,
       1, G_TYPE_STRING);
 
   /**
@@ -158,7 +158,7 @@ class_init (gpointer klass,
    **/
   signals[DELETED] = g_signal_new ("deleted",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
-      _mcd_marshal_VOID__STRING, G_TYPE_NONE,
+      _mcp_marshal_VOID__STRING, G_TYPE_NONE,
       1, G_TYPE_STRING);
 
   /**
@@ -171,7 +171,7 @@ class_init (gpointer klass,
    **/
   signals[TOGGLED] = g_signal_new ("toggled",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
-      _mcd_marshal_VOID__STRING_BOOLEAN, G_TYPE_NONE,
+      _mcp_marshal_VOID__STRING_BOOLEAN, G_TYPE_NONE,
       2, G_TYPE_STRING, G_TYPE_BOOLEAN);
 
 }
