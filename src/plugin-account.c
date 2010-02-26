@@ -32,34 +32,35 @@ enum {
   PROP_SECRETS,
 };
 
-struct _McdPluginAccount {
+struct _McdPluginAccountManager {
   GObject parent;
   GKeyFile *file;
   GKeyFile *secrets;
 };
 
-struct _McdPluginAccountClass {
+struct _McdPluginAccountManagerClass {
     GObjectClass parent;
 };
 
 static void plugin_iface_init (McpAccountManagerIface *iface,
     gpointer unused G_GNUC_UNUSED);
 
-G_DEFINE_TYPE_WITH_CODE (McdPluginAccount, mcd_plugin_account, G_TYPE_OBJECT,
+G_DEFINE_TYPE_WITH_CODE (McdPluginAccountManager, mcd_plugin_account_manager, \
+    G_TYPE_OBJECT,
     G_IMPLEMENT_INTERFACE (MCP_TYPE_ACCOUNT_MANAGER, plugin_iface_init))
 
 static void
-mcd_plugin_account_init (McdPluginAccount *self)
+mcd_plugin_account_manager_init (McdPluginAccountManager *self)
 {
 }
 
 static void
-plugin_account_set_property (GObject *object,
+plugin_account_manager_set_property (GObject *object,
     guint prop_id,
     const GValue *value,
     GParamSpec *pspec)
 {
-  McdPluginAccount *self = (McdPluginAccount *) object;
+  McdPluginAccountManager *self = (McdPluginAccountManager *) object;
 
   switch (prop_id)
     {
@@ -78,11 +79,11 @@ plugin_account_set_property (GObject *object,
 }
 
 static void
-plugin_account_dispose (GObject *object)
+plugin_account_manager_dispose (GObject *object)
 {
-  McdPluginAccount *self = MCD_PLUGIN_ACCOUNT (object);
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (object);
   GObjectFinalizeFunc dispose =
-    G_OBJECT_CLASS (mcd_plugin_account_parent_class)->dispose;
+    G_OBJECT_CLASS (mcd_plugin_account_manager_parent_class)->dispose;
 
   self->file = NULL;
   self->secrets = NULL;
@@ -93,24 +94,24 @@ plugin_account_dispose (GObject *object)
 
 
 static void
-plugin_account_finalize (GObject *object)
+plugin_account_manager_finalize (GObject *object)
 {
   GObjectFinalizeFunc finalize =
-    G_OBJECT_CLASS (mcd_plugin_account_parent_class)->finalize;
+    G_OBJECT_CLASS (mcd_plugin_account_manager_parent_class)->finalize;
 
   if (finalize != NULL)
     finalize (object);
 }
 
 static void
-mcd_plugin_account_class_init (
-    McdPluginAccountClass *cls)
+mcd_plugin_account_manager_class_init (
+    McdPluginAccountManagerClass *cls)
 {
   GObjectClass *object_class = (GObjectClass *) cls;
 
-  object_class->set_property = plugin_account_set_property;
-  object_class->dispose = plugin_account_dispose;
-  object_class->finalize = plugin_account_finalize;
+  object_class->set_property = plugin_account_manager_set_property;
+  object_class->dispose = plugin_account_manager_dispose;
+  object_class->finalize = plugin_account_manager_finalize;
 
   g_object_class_install_property (object_class, PROP_KEYFILE,
       g_param_spec_pointer ("keyfile", "GKeyFile pointer",
@@ -123,10 +124,10 @@ mcd_plugin_account_class_init (
           G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
 }
 
-McdPluginAccount *
-mcd_plugin_account_new (GKeyFile *file, GKeyFile *secrets)
+McdPluginAccountManager *
+mcd_plugin_account_manager_new (GKeyFile *file, GKeyFile *secrets)
 {
-  return g_object_new (MCD_TYPE_PLUGIN_ACCOUNT,
+  return g_object_new (MCD_TYPE_PLUGIN_ACCOUNT_MANAGER,
       "keyfile", file,
       "secrets", secrets,
       NULL);
@@ -137,7 +138,7 @@ get_value (const McpAccountManager *ma,
     const gchar *acct,
     const gchar *key)
 {
-  McdPluginAccount *self = MCD_PLUGIN_ACCOUNT (ma);
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
   return g_key_file_get_value (self->file, acct, key, NULL);
 }
 
@@ -147,7 +148,7 @@ set_value (const McpAccountManager *ma,
     const gchar *key,
     const gchar *value)
 {
-  McdPluginAccount *self = MCD_PLUGIN_ACCOUNT (ma);
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
   g_key_file_set_string (self->file, acct, key, value);
 }
 
@@ -156,7 +157,7 @@ is_secret (const McpAccountManager *ma,
     const gchar *acct,
     const gchar *key)
 {
-  McdPluginAccount *self = MCD_PLUGIN_ACCOUNT (ma);
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
 
   return g_key_file_get_boolean (self->secrets, acct, key, NULL);
 }
@@ -166,7 +167,7 @@ make_secret (const McpAccountManager *ma,
     const gchar *acct,
     const gchar *key)
 {
-  McdPluginAccount *self = MCD_PLUGIN_ACCOUNT (ma);
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
   DEBUG ("flagging %s.%s as secret", acct, key);
   g_key_file_set_boolean (self->secrets, acct, key, TRUE);
 }

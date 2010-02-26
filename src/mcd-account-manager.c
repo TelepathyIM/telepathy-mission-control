@@ -169,8 +169,8 @@ created_cb (GObject *storage, const gchar *name, gpointer data)
     McdAccountManagerClass *mclass = MCD_ACCOUNT_MANAGER_GET_CLASS (manager);
     McdLoadAccountsData *lad = g_slice_new (McdLoadAccountsData);
     McdAccount *account = NULL;
-    McdPluginAccount *pa = mcd_plugin_account_new (priv->keyfile,
-                                                   priv->secrets);
+    McdPluginAccountManager *pa = mcd_plugin_account_manager_new (priv->keyfile,
+                                                                  priv->secrets);
 
     lad->account_manager = manager;
     lad->account_lock = 1; /* will be released at the end of this function */
@@ -224,8 +224,8 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
     McpAccountStorage *storage = MCP_ACCOUNT_STORAGE (plugin);
     McdAccountManager *manager = MCD_ACCOUNT_MANAGER (data);
     McdAccountManager *account = NULL;
-    McdPluginAccount *pa = mcd_plugin_account_new (manager->priv->keyfile,
-                                                   manager->priv->secrets);
+    McdPluginAccountManager *pa = mcd_plugin_account_manager_new (manager->priv->keyfile,
+                                                                  manager->priv->secrets);
 
     account = g_hash_table_lookup (manager->priv->accounts, name);
     DEBUG ("-> mcp_account_storage_delete");
@@ -457,9 +457,9 @@ static void
 on_account_removed (McdAccount *account, McdAccountManager *account_manager)
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
-    McdPluginAccount *pa =
-      mcd_plugin_account_new (account_manager->priv->keyfile,
-                              account_manager->priv->secrets);
+    McdPluginAccountManager *pa =
+      mcd_plugin_account_manager_new (account_manager->priv->keyfile,
+                                      account_manager->priv->secrets);
     const gchar *name, *object_path;
     GList *store;
 
@@ -941,7 +941,8 @@ write_conf (gpointer userdata)
     guint j = 0;
     gsize k = 0;
     gsize n = 0;
-    McdPluginAccount *pa = mcd_plugin_account_new (keyfile, secrets);
+    McdPluginAccountManager *pa = mcd_plugin_account_manager_new (keyfile,
+                                                                  secrets);
 
     DEBUG ("called");
     g_source_remove (write_conf_id);
@@ -1220,7 +1221,7 @@ mcd_account_manager_init (McdAccountManager *account_manager)
 {
     McdAccountManagerPrivate *priv;
     GList *store = NULL;
-    McdPluginAccount *pa = NULL;
+    McdPluginAccountManager *pa = NULL;
 
     DEBUG ("");
 
@@ -1237,7 +1238,7 @@ mcd_account_manager_init (McdAccountManager *account_manager)
                           NULL);
     priv->secrets = g_key_file_new ();
     priv->keyfile = g_key_file_new ();
-    pa = mcd_plugin_account_new (priv->keyfile, priv->secrets);
+    pa = mcd_plugin_account_manager_new (priv->keyfile, priv->secrets);
 
     DEBUG ("loading plugins");
 
@@ -1355,13 +1356,13 @@ mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
     guint i = 0;
     gsize n = 0;
     gchar *grp;
-    McdPluginAccount *pa = NULL;
+    McdPluginAccountManager *pa = NULL;
 
     g_return_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager));
 
     keyfile = account_manager->priv->keyfile;
     groups = g_key_file_get_groups (keyfile, &n);
-    pa = mcd_plugin_account_new (keyfile, account_manager->priv->secrets);
+    pa = mcd_plugin_account_manager_new (keyfile, account_manager->priv->secrets);
 
     DEBUG ("called (writing %" G_GSIZE_FORMAT " accounts)", n);
 

@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef MCD_PLUGIN_ACCOUNT_H
-#define MCD_PLUGIN_ACCOUNT_H
+#ifndef MCD_PLUGIN_ACCOUNT_MANAGER_H
+#define MCD_PLUGIN_ACCOUNT_MANAGER_H
 
 #include <mission-control-plugins/mission-control-plugins.h>
 
@@ -30,32 +30,34 @@
 
 G_BEGIN_DECLS
 
-typedef struct _McdPluginAccount McdPluginAccount;
-typedef struct _McdPluginAccountClass McdPluginAccountClass;
-typedef struct _McdPluginAccountPrivate McdPluginAccountPrivate;
+typedef struct _McdPluginAccountManager McdPluginAccountManager;
+typedef struct _McdPluginAccountManagerClass McdPluginAccountManagerClass;
+typedef struct _McdPluginAccountManagerPrivate McdPluginAccountManagerPrivate;
 
-G_GNUC_INTERNAL GType mcd_plugin_account_get_type (void);
+G_GNUC_INTERNAL GType mcd_plugin_account_manager_get_type (void);
 
-#define MCD_TYPE_PLUGIN_ACCOUNT (mcd_plugin_account_get_type ())
+#define MCD_TYPE_PLUGIN_ACCOUNT_MANAGER (mcd_plugin_account_manager_get_type ())
 
-#define MCD_PLUGIN_ACCOUNT(o) \
-  (G_TYPE_CHECK_INSTANCE_CAST ((o), MCD_TYPE_PLUGIN_ACCOUNT, McdPluginAccount))
+#define MCD_PLUGIN_ACCOUNT_MANAGER(o) \
+  (G_TYPE_CHECK_INSTANCE_CAST ((o), MCD_TYPE_PLUGIN_ACCOUNT_MANAGER, \
+      McdPluginAccountManager))
 
-#define MCD_PLUGIN_ACCOUNT_CLASS(klass)                         \
-  (G_TYPE_CHECK_CLASS_CAST ((klass), MCD_TYPE_PLUGIN_ACCOUNT,   \
-      McdPluginAccountClass))
+#define MCD_PLUGIN_ACCOUNT_MANAGER_CLASS(klass)                         \
+  (G_TYPE_CHECK_CLASS_CAST ((klass), MCD_TYPE_PLUGIN_ACCOUNT_MANAGER,   \
+      McdPluginAccountManagerClass))
 
-#define MCD_IS_PLUGIN_ACCOUNT(o) \
-  (G_TYPE_CHECK_INSTANCE_TYPE ((o), MCD_TYPE_PLUGIN_ACCOUNT))
+#define MCD_IS_PLUGIN_ACCOUNT_MANAGER(o) \
+  (G_TYPE_CHECK_INSTANCE_TYPE ((o), MCD_TYPE_PLUGIN_ACCOUNT_MANAGER))
 
-#define MCD_IS_PLUGIN_ACCOUNT_CLASS(klass) \
-  (G_TYPE_CHECK_CLASS_TYPE ((klass), MCD_TYPE_PLUGIN_ACCOUNT))
+#define MCD_IS_PLUGIN_ACCOUNT_MANAGER_CLASS(klass) \
+  (G_TYPE_CHECK_CLASS_TYPE ((klass), MCD_TYPE_PLUGIN_ACCOUNT_MANAGER))
 
-#define MCD_PLUGIN_ACCOUNT_GET_CLASS(o) \
-  (G_TYPE_INSTANCE_GET_CLASS ((o), MCD_TYPE_PLUGIN_ACCOUNT, \
-      McdPluginAccountClass))
+#define MCD_PLUGIN_ACCOUNT_MANAGER_GET_CLASS(o) \
+  (G_TYPE_INSTANCE_GET_CLASS ((o), MCD_TYPE_PLUGIN_ACCOUNT_MANAGER, \
+      McdPluginAccountManagerClass))
 
-McdPluginAccount *mcd_plugin_account_new (GKeyFile *m, GKeyFile *s);
+McdPluginAccountManager *mcd_plugin_account_manager_new (GKeyFile *m,
+    GKeyFile *s);
 
 G_END_DECLS
 
