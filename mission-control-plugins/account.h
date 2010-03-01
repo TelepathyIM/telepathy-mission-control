@@ -25,8 +25,6 @@
 #error Use <mission-control-plugins/mission-control-plugins.h> instead
 #endif
 
-#include <mission-control-plugins/request.h>
-
 G_BEGIN_DECLS
 
 typedef struct _McpAccountManager McpAccountManager;
