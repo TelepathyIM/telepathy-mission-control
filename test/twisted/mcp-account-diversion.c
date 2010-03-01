@@ -150,8 +150,10 @@ _get (const McpAccountStorage *self,
       for (i = 0; i < n; i++)
         {
           gchar *v = g_key_file_get_string (adp->keyfile, acct, keys[i], NULL);
+
           if (v != NULL)
             mcp_account_manager_set_value (am, acct, keys[i], v);
+
           g_free (v);
         }
 
@@ -178,11 +180,15 @@ _delete (const McpAccountStorage *self,
     {
       gsize n;
       GStrv keys;
+
       if (g_key_file_remove_key (adp->keyfile, acct, key, NULL))
         adp->save = TRUE;
+
       keys = g_key_file_get_keys (adp->keyfile, acct, &n, NULL);
+
       if (keys == NULL || n == 0)
         g_key_file_remove_group (adp->keyfile, acct, NULL);
+
       g_strfreev (keys);
     }
 
@@ -231,8 +237,10 @@ _list (const McpAccountStorage *self,
         G_KEY_FILE_KEEP_COMMENTS, NULL);
 
   accounts = g_key_file_get_groups (adp->keyfile, &n);
+
   for (i = 0; i < n; i++)
     rval = g_list_prepend (rval, g_strdup (accounts[i]));
+
   g_strfreev (accounts);
 
   return rval;
