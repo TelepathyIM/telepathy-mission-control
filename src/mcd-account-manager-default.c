@@ -42,15 +42,17 @@ get_account_conf_filename (void)
   const gchar *base;
 
   base = g_getenv ("MC_ACCOUNT_DIR");
+
   if (!base)
-	base = ACCOUNTS_DIR;
+    base = ACCOUNTS_DIR;
+
   if (!base)
-	return NULL;
+    return NULL;
 
   if (base[0] == '~')
-	return g_build_filename (g_get_home_dir(), base + 1, "accounts.cfg", NULL);
+    return g_build_filename (g_get_home_dir(), base + 1, "accounts.cfg", NULL);
   else
-	return g_build_filename (base, "accounts.cfg", NULL);
+    return g_build_filename (base, "accounts.cfg", NULL);
 }
 
 static void
@@ -80,7 +82,8 @@ static void
 _create_config (McdAccountManagerDefault *self)
 {
   gchar *dir = g_path_get_dirname (self->filename);
-  DEBUG ();
+
+  DEBUG ("");
   g_mkdir_with_parents (dir, 0700);
   g_free (dir);
   g_file_set_contents (self->filename, INITIAL_CONFIG, -1, NULL);
@@ -157,11 +160,14 @@ _delete (const McpAccountStorage *self,
     {
       gsize n;
       GStrv keys;
+
       if (g_key_file_remove_key (amd->keyfile, acct, key, NULL))
         amd->save = TRUE;
       keys = g_key_file_get_keys (amd->keyfile, acct, &n, NULL);
+
       if (keys == NULL || n == 0)
         g_key_file_remove_group (amd->keyfile, acct, NULL);
+
       g_strfreev (keys);
     }
 
@@ -210,8 +216,10 @@ _list (const McpAccountStorage *self,
         G_KEY_FILE_KEEP_COMMENTS, NULL);
 
   accounts = g_key_file_get_groups (amd->keyfile, &n);
+
   for (i = 0; i < n; i++)
     rval = g_list_prepend (rval, g_strdup (accounts[i]));
+
   g_strfreev (accounts);
 
   return rval;
@@ -234,7 +242,7 @@ account_storage_iface_init (McpAccountStorageIface *iface,
 }
 
 McdAccountManagerDefault *
-mcd_account_manager_default_new ()
+mcd_account_manager_default_new (void)
 {
   return g_object_new (MCD_TYPE_ACCOUNT_MANAGER_DEFAULT, NULL);
 }
