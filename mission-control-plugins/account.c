@@ -65,6 +65,17 @@ mcp_account_manager_set_value (const McpAccountManager *mcpa,
   iface->set_value (mcpa, acct, key, value);
 }
 
+/**
+ * mcp_account_manager_get_value:
+ * @mcpa: an #McpAccountManager instance
+ * @acct: the unique name of an account
+ * @key: the setting whose value we want to retrieve
+ *
+ * Fetch a copy of the current value of an account setting held by
+ * the #McdAccountManager.
+ *
+ * Returns: a #gchar* which should be freed when the caller is done with it.
+ **/
 gchar *
 mcp_account_manager_get_value (const McpAccountManager *mcpa,
     const gchar *acct,
@@ -78,6 +89,20 @@ mcp_account_manager_get_value (const McpAccountManager *mcpa,
   return iface->get_value (mcpa, acct, key);
 }
 
+/**
+ * mcp_account_manager_get_value:
+ * @mcpa: an #McpAccountManager instance
+ * @acct: the unique name of an account
+ * @key: the setting whose value we want to retrieve
+ *
+ * Determine whether a given account parameter is secret.
+ * generally this is determined by MC and passed down to us,
+ * but any #McpAccountStorage plugin may decide a setting is
+ * secret, in which case the return value for this call will
+ * indicate that fact.
+ *
+ * Returns: a #gboolean, %TRUE for secret settings, %FALSE otherwise
+ **/
 gboolean
 mcp_account_manager_parameter_is_secret (const McpAccountManager *mcpa,
     const gchar *acct,
@@ -91,6 +116,15 @@ mcp_account_manager_parameter_is_secret (const McpAccountManager *mcpa,
   return iface->is_secret (mcpa, acct, key);
 }
 
+/**
+ * mcp_account_manager_get_value:
+ * @mcpa: an #McpAccountManager instance
+ * @acct: the unique name of an account
+ * @key: the setting whose value we want to retrieve
+ *
+ * Flag an account setting as secret for the lifetime of this
+ * #McpAccountManager and its corresponding #McdAccountManager
+ **/
 void
 mcp_account_manager_parameter_make_secret (const McpAccountManager *mcpa,
     const gchar *acct,
