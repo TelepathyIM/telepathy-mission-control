@@ -139,7 +139,7 @@ static void account_loaded (McdAccount *account,
 
 /* sort in descending order of priority (ie higher prio => earlier in list) */
 static gint
-store_prio (gconstpointer a, gconstpointer b)
+account_storage_cmp (gconstpointer a, gconstpointer b)
 {
     gint pa = mcp_account_storage_priority (a);
     gint pb = mcp_account_storage_priority (b);
@@ -261,7 +261,7 @@ sort_and_cache_plugins (McdAccountManager *self)
                    g_type_name (G_TYPE_FROM_INSTANCE (plugin)),
                    mcp_account_storage_priority (plugin),
                    mcp_account_storage_description (plugin));
-            stores = g_list_insert_sorted (stores, plugin, store_prio);
+            stores = g_list_insert_sorted (stores, plugin, account_storage_cmp);
             g_signal_connect (plugin, "created", G_CALLBACK (created_cb), self);
             g_signal_connect (plugin, "altered", G_CALLBACK (altered_cb), self);
             g_signal_connect (plugin, "toggled", G_CALLBACK (toggled_cb), self);
