@@ -2363,14 +2363,16 @@ request_channel_new_iface (McdConnection *connection, McdChannel *channel)
     properties = _mcd_channel_get_requested_properties (channel);
     if (_mcd_channel_get_request_use_existing (channel))
     {
+        /* Timeout of 5 hours: 5 * 3600 * 1000 */
         tp_cli_connection_interface_requests_call_ensure_channel
-            (priv->tp_conn, -1, properties, ensure_channel_cb,
+            (priv->tp_conn, 18000000, properties, ensure_channel_cb,
              connection, NULL, (GObject *)channel);
     }
     else
     {
+        /* Timeout of 5 hours: 5 * 3600 * 1000 */
         tp_cli_connection_interface_requests_call_create_channel
-            (priv->tp_conn, -1, properties, create_channel_cb,
+            (priv->tp_conn, 18000000, properties, create_channel_cb,
              connection, NULL, (GObject *)channel);
     }
     return TRUE;
