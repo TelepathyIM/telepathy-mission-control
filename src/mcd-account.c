@@ -3749,5 +3749,6 @@ mcd_account_parameter_is_secret (McdAccount *self, const gchar *name)
     param = mcd_manager_get_protocol_param (priv->manager,
                                             priv->protocol_name, name);
 
-    return (param != NULL && param->flags & TP_CONN_MGR_PARAM_FLAG_SECRET);
+    return (param != NULL &&
+        (param->flags & TP_CONN_MGR_PARAM_FLAG_SECRET) != 0);
 }
