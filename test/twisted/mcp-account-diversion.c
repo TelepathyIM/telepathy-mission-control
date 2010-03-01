@@ -21,13 +21,13 @@
 
 #include <mission-control-plugins/mission-control-plugins.h>
 
-#define DIVERTED_CFG "/tmp/mcp-test-diverted-account-plugin.conf"
+#define CONFFILE "mcp-test-diverted-account-plugin.conf"
 
 #define PLUGIN_NAME  "diverted-keyfile"
 #define PLUGIN_PRIORITY MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_NORMAL
 #define PLUGIN_DESCRIPTION \
   "Test plugin that grabs all accounts it receives and diverts them to '" \
-  DIVERTED_CFG "' instead of the usual location"
+  CONFFILE "' in g_get_user_cache_dir () instead of the usual location"
 
 #define DEBUG g_debug
 
@@ -71,21 +71,41 @@ account_diversion_plugin_class_init (AccountDiversionPluginClass *cls)
   DEBUG ("account_diversion_plugin_class_init");
 }
 
+static gchar *
+_conf_filename (void)
+{
+  static gchar *file = NULL;
+
+  if (file == NULL)
+    {
+      const gchar *dir = g_get_user_cache_dir ();
+
+      file = g_build_path (G_DIR_SEPARATOR_S, dir, CONFFILE, NULL);
+    }
+
+  return file;
+}
+
 static gboolean
 _have_config (void)
 {
-  DEBUG ("checking for " DIVERTED_CFG);
-  return g_file_test (DIVERTED_CFG, G_FILE_TEST_EXISTS);
+  const gchar *file = _conf_filename ();
+
+  DEBUG ("checking for %s", file);
+  return g_file_test (file, G_FILE_TEST_EXISTS);
 }
 
 static void
 _create_config (void)
 {
-  gchar *dir = g_path_get_dirname (DIVERTED_CFG);
+  gchar *file = _conf_filename ();
+  gchar *dir = g_path_get_dirname (file);
+
   g_mkdir_with_parents (dir, 0700);
   g_free (dir);
-  g_file_set_contents (DIVERTED_CFG, "# diverted accounts\n", -1, NULL);
-  DEBUG ("created " DIVERTED_CFG);
+
+  g_file_set_contents (file, "# diverted accounts\n", -1, NULL);
+  DEBUG ("created %s", file);
 }
 
 static gboolean
@@ -186,7 +206,7 @@ _commit (const McpAccountStorage *self,
     _create_config ();
 
   data = g_key_file_to_data (adp->keyfile, &n, NULL);
-  rval = g_file_set_contents (DIVERTED_CFG, data, n, NULL);
+  rval = g_file_set_contents (_conf_filename (), data, n, NULL);
   adp->save = !rval;
   g_free (data);
 
@@ -207,7 +227,7 @@ _list (const McpAccountStorage *self,
     _create_config ();
 
   if (!adp->loaded)
-    adp->loaded = g_key_file_load_from_file (adp->keyfile, DIVERTED_CFG,
+    adp->loaded = g_key_file_load_from_file (adp->keyfile, _conf_filename (),
         G_KEY_FILE_KEEP_COMMENTS, NULL);
 
   accounts = g_key_file_get_groups (adp->keyfile, &n);
