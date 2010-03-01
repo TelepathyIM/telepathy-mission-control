@@ -97,7 +97,7 @@ struct _McpAccountStorageIface
 {
   GTypeInterface parent;
 
-  guint priority;
+  gint priority;
   const gchar *name;
   const gchar *desc;
 
