@@ -68,7 +68,7 @@
 #include <mission-control-plugins/mission-control-plugins.h>
 #include <mission-control-plugins/mcp-signals-marshal.h>
 #include <mission-control-plugins/implementation.h>
-#include <glib/gmessages.h>
+#include <glib.h>
 
 #ifdef ENABLE_DEBUG
 
