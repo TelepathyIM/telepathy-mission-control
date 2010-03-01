@@ -906,34 +906,36 @@ write_conf (gpointer userdata)
 {
     McdPluginAccountManager *pa = g_object_ref (userdata);
     GKeyFile *keyfile = pa->keyfile;
-    GList *store;
     GStrv groups;
-    gchar *grp;
-    guint i = 0;
-    guint j = 0;
-    gsize k = 0;
-    gsize n = 0;
+    gchar *group;
+    gsize i = 0;
+    GList *store;
 
     DEBUG ("called");
     g_source_remove (write_conf_id);
     write_conf_id = 0;
 
-    groups = g_key_file_get_groups (keyfile, &n);
+    groups = g_key_file_get_groups (keyfile, NULL);
 
     if (groups == NULL)
         return TRUE;
 
-    /* the last 'plugin' is actually the default keyfile handler, *
-     * and always saves any parameter passed to it                */
-    for (grp = groups[i]; grp != NULL; grp = groups[++i])
+    /* poke the account settings into the local cache of the relevant  *
+     * storage plugins, highest priority plugins get first dibs:       *
+     * Note that the ACCOUNT_STORAGE_PLUGIN_PRIO_DEFAULT priority      *
+     * plugin is the default keyfile plugin and accepts all settings,  *
+     * so no plugin of a lower priority will be asked to save anything */
+    for (group = groups[i]; group != NULL; group = groups[++i])
     {
-        GStrv keys = g_key_file_get_keys (keyfile, grp, &k, NULL);
+        gsize n_keys = 0;
+        gsize j = 0;
+        GStrv keys = g_key_file_get_keys (keyfile, group, &n_keys, NULL);
 
-        for (j = 0; j < k; j++)
+        for (j = 0; j < n_keys; j++)
         {
             gboolean done = FALSE;
             gchar *set = keys[j];
-            gchar *val = g_key_file_get_string (keyfile, grp, set, NULL);
+            gchar *val = g_key_file_get_string (keyfile, group, set, NULL);
 
             for (store = stores; store != NULL; store = g_list_next (store))
             {
@@ -942,13 +944,13 @@ write_conf (gpointer userdata)
                 const gchar *pn = mcp_account_storage_name (plugin);
                 if (done)
                 {
-                    DEBUG ("%s -> mcp_account_storage_delete(%s)", pn, grp);
-                    mcp_account_storage_delete (plugin, ma, grp, set);
+                    DEBUG ("%s -> mcp_account_storage_delete(%s)", pn, group);
+                    mcp_account_storage_delete (plugin, ma, group, set);
                 }
                 else
                 {
-                    DEBUG ("%s -> mcp_account_storage_set(%s)", pn, grp);
-                    done = mcp_account_storage_set (plugin, ma, grp, set, val);
+                    DEBUG ("%s -> mcp_account_storage_set(%s)", pn, group);
+                    done = mcp_account_storage_set (plugin, ma, group, set, val);
                 }
             }
         }
