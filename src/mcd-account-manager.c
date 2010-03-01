@@ -243,15 +243,16 @@ static void
 sort_and_cache_plugins (McdAccountManager *self)
 {
     const GList *p;
-    McdAccountManagerDefault *default_storage = NULL;
-    McdAccountManagerKeyring *keyring_storage = NULL;
+    McdAccountManagerDefault *default_plugin = NULL;
+    McdAccountManagerKeyring *keyring_plugin = NULL;
 
     if (plugins_cached)
         return;
 
-    default_storage = mcd_account_manager_default_new ();
-    keyring_storage = mcd_account_manager_keyring_new ();
-    stores = g_list_prepend (stores, keyring_storage);
+    default_plugin = mcd_account_manager_default_new ();
+    keyring_plugin = mcd_account_manager_keyring_new ();
+    stores = g_list_prepend (stores, keyring_plugin);
+    stores = g_list_insert_sorted (stores, default_plugin, account_storage_cmp);
 
     for (p = mcp_list_objects(); p != NULL; p = g_list_next (p))
     {
