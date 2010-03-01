@@ -24,7 +24,7 @@
 #define DIVERTED_CFG "/tmp/mcp-test-diverted-account-plugin.conf"
 
 #define PLUGIN_NAME  "diverted-keyfile"
-#define PLUGIN_PRIORITY (ACCOUNT_STORAGE_PLUGIN_PRIO_DEFAULT + 100)
+#define PLUGIN_PRIORITY MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_NORMAL
 #define PLUGIN_DESCRIPTION \
   "Test plugin that grabs all accounts it receives and diverts them to '" \
   DIVERTED_CFG "' instead of the usual location"

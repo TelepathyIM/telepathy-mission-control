@@ -26,7 +26,7 @@
 #include "mcd-debug.h"
 
 #define PLUGIN_NAME "gnome-keyring"
-#define PLUGIN_PRIORITY ACCOUNT_STORAGE_PLUGIN_PRIO_KEYRING
+#define PLUGIN_PRIORITY MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_KEYRING
 #define PLUGIN_DESCRIPTION "gnome keyring account storage backend"
 
 #if ENABLE_GNOME_KEYRING

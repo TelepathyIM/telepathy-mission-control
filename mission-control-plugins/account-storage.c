@@ -295,10 +295,10 @@ mcp_account_storage_iface_implement_list (McpAccountStorageIface *iface,
  *
  * Returns a #gint indicating the priority of the plugin.
  *
- * Priorities currently run from ACCOUNT_STORAGE_PLUGIN_PRIO_DEFAULT
+ * Priorities currently run from MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_DEFAULT
  * (the default storage plugin priority) upwards.
  *
- * Plugins at a higher priority then ACCOUNT_STORAGE_PLUGIN_PRIO_KEYRING
+ * Plugins at a higher priority then MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_KEYRING
  * will have the opportunity to "steal" passwords from the gnome keyring:
  * Plugins at a lower priority than this will not receive secret parameters
  * from MC as the keyring plugin will already have claimed them.

@@ -24,7 +24,7 @@
 #include "mcd-debug.h"
 
 #define PLUGIN_NAME "default-gkeyfile"
-#define PLUGIN_PRIORITY ACCOUNT_STORAGE_PLUGIN_PRIO_DEFAULT
+#define PLUGIN_PRIORITY MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_DEFAULT
 #define PLUGIN_DESCRIPTION "GKeyFile (default) account storage backend"
 #define INITIAL_CONFIG "# Telepathy accounts\n"
 

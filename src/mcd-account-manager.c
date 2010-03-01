@@ -274,8 +274,6 @@ sort_and_cache_plugins (McdAccountManager *self)
         }
     }
 
-    stores = g_list_append (stores, default_storage);
-
     plugins_cached = TRUE;
 }
 
@@ -928,7 +926,7 @@ write_conf (gpointer userdata)
 
     /* poke the account settings into the local cache of the relevant  *
      * storage plugins, highest priority plugins get first dibs:       *
-     * Note that the ACCOUNT_STORAGE_PLUGIN_PRIO_DEFAULT priority      *
+     * Note that the MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_DEFAULT priority  *
      * plugin is the default keyfile plugin and accepts all settings,  *
      * so no plugin of a lower priority will be asked to save anything */
     for (group = groups[i]; group != NULL; group = groups[++i])
