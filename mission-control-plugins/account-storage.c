@@ -212,8 +212,6 @@ mcp_account_storage_get_type (void)
           "McpAccountStorage", &info, 0);
       g_type_interface_add_prerequisite (type, G_TYPE_OBJECT);
 
-      g_debug ("%s -> %lu", g_type_name (type), type);
-
       g_once_init_leave (&once, 1);
     }
 
