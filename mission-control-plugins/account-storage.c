@@ -78,7 +78,7 @@
 
 #else  /* ENABLE_DEBUG */
 
-#define DEBUG(_p, _format, ...) if (0);
+#define DEBUG(_p, _format, ...) do {} while (0);
 
 #endif /* ENABLE_DEBUG */
 
