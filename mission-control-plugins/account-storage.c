@@ -291,6 +291,38 @@ mcp_account_storage_iface_implement_list (McpAccountStorageIface *iface,
   iface->list = method;
 }
 
+/**
+ * mcp_account_storage_priority:
+ * @storage: an #McpAccountStorage instance
+ *
+ * Returns a #gint indicating the priority of the plugin.
+ *
+ * Priorities currently run from ACCOUNT_STORAGE_PLUGIN_PRIO_DEFAULT
+ * (the default storage plugin priority) upwards.
+ *
+ * Plugins at a higher priority then ACCOUNT_STORAGE_PLUGIN_PRIO_KEYRING
+ * will have the opportunity to "steal" passwords from the gnome keyring:
+ * Plugins at a lower priority than this will not receive secret parameters
+ * from MC as the keyring plugin will already have claimed them.
+ *
+ * Plugins at a lower priority than the default plugin will never be asked to
+ * store any details, although they may still be asked to list them at startup
+ * time, and may asynchronously notify MC of accounts via the signals above.
+ *
+ * When loading accounts at startup, plugins are consulted in order from
+ * lowest to highest, so that higher priority plugins may overrule settings
+ * from lower priority plugins.
+ *
+ * Loading all the accounts is only done at startup, before the dbus name
+ * is claimed, and is therefore the only time plugins are allowed to indulge
+ * in blocking calls (indeed, they are expected to carry out this operation,
+ * and ONLY this operation, synchronously).
+ *
+ * When values are being set, the plugins are invoked from highest priority
+ * to lowest, with the first plugin that claims a setting being assigned
+ * ownership, and all lower priority plugins being asked to delete the
+ * setting in question.
+ **/
 gint
 mcp_account_storage_priority (const McpAccountStorage *storage)
 {
@@ -301,6 +333,25 @@ mcp_account_storage_priority (const McpAccountStorage *storage)
   return iface->priority;
 }
 
+/**
+ * mcp_account_storage_get:
+ * @storage: an #McpAccountStorage instance
+ * @am: an #McpAccountManager instance
+ * @acct: the unique name of the account
+ * @key: the setting whose value we wish to fetch
+ *
+ * The plugin is expected to quickly and synchronously update
+ * the value associated with @key using calls to @am.
+ *
+ * The plugin is not required to consult whatever long term storage
+ * it uses, and may fetch said value from its internal cache, if any.
+ *
+ * If @key is %NULL the plugin should write all its settings for @acct
+ * into the account manager via @am. The return value in this case should
+ * be %TRUE if any settings were found.
+ *
+ * Returns: a #gboolean - %TRUE if a value was found and %FALSE otherwise
+ */
 gboolean
 mcp_account_storage_get (const McpAccountStorage *storage,
     McpAccountManager *am,
@@ -315,6 +366,23 @@ mcp_account_storage_get (const McpAccountStorage *storage,
   return iface->get (storage, am, acct, key);
 }
 
+/**
+ * mcp_account_storage_set:
+ * @storage: an #McpAccountStorage instance
+ * @am: an #McpAccountManager instance
+ * @acct: the unique name of the account
+ * @key: the setting whose value we wish to fetch
+ * @value: a value to associate with @key
+ *
+ * The plugin is expected to either quickly and synchronously
+ * update its internal cache of values with @value, or to
+ * decline to store the setting.
+ *
+ * The plugin is not expected to write to its long term storage
+ * at this point.
+ *
+ * Returns: a #gboolean - %TRUE if the setting was claimed, %FALSE otherwise
+ */
 gboolean
 mcp_account_storage_set (const McpAccountStorage *storage,
     const McpAccountManager *am,
@@ -330,6 +398,29 @@ mcp_account_storage_set (const McpAccountStorage *storage,
   return iface->set (storage, am, acct, key, val);
 }
 
+/**
+ * mcp_account_storage_delete:
+ * @storage: an #McpAccountStorage instance
+ * @am: an #McpAccountManager instance
+ * @acct: the unique name of the account
+ * @key: the setting whose value we wish to fetch
+ *
+ * The plugin is expected to remove the setting for @key from its
+ * internal cache and to remember that its state has changed, so
+ * that it can delete said setting from its long term storage if
+ * its long term storage method makes this necessary.
+ *
+ * If @key is %NULL, the plugin should forget all its settings for
+ * @acct (and remember to delete @acct from its storage later)
+ *
+ * The plugin is not expected to update its long term storage at
+ * this point.
+ *
+ * Returns: a #gboolean - %TRUE if the setting or settings are not
+ * the plugin's cache after this operation, %FALSE otherwise.
+ * This is very unlikely to ever be %FALSE, as a plugin is always
+ * expected to be able to manipulate its own cache.
+ */
 gboolean
 mcp_account_storage_delete (const McpAccountStorage *storage,
     const McpAccountManager *am,
@@ -344,6 +435,21 @@ mcp_account_storage_delete (const McpAccountStorage *storage,
   return iface->delete (storage, am, acct, key);
 }
 
+/**
+ * mcp_account_storage_commit:
+ * @storage: an #McpAccountStorage instance
+ * @am: an #McpAccountManager instance
+ *
+ * The plugin is expected to write its cache to long term storage,
+ * deleting, adding or updating entries in said storage as needed.
+ *
+ * This call is expected to return promptly, but the plugin is
+ * not required to have finished its commit operation when it returns,
+ * merely to have started the operation.
+ *
+ * Returns: a gboolean - normally %TRUE, %FALSE if there was a problem
+ * that was immediately obvious.
+ */
 gboolean
 mcp_account_storage_commit (const McpAccountStorage *storage,
     const McpAccountManager *am)
@@ -356,6 +462,18 @@ mcp_account_storage_commit (const McpAccountStorage *storage,
   return iface->commit (storage, am);
 }
 
+/**
+ * mcp_account_storage_list:
+ * @storage: an #McpAccountStorage instance
+ * @am: an #McpAccountManager instance
+ *
+ * This method is called only at initialisation time, before the dbus name
+ * has been claimed, and is the only one permitted to block.
+ *
+ * Returns: a #GList of #gchar* (the unique account names) that the plugin
+ * has settings for. The #GList (and its contents) should be freed when the
+ * caller is done with them.
+ **/
 GList *
 mcp_account_storage_list (const McpAccountStorage *storage,
     const McpAccountManager *am)
@@ -368,6 +486,12 @@ mcp_account_storage_list (const McpAccountStorage *storage,
   return iface->list (storage, am);
 }
 
+/**
+ * mcp_account_storage_name:
+ * @storage: an #McpAccountStorage instance
+ *
+ * Returns: a const #gchar* : the plugin's name (for logging etc)
+ */
 const gchar *
 mcp_account_storage_name (const McpAccountStorage *storage)
 {
@@ -378,6 +502,12 @@ mcp_account_storage_name (const McpAccountStorage *storage)
   return iface->name;
 }
 
+/**
+ * mcp_account_storage_description:
+ * @storage: an #McpAccountStorage instance
+ *
+ * Returns: a const #gchar* : the plugin's description (for logging etc)
+ */
 const gchar *
 mcp_account_storage_description (const McpAccountStorage *storage)
 {
