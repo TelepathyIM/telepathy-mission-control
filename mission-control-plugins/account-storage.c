@@ -65,12 +65,22 @@
  * an account storage plugin in an account storage object, though.
  */
 
-#include <src/mcd-debug.h>
-
 #include <mission-control-plugins/mission-control-plugins.h>
 #include <mission-control-plugins/mcp-signals-marshal.h>
 #include <mission-control-plugins/implementation.h>
 #include <glib/gmessages.h>
+
+#ifdef ENABLE_DEBUG
+
+#define DEBUG(_p, _format, ...) \
+  g_debug ("%s: %s: " _format, G_STRFUNC, \
+      (_p != NULL) ? mcp_account_storage_name (_p) : "NULL", ##__VA_ARGS__)
+
+#else  /* ENABLE_DEBUG */
+
+#define DEBUG(_p, _format, ...) if (0);
+
+#endif /* ENABLE_DEBUG */
 
 enum
 {
@@ -299,7 +309,7 @@ mcp_account_storage_get (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  DEBUG ();
+  DEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, FALSE);
 
   return iface->get (storage, am, acct, key);
@@ -314,7 +324,7 @@ mcp_account_storage_set (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  DEBUG ();
+  DEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, FALSE);
 
   return iface->set (storage, am, acct, key, val);
@@ -328,7 +338,7 @@ mcp_account_storage_delete (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  DEBUG ();
+  DEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, FALSE);
 
   return iface->delete (storage, am, acct, key);
@@ -340,7 +350,7 @@ mcp_account_storage_commit (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  DEBUG ();
+  DEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, FALSE);
 
   return iface->commit (storage, am);
@@ -352,7 +362,7 @@ mcp_account_storage_list (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  DEBUG ();
+  DEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, NULL);
 
   return iface->list (storage, am);
