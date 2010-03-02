@@ -136,6 +136,7 @@ _get (const McpAccountStorage *self,
       for (i = 0; i < n; i++)
         {
           gchar *v = g_key_file_get_string (amk->keyfile, acct, keys[i], NULL);
+
           if (v == NULL)
             continue;
 
@@ -165,6 +166,7 @@ _delete (const McpAccountStorage *self,
       if (g_key_file_remove_group (amk->keyfile, acct, NULL))
         {
           gchar *removed = g_strdup (acct);
+
           amk->save = TRUE;
           g_hash_table_insert (amk->removed_accounts, removed, removed);
         }
@@ -173,14 +175,17 @@ _delete (const McpAccountStorage *self,
     {
       gsize n;
       GStrv keys;
+
       if (g_key_file_remove_key (amk->keyfile, acct, key, NULL))
         amk->save = TRUE;
+
       keys = g_key_file_get_keys (amk->keyfile, acct, &n, NULL);
 
       /* if we deleted the last param, flag the account as purged   */
       if (keys == NULL || n == 0)
         {
           gchar *removed = g_strdup (acct);
+
           g_key_file_remove_group (amk->keyfile, acct, NULL);
           amk->save = TRUE;
           g_hash_table_insert (amk->removed_accounts, removed, removed);
@@ -266,8 +271,10 @@ _commit (const McpAccountStorage *self,
 
   /* purge any entirely removed accounts */
   g_hash_table_iter_init (&account, amk->removed_accounts);
+
   while (g_hash_table_iter_next (&account, &acct, NULL))
     _commit_remove_account (self, am, (gchar *) acct);
+
   g_hash_table_remove_all (amk->removed_accounts);
 
   /* purge deleted parameters for remaining accounts */
@@ -277,6 +284,7 @@ _commit (const McpAccountStorage *self,
       gsize j;
       gsize k;
       GStrv keys = g_key_file_get_keys (amk->keyfile, accts[i], &k, NULL);
+
       for (j = 0; j < k; j++)
         {
           KeyringSetData *ksd = g_slice_new0 (KeyringSetData);
@@ -291,8 +299,10 @@ _commit (const McpAccountStorage *self,
               "param", keys[j],
               NULL);
         }
+
       g_strfreev (keys);
     }
+
   g_strfreev (accts);
 
   /* forget about all the purged params completely */
@@ -300,11 +310,13 @@ _commit (const McpAccountStorage *self,
 
   /* ok, now write out the values for the accounts we have: */
   accts = g_key_file_get_groups (amk->keyfile, &n);
+
   for (i = 0; i < n; i++)
     {
       gsize j;
       gsize k;
       GStrv keys = g_key_file_get_keys (amk->keyfile, accts[i], &k, NULL);
+
       for (j = 0; j < k; j++)
         {
           gchar *name = g_strdup_printf ("account: %s; param: %s",
@@ -332,8 +344,10 @@ _commit (const McpAccountStorage *self,
           g_free (val);
           g_free (name);
         }
+
       g_strfreev (keys);
     }
+
   g_strfreev (accts);
 
   /* any pending changes should now have been pushed, clear the save-me flag */
