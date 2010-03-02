@@ -467,6 +467,8 @@ _load_from_keyring (const McpAccountStorage *self,
       attr = NULL;
     }
 
+  amk->loaded = TRUE;
+
  finished:
   g_list_free (items);
 }
