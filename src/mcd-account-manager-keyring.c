@@ -387,8 +387,7 @@ _load_from_keyring (const McpAccountStorage *self,
           attr = NULL;
         }
 
-      ok = gnome_keyring_item_get_attributes_sync (NULL,
-          id, &attr);
+      ok = gnome_keyring_item_get_attributes_sync (NULL, id, &attr);
 
       if (ok != GNOME_KEYRING_RESULT_OK)
         {
