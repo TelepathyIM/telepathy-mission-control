@@ -118,7 +118,11 @@ set_value (const McpAccountManager *ma,
     const gchar *value)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
-  g_key_file_set_string (self->keyfile, acct, key, value);
+
+  if (value != NULL)
+    g_key_file_set_string (self->keyfile, acct, key, value);
+  else
+    g_key_file_remove_key (self->keyfile, acct, key, NULL);
 }
 
 static gboolean
