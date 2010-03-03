@@ -192,7 +192,6 @@ created_cb (GObject *storage, const gchar *name, gpointer data)
     g_object_unref (account);
 
 finish:
-    g_object_unref (pa);
     release_load_accounts_lock (lad);
 }
 
@@ -235,8 +234,6 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
         if (p != storage)
             mcp_account_storage_delete (p, MCP_ACCOUNT_MANAGER (pa), name, NULL);
     }
-
-    g_object_unref (pa);
 }
 
 static void
@@ -468,8 +465,6 @@ on_account_removed (McdAccount *account, McdAccountManager *account_manager)
                mcp_account_storage_name (plugin), name);
         mcp_account_storage_delete (plugin, MCP_ACCOUNT_MANAGER (pa), name, NULL);
     }
-
-    g_object_unref (pa);
 
     mcd_account_manager_write_conf_async (account_manager, NULL, NULL);
 }
@@ -908,7 +903,7 @@ properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 static gboolean
 write_conf (gpointer userdata)
 {
-    McdPluginAccountManager *pa = g_object_ref (userdata);
+    McdPluginAccountManager *pa = userdata;
     GKeyFile *keyfile = pa->keyfile;
     GStrv groups;
     gchar *group;
@@ -1125,7 +1120,7 @@ _mcd_account_manager_finalize (GObject *object)
 
     if (write_conf_id)
     {
-        write_conf (priv->plugin_manager);
+        write_conf (g_object_ref (priv->plugin_manager));
         g_assert (write_conf_id == 0);
     }
 
@@ -1234,8 +1229,7 @@ mcd_account_manager_init (McdAccountManager *account_manager)
         const gint prio = mcp_account_storage_priority (plugin);
 
         DEBUG ("listing from plugin %s [prio: %d]", pname, prio);
-
-        for (account = stored; account != NULL; account = g_list_next (stored))
+        for (account = stored; account != NULL; account = g_list_next (account))
         {
             gchar *name = account->data;
 
@@ -1298,7 +1292,7 @@ mcd_account_manager_write_conf (McdAccountManager *account_manager)
     if (write_conf_id == 0) 
         write_conf_id =
             g_timeout_add_full (G_PRIORITY_HIGH, WRITE_CONF_DELAY, write_conf,
-                                data, NULL);
+                                g_object_ref (data), NULL);
 }
 
 /**
