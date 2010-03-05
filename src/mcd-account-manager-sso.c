@@ -24,9 +24,7 @@
 #include "mcd-debug.h"
 
 #include <string.h>
-
-#include <libaccounts-glib/ag-manager.h>
-#include <libaccounts-glib/ag-account.h>
+#include <ctype.h>
 
 #define PLUGIN_PRIORITY (MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_KEYRING + 10)
 #define PLUGIN_NAME "maemo-libaccounts"
