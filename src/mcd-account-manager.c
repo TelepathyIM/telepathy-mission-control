@@ -198,13 +198,19 @@ finish:
 static void
 altered_cb (GObject *plugin, const gchar *account)
 {
-    
+  McpAccountStorage *storage = MCP_ACCOUNT_STORAGE (plugin);
+
+  DEBUG ("%s plugin reports %s changed, async changes not supported yet",
+      mcp_account_storage_name (storage), account);
 }
 
 static void
 toggled_cb (GObject *plugin, const gchar *account, gboolean on)
 {
-    
+  McpAccountStorage *storage = MCP_ACCOUNT_STORAGE (plugin);
+
+  DEBUG ("%s plugin reports %s became %svalid, async changes supported yet",
+      mcp_account_storage_name (storage), account, on ? "" : "in");
 }
 
 /* a backend plugin notified us that an account was vaporised: remove it */
