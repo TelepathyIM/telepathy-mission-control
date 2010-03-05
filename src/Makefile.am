@@ -37,6 +37,10 @@ mc_headers = \
 	mcd-provisioning.h \
 	mcd-provisioning-factory.h
 
+if ENABLE_LIBACCOUNTS_SSO
+mc_headers += mcd-account-manager-sso.h
+endif
+
 mc_gen_headers = \
 	_gen/cli-Connection_Interface_Contact_Capabilities_Draft1.h \
 	_gen/cli-Connection_Interface_Contact_Capabilities.h \
@@ -82,6 +86,11 @@ libmcd_convenience_la_LIBADD = \
 
 if ENABLE_GNOME_KEYRING
 libmcd_convenience_la_LIBADD += $(GNOME_KEYRING_LIBS)
+endif
+
+if ENABLE_LIBACCOUNTS_SSO
+libmcd_convenience_la_LIBADD += $(LIBACCOUNTS_SSO_LIBS)
+libmcd_convenience_la_CFLAGS  = $(LIBACCOUNTS_SSO_CFLAGS)
 endif
 
 noinst_LTLIBRARIES = libmcd-convenience.la
@@ -175,6 +184,10 @@ libmcd_convenience_la_SOURCES = \
 	plugin-account.h \
 	sp_timestamp.h \
 	$(mc_headers)
+
+if ENABLE_LIBACCOUNTS_SSO
+libmcd_convenience_la_SOURCES += mcd-account-manager-sso.c
+endif
 
 %-signals-marshal.h: %-signals-marshal.list Makefile
 	glib-genmarshal --header --prefix=_$(subst -,_,$*)_marshal $< > $*-signals-marshal.h
