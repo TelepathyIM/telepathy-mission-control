@@ -25,7 +25,6 @@
  */
 
 #include "mcd-account-manager.h"
-#include "mcd-account-manager-default.h"
 
 #include <glib/gi18n.h>
 #include <string.h>
@@ -45,8 +44,14 @@
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/svc-account-manager.h>
 #include "mcd-account-manager-priv.h"
+
+/* these pseudo-plugins take care of the actual account storage/retrieval */
 #include "mcd-account-manager-default.h"
 #include "mcd-account-manager-keyring.h"
+#if ENABLE_LIBACCOUNTS_SSO
+#include "mcd-account-manager-sso.h"
+#endif
+
 #include "mcd-account.h"
 #include "mcd-account-config.h"
 #include "mcd-account-priv.h"
@@ -243,6 +248,16 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
 }
 
 static void
+add_libaccount_plugin_if_enabled (void)
+{
+#if ENABLE_LIBACCOUNTS_SSO
+  McdAccountManagerSso *sso_plugin = mcd_account_manager_sso_new ();
+
+  stores = g_list_insert_sorted (stores, sso_plugin, account_storage_cmp);
+#endif
+}
+
+static void
 sort_and_cache_plugins (McdAccountManager *self)
 {
     const GList *p;
@@ -254,6 +269,9 @@ sort_and_cache_plugins (McdAccountManager *self)
 
     default_plugin = mcd_account_manager_default_new ();
     keyring_plugin = mcd_account_manager_keyring_new ();
+    add_libaccount_plugin_if_enabled ();
+
+    /* now poke the pseudo-plugins into the sorted GList of storage plugins */
     stores = g_list_prepend (stores, keyring_plugin);
     stores = g_list_insert_sorted (stores, default_plugin, account_storage_cmp);
 
