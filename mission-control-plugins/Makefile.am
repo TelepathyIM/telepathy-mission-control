@@ -48,6 +48,8 @@ libmission_control_plugins_la_SOURCES = \
 	mcp-signals-marshal.c \
 	mcp-signals-marshal.h
 
+account-storage.lo: mcp-signals-marshal.h mcp-signals-marshal.c
+
 %-signals-marshal.h: %-signals-marshal.list Makefile
 	glib-genmarshal --header --prefix=_$(subst -,_,$(notdir $*))_marshal $< \
 	  > $*-signals-marshal.h
