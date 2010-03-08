@@ -450,28 +450,37 @@ _get (const McpAccountStorage *self,
 
   if (key != NULL)
     {
-      gchar *k = get_ag_key (key);
-      GValue v = { 0 };
-
-      g_value_init (&v, G_TYPE_STRING);
-
-      if (ag_account_get_value (account, k, &v) != AG_SETTING_SOURCE_NONE)
+      if (strcmp (key, "Enabled") == 0)
         {
-          gchar *val = _gvalue_to_string (&v);
-
-          mcp_account_manager_set_value (am, acct, key, val);
-
-          g_free (val);
+          const gchar *v = ag_account_get_enabled (account) ? "true" : "false";
+          mcp_account_manager_set_value (am, acct, key, v);
         }
+      else
+        {
+          gchar *k = get_ag_key (key);
+          GValue v = { 0 };
 
-      g_value_unset (&v);
-      g_free (k);
+          g_value_init (&v, G_TYPE_STRING);
+
+          if (ag_account_get_value (account, k, &v) != AG_SETTING_SOURCE_NONE)
+            {
+              gchar *val = _gvalue_to_string (&v);
+
+              mcp_account_manager_set_value (am, acct, key, val);
+
+              g_free (val);
+            }
+
+          g_value_unset (&v);
+          g_free (k);
+        }
     }
   else
     {
       AgAccountSettingIter setting;
       const gchar *k;
       const GValue *v;
+      const gchar *on = ag_account_get_enabled (account) ? "true" : "false";
 
       ag_account_settings_iter_init (account, &setting, NULL);
 
@@ -487,6 +496,9 @@ _get (const McpAccountStorage *self,
           g_free (value);
           g_free (mc_key);
         }
+
+      /* special case, may not be stored as an explicit key */
+      mcp_account_manager_set_value (am, acct, "Enabled", on);
     }
 
   return TRUE;
