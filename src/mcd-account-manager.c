@@ -218,6 +218,12 @@ toggled_cb (GObject *plugin, const gchar *account, gboolean on)
       mcp_account_storage_name (storage), account, on ? "" : "in");
 }
 
+static void
+_mcd_account_delete_cb (McdAccount *account, const GError *error, gpointer data)
+{
+  /* we don't do anything with this right now */
+}
+
 /* a backend plugin notified us that an account was vaporised: remove it */
 static void
 deleted_cb (GObject *plugin, const gchar *name, gpointer data)
