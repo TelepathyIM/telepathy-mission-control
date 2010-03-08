@@ -254,6 +254,9 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
         DEBUG ("%s -> mcp_account_storage_delete",
                mcp_account_storage_name (p));
 
+        /* don't call the plugin who informed us of deletion, it should  *
+         * already have purged its own store and we don't want to risk   *
+         * some sort of crazy keep-on-deleting infinite loop shenanigans */
         if (p != storage)
             mcp_account_storage_delete (p, MCP_ACCOUNT_MANAGER (pa), name, NULL);
     }
