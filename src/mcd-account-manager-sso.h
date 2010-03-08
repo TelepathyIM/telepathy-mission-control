@@ -52,6 +52,7 @@ G_BEGIN_DECLS
 typedef struct {
   GObject parent;
   GHashTable *accounts;
+  GHashTable *id_name_map;
   GList *services;
   AgManager *ag_manager;
   gboolean save;

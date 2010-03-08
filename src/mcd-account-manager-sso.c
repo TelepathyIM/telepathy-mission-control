@@ -97,6 +97,8 @@ mcd_account_manager_sso_init (McdAccountManagerSso *self)
   self->ag_manager = ag_manager_new ();
   self->accounts =
     g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
+  self->id_name_map =
+    g_hash_table_new_full (g_direct_hash, g_int_equal, NULL, g_free);
 }
 
 static void
@@ -211,7 +213,8 @@ static AgAccount *
 get_ag_account (const McdAccountManagerSso *sso,
     const McpAccountManager *am,
     const gchar *name,
-    AgAccountId *id)
+    AgAccountId *id,
+    gboolean create)
 {
   AgAccount *account;
   gchar *ident = NULL;
@@ -224,6 +227,12 @@ get_ag_account (const McdAccountManagerSso *sso,
     {
       *id = account->id;
       return account;
+    }
+
+  if (!create)
+    {
+      *id = 0;
+      return NULL;
     }
 
   /* we haven't seen this account before: prep it for libaccounts: */
@@ -342,7 +351,7 @@ _set (const McpAccountStorage *self,
 {
   AgAccountId id;
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (self);
-  AgAccount *account = get_ag_account (sso, am, acct, &id);
+  AgAccount *account = get_ag_account (sso, am, acct, &id, TRUE);
 
   /* no account? create one ready for libaccounts to save: */
   if (account == NULL)
@@ -421,7 +430,7 @@ _get (const McpAccountStorage *self,
 {
   AgAccountId id;
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (self);
-  AgAccount *account = get_ag_account (sso, am, acct, &id);
+  AgAccount *account = get_ag_account (sso, am, acct, &id, FALSE);
 
   if (account == NULL)
     return FALSE;
@@ -478,7 +487,7 @@ _delete (const McpAccountStorage *self,
 {
   AgAccountId id;
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (self);
-  AgAccount *account = get_ag_account (sso, am, acct, &id);
+  AgAccount *account = get_ag_account (sso, am, acct, &id, FALSE);
 
   /* have no values for this account, nothing to do here: */
   if (account == NULL)
@@ -487,6 +496,8 @@ _delete (const McpAccountStorage *self,
   if (key == NULL)
     {
       ag_account_delete (account);
+      g_hash_table_remove (sso->accounts, acct);
+      g_hash_table_remove (sso->id_name_map, GUINT_TO_POINTER (id));
     }
   else
     {
@@ -565,7 +576,14 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
           ag_account_select_service (account, service);
           name = _ag_accountid_to_mc_key (sso, id);
           mc_id = g_strsplit (name, "/", 3);
+
+          /* cache the account object, and the ID->name maping: the latter is *
+           * required because we might receive an async delete signal with    *
+           * the ID after libaccounts-glib has purged all its account data,   *
+           * so we couldn't rely on the MC_IDENTITY_KEY setting.              */
           g_hash_table_insert (sso->accounts, name, account);
+          g_hash_table_insert (sso->id_name_map, GUINT_TO_POINTER (id),
+              g_strdup (name));
 
           ag_account_settings_iter_init (account, &iter, NULL);
 
