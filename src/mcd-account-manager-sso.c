@@ -102,6 +102,75 @@ _gvalue_to_string (const GValue *val)
     }
 }
 
+static void _sso_deleted (GObject *object,
+    AgAccountId id,
+    gpointer data)
+{
+  AgManager *ag_manager = AG_MANAGER (object);
+  McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (data);
+  const gchar *name =
+    g_hash_table_lookup (sso->id_name_map, GUINT_TO_POINTER (id));
+
+  /* if we found an account in our cache, then this was a 3rd party delete op *
+   * that someone did behind our back: fire the signal and clean up           */
+  if (name != NULL)
+    {
+      McpAccountStorage *mcpa = MCP_ACCOUNT_STORAGE (sso);
+
+      /* forget id->name map first, so the signal can't send us into a loop */
+      g_hash_table_remove (sso->id_name_map, GUINT_TO_POINTER (id));
+      g_signal_emit_by_name (mcpa, "deleted", name);
+      g_hash_table_remove (sso->accounts, name);
+    }
+}
+
+static void _sso_created (GObject *object,
+    AgAccountId id,
+    gpointer data)
+{
+  AgManager *ag_manager = AG_MANAGER (object);
+  McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (data);
+  const gchar *name =
+    g_hash_table_lookup (sso->id_name_map, GUINT_TO_POINTER (id));
+
+  /* if we already know the account's name, we shouldn't fire the new *
+   * account signal as it is one we (and our superiors) already have  */
+  if (name == NULL)
+    {
+      McpAccountStorage *mcpa = MCP_ACCOUNT_STORAGE (sso);
+      AgAccount *account = ag_manager_get_account (ag_manager, id);
+
+      if (account != NULL)
+        {
+          const gchar *provider = ag_account_get_provider_name (account);
+          AgService *service = _provider_get_service (sso, provider);
+          gchar *name = NULL;
+          GStrv mc_id = NULL;
+
+          /* make sure values are stored against the right service *
+           * or we won't get them back from the SSO store, ever:   */
+          ag_account_select_service (account, service);
+
+          name = _ag_accountid_to_mc_key (sso, id);
+          mc_id = g_strsplit (name, "/", 3);
+
+          g_hash_table_insert (sso->accounts, name, account);
+          g_hash_table_insert (sso->id_name_map, GUINT_TO_POINTER (id),
+              g_strdup (name));
+
+          save_value (account, MC_CMANAGER_KEY, mc_id[0]);
+          save_value (account, MC_PROTOCOL_KEY, mc_id[1]);
+          save_value (account, MC_IDENTITY_KEY, name);
+
+          g_signal_emit_by_name (mcpa, "created", name);
+
+          g_free (name);
+          g_strfreev (mc_id);
+          ag_service_unref (service);
+        }
+    }
+}
+
 static void
 mcd_account_manager_sso_init (McdAccountManagerSso *self)
 {
@@ -112,6 +181,11 @@ mcd_account_manager_sso_init (McdAccountManagerSso *self)
     g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
   self->id_name_map =
     g_hash_table_new_full (g_direct_hash, g_int_equal, NULL, g_free);
+
+  g_signal_connect(self->ag_manager, "account-deleted",
+      G_CALLBACK (_sso_deleted), self);
+  g_signal_connect(self->ag_manager, "account-created",
+      G_CALLBACK (_sso_created), self);
 }
 
 static void
