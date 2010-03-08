@@ -97,16 +97,6 @@ mcd_account_manager_sso_init (McdAccountManagerSso *self)
   self->ag_manager = ag_manager_new ();
   self->accounts =
     g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
-
-  self->services = ag_manager_list_services_by_type (self->ag_manager, "IM");
-
-  for (nth = self->services; nth != NULL; nth = g_list_next (nth))
-    {
-      AgService *service = nth->data;
-      g_debug("\n--\nservice:\n      name: %s\n  provider: %s\n\n",
-              ag_service_get_name     (service),
-              ag_service_get_provider (service));
-    }
 }
 
 static void
