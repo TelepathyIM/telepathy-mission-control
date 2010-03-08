@@ -45,6 +45,19 @@
 static void account_storage_iface_init (McpAccountStorageIface *,
     gpointer);
 
+static gchar *
+_ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
+    AgAccountId id);
+
+static void
+save_value (AgAccount *account,
+    const gchar *key,
+    const gchar *val);
+
+static AgService *
+_provider_get_service (const McdAccountManagerSso *sso,
+    const gchar *provider);
+
 G_DEFINE_TYPE_WITH_CODE (McdAccountManagerSso, mcd_account_manager_sso,
     G_TYPE_OBJECT,
     G_IMPLEMENT_INTERFACE (MCP_TYPE_ACCOUNT_STORAGE,
