@@ -225,16 +225,22 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
     GList *store = NULL;
     McpAccountStorage *storage = MCP_ACCOUNT_STORAGE (plugin);
     McdAccountManager *manager = MCD_ACCOUNT_MANAGER (data);
-    McdAccountManager *account = NULL;
+    McdAccount *account = NULL;
     McdPluginAccountManager *pa = manager->priv->plugin_manager;
 
     account = g_hash_table_lookup (manager->priv->accounts, name);
-    DEBUG ("-> mcp_account_storage_delete");
-    mcp_account_storage_delete (storage, MCP_ACCOUNT_MANAGER (pa), name, NULL);
 
     if (account != NULL)
+    {
+        mcd_account_delete (account, _mcd_account_delete_cb, NULL);
         g_hash_table_remove (manager->priv->accounts, name);
+    }
 
+    /* NOTE: we have to do this here, the mcd_account deletion just *
+     * steals a copy of your internal storage and erases the entry  *
+     * from underneath us, so we don't even know we had the account *
+     * after mcd_account_delete: a rumsfeldian unknown unknown      */
+    /* PS: which will be fixed, but this will do for now            */
     for (store = stores; store != NULL; store = g_list_next (store))
     {
         McpAccountStorage *p = store->data;
