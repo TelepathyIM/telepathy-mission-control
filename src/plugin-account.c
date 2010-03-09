@@ -62,25 +62,24 @@ plugin_account_manager_set_property (GObject *object,
 static void
 plugin_account_manager_dispose (GObject *object)
 {
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (object);
   GObjectFinalizeFunc dispose =
     G_OBJECT_CLASS (mcd_plugin_account_manager_parent_class)->dispose;
-
-  g_key_file_free (self->keyfile);
-  g_key_file_free (self->secrets);
-  self->keyfile = NULL;
-  self->secrets = NULL;
 
   if (dispose != NULL)
     dispose (object);
 }
 
-
 static void
 plugin_account_manager_finalize (GObject *object)
 {
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (object);
   GObjectFinalizeFunc finalize =
     G_OBJECT_CLASS (mcd_plugin_account_manager_parent_class)->finalize;
+
+  g_key_file_free (self->keyfile);
+  g_key_file_free (self->secrets);
+  self->keyfile = NULL;
+  self->secrets = NULL;
 
   if (finalize != NULL)
     finalize (object);
