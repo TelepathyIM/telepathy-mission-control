@@ -83,7 +83,8 @@ mcd_plugin_account_manager_class_init (McdPluginAccountManagerClass *cls)
 McdPluginAccountManager *
 mcd_plugin_account_manager_new ()
 {
-  return g_object_new (MCD_TYPE_PLUGIN_ACCOUNT_MANAGER, NULL);
+  return g_object_new (MCD_TYPE_PLUGIN_ACCOUNT_MANAGER,
+      NULL);
 }
 
 static gchar *
