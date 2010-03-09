@@ -1009,7 +1009,6 @@ write_conf (gpointer userdata)
         mcp_account_storage_commit (plugin, ma);
     }
 
-    g_object_unref (pa);
     return TRUE;
 }
 
@@ -1159,7 +1158,7 @@ _mcd_account_manager_finalize (GObject *object)
 
     if (write_conf_id)
     {
-        write_conf (g_object_ref (priv->plugin_manager));
+        write_conf (priv->plugin_manager);
         g_assert (write_conf_id == 0);
     }
 
@@ -1331,7 +1330,7 @@ mcd_account_manager_write_conf (McdAccountManager *account_manager)
     if (write_conf_id == 0) 
         write_conf_id =
             g_timeout_add_full (G_PRIORITY_HIGH, WRITE_CONF_DELAY, write_conf,
-                                g_object_ref (data), NULL);
+                                g_object_ref (data), g_object_unref);
 }
 
 /**
