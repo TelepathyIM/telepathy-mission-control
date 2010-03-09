@@ -144,7 +144,7 @@ class_init (gpointer klass,
    **/
   signals[CREATED] = g_signal_new ("created",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
-      _mcp_marshal_VOID__STRING, G_TYPE_NONE,
+      g_cclosure_marshal_VOID__STRING, G_TYPE_NONE,
       1, G_TYPE_STRING);
 
   /**
@@ -156,7 +156,7 @@ class_init (gpointer klass,
    **/
   signals[ALTERED] = g_signal_new ("altered",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
-      _mcp_marshal_VOID__STRING, G_TYPE_NONE,
+      g_cclosure_marshal_VOID__STRING, G_TYPE_NONE,
       1, G_TYPE_STRING);
 
   /**
@@ -168,7 +168,7 @@ class_init (gpointer klass,
    **/
   signals[DELETED] = g_signal_new ("deleted",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
-      _mcp_marshal_VOID__STRING, G_TYPE_NONE,
+      g_cclosure_marshal_VOID__STRING, G_TYPE_NONE,
       1, G_TYPE_STRING);
 
   /**
