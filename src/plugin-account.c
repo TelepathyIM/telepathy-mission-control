@@ -46,16 +46,6 @@ mcd_plugin_account_manager_init (McdPluginAccountManager *self)
 }
 
 static void
-plugin_account_manager_dispose (GObject *object)
-{
-  GObjectFinalizeFunc dispose =
-    G_OBJECT_CLASS (mcd_plugin_account_manager_parent_class)->dispose;
-
-  if (dispose != NULL)
-    dispose (object);
-}
-
-static void
 plugin_account_manager_finalize (GObject *object)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (object);
@@ -76,7 +66,6 @@ mcd_plugin_account_manager_class_init (McdPluginAccountManagerClass *cls)
 {
   GObjectClass *object_class = (GObjectClass *) cls;
 
-  object_class->dispose = plugin_account_manager_dispose;
   object_class->finalize = plugin_account_manager_finalize;
 }
 
