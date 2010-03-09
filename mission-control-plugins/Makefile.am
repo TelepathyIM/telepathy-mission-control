@@ -52,6 +52,8 @@ libmission_control_plugins_la_SOURCES = \
 
 BUILT_SOURCES = $(nodist_libmission_control_plugins_la_SOURCES)
 
+CLEANFILES = $(BUILT_SOURCES)
+
 %-signals-marshal.h: %-signals-marshal.list Makefile
 	glib-genmarshal --header --prefix=_$(subst -,_,$(notdir $*))_marshal $< \
 	  > $*-signals-marshal.h
