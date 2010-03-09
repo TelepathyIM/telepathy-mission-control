@@ -180,7 +180,7 @@ mcd_account_manager_sso_init (McdAccountManagerSso *self)
   self->accounts =
     g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
   self->id_name_map =
-    g_hash_table_new_full (g_direct_hash, g_int_equal, NULL, g_free);
+    g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, g_free);
 
   g_signal_connect(self->ag_manager, "account-deleted",
       G_CALLBACK (_sso_deleted), self);
