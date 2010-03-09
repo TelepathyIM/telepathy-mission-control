@@ -35,6 +35,10 @@ libmission_control_plugins_la_LIBADD = \
 	$(DBUS_LIBS) \
 	$(GLIB_LIBS)
 
+nodist_libmission_control_plugins_la_SOURCES = \
+	mcp-signals-marshal.c \
+	mcp-signals-marshal.h
+
 libmission_control_plugins_la_SOURCES = \
 	debug-internal.h \
 	account.c \
@@ -44,11 +48,9 @@ libmission_control_plugins_la_SOURCES = \
 	implementation.h \
 	loader.c \
 	request.c \
-	request-policy.c \
-	mcp-signals-marshal.c \
-	mcp-signals-marshal.h
+	request-policy.c
 
-account-storage.lo: mcp-signals-marshal.h mcp-signals-marshal.c
+BUILT_SOURCES = $(nodist_libmission_control_plugins_la_SOURCES)
 
 %-signals-marshal.h: %-signals-marshal.list Makefile
 	glib-genmarshal --header --prefix=_$(subst -,_,$(notdir $*))_marshal $< \
