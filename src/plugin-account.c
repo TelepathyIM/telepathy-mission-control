@@ -46,20 +46,6 @@ mcd_plugin_account_manager_init (McdPluginAccountManager *self)
 }
 
 static void
-plugin_account_manager_set_property (GObject *object,
-    guint prop_id,
-    const GValue *value,
-    GParamSpec *pspec)
-{
-  switch (prop_id)
-    {
-      default:
-        G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-        break;
-    }
-}
-
-static void
 plugin_account_manager_dispose (GObject *object)
 {
   GObjectFinalizeFunc dispose =
@@ -90,7 +76,6 @@ mcd_plugin_account_manager_class_init (McdPluginAccountManagerClass *cls)
 {
   GObjectClass *object_class = (GObjectClass *) cls;
 
-  object_class->set_property = plugin_account_manager_set_property;
   object_class->dispose = plugin_account_manager_dispose;
   object_class->finalize = plugin_account_manager_finalize;
 }
