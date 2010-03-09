@@ -203,8 +203,8 @@ want_this_account (GStrv mc_key)
   DEBUG ("want_this_account(%s/%s/%s)", mc_key[0], mc_key[1], mc_key[2]);
 
   /* we're only grabbing gabble+google talk accounts for now: */
-  if ((strcmp (protocol, "jabber") == 0) &&
-      (strcmp (manager,  "gabble") == 0))
+  if (g_str_equal (protocol, "jabber") &&
+      g_str_equal (manager,  "gabble"))
     return TRUE;
 
   return FALSE;
@@ -361,7 +361,7 @@ save_param (AgAccount *account,
   const gchar *pkey = key + strlen (PARAM_PREFIX_MC);
   gchar *param_key = NULL;
 
-  if (strcmp (pkey, MC_ACCOUNT_KEY) == 0)
+  if (g_str_equal (pkey, MC_ACCOUNT_KEY))
     param_key = g_strdup_printf (PARAM_PREFIX "%s", AG_ACCOUNT_KEY);
   else
     param_key = g_strdup_printf (PARAM_PREFIX "%s", pkey);
@@ -388,9 +388,9 @@ save_value (AgAccount *account,
     const gchar *key,
     const gchar *val)
 {
-  if (strcmp (key, "Enabled") == 0)
+  if (g_str_equal (key, "Enabled"))
     {
-      ag_account_set_enabled (account, (strcmp (val, "true") == 0));
+      ag_account_set_enabled (account, g_str_equal (val, "true"));
     }
   else if (val == NULL)
     {
@@ -422,7 +422,7 @@ _provider_get_service (const McdAccountManagerSso *sso,
 
   for (nth = sso->services; nth != NULL; nth = g_list_next (nth))
     {
-      if (strcmp (ag_service_get_provider (nth->data), provider) == 0)
+      if (g_str_equal (ag_service_get_provider (nth->data), provider))
         return ag_service_ref (nth->data);
     }
 
@@ -488,7 +488,7 @@ _set (const McpAccountStorage *self,
 static gchar *
 get_mc_key (const gchar *key)
 {
-  if (g_strcmp0 (key, PARAM_PREFIX AG_ACCOUNT_KEY) == 0)
+  if (g_str_equal (key, PARAM_PREFIX AG_ACCOUNT_KEY))
     return g_strdup (PARAM_PREFIX_MC MC_ACCOUNT_KEY);
 
   if (g_str_has_prefix (key, PARAM_PREFIX))
@@ -500,7 +500,7 @@ get_mc_key (const gchar *key)
 static gchar *
 get_ag_key (const gchar *key)
 {
-  if (g_strcmp0 (key, PARAM_PREFIX_MC MC_ACCOUNT_KEY) == 0)
+  if (g_str_equal (key, PARAM_PREFIX_MC MC_ACCOUNT_KEY))
     return g_strdup (PARAM_PREFIX AG_ACCOUNT_KEY);
 
   if (g_str_has_prefix (key, PARAM_PREFIX_MC))
@@ -524,7 +524,7 @@ _get (const McpAccountStorage *self,
 
   if (key != NULL)
     {
-      if (strcmp (key, "Enabled") == 0)
+      if (g_str_equal (key, "Enabled"))
         {
           const gchar *v = ag_account_get_enabled (account) ? "true" : "false";
           mcp_account_manager_set_value (am, acct, key, v);
