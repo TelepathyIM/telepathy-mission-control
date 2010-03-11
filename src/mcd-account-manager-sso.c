@@ -60,6 +60,8 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
     AgAccountId id,
     gboolean create);
 
+static gchar * get_mc_key (const gchar *key);
+
 static void
 save_value (AgAccount *account,
     const gchar *key,
