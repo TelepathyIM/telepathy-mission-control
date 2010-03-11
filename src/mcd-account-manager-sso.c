@@ -153,7 +153,7 @@ static void _sso_created (GObject *object,
 {
   AgManager *ag_manager = AG_MANAGER (object);
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (data);
-  const gchar *name =
+  gchar *name =
     g_hash_table_lookup (sso->id_name_map, GUINT_TO_POINTER (id));
 
   if (sso->ready)
@@ -300,7 +300,7 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
 
   if (src != AG_SETTING_SOURCE_NONE && G_VALUE_HOLDS_STRING (&value))
     {
-      GValue setting;
+      AgAccountSettingIter setting;
       const gchar *k;
       const GValue *v;
       GValue cmanager = { 0 };
@@ -308,8 +308,8 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
       gchar *cman;
       gchar *proto;
       gchar *c = (gchar *) g_value_get_string (&value);
-      McpAccountStorage *am = MCP_ACCOUNT_STORAGE (sso);
-      GHashTable *params = g_hash_table_new_full (g_string_hash, g_string_equal,
+      McpAccountManager *am = sso->manager_interface;
+      GHashTable *params = g_hash_table_new_full (g_str_hash, g_str_equal,
           g_free, NULL);
       gchar *name = NULL;
 
