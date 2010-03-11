@@ -62,6 +62,11 @@ void mcp_account_manager_parameter_make_secret (const McpAccountManager *mcpa,
     const gchar *acct,
     const gchar *key);
 
+gchar * mcp_account_manager_get_unique_name (McpAccountManager *mcpa,
+    const gchar *manager,
+    const gchar *protocol,
+    const GHashTable *params);
+
 G_END_DECLS
 
 #endif

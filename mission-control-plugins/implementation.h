@@ -91,6 +91,11 @@ struct _McpAccountManagerIface {
   void (* make_secret) (const McpAccountManager *ma,
       const gchar *acct,
       const gchar *key);
+
+  gchar * (* unique_name) (const McpAccountManager *ma,
+      const gchar *manager,
+      const gchar *protocol,
+      const GHashTable *params);
 };
 
 G_END_DECLS

@@ -138,3 +138,33 @@ mcp_account_manager_parameter_make_secret (const McpAccountManager *mcpa,
   g_debug ("%s.%s should be secret", acct, key);
   return iface->make_secret (mcpa, acct, key);
 }
+
+/**
+ * mcp_account_manager_get_unique_name:
+ * @mcpa: an #McpAccountManager instance
+ * @manager: the name of the manager
+ * @protocol: the name of the protocol
+ * @params: A gchar * / GValue * hash table of account parameters.
+ *
+ * Generate and return the canonical unique name of this [new] account.
+ * Should not be called for accounts which have already had a name
+ * assigned: Intended for use when a plugin encounters an account which
+ * MC has not previously seen before (ie one created by a 3rd party
+ * in the back-end that the plugin in question provides an interface to).
+ *
+ * Returns: the newly allocated account name, which should be freed
+ * once the caller is done with it.
+ */
+gchar *
+mcp_account_manager_get_unique_name (McpAccountManager *mcpa,
+    const gchar *manager,
+    const gchar *protocol,
+    const GHashTable *params)
+{
+  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
+
+  g_return_val_if_fail (iface != NULL, NULL);
+  g_return_val_if_fail (iface->unique_name != NULL, NULL);
+
+  return iface->unique_name (mcpa, manager, protocol, params);
+}
