@@ -329,7 +329,7 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
             {
               gchar *param_key = g_strdup (mc_key + strlen (PARAM_PREFIX_MC));
 
-              g_hash_table_insert (params, param_key, v);
+              g_hash_table_insert (params, param_key, (gpointer) v);
             }
 
           g_free (mc_key);
