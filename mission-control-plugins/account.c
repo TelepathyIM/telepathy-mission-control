@@ -90,7 +90,7 @@ mcp_account_manager_get_value (const McpAccountManager *mcpa,
 }
 
 /**
- * mcp_account_manager_get_value:
+ * mcp_account_manager_parameter_is_secret:
  * @mcpa: an #McpAccountManager instance
  * @acct: the unique name of an account
  * @key: the setting whose value we want to retrieve
@@ -117,7 +117,7 @@ mcp_account_manager_parameter_is_secret (const McpAccountManager *mcpa,
 }
 
 /**
- * mcp_account_manager_get_value:
+ * mcp_account_manager_parameter_make_secret:
  * @mcpa: an #McpAccountManager instance
  * @acct: the unique name of an account
  * @key: the setting whose value we want to retrieve
