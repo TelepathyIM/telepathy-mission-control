@@ -56,6 +56,7 @@
  *   mcp_account_storage_iface_implement_delete (iface, _plugin_delete);
  *   mcp_account_storage_iface_implement_commit (iface, _plugin_commit);
  *   mcp_account_storage_iface_implement_list   (iface, _plugin_list);
+ *   mcp_account_storage_iface_implement_ready  (iface, _plugin_ready);
  * /<!-- -->* ... *<!-- -->/
  * }
  * </programlisting></example>
@@ -127,6 +128,10 @@ struct _McpAccountStorageIface
   GList * (*list) (
       const McpAccountStorage *self,
       const McpAccountManager *am);
+
+  void (*ready) (
+      const McpAccountStorage *self,
+      const McpAccountManager *am);
 };
 
 static void
@@ -141,6 +146,9 @@ class_init (gpointer klass,
    *
    * emitted if an external entity creates an account
    * in the backend the emitting plugin handles
+   *
+   * Should not be fired until mcp_account_storage_ready() has been called
+   *
    **/
   signals[CREATED] = g_signal_new ("created",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
@@ -153,6 +161,9 @@ class_init (gpointer klass,
    *
    * emitted if an external entity alters an account
    * in the backend the emitting plugin handles
+   *
+   * Should not be fired until mcp_account_storage_ready() has been called
+   *
    **/
   signals[ALTERED] = g_signal_new ("altered",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
@@ -165,6 +176,9 @@ class_init (gpointer klass,
    *
    * emitted if an external entity deletes an account
    * in the backend the emitting plugin handles
+   *
+   * Should not be fired until mcp_account_storage_ready() has been called
+   *
    **/
   signals[DELETED] = g_signal_new ("deleted",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
@@ -178,6 +192,9 @@ class_init (gpointer klass,
    *
    * emitted if an external entity enables/disables an account
    * in the backend the emitting plugin handles
+   *
+   * Should not be fired until mcp_account_storage_ready() has been called
+   *
    **/
   signals[TOGGLED] = g_signal_new ("toggled",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
@@ -287,6 +304,15 @@ mcp_account_storage_iface_implement_list (McpAccountStorageIface *iface,
         const McpAccountManager *))
 {
   iface->list = method;
+}
+
+void
+mcp_account_storage_iface_implement_ready (McpAccountStorageIface *iface,
+    void  (*method) (
+        const McpAccountStorage *,
+        const McpAccountManager *))
+{
+  iface->ready = method;
 }
 
 /**
@@ -483,6 +509,30 @@ mcp_account_storage_list (const McpAccountStorage *storage,
 
   return iface->list (storage, am);
 }
+
+/**
+ * mcp_account_storage_ready:
+ * @storage: an #McpAccountStorage instance
+ *
+ * Informs the plugin that it is now permitted to create new accounts,
+ * ie it can now fire its "created", "altered", "toggled" and "deleted"
+ * signals.
+ */
+void
+mcp_account_storage_ready (const McpAccountStorage *storage,
+    const McpAccountManager *am)
+{
+  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
+
+  g_return_if_fail (iface != NULL);
+
+  /* plugins that can't create accounts from external sources don't  *
+   * need to implement this method, as they can never fire the async *
+   * account change signals:                                         */
+  if (iface->ready != NULL)
+    iface->ready (storage, am);
+}
+
 
 /**
  * mcp_account_storage_name:
