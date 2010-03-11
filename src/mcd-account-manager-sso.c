@@ -788,25 +788,28 @@ _ready (const McpAccountStorage *self,
   if (sso->ready)
     return;
 
+  g_assert (sso->manager_interface == NULL);
+  sso->manager_interface = g_object_ref (G_OBJECT (am));
   sso->ready = TRUE;
 
   while (g_queue_get_length (sso->pending_signals) > 0)
     {
       DelayedSignalData *data = g_queue_pop_head (sso->pending_signals);
+      GObject *signal_source = G_OBJECT (sso->ag_manager);
 
       switch (data->signal)
         {
           case DELAYED_CREATE:
-            _sso_created (sso->ag_manager, data->account_id, sso);
+            _sso_created (signal_source, data->account_id, sso);
             break;
           case DELAYED_DELETE:
-            _sso_deleted (sso->ag_manager, data->account_id, sso);
+            _sso_deleted (signal_source, data->account_id, sso);
             break;
           default:
             g_assert_not_reached ();
         }
 
-      g_slice_free (data, DelayedSignalData);
+      g_slice_free (DelayedSignalData, data);
     }
 
   g_queue_free (sso->pending_signals);

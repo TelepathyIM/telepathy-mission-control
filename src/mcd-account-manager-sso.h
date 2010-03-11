@@ -56,6 +56,7 @@ typedef struct {
   GList *services;
   GQueue *pending_signals;
   AgManager *ag_manager;
+  McpAccountManager *manager_interface;
   gboolean ready;
   gboolean save;
   gboolean loaded;
