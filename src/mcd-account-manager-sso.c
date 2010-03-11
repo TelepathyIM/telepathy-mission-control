@@ -216,7 +216,7 @@ mcd_account_manager_sso_init (McdAccountManagerSso *self)
 
   self->pending_signals = g_queue_new ();
 
-  self->services = ag_manager_list_services (self->ag_manager)
+  self->services = ag_manager_list_services (self->ag_manager);
 
   g_signal_connect(self->ag_manager, "account-deleted",
       G_CALLBACK (_sso_deleted), self);
