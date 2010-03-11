@@ -207,8 +207,6 @@ static void _sso_created (GObject *object,
 static void
 mcd_account_manager_sso_init (McdAccountManagerSso *self)
 {
-  GList *nth;
-
   DEBUG ("mcd_account_manager_sso_init");
   self->ag_manager = ag_manager_new ();
   self->accounts =
@@ -217,6 +215,8 @@ mcd_account_manager_sso_init (McdAccountManagerSso *self)
     g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, g_free);
 
   self->pending_signals = g_queue_new ();
+
+  self->services = ag_manager_list_services (self->ag_manager)
 
   g_signal_connect(self->ag_manager, "account-deleted",
       G_CALLBACK (_sso_deleted), self);
