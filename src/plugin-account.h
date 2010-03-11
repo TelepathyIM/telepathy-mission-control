@@ -32,6 +32,7 @@ G_BEGIN_DECLS
 
 typedef struct {
   GObject parent;
+  TpDBusDaemon *dbusd;
   GKeyFile *keyfile;
   GKeyFile *secrets;
 } McdPluginAccountManager;
@@ -61,7 +62,7 @@ G_GNUC_INTERNAL GType mcd_plugin_account_manager_get_type (void);
   (G_TYPE_INSTANCE_GET_CLASS ((o), MCD_TYPE_PLUGIN_ACCOUNT_MANAGER, \
       McdPluginAccountManagerClass))
 
-McdPluginAccountManager *mcd_plugin_account_manager_new (void);
+McdPluginAccountManager *mcd_plugin_account_manager_new (TpDBusDaemon *dbusd);
 
 G_END_DECLS
 

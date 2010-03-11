@@ -25,7 +25,14 @@
 
 #include "mission-control-plugins/implementation.h"
 
+#include <stdio.h>
+#include <string.h>
 #include <glib.h>
+#include <telepathy-glib/util.h>
+
+enum {
+  PROP_DBUS_DAEMON = 1,
+};
 
 struct _McdPluginAccountManagerClass {
     GObjectClass parent;
@@ -62,17 +69,59 @@ plugin_account_manager_finalize (GObject *object)
 }
 
 static void
+plugin_account_manager_dispose (GObject *object)
+{
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (object);
+  GObjectFinalizeFunc dispose =
+    G_OBJECT_CLASS (mcd_plugin_account_manager_parent_class)->dispose;
+
+  g_object_unref (self->dbusd);
+  self->dbusd = NULL;
+
+  if (dispose != NULL)
+    dispose (object);
+}
+
+static void
 mcd_plugin_account_manager_class_init (McdPluginAccountManagerClass *cls)
 {
   GObjectClass *object_class = (GObjectClass *) cls;
+  GParamSpec *spec = g_param_spec_object ("dbus-daemon",
+      "DBus daemon",
+      "DBus daemon",
+      TP_TYPE_DBUS_DAEMON,
+      G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
 
+  g_object_class_install_property (object_class, PROP_DBUS_DAEMON, spec);
+
+  object_class->dispose = plugin_account_manager_dispose;
   object_class->finalize = plugin_account_manager_finalize;
 }
 
+static void
+mcd_plugin_manager_set_property (GObject *obj, guint prop_id,
+	      const GValue *val, GParamSpec *pspec)
+{
+    McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (obj);
+
+    switch (prop_id)
+    {
+      case PROP_DBUS_DAEMON:
+        g_assert (self->dbusd == NULL);
+        self->dbusd = TP_DBUS_DAEMON (g_value_dup_object (val));
+        break;
+      default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
+        break;
+    }
+}
+
+
 McdPluginAccountManager *
-mcd_plugin_account_manager_new ()
+mcd_plugin_account_manager_new (TpDBusDaemon *dbusd)
 {
   return g_object_new (MCD_TYPE_PLUGIN_ACCOUNT_MANAGER,
+      "dbus-daemon", dbusd,
       NULL);
 }
 
@@ -119,6 +168,57 @@ make_secret (const McpAccountManager *ma,
   g_key_file_set_boolean (self->secrets, acct, key, TRUE);
 }
 
+static gchar *
+unique_name (const McpAccountManager *ma,
+    const gchar *manager,
+    const gchar *protocol,
+    const GHashTable *params)
+{
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
+
+  gchar *path, *seq, *unique_name = NULL;
+  const gchar *base = NULL;
+  gchar *esc_manager, *esc_protocol, *esc_base;
+  GValue *value;
+  gint i, len;
+  gsize base_len = sizeof (MC_ACCOUNT_DBUS_OBJECT_BASE) - 1;
+  DBusGConnection *connection = tp_proxy_get_dbus_connection (self->dbusd);
+
+  value = g_hash_table_lookup ((GHashTable *) params, "account");
+  if (value)
+	base = g_value_get_string (value);
+
+  if (!base)
+	base = "account";
+
+  esc_manager = tp_escape_as_identifier (manager);
+  esc_protocol = g_strdelimit (g_strdup (protocol), "-", '_');
+  esc_base = tp_escape_as_identifier (base);
+  /* add two chars for the "/" */
+  len = strlen (esc_manager) + strlen (esc_protocol) + strlen (esc_base)
+    + base_len + 2;
+  path = g_malloc (len + 5);
+  sprintf (path, "%s%s/%s/%s", MC_ACCOUNT_DBUS_OBJECT_BASE,
+      esc_manager, esc_protocol, esc_base);
+  g_free (esc_manager);
+  g_free (esc_protocol);
+  g_free (esc_base);
+  seq = path + len;
+  for (i = 0; i < 1024; i++)
+    {
+      sprintf (seq, "%u", i);
+      if (!g_key_file_has_group (self->keyfile, path) &&
+          dbus_g_connection_lookup_g_object (connection, path) == NULL)
+        {
+          unique_name = g_strdup (path + base_len);
+          break;
+        }
+    }
+  g_free (path);
+  return unique_name;
+}
+
+
 static void
 plugin_iface_init (McpAccountManagerIface *iface,
     gpointer unused G_GNUC_UNUSED)
@@ -129,4 +229,5 @@ plugin_iface_init (McpAccountManagerIface *iface,
   iface->set_value = set_value;
   iface->is_secret = is_secret;
   iface->make_secret = make_secret;
+  iface->unique_name = unique_name;
 }
