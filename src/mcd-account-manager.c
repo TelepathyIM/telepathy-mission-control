@@ -565,7 +565,7 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
     unique_name = create_unique_name (priv, manager, protocol, params);
     g_return_if_fail (unique_name != NULL);
 
-    /* create the basic GConf keys */
+    /* create the basic account keys */
     g_key_file_set_string (priv->keyfile, unique_name,
 			   MC_ACCOUNTS_KEY_MANAGER, manager);
     g_key_file_set_string (priv->keyfile, unique_name,
