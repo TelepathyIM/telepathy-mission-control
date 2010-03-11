@@ -769,7 +769,7 @@ _list (const McpAccountStorage *self,
   for (ag_id = ag_ids; ag_id != NULL; ag_id = g_list_next (ag_id))
     {
       AgAccountId id = GPOINTER_TO_UINT (ag_id->data);
-      gchar *name = _ag_accountid_to_mc_key (sso, id);
+      gchar *name = _ag_accountid_to_mc_key (sso, id, FALSE);
 
       rval = g_list_prepend (rval, name);
     }
