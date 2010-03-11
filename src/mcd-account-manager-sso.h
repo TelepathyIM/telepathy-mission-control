@@ -54,7 +54,9 @@ typedef struct {
   GHashTable *accounts;
   GHashTable *id_name_map;
   GList *services;
+  GQueue *pending_signals;
   AgManager *ag_manager;
+  gboolean ready;
   gboolean save;
   gboolean loaded;
 } _McdAccountManagerSso;

@@ -42,12 +42,23 @@
 #define MC_PROTOCOL_KEY "protocol"
 #define MC_IDENTITY_KEY "tmc-uid"
 
+typedef enum {
+  DELAYED_CREATE,
+  DELAYED_DELETE,
+} DelayedSignal;
+
+typedef struct {
+  DelayedSignal signal;
+  AgAccountId account_id;
+} DelayedSignalData;
+
 static void account_storage_iface_init (McpAccountStorageIface *,
     gpointer);
 
 static gchar *
 _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
-    AgAccountId id);
+    AgAccountId id,
+    gboolean create);
 
 static void
 save_value (AgAccount *account,
@@ -108,19 +119,31 @@ static void _sso_deleted (GObject *object,
 {
   AgManager *ag_manager = AG_MANAGER (object);
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (data);
-  const gchar *name =
-    g_hash_table_lookup (sso->id_name_map, GUINT_TO_POINTER (id));
 
-  /* if we found an account in our cache, then this was a 3rd party delete op *
-   * that someone did behind our back: fire the signal and clean up           */
-  if (name != NULL)
+  if (sso->ready)
     {
-      McpAccountStorage *mcpa = MCP_ACCOUNT_STORAGE (sso);
+      const gchar *name =
+        g_hash_table_lookup (sso->id_name_map, GUINT_TO_POINTER (id));
 
-      /* forget id->name map first, so the signal can't send us into a loop */
-      g_hash_table_remove (sso->id_name_map, GUINT_TO_POINTER (id));
-      g_signal_emit_by_name (mcpa, "deleted", name);
-      g_hash_table_remove (sso->accounts, name);
+      /* if the account was in our cache, then this was a 3rd party delete *
+       * op that someone did behind our back: fire the signal and clean up */
+      if (name != NULL)
+        {
+          McpAccountStorage *mcpa = MCP_ACCOUNT_STORAGE (sso);
+
+          /* forget id->name map first, so the signal can't start a loop */
+          g_hash_table_remove (sso->id_name_map, GUINT_TO_POINTER (id));
+          g_signal_emit_by_name (mcpa, "deleted", name);
+          g_hash_table_remove (sso->accounts, name);
+        }
+    }
+  else
+    {
+      DelayedSignalData *data = g_slice_new0 (DelayedSignalData);
+
+      data->signal = DELAYED_DELETE;
+      data->account_id = id;
+      g_queue_push_tail (sso->pending_signals, data);
     }
 }
 
@@ -133,41 +156,51 @@ static void _sso_created (GObject *object,
   const gchar *name =
     g_hash_table_lookup (sso->id_name_map, GUINT_TO_POINTER (id));
 
-  /* if we already know the account's name, we shouldn't fire the new *
-   * account signal as it is one we (and our superiors) already have  */
-  if (name == NULL)
+  if (sso->ready)
     {
-      McpAccountStorage *mcpa = MCP_ACCOUNT_STORAGE (sso);
-      AgAccount *account = ag_manager_get_account (ag_manager, id);
-
-      if (account != NULL)
+      /* if we already know the account's name, we shouldn't fire the new *
+       * account signal as it is one we (and our superiors) already have  */
+      if (name == NULL)
         {
-          const gchar *provider = ag_account_get_provider_name (account);
-          AgService *service = _provider_get_service (sso, provider);
-          gchar *name = NULL;
-          GStrv mc_id = NULL;
+          McpAccountStorage *mcpa = MCP_ACCOUNT_STORAGE (sso);
+          AgAccount *account = ag_manager_get_account (ag_manager, id);
 
-          /* make sure values are stored against the right service *
-           * or we won't get them back from the SSO store, ever:   */
-          ag_account_select_service (account, service);
+          if (account != NULL)
+            {
+              const gchar *provider = ag_account_get_provider_name (account);
+              AgService *service = _provider_get_service (sso, provider);
+              GStrv mc_id = NULL;
 
-          name = _ag_accountid_to_mc_key (sso, id);
-          mc_id = g_strsplit (name, "/", 3);
+              /* make sure values are stored against the right service *
+               * or we won't get them back from the SSO store, ever:   */
+              ag_account_select_service (account, service);
 
-          g_hash_table_insert (sso->accounts, name, account);
-          g_hash_table_insert (sso->id_name_map, GUINT_TO_POINTER (id),
-              g_strdup (name));
+              name = _ag_accountid_to_mc_key (sso, id, TRUE);
+              mc_id = g_strsplit (name, "/", 3);
 
-          save_value (account, MC_CMANAGER_KEY, mc_id[0]);
-          save_value (account, MC_PROTOCOL_KEY, mc_id[1]);
-          save_value (account, MC_IDENTITY_KEY, name);
+              g_hash_table_insert (sso->accounts, name, account);
+              g_hash_table_insert (sso->id_name_map, GUINT_TO_POINTER (id),
+                  g_strdup (name));
 
-          g_signal_emit_by_name (mcpa, "created", name);
+              save_value (account, MC_CMANAGER_KEY, mc_id[0]);
+              save_value (account, MC_PROTOCOL_KEY, mc_id[1]);
+              save_value (account, MC_IDENTITY_KEY, name);
 
-          g_free (name);
-          g_strfreev (mc_id);
-          ag_service_unref (service);
+              g_signal_emit_by_name (mcpa, "created", name);
+
+              g_free (name);
+              g_strfreev (mc_id);
+              ag_service_unref (service);
+            }
         }
+    }
+  else
+    {
+      DelayedSignalData *data = g_slice_new0 (DelayedSignalData);
+
+      data->signal = DELAYED_CREATE;
+      data->account_id = id;
+      g_queue_push_tail (sso->pending_signals, data);
     }
 }
 
@@ -175,12 +208,15 @@ static void
 mcd_account_manager_sso_init (McdAccountManagerSso *self)
 {
   GList *nth;
+
   DEBUG ("mcd_account_manager_sso_init");
   self->ag_manager = ag_manager_new ();
   self->accounts =
     g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
   self->id_name_map =
     g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, g_free);
+
+  self->pending_signals = g_queue_new ();
 
   g_signal_connect(self->ag_manager, "account-deleted",
       G_CALLBACK (_sso_deleted), self);
@@ -235,9 +271,9 @@ _ag_account_stored_cb (AgAccount *acct, const GError *err, gpointer ignore)
 
 static gchar *
 _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
-    AgAccountId id)
+    AgAccountId id,
+    gboolean create)
 {
-  GString *key = NULL;
   AgAccount *acct = ag_manager_get_account (sso->ag_manager, id);
   AgSettingSource src = AG_SETTING_SOURCE_NONE;
   GValue value = { 0 };
@@ -255,34 +291,53 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
       return uid;
     }
 
+  if (!create)
+    return NULL;
+
   DEBUG ("no " MC_IDENTITY_KEY " found, synthesising one:\n");
 
   src = ag_account_get_value (acct, PARAM_PREFIX AG_ACCOUNT_KEY, &value);
 
   if (src != AG_SETTING_SOURCE_NONE && G_VALUE_HOLDS_STRING (&value))
     {
+      GValue setting;
+      const gchar *k;
+      const GValue *v;
       GValue cmanager = { 0 };
       GValue protocol = { 0 };
       gchar *cman;
       gchar *proto;
       gchar *c = (gchar *) g_value_get_string (&value);
+      McpAccountStorage *am = MCP_ACCOUNT_STORAGE (sso);
+      GHashTable *params = g_hash_table_new_full (g_string_hash, g_string_equal,
+          g_free, NULL);
+      gchar *name = NULL;
 
       ag_account_get_value (acct, MC_CMANAGER_KEY, &cmanager);
       ag_account_get_value (acct, MC_PROTOCOL_KEY, &protocol);
-
       cman  = _gvalue_to_string (&cmanager);
       proto = _gvalue_to_string (&protocol);
 
-      key = g_string_new ("");
+      /* prepare the hash of MC param keys -> GValue */
+      ag_account_settings_iter_init (acct, &setting, NULL);
 
-      g_string_append_printf (key, "%s/%s/", cman, proto);
+      while (ag_account_settings_iter_next (&setting, &k, &v))
+        {
+          gchar *mc_key = get_mc_key (k);
 
-      for (; *c != '\0'; c++)
-        if (isalnum (*c))
-          g_string_append_c (key, *c);
-        else
-          g_string_append_printf (key, "_%02x", *c);
-      g_string_append_c (key, '0');
+          if (mc_key != NULL && g_str_has_prefix (mc_key, PARAM_PREFIX_MC))
+            {
+              gchar *param_key = g_strdup (mc_key + strlen (PARAM_PREFIX_MC));
+
+              g_hash_table_insert (params, param_key, v);
+            }
+
+          g_free (mc_key);
+        }
+
+      name = mcp_account_manager_get_unique_name (am, cman, proto, params);
+      g_hash_table_unref (params);
+      /* name safely generates, can throw away the hash now */
 
       g_free (cman);
       g_free (proto);
@@ -290,7 +345,7 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
       g_value_unset (&cmanager);
       g_value_unset (&protocol);
 
-      return g_string_free (key, FALSE);
+      return name;
     }
 
   return NULL;
@@ -663,50 +718,60 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
       AgAccountId id = GPOINTER_TO_UINT (ag_id->data);
       AgAccount *account = ag_manager_get_account (sso->ag_manager, id);
       const gchar *enabled = ag_account_get_enabled (account) ? "true": "false";
-      gchar *ident = g_strdup_printf ("%u", id);
 
       if (account != NULL)
         {
           const gchar *provider = ag_account_get_provider_name (account);
           AgService *service = _provider_get_service (sso, provider);
           gchar *name = NULL;
-          GStrv mc_id = NULL;
 
           ag_account_select_service (account, service);
-          name = _ag_accountid_to_mc_key (sso, id);
-          mc_id = g_strsplit (name, "/", 3);
+          name = _ag_accountid_to_mc_key (sso, id, FALSE);
 
-          /* cache the account object, and the ID->name maping: the latter is *
-           * required because we might receive an async delete signal with    *
-           * the ID after libaccounts-glib has purged all its account data,   *
-           * so we couldn't rely on the MC_IDENTITY_KEY setting.              */
-          g_hash_table_insert (sso->accounts, name, account);
-          g_hash_table_insert (sso->id_name_map, GUINT_TO_POINTER (id),
-              g_strdup (name));
-
-          ag_account_settings_iter_init (account, &iter, NULL);
-
-          while (ag_account_settings_iter_next (&iter, &key, &val))
+          if (name != NULL)
             {
-              gchar *mc_key = get_mc_key (key);
-              gchar *value = _gvalue_to_string (val);
+              gchar *ident = g_strdup_printf ("%u", id);
+              GStrv mc_id = g_strsplit (name, "/", 3);
 
-              mcp_account_manager_set_value (am, name, mc_key, value);
-              g_free (value);
-              g_free (mc_key);
+              /* cache the account object, and the ID->name maping: the  *
+               * latter is required because we might receive an async    *
+               * delete signal with the ID after libaccounts-glib has    *
+               * purged all its account data, so we couldn't rely on the *
+               * MC_IDENTITY_KEY setting.                                */
+              g_hash_table_insert (sso->accounts, name, account);
+              g_hash_table_insert (sso->id_name_map, GUINT_TO_POINTER (id),
+                  g_strdup (name));
+
+              ag_account_settings_iter_init (account, &iter, NULL);
+
+              while (ag_account_settings_iter_next (&iter, &key, &val))
+                {
+                  gchar *mc_key = get_mc_key (key);
+                  gchar *value = _gvalue_to_string (val);
+
+                  mcp_account_manager_set_value (am, name, mc_key, value);
+                  g_free (value);
+                  g_free (mc_key);
+                }
+
+              mcp_account_manager_set_value (am, name, "Enabled", enabled);
+              mcp_account_manager_set_value (am, name, LIBACCT_ID_KEY, ident);
+              mcp_account_manager_set_value (am, name, MC_CMANAGER_KEY, mc_id[0]);
+              mcp_account_manager_set_value (am, name, MC_PROTOCOL_KEY, mc_id[1]);
+              mcp_account_manager_set_value (am, name, MC_IDENTITY_KEY, name);
+
+              ag_service_unref (service);
+              g_strfreev (mc_id);
+              g_free (ident);
             }
-
-          mcp_account_manager_set_value (am, name, "Enabled", enabled);
-          mcp_account_manager_set_value (am, name, LIBACCT_ID_KEY, ident);
-          mcp_account_manager_set_value (am, name, MC_CMANAGER_KEY, mc_id[0]);
-          mcp_account_manager_set_value (am, name, MC_PROTOCOL_KEY, mc_id[1]);
-          mcp_account_manager_set_value (am, name, MC_IDENTITY_KEY, name);
-
-          ag_service_unref (service);
-          g_strfreev (mc_id);
         }
+      else
+        {
+          DelayedSignalData *data = g_slice_new0 (DelayedSignalData);
 
-      g_free (ident);
+          data->account_id = id;
+          g_queue_push_tail (sso->pending_signals, data);
+        }
     }
 
   sso->loaded = TRUE;
@@ -741,6 +806,40 @@ _list (const McpAccountStorage *self,
 }
 
 static void
+_ready (const McpAccountStorage *self,
+    const McpAccountManager *am)
+{
+  McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (self);
+
+  if (sso->ready)
+    return;
+
+  sso->ready = TRUE;
+
+  while (g_queue_get_length (sso->pending_signals) > 0)
+    {
+      DelayedSignalData *data = g_queue_pop_head (sso->pending_signals);
+
+      switch (data->signal)
+        {
+          case DELAYED_CREATE:
+            _sso_created (sso->ag_manager, data->account_id, sso);
+            break;
+          case DELAYED_DELETE:
+            _sso_deleted (sso->ag_manager, data->account_id, sso);
+            break;
+          default:
+            g_assert_not_reached ();
+        }
+
+      g_slice_free (data, DelayedSignalData);
+    }
+
+  g_queue_free (sso->pending_signals);
+  sso->pending_signals = NULL;
+}
+
+static void
 account_storage_iface_init (McpAccountStorageIface *iface,
     gpointer unused G_GNUC_UNUSED)
 {
@@ -753,6 +852,7 @@ account_storage_iface_init (McpAccountStorageIface *iface,
   mcp_account_storage_iface_implement_delete (iface, _delete);
   mcp_account_storage_iface_implement_commit (iface, _commit);
   mcp_account_storage_iface_implement_list (iface, _list);
+  mcp_account_storage_iface_implement_ready (iface, _ready);
 }
 
 McdAccountManagerSso *
