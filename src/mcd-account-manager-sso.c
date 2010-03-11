@@ -493,37 +493,11 @@ _set (const McpAccountStorage *self,
 {
   AgAccountId id;
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (self);
-  AgAccount *account = get_ag_account (sso, am, acct, &id, TRUE);
+  AgAccount *account = get_ag_account (sso, am, acct, &id, FALSE);
 
-  /* no account? create one ready for libaccounts to save: */
-  if (account == NULL)
-    {
-      GStrv mck = g_strsplit (acct, "/", 3);
-
-      /* make sure it's one we actually want to grab: */
-      if (want_this_account (mck))
-        {
-          const gchar *prov = _account_provider_name (sso, acct);
-
-          if (prov != NULL)
-            {
-              AgService *service = _provider_get_service (sso, prov);
-
-              account = ag_manager_create_account (sso->ag_manager, prov);
-              id = 0;
-
-              if (account != NULL)
-                {
-                  ag_account_select_service (account, service);
-                  g_hash_table_insert (sso->accounts, g_strdup (acct), account);
-                }
-
-              ag_service_unref (service);
-            }
-        }
-
-      g_strfreev (mck);
-    }
+  /* we no longer create accounts in libaccount: either an account exists *
+   * in libaccount as a result of some 3rd party intervention, or it is   *
+   * not an account that this plugin should ever concern itself with      */
 
   if (account != NULL)
     {
@@ -536,7 +510,7 @@ _set (const McpAccountStorage *self,
       return TRUE;
     }
 
-  /* no account and we couldn't create one */
+  /* no account and we couldn't/wouldn't create one */
   return FALSE;
 }
 
