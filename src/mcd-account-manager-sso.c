@@ -319,7 +319,7 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
       proto = _gvalue_to_string (&protocol);
 
       /* prepare the hash of MC param keys -> GValue */
-      ag_account_settings_iter_init (acct, &setting, NULL);
+      ag_account_settings_iter_init (acct, &setting, PARAM_PREFIX);
 
       while (ag_account_settings_iter_next (&setting, &k, &v))
         {
