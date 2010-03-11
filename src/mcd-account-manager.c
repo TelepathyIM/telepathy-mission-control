@@ -691,54 +691,6 @@ complete_account_creation (McdAccount *account,
                                  cad);
 }
 
-static gchar *
-create_unique_name (McdAccountManagerPrivate *priv, const gchar *manager,
-		    const gchar *protocol, GHashTable *params)
-{
-    gchar *path, *seq, *unique_name = NULL;
-    const gchar *base = NULL;
-    gchar *esc_manager, *esc_protocol, *esc_base;
-    GValue *value;
-    gint i, len;
-    gsize base_len = sizeof (MC_ACCOUNT_DBUS_OBJECT_BASE) - 1;
-    DBusGConnection *connection = tp_proxy_get_dbus_connection (
-        priv->dbus_daemon);
-
-    value = g_hash_table_lookup (params, "account");
-    if (value)
-	base = g_value_get_string (value);
-
-    if (!base)
-	base = "account";
-
-    esc_manager = tp_escape_as_identifier (manager);
-    esc_protocol = g_strdelimit (g_strdup (protocol), "-", '_');
-    esc_base = tp_escape_as_identifier (base);
-    /* add two chars for the "/" */
-    len = strlen (esc_manager) + strlen (esc_protocol) + strlen (esc_base)
-        + base_len + 2;
-    path = g_malloc (len + 5);
-    sprintf (path, "%s%s/%s/%s", MC_ACCOUNT_DBUS_OBJECT_BASE,
-             esc_manager, esc_protocol, esc_base);
-    g_free (esc_manager);
-    g_free (esc_protocol);
-    g_free (esc_base);
-    seq = path + len;
-    for (i = 0; i < 1024; i++)
-    {
-	sprintf (seq, "%u", i);
-	if (!g_key_file_has_group (priv->plugin_manager->keyfile, path) &&
-            dbus_g_connection_lookup_g_object (connection, path)
-                == NULL)
-	{
-	    unique_name = g_strdup (path + base_len);
-	    break;
-	}
-    }
-    g_free (path);
-    return unique_name;
-}
-
 void
 _mcd_account_manager_create_account (McdAccountManager *account_manager,
                                      const gchar *manager,
@@ -751,6 +703,7 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
                                      GDestroyNotify destroy)
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
+    McpAccountManager *ma = MCP_ACCOUNT_MANAGER (priv->plugin_manager);
     McdCreateAccountData *cad;
     McdAccount *account;
     gchar *unique_name;
@@ -767,7 +720,8 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
         return;
     }
 
-    unique_name = create_unique_name (priv, manager, protocol, params);
+    unique_name =
+      mcp_account_manager_get_unique_name (ma, manager, protocol, params);
     g_return_if_fail (unique_name != NULL);
 
     /* create the basic GConf keys */
@@ -1239,7 +1193,7 @@ mcd_account_manager_init (McdAccountManager *account_manager)
 					McdAccountManagerPrivate);
     account_manager->priv = priv;
 
-    priv->plugin_manager = mcd_plugin_account_manager_new ();
+    priv->plugin_manager = mcd_plugin_account_manager_new (priv->dbus_daemon);
     ma = MCP_ACCOUNT_MANAGER (priv->plugin_manager);
     priv->accounts = g_hash_table_new_full (g_str_hash, g_str_equal,
                                             NULL, unref_account);
