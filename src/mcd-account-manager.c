@@ -1001,6 +1001,24 @@ account_loaded (McdAccount *account, const GError *error, gpointer user_data)
     release_load_accounts_lock (lad);
 }
 
+static void
+uncork_storage_plugins (McdAccountManager *account_manager)
+{
+    McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (account_manager);
+    McpAccountManager *mcp_am = MCP_ACCOUNT_MANAGER (priv->plugin_manager);
+    GList *store;
+
+    /* Allow plugins to register new accounts, highest prio first */
+    for (store = stores; store != NULL; store = g_list_next (store))
+    {
+        McpAccountStorage *plugin = store->data;
+
+        DEBUG ("Unblocking async account ops by %s",
+               mcp_account_storage_name (plugin));
+        mcp_account_storage_ready (plugin, mcp_am);
+    }
+}
+
 /**
  * _mcd_account_manager_setup:
  * @account_manager: the #McdAccountManager.
@@ -1014,6 +1032,8 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
     McdAccountManagerPrivate *priv = account_manager->priv;
     McdLoadAccountsData *lad;
     gchar **accounts, **name;
+
+    uncork_storage_plugins (account_manager);
 
     tp_list_connection_names (priv->dbus_daemon,
                               list_connection_names_cb, NULL, NULL,
@@ -1254,20 +1274,8 @@ _mcd_account_manager_constructed (GObject *obj)
     McdAccountManager *manager = MCD_ACCOUNT_MANAGER (obj);
     McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (manager);
     McdPluginAccountManager *pa = priv->plugin_manager;
-    McpAccountManager *ma = MCP_ACCOUNT_MANAGER (pa);
-    GList *store;
 
     mcd_plugin_account_manager_set_dbus_daemon (pa, priv->dbus_daemon);
-
-    /* now allow plugins to register new accounts, highest prio first */
-    for (store = stores; store != NULL; store = g_list_next (store))
-    {
-        McpAccountStorage *plugin = store->data;
-
-        DEBUG ("Unblocking async account ops by %s",
-               mcp_account_storage_name (plugin));
-        mcp_account_storage_ready (plugin, ma);
-    }
 }
 
 McdAccountManager *
