@@ -298,18 +298,23 @@ sort_and_cache_plugins (McdAccountManager *self)
         {
             McpAccountStorage *plugin = g_object_ref (p->data);
 
-            DEBUG ("found plugin %s [%s; priority %d]\n%s",
-                   mcp_account_storage_name (plugin),
-                   g_type_name (G_TYPE_FROM_INSTANCE (plugin)),
-                   mcp_account_storage_priority (plugin),
-                   mcp_account_storage_description (plugin));
-
             stores = g_list_insert_sorted (stores, plugin, account_storage_cmp);
-            g_signal_connect (plugin, "created", G_CALLBACK (created_cb), self);
-            g_signal_connect (plugin, "altered", G_CALLBACK (altered_cb), self);
-            g_signal_connect (plugin, "toggled", G_CALLBACK (toggled_cb), self);
-            g_signal_connect (plugin, "deleted", G_CALLBACK (deleted_cb), self);
         }
+    }
+
+    for (p = stores; p != NULL; p = g_list_next (p))
+    {
+        McpAccountStorage *plugin = p->data;
+
+        DEBUG ("found plugin %s [%s; priority %d]\n%s",
+               mcp_account_storage_name (plugin),
+               g_type_name (G_TYPE_FROM_INSTANCE (plugin)),
+               mcp_account_storage_priority (plugin),
+               mcp_account_storage_description (plugin));
+        g_signal_connect (plugin, "created", G_CALLBACK (created_cb), self);
+        g_signal_connect (plugin, "altered", G_CALLBACK (altered_cb), self);
+        g_signal_connect (plugin, "toggled", G_CALLBACK (toggled_cb), self);
+        g_signal_connect (plugin, "deleted", G_CALLBACK (deleted_cb), self);
     }
 
     plugins_cached = TRUE;
