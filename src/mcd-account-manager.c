@@ -74,6 +74,8 @@ static void account_manager_iface_init (TpSvcAccountManagerClass *iface,
 static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
 				   gpointer iface_data);
 
+static void _mcd_account_manager_constructed (GObject *obj);
+
 static const McdDBusProp account_manager_properties[];
 
 static gboolean plugins_cached = FALSE;
@@ -1151,6 +1153,7 @@ mcd_account_manager_class_init (McdAccountManagerClass *klass)
     object_class->finalize = _mcd_account_manager_finalize;
     object_class->set_property = set_property;
     object_class->get_property = get_property;
+    object_class->constructed = _mcd_account_manager_constructed;
 
     klass->account_new = account_new;
 
@@ -1193,7 +1196,7 @@ mcd_account_manager_init (McdAccountManager *account_manager)
 					McdAccountManagerPrivate);
     account_manager->priv = priv;
 
-    priv->plugin_manager = mcd_plugin_account_manager_new (priv->dbus_daemon);
+    priv->plugin_manager = mcd_plugin_account_manager_new ();
     ma = MCP_ACCOUNT_MANAGER (priv->plugin_manager);
     priv->accounts = g_hash_table_new_full (g_str_hash, g_str_equal,
                                             NULL, unref_account);
@@ -1236,8 +1239,32 @@ mcd_account_manager_init (McdAccountManager *account_manager)
         store = g_list_previous (store);
     }
 
+}
+
+static void
+_mcd_account_manager_constructed (GObject *obj)
+{
+    McdAccountManager *manager = MCD_ACCOUNT_MANAGER (obj);
+    McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (manager);
+    McdPluginAccountManager *pa = priv->plugin_manager;
+    McpAccountManager *ma = MCP_ACCOUNT_MANAGER (pa);
+    GList *store;
+
+    mcd_plugin_account_manager_set_dbus_daemon (pa, priv->dbus_daemon);
+
+    /* now allow plugins to register new accounts, highest prio first */
+    for (store = stores; store != NULL; store = g_list_next (store))
+    {
+        McpAccountStorage *plugin = store->data;
+
+        DEBUG ("Unblocking async account ops by %s",
+               mcp_account_storage_name (plugin));
+        mcp_account_storage_ready (plugin, ma);
+    }
+
     /* initializes the interfaces */
-    mcd_dbus_init_interfaces_instances (account_manager);
+    mcd_dbus_init_interfaces_instances (manager);
+
 }
 
 McdAccountManager *
