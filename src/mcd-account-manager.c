@@ -1033,8 +1033,6 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
     McdLoadAccountsData *lad;
     gchar **accounts, **name;
 
-    uncork_storage_plugins (account_manager);
-
     tp_list_connection_names (priv->dbus_daemon,
                               list_connection_names_cb, NULL, NULL,
                               (GObject *)account_manager);
@@ -1062,6 +1060,8 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
         g_object_unref (account);
     }
     g_strfreev (accounts);
+
+    uncork_storage_plugins (account_manager);
 
     release_load_accounts_lock (lad);
 }
