@@ -307,18 +307,19 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
       const GValue *v;
       GValue cmanager = { 0 };
       GValue protocol = { 0 };
-      gchar *cman;
-      gchar *proto;
-      gchar *c = (gchar *) g_value_get_string (&value);
+      const gchar *cman, *proto;
       McpAccountManager *am = sso->manager_interface;
       GHashTable *params = g_hash_table_new_full (g_str_hash, g_str_equal,
           g_free, NULL);
       gchar *name = NULL;
 
+      g_value_init (&cmanager, G_TYPE_STRING);
       ag_account_get_value (acct, MC_CMANAGER_KEY, &cmanager);
+      cman = g_value_get_string (&cmanager);
+
+      g_value_init (&protocol, G_TYPE_STRING);
       ag_account_get_value (acct, MC_PROTOCOL_KEY, &protocol);
-      cman  = _gvalue_to_string (&cmanager);
-      proto = _gvalue_to_string (&protocol);
+      proto = g_value_get_string (&protocol);
 
       /* prepare the hash of MC param keys -> GValue */
       ag_account_settings_iter_init (acct, &setting, PARAM_PREFIX);
@@ -338,11 +339,8 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
         }
 
       name = mcp_account_manager_get_unique_name (am, cman, proto, params);
-      g_hash_table_unref (params);
-      /* name safely generates, can throw away the hash now */
 
-      g_free (cman);
-      g_free (proto);
+      g_hash_table_unref (params);
       g_value_unset (&value);
       g_value_unset (&cmanager);
       g_value_unset (&protocol);
