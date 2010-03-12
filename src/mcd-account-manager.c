@@ -1275,6 +1275,10 @@ _mcd_account_manager_constructed (GObject *obj)
     McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (manager);
     McdPluginAccountManager *pa = priv->plugin_manager;
 
+    /* FIXME: I'm pretty sure we should just move most of the above code out of
+     * _init() to here and then mcd_plugin_account_manager_new() could take the
+     * TpDBusDaemon * as it should and everyone wins.
+     */
     mcd_plugin_account_manager_set_dbus_daemon (pa, priv->dbus_daemon);
 }
 
