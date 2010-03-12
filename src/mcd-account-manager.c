@@ -1244,6 +1244,8 @@ mcd_account_manager_init (McdAccountManager *account_manager)
         store = g_list_previous (store);
     }
 
+    /* initializes the interfaces */
+    mcd_dbus_init_interfaces_instances (account_manager);
 }
 
 static void
@@ -1266,10 +1268,6 @@ _mcd_account_manager_constructed (GObject *obj)
                mcp_account_storage_name (plugin));
         mcp_account_storage_ready (plugin, ma);
     }
-
-    /* initializes the interfaces */
-    mcd_dbus_init_interfaces_instances (manager);
-
 }
 
 McdAccountManager *
