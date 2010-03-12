@@ -773,7 +773,18 @@ _list (const McpAccountStorage *self,
       AgAccountId id = GPOINTER_TO_UINT (ag_id->data);
       gchar *name = _ag_accountid_to_mc_key (sso, id, FALSE);
 
-      rval = g_list_prepend (rval, name);
+      if (name != NULL)
+        {
+          rval = g_list_prepend (rval, name);
+        }
+      else
+        {
+          DelayedSignalData *data = g_slice_new0 (DelayedSignalData);
+
+          data->signal = DELAYED_CREATE;
+          data->account_id = id;
+          g_queue_push_tail (sso->pending_signals, data);
+        }
     }
 
   ag_manager_list_free (ag_ids);
