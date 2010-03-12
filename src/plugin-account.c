@@ -83,23 +83,7 @@ plugin_account_manager_dispose (GObject *object)
 }
 
 static void
-mcd_plugin_account_manager_class_init (McdPluginAccountManagerClass *cls)
-{
-  GObjectClass *object_class = (GObjectClass *) cls;
-  GParamSpec *spec = g_param_spec_object ("dbus-daemon",
-      "DBus daemon",
-      "DBus daemon",
-      TP_TYPE_DBUS_DAEMON,
-      G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
-
-  g_object_class_install_property (object_class, PROP_DBUS_DAEMON, spec);
-
-  object_class->dispose = plugin_account_manager_dispose;
-  object_class->finalize = plugin_account_manager_finalize;
-}
-
-static void
-mcd_plugin_manager_set_property (GObject *obj, guint prop_id,
+plugin_account_manager_set_property (GObject *obj, guint prop_id,
 	      const GValue *val, GParamSpec *pspec)
 {
     McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (obj);
@@ -107,8 +91,29 @@ mcd_plugin_manager_set_property (GObject *obj, guint prop_id,
     switch (prop_id)
     {
       case PROP_DBUS_DAEMON:
-        g_assert (self->dbusd == NULL);
+        if (self->dbusd != NULL)
+          g_object_unref (self->dbusd);
+
         self->dbusd = TP_DBUS_DAEMON (g_value_dup_object (val));
+        DEBUG ("\n\n PROP_DBUS_DAEMON: %p\n\n", self->dbusd);
+        break;
+
+      default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
+        break;
+    }
+}
+
+static void
+plugin_account_manager_get_property (GObject *obj, guint prop_id,
+	      GValue *val, GParamSpec *pspec)
+{
+    McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (obj);
+
+    switch (prop_id)
+    {
+      case PROP_DBUS_DAEMON:
+        g_value_set_object (val, self->dbusd);
         break;
       default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -116,13 +121,41 @@ mcd_plugin_manager_set_property (GObject *obj, guint prop_id,
     }
 }
 
+static void
+mcd_plugin_account_manager_class_init (McdPluginAccountManagerClass *cls)
+{
+  GObjectClass *object_class = (GObjectClass *) cls;
+  GParamSpec *spec = g_param_spec_object ("dbus-daemon",
+      "DBus daemon",
+      "DBus daemon",
+      TP_TYPE_DBUS_DAEMON,
+      G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+  object_class->set_property = plugin_account_manager_set_property;
+  object_class->get_property = plugin_account_manager_get_property;
+  object_class->dispose = plugin_account_manager_dispose;
+  object_class->finalize = plugin_account_manager_finalize;
+
+  g_object_class_install_property (object_class, PROP_DBUS_DAEMON, spec);
+}
 
 McdPluginAccountManager *
-mcd_plugin_account_manager_new (TpDBusDaemon *dbusd)
+mcd_plugin_account_manager_new ()
 {
   return g_object_new (MCD_TYPE_PLUGIN_ACCOUNT_MANAGER,
-      "dbus-daemon", dbusd,
       NULL);
+}
+
+void
+mcd_plugin_account_manager_set_dbus_daemon (McdPluginAccountManager *self,
+    TpDBusDaemon *dbusd)
+{
+  GValue value = { 0 };
+
+  g_value_init (&value, G_TYPE_OBJECT);
+  g_value_take_object (&value, dbusd);
+
+  g_object_set_property (G_OBJECT (self), "dbus-daemon", &value);
 }
 
 static gchar *

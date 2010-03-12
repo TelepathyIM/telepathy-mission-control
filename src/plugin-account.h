@@ -62,7 +62,10 @@ G_GNUC_INTERNAL GType mcd_plugin_account_manager_get_type (void);
   (G_TYPE_INSTANCE_GET_CLASS ((o), MCD_TYPE_PLUGIN_ACCOUNT_MANAGER, \
       McdPluginAccountManagerClass))
 
-McdPluginAccountManager *mcd_plugin_account_manager_new (TpDBusDaemon *dbusd);
+McdPluginAccountManager *mcd_plugin_account_manager_new ();
+
+void mcd_plugin_account_manager_set_dbus_daemon (McdPluginAccountManager *self,
+    TpDBusDaemon *dbusd);
 
 G_END_DECLS
 
