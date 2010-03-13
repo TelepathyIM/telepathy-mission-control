@@ -26,6 +26,10 @@
 #include <string.h>
 #include <ctype.h>
 
+/* there seems to be some problem with looking this up, since we only *
+ * want to support GTalk for now, hardwire it:                        */
+#define SERVICE "google-talk"
+
 #define PLUGIN_PRIORITY (MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_KEYRING + 10)
 #define PLUGIN_NAME "maemo-libaccounts"
 #define PLUGIN_DESCRIPTION \
@@ -175,27 +179,35 @@ static void _sso_created (GObject *object,
           if (account != NULL)
             {
               const gchar *provider = ag_account_get_provider_name (account);
-              AgService *service = _provider_get_service (sso, provider);
+              AgService *service =
+                ag_manager_get_service (sso->ag_manager, SERVICE);
               GStrv mc_id = NULL;
 
               /* make sure values are stored against the right service *
                * or we won't get them back from the SSO store, ever:   */
               ag_account_select_service (account, service);
-
               name = _ag_accountid_to_mc_key (sso, id, TRUE);
-              mc_id = g_strsplit (name, "/", 3);
 
-              g_hash_table_insert (sso->accounts, name, account);
-              g_hash_table_insert (sso->id_name_map, GUINT_TO_POINTER (id),
-                  g_strdup (name));
+              if (name != NULL)
+                {
+                  mc_id = g_strsplit (name, "/", 3);
 
-              save_value (account, MC_CMANAGER_KEY, mc_id[0]);
-              save_value (account, MC_PROTOCOL_KEY, mc_id[1]);
-              save_value (account, MC_IDENTITY_KEY, name);
+                  g_hash_table_insert (sso->accounts, name, account);
+                  g_hash_table_insert (sso->id_name_map, GUINT_TO_POINTER (id),
+                      g_strdup (name));
 
-              ag_account_store (account, _ag_account_stored_cb, NULL);
+                  save_value (account, MC_CMANAGER_KEY, mc_id[0]);
+                  save_value (account, MC_PROTOCOL_KEY, mc_id[1]);
+                  save_value (account, MC_IDENTITY_KEY, name);
 
-              g_signal_emit_by_name (mcpa, "created", name);
+                  ag_account_store (account, _ag_account_stored_cb, NULL);
+
+                  g_signal_emit_by_name (mcpa, "created", name);
+                }
+              else
+                {
+                  DEBUG ("SSO account #%u is unnameable, ignoring it", id);
+                }
 
               g_free (name);
               g_strfreev (mc_id);
@@ -286,12 +298,16 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
   AgAccount *acct = ag_manager_get_account (sso->ag_manager, id);
   AgSettingSource src = AG_SETTING_SOURCE_NONE;
   GValue value = { 0 };
+  const gchar *provider = ag_account_get_provider_name (acct);
+  AgService *service = ag_manager_get_service (sso->ag_manager, SERVICE);
 
-  DEBUG ("AG Account ID: %u", id);
+  DEBUG ("AG Account ID: %u, provider: %s; service: %s",
+      id, provider, ag_service_get_name (service));
 
   g_value_init (&value, G_TYPE_STRING);
 
   /* first look for the stored TMC uid */
+  ag_account_select_service (acct, service);
   src = ag_account_get_value (acct, MC_IDENTITY_KEY, &value);
   if (src != AG_SETTING_SOURCE_NONE)
     {
@@ -306,6 +322,10 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
   DEBUG ("no " MC_IDENTITY_KEY " found, synthesising one:\n");
 
   src = ag_account_get_value (acct, AG_ACCOUNT_KEY, &value);
+
+  DEBUG (AG_ACCOUNT_KEY ": %s; type: %s",
+      src ? "exists" : "missing",
+      src ? (G_VALUE_TYPE_NAME (&value)) : "n/a" );
 
   if (src != AG_SETTING_SOURCE_NONE && G_VALUE_HOLDS_STRING (&value))
     {
@@ -473,14 +493,6 @@ save_value (AgAccount *account,
       ag_account_set_value (account, key, &value);
       g_value_unset (&value);
     }
-}
-
-static const gchar *
-_account_provider_name (const McdAccountManagerSso *sso,
-    const gchar *acct)
-{
-  /* placeholder: we currently only support GTalk, so no logic is required */
-  return "google";
 }
 
 static AgService *
@@ -678,7 +690,7 @@ _commit (const McpAccountStorage *self,
     {
       GStrv mc_key = g_strsplit (key, "/", 3);
       const gchar *provider = ag_account_get_provider_name (account);
-      AgService *service = _provider_get_service (sso, provider);
+      AgService *service = ag_manager_get_service (sso->ag_manager, SERVICE);
 
       ag_account_select_service (account, service);
       /* these three values _must_ match the MC unique name contents *
@@ -782,6 +794,7 @@ _list (const McpAccountStorage *self,
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (self);
   GList *ag_ids = NULL;
   GList *ag_id;
+  AgService *service = ag_manager_get_service (sso->ag_manager, SERVICE);
 
   if (!sso->loaded)
     _load_from_libaccounts (sso, am);
@@ -791,16 +804,20 @@ _list (const McpAccountStorage *self,
   for (ag_id = ag_ids; ag_id != NULL; ag_id = g_list_next (ag_id))
     {
       AgAccountId id = GPOINTER_TO_UINT (ag_id->data);
-      gchar *name = _ag_accountid_to_mc_key (sso, id, FALSE);
+      gchar *name = NULL;
+
+      name = _ag_accountid_to_mc_key (sso, id, FALSE);
 
       if (name != NULL)
         {
+          DEBUG ("\naccount %s listed", name);
           rval = g_list_prepend (rval, name);
         }
       else
         {
           DelayedSignalData *data = g_slice_new0 (DelayedSignalData);
 
+          DEBUG ("\naccount %u delayed", id);
           data->signal = DELAYED_CREATE;
           data->account_id = id;
           g_queue_push_tail (sso->pending_signals, data);
@@ -808,6 +825,7 @@ _list (const McpAccountStorage *self,
     }
 
   ag_manager_list_free (ag_ids);
+  ag_service_unref (service);
 
   return rval;
 }
