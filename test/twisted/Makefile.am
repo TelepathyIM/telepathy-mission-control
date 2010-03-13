@@ -77,12 +77,15 @@ TWISTED_SEPARATE_TESTS = \
 	dispatcher/create-at-startup.py
 
 # A demo dispatcher plugin (new, minimal API)
-noinst_LTLIBRARIES = mcp-plugin.la
+noinst_LTLIBRARIES = mcp-plugin.la mcp-account-diversion.la
 mcp_plugin_la_SOURCES = mcp-plugin.c
 # these runes are necessary to make libtool build a dlopen()able shared
 # library even though it's not going to be installed - the default for noinst
 # libraries is static
 mcp_plugin_la_LDFLAGS = -module -shared -avoid-version -rpath @abs_builddir@
+
+mcp_account_diversion_la_SOURCES = mcp-account-diversion.c
+mcp_account_diversion_la_LDFLAGS = $(mcp_plugin_la_LDFLAGS)
 
 if ENABLE_MCD_PLUGINS
 # A demo dispatcher plugin (old API, with access to MCD internals)
