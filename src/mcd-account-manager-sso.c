@@ -124,6 +124,31 @@ _gvalue_to_string (const GValue *val)
     }
 }
 
+static AgSettingSource
+_ag_account_maybe_global_value (AgAccount *account,
+    const gchar *key,
+    GValue *value)
+{
+  AgSettingSource src = AG_SETTING_SOURCE_NONE;
+
+  src = ag_account_get_value (account, key, value);
+
+  if (src == AG_SETTING_SOURCE_NONE)
+    {
+      AgService *service = ag_account_get_selected_service (account);
+
+      if (service != NULL)
+        {
+          ag_account_select_service (account, NULL);
+          src = ag_account_get_value (account, key, value);
+          ag_account_select_service (account, service);
+        }
+    }
+
+  return src;
+}
+
+
 static void _sso_deleted (GObject *object,
     AgAccountId id,
     gpointer data)
@@ -321,7 +346,7 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
 
   DEBUG ("no " MC_IDENTITY_KEY " found, synthesising one:\n");
 
-  src = ag_account_get_value (acct, AG_ACCOUNT_KEY, &value);
+  src = _ag_account_maybe_global_value (acct, AG_ACCOUNT_KEY, &value);
 
   DEBUG (AG_ACCOUNT_KEY ": %s; type: %s",
       src ? "exists" : "missing",
@@ -347,6 +372,8 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
       g_value_init (&protocol, G_TYPE_STRING);
       ag_account_get_value (acct, MC_PROTOCOL_KEY, &protocol);
       proto = g_value_get_string (&protocol);
+
+      g_hash_table_insert (params, g_strdup (MC_ACCOUNT_KEY), &value);
 
       /* prepare the hash of MC param keys -> GValue */
       /* NOTE: some AG bare settings map to MC parameters,   *
@@ -596,10 +623,13 @@ _get (const McpAccountStorage *self,
         {
           gchar *k = get_ag_key (key);
           GValue v = { 0 };
+          AgSettingSource src = AG_SETTING_SOURCE_NONE;
 
           g_value_init (&v, G_TYPE_STRING);
 
-          if (ag_account_get_value (account, k, &v) != AG_SETTING_SOURCE_NONE)
+          src = _ag_account_maybe_global_value (account, k, &v);
+
+          if (src != AG_SETTING_SOURCE_NONE)
             {
               gchar *val = _gvalue_to_string (&v);
 
@@ -618,9 +648,9 @@ _get (const McpAccountStorage *self,
       const gchar *k;
       const GValue *v;
       const gchar *on = ag_account_get_enabled (account) ? "true" : "false";
+      AgService *service = ag_account_get_selected_service (account);
 
       ag_account_settings_iter_init (account, &setting, NULL);
-
       while (ag_account_settings_iter_next (&setting, &k, &v))
         {
           gchar *mc_key = get_mc_key (k);
@@ -632,6 +662,32 @@ _get (const McpAccountStorage *self,
 
           g_free (value);
           g_free (mc_key);
+        }
+
+      if (service != NULL)
+        {
+          ag_account_select_service (account, NULL);
+          ag_account_settings_iter_init (account, &setting, NULL);
+
+          while (ag_account_settings_iter_next (&setting, &k, &v))
+            {
+              /* we have seen these two filed as globals rather than defaults */
+              if (g_str_equal (k, AG_ACCOUNT_KEY) ||
+                  g_str_equal (k, PASSWORD_KEY))
+                {
+                  gchar *mc_key = get_mc_key (k);
+                  gchar *value  = _gvalue_to_string (v);
+
+                  DEBUG ("%s -> %s.%s := '%s'", k, acct, mc_key, value);
+
+                  mcp_account_manager_set_value (am, acct, mc_key, value);
+
+                  g_free (value);
+                  g_free (mc_key);
+                }
+            }
+
+          ag_account_select_service (account, service);
         }
 
       /* special case, may not be stored as an explicit key */
