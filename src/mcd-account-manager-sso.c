@@ -71,6 +71,10 @@ static AgService *
 _provider_get_service (const McdAccountManagerSso *sso,
     const gchar *provider);
 
+static void _ag_account_stored_cb (AgAccount *acct,
+    const GError *err,
+    gpointer ignore);
+
 G_DEFINE_TYPE_WITH_CODE (McdAccountManagerSso, mcd_account_manager_sso,
     G_TYPE_OBJECT,
     G_IMPLEMENT_INTERFACE (MCP_TYPE_ACCOUNT_STORAGE,
@@ -187,6 +191,8 @@ static void _sso_created (GObject *object,
               save_value (account, MC_CMANAGER_KEY, mc_id[0]);
               save_value (account, MC_PROTOCOL_KEY, mc_id[1]);
               save_value (account, MC_IDENTITY_KEY, name);
+
+              ag_account_store (account, _ag_account_stored_cb, NULL);
 
               g_signal_emit_by_name (mcpa, "created", name);
 
