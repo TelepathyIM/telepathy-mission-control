@@ -37,6 +37,7 @@
 
 #define AG_ACCOUNT_KEY "username"
 #define MC_ACCOUNT_KEY "account"
+#define PASSWORD_KEY   "password"
 
 #define MC_CMANAGER_KEY "manager"
 #define MC_PROTOCOL_KEY "protocol"
@@ -304,7 +305,7 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
 
   DEBUG ("no " MC_IDENTITY_KEY " found, synthesising one:\n");
 
-  src = ag_account_get_value (acct, PARAM_PREFIX AG_ACCOUNT_KEY, &value);
+  src = ag_account_get_value (acct, AG_ACCOUNT_KEY, &value);
 
   if (src != AG_SETTING_SOURCE_NONE && G_VALUE_HOLDS_STRING (&value))
     {
@@ -328,7 +329,10 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
       proto = g_value_get_string (&protocol);
 
       /* prepare the hash of MC param keys -> GValue */
-      ag_account_settings_iter_init (acct, &setting, PARAM_PREFIX);
+      /* NOTE: some AG bare settings map to MC parameters,   *
+       * so we must iterate over all AG settings, parameters *
+       * and bare settings included                          */
+      ag_account_settings_iter_init (acct, &setting, NULL);
 
       while (ag_account_settings_iter_next (&setting, &k, &v))
         {
@@ -422,8 +426,12 @@ save_param (AgAccount *account,
   const gchar *pkey = key + strlen (PARAM_PREFIX_MC);
   gchar *param_key = NULL;
 
+  /* username and password are parameters in MC but not in AG: *
+   * also it's 'username' in AG but 'account' in MC            */
   if (g_str_equal (pkey, MC_ACCOUNT_KEY))
-    param_key = g_strdup_printf (PARAM_PREFIX "%s", AG_ACCOUNT_KEY);
+    param_key = g_strdup (AG_ACCOUNT_KEY);
+  else if (g_str_equal (pkey, PASSWORD_KEY))
+    param_key = g_strdup (PASSWORD_KEY);
   else
     param_key = g_strdup_printf (PARAM_PREFIX "%s", pkey);
 
@@ -523,9 +531,14 @@ _set (const McpAccountStorage *self,
 static gchar *
 get_mc_key (const gchar *key)
 {
-  if (g_str_equal (key, PARAM_PREFIX AG_ACCOUNT_KEY))
+  /* these two are paramaters in MC but not in AG */
+  if (g_str_equal (key, AG_ACCOUNT_KEY))
     return g_strdup (PARAM_PREFIX_MC MC_ACCOUNT_KEY);
 
+  if (g_str_equal (key, PASSWORD_KEY))
+    return g_strdup (PARAM_PREFIX_MC PASSWORD_KEY);
+
+  /* now check for regular params */
   if (g_str_has_prefix (key, PARAM_PREFIX))
     return g_strdup_printf (PARAM_PREFIX_MC "%s", key + strlen (PARAM_PREFIX));
 
@@ -536,7 +549,10 @@ static gchar *
 get_ag_key (const gchar *key)
 {
   if (g_str_equal (key, PARAM_PREFIX_MC MC_ACCOUNT_KEY))
-    return g_strdup (PARAM_PREFIX AG_ACCOUNT_KEY);
+    return g_strdup (AG_ACCOUNT_KEY);
+
+  if (g_str_equal (key, PARAM_PREFIX_MC PASSWORD_KEY))
+    return g_strdup (PASSWORD_KEY);
 
   if (g_str_has_prefix (key, PARAM_PREFIX_MC))
     return g_strdup_printf (PARAM_PREFIX "%s", key + strlen (PARAM_PREFIX_MC));
