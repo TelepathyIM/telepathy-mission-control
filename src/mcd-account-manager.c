@@ -139,7 +139,8 @@ static guint write_conf_id = 0;
 static void register_dbus_service (McdAccountManager *account_manager);
 
 static void release_load_accounts_lock (McdLoadAccountsData *lad);
-static void add_account (McdAccountManager *manager, McdAccount *account);
+static void add_account (McdAccountManager *manager, McdAccount *account,
+    const gchar *source);
 static void account_loaded (McdAccount *account,
                             const GError *error,
                             gpointer user_data);
@@ -194,7 +195,7 @@ created_cb (GObject *storage, const gchar *name, gpointer data)
     }
 
     lad->account_lock++;
-    add_account (manager, account);
+    add_account (manager, account, mcp_account_storage_name (plugin));
     _mcd_account_load (account, account_loaded, lad);
     g_object_unref (account);
 
@@ -531,12 +532,22 @@ unref_account (gpointer data)
 }
 
 static void
-add_account (McdAccountManager *account_manager, McdAccount *account)
+add_account (McdAccountManager *account_manager, McdAccount *account,
+    const gchar *source)
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
+    McdAccount *existing;
     const gchar *name;
 
     name = mcd_account_get_unique_name (account);
+    DEBUG ("adding account %s (%p) from %s", name, account, source);
+
+    existing = mcd_account_manager_lookup_account (account_manager, name);
+    if (existing != NULL)
+    {
+        g_warning ("...but we already have an account %p with that name!", existing);
+    }
+
     g_hash_table_insert (priv->accounts, (gchar *)name,
                          g_object_ref (account));
 
@@ -659,7 +670,7 @@ complete_account_creation_set_cb (McdAccount *account, GPtrArray *not_yet,
 
     if (cad->ok)
     {
-        add_account (account_manager, account);
+        add_account (account_manager, account, G_STRFUNC);
         mcd_account_check_validity (account, complete_account_creation_finish, cad);
     }
     else
@@ -1044,7 +1055,15 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
     accounts = g_key_file_get_groups (priv->plugin_manager->keyfile, NULL);
     for (name = accounts; *name != NULL; name++)
     {
-        McdAccount *account;
+        McdAccount *account = mcd_account_manager_lookup_account (
+            account_manager, *name);
+
+        if (account != NULL)
+        {
+            /* FIXME: this shouldn't really happen */
+            DEBUG ("already have account %p called '%s'; skipping", account, *name);
+            continue;
+        }
 
         account = MCD_ACCOUNT_MANAGER_GET_CLASS (account_manager)->account_new
             (account_manager, *name);
@@ -1055,7 +1074,7 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
             continue;
         }
         lad->account_lock++;
-        add_account (lad->account_manager, account);
+        add_account (lad->account_manager, account, "keyfile");
         _mcd_account_load (account, account_loaded, lad);
         g_object_unref (account);
     }
