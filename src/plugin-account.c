@@ -95,7 +95,6 @@ plugin_account_manager_set_property (GObject *obj, guint prop_id,
           g_object_unref (self->dbusd);
 
         self->dbusd = TP_DBUS_DAEMON (g_value_dup_object (val));
-        DEBUG ("\n\n PROP_DBUS_DAEMON: %p\n\n", self->dbusd);
         break;
 
       default:
