@@ -269,9 +269,19 @@ static void
 add_libaccount_plugin_if_enabled (void)
 {
 #if ENABLE_LIBACCOUNTS_SSO
-  McdAccountManagerSso *sso_plugin = mcd_account_manager_sso_new ();
+    McdAccountManagerSso *sso_plugin = mcd_account_manager_sso_new ();
 
-  stores = g_list_insert_sorted (stores, sso_plugin, account_storage_cmp);
+    stores = g_list_insert_sorted (stores, sso_plugin, account_storage_cmp);
+#endif
+}
+
+static void
+add_gnome_keyring_plugin_if_enabled (void)
+{
+#if ENABLE_GNOME_KEYRING
+    McdAccountManagerKeyring *keyring = mcd_account_manager_keyring_new ();
+
+    stores = g_list_insert_sorted (stores, keyring, account_storage_cmp);
 #endif
 }
 
@@ -280,18 +290,17 @@ sort_and_cache_plugins (McdAccountManager *self)
 {
     const GList *p;
     McdAccountManagerDefault *default_plugin = NULL;
-    McdAccountManagerKeyring *keyring_plugin = NULL;
 
     if (plugins_cached)
         return;
 
+    /* insert the default storage plugin into the sorted plugin list */
     default_plugin = mcd_account_manager_default_new ();
-    keyring_plugin = mcd_account_manager_keyring_new ();
-    add_libaccount_plugin_if_enabled ();
+    stores = g_list_insert_sorted (stores, default_plugin, account_storage_cmp);
 
     /* now poke the pseudo-plugins into the sorted GList of storage plugins */
-    stores = g_list_prepend (stores, keyring_plugin);
-    stores = g_list_insert_sorted (stores, default_plugin, account_storage_cmp);
+    add_gnome_keyring_plugin_if_enabled ();
+    add_libaccount_plugin_if_enabled ();
 
     for (p = mcp_list_objects(); p != NULL; p = g_list_next (p))
     {
