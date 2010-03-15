@@ -223,8 +223,6 @@ static void _sso_created (GObject *object,
                   g_hash_table_insert (sso->id_name_map, GUINT_TO_POINTER (id),
                       g_strdup (name));
 
-                  save_value (account, MC_CMANAGER_KEY, mc_id[0]);
-                  save_value (account, MC_PROTOCOL_KEY, mc_id[1]);
                   save_value (account, MC_IDENTITY_KEY, name);
 
                   ag_account_store (account, _ag_account_stored_cb, NULL);
@@ -528,6 +526,10 @@ save_value (AgAccount *account,
     const gchar *key,
     const gchar *val)
 {
+  /* special cases, never saved */
+  if (g_str_equal (key, MC_CMANAGER_KEY) || g_str_equal (key, MC_PROTOCOL_KEY))
+    return;
+
   if (g_str_equal (key, "Enabled"))
     {
       ag_account_set_enabled (account, g_str_equal (val, "true"));
