@@ -366,13 +366,14 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
       gchar *name = NULL;
 
       g_value_init (&cmanager, G_TYPE_STRING);
+      g_value_init (&protocol, G_TYPE_STRING);
+
       ag_account_get_value (acct, MC_CMANAGER_KEY, &cmanager);
       cman = g_value_get_string (&cmanager);
 
       if (cman == NULL)
         goto cleanup;
 
-      g_value_init (&protocol, G_TYPE_STRING);
       ag_account_get_value (acct, MC_PROTOCOL_KEY, &protocol);
       proto = g_value_get_string (&protocol);
 
