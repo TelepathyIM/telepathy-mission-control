@@ -62,14 +62,6 @@ def test(q, bus, mc):
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
-    # MC calls GetStatus (maybe) and then Connect
-
-    q.expect('dbus-method-call', method='Connect',
-            path=conn.object_path, handled=True)
-
-    # Connect succeeds
-    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
-
     # MC does some setup, including fetching the list of Channels
 
     q.expect_many(
@@ -78,6 +70,14 @@ def test(q, bus, mc):
                 args=[cs.CONN_IFACE_REQUESTS],
                 path=conn.object_path, handled=True),
             )
+
+    # MC calls GetStatus (maybe) and then Connect
+
+    q.expect('dbus-method-call', method='Connect',
+            path=conn.object_path, handled=True)
+
+    # Connect succeeds
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
 
     # Assert that the NormalizedName is harvested from the Connection at some
     # point

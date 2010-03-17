@@ -86,6 +86,13 @@ def test(q, bus, mc):
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
+    q.expect_many(
+            EventPattern('dbus-method-call',
+                interface=cs.PROPERTIES_IFACE, method='GetAll',
+                args=[cs.CONN_IFACE_REQUESTS],
+                path=conn.object_path, handled=True),
+            )
+
     # MC calls GetStatus (maybe) and then Connect
 
     q.expect('dbus-method-call', method='Connect',
@@ -93,13 +100,6 @@ def test(q, bus, mc):
 
     # Connect succeeds
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
-
-    q.expect_many(
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='GetAll',
-                args=[cs.CONN_IFACE_REQUESTS],
-                path=conn.object_path, handled=True),
-            )
 
     test_dispatching(q, bus, conn, account, empathy, kopete)
 
@@ -121,6 +121,13 @@ def test(q, bus, mc):
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
+    q.expect_many(
+            EventPattern('dbus-method-call',
+                interface=cs.PROPERTIES_IFACE, method='GetAll',
+                args=[cs.CONN_IFACE_REQUESTS],
+                path=conn.object_path, handled=True),
+            )
+
     # MC calls GetStatus (maybe) and then Connect
 
     q.expect('dbus-method-call', method='Connect',
@@ -128,13 +135,6 @@ def test(q, bus, mc):
 
     # Connect succeeds
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
-
-    q.expect_many(
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='GetAll',
-                args=[cs.CONN_IFACE_REQUESTS],
-                path=conn.object_path, handled=True),
-            )
 
     test_dispatching(q, bus, conn, account, empathy, kopete)
 

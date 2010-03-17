@@ -114,10 +114,7 @@ def test(q, bus, mc):
     conn.presence = dbus.Struct((cs.PRESENCE_TYPE_AVAILABLE, 'available', ''),
             signature='uss')
 
-    _, _, cm_request_call = q.expect_many(
-            EventPattern('dbus-method-call', path=conn.object_path,
-                interface=cs.PROPERTIES_IFACE, method='GetAll',
-                args=[cs.CONN_IFACE_REQUESTS], handled=True),
+    _, cm_request_call = q.expect_many(
             EventPattern('dbus-method-call', path=conn.object_path,
                 interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
                 args=['busy', 'Testing automatic presence'], handled=True),

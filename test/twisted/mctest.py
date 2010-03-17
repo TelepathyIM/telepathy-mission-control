@@ -810,8 +810,17 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
+    if has_requests:
+        expect_before_connect.append(
+                servicetest.EventPattern('dbus-method-call',
+                    interface=cs.PROPERTIES_IFACE, method='GetAll',
+                    args=[cs.CONN_IFACE_REQUESTS],
+                    path=conn.object_path, handled=True))
+
     if expect_before_connect:
         events = list(q.expect_many(*expect_before_connect))
+        if has_requests:
+            del events[-1]
     else:
         events = []
 
@@ -821,13 +830,7 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
 
     expect_after_connect = list(expect_after_connect)
 
-    if has_requests:
-        expect_after_connect.append(
-                servicetest.EventPattern('dbus-method-call',
-                    interface=cs.PROPERTIES_IFACE, method='GetAll',
-                    args=[cs.CONN_IFACE_REQUESTS],
-                    path=conn.object_path, handled=True))
-    else:
+    if not has_requests:
         expect_after_connect.append(
                 servicetest.EventPattern('dbus-method-call',
                     interface=cs.CONN, method='ListChannels', args=[],
@@ -835,7 +838,8 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
 
     events = events + list(q.expect_many(*expect_after_connect))
 
-    del events[-1]
+    if not has_requests:
+        del events[-1]
 
     if events:
         return (conn,) + tuple(events)
