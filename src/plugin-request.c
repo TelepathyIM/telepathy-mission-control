@@ -258,6 +258,8 @@ plugin_req_deny (McpRequest *obj,
 GError *
 _mcd_plugin_request_dup_denial (McdPluginRequest *self)
 {
+  g_return_val_if_fail (self != NULL, NULL);
+
   if (self->domain == 0)
     return NULL;
 
