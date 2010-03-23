@@ -234,6 +234,8 @@ _mcd_account_proceed_with_request (McdAccount *account,
         }
     }
 
+    /* no plugin_api implies no plugins, from which it follows that there *
+     * can be no error as there is nothing whch could create one:         */
     if (plugin_api != NULL)
     {
         error = _mcd_plugin_request_dup_denial (plugin_api);
