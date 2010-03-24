@@ -2703,17 +2703,29 @@ mcd_account_setup (McdAccount *account)
     McdAccountPrivate *priv = account->priv;
 
     priv->keyfile = mcd_account_manager_get_config (priv->account_manager);
-    if (!priv->keyfile) return FALSE;
+    if (!priv->keyfile)
+    {
+        g_error ("Could not find internal data");
+        goto broken_account;
+    }
 
     priv->manager_name =
 	g_key_file_get_string (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_MANAGER, NULL);
-    if (!priv->manager_name) return FALSE;
+    if (!priv->manager_name)
+    {
+        g_warning ("Account has no manager");
+        goto broken_account;
+    }
 
     priv->protocol_name =
 	g_key_file_get_string (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_PROTOCOL, NULL);
-    if (!priv->protocol_name) return FALSE;
+    if (!priv->protocol_name)
+    {
+        g_warning ("Account has no protocol");
+        goto broken_account;
+    }
 
     priv->object_path = g_strconcat (MC_ACCOUNT_DBUS_OBJECT_BASE,
 				     priv->unique_name, NULL);
@@ -2769,8 +2781,20 @@ mcd_account_setup (McdAccount *account)
         mcd_account_loaded (account);
     }
 
+    /* even though the manager is absent or unusable, we still register *
+     * the accounts dbus name as it is otherwise acceptably configured  */
+
     _mcd_account_load (account, register_dbus_service, NULL);
     return TRUE;
+
+broken_account:
+    /* normally, various callbacks would release locks when the manager      *
+     * became ready: however, this cannot happen for an incomplete account   *
+     * as it never gets a manager: We therefore invoke the account callbacks *
+     * right now so the account manager doesn't hang around forever waiting  *
+     * for an event that cannot happen (at least until the account is fixed) */
+    mcd_account_loaded (account);
+    return FALSE;
 }
 
 static void
