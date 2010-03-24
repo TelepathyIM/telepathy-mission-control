@@ -1261,6 +1261,9 @@ mcd_account_manager_init (McdAccountManager *account_manager)
 
     DEBUG ("loading plugins");
 
+    /* not guaranteed to have been called, but idempotent: */
+    _mcd_plugin_loader_init ();
+
     if (!plugins_cached)
         sort_and_cache_plugins (account_manager);
 
