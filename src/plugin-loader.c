@@ -25,13 +25,19 @@
 
 #include <mission-control-plugins/mission-control-plugins.h>
 
+static gsize ready = 0;
+
 void
 _mcd_plugin_loader_init (void)
 {
-  const gchar *dir = g_getenv ("MC_FILTER_PLUGIN_DIR");
+  if (g_once_init_enter (&ready))
+    {
+      const gchar *dir = g_getenv ("MC_FILTER_PLUGIN_DIR");
 
-  if (dir == NULL)
-    dir = MCD_PLUGIN_LOADER_DIR;
+      if (dir == NULL)
+        dir = MCD_PLUGIN_LOADER_DIR;
 
-  mcp_read_dir (dir);
+      mcp_read_dir (dir);
+      g_once_init_leave (&ready, 1);
+    }
 }
