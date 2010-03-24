@@ -1107,6 +1107,9 @@ mcd_dispatcher_init (McdDispatcher * dispatcher)
     priv->operation_list_active = FALSE;
 
     priv->connections = g_hash_table_new (NULL, NULL);
+
+    /* idempotent, not guaranteed to have been called yet */
+    _mcd_plugin_loader_init ();
 }
 
 McdDispatcher *
