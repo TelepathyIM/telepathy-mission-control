@@ -461,11 +461,6 @@ mcd_master_constructor (GType type, guint n_params,
     umask (0077);
 #endif
 
-    /* This newer plugin API is currently always enabled       */
-    /* .... and is enabled before anything else as potentially *
-     * any mcd component could have a new-API style plugin     */
-    _mcd_plugin_loader_init ();
-
     if (!priv->account_manager)
 	priv->account_manager = mcd_account_manager_new (priv->dbus_daemon);
 
@@ -568,6 +563,11 @@ mcd_master_init (McdMaster * master)
 						    g_free, _g_value_free);
 
     priv->transport_plugins = g_ptr_array_new ();
+
+    /* This newer plugin API is currently always enabled       */
+    /* .... and is enabled before anything else as potentially *
+     * any mcd component could have a new-API style plugin     */
+    _mcd_plugin_loader_init ();
 }
 
 McdMaster *
