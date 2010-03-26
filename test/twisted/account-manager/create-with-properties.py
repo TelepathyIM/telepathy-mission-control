@@ -150,5 +150,27 @@ def test(q, bus, mc):
             'has-quad-damage': ':y',
             }
 
+    # tests for errors when creating an account
+
+    creation_properties2 = creation_properties.copy()
+    creation_properties2[cs.ACCOUNT + '.NonExistent'] = 'foo'
+    call_async(q, am_iface, 'CreateAccount',
+            'fakecm',
+            'fakeprotocol',
+            'fakeaccount',
+            params,
+            creation_properties2)
+    q.expect('dbus-error', method='CreateAccount')
+
+    params2 = params.copy()
+    params2['fake_param'] = 'foo'
+    call_async(q, am_iface, 'CreateAccount',
+            'fakecm',
+            'fakeprotocol',
+            'fakeaccount',
+            params2,
+            creation_properties)
+    q.expect('dbus-error', method='CreateAccount')
+
 if __name__ == '__main__':
     exec_test(test, {})

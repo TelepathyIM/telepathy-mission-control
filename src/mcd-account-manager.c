@@ -601,7 +601,7 @@ set_new_account_properties (McdAccount *account,
 
     g_hash_table_iter_init (&iter, properties);
 
-    while (g_hash_table_iter_next (&iter, &key, &value))
+    while (g_hash_table_iter_next (&iter, &key, &value) && ok)
     {
         gchar *name = key;
         gchar *dot, *iface, *pname;
@@ -610,8 +610,8 @@ set_new_account_properties (McdAccount *account,
         {
             iface = g_strndup (name, dot - name);
             pname = dot + 1;
-            mcd_dbusprop_set_property (TP_SVC_DBUS_PROPERTIES (account),
-                                      iface, pname, value, error);
+            ok = mcd_dbusprop_set_property (TP_SVC_DBUS_PROPERTIES (account),
+                                            iface, pname, value, error);
             g_free (iface);
         }
         else
@@ -619,7 +619,6 @@ set_new_account_properties (McdAccount *account,
             g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
                          "Malformed property name: %s", name);
             ok = FALSE;
-            break;
         }
     }
 
@@ -668,9 +667,17 @@ complete_account_creation_set_cb (McdAccount *account, GPtrArray *not_yet,
 {
     McdCreateAccountData *cad = user_data;
     McdAccountManager *account_manager;
-    cad->ok = (set_error == NULL);
+    cad->ok = TRUE;
 
     account_manager = cad->account_manager;
+
+    if (set_error != NULL)
+    {
+        cad->ok = FALSE;
+        g_set_error (&cad->error, MCD_ACCOUNT_MANAGER_ERROR,
+                     MCD_ACCOUNT_MANAGER_ERROR_SET_PARAMETER,
+                     "Failed to set parameter: %s", set_error->message);
+    }
 
     if (cad->ok && cad->properties != NULL)
     {
@@ -684,9 +691,6 @@ complete_account_creation_set_cb (McdAccount *account, GPtrArray *not_yet,
     }
     else
     {
-        g_set_error (&cad->error, MCD_ACCOUNT_MANAGER_ERROR,
-                     MCD_ACCOUNT_MANAGER_ERROR_SET_PARAMETER,
-                     "Failed to set parameter: %s", set_error->message);
         complete_account_creation_finish (account, TRUE, cad);
     }
 
