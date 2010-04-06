@@ -1033,7 +1033,7 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
     {
     case TP_CONNECTION_STATUS_CONNECTING:
         g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
-                       conn_status, conn_reason);
+                       conn_status, conn_reason, tp_conn);
         priv->abort_reason = TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
         priv->connected = FALSE;
         break;
@@ -1041,7 +1041,7 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
     case TP_CONNECTION_STATUS_CONNECTED:
         {
             g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
-                           conn_status, conn_reason);
+                           conn_status, conn_reason, tp_conn);
 
             if (priv->probation_timer == 0)
             {
@@ -1796,7 +1796,7 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
         {
             g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
                            TP_CONNECTION_STATUS_DISCONNECTED,
-                           TP_CONNECTION_STATUS_REASON_REQUESTED);
+                           TP_CONNECTION_STATUS_REASON_REQUESTED, NULL);
         }
 
         return;
@@ -1811,7 +1811,7 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
 
         g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
             TP_CONNECTION_STATUS_DISCONNECTED,
-            TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
+            TP_CONNECTION_STATUS_REASON_NETWORK_ERROR, NULL);
         return;
     }
 
@@ -1848,7 +1848,7 @@ _mcd_connection_connect_with_params (McdConnection *connection,
 
     g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
                    TP_CONNECTION_STATUS_CONNECTING,
-                   TP_CONNECTION_STATUS_REASON_REQUESTED);
+                   TP_CONNECTION_STATUS_REASON_REQUESTED, NULL);
 
     /* If the McdConnection gets aborted (which results in it being freed!),
      * we need to kill off the Connection. So, we can't use connection as the
@@ -1886,7 +1886,7 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
                    TP_CONNECTION_PRESENCE_TYPE_OFFLINE, "offline", "");
     g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
                    TP_CONNECTION_STATUS_DISCONNECTED,
-                   priv->abort_reason);
+                   priv->abort_reason, NULL);
     if (priv->tp_conn)
     {
 	/* Disconnect signals */
@@ -1899,7 +1899,6 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
 	_mcd_connection_call_disconnect (connection);
 	g_object_unref (priv->tp_conn);
 	priv->tp_conn = NULL;
-	_mcd_account_tp_connection_changed (priv->account);
     }
 
     /* the interface proxies obtained from this connection must be deleted, too
@@ -2230,8 +2229,8 @@ mcd_connection_class_init (McdConnectionClass * klass)
     signals[CONNECTION_STATUS_CHANGED] = g_signal_new (
         "connection-status-changed", G_OBJECT_CLASS_TYPE (klass),
         G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED, 0,
-        NULL, NULL, _mcd_marshal_VOID__UINT_UINT,
-        G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_UINT);
+        NULL, NULL, _mcd_marshal_VOID__UINT_UINT_OBJECT,
+        G_TYPE_NONE, 3, G_TYPE_UINT, G_TYPE_UINT, TP_TYPE_CONNECTION);
 
     signals[READY] = g_signal_new ("ready",
         G_OBJECT_CLASS_TYPE (klass),
@@ -2584,10 +2583,13 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
     {
         g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
             TP_CONNECTION_STATUS_DISCONNECTED,
-            TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
+            TP_CONNECTION_STATUS_REASON_NETWORK_ERROR,
+            NULL);
         return;
     }
-    _mcd_account_tp_connection_changed (priv->account);
+    /* FIXME: need some way to feed the status into the Account, but we don't
+     * actually know it yet */
+    _mcd_account_tp_connection_changed (priv->account, priv->tp_conn);
 
     /* Setup signals */
     g_signal_connect (priv->tp_conn, "invalidated",

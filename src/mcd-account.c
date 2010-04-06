@@ -55,7 +55,22 @@
 #include "mcd-master-priv.h"
 #include "mcd-dbusprop.h"
 
-#define DELAY_PROPERTY_CHANGED
+
+#if ENABLE_GNOME_KEYRING
+#include <gnome-keyring.h>
+
+GnomeKeyringPasswordSchema keyring_schema = {
+    GNOME_KEYRING_ITEM_GENERIC_SECRET,
+    {
+        { "account", GNOME_KEYRING_ATTRIBUTE_TYPE_STRING },
+        { "param", GNOME_KEYRING_ATTRIBUTE_TYPE_STRING },
+        { NULL, 0 }
+    }
+};
+
+#define MCD_GNOME_KEYRING_GROUP_NAME "group"
+#define MCD_GNOME_KEYRING_KEY_NAME "key"
+#endif
 
 #define MAX_KEY_LENGTH (DBUS_MAXIMUM_NAME_LENGTH + 6)
 #define MC_AVATAR_FILENAME	"avatar.bin"
@@ -105,6 +120,7 @@ struct _McdAccountPrivate
     gchar *manager_name;
     gchar *protocol_name;
 
+    TpConnection *tp_connection;
     McdConnection *connection;
     McdManager *manager;
     McdAccountManager *account_manager;
@@ -145,6 +161,7 @@ struct _McdAccountPrivate
     guint always_on : 1;
 
     /* These fields are used to cache the changed properties */
+    gboolean properties_frozen;
     GHashTable *changed_properties;
     guint properties_source;
 };
@@ -208,7 +225,7 @@ _mcd_account_maybe_autoconnect (McdAccount *account)
 
     if (priv->conn_status != TP_CONNECTION_STATUS_DISCONNECTED)
     {
-        DEBUG ("%s already connected", priv->unique_name);
+        DEBUG ("%s already connecting/connected", priv->unique_name);
         return;
     }
 
@@ -889,7 +906,6 @@ _mcd_account_connect (McdAccount *account, GHashTable *params)
     _mcd_connection_connect (priv->connection, params);
 }
 
-#ifdef DELAY_PROPERTY_CHANGED
 static gboolean
 emit_property_changed (gpointer userdata)
 {
@@ -897,15 +913,42 @@ emit_property_changed (gpointer userdata)
     McdAccountPrivate *priv = account->priv;
 
     DEBUG ("called");
-    tp_svc_account_emit_account_property_changed (account,
-						  priv->changed_properties);
 
-    g_hash_table_remove_all (priv->changed_properties);
+    if (g_hash_table_size (priv->changed_properties) > 0)
+    {
+        tp_svc_account_emit_account_property_changed (account,
+            priv->changed_properties);
+        g_hash_table_remove_all (priv->changed_properties);
+    }
 
-    priv->properties_source = 0;
+    if (priv->properties_source != 0)
+    {
+      g_source_remove (priv->properties_source);
+      priv->properties_source = 0;
+    }
     return FALSE;
 }
-#endif
+
+static void
+mcd_account_freeze_properties (McdAccount *self)
+{
+    g_return_if_fail (!self->priv->properties_frozen);
+    DEBUG ("%s", self->priv->unique_name);
+    self->priv->properties_frozen = TRUE;
+}
+
+static void
+mcd_account_thaw_properties (McdAccount *self)
+{
+    g_return_if_fail (self->priv->properties_frozen);
+    DEBUG ("%s", self->priv->unique_name);
+    self->priv->properties_frozen = FALSE;
+
+    if (g_hash_table_size (self->priv->changed_properties) != 0)
+    {
+        emit_property_changed (self);
+    }
+}
 
 /*
  * This function is responsible of emitting the AccountPropertyChanged signal.
@@ -917,7 +960,6 @@ static void
 mcd_account_changed_property (McdAccount *account, const gchar *key,
 			      const GValue *value)
 {
-#ifdef DELAY_PROPERTY_CHANGED
     McdAccountPrivate *priv = account->priv;
 
     DEBUG ("called: %s", key);
@@ -928,37 +970,19 @@ mcd_account_changed_property (McdAccount *account, const gchar *key,
 	 * emission of the signal now, so that the property will appear in two
 	 * separate signals */
         DEBUG ("Forcibly emit PropertiesChanged now");
-	g_source_remove (priv->properties_source);
 	emit_property_changed (account);
-    }
-
-    if (G_UNLIKELY (!priv->changed_properties))
-    {
-	priv->changed_properties =
-	    g_hash_table_new_full (g_str_hash, g_str_equal,
-				   NULL,
-                                   (GDestroyNotify) tp_g_value_slice_free);
     }
 
     if (priv->properties_source == 0)
     {
         DEBUG ("First changed property");
-	priv->properties_source = g_timeout_add (10, emit_property_changed,
-						 account);
+        priv->properties_source = g_timeout_add_full (G_PRIORITY_DEFAULT, 10,
+                                                      emit_property_changed,
+                                                      g_object_ref (account),
+                                                      g_object_unref);
     }
     g_hash_table_insert (priv->changed_properties, (gpointer) key,
                          tp_g_value_slice_dup (value));
-#else
-    GHashTable *properties;
-
-    DEBUG ("called: %s", key);
-    properties = g_hash_table_new (g_str_hash, g_str_equal);
-    g_hash_table_insert (properties, (gpointer)key, (gpointer)value);
-    tp_svc_account_emit_account_property_changed (account,
-						  properties);
-
-    g_hash_table_destroy (properties);
-#endif
 }
 
 typedef enum {
@@ -2714,6 +2738,9 @@ mcd_account_init (McdAccount *account)
 
     priv->conn_status = TP_CONNECTION_STATUS_DISCONNECTED;
     priv->conn_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
+
+    priv->changed_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
+        NULL, (GDestroyNotify) tp_g_value_slice_free);
 }
 
 McdAccount *
@@ -3269,27 +3296,64 @@ static void
 on_conn_status_changed (McdConnection *connection,
                         TpConnectionStatus status,
                         TpConnectionStatusReason reason,
+                        TpConnection *tp_conn,
                         McdAccount *account)
 {
-    _mcd_account_set_connection_status (account, status, reason);
+    _mcd_account_set_connection_status (account, status, reason, tp_conn);
 }
 
 void
 _mcd_account_set_connection_status (McdAccount *account,
                                     TpConnectionStatus status,
-                                    TpConnectionStatusReason reason)
+                                    TpConnectionStatusReason reason,
+                                    TpConnection *tp_conn)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     gboolean changed = FALSE;
+
+    DEBUG ("%s: %u because %u", priv->unique_name, status, reason);
 
     if (status == TP_CONNECTION_STATUS_CONNECTED)
     {
         _mcd_account_set_has_been_online (account);
     }
 
+    mcd_account_freeze_properties (account);
+
+    if (priv->tp_connection != tp_conn)
+    {
+        GValue value = { 0 };
+        const gchar *path;
+
+        if (priv->tp_connection != NULL)
+        {
+            g_object_unref (priv->tp_connection);
+        }
+
+        if (tp_conn != NULL)
+        {
+            priv->tp_connection = g_object_ref (tp_conn);
+            path = tp_proxy_get_object_path (tp_conn);
+        }
+        else
+        {
+            priv->tp_connection = NULL;
+            path = "/";
+        }
+
+        g_value_init (&value, DBUS_TYPE_G_OBJECT_PATH);
+        g_value_set_boxed (&value, path);
+        mcd_account_changed_property (account, "Connection", &value);
+        g_value_unset (&value);
+        changed = TRUE;
+    }
+
     if (status != priv->conn_status)
     {
 	GValue value = { 0 };
+
+        DEBUG ("changing connection status from %u to %u", priv->conn_status,
+               status);
 	priv->conn_status = status;
 	g_value_init (&value, G_TYPE_UINT);
 	g_value_set_uint (&value, status);
@@ -3301,6 +3365,9 @@ _mcd_account_set_connection_status (McdAccount *account,
     if (reason != priv->conn_reason)
     {
 	GValue value = { 0 };
+
+        DEBUG ("changing connection status reason from %u to %u",
+               priv->conn_reason, reason);
 	priv->conn_reason = reason;
 	g_value_init (&value, G_TYPE_UINT);
 	g_value_set_uint (&value, reason);
@@ -3309,6 +3376,11 @@ _mcd_account_set_connection_status (McdAccount *account,
 	g_value_unset (&value);
 	changed = TRUE;
     }
+    DEBUG ("TpConnection changed to %p", tp_conn);
+
+    _mcd_account_tp_connection_changed (account, tp_conn);
+
+    mcd_account_thaw_properties (account);
 
     process_online_requests (account, status, reason);
 
@@ -3333,11 +3405,22 @@ mcd_account_get_connection_status_reason (McdAccount *account)
 }
 
 void
-_mcd_account_tp_connection_changed (McdAccount *account)
+_mcd_account_tp_connection_changed (McdAccount *account,
+                                    TpConnection *tp_conn)
 {
     GValue value = { 0 };
 
-    get_connection ((TpSvcDBusProperties *)account, "Connection", &value);
+    g_value_init (&value, DBUS_TYPE_G_OBJECT_PATH);
+
+    if (tp_conn == NULL)
+    {
+        g_value_set_static_boxed (&value, "/");
+    }
+    else
+    {
+        g_value_set_boxed (&value, tp_proxy_get_object_path (tp_conn));
+    }
+
     mcd_account_changed_property (account, "Connection", &value);
     g_value_unset (&value);
 
@@ -3557,12 +3640,20 @@ mcd_account_connection_ready_cb (McdAccount *account,
     TpConnection *tp_connection;
     GArray *self_handle_array;
     guint self_handle;
+    TpConnectionStatus status;
+    TpConnectionStatusReason reason;
 
     g_return_if_fail (MCD_IS_ACCOUNT (account));
     g_return_if_fail (connection == priv->connection);
 
     tp_connection = mcd_connection_get_tp_connection (connection);
     g_return_if_fail (tp_connection != NULL);
+    g_return_if_fail (priv->tp_connection == NULL ||
+                      tp_connection == priv->tp_connection);
+
+    status = tp_connection_get_status (tp_connection, &reason);
+    _mcd_account_set_connection_status (account, status, reason,
+                                        tp_connection);
 
     self_handle_array = g_array_sized_new (FALSE, FALSE, sizeof (guint), 1);
     self_handle = tp_connection_get_self_handle (tp_connection);
@@ -3614,6 +3705,12 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
                                               mcd_account_connection_ready_cb,
                                               account);
         g_object_unref (priv->connection);
+    }
+
+    if (priv->tp_connection != NULL)
+    {
+        g_object_unref (priv->tp_connection);
+        priv->tp_connection = NULL;
     }
 
     priv->connection = connection;
