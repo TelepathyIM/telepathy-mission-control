@@ -55,23 +55,6 @@
 #include "mcd-master-priv.h"
 #include "mcd-dbusprop.h"
 
-
-#if ENABLE_GNOME_KEYRING
-#include <gnome-keyring.h>
-
-GnomeKeyringPasswordSchema keyring_schema = {
-    GNOME_KEYRING_ITEM_GENERIC_SECRET,
-    {
-        { "account", GNOME_KEYRING_ATTRIBUTE_TYPE_STRING },
-        { "param", GNOME_KEYRING_ATTRIBUTE_TYPE_STRING },
-        { NULL, 0 }
-    }
-};
-
-#define MCD_GNOME_KEYRING_GROUP_NAME "group"
-#define MCD_GNOME_KEYRING_KEY_NAME "key"
-#endif
-
 #define MAX_KEY_LENGTH (DBUS_MAXIMUM_NAME_LENGTH + 6)
 #define MC_AVATAR_FILENAME	"avatar.bin"
 
