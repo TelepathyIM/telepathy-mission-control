@@ -74,7 +74,7 @@ def test(q, bus, mc):
         filters = {}
         tokens = {}
 
-        assert len(structs) == 2
+        assert len(structs) == 3
 
         for struct in structs:
             assert struct[0] not in filters

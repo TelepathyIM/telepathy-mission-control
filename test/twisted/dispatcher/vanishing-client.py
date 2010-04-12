@@ -70,9 +70,9 @@ def test(q, bus, mc):
             signature='v')
     # MC investigates further
     e = q.expect('dbus-method-call',
-            interface=cs.PROPERTIES_IFACE, method='Get',
+            interface=cs.PROPERTIES_IFACE, method='GetAll',
             path=object_path,
-            args=[cs.OBSERVER, 'ObserverChannelFilter'],
+            args=[cs.OBSERVER],
             handled=False)
     # Simulate another crash
     del bus_name_ref
@@ -95,9 +95,9 @@ def test(q, bus, mc):
             signature='v')
     # MC investigates further
     e = q.expect('dbus-method-call',
-            interface=cs.PROPERTIES_IFACE, method='Get',
+            interface=cs.PROPERTIES_IFACE, method='GetAll',
             path=object_path,
-            args=[cs.OBSERVER, 'ObserverChannelFilter'],
+            args=[cs.OBSERVER],
             handled=False)
     # Simulate a crash with highly unfortunate timing
     del bus_name_ref
