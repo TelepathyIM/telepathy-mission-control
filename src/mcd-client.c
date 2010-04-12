@@ -590,6 +590,38 @@ _mcd_client_proxy_get_unique_name (McdClientProxy *self)
     return self->priv->unique_name;
 }
 
+void
+_mcd_client_recover_observer (McdClientProxy *self, TpChannel *channel,
+    const gchar *account_path)
+{
+    GPtrArray *satisfied_requests;
+    GHashTable *observer_info;
+    TpConnection *conn;
+    const gchar *connection_path;
+    GPtrArray *channels_array;
+
+    satisfied_requests = g_ptr_array_new ();
+    observer_info = g_hash_table_new (g_str_hash, g_str_equal);
+    tp_asv_set_boolean (observer_info, "recovering", TRUE);
+
+    channels_array = _mcd_channel_details_build_from_tp_chan (channel);
+    g_object_get (channel, "connection", &conn, NULL);
+    connection_path = tp_proxy_get_object_path (conn);
+
+    DEBUG ("calling ObserveChannels on %s for channel %p",
+           tp_proxy_get_bus_name (self), channel);
+
+    tp_cli_client_observer_call_observe_channels (
+        (TpClient *) self, -1, account_path,
+        connection_path, channels_array,
+        "/", satisfied_requests, observer_info,
+        NULL, NULL, NULL, NULL);
+
+    _mcd_channel_details_free (channels_array);
+    g_ptr_array_free (satisfied_requests, TRUE);
+    g_hash_table_destroy (observer_info);
+}
+
 static void
 _mcd_client_proxy_handler_get_all_cb (TpProxy *proxy,
                                       GHashTable *properties,

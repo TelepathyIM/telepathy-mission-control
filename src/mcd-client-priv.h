@@ -29,6 +29,7 @@
 #include <glib.h>
 #include <glib-object.h>
 
+#include <telepathy-glib/channel.h>
 #include <telepathy-glib/client.h>
 #include <telepathy-glib/handle-repo.h>
 
@@ -118,6 +119,9 @@ G_GNUC_INTERNAL void _mcd_client_proxy_handle_channels (McdClientProxy *self,
     gint64 user_action_time, GHashTable *handler_info,
     tp_cli_client_handler_callback_for_handle_channels callback,
     gpointer user_data, GDestroyNotify destroy, GObject *weak_object);
+
+G_GNUC_INTERNAL void _mcd_client_recover_observer (McdClientProxy *self,
+    TpChannel *channel, const gchar *account_path);
 
 G_END_DECLS
 
