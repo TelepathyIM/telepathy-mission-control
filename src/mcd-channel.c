@@ -1067,6 +1067,28 @@ _mcd_channel_get_immutable_properties (McdChannel *channel)
     return ret;
 }
 
+static void
+_channel_details_array_append (GPtrArray *channel_array, TpChannel *channel)
+{
+    GType type = TP_STRUCT_TYPE_CHANNEL_DETAILS;
+    GValue channel_val = { 0, };
+    GHashTable *properties;
+    const gchar *object_path;
+
+    properties = tp_channel_borrow_immutable_properties (channel);
+    object_path = tp_proxy_get_object_path (channel);
+
+    g_value_init (&channel_val, type);
+    g_value_take_boxed (&channel_val,
+                        dbus_g_type_specialized_construct (type));
+    dbus_g_type_struct_set (&channel_val,
+                            0, object_path,
+                            1, properties,
+                            G_MAXUINT);
+
+    g_ptr_array_add (channel_array, g_value_get_boxed (&channel_val));
+}
+
 /*
  * _mcd_channel_details_build_from_list:
  * @channels: a #GList of #McdChannel elements.
@@ -1079,29 +1101,31 @@ _mcd_channel_details_build_from_list (const GList *channels)
 {
     GPtrArray *channel_array;
     const GList *list;
-    GType type = TP_STRUCT_TYPE_CHANNEL_DETAILS;
 
     channel_array = g_ptr_array_sized_new (g_list_length ((GList *) channels));
 
     for (list = channels; list != NULL; list = list->next)
     {
-        McdChannel *channel = MCD_CHANNEL (list->data);
-        GHashTable *properties;
-        GValue channel_val = { 0, };
-
-        properties = _mcd_channel_get_immutable_properties (channel);
-
-        g_value_init (&channel_val, type);
-        g_value_take_boxed (&channel_val,
-                            dbus_g_type_specialized_construct (type));
-        dbus_g_type_struct_set (&channel_val,
-                                0, mcd_channel_get_object_path (channel),
-                                1, properties,
-                                G_MAXUINT);
-
-        g_ptr_array_add (channel_array, g_value_get_boxed (&channel_val));
+        _channel_details_array_append (channel_array,
+            mcd_channel_get_tp_channel (MCD_CHANNEL (list->data)));
     }
 
+    return channel_array;
+}
+
+/*
+ * _mcd_channel_details_build_from_tp_chan:
+ * @channel: a #TpChannel
+ *
+ * Returns: a #GPtrArray of Channel_Details, ready to be sent over D-Bus. Free
+ * with _mcd_channel_details_free().
+ */
+GPtrArray *
+_mcd_channel_details_build_from_tp_chan (TpChannel *channel)
+{
+    GPtrArray *channel_array = g_ptr_array_sized_new (1);
+
+    _channel_details_array_append (channel_array, channel);
     return channel_array;
 }
 

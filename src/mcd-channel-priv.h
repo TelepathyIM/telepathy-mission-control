@@ -49,6 +49,8 @@ GHashTable *_mcd_channel_get_immutable_properties (McdChannel *channel);
 G_GNUC_INTERNAL
 GPtrArray *_mcd_channel_details_build_from_list (const GList *channels);
 G_GNUC_INTERNAL
+GPtrArray *_mcd_channel_details_build_from_tp_chan (TpChannel *channel);
+G_GNUC_INTERNAL
 void _mcd_channel_details_free (GPtrArray *channels);
 
 G_GNUC_INTERNAL
