@@ -72,6 +72,7 @@ struct _McdClientProxyPrivate
     gboolean introspect_started;
     gboolean ready;
     gboolean bypass_approval;
+    gboolean recover;
 
     /* If a client was in the ListActivatableNames list, it must not be
      * removed when it disappear from the bus.
@@ -333,6 +334,7 @@ parse_client_file (McdClientProxy *client,
     GList *observer_filters = NULL;
     GList *handler_filters = NULL;
     gboolean bypass;
+    gboolean recover;
 
     iface_names = g_key_file_get_string_list (file, TP_IFACE_CLIENT,
                                               "Interfaces", 0, NULL);
@@ -392,6 +394,10 @@ parse_client_file (McdClientProxy *client,
     bypass = g_key_file_get_boolean (file, TP_IFACE_CLIENT_HANDLER,
                                      "BypassApproval", NULL);
     client->priv->bypass_approval = bypass;
+
+    recover = g_key_file_get_boolean (file, TP_IFACE_CLIENT_OBSERVER,
+                                      "Recover", NULL);
+    client->priv->recover = recover;
 
     cap_tokens = g_key_file_get_keys (file,
                                       TP_IFACE_CLIENT_HANDLER ".Capabilities",
@@ -692,6 +698,53 @@ finally:
 }
 
 static void
+_mcd_client_proxy_observer_get_all_cb (TpProxy *proxy,
+                                       GHashTable *properties,
+                                       const GError *error,
+                                       gpointer p G_GNUC_UNUSED,
+                                       GObject *o G_GNUC_UNUSED)
+{
+    McdClientProxy *self = MCD_CLIENT_PROXY (proxy);
+    const gchar *bus_name = tp_proxy_get_bus_name (self);
+    gboolean recover;
+    GPtrArray *filters;
+
+    if (error != NULL)
+    {
+        DEBUG ("GetAll(Observer) for client %s failed: %s #%d: %s",
+               bus_name, g_quark_to_string (error->domain), error->code,
+               error->message);
+        goto finally;
+    }
+
+    /* by now, we at least know whether the client is running or not */
+    g_assert (self->priv->unique_name != NULL);
+
+    filters = tp_asv_get_boxed (properties, "ObserverChannelFilter",
+                                TP_ARRAY_TYPE_STRING_VARIANT_MAP_LIST);
+
+    if (filters != NULL)
+    {
+        DEBUG ("%s has %u ObserverChannelFilter entries", bus_name,
+               filters->len);
+        _mcd_client_proxy_set_filters (self, MCD_CLIENT_OBSERVER, filters);
+    }
+    else
+    {
+        DEBUG ("%s ObserverChannelFilter absent or wrong type, assuming "
+               "no channels can match", bus_name);
+    }
+
+    /* if wrong type or absent, assuming False is reasonable */
+    recover = tp_asv_get_boolean (properties, "Recover", NULL);
+    self->priv->recover = recover;
+    DEBUG ("%s has Recover=%c", bus_name, recover ? 'T' : 'F');
+
+finally:
+    _mcd_client_proxy_dec_ready_lock (self);
+}
+
+static void
 _mcd_client_proxy_get_interfaces_cb (TpProxy *proxy,
                                      const GValue *out_Value,
                                      const GError *error,
@@ -749,10 +802,9 @@ _mcd_client_proxy_get_interfaces_cb (TpProxy *proxy,
 
         DEBUG ("%s is an Observer", bus_name);
 
-        tp_cli_dbus_properties_call_get
+        tp_cli_dbus_properties_call_get_all
             (self, -1, TP_IFACE_CLIENT_OBSERVER,
-             "ObserverChannelFilter", _mcd_client_proxy_get_channel_filter_cb,
-             GUINT_TO_POINTER (MCD_CLIENT_OBSERVER), NULL, NULL);
+             _mcd_client_proxy_observer_get_all_cb, NULL, NULL, NULL);
     }
 
 finally:
