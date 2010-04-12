@@ -1977,7 +1977,8 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
 
 void
 _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
-                                 McdChannel *channel)
+                                 McdChannel *channel,
+                                 const gchar *account_path)
 {
     McdDispatcherPrivate *priv;
     const gchar *path;
@@ -2007,7 +2008,7 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
         _mcd_channel_set_status (channel,
                                  MCD_CHANNEL_STATUS_DISPATCHED);
         _mcd_handler_map_set_channel_handled (priv->handler_map, tp_channel,
-                                              unique_name);
+                                              unique_name, account_path);
     }
     else
     {
