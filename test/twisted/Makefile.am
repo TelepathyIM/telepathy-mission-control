@@ -44,6 +44,8 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/lose-text.py \
 	dispatcher/recover-from-disconnect.py \
 	dispatcher/request-disabled-account.py \
+	dispatcher/respawn-observers.py \
+	dispatcher/respawn-activatable-observers.py \
 	dispatcher/undispatchable.py \
 	dispatcher/vanishing-client.py
 
