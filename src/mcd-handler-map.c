@@ -41,6 +41,8 @@ struct _McdHandlerMapPrivate
     GHashTable *handler_processes;
     /* owned gchar *object_path => ref'd TpChannel */
     GHashTable *handled_channels;
+    /* owned gchar *object_path =>  owned gchar *account_path */
+    GHashTable *channel_accounts;
 };
 
 enum {
@@ -73,6 +75,11 @@ _mcd_handler_map_init (McdHandlerMap *self)
                                                           g_str_equal,
                                                           g_free,
                                                           g_object_unref);
+
+    self->priv->channel_accounts = g_hash_table_new_full (g_str_hash,
+                                                          g_str_equal,
+                                                          g_free,
+                                                          g_free);
 }
 
 static void
@@ -168,6 +175,12 @@ _mcd_handler_map_finalize (GObject *object)
     {
         g_hash_table_destroy (self->priv->channel_processes);
         self->priv->channel_processes = NULL;
+    }
+
+    if (self->priv->channel_accounts != NULL)
+    {
+        g_hash_table_destroy (self->priv->channel_accounts);
+        self->priv->channel_accounts = NULL;
     }
 
     G_OBJECT_CLASS (_mcd_handler_map_parent_class)->finalize (object);
@@ -290,6 +303,7 @@ handled_channel_invalidated_cb (TpChannel *channel,
     }
 
     g_hash_table_remove (self->priv->handled_channels, path);
+    g_hash_table_remove (self->priv->channel_accounts, path);
 
     g_object_unref (self);
 }
@@ -297,13 +311,18 @@ handled_channel_invalidated_cb (TpChannel *channel,
 void
 _mcd_handler_map_set_channel_handled (McdHandlerMap *self,
                                       TpChannel *channel,
-                                      const gchar *unique_name)
+                                      const gchar *unique_name,
+                                      const gchar *account_path)
 {
     const gchar *path = tp_proxy_get_object_path (channel);
 
     g_hash_table_insert (self->priv->handled_channels,
                          g_strdup (path),
                          g_object_ref (channel));
+
+    g_hash_table_insert (self->priv->channel_accounts,
+                         g_strdup (path),
+                         g_strdup (account_path));
 
     g_signal_connect (channel, "invalidated",
                       G_CALLBACK (handled_channel_invalidated_cb),
@@ -378,4 +397,16 @@ mcd_handler_map_name_owner_cb (TpDBusDaemon *dbus_daemon,
     {
         _mcd_handler_map_set_handler_crashed (user_data, name);
     }
+}
+
+GList *
+_mcd_handler_map_get_handled_channels (McdHandlerMap *self)
+{
+    return g_hash_table_get_values (self->priv->handled_channels);
+}
+
+GHashTable *
+_mcd_handler_map_get_channel_accounts (McdHandlerMap *self)
+{
+    return self->priv->channel_accounts;
 }

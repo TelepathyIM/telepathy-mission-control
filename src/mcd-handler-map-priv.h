@@ -75,7 +75,12 @@ void _mcd_handler_map_set_path_handled (McdHandlerMap *self,
 
 void _mcd_handler_map_set_channel_handled (McdHandlerMap *self,
                                            TpChannel *channel,
-                                           const gchar *unique_name);
+                                           const gchar *unique_name,
+                                           const gchar *account_path);
+
+GList *_mcd_handler_map_get_handled_channels (McdHandlerMap *self);
+
+GHashTable *_mcd_handler_map_get_channel_accounts (McdHandlerMap *self);
 
 G_END_DECLS
 
