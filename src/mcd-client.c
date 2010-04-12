@@ -55,6 +55,7 @@ enum
     S_IS_HANDLING_CHANNEL,
     S_HANDLER_CAPABILITIES_CHANGED,
     S_GONE,
+    S_NEED_RECOVERY,
     N_SIGNALS
 };
 
@@ -135,6 +136,11 @@ _mcd_client_proxy_dec_ready_lock (McdClientProxy *self)
     {
         self->priv->ready = TRUE;
         g_signal_emit (self, signals[S_READY], 0);
+
+        /* Activatable Observers needing recovery have already
+         * been called (in order to reactivate them). */
+        if (self->priv->recover && !self->priv->activatable)
+            g_signal_emit (self, signals[S_NEED_RECOVERY], 0);
     }
 }
 
@@ -917,12 +923,17 @@ mcd_client_proxy_unique_name_cb (TpDBusDaemon *dbus_daemon,
                                  gpointer user_data)
 {
     McdClientProxy *self = MCD_CLIENT_PROXY (user_data);
+    gboolean should_recover = FALSE;
 
     g_object_ref (self);
 
     if (unique_name == NULL || unique_name[0] == '\0')
     {
         _mcd_client_proxy_set_inactive (self);
+
+        /* To recover activatable Observers, we just need to call
+         * ObserveChannels on them. */
+        should_recover = self->priv->recover && self->priv->activatable;
     }
     else
     {
@@ -930,6 +941,9 @@ mcd_client_proxy_unique_name_cb (TpDBusDaemon *dbus_daemon,
     }
 
     mcd_client_proxy_introspect (self);
+
+    if (should_recover)
+        g_signal_emit (self, signals[S_NEED_RECOVERY], 0);
 
     g_object_unref (self);
 }
@@ -1090,6 +1104,13 @@ _mcd_client_proxy_class_init (McdClientProxyClass *klass)
     /* Never emitted until after the unique name is known */
     signals[S_HANDLER_CAPABILITIES_CHANGED] = g_signal_new (
         "handler-capabilities-changed",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+        0, NULL, NULL,
+        g_cclosure_marshal_VOID__VOID,
+        G_TYPE_NONE, 0);
+
+    signals[S_NEED_RECOVERY] = g_signal_new ("need-recovery",
         G_OBJECT_CLASS_TYPE (klass),
         G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
         0, NULL, NULL,
