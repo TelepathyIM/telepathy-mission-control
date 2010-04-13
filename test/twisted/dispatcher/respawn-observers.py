@@ -200,10 +200,12 @@ def test(q, bus, mc):
                 handled=False)
 
     # FIXME: assert the same things as before, except CDO (which we don't
-    # have) and account path (which we don't know how to get)
+    # have) and account path (which we don't know how to get); also check
+    # that the recovering observer info key is set
     assert e.args[0] == account.object_path, e.args
     assert e.args[1] == conn.object_path, e.args
     assert e.args[4] == [], e.args      # no requests satisfied
+    assert e.args[5]['recovering'] == 1, e.args # due to observer recovery
     channels = e.args[2]
     assert len(channels) == 1, channels
     assert channels[0][0] == chan.object_path, channels
