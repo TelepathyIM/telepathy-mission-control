@@ -36,6 +36,7 @@
 #include <telepathy-glib/proxy-subclass.h>
 #include <telepathy-glib/util.h>
 
+#include "channel-utils.h"
 #include "mcd-channel-priv.h"
 #include "mcd-debug.h"
 
@@ -604,8 +605,10 @@ _mcd_client_recover_observer (McdClientProxy *self, TpChannel *channel,
     observer_info = g_hash_table_new (g_str_hash, g_str_equal);
     tp_asv_set_boolean (observer_info, "recovering", TRUE);
 
-    channels_array = _mcd_channel_details_build_from_tp_chan (channel);
-    g_object_get (channel, "connection", &conn, NULL);
+    channels_array = _mcd_tp_channel_details_build_from_tp_chan (channel);
+    g_object_get (channel,
+                  "connection", &conn,
+                  NULL);
     connection_path = tp_proxy_get_object_path (conn);
 
     DEBUG ("calling ObserveChannels on %s for channel %p",
@@ -617,7 +620,7 @@ _mcd_client_recover_observer (McdClientProxy *self, TpChannel *channel,
         "/", satisfied_requests, observer_info,
         NULL, NULL, NULL, NULL);
 
-    _mcd_channel_details_free (channels_array);
+    _mcd_tp_channel_details_free (channels_array);
     g_ptr_array_free (satisfied_requests, TRUE);
     g_hash_table_destroy (observer_info);
 }
@@ -1695,7 +1698,7 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
 
     DEBUG ("calling HandleChannels on %s", tp_proxy_get_bus_name (self));
 
-    channel_details = _mcd_channel_details_build_from_list (channels);
+    channel_details = _mcd_tp_channel_details_build_from_list (channels);
     requests_satisfied = g_ptr_array_new ();
 
     if (handler_info == NULL)
@@ -1734,7 +1737,7 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
         requests_satisfied, user_action_time, handler_info,
         callback, user_data, destroy, weak_object);
 
-    _mcd_channel_details_free (channel_details);
+    _mcd_tp_channel_details_free (channel_details);
     g_ptr_array_free (requests_satisfied, TRUE);
     g_hash_table_unref (handler_info);
 }

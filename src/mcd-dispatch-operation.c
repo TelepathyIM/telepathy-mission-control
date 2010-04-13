@@ -43,6 +43,7 @@
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
+#include "channel-utils.h"
 #include "mcd-channel-priv.h"
 #include "mcd-dbusprop.h"
 #include "mcd-misc.h"
@@ -571,7 +572,7 @@ get_channels (TpSvcDBusProperties *iface, const gchar *name, GValue *value)
 
     g_value_init (value, TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST);
     g_value_take_boxed (value,
-        _mcd_channel_details_build_from_list (self->priv->channels));
+        _mcd_tp_channel_details_build_from_list (self->priv->channels));
 }
 
 static void
@@ -1835,7 +1836,7 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
 
         /* TODO: there's room for optimization here: reuse the channels_array,
          * if the observed list is the same */
-        channels_array = _mcd_channel_details_build_from_list (observed);
+        channels_array = _mcd_tp_channel_details_build_from_list (observed);
 
         satisfied_requests = collect_satisfied_requests (observed);
 
@@ -1859,7 +1860,7 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
          * McdChannel objects */
         g_ptr_array_free (satisfied_requests, TRUE);
 
-        _mcd_channel_details_free (channels_array);
+        _mcd_tp_channel_details_free (channels_array);
 
         g_list_free (observed);
     }
@@ -1947,7 +1948,7 @@ _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
         dispatch_operation = _mcd_dispatch_operation_get_path (self);
         properties = _mcd_dispatch_operation_get_properties (self);
         channel_details =
-            _mcd_channel_details_build_from_list (self->priv->channels);
+            _mcd_tp_channel_details_build_from_list (self->priv->channels);
 
         DEBUG ("Calling AddDispatchOperation on approver %s for CDO %s @ %p",
                tp_proxy_get_bus_name (client), dispatch_operation, self);
