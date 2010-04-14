@@ -606,9 +606,7 @@ _mcd_client_recover_observer (McdClientProxy *self, TpChannel *channel,
     tp_asv_set_boolean (observer_info, "recovering", TRUE);
 
     channels_array = _mcd_tp_channel_details_build_from_tp_chan (channel);
-    g_object_get (channel,
-                  "connection", &conn,
-                  NULL);
+    conn = tp_channel_borrow_connection (channel);
     connection_path = tp_proxy_get_object_path (conn);
 
     DEBUG ("calling ObserveChannels on %s for channel %p",
