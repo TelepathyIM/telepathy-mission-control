@@ -405,8 +405,12 @@ _mcd_handler_map_get_handled_channels (McdHandlerMap *self)
     return g_hash_table_get_values (self->priv->handled_channels);
 }
 
-GHashTable *
-_mcd_handler_map_get_channel_accounts (McdHandlerMap *self)
+const gchar *
+_mcd_handler_map_get_channel_account (McdHandlerMap *self,
+    const gchar *channel_path)
 {
-    return self->priv->channel_accounts;
+    return g_hash_table_lookup (self->priv->channel_accounts,
+        channel_path);
 }
+
+

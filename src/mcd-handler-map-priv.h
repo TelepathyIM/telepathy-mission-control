@@ -80,7 +80,8 @@ void _mcd_handler_map_set_channel_handled (McdHandlerMap *self,
 
 GList *_mcd_handler_map_get_handled_channels (McdHandlerMap *self);
 
-GHashTable *_mcd_handler_map_get_channel_accounts (McdHandlerMap *self);
+const gchar *_mcd_handler_map_get_channel_account (McdHandlerMap *self,
+                                                   const gchar *channel_path);
 
 G_END_DECLS
 

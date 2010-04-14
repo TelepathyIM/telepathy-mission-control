@@ -839,8 +839,6 @@ mcd_dispatcher_client_needs_recovery_cb (McdClientProxy *client,
 {
     GList *channels =
         _mcd_handler_map_get_handled_channels (self->priv->handler_map);
-    GHashTable *accounts =
-        _mcd_handler_map_get_channel_accounts (self->priv->handler_map);
     const GList *observer_filters;
     GList *list;
 
@@ -859,7 +857,8 @@ mcd_dispatcher_client_needs_recovery_cb (McdClientProxy *client,
             FALSE))
         {
             const gchar *account_path =
-                g_hash_table_lookup (accounts, tp_proxy_get_object_path (channel));
+                _mcd_handler_map_get_channel_account (self->priv->handler_map,
+                    tp_proxy_get_object_path (channel));
 
             _mcd_client_recover_observer (client, channel, account_path);
         }
