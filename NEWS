@@ -1,10 +1,26 @@
-telepathy-mission-control 5.3.3 (UNRELEASED)
+telepathy-mission-control 5.4.0 (UNRELEASED)
 ============================================
 
 Fixes:
 
 * fd.o #24875: avoid a dependency on GLib >= 2.22 which was accidentally
-  introduced in 5.3.2
+  introduced in 5.3.2 (smcv)
+
+* Avoid a dependency on dbus-glib 0.80 (Danni)
+
+* fd.o #25122, Debian #556488: link mc-wait-for-name to GLib properly (Jonny)
+
+* mc-tool: don't crash on invalid account names (wjt)
+
+* Only time out channel requests after 5 hours (Sjoerd)
+
+* Remove a misleading reference to GConf (Tomeu)
+
+* fd.o #27021: fix error propagation when creating accounts with invalid
+  properties/parameters (Tomeu)
+
+* Release startup locks even for incomplete accounts, avoiding failure to start
+  (fledermaus)
 
 telepathy-mission-control 5.3.2 (2009-11-02)
 ============================================
