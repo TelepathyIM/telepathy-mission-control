@@ -1,6 +1,13 @@
 telepathy-mission-control 5.4.0 (UNRELEASED)
 ============================================
 
+Enhancements:
+
+* fd.o #27309: implement the Observer.Recover flag from the forthcoming
+  telepathy-spec 0.19.4, which lets activatable observers recover (in a
+  best-effort way) after crashing, and lets non-activatable observers catch
+  up on active channels (again in a best-effort way) (ptlo)
+
 Fixes:
 
 * fd.o #24875: avoid a dependency on GLib >= 2.22 which was accidentally
