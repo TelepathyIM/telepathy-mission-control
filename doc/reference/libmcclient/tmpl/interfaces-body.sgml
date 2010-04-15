@@ -17,11 +17,15 @@ interfaces-body
 <!-- ##### SECTION Stability_Level ##### -->
 
 
+<!-- ##### SECTION Image ##### -->
+
+
 <!-- ##### FUNCTION mc_iface_quark_account ##### -->
 <para>
 
 </para>
 
+@void: 
 @Returns: 
 
 
@@ -30,6 +34,7 @@ interfaces-body
 
 </para>
 
+@void: 
 @Returns: 
 
 
@@ -38,6 +43,7 @@ interfaces-body
 
 </para>
 
+@void: 
 @Returns: 
 
 
@@ -46,6 +52,7 @@ interfaces-body
 
 </para>
 
+@void: 
 @Returns: 
 
 
@@ -54,6 +61,7 @@ interfaces-body
 
 </para>
 
+@void: 
 @Returns: 
 
 
@@ -62,6 +70,7 @@ interfaces-body
 
 </para>
 
+@void: 
 @Returns: 
 
 

@@ -17,11 +17,15 @@ mcd-enum-types
 <!-- ##### SECTION Stability_Level ##### -->
 
 
+<!-- ##### SECTION Image ##### -->
+
+
 <!-- ##### FUNCTION mcd_channel_status_get_type ##### -->
 <para>
 
 </para>
 
+@void: 
 @Returns: 
 
 

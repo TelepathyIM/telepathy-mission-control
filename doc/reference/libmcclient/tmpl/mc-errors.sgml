@@ -17,6 +17,9 @@ mc-errors
 <!-- ##### SECTION Stability_Level ##### -->
 
 
+<!-- ##### SECTION Image ##### -->
+
+
 <!-- ##### MACRO MC_ERROR ##### -->
 <para>
 
@@ -36,6 +39,7 @@ mc-errors
 
 </para>
 
+@void: 
 @Returns: 
 
 
