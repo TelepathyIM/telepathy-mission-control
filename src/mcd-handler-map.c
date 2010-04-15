@@ -24,10 +24,12 @@
  */
 
 #include "config.h"
-#include "mcd-channel-priv.h"
 #include "mcd-handler-map-priv.h"
 
 #include <telepathy-glib/util.h>
+
+#include "channel-utils.h"
+#include "mcd-channel-priv.h"
 
 G_DEFINE_TYPE (McdHandlerMap, _mcd_handler_map, G_TYPE_OBJECT);
 
