@@ -17,6 +17,9 @@ interfaces
 <!-- ##### SECTION Stability_Level ##### -->
 
 
+<!-- ##### SECTION Image ##### -->
+
+
 <!-- ##### MACRO MC_IFACE_ACCOUNT ##### -->
 <para>
 
@@ -36,6 +39,7 @@ interfaces
 
 </para>
 
+@void: 
 @Returns: 
 
 
@@ -58,6 +62,7 @@ interfaces
 
 </para>
 
+@void: 
 @Returns: 
 
 
@@ -80,6 +85,7 @@ interfaces
 
 </para>
 
+@void: 
 @Returns: 
 
 
@@ -102,6 +108,7 @@ interfaces
 
 </para>
 
+@void: 
 @Returns: 
 
 
@@ -124,6 +131,7 @@ interfaces
 
 </para>
 
+@void: 
 @Returns: 
 
 
@@ -146,6 +154,7 @@ interfaces
 
 </para>
 
+@void: 
 @Returns: 
 
 

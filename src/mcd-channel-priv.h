@@ -47,11 +47,6 @@ G_GNUC_INTERNAL
 GHashTable *_mcd_channel_get_immutable_properties (McdChannel *channel);
 
 G_GNUC_INTERNAL
-GPtrArray *_mcd_channel_details_build_from_list (const GList *channels);
-G_GNUC_INTERNAL
-void _mcd_channel_details_free (GPtrArray *channels);
-
-G_GNUC_INTERNAL
 const gchar *_mcd_channel_get_target_id (McdChannel *channel);
 G_GNUC_INTERNAL
 GHashTable *_mcd_channel_get_requested_properties (McdChannel *channel);
@@ -80,10 +75,6 @@ void _mcd_channel_close (McdChannel *channel);
 G_GNUC_INTERNAL void _mcd_channel_depart (McdChannel *channel,
                                           TpChannelGroupChangeReason reason,
                                           const gchar *message);
-
-/* NULL-safe for @channel; @verb is for debug */
-G_GNUC_INTERNAL gboolean _mcd_tp_channel_should_close (TpChannel *channel,
-                                                       const gchar *verb);
 
 G_END_DECLS
 #endif

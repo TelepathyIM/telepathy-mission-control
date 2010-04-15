@@ -17,6 +17,9 @@ McdOperation
 <!-- ##### SECTION Stability_Level ##### -->
 
 
+<!-- ##### SECTION Image ##### -->
+
+
 <!-- ##### STRUCT McdOperation ##### -->
 <para>
 
@@ -44,6 +47,7 @@ McdOperation
 
 </para>
 
+@void: 
 @Returns: 
 
 

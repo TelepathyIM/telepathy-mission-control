@@ -1292,7 +1292,8 @@ mcd_connection_recover_channel (McdConnection *connection,
     mcd_operation_take_mission (MCD_OPERATION (connection),
                                 MCD_MISSION (channel));
 
-    _mcd_dispatcher_recover_channel (priv->dispatcher, channel);
+    _mcd_dispatcher_recover_channel (priv->dispatcher, channel,
+      mcd_account_get_object_path (priv->account));
 }
 
 static void

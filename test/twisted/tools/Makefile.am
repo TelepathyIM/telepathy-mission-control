@@ -17,7 +17,7 @@ org.freedesktop.Telepathy.%.service: %.service.in
 		$< > $@
 
 # D-Bus service file for testing
-service_in_files = MissionControl5.service.in Client.AbiWord.service.in
+service_in_files = MissionControl5.service.in Client.AbiWord.service.in Client.Logger.service.in
 service_files = $(patsubst %.in,org.freedesktop.Telepathy.%, $(service_in_files))
 
 # D-Bus config file for testing

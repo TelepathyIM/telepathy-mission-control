@@ -48,6 +48,8 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/lose-text.py \
 	dispatcher/recover-from-disconnect.py \
 	dispatcher/request-disabled-account.py \
+	dispatcher/respawn-observers.py \
+	dispatcher/respawn-activatable-observers.py \
 	dispatcher/undispatchable.py \
 	dispatcher/vanishing-client.py
 
@@ -227,6 +229,7 @@ EXTRA_DIST = \
 	chandlers/README \
 	telepathy/clients/README \
 	telepathy/clients/AbiWord.client \
+	telepathy/clients/Logger.client \
 	telepathy/managers/fakecm.manager \
 	telepathy/managers/onewitheverything.manager \
 	telepathy/managers/README \

@@ -36,6 +36,7 @@
 #include <telepathy-glib/proxy-subclass.h>
 #include <telepathy-glib/util.h>
 
+#include "channel-utils.h"
 #include "mcd-channel-priv.h"
 #include "mcd-debug.h"
 
@@ -55,6 +56,7 @@ enum
     S_IS_HANDLING_CHANNEL,
     S_HANDLER_CAPABILITIES_CHANGED,
     S_GONE,
+    S_NEED_RECOVERY,
     N_SIGNALS
 };
 
@@ -72,6 +74,7 @@ struct _McdClientProxyPrivate
     gboolean introspect_started;
     gboolean ready;
     gboolean bypass_approval;
+    gboolean recover;
 
     /* If a client was in the ListActivatableNames list, it must not be
      * removed when it disappear from the bus.
@@ -134,6 +137,11 @@ _mcd_client_proxy_dec_ready_lock (McdClientProxy *self)
     {
         self->priv->ready = TRUE;
         g_signal_emit (self, signals[S_READY], 0);
+
+        /* Activatable Observers needing recovery have already
+         * been called (in order to reactivate them). */
+        if (self->priv->recover && !self->priv->activatable)
+            g_signal_emit (self, signals[S_NEED_RECOVERY], 0);
     }
 }
 
@@ -333,6 +341,7 @@ parse_client_file (McdClientProxy *client,
     GList *observer_filters = NULL;
     GList *handler_filters = NULL;
     gboolean bypass;
+    gboolean recover;
 
     iface_names = g_key_file_get_string_list (file, TP_IFACE_CLIENT,
                                               "Interfaces", 0, NULL);
@@ -392,6 +401,10 @@ parse_client_file (McdClientProxy *client,
     bypass = g_key_file_get_boolean (file, TP_IFACE_CLIENT_HANDLER,
                                      "BypassApproval", NULL);
     client->priv->bypass_approval = bypass;
+
+    recover = g_key_file_get_boolean (file, TP_IFACE_CLIENT_OBSERVER,
+                                      "Recover", NULL);
+    client->priv->recover = recover;
 
     cap_tokens = g_key_file_get_keys (file,
                                       TP_IFACE_CLIENT_HANDLER ".Capabilities",
@@ -578,6 +591,38 @@ _mcd_client_proxy_get_unique_name (McdClientProxy *self)
     return self->priv->unique_name;
 }
 
+void
+_mcd_client_recover_observer (McdClientProxy *self, TpChannel *channel,
+    const gchar *account_path)
+{
+    GPtrArray *satisfied_requests;
+    GHashTable *observer_info;
+    TpConnection *conn;
+    const gchar *connection_path;
+    GPtrArray *channels_array;
+
+    satisfied_requests = g_ptr_array_new ();
+    observer_info = g_hash_table_new (g_str_hash, g_str_equal);
+    tp_asv_set_boolean (observer_info, "recovering", TRUE);
+
+    channels_array = _mcd_tp_channel_details_build_from_tp_chan (channel);
+    conn = tp_channel_borrow_connection (channel);
+    connection_path = tp_proxy_get_object_path (conn);
+
+    DEBUG ("calling ObserveChannels on %s for channel %p",
+           tp_proxy_get_bus_name (self), channel);
+
+    tp_cli_client_observer_call_observe_channels (
+        (TpClient *) self, -1, account_path,
+        connection_path, channels_array,
+        "/", satisfied_requests, observer_info,
+        NULL, NULL, NULL, NULL);
+
+    _mcd_tp_channel_details_free (channels_array);
+    g_ptr_array_free (satisfied_requests, TRUE);
+    g_hash_table_destroy (observer_info);
+}
+
 static void
 _mcd_client_proxy_handler_get_all_cb (TpProxy *proxy,
                                       GHashTable *properties,
@@ -692,6 +737,53 @@ finally:
 }
 
 static void
+_mcd_client_proxy_observer_get_all_cb (TpProxy *proxy,
+                                       GHashTable *properties,
+                                       const GError *error,
+                                       gpointer p G_GNUC_UNUSED,
+                                       GObject *o G_GNUC_UNUSED)
+{
+    McdClientProxy *self = MCD_CLIENT_PROXY (proxy);
+    const gchar *bus_name = tp_proxy_get_bus_name (self);
+    gboolean recover;
+    GPtrArray *filters;
+
+    if (error != NULL)
+    {
+        DEBUG ("GetAll(Observer) for client %s failed: %s #%d: %s",
+               bus_name, g_quark_to_string (error->domain), error->code,
+               error->message);
+        goto finally;
+    }
+
+    /* by now, we at least know whether the client is running or not */
+    g_assert (self->priv->unique_name != NULL);
+
+    filters = tp_asv_get_boxed (properties, "ObserverChannelFilter",
+                                TP_ARRAY_TYPE_STRING_VARIANT_MAP_LIST);
+
+    if (filters != NULL)
+    {
+        DEBUG ("%s has %u ObserverChannelFilter entries", bus_name,
+               filters->len);
+        _mcd_client_proxy_set_filters (self, MCD_CLIENT_OBSERVER, filters);
+    }
+    else
+    {
+        DEBUG ("%s ObserverChannelFilter absent or wrong type, assuming "
+               "no channels can match", bus_name);
+    }
+
+    /* if wrong type or absent, assuming False is reasonable */
+    recover = tp_asv_get_boolean (properties, "Recover", NULL);
+    self->priv->recover = recover;
+    DEBUG ("%s has Recover=%c", bus_name, recover ? 'T' : 'F');
+
+finally:
+    _mcd_client_proxy_dec_ready_lock (self);
+}
+
+static void
 _mcd_client_proxy_get_interfaces_cb (TpProxy *proxy,
                                      const GValue *out_Value,
                                      const GError *error,
@@ -749,10 +841,9 @@ _mcd_client_proxy_get_interfaces_cb (TpProxy *proxy,
 
         DEBUG ("%s is an Observer", bus_name);
 
-        tp_cli_dbus_properties_call_get
+        tp_cli_dbus_properties_call_get_all
             (self, -1, TP_IFACE_CLIENT_OBSERVER,
-             "ObserverChannelFilter", _mcd_client_proxy_get_channel_filter_cb,
-             GUINT_TO_POINTER (MCD_CLIENT_OBSERVER), NULL, NULL);
+             _mcd_client_proxy_observer_get_all_cb, NULL, NULL, NULL);
     }
 
 finally:
@@ -865,12 +956,17 @@ mcd_client_proxy_unique_name_cb (TpDBusDaemon *dbus_daemon,
                                  gpointer user_data)
 {
     McdClientProxy *self = MCD_CLIENT_PROXY (user_data);
+    gboolean should_recover = FALSE;
 
     g_object_ref (self);
 
     if (unique_name == NULL || unique_name[0] == '\0')
     {
         _mcd_client_proxy_set_inactive (self);
+
+        /* To recover activatable Observers, we just need to call
+         * ObserveChannels on them. */
+        should_recover = self->priv->recover && self->priv->activatable;
     }
     else
     {
@@ -878,6 +974,9 @@ mcd_client_proxy_unique_name_cb (TpDBusDaemon *dbus_daemon,
     }
 
     mcd_client_proxy_introspect (self);
+
+    if (should_recover)
+        g_signal_emit (self, signals[S_NEED_RECOVERY], 0);
 
     g_object_unref (self);
 }
@@ -1038,6 +1137,13 @@ _mcd_client_proxy_class_init (McdClientProxyClass *klass)
     /* Never emitted until after the unique name is known */
     signals[S_HANDLER_CAPABILITIES_CHANGED] = g_signal_new (
         "handler-capabilities-changed",
+        G_OBJECT_CLASS_TYPE (klass),
+        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+        0, NULL, NULL,
+        g_cclosure_marshal_VOID__VOID,
+        G_TYPE_NONE, 0);
+
+    signals[S_NEED_RECOVERY] = g_signal_new ("need-recovery",
         G_OBJECT_CLASS_TYPE (klass),
         G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
         0, NULL, NULL,
@@ -1590,7 +1696,7 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
 
     DEBUG ("calling HandleChannels on %s", tp_proxy_get_bus_name (self));
 
-    channel_details = _mcd_channel_details_build_from_list (channels);
+    channel_details = _mcd_tp_channel_details_build_from_list (channels);
     requests_satisfied = g_ptr_array_new ();
 
     if (handler_info == NULL)
@@ -1629,7 +1735,7 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
         requests_satisfied, user_action_time, handler_info,
         callback, user_data, destroy, weak_object);
 
-    _mcd_channel_details_free (channel_details);
+    _mcd_tp_channel_details_free (channel_details);
     g_ptr_array_free (requests_satisfied, TRUE);
     g_hash_table_unref (handler_info);
 }

@@ -46,6 +46,7 @@
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
+#include "channel-utils.h"
 #include "mcd-account-priv.h"
 #include "mcd-channel-priv.h"
 #include "mcd-enum-types.h"
@@ -249,50 +250,6 @@ on_channel_ready (TpChannel *tp_chan, const GError *error, gpointer user_data)
 						       TP_IFACE_QUARK_CHANNEL_INTERFACE_GROUP);
     if (priv->has_group_if)
 	_mcd_channel_setup_group (channel);
-}
-
-gboolean
-_mcd_tp_channel_should_close (TpChannel *channel,
-                              const gchar *verb)
-{
-    const GError *invalidated;
-    const gchar *object_path;
-    GQuark channel_type;
-
-    if (channel == NULL)
-    {
-        DEBUG ("Not %s NULL channel", verb);
-        return FALSE;
-    }
-
-    invalidated = tp_proxy_get_invalidated (channel);
-    object_path = tp_proxy_get_object_path (channel);
-
-    if (invalidated != NULL)
-    {
-        DEBUG ("Not %s %p:%s, already invalidated: %s %d: %s",
-               verb, channel, object_path,
-               g_quark_to_string (invalidated->domain),
-               invalidated->code, invalidated->message);
-        return FALSE;
-    }
-
-    channel_type = tp_channel_get_channel_type_id (channel);
-
-    if (channel_type == TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
-    {
-        DEBUG ("Not %s %p:%s, it's a ContactList", verb, channel, object_path);
-        return FALSE;
-    }
-
-    if (channel_type == TP_IFACE_QUARK_CHANNEL_TYPE_TUBES)
-    {
-        DEBUG ("Not %s %p:%s, it's an old Tubes channel", verb, channel,
-               object_path);
-        return FALSE;
-    }
-
-    return TRUE;
 }
 
 void
@@ -1065,56 +1022,6 @@ _mcd_channel_get_immutable_properties (McdChannel *channel)
     }
 
     return ret;
-}
-
-/*
- * _mcd_channel_details_build_from_list:
- * @channels: a #GList of #McdChannel elements.
- *
- * Returns: a #GPtrArray of Channel_Details, ready to be sent over D-Bus. Free
- * with _mcd_channel_details_free().
- */
-GPtrArray *
-_mcd_channel_details_build_from_list (const GList *channels)
-{
-    GPtrArray *channel_array;
-    const GList *list;
-    GType type = TP_STRUCT_TYPE_CHANNEL_DETAILS;
-
-    channel_array = g_ptr_array_sized_new (g_list_length ((GList *) channels));
-
-    for (list = channels; list != NULL; list = list->next)
-    {
-        McdChannel *channel = MCD_CHANNEL (list->data);
-        GHashTable *properties;
-        GValue channel_val = { 0, };
-
-        properties = _mcd_channel_get_immutable_properties (channel);
-
-        g_value_init (&channel_val, type);
-        g_value_take_boxed (&channel_val,
-                            dbus_g_type_specialized_construct (type));
-        dbus_g_type_struct_set (&channel_val,
-                                0, mcd_channel_get_object_path (channel),
-                                1, properties,
-                                G_MAXUINT);
-
-        g_ptr_array_add (channel_array, g_value_get_boxed (&channel_val));
-    }
-
-    return channel_array;
-}
-
-/*
- * _mcd_channel_details_free:
- * @channels: a #GPtrArray of Channel_Details.
- *
- * Frees the memory used by @channels.
- */
-void
-_mcd_channel_details_free (GPtrArray *channels)
-{
-    g_boxed_free (TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST, channels);
 }
 
 /*

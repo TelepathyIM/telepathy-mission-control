@@ -590,7 +590,7 @@ def aasv(x):
 class SimulatedClient(object):
     def __init__(self, q, bus, clientname,
             observe=[], approve=[], handle=[],
-            cap_tokens=[], bypass_approval=False,
+            cap_tokens=[], bypass_approval=False, wants_recovery=False,
             request_notification=True, implement_get_interfaces=True,
             is_handler=None):
         self.q = q
@@ -602,6 +602,7 @@ class SimulatedClient(object):
         self.approve = aasv(approve)
         self.handle = aasv(handle)
         self.bypass_approval = bool(bypass_approval)
+        self.wants_recovery = bool(wants_recovery)
         self.request_notification = bool(request_notification)
         self.handled_channels = dbus.Array([], signature='o')
         self.cap_tokens = dbus.Array(cap_tokens, signature='s')
@@ -647,6 +648,9 @@ class SimulatedClient(object):
         q.add_dbus_method_impl(self.Get_BypassApproval,
                 path=self.object_path, interface=cs.PROPERTIES_IFACE,
                 method='Get', args=[cs.HANDLER, 'BypassApproval'])
+        q.add_dbus_method_impl(self.Get_Recover,
+                path=self.object_path, interface=cs.PROPERTIES_IFACE,
+                method='Get', args=[cs.OBSERVER, 'Recover'])
         q.add_dbus_method_impl(self.GetAll_Handler,
                 path=self.object_path,
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
@@ -654,6 +658,9 @@ class SimulatedClient(object):
 
     def release_name(self):
         del self._bus_name_ref
+
+    def reacquire_name(self):
+        self._bus_name_ref = dbus.service.BusName(self.bus_name, self.bus)
 
     def get_interfaces(self):
         ret = dbus.Array([], signature='s', variant_level=1)
@@ -682,7 +689,10 @@ class SimulatedClient(object):
 
     def GetAll_Observer(self, e):
         assert self.observe
-        self.q.dbus_return(e.message, {'ObserverChannelFilter': self.observe},
+        self.q.dbus_return(e.message, {
+            'ObserverChannelFilter': self.observe,
+            'Recover': self.wants_recovery,
+            },
                 signature='a{sv}', bus=self.bus)
 
     def Get_ObserverChannelFilter(self, e):
@@ -726,6 +736,11 @@ class SimulatedClient(object):
     def Get_BypassApproval(self, e):
         assert self.handle
         self.q.dbus_return(e.message, self.bypass_approval, signature='v',
+                bus=self.bus)
+
+    def Get_Recover(self, e):
+        assert self.handle
+        self.q.dbus_return(e.message, self.recover, signature='v',
                 bus=self.bus)
 
 def create_fakecm_account(q, bus, mc, params):

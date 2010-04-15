@@ -805,6 +805,9 @@ mcd_dispatcher_client_capabilities_changed_cb (McdClientProxy *client,
 static void mcd_dispatcher_client_gone_cb (McdClientProxy *client,
                                            McdDispatcher *self);
 
+static void mcd_dispatcher_client_needs_recovery_cb (McdClientProxy *client,
+                                                     McdDispatcher *self);
+
 static void
 mcd_dispatcher_discard_client (McdDispatcher *self,
                                McdClientProxy *client)
@@ -818,6 +821,9 @@ mcd_dispatcher_discard_client (McdDispatcher *self,
     g_signal_handlers_disconnect_by_func (client,
                                           mcd_dispatcher_client_gone_cb,
                                           self);
+
+    g_signal_handlers_disconnect_by_func (client,
+        mcd_dispatcher_client_needs_recovery_cb, self);
 }
 
 static void
@@ -825,6 +831,39 @@ mcd_dispatcher_client_gone_cb (McdClientProxy *client,
                                McdDispatcher *self)
 {
     mcd_dispatcher_discard_client (self, client);
+}
+
+static void
+mcd_dispatcher_client_needs_recovery_cb (McdClientProxy *client,
+                                         McdDispatcher *self)
+{
+    GList *channels =
+        _mcd_handler_map_get_handled_channels (self->priv->handler_map);
+    const GList *observer_filters;
+    GList *list;
+
+    DEBUG ("called");
+
+    observer_filters = _mcd_client_proxy_get_observer_filters (client);
+
+    for (list = channels; list; list = list->next)
+    {
+        TpChannel *channel = list->data;
+        GHashTable *properties;
+
+        properties = tp_channel_borrow_immutable_properties (channel);
+
+        if (_mcd_client_match_filters (properties, observer_filters,
+            FALSE))
+        {
+            const gchar *account_path =
+                _mcd_handler_map_get_channel_account (self->priv->handler_map,
+                    tp_proxy_get_object_path (channel));
+
+            _mcd_client_recover_observer (client, channel, account_path);
+        }
+
+    }
 }
 
 static void
@@ -843,6 +882,11 @@ mcd_dispatcher_client_added_cb (McdClientRegistry *clients,
     g_signal_connect (client, "handler-capabilities-changed",
                       G_CALLBACK (mcd_dispatcher_client_capabilities_changed_cb),
                       self);
+
+    g_signal_connect (client, "need-recovery",
+                      G_CALLBACK (mcd_dispatcher_client_needs_recovery_cb),
+                      self);
+
 }
 
 static void
@@ -1890,7 +1934,8 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
 
 void
 _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
-                                 McdChannel *channel)
+                                 McdChannel *channel,
+                                 const gchar *account_path)
 {
     McdDispatcherPrivate *priv;
     const gchar *path;
@@ -1920,7 +1965,7 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
         _mcd_channel_set_status (channel,
                                  MCD_CHANNEL_STATUS_DISPATCHED);
         _mcd_handler_map_set_channel_handled (priv->handler_map, tp_channel,
-                                              unique_name);
+                                              unique_name, account_path);
     }
     else
     {

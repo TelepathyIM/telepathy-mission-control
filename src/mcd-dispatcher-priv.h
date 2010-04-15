@@ -54,7 +54,8 @@ void _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
                                           McdChannel *request);
 G_GNUC_INTERNAL
 void _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
-                                      McdChannel *channel);
+                                      McdChannel *channel,
+                                      const gchar *account_path);
 
 G_GNUC_INTERNAL void _mcd_dispatcher_add_connection (McdDispatcher *self,
     McdConnection *connection);

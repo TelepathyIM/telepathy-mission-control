@@ -17,6 +17,9 @@ McProfile
 <!-- ##### SECTION Stability_Level ##### -->
 
 
+<!-- ##### SECTION Image ##### -->
+
+
 <!-- ##### ENUM McProfileCapabilityFlags ##### -->
 <para>
 
@@ -80,6 +83,7 @@ McProfile
 
 </para>
 
+@void: 
 
 
 <!-- ##### FUNCTION mc_profiles_list ##### -->
@@ -87,6 +91,7 @@ McProfile
 
 </para>
 
+@void: 
 @Returns: 
 
 
