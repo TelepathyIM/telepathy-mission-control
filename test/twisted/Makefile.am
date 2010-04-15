@@ -217,6 +217,7 @@ EXTRA_DIST = \
 	chandlers/README \
 	telepathy/clients/README \
 	telepathy/clients/AbiWord.client \
+	telepathy/clients/Logger.client \
 	telepathy/managers/fakecm.manager \
 	telepathy/managers/onewitheverything.manager \
 	telepathy/managers/README \
