@@ -639,6 +639,9 @@ _set (const McpAccountStorage *self,
 
   if (account != NULL)
     {
+      if (g_str_equal (key, "sso-services"))
+        return TRUE;
+
       if (g_str_has_prefix (key, PARAM_PREFIX_MC))
         save_param (account, key, val);
       else
@@ -713,6 +716,27 @@ _get (const McpAccountStorage *self,
           ag_account_select_service (account, NULL);
           v = ag_account_get_enabled (account) ? "true" : "false";
           mcp_account_manager_set_value (am, acct, key, v);
+        }
+      else if (g_str_equal (key, "sso-services"))
+        {
+          GString *result = g_string_new ("");
+          AgManager * agm = ag_account_get_manager (account);
+          GList *services = ag_manager_list_services (agm);
+          GList *srv = NULL;
+          gchar *slist = NULL;
+
+          for (srv = services; srv != NULL; srv = g_list_next (srv))
+            {
+              AgService *service = srv->data;
+              const gchar *name = ag_service_get_name (service);
+
+              g_string_append_printf (result, "%s;", name);
+            }
+
+          mcp_account_manager_set_value (am, acct, key, result->str);
+
+          ag_service_list_free (services);
+          g_string_free (result, TRUE);
         }
       else
         {
