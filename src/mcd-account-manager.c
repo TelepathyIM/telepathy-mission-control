@@ -47,7 +47,6 @@
 
 /* these pseudo-plugins take care of the actual account storage/retrieval */
 #include "mcd-account-manager-default.h"
-#include "mcd-account-manager-keyring.h"
 #if ENABLE_LIBACCOUNTS_SSO
 #include "mcd-account-manager-sso.h"
 #endif
@@ -340,16 +339,6 @@ add_libaccount_plugin_if_enabled (void)
 }
 
 static void
-add_gnome_keyring_plugin_if_enabled (void)
-{
-#if ENABLE_GNOME_KEYRING
-    McdAccountManagerKeyring *keyring = mcd_account_manager_keyring_new ();
-
-    stores = g_list_insert_sorted (stores, keyring, account_storage_cmp);
-#endif
-}
-
-static void
 sort_and_cache_plugins (McdAccountManager *self)
 {
     const GList *p;
@@ -363,7 +352,6 @@ sort_and_cache_plugins (McdAccountManager *self)
     stores = g_list_insert_sorted (stores, default_plugin, account_storage_cmp);
 
     /* now poke the pseudo-plugins into the sorted GList of storage plugins */
-    add_gnome_keyring_plugin_if_enabled ();
     add_libaccount_plugin_if_enabled ();
 
     for (p = mcp_list_objects(); p != NULL; p = g_list_next (p))
