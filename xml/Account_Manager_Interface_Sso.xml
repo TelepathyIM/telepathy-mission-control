@@ -54,7 +54,7 @@
         <p>Find an account by its SSO ID</p>
       </tp:docstring>
 
-      <arg direction="in" name="ID" type="s">
+      <arg direction="in" name="ID" type="u">
         <tp:docstring><p>SSO Account ID</p></tp:docstring>
       </arg>
 

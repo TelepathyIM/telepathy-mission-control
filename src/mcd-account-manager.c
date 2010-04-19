@@ -73,10 +73,13 @@ static void account_manager_iface_init (TpSvcAccountManagerClass *iface,
 					gpointer iface_data);
 static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
 				   gpointer iface_data);
+static void sso_util_iface_init (McSvcAccountManagerTelepathySsoClass *iface,
+                                 gpointer data);
 
 static void _mcd_account_manager_constructed (GObject *obj);
 
 static const McdDBusProp account_manager_properties[];
+static const McdDBusProp sso_util_properties[];
 
 static gboolean plugins_cached = FALSE;
 static GList *stores = NULL;
@@ -88,6 +91,9 @@ static const McdInterfaceData account_manager_interfaces[] = {
     MCD_IMPLEMENT_IFACE (mc_svc_account_manager_interface_query_get_type,
 			 account_manager_query,
 			 MC_IFACE_ACCOUNT_MANAGER_INTERFACE_QUERY),
+    MCD_IMPLEMENT_IFACE (mc_svc_account_manager_telepathy_sso_get_type,
+             sso_util,
+             MC_IFACE_ACCOUNT_MANAGER_TELEPATHY_SSO),
     { G_TYPE_INVALID, }
 };
 
@@ -854,6 +860,163 @@ account_manager_iface_init (TpSvcAccountManagerClass *iface,
 }
 
 static void
+sso_util_get_service_accounts (McSvcAccountManagerTelepathySso *self,
+                               const gchar *in_Service,
+                               DBusGMethodInvocation *context)
+{
+    gsize len;
+    McdAccountManager *manager = MCD_ACCOUNT_MANAGER (self);
+    McdAccountManagerPrivate *priv = manager->priv;
+    GKeyFile *cache = priv->plugin_manager->keyfile;
+    GStrv accounts = g_key_file_get_groups (cache, &len);
+    const gchar *path = NULL;
+    GList *srv_accounts = NULL;
+    GPtrArray *paths = g_ptr_array_new ();
+
+    if (!plugins_cached)
+        sort_and_cache_plugins (manager);
+
+    if (len > 0 && accounts != NULL)
+    {
+        guint i = 0;
+        gchar *name;
+        McpAccountManager *ma = MCP_ACCOUNT_MANAGER (priv->plugin_manager);
+
+        for (name = accounts[i]; name != NULL; name = accounts[++i])
+        {
+            gchar *id =
+              g_key_file_get_string (cache, name, "libacct-uid", NULL);
+
+            if (id != NULL)
+            {
+                gchar *slist =
+                  g_key_file_get_string (cache, name, "sso-services", NULL);
+
+                if (slist == NULL)
+                {
+
+                    GList *store = g_list_last (stores);
+                    while (store != NULL)
+                    {
+                        McpAccountStorage *as = store->data;
+                        mcp_account_storage_get (as, ma, name, "sso-services");
+                        store = g_list_previous (store);
+                    }
+                    slist = g_key_file_get_string (cache, name,
+                                                   "sso-services", NULL);
+                }
+
+                if (slist != NULL)
+                {
+                    guint i;
+                    GStrv svcs = g_strsplit (slist, ";", 0);
+
+                    for (i = 0; svcs[i] != NULL; i++)
+                    {
+                        if (g_str_equal (in_Service, svcs[i]))
+                        {
+                            McdAccount *a =
+                              g_hash_table_lookup (priv->accounts, name);
+
+                            if (a != NULL)
+                                srv_accounts = g_list_prepend (srv_accounts, a);
+                        }
+                    }
+
+                    g_free (slist);
+                    g_strfreev (svcs);
+                }
+
+                g_free (id);
+            }
+        }
+    }
+
+    if (srv_accounts != NULL)
+    {
+        GList *account = srv_accounts;
+
+        for (; account != NULL; account = g_list_next (account))
+        {
+            const gchar *path = mcd_account_get_object_path (account->data);
+            g_ptr_array_add (paths, (gpointer) path);
+        }
+
+        g_list_free (srv_accounts);
+    }
+
+    mc_svc_account_manager_telepathy_sso_return_from_get_service_accounts (context, paths);
+
+    g_ptr_array_unref (paths);
+}
+
+static void
+sso_util_get_account (McSvcAccountManagerTelepathySso *self,
+                      const guint in_ID,
+                      DBusGMethodInvocation *context)
+{
+    gsize len;
+    McdAccountManager *manager = MCD_ACCOUNT_MANAGER (self);
+    McdAccountManagerPrivate *priv = manager->priv;
+    GKeyFile *cache = priv->plugin_manager->keyfile;
+    GStrv accounts = g_key_file_get_groups (cache, &len);
+    const gchar *path = NULL;
+
+    if (len > 0 && accounts != NULL)
+    {
+        guint i = 0;
+        gchar *name;
+        McdAccount *account = NULL;
+        gchar *str_id = g_strdup_printf ("%u", in_ID);
+
+        for (name = accounts[i]; name != NULL; name = accounts[++i])
+        {
+            gchar *id =
+              g_key_file_get_string (cache, name, "libacct-uid", NULL);
+
+            if (id != NULL && g_str_equal (id, str_id))
+            {
+                account = g_hash_table_lookup (priv->accounts, name);
+                break;
+            }
+        }
+
+        if (account != NULL)
+            path = mcd_account_get_object_path (account);
+
+        g_free (str_id);
+    }
+
+    if (path != NULL)
+    {
+        mc_svc_account_manager_telepathy_sso_return_from_get_account (context,
+                                                                      path);
+    }
+    else
+    {
+        GError *error = g_error_new (TP_TYPE_ERROR,
+                                     TP_ERROR_DOES_NOT_EXIST,
+                                     "SSO ID %u Not Found", in_ID);
+
+        dbus_g_method_return_error (context, error);
+
+        g_error_free (error);
+    }
+
+    g_strfreev (accounts);
+}
+
+static void
+sso_util_iface_init (McSvcAccountManagerTelepathySsoClass *iface, gpointer data)
+{
+#define IMPLEMENT(x) \
+mc_svc_account_manager_telepathy_sso_implement_##x (iface, sso_util_##x)
+    IMPLEMENT (get_account);
+    IMPLEMENT (get_service_accounts);
+#undef IMPLEMENT
+}
+
+static void
 accounts_to_gvalue (GHashTable *accounts, gboolean valid, GValue *value)
 {
     static GType ao_type = G_TYPE_INVALID;
@@ -932,6 +1095,10 @@ static const McdDBusProp account_manager_properties[] = {
     { "Interfaces", NULL, mcd_dbus_get_interfaces },
     { "SupportedAccountProperties", NULL, get_supported_account_properties },
     { 0 },
+};
+
+static const McdDBusProp sso_util_properties[] = {
+    { NULL, NULL, NULL },
 };
 
 static void
