@@ -20,6 +20,7 @@
  */
 
 #include "config.h"
+#include <string.h>
 #include "mcd-account-manager-default.h"
 #include "mcd-debug.h"
 
@@ -27,6 +28,282 @@
 #define PLUGIN_PRIORITY MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_DEFAULT
 #define PLUGIN_DESCRIPTION "GKeyFile (default) account storage backend"
 #define INITIAL_CONFIG "# Telepathy accounts\n"
+
+#if ENABLE_GNOME_KEYRING
+#include <gnome-keyring.h>
+
+GnomeKeyringPasswordSchema keyring_schema =
+  { GNOME_KEYRING_ITEM_GENERIC_SECRET,
+    { { "account", GNOME_KEYRING_ATTRIBUTE_TYPE_STRING },
+      { "param",   GNOME_KEYRING_ATTRIBUTE_TYPE_STRING },
+      { NULL,      0 } } };
+
+typedef struct
+{
+  gchar *acct;
+  gchar *name;
+  gboolean set;
+} KeyringSetData;
+
+static void
+_keyring_set_cb (GnomeKeyringResult result,
+    gpointer data)
+{
+  KeyringSetData *ksd = data;
+
+  if (result != GNOME_KEYRING_RESULT_OK)
+    g_warning ("failed to save %s.%s : %s", ksd->acct, ksd->name,
+        gnome_keyring_result_to_message (result));
+  else
+    DEBUG ("%s %s.%s in gnome keyring",
+        ksd->set ? "saved" : "deleted",
+        ksd->acct,
+        ksd->name);
+
+  g_free (ksd->acct);
+  g_free (ksd->name);
+  g_slice_free(KeyringSetData, ksd);
+}
+
+static void
+_delete_from_keyring (const McpAccountStorage *self,
+    const McpAccountManager *am,
+    const gchar *acct,
+    const gchar *key)
+{
+  McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
+
+  if (key == NULL)
+    {
+      /* flag the whole account as purged */
+      gchar *removed = g_strdup (acct);
+      g_hash_table_insert (amd->removed_accounts, removed, removed);
+    }
+  else
+    {
+      /* remember to forget this one param */
+      g_key_file_set_value (amd->removed, acct, key, "");
+    }
+}
+
+static void
+_keyring_remove_account (const McpAccountStorage *self,
+    const McpAccountManager *am,
+    const gchar *acct)
+{
+  GList *i;
+  GList *items;
+  GnomeKeyringAttributeList *match = gnome_keyring_attribute_list_new ();
+  GnomeKeyringResult ok;
+
+  gnome_keyring_attribute_list_append_string (match, "account", acct);
+
+  ok = gnome_keyring_find_items_sync (GNOME_KEYRING_ITEM_GENERIC_SECRET,
+      match, &items);
+
+  if (ok != GNOME_KEYRING_RESULT_OK)
+    goto finished;
+
+  for (i = items; i != NULL; i = g_list_next (i))
+    {
+      GnomeKeyringFound *found = i->data;
+      gnome_keyring_item_delete_sync (found->keyring, found->item_id);
+    }
+
+ finished:
+  gnome_keyring_attribute_list_free (match);
+}
+
+static void
+_keyring_commit (const McpAccountStorage *self,
+    const McpAccountManager *am)
+{
+  McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
+
+  if (gnome_keyring_is_available ())
+    {
+      gsize n;
+      gsize i;
+      GStrv accts;
+      GHashTableIter account = { 0 };
+      gchar *acct = NULL;
+
+      /* purge any entirely removed accounts */
+      g_hash_table_iter_init (&account, amd->removed_accounts);
+
+      while (g_hash_table_iter_next (&account, (gpointer *) &acct, NULL))
+        _keyring_remove_account (self, am, (gchar *) acct);
+
+      g_hash_table_remove_all (amd->removed_accounts);
+
+      /* purge deleted parameters for remaining accounts */
+      accts = g_key_file_get_groups (amd->removed, &n);
+
+      for (i = 0; i < n; i++)
+        {
+          gsize j;
+          gsize k;
+          GStrv keys = g_key_file_get_keys (amd->secrets, accts[i], &k, NULL);
+
+          for (j = 0; j < k; j++)
+            {
+              KeyringSetData *ksd = g_slice_new0 (KeyringSetData);
+
+              ksd->acct = g_strdup (accts[i]);
+              ksd->name = g_strdup (keys[j]);
+              ksd->set = FALSE;
+
+              gnome_keyring_delete_password (&keyring_schema,
+                  _keyring_set_cb, ksd, NULL,
+                  "account", accts[i],
+                  "param", keys[j],
+                  NULL);
+            }
+
+          g_strfreev (keys);
+        }
+
+      g_strfreev (accts);
+
+      /* forget about all the purged params completely */
+      g_key_file_load_from_data (amd->removed, "#\n", -1, 0, NULL);
+
+      /* ok, now write out the values for the accounts we have: */
+      accts = g_key_file_get_groups (amd->secrets, &n);
+
+      for (i = 0; i < n; i++)
+        {
+          gsize j;
+          gsize k;
+          GStrv keys = g_key_file_get_keys (amd->secrets, accts[i], &k, NULL);
+
+          for (j = 0; j < k; j++)
+            {
+              gchar *name = g_strdup_printf ("account: %s; param: %s",
+                  accts[i], keys[j]);
+              gchar *val = g_key_file_get_value (amd->secrets,
+                  accts[i], keys[j], NULL);
+              gchar *key = keys[j];
+              KeyringSetData *ksd = g_slice_new0 (KeyringSetData);
+
+              /* for compatibility with old gnome keyring code we must strip  *
+               * the param- prefix from the name before saving to the keyring */
+              if (g_str_has_prefix (key, "param-"))
+                key += strlen ("param-");
+
+              ksd->acct = g_strdup (accts[i]);
+              ksd->name = g_strdup (keys[j]);
+              ksd->set = TRUE;
+
+              gnome_keyring_store_password (&keyring_schema, NULL,
+                  name, val, _keyring_set_cb, ksd, NULL,
+                  "account", accts[i],
+                  "param", key,
+                  NULL);
+
+              g_free (val);
+              g_free (name);
+            }
+
+          g_strfreev (keys);
+        }
+
+      g_strfreev (accts);
+    }
+}
+
+static void
+_get_secrets_from_keyring (const McpAccountStorage *self,
+    const McpAccountManager *am,
+    const gchar *account)
+{
+  McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
+  GnomeKeyringResult ok = GNOME_KEYRING_RESULT_NO_KEYRING_DAEMON;
+  GnomeKeyringAttributeList *match = gnome_keyring_attribute_list_new ();
+  GList *items = NULL;
+  GList *i;
+
+  gnome_keyring_attribute_list_append_string (match, "account", account);
+
+  ok = gnome_keyring_find_items_sync (GNOME_KEYRING_ITEM_GENERIC_SECRET,
+      match, &items);
+
+  if (ok != GNOME_KEYRING_RESULT_OK)
+    goto finished;
+
+  for (i = items; i != NULL; i = g_list_next (i))
+    {
+      gsize j;
+      GnomeKeyringFound *entry = i->data;
+      GnomeKeyringAttributeList *data = entry->attributes;
+
+      for (j = 0; j < data->len; j++)
+        {
+          GnomeKeyringAttribute *attr =
+            &(gnome_keyring_attribute_list_index (data, j));
+          const gchar *name = attr->name;
+          const gchar *value = NULL;
+          const gchar *param = NULL;
+
+          switch (attr->type)
+            {
+              case GNOME_KEYRING_ATTRIBUTE_TYPE_STRING:
+                if (g_strcmp0 ("param", name) == 0)
+                  {
+                    param = attr->value.string;
+                    value = entry->secret;
+                  }
+                break;
+
+              default:
+                g_warning ("Unsupported value type for %s.%s", account, name);
+            }
+
+          if (param != NULL && value != NULL)
+            {
+              gchar *key = g_strdup_printf ("param-%s", param);
+
+              g_key_file_set_string (amd->secrets, account, key, value);
+              mcp_account_manager_parameter_make_secret (am, account, key);
+
+              g_free (key);
+            }
+        }
+    }
+
+  gnome_keyring_found_list_free (items);
+
+ finished:
+  gnome_keyring_attribute_list_free (match);
+}
+
+#else
+
+static void
+_delete_from_keyring (const McpAccountStorage *self,
+    const McpAccountManager *am,
+    const gchar *acct,
+    const gchar *key)
+{
+  return;
+}
+
+static void
+_keyring_commit (const McpAccountStorage *self,
+    const McpAccountManager *am)
+{
+  return;
+}
+
+static void
+_get_secrets_from_keyring (const McpAccountStorage *self,
+    const McpAccountManager *am,
+    const gchar *account)
+{
+  return;
+}
+
+#endif
 
 static void account_storage_iface_init (McpAccountStorageIface *,
     gpointer);
@@ -61,6 +338,10 @@ mcd_account_manager_default_init (McdAccountManagerDefault *self)
   DEBUG ("mcd_account_manager_default_init");
   self->filename = get_account_conf_filename ();
   self->keyfile = g_key_file_new ();
+  self->secrets = g_key_file_new ();
+  self->removed = g_key_file_new ();
+  self->removed_accounts =
+    g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
   self->save = FALSE;
   self->loaded = FALSE;
 }
@@ -100,7 +381,24 @@ _set (const McpAccountStorage *self,
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
 
   amd->save = TRUE;
+
+#if ENABLE_GNOME_KEYRING
+  /* if we have a keyring, secrets are segregated */
+  if (mcp_account_manager_parameter_is_secret (am, acct, key))
+    g_key_file_set_string (amd->secrets, acct, key, val);
+  else
+    g_key_file_set_string (amd->keyfile, acct, key, val);
+
+  /* if we removed the account before, it now exists again, so... */
+  g_hash_table_remove (amd->removed_accounts, acct);
+
+  /* likewise the param should no longer be on the deleted list */
+  g_key_file_remove_key (amd->removed, acct, key, NULL);
+#else
+
   g_key_file_set_string (amd->keyfile, acct, key, val);
+
+#endif
 
   return TRUE;
 }
@@ -115,7 +413,18 @@ _get (const McpAccountStorage *self,
 
   if (key != NULL)
     {
-      gchar *v = g_key_file_get_string (amd->keyfile, acct, key, NULL);
+      gchar *v = NULL;
+
+#if ENABLE_GNOME_KEYRING
+      if (mcp_account_manager_parameter_is_secret (am, acct, key))
+        v = g_key_file_get_string (amd->secrets, acct, key, NULL);
+
+      /* fall back to public source if secret was not in keyring */
+      if (v == NULL)
+        v = g_key_file_get_string (amd->keyfile, acct, key, NULL);
+#else
+      v = g_key_file_get_string (amd->keyfile, acct, key, NULL);
+#endif
 
       if (v == NULL)
         return FALSE;
@@ -132,12 +441,33 @@ _get (const McpAccountStorage *self,
       for (i = 0; i < n; i++)
         {
           gchar *v = g_key_file_get_string (amd->keyfile, acct, keys[i], NULL);
+
           if (v != NULL)
             mcp_account_manager_set_value (am, acct, keys[i], v);
+
           g_free (v);
         }
 
       g_strfreev (keys);
+
+#if ENABLE_GNOME_KEYRING
+      keys = g_key_file_get_keys (amd->secrets, acct, &n, NULL);
+
+      for (i = 0; i < n; i++)
+        {
+          gchar *v = g_key_file_get_string (amd->secrets, acct, keys[i], NULL);
+
+          if (v != NULL)
+            {
+              mcp_account_manager_set_value (am, acct, keys[i], v);
+              mcp_account_manager_parameter_make_secret (am, acct, keys[i]);
+            }
+
+          g_free (v);
+        }
+
+      g_strfreev (keys);
+#endif
     }
 
   return TRUE;
@@ -155,18 +485,41 @@ _delete (const McpAccountStorage *self,
     {
       if (g_key_file_remove_group (amd->keyfile, acct, NULL))
         amd->save = TRUE;
+      _delete_from_keyring (self, am, acct, NULL);
     }
   else
     {
       gsize n;
       GStrv keys;
+      gboolean save = FALSE;
 
-      if (g_key_file_remove_key (amd->keyfile, acct, key, NULL))
+#if ENABLE_GNOME_KEYRING
+      if (mcp_account_manager_parameter_is_secret (am, acct, key))
+        save = g_key_file_remove_key (amd->secrets, acct, key, NULL);
+      else
+        save = g_key_file_remove_key (amd->keyfile, acct, key, NULL);
+#else
+      save = g_key_file_remove_key (amd->keyfile, acct, key, NULL);
+#endif
+
+      if (save)
         amd->save = TRUE;
+
       keys = g_key_file_get_keys (amd->keyfile, acct, &n, NULL);
 
+      /* if that was the last parameter, the account is gone too:  *
+       * note that secret parameters don't keep an account alive - *
+       * when the last public param dies, the account dies with it */
       if (keys == NULL || n == 0)
-        g_key_file_remove_group (amd->keyfile, acct, NULL);
+        {
+          g_key_file_remove_group (amd->secrets, acct, NULL);
+          g_key_file_remove_group (amd->keyfile, acct, NULL);
+          _delete_from_keyring (self, am, acct, NULL);
+        }
+      else if (mcp_account_manager_parameter_is_secret (am, acct, key))
+        {
+          _delete_from_keyring (self, am, acct, key);
+        }
 
       g_strfreev (keys);
     }
@@ -195,6 +548,8 @@ _commit (const McpAccountStorage *self,
   amd->save = !rval;
   g_free (data);
 
+  _keyring_commit (self, am);
+
   return rval;
 }
 
@@ -218,7 +573,10 @@ _list (const McpAccountStorage *self,
   accounts = g_key_file_get_groups (amd->keyfile, &n);
 
   for (i = 0; i < n; i++)
-    rval = g_list_prepend (rval, g_strdup (accounts[i]));
+    {
+      _get_secrets_from_keyring (self, am, accounts[i]);
+      rval = g_list_prepend (rval, g_strdup (accounts[i]));
+    }
 
   g_strfreev (accounts);
 
