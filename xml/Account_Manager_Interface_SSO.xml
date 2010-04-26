@@ -50,7 +50,7 @@
     </method>
 
     <method name="GetAccount" tp:name-for-bindings="Get_Account">
-      <tp:docstring xmlns="http://www.w32.org/1999/xhtml">
+      <tp:docstring xmlns="http://www.w3c.org/1999/xhtml">
         <p>Find an account by its SSO ID</p>
       </tp:docstring>
 
