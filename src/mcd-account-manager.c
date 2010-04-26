@@ -969,24 +969,27 @@ sso_get_account (McSvcAccountManagerInterfaceSSO *iface,
         guint i = 0;
         gchar *name;
         McdAccount *account = NULL;
-        gchar *str_id = g_strdup_printf ("%u", in_ID);
 
         for (name = accounts[i]; name != NULL; name = accounts[++i])
         {
-            gchar *id =
+            gchar *str_id =
               g_key_file_get_string (cache, name, "libacct-uid", NULL);
+            guint64 sso_id = g_ascii_strtoull (str_id, NULL, 10);
 
-            if (id != NULL && g_str_equal (id, str_id))
+            if (sso_id != 0 && id != 0)
             {
-                account = g_hash_table_lookup (priv->accounts, name);
-                break;
+                if (id == sso_id)
+                {
+                    account = g_hash_table_lookup (priv->accounts, name);
+                    break;
+                }
             }
+
+            g_free (str_id);
         }
 
         if (account != NULL)
             path = mcd_account_get_object_path (account);
-
-        g_free (str_id);
     }
 
     if (path != NULL)
