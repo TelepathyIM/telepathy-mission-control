@@ -30,7 +30,7 @@
 
 /* auto-generated stubs */
 #include "_gen/svc-Account_Manager_Interface_Query.h"
-#include "_gen/svc-Account_Manager_Interface_Sso.h"
+#include "_gen/svc-Account_Manager_Interface_SSO.h"
 
 G_BEGIN_DECLS
 

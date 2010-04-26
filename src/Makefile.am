@@ -50,8 +50,7 @@ mc_gen_headers = \
 	_gen/svc-Account_Interface_Conditions.h \
 	_gen/svc-Account_Interface_Stats.h \
 	_gen/svc-Account_Manager_Interface_Query.h \
-	_gen/svc-Account_Manager_Interface_Sso.h \
-	_gen/svc-Account_Interface_Sso.h
+	_gen/svc-Account_Manager_Interface_SSO.h
 
 nodist_libmcd_convenience_la_SOURCES = \
 	_gen/cli-Connection_Interface_Contact_Capabilities_Draft1-body.h \
@@ -65,8 +64,7 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/svc-Account_Interface_Conditions.c \
 	_gen/svc-Account_Interface_Stats.c \
 	_gen/svc-Account_Manager_Interface_Query.c \
-	_gen/svc-Account_Manager_Interface_Sso.c \
-	_gen/svc-Account_Interface_Sso.h \
+	_gen/svc-Account_Manager_Interface_SSO.c \
 	mcd-enum-types.c \
 	mcd-enum-types.h \
 	mcd-signals-marshal.c \

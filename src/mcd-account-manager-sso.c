@@ -722,13 +722,11 @@ _get (const McpAccountStorage *self,
           GString *result = g_string_new ("");
           AgManager * agm = ag_account_get_manager (account);
           GList *services = ag_manager_list_services (agm);
-          GList *srv = NULL;
-          gchar *slist = NULL;
+          GList *item = NULL;
 
-          for (srv = services; srv != NULL; srv = g_list_next (srv))
+          for (item = services; item != NULL; item = g_list_next (item))
             {
-              AgService *service = srv->data;
-              const gchar *name = ag_service_get_name (service);
+              const gchar *name = ag_service_get_name (item->data);
 
               g_string_append_printf (result, "%s;", name);
             }

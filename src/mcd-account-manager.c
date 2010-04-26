@@ -73,13 +73,13 @@ static void account_manager_iface_init (TpSvcAccountManagerClass *iface,
 					gpointer iface_data);
 static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
 				   gpointer iface_data);
-static void sso_util_iface_init (McSvcAccountManagerTelepathySsoClass *iface,
-                                 gpointer data);
+static void sso_iface_init (McSvcAccountManagerInterfaceSSOClass *iface,
+                            gpointer data);
 
 static void _mcd_account_manager_constructed (GObject *obj);
 
 static const McdDBusProp account_manager_properties[];
-static const McdDBusProp sso_util_properties[];
+static const McdDBusProp sso_properties[];
 
 static gboolean plugins_cached = FALSE;
 static GList *stores = NULL;
@@ -91,9 +91,9 @@ static const McdInterfaceData account_manager_interfaces[] = {
     MCD_IMPLEMENT_IFACE (mc_svc_account_manager_interface_query_get_type,
 			 account_manager_query,
 			 MC_IFACE_ACCOUNT_MANAGER_INTERFACE_QUERY),
-    MCD_IMPLEMENT_IFACE (mc_svc_account_manager_telepathy_sso_get_type,
-             sso_util,
-             MC_IFACE_ACCOUNT_MANAGER_TELEPATHY_SSO),
+    MCD_IMPLEMENT_IFACE (mc_svc_account_manager_interface_sso_get_type,
+             sso,
+             MC_IFACE_ACCOUNT_MANAGER_INTERFACE_SSO),
     { G_TYPE_INVALID, }
 };
 
@@ -860,12 +860,12 @@ account_manager_iface_init (TpSvcAccountManagerClass *iface,
 }
 
 static void
-sso_util_get_service_accounts (McSvcAccountManagerTelepathySso *self,
-                               const gchar *in_Service,
-                               DBusGMethodInvocation *context)
+sso_get_service_accounts (McSvcAccountManagerInterfaceSSO *iface,
+                          const gchar *service,
+                          DBusGMethodInvocation *context)
 {
     gsize len;
-    McdAccountManager *manager = MCD_ACCOUNT_MANAGER (self);
+    McdAccountManager *manager = MCD_ACCOUNT_MANAGER (iface);
     McdAccountManagerPrivate *priv = manager->priv;
     GKeyFile *cache = priv->plugin_manager->keyfile;
     GStrv accounts = g_key_file_get_groups (cache, &len);
@@ -889,10 +889,10 @@ sso_util_get_service_accounts (McSvcAccountManagerTelepathySso *self,
 
             if (id != NULL)
             {
-                gchar *slist =
+                gchar *supported =
                   g_key_file_get_string (cache, name, "sso-services", NULL);
 
-                if (slist == NULL)
+                if (supported == NULL)
                 {
 
                     GList *store = g_list_last (stores);
@@ -902,18 +902,18 @@ sso_util_get_service_accounts (McSvcAccountManagerTelepathySso *self,
                         mcp_account_storage_get (as, ma, name, "sso-services");
                         store = g_list_previous (store);
                     }
-                    slist = g_key_file_get_string (cache, name,
-                                                   "sso-services", NULL);
+                    supported = g_key_file_get_string (cache, name,
+                                                       "sso-services", NULL);
                 }
 
-                if (slist != NULL)
+                if (supported != NULL)
                 {
                     guint i;
-                    GStrv svcs = g_strsplit (slist, ";", 0);
+                    GStrv services = g_strsplit (supported, ";", 0);
 
-                    for (i = 0; svcs[i] != NULL; i++)
+                    for (i = 0; services[i] != NULL; i++)
                     {
-                        if (g_str_equal (in_Service, svcs[i]))
+                        if (g_str_equal (service, services[i]))
                         {
                             McdAccount *a =
                               g_hash_table_lookup (priv->accounts, name);
@@ -923,8 +923,8 @@ sso_util_get_service_accounts (McSvcAccountManagerTelepathySso *self,
                         }
                     }
 
-                    g_free (slist);
-                    g_strfreev (svcs);
+                    g_free (supported);
+                    g_strfreev (services);
                 }
 
                 g_free (id);
@@ -945,18 +945,20 @@ sso_util_get_service_accounts (McSvcAccountManagerTelepathySso *self,
         g_list_free (srv_accounts);
     }
 
-    mc_svc_account_manager_telepathy_sso_return_from_get_service_accounts (context, paths);
+    mc_svc_account_manager_interface_sso_return_from_get_service_accounts (
+      context,
+      paths);
 
     g_ptr_array_unref (paths);
 }
 
 static void
-sso_util_get_account (McSvcAccountManagerTelepathySso *self,
-                      const guint in_ID,
-                      DBusGMethodInvocation *context)
+sso_get_account (McSvcAccountManagerInterfaceSSO *iface,
+                 const guint id,
+                 DBusGMethodInvocation *context)
 {
     gsize len;
-    McdAccountManager *manager = MCD_ACCOUNT_MANAGER (self);
+    McdAccountManager *manager = MCD_ACCOUNT_MANAGER (iface);
     McdAccountManagerPrivate *priv = manager->priv;
     GKeyFile *cache = priv->plugin_manager->keyfile;
     GStrv accounts = g_key_file_get_groups (cache, &len);
@@ -989,14 +991,14 @@ sso_util_get_account (McSvcAccountManagerTelepathySso *self,
 
     if (path != NULL)
     {
-        mc_svc_account_manager_telepathy_sso_return_from_get_account (context,
+        mc_svc_account_manager_interface_sso_return_from_get_account (context,
                                                                       path);
     }
     else
     {
         GError *error = g_error_new (TP_TYPE_ERROR,
                                      TP_ERROR_DOES_NOT_EXIST,
-                                     "SSO ID %u Not Found", in_ID);
+                                     "SSO ID %u Not Found", id);
 
         dbus_g_method_return_error (context, error);
 
@@ -1007,10 +1009,10 @@ sso_util_get_account (McSvcAccountManagerTelepathySso *self,
 }
 
 static void
-sso_util_iface_init (McSvcAccountManagerTelepathySsoClass *iface, gpointer data)
+sso_iface_init (McSvcAccountManagerInterfaceSSOClass *iface, gpointer data)
 {
 #define IMPLEMENT(x) \
-mc_svc_account_manager_telepathy_sso_implement_##x (iface, sso_util_##x)
+mc_svc_account_manager_interface_sso_implement_##x (iface, sso_##x)
     IMPLEMENT (get_account);
     IMPLEMENT (get_service_accounts);
 #undef IMPLEMENT
@@ -1097,7 +1099,7 @@ static const McdDBusProp account_manager_properties[] = {
     { 0 },
 };
 
-static const McdDBusProp sso_util_properties[] = {
+static const McdDBusProp sso_properties[] = {
     { NULL, NULL, NULL },
 };
 
