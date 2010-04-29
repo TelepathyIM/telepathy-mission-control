@@ -142,6 +142,7 @@ struct _McdAccountPrivate
     guint has_been_online : 1;
     guint removed : 1;
     guint always_on : 1;
+    guint changing_presence : 1;
 
     /* These fields are used to cache the changed properties */
     gboolean properties_frozen;
@@ -847,6 +848,11 @@ mcd_account_request_presence_int (McdAccount *account,
             DEBUG ("%s not Valid", priv->unique_name);
             return changed;
         }
+    }
+
+    if (changed)
+    {
+        _mcd_account_set_changing_presence (account, TRUE);
     }
 
     if (priv->connection == NULL)
@@ -1613,6 +1619,17 @@ get_requested_presence (TpSvcDBusProperties *self,
 }
 
 static void
+get_changing_presence (TpSvcDBusProperties *self,
+                       const gchar *name, GValue *value)
+{
+    McdAccount *account = MCD_ACCOUNT (self);
+    McdAccountPrivate *priv = account->priv;
+
+    g_value_init (value, G_TYPE_BOOLEAN);
+    g_value_set_boolean (value, priv->changing_presence);
+}
+
+static void
 get_normalized_name (TpSvcDBusProperties *self,
 		     const gchar *name, GValue *value)
 {
@@ -1636,6 +1653,7 @@ static const McdDBusProp account_properties[] = {
     { "ConnectionStatusReason", NULL, get_connection_status_reason },
     { "CurrentPresence", NULL, get_current_presence },
     { "RequestedPresence", set_requested_presence, get_requested_presence },
+    { "ChangingPresence", NULL, get_changing_presence },
     { "NormalizedName", NULL, get_normalized_name },
     { "HasBeenOnline", NULL, get_has_been_online },
     { 0 },
@@ -2712,6 +2730,8 @@ mcd_account_init (McdAccount *account)
     priv->enabled = FALSE;
     priv->connect_automatically = FALSE;
 
+    priv->changing_presence = FALSE;
+
     priv->auto_presence_type = TP_CONNECTION_PRESENCE_TYPE_AVAILABLE;
     priv->auto_presence_status = g_strdup ("available");
     priv->auto_presence_message = g_strdup ("");
@@ -2945,6 +2965,11 @@ on_conn_self_presence_changed (McdConnection *connection,
 	g_free (priv->curr_presence_message);
 	priv->curr_presence_message = g_strdup (message);
 	changed = TRUE;
+    }
+
+    if (_mcd_connection_presence_info_is_ready (connection))
+    {
+        _mcd_account_set_changing_presence (account, FALSE);
     }
 
     if (!changed) return;
@@ -3759,6 +3784,8 @@ _mcd_account_request_temporary_presence (McdAccount *self,
 {
     if (self->priv->connection != NULL)
     {
+        _mcd_account_set_changing_presence (self, TRUE);
+
         _mcd_connection_request_presence (self->priv->connection,
                                           type, status, "");
     }
@@ -3855,4 +3882,21 @@ mcd_account_parameter_is_secret (McdAccount *self, const gchar *name)
 
     return (param != NULL &&
         (param->flags & TP_CONN_MGR_PARAM_FLAG_SECRET) != 0);
+}
+
+void
+_mcd_account_set_changing_presence (McdAccount *self, gboolean value)
+{
+    McdAccountPrivate *priv = self->priv;
+    GValue changing_presence = { 0 };
+
+    priv->changing_presence = value;
+
+    g_value_init (&changing_presence, G_TYPE_BOOLEAN);
+    g_value_set_boolean (&changing_presence, value);
+
+    mcd_account_changed_property (self, "ChangingPresence",
+                                  &changing_presence);
+
+    g_value_unset (&changing_presence);
 }

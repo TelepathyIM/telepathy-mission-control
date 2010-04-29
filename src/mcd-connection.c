@@ -139,6 +139,9 @@ struct _McdConnectionPrivate
     /* FALSE until mcd_connection_close() is called */
     guint closed : 1;
 
+    /* FALSE until connected and the supported presence statuses retrieved */
+    guint presence_info_ready : 1;
+
     gchar *alias;
 
     gboolean is_disposed;
@@ -201,6 +204,8 @@ presence_set_status_cb (TpConnection *proxy, const GError *error,
 
     if (error)
     {
+        _mcd_account_set_changing_presence (priv->account, FALSE);
+
         g_warning ("%s: Setting presence of %s failed: %s",
 		   G_STRFUNC, mcd_account_get_unique_name (priv->account),
                    error->message);
@@ -312,8 +317,23 @@ _mcd_connection_set_presence (McdConnection * connection,
 
     if (_check_presence (priv, presence, &adj_status))
     {
+        TpConnectionPresenceType curr_presence;
+        const gchar *curr_status;
+        const gchar *curr_message;
+
         DEBUG ("Setting status '%s' of type %u ('%s' was requested)",
                adj_status, presence, status);
+
+        mcd_account_get_current_presence (priv->account, &curr_presence,
+                                          &curr_status, &curr_message);
+        if (curr_presence == presence &&
+            tp_strdiff (curr_status, adj_status) == 0 &&
+            tp_strdiff (curr_message, message) == 0)
+        {
+            // PresencesChanged won't be emitted and Account.ChangingPresence
+            // will never go to FALSE, so forcibly set it to FALSE
+            _mcd_account_set_changing_presence (priv->account, FALSE);
+        }
 
         tp_cli_connection_interface_simple_presence_call_set_presence
             (priv->tp_conn, -1, adj_status, message, presence_set_status_cb,
@@ -392,6 +412,11 @@ presence_get_statuses_cb (TpProxy *proxy, const GValue *v_statuses,
     /* Now the presence info is ready. We can set the presence */
     mcd_account_get_requested_presence (priv->account, &presence,
                                         &status, &message);
+    if (priv->connected)
+    {
+        priv->presence_info_ready = TRUE;
+    }
+
     _mcd_connection_set_presence (connection, presence, status, message);
 }
 
@@ -2628,4 +2653,12 @@ _mcd_connection_is_ready (McdConnection *self)
 
     return (self->priv->tp_conn != NULL) &&
         tp_connection_is_ready (self->priv->tp_conn);
+}
+
+gboolean
+_mcd_connection_presence_info_is_ready (McdConnection *self)
+{
+    g_return_val_if_fail (MCD_IS_CONNECTION (self), FALSE);
+
+    return self->priv->presence_info_ready;
 }

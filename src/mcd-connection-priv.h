@@ -58,6 +58,8 @@ G_GNUC_INTERNAL void _mcd_connection_set_avatar (McdConnection *self,
 G_GNUC_INTERNAL void _mcd_connection_update_client_caps (McdConnection *self,
     GPtrArray *client_caps);
 
+G_GNUC_INTERNAL gboolean _mcd_connection_presence_info_is_ready (McdConnection *self);
+
 G_END_DECLS
 
 #endif
