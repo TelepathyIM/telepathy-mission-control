@@ -107,6 +107,8 @@ struct _McdAccountManagerPrivate
 
     gchar *account_connections_dir;  /* directory for temporary file */
     gchar *account_connections_file; /* in account_connections_dir */
+
+    gboolean dbus_registered;
 };
 
 typedef struct
@@ -1003,6 +1005,7 @@ release_load_accounts_lock (McdLoadAccountsData *lad)
     g_return_if_fail (lad->account_lock > 0);
     lad->account_lock--;
     DEBUG ("called, count is now %d", lad->account_lock);
+
     if (lad->account_lock == 0)
     {
         register_dbus_service (lad->account_manager);
@@ -1106,6 +1109,9 @@ register_dbus_service (McdAccountManager *account_manager)
     DBusConnection *connection;
     GError *error = NULL;
 
+    if (priv->dbus_registered)
+        return;
+
     dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
     connection = dbus_g_connection_get_connection (dbus_connection);
 
@@ -1120,6 +1126,8 @@ register_dbus_service (McdAccountManager *account_manager)
         g_error_free (error);
         exit (1);
     }
+
+    priv->dbus_registered = TRUE;
 
     if (G_LIKELY (dbus_connection))
 	dbus_g_connection_register_g_object (dbus_connection,
