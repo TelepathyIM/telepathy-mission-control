@@ -648,7 +648,6 @@ _get (const McpAccountStorage *self,
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (self);
   AgAccount *account = get_ag_account (sso, am, acct, &id, FALSE);
   AgService *service = ag_account_get_selected_service (account);
-  const gchar *on = NULL;
 
   if (account == NULL)
     return FALSE;
@@ -701,6 +700,7 @@ _get (const McpAccountStorage *self,
       AgAccountSettingIter setting;
       const gchar *k;
       const GValue *v;
+      const gchar *on = NULL;
 
       /* pick the IM service if we haven't got one set */
       if (service == NULL)
