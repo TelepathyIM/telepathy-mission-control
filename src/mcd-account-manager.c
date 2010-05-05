@@ -570,6 +570,10 @@ add_account (McdAccountManager *account_manager, McdAccount *account,
     g_signal_connect (account, "removed", G_CALLBACK (on_account_removed),
 		      account_manager);
 
+    /* some reports indicate this doesn't always fire for async backend  *
+     * accounts: testing here hasn't shown this, but at least we will be *
+     * able to tell if this happens from MC debug logs now:              */
+    DEBUG ("account %s validity: %d", name, mcd_account_is_valid (account));
     /* if the account is already valid, synthesize a signal indicating that
      * it's been added */
     if (mcd_account_is_valid (account))
