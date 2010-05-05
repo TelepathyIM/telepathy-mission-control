@@ -129,8 +129,7 @@ static gboolean
 _ag_account_select_default_im_service (AgAccount *account)
 {
   gboolean have_im_service = FALSE;
-  GList *services = ag_account_list_services_by_type (account, "IM");
-  GList *first = g_list_first (services);
+  GList *first = ag_account_list_services_by_type (account, "IM");
 
   if (first != NULL && first->data != NULL)
     {
@@ -139,7 +138,7 @@ _ag_account_select_default_im_service (AgAccount *account)
       ag_account_select_service (account, first->data);
     }
 
-  ag_service_list_free (services);
+  ag_service_list_free (first);
 
   return have_im_service;
 }
