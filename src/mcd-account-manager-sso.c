@@ -498,7 +498,6 @@ save_param (AgAccount *account,
   gchar *param_key = NULL;
   gboolean global = FALSE;
   AgService *service = ag_account_get_selected_service (account);
-  const gchar *name = NULL;
 
   /* username and password are parameters in MC but not in AG: *
    * also it's 'username' in AG but 'account' in MC            */
@@ -515,8 +514,6 @@ save_param (AgAccount *account,
     ag_account_select_service (account, NULL);
   else if (service == NULL)
     _ag_account_select_default_im_service (account);
-
-  name = (service != NULL) ? ag_service_get_name (service) : "???";
 
   if (val != NULL)
     {
