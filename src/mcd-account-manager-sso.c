@@ -624,7 +624,7 @@ get_mc_key (const gchar *key)
 }
 
 static gchar *
-get_ag_key (const gchar *key)
+get_ag_param_key (const gchar *key)
 {
   if (g_str_equal (key, PARAM_PREFIX_MC MC_ACCOUNT_KEY))
     return g_strdup (AG_ACCOUNT_KEY);
@@ -664,7 +664,7 @@ _get (const McpAccountStorage *self,
         }
       else
         {
-          gchar *k = get_ag_key (key);
+          gchar *k = get_ag_param_key (key);
           GValue v = { 0 };
           AgSettingSource src = AG_SETTING_SOURCE_NONE;
 
