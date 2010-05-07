@@ -75,7 +75,7 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
     AgAccountId id,
     gboolean create);
 
-static gchar * get_mc_key (const gchar *key);
+static gchar * get_mc_param_key (const gchar *key);
 
 static void
 save_value (AgAccount *account,
@@ -392,7 +392,7 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
 
       while (ag_account_settings_iter_next (&setting, &k, &v))
         {
-          gchar *mc_key = get_mc_key (k);
+          gchar *mc_key = get_mc_param_key (k);
 
           if (mc_key != NULL && g_str_has_prefix (mc_key, PARAM_PREFIX_MC))
             {
@@ -413,7 +413,7 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
       ag_account_settings_iter_init (acct, &setting, NULL);
       while (ag_account_settings_iter_next (&setting, &k, &v))
         {
-          gchar *mc_key = get_mc_key (k);
+          gchar *mc_key = get_mc_param_key (k);
 
           if (mc_key != NULL && g_str_has_prefix (mc_key, PARAM_PREFIX_MC))
             {
@@ -616,10 +616,13 @@ _set (const McpAccountStorage *self,
   return FALSE;
 }
 
+/* get the MC parameter key corresponding to an SSO key          *
+ * note that not all MC parameters correspond to SSO parameters, *
+ * some correspond to values instead                             */
 static gchar *
-get_mc_key (const gchar *key)
+get_mc_param_key (const gchar *key)
 {
-  /* these two are paramaters in MC but not in AG */
+  /* these two are parameters in MC but not in AG */
   if (g_str_equal (key, AG_ACCOUNT_KEY))
     return g_strdup (PARAM_PREFIX_MC MC_ACCOUNT_KEY);
 
@@ -721,7 +724,7 @@ _get (const McpAccountStorage *self,
         {
           if (!_ag_key_is_global (k))
             {
-              gchar *mc_key = get_mc_key (k);
+              gchar *mc_key = get_mc_param_key (k);
               gchar *value = _gvalue_to_string (v);
 
               mcp_account_manager_set_value (am, acct, mc_key, value);
@@ -739,7 +742,7 @@ _get (const McpAccountStorage *self,
         {
           if (_ag_key_is_global (k))
             {
-              gchar *mc_key = get_mc_key (k);
+              gchar *mc_key = get_mc_param_key (k);
               gchar *value  = _gvalue_to_string (v);
 
               mcp_account_manager_set_value (am, acct, mc_key, value);
@@ -861,7 +864,7 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
                 {
                   if (!_ag_key_is_global (key))
                     {
-                      gchar *mc_key = get_mc_key (key);
+                      gchar *mc_key = get_mc_param_key (key);
                       gchar *value = _gvalue_to_string (val);
 
                       mcp_account_manager_set_value (am, name, mc_key, value);
@@ -877,7 +880,7 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
                 {
                   if (_ag_key_is_global (key))
                     {
-                      gchar *mc_key = get_mc_key (key);
+                      gchar *mc_key = get_mc_param_key (key);
                       gchar *value = _gvalue_to_string (val);
 
                       mcp_account_manager_set_value (am, name, mc_key, value);
