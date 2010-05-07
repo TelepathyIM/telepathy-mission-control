@@ -26,9 +26,19 @@
 #include <string.h>
 #include <ctype.h>
 
-/* there seems to be some problem with looking this up, since we only *
- * want to support GTalk for now, hardwire it:                        */
-#define SERVICE "google-talk"
+/* IMPORTANT IMPLEMENTATION NOTE:
+ *
+ * Note for implementors: save_param is for saving account parameters (in MC
+ * terms) - anything that ends up stored as "param-" in the standard gkeyfile
+ * save_value is for everything else.
+ *
+ * Whether such a value is stored in the global section of an SSO account or
+ * in the IM specific section is orthogonal to the above, and in the mapping
+ * is not necessarily from MC "name" to SSO "name", or from MC "param-name"
+ * to SSO "parameters/name" - so be careful when making such decisions.
+ *
+ * The existing mappings have been arrived at empirically.
+ */
 
 #define PLUGIN_PRIORITY (MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_KEYRING + 10)
 #define PLUGIN_NAME "maemo-libaccounts"
