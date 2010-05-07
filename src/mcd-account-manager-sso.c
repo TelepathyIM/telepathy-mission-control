@@ -130,6 +130,7 @@ _gvalue_to_string (const GValue *val)
     }
 }
 
+/* Is an AG key corresponding to an MC _parameter_ global? */
 static gboolean _ag_key_is_global (const gchar *key)
 {
   return g_str_equal (key, AG_ACCOUNT_KEY) || g_str_equal (key, PASSWORD_KEY);
@@ -631,6 +632,7 @@ _set (const McpAccountStorage *self,
 /* get the MC parameter key corresponding to an SSO key          *
  * note that not all MC parameters correspond to SSO parameters, *
  * some correspond to values instead                             */
+/* NOTE: value keys are passed through unchanged */
 static gchar *
 get_mc_param_key (const gchar *key)
 {
@@ -649,6 +651,7 @@ get_mc_param_key (const gchar *key)
 }
 
 /* get the SSO key corresponding to an MC parameter */
+/* NOTE: value keys are passed through unchanged */
 static gchar *
 get_ag_param_key (const gchar *key)
 {
