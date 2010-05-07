@@ -182,6 +182,28 @@ _ag_account_global_value (AgAccount *account,
   return src;
 }
 
+static AgSettingSource
+_ag_account_local_value (AgAccount *account,
+    const gchar *key,
+    GValue *value)
+{
+  AgSettingSource src = AG_SETTING_SOURCE_NONE;
+  AgService *service = ag_account_get_selected_service (account);
+
+  if (service != NULL)
+    {
+      src = ag_account_get_value (account, key, value);
+    }
+  else
+    {
+      _ag_account_select_default_im_service (account);
+      src = ag_account_get_value (account, key, value);
+      ag_account_select_service (account, NULL);
+    }
+
+  return src;
+}
+
 static void _sso_deleted (GObject *object,
     AgAccountId id,
     gpointer data)
@@ -303,7 +325,8 @@ _ag_account_stored_cb (AgAccount *acct, const GError *err, gpointer ignore)
   AgSettingSource src = AG_SETTING_SOURCE_NONE;
 
   g_value_init (&uid, G_TYPE_STRING);
-  src = _ag_account_global_value (acct, MC_IDENTITY_KEY, &uid);
+
+  src = _ag_account_local_value (acct, MC_IDENTITY_KEY, &uid);
 
   if (src != AG_SETTING_SOURCE_NONE && G_VALUE_HOLDS_STRING (&uid))
     {
@@ -332,7 +355,7 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
   g_value_init (&value, G_TYPE_STRING);
 
   /* first look for the stored TMC uid */
-  src = _ag_account_global_value (acct, MC_IDENTITY_KEY, &value);
+  src = _ag_account_local_value (acct, MC_IDENTITY_KEY, &value);
 
   /* if we found something, our work here is done: */
   if (src != AG_SETTING_SOURCE_NONE)
@@ -705,10 +728,7 @@ _get (const McpAccountStorage *self,
             }
           else
             {
-              if (service == NULL)
-                _ag_account_select_default_im_service (account);
-
-              src = ag_account_get_value (account, k, &v);
+              src = _ag_account_local_value (account, k, &v);
             }
 
           if (src != AG_SETTING_SOURCE_NONE)
