@@ -636,6 +636,7 @@ get_mc_param_key (const gchar *key)
   return g_strdup (key);
 }
 
+/* get the SSO key corresponding to an MC parameter */
 static gchar *
 get_ag_param_key (const gchar *key)
 {
