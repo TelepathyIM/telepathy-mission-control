@@ -135,6 +135,12 @@ static gboolean _ag_key_is_global (const gchar *key)
   return g_str_equal (key, AG_ACCOUNT_KEY) || g_str_equal (key, PASSWORD_KEY);
 }
 
+/* Is an AG key corresponding to an MC non-parameter service specific? */
+static gboolean _ag_value_is_local (const gchar *key)
+{
+  return g_str_equal (key, MC_IDENTITY_KEY);
+}
+
 static gboolean
 _ag_account_select_default_im_service (AgAccount *account)
 {
@@ -551,14 +557,21 @@ save_value (AgAccount *account,
     const gchar *val)
 {
   AgService *service = NULL;
+  gboolean local = FALSE;
 
   /* special cases, never saved */
   if (g_str_equal (key, MC_CMANAGER_KEY) || g_str_equal (key, MC_PROTOCOL_KEY))
     return;
 
-  /* values, unlike parameters, are global - not service specific */
+  /* values, unlike parameters, are _mostly_ global - not service specific */
   service = ag_account_get_selected_service (account);
-  ag_account_select_service (account, NULL);
+  local = _ag_value_is_local (key);
+
+  /* pick the right service/global section of SSO, and switch if necessary */
+  if (local && service == NULL)
+    _ag_account_select_default_im_service (account);
+  else if (!local && service != NULL)
+    ag_account_select_service (account, NULL);
 
   if (g_str_equal (key, "Enabled"))
     {
@@ -581,8 +594,7 @@ save_value (AgAccount *account,
 
  cleanup:
   /* leave the slected service as we found it */
-  if (service != NULL)
-    ag_account_select_service (account, service);
+  ag_account_select_service (account, service);
 }
 
 static gboolean
