@@ -160,6 +160,15 @@ account_storage_cmp (gconstpointer a, gconstpointer b)
     return 0;
 }
 
+static void
+async_created_validity_cb (McdAccount *account, gboolean valid, gpointer data)
+{
+    DEBUG ("asynchronously created account %s is %svalid",
+           mcd_account_get_unique_name (account), valid ? "in" : "");
+    /* safely cached in the accounts hash by now */
+    g_object_unref (account);
+}
+
 /* account created by an McpAccountStorage plugin after the initial setup   *
  * since the plugin does not have our GKeyFile, we need to poke the plugin  *
  * to fetch the named account explicitly at this point (ie it's a read, not *
@@ -197,9 +206,15 @@ created_cb (GObject *storage, const gchar *name, gpointer data)
     }
 
     lad->account_lock++;
+
+    /* add_account refs the account, we release our ref in the callback below */
     add_account (manager, account, mcp_account_storage_name (plugin));
+
     _mcd_account_load (account, account_loaded, lad);
-    g_object_unref (account);
+
+    /* this checks the account parameters and fires the dbus signal
+     * telling the world the account exists */
+    mcd_account_check_validity (account, async_created_validity_cb, NULL);
 
 finish:
     release_load_accounts_lock (lad);
