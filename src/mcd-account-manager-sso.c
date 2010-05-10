@@ -26,9 +26,19 @@
 #include <string.h>
 #include <ctype.h>
 
-/* there seems to be some problem with looking this up, since we only *
- * want to support GTalk for now, hardwire it:                        */
-#define SERVICE "google-talk"
+/* IMPORTANT IMPLEMENTATION NOTE:
+ *
+ * Note for implementors: save_param is for saving account parameters (in MC
+ * terms) - anything that ends up stored as "param-" in the standard gkeyfile
+ * save_value is for everything else.
+ *
+ * Whether such a value is stored in the global section of an SSO account or
+ * in the IM specific section is orthogonal to the above, and in the mapping
+ * is not necessarily from MC "name" to SSO "name", or from MC "param-name"
+ * to SSO "parameters/name" - so be careful when making such decisions.
+ *
+ * The existing mappings have been arrived at empirically.
+ */
 
 #define PLUGIN_PRIORITY (MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_KEYRING + 10)
 #define PLUGIN_NAME "maemo-libaccounts"
@@ -65,7 +75,7 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
     AgAccountId id,
     gboolean create);
 
-static gchar * get_mc_key (const gchar *key);
+static gchar * get_mc_param_key (const gchar *key);
 
 static void
 save_value (AgAccount *account,
@@ -120,9 +130,16 @@ _gvalue_to_string (const GValue *val)
     }
 }
 
+/* Is an AG key corresponding to an MC _parameter_ global? */
 static gboolean _ag_key_is_global (const gchar *key)
 {
   return g_str_equal (key, AG_ACCOUNT_KEY) || g_str_equal (key, PASSWORD_KEY);
+}
+
+/* Is an AG key corresponding to an MC non-parameter service specific? */
+static gboolean _ag_value_is_local (const gchar *key)
+{
+  return g_str_equal (key, MC_IDENTITY_KEY);
 }
 
 static gboolean
@@ -160,6 +177,28 @@ _ag_account_global_value (AgAccount *account,
   else
     {
       src = ag_account_get_value (account, key, value);
+    }
+
+  return src;
+}
+
+static AgSettingSource
+_ag_account_local_value (AgAccount *account,
+    const gchar *key,
+    GValue *value)
+{
+  AgSettingSource src = AG_SETTING_SOURCE_NONE;
+  AgService *service = ag_account_get_selected_service (account);
+
+  if (service != NULL)
+    {
+      src = ag_account_get_value (account, key, value);
+    }
+  else
+    {
+      _ag_account_select_default_im_service (account);
+      src = ag_account_get_value (account, key, value);
+      ag_account_select_service (account, NULL);
     }
 
   return src;
@@ -286,7 +325,8 @@ _ag_account_stored_cb (AgAccount *acct, const GError *err, gpointer ignore)
   AgSettingSource src = AG_SETTING_SOURCE_NONE;
 
   g_value_init (&uid, G_TYPE_STRING);
-  src = _ag_account_global_value (acct, MC_IDENTITY_KEY, &uid);
+
+  src = _ag_account_local_value (acct, MC_IDENTITY_KEY, &uid);
 
   if (src != AG_SETTING_SOURCE_NONE && G_VALUE_HOLDS_STRING (&uid))
     {
@@ -315,7 +355,7 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
   g_value_init (&value, G_TYPE_STRING);
 
   /* first look for the stored TMC uid */
-  src = _ag_account_global_value (acct, MC_IDENTITY_KEY, &value);
+  src = _ag_account_local_value (acct, MC_IDENTITY_KEY, &value);
 
   /* if we found something, our work here is done: */
   if (src != AG_SETTING_SOURCE_NONE)
@@ -382,7 +422,7 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
 
       while (ag_account_settings_iter_next (&setting, &k, &v))
         {
-          gchar *mc_key = get_mc_key (k);
+          gchar *mc_key = get_mc_param_key (k);
 
           if (mc_key != NULL && g_str_has_prefix (mc_key, PARAM_PREFIX_MC))
             {
@@ -403,7 +443,7 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
       ag_account_settings_iter_init (acct, &setting, NULL);
       while (ag_account_settings_iter_next (&setting, &k, &v))
         {
-          gchar *mc_key = get_mc_key (k);
+          gchar *mc_key = get_mc_param_key (k);
 
           if (mc_key != NULL && g_str_has_prefix (mc_key, PARAM_PREFIX_MC))
             {
@@ -541,14 +581,21 @@ save_value (AgAccount *account,
     const gchar *val)
 {
   AgService *service = NULL;
+  gboolean local = FALSE;
 
   /* special cases, never saved */
   if (g_str_equal (key, MC_CMANAGER_KEY) || g_str_equal (key, MC_PROTOCOL_KEY))
     return;
 
-  /* values, unlike parameters, are global - not service specific */
+  /* values, unlike parameters, are _mostly_ global - not service specific */
   service = ag_account_get_selected_service (account);
-  ag_account_select_service (account, NULL);
+  local = _ag_value_is_local (key);
+
+  /* pick the right service/global section of SSO, and switch if necessary */
+  if (local && service == NULL)
+    _ag_account_select_default_im_service (account);
+  else if (!local && service != NULL)
+    ag_account_select_service (account, NULL);
 
   if (g_str_equal (key, "Enabled"))
     {
@@ -571,8 +618,7 @@ save_value (AgAccount *account,
 
  cleanup:
   /* leave the slected service as we found it */
-  if (service != NULL)
-    ag_account_select_service (account, service);
+  ag_account_select_service (account, service);
 }
 
 static gboolean
@@ -606,10 +652,14 @@ _set (const McpAccountStorage *self,
   return FALSE;
 }
 
+/* get the MC parameter key corresponding to an SSO key          *
+ * note that not all MC parameters correspond to SSO parameters, *
+ * some correspond to values instead                             */
+/* NOTE: value keys are passed through unchanged */
 static gchar *
-get_mc_key (const gchar *key)
+get_mc_param_key (const gchar *key)
 {
-  /* these two are paramaters in MC but not in AG */
+  /* these two are parameters in MC but not in AG */
   if (g_str_equal (key, AG_ACCOUNT_KEY))
     return g_strdup (PARAM_PREFIX_MC MC_ACCOUNT_KEY);
 
@@ -623,8 +673,10 @@ get_mc_key (const gchar *key)
   return g_strdup (key);
 }
 
+/* get the SSO key corresponding to an MC parameter */
+/* NOTE: value keys are passed through unchanged */
 static gchar *
-get_ag_key (const gchar *key)
+get_ag_param_key (const gchar *key)
 {
   if (g_str_equal (key, PARAM_PREFIX_MC MC_ACCOUNT_KEY))
     return g_strdup (AG_ACCOUNT_KEY);
@@ -664,7 +716,7 @@ _get (const McpAccountStorage *self,
         }
       else
         {
-          gchar *k = get_ag_key (key);
+          gchar *k = get_ag_param_key (key);
           GValue v = { 0 };
           AgSettingSource src = AG_SETTING_SOURCE_NONE;
 
@@ -676,10 +728,7 @@ _get (const McpAccountStorage *self,
             }
           else
             {
-              if (service == NULL)
-                _ag_account_select_default_im_service (account);
-
-              src = ag_account_get_value (account, k, &v);
+              src = _ag_account_local_value (account, k, &v);
             }
 
           if (src != AG_SETTING_SOURCE_NONE)
@@ -711,7 +760,7 @@ _get (const McpAccountStorage *self,
         {
           if (!_ag_key_is_global (k))
             {
-              gchar *mc_key = get_mc_key (k);
+              gchar *mc_key = get_mc_param_key (k);
               gchar *value = _gvalue_to_string (v);
 
               mcp_account_manager_set_value (am, acct, mc_key, value);
@@ -729,7 +778,7 @@ _get (const McpAccountStorage *self,
         {
           if (_ag_key_is_global (k))
             {
-              gchar *mc_key = get_mc_key (k);
+              gchar *mc_key = get_mc_param_key (k);
               gchar *value  = _gvalue_to_string (v);
 
               mcp_account_manager_set_value (am, acct, mc_key, value);
@@ -851,7 +900,7 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
                 {
                   if (!_ag_key_is_global (key))
                     {
-                      gchar *mc_key = get_mc_key (key);
+                      gchar *mc_key = get_mc_param_key (key);
                       gchar *value = _gvalue_to_string (val);
 
                       mcp_account_manager_set_value (am, name, mc_key, value);
@@ -867,7 +916,7 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
                 {
                   if (_ag_key_is_global (key))
                     {
-                      gchar *mc_key = get_mc_key (key);
+                      gchar *mc_key = get_mc_param_key (key);
                       gchar *value = _gvalue_to_string (val);
 
                       mcp_account_manager_set_value (am, name, mc_key, value);
