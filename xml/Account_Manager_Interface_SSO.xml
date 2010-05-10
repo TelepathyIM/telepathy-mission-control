@@ -61,6 +61,14 @@
       <arg direction="out" name="Account" type="o">
         <tp:docstring>The account that matches the service</tp:docstring>
       </arg>
+
+      <tp:possible-errors>
+        <tp:error name="org.freedesktop.Telepathy.Error.DoesNotExist">
+          <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+            <p>The supplied SSO ID does not correspond to a known account</p>
+          </tp:docstring>
+        </tp:error>
+      </tp:possible-errors>
     </method>
 
   </interface>
