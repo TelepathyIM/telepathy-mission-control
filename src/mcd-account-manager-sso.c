@@ -475,8 +475,7 @@ static AgAccount *
 get_ag_account (const McdAccountManagerSso *sso,
     const McpAccountManager *am,
     const gchar *name,
-    AgAccountId *id,
-    gboolean create)
+    AgAccountId *id)
 {
   AgAccount *account;
   gchar *ident = NULL;
@@ -491,16 +490,9 @@ get_ag_account (const McdAccountManagerSso *sso,
       return account;
     }
 
-  if (!create)
-    {
-      *id = 0;
-      return NULL;
-    }
+  *id = 0;
 
-  /* we used to create accounts in libaccounts here, but no longer:      *
-   * it is now the sole responsibility of libaccounts to create accounts *
-   * that it should own.                                                 */
-  g_assert_not_reached ();
+  return NULL;
 }
 
 static void
@@ -604,7 +596,7 @@ _set (const McpAccountStorage *self,
 {
   AgAccountId id;
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (self);
-  AgAccount *account = get_ag_account (sso, am, acct, &id, FALSE);
+  AgAccount *account = get_ag_account (sso, am, acct, &id);
 
   /* we no longer create accounts in libaccount: either an account exists *
    * in libaccount as a result of some 3rd party intervention, or it is   *
@@ -675,7 +667,7 @@ _get (const McpAccountStorage *self,
 {
   AgAccountId id;
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (self);
-  AgAccount *account = get_ag_account (sso, am, acct, &id, FALSE);
+  AgAccount *account = get_ag_account (sso, am, acct, &id);
   AgService *service = ag_account_get_selected_service (account);
 
   if (account == NULL)
@@ -802,7 +794,7 @@ _delete (const McpAccountStorage *self,
 {
   AgAccountId id;
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (self);
-  AgAccount *account = get_ag_account (sso, am, acct, &id, FALSE);
+  AgAccount *account = get_ag_account (sso, am, acct, &id);
 
   /* have no values for this account, nothing to do here: */
   if (account == NULL)
