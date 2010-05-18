@@ -497,35 +497,10 @@ get_ag_account (const McdAccountManagerSso *sso,
       return NULL;
     }
 
-  /* we haven't seen this account before: prep it for libaccounts: */
-  ident = mcp_account_manager_get_value (am, name, LIBACCT_ID_KEY);
-
-  /* we have a cached sso ident: see if it's still valid: */
-  /* NOTE: no sso ident means there's no account yet, return NULL */
-  if (ident != NULL)
-    {
-      gchar *end;
-
-      *id = (AgAccountId) g_ascii_strtoull (ident, &end, 10);
-
-      if (!(*id == 0 && end == ident))
-        account = ag_manager_get_account (sso->ag_manager, *id);
-
-      /* bogus ID, forget we ever saw it: */
-      if (account == NULL)
-        {
-          mcp_account_manager_set_value (am, name, LIBACCT_ID_KEY, NULL);
-          *id = 0;
-        }
-      else
-        {
-          g_hash_table_insert (sso->accounts, g_strdup (name), account);
-        }
-    }
-
-  g_free (ident);
-
-  return account;
+  /* we used to create accounts in libaccounts here, but no longer:      *
+   * it is now the sole responsibility of libaccounts to create accounts *
+   * that it should own.                                                 */
+  g_assert_not_reached ();
 }
 
 static void
