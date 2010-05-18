@@ -168,6 +168,7 @@ account_storage_cmp (gconstpointer a, gconstpointer b)
     return 0;
 }
 
+/* callbacks for the various stages in an backend-driven account creation */
 static void
 async_created_validity_cb (McdAccount *account, gboolean valid, gpointer data)
 {
