@@ -170,7 +170,8 @@ static void
 async_created_validity_cb (McdAccount *account, gboolean valid, gpointer data)
 {
     DEBUG ("asynchronously created account %s is %svalid",
-           mcd_account_get_unique_name (account), valid ? "in" : "");
+           mcd_account_get_unique_name (account), valid ? "" : "in");
+
     /* safely cached in the accounts hash by now */
     g_object_unref (account);
 }
