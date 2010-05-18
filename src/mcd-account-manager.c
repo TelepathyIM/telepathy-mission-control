@@ -120,6 +120,8 @@ struct _McdAccountManagerPrivate
 typedef struct
 {
     McdAccountManager *account_manager;
+    McpAccountStorage *storage;
+    McdAccount *account;
     gint account_lock;
 } McdLoadAccountsData;
 
@@ -176,6 +178,36 @@ async_created_validity_cb (McdAccount *account, gboolean valid, gpointer data)
     g_object_unref (account);
 }
 
+static void
+async_created_manager_cb (McdManager *cm, GError *error, gpointer data)
+{
+    McdLoadAccountsData *lad = data;
+    McdAccount *account = lad->account;
+    McdAccountManager *am = lad->account_manager;
+    McpAccountStorage *plugin = lad->storage;
+    const gchar *name = NULL;
+
+    if (cm != NULL)
+        name = mcd_manager_get_name (cm);
+
+    if (error != NULL)
+        DEBUG ("manager %s not ready: %s", name, error->message);
+    else
+        DEBUG ("manager %s is ready", name);
+
+    /* this takes a ref to the account and stores it in the accounts hash */
+    add_account (am, account, mcp_account_storage_name (plugin));
+
+    /* this will free the McdLoadAccountsData, don't use it after this */
+    _mcd_account_load (account, account_loaded, lad);
+
+    /* this triggers the final parameter check which results in dbus signals *
+     * being fired and (potentially) the account going online automatically  */
+    mcd_account_check_validity (account, async_created_validity_cb, NULL);
+
+    g_object_unref (cm);
+}
+
 /* account created by an McpAccountStorage plugin after the initial setup   *
  * since the plugin does not have our GKeyFile, we need to poke the plugin  *
  * to fetch the named account explicitly at this point (ie it's a read, not *
@@ -184,20 +216,26 @@ static void
 created_cb (GObject *storage, const gchar *name, gpointer data)
 {
     McpAccountStorage *plugin = MCP_ACCOUNT_STORAGE (storage);
-    McdAccountManager *manager = MCD_ACCOUNT_MANAGER (data);
-    McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (manager);
-    McdAccountManagerClass *mclass = MCD_ACCOUNT_MANAGER_GET_CLASS (manager);
+    McdAccountManager *am = MCD_ACCOUNT_MANAGER (data);
+    McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (am);
+    McdAccountManagerClass *mclass = MCD_ACCOUNT_MANAGER_GET_CLASS (am);
     McdLoadAccountsData *lad = g_slice_new (McdLoadAccountsData);
     McdAccount *account = NULL;
     McdPluginAccountManager *pa = priv->plugin_manager;
-    lad->account_manager = manager;
+    McdMaster *master = mcd_master_get_default ();
+    McdManager *cm = NULL;
+    const gchar *cm_name = NULL;
+
+    lad->account_manager = am;
+    lad->storage = plugin;
     lad->account_lock = 1; /* will be released at the end of this function */
 
     /* actually fetch the data into our GKeyFile from the plugin: */
     DEBUG ("-> mcp_account_storage_get");
     if (mcp_account_storage_get (plugin, MCP_ACCOUNT_MANAGER (pa), name, NULL))
     {
-        account = mclass->account_new (manager, name);
+        account = mclass->account_new (am, name);
+        lad->account = account;
     }
     else
     {
@@ -212,16 +250,17 @@ created_cb (GObject *storage, const gchar *name, gpointer data)
         goto finish;
     }
 
-    lad->account_lock++;
+    cm_name = mcd_account_get_manager_name (account);
 
-    /* add_account refs the account, we release our ref in the callback below */
-    add_account (manager, account, mcp_account_storage_name (plugin));
+    if (cm_name != NULL)
+        cm = _mcd_master_lookup_manager (master, cm_name);
 
-    _mcd_account_load (account, account_loaded, lad);
-
-    /* this checks the account parameters and fires the dbus signal
-     * telling the world the account exists */
-    mcd_account_check_validity (account, async_created_validity_cb, NULL);
+    if (cm != NULL)
+    {
+        lad->account_lock++;
+        g_object_ref (cm);
+        mcd_manager_call_when_ready (cm, async_created_manager_cb, lad);
+    }
 
 finish:
     release_load_accounts_lock (lad);
