@@ -258,6 +258,7 @@ static void _sso_created (GObject *object,
 
           if (account != NULL)
             {
+              /* this will be owned by the ag account hash, do not free it */
               name = _ag_accountid_to_mc_key (sso, id, TRUE);
 
               if (name != NULL)
@@ -276,8 +277,6 @@ static void _sso_created (GObject *object,
                 {
                   DEBUG ("SSO account #%u is unnameable, ignoring it", id);
                 }
-
-              g_free (name);
             }
         }
     }
