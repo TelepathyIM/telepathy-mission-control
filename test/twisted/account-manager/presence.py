@@ -80,9 +80,14 @@ def test(q, bus, mc):
                         e.args[0].get('CurrentPresence') == presence),
                 ])
 
-    # The events before Connect must happen in this order
-    assert log == ['GetInterfaces', 'Get(Statuses)[1]', 'SetPresence[1]',
-            'Get(Statuses)[2]', 'SetPresence[2]'], log
+    # The events before Connect must happen in this order. GetInterfaces() may
+    # be called once or 2 times
+    if len(log) == 5:
+        assert log == ['GetInterfaces', 'Get(Statuses)[1]', 'SetPresence[1]',
+                'Get(Statuses)[2]', 'SetPresence[2]'], log
+    else:
+        assert log == ['GetInterfaces', 'GetInterfaces', 'Get(Statuses)[1]', 'SetPresence[1]',
+                'Get(Statuses)[2]', 'SetPresence[2]'], log
 
     # Change requested presence after going online
     presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_AWAY), 'away',
