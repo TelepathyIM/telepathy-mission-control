@@ -751,7 +751,6 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
 {
     GError *error = NULL;
     McdDispatchOperation *self = MCD_DISPATCH_OPERATION (cdo);
-    GTimeVal now = { 0, 0 };
 
     DEBUG ("%s/%p", self->priv->unique_name, self);
 
@@ -762,8 +761,8 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
         return;
     }
 
-    g_get_current_time (&now);
-    self->priv->handle_with_time = now.tv_sec;
+    /* 0 is a special case for 'no user action' */
+    self->priv->handle_with_time = 0;
 
     g_queue_push_tail (self->priv->approvals,
                        approval_new_handle_with (handler_name, context));
