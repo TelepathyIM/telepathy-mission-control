@@ -22,7 +22,6 @@ Infrastructure code for testing Mission Control
 
 import base64
 import os
-import sha
 import sys
 
 import constants as cs
