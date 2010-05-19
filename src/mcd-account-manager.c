@@ -180,7 +180,7 @@ async_created_validity_cb (McdAccount *account, gboolean valid, gpointer data)
 }
 
 static void
-async_created_manager_cb (McdManager *cm, GError *error, gpointer data)
+async_created_manager_cb (McdManager *cm, const GError *error, gpointer data)
 {
     McdLoadAccountsData *lad = data;
     McdAccount *account = lad->account;
