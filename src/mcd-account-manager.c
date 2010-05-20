@@ -1338,14 +1338,12 @@ register_dbus_service (McdAccountManager *account_manager)
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
     DBusGConnection *dbus_connection;
-    DBusConnection *connection;
     GError *error = NULL;
 
     if (priv->dbus_registered)
         return;
 
     dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
-    connection = dbus_g_connection_get_connection (dbus_connection);
 
     if (!tp_dbus_daemon_request_name (priv->dbus_daemon,
                                       MC_ACCOUNT_MANAGER_DBUS_SERVICE,
