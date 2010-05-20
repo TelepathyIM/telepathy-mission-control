@@ -1591,7 +1591,7 @@ _mcd_channel_depart (McdChannel *channel,
 
     d = g_slice_new (DepartData);
     d->reason = reason;
-    d->message = g_strdup (message == NULL ? "" : message);
+    d->message = g_strdup (message);
 
     tp_channel_call_when_ready (channel->priv->tp_chan,
                                 mcd_channel_ready_to_depart_cb, d);
