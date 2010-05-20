@@ -778,9 +778,13 @@ dispatch_operation_claim (TpSvcChannelDispatchOperation *cdo,
 
     if (self->priv->result != NULL)
     {
-        DEBUG ("Giving error to %s: %s", dbus_g_method_get_sender (context),
-               self->priv->result->message);
-        dbus_g_method_return_error (context, self->priv->result);
+        gchar *sender = dbus_g_method_get_sender (context);
+
+        DEBUG ("Giving error to %s: %s", sender, priv->result->message);
+        dbus_g_method_return_error (context, priv->result);
+
+        g_free (sender);
+
         return;
     }
 
