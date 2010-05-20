@@ -176,27 +176,34 @@ set_param (GHashTable *parameters,
 	return FALSE;
 
     strv_type_key = g_strsplit (param_value, ":", 2);
-    if (strv_type_key[0] == NULL ||
-	strv_type_key[1] == NULL ||
-	strv_type_key[2] != NULL)
-	goto CLEANUP;
+
+    if (strv_type_key == NULL ||
+        strv_type_key[0] == NULL ||
+        strv_type_key[1] == NULL ||
+        strv_type_key[2] != NULL)
+        goto CLEANUP;
+
     type = strv_type_key[0];
     param = strv_type_key[1];
 
     if (clear)
     {
-	if (strcmp (type, "clear") == 0 || strcmp (type, "unset") == 0)
-	{
-	    g_ptr_array_add (clear, g_strdup (param));
-	    return TRUE;
-	}
+        if (strcmp (type, "clear") == 0 || strcmp (type, "unset") == 0)
+        {
+            g_ptr_array_add (clear, g_strdup (param));
+            ret = TRUE;
+            goto CLEANUP;
+        }
     }
 
     strv_param_value = g_strsplit (param, "=", 2);
-    if (strv_param_value[0] == NULL ||
-	strv_param_value[1] == NULL ||
-	strv_param_value[2] != NULL)
-	goto CLEANUP;
+
+    if (strv_param_value == NULL ||
+        strv_param_value[0] == NULL ||
+        strv_param_value[1] == NULL ||
+        strv_param_value[2] != NULL)
+        goto CLEANUP;
+
     key = strv_param_value[0];
     value = strv_param_value[1];
 
@@ -234,9 +241,7 @@ set_param (GHashTable *parameters,
 	g_free (gvalue);
 
 CLEANUP:
-    if (strv_param_value)
 	g_strfreev (strv_param_value);
-    if (strv_type_key)
 	g_strfreev (strv_type_key);
     return ret;
 }
