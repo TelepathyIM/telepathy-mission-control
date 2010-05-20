@@ -1684,6 +1684,7 @@ properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 static GType
 mc_param_type (const TpConnectionManagerParam *param)
 {
+    if (G_UNLIKELY (param == NULL)) return G_TYPE_INVALID;
     if (G_UNLIKELY (!param->dbus_signature)) return G_TYPE_INVALID;
 
     switch (param->dbus_signature[0])
