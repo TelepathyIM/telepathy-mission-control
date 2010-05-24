@@ -1,5 +1,5 @@
 /*
- * A demonstration plugin that checks a DBus caller's md5sum
+ * An Aegis/libcreds plugin that chacks the caller's permission tokens
  *
  * Copyright © 2010 Nokia Corporation
  * Copyright © 2010 Collabora Ltd.

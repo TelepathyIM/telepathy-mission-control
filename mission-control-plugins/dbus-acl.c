@@ -55,9 +55,7 @@
  * }
  * </programlisting></example>
  *
- * A single object can implement more than one interface; It is currently
- * unlikely that you would find it useful to implement anything other than
- * an account storage plugin in an account storage object, though.
+ * A single object can implement more than one interface.
  */
 
 #include <mission-control-plugins/mission-control-plugins.h>
