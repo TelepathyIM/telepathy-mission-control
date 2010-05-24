@@ -273,6 +273,29 @@ then
   AC_DEFINE([ENABLE_MCD_PLUGINS], [1], [Define if MCD plugins should be enabled])
 fi
 
+aegis_enabled="no"
+AC_MSG_CHECKING([whether to build with Aegis (libcreds) support])
+AC_ARG_ENABLE(aegis,
+              AC_HELP_STRING([--enable-aegis],
+                             [Aegis security framework support]),
+              [
+                AC_CHECK_LIB(creds, creds_init,
+                             [
+                               AC_DEFINE([ENABLE_AEGIS], [1],
+                                         [Define if Aegis is supported])
+                               AC_SUBST([AEGIS_LIBS], [-lcreds])
+                             ],
+                             [ AC_MSG_ERROR([Aegis: libcreds not found]) ])
+                aegis_enabled="yes"
+              ],
+              [
+                aegis_enabled="no"
+                AC_MSG_RESULT(no)
+                AC_DEFINE([ENABLE_AEGIS], [0], [Define if Aegis is supported])
+              ])
+
+AM_CONDITIONAL(ENABLE_AEGIS, [test x$aegis_enabled = xyes])
+
 keyring_enabled="no"
 AC_MSG_CHECKING(whether to build with gnome-keyring support)
 AC_ARG_ENABLE(gnome-keyring,
@@ -395,6 +418,7 @@ m4/Makefile \
 mission-control.pc \
 mission-control-plugins.pc \
 mission-control-plugins/Makefile \
+plugins/Makefile \
 server/Makefile \
 src/Makefile \
 test/Makefile \

@@ -5,6 +5,7 @@ SUBDIRS = \
     tools \
     xml \
     mission-control-plugins \
+    plugins \
     libmcclient \
     src \
     server \
