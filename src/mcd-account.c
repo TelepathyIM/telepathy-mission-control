@@ -2374,7 +2374,7 @@ mcd_account_setup (McdAccount *account)
 			       MC_ACCOUNTS_KEY_MANAGER, NULL);
     if (!priv->manager_name)
     {
-        g_warning ("Account has no manager");
+        g_warning ("Account '%s' has no manager", account->priv->unique_name);
         goto broken_account;
     }
 
