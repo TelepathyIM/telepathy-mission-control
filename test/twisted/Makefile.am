@@ -80,7 +80,7 @@ TWISTED_SEPARATE_TESTS = \
 	dispatcher/create-at-startup.py
 
 # A demo dispatcher plugin (new, minimal API)
-noinst_LTLIBRARIES = mcp-plugin.la mcp-account-diversion.la
+noinst_LTLIBRARIES = mcp-plugin.la mcp-account-diversion.la mcp-dbus-caller-permission.la
 mcp_plugin_la_SOURCES = mcp-plugin.c
 # these runes are necessary to make libtool build a dlopen()able shared
 # library even though it's not going to be installed - the default for noinst
@@ -89,6 +89,9 @@ mcp_plugin_la_LDFLAGS = -module -shared -avoid-version -rpath @abs_builddir@
 
 mcp_account_diversion_la_SOURCES = mcp-account-diversion.c
 mcp_account_diversion_la_LDFLAGS = $(mcp_plugin_la_LDFLAGS)
+
+mcp_dbus_caller_permission_la_SOURCES = mcp-dbus-caller-permission.c
+mcp_dbus_caller_permission_la_LDFLAGS = $(mcp_plugin_la_LDFLAGS)
 
 if ENABLE_MCD_PLUGINS
 # A demo dispatcher plugin (old API, with access to MCD internals)
@@ -101,7 +104,9 @@ endif
 # disconnection from D-Bus (so gcov info gets written out)
 noinst_PROGRAMS = mc-debug-server
 mc_debug_server_SOURCES = mc-debug-server.c
-mc_debug_server_LDADD = $(top_builddir)/src/libmissioncontrol-server.la
+mc_debug_server_LDADD = \
+	$(top_builddir)/src/libmissioncontrol-server.la \
+	$(top_builddir)/src/libmcd-convenience.la
 
 INCLUDES = \
 	-I$(top_srcdir) -I$(top_builddir) \
