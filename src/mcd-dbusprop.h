@@ -28,6 +28,7 @@
 #define __MCD_DBUSPROP_H__
 
 #include <telepathy-glib/svc-generic.h>
+#include <telepathy-glib/dbus.h>
 
 G_BEGIN_DECLS
 
@@ -95,6 +96,34 @@ gboolean mcd_dbusprop_get_property (TpSvcDBusProperties *self,
                                     const gchar *property_name,
                                     GValue *value,
                                     GError **error);
+
+void dbusprop_acl_set (TpSvcDBusProperties *self,
+                       const gchar *interface,
+                       const gchar *property,
+                       const GValue *value,
+                       DBusGMethodInvocation *context,
+                       TpDBusDaemon *dbus,
+                       GHashTable *params);
+
+void dbusprop_acl_get (TpSvcDBusProperties *self,
+                       const gchar *interface,
+                       const gchar *property,
+                       DBusGMethodInvocation *context,
+                       TpDBusDaemon *dbus,
+                       GHashTable * params);
+
+void dbusprop_acl_get_all (TpSvcDBusProperties *self,
+                           const gchar *interface,
+                           DBusGMethodInvocation *context,
+                           TpDBusDaemon *dbus,
+                           GHashTable *params);
+
+void
+dbusprop_acl_get_all_async_start (TpSvcDBusProperties *self,
+                                  const gchar *interface,
+                                  DBusGMethodInvocation *context,
+                                  TpDBusDaemon *dbus,
+                                  GHashTable *params);
 
 void dbusprop_set (TpSvcDBusProperties *self,
 		   const gchar *interface_name,

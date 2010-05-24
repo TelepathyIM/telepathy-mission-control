@@ -30,6 +30,9 @@
 #include "mcd-dbusprop.h"
 #include "mcd-debug.h"
 
+#include "mission-control-plugins/mission-control-plugins.h"
+#include "mission-control-plugins/implementation.h"
+
 #include <libmcclient/mc-interfaces.h>
 #include <libmcclient/mc-gtypes.h>
 
@@ -129,11 +132,30 @@ mcd_dbusprop_set_property (TpSvcDBusProperties *self,
 }
 
 void
+dbusprop_acl_set (TpSvcDBusProperties *self,
+                  const gchar *interface,
+                  const gchar *property,
+                  const GValue *value,
+                  DBusGMethodInvocation *context,
+                  TpDBusDaemon *dbus,
+                  GHashTable *params)
+{
+    gchar *name = g_strdup_printf ("%s.%s", interface, property);
+    gboolean ok = mcp_dbus_acl_authorised (dbus, context,
+                                           DBUS_ACL_TYPE_SET_PROPERTY,
+                                           name, params);
+    g_free (name);
+
+    if (ok)
+        dbusprop_set (self, interface, property, value, context);
+}
+
+void
 dbusprop_set (TpSvcDBusProperties *self,
-	      const gchar *interface_name,
-	      const gchar *property_name,
-	      const GValue *value,
-	      DBusGMethodInvocation *context)
+              const gchar *interface_name,
+              const gchar *property_name,
+              const GValue *value,
+              DBusGMethodInvocation *context)
 {
     GError *error = NULL;
 
@@ -182,6 +204,25 @@ dbusprop_get_cb (TpSvcDBusProperties *self, const GValue *value,
 
   tp_svc_dbus_properties_return_from_get (context, value);
 }
+
+void
+dbusprop_acl_get (TpSvcDBusProperties *self,
+                  const gchar *interface,
+                  const gchar *property,
+                  DBusGMethodInvocation *context,
+                  TpDBusDaemon *dbus,
+                  GHashTable *params)
+{
+    gchar *name = g_strdup_printf ("%s.%s", interface, property);
+    gboolean ok = mcp_dbus_acl_authorised (dbus, context,
+                                           DBUS_ACL_TYPE_GET_PROPERTY,
+                                           name, params);
+    g_free (name);
+
+    if (ok)
+        dbusprop_get (self, interface, property, context);
+}
+
 
 void
 dbusprop_get (TpSvcDBusProperties *self,
@@ -280,6 +321,78 @@ get_all_iter (TpSvcDBusProperties *self,
 
     }
 }
+
+void
+dbusprop_acl_get_all (TpSvcDBusProperties *self,
+                      const gchar *interface,
+                      DBusGMethodInvocation *context,
+                      TpDBusDaemon *dbus,
+                      GHashTable *params)
+{
+    gchar *name = g_strdup_printf ("%s.*", interface);
+    gboolean ok = mcp_dbus_acl_authorised (dbus, context,
+                                           DBUS_ACL_TYPE_GET_PROPERTY,
+                                           name, params);
+
+    g_free (name);
+
+    if (ok)
+        dbusprop_get_all (self, interface, context);
+}
+
+typedef struct
+{
+    TpSvcDBusProperties *tp_svc_props;
+    gchar *interface;
+    gchar *property;
+} DBusPropAsyncData;
+
+static void
+dbusprop_acl_get_all_async_complete (DBusGMethodInvocation *context,
+                                     gpointer data)
+{
+    DBusPropAsyncData *ad = data;
+
+    dbusprop_get_all (ad->tp_svc_props, ad->interface, context);
+}
+
+static void
+dbusprop_acl_get_all_async_cleanup (gpointer data)
+{
+    DBusPropAsyncData *ad = data;
+
+    g_object_unref (ad->tp_svc_props);
+    g_free (ad->interface);
+    g_free (ad->property);
+    g_slice_free (DBusPropAsyncData, data);
+}
+
+void
+dbusprop_acl_get_all_async_start (TpSvcDBusProperties *self,
+                                  const gchar *interface,
+                                  DBusGMethodInvocation *context,
+                                  TpDBusDaemon *dbus,
+                                  GHashTable *params)
+{
+    DBusPropAsyncData *data = g_slice_new0 (DBusPropAsyncData);
+    gchar *name = g_strdup_printf ("%s.*", interface);
+
+    data->tp_svc_props = g_object_ref (self);
+    data->interface = g_strdup (interface);
+    data->property = NULL;
+
+    mcp_dbus_acl_authorised_async (dbus,
+                                   context,
+                                   DBUS_ACL_TYPE_GET_PROPERTY,
+                                   name,
+                                   params,
+                                   dbusprop_acl_get_all_async_complete,
+                                   data,
+                                   dbusprop_acl_get_all_async_cleanup);
+
+    g_free (name);
+}
+
 
 void
 dbusprop_get_all (TpSvcDBusProperties *self,
