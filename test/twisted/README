@@ -4,25 +4,16 @@ To run Twisted tests:
 
 To run an individual Twisted test:
 
-  make -C test/twisted check-twisted TWISTED_TESTS=test-basic.py
-
-or:
-
-  cd test/twisted
-  sh tools/with-session-bus.sh --config-file=tools/tmp-session-bus.conf \
-        -- python test-basic.py
+  make -C test/twisted check-twisted \
+        TWISTED_BASIC_TESTS= \
+        TWISTED_SEPARATE_TESTS=dispatcher/create-at-startup.py
 
 To run with debug information:
 
-  make -C test/twisted check-twisted TWISTED_TESTS=test-basic.py \
+  make -C test/twisted check-twisted \
+        TWISTED_BASIC_TESTS= \
+        TWISTED_SEPARATE_TESTS=dispatcher/create-at-startup.py \
         CHECK_TWISTED_VERBOSE=1
-
-or:
-
-  cd test/twisted
-  sh tools/with-session-bus.sh --config-file=tools/tmp-session-bus.conf \
-        -- python test-basic.py -v
-
 
 To debug an individual test you can set one of the following env variable:
 
