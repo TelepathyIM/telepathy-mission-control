@@ -239,7 +239,7 @@ unique_name (const McpAccountManager *ma,
   for (i = 0; i < 1024; i++)
     {
       sprintf (seq, "%u", i);
-      if (!g_key_file_has_group (self->keyfile, path) &&
+      if (!g_key_file_has_group (self->keyfile, path + base_len) &&
           dbus_g_connection_lookup_g_object (connection, path) == NULL)
         {
           unique_name = g_strdup (path + base_len);
