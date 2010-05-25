@@ -122,7 +122,6 @@ struct _McdConnectionPrivate
     guint has_capabilities_if : 1;
     guint has_contact_capabilities_draft1_if : 1;
     guint has_contact_capabilities_if : 1;
-    guint has_requests_if : 1;
 
     /* FALSE until the dispatcher has said it's ready for us */
     guint dispatching_started : 1;
@@ -1517,8 +1516,6 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
         MC_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES_DRAFT1);
     priv->has_contact_capabilities_if = tp_proxy_has_interface_by_id (tp_conn,
         TP_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES);
-    priv->has_requests_if = tp_proxy_has_interface_by_id (tp_conn,
-        TP_IFACE_QUARK_CONNECTION_INTERFACE_REQUESTS);
 
     if (priv->has_presence_if)
 	_mcd_connection_setup_presence (connection);
@@ -1551,7 +1548,8 @@ _mcd_connection_start_dispatching (McdConnection *self,
 
     self->priv->dispatching_started = TRUE;
 
-    if (self->priv->has_requests_if)
+    if (tp_proxy_has_interface_by_id (self->priv->tp_conn,
+            TP_IFACE_QUARK_CONNECTION_INTERFACE_REQUESTS))
         mcd_connection_setup_requests (self);
     else
         mcd_connection_setup_pre_requests (self);
@@ -2116,8 +2114,11 @@ _mcd_connection_request_channel (McdConnection *connection,
         return TRUE;
     }
 
-    if (priv->has_requests_if)
+    if (tp_proxy_has_interface_by_id (priv->tp_conn,
+            TP_IFACE_QUARK_CONNECTION_INTERFACE_REQUESTS))
+    {
         ret = request_channel_new_iface (connection, channel);
+    }
     else
     {
         mcd_channel_take_error (channel,
