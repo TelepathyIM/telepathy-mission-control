@@ -736,7 +736,7 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation,
     }
 
     va_start (ap, format);
-    priv->result = _mcd_g_error_new_valist (domain, code, format, ap);
+    priv->result = g_error_new_valist (domain, code, format, ap);
     va_end (ap);
     DEBUG ("Result: %s", priv->result->message);
 
