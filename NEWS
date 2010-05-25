@@ -1,7 +1,15 @@
 telepathy-mission-control 5.4.1 (UNRELEASED)
 ============================================
 
-...
+Fixes:
+
+* set 0 as UserActionTime when HandleWith is used (cassidy)
+
+* make tests pass with more recent telepathy-glib, which can call GetInterfaces
+  twice (cassidy)
+
+* don't cache whether we have the Requests interface, which caused one of the
+  tests to regress (smcv)
 
 telepathy-mission-control 5.4.0 (2010-04-15)
 ============================================
