@@ -187,4 +187,7 @@ G_GNUC_INTERNAL gboolean _mcd_account_check_request_real (McdAccount *account,
 
 G_GNUC_INTERNAL gboolean _mcd_account_get_always_on (McdAccount *self);
 
+G_GNUC_INTERNAL void _mcd_account_set_changing_presence (McdAccount *self,
+                                                         gboolean value);
+
 #endif /* __MCD_ACCOUNT_PRIV_H__ */

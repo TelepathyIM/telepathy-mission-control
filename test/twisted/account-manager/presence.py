@@ -95,14 +95,19 @@ def test(q, bus, mc):
     call_async(q, account_props, 'Set', cs.ACCOUNT, 'RequestedPresence',
             presence)
 
-    e = q.expect('dbus-method-call',
-        interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
-        args=list(presence[1:]),
-        handled=True)
-
-    q.expect('dbus-signal', path=account.object_path,
+    e, _, _ = q.expect_many(
+        EventPattern('dbus-method-call',
+            interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
+            args=list(presence[1:]),
+            handled=True),
+        EventPattern('dbus-signal', path=account.object_path,
             interface=cs.ACCOUNT, signal='AccountPropertyChanged',
-            predicate=lambda e: e.args[0].get('CurrentPresence') == presence)
+            predicate=lambda e: e.args[0].get('ChangingPresence') == True and
+                                e.args[0].get('RequestedPresence') == presence),
+        EventPattern('dbus-signal', path=account.object_path,
+            interface=cs.ACCOUNT, signal='AccountPropertyChanged',
+            predicate=lambda e: e.args[0].get('CurrentPresence') == presence and
+                                e.args[0].get('ChangingPresence') == False))
 
     # Setting RequestedPresence=RequestedPresence causes a (possibly redundant)
     # call to the CM, so we get any side-effects there might be, either in the
