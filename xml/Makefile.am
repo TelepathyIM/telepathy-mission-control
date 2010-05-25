@@ -7,6 +7,7 @@ DROP_TPTYPE = sed -e 's@tp:type="[^"]*"@@g'
 SPECS = \
 	Account_Manager.xml \
 	Account_Manager_Interface_Query.xml \
+	Account_Manager_Interface_SSO.xml \
 	Account.xml \
 	Account_Interface_Avatar.xml \
 	Account_Interface_ChannelRequests.xml \
