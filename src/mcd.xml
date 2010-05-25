@@ -11,7 +11,6 @@
 
 <xi:include href="../xml/Account_Manager_Interface_SSO.xml"/>
 <xi:include href="../xml/Account_Manager_Interface_Query.xml"/>
-<xi:include href="../xml/Account_Manager_Interface_Creation.xml"/>
 
 <xi:include href="../xml/Connection_Interface_Contact_Capabilities_Draft1.xml"/>
 
