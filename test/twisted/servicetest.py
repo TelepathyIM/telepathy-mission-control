@@ -23,6 +23,7 @@ Infrastructure code for testing Mission Control
 from twisted.internet import glib2reactor
 from twisted.internet.protocol import Protocol, Factory, ClientFactory
 glib2reactor.install()
+import sys
 
 import pprint
 import unittest
@@ -63,6 +64,15 @@ class EventPattern:
             del properties['predicate']
         self.properties = properties
 
+    def __repr__(self):
+        properties = dict(self.properties)
+
+        if self.predicate:
+            properties['predicate'] = self.predicate
+
+        return '%s(%r, **%r)' % (
+            self.__class__.__name__, self.type, properties)
+
     def match(self, event):
         if event.type != self.type:
             return False
@@ -102,6 +112,13 @@ class BaseEventQueue:
     def log(self, s):
         if self.verbose:
             print s
+
+    def log_event(self, event):
+        if self.verbose:
+            self.log('got event:')
+
+            if self.verbose:
+                map(self.log, format_event(event))
 
     def flush_past_events(self):
         self.past_events = []
@@ -148,9 +165,7 @@ class BaseEventQueue:
 
         while True:
             event = self.wait()
-            self.log('got event:')
-            map(self.log, format_event(event))
-
+            self.log_event(event)
             self._check_forbidden(event)
 
             if pattern.match(event):
@@ -166,14 +181,20 @@ class BaseEventQueue:
         ret = [None] * len(patterns)
 
         while None in ret:
-            event = self.wait()
-            self.log('got event:')
-            map(self.log, format_event(event))
-
+            try:
+                event = self.wait()
+            except TimeoutError:
+                self.log('timeout')
+                self.log('still expecting:')
+                for i, pattern in enumerate(patterns):
+                    if ret[i] is None:
+                        self.log(' - %r' % pattern)
+                raise
+            self.log_event(event)
             self._check_forbidden(event)
 
             for i, pattern in enumerate(patterns):
-                if pattern.match(event):
+                if ret[i] is None and pattern.match(event):
                     self.log('handled')
                     self.log('')
                     ret[i] = event
@@ -189,8 +210,7 @@ class BaseEventQueue:
         pattern = EventPattern(type, **kw)
 
         event = self.wait()
-        self.log('got event:')
-        map(self.log, format_event(event))
+        self.log_event(event)
 
         if pattern.match(event):
             self.log('handled')
@@ -373,6 +393,16 @@ class EventQueueTest(unittest.TestCase):
         assert bar.type == 'bar'
         assert foo.type == 'foo'
 
+    def test_expect_many2(self):
+        # Test that events are only matched against patterns that haven't yet
+        # been matched. This tests a regression.
+        queue = TestEventQueue([Event('foo', x=1), Event('foo', x=2)])
+        foo1, foo2 = queue.expect_many(
+            EventPattern('foo'),
+            EventPattern('foo'))
+        assert foo1.type == 'foo' and foo1.x == 1
+        assert foo2.type == 'foo' and foo2.x == 2
+
     def test_timeout(self):
         queue = TestEventQueue([])
         self.assertRaises(TimeoutError, queue.expect, 'foo')
@@ -399,7 +429,10 @@ def unwrap(x):
     if isinstance(x, dict):
         return dict([(unwrap(k), unwrap(v)) for k, v in x.iteritems()])
 
-    for t in [unicode, str, long, int, float, bool]:
+    if isinstance(x, dbus.Boolean):
+        return bool(x)
+
+    for t in [unicode, str, long, int, float]:
         if isinstance(x, t):
             return t(x)
 
@@ -414,7 +447,8 @@ def call_async(test, proxy, method, *args, **kw):
             value=unwrap(ret)))
 
     def error_func(err):
-        test.handle_event(Event('dbus-error', method=method, error=err))
+        test.handle_event(Event('dbus-error', method=method, error=err,
+            name=err.get_dbus_name(), message=str(err)))
 
     method_proxy = getattr(proxy, method)
     kw.update({'reply_handler': reply_func, 'error_handler': error_func})
@@ -429,6 +463,9 @@ class ProxyWrapper:
     def __init__(self, object, default, others):
         self.object = object
         self.default_interface = dbus.Interface(object, default)
+        self.Properties = dbus.Interface(object, dbus.PROPERTIES_IFACE)
+        self.TpProperties = \
+            dbus.Interface(object, tp_name_prefix + '.Properties')
         self.interfaces = dict([
             (name, dbus.Interface(object, iface))
             for name, iface in others.iteritems()])
@@ -452,9 +489,44 @@ def make_mc(bus, event_func, params):
     return mc
 
 
+
+def wrap_channel(chan, type_, extra=None):
+    interfaces = {
+        type_: tp_name_prefix + '.Channel.Type.' + type_,
+        'Group': tp_name_prefix + '.Channel.Interface.Group',
+        }
+
+    if extra:
+        interfaces.update(dict([
+            (name, tp_name_prefix + '.Channel.Interface.' + name)
+            for name in extra]))
+
+    return ProxyWrapper(chan, tp_name_prefix + '.Channel', interfaces)
+
+def make_connection(bus, event_func, name, proto, params):
+    cm = bus.get_object(
+        tp_name_prefix + '.ConnectionManager.%s' % name,
+        tp_path_prefix + '/ConnectionManager/%s' % name)
+    cm_iface = dbus.Interface(cm, tp_name_prefix + '.ConnectionManager')
+
+    connection_name, connection_path = cm_iface.RequestConnection(
+        proto, params)
+    conn = wrap_connection(bus.get_object(connection_name, connection_path))
+
+    return conn
+
+def make_channel_proxy(conn, path, iface):
+    bus = dbus.SessionBus()
+    chan = bus.get_object(conn.object.bus_name, path)
+    chan = dbus.Interface(chan, tp_name_prefix + '.' + iface)
+    return chan
+
+# block_reading can be used if the test want to choose when we start to read
+# data from the socket.
 class EventProtocol(Protocol):
-    def __init__(self, queue=None):
+    def __init__(self, queue=None, block_reading=False):
         self.queue = queue
+        self.block_reading = block_reading
 
     def dataReceived(self, data):
         if self.queue is not None:
@@ -464,17 +536,107 @@ class EventProtocol(Protocol):
     def sendData(self, data):
         self.transport.write(data)
 
+    def connectionMade(self):
+        if self.block_reading:
+            self.transport.stopReading()
+
+    def connectionLost(self, reason=None):
+        if self.queue is not None:
+            self.queue.handle_event(Event('socket-disconnected', protocol=self))
+
 class EventProtocolFactory(Factory):
-    def __init__(self, queue):
+    def __init__(self, queue, block_reading=False):
         self.queue = queue
+        self.block_reading = block_reading
+
+    def _create_protocol(self):
+        return EventProtocol(self.queue, self.block_reading)
 
     def buildProtocol(self, addr):
-        proto =  EventProtocol(self.queue)
+        proto = self._create_protocol()
         self.queue.handle_event(Event('socket-connected', protocol=proto))
         return proto
 
 class EventProtocolClientFactory(EventProtocolFactory, ClientFactory):
     pass
+
+def watch_tube_signals(q, tube):
+    def got_signal_cb(*args, **kwargs):
+        q.handle_event(Event('tube-signal',
+            path=kwargs['path'],
+            signal=kwargs['member'],
+            args=map(unwrap, args),
+            tube=tube))
+
+    tube.add_signal_receiver(got_signal_cb,
+        path_keyword='path', member_keyword='member',
+        byte_arrays=True)
+
+def pretty(x):
+    return pprint.pformat(unwrap(x))
+
+def assertEquals(expected, value):
+    if expected != value:
+        raise AssertionError(
+            "expected:\n%s\ngot:\n%s" % (pretty(expected), pretty(value)))
+
+def assertNotEquals(expected, value):
+    if expected == value:
+        raise AssertionError(
+            "expected something other than:\n%s" % pretty(value))
+
+def assertContains(element, value):
+    if element not in value:
+        raise AssertionError(
+            "expected:\n%s\nin:\n%s" % (pretty(element), pretty(value)))
+
+def assertDoesNotContain(element, value):
+    if element in value:
+        raise AssertionError(
+            "expected:\n%s\nnot in:\n%s" % (pretty(element), pretty(value)))
+
+def assertLength(length, value):
+    if len(value) != length:
+        raise AssertionError("expected: length %d, got length %d:\n%s" % (
+            length, len(value), pretty(value)))
+
+def assertFlagsSet(flags, value):
+    masked = value & flags
+    if masked != flags:
+        raise AssertionError(
+            "expected flags %u, of which only %u are set in %u" % (
+            flags, masked, value))
+
+def assertFlagsUnset(flags, value):
+    masked = value & flags
+    if masked != 0:
+        raise AssertionError(
+            "expected none of flags %u, but %u are set in %u" % (
+            flags, masked, value))
+
+def install_colourer():
+    def red(s):
+        return '\x1b[31m%s\x1b[0m' % s
+
+    def green(s):
+        return '\x1b[32m%s\x1b[0m' % s
+
+    patterns = {
+        'handled': green,
+        'not handled': red,
+        }
+
+    class Colourer:
+        def __init__(self, fh, patterns):
+            self.fh = fh
+            self.patterns = patterns
+
+        def write(self, s):
+            f = self.patterns.get(s, lambda x: x)
+            self.fh.write(f(s))
+
+    sys.stdout = Colourer(sys.stdout, patterns)
+    return sys.stdout
 
 if __name__ == '__main__':
     unittest.main()

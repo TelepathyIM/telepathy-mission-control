@@ -1,7 +1,54 @@
 telepathy-mission-control 5.5.0 (UNRELEASED)
 ============================================
 
-...
+Dependencies:
+
+* telepathy-glib 0.11.6 is now required
+* GLib 2.24 is now required
+* D-Bus 0.95 is now required
+* dbus-glib 0.82 is now required
+
+Enhancements:
+
+* MC now has a new, smaller plugin API, libmission-control-plugins, which is
+  expected to have medium- to long-term API/ABI stability. The API mostly
+  mirrors the Telepathy D-Bus API. (smcv/fledermaus)
+
+* accounts now support the ChangingPresence property from telepathy-spec
+  0.19.6 (andrunko)
+
+* channel dispatch operations now support the HandleWithTime method from
+  telepathy-spec 0.19.6 (ptlo)
+
+* channels can be dispatched before a connection goes CONNECTED, which is
+  needed for SASL authentication channels (eeejay)
+
+Fixes:
+
+* don't time out channel requests until many hours have passed (sjoerd)
+
+* instead of emitting AccountPropertyChanged signals in time-based batches
+  with a small delay, change signals are now grouped into atomic changes (smcv)
+
+* fd.o #24876: no longer reimplements a GLib 2.22 method (smcv)
+
+* fd.o #25122, Debian #556488: link mc-wait-for-name to GLib correctly (jonny)
+
+* fd.o#26597: use TpDebugSender to send debug messages over D-Bus (eeejay)
+
+* don't crash mc-tool when the account name is invalid (wjt)
+
+* fd.o #27015: remove a misleading reference to GConf (tomeu)
+
+* use UserActionTime=0 when HandleWith is called (cassidy)
+
+* fd.o #27129: update and simplify test/twisted/README (tomeu/smcv)
+
+* fd.o #25684: fix detection of accounts that already exist (Jani Monoses/smcv)
+
+Maemo-specific enhancements:
+
+* added a libaccounts-glib-based account storage backend (fledermaus)
 
 telepathy-mission-control 5.4.0 (2010-04-15)
 ============================================

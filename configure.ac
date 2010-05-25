@@ -6,6 +6,7 @@ AC_INIT([telepathy-mission-control], [5.4.999+])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(Makefile.am)
 AM_INIT_AUTOMAKE([1.9 tar-ustar -Wno-portability])
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES])
 AM_CONFIG_HEADER(config.h)
 
 AC_CANONICAL_HOST
@@ -339,7 +340,7 @@ dnl the automake conditional
 AM_CONDITIONAL(ENABLE_LIBACCOUNTS_SSO, [test x$libaccounts_sso_enabled = xyes])
 dnl /libaccounts-glib SSO
 
-PKG_CHECK_MODULES(DBUS, [dbus-1 >= 0.51, dbus-glib-1 >= 0.51], have_dbus=yes, have_dbus=no)
+PKG_CHECK_MODULES(DBUS, [dbus-1 >= 0.95, dbus-glib-1 >= 0.82])
 AC_SUBST(DBUS_CFLAGS)
 AC_SUBST(DBUS_LIBS)
 
@@ -354,7 +355,7 @@ AM_CONDITIONAL(HAVE_GCONF, [test x$HAVE_GCONF = xyes])
 AC_SUBST(GCONF_CFLAGS)
 AC_SUBST(GCONF_LIBS)
 
-PKG_CHECK_MODULES(GLIB, glib-2.0 gobject-2.0)
+PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.24, gobject-2.0])
 AC_SUBST(GLIB_LIBS)
 AC_SUBST(GLIB_CFLAGS)
 
