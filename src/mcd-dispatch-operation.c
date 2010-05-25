@@ -769,6 +769,9 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation,
                     {
                         DEBUG ("successful HandleWith, channel went to %s",
                                successful_handler);
+
+                        /* HandleWith and HandleWithTime both return void, so
+                         * it's OK to not distinguish */
                         tp_svc_channel_dispatch_operation_return_from_handle_with (
                             approval->context);
                     }
@@ -818,9 +821,10 @@ static gboolean mcd_dispatch_operation_check_handle_with (
     McdDispatchOperation *self, const gchar *handler_name, GError **error);
 
 static void
-dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
-                                const gchar *handler_name,
-                                DBusGMethodInvocation *context)
+dispatch_operation_handle_with_time (TpSvcChannelDispatchOperation *cdo,
+    const gchar *handler_name,
+    gint64 user_action_timestamp,
+    DBusGMethodInvocation *context)
 {
     GError *error = NULL;
     McdDispatchOperation *self = MCD_DISPATCH_OPERATION (cdo);
@@ -834,12 +838,20 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
         return;
     }
 
-    /* 0 is a special case for 'no user action' */
-    self->priv->handle_with_time = 0;
+    self->priv->handle_with_time = user_action_timestamp;
 
     g_queue_push_tail (self->priv->approvals,
                        approval_new_handle_with (handler_name, context));
     _mcd_dispatch_operation_check_client_locks (self);
+}
+
+static void
+dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
+    const gchar *handler_name,
+    DBusGMethodInvocation *context)
+{
+    /* 0 is a special case for 'no user action' */
+    dispatch_operation_handle_with_time (cdo, handler_name, 0, context);
 }
 
 static void
@@ -869,6 +881,7 @@ dispatch_operation_iface_init (TpSvcChannelDispatchOperationClass *iface,
     iface, dispatch_operation_##x)
     IMPLEMENT(handle_with);
     IMPLEMENT(claim);
+    IMPLEMENT(handle_with_time);
 #undef IMPLEMENT
 }
 
