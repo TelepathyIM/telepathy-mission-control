@@ -1,4 +1,5 @@
 INCLUDES = $(TELEPATHY_CFLAGS) $(GLIB_CFLAGS) -I$(top_srcdir)
+AM_CFLAGS = $(ERROR_CFLAGS)
 
 bin_PROGRAMS = mc-tool mc-wait-for-name
 

@@ -76,6 +76,8 @@ TWISTED_SEPARATE_TESTS = \
 	crash-recovery/crash-recovery.py \
 	dispatcher/create-at-startup.py
 
+AM_CFLAGS = $(ERROR_CFLAGS)
+
 if ENABLE_PLUGINS
 # A demo dispatcher plugin
 noinst_LTLIBRARIES = test-plugin.la

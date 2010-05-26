@@ -7,6 +7,8 @@ INCLUDES = \
 	-DLIBDIR="@libdir@" -DLIBVERSION="0" \
 	-DG_LOG_DOMAIN=\"mc-client\"
 
+AM_CFLAGS = $(ERROR_CFLAGS)
+
 BUILT_SOURCES = \
 	_gen/libmcclient.xml \
 	mc-signals-marshal.c \

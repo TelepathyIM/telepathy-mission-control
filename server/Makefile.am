@@ -4,6 +4,8 @@ INCLUDES = $(DBUS_CFLAGS) $(TELEPATHY_CFLAGS) -I$(top_srcdir) \
 	-DMC_DISABLE_DEPRECATED \
 	-DLIBDIR="@libdir@" -DLIBVERSION="0"
 
+AM_CFLAGS = $(ERROR_CFLAGS)
+
 if HAVE_SERVER
 
 EXTRA_DIST = org.freedesktop.Telepathy.MissionControl5.service.in \
