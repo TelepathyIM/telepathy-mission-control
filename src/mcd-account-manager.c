@@ -898,7 +898,6 @@ sso_get_service_accounts (McSvcAccountManagerInterfaceSSO *iface,
     McdAccountManagerPrivate *priv = manager->priv;
     GKeyFile *cache = priv->plugin_manager->keyfile;
     GStrv accounts = g_key_file_get_groups (cache, &len);
-    const gchar *path = NULL;
     GList *srv_accounts = NULL;
     GPtrArray *paths = g_ptr_array_new ();
 
