@@ -39,6 +39,11 @@ struct _McpRequestIface {
 
     void (*deny) (McpRequest *self, GQuark domain, gint code,
         const gchar *message);
+
+    /* Delay the request */
+    McpRequestDelay * (*start_delay) (McpRequest *self);
+    void (*end_delay) (McpRequest *self,
+        McpRequestDelay *delay);
 };
 
 struct _McpDispatchOperationIface {

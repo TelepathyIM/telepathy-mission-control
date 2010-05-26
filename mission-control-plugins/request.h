@@ -67,6 +67,9 @@ GHashTable *mcp_request_ref_nth_request (McpRequest *self, guint n);
 void mcp_request_deny (McpRequest *self, GQuark domain, gint code,
     const gchar *message);
 
+McpRequestDelay *mcp_request_start_delay (McpRequest *self);
+void mcp_request_end_delay (McpRequest *self, McpRequestDelay *delay);
+
 G_END_DECLS
 
 #endif

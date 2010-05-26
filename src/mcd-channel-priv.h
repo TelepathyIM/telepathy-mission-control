@@ -74,6 +74,9 @@ G_GNUC_INTERNAL void _mcd_channel_depart (McdChannel *channel,
                                           TpChannelGroupChangeReason reason,
                                           const gchar *message);
 
+G_GNUC_INTERNAL void _mcd_channel_start_request_delay (McdChannel *channel);
+G_GNUC_INTERNAL void _mcd_channel_end_request_delay (McdChannel *channel);
+
 G_END_DECLS
 #endif
 
