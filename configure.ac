@@ -76,9 +76,6 @@ TP_COMPILER_WARNINGS([ERROR_CFLAGS],
    unused-parameter])
 AC_SUBST([ERROR_CFLAGS])
 
-AM_CFLAGS="$CFLAGS -fno-strict-aliasing -ansi -DDMALLOC $ERROR_CFLAGS"
-AC_SUBST([AM_CFLAGS])
-
 XSLTPROC=
 AC_CHECK_PROGS([XSLTPROC], [xsltproc])
 if test -z "$XSLTPROC"; then
