@@ -214,7 +214,6 @@ AC_ARG_ENABLE(mcserver-so6,
 )
 AM_CONDITIONAL(ENABLE_MC_SERVER_SO6, [test "x$ENABLE_MC_SERVER_SO6" = xyes])
 
-plugins_enabled="no"
 AC_MSG_CHECKING(whether to support plugins)
 AC_ARG_ENABLE(mcd-plugins,
 	[  --enable-mcd-plugins       support plugins that use internal APIs. default=no],
@@ -311,12 +310,9 @@ PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.24, gobject-2.0])
 AC_SUBST(GLIB_LIBS)
 AC_SUBST(GLIB_CFLAGS)
 
-if test "x$plugins_enabled" = xyes
-then
-  PKG_CHECK_MODULES(GMODULE, gmodule-no-export-2.0)
-  AC_SUBST(GMODULE_LIBS)
-  AC_SUBST(GMODULE_CFLAGS)
-fi
+PKG_CHECK_MODULES(GMODULE, gmodule-no-export-2.0)
+AC_SUBST(GMODULE_LIBS)
+AC_SUBST(GMODULE_CFLAGS)
 
 dnl docs/Makefile.am needs to know whether it's an out of tree build
 dnl (srcdir != builddir)
