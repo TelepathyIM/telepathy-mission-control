@@ -3153,10 +3153,18 @@ mcd_account_get_object_path (McdAccount *account)
 typedef struct
 {
     GHashTable *params;
+    TpConnectionManagerProtocol *protocol;
     const TpConnectionManagerParam *param;
     McdAccountDupParametersCb callback;
     gpointer user_data;
 } DupParametersData;
+
+static void
+dup_parameters_data_free (DupParametersData *data)
+{
+    _mcd_manager_protocol_free (data->protocol);
+    g_slice_free (DupParametersData, data);
+}
 
 static void
 dup_parameters_get_parameter_cb (McdAccount *account,
@@ -3183,7 +3191,7 @@ dup_parameters_get_parameter_cb (McdAccount *account,
   {
       if (data->callback != NULL)
           data->callback (account, data->params, data->user_data);
-      g_slice_free (DupParametersData, data);
+      dup_parameters_data_free (data);
   }
 }
 
@@ -3204,7 +3212,7 @@ _mcd_account_dup_parameters (McdAccount *account,
 {
     McdAccountPrivate *priv;
     DupParametersData *data;
-    const TpConnectionManagerParam *param;
+    TpConnectionManagerProtocol *protocol;
 
     g_return_if_fail (MCD_IS_ACCOUNT (account));
 
@@ -3217,17 +3225,18 @@ _mcd_account_dup_parameters (McdAccount *account,
         return;
     }
 
-    param = mcd_manager_get_parameters (priv->manager,
-                                        priv->protocol_name);
+    protocol = _mcd_manager_dup_protocol (priv->manager,
+                                          priv->protocol_name);
 
-    if (G_UNLIKELY (!param))
+    if (G_UNLIKELY (protocol == NULL))
     {
         callback (account, NULL, user_data);
         return;
     }
 
     data = g_slice_new0 (DupParametersData);
-    data->param = param;
+    data->protocol = protocol;
+    data->param = protocol->params;
     data->callback = callback;
     data->user_data = user_data;
 
@@ -3235,7 +3244,7 @@ _mcd_account_dup_parameters (McdAccount *account,
                                           g_free,
                                           (GDestroyNotify) tp_g_value_slice_free);
 
-    mcd_account_get_parameter (account, param->name,
+    mcd_account_get_parameter (account, data->param->name,
                                dup_parameters_get_parameter_cb, data);
 }
 
