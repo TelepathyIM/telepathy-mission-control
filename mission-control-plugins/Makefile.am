@@ -8,6 +8,8 @@ INCLUDES = \
 	-DMCP_API_VERSION=@MCP_API_VERSION@ \
 	-DMCP_ABI_VERSION=@MCP_ABI_VERSION@
 
+AM_CFLAGS = $(ERROR_CFLAGS)
+
 EXTRA_DIST = mcp-signals-marshal.list
 
 lib_LTLIBRARIES = libmission-control-plugins.la

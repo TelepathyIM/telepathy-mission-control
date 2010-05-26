@@ -1,4 +1,5 @@
 INCLUDES = $(TELEPATHY_CFLAGS) -I$(top_srcdir)
+AM_CFLAGS = $(ERROR_CFLAGS)
 
 noinst_PROGRAMS = mc-example mc-example-2 mc-example-3
 mc_example_SOURCES = mc-example.c

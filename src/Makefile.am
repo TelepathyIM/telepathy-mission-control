@@ -6,6 +6,8 @@ INCLUDES = \
 	   -DMCD_PLUGIN_LOADER_DIR=\"@libdir@/mission-control-plugins.@MCP_ABI_VERSION@\" \
 	   -DMC_DISABLE_DEPRECATED -I$(top_srcdir)
 
+AM_CFLAGS = $(ERROR_CFLAGS)
+
 if ENABLE_GNOME_KEYRING
 INCLUDES += $(GNOME_KEYRING_CFLAGS)
 endif

@@ -80,6 +80,8 @@ TWISTED_SEPARATE_TESTS = \
 	crash-recovery/crash-recovery.py \
 	dispatcher/create-at-startup.py
 
+AM_CFLAGS = $(ERROR_CFLAGS)
+
 # A demo dispatcher plugin (new, minimal API)
 noinst_LTLIBRARIES = mcp-plugin.la mcp-account-diversion.la
 mcp_plugin_la_SOURCES = mcp-plugin.c
