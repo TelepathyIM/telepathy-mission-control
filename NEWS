@@ -23,6 +23,16 @@ Enhancements:
 * channels can be dispatched before a connection goes CONNECTED, which is
   needed for SASL authentication channels (eeejay)
 
+* compiler warnings are correctly enabled (smcv)
+
+Removals:
+
+* libmcclient is no longer installed as a separate library unless the old
+  plugin interface is enabled
+
+* fd.o #26634: the obsolete utility mc-account-convert, for migration from
+  Mission Control 4, has been removed
+
 Fixes:
 
 * don't time out channel requests until many hours have passed (sjoerd)
@@ -43,6 +53,9 @@ Fixes:
 * fd.o #27129: update and simplify test/twisted/README (tomeu/smcv)
 
 * fd.o #25684: fix detection of accounts that already exist (Jani Monoses/smcv)
+
+* in libmcclient, don't crash on malformed profiles where a group is missing
+  (smcv)
 
 Maemo-specific enhancements:
 
