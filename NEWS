@@ -48,6 +48,22 @@ Maemo-specific enhancements:
 
 * added a libaccounts-glib-based account storage backend (fledermaus)
 
+telepathy-mission-control 5.4.2 (2010-05-26)
+============================================
+
+The "everyone loves magical re-entrancy" release.
+
+Fixes:
+
+* don't assume that data structures borrowed from a TpConnectionManager remain
+  valid after re-entering the main loop, which can cause a segfault on startup
+  (smcv)
+
+* fix a memory leak in Claim() (fledermaus)
+
+* fix a failure to check for NULL, and a couple of potential leaks, in mc-tool
+  (fledermaus)
+
 telepathy-mission-control 5.4.1 (2010-05-25)
 ============================================
 
