@@ -147,6 +147,9 @@ _get (const McpAccountStorage *self,
       gsize n;
       GStrv keys = g_key_file_get_keys (adp->keyfile, acct, &n, NULL);
 
+      if (keys == NULL)
+        n = 0;
+
       for (i = 0; i < n; i++)
         {
           gchar *v = g_key_file_get_string (adp->keyfile, acct, keys[i], NULL);

@@ -1172,9 +1172,12 @@ write_conf (gpointer userdata)
      * so no plugin of a lower priority will be asked to save anything */
     for (group = groups[i]; group != NULL; group = groups[++i])
     {
-        gsize n_keys = 0;
+        gsize n_keys;
         gsize j = 0;
         GStrv keys = g_key_file_get_keys (keyfile, group, &n_keys, NULL);
+
+        if (keys == NULL)
+            n_keys = 0;
 
         for (j = 0; j < n_keys; j++)
         {
@@ -1639,6 +1642,9 @@ mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
         GStrv keys = g_key_file_get_keys (keyfile, group, &n_keys, NULL);
         McdAccount *acct =
           mcd_account_manager_lookup_account (account_manager, group);
+
+        if (keys == NULL)
+            n_keys = 0;
 
         for (j = 0; j < n_keys; j++)
         {
