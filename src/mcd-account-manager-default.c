@@ -145,6 +145,9 @@ _keyring_commit (const McpAccountStorage *self,
           gsize k;
           GStrv keys = g_key_file_get_keys (amd->secrets, accts[i], &k, NULL);
 
+          if (keys == NULL)
+            k = 0;
+
           for (j = 0; j < k; j++)
             {
               KeyringSetData *ksd = g_slice_new0 (KeyringSetData);
@@ -176,6 +179,9 @@ _keyring_commit (const McpAccountStorage *self,
           gsize j;
           gsize k;
           GStrv keys = g_key_file_get_keys (amd->secrets, accts[i], &k, NULL);
+
+          if (keys == NULL)
+            k = 0;
 
           for (j = 0; j < k; j++)
             {
@@ -438,6 +444,9 @@ _get (const McpAccountStorage *self,
       gsize n;
       GStrv keys = g_key_file_get_keys (amd->keyfile, acct, &n, NULL);
 
+      if (keys == NULL)
+        n = 0;
+
       for (i = 0; i < n; i++)
         {
           gchar *v = g_key_file_get_string (amd->keyfile, acct, keys[i], NULL);
@@ -452,6 +461,9 @@ _get (const McpAccountStorage *self,
 
 #if ENABLE_GNOME_KEYRING
       keys = g_key_file_get_keys (amd->secrets, acct, &n, NULL);
+
+      if (keys == NULL)
+        n = 0;
 
       for (i = 0; i < n; i++)
         {
