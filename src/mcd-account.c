@@ -51,6 +51,7 @@
 #include "mcd-misc.h"
 #include "mcd-signals-marshal.h"
 #include "mcd-manager.h"
+#include "mcd-manager-priv.h"
 #include "mcd-master.h"
 #include "mcd-master-priv.h"
 #include "mcd-dbusprop.h"
@@ -2124,10 +2125,18 @@ mcd_account_get_parameter (McdAccount *account, const gchar *name,
 typedef struct
 {
   McdAccount *account;
+  TpConnectionManagerProtocol *protocol;
   const TpConnectionManagerParam *param;
   CheckParametersCb callback;
   gpointer user_data;
 } CheckParameterData;
+
+static void
+check_parameter_data_free (CheckParameterData *data)
+{
+    _mcd_manager_protocol_free (data->protocol);
+    g_slice_free (CheckParameterData, data);
+}
 
 static void
 check_parameters_get_param_cb (McdAccount *account, const GValue *value,
@@ -2139,7 +2148,7 @@ check_parameters_get_param_cb (McdAccount *account, const GValue *value,
     if ((account != NULL && value == NULL) || error != NULL)
     {
         data->callback (data->account, FALSE, data->user_data);
-        g_slice_free (CheckParameterData, data);
+        check_parameter_data_free (data);
     }
     else
     {
@@ -2158,7 +2167,7 @@ check_parameters_get_param_cb (McdAccount *account, const GValue *value,
         else
         {
             data->callback (data->account, TRUE, data->user_data);
-            g_slice_free (CheckParameterData, data);
+            check_parameter_data_free (data);
         }
     }
 }
@@ -2169,21 +2178,24 @@ mcd_account_check_parameters (McdAccount *account,
                               gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
-    const TpConnectionManagerParam *param;
+    TpConnectionManagerProtocol *protocol;
     CheckParameterData *data;
 
     DEBUG ("called for %s", priv->unique_name);
-    param = mcd_manager_get_parameters (priv->manager, priv->protocol_name);
-    if (!param)
+    protocol = _mcd_manager_dup_protocol (priv->manager, priv->protocol_name);
+
+    if (protocol == NULL)
     {
         if (callback != NULL)
             callback (account, FALSE, user_data);
+
         return;
     }
 
     data = g_slice_new0 (CheckParameterData);
     data->account = account;
-    data->param = param;
+    data->protocol = protocol;
+    data->param = protocol->params;
     data->callback = callback;
     data->user_data = user_data;
 
