@@ -306,13 +306,10 @@ PKG_CHECK_MODULES([TELEPATHY], [telepathy-glib >= 0.11.6])
 AC_SUBST(TELEPATHY_LIBS)
 AC_SUBST(TELEPATHY_CFLAGS)
 
-PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.24, gobject-2.0])
+PKG_CHECK_MODULES([GLIB],
+	[glib-2.0 >= 2.24, gobject-2.0, gmodule-no-export-2.0])
 AC_SUBST(GLIB_LIBS)
 AC_SUBST(GLIB_CFLAGS)
-
-PKG_CHECK_MODULES(GMODULE, gmodule-no-export-2.0)
-AC_SUBST(GMODULE_LIBS)
-AC_SUBST(GMODULE_CFLAGS)
 
 dnl docs/Makefile.am needs to know whether it's an out of tree build
 dnl (srcdir != builddir)
