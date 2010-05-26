@@ -1008,23 +1008,6 @@ _mcd_channel_get_immutable_properties (McdChannel *channel)
     return ret;
 }
 
-/*
- * _mcd_channel_get_target_id:
- * @channel: the #McdChannel.
- *
- * Returns: string representing the target contact, or %NULL.
- */
-const gchar *
-_mcd_channel_get_target_id (McdChannel *channel)
-{
-    McdChannelRequestData *crd;
-
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    crd = channel->priv->request_data;
-    if (G_UNLIKELY (!crd || !crd->properties)) return NULL;
-    return tp_asv_get_string (crd->properties, TP_IFACE_CHANNEL ".TargetID");
-}
-
 /**
  * mcd_channel_take_error:
  * @channel: the #McdChannel.

@@ -47,8 +47,6 @@ G_GNUC_INTERNAL
 GHashTable *_mcd_channel_get_immutable_properties (McdChannel *channel);
 
 G_GNUC_INTERNAL
-const gchar *_mcd_channel_get_target_id (McdChannel *channel);
-G_GNUC_INTERNAL
 GHashTable *_mcd_channel_get_requested_properties (McdChannel *channel);
 G_GNUC_INTERNAL
 const gchar *_mcd_channel_get_request_path (McdChannel *channel);
