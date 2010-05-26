@@ -169,21 +169,6 @@ fi
 AC_SUBST(CHANDLERS_DIR)
 AC_DEFINE_UNQUOTED(CHANDLERS_DIR,"$CHANDLERS_DIR", [Directory for channel handlers])
 
-test_enabled="yes"
-AC_MSG_CHECKING(whether to build tests)
-AC_ARG_ENABLE(tests,
-	[  --disable-tests           don't build tests. default: enable them],
-	[
-		AC_MSG_RESULT(${enableval})
-		test_enabled="${enableval}"
-	],
-	[
-		AC_MSG_RESULT([yes (default)])
-		test_enabled="yes"
-	]
-)
-AM_CONDITIONAL(HAVE_TESTS, [test x$test_enabled = xyes])
-
 examples_enabled="yes"
 AC_MSG_CHECKING(whether to build examples)
 AC_ARG_ENABLE(examples,
