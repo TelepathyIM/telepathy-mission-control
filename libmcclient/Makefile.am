@@ -11,12 +11,19 @@ BUILT_SOURCES = \
 	_gen/libmcclient.xml \
 	mc-signals-marshal.c \
 	mc-signals-marshal.h \
-	$(nodist_libmcclient_la_SOURCES) \
-	$(nodist_geninclude_HEADERS)
+	$(nodist_libmcclient_la_SOURCES)
 
 CLEANFILES = $(BUILT_SOURCES)
 
+if ENABLE_MCD_PLUGINS
+libmcclient_includedir = $(includedir)/libmcclient
 lib_LTLIBRARIES = libmcclient.la
+libmcclient_include_HEADERS = $(headers)
+genincludedir = $(libmcclient_includedir)/_gen
+nodist_geninclude_HEADERS = $(gen_headers)
+else
+noinst_LTLIBRARIES = libmcclient.la
+endif
 
 libmcclient_la_CFLAGS = $(GLIB_CFLAGS)
 libmcclient_la_SOURCES = \
@@ -26,15 +33,16 @@ libmcclient_la_SOURCES = \
 	mc-account-compat.c \
 	mc-account-conditions.c \
 	mc-account-manager.c \
+	mc-account-priv.h \
 	mc-account-request.c \
 	mc-account-stats.c \
 	mc-dispatch-operation.c \
 	mc-errors.c \
 	mc-profile.c \
-	mc-signals-marshal.c
+	mc-signals-marshal.c \
+	$(headers)
 
-libmcclient_includedir = $(includedir)/libmcclient
-libmcclient_include_HEADERS = \
+headers = \
 	dbus-api.h \
 	mc-account.h \
 	mc-enums.h \
@@ -47,11 +55,7 @@ libmcclient_include_HEADERS = \
 	mc-signals-marshal.h \
 	mc-svc-client.h
 
-noinst_HEADERS = \
-	mc-account-priv.h
-
-genincludedir = $(libmcclient_includedir)/_gen
-nodist_geninclude_HEADERS = \
+gen_headers = \
 	_gen/mc-quark.h \
 	_gen/cli-account.h \
 	_gen/cli-account-manager.h \
@@ -72,13 +76,15 @@ nodist_libmcclient_la_SOURCES = \
 	_gen/register-dbus-glib-marshallers-body.h \
 	_gen/signals-marshal.c \
 	_gen/signals-marshal.h \
-	_gen/signals-marshal.list
+	_gen/signals-marshal.list \
+	$(gen_headers)
 
 libmcclient_la_LIBADD = \
 	$(TELEPATHY_LIBS) \
 	$(DBUS_LIBS) \
 	$(GLIB_LIBS)
 
+if ENABLE_MCD_PLUGINS
 libmcclient_la_LDFLAGS = \
 	-export-symbols-regex "^(mc_)|(mission_control_)"
 
@@ -88,7 +94,8 @@ if ENABLE_MC_CLIENT_SO6
 libmcclient_la_LDFLAGS += -version-info "10":"0":"4"
 else
 libmcclient_la_LDFLAGS += -release $(VERSION)
-endif
+endif # ! ENABLE_MC_CLIENT_SO6
+endif # ENABLE_MCD_PLUGINS
 
 %-marshal.h: %-marshal.list Makefile.am
 	glib-genmarshal --header --prefix=$(subst -,_,$*)_marshal $< > $*-marshal.h
