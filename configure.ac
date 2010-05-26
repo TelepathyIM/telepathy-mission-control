@@ -54,17 +54,6 @@ AC_SUBST([ERROR_CFLAGS])
 AM_CFLAGS="$CFLAGS -fno-strict-aliasing -ansi -DDMALLOC $ERROR_CFLAGS"
 AC_SUBST([AM_CFLAGS])
 
-define([EXPAND_VARIABLE],
-[$2=[$]$1
-while true; do
-    case "[$]$2" in
-    *\[$]* ) eval "$2=[$]$2" ;;
-    *) break ;;
-    esac
-done])
-
-EXPAND_VARIABLE(datadir,datadir_expanded)
-
 XSLTPROC=
 AC_CHECK_PROGS([XSLTPROC], [xsltproc])
 if test -z "$XSLTPROC"; then
