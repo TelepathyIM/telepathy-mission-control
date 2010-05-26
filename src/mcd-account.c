@@ -51,6 +51,7 @@
 #include "mcd-misc.h"
 #include "mcd-signals-marshal.h"
 #include "mcd-manager.h"
+#include "mcd-manager-priv.h"
 #include "mcd-master.h"
 #include "mcd-master-priv.h"
 #include "mcd-dbusprop.h"
@@ -1801,10 +1802,18 @@ mcd_account_get_parameter (McdAccount *account, const gchar *name,
 typedef struct
 {
   McdAccount *account;
+  TpConnectionManagerProtocol *protocol;
   const TpConnectionManagerParam *param;
   CheckParametersCb callback;
   gpointer user_data;
 } CheckParameterData;
+
+static void
+check_parameter_data_free (CheckParameterData *data)
+{
+    _mcd_manager_protocol_free (data->protocol);
+    g_slice_free (CheckParameterData, data);
+}
 
 static void
 check_parameters_get_param_cb (McdAccount *account, const GValue *value,
@@ -1816,7 +1825,7 @@ check_parameters_get_param_cb (McdAccount *account, const GValue *value,
     if ((account != NULL && value == NULL) || error != NULL)
     {
         data->callback (data->account, FALSE, data->user_data);
-        g_slice_free (CheckParameterData, data);
+        check_parameter_data_free (data);
     }
     else
     {
@@ -1835,7 +1844,7 @@ check_parameters_get_param_cb (McdAccount *account, const GValue *value,
         else
         {
             data->callback (data->account, TRUE, data->user_data);
-            g_slice_free (CheckParameterData, data);
+            check_parameter_data_free (data);
         }
     }
 }
@@ -1846,21 +1855,24 @@ mcd_account_check_parameters (McdAccount *account,
                               gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
-    const TpConnectionManagerParam *param;
+    TpConnectionManagerProtocol *protocol;
     CheckParameterData *data;
 
     DEBUG ("called for %s", priv->unique_name);
-    param = mcd_manager_get_parameters (priv->manager, priv->protocol_name);
-    if (!param)
+    protocol = _mcd_manager_dup_protocol (priv->manager, priv->protocol_name);
+
+    if (protocol == NULL)
     {
         if (callback != NULL)
             callback (account, FALSE, user_data);
+
         return;
     }
 
     data = g_slice_new0 (CheckParameterData);
     data->account = account;
-    data->param = param;
+    data->protocol = protocol;
+    data->param = protocol->params;
     data->callback = callback;
     data->user_data = user_data;
 
@@ -1908,6 +1920,7 @@ typedef struct
   GHashTableIter iter;
   gchar **unset;
   gchar **unset_iter;
+  TpConnectionManagerProtocol *protocol;
   const TpConnectionManagerParam *param;
   const GValue *new;
   guint n_params;
@@ -1931,6 +1944,8 @@ set_parameters_data_free (SetParametersData *data)
 
     if (data->dbus_properties != NULL)
         g_slist_free (data->dbus_properties);
+
+    _mcd_manager_protocol_free (data->protocol);
 
     g_slice_free (SetParametersData, data);
 }
@@ -2172,12 +2187,12 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
                              gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
-    const TpConnectionManagerParam *param;
     GSList *dbus_properties = NULL;
     GPtrArray *not_yet = NULL;
     SetParametersData *data;
     GError *error = NULL;
     guint unset_size;
+    TpConnectionManagerProtocol *protocol;
 
     DEBUG ("called");
     if (G_UNLIKELY (!priv->manager && !load_manager (account)))
@@ -2187,8 +2202,9 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
         goto error;
     }
 
-    param = mcd_manager_get_parameters (priv->manager, priv->protocol_name);
-    if (G_UNLIKELY (!param))
+    protocol = _mcd_manager_dup_protocol (priv->manager, priv->protocol_name);
+
+    if (G_UNLIKELY (protocol == NULL))
     {
         g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
                      "Protocol %s not found", priv->protocol_name);
@@ -2203,9 +2219,10 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
 
     data = g_slice_new0 (SetParametersData);
     data->account = g_object_ref (account);
+    data->protocol = protocol;
     data->params = hash_table_copy (params);
     data->unset = g_strdupv ((gchar **) unset);
-    data->param = param;
+    data->param = protocol->params;
     data->n_params = 0;
     data->dbus_properties = dbus_properties;
     data->not_yet = not_yet;
@@ -2818,10 +2835,18 @@ mcd_account_get_object_path (McdAccount *account)
 typedef struct
 {
     GHashTable *params;
+    TpConnectionManagerProtocol *protocol;
     const TpConnectionManagerParam *param;
     McdAccountDupParametersCb callback;
     gpointer user_data;
 } DupParametersData;
+
+static void
+dup_parameters_data_free (DupParametersData *data)
+{
+    _mcd_manager_protocol_free (data->protocol);
+    g_slice_free (DupParametersData, data);
+}
 
 static void
 dup_parameters_get_parameter_cb (McdAccount *account,
@@ -2848,7 +2873,7 @@ dup_parameters_get_parameter_cb (McdAccount *account,
   {
       if (data->callback != NULL)
           data->callback (account, data->params, data->user_data);
-      g_slice_free (DupParametersData, data);
+      dup_parameters_data_free (data);
   }
 }
 
@@ -2869,7 +2894,7 @@ _mcd_account_dup_parameters (McdAccount *account,
 {
     McdAccountPrivate *priv;
     DupParametersData *data;
-    const TpConnectionManagerParam *param;
+    TpConnectionManagerProtocol *protocol;
 
     g_return_if_fail (MCD_IS_ACCOUNT (account));
 
@@ -2882,17 +2907,18 @@ _mcd_account_dup_parameters (McdAccount *account,
         return;
     }
 
-    param = mcd_manager_get_parameters (priv->manager,
-                                        priv->protocol_name);
+    protocol = _mcd_manager_dup_protocol (priv->manager,
+                                          priv->protocol_name);
 
-    if (G_UNLIKELY (!param))
+    if (G_UNLIKELY (protocol == NULL))
     {
         callback (account, NULL, user_data);
         return;
     }
 
     data = g_slice_new0 (DupParametersData);
-    data->param = param;
+    data->protocol = protocol;
+    data->param = protocol->params;
     data->callback = callback;
     data->user_data = user_data;
 
@@ -2900,7 +2926,7 @@ _mcd_account_dup_parameters (McdAccount *account,
                                           g_free,
                                           (GDestroyNotify) tp_g_value_slice_free);
 
-    mcd_account_get_parameter (account, param->name,
+    mcd_account_get_parameter (account, data->param->name,
                                dup_parameters_get_parameter_cb, data);
 }
 
