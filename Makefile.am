@@ -23,7 +23,10 @@ if ENABLE_MCD_PLUGINS
 pkgconfig_DATA += mission-control.pc
 endif
 
-DISTCHECK_CONFIGURE_FLAGS = --enable-gtk-doc --disable-gnome-keyring
+DISTCHECK_CONFIGURE_FLAGS = \
+	--enable-gtk-doc \
+	--disable-gnome-keyring \
+	--disable-mcd-plugins
 
 include tools/lcov.am
 include tools/telepathy.am
