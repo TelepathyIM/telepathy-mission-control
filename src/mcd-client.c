@@ -207,13 +207,17 @@ parse_client_filter (GKeyFile *file, const gchar *group)
 {
     GHashTable *filter;
     gchar **keys;
-    gsize len = 0;
+    gsize len;
     guint i;
 
     filter = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
                                     (GDestroyNotify) tp_g_value_slice_free);
 
     keys = g_key_file_get_keys (file, group, &len, NULL);
+
+    if (keys == NULL)
+        len = 0;
+
     for (i = 0; i < len; i++)
     {
         const gchar *key;
