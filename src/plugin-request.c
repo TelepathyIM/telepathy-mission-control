@@ -1,5 +1,5 @@
 /* Representation of a channel request as presented to plugins. This is
- * deliberately a "smaller" API than McdChannel.
+ * deliberately a "smaller" API than McdChannel or McdRequest.
  *
  * Copyright (C) 2009 Nokia Corporation
  * Copyright (C) 2009 Collabora Ltd.
@@ -37,7 +37,7 @@ enum {
 struct _McdPluginRequest {
     GObject parent;
     McdAccount *account;
-    McdChannel *real_request;
+    McdRequest *real_request;
     GQuark domain;
     gint code;
     gchar *message;
@@ -137,8 +137,8 @@ _mcd_plugin_request_class_init (
 
   g_object_class_install_property (object_class, PROP_REAL_REQUEST,
       g_param_spec_object ("real-request", "Real channel request",
-          "The underlying McdChannel",
-          MCD_TYPE_CHANNEL,
+          "The underlying McrRequest",
+          MCD_TYPE_REQUEST,
           G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_ACCOUNT,
@@ -150,7 +150,7 @@ _mcd_plugin_request_class_init (
 
 McdPluginRequest *
 _mcd_plugin_request_new (McdAccount *account,
-    McdChannel *real_request)
+    McdRequest *real_request)
 {
   McdPluginRequest *self;
 
@@ -200,7 +200,7 @@ plugin_req_get_user_action_time (McpRequest *obj)
 
   g_return_val_if_fail (self != NULL, 0);
 
-  return _mcd_channel_get_request_user_action_time (self->real_request);
+  return _mcd_request_get_user_action_time (self->real_request);
 }
 
 static guint
@@ -229,7 +229,7 @@ plugin_req_ref_nth_request (McpRequest *obj,
       return NULL;
     }
 
-  requested_properties = _mcd_channel_get_requested_properties (
+  requested_properties = _mcd_request_get_properties (
       self->real_request);
   g_return_val_if_fail (requested_properties != NULL, NULL);
   return g_hash_table_ref (requested_properties);
@@ -286,7 +286,7 @@ plugin_req_start_delay (McpRequest *obj)
   delay = g_slice_new (RealDelay);
   delay->magic = DELAY_MAGIC;
   delay->self = g_object_ref (obj);
-  _mcd_channel_start_request_delay (self->real_request);
+  _mcd_request_start_delay (self->real_request);
   return (McpRequestDelay *) delay;
 }
 
@@ -305,7 +305,7 @@ plugin_req_end_delay (McpRequest *obj,
 
   real_delay->magic = ~(DELAY_MAGIC);
   real_delay->self = NULL;
-  _mcd_channel_end_request_delay (self->real_request);
+  _mcd_request_end_delay (self->real_request);
   g_object_unref (self);
 }
 

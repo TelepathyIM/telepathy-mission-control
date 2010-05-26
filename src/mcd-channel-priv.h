@@ -28,6 +28,7 @@
 #define MCD_CHANNEL_PRIV_H
 
 #include "mcd-channel.h"
+#include "request.h"
 
 G_BEGIN_DECLS
 
@@ -45,6 +46,8 @@ G_GNUC_INTERNAL void _mcd_channel_undispatchable (McdChannel *self);
 
 G_GNUC_INTERNAL
 GHashTable *_mcd_channel_get_immutable_properties (McdChannel *channel);
+
+G_GNUC_INTERNAL McdRequest *_mcd_channel_get_request (McdChannel *self);
 
 G_GNUC_INTERNAL
 GHashTable *_mcd_channel_get_requested_properties (McdChannel *channel);
@@ -73,9 +76,6 @@ void _mcd_channel_close (McdChannel *channel);
 G_GNUC_INTERNAL void _mcd_channel_depart (McdChannel *channel,
                                           TpChannelGroupChangeReason reason,
                                           const gchar *message);
-
-G_GNUC_INTERNAL void _mcd_channel_start_request_delay (McdChannel *channel);
-G_GNUC_INTERNAL void _mcd_channel_end_request_delay (McdChannel *channel);
 
 G_END_DECLS
 #endif

@@ -46,6 +46,7 @@ struct _McdRequest {
     gint64 user_action_time;
     gchar *preferred_handler;
     gchar *object_path;
+    gsize delay;
 
     gboolean proceeding;
 };
@@ -331,4 +332,24 @@ GHashTable *
 _mcd_request_get_properties (McdRequest *self)
 {
   return self->properties;
+}
+
+void
+_mcd_request_start_delay (McdRequest *self)
+{
+    g_object_ref (self);
+    self->delay++;
+}
+
+void
+_mcd_request_end_delay (McdRequest *self)
+{
+    g_return_if_fail (self->delay > 0);
+
+    if (--self->delay == 0)
+    {
+      /* FIXME: stub */
+    }
+
+    g_object_unref (self);
 }

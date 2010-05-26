@@ -226,7 +226,8 @@ _mcd_account_proceed_with_request (McdAccount *account,
             /* Lazily create a plugin-API object if anything cares */
             if (plugin_api == NULL)
             {
-                plugin_api = _mcd_plugin_request_new (account, channel);
+                plugin_api = _mcd_plugin_request_new (account,
+                    _mcd_channel_get_request (channel));
             }
 
             mcp_request_policy_check (mini_plugins->data,
