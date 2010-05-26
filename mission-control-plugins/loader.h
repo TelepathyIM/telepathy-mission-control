@@ -21,11 +21,16 @@
 #ifndef MCP_LOADER_H
 #define MCP_LOADER_H
 
-#ifndef MCP_IN_MISSION_CONTROL_PLUGINS_H
+#ifndef _MCP_IN_MISSION_CONTROL_PLUGINS_H
 #error Use <mission-control-plugins/mission-control-plugins.h> instead
 #endif
 
 G_BEGIN_DECLS
+
+/* not actually implemented in this library, see loader.c */
+GObject *mcp_plugin_ref_nth_object (guint n);
+
+#define MCP_PLUGIN_REF_NTH_OBJECT_SYMBOL "mcp_plugin_ref_nth_object"
 
 void mcp_set_debug (gboolean debug);
 

@@ -24,6 +24,9 @@
 /doc/reference/*/*.interfaces
 /doc/reference/*/*.prerequisites
 /doc/reference/*/*.signals
+/doc/reference/mission-control-plugins/tmpl/*.sgml
+/doc/reference/mission-control-plugins/*.types
+/doc/reference/mission-control-plugins/*.txt
 .libs
 .deps
 Makefile

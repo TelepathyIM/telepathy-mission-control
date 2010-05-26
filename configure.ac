@@ -337,6 +337,7 @@ doc/Makefile \
 doc/reference/Makefile \
 doc/reference/libmcclient/Makefile \
 doc/reference/libmissioncontrol-server/Makefile \
+doc/reference/mission-control-plugins/Makefile \
 examples/Makefile \
 libmcclient.pc \
 libmcclient/Makefile \

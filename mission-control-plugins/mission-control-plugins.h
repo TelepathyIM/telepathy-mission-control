@@ -24,7 +24,7 @@
 
 #include <glib-object.h>
 
-#define MCP_IN_MISSION_CONTROL_PLUGINS_H
+#define _MCP_IN_MISSION_CONTROL_PLUGINS_H
 #include <mission-control-plugins/account.h>
 #include <mission-control-plugins/account-storage.h>
 #include <mission-control-plugins/dispatch-operation.h>
@@ -32,15 +32,6 @@
 #include <mission-control-plugins/loader.h>
 #include <mission-control-plugins/request.h>
 #include <mission-control-plugins/request-policy.h>
-#undef  MCP_IN_MISSION_CONTROL_PLUGINS_H
-
-#define MCP_PLUGIN_REF_NTH_OBJECT_SYMBOL "mcp_plugin_ref_nth_object"
-
-G_BEGIN_DECLS
-
-/* not actually implemented in this library, see loader.c */
-GObject *mcp_plugin_ref_nth_object (guint n);
-
-G_END_DECLS
+#undef  _MCP_IN_MISSION_CONTROL_PLUGINS_H
 
 #endif
