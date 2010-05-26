@@ -56,6 +56,7 @@
 #include "mcd-dispatch-operation-priv.h"
 #include "mcd-handler-map-priv.h"
 #include "mcd-misc.h"
+#include "plugin-loader.h"
 
 #include <telepathy-glib/defs.h>
 #include <telepathy-glib/gtypes.h>

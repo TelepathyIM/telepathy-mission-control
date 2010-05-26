@@ -61,6 +61,7 @@
 #include "mission-control-plugins/mission-control-plugins.h"
 #include "mission-control-plugins/implementation.h"
 #include "plugin-account.h"
+#include "plugin-loader.h"
 
 #define PARAM_PREFIX "param-"
 #define WRITE_CONF_DELAY    500
