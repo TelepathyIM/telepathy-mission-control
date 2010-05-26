@@ -350,13 +350,14 @@ _migrate_secrets_get_cb (McdAccount *account,
                          const GError *error,
                          gpointer user_data)
 {
-    const gchar *name = user_data;
+    gchar *name = user_data;
 
     if (error != NULL || value == NULL)
         return;
 
     set_parameter (account, name, value, _migrate_secrets_set_cb,
                    user_data);
+    g_free (name);
 }
 
 static void
@@ -377,9 +378,10 @@ _mcd_account_migrate_secrets (McdAccount *account)
     {
         if (p->flags & TP_CONN_MGR_PARAM_FLAG_SECRET)
         {
-            get_parameter_from_file (account, p->name, _migrate_secrets_get_cb,
-                                     p->name);
+            gchar *name = g_strdup (p->name);
 
+            get_parameter_from_file (account, name, _migrate_secrets_get_cb,
+                                     name);
         }
     }
 }
