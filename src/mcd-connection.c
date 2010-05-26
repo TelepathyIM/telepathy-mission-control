@@ -2200,7 +2200,7 @@ mcd_connection_class_init (McdConnectionClass * klass)
     klass->need_dispatch = mcd_connection_need_dispatch;
     klass->request_channel = _mcd_connection_request_channel;
 
-    _mc_ext_register_dbus_glib_marshallers ();
+    _mcd_ext_register_dbus_glib_marshallers ();
 
     tp_connection_init_known_interfaces ();
     tp_proxy_or_subclass_hook_on_interface_add (TP_TYPE_CONNECTION,
