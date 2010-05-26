@@ -255,18 +255,18 @@ _gen/signals-marshal.list: _gen/mcd.xml \
 	$(tools_dir)/glib-signals-marshal-gen.py
 	$(PYTHON) $(tools_dir)/glib-signals-marshal-gen.py $< > $@
 
-_gen/signals-marshal.h: _gen/signals-marshal.list
-	$(GLIB_GENMARSHAL) --header --prefix=_mc_ext_marshal $< > $@
+_gen/signals-marshal.h: _gen/signals-marshal.list Makefile.am
+	$(GLIB_GENMARSHAL) --header --prefix=_mcd_ext_marshal $< > $@
 
-_gen/signals-marshal.c: _gen/signals-marshal.list
+_gen/signals-marshal.c: _gen/signals-marshal.list Makefile.am
 	{ echo '#include "_gen/signals-marshal.h"' && \
-	$(GLIB_GENMARSHAL) --body --prefix=_mc_ext_marshal $<; } \
+	$(GLIB_GENMARSHAL) --body --prefix=_mcd_ext_marshal $<; } \
 	> $@
 
 _gen/register-dbus-glib-marshallers-body.h: _gen/mcd.xml \
-	$(tools_dir)/glib-client-marshaller-gen.py
+	$(tools_dir)/glib-client-marshaller-gen.py Makefile.am
 	$(PYTHON) $(tools_dir)/glib-client-marshaller-gen.py $< \
-		_mc_ext > $@
+		_mcd_ext > $@
 
 _gen/enums.h: _gen/mcd.xml $(tools_dir)/c-constants-generator.xsl
 	$(XSLTPROC) $(XSLTPROCFLAGS) \
@@ -279,12 +279,12 @@ _gen/enums.h: _gen/mcd.xml $(tools_dir)/c-constants-generator.xsl
 # (Currently the only "class" is nmc4, but the new API will need "classes"
 # like account, account-manager, ...)
 
-_gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml)
+_gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml) Makefile.am
 	$(mkdir_p) _gen
 	$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
 
-_gen/%.xml: %.xml $(wildcard $(top_srcdir)/xml/*.xml)
+_gen/%.xml: %.xml $(wildcard $(top_srcdir)/xml/*.xml) Makefile.am
 	$(mkdir_p) _gen
 	$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
@@ -301,7 +301,7 @@ _gen/svc-%.c _gen/svc-%.h: _gen/%.xml \
 	$(tools_dir)/glib-ginterface-gen.py Makefile.am
 	$(PYTHON) $(tools_dir)/glib-ginterface-gen.py \
 		--filename=_gen/svc-$* \
-		--signal-marshal-prefix=_mc_ext \
+		--signal-marshal-prefix=_mcd_ext \
 		--include='<telepathy-glib/dbus.h>' \
 		--include='"_gen/signals-marshal.h"' \
 		--not-implemented-func='tp_dbus_g_method_return_not_implemented' \

@@ -51,7 +51,7 @@ G_GNUC_INTERNAL
 gboolean _mcd_file_set_contents (const gchar *filename, const gchar *contents,
                                  gssize length, GError **error);
 G_GNUC_INTERNAL
-void _mc_ext_register_dbus_glib_marshallers (void);
+void _mcd_ext_register_dbus_glib_marshallers (void);
 
 G_GNUC_INTERNAL int _mcd_chmod_private (const gchar *filename);
 
