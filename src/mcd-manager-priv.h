@@ -31,7 +31,6 @@
 
 G_BEGIN_DECLS
 
-void _mcd_manager_protocol_free (TpConnectionManagerProtocol *proto);
 TpConnectionManagerProtocol *_mcd_manager_dup_protocol (McdManager *manager,
     const gchar *protocol);
 

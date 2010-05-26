@@ -1811,7 +1811,7 @@ typedef struct
 static void
 check_parameter_data_free (CheckParameterData *data)
 {
-    _mcd_manager_protocol_free (data->protocol);
+    tp_connection_manager_protocol_free (data->protocol);
     g_slice_free (CheckParameterData, data);
 }
 
@@ -1945,7 +1945,7 @@ set_parameters_data_free (SetParametersData *data)
     if (data->dbus_properties != NULL)
         g_slist_free (data->dbus_properties);
 
-    _mcd_manager_protocol_free (data->protocol);
+    tp_connection_manager_protocol_free (data->protocol);
 
     g_slice_free (SetParametersData, data);
 }
@@ -2844,7 +2844,7 @@ typedef struct
 static void
 dup_parameters_data_free (DupParametersData *data)
 {
-    _mcd_manager_protocol_free (data->protocol);
+    tp_connection_manager_protocol_free (data->protocol);
     g_slice_free (DupParametersData, data);
 }
 
