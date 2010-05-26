@@ -38,6 +38,7 @@
 #define _POSIX_C_SOURCE 200112L  /* for strtok_r() */
 #include "config.h"
 #include "mcd-manager.h"
+#include "mcd-manager-priv.h"
 #include "mcd-misc.h"
 
 #include <stdio.h>
@@ -471,6 +472,94 @@ mcd_manager_get_parameters (McdManager *manager, const gchar *protocol)
             return protocols[i]->params;
     }
     return NULL;
+}
+
+/* Copied from telepathy-glib 0.11.6 for _mcd_manager_copy_protocol() */
+static void
+_tp_connection_manager_param_free_contents (TpConnectionManagerParam *param)
+{
+  g_free (param->name);
+  g_free (param->dbus_signature);
+
+  if (G_IS_VALUE (&param->default_value))
+    g_value_unset (&param->default_value);
+}
+
+/* Copied from telepathy-glib 0.11.6 for _mcd_manager_copy_protocol() */
+void
+_mcd_manager_protocol_free (TpConnectionManagerProtocol *proto)
+{
+  TpConnectionManagerParam *param;
+
+  g_free (proto->name);
+
+  for (param = proto->params; param->name != NULL; param++)
+    {
+      _tp_connection_manager_param_free_contents (param);
+    }
+
+  g_free (proto->params);
+
+  g_slice_free (TpConnectionManagerProtocol, proto);
+}
+
+/* Copied from telepathy-glib 0.11.6 for _mcd_manager_copy_protocol() */
+static void
+_tp_connection_manager_param_copy_contents (
+    const TpConnectionManagerParam *in,
+    TpConnectionManagerParam *out)
+{
+  out->name = g_strdup (in->name);
+  out->dbus_signature = g_strdup (in->dbus_signature);
+  out->flags = in->flags;
+
+  if (G_IS_VALUE (&in->default_value))
+    {
+      g_value_init (&out->default_value, G_VALUE_TYPE (&in->default_value));
+      g_value_copy (&in->default_value, &out->default_value);
+    }
+}
+
+/* Copied from telepathy-glib 0.11.6's tp_connection_manager_protocol_copy();
+ * duplicated here to avoid a newer dependency in the stable branch. */
+static TpConnectionManagerProtocol *
+_mcd_manager_copy_protocol (const TpConnectionManagerProtocol *in)
+{
+  TpConnectionManagerProtocol *out = g_slice_new0 (TpConnectionManagerProtocol);
+  TpConnectionManagerParam *param;
+  GArray *params = g_array_new (TRUE, TRUE,
+      sizeof (TpConnectionManagerParam));
+
+  out->name = g_strdup (in->name);
+
+  for (param = in->params; param->name != NULL; param++)
+    {
+      TpConnectionManagerParam copy = { 0, };
+
+      _tp_connection_manager_param_copy_contents (param, &copy);
+      g_array_append_val (params, copy);
+    }
+
+  out->params = (TpConnectionManagerParam *) g_array_free (params, FALSE);
+
+  return out;
+}
+
+TpConnectionManagerProtocol *
+_mcd_manager_dup_protocol (McdManager *manager,
+                           const gchar *protocol)
+{
+    const TpConnectionManagerProtocol *p;
+    g_return_val_if_fail (MCD_IS_MANAGER (manager), NULL);
+    g_return_val_if_fail (protocol != NULL, NULL);
+
+    p = tp_connection_manager_get_protocol (manager->priv->tp_conn_mgr,
+                                            protocol);
+
+    if (p == NULL)
+        return NULL;
+    else
+        return _mcd_manager_copy_protocol (p);
 }
 
 const TpConnectionManagerParam *

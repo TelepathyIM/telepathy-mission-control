@@ -151,6 +151,7 @@ libmcd_convenience_la_SOURCES = \
 	mcd-master.c \
 	mcd-master-priv.h \
 	mcd-manager.c \
+	mcd-manager-priv.h \
 	mcd-connection.c \
 	mcd-connection-priv.h \
 	mcd-dispatcher.c \
