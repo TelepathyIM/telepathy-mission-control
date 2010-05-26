@@ -88,3 +88,52 @@ clean-local: clean-mcp
 # we actually treat all of these as disposable, in this "book"
 clean-mcp:
 	rm -fr *.txt *.types
+
+# this will be enabled in a future release
+ENABLE_DOC_CHECKS = no
+
+if ENABLE_GTK_DOC
+check-local:
+	@err=0; \
+	echo "Checking for undocumented symbols..."; \
+	if grep '^0 symbols incomplete' \
+		$(srcdir)/$(DOC_MODULE)-undocumented.txt && \
+		grep '^0 not documented' \
+		$(srcdir)/$(DOC_MODULE)-undocumented.txt; then\
+		:; \
+	else \
+		cat $(srcdir)/$(DOC_MODULE)-undocumented.txt; \
+		err=1; \
+	fi; \
+	echo "Checking for unused symbols..."; \
+	if grep . $(srcdir)/$(DOC_MODULE)-unused.txt; then\
+		echo "^^^ Unused symbols" >&2; \
+		err=1; \
+	fi; \
+	echo "Checking for undeclared symbols..."; \
+	if test -e $(srcdir)/$(DOC_MODULE)-undeclared.txt &&\
+		grep . $(srcdir)/$(DOC_MODULE)-undeclared.txt; then\
+		echo "^^^ Undeclared symbols" >&2; \
+		err=1; \
+	fi; \
+	sed -n -e 's,<FILE>\(.*\)</FILE>,\1,p' $(srcdir)/$(DOC_MODULE)-sections.txt |\
+	while read file; do \
+		if grep -F "xml/$$file.xml" $(srcdir)/$(DOC_MODULE)-docs.sgml \
+			>/dev/null;\
+		then \
+		:; \
+		else \
+			echo "$$file missing from $(DOC_MODULE)-docs.sgml"; \
+			err=1; \
+		fi; \
+	done; \
+	case $(ENABLE_DOC_CHECKS)/$$err in \
+		(yes/1) \
+			echo "Documentation check failed" >&2; \
+			exit $$err; \
+			;; \
+		(*) \
+			exit 0; \
+			;; \
+	esac
+endif
