@@ -10,11 +10,8 @@ SUBDIRS = \
     server \
     util \
     test \
+    examples \
     doc
-
-if HAVE_EXAMPLES
-SUBDIRS += examples
-endif
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libmcclient.pc mission-control-plugins.pc

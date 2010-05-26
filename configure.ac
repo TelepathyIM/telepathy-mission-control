@@ -169,21 +169,6 @@ fi
 AC_SUBST(CHANDLERS_DIR)
 AC_DEFINE_UNQUOTED(CHANDLERS_DIR,"$CHANDLERS_DIR", [Directory for channel handlers])
 
-examples_enabled="yes"
-AC_MSG_CHECKING(whether to build examples)
-AC_ARG_ENABLE(examples,
-	[  --disable-examples        don't build examples. default: build them],
-	[
-		AC_MSG_RESULT(${enableval})
-		examples_enabled="${enableval}"
-	],
-	[
-		AC_MSG_RESULT([yes (default)])
-		examples_enabled="yes"
-	]
-)
-AM_CONDITIONAL(HAVE_EXAMPLES, [test x$examples_enabled = xyes])
-
 server_enabled="yes"
 AC_MSG_CHECKING(whether to build the daemon)
 AC_ARG_ENABLE(server,
