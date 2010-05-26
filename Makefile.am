@@ -14,10 +14,10 @@ SUBDIRS = \
     doc
 
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = libmcclient.pc mission-control-plugins.pc
+pkgconfig_DATA = mission-control-plugins.pc
 
 if ENABLE_MCD_PLUGINS
-pkgconfig_DATA += mission-control.pc
+pkgconfig_DATA += mission-control.pc libmcclient.pc
 endif
 
 DISTCHECK_CONFIGURE_FLAGS = \
