@@ -111,14 +111,14 @@ _create_config (void)
 static gboolean
 _set (const McpAccountStorage *self,
     const McpAccountManager *am,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key,
     const gchar *val)
 {
   AccountDiversionPlugin *adp = ACCOUNT_DIVERSION_PLUGIN (self);
 
   adp->save = TRUE;
-  g_key_file_set_string (adp->keyfile, acct, key, val);
+  g_key_file_set_string (adp->keyfile, account, key, val);
 
   return TRUE;
 }
@@ -126,36 +126,36 @@ _set (const McpAccountStorage *self,
 static gboolean
 _get (const McpAccountStorage *self,
     const McpAccountManager *am,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key)
 {
   AccountDiversionPlugin *adp = ACCOUNT_DIVERSION_PLUGIN (self);
 
   if (key != NULL)
     {
-      gchar *v = g_key_file_get_string (adp->keyfile, acct, key, NULL);
+      gchar *v = g_key_file_get_string (adp->keyfile, account, key, NULL);
 
       if (v == NULL)
         return FALSE;
 
-      mcp_account_manager_set_value (am, acct, key, v);
+      mcp_account_manager_set_value (am, account, key, v);
       g_free (v);
     }
   else
     {
       gsize i;
       gsize n;
-      GStrv keys = g_key_file_get_keys (adp->keyfile, acct, &n, NULL);
+      GStrv keys = g_key_file_get_keys (adp->keyfile, account, &n, NULL);
 
       if (keys == NULL)
         n = 0;
 
       for (i = 0; i < n; i++)
         {
-          gchar *v = g_key_file_get_string (adp->keyfile, acct, keys[i], NULL);
+          gchar *v = g_key_file_get_string (adp->keyfile, account, keys[i], NULL);
 
           if (v != NULL)
-            mcp_account_manager_set_value (am, acct, keys[i], v);
+            mcp_account_manager_set_value (am, account, keys[i], v);
 
           g_free (v);
         }
@@ -169,14 +169,14 @@ _get (const McpAccountStorage *self,
 static gboolean
 _delete (const McpAccountStorage *self,
       const McpAccountManager *am,
-      const gchar *acct,
+      const gchar *account,
       const gchar *key)
 {
   AccountDiversionPlugin *adp = ACCOUNT_DIVERSION_PLUGIN (self);
 
   if (key == NULL)
     {
-      if (g_key_file_remove_group (adp->keyfile, acct, NULL))
+      if (g_key_file_remove_group (adp->keyfile, account, NULL))
         adp->save = TRUE;
     }
   else
@@ -184,13 +184,13 @@ _delete (const McpAccountStorage *self,
       gsize n;
       GStrv keys;
 
-      if (g_key_file_remove_key (adp->keyfile, acct, key, NULL))
+      if (g_key_file_remove_key (adp->keyfile, account, key, NULL))
         adp->save = TRUE;
 
-      keys = g_key_file_get_keys (adp->keyfile, acct, &n, NULL);
+      keys = g_key_file_get_keys (adp->keyfile, account, &n, NULL);
 
       if (keys == NULL || n == 0)
-        g_key_file_remove_group (adp->keyfile, acct, NULL);
+        g_key_file_remove_group (adp->keyfile, account, NULL);
 
       g_strfreev (keys);
     }

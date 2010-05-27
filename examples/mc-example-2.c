@@ -286,16 +286,16 @@ main (int argc,
 {
     McAccountManager *am;
     DBusGConnection *dbus_conn;
-    TpDBusDaemon *daemon;
+    TpDBusDaemon *dbus;
     GObject *to;
 
     g_type_init ();
     dbus_conn = tp_get_bus ();
-    daemon = tp_dbus_daemon_new (dbus_conn);
+    dbus = tp_dbus_daemon_new (dbus_conn);
     dbus_g_connection_unref (dbus_conn);
 
-    am = mc_account_manager_new (daemon);
-    g_object_unref (daemon);
+    am = mc_account_manager_new (dbus);
+    g_object_unref (dbus);
 
     to = g_object_new (TEST_TYPE_OBJECT, NULL);
     mc_account_manager_call_when_ready_with_accounts (am,

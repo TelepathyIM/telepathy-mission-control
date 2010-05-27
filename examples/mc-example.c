@@ -415,17 +415,17 @@ main (int argc,
 {
     McAccountManager *am;
     DBusGConnection *dbus_conn;
-    TpDBusDaemon *daemon;
+    TpDBusDaemon *dbus;
     GHashTable *params;
     GValue v_true = { 0 }, v_profile = { 0 };
 
     g_type_init ();
     dbus_conn = tp_get_bus ();
-    daemon = tp_dbus_daemon_new (dbus_conn);
+    dbus = tp_dbus_daemon_new (dbus_conn);
     dbus_g_connection_unref (dbus_conn);
 
-    am = mc_account_manager_new (daemon);
-    g_object_unref (daemon);
+    am = mc_account_manager_new (dbus);
+    g_object_unref (dbus);
 
     g_signal_connect (am, "account-created",
 		      G_CALLBACK (on_account_created), NULL);

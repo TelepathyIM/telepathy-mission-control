@@ -46,20 +46,20 @@ typedef struct _McpAccountManagerIface McpAccountManagerIface;
 GType mcp_account_manager_get_type (void) G_GNUC_CONST;
 
 void mcp_account_manager_set_value (const McpAccountManager *mcpa,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key,
     const gchar *value);
 
 gchar * mcp_account_manager_get_value (const McpAccountManager *mcpa,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key);
 
 gboolean mcp_account_manager_parameter_is_secret (const McpAccountManager *mcpa,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key);
 
 void mcp_account_manager_parameter_make_secret (const McpAccountManager *mcpa,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key);
 
 gchar * mcp_account_manager_get_unique_name (McpAccountManager *mcpa,

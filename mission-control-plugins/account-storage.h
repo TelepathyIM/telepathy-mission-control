@@ -103,18 +103,18 @@ gint mcp_account_storage_priority (const McpAccountStorage *storage);
 
 gboolean mcp_account_storage_get (const McpAccountStorage *storage,
     McpAccountManager *am,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key);
 
 gboolean mcp_account_storage_set (const McpAccountStorage *storage,
     const McpAccountManager *am,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key,
     const gchar *val);
 
 gboolean mcp_account_storage_delete (const McpAccountStorage *storage,
     const McpAccountManager *am,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key);
 
 void mcp_account_storage_ready (const McpAccountStorage *storage,

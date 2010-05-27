@@ -53,7 +53,7 @@ mcp_account_manager_get_type (void)
 
 void
 mcp_account_manager_set_value (const McpAccountManager *mcpa,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key,
     const gchar *value)
 {
@@ -62,13 +62,13 @@ mcp_account_manager_set_value (const McpAccountManager *mcpa,
   g_return_if_fail (iface != NULL);
   g_return_if_fail (iface->set_value != NULL);
 
-  iface->set_value (mcpa, acct, key, value);
+  iface->set_value (mcpa, account, key, value);
 }
 
 /**
  * mcp_account_manager_get_value:
  * @mcpa: an #McpAccountManager instance
- * @acct: the unique name of an account
+ * @account: the unique name of an account
  * @key: the setting whose value we want to retrieve
  *
  * Fetch a copy of the current value of an account setting held by
@@ -78,7 +78,7 @@ mcp_account_manager_set_value (const McpAccountManager *mcpa,
  **/
 gchar *
 mcp_account_manager_get_value (const McpAccountManager *mcpa,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key)
 {
   McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
@@ -86,13 +86,13 @@ mcp_account_manager_get_value (const McpAccountManager *mcpa,
   g_return_val_if_fail (iface != NULL, NULL);
   g_return_val_if_fail (iface->set_value != NULL, NULL);
 
-  return iface->get_value (mcpa, acct, key);
+  return iface->get_value (mcpa, account, key);
 }
 
 /**
  * mcp_account_manager_parameter_is_secret:
  * @mcpa: an #McpAccountManager instance
- * @acct: the unique name of an account
+ * @account: the unique name of an account
  * @key: the setting whose value we want to retrieve
  *
  * Determine whether a given account parameter is secret.
@@ -105,7 +105,7 @@ mcp_account_manager_get_value (const McpAccountManager *mcpa,
  **/
 gboolean
 mcp_account_manager_parameter_is_secret (const McpAccountManager *mcpa,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key)
 {
   McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
@@ -113,13 +113,13 @@ mcp_account_manager_parameter_is_secret (const McpAccountManager *mcpa,
   g_return_val_if_fail (iface != NULL, FALSE);
   g_return_val_if_fail (iface->is_secret != NULL, FALSE);
 
-  return iface->is_secret (mcpa, acct, key);
+  return iface->is_secret (mcpa, account, key);
 }
 
 /**
  * mcp_account_manager_parameter_make_secret:
  * @mcpa: an #McpAccountManager instance
- * @acct: the unique name of an account
+ * @account: the unique name of an account
  * @key: the setting whose value we want to retrieve
  *
  * Flag an account setting as secret for the lifetime of this
@@ -127,7 +127,7 @@ mcp_account_manager_parameter_is_secret (const McpAccountManager *mcpa,
  **/
 void
 mcp_account_manager_parameter_make_secret (const McpAccountManager *mcpa,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key)
 {
   McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
@@ -135,8 +135,8 @@ mcp_account_manager_parameter_make_secret (const McpAccountManager *mcpa,
   g_return_if_fail (iface != NULL);
   g_return_if_fail (iface->make_secret != NULL);
 
-  g_debug ("%s.%s should be secret", acct, key);
-  return iface->make_secret (mcpa, acct, key);
+  g_debug ("%s.%s should be secret", account, key);
+  return iface->make_secret (mcpa, account, key);
 }
 
 /**

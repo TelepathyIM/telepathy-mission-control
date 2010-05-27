@@ -105,20 +105,20 @@ struct _McpAccountStorageIface
   gboolean (*set) (
       const McpAccountStorage *self,
       const McpAccountManager *am,
-      const gchar *acct,
+      const gchar *account,
       const gchar *key,
       const gchar *val);
 
   gboolean (*get) (
       const McpAccountStorage *self,
       const McpAccountManager *am,
-      const gchar *acct,
+      const gchar *account,
       const gchar *key);
 
   gboolean (*delete) (
       const McpAccountStorage *self,
       const McpAccountManager *am,
-      const gchar *acct,
+      const gchar *account,
       const gchar *key);
 
   gboolean (*commit) (
@@ -361,7 +361,7 @@ mcp_account_storage_priority (const McpAccountStorage *storage)
  * mcp_account_storage_get:
  * @storage: an #McpAccountStorage instance
  * @am: an #McpAccountManager instance
- * @acct: the unique name of the account
+ * @account: the unique name of the account
  * @key: the setting whose value we wish to fetch
  *
  * The plugin is expected to quickly and synchronously update
@@ -370,7 +370,7 @@ mcp_account_storage_priority (const McpAccountStorage *storage)
  * The plugin is not required to consult whatever long term storage
  * it uses, and may fetch said value from its internal cache, if any.
  *
- * If @key is %NULL the plugin should write all its settings for @acct
+ * If @key is %NULL the plugin should write all its settings for @account
  * into the account manager via @am. The return value in this case should
  * be %TRUE if any settings were found.
  *
@@ -379,7 +379,7 @@ mcp_account_storage_priority (const McpAccountStorage *storage)
 gboolean
 mcp_account_storage_get (const McpAccountStorage *storage,
     McpAccountManager *am,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
@@ -387,14 +387,14 @@ mcp_account_storage_get (const McpAccountStorage *storage,
   DEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, FALSE);
 
-  return iface->get (storage, am, acct, key);
+  return iface->get (storage, am, account, key);
 }
 
 /**
  * mcp_account_storage_set:
  * @storage: an #McpAccountStorage instance
  * @am: an #McpAccountManager instance
- * @acct: the unique name of the account
+ * @account: the unique name of the account
  * @key: the setting whose value we wish to fetch
  * @value: a value to associate with @key
  *
@@ -410,7 +410,7 @@ mcp_account_storage_get (const McpAccountStorage *storage,
 gboolean
 mcp_account_storage_set (const McpAccountStorage *storage,
     const McpAccountManager *am,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key,
     const gchar *val)
 {
@@ -419,14 +419,14 @@ mcp_account_storage_set (const McpAccountStorage *storage,
   DEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, FALSE);
 
-  return iface->set (storage, am, acct, key, val);
+  return iface->set (storage, am, account, key, val);
 }
 
 /**
  * mcp_account_storage_delete:
  * @storage: an #McpAccountStorage instance
  * @am: an #McpAccountManager instance
- * @acct: the unique name of the account
+ * @account: the unique name of the account
  * @key: the setting whose value we wish to fetch
  *
  * The plugin is expected to remove the setting for @key from its
@@ -435,7 +435,7 @@ mcp_account_storage_set (const McpAccountStorage *storage,
  * its long term storage method makes this necessary.
  *
  * If @key is %NULL, the plugin should forget all its settings for
- * @acct (and remember to delete @acct from its storage later)
+ * @account (and remember to delete @account from its storage later)
  *
  * The plugin is not expected to update its long term storage at
  * this point.
@@ -448,7 +448,7 @@ mcp_account_storage_set (const McpAccountStorage *storage,
 gboolean
 mcp_account_storage_delete (const McpAccountStorage *storage,
     const McpAccountManager *am,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
@@ -456,7 +456,7 @@ mcp_account_storage_delete (const McpAccountStorage *storage,
   DEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, FALSE);
 
-  return iface->delete (storage, am, acct, key);
+  return iface->delete (storage, am, account, key);
 }
 
 /**
