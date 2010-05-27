@@ -28,8 +28,8 @@
 
 #include <glib-object.h>
 
-#include <telepathy-glib/dbus.h>
-#include <telepathy-glib/defs.h>
+#include <telepathy-glib/telepathy-glib.h>
+
 #include <libmcclient/mc-account-manager.h>
 #include <libmcclient/mc-account.h>
 #include <libmcclient/mc-profile.h>
@@ -129,18 +129,16 @@ static char *startswith (char const *string, char const *prefix)
     return *prefix == '\0' ? (char *)string : NULL;
 }
 
-char const account_prefix[] =  "/org/freedesktop/Telepathy/Account/";
-
 static char *prefix (char const *string)
 {
-    if (startswith (string, account_prefix))
+    if (startswith (string, TP_ACCOUNT_OBJECT_PATH_BASE))
 	return g_strdup (string);
-    return g_strdup_printf ("%s%s", account_prefix, string);
+    return g_strdup_printf ("%s%s", TP_ACCOUNT_OBJECT_PATH_BASE, string);
 }
 
 static char *strip (char const *string)
 {
-    char *prefixed = startswith (string, account_prefix);
+    char *prefixed = startswith (string, TP_ACCOUNT_OBJECT_PATH_BASE);
     if (prefixed)
 	return (char *)prefixed;
     return (char *)string;
