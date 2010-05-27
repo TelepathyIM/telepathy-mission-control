@@ -2,6 +2,7 @@
  * This file is part of telepathy-mission-control
  *
  * Copyright (C) 2008 Nokia Corporation.
+ * Copyright (C) 2010 Collabora Ltd.
  *
  * Contact: Pekka Pessi  <first.last@nokia.com>
  *
