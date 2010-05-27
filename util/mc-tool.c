@@ -30,7 +30,6 @@
 
 #include <telepathy-glib/telepathy-glib.h>
 
-#include <libmcclient/mc-account-manager.h>
 #include <libmcclient/mc-account.h>
 #include <libmcclient/mc-profile.h>
 
@@ -77,7 +76,7 @@ union command {
     } common;
 
     union {
-	gboolean (*manager) (McAccountManager *manager);
+	gboolean (*manager) (TpAccountManager *manager);
 	gboolean (*account) (McAccount *account);
     } ready;
 
@@ -463,20 +462,22 @@ getter_by_name(char *name)
 /* ====================================================================== */
 
 static gboolean
-command_list (McAccountManager *manager)
+command_list (TpAccountManager *manager)
 {
-    const gchar * const *accounts;
+    GList *accounts;
 
-    accounts = mc_account_manager_get_valid_accounts (manager);
+    accounts = tp_account_manager_get_valid_accounts (manager);
 
-    if (accounts) {
-	int i;
+    if (accounts != NULL) {
+	GList *ptr;
 
 	command.common.ret = 0;
 
-	for (i = 0; accounts[i]; i++) {
-	    puts (strip (accounts[i]));
+	for (ptr = accounts; ptr != NULL; ptr = ptr->next) {
+	    puts (strip (tp_proxy_get_object_path (ptr->data)));
 	}
+
+	g_list_free (accounts);
     }
 
     return FALSE;                 /* stop mainloop */
@@ -484,7 +485,7 @@ command_list (McAccountManager *manager)
 
 
 static void
-callback_for_create_account (TpProxy *proxy,
+callback_for_create_account (TpAccountManager *proxy,
 			     gchar const *account,
 			     GError const *error,
 			     gpointer user_data,
@@ -501,7 +502,7 @@ callback_for_create_account (TpProxy *proxy,
 }
 
 static gboolean
-command_add (McAccountManager *manager)
+command_add (TpAccountManager *manager)
 {
     GHashTable *properties;
     GValue v_profile = { 0 };
@@ -518,7 +519,7 @@ command_add (McAccountManager *manager)
     }
 
     return NULL !=
-	mc_cli_account_manager_call_create_account
+	tp_cli_account_manager_call_create_account
 	    (manager, 25000,
 	     command.add.manager,
 	     command.add.protocol,
@@ -1076,15 +1077,18 @@ parse (int argc, char **argv)
 }
 
 static
-void manager_ready (McAccountManager *manager,
-		    const GError *error,
+void manager_ready (GObject *manager,
+		    GAsyncResult *res,
 		    gpointer user_data)
 {
-    if (error) {
+    GError *error = NULL;
+
+    if (!tp_proxy_prepare_finish (manager, res, &error)) {
 	fprintf (stderr, "%s: %s\n", app_name, error->message);
+	g_error_free (error);
     }
     else {
-	if (command.ready.manager (manager))
+	if (command.ready.manager (TP_ACCOUNT_MANAGER (manager)))
 	    return;
     }
 
@@ -1111,10 +1115,10 @@ void account_ready (McAccount *account,
 int
 main (int argc, char **argv)
 {
-    McAccountManager *am = NULL;
+    TpAccountManager *am = NULL;
     McAccount *a = NULL;
-    DBusGConnection *dbus_conn;
     TpDBusDaemon *dbus;
+    GError *error = NULL;
 
     g_type_init ();
 
@@ -1124,13 +1128,19 @@ main (int argc, char **argv)
 
     command.common.ret = 1;
 
-    dbus_conn = tp_get_bus ();
-    dbus = tp_dbus_daemon_new (dbus_conn);
-    dbus_g_connection_unref (dbus_conn);
+    dbus = tp_dbus_daemon_dup (&error);
+    if (error != NULL) {
+        fprintf (stderr, "%s %s: Failed to connect to D-Bus: %s\n",
+            app_name, command.common.name, error->message);
+
+        g_error_free (error);
+
+        goto out;
+    }
 
     if (command.common.account == NULL) {
-	am = mc_account_manager_new (dbus);
-	mc_account_manager_call_when_ready (am, manager_ready, NULL);
+        am = tp_account_manager_new (dbus);
+        tp_proxy_prepare_async (am, NULL, manager_ready, NULL);
     }
     else {
 	command.common.account = prefix (command.common.account);
