@@ -121,7 +121,7 @@ struct presence {
     gchar *message;
 };
 
-static char *startswith (char const *string, char const *prefix)
+static const char *strip_prefix (char const *string, char const *prefix)
 {
     while (*prefix && *string)
 	if (*prefix++ != *string++)
@@ -129,19 +129,19 @@ static char *startswith (char const *string, char const *prefix)
     return *prefix == '\0' ? (char *)string : NULL;
 }
 
-static char *prefix (char const *string)
+static char *ensure_prefix (char const *string)
 {
-    if (startswith (string, TP_ACCOUNT_OBJECT_PATH_BASE))
+    if (g_str_has_prefix (string, TP_ACCOUNT_OBJECT_PATH_BASE))
 	return g_strdup (string);
     return g_strdup_printf ("%s%s", TP_ACCOUNT_OBJECT_PATH_BASE, string);
 }
 
-static char *strip (char const *string)
+static const char *skip_prefix (char const *string)
 {
-    char *prefixed = startswith (string, TP_ACCOUNT_OBJECT_PATH_BASE);
-    if (prefixed)
-	return (char *)prefixed;
-    return (char *)string;
+    const char *prefixed = strip_prefix (string, TP_ACCOUNT_OBJECT_PATH_BASE);
+    if (prefixed != NULL)
+	return prefixed;
+    return string;
 }
 
 static void
@@ -503,7 +503,7 @@ command_list (TpAccountManager *manager)
 	command.common.ret = 0;
 
 	for (ptr = accounts; ptr != NULL; ptr = ptr->next) {
-	    puts (strip (tp_proxy_get_object_path (ptr->data)));
+	    puts (skip_prefix (tp_proxy_get_object_path (ptr->data)));
 	}
 
 	g_list_free (accounts);
@@ -522,7 +522,7 @@ callback_for_create_account (TpAccountManager *proxy,
 {
     if (error == NULL) {
 	command.common.ret = 0;
-	puts (strip (account));
+	puts (skip_prefix (account));
     }
     else {
 	fprintf (stderr, "%s: %s\n", app_name, error->message);
@@ -632,7 +632,7 @@ command_show (TpAccount *account)
     gpointer keyp, valuep;
     struct presence automatic, current, requested;
 
-    name = strip (command.common.account);
+    name = skip_prefix (command.common.account);
 
     show ("Account", name);
     show ("Display Name", tp_account_get_display_name (account));
@@ -697,7 +697,7 @@ command_connection (TpAccount *account)
     }
     else {
 	fprintf(stderr, "%s: no connection\n",
-		strip (command.common.account));
+		skip_prefix (command.common.account));
     }
 
     return FALSE;
@@ -987,9 +987,9 @@ parse (int argc, char **argv)
 	for (i = 3; argv[i]; i++) {
 	    char *name = argv[i];
 	    Getter *getter;
-	    char *param = startswith(name, "param=");
+	    const char *param = strip_prefix (name, "param=");
 
-	    if (param) {
+	    if (param != NULL) {
 		getter = g_new0(Getter, 1);
 		getter->name = param;
 		getter->type = GET_PARAM;
@@ -1198,7 +1198,8 @@ account_got_all_properties (TpProxy *account,
     if (error != NULL)
     {
         fprintf (stderr, "%s: %s: %s\n",
-                 app_name, strip (command.common.account), error->message);
+                 app_name, skip_prefix (command.common.account),
+                 error->message);
     }
 
     /* load properties not expose in TpAccount */
@@ -1235,7 +1236,8 @@ void account_ready (GObject *account,
 
     if (!tp_proxy_prepare_finish (account, res, &error)) {
 	fprintf (stderr, "%s: %s: %s\n",
-		 app_name, strip (command.common.account), error->message);
+		 app_name, skip_prefix (command.common.account),
+                 error->message);
 	g_error_free (error);
     }
     else {
@@ -1283,7 +1285,7 @@ main (int argc, char **argv)
         tp_proxy_prepare_async (am, NULL, manager_ready, NULL);
     }
     else {
-	command.common.account = prefix (command.common.account);
+	command.common.account = ensure_prefix (command.common.account);
 	a = tp_account_new (dbus, command.common.account, &error);
 
 	if (error != NULL)
