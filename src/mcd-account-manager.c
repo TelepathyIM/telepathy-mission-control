@@ -277,12 +277,33 @@ altered_cb (GObject *plugin, const gchar *account)
 }
 
 static void
-toggled_cb (GObject *plugin, const gchar *account, gboolean on)
+toggled_cb (GObject *plugin, const gchar *name, gboolean on, gpointer data)
 {
   McpAccountStorage *storage = MCP_ACCOUNT_STORAGE (plugin);
+  McdAccountManager *manager = MCD_ACCOUNT_MANAGER (data);
+  McdPluginAccountManager *pa = manager->priv->plugin_manager;
+  McdAccount *account = NULL;
+  GError *error = NULL;
 
-  DEBUG ("%s plugin reports %s became %svalid, async changes supported yet",
-      mcp_account_storage_name (storage), account, on ? "" : "in");
+  account = g_hash_table_lookup (manager->priv->accounts, name);
+
+  if (account == NULL)
+    {
+      g_warning ("Unknown account %s toggled by %s plugin",
+          account, mcp_account_storage_name (storage));
+      return;
+    }
+
+  DEBUG ("%s plugin reports %s became %svalid",
+      mcp_account_storage_name (storage), name, on ? "" : "in");
+
+  _mcd_account_set_enabled (account, on, FALSE, &error);
+
+  if (error != NULL)
+    {
+      g_warning ("Error setting Enabled for %s: %s", name, error->message);
+      g_clear_error (&error);
+    }
 }
 
 static void

@@ -1105,6 +1105,67 @@ get_has_been_online (TpSvcDBusProperties *self, const gchar *name,
     g_value_set_boolean (value, priv->has_been_online);
 }
 
+/**
+ * mcd_account_set_enabled:
+ * @account: the #McdAccount
+ * @enabled: %TRUE if the account is to be enabled
+ * @write_out: %TRUE if this should be written to the keyfile
+ * @error: return location for an error condition
+ *
+ * Returns: %TRUE on success
+ */
+gboolean
+_mcd_account_set_enabled (McdAccount *account,
+                          gboolean enabled,
+                          gboolean write_out,
+                          GError **error)
+{
+    McdAccountPrivate *priv = account->priv;
+
+    if (priv->always_on && !enabled)
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_PERMISSION_DENIED,
+                     "Account %s cannot be disabled",
+                     priv->unique_name);
+        return FALSE;
+    }
+
+    if (priv->enabled != enabled)
+    {
+        GValue value = { 0, };
+
+        if (!enabled)
+            mcd_account_request_presence (account,
+                                          TP_CONNECTION_PRESENCE_TYPE_OFFLINE,
+                                          "offline", NULL);
+
+        g_key_file_set_boolean (priv->keyfile, priv->unique_name,
+                                MC_ACCOUNTS_KEY_ENABLED,
+                                enabled);
+        priv->enabled = enabled;
+
+        if (write_out)
+            mcd_account_manager_write_conf_async (priv->account_manager,
+                                                  NULL, NULL);
+
+        g_value_init (&value, G_TYPE_BOOLEAN);
+        g_value_set_boolean (&value, enabled);
+        mcd_account_changed_property (account, "Enabled", &value);
+        g_value_unset (&value);
+
+        if (enabled)
+        {
+            mcd_account_request_presence_int (account,
+                                              priv->req_presence_type,
+                                              priv->req_presence_status,
+                                              priv->req_presence_message);
+            _mcd_account_maybe_autoconnect (account);
+        }
+    }
+
+    return TRUE;
+}
+
 static gboolean
 set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
              GError **error)
@@ -1125,39 +1186,7 @@ set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
 
     enabled = g_value_get_boolean (value);
 
-    if (priv->always_on && !enabled)
-    {
-        g_set_error (error, TP_ERRORS, TP_ERROR_PERMISSION_DENIED,
-                     "Account %s cannot be disabled",
-                     priv->unique_name);
-        return FALSE;
-    }
-
-    if (priv->enabled != enabled)
-    {
-	if (!enabled)
-	    mcd_account_request_presence (account,
-					  TP_CONNECTION_PRESENCE_TYPE_OFFLINE,
-					  "offline", NULL);
-
-	g_key_file_set_boolean (priv->keyfile, priv->unique_name,
-				MC_ACCOUNTS_KEY_ENABLED,
-			       	enabled);
-	priv->enabled = enabled;
-        mcd_account_manager_write_conf_async (priv->account_manager, NULL, NULL);
-	mcd_account_changed_property (account, name, value);
-
-        if (enabled)
-        {
-            mcd_account_request_presence_int (account,
-                                              priv->req_presence_type,
-                                              priv->req_presence_status,
-                                              priv->req_presence_message);
-            _mcd_account_maybe_autoconnect (account);
-        }
-    }
-
-    return TRUE;
+    return _mcd_account_set_enabled (account, enabled, TRUE, error);
 }
 
 static void

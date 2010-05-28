@@ -189,5 +189,9 @@ G_GNUC_INTERNAL gboolean _mcd_account_get_always_on (McdAccount *self);
 
 G_GNUC_INTERNAL void _mcd_account_set_changing_presence (McdAccount *self,
                                                          gboolean value);
+G_GNUC_INTERNAL gboolean _mcd_account_set_enabled (McdAccount *account,
+                                                   gboolean enabled,
+                                                   gboolean write_out,
+                                                   GError **error);
 
 #endif /* __MCD_ACCOUNT_PRIV_H__ */
