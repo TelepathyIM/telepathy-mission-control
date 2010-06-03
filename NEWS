@@ -1,7 +1,20 @@
-telepathy-mission-control 5.5.1 (UNRELEASED)
+telepathy-mission-control 5.5.1 (2010-06-03)
 ============================================
 
-...
+The "red head headache" release.
+
+Enhancements:
+
+* Port mc-tool from libmcclient to telepathy-glib (danni)
+
+* Implement McpAccountStorage::toggled so that account plugins can toggle
+  the Enabled property of accounts (danni)
+
+* Document mission-control-plugins (smcv)
+
+Fixes:
+
+* Change names of variables that shadow global functions (danni)
 
 telepathy-mission-control 5.5.0 (2010-05-26)
 ============================================
