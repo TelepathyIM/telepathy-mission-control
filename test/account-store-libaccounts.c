@@ -113,13 +113,14 @@ get_ag_manager (void)
 {
   static AgManager *agm = NULL;
 
+  toggle_mute ();
+
   if (agm != NULL)
     return agm;
 
-  g_type_init ();
   agm = ag_manager_new ();
 
-  g_debug ("ag_manager_new () → %p", agm);
+  toggle_mute ();
 
   return agm;
 }
