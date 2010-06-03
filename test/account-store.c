@@ -28,6 +28,17 @@
 
 #include "account-store-default.h"
 
+#define DOCSTRING_A \
+  "%s OP BACKEND ACCOUNT [KEY [VALUE]]\n\n" \
+  "  OP      := <get | set | del | has>\n"  \
+  "  BACKEND := <"
+
+#define DOCSTRING_B \
+  ">\n"                                                                   \
+  "  ACCOUNT := <MANAGER>/<PROTOCOL>/<ACCOUNT-UID>\n"                    \
+  "  KEY     := <manager | protocol | DisplayName | param-<PARAMETER>>\n" \
+  "  VALUE   := <STRING>\n\n"
+
 #if ENABLE_LIBACCOUNTS_SSO
 #include "account-store-libaccounts.h"
 #endif
@@ -66,7 +77,7 @@ const Backend backends[] = {
   { NULL }
 };
 
-static void usage (const gchar *fmt, ...);
+static void usage (const gchar *name, const gchar *fmt, ...);
 
 int main (int argc, char **argv)
 {
@@ -81,8 +92,10 @@ int main (int argc, char **argv)
   gchar *output = NULL;
   gboolean success;
 
+  g_set_application_name (argv[0]);
+
   if (argc < 3)
-    usage ("%s OP BACKEND ACCOUNT [KEY [VALUE]]", argv[0]);
+    usage (argv[0], "");
 
   op_name = argv[1];
   backend = argv[2];
@@ -97,7 +110,7 @@ int main (int argc, char **argv)
     }
 
   if (store == NULL)
-    usage ("No such backend %s", backend);
+    usage (argv[0], "No such backend %s", backend);
 
   if (g_str_equal (op_name, "get"))
     op = OP_GET;
@@ -118,16 +131,16 @@ int main (int argc, char **argv)
       case OP_GET:
 
         if (argc < 5)
-          usage ("%s %s requires an account and key", argv[0], op_name);
+          usage (argv[0], "op '%s' requires an account and key", op_name);
 
         account = argv[3];
         setting = argv[4];
 
         if (account == NULL || *account == '\0')
-          usage ("%s %s requires an account", argv[0], op_name);
+          usage (argv[0], "op '%s' requires an account", op_name);
 
         if (setting == NULL || *setting == '\0')
-          usage ("%s %s requires a key", argv[0], op_name);
+          usage (argv[0], "op '%s' requires a key", op_name);
 
         break;
 
@@ -135,13 +148,13 @@ int main (int argc, char **argv)
       case OP_EXISTS:
 
         if (argc < 4)
-          usage ("%s %s requires an account", argv[0], op_name);
+          usage (argv[0], "op '%s' requires an account", op_name);
 
         account = argv[3];
         break;
 
       case OP_UNKNOWN:
-        usage ("%s: Unknown operation: %s", argv[0], op_name);
+        usage (argv[0], "Unknown operation: %s", op_name);
     }
 
   /* if we got this far, we have all the args we need: */
@@ -178,9 +191,20 @@ int main (int argc, char **argv)
   return success ? 0 : 1;
 }
 
-static void usage (const gchar *fmt, ...)
+static void
+usage (const gchar *name, const gchar *fmt, ...)
 {
+  guint i;
   va_list ap;
+
+  fprintf (stderr, DOCSTRING_A, name);
+
+  fprintf (stderr, "%s", backends[0].name);
+
+  for (i = 1; backends[i].name != NULL; i++)
+    fprintf (stderr, " | %s", backends[i].name);
+
+  fprintf (stderr, DOCSTRING_B, name);
 
   va_start (ap, fmt);
   vfprintf (stderr, fmt, ap);
