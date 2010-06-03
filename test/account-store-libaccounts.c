@@ -130,11 +130,12 @@ get_ag_account (const gchar *mc_account)
 {
   AgAccount *ag_account = NULL;
   AgManager *ag_manager = get_ag_manager ();
-  GList *ag_ids = ag_manager_list_by_service_type (ag_manager, "IM");
+  GList *ag_ids = NULL;
   GList *ag_id;
 
   toggle_mute ();
 
+  ag_ids = ag_manager_list_by_service_type (ag_manager, "IM");
   g_debug ("%d accounts in SSO", g_list_length (ag_ids));
 
   for (ag_id = ag_ids; ag_id != NULL; ag_id = g_list_next (ag_id))
