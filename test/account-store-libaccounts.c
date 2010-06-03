@@ -335,9 +335,12 @@ libaccounts_set (const gchar *mc_account,
           g_value_set_string (&val, value);
           ag_account_set_value (ag_account, ag_key, &val);
           g_value_unset (&val);
+
+          done = TRUE;
         }
 
-      ag_account_store (ag_account, NULL, NULL);
+      if (done)
+        ag_account_store (ag_account, NULL, NULL);
 
       g_free (ag_key);
       g_object_unref (ag_account);
