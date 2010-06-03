@@ -103,7 +103,7 @@ int main (int argc, char **argv)
     op = OP_GET;
   else if (g_str_equal (op_name, "set"))
     op = OP_SET;
-  else if (g_str_equal (op_name, "delete"))
+  else if (g_str_equal (op_name, "del"))
     op = OP_DELETE;
   else if (g_str_equal (op_name, "has"))
     op = OP_EXISTS;
