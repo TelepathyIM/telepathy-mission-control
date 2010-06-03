@@ -267,10 +267,10 @@ default_delete (const gchar *account)
 {
   GKeyFile *keyfile = default_keyfile ();
 
-  return
-    g_key_file_remove_group (keyfile, account, NULL) &&
-    _keyring_remove_account (account) &&
-    commit_changes ();
+  g_key_file_remove_group (keyfile, account, NULL);
+  _keyring_remove_account (account);
+
+  return commit_changes ();
 }
 
 gboolean
