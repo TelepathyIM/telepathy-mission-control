@@ -18,6 +18,14 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+/**
+ * SECTION:request
+ * @title: McpRequest
+ * @short_description: Request object, implemented by Mission Control
+ * @see_also: #McpRequestPolicy
+ * @include: mission-control-plugins/mission-control-plugins.h
+ */
+
 #include <mission-control-plugins/mission-control-plugins.h>
 #include <mission-control-plugins/implementation.h>
 

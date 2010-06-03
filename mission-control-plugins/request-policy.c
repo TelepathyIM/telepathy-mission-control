@@ -18,6 +18,49 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+/**
+ * SECTION:request-policy
+ * @title: McpRequestPolicy
+ * @short_description: Request-policy object, implemented by plugins
+ * @see_also: #McpRequest
+ * @include: mission-control-plugins/mission-control-plugins.h
+ *
+ * Plugins may implement #McpRequestPolicy in order to apply policy to
+ * Telepathy channel requests passing through the Channel Dispatcher part of
+ * Mission Control. The plugins are run just after the requesting client calls
+ * the ChannelRequest.Proceed method, and can inspect the request, delay its
+ * processing, and/or make it fail.
+ *
+ * To do so, the plugin must implement a #GObject subclass that implements
+ * #McpRequestPolicy, then return an instance of that subclass from
+ * mcp_plugin_ref_nth_object().
+ *
+ * The contents of the #McpRequestPolicyIface struct are not public, so to
+ * provide an implementation of the check method,
+ * plugins should call mcp_request_policy_iface_implement_check() from the
+ * interface initialization function, like this:
+ *
+ * <example><programlisting>
+ * G_DEFINE_TYPE_WITH_CODE (MyPlugin, my_plugin,
+ *    G_TYPE_OBJECT,
+ *    G_IMPLEMENT_INTERFACE (...);
+ *    G_IMPLEMENT_INTERFACE (MCP_TYPE_REQUEST_POLICY,
+ *      request_policy_iface_init);
+ *    G_IMPLEMENT_INTERFACE (...))
+ * /<!-- -->* ... *<!-- -->/
+ * static void
+ * request_policy_iface_init (McpRequestPolicyIface *iface,
+ *     gpointer unused G_GNUC_UNUSED)
+ * {
+ *   mcp_request_policy_iface_implement_check (iface,
+ *       my_plugin_check_request);
+ * }
+ * </programlisting></example>
+ *
+ * A single object can implement more than one interface; for instance, it
+ * may be useful to combine this interface with #McpDispatchOperationPolicy.
+ */
+
 #include <mission-control-plugins/mission-control-plugins.h>
 
 struct _McpRequestPolicyIface {
@@ -57,6 +100,21 @@ mcp_request_policy_get_type (void)
   return type;
 }
 
+/**
+ * mcp_request_policy_check:
+ * @policy: an implementation of this interface, provided by a plugin
+ * @request: an object representing a channel request
+ *
+ * Check what to do with a channel request. Implementations of this method
+ * can use methods on @request to examine the request, delay
+ * processing, make the request fail, etc. in order to impose whatever policy
+ * the plugin requires.
+ *
+ * Mission Control calls this function in each plugin just after the requesting
+ * client calls the Proceed method on the Telepathy ChannelRequest. If the
+ * plugin makes the request fail, this does not take effect until all plugins
+ * have been notified.
+ */
 void
 mcp_request_policy_check (McpRequestPolicy *policy,
     McpRequest *request)
@@ -69,6 +127,11 @@ mcp_request_policy_check (McpRequestPolicy *policy,
     iface->check (policy, request);
 }
 
+/**
+ * mcp_request_policy_iface_implement_check:
+ * @iface: the interface
+ * @impl: an implementation of the virtual method mcp_request_policy_check()
+ */
 void
 mcp_request_policy_iface_implement_check (McpRequestPolicyIface *iface,
     void (*impl) (McpRequestPolicy *, McpRequest *))
