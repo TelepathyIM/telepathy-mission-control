@@ -259,8 +259,7 @@ default_set (const gchar *account,
 
   g_key_file_set_string (keyfile, account, key, value);
 
-  return
-    commit_changes ();
+  return commit_changes ();
 }
 
 gboolean
