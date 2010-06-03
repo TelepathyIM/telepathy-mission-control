@@ -92,6 +92,7 @@ int main (int argc, char **argv)
   gchar *output = NULL;
   gboolean success;
 
+  g_type_init ();
   g_set_application_name (argv[0]);
 
   if (argc < 3)
