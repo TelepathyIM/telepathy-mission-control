@@ -377,8 +377,6 @@ libaccounts_exists (const gchar *mc_account)
 
   toggle_mute ();
 
-  g_debug ("libaccounts_exists (%s)", mc_account);
-
   if (ag_account != NULL)
     {
       exists = TRUE;
