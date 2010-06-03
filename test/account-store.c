@@ -148,26 +148,22 @@ int main (int argc, char **argv)
   switch (op)
     {
       case OP_GET:
-        g_debug ("%s->get(%s, %s)", store->name, account, setting);
         output = store->get (account, setting);
         success = output != NULL;
         break;
 
       case OP_SET:
-        g_debug ("%s->set(%s, %s, %s)", store->name, account, setting, value);
         success = store->set (account, setting, value);
         output = g_strdup_printf ("%s.%s set to '%s' in %s",
             account, setting, value, store->name);
         break;
 
       case OP_DELETE:
-        g_debug ("%s->delete(%s)", store->name, account);
         success = store->delete (account);
         output = g_strdup_printf ("%s deleted from %s", account, store->name);
         break;
 
       case OP_EXISTS:
-        g_debug ("%s->exists(%s)", store->name, account);
         success = store->exists (account);
         if (success)
           output = g_strdup_printf ("Exists in %s", store->name);
