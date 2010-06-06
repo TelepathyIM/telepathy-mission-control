@@ -1593,28 +1593,6 @@ mcd_account_manager_get_dbus_daemon (McdAccountManager *account_manager)
 }
 
 /**
- * mcd_account_manager_write_conf:
- * @account_manager: the #McdAccountManager
- *
- * Write the account manager configuration to disk.
- *
- * Deprecated: Use mcd_account_manager_write_conf_async() in all code.
- */
-void
-mcd_account_manager_write_conf (McdAccountManager *account_manager)
-{
-    /* FIXME: this (reasonably) assumes that there is only one
-     * McdAccountManager object running, since the write_conf_id is a static
-     * variable */
-    McdPluginAccountManager *data = account_manager->priv->plugin_manager;
-
-    if (write_conf_id == 0) 
-        write_conf_id =
-            g_timeout_add_full (G_PRIORITY_HIGH, WRITE_CONF_DELAY, write_conf,
-                                g_object_ref (data), g_object_unref);
-}
-
-/**
  * McdAccountManagerWriteConfCb:
  * @account_manager: the #McdAccountManager
  * @error: a set #GError on failure or %NULL if there was no error
@@ -1631,9 +1609,7 @@ mcd_account_manager_write_conf (McdAccountManager *account_manager)
  * @callback: a callback to be called on write success or failure
  * @user_data: data to be passed to @callback
  *
- * Write the account manager configuration to disk. This is an asynchronous
- * version of mcd_account_manager_write_conf() and should always used in favour
- * of its synchronous version.
+ * Write the account manager configuration to disk.
  */
 void
 mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
