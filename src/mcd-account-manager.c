@@ -281,7 +281,6 @@ toggled_cb (GObject *plugin, const gchar *name, gboolean on, gpointer data)
 {
   McpAccountStorage *storage = MCP_ACCOUNT_STORAGE (plugin);
   McdAccountManager *manager = MCD_ACCOUNT_MANAGER (data);
-  McdPluginAccountManager *pa = manager->priv->plugin_manager;
   McdAccount *account = NULL;
   GError *error = NULL;
 
@@ -290,7 +289,7 @@ toggled_cb (GObject *plugin, const gchar *name, gboolean on, gpointer data)
   if (account == NULL)
     {
       g_warning ("Unknown account %s toggled by %s plugin",
-          account, mcp_account_storage_name (storage));
+          name, mcp_account_storage_name (storage));
       return;
     }
 
@@ -958,12 +957,12 @@ sso_get_service_accounts (McSvcAccountManagerInterfaceSSO *iface,
 
                 if (supported != NULL)
                 {
-                    guint i;
+                    guint j;
                     GStrv services = g_strsplit (supported, ";", 0);
 
-                    for (i = 0; services[i] != NULL; i++)
+                    for (j = 0; services[j] != NULL; j++)
                     {
-                        if (g_str_equal (service, services[i]))
+                        if (g_str_equal (service, services[j]))
                         {
                             McdAccount *a =
                               g_hash_table_lookup (priv->accounts, name);

@@ -208,7 +208,7 @@ unique_name (const McpAccountManager *ma,
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
 
-  gchar *path, *seq, *unique_name = NULL;
+  gchar *path, *seq, *ret = NULL;
   const gchar *base = NULL;
   gchar *esc_manager, *esc_protocol, *esc_base;
   GValue *value;
@@ -242,12 +242,12 @@ unique_name (const McpAccountManager *ma,
       if (!g_key_file_has_group (self->keyfile, path + base_len) &&
           dbus_g_connection_lookup_g_object (connection, path) == NULL)
         {
-          unique_name = g_strdup (path + base_len);
+          ret = g_strdup (path + base_len);
           break;
         }
     }
   g_free (path);
-  return unique_name;
+  return ret;
 }
 
 
