@@ -3398,64 +3398,46 @@ _mcd_account_set_connection_status (McdAccount *account,
     if (priv->tp_connection != tp_conn
         || (tp_conn != NULL && status == TP_CONNECTION_STATUS_DISCONNECTED))
     {
-        GValue value = { 0 };
-        const gchar *path;
-
         if (priv->tp_connection != NULL)
-        {
             g_object_unref (priv->tp_connection);
-        }
 
         if (tp_conn != NULL && status != TP_CONNECTION_STATUS_DISCONNECTED)
-        {
             priv->tp_connection = g_object_ref (tp_conn);
-            path = tp_proxy_get_object_path (tp_conn);
-        }
         else
-        {
             priv->tp_connection = NULL;
-            path = "/";
-        }
 
-        g_value_init (&value, DBUS_TYPE_G_OBJECT_PATH);
-        g_value_set_boxed (&value, path);
-        mcd_account_changed_property (account, "Connection", &value);
-        g_value_unset (&value);
         changed = TRUE;
     }
 
     if (status != priv->conn_status)
     {
-	GValue value = { 0 };
-
         DEBUG ("changing connection status from %u to %u", priv->conn_status,
                status);
 	priv->conn_status = status;
-	g_value_init (&value, G_TYPE_UINT);
-	g_value_set_uint (&value, status);
-	mcd_account_changed_property (account, "ConnectionStatus",
-				      &value);
-	g_value_unset (&value);
 	changed = TRUE;
     }
+
     if (reason != priv->conn_reason)
     {
-	GValue value = { 0 };
-
         DEBUG ("changing connection status reason from %u to %u",
                priv->conn_reason, reason);
 	priv->conn_reason = reason;
-	g_value_init (&value, G_TYPE_UINT);
-	g_value_set_uint (&value, reason);
-	mcd_account_changed_property (account, "ConnectionStatusReason",
-				      &value);
-	g_value_unset (&value);
 	changed = TRUE;
     }
 
     if (changed)
     {
+        GValue value = { 0 };
+
         _mcd_account_tp_connection_changed (account, priv->tp_connection);
+
+        g_value_init (&value, G_TYPE_UINT);
+        g_value_set_uint (&value, priv->conn_status);
+        mcd_account_changed_property (account, "ConnectionStatus", &value);
+        g_value_set_uint (&value, priv->conn_reason);
+        mcd_account_changed_property (account, "ConnectionStatusReason",
+                                      &value);
+        g_value_unset (&value);
     }
 
     mcd_account_thaw_properties (account);
