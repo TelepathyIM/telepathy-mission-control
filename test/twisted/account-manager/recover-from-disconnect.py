@@ -32,7 +32,8 @@ def test(q, bus, mc):
 
     # Create an account
     params = dbus.Dictionary({"account": "someguy@example.com",
-        "password": "secrecy"}, signature='sv')
+        "password": "secrecy",
+        "register": True}, signature='sv')
     (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
 
     account_iface = dbus.Interface(account, cs.ACCOUNT)
@@ -83,8 +84,9 @@ def test(q, bus, mc):
     conn.StatusChanged(cs.CONN_STATUS_DISCONNECTED,
             cs.CONN_STATUS_REASON_NETWORK_ERROR)
 
-    # MC reconnects
-
+    # MC reconnects. This time, we expect it to have deleted the 'register'
+    # parameter.
+    del params['register']
     e = q.expect('dbus-method-call', method='RequestConnection',
             args=['fakeprotocol', params],
             destination=tp_name_prefix + '.ConnectionManager.fakecm',

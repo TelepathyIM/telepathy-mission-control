@@ -3366,6 +3366,36 @@ on_conn_status_changed (McdConnection *connection,
     _mcd_account_set_connection_status (account, status, reason, tp_conn);
 }
 
+/* clear the "register" flag, if necessary */
+static void
+clear_register_dup_params_cb (McdAccount *self,
+                              GHashTable *params,
+                              gpointer user_data)
+{
+    if (tp_asv_get_boolean (params, "register", NULL))
+    {
+        GValue value = { 0 };
+
+        _mcd_account_set_parameter (self, "register", NULL, NULL, NULL);
+
+        g_hash_table_remove (params, "register");
+
+        _mcd_account_set_parameter (self, "register", NULL, NULL, NULL);
+
+        g_value_init (&value, TP_HASH_TYPE_STRING_VARIANT_MAP);
+        g_value_take_boxed (&value, params);
+        mcd_account_changed_property (self, "Parameters", &value);
+        g_value_unset (&value);
+
+        mcd_account_manager_write_conf_async (self->priv->account_manager,
+                                              NULL, NULL);
+    }
+    else
+    {
+      g_hash_table_unref (params);
+    }
+}
+
 void
 _mcd_account_set_connection_status (McdAccount *account,
                                     TpConnectionStatus status,
@@ -3380,6 +3410,8 @@ _mcd_account_set_connection_status (McdAccount *account,
     if (status == TP_CONNECTION_STATUS_CONNECTED)
     {
         _mcd_account_set_has_been_online (account);
+        _mcd_account_dup_parameters (account, clear_register_dup_params_cb,
+                                     NULL);
     }
 
     mcd_account_freeze_properties (account);
