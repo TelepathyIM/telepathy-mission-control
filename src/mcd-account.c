@@ -3363,14 +3363,25 @@ on_conn_status_changed (McdConnection *connection,
                         TpConnection *tp_conn,
                         McdAccount *account)
 {
-    _mcd_account_set_connection_status (account, status, reason, tp_conn);
+    const gchar *dbus_error = NULL;
+    const GHashTable *details = NULL;
+
+    if (tp_conn != NULL)
+    {
+        dbus_error = tp_connection_get_detailed_error (tp_conn, &details);
+    }
+
+    _mcd_account_set_connection_status (account, status, reason, tp_conn,
+                                        dbus_error, details);
 }
 
 void
 _mcd_account_set_connection_status (McdAccount *account,
                                     TpConnectionStatus status,
                                     TpConnectionStatusReason reason,
-                                    TpConnection *tp_conn)
+                                    TpConnection *tp_conn,
+                                    const gchar *dbus_error,
+                                    const GHashTable *details)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     gboolean changed = FALSE;
@@ -3715,6 +3726,8 @@ mcd_account_connection_ready_cb (McdAccount *account,
     guint self_handle;
     TpConnectionStatus status;
     TpConnectionStatusReason reason;
+    const gchar *dbus_error = NULL;
+    const GHashTable *details = NULL;
 
     g_return_if_fail (MCD_IS_ACCOUNT (account));
     g_return_if_fail (connection == priv->connection);
@@ -3725,8 +3738,9 @@ mcd_account_connection_ready_cb (McdAccount *account,
                       tp_connection == priv->tp_connection);
 
     status = tp_connection_get_status (tp_connection, &reason);
+    dbus_error = tp_connection_get_detailed_error (tp_connection, &details);
     _mcd_account_set_connection_status (account, status, reason,
-                                        tp_connection);
+                                        tp_connection, dbus_error, details);
 
     self_handle_array = g_array_sized_new (FALSE, FALSE, sizeof (guint), 1);
     self_handle = tp_connection_get_self_handle (tp_connection);

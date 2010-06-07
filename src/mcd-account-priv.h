@@ -92,7 +92,8 @@ G_GNUC_INTERNAL void _mcd_account_set_connection (McdAccount *account,
                                                   McdConnection *connection);
 G_GNUC_INTERNAL void _mcd_account_set_connection_status
     (McdAccount *account, TpConnectionStatus status,
-     TpConnectionStatusReason reason, TpConnection *tp_conn);
+     TpConnectionStatusReason reason, TpConnection *tp_conn,
+     const gchar *dbus_error, const GHashTable *details);
 
 typedef void (*McdOnlineRequestCb) (McdAccount *account, gpointer userdata,
 				    const GError *error);
