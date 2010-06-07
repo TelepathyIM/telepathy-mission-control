@@ -115,6 +115,8 @@ struct _McdAccountPrivate
     /* connection status */
     TpConnectionStatus conn_status;
     TpConnectionStatusReason conn_reason;
+    gchar *conn_dbus_error;
+    GHashTable *conn_error_details;
 
     /* current presence fields */
     TpConnectionPresenceType curr_presence_type;
@@ -1550,6 +1552,30 @@ get_connection_status_reason (TpSvcDBusProperties *self,
     g_value_set_uint (value, account->priv->conn_reason);
 }
 
+/* FIXME: needs telepathy-glib support
+static void
+get_connection_error (TpSvcDBusProperties *self,
+                      const gchar *name,
+                      GValue *value)
+{
+    McdAccount *account = MCD_ACCOUNT (self);
+
+    g_value_init (value, G_TYPE_STRING);
+    g_value_set_string (value, account->priv->conn_dbus_error);
+}
+
+static void
+get_connection_error_details (TpSvcDBusProperties *self,
+                              const gchar *name,
+                              GValue *value)
+{
+    McdAccount *account = MCD_ACCOUNT (self);
+
+    g_value_init (value, TP_HASH_TYPE_STRING_VARIANT_MAP);
+    g_value_set_boxed (value, account->priv->conn_error_details);
+}
+*/
+
 static void
 get_current_presence (TpSvcDBusProperties *self, const gchar *name,
 		      GValue *value)
@@ -1681,6 +1707,9 @@ static const McdDBusProp account_properties[] = {
     { "Connection", NULL, get_connection },
     { "ConnectionStatus", NULL, get_connection_status },
     { "ConnectionStatusReason", NULL, get_connection_status_reason },
+    /* FIXME: needs telepathy-glib support for the new properties
+    { "ConnectionError", NULL, get_connection_error },
+    { "ConnectionErrorDetails", NULL, get_connection_error_details }, */
     { "CurrentPresence", NULL, get_current_presence },
     { "RequestedPresence", set_requested_presence, get_requested_presence },
     { "ChangingPresence", NULL, get_changing_presence },
@@ -2788,6 +2817,9 @@ mcd_account_init (McdAccount *account)
 
     priv->conn_status = TP_CONNECTION_STATUS_DISCONNECTED;
     priv->conn_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
+    priv->conn_dbus_error = g_strdup ("");
+    priv->conn_error_details = g_hash_table_new_full (g_str_hash, g_str_equal,
+        g_free, (GDestroyNotify) tp_g_value_slice_free);
 
     priv->changed_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
         NULL, (GDestroyNotify) tp_g_value_slice_free);
@@ -3388,12 +3420,49 @@ _mcd_account_set_connection_status (McdAccount *account,
 
     DEBUG ("%s: %u because %u", priv->unique_name, status, reason);
 
+    mcd_account_freeze_properties (account);
+
     if (status == TP_CONNECTION_STATUS_CONNECTED)
     {
         _mcd_account_set_has_been_online (account);
-    }
 
-    mcd_account_freeze_properties (account);
+        DEBUG ("clearing connection error details");
+        g_free (priv->conn_dbus_error);
+        priv->conn_dbus_error = g_strdup ("");
+        g_hash_table_remove_all (priv->conn_error_details);
+
+    }
+    else if (status == TP_CONNECTION_STATUS_DISCONNECTED)
+    {
+        if (dbus_error == NULL)
+            dbus_error = "";
+
+        if (tp_strdiff (dbus_error, priv->conn_dbus_error))
+        {
+            DEBUG ("changing detailed D-Bus error from '%s' to '%s'",
+                   priv->conn_dbus_error, dbus_error);
+            g_free (priv->conn_dbus_error);
+            priv->conn_dbus_error = g_strdup (dbus_error);
+            changed = TRUE;
+        }
+
+        /* to avoid having to do deep comparisons, we assume that any change to
+         * or from a non-empty hash table is interesting. */
+        if ((details != NULL && tp_asv_size (details) > 0) ||
+            tp_asv_size (priv->conn_error_details) > 0)
+        {
+            DEBUG ("changing error details");
+            g_hash_table_remove_all (priv->conn_error_details);
+
+            if (details != NULL)
+                tp_g_hash_table_update (priv->conn_error_details,
+                                        (GHashTable *) details,
+                                        (GBoxedCopyFunc) g_strdup,
+                                        (GBoxedCopyFunc) tp_g_value_slice_dup);
+
+            changed = TRUE;
+        }
+    }
 
     if (priv->tp_connection != tp_conn
         || (tp_conn != NULL && status == TP_CONNECTION_STATUS_DISCONNECTED))
@@ -3436,6 +3505,17 @@ _mcd_account_set_connection_status (McdAccount *account,
         mcd_account_changed_property (account, "ConnectionStatus", &value);
         g_value_set_uint (&value, priv->conn_reason);
         mcd_account_changed_property (account, "ConnectionStatusReason",
+                                      &value);
+        g_value_unset (&value);
+
+        g_value_init (&value, G_TYPE_STRING);
+        g_value_set_string (&value, priv->conn_dbus_error);
+        mcd_account_changed_property (account, "ConnectionError", &value);
+        g_value_unset (&value);
+
+        g_value_init (&value, TP_HASH_TYPE_STRING_VARIANT_MAP);
+        g_value_set_boxed (&value, priv->conn_error_details);
+        mcd_account_changed_property (account, "ConnectionErrorDetails",
                                       &value);
         g_value_unset (&value);
     }
