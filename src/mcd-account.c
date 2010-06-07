@@ -3453,15 +3453,9 @@ _mcd_account_set_connection_status (McdAccount *account,
 	changed = TRUE;
     }
 
-    if (status == TP_CONNECTION_STATUS_DISCONNECTED)
+    if (changed)
     {
-        DEBUG ("TpConnection changed to nothing", tp_conn);
-        _mcd_account_tp_connection_changed (account, NULL);
-    }
-    else
-    {
-        DEBUG ("TpConnection changed to %p", tp_conn);
-        _mcd_account_tp_connection_changed (account, tp_conn);
+        _mcd_account_tp_connection_changed (account, priv->tp_connection);
     }
 
     mcd_account_thaw_properties (account);
