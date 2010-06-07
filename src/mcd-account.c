@@ -3384,7 +3384,8 @@ _mcd_account_set_connection_status (McdAccount *account,
 
     mcd_account_freeze_properties (account);
 
-    if (priv->tp_connection != tp_conn)
+    if (priv->tp_connection != tp_conn
+        || (tp_conn != NULL && status == TP_CONNECTION_STATUS_DISCONNECTED))
     {
         GValue value = { 0 };
         const gchar *path;
@@ -3394,7 +3395,7 @@ _mcd_account_set_connection_status (McdAccount *account,
             g_object_unref (priv->tp_connection);
         }
 
-        if (tp_conn != NULL)
+        if (tp_conn != NULL && status != TP_CONNECTION_STATUS_DISCONNECTED)
         {
             priv->tp_connection = g_object_ref (tp_conn);
             path = tp_proxy_get_object_path (tp_conn);
@@ -3440,9 +3441,17 @@ _mcd_account_set_connection_status (McdAccount *account,
 	g_value_unset (&value);
 	changed = TRUE;
     }
-    DEBUG ("TpConnection changed to %p", tp_conn);
 
-    _mcd_account_tp_connection_changed (account, tp_conn);
+    if (status == TP_CONNECTION_STATUS_DISCONNECTED)
+    {
+        DEBUG ("TpConnection changed to nothing", tp_conn);
+        _mcd_account_tp_connection_changed (account, NULL);
+    }
+    else
+    {
+        DEBUG ("TpConnection changed to %p", tp_conn);
+        _mcd_account_tp_connection_changed (account, tp_conn);
+    }
 
     mcd_account_thaw_properties (account);
 
