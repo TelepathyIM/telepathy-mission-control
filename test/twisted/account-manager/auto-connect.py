@@ -123,10 +123,11 @@ def test(q, bus, unused):
                 handled=True),
             EventPattern('dbus-signal', signal='AccountPropertyChanged',
                 path=account_path, interface=cs.ACCOUNT,
-                predicate=lambda e: 'ConnectionStatus' in e.args[0]),
+                predicate=(lambda e:
+                    e.args[0].get('ConnectionStatus') ==
+                        cs.CONN_STATUS_CONNECTED),
+                ),
             )
-
-    assert e.args[0]['ConnectionStatus'] == cs.CONN_STATUS_CONNECTED
 
     assert account.Get(cs.ACCOUNT, 'CurrentPresence',
             dbus_interface=cs.PROPERTIES_IFACE) == (cs.PRESENCE_TYPE_AVAILABLE,
