@@ -491,9 +491,9 @@ static void _sso_toggled (GObject *object,
 
 static void _sso_deleted (GObject *object,
     AgAccountId id,
-    gpointer data)
+    gpointer user_data)
 {
-  McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (data);
+  McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (user_data);
 
   if (sso->ready)
     {
@@ -586,10 +586,10 @@ static gboolean _sso_account_enabled (AgAccount *account,
 
 static void _sso_created (GObject *object,
     AgAccountId id,
-    gpointer data)
+    gpointer user_data)
 {
   AgManager *ag_manager = AG_MANAGER (object);
-  McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (data);
+  McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (user_data);
   gchar *name =
     g_hash_table_lookup (sso->id_name_map, GUINT_TO_POINTER (id));
 
@@ -622,7 +622,7 @@ static void _sso_created (GObject *object,
                   g_signal_emit_by_name (mcpa, "created", name);
 
                   g_signal_connect (account, "enabled",
-                      G_CALLBACK (_sso_toggled), data);
+                      G_CALLBACK (_sso_toggled), user_data);
 
                   clear_setting_data (setting);
                 }
