@@ -308,7 +308,11 @@ toggled_cb (GObject *plugin, const gchar *name, gboolean on, gpointer data)
 static void
 _mcd_account_delete_cb (McdAccount *account, const GError *error, gpointer data)
 {
-  /* we don't do anything with this right now */
+    TpSvcAccount *tsa = TP_SVC_ACCOUNT (account);
+
+    tp_svc_account_emit_removed (account);
+
+    g_object_unref (account);
 }
 
 /* a backend plugin notified us that an account was vaporised: remove it */
@@ -323,10 +327,13 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
 
     account = g_hash_table_lookup (manager->priv->accounts, name);
 
+    DEBUG ("%s -> %p", name, account);
+
     if (account != NULL)
     {
-        mcd_account_delete (account, _mcd_account_delete_cb, NULL);
+        g_object_ref (account);
         g_hash_table_remove (manager->priv->accounts, name);
+        mcd_account_delete (account, _mcd_account_delete_cb, NULL);
     }
 
     /* NOTE: we have to do this here, the mcd_account deletion just *
