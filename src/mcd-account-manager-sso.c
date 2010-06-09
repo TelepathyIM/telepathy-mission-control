@@ -241,6 +241,52 @@ static void _sso_deleted (GObject *object,
     }
 }
 
+static void _sso_account_enable (AgAccount *account,
+    AgService *service,
+    gboolean on)
+{
+  AgService *original = ag_account_get_selected_service (account);
+
+  if (service != NULL)
+    ag_account_select_service (account, service);
+  else
+    _ag_account_select_default_im_service (account);
+
+  ag_account_set_enabled (account, on);
+
+  ag_account_select_service (account, original);
+}
+
+static gboolean _sso_account_enabled (AgAccount *account,
+    AgService *service)
+{
+  gboolean local  = FALSE;
+  gboolean global = FALSE;
+  AgService *original = ag_account_get_selected_service (account);
+
+  if (service == NULL)
+    {
+      _ag_account_select_default_im_service (account);
+      local = ag_account_get_enabled (account);
+    }
+  else
+    {
+      if (original != service)
+        ag_account_select_service (account, service);
+
+      local = ag_account_get_enabled (account);
+    }
+
+  ag_account_select_service (account, NULL);
+  global = ag_account_get_enabled (account);
+
+  ag_account_select_service (account, original);
+
+  DEBUG ("_sso_account_enabled: global:%d && local:%d", global, local);
+
+  return local && global;
+}
+
 static void _sso_created (GObject *object,
     AgAccountId id,
     gpointer data)
