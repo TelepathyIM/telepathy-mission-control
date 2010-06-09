@@ -606,17 +606,25 @@ save_value (AgAccount *account,
   service = ag_account_get_selected_service (account);
   local = _ag_value_is_local (key);
 
+  /* Enabled is both a global and a local value, for extra fun: */
+  if (g_str_equal (key, "Enabled"))
+    {
+      gboolean on = g_str_equal (val, "true");
+
+      DEBUG ("setting enabled flag: '%d'", on);
+
+      /* if we are turning the account on, the global flag must also be set *
+       * NOTE: this isn't needed when turning the account off               */
+      _sso_account_enable (account, NULL, on);
+
+      goto cleanup;
+    }
+
   /* pick the right service/global section of SSO, and switch if necessary */
   if (local && service == NULL)
     _ag_account_select_default_im_service (account);
   else if (!local && service != NULL)
     ag_account_select_service (account, NULL);
-
-  if (g_str_equal (key, "Enabled"))
-    {
-      ag_account_set_enabled (account, g_str_equal (val, "true"));
-      goto cleanup;
-    }
 
   if (val == NULL)
     {
@@ -728,8 +736,7 @@ _get (const McpAccountStorage *self,
         {
           const gchar *v = NULL;
 
-          ag_account_select_service (account, NULL);
-          v = ag_account_get_enabled (account) ? "true" : "false";
+          v = _sso_account_enabled (account, service) ? "true" : "false";
           mcp_account_manager_set_value (am, acct, key, v);
         }
       else if (g_str_equal (key, "sso-services"))
@@ -825,8 +832,8 @@ _get (const McpAccountStorage *self,
             }
         }
 
-      /* special case, global value may not be stored as an explicit key */
-      on = ag_account_get_enabled (account) ? "true" : "false";
+      /* special case, actually two separate but related flags in SSO */
+      on = _sso_account_enabled (account, NULL) ? "true" : "false";
       mcp_account_manager_set_value (am, acct, "Enabled", on);
     }
 
@@ -962,7 +969,9 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
                     }
                 }
 
-              enabled = ag_account_get_enabled (account) ? "true": "false";
+              /* special case, actually two separate but related flags in SSO */
+              enabled = _sso_account_enabled (account, NULL) ? "true": "false";
+
               mcp_account_manager_set_value (am, name, "Enabled", enabled);
               mcp_account_manager_set_value (am, name, LIBACCT_ID_KEY, ident);
               mcp_account_manager_set_value (am, name, MC_CMANAGER_KEY, mc_id[0]);
