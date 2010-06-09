@@ -207,6 +207,51 @@ _ag_account_local_value (AgAccount *account,
   return src;
 }
 
+static void _sso_toggled (GObject *object,
+    const gchar *service_name,
+    gboolean enabled,
+    gpointer data)
+{
+  AgAccount *account = AG_ACCOUNT (object);
+  AgAccountId id = account->id;
+  McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (data);
+  McpAccountStorage *mcpa = MCP_ACCOUNT_STORAGE (sso);
+  gboolean on = FALSE;
+  const gchar *name = NULL;
+  AgService *service = NULL;
+  AgManager *manager = NULL;
+
+  /* If the account manager isn't ready, account state changes are of no   *
+   * interest to us: it will pick up the then-current state of the account *
+   * when it does become ready, and anything that happens between now and  *
+   * then is not important:                                                */
+  if (!sso->ready)
+    return;
+
+  manager = ag_account_get_manager (account);
+  service = ag_manager_get_service (manager, service_name);
+
+  /* non IM services are of no interest to us, we don't handle them */
+  if (!g_str_equal (ag_service_get_service_type (service), "IM"))
+    return;
+
+  on = _sso_account_enabled (account, service);
+  name = g_hash_table_lookup (sso->id_name_map, GUINT_TO_POINTER (id));
+
+  if (name != NULL)
+    {
+      const gchar *value = on ? "true" : "false";
+      McpAccountManager *am = sso->manager_interface;
+
+      mcp_account_manager_set_value (am, name, "Enabled", value);
+      g_signal_emit_by_name (mcpa, "toggled", name, on);
+    }
+  else
+    {
+      DEBUG ("received enabled=%u signal for unknown SSO account %u", on, id);
+    }
+}
+
 static void _sso_deleted (GObject *object,
     AgAccountId id,
     gpointer data)
@@ -324,6 +369,9 @@ static void _sso_created (GObject *object,
                   ag_account_store (account, _ag_account_stored_cb, NULL);
 
                   g_signal_emit_by_name (mcpa, "created", name);
+
+                  g_signal_connect (account, "enabled",
+                      G_CALLBACK (_sso_toggled), data);
                 }
               else
                 {
@@ -991,6 +1039,9 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
               mcp_account_manager_set_value (am, name, MC_IDENTITY_KEY, name);
 
               ag_account_select_service (account, service);
+
+              g_signal_connect (account, "enabled",
+                  G_CALLBACK (_sso_toggled), sso);
 
               g_strfreev (mc_id);
               g_free (ident);
