@@ -89,6 +89,7 @@ typedef void (McdAccountManagerWriteConfCb) (McdAccountManager *account_manager,
                                              gpointer user_data);
 
 void mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
+                                           McdAccount *account,
                                            McdAccountManagerWriteConfCb callback,
                                            gpointer user_data);
 

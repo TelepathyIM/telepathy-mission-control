@@ -115,106 +115,119 @@ _keyring_remove_account (const McpAccountStorage *self,
 }
 
 static void
+_keyring_commit_one (const McdAccountManagerDefault *amd,
+    const McpAccountManager *am,
+    const gchar *account_name)
+{
+  gsize j;
+  gsize k;
+  GStrv keys = g_key_file_get_keys (amd->secrets, account_name, &k, NULL);
+
+  if (keys == NULL)
+    k = 0;
+
+  for (j = 0; j < k; j++)
+    {
+      gchar *name = g_strdup_printf ("account: %s; param: %s",
+          account_name, keys[j]);
+      gchar *val = g_key_file_get_value (amd->secrets,
+          account_name, keys[j], NULL);
+      gchar *key = keys[j];
+      KeyringSetData *ksd = g_slice_new0 (KeyringSetData);
+
+      /* for compatibility with old gnome keyring code we must strip  *
+       * the param- prefix from the name before saving to the keyring */
+      if (g_str_has_prefix (key, "param-"))
+        key += strlen ("param-");
+
+      ksd->acct = g_strdup (account_name);
+      ksd->name = g_strdup (keys[j]);
+      ksd->set = TRUE;
+
+      gnome_keyring_store_password (&keyring_schema, NULL,
+          name, val, _keyring_set_cb, ksd, NULL,
+          "account", account_name,
+          "param", key,
+          NULL);
+
+      g_free (val);
+      g_free (name);
+    }
+
+  g_strfreev (keys);
+}
+
+static void
 _keyring_commit (const McpAccountStorage *self,
-    const McpAccountManager *am)
+    const McpAccountManager *am,
+    const gchar *account_name)
 {
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
+  gsize n;
+  gsize i;
+  GStrv accts;
+  GHashTableIter account = { 0 };
+  gchar *acct = NULL;
 
-  if (gnome_keyring_is_available ())
+  if (!gnome_keyring_is_available ())
+    return;
+
+  /* purge any entirely removed accounts */
+  g_hash_table_iter_init (&account, amd->removed_accounts);
+
+  while (g_hash_table_iter_next (&account, (gpointer *) &acct, NULL))
+    _keyring_remove_account (self, am, (gchar *) acct);
+
+  g_hash_table_remove_all (amd->removed_accounts);
+
+  /* purge deleted parameters for remaining accounts */
+  accts = g_key_file_get_groups (amd->removed, &n);
+
+  for (i = 0; i < n; i++)
     {
-      gsize n;
-      gsize i;
-      GStrv accts;
-      GHashTableIter account = { 0 };
-      gchar *acct = NULL;
+      gsize j;
+      gsize k;
+      GStrv keys = g_key_file_get_keys (amd->secrets, accts[i], &k, NULL);
 
-      /* purge any entirely removed accounts */
-      g_hash_table_iter_init (&account, amd->removed_accounts);
+      if (keys == NULL)
+        k = 0;
 
-      while (g_hash_table_iter_next (&account, (gpointer *) &acct, NULL))
-        _keyring_remove_account (self, am, (gchar *) acct);
-
-      g_hash_table_remove_all (amd->removed_accounts);
-
-      /* purge deleted parameters for remaining accounts */
-      accts = g_key_file_get_groups (amd->removed, &n);
-
-      for (i = 0; i < n; i++)
+      for (j = 0; j < k; j++)
         {
-          gsize j;
-          gsize k;
-          GStrv keys = g_key_file_get_keys (amd->secrets, accts[i], &k, NULL);
+          KeyringSetData *ksd = g_slice_new0 (KeyringSetData);
 
-          if (keys == NULL)
-            k = 0;
+          ksd->acct = g_strdup (accts[i]);
+          ksd->name = g_strdup (keys[j]);
+          ksd->set = FALSE;
 
-          for (j = 0; j < k; j++)
-            {
-              KeyringSetData *ksd = g_slice_new0 (KeyringSetData);
-
-              ksd->acct = g_strdup (accts[i]);
-              ksd->name = g_strdup (keys[j]);
-              ksd->set = FALSE;
-
-              gnome_keyring_delete_password (&keyring_schema,
-                  _keyring_set_cb, ksd, NULL,
-                  "account", accts[i],
-                  "param", keys[j],
-                  NULL);
-            }
-
-          g_strfreev (keys);
+          gnome_keyring_delete_password (&keyring_schema,
+              _keyring_set_cb, ksd, NULL,
+              "account", accts[i],
+              "param", keys[j],
+              NULL);
         }
 
-      g_strfreev (accts);
+      g_strfreev (keys);
+    }
 
-      /* forget about all the purged params completely */
-      g_key_file_load_from_data (amd->removed, "#\n", -1, 0, NULL);
+  g_strfreev (accts);
 
-      /* ok, now write out the values for the accounts we have: */
+  /* forget about all the purged params completely */
+  g_key_file_load_from_data (amd->removed, "#\n", -1, 0, NULL);
+
+  if (account_name == NULL)
+    {
+      /* ok, write out the values for all the accounts we have: */
       accts = g_key_file_get_groups (amd->secrets, &n);
 
       for (i = 0; i < n; i++)
-        {
-          gsize j;
-          gsize k;
-          GStrv keys = g_key_file_get_keys (amd->secrets, accts[i], &k, NULL);
-
-          if (keys == NULL)
-            k = 0;
-
-          for (j = 0; j < k; j++)
-            {
-              gchar *name = g_strdup_printf ("account: %s; param: %s",
-                  accts[i], keys[j]);
-              gchar *val = g_key_file_get_value (amd->secrets,
-                  accts[i], keys[j], NULL);
-              gchar *key = keys[j];
-              KeyringSetData *ksd = g_slice_new0 (KeyringSetData);
-
-              /* for compatibility with old gnome keyring code we must strip  *
-               * the param- prefix from the name before saving to the keyring */
-              if (g_str_has_prefix (key, "param-"))
-                key += strlen ("param-");
-
-              ksd->acct = g_strdup (accts[i]);
-              ksd->name = g_strdup (keys[j]);
-              ksd->set = TRUE;
-
-              gnome_keyring_store_password (&keyring_schema, NULL,
-                  name, val, _keyring_set_cb, ksd, NULL,
-                  "account", accts[i],
-                  "param", key,
-                  NULL);
-
-              g_free (val);
-              g_free (name);
-            }
-
-          g_strfreev (keys);
-        }
+        _keyring_commit_one (amd, am, accts[i]);
 
       g_strfreev (accts);
+    }
+  else
+    {
+      _keyring_commit_one (amd, am, account_name);
     }
 }
 
@@ -296,7 +309,8 @@ _delete_from_keyring (const McpAccountStorage *self,
 
 static void
 _keyring_commit (const McpAccountStorage *self,
-    const McpAccountManager *am)
+    const McpAccountManager *am,
+    const gchar *account_name)
 {
   return;
 }
@@ -542,7 +556,8 @@ _delete (const McpAccountStorage *self,
 
 static gboolean
 _commit (const McpAccountStorage *self,
-    const McpAccountManager *am)
+    const McpAccountManager *am,
+    const gchar *account)
 {
   gsize n;
   gchar *data;
@@ -560,7 +575,7 @@ _commit (const McpAccountStorage *self,
   amd->save = !rval;
   g_free (data);
 
-  _keyring_commit (self, am);
+  _keyring_commit (self, am, account);
 
   return rval;
 }

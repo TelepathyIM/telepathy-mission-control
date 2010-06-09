@@ -201,7 +201,8 @@ _delete (const McpAccountStorage *self,
 
 static gboolean
 _commit (const McpAccountStorage *self,
-    const McpAccountManager *am)
+    const McpAccountManager *am,
+    const gchar *account)
 {
   gsize n;
   gchar *data;

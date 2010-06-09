@@ -91,7 +91,10 @@ void mcp_account_storage_iface_implement_list (McpAccountStorageIface *iface,
 
 void
 mcp_account_storage_iface_implement_commit (McpAccountStorageIface *iface,
-    gboolean (*method) (const McpAccountStorage *, const McpAccountManager *am));
+    gboolean (*method) (
+        const McpAccountStorage *,
+        const McpAccountManager *,
+        const gchar *));
 
 void
 mcp_account_storage_iface_implement_ready (McpAccountStorageIface *iface,
@@ -122,7 +125,8 @@ void mcp_account_storage_ready (const McpAccountStorage *storage,
 
 gboolean
 mcp_account_storage_commit (const McpAccountStorage *storage,
-    const McpAccountManager *am);
+    const McpAccountManager *am,
+    const gchar *account);
 
 GList *mcp_account_storage_list (const McpAccountStorage *storage,
     const McpAccountManager *am);
