@@ -70,6 +70,9 @@ typedef struct {
   AgAccountId account_id;
 } DelayedSignalData;
 
+static gboolean _sso_account_enabled (AgAccount *account,
+    AgService *service);
+
 static void account_storage_iface_init (McpAccountStorageIface *,
     gpointer);
 
@@ -256,7 +259,6 @@ static void _sso_deleted (GObject *object,
     AgAccountId id,
     gpointer data)
 {
-  AgManager *ag_manager = AG_MANAGER (object);
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (data);
 
   if (sso->ready)
@@ -281,11 +283,11 @@ static void _sso_deleted (GObject *object,
     }
   else
     {
-      DelayedSignalData *data = g_slice_new0 (DelayedSignalData);
+      DelayedSignalData *sig_data = g_slice_new0 (DelayedSignalData);
 
-      data->signal = DELAYED_DELETE;
-      data->account_id = id;
-      g_queue_push_tail (sso->pending_signals, data);
+      sig_data->signal = DELAYED_DELETE;
+      sig_data->account_id = id;
+      g_queue_push_tail (sso->pending_signals, sig_data);
     }
 }
 
@@ -386,11 +388,11 @@ static void _sso_created (GObject *object,
     }
   else
     {
-      DelayedSignalData *data = g_slice_new0 (DelayedSignalData);
+      DelayedSignalData *sig_data = g_slice_new0 (DelayedSignalData);
 
-      data->signal = DELAYED_CREATE;
-      data->account_id = id;
-      g_queue_push_tail (sso->pending_signals, data);
+      sig_data->signal = DELAYED_CREATE;
+      sig_data->account_id = id;
+      g_queue_push_tail (sso->pending_signals, sig_data);
     }
 }
 
@@ -582,7 +584,6 @@ get_ag_account (const McdAccountManagerSso *sso,
     AgAccountId *id)
 {
   AgAccount *account;
-  gchar *ident = NULL;
 
   g_return_val_if_fail (id != NULL, NULL);
 

@@ -205,7 +205,6 @@ async_altered_manager_cb (McdManager *cm, const GError *error, gpointer data)
 static void
 altered_cb (GObject *storage, const gchar *name, gpointer data)
 {
-    McpAccountStorage *plugin = MCP_ACCOUNT_STORAGE (storage);
     McdAccountManager *am = MCD_ACCOUNT_MANAGER (data);
     McdMaster *master = mcd_master_get_default ();
     McdAccount *account = NULL;
@@ -367,7 +366,7 @@ _mcd_account_delete_cb (McdAccount *account, const GError *error, gpointer data)
 {
     TpSvcAccount *tsa = TP_SVC_ACCOUNT (account);
 
-    tp_svc_account_emit_removed (account);
+    tp_svc_account_emit_removed (tsa);
 
     g_object_unref (account);
 }
