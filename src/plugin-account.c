@@ -180,6 +180,15 @@ set_value (const McpAccountManager *ma,
     g_key_file_remove_key (self->keyfile, acct, key, NULL);
 }
 
+static GStrv
+list_keys (const McpAccountManager *ma,
+           const gchar * acct)
+{
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
+
+  return g_key_file_get_keys (self->keyfile, acct, NULL, NULL);
+}
+
 static gboolean
 is_secret (const McpAccountManager *ma,
     const gchar *acct,
@@ -262,4 +271,5 @@ plugin_iface_init (McpAccountManagerIface *iface,
   iface->is_secret = is_secret;
   iface->make_secret = make_secret;
   iface->unique_name = unique_name;
+  iface->list_keys = list_keys;
 }
