@@ -139,7 +139,10 @@ _gvalue_to_string (const GValue *val)
 /* Is an AG key corresponding to an MC _parameter_ global? */
 static gboolean _ag_key_is_global (const gchar *key)
 {
-  return g_str_equal (key, AG_ACCOUNT_KEY) || g_str_equal (key, PASSWORD_KEY);
+  return
+    g_str_equal (key, AG_ACCOUNT_KEY) ||
+    g_str_equal (key, PASSWORD_KEY) ||
+    g_str_equal (key, AG_LABEL_KEY);
 }
 
 /* Is an AG key corresponding to an MC non-parameter service specific? */
