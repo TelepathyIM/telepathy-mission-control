@@ -221,11 +221,14 @@ static void _sso_deleted (GObject *object,
       if (name != NULL)
         {
           McpAccountStorage *mcpa = MCP_ACCOUNT_STORAGE (sso);
+          gchar *signalled_name = g_strdup (name);
 
           /* forget id->name map first, so the signal can't start a loop */
           g_hash_table_remove (sso->id_name_map, GUINT_TO_POINTER (id));
-          g_signal_emit_by_name (mcpa, "deleted", name);
-          g_hash_table_remove (sso->accounts, name);
+          g_hash_table_remove (sso->accounts, signalled_name);
+          g_signal_emit_by_name (mcpa, "deleted", signalled_name);
+
+          g_free (signalled_name);
         }
     }
   else
