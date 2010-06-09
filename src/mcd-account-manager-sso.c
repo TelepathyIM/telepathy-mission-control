@@ -223,6 +223,7 @@ static void _sso_toggled (GObject *object,
   const gchar *name = NULL;
   AgService *service = NULL;
   AgManager *manager = NULL;
+  const gchar *service_type = NULL;
 
   /* If the account manager isn't ready, account state changes are of no   *
    * interest to us: it will pick up the then-current state of the account *
@@ -235,8 +236,13 @@ static void _sso_toggled (GObject *object,
   service = ag_manager_get_service (manager, service_name);
 
   /* non IM services are of no interest to us, we don't handle them */
-  if (!g_str_equal (ag_service_get_service_type (service), "IM"))
-    return;
+  if (service != NULL)
+    {
+      const gchar *service_type = ag_service_get_service_type (service);
+
+      if (!g_str_equal (service_type, "IM"))
+        return;
+    }
 
   on = _sso_account_enabled (account, service);
   name = g_hash_table_lookup (sso->id_name_map, GUINT_TO_POINTER (id));
