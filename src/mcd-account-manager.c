@@ -39,6 +39,7 @@
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/enums.h>
 #include <telepathy-glib/svc-generic.h>
+#include <telepathy-glib/svc-account.h>
 #include <telepathy-glib/util.h>
 #include <telepathy-glib/errors.h>
 #include <telepathy-glib/interfaces.h>
