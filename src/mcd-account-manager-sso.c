@@ -49,6 +49,9 @@
 #define PARAM_PREFIX    "parameters/"
 #define LIBACCT_ID_KEY  "libacct-uid"
 
+#define AG_LABEL_KEY   "name"
+#define MC_LABEL_KEY   "DisplayName"
+
 #define AG_ACCOUNT_KEY "username"
 #define MC_ACCOUNT_KEY "account"
 #define PASSWORD_KEY   "password"
@@ -626,6 +629,10 @@ save_value (AgAccount *account,
   else if (!local && service != NULL)
     ag_account_select_service (account, NULL);
 
+  /* yet another special case mapping */
+  if (g_str_equal (key, MC_LABEL_KEY))
+    key = AG_LABEL_KEY;
+
   if (val == NULL)
     {
       ag_account_set_value (account, key, NULL);
@@ -682,6 +689,7 @@ _set (const McpAccountStorage *self,
  * note that not all MC parameters correspond to SSO parameters, *
  * some correspond to values instead                             */
 /* NOTE: value keys are passed through unchanged */
+/* NOTE: except for "name", which maps to "DisplayName" */
 static gchar *
 get_mc_param_key (const gchar *key)
 {
@@ -691,6 +699,10 @@ get_mc_param_key (const gchar *key)
 
   if (g_str_equal (key, PASSWORD_KEY))
     return g_strdup (PARAM_PREFIX_MC PASSWORD_KEY);
+
+  /* yet another special case */
+  if (g_str_equal (key, AG_LABEL_KEY))
+    return g_strdup (MC_LABEL_KEY);
 
   /* now check for regular params */
   if (g_str_has_prefix (key, PARAM_PREFIX))
