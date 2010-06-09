@@ -207,6 +207,90 @@ _ag_account_local_value (AgAccount *account,
   return src;
 }
 
+static void
+_sso_updated (AgAccount *account,
+    const gchar *ignored,
+    gpointer data)
+{
+  McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (data);
+  gpointer id = GUINT_TO_POINTER (account->id);
+  const gchar *account_name = g_hash_table_lookup (sso->id_name_map, id);
+
+  /* upates that occur before we are ready aren't useful: */
+  if (!sso->ready)
+    return;
+
+  if (account_name != NULL)
+    {
+      guint i = 0;
+      const gchar *k;
+      const GValue *v;
+      McpAccountManager *am = sso->manager_interface;
+      McpAccountStorage *mcpa = MCP_ACCOUNT_STORAGE (sso);
+      GStrv old_keys = mcp_account_manager_list_keys (am, account_name);
+      AgService *service = ag_account_get_selected_service (account);
+      AgAccountSettingIter setting;
+      GHashTable *seen =
+        g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+
+      /* update keys in the AM, remembering what we've seen: */
+      if (service == NULL)
+        _ag_account_select_default_im_service (account);
+
+      ag_account_settings_iter_init (account, &setting, NULL);
+
+      while (ag_account_settings_iter_next (&setting, &k, &v))
+        {
+          if (!_ag_key_is_global (k))
+            {
+              gchar *mc_key = get_mc_param_key (k);
+              gchar *value = _gvalue_to_string (v);
+
+              mcp_account_manager_set_value (am, account_name, mc_key, value);
+              g_hash_table_insert (seen, mc_key, mc_key);
+
+              g_free (value);
+            }
+        }
+
+      /* deselect any service we may have to get global settings */
+      ag_account_select_service (account, NULL);
+      ag_account_settings_iter_init (account, &setting, NULL);
+
+      while (ag_account_settings_iter_next (&setting, &k, &v))
+        {
+          if (_ag_key_is_global (k))
+            {
+              gchar *mc_key = get_mc_param_key (k);
+              gchar *value  = _gvalue_to_string (v);
+
+              mcp_account_manager_set_value (am, account_name, mc_key, value);
+              g_hash_table_insert (seen, mc_key, mc_key);
+
+              g_free (value);
+            }
+        }
+
+      /* unset any old keys that have been removed */
+      for (i = 0; old_keys[i] != NULL; i++)
+        {
+          if (g_hash_table_lookup (seen, old_keys[i]) == NULL)
+            mcp_account_manager_set_value (am, account_name, old_keys[i], NULL);
+        }
+
+      /* we don't handle "Enabled" here, that comes in via a signal */
+
+      /* restore the service to the value it had when we came in */
+      ag_account_select_service (account, service);
+
+      /* Ok, we've updated all the internal state, poke the AM with a stick */
+      g_signal_emit_by_name (mcpa, "altered", account_name);
+
+      g_hash_table_unref (seen);
+      g_strfreev (old_keys);
+    }
+}
+
 static void _sso_toggled (GObject *object,
     const gchar *service_name,
     gboolean enabled,
@@ -372,6 +456,10 @@ static void _sso_created (GObject *object,
 
                   g_signal_connect (account, "enabled",
                       G_CALLBACK (_sso_toggled), data);
+
+                  /* this doesn't seem to fire when we expect it to, but this *
+                   * is the right place to hook it up:                        */
+                  /* ag_account_watch_dir (account, "", _sso_updated, sso);   */
                 }
               else
                 {
@@ -1042,6 +1130,10 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
 
               g_signal_connect (account, "enabled",
                   G_CALLBACK (_sso_toggled), sso);
+
+              /* this doesn't seem to fire when we expect it to, but this *
+               * is the right place to hook it up:                        */
+              /* ag_account_watch_dir (account, "", _sso_updated, sso);   */
 
               g_strfreev (mc_id);
               g_free (ident);
