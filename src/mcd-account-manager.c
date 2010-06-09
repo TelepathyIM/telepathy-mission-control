@@ -284,17 +284,17 @@ toggled_cb (GObject *plugin, const gchar *name, gboolean on, gpointer data)
   McdAccount *account = NULL;
   GError *error = NULL;
 
-  account = g_hash_table_lookup (manager->priv->accounts, name);
+  account = mcd_account_manager_lookup_account (manager, name);
+
+  DEBUG ("%s plugin reports %s became %sabled",
+      mcp_account_storage_name (storage), name, on ? "en" : "dis");
 
   if (account == NULL)
     {
-      g_warning ("Unknown account %s toggled by %s plugin",
-          name, mcp_account_storage_name (storage));
+      g_warning ("%s: Unknown account %s from %s plugin",
+          G_STRFUNC, name, mcp_account_storage_name (storage));
       return;
     }
-
-  DEBUG ("%s plugin reports %s became %svalid",
-      mcp_account_storage_name (storage), name, on ? "" : "in");
 
   _mcd_account_set_enabled (account, on, FALSE, &error);
 
