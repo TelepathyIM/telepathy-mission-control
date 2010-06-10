@@ -364,10 +364,8 @@ toggled_cb (GObject *plugin, const gchar *name, gboolean on, gpointer data)
 static void
 _mcd_account_delete_cb (McdAccount *account, const GError *error, gpointer data)
 {
-    TpSvcAccount *tsa = TP_SVC_ACCOUNT (account);
-
-    tp_svc_account_emit_removed (tsa);
-
+    /* no need to do anything other than release the account ref, which *
+     * should be the last ref we hold by the time this rolls arouns:    */
     g_object_unref (account);
 }
 
