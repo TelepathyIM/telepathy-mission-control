@@ -306,12 +306,21 @@ static void _sso_account_enable (AgAccount *account,
 {
   AgService *original = ag_account_get_selected_service (account);
 
+  /* turn the local enabled flag on/off as required */
   if (service != NULL)
     ag_account_select_service (account, service);
   else
     _ag_account_select_default_im_service (account);
 
   ag_account_set_enabled (account, on);
+
+  /* if we are turning the account on, the global flag must also be set *
+   * NOTE: this isn't needed when turning the account off               */
+  if (on)
+    {
+      ag_account_select_service (account, NULL);
+      ag_account_set_enabled (account, on);
+    }
 
   ag_account_select_service (account, original);
 }
@@ -677,9 +686,6 @@ save_value (AgAccount *account,
       gboolean on = g_str_equal (val, "true");
 
       DEBUG ("setting enabled flag: '%d'", on);
-
-      /* if we are turning the account on, the global flag must also be set *
-       * NOTE: this isn't needed when turning the account off               */
       _sso_account_enable (account, NULL, on);
 
       goto cleanup;
