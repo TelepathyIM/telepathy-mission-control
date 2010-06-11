@@ -226,7 +226,6 @@ static void _sso_toggled (GObject *object,
   const gchar *name = NULL;
   AgService *service = NULL;
   AgManager *manager = NULL;
-  const gchar *service_type = NULL;
 
   /* If the account manager isn't ready, account state changes are of no   *
    * interest to us: it will pick up the then-current state of the account *
