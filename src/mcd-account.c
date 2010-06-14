@@ -1552,7 +1552,6 @@ get_connection_status_reason (TpSvcDBusProperties *self,
     g_value_set_uint (value, account->priv->conn_reason);
 }
 
-/* FIXME: needs telepathy-glib support
 static void
 get_connection_error (TpSvcDBusProperties *self,
                       const gchar *name,
@@ -1574,7 +1573,6 @@ get_connection_error_details (TpSvcDBusProperties *self,
     g_value_init (value, TP_HASH_TYPE_STRING_VARIANT_MAP);
     g_value_set_boxed (value, account->priv->conn_error_details);
 }
-*/
 
 static void
 get_current_presence (TpSvcDBusProperties *self, const gchar *name,
@@ -1707,9 +1705,8 @@ static const McdDBusProp account_properties[] = {
     { "Connection", NULL, get_connection },
     { "ConnectionStatus", NULL, get_connection_status },
     { "ConnectionStatusReason", NULL, get_connection_status_reason },
-    /* FIXME: needs telepathy-glib support for the new properties
     { "ConnectionError", NULL, get_connection_error },
-    { "ConnectionErrorDetails", NULL, get_connection_error_details }, */
+    { "ConnectionErrorDetails", NULL, get_connection_error_details },
     { "CurrentPresence", NULL, get_current_presence },
     { "RequestedPresence", set_requested_presence, get_requested_presence },
     { "ChangingPresence", NULL, get_changing_presence },
