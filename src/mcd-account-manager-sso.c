@@ -49,6 +49,9 @@
 #define PARAM_PREFIX    "parameters/"
 #define LIBACCT_ID_KEY  "libacct-uid"
 
+#define AG_LABEL_KEY   "name"
+#define MC_LABEL_KEY   "DisplayName"
+
 #define AG_ACCOUNT_KEY "username"
 #define MC_ACCOUNT_KEY "account"
 #define PASSWORD_KEY   "password"
@@ -66,6 +69,9 @@ typedef struct {
   DelayedSignal signal;
   AgAccountId account_id;
 } DelayedSignalData;
+
+static gboolean _sso_account_enabled (AgAccount *account,
+    AgService *service);
 
 static void account_storage_iface_init (McpAccountStorageIface *,
     gpointer);
@@ -133,7 +139,10 @@ _gvalue_to_string (const GValue *val)
 /* Is an AG key corresponding to an MC _parameter_ global? */
 static gboolean _ag_key_is_global (const gchar *key)
 {
-  return g_str_equal (key, AG_ACCOUNT_KEY) || g_str_equal (key, PASSWORD_KEY);
+  return
+    g_str_equal (key, AG_ACCOUNT_KEY) ||
+    g_str_equal (key, PASSWORD_KEY) ||
+    g_str_equal (key, AG_LABEL_KEY);
 }
 
 /* Is an AG key corresponding to an MC non-parameter service specific? */
@@ -204,11 +213,60 @@ _ag_account_local_value (AgAccount *account,
   return src;
 }
 
+static void _sso_toggled (GObject *object,
+    const gchar *service_name,
+    gboolean enabled,
+    gpointer data)
+{
+  AgAccount *account = AG_ACCOUNT (object);
+  AgAccountId id = account->id;
+  McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (data);
+  McpAccountStorage *mcpa = MCP_ACCOUNT_STORAGE (sso);
+  gboolean on = FALSE;
+  const gchar *name = NULL;
+  AgService *service = NULL;
+  AgManager *manager = NULL;
+
+  /* If the account manager isn't ready, account state changes are of no   *
+   * interest to us: it will pick up the then-current state of the account *
+   * when it does become ready, and anything that happens between now and  *
+   * then is not important:                                                */
+  if (!sso->ready)
+    return;
+
+  manager = ag_account_get_manager (account);
+  service = ag_manager_get_service (manager, service_name);
+
+  /* non IM services are of no interest to us, we don't handle them */
+  if (service != NULL)
+    {
+      const gchar *service_type = ag_service_get_service_type (service);
+
+      if (!g_str_equal (service_type, "IM"))
+        return;
+    }
+
+  on = _sso_account_enabled (account, service);
+  name = g_hash_table_lookup (sso->id_name_map, GUINT_TO_POINTER (id));
+
+  if (name != NULL)
+    {
+      const gchar *value = on ? "true" : "false";
+      McpAccountManager *am = sso->manager_interface;
+
+      mcp_account_manager_set_value (am, name, "Enabled", value);
+      g_signal_emit_by_name (mcpa, "toggled", name, on);
+    }
+  else
+    {
+      DEBUG ("received enabled=%u signal for unknown SSO account %u", on, id);
+    }
+}
+
 static void _sso_deleted (GObject *object,
     AgAccountId id,
     gpointer data)
 {
-  AgManager *ag_manager = AG_MANAGER (object);
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (data);
 
   if (sso->ready)
@@ -221,21 +279,79 @@ static void _sso_deleted (GObject *object,
       if (name != NULL)
         {
           McpAccountStorage *mcpa = MCP_ACCOUNT_STORAGE (sso);
+          gchar *signalled_name = g_strdup (name);
 
           /* forget id->name map first, so the signal can't start a loop */
           g_hash_table_remove (sso->id_name_map, GUINT_TO_POINTER (id));
-          g_signal_emit_by_name (mcpa, "deleted", name);
-          g_hash_table_remove (sso->accounts, name);
+          g_hash_table_remove (sso->accounts, signalled_name);
+          g_signal_emit_by_name (mcpa, "deleted", signalled_name);
+
+          g_free (signalled_name);
         }
     }
   else
     {
-      DelayedSignalData *data = g_slice_new0 (DelayedSignalData);
+      DelayedSignalData *sig_data = g_slice_new0 (DelayedSignalData);
 
-      data->signal = DELAYED_DELETE;
-      data->account_id = id;
-      g_queue_push_tail (sso->pending_signals, data);
+      sig_data->signal = DELAYED_DELETE;
+      sig_data->account_id = id;
+      g_queue_push_tail (sso->pending_signals, sig_data);
     }
+}
+
+static void _sso_account_enable (AgAccount *account,
+    AgService *service,
+    gboolean on)
+{
+  AgService *original = ag_account_get_selected_service (account);
+
+  /* turn the local enabled flag on/off as required */
+  if (service != NULL)
+    ag_account_select_service (account, service);
+  else
+    _ag_account_select_default_im_service (account);
+
+  ag_account_set_enabled (account, on);
+
+  /* if we are turning the account on, the global flag must also be set *
+   * NOTE: this isn't needed when turning the account off               */
+  if (on)
+    {
+      ag_account_select_service (account, NULL);
+      ag_account_set_enabled (account, on);
+    }
+
+  ag_account_select_service (account, original);
+}
+
+static gboolean _sso_account_enabled (AgAccount *account,
+    AgService *service)
+{
+  gboolean local  = FALSE;
+  gboolean global = FALSE;
+  AgService *original = ag_account_get_selected_service (account);
+
+  if (service == NULL)
+    {
+      _ag_account_select_default_im_service (account);
+      local = ag_account_get_enabled (account);
+    }
+  else
+    {
+      if (original != service)
+        ag_account_select_service (account, service);
+
+      local = ag_account_get_enabled (account);
+    }
+
+  ag_account_select_service (account, NULL);
+  global = ag_account_get_enabled (account);
+
+  ag_account_select_service (account, original);
+
+  DEBUG ("_sso_account_enabled: global:%d && local:%d", global, local);
+
+  return local && global;
 }
 
 static void _sso_created (GObject *object,
@@ -272,6 +388,13 @@ static void _sso_created (GObject *object,
                   ag_account_store (account, _ag_account_stored_cb, NULL);
 
                   g_signal_emit_by_name (mcpa, "created", name);
+
+                  g_signal_connect (account, "enabled",
+                      G_CALLBACK (_sso_toggled), data);
+
+                  /* this doesn't seem to fire when we expect it to, but this *
+                   * is the right place to hook it up:                        */
+                  /* ag_account_watch_dir (account, "", _sso_updated, sso);   */
                 }
               else
                 {
@@ -282,11 +405,11 @@ static void _sso_created (GObject *object,
     }
   else
     {
-      DelayedSignalData *data = g_slice_new0 (DelayedSignalData);
+      DelayedSignalData *sig_data = g_slice_new0 (DelayedSignalData);
 
-      data->signal = DELAYED_CREATE;
-      data->account_id = id;
-      g_queue_push_tail (sso->pending_signals, data);
+      sig_data->signal = DELAYED_CREATE;
+      sig_data->account_id = id;
+      g_queue_push_tail (sso->pending_signals, sig_data);
     }
 }
 
@@ -478,7 +601,6 @@ get_ag_account (const McdAccountManagerSso *sso,
     AgAccountId *id)
 {
   AgAccount *account;
-  gchar *ident = NULL;
 
   g_return_val_if_fail (id != NULL, NULL);
 
@@ -557,17 +679,26 @@ save_value (AgAccount *account,
   service = ag_account_get_selected_service (account);
   local = _ag_value_is_local (key);
 
+  /* Enabled is both a global and a local value, for extra fun: */
+  if (g_str_equal (key, "Enabled"))
+    {
+      gboolean on = g_str_equal (val, "true");
+
+      DEBUG ("setting enabled flag: '%d'", on);
+      _sso_account_enable (account, NULL, on);
+
+      goto cleanup;
+    }
+
   /* pick the right service/global section of SSO, and switch if necessary */
   if (local && service == NULL)
     _ag_account_select_default_im_service (account);
   else if (!local && service != NULL)
     ag_account_select_service (account, NULL);
 
-  if (g_str_equal (key, "Enabled"))
-    {
-      ag_account_set_enabled (account, g_str_equal (val, "true"));
-      goto cleanup;
-    }
+  /* yet another special case mapping */
+  if (g_str_equal (key, MC_LABEL_KEY))
+    key = AG_LABEL_KEY;
 
   if (val == NULL)
     {
@@ -625,6 +756,7 @@ _set (const McpAccountStorage *self,
  * note that not all MC parameters correspond to SSO parameters, *
  * some correspond to values instead                             */
 /* NOTE: value keys are passed through unchanged */
+/* NOTE: except for "name", which maps to "DisplayName" */
 static gchar *
 get_mc_param_key (const gchar *key)
 {
@@ -634,6 +766,10 @@ get_mc_param_key (const gchar *key)
 
   if (g_str_equal (key, PASSWORD_KEY))
     return g_strdup (PARAM_PREFIX_MC PASSWORD_KEY);
+
+  /* yet another special case */
+  if (g_str_equal (key, AG_LABEL_KEY))
+    return g_strdup (MC_LABEL_KEY);
 
   /* now check for regular params */
   if (g_str_has_prefix (key, PARAM_PREFIX))
@@ -679,8 +815,7 @@ _get (const McpAccountStorage *self,
         {
           const gchar *v = NULL;
 
-          ag_account_select_service (account, NULL);
-          v = ag_account_get_enabled (account) ? "true" : "false";
+          v = _sso_account_enabled (account, service) ? "true" : "false";
           mcp_account_manager_set_value (am, acct, key, v);
         }
       else if (g_str_equal (key, "sso-services"))
@@ -776,8 +911,8 @@ _get (const McpAccountStorage *self,
             }
         }
 
-      /* special case, global value may not be stored as an explicit key */
-      on = ag_account_get_enabled (account) ? "true" : "false";
+      /* special case, actually two separate but related flags in SSO */
+      on = _sso_account_enabled (account, NULL) ? "true" : "false";
       mcp_account_manager_set_value (am, acct, "Enabled", on);
     }
 
@@ -913,7 +1048,9 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
                     }
                 }
 
-              enabled = ag_account_get_enabled (account) ? "true": "false";
+              /* special case, actually two separate but related flags in SSO */
+              enabled = _sso_account_enabled (account, NULL) ? "true": "false";
+
               mcp_account_manager_set_value (am, name, "Enabled", enabled);
               mcp_account_manager_set_value (am, name, LIBACCT_ID_KEY, ident);
               mcp_account_manager_set_value (am, name, MC_CMANAGER_KEY, mc_id[0]);
@@ -921,6 +1058,13 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
               mcp_account_manager_set_value (am, name, MC_IDENTITY_KEY, name);
 
               ag_account_select_service (account, service);
+
+              g_signal_connect (account, "enabled",
+                  G_CALLBACK (_sso_toggled), sso);
+
+              /* this doesn't seem to fire when we expect it to, but this *
+               * is the right place to hook it up:                        */
+              /* ag_account_watch_dir (account, "", _sso_updated, sso);   */
 
               g_strfreev (mc_id);
               g_free (ident);

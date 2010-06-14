@@ -39,6 +39,7 @@
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/enums.h>
 #include <telepathy-glib/svc-generic.h>
+#include <telepathy-glib/svc-account.h>
 #include <telepathy-glib/util.h>
 #include <telepathy-glib/errors.h>
 #include <telepathy-glib/interfaces.h>
@@ -168,6 +169,70 @@ account_storage_cmp (gconstpointer a, gconstpointer b)
     return 0;
 }
 
+/* calback chain for asynchronously updates from backends: */
+static void
+async_altered_validity_cb (McdAccount *account, gboolean valid, gpointer data)
+{
+    DEBUG ("asynchronously altered account %s is %svalid",
+           mcd_account_get_unique_name (account), valid ? "" : "in");
+
+    g_object_unref (account);
+}
+
+static void
+async_altered_manager_cb (McdManager *cm, const GError *error, gpointer data)
+{
+    McdAccount *account = data;
+    const gchar *name = NULL;
+
+    if (cm != NULL)
+        name = mcd_manager_get_name (cm);
+
+    if (error != NULL)
+        DEBUG ("manager %s not ready: %s", name, error->message);
+    else
+        DEBUG ("manager %s is ready", name);
+
+    /* this triggers the final parameter check which results in dbus signals *
+     * being fired and (potentially) the account going online automatically  */
+    mcd_account_check_validity (account, async_altered_validity_cb, NULL);
+
+    g_object_unref (cm);
+}
+
+/* account has been updated by a third party, and the McpAccountStorage *
+ * plugin has just informed us of this fact                             */
+static void
+altered_cb (GObject *storage, const gchar *name, gpointer data)
+{
+    McdAccountManager *am = MCD_ACCOUNT_MANAGER (data);
+    McdMaster *master = mcd_master_get_default ();
+    McdAccount *account = NULL;
+    McdManager *cm = NULL;
+    const gchar *cm_name = NULL;
+
+    account = mcd_account_manager_lookup_account (am, name);
+
+    if (G_UNLIKELY (!account))
+    {
+        g_warning ("%s: account %s does not exist", G_STRFUNC, name);
+        return;
+    }
+
+    /* in theory, the CM is already ready by this point, but make sure: */
+    cm_name = mcd_account_get_manager_name (account);
+
+    if (cm_name != NULL)
+        cm = _mcd_master_lookup_manager (master, cm_name);
+
+    if (cm != NULL)
+    {
+        g_object_ref (cm);
+        g_object_ref (account);
+        mcd_manager_call_when_ready (cm, async_altered_manager_cb, account);
+    }
+}
+
 /* callbacks for the various stages in an backend-driven account creation */
 static void
 async_created_validity_cb (McdAccount *account, gboolean valid, gpointer data)
@@ -268,34 +333,24 @@ finish:
 }
 
 static void
-altered_cb (GObject *plugin, const gchar *account)
-{
-  McpAccountStorage *storage = MCP_ACCOUNT_STORAGE (plugin);
-
-  DEBUG ("%s plugin reports %s changed, async changes not supported yet",
-      mcp_account_storage_name (storage), account);
-}
-
-static void
 toggled_cb (GObject *plugin, const gchar *name, gboolean on, gpointer data)
 {
   McpAccountStorage *storage = MCP_ACCOUNT_STORAGE (plugin);
   McdAccountManager *manager = MCD_ACCOUNT_MANAGER (data);
-  McdPluginAccountManager *pa = manager->priv->plugin_manager;
   McdAccount *account = NULL;
   GError *error = NULL;
 
-  account = g_hash_table_lookup (manager->priv->accounts, name);
+  account = mcd_account_manager_lookup_account (manager, name);
+
+  DEBUG ("%s plugin reports %s became %sabled",
+      mcp_account_storage_name (storage), name, on ? "en" : "dis");
 
   if (account == NULL)
     {
-      g_warning ("Unknown account %s toggled by %s plugin",
-          account, mcp_account_storage_name (storage));
+      g_warning ("%s: Unknown account %s from %s plugin",
+          G_STRFUNC, name, mcp_account_storage_name (storage));
       return;
     }
-
-  DEBUG ("%s plugin reports %s became %svalid",
-      mcp_account_storage_name (storage), name, on ? "" : "in");
 
   _mcd_account_set_enabled (account, on, FALSE, &error);
 
@@ -309,7 +364,9 @@ toggled_cb (GObject *plugin, const gchar *name, gboolean on, gpointer data)
 static void
 _mcd_account_delete_cb (McdAccount *account, const GError *error, gpointer data)
 {
-  /* we don't do anything with this right now */
+    /* no need to do anything other than release the account ref, which *
+     * should be the last ref we hold by the time this rolls arouns:    */
+    g_object_unref (account);
 }
 
 /* a backend plugin notified us that an account was vaporised: remove it */
@@ -324,10 +381,13 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
 
     account = g_hash_table_lookup (manager->priv->accounts, name);
 
+    DEBUG ("%s -> %p", name, account);
+
     if (account != NULL)
     {
-        mcd_account_delete (account, _mcd_account_delete_cb, NULL);
+        g_object_ref (account);
         g_hash_table_remove (manager->priv->accounts, name);
+        mcd_account_delete (account, _mcd_account_delete_cb, NULL);
     }
 
     /* NOTE: we have to do this here, the mcd_account deletion just *
@@ -958,12 +1018,12 @@ sso_get_service_accounts (McSvcAccountManagerInterfaceSSO *iface,
 
                 if (supported != NULL)
                 {
-                    guint i;
+                    guint j;
                     GStrv services = g_strsplit (supported, ";", 0);
 
-                    for (i = 0; services[i] != NULL; i++)
+                    for (j = 0; services[j] != NULL; j++)
                     {
-                        if (g_str_equal (service, services[i]))
+                        if (g_str_equal (service, services[j]))
                         {
                             McdAccount *a =
                               g_hash_table_lookup (priv->accounts, name);

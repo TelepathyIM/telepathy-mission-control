@@ -65,6 +65,19 @@ mcp_account_manager_set_value (const McpAccountManager *mcpa,
   iface->set_value (mcpa, account, key, value);
 }
 
+GStrv
+mcp_account_manager_list_keys (const McpAccountManager *mcpa,
+    const gchar *account)
+{
+  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
+
+  g_return_val_if_fail (iface != NULL, NULL);
+  g_return_val_if_fail (iface->list_keys != NULL, NULL);
+  g_return_val_if_fail (account != NULL, NULL);
+
+  return iface->list_keys (mcpa, account);
+}
+
 /**
  * mcp_account_manager_get_value:
  * @mcpa: an #McpAccountManager instance
