@@ -156,6 +156,12 @@ def test(q, bus, mc):
     assertEquals(cs.CONN_STATUS_REASON_REQUESTED,
         connecting.args[0].get('ConnectionStatusReason'))
 
+    assertEquals('com.example.My.Network.Is.Full.Of.Eels',
+            account_props.Get(cs.ACCOUNT, 'ConnectionError'))
+    assertEquals(
+            {'eels': 23, 'capacity': 23, 'debug-message': 'Too many eels'},
+            account_props.Get(cs.ACCOUNT, 'ConnectionErrorDetails'))
+
     # Connect succeeds
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
 
@@ -179,6 +185,9 @@ def test(q, bus, mc):
         connected.args[0].get('ConnectionStatus'))
     assertEquals(cs.CONN_STATUS_REASON_REQUESTED,
         connected.args[0].get('ConnectionStatusReason'))
+
+    assertEquals('', account_props.Get(cs.ACCOUNT, 'ConnectionError'))
+    assertEquals({}, account_props.Get(cs.ACCOUNT, 'ConnectionErrorDetails'))
 
 if __name__ == '__main__':
     exec_test(test, {})
