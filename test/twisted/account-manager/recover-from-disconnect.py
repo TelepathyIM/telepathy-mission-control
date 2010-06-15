@@ -30,7 +30,8 @@ def test(q, bus, mc):
     cm_name_ref = dbus.service.BusName(
             tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
 
-    # Create an account
+    # Create an account. We're setting register=True here to verify
+    # that after one successful connection, it'll be removed (fd.o #28118).
     params = dbus.Dictionary({"account": "someguy@example.com",
         "password": "secrecy",
         "register": True}, signature='sv')
