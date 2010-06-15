@@ -3380,8 +3380,6 @@ clear_register_dup_params_cb (McdAccount *self,
 
         g_hash_table_remove (params, "register");
 
-        _mcd_account_set_parameter (self, "register", NULL, NULL, NULL);
-
         g_value_init (&value, TP_HASH_TYPE_STRING_VARIANT_MAP);
         g_value_take_boxed (&value, params);
         mcd_account_changed_property (self, "Parameters", &value);
