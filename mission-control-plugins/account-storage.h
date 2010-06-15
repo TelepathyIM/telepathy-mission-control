@@ -62,6 +62,9 @@ void mcp_account_storage_iface_set_name (McpAccountStorageIface *iface,
 void mcp_account_storage_iface_set_desc (McpAccountStorageIface *iface,
     const gchar *desc);
 
+void mcp_account_storage_iface_set_provider (McpAccountStorageIface *iface,
+    const gchar *provider);
+
 void mcp_account_storage_iface_implement_get (McpAccountStorageIface *iface,
     gboolean (*method) (
         const McpAccountStorage *,
@@ -108,6 +111,25 @@ mcp_account_storage_iface_implement_ready (McpAccountStorageIface *iface,
         const McpAccountStorage *storage,
         const McpAccountManager *am));
 
+void mcp_account_storage_iface_implement_get_identifier (
+    McpAccountStorageIface *iface,
+    void (*method) (
+        const McpAccountStorage *,
+        const gchar *,
+        GValue *));
+
+void mcp_account_storage_iface_implement_get_additional_info (
+    McpAccountStorageIface *iface,
+    GHashTable *(*method) (
+        const McpAccountStorage *,
+        const gchar *));
+
+void mcp_account_storage_iface_implement_get_restrictions (
+    McpAccountStorageIface *iface,
+    guint (*method) (
+        const McpAccountStorage *,
+        const gchar *));
+
 gint mcp_account_storage_priority (const McpAccountStorage *storage);
 
 gboolean mcp_account_storage_get (const McpAccountStorage *storage,
@@ -141,9 +163,21 @@ mcp_account_storage_commit_one (const McpAccountStorage *storage,
 GList *mcp_account_storage_list (const McpAccountStorage *storage,
     const McpAccountManager *am);
 
+void mcp_account_storage_get_identifier (const McpAccountStorage *storage,
+    const gchar *account,
+    GValue *identifier);
+
+GHashTable *mcp_account_storage_get_additional_info (
+    const McpAccountStorage *storage,
+    const gchar *account);
+
+guint mcp_account_storage_get_restrictions (const McpAccountStorage *storage,
+    const gchar *account);
+
 const gchar *mcp_account_storage_name (const McpAccountStorage *storage);
 
 const gchar *mcp_account_storage_description (const McpAccountStorage *storage);
+const gchar *mcp_account_storage_provider (const McpAccountStorage *storage);
 
 G_END_DECLS
 

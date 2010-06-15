@@ -67,9 +67,13 @@ static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
 				   gpointer iface_data);
 static void account_avatar_iface_init (TpSvcAccountInterfaceAvatarClass *iface,
 				       gpointer iface_data);
+static void account_storage_iface_init (
+    McSvcAccountInterfaceStorageClass *iface,
+    gpointer iface_data);
 
 static const McdDBusProp account_properties[];
 static const McdDBusProp account_avatar_properties[];
+static const McdDBusProp account_storage_properties[];
 
 static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_account_get_type, account, TP_IFACE_ACCOUNT),
@@ -85,6 +89,9 @@ static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE (mc_svc_account_interface_conditions_get_type,
 			 account_conditions,
 			 MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS),
+    MCD_IMPLEMENT_IFACE (tp_svc_account_interface_storage_get_type,
+                         account_storage,
+                         TP_IFACE_ACCOUNT_INTERFACE_STORAGE),
     MCD_IMPLEMENT_IFACE_WITH_INIT (mc_svc_account_interface_stats_get_type,
                                    account_stats,
                                    MC_IFACE_ACCOUNT_INTERFACE_STATS),
@@ -111,6 +118,7 @@ struct _McdAccountPrivate
     McdTransport *transport;
     McdAccountConnectionContext *connection_context;
     GKeyFile *keyfile;		/* configuration file */
+    McpAccountStorage *storage_plugin;
 
     /* connection status */
     TpConnectionStatus conn_status;
@@ -1759,6 +1767,70 @@ get_normalized_name (TpSvcDBusProperties *self,
     mcd_account_get_string_val (account, name, value);
 }
 
+static void
+get_storage_provider (TpSvcDBusProperties *self,
+    const gchar *name, GValue *value)
+{
+  McdAccount *account = MCD_ACCOUNT (self);
+  McdAccountPrivate *priv = account->priv;
+  const gchar *provider = mcp_account_storage_provider (priv->storage_plugin);
+
+  g_value_init (value, G_TYPE_STRING);
+
+  g_value_set_string (value, provider);
+}
+
+static void
+get_storage_identifier (TpSvcDBusProperties *self,
+    const gchar *name, GValue *value)
+{
+
+  McdAccount *account = MCD_ACCOUNT (self);
+  McdAccountPrivate *priv = account->priv;
+  GValue identifier = { 0 };
+
+  mcp_account_storage_get_identifier (
+      priv->storage_plugin, priv->unique_name, &identifier);
+
+  g_value_init (value, G_TYPE_VALUE);
+
+  g_value_set_boxed (value, &identifier);
+
+  g_value_unset (&identifier);
+}
+
+static void
+get_storage_specific_info (TpSvcDBusProperties *self,
+    const gchar *name, GValue *value)
+{
+  GHashTable *storage_specific_info;
+  McdAccount *account = MCD_ACCOUNT (self);
+  McdAccountPrivate *priv = account->priv;
+
+  storage_specific_info = mcp_account_storage_get_additional_info (
+      priv->storage_plugin, priv->unique_name);
+
+  g_value_init (value, TP_HASH_TYPE_STRING_VARIANT_MAP);
+
+  g_value_take_boxed (value, storage_specific_info);
+}
+
+static void
+get_storage_restrictions (TpSvcDBusProperties *self,
+    const gchar *name, GValue *value)
+{
+  guint flags;
+  McdAccount *account = MCD_ACCOUNT (self);
+  McdAccountPrivate *priv = account->priv;
+
+  flags = mcp_account_storage_get_restrictions (priv->storage_plugin,
+      priv->unique_name);
+
+  g_value_init (value, G_TYPE_UINT);
+
+  g_value_set_uint (value, flags);
+}
+
 static const McdDBusProp account_properties[] = {
     { "Interfaces", NULL, mcd_dbus_get_interfaces },
     { "DisplayName", set_display_name, get_display_name },
@@ -1788,9 +1860,23 @@ static const McdDBusProp account_avatar_properties[] = {
     { 0 },
 };
 
+static const McdDBusProp account_storage_properties[] = {
+    { "StorageProvider", NULL, get_storage_provider },
+    { "StorageIdentifier", NULL, get_storage_identifier },
+    { "StorageSpecificInformation", NULL, get_storage_specific_info },
+    { "StorageRestrictions", NULL, get_storage_restrictions },
+    { 0 },
+};
+
 static void
 account_avatar_iface_init (TpSvcAccountInterfaceAvatarClass *iface,
 			   gpointer iface_data)
+{
+}
+
+static void
+account_storage_iface_init (McSvcAccountInterfaceStorageClass *iface,
+                             gpointer iface_data)
 {
 }
 
@@ -2637,6 +2723,10 @@ mcd_account_setup (McdAccount *account)
         goto broken_account;
     }
 
+    priv->storage_plugin = g_object_ref (
+        mcd_account_manager_get_storage_plugin (
+            priv->account_manager, account));
+
     priv->manager_name =
 	g_key_file_get_string (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_MANAGER, NULL);
@@ -2848,11 +2938,9 @@ _mcd_account_dispose (GObject *object)
 	priv->online_requests = NULL;
     }
 
-    if (priv->manager)
-    {
-	g_object_unref (priv->manager);
-	priv->manager = NULL;
-    }
+    tp_clear_object (&priv->manager);
+
+    tp_clear_object (&priv->storage_plugin);
 
     _mcd_account_set_connection_context (self, NULL);
     _mcd_account_set_connection (self, NULL);

@@ -25,6 +25,7 @@
 #define __MCD_ACCOUNT_MANAGER_H__
 
 #include <telepathy-glib/dbus.h>
+#include "mission-control-plugins/mission-control-plugins.h"
 
 G_BEGIN_DECLS
 #define MCD_TYPE_ACCOUNT_MANAGER         (mcd_account_manager_get_type ())
@@ -97,5 +98,9 @@ McdAccount *mcd_account_manager_lookup_account (McdAccountManager *account_manag
 						const gchar *name);
 McdAccount *mcd_account_manager_lookup_account_by_path (McdAccountManager *account_manager,
 						       	const gchar *object_path);
+
+McpAccountStorage *mcd_account_manager_get_storage_plugin (
+    McdAccountManager *account_manager,
+    McdAccount *account);
 
 #endif
