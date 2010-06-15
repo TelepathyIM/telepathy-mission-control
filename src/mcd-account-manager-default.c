@@ -621,7 +621,7 @@ account_storage_iface_init (McpAccountStorageIface *iface,
   mcp_account_storage_iface_implement_get (iface, _get);
   mcp_account_storage_iface_implement_set (iface, _set);
   mcp_account_storage_iface_implement_delete (iface, _delete);
-  mcp_account_storage_iface_implement_commit (iface, _commit);
+  mcp_account_storage_iface_implement_commit_one (iface, _commit);
   mcp_account_storage_iface_implement_list (iface, _list);
 
 }

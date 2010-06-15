@@ -1239,7 +1239,7 @@ write_conf (gpointer userdata)
         const gchar *pname = mcp_account_storage_name (plugin);
 
         DEBUG ("flushing plugin %s to long term storage", pname);
-        mcp_account_storage_commit (plugin, ma, NULL);
+        mcp_account_storage_commit (plugin, ma);
     }
 
     return TRUE;
@@ -1715,11 +1715,19 @@ mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
     {
         McpAccountStorage *plugin = store->data;
         const gchar *pname = mcp_account_storage_name (plugin);
-        const gchar *account_name = account == NULL ? NULL :
-            mcd_account_get_unique_name (account);
 
         DEBUG ("flushing plugin %s to long term storage", pname);
-        mcp_account_storage_commit (plugin, ma, account_name);
+
+        if (account == NULL)
+        {
+            mcp_account_storage_commit (plugin, ma);
+        }
+        else
+        {
+            const gchar *account_name = mcd_account_get_unique_name (account);
+
+            mcp_account_storage_commit_one (plugin, ma, account_name);
+        }
     }
 
     if (callback != NULL)

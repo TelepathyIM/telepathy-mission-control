@@ -819,8 +819,7 @@ _delete (const McpAccountStorage *self,
 
 static gboolean
 _commit (const McpAccountStorage *self,
-    const McpAccountManager *am,
-    const gchar *account_name)
+    const McpAccountManager *am)
 {
   GHashTableIter iter;
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (self);
@@ -830,7 +829,7 @@ _commit (const McpAccountStorage *self,
   if (!sso->save)
     return TRUE;
 
-  /* FIXME: use account_name if it's non-NULL */
+  /* FIXME: implement commit_one(), and use account_name if it's non-NULL */
 
   g_hash_table_iter_init (&iter, sso->accounts);
 

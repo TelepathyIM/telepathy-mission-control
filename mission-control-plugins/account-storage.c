@@ -55,6 +55,7 @@
  *   mcp_account_storage_iface_implement_set    (iface, _plugin_setval);
  *   mcp_account_storage_iface_implement_delete (iface, _plugin_delete);
  *   mcp_account_storage_iface_implement_commit (iface, _plugin_commit);
+ *   mcp_account_storage_iface_implement_commit_one (iface, _plugin_commit_one);
  *   mcp_account_storage_iface_implement_list   (iface, _plugin_list);
  *   mcp_account_storage_iface_implement_ready  (iface, _plugin_ready);
  * /<!-- -->* ... *<!-- -->/
@@ -123,8 +124,7 @@ struct _McpAccountStorageIface
 
   gboolean (*commit) (
       const McpAccountStorage *self,
-      const McpAccountManager *am,
-      const gchar *account);
+      const McpAccountManager *am);
 
   GList * (*list) (
       const McpAccountStorage *self,
@@ -133,6 +133,11 @@ struct _McpAccountStorageIface
   void (*ready) (
       const McpAccountStorage *self,
       const McpAccountManager *am);
+
+  gboolean (*commit_one) (
+      const McpAccountStorage *self,
+      const McpAccountManager *am,
+      const gchar *account);
 };
 
 static void
@@ -295,10 +300,19 @@ void
 mcp_account_storage_iface_implement_commit (McpAccountStorageIface *iface,
     gboolean (*method) (
         const McpAccountStorage *,
+        const McpAccountManager *))
+{
+  iface->commit = method;
+}
+
+void
+mcp_account_storage_iface_implement_commit_one (McpAccountStorageIface *iface,
+    gboolean (*method) (
+        const McpAccountStorage *,
         const McpAccountManager *,
         const gchar *))
 {
-  iface->commit = method;
+  iface->commit_one = method;
 }
 
 void
@@ -475,11 +489,45 @@ mcp_account_storage_delete (const McpAccountStorage *storage,
  * not required to have finished its commit operation when it returns,
  * merely to have started the operation.
  *
+ * If the @commit_one method is implemented, it will be called preferentially
+ * if only one account is to be committed. If the @commit_one method is
+ * implemented but @commit is not, @commit_one will be called with
+ * @account_name = %NULL to commit all accounts.
+ *
  * Returns: a gboolean - normally %TRUE, %FALSE if there was a problem
  * that was immediately obvious.
  */
 gboolean
 mcp_account_storage_commit (const McpAccountStorage *storage,
+    const McpAccountManager *am)
+{
+  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
+
+  DEBUG (storage, "");
+  g_return_val_if_fail (iface != NULL, FALSE);
+
+  if (iface->commit == NULL && iface->commit_one != NULL)
+    return iface->commit_one (storage, am, NULL);
+
+  return iface->commit (storage, am);
+}
+
+/**
+ * mcp_account_storage_commit_one:
+ * @storage: an #McpAccountStorage instance
+ * @am: an #McpAccountManager instance
+ * @account: the unique suffix of an account's object path, or %NULL if
+ *  all accounts are to be committed
+ *
+ * The same as mcp_account_storage_commit(), but only commit the given
+ * account. This is optional to implement; the default implementation
+ * is to call @commit.
+ *
+ * Returns: a gboolean - normally %TRUE, %FALSE if there was a problem
+ * that was immediately obvious.
+ */
+gboolean
+mcp_account_storage_commit_one (const McpAccountStorage *storage,
     const McpAccountManager *am,
     const gchar *account)
 {
@@ -488,7 +536,10 @@ mcp_account_storage_commit (const McpAccountStorage *storage,
   DEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, FALSE);
 
-  return iface->commit (storage, am, account);
+  if (iface->commit_one == NULL || (account == NULL && iface->commit != NULL))
+    return iface->commit (storage, am);
+
+  return iface->commit_one (storage, am, account);
 }
 
 /**

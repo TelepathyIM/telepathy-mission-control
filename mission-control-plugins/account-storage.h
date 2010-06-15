@@ -93,6 +93,12 @@ void
 mcp_account_storage_iface_implement_commit (McpAccountStorageIface *iface,
     gboolean (*method) (
         const McpAccountStorage *,
+        const McpAccountManager *));
+
+void
+mcp_account_storage_iface_implement_commit_one (McpAccountStorageIface *iface,
+    gboolean (*method) (
+        const McpAccountStorage *,
         const McpAccountManager *,
         const gchar *));
 
@@ -125,6 +131,10 @@ void mcp_account_storage_ready (const McpAccountStorage *storage,
 
 gboolean
 mcp_account_storage_commit (const McpAccountStorage *storage,
+    const McpAccountManager *am);
+
+gboolean
+mcp_account_storage_commit_one (const McpAccountStorage *storage,
     const McpAccountManager *am,
     const gchar *account);
 
