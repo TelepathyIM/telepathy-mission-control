@@ -3655,6 +3655,12 @@ clear_register_dup_params_cb (McdAccount *self,
                               GHashTable *params,
                               gpointer user_data)
 {
+    if (params == NULL)
+    {
+        DEBUG ("no params returned");
+        return;
+    }
+
     if (tp_asv_get_boolean (params, "register", NULL))
     {
         GValue value = { 0 };
