@@ -16,12 +16,14 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 # 02110-1301 USA
 
-import dbus
+import os
+import time
+
 import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async
+        call_async, assertEquals
 from mctest import exec_test, SimulatedConnection, create_fakecm_account,\
         SimulatedChannel
 import constants as cs
@@ -96,9 +98,11 @@ def test(q, bus, mc):
     assert properties.get('RequestedPresence') == requested_presence, \
         properties.get('RequestedPresence')
 
-    # Set some parameters
+    # Set some parameters. They include setting account to \\, as a regression
+    # test for part of fd.o #28557.
     call_async(q, account, 'UpdateParameters',
             {
+                'account': r'\\',
                 'secret-mushroom': '/Amanita muscaria/',
                 'snakes': dbus.UInt32(42),
                 'com.example.Badgerable.Badgered': True,
@@ -118,7 +122,7 @@ def test(q, bus, mc):
                 path=account.object_path,
                 interface=cs.ACCOUNT, signal='AccountPropertyChanged',
                 args=[{'Parameters': {
-                    'account': 'someguy@example.com',
+                    'account': r'\\',
                     'com.example.Badgerable.Badgered': True,
                     'password': 'secrecy',
                     'nickname': 'albinoblacksheep',
@@ -131,7 +135,7 @@ def test(q, bus, mc):
     # on reconnection
     not_yet = ret.value[0]
     not_yet.sort()
-    assert not_yet == ['secret-mushroom', 'snakes'], not_yet
+    assert not_yet == ['account', 'secret-mushroom', 'snakes'], not_yet
 
     # Unset some parameters
     call_async(q, account, 'UpdateParameters',
@@ -146,7 +150,7 @@ def test(q, bus, mc):
                 path=account.object_path,
                 interface=cs.ACCOUNT, signal='AccountPropertyChanged',
                 args=[{'Parameters': {
-                    'account': 'someguy@example.com',
+                    'account': r'\\',
                     'password': 'secrecy',
                     'secret-mushroom': '/Amanita muscaria/',
                     'snakes': 42,
@@ -161,6 +165,30 @@ def test(q, bus, mc):
     not_yet = ret.value[0]
     not_yet.sort()
     assert not_yet == ['com.example.Badgerable.Badgered', 'nickname'], not_yet
+
+    accounts_dir = os.environ['MC_ACCOUNT_DIR']
+
+    # fd.o #28557: when the file has been updated, the account parameter
+    # has its two backslashes doubled to 4 (because of the .desktop encoding),
+    # but they are not doubled again.
+    i = 0
+    updated = False
+    while i < 500:
+
+        for line in open(accounts_dir +
+                '/mcp-test-diverted-account-plugin.conf', 'r'):
+            if line.startswith('param-account=') and '\\' in line:
+                assertEquals(r'param-account=\\\\' + '\n', line)
+                updated = True
+
+        if updated:
+            break
+
+        # just to not busy-wait
+        time.sleep(0.1)
+        i += 1
+
+    assert updated
 
 if __name__ == '__main__':
     exec_test(test, {})
