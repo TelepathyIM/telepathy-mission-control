@@ -180,6 +180,15 @@ set_value (const McpAccountManager *ma,
     g_key_file_remove_key (self->keyfile, acct, key, NULL);
 }
 
+static GStrv
+list_keys (const McpAccountManager *ma,
+           const gchar * acct)
+{
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
+
+  return g_key_file_get_keys (self->keyfile, acct, NULL, NULL);
+}
+
 static gboolean
 is_secret (const McpAccountManager *ma,
     const gchar *acct,
@@ -208,7 +217,7 @@ unique_name (const McpAccountManager *ma,
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
 
-  gchar *path, *seq, *unique_name = NULL;
+  gchar *path, *seq, *ret = NULL;
   const gchar *base = NULL;
   gchar *esc_manager, *esc_protocol, *esc_base;
   GValue *value;
@@ -242,12 +251,12 @@ unique_name (const McpAccountManager *ma,
       if (!g_key_file_has_group (self->keyfile, path + base_len) &&
           dbus_g_connection_lookup_g_object (connection, path) == NULL)
         {
-          unique_name = g_strdup (path + base_len);
+          ret = g_strdup (path + base_len);
           break;
         }
     }
   g_free (path);
-  return unique_name;
+  return ret;
 }
 
 
@@ -262,4 +271,5 @@ plugin_iface_init (McpAccountManagerIface *iface,
   iface->is_secret = is_secret;
   iface->make_secret = make_secret;
   iface->unique_name = unique_name;
+  iface->list_keys = list_keys;
 }

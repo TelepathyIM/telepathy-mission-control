@@ -67,6 +67,9 @@ gchar * mcp_account_manager_get_unique_name (McpAccountManager *mcpa,
     const gchar *protocol,
     const GHashTable *params);
 
+GStrv mcp_account_manager_list_keys (const McpAccountManager *mcpa,
+    const gchar *account);
+
 G_END_DECLS
 
 #endif

@@ -1908,9 +1908,11 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
     DEBUG ("%p", connection);
     g_signal_emit (connection, signals[SELF_PRESENCE_CHANGED], 0,
                    TP_CONNECTION_PRESENCE_TYPE_OFFLINE, "offline", "");
+
     g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
                    TP_CONNECTION_STATUS_DISCONNECTED,
-                   priv->abort_reason, NULL);
+                   priv->abort_reason, priv->tp_conn);
+
     if (priv->tp_conn)
     {
 	/* Disconnect signals */

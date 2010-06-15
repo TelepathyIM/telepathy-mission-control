@@ -406,6 +406,10 @@ class SimulatedConnection(object):
     def GetStatus(self, e):
         self.q.dbus_return(e.message, self.status, signature='u')
 
+    def ConnectionError(self, error, details):
+        self.q.dbus_emit(self.object_path, cs.CONN, 'ConnectionError',
+                error, details, signature='sa{sv}')
+
     def StatusChanged(self, status, reason):
         self.status = status
         self.reason = reason

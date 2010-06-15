@@ -1,5 +1,5 @@
 # Copyright (C) 2009 Nokia Corporation
-# Copyright (C) 2009 Collabora Ltd.
+# Copyright (C) 2009-2010 Collabora Ltd.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -20,8 +20,8 @@ import dbus
 import dbus
 import dbus.service
 
-from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async, sync_dbus
+from servicetest import (EventPattern, tp_name_prefix, tp_path_prefix,
+        call_async, sync_dbus, assertEquals)
 from mctest import exec_test, SimulatedConnection, create_fakecm_account,\
         SimulatedChannel
 import constants as cs
@@ -82,18 +82,55 @@ def test(q, bus, mc):
              handled=True)
 
     # Connection falls over for a miscellaneous reason
+    conn.ConnectionError('com.example.My.Network.Is.Full.Of.Eels',
+            {'eels': 23, 'capacity': 23, 'debug-message': 'Too many eels'})
     conn.StatusChanged(cs.CONN_STATUS_DISCONNECTED,
             cs.CONN_STATUS_REASON_NETWORK_ERROR)
 
     # MC reconnects. This time, we expect it to have deleted the 'register'
     # parameter.
     del params['register']
-    e = q.expect('dbus-method-call', method='RequestConnection',
-            args=['fakeprotocol', params],
-            destination=tp_name_prefix + '.ConnectionManager.fakecm',
-            path=tp_path_prefix + '/ConnectionManager/fakecm',
-            interface=tp_name_prefix + '.ConnectionManager',
-            handled=False)
+
+    disconnected, connecting, e = q.expect_many(
+            EventPattern('dbus-signal', signal='AccountPropertyChanged',
+                predicate=(lambda e:
+                    e.args[0].get('ConnectionStatus') ==
+                        cs.CONN_STATUS_DISCONNECTED),
+                ),
+            EventPattern('dbus-signal', signal='AccountPropertyChanged',
+                predicate=(lambda e:
+                    e.args[0].get('ConnectionStatus') ==
+                        cs.CONN_STATUS_CONNECTING),
+                ),
+            EventPattern('dbus-method-call', method='RequestConnection',
+                args=['fakeprotocol', params],
+                destination=tp_name_prefix + '.ConnectionManager.fakecm',
+                path=tp_path_prefix + '/ConnectionManager/fakecm',
+                interface=tp_name_prefix + '.ConnectionManager',
+                handled=False),
+            )
+
+    assertEquals('/', disconnected.args[0].get('Connection'))
+    assertEquals('com.example.My.Network.Is.Full.Of.Eels',
+            disconnected.args[0].get('ConnectionError'))
+    assertEquals(
+            {'eels': 23, 'capacity': 23, 'debug-message': 'Too many eels'},
+            disconnected.args[0].get('ConnectionErrorDetails'))
+    assertEquals(cs.CONN_STATUS_DISCONNECTED,
+        disconnected.args[0].get('ConnectionStatus'))
+    assertEquals(cs.CONN_STATUS_REASON_NETWORK_ERROR,
+        disconnected.args[0].get('ConnectionStatusReason'))
+
+    assertEquals('/', connecting.args[0].get('Connection'))
+    assertEquals('com.example.My.Network.Is.Full.Of.Eels',
+            connecting.args[0].get('ConnectionError'))
+    assertEquals(
+            {'eels': 23, 'capacity': 23, 'debug-message': 'Too many eels'},
+            connecting.args[0].get('ConnectionErrorDetails'))
+    assertEquals(cs.CONN_STATUS_CONNECTING,
+        connecting.args[0].get('ConnectionStatus'))
+    assertEquals(cs.CONN_STATUS_REASON_REQUESTED,
+        connecting.args[0].get('ConnectionStatusReason'))
 
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
             'myself', has_presence=True)
@@ -102,17 +139,59 @@ def test(q, bus, mc):
 
     # MC calls GetStatus (maybe) and then Connect
 
-    q.expect('dbus-method-call', method='Connect',
-            path=conn.object_path, handled=True)
+    connecting, _ = q.expect_many(
+            EventPattern('dbus-signal', signal='AccountPropertyChanged',
+                predicate=(lambda e:
+                    e.args[0].get('ConnectionStatus') ==
+                        cs.CONN_STATUS_CONNECTING),
+                ),
+            EventPattern('dbus-method-call', method='Connect',
+                path=conn.object_path, handled=True),
+            )
+
+    assertEquals(conn.object_path, connecting.args[0].get('Connection'))
+    assertEquals('com.example.My.Network.Is.Full.Of.Eels',
+            connecting.args[0].get('ConnectionError'))
+    assertEquals(
+            {'eels': 23, 'capacity': 23, 'debug-message': 'Too many eels'},
+            connecting.args[0].get('ConnectionErrorDetails'))
+    assertEquals(cs.CONN_STATUS_CONNECTING,
+        connecting.args[0].get('ConnectionStatus'))
+    assertEquals(cs.CONN_STATUS_REASON_REQUESTED,
+        connecting.args[0].get('ConnectionStatusReason'))
+
+    assertEquals('com.example.My.Network.Is.Full.Of.Eels',
+            account_props.Get(cs.ACCOUNT, 'ConnectionError'))
+    assertEquals(
+            {'eels': 23, 'capacity': 23, 'debug-message': 'Too many eels'},
+            account_props.Get(cs.ACCOUNT, 'ConnectionErrorDetails'))
 
     # Connect succeeds
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
 
-    q.expect('dbus-method-call',
-             interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
-             method='SetPresence',
-             args=list(presence[1:]),
-             handled=True)
+    connected, _ = q.expect_many(
+            EventPattern('dbus-signal', signal='AccountPropertyChanged',
+                predicate=(lambda e:
+                    e.args[0].get('ConnectionStatus') ==
+                        cs.CONN_STATUS_CONNECTED),
+                ),
+            EventPattern('dbus-method-call',
+                interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
+                method='SetPresence',
+                args=list(presence[1:]),
+                handled=True),
+            )
+
+    assertEquals(conn.object_path, connected.args[0].get('Connection'))
+    assertEquals('', connected.args[0].get('ConnectionError'))
+    assertEquals({}, connected.args[0].get('ConnectionErrorDetails'))
+    assertEquals(cs.CONN_STATUS_CONNECTED,
+        connected.args[0].get('ConnectionStatus'))
+    assertEquals(cs.CONN_STATUS_REASON_REQUESTED,
+        connected.args[0].get('ConnectionStatusReason'))
+
+    assertEquals('', account_props.Get(cs.ACCOUNT, 'ConnectionError'))
+    assertEquals({}, account_props.Get(cs.ACCOUNT, 'ConnectionErrorDetails'))
 
 if __name__ == '__main__':
     exec_test(test, {})

@@ -91,7 +91,7 @@ endif
 
 if ENABLE_LIBACCOUNTS_SSO
 libmcd_convenience_la_LIBADD += $(LIBACCOUNTS_SSO_LIBS)
-libmcd_convenience_la_CFLAGS  = $(LIBACCOUNTS_SSO_CFLAGS)
+INCLUDES += $(LIBACCOUNTS_SSO_CFLAGS)
 endif
 
 noinst_LTLIBRARIES = libmcd-convenience.la
