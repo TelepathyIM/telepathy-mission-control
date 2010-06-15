@@ -3221,6 +3221,7 @@ _mcd_account_dup_parameters (McdAccount *account,
     DEBUG ("called");
     if (!priv->manager && !load_manager (account))
     {
+        DEBUG ("unable to load manager for account %s", priv->unique_name);
         callback (account, NULL, user_data);
         return;
     }
@@ -3230,6 +3231,8 @@ _mcd_account_dup_parameters (McdAccount *account,
 
     if (G_UNLIKELY (protocol == NULL))
     {
+        DEBUG ("unable to get protocol for %s account %s", priv->protocol_name,
+               priv->unique_name);
         callback (account, NULL, user_data);
         return;
     }
