@@ -118,10 +118,11 @@ def test(q, bus, unused):
                 handled=False),
             EventPattern('dbus-signal', signal='AccountPropertyChanged',
                 path=account_path, interface=cs.ACCOUNT,
-                predicate=lambda e: 'ConnectionStatus' in e.args[0]),
+                predicate=(lambda e:
+                    e.args[0].get('ConnectionStatus') ==
+                        cs.CONN_STATUS_CONNECTED),
+                ),
             )
-
-    assert e.args[0]['ConnectionStatus'] == cs.CONN_STATUS_CONNECTED
 
     q.dbus_return(request_avatars_call.message, signature='')
 

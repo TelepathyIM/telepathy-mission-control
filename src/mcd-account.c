@@ -115,6 +115,8 @@ struct _McdAccountPrivate
     /* connection status */
     TpConnectionStatus conn_status;
     TpConnectionStatusReason conn_reason;
+    gchar *conn_dbus_error;
+    GHashTable *conn_error_details;
 
     /* current presence fields */
     TpConnectionPresenceType curr_presence_type;
@@ -1551,6 +1553,28 @@ get_connection_status_reason (TpSvcDBusProperties *self,
 }
 
 static void
+get_connection_error (TpSvcDBusProperties *self,
+                      const gchar *name,
+                      GValue *value)
+{
+    McdAccount *account = MCD_ACCOUNT (self);
+
+    g_value_init (value, G_TYPE_STRING);
+    g_value_set_string (value, account->priv->conn_dbus_error);
+}
+
+static void
+get_connection_error_details (TpSvcDBusProperties *self,
+                              const gchar *name,
+                              GValue *value)
+{
+    McdAccount *account = MCD_ACCOUNT (self);
+
+    g_value_init (value, TP_HASH_TYPE_STRING_VARIANT_MAP);
+    g_value_set_boxed (value, account->priv->conn_error_details);
+}
+
+static void
 get_current_presence (TpSvcDBusProperties *self, const gchar *name,
 		      GValue *value)
 {
@@ -1681,6 +1705,8 @@ static const McdDBusProp account_properties[] = {
     { "Connection", NULL, get_connection },
     { "ConnectionStatus", NULL, get_connection_status },
     { "ConnectionStatusReason", NULL, get_connection_status_reason },
+    { "ConnectionError", NULL, get_connection_error },
+    { "ConnectionErrorDetails", NULL, get_connection_error_details },
     { "CurrentPresence", NULL, get_current_presence },
     { "RequestedPresence", set_requested_presence, get_requested_presence },
     { "ChangingPresence", NULL, get_changing_presence },
@@ -2788,6 +2814,9 @@ mcd_account_init (McdAccount *account)
 
     priv->conn_status = TP_CONNECTION_STATUS_DISCONNECTED;
     priv->conn_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
+    priv->conn_dbus_error = g_strdup ("");
+    priv->conn_error_details = g_hash_table_new_full (g_str_hash, g_str_equal,
+        g_free, (GDestroyNotify) tp_g_value_slice_free);
 
     priv->changed_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
         NULL, (GDestroyNotify) tp_g_value_slice_free);
@@ -3363,86 +3392,130 @@ on_conn_status_changed (McdConnection *connection,
                         TpConnection *tp_conn,
                         McdAccount *account)
 {
-    _mcd_account_set_connection_status (account, status, reason, tp_conn);
+    const gchar *dbus_error = NULL;
+    const GHashTable *details = NULL;
+
+    if (tp_conn != NULL)
+    {
+        dbus_error = tp_connection_get_detailed_error (tp_conn, &details);
+    }
+
+    _mcd_account_set_connection_status (account, status, reason, tp_conn,
+                                        dbus_error, details);
 }
 
 void
 _mcd_account_set_connection_status (McdAccount *account,
                                     TpConnectionStatus status,
                                     TpConnectionStatusReason reason,
-                                    TpConnection *tp_conn)
+                                    TpConnection *tp_conn,
+                                    const gchar *dbus_error,
+                                    const GHashTable *details)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     gboolean changed = FALSE;
 
     DEBUG ("%s: %u because %u", priv->unique_name, status, reason);
 
+    mcd_account_freeze_properties (account);
+
     if (status == TP_CONNECTION_STATUS_CONNECTED)
     {
         _mcd_account_set_has_been_online (account);
+
+        DEBUG ("clearing connection error details");
+        g_free (priv->conn_dbus_error);
+        priv->conn_dbus_error = g_strdup ("");
+        g_hash_table_remove_all (priv->conn_error_details);
+
+    }
+    else if (status == TP_CONNECTION_STATUS_DISCONNECTED)
+    {
+        if (dbus_error == NULL)
+            dbus_error = "";
+
+        if (tp_strdiff (dbus_error, priv->conn_dbus_error))
+        {
+            DEBUG ("changing detailed D-Bus error from '%s' to '%s'",
+                   priv->conn_dbus_error, dbus_error);
+            g_free (priv->conn_dbus_error);
+            priv->conn_dbus_error = g_strdup (dbus_error);
+            changed = TRUE;
+        }
+
+        /* to avoid having to do deep comparisons, we assume that any change to
+         * or from a non-empty hash table is interesting. */
+        if ((details != NULL && tp_asv_size (details) > 0) ||
+            tp_asv_size (priv->conn_error_details) > 0)
+        {
+            DEBUG ("changing error details");
+            g_hash_table_remove_all (priv->conn_error_details);
+
+            if (details != NULL)
+                tp_g_hash_table_update (priv->conn_error_details,
+                                        (GHashTable *) details,
+                                        (GBoxedCopyFunc) g_strdup,
+                                        (GBoxedCopyFunc) tp_g_value_slice_dup);
+
+            changed = TRUE;
+        }
     }
 
-    mcd_account_freeze_properties (account);
-
-    if (priv->tp_connection != tp_conn)
+    if (priv->tp_connection != tp_conn
+        || (tp_conn != NULL && status == TP_CONNECTION_STATUS_DISCONNECTED))
     {
-        GValue value = { 0 };
-        const gchar *path;
-
         if (priv->tp_connection != NULL)
-        {
             g_object_unref (priv->tp_connection);
-        }
 
-        if (tp_conn != NULL)
-        {
+        if (tp_conn != NULL && status != TP_CONNECTION_STATUS_DISCONNECTED)
             priv->tp_connection = g_object_ref (tp_conn);
-            path = tp_proxy_get_object_path (tp_conn);
-        }
         else
-        {
             priv->tp_connection = NULL;
-            path = "/";
-        }
 
-        g_value_init (&value, DBUS_TYPE_G_OBJECT_PATH);
-        g_value_set_boxed (&value, path);
-        mcd_account_changed_property (account, "Connection", &value);
-        g_value_unset (&value);
         changed = TRUE;
     }
 
     if (status != priv->conn_status)
     {
-	GValue value = { 0 };
-
         DEBUG ("changing connection status from %u to %u", priv->conn_status,
                status);
 	priv->conn_status = status;
-	g_value_init (&value, G_TYPE_UINT);
-	g_value_set_uint (&value, status);
-	mcd_account_changed_property (account, "ConnectionStatus",
-				      &value);
-	g_value_unset (&value);
 	changed = TRUE;
     }
+
     if (reason != priv->conn_reason)
     {
-	GValue value = { 0 };
-
         DEBUG ("changing connection status reason from %u to %u",
                priv->conn_reason, reason);
 	priv->conn_reason = reason;
-	g_value_init (&value, G_TYPE_UINT);
-	g_value_set_uint (&value, reason);
-	mcd_account_changed_property (account, "ConnectionStatusReason",
-				      &value);
-	g_value_unset (&value);
 	changed = TRUE;
     }
-    DEBUG ("TpConnection changed to %p", tp_conn);
 
-    _mcd_account_tp_connection_changed (account, tp_conn);
+    if (changed)
+    {
+        GValue value = { 0 };
+
+        _mcd_account_tp_connection_changed (account, priv->tp_connection);
+
+        g_value_init (&value, G_TYPE_UINT);
+        g_value_set_uint (&value, priv->conn_status);
+        mcd_account_changed_property (account, "ConnectionStatus", &value);
+        g_value_set_uint (&value, priv->conn_reason);
+        mcd_account_changed_property (account, "ConnectionStatusReason",
+                                      &value);
+        g_value_unset (&value);
+
+        g_value_init (&value, G_TYPE_STRING);
+        g_value_set_string (&value, priv->conn_dbus_error);
+        mcd_account_changed_property (account, "ConnectionError", &value);
+        g_value_unset (&value);
+
+        g_value_init (&value, TP_HASH_TYPE_STRING_VARIANT_MAP);
+        g_value_set_boxed (&value, priv->conn_error_details);
+        mcd_account_changed_property (account, "ConnectionErrorDetails",
+                                      &value);
+        g_value_unset (&value);
+    }
 
     mcd_account_thaw_properties (account);
 
@@ -3706,6 +3779,8 @@ mcd_account_connection_ready_cb (McdAccount *account,
     guint self_handle;
     TpConnectionStatus status;
     TpConnectionStatusReason reason;
+    const gchar *dbus_error = NULL;
+    const GHashTable *details = NULL;
 
     g_return_if_fail (MCD_IS_ACCOUNT (account));
     g_return_if_fail (connection == priv->connection);
@@ -3716,8 +3791,9 @@ mcd_account_connection_ready_cb (McdAccount *account,
                       tp_connection == priv->tp_connection);
 
     status = tp_connection_get_status (tp_connection, &reason);
+    dbus_error = tp_connection_get_detailed_error (tp_connection, &details);
     _mcd_account_set_connection_status (account, status, reason,
-                                        tp_connection);
+                                        tp_connection, dbus_error, details);
 
     self_handle_array = g_array_sized_new (FALSE, FALSE, sizeof (guint), 1);
     self_handle = tp_connection_get_self_handle (tp_connection);
