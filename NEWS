@@ -1,7 +1,15 @@
 telepathy-mission-control 5.5.2 (UNRELEASED)
 ============================================
 
-...
+Fixes:
+
+* fd.o #28118: clear the 'register' parameter when an account connects
+  successfully, fixing in-band XMPP account creation (smcv)
+
+* When building non-release versions, enable the compiler warnings we intended
+  to enable (smcv)
+
+This version includes the stable-branch bug fixes from 5.4.3.
 
 telepathy-mission-control 5.5.1 (2010-06-03)
 ============================================
