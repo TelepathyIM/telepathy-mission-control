@@ -1,13 +1,32 @@
-telepathy-mission-control 5.5.2 (UNRELEASED)
+telepathy-mission-control 5.5.2 (2010-06-16)
 ============================================
+
+The "513M accounts.cfg, which seems terribly wrong" release.
+
+Dependencies:
+
+* telepathy-glib 0.11.7 is now required
+
+Enhancements:
+
+* fd.o #28428: implement the new ConnectionError property from telepathy-spec
+  0.19.7, and if an Account's Connection-related property changes, put all
+  the related properties in the change notification signal to make it easier to
+  interpret (smcv)
 
 Fixes:
 
+* fd.o #28557: write account parameters to accounts.cfg correctly, rather than
+  repeatedly escaping backslash, newline, tab etc., which resulted in doubling
+  the number of backslashes with every write. If this has made your
+  accounts.cfg so large that deleting accounts via Empathy is difficult, see
+  https://bugs.freedesktop.org/show_bug.cgi?id=28557 for a workaround. (smcv)
+
+* fd.o #28390: drastically reduce writes to gnome-keyring when committing
+  changes to accounts (wjt, smcv)
+
 * fd.o #28118: clear the 'register' parameter when an account connects
   successfully, fixing in-band XMPP account creation (smcv)
-
-* When building non-release versions, enable the compiler warnings we intended
-  to enable (smcv)
 
 This version includes the stable-branch bug fixes from 5.4.3.
 
