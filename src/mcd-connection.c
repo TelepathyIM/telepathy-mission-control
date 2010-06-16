@@ -76,6 +76,7 @@
 #include "_gen/cli-Connection_Interface_Contact_Capabilities-body.h"
 
 #define INITIAL_RECONNECTION_TIME   1 /* 1 second */
+#define RECONNECTION_MULTIPLIER     2
 
 #define MCD_CONNECTION_PRIV(mcdconn) (MCD_CONNECTION (mcdconn)->priv)
 
@@ -1114,7 +1115,7 @@ mcd_connection_invalidated_cb (TpConnection *tp_conn,
             priv->reconnect_timer = g_timeout_add_seconds
                 (priv->reconnect_interval,
                  (GSourceFunc)mcd_connection_reconnect, connection);
-            priv->reconnect_interval *= 2;
+            priv->reconnect_interval *= RECONNECTION_MULTIPLIER;
             if (priv->reconnect_interval >= 30 * 60)
                 /* no more than 30 minutes! */
                 priv->reconnect_interval = 30 * 60;
