@@ -118,7 +118,7 @@ _set (const McpAccountStorage *self,
   AccountDiversionPlugin *adp = ACCOUNT_DIVERSION_PLUGIN (self);
 
   adp->save = TRUE;
-  g_key_file_set_string (adp->keyfile, account, key, val);
+  g_key_file_set_value (adp->keyfile, account, key, val);
 
   return TRUE;
 }
@@ -133,7 +133,7 @@ _get (const McpAccountStorage *self,
 
   if (key != NULL)
     {
-      gchar *v = g_key_file_get_string (adp->keyfile, account, key, NULL);
+      gchar *v = g_key_file_get_value (adp->keyfile, account, key, NULL);
 
       if (v == NULL)
         return FALSE;
@@ -152,7 +152,7 @@ _get (const McpAccountStorage *self,
 
       for (i = 0; i < n; i++)
         {
-          gchar *v = g_key_file_get_string (adp->keyfile, account, keys[i], NULL);
+          gchar *v = g_key_file_get_value (adp->keyfile, account, keys[i], NULL);
 
           if (v != NULL)
             mcp_account_manager_set_value (am, account, keys[i], v);

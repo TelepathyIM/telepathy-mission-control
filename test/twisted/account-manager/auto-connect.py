@@ -41,14 +41,18 @@ def preseed():
     accounts_dir = os.environ['MC_ACCOUNT_DIR']
 
     accounts_cfg = open(accounts_dir + '/accounts.cfg', 'w')
-    accounts_cfg.write("""# Telepathy accounts
+
+    # As a regression test for part of fd.o #28557, the password starts and
+    # ends with a double backslash, which is represented in the file as a
+    # quadruple backslash.
+    accounts_cfg.write(r"""# Telepathy accounts
 [%s]
 manager=fakecm
 protocol=fakeprotocol
 DisplayName=Work account
 NormalizedName=jc.denton@unatco.int
 param-account=jc.denton@unatco.int
-param-password=ionstorm
+param-password=\\\\ionstorm\\\\
 Enabled=1
 ConnectAutomatically=1
 AutomaticPresenceType=2
@@ -72,7 +76,7 @@ def test(q, bus, unused):
 
     expected_params = {
             'account': 'jc.denton@unatco.int',
-            'password': 'ionstorm',
+            'password': r'\\ionstorm\\',
             }
 
     mc = make_mc(bus, q.append)

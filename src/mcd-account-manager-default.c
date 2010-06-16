@@ -269,7 +269,7 @@ _get_secrets_from_keyring (const McpAccountStorage *self,
             {
               gchar *key = g_strdup_printf ("param-%s", param);
 
-              g_key_file_set_string (amd->secrets, account, key, value);
+              g_key_file_set_value (amd->secrets, account, key, value);
               mcp_account_manager_parameter_make_secret (am, account, key);
 
               g_free (key);
@@ -377,6 +377,8 @@ _create_config (McdAccountManagerDefault *self)
   DEBUG ("created %s", self->filename);
 }
 
+/* We happen to know that the string MC gave us is "sufficiently escaped" to
+ * put it in the keyfile as-is. */
 static gboolean
 _set (const McpAccountStorage *self,
     const McpAccountManager *am,
@@ -391,9 +393,9 @@ _set (const McpAccountStorage *self,
 #if ENABLE_GNOME_KEYRING
   /* if we have a keyring, secrets are segregated */
   if (mcp_account_manager_parameter_is_secret (am, acct, key))
-    g_key_file_set_string (amd->secrets, acct, key, val);
+    g_key_file_set_value (amd->secrets, acct, key, val);
   else
-    g_key_file_set_string (amd->keyfile, acct, key, val);
+    g_key_file_set_value (amd->keyfile, acct, key, val);
 
   /* if we removed the account before, it now exists again, so... */
   g_hash_table_remove (amd->removed_accounts, acct);
@@ -402,7 +404,7 @@ _set (const McpAccountStorage *self,
   g_key_file_remove_key (amd->removed, acct, key, NULL);
 #else
 
-  g_key_file_set_string (amd->keyfile, acct, key, val);
+  g_key_file_set_value (amd->keyfile, acct, key, val);
 
 #endif
 
@@ -423,13 +425,13 @@ _get (const McpAccountStorage *self,
 
 #if ENABLE_GNOME_KEYRING
       if (mcp_account_manager_parameter_is_secret (am, acct, key))
-        v = g_key_file_get_string (amd->secrets, acct, key, NULL);
+        v = g_key_file_get_value (amd->secrets, acct, key, NULL);
 
       /* fall back to public source if secret was not in keyring */
       if (v == NULL)
-        v = g_key_file_get_string (amd->keyfile, acct, key, NULL);
+        v = g_key_file_get_value (amd->keyfile, acct, key, NULL);
 #else
-      v = g_key_file_get_string (amd->keyfile, acct, key, NULL);
+      v = g_key_file_get_value (amd->keyfile, acct, key, NULL);
 #endif
 
       if (v == NULL)
@@ -449,7 +451,7 @@ _get (const McpAccountStorage *self,
 
       for (i = 0; i < n; i++)
         {
-          gchar *v = g_key_file_get_string (amd->keyfile, acct, keys[i], NULL);
+          gchar *v = g_key_file_get_value (amd->keyfile, acct, keys[i], NULL);
 
           if (v != NULL)
             mcp_account_manager_set_value (am, acct, keys[i], v);
@@ -467,7 +469,7 @@ _get (const McpAccountStorage *self,
 
       for (i = 0; i < n; i++)
         {
-          gchar *v = g_key_file_get_string (amd->secrets, acct, keys[i], NULL);
+          gchar *v = g_key_file_get_value (amd->secrets, acct, keys[i], NULL);
 
           if (v != NULL)
             {
