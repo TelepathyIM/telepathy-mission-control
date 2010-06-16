@@ -1769,11 +1769,14 @@ mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
 
         for (group = groups[i]; group != NULL; group = groups[++i])
         {
-            McdAccount *account_ =
+            McdAccount *group_account =
                 mcd_account_manager_lookup_account (account_manager,
                                                     group);
 
-            update_one_account (account_manager, ma, account, group, keyfile);
+            /* group_account might be %NULL, but update_one_account tolerates
+             * that */
+            update_one_account (account_manager, ma, group_account, group,
+                                keyfile);
         }
 
         g_strfreev (groups);
