@@ -75,7 +75,7 @@
 #include "_gen/cli-Connection_Interface_Contact_Capabilities_Draft1-body.h"
 #include "_gen/cli-Connection_Interface_Contact_Capabilities-body.h"
 
-#define INITIAL_RECONNECTION_TIME   10 /* seconds */
+#define INITIAL_RECONNECTION_TIME   3 /* seconds */
 #define RECONNECTION_MULTIPLIER     3
 #define MAXIMUM_RECONNECTION_TIME   30 * 60 /* half an hour */
 
