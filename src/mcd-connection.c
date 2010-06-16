@@ -73,8 +73,8 @@
 #include "_gen/cli-Connection_Interface_Contact_Capabilities.h"
 #include "_gen/cli-Connection_Interface_Contact_Capabilities-body.h"
 
-#define INITIAL_RECONNECTION_TIME   1 /* 1 second */
-#define RECONNECTION_MULTIPLIER     2
+#define INITIAL_RECONNECTION_TIME   10 /* seconds */
+#define RECONNECTION_MULTIPLIER     3
 
 #define MCD_CONNECTION_PRIV(mcdconn) (MCD_CONNECTION (mcdconn)->priv)
 
