@@ -1111,7 +1111,8 @@ mcd_connection_invalidated_cb (TpConnection *tp_conn,
          * abort the connection but try to reconnect later */
         if (priv->reconnect_timer == 0)
         {
-            DEBUG ("Preparing for reconnection");
+            DEBUG ("Preparing for reconnection in %u seconds",
+                priv->reconnect_interval);
             priv->reconnect_timer = g_timeout_add_seconds
                 (priv->reconnect_interval,
                  (GSourceFunc)mcd_connection_reconnect, connection);
