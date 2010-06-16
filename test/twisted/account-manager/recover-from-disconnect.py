@@ -30,9 +30,11 @@ def test(q, bus, mc):
     cm_name_ref = dbus.service.BusName(
             tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
 
-    # Create an account
+    # Create an account. We're setting register=True here to verify
+    # that after one successful connection, it'll be removed (fd.o #28118).
     params = dbus.Dictionary({"account": "someguy@example.com",
-        "password": "secrecy"}, signature='sv')
+        "password": "secrecy",
+        "register": True}, signature='sv')
     (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
 
     account_iface = dbus.Interface(account, cs.ACCOUNT)
@@ -85,7 +87,9 @@ def test(q, bus, mc):
     conn.StatusChanged(cs.CONN_STATUS_DISCONNECTED,
             cs.CONN_STATUS_REASON_NETWORK_ERROR)
 
-    # MC signals the error and reconnects
+    # MC reconnects. This time, we expect it to have deleted the 'register'
+    # parameter.
+    del params['register']
 
     disconnected, connecting, e = q.expect_many(
             EventPattern('dbus-signal', signal='AccountPropertyChanged',

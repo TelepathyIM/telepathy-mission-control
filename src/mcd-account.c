@@ -2966,6 +2966,7 @@ _mcd_account_dup_parameters (McdAccount *account,
     DEBUG ("called");
     if (!priv->manager && !load_manager (account))
     {
+        DEBUG ("unable to load manager for account %s", priv->unique_name);
         callback (account, NULL, user_data);
         return;
     }
@@ -2975,6 +2976,8 @@ _mcd_account_dup_parameters (McdAccount *account,
 
     if (G_UNLIKELY (protocol == NULL))
     {
+        DEBUG ("unable to get protocol for %s account %s", priv->protocol_name,
+               priv->unique_name);
         callback (account, NULL, user_data);
         return;
     }
@@ -3414,6 +3417,40 @@ on_conn_status_changed (McdConnection *connection,
                                         dbus_error, details);
 }
 
+/* clear the "register" flag, if necessary */
+static void
+clear_register_dup_params_cb (McdAccount *self,
+                              GHashTable *params,
+                              gpointer user_data)
+{
+    if (params == NULL)
+    {
+        DEBUG ("no params returned");
+        return;
+    }
+
+    if (tp_asv_get_boolean (params, "register", NULL))
+    {
+        GValue value = { 0 };
+
+        _mcd_account_set_parameter (self, "register", NULL, NULL, NULL);
+
+        g_hash_table_remove (params, "register");
+
+        g_value_init (&value, TP_HASH_TYPE_STRING_VARIANT_MAP);
+        g_value_take_boxed (&value, params);
+        mcd_account_changed_property (self, "Parameters", &value);
+        g_value_unset (&value);
+
+        mcd_account_manager_write_conf_async (self->priv->account_manager,
+                                              self, NULL, NULL);
+    }
+    else
+    {
+      g_hash_table_unref (params);
+    }
+}
+
 void
 _mcd_account_set_connection_status (McdAccount *account,
                                     TpConnectionStatus status,
@@ -3432,6 +3469,8 @@ _mcd_account_set_connection_status (McdAccount *account,
     if (status == TP_CONNECTION_STATUS_CONNECTED)
     {
         _mcd_account_set_has_been_online (account);
+        _mcd_account_dup_parameters (account, clear_register_dup_params_cb,
+                                     NULL);
 
         DEBUG ("clearing connection error details");
         g_free (priv->conn_dbus_error);
