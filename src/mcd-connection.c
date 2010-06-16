@@ -75,6 +75,7 @@
 
 #define INITIAL_RECONNECTION_TIME   10 /* seconds */
 #define RECONNECTION_MULTIPLIER     3
+#define MAXIMUM_RECONNECTION_TIME   30 * 60 /* half an hour */
 
 #define MCD_CONNECTION_PRIV(mcdconn) (MCD_CONNECTION (mcdconn)->priv)
 
@@ -1113,9 +1114,9 @@ mcd_connection_invalidated_cb (TpConnection *tp_conn,
                 (priv->reconnect_interval,
                  (GSourceFunc)mcd_connection_reconnect, connection);
             priv->reconnect_interval *= RECONNECTION_MULTIPLIER;
-            if (priv->reconnect_interval >= 30 * 60)
-                /* no more than 30 minutes! */
-                priv->reconnect_interval = 30 * 60;
+
+            if (priv->reconnect_interval >= MAXIMUM_RECONNECTION_TIME)
+                priv->reconnect_interval = MAXIMUM_RECONNECTION_TIME;
         }
     }
     else
