@@ -476,6 +476,11 @@ class EventProtocolFactory(Factory):
 class EventProtocolClientFactory(EventProtocolFactory, ClientFactory):
     pass
 
+def assertEquals(expected, value):
+    if expected != value:
+        raise AssertionError(
+            "expected:\n%s\ngot:\n%s" % (pretty(expected), pretty(value)))
+
 if __name__ == '__main__':
     unittest.main()
 
