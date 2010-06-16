@@ -788,6 +788,7 @@ _mcd_account_delete (McdAccount *account,
     delete_data->user_data = user_data;
 
     mcd_account_manager_write_conf_async (priv->account_manager,
+                                          account,
                                           _mcd_account_delete_write_conf_cb,
                                           delete_data);
 }
@@ -1028,7 +1029,8 @@ mcd_account_set_string_val (McdAccount *account, const gchar *key,
 			       key, NULL);
 	string = NULL;
     }
-    mcd_account_manager_write_conf_async (priv->account_manager, NULL, NULL);
+    mcd_account_manager_write_conf_async (priv->account_manager, account, NULL,
+                                          NULL);
     mcd_account_changed_property (account, key, value);
     return SET_RESULT_CHANGED;
 }
@@ -1148,7 +1150,7 @@ _mcd_account_set_enabled (McdAccount *account,
 
         if (write_out)
             mcd_account_manager_write_conf_async (priv->account_manager,
-                                                  NULL, NULL);
+                                                  account, NULL, NULL);
 
         g_value_init (&value, G_TYPE_BOOLEAN);
         g_value_set_boolean (&value, enabled);
@@ -1427,7 +1429,8 @@ set_automatic_presence (TpSvcDBusProperties *self,
 
     if (changed)
     {
-      mcd_account_manager_write_conf_async (priv->account_manager, NULL, NULL);
+        mcd_account_manager_write_conf_async (priv->account_manager, account,
+                                              NULL, NULL);
 	mcd_account_changed_property (account, name, value);
     }
 
@@ -1493,7 +1496,8 @@ set_connect_automatically (TpSvcDBusProperties *self,
 				MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY,
 			       	connect_automatically);
 	priv->connect_automatically = connect_automatically;
-        mcd_account_manager_write_conf_async (priv->account_manager, NULL, NULL);
+        mcd_account_manager_write_conf_async (priv->account_manager, account,
+                                              NULL, NULL);
 	mcd_account_changed_property (account, name, value);
 
         if (connect_automatically)
@@ -2315,7 +2319,8 @@ update_parameters_dup_params_cb (McdAccount *account, GHashTable *params,
     mcd_account_changed_property (account, "Parameters", &value);
     g_value_unset (&value);
 
-    mcd_account_manager_write_conf_async (priv->account_manager, NULL, NULL);
+    mcd_account_manager_write_conf_async (priv->account_manager, account, NULL,
+                                          NULL);
 
     g_ptr_array_add (data->not_yet, NULL);
 
@@ -3165,7 +3170,9 @@ _mcd_account_set_normalized_name (McdAccount *account, const gchar *name)
     else
 	g_key_file_remove_key (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_NORMALIZED_NAME, NULL);
-    mcd_account_manager_write_conf_async (priv->account_manager, NULL, NULL);
+
+    mcd_account_manager_write_conf_async (priv->account_manager, account, NULL,
+                                          NULL);
 
     g_value_init (&value, G_TYPE_STRING);
     g_value_set_static_string (&value, name);
@@ -3194,7 +3201,9 @@ _mcd_account_set_avatar_token (McdAccount *account, const gchar *token)
     else
 	g_key_file_remove_key (priv->keyfile, priv->unique_name,
 			       MC_ACCOUNTS_KEY_AVATAR_TOKEN, NULL);
-    mcd_account_manager_write_conf_async (priv->account_manager, NULL, NULL);
+
+    mcd_account_manager_write_conf_async (priv->account_manager, account, NULL,
+                                          NULL);
 }
 
 gchar *
@@ -3265,7 +3274,8 @@ _mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
         }
     }
 
-    mcd_account_manager_write_conf_async (priv->account_manager, NULL, NULL);
+    mcd_account_manager_write_conf_async (priv->account_manager, account, NULL,
+                                          NULL);
     return TRUE;
 }
 
@@ -3900,7 +3910,7 @@ _mcd_account_set_has_been_online (McdAccount *account)
                                 MC_ACCOUNTS_KEY_HAS_BEEN_ONLINE, TRUE);
         account->priv->has_been_online = TRUE;
         mcd_account_manager_write_conf_async (account->priv->account_manager,
-                                              NULL, NULL);
+                                              account, NULL, NULL);
 
         g_value_init (&value, G_TYPE_BOOLEAN);
         g_value_set_boolean (&value, TRUE);

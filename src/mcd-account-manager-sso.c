@@ -964,6 +964,8 @@ _commit (const McpAccountStorage *self,
   if (!sso->save)
     return TRUE;
 
+  /* FIXME: implement commit_one(), and use account_name if it's non-NULL */
+
   g_hash_table_iter_init (&iter, sso->accounts);
 
   while (g_hash_table_iter_next (&iter, (gpointer) &key, (gpointer) &account))
