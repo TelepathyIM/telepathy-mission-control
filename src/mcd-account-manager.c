@@ -1665,12 +1665,20 @@ mcd_account_manager_get_dbus_daemon (McdAccountManager *account_manager)
  * with the appropriate error.
  */
 
+/*
+ * update_one_account:
+ * @account_manager:
+ * @ma:
+ * @account: (allow-none): the #McdAccount if it exists, or %NULL
+ * @account_name:
+ * @keyfile:
+ */
 static void
 update_one_account (McdAccountManager *account_manager,
-                  McpAccountManager *ma,
-                  McdAccount *account,
-                  const gchar *account_name,
-                  GKeyFile *keyfile)
+                    McpAccountManager *ma,
+                    McdAccount *account,
+                    const gchar *account_name,
+                    GKeyFile *keyfile)
 {
     gsize n_keys = 0;
     GStrv keys = g_key_file_get_keys (keyfile, account_name, &n_keys, NULL);
