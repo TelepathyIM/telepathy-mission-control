@@ -21,6 +21,8 @@ TWISTED_BASIC_TESTS = \
 	account-requests/cancel.py \
 	account-requests/create-text.py \
 	account-requests/delete-account-during-request.py \
+	account-storage/diverted-storage.py \
+	account-storage/default-keyring-storage.py \
 	capabilities/draft-1.py \
 	capabilities/contact-caps.py \
 	capabilities/legacy-caps.py \
