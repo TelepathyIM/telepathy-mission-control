@@ -140,10 +140,15 @@ BASIC_TESTS_ENVIRONMENT = \
 	XDG_CONFIG_DIRS=@abs_top_srcdir@/test/twisted \
 	XDG_DATA_HOME=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX) \
 	XDG_DATA_DIRS=@abs_top_srcdir@/test/twisted \
+	XDG_CACHE_DIR=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX) \
 	XDG_CACHE_HOME=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX) \
 	MC_CLIENTS_DIR=@abs_top_srcdir@/test/twisted/telepathy/clients \
 	MC_MANAGER_DIR=@abs_top_srcdir@/test/twisted/telepathy/managers \
 	G_DEBUG=fatal_criticals
+
+if ENABLE_GNOME_KEYRING
+BASIC_TESTS_ENVIRONMENT += MC_TEST_GNOME_KEYRING=1
+endif
 
 WITH_SESSION_BUS = \
 	sh $(srcdir)/tools/with-session-bus.sh \
