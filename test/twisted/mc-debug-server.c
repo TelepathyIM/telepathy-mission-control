@@ -63,6 +63,14 @@ on_abort (gpointer unused G_GNUC_UNUSED)
     tp_clear_object (&mcd);
 }
 
+static gboolean
+delayed_abort (gpointer data G_GNUC_UNUSED)
+{
+    g_message ("Aborting by popular request");
+    mcd_mission_abort ((McdMission *) mcd);
+    return FALSE;
+}
+
 #define MCD_SYSTEM_MEMORY_CONSERVED (1 << 1)
 #define MCD_SYSTEM_IDLE (1 << 5)
 
@@ -81,6 +89,23 @@ dbus_filter_function (DBusConnection *connection,
       g_message ("Got disconnected from the session bus");
 
       mcd_mission_abort ((McdMission *) mcd);
+    }
+  else if (dbus_message_is_method_call (message,
+        "org.freedesktop.Telepathy.MissionControl5.RegressionTests",
+        "Abort"))
+    {
+      DBusMessage *reply;
+
+      g_idle_add (delayed_abort, NULL);
+
+      reply = dbus_message_new_method_return (message);
+
+      if (reply == NULL || !dbus_connection_send (connection, reply, NULL))
+        g_error ("Out of memory");
+
+      dbus_message_unref (reply);
+
+      return DBUS_HANDLER_RESULT_HANDLED;
     }
   else if (dbus_message_is_method_call (message,
         "org.freedesktop.Telepathy.MissionControl5.RegressionTests",
