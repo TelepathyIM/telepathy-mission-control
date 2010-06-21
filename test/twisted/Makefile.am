@@ -67,6 +67,11 @@ TWISTED_BASIC_TESTS += \
 	dispatcher/dispatch-rejected-by-plugin.py
 endif
 
+if ENABLE_LIBACCOUNTS_SSO
+TWISTED_BASIC_TESTS += \
+	account-storage/libaccounts-sso-storage.py
+endif
+
 # Tests that aren't to be run if we're running the real (installed) MC,
 # because they rely on special behaviour of mc-debug-server
 TWISTED_SPECIAL_BUILD_TESTS = \
@@ -150,6 +155,12 @@ BASIC_TESTS_ENVIRONMENT = \
 
 if ENABLE_GNOME_KEYRING
 BASIC_TESTS_ENVIRONMENT += MC_TEST_GNOME_KEYRING=1
+endif
+
+if ENABLE_LIBACCOUNTS_SSO
+BASIC_TESTS_ENVIRONMENT += AG_DEBUG=all \
+	ACCOUNTS=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX) \
+	AG_SERVICES=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX)
 endif
 
 WITH_SESSION_BUS = \
