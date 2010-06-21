@@ -802,6 +802,20 @@ def create_fakecm_account(q, bus, mc, params):
 
     return (cm_name_ref, account)
 
+def get_fakecm_account(bus, mc, account_path):
+    # Get the Account interface
+    account = bus.get_object(
+        cs.tp_name_prefix + '.AccountManager',
+        account_path)
+    account_iface = dbus.Interface(account, cs.ACCOUNT)
+    account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)
+    # Introspect Account for debugging purpose
+    account_introspected = account.Introspect(
+            dbus_interface=cs.INTROSPECTABLE_IFACE)
+    #print account_introspected
+    return account
+
+
 def enable_fakecm_account(q, bus, mc, account, expected_params,
         has_requests=True, has_presence=False, has_aliasing=False,
         has_avatars=False, avatars_persist=True,
@@ -936,3 +950,24 @@ def expect_client_setup(q, clients, got_interfaces_already=False):
 def get_account_manager(bus):
     return bus.get_object(cs.AM, cs.AM_PATH,
             follow_name_owner_changes=True)
+
+def connect_to_mc(q, bus, mc):
+    # Get the AccountManager interface
+    account_manager = get_account_manager(bus)
+    account_manager_iface = dbus.Interface(account_manager, cs.AM)
+
+    # Introspect AccountManager for debugging purpose
+    account_manager_introspected = account_manager.Introspect(
+            dbus_interface=cs.INTROSPECTABLE_IFACE)
+    #print account_manager_introspected
+
+    # Check AccountManager has D-Bus property interface
+    properties = account_manager.GetAll(cs.AM,
+            dbus_interface=cs.PROPERTIES_IFACE)
+    assert properties is not None
+    interfaces = properties.get('Interfaces')
+
+    # assert that current functionality exists
+    assert cs.AM_IFACE_NOKIA_QUERY in interfaces, interfaces
+
+    return account_manager, properties, interfaces
