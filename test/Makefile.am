@@ -19,6 +19,10 @@ SUBDIRS = twisted
 TEST_EXECUTABLES = test-value-is-same
 NON_TEST_EXECUTABLES = account-store
 
+if ENABLE_GNOME_KEYRING
+NON_TEST_EXECUTABLES += keyring-command
+endif
+
 noinst_PROGRAMS = $(TEST_EXECUTABLES) $(NON_TEST_EXECUTABLES)
 
 TESTS = $(TEST_EXECUTABLES)
@@ -38,6 +42,10 @@ account_store_SOURCES = \
 if ENABLE_GNOME_KEYRING
 account_store_CFLAGS += $(GNOME_KEYRING_CFLAGS)
 account_store_LDADD += $(GNOME_KEYRING_LIBS)
+
+keyring_command_CFLAGS = $(CFLAGS) $(GNOME_KEYRING_CFLAGS)
+keyring_command_LDADD = $(GLIB_LIBS) $(GNOME_KEYRING_LIBS)
+keyring_command_SOURCES = keyring-command.c
 endif
 
 if ENABLE_LIBACCOUNTS_SSO
