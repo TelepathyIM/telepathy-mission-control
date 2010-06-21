@@ -26,6 +26,7 @@
 #include "config.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <glib.h>
 
@@ -42,10 +43,6 @@
 #include "mcd-service.h"
 
 static McdService *mcd = NULL;
-
-#if ENABLE_GNOME_KEYRING
-static gchar *keyring_name = NULL;
-#endif
 
 static gboolean
 the_end (gpointer data)
@@ -208,30 +205,10 @@ main (int argc, char **argv)
     dbus_connection_add_filter (connection, dbus_filter_function, NULL, NULL);
 
 #if ENABLE_GNOME_KEYRING
-    while (TRUE)
+    if (g_getenv ("MC_KEYRING_NAME") != NULL)
     {
-        keyring_name = g_strdup_printf ("mc-test-%u", g_random_int ());
-        result = gnome_keyring_create_sync (keyring_name, "");
+        const gchar *keyring_name = g_getenv ("MC_KEYRING_NAME");
 
-        if (result == GNOME_KEYRING_RESULT_OK)
-        {
-            break;
-        }
-        else if (result == GNOME_KEYRING_RESULT_KEYRING_ALREADY_EXISTS)
-        {
-            g_free (keyring_name);
-            continue;
-        }
-        else
-        {
-            g_free (keyring_name);
-            keyring_name = NULL;
-            break;
-        }
-    }
-
-    if (keyring_name != NULL)
-    {
         if ((result = gnome_keyring_set_default_keyring_sync (keyring_name)) ==
              GNOME_KEYRING_RESULT_OK)
         {
@@ -240,14 +217,9 @@ main (int argc, char **argv)
         }
         else
         {
-            g_warning ("Failed to set %s as the default kerying: %s",
+            g_warning ("Failed to set %s as the default keyring: %s",
                        keyring_name, gnome_keyring_result_to_message (result));
         }
-    }
-    else
-    {
-        g_debug ("Failed to create keyring %s: %s", keyring_name,
-                 gnome_keyring_result_to_message (result));
     }
 #endif
 
@@ -289,23 +261,6 @@ out:
     tp_clear_object (&bus_daemon);
 
     dbus_shutdown ();
-
-#if ENABLE_GNOME_KEYRING
-    if (keyring_name != NULL)
-    {
-	if ((result = gnome_keyring_delete_sync (keyring_name)) ==
-	    GNOME_KEYRING_RESULT_OK)
-	{
-	    g_debug ("Successfully removed temporary keyring %s", keyring_name);
-	}
-	else
-	{
-	    g_warning ("Failed to remove temporary keyring %s", keyring_name);
-	}
-
-	g_free (keyring_name);
-    }
-#endif
 
     g_message ("Exiting with %d", ret);
 
