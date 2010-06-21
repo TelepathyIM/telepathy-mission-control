@@ -79,6 +79,37 @@ const Backend backends[] = {
 
 static void usage (const gchar *name, const gchar *fmt, ...);
 
+#if ENABLE_GNOME_KEYRING
+#include <gnome-keyring.h>
+
+static void
+setup_default_keyring (void)
+{
+  GnomeKeyringResult result;
+
+  g_debug ("Setting default keyring to: %s", g_getenv ("MC_KEYRING_NAME"));
+
+  if (g_getenv ("MC_KEYRING_NAME") != NULL)
+  {
+      const gchar *keyring_name = g_getenv ("MC_KEYRING_NAME");
+
+      g_debug ("MC Keyring name: %s", keyring_name);
+
+      if ((result = gnome_keyring_set_default_keyring_sync (keyring_name)) ==
+           GNOME_KEYRING_RESULT_OK)
+      {
+          g_debug ("Successfully set up temporary keyring %s for tests",
+                   keyring_name);
+      }
+      else
+      {
+          g_warning ("Failed to set %s as the default keyring: %s",
+                     keyring_name, gnome_keyring_result_to_message (result));
+      }
+  }
+}
+#endif
+
 int main (int argc, char **argv)
 {
   int i;
@@ -94,6 +125,10 @@ int main (int argc, char **argv)
 
   g_type_init ();
   g_set_application_name (argv[0]);
+
+#if ENABLE_GNOME_KEYRING
+  setup_default_keyring ();
+#endif
 
   if (argc < 3)
     usage (argv[0], "");
