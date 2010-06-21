@@ -21,13 +21,15 @@
 
 #include <mission-control-plugins/mission-control-plugins.h>
 
+#define DONT_DIVERT "fakecm/fakeprotocol/dontdivert"
 #define CONFFILE "mcp-test-diverted-account-plugin.conf"
 
 #define PLUGIN_NAME  "diverted-keyfile"
 #define PLUGIN_PRIORITY MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_NORMAL
 #define PLUGIN_DESCRIPTION \
-  "Test plugin that grabs all accounts it receives and diverts them to '" \
-  CONFFILE "' in g_get_user_cache_dir () instead of the usual location"
+  "Test plugin that grabs all accounts it receives (except '" \
+  DONT_DIVERT "*') and diverts them to '" CONFFILE \
+  "' in g_get_user_cache_dir () instead of the usual location."
 
 #define DEBUG g_debug
 
@@ -116,6 +118,9 @@ _set (const McpAccountStorage *self,
     const gchar *val)
 {
   AccountDiversionPlugin *adp = ACCOUNT_DIVERSION_PLUGIN (self);
+
+  if (g_str_has_prefix (account, DONT_DIVERT))
+      return FALSE;
 
   adp->save = TRUE;
   g_key_file_set_value (adp->keyfile, account, key, val);
