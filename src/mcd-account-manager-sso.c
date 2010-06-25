@@ -70,6 +70,12 @@ typedef struct {
   AgAccountId account_id;
 } DelayedSignalData;
 
+typedef struct {
+  gchar *mc_key;
+  McdAccountManagerSso *sso;
+  AgAccountWatch watch;
+} WatchData;
+
 static gboolean _sso_account_enabled (AgAccount *account,
     AgService *service);
 
@@ -213,6 +219,129 @@ _ag_account_local_value (AgAccount *account,
   return src;
 }
 
+static WatchData *
+make_watch_data (McdAccountManagerSso *sso,
+    const gchar *mc_key)
+{
+  WatchData *data = g_slice_new0 (WatchData);
+
+  data->sso = g_object_ref (sso);
+  data->mc_key = g_strdup (mc_key);
+
+  return data;
+}
+
+static void
+free_watch_data (gpointer data)
+{
+  WatchData *wd = data;
+
+  g_object_unref (wd->sso);
+  g_free (wd->mc_key);
+  g_slice_free (WatchData, wd);
+}
+
+static void unwatch_account_keys (McdAccountManagerSso *sso,
+    AgAccountId id)
+{
+  gpointer watch_key = GUINT_TO_POINTER (id);
+  GHashTable *account_watches = g_hash_table_lookup (sso->watches, watch_key);
+  AgAccount *account = ag_manager_get_account (sso->ag_manager, id);
+  GHashTableIter iter;
+  gpointer key, value;
+
+  if (account_watches == NULL || account == NULL)
+    return;
+
+  g_hash_table_iter_init (&iter, account_watches);
+
+  while (g_hash_table_iter_next (&iter, &key, &value))
+    {
+      WatchData *watch = value;
+
+      ag_account_remove_watch (account, watch->watch);
+      watch->watch = NULL;
+      free_watch_data (watch);
+    }
+}
+
+static void _sso_updated (AgAccount * account,
+    const gchar *key,
+    gpointer data)
+{
+  WatchData *wd = data;
+  McdAccountManagerSso *sso = wd->sso;
+  McpAccountManager *am = sso->manager_interface;
+  gpointer id = GUINT_TO_POINTER (account->id);
+  const gchar *name = g_hash_table_lookup (sso->id_name_map, id);
+  AgSettingSource src = AG_SETTING_SOURCE_NONE;
+  GValue ag_value = { 0 };
+  gchar *mc_string = NULL;
+  gchar *ag_string = NULL;
+
+  DEBUG ("update for account %s, key %s [%s]", name, key, wd->mc_key);
+
+  /* an account we know nothing about. pretend this didn't happen */
+  if (name == NULL)
+    return;
+
+  g_value_init (&ag_value, G_TYPE_STRING);
+
+  if (_ag_key_is_global (key))
+    src = _ag_account_global_value (account, key, &ag_value);
+  else
+    src = _ag_account_local_value (account, key, &ag_value);
+
+  if (src != AG_SETTING_SOURCE_NONE)
+    ag_string = _gvalue_to_string (&ag_value);
+
+  mc_string = mcp_account_manager_get_value (am, name, wd->mc_key);
+
+  DEBUG ("cmp values: %s:%s vs %s:%s", key, ag_string, wd->mc_key, mc_string);
+
+  if (g_strcmp0 (mc_string, ag_string) == 0)
+    goto done;
+
+  mcp_account_manager_set_value (am, name, wd->mc_key, ag_string);
+
+  /* if we haven't completed startup, there's nothing else to do here */
+  if (!sso->ready)
+    goto done;
+
+  g_signal_emit_by_name (am, "altered", name);
+
+ done:
+  g_free (ag_string);
+  g_free (mc_string);
+  g_value_unset (&ag_value);
+}
+
+static void watch_for_updates (McdAccountManagerSso *sso,
+    AgAccount *account,
+    const gchar *ag_key,
+    const gchar *mc_key)
+{
+  WatchData *data;
+  gpointer id = GUINT_TO_POINTER (account->id);
+  GHashTable *account_watches = g_hash_table_lookup (sso->watches, id);
+
+  if (account_watches == NULL)
+    {
+      account_watches =
+        g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+      g_hash_table_insert (sso->watches, id, account_watches);
+    }
+  else if (g_hash_table_lookup (account_watches, mc_key) != NULL)
+    {
+      return; /* already being watched */
+    }
+
+  DEBUG ("watching %u.%s [%s] for updates", account->id, mc_key, ag_key);
+  data = make_watch_data (sso, mc_key);
+  data->watch = ag_account_watch_key (account, ag_key, _sso_updated, data);
+  g_hash_table_insert (account_watches, g_strdup (mc_key), data);
+}
+
 static void _sso_toggled (GObject *object,
     const gchar *service_name,
     gboolean enabled,
@@ -284,6 +413,11 @@ static void _sso_deleted (GObject *object,
           /* forget id->name map first, so the signal can't start a loop */
           g_hash_table_remove (sso->id_name_map, GUINT_TO_POINTER (id));
           g_hash_table_remove (sso->accounts, signalled_name);
+
+          /* stop watching for updates */
+          g_hash_table_remove (sso->watches, GUINT_TO_POINTER (id));
+          unwatch_account_keys (sso, id);
+
           g_signal_emit_by_name (mcpa, "deleted", signalled_name);
 
           g_free (signalled_name);
@@ -391,10 +525,6 @@ static void _sso_created (GObject *object,
 
                   g_signal_connect (account, "enabled",
                       G_CALLBACK (_sso_toggled), data);
-
-                  /* this doesn't seem to fire when we expect it to, but this *
-                   * is the right place to hook it up:                        */
-                  /* ag_account_watch_dir (account, "", _sso_updated, sso);   */
                 }
               else
                 {
@@ -422,6 +552,10 @@ mcd_account_manager_sso_init (McdAccountManagerSso *self)
     g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
   self->id_name_map =
     g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, g_free);
+
+  self->watches =
+    g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL,
+        (GDestroyNotify) g_hash_table_unref);
 
   self->pending_signals = g_queue_new ();
 
@@ -940,6 +1074,10 @@ _delete (const McpAccountStorage *self,
       ag_account_delete (account);
       g_hash_table_remove (sso->accounts, acct);
       g_hash_table_remove (sso->id_name_map, GUINT_TO_POINTER (id));
+
+      /* stop watching for updates */
+      g_hash_table_remove (sso->watches, GUINT_TO_POINTER (id));
+      unwatch_account_keys (sso, id);
     }
   else
     {
@@ -1029,6 +1167,8 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
                       gchar *value = _gvalue_to_string (val);
 
                       mcp_account_manager_set_value (am, name, mc_key, value);
+                      watch_for_updates (sso, account, key, mc_key);
+
                       g_free (value);
                       g_free (mc_key);
                     }
@@ -1045,6 +1185,8 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
                       gchar *value = _gvalue_to_string (val);
 
                       mcp_account_manager_set_value (am, name, mc_key, value);
+                      watch_for_updates (sso, account, key, mc_key);
+
                       g_free (value);
                       g_free (mc_key);
                     }
@@ -1063,10 +1205,6 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
 
               g_signal_connect (account, "enabled",
                   G_CALLBACK (_sso_toggled), sso);
-
-              /* this doesn't seem to fire when we expect it to, but this *
-               * is the right place to hook it up:                        */
-              /* ag_account_watch_dir (account, "", _sso_updated, sso);   */
 
               g_strfreev (mc_id);
               g_free (ident);

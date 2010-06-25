@@ -53,6 +53,7 @@ typedef struct {
   GObject parent;
   GHashTable *accounts;
   GHashTable *id_name_map;
+  GHashTable *watches;
   GList *services;
   GQueue *pending_signals;
   AgManager *ag_manager;
