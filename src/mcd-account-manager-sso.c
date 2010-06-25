@@ -49,6 +49,8 @@
 #define PARAM_PREFIX    "parameters/"
 #define LIBACCT_ID_KEY  "libacct-uid"
 
+#define AG_ENABLED_KEY "enabled"
+
 #define AG_LABEL_KEY   "name"
 #define MC_LABEL_KEY   "DisplayName"
 
@@ -140,6 +142,18 @@ _gvalue_to_string (const GValue *val)
         DEBUG ("Unsupported type %s", G_VALUE_TYPE_NAME (val));
         return NULL;
     }
+}
+
+/* should we watch this key for updates? */
+static gboolean _ag_key_is_watchable (const gchar *key)
+{
+  if (g_str_equal (key, AG_ENABLED_KEY) ||
+      g_str_equal (key, MC_IDENTITY_KEY) ||
+      g_str_equal (key, MC_CMANAGER_KEY) ||
+      g_str_equal (key, MC_PROTOCOL_KEY))
+    return FALSE;
+
+  return TRUE;
 }
 
 /* Is an AG key corresponding to an MC _parameter_ global? */
@@ -324,6 +338,9 @@ static void watch_for_updates (McdAccountManagerSso *sso,
   WatchData *data;
   gpointer id = GUINT_TO_POINTER (account->id);
   GHashTable *account_watches = g_hash_table_lookup (sso->watches, id);
+
+  if (!_ag_key_is_watchable (ag_key))
+    return;
 
   if (account_watches == NULL)
     {
