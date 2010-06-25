@@ -286,6 +286,7 @@ static void _sso_updated (AgAccount * account,
   WatchData *wd = data;
   McdAccountManagerSso *sso = wd->sso;
   McpAccountManager *am = sso->manager_interface;
+  McpAccountStorage *mcpa = MCP_ACCOUNT_STORAGE (sso);
   gpointer id = GUINT_TO_POINTER (account->id);
   const gchar *name = g_hash_table_lookup (sso->id_name_map, id);
   AgSettingSource src = AG_SETTING_SOURCE_NONE;
@@ -322,7 +323,7 @@ static void _sso_updated (AgAccount * account,
   if (!sso->ready)
     goto done;
 
-  g_signal_emit_by_name (am, "altered", name);
+  g_signal_emit_by_name (mcpa, "altered", name);
 
  done:
   g_free (ag_string);
