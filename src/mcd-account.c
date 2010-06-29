@@ -747,6 +747,16 @@ _mcd_account_delete (McdAccount *account,
     GError *kf_error = NULL;
     AccountDeleteData *delete_data;
 
+    /* got to turn the account off before removing it, otherwise we can *
+     * end up with an orphaned CM holding the account online            */
+    if (!_mcd_account_set_enabled (account, FALSE, FALSE, &kf_error))
+    {
+        g_warning ("could not disable account (%s)", kf_error->message);
+        callback (account, kf_error, user_data);
+        g_error_free (kf_error);
+        return;
+    }
+
     if (!g_key_file_remove_group (priv->keyfile, priv->unique_name,
                                   &kf_error))
     {
