@@ -154,4 +154,5 @@ gboolean mcd_account_check_request (McdAccount *account, GHashTable *request,
 gboolean mcd_account_parameter_is_secret (McdAccount *self,
                                               const gchar *name);
 
+void mcd_account_property_changed (McdAccount *account, const gchar *name);
 #endif

@@ -1868,6 +1868,99 @@ mcd_account_get_parameter (McdAccount *account, const gchar *name,
                                                     callback, user_data);
 }
 
+static void
+param_changed_cb (McdAccount *account,
+                  const GValue *value,
+                  const GError *error,
+                  gpointer data)
+{
+    gchar *name = data;
+
+    /* if it was real, kick off the en-bloc parameters update signal */
+    if (value != NULL)
+        mcd_account_property_changed (account, "Parameters");
+    else
+        DEBUG ("Unknown/unset parameter %s", name);
+
+    g_free (name);
+}
+
+static void
+property_changed_cb (McdAccount *account,
+                     const GValue *value,
+                     const GError *error,
+                     gpointer data)
+{
+    const gchar *name = data;
+
+    if (value != NULL)
+    {
+        mcd_account_changed_property (account, name, value);
+    }
+    else
+    {
+        DEBUG ("%s.%s is NULL - %s",
+               mcd_account_get_unique_name (account),
+               name,
+               (error != NULL) ? error->message : "invalid property?");
+    }
+}
+
+/* tell the account that one of its properties has changed behind its back: *
+ * this will trigger an update when the callback receives the new value     */
+void
+mcd_account_property_changed (McdAccount *account, const gchar *name)
+{
+    /* parameters are handled en bloc, but first make sure it's a valid name */
+    if (g_str_has_prefix (name, "param-"))
+    {
+        gchar *key = g_strdup (name);
+        const gchar *param = name + strlen ("param-");
+
+        mcd_account_get_parameter (account, param, param_changed_cb, key);
+    }
+    else
+    {
+        guint i = 0;
+        const McdDBusProp *prop = NULL;
+
+        for (; prop == NULL && account_properties[i].name != NULL; i++)
+        {
+            if (g_str_equal (name, account_properties[i].name))
+                prop = &account_properties[i];
+        }
+
+        /* is a known property */
+        if (prop != NULL)
+        {
+            TpSvcDBusProperties *self = TP_SVC_DBUS_PROPERTIES (account);
+
+            /* has a sync getter */
+            if (prop->getprop != NULL)
+            {
+                GValue value = { 0 };
+
+                prop->getprop (self, name, &value);
+                mcd_account_changed_property (account, prop->name, &value);
+                g_value_unset (&value);
+            }
+            else if (prop->async_getprop != NULL)
+            {
+                const gchar *key = prop->name;
+                mcddbus_get_cb callback = (mcddbus_get_cb) property_changed_cb;
+
+                prop->async_getprop (self, key, callback, key);
+            }
+            else
+            {
+                DEBUG ("Valid DBus property %s with no get methods was changed"
+                       " - cannot notify change since we cannot get its value",
+                      name);
+            }
+        }
+    }
+}
+
 typedef struct
 {
   McdAccount *account;
