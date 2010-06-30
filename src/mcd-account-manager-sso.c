@@ -323,7 +323,7 @@ static void _sso_updated (AgAccount * account,
   if (!sso->ready)
     goto done;
 
-  g_signal_emit_by_name (mcpa, "altered", name);
+  g_signal_emit_by_name (mcpa, "altered-one", name, wd->mc_key);
 
  done:
   g_free (ag_string);
