@@ -1886,11 +1886,12 @@ param_changed_cb (McdAccount *account,
 }
 
 static void
-property_changed_cb (McdAccount *account,
+property_changed_cb (TpSvcDBusProperties *self,
                      const GValue *value,
                      const GError *error,
-                     gpointer data)
+                     const gpointer data)
 {
+    McdAccount *account = MCD_ACCOUNT (self);
     const gchar *name = data;
 
     if (value != NULL)
@@ -1946,10 +1947,9 @@ mcd_account_property_changed (McdAccount *account, const gchar *name)
             }
             else if (prop->async_getprop != NULL)
             {
-                const gchar *key = prop->name;
-                mcddbus_get_cb callback = (mcddbus_get_cb) property_changed_cb;
+                gpointer key = (gpointer) prop->name;
 
-                prop->async_getprop (self, key, callback, key);
+                prop->async_getprop (self, key, property_changed_cb, key);
             }
             else
             {
