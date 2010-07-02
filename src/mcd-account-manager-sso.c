@@ -65,6 +65,8 @@
 
 #define SERVICES_KEY    "sso-services"
 
+#define MC_SERVICE_KEY  "Service"
+
 typedef enum {
   DELAYED_CREATE,
   DELAYED_DELETE,
@@ -100,7 +102,8 @@ Setting setting_map[] = {
   { MC_IDENTITY_KEY    , MC_IDENTITY_KEY, SERVICE, READABLE  , WRITABLE   },
   { MC_CMANAGER_KEY    , MC_CMANAGER_KEY, SERVICE, READABLE  , UNWRITABLE },
   { MC_PROTOCOL_KEY    , MC_PROTOCOL_KEY, SERVICE, READABLE  , UNWRITABLE },
-  { SERVICES_KEY       , NULL           , GLOBAL , UNREADABLE, UNWRITABLE },
+  { MC_SERVICE_KEY     , MC_SERVICE_KEY , SERVICE, UNREADABLE, UNWRITABLE },
+  { SERVICES_KEY       , SERVICES_KEY   , GLOBAL , UNREADABLE, UNWRITABLE },
   { NULL               , NULL           , SERVICE, UNREADABLE, UNWRITABLE }
 };
 
@@ -962,6 +965,16 @@ _get (const McpAccountStorage *self,
           ag_service_list_free (services);
           g_string_free (result, TRUE);
         }
+      else if (g_str_equal (key, MC_SERVICE_KEY))
+        {
+          const gchar *service_name = NULL;
+          AgService *im_service = NULL;
+
+          _ag_account_select_default_im_service (account);
+          im_service = ag_account_get_selected_service (account);
+          service_name = ag_service_get_name (im_service);
+          mcp_account_manager_set_value (am, acct, key, service_name);
+        }
       else
         {
           GValue v = { 0 };
@@ -997,10 +1010,16 @@ _get (const McpAccountStorage *self,
       const gchar *k;
       const GValue *v;
       const gchar *on = NULL;
+      AgService *im_service = NULL;
 
       /* pick the IM service if we haven't got one set */
       if (service == NULL)
         _ag_account_select_default_im_service (account);
+
+      /* special case, not stored as a normal setting */
+      im_service = ag_account_get_selected_service (account);
+      mcp_account_manager_set_value (am, acct, MC_SERVICE_KEY,
+          ag_service_get_name (im_service));
 
       ag_account_settings_iter_init (account, &ag_setting, NULL);
       while (ag_account_settings_iter_next (&ag_setting, &k, &v))
@@ -1138,6 +1157,7 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
 
           if (name != NULL)
             {
+              AgService *im_service = NULL;
               gchar *ident = g_strdup_printf ("%u", id);
               GStrv mc_id = g_strsplit (name, "/", 3);
 
@@ -1152,6 +1172,11 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
 
               if (service == NULL)
                 _ag_account_select_default_im_service (account);
+
+              /* special case, not stored as a normal setting */
+              im_service = ag_account_get_selected_service (account);
+              mcp_account_manager_set_value (am, name, MC_SERVICE_KEY,
+                  ag_service_get_name (im_service));
 
               ag_account_settings_iter_init (account, &iter, NULL);
 
