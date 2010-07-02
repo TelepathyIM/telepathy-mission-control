@@ -45,10 +45,11 @@
 #define PLUGIN_DESCRIPTION \
   "Account storage in the Maemo SSO store via libaccounts-glib API"
 
-#define PARAM_PREFIX_MC "param-"
-#define PARAM_PREFIX    "parameters/"
+#define MCPP "param-"
+#define AGPP "parameters/"
 #define LIBACCT_ID_KEY  "libacct-uid"
 
+#define MC_ENABLED_KEY "Enabled"
 #define AG_ENABLED_KEY "enabled"
 
 #define AG_LABEL_KEY   "name"
@@ -62,10 +63,46 @@
 #define MC_PROTOCOL_KEY "protocol"
 #define MC_IDENTITY_KEY "tmc-uid"
 
+#define SERVICES_KEY    "sso-services"
+
 typedef enum {
   DELAYED_CREATE,
   DELAYED_DELETE,
 } DelayedSignal;
+
+typedef struct {
+  gchar *mc_name;
+  gchar *ag_name;
+  gboolean global;   /* global ag setting or service specific? */
+  gboolean readable; /* does the _standard_ read method copy this into MC?  */
+  gboolean writable; /* does the _standard_ write method copy this into AG? */
+  gboolean freeable; /* should clear_setting_data deallocate the names? */
+} Setting;
+
+#define GLOBAL     TRUE
+#define SERVICE    FALSE
+#define READABLE   TRUE
+#define UNREADABLE FALSE
+#define WRITABLE   TRUE
+#define UNWRITABLE FALSE
+
+typedef enum {
+  SETTING_MC,
+  SETTING_AG,
+} SettingType;
+
+Setting setting_map[] = {
+  { MC_ENABLED_KEY     , AG_ENABLED_KEY , GLOBAL , UNREADABLE, UNWRITABLE },
+  { MCPP MC_ACCOUNT_KEY, AG_ACCOUNT_KEY , GLOBAL , READABLE  , UNWRITABLE },
+  { MCPP PASSWORD_KEY  , PASSWORD_KEY   , GLOBAL , READABLE  , WRITABLE   },
+  { MC_LABEL_KEY       , AG_LABEL_KEY   , GLOBAL , READABLE  , WRITABLE   },
+  { LIBACCT_ID_KEY     , LIBACCT_ID_KEY , GLOBAL , UNREADABLE, UNWRITABLE },
+  { MC_IDENTITY_KEY    , MC_IDENTITY_KEY, SERVICE, READABLE  , WRITABLE   },
+  { MC_CMANAGER_KEY    , MC_CMANAGER_KEY, SERVICE, READABLE  , UNWRITABLE },
+  { MC_PROTOCOL_KEY    , MC_PROTOCOL_KEY, SERVICE, READABLE  , UNWRITABLE },
+  { SERVICES_KEY       , NULL           , GLOBAL , UNREADABLE, UNWRITABLE },
+  { NULL               , NULL           , SERVICE, UNREADABLE, UNWRITABLE }
+};
 
 typedef struct {
   DelayedSignal signal;
@@ -78,6 +115,52 @@ typedef struct {
   AgAccountWatch watch;
 } WatchData;
 
+static Setting *
+setting_data (const gchar *name, SettingType type)
+{
+  guint i = 0;
+  static Setting parameter = { NULL, NULL, SERVICE, READABLE, WRITABLE, TRUE };
+  const gchar *prefix;
+
+  for (; setting_map[i].mc_name != NULL; i++)
+    {
+      const gchar *setting_name = NULL;
+
+      if (type == SETTING_MC)
+        setting_name = setting_map[i].mc_name;
+      else
+        setting_name = setting_map[i].ag_name;
+
+      if (g_strcmp0 (name, setting_name) == 0)
+        return &setting_map[i];
+    }
+
+  prefix = (type == SETTING_MC) ? MCPP : AGPP;
+
+  if (!g_str_has_prefix (name, prefix))
+    return NULL;
+
+  parameter.mc_name = g_strdup_printf ("%s%s", MCPP, name + strlen (prefix));
+  parameter.ag_name = g_strdup_printf ("%s%s", AGPP, name + strlen (prefix));
+
+  return &parameter;
+}
+
+static void
+clear_setting_data (Setting *setting)
+{
+  if (setting == NULL)
+    return;
+
+  if (!setting->freeable)
+    return;
+
+  g_free (setting->mc_name);
+  g_free (setting->ag_name);
+  setting->mc_name = NULL;
+  setting->ag_name = NULL;
+}
+
 static gboolean _sso_account_enabled (AgAccount *account,
     AgService *service);
 
@@ -89,16 +172,13 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
     AgAccountId id,
     gboolean create);
 
-static gchar * get_mc_param_key (const gchar *key);
-
-static void
-save_value (AgAccount *account,
-    const gchar *key,
-    const gchar *val);
-
 static void _ag_account_stored_cb (AgAccount *acct,
     const GError *err,
     gpointer ignore);
+
+static void save_setting (AgAccount *account,
+    const Setting *setting,
+    const gchar *val);
 
 G_DEFINE_TYPE_WITH_CODE (McdAccountManagerSso, mcd_account_manager_sso,
     G_TYPE_OBJECT,
@@ -142,33 +222,6 @@ _gvalue_to_string (const GValue *val)
         DEBUG ("Unsupported type %s", G_VALUE_TYPE_NAME (val));
         return NULL;
     }
-}
-
-/* should we watch this key for updates? */
-static gboolean _ag_key_is_watchable (const gchar *key)
-{
-  if (g_str_equal (key, AG_ENABLED_KEY) ||
-      g_str_equal (key, MC_IDENTITY_KEY) ||
-      g_str_equal (key, MC_CMANAGER_KEY) ||
-      g_str_equal (key, MC_PROTOCOL_KEY))
-    return FALSE;
-
-  return TRUE;
-}
-
-/* Is an AG key corresponding to an MC _parameter_ global? */
-static gboolean _ag_key_is_global (const gchar *key)
-{
-  return
-    g_str_equal (key, AG_ACCOUNT_KEY) ||
-    g_str_equal (key, PASSWORD_KEY) ||
-    g_str_equal (key, AG_LABEL_KEY);
-}
-
-/* Is an AG key corresponding to an MC non-parameter service specific? */
-static gboolean _ag_value_is_local (const gchar *key)
-{
-  return g_str_equal (key, MC_IDENTITY_KEY);
 }
 
 static gboolean
@@ -293,6 +346,7 @@ static void _sso_updated (AgAccount * account,
   GValue ag_value = { 0 };
   gchar *mc_string = NULL;
   gchar *ag_string = NULL;
+  Setting *setting = NULL;
 
   DEBUG ("update for account %s, key %s [%s]", name, key, wd->mc_key);
 
@@ -302,7 +356,15 @@ static void _sso_updated (AgAccount * account,
 
   g_value_init (&ag_value, G_TYPE_STRING);
 
-  if (_ag_key_is_global (key))
+  setting = setting_data (key, SETTING_AG);
+
+  if (setting == NULL)
+    {
+      DEBUG ("setting %s is unknown/unmapped, aborting update", key);
+      return;
+    }
+
+  if (setting->global)
     src = _ag_account_global_value (account, key, &ag_value);
   else
     src = _ag_account_local_value (account, key, &ag_value);
@@ -329,18 +391,18 @@ static void _sso_updated (AgAccount * account,
   g_free (ag_string);
   g_free (mc_string);
   g_value_unset (&ag_value);
+  clear_setting_data (setting);
 }
 
 static void watch_for_updates (McdAccountManagerSso *sso,
     AgAccount *account,
-    const gchar *ag_key,
-    const gchar *mc_key)
+    Setting *setting)
 {
   WatchData *data;
   gpointer id = GUINT_TO_POINTER (account->id);
   GHashTable *account_watches = g_hash_table_lookup (sso->watches, id);
 
-  if (!_ag_key_is_watchable (ag_key))
+  if (!setting->readable)
     return;
 
   if (account_watches == NULL)
@@ -349,15 +411,20 @@ static void watch_for_updates (McdAccountManagerSso *sso,
         g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
       g_hash_table_insert (sso->watches, id, account_watches);
     }
-  else if (g_hash_table_lookup (account_watches, mc_key) != NULL)
+  else if (g_hash_table_lookup (account_watches, setting->mc_name) != NULL)
     {
       return; /* already being watched */
     }
 
-  DEBUG ("watching %u.%s [%s] for updates", account->id, mc_key, ag_key);
-  data = make_watch_data (sso, mc_key);
-  data->watch = ag_account_watch_key (account, ag_key, _sso_updated, data);
-  g_hash_table_insert (account_watches, g_strdup (mc_key), data);
+  DEBUG ("watching %u.%s [%s] for updates",
+      account->id,
+      setting->mc_name,
+      setting->ag_name);
+
+  data = make_watch_data (sso, setting->mc_name);
+  data->watch = ag_account_watch_key (account, setting->ag_name, _sso_updated,
+      data);
+  g_hash_table_insert (account_watches, g_strdup (setting->mc_name), data);
 }
 
 static void _sso_toggled (GObject *object,
@@ -531,11 +598,13 @@ static void _sso_created (GObject *object,
 
               if (name != NULL)
                 {
+                  Setting *setting = setting_data (MC_IDENTITY_KEY, SETTING_MC);
+
                   g_hash_table_insert (sso->accounts, name, account);
                   g_hash_table_insert (sso->id_name_map, GUINT_TO_POINTER (id),
                       g_strdup (name));
 
-                  save_value (account, MC_IDENTITY_KEY, name);
+                  save_setting (account, setting, name);
 
                   ag_account_store (account, _ag_account_stored_cb, NULL);
 
@@ -543,6 +612,8 @@ static void _sso_created (GObject *object,
 
                   g_signal_connect (account, "enabled",
                       G_CALLBACK (_sso_toggled), data);
+
+                  clear_setting_data (setting);
                 }
               else
                 {
@@ -652,7 +723,7 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
 
   if (src != AG_SETTING_SOURCE_NONE && G_VALUE_HOLDS_STRING (&value))
     {
-      AgAccountSettingIter setting;
+      AgAccountSettingIter iter;
       const gchar *k;
       const GValue *v;
       GValue cmanager = { 0 };
@@ -692,20 +763,19 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
 
       /* first any matching global values: */
       ag_account_select_service (acct, NULL);
-      ag_account_settings_iter_init (acct, &setting, NULL);
+      ag_account_settings_iter_init (acct, &iter, NULL);
 
-      while (ag_account_settings_iter_next (&setting, &k, &v))
+      while (ag_account_settings_iter_next (&iter, &k, &v))
         {
-          gchar *mc_key = get_mc_param_key (k);
+          Setting *setting = setting_data (k, SETTING_AG);
 
-          if (mc_key != NULL && g_str_has_prefix (mc_key, PARAM_PREFIX_MC))
+          if (setting != NULL && g_str_has_prefix (setting->mc_name, MCPP))
             {
-              gchar *param_key = g_strdup (mc_key + strlen (PARAM_PREFIX_MC));
+              gchar *param_key = g_strdup (setting->mc_name + strlen (MCPP));
 
               g_hash_table_insert (params, param_key, (gpointer) v);
+              clear_setting_data (setting);
             }
-
-          g_free (mc_key);
         }
 
       /* then any service specific settings */
@@ -714,19 +784,18 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
       else
         _ag_account_select_default_im_service (acct);
 
-      ag_account_settings_iter_init (acct, &setting, NULL);
-      while (ag_account_settings_iter_next (&setting, &k, &v))
+      ag_account_settings_iter_init (acct, &iter, NULL);
+      while (ag_account_settings_iter_next (&iter, &k, &v))
         {
-          gchar *mc_key = get_mc_param_key (k);
+          Setting *setting = setting_data (k, SETTING_AG);
 
-          if (mc_key != NULL && g_str_has_prefix (mc_key, PARAM_PREFIX_MC))
+          if (setting != NULL && g_str_has_prefix (setting->mc_name, MCPP))
             {
-              gchar *param_key = g_strdup (mc_key + strlen (PARAM_PREFIX_MC));
+              gchar *param_key = g_strdup (setting->mc_name + strlen (MCPP));
 
               g_hash_table_insert (params, param_key, (gpointer) v);
+              clear_setting_data (setting);
             }
-
-          g_free (mc_key);
         }
 
       name = mcp_account_manager_get_unique_name (am, cman, proto, params);
@@ -770,27 +839,16 @@ get_ag_account (const McdAccountManagerSso *sso,
 }
 
 static void
-save_param (AgAccount *account,
-    const gchar *key,
+save_setting (AgAccount *account,
+    const Setting *setting,
     const gchar *val)
 {
-  const gchar *pkey = key + strlen (PARAM_PREFIX_MC);
-  gchar *param_key = NULL;
-  gboolean global = FALSE;
   AgService *service = ag_account_get_selected_service (account);
 
-  /* username and password are parameters in MC but not in AG: *
-   * also it's 'username' in AG but 'account' in MC            */
-  if (g_str_equal (pkey, MC_ACCOUNT_KEY))
-    param_key = g_strdup (AG_ACCOUNT_KEY);
-  else if (g_str_equal (pkey, PASSWORD_KEY))
-    param_key = g_strdup (PASSWORD_KEY);
-  else
-    param_key = g_strdup_printf (PARAM_PREFIX "%s", pkey);
+  if (!setting->writable)
+    return;
 
-  global = _ag_key_is_global (param_key);
-
-  if (global)
+  if (setting->global)
     ag_account_select_service (account, NULL);
   else if (service == NULL)
     _ag_account_select_default_im_service (account);
@@ -801,72 +859,15 @@ save_param (AgAccount *account,
 
       g_value_init (&value, G_TYPE_STRING);
       g_value_set_string (&value, val);
-      ag_account_set_value (account, param_key, &value);
+      ag_account_set_value (account, setting->ag_name, &value);
       g_value_unset (&value);
     }
   else
     {
-      ag_account_set_value (account, param_key, NULL);
+      ag_account_set_value (account, setting->ag_name, NULL);
     }
 
   /* leave the selected service as we found it: */
-  ag_account_select_service (account, service);
-
-  g_free (param_key);
-}
-
-static void
-save_value (AgAccount *account,
-    const gchar *key,
-    const gchar *val)
-{
-  AgService *service = NULL;
-  gboolean local = FALSE;
-
-  /* special cases, never saved */
-  if (g_str_equal (key, MC_CMANAGER_KEY) || g_str_equal (key, MC_PROTOCOL_KEY))
-    return;
-
-  /* values, unlike parameters, are _mostly_ global - not service specific */
-  service = ag_account_get_selected_service (account);
-  local = _ag_value_is_local (key);
-
-  /* Enabled is both a global and a local value, for extra fun: */
-  if (g_str_equal (key, "Enabled"))
-    {
-      gboolean on = g_str_equal (val, "true");
-
-      DEBUG ("setting enabled flag: '%d'", on);
-      _sso_account_enable (account, NULL, on);
-
-      goto cleanup;
-    }
-
-  /* pick the right service/global section of SSO, and switch if necessary */
-  if (local && service == NULL)
-    _ag_account_select_default_im_service (account);
-  else if (!local && service != NULL)
-    ag_account_select_service (account, NULL);
-
-  /* yet another special case mapping */
-  if (g_str_equal (key, MC_LABEL_KEY))
-    key = AG_LABEL_KEY;
-
-  if (val == NULL)
-    {
-      ag_account_set_value (account, key, NULL);
-    }
-  else
-    {
-      GValue value = { 0 };
-      g_value_init (&value, G_TYPE_STRING);
-      g_value_set_string (&value, val);
-      ag_account_set_value (account, key, &value);
-      g_value_unset (&value);
-    }
-
- cleanup:
-  /* leave the slected service as we found it */
   ag_account_select_service (account, service);
 }
 
@@ -880,6 +881,7 @@ _set (const McpAccountStorage *self,
   AgAccountId id;
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (self);
   AgAccount *account = get_ag_account (sso, am, acct, &id);
+  Setting *setting = NULL;
 
   /* we no longer create accounts in libaccount: either an account exists *
    * in libaccount as a result of some 3rd party intervention, or it is   *
@@ -887,64 +889,32 @@ _set (const McpAccountStorage *self,
   g_return_val_if_fail (key != NULL, FALSE);
 
   if (account != NULL)
-    {
-      if (g_str_equal (key, "sso-services"))
-        return TRUE;
+    setting = setting_data (key, SETTING_MC);
 
-      if (g_str_has_prefix (key, PARAM_PREFIX_MC))
-        save_param (account, key, val);
+  if (setting != NULL)
+    {
+      /* Enabled is both a global and a local value, for extra fun: */
+      if (g_str_equal (setting->mc_name, MC_ENABLED_KEY))
+        {
+          gboolean on = g_str_equal (val, "true");
+
+          DEBUG ("setting enabled flag: '%d'", on);
+          _sso_account_enable (account, NULL, on);
+
+        }
       else
-        save_value (account, key, val);
+        {
+          save_setting (account, setting, val);
+        }
 
       sso->save = TRUE;
+      clear_setting_data (setting);
+
       return TRUE;
     }
 
   /* no account and we couldn't/wouldn't create one */
   return FALSE;
-}
-
-/* get the MC parameter key corresponding to an SSO key          *
- * note that not all MC parameters correspond to SSO parameters, *
- * some correspond to values instead                             */
-/* NOTE: value keys are passed through unchanged */
-/* NOTE: except for "name", which maps to "DisplayName" */
-static gchar *
-get_mc_param_key (const gchar *key)
-{
-  /* these two are parameters in MC but not in AG */
-  if (g_str_equal (key, AG_ACCOUNT_KEY))
-    return g_strdup (PARAM_PREFIX_MC MC_ACCOUNT_KEY);
-
-  if (g_str_equal (key, PASSWORD_KEY))
-    return g_strdup (PARAM_PREFIX_MC PASSWORD_KEY);
-
-  /* yet another special case */
-  if (g_str_equal (key, AG_LABEL_KEY))
-    return g_strdup (MC_LABEL_KEY);
-
-  /* now check for regular params */
-  if (g_str_has_prefix (key, PARAM_PREFIX))
-    return g_strdup_printf (PARAM_PREFIX_MC "%s", key + strlen (PARAM_PREFIX));
-
-  return g_strdup (key);
-}
-
-/* get the SSO key corresponding to an MC parameter */
-/* NOTE: value keys are passed through unchanged */
-static gchar *
-get_ag_param_key (const gchar *key)
-{
-  if (g_str_equal (key, PARAM_PREFIX_MC MC_ACCOUNT_KEY))
-    return g_strdup (AG_ACCOUNT_KEY);
-
-  if (g_str_equal (key, PARAM_PREFIX_MC PASSWORD_KEY))
-    return g_strdup (PASSWORD_KEY);
-
-  if (g_str_has_prefix (key, PARAM_PREFIX_MC))
-    return g_strdup_printf (PARAM_PREFIX "%s", key + strlen (PARAM_PREFIX_MC));
-
-  return g_strdup (key);
 }
 
 static gboolean
@@ -963,14 +933,14 @@ _get (const McpAccountStorage *self,
 
   if (key != NULL)
     {
-      if (g_str_equal (key, "Enabled"))
+      if (g_str_equal (key, MC_ENABLED_KEY))
         {
           const gchar *v = NULL;
 
           v = _sso_account_enabled (account, service) ? "true" : "false";
           mcp_account_manager_set_value (am, acct, key, v);
         }
-      else if (g_str_equal (key, "sso-services"))
+      else if (g_str_equal (key, SERVICES_KEY))
         {
           GString *result = g_string_new ("");
           AgManager * agm = ag_account_get_manager (account);
@@ -991,20 +961,19 @@ _get (const McpAccountStorage *self,
         }
       else
         {
-          gchar *k = get_ag_param_key (key);
           GValue v = { 0 };
           AgSettingSource src = AG_SETTING_SOURCE_NONE;
+          Setting *setting = setting_data (key, SETTING_MC);
+
+          if (setting == NULL)
+            return TRUE;
 
           g_value_init (&v, G_TYPE_STRING);
 
-          if (_ag_key_is_global (k))
-            {
-              src = _ag_account_global_value (account, k, &v);
-            }
+          if (setting->global)
+            src = _ag_account_global_value (account, setting->ag_name, &v);
           else
-            {
-              src = _ag_account_local_value (account, k, &v);
-            }
+            src = _ag_account_local_value (account, setting->ag_name, &v);
 
           if (src != AG_SETTING_SOURCE_NONE)
             {
@@ -1016,12 +985,12 @@ _get (const McpAccountStorage *self,
             }
 
           g_value_unset (&v);
-          g_free (k);
+          clear_setting_data (setting);
         }
     }
   else
     {
-      AgAccountSettingIter setting;
+      AgAccountSettingIter ag_setting;
       const gchar *k;
       const GValue *v;
       const gchar *on = NULL;
@@ -1030,42 +999,44 @@ _get (const McpAccountStorage *self,
       if (service == NULL)
         _ag_account_select_default_im_service (account);
 
-      ag_account_settings_iter_init (account, &setting, NULL);
-      while (ag_account_settings_iter_next (&setting, &k, &v))
+      ag_account_settings_iter_init (account, &ag_setting, NULL);
+      while (ag_account_settings_iter_next (&ag_setting, &k, &v))
         {
-          if (!_ag_key_is_global (k))
+          Setting *setting = setting_data (k, SETTING_AG);
+
+          if (setting != NULL && setting->readable && !setting->global)
             {
-              gchar *mc_key = get_mc_param_key (k);
               gchar *value = _gvalue_to_string (v);
 
-              mcp_account_manager_set_value (am, acct, mc_key, value);
+              mcp_account_manager_set_value (am, acct, setting->mc_name, value);
 
               g_free (value);
-              g_free (mc_key);
+              clear_setting_data (setting);
             }
         }
 
       /* deselect any service we may have to get global settings */
       ag_account_select_service (account, NULL);
-      ag_account_settings_iter_init (account, &setting, NULL);
+      ag_account_settings_iter_init (account, &ag_setting, NULL);
 
-      while (ag_account_settings_iter_next (&setting, &k, &v))
+      while (ag_account_settings_iter_next (&ag_setting, &k, &v))
         {
-          if (_ag_key_is_global (k))
+          Setting *setting = setting_data (k, SETTING_AG);
+
+          if (setting != NULL && setting->readable && setting->global)
             {
-              gchar *mc_key = get_mc_param_key (k);
               gchar *value  = _gvalue_to_string (v);
 
-              mcp_account_manager_set_value (am, acct, mc_key, value);
+              mcp_account_manager_set_value (am, acct, setting->mc_name, value);
 
               g_free (value);
-              g_free (mc_key);
+              clear_setting_data (setting);
             }
         }
 
       /* special case, actually two separate but related flags in SSO */
       on = _sso_account_enabled (account, NULL) ? "true" : "false";
-      mcp_account_manager_set_value (am, acct, "Enabled", on);
+      mcp_account_manager_set_value (am, acct, MC_ENABLED_KEY, on);
     }
 
   /* leave the selected service as we found it */
@@ -1099,10 +1070,13 @@ _delete (const McpAccountStorage *self,
     }
   else
     {
-      if (g_str_has_prefix (key, PARAM_PREFIX_MC))
-        save_param (account, key, NULL);
-      else
-        save_value (account, key, NULL);
+      Setting *setting = setting_data (key, SETTING_MC);
+
+      if (setting != NULL)
+        {
+          save_setting (account, setting, NULL);
+          clear_setting_data (setting);
+        }
     }
 
   return TRUE;
@@ -1126,8 +1100,9 @@ _commit (const McpAccountStorage *self,
 
   while (g_hash_table_iter_next (&iter, (gpointer) &key, (gpointer) &account))
     {
+      Setting *setting = setting_data (MC_IDENTITY_KEY, SETTING_MC);
       /* this value ties MC accounts to SSO accounts */
-      save_value (account, MC_IDENTITY_KEY, key);
+      save_setting (account, setting, key);
       ag_account_store (account, _ag_account_stored_cb, NULL);
     }
 
@@ -1179,16 +1154,18 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
 
               while (ag_account_settings_iter_next (&iter, &key, &val))
                 {
-                  if (!_ag_key_is_global (key))
+                  Setting *setting = setting_data (key, SETTING_AG);
+
+                  if (setting != NULL && !setting->global && setting->readable)
                     {
-                      gchar *mc_key = get_mc_param_key (key);
                       gchar *value = _gvalue_to_string (val);
 
-                      mcp_account_manager_set_value (am, name, mc_key, value);
-                      watch_for_updates (sso, account, key, mc_key);
+                      mcp_account_manager_set_value (am, name, setting->mc_name,
+                          value);
+                      watch_for_updates (sso, account, setting);
 
                       g_free (value);
-                      g_free (mc_key);
+                      clear_setting_data (setting);
                     }
                 }
 
@@ -1197,23 +1174,25 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
 
               while (ag_account_settings_iter_next (&iter, &key, &val))
                 {
-                  if (_ag_key_is_global (key))
+                  Setting *setting = setting_data (key, SETTING_AG);
+
+                  if (setting != NULL && setting->global && setting->readable)
                     {
-                      gchar *mc_key = get_mc_param_key (key);
                       gchar *value = _gvalue_to_string (val);
 
-                      mcp_account_manager_set_value (am, name, mc_key, value);
-                      watch_for_updates (sso, account, key, mc_key);
+                      mcp_account_manager_set_value (am, name, setting->mc_name,
+                          value);
+                      watch_for_updates (sso, account, setting);
 
                       g_free (value);
-                      g_free (mc_key);
+                      clear_setting_data (setting);
                     }
                 }
 
               /* special case, actually two separate but related flags in SSO */
               enabled = _sso_account_enabled (account, NULL) ? "true": "false";
 
-              mcp_account_manager_set_value (am, name, "Enabled", enabled);
+              mcp_account_manager_set_value (am, name, MC_ENABLED_KEY, enabled);
               mcp_account_manager_set_value (am, name, LIBACCT_ID_KEY, ident);
               mcp_account_manager_set_value (am, name, MC_CMANAGER_KEY, mc_id[0]);
               mcp_account_manager_set_value (am, name, MC_PROTOCOL_KEY, mc_id[1]);
