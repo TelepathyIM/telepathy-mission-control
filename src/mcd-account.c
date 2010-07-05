@@ -1261,7 +1261,7 @@ get_service (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 
     mcd_account_get_string_val (account, name, value);
 
-    /* fall back to the protocol if nothing is explicitly set, as per spec */
+    /* fall back to "" if nothing is explicitly set, as per spec */
     if (g_value_get_string (value) == NULL)
         g_value_set_string (value, "");
 }
