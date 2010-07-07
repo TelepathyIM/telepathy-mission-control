@@ -1868,6 +1868,13 @@ mcd_account_get_parameter (McdAccount *account, const gchar *name,
                                                     callback, user_data);
 }
 
+/* this callback is invoked if a parameter was changed internally by MC   *
+ * (typically by a storage plugin): if the individual parameter whose     *
+ * change we were notified of is/was valid, then the value argument will  *
+ * be non-NULL, and we should re-enter mcd_account_property_changed but   *
+ * this time with the top level "Parameters" property instead of the      *
+ * single changed parameter (this is because parameter changes are issued *
+ * en-bloc for all parameters at once)                                    */
 static void
 param_changed_cb (McdAccount *account,
                   const GValue *value,
@@ -1885,6 +1892,9 @@ param_changed_cb (McdAccount *account,
     g_free (name);
 }
 
+/* a non-parameter property was changed internally (eg by a storage plugin) *
+ * if the property was/is known, then the value argument will be non-NULL:  *
+ * so trigger the property change process via mcd_account_changed_property  */
 static void
 property_changed_cb (TpSvcDBusProperties *self,
                      const GValue *value,
@@ -1907,8 +1917,11 @@ property_changed_cb (TpSvcDBusProperties *self,
     }
 }
 
-/* tell the account that one of its properties has changed behind its back: *
- * this will trigger an update when the callback receives the new value     */
+/* tell the account that one of its properties has changed behind its back:  *
+ * (as opposed to an external change triggered by DBus, for example) - This  *
+ * typically occurs because an internal component (such as a storage plugin) *
+ * wishes to notify us that something has changed.
+ * This will trigger an update when the callback receives the new value     */
 void
 mcd_account_property_changed (McdAccount *account, const gchar *name)
 {
@@ -1918,6 +1931,7 @@ mcd_account_property_changed (McdAccount *account, const gchar *name)
         gchar *key = g_strdup (name);
         const gchar *param = name + strlen ("param-");
 
+        /* check to see if the parameter was/is a valid one */
         mcd_account_get_parameter (account, param, param_changed_cb, key);
     }
     else
@@ -1925,18 +1939,19 @@ mcd_account_property_changed (McdAccount *account, const gchar *name)
         guint i = 0;
         const McdDBusProp *prop = NULL;
 
+        /* find the property update handler */
         for (; prop == NULL && account_properties[i].name != NULL; i++)
         {
             if (g_str_equal (name, account_properties[i].name))
                 prop = &account_properties[i];
         }
 
-        /* is a known property */
+        /* is a known property: invoke the getter method for it (if any): *
+         * then issue the change notification (DBus signals etc) for it   */
         if (prop != NULL)
         {
             TpSvcDBusProperties *self = TP_SVC_DBUS_PROPERTIES (account);
 
-            /* has a sync getter */
             if (prop->getprop != NULL)
             {
                 GValue value = { 0 };
