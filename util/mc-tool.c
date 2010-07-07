@@ -50,6 +50,7 @@ show_help (gchar * err)
 	    "    %1$s update <account name> [(int|uint|bool|string):<key>=<value>|clear:key] ...\n"
 	    "    %1$s display <account name> <display name>\n"
 	    "    %1$s nick <account name> <nick name>\n"
+	    "    %1$s service <account name> <service name>\n"
 	    "    %1$s icon <account name> <icon name>\n"
 	    "    %1$s show <account name>\n"
 	    "    %1$s get <account name> [key...]\n"
@@ -101,7 +102,7 @@ union command {
     struct {
 	struct common common;
 	gchar const *name;
-    } display, nick, icon;
+    } display, nick, icon, service;
 
     struct {
 	struct common common;
@@ -815,6 +816,16 @@ command_nick (TpAccount *account)
 }
 
 static gboolean
+command_service (TpAccount *account)
+{
+    tp_account_set_service_async (account, command.service.name,
+                                  callback_for_async,
+                                  tp_account_set_service_finish);
+
+    return TRUE;
+}
+
+static gboolean
 command_icon (TpAccount *account)
 {
     tp_account_set_icon_name_async (account, command.icon.name,
@@ -1054,6 +1065,16 @@ parse (int argc, char **argv)
 	command.ready.account = command_nick;
 	command.common.account = argv[2];
 	command.nick.name = argv[3];
+    }
+    else if (strcmp (argv[1], "service") == 0)
+    {
+        /* Set service */
+	if (argc != 4)
+	    show_help ("Invalid service command.");
+
+	command.ready.account = command_service;
+	command.common.account = argv[2];
+	command.service.name = argv[3];
     }
     else if (strcmp (argv[1], "icon") == 0)
     {

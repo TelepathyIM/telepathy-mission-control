@@ -1214,6 +1214,59 @@ get_enabled (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 }
 
 static gboolean
+set_service (TpSvcDBusProperties *self, const gchar *name,
+             const GValue *value, GError **error)
+{
+    McdAccount *account = MCD_ACCOUNT (self);
+    SetResult ret = SET_RESULT_ERROR;
+    gboolean proceed = TRUE;
+    static GRegex *rule = NULL;
+    static gsize service_re_init = 0;
+
+    if (g_once_init_enter (&service_re_init))
+    {
+        GError *regex_error = NULL;
+        rule = g_regex_new ("^(?:[a-z][a-z0-9_-]*)?$",
+                            G_REGEX_CASELESS|G_REGEX_DOLLAR_ENDONLY,
+                            0, &regex_error);
+        g_assert_no_error (regex_error);
+        g_once_init_leave (&service_re_init, 1);
+    }
+
+    if (G_VALUE_HOLDS_STRING (value))
+      proceed = g_regex_match (rule, g_value_get_string (value), 0, NULL);
+
+    /* if value is not a string, mcd_account_set_string_val will set *
+     * the appropriate error for us: don't duplicate that logic here */
+    if (proceed)
+    {
+        ret = mcd_account_set_string_val (account, name, value, error);
+    }
+    else
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "Invalid service '%s': Must consist of ASCII alphanumeric "
+                     "characters, underscores (_) and hyphens (-) only, and "
+                     "start with a letter",
+                     g_value_get_string (value));
+    }
+
+    return (ret != SET_RESULT_ERROR);
+}
+
+static void
+get_service (TpSvcDBusProperties *self, const gchar *name, GValue *value)
+{
+    McdAccount *account = MCD_ACCOUNT (self);
+
+    mcd_account_get_string_val (account, name, value);
+
+    /* fall back to "" if nothing is explicitly set, as per spec */
+    if (g_value_get_string (value) == NULL)
+        g_value_set_string (value, "");
+}
+
+static gboolean
 set_nickname (TpSvcDBusProperties *self, const gchar *name,
               const GValue *value, GError **error)
 {
@@ -1713,6 +1766,7 @@ static const McdDBusProp account_properties[] = {
     { "Valid", NULL, get_valid },
     { "Enabled", set_enabled, get_enabled },
     { "Nickname", set_nickname, get_nickname },
+    { "Service", set_service, get_service  },
     { "Parameters", NULL, NULL, get_parameters_async },
     { "AutomaticPresence", set_automatic_presence, get_automatic_presence },
     { "ConnectAutomatically", set_connect_automatically, get_connect_automatically },
@@ -1866,6 +1920,114 @@ mcd_account_get_parameter (McdAccount *account, const gchar *name,
 {
     MCD_ACCOUNT_GET_CLASS (account)->get_parameter (account, name,
                                                     callback, user_data);
+}
+
+/* this callback is invoked if a parameter was changed internally by MC   *
+ * (typically by a storage plugin): if the individual parameter whose     *
+ * change we were notified of is/was valid, then the value argument will  *
+ * be non-NULL, and we should re-enter mcd_account_property_changed but   *
+ * this time with the top level "Parameters" property instead of the      *
+ * single changed parameter (this is because parameter changes are issued *
+ * en-bloc for all parameters at once)                                    */
+static void
+param_changed_cb (McdAccount *account,
+                  const GValue *value,
+                  const GError *error,
+                  gpointer data)
+{
+    gchar *name = data;
+
+    /* if it was real, kick off the en-bloc parameters update signal */
+    if (value != NULL)
+        mcd_account_property_changed (account, "Parameters");
+    else
+        DEBUG ("Unknown/unset parameter %s", name);
+
+    g_free (name);
+}
+
+/* a non-parameter property was changed internally (eg by a storage plugin) *
+ * if the property was/is known, then the value argument will be non-NULL:  *
+ * so trigger the property change process via mcd_account_changed_property  */
+static void
+property_changed_cb (TpSvcDBusProperties *self,
+                     const GValue *value,
+                     const GError *error,
+                     const gpointer data)
+{
+    McdAccount *account = MCD_ACCOUNT (self);
+    const gchar *name = data;
+
+    if (value != NULL)
+    {
+        mcd_account_changed_property (account, name, value);
+    }
+    else
+    {
+        DEBUG ("%s.%s is NULL - %s",
+               mcd_account_get_unique_name (account),
+               name,
+               (error != NULL) ? error->message : "invalid property?");
+    }
+}
+
+/* tell the account that one of its properties has changed behind its back:  *
+ * (as opposed to an external change triggered by DBus, for example) - This  *
+ * typically occurs because an internal component (such as a storage plugin) *
+ * wishes to notify us that something has changed.
+ * This will trigger an update when the callback receives the new value     */
+void
+mcd_account_property_changed (McdAccount *account, const gchar *name)
+{
+    /* parameters are handled en bloc, but first make sure it's a valid name */
+    if (g_str_has_prefix (name, "param-"))
+    {
+        gchar *key = g_strdup (name);
+        const gchar *param = name + strlen ("param-");
+
+        /* check to see if the parameter was/is a valid one */
+        mcd_account_get_parameter (account, param, param_changed_cb, key);
+    }
+    else
+    {
+        guint i = 0;
+        const McdDBusProp *prop = NULL;
+
+        /* find the property update handler */
+        for (; prop == NULL && account_properties[i].name != NULL; i++)
+        {
+            if (g_str_equal (name, account_properties[i].name))
+                prop = &account_properties[i];
+        }
+
+        /* is a known property: invoke the getter method for it (if any): *
+         * then issue the change notification (DBus signals etc) for it   */
+        if (prop != NULL)
+        {
+            TpSvcDBusProperties *self = TP_SVC_DBUS_PROPERTIES (account);
+
+            if (prop->getprop != NULL)
+            {
+                GValue value = { 0 };
+
+                prop->getprop (self, name, &value);
+                mcd_account_changed_property (account, prop->name, &value);
+                g_value_unset (&value);
+            }
+            else if (prop->async_getprop != NULL)
+            {
+                gpointer key = (gpointer) prop->name;
+
+                prop->async_getprop (self, key, property_changed_cb, key);
+            }
+            else
+            {
+                DEBUG ("Valid DBus property %s with no get methods was changed"
+                       " - cannot notify change since we cannot get its value",
+                      name);
+            }
+        }
+    }
 }
 
 typedef struct

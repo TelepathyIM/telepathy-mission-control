@@ -10,6 +10,7 @@ TWISTED_BASIC_TESTS = \
 	account-manager/enable.py \
 	account-manager/enable-auto-connect.py \
 	account-manager/nickname.py \
+	account-manager/service.py \
 	account-manager/param-types.py \
 	account-manager/presence.py \
 	account-manager/reconnect.py \

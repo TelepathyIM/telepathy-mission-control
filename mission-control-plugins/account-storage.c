@@ -90,6 +90,7 @@ enum
   ALTERED,
   TOGGLED,
   DELETED,
+  ALTERED_ONE,
   NO_SIGNAL
 };
 
@@ -167,6 +168,8 @@ class_init (gpointer klass,
    *
    * emitted if an external entity alters an account
    * in the backend the emitting plugin handles
+   * should not be emitted if a single known property has been
+   * altered, see McpAccountStorage::altered-one instead
    *
    * Should not be fired until mcp_account_storage_ready() has been called
    *
@@ -175,6 +178,25 @@ class_init (gpointer klass,
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
       g_cclosure_marshal_VOID__STRING, G_TYPE_NONE,
       1, G_TYPE_STRING);
+
+  /**
+   * McpAccountStorage::altered-one
+   * @account: the unique name of the created account
+   * @name: the name of the altered property (its key)
+   *
+   * emitted if an external entity alters an account
+   * in the backend that the emitting plugin handles.
+   *
+   * If many properties have changed, the plugin may choose to emit
+   * McpAccountStorage::altered _instead_, but should not emit both.
+   *
+   * Should not be fired until mcp_account_storage_ready() has been called
+   **/
+  signals[ALTERED] = g_signal_new ("altered-one",
+      type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+      _mcp_marshal_VOID__STRING_STRING, G_TYPE_NONE,
+      2, G_TYPE_STRING, G_TYPE_STRING);
+
 
   /**
    * McpAccountStorage::deleted
