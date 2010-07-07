@@ -775,8 +775,9 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
               gchar *param_key = g_strdup (setting->mc_name + strlen (MCPP));
 
               g_hash_table_insert (params, param_key, (gpointer) v);
-              clear_setting_data (setting);
             }
+
+          clear_setting_data (setting);
         }
 
       /* then any service specific settings */
@@ -795,8 +796,9 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
               gchar *param_key = g_strdup (setting->mc_name + strlen (MCPP));
 
               g_hash_table_insert (params, param_key, (gpointer) v);
-              clear_setting_data (setting);
             }
+
+          clear_setting_data (setting);
         }
 
       name = mcp_account_manager_get_unique_name (am, cman, proto, params);
@@ -1012,8 +1014,9 @@ _get (const McpAccountStorage *self,
               mcp_account_manager_set_value (am, acct, setting->mc_name, value);
 
               g_free (value);
-              clear_setting_data (setting);
             }
+
+          clear_setting_data (setting);
         }
 
       /* deselect any service we may have to get global settings */
@@ -1031,8 +1034,9 @@ _get (const McpAccountStorage *self,
               mcp_account_manager_set_value (am, acct, setting->mc_name, value);
 
               g_free (value);
-              clear_setting_data (setting);
             }
+
+          clear_setting_data (setting);
         }
 
       /* special case, actually two separate but related flags in SSO */
@@ -1073,10 +1077,9 @@ _delete (const McpAccountStorage *self,
       Setting *setting = setting_data (key, SETTING_MC);
 
       if (setting != NULL)
-        {
           save_setting (account, setting, NULL);
-          clear_setting_data (setting);
-        }
+
+      clear_setting_data (setting);
     }
 
   return TRUE;
@@ -1165,8 +1168,9 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
                       watch_for_updates (sso, account, setting);
 
                       g_free (value);
-                      clear_setting_data (setting);
                     }
+
+                  clear_setting_data (setting);
                 }
 
               ag_account_select_service (account, NULL);
@@ -1185,8 +1189,9 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
                       watch_for_updates (sso, account, setting);
 
                       g_free (value);
-                      clear_setting_data (setting);
                     }
+
+                  clear_setting_data (setting);
                 }
 
               /* special case, actually two separate but related flags in SSO */
