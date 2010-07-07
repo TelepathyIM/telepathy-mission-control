@@ -330,6 +330,8 @@ static void unwatch_account_keys (McdAccountManagerSso *sso,
       watch->watch = NULL;
       free_watch_data (watch);
     }
+
+  g_hash_table_remove (sso->watches, watch_key);
 }
 
 static void _sso_updated (AgAccount * account,
@@ -500,7 +502,6 @@ static void _sso_deleted (GObject *object,
           g_hash_table_remove (sso->accounts, signalled_name);
 
           /* stop watching for updates */
-          g_hash_table_remove (sso->watches, GUINT_TO_POINTER (id));
           unwatch_account_keys (sso, id);
 
           g_signal_emit_by_name (mcpa, "deleted", signalled_name);
@@ -1065,7 +1066,6 @@ _delete (const McpAccountStorage *self,
       g_hash_table_remove (sso->id_name_map, GUINT_TO_POINTER (id));
 
       /* stop watching for updates */
-      g_hash_table_remove (sso->watches, GUINT_TO_POINTER (id));
       unwatch_account_keys (sso, id);
     }
   else
