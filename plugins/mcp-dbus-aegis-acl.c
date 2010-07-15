@@ -1,5 +1,5 @@
 /*
- * An Aegis/libcreds plugin that chacks the caller's permission tokens
+ * An Aegis/libcreds plugin that checks the caller's permission tokens
  *
  * Copyright © 2010 Nokia Corporation
  * Copyright © 2010 Collabora Ltd.
