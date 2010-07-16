@@ -117,18 +117,18 @@ pid_is_permitted (const McpDBusAcl *self, const gchar *name, pid_t pid)
   if (pid != 0)
     {
       gchar *path = g_strdup_printf ("/proc/%d/exe", pid);
-      gchar *link = g_file_read_link (path, NULL);
+      gchar *executable = g_file_read_link (path, NULL);
 
-      if (link != NULL)
+      if (executable != NULL)
         {
           DBusCallerPermission *plugin = DBUS_CALLER_PERMISSION (self);
           GKeyFile *permits = plugin->permits;
 
-          DEBUG ("executable to check for permission is %s", link);
-          ok = g_key_file_get_boolean (permits, link, name, NULL);
-          DEBUG ("%s:%s = %s", link, name, ok ? "TRUE" : "FALSE");
+          DEBUG ("executable to check for permission is %s", executable);
+          ok = g_key_file_get_boolean (permits, executable, name, NULL);
+          DEBUG ("%s:%s = %s", executable, name, ok ? "TRUE" : "FALSE");
 
-          g_free (link);
+          g_free (executable);
         }
 
       g_free (path);
