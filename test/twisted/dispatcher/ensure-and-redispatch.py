@@ -54,11 +54,14 @@ def test(q, bus, mc):
     # be a closer match turns up. Regardless, we should not redispatch to it.
     # For the better client to be treated as if it's in a different process,
     # it needs its own D-Bus connection.
+    closer_match = dbus.Dictionary(text_fixed_properties)
+    closer_match[cs.CHANNEL + '.TargetID'] = 'juliet'
+    closer_match[cs.CHANNEL + '.InitiatorID'] = conn.self_ident
     better_bus = dbus.bus.BusConnection()
     q.attach_to_bus(better_bus)
     better = SimulatedClient(q, better_bus, 'BetterMatch',
             observe=[], approve=[],
-            handle=[channel.immutable], bypass_approval=False)
+            handle=[closer_match], bypass_approval=False)
     expect_client_setup(q, [better])
 
     test_channel_redispatch(q, bus, account, client, conn, channel)
