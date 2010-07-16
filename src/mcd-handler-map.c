@@ -39,6 +39,9 @@ struct _McdHandlerMapPrivate
     /* The handler for each channel currently being handled
      * owned gchar *object_path => owned gchar *unique_name */
     GHashTable *channel_processes;
+    /* The well-known bus name we invoked in channel_processes[path]
+     * owned gchar *object_path => owned gchar *well_known_name */
+    GHashTable *channel_clients;
     /* owned gchar *unique_name => malloc'd gsize, number of channels */
     GHashTable *handler_processes;
     /* owned gchar *object_path => ref'd TpChannel */
@@ -67,6 +70,10 @@ _mcd_handler_map_init (McdHandlerMap *self)
     self->priv->channel_processes = g_hash_table_new_full (g_str_hash,
                                                            g_str_equal,
                                                            g_free, g_free);
+
+    self->priv->channel_clients = g_hash_table_new_full (g_str_hash,
+                                                         g_str_equal,
+                                                         g_free, g_free);
 
     self->priv->handler_processes = g_hash_table_new_full (g_str_hash,
                                                            g_str_equal,
@@ -179,6 +186,12 @@ _mcd_handler_map_finalize (GObject *object)
         self->priv->channel_processes = NULL;
     }
 
+    if (self->priv->channel_clients != NULL)
+    {
+        g_hash_table_destroy (self->priv->channel_clients);
+        self->priv->channel_clients = NULL;
+    }
+
     if (self->priv->channel_accounts != NULL)
     {
         g_hash_table_destroy (self->priv->channel_accounts);
@@ -216,18 +229,34 @@ _mcd_handler_map_new (TpDBusDaemon *dbus_daemon)
 
 const gchar *
 _mcd_handler_map_get_handler (McdHandlerMap *self,
-                              const gchar *channel_path)
+                              const gchar *channel_path,
+                              const gchar **well_known_name)
 {
+    if (well_known_name != NULL)
+        *well_known_name = g_hash_table_lookup (self->priv->channel_clients,
+                                                channel_path);
+
     return g_hash_table_lookup (self->priv->channel_processes, channel_path);
 }
 
 void
 _mcd_handler_map_set_path_handled (McdHandlerMap *self,
                                    const gchar *channel_path,
-                                   const gchar *unique_name)
+                                   const gchar *unique_name,
+                                   const gchar *well_known_name)
 {
     const gchar *old;
     gsize *counter;
+
+    /* In case we want to re-invoke the same client later, remember its
+     * well-known name, if we know it. (In edge cases where we're recovering
+     * from an MC crash, we can only guess, so we get NULL.) */
+    if (well_known_name == NULL)
+        g_hash_table_remove (self->priv->channel_clients, channel_path);
+    else
+        g_hash_table_insert (self->priv->channel_clients,
+                             g_strdup (channel_path),
+                             g_strdup (well_known_name));
 
     old = g_hash_table_lookup (self->priv->channel_processes, channel_path);
 
@@ -314,6 +343,7 @@ void
 _mcd_handler_map_set_channel_handled (McdHandlerMap *self,
                                       TpChannel *channel,
                                       const gchar *unique_name,
+                                      const gchar *well_known_name,
                                       const gchar *account_path)
 {
     const gchar *path = tp_proxy_get_object_path (channel);
@@ -330,7 +360,8 @@ _mcd_handler_map_set_channel_handled (McdHandlerMap *self,
                       G_CALLBACK (handled_channel_invalidated_cb),
                       g_object_ref (self));
 
-    _mcd_handler_map_set_path_handled (self, path, unique_name);
+    _mcd_handler_map_set_path_handled (self, path, unique_name,
+                                       well_known_name);
 }
 
 static void

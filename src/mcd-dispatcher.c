@@ -805,7 +805,7 @@ mcd_dispatcher_client_handling_channel_cb (McdClientProxy *client,
            object_path);
 
     _mcd_handler_map_set_path_handled (self->priv->handler_map,
-                                       object_path, unique_name);
+                                       object_path, unique_name, bus_name);
 }
 
 static void mcd_dispatcher_update_client_caps (McdDispatcher *self,
@@ -1835,6 +1835,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
 {
     GList *request_as_list;
     const gchar *handler_unique;
+    const gchar *well_known_name = NULL;
     GStrv possible_handlers;
     McdClientProxy *handler;
 
@@ -1843,7 +1844,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     /* the unique name (process) of the current handler */
     handler_unique = _mcd_handler_map_get_handler (
         dispatcher->priv->handler_map,
-        mcd_channel_get_object_path (request));
+        mcd_channel_get_object_path (request), &well_known_name);
 
     /* work out how to invoke that process - any of its well-known names
      * will do */
@@ -1956,6 +1957,7 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
     McdDispatcherPrivate *priv;
     const gchar *path;
     const gchar *unique_name;
+    const gchar *well_known_name = NULL;
     gboolean requested;
     TpChannel *tp_channel;
 
@@ -1972,7 +1974,8 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
     tp_channel = mcd_channel_get_tp_channel (channel);
     g_return_if_fail (tp_channel != NULL);
 
-    unique_name = _mcd_handler_map_get_handler (priv->handler_map, path);
+    unique_name = _mcd_handler_map_get_handler (priv->handler_map, path,
+                                                &well_known_name);
 
     if (unique_name != NULL)
     {
@@ -1981,7 +1984,8 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
         _mcd_channel_set_status (channel,
                                  MCD_CHANNEL_STATUS_DISPATCHED);
         _mcd_handler_map_set_channel_handled (priv->handler_map, tp_channel,
-                                              unique_name, account_path);
+                                              unique_name, well_known_name,
+                                              account_path);
     }
     else
     {
