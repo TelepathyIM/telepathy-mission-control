@@ -1837,7 +1837,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     const gchar *handler_unique;
     const gchar *well_known_name = NULL;
     GStrv possible_handlers;
-    McdClientProxy *handler;
+    McdClientProxy *handler = NULL;
 
     request_as_list = g_list_append (NULL, request);
 
@@ -1846,33 +1846,44 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
         dispatcher->priv->handler_map,
         mcd_channel_get_object_path (request), &well_known_name);
 
-    /* work out how to invoke that process - any of its well-known names
-     * will do */
-    possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
-                                                              request_as_list,
-                                                              handler_unique);
-
-    if (possible_handlers == NULL || possible_handlers[0] == NULL)
+    if (well_known_name != NULL)
     {
-        /* The process is still running (otherwise it wouldn't be in the
-         * handler map), but none of its well-known names is still
-         * interested in channels of that sort. Oh well, not our problem.
-         */
-        DEBUG ("process %s no longer interested in this channel, not "
-               "reinvoking", handler_unique);
-        mcd_dispatcher_finish_reinvocation (request);
-        goto finally;
+        /* We know which Handler well-known name was responsible: if it
+         * still exists, we want to call HandleChannels on it */
+        handler = _mcd_client_registry_lookup (dispatcher->priv->clients,
+                                               well_known_name);
     }
-
-    handler = _mcd_client_registry_lookup (dispatcher->priv->clients,
-                                           possible_handlers[0]);
 
     if (handler == NULL)
     {
-        DEBUG ("Handler %s does not exist in client registry, not "
-               "reinvoking", possible_handlers[0]);
-        mcd_dispatcher_finish_reinvocation (request);
-        goto finally;
+        /* Failing that, maybe the Handler it was dispatched to was temporary;
+         * try to pick another Handler that can deal with it, on the same
+         * unique name (i.e. in the same process) */
+        possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
+            request_as_list, handler_unique);
+
+        if (possible_handlers == NULL || possible_handlers[0] == NULL)
+        {
+            /* The process is still running (otherwise it wouldn't be in the
+             * handler map), but none of its well-known names is still
+             * interested in channels of that sort. Oh well, not our problem.
+             */
+            DEBUG ("process %s no longer interested in this channel, not "
+                   "reinvoking", handler_unique);
+            mcd_dispatcher_finish_reinvocation (request);
+            goto finally;
+        }
+
+        handler = _mcd_client_registry_lookup (dispatcher->priv->clients,
+                                               possible_handlers[0]);
+
+        if (handler == NULL)
+        {
+            DEBUG ("Handler %s does not exist in client registry, not "
+                   "reinvoking", possible_handlers[0]);
+            mcd_dispatcher_finish_reinvocation (request);
+            goto finally;
+        }
     }
 
     /* This is deliberately not the same call as for normal dispatching,
