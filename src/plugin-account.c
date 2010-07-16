@@ -159,54 +159,54 @@ mcd_plugin_account_manager_set_dbus_daemon (McdPluginAccountManager *self,
 
 static gchar *
 get_value (const McpAccountManager *ma,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
-  return g_key_file_get_value (self->keyfile, acct, key, NULL);
+  return g_key_file_get_value (self->keyfile, account, key, NULL);
 }
 
 static void
 set_value (const McpAccountManager *ma,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key,
     const gchar *value)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
 
   if (value != NULL)
-    g_key_file_set_value (self->keyfile, acct, key, value);
+    g_key_file_set_value (self->keyfile, account, key, value);
   else
-    g_key_file_remove_key (self->keyfile, acct, key, NULL);
+    g_key_file_remove_key (self->keyfile, account, key, NULL);
 }
 
 static GStrv
 list_keys (const McpAccountManager *ma,
-           const gchar * acct)
+           const gchar * account)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
 
-  return g_key_file_get_keys (self->keyfile, acct, NULL, NULL);
+  return g_key_file_get_keys (self->keyfile, account, NULL, NULL);
 }
 
 static gboolean
 is_secret (const McpAccountManager *ma,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
 
-  return g_key_file_get_boolean (self->secrets, acct, key, NULL);
+  return g_key_file_get_boolean (self->secrets, account, key, NULL);
 }
 
 static void
 make_secret (const McpAccountManager *ma,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
-  DEBUG ("flagging %s.%s as secret", acct, key);
-  g_key_file_set_boolean (self->secrets, acct, key, TRUE);
+  DEBUG ("flagging %s.%s as secret", account, key);
+  g_key_file_set_boolean (self->secrets, account, key, TRUE);
 }
 
 static gchar *
