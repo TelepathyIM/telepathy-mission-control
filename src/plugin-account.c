@@ -25,8 +25,6 @@
 
 #include "mission-control-plugins/implementation.h"
 
-#include <stdio.h>
-#include <string.h>
 #include <glib.h>
 #include <telepathy-glib/util.h>
 
@@ -217,10 +215,10 @@ unique_name (const McpAccountManager *ma,
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
 
-  gchar *path, *seq, *ret = NULL;
+  gchar *path, *ret = NULL;
   const gchar *base = NULL;
   gchar *esc_manager, *esc_protocol, *esc_base;
-  gint i, len;
+  guint i;
   gsize base_len = sizeof (MC_ACCOUNT_DBUS_OBJECT_BASE) - 1;
   DBusGConnection *connection = tp_proxy_get_dbus_connection (self->dbusd);
 
@@ -232,19 +230,12 @@ unique_name (const McpAccountManager *ma,
   esc_manager = tp_escape_as_identifier (manager);
   esc_protocol = g_strdelimit (g_strdup (protocol), "-", '_');
   esc_base = tp_escape_as_identifier (base);
-  /* add two chars for the "/" */
-  len = strlen (esc_manager) + strlen (esc_protocol) + strlen (esc_base)
-    + base_len + 2;
-  path = g_malloc (len + 5);
-  sprintf (path, "%s%s/%s/%s", MC_ACCOUNT_DBUS_OBJECT_BASE,
-      esc_manager, esc_protocol, esc_base);
-  g_free (esc_manager);
-  g_free (esc_protocol);
-  g_free (esc_base);
-  seq = path + len;
-  for (i = 0; i < 1024; i++)
+
+  for (i = 0; i < G_MAXUINT; i++)
     {
-      sprintf (seq, "%u", i);
+      path = g_strdup_printf ("%s%s/%s/%s%u", MC_ACCOUNT_DBUS_OBJECT_BASE,
+          esc_manager, esc_protocol, esc_base, i);
+
       if (!g_key_file_has_group (self->keyfile, path + base_len) &&
           dbus_g_connection_lookup_g_object (connection, path) == NULL)
         {
@@ -252,6 +243,7 @@ unique_name (const McpAccountManager *ma,
           break;
         }
     }
+
   g_free (path);
   return ret;
 }
