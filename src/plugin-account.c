@@ -220,17 +220,14 @@ unique_name (const McpAccountManager *ma,
   gchar *path, *seq, *ret = NULL;
   const gchar *base = NULL;
   gchar *esc_manager, *esc_protocol, *esc_base;
-  GValue *value;
   gint i, len;
   gsize base_len = sizeof (MC_ACCOUNT_DBUS_OBJECT_BASE) - 1;
   DBusGConnection *connection = tp_proxy_get_dbus_connection (self->dbusd);
 
-  value = g_hash_table_lookup ((GHashTable *) params, "account");
-  if (value)
-	base = g_value_get_string (value);
+  base = tp_asv_get_string (params, "account");
 
-  if (!base)
-	base = "account";
+  if (base == NULL)
+    base = "account";
 
   esc_manager = tp_escape_as_identifier (manager);
   esc_protocol = g_strdelimit (g_strdup (protocol), "-", '_');
