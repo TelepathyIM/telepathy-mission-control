@@ -214,8 +214,6 @@ unique_name (const McpAccountManager *ma,
     const GHashTable *params)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
-
-  gchar *path, *ret = NULL;
   const gchar *base = NULL;
   gchar *esc_manager, *esc_protocol, *esc_base;
   guint i;
@@ -233,19 +231,23 @@ unique_name (const McpAccountManager *ma,
 
   for (i = 0; i < G_MAXUINT; i++)
     {
-      path = g_strdup_printf ("%s%s/%s/%s%u", MC_ACCOUNT_DBUS_OBJECT_BASE,
+      gchar *path = g_strdup_printf ("%s%s/%s/%s%u",
+          MC_ACCOUNT_DBUS_OBJECT_BASE,
           esc_manager, esc_protocol, esc_base, i);
 
       if (!g_key_file_has_group (self->keyfile, path + base_len) &&
           dbus_g_connection_lookup_g_object (connection, path) == NULL)
         {
-          ret = g_strdup (path + base_len);
-          break;
+          gchar *ret = g_strdup (path + base_len);
+
+          g_free (path);
+          return ret;
         }
+
+      g_free (path);
     }
 
-  g_free (path);
-  return ret;
+  return NULL;
 }
 
 
