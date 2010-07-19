@@ -89,7 +89,7 @@ def test(q, bus, mc):
     empathy_better_match.release_name()
     empathy_worse_match.release_name()
     test_channel_redispatch(q, bus, account, empathy, conn, channel,
-            empathy=True)
+            client_gone=True)
     channel.close()
 
 def test_channel_creation(q, bus, account, client, conn):
