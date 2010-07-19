@@ -367,7 +367,8 @@ static void _mcd_dispatch_operation_close_as_undispatchable (
     McdDispatchOperation *self, const GError *error);
 static gboolean mcd_dispatch_operation_idle_run_approvers (gpointer p);
 static void mcd_dispatch_operation_set_channel_handled_by (
-    McdDispatchOperation *self, McdChannel *channel, const gchar *unique_name);
+    McdDispatchOperation *self, McdChannel *channel, const gchar *unique_name,
+    const gchar *well_known_name);
 static gboolean _mcd_dispatch_operation_handlers_can_bypass_approval (
     McdDispatchOperation *self);
 
@@ -477,7 +478,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
             McdChannel *channel = MCD_CHANNEL (list->data);
 
             mcd_dispatch_operation_set_channel_handled_by (self, channel,
-                caller);
+                caller, NULL);
         }
 
         DEBUG ("Replying to Claim call from %s", caller);
@@ -683,7 +684,8 @@ properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 static void
 mcd_dispatch_operation_set_channel_handled_by (McdDispatchOperation *self,
                                                McdChannel *channel,
-                                               const gchar *unique_name)
+                                               const gchar *unique_name,
+                                               const gchar *well_known_name)
 {
     const gchar *path;
     TpChannel *tp_channel;
@@ -697,7 +699,7 @@ mcd_dispatch_operation_set_channel_handled_by (McdDispatchOperation *self,
     _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_DISPATCHED);
 
     _mcd_handler_map_set_channel_handled (self->priv->handler_map,
-        tp_channel, unique_name,
+        tp_channel, unique_name, well_known_name,
         _mcd_dispatch_operation_get_account_path (self));
 }
 
@@ -1816,7 +1818,7 @@ _mcd_dispatch_operation_handle_channels_cb (TpClient *client,
             }
 
             mcd_dispatch_operation_set_channel_handled_by (self, channel,
-                                                           unique_name);
+                unique_name, tp_proxy_get_bus_name (client));
         }
 
         /* emit Finished, if we haven't already; but first make a note of the

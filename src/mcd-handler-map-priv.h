@@ -67,15 +67,18 @@ struct _McdHandlerMapClass
 McdHandlerMap *_mcd_handler_map_new (TpDBusDaemon *dbus_daemon);
 
 const gchar *_mcd_handler_map_get_handler (McdHandlerMap *self,
-                                           const gchar *channel_path);
+                                           const gchar *channel_path,
+                                           const gchar **well_known_name);
 
 void _mcd_handler_map_set_path_handled (McdHandlerMap *self,
                                         const gchar *channel_path,
-                                        const gchar *unique_name);
+                                        const gchar *unique_name,
+                                        const gchar *well_known_name);
 
 void _mcd_handler_map_set_channel_handled (McdHandlerMap *self,
                                            TpChannel *channel,
                                            const gchar *unique_name,
+                                           const gchar *well_known_name,
                                            const gchar *account_path);
 
 GList *_mcd_handler_map_get_handled_channels (McdHandlerMap *self);

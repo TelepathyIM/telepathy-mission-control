@@ -805,7 +805,7 @@ mcd_dispatcher_client_handling_channel_cb (McdClientProxy *client,
            object_path);
 
     _mcd_handler_map_set_path_handled (self->priv->handler_map,
-                                       object_path, unique_name);
+                                       object_path, unique_name, bus_name);
 }
 
 static void mcd_dispatcher_update_client_caps (McdDispatcher *self,
@@ -1835,43 +1835,55 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
 {
     GList *request_as_list;
     const gchar *handler_unique;
+    const gchar *well_known_name = NULL;
     GStrv possible_handlers;
-    McdClientProxy *handler;
+    McdClientProxy *handler = NULL;
 
     request_as_list = g_list_append (NULL, request);
 
     /* the unique name (process) of the current handler */
     handler_unique = _mcd_handler_map_get_handler (
         dispatcher->priv->handler_map,
-        mcd_channel_get_object_path (request));
+        mcd_channel_get_object_path (request), &well_known_name);
 
-    /* work out how to invoke that process - any of its well-known names
-     * will do */
-    possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
-                                                              request_as_list,
-                                                              handler_unique);
-
-    if (possible_handlers == NULL || possible_handlers[0] == NULL)
+    if (well_known_name != NULL)
     {
-        /* The process is still running (otherwise it wouldn't be in the
-         * handler map), but none of its well-known names is still
-         * interested in channels of that sort. Oh well, not our problem.
-         */
-        DEBUG ("process %s no longer interested in this channel, not "
-               "reinvoking", handler_unique);
-        mcd_dispatcher_finish_reinvocation (request);
-        goto finally;
+        /* We know which Handler well-known name was responsible: if it
+         * still exists, we want to call HandleChannels on it */
+        handler = _mcd_client_registry_lookup (dispatcher->priv->clients,
+                                               well_known_name);
     }
-
-    handler = _mcd_client_registry_lookup (dispatcher->priv->clients,
-                                           possible_handlers[0]);
 
     if (handler == NULL)
     {
-        DEBUG ("Handler %s does not exist in client registry, not "
-               "reinvoking", possible_handlers[0]);
-        mcd_dispatcher_finish_reinvocation (request);
-        goto finally;
+        /* Failing that, maybe the Handler it was dispatched to was temporary;
+         * try to pick another Handler that can deal with it, on the same
+         * unique name (i.e. in the same process) */
+        possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
+            request_as_list, handler_unique);
+
+        if (possible_handlers == NULL || possible_handlers[0] == NULL)
+        {
+            /* The process is still running (otherwise it wouldn't be in the
+             * handler map), but none of its well-known names is still
+             * interested in channels of that sort. Oh well, not our problem.
+             */
+            DEBUG ("process %s no longer interested in this channel, not "
+                   "reinvoking", handler_unique);
+            mcd_dispatcher_finish_reinvocation (request);
+            goto finally;
+        }
+
+        handler = _mcd_client_registry_lookup (dispatcher->priv->clients,
+                                               possible_handlers[0]);
+
+        if (handler == NULL)
+        {
+            DEBUG ("Handler %s does not exist in client registry, not "
+                   "reinvoking", possible_handlers[0]);
+            mcd_dispatcher_finish_reinvocation (request);
+            goto finally;
+        }
     }
 
     /* This is deliberately not the same call as for normal dispatching,
@@ -1956,6 +1968,7 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
     McdDispatcherPrivate *priv;
     const gchar *path;
     const gchar *unique_name;
+    const gchar *well_known_name = NULL;
     gboolean requested;
     TpChannel *tp_channel;
 
@@ -1972,7 +1985,8 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
     tp_channel = mcd_channel_get_tp_channel (channel);
     g_return_if_fail (tp_channel != NULL);
 
-    unique_name = _mcd_handler_map_get_handler (priv->handler_map, path);
+    unique_name = _mcd_handler_map_get_handler (priv->handler_map, path,
+                                                &well_known_name);
 
     if (unique_name != NULL)
     {
@@ -1981,7 +1995,8 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
         _mcd_channel_set_status (channel,
                                  MCD_CHANNEL_STATUS_DISPATCHED);
         _mcd_handler_map_set_channel_handled (priv->handler_map, tp_channel,
-                                              unique_name, account_path);
+                                              unique_name, well_known_name,
+                                              account_path);
     }
     else
     {

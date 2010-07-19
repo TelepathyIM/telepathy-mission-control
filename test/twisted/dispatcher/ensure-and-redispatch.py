@@ -41,31 +41,54 @@ def test(q, bus, mc):
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
         }, signature='sv')
 
-    client = SimulatedClient(q, bus, 'Empathy',
+    # We have more than one Client "head" on the same unique name, to test
+    # fd.o #24645 - we want the same "head" to be reinvoked if at all possible
+
+    # This one is first in alphabetical order, is discovered first, and can
+    # handle all channels, but is not the one we want
+    empathy_worse_match = SimulatedClient(q, bus, 'A.Temporary.Handler',
+            observe=[], approve=[],
+            handle=[[]], bypass_approval=False)
+
+    # This is the one we actually want
+    empathy = SimulatedClient(q, bus, 'Empathy',
             observe=[text_fixed_properties], approve=[text_fixed_properties],
             handle=[text_fixed_properties], bypass_approval=False)
 
-    # wait for MC to download the properties
-    expect_client_setup(q, [client])
+    # this one is a closer match, but not the preferred handler
+    closer_match = dbus.Dictionary(text_fixed_properties)
+    closer_match[cs.CHANNEL + '.TargetID'] = 'juliet'
+    empathy_better_match = SimulatedClient(q, bus, 'Empathy.BetterMatch',
+            observe=[], approve=[],
+            handle=[closer_match], bypass_approval=False)
 
-    channel = test_channel_creation(q, bus, account, client, conn)
+    # wait for MC to download the properties
+    expect_client_setup(q, [empathy_worse_match, empathy,
+        empathy_better_match])
+
+    channel = test_channel_creation(q, bus, account, empathy, conn)
 
     # After the channel has been dispatched, a handler that would normally
     # be a closer match turns up. Regardless, we should not redispatch to it.
     # For the better client to be treated as if it's in a different process,
     # it needs its own D-Bus connection.
+    closer_match = dbus.Dictionary(text_fixed_properties)
+    closer_match[cs.CHANNEL + '.TargetID'] = 'juliet'
+    closer_match[cs.CHANNEL + '.InitiatorID'] = conn.self_ident
     better_bus = dbus.bus.BusConnection()
     q.attach_to_bus(better_bus)
     better = SimulatedClient(q, better_bus, 'BetterMatch',
             observe=[], approve=[],
-            handle=[channel.immutable], bypass_approval=False)
+            handle=[closer_match], bypass_approval=False)
     expect_client_setup(q, [better])
 
-    test_channel_redispatch(q, bus, account, client, conn, channel)
-    test_channel_redispatch(q, bus, account, client, conn, channel,
+    test_channel_redispatch(q, bus, account, empathy, conn, channel)
+    test_channel_redispatch(q, bus, account, empathy, conn, channel,
             ungrateful_handler=True)
-    client.release_name()
-    test_channel_redispatch(q, bus, account, client, conn, channel,
+    empathy.release_name()
+    empathy_better_match.release_name()
+    empathy_worse_match.release_name()
+    test_channel_redispatch(q, bus, account, empathy, conn, channel,
             client_gone=True)
     channel.close()
 

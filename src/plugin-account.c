@@ -25,8 +25,6 @@
 
 #include "mission-control-plugins/implementation.h"
 
-#include <stdio.h>
-#include <string.h>
 #include <glib.h>
 #include <telepathy-glib/util.h>
 
@@ -159,54 +157,54 @@ mcd_plugin_account_manager_set_dbus_daemon (McdPluginAccountManager *self,
 
 static gchar *
 get_value (const McpAccountManager *ma,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
-  return g_key_file_get_value (self->keyfile, acct, key, NULL);
+  return g_key_file_get_value (self->keyfile, account, key, NULL);
 }
 
 static void
 set_value (const McpAccountManager *ma,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key,
     const gchar *value)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
 
   if (value != NULL)
-    g_key_file_set_value (self->keyfile, acct, key, value);
+    g_key_file_set_value (self->keyfile, account, key, value);
   else
-    g_key_file_remove_key (self->keyfile, acct, key, NULL);
+    g_key_file_remove_key (self->keyfile, account, key, NULL);
 }
 
 static GStrv
 list_keys (const McpAccountManager *ma,
-           const gchar * acct)
+           const gchar * account)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
 
-  return g_key_file_get_keys (self->keyfile, acct, NULL, NULL);
+  return g_key_file_get_keys (self->keyfile, account, NULL, NULL);
 }
 
 static gboolean
 is_secret (const McpAccountManager *ma,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
 
-  return g_key_file_get_boolean (self->secrets, acct, key, NULL);
+  return g_key_file_get_boolean (self->secrets, account, key, NULL);
 }
 
 static void
 make_secret (const McpAccountManager *ma,
-    const gchar *acct,
+    const gchar *account,
     const gchar *key)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
-  DEBUG ("flagging %s.%s as secret", acct, key);
-  g_key_file_set_boolean (self->secrets, acct, key, TRUE);
+  DEBUG ("flagging %s.%s as secret", account, key);
+  g_key_file_set_boolean (self->secrets, account, key, TRUE);
 }
 
 static gchar *
@@ -216,47 +214,40 @@ unique_name (const McpAccountManager *ma,
     const GHashTable *params)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
-
-  gchar *path, *seq, *ret = NULL;
   const gchar *base = NULL;
   gchar *esc_manager, *esc_protocol, *esc_base;
-  GValue *value;
-  gint i, len;
+  guint i;
   gsize base_len = sizeof (MC_ACCOUNT_DBUS_OBJECT_BASE) - 1;
   DBusGConnection *connection = tp_proxy_get_dbus_connection (self->dbusd);
 
-  value = g_hash_table_lookup ((GHashTable *) params, "account");
-  if (value)
-	base = g_value_get_string (value);
+  base = tp_asv_get_string (params, "account");
 
-  if (!base)
-	base = "account";
+  if (base == NULL)
+    base = "account";
 
   esc_manager = tp_escape_as_identifier (manager);
   esc_protocol = g_strdelimit (g_strdup (protocol), "-", '_');
   esc_base = tp_escape_as_identifier (base);
-  /* add two chars for the "/" */
-  len = strlen (esc_manager) + strlen (esc_protocol) + strlen (esc_base)
-    + base_len + 2;
-  path = g_malloc (len + 5);
-  sprintf (path, "%s%s/%s/%s", MC_ACCOUNT_DBUS_OBJECT_BASE,
-      esc_manager, esc_protocol, esc_base);
-  g_free (esc_manager);
-  g_free (esc_protocol);
-  g_free (esc_base);
-  seq = path + len;
-  for (i = 0; i < 1024; i++)
+
+  for (i = 0; i < G_MAXUINT; i++)
     {
-      sprintf (seq, "%u", i);
+      gchar *path = g_strdup_printf ("%s%s/%s/%s%u",
+          MC_ACCOUNT_DBUS_OBJECT_BASE,
+          esc_manager, esc_protocol, esc_base, i);
+
       if (!g_key_file_has_group (self->keyfile, path + base_len) &&
           dbus_g_connection_lookup_g_object (connection, path) == NULL)
         {
-          ret = g_strdup (path + base_len);
-          break;
+          gchar *ret = g_strdup (path + base_len);
+
+          g_free (path);
+          return ret;
         }
+
+      g_free (path);
     }
-  g_free (path);
-  return ret;
+
+  return NULL;
 }
 
 
