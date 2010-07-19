@@ -1,7 +1,35 @@
 telepathy-mission-control 5.5.3 (UNRELEASED)
 ============================================
 
-...
+Dependencies:
+
+* telepathy-glib 0.11.9 is now required
+
+Enhancements:
+
+* Added support for the new Account.Service property in the MC core code and
+  the SSO plugin (fledermaus)
+
+* Added support for the Service property to mc-tool (wjt)
+
+* Made account storage plugins able to notify MC that a single account has
+  changed externally (fledermaus)
+
+* Added support for plugins that check D-Bus calls' callers against an ACL
+  (fledermaus)
+
+Fixes:
+
+* Treat calls ended locally with No_Answer as missed (wjt)
+
+* fd.o #24645: when an existing channel is returned by EnsureChannel and its
+  handler has more than one Handler bus name/object path sharing a unique name,
+  MC now tries harder to invoke the same one as before (smcv)
+
+* Disable accounts when they're deleted by an account storage plugin
+  (fledermaus)
+
+* Attempt re-connection of failed connections less rapidly (wjt)
 
 telepathy-mission-control 5.5.2 (2010-06-16)
 ============================================
