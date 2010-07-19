@@ -158,7 +158,7 @@ struct _McpAccountStorageIface
       const McpAccountStorage *self,
       const gchar *account);
 
-  guint (*get_restrictions) (
+  TpStorageRestrictionFlags (*get_restrictions) (
       const McpAccountStorage *self,
       const gchar *account);
 };
@@ -742,7 +742,7 @@ mcp_account_storage_get_additional_info (const McpAccountStorage *storage,
  * Returns: a bitmask with the restrictions of this
  * account storage.
  */
-guint
+TpStorageRestrictionFlags
 mcp_account_storage_get_restrictions (const McpAccountStorage *storage,
     const gchar *account)
 {

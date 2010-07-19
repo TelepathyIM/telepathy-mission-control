@@ -68,7 +68,7 @@ static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
 static void account_avatar_iface_init (TpSvcAccountInterfaceAvatarClass *iface,
 				       gpointer iface_data);
 static void account_storage_iface_init (
-    McSvcAccountInterfaceStorageClass *iface,
+    TpSvcAccountInterfaceStorageClass *iface,
     gpointer iface_data);
 
 static const McdDBusProp account_properties[];
@@ -1819,7 +1819,7 @@ static void
 get_storage_restrictions (TpSvcDBusProperties *self,
     const gchar *name, GValue *value)
 {
-  guint flags;
+  TpStorageRestrictionFlags flags;
   McdAccount *account = MCD_ACCOUNT (self);
   McdAccountPrivate *priv = account->priv;
 
@@ -1875,7 +1875,7 @@ account_avatar_iface_init (TpSvcAccountInterfaceAvatarClass *iface,
 }
 
 static void
-account_storage_iface_init (McSvcAccountInterfaceStorageClass *iface,
+account_storage_iface_init (TpSvcAccountInterfaceStorageClass *iface,
                              gpointer iface_data)
 {
 }

@@ -37,7 +37,6 @@
 #include "_gen/svc-Account_Interface_ChannelRequests.h"
 #include "_gen/svc-Account_Interface_Compat.h"
 #include "_gen/svc-Account_Interface_Conditions.h"
-#include "_gen/svc-Account_Interface_Storage.h"
 #include "_gen/svc-Account_Interface_Stats.h"
 
 G_GNUC_INTERNAL void _mcd_account_maybe_autoconnect (McdAccount *account);

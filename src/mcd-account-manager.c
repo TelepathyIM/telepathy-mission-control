@@ -59,6 +59,7 @@
 #include "mcd-dbusprop.h"
 #include "mcd-master-priv.h"
 #include "mcd-misc.h"
+#include "mission-control-plugins/mission-control-plugins.h"
 #include "mission-control-plugins/implementation.h"
 #include "plugin-account.h"
 #include "plugin-loader.h"
