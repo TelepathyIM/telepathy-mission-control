@@ -1056,7 +1056,6 @@ _mcd_account_delete (McdAccount *account,
 {
     McdAccountPrivate *priv = account->priv;
     gchar *data_dir_str;
-    GDir *data_dir;
     GError *kf_error = NULL;
     AccountDeleteData *delete_data;
 
@@ -1079,21 +1078,29 @@ _mcd_account_delete (McdAccount *account,
     }
 
     data_dir_str = get_account_data_path (priv);
-    data_dir = g_dir_open (data_dir_str, 0, NULL);
-    if (data_dir)
+
+    if (data_dir_str != NULL)
     {
-        const gchar *filename;
-        while ((filename = g_dir_read_name (data_dir)) != NULL)
+        GDir *data_dir = g_dir_open (data_dir_str, 0, NULL);
+
+        if (data_dir)
         {
-            gchar *path;
-            path = g_build_filename (data_dir_str, filename, NULL);
-            g_remove (path);
-            g_free (path);
+            const gchar *filename;
+
+            while ((filename = g_dir_read_name (data_dir)) != NULL)
+            {
+                gchar *path = g_build_filename (data_dir_str, filename, NULL);
+
+                g_remove (path);
+                g_free (path);
+            }
+
+            g_dir_close (data_dir);
+            g_rmdir (data_dir_str);
         }
-        g_dir_close (data_dir);
-        g_rmdir (data_dir_str);
+
+        g_free (data_dir_str);
     }
-    g_free (data_dir_str);
 
 #if ENABLE_GNOME_KEYRING
     /* Delete any secret parameters from the keyring */
