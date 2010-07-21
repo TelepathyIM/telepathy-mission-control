@@ -470,8 +470,7 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
     {
         McpAccountStorage *p = store->data;
 
-        DEBUG ("%s -> mcp_account_storage_delete",
-               mcp_account_storage_name (p));
+        DEBUG ("MCP:%s -> remove %s", mcp_account_storage_name (p), name);
 
         /* don't call the plugin who informed us of deletion, it should  *
          * already have purged its own store and we don't want to risk   *
@@ -724,8 +723,7 @@ on_account_removed (McdAccount *account, McdAccountManager *account_manager)
     {
         McpAccountStorage *plugin = store->data;
 
-        DEBUG ("plugin %s; removing %s",
-               mcp_account_storage_name (plugin), name);
+        DEBUG ("MCP:%s -> remove %s", mcp_account_storage_name (plugin), name);
         mcp_account_storage_delete (plugin, MCP_ACCOUNT_MANAGER (pa), name, NULL);
     }
 
@@ -1349,13 +1347,14 @@ write_conf (gpointer userdata)
 
                 if (done)
                 {
-                    DEBUG ("%s -> mcp_account_storage_delete(%s)", pn, group);
+                    DEBUG ("MCP:%s -> delete %s.%s", pn, group, set);
                     mcp_account_storage_delete (plugin, ma, group, set);
                 }
                 else
                 {
-                    DEBUG ("%s -> mcp_account_storage_set(%s)", pn, group);
                     done = mcp_account_storage_set (plugin, ma, group, set, val);
+                    DEBUG ("MCP:%s -> %s %s.%s",
+                           pn, done ? "store" : "ignore", group, set);
                 }
             }
         }
@@ -1783,14 +1782,17 @@ update_one_account (McdAccountManager *account_manager,
             McpAccountStorage *plugin = store->data;
             const gchar *pname = mcp_account_storage_name (plugin);
 
-            DEBUG ("writing %s.%s to %s [prio: %d] %s",
-                   account_name, set, pname, mcp_account_storage_priority (plugin),
-                   done ? "DELETE" : "STORE");
-
             if (done)
+            {
+                DEBUG ("MCP:%s -> delete %s.%s", pname, account_name, set);
                 mcp_account_storage_delete (plugin, ma, account_name, set);
+            }
             else
+            {
                 done = mcp_account_storage_set (plugin, ma, account_name, set, val);
+                DEBUG ("MCP:%s -> %s %s.%s",
+                       pname, done ? "store" : "ignore", account_name, set);
+            }
         }
     }
 
