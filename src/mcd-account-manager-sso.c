@@ -141,10 +141,17 @@ setting_data (const gchar *name, SettingType type)
   prefix = (type == SETTING_MC) ? MCPP : AGPP;
 
   if (!g_str_has_prefix (name, prefix))
-    return NULL;
+    { /* a non-parameter setting */
+      parameter.mc_name = g_strdup (name);
+      parameter.ag_name = g_strdup (name);
+    }
+  else
+    { /* a setting that is a parameter on both sides (AG & MC) */
+      const guint plength = strlen (prefix);
 
-  parameter.mc_name = g_strdup_printf ("%s%s", MCPP, name + strlen (prefix));
-  parameter.ag_name = g_strdup_printf ("%s%s", AGPP, name + strlen (prefix));
+      parameter.mc_name = g_strdup_printf ("%s%s", MCPP, name + plength);
+      parameter.ag_name = g_strdup_printf ("%s%s", AGPP, name + plength);
+    }
 
   return &parameter;
 }
@@ -889,13 +896,18 @@ _set (const McpAccountStorage *self,
   AgAccount *account = get_ag_account (sso, am, acct, &id);
   Setting *setting = NULL;
 
+  /* can't store a setting with no name */
+  g_return_val_if_fail (key != NULL, FALSE);
+
   /* we no longer create accounts in libaccount: either an account exists *
    * in libaccount as a result of some 3rd party intervention, or it is   *
    * not an account that this plugin should ever concern itself with      */
-  g_return_val_if_fail (key != NULL, FALSE);
+
 
   if (account != NULL)
     setting = setting_data (key, SETTING_MC);
+  else
+    return FALSE;
 
   if (setting != NULL)
     {
@@ -906,7 +918,6 @@ _set (const McpAccountStorage *self,
 
           DEBUG ("setting enabled flag: '%d'", on);
           _sso_account_enable (account, NULL, on);
-
         }
       else
         {
@@ -915,12 +926,11 @@ _set (const McpAccountStorage *self,
 
       sso->save = TRUE;
       clear_setting_data (setting);
-
-      return TRUE;
     }
 
-  /* no account and we couldn't/wouldn't create one */
-  return FALSE;
+  /* whether or not we stored this value, if we got this far it's our *
+   * setting and no-one else is allowed to claim it: so return TRUE   */
+  return TRUE;
 }
 
 static gboolean
