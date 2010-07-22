@@ -1836,7 +1836,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     GList *request_as_list;
     const gchar *handler_unique;
     const gchar *well_known_name = NULL;
-    GStrv possible_handlers;
+    GStrv possible_handlers = NULL;
     McdClientProxy *handler = NULL;
 
     request_as_list = g_list_append (NULL, request);
