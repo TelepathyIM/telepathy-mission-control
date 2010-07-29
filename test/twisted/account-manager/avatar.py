@@ -21,7 +21,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async
+        call_async, assertEquals
 from mctest import exec_test, create_fakecm_account, enable_fakecm_account
 import constants as cs
 
@@ -86,8 +86,8 @@ def test(q, bus, mc):
             interface=cs.CONN_IFACE_AVATARS, method='RequestAvatars',
             args=[[conn.self_handle]],
             handled=False)
-
     q.dbus_return(e.message, signature='')
+
     q.dbus_emit(conn.object_path, cs.CONN_IFACE_AVATARS,
             'AvatarRetrieved', conn.self_handle, 'CCCC',
             dbus.ByteArray('CCCC'), 'image/svg', signature='usays')
@@ -96,6 +96,17 @@ def test(q, bus, mc):
 
     assert account_props.Get(cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
             byte_arrays=True) == ('CCCC', 'image/svg')
+
+    # empty avatar tests
+    conn.forget_avatar()
+    q.dbus_emit(conn.object_path, cs.CONN_IFACE_AVATARS, 'AvatarUpdated',
+                conn.self_handle, '', signature='us')
+    q.expect('dbus-method-call', method='GetKnownAvatarTokens')
+    q.expect('dbus-signal', path=account.object_path,
+             interface=cs.ACCOUNT_IFACE_AVATAR, signal='AvatarChanged')
+
+    assertEquals(account_props.Get(cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
+                                   byte_arrays=False), ([], ''))
 
 if __name__ == '__main__':
     exec_test(test, {})

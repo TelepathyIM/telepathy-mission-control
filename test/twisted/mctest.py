@@ -277,6 +277,9 @@ class SimulatedConnection(object):
         self.presence = dbus.Struct((cs.PRESENCE_TYPE_OFFLINE, 'offline', ''),
                 signature='uss')
 
+    def forget_avatar(self):
+        self.avatar = (dbus.ByteArray(''), '')
+
     # not actually very relevant for MC so hard-code 0 for now
     def GetAliasFlags(self, e):
         self.q.dbus_return(e.message, 0, signature='u')
