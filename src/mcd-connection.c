@@ -699,6 +699,7 @@ avatars_clear_avatar_cb (TpConnection *proxy, const GError *error,
     }
 }
 
+/* this signal handler only deals with our own avatar updates */
 static void
 on_avatar_retrieved (TpConnection *proxy, guint contact_id, const gchar *token,
 		     const GArray *avatar, const gchar *mime_type,
@@ -735,6 +736,54 @@ avatars_request_avatars_cb (TpConnection *proxy, const GError *error,
 }
 
 static void
+avatars_known_token_cb (TpConnection *proxy, GHashTable *tokens,
+                        const GError *error, gpointer user_data,
+                        GObject *weak_object)
+{
+    McdConnection *connection = MCD_CONNECTION (weak_object);
+    McdConnectionPrivate *priv = connection->priv;
+    const gchar *token;
+    TpHandle self_handle = tp_connection_get_self_handle (proxy);
+    gpointer handle = user_data;
+
+    if (error)
+    {
+        g_warning ("%s: error: %s", G_STRFUNC, error->message);
+        return;
+    }
+
+    if (handle != GUINT_TO_POINTER (self_handle))
+        return;
+
+    token = g_hash_table_lookup (tokens, handle);
+
+    /* we have a token and it is not the empty string (ie no avatar) */
+    if (token != NULL && *token != '\0')
+    {
+        GArray handles = { (gchar *) &handle, 1 };
+
+        /* if we have an avatar, set off the request to fetch it: this will *
+           get picked up as we connect to the retrieved signal elsewhere    */
+        tp_cli_connection_interface_avatars_call_request_avatars (priv->tp_conn,
+                                                                  -1,
+                                                                  &handles,
+                                                                  avatars_request_avatars_cb,
+                                                                  NULL,
+                                                                  NULL,
+                                                                  weak_object);
+    }
+    else
+    {   /* no avatar => will never get a retrieved signal - remove manually */
+        GError *avatar_error = NULL;
+        McdAccount *account = mcd_connection_get_account (connection);
+
+        if (!_mcd_account_set_avatar (account, NULL, "", "", &avatar_error))
+            DEBUG ("Attempt to clear avatar failed: %s", avatar_error->message);
+    }
+}
+
+/* this signal handler only deals with our own avatar updates */
+static void
 on_avatar_updated (TpConnection *proxy, guint contact_id, const gchar *token,
 		   gpointer user_data, GObject *weak_object)
 {
@@ -752,16 +801,16 @@ on_avatar_updated (TpConnection *proxy, guint contact_id, const gchar *token,
 
     if (!prev_token || strcmp (token, prev_token) != 0)
     {
-    	GArray handles;
-        DEBUG ("avatar has changed");
-	/* the avatar has changed, let's retrieve the new one */
-	handles.len = 1;
-	handles.data = (gchar *)&contact_id;
-	tp_cli_connection_interface_avatars_call_request_avatars (priv->tp_conn, -1,
-								  &handles,
-								  avatars_request_avatars_cb,
-								  priv, NULL,
-								  (GObject *)connection);
+        GArray handles = { (gchar *) &contact_id, 1 };
+
+        DEBUG ("avatar has changed or been erased");
+        tp_cli_connection_interface_avatars_call_get_known_avatar_tokens (priv->tp_conn,
+                                                                          -1,
+                                                                          &handles,
+                                                                          avatars_known_token_cb,
+                                                                          GUINT_TO_POINTER (contact_id),
+                                                                          NULL,
+                                                                          (GObject *)connection);
     }
     g_free (prev_token);
 }
