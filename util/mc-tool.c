@@ -60,7 +60,7 @@ show_help (gchar * err)
 	    "    %1$s request <account name> <presence status> [<message>]\n"
 	    "    %1$s auto-connect <account name> [(on|off)]\n"
 	    "    %1$s remove <account name>\n"
-	    "  where <param> matches (int|uint|bool|string):<key>=<value>\n",
+	    "  where <param> matches (int|uint|bool|string|path):<key>=<value>\n",
 	    app_name);
 
     if (err)
@@ -234,6 +234,12 @@ set_param (GHashTable *parameters,
 	g_value_set_string (gvalue, value);
 	ret = TRUE;
     }
+    else if (strcmp (type, "path") == 0)
+    {
+	g_value_init (gvalue, DBUS_TYPE_G_OBJECT_PATH);
+	g_value_set_boxed (gvalue, value);
+	ret = TRUE;
+    }
 
     if (ret)
 	g_hash_table_replace (parameters, g_strdup (key), gvalue);
@@ -268,6 +274,10 @@ show_param (gchar const *key, GValue *value)
     else if (G_VALUE_HOLDS_BOOLEAN (value)) {
 	type = "bool";
 	decoded = g_strdup (g_value_get_boolean (value) ? "true" : "false");
+    }
+    else if (G_VALUE_HOLDS (value, DBUS_TYPE_G_OBJECT_PATH)) {
+	type = "path";
+	decoded = g_value_dup_boxed (value);
     }
     else {
 	type = G_VALUE_TYPE_NAME (value);
