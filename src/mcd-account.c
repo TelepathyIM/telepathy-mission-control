@@ -1767,17 +1767,35 @@ get_normalized_name (TpSvcDBusProperties *self,
     mcd_account_get_string_val (account, name, value);
 }
 
+static McpAccountStorage *
+get_storage_plugin (McdAccount *account)
+{
+  McdAccountPrivate *priv = account->priv;
+
+  if (priv->storage_plugin != NULL)
+    return priv->storage_plugin;
+
+   priv->storage_plugin =  mcd_account_manager_get_storage_plugin (
+       priv->account_manager, account);
+
+   if (priv->storage_plugin != NULL)
+     g_object_ref (priv->storage_plugin);
+
+   return priv->storage_plugin;
+}
+
 static void
 get_storage_provider (TpSvcDBusProperties *self,
     const gchar *name, GValue *value)
 {
   McdAccount *account = MCD_ACCOUNT (self);
-  McdAccountPrivate *priv = account->priv;
-  const gchar *provider = mcp_account_storage_provider (priv->storage_plugin);
+  McpAccountStorage *storage_plugin = get_storage_plugin (account);
 
   g_value_init (value, G_TYPE_STRING);
 
-  g_value_set_string (value, provider);
+  g_return_if_fail (storage_plugin != NULL);
+
+  g_value_set_string (value, mcp_account_storage_provider (storage_plugin));
 }
 
 static void
@@ -1786,13 +1804,15 @@ get_storage_identifier (TpSvcDBusProperties *self,
 {
 
   McdAccount *account = MCD_ACCOUNT (self);
-  McdAccountPrivate *priv = account->priv;
+  McpAccountStorage *storage_plugin = get_storage_plugin (account);
   GValue identifier = { 0 };
 
-  mcp_account_storage_get_identifier (
-      priv->storage_plugin, priv->unique_name, &identifier);
-
   g_value_init (value, G_TYPE_VALUE);
+
+  g_return_if_fail (storage_plugin != NULL);
+
+  mcp_account_storage_get_identifier (
+      storage_plugin, account->priv->unique_name, &identifier);
 
   g_value_set_boxed (value, &identifier);
 
@@ -1805,12 +1825,14 @@ get_storage_specific_info (TpSvcDBusProperties *self,
 {
   GHashTable *storage_specific_info;
   McdAccount *account = MCD_ACCOUNT (self);
-  McdAccountPrivate *priv = account->priv;
-
-  storage_specific_info = mcp_account_storage_get_additional_info (
-      priv->storage_plugin, priv->unique_name);
+  McpAccountStorage *storage_plugin = get_storage_plugin (account);
 
   g_value_init (value, TP_HASH_TYPE_STRING_VARIANT_MAP);
+
+  g_return_if_fail (storage_plugin != NULL);
+
+  storage_specific_info = mcp_account_storage_get_additional_info (
+      storage_plugin, account->priv->unique_name);
 
   g_value_take_boxed (value, storage_specific_info);
 }
@@ -1821,12 +1843,14 @@ get_storage_restrictions (TpSvcDBusProperties *self,
 {
   TpStorageRestrictionFlags flags;
   McdAccount *account = MCD_ACCOUNT (self);
-  McdAccountPrivate *priv = account->priv;
-
-  flags = mcp_account_storage_get_restrictions (priv->storage_plugin,
-      priv->unique_name);
+  McpAccountStorage *storage_plugin = get_storage_plugin (account);
 
   g_value_init (value, G_TYPE_UINT);
+
+  g_return_if_fail (storage_plugin != NULL);
+
+  flags = mcp_account_storage_get_restrictions (storage_plugin,
+      account->priv->unique_name);
 
   g_value_set_uint (value, flags);
 }
@@ -2722,10 +2746,6 @@ mcd_account_setup (McdAccount *account)
         g_error ("Could not find internal data");
         goto broken_account;
     }
-
-    priv->storage_plugin = g_object_ref (
-        mcd_account_manager_get_storage_plugin (
-            priv->account_manager, account));
 
     priv->manager_name =
 	g_key_file_get_string (priv->keyfile, priv->unique_name,
