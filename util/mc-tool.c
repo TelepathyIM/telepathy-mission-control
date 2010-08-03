@@ -45,9 +45,9 @@ show_help (gchar * err)
 
     printf ("Usage:\n"
 	    "    %1$s list\n"
-	    "    %1$s add <profile> <display name> [(int|bool|string):<key>=<value> ...]\n"
-	    "    %1$s add <manager>/<protocol> <display name> [(int|bool|string):<key>=<value> ...]\n"
-	    "    %1$s update <account name> [(int|uint|bool|string):<key>=<value>|clear:key] ...\n"
+	    "    %1$s add <profile> <display name> [<param> ...]\n"
+	    "    %1$s add <manager>/<protocol> <display name> [<param> ...]\n"
+	    "    %1$s update <account name> [<param>|clear:key] ...\n"
 	    "    %1$s display <account name> <display name>\n"
 	    "    %1$s nick <account name> <nick name>\n"
 	    "    %1$s service <account name> <service name>\n"
@@ -59,7 +59,8 @@ show_help (gchar * err)
 	    "    %1$s auto-presence <account name> <presence status> [<message>]\n"
 	    "    %1$s request <account name> <presence status> [<message>]\n"
 	    "    %1$s auto-connect <account name> [(on|off)]\n"
-	    "    %1$s remove <account name>\n",
+	    "    %1$s remove <account name>\n"
+	    "  where <param> matches (int|uint|bool|string):<key>=<value>\n",
 	    app_name);
 
     if (err)
