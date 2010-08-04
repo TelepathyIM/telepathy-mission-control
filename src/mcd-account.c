@@ -1793,9 +1793,10 @@ get_storage_provider (TpSvcDBusProperties *self,
 
   g_value_init (value, G_TYPE_STRING);
 
-  g_return_if_fail (storage_plugin != NULL);
-
-  g_value_set_string (value, mcp_account_storage_provider (storage_plugin));
+  if (storage_plugin != NULL)
+    g_value_set_string (value, mcp_account_storage_provider (storage_plugin));
+  else
+    g_value_set_static_string (value, "");
 }
 
 static void
@@ -1809,10 +1810,17 @@ get_storage_identifier (TpSvcDBusProperties *self,
 
   g_value_init (value, G_TYPE_VALUE);
 
-  g_return_if_fail (storage_plugin != NULL);
+  if (storage_plugin != NULL)
+    {
+      mcp_account_storage_get_identifier (
+          storage_plugin, account->priv->unique_name, &identifier);
+    }
+  else
+    {
+      g_value_init (&identifier, G_TYPE_UINT);
 
-  mcp_account_storage_get_identifier (
-      storage_plugin, account->priv->unique_name, &identifier);
+      g_value_set_uint (&identifier, 0);
+    }
 
   g_value_set_boxed (value, &identifier);
 
@@ -1829,10 +1837,11 @@ get_storage_specific_info (TpSvcDBusProperties *self,
 
   g_value_init (value, TP_HASH_TYPE_STRING_VARIANT_MAP);
 
-  g_return_if_fail (storage_plugin != NULL);
-
-  storage_specific_info = mcp_account_storage_get_additional_info (
-      storage_plugin, account->priv->unique_name);
+  if (storage_plugin != NULL)
+    storage_specific_info = mcp_account_storage_get_additional_info (
+        storage_plugin, account->priv->unique_name);
+  else
+    storage_specific_info = g_hash_table_new (g_str_hash, g_str_equal);
 
   g_value_take_boxed (value, storage_specific_info);
 }
