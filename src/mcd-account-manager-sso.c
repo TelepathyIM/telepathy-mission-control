@@ -23,6 +23,8 @@
 #include "mcd-account-manager-sso.h"
 #include "mcd-debug.h"
 
+#include <telepathy-glib/util.h>
+
 #include <string.h>
 #include <ctype.h>
 
@@ -44,6 +46,7 @@
 #define PLUGIN_NAME "maemo-libaccounts"
 #define PLUGIN_DESCRIPTION \
   "Account storage in the Maemo SSO store via libaccounts-glib API"
+#define PLUGIN_PROVIDER "org.maemo.Telepathy.Account.Storage.LibAccounts"
 
 #define MCPP "param-"
 #define AGPP "parameters/"
@@ -66,6 +69,8 @@
 #define SERVICES_KEY    "sso-services"
 
 #define MC_SERVICE_KEY  "Service"
+
+static const gchar *exported_settings[] = { "CredentialsId", NULL };
 
 typedef enum {
   DELAYED_CREATE,
@@ -491,9 +496,9 @@ static void _sso_toggled (GObject *object,
 
 static void _sso_deleted (GObject *object,
     AgAccountId id,
-    gpointer data)
+    gpointer user_data)
 {
-  McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (data);
+  McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (user_data);
 
   if (sso->ready)
     {
@@ -586,10 +591,10 @@ static gboolean _sso_account_enabled (AgAccount *account,
 
 static void _sso_created (GObject *object,
     AgAccountId id,
-    gpointer data)
+    gpointer user_data)
 {
   AgManager *ag_manager = AG_MANAGER (object);
-  McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (data);
+  McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (user_data);
   gchar *name =
     g_hash_table_lookup (sso->id_name_map, GUINT_TO_POINTER (id));
 
@@ -622,7 +627,7 @@ static void _sso_created (GObject *object,
                   g_signal_emit_by_name (mcpa, "created", name);
 
                   g_signal_connect (account, "enabled",
-                      G_CALLBACK (_sso_toggled), data);
+                      G_CALLBACK (_sso_toggled), user_data);
 
                   clear_setting_data (setting);
                 }
@@ -1339,6 +1344,115 @@ _ready (const McpAccountStorage *self,
   sso->pending_signals = NULL;
 }
 
+static gboolean
+_find_account (McdAccountManagerSso *sso,
+    const gchar *account_name,
+    AgAccountId *account_id)
+{
+  GList *ag_ids = NULL;
+  GList *ag_id;
+  gboolean found = FALSE;
+
+  g_return_val_if_fail (account_id != NULL, found);
+
+  ag_ids = ag_manager_list_by_service_type (sso->ag_manager, "IM");
+
+  for (ag_id = ag_ids; ag_id != NULL; ag_id = g_list_next (ag_id))
+    {
+      AgAccountId id = GPOINTER_TO_UINT (ag_id->data);
+      gchar *name = NULL;
+
+      name = _ag_accountid_to_mc_key (sso, id, FALSE);
+
+      if (g_strcmp0 (name, account_name) == 0)
+        {
+          found = TRUE;
+          *account_id = id;
+        }
+
+      g_free (name);
+
+      if (found)
+        break;
+    }
+
+  ag_manager_list_free (ag_ids);
+
+  return found;
+}
+
+static void
+_get_identifier (const McpAccountStorage *self,
+    const gchar *account,
+    GValue *identifier)
+{
+  AgAccountId account_id = 0;
+
+  if (!_find_account (MCD_ACCOUNT_MANAGER_SSO (self), account, &account_id))
+    g_warning ("Didn't find account %s in %s", account, PLUGIN_NAME);
+
+  g_value_init (identifier, G_TYPE_UINT);
+
+  g_value_set_uint (identifier, account_id);
+}
+
+static GHashTable *
+_get_additional_info (const McpAccountStorage *self,
+    const gchar *account)
+{
+  AgAccountId account_id = 0;
+  McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (self);
+  GHashTable *additional_info = NULL;
+  AgAccount *acct;
+  AgService *service;
+  AgAccountSettingIter iter;
+  const GValue *val;
+  const gchar *key;
+
+  if (!_find_account (sso, account, &account_id))
+    {
+      g_warning ("Didn't find account %s in %s", account, PLUGIN_NAME);
+      return NULL;
+    }
+
+  acct = ag_manager_get_account (sso->ag_manager, account_id);
+
+  g_return_val_if_fail (acct != NULL, NULL);
+
+  service = ag_account_get_selected_service (acct);
+
+  additional_info = g_hash_table_new_full (g_str_hash, g_str_equal,
+      (GDestroyNotify) g_free, (GDestroyNotify) tp_g_value_slice_free);
+
+  if (service == NULL)
+    _ag_account_select_default_im_service (acct);
+
+  ag_account_settings_iter_init (acct, &iter, NULL);
+
+  while (ag_account_settings_iter_next (&iter, &key, &val))
+    {
+      if (tp_strv_contains (exported_settings, key))
+          g_hash_table_insert (additional_info, g_strdup (key),
+              tp_g_value_slice_dup (val));
+    }
+
+  ag_account_select_service (acct, NULL);
+  ag_account_settings_iter_init (acct, &iter, NULL);
+
+  while (ag_account_settings_iter_next (&iter, &key, &val))
+    {
+      if (tp_strv_contains (exported_settings, key))
+          g_hash_table_insert (additional_info, g_strdup (key),
+              tp_g_value_slice_dup (val));
+    }
+
+  ag_account_select_service (acct, service);
+
+  g_object_unref (acct);
+
+  return additional_info;
+}
+
 static void
 account_storage_iface_init (McpAccountStorageIface *iface,
     gpointer unused G_GNUC_UNUSED)
@@ -1346,6 +1460,7 @@ account_storage_iface_init (McpAccountStorageIface *iface,
   mcp_account_storage_iface_set_name (iface, PLUGIN_NAME);
   mcp_account_storage_iface_set_desc (iface, PLUGIN_DESCRIPTION);
   mcp_account_storage_iface_set_priority (iface, PLUGIN_PRIORITY);
+  mcp_account_storage_iface_set_provider (iface, PLUGIN_PROVIDER);
 
   mcp_account_storage_iface_implement_get (iface, _get);
   mcp_account_storage_iface_implement_set (iface, _set);
@@ -1353,6 +1468,9 @@ account_storage_iface_init (McpAccountStorageIface *iface,
   mcp_account_storage_iface_implement_commit (iface, _commit);
   mcp_account_storage_iface_implement_list (iface, _list);
   mcp_account_storage_iface_implement_ready (iface, _ready);
+  mcp_account_storage_iface_implement_get_identifier (iface, _get_identifier);
+  mcp_account_storage_iface_implement_get_additional_info (iface,
+      _get_additional_info);
 }
 
 McdAccountManagerSso *

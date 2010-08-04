@@ -51,6 +51,8 @@
  *   mcp_account_storage_iface_set_priority (iface, 0);
  *   mcp_account_storage_iface_set_name (iface, "foo")
  *   mcp_account_storage_iface_set_desc (iface, "The FOO storage backend");
+ *   mcp_account_storage_iface_set_provider (iface,
+ *     "org.freedesktop.Telepathy.MissionControl5.FooStorage");
  *   mcp_account_storage_iface_implement_get    (iface, _plugin_getval);
  *   mcp_account_storage_iface_implement_set    (iface, _plugin_setval);
  *   mcp_account_storage_iface_implement_delete (iface, _plugin_delete);
@@ -58,6 +60,12 @@
  *   mcp_account_storage_iface_implement_commit_one (iface, _plugin_commit_one);
  *   mcp_account_storage_iface_implement_list   (iface, _plugin_list);
  *   mcp_account_storage_iface_implement_ready  (iface, _plugin_ready);
+ *   mcp_account_storage_iface_implement_get_identifier (iface,
+ *     _plugin_get_identifier);
+ *   mcp_account_storage_iface_implement_get_additional_info (iface,
+ *     _plugin_get_additional_info);
+ *   mcp_account_storage_iface_implement_get_restrictions (iface,
+ *     _plugin_get_restrictions);
  * /<!-- -->* ... *<!-- -->/
  * }
  * </programlisting></example>
@@ -103,6 +111,7 @@ struct _McpAccountStorageIface
   gint priority;
   const gchar *name;
   const gchar *desc;
+  const gchar *provider;
 
   gboolean (*set) (
       const McpAccountStorage *self,
@@ -138,6 +147,19 @@ struct _McpAccountStorageIface
   gboolean (*commit_one) (
       const McpAccountStorage *self,
       const McpAccountManager *am,
+      const gchar *account);
+
+  void (*get_identifier) (
+      const McpAccountStorage *self,
+      const gchar *account,
+      GValue *identifier);
+
+  GHashTable *(*get_additional_info) (
+      const McpAccountStorage *self,
+      const gchar *account);
+
+  TpStorageRestrictionFlags (*get_restrictions) (
+      const McpAccountStorage *self,
       const gchar *account);
 };
 
@@ -285,6 +307,13 @@ mcp_account_storage_iface_set_desc (McpAccountStorageIface *iface,
 }
 
 void
+mcp_account_storage_iface_set_provider (McpAccountStorageIface *iface,
+    const gchar *provider)
+{
+  iface->provider = provider;
+}
+
+void
 mcp_account_storage_iface_implement_get (McpAccountStorageIface *iface,
     gboolean (*method) (
         const McpAccountStorage *,
@@ -353,6 +382,37 @@ mcp_account_storage_iface_implement_ready (McpAccountStorageIface *iface,
         const McpAccountManager *))
 {
   iface->ready = method;
+}
+
+void
+mcp_account_storage_iface_implement_get_identifier (
+    McpAccountStorageIface *iface,
+    void (*method) (
+        const McpAccountStorage *,
+        const gchar *,
+        GValue *))
+{
+  iface->get_identifier = method;
+}
+
+void
+mcp_account_storage_iface_implement_get_additional_info (
+    McpAccountStorageIface *iface,
+    GHashTable *(*method) (
+        const McpAccountStorage *,
+        const gchar *))
+{
+  iface->get_additional_info = method;
+}
+
+void
+mcp_account_storage_iface_implement_get_restrictions (
+    McpAccountStorageIface *iface,
+    guint (*method) (
+        const McpAccountStorage *,
+        const gchar *))
+{
+  iface->get_restrictions = method;
 }
 
 /**
@@ -611,6 +671,90 @@ mcp_account_storage_ready (const McpAccountStorage *storage,
     iface->ready (storage, am);
 }
 
+/**
+ * mcp_account_storage_get_identifier:
+ * @storage: an #McpAccountStorage instance
+ * @account: the unique name of the account
+ * @identifier: a zero-filled #GValue whose type can be sent over D-Bus by
+ * dbus-glib to hold the identifier.
+ *
+ * Get the storage-specific identifier for this account. The type is variant,
+ * hence the GValue.
+ */
+void
+mcp_account_storage_get_identifier (const McpAccountStorage *storage,
+    const gchar *account,
+    GValue *identifier)
+{
+  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
+
+  DEBUG (storage, "");
+  g_return_if_fail (iface != NULL);
+  g_return_if_fail (identifier != NULL);
+  g_return_if_fail (!G_IS_VALUE (identifier));
+
+  if (iface->get_identifier == NULL)
+    {
+      g_value_init (identifier, G_TYPE_STRING);
+      g_value_set_string (identifier, account);
+    }
+  else
+    {
+      iface->get_identifier (storage, account, identifier);
+    }
+}
+
+/**
+ * mcp_account_storage_get_additional_info:
+ * @storage: an #McpAccountStorage instance
+ * @account: the unique name of the account
+ *
+ * Return additional storage-specific information about this account, which is
+ * made available on D-Bus but not otherwise interpreted by Mission Control.
+ *
+ * Returns: a caller owned #GHashTable mapping with string keys and #GValue
+ * values.
+ */
+GHashTable *
+mcp_account_storage_get_additional_info (const McpAccountStorage *storage,
+    const gchar *account)
+{
+  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
+  GHashTable *ret = NULL;
+
+  DEBUG (storage, "");
+  g_return_val_if_fail (iface != NULL, FALSE);
+
+  if (iface->get_additional_info != NULL)
+    ret = iface->get_additional_info (storage, account);
+
+  if (ret == NULL)
+    ret = g_hash_table_new (g_str_hash, g_str_equal);
+
+  return ret;
+}
+
+/**
+ * mcp_account_storage_get_restrictions:
+ * @storage: an #McpAccountStorage instance
+ * @account: the unique name of the account
+ *
+ * Returns: a bitmask with the restrictions of this
+ * account storage.
+ */
+TpStorageRestrictionFlags
+mcp_account_storage_get_restrictions (const McpAccountStorage *storage,
+    const gchar *account)
+{
+  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
+
+  g_return_val_if_fail (iface != NULL, 0);
+
+  if (iface->get_restrictions == NULL)
+    return 0;
+  else
+    return iface->get_restrictions (storage, account);
+}
 
 /**
  * mcp_account_storage_name:
@@ -642,4 +786,21 @@ mcp_account_storage_description (const McpAccountStorage *storage)
   g_return_val_if_fail (iface != NULL, NULL);
 
   return iface->desc;
+}
+
+/**
+ * mcp_account_storage_provider:
+ * @storage: an #McpAccountStorage instance
+ *
+ * Returns: a const #gchar* : the plugin's provider, a DBus namespaced name for
+ * this plugin.
+ */
+const gchar *
+mcp_account_storage_provider (const McpAccountStorage *storage)
+{
+  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
+
+  g_return_val_if_fail (iface != NULL, NULL);
+
+  return iface->provider != NULL ? iface->provider : "";
 }
