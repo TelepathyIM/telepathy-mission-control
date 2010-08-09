@@ -946,6 +946,7 @@ _set (const McpAccountStorage *self,
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (self);
   AgAccount *account = get_ag_account (sso, am, acct, &id);
   Setting *setting = NULL;
+  gboolean updated = FALSE;
 
   /* can't store a setting with no name */
   g_return_val_if_fail (key != NULL, FALSE);
@@ -953,7 +954,6 @@ _set (const McpAccountStorage *self,
   /* we no longer create accounts in libaccount: either an account exists *
    * in libaccount as a result of some 3rd party intervention, or it is   *
    * not an account that this plugin should ever concern itself with      */
-
 
   if (account != NULL)
     setting = setting_data (key, SETTING_MC);
@@ -968,14 +968,16 @@ _set (const McpAccountStorage *self,
           gboolean on = g_str_equal (val, "true");
 
           DEBUG ("setting enabled flag: '%d'", on);
-          _sso_account_enable (account, NULL, on);
+          updated = _sso_account_enable (account, NULL, on);
         }
       else
         {
-          save_setting (account, setting, val);
+          updated = save_setting (account, setting, val);
         }
 
-      sso->save = TRUE;
+      if (updated)
+        sso->save = TRUE;
+
       clear_setting_data (setting);
     }
 
@@ -1138,6 +1140,7 @@ _delete (const McpAccountStorage *self,
   AgAccountId id;
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (self);
   AgAccount *account = get_ag_account (sso, am, acct, &id);
+  gboolean updated = FALSE;
 
   /* have no values for this account, nothing to do here: */
   if (account == NULL)
@@ -1151,16 +1154,20 @@ _delete (const McpAccountStorage *self,
 
       /* stop watching for updates */
       unwatch_account_keys (sso, id);
+      updated = TRUE;
     }
   else
     {
       Setting *setting = setting_data (key, SETTING_MC);
 
       if (setting != NULL)
-          save_setting (account, setting, NULL);
+        updated = save_setting (account, setting, NULL);
 
       clear_setting_data (setting);
     }
+
+  if (updated)
+    sso->save = TRUE;
 
   return TRUE;
 }
