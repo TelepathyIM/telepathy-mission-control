@@ -534,11 +534,17 @@ static void _sso_deleted (GObject *object,
     }
 }
 
-static void _sso_account_enable (AgAccount *account,
+/* return TRUE if we actually changed any state, FALSE otherwise */
+static gboolean _sso_account_enable (AgAccount *account,
     AgService *service,
     gboolean on)
 {
   AgService *original = ag_account_get_selected_service (account);
+
+  /* the setting account is already in one of the global+service
+     configurations that corresponds to our current state: don't touch it */
+  if (_sso_account_enabled (account, service) == on)
+    return FALSE;
 
   /* turn the local enabled flag on/off as required */
   if (service != NULL)
@@ -557,6 +563,8 @@ static void _sso_account_enable (AgAccount *account,
     }
 
   ag_account_select_service (account, original);
+
+  return TRUE;
 }
 
 static gboolean _sso_account_enabled (AgAccount *account,
