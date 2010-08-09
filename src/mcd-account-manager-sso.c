@@ -191,7 +191,7 @@ static void _ag_account_stored_cb (AgAccount *acct,
     const GError *err,
     gpointer ignore);
 
-static void save_setting (AgAccount *account,
+static gboolean save_setting (AgAccount *account,
     const Setting *setting,
     const gchar *val);
 
@@ -864,20 +864,55 @@ get_ag_account (const McdAccountManagerSso *sso,
   return NULL;
 }
 
-static void
+/* returns true if it actually changed an account's state */
+static gboolean
 save_setting (AgAccount *account,
     const Setting *setting,
     const gchar *val)
 {
+  gboolean changed = FALSE;
   AgService *service = ag_account_get_selected_service (account);
 
   if (!setting->writable)
-    return;
+    return FALSE;
 
   if (setting->global)
     ag_account_select_service (account, NULL);
   else if (service == NULL)
     _ag_account_select_default_im_service (account);
+
+  if (setting->readable)
+    {
+      GValue old = { 0 };
+      AgSettingSource src = AG_SETTING_SOURCE_NONE;
+
+      g_value_init (&old, G_TYPE_STRING);
+
+      if (setting->global)
+        src = _ag_account_global_value (account, setting->ag_name, &old);
+      else
+        src = _ag_account_local_value (account, setting->ag_name, &old);
+
+      /* unsetting an already unset value, bail out */
+      if (val == NULL && src == AG_SETTING_SOURCE_NONE)
+        goto done;
+
+      /* assigning a value to one which _is_ set: check it actually changed */
+      if (val != NULL && src != AG_SETTING_SOURCE_NONE)
+        {
+          gchar *str = _gvalue_to_string (&old);
+          gboolean noop = g_strcmp0 (str, val) == 0;
+
+          g_value_unset (&old);
+          g_free (str);
+
+          if (noop)
+            goto done;
+        }
+    }
+
+  /* if we got this far, we're changing the stored state: */
+  changed = TRUE;
 
   if (val != NULL)
     {
@@ -894,7 +929,10 @@ save_setting (AgAccount *account,
     }
 
   /* leave the selected service as we found it: */
+ done:
   ag_account_select_service (account, service);
+
+  return changed;
 }
 
 static gboolean
