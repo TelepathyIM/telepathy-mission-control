@@ -1,13 +1,20 @@
-INCLUDES = $(TELEPATHY_CFLAGS) $(GLIB_CFLAGS) -I$(top_srcdir)
+AM_CPPFLAGS = \
+	-I$(top_srcdir) \
+	$(GLIB_CFLAGS) \
+	$(TELEPATHY_CFLAGS) 
+
+LDADD = \
+	$(GLIB_LIBS) \
+	$(TELEPATHY_LIBS)
+
 AM_CFLAGS = $(ERROR_CFLAGS)
 
 bin_PROGRAMS = mc-tool mc-wait-for-name
 
 mc_tool_SOURCES = mc-tool.c
-mc_tool_LDADD = $(TELEPATHY_LIBS) $(top_builddir)/libmcclient/libmcclient.la
+mc_tool_LDADD = $(LDADD) $(top_builddir)/libmcclient/libmcclient.la
 
 mc_wait_for_name_SOURCES = wait-for-name.c
-mc_wait_for_name_LDADD = $(TELEPATHY_LIBS) $(GLIB_LIBS)
 
 dist_man1_MANS = mc-tool.1
 
