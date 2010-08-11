@@ -46,9 +46,6 @@ cscope.out
 debian
 depcomp
 doc/mc-dbus-iface.html
-examples/mc-example
-examples/mc-example-2
-examples/mc-example-3
 gtk-doc.make
 install-sh
 /lcov.html
