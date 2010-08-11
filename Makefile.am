@@ -11,7 +11,6 @@ SUBDIRS = \
     server \
     util \
     test \
-    examples \
     doc
 
 pkgconfigdir = $(libdir)/pkgconfig

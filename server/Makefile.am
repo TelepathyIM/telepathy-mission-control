@@ -1,6 +1,9 @@
-INCLUDES = $(DBUS_CFLAGS) $(TELEPATHY_CFLAGS) -I$(top_srcdir) \
-	   -I$(top_srcdir)/src \
-	   -I$(top_builddir)/src \
+AM_CPPFLAGS = \
+	-I$(top_srcdir) \
+	-I$(top_srcdir)/src \
+	-I$(top_builddir)/src \
+	$(GLIB_CFLAGS) \
+	$(TELEPATHY_CFLAGS) \
 	-DMC_DISABLE_DEPRECATED \
 	-DLIBDIR="@libdir@" -DLIBVERSION="0"
 
@@ -29,6 +32,9 @@ man8_MANS = mission-control-5.8
 
 libexec_PROGRAMS = mission-control-5
 mission_control_5_SOURCES = mc-server.c
-mission_control_5_LDADD = $(top_builddir)/src/libmissioncontrol-server.la
+mission_control_5_LDADD = \
+	$(GLIB_LIBS) \
+	$(TELEPATHY_LIBS) \
+	$(top_builddir)/src/libmissioncontrol-server.la
 
 endif
