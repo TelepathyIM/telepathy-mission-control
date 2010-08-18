@@ -3004,12 +3004,12 @@ _mcd_account_constructed (GObject *object)
     GObjectClass *object_class = (GObjectClass *)mcd_account_parent_class;
     McdAccount *account = MCD_ACCOUNT (object);
 
+    if (object_class->constructed)
+        object_class->constructed (object);
+
     DEBUG ("%p (%s)", object, account->priv->unique_name);
 
     mcd_account_setup (account);
-
-    if (object_class->constructed)
-        object_class->constructed (object);
 }
 
 static void
