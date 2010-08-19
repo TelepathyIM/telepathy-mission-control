@@ -1053,15 +1053,26 @@ mcd_connection_reconnect (McdConnection *connection)
 static gboolean
 mcd_connection_probation_ended_cb (gpointer user_data)
 {
-    McdConnection *self = user_data;
+    McdConnection *self = MCD_CONNECTION (user_data);
+    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (self);
 
     /* We've been connected for PROBATION_SEC seconds. We can probably now
      * assume that the connection is stable */
-    DEBUG ("probation finished, assuming connection is stable: %s",
-           tp_proxy_get_object_path (self->priv->tp_conn));
+    if (priv->tp_conn != NULL)
+    {
+        DEBUG ("probation finished, assuming connection is stable: %s",
+               tp_proxy_get_object_path (self->priv->tp_conn));
+        self->priv->probation_drop_count = 0;
+        self->priv->reconnect_interval = INITIAL_RECONNECTION_TIME;
+    }
+    else /* probation timer survived beyond its useful life */
+    {
+        g_warning ("probation error: timer should have been removed when the "
+                   "TpConnection was released");
+    }
+
     self->priv->probation_timer = 0;
-    self->priv->probation_drop_count = 0;
-    self->priv->reconnect_interval = INITIAL_RECONNECTION_TIME;
+
     return FALSE;
 }
 
@@ -1934,6 +1945,15 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
             G_CALLBACK (mcd_connection_invalidated_cb), connection);
 
 	_mcd_connection_call_disconnect (connection);
+
+        /* the tp_connection has gone away, so we no longer need (or want) *
+           the probation timer to go off: there's nothing for it to check  */
+        if (priv->probation_timer > 0)
+        {
+            g_source_remove (priv->probation_timer);
+            priv->probation_timer = 0;
+        }
+
 	g_object_unref (priv->tp_conn);
 	priv->tp_conn = NULL;
 	_mcd_account_tp_connection_changed (priv->account);
