@@ -1592,3 +1592,35 @@ _mcd_channel_depart (McdChannel *channel,
     tp_channel_call_when_ready (channel->priv->tp_chan,
                                 mcd_channel_ready_to_depart_cb, d);
 }
+
+GHashTable *
+_mcd_channel_dup_properties (McdChannel *self)
+{
+    GPtrArray *requests;
+    GHashTable *result;
+    McdAccount *account;
+
+    g_return_val_if_fail (self->priv->request != NULL, NULL);
+
+    requests = g_ptr_array_sized_new (1);
+    g_ptr_array_add (requests,
+                     _mcd_channel_get_requested_properties (self));
+
+    account = _mcd_request_get_account (self->priv->request);
+
+    result = tp_asv_new(
+      TP_PROP_CHANNEL_REQUEST_USER_ACTION_TIME, G_TYPE_UINT64,
+        _mcd_request_get_user_action_time (self->priv->request),
+      TP_PROP_CHANNEL_REQUEST_REQUESTS,
+        TP_ARRAY_TYPE_QUALIFIED_PROPERTY_VALUE_MAP_LIST, requests,
+      TP_PROP_CHANNEL_REQUEST_ACCOUNT, DBUS_TYPE_G_OBJECT_PATH,
+        mcd_account_get_object_path (account),
+      TP_PROP_CHANNEL_REQUEST_INTERFACES, G_TYPE_STRV,
+        NULL,
+      TP_PROP_CHANNEL_REQUEST_PREFERRED_HANDLER, G_TYPE_STRING,
+        _mcd_request_get_preferred_handler (self->priv->request),
+      NULL);
+
+    g_ptr_array_free (requests, TRUE);
+    return result;
+}

@@ -1564,7 +1564,6 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
     McdDispatcherPrivate *priv;
     McdClientProxy *handler = NULL;
     GHashTable *properties;
-    GPtrArray *requests;
     McdRemoveRequestData *rrd;
 
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
@@ -1596,22 +1595,7 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
            tp_proxy_get_bus_name (handler),
            _mcd_channel_get_request_path (channel));
 
-    requests = g_ptr_array_sized_new (1);
-    g_ptr_array_add (requests,
-                     _mcd_channel_get_requested_properties (channel));
-
-    properties = tp_asv_new(
-        TP_PROP_CHANNEL_REQUEST_USER_ACTION_TIME, G_TYPE_UINT64,
-          _mcd_channel_get_request_user_action_time (channel),
-        TP_PROP_CHANNEL_REQUEST_REQUESTS,
-          TP_ARRAY_TYPE_QUALIFIED_PROPERTY_VALUE_MAP_LIST, requests,
-        TP_PROP_CHANNEL_REQUEST_ACCOUNT, DBUS_TYPE_G_OBJECT_PATH,
-          mcd_account_get_object_path (account),
-        TP_PROP_CHANNEL_REQUEST_INTERFACES, G_TYPE_STRV,
-          NULL,
-        TP_PROP_CHANNEL_REQUEST_PREFERRED_HANDLER, G_TYPE_STRING,
-          _mcd_channel_get_request_preferred_handler (channel),
-        NULL);
+    properties = _mcd_channel_dup_properties (channel);
 
     tp_cli_client_interface_requests_call_add_request (
         (TpClient *) handler, -1,
@@ -1619,7 +1603,6 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
         NULL, NULL, NULL, NULL);
 
     g_hash_table_unref (properties);
-    g_ptr_array_free (requests, TRUE);
 
     /* Prepare for a RemoveRequest */
     rrd = g_slice_new (McdRemoveRequestData);
