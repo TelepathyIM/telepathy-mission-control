@@ -316,7 +316,8 @@ _mcd_request_new (gboolean use_existing,
     McdAccount *account,
     GHashTable *properties,
     gint64 user_action_time,
-    const gchar *preferred_handler)
+    const gchar *preferred_handler,
+    GHashTable *request_metadata)
 {
   McdRequest *self;
 
@@ -326,6 +327,7 @@ _mcd_request_new (gboolean use_existing,
       "properties", properties,
       "user-action-time", user_action_time,
       "preferred-handler", preferred_handler,
+      "request-metadata", request_metadata,
       NULL);
   DEBUG ("%p (for %p)", self, account);
 

@@ -1075,6 +1075,7 @@ mcd_channel_get_error (McdChannel *channel)
  * @properties: a #GHashTable of desired channel properties.
  * @user_time: user action time.
  * @preferred_handler: well-known name of preferred handler.
+ * @request_metadata: metadata of the request, or %NULL
  * @use_existing: use EnsureChannel if %TRUE or CreateChannel if %FALSE
  * @proceeding: behave as though Proceed has already been called
  *
@@ -1090,6 +1091,7 @@ mcd_channel_new_request (McdAccount *account,
                          GHashTable *properties,
                          gint64 user_time,
                          const gchar *preferred_handler,
+                         GHashTable *request_metadata,
                          gboolean use_existing,
                          gboolean proceeding)
 {
@@ -1104,7 +1106,8 @@ mcd_channel_new_request (McdAccount *account,
      * MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED? */
     channel->priv->request = _mcd_request_new (use_existing, account,
                                                properties, user_time,
-                                               preferred_handler);
+                                               preferred_handler,
+                                               request_metadata);
     path = _mcd_request_get_object_path (channel->priv->request);
 
     if (proceeding)

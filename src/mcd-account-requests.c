@@ -182,6 +182,7 @@ on_request_completed (McdRequest *request,
 McdChannel *
 _mcd_account_create_request (McdAccount *account, GHashTable *properties,
                              gint64 user_time, const gchar *preferred_handler,
+                             GHashTable *request_metadata,
                              gboolean use_existing, gboolean proceeding,
                              GError **error)
 {
@@ -200,7 +201,7 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
      * free it */
     props = _mcd_deepcopy_asv (properties);
     channel = mcd_channel_new_request (account, dgc, props, user_time,
-                                       preferred_handler, use_existing,
+                                       preferred_handler, request_metadata, use_existing,
                                        proceeding);
     g_hash_table_unref (props);
 
@@ -307,7 +308,7 @@ account_request_common (McdAccount *account, GHashTable *properties,
     McdDispatcher *dispatcher;
 
     channel = _mcd_account_create_request (account, properties, user_time,
-                                           preferred_handler, use_existing,
+                                           preferred_handler, NULL, use_existing,
                                            TRUE /* proceeding */, &error);
 
     if (error)

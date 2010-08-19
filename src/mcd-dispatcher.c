@@ -122,6 +122,7 @@ typedef struct
   GHashTable *properties;
   gint64 user_action_time;
   gchar *preferred_handler;
+  GHashTable *request_metadata;
   gboolean ensure;
 } McdChannelRequestACL;
 
@@ -2013,6 +2014,7 @@ dispatcher_request_channel (McdDispatcher *self,
                             GHashTable *requested_properties,
                             gint64 user_action_time,
                             const gchar *preferred_handler,
+                            GHashTable *request_metadata,
                             DBusGMethodInvocation *context,
                             gboolean ensure)
 {
@@ -2065,7 +2067,8 @@ dispatcher_request_channel (McdDispatcher *self,
 
     channel = _mcd_account_create_request (account, requested_properties,
                                            user_action_time, preferred_handler,
-                                           ensure, FALSE, &error);
+                                           request_metadata, ensure,
+                                           FALSE, &error);
 
     if (channel == NULL)
     {
@@ -2109,6 +2112,7 @@ dispatcher_channel_request_acl_cleanup (gpointer data)
     g_free (crd->preferred_handler);
     g_hash_table_unref (crd->properties);
     g_object_unref (crd->dispatcher);
+    tp_clear_pointer (&crd->request_metadata, g_hash_table_unref);
 
     g_slice_free (McdChannelRequestACL, crd);
 }
@@ -2126,6 +2130,7 @@ dispatcher_channel_request_acl_success (DBusGMethodInvocation *context,
                                 crd->properties,
                                 crd->user_action_time,
                                 crd->preferred_handler,
+                                crd->request_metadata,
                                 context,
                                 crd->ensure);
 }
@@ -2146,6 +2151,7 @@ dispatcher_channel_request_acl_start (McdDispatcher *dispatcher,
                                       GHashTable *requested_properties,
                                       gint64 user_action_time,
                                       const gchar *preferred_handler,
+                                      GHashTable *request_metadata,
                                       DBusGMethodInvocation *context,
                                       gboolean ensure)
 {
@@ -2164,6 +2170,8 @@ dispatcher_channel_request_acl_start (McdDispatcher *dispatcher,
     crd->properties = g_hash_table_ref (requested_properties);
     crd->user_action_time = user_action_time;
     crd->ensure = ensure;
+    crd->request_metadata = request_metadata != NULL ?
+        g_hash_table_ref (request_metadata) : NULL;
 
     DEBUG ("start %s.%s acl (%p)", account_path, method, crd);
 
@@ -2192,6 +2200,7 @@ dispatcher_create_channel (TpSvcChannelDispatcher *iface,
                                           requested_properties,
                                           user_action_time,
                                           preferred_handler,
+                                          NULL,
                                           context,
                                           FALSE);
 }
@@ -2210,6 +2219,7 @@ dispatcher_ensure_channel (TpSvcChannelDispatcher *iface,
                                           requested_properties,
                                           user_action_time,
                                           preferred_handler,
+                                          NULL,
                                           context,
                                           TRUE);
 }
