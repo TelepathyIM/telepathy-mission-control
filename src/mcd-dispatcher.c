@@ -1564,11 +1564,6 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
     McdDispatcherPrivate *priv;
     McdClientProxy *handler = NULL;
     GHashTable *properties;
-    GValue v_user_time = { 0, };
-    GValue v_requests = { 0, };
-    GValue v_account = { 0, };
-    GValue v_preferred_handler = { 0, };
-    GValue v_interfaces = { 0, };
     GPtrArray *requests;
     McdRemoveRequestData *rrd;
 
@@ -1601,39 +1596,22 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
            tp_proxy_get_bus_name (handler),
            _mcd_channel_get_request_path (channel));
 
-    properties = g_hash_table_new (g_str_hash, g_str_equal);
-
-    g_value_init (&v_user_time, G_TYPE_UINT64);
-    g_value_set_uint64 (&v_user_time,
-                        _mcd_channel_get_request_user_action_time (channel));
-    g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest"
-                         ".UserActionTime", &v_user_time);
-
     requests = g_ptr_array_sized_new (1);
     g_ptr_array_add (requests,
                      _mcd_channel_get_requested_properties (channel));
-    g_value_init (&v_requests, dbus_g_type_get_collection ("GPtrArray",
-         TP_HASH_TYPE_QUALIFIED_PROPERTY_VALUE_MAP));
-    g_value_set_static_boxed (&v_requests, requests);
-    g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest"
-                         ".Requests", &v_requests);
 
-    g_value_init (&v_account, DBUS_TYPE_G_OBJECT_PATH);
-    g_value_set_static_boxed (&v_account,
-                              mcd_account_get_object_path (account));
-    g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest"
-                         ".Account", &v_account);
-
-    g_value_init (&v_interfaces, G_TYPE_STRV);
-    g_value_set_static_boxed (&v_interfaces, NULL);
-    g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest"
-                         ".Interfaces", &v_interfaces);
-
-    g_value_init (&v_preferred_handler, G_TYPE_STRING);
-    g_value_set_static_string (&v_preferred_handler,
-        _mcd_channel_get_request_preferred_handler (channel));
-    g_hash_table_insert (properties, "org.freedesktop.Telepathy.ChannelRequest"
-                         ".PreferredHandler", &v_preferred_handler);
+    properties = tp_asv_new(
+        TP_PROP_CHANNEL_REQUEST_USER_ACTION_TIME, G_TYPE_UINT64,
+          _mcd_channel_get_request_user_action_time (channel),
+        TP_PROP_CHANNEL_REQUEST_REQUESTS,
+          TP_ARRAY_TYPE_QUALIFIED_PROPERTY_VALUE_MAP_LIST, requests,
+        TP_PROP_CHANNEL_REQUEST_ACCOUNT, DBUS_TYPE_G_OBJECT_PATH,
+          mcd_account_get_object_path (account),
+        TP_PROP_CHANNEL_REQUEST_INTERFACES, G_TYPE_STRV,
+          NULL,
+        TP_PROP_CHANNEL_REQUEST_PREFERRED_HANDLER, G_TYPE_STRING,
+          _mcd_channel_get_request_preferred_handler (channel),
+        NULL);
 
     tp_cli_client_interface_requests_call_add_request (
         (TpClient *) handler, -1,
