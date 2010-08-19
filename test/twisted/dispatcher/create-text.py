@@ -25,7 +25,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async
+        call_async, assertEquals
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
         expect_client_setup
@@ -193,6 +193,13 @@ def test_channel_creation(q, bus, account, client, conn,
 
     # Handler accepts the Channels
     q.dbus_return(e.message, signature='')
+
+    # SucceededWithChannel is fired first
+    e = q.expect('dbus-signal', path=request_path, interface=cs.CR,
+        signal='SucceededWithChannel')
+
+    assertEquals(conn.object_path, e.args[0])
+    assertEquals(channel.object_path, e.args[1])
 
     # CR emits Succeeded (or in Mardy's version, Account emits Succeeded)
     q.expect_many(
