@@ -156,6 +156,20 @@ on_request_completed (McdRequest *request,
     {
         /* FIXME: ideally the McdRequest should emit this signal itself, and
          * the Account.Interface.ChannelRequests should catch and re-emit it */
+        TpChannel *tp_chan;
+        TpConnection *tp_conn;
+
+        /* SucceededWithChannel has to be fired first */
+        tp_chan = mcd_channel_get_tp_channel (channel);
+        g_assert (tp_chan != NULL);
+
+        tp_conn = tp_channel_borrow_connection (tp_chan);
+        g_assert (tp_conn != NULL);
+
+        tp_svc_channel_request_emit_succeeded_with_channel (channel,
+            tp_proxy_get_object_path (tp_conn),
+            tp_proxy_get_object_path (tp_chan));
+
         tp_svc_channel_request_emit_succeeded (channel);
         mc_svc_account_interface_channelrequests_emit_succeeded (account,
             _mcd_channel_get_request_path (channel));
