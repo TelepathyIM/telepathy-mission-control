@@ -2225,6 +2225,47 @@ dispatcher_ensure_channel (TpSvcChannelDispatcher *iface,
 }
 
 static void
+dispatcher_create_channel_with_metadata (TpSvcChannelDispatcher *iface,
+                           const gchar *account_path,
+                           GHashTable *requested_properties,
+                           gint64 user_action_time,
+                           const gchar *preferred_handler,
+                           GHashTable *metadata,
+                           DBusGMethodInvocation *context)
+{
+    dispatcher_channel_request_acl_start (MCD_DISPATCHER (iface),
+                                          CREATE_CHANNEL,
+                                          account_path,
+                                          requested_properties,
+                                          user_action_time,
+                                          preferred_handler,
+                                          metadata,
+                                          context,
+                                          FALSE);
+}
+
+static void
+dispatcher_ensure_channel_with_metadata (TpSvcChannelDispatcher *iface,
+                           const gchar *account_path,
+                           GHashTable *requested_properties,
+                           gint64 user_action_time,
+                           const gchar *preferred_handler,
+                           GHashTable *metadata,
+                           DBusGMethodInvocation *context)
+{
+    dispatcher_channel_request_acl_start (MCD_DISPATCHER (iface),
+                                          ENSURE_CHANNEL,
+                                          account_path,
+                                          requested_properties,
+                                          user_action_time,
+                                          preferred_handler,
+                                          metadata,
+                                          context,
+                                          TRUE);
+}
+
+
+static void
 dispatcher_iface_init (gpointer g_iface,
                        gpointer iface_data G_GNUC_UNUSED)
 {
@@ -2232,6 +2273,8 @@ dispatcher_iface_init (gpointer g_iface,
     g_iface, dispatcher_##x)
     IMPLEMENT (create_channel);
     IMPLEMENT (ensure_channel);
+    IMPLEMENT (create_channel_with_metadata);
+    IMPLEMENT (ensure_channel_with_metadata);
 #undef IMPLEMENT
 }
 
