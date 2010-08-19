@@ -687,12 +687,10 @@ mcd_dispatch_operation_set_channel_handled_by (McdDispatchOperation *self,
                                                const gchar *unique_name,
                                                const gchar *well_known_name)
 {
-    const gchar *path;
     TpChannel *tp_channel;
 
     g_assert (unique_name != NULL);
 
-    path = mcd_channel_get_object_path (channel);
     tp_channel = mcd_channel_get_tp_channel (channel);
     g_return_if_fail (tp_channel != NULL);
 
