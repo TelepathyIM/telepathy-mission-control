@@ -1701,7 +1701,7 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
     DEBUG ("calling HandleChannels on %s", tp_proxy_get_bus_name (self));
 
     channel_details = _mcd_tp_channel_details_build_from_list (channels);
-    requests_satisfied = g_ptr_array_new ();
+    requests_satisfied = g_ptr_array_new_with_free_func (g_free);
 
     if (handler_info == NULL)
     {
@@ -1725,7 +1725,7 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
         g_hash_table_iter_init (&it, requests);
         while (g_hash_table_iter_next (&it, &path, NULL))
         {
-            g_ptr_array_add (requests_satisfied, path);
+            g_ptr_array_add (requests_satisfied, g_strdup (path));
         }
 
         g_hash_table_unref (requests);

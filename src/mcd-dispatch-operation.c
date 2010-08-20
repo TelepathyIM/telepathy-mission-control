@@ -1849,14 +1849,11 @@ observe_channels_cb (TpClient *proxy, const GError *error,
 }
 
 /* The returned GPtrArray is allocated, but the contents are borrowed. */
-static GPtrArray *
+static GHashTable *
 collect_satisfied_requests (GList *channels)
 {
     const GList *c;
     GHashTable *set;
-    GHashTableIter iter;
-    gpointer path;
-    GPtrArray *ret;
 
     set = g_hash_table_new_full (g_str_hash, g_str_equal,
         g_free, g_object_unref);
@@ -1870,19 +1867,7 @@ collect_satisfied_requests (GList *channels)
         g_hash_table_unref (reqs);
     }
 
-    /* serialize them into a pointer array, which is what dbus-glib wants */
-    ret = g_ptr_array_sized_new (g_hash_table_size (set));
-
-    g_hash_table_iter_init (&iter, set);
-
-    while (g_hash_table_iter_next (&iter, &path, NULL))
-    {
-        g_ptr_array_add (ret, path);
-    }
-
-    g_hash_table_destroy (set);
-
-    return ret;
+    return set;
 }
 
 static void
@@ -1904,6 +1889,9 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
         GList *observed = NULL;
         const gchar *account_path, *connection_path;
         GPtrArray *channels_array, *satisfied_requests;
+        GHashTable *reqs;
+        GHashTableIter it;
+        gpointer path, value;
 
         if (!tp_proxy_has_interface_by_id (client,
                                            TP_IFACE_QUARK_CLIENT_OBSERVER))
@@ -1933,7 +1921,16 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
          * if the observed list is the same */
         channels_array = _mcd_tp_channel_details_build_from_list (observed);
 
-        satisfied_requests = collect_satisfied_requests (observed);
+        reqs = collect_satisfied_requests (observed);
+
+        satisfied_requests = g_ptr_array_sized_new (g_hash_table_size (reqs));
+
+        /* 'Requests_Satisfied' */
+        g_hash_table_iter_init (&it, reqs);
+        while (g_hash_table_iter_next (&it, &path, &value))
+        {
+            g_ptr_array_add (satisfied_requests, path);
+        }
 
         if (_mcd_dispatch_operation_needs_approval (self))
         {
@@ -1958,6 +1955,7 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
         _mcd_tp_channel_details_free (channels_array);
 
         g_list_free (observed);
+        g_hash_table_unref (reqs);
     }
 
     g_hash_table_destroy (observer_info);
