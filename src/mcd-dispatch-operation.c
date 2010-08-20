@@ -1871,6 +1871,12 @@ collect_satisfied_requests (GList *channels)
 }
 
 static void
+free_req_properties (gpointer data)
+{
+    g_boxed_free (TP_HASH_TYPE_STRING_VARIANT_MAP, data);
+}
+
+static void
 _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
 {
     const GList *cl;
@@ -1892,6 +1898,7 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
         GHashTable *reqs;
         GHashTableIter it;
         gpointer path, value;
+        GHashTable *request_properties;
 
         if (!tp_proxy_has_interface_by_id (client,
                                            TP_IFACE_QUARK_CLIENT_OBSERVER))
@@ -1924,13 +1931,24 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
         reqs = collect_satisfied_requests (observed);
 
         satisfied_requests = g_ptr_array_sized_new (g_hash_table_size (reqs));
+        request_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
+            g_free, free_req_properties);
 
-        /* 'Requests_Satisfied' */
+        /* 'Requests_Satisfied' and 'request-properties' */
         g_hash_table_iter_init (&it, reqs);
         while (g_hash_table_iter_next (&it, &path, &value))
         {
+            GHashTable *props;
+
             g_ptr_array_add (satisfied_requests, path);
+
+            props = _mcd_channel_dup_properties (MCD_CHANNEL (value));
+            g_hash_table_insert (request_properties, g_strdup (path), props);
         }
+
+        tp_asv_set_boxed (observer_info, "request-properties",
+            TP_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP,
+            request_properties);
 
         if (_mcd_dispatch_operation_needs_approval (self))
         {

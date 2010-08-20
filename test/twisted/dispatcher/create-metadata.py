@@ -151,6 +151,8 @@ def test_channel_creation(q, bus, account, client, conn,
         assert len(channels) == 1, channels
         assert channels[0][0] == channel.object_path, channels
         assert channels[0][1] == channel_immutable, channels
+        info = e.args[5]
+        assert info['request-properties'] == {request_path: request_props}, info
 
         # Observer says "OK, go"
         q.dbus_return(e.message, signature='')
