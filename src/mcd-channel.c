@@ -1599,6 +1599,7 @@ _mcd_channel_dup_properties (McdChannel *self)
     GPtrArray *requests;
     GHashTable *result;
     McdAccount *account;
+    GHashTable *metadata;
 
     g_return_val_if_fail (self->priv->request != NULL, NULL);
 
@@ -1607,6 +1608,12 @@ _mcd_channel_dup_properties (McdChannel *self)
                      _mcd_channel_get_requested_properties (self));
 
     account = _mcd_request_get_account (self->priv->request);
+
+    metadata = _mcd_request_get_request_metadata (self->priv->request);
+    if (metadata == NULL)
+        metadata =  g_hash_table_new (NULL, NULL);
+    else
+        g_hash_table_ref (metadata);
 
     result = tp_asv_new(
       TP_PROP_CHANNEL_REQUEST_USER_ACTION_TIME, G_TYPE_UINT64,
@@ -1619,8 +1626,11 @@ _mcd_channel_dup_properties (McdChannel *self)
         NULL,
       TP_PROP_CHANNEL_REQUEST_PREFERRED_HANDLER, G_TYPE_STRING,
         _mcd_request_get_preferred_handler (self->priv->request),
+      TP_PROP_CHANNEL_REQUEST_REQUEST_METADATA, TP_HASH_TYPE_STRING_VARIANT_MAP,
+        metadata,
       NULL);
 
     g_ptr_array_free (requests, TRUE);
+    g_hash_table_unref (metadata);
     return result;
 }
