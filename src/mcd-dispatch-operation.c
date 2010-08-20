@@ -1863,13 +1863,15 @@ collect_satisfied_requests (GList *channels)
      * never be duplicates, unless my analysis is wrong? */
     for (c = channels; c != NULL; c = c->next)
     {
-        const GList *reqs = _mcd_channel_get_satisfied_requests (c->data,
+        GList *reqs = _mcd_channel_get_satisfied_requests (c->data,
                                                                  NULL);
 
         for (r = reqs; r != NULL; r = r->next)
         {
             g_hash_table_insert (set, r->data, r->data);
         }
+
+        g_list_free (reqs);
     }
 
     /* serialize them into a pointer array, which is what dbus-glib wants */

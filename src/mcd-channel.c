@@ -80,6 +80,9 @@ struct _McdChannelPrivate
     McdChannelStatus status;
 
     McdRequest *request;
+
+    /* List of reffed McdChannel. This does NOT include the self pointer to
+     * avoid cylcing references. */
     GList *satisfied_requests;
     gint64 latest_request_time;
 };
@@ -473,7 +476,7 @@ _mcd_channel_finalize (GObject * object)
     list = priv->satisfied_requests;
     while (list)
     {
-        g_free (list->data);
+        g_object_unref (list->data);
         list = g_list_delete_link (list, list);
     }
 
@@ -1113,8 +1116,7 @@ mcd_channel_new_request (McdAccount *account,
     if (proceeding)
         _mcd_request_set_proceeding (channel->priv->request);
 
-    channel->priv->satisfied_requests = g_list_prepend (NULL,
-                                                        g_strdup (path));
+    channel->priv->satisfied_requests = NULL;
     channel->priv->latest_request_time = user_time;
 
     _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_REQUEST);
@@ -1176,20 +1178,36 @@ _mcd_channel_get_request_path (McdChannel *channel)
  * @get_latest_time: if not %NULL, the most recent request time will be copied
  *  through this pointer
  *
- * Returns: a list of the object paths of the channel requests satisfied by
- * this channel, if the channel status is not yet MCD_CHANNEL_STATUS_DISPATCHED
- * or MCD_CHANNEL_STATUS_FAILED.
+ * Returns: a newly allocated list of borrowed object paths of the channel
+ * requests satisfied by this channel, if the channel status is not yet
+ * MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED.
  */
-const GList *
+GList *
 _mcd_channel_get_satisfied_requests (McdChannel *channel,
                                      gint64 *get_latest_time)
 {
+    GList *result = NULL, *l;
+    const gchar *path;
+
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
 
     if (get_latest_time != NULL)
         *get_latest_time = channel->priv->latest_request_time;
 
-    return channel->priv->satisfied_requests;
+    /* Add ourself */
+    path = _mcd_channel_get_request_path (channel);
+    if (path != NULL)
+        result = g_list_prepend (result, (gpointer) path);
+
+    for (l = channel->priv->satisfied_requests; l != NULL; l = g_list_next (l))
+    {
+        path = _mcd_channel_get_request_path (l->data);
+
+        if (path != NULL)
+            result = g_list_prepend (result, (gpointer) path);
+    }
+
+    return g_list_reverse (result);
 }
 
 /*
@@ -1330,23 +1348,15 @@ on_proxied_channel_status_changed (McdChannel *source,
 void
 _mcd_channel_set_request_proxy (McdChannel *channel, McdChannel *source)
 {
-    const gchar *request_path;
-
     g_return_if_fail (MCD_IS_CHANNEL (channel));
     g_return_if_fail (MCD_IS_CHANNEL (source));
 
     /* Now @source is also satisfying the request of @channel */
-    request_path = _mcd_channel_get_request_path (channel);
-    if (G_LIKELY (request_path))
-    {
-        source->priv->latest_request_time =
-            MAX (source->priv->latest_request_time,
-                 channel->priv->latest_request_time);
+    source->priv->latest_request_time = MAX (source->priv->latest_request_time,
+        channel->priv->latest_request_time);
 
-        source->priv->satisfied_requests =
-            g_list_prepend (source->priv->satisfied_requests,
-                            g_strdup (request_path));
-    }
+    source->priv->satisfied_requests = g_list_prepend (
+        source->priv->satisfied_requests, g_object_ref (channel));
 
     copy_status (source, channel);
     g_signal_connect (source, "status-changed",

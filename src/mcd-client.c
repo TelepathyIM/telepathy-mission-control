@@ -1715,16 +1715,17 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
     for (iter = channels; iter != NULL; iter = iter->next)
     {
         gint64 req_time = 0;
-        const GList *requests;
+        GList *requests, *l;
 
-        for (requests = _mcd_channel_get_satisfied_requests (iter->data,
+        requests = _mcd_channel_get_satisfied_requests (iter->data,
                                                              &req_time);
-             requests != NULL;
-             requests = requests->next)
+        for (l = requests; l!= NULL; l = g_list_next (l))
         {
             /* list of borrowed object paths */
-            g_ptr_array_add (requests_satisfied, requests->data);
+            g_ptr_array_add (requests_satisfied, l->data);
         }
+
+        g_list_free (requests);
 
         if (req_time > user_action_time)
             user_action_time = req_time;
