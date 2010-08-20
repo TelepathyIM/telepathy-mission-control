@@ -1852,26 +1852,22 @@ observe_channels_cb (TpClient *proxy, const GError *error,
 static GPtrArray *
 collect_satisfied_requests (GList *channels)
 {
-    const GList *c, *r;
-    GHashTable *set = g_hash_table_new (g_str_hash, g_str_equal);
+    const GList *c;
+    GHashTable *set;
     GHashTableIter iter;
     gpointer path;
     GPtrArray *ret;
 
-    /* collect object paths into a hash table, to drop duplicates
-     * FIXME (fd.o #24763): this shouldn't be necessary, because there should
-     * never be duplicates, unless my analysis is wrong? */
+    set = g_hash_table_new_full (g_str_hash, g_str_equal,
+        g_free, g_object_unref);
+
     for (c = channels; c != NULL; c = c->next)
     {
-        GList *reqs = _mcd_channel_get_satisfied_requests (c->data,
+        GHashTable *reqs = _mcd_channel_get_satisfied_requests (c->data,
                                                                  NULL);
-
-        for (r = reqs; r != NULL; r = r->next)
-        {
-            g_hash_table_insert (set, r->data, r->data);
-        }
-
-        g_list_free (reqs);
+        tp_g_hash_table_update (set, reqs,
+            (GBoxedCopyFunc) g_strdup, (GBoxedCopyFunc) g_object_ref);
+        g_hash_table_unref (reqs);
     }
 
     /* serialize them into a pointer array, which is what dbus-glib wants */

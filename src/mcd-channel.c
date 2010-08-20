@@ -1178,15 +1178,16 @@ _mcd_channel_get_request_path (McdChannel *channel)
  * @get_latest_time: if not %NULL, the most recent request time will be copied
  *  through this pointer
  *
- * Returns: a newly allocated list of borrowed object paths of the channel
- * requests satisfied by this channel, if the channel status is not yet
- * MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED.
+ * Returns: a newly allocated hash table mapping channel object paths
+ * to McdChannel objects satisfied by this channel, if the channel status
+ * is not yet MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED.
  */
-GList *
+GHashTable *
 _mcd_channel_get_satisfied_requests (McdChannel *channel,
                                      gint64 *get_latest_time)
 {
-    GList *result = NULL, *l;
+    GList *l;
+    GHashTable *result;
     const gchar *path;
 
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
@@ -1194,20 +1195,24 @@ _mcd_channel_get_satisfied_requests (McdChannel *channel,
     if (get_latest_time != NULL)
         *get_latest_time = channel->priv->latest_request_time;
 
+    result = g_hash_table_new_full (g_str_hash, g_str_equal,
+        g_free, g_object_unref);
+
     /* Add ourself */
     path = _mcd_channel_get_request_path (channel);
     if (path != NULL)
-        result = g_list_prepend (result, (gpointer) path);
+        g_hash_table_insert (result, g_strdup (path), g_object_ref (channel));
 
     for (l = channel->priv->satisfied_requests; l != NULL; l = g_list_next (l))
     {
         path = _mcd_channel_get_request_path (l->data);
 
         if (path != NULL)
-            result = g_list_prepend (result, (gpointer) path);
+            g_hash_table_insert (result, g_strdup (path),
+                g_object_ref (l->data));
     }
 
-    return g_list_reverse (result);
+    return result;
 }
 
 /*

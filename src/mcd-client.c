@@ -1715,17 +1715,20 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
     for (iter = channels; iter != NULL; iter = iter->next)
     {
         gint64 req_time = 0;
-        GList *requests, *l;
+        GHashTable *requests;
+        GHashTableIter it;
+        gpointer path;
 
         requests = _mcd_channel_get_satisfied_requests (iter->data,
                                                              &req_time);
-        for (l = requests; l!= NULL; l = g_list_next (l))
+
+        g_hash_table_iter_init (&it, requests);
+        while (g_hash_table_iter_next (&it, &path, NULL))
         {
-            /* list of borrowed object paths */
-            g_ptr_array_add (requests_satisfied, l->data);
+            g_ptr_array_add (requests_satisfied, path);
         }
 
-        g_list_free (requests);
+        g_hash_table_unref (requests);
 
         if (req_time > user_action_time)
             user_action_time = req_time;
