@@ -1,7 +1,7 @@
 dnl Set the version number to e.g. 5.0.beta42 immediately before a release.
 dnl Set the version number to e.g. 5.0.beta42+ immediately after (this will
 dnl enable -Werror).
-AC_INIT([telepathy-mission-control], [5.4.999+])
+AC_INIT([telepathy-mission-control], [5.5.3+])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(Makefile.am)
@@ -45,9 +45,9 @@ AC_SUBST([MCP_API_VERSION])
 #     set revision to 0
 # else if library source has changed since last release
 #     increment revision
-MCP_LT_CURRENT=0
+MCP_LT_CURRENT=2
 MCP_LT_REVISION=0
-MCP_LT_AGE=0
+MCP_LT_AGE=2
 AC_SUBST([MCP_LT_CURRENT])
 AC_SUBST([MCP_LT_REVISION])
 AC_SUBST([MCP_LT_AGE])
@@ -75,9 +75,6 @@ TP_COMPILER_WARNINGS([ERROR_CFLAGS],
   [missing-field-initializers \
    unused-parameter])
 AC_SUBST([ERROR_CFLAGS])
-
-AM_CFLAGS="$CFLAGS -fno-strict-aliasing -ansi -DDMALLOC $ERROR_CFLAGS"
-AC_SUBST([AM_CFLAGS])
 
 XSLTPROC=
 AC_CHECK_PROGS([XSLTPROC], [xsltproc])
@@ -232,6 +229,29 @@ then
   AC_DEFINE([ENABLE_MCD_PLUGINS], [1], [Define if MCD plugins should be enabled])
 fi
 
+aegis_enabled="no"
+AC_MSG_CHECKING([whether to build with Aegis (libcreds) support])
+AC_ARG_ENABLE(aegis,
+              AC_HELP_STRING([--enable-aegis],
+                             [Aegis security framework support]),
+              [
+                AC_CHECK_LIB(creds, creds_init,
+                             [
+                               AC_DEFINE([ENABLE_AEGIS], [1],
+                                         [Define if Aegis is supported])
+                               AC_SUBST([AEGIS_LIBS], [-lcreds])
+                             ],
+                             [ AC_MSG_ERROR([Aegis: libcreds not found]) ])
+                aegis_enabled="yes"
+              ],
+              [
+                aegis_enabled="no"
+                AC_MSG_RESULT(no)
+                AC_DEFINE([ENABLE_AEGIS], [0], [Define if Aegis is supported])
+              ])
+
+AM_CONDITIONAL(ENABLE_AEGIS, [test x$aegis_enabled = xyes])
+
 keyring_enabled="no"
 AC_MSG_CHECKING(whether to build with gnome-keyring support)
 AC_ARG_ENABLE(gnome-keyring,
@@ -302,17 +322,14 @@ PKG_CHECK_MODULES(DBUS, [dbus-1 >= 0.95, dbus-glib-1 >= 0.82])
 AC_SUBST(DBUS_CFLAGS)
 AC_SUBST(DBUS_LIBS)
 
-PKG_CHECK_MODULES([TELEPATHY], [telepathy-glib >= 0.11.6])
+PKG_CHECK_MODULES([TELEPATHY], [telepathy-glib >= 0.11.9])
 AC_SUBST(TELEPATHY_LIBS)
 AC_SUBST(TELEPATHY_CFLAGS)
 
-PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.24, gobject-2.0])
+PKG_CHECK_MODULES([GLIB],
+	[glib-2.0 >= 2.24, gobject-2.0, gmodule-no-export-2.0])
 AC_SUBST(GLIB_LIBS)
 AC_SUBST(GLIB_CFLAGS)
-
-PKG_CHECK_MODULES(GMODULE, gmodule-no-export-2.0)
-AC_SUBST(GMODULE_LIBS)
-AC_SUBST(GMODULE_CFLAGS)
 
 dnl docs/Makefile.am needs to know whether it's an out of tree build
 dnl (srcdir != builddir)
@@ -338,13 +355,13 @@ doc/reference/Makefile \
 doc/reference/libmcclient/Makefile \
 doc/reference/libmissioncontrol-server/Makefile \
 doc/reference/mission-control-plugins/Makefile \
-examples/Makefile \
 libmcclient.pc \
 libmcclient/Makefile \
 m4/Makefile \
 mission-control.pc \
 mission-control-plugins.pc \
 mission-control-plugins/Makefile \
+plugins/Makefile \
 server/Makefile \
 src/Makefile \
 test/Makefile \

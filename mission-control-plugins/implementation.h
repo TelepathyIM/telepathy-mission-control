@@ -101,6 +101,9 @@ struct _McpAccountManagerIface {
       const gchar *manager,
       const gchar *protocol,
       const GHashTable *params);
+
+  GStrv (* list_keys) (const McpAccountManager *ma,
+      const gchar *acct);
 };
 
 G_END_DECLS

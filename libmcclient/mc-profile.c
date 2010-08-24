@@ -460,7 +460,7 @@ _mc_profile_load (McProfile *profile)
 						    (GDestroyNotify) g_free,
 						    (GDestroyNotify) g_free);
     keys = g_key_file_get_keys (keyfile, PROFILE_GROUP, 0, NULL);
-    for (tmp = keys; *tmp != NULL; tmp++)
+    for (tmp = keys; tmp != NULL && *tmp != NULL; tmp++)
     {
 	gchar *key = *tmp;
 	if (0 == g_ascii_strncasecmp ("Default-", key, 8))
@@ -478,7 +478,7 @@ _mc_profile_load (McProfile *profile)
 						     g_str_hash, g_str_equal, (GDestroyNotify) g_free, (GDestroyNotify) g_free);
 
     keys = g_key_file_get_keys (keyfile, PROFILE_GROUP, 0, NULL);
-    for (tmp = keys; *tmp != NULL; tmp++)
+    for (tmp = keys; tmp != NULL && *tmp != NULL; tmp++)
     {
 	gchar *key = *tmp;
 	if (0 == g_ascii_strncasecmp ("Mangle-", key, 7))
@@ -1410,7 +1410,7 @@ mc_profile_action_get_properties (McProfile *profile, const gchar *action)
     gchar group[128];
     GHashTable *properties;
     gchar **keys;
-    gsize len = 0;
+    gsize len;
     guint i;
 
     get_private_and_load_or_return_val (profile, NULL);
@@ -1419,6 +1419,10 @@ mc_profile_action_get_properties (McProfile *profile, const gchar *action)
     properties = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
                                         (GDestroyNotify)tp_g_value_slice_free);
     keys = g_key_file_get_keys (priv->keyfile, group, &len, NULL);
+
+    if (keys == NULL)
+        len = 0;
+
     for (i = 0; i < len; i++)
     {
         gchar *p_name, *p_type, *name;

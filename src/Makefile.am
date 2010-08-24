@@ -1,11 +1,12 @@
 INCLUDES = \
 	   $(TELEPATHY_CFLAGS) \
 	   $(DBUS_CFLAGS) \
-	   $(GMODULE_CFLAGS) \
 	   $(GLIB_CFLAGS) \
 	   -DG_LOG_DOMAIN=\"mcd\" \
 	   -DMCD_PLUGIN_LOADER_DIR=\"@libdir@/mission-control-plugins.@MCP_ABI_VERSION@\" \
 	   -DMC_DISABLE_DEPRECATED -I$(top_srcdir)
+
+AM_CFLAGS = $(ERROR_CFLAGS)
 
 if ENABLE_GNOME_KEYRING
 INCLUDES += $(GNOME_KEYRING_CFLAGS)
@@ -81,7 +82,6 @@ libmcd_convenience_la_LIBADD = \
 	$(top_builddir)/libmcclient/libmcclient.la \
 	$(top_builddir)/mission-control-plugins/libmission-control-plugins.la \
 	$(TELEPATHY_LIBS) \
-	$(GMODULE_LIBS) \
 	$(DBUS_LIBS) \
 	$(GLIB_LIBS)
 
@@ -91,7 +91,7 @@ endif
 
 if ENABLE_LIBACCOUNTS_SSO
 libmcd_convenience_la_LIBADD += $(LIBACCOUNTS_SSO_LIBS)
-libmcd_convenience_la_CFLAGS  = $(LIBACCOUNTS_SSO_CFLAGS)
+INCLUDES += $(LIBACCOUNTS_SSO_CFLAGS)
 endif
 
 noinst_LTLIBRARIES = libmcd-convenience.la

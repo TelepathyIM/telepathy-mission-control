@@ -39,6 +39,7 @@
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/enums.h>
 #include <telepathy-glib/svc-generic.h>
+#include <telepathy-glib/svc-account.h>
 #include <telepathy-glib/util.h>
 #include <telepathy-glib/errors.h>
 #include <telepathy-glib/interfaces.h>
@@ -61,6 +62,7 @@
 #include "mission-control-plugins/mission-control-plugins.h"
 #include "mission-control-plugins/implementation.h"
 #include "plugin-account.h"
+#include "plugin-loader.h"
 
 #define PARAM_PREFIX "param-"
 #define WRITE_CONF_DELAY    500
@@ -137,6 +139,12 @@ typedef struct
     GError *error;
 } McdCreateAccountData;
 
+typedef struct
+{
+    McdAccount *account;
+    gchar *property;
+} McdAlterAccountData;
+
 enum
 {
     PROP_0,
@@ -165,6 +173,135 @@ account_storage_cmp (gconstpointer a, gconstpointer b)
     if (pa < pb) return 1;
 
     return 0;
+}
+
+/* calback chain for asynchronously updates from backends: */
+static void
+async_altered_validity_cb (McdAccount *account, gboolean valid, gpointer data)
+{
+    DEBUG ("asynchronously altered account %s is %svalid",
+           mcd_account_get_unique_name (account), valid ? "" : "in");
+
+    g_object_unref (account);
+}
+
+static void
+async_altered_manager_cb (McdManager *cm, const GError *error, gpointer data)
+{
+    McdAccount *account = data;
+    const gchar *name = NULL;
+
+    if (cm != NULL)
+        name = mcd_manager_get_name (cm);
+
+    if (error != NULL)
+        DEBUG ("manager %s not ready: %s", name, error->message);
+    else
+        DEBUG ("manager %s is ready", name);
+
+    /* this triggers the final parameter check which results in dbus signals *
+     * being fired and (potentially) the account going online automatically  */
+    mcd_account_check_validity (account, async_altered_validity_cb, NULL);
+
+    g_object_unref (cm);
+}
+
+/* account has been updated by a third party, and the McpAccountStorage *
+ * plugin has just informed us of this fact                             */
+static void
+altered_cb (GObject *storage, const gchar *name, gpointer data)
+{
+    McdAccountManager *am = MCD_ACCOUNT_MANAGER (data);
+    McdMaster *master = mcd_master_get_default ();
+    McdAccount *account = NULL;
+    McdManager *cm = NULL;
+    const gchar *cm_name = NULL;
+
+    account = mcd_account_manager_lookup_account (am, name);
+
+    if (G_UNLIKELY (!account))
+    {
+        g_warning ("%s: account %s does not exist", G_STRFUNC, name);
+        return;
+    }
+
+    /* in theory, the CM is already ready by this point, but make sure: */
+    cm_name = mcd_account_get_manager_name (account);
+
+    if (cm_name != NULL)
+        cm = _mcd_master_lookup_manager (master, cm_name);
+
+    if (cm != NULL)
+    {
+        g_object_ref (cm);
+        g_object_ref (account);
+        mcd_manager_call_when_ready (cm, async_altered_manager_cb, account);
+    }
+}
+
+static void
+async_altered_one_manager_cb (McdManager *cm,
+                              const GError *error,
+                              gpointer data)
+{
+    McdAlterAccountData *altered = data;
+    const gchar *name = NULL;
+
+    if (cm != NULL)
+        name = mcd_manager_get_name (cm);
+
+    if (error != NULL)
+        DEBUG ("manager %s not ready: %s", name, error->message);
+    else
+        DEBUG ("manager %s is ready", name);
+
+    /* this triggers the final parameter check which results in dbus signals *
+     * being fired and (potentially) the account going online automatically  */
+    mcd_account_property_changed (altered->account, altered->property);
+
+    g_object_unref (cm);
+    g_object_unref (altered->account);
+    g_free (altered->property);
+    g_slice_free (McdAlterAccountData, altered);
+}
+
+
+static void
+altered_one_cb (GObject *storage,
+                const gchar *account_name,
+                const gchar *key,
+                gpointer data)
+{
+    McdAccountManager *am = MCD_ACCOUNT_MANAGER (data);
+    McdMaster *master = mcd_master_get_default ();
+    McdAccount *account = NULL;
+    McdManager *cm = NULL;
+    const gchar *cm_name = NULL;
+
+    account = mcd_account_manager_lookup_account (am, account_name);
+
+    if (G_UNLIKELY (!account))
+    {
+        g_warning ("%s: account %s does not exist", G_STRFUNC, account_name);
+        return;
+    }
+
+    /* in theory, the CM is already ready by this point, but make sure: */
+    cm_name = mcd_account_get_manager_name (account);
+
+    if (cm_name != NULL)
+        cm = _mcd_master_lookup_manager (master, cm_name);
+
+    if (cm != NULL)
+    {
+        McdAlterAccountData *altered = g_slice_new0 (McdAlterAccountData);
+
+        g_object_ref (cm);
+        altered->account = g_object_ref (account);
+        altered->property = g_strdup (key);
+
+        mcd_manager_call_when_ready (cm, async_altered_one_manager_cb, altered);
+    }
 }
 
 /* callbacks for the various stages in an backend-driven account creation */
@@ -267,27 +404,40 @@ finish:
 }
 
 static void
-altered_cb (GObject *plugin, const gchar *account)
+toggled_cb (GObject *plugin, const gchar *name, gboolean on, gpointer data)
 {
   McpAccountStorage *storage = MCP_ACCOUNT_STORAGE (plugin);
+  McdAccountManager *manager = MCD_ACCOUNT_MANAGER (data);
+  McdAccount *account = NULL;
+  GError *error = NULL;
 
-  DEBUG ("%s plugin reports %s changed, async changes not supported yet",
-      mcp_account_storage_name (storage), account);
-}
+  account = mcd_account_manager_lookup_account (manager, name);
 
-static void
-toggled_cb (GObject *plugin, const gchar *account, gboolean on)
-{
-  McpAccountStorage *storage = MCP_ACCOUNT_STORAGE (plugin);
+  DEBUG ("%s plugin reports %s became %sabled",
+      mcp_account_storage_name (storage), name, on ? "en" : "dis");
 
-  DEBUG ("%s plugin reports %s became %svalid, async changes supported yet",
-      mcp_account_storage_name (storage), account, on ? "" : "in");
+  if (account == NULL)
+    {
+      g_warning ("%s: Unknown account %s from %s plugin",
+          G_STRFUNC, name, mcp_account_storage_name (storage));
+      return;
+    }
+
+  _mcd_account_set_enabled (account, on, FALSE, &error);
+
+  if (error != NULL)
+    {
+      g_warning ("Error setting Enabled for %s: %s", name, error->message);
+      g_clear_error (&error);
+    }
 }
 
 static void
 _mcd_account_delete_cb (McdAccount *account, const GError *error, gpointer data)
 {
-  /* we don't do anything with this right now */
+    /* no need to do anything other than release the account ref, which *
+     * should be the last ref we hold by the time this rolls arouns:    */
+    g_object_unref (account);
 }
 
 /* a backend plugin notified us that an account was vaporised: remove it */
@@ -302,10 +452,13 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
 
     account = g_hash_table_lookup (manager->priv->accounts, name);
 
+    DEBUG ("%s -> %p", name, account);
+
     if (account != NULL)
     {
-        mcd_account_delete (account, _mcd_account_delete_cb, NULL);
+        g_object_ref (account);
         g_hash_table_remove (manager->priv->accounts, name);
+        mcd_account_delete (account, _mcd_account_delete_cb, NULL);
     }
 
     /* NOTE: we have to do this here, the mcd_account deletion just *
@@ -317,8 +470,7 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
     {
         McpAccountStorage *p = store->data;
 
-        DEBUG ("%s -> mcp_account_storage_delete",
-               mcp_account_storage_name (p));
+        DEBUG ("MCP:%s -> remove %s", mcp_account_storage_name (p), name);
 
         /* don't call the plugin who informed us of deletion, it should  *
          * already have purged its own store and we don't want to risk   *
@@ -377,6 +529,8 @@ sort_and_cache_plugins (McdAccountManager *self)
         g_signal_connect (plugin, "altered", G_CALLBACK (altered_cb), self);
         g_signal_connect (plugin, "toggled", G_CALLBACK (toggled_cb), self);
         g_signal_connect (plugin, "deleted", G_CALLBACK (deleted_cb), self);
+        g_signal_connect (plugin, "altered-one", G_CALLBACK (altered_one_cb),
+                          self);
     }
 
     plugins_cached = TRUE;
@@ -569,12 +723,12 @@ on_account_removed (McdAccount *account, McdAccountManager *account_manager)
     {
         McpAccountStorage *plugin = store->data;
 
-        DEBUG ("plugin %s; removing %s",
-               mcp_account_storage_name (plugin), name);
+        DEBUG ("MCP:%s -> remove %s", mcp_account_storage_name (plugin), name);
         mcp_account_storage_delete (plugin, MCP_ACCOUNT_MANAGER (pa), name, NULL);
     }
 
-    mcd_account_manager_write_conf_async (account_manager, NULL, NULL);
+    mcd_account_manager_write_conf_async (account_manager, account, NULL,
+                                          NULL);
 }
 
 static void
@@ -704,7 +858,8 @@ complete_account_creation_finish (McdAccount *account, gboolean valid,
         account = NULL;
     }
 
-    mcd_account_manager_write_conf_async (account_manager, NULL, NULL);
+    mcd_account_manager_write_conf_async (account_manager, account, NULL,
+                                          NULL);
 
     if (cad->callback != NULL)
         cad->callback (account_manager, account, cad->error, cad->user_data);
@@ -898,7 +1053,6 @@ sso_get_service_accounts (McSvcAccountManagerInterfaceSSO *iface,
     McdAccountManagerPrivate *priv = manager->priv;
     GKeyFile *cache = priv->plugin_manager->keyfile;
     GStrv accounts = g_key_file_get_groups (cache, &len);
-    const gchar *path = NULL;
     GList *srv_accounts = NULL;
     GPtrArray *paths = g_ptr_array_new ();
 
@@ -937,12 +1091,12 @@ sso_get_service_accounts (McSvcAccountManagerInterfaceSSO *iface,
 
                 if (supported != NULL)
                 {
-                    guint i;
+                    guint j;
                     GStrv services = g_strsplit (supported, ";", 0);
 
-                    for (i = 0; services[i] != NULL; i++)
+                    for (j = 0; services[j] != NULL; j++)
                     {
-                        if (g_str_equal (service, services[i]))
+                        if (g_str_equal (service, services[j]))
                         {
                             McdAccount *a =
                               g_hash_table_lookup (priv->accounts, name);
@@ -1172,9 +1326,12 @@ write_conf (gpointer userdata)
      * so no plugin of a lower priority will be asked to save anything */
     for (group = groups[i]; group != NULL; group = groups[++i])
     {
-        gsize n_keys = 0;
+        gsize n_keys;
         gsize j = 0;
         GStrv keys = g_key_file_get_keys (keyfile, group, &n_keys, NULL);
+
+        if (keys == NULL)
+            n_keys = 0;
 
         for (j = 0; j < n_keys; j++)
         {
@@ -1190,13 +1347,14 @@ write_conf (gpointer userdata)
 
                 if (done)
                 {
-                    DEBUG ("%s -> mcp_account_storage_delete(%s)", pn, group);
+                    DEBUG ("MCP:%s -> delete %s.%s", pn, group, set);
                     mcp_account_storage_delete (plugin, ma, group, set);
                 }
                 else
                 {
-                    DEBUG ("%s -> mcp_account_storage_set(%s)", pn, group);
                     done = mcp_account_storage_set (plugin, ma, group, set, val);
+                    DEBUG ("MCP:%s -> %s %s.%s",
+                           pn, done ? "store" : "ignore", group, set);
                 }
             }
         }
@@ -1569,28 +1727,6 @@ mcd_account_manager_get_dbus_daemon (McdAccountManager *account_manager)
 }
 
 /**
- * mcd_account_manager_write_conf:
- * @account_manager: the #McdAccountManager
- *
- * Write the account manager configuration to disk.
- *
- * Deprecated: Use mcd_account_manager_write_conf_async() in all code.
- */
-void
-mcd_account_manager_write_conf (McdAccountManager *account_manager)
-{
-    /* FIXME: this (reasonably) assumes that there is only one
-     * McdAccountManager object running, since the write_conf_id is a static
-     * variable */
-    McdPluginAccountManager *data = account_manager->priv->plugin_manager;
-
-    if (write_conf_id == 0) 
-        write_conf_id =
-            g_timeout_add_full (G_PRIORITY_HIGH, WRITE_CONF_DELAY, write_conf,
-                                g_object_ref (data), g_object_unref);
-}
-
-/**
  * McdAccountManagerWriteConfCb:
  * @account_manager: the #McdAccountManager
  * @error: a set #GError on failure or %NULL if there was no error
@@ -1601,81 +1737,125 @@ mcd_account_manager_write_conf (McdAccountManager *account_manager)
  * with the appropriate error.
  */
 
+/*
+ * update_one_account:
+ * @account_manager:
+ * @ma:
+ * @account: (allow-none): the #McdAccount if it exists, or %NULL
+ * @account_name:
+ * @keyfile:
+ */
+static void
+update_one_account (McdAccountManager *account_manager,
+                    McpAccountManager *ma,
+                    McdAccount *account,
+                    const gchar *account_name,
+                    GKeyFile *keyfile)
+{
+    gsize n_keys = 0;
+    GStrv keys = g_key_file_get_keys (keyfile, account_name, &n_keys, NULL);
+    gsize j = 0;
+
+    if (keys == NULL)
+        n_keys = 0;
+
+    for (j = 0; j < n_keys; j++)
+    {
+        gboolean done = FALSE;
+        gchar *set = keys[j];
+        gchar *val = g_key_file_get_value (keyfile, account_name, set, NULL);
+        GList *store;
+
+        /* the param- prefix gets whacked on in the layer above us:     *
+         * mcd-account et al don't know it exists so don't pass it back */
+        if (account != NULL && g_str_has_prefix (set, PARAM_PREFIX))
+        {
+            const gchar *p = set + strlen (PARAM_PREFIX);
+
+            if (mcd_account_parameter_is_secret (account, p))
+                mcp_account_manager_parameter_make_secret (ma, account_name,
+                                                           set);
+        }
+
+        for (store = stores; store != NULL; store = g_list_next (store))
+        {
+            McpAccountStorage *plugin = store->data;
+            const gchar *pname = mcp_account_storage_name (plugin);
+
+            if (done)
+            {
+                DEBUG ("MCP:%s -> delete %s.%s", pname, account_name, set);
+                mcp_account_storage_delete (plugin, ma, account_name, set);
+            }
+            else
+            {
+                done = mcp_account_storage_set (plugin, ma, account_name, set, val);
+                DEBUG ("MCP:%s -> %s %s.%s",
+                       pname, done ? "store" : "ignore", account_name, set);
+            }
+        }
+    }
+
+    g_strfreev (keys);
+}
+
 /**
  * mcd_account_manager_write_conf_async:
  * @account_manager: the #McdAccountManager
+ * @account: the account to be written, or %NULL to flush all accounts
  * @callback: a callback to be called on write success or failure
  * @user_data: data to be passed to @callback
  *
- * Write the account manager configuration to disk. This is an asynchronous
- * version of mcd_account_manager_write_conf() and should always used in favour
- * of its synchronous version.
+ * Write the account manager configuration to disk.
  */
 void
 mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
+                                      McdAccount *account,
                                       McdAccountManagerWriteConfCb callback,
                                       gpointer user_data)
 {
-    GKeyFile *keyfile;
-    GStrv groups;
     GList *store;
-    gsize i = 0;
-    gsize n_accounts = 0;
-    gchar *group;
+    GKeyFile *keyfile;
     McpAccountManager *ma;
 
     g_return_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager));
 
     keyfile = account_manager->priv->plugin_manager->keyfile;
-    groups = g_key_file_get_groups (keyfile, &n_accounts);
     ma = MCP_ACCOUNT_MANAGER (account_manager->priv->plugin_manager);
 
-    DEBUG ("called (writing %" G_GSIZE_FORMAT " accounts)", n_accounts);
-
-    for (group = groups[i]; group != NULL; group = groups[++i])
+    if (account != NULL)
     {
-        gsize j = 0;
-        gsize n_keys = 0;
-        GStrv keys = g_key_file_get_keys (keyfile, group, &n_keys, NULL);
-        McdAccount *acct =
-          mcd_account_manager_lookup_account (account_manager, group);
+        const gchar *account_name = mcd_account_get_unique_name (account);
 
-        for (j = 0; j < n_keys; j++)
+        DEBUG ("updating %s", account_name);
+        update_one_account (account_manager, ma, account, account_name,
+                            keyfile);
+    }
+    else
+    {
+        GStrv groups;
+        gsize n_accounts = 0;
+        gsize i = 0;
+        gchar *group;
+
+        groups = g_key_file_get_groups (keyfile, &n_accounts);
+
+        DEBUG ("updating all %" G_GSIZE_FORMAT " accounts)", n_accounts);
+
+        for (group = groups[i]; group != NULL; group = groups[++i])
         {
-            gboolean done = FALSE;
-            gchar *set = keys[j];
-            gchar *val = g_key_file_get_value (keyfile, group, set, NULL);
+            McdAccount *group_account =
+                mcd_account_manager_lookup_account (account_manager,
+                                                    group);
 
-            /* the param- prefix gets whacked on in the layer above us:     *
-             * mcd-account et al don't know it exists so don't pass it back */
-            if (acct != NULL && g_str_has_prefix (set, PARAM_PREFIX))
-            {
-                const gchar *p = set + strlen (PARAM_PREFIX);
-
-                if (mcd_account_parameter_is_secret (acct, p))
-                    mcp_account_manager_parameter_make_secret (ma, group, set);
-            }
-
-            for (store = stores; store != NULL; store = g_list_next (store))
-            {
-                McpAccountStorage *plugin = store->data;
-                const gchar *pname = mcp_account_storage_name (plugin);
-
-                DEBUG ("writing %s.%s to %s [prio: %d] %s",
-                       group, set, pname, mcp_account_storage_priority (plugin),
-                       done ? "DELETE" : "STORE");
-
-                if (done)
-                    mcp_account_storage_delete (plugin, ma, group, set);
-                else
-                    done = mcp_account_storage_set (plugin, ma, group, set, val);
-            }
+            /* group_account might be %NULL, but update_one_account tolerates
+             * that */
+            update_one_account (account_manager, ma, group_account, group,
+                                keyfile);
         }
 
-        g_strfreev (keys);
+        g_strfreev (groups);
     }
-
-    g_strfreev (groups);
 
     for (store = stores; store != NULL; store = g_list_next (store))
     {
@@ -1683,7 +1863,17 @@ mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
         const gchar *pname = mcp_account_storage_name (plugin);
 
         DEBUG ("flushing plugin %s to long term storage", pname);
-        mcp_account_storage_commit (plugin, ma);
+
+        if (account == NULL)
+        {
+            mcp_account_storage_commit (plugin, ma);
+        }
+        else
+        {
+            const gchar *account_name = mcd_account_get_unique_name (account);
+
+            mcp_account_storage_commit_one (plugin, ma, account_name);
+        }
     }
 
     if (callback != NULL)
@@ -1781,3 +1971,29 @@ _mcd_account_manager_store_account_connections (McdAccountManager *manager)
     fclose (file);
 }
 
+McpAccountStorage *
+mcd_account_manager_get_storage_plugin (McdAccountManager *account_manager,
+    McdAccount *account)
+{
+  GList *store;
+  const gchar *account_name = mcd_account_get_unique_name (account);
+  McpAccountManager *ma = MCP_ACCOUNT_MANAGER (
+      account_manager->priv->plugin_manager);
+
+  for (store = stores; store != NULL; store = g_list_next (store))
+    {
+      McpAccountStorage *plugin = store->data;
+      GList *stored = mcp_account_storage_list (plugin, ma);
+      GList *iter;
+
+      for (iter = stored; iter != NULL; iter = g_list_next (iter))
+        {
+          gchar *name = iter->data;
+
+          if (g_strcmp0 (name, account_name) == 0)
+            return plugin;
+        }
+    }
+
+  return NULL;
+}

@@ -455,18 +455,18 @@ mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
 TpConnection *
 mcp_dispatch_operation_ref_connection (McpDispatchOperation *self)
 {
-  TpDBusDaemon *daemon = tp_dbus_daemon_dup (NULL);
+  TpDBusDaemon *dbus = tp_dbus_daemon_dup (NULL);
   TpConnection *connection = NULL;
   const gchar *conn_path;
 
   conn_path = mcp_dispatch_operation_get_connection_path (self);
 
-  if (conn_path != NULL && daemon != NULL)
+  if (conn_path != NULL && dbus != NULL)
     {
-      connection = tp_connection_new (daemon, NULL, conn_path, NULL);
+      connection = tp_connection_new (dbus, NULL, conn_path, NULL);
     }
 
-  g_object_unref (daemon);
+  g_object_unref (dbus);
   return connection;
 }
 

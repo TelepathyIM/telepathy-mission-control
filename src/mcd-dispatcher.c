@@ -42,6 +42,8 @@
 
 #include <dbus/dbus-glib-lowlevel.h>
 
+#include "mission-control-plugins/mission-control-plugins.h"
+
 #include "client-registry.h"
 #include "mcd-signals-marshal.h"
 #include "mcd-account-priv.h"
@@ -56,6 +58,7 @@
 #include "mcd-dispatch-operation-priv.h"
 #include "mcd-handler-map-priv.h"
 #include "mcd-misc.h"
+#include "plugin-loader.h"
 
 #include <telepathy-glib/defs.h>
 #include <telepathy-glib/gtypes.h>
@@ -72,6 +75,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sp_timestamp.h"
+
+#define CREATE_CHANNEL TP_IFACE_CONNECTION_INTERFACE_REQUESTS ".CreateChannel"
+#define ENSURE_CHANNEL TP_IFACE_CONNECTION_INTERFACE_REQUESTS ".EnsureChannel"
 
 #define MCD_DISPATCHER_PRIV(dispatcher) (MCD_DISPATCHER (dispatcher)->priv)
 
@@ -108,6 +114,16 @@ typedef struct
     gint handler_locks;
     gboolean handled;
 } McdChannelRecover;
+
+typedef struct
+{
+  McdDispatcher *dispatcher;
+  gchar *account_path;
+  GHashTable *properties;
+  gint64 user_action_time;
+  gchar *preferred_handler;
+  gboolean ensure;
+} McdChannelRequestACL;
 
 struct _McdDispatcherPrivate
 {
@@ -789,7 +805,7 @@ mcd_dispatcher_client_handling_channel_cb (McdClientProxy *client,
            object_path);
 
     _mcd_handler_map_set_path_handled (self->priv->handler_map,
-                                       object_path, unique_name);
+                                       object_path, unique_name, bus_name);
 }
 
 static void mcd_dispatcher_update_client_caps (McdDispatcher *self,
@@ -1816,43 +1832,55 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
 {
     GList *request_as_list;
     const gchar *handler_unique;
-    GStrv possible_handlers;
-    McdClientProxy *handler;
+    const gchar *well_known_name = NULL;
+    GStrv possible_handlers = NULL;
+    McdClientProxy *handler = NULL;
 
     request_as_list = g_list_append (NULL, request);
 
     /* the unique name (process) of the current handler */
     handler_unique = _mcd_handler_map_get_handler (
         dispatcher->priv->handler_map,
-        mcd_channel_get_object_path (request));
+        mcd_channel_get_object_path (request), &well_known_name);
 
-    /* work out how to invoke that process - any of its well-known names
-     * will do */
-    possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
-                                                              request_as_list,
-                                                              handler_unique);
-
-    if (possible_handlers == NULL || possible_handlers[0] == NULL)
+    if (well_known_name != NULL)
     {
-        /* The process is still running (otherwise it wouldn't be in the
-         * handler map), but none of its well-known names is still
-         * interested in channels of that sort. Oh well, not our problem.
-         */
-        DEBUG ("process %s no longer interested in this channel, not "
-               "reinvoking", handler_unique);
-        mcd_dispatcher_finish_reinvocation (request);
-        goto finally;
+        /* We know which Handler well-known name was responsible: if it
+         * still exists, we want to call HandleChannels on it */
+        handler = _mcd_client_registry_lookup (dispatcher->priv->clients,
+                                               well_known_name);
     }
-
-    handler = _mcd_client_registry_lookup (dispatcher->priv->clients,
-                                           possible_handlers[0]);
 
     if (handler == NULL)
     {
-        DEBUG ("Handler %s does not exist in client registry, not "
-               "reinvoking", possible_handlers[0]);
-        mcd_dispatcher_finish_reinvocation (request);
-        goto finally;
+        /* Failing that, maybe the Handler it was dispatched to was temporary;
+         * try to pick another Handler that can deal with it, on the same
+         * unique name (i.e. in the same process) */
+        possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
+            request_as_list, handler_unique);
+
+        if (possible_handlers == NULL || possible_handlers[0] == NULL)
+        {
+            /* The process is still running (otherwise it wouldn't be in the
+             * handler map), but none of its well-known names is still
+             * interested in channels of that sort. Oh well, not our problem.
+             */
+            DEBUG ("process %s no longer interested in this channel, not "
+                   "reinvoking", handler_unique);
+            mcd_dispatcher_finish_reinvocation (request);
+            goto finally;
+        }
+
+        handler = _mcd_client_registry_lookup (dispatcher->priv->clients,
+                                               possible_handlers[0]);
+
+        if (handler == NULL)
+        {
+            DEBUG ("Handler %s does not exist in client registry, not "
+                   "reinvoking", possible_handlers[0]);
+            mcd_dispatcher_finish_reinvocation (request);
+            goto finally;
+        }
     }
 
     /* This is deliberately not the same call as for normal dispatching,
@@ -1937,6 +1965,7 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
     McdDispatcherPrivate *priv;
     const gchar *path;
     const gchar *unique_name;
+    const gchar *well_known_name = NULL;
     gboolean requested;
     TpChannel *tp_channel;
 
@@ -1953,7 +1982,8 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
     tp_channel = mcd_channel_get_tp_channel (channel);
     g_return_if_fail (tp_channel != NULL);
 
-    unique_name = _mcd_handler_map_get_handler (priv->handler_map, path);
+    unique_name = _mcd_handler_map_get_handler (priv->handler_map, path,
+                                                &well_known_name);
 
     if (unique_name != NULL)
     {
@@ -1962,7 +1992,8 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
         _mcd_channel_set_status (channel,
                                  MCD_CHANNEL_STATUS_DISPATCHED);
         _mcd_handler_map_set_channel_handled (priv->handler_map, tp_channel,
-                                              unique_name, account_path);
+                                              unique_name, well_known_name,
+                                              account_path);
     }
     else
     {
@@ -2068,6 +2099,86 @@ finally:
 }
 
 static void
+dispatcher_channel_request_acl_cleanup (gpointer data)
+{
+    McdChannelRequestACL *crd = data;
+
+    DEBUG ("cleanup acl (%p)", data);
+
+    g_free (crd->account_path);
+    g_free (crd->preferred_handler);
+    g_hash_table_unref (crd->properties);
+    g_object_unref (crd->dispatcher);
+
+    g_slice_free (McdChannelRequestACL, crd);
+}
+
+static void
+dispatcher_channel_request_acl_success (DBusGMethodInvocation *context,
+                                        gpointer data)
+{
+    McdChannelRequestACL *crd = data;
+
+    DEBUG ("complete acl (%p)", crd);
+
+    dispatcher_request_channel (MCD_DISPATCHER (crd->dispatcher),
+                                crd->account_path,
+                                crd->properties,
+                                crd->user_action_time,
+                                crd->preferred_handler,
+                                context,
+                                crd->ensure);
+}
+
+static void
+free_gvalue (gpointer gvalue)
+{
+    GValue *gv = gvalue;
+
+    g_value_unset (gv);
+    g_slice_free (GValue, gv);
+}
+
+static void
+dispatcher_channel_request_acl_start (McdDispatcher *dispatcher,
+                                      const gchar *method,
+                                      const gchar *account_path,
+                                      GHashTable *requested_properties,
+                                      gint64 user_action_time,
+                                      const gchar *preferred_handler,
+                                      DBusGMethodInvocation *context,
+                                      gboolean ensure)
+{
+    McdChannelRequestACL *crd = g_slice_new0 (McdChannelRequestACL);
+    GValue *account = g_slice_new0 (GValue);
+    GHashTable *params =
+      g_hash_table_new_full (g_str_hash, g_str_equal, NULL, free_gvalue);
+
+    g_value_init (account, G_TYPE_STRING);
+    g_value_set_string (account, account_path);
+    g_hash_table_insert (params, "account-path", account);
+
+    crd->dispatcher = g_object_ref (dispatcher);
+    crd->account_path = g_strdup (account_path);
+    crd->preferred_handler = g_strdup (preferred_handler);
+    crd->properties = g_hash_table_ref (requested_properties);
+    crd->user_action_time = user_action_time;
+    crd->ensure = ensure;
+
+    DEBUG ("start %s.%s acl (%p)", account_path, method, crd);
+
+    mcp_dbus_acl_authorised_async (dispatcher->priv->dbus_daemon,
+                                   context,
+                                   DBUS_ACL_TYPE_METHOD,
+                                   method,
+                                   params,
+                                   dispatcher_channel_request_acl_success,
+                                   crd,
+                                   dispatcher_channel_request_acl_cleanup);
+
+}
+
+static void
 dispatcher_create_channel (TpSvcChannelDispatcher *iface,
                            const gchar *account_path,
                            GHashTable *requested_properties,
@@ -2075,13 +2186,14 @@ dispatcher_create_channel (TpSvcChannelDispatcher *iface,
                            const gchar *preferred_handler,
                            DBusGMethodInvocation *context)
 {
-    dispatcher_request_channel (MCD_DISPATCHER (iface),
-                                account_path,
-                                requested_properties,
-                                user_action_time,
-                                preferred_handler,
-                                context,
-                                FALSE);
+    dispatcher_channel_request_acl_start (MCD_DISPATCHER (iface),
+                                          CREATE_CHANNEL,
+                                          account_path,
+                                          requested_properties,
+                                          user_action_time,
+                                          preferred_handler,
+                                          context,
+                                          FALSE);
 }
 
 static void
@@ -2092,13 +2204,14 @@ dispatcher_ensure_channel (TpSvcChannelDispatcher *iface,
                            const gchar *preferred_handler,
                            DBusGMethodInvocation *context)
 {
-    dispatcher_request_channel (MCD_DISPATCHER (iface),
-                                account_path,
-                                requested_properties,
-                                user_action_time,
-                                preferred_handler,
-                                context,
-                                TRUE);
+    dispatcher_channel_request_acl_start (MCD_DISPATCHER (iface),
+                                          ENSURE_CHANNEL,
+                                          account_path,
+                                          requested_properties,
+                                          user_action_time,
+                                          preferred_handler,
+                                          context,
+                                          TRUE);
 }
 
 static void

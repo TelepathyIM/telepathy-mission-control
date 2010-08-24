@@ -2,6 +2,7 @@
  * This file is part of telepathy-mission-control
  *
  * Copyright (C) 2008 Nokia Corporation.
+ * Copyright (C) 2010 Collabora Ltd.
  *
  * Contact: Pekka Pessi  <first.last@nokia.com>
  *
@@ -28,10 +29,9 @@
 
 #include <glib-object.h>
 
-#include <telepathy-glib/dbus.h>
-#include <telepathy-glib/defs.h>
-#include <libmcclient/mc-account-manager.h>
-#include <libmcclient/mc-account.h>
+#include <telepathy-glib/telepathy-glib.h>
+
+#include <libmcclient/_gen/interfaces.h>
 #include <libmcclient/mc-profile.h>
 
 static gchar *app_name;
@@ -50,6 +50,7 @@ show_help (gchar * err)
 	    "    %1$s update <account name> [(int|uint|bool|string):<key>=<value>|clear:key] ...\n"
 	    "    %1$s display <account name> <display name>\n"
 	    "    %1$s nick <account name> <nick name>\n"
+	    "    %1$s service <account name> <service name>\n"
 	    "    %1$s icon <account name> <icon name>\n"
 	    "    %1$s show <account name>\n"
 	    "    %1$s get <account name> [key...]\n"
@@ -77,8 +78,8 @@ union command {
     } common;
 
     union {
-	gboolean (*manager) (McAccountManager *manager);
-	gboolean (*account) (McAccount *account);
+	gboolean (*manager) (TpAccountManager *manager);
+	gboolean (*account) (TpAccount *account);
     } ready;
 
     struct {
@@ -101,7 +102,7 @@ union command {
     struct {
 	struct common common;
 	gchar const *name;
-    } display, nick, icon;
+    } display, nick, icon, service;
 
     struct {
 	struct common common;
@@ -117,11 +118,11 @@ union command {
 
 struct presence {
     TpConnectionPresenceType type;
-    gchar const *status;
-    gchar const *message;
+    gchar *status;
+    gchar *message;
 };
 
-static char *startswith (char const *string, char const *prefix)
+static const char *strip_prefix (char const *string, char const *prefix)
 {
     while (*prefix && *string)
 	if (*prefix++ != *string++)
@@ -129,21 +130,19 @@ static char *startswith (char const *string, char const *prefix)
     return *prefix == '\0' ? (char *)string : NULL;
 }
 
-char const account_prefix[] =  "/org/freedesktop/Telepathy/Account/";
-
-static char *prefix (char const *string)
+static char *ensure_prefix (char const *string)
 {
-    if (startswith (string, account_prefix))
+    if (g_str_has_prefix (string, TP_ACCOUNT_OBJECT_PATH_BASE))
 	return g_strdup (string);
-    return g_strdup_printf ("%s%s", account_prefix, string);
+    return g_strdup_printf ("%s%s", TP_ACCOUNT_OBJECT_PATH_BASE, string);
 }
 
-static char *strip (char const *string)
+static const char *skip_prefix (char const *string)
 {
-    char *prefixed = startswith (string, account_prefix);
-    if (prefixed)
-	return (char *)prefixed;
-    return (char *)string;
+    const char *prefixed = strip_prefix (string, TP_ACCOUNT_OBJECT_PATH_BASE);
+    if (prefixed != NULL)
+	return prefixed;
+    return string;
 }
 
 static void
@@ -296,6 +295,13 @@ show_presence (gchar const *what, struct presence *presence)
     presence->type, presence->message);
 }
 
+static void
+free_presence (struct presence *presence)
+{
+  g_free (presence->status);
+  g_free (presence->message);
+}
+
 static TpConnectionPresenceType
 get_presence_type_for_status(char const *status)
 {
@@ -413,6 +419,28 @@ getter_list_add(gchar const *name,
     g_datalist_id_set_data(&getter_list, id, getter);
 }
 
+static const char *
+account_get_normalized_name (TpAccount *account)
+{
+    return g_object_get_data (G_OBJECT (account), "NormalizedName");
+}
+
+static TpConnectionPresenceType
+account_get_automatic_presence (TpAccount *account,
+                                char **status, char **message)
+{
+    if (status != NULL)
+        *status = g_strdup (g_object_get_data (G_OBJECT (account),
+                            "AutomaticPresenceStatus"));
+
+    if (message != NULL)
+        *message = g_strdup (g_object_get_data (G_OBJECT (account),
+                             "AutomaticPresenceMessage"));
+
+    return GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (account),
+                             "AutomaticPresenceType"));
+}
+
 static void
 getter_list_init(void)
 {
@@ -422,36 +450,35 @@ getter_list_init(void)
 
     init = 1;
 
-    getter_list_add("DisplayName", GET_STRING, mc_account_get_display_name);
-    getter_list_add("Icon", GET_STRING, mc_account_get_icon);
-    getter_list_add("Valid", GET_BOOLEAN, mc_account_is_valid);
-    getter_list_add("Enabled", GET_BOOLEAN, mc_account_is_enabled);
-    getter_list_add("Nickname", GET_STRING, mc_account_get_nickname);
+    getter_list_add("DisplayName", GET_STRING, tp_account_get_display_name);
+    getter_list_add("Icon", GET_STRING, tp_account_get_icon_name);
+    getter_list_add("Valid", GET_BOOLEAN, tp_account_is_valid);
+    getter_list_add("Enabled", GET_BOOLEAN, tp_account_is_enabled);
+    getter_list_add("Nickname", GET_STRING, tp_account_get_nickname);
     getter_list_add("ConnectAutomatically", GET_BOOLEAN,
-		    mc_account_connects_automatically);
-    getter_list_add("NormalizedName", GET_STRING,
-		    mc_account_get_normalized_name);
+		    tp_account_get_connect_automatically);
+    getter_list_add("NormalizedName", GET_STRING, account_get_normalized_name);
 
     getter_list_add("AutomaticPresenceType",
-		    GET_PRESENCE_TYPE, mc_account_get_automatic_presence);
+		    GET_PRESENCE_TYPE, account_get_automatic_presence);
     getter_list_add("AutomaticPresenceStatus",
-		    GET_PRESENCE_STATUS, mc_account_get_automatic_presence);
+		    GET_PRESENCE_STATUS, account_get_automatic_presence);
     getter_list_add("AutomaticPresenceMessage",
-		    GET_PRESENCE_MESSAGE, mc_account_get_automatic_presence);
+		    GET_PRESENCE_MESSAGE, account_get_automatic_presence);
 
     getter_list_add("RequestedPresenceType",
-		    GET_PRESENCE_TYPE, mc_account_get_requested_presence);
+		    GET_PRESENCE_TYPE, tp_account_get_requested_presence);
     getter_list_add("RequestedPresenceStatus",
-		    GET_PRESENCE_STATUS, mc_account_get_requested_presence);
+		    GET_PRESENCE_STATUS, tp_account_get_requested_presence);
     getter_list_add("RequestedPresenceMessage",
-		    GET_PRESENCE_MESSAGE, mc_account_get_requested_presence);
+		    GET_PRESENCE_MESSAGE, tp_account_get_requested_presence);
 
     getter_list_add("CurrentPresenceType",
-		    GET_PRESENCE_TYPE, mc_account_get_current_presence);
+		    GET_PRESENCE_TYPE, tp_account_get_current_presence);
     getter_list_add("CurrentPresenceStatus",
-		    GET_PRESENCE_STATUS, mc_account_get_current_presence);
+		    GET_PRESENCE_STATUS, tp_account_get_current_presence);
     getter_list_add("CurrentPresenceMessage",
-		    GET_PRESENCE_MESSAGE, mc_account_get_current_presence);
+		    GET_PRESENCE_MESSAGE, tp_account_get_current_presence);
 }
 
 static Getter *
@@ -465,20 +492,22 @@ getter_by_name(char *name)
 /* ====================================================================== */
 
 static gboolean
-command_list (McAccountManager *manager)
+command_list (TpAccountManager *manager)
 {
-    const gchar * const *accounts;
+    GList *accounts;
 
-    accounts = mc_account_manager_get_valid_accounts (manager);
+    accounts = tp_account_manager_get_valid_accounts (manager);
 
-    if (accounts) {
-	int i;
+    if (accounts != NULL) {
+	GList *ptr;
 
 	command.common.ret = 0;
 
-	for (i = 0; accounts[i]; i++) {
-	    puts (strip (accounts[i]));
+	for (ptr = accounts; ptr != NULL; ptr = ptr->next) {
+	    puts (skip_prefix (tp_proxy_get_object_path (ptr->data)));
 	}
+
+	g_list_free (accounts);
     }
 
     return FALSE;                 /* stop mainloop */
@@ -486,7 +515,7 @@ command_list (McAccountManager *manager)
 
 
 static void
-callback_for_create_account (TpProxy *proxy,
+callback_for_create_account (TpAccountManager *proxy,
 			     gchar const *account,
 			     GError const *error,
 			     gpointer user_data,
@@ -494,7 +523,7 @@ callback_for_create_account (TpProxy *proxy,
 {
     if (error == NULL) {
 	command.common.ret = 0;
-	puts (strip (account));
+	puts (skip_prefix (account));
     }
     else {
 	fprintf (stderr, "%s: %s\n", app_name, error->message);
@@ -503,7 +532,7 @@ callback_for_create_account (TpProxy *proxy,
 }
 
 static gboolean
-command_add (McAccountManager *manager)
+command_add (TpAccountManager *manager)
 {
     GHashTable *properties;
     GValue v_profile = { 0 };
@@ -520,7 +549,7 @@ command_add (McAccountManager *manager)
     }
 
     return NULL !=
-	mc_cli_account_manager_call_create_account
+	tp_cli_account_manager_call_create_account
 	    (manager, 25000,
 	     command.add.manager,
 	     command.add.protocol,
@@ -532,7 +561,7 @@ command_add (McAccountManager *manager)
 }
 
 static void
-callback_for_update_parameters (TpProxy *proxy,
+callback_for_update_parameters (TpAccount *proxy,
                                 const gchar **unchanged G_GNUC_UNUSED,
                                 const GError *error,
                                 gpointer user_data,
@@ -549,7 +578,7 @@ callback_for_update_parameters (TpProxy *proxy,
 }
 
 static void
-callback_for_void (TpProxy *proxy,
+callback_for_void (TpAccount *proxy,
 		   const GError *error,
 		   gpointer user_data,
 		   GObject *weak_object)
@@ -564,49 +593,80 @@ callback_for_void (TpProxy *proxy,
     g_main_loop_quit (main_loop);
 }
 
+static void
+callback_for_async (GObject *account,
+		    GAsyncResult *res,
+		    gpointer user_data)
+{
+    gboolean (* finish_func) (TpAccount *, GAsyncResult *, GError **);
+    GError *error = NULL;
+
+    finish_func = user_data;
+
+    if (!finish_func (TP_ACCOUNT (account), res, &error)) {
+        fprintf (stderr, "%s %s: %s\n", app_name, command.common.name,
+                 error->message);
+        g_error_free (error);
+    }
+    else {
+        command.common.ret = 0;
+    }
+
+    g_main_loop_quit (main_loop);
+}
+
 static gboolean
-command_remove (McAccount *account)
+command_remove (TpAccount *account)
 {
     return NULL !=
-	mc_cli_account_call_remove (account, 25000,
+	tp_cli_account_call_remove (account, 25000,
 				    callback_for_void,
 				    NULL, NULL, NULL);
 }
 
 static gboolean
-command_show (McAccount *account)
+command_show (TpAccount *account)
 {
     gchar const *name;
-    GHashTable *parameters;
+    const GHashTable *parameters;
     GHashTableIter i[1];
     gpointer keyp, valuep;
     struct presence automatic, current, requested;
 
-    name = strip (command.common.account);
+    name = skip_prefix (command.common.account);
 
     show ("Account", name);
-    show ("Display Name", mc_account_get_display_name (account));
-    show ("Normalized", mc_account_get_normalized_name (account));
-    show ("Enabled", mc_account_is_enabled (account) ? "enabled" : "disabled");
-    show ("Valid", mc_account_is_valid (account) ? "" : "false");
-    show ("Icon", mc_account_get_icon (account));
+    show ("Display Name", tp_account_get_display_name (account));
+    show ("Normalized", account_get_normalized_name (account));
+    show ("Enabled", tp_account_is_enabled (account) ? "enabled" : "disabled");
+    show ("Valid", tp_account_is_valid (account) ? "" : "false");
+    show ("Icon", tp_account_get_icon_name (account));
     show ("Connects",
-	  mc_account_connects_automatically (account) ? "automatically" : NULL);
-    show ("Nickname", mc_account_get_nickname (account));
+	  tp_account_get_connect_automatically (account) ? "automatically" : NULL);
+    show ("Nickname", tp_account_get_nickname (account));
 
-    mc_account_get_automatic_presence (account, &automatic.type,
-				       &automatic.status, &automatic.message);
+    automatic.type = account_get_automatic_presence (account,
+                                                     &automatic.status,
+                                                     &automatic.message);
     show_presence ("Automatic", &automatic);
-    mc_account_get_current_presence (account, &current.type,
-				     &current.status, &current.message);
-    show_presence ("Current", &current);
-    mc_account_get_requested_presence (account, &requested.type,
-				       &requested.status, &requested.message);
-    show_presence ("Requested", &requested);
-    puts ("");
-    parameters = mc_account_get_parameters (account);
+    free_presence (&automatic);
 
-    for (g_hash_table_iter_init (i, parameters);
+    current.type = tp_account_get_current_presence (account,
+                                                    &current.status,
+                                                    &current.message);
+    show_presence ("Current", &current);
+    free_presence (&current);
+
+    requested.type = tp_account_get_requested_presence (account,
+                                                        &requested.status,
+                                                        &requested.message);
+    show_presence ("Requested", &requested);
+    free_presence (&requested);
+
+    puts ("");
+    parameters = tp_account_get_parameters (account);
+
+    for (g_hash_table_iter_init (i, (GHashTable *) parameters);
 	 g_hash_table_iter_next (i, &keyp, &valuep);) {
 	show_param (keyp, valuep);
     }
@@ -617,17 +677,20 @@ command_show (McAccount *account)
 }
 
 static gboolean
-command_connection (McAccount *account)
+command_connection (TpAccount *account)
 {
-    gchar const *name;
-    TpConnectionStatus status;
-    TpConnectionStatusReason reason;
+    TpConnection *conn;
 
-    name = mc_account_get_connection_path (account);
-    status = mc_account_get_connection_status (account);
-    reason = mc_account_get_connection_status_reason (account);
+    conn = tp_account_get_connection (account);
 
-    if (name && name[0]) {
+    if (conn != NULL) {
+        TpConnectionStatus status;
+        TpConnectionStatusReason reason;
+	const gchar *name;
+
+	name = tp_proxy_get_object_path (conn);
+	status = tp_account_get_connection_status (account, &reason);
+
 	printf("%s %s %s\n", name,
 	       connection_status_as_string(status),
 	       connection_status_reason_as_string(reason));
@@ -635,14 +698,14 @@ command_connection (McAccount *account)
     }
     else {
 	fprintf(stderr, "%s: no connection\n",
-		strip (command.common.account));
+		skip_prefix (command.common.account));
     }
 
     return FALSE;
 }
 
 static gboolean
-command_get (McAccount *account)
+command_get (TpAccount *account)
 {
     GPtrArray *args = command.get.args;
     GHashTable *parameters = NULL;
@@ -654,10 +717,10 @@ command_get (McAccount *account)
 	Getter *getter = g_ptr_array_index(args, i);
 
 	if (getter->function) {
-	    gchar const *(*getstring)(McAccount *) = getter->function;
-	    gboolean (*getboolean)(McAccount *) = getter->function;
-	    void (*getpresence)(McAccount *, TpConnectionPresenceType *type,
-				gchar const **status, gchar const **message) =
+	    gchar const *(*getstring)(TpAccount *) = getter->function;
+	    gboolean (*getboolean)(TpAccount *) = getter->function;
+	    TpConnectionPresenceType (*getpresence)(TpAccount *,
+				gchar **status, gchar **message) =
 		getter->function;
 
 	    if (getter->type == GET_STRING) {
@@ -670,14 +733,18 @@ command_get (McAccount *account)
 		     getter->type == GET_PRESENCE_STATUS ||
 		     getter->type == GET_PRESENCE_MESSAGE) {
 		struct presence presence;
-		getpresence(account, &presence.type, &presence.status,
+
+		presence.type = getpresence(account, &presence.status,
 			    &presence.message);
+
 		if (getter->type == GET_PRESENCE_TYPE)
 		    printf("%u\n", presence.type);
 		else if (getter->type == GET_PRESENCE_STATUS)
 		    printf("\"%s\"\n", presence.status);
 		else
 		    printf("\"%s\"\n", presence.message);
+
+                free_presence (&presence);
 	    }
 	    else {
 	    }
@@ -687,7 +754,7 @@ command_get (McAccount *account)
 	    gchar *value;
 
 	    if (parameters == NULL)
-		parameters = mc_account_get_parameters(account);
+		parameters = (GHashTable *) tp_account_get_parameters(account);
 
 	    gvalue = g_hash_table_lookup(parameters, getter->name);
 
@@ -709,59 +776,80 @@ command_get (McAccount *account)
 }
 
 static gboolean
-command_enable (McAccount *account)
+command_enable (TpAccount *account)
 {
-    return NULL !=
-	mc_account_set_enabled (account, TRUE,
-				callback_for_void, NULL, NULL, NULL);
+    tp_account_set_enabled_async (account, TRUE,
+                                  callback_for_async,
+                                  tp_account_set_enabled_finish);
+
+    return TRUE;
 }
 
 static gboolean
-command_disable (McAccount *account)
+command_disable (TpAccount *account)
 {
-    return NULL !=
-	mc_account_set_enabled (account, FALSE,
-				callback_for_void, NULL, NULL, NULL);
+    tp_account_set_enabled_async (account, FALSE,
+                                  callback_for_async,
+                                  tp_account_set_enabled_finish);
+
+    return TRUE;
 }
 
 static gboolean
-command_display (McAccount *account)
+command_display (TpAccount *account)
 {
-    return NULL !=
-	mc_account_set_display_name (account, command.display.name,
-				     callback_for_void, NULL, NULL, NULL);
+    tp_account_set_display_name_async (account, command.display.name,
+                                       callback_for_async,
+                                       tp_account_set_display_name_finish);
+
+    return TRUE;
 }
 
 static gboolean
-command_nick (McAccount *account)
+command_nick (TpAccount *account)
 {
-    return NULL !=
-	mc_account_set_nickname (account, command.nick.name,
-				 callback_for_void, NULL, NULL, NULL);
+    tp_account_set_nickname_async (account, command.nick.name,
+				   callback_for_async,
+                                   tp_account_set_nickname_finish);
+
+    return TRUE;
 }
 
 static gboolean
-command_icon (McAccount *account)
+command_service (TpAccount *account)
 {
-    return NULL !=
-	mc_account_set_icon (account, command.icon.name,
-			     callback_for_void, NULL, NULL, NULL);
+    tp_account_set_service_async (account, command.service.name,
+                                  callback_for_async,
+                                  tp_account_set_service_finish);
+
+    return TRUE;
 }
 
 static gboolean
-command_auto_connect (McAccount *account)
+command_icon (TpAccount *account)
 {
-    return NULL !=
-	mc_account_set_connect_automatically (account, command.boolean.value,
-					      callback_for_void,
-					      NULL, NULL, NULL);
+    tp_account_set_icon_name_async (account, command.icon.name,
+                                    callback_for_async,
+                                    tp_account_set_icon_name_finish);
+
+    return TRUE;
 }
 
 static gboolean
-command_update (McAccount *account)
+command_auto_connect (TpAccount *account)
+{
+    tp_account_set_connect_automatically_async (account, command.boolean.value,
+                                                callback_for_async,
+                                                tp_account_set_connect_automatically_finish);
+
+    return TRUE;
+}
+
+static gboolean
+command_update (TpAccount *account)
 {
     return NULL !=
-	mc_cli_account_call_update_parameters (account, 25000,
+	tp_cli_account_call_update_parameters (account, 25000,
 					       command.update.set,
 					       (const gchar  **)
 					       command.update.unset->pdata,
@@ -770,27 +858,39 @@ command_update (McAccount *account)
 }
 
 static gboolean
-command_auto_presence (McAccount *account)
+command_auto_presence (TpAccount *account)
 {
-    return NULL !=
-	mc_account_set_automatic_presence (account,
-					   command.presence.type,
-					   command.presence.status,
-					   command.presence.message,
-					   callback_for_void,
-					   NULL, NULL, NULL);
+    GValue value = { 0, };
+    GValueArray *va = tp_value_array_build (3,
+                    G_TYPE_UINT, command.presence.type,
+					G_TYPE_STRING, command.presence.status,
+					G_TYPE_STRING, command.presence.message,
+                    G_TYPE_INVALID);
+
+    g_value_init (&value, TP_STRUCT_TYPE_SIMPLE_PRESENCE);
+    g_value_take_boxed (&value, va);
+
+	tp_cli_dbus_properties_call_set (account, 25000,
+                    TP_IFACE_ACCOUNT, "AutomaticPresence", &value,
+                    (tp_cli_dbus_properties_callback_for_set) callback_for_void,
+                    NULL, NULL, NULL);
+
+    g_value_unset (&value);
+
+    return TRUE;
 }
 
 static gboolean
-command_request (McAccount *account)
+command_request (TpAccount *account)
 {
-    return NULL !=
-	mc_account_set_requested_presence (account,
-					   command.presence.type,
-					   command.presence.status,
-					   command.presence.message,
-					   callback_for_void,
-					   NULL, NULL, NULL);
+    tp_account_request_presence_async (account,
+                                       command.presence.type,
+                                       command.presence.status,
+                                       command.presence.message,
+                                       callback_for_async,
+                                       tp_account_request_presence_finish);
+
+    return TRUE;
 }
 
 static void
@@ -898,9 +998,9 @@ parse (int argc, char **argv)
 	for (i = 3; argv[i]; i++) {
 	    char *name = argv[i];
 	    Getter *getter;
-	    char *param = startswith(name, "param=");
+	    const char *param = strip_prefix (name, "param=");
 
-	    if (param) {
+	    if (param != NULL) {
 		getter = g_new0(Getter, 1);
 		getter->name = param;
 		getter->type = GET_PARAM;
@@ -965,6 +1065,16 @@ parse (int argc, char **argv)
 	command.ready.account = command_nick;
 	command.common.account = argv[2];
 	command.nick.name = argv[3];
+    }
+    else if (strcmp (argv[1], "service") == 0)
+    {
+        /* Set service */
+	if (argc != 4)
+	    show_help ("Invalid service command.");
+
+	command.ready.account = command_service;
+	command.common.account = argv[2];
+	command.service.name = argv[3];
     }
     else if (strcmp (argv[1], "icon") == 0)
     {
@@ -1078,33 +1188,88 @@ parse (int argc, char **argv)
 }
 
 static
-void manager_ready (McAccountManager *manager,
-		    const GError *error,
+void manager_ready (GObject *manager,
+		    GAsyncResult *res,
 		    gpointer user_data)
 {
-    if (error) {
+    GError *error = NULL;
+
+    if (!tp_proxy_prepare_finish (manager, res, &error)) {
 	fprintf (stderr, "%s: %s\n", app_name, error->message);
+	g_error_free (error);
     }
     else {
-	if (command.ready.manager (manager))
+	if (command.ready.manager (TP_ACCOUNT_MANAGER (manager)))
 	    return;
     }
 
     g_main_loop_quit (main_loop);
 }
 
+static void
+account_got_all_properties (TpProxy *account,
+                            GHashTable *properties,
+                            const GError *error,
+                            gpointer user_data,
+                            GObject *weak_object)
+{
+    TpConnectionPresenceType type;
+    const char *status, *message;
+
+    if (error != NULL)
+    {
+        fprintf (stderr, "%s: %s: %s\n",
+                 app_name, skip_prefix (command.common.account),
+                 error->message);
+    }
+
+    /* load properties not expose in TpAccount */
+    /* NormalizedName */
+    g_object_set_data_full (G_OBJECT (account), "NormalizedName",
+                            g_strdup (tp_asv_get_string (properties,
+                                                         "NormalizedName")),
+                            g_free);
+
+    /* AutomaticPresence */
+    tp_value_array_unpack (tp_asv_get_boxed (properties, "AutomaticPresence",
+                                             TP_STRUCT_TYPE_SIMPLE_PRESENCE),
+                           3, &type, &status, &message);
+
+    g_object_set_data (G_OBJECT (account), "AutomaticPresenceType",
+                       GUINT_TO_POINTER (type));
+    g_object_set_data_full (G_OBJECT (account), "AutomaticPresenceStatus",
+                            g_strdup (status), g_free);
+    g_object_set_data_full (G_OBJECT (account), "AutomaticPresenceMessage",
+                            g_strdup (message), g_free);
+
+    if (command.ready.account (TP_ACCOUNT (account)))
+        return;
+
+    g_main_loop_quit (main_loop);
+}
+
 static
-void account_ready (McAccount *account,
-		    const GError *error,
+void account_ready (GObject *account,
+		    GAsyncResult *res,
 		    gpointer user_data)
 {
-    if (error) {
+    GError *error = NULL;
+
+    if (!tp_proxy_prepare_finish (account, res, &error)) {
 	fprintf (stderr, "%s: %s: %s\n",
-		 app_name, strip (command.common.account), error->message);
+		 app_name, skip_prefix (command.common.account),
+                 error->message);
+	g_error_free (error);
     }
     else {
-	if (command.ready.account (account))
-	    return;
+        /* not all properties are exposed through TpAccount, request the
+         * remaining properties */
+        tp_cli_dbus_properties_call_get_all (account, 25000,
+                TP_IFACE_ACCOUNT,
+                account_got_all_properties,
+                NULL, NULL, NULL);
+
+        return;
     }
 
     g_main_loop_quit (main_loop);
@@ -1113,10 +1278,10 @@ void account_ready (McAccount *account,
 int
 main (int argc, char **argv)
 {
-    McAccountManager *am = NULL;
-    McAccount *a = NULL;
-    DBusGConnection *dbus_conn;
-    TpDBusDaemon *daemon;
+    TpAccountManager *am = NULL;
+    TpAccount *a = NULL;
+    TpDBusDaemon *dbus;
+    GError *error = NULL;
 
     g_type_init ();
 
@@ -1126,29 +1291,38 @@ main (int argc, char **argv)
 
     command.common.ret = 1;
 
-    dbus_conn = tp_get_bus ();
-    daemon = tp_dbus_daemon_new (dbus_conn);
-    dbus_g_connection_unref (dbus_conn);
+    dbus = tp_dbus_daemon_dup (&error);
+    if (error != NULL) {
+        fprintf (stderr, "%s %s: Failed to connect to D-Bus: %s\n",
+            app_name, command.common.name, error->message);
+
+        g_error_free (error);
+
+        goto out;
+    }
 
     if (command.common.account == NULL) {
-	am = mc_account_manager_new (daemon);
-	mc_account_manager_call_when_ready (am, manager_ready, NULL);
+        am = tp_account_manager_new (dbus);
+        tp_proxy_prepare_async (am, NULL, manager_ready, NULL);
     }
     else {
-	command.common.account = prefix (command.common.account);
-	a = mc_account_new (daemon, command.common.account);
+	command.common.account = ensure_prefix (command.common.account);
+	a = tp_account_new (dbus, command.common.account, &error);
 
-	if (a == NULL)
+	if (error != NULL)
 	{
-	    fprintf (stderr, "%s %s: '%s' is not a valid account name\n",
+	    fprintf (stderr, "%s %s: %s\n",
 		     app_name, command.common.name,
-		     strip (command.common.account));
+		     error->message);
+
+	    g_error_free (error);
+
 	    goto out;
 	}
 
-	mc_account_call_when_ready (a, account_ready, NULL);
+	tp_proxy_prepare_async (a, NULL, account_ready, NULL);
     }
-    g_object_unref (daemon);
+    g_object_unref (dbus);
 
     main_loop = g_main_loop_new (NULL, FALSE);
     g_main_loop_run (main_loop);

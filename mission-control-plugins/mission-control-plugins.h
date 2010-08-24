@@ -27,6 +27,7 @@
 #define _MCP_IN_MISSION_CONTROL_PLUGINS_H
 #include <mission-control-plugins/account.h>
 #include <mission-control-plugins/account-storage.h>
+#include <mission-control-plugins/dbus-acl.h>
 #include <mission-control-plugins/dispatch-operation.h>
 #include <mission-control-plugins/dispatch-operation-policy.h>
 #include <mission-control-plugins/loader.h>

@@ -175,6 +175,10 @@ mcp_read_dir (const gchar *path)
       full_path = g_build_filename (path, entry, NULL);
 
       module = g_module_open (full_path, G_MODULE_BIND_LOCAL);
+      if (module)
+        DEBUG ("g_module_open (%s, ...) = %p", full_path, module);
+      else
+        DEBUG ("g_module_open (%s, ...) = %s", full_path, g_module_error ());
 
       if (module != NULL)
         {

@@ -8,6 +8,8 @@ INCLUDES = \
 	-DMCP_API_VERSION=@MCP_API_VERSION@ \
 	-DMCP_ABI_VERSION=@MCP_ABI_VERSION@
 
+AM_CFLAGS = $(ERROR_CFLAGS)
+
 EXTRA_DIST = mcp-signals-marshal.list
 
 lib_LTLIBRARIES = libmission-control-plugins.la
@@ -19,6 +21,7 @@ plugins_include_HEADERS = \
 	mission-control-plugins.h \
 	account.h \
 	account-storage.h \
+	dbus-acl.h \
 	dispatch-operation.h \
 	dispatch-operation-policy.h \
 	loader.h \
@@ -43,6 +46,7 @@ libmission_control_plugins_la_SOURCES = \
 	debug-internal.h \
 	account.c \
 	account-storage.c \
+	dbus-acl.c \
 	dispatch-operation.c \
 	dispatch-operation-policy.c \
 	implementation.h \

@@ -1,5 +1,90 @@
-telepathy-mission-control 5.5.0 (UNRELEASED)
+telepathy-mission-control 5.5.3 (2010-07-22)
 ============================================
+
+Dependencies:
+
+* telepathy-glib 0.11.9 is now required
+
+Enhancements:
+
+* Added support for the new Account.Service property in the MC core code and
+  the SSO plugin (fledermaus)
+
+* Added support for the Service property to mc-tool (wjt)
+
+* Made account storage plugins able to notify MC that a single account has
+  changed externally (fledermaus)
+
+* Added support for plugins that check D-Bus calls' callers against an ACL
+  (fledermaus)
+
+Fixes:
+
+* Treat calls ended locally with No_Answer as missed (wjt)
+
+* fd.o #24645: when an existing channel is returned by EnsureChannel and its
+  handler has more than one Handler bus name/object path sharing a unique name,
+  MC now tries harder to invoke the same one as before (smcv)
+
+* Disable accounts when they're deleted by an account storage plugin
+  (fledermaus)
+
+* Attempt re-connection of failed connections less rapidly (wjt)
+
+telepathy-mission-control 5.5.2 (2010-06-16)
+============================================
+
+The "513M accounts.cfg, which seems terribly wrong" release.
+
+Dependencies:
+
+* telepathy-glib 0.11.7 is now required
+
+Enhancements:
+
+* fd.o #28428: implement the new ConnectionError property from telepathy-spec
+  0.19.7, and if an Account's Connection-related property changes, put all
+  the related properties in the change notification signal to make it easier to
+  interpret (smcv)
+
+Fixes:
+
+* fd.o #28557: write account parameters to accounts.cfg correctly, rather than
+  repeatedly escaping backslash, newline, tab etc., which resulted in doubling
+  the number of backslashes with every write. If this has made your
+  accounts.cfg so large that deleting accounts via Empathy is difficult, see
+  https://bugs.freedesktop.org/show_bug.cgi?id=28557 for a workaround. (smcv)
+
+* fd.o #28390: drastically reduce writes to gnome-keyring when committing
+  changes to accounts (wjt, smcv)
+
+* fd.o #28118: clear the 'register' parameter when an account connects
+  successfully, fixing in-band XMPP account creation (smcv)
+
+This version includes the stable-branch bug fixes from 5.4.3.
+
+telepathy-mission-control 5.5.1 (2010-06-03)
+============================================
+
+The "red head headache" release.
+
+Enhancements:
+
+* Port mc-tool from libmcclient to telepathy-glib (danni)
+
+* Implement McpAccountStorage::toggled so that account plugins can toggle
+  the Enabled property of accounts (danni)
+
+* Document mission-control-plugins (smcv)
+
+Fixes:
+
+* Change names of variables that shadow global functions (danni)
+
+telepathy-mission-control 5.5.0 (2010-05-26)
+============================================
+
+The "it's yours provided you take it away today" release.
 
 Dependencies:
 
@@ -23,6 +108,16 @@ Enhancements:
 * channels can be dispatched before a connection goes CONNECTED, which is
   needed for SASL authentication channels (eeejay)
 
+* compiler warnings are correctly enabled (smcv)
+
+Removals:
+
+* libmcclient is no longer installed as a separate library unless the old
+  plugin interface is enabled
+
+* fd.o #26634: the obsolete utility mc-account-convert, for migration from
+  Mission Control 4, has been removed
+
 Fixes:
 
 * don't time out channel requests until many hours have passed (sjoerd)
@@ -43,6 +138,9 @@ Fixes:
 * fd.o #27129: update and simplify test/twisted/README (tomeu/smcv)
 
 * fd.o #25684: fix detection of accounts that already exist (Jani Monoses/smcv)
+
+* in libmcclient, don't crash on malformed profiles where a group is missing
+  (smcv)
 
 Maemo-specific enhancements:
 

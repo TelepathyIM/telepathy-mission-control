@@ -25,6 +25,7 @@
 #define __MCD_ACCOUNT_MANAGER_H__
 
 #include <telepathy-glib/dbus.h>
+#include "mission-control-plugins/mission-control-plugins.h"
 
 G_BEGIN_DECLS
 #define MCD_TYPE_ACCOUNT_MANAGER         (mcd_account_manager_get_type ())
@@ -83,13 +84,13 @@ TpDBusDaemon *mcd_account_manager_get_dbus_daemon
     (McdAccountManager *account_manager);
 
 GKeyFile *mcd_account_manager_get_config (McdAccountManager *account_manager);
-void mcd_account_manager_write_conf (McdAccountManager *account_manager);
 
 typedef void (McdAccountManagerWriteConfCb) (McdAccountManager *account_manager,
                                              const GError *error,
                                              gpointer user_data);
 
 void mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
+                                           McdAccount *account,
                                            McdAccountManagerWriteConfCb callback,
                                            gpointer user_data);
 
@@ -97,5 +98,9 @@ McdAccount *mcd_account_manager_lookup_account (McdAccountManager *account_manag
 						const gchar *name);
 McdAccount *mcd_account_manager_lookup_account_by_path (McdAccountManager *account_manager,
 						       	const gchar *object_path);
+
+McpAccountStorage *mcd_account_manager_get_storage_plugin (
+    McdAccountManager *account_manager,
+    McdAccount *account);
 
 #endif
