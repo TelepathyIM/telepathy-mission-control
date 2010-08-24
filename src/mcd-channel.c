@@ -111,9 +111,6 @@ enum _McdChannelPropertyType
     PROP_HINTS,
 };
 
-#define DEPRECATED_PROPERTY_WARNING \
-    g_warning ("%s: property %s is deprecated", G_STRFUNC, pspec->name)
-
 static guint mcd_channel_signals[LAST_SIGNAL] = { 0 };
 
 
