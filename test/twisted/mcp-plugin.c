@@ -1,8 +1,8 @@
 /*
  * A demonstration plugin that acts as a channel filter.
  *
- * Copyright (C) 2008-2009 Nokia Corporation
- * Copyright (C) 2009 Collabora Ltd.
+ * Copyright © 2008-2009 Nokia Corporation
+ * Copyright © 2009-2010 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
