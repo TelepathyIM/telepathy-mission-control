@@ -1984,10 +1984,11 @@ mcd_account_manager_get_storage_plugin (McdAccountManager *account_manager,
     {
       McpAccountStorage *plugin = store->data;
       GList *stored = mcp_account_storage_list (plugin, ma);
-      GList *acct;
-      for (acct = stored; acct != NULL; acct = g_list_next (acct))
+      GList *iter;
+
+      for (iter = stored; iter != NULL; iter = g_list_next (iter))
         {
-          gchar *name = acct->data;
+          gchar *name = iter->data;
 
           if (g_strcmp0 (name, account_name) == 0)
             return plugin;
