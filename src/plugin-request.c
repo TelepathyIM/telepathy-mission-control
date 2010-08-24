@@ -118,7 +118,7 @@ _mcd_plugin_request_class_init (
 
   g_object_class_install_property (object_class, PROP_REAL_REQUEST,
       g_param_spec_object ("real-request", "Real channel request",
-          "The underlying McrRequest",
+          "The underlying McdRequest",
           MCD_TYPE_REQUEST,
           G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
 

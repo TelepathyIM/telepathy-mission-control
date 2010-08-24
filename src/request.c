@@ -386,7 +386,7 @@ _mcd_request_set_success (McdRequest *self)
     }
   else
     {
-      DEBUG ("Ignoring an attempt to fail after already complete");
+      DEBUG ("Ignoring an attempt to succeed after already complete");
     }
 }
 
