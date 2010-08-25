@@ -46,6 +46,8 @@ struct _McdAccount
 {
     GObject parent;
     McdAccountPrivate *priv;
+
+    GHashTable *minimum_presence_requests;
 };
 
 typedef enum

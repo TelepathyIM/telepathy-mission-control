@@ -38,6 +38,7 @@
 #include "_gen/svc-Account_Interface_Compat.h"
 #include "_gen/svc-Account_Interface_Conditions.h"
 #include "_gen/svc-Account_Interface_Stats.h"
+#include "_gen/svc-Account_Interface_Minimum_Presence.h"
 
 G_GNUC_INTERNAL void _mcd_account_maybe_autoconnect (McdAccount *account);
 G_GNUC_INTERNAL void _mcd_account_connect (McdAccount *account,
@@ -181,6 +182,13 @@ extern const McdDBusProp account_stats_properties[];
 void account_stats_iface_init (McSvcAccountInterfaceStatsClass *iface,
                                gpointer iface_data);
 void account_stats_instance_init (TpSvcDBusProperties *self);
+
+extern const McdDBusProp minimum_presence_properties[];
+
+void minimum_presence_iface_init (McSvcAccountInterfaceMinimumPresenceClass *iface,
+                                  gpointer iface_data);
+
+void minimum_presence_instance_init (TpSvcDBusProperties *self);
 
 G_GNUC_INTERNAL gboolean _mcd_account_check_request_real (McdAccount *account,
                                                           GHashTable *request,

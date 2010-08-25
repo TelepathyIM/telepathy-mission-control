@@ -16,6 +16,7 @@ mc_headers = \
 	mcd-account.h \
 	mcd-account-compat.h \
 	mcd-account-conditions.h \
+	mcd-account-presence.h \
 	mcd-account-manager.h \
 	mcd-account-manager-default.h \
 	mcd-debug.h \
@@ -140,6 +141,7 @@ libmcd_convenience_la_SOURCES = \
 	mcd-account-connection.c \
 	mcd-account-requests.c \
 	mcd-account-stats.c \
+	mcd-account-presence.c \
 	mcd-account-manager.c \
 	mcd-account-manager-priv.h \
 	mcd-account-manager-query.c \

@@ -95,6 +95,11 @@ static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE_WITH_INIT (mc_svc_account_interface_stats_get_type,
                                    account_stats,
                                    MC_IFACE_ACCOUNT_INTERFACE_STATS),
+    MCD_IMPLEMENT_IFACE_WITH_INIT (
+                        mc_svc_account_interface_minimum_presence_get_type,
+                        minimum_presence,
+                        MC_IFACE_ACCOUNT_INTERFACE_MINIMUM_PRESENCE),
+
     { G_TYPE_INVALID, }
 };
 
@@ -2916,13 +2921,16 @@ get_property (GObject *obj, guint prop_id,
 static void
 _mcd_account_finalize (GObject *object)
 {
-    McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (object);
+    McdAccount *account = MCD_ACCOUNT (object);
+    McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
 
     DEBUG ("%p (%s)", object, priv->unique_name);
     if (priv->changed_properties)
 	g_hash_table_destroy (priv->changed_properties);
     if (priv->properties_source != 0)
 	g_source_remove (priv->properties_source);
+
+    g_hash_table_destroy (account->minimum_presence_requests);
 
     g_free (priv->curr_presence_status);
     g_free (priv->curr_presence_message);
@@ -3109,6 +3117,8 @@ mcd_account_init (McdAccount *account)
     priv->auto_presence_type = TP_CONNECTION_PRESENCE_TYPE_AVAILABLE;
     priv->auto_presence_status = g_strdup ("available");
     priv->auto_presence_message = g_strdup ("");
+
+    account->minimum_presence_requests = NULL;
 
     /* initializes the interfaces */
     mcd_dbus_init_interfaces_instances (account);

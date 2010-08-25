@@ -1,0 +1,191 @@
+/* vi: set et sw=4 ts=8 cino=t0,(0: */
+/* -*- Mode: C; indent-tabs-mode: nil; c-basic-offset: 4; tab-width: 8 -*- */
+/*
+ * This file is part of mission-control
+ *
+ * Copyright (C) 2008-2010 Nokia Corporation.
+ * Copyright (C) 2009-2010 Collabora Ltd.
+ *
+ * Contact: Alberto Mardegan  <alberto.mardegan@nokia.com>
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
+ * version 2.1 as published by the Free Software Foundation.
+ *
+ * This library is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA
+ *
+ */
+
+#include "mcd-account-presence.h"
+
+#include <config.h>
+
+#include <telepathy-glib/gtypes.h>
+#include <telepathy-glib/util.h>
+#include <telepathy-glib/svc-generic.h>
+
+#include <libmcclient/mc-interfaces.h>
+
+#include "mcd-account.h"
+#include "mcd-account-priv.h"
+
+/* higher is better */
+static TpConnectionPresenceType presence_type_priorities[] = {
+    TP_CONNECTION_PRESENCE_TYPE_UNKNOWN,
+    TP_CONNECTION_PRESENCE_TYPE_UNSET,
+    TP_CONNECTION_PRESENCE_TYPE_OFFLINE,
+    TP_CONNECTION_PRESENCE_TYPE_HIDDEN,
+    TP_CONNECTION_PRESENCE_TYPE_EXTENDED_AWAY,
+    TP_CONNECTION_PRESENCE_TYPE_AWAY,
+    TP_CONNECTION_PRESENCE_TYPE_BUSY,
+    TP_CONNECTION_PRESENCE_TYPE_AVAILABLE,
+    TP_CONNECTION_PRESENCE_TYPE_ERROR
+};
+
+gint
+_mcd_account_presence_type_priority (TpConnectionPresenceType type)
+{
+    gint i;
+
+    for (i = 0; presence_type_priorities[i] !=
+            TP_CONNECTION_PRESENCE_TYPE_ERROR; i++)
+    {
+        if (presence_type_priorities[i] == type)
+            return i;
+    }
+
+    return -1;
+}
+
+static void
+get_most_available_presence (McdAccount *self,
+                             TpConnectionPresenceType *type,
+                             const gchar **status,
+                             const gchar **message)
+{
+    GHashTableIter iter;
+    gpointer k, v;
+    gint prio;
+
+    *type = TP_CONNECTION_PRESENCE_TYPE_UNSET;
+    *status = NULL;
+    *message = NULL;
+    prio = _mcd_account_presence_type_priority (*type);
+
+    g_hash_table_iter_init (&iter, self->minimum_presence_requests);
+    while (g_hash_table_iter_next (&iter, &k, &v))
+    {
+        GValue *val = g_value_array_get_nth (v, 0);
+        TpConnectionPresenceType t = g_value_get_uint (val);
+        gint p = _mcd_account_presence_type_priority (t);
+
+        if (p > prio)
+        {
+            prio = p;
+            tp_value_array_unpack (v, 3, type, status, message);
+        }
+    }
+}
+
+static void
+minimum_presence_request (McSvcAccountInterfaceMinimumPresence *iface,
+                          const GValueArray *simple_presence,
+                          DBusGMethodInvocation *context)
+{
+    McdAccount *self = MCD_ACCOUNT (iface);
+    TpConnectionPresenceType type;
+    const gchar *status;
+    const gchar *message;
+    gchar *client = dbus_g_method_get_sender (context);
+
+    tp_value_array_unpack ((GValueArray *) simple_presence,
+        3, &type, &status, &message);
+
+    if (!_mcd_account_presence_type_is_settable (type))
+    {
+        GError *error = NULL;
+
+        g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+            "MinimumPresence %d cannot be set on yourself", type);
+        dbus_g_method_return_error (context, error);
+        return;
+    }
+
+    DEBUG ("Client %s requests MinimumPresence %s: %s", client, status,
+         message);
+
+    g_hash_table_replace (self->minimum_presence_requests, client,
+        g_value_array_copy (simple_presence));
+
+    get_most_available_presence (self, &type, &status, &message);
+
+    _mcd_account_set_minimum_presence (self, type, status, message);
+
+    mc_svc_account_interface_minimum_presence_return_from_request (context);
+}
+
+static void
+minimum_presence_release (McSvcAccountInterfaceMinimumPresence *iface,
+                          DBusGMethodInvocation *context)
+{
+    McdAccount *self = MCD_ACCOUNT (iface);
+    TpConnectionPresenceType type;
+    const gchar *status;
+    const gchar *message;
+    gchar *client = dbus_g_method_get_sender (context);
+
+    get_most_available_presence (self, &type, &status, &message);
+    _mcd_account_set_minimum_presence (self, type, status, message);
+
+    g_hash_table_remove (self->minimum_presence_requests, client);
+    g_free (client);
+
+    mc_svc_account_interface_minimum_presence_return_from_release (context);
+}
+
+static void
+get_requests (TpSvcDBusProperties *iface, const gchar *name, GValue *value)
+{
+    McdAccount *self = MCD_ACCOUNT (iface);
+    GType type = dbus_g_type_get_map ("GHashTable", G_TYPE_STRING,
+        TP_STRUCT_TYPE_SIMPLE_PRESENCE);
+
+    g_value_init (value, type);
+    g_value_take_boxed (value,
+        g_hash_table_ref (self->minimum_presence_requests));
+}
+
+const McdDBusProp minimum_presence_properties[] = {
+    { "Requests", NULL, get_requests },
+    { 0 },
+};
+
+void
+minimum_presence_iface_init (McSvcAccountInterfaceMinimumPresenceClass *iface,
+                               gpointer iface_data)
+{
+#define IMPLEMENT(x) mc_svc_account_interface_minimum_presence_implement_##x (\
+    iface, minimum_presence_##x)
+    IMPLEMENT(request);
+    IMPLEMENT(release);
+#undef IMPLEMENT
+}
+
+void
+minimum_presence_instance_init (TpSvcDBusProperties *self)
+{
+    McdAccount *account = MCD_ACCOUNT (self);
+
+    account->minimum_presence_requests = g_hash_table_new_full (
+        g_str_hash, g_str_equal, g_free,
+        (GDestroyNotify) g_value_array_free);
+}
+
