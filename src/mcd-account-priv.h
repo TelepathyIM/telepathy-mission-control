@@ -195,4 +195,7 @@ G_GNUC_INTERNAL gboolean _mcd_account_set_enabled (McdAccount *account,
                                                    gboolean write_out,
                                                    GError **error);
 
+G_GNUC_INTERNAL gboolean _mcd_account_presence_type_is_settable (
+        TpConnectionPresenceType type);
+
 #endif /* __MCD_ACCOUNT_PRIV_H__ */

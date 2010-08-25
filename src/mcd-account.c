@@ -1402,8 +1402,8 @@ get_parameters_async (TpSvcDBusProperties *self, const gchar *name,
         data);
 }
 
-static gboolean
-_presence_type_is_settable (TpConnectionPresenceType type)
+gboolean
+_mcd_account_presence_type_is_settable (TpConnectionPresenceType type)
 {
     switch (type)
     {
@@ -1713,7 +1713,7 @@ set_requested_presence (TpSvcDBusProperties *self,
         return FALSE;
     }
 
-    if (!_presence_type_is_settable (type))
+    if (!_mcd_account_presence_type_is_settable (type))
     {
         g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
                      "RequestedPresence %d cannot be set on yourself", type);
