@@ -1,0 +1,86 @@
+<?xml version="1.0" ?>
+<node name="/Account_Interface_Minimum_Presence"
+  xmlns:tp="http://telepathy.freedesktop.org/wiki/DbusSpec#extensions-v0">
+  <tp:copyright>Copyright © 2010 Collabora Ltd.</tp:copyright>
+  <tp:copyright>Copyright © 2010 Nokia Corporation</tp:copyright>
+  <tp:license xmlns="http://www.w3.org/1999/xhtml">
+<p>This library is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; either
+version 2.1 of the License, or (at your option) any later version.</p>
+
+<p>This library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.</p>
+
+<p>You should have received a copy of the GNU Lesser General Public
+License along with this library; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+</p>
+  </tp:license>
+  <interface name="org.freedesktop.Telepathy.Account.Interface.MinimumPresence.DRAFT"
+    tp:causes-havoc="experimental">
+    <tp:requires interface="org.freedesktop.Telepathy.Account"/>
+    <tp:added version="0.19.UNRELEASED">(draft 1)</tp:added>
+
+    <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+      <p>This interface extends the core Account interface to provide a way
+        for applications to request minimum presence on the account.</p>
+
+      <tp:rationale>
+        <p>Some applications, for example mail notifiers or address book
+          synchronisation, can make use of account's connection even while
+          the user is nominally offline.</p>
+      </tp:rationale>
+    </tp:docstring>
+
+    <property name="Requests" tp:name-for-bindings="Requests" access="read"
+      type="a{s(uss)}" tp:type="Minimum_Presence_Request_Map">
+      <tp:docstring>
+        Active requests for minimum presence status, a map of bus name to
+        requested presence.
+      </tp:docstring>
+    </property>
+
+    <method name="Request" tp:name-for-bindings="Request">
+      <tp:docstring>
+        <p>Request a minimum presence status on this account.</p>
+      </tp:docstring>
+
+      <arg direction="in" name="status" type="(uss)" tp:type="Simple_Presence">
+        <tp:docstring>
+          Requested presence status.
+        </tp:docstring>
+      </arg>
+
+      <tp:possible-errors>
+        <tp:error name="org.freedesktop.Telepathy.Error.NotAvailable"/>
+      </tp:possible-errors>
+    </method>
+
+    <method name="Release" tp:name-for-bindings="Release">
+      <tp:docstring>
+        <p>Release request for minimum presence status on this account
+        requested by this caller.</p>
+      </tp:docstring>
+    </method>
+
+    <tp:mapping name="Minimum_Presence_Request_Map">
+      <tp:docstring>
+        <p>A map of active minimum presence requests.</p>
+      </tp:docstring>
+      <tp:member type="s" name="Key" tp:type="DBus_Unique_Name">
+        <tp:docstring>
+          <p>Client unique name.</p>
+        </tp:docstring>
+      </tp:member>
+      <tp:member type="(uss)" name="Value" tp:type="Simple_Presence">
+        <tp:docstring>
+          <p>Requested minimum presence.</p>
+        </tp:docstring>
+      </tp:member>
+    </tp:mapping>
+  </interface>
+</node>
+<!-- vim:set sw=2 sts=2 et ft=xml: -->
