@@ -203,6 +203,16 @@ G_GNUC_INTERNAL gboolean _mcd_account_set_enabled (McdAccount *account,
                                                    gboolean write_out,
                                                    GError **error);
 
+G_GNUC_INTERNAL void _mcd_account_set_minimum_presence (McdAccount *account,
+                                                        TpConnectionPresenceType type,
+                                                        const gchar *status,
+                                                        const gchar *message);
+
+G_GNUC_INTERNAL void _mcd_account_get_combined_presence (McdAccount *account,
+                                                         TpConnectionPresenceType *presence,
+                                                         const gchar **status,
+                                                         const gchar **message);
+
 G_GNUC_INTERNAL gboolean _mcd_account_presence_type_is_settable (
         TpConnectionPresenceType type);
 
