@@ -31,6 +31,7 @@ G_BEGIN_DECLS
 G_GNUC_INTERNAL gint _mcd_account_presence_type_priority (
     TpConnectionPresenceType type);
 
+void minimum_presence_dispose (McdAccount *account);
 G_GNUC_INTERNAL void minimum_presence_finalize (McdAccount *account);
 
 G_END_DECLS

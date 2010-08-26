@@ -41,6 +41,8 @@ struct _McdAccountPresencePrivate
 
     /* gchar *unique_name → GValueArray *simple_presence */
     GHashTable *minimum_presence_requests;
+
+    gboolean dispose_has_run;
 };
 
 /* higher is better */
@@ -226,6 +228,8 @@ minimum_presence_instance_init (TpSvcDBusProperties *self)
     priv = g_new0 (McdAccountPresencePrivate, 1);
     account->presence_priv = priv;
 
+    priv->dispose_has_run = FALSE;
+
     priv->minimum_presence_requests = g_hash_table_new_full (
         g_str_hash, g_str_equal, g_free,
         (GDestroyNotify) g_value_array_free);
@@ -239,14 +243,40 @@ minimum_presence_instance_init (TpSvcDBusProperties *self)
 }
 
 void
+minimum_presence_dispose (McdAccount *account)
+{
+    McdAccountPresencePrivate *priv = account->presence_priv;
+
+    if (priv->dispose_has_run)
+        return;
+
+    priv->dispose_has_run = TRUE;
+
+    if (priv->dbus_daemon)
+    {
+        GHashTableIter iter;
+        gpointer client, v;
+
+        g_hash_table_iter_init (&iter, priv->minimum_presence_requests);
+        while (g_hash_table_iter_next (&iter, &client, &v))
+        {
+            tp_dbus_daemon_cancel_name_owner_watch (priv->dbus_daemon,
+                (gchar *) client, name_owner_changed_cb, account);
+        }
+
+        g_object_unref (priv->dbus_daemon);
+        priv->dbus_daemon = NULL;
+    }
+
+    g_hash_table_remove_all (priv->minimum_presence_requests);
+}
+
+void
 minimum_presence_finalize (McdAccount *account)
 {
     McdAccountPresencePrivate *priv = account->presence_priv;
 
     g_hash_table_destroy (priv->minimum_presence_requests);
-
-    if (priv->dbus_daemon)
-        g_object_unref (priv->dbus_daemon);
 
     g_free (priv);
 }

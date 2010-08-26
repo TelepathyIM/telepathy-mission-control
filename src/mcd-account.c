@@ -3056,6 +3056,8 @@ _mcd_account_dispose (GObject *object)
 
     DEBUG ("%p (%s)", object, priv->unique_name);
 
+    minimum_presence_dispose (self);
+
     if (!self->priv->removed)
     {
         self->priv->removed = TRUE;
