@@ -225,7 +225,7 @@ minimum_presence_instance_init (TpSvcDBusProperties *self)
     McdAccountPresencePrivate *priv;
     GError *error = NULL;
 
-    priv = g_new0 (McdAccountPresencePrivate, 1);
+    priv = g_slice_new0 (McdAccountPresencePrivate);
     account->presence_priv = priv;
 
     priv->dispose_has_run = FALSE;
@@ -278,6 +278,6 @@ minimum_presence_finalize (McdAccount *account)
 
     g_hash_table_destroy (priv->minimum_presence_requests);
 
-    g_free (priv);
+    g_slice_free (McdAccountPresencePrivate, priv);
 }
 
