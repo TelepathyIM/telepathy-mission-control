@@ -71,21 +71,22 @@ _mcd_account_presence_type_priority (TpConnectionPresenceType type)
     return -1;
 }
 
+/* Calculate and set the most available of the minimum presences */
 static void
-get_most_available_presence (McdAccount *self,
-                             TpConnectionPresenceType *type,
-                             const gchar **status,
-                             const gchar **message)
+set_minimum_presence (McdAccount *self)
 {
     McdAccountPresencePrivate *priv = self->presence_priv;
+    TpConnectionPresenceType type;
+    const gchar *status;
+    const gchar *message;
     GHashTableIter iter;
     gpointer k, v;
     gint prio;
 
-    *type = TP_CONNECTION_PRESENCE_TYPE_UNSET;
-    *status = NULL;
-    *message = NULL;
-    prio = _mcd_account_presence_type_priority (*type);
+    type = TP_CONNECTION_PRESENCE_TYPE_UNSET;
+    status = NULL;
+    message = NULL;
+    prio = _mcd_account_presence_type_priority (type);
 
     g_hash_table_iter_init (&iter, priv->minimum_presence_requests);
     while (g_hash_table_iter_next (&iter, &k, &v))
@@ -97,9 +98,11 @@ get_most_available_presence (McdAccount *self,
         if (p > prio)
         {
             prio = p;
-            tp_value_array_unpack (v, 3, type, status, message);
+            tp_value_array_unpack (v, 3, &type, &status, &message);
         }
     }
+
+    _mcd_account_set_minimum_presence (self, type, status, message);
 }
 
 static void
@@ -114,14 +117,8 @@ name_owner_changed_cb (TpDBusDaemon *bus_daemon,
     /* if they fell of the bus, cancel their request for them */
     if (new_owner == NULL || new_owner[0] == '\0')
     {
-        TpConnectionPresenceType type;
-        const gchar *status;
-        const gchar *message;
-
         g_hash_table_remove (priv->minimum_presence_requests, name);
-
-        get_most_available_presence (self, &type, &status, &message);
-        _mcd_account_set_minimum_presence (self, type, status, message);
+        set_minimum_presence (self);
     }
 }
 
@@ -163,9 +160,7 @@ minimum_presence_request (McSvcAccountInterfaceMinimumPresence *iface,
     g_hash_table_replace (priv->minimum_presence_requests, client,
         g_value_array_copy (simple_presence));
 
-    get_most_available_presence (self, &type, &status, &message);
-
-    _mcd_account_set_minimum_presence (self, type, status, message);
+    set_minimum_presence (self);
 
     mc_svc_account_interface_minimum_presence_return_from_request (context);
 }
@@ -176,13 +171,7 @@ minimum_presence_release (McSvcAccountInterfaceMinimumPresence *iface,
 {
     McdAccount *self = MCD_ACCOUNT (iface);
     McdAccountPresencePrivate *priv = self->presence_priv;
-    TpConnectionPresenceType type;
-    const gchar *status;
-    const gchar *message;
     gchar *client = dbus_g_method_get_sender (context);
-
-    get_most_available_presence (self, &type, &status, &message);
-    _mcd_account_set_minimum_presence (self, type, status, message);
 
     if (G_LIKELY (priv->dbus_daemon))
     {
@@ -192,6 +181,8 @@ minimum_presence_release (McSvcAccountInterfaceMinimumPresence *iface,
 
     g_hash_table_remove (priv->minimum_presence_requests, client);
     g_free (client);
+
+    set_minimum_presence (self);
 
     mc_svc_account_interface_minimum_presence_return_from_release (context);
 }
