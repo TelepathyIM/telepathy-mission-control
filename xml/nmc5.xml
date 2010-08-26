@@ -10,6 +10,7 @@
 <xi:include href="Account_Interface_Compat.xml"/>
 <xi:include href="Account_Interface_Conditions.xml"/>
 <xi:include href="Account_Interface_Stats.xml"/>
+<xi:include href="Account_Interface_Minimum_Presence.xml"/>
 <xi:include href="Account_Manager.xml"/>
 <xi:include href="Account_Manager_Interface_Query.xml"/>
 <xi:include href="Account_Manager_Interface_SSO.xml"/>

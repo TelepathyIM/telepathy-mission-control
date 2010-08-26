@@ -38,6 +38,7 @@
 #include "_gen/svc-Account_Interface_Compat.h"
 #include "_gen/svc-Account_Interface_Conditions.h"
 #include "_gen/svc-Account_Interface_Stats.h"
+#include "_gen/svc-Account_Interface_Minimum_Presence.h"
 
 G_GNUC_INTERNAL void _mcd_account_maybe_autoconnect (McdAccount *account);
 G_GNUC_INTERNAL void _mcd_account_connect (McdAccount *account,
@@ -182,6 +183,13 @@ void account_stats_iface_init (McSvcAccountInterfaceStatsClass *iface,
                                gpointer iface_data);
 void account_stats_instance_init (TpSvcDBusProperties *self);
 
+extern const McdDBusProp minimum_presence_properties[];
+
+void minimum_presence_iface_init (McSvcAccountInterfaceMinimumPresenceClass *iface,
+                                  gpointer iface_data);
+
+void minimum_presence_instance_init (TpSvcDBusProperties *self);
+
 G_GNUC_INTERNAL gboolean _mcd_account_check_request_real (McdAccount *account,
                                                           GHashTable *request,
                                                           GError **error);
@@ -194,5 +202,18 @@ G_GNUC_INTERNAL gboolean _mcd_account_set_enabled (McdAccount *account,
                                                    gboolean enabled,
                                                    gboolean write_out,
                                                    GError **error);
+
+G_GNUC_INTERNAL void _mcd_account_set_minimum_presence (McdAccount *account,
+                                                        TpConnectionPresenceType type,
+                                                        const gchar *status,
+                                                        const gchar *message);
+
+G_GNUC_INTERNAL void _mcd_account_get_combined_presence (McdAccount *account,
+                                                         TpConnectionPresenceType *presence,
+                                                         const gchar **status,
+                                                         const gchar **message);
+
+G_GNUC_INTERNAL gboolean _mcd_account_presence_type_is_settable (
+        TpConnectionPresenceType type);
 
 #endif /* __MCD_ACCOUNT_PRIV_H__ */

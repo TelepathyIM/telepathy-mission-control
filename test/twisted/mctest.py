@@ -170,7 +170,7 @@ class SimulatedConnection(object):
     def __init__(self, q, bus, cmname, protocol, account_part, self_ident,
             implement_get_interfaces=True, has_requests=True,
             has_presence=False, has_aliasing=False, has_avatars=False,
-            avatars_persist=True, extra_interfaces=[]):
+            avatars_persist=True, extra_interfaces=[], has_hidden=False):
         self.q = q
         self.bus = bus
 
@@ -274,6 +274,10 @@ class SimulatedConnection(object):
             'error': (cs.PRESENCE_TYPE_ERROR, False, False),
             'unknown': (cs.PRESENCE_TYPE_UNKNOWN, False, False),
             }, signature='s(ubb)')
+
+        if has_hidden:
+            self.statuses['hidden'] = (cs.PRESENCE_TYPE_HIDDEN, True, True)
+
         self.presence = dbus.Struct((cs.PRESENCE_TYPE_OFFLINE, 'offline', ''),
                 signature='uss')
 
@@ -803,7 +807,8 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
         has_avatars=False, avatars_persist=True,
         extra_interfaces=[],
         requested_presence=(2, 'available', ''),
-        expect_before_connect=[], expect_after_connect=[]):
+        expect_before_connect=[], expect_after_connect=[],
+        has_hidden=False):
     # Enable the account
     account.Set(cs.ACCOUNT, 'Enabled', True,
             dbus_interface=cs.PROPERTIES_IFACE)
@@ -827,7 +832,8 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
             'myself', has_requests=has_requests, has_presence=has_presence,
             has_aliasing=has_aliasing, has_avatars=has_avatars,
-            avatars_persist=avatars_persist, extra_interfaces=extra_interfaces)
+            avatars_persist=avatars_persist, extra_interfaces=extra_interfaces,
+            has_hidden=has_hidden)
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
