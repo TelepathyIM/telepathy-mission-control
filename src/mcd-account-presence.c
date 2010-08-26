@@ -35,6 +35,12 @@
 #include "mcd-account.h"
 #include "mcd-account-priv.h"
 
+struct _McdAccountPresencePrivate
+{
+    /* gchar *unique_name → GValueArray *simple_presence */
+    GHashTable *minimum_presence_requests;
+};
+
 /* higher is better */
 static TpConnectionPresenceType presence_type_priorities[] = {
     TP_CONNECTION_PRESENCE_TYPE_UNKNOWN,
@@ -69,6 +75,7 @@ get_most_available_presence (McdAccount *self,
                              const gchar **status,
                              const gchar **message)
 {
+    McdAccountPresencePrivate *priv = self->presence_priv;
     GHashTableIter iter;
     gpointer k, v;
     gint prio;
@@ -78,7 +85,7 @@ get_most_available_presence (McdAccount *self,
     *message = NULL;
     prio = _mcd_account_presence_type_priority (*type);
 
-    g_hash_table_iter_init (&iter, self->minimum_presence_requests);
+    g_hash_table_iter_init (&iter, priv->minimum_presence_requests);
     while (g_hash_table_iter_next (&iter, &k, &v))
     {
         GValue *val = g_value_array_get_nth (v, 0);
@@ -99,6 +106,7 @@ minimum_presence_request (McSvcAccountInterfaceMinimumPresence *iface,
                           DBusGMethodInvocation *context)
 {
     McdAccount *self = MCD_ACCOUNT (iface);
+    McdAccountPresencePrivate *priv = self->presence_priv;
     TpConnectionPresenceType type;
     const gchar *status;
     const gchar *message;
@@ -120,7 +128,7 @@ minimum_presence_request (McSvcAccountInterfaceMinimumPresence *iface,
     DEBUG ("Client %s requests MinimumPresence %s: %s", client, status,
          message);
 
-    g_hash_table_replace (self->minimum_presence_requests, client,
+    g_hash_table_replace (priv->minimum_presence_requests, client,
         g_value_array_copy (simple_presence));
 
     get_most_available_presence (self, &type, &status, &message);
@@ -135,6 +143,7 @@ minimum_presence_release (McSvcAccountInterfaceMinimumPresence *iface,
                           DBusGMethodInvocation *context)
 {
     McdAccount *self = MCD_ACCOUNT (iface);
+    McdAccountPresencePrivate *priv = self->presence_priv;
     TpConnectionPresenceType type;
     const gchar *status;
     const gchar *message;
@@ -143,7 +152,7 @@ minimum_presence_release (McSvcAccountInterfaceMinimumPresence *iface,
     get_most_available_presence (self, &type, &status, &message);
     _mcd_account_set_minimum_presence (self, type, status, message);
 
-    g_hash_table_remove (self->minimum_presence_requests, client);
+    g_hash_table_remove (priv->minimum_presence_requests, client);
     g_free (client);
 
     mc_svc_account_interface_minimum_presence_return_from_release (context);
@@ -153,12 +162,13 @@ static void
 get_requests (TpSvcDBusProperties *iface, const gchar *name, GValue *value)
 {
     McdAccount *self = MCD_ACCOUNT (iface);
+    McdAccountPresencePrivate *priv = self->presence_priv;
     GType type = dbus_g_type_get_map ("GHashTable", G_TYPE_STRING,
         TP_STRUCT_TYPE_SIMPLE_PRESENCE);
 
     g_value_init (value, type);
     g_value_take_boxed (value,
-        g_hash_table_ref (self->minimum_presence_requests));
+        g_hash_table_ref (priv->minimum_presence_requests));
 }
 
 const McdDBusProp minimum_presence_properties[] = {
@@ -181,9 +191,23 @@ void
 minimum_presence_instance_init (TpSvcDBusProperties *self)
 {
     McdAccount *account = MCD_ACCOUNT (self);
+    McdAccountPresencePrivate *priv;
 
-    account->minimum_presence_requests = g_hash_table_new_full (
+    priv = g_new0 (McdAccountPresencePrivate, 1);
+    account->presence_priv = priv;
+
+    priv->minimum_presence_requests = g_hash_table_new_full (
         g_str_hash, g_str_equal, g_free,
         (GDestroyNotify) g_value_array_free);
+}
+
+void
+minimum_presence_finalize (McdAccount *account)
+{
+    McdAccountPresencePrivate *priv = account->presence_priv;
+
+    g_hash_table_destroy (priv->minimum_presence_requests);
+
+    g_free (priv);
 }
 

@@ -3020,12 +3020,13 @@ _mcd_account_finalize (GObject *object)
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
 
     DEBUG ("%p (%s)", object, priv->unique_name);
+
+    minimum_presence_finalize (account);
+
     if (priv->changed_properties)
 	g_hash_table_destroy (priv->changed_properties);
     if (priv->properties_source != 0)
 	g_source_remove (priv->properties_source);
-
-    g_hash_table_destroy (account->minimum_presence_requests);
 
     g_free (priv->curr_presence_status);
     g_free (priv->curr_presence_message);
@@ -3221,8 +3222,6 @@ mcd_account_init (McdAccount *account)
     priv->auto_presence_type = TP_CONNECTION_PRESENCE_TYPE_AVAILABLE;
     priv->auto_presence_status = g_strdup ("available");
     priv->auto_presence_message = g_strdup ("");
-
-    account->minimum_presence_requests = NULL;
 
     /* initializes the interfaces */
     mcd_dbus_init_interfaces_instances (account);

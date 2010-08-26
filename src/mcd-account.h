@@ -39,6 +39,8 @@ typedef struct _McdAccount McdAccount;
 typedef struct _McdAccountPrivate McdAccountPrivate;
 typedef struct _McdAccountClass McdAccountClass;
 
+typedef struct _McdAccountPresencePrivate McdAccountPresencePrivate;
+
 #include "mcd-connection.h"
 #include "mcd-account-manager.h"
 
@@ -46,8 +48,7 @@ struct _McdAccount
 {
     GObject parent;
     McdAccountPrivate *priv;
-
-    GHashTable *minimum_presence_requests;
+    McdAccountPresencePrivate *presence_priv;
 };
 
 typedef enum
