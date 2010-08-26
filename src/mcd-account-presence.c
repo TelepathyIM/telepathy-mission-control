@@ -37,6 +37,8 @@
 
 struct _McdAccountPresencePrivate
 {
+    TpDBusDaemon *dbus_daemon;
+
     /* gchar *unique_name → GValueArray *simple_presence */
     GHashTable *minimum_presence_requests;
 };
@@ -101,6 +103,29 @@ get_most_available_presence (McdAccount *self,
 }
 
 static void
+name_owner_changed_cb (TpDBusDaemon *bus_daemon,
+                       const gchar *name,
+                       const gchar *new_owner,
+                       gpointer user_data)
+{
+    McdAccount *self = MCD_ACCOUNT (user_data);
+    McdAccountPresencePrivate *priv = self->presence_priv;
+
+    /* if they fell of the bus, cancel their request for them */
+    if (new_owner == NULL || new_owner[0] == '\0')
+    {
+        TpConnectionPresenceType type;
+        const gchar *status;
+        const gchar *message;
+
+        g_hash_table_remove (priv->minimum_presence_requests, name);
+
+        get_most_available_presence (self, &type, &status, &message);
+        _mcd_account_set_minimum_presence (self, type, status, message);
+    }
+}
+
+static void
 minimum_presence_request (McSvcAccountInterfaceMinimumPresence *iface,
                           const GValueArray *simple_presence,
                           DBusGMethodInvocation *context)
@@ -128,6 +153,13 @@ minimum_presence_request (McSvcAccountInterfaceMinimumPresence *iface,
     DEBUG ("Client %s requests MinimumPresence %s: %s", client, status,
          message);
 
+    if (G_LIKELY (priv->dbus_daemon) &&
+        !g_hash_table_lookup (priv->minimum_presence_requests, client))
+    {
+        tp_dbus_daemon_watch_name_owner (priv->dbus_daemon,
+            client, name_owner_changed_cb, self, NULL);
+    }
+
     g_hash_table_replace (priv->minimum_presence_requests, client,
         g_value_array_copy (simple_presence));
 
@@ -151,6 +183,12 @@ minimum_presence_release (McSvcAccountInterfaceMinimumPresence *iface,
 
     get_most_available_presence (self, &type, &status, &message);
     _mcd_account_set_minimum_presence (self, type, status, message);
+
+    if (G_LIKELY (priv->dbus_daemon))
+    {
+        tp_dbus_daemon_cancel_name_owner_watch (priv->dbus_daemon,
+            client, name_owner_changed_cb, self);
+    }
 
     g_hash_table_remove (priv->minimum_presence_requests, client);
     g_free (client);
@@ -192,6 +230,7 @@ minimum_presence_instance_init (TpSvcDBusProperties *self)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPresencePrivate *priv;
+    GError *error = NULL;
 
     priv = g_new0 (McdAccountPresencePrivate, 1);
     account->presence_priv = priv;
@@ -199,6 +238,13 @@ minimum_presence_instance_init (TpSvcDBusProperties *self)
     priv->minimum_presence_requests = g_hash_table_new_full (
         g_str_hash, g_str_equal, g_free,
         (GDestroyNotify) g_value_array_free);
+
+    priv->dbus_daemon = tp_dbus_daemon_dup (&error);
+    if (!priv->dbus_daemon)
+    {
+      DEBUG ("Can't get Tp DBus daemon wrapper: %s", error->message);
+      g_error_free (error);
+    }
 }
 
 void
@@ -207,6 +253,9 @@ minimum_presence_finalize (McdAccount *account)
     McdAccountPresencePrivate *priv = account->presence_priv;
 
     g_hash_table_destroy (priv->minimum_presence_requests);
+
+    if (priv->dbus_daemon)
+        g_object_unref (priv->dbus_daemon);
 
     g_free (priv);
 }
