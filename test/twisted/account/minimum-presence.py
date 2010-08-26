@@ -1,5 +1,5 @@
-# Copyright (C) 2009-2010 Nokia Corporation
-# Copyright (C) 2009-2010 Collabora Ltd.
+# Copyright (C) 2010 Nokia Corporation
+# Copyright (C) 2010 Collabora Ltd.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
