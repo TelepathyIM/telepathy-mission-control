@@ -398,6 +398,13 @@ created_cb (GObject *storage, const gchar *name, gpointer data)
         g_object_ref (cm);
         mcd_manager_call_when_ready (cm, async_created_manager_cb, lad);
     }
+    else
+    {
+        /* account is well and truly broken. forget it even existed: */
+        g_warning ("%s: account %s has no manager, ignoring it",
+                   G_STRFUNC, name);
+        g_object_unref (account);
+    }
 
 finish:
     release_load_accounts_lock (lad);
