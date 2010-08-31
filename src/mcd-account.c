@@ -3028,22 +3028,22 @@ _mcd_account_finalize (GObject *object)
     if (priv->properties_source != 0)
 	g_source_remove (priv->properties_source);
 
-    g_free (priv->curr_presence_status);
-    g_free (priv->curr_presence_message);
+    tp_clear_pointer (&priv->curr_presence_status, g_free);
+    tp_clear_pointer (&priv->curr_presence_message, g_free);
 
-    g_free (priv->req_presence_status);
-    g_free (priv->req_presence_message);
+    tp_clear_pointer (&priv->req_presence_status, g_free);
+    tp_clear_pointer (&priv->req_presence_message, g_free);
 
-    g_free (priv->auto_presence_status);
-    g_free (priv->auto_presence_message);
+    tp_clear_pointer (&priv->auto_presence_status, g_free);
+    tp_clear_pointer (&priv->auto_presence_message, g_free);
 
-    g_free (priv->combined_presence_status);
-    g_free (priv->combined_presence_message);
+    tp_clear_pointer (&priv->combined_presence_status, g_free);
+    tp_clear_pointer (&priv->combined_presence_message, g_free);
 
-    g_free (priv->manager_name);
-    g_free (priv->protocol_name);
-    g_free (priv->unique_name);
-    g_free (priv->object_path);
+    tp_clear_pointer (&priv->manager_name, g_free);
+    tp_clear_pointer (&priv->protocol_name, g_free);
+    tp_clear_pointer (&priv->unique_name, g_free);
+    tp_clear_pointer (&priv->object_path, g_free);
 
     G_OBJECT_CLASS (mcd_account_parent_class)->finalize (object);
 }
