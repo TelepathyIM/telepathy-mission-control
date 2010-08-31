@@ -1449,6 +1449,9 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
     accounts = g_key_file_get_groups (priv->plugin_manager->keyfile, NULL);
     for (name = accounts; *name != NULL; name++)
     {
+        gboolean plausible = FALSE;
+        const gchar *manager = NULL;
+        const gchar *protocol = NULL;
         McdAccount *account = mcd_account_manager_lookup_account (
             account_manager, *name);
 
@@ -1467,6 +1470,23 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
                        *name);
             continue;
         }
+
+        manager = mcd_account_get_manager_name (account);
+        protocol = mcd_account_get_protocol_name (account);
+
+        plausible = !tp_str_empty (manager) && !tp_str_empty (protocol);
+
+        if (G_UNLIKELY (!plausible))
+        {
+            const gchar *dbg_manager = (manager == NULL) ? "(nil)" : manager;
+            const gchar *dbg_protocol = (protocol == NULL) ? "(nil)" : protocol;
+
+            g_warning ("%s: account %s has implausible manager/protocol: %s/%s",
+                       G_STRFUNC, *name, dbg_manager, dbg_protocol);
+            g_object_unref (account);
+            continue;
+        }
+
         lad->account_lock++;
         add_account (lad->account_manager, account, "keyfile");
         _mcd_account_load (account, account_loaded, lad);
