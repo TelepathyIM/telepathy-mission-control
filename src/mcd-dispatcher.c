@@ -1595,7 +1595,7 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
            tp_proxy_get_bus_name (handler),
            _mcd_channel_get_request_path (channel));
 
-    properties = _mcd_channel_dup_properties (channel);
+    properties = _mcd_channel_dup_request_properties (channel);
 
     tp_cli_client_interface_requests_call_add_request (
         (TpClient *) handler, -1,

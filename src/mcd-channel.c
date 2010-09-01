@@ -1609,7 +1609,7 @@ _mcd_channel_depart (McdChannel *channel,
 }
 
 GHashTable *
-_mcd_channel_dup_properties (McdChannel *self)
+_mcd_channel_dup_request_properties (McdChannel *self)
 {
     GPtrArray *requests;
     GHashTable *result;

@@ -77,7 +77,7 @@ G_GNUC_INTERNAL void _mcd_channel_depart (McdChannel *channel,
                                           TpChannelGroupChangeReason reason,
                                           const gchar *message);
 
-GHashTable * _mcd_channel_dup_properties (McdChannel *self);
+GHashTable * _mcd_channel_dup_request_properties (McdChannel *self);
 
 G_END_DECLS
 #endif

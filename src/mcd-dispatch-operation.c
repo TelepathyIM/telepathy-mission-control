@@ -1942,7 +1942,7 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
 
             g_ptr_array_add (satisfied_requests, path);
 
-            props = _mcd_channel_dup_properties (MCD_CHANNEL (value));
+            props = _mcd_channel_dup_request_properties (MCD_CHANNEL (value));
             g_hash_table_insert (request_properties, g_strdup (path), props);
         }
 
