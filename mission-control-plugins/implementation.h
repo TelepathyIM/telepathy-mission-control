@@ -1,7 +1,7 @@
 /* Mission Control plugin API - internals, for MC to use
  *
- * Copyright (C) 2009 Nokia Corporation
- * Copyright (C) 2009 Collabora Ltd.
+ * Copyright © 2009-2010 Nokia Corporation
+ * Copyright © 2009-2010 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -39,6 +39,11 @@ struct _McpRequestIface {
 
     void (*deny) (McpRequest *self, GQuark domain, gint code,
         const gchar *message);
+
+    /* Delay the request */
+    McpRequestDelay * (*start_delay) (McpRequest *self);
+    void (*end_delay) (McpRequest *self,
+        McpRequestDelay *delay);
 };
 
 struct _McpDispatchOperationIface {

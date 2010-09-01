@@ -3,8 +3,8 @@
 /*
  * This file is part of mission-control
  *
- * Copyright (C) 2008-2009 Nokia Corporation.
- * Copyright (C) 2009 Collabora Ltd.
+ * Copyright © 2008-2009 Nokia Corporation.
+ * Copyright © 2009-2010 Collabora Ltd.
  *
  * Contact: Alberto Mardegan  <alberto.mardegan@nokia.com>
  *
@@ -48,6 +48,7 @@
 #include "mcd-misc.h"
 #include "plugin-loader.h"
 #include "plugin-request.h"
+#include "request.h"
 
 static void
 online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
@@ -125,20 +126,22 @@ get_channel_from_request (McdAccount *account, const gchar *request_id)
 }
 
 static void
-on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
-                           McdAccount *account)
+on_request_completed (McdRequest *request,
+                      gboolean successful,
+                      McdChannel *channel)
 {
-    const GError *error;
+    McdAccount *account = _mcd_request_get_account (request);
 
-    if (status == MCD_CHANNEL_STATUS_FAILED)
+    if (!successful)
     {
+        GError *error = _mcd_request_dup_failure (request);
         gchar *err_string;
-        error = mcd_channel_get_error (channel);
+
         g_warning ("Channel request %s failed, error: %s",
                    _mcd_channel_get_request_path (channel), error->message);
 
         err_string = _mcd_build_error_string (error);
-        /* FIXME: ideally the McdChannel should emit this signal itself, and
+        /* FIXME: ideally the McdRequest should emit this signal itself, and
          * the Account.Interface.ChannelRequests should catch and re-emit it */
         tp_svc_channel_request_emit_failed (channel, err_string,
                                             error->message);
@@ -147,18 +150,19 @@ on_channel_status_changed (McdChannel *channel, McdChannelStatus status,
             err_string, error->message);
         g_free (err_string);
 
-        g_object_unref (channel);
+        g_error_free (error);
     }
-    else if (status == MCD_CHANNEL_STATUS_DISPATCHED)
+    else
     {
-        /* FIXME: ideally the McdChannel should emit this signal itself, and
+        /* FIXME: ideally the McdRequest should emit this signal itself, and
          * the Account.Interface.ChannelRequests should catch and re-emit it */
         tp_svc_channel_request_emit_succeeded (channel);
         mc_svc_account_interface_channelrequests_emit_succeeded (account,
             _mcd_channel_get_request_path (channel));
-
-        g_object_unref (channel);
     }
+
+    g_signal_handlers_disconnect_by_func (request, on_request_completed,
+                                          channel);
 }
 
 McdChannel *
@@ -192,11 +196,12 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
 
     /* we use connect_after, to make sure that other signals (such as
      * RemoveRequest) are emitted before the Failed signal */
-    /* WARNING: on_channel_status_changed unrefs the McdChannel (!), so we
-     * give it an extra reference, so that we can return a ref from this
-     * function */
-    g_signal_connect_after (g_object_ref (channel), "status-changed",
-                            G_CALLBACK (on_channel_status_changed), account);
+    g_signal_connect_data (_mcd_channel_get_request (channel),
+                           "completed",
+                            G_CALLBACK (on_request_completed),
+                            g_object_ref (channel),
+                            (GClosureNotify) g_object_unref,
+                            G_CONNECT_AFTER);
 
     return channel;
 }
@@ -205,12 +210,41 @@ const McdDBusProp account_channelrequests_properties[] = {
     { 0 },
 };
 
+static void
+ready_to_request_cb (McdRequest *request,
+                     McdChannel *channel)
+{
+    GError *error = _mcd_request_dup_failure (request);
+
+    /* if we didn't ref the channel, disconnecting the signal could
+     * destroy it */
+    g_object_ref (channel);
+    g_signal_handlers_disconnect_by_func (request, ready_to_request_cb,
+                                          channel);
+
+    if (error != NULL)
+    {
+        g_message ("request denied by plugin: %s", error->message);
+        mcd_channel_take_error (channel, error);
+    }
+    else
+    {
+        DEBUG ("Starting online request");
+        /* Put the account online if necessary, and when that's finished,
+         * make the actual request. (The callback releases this reference.) */
+        _mcd_account_online_request (_mcd_request_get_account (request),
+                                     online_request_cb,
+                                     g_object_ref (channel));
+    }
+
+    g_object_unref (channel);
+}
+
 void
 _mcd_account_proceed_with_request (McdAccount *account,
                                    McdChannel *channel)
 {
     McdPluginRequest *plugin_api = NULL;
-    GError *error = NULL;
     const GList *mini_plugins;
 
     g_object_ref (channel);
@@ -226,7 +260,8 @@ _mcd_account_proceed_with_request (McdAccount *account,
             /* Lazily create a plugin-API object if anything cares */
             if (plugin_api == NULL)
             {
-                plugin_api = _mcd_plugin_request_new (account, channel);
+                plugin_api = _mcd_plugin_request_new (account,
+                    _mcd_channel_get_request (channel));
             }
 
             mcp_request_policy_check (mini_plugins->data,
@@ -234,31 +269,15 @@ _mcd_account_proceed_with_request (McdAccount *account,
         }
     }
 
-    /* no plugin_api implies no plugins, from which it follows that there *
-     * can be no error as there is nothing whch could create one:         */
-    if (plugin_api != NULL)
-    {
-        error = _mcd_plugin_request_dup_denial (plugin_api);
-    }
+    g_signal_connect_data (_mcd_channel_get_request (channel),
+                           "ready-to-request",
+                           G_CALLBACK (ready_to_request_cb),
+                           g_object_ref (channel),
+                           (GClosureNotify) g_object_unref,
+                           0);
 
-    if (error != NULL)
-    {
-        g_message ("request denied by plugin: %s", error->message);
-        mcd_channel_take_error (channel, error);
-        goto finally;
-    }
-
-    DEBUG ("Starting online request");
-    /* Put the account online if necessary, and when that's finished,
-     * make the actual request. (The callback releases this reference.) */
-    _mcd_account_online_request (account, online_request_cb,
-                                 g_object_ref (channel));
-
-finally:
-    if (plugin_api != NULL)
-    {
-        g_object_unref (plugin_api);
-    }
+    /* this is paired with the delay set when the request was created */
+    _mcd_request_end_delay (_mcd_channel_get_request (channel));
 
     g_object_unref (channel);
 }
@@ -389,11 +408,5 @@ gboolean
 _mcd_account_check_request_real (McdAccount *account, GHashTable *request,
                                  GError **error)
 {
-    if (mcd_master_has_low_memory (mcd_master_get_default ()))
-    {
-        g_set_error (error, MC_ERROR, MC_LOWMEM_ERROR, "Insufficient memory");
-        return FALSE;
-    }
-
     return TRUE;
 }

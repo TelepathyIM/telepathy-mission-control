@@ -33,6 +33,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/connect-for-request.py \
 	dispatcher/create-handler-fails.py \
 	dispatcher/create-no-preferred-handler.py \
+	dispatcher/create-delayed-by-mini-plugin.py \
 	dispatcher/create-rejected-by-mini-plugin.py \
 	dispatcher/create-text.py \
 	dispatcher/created-behind-our-back.py \
@@ -66,8 +67,7 @@ endif
 # Tests that aren't to be run if we're running the real (installed) MC,
 # because they rely on special behaviour of mc-debug-server
 TWISTED_SPECIAL_BUILD_TESTS = \
-	account-manager/auto-away.py \
-	dispatcher/create-lowmem.py
+	account-manager/auto-away.py
 
 TWISTED_SLOW_TESTS = \
 	account-manager/server-drops-us.py

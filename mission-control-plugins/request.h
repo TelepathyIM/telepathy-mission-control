@@ -1,7 +1,7 @@
 /* Mission Control plugin API - representation of a ChannelRequest
  *
- * Copyright (C) 2009 Nokia Corporation
- * Copyright (C) 2009 Collabora Ltd.
+ * Copyright © 2009 Nokia Corporation
+ * Copyright © 2009-2010 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -66,6 +66,9 @@ GHashTable *mcp_request_ref_nth_request (McpRequest *self, guint n);
 
 void mcp_request_deny (McpRequest *self, GQuark domain, gint code,
     const gchar *message);
+
+McpRequestDelay *mcp_request_start_delay (McpRequest *self);
+void mcp_request_end_delay (McpRequest *self, McpRequestDelay *delay);
 
 G_END_DECLS
 

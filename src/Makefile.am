@@ -189,6 +189,8 @@ libmcd_convenience_la_SOURCES = \
 	plugin-request.h \
 	plugin-account.c \
 	plugin-account.h \
+	request.c \
+	request.h \
 	sp_timestamp.h \
 	$(mc_headers)
 

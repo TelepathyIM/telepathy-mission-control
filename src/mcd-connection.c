@@ -3,8 +3,8 @@
 /*
  * This file is part of mission-control
  *
- * Copyright (C) 2007-2009 Nokia Corporation.
- * Copyright (C) 2009 Collabora Ltd.
+ * Copyright © 2007-2009 Nokia Corporation.
+ * Copyright © 2009-2010 Collabora Ltd.
  *
  * Contact: Naba Kumar  <naba.kumar@nokia.com>
  *
@@ -2498,6 +2498,17 @@ mcd_connection_request_channel (McdConnection *connection,
 {
     g_return_val_if_fail (MCD_IS_CONNECTION (connection), FALSE);
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), FALSE);
+
+    if (mcd_channel_get_status (channel) == MCD_CHANNEL_STATUS_FAILED)
+    {
+        DEBUG ("Channel %p failed already, never mind", channel);
+        _mcd_channel_close (channel);
+        mcd_mission_abort (MCD_MISSION (channel));
+        /* FIXME: the boolean return is a decoy - everyone returns TRUE and
+         * every caller ignores it - so it's not clear what FALSE would
+         * mean. */
+        return TRUE;
+    }
 
     if (!mcd_mission_get_parent ((McdMission *)channel))
         mcd_operation_take_mission (MCD_OPERATION (connection),

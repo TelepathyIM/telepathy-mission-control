@@ -1,8 +1,8 @@
 /*
  * A demonstration plugin that acts as a channel filter.
  *
- * Copyright (C) 2008-2009 Nokia Corporation
- * Copyright (C) 2009 Collabora Ltd.
+ * Copyright © 2008-2009 Nokia Corporation
+ * Copyright © 2009-2010 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -43,9 +43,12 @@ typedef struct {
 GType test_permission_plugin_get_type (void) G_GNUC_CONST;
 static void cdo_policy_iface_init (McpDispatchOperationPolicyIface *,
     gpointer);
+static void req_policy_iface_init (McpRequestPolicyIface *, gpointer);
 
 G_DEFINE_TYPE_WITH_CODE (TestPermissionPlugin, test_permission_plugin,
     G_TYPE_OBJECT,
+    G_IMPLEMENT_INTERFACE (MCP_TYPE_REQUEST_POLICY,
+      req_policy_iface_init);
     G_IMPLEMENT_INTERFACE (MCP_TYPE_DISPATCH_OPERATION_POLICY,
       cdo_policy_iface_init))
 
@@ -182,6 +185,124 @@ cdo_policy_iface_init (McpDispatchOperationPolicyIface *iface,
 {
   mcp_dispatch_operation_policy_iface_implement_check (iface,
       test_permission_plugin_check_cdo);
+}
+
+typedef struct {
+    McpRequest *request;
+    McpRequestDelay *delay;
+} RequestPermissionContext;
+
+static void
+request_permission_context_free (gpointer p)
+{
+  RequestPermissionContext *ctx = p;
+
+  mcp_request_end_delay (ctx->request, ctx->delay);
+  g_object_unref (ctx->request);
+  g_slice_free (RequestPermissionContext, ctx);
+}
+
+static void
+request_permission_cb (DBusPendingCall *pc,
+    gpointer data)
+{
+  RequestPermissionContext *ctx = data;
+  DBusMessage *message = dbus_pending_call_steal_reply (pc);
+
+  if (dbus_message_get_type (message) == DBUS_MESSAGE_TYPE_ERROR)
+    {
+      DEBUG ("Permission denied");
+      mcp_request_deny (ctx->request,
+          TP_ERRORS, TP_CHANNEL_GROUP_CHANGE_REASON_PERMISSION_DENIED,
+          "Computer says no");
+    }
+  else
+    {
+      DEBUG ("Permission granted");
+    }
+
+  dbus_message_unref (message);
+  dbus_pending_call_unref (pc);
+}
+
+static void
+test_permission_plugin_check_request (McpRequestPolicy *policy,
+    McpRequest *request)
+{
+  GHashTable *properties = mcp_request_ref_nth_request (request, 0);
+  RequestPermissionContext *ctx = NULL;
+
+  DEBUG ("%s", G_STRFUNC);
+
+  if (mcp_request_find_request_by_type (request,
+        0, g_quark_from_static_string ("com.example.QuestionableChannel"),
+        NULL, NULL))
+    {
+      TpDBusDaemon *dbus_daemon = tp_dbus_daemon_dup (NULL);
+      DBusGConnection *gconn = tp_proxy_get_dbus_connection (dbus_daemon);
+      DBusConnection *libdbus = dbus_g_connection_get_connection (gconn);
+      DBusPendingCall *pc = NULL;
+      DBusMessage *message;
+
+      DEBUG ("Questionable channel detected, asking for permission");
+
+      ctx = g_slice_new0 (RequestPermissionContext);
+      ctx->request = g_object_ref (request);
+      ctx->delay = mcp_request_start_delay (request);
+
+      /* in a real policy-mechanism you'd give some details, like the
+       * channel's properties or object path */
+      message = dbus_message_new_method_call ("com.example.Policy",
+          "/com/example/Policy", "com.example.Policy", "RequestRequest");
+
+      if (!dbus_connection_send_with_reply (libdbus, message,
+            &pc, -1))
+        {
+          g_error ("out of memory");
+        }
+
+      dbus_message_unref (message);
+
+      if (pc == NULL)
+        {
+          DEBUG ("got disconnected from D-Bus...");
+
+          goto finally;
+        }
+
+      /* pc is unreffed by permission_cb */
+
+      DEBUG ("Waiting for permission");
+
+      if (dbus_pending_call_get_completed (pc))
+        {
+          request_permission_cb (pc, ctx);
+          goto finally;
+        }
+
+      if (!dbus_pending_call_set_notify (pc, request_permission_cb, ctx,
+            request_permission_context_free))
+        {
+          g_error ("Out of memory");
+        }
+
+      /* ctx will be freed later */
+      ctx = NULL;
+    }
+
+finally:
+  if (ctx != NULL)
+    request_permission_context_free (ctx);
+
+  g_hash_table_unref (properties);
+}
+
+static void
+req_policy_iface_init (McpRequestPolicyIface *iface,
+    gpointer unused G_GNUC_UNUSED)
+{
+  mcp_request_policy_iface_implement_check (iface,
+      test_permission_plugin_check_request);
 }
 
 /* ------ TestRejectionPlugin --------------------------------------- */

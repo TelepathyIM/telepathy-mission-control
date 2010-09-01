@@ -1,8 +1,8 @@
 /* Representation of a channel request as presented to plugins. This is
- * deliberately a "smaller" API than McdChannel.
+ * deliberately a "smaller" API than McdChannel or McdRequest.
  *
- * Copyright (C) 2009 Nokia Corporation
- * Copyright (C) 2009 Collabora Ltd.
+ * Copyright © 2009 Nokia Corporation.
+ * Copyright © 2009-2010 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -37,10 +37,7 @@ enum {
 struct _McdPluginRequest {
     GObject parent;
     McdAccount *account;
-    McdChannel *real_request;
-    GQuark domain;
-    gint code;
-    gchar *message;
+    McdRequest *real_request;
 };
 
 struct _McdPluginRequestClass {
@@ -111,21 +108,6 @@ plugin_req_dispose (GObject *object)
 }
 
 static void
-plugin_req_finalize (GObject *object)
-{
-  McdPluginRequest *self = (McdPluginRequest *) object;
-  GObjectFinalizeFunc finalize =
-    G_OBJECT_CLASS (_mcd_plugin_request_parent_class)->finalize;
-
-  DEBUG ("%p", object);
-
-  g_free (self->message);
-
-  if (finalize != NULL)
-    finalize (object);
-}
-
-static void
 _mcd_plugin_request_class_init (
     McdPluginRequestClass *cls)
 {
@@ -133,12 +115,11 @@ _mcd_plugin_request_class_init (
 
   object_class->set_property = plugin_req_set_property;
   object_class->dispose = plugin_req_dispose;
-  object_class->finalize = plugin_req_finalize;
 
   g_object_class_install_property (object_class, PROP_REAL_REQUEST,
       g_param_spec_object ("real-request", "Real channel request",
-          "The underlying McdChannel",
-          MCD_TYPE_CHANNEL,
+          "The underlying McdRequest",
+          MCD_TYPE_REQUEST,
           G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_ACCOUNT,
@@ -150,7 +131,7 @@ _mcd_plugin_request_class_init (
 
 McdPluginRequest *
 _mcd_plugin_request_new (McdAccount *account,
-    McdChannel *real_request)
+    McdRequest *real_request)
 {
   McdPluginRequest *self;
 
@@ -200,7 +181,7 @@ plugin_req_get_user_action_time (McpRequest *obj)
 
   g_return_val_if_fail (self != NULL, 0);
 
-  return _mcd_channel_get_request_user_action_time (self->real_request);
+  return _mcd_request_get_user_action_time (self->real_request);
 }
 
 static guint
@@ -229,7 +210,7 @@ plugin_req_ref_nth_request (McpRequest *obj,
       return NULL;
     }
 
-  requested_properties = _mcd_channel_get_requested_properties (
+  requested_properties = _mcd_request_get_properties (
       self->real_request);
   g_return_val_if_fail (requested_properties != NULL, NULL);
   return g_hash_table_ref (requested_properties);
@@ -245,25 +226,50 @@ plugin_req_deny (McpRequest *obj,
 
   g_return_if_fail (self != NULL);
 
-  if (self->domain == 0)
-    {
-      DEBUG ("Request denied: %s %d: %s", g_quark_to_string (domain),
-          code, message);
-      self->domain = domain;
-      self->code = code;
-      self->message = g_strdup (message);
-    }
+  _mcd_request_set_failure (self->real_request, domain, code, message);
 }
 
-GError *
-_mcd_plugin_request_dup_denial (McdPluginRequest *self)
+/* an arbitrary constant, to detect use-after-free or wrong pointers */
+#define DELAY_MAGIC 0xC953
+
+typedef struct {
+    gsize magic;
+    McdPluginRequest *self;
+} RealDelay;
+
+static McpRequestDelay *
+plugin_req_start_delay (McpRequest *obj)
 {
+  McdPluginRequest *self = MCD_PLUGIN_REQUEST (obj);
+  RealDelay *delay;
+
+  DEBUG ("%p", self);
+
   g_return_val_if_fail (self != NULL, NULL);
+  delay = g_slice_new (RealDelay);
+  delay->magic = DELAY_MAGIC;
+  delay->self = g_object_ref (obj);
+  _mcd_request_start_delay (self->real_request);
+  return (McpRequestDelay *) delay;
+}
 
-  if (self->domain == 0)
-    return NULL;
+static void
+plugin_req_end_delay (McpRequest *obj,
+    McpRequestDelay *delay)
+{
+  McdPluginRequest *self = MCD_PLUGIN_REQUEST (obj);
+  RealDelay *real_delay = (RealDelay *) delay;
 
-  return g_error_new_literal (self->domain, self->code, self->message);
+  DEBUG ("%p", self);
+
+  g_return_if_fail (self != NULL);
+  g_return_if_fail (real_delay->self == self);
+  g_return_if_fail (real_delay->magic == DELAY_MAGIC);
+
+  real_delay->magic = ~(DELAY_MAGIC);
+  real_delay->self = NULL;
+  _mcd_request_end_delay (self->real_request);
+  g_object_unref (self);
 }
 
 static void
@@ -281,4 +287,6 @@ plugin_iface_init (McpRequestIface *iface,
   iface->ref_nth_request = plugin_req_ref_nth_request;
 
   iface->deny = plugin_req_deny;
+  iface->start_delay = plugin_req_start_delay;
+  iface->end_delay = plugin_req_end_delay;
 }

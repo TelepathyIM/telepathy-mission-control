@@ -3,8 +3,8 @@
 /*
  * This file is part of mission-control
  *
- * Copyright (C) 2007-2009 Nokia Corporation.
- * Copyright (C) 2009 Collabora Ltd.
+ * Copyright © 2007-2009 Nokia Corporation.
+ * Copyright © 2009-2010 Collabora Ltd.
  *
  * Contact: Naba Kumar  <naba.kumar@nokia.com>
  *
@@ -28,6 +28,7 @@
 #define MCD_CHANNEL_PRIV_H
 
 #include "mcd-channel.h"
+#include "request.h"
 
 G_BEGIN_DECLS
 
@@ -46,8 +47,8 @@ G_GNUC_INTERNAL void _mcd_channel_undispatchable (McdChannel *self);
 G_GNUC_INTERNAL
 GHashTable *_mcd_channel_get_immutable_properties (McdChannel *channel);
 
-G_GNUC_INTERNAL
-const gchar *_mcd_channel_get_target_id (McdChannel *channel);
+G_GNUC_INTERNAL McdRequest *_mcd_channel_get_request (McdChannel *self);
+
 G_GNUC_INTERNAL
 GHashTable *_mcd_channel_get_requested_properties (McdChannel *channel);
 G_GNUC_INTERNAL

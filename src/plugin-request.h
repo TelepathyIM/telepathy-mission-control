@@ -1,8 +1,8 @@
 /* Representation of a channel request as presented to plugins. This is
  * deliberately a "smaller" API than McdChannel.
  *
- * Copyright (C) 2009 Nokia Corporation
- * Copyright (C) 2009 Collabora Ltd.
+ * Copyright © 2009 Nokia Corporation.
+ * Copyright © 2009-2010 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -27,7 +27,7 @@
 #include <mission-control-plugins/mission-control-plugins.h>
 
 #include "mcd-account.h"
-#include "mcd-channel.h"
+#include "request.h"
 
 G_BEGIN_DECLS
 
@@ -54,10 +54,7 @@ G_GNUC_INTERNAL GType _mcd_plugin_request_get_type (void);
                               McdPluginRequestClass))
 
 G_GNUC_INTERNAL McdPluginRequest *_mcd_plugin_request_new (McdAccount *account,
-    McdChannel *real_request);
-
-G_GNUC_INTERNAL GError *_mcd_plugin_request_dup_denial (
-    McdPluginRequest *self);
+    McdRequest *real_request);
 
 G_END_DECLS
 

@@ -175,3 +175,24 @@ mcp_request_find_request_by_type (McpRequest *self,
       i++;
     }
 }
+
+McpRequestDelay *
+mcp_request_start_delay (McpRequest *self)
+{
+  McpRequestIface *iface = MCP_REQUEST_GET_IFACE (self);
+
+  g_return_val_if_fail (iface != NULL, NULL);
+  g_return_val_if_fail (iface->start_delay != NULL, NULL);
+  return iface->start_delay (self);
+}
+
+void
+mcp_request_end_delay (McpRequest *self, McpRequestDelay *delay)
+{
+  McpRequestIface *iface = MCP_REQUEST_GET_IFACE (self);
+
+  g_return_if_fail (iface != NULL);
+  g_return_if_fail (delay != NULL);
+  g_return_if_fail (iface->end_delay != NULL);
+  iface->end_delay (self, delay);
+}
