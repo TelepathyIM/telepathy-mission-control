@@ -1871,12 +1871,6 @@ collect_satisfied_requests (GList *channels)
 }
 
 static void
-free_req_properties (gpointer data)
-{
-    g_boxed_free (TP_HASH_TYPE_STRING_VARIANT_MAP, data);
-}
-
-static void
 _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
 {
     const GList *cl;
@@ -1932,7 +1926,7 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
 
         satisfied_requests = g_ptr_array_sized_new (g_hash_table_size (reqs));
         request_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
-            g_free, free_req_properties);
+            g_free, (GDestroyNotify) g_hash_table_unref);
 
         /* 'Requests_Satisfied' and 'request-properties' */
         g_hash_table_iter_init (&it, reqs);
