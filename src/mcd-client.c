@@ -40,6 +40,8 @@
 #include "mcd-channel-priv.h"
 #include "mcd-debug.h"
 
+#include "libmcclient/mc-gtypes.h"
+
 G_DEFINE_TYPE (McdClientProxy, _mcd_client_proxy, TP_TYPE_CLIENT);
 
 enum
@@ -608,8 +610,10 @@ _mcd_client_recover_observer (McdClientProxy *self, TpChannel *channel,
     satisfied_requests = g_ptr_array_new ();
     observer_info = g_hash_table_new (g_str_hash, g_str_equal);
     tp_asv_set_boolean (observer_info, "recovering", TRUE);
+    /* FIXME: use TP_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP when
+     * available */
     tp_asv_set_boxed (observer_info, "request-properties",
-        TP_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP,
+        MC_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP,
         g_hash_table_new (NULL, NULL));
 
     channels_array = _mcd_tp_channel_details_build_from_tp_chan (channel);

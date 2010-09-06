@@ -195,7 +195,7 @@ def test_channel_creation(q, bus, account, client, conn,
     q.dbus_return(e.message, signature='')
 
     # SucceededWithChannel is fired first
-    e = q.expect('dbus-signal', path=request_path, interface=cs.CR,
+    e = q.expect('dbus-signal', path=request_path, interface=cs.CR_FUTURE,
         signal='SucceededWithChannel')
 
     assertEquals(conn.object_path, e.args[0])

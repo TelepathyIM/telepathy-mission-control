@@ -17,7 +17,7 @@
 # 02110-1301 USA
 
 import dbus
-"""Test CD.{Create,Ensure}ChannelWithMetadata
+"""Test CD.{Create,Ensure}ChannelWithHints
 """
 
 import dbus
@@ -54,7 +54,7 @@ def test(q, bus, mc):
 def test_channel_creation(q, bus, account, client, conn,
         ensure=False, prefer=None, channel_type=cs.CHANNEL_TYPE_TEXT):
     user_action_time = dbus.Int64(1238582606)
-    metadata = dbus.Dictionary({ 'badger': 42, 'snake': 'pony' },
+    hints = dbus.Dictionary({ 'badger': 42, 'snake': 'pony' },
         signature='sv')
 
     if prefer is None:
@@ -63,19 +63,19 @@ def test_channel_creation(q, bus, account, client, conn,
     cd = bus.get_object(cs.CD, cs.CD_PATH)
     cd_props = dbus.Interface(cd, cs.PROPERTIES_IFACE)
 
-    # chat UI calls ChannelDispatcher.EnsureChannelWithMetadata or
-    # CreateChannelWithMetadata
+    # chat UI calls ChannelDispatcher.EnsureChannelWithHints or
+    # CreateChannelWithHints
     request = dbus.Dictionary({
             cs.CHANNEL + '.ChannelType': channel_type,
             cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
     call_async(q, cd,
-            (ensure and 'EnsureChannelWithMetadata' or 'CreateChannelWithMetadata'),
+            (ensure and 'EnsureChannelWithHints' or 'CreateChannelWithHints'),
             account.object_path, request, user_action_time, prefer.bus_name,
-            metadata, dbus_interface=cs.CD)
+            hints, dbus_interface=cs.CD_FUTURE)
     ret = q.expect('dbus-return',
-            method=(ensure and 'EnsureChannelWithMetadata' or 'CreateChannelWithMetadata'))
+            method=(ensure and 'EnsureChannelWithHints' or 'CreateChannelWithHints'))
     request_path = ret.value[0]
 
     # chat UI connects to signals and calls ChannelRequest.Proceed()
@@ -87,7 +87,8 @@ def test_channel_creation(q, bus, account, client, conn,
     assert request_props['UserActionTime'] == user_action_time
     assert request_props['PreferredHandler'] == prefer.bus_name
     assert request_props['Interfaces'] == []
-    assert request_props['RequestMetadata'] == metadata
+    future_props = cr.GetAll(cs.CR_FUTURE, dbus_interface=cs.PROPERTIES_IFACE)
+    assertEquals(hints, future_props['Hints'])
 
     cr.Proceed(dbus_interface=cs.CR)
 
@@ -177,7 +178,7 @@ def test_channel_creation(q, bus, account, client, conn,
     q.dbus_return(e.message, signature='')
 
     # SucceededWithChannel is fired first
-    e = q.expect('dbus-signal', path=request_path, interface=cs.CR,
+    e = q.expect('dbus-signal', path=request_path, interface=cs.CR_FUTURE,
         signal='SucceededWithChannel')
 
     assertEquals(conn.object_path, e.args[0])

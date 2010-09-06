@@ -52,6 +52,7 @@
 #include "plugin-loader.h"
 
 #include <libmcclient/mc-errors.h>
+#include "libmcclient/mc-gtypes.h"
 
 #define MCD_CLIENT_BASE_NAME "org.freedesktop.Telepathy.Client."
 #define MCD_CLIENT_BASE_NAME_LEN (sizeof (MCD_CLIENT_BASE_NAME) - 1)
@@ -1940,8 +1941,9 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
             g_hash_table_insert (request_properties, g_strdup (path), props);
         }
 
+        /* FIXME: use telepathy-glib type when available */
         tp_asv_set_boxed (observer_info, "request-properties",
-            TP_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP,
+            MC_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP,
             request_properties);
 
         if (_mcd_dispatch_operation_needs_approval (self))

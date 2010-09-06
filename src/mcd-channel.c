@@ -52,12 +52,16 @@
 #include "mcd-enum-types.h"
 #include "request.h"
 
+#include "_gen/interfaces.h"
+#include "_gen/svc-Channel_Request_Future.h"
+
 #define MCD_CHANNEL_PRIV(channel) (MCD_CHANNEL (channel)->priv)
 
 static void request_iface_init (gpointer, gpointer);
 
 G_DEFINE_TYPE_WITH_CODE (McdChannel, mcd_channel, MCD_TYPE_MISSION,
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_CHANNEL_REQUEST, request_iface_init);
+    G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_REQUEST_FUTURE, NULL);
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
                            tp_dbus_properties_mixin_iface_init))
 
@@ -103,7 +107,7 @@ enum _McdChannelPropertyType
     PROP_USER_ACTION_TIME,
     PROP_PREFERRED_HANDLER,
     PROP_INTERFACES,
-    PROP_REQUEST_METADATA,
+    PROP_HINTS,
 };
 
 #define DEPRECATED_PROPERTY_WARNING \
@@ -416,11 +420,11 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
         g_value_set_static_boxed (val, NULL);
         break;
 
-    case PROP_REQUEST_METADATA:
+    case PROP_HINTS:
         if (priv->request != NULL)
         {
             g_object_get_property ((GObject *) priv->request,
-                                   "request-metadata", val);
+                                   "hints", val);
             break;
         }
         g_value_take_boxed (val, g_hash_table_new (NULL, NULL));
@@ -569,7 +573,10 @@ mcd_channel_class_init (McdChannelClass * klass)
         { "PreferredHandler", "preferred-handler", NULL },
         { "Interfaces", "interfaces", NULL },
         { "Requests", "requests", NULL },
-        { "RequestMetadata", "request-metadata", NULL },
+        { NULL }
+    };
+    static TpDBusPropertiesMixinPropImpl future_props[] = {
+        { "Hints", "hints", NULL },
         { NULL }
     };
     static TpDBusPropertiesMixinIfaceImpl prop_interfaces[] = {
@@ -577,6 +584,11 @@ mcd_channel_class_init (McdChannelClass * klass)
           tp_dbus_properties_mixin_getter_gobject_properties,
           NULL,
           request_props,
+        },
+        { MC_IFACE_CHANNEL_REQUEST_FUTURE,
+          tp_dbus_properties_mixin_getter_gobject_properties,
+          NULL,
+          future_props,
         },
         { NULL }
     };
@@ -667,9 +679,9 @@ mcd_channel_class_init (McdChannelClass * klass)
                              G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property
-        (object_class, PROP_REQUEST_METADATA,
-         g_param_spec_boxed ("request-metadata",
-                             "Request Metadata",
+        (object_class, PROP_HINTS,
+         g_param_spec_boxed ("hints",
+                             "Hints",
                              "GHashTable",
                              TP_HASH_TYPE_STRING_VARIANT_MAP,
                              G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
@@ -1078,7 +1090,7 @@ mcd_channel_get_error (McdChannel *channel)
  * @properties: a #GHashTable of desired channel properties.
  * @user_time: user action time.
  * @preferred_handler: well-known name of preferred handler.
- * @request_metadata: metadata of the request, or %NULL
+ * @hints: client hints from the request, or %NULL
  * @use_existing: use EnsureChannel if %TRUE or CreateChannel if %FALSE
  * @proceeding: behave as though Proceed has already been called
  *
@@ -1094,7 +1106,7 @@ mcd_channel_new_request (McdAccount *account,
                          GHashTable *properties,
                          gint64 user_time,
                          const gchar *preferred_handler,
-                         GHashTable *request_metadata,
+                         GHashTable *hints,
                          gboolean use_existing,
                          gboolean proceeding)
 {
@@ -1110,7 +1122,7 @@ mcd_channel_new_request (McdAccount *account,
     channel->priv->request = _mcd_request_new (use_existing, account,
                                                properties, user_time,
                                                preferred_handler,
-                                               request_metadata);
+                                               hints);
     path = _mcd_request_get_object_path (channel->priv->request);
 
     if (proceeding)
@@ -1614,7 +1626,7 @@ _mcd_channel_dup_request_properties (McdChannel *self)
     GPtrArray *requests;
     GHashTable *result;
     McdAccount *account;
-    GHashTable *metadata;
+    GHashTable *hints;
 
     g_return_val_if_fail (self->priv->request != NULL, NULL);
 
@@ -1624,11 +1636,11 @@ _mcd_channel_dup_request_properties (McdChannel *self)
 
     account = _mcd_request_get_account (self->priv->request);
 
-    metadata = _mcd_request_get_request_metadata (self->priv->request);
-    if (metadata == NULL)
-        metadata =  g_hash_table_new (NULL, NULL);
+    hints = _mcd_request_get_hints (self->priv->request);
+    if (hints == NULL)
+        hints =  g_hash_table_new (NULL, NULL);
     else
-        g_hash_table_ref (metadata);
+        g_hash_table_ref (hints);
 
     result = tp_asv_new(
       TP_PROP_CHANNEL_REQUEST_USER_ACTION_TIME, G_TYPE_UINT64,
@@ -1641,11 +1653,11 @@ _mcd_channel_dup_request_properties (McdChannel *self)
         NULL,
       TP_PROP_CHANNEL_REQUEST_PREFERRED_HANDLER, G_TYPE_STRING,
         _mcd_request_get_preferred_handler (self->priv->request),
-      TP_PROP_CHANNEL_REQUEST_REQUEST_METADATA, TP_HASH_TYPE_STRING_VARIANT_MAP,
-        metadata,
+      MC_IFACE_CHANNEL_REQUEST_FUTURE ".Hints", TP_HASH_TYPE_STRING_VARIANT_MAP,
+        hints,
       NULL);
 
     g_ptr_array_free (requests, TRUE);
-    g_hash_table_unref (metadata);
+    g_hash_table_unref (hints);
     return result;
 }

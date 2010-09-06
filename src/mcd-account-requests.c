@@ -50,6 +50,8 @@
 #include "plugin-request.h"
 #include "request.h"
 
+#include "_gen/svc-Channel_Request_Future.h"
+
 static void
 online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
 {
@@ -166,7 +168,7 @@ on_request_completed (McdRequest *request,
         tp_conn = tp_channel_borrow_connection (tp_chan);
         g_assert (tp_conn != NULL);
 
-        tp_svc_channel_request_emit_succeeded_with_channel (channel,
+        mc_svc_channel_request_future_emit_succeeded_with_channel (channel,
             tp_proxy_get_object_path (tp_conn),
             tp_proxy_get_object_path (tp_chan));
 

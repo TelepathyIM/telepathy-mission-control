@@ -60,6 +60,8 @@
 #include "mcd-misc.h"
 #include "plugin-loader.h"
 
+#include "_gen/svc-Channel_Dispatcher_Future.h"
+
 #include <telepathy-glib/defs.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/handle-repo.h>
@@ -82,10 +84,13 @@
 #define MCD_DISPATCHER_PRIV(dispatcher) (MCD_DISPATCHER (dispatcher)->priv)
 
 static void dispatcher_iface_init (gpointer, gpointer);
+static void future_iface_init (gpointer, gpointer);
 
 G_DEFINE_TYPE_WITH_CODE (McdDispatcher, mcd_dispatcher, MCD_TYPE_MISSION,
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_CHANNEL_DISPATCHER,
                            dispatcher_iface_init);
+    G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_DISPATCHER_FUTURE,
+                           future_iface_init);
     G_IMPLEMENT_INTERFACE (
         TP_TYPE_SVC_CHANNEL_DISPATCHER_INTERFACE_OPERATION_LIST,
         NULL);
@@ -2186,13 +2191,13 @@ dispatcher_ensure_channel (TpSvcChannelDispatcher *iface,
 }
 
 static void
-dispatcher_create_channel_with_metadata (TpSvcChannelDispatcher *iface,
-                           const gchar *account_path,
-                           GHashTable *requested_properties,
-                           gint64 user_action_time,
-                           const gchar *preferred_handler,
-                           GHashTable *metadata,
-                           DBusGMethodInvocation *context)
+dispatcher_create_channel_with_hints (McSvcChannelDispatcherFuture *iface,
+                                      const gchar *account_path,
+                                      GHashTable *requested_properties,
+                                      gint64 user_action_time,
+                                      const gchar *preferred_handler,
+                                      GHashTable *hints,
+                                      DBusGMethodInvocation *context)
 {
     dispatcher_channel_request_acl_start (MCD_DISPATCHER (iface),
                                           CREATE_CHANNEL,
@@ -2200,19 +2205,19 @@ dispatcher_create_channel_with_metadata (TpSvcChannelDispatcher *iface,
                                           requested_properties,
                                           user_action_time,
                                           preferred_handler,
-                                          metadata,
+                                          hints,
                                           context,
                                           FALSE);
 }
 
 static void
-dispatcher_ensure_channel_with_metadata (TpSvcChannelDispatcher *iface,
-                           const gchar *account_path,
-                           GHashTable *requested_properties,
-                           gint64 user_action_time,
-                           const gchar *preferred_handler,
-                           GHashTable *metadata,
-                           DBusGMethodInvocation *context)
+dispatcher_ensure_channel_with_hints (McSvcChannelDispatcherFuture *iface,
+                                      const gchar *account_path,
+                                      GHashTable *requested_properties,
+                                      gint64 user_action_time,
+                                      const gchar *preferred_handler,
+                                      GHashTable *hints,
+                                      DBusGMethodInvocation *context)
 {
     dispatcher_channel_request_acl_start (MCD_DISPATCHER (iface),
                                           ENSURE_CHANNEL,
@@ -2220,7 +2225,7 @@ dispatcher_ensure_channel_with_metadata (TpSvcChannelDispatcher *iface,
                                           requested_properties,
                                           user_action_time,
                                           preferred_handler,
-                                          metadata,
+                                          hints,
                                           context,
                                           TRUE);
 }
@@ -2234,8 +2239,17 @@ dispatcher_iface_init (gpointer g_iface,
     g_iface, dispatcher_##x)
     IMPLEMENT (create_channel);
     IMPLEMENT (ensure_channel);
-    IMPLEMENT (create_channel_with_metadata);
-    IMPLEMENT (ensure_channel_with_metadata);
+#undef IMPLEMENT
+}
+
+static void
+future_iface_init (gpointer g_iface,
+                   gpointer iface_data G_GNUC_UNUSED)
+{
+#define IMPLEMENT(x) mc_svc_channel_dispatcher_future_implement_##x (\
+    g_iface, dispatcher_##x)
+    IMPLEMENT (create_channel_with_hints);
+    IMPLEMENT (ensure_channel_with_hints);
 #undef IMPLEMENT
 }
 

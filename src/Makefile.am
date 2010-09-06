@@ -53,7 +53,9 @@ mc_gen_headers = \
 	_gen/svc-Account_Interface_Stats.h \
 	_gen/svc-Account_Interface_Minimum_Presence.h \
 	_gen/svc-Account_Manager_Interface_Query.h \
-	_gen/svc-Account_Manager_Interface_SSO.h
+	_gen/svc-Account_Manager_Interface_SSO.h \
+	_gen/svc-Channel_Dispatcher_Future.h \
+	_gen/svc-Channel_Request_Future.h
 
 nodist_libmcd_convenience_la_SOURCES = \
 	_gen/cli-Connection_Interface_Contact_Capabilities_Draft1-body.h \
@@ -69,6 +71,8 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/svc-Account_Interface_Minimum_Presence.c \
 	_gen/svc-Account_Manager_Interface_Query.c \
 	_gen/svc-Account_Manager_Interface_SSO.c \
+	_gen/svc-Channel_Dispatcher_Future.c \
+	_gen/svc-Channel_Request_Future.c \
 	mcd-enum-types.c \
 	mcd-enum-types.h \
 	mcd-signals-marshal.c \
@@ -280,6 +284,13 @@ _gen/enums.h: _gen/mcd.xml $(tools_dir)/c-constants-generator.xsl
 		$(tools_dir)/c-constants-generator.xsl \
 		$< > $@
 
+_gen/interfaces.h: _gen/mcd.xml \
+	$(tools_dir)/glib-interfaces-generator.xsl \
+	$(tools_dir)/c-interfaces-generator.xsl
+	$(XSLTPROC) $(XSLTPROCFLAGS) \
+		--stringparam mixed-case-prefix mc \
+		$(tools_dir)/glib-interfaces-generator.xsl \
+		$< > $@
 
 # Generated files which must be generated per "class".
 # (Currently the only "class" is nmc4, but the new API will need "classes"

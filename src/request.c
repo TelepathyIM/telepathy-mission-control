@@ -36,7 +36,7 @@ enum {
     PROP_PROPERTIES,
     PROP_USER_ACTION_TIME,
     PROP_PREFERRED_HANDLER,
-    PROP_REQUEST_METADATA
+    PROP_HINTS
 };
 
 static guint sig_id_ready_to_request = 0;
@@ -50,7 +50,7 @@ struct _McdRequest {
     GHashTable *properties;
     gint64 user_action_time;
     gchar *preferred_handler;
-    GHashTable *request_metadata;
+    GHashTable *hints;
     gchar *object_path;
     gsize delay;
 
@@ -138,14 +138,14 @@ _mcd_request_get_property (GObject *object,
       g_value_set_int64 (value, self->user_action_time);
       break;
 
-    case PROP_REQUEST_METADATA:
-      if (self->request_metadata == NULL)
+    case PROP_HINTS:
+      if (self->hints == NULL)
         {
           g_value_take_boxed (value, g_hash_table_new (NULL, NULL));
         }
       else
         {
-          g_value_set_boxed (value, self->request_metadata);
+          g_value_set_boxed (value, self->hints);
         }
       break;
 
@@ -191,9 +191,9 @@ _mcd_request_set_property (GObject *object,
       self->preferred_handler = g_value_dup_string (value);
       break;
 
-    case PROP_REQUEST_METADATA:
-      g_assert (self->request_metadata == NULL); /* construct-only */
-      self->request_metadata = g_value_dup_boxed (value);
+    case PROP_HINTS:
+      g_assert (self->hints == NULL); /* construct-only */
+      self->hints = g_value_dup_boxed (value);
       break;
 
     default:
@@ -217,7 +217,7 @@ _mcd_request_dispose (GObject *object)
       self->account = NULL;
     }
 
-  tp_clear_pointer (&self->request_metadata, g_hash_table_unref);
+  tp_clear_pointer (&self->hints, g_hash_table_unref);
 
   if (dispose != NULL)
     dispose (object);
@@ -296,8 +296,8 @@ _mcd_request_class_init (
          "",
          G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
 
-  g_object_class_install_property (object_class, PROP_REQUEST_METADATA,
-      g_param_spec_boxed ("request-metadata", "Request Metadata",
+  g_object_class_install_property (object_class, PROP_HINTS,
+      g_param_spec_boxed ("hints", "Hints",
         "GHashTable",
         TP_HASH_TYPE_STRING_VARIANT_MAP,
         G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
@@ -317,7 +317,7 @@ _mcd_request_new (gboolean use_existing,
     GHashTable *properties,
     gint64 user_action_time,
     const gchar *preferred_handler,
-    GHashTable *request_metadata)
+    GHashTable *hints)
 {
   McdRequest *self;
 
@@ -327,7 +327,7 @@ _mcd_request_new (gboolean use_existing,
       "properties", properties,
       "user-action-time", user_action_time,
       "preferred-handler", preferred_handler,
-      "request-metadata", request_metadata,
+      "hints", hints,
       NULL);
   DEBUG ("%p (for %p)", self, account);
 
@@ -368,9 +368,9 @@ _mcd_request_get_object_path (McdRequest *self)
 }
 
 GHashTable *
-_mcd_request_get_request_metadata (McdRequest *self)
+_mcd_request_get_hints (McdRequest *self)
 {
-  return self->request_metadata;
+  return self->hints;
 }
 
 gboolean
