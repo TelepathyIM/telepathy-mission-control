@@ -280,13 +280,6 @@ _gen/enums.h: _gen/mcd.xml $(tools_dir)/c-constants-generator.xsl
 		$(tools_dir)/c-constants-generator.xsl \
 		$< > $@
 
-_gen/interfaces.h: _gen/mcd.xml \
-	$(tools_dir)/glib-interfaces-generator.xsl \
-	$(tools_dir)/c-interfaces-generator.xsl
-	$(XSLTPROC) $(XSLTPROCFLAGS) \
-		--stringparam mixed-case-prefix mc \
-		$(tools_dir)/glib-interfaces-generator.xsl \
-		$< > $@
 
 # Generated files which must be generated per "class".
 # (Currently the only "class" is nmc4, but the new API will need "classes"
