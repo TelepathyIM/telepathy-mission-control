@@ -22,6 +22,7 @@ cd "@abs_top_builddir@/test/twisted/tools"
 
 ulimit -c unlimited
 exec > missioncontrol-$$.log 2>&1
+ln -f missioncontrol-$$.log missioncontrol.log
 
 if test -z "$MC_ACCOUNT_DIR"; then
         echo "MC_ACCOUNT_DIR must be set"
