@@ -79,6 +79,9 @@ G_GNUC_INTERNAL void _mcd_channel_depart (McdChannel *channel,
 
 GHashTable * _mcd_channel_dup_request_properties (McdChannel *self);
 
+G_GNUC_INTERNAL gboolean _mcd_channel_is_primary_for_path (McdChannel *self,
+    const gchar *channel_path);
+
 G_END_DECLS
 #endif
 

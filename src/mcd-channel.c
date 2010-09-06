@@ -80,6 +80,7 @@ struct _McdChannelPrivate
     guint is_disposed : 1;
     guint is_aborted : 1;
     guint constructing : 1;
+    guint is_proxy : 1;
 
     McdChannelStatus status;
 
@@ -1356,17 +1357,24 @@ on_proxied_channel_status_changed (McdChannel *source,
 
 /*
  * _mcd_channel_set_request_proxy:
- * @channel: the requested #McdChannel.
- * @source: the #McdChannel to be proxied.
+ * @channel: a #McdChannel representing a channel request
+ * @source: the primary #McdChannel that wraps a remote Channel, which
+ *  may or may not also be a channel request
  *
  * This function turns @channel into a proxy for @source: it listens to
- * "status-changed" signals from @source and replicates them on @channel
+ * "status-changed" signals from @source and replicates them on @channel.
+ * See _mcd_channel_is_primary_for_path for terminology and rationale.
  */
 void
 _mcd_channel_set_request_proxy (McdChannel *channel, McdChannel *source)
 {
     g_return_if_fail (MCD_IS_CHANNEL (channel));
     g_return_if_fail (MCD_IS_CHANNEL (source));
+
+    g_return_if_fail (!source->priv->is_proxy);
+    g_return_if_fail (source->priv->tp_chan != NULL);
+
+    _mcd_channel_copy_details (channel, source);
 
     /* Now @source is also satisfying the request of @channel */
     source->priv->latest_request_time = MAX (source->priv->latest_request_time,
@@ -1394,6 +1402,7 @@ _mcd_channel_copy_details (McdChannel *channel, McdChannel *source)
     g_return_if_fail (MCD_IS_CHANNEL (channel));
     g_return_if_fail (MCD_IS_CHANNEL (source));
 
+    channel->priv->is_proxy = TRUE;
     channel->priv->tp_chan = g_object_ref (source->priv->tp_chan);
 }
 
@@ -1660,4 +1669,46 @@ _mcd_channel_dup_request_properties (McdChannel *self)
     g_ptr_array_free (requests, TRUE);
     g_hash_table_unref (hints);
     return result;
+}
+
+/*
+ * _mcd_channel_is_primary_for_path:
+ * @self: an McdChannel
+ * @channel_path: the object path of a TpChannel
+ *
+ * McdChannel leads a double life. A McdChannel can either be created to
+ * represent a channel request (implementing ChannelRequest), or to wrap a
+ * TpChannel (a remote Channel).
+ *
+ * When a new TpChannel satisfies a single channel request, the McdChannel
+ * representing that channel request becomes the object that wraps that
+ * TpChannel.
+ *
+ * When the same TpChannel satisfies more than one channel request, one of
+ * the McdChannel instances representing the requests is chosen to wrap
+ * that TpChannel in the same way. Let that instance be the "primary"
+ * McdChannel. The remaining McdChannel instances become "proxies" for that
+ * primary McdChannel.
+ *
+ * Only the primary McdChannel is suitable for passing to the McdDispatcher,
+ * since it is the only one that tracks the complete list of requests being
+ * satisfied by the TpChannel.
+ *
+ * Returns: %TRUE if @self is the primary McdChannel for @channel_path
+ */
+gboolean
+_mcd_channel_is_primary_for_path (McdChannel *self,
+                                  const gchar *channel_path)
+{
+    if (self->priv->tp_chan == NULL)
+        return FALSE;
+
+    if (self->priv->is_proxy)
+        return FALSE;
+
+    if (tp_strdiff (tp_proxy_get_object_path (self->priv->tp_chan),
+                    channel_path))
+        return FALSE;
+
+    return TRUE;
 }
