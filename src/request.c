@@ -49,7 +49,6 @@ enum {
 };
 
 static guint sig_id_ready_to_request = 0;
-static guint sig_id_completed = 0;
 
 struct _McdRequest {
     GObject parent;
@@ -70,7 +69,9 @@ struct _McdRequest {
      * corresponding ref in _mcd_request_constructed. */
     gsize delay;
 
+    /* TRUE if either succeeded[-with-channel] or failed was emitted */
     gboolean is_complete;
+
     gboolean cancellable;
     GQuark failure_domain;
     gint failure_code;
@@ -369,10 +370,6 @@ _mcd_request_class_init (
       G_OBJECT_CLASS_TYPE (cls), G_SIGNAL_RUN_LAST, 0, NULL, NULL,
       g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
 
-  sig_id_completed = g_signal_new ("completed",
-      G_OBJECT_CLASS_TYPE (cls), G_SIGNAL_RUN_LAST, 0, NULL, NULL,
-      g_cclosure_marshal_VOID__BOOLEAN, G_TYPE_NONE, 1, G_TYPE_BOOLEAN);
-
   cls->dbus_properties_class.interfaces = prop_interfaces,
   tp_dbus_properties_mixin_class_init (object_class,
       G_STRUCT_OFFSET (McdRequestClass, dbus_properties_class));
@@ -492,7 +489,6 @@ _mcd_request_set_success (McdRequest *self,
           tp_proxy_get_object_path (tp_channel_borrow_connection (channel)),
           tp_proxy_get_object_path (channel));
       tp_svc_channel_request_emit_succeeded (self);
-      g_signal_emit (self, sig_id_completed, 0, TRUE);
     }
   else
     {
@@ -522,7 +518,6 @@ _mcd_request_set_failure (McdRequest *self,
       self->failure_code = code;
       self->failure_message = g_strdup (message);
       tp_svc_channel_request_emit_failed (self, err_string, message);
-      g_signal_emit (self, sig_id_completed, 0, FALSE);
 
       g_free (err_string);
     }
