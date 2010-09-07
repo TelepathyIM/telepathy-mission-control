@@ -86,8 +86,7 @@ struct _McdChannelPrivate
 
     McdRequest *request;
 
-    /* List of reffed McdChannel. This does NOT include the self pointer to
-     * avoid cylcing references. */
+    /* List of reffed McdRequest */
     GList *satisfied_requests;
     gint64 latest_request_time;
 };
@@ -470,6 +469,7 @@ _mcd_channel_finalize (GObject * object)
     GList *list;
 
     list = priv->satisfied_requests;
+
     while (list)
     {
         g_object_unref (list->data);
@@ -1138,12 +1138,14 @@ _mcd_channel_new_request (McdAccount *account,
                                                properties, user_time,
                                                preferred_handler,
                                                hints);
+    g_assert (channel->priv->request != NULL);
     path = _mcd_request_get_object_path (channel->priv->request);
 
     if (proceeding)
         _mcd_request_set_proceeding (channel->priv->request);
 
-    channel->priv->satisfied_requests = NULL;
+    channel->priv->satisfied_requests = g_list_prepend (NULL,
+        g_object_ref (channel->priv->request));
     channel->priv->latest_request_time = user_time;
 
     _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_REQUEST);
@@ -1206,8 +1208,7 @@ _mcd_channel_get_request_path (McdChannel *channel)
  *  through this pointer
  *
  * Returns: a newly allocated hash table mapping channel object paths
- * to McdChannel objects satisfied by this channel, if the channel status
- * is not yet MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED.
+ * to McdRequest objects satisfied by this channel
  */
 GHashTable *
 _mcd_channel_get_satisfied_requests (McdChannel *channel,
@@ -1225,18 +1226,11 @@ _mcd_channel_get_satisfied_requests (McdChannel *channel,
     result = g_hash_table_new_full (g_str_hash, g_str_equal,
         g_free, g_object_unref);
 
-    /* Add ourself */
-    path = _mcd_channel_get_request_path (channel);
-    if (path != NULL)
-        g_hash_table_insert (result, g_strdup (path), g_object_ref (channel));
-
     for (l = channel->priv->satisfied_requests; l != NULL; l = g_list_next (l))
     {
-        path = _mcd_channel_get_request_path (l->data);
-
-        if (path != NULL)
-            g_hash_table_insert (result, g_strdup (path),
-                g_object_ref (l->data));
+        path = _mcd_request_get_object_path (l->data);
+        g_assert (path != NULL);
+        g_hash_table_insert (result, g_strdup (path), g_object_ref (l->data));
     }
 
     return result;
@@ -1384,6 +1378,7 @@ _mcd_channel_set_request_proxy (McdChannel *channel, McdChannel *source)
 {
     g_return_if_fail (MCD_IS_CHANNEL (channel));
     g_return_if_fail (MCD_IS_CHANNEL (source));
+    g_return_if_fail (MCD_IS_REQUEST (channel->priv->request));
 
     g_return_if_fail (!source->priv->is_proxy);
     g_return_if_fail (source->priv->tp_chan != NULL);
@@ -1395,7 +1390,8 @@ _mcd_channel_set_request_proxy (McdChannel *channel, McdChannel *source)
         channel->priv->latest_request_time);
 
     source->priv->satisfied_requests = g_list_prepend (
-        source->priv->satisfied_requests, g_object_ref (channel));
+        source->priv->satisfied_requests,
+        g_object_ref (channel->priv->request));
 
     copy_status (source, channel);
     g_signal_connect (source, "status-changed",
