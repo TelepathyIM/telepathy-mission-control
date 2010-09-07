@@ -568,7 +568,8 @@ mcd_channel_status_changed (McdChannel *channel, McdChannelStatus status)
         }
         else if (status == MCD_CHANNEL_STATUS_DISPATCHED)
         {
-            _mcd_request_set_success (channel->priv->request);
+            _mcd_request_set_success (channel->priv->request,
+                                      channel->priv->tp_chan);
         }
         else if (status == MCD_CHANNEL_STATUS_HANDLER_INVOKED)
         {

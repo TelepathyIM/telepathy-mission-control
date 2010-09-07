@@ -476,8 +476,11 @@ _mcd_request_end_delay (McdRequest *self)
 }
 
 void
-_mcd_request_set_success (McdRequest *self)
+_mcd_request_set_success (McdRequest *self,
+    TpChannel *channel)
 {
+  g_return_if_fail (TP_IS_CHANNEL (channel));
+
   if (!self->is_complete)
     {
       DEBUG ("Request succeeded");
