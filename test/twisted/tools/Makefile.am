@@ -36,4 +36,5 @@ EXTRA_DIST = \
 
 CLEANFILES = \
     $(BUILT_SOURCES) \
+    missioncontrol.log \
     missioncontrol-*.log
