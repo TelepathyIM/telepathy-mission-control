@@ -31,6 +31,7 @@
 #include <telepathy-glib/util.h>
 
 #include "mcd-debug.h"
+#include "mcd-misc.h"
 #include "_gen/interfaces.h"
 #include "_gen/svc-Channel_Request_Future.h"
 
@@ -486,6 +487,11 @@ _mcd_request_set_success (McdRequest *self,
       DEBUG ("Request succeeded");
       self->is_complete = TRUE;
       self->cancellable = FALSE;
+
+      mc_svc_channel_request_future_emit_succeeded_with_channel (self,
+          tp_proxy_get_object_path (tp_channel_borrow_connection (channel)),
+          tp_proxy_get_object_path (channel));
+      tp_svc_channel_request_emit_succeeded (self);
       g_signal_emit (self, sig_id_completed, 0, TRUE);
     }
   else
@@ -502,14 +508,23 @@ _mcd_request_set_failure (McdRequest *self,
 {
   if (!self->is_complete)
     {
+      GError e = { domain, code, (gchar *) message };
+      gchar *err_string;
+
       DEBUG ("Request failed: %s %d: %s", g_quark_to_string (domain),
           code, message);
+
+      err_string = _mcd_build_error_string (&e);
+
       self->is_complete = TRUE;
       self->cancellable = FALSE;
       self->failure_domain = domain;
       self->failure_code = code;
       self->failure_message = g_strdup (message);
+      tp_svc_channel_request_emit_failed (self, err_string, message);
       g_signal_emit (self, sig_id_completed, 0, FALSE);
+
+      g_free (err_string);
     }
   else
     {
