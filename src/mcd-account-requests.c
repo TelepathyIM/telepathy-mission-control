@@ -190,7 +190,7 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
                              gint64 user_time, const gchar *preferred_handler,
                              GHashTable *request_metadata,
                              gboolean use_existing, gboolean proceeding,
-                             GError **error)
+                             McdRequest **request_out, GError **error)
 {
     McdChannel *channel;
     GHashTable *props;
@@ -226,6 +226,11 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
                             g_object_ref (channel),
                             (GClosureNotify) g_object_unref,
                             G_CONNECT_AFTER);
+
+    if (request_out != NULL)
+    {
+        *request_out = g_object_ref (request);
+    }
 
     return channel;
 }
@@ -316,11 +321,12 @@ account_request_common (McdAccount *account, GHashTable *properties,
     const gchar *request_id;
     McdChannel *channel;
     McdDispatcher *dispatcher;
-    McdRequest *request;
+    McdRequest *request = NULL;
 
     channel = _mcd_account_create_request (account, properties, user_time,
                                            preferred_handler, NULL, use_existing,
-                                           TRUE /* proceeding */, &error);
+                                           TRUE /* proceeding */,
+                                           &request, &error);
 
     if (error)
     {
@@ -330,7 +336,6 @@ account_request_common (McdAccount *account, GHashTable *properties,
         return;
     }
 
-    request = _mcd_channel_get_request (channel);
     g_assert (request != NULL);
 
     _mcd_account_proceed_with_request (account, channel);
@@ -347,8 +352,9 @@ account_request_common (McdAccount *account, GHashTable *properties,
     dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
     _mcd_dispatcher_add_request (dispatcher, account, channel);
 
-    /* we still have a ref returned by _mcd_account_create_request(), which
-     * is no longer necessary at this point */
+    /* we still have refs returned by _mcd_account_create_request(), which
+     * are no longer necessary at this point */
+    g_object_unref (request);
     g_object_unref (channel);
 }
 

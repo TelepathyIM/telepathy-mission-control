@@ -32,6 +32,7 @@
 #include "mcd-account-config.h"
 #include "mcd-channel.h"
 #include "mcd-dbusprop.h"
+#include "request.h"
 
 /* auto-generated stubs */
 #include "_gen/svc-Account_Interface_ChannelRequests.h"
@@ -143,7 +144,8 @@ extern const McdDBusProp account_channelrequests_properties[];
 G_GNUC_INTERNAL McdChannel *_mcd_account_create_request (McdAccount *account,
     GHashTable *properties, gint64 user_action_time,
     const gchar *preferred_handler, GHashTable *request_metadata,
-    gboolean use_existing, gboolean proceeding, GError **error);
+    gboolean use_existing, gboolean proceeding,
+    McdRequest **request_out, GError **error);
 
 G_GNUC_INTERNAL void _mcd_account_proceed_with_request (McdAccount *account,
                                                         McdChannel *channel);

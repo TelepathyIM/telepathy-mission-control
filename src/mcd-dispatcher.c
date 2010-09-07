@@ -1968,7 +1968,8 @@ dispatcher_request_channel (McdDispatcher *self,
 {
     McdAccountManager *am;
     McdAccount *account;
-    McdChannel *channel;
+    McdChannel *channel = NULL;
+    McdRequest *request = NULL;
     GError *error = NULL;
     const gchar *path;
 
@@ -2016,7 +2017,7 @@ dispatcher_request_channel (McdDispatcher *self,
     channel = _mcd_account_create_request (account, requested_properties,
                                            user_action_time, preferred_handler,
                                            request_metadata, ensure,
-                                           FALSE, &error);
+                                           FALSE, &request, &error);
 
     if (channel == NULL)
     {
@@ -2026,8 +2027,8 @@ dispatcher_request_channel (McdDispatcher *self,
         goto despair;
     }
 
-    path = _mcd_channel_get_request_path (channel);
-
+    g_assert (request != NULL);
+    path = _mcd_request_get_object_path (request);
     g_assert (path != NULL);
 
     /* This is OK because the signatures of CreateChannel and EnsureChannel
@@ -2037,8 +2038,8 @@ dispatcher_request_channel (McdDispatcher *self,
     _mcd_dispatcher_add_request (self, account, channel);
 
     /* We've done all we need to with this channel: the ChannelRequests code
-     * keeps it alive as long as is necessary */
-    g_object_unref (channel);
+     * keeps it alive as long as is necessary. The finally clause will
+     * free it */
     goto finally;
 
 despair:
@@ -2046,6 +2047,8 @@ despair:
     g_error_free (error);
 
 finally:
+    tp_clear_object (&channel);
+    tp_clear_object (&request);
     g_object_unref (am);
 }
 
