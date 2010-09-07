@@ -1219,24 +1219,6 @@ _mcd_channel_get_satisfied_requests (McdChannel *channel,
 }
 
 /*
- * _mcd_channel_get_request_user_action_time:
- * @channel: the #McdChannel.
- *
- * Returns: UserActionTime of the channel request, if the channel is in
- * MCD_CHANNEL_REQUEST status.
- */
-guint64
-_mcd_channel_get_request_user_action_time (McdChannel *channel)
-{
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), 0);
-
-    if (G_UNLIKELY (!channel->priv->request))
-        return 0;
-
-    return _mcd_request_get_user_action_time (channel->priv->request);
-}
-
-/*
  * _mcd_channel_get_request_preferred_handler:
  * @channel: the #McdChannel.
  *

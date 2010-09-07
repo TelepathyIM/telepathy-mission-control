@@ -55,8 +55,6 @@ G_GNUC_INTERNAL
 GHashTable *_mcd_channel_get_satisfied_requests (McdChannel *channel,
                                                   gint64 *get_latest_time);
 G_GNUC_INTERNAL
-guint64 _mcd_channel_get_request_user_action_time (McdChannel *channel);
-G_GNUC_INTERNAL
 const gchar *_mcd_channel_get_request_preferred_handler (McdChannel *channel);
 G_GNUC_INTERNAL
 gboolean _mcd_channel_get_request_use_existing (McdChannel *channel);
