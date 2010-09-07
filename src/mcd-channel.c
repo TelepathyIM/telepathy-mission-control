@@ -1184,24 +1184,6 @@ _mcd_channel_get_requested_properties (McdChannel *channel)
 }
 
 /*
- * _mcd_channel_get_request_path:
- * @channel: the #McdChannel.
- *
- * Returns: the object path of the channel request, if the channel is in
- * MCD_CHANNEL_REQUEST status.
- */
-const gchar *
-_mcd_channel_get_request_path (McdChannel *channel)
-{
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-
-    if (channel->priv->request == NULL)
-        return NULL;
-
-    return _mcd_request_get_object_path (channel->priv->request);
-}
-
-/*
  * _mcd_channel_get_satisfied_requests:
  * @channel: the #McdChannel.
  * @get_latest_time: if not %NULL, the most recent request time will be copied
