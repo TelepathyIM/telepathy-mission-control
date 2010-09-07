@@ -523,6 +523,27 @@ mcd_channel_status_changed (McdChannel *channel, McdChannelStatus status)
 {
     channel->priv->status = status;
 
+    switch (status)
+    {
+        case MCD_CHANNEL_STATUS_UNDISPATCHED:
+        case MCD_CHANNEL_STATUS_DISPATCHING:
+        case MCD_CHANNEL_STATUS_HANDLER_INVOKED:
+        case MCD_CHANNEL_STATUS_DISPATCHED:
+            g_assert (channel->priv->tp_chan != NULL);
+            break;
+
+        case MCD_CHANNEL_STATUS_REQUEST:
+        case MCD_CHANNEL_STATUS_REQUESTED:
+            g_assert (channel->priv->tp_chan == NULL);
+            break;
+
+        case MCD_CHANNEL_STATUS_FAILED:
+        case MCD_CHANNEL_STATUS_ABORTED:
+            { /* no particular assertion */ }
+
+        /* no default case, so the compiler will warn on unhandled states */
+    }
+
     if (channel->priv->request != NULL &&
         !_mcd_request_is_complete (channel->priv->request))
     {
