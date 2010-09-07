@@ -1552,9 +1552,15 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
     McdClientProxy *handler = NULL;
     GHashTable *properties;
     McdRemoveRequestData *rrd;
+    McdRequest *request;
+    const gchar *request_path;
 
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
     g_return_if_fail (MCD_IS_CHANNEL (channel));
+
+    request = _mcd_channel_get_request (channel);
+    g_return_if_fail (MCD_IS_REQUEST (request));
+    request_path = _mcd_request_get_object_path (request);
 
     priv = dispatcher->priv;
 
@@ -1564,8 +1570,7 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
         /* No handler found. But it's possible that by the time that the
          * channel will be created some handler will have popped up, so we
          * must not destroy it. */
-        DEBUG ("No handler for request %s",
-               _mcd_channel_get_request_path (channel));
+        DEBUG ("No handler for request %s", request_path);
         return;
     }
 
@@ -1573,34 +1578,29 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
         TP_IFACE_QUARK_CLIENT_INTERFACE_REQUESTS))
     {
         DEBUG ("Default handler %s for request %s doesn't want AddRequest",
-               tp_proxy_get_bus_name (handler),
-               _mcd_channel_get_request_path (channel));
+               tp_proxy_get_bus_name (handler), request_path);
         return;
     }
 
     DEBUG ("Calling AddRequest on default handler %s for request %s",
-           tp_proxy_get_bus_name (handler),
-           _mcd_channel_get_request_path (channel));
+           tp_proxy_get_bus_name (handler), request_path);
 
-    properties = _mcd_channel_dup_request_properties (channel);
-
+    properties = _mcd_request_dup_immutable_properties (request);
     tp_cli_client_interface_requests_call_add_request (
-        (TpClient *) handler, -1,
-        _mcd_channel_get_request_path (channel), properties,
+        (TpClient *) handler, -1, request_path, properties,
         NULL, NULL, NULL, NULL);
-
     g_hash_table_unref (properties);
 
     /* Prepare for a RemoveRequest */
     rrd = g_slice_new (McdRemoveRequestData);
     /* store the request path, because it might not be available when the
      * channel status changes */
-    rrd->request_path = g_strdup (_mcd_channel_get_request_path (channel));
+    rrd->request_path = g_strdup (request_path);
     rrd->handler = (TpClient *) handler;
     g_object_ref (handler);
     /* we must watch whether the request fails and in that case call
      * RemoveRequest */
-    g_signal_connect (_mcd_channel_get_request (channel), "completed",
+    g_signal_connect (request, "completed",
                       G_CALLBACK (on_request_completed), rrd);
 }
 
