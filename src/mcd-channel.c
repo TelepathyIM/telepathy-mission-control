@@ -399,21 +399,21 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
     case PROP_REQUESTS:
         if (priv->request != NULL)
         {
-            GPtrArray *arr = g_ptr_array_sized_new (1);
-
-            g_ptr_array_add (arr,
-                g_hash_table_ref (
-                    _mcd_request_get_properties (priv->request)));
-
-            g_value_take_boxed (val, arr);
+            g_object_get_property ((GObject *) priv->request,
+                                   "requests", val);
             break;
         }
         g_value_take_boxed (val, g_ptr_array_sized_new (0));
         break;
 
     case PROP_INTERFACES:
-        /* we have no interfaces */
-        g_value_set_static_boxed (val, NULL);
+        if (priv->request != NULL)
+        {
+            g_object_get_property ((GObject *) priv->request,
+                                   "interfaces", val);
+            break;
+        }
+        g_value_take_boxed (val, NULL);
         break;
 
     case PROP_HINTS:

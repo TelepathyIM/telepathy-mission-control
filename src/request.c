@@ -36,7 +36,9 @@ enum {
     PROP_PROPERTIES,
     PROP_USER_ACTION_TIME,
     PROP_PREFERRED_HANDLER,
-    PROP_HINTS
+    PROP_HINTS,
+    PROP_REQUESTS,
+    PROP_INTERFACES
 };
 
 static guint sig_id_ready_to_request = 0;
@@ -157,6 +159,20 @@ _mcd_request_get_property (GObject *object,
         {
           g_value_set_boxed (value, self->hints);
         }
+      break;
+
+    case PROP_REQUESTS:
+        {
+          GPtrArray *arr = g_ptr_array_sized_new (1);
+
+          g_ptr_array_add (arr, g_hash_table_ref (self->properties));
+          g_value_take_boxed (value, arr);
+        }
+      break;
+
+    case PROP_INTERFACES:
+      /* we have no interfaces */
+      g_value_set_static_boxed (value, NULL);
       break;
 
     default:
@@ -301,6 +317,15 @@ _mcd_request_class_init (
         "GHashTable",
         TP_HASH_TYPE_STRING_VARIANT_MAP,
         G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_REQUESTS,
+      g_param_spec_boxed ("requests", "Requests", "A dbus-glib aa{sv}",
+        TP_ARRAY_TYPE_QUALIFIED_PROPERTY_VALUE_MAP_LIST,
+        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_INTERFACES,
+      g_param_spec_boxed ("interfaces", "Interfaces", "A dbus-glib 'as'",
+        G_TYPE_STRV, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
   sig_id_ready_to_request = g_signal_new ("ready-to-request",
       G_OBJECT_CLASS_TYPE (cls), G_SIGNAL_RUN_LAST, 0, NULL, NULL,
