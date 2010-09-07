@@ -46,6 +46,11 @@ McdChannel
 
 </para>
 
+<!-- ##### ARG McdChannel:hints ##### -->
+<para>
+
+</para>
+
 <!-- ##### ARG McdChannel:interfaces ##### -->
 <para>
 
@@ -57,11 +62,6 @@ McdChannel
 </para>
 
 <!-- ##### ARG McdChannel:preferred-handler ##### -->
-<para>
-
-</para>
-
-<!-- ##### ARG McdChannel:request-metadata ##### -->
 <para>
 
 </para>
