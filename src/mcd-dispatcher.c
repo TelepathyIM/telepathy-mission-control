@@ -175,6 +175,8 @@ typedef struct
 {
     TpClient *handler;
     gchar *request_path;
+    gulong succeeded_id;
+    gulong failed_id;
 } McdRemoveRequestData;
 
 enum
@@ -1502,38 +1504,40 @@ _mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher *dispatcher)
 }
 
 static void
-remove_request_data_free (McdRemoveRequestData *rrd)
+remove_request_data_free (McdRequest *request,
+                          McdRemoveRequestData *rrd)
 {
+    g_signal_handler_disconnect (request, rrd->succeeded_id);
+    g_signal_handler_disconnect (request, rrd->failed_id);
     g_object_unref (rrd->handler);
     g_free (rrd->request_path);
     g_slice_free (McdRemoveRequestData, rrd);
 }
 
 static void
-on_request_completed (McdRequest *request,
-                      gboolean successful,
+on_request_succeeded (McdRequest *request,
                       McdRemoveRequestData *rrd)
 {
-    DEBUG ("called, successful=%i", successful);
+    /* just clean up */
+    remove_request_data_free (request, rrd);
+}
 
-    if (!successful)
-    {
-        GError *error = _mcd_request_dup_failure (request);
-        gchar *err_string = _mcd_build_error_string (error);
-
-        /* no callback, as we don't really care */
-        DEBUG ("calling RemoveRequest on %s for %s",
-               tp_proxy_get_object_path (rrd->handler), rrd->request_path);
-        tp_cli_client_interface_requests_call_remove_request
-            (rrd->handler, -1, rrd->request_path, err_string, error->message,
-             NULL, NULL, NULL, NULL);
-        g_free (err_string);
-        g_error_free (error);
-    }
+static void
+on_request_failed (McdRequest *request,
+                   const gchar *err_string,
+                   const gchar *message,
+                   McdRemoveRequestData *rrd)
+{
+    /* no callback, as we don't really care: this method call acts as a
+     * pseudo-signal */
+    DEBUG ("calling RemoveRequest on %s for %s",
+           tp_proxy_get_object_path (rrd->handler), rrd->request_path);
+    tp_cli_client_interface_requests_call_remove_request
+        (rrd->handler, -1, rrd->request_path, err_string, message,
+         NULL, NULL, NULL, NULL);
 
     /* we don't need the McdRemoveRequestData anymore */
-    remove_request_data_free (rrd);
-    g_signal_handlers_disconnect_by_func (request, on_request_completed, rrd);
+    remove_request_data_free (request, rrd);
 }
 
 /*
@@ -1600,9 +1604,11 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
     rrd->handler = (TpClient *) handler;
     g_object_ref (handler);
     /* we must watch whether the request fails and in that case call
-     * RemoveRequest */
-    g_signal_connect (request, "completed",
-                      G_CALLBACK (on_request_completed), rrd);
+     * RemoveRequest; if it succeeds, we can remove this callback */
+    rrd->succeeded_id = g_signal_connect (request, "succeeded",
+        G_CALLBACK (on_request_succeeded), rrd);
+    rrd->failed_id = g_signal_connect (request, "failed",
+        G_CALLBACK (on_request_failed), rrd);
 }
 
 /*

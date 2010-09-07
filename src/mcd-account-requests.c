@@ -131,58 +131,66 @@ get_channel_from_request (McdAccount *account, const gchar *request_id)
     return NULL;
 }
 
+static void mcd_account_channel_request_disconnect (McdRequest *request);
+
 static void
-on_request_completed (McdRequest *request,
-                      gboolean successful,
-                      McdChannel *channel)
+on_request_succeeded_with_channel (McdRequest *request,
+    const gchar *conn_path,
+    const gchar *chan_path,
+    McdChannel *channel)
 {
     McdAccount *account = _mcd_request_get_account (request);
 
-    if (!successful)
-    {
-        GError *error = _mcd_request_dup_failure (request);
-        gchar *err_string;
+    /* FIXME: ideally the McdRequest emitting these signals itself should
+     * result in D-Bus signals */
+    mc_svc_channel_request_future_emit_succeeded_with_channel (channel,
+        conn_path, chan_path);
+    tp_svc_channel_request_emit_succeeded (channel);
 
-        g_warning ("Channel request %s failed, error: %s",
-                   _mcd_request_get_object_path (request), error->message);
+    /* Backwards-compatible version for the old API */
+    mc_svc_account_interface_channelrequests_emit_succeeded (account,
+        _mcd_request_get_object_path (request));
 
-        err_string = _mcd_build_error_string (error);
-        /* FIXME: ideally the McdRequest should emit this signal itself, and
-         * the Account.Interface.ChannelRequests should catch and re-emit it */
-        tp_svc_channel_request_emit_failed (channel, err_string,
-                                            error->message);
-        mc_svc_account_interface_channelrequests_emit_failed (account,
-            _mcd_request_get_object_path (request),
-            err_string, error->message);
-        g_free (err_string);
+    mcd_account_channel_request_disconnect (request);
+}
 
-        g_error_free (error);
-    }
-    else
-    {
-        /* FIXME: ideally the McdRequest should emit this signal itself, and
-         * the Account.Interface.ChannelRequests should catch and re-emit it */
-        TpChannel *tp_chan;
-        TpConnection *tp_conn;
+static void
+on_request_failed (McdRequest *request,
+    const gchar *err_string,
+    const gchar *message,
+    McdChannel *channel)
+{
+    McdAccount *account = _mcd_request_get_account (request);
 
-        /* SucceededWithChannel has to be fired first */
-        tp_chan = mcd_channel_get_tp_channel (channel);
-        g_assert (tp_chan != NULL);
+    g_warning ("Channel request %s failed, error: %s",
+               _mcd_request_get_object_path (request), message);
 
-        tp_conn = tp_channel_borrow_connection (tp_chan);
-        g_assert (tp_conn != NULL);
+    /* FIXME: ideally the McdRequest emitting this signal itself should
+     * result in the D-Bus signal */
+    tp_svc_channel_request_emit_failed (channel, err_string, message);
 
-        mc_svc_channel_request_future_emit_succeeded_with_channel (channel,
-            tp_proxy_get_object_path (tp_conn),
-            tp_proxy_get_object_path (tp_chan));
+    /* Backwards-compatible version for the old API */
+    mc_svc_account_interface_channelrequests_emit_failed (account,
+        _mcd_request_get_object_path (request), err_string, message);
 
-        tp_svc_channel_request_emit_succeeded (channel);
-        mc_svc_account_interface_channelrequests_emit_succeeded (account,
-            _mcd_request_get_object_path (request));
-    }
+    mcd_account_channel_request_disconnect (request);
+}
 
-    g_signal_handlers_disconnect_by_func (request, on_request_completed,
-                                          channel);
+static void
+mcd_account_channel_request_disconnect (McdRequest *request)
+{
+    g_signal_handlers_disconnect_matched (request, G_SIGNAL_MATCH_FUNC,
+                                          0,        /* signal_id ignored */
+                                          0,        /* detail ignored */
+                                          NULL,     /* closure ignored */
+                                          on_request_failed,
+                                          NULL      /* user data ignored */);
+    g_signal_handlers_disconnect_matched (request, G_SIGNAL_MATCH_FUNC,
+                                          0,        /* signal_id ignored */
+                                          0,        /* detail ignored */
+                                          NULL,     /* closure ignored */
+                                          on_request_succeeded_with_channel,
+                                          NULL      /* user data ignored */);
 }
 
 McdChannel *
@@ -221,11 +229,17 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
     /* we use connect_after, to make sure that other signals (such as
      * RemoveRequest) are emitted before the Failed signal */
     g_signal_connect_data (request,
-                           "completed",
-                            G_CALLBACK (on_request_completed),
-                            g_object_ref (channel),
-                            (GClosureNotify) g_object_unref,
-                            G_CONNECT_AFTER);
+                           "succeeded-with-channel",
+                           G_CALLBACK (on_request_succeeded_with_channel),
+                           g_object_ref (channel),
+                           (GClosureNotify) g_object_unref,
+                           G_CONNECT_AFTER);
+    g_signal_connect_data (request,
+                           "failed",
+                           G_CALLBACK (on_request_failed),
+                           g_object_ref (channel),
+                           (GClosureNotify) g_object_unref,
+                           G_CONNECT_AFTER);
 
     if (request_out != NULL)
     {
