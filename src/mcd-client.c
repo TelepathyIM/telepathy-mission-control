@@ -40,6 +40,8 @@
 #include "mcd-channel-priv.h"
 #include "mcd-debug.h"
 
+#include "libmcclient/mc-gtypes.h"
+
 G_DEFINE_TYPE (McdClientProxy, _mcd_client_proxy, TP_TYPE_CLIENT);
 
 enum
@@ -608,6 +610,11 @@ _mcd_client_recover_observer (McdClientProxy *self, TpChannel *channel,
     satisfied_requests = g_ptr_array_new ();
     observer_info = g_hash_table_new (g_str_hash, g_str_equal);
     tp_asv_set_boolean (observer_info, "recovering", TRUE);
+    /* FIXME: use TP_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP when
+     * available */
+    tp_asv_set_boxed (observer_info, "request-properties",
+        MC_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP,
+        g_hash_table_new (NULL, NULL));
 
     channels_array = _mcd_tp_channel_details_build_from_tp_chan (channel);
     conn = tp_channel_borrow_connection (channel);
@@ -1701,7 +1708,7 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
     DEBUG ("calling HandleChannels on %s", tp_proxy_get_bus_name (self));
 
     channel_details = _mcd_tp_channel_details_build_from_list (channels);
-    requests_satisfied = g_ptr_array_new ();
+    requests_satisfied = g_ptr_array_new_with_free_func (g_free);
 
     if (handler_info == NULL)
     {
@@ -1715,16 +1722,20 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
     for (iter = channels; iter != NULL; iter = iter->next)
     {
         gint64 req_time = 0;
-        const GList *requests;
+        GHashTable *requests;
+        GHashTableIter it;
+        gpointer path;
 
-        for (requests = _mcd_channel_get_satisfied_requests (iter->data,
+        requests = _mcd_channel_get_satisfied_requests (iter->data,
                                                              &req_time);
-             requests != NULL;
-             requests = requests->next)
+
+        g_hash_table_iter_init (&it, requests);
+        while (g_hash_table_iter_next (&it, &path, NULL))
         {
-            /* list of borrowed object paths */
-            g_ptr_array_add (requests_satisfied, requests->data);
+            g_ptr_array_add (requests_satisfied, g_strdup (path));
         }
+
+        g_hash_table_unref (requests);
 
         if (req_time > user_action_time)
             user_action_time = req_time;

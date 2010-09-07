@@ -32,6 +32,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/capture-bundle.py \
 	dispatcher/connect-for-request.py \
 	dispatcher/create-handler-fails.py \
+	dispatcher/create-hints.py \
 	dispatcher/create-no-preferred-handler.py \
 	dispatcher/create-delayed-by-mini-plugin.py \
 	dispatcher/create-rejected-by-mini-plugin.py \

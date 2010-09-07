@@ -104,6 +104,7 @@ McdChannel *mcd_channel_new_request (McdAccount *account,
                                      GHashTable *properties,
                                      gint64 user_time,
                                      const gchar *preferred_handler,
+                                     GHashTable *request_metadata,
                                      gboolean use_existing,
                                      gboolean proceeding);
 

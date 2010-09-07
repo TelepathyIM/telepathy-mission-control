@@ -48,10 +48,24 @@ def test(q, bus, mc):
     # wait for MC to download the properties
     expect_client_setup(q, [client])
 
-    channel = test_channel_creation(q, bus, account, client, conn)
+    channel = test_channel_creation(q, bus, account, client, conn,
+            yours_first=True, swap_requests=False)
     channel.close()
 
-def test_channel_creation(q, bus, account, client, conn):
+    channel = test_channel_creation(q, bus, account, client, conn,
+            yours_first=True, swap_requests=True)
+    channel.close()
+
+    channel = test_channel_creation(q, bus, account, client, conn,
+            yours_first=False, swap_requests=False)
+    channel.close()
+
+    channel = test_channel_creation(q, bus, account, client, conn,
+            yours_first=False, swap_requests=True)
+    channel.close()
+
+def test_channel_creation(q, bus, account, client, conn,
+        yours_first=True, swap_requests=False):
     user_action_time1 = dbus.Int64(1238582606)
     user_action_time2 = dbus.Int64(1244444444)
 
@@ -153,11 +167,19 @@ def test_channel_creation(q, bus, account, client, conn):
         conn.ensure_handle(cs.HT_CONTACT, 'juliet')
     channel = SimulatedChannel(conn, channel_immutable)
 
-    # this order of events is guaranteed by telepathy-spec (since 0.17.14)
-    q.dbus_return(cm_request_call1.message, True, # <- Yours
+    # Having announce() (i.e. NewChannels) come last is guaranteed by
+    # telepathy-spec (since 0.17.14). There is no other ordering guarantee.
+
+    if swap_requests:
+        m2, m1 = cm_request_call1.message, cm_request_call2.message
+    else:
+        m1, m2 = cm_request_call1.message, cm_request_call2.message
+
+    q.dbus_return(m1, yours_first,
             channel.object_path, channel.immutable, signature='boa{sv}')
-    q.dbus_return(cm_request_call2.message, False, # <- Yours
+    q.dbus_return(m2, not yours_first,
             channel.object_path, channel.immutable, signature='boa{sv}')
+
     channel.announce()
 
     # Observer should get told, processing waits for it

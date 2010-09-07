@@ -2,7 +2,6 @@
     xmlns:tp="http://telepathy.freedesktop.org/wiki/DbusSpec#extensions-v0"
     xmlns:xi="http://www.w3.org/2001/XInclude">
 
-<xi:include href="../xml/Channel_Dispatcher.xml"/>
-<xi:include href="../xml/Channel_Dispatcher_Interface_Operation_List.xml"/>
+<xi:include href="../xml/Channel_Dispatcher_Future.xml"/>
 
 </tp:spec>

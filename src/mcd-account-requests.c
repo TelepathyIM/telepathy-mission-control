@@ -50,6 +50,8 @@
 #include "plugin-request.h"
 #include "request.h"
 
+#include "_gen/svc-Channel_Request_Future.h"
+
 static void
 online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
 {
@@ -156,6 +158,20 @@ on_request_completed (McdRequest *request,
     {
         /* FIXME: ideally the McdRequest should emit this signal itself, and
          * the Account.Interface.ChannelRequests should catch and re-emit it */
+        TpChannel *tp_chan;
+        TpConnection *tp_conn;
+
+        /* SucceededWithChannel has to be fired first */
+        tp_chan = mcd_channel_get_tp_channel (channel);
+        g_assert (tp_chan != NULL);
+
+        tp_conn = tp_channel_borrow_connection (tp_chan);
+        g_assert (tp_conn != NULL);
+
+        mc_svc_channel_request_future_emit_succeeded_with_channel (channel,
+            tp_proxy_get_object_path (tp_conn),
+            tp_proxy_get_object_path (tp_chan));
+
         tp_svc_channel_request_emit_succeeded (channel);
         mc_svc_account_interface_channelrequests_emit_succeeded (account,
             _mcd_channel_get_request_path (channel));
@@ -168,6 +184,7 @@ on_request_completed (McdRequest *request,
 McdChannel *
 _mcd_account_create_request (McdAccount *account, GHashTable *properties,
                              gint64 user_time, const gchar *preferred_handler,
+                             GHashTable *request_metadata,
                              gboolean use_existing, gboolean proceeding,
                              GError **error)
 {
@@ -186,7 +203,7 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
      * free it */
     props = _mcd_deepcopy_asv (properties);
     channel = mcd_channel_new_request (account, dgc, props, user_time,
-                                       preferred_handler, use_existing,
+                                       preferred_handler, request_metadata, use_existing,
                                        proceeding);
     g_hash_table_unref (props);
 
@@ -293,7 +310,7 @@ account_request_common (McdAccount *account, GHashTable *properties,
     McdDispatcher *dispatcher;
 
     channel = _mcd_account_create_request (account, properties, user_time,
-                                           preferred_handler, use_existing,
+                                           preferred_handler, NULL, use_existing,
                                            TRUE /* proceeding */, &error);
 
     if (error)

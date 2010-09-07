@@ -1,5 +1,5 @@
 # Copyright (C) 2009 Nokia Corporation
-# Copyright (C) 2009 Collabora Ltd.
+# Copyright (C) 2009-2010 Collabora Ltd.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,7 @@
 # 02110-1301 USA
 
 import dbus
-"""Regression test for the unofficial Account.Interface.Requests API when
-a channel can be created successfully.
+"""Test CD.{Create,Ensure}ChannelWithHints
 """
 
 import dbus
@@ -43,39 +42,20 @@ def test(q, bus, mc):
         }, signature='sv')
 
     client = SimulatedClient(q, bus, 'Empathy',
-            observe=[text_fixed_properties], approve=[text_fixed_properties],
+            observe=[text_fixed_properties],
             handle=[text_fixed_properties], bypass_approval=False)
 
-    # This client doesn't say it can handle channels, but if it requests one
-    # for itself, we'll at least try dispatching to it.
-    #
-    # A real-world use case for this is if a client wants to request channels,
-    # and handle the channels that it, itself, requested, but not handle
-    # anything requested by others: for instance, nautilus-sendto behaves
-    # like this. See fd.o #23651
-    unsuitable = SimulatedClient(q, bus, 'Unsuitable',
-            observe=[], approve=[], handle=[], is_handler=True,
-            bypass_approval=False)
-
-    # No Approver should be invoked at any point during this test, because the
-    # Channel was Requested
-    def fail_on_approval(e):
-        raise AssertionError('Approver should not be invoked')
-    q.add_dbus_method_impl(fail_on_approval, path=client.object_path,
-            interface=cs.APPROVER, method='AddDispatchOperation')
-
     # wait for MC to download the properties
-    expect_client_setup(q, [client, unsuitable])
+    expect_client_setup(q, [client])
 
     test_channel_creation(q, bus, account, client, conn, False)
     test_channel_creation(q, bus, account, client, conn, True)
-    test_channel_creation(q, bus, account, client, conn, False, unsuitable)
-    test_channel_creation(q, bus, account, client, conn, False, unsuitable,
-            cs.CHANNEL_TYPE_STREAMED_MEDIA)
 
 def test_channel_creation(q, bus, account, client, conn,
         ensure=False, prefer=None, channel_type=cs.CHANNEL_TYPE_TEXT):
     user_action_time = dbus.Int64(1238582606)
+    hints = dbus.Dictionary({ 'badger': 42, 'snake': 'pony' },
+        signature='sv')
 
     if prefer is None:
         prefer = client
@@ -83,20 +63,19 @@ def test_channel_creation(q, bus, account, client, conn,
     cd = bus.get_object(cs.CD, cs.CD_PATH)
     cd_props = dbus.Interface(cd, cs.PROPERTIES_IFACE)
 
-    # chat UI calls ChannelDispatcher.EnsureChannel or CreateChannel
+    # chat UI calls ChannelDispatcher.EnsureChannelWithHints or
+    # CreateChannelWithHints
     request = dbus.Dictionary({
             cs.CHANNEL + '.ChannelType': channel_type,
             cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
-    account_requests = dbus.Interface(account,
-            cs.ACCOUNT_IFACE_NOKIA_REQUESTS)
     call_async(q, cd,
-            (ensure and 'EnsureChannel' or 'CreateChannel'),
+            (ensure and 'EnsureChannelWithHints' or 'CreateChannelWithHints'),
             account.object_path, request, user_action_time, prefer.bus_name,
-            dbus_interface=cs.CD)
+            hints, dbus_interface=cs.CD_FUTURE)
     ret = q.expect('dbus-return',
-            method=(ensure and 'EnsureChannel' or 'CreateChannel'))
+            method=(ensure and 'EnsureChannelWithHints' or 'CreateChannelWithHints'))
     request_path = ret.value[0]
 
     # chat UI connects to signals and calls ChannelRequest.Proceed()
@@ -108,6 +87,8 @@ def test_channel_creation(q, bus, account, client, conn,
     assert request_props['UserActionTime'] == user_action_time
     assert request_props['PreferredHandler'] == prefer.bus_name
     assert request_props['Interfaces'] == []
+    future_props = cr.GetAll(cs.CR_FUTURE, dbus_interface=cs.PROPERTIES_IFACE)
+    assertEquals(hints, future_props['Hints'])
 
     cr.Proceed(dbus_interface=cs.CR)
 
@@ -171,6 +152,8 @@ def test_channel_creation(q, bus, account, client, conn,
         assert len(channels) == 1, channels
         assert channels[0][0] == channel.object_path, channels
         assert channels[0][1] == channel_immutable, channels
+        info = e.args[5]
+        assert info['request-properties'] == {request_path: request_props}, info
 
         # Observer says "OK, go"
         q.dbus_return(e.message, signature='')

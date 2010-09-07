@@ -24,6 +24,7 @@
 
 #include <dbus/dbus-glib.h>
 #include <telepathy-glib/gtypes.h>
+#include <telepathy-glib/util.h>
 
 #include "mcd-debug.h"
 
@@ -34,7 +35,8 @@ enum {
     PROP_ACCOUNT_PATH,
     PROP_PROPERTIES,
     PROP_USER_ACTION_TIME,
-    PROP_PREFERRED_HANDLER
+    PROP_PREFERRED_HANDLER,
+    PROP_HINTS
 };
 
 static guint sig_id_ready_to_request = 0;
@@ -48,6 +50,7 @@ struct _McdRequest {
     GHashTable *properties;
     gint64 user_action_time;
     gchar *preferred_handler;
+    GHashTable *hints;
     gchar *object_path;
     gsize delay;
 
@@ -135,6 +138,17 @@ _mcd_request_get_property (GObject *object,
       g_value_set_int64 (value, self->user_action_time);
       break;
 
+    case PROP_HINTS:
+      if (self->hints == NULL)
+        {
+          g_value_take_boxed (value, g_hash_table_new (NULL, NULL));
+        }
+      else
+        {
+          g_value_set_boxed (value, self->hints);
+        }
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -177,6 +191,11 @@ _mcd_request_set_property (GObject *object,
       self->preferred_handler = g_value_dup_string (value);
       break;
 
+    case PROP_HINTS:
+      g_assert (self->hints == NULL); /* construct-only */
+      self->hints = g_value_dup_boxed (value);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -197,6 +216,8 @@ _mcd_request_dispose (GObject *object)
       g_object_unref (self->account);
       self->account = NULL;
     }
+
+  tp_clear_pointer (&self->hints, g_hash_table_unref);
 
   if (dispose != NULL)
     dispose (object);
@@ -275,6 +296,12 @@ _mcd_request_class_init (
          "",
          G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (object_class, PROP_HINTS,
+      g_param_spec_boxed ("hints", "Hints",
+        "GHashTable",
+        TP_HASH_TYPE_STRING_VARIANT_MAP,
+        G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
+
   sig_id_ready_to_request = g_signal_new ("ready-to-request",
       G_OBJECT_CLASS_TYPE (cls), G_SIGNAL_RUN_LAST, 0, NULL, NULL,
       g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
@@ -289,7 +316,8 @@ _mcd_request_new (gboolean use_existing,
     McdAccount *account,
     GHashTable *properties,
     gint64 user_action_time,
-    const gchar *preferred_handler)
+    const gchar *preferred_handler,
+    GHashTable *hints)
 {
   McdRequest *self;
 
@@ -299,6 +327,7 @@ _mcd_request_new (gboolean use_existing,
       "properties", properties,
       "user-action-time", user_action_time,
       "preferred-handler", preferred_handler,
+      "hints", hints,
       NULL);
   DEBUG ("%p (for %p)", self, account);
 
@@ -336,6 +365,12 @@ const gchar *
 _mcd_request_get_object_path (McdRequest *self)
 {
   return self->object_path;
+}
+
+GHashTable *
+_mcd_request_get_hints (McdRequest *self)
+{
+  return self->hints;
 }
 
 gboolean

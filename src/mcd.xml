@@ -14,4 +14,8 @@
 
 <xi:include href="../xml/Connection_Interface_Contact_Capabilities_Draft1.xml"/>
 
+<xi:include href="../xml/Channel_Dispatcher_Future.xml"/>
+
+<xi:include href="../xml/Channel_Request_Future.xml"/>
+
 </tp:spec>

@@ -80,6 +80,7 @@ test/twisted/with-session-bus-*.dbus-monitor-logs
 /test/twisted/mc-debug-server
 test/twisted/tools/exec-with-log.sh
 test/twisted/tools/missioncontrol-*.log
+test/twisted/tools/missioncontrol.log
 test/twisted/tools/tmp-session-bus.conf
 /test/twisted/tools/*.service
 /test/twisted/tmp-*/

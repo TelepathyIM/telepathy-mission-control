@@ -1256,22 +1256,22 @@ request_unrequested_channels (McdConnection *connection)
 }
 
 static McdChannel *
-find_channel_by_path (McdConnection *connection, const gchar *object_path)
+find_channel_by_path (McdConnection *connection,
+                      const gchar *object_path)
 {
     const GList *list = NULL;
 
     list = mcd_operation_get_missions (MCD_OPERATION (connection));
+
     while (list)
     {
         McdChannel *channel = MCD_CHANNEL (list->data);
-        const gchar *req_object_path;
 
-        req_object_path = mcd_channel_get_object_path (channel);
-        if (req_object_path &&
-            strcmp (object_path, req_object_path) == 0)
+        if (_mcd_channel_is_primary_for_path (channel, object_path))
         {
             return channel;
         }
+
         list = list->next;
     }
     return NULL;
