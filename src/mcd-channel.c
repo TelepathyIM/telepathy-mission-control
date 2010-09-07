@@ -1624,43 +1624,9 @@ _mcd_channel_depart (McdChannel *channel,
 GHashTable *
 _mcd_channel_dup_request_properties (McdChannel *self)
 {
-    GPtrArray *requests;
-    GHashTable *result;
-    McdAccount *account;
-    GHashTable *hints;
-
     g_return_val_if_fail (self->priv->request != NULL, NULL);
 
-    requests = g_ptr_array_sized_new (1);
-    g_ptr_array_add (requests,
-                     _mcd_channel_get_requested_properties (self));
-
-    account = _mcd_request_get_account (self->priv->request);
-
-    hints = _mcd_request_get_hints (self->priv->request);
-    if (hints == NULL)
-        hints =  g_hash_table_new (NULL, NULL);
-    else
-        g_hash_table_ref (hints);
-
-    result = tp_asv_new(
-      TP_PROP_CHANNEL_REQUEST_USER_ACTION_TIME, G_TYPE_UINT64,
-        _mcd_request_get_user_action_time (self->priv->request),
-      TP_PROP_CHANNEL_REQUEST_REQUESTS,
-        TP_ARRAY_TYPE_QUALIFIED_PROPERTY_VALUE_MAP_LIST, requests,
-      TP_PROP_CHANNEL_REQUEST_ACCOUNT, DBUS_TYPE_G_OBJECT_PATH,
-        mcd_account_get_object_path (account),
-      TP_PROP_CHANNEL_REQUEST_INTERFACES, G_TYPE_STRV,
-        NULL,
-      TP_PROP_CHANNEL_REQUEST_PREFERRED_HANDLER, G_TYPE_STRING,
-        _mcd_request_get_preferred_handler (self->priv->request),
-      MC_IFACE_CHANNEL_REQUEST_FUTURE ".Hints", TP_HASH_TYPE_STRING_VARIANT_MAP,
-        hints,
-      NULL);
-
-    g_ptr_array_free (requests, TRUE);
-    g_hash_table_unref (hints);
-    return result;
+    return _mcd_request_dup_immutable_properties (self->priv->request);
 }
 
 /*

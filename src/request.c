@@ -23,10 +23,16 @@
 #include "request.h"
 
 #include <dbus/dbus-glib.h>
+#include <telepathy-glib/dbus-properties-mixin.h>
 #include <telepathy-glib/gtypes.h>
+#include <telepathy-glib/interfaces.h>
+#include <telepathy-glib/svc-channel-request.h>
+#include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
 #include "mcd-debug.h"
+#include "_gen/interfaces.h"
+#include "_gen/svc-Channel_Request_Future.h"
 
 enum {
     PROP_0,
@@ -74,10 +80,16 @@ struct _McdRequest {
 
 struct _McdRequestClass {
     GObjectClass parent;
+    TpDBusPropertiesMixinClass dbus_properties_class;
 };
 
+static void request_iface_init (TpSvcChannelRequestClass *);
+
 G_DEFINE_TYPE_WITH_CODE (McdRequest, _mcd_request, G_TYPE_OBJECT,
-    /* no interfaces yet: */ (void) 0)
+    G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_CHANNEL_REQUEST, request_iface_init);
+    G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_REQUEST_FUTURE, NULL);
+    G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
+                           tp_dbus_properties_mixin_iface_init))
 
 #define REQUEST_OBJ_BASE "/com/nokia/MissionControl/requests/r"
 
@@ -266,6 +278,31 @@ static void
 _mcd_request_class_init (
     McdRequestClass *cls)
 {
+  static TpDBusPropertiesMixinPropImpl request_props[] = {
+      { "Account", "account-path", NULL },
+      { "UserActionTime", "user-action-time", NULL },
+      { "PreferredHandler", "preferred-handler", NULL },
+      { "Interfaces", "interfaces", NULL },
+      { "Requests", "requests", NULL },
+      { NULL }
+  };
+  static TpDBusPropertiesMixinPropImpl future_props[] = {
+      { "Hints", "hints", NULL },
+      { NULL }
+  };
+  static TpDBusPropertiesMixinIfaceImpl prop_interfaces[] = {
+      { TP_IFACE_CHANNEL_REQUEST,
+          tp_dbus_properties_mixin_getter_gobject_properties,
+          NULL,
+          request_props,
+      },
+      { MC_IFACE_CHANNEL_REQUEST_FUTURE,
+        tp_dbus_properties_mixin_getter_gobject_properties,
+        NULL,
+        future_props,
+      },
+      { NULL }
+  };
   GObjectClass *object_class = (GObjectClass *) cls;
 
   object_class->constructed = _mcd_request_constructed;
@@ -334,6 +371,10 @@ _mcd_request_class_init (
   sig_id_completed = g_signal_new ("completed",
       G_OBJECT_CLASS_TYPE (cls), G_SIGNAL_RUN_LAST, 0, NULL, NULL,
       g_cclosure_marshal_VOID__BOOLEAN, G_TYPE_NONE, 1, G_TYPE_BOOLEAN);
+
+  cls->dbus_properties_class.interfaces = prop_interfaces,
+  tp_dbus_properties_mixin_class_init (object_class,
+      G_STRUCT_OFFSET (McdRequestClass, dbus_properties_class));
 }
 
 McdRequest *
@@ -499,4 +540,28 @@ void
 _mcd_request_set_uncancellable (McdRequest *self)
 {
   self->cancellable = FALSE;
+}
+
+static void
+request_iface_init (TpSvcChannelRequestClass *iface)
+{
+#define IMPLEMENT(x) tp_svc_channel_request_implement_##x (\
+    iface, channel_request_##x)
+  /* We don't yet implement the methods */
+  /* IMPLEMENT (proceed); */
+  /* IMPLEMENT (cancel); */
+#undef IMPLEMENT
+}
+
+GHashTable *
+_mcd_request_dup_immutable_properties (McdRequest *self)
+{
+  return tp_dbus_properties_mixin_make_properties_hash ((GObject *) self,
+      TP_IFACE_CHANNEL_REQUEST, "Account",
+      TP_IFACE_CHANNEL_REQUEST, "UserActionTime",
+      TP_IFACE_CHANNEL_REQUEST, "PreferredHandler",
+      TP_IFACE_CHANNEL_REQUEST, "Interfaces",
+      TP_IFACE_CHANNEL_REQUEST, "Requests",
+      MC_IFACE_CHANNEL_REQUEST_FUTURE, "Hints",
+      NULL);
 }

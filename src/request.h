@@ -63,6 +63,9 @@ G_GNUC_INTERNAL const gchar *_mcd_request_get_object_path (McdRequest *self);
 G_GNUC_INTERNAL GHashTable *_mcd_request_get_hints (
     McdRequest *self);
 
+G_GNUC_INTERNAL GHashTable *_mcd_request_dup_immutable_properties (
+    McdRequest *self);
+
 G_GNUC_INTERNAL gboolean _mcd_request_set_proceeding (McdRequest *self);
 
 G_GNUC_INTERNAL void _mcd_request_start_delay (McdRequest *self);
