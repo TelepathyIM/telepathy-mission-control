@@ -294,16 +294,15 @@ channel_classes_equals (GHashTable *channel_class1, GHashTable *channel_class2)
 }
 
 static GList *mcd_dispatcher_list_possible_handlers (McdDispatcher *self,
-    const GList *channels, const gchar *must_have_unique_name,
-    gboolean assume_requested);
+    McdRequest *request, const GList *channels,
+    const gchar *must_have_unique_name);
 
 static McdClientProxy *
 mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
-                                      McdChannel *channel)
+                                      McdRequest *request)
 {
     const gchar *preferred_handler =
-        _mcd_channel_get_request_preferred_handler (channel);
-    GList *channel_as_list;
+        _mcd_request_get_preferred_handler (request);
     GList *sorted_handlers;
 
     if (preferred_handler != NULL && preferred_handler[0] != '\0')
@@ -315,12 +314,10 @@ mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
             return client;
     }
 
-    channel_as_list = g_list_append (NULL, channel);
-
     sorted_handlers = mcd_dispatcher_list_possible_handlers (dispatcher,
-                                                             channel_as_list,
+                                                             request,
                                                              NULL,
-                                                             TRUE);
+                                                             NULL);
 
     if (sorted_handlers != NULL)
     {
@@ -376,9 +373,9 @@ possible_handler_cmp (gconstpointer a_,
 
 static GList *
 mcd_dispatcher_list_possible_handlers (McdDispatcher *self,
+                                       McdRequest *request,
                                        const GList *channels,
-                                       const gchar *must_have_unique_name,
-                                       gboolean assume_requested)
+                                       const gchar *must_have_unique_name)
 {
     GList *handlers = NULL;
     const GList *iter;
@@ -409,26 +406,30 @@ mcd_dispatcher_list_possible_handlers (McdDispatcher *self,
             continue;
         }
 
+        if (channels == NULL)
+        {
+            /* We don't know any channels' properties (the next loop will not
+             * execute), so we must work out the quality of match from the
+             * channel request. We can assume that the request will return one
+             * channel, with the requested properties, plus Requested == TRUE.
+             */
+            g_assert (request != NULL);
+            total_quality = _mcd_client_match_filters (
+                _mcd_request_get_properties (request),
+                _mcd_client_proxy_get_handler_filters (client), TRUE);
+        }
+
         for (iter = channels; iter != NULL; iter = iter->next)
         {
-            McdChannel *channel = MCD_CHANNEL (iter->data);
+            TpChannel *channel = iter->data;
             GHashTable *properties;
             guint quality;
 
-            properties = _mcd_channel_get_immutable_properties (channel);
-
-            if (properties == NULL)
-            {
-                properties = _mcd_channel_get_requested_properties (channel);
-                /* the only way we should ever fail to have the immutable
-                 * properties is if it's a request, in which case it has
-                 * requested properties instead */
-                g_assert (properties != NULL);
-            }
+            g_assert (TP_IS_CHANNEL (channel));
+            properties = tp_channel_borrow_immutable_properties (channel);
 
             quality = _mcd_client_match_filters (properties,
-                _mcd_client_proxy_get_handler_filters (client),
-                assume_requested);
+                _mcd_client_proxy_get_handler_filters (client), FALSE);
 
             if (quality == 0)
             {
@@ -453,7 +454,7 @@ mcd_dispatcher_list_possible_handlers (McdDispatcher *self,
         }
     }
 
-    /* if no handlers can take them all, fail - unless the channels are
+    /* if no handlers can take them all, fail - unless we're operating on
      * a request that specified a preferred handler, in which case assume
      * it's suitable */
     if (handlers == NULL)
@@ -461,10 +462,9 @@ mcd_dispatcher_list_possible_handlers (McdDispatcher *self,
         McdClientProxy *client;
         const gchar *preferred_handler = NULL;
 
-        if (channels->data != NULL)
+        if (request != NULL)
         {
-            preferred_handler =
-                _mcd_channel_get_request_preferred_handler (channels->data);
+            preferred_handler = _mcd_request_get_preferred_handler (request);
         }
 
         if (preferred_handler == NULL || preferred_handler[0] == '\0')
@@ -506,11 +506,12 @@ mcd_dispatcher_list_possible_handlers (McdDispatcher *self,
 
 static GStrv
 mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
+                                      McdRequest *request,
                                       const GList *channels,
                                       const gchar *must_have_unique_name)
 {
     GList *handlers = mcd_dispatcher_list_possible_handlers (self,
-        channels, must_have_unique_name, FALSE);
+        request, channels, must_have_unique_name);
     guint n_handlers = g_list_length (handlers);
     guint i;
     GStrv ret;
@@ -1564,7 +1565,7 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
 
     priv = dispatcher->priv;
 
-    handler = mcd_dispatcher_guess_request_handler (dispatcher, channel);
+    handler = mcd_dispatcher_guess_request_handler (dispatcher, request);
     if (!handler)
     {
         /* No handler found. But it's possible that by the time that the
@@ -1607,7 +1608,8 @@ _mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
 /*
  * _mcd_dispatcher_take_channels:
  * @dispatcher: the #McdDispatcher.
- * @channels: a #GList of #McdChannel elements.
+ * @channels: a #GList of #McdChannel elements, each of which must own a
+ *  #TpChannel
  * @requested: whether the channels were requested by MC.
  *
  * Dispatch @channels. The #GList @channels will be no longer valid after this
@@ -1618,7 +1620,9 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
                                gboolean requested, gboolean only_observe)
 {
     GList *list;
+    GList *tp_channels = NULL;
     GStrv possible_handlers;
+    McdRequest *request = NULL;
 
     if (channels == NULL)
     {
@@ -1644,10 +1648,31 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
         return;
     }
 
+    /* These channels must have the TpChannel part of McdChannel's double life.
+     * They might also have the McdRequest part. */
+    for (list = channels; list != NULL; list = list->next)
+    {
+        TpChannel *tp_channel = mcd_channel_get_tp_channel (list->data);
+
+        g_assert (tp_channel != NULL);
+        tp_channels = g_list_prepend (tp_channels, g_object_ref (tp_channel));
+
+        /* We take the channel request from the first McdChannel that (has|is)
+         * one.*/
+        if (request == NULL)
+        {
+            request = _mcd_channel_get_request (list->data);
+        }
+    }
+
     /* See if there are any handlers that can take all these channels */
     possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
-                                                              channels,
+                                                              request,
+                                                              tp_channels,
                                                               NULL);
+
+    g_list_foreach (tp_channels, (GFunc) g_object_unref, NULL);
+    g_list_free (tp_channels);
 
     if (possible_handlers == NULL)
     {
@@ -1771,7 +1796,7 @@ reinvoke_handle_channels_cb (TpClient *client,
 /*
  * _mcd_dispatcher_reinvoke_handler:
  * @dispatcher: The #McdDispatcher.
- * @request: a #McdChannel.
+ * @request: a #McdChannel that has both a #TpChannel and a #McdRequest
  *
  * Re-invoke the channel handler for @request.
  */
@@ -1784,13 +1809,19 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     const gchar *well_known_name = NULL;
     GStrv possible_handlers = NULL;
     McdClientProxy *handler = NULL;
+    McdRequest *real_request = _mcd_channel_get_request (request);
+    GList *tp_channels = g_list_append (NULL,
+        mcd_channel_get_tp_channel (request));
+
+    g_assert (real_request != NULL);
+    g_assert (tp_channels->data != NULL);
 
     request_as_list = g_list_append (NULL, request);
 
     /* the unique name (process) of the current handler */
     handler_unique = _mcd_handler_map_get_handler (
         dispatcher->priv->handler_map,
-        mcd_channel_get_object_path (request), &well_known_name);
+        tp_proxy_get_object_path (tp_channels->data), &well_known_name);
 
     if (well_known_name != NULL)
     {
@@ -1806,7 +1837,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
          * try to pick another Handler that can deal with it, on the same
          * unique name (i.e. in the same process) */
         possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
-            request_as_list, handler_unique);
+            real_request, tp_channels, handler_unique);
 
         if (possible_handlers == NULL || possible_handlers[0] == NULL)
         {
@@ -1845,6 +1876,7 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
 
 finally:
     g_list_free (request_as_list);
+    g_list_free (tp_channels);
     g_strfreev (possible_handlers);
 }
 
