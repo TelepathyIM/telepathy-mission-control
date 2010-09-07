@@ -1640,14 +1640,6 @@ _mcd_channel_depart (McdChannel *channel,
                                 mcd_channel_ready_to_depart_cb, d);
 }
 
-GHashTable *
-_mcd_channel_dup_request_properties (McdChannel *self)
-{
-    g_return_val_if_fail (self->priv->request != NULL, NULL);
-
-    return _mcd_request_dup_immutable_properties (self->priv->request);
-}
-
 /*
  * _mcd_channel_is_primary_for_path:
  * @self: an McdChannel
