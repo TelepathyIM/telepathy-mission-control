@@ -1098,8 +1098,8 @@ mcd_channel_get_error (McdChannel *channel)
     return NULL;
 }
 
-/**
- * mcd_channel_new_request:
+/*
+ * _mcd_channel_new_request:
  * @account: an account.
  * @dgc: a #DBusGConnection on which to export the ChannelRequest object.
  * @properties: a #GHashTable of desired channel properties.
@@ -1116,14 +1116,14 @@ mcd_channel_get_error (McdChannel *channel)
  * Returns: a newly created #McdChannel.
  */
 McdChannel *
-mcd_channel_new_request (McdAccount *account,
-                         DBusGConnection *dgc,
-                         GHashTable *properties,
-                         gint64 user_time,
-                         const gchar *preferred_handler,
-                         GHashTable *hints,
-                         gboolean use_existing,
-                         gboolean proceeding)
+_mcd_channel_new_request (McdAccount *account,
+                          DBusGConnection *dgc,
+                          GHashTable *properties,
+                          gint64 user_time,
+                          const gchar *preferred_handler,
+                          GHashTable *hints,
+                          gboolean use_existing,
+                          gboolean proceeding)
 {
     McdChannel *channel;
     const gchar *path;

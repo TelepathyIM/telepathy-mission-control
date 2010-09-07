@@ -82,6 +82,15 @@ GHashTable * _mcd_channel_dup_request_properties (McdChannel *self);
 G_GNUC_INTERNAL gboolean _mcd_channel_is_primary_for_path (McdChannel *self,
     const gchar *channel_path);
 
+G_GNUC_INTERNAL McdChannel *_mcd_channel_new_request (McdAccount *account,
+                                                      DBusGConnection *dgc,
+                                                      GHashTable *properties,
+                                                      gint64 user_time,
+                                                      const gchar *preferred_handler,
+                                                      GHashTable *hints,
+                                                      gboolean use_existing,
+                                                      gboolean proceeding);
+
 G_END_DECLS
 #endif
 

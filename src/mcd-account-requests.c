@@ -202,9 +202,9 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
     /* We MUST deep-copy the hash-table, as we don't know how dbus-glib will
      * free it */
     props = _mcd_deepcopy_asv (properties);
-    channel = mcd_channel_new_request (account, dgc, props, user_time,
-                                       preferred_handler, request_metadata, use_existing,
-                                       proceeding);
+    channel = _mcd_channel_new_request (account, dgc, props, user_time,
+                                        preferred_handler, request_metadata,
+                                        use_existing, proceeding);
     g_hash_table_unref (props);
 
     /* FIXME: this isn't ideal - if the account is deleted, Proceed will fail,
