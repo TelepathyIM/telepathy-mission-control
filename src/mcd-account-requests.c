@@ -99,9 +99,11 @@ get_channel_from_request (McdAccount *account, const gchar *request_id)
         for (list = channels; list != NULL; list = list->next)
         {
             McdChannel *channel = MCD_CHANNEL (list->data);
+            McdRequest *request = _mcd_channel_get_request (channel);
 
-            if (g_strcmp0 (_mcd_channel_get_request_path (channel),
-                           request_id) == 0)
+            if (request != NULL &&
+                !tp_strdiff (_mcd_request_get_object_path (request),
+                             request_id))
                 return channel;
         }
     }
@@ -116,9 +118,11 @@ get_channel_from_request (McdAccount *account, const gchar *request_id)
         if (data->callback == online_request_cb)
         {
             McdChannel *channel = MCD_CHANNEL (data->user_data);
+            McdRequest *request = _mcd_channel_get_request (channel);
 
-            if (g_strcmp0 (_mcd_channel_get_request_path (channel),
-                           request_id) == 0)
+            if (request != NULL &&
+                !tp_strdiff (_mcd_request_get_object_path (request),
+                             request_id))
                 return channel;
         }
 
@@ -140,7 +144,7 @@ on_request_completed (McdRequest *request,
         gchar *err_string;
 
         g_warning ("Channel request %s failed, error: %s",
-                   _mcd_channel_get_request_path (channel), error->message);
+                   _mcd_request_get_object_path (request), error->message);
 
         err_string = _mcd_build_error_string (error);
         /* FIXME: ideally the McdRequest should emit this signal itself, and
@@ -148,7 +152,7 @@ on_request_completed (McdRequest *request,
         tp_svc_channel_request_emit_failed (channel, err_string,
                                             error->message);
         mc_svc_account_interface_channelrequests_emit_failed (account,
-            _mcd_channel_get_request_path (channel),
+            _mcd_request_get_object_path (request),
             err_string, error->message);
         g_free (err_string);
 
@@ -174,7 +178,7 @@ on_request_completed (McdRequest *request,
 
         tp_svc_channel_request_emit_succeeded (channel);
         mc_svc_account_interface_channelrequests_emit_succeeded (account,
-            _mcd_channel_get_request_path (channel));
+            _mcd_request_get_object_path (request));
     }
 
     g_signal_handlers_disconnect_by_func (request, on_request_completed,
@@ -193,6 +197,7 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
     TpDBusDaemon *dbus_daemon = mcd_account_manager_get_dbus_daemon (
         mcd_account_get_account_manager (account));
     DBusGConnection *dgc = tp_proxy_get_dbus_connection (dbus_daemon);
+    McdRequest *request;
 
     if (!mcd_account_check_request (account, properties, error))
     {
@@ -206,6 +211,8 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
                                         preferred_handler, request_metadata,
                                         use_existing, proceeding);
     g_hash_table_unref (props);
+    request = _mcd_channel_get_request (channel);
+    g_assert (request != NULL);
 
     /* FIXME: this isn't ideal - if the account is deleted, Proceed will fail,
      * whereas what we want to happen is that Proceed will succeed but
@@ -213,7 +220,7 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
 
     /* we use connect_after, to make sure that other signals (such as
      * RemoveRequest) are emitted before the Failed signal */
-    g_signal_connect_data (_mcd_channel_get_request (channel),
+    g_signal_connect_data (request,
                            "completed",
                             G_CALLBACK (on_request_completed),
                             g_object_ref (channel),
@@ -263,6 +270,7 @@ _mcd_account_proceed_with_request (McdAccount *account,
 {
     McdPluginRequest *plugin_api = NULL;
     const GList *mini_plugins;
+    McdRequest *request = _mcd_channel_get_request (channel);
 
     g_object_ref (channel);
 
@@ -277,8 +285,7 @@ _mcd_account_proceed_with_request (McdAccount *account,
             /* Lazily create a plugin-API object if anything cares */
             if (plugin_api == NULL)
             {
-                plugin_api = _mcd_plugin_request_new (account,
-                    _mcd_channel_get_request (channel));
+                plugin_api = _mcd_plugin_request_new (account, request);
             }
 
             mcp_request_policy_check (mini_plugins->data,
@@ -286,7 +293,7 @@ _mcd_account_proceed_with_request (McdAccount *account,
         }
     }
 
-    g_signal_connect_data (_mcd_channel_get_request (channel),
+    g_signal_connect_data (request,
                            "ready-to-request",
                            G_CALLBACK (ready_to_request_cb),
                            g_object_ref (channel),
@@ -294,7 +301,7 @@ _mcd_account_proceed_with_request (McdAccount *account,
                            0);
 
     /* this is paired with the delay set when the request was created */
-    _mcd_request_end_delay (_mcd_channel_get_request (channel));
+    _mcd_request_end_delay (request);
 
     tp_clear_object (&plugin_api);
     g_object_unref (channel);
@@ -309,6 +316,7 @@ account_request_common (McdAccount *account, GHashTable *properties,
     const gchar *request_id;
     McdChannel *channel;
     McdDispatcher *dispatcher;
+    McdRequest *request;
 
     channel = _mcd_account_create_request (account, properties, user_time,
                                            preferred_handler, NULL, use_existing,
@@ -322,9 +330,12 @@ account_request_common (McdAccount *account, GHashTable *properties,
         return;
     }
 
+    request = _mcd_channel_get_request (channel);
+    g_assert (request != NULL);
+
     _mcd_account_proceed_with_request (account, channel);
 
-    request_id = _mcd_channel_get_request_path (channel);
+    request_id = _mcd_request_get_object_path (request);
     DEBUG ("returning %s", request_id);
     if (use_existing)
         mc_svc_account_interface_channelrequests_return_from_ensure_channel
