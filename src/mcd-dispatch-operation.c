@@ -851,8 +851,9 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
     const gchar *handler_name,
     DBusGMethodInvocation *context)
 {
-    /* 0 is a special case for 'no user action' */
-    dispatch_operation_handle_with_time (cdo, handler_name, 0, context);
+    dispatch_operation_handle_with_time (cdo, handler_name,
+                                         TP_USER_ACTION_TIME_NOT_USER_ACTION,
+                                         context);
 }
 
 static void

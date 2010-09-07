@@ -383,7 +383,7 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
                                    "user-action-time", val);
             break;
         }
-        g_value_set_int64 (val, 0);
+        g_value_set_int64 (val, TP_USER_ACTION_TIME_NOT_USER_ACTION);
         break;
 
     case PROP_PREFERRED_HANDLER:
@@ -650,8 +650,9 @@ mcd_channel_class_init (McdChannelClass * klass)
         (object_class, PROP_USER_ACTION_TIME,
          g_param_spec_int64 ("user-action-time",
                              "UserActionTime",
-                             "Time of user action in seconds since 1970",
-                             G_MININT64, G_MAXINT64, 0,
+                             "Time of user action",
+                             G_MININT64, G_MAXINT64,
+                             TP_USER_ACTION_TIME_NOT_USER_ACTION,
                              G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property

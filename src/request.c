@@ -339,8 +339,8 @@ _mcd_request_class_init (
 
   g_object_class_install_property (object_class, PROP_USER_ACTION_TIME,
        g_param_spec_int64 ("user-action-time", "UserActionTime",
-         "Time of user action in seconds since 1970",
-         G_MININT64, G_MAXINT64, 0,
+         "Time of user action as for TpAccountChannelRequest:user-action-time",
+         G_MININT64, G_MAXINT64, TP_USER_ACTION_TIME_NOT_USER_ACTION,
          G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_PREFERRED_HANDLER,
