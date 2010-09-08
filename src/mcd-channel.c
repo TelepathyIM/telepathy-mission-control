@@ -57,13 +57,7 @@
 
 #define MCD_CHANNEL_PRIV(channel) (MCD_CHANNEL (channel)->priv)
 
-static void request_iface_init (gpointer, gpointer);
-
-G_DEFINE_TYPE_WITH_CODE (McdChannel, mcd_channel, MCD_TYPE_MISSION,
-    G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_CHANNEL_REQUEST, request_iface_init);
-    G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_REQUEST_FUTURE, NULL);
-    G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
-                           tp_dbus_properties_mixin_iface_init))
+G_DEFINE_TYPE (McdChannel, mcd_channel, MCD_TYPE_MISSION)
 
 typedef struct _McdChannelRequestData McdChannelRequestData;
 
@@ -581,31 +575,6 @@ mcd_channel_status_changed (McdChannel *channel, McdChannelStatus status)
 static void
 mcd_channel_class_init (McdChannelClass * klass)
 {
-    static TpDBusPropertiesMixinPropImpl request_props[] = {
-        { "Account", "account-path", NULL },
-        { "UserActionTime", "user-action-time", NULL },
-        { "PreferredHandler", "preferred-handler", NULL },
-        { "Interfaces", "interfaces", NULL },
-        { "Requests", "requests", NULL },
-        { NULL }
-    };
-    static TpDBusPropertiesMixinPropImpl future_props[] = {
-        { "Hints", "hints", NULL },
-        { NULL }
-    };
-    static TpDBusPropertiesMixinIfaceImpl prop_interfaces[] = {
-        { TP_IFACE_CHANNEL_REQUEST,
-          tp_dbus_properties_mixin_getter_gobject_properties,
-          NULL,
-          request_props,
-        },
-        { MC_IFACE_CHANNEL_REQUEST_FUTURE,
-          tp_dbus_properties_mixin_getter_gobject_properties,
-          NULL,
-          future_props,
-        },
-        { NULL }
-    };
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
     McdMissionClass *mission_class = MCD_MISSION_CLASS (klass);
     g_type_class_add_private (object_class, sizeof (McdChannelPrivate));
@@ -700,10 +669,6 @@ mcd_channel_class_init (McdChannelClass * klass)
                              "GHashTable",
                              TP_HASH_TYPE_STRING_VARIANT_MAP,
                              G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
-
-    klass->dbus_properties_class.interfaces = prop_interfaces,
-    tp_dbus_properties_mixin_class_init (object_class,
-        G_STRUCT_OFFSET (McdChannelClass, dbus_properties_class));
 }
 
 static void
@@ -1413,78 +1378,6 @@ mcd_channel_get_tp_channel (McdChannel *channel)
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
 
     return channel->priv->tp_chan;
-}
-
-void
-_mcd_channel_request_proceed (McdChannel *self,
-                              DBusGMethodInvocation *context)
-{
-    if (G_UNLIKELY (self->priv->request == NULL))
-    {
-        GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
-            "McdChannel is on D-Bus but is not actually a request" };
-
-        /* shouldn't be possible, but this code is quite tangled */
-        g_warning ("%s: channel %p is on D-Bus but not actually a request",
-                   G_STRFUNC, self);
-
-        if (context != NULL)
-        {
-            dbus_g_method_return_error (context, &na);
-        }
-
-        return;
-    }
-
-    _mcd_request_proceed (self->priv->request, context);
-}
-
-static void
-channel_request_proceed (TpSvcChannelRequest *iface,
-                         DBusGMethodInvocation *context)
-{
-    McdChannel *self = MCD_CHANNEL (iface);
-
-    _mcd_channel_request_proceed (self, context);
-}
-
-static void
-channel_request_cancel (TpSvcChannelRequest *iface,
-                        DBusGMethodInvocation *context)
-{
-    McdChannel *self = MCD_CHANNEL (iface);
-    GError *error = NULL;
-
-    if (G_UNLIKELY (self->priv->request == NULL))
-    {
-        GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
-            "McdChannel is on D-Bus but is not actually a request" };
-
-        /* shouldn't be possible */
-        g_warning ("%s: channel %p is on D-Bus but not actually a request",
-                   G_STRFUNC, self);
-        dbus_g_method_return_error (context, &na);
-    }
-    else if (_mcd_request_cancel (self->priv->request, &error))
-    {
-        tp_svc_channel_request_return_from_cancel (context);
-    }
-    else
-    {
-        dbus_g_method_return_error (context, error);
-        g_error_free (error);
-    }
-}
-
-static void
-request_iface_init (gpointer g_iface,
-                    gpointer iface_data G_GNUC_UNUSED)
-{
-#define IMPLEMENT(x) tp_svc_channel_request_implement_##x (\
-    g_iface, channel_request_##x)
-    IMPLEMENT (proceed);
-    IMPLEMENT (cancel);
-#undef IMPLEMENT
 }
 
 static void

@@ -139,12 +139,6 @@ on_request_succeeded_with_channel (McdRequest *request,
 {
     McdAccount *account = _mcd_request_get_account (request);
 
-    /* FIXME: ideally the McdRequest emitting these signals itself should
-     * result in D-Bus signals */
-    mc_svc_channel_request_future_emit_succeeded_with_channel (channel,
-        conn_path, chan_path);
-    tp_svc_channel_request_emit_succeeded (channel);
-
     /* Backwards-compatible version for the old API */
     mc_svc_account_interface_channelrequests_emit_succeeded (account,
         _mcd_request_get_object_path (request));
@@ -162,10 +156,6 @@ on_request_failed (McdRequest *request,
 
     g_warning ("Channel request %s failed, error: %s",
                _mcd_request_get_object_path (request), message);
-
-    /* FIXME: ideally the McdRequest emitting this signal itself should
-     * result in the D-Bus signal */
-    tp_svc_channel_request_emit_failed (channel, err_string, message);
 
     /* Backwards-compatible version for the old API */
     mc_svc_account_interface_channelrequests_emit_failed (account,
