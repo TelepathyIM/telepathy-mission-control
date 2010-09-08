@@ -546,7 +546,8 @@ possible_handler_cmp (gconstpointer a_,
 
 GList *
 _mcd_client_registry_list_possible_handlers (McdClientRegistry *self,
-    McdRequest *request,
+    const gchar *preferred_handler,
+    GHashTable *request_props,
     const GList *channels,
     const gchar *must_have_unique_name)
 {
@@ -586,9 +587,8 @@ _mcd_client_registry_list_possible_handlers (McdClientRegistry *self,
            * channel request. We can assume that the request will return one
            * channel, with the requested properties, plus Requested == TRUE.
            */
-          g_assert (request != NULL);
-          total_quality = _mcd_client_match_filters (
-              _mcd_request_get_properties (request),
+          g_assert (request_props != NULL);
+          total_quality = _mcd_client_match_filters (request_props,
               _mcd_client_proxy_get_handler_filters (client), TRUE);
         }
 
@@ -633,12 +633,6 @@ _mcd_client_registry_list_possible_handlers (McdClientRegistry *self,
   if (handlers == NULL)
     {
       McdClientProxy *client;
-      const gchar *preferred_handler = NULL;
-
-      if (request != NULL)
-        {
-          preferred_handler = _mcd_request_get_preferred_handler (request);
-        }
 
       if (preferred_handler == NULL || preferred_handler[0] == '\0')
         {

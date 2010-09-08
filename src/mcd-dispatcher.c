@@ -305,7 +305,10 @@ mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
     }
 
     sorted_handlers = _mcd_client_registry_list_possible_handlers (
-        dispatcher->priv->clients, request, NULL, NULL);
+        dispatcher->priv->clients,
+        _mcd_request_get_preferred_handler (request),
+        _mcd_request_get_properties (request),
+        NULL, NULL);
 
     if (sorted_handlers != NULL)
     {
@@ -325,7 +328,10 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
                                       const gchar *must_have_unique_name)
 {
     GList *handlers = _mcd_client_registry_list_possible_handlers (
-        self->priv->clients, request, channels, must_have_unique_name);
+        self->priv->clients,
+        request != NULL ? _mcd_request_get_preferred_handler (request) : NULL,
+        request != NULL ? _mcd_request_get_properties (request) : NULL,
+        channels, must_have_unique_name);
     guint n_handlers = g_list_length (handlers);
     guint i;
     GStrv ret;

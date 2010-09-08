@@ -27,7 +27,6 @@
 #include <telepathy-glib/handle-repo.h>
 
 #include "mcd-client-priv.h"
-#include "request.h"
 
 G_BEGIN_DECLS
 
@@ -80,7 +79,8 @@ G_GNUC_INTERNAL void _mcd_client_registry_init_hash_iter (
     McdClientRegistry *self, GHashTableIter *iter);
 
 G_GNUC_INTERNAL GList *_mcd_client_registry_list_possible_handlers (
-    McdClientRegistry *self, McdRequest *request, const GList *channels,
+    McdClientRegistry *self, const gchar *preferred_handler,
+    GHashTable *request_props, const GList *channels,
     const gchar *must_have_unique_name);
 
 G_END_DECLS
