@@ -336,7 +336,7 @@ account_request_common (McdAccount *account, GHashTable *properties,
     _mcd_dispatcher_add_request (dispatcher, account, channel);
 
     /* we only just created the request, so Proceed() shouldn't fail */
-    _mcd_channel_request_proceed (channel, NULL);
+    _mcd_request_proceed (request, NULL);
 
     /* we still have refs returned by _mcd_account_create_request(), which
      * are no longer necessary at this point */
