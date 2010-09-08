@@ -718,14 +718,54 @@ _mcd_request_cancel (McdRequest *self,
     }
 }
 
+static TpClient *
+guess_request_handler (McdRequest *self)
+{
+  GList *sorted_handlers;
+
+  if (!tp_str_empty (self->preferred_handler))
+    {
+      McdClientProxy *client = _mcd_client_registry_lookup (
+          self->clients, self->preferred_handler);
+
+        if (client != NULL)
+            return (TpClient *) client;
+    }
+
+  sorted_handlers = _mcd_client_registry_list_possible_handlers (
+      self->clients, self->preferred_handler, self->properties,
+      NULL, NULL);
+
+  if (sorted_handlers != NULL)
+    {
+      McdClientProxy *first = sorted_handlers->data;
+
+      g_list_free (sorted_handlers);
+      return (TpClient *) first;
+    }
+
+  return NULL;
+}
+
 void
-_mcd_request_set_predicted_handler (McdRequest *self,
-    TpClient *predicted_handler)
+_mcd_request_predict_handler (McdRequest *self)
 {
   GHashTable *properties;
+  TpClient *predicted_handler;
 
   g_return_if_fail (!self->is_complete);
   g_return_if_fail (self->predicted_handler == NULL);
+
+  predicted_handler = guess_request_handler (self);
+
+  if (!predicted_handler)
+    {
+      /* No handler found. But it's possible that by the time that the
+       * channel will be created some handler will have popped up, so we
+       * must not destroy it. */
+      DEBUG ("No known handler for request %s", self->object_path);
+      return;
+    }
 
   if (!tp_proxy_has_interface_by_id (predicted_handler,
       TP_IFACE_QUARK_CLIENT_INTERFACE_REQUESTS))

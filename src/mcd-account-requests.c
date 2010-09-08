@@ -325,7 +325,7 @@ account_request_common (McdAccount *account, GHashTable *properties,
         mc_svc_account_interface_channelrequests_return_from_create
             (context, request_id);
 
-    _mcd_dispatcher_add_request (dispatcher, account, channel);
+    _mcd_request_predict_handler (request);
 
     /* we only just created the request, so Proceed() shouldn't fail */
     _mcd_request_proceed (request, NULL);

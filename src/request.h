@@ -87,8 +87,7 @@ G_GNUC_INTERNAL void _mcd_request_set_uncancellable (McdRequest *self);
 G_GNUC_INTERNAL gboolean _mcd_request_cancel (McdRequest *self,
     GError **error);
 
-G_GNUC_INTERNAL void _mcd_request_set_predicted_handler (McdRequest *self,
-    TpClient *predicted_handler);
+G_GNUC_INTERNAL void _mcd_request_predict_handler (McdRequest *self);
 
 G_END_DECLS
 

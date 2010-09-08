@@ -287,40 +287,6 @@ channel_classes_equals (GHashTable *channel_class1, GHashTable *channel_class2)
     return TRUE;
 }
 
-static McdClientProxy *
-mcd_dispatcher_guess_request_handler (McdDispatcher *dispatcher,
-                                      McdRequest *request)
-{
-    const gchar *preferred_handler =
-        _mcd_request_get_preferred_handler (request);
-    GList *sorted_handlers;
-
-    if (preferred_handler != NULL && preferred_handler[0] != '\0')
-    {
-        McdClientProxy *client = _mcd_client_registry_lookup (
-            dispatcher->priv->clients, preferred_handler);
-
-        if (client != NULL)
-            return client;
-    }
-
-    sorted_handlers = _mcd_client_registry_list_possible_handlers (
-        dispatcher->priv->clients,
-        _mcd_request_get_preferred_handler (request),
-        _mcd_request_get_properties (request),
-        NULL, NULL);
-
-    if (sorted_handlers != NULL)
-    {
-        McdClientProxy *first = sorted_handlers->data;
-
-        g_list_free (sorted_handlers);
-        return first;
-    }
-
-    return NULL;
-}
-
 static GStrv
 mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
                                       McdRequest *request,
@@ -1322,46 +1288,6 @@ _mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher *dispatcher)
 }
 
 /*
- * _mcd_dispatcher_add_request:
- * @context: the #McdDispatcherContext.
- * @account: the #McdAccount.
- * @channels: a #McdChannel in MCD_CHANNEL_REQUEST state.
- *
- * Add a request; this basically means invoking AddRequest (and maybe
- * RemoveRequest) on the channel handler.
- */
-void
-_mcd_dispatcher_add_request (McdDispatcher *dispatcher, McdAccount *account,
-                             McdChannel *channel)
-{
-    McdDispatcherPrivate *priv;
-    McdClientProxy *handler = NULL;
-    McdRequest *request;
-    const gchar *request_path;
-
-    g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
-    g_return_if_fail (MCD_IS_CHANNEL (channel));
-
-    request = _mcd_channel_get_request (channel);
-    g_return_if_fail (MCD_IS_REQUEST (request));
-    request_path = _mcd_request_get_object_path (request);
-
-    priv = dispatcher->priv;
-
-    handler = mcd_dispatcher_guess_request_handler (dispatcher, request);
-    if (!handler)
-    {
-        /* No handler found. But it's possible that by the time that the
-         * channel will be created some handler will have popped up, so we
-         * must not destroy it. */
-        DEBUG ("No handler for request %s", request_path);
-        return;
-    }
-
-    _mcd_request_set_predicted_handler (request, (TpClient *) handler);
-}
-
-/*
  * _mcd_dispatcher_take_channels:
  * @dispatcher: the #McdDispatcher.
  * @channels: a #GList of #McdChannel elements, each of which must own a
@@ -1824,7 +1750,7 @@ dispatcher_request_channel (McdDispatcher *self,
      * are the same */
     tp_svc_channel_dispatcher_return_from_create_channel (context, path);
 
-    _mcd_dispatcher_add_request (self, account, channel);
+    _mcd_request_predict_handler (request);
 
     /* We've done all we need to with this channel: the ChannelRequests code
      * keeps it alive as long as is necessary. The finally clause will
