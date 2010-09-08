@@ -2082,3 +2082,10 @@ _mcd_dispatcher_add_connection (McdDispatcher *self,
     /* else _mcd_connection_start_dispatching will be called when we're ready
      * for it */
 }
+
+McdClientRegistry *
+_mcd_dispatcher_get_client_registry (McdDispatcher *self)
+{
+    g_return_val_if_fail (MCD_IS_DISPATCHER (self), NULL);
+    return self->priv->clients;
+}

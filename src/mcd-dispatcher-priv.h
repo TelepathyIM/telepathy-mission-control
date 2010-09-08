@@ -29,6 +29,7 @@
 
 #include "mcd-dispatcher.h"
 #include "mcd-connection.h"
+#include "client-registry.h"
 
 G_BEGIN_DECLS
 
@@ -61,6 +62,9 @@ G_GNUC_INTERNAL void _mcd_dispatcher_add_connection (McdDispatcher *self,
     McdConnection *connection);
 
 G_GNUC_INTERNAL GPtrArray *_mcd_dispatcher_dup_client_caps (
+    McdDispatcher *self);
+
+G_GNUC_INTERNAL McdClientRegistry *_mcd_dispatcher_get_client_registry (
     McdDispatcher *self);
 
 G_END_DECLS
