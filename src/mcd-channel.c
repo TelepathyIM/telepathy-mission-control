@@ -1424,8 +1424,6 @@ void
 _mcd_channel_request_proceed (McdChannel *self,
                               DBusGMethodInvocation *context)
 {
-    McdAccount *account;
-
     if (G_UNLIKELY (self->priv->request == NULL))
     {
         GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
@@ -1443,28 +1441,7 @@ _mcd_channel_request_proceed (McdChannel *self,
         return;
     }
 
-    account = _mcd_request_get_account (self->priv->request);
-    g_assert (account != NULL);
-
-    if (!_mcd_request_set_proceeding (self->priv->request))
-    {
-        GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
-            "Proceed has already been called; stop calling it" };
-
-        if (context != NULL)
-        {
-            dbus_g_method_return_error (context, &na);
-        }
-
-        return;
-    }
-
-    if (context != NULL)
-    {
-        tp_svc_channel_request_return_from_proceed (context);
-    }
-
-    _mcd_account_proceed_with_request (self->priv->request);
+    _mcd_request_proceed (self->priv->request, context);
 }
 
 static void

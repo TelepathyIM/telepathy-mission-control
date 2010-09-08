@@ -30,6 +30,7 @@
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
+#include "mcd-account-priv.h"
 #include "mcd-debug.h"
 #include "mcd-misc.h"
 #include "_gen/interfaces.h"
@@ -442,14 +443,29 @@ _mcd_request_get_hints (McdRequest *self)
   return self->hints;
 }
 
-gboolean
-_mcd_request_set_proceeding (McdRequest *self)
+void
+_mcd_request_proceed (McdRequest *self,
+    DBusGMethodInvocation *context)
 {
   if (self->proceeding)
-    return FALSE;
+    {
+      GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+          "Proceed has already been called; stop calling it" };
+
+      if (context != NULL)
+        dbus_g_method_return_error (context, &na);
+
+      return;
+    }
 
   self->proceeding = TRUE;
-  return TRUE;
+
+  if (context != NULL)
+    {
+      tp_svc_channel_request_return_from_proceed (context);
+    }
+
+  _mcd_account_proceed_with_request (self);
 }
 
 GHashTable *
@@ -573,12 +589,20 @@ channel_request_cancel (TpSvcChannelRequest *iface,
 }
 
 static void
+channel_request_proceed (TpSvcChannelRequest *iface,
+    DBusGMethodInvocation *context)
+{
+  McdRequest *self = MCD_REQUEST (iface);
+
+  _mcd_request_proceed (self, context);
+}
+
+static void
 request_iface_init (TpSvcChannelRequestClass *iface)
 {
 #define IMPLEMENT(x) tp_svc_channel_request_implement_##x (\
     iface, channel_request_##x)
-  /* We don't yet implement Proceed() */
-  /* IMPLEMENT (proceed); */
+  IMPLEMENT (proceed);
   IMPLEMENT (cancel);
 #undef IMPLEMENT
 }
