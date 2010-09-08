@@ -176,6 +176,8 @@ on_request_failed (McdRequest *request,
     mcd_account_channel_request_disconnect (request);
 }
 
+static void ready_to_request_cb (McdRequest *request, McdChannel *channel);
+
 static void
 mcd_account_channel_request_disconnect (McdRequest *request)
 {
@@ -190,6 +192,12 @@ mcd_account_channel_request_disconnect (McdRequest *request)
                                           0,        /* detail ignored */
                                           NULL,     /* closure ignored */
                                           on_request_succeeded_with_channel,
+                                          NULL      /* user data ignored */);
+    g_signal_handlers_disconnect_matched (request, G_SIGNAL_MATCH_FUNC,
+                                          0,        /* signal_id ignored */
+                                          0,        /* detail ignored */
+                                          NULL,     /* closure ignored */
+                                          ready_to_request_cb,
                                           NULL      /* user data ignored */);
 }
 
@@ -224,6 +232,15 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
     /* FIXME: this isn't ideal - if the account is deleted, Proceed will fail,
      * whereas what we want to happen is that Proceed will succeed but
      * immediately cause a failure to be signalled. It'll do for now though. */
+
+    /* This can't actually be emitted until Proceed() is called; it'll always
+     * come before succeeded-with-channel or failed */
+    g_signal_connect_data (request,
+                           "ready-to-request",
+                           G_CALLBACK (ready_to_request_cb),
+                           g_object_ref (channel),
+                           (GClosureNotify) g_object_unref,
+                           0);
 
     /* we use connect_after, to make sure that other signals (such as
      * RemoveRequest) are emitted before the Failed signal */
@@ -310,13 +327,6 @@ _mcd_account_proceed_with_request (McdAccount *account,
                                       MCP_REQUEST (plugin_api));
         }
     }
-
-    g_signal_connect_data (request,
-                           "ready-to-request",
-                           G_CALLBACK (ready_to_request_cb),
-                           g_object_ref (channel),
-                           (GClosureNotify) g_object_unref,
-                           0);
 
     /* this is paired with the delay set when the request was created */
     _mcd_request_end_delay (request);
