@@ -1114,16 +1114,9 @@ _mcd_channel_request_cancelling_cb (McdRequest *request,
  * Returns: a newly created #McdChannel.
  */
 McdChannel *
-_mcd_channel_new_request (McdClientRegistry *clients,
-                          McdAccount *account,
-                          GHashTable *properties,
-                          gint64 user_time,
-                          const gchar *preferred_handler,
-                          GHashTable *hints,
-                          gboolean use_existing)
+_mcd_channel_new_request (McdRequest *request)
 {
     McdChannel *channel;
-    const gchar *path;
 
     channel = g_object_new (MCD_TYPE_CHANNEL,
                             "outgoing", TRUE,
@@ -1131,22 +1124,17 @@ _mcd_channel_new_request (McdClientRegistry *clients,
 
     /* TODO: this could be freed when the channel status becomes
      * MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED? */
-    channel->priv->request = _mcd_request_new (clients,
-                                               use_existing, account,
-                                               properties, user_time,
-                                               preferred_handler,
-                                               hints);
-    g_assert (channel->priv->request != NULL);
-    path = _mcd_request_get_object_path (channel->priv->request);
+    channel->priv->request = request;
 
     channel->priv->satisfied_requests = g_list_prepend (NULL,
         g_object_ref (channel->priv->request));
-    channel->priv->latest_request_time = user_time;
+    channel->priv->latest_request_time =
+        _mcd_request_get_user_action_time (request);
 
     _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_REQUEST);
 
     /* for the moment McdChannel implements the later stages of cancelling */
-    tp_g_signal_connect_object (channel->priv->request, "cancelling",
+    tp_g_signal_connect_object (request, "cancelling",
         G_CALLBACK (_mcd_channel_request_cancelling_cb), channel, 0);
 
     return channel;

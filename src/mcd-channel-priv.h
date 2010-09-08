@@ -77,13 +77,7 @@ G_GNUC_INTERNAL void _mcd_channel_depart (McdChannel *channel,
 G_GNUC_INTERNAL gboolean _mcd_channel_is_primary_for_path (McdChannel *self,
     const gchar *channel_path);
 
-G_GNUC_INTERNAL McdChannel *_mcd_channel_new_request (McdClientRegistry *clients,
-                                                      McdAccount *account,
-                                                      GHashTable *properties,
-                                                      gint64 user_time,
-                                                      const gchar *preferred_handler,
-                                                      GHashTable *hints,
-                                                      gboolean use_existing);
+G_GNUC_INTERNAL McdChannel *_mcd_channel_new_request (McdRequest *request);
 
 G_END_DECLS
 #endif
