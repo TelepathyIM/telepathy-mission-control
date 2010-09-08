@@ -1453,6 +1453,7 @@ channel_request_proceed (TpSvcChannelRequest *iface,
             "Proceed has already been called; stop calling it" };
 
         dbus_g_method_return_error (context, &na);
+        return;
     }
 
     tp_svc_channel_request_return_from_proceed (context);
