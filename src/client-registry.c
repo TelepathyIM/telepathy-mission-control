@@ -514,34 +514,34 @@ static gint
 possible_handler_cmp (gconstpointer a_,
                       gconstpointer b_)
 {
-    const PossibleHandler *a = a_;
-    const PossibleHandler *b = b_;
+  const PossibleHandler *a = a_;
+  const PossibleHandler *b = b_;
 
-    if (a->bypass)
+  if (a->bypass)
     {
-        if (!b->bypass)
+      if (!b->bypass)
         {
-            /* BypassApproval wins, so a is better than b */
-            return 1;
+          /* BypassApproval wins, so a is better than b */
+          return 1;
         }
     }
-    else if (b->bypass)
+  else if (b->bypass)
     {
-        /* BypassApproval wins, so b is better than a */
-        return -1;
+      /* BypassApproval wins, so b is better than a */
+      return -1;
     }
 
-    if (a->quality < b->quality)
+  if (a->quality < b->quality)
     {
-        return -1;
+      return -1;
     }
 
-    if (b->quality < a->quality)
+  if (b->quality < a->quality)
     {
-        return 1;
+      return 1;
     }
 
-    return 0;
+  return 0;
 }
 
 GList *
@@ -550,128 +550,128 @@ _mcd_client_registry_list_possible_handlers (McdClientRegistry *self,
     const GList *channels,
     const gchar *must_have_unique_name)
 {
-    GList *handlers = NULL;
-    const GList *iter;
-    GList *handlers_iter;
-    GHashTableIter client_iter;
-    gpointer client_p;
+  GList *handlers = NULL;
+  const GList *iter;
+  GList *handlers_iter;
+  GHashTableIter client_iter;
+  gpointer client_p;
 
-    _mcd_client_registry_init_hash_iter (self, &client_iter);
+  _mcd_client_registry_init_hash_iter (self, &client_iter);
 
-    while (g_hash_table_iter_next (&client_iter, NULL, &client_p))
+  while (g_hash_table_iter_next (&client_iter, NULL, &client_p))
     {
-        McdClientProxy *client = MCD_CLIENT_PROXY (client_p);
-        gsize total_quality = 0;
+      McdClientProxy *client = MCD_CLIENT_PROXY (client_p);
+      gsize total_quality = 0;
 
-        if (must_have_unique_name != NULL &&
-            tp_strdiff (must_have_unique_name,
-                        _mcd_client_proxy_get_unique_name (client)))
+      if (must_have_unique_name != NULL &&
+          tp_strdiff (must_have_unique_name,
+            _mcd_client_proxy_get_unique_name (client)))
         {
-            /* we're trying to redispatch to an existing handler, and this is
-             * not it */
-            continue;
+          /* we're trying to redispatch to an existing handler, and this is
+           * not it */
+          continue;
         }
 
-        if (!tp_proxy_has_interface_by_id (client,
-                                           TP_IFACE_QUARK_CLIENT_HANDLER))
+      if (!tp_proxy_has_interface_by_id (client,
+            TP_IFACE_QUARK_CLIENT_HANDLER))
         {
             /* not a handler at all */
             continue;
         }
 
-        if (channels == NULL)
+      if (channels == NULL)
         {
-            /* We don't know any channels' properties (the next loop will not
-             * execute), so we must work out the quality of match from the
-             * channel request. We can assume that the request will return one
-             * channel, with the requested properties, plus Requested == TRUE.
-             */
-            g_assert (request != NULL);
-            total_quality = _mcd_client_match_filters (
-                _mcd_request_get_properties (request),
-                _mcd_client_proxy_get_handler_filters (client), TRUE);
+          /* We don't know any channels' properties (the next loop will not
+           * execute), so we must work out the quality of match from the
+           * channel request. We can assume that the request will return one
+           * channel, with the requested properties, plus Requested == TRUE.
+           */
+          g_assert (request != NULL);
+          total_quality = _mcd_client_match_filters (
+              _mcd_request_get_properties (request),
+              _mcd_client_proxy_get_handler_filters (client), TRUE);
         }
 
-        for (iter = channels; iter != NULL; iter = iter->next)
+      for (iter = channels; iter != NULL; iter = iter->next)
         {
-            TpChannel *channel = iter->data;
-            GHashTable *properties;
-            guint quality;
+          TpChannel *channel = iter->data;
+          GHashTable *properties;
+          guint quality;
 
-            g_assert (TP_IS_CHANNEL (channel));
-            properties = tp_channel_borrow_immutable_properties (channel);
+          g_assert (TP_IS_CHANNEL (channel));
+          properties = tp_channel_borrow_immutable_properties (channel);
 
-            quality = _mcd_client_match_filters (properties,
-                _mcd_client_proxy_get_handler_filters (client), FALSE);
+          quality = _mcd_client_match_filters (properties,
+              _mcd_client_proxy_get_handler_filters (client), FALSE);
 
-            if (quality == 0)
+          if (quality == 0)
             {
-                total_quality = 0;
-                break;
+              total_quality = 0;
+              break;
             }
-            else
+          else
             {
-                total_quality += quality;
+              total_quality += quality;
             }
         }
 
-        if (total_quality > 0)
+      if (total_quality > 0)
         {
-            PossibleHandler *ph = g_slice_new0 (PossibleHandler);
+          PossibleHandler *ph = g_slice_new0 (PossibleHandler);
 
-            ph->client = client;
-            ph->bypass = _mcd_client_proxy_get_bypass_approval (client);
-            ph->quality = total_quality;
+          ph->client = client;
+          ph->bypass = _mcd_client_proxy_get_bypass_approval (client);
+          ph->quality = total_quality;
 
-            handlers = g_list_prepend (handlers, ph);
+          handlers = g_list_prepend (handlers, ph);
         }
     }
 
-    /* if no handlers can take them all, fail - unless we're operating on
-     * a request that specified a preferred handler, in which case assume
-     * it's suitable */
-    if (handlers == NULL)
+  /* if no handlers can take them all, fail - unless we're operating on
+   * a request that specified a preferred handler, in which case assume
+   * it's suitable */
+  if (handlers == NULL)
     {
-        McdClientProxy *client;
-        const gchar *preferred_handler = NULL;
+      McdClientProxy *client;
+      const gchar *preferred_handler = NULL;
 
-        if (request != NULL)
+      if (request != NULL)
         {
-            preferred_handler = _mcd_request_get_preferred_handler (request);
+          preferred_handler = _mcd_request_get_preferred_handler (request);
         }
 
-        if (preferred_handler == NULL || preferred_handler[0] == '\0')
+      if (preferred_handler == NULL || preferred_handler[0] == '\0')
         {
-            return NULL;
+          return NULL;
         }
 
-        client = _mcd_client_registry_lookup (self, preferred_handler);
+      client = _mcd_client_registry_lookup (self, preferred_handler);
 
-        if (client == NULL)
+      if (client == NULL)
         {
-            return NULL;
+          return NULL;
         }
 
-        return g_list_append (NULL, client);
+      return g_list_append (NULL, client);
     }
 
-    /* We have at least one handler that can take the whole batch. Sort
-     * the possible handlers, most preferred first (i.e. sort by ascending
-     * quality then reverse) */
-    handlers = g_list_sort (handlers, possible_handler_cmp);
-    handlers = g_list_reverse (handlers);
+  /* We have at least one handler that can take the whole batch. Sort
+   * the possible handlers, most preferred first (i.e. sort by ascending
+   * quality then reverse) */
+  handlers = g_list_sort (handlers, possible_handler_cmp);
+  handlers = g_list_reverse (handlers);
 
-    /* convert in-place from a list of PossibleHandler to a list of
-     * McdClientProxy */
-    for (handlers_iter = handlers;
-         handlers_iter != NULL;
-         handlers_iter = handlers_iter->next)
+  /* convert in-place from a list of PossibleHandler to a list of
+   * McdClientProxy */
+  for (handlers_iter = handlers;
+       handlers_iter != NULL;
+       handlers_iter = handlers_iter->next)
     {
-        PossibleHandler *ph = handlers_iter->data;
+      PossibleHandler *ph = handlers_iter->data;
 
-        handlers_iter->data = ph->client;
-        g_slice_free (PossibleHandler, ph);
+      handlers_iter->data = ph->client;
+      g_slice_free (PossibleHandler, ph);
     }
 
-    return handlers;
+  return handlers;
 }
