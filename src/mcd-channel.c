@@ -1444,23 +1444,7 @@ _mcd_channel_request_proceed (McdChannel *self,
     }
 
     account = _mcd_request_get_account (self->priv->request);
-
-    if (G_UNLIKELY (account == NULL))
-    {
-        GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
-            "McdChannel has no Account, cannot proceed" };
-
-        /* likewise, shouldn't be possible but this code is quite tangled */
-        g_warning ("%s: channel %p has no Account, so cannot proceed",
-                   G_STRFUNC, self);
-
-        if (context != NULL)
-        {
-            dbus_g_method_return_error (context, &na);
-        }
-
-        return;
-    }
+    g_assert (account != NULL);
 
     if (!_mcd_request_set_proceeding (self->priv->request))
     {
