@@ -58,6 +58,7 @@ struct _McdRequest {
     GObject parent;
 
     gboolean use_existing;
+    TpDBusDaemon *dbus_daemon;
     McdAccount *account;
     GHashTable *properties;
     gint64 user_action_time;
@@ -126,6 +127,10 @@ _mcd_request_constructed (GObject *object)
     constructed (object);
 
   g_return_if_fail (self->account != NULL);
+
+  self->dbus_daemon = mcd_account_manager_get_dbus_daemon (
+      mcd_account_get_account_manager (self->account));
+  tp_dbus_daemon_register_object (self->dbus_daemon, self->object_path, self);
 }
 
 static void
@@ -523,6 +528,13 @@ _mcd_request_end_delay (McdRequest *self)
     g_object_unref (self);
 }
 
+static void
+_mcd_request_clean_up (McdRequest *self)
+{
+  tp_clear_object (&self->predicted_handler);
+  tp_dbus_daemon_unregister_object (self->dbus_daemon, self);
+}
+
 void
 _mcd_request_set_success (McdRequest *self,
     TpChannel *channel)
@@ -540,8 +552,7 @@ _mcd_request_set_success (McdRequest *self,
           tp_proxy_get_object_path (channel));
       tp_svc_channel_request_emit_succeeded (self);
 
-      /* no need for this any more */
-      tp_clear_object (&self->predicted_handler);
+      _mcd_request_clean_up (self);
     }
   else
     {
@@ -583,11 +594,11 @@ _mcd_request_set_failure (McdRequest *self,
               message, NULL, NULL, NULL, NULL);
         }
 
-      tp_clear_object (&self->predicted_handler);
-
       tp_svc_channel_request_emit_failed (self, err_string, message);
 
       g_free (err_string);
+
+      _mcd_request_clean_up (self);
     }
   else
     {

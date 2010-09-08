@@ -1179,12 +1179,7 @@ _mcd_channel_new_request (McdAccount *account,
 
     _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_REQUEST);
 
-    /* This could do with refactoring so that requests are a separate object
-     * that dies at the appropriate time, but for now the path of least
-     * resistance is to have the McdChannel be a ChannelRequest throughout
-     * its lifetime */
-    dbus_g_connection_register_g_object (dgc, path, (GObject *) channel);
-
+    /* for the moment McdChannel implements the later stages of cancelling */
     tp_g_signal_connect_object (channel->priv->request, "cancelling",
         G_CALLBACK (_mcd_channel_request_cancelling_cb), channel, 0);
 
