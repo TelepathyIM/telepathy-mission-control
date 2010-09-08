@@ -1107,7 +1107,6 @@ mcd_channel_get_error (McdChannel *channel)
  * @preferred_handler: well-known name of preferred handler.
  * @hints: client hints from the request, or %NULL
  * @use_existing: use EnsureChannel if %TRUE or CreateChannel if %FALSE
- * @proceeding: behave as though Proceed has already been called
  *
  * Create a #McdChannel object holding the given properties. The object can
  * then be used to intiate a channel request, by passing it to
@@ -1122,8 +1121,7 @@ _mcd_channel_new_request (McdAccount *account,
                           gint64 user_time,
                           const gchar *preferred_handler,
                           GHashTable *hints,
-                          gboolean use_existing,
-                          gboolean proceeding)
+                          gboolean use_existing)
 {
     McdChannel *channel;
     const gchar *path;
@@ -1140,9 +1138,6 @@ _mcd_channel_new_request (McdAccount *account,
                                                hints);
     g_assert (channel->priv->request != NULL);
     path = _mcd_request_get_object_path (channel->priv->request);
-
-    if (proceeding)
-        _mcd_request_set_proceeding (channel->priv->request);
 
     channel->priv->satisfied_requests = g_list_prepend (NULL,
         g_object_ref (channel->priv->request));
@@ -1388,11 +1383,10 @@ mcd_channel_get_tp_channel (McdChannel *channel)
     return channel->priv->tp_chan;
 }
 
-static void
-channel_request_proceed (TpSvcChannelRequest *iface,
-                         DBusGMethodInvocation *context)
+void
+_mcd_channel_request_proceed (McdChannel *self,
+                              DBusGMethodInvocation *context)
 {
-    McdChannel *self = MCD_CHANNEL (iface);
     McdAccount *account;
 
     if (G_UNLIKELY (self->priv->request == NULL))
@@ -1403,7 +1397,12 @@ channel_request_proceed (TpSvcChannelRequest *iface,
         /* shouldn't be possible, but this code is quite tangled */
         g_warning ("%s: channel %p is on D-Bus but not actually a request",
                    G_STRFUNC, self);
-        dbus_g_method_return_error (context, &na);
+
+        if (context != NULL)
+        {
+            dbus_g_method_return_error (context, &na);
+        }
+
         return;
     }
 
@@ -1417,7 +1416,12 @@ channel_request_proceed (TpSvcChannelRequest *iface,
         /* likewise, shouldn't be possible but this code is quite tangled */
         g_warning ("%s: channel %p has no Account, so cannot proceed",
                    G_STRFUNC, self);
-        dbus_g_method_return_error (context, &na);
+
+        if (context != NULL)
+        {
+            dbus_g_method_return_error (context, &na);
+        }
+
         return;
     }
 
@@ -1426,12 +1430,29 @@ channel_request_proceed (TpSvcChannelRequest *iface,
         GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
             "Proceed has already been called; stop calling it" };
 
-        dbus_g_method_return_error (context, &na);
+        if (context != NULL)
+        {
+            dbus_g_method_return_error (context, &na);
+        }
+
         return;
     }
 
-    tp_svc_channel_request_return_from_proceed (context);
+    if (context != NULL)
+    {
+        tp_svc_channel_request_return_from_proceed (context);
+    }
+
     _mcd_account_proceed_with_request (account, self);
+}
+
+static void
+channel_request_proceed (TpSvcChannelRequest *iface,
+                         DBusGMethodInvocation *context)
+{
+    McdChannel *self = MCD_CHANNEL (iface);
+
+    _mcd_channel_request_proceed (self, context);
 }
 
 gboolean

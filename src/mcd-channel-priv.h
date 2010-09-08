@@ -59,6 +59,8 @@ const gchar *_mcd_channel_get_request_preferred_handler (McdChannel *channel);
 G_GNUC_INTERNAL
 gboolean _mcd_channel_get_request_use_existing (McdChannel *channel);
 
+G_GNUC_INTERNAL void _mcd_channel_request_proceed (McdChannel *self,
+    DBusGMethodInvocation *context);
 G_GNUC_INTERNAL gboolean _mcd_channel_request_cancel (McdChannel *self,
                                                       GError **error);
 
@@ -82,8 +84,7 @@ G_GNUC_INTERNAL McdChannel *_mcd_channel_new_request (McdAccount *account,
                                                       gint64 user_time,
                                                       const gchar *preferred_handler,
                                                       GHashTable *hints,
-                                                      gboolean use_existing,
-                                                      gboolean proceeding);
+                                                      gboolean use_existing);
 
 G_END_DECLS
 #endif

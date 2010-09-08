@@ -196,8 +196,7 @@ mcd_account_channel_request_disconnect (McdRequest *request)
 McdChannel *
 _mcd_account_create_request (McdAccount *account, GHashTable *properties,
                              gint64 user_time, const gchar *preferred_handler,
-                             GHashTable *request_metadata,
-                             gboolean use_existing, gboolean proceeding,
+                             GHashTable *hints, gboolean use_existing,
                              McdRequest **request_out, GError **error)
 {
     McdChannel *channel;
@@ -216,8 +215,8 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
      * free it */
     props = _mcd_deepcopy_asv (properties);
     channel = _mcd_channel_new_request (account, dgc, props, user_time,
-                                        preferred_handler, request_metadata,
-                                        use_existing, proceeding);
+                                        preferred_handler, hints,
+                                        use_existing);
     g_hash_table_unref (props);
     request = _mcd_channel_get_request (channel);
     g_assert (request != NULL);
@@ -338,8 +337,8 @@ account_request_common (McdAccount *account, GHashTable *properties,
     McdRequest *request = NULL;
 
     channel = _mcd_account_create_request (account, properties, user_time,
-                                           preferred_handler, NULL, use_existing,
-                                           TRUE /* proceeding */,
+                                           preferred_handler, NULL,
+                                           use_existing,
                                            &request, &error);
 
     if (error)
@@ -352,7 +351,8 @@ account_request_common (McdAccount *account, GHashTable *properties,
 
     g_assert (request != NULL);
 
-    _mcd_account_proceed_with_request (account, channel);
+    /* we only just created the request, so Proceed() can't fail */
+    _mcd_channel_request_proceed (channel, NULL);
 
     request_id = _mcd_request_get_object_path (request);
     DEBUG ("returning %s", request_id);

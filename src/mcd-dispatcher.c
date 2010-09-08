@@ -2055,7 +2055,7 @@ dispatcher_request_channel (McdDispatcher *self,
     channel = _mcd_account_create_request (account, requested_properties,
                                            user_action_time, preferred_handler,
                                            request_metadata, ensure,
-                                           FALSE, &request, &error);
+                                           &request, &error);
 
     if (channel == NULL)
     {
