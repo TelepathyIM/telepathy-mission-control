@@ -412,7 +412,7 @@ account_request_cancel (McSvcAccountInterfaceChannelRequests *self,
         return;
     }
 
-    if (!_mcd_channel_request_cancel (channel, &error))
+    if (!_mcd_request_cancel (_mcd_channel_get_request (channel), &error))
     {
         dbus_g_method_return_error (context, error);
         g_error_free (error);

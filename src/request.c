@@ -48,6 +48,7 @@ enum {
     PROP_INTERFACES
 };
 
+static guint sig_id_cancelling = 0;
 static guint sig_id_ready_to_request = 0;
 
 struct _McdRequest {
@@ -366,6 +367,10 @@ _mcd_request_class_init (
       g_param_spec_boxed ("interfaces", "Interfaces", "A dbus-glib 'as'",
         G_TYPE_STRV, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
+  sig_id_cancelling = g_signal_new ("cancelling",
+      G_OBJECT_CLASS_TYPE (cls), G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+      g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
+
   sig_id_ready_to_request = g_signal_new ("ready-to-request",
       G_OBJECT_CLASS_TYPE (cls), G_SIGNAL_RUN_LAST, 0, NULL, NULL,
       g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
@@ -543,12 +548,6 @@ _mcd_request_dup_failure (McdRequest *self)
       self->failure_message);
 }
 
-gboolean
-_mcd_request_get_cancellable (McdRequest *self)
-{
-  return self->cancellable;
-}
-
 void
 _mcd_request_set_uncancellable (McdRequest *self)
 {
@@ -556,13 +555,31 @@ _mcd_request_set_uncancellable (McdRequest *self)
 }
 
 static void
+channel_request_cancel (TpSvcChannelRequest *iface,
+                        DBusGMethodInvocation *context)
+{
+  McdRequest *self = MCD_REQUEST (iface);
+  GError *error = NULL;
+
+  if (_mcd_request_cancel (self, &error))
+    {
+      tp_svc_channel_request_return_from_cancel (context);
+    }
+  else
+    {
+      dbus_g_method_return_error (context, error);
+      g_error_free (error);
+    }
+}
+
+static void
 request_iface_init (TpSvcChannelRequestClass *iface)
 {
 #define IMPLEMENT(x) tp_svc_channel_request_implement_##x (\
     iface, channel_request_##x)
-  /* We don't yet implement the methods */
+  /* We don't yet implement Proceed() */
   /* IMPLEMENT (proceed); */
-  /* IMPLEMENT (cancel); */
+  IMPLEMENT (cancel);
 #undef IMPLEMENT
 }
 
@@ -577,4 +594,23 @@ _mcd_request_dup_immutable_properties (McdRequest *self)
       TP_IFACE_CHANNEL_REQUEST, "Requests",
       MC_IFACE_CHANNEL_REQUEST_FUTURE, "Hints",
       NULL);
+}
+
+gboolean
+_mcd_request_cancel (McdRequest *self,
+    GError **error)
+{
+  if (self->cancellable)
+    {
+      /* for the moment, McdChannel has to do the actual work, because its
+       * status/error track the failure state */
+      g_signal_emit (self, sig_id_cancelling, 0);
+      return TRUE;
+    }
+  else
+    {
+      g_set_error (error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+          "ChannelRequest is no longer cancellable");
+      return FALSE;
+    }
 }

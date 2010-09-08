@@ -1098,6 +1098,40 @@ mcd_channel_get_error (McdChannel *channel)
     return NULL;
 }
 
+static void
+_mcd_channel_request_cancelling_cb (McdRequest *request,
+                                    McdChannel *self)
+{
+    McdChannelStatus status = mcd_channel_get_status (self);
+
+    g_object_ref (self);
+    DEBUG ("%p in status %u", self, status);
+
+    mcd_channel_take_error (self, g_error_new (TP_ERRORS,
+                                               TP_ERROR_CANCELLED,
+                                               "Cancelled"));
+
+    /* If we're coming from state REQUEST, the call to the CM hasn't
+     * happened yet; now that we're in state FAILED, it never will,
+     * because mcd_connection_request_channel() now checks that.
+     *
+     * If we're coming from state REQUESTED, we need to close the channel
+     * when the CM tells us where it is, so we can't now.
+     *
+     * If we're coming from state DISPATCHING, we need to shoot it down
+     * now.
+     *
+     * Anything else is too late.
+     */
+    if (status == MCD_CHANNEL_STATUS_DISPATCHING)
+    {
+        _mcd_channel_close (self);
+        mcd_mission_abort ((McdMission *) self);
+    }
+
+    g_object_unref (self);
+}
+
 /*
  * _mcd_channel_new_request:
  * @account: an account.
@@ -1150,6 +1184,9 @@ _mcd_channel_new_request (McdAccount *account,
      * resistance is to have the McdChannel be a ChannelRequest throughout
      * its lifetime */
     dbus_g_connection_register_g_object (dgc, path, (GObject *) channel);
+
+    tp_g_signal_connect_object (channel->priv->request, "cancelling",
+        G_CALLBACK (_mcd_channel_request_cancelling_cb), channel, 0);
 
     return channel;
 }
@@ -1455,53 +1492,6 @@ channel_request_proceed (TpSvcChannelRequest *iface,
     _mcd_channel_request_proceed (self, context);
 }
 
-gboolean
-_mcd_channel_request_cancel (McdChannel *self,
-                             GError **error)
-{
-    McdChannelStatus status = mcd_channel_get_status (self);
-
-    DEBUG ("%p in status %u", self, status);
-
-    if (_mcd_request_get_cancellable (self->priv->request))
-    {
-        DEBUG ("cancellable");
-        g_object_ref (self);
-        mcd_channel_take_error (self, g_error_new (TP_ERRORS,
-                                                   TP_ERROR_CANCELLED,
-                                                   "Cancelled"));
-
-        /* If we're coming from state REQUEST, the call to the CM hasn't
-         * happened yet; now that we're in state FAILED, it never will,
-         * because mcd_connection_request_channel() now checks that.
-         *
-         * If we're coming from state REQUESTED, we need to close the channel
-         * when the CM tells us where it is, so we can't now.
-         *
-         * If we're coming from state DISPATCHING, we need to shoot it down
-         * now.
-         *
-         * Anything else is too late.
-         */
-        if (status == MCD_CHANNEL_STATUS_DISPATCHING)
-        {
-            _mcd_channel_close (self);
-            mcd_mission_abort ((McdMission *) self);
-        }
-
-        g_object_unref (self);
-        return TRUE;
-    }
-    else
-    {
-        DEBUG ("no longer cancellable");
-        g_set_error (error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
-                     "ChannelRequest is not cancellable (status=%u)",
-                     status);
-        return FALSE;
-    }
-}
-
 static void
 channel_request_cancel (TpSvcChannelRequest *iface,
                         DBusGMethodInvocation *context)
@@ -1509,7 +1499,17 @@ channel_request_cancel (TpSvcChannelRequest *iface,
     McdChannel *self = MCD_CHANNEL (iface);
     GError *error = NULL;
 
-    if (_mcd_channel_request_cancel (self, &error))
+    if (G_UNLIKELY (self->priv->request == NULL))
+    {
+        GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+            "McdChannel is on D-Bus but is not actually a request" };
+
+        /* shouldn't be possible */
+        g_warning ("%s: channel %p is on D-Bus but not actually a request",
+                   G_STRFUNC, self);
+        dbus_g_method_return_error (context, &na);
+    }
+    else if (_mcd_request_cancel (self->priv->request, &error))
     {
         tp_svc_channel_request_return_from_cancel (context);
     }
