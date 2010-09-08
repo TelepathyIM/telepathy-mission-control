@@ -111,9 +111,6 @@ enum _McdChannelPropertyType
     PROP_HINTS,
 };
 
-#define DEPRECATED_PROPERTY_WARNING \
-    g_warning ("%s: property %s is deprecated", G_STRFUNC, pspec->name)
-
 static guint mcd_channel_signals[LAST_SIGNAL] = { 0 };
 
 
@@ -1453,6 +1450,7 @@ channel_request_proceed (TpSvcChannelRequest *iface,
             "Proceed has already been called; stop calling it" };
 
         dbus_g_method_return_error (context, &na);
+        return;
     }
 
     tp_svc_channel_request_return_from_proceed (context);
