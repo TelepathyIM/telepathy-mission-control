@@ -669,3 +669,10 @@ _mcd_client_registry_list_possible_handlers (McdClientRegistry *self,
 
   return handlers;
 }
+
+TpDBusDaemon *
+_mcd_client_registry_get_dbus_daemon (McdClientRegistry *self)
+{
+    g_return_val_if_fail (MCD_IS_CLIENT_REGISTRY (self), NULL);
+    return self->priv->dbus_daemon;
+}
