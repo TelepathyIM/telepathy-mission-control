@@ -795,11 +795,7 @@ static void
 mcd_create_account_data_free (McdCreateAccountData *cad)
 {
     g_hash_table_unref (cad->parameters);
-
-    if (cad->properties != NULL)
-    {
-        g_hash_table_unref (cad->properties);
-    }
+    tp_clear_pointer (&cad->properties, g_hash_table_unref);
 
     if (G_UNLIKELY (cad->error))
         g_error_free (cad->error);
@@ -861,8 +857,7 @@ complete_account_creation_finish (McdAccount *account, gboolean valid,
     if (!cad->ok)
     {
         mcd_account_delete (account, NULL, NULL);
-        g_object_unref (account);
-        account = NULL;
+        tp_clear_object (&account);
     }
 
     mcd_account_manager_write_conf_async (account_manager, account, NULL,
@@ -872,11 +867,7 @@ complete_account_creation_finish (McdAccount *account, gboolean valid,
         cad->callback (account_manager, account, cad->error, cad->user_data);
     mcd_create_account_data_free (cad);
 
-    if (account != NULL)
-    {
-        g_object_unref (account);
-    }
-
+    tp_clear_object (&account);
 }
 
 static void
@@ -1548,8 +1539,7 @@ set_property (GObject *obj, guint prop_id,
     switch (prop_id)
     {
     case PROP_DBUS_DAEMON:
-	if (priv->dbus_daemon)
-	    g_object_unref (priv->dbus_daemon);
+        tp_clear_object (&priv->dbus_daemon);
 	priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
 	break;
     default:
@@ -1586,9 +1576,7 @@ _mcd_account_manager_finalize (GObject *object)
         g_assert (write_conf_id == 0);
     }
 
-    g_object_unref (priv->plugin_manager);
-    priv->plugin_manager = NULL;
-
+    tp_clear_object (&priv->plugin_manager);
     g_free (priv->account_connections_dir);
     remove (priv->account_connections_file);
     g_free (priv->account_connections_file);
@@ -1603,11 +1591,8 @@ _mcd_account_manager_dispose (GObject *object)
 {
     McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (object);
 
-    if (priv->dbus_daemon)
-    {
-	g_object_unref (priv->dbus_daemon);
-	priv->dbus_daemon = NULL;
-    }
+    tp_clear_object (&priv->dbus_daemon);
+
     G_OBJECT_CLASS (mcd_account_manager_parent_class)->dispose (object);
 }
 

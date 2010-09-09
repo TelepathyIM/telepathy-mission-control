@@ -73,8 +73,7 @@ plugin_account_manager_dispose (GObject *object)
   GObjectFinalizeFunc dispose =
     G_OBJECT_CLASS (mcd_plugin_account_manager_parent_class)->dispose;
 
-  g_object_unref (self->dbusd);
-  self->dbusd = NULL;
+  tp_clear_object (&self->dbusd);
 
   if (dispose != NULL)
     dispose (object);
@@ -89,9 +88,7 @@ plugin_account_manager_set_property (GObject *obj, guint prop_id,
     switch (prop_id)
     {
       case PROP_DBUS_DAEMON:
-        if (self->dbusd != NULL)
-          g_object_unref (self->dbusd);
-
+        tp_clear_object (&self->dbusd);
         self->dbusd = TP_DBUS_DAEMON (g_value_dup_object (val));
         break;
 
