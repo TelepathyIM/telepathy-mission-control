@@ -2116,13 +2116,25 @@ static void
 mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
                                         McdClientProxy *handler)
 {
+    GHashTable *handler_info;
+    GHashTable *request_properties;
+
     g_assert (!self->priv->calling_handle_channels);
     self->priv->calling_handle_channels = TRUE;
 
+    handler_info = tp_asv_new (NULL, NULL);
+    collect_satisfied_requests (self->priv->channels, NULL,
+                                &request_properties);
+    tp_asv_take_boxed (handler_info, "request-properties",
+        MC_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP, request_properties);
+    request_properties = NULL;
+
     _mcd_client_proxy_handle_channels (handler,
         -1, self->priv->channels, self->priv->handle_with_time,
-        NULL, _mcd_dispatch_operation_handle_channels_cb,
+        handler_info, _mcd_dispatch_operation_handle_channels_cb,
         g_object_ref (self), g_object_unref, NULL);
+
+    g_hash_table_unref (handler_info);
 }
 
 static gboolean
