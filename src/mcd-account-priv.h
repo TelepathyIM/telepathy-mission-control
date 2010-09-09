@@ -141,7 +141,8 @@ G_GNUC_INTERNAL McdTransport *_mcd_account_connection_get_transport
 
 extern const McdDBusProp account_channelrequests_properties[];
 
-G_GNUC_INTERNAL McdChannel *_mcd_account_create_request (McdAccount *account,
+G_GNUC_INTERNAL McdChannel *_mcd_account_create_request (
+    McdClientRegistry *clients, McdAccount *account,
     GHashTable *properties, gint64 user_action_time,
     const gchar *preferred_handler, GHashTable *request_metadata,
     gboolean use_existing,

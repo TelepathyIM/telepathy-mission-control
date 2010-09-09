@@ -1802,7 +1802,8 @@ dispatcher_request_channel (McdDispatcher *self,
         }
     }
 
-    channel = _mcd_account_create_request (account, requested_properties,
+    channel = _mcd_account_create_request (self->priv->clients,
+                                           account, requested_properties,
                                            user_action_time, preferred_handler,
                                            request_metadata, ensure,
                                            &request, &error);

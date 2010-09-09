@@ -40,6 +40,7 @@
 
 enum {
     PROP_0,
+    PROP_CLIENT_REGISTRY,
     PROP_USE_EXISTING,
     PROP_ACCOUNT,
     PROP_ACCOUNT_PATH,
@@ -58,6 +59,7 @@ struct _McdRequest {
     GObject parent;
 
     gboolean use_existing;
+    McdClientRegistry *clients;
     TpDBusDaemon *dbus_daemon;
     McdAccount *account;
     GHashTable *properties;
@@ -127,9 +129,9 @@ _mcd_request_constructed (GObject *object)
     constructed (object);
 
   g_return_if_fail (self->account != NULL);
+  g_return_if_fail (self->clients != NULL);
 
-  self->dbus_daemon = mcd_account_manager_get_dbus_daemon (
-      mcd_account_get_account_manager (self->account));
+  self->dbus_daemon = _mcd_client_registry_get_dbus_daemon (self->clients);
   tp_dbus_daemon_register_object (self->dbus_daemon, self->object_path, self);
 }
 
@@ -145,6 +147,10 @@ _mcd_request_get_property (GObject *object,
     {
     case PROP_USE_EXISTING:
       g_value_set_boolean (value, self->use_existing);
+      break;
+
+    case PROP_CLIENT_REGISTRY:
+      g_value_set_object (value, self->clients);
       break;
 
     case PROP_ACCOUNT:
@@ -219,6 +225,11 @@ _mcd_request_set_property (GObject *object,
       self->use_existing = g_value_get_boolean (value);
       break;
 
+    case PROP_CLIENT_REGISTRY:
+      g_assert (self->clients == NULL); /* construct-only */
+      self->clients = g_value_dup_object (value);
+      break;
+
     case PROP_ACCOUNT:
       g_assert (self->account == NULL); /* construct-only */
       self->account = g_value_dup_object (value);
@@ -262,6 +273,7 @@ _mcd_request_dispose (GObject *object)
   DEBUG ("%p", object);
 
   tp_clear_object (&self->account);
+  tp_clear_object (&self->clients);
   tp_clear_object (&self->predicted_handler);
   tp_clear_pointer (&self->hints, g_hash_table_unref);
 
@@ -331,6 +343,13 @@ _mcd_request_class_init (
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
           G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (object_class, PROP_CLIENT_REGISTRY,
+      g_param_spec_object ("client-registry", "Client registry",
+          "The client registry",
+          MCD_TYPE_CLIENT_REGISTRY,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
+          G_PARAM_STATIC_STRINGS));
+
   g_object_class_install_property (object_class, PROP_ACCOUNT,
       g_param_spec_object ("account", "Account",
           "The underlying McdAccount",
@@ -391,7 +410,8 @@ _mcd_request_class_init (
 }
 
 McdRequest *
-_mcd_request_new (gboolean use_existing,
+_mcd_request_new (McdClientRegistry *clients,
+    gboolean use_existing,
     McdAccount *account,
     GHashTable *properties,
     gint64 user_action_time,
@@ -401,6 +421,7 @@ _mcd_request_new (gboolean use_existing,
   McdRequest *self;
 
   self = g_object_new (MCD_TYPE_REQUEST,
+      "client-registry", clients,
       "use-existing", use_existing,
       "account", account,
       "properties", properties,

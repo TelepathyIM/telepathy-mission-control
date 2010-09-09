@@ -27,6 +27,7 @@
 #ifndef MCD_CHANNEL_PRIV_H
 #define MCD_CHANNEL_PRIV_H
 
+#include "client-registry.h"
 #include "mcd-channel.h"
 #include "request.h"
 
@@ -76,8 +77,8 @@ G_GNUC_INTERNAL void _mcd_channel_depart (McdChannel *channel,
 G_GNUC_INTERNAL gboolean _mcd_channel_is_primary_for_path (McdChannel *self,
     const gchar *channel_path);
 
-G_GNUC_INTERNAL McdChannel *_mcd_channel_new_request (McdAccount *account,
-                                                      DBusGConnection *dgc,
+G_GNUC_INTERNAL McdChannel *_mcd_channel_new_request (McdClientRegistry *clients,
+                                                      McdAccount *account,
                                                       GHashTable *properties,
                                                       gint64 user_time,
                                                       const gchar *preferred_handler,

@@ -190,16 +190,14 @@ mcd_account_channel_request_disconnect (McdRequest *request)
 }
 
 McdChannel *
-_mcd_account_create_request (McdAccount *account, GHashTable *properties,
+_mcd_account_create_request (McdClientRegistry *clients,
+                             McdAccount *account, GHashTable *properties,
                              gint64 user_time, const gchar *preferred_handler,
                              GHashTable *hints, gboolean use_existing,
                              McdRequest **request_out, GError **error)
 {
     McdChannel *channel;
     GHashTable *props;
-    TpDBusDaemon *dbus_daemon = mcd_account_manager_get_dbus_daemon (
-        mcd_account_get_account_manager (account));
-    DBusGConnection *dgc = tp_proxy_get_dbus_connection (dbus_daemon);
     McdRequest *request;
 
     if (!mcd_account_check_request (account, properties, error))
@@ -210,7 +208,7 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
     /* We MUST deep-copy the hash-table, as we don't know how dbus-glib will
      * free it */
     props = _mcd_deepcopy_asv (properties);
-    channel = _mcd_channel_new_request (account, dgc, props, user_time,
+    channel = _mcd_channel_new_request (clients, account, props, user_time,
                                         preferred_handler, hints,
                                         use_existing);
     g_hash_table_unref (props);
@@ -296,9 +294,14 @@ account_request_common (McdAccount *account, GHashTable *properties,
     const gchar *request_id;
     McdChannel *channel;
     McdDispatcher *dispatcher;
+    McdClientRegistry *clients;
     McdRequest *request = NULL;
 
-    channel = _mcd_account_create_request (account, properties, user_time,
+    dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
+    clients = _mcd_dispatcher_get_client_registry (dispatcher);
+
+    channel = _mcd_account_create_request (clients,
+                                           account, properties, user_time,
                                            preferred_handler, NULL,
                                            use_existing,
                                            &request, &error);
@@ -322,7 +325,6 @@ account_request_common (McdAccount *account, GHashTable *properties,
         mc_svc_account_interface_channelrequests_return_from_create
             (context, request_id);
 
-    dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
     _mcd_dispatcher_add_request (dispatcher, account, channel);
 
     /* we only just created the request, so Proceed() shouldn't fail */

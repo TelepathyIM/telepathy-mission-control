@@ -25,6 +25,7 @@
 
 #include <telepathy-glib/client.h>
 
+#include "client-registry.h"
 #include "mcd-account.h"
 
 G_BEGIN_DECLS
@@ -51,7 +52,8 @@ G_GNUC_INTERNAL GType _mcd_request_get_type (void);
   (G_TYPE_INSTANCE_GET_CLASS ((obj), MCD_TYPE_REQUEST, \
                               McdRequestClass))
 
-G_GNUC_INTERNAL McdRequest *_mcd_request_new (gboolean use_existing,
+G_GNUC_INTERNAL McdRequest *_mcd_request_new (McdClientRegistry *clients,
+    gboolean use_existing,
     McdAccount *account, GHashTable *properties, gint64 user_action_time,
     const gchar *preferred_handler,
     GHashTable *hints);

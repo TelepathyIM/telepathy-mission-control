@@ -1099,8 +1099,8 @@ _mcd_channel_request_cancelling_cb (McdRequest *request,
 
 /*
  * _mcd_channel_new_request:
+ * @clients: the client registry
  * @account: an account.
- * @dgc: a #DBusGConnection on which to export the ChannelRequest object.
  * @properties: a #GHashTable of desired channel properties.
  * @user_time: user action time.
  * @preferred_handler: well-known name of preferred handler.
@@ -1114,8 +1114,8 @@ _mcd_channel_request_cancelling_cb (McdRequest *request,
  * Returns: a newly created #McdChannel.
  */
 McdChannel *
-_mcd_channel_new_request (McdAccount *account,
-                          DBusGConnection *dgc,
+_mcd_channel_new_request (McdClientRegistry *clients,
+                          McdAccount *account,
                           GHashTable *properties,
                           gint64 user_time,
                           const gchar *preferred_handler,
@@ -1131,7 +1131,8 @@ _mcd_channel_new_request (McdAccount *account,
 
     /* TODO: this could be freed when the channel status becomes
      * MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED? */
-    channel->priv->request = _mcd_request_new (use_existing, account,
+    channel->priv->request = _mcd_request_new (clients,
+                                               use_existing, account,
                                                properties, user_time,
                                                preferred_handler,
                                                hints);
