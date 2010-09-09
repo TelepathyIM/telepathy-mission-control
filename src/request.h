@@ -23,6 +23,8 @@
 #ifndef MCD_REQUEST_H
 #define MCD_REQUEST_H
 
+#include <telepathy-glib/client.h>
+
 #include "mcd-account.h"
 
 G_BEGIN_DECLS
@@ -82,6 +84,9 @@ G_GNUC_INTERNAL GError *_mcd_request_dup_failure (McdRequest *self);
 G_GNUC_INTERNAL void _mcd_request_set_uncancellable (McdRequest *self);
 G_GNUC_INTERNAL gboolean _mcd_request_cancel (McdRequest *self,
     GError **error);
+
+G_GNUC_INTERNAL void _mcd_request_set_predicted_handler (McdRequest *self,
+    TpClient *predicted_handler);
 
 G_END_DECLS
 

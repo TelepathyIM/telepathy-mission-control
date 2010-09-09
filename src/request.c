@@ -70,6 +70,7 @@ struct _McdRequest {
      * that hasn't happened; to get the refcounting right, we take the
      * corresponding ref in _mcd_request_constructed. */
     gsize delay;
+    TpClient *predicted_handler;
 
     /* TRUE if either succeeded[-with-channel] or failed was emitted */
     gboolean is_complete;
@@ -254,6 +255,7 @@ _mcd_request_dispose (GObject *object)
   DEBUG ("%p", object);
 
   tp_clear_object (&self->account);
+  tp_clear_object (&self->predicted_handler);
   tp_clear_pointer (&self->hints, g_hash_table_unref);
 
   if (dispose != NULL)
@@ -510,6 +512,9 @@ _mcd_request_set_success (McdRequest *self,
           tp_proxy_get_object_path (tp_channel_borrow_connection (channel)),
           tp_proxy_get_object_path (channel));
       tp_svc_channel_request_emit_succeeded (self);
+
+      /* no need for this any more */
+      tp_clear_object (&self->predicted_handler);
     }
   else
     {
@@ -538,6 +543,21 @@ _mcd_request_set_failure (McdRequest *self,
       self->failure_domain = domain;
       self->failure_code = code;
       self->failure_message = g_strdup (message);
+
+      if (self->predicted_handler != NULL)
+        {
+          /* no callback, as we don't really care: this method call acts as a
+           * pseudo-signal */
+          DEBUG ("calling RemoveRequest on %s for %s",
+                 tp_proxy_get_object_path (self->predicted_handler),
+                 self->object_path);
+          tp_cli_client_interface_requests_call_remove_request (
+              self->predicted_handler, -1, self->object_path, err_string,
+              message, NULL, NULL, NULL, NULL);
+        }
+
+      tp_clear_object (&self->predicted_handler);
+
       tp_svc_channel_request_emit_failed (self, err_string, message);
 
       g_free (err_string);
@@ -637,4 +657,34 @@ _mcd_request_cancel (McdRequest *self,
           "ChannelRequest is no longer cancellable");
       return FALSE;
     }
+}
+
+void
+_mcd_request_set_predicted_handler (McdRequest *self,
+    TpClient *predicted_handler)
+{
+  GHashTable *properties;
+
+  g_return_if_fail (!self->is_complete);
+  g_return_if_fail (self->predicted_handler == NULL);
+
+  if (!tp_proxy_has_interface_by_id (predicted_handler,
+      TP_IFACE_QUARK_CLIENT_INTERFACE_REQUESTS))
+    {
+      DEBUG ("Default handler %s for request %s doesn't want AddRequest",
+             tp_proxy_get_bus_name (predicted_handler), self->object_path);
+      return;
+    }
+
+  DEBUG ("Calling AddRequest on default handler %s for request %s",
+      tp_proxy_get_bus_name (predicted_handler), self->object_path);
+
+  properties = _mcd_request_dup_immutable_properties (self);
+  tp_cli_client_interface_requests_call_add_request (predicted_handler, -1,
+      self->object_path, properties,
+      NULL, NULL, NULL, NULL);
+  g_hash_table_unref (properties);
+
+  /* Remember it so we can call RemoveRequest when appropriate */
+  self->predicted_handler = g_object_ref (predicted_handler);
 }
