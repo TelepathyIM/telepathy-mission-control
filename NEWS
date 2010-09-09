@@ -1,3 +1,40 @@
+telepathy-mission-control 5.5.4 (UNRELEASED)
+============================================
+
+Enhancements:
+
+• fd.o #26699: add support for plugins that delay requests while deciding
+  whether to allow them or not (smcv)
+
+• Restructure channel-requesting code (smcv)
+
+• Delete the old examples, which are no longer exemplary; use telepathy-glib
+  or telepathy-qt4 instead of libmcclient (smcv)
+
+• fd.o #29812: add a trial implementation of the MinimumPresence (draft 2)
+  API (ptlo)
+
+• fd.o #30000: add a trial implementation of SucceededWithChannel and
+  {Create,Ensure}ChannelWithHints (cassidy, smcv)
+
+Fixes:
+
+• Signal remote avatar deletion, for instance by another XMPP resource, in the
+  same way as a remote avatar change (fledermaus)
+
+• Cancel the "probation" timer when the connection is released, avoiding a
+  possible crash (fledermaus)
+
+• Ignore any partial pre-existing accounts that have no manager or protocol
+  listed, and if a storage plugin creates a totally unusable account,
+  ignore it (fledermaus)
+
+• Don't crash if Proceed() is called twice (smcv)
+
+• Various fixes for the Maemo SSO plugin (fledermaus, eeejay)
+
+• Fix linking with recent ld versions (smcv)
+
 telepathy-mission-control 5.5.3 (2010-07-22)
 ============================================
 
