@@ -1808,14 +1808,21 @@ observe_channels_cb (TpClient *proxy, const GError *error,
 }
 
 /*
- * Returns: (transfer full) (element-type utf8 McdRequest): a map from
- *  channel request object path to McdRequest
+ * @paths_out: (transfer container) (element-type utf8): Requests_Satisfied
+ * @props_out: (transfer container) (element-type utf8 GHashTable):
+ *  request-properties for Observer_Info or Handler_Info
  */
-static GHashTable *
-collect_satisfied_requests (GList *channels)
+static void
+collect_satisfied_requests (const GList *channels,
+    GPtrArray **paths_out,
+    GHashTable **props_out)
 {
     const GList *c;
     GHashTable *set;
+    GHashTableIter it;
+    gpointer path, value;
+    GPtrArray *satisfied_requests;
+    GHashTable *request_properties;
 
     set = g_hash_table_new_full (g_str_hash, g_str_equal,
         g_free, g_object_unref);
@@ -1829,7 +1836,31 @@ collect_satisfied_requests (GList *channels)
         g_hash_table_unref (reqs);
     }
 
-    return set;
+    satisfied_requests = g_ptr_array_sized_new (g_hash_table_size (set));
+    request_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
+        NULL, (GDestroyNotify) g_hash_table_unref);
+
+    g_hash_table_iter_init (&it, set);
+
+    while (g_hash_table_iter_next (&it, &path, &value))
+    {
+        GHashTable *props;
+
+        g_ptr_array_add (satisfied_requests, path);
+        props = _mcd_request_dup_immutable_properties (value);
+        g_assert (props != NULL);
+        g_hash_table_insert (request_properties, path, props);
+    }
+
+    if (paths_out != NULL)
+        *paths_out = satisfied_requests;
+    else
+        g_ptr_array_unref (satisfied_requests);
+
+    if (props_out != NULL)
+        *props_out = request_properties;
+    else
+        g_hash_table_unref (request_properties);
 }
 
 static void
@@ -1851,9 +1882,6 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
         GList *observed = NULL;
         const gchar *account_path, *connection_path;
         GPtrArray *channels_array, *satisfied_requests;
-        GHashTable *reqs;
-        GHashTableIter it;
-        gpointer path, value;
         GHashTable *request_properties;
 
         if (!tp_proxy_has_interface_by_id (client,
@@ -1884,23 +1912,8 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
          * if the observed list is the same */
         channels_array = _mcd_tp_channel_details_build_from_list (observed);
 
-        reqs = collect_satisfied_requests (observed);
-
-        satisfied_requests = g_ptr_array_sized_new (g_hash_table_size (reqs));
-        request_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
-            g_free, (GDestroyNotify) g_hash_table_unref);
-
-        /* 'Requests_Satisfied' and 'request-properties' */
-        g_hash_table_iter_init (&it, reqs);
-        while (g_hash_table_iter_next (&it, &path, &value))
-        {
-            GHashTable *props;
-
-            g_ptr_array_add (satisfied_requests, path);
-            props = _mcd_request_dup_immutable_properties (value);
-            g_assert (props != NULL);
-            g_hash_table_insert (request_properties, g_strdup (path), props);
-        }
+        collect_satisfied_requests (observed, &satisfied_requests,
+                                    &request_properties);
 
         /* transfer ownership into observer_info */
         /* FIXME: use telepathy-glib type when available */
@@ -1927,12 +1940,11 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
 
         /* don't free the individual object paths, which are borrowed from the
          * McdChannel objects */
-        g_ptr_array_free (satisfied_requests, TRUE);
+        g_ptr_array_unref (satisfied_requests);
 
         _mcd_tp_channel_details_free (channels_array);
 
         g_list_free (observed);
-        g_hash_table_unref (reqs);
     }
 
     g_hash_table_destroy (observer_info);
