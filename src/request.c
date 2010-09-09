@@ -52,6 +52,13 @@ struct _McdRequest {
     gchar *preferred_handler;
     GHashTable *hints;
     gchar *object_path;
+
+    /* Number of reasons to not make the request yet.
+     *
+     * We hold one extra ref to ourselves per delay. The object starts with
+     * one delay in _mcd_request_init, representing the Proceed() call
+     * that hasn't happened; to get the refcounting right, we take the
+     * corresponding ref in _mcd_request_constructed. */
     gsize delay;
 
     gboolean is_complete;
@@ -90,6 +97,9 @@ _mcd_request_constructed (GObject *object)
   McdRequest *self = (McdRequest *) object;
   void (*constructed) (GObject *) =
     G_OBJECT_CLASS (_mcd_request_parent_class)->constructed;
+
+  /* this is paired with the delay in _mcd_request_init */
+  g_object_ref (self);
 
   if (constructed != NULL)
     constructed (object);
