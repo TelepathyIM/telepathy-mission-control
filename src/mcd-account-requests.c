@@ -300,14 +300,13 @@ ready_to_request_cb (McdRequest *request,
 }
 
 void
-_mcd_account_proceed_with_request (McdAccount *account,
-                                   McdChannel *channel)
+_mcd_account_proceed_with_request (McdRequest *request)
 {
+    McdAccount *account = _mcd_request_get_account (request);
     McdPluginRequest *plugin_api = NULL;
     const GList *mini_plugins;
-    McdRequest *request = _mcd_channel_get_request (channel);
 
-    g_object_ref (channel);
+    g_object_ref (request);
 
     for (mini_plugins = mcp_list_objects ();
          mini_plugins != NULL;
@@ -332,7 +331,7 @@ _mcd_account_proceed_with_request (McdAccount *account,
     _mcd_request_end_delay (request);
 
     tp_clear_object (&plugin_api);
-    g_object_unref (channel);
+    g_object_unref (request);
 }
 
 static void

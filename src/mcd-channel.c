@@ -1480,7 +1480,7 @@ _mcd_channel_request_proceed (McdChannel *self,
         tp_svc_channel_request_return_from_proceed (context);
     }
 
-    _mcd_account_proceed_with_request (account, self);
+    _mcd_account_proceed_with_request (self->priv->request);
 }
 
 static void
