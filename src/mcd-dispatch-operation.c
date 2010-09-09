@@ -1837,7 +1837,7 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
     GHashTableIter iter;
     gpointer client_p;
 
-    observer_info = g_hash_table_new (g_str_hash, g_str_equal);
+    observer_info = tp_asv_new (NULL, NULL);
 
     _mcd_client_registry_init_hash_iter (self->priv->client_registry, &iter);
 
@@ -1898,10 +1898,12 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
             g_hash_table_insert (request_properties, g_strdup (path), props);
         }
 
+        /* transfer ownership into observer_info */
         /* FIXME: use telepathy-glib type when available */
-        tp_asv_set_boxed (observer_info, "request-properties",
+        tp_asv_take_boxed (observer_info, "request-properties",
             MC_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP,
             request_properties);
+        request_properties = NULL;
 
         if (_mcd_dispatch_operation_needs_approval (self))
         {
