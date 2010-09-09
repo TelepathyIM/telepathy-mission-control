@@ -1995,8 +1995,7 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
             priv->probation_timer = 0;
         }
 
-	g_object_unref (priv->tp_conn);
-	priv->tp_conn = NULL;
+        tp_clear_object (&priv->tp_conn);
     }
 
     /* the interface proxies obtained from this connection must be deleted, too
@@ -2056,27 +2055,12 @@ _mcd_connection_dispose (GObject * object)
         g_signal_handlers_disconnect_by_func (priv->account,
                                               G_CALLBACK (on_account_removed),
                                               object);
-	g_object_unref (priv->account);
-	priv->account = NULL;
+        tp_clear_object (&priv->account);
     }
 
-    if (priv->tp_conn_mgr)
-    {
-	g_object_unref (priv->tp_conn_mgr);
-	priv->tp_conn_mgr = NULL;
-    }
-
-    if (priv->dispatcher)
-    {
-	g_object_unref (priv->dispatcher);
-	priv->dispatcher = NULL;
-    }
-
-    if (priv->dbus_daemon)
-    {
-	g_object_unref (priv->dbus_daemon);
-	priv->dbus_daemon = NULL;
-    }
+    tp_clear_object (&priv->tp_conn_mgr);
+    tp_clear_object (&priv->dispatcher);
+    tp_clear_object (&priv->dbus_daemon);
 
     G_OBJECT_CLASS (mcd_connection_parent_class)->dispose (object);
 }
@@ -2099,22 +2083,17 @@ _mcd_connection_set_property (GObject * obj, guint prop_id,
 	    g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
 	    g_object_ref (dispatcher);
 	}
-	if (priv->dispatcher)
-	{
-	    g_object_unref (priv->dispatcher);
-	}
+	tp_clear_object (&priv->dispatcher);
 	priv->dispatcher = dispatcher;
 	break;
     case PROP_DBUS_DAEMON:
-	if (priv->dbus_daemon)
-	    g_object_unref (priv->dbus_daemon);
+	tp_clear_object (&priv->dbus_daemon);
 	priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
 	break;
     case PROP_TP_MANAGER:
 	tp_conn_mgr = g_value_get_object (val);
 	g_object_ref (tp_conn_mgr);
-	if (priv->tp_conn_mgr)
-	    g_object_unref (priv->tp_conn_mgr);
+	tp_clear_object (&priv->tp_conn_mgr);
 	priv->tp_conn_mgr = tp_conn_mgr;
 	break;
     case PROP_ACCOUNT:

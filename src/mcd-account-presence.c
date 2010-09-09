@@ -264,8 +264,7 @@ minimum_presence_dispose (McdAccount *account)
                 (gchar *) client, name_owner_changed_cb, account);
         }
 
-        g_object_unref (priv->dbus_daemon);
-        priv->dbus_daemon = NULL;
+        tp_clear_object (&priv->dbus_daemon);
     }
 
     g_hash_table_remove_all (priv->minimum_presence_requests);

@@ -48,6 +48,7 @@
 #include <dbus/dbus-glib.h>
 #include <dbus/dbus-glib-lowlevel.h>
 #include <dbus/dbus.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 #include "mcd-signals-marshal.h"
 #include "mcd-dispatcher.h"
@@ -121,9 +122,9 @@ mcd_dispose (GObject * obj)
     if (self->main_loop)
     {
 	g_main_loop_quit (self->main_loop);
-	g_main_loop_unref (self->main_loop);
-	self->main_loop = NULL;
     }
+
+    tp_clear_pointer (&self->main_loop, g_main_loop_unref);
 
     if (G_OBJECT_CLASS (parent_class)->dispose)
     {

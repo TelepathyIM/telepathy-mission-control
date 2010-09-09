@@ -63,6 +63,7 @@
 #include <dbus/dbus.h>
 #include <dbus/dbus-glib.h>
 #include <dbus/dbus-glib-lowlevel.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 #include "mcd-master.h"
 #include "mcd-master-priv.h"
@@ -424,17 +425,8 @@ _mcd_master_dispose (GObject * object)
     }
 #endif
 
-    if (priv->account_manager)
-    {
-	g_object_unref (priv->account_manager);
-	priv->account_manager = NULL;
-    }
-
-    if (priv->dbus_daemon)
-    {
-	g_object_unref (priv->dbus_daemon);
-	priv->dbus_daemon = NULL;
-    }
+    tp_clear_object (&priv->account_manager);
+    tp_clear_object (&priv->dbus_daemon);
 
     /* Don't unref() the dispatcher: it will be unref()ed by the McdProxy */
     priv->dispatcher = NULL;

@@ -1154,23 +1154,10 @@ mcd_dispatch_operation_finalize (GObject *object)
 {
     McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (object);
 
-    g_strfreev (priv->possible_handlers);
-    priv->possible_handlers = NULL;
-
-    if (priv->properties)
-        g_hash_table_unref (priv->properties);
-
-    if (priv->failed_handlers != NULL)
-    {
-        g_hash_table_unref (priv->failed_handlers);
-    }
-
-    if (priv->result != NULL)
-    {
-        g_error_free (priv->result);
-        priv->result = NULL;
-    }
-
+    tp_clear_pointer (&priv->possible_handlers, g_strfreev);
+    tp_clear_pointer (&priv->properties, g_hash_table_unref);
+    tp_clear_pointer (&priv->failed_handlers, g_hash_table_unref);
+    g_clear_error (&priv->result);
     g_free (priv->object_path);
 
     G_OBJECT_CLASS (_mcd_dispatch_operation_parent_class)->finalize (object);
@@ -1182,19 +1169,10 @@ mcd_dispatch_operation_dispose (GObject *object)
     McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (object);
     GList *list;
 
-    if (priv->plugin_api != NULL)
-    {
-        g_object_unref (priv->plugin_api);
-        priv->plugin_api = NULL;
-    }
+    tp_clear_object (&priv->plugin_api);
+    tp_clear_object (&priv->successful_handler);
 
-    if (priv->successful_handler != NULL)
-    {
-        g_object_unref (priv->successful_handler);
-        priv->successful_handler = NULL;
-    }
-
-    if (priv->channels)
+    if (priv->channels != NULL)
     {
         for (list = priv->channels; list != NULL; list = list->next)
         {
@@ -1203,47 +1181,26 @@ mcd_dispatch_operation_dispose (GObject *object)
             g_object_unref (list->data);
         }
 
-        g_list_free (priv->channels);
-        priv->channels = NULL;
+        tp_clear_pointer (&priv->channels, g_list_free);
     }
 
     if (priv->lost_channels != NULL)
     {
         for (list = priv->lost_channels; list != NULL; list = list->next)
             g_object_unref (list->data);
-        g_list_free (priv->lost_channels);
-        priv->lost_channels = NULL;
+
+        tp_clear_pointer (&priv->lost_channels, g_list_free);
     }
 
-    if (priv->connection)
-    {
-        g_object_unref (priv->connection);
-        priv->connection = NULL;
-    }
-
-    if (priv->account != NULL)
-    {
-        g_object_unref (priv->account);
-        priv->account = NULL;
-    }
-
-    if (priv->handler_map != NULL)
-    {
-        g_object_unref (priv->handler_map);
-        priv->handler_map = NULL;
-    }
-
-    if (priv->client_registry != NULL)
-    {
-        g_object_unref (priv->client_registry);
-        priv->client_registry = NULL;
-    }
+    tp_clear_object (&priv->connection);
+    tp_clear_object (&priv->account);
+    tp_clear_object (&priv->handler_map);
+    tp_clear_object (&priv->client_registry);
 
     if (priv->approvals != NULL)
     {
         g_queue_foreach (priv->approvals, (GFunc) approval_free, NULL);
-        g_queue_free (priv->approvals);
-        priv->approvals = NULL;
+        tp_clear_pointer (&priv->approvals, g_queue_free);
     }
 
     G_OBJECT_CLASS (_mcd_dispatch_operation_parent_class)->dispose (object);

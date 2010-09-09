@@ -35,8 +35,10 @@
  * object to self container.
  */
 
-#include <glib/gi18n.h>
 #include "mcd-proxy.h"
+
+#include <glib/gi18n.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 #define MCD_PROXY_PRIV(proxy) (G_TYPE_INSTANCE_GET_PRIVATE ((proxy), \
 				       MCD_TYPE_PROXY, \
@@ -118,9 +120,10 @@ _mcd_proxy_dispose (GObject * object)
     {
 	/* Disconnect proxy signals */
 	_mcd_proxy_disconnect_signals (MCD_PROXY (object));
-	g_object_unref (priv->proxy_object);
-	priv->proxy_object = NULL;
     }
+
+    tp_clear_object (&priv->proxy_object);
+
     G_OBJECT_CLASS (mcd_proxy_parent_class)->dispose (object);
 }
 

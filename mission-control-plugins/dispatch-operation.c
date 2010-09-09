@@ -510,11 +510,8 @@ mcp_dispatch_operation_ref_nth_channel (McpDispatchOperation *self,
       NULL);
 
 finally:
-  if (connection != NULL)
-    g_object_unref (connection);
-
-  if (channel_properties != NULL)
-    g_hash_table_unref (channel_properties);
+  tp_clear_object (&connection);
+  tp_clear_pointer (&channel_properties, g_hash_table_unref);
 
   return channel;
 }

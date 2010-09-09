@@ -221,12 +221,7 @@ _mcd_request_dispose (GObject *object)
 
   DEBUG ("%p", object);
 
-  if (self->account != NULL)
-    {
-      g_object_unref (self->account);
-      self->account = NULL;
-    }
-
+  tp_clear_object (&self->account);
   tp_clear_pointer (&self->hints, g_hash_table_unref);
 
   if (dispose != NULL)
@@ -245,12 +240,7 @@ _mcd_request_finalize (GObject *object)
   g_free (self->preferred_handler);
   g_free (self->object_path);
   g_free (self->failure_message);
-
-  if (self->properties != NULL)
-    {
-      g_hash_table_unref (self->properties);
-      self->properties = NULL;
-    }
+  tp_clear_pointer (&self->properties, g_hash_table_unref);
 
   if (finalize != NULL)
     finalize (object);

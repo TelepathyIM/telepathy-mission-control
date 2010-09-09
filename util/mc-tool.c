@@ -1280,7 +1280,7 @@ main (int argc, char **argv)
 {
     TpAccountManager *am = NULL;
     TpAccount *a = NULL;
-    TpDBusDaemon *dbus;
+    TpDBusDaemon *dbus = NULL;
     GError *error = NULL;
 
     g_type_init ();
@@ -1295,9 +1295,6 @@ main (int argc, char **argv)
     if (error != NULL) {
         fprintf (stderr, "%s %s: Failed to connect to D-Bus: %s\n",
             app_name, command.common.name, error->message);
-
-        g_error_free (error);
-
         goto out;
     }
 
@@ -1314,22 +1311,21 @@ main (int argc, char **argv)
 	    fprintf (stderr, "%s %s: %s\n",
 		     app_name, command.common.name,
 		     error->message);
-
-	    g_error_free (error);
-
 	    goto out;
 	}
 
 	tp_proxy_prepare_async (a, NULL, account_ready, NULL);
     }
-    g_object_unref (dbus);
 
     main_loop = g_main_loop_new (NULL, FALSE);
     g_main_loop_run (main_loop);
 
 out:
-    if (am) g_object_unref (am);
-    if (a) g_object_unref (a);
+    g_clear_error (&error);
+    tp_clear_object (&dbus);
+    tp_clear_object (&am);
+    tp_clear_object (&a);
+    tp_clear_pointer (&main_loop, g_main_loop_unref);
 
     return command.common.ret;
 }

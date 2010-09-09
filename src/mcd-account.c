@@ -2390,18 +2390,10 @@ typedef struct
 static void
 set_parameters_data_free (SetParametersData *data)
 {
-    if (data->account != NULL)
-        g_object_unref (data->account);
-
-    if (data->params != NULL)
-        g_hash_table_destroy (data->params);
-
-    if (data->unset != NULL)
-        g_strfreev (data->unset);
-
-    if (data->dbus_properties != NULL)
-        g_slist_free (data->dbus_properties);
-
+    tp_clear_object (&data->account);
+    tp_clear_pointer (&data->params, g_hash_table_destroy);
+    g_strfreev (data->unset);
+    g_slist_free (data->dbus_properties);
     tp_connection_manager_protocol_free (data->protocol);
 
     g_slice_free (SetParametersData, data);
@@ -3942,8 +3934,7 @@ _mcd_account_set_connection_status (McdAccount *account,
     if (priv->tp_connection != tp_conn
         || (tp_conn != NULL && status == TP_CONNECTION_STATUS_DISCONNECTED))
     {
-        if (priv->tp_connection != NULL)
-            g_object_unref (priv->tp_connection);
+        tp_clear_object (&priv->tp_connection);
 
         if (tp_conn != NULL && status != TP_CONNECTION_STATUS_DISCONNECTED)
             priv->tp_connection = g_object_ref (tp_conn);
@@ -4326,11 +4317,7 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
         g_object_unref (priv->connection);
     }
 
-    if (priv->tp_connection != NULL)
-    {
-        g_object_unref (priv->tp_connection);
-        priv->tp_connection = NULL;
-    }
+    tp_clear_object (&priv->tp_connection);
 
     priv->connection = connection;
 

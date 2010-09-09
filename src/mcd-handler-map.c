@@ -141,11 +141,7 @@ _mcd_handler_map_dispose (GObject *object)
 {
     McdHandlerMap *self = MCD_HANDLER_MAP (object);
 
-    if (self->priv->handled_channels != NULL)
-    {
-        g_hash_table_destroy (self->priv->handled_channels);
-        self->priv->handled_channels = NULL;
-    }
+    tp_clear_pointer (&self->priv->handled_channels, g_hash_table_destroy);
 
     if (self->priv->handler_processes != NULL)
     {
@@ -162,15 +158,10 @@ _mcd_handler_map_dispose (GObject *object)
                 k, mcd_handler_map_name_owner_cb, object);
         }
 
-        g_hash_table_destroy (self->priv->handler_processes);
-        self->priv->handler_processes = NULL;
     }
 
-    if (self->priv->dbus_daemon != NULL)
-    {
-        g_object_unref (self->priv->dbus_daemon);
-        self->priv->dbus_daemon = NULL;
-    }
+    tp_clear_pointer (&self->priv->handler_processes, g_hash_table_destroy);
+    tp_clear_object (&self->priv->dbus_daemon);
 
     G_OBJECT_CLASS (_mcd_handler_map_parent_class)->dispose (object);
 }
@@ -180,23 +171,9 @@ _mcd_handler_map_finalize (GObject *object)
 {
     McdHandlerMap *self = MCD_HANDLER_MAP (object);
 
-    if (self->priv->channel_processes != NULL)
-    {
-        g_hash_table_destroy (self->priv->channel_processes);
-        self->priv->channel_processes = NULL;
-    }
-
-    if (self->priv->channel_clients != NULL)
-    {
-        g_hash_table_destroy (self->priv->channel_clients);
-        self->priv->channel_clients = NULL;
-    }
-
-    if (self->priv->channel_accounts != NULL)
-    {
-        g_hash_table_destroy (self->priv->channel_accounts);
-        self->priv->channel_accounts = NULL;
-    }
+    tp_clear_pointer (&self->priv->channel_processes, g_hash_table_destroy);
+    tp_clear_pointer (&self->priv->channel_clients, g_hash_table_destroy);
+    tp_clear_pointer (&self->priv->channel_accounts, g_hash_table_destroy);
 
     G_OBJECT_CLASS (_mcd_handler_map_parent_class)->finalize (object);
 }

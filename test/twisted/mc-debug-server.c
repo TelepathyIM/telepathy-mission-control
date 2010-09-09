@@ -59,11 +59,8 @@ static void
 on_abort (gpointer unused G_GNUC_UNUSED)
 {
     g_debug ("McdService aborted, unreffing it");
-
     mcd_debug_print_tree (mcd);
-
-    g_object_unref (mcd);
-    mcd = NULL;
+    tp_clear_object (&mcd);
 }
 
 #define MCD_SYSTEM_MEMORY_CONSERVED (1 << 1)
@@ -146,7 +143,7 @@ main (int argc, char **argv)
 {
     TpDBusDaemon *bus_daemon = NULL;
     GError *error = NULL;
-    DBusConnection *connection;
+    DBusConnection *connection = NULL;
     int ret = 1;
     GMainLoop *teardown_loop;
     guint linger_time = 5;
@@ -259,11 +256,12 @@ main (int argc, char **argv)
 
 out:
 
-    if (bus_daemon != NULL)
+    if (connection != NULL)
     {
         dbus_connection_flush (connection);
-        g_object_unref (bus_daemon);
     }
+
+    tp_clear_object (&bus_daemon);
 
     dbus_shutdown ();
 

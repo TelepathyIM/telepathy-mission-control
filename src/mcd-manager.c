@@ -45,9 +45,7 @@
 #include <string.h>
 
 #include <glib/gi18n.h>
-#include <telepathy-glib/connection-manager.h>
-#include <telepathy-glib/dbus.h>
-#include <telepathy-glib/interfaces.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 #include <libmcclient/mc-errors.h>
 
@@ -147,20 +145,9 @@ _mcd_manager_dispose (GObject * object)
 
     priv->is_disposed = TRUE;
 
-    if (priv->dispatcher)
-    {
-	g_object_unref (priv->dispatcher);
-	priv->dispatcher = NULL;
-    }
-    
-    if (priv->tp_conn_mgr)
-    {
-	g_object_unref (priv->tp_conn_mgr);
-	priv->tp_conn_mgr = NULL;
-    }
-
-    if (priv->dbus_daemon)
-	g_object_unref (priv->dbus_daemon);
+    tp_clear_object (&priv->dispatcher);
+    tp_clear_object (&priv->tp_conn_mgr);
+    tp_clear_object (&priv->dbus_daemon);
 
     G_OBJECT_CLASS (mcd_manager_parent_class)->dispose (object);
 }
@@ -216,10 +203,8 @@ mcd_manager_setup (McdManager *manager)
     return TRUE;
 
 error:
-    if (priv->tp_conn_mgr)
-        g_object_unref (priv->tp_conn_mgr);
-    if (error)
-        g_error_free (error);
+    tp_clear_object (&priv->tp_conn_mgr);
+    g_clear_error (&error);
 
     return FALSE;
 }
@@ -266,15 +251,11 @@ _mcd_manager_set_property (GObject * obj, guint prop_id,
 	    g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
 	    g_object_ref (dispatcher);
 	}
-	if (priv->dispatcher)
-	{
-	    g_object_unref (priv->dispatcher);
-	}
+	tp_clear_object (&priv->dispatcher);
 	priv->dispatcher = dispatcher;
 	break;
     case PROP_DBUS_DAEMON:
-	if (priv->dbus_daemon)
-	    g_object_unref (priv->dbus_daemon);
+	tp_clear_object (&priv->dbus_daemon);
 	priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
 	break;
     default:

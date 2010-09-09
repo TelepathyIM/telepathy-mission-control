@@ -1017,8 +1017,7 @@ mcd_client_proxy_dispose (GObject *object)
             self->priv->capability_tokens = NULL;
         }
 
-        g_object_unref (self->priv->string_pool);
-        self->priv->string_pool = NULL;
+        tp_clear_object (&self->priv->string_pool);
     }
 
     if (chain_up != NULL)

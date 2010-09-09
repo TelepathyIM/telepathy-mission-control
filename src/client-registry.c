@@ -21,8 +21,8 @@
 
 #include "client-registry.h"
 
-#include <telepathy-glib/defs.h>
 #include <telepathy-glib/handle-repo-dynamic.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 #include "mcd-debug.h"
 
@@ -398,26 +398,17 @@ mcd_client_registry_dispose (GObject *object)
   void (*chain_up) (GObject *) =
     G_OBJECT_CLASS (_mcd_client_registry_parent_class)->dispose;
 
-  if (self->priv->dbus_daemon != NULL)
-    {
-      g_object_unref (self->priv->dbus_daemon);
-      self->priv->dbus_daemon = NULL;
-    }
-
-  if (self->priv->string_pool != NULL)
-    {
-      g_object_unref (self->priv->string_pool);
-      self->priv->string_pool = NULL;
-    }
+  tp_clear_object (&self->priv->dbus_daemon);
+  tp_clear_object (&self->priv->string_pool);
 
   if (self->priv->clients != NULL)
     {
       g_hash_table_foreach (self->priv->clients,
           mcd_client_registry_disconnect_client_signals, self);
 
-      g_hash_table_destroy (self->priv->clients);
-      self->priv->clients = NULL;
     }
+
+  tp_clear_pointer (&self->priv->clients, g_hash_table_destroy);
 
   if (chain_up != NULL)
     chain_up (object);
