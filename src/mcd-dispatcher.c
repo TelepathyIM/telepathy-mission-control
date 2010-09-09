@@ -266,8 +266,7 @@ mcd_dispatcher_get_channel_type_usage (McdDispatcher * dispatcher,
 static void
 on_master_abort (McdMaster *master, McdDispatcherPrivate *priv)
 {
-    g_object_unref (master);
-    priv->master = NULL;
+    tp_clear_object (&priv->master);
 }
 
 /* return TRUE if the two channel classes are equals
@@ -683,8 +682,7 @@ _mcd_dispatcher_set_property (GObject * obj, guint prop_id,
     switch (prop_id)
     {
     case PROP_DBUS_DAEMON:
-	if (priv->dbus_daemon)
-	    g_object_unref (priv->dbus_daemon);
+	tp_clear_object (&priv->dbus_daemon);
 	priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
 	break;
     case PROP_MCD_MASTER:
@@ -958,15 +956,10 @@ _mcd_dispatcher_dispose (GObject * object)
     if (priv->operations != NULL)
     {
         g_list_foreach (priv->operations, drop_each_operation, object);
-        g_list_free (priv->operations);
-        priv->operations = NULL;
+        tp_clear_pointer (&priv->operations, g_list_free);
     }
 
-    if (priv->handler_map)
-    {
-        g_object_unref (priv->handler_map);
-        priv->handler_map = NULL;
-    }
+    tp_clear_object (&priv->handler_map);
 
     if (priv->clients != NULL)
     {
@@ -987,23 +980,12 @@ _mcd_dispatcher_dispose (GObject * object)
         g_signal_handlers_disconnect_by_func (priv->clients,
             mcd_dispatcher_client_registry_ready_cb, object);
 
-        g_object_unref (priv->clients);
-        priv->clients = NULL;
+        tp_clear_object (&priv->clients);
     }
 
-    g_hash_table_destroy (priv->connections);
-
-    if (priv->master)
-    {
-	g_object_unref (priv->master);
-	priv->master = NULL;
-    }
-
-    if (priv->dbus_daemon)
-    {
-	g_object_unref (priv->dbus_daemon);
-	priv->dbus_daemon = NULL;
-    }
+    tp_clear_pointer (&priv->connections, g_hash_table_destroy);
+    tp_clear_object (&priv->master);
+    tp_clear_object (&priv->dbus_daemon);
 
     G_OBJECT_CLASS (mcd_dispatcher_parent_class)->dispose (object);
 }

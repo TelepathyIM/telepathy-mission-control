@@ -23,6 +23,8 @@
 
 #include "plugin-request.h"
 
+#include <telepathy-glib/telepathy-glib.h>
+
 #include "mission-control-plugins/implementation.h"
 
 #include "mcd-channel-priv.h"
@@ -91,17 +93,8 @@ plugin_req_dispose (GObject *object)
 
   DEBUG ("%p", object);
 
-  if (self->account != NULL)
-    {
-      g_object_unref (self->account);
-      self->account = NULL;
-    }
-
-  if (self->real_request != NULL)
-    {
-      g_object_unref (self->real_request);
-      self->real_request = NULL;
-    }
+  tp_clear_object (&self->account);
+  tp_clear_object (&self->real_request);
 
   if (dispose != NULL)
     dispose (object);
