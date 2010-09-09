@@ -26,7 +26,7 @@
 #include <unistd.h>
 #include <glib.h>
 
-#include <telepathy-glib/debug.h>
+#include <telepathy-glib/telepathy-glib.h>
 #include <telepathy-glib/debug-sender.h>
 
 #include "mcd-service.h"
@@ -77,7 +77,7 @@ main (int argc, char **argv)
 
     mcd_service_run (MCD_OBJECT (mcd));
 
-    g_object_unref (debug_sender);
+    tp_clear_object (&debug_sender);
 
     return 0;
 }
