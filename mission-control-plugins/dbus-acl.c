@@ -61,6 +61,7 @@
 #include <mission-control-plugins/mission-control-plugins.h>
 #include <mission-control-plugins/mcp-signals-marshal.h>
 #include <glib.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 #ifdef ENABLE_DEBUG
 
@@ -160,10 +161,8 @@ auth_data_free (DBusAclAuthData *data)
 {
   data->cleanup (data->data); /* free the callback data */
 
-  if (data->params != NULL)
-    g_hash_table_unref (data->params);
-
-  g_object_unref (data->dbus);
+  tp_clear_pointer (&data->params, g_hash_table_unref);
+  tp_clear_object (&data->dbus);
   g_free (data->name);
 
   g_slice_free (DBusAclAuthData, data);
