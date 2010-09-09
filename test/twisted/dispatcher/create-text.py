@@ -24,8 +24,8 @@ a channel can be created successfully.
 import dbus
 import dbus.service
 
-from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async, assertEquals
+from servicetest import (EventPattern, tp_name_prefix, tp_path_prefix,
+        call_async, assertEquals, assertContains, assertLength)
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
         expect_client_setup
@@ -189,6 +189,10 @@ def test_channel_creation(q, bus, account, client, conn,
     assert e.args[3] == [request_path], e.args
     assert e.args[4] == user_action_time
     assert isinstance(e.args[5], dict)
+    assertContains('request-properties', e.args[5])
+    assertContains(request_path, e.args[5]['request-properties'])
+    assertLength(1, e.args[5]['request-properties'])
+    assertEquals(request_props, e.args[5]['request-properties'][request_path])
     assert len(e.args) == 6
 
     # Handler accepts the Channels
