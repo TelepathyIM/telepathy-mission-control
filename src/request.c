@@ -33,6 +33,8 @@
 #include "mcd-account-priv.h"
 #include "mcd-debug.h"
 #include "mcd-misc.h"
+#include "plugin-loader.h"
+#include "plugin-request.h"
 #include "_gen/interfaces.h"
 #include "_gen/svc-Channel_Request_Future.h"
 
@@ -449,6 +451,9 @@ void
 _mcd_request_proceed (McdRequest *self,
     DBusGMethodInvocation *context)
 {
+  McdPluginRequest *plugin_api = NULL;
+  const GList *mini_plugins;
+
   if (self->proceeding)
     {
       GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
@@ -467,7 +472,29 @@ _mcd_request_proceed (McdRequest *self,
       tp_svc_channel_request_return_from_proceed (context);
     }
 
-  _mcd_account_proceed_with_request (self);
+  for (mini_plugins = mcp_list_objects ();
+       mini_plugins != NULL;
+       mini_plugins = mini_plugins->next)
+    {
+      if (MCP_IS_REQUEST_POLICY (mini_plugins->data))
+        {
+          DEBUG ("Checking request with policy");
+
+          /* Lazily create a plugin-API object if anything cares */
+          if (plugin_api == NULL)
+            {
+              plugin_api = _mcd_plugin_request_new (self->account, self);
+            }
+
+          mcp_request_policy_check (mini_plugins->data,
+              MCP_REQUEST (plugin_api));
+        }
+    }
+
+  /* this is paired with the delay set when the request was created */
+  _mcd_request_end_delay (self);
+
+  tp_clear_object (&plugin_api);
 }
 
 GHashTable *

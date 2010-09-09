@@ -147,8 +147,6 @@ G_GNUC_INTERNAL McdChannel *_mcd_account_create_request (McdAccount *account,
     gboolean use_existing,
     McdRequest **request_out, GError **error);
 
-G_GNUC_INTERNAL void _mcd_account_proceed_with_request (McdRequest *request);
-
 void account_channelrequests_iface_init
     (McSvcAccountInterfaceChannelRequestsClass *iface, gpointer iface_data);
 

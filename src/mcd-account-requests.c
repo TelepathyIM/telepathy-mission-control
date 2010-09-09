@@ -46,8 +46,6 @@
 #include "mcd-dispatcher-priv.h"
 #include "mcd-channel-priv.h"
 #include "mcd-misc.h"
-#include "plugin-loader.h"
-#include "plugin-request.h"
 #include "request.h"
 
 #include "_gen/svc-Channel_Request_Future.h"
@@ -297,41 +295,6 @@ ready_to_request_cb (McdRequest *request,
     }
 
     g_object_unref (channel);
-}
-
-void
-_mcd_account_proceed_with_request (McdRequest *request)
-{
-    McdAccount *account = _mcd_request_get_account (request);
-    McdPluginRequest *plugin_api = NULL;
-    const GList *mini_plugins;
-
-    g_object_ref (request);
-
-    for (mini_plugins = mcp_list_objects ();
-         mini_plugins != NULL;
-         mini_plugins = mini_plugins->next)
-    {
-        if (MCP_IS_REQUEST_POLICY (mini_plugins->data))
-        {
-            DEBUG ("Checking request with policy");
-
-            /* Lazily create a plugin-API object if anything cares */
-            if (plugin_api == NULL)
-            {
-                plugin_api = _mcd_plugin_request_new (account, request);
-            }
-
-            mcp_request_policy_check (mini_plugins->data,
-                                      MCP_REQUEST (plugin_api));
-        }
-    }
-
-    /* this is paired with the delay set when the request was created */
-    _mcd_request_end_delay (request);
-
-    tp_clear_object (&plugin_api);
-    g_object_unref (request);
 }
 
 static void
