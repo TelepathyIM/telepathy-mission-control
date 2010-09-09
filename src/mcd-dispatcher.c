@@ -60,6 +60,7 @@
 #include "mcd-misc.h"
 #include "plugin-loader.h"
 
+#include "libmcclient/mc-gtypes.h"
 #include "_gen/svc-Channel_Dispatcher_Future.h"
 
 #include <telepathy-glib/defs.h>
@@ -1494,11 +1495,27 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     McdRequest *real_request = _mcd_channel_get_request (request);
     GList *tp_channels = g_list_append (NULL,
         mcd_channel_get_tp_channel (request));
+    GHashTable *handler_info;
+    GHashTable *request_properties;
 
     g_assert (real_request != NULL);
     g_assert (tp_channels->data != NULL);
 
     request_as_list = g_list_append (NULL, request);
+
+    request_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
+        g_free, (GDestroyNotify) g_hash_table_unref);
+    g_hash_table_insert (request_properties,
+        g_strdup (_mcd_request_get_object_path (real_request)),
+        _mcd_request_dup_immutable_properties (real_request));
+
+    handler_info = tp_asv_new (NULL, NULL);
+    /* hand over ownership of request_properties */
+    /* FIXME: use telepathy-glib version when available */
+    tp_asv_take_boxed (handler_info, "request-properties",
+                       MC_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP,
+                       request_properties);
+    request_properties = NULL;
 
     /* the unique name (process) of the current handler */
     handler_unique = _mcd_handler_map_get_handler (
@@ -1553,10 +1570,11 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
     _mcd_client_proxy_handle_channels (handler,
         -1, request_as_list,
         0, /* the request's user action time will be used automatically */
-        NULL, /* no extra handler_info */
+        handler_info,
         reinvoke_handle_channels_cb, NULL, NULL, (GObject *) request);
 
 finally:
+    g_hash_table_unref (handler_info);
     g_list_free (request_as_list);
     g_list_free (tp_channels);
     g_strfreev (possible_handlers);
