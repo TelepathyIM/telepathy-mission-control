@@ -296,6 +296,7 @@ _mcd_account_proceed_with_request (McdAccount *account,
     /* this is paired with the delay set when the request was created */
     _mcd_request_end_delay (_mcd_channel_get_request (channel));
 
+    tp_clear_object (&plugin_api);
     g_object_unref (channel);
 }
 
