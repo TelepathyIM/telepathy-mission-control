@@ -49,8 +49,11 @@
  * object specific state managements.
  */
 
-#include <glib/gi18n.h>
 #include "mcd-mission-priv.h"
+
+#include <glib/gi18n.h>
+#include <telepathy-glib/telepathy-glib.h>
+
 #include "mcd-enum-types.h"
 
 #define MCD_MISSION_PRIV(mission) (G_TYPE_INSTANCE_GET_PRIVATE ((mission), \
@@ -151,11 +154,7 @@ _mcd_mission_set_parent (McdMission * mission, McdMission * parent)
 	g_object_ref (parent);
     }
     
-    if (priv->parent)
-    {
-	g_object_unref (priv->parent);
-    }
-    
+    tp_clear_object (&priv->parent);
     priv->parent = parent;
     g_signal_emit_by_name (mission, "parent-set", parent);
 }
@@ -187,9 +186,10 @@ _mcd_mission_dispose (GObject * object)
 	g_signal_handlers_disconnect_by_func (priv->parent,
 					      on_parent_abort,
 					      object);
-	g_object_unref (priv->parent);
-	priv->parent = NULL;
     }
+
+    tp_clear_object (&priv->parent);
+
     G_OBJECT_CLASS (mcd_mission_parent_class)->dispose (object);
 }
 

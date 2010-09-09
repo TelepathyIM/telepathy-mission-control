@@ -292,10 +292,8 @@ _mcd_channel_release_tp_channel (McdChannel *channel)
 					      G_CALLBACK (proxy_destroyed),
 					      channel);
 
-	/* Destroy our proxy */
-	g_object_unref (priv->tp_chan);
-	
-	priv->tp_chan = NULL;
+        /* Destroy our proxy */
+        tp_clear_object (&priv->tp_chan);
     }
 }
 
@@ -459,11 +457,7 @@ _mcd_channel_dispose (GObject * object)
 
     priv->is_disposed = TRUE;
 
-    if (priv->request != NULL)
-    {
-        g_object_unref (priv->request);
-        priv->request = NULL;
-    }
+    tp_clear_object (&priv->request);
 
     _mcd_channel_release_tp_channel (MCD_CHANNEL (object));
     G_OBJECT_CLASS (mcd_channel_parent_class)->dispose (object);
