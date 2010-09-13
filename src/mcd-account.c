@@ -3829,8 +3829,7 @@ _mcd_account_tp_connection_changed (McdAccount *account,
     mcd_account_changed_property (account, "Connection", &value);
     g_value_unset (&value);
 
-    _mcd_account_manager_store_account_connections
-        (account->priv->account_manager);
+    _mcd_storage_store_connections (account->priv->storage);
 }
 
 McdConnection *
