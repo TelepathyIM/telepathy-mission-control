@@ -3637,6 +3637,7 @@ clear_register_dup_params_cb (McdAccount *self,
     if (tp_asv_get_boolean (params, "register", NULL))
     {
         GValue value = { 0 };
+        const gchar *account_name = mcd_account_get_unique_name (self);
 
         _mcd_account_set_parameter (self, "register", NULL, NULL, NULL);
 
@@ -3647,8 +3648,7 @@ clear_register_dup_params_cb (McdAccount *self,
         mcd_account_changed_property (self, "Parameters", &value);
         g_value_unset (&value);
 
-        mcd_account_manager_write_conf_async (self->priv->account_manager,
-                                              self, NULL, NULL);
+        mcd_storage_commit (self->priv->storage, account_name);
     }
     else
     {
