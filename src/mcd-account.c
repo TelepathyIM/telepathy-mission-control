@@ -3559,9 +3559,10 @@ gchar *
 mcd_account_get_alias (McdAccount *account)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
+    const gchar *account_name = mcd_account_get_unique_name (account);
 
-    return g_key_file_get_string (priv->keyfile, priv->unique_name,
-				  MC_ACCOUNTS_KEY_ALIAS, NULL);
+    return mcd_storage_dup_string (priv->storage, account_name,
+                                   MC_ACCOUNTS_KEY_ALIAS);
 }
 
 void
