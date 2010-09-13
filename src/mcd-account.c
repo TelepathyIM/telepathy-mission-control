@@ -393,21 +393,17 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value,
                McdAccountSetParameterCb callback, gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
+    McdStorage *storage = priv->storage;
     gchar key[MAX_KEY_LENGTH];
-    GError *error = NULL;
+    const gchar *account_name = mcd_account_get_unique_name (account);
+    gboolean secret = mcd_account_parameter_is_secret (account, name);
 
     g_snprintf (key, sizeof (key), "param-%s", name);
 
-    keyfile_set_value (priv->keyfile, priv->unique_name, key,
-                       value, &error);
+    mcd_storage_set_value (storage, account_name, key, value, secret);
 
     if (callback != NULL)
-    {
-        callback (account, error, user_data);
-    }
-
-    if (error != NULL)
-        g_error_free (error);
+        callback (account, NULL, user_data); /* set_parameter */
 }
 
 
@@ -435,20 +431,23 @@ get_parameter_from_file (McdAccount *account, const gchar *name,
                          McdAccountGetParameterCb callback, gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
+    McdStorage *storage = priv->storage;
     gchar key[MAX_KEY_LENGTH];
     const TpConnectionManagerParam *param;
     GError *error = NULL;
     GValue *value = NULL;
     GType type;
+    const gchar *account_name = mcd_account_get_unique_name (account);
 
     param = mcd_manager_get_protocol_param (priv->manager,
                                             priv->protocol_name, name);
     type = mc_param_type (param);
 
     g_snprintf (key, sizeof (key), "param-%s", name);
-    if (g_key_file_has_key (priv->keyfile, priv->unique_name, key, NULL))
+
+    if (mcd_storage_has_value (storage, account_name, key))
     {
-        value = keyfile_get_value (priv->keyfile, priv->unique_name, key, type, &error);
+        value = mcd_storage_dup_value (storage, account_name, key, type, &error);
     }
     else
     {
