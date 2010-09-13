@@ -44,13 +44,9 @@
 #include <telepathy-glib/errors.h>
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/svc-account-manager.h>
-#include "mcd-account-manager-priv.h"
 
-/* these pseudo-plugins take care of the actual account storage/retrieval */
-#include "mcd-account-manager-default.h"
-#if ENABLE_LIBACCOUNTS_SSO
-#include "mcd-account-manager-sso.h"
-#endif
+#include "mcd-account-manager-priv.h"
+#include "mcd-storage.h"
 
 #include "mcd-account.h"
 #include "mcd-account-config.h"
@@ -81,9 +77,6 @@ static void _mcd_account_manager_constructed (GObject *obj);
 
 static const McdDBusProp account_manager_properties[];
 static const McdDBusProp sso_properties[];
-
-static gboolean plugins_cached = FALSE;
-static GList *stores = NULL;
 
 static const McdInterfaceData account_manager_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_account_manager_get_type,
@@ -161,19 +154,6 @@ static void add_account (McdAccountManager *manager, McdAccount *account,
 static void account_loaded (McdAccount *account,
                             const GError *error,
                             gpointer user_data);
-
-/* sort in descending order of priority (ie higher prio => earlier in list) */
-static gint
-account_storage_cmp (gconstpointer a, gconstpointer b)
-{
-    gint pa = mcp_account_storage_priority (a);
-    gint pb = mcp_account_storage_priority (b);
-
-    if (pa > pb) return -1;
-    if (pa < pb) return 1;
-
-    return 0;
-}
 
 /* calback chain for asynchronously updates from backends: */
 static void
@@ -487,63 +467,7 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
     }
 }
 
-static void
-add_libaccount_plugin_if_enabled (void)
-{
-#if ENABLE_LIBACCOUNTS_SSO
-    McdAccountManagerSso *sso_plugin = mcd_account_manager_sso_new ();
-
-    stores = g_list_insert_sorted (stores, sso_plugin, account_storage_cmp);
-#endif
 }
-
-static void
-sort_and_cache_plugins (McdAccountManager *self)
-{
-    const GList *p;
-    McdAccountManagerDefault *default_plugin = NULL;
-
-    if (plugins_cached)
-        return;
-
-    /* insert the default storage plugin into the sorted plugin list */
-    default_plugin = mcd_account_manager_default_new ();
-    stores = g_list_insert_sorted (stores, default_plugin, account_storage_cmp);
-
-    /* now poke the pseudo-plugins into the sorted GList of storage plugins */
-    add_libaccount_plugin_if_enabled ();
-
-    for (p = mcp_list_objects(); p != NULL; p = g_list_next (p))
-    {
-        if (MCP_IS_ACCOUNT_STORAGE (p->data))
-        {
-            McpAccountStorage *plugin = g_object_ref (p->data);
-
-            stores = g_list_insert_sorted (stores, plugin, account_storage_cmp);
-        }
-    }
-
-    for (p = stores; p != NULL; p = g_list_next (p))
-    {
-        McpAccountStorage *plugin = p->data;
-
-        DEBUG ("found plugin %s [%s; priority %d]\n%s",
-               mcp_account_storage_name (plugin),
-               g_type_name (G_TYPE_FROM_INSTANCE (plugin)),
-               mcp_account_storage_priority (plugin),
-               mcp_account_storage_description (plugin));
-        g_signal_connect (plugin, "created", G_CALLBACK (created_cb), self);
-        g_signal_connect (plugin, "altered", G_CALLBACK (altered_cb), self);
-        g_signal_connect (plugin, "toggled", G_CALLBACK (toggled_cb), self);
-        g_signal_connect (plugin, "deleted", G_CALLBACK (deleted_cb), self);
-        g_signal_connect (plugin, "altered-one", G_CALLBACK (altered_one_cb),
-                          self);
-    }
-
-    plugins_cached = TRUE;
-}
-
-
 GQuark
 mcd_account_manager_error_quark (void)
 {
@@ -1921,20 +1845,6 @@ mcd_account_manager_lookup_account_by_path (McdAccountManager *account_manager,
 
     return g_hash_table_lookup (priv->accounts,
         object_path + (sizeof (MC_ACCOUNT_DBUS_OBJECT_BASE) - 1));
-}
-
-/**
- * mcd_account_manager_get_config:
- * @account_manager: the #McdAccountManager.
- *
- * Returns: the #GKeyFile holding the configuration.
- */
-GKeyFile *
-mcd_account_manager_get_config (McdAccountManager *account_manager)
-{
-    g_return_val_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager), NULL);
-
-    return account_manager->priv->plugin_manager->keyfile;
 }
 
 /*

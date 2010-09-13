@@ -21,12 +21,21 @@
  *
  */
 
+#include "plugin-loader.h"
 #include "plugin-account.h"
 
 #include "mission-control-plugins/implementation.h"
 
-#include <glib.h>
 #include <telepathy-glib/util.h>
+
+/* these pseudo-plugins take care of the actual account storage/retrieval */
+#include "mcd-account-manager-default.h"
+#if ENABLE_LIBACCOUNTS_SSO
+#include "mcd-account-manager-sso.h"
+#endif
+
+static GList *stores = NULL;
+static void sort_and_cache_plugins (void);
 
 enum {
   PROP_DBUS_DAEMON = 1,
@@ -36,11 +45,15 @@ struct _McdPluginAccountManagerClass {
     GObjectClass parent;
 };
 
+static void storage_iface_init (McdStorageIface *iface,
+    gpointer unused G_GNUC_UNUSED);
+
 static void plugin_iface_init (McpAccountManagerIface *iface,
     gpointer unused G_GNUC_UNUSED);
 
 G_DEFINE_TYPE_WITH_CODE (McdPluginAccountManager, mcd_plugin_account_manager, \
     G_TYPE_OBJECT,
+    G_IMPLEMENT_INTERFACE (MCD_TYPE_STORAGE, storage_iface_init);
     G_IMPLEMENT_INTERFACE (MCP_TYPE_ACCOUNT_MANAGER, plugin_iface_init))
 
 static void
@@ -247,6 +260,69 @@ unique_name (const McpAccountManager *ma,
   return NULL;
 }
 
+/* sort in descending order of priority (ie higher prio => earlier in list) */
+static gint
+account_storage_cmp (gconstpointer a, gconstpointer b)
+{
+    gint pa = mcp_account_storage_priority (a);
+    gint pb = mcp_account_storage_priority (b);
+
+    if (pa > pb) return -1;
+    if (pa < pb) return 1;
+
+    return 0;
+}
+
+static void
+add_libaccount_plugin_if_enabled (void)
+{
+#if ENABLE_LIBACCOUNTS_SSO
+    McdAccountManagerSso *sso_plugin = mcd_account_manager_sso_new ();
+
+    stores = g_list_insert_sorted (stores, sso_plugin, account_storage_cmp);
+#endif
+}
+
+static void
+sort_and_cache_plugins ()
+{
+  const GList *p;
+  McdAccountManagerDefault *default_plugin = NULL;
+  static gboolean plugins_cached = FALSE;
+
+  /* not guaranteed to have been called, but idempotent: */
+  _mcd_plugin_loader_init ();
+
+  /* insert the default storage plugin into the sorted plugin list */
+  default_plugin = mcd_account_manager_default_new ();
+  stores = g_list_insert_sorted (stores, default_plugin, account_storage_cmp);
+
+  /* now poke the pseudo-plugins into the sorted GList of storage plugins */
+  add_libaccount_plugin_if_enabled ();
+
+  for (p = mcp_list_objects(); p != NULL; p = g_list_next (p))
+    {
+      if (MCP_IS_ACCOUNT_STORAGE (p->data))
+        {
+          McpAccountStorage *plugin = g_object_ref (p->data);
+
+          stores = g_list_insert_sorted (stores, plugin, account_storage_cmp);
+        }
+    }
+
+  for (p = stores; p != NULL; p = g_list_next (p))
+    {
+      McpAccountStorage *plugin = p->data;
+
+      DEBUG ("found plugin %s [%s; priority %d]\n%s",
+          mcp_account_storage_name (plugin),
+          g_type_name (G_TYPE_FROM_INSTANCE (plugin)),
+          mcp_account_storage_priority (plugin),
+          mcp_account_storage_description (plugin));
+    }
+
+    plugins_cached = TRUE;
+}
 
 static void
 plugin_iface_init (McpAccountManagerIface *iface,
