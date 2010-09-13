@@ -45,16 +45,15 @@
 static void
 store_condition (gpointer key, gpointer value, gpointer userdata)
 {
-    McdAccount *account = userdata;
+    McdAccount *account = MCD_ACCOUNT (userdata);
+    McdStorage *storage = _mcd_account_get_storage (account);
+    const gchar *account_name = mcd_account_get_unique_name (account);
     const gchar *name = key, *condition = value;
-    const gchar *unique_name;
     gchar condition_key[256];
-    GKeyFile *keyfile;
 
-    keyfile = _mcd_account_get_keyfile (account);
-    unique_name = mcd_account_get_unique_name (account);
     g_snprintf (condition_key, sizeof (condition_key), "condition-%s", name);
-    g_key_file_set_string (keyfile, unique_name, condition_key, condition);
+    mcd_storage_set_string (storage, account_name, condition_key, condition,
+                            FALSE);
 }
 
 static gboolean
@@ -62,8 +61,8 @@ set_condition (TpSvcDBusProperties *self, const gchar *name,
                const GValue *value, GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
-    const gchar *unique_name;
-    GKeyFile *keyfile;
+    McdStorage *storage = _mcd_account_get_storage (account);
+    const gchar *account_name = mcd_account_get_unique_name (account);
     gchar **keys, **key;
     GHashTable *conditions;
 
@@ -77,31 +76,33 @@ set_condition (TpSvcDBusProperties *self, const gchar *name,
         return FALSE;
     }
 
-    unique_name = mcd_account_get_unique_name (account);
-    conditions = g_value_get_boxed (value);
-
     if (_mcd_account_get_always_on (account))
     {
         g_set_error (error, TP_ERRORS, TP_ERROR_PERMISSION_DENIED,
                      "Account %s conditions cannot be changed",
-                     unique_name);
+                     mcd_account_get_unique_name (account));
         return FALSE;
     }
 
-    keyfile = _mcd_account_get_keyfile (account);
+    conditions = g_value_get_boxed (value);
+
     /* first, delete existing conditions */
-    keys = g_key_file_get_keys (keyfile, unique_name, NULL, NULL);
+    keys = mcd_storage_dup_settings (storage, account_name, NULL);
+
     for (key = keys; *key != NULL; key++)
     {
-	if (strncmp (*key, "condition-", 10) != 0) continue;
-	g_key_file_remove_key (keyfile, unique_name,
-			       *key, NULL);
+        if (strncmp (*key, "condition-", 10) != 0)
+            continue;
+
+        mcd_storage_set_value (storage, account_name, *key, NULL, FALSE);
     }
+
     g_strfreev (keys);
 
     g_hash_table_foreach (conditions, store_condition, account);
 
-    _mcd_account_write_conf (account);
+    mcd_storage_commit (storage, account_name);
+
     return TRUE;
 }
 
@@ -130,24 +131,28 @@ account_conditions_iface_init (McSvcAccountInterfaceConditionsClass *iface,
 
 GHashTable *mcd_account_get_conditions (McdAccount *account)
 {
-    const gchar *unique_name;
-    GKeyFile *keyfile;
     gchar **keys, **key, *condition;
     GHashTable *conditions;
+    McdStorage *storage = _mcd_account_get_storage (account);
+    const gchar *account_name = mcd_account_get_unique_name (account);
 
-    keyfile = _mcd_account_get_keyfile (account);
-    unique_name = mcd_account_get_unique_name (account);
     conditions = g_hash_table_new_full (g_str_hash, g_str_equal,
 					g_free, g_free);
-    keys = g_key_file_get_keys (keyfile, unique_name, NULL, NULL);
+
+    keys = mcd_storage_dup_settings (storage, account_name, NULL);
+
     for (key = keys; *key != NULL; key++)
     {
-	if (strncmp (*key, "condition-", 10) != 0) continue;
-	condition = g_key_file_get_string (keyfile, unique_name, *key, NULL);
+        if (strncmp (*key, "condition-", 10) != 0)
+            continue;
+
+        condition = mcd_storage_dup_string (storage, account_name, *key);
         DEBUG ("Condition: %s = %s", *key, condition);
-	g_hash_table_insert (conditions, g_strdup (*key + 10), condition);
+        g_hash_table_insert (conditions, g_strdup (*key + 10), condition);
     }
+
     g_strfreev (keys);
+
     return conditions;
 }
 
