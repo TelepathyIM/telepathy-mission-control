@@ -1296,6 +1296,9 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
               mcp_account_manager_set_value (am, name, MC_PROTOCOL_KEY, mc_id[1]);
               mcp_account_manager_set_value (am, name, MC_IDENTITY_KEY, name);
 
+              /* force the services value to be synthesised + cached */
+              _get (MCP_ACCOUNT_STORAGE (sso), am, name, SERVICES_KEY);
+
               ag_account_select_service (account, service);
 
               g_signal_connect (account, "enabled",
