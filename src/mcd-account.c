@@ -1318,8 +1318,9 @@ set_automatic_presence (TpSvcDBusProperties *self,
     TpConnectionPresenceType type;
     gboolean changed = FALSE;
     GValueArray *va;
+    const gchar *account_name = mcd_account_get_unique_name (account);
 
-    DEBUG ("called for %s", priv->unique_name);
+    DEBUG ("called for %s", account_name);
 
     if (!G_VALUE_HOLDS (value, TP_STRUCT_TYPE_SIMPLE_PRESENCE))
     {
@@ -1346,45 +1347,55 @@ set_automatic_presence (TpSvcDBusProperties *self,
 
     if (priv->auto_presence_type != type)
     {
-	g_key_file_set_integer (priv->keyfile, priv->unique_name,
-				MC_ACCOUNTS_KEY_AUTO_PRESENCE_TYPE, type);
-	priv->auto_presence_type = type;
-	changed = TRUE;
+        GValue presence = { 0 };
+
+        g_value_init (&presence, G_TYPE_INT);
+        g_value_set_int (&presence, type);
+
+        mcd_storage_set_value (priv->storage, account_name,
+                               MC_ACCOUNTS_KEY_AUTO_PRESENCE_TYPE,
+                               &presence, FALSE);
+        priv->auto_presence_type = type;
+        changed = TRUE;
     }
+
     if (tp_strdiff (priv->auto_presence_status, status))
     {
-	if (status && status[0] != 0)
-	    g_key_file_set_string (priv->keyfile, priv->unique_name,
-				   MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS,
-				   status);
-	else
-	    g_key_file_remove_key (priv->keyfile, priv->unique_name,
-				   MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS,
-				   NULL);
-	g_free (priv->auto_presence_status);
-	priv->auto_presence_status = g_strdup (status);
-	changed = TRUE;
+        const gchar *new_status = NULL;
+
+        if (status != NULL && status[0] != 0)
+            new_status = status;
+
+        mcd_storage_set_string (priv->storage, account_name,
+                                MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS,
+                                new_status, FALSE);
+
+        g_free (priv->auto_presence_status);
+        priv->auto_presence_status = g_strdup (status);
+        changed = TRUE;
     }
+
     if (tp_strdiff (priv->auto_presence_message, message))
     {
-	if (message && message[0] != 0)
-	    g_key_file_set_string (priv->keyfile, priv->unique_name,
-				   MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE,
-				   message);
-	else
-	    g_key_file_remove_key (priv->keyfile, priv->unique_name,
-				   MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE,
-				   NULL);
-	g_free (priv->auto_presence_message);
-	priv->auto_presence_message = g_strdup (message);
-	changed = TRUE;
+        const gchar *new_message = NULL;
+
+        if (!tp_str_empty (message))
+            new_message = message;
+
+        mcd_storage_set_string (priv->storage, account_name,
+                                MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE,
+                                new_message, FALSE);
+
+        g_free (priv->auto_presence_message);
+        priv->auto_presence_message = g_strdup (message);
+        changed = TRUE;
     }
+
 
     if (changed)
     {
-        mcd_account_manager_write_conf_async (priv->account_manager, account,
-                                              NULL, NULL);
-	mcd_account_changed_property (account, name, value);
+        mcd_storage_commit (priv->storage, account_name);
+        mcd_account_changed_property (account, name, value);
     }
 
     return TRUE;
