@@ -547,55 +547,26 @@ typedef struct
 } AccountDeleteData;
 
 static void
-_mcd_account_delete_write_conf_cb (McdAccountManager *account_manager,
-                                   const GError *error,
-                                   gpointer user_data)
-{
-    AccountDeleteData *data = (AccountDeleteData *) user_data;
-
-    if (data->callback != NULL)
-        data->callback (data->account, error, data->user_data);
-
-    g_slice_free (AccountDeleteData, data);
-}
-
-static void
 _mcd_account_delete (McdAccount *account,
                      McdAccountDeleteCb callback,
                      gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
     gchar *data_dir_str;
-    GError *kf_error = NULL;
-    AccountDeleteData *delete_data;
+    GError *error = NULL;
+    const gchar *name = mcd_account_get_unique_name (account);
 
     /* got to turn the account off before removing it, otherwise we can *
      * end up with an orphaned CM holding the account online            */
-    if (!_mcd_account_set_enabled (account, FALSE, FALSE, &kf_error))
+    if (!_mcd_account_set_enabled (account, FALSE, FALSE, &error))
     {
-        g_warning ("could not disable account (%s)", kf_error->message);
-        callback (account, kf_error, user_data);
-        g_error_free (kf_error);
+        g_warning ("could not disable account %s (%s)", name, error->message);
+        callback (account, error, user_data);
+        g_error_free (error);
         return;
     }
 
-    if (!g_key_file_remove_group (priv->keyfile, priv->unique_name,
-                                  &kf_error))
-    {
-        if (kf_error->domain == G_KEY_FILE_ERROR &&
-            kf_error->code == G_KEY_FILE_ERROR_GROUP_NOT_FOUND)
-        {
-            DEBUG ("account not found in key file, doing nothing");
-            g_clear_error (&kf_error);
-        }
-        else
-        {
-            g_warning ("Could not remove group (%s)", kf_error->message);
-            callback (account, kf_error, user_data);
-            g_error_free (kf_error);
-            return;
-        }
-    }
+    mcd_storage_delete_account (priv->storage, name);
 
     data_dir_str = get_account_data_path (priv);
 
@@ -622,15 +593,9 @@ _mcd_account_delete (McdAccount *account,
         g_free (data_dir_str);
     }
 
-    delete_data = g_slice_new0 (AccountDeleteData);
-    delete_data->account = account;
-    delete_data->callback = callback;
-    delete_data->user_data = user_data;
-
-    mcd_account_manager_write_conf_async (priv->account_manager,
-                                          account,
-                                          _mcd_account_delete_write_conf_cb,
-                                          delete_data);
+    mcd_storage_commit (priv->storage, name);
+    if (callback != NULL)
+        callback (account, NULL, user_data);
 }
 
 static void
