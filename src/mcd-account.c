@@ -1034,24 +1034,26 @@ _mcd_account_set_enabled (McdAccount *account,
     if (priv->enabled != enabled)
     {
         GValue value = { 0, };
+        const gchar *name = mcd_account_get_unique_name (account);
 
         if (!enabled)
             mcd_account_request_presence (account,
                                           TP_CONNECTION_PRESENCE_TYPE_OFFLINE,
                                           "offline", NULL);
 
-        g_key_file_set_boolean (priv->keyfile, priv->unique_name,
-                                MC_ACCOUNTS_KEY_ENABLED,
-                                enabled);
         priv->enabled = enabled;
-
-        if (write_out)
-            mcd_account_manager_write_conf_async (priv->account_manager,
-                                                  account, NULL, NULL);
 
         g_value_init (&value, G_TYPE_BOOLEAN);
         g_value_set_boolean (&value, enabled);
+
+        mcd_storage_set_value (priv->storage, name,
+                               MC_ACCOUNTS_KEY_ENABLED, &value, FALSE);
+
+        if (write_out)
+            mcd_storage_commit (priv->storage, name);
+
         mcd_account_changed_property (account, "Enabled", &value);
+
         g_value_unset (&value);
 
         if (enabled)
