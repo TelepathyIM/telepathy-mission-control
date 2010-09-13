@@ -1186,76 +1186,13 @@ properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 static gboolean
 write_conf (gpointer userdata)
 {
-    McdPluginAccountManager *pa = userdata;
-    GKeyFile *keyfile = pa->keyfile;
-    GStrv groups;
-    gchar *group;
-    gsize i = 0;
-    GList *store;
+    McdStorage *storage = MCD_STORAGE (userdata);
 
     DEBUG ("called");
     g_source_remove (write_conf_id);
     write_conf_id = 0;
 
-    groups = g_key_file_get_groups (keyfile, NULL);
-
-    if (groups == NULL)
-        return TRUE;
-
-    /* poke the account settings into the local cache of the relevant  *
-     * storage plugins, highest priority plugins get first dibs:       *
-     * Note that the MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_DEFAULT priority  *
-     * plugin is the default keyfile plugin and accepts all settings,  *
-     * so no plugin of a lower priority will be asked to save anything */
-    for (group = groups[i]; group != NULL; group = groups[++i])
-    {
-        gsize n_keys;
-        gsize j = 0;
-        GStrv keys = g_key_file_get_keys (keyfile, group, &n_keys, NULL);
-
-        if (keys == NULL)
-            n_keys = 0;
-
-        for (j = 0; j < n_keys; j++)
-        {
-            gboolean done = FALSE;
-            gchar *set = keys[j];
-            gchar *val = g_key_file_get_string (keyfile, group, set, NULL);
-
-            for (store = stores; store != NULL; store = g_list_next (store))
-            {
-                McpAccountStorage *plugin = store->data;
-                McpAccountManager *ma = MCP_ACCOUNT_MANAGER (pa);
-                const gchar *pn = mcp_account_storage_name (plugin);
-
-                if (done)
-                {
-                    DEBUG ("MCP:%s -> delete %s.%s", pn, group, set);
-                    mcp_account_storage_delete (plugin, ma, group, set);
-                }
-                else
-                {
-                    done = mcp_account_storage_set (plugin, ma, group, set, val);
-                    DEBUG ("MCP:%s -> %s %s.%s",
-                           pn, done ? "store" : "ignore", group, set);
-                }
-            }
-        }
-
-        g_strfreev (keys);
-    }
-
-    g_strfreev (groups);
-
-    for (store = stores; store != NULL; store = g_list_next (store))
-    {
-        McpAccountManager *ma = MCP_ACCOUNT_MANAGER (pa);
-        McpAccountStorage *plugin = store->data;
-        const gchar *pname = mcp_account_storage_name (plugin);
-
-        DEBUG ("flushing plugin %s to long term storage", pname);
-        mcp_account_storage_commit (plugin, ma);
-    }
+    mcd_storage_commit (storage, NULL);
 
     return TRUE;
 }
@@ -1683,66 +1620,31 @@ mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
                                       McdAccountManagerWriteConfCb callback,
                                       gpointer user_data)
 {
-    GList *store;
-    GKeyFile *keyfile;
-    McpAccountManager *ma;
+    McdStorage *storage = NULL;
+    const gchar *account_name = NULL;
 
     g_return_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager));
 
-    keyfile = account_manager->priv->plugin_manager->keyfile;
-    ma = MCP_ACCOUNT_MANAGER (account_manager->priv->plugin_manager);
+    storage = MCD_STORAGE (account_manager->priv->plugin_manager);
 
     if (account != NULL)
     {
-        const gchar *account_name = mcd_account_get_unique_name (account);
+        account_name = mcd_account_get_unique_name (account);
 
         DEBUG ("updating %s", account_name);
-        update_one_account (account_manager, ma, account, account_name,
-                            keyfile);
+        mcd_storage_commit (storage, account_name);
     }
     else
     {
         GStrv groups;
         gsize n_accounts = 0;
-        gsize i = 0;
-        gchar *group;
 
-        groups = g_key_file_get_groups (keyfile, &n_accounts);
-
+        groups = mcd_storage_dup_accounts (storage, &n_accounts);
         DEBUG ("updating all %" G_GSIZE_FORMAT " accounts)", n_accounts);
 
-        for (group = groups[i]; group != NULL; group = groups[++i])
-        {
-            McdAccount *group_account =
-                mcd_account_manager_lookup_account (account_manager,
-                                                    group);
-
-            /* group_account might be %NULL, but update_one_account tolerates
-             * that */
-            update_one_account (account_manager, ma, group_account, group,
-                                keyfile);
-        }
+        mcd_storage_commit (storage, NULL);
 
         g_strfreev (groups);
-    }
-
-    for (store = stores; store != NULL; store = g_list_next (store))
-    {
-        McpAccountStorage *plugin = store->data;
-        const gchar *pname = mcp_account_storage_name (plugin);
-
-        DEBUG ("flushing plugin %s to long term storage", pname);
-
-        if (account == NULL)
-        {
-            mcp_account_storage_commit (plugin, ma);
-        }
-        else
-        {
-            const gchar *account_name = mcd_account_get_unique_name (account);
-
-            mcp_account_storage_commit_one (plugin, ma, account_name);
-        }
     }
 
     if (callback != NULL)

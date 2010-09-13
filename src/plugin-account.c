@@ -409,6 +409,40 @@ _storage_dup_string (McdStorage *storage,
 }
 
 static gboolean
+static void
+update_storage (McdPluginAccountManager *self,
+    const gchar *account,
+    const gchar *key,
+    const gchar *val)
+{
+  GList *store;
+  gboolean done = FALSE;
+  McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+
+  /* we're deleting, which is unconditional, no need to check if anyone *
+   * claims this setting for themselves                                 */
+  if (val == NULL)
+    done = TRUE;
+
+  for (store = stores; store != NULL; store = g_list_next (store))
+    {
+      McpAccountStorage *plugin = store->data;
+      const gchar *pn = mcp_account_storage_name (plugin);
+
+      if (done)
+        {
+          DEBUG ("MCP:%s -> delete %s.%s", pn, account, key);
+          mcp_account_storage_delete (plugin, ma, account, key);
+        }
+      else
+        {
+          done = mcp_account_storage_set (plugin, ma, account, key, val);
+          DEBUG ("MCP:%s -> %s %s.%s",
+              pn, done ? "store" : "ignore", account, key);
+        }
+    }
+}
+
 _storage_set_string (McdStorage *storage,
     const gchar *account,
     const gchar *key,
@@ -456,6 +490,30 @@ _storage_delete_account (McdStorage *storage, const gchar *account)
       McpAccountStorage *plugin = store->data;
 
       mcp_account_storage_delete (plugin, ma, account, NULL);
+    }
+}
+
+static void
+_storage_commit (McdStorage *self, const gchar *account)
+{
+  GList *store;
+  McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+
+  for (store = stores; store != NULL; store = g_list_next (store))
+    {
+      McpAccountStorage *plugin = store->data;
+      const gchar *pname = mcp_account_storage_name (plugin);
+
+      if (account != NULL)
+        {
+          DEBUG ("flushing plugin %s %s to long term storage", pname, account);
+          mcp_account_storage_commit_one (plugin, ma, account);
+        }
+      else
+        {
+          DEBUG ("flushing plugin %s to long term storage", pname);
+          mcp_account_storage_commit (plugin, ma);
+        }
     }
 }
 
