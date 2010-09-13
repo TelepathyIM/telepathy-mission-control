@@ -326,7 +326,7 @@ async_created_manager_cb (McdManager *cm, const GError *error, gpointer data)
 }
 
 /* account created by an McpAccountStorage plugin after the initial setup   *
- * since the plugin does not have our GKeyFile, we need to poke the plugin  *
+ * since the plugin does not have our cache, we need to poke the plugin     *
  * to fetch the named account explicitly at this point (ie it's a read, not *
  * not a write, from the plugin's POV:                                      */
 static void
@@ -347,8 +347,7 @@ created_cb (GObject *storage, const gchar *name, gpointer data)
     lad->storage = plugin;
     lad->account_lock = 1; /* will be released at the end of this function */
 
-    /* actually fetch the data into our GKeyFile from the plugin: */
-    DEBUG ("-> mcp_account_storage_get");
+    /* actually fetch the data into our cache from the plugin: */
     if (mcp_account_storage_get (plugin, MCP_ACCOUNT_MANAGER (pa), name, NULL))
     {
         account = mclass->account_new (am, name);
