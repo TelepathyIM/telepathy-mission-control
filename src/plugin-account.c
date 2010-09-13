@@ -378,6 +378,23 @@ _storage_load (McdStorage *self)
       store = g_list_previous (store);
     }
 }
+static void
+_storage_delete_account (McdStorage *storage, const gchar *account)
+{
+  GList *store;
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
+  McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+
+  g_key_file_remove_group (self->keyfile, account, NULL);
+
+  for (store = stores; store != NULL; store = g_list_next (store))
+    {
+      McpAccountStorage *plugin = store->data;
+
+      mcp_account_storage_delete (plugin, ma, account, NULL);
+    }
+}
+
 void
 _mcd_plugin_account_manager_ready (McdPluginAccountManager *self)
 {

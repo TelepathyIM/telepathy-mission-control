@@ -430,15 +430,14 @@ _mcd_account_delete_cb (McdAccount *account, const GError *error, gpointer data)
 static void
 deleted_cb (GObject *plugin, const gchar *name, gpointer data)
 {
-    GList *store = NULL;
     McpAccountStorage *storage = MCP_ACCOUNT_STORAGE (plugin);
     McdAccountManager *manager = MCD_ACCOUNT_MANAGER (data);
     McdAccount *account = NULL;
-    McdPluginAccountManager *pa = manager->priv->plugin_manager;
 
     account = g_hash_table_lookup (manager->priv->accounts, name);
 
-    DEBUG ("%s -> %p", name, account);
+    DEBUG ("%s reported deletion of %s (%p)",
+           mcp_account_storage_name (storage), name, account);
 
     if (account != NULL)
     {
@@ -446,27 +445,8 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
         g_hash_table_remove (manager->priv->accounts, name);
         mcd_account_delete (account, _mcd_account_delete_cb, NULL);
     }
-
-    /* NOTE: we have to do this here, the mcd_account deletion just *
-     * steals a copy of your internal storage and erases the entry  *
-     * from underneath us, so we don't even know we had the account *
-     * after mcd_account_delete: a rumsfeldian unknown unknown      */
-    /* PS: which will be fixed, but this will do for now            */
-    for (store = stores; store != NULL; store = g_list_next (store))
-    {
-        McpAccountStorage *p = store->data;
-
-        DEBUG ("MCP:%s -> remove %s", mcp_account_storage_name (p), name);
-
-        /* don't call the plugin who informed us of deletion, it should  *
-         * already have purged its own store and we don't want to risk   *
-         * some sort of crazy keep-on-deleting infinite loop shenanigans */
-        if (p != storage)
-            mcp_account_storage_delete (p, MCP_ACCOUNT_MANAGER (pa), name, NULL);
-    }
 }
 
-}
 GQuark
 mcd_account_manager_error_quark (void)
 {
@@ -639,9 +619,8 @@ static void
 on_account_removed (McdAccount *account, McdAccountManager *account_manager)
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
-    McdPluginAccountManager *pa = priv->plugin_manager;
+    McdStorage *storage = MCD_STORAGE (priv->plugin_manager);
     const gchar *name, *object_path;
-    GList *store;
 
     object_path = mcd_account_get_object_path (account);
     tp_svc_account_manager_emit_account_removed (account_manager, object_path);
@@ -649,30 +628,29 @@ on_account_removed (McdAccount *account, McdAccountManager *account_manager)
     name = mcd_account_get_unique_name (account);
     g_hash_table_remove (priv->accounts, name);
 
-    for (store = stores; store != NULL; store = g_list_next (store))
-    {
-        McpAccountStorage *plugin = store->data;
-
-        DEBUG ("MCP:%s -> remove %s", mcp_account_storage_name (plugin), name);
-        mcp_account_storage_delete (plugin, MCP_ACCOUNT_MANAGER (pa), name, NULL);
-    }
-
+    mcd_storage_delete_account (storage, name);
     mcd_account_manager_write_conf_async (account_manager, account, NULL,
                                           NULL);
+}
+
+static inline void
+disconnect_signal (gpointer instance, gpointer func)
+{
+    g_signal_handlers_disconnect_matched (instance,
+                                          G_SIGNAL_MATCH_FUNC,
+                                          0, 0, NULL, func, NULL);
 }
 
 static void
 unref_account (gpointer data)
 {
     McdAccount *account = MCD_ACCOUNT (data);
-    McdAccountManager *account_manager;
 
     DEBUG ("called for %s", mcd_account_get_unique_name (account));
-    account_manager = mcd_account_get_account_manager (account);
-    g_signal_handlers_disconnect_by_func (account, on_account_validity_changed,
-                                          account_manager);
-    g_signal_handlers_disconnect_by_func (account, on_account_removed,
-                                          account_manager);
+
+    disconnect_signal (account, on_account_validity_changed);
+    disconnect_signal (account, on_account_removed);
+
     g_object_unref (account);
 }
 
