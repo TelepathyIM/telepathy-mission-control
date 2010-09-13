@@ -3431,6 +3431,7 @@ _mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
 			GError **error)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
+    const gchar *account_name = mcd_account_get_unique_name (account);
     gchar *data_dir, *filename;
 
     DEBUG ("called");
@@ -3458,25 +3459,35 @@ _mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
     }
     g_free (filename);
 
-    if (mime_type)
-	g_key_file_set_string (priv->keyfile, priv->unique_name,
-			       MC_ACCOUNTS_KEY_AVATAR_MIME, mime_type);
+    if (mime_type != NULL)
+        mcd_storage_set_string (priv->storage,
+                                account_name,
+                                MC_ACCOUNTS_KEY_AVATAR_MIME,
+                                mime_type, FALSE);
 
     if (token)
     {
         gchar *prev_token;
 
         prev_token = _mcd_account_get_avatar_token (account);
-        g_key_file_set_string (priv->keyfile, priv->unique_name,
-                               MC_ACCOUNTS_KEY_AVATAR_TOKEN, token);
+
+        mcd_storage_set_string (priv->storage,
+                                account_name,
+                                MC_ACCOUNTS_KEY_AVATAR_TOKEN,
+                                token, FALSE);
+
         if (!prev_token || strcmp (prev_token, token) != 0)
             tp_svc_account_interface_avatar_emit_avatar_changed (account);
+
         g_free (prev_token);
     }
     else
     {
-        g_key_file_remove_key (priv->keyfile, priv->unique_name,
-                               MC_ACCOUNTS_KEY_AVATAR_TOKEN, NULL);
+        mcd_storage_set_value (priv->storage,
+                               account_name,
+                               MC_ACCOUNTS_KEY_AVATAR_TOKEN,
+                               NULL, FALSE);
+
         /* this is a no-op if the connection doesn't support avatars */
         if (priv->connection != NULL)
         {
@@ -3484,8 +3495,8 @@ _mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
         }
     }
 
-    mcd_account_manager_write_conf_async (priv->account_manager, account, NULL,
-                                          NULL);
+    mcd_storage_commit (priv->storage, account_name);
+
     return TRUE;
 }
 
@@ -3494,11 +3505,12 @@ _mcd_account_get_avatar (McdAccount *account, GArray **avatar,
                          gchar **mime_type)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
+    const gchar *account_name = mcd_account_get_unique_name (account);
     gchar *filename;
 
     if (mime_type != NULL)
-        *mime_type = g_key_file_get_string (priv->keyfile, priv->unique_name,
-                                            MC_ACCOUNTS_KEY_AVATAR_MIME, NULL);
+        *mime_type =  mcd_storage_dup_string (priv->storage, account_name,
+                                              MC_ACCOUNTS_KEY_AVATAR_MIME);
 
     if (avatar == NULL)
         return;
