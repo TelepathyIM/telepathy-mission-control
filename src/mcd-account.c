@@ -3370,21 +3370,21 @@ _mcd_account_set_normalized_name (McdAccount *account, const gchar *name)
 {
     McdAccountPrivate *priv = account->priv;
     GValue value = { 0, };
+    const gchar *account_name = mcd_account_get_unique_name (account);
 
     DEBUG ("called (%s)", name);
-    if (name)
-	g_key_file_set_string (priv->keyfile, priv->unique_name,
-			       MC_ACCOUNTS_KEY_NORMALIZED_NAME, name);
-    else
-	g_key_file_remove_key (priv->keyfile, priv->unique_name,
-			       MC_ACCOUNTS_KEY_NORMALIZED_NAME, NULL);
-
-    mcd_account_manager_write_conf_async (priv->account_manager, account, NULL,
-                                          NULL);
 
     g_value_init (&value, G_TYPE_STRING);
     g_value_set_static_string (&value, name);
-    mcd_account_changed_property (account, "NormalizedName", &value);
+
+    mcd_storage_set_value (priv->storage,
+                           account_name,
+                           MC_ACCOUNTS_KEY_NORMALIZED_NAME,
+                           &value, FALSE);
+    mcd_storage_commit (priv->storage, account_name);
+    mcd_account_changed_property (account, MC_ACCOUNTS_KEY_NORMALIZED_NAME,
+                                  &value);
+
     g_value_unset (&value);
 }
 
@@ -3392,9 +3392,11 @@ gchar *
 mcd_account_get_normalized_name (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
+    const gchar *account_name = mcd_account_get_unique_name (account);
 
-    return g_key_file_get_string (priv->keyfile, priv->unique_name,
-				  MC_ACCOUNTS_KEY_NORMALIZED_NAME, NULL);
+    return mcd_storage_dup_string (priv->storage,
+                                   account_name,
+                                   MC_ACCOUNTS_KEY_NORMALIZED_NAME);
 }
 
 void
