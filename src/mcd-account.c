@@ -927,12 +927,22 @@ mcd_account_get_string_val (McdAccount *account, const gchar *key,
 			    GValue *value)
 {
     McdAccountPrivate *priv = account->priv;
-    gchar *string;
+    const gchar *name = mcd_account_get_unique_name (account);
+    GValue *fetched = NULL;
 
-    string = g_key_file_get_string (priv->keyfile, priv->unique_name,
-				    key, NULL);
+    fetched =
+      mcd_storage_dup_value (priv->storage, name, key, G_TYPE_STRING, NULL);
     g_value_init (value, G_TYPE_STRING);
-    g_value_take_string (value, string);
+
+    if (fetched != NULL)
+    {
+        g_value_copy (fetched, value);
+        tp_g_value_slice_free (fetched);
+    }
+    else
+    {
+        g_value_set_static_string (value, NULL);
+    }
 }
 
 static gboolean
