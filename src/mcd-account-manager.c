@@ -1666,29 +1666,9 @@ _mcd_account_manager_store_account_connections (McdAccountManager *manager)
     fclose (file);
 }
 
-McpAccountStorage *
-mcd_account_manager_get_storage_plugin (McdAccountManager *account_manager,
-    McdAccount *account)
+McdStorage *
+mcd_account_manager_get_storage (McdAccountManager *account_manager)
 {
-  GList *store;
-  const gchar *account_name = mcd_account_get_unique_name (account);
-  McpAccountManager *ma = MCP_ACCOUNT_MANAGER (
-      account_manager->priv->plugin_manager);
-
-  for (store = stores; store != NULL; store = g_list_next (store))
-    {
-      McpAccountStorage *plugin = store->data;
-      GList *stored = mcp_account_storage_list (plugin, ma);
-      GList *iter;
-
-      for (iter = stored; iter != NULL; iter = g_list_next (iter))
-        {
-          gchar *name = iter->data;
-
-          if (g_strcmp0 (name, account_name) == 0)
-            return plugin;
-        }
-    }
-
-  return NULL;
+    return MCD_STORAGE (account_manager->priv->plugin_manager);
 }
+
