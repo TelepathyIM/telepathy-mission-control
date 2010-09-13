@@ -409,7 +409,7 @@ _set (const McpAccountStorage *self,
   if (mcp_account_manager_parameter_is_secret (am, account, key))
     g_key_file_set_value (amd->secrets, account, key, val);
   else
-    g_key_file_set_value (amd->keyfile, account, key, val);
+    g_key_file_set_string (amd->keyfile, account, key, val);
 
   /* if we removed the account before, it now exists again, so... */
   g_hash_table_remove (amd->removed_accounts, account);
@@ -418,7 +418,7 @@ _set (const McpAccountStorage *self,
   g_key_file_remove_key (amd->removed, account, key, NULL);
 #else
 
-  g_key_file_set_value (amd->keyfile, account, key, val);
+  g_key_file_set_string (amd->keyfile, account, key, val);
 
 #endif
 
@@ -443,9 +443,9 @@ _get (const McpAccountStorage *self,
 
       /* fall back to public source if secret was not in keyring */
       if (v == NULL)
-        v = g_key_file_get_value (amd->keyfile, account, key, NULL);
+        v = g_key_file_get_string (amd->keyfile, account, key, NULL);
 #else
-      v = g_key_file_get_value (amd->keyfile, account, key, NULL);
+      v = g_key_file_get_string (amd->keyfile, account, key, NULL);
 #endif
 
       if (v == NULL)
@@ -465,7 +465,7 @@ _get (const McpAccountStorage *self,
 
       for (i = 0; i < n; i++)
         {
-          gchar *v = g_key_file_get_value (amd->keyfile, account, keys[i], NULL);
+          gchar *v = g_key_file_get_string (amd->keyfile, account, keys[i], NULL);
 
           if (v != NULL)
             mcp_account_manager_set_value (am, account, keys[i], v);
