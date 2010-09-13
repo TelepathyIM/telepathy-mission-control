@@ -1543,68 +1543,6 @@ mcd_account_manager_get_dbus_daemon (McdAccountManager *account_manager)
  * with the appropriate error.
  */
 
-/*
- * update_one_account:
- * @account_manager:
- * @ma:
- * @account: (allow-none): the #McdAccount if it exists, or %NULL
- * @account_name:
- * @keyfile:
- */
-static void
-update_one_account (McdAccountManager *account_manager,
-                    McpAccountManager *ma,
-                    McdAccount *account,
-                    const gchar *account_name,
-                    GKeyFile *keyfile)
-{
-    gsize n_keys = 0;
-    GStrv keys = g_key_file_get_keys (keyfile, account_name, &n_keys, NULL);
-    gsize j = 0;
-
-    if (keys == NULL)
-        n_keys = 0;
-
-    for (j = 0; j < n_keys; j++)
-    {
-        gboolean done = FALSE;
-        gchar *set = keys[j];
-        gchar *val = g_key_file_get_value (keyfile, account_name, set, NULL);
-        GList *store;
-
-        /* the param- prefix gets whacked on in the layer above us:     *
-         * mcd-account et al don't know it exists so don't pass it back */
-        if (account != NULL && g_str_has_prefix (set, PARAM_PREFIX))
-        {
-            const gchar *p = set + strlen (PARAM_PREFIX);
-
-            if (mcd_account_parameter_is_secret (account, p))
-                mcp_account_manager_parameter_make_secret (ma, account_name,
-                                                           set);
-        }
-
-        for (store = stores; store != NULL; store = g_list_next (store))
-        {
-            McpAccountStorage *plugin = store->data;
-            const gchar *pname = mcp_account_storage_name (plugin);
-
-            if (done)
-            {
-                DEBUG ("MCP:%s -> delete %s.%s", pname, account_name, set);
-                mcp_account_storage_delete (plugin, ma, account_name, set);
-            }
-            else
-            {
-                done = mcp_account_storage_set (plugin, ma, account_name, set, val);
-                DEBUG ("MCP:%s -> %s %s.%s",
-                       pname, done ? "store" : "ignore", account_name, set);
-            }
-        }
-    }
-
-    g_strfreev (keys);
-}
-
 /**
  * mcd_account_manager_write_conf_async:
  * @account_manager: the #McdAccountManager
