@@ -4144,17 +4144,19 @@ _mcd_account_set_has_been_online (McdAccount *account)
     if (!account->priv->has_been_online)
     {
         GValue value = { 0 };
-
-        g_key_file_set_boolean (account->priv->keyfile,
-                                account->priv->unique_name,
-                                MC_ACCOUNTS_KEY_HAS_BEEN_ONLINE, TRUE);
-        account->priv->has_been_online = TRUE;
-        mcd_account_manager_write_conf_async (account->priv->account_manager,
-                                              account, NULL, NULL);
+        const gchar *account_name = mcd_account_get_unique_name (account);
 
         g_value_init (&value, G_TYPE_BOOLEAN);
         g_value_set_boolean (&value, TRUE);
-        mcd_account_changed_property (account, "HasBeenOnline", &value);
+
+        mcd_storage_set_value (account->priv->storage,
+                               account_name,
+                               MC_ACCOUNTS_KEY_HAS_BEEN_ONLINE,
+                               &value, FALSE);
+        account->priv->has_been_online = TRUE;
+        mcd_storage_commit (account->priv->storage, account_name);
+        mcd_account_changed_property (account, MC_ACCOUNTS_KEY_HAS_BEEN_ONLINE,
+                                      &value);
         g_value_unset (&value);
     }
 }
