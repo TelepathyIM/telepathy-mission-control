@@ -1456,13 +1456,14 @@ set_connect_automatically (TpSvcDBusProperties *self,
 
     if (priv->connect_automatically != connect_automatically)
     {
-	g_key_file_set_boolean (priv->keyfile, priv->unique_name,
-				MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY,
-			       	connect_automatically);
-	priv->connect_automatically = connect_automatically;
-        mcd_account_manager_write_conf_async (priv->account_manager, account,
-                                              NULL, NULL);
-	mcd_account_changed_property (account, name, value);
+        const gchar *account_name = mcd_account_get_unique_name (account);
+        mcd_storage_set_value (priv->storage, account_name,
+                               MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY,
+                               value, FALSE);
+
+        priv->connect_automatically = connect_automatically;
+        mcd_storage_commit (priv->storage, account_name);
+        mcd_account_changed_property (account, name, value);
 
         if (connect_automatically)
         {
