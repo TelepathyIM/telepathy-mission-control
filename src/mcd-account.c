@@ -2490,14 +2490,14 @@ update_parameters_dup_params_cb (McdAccount *account, GHashTable *params,
     McdAccountPrivate *priv = account->priv;
     UpdateParametersData *data = (UpdateParametersData *) user_data;
     GValue value = { 0 };
+    const gchar *account_name = mcd_account_get_unique_name (account);
 
     g_value_init (&value, TP_HASH_TYPE_STRING_VARIANT_MAP);
     g_value_take_boxed (&value, params);
     mcd_account_changed_property (account, "Parameters", &value);
     g_value_unset (&value);
 
-    mcd_account_manager_write_conf_async (priv->account_manager, account, NULL,
-                                          NULL);
+    mcd_storage_commit (priv->storage, account_name);
 
     g_ptr_array_add (data->not_yet, NULL);
 
