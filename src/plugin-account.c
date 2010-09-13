@@ -616,6 +616,123 @@ _storage_set_string (McdStorage *storage,
   return updated;
 }
 
+static gboolean
+_storage_set_value (McdStorage *storage,
+    const gchar *name,
+    const gchar *key,
+    const GValue *value,
+    gboolean secret)
+{
+  if (value == NULL)
+    {
+      return _storage_set_string (storage, name, key, NULL, secret);
+    }
+  else
+    {
+      McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
+      gboolean updated = FALSE;
+      gchar dbuf[G_ASCII_DTOSTR_BUF_SIZE] = { 0 };
+      gchar *buf = NULL;
+      const gchar *cbuf = NULL;
+      gchar *old = g_key_file_get_value (self->keyfile, name, key, NULL);
+
+      switch (G_VALUE_TYPE (value))
+        {
+          case G_TYPE_STRING:
+            cbuf = g_value_get_string (value);
+            break;
+
+          case G_TYPE_UINT:
+            buf = g_strdup_printf ("%u", g_value_get_uint (value));
+            break;
+
+          case G_TYPE_INT:
+            buf = g_strdup_printf ("%d", g_value_get_int (value));
+            break;
+
+          case G_TYPE_BOOLEAN:
+            cbuf = g_value_get_boolean (value) ? "true" : "false";
+            break;
+
+          case G_TYPE_UCHAR:
+            buf = g_strdup_printf ("%u", g_value_get_uchar (value));
+            break;
+
+          case G_TYPE_UINT64:
+            buf = g_strdup_printf ("%" G_GUINT64_FORMAT,
+                                   g_value_get_uint64 (value));
+            break;
+
+          case G_TYPE_INT64:
+            buf = g_strdup_printf ("%" G_GINT64_FORMAT,
+                                   g_value_get_int64 (value));
+            break;
+
+          case G_TYPE_DOUBLE:
+            cbuf = g_ascii_dtostr (dbuf, sizeof (dbuf),
+                g_value_get_double (value));
+            break;
+
+          default:
+            if (G_VALUE_HOLDS (value, G_TYPE_STRV))
+              {
+                gchar **strings = g_value_get_boxed (value);
+                gchar *new = NULL;
+
+                g_key_file_set_string_list (self->keyfile, name, key,
+                    (const gchar **)strings,
+                    g_strv_length (strings));
+
+                new = g_key_file_get_value (self->keyfile, name, key, NULL);
+
+                if (tp_strdiff (old, new))
+                  {
+                    update_storage (self, name, key, new);
+                    updated = TRUE;
+                  }
+
+                g_free (new);
+              }
+            else if (G_VALUE_HOLDS (value, DBUS_TYPE_G_OBJECT_PATH))
+              {
+                cbuf = g_value_get_boxed (value);
+              }
+            else
+              {
+                g_warning ("Unexpected param type %s",
+                    G_VALUE_TYPE_NAME (value));
+                return FALSE;
+              }
+        }
+
+      if (cbuf == NULL)
+        cbuf = buf;
+
+      if (cbuf != NULL)
+        {
+          if (tp_strdiff (old, cbuf))
+            {
+              g_key_file_set_value (self->keyfile, name, key, cbuf);
+
+              if (secret)
+                {
+                  McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+
+                  mcp_account_manager_parameter_make_secret (ma, name, key);
+                }
+
+              update_storage (self, name, key, cbuf);
+              updated = TRUE;
+            }
+        }
+
+      g_free (buf);
+      g_free (old);
+
+      return updated;
+    }
+}
+
 static void
 _storage_delete_account (McdStorage *storage, const gchar *account)
 {
