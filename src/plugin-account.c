@@ -418,6 +418,117 @@ _storage_has_value (McdStorage *storage,
   return g_key_file_has_key (self->keyfile, account, key, NULL);
 }
 
+static GValue *
+_storage_dup_value (McdStorage *storage,
+    const gchar *account,
+    const gchar *key,
+    GType type,
+    GError **error)
+{
+  GValue *value = NULL;
+  gchar *v_string = NULL;
+  gint64 v_int = 0;
+  guint64 v_uint = 0;
+  gboolean v_bool = FALSE;
+  double v_double = 0.0;
+  GKeyFile *keyfile = MCD_PLUGIN_ACCOUNT_MANAGER (storage)->keyfile;
+
+  switch (type)
+    {
+      case G_TYPE_STRING:
+        v_string = g_key_file_get_value (keyfile, account, key, error);
+        value = tp_g_value_slice_new_take_string (v_string);
+        break;
+
+      case G_TYPE_INT:
+        v_int = g_key_file_get_integer (keyfile, account, key, error);
+        value = tp_g_value_slice_new_int (v_int);
+        break;
+
+      case G_TYPE_INT64:
+        v_int = tp_g_key_file_get_int64 (keyfile, account, key, error);
+        value = tp_g_value_slice_new_int64 (v_int);
+        break;
+
+      case G_TYPE_UINT:
+        v_uint = tp_g_key_file_get_uint64 (keyfile, account, key, error);
+
+        if (v_uint > 0xFFFFFFFFU)
+          g_set_error (error, MCD_ACCOUNT_ERROR,
+              MCD_ACCOUNT_ERROR_GET_PARAMETER,
+              "Integer is out of range");
+        else
+          value = tp_g_value_slice_new_uint (v_uint);
+        break;
+
+    case G_TYPE_UCHAR:
+        v_int = g_key_file_get_integer (keyfile, account, key, error);
+
+        if (v_int < 0 || v_int > 0xFF)
+          {
+            g_set_error (error, MCD_ACCOUNT_ERROR,
+                MCD_ACCOUNT_ERROR_GET_PARAMETER,
+                "Integer is out of range");
+          }
+        else
+          {
+            value = tp_g_value_slice_new (G_TYPE_UCHAR);
+            g_value_set_uchar (value, v_int);
+          }
+        break;
+
+      case G_TYPE_UINT64:
+        v_uint = tp_g_key_file_get_uint64 (keyfile, account, key, error);
+        value = tp_g_value_slice_new_uint64 (v_uint);
+        break;
+
+      case G_TYPE_BOOLEAN:
+        v_bool = g_key_file_get_boolean (keyfile, account, key, NULL);
+        value = tp_g_value_slice_new_boolean (v_bool);
+        break;
+
+      case G_TYPE_DOUBLE:
+        v_double = g_key_file_get_double (keyfile, account, key, NULL);
+        value = tp_g_value_slice_new_double (v_double);
+        break;
+
+      default:
+        if (type == G_TYPE_STRV)
+          {
+            gchar **v =
+              g_key_file_get_string_list (keyfile, account, key, NULL, error);
+
+            value = tp_g_value_slice_new_take_boxed (G_TYPE_STRV, v);
+          }
+        else if (type == DBUS_TYPE_G_OBJECT_PATH)
+          {
+            v_string = g_key_file_get_value (keyfile, account, key, error);
+
+            if (!tp_dbus_check_valid_object_path (v_string, NULL))
+              {
+                g_set_error (error, MCD_ACCOUNT_ERROR,
+                    MCD_ACCOUNT_ERROR_GET_PARAMETER,
+                    "Invalid object path %s", v_string);
+                g_free (v_string);
+              }
+            else
+              {
+                value = tp_g_value_slice_new_take_object_path (v_string);
+              }
+          }
+        else
+          {
+            g_warning ("%s: cannot get property %s, unknown type %s",
+                G_STRFUNC, key, g_type_name (type));
+          }
+    }
+
+  if (value != NULL)
+    g_clear_error (error);
+
+  return value;
+}
+
 static void
 update_storage (McdPluginAccountManager *self,
     const gchar *account,
