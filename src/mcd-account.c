@@ -26,6 +26,7 @@
 
 #include "config.h"
 #include "mcd-account.h"
+#include "mcd-storage-priv.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -120,7 +121,10 @@ struct _McdAccountPrivate
     TpConnection *tp_connection;
     McdConnection *connection;
     McdManager *manager;
-    McdAccountManager *account_manager;
+
+    McdStorage *storage;
+    TpDBusDaemon *dbus_daemon;
+
     McdTransport *transport;
     McdAccountConnectionContext *connection_context;
     GKeyFile *keyfile;		/* configuration file */
@@ -181,7 +185,7 @@ enum
 {
     PROP_0,
     PROP_DBUS_DAEMON,
-    PROP_ACCOUNT_MANAGER,
+    PROP_STORAGE,
     PROP_NAME,
     PROP_ALWAYS_ON,
 };
@@ -2825,14 +2829,13 @@ register_dbus_service (McdAccount *self,
     }
 
     g_assert (MCD_IS_ACCOUNT (self));
-    /* these are invariants - the account manager is set at construct-time
+    /* these are invariants - the storage is set at construct-time
      * and the object path is set in mcd_account_setup, both of which are
      * run before this callback can possibly be invoked */
-    g_assert (self->priv->account_manager != NULL);
+    g_assert (self->priv->storage != NULL);
     g_assert (self->priv->object_path != NULL);
 
-    dbus_daemon = mcd_account_manager_get_dbus_daemon (
-        self->priv->account_manager);
+    dbus_daemon = self->priv->dbus_daemon;
     g_return_if_fail (dbus_daemon != NULL);
 
     dbus_connection = TP_PROXY (dbus_daemon)->dbus_connection;
@@ -2847,55 +2850,46 @@ static gboolean
 mcd_account_setup (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
-
-    priv->keyfile = mcd_account_manager_get_config (priv->account_manager);
-    if (!priv->keyfile)
-    {
-        g_error ("Could not find internal data");
-        goto broken_account;
-    }
+    McdStorage *storage = priv->storage;
+    const gchar *name = mcd_account_get_unique_name (account);
 
     priv->manager_name =
-	g_key_file_get_string (priv->keyfile, priv->unique_name,
-			       MC_ACCOUNTS_KEY_MANAGER, NULL);
-    if (!priv->manager_name)
+      mcd_storage_dup_string (storage, name, MC_ACCOUNTS_KEY_MANAGER);
+
+    if (priv->manager_name == NULL)
     {
-        g_warning ("Account '%s' has no manager", account->priv->unique_name);
+        g_warning ("Account '%s' has no manager", name);
         goto broken_account;
     }
 
     priv->protocol_name =
-	g_key_file_get_string (priv->keyfile, priv->unique_name,
-			       MC_ACCOUNTS_KEY_PROTOCOL, NULL);
-    if (!priv->protocol_name)
+      mcd_storage_dup_string (storage, name, MC_ACCOUNTS_KEY_PROTOCOL);
+
+    if (priv->protocol_name == NULL)
     {
         g_warning ("Account has no protocol");
         goto broken_account;
     }
 
-    priv->object_path = g_strconcat (MC_ACCOUNT_DBUS_OBJECT_BASE,
-				     priv->unique_name, NULL);
+    priv->object_path = g_strconcat (MC_ACCOUNT_DBUS_OBJECT_BASE, name, NULL);
 
     if (!priv->always_on)
     {
         priv->enabled =
-            g_key_file_get_boolean (priv->keyfile, priv->unique_name,
-                                    MC_ACCOUNTS_KEY_ENABLED, NULL);
+          mcd_storage_get_boolean (storage, name, MC_ACCOUNTS_KEY_ENABLED);
 
         priv->connect_automatically =
-            g_key_file_get_boolean (priv->keyfile, priv->unique_name,
-                                    MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY,
-                                    NULL);
+          mcd_storage_get_boolean (storage, name,
+                                   MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY);
     }
 
     priv->has_been_online =
-	g_key_file_get_boolean (priv->keyfile, priv->unique_name,
-				MC_ACCOUNTS_KEY_HAS_BEEN_ONLINE, NULL);
+      mcd_storage_get_boolean (storage, name, MC_ACCOUNTS_KEY_HAS_BEEN_ONLINE);
 
     /* load the automatic presence */
     priv->auto_presence_type =
-	g_key_file_get_integer (priv->keyfile, priv->unique_name,
-				MC_ACCOUNTS_KEY_AUTO_PRESENCE_TYPE, NULL);
+      mcd_storage_get_integer (storage, name,
+                               MC_ACCOUNTS_KEY_AUTO_PRESENCE_TYPE);
 
     /* If invalid or something, force it to AVAILABLE - we want the auto
      * presence type to be an online status */
@@ -2909,16 +2903,14 @@ mcd_account_setup (McdAccount *account)
     {
         g_free (priv->auto_presence_status);
         priv->auto_presence_status =
-            g_key_file_get_string (priv->keyfile, priv->unique_name,
-                                   MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS,
-                                   NULL);
+          mcd_storage_dup_string (storage, name,
+                                  MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS);
     }
 
     g_free (priv->auto_presence_message);
     priv->auto_presence_message =
-	g_key_file_get_string (priv->keyfile, priv->unique_name,
-			       MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE,
-			       NULL);
+      mcd_storage_dup_string (storage, name,
+                              MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE);
 
     /* check the manager */
     if (!priv->manager && !load_manager (account))
@@ -2952,12 +2944,15 @@ set_property (GObject *obj, guint prop_id,
 
     switch (prop_id)
     {
-    case PROP_ACCOUNT_MANAGER:
-        g_assert (priv->account_manager == NULL);
-        /* don't keep a reference to the account_manager: we can safely assume
-         * its lifetime is longer than the McdAccount's */
-        priv->account_manager = g_value_get_object (val);
+    case PROP_STORAGE:
+        g_assert (priv->storage == NULL);
+        priv->storage = g_value_dup_object (val);
 	break;
+
+      case PROP_DBUS_DAEMON:
+        g_assert (priv->dbus_daemon == NULL);
+        priv->dbus_daemon = g_value_dup_object (val);
+        break;
 
     case PROP_NAME:
 	g_assert (priv->unique_name == NULL);
@@ -2993,8 +2988,7 @@ get_property (GObject *obj, guint prop_id,
     switch (prop_id)
     {
     case PROP_DBUS_DAEMON:
-        g_value_set_object
-            (val, mcd_account_manager_get_dbus_daemon (priv->account_manager));
+        g_value_set_object (val, priv->dbus_daemon);
 	break;
     case PROP_NAME:
 	g_value_set_string (val, priv->unique_name);
@@ -3076,8 +3070,9 @@ _mcd_account_dispose (GObject *object)
     }
 
     tp_clear_object (&priv->manager);
-
     tp_clear_object (&priv->storage_plugin);
+    tp_clear_object (&priv->storage);
+    tp_clear_object (&priv->dbus_daemon);
 
     _mcd_account_set_connection_context (self, NULL);
     _mcd_account_set_connection (self, NULL);
@@ -3097,7 +3092,8 @@ _mcd_account_constructor (GType type, guint n_params,
     priv = account->priv;
 
     g_return_val_if_fail (account != NULL, NULL);
-    if (G_UNLIKELY (!priv->account_manager || !priv->unique_name))
+
+    if (G_UNLIKELY (!priv->storage || !priv->unique_name))
     {
         g_object_unref (account);
         return NULL;
@@ -3142,12 +3138,13 @@ mcd_account_class_init (McdAccountClass * klass)
     g_object_class_install_property
         (object_class, PROP_DBUS_DAEMON,
          g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
-                              TP_TYPE_DBUS_DAEMON, G_PARAM_READABLE));
+                              TP_TYPE_DBUS_DAEMON,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
     g_object_class_install_property
-        (object_class, PROP_ACCOUNT_MANAGER,
-         g_param_spec_object ("account-manager", "account-manager",
-                               "account-manager", MCD_TYPE_ACCOUNT_MANAGER,
+        (object_class, PROP_STORAGE,
+         g_param_spec_object ("storage", "storage",
+                               "storage", MCD_TYPE_STORAGE,
                                G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 
     g_object_class_install_property
@@ -3234,25 +3231,29 @@ McdAccount *
 mcd_account_new (McdAccountManager *account_manager, const gchar *name)
 {
     gpointer *obj;
+    McdStorage *storage = mcd_account_manager_get_storage (account_manager);
+    TpDBusDaemon *dbus = mcd_account_manager_get_dbus_daemon (account_manager);
+
     obj = g_object_new (MCD_TYPE_ACCOUNT,
-                        "account-manager", account_manager,
+                        "storage", storage,
+                        "dbus-daemon", dbus,
 			"name", name,
 			NULL);
     return MCD_ACCOUNT (obj);
 }
 
-/**
- * mcd_account_get_account_manager:
- * @account: the #McdAccount.
- *
- * Returns: the #McdAccountManager.
- */
-McdAccountManager *
-mcd_account_get_account_manager (McdAccount *account)
+McdStorage *
+_mcd_account_get_storage (McdAccount *account)
 {
-    g_return_val_if_fail (MCD_IS_ACCOUNT (account), NULL);
-    return account->priv->account_manager;
+    return account->priv->storage;
 }
+
+TpDBusDaemon *
+mcd_account_get_dbus_daemon (McdAccount *account)
+{
+    return account->priv->dbus_daemon;
+}
+
 
 /*
  * mcd_account_is_valid:

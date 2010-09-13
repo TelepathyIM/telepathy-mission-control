@@ -114,16 +114,16 @@ typedef struct {
 G_GNUC_INTERNAL
 GList *_mcd_account_get_online_requests (McdAccount *account);
 
+G_GNUC_INTERNAL McdStorage *_mcd_account_get_storage (McdAccount *account);
 
 static inline void
 _mcd_account_write_conf (McdAccount *account)
 {
-    McdAccountManager *account_manager;
+    McdStorage *storage = _mcd_account_get_storage (account);
 
-    account_manager = mcd_account_get_account_manager (account);
-    g_return_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager));
+    g_return_if_fail (MCD_IS_STORAGE (storage));
 
-    mcd_account_manager_write_conf_async (account_manager, account, NULL, NULL);
+    mcd_storage_commit (storage, mcd_account_get_unique_name (account));
 }
 
 G_GNUC_INTERNAL void _mcd_account_compat_class_init (McdAccountClass *klass);
