@@ -789,6 +789,28 @@ _mcd_plugin_account_manager_ready (McdPluginAccountManager *self)
       mcp_account_storage_ready (plugin, ma);
     }
 }
+
+static void
+storage_iface_init (McdStorageIface *iface,
+    gpointer unused G_GNUC_UNUSED)
+{
+  iface->load = _storage_load;
+  iface->dup_accounts = _storage_dup_accounts;
+  iface->dup_settings = _storage_dup_settings;
+
+  iface->delete_account = _storage_delete_account;
+  iface->set_string = _storage_set_string;
+  iface->set_value = _storage_set_value;
+  iface->commit = _storage_commit;
+
+  iface->has_value = _storage_has_value;
+  iface->get_storage_plugin = _storage_get_plugin;
+  iface->dup_value = _storage_dup_value;
+  iface->dup_string = _storage_dup_string;
+  iface->get_integer = _storage_get_integer;
+  iface->get_boolean = _storage_get_boolean;
+}
+
 static void
 plugin_iface_init (McpAccountManagerIface *iface,
     gpointer unused G_GNUC_UNUSED)
