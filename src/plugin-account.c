@@ -529,6 +529,16 @@ _storage_dup_value (McdStorage *storage,
   return value;
 }
 
+static gboolean
+_storage_get_boolean (McdStorage *storage,
+    const gchar *account,
+    const gchar *key)
+{
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
+
+  return g_key_file_get_boolean (self->keyfile, account, key, NULL);
+}
+
 static void
 update_storage (McdPluginAccountManager *self,
     const gchar *account,
