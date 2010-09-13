@@ -2352,7 +2352,6 @@ set_parameters_iter_param (McdAccount *account,
 
         if (data->new != NULL)
         {
-            DEBUG ("Got param %s", data->param->name);
             data->n_params++;
 
             if (G_VALUE_TYPE (data->new) != type)
