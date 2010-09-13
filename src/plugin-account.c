@@ -583,6 +583,7 @@ update_storage (McdPluginAccountManager *self,
     }
 }
 
+static gboolean
 _storage_set_string (McdStorage *storage,
     const gchar *account,
     const gchar *key,
