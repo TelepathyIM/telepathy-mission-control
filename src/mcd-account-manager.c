@@ -845,6 +845,7 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
     McpAccountManager *ma = MCP_ACCOUNT_MANAGER (priv->plugin_manager);
+    McdStorage *storage = MCD_STORAGE (priv->plugin_manager);
     McdCreateAccountData *cad;
     McdAccount *account;
     gchar *unique_name;
@@ -866,13 +867,15 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
     g_return_if_fail (unique_name != NULL);
 
     /* create the basic account keys */
-    g_key_file_set_string (priv->plugin_manager->keyfile, unique_name,
-			   MC_ACCOUNTS_KEY_MANAGER, manager);
-    g_key_file_set_string (priv->plugin_manager->keyfile, unique_name,
-			   MC_ACCOUNTS_KEY_PROTOCOL, protocol);
-    if (display_name)
-	g_key_file_set_string (priv->plugin_manager->keyfile, unique_name,
-			       MC_ACCOUNTS_KEY_DISPLAY_NAME, display_name);
+    mcd_storage_set_string (storage, unique_name,
+                            MC_ACCOUNTS_KEY_MANAGER, manager, FALSE);
+    mcd_storage_set_string (storage, unique_name,
+                            MC_ACCOUNTS_KEY_PROTOCOL, protocol, FALSE);
+
+    if (display_name != NULL)
+        mcd_storage_set_string (storage, unique_name,
+                                MC_ACCOUNTS_KEY_DISPLAY_NAME, display_name,
+                                FALSE);
 
     account = MCD_ACCOUNT_MANAGER_GET_CLASS (account_manager)->account_new
         (account_manager, unique_name);
@@ -950,43 +953,25 @@ sso_get_service_accounts (McSvcAccountManagerInterfaceSSO *iface,
     gsize len;
     McdAccountManager *manager = MCD_ACCOUNT_MANAGER (iface);
     McdAccountManagerPrivate *priv = manager->priv;
-    GKeyFile *cache = priv->plugin_manager->keyfile;
-    GStrv accounts = g_key_file_get_groups (cache, &len);
+    McdStorage *storage = MCD_STORAGE (priv->plugin_manager);
+    GStrv accounts = mcd_storage_dup_accounts (storage, &len);
     GList *srv_accounts = NULL;
     GPtrArray *paths = g_ptr_array_new ();
 
-    if (!plugins_cached)
-        sort_and_cache_plugins (manager);
 
     if (len > 0 && accounts != NULL)
     {
         guint i = 0;
         gchar *name;
-        McpAccountManager *ma = MCP_ACCOUNT_MANAGER (priv->plugin_manager);
 
         for (name = accounts[i]; name != NULL; name = accounts[++i])
         {
-            gchar *id =
-              g_key_file_get_string (cache, name, "libacct-uid", NULL);
+            gchar *id = mcd_storage_dup_string (storage, name, "libacct-uid");
 
             if (id != NULL)
             {
                 gchar *supported =
-                  g_key_file_get_string (cache, name, "sso-services", NULL);
-
-                if (supported == NULL)
-                {
-
-                    GList *store = g_list_last (stores);
-                    while (store != NULL)
-                    {
-                        McpAccountStorage *as = store->data;
-                        mcp_account_storage_get (as, ma, name, "sso-services");
-                        store = g_list_previous (store);
-                    }
-                    supported = g_key_file_get_string (cache, name,
-                                                       "sso-services", NULL);
-                }
+                  mcd_storage_dup_string (storage, name, "sso-services");
 
                 if (supported != NULL)
                 {
@@ -1039,14 +1024,13 @@ sso_get_account (McSvcAccountManagerInterfaceSSO *iface,
                  const guint id,
                  DBusGMethodInvocation *context)
 {
-    gsize len;
     McdAccountManager *manager = MCD_ACCOUNT_MANAGER (iface);
     McdAccountManagerPrivate *priv = manager->priv;
-    GKeyFile *cache = priv->plugin_manager->keyfile;
-    GStrv accounts = g_key_file_get_groups (cache, &len);
+    McdStorage *storage = MCD_STORAGE (priv->plugin_manager);
+    GStrv accounts = mcd_storage_dup_accounts (storage, NULL);
     const gchar *path = NULL;
 
-    if (len > 0 && accounts != NULL)
+    if (accounts != NULL)
     {
         guint i = 0;
         gchar *name;
@@ -1055,7 +1039,7 @@ sso_get_account (McSvcAccountManagerInterfaceSSO *iface,
         for (name = accounts[i]; name != NULL; name = accounts[++i])
         {
             gchar *str_id =
-              g_key_file_get_string (cache, name, "libacct-uid", NULL);
+              mcd_storage_dup_string (storage, name, "libacct-uid");
             guint64 sso_id = g_ascii_strtoull (str_id, NULL, 10);
 
             if (sso_id != 0 && id != 0)
@@ -1325,6 +1309,7 @@ void
 _mcd_account_manager_setup (McdAccountManager *account_manager)
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
+    McdStorage *storage = MCD_STORAGE (priv->plugin_manager);
     McdLoadAccountsData *lad;
     gchar **accounts, **name;
 
@@ -1336,7 +1321,8 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
     lad->account_manager = account_manager;
     lad->account_lock = 1; /* will be released at the end of this function */
 
-    accounts = g_key_file_get_groups (priv->plugin_manager->keyfile, NULL);
+    accounts = mcd_storage_dup_accounts (storage, NULL);
+
     for (name = accounts; *name != NULL; name++)
     {
         gboolean plausible = FALSE;
@@ -1354,6 +1340,7 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
 
         account = MCD_ACCOUNT_MANAGER_GET_CLASS (account_manager)->account_new
             (account_manager, *name);
+
         if (G_UNLIKELY (!account))
         {
             g_warning ("%s: account %s failed to instantiate", G_STRFUNC,

@@ -378,6 +378,70 @@ _storage_load (McdStorage *self)
       store = g_list_previous (store);
     }
 }
+
+static GStrv
+_storage_dup_accounts (McdStorage *storage, gsize *n)
+{
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
+
+  return g_key_file_get_groups (self->keyfile, n);
+}
+
+static GStrv
+_storage_dup_settings (McdStorage *storage, const gchar *account, gsize *n)
+{
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
+
+  return g_key_file_get_keys (self->keyfile, account, n, NULL);
+}
+
+static gchar *
+_storage_dup_string (McdStorage *storage,
+    const gchar *account,
+    const gchar *key)
+{
+  gchar *value = NULL;
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
+
+  value = g_key_file_get_value (self->keyfile, account, key, NULL);
+
+  return value;
+}
+
+static gboolean
+_storage_set_string (McdStorage *storage,
+    const gchar *account,
+    const gchar *key,
+    const gchar *val,
+    gboolean secret)
+{
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
+  gboolean updated = FALSE;
+  gchar *old = g_key_file_get_value (self->keyfile, account, key, NULL);
+
+  if (val == NULL)
+    g_key_file_remove_key (self->keyfile, account, key, NULL);
+  else
+    g_key_file_set_value (self->keyfile, account, key, val);
+
+  if (tp_strdiff (old, val))
+    {
+      if (secret)
+        {
+          McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+
+          mcp_account_manager_parameter_make_secret (ma, account, key);
+        }
+
+      update_storage (self, account, key, val);
+      updated = TRUE;
+    }
+
+  g_free (old);
+
+  return updated;
+}
+
 static void
 _storage_delete_account (McdStorage *storage, const gchar *account)
 {
