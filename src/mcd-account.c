@@ -1665,15 +1665,15 @@ static McpAccountStorage *
 get_storage_plugin (McdAccount *account)
 {
   McdAccountPrivate *priv = account->priv;
+  const gchar *account_name = mcd_account_get_unique_name (account);
 
   if (priv->storage_plugin != NULL)
     return priv->storage_plugin;
 
-   priv->storage_plugin =  mcd_account_manager_get_storage_plugin (
-       priv->account_manager, account);
+  priv->storage_plugin = mcd_storage_get_plugin (priv->storage, account_name);
 
-   if (priv->storage_plugin != NULL)
-     g_object_ref (priv->storage_plugin);
+  if (priv->storage_plugin != NULL)
+      g_object_ref (priv->storage_plugin);
 
    return priv->storage_plugin;
 }
