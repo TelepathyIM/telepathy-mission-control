@@ -395,6 +395,25 @@ _storage_dup_settings (McdStorage *storage, const gchar *account, gsize *n)
   return g_key_file_get_keys (self->keyfile, account, n, NULL);
 }
 
+static McpAccountStorage *
+_storage_get_plugin (McdStorage *storage, const gchar *account)
+{
+  GList *store = stores;
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
+  McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+  McpAccountStorage *owner = NULL;
+
+  for (; store != NULL && owner == NULL; store = g_list_next (store))
+    {
+      McpAccountStorage *plugin = store->data;
+
+      if (mcp_account_storage_get (plugin, ma, account, "manager"))
+        owner = plugin;
+    }
+
+  return owner;
+}
+
 static gchar *
 _storage_dup_string (McdStorage *storage,
     const gchar *account,
