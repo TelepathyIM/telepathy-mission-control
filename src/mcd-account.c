@@ -887,8 +887,12 @@ mcd_account_set_string_val (McdAccount *account, const gchar *key,
                             const GValue *value, GError **error)
 {
     McdAccountPrivate *priv = account->priv;
-    const gchar *string;
+    McdStorage *storage = priv->storage;
+    const gchar *name = mcd_account_get_unique_name (account);
+
+    const gchar *new_string;
     gchar *old_string;
+    const GValue *set = value;
 
     if (!G_VALUE_HOLDS_STRING (value))
     {
@@ -898,28 +902,23 @@ mcd_account_set_string_val (McdAccount *account, const gchar *key,
         return SET_RESULT_ERROR;
     }
 
-    string = g_value_get_string (value);
-    old_string = g_key_file_get_string (priv->keyfile, priv->unique_name,
-				       	key, NULL);
-    if (!tp_strdiff (old_string, string))
+    old_string = mcd_storage_dup_string (storage, name, key);
+    new_string = g_value_get_string (value);
+
+    if (!tp_strdiff (old_string, new_string))
     {
-	g_free (old_string);
-	return SET_RESULT_UNCHANGED;
+        g_free (old_string);
+        return SET_RESULT_UNCHANGED;
     }
 
     g_free (old_string);
-    if (string && string[0] != 0)
-	g_key_file_set_string (priv->keyfile, priv->unique_name,
-			       key, string);
-    else
-    {
-	g_key_file_remove_key (priv->keyfile, priv->unique_name,
-			       key, NULL);
-	string = NULL;
-    }
-    mcd_account_manager_write_conf_async (priv->account_manager, account, NULL,
-                                          NULL);
+
+    if (new_string == NULL || *new_string == '\0')
+        set = NULL;
+
+    mcd_storage_set_value (storage, name, key, set, FALSE);
     mcd_account_changed_property (account, key, value);
+
     return SET_RESULT_CHANGED;
 }
 
