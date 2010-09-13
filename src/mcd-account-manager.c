@@ -1332,18 +1332,9 @@ static void
 uncork_storage_plugins (McdAccountManager *account_manager)
 {
     McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (account_manager);
-    McpAccountManager *mcp_am = MCP_ACCOUNT_MANAGER (priv->plugin_manager);
-    GList *store;
 
-    /* Allow plugins to register new accounts, highest prio first */
-    for (store = stores; store != NULL; store = g_list_next (store))
-    {
-        McpAccountStorage *plugin = store->data;
-
-        DEBUG ("Unblocking async account ops by %s",
-               mcp_account_storage_name (plugin));
-        mcp_account_storage_ready (plugin, mcp_am);
-    }
+    mcd_account_manager_write_conf_async (account_manager, NULL, NULL, NULL);
+    _mcd_plugin_account_manager_ready (priv->plugin_manager);
 }
 
 /**
@@ -1563,8 +1554,14 @@ static void
 mcd_account_manager_init (McdAccountManager *account_manager)
 {
     McdAccountManagerPrivate *priv;
-    GList *store = NULL;
-    McpAccountManager *ma;
+    guint i = 0;
+    static struct { const gchar *name; GCallback handler; } sig[] =
+      { { "created", G_CALLBACK (created_cb) },
+        { "altered", G_CALLBACK (altered_cb) },
+        { "toggled", G_CALLBACK (toggled_cb) },
+        { "deleted", G_CALLBACK (deleted_cb) },
+        { "altered-one", G_CALLBACK (altered_one_cb) },
+        { NULL, NULL } };
 
     DEBUG ("");
 
@@ -1574,7 +1571,6 @@ mcd_account_manager_init (McdAccountManager *account_manager)
     account_manager->priv = priv;
 
     priv->plugin_manager = mcd_plugin_account_manager_new ();
-    ma = MCP_ACCOUNT_MANAGER (priv->plugin_manager);
     priv->accounts = g_hash_table_new_full (g_str_hash, g_str_equal,
                                             NULL, unref_account);
 
@@ -1584,40 +1580,13 @@ mcd_account_manager_init (McdAccountManager *account_manager)
                           NULL);
 
     DEBUG ("loading plugins");
+    mcd_storage_load (MCD_STORAGE (priv->plugin_manager));
 
-    /* not guaranteed to have been called, but idempotent: */
-    _mcd_plugin_loader_init ();
-
-    if (!plugins_cached)
-        sort_and_cache_plugins (account_manager);
-
-    store = g_list_last (stores);
-
-    /* fetch accounts stored in plugins, in reverse priority so higher prio *
-     * plugins can overwrite lower prio ones' account data                  */
-    while (store != NULL)
-    {
-        GList *account;
-        McpAccountStorage *plugin = store->data;
-        GList *stored = mcp_account_storage_list (plugin, ma);
-        const gchar *pname = mcp_account_storage_name (plugin);
-        const gint prio = mcp_account_storage_priority (plugin);
-
-        DEBUG ("listing from plugin %s [prio: %d]", pname, prio);
-        for (account = stored; account != NULL; account = g_list_next (account))
-        {
-            gchar *name = account->data;
-
-            DEBUG ("fetching %s from plugin %s [prio: %d]", name, pname, prio);
-            mcp_account_storage_get (plugin, ma, name, NULL);
-
-            g_free (name);
-        }
-
-        /* already freed the contents, just need to free the list itself */
-        g_list_free (stored);
-        store = g_list_previous (store);
-    }
+    /* hook up all the storage plugin signals to their handlers: */
+    for (i = 0; sig[i].name != NULL; i++)
+        _mcd_plugin_account_manager_connect_signal (sig[i].name,
+                                                    sig[i].handler,
+                                                    account_manager);
 
     /* initializes the interfaces */
     mcd_dbus_init_interfaces_instances (account_manager);
@@ -1634,7 +1603,7 @@ _mcd_account_manager_constructed (GObject *obj)
      * _init() to here and then mcd_plugin_account_manager_new() could take the
      * TpDBusDaemon * as it should and everyone wins.
      */
-    mcd_plugin_account_manager_set_dbus_daemon (pa, priv->dbus_daemon);
+    _mcd_plugin_account_manager_set_dbus_daemon (pa, priv->dbus_daemon);
 }
 
 McdAccountManager *

@@ -154,7 +154,7 @@ mcd_plugin_account_manager_new ()
 }
 
 void
-mcd_plugin_account_manager_set_dbus_daemon (McdPluginAccountManager *self,
+_mcd_plugin_account_manager_set_dbus_daemon (McdPluginAccountManager *self,
     TpDBusDaemon *dbusd)
 {
   GValue value = { 0 };
@@ -324,6 +324,75 @@ sort_and_cache_plugins ()
     plugins_cached = TRUE;
 }
 
+void
+_mcd_plugin_account_manager_connect_signal (const gchar *signame,
+    GCallback func,
+    gpointer user_data)
+{
+  GList *p;
+
+  for (p = stores; p != NULL; p = g_list_next (p))
+    {
+      McpAccountStorage *plugin = p->data;
+
+      DEBUG ("connecting handler to %s plugin signal %s ",
+          mcp_account_storage_name (plugin), signame);
+      g_signal_connect (plugin, signame, func, user_data);
+    }
+}
+
+/* implement the McdStorage interface */
+static void
+_storage_load (McdStorage *self)
+{
+  McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+  GList *store = NULL;
+
+  sort_and_cache_plugins ();
+
+  store = g_list_last (stores);
+
+  /* fetch accounts stored in plugins, in reverse priority so higher prio *
+   * plugins can overwrite lower prio ones' account data                  */
+  while (store != NULL)
+    {
+      GList *account;
+      McpAccountStorage *plugin = store->data;
+      GList *stored = mcp_account_storage_list (plugin, ma);
+      const gchar *pname = mcp_account_storage_name (plugin);
+      const gint prio = mcp_account_storage_priority (plugin);
+
+      DEBUG ("listing from plugin %s [prio: %d]", pname, prio);
+      for (account = stored; account != NULL; account = g_list_next (account))
+        {
+          gchar *name = account->data;
+
+          DEBUG ("fetching %s from plugin %s [prio: %d]", name, pname, prio);
+          mcp_account_storage_get (plugin, ma, name, NULL);
+
+          g_free (name);
+        }
+
+      /* already freed the contents, just need to free the list itself */
+      g_list_free (stored);
+      store = g_list_previous (store);
+    }
+}
+void
+_mcd_plugin_account_manager_ready (McdPluginAccountManager *self)
+{
+  GList *store;
+  McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+
+  for (store = stores; store != NULL; store = g_list_next (store))
+    {
+      McpAccountStorage *plugin = store->data;
+      const gchar *plugin_name = mcp_account_storage_name (plugin);
+
+      DEBUG ("Unblocking async account ops by %s", plugin_name);
+      mcp_account_storage_ready (plugin, ma);
+    }
+}
 static void
 plugin_iface_init (McpAccountManagerIface *iface,
     gpointer unused G_GNUC_UNUSED)
