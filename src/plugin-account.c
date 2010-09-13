@@ -539,6 +539,16 @@ _storage_get_boolean (McdStorage *storage,
   return g_key_file_get_boolean (self->keyfile, account, key, NULL);
 }
 
+static gint
+_storage_get_integer (McdStorage *storage,
+    const gchar *account,
+    const gchar *key)
+{
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
+
+  return g_key_file_get_integer (self->keyfile, account, key, NULL);
+}
+
 static void
 update_storage (McdPluginAccountManager *self,
     const gchar *account,
