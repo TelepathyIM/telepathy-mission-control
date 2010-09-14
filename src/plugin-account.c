@@ -656,15 +656,15 @@ _storage_set_value (McdStorage *storage,
     {
       McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
       gboolean updated = FALSE;
-      gchar dbuf[G_ASCII_DTOSTR_BUF_SIZE] = { 0 };
+      gchar *old = g_key_file_get_value (self->keyfile, name, key, NULL);
+      gchar *new = NULL;
       gchar *buf = NULL;
-      const gchar *cbuf = NULL;
-      gchar *old = g_key_file_get_string (self->keyfile, name, key, NULL);
 
       switch (G_VALUE_TYPE (value))
         {
           case G_TYPE_STRING:
-            cbuf = g_value_get_string (value);
+            g_key_file_set_string (self->keyfile, name, key,
+                g_value_get_string (value));
             break;
 
           case G_TYPE_UINT:
@@ -672,11 +672,13 @@ _storage_set_value (McdStorage *storage,
             break;
 
           case G_TYPE_INT:
-            buf = g_strdup_printf ("%d", g_value_get_int (value));
+            g_key_file_set_integer (self->keyfile, name, key,
+                g_value_get_int (value));
             break;
 
           case G_TYPE_BOOLEAN:
-            cbuf = g_value_get_boolean (value) ? "true" : "false";
+            g_key_file_set_boolean (self->keyfile, name, key,
+                g_value_get_boolean (value));
             break;
 
           case G_TYPE_UCHAR:
@@ -694,7 +696,7 @@ _storage_set_value (McdStorage *storage,
             break;
 
           case G_TYPE_DOUBLE:
-            cbuf = g_ascii_dtostr (dbuf, sizeof (dbuf),
+            g_key_file_set_double (self->keyfile, name, key,
                 g_value_get_double (value));
             break;
 
@@ -702,25 +704,15 @@ _storage_set_value (McdStorage *storage,
             if (G_VALUE_HOLDS (value, G_TYPE_STRV))
               {
                 gchar **strings = g_value_get_boxed (value);
-                gchar *new = NULL;
 
                 g_key_file_set_string_list (self->keyfile, name, key,
                     (const gchar **)strings,
                     g_strv_length (strings));
-
-                new = g_key_file_get_string (self->keyfile, name, key, NULL);
-
-                if (tp_strdiff (old, new))
-                  {
-                    update_storage (self, name, key);
-                    updated = TRUE;
-                  }
-
-                g_free (new);
               }
             else if (G_VALUE_HOLDS (value, DBUS_TYPE_G_OBJECT_PATH))
               {
-                cbuf = g_value_get_boxed (value);
+                g_key_file_set_string (self->keyfile, name, key,
+                    g_value_get_boxed (value));
               }
             else
               {
@@ -730,25 +722,22 @@ _storage_set_value (McdStorage *storage,
               }
         }
 
-      if (cbuf == NULL)
-        cbuf = buf;
+      if (buf != NULL)
+        g_key_file_set_string (self->keyfile, name, key, buf);
 
-      if (cbuf != NULL)
+      new = g_key_file_get_value (self->keyfile, name, key, NULL);
+
+      if (tp_strdiff (old, new))
         {
-          if (tp_strdiff (old, cbuf))
+          if (secret)
             {
-              g_key_file_set_string (self->keyfile, name, key, cbuf);
+              McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
 
-              if (secret)
-                {
-                  McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
-
-                  mcp_account_manager_parameter_make_secret (ma, name, key);
-                }
-
-              update_storage (self, name, key);
-              updated = TRUE;
+              mcp_account_manager_parameter_make_secret (ma, name, key);
             }
+
+          update_storage (self, name, key);
+          updated = TRUE;
         }
 
       g_free (buf);
