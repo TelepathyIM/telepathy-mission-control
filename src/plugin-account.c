@@ -543,8 +543,15 @@ _storage_dup_value (McdStorage *storage,
           }
         else
           {
-            g_warning ("%s: cannot get property %s, unknown type %s",
-                G_STRFUNC, key, g_type_name (type));
+            gchar *message =
+              g_strdup_printf ("cannot get property %s, unknown type %s",
+                  key, g_type_name (type));
+
+            g_warning ("%s: %s", G_STRFUNC, message);
+            g_set_error (error, MCD_ACCOUNT_ERROR,
+                MCD_ACCOUNT_ERROR_GET_PARAMETER,
+                "%s", message);
+            g_free (message);
           }
     }
 
