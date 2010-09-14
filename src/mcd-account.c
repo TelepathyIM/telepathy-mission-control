@@ -539,13 +539,6 @@ get_account_data_path (McdAccountPrivate *priv)
 	return g_build_filename (base, priv->unique_name, NULL);
 }
 
-typedef struct
-{
-    McdAccount *account;
-    McdAccountDeleteCb callback;
-    gpointer user_data;
-} AccountDeleteData;
-
 static void
 _mcd_account_delete (McdAccount *account,
                      McdAccountDeleteCb callback,
