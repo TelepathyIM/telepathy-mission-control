@@ -347,7 +347,7 @@ mcd_storage_get_plugin (McdStorage *storage, const gchar *account)
 }
 
 /**
- * mcd_storage_get_plugin:
+ * mcd_storage_delete_account:
  * @storage: An object implementing the #McdStorage interface
  * @account: unique name of the account
  *
