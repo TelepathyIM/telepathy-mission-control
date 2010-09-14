@@ -1,5 +1,7 @@
-telepathy-mission-control 5.5.4 (UNRELEASED)
+telepathy-mission-control 5.5.4 (2010-09-14)
 ============================================
+
+The "salamander king" release.
 
 Enhancements:
 
@@ -18,6 +20,9 @@ Enhancements:
   {Create,Ensure}ChannelWithHints (cassidy, smcv)
 
 Fixes:
+
+• fd.o #28915: fix a regression in which parameters that are unset aren't
+  necessarily saved to the configuration file (fledermaus)
 
 • Signal remote avatar deletion, for instance by another XMPP resource, in the
   same way as a remote avatar change (fledermaus)
