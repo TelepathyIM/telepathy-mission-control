@@ -117,24 +117,27 @@ match_account_parameter (McdAccount *account, const gchar *name,
 
         if (conf != NULL)
         {
-            switch (vtype)
+            if (G_VALUE_TYPE (conf) == vtype)
             {
-              case G_TYPE_STRING:
-                match = g_strcmp0 (g_value_get_string (value),
-                                   g_value_get_string (conf)) == 0;
-                break;
+                switch (vtype)
+                {
+                  case G_TYPE_STRING:
+                    match = g_strcmp0 (g_value_get_string (value),
+                                       g_value_get_string (conf)) == 0;
+                    break;
 
-              case G_TYPE_UINT:
-                match = g_value_get_uint (value) == g_value_get_uint (conf);
-                break;
+                  case G_TYPE_UINT:
+                    match = g_value_get_uint (value) == g_value_get_uint (conf);
+                    break;
 
-              case G_TYPE_BOOLEAN:
-                match =
-                  g_value_get_boolean (value) == g_value_get_boolean (conf);
-                break;
+                  case G_TYPE_BOOLEAN:
+                    match =
+                      g_value_get_boolean (value) == g_value_get_boolean (conf);
+                    break;
 
-              default:
-                break;
+                  default:
+                    break;
+                }
             }
 
             tp_g_value_slice_free (conf);
