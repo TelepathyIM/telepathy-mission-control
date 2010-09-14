@@ -422,7 +422,7 @@ _storage_dup_string (McdStorage *storage,
   gchar *value = NULL;
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
 
-  value = g_key_file_get_value (self->keyfile, account, key, NULL);
+  value = g_key_file_get_string (self->keyfile, account, key, NULL);
 
   return value;
 }
@@ -455,7 +455,7 @@ _storage_dup_value (McdStorage *storage,
   switch (type)
     {
       case G_TYPE_STRING:
-        v_string = g_key_file_get_value (keyfile, account, key, error);
+        v_string = g_key_file_get_string (keyfile, account, key, error);
         value = tp_g_value_slice_new_take_string (v_string);
         break;
 
@@ -521,7 +521,7 @@ _storage_dup_value (McdStorage *storage,
           }
         else if (type == DBUS_TYPE_G_OBJECT_PATH)
           {
-            v_string = g_key_file_get_value (keyfile, account, key, error);
+            v_string = g_key_file_get_string (keyfile, account, key, error);
 
             if (!tp_dbus_check_valid_object_path (v_string, NULL))
               {
@@ -571,12 +571,17 @@ _storage_get_integer (McdStorage *storage,
 static void
 update_storage (McdPluginAccountManager *self,
     const gchar *account,
-    const gchar *key,
-    const gchar *val)
+    const gchar *key)
 {
   GList *store;
   gboolean done = FALSE;
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+  gchar *val = NULL;
+
+  /* don't unescape the value here, we're flushing it to storage         *
+   * everywhere else should handle escaping on the way in and unescaping *
+   * on the way out of the keyfile, but not here:                        */
+  val = g_key_file_get_value (self->keyfile, account, key, NULL);
 
   /* we're deleting, which is unconditional, no need to check if anyone *
    * claims this setting for themselves                                 */
@@ -611,12 +616,12 @@ _storage_set_string (McdStorage *storage,
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
   gboolean updated = FALSE;
-  gchar *old = g_key_file_get_value (self->keyfile, account, key, NULL);
+  gchar *old = g_key_file_get_string (self->keyfile, account, key, NULL);
 
   if (val == NULL)
     g_key_file_remove_key (self->keyfile, account, key, NULL);
   else
-    g_key_file_set_value (self->keyfile, account, key, val);
+    g_key_file_set_string (self->keyfile, account, key, val);
 
   if (tp_strdiff (old, val))
     {
@@ -627,7 +632,7 @@ _storage_set_string (McdStorage *storage,
           mcp_account_manager_parameter_make_secret (ma, account, key);
         }
 
-      update_storage (self, account, key, val);
+      update_storage (self, account, key);
       updated = TRUE;
     }
 
@@ -654,7 +659,7 @@ _storage_set_value (McdStorage *storage,
       gchar dbuf[G_ASCII_DTOSTR_BUF_SIZE] = { 0 };
       gchar *buf = NULL;
       const gchar *cbuf = NULL;
-      gchar *old = g_key_file_get_value (self->keyfile, name, key, NULL);
+      gchar *old = g_key_file_get_string (self->keyfile, name, key, NULL);
 
       switch (G_VALUE_TYPE (value))
         {
@@ -703,11 +708,11 @@ _storage_set_value (McdStorage *storage,
                     (const gchar **)strings,
                     g_strv_length (strings));
 
-                new = g_key_file_get_value (self->keyfile, name, key, NULL);
+                new = g_key_file_get_string (self->keyfile, name, key, NULL);
 
                 if (tp_strdiff (old, new))
                   {
-                    update_storage (self, name, key, new);
+                    update_storage (self, name, key);
                     updated = TRUE;
                   }
 
@@ -732,7 +737,7 @@ _storage_set_value (McdStorage *storage,
         {
           if (tp_strdiff (old, cbuf))
             {
-              g_key_file_set_value (self->keyfile, name, key, cbuf);
+              g_key_file_set_string (self->keyfile, name, key, cbuf);
 
               if (secret)
                 {
@@ -741,7 +746,7 @@ _storage_set_value (McdStorage *storage,
                   mcp_account_manager_parameter_make_secret (ma, name, key);
                 }
 
-              update_storage (self, name, key, cbuf);
+              update_storage (self, name, key);
               updated = TRUE;
             }
         }
