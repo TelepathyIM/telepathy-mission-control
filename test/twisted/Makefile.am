@@ -86,11 +86,6 @@ TWISTED_SEPARATE_TESTS = \
 	crash-recovery/crash-recovery.py \
 	dispatcher/create-at-startup.py
 
-if ENABLE_LIBACCOUNTS_SSO
-TWISTED_SPECIAL_BUILD_TESTS += \
-	account-storage/libaccounts-sso-storage.py
-endif
-
 TWISTED_SEPARATE_TESTS += $(TWISTED_SPECIAL_BUILD_TESTS)
 
 AM_CFLAGS = $(ERROR_CFLAGS)
