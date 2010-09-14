@@ -14,7 +14,7 @@ if ENABLE_GNOME_KEYRING
 INCLUDES += $(GNOME_KEYRING_CFLAGS)
 endif
 
-SUBDIRS = twisted
+SUBDIRS = . twisted
 
 TEST_EXECUTABLES = test-value-is-same
 NON_TEST_EXECUTABLES = account-store
