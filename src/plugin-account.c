@@ -502,12 +502,12 @@ _storage_dup_value (McdStorage *storage,
         break;
 
       case G_TYPE_BOOLEAN:
-        v_bool = g_key_file_get_boolean (keyfile, account, key, NULL);
+        v_bool = g_key_file_get_boolean (keyfile, account, key, error);
         value = tp_g_value_slice_new_boolean (v_bool);
         break;
 
       case G_TYPE_DOUBLE:
-        v_double = g_key_file_get_double (keyfile, account, key, NULL);
+        v_double = g_key_file_get_double (keyfile, account, key, error);
         value = tp_g_value_slice_new_double (v_double);
         break;
 
@@ -521,9 +521,15 @@ _storage_dup_value (McdStorage *storage,
           }
         else if (type == DBUS_TYPE_G_OBJECT_PATH)
           {
-            v_string = g_key_file_get_string (keyfile, account, key, error);
+            v_string = g_key_file_get_string (keyfile, account, key, NULL);
 
-            if (!tp_dbus_check_valid_object_path (v_string, NULL))
+            if (v_string == NULL)
+              {
+                g_set_error (error, MCD_ACCOUNT_ERROR,
+                    MCD_ACCOUNT_ERROR_GET_PARAMETER,
+                    "Invalid object path NULL");
+              }
+            else if (!tp_dbus_check_valid_object_path (v_string, NULL))
               {
                 g_set_error (error, MCD_ACCOUNT_ERROR,
                     MCD_ACCOUNT_ERROR_GET_PARAMETER,
@@ -542,8 +548,11 @@ _storage_dup_value (McdStorage *storage,
           }
     }
 
-  if (value != NULL)
-    g_clear_error (error);
+  /* This can return a non-NULL GValue * _and_ a non-NULL GError *,      *
+   * indicating a value was not found and the default for that type      *
+   * (eg 0 for integers) has been returned - this matches the behaviour  *
+   * of the old code that this function replaces. If changing this, make *
+   * sure all our callers are suitable updated                           */
 
   return value;
 }

@@ -235,6 +235,10 @@ mcd_storage_dup_string (McdStorage *storage,
  * with tp_g_value_slice_free() or g_slice_free() depending on whether the
  * the value itself should be freed (the former frees everything, the latter
  * only the #GValue container.
+ *
+ * If @error is set, but a non-%NULL value was returned, this indicates
+ * that no value for the @key was found for @account, and the default
+ * value for @type has been returned.
  **/
 GValue *
 mcd_storage_dup_value (McdStorage *storage,
