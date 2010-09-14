@@ -72,6 +72,8 @@ stamp-*
 /server/org.freedesktop.Telepathy.MissionControl5.service
 tags
 /telepathy-mission-control-5*
+/test/account-store
+/test/keyring-command
 /test/test-*
 test/mc-client
 test/twisted/with-session-bus-*.dbus-monitor-logs
