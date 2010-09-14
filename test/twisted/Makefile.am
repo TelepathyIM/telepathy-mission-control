@@ -21,8 +21,6 @@ TWISTED_BASIC_TESTS = \
 	account-requests/cancel.py \
 	account-requests/create-text.py \
 	account-requests/delete-account-during-request.py \
-	account-storage/diverted-storage.py \
-	account-storage/default-keyring-storage.py \
 	capabilities/draft-1.py \
 	capabilities/contact-caps.py \
 	capabilities/legacy-caps.py \
@@ -67,20 +65,18 @@ TWISTED_BASIC_TESTS += \
 	dispatcher/dispatch-rejected-by-plugin.py
 endif
 
-if ENABLE_LIBACCOUNTS_SSO
-TWISTED_BASIC_TESTS += \
-	account-storage/libaccounts-sso-storage.py
-endif
-
 # Tests that aren't to be run if we're running the real (installed) MC,
-# because they rely on special behaviour of mc-debug-server
+# because they rely on special behaviour of mc-debug-server.
+#
+# For simplicity, these are also separate tests: at least
+# account-storage/*.py need their own instances.
 TWISTED_SPECIAL_BUILD_TESTS = \
-	account-manager/auto-away.py
+	account-manager/auto-away.py \
+	account-storage/default-keyring-storage.py \
+	account-storage/diverted-storage.py
 
 TWISTED_SLOW_TESTS = \
 	account-manager/server-drops-us.py
-
-TWISTED_BASIC_TESTS += $(TWISTED_SPECIAL_BUILD_TESTS)
 
 TWISTED_SEPARATE_TESTS = \
 	account-manager/auto-connect.py \
@@ -89,6 +85,13 @@ TWISTED_SEPARATE_TESTS = \
 	account-manager/make-valid.py \
 	crash-recovery/crash-recovery.py \
 	dispatcher/create-at-startup.py
+
+if ENABLE_LIBACCOUNTS_SSO
+TWISTED_SPECIAL_BUILD_TESTS += \
+	account-storage/libaccounts-sso-storage.py
+endif
+
+TWISTED_SEPARATE_TESTS += $(TWISTED_SPECIAL_BUILD_TESTS)
 
 AM_CFLAGS = $(ERROR_CFLAGS)
 
