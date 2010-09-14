@@ -27,10 +27,8 @@ import dbus.service
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
 from mctest import exec_test, create_fakecm_account, get_account_manager, \
-    get_fakecm_account, make_mc, connect_to_mc
+    get_fakecm_account, make_mc, connect_to_mc, keyfile_read
 import constants as cs
-
-from keyfile import keyfile_read
 
 use_keyring = False
 if ('MC_TEST_GNOME_KEYRING' in os.environ and
