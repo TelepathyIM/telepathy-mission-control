@@ -74,8 +74,10 @@ set_profile (TpSvcDBusProperties *self, const gchar *name,
              const GValue *value, GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
-    const gchar *string, *unique_name;
-    GKeyFile *keyfile;
+    const gchar *string;
+    McdStorage *storage;
+    const GValue *set;
+    const gchar *account_name;
 
     if (!G_VALUE_HOLDS_STRING (value))
     {
@@ -88,18 +90,17 @@ set_profile (TpSvcDBusProperties *self, const gchar *name,
     /* FIXME: should we reject profile changes after account creation? */
     /* FIXME: some sort of validation beyond just the type? */
 
-    keyfile = _mcd_account_get_keyfile (account);
-    unique_name = mcd_account_get_unique_name (account);
+    account_name = mcd_account_get_unique_name (account);
+    storage = _mcd_account_get_storage (account);
     string = g_value_get_string (value);
+
     if (string && string[0] != 0)
-	g_key_file_set_string (keyfile, unique_name,
-			       name, string);
+        set = value;
     else
-    {
-	g_key_file_remove_key (keyfile, unique_name,
-			       name, NULL);
-    }
-    _mcd_account_write_conf (account);
+        set = NULL;
+
+    mcd_storage_set_value (storage, account_name, name, set, FALSE);
+    mcd_storage_commit (storage, account_name);
 
     g_signal_emit (account, _mcd_account_signal_profile_set, 0);
 
@@ -110,14 +111,10 @@ static void
 get_profile (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
-    const gchar *unique_name;
-    GKeyFile *keyfile;
-    gchar *string;
+    McdStorage *storage = _mcd_account_get_storage (account);
+    const gchar *account_name = mcd_account_get_unique_name (account);
+    gchar *string = mcd_storage_dup_string (storage, account_name, name);
 
-    keyfile = _mcd_account_get_keyfile (account);
-    unique_name = mcd_account_get_unique_name (account);
-    string = g_key_file_get_string (keyfile, unique_name,
-				    name, NULL);
     g_value_init (value, G_TYPE_STRING);
     g_value_take_string (value, string);
 }
@@ -138,8 +135,10 @@ set_secondary_vcard_fields (TpSvcDBusProperties *self, const gchar *name,
                             const GValue *value, GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
-    const gchar *unique_name, **fields, **field;
-    GKeyFile *keyfile;
+    McdStorage *storage = _mcd_account_get_storage (account);
+    const gchar *account_name = mcd_account_get_unique_name (account);
+    GStrv fields;
+    const GValue *set = NULL;
 
     /* FIXME: some sort of validation beyond just the type? */
 
@@ -151,25 +150,16 @@ set_secondary_vcard_fields (TpSvcDBusProperties *self, const gchar *name,
         return FALSE;
     }
 
-    keyfile = _mcd_account_get_keyfile (account);
-    unique_name = mcd_account_get_unique_name (account);
     fields = g_value_get_boxed (value);
-    if (fields)
-    {
-	gsize len;
 
-	for (field = fields, len = 0; *field; field++, len++);
-	g_key_file_set_string_list (keyfile, unique_name,
-				    name, fields, len);
-    }
-    else
-    {
-	g_key_file_remove_key (keyfile, unique_name,
-			       name, NULL);
-    }
-    _mcd_account_write_conf (account);
+    if (fields != NULL)
+      set = value;
+
+    mcd_storage_set_value (storage, account_name, name, set, FALSE);
+    mcd_storage_commit (storage, account_name);
 
     emit_compat_property_changed (account, name, value);
+
     return TRUE;
 }
 
@@ -178,16 +168,26 @@ get_secondary_vcard_fields (TpSvcDBusProperties *self, const gchar *name,
 			    GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
-    GKeyFile *keyfile;
-    const gchar *unique_name;
-    gchar **fields;
+    McdStorage *storage = _mcd_account_get_storage (account);
+    const gchar *account_name = mcd_account_get_unique_name (account);
+    GValue *fetched;
 
-    keyfile = _mcd_account_get_keyfile (account);
-    unique_name = mcd_account_get_unique_name (account);
-    fields = g_key_file_get_string_list (keyfile, unique_name,
-					 name, NULL, NULL);
     g_value_init (value, G_TYPE_STRV);
-    g_value_take_boxed (value, fields);
+    fetched =
+      mcd_storage_dup_value (storage, account_name, name, G_TYPE_STRV, NULL);
+
+    if (fetched != NULL)
+    {
+        GStrv fields = g_value_get_boxed (fetched);
+
+        g_value_take_boxed (value, fields);
+        g_slice_free (GValue, fetched);
+        fetched = NULL;
+    }
+    else
+    {
+        g_value_take_boxed (value, NULL);
+    }
 }
 
 
@@ -225,20 +225,19 @@ account_compat_iface_init (McSvcAccountInterfaceCompatClass *iface,
 McProfile *
 mcd_account_compat_get_mc_profile (McdAccount *account)
 {
-    const gchar *unique_name;
-    GKeyFile *keyfile;
     gchar *profile_name;
     McProfile *profile = NULL;
+    McdStorage *storage = _mcd_account_get_storage (account);
+    const gchar *account_name = mcd_account_get_unique_name (account);
 
-    keyfile = _mcd_account_get_keyfile (account);
-    unique_name = mcd_account_get_unique_name (account);
-    profile_name = g_key_file_get_string (keyfile, unique_name,
-                                          "Profile", NULL);
-    if (profile_name)
+    profile_name = mcd_storage_dup_string (storage, account_name, "Profile");
+
+    if (profile_name != NULL)
     {
         profile = mc_profile_lookup (profile_name);
         g_free (profile_name);
     }
+
     return profile;
 }
 

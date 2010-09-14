@@ -190,8 +190,8 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
 {
     McdChannel *channel;
     GHashTable *props;
-    TpDBusDaemon *dbus_daemon = mcd_account_manager_get_dbus_daemon (
-        mcd_account_get_account_manager (account));
+    TpDBusDaemon *dbus_daemon = mcd_account_get_dbus_daemon (account);
+
     DBusGConnection *dgc = tp_proxy_get_dbus_connection (dbus_daemon);
 
     if (!mcd_account_check_request (account, properties, error))

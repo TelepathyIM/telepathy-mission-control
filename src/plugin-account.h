@@ -64,8 +64,17 @@ G_GNUC_INTERNAL GType mcd_plugin_account_manager_get_type (void);
 
 McdPluginAccountManager *mcd_plugin_account_manager_new (void);
 
-void mcd_plugin_account_manager_set_dbus_daemon (McdPluginAccountManager *self,
+G_GNUC_INTERNAL
+void _mcd_plugin_account_manager_set_dbus_daemon (McdPluginAccountManager *self,
     TpDBusDaemon *dbusd);
+
+G_GNUC_INTERNAL
+void _mcd_plugin_account_manager_ready (McdPluginAccountManager *self);
+
+G_GNUC_INTERNAL
+void _mcd_plugin_account_manager_connect_signal (const gchar *signal,
+    GCallback func,
+    gpointer user_data);
 
 G_END_DECLS
 

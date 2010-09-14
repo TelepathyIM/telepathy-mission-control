@@ -94,46 +94,56 @@ static gboolean
 match_account_parameter (McdAccount *account, const gchar *name,
 			 const GValue *value)
 {
-    const gchar *unique_name;
-    GKeyFile *keyfile;
     gboolean match = FALSE;
+    McdStorage *storage = _mcd_account_get_storage (account);
+    const gchar *account_name = mcd_account_get_unique_name (account);
+    GType vtype = G_VALUE_TYPE (value);
 
-    unique_name = mcd_account_get_unique_name (account);
-    keyfile = _mcd_account_get_keyfile (account);
-    if (g_key_file_has_key (keyfile, unique_name, name, NULL))
+    if (mcd_storage_has_value (storage, account_name, name))
     {
-	const gchar *value_str;
-	gchar *conf_value_str;
-	gint conf_value_int, value_int;
-	gboolean conf_value_bool, value_bool;
-	switch (G_VALUE_TYPE (value))
-	{
-	case G_TYPE_STRING:
-	    conf_value_str =
-	       	g_key_file_get_string (keyfile, unique_name, name,
-				       NULL);
-	    value_str = g_value_get_string (value);
-	    if (strcmp (conf_value_str, value_str) == 0) match = TRUE;
-	    g_free (conf_value_str);
-	    break;
-	case G_TYPE_UINT:
-	    conf_value_int =
-		g_key_file_get_integer (keyfile, unique_name, name,
-					NULL);
-	    value_int = (gint)g_value_get_uint (value);
-	    if (conf_value_int == value_int) match = TRUE;
-	    break;
-	case G_TYPE_BOOLEAN:
-	    conf_value_bool =
-		g_key_file_get_boolean (keyfile, unique_name, name,
-					NULL);
-	    value_bool = g_value_get_boolean (value);
-	    if (conf_value_bool == value_bool) match = TRUE;
-	    break;
-	default:
-	    g_warning ("Unexpected type %s", G_VALUE_TYPE_NAME (value));
-	}
+        GValue *conf = NULL;
+
+        switch (vtype)
+        {
+          case G_TYPE_STRING:
+          case G_TYPE_UINT:
+          case G_TYPE_BOOLEAN:
+            conf = mcd_storage_dup_value (storage, account_name, name, vtype,
+                                          NULL);
+            break;
+          default:
+            g_warning ("Unexpected type %s", G_VALUE_TYPE_NAME (value));
+        }
+
+        if (conf != NULL)
+        {
+            if (G_VALUE_TYPE (conf) == vtype)
+            {
+                switch (vtype)
+                {
+                  case G_TYPE_STRING:
+                    match = g_strcmp0 (g_value_get_string (value),
+                                       g_value_get_string (conf)) == 0;
+                    break;
+
+                  case G_TYPE_UINT:
+                    match = g_value_get_uint (value) == g_value_get_uint (conf);
+                    break;
+
+                  case G_TYPE_BOOLEAN:
+                    match =
+                      g_value_get_boolean (value) == g_value_get_boolean (conf);
+                    break;
+
+                  default:
+                    break;
+                }
+            }
+
+            tp_g_value_slice_free (conf);
+        }
     }
+
     return match;
 }
 
