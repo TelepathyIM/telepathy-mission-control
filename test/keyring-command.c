@@ -23,6 +23,9 @@
  *
  */
 
+#include <glib.h>
+#include <glib/gprintf.h>
+#include <glib-object.h>
 #include <gnome-keyring.h>
 
 
@@ -91,6 +94,7 @@ remove_keyring (gchar *keyring_name)
     {
       g_warning ("Failed to remove keyring %s: %s", keyring_name,
           gnome_keyring_result_to_message (result));
+      return FALSE;
     }
 }
 

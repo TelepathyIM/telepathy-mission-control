@@ -25,6 +25,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <glib.h>
+#include <glib-object.h>
 
 #include "account-store-default.h"
 
@@ -121,7 +122,7 @@ int main (int argc, char **argv)
   const Backend *store = NULL;
   Operation op = OP_UNKNOWN;
   gchar *output = NULL;
-  gboolean success;
+  gboolean success = FALSE;
 
   g_type_init ();
   g_set_application_name (argv[0]);
@@ -240,7 +241,7 @@ usage (const gchar *name, const gchar *fmt, ...)
   for (i = 1; backends[i].name != NULL; i++)
     fprintf (stderr, " | %s", backends[i].name);
 
-  fprintf (stderr, DOCSTRING_B, name);
+  fprintf (stderr, DOCSTRING_B);
 
   va_start (ap, fmt);
   vfprintf (stderr, fmt, ap);
