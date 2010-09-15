@@ -78,7 +78,8 @@ const Backend backends[] = {
   { NULL }
 };
 
-static void usage (const gchar *name, const gchar *fmt, ...);
+static void usage (const gchar *name, const gchar *fmt,
+    ...) G_GNUC_NORETURN;
 
 #if ENABLE_GNOME_KEYRING
 #include <gnome-keyring.h>
@@ -218,6 +219,10 @@ int main (int argc, char **argv)
         if (success)
           output = g_strdup_printf ("Exists in %s", store->name);
         break;
+
+      case OP_UNKNOWN:
+        /* if this is the case then we already exited */
+        g_assert_not_reached ();
     }
 
   if (output != NULL)
