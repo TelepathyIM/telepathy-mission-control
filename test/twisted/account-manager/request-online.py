@@ -124,9 +124,13 @@ def test(q, bus, mc):
     properties = account.GetAll(cs.ACCOUNT,
             dbus_interface=cs.PROPERTIES_IFACE)
     assert properties is not None
-    assert properties.get('HasBeenOnline') == True
-    assert properties.get('RequestedPresence') == requested_presence, \
-        properties.get('RequestedPresence')
+    assert properties.get('HasBeenOnline')
+    assertEquals(requested_presence, properties.get('RequestedPresence'))
+
+    # Since this Connection doesn't support SimplePresence, but it's online,
+    # the spec says that CurrentPresence should be Unset.
+    assertEquals((cs.PRESENCE_TYPE_UNSET, "", ""),
+        properties.get('CurrentPresence'))
 
     new_channel = http_fixed_properties
     buddy_handle = conn.ensure_handle(cs.HT_CONTACT, "buddy")
@@ -157,10 +161,10 @@ def test(q, bus, mc):
     #        path=chan.object_path, handled=True)
 
     properties = account.GetAll(cs.ACCOUNT, dbus_interface=cs.PROPERTIES_IFACE)
-    assert properties['Connection'] == '/'
-    assert properties['ConnectionStatus'] == cs.CONN_STATUS_DISCONNECTED
-    assert properties['CurrentPresence'] == requested_presence
-    assert properties['RequestedPresence'] == requested_presence
+    assertEquals('/', properties['Connection'])
+    assertEquals(cs.CONN_STATUS_DISCONNECTED, properties['ConnectionStatus'])
+    assertEquals(requested_presence, properties['CurrentPresence'])
+    assertEquals(requested_presence, properties['RequestedPresence'])
 
 if __name__ == '__main__':
     exec_test(test, {})
