@@ -36,7 +36,8 @@ mc_headers = \
 	mcd-service.h \
 	mcd-transport.h \
 	mcd-provisioning.h \
-	mcd-provisioning-factory.h
+	mcd-provisioning-factory.h \
+	mcd-storage.h
 
 if ENABLE_LIBACCOUNTS_SSO
 mc_headers += mcd-account-manager-sso.h
