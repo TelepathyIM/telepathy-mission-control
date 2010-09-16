@@ -3220,8 +3220,6 @@ mcd_account_update_self_presence (McdAccount *account,
     McdAccountPrivate *priv = account->priv;
     gboolean changed = FALSE;
     GValue value = { 0 };
-    GType type;
-    GValueArray *va;
 
     if (priv->curr_presence_type != presence)
     {
@@ -3248,13 +3246,13 @@ mcd_account_update_self_presence (McdAccount *account,
 
     if (!changed) return;
 
-    type = TP_STRUCT_TYPE_SIMPLE_PRESENCE;
-    g_value_init (&value, type);
-    g_value_take_boxed (&value, dbus_g_type_specialized_construct (type));
-    va = (GValueArray *) g_value_get_boxed (&value);
-    g_value_set_uint (va->values, presence);
-    g_value_set_static_string (va->values + 1, status);
-    g_value_set_static_string (va->values + 2, message);
+    g_value_init (&value, TP_STRUCT_TYPE_SIMPLE_PRESENCE);
+    g_value_take_boxed (&value,
+                        tp_value_array_build (3,
+                                              G_TYPE_UINT, presence,
+                                              G_TYPE_STRING, status,
+                                              G_TYPE_STRING, message,
+                                              G_TYPE_INVALID));
     mcd_account_changed_property (account, "CurrentPresence", &value);
     g_value_unset (&value);
 }
