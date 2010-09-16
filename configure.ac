@@ -72,7 +72,8 @@ TP_COMPILER_WARNINGS([ERROR_CFLAGS],
    format-security \
    init-self \
    ],
-  [missing-field-initializers \
+  [deprecated-declarations \
+   missing-field-initializers \
    unused-parameter])
 AC_SUBST([ERROR_CFLAGS])
 
