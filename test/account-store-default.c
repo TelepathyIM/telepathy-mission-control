@@ -217,9 +217,7 @@ default_get (const gchar *account,
   if (g_str_has_prefix (key, "param-"))
     pkey = key + strlen("param-");
 
-#if ENABLE_GNOME_KEYRING
   value = _get_secret_from_keyring (account, pkey);
-#endif
 
   if (value == NULL)
     value = g_key_file_get_string (default_keyfile (), account, key, NULL);
