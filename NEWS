@@ -1,7 +1,39 @@
-telepathy-mission-control 5.5.5 (UNRELEASED)
+telepathy-mission-control 5.6.0 (UNRELEASED)
 ============================================
 
-…
+The "Back in the old days, we didn't have plural" release.
+
+Highlights since 5.4.x
+----------------------
+
+• MC implements features from telepathy-spec 0.20, including:
+  · channels can be dispatched before a connection is CONNECTED, which is
+    required for telepathy-gabble ≥ 0.9.17
+  · the Account.ConnectionError property indicating the last error
+  · the Account.ChangingPresence property indicating that presence changes
+    are in progress
+  · the Account.Service property indicating where an account is stored
+  · ChannelDispatchOperation.HandleWithTime to set focus-stealing-prevention
+    timestamps
+
+• libmission-control-plugins provides a more stable plugin API for MC. Plugins
+  written with this library can:
+  · observe, delay and influence channel dispatching, much like Observers
+  · observe, delay and/or reject channel requests
+  · store accounts elsewhere
+
+• Bugfixes include:
+  · tries harder to invoke the same handler for an already-handled channel
+  · calls ended locally with reason No_Answer are treated as missed
+  · fewer writes to gnome-keyring when committing changes
+  · in-band XMPP account creation works better
+
+Fixes since 5.5.4
+-----------------
+
+• Fix various build warnings in the tests (Vincent Untz, smcv)
+• Fix a build warning when keyring support is disabled (fledermaus)
+• Install a missing header file (fledermaus)
 
 telepathy-mission-control 5.5.4 (2010-09-14)
 ============================================
