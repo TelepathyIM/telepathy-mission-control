@@ -1,5 +1,6 @@
-# Copyright (C) 2009 Nokia Corporation
-# Copyright (C) 2009 Collabora Ltd.
+# Python is really rubbish. vim: set fileencoding=utf-8 :
+# Copyright © 2009–2010 Nokia Corporation
+# Copyright © 2009–2010 Collabora Ltd.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -19,9 +20,13 @@
 import dbus
 import dbus.service
 
-from servicetest import EventPattern, tp_name_prefix, tp_path_prefix
-from mctest import exec_test, SimulatedConnection, create_fakecm_account,\
-        SimulatedChannel, SimulatedClient, expect_client_setup
+from servicetest import (
+    EventPattern, tp_name_prefix, tp_path_prefix, assertEquals,
+)
+from mctest import  (
+    exec_test, SimulatedConnection, create_fakecm_account,
+    SimulatedChannel, SimulatedClient, expect_client_setup,
+)
 import constants as cs
 
 def test(q, bus, mc):
@@ -47,11 +52,14 @@ def test(q, bus, mc):
         "password": "secrecy"}, signature='sv')
     (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
 
-    # The account is initially valid but disabled
-    assert not account.Get(cs.ACCOUNT, 'Enabled',
-            dbus_interface=cs.PROPERTIES_IFACE)
-    assert account.Get(cs.ACCOUNT, 'Valid',
-            dbus_interface=cs.PROPERTIES_IFACE)
+    # The account is initially valid but disabled, and hence offline
+    props = account.GetAll(cs.ACCOUNT, dbus_interface=cs.PROPERTIES_IFACE)
+    assert not props['Enabled']
+    assert props['Valid']
+    # The spec says it should be (Offline, "", "") but I don't think the
+    # strings really matter. If anything, the second one should start out at
+    # "offline".
+    assertEquals(cs.PRESENCE_TYPE_OFFLINE, props['CurrentPresence'][0])
 
     # Enable the account
     account.Set(cs.ACCOUNT, 'Enabled', True,
@@ -61,10 +69,11 @@ def test(q, bus, mc):
             signal='AccountPropertyChanged',
             interface=cs.ACCOUNT)
 
-    assert account.Get(cs.ACCOUNT, 'Enabled',
-            dbus_interface=cs.PROPERTIES_IFACE)
-    assert account.Get(cs.ACCOUNT, 'Valid',
-            dbus_interface=cs.PROPERTIES_IFACE)
+    props = account.GetAll(cs.ACCOUNT, dbus_interface=cs.PROPERTIES_IFACE)
+    assert props['Enabled']
+    assert props['Valid']
+    # Ditto above re. string fields.
+    assertEquals(cs.PRESENCE_TYPE_OFFLINE, props['CurrentPresence'][0])
 
     # Go online
     requested_presence = dbus.Struct((dbus.UInt32(2L), dbus.String(u'brb'),

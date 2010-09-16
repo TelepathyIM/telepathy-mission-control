@@ -2977,6 +2977,10 @@ mcd_account_init (McdAccount *account)
     priv->min_presence_status = NULL;
     priv->min_presence_message = NULL;
 
+    priv->curr_presence_type = TP_CONNECTION_PRESENCE_TYPE_OFFLINE;
+    priv->curr_presence_status = g_strdup ("offline");
+    priv->curr_presence_status = g_strdup ("");
+
     combine_presences (account);
 
     priv->always_on = FALSE;
