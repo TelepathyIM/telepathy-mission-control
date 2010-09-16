@@ -43,7 +43,6 @@ typedef struct _McdAccountPresencePrivate McdAccountPresencePrivate;
 
 #include "mcd-connection.h"
 #include "mcd-account-manager.h"
-#include "mcd-storage.h"
 
 struct _McdAccount
 {
