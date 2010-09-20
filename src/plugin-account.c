@@ -23,6 +23,7 @@
 
 #include "plugin-loader.h"
 #include "plugin-account.h"
+#include "config.h"
 
 #include "mission-control-plugins/implementation.h"
 
