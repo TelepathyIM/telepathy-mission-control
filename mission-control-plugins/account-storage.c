@@ -158,7 +158,8 @@ struct _McpAccountStorageIface
       const McpAccountStorage *self,
       const gchar *account);
 
-  TpStorageRestrictionFlags (*get_restrictions) (
+  /* FIXME: when breaking API, make this return TpStorageRestrictionFlags */
+  guint (*get_restrictions) (
       const McpAccountStorage *self,
       const gchar *account);
 };
@@ -745,10 +746,11 @@ mcp_account_storage_get_additional_info (const McpAccountStorage *storage,
  * @storage: an #McpAccountStorage instance
  * @account: the unique name of the account
  *
- * Returns: a bitmask with the restrictions of this
- * account storage.
+ * Returns: a bitmask of %TpStorageRestrictionFlags with the restrictions to
+ *  account storage.
  */
-TpStorageRestrictionFlags
+/* FIXME: when breaking API, make this return TpStorageRestrictionFlags */
+guint
 mcp_account_storage_get_restrictions (const McpAccountStorage *storage,
     const gchar *account)
 {
