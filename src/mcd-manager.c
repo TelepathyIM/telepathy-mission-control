@@ -35,7 +35,6 @@
  * FIXME
  */
 
-#define _POSIX_C_SOURCE 200112L  /* for strtok_r() */
 #include "config.h"
 #include "mcd-manager.h"
 #include "mcd-manager-priv.h"
