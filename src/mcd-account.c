@@ -1864,7 +1864,7 @@ void
 mcd_account_delete (McdAccount *account, McdAccountDeleteCb callback,
                     gpointer user_data)
 {
-    return MCD_ACCOUNT_GET_CLASS (account)->delete (account, callback, user_data);
+    MCD_ACCOUNT_GET_CLASS (account)->delete (account, callback, user_data);
 }
 
 typedef struct

@@ -149,7 +149,7 @@ mcp_account_manager_parameter_make_secret (const McpAccountManager *mcpa,
   g_return_if_fail (iface->make_secret != NULL);
 
   g_debug ("%s.%s should be secret", account, key);
-  return iface->make_secret (mcpa, account, key);
+  iface->make_secret (mcpa, account, key);
 }
 
 /**
