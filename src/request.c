@@ -23,29 +23,44 @@
 #include "request.h"
 
 #include <dbus/dbus-glib.h>
+#include <telepathy-glib/dbus-properties-mixin.h>
 #include <telepathy-glib/gtypes.h>
+#include <telepathy-glib/interfaces.h>
+#include <telepathy-glib/svc-channel-request.h>
+#include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
+#include "mcd-account-priv.h"
 #include "mcd-debug.h"
+#include "mcd-misc.h"
+#include "plugin-loader.h"
+#include "plugin-request.h"
+#include "_gen/interfaces.h"
+#include "_gen/svc-Channel_Request_Future.h"
 
 enum {
     PROP_0,
+    PROP_CLIENT_REGISTRY,
     PROP_USE_EXISTING,
     PROP_ACCOUNT,
     PROP_ACCOUNT_PATH,
     PROP_PROPERTIES,
     PROP_USER_ACTION_TIME,
     PROP_PREFERRED_HANDLER,
-    PROP_HINTS
+    PROP_HINTS,
+    PROP_REQUESTS,
+    PROP_INTERFACES
 };
 
+static guint sig_id_cancelling = 0;
 static guint sig_id_ready_to_request = 0;
-static guint sig_id_completed = 0;
 
 struct _McdRequest {
     GObject parent;
 
     gboolean use_existing;
+    McdClientRegistry *clients;
+    TpDBusDaemon *dbus_daemon;
     McdAccount *account;
     GHashTable *properties;
     gint64 user_action_time;
@@ -60,8 +75,11 @@ struct _McdRequest {
      * that hasn't happened; to get the refcounting right, we take the
      * corresponding ref in _mcd_request_constructed. */
     gsize delay;
+    TpClient *predicted_handler;
 
+    /* TRUE if either succeeded[-with-channel] or failed was emitted */
     gboolean is_complete;
+
     gboolean cancellable;
     GQuark failure_domain;
     gint failure_code;
@@ -72,10 +90,16 @@ struct _McdRequest {
 
 struct _McdRequestClass {
     GObjectClass parent;
+    TpDBusPropertiesMixinClass dbus_properties_class;
 };
 
+static void request_iface_init (TpSvcChannelRequestClass *);
+
 G_DEFINE_TYPE_WITH_CODE (McdRequest, _mcd_request, G_TYPE_OBJECT,
-    /* no interfaces yet: */ (void) 0)
+    G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_CHANNEL_REQUEST, request_iface_init);
+    G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_REQUEST_FUTURE, NULL);
+    G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
+                           tp_dbus_properties_mixin_iface_init))
 
 #define REQUEST_OBJ_BASE "/com/nokia/MissionControl/requests/r"
 
@@ -105,6 +129,10 @@ _mcd_request_constructed (GObject *object)
     constructed (object);
 
   g_return_if_fail (self->account != NULL);
+  g_return_if_fail (self->clients != NULL);
+
+  self->dbus_daemon = _mcd_client_registry_get_dbus_daemon (self->clients);
+  tp_dbus_daemon_register_object (self->dbus_daemon, self->object_path, self);
 }
 
 static void
@@ -119,6 +147,10 @@ _mcd_request_get_property (GObject *object,
     {
     case PROP_USE_EXISTING:
       g_value_set_boolean (value, self->use_existing);
+      break;
+
+    case PROP_CLIENT_REGISTRY:
+      g_value_set_object (value, self->clients);
       break;
 
     case PROP_ACCOUNT:
@@ -159,6 +191,20 @@ _mcd_request_get_property (GObject *object,
         }
       break;
 
+    case PROP_REQUESTS:
+        {
+          GPtrArray *arr = g_ptr_array_sized_new (1);
+
+          g_ptr_array_add (arr, g_hash_table_ref (self->properties));
+          g_value_take_boxed (value, arr);
+        }
+      break;
+
+    case PROP_INTERFACES:
+      /* we have no interfaces */
+      g_value_set_static_boxed (value, NULL);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -177,6 +223,11 @@ _mcd_request_set_property (GObject *object,
     {
     case PROP_USE_EXISTING:
       self->use_existing = g_value_get_boolean (value);
+      break;
+
+    case PROP_CLIENT_REGISTRY:
+      g_assert (self->clients == NULL); /* construct-only */
+      self->clients = g_value_dup_object (value);
       break;
 
     case PROP_ACCOUNT:
@@ -222,6 +273,8 @@ _mcd_request_dispose (GObject *object)
   DEBUG ("%p", object);
 
   tp_clear_object (&self->account);
+  tp_clear_object (&self->clients);
+  tp_clear_object (&self->predicted_handler);
   tp_clear_pointer (&self->hints, g_hash_table_unref);
 
   if (dispose != NULL)
@@ -250,6 +303,31 @@ static void
 _mcd_request_class_init (
     McdRequestClass *cls)
 {
+  static TpDBusPropertiesMixinPropImpl request_props[] = {
+      { "Account", "account-path", NULL },
+      { "UserActionTime", "user-action-time", NULL },
+      { "PreferredHandler", "preferred-handler", NULL },
+      { "Interfaces", "interfaces", NULL },
+      { "Requests", "requests", NULL },
+      { NULL }
+  };
+  static TpDBusPropertiesMixinPropImpl future_props[] = {
+      { "Hints", "hints", NULL },
+      { NULL }
+  };
+  static TpDBusPropertiesMixinIfaceImpl prop_interfaces[] = {
+      { TP_IFACE_CHANNEL_REQUEST,
+          tp_dbus_properties_mixin_getter_gobject_properties,
+          NULL,
+          request_props,
+      },
+      { MC_IFACE_CHANNEL_REQUEST_FUTURE,
+        tp_dbus_properties_mixin_getter_gobject_properties,
+        NULL,
+        future_props,
+      },
+      { NULL }
+  };
   GObjectClass *object_class = (GObjectClass *) cls;
 
   object_class->constructed = _mcd_request_constructed;
@@ -262,6 +340,13 @@ _mcd_request_class_init (
       g_param_spec_boolean ("use-existing", "Use EnsureChannel?",
           "TRUE if EnsureChannel should be used for this request",
           FALSE,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
+          G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_CLIENT_REGISTRY,
+      g_param_spec_object ("client-registry", "Client registry",
+          "The client registry",
+          MCD_TYPE_CLIENT_REGISTRY,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
           G_PARAM_STATIC_STRINGS));
 
@@ -286,8 +371,8 @@ _mcd_request_class_init (
 
   g_object_class_install_property (object_class, PROP_USER_ACTION_TIME,
        g_param_spec_int64 ("user-action-time", "UserActionTime",
-         "Time of user action in seconds since 1970",
-         G_MININT64, G_MAXINT64, 0,
+         "Time of user action as for TpAccountChannelRequest:user-action-time",
+         G_MININT64, G_MAXINT64, TP_USER_ACTION_TIME_NOT_USER_ACTION,
          G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_PREFERRED_HANDLER,
@@ -302,17 +387,31 @@ _mcd_request_class_init (
         TP_HASH_TYPE_STRING_VARIANT_MAP,
         G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (object_class, PROP_REQUESTS,
+      g_param_spec_boxed ("requests", "Requests", "A dbus-glib aa{sv}",
+        TP_ARRAY_TYPE_QUALIFIED_PROPERTY_VALUE_MAP_LIST,
+        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_INTERFACES,
+      g_param_spec_boxed ("interfaces", "Interfaces", "A dbus-glib 'as'",
+        G_TYPE_STRV, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
+  sig_id_cancelling = g_signal_new ("cancelling",
+      G_OBJECT_CLASS_TYPE (cls), G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+      g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
+
   sig_id_ready_to_request = g_signal_new ("ready-to-request",
       G_OBJECT_CLASS_TYPE (cls), G_SIGNAL_RUN_LAST, 0, NULL, NULL,
       g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
 
-  sig_id_completed = g_signal_new ("completed",
-      G_OBJECT_CLASS_TYPE (cls), G_SIGNAL_RUN_LAST, 0, NULL, NULL,
-      g_cclosure_marshal_VOID__BOOLEAN, G_TYPE_NONE, 1, G_TYPE_BOOLEAN);
+  cls->dbus_properties_class.interfaces = prop_interfaces,
+  tp_dbus_properties_mixin_class_init (object_class,
+      G_STRUCT_OFFSET (McdRequestClass, dbus_properties_class));
 }
 
 McdRequest *
-_mcd_request_new (gboolean use_existing,
+_mcd_request_new (McdClientRegistry *clients,
+    gboolean use_existing,
     McdAccount *account,
     GHashTable *properties,
     gint64 user_action_time,
@@ -322,6 +421,7 @@ _mcd_request_new (gboolean use_existing,
   McdRequest *self;
 
   self = g_object_new (MCD_TYPE_REQUEST,
+      "client-registry", clients,
       "use-existing", use_existing,
       "account", account,
       "properties", properties,
@@ -373,14 +473,54 @@ _mcd_request_get_hints (McdRequest *self)
   return self->hints;
 }
 
-gboolean
-_mcd_request_set_proceeding (McdRequest *self)
+void
+_mcd_request_proceed (McdRequest *self,
+    DBusGMethodInvocation *context)
 {
+  McdPluginRequest *plugin_api = NULL;
+  const GList *mini_plugins;
+
   if (self->proceeding)
-    return FALSE;
+    {
+      GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+          "Proceed has already been called; stop calling it" };
+
+      if (context != NULL)
+        dbus_g_method_return_error (context, &na);
+
+      return;
+    }
 
   self->proceeding = TRUE;
-  return TRUE;
+
+  if (context != NULL)
+    {
+      tp_svc_channel_request_return_from_proceed (context);
+    }
+
+  for (mini_plugins = mcp_list_objects ();
+       mini_plugins != NULL;
+       mini_plugins = mini_plugins->next)
+    {
+      if (MCP_IS_REQUEST_POLICY (mini_plugins->data))
+        {
+          DEBUG ("Checking request with policy");
+
+          /* Lazily create a plugin-API object if anything cares */
+          if (plugin_api == NULL)
+            {
+              plugin_api = _mcd_plugin_request_new (self->account, self);
+            }
+
+          mcp_request_policy_check (mini_plugins->data,
+              MCP_REQUEST (plugin_api));
+        }
+    }
+
+  /* this is paired with the delay set when the request was created */
+  _mcd_request_end_delay (self);
+
+  tp_clear_object (&plugin_api);
 }
 
 GHashTable *
@@ -409,15 +549,31 @@ _mcd_request_end_delay (McdRequest *self)
     g_object_unref (self);
 }
 
-void
-_mcd_request_set_success (McdRequest *self)
+static void
+_mcd_request_clean_up (McdRequest *self)
 {
+  tp_clear_object (&self->predicted_handler);
+  tp_dbus_daemon_unregister_object (self->dbus_daemon, self);
+}
+
+void
+_mcd_request_set_success (McdRequest *self,
+    TpChannel *channel)
+{
+  g_return_if_fail (TP_IS_CHANNEL (channel));
+
   if (!self->is_complete)
     {
       DEBUG ("Request succeeded");
       self->is_complete = TRUE;
       self->cancellable = FALSE;
-      g_signal_emit (self, sig_id_completed, 0, TRUE);
+
+      mc_svc_channel_request_future_emit_succeeded_with_channel (self,
+          tp_proxy_get_object_path (tp_channel_borrow_connection (channel)),
+          tp_proxy_get_object_path (channel));
+      tp_svc_channel_request_emit_succeeded (self);
+
+      _mcd_request_clean_up (self);
     }
   else
     {
@@ -433,14 +589,37 @@ _mcd_request_set_failure (McdRequest *self,
 {
   if (!self->is_complete)
     {
+      GError e = { domain, code, (gchar *) message };
+      gchar *err_string;
+
       DEBUG ("Request failed: %s %d: %s", g_quark_to_string (domain),
           code, message);
+
+      err_string = _mcd_build_error_string (&e);
+
       self->is_complete = TRUE;
       self->cancellable = FALSE;
       self->failure_domain = domain;
       self->failure_code = code;
       self->failure_message = g_strdup (message);
-      g_signal_emit (self, sig_id_completed, 0, FALSE);
+
+      if (self->predicted_handler != NULL)
+        {
+          /* no callback, as we don't really care: this method call acts as a
+           * pseudo-signal */
+          DEBUG ("calling RemoveRequest on %s for %s",
+                 tp_proxy_get_object_path (self->predicted_handler),
+                 self->object_path);
+          tp_cli_client_interface_requests_call_remove_request (
+              self->predicted_handler, -1, self->object_path, err_string,
+              message, NULL, NULL, NULL, NULL);
+        }
+
+      tp_svc_channel_request_emit_failed (self, err_string, message);
+
+      g_free (err_string);
+
+      _mcd_request_clean_up (self);
     }
   else
     {
@@ -464,14 +643,147 @@ _mcd_request_dup_failure (McdRequest *self)
       self->failure_message);
 }
 
-gboolean
-_mcd_request_get_cancellable (McdRequest *self)
-{
-  return self->cancellable;
-}
-
 void
 _mcd_request_set_uncancellable (McdRequest *self)
 {
   self->cancellable = FALSE;
+}
+
+static void
+channel_request_cancel (TpSvcChannelRequest *iface,
+                        DBusGMethodInvocation *context)
+{
+  McdRequest *self = MCD_REQUEST (iface);
+  GError *error = NULL;
+
+  if (_mcd_request_cancel (self, &error))
+    {
+      tp_svc_channel_request_return_from_cancel (context);
+    }
+  else
+    {
+      dbus_g_method_return_error (context, error);
+      g_error_free (error);
+    }
+}
+
+static void
+channel_request_proceed (TpSvcChannelRequest *iface,
+    DBusGMethodInvocation *context)
+{
+  McdRequest *self = MCD_REQUEST (iface);
+
+  _mcd_request_proceed (self, context);
+}
+
+static void
+request_iface_init (TpSvcChannelRequestClass *iface)
+{
+#define IMPLEMENT(x) tp_svc_channel_request_implement_##x (\
+    iface, channel_request_##x)
+  IMPLEMENT (proceed);
+  IMPLEMENT (cancel);
+#undef IMPLEMENT
+}
+
+GHashTable *
+_mcd_request_dup_immutable_properties (McdRequest *self)
+{
+  return tp_dbus_properties_mixin_make_properties_hash ((GObject *) self,
+      TP_IFACE_CHANNEL_REQUEST, "Account",
+      TP_IFACE_CHANNEL_REQUEST, "UserActionTime",
+      TP_IFACE_CHANNEL_REQUEST, "PreferredHandler",
+      TP_IFACE_CHANNEL_REQUEST, "Interfaces",
+      TP_IFACE_CHANNEL_REQUEST, "Requests",
+      MC_IFACE_CHANNEL_REQUEST_FUTURE, "Hints",
+      NULL);
+}
+
+gboolean
+_mcd_request_cancel (McdRequest *self,
+    GError **error)
+{
+  if (self->cancellable)
+    {
+      /* for the moment, McdChannel has to do the actual work, because its
+       * status/error track the failure state */
+      g_signal_emit (self, sig_id_cancelling, 0);
+      return TRUE;
+    }
+  else
+    {
+      g_set_error (error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+          "ChannelRequest is no longer cancellable");
+      return FALSE;
+    }
+}
+
+static TpClient *
+guess_request_handler (McdRequest *self)
+{
+  GList *sorted_handlers;
+
+  if (!tp_str_empty (self->preferred_handler))
+    {
+      McdClientProxy *client = _mcd_client_registry_lookup (
+          self->clients, self->preferred_handler);
+
+        if (client != NULL)
+            return (TpClient *) client;
+    }
+
+  sorted_handlers = _mcd_client_registry_list_possible_handlers (
+      self->clients, self->preferred_handler, self->properties,
+      NULL, NULL);
+
+  if (sorted_handlers != NULL)
+    {
+      McdClientProxy *first = sorted_handlers->data;
+
+      g_list_free (sorted_handlers);
+      return (TpClient *) first;
+    }
+
+  return NULL;
+}
+
+void
+_mcd_request_predict_handler (McdRequest *self)
+{
+  GHashTable *properties;
+  TpClient *predicted_handler;
+
+  g_return_if_fail (!self->is_complete);
+  g_return_if_fail (self->predicted_handler == NULL);
+
+  predicted_handler = guess_request_handler (self);
+
+  if (!predicted_handler)
+    {
+      /* No handler found. But it's possible that by the time that the
+       * channel will be created some handler will have popped up, so we
+       * must not destroy it. */
+      DEBUG ("No known handler for request %s", self->object_path);
+      return;
+    }
+
+  if (!tp_proxy_has_interface_by_id (predicted_handler,
+      TP_IFACE_QUARK_CLIENT_INTERFACE_REQUESTS))
+    {
+      DEBUG ("Default handler %s for request %s doesn't want AddRequest",
+             tp_proxy_get_bus_name (predicted_handler), self->object_path);
+      return;
+    }
+
+  DEBUG ("Calling AddRequest on default handler %s for request %s",
+      tp_proxy_get_bus_name (predicted_handler), self->object_path);
+
+  properties = _mcd_request_dup_immutable_properties (self);
+  tp_cli_client_interface_requests_call_add_request (predicted_handler, -1,
+      self->object_path, properties,
+      NULL, NULL, NULL, NULL);
+  g_hash_table_unref (properties);
+
+  /* Remember it so we can call RemoveRequest when appropriate */
+  self->predicted_handler = g_object_ref (predicted_handler);
 }

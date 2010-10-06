@@ -1736,6 +1736,11 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
 
         g_hash_table_unref (requests);
 
+        /* Numerical order is correct for all currently supported values:
+         *
+         * (TP_USER_ACTION_TIME_NOT_USER_ACTION == 0) is less than
+         * (normal X11 timestamps, which are 1 to G_MAXUINT32) are less than
+         * (TP_USER_ACTION_TIME_CURRENT_TIME == G_MAXINT64) */
         if (req_time > user_action_time)
             user_action_time = req_time;
 

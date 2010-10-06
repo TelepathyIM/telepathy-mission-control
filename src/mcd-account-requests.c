@@ -46,8 +46,6 @@
 #include "mcd-dispatcher-priv.h"
 #include "mcd-channel-priv.h"
 #include "mcd-misc.h"
-#include "plugin-loader.h"
-#include "plugin-request.h"
 #include "request.h"
 
 #include "_gen/svc-Channel_Request_Future.h"
@@ -99,9 +97,11 @@ get_channel_from_request (McdAccount *account, const gchar *request_id)
         for (list = channels; list != NULL; list = list->next)
         {
             McdChannel *channel = MCD_CHANNEL (list->data);
+            McdRequest *request = _mcd_channel_get_request (channel);
 
-            if (g_strcmp0 (_mcd_channel_get_request_path (channel),
-                           request_id) == 0)
+            if (request != NULL &&
+                !tp_strdiff (_mcd_request_get_object_path (request),
+                             request_id))
                 return channel;
         }
     }
@@ -116,9 +116,11 @@ get_channel_from_request (McdAccount *account, const gchar *request_id)
         if (data->callback == online_request_cb)
         {
             McdChannel *channel = MCD_CHANNEL (data->user_data);
+            McdRequest *request = _mcd_channel_get_request (channel);
 
-            if (g_strcmp0 (_mcd_channel_get_request_path (channel),
-                           request_id) == 0)
+            if (request != NULL &&
+                !tp_strdiff (_mcd_request_get_object_path (request),
+                             request_id))
                 return channel;
         }
 
@@ -127,72 +129,76 @@ get_channel_from_request (McdAccount *account, const gchar *request_id)
     return NULL;
 }
 
+static void mcd_account_channel_request_disconnect (McdRequest *request);
+
 static void
-on_request_completed (McdRequest *request,
-                      gboolean successful,
-                      McdChannel *channel)
+on_request_succeeded_with_channel (McdRequest *request,
+    const gchar *conn_path,
+    const gchar *chan_path,
+    McdChannel *channel)
 {
     McdAccount *account = _mcd_request_get_account (request);
 
-    if (!successful)
-    {
-        GError *error = _mcd_request_dup_failure (request);
-        gchar *err_string;
+    /* Backwards-compatible version for the old API */
+    mc_svc_account_interface_channelrequests_emit_succeeded (account,
+        _mcd_request_get_object_path (request));
 
-        g_warning ("Channel request %s failed, error: %s",
-                   _mcd_channel_get_request_path (channel), error->message);
+    mcd_account_channel_request_disconnect (request);
+}
 
-        err_string = _mcd_build_error_string (error);
-        /* FIXME: ideally the McdRequest should emit this signal itself, and
-         * the Account.Interface.ChannelRequests should catch and re-emit it */
-        tp_svc_channel_request_emit_failed (channel, err_string,
-                                            error->message);
-        mc_svc_account_interface_channelrequests_emit_failed (account,
-            _mcd_channel_get_request_path (channel),
-            err_string, error->message);
-        g_free (err_string);
+static void
+on_request_failed (McdRequest *request,
+    const gchar *err_string,
+    const gchar *message,
+    McdChannel *channel)
+{
+    McdAccount *account = _mcd_request_get_account (request);
 
-        g_error_free (error);
-    }
-    else
-    {
-        /* FIXME: ideally the McdRequest should emit this signal itself, and
-         * the Account.Interface.ChannelRequests should catch and re-emit it */
-        TpChannel *tp_chan;
-        TpConnection *tp_conn;
+    g_warning ("Channel request %s failed, error: %s",
+               _mcd_request_get_object_path (request), message);
 
-        /* SucceededWithChannel has to be fired first */
-        tp_chan = mcd_channel_get_tp_channel (channel);
-        g_assert (tp_chan != NULL);
+    /* Backwards-compatible version for the old API */
+    mc_svc_account_interface_channelrequests_emit_failed (account,
+        _mcd_request_get_object_path (request), err_string, message);
 
-        tp_conn = tp_channel_borrow_connection (tp_chan);
-        g_assert (tp_conn != NULL);
+    mcd_account_channel_request_disconnect (request);
+}
 
-        mc_svc_channel_request_future_emit_succeeded_with_channel (channel,
-            tp_proxy_get_object_path (tp_conn),
-            tp_proxy_get_object_path (tp_chan));
+static void ready_to_request_cb (McdRequest *request, McdChannel *channel);
 
-        tp_svc_channel_request_emit_succeeded (channel);
-        mc_svc_account_interface_channelrequests_emit_succeeded (account,
-            _mcd_channel_get_request_path (channel));
-    }
-
-    g_signal_handlers_disconnect_by_func (request, on_request_completed,
-                                          channel);
+static void
+mcd_account_channel_request_disconnect (McdRequest *request)
+{
+    g_signal_handlers_disconnect_matched (request, G_SIGNAL_MATCH_FUNC,
+                                          0,        /* signal_id ignored */
+                                          0,        /* detail ignored */
+                                          NULL,     /* closure ignored */
+                                          on_request_failed,
+                                          NULL      /* user data ignored */);
+    g_signal_handlers_disconnect_matched (request, G_SIGNAL_MATCH_FUNC,
+                                          0,        /* signal_id ignored */
+                                          0,        /* detail ignored */
+                                          NULL,     /* closure ignored */
+                                          on_request_succeeded_with_channel,
+                                          NULL      /* user data ignored */);
+    g_signal_handlers_disconnect_matched (request, G_SIGNAL_MATCH_FUNC,
+                                          0,        /* signal_id ignored */
+                                          0,        /* detail ignored */
+                                          NULL,     /* closure ignored */
+                                          ready_to_request_cb,
+                                          NULL      /* user data ignored */);
 }
 
 McdChannel *
-_mcd_account_create_request (McdAccount *account, GHashTable *properties,
+_mcd_account_create_request (McdClientRegistry *clients,
+                             McdAccount *account, GHashTable *properties,
                              gint64 user_time, const gchar *preferred_handler,
-                             GHashTable *request_metadata,
-                             gboolean use_existing, gboolean proceeding,
-                             GError **error)
+                             GHashTable *hints, gboolean use_existing,
+                             McdRequest **request_out, GError **error)
 {
     McdChannel *channel;
     GHashTable *props;
-    TpDBusDaemon *dbus_daemon = mcd_account_get_dbus_daemon (account);
-
-    DBusGConnection *dgc = tp_proxy_get_dbus_connection (dbus_daemon);
+    McdRequest *request;
 
     if (!mcd_account_check_request (account, properties, error))
     {
@@ -202,23 +208,45 @@ _mcd_account_create_request (McdAccount *account, GHashTable *properties,
     /* We MUST deep-copy the hash-table, as we don't know how dbus-glib will
      * free it */
     props = _mcd_deepcopy_asv (properties);
-    channel = mcd_channel_new_request (account, dgc, props, user_time,
-                                       preferred_handler, request_metadata, use_existing,
-                                       proceeding);
+    request = _mcd_request_new (clients, use_existing, account, props,
+                                user_time, preferred_handler, hints);
+    g_assert (request != NULL);
     g_hash_table_unref (props);
+
+    channel = _mcd_channel_new_request (request);
 
     /* FIXME: this isn't ideal - if the account is deleted, Proceed will fail,
      * whereas what we want to happen is that Proceed will succeed but
      * immediately cause a failure to be signalled. It'll do for now though. */
 
+    /* This can't actually be emitted until Proceed() is called; it'll always
+     * come before succeeded-with-channel or failed */
+    g_signal_connect_data (request,
+                           "ready-to-request",
+                           G_CALLBACK (ready_to_request_cb),
+                           g_object_ref (channel),
+                           (GClosureNotify) g_object_unref,
+                           0);
+
     /* we use connect_after, to make sure that other signals (such as
      * RemoveRequest) are emitted before the Failed signal */
-    g_signal_connect_data (_mcd_channel_get_request (channel),
-                           "completed",
-                            G_CALLBACK (on_request_completed),
-                            g_object_ref (channel),
-                            (GClosureNotify) g_object_unref,
-                            G_CONNECT_AFTER);
+    g_signal_connect_data (request,
+                           "succeeded-with-channel",
+                           G_CALLBACK (on_request_succeeded_with_channel),
+                           g_object_ref (channel),
+                           (GClosureNotify) g_object_unref,
+                           G_CONNECT_AFTER);
+    g_signal_connect_data (request,
+                           "failed",
+                           G_CALLBACK (on_request_failed),
+                           g_object_ref (channel),
+                           (GClosureNotify) g_object_unref,
+                           G_CONNECT_AFTER);
+
+    if (request_out != NULL)
+    {
+        *request_out = g_object_ref (request);
+    }
 
     return channel;
 }
@@ -257,49 +285,6 @@ ready_to_request_cb (McdRequest *request,
     g_object_unref (channel);
 }
 
-void
-_mcd_account_proceed_with_request (McdAccount *account,
-                                   McdChannel *channel)
-{
-    McdPluginRequest *plugin_api = NULL;
-    const GList *mini_plugins;
-
-    g_object_ref (channel);
-
-    for (mini_plugins = mcp_list_objects ();
-         mini_plugins != NULL;
-         mini_plugins = mini_plugins->next)
-    {
-        if (MCP_IS_REQUEST_POLICY (mini_plugins->data))
-        {
-            DEBUG ("Checking request with policy");
-
-            /* Lazily create a plugin-API object if anything cares */
-            if (plugin_api == NULL)
-            {
-                plugin_api = _mcd_plugin_request_new (account,
-                    _mcd_channel_get_request (channel));
-            }
-
-            mcp_request_policy_check (mini_plugins->data,
-                                      MCP_REQUEST (plugin_api));
-        }
-    }
-
-    g_signal_connect_data (_mcd_channel_get_request (channel),
-                           "ready-to-request",
-                           G_CALLBACK (ready_to_request_cb),
-                           g_object_ref (channel),
-                           (GClosureNotify) g_object_unref,
-                           0);
-
-    /* this is paired with the delay set when the request was created */
-    _mcd_request_end_delay (_mcd_channel_get_request (channel));
-
-    tp_clear_object (&plugin_api);
-    g_object_unref (channel);
-}
-
 static void
 account_request_common (McdAccount *account, GHashTable *properties,
                         gint64 user_time, const gchar *preferred_handler,
@@ -309,10 +294,17 @@ account_request_common (McdAccount *account, GHashTable *properties,
     const gchar *request_id;
     McdChannel *channel;
     McdDispatcher *dispatcher;
+    McdClientRegistry *clients;
+    McdRequest *request = NULL;
 
-    channel = _mcd_account_create_request (account, properties, user_time,
-                                           preferred_handler, NULL, use_existing,
-                                           TRUE /* proceeding */, &error);
+    dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
+    clients = _mcd_dispatcher_get_client_registry (dispatcher);
+
+    channel = _mcd_account_create_request (clients,
+                                           account, properties, user_time,
+                                           preferred_handler, NULL,
+                                           use_existing,
+                                           &request, &error);
 
     if (error)
     {
@@ -322,9 +314,9 @@ account_request_common (McdAccount *account, GHashTable *properties,
         return;
     }
 
-    _mcd_account_proceed_with_request (account, channel);
+    g_assert (request != NULL);
 
-    request_id = _mcd_channel_get_request_path (channel);
+    request_id = _mcd_request_get_object_path (request);
     DEBUG ("returning %s", request_id);
     if (use_existing)
         mc_svc_account_interface_channelrequests_return_from_ensure_channel
@@ -333,11 +325,14 @@ account_request_common (McdAccount *account, GHashTable *properties,
         mc_svc_account_interface_channelrequests_return_from_create
             (context, request_id);
 
-    dispatcher = mcd_master_get_dispatcher (mcd_master_get_default ());
-    _mcd_dispatcher_add_request (dispatcher, account, channel);
+    _mcd_request_predict_handler (request);
 
-    /* we still have a ref returned by _mcd_account_create_request(), which
-     * is no longer necessary at this point */
+    /* we only just created the request, so Proceed() shouldn't fail */
+    _mcd_request_proceed (request, NULL);
+
+    /* we still have refs returned by _mcd_account_create_request(), which
+     * are no longer necessary at this point */
+    g_object_unref (request);
     g_object_unref (channel);
 }
 
@@ -381,7 +376,7 @@ account_request_cancel (McSvcAccountInterfaceChannelRequests *self,
         return;
     }
 
-    if (!_mcd_channel_request_cancel (channel, &error))
+    if (!_mcd_request_cancel (_mcd_channel_get_request (channel), &error))
     {
         dbus_g_method_return_error (context, error);
         g_error_free (error);

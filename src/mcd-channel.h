@@ -81,7 +81,7 @@ struct _McdChannelClass
     void (*status_changed_signal) (McdChannel * channel,
 				   McdChannelStatus status);
     void (*members_accepted_signal) (McdChannel *channel);
-    TpDBusPropertiesMixinClass dbus_properties_class;
+    TpDBusPropertiesMixinClass _former_dbus_properties_class;
     void (*_mc_reserved1) (void);
     void (*_mc_reserved2) (void);
     void (*_mc_reserved3) (void);
@@ -99,14 +99,6 @@ McdChannel *mcd_channel_new_from_path (TpConnection *connection,
                                        const gchar *object_path,
                                        const gchar *type, guint handle,
                                        TpHandleType handle_type);
-McdChannel *mcd_channel_new_request (McdAccount *account,
-                                     DBusGConnection *dgc,
-                                     GHashTable *properties,
-                                     gint64 user_time,
-                                     const gchar *preferred_handler,
-                                     GHashTable *request_metadata,
-                                     gboolean use_existing,
-                                     gboolean proceeding);
 
 McdChannelStatus mcd_channel_get_status (McdChannel * channel);
 gboolean mcd_channel_get_members_accepted (McdChannel *channel);

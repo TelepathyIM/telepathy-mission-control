@@ -23,6 +23,9 @@
 #ifndef MCD_REQUEST_H
 #define MCD_REQUEST_H
 
+#include <telepathy-glib/client.h>
+
+#include "client-registry.h"
 #include "mcd-account.h"
 
 G_BEGIN_DECLS
@@ -49,7 +52,8 @@ G_GNUC_INTERNAL GType _mcd_request_get_type (void);
   (G_TYPE_INSTANCE_GET_CLASS ((obj), MCD_TYPE_REQUEST, \
                               McdRequestClass))
 
-G_GNUC_INTERNAL McdRequest *_mcd_request_new (gboolean use_existing,
+G_GNUC_INTERNAL McdRequest *_mcd_request_new (McdClientRegistry *clients,
+    gboolean use_existing,
     McdAccount *account, GHashTable *properties, gint64 user_action_time,
     const gchar *preferred_handler,
     GHashTable *hints);
@@ -63,19 +67,27 @@ G_GNUC_INTERNAL const gchar *_mcd_request_get_object_path (McdRequest *self);
 G_GNUC_INTERNAL GHashTable *_mcd_request_get_hints (
     McdRequest *self);
 
-G_GNUC_INTERNAL gboolean _mcd_request_set_proceeding (McdRequest *self);
+G_GNUC_INTERNAL GHashTable *_mcd_request_dup_immutable_properties (
+    McdRequest *self);
+
+G_GNUC_INTERNAL void _mcd_request_proceed (McdRequest *self,
+    DBusGMethodInvocation *context);
 
 G_GNUC_INTERNAL void _mcd_request_start_delay (McdRequest *self);
 G_GNUC_INTERNAL void _mcd_request_end_delay (McdRequest *self);
 
 G_GNUC_INTERNAL gboolean _mcd_request_is_complete (McdRequest *self);
-G_GNUC_INTERNAL void _mcd_request_set_success (McdRequest *self);
+G_GNUC_INTERNAL void _mcd_request_set_success (McdRequest *self,
+    TpChannel *channel);
 G_GNUC_INTERNAL void _mcd_request_set_failure (McdRequest *self,
     GQuark domain, gint code, const gchar *message);
 G_GNUC_INTERNAL GError *_mcd_request_dup_failure (McdRequest *self);
 
-G_GNUC_INTERNAL gboolean _mcd_request_get_cancellable (McdRequest *self);
 G_GNUC_INTERNAL void _mcd_request_set_uncancellable (McdRequest *self);
+G_GNUC_INTERNAL gboolean _mcd_request_cancel (McdRequest *self,
+    GError **error);
+
+G_GNUC_INTERNAL void _mcd_request_predict_handler (McdRequest *self);
 
 G_END_DECLS
 

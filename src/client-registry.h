@@ -66,6 +66,8 @@ GType _mcd_client_registry_get_type (void);
 G_GNUC_INTERNAL McdClientRegistry *_mcd_client_registry_new (
     TpDBusDaemon *dbus_daemon);
 
+TpDBusDaemon *_mcd_client_registry_get_dbus_daemon (McdClientRegistry *self);
+
 G_GNUC_INTERNAL McdClientProxy *_mcd_client_registry_lookup (
     McdClientRegistry *self, const gchar *well_known_name);
 
@@ -77,6 +79,11 @@ G_GNUC_INTERNAL gboolean _mcd_client_registry_is_ready (
 
 G_GNUC_INTERNAL void _mcd_client_registry_init_hash_iter (
     McdClientRegistry *self, GHashTableIter *iter);
+
+G_GNUC_INTERNAL GList *_mcd_client_registry_list_possible_handlers (
+    McdClientRegistry *self, const gchar *preferred_handler,
+    GHashTable *request_props, const GList *channels,
+    const gchar *must_have_unique_name);
 
 G_END_DECLS
 

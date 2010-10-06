@@ -851,8 +851,9 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
     const gchar *handler_name,
     DBusGMethodInvocation *context)
 {
-    /* 0 is a special case for 'no user action' */
-    dispatch_operation_handle_with_time (cdo, handler_name, 0, context);
+    dispatch_operation_handle_with_time (cdo, handler_name,
+                                         TP_USER_ACTION_TIME_NOT_USER_ACTION,
+                                         context);
 }
 
 static void
@@ -1806,7 +1807,10 @@ observe_channels_cb (TpClient *proxy, const GError *error,
     _mcd_dispatch_operation_dec_observers_pending (self);
 }
 
-/* The returned GPtrArray is allocated, but the contents are borrowed. */
+/*
+ * Returns: (transfer full) (element-type utf8 McdRequest): a map from
+ *  channel request object path to McdRequest
+ */
 static GHashTable *
 collect_satisfied_requests (GList *channels)
 {
@@ -1893,8 +1897,8 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
             GHashTable *props;
 
             g_ptr_array_add (satisfied_requests, path);
-
-            props = _mcd_channel_dup_request_properties (MCD_CHANNEL (value));
+            props = _mcd_request_dup_immutable_properties (value);
+            g_assert (props != NULL);
             g_hash_table_insert (request_properties, g_strdup (path), props);
         }
 

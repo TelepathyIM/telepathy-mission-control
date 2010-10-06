@@ -65,23 +65,21 @@ def test(q, bus, mc):
 
     # chat UI connects to signals and calls ChannelRequest.Proceed() - but not
     # in this non-standard API, which fires off the request instantly
-    ret, cm_request_call = q.expect_many(
+    ret, cm_request_call, add_request = q.expect_many(
             EventPattern('dbus-return',
                 method='Create'),
             EventPattern('dbus-method-call',
                 interface=cs.CONN_IFACE_REQUESTS,
                 method='CreateChannel',
                 path=conn.object_path, args=[request], handled=False),
+            EventPattern('dbus-method-call', handled=False,
+                interface=cs.CLIENT_IFACE_REQUESTS, method='AddRequest',
+                path=client.object_path),
             )
 
     request_path = ret.value[0]
 
-    e = q.expect('dbus-method-call', handled=False,
-        interface=cs.CLIENT_IFACE_REQUESTS, method='AddRequest',
-        path=client.object_path)
-    assert e.args[0] == request_path
-
-    q.dbus_return(e.message, signature='')
+    q.dbus_return(add_request.message, signature='')
 
     # Before the channel is returned, we delete the account
 

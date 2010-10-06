@@ -27,6 +27,7 @@
 #ifndef MCD_CHANNEL_PRIV_H
 #define MCD_CHANNEL_PRIV_H
 
+#include "client-registry.h"
 #include "mcd-channel.h"
 #include "request.h"
 
@@ -52,19 +53,15 @@ G_GNUC_INTERNAL McdRequest *_mcd_channel_get_request (McdChannel *self);
 G_GNUC_INTERNAL
 GHashTable *_mcd_channel_get_requested_properties (McdChannel *channel);
 G_GNUC_INTERNAL
-const gchar *_mcd_channel_get_request_path (McdChannel *channel);
-G_GNUC_INTERNAL
 GHashTable *_mcd_channel_get_satisfied_requests (McdChannel *channel,
                                                   gint64 *get_latest_time);
-G_GNUC_INTERNAL
-guint64 _mcd_channel_get_request_user_action_time (McdChannel *channel);
 G_GNUC_INTERNAL
 const gchar *_mcd_channel_get_request_preferred_handler (McdChannel *channel);
 G_GNUC_INTERNAL
 gboolean _mcd_channel_get_request_use_existing (McdChannel *channel);
 
-G_GNUC_INTERNAL gboolean _mcd_channel_request_cancel (McdChannel *self,
-                                                      GError **error);
+G_GNUC_INTERNAL void _mcd_channel_request_proceed (McdChannel *self,
+    DBusGMethodInvocation *context);
 
 G_GNUC_INTERNAL
 void _mcd_channel_copy_details (McdChannel *channel, McdChannel *source);
@@ -77,10 +74,10 @@ G_GNUC_INTERNAL void _mcd_channel_depart (McdChannel *channel,
                                           TpChannelGroupChangeReason reason,
                                           const gchar *message);
 
-GHashTable * _mcd_channel_dup_request_properties (McdChannel *self);
-
 G_GNUC_INTERNAL gboolean _mcd_channel_is_primary_for_path (McdChannel *self,
     const gchar *channel_path);
+
+G_GNUC_INTERNAL McdChannel *_mcd_channel_new_request (McdRequest *request);
 
 G_END_DECLS
 #endif

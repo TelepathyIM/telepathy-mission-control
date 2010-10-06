@@ -57,13 +57,7 @@
 
 #define MCD_CHANNEL_PRIV(channel) (MCD_CHANNEL (channel)->priv)
 
-static void request_iface_init (gpointer, gpointer);
-
-G_DEFINE_TYPE_WITH_CODE (McdChannel, mcd_channel, MCD_TYPE_MISSION,
-    G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_CHANNEL_REQUEST, request_iface_init);
-    G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_REQUEST_FUTURE, NULL);
-    G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
-                           tp_dbus_properties_mixin_iface_init))
+G_DEFINE_TYPE (McdChannel, mcd_channel, MCD_TYPE_MISSION)
 
 typedef struct _McdChannelRequestData McdChannelRequestData;
 
@@ -86,8 +80,7 @@ struct _McdChannelPrivate
 
     McdRequest *request;
 
-    /* List of reffed McdChannel. This does NOT include the self pointer to
-     * avoid cylcing references. */
+    /* List of reffed McdRequest */
     GList *satisfied_requests;
     gint64 latest_request_time;
 };
@@ -383,7 +376,7 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
                                    "user-action-time", val);
             break;
         }
-        g_value_set_int64 (val, 0);
+        g_value_set_int64 (val, TP_USER_ACTION_TIME_NOT_USER_ACTION);
         break;
 
     case PROP_PREFERRED_HANDLER:
@@ -399,21 +392,21 @@ _mcd_channel_get_property (GObject * obj, guint prop_id,
     case PROP_REQUESTS:
         if (priv->request != NULL)
         {
-            GPtrArray *arr = g_ptr_array_sized_new (1);
-
-            g_ptr_array_add (arr,
-                g_hash_table_ref (
-                    _mcd_request_get_properties (priv->request)));
-
-            g_value_take_boxed (val, arr);
+            g_object_get_property ((GObject *) priv->request,
+                                   "requests", val);
             break;
         }
         g_value_take_boxed (val, g_ptr_array_sized_new (0));
         break;
 
     case PROP_INTERFACES:
-        /* we have no interfaces */
-        g_value_set_static_boxed (val, NULL);
+        if (priv->request != NULL)
+        {
+            g_object_get_property ((GObject *) priv->request,
+                                   "interfaces", val);
+            break;
+        }
+        g_value_take_boxed (val, NULL);
         break;
 
     case PROP_HINTS:
@@ -470,6 +463,7 @@ _mcd_channel_finalize (GObject * object)
     GList *list;
 
     list = priv->satisfied_requests;
+
     while (list)
     {
         g_object_unref (list->data);
@@ -523,6 +517,27 @@ mcd_channel_status_changed (McdChannel *channel, McdChannelStatus status)
 {
     channel->priv->status = status;
 
+    switch (status)
+    {
+        case MCD_CHANNEL_STATUS_UNDISPATCHED:
+        case MCD_CHANNEL_STATUS_DISPATCHING:
+        case MCD_CHANNEL_STATUS_HANDLER_INVOKED:
+        case MCD_CHANNEL_STATUS_DISPATCHED:
+            g_assert (channel->priv->tp_chan != NULL);
+            break;
+
+        case MCD_CHANNEL_STATUS_REQUEST:
+        case MCD_CHANNEL_STATUS_REQUESTED:
+            g_assert (channel->priv->tp_chan == NULL);
+            break;
+
+        case MCD_CHANNEL_STATUS_FAILED:
+        case MCD_CHANNEL_STATUS_ABORTED:
+            { /* no particular assertion */ }
+
+        /* no default case, so the compiler will warn on unhandled states */
+    }
+
     if (channel->priv->request != NULL &&
         !_mcd_request_is_complete (channel->priv->request))
     {
@@ -547,7 +562,8 @@ mcd_channel_status_changed (McdChannel *channel, McdChannelStatus status)
         }
         else if (status == MCD_CHANNEL_STATUS_DISPATCHED)
         {
-            _mcd_request_set_success (channel->priv->request);
+            _mcd_request_set_success (channel->priv->request,
+                                      channel->priv->tp_chan);
         }
         else if (status == MCD_CHANNEL_STATUS_HANDLER_INVOKED)
         {
@@ -559,31 +575,6 @@ mcd_channel_status_changed (McdChannel *channel, McdChannelStatus status)
 static void
 mcd_channel_class_init (McdChannelClass * klass)
 {
-    static TpDBusPropertiesMixinPropImpl request_props[] = {
-        { "Account", "account-path", NULL },
-        { "UserActionTime", "user-action-time", NULL },
-        { "PreferredHandler", "preferred-handler", NULL },
-        { "Interfaces", "interfaces", NULL },
-        { "Requests", "requests", NULL },
-        { NULL }
-    };
-    static TpDBusPropertiesMixinPropImpl future_props[] = {
-        { "Hints", "hints", NULL },
-        { NULL }
-    };
-    static TpDBusPropertiesMixinIfaceImpl prop_interfaces[] = {
-        { TP_IFACE_CHANNEL_REQUEST,
-          tp_dbus_properties_mixin_getter_gobject_properties,
-          NULL,
-          request_props,
-        },
-        { MC_IFACE_CHANNEL_REQUEST_FUTURE,
-          tp_dbus_properties_mixin_getter_gobject_properties,
-          NULL,
-          future_props,
-        },
-        { NULL }
-    };
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
     McdMissionClass *mission_class = MCD_MISSION_CLASS (klass);
     g_type_class_add_private (object_class, sizeof (McdChannelPrivate));
@@ -650,8 +641,9 @@ mcd_channel_class_init (McdChannelClass * klass)
         (object_class, PROP_USER_ACTION_TIME,
          g_param_spec_int64 ("user-action-time",
                              "UserActionTime",
-                             "Time of user action in seconds since 1970",
-                             G_MININT64, G_MAXINT64, 0,
+                             "Time of user action",
+                             G_MININT64, G_MAXINT64,
+                             TP_USER_ACTION_TIME_NOT_USER_ACTION,
                              G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property
@@ -677,10 +669,6 @@ mcd_channel_class_init (McdChannelClass * klass)
                              "GHashTable",
                              TP_HASH_TYPE_STRING_VARIANT_MAP,
                              G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
-
-    klass->dbus_properties_class.interfaces = prop_interfaces,
-    tp_dbus_properties_mixin_class_init (object_class,
-        G_STRUCT_OFFSET (McdChannelClass, dbus_properties_class));
 }
 
 static void
@@ -1075,16 +1063,49 @@ mcd_channel_get_error (McdChannel *channel)
     return NULL;
 }
 
-/**
- * mcd_channel_new_request:
+static void
+_mcd_channel_request_cancelling_cb (McdRequest *request,
+                                    McdChannel *self)
+{
+    McdChannelStatus status = mcd_channel_get_status (self);
+
+    g_object_ref (self);
+    DEBUG ("%p in status %u", self, status);
+
+    mcd_channel_take_error (self, g_error_new (TP_ERRORS,
+                                               TP_ERROR_CANCELLED,
+                                               "Cancelled"));
+
+    /* If we're coming from state REQUEST, the call to the CM hasn't
+     * happened yet; now that we're in state FAILED, it never will,
+     * because mcd_connection_request_channel() now checks that.
+     *
+     * If we're coming from state REQUESTED, we need to close the channel
+     * when the CM tells us where it is, so we can't now.
+     *
+     * If we're coming from state DISPATCHING, we need to shoot it down
+     * now.
+     *
+     * Anything else is too late.
+     */
+    if (status == MCD_CHANNEL_STATUS_DISPATCHING)
+    {
+        _mcd_channel_close (self);
+        mcd_mission_abort ((McdMission *) self);
+    }
+
+    g_object_unref (self);
+}
+
+/*
+ * _mcd_channel_new_request:
+ * @clients: the client registry
  * @account: an account.
- * @dgc: a #DBusGConnection on which to export the ChannelRequest object.
  * @properties: a #GHashTable of desired channel properties.
  * @user_time: user action time.
  * @preferred_handler: well-known name of preferred handler.
  * @hints: client hints from the request, or %NULL
  * @use_existing: use EnsureChannel if %TRUE or CreateChannel if %FALSE
- * @proceeding: behave as though Proceed has already been called
  *
  * Create a #McdChannel object holding the given properties. The object can
  * then be used to intiate a channel request, by passing it to
@@ -1093,17 +1114,9 @@ mcd_channel_get_error (McdChannel *channel)
  * Returns: a newly created #McdChannel.
  */
 McdChannel *
-mcd_channel_new_request (McdAccount *account,
-                         DBusGConnection *dgc,
-                         GHashTable *properties,
-                         gint64 user_time,
-                         const gchar *preferred_handler,
-                         GHashTable *hints,
-                         gboolean use_existing,
-                         gboolean proceeding)
+_mcd_channel_new_request (McdRequest *request)
 {
     McdChannel *channel;
-    const gchar *path;
 
     channel = g_object_new (MCD_TYPE_CHANNEL,
                             "outgoing", TRUE,
@@ -1111,25 +1124,18 @@ mcd_channel_new_request (McdAccount *account,
 
     /* TODO: this could be freed when the channel status becomes
      * MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED? */
-    channel->priv->request = _mcd_request_new (use_existing, account,
-                                               properties, user_time,
-                                               preferred_handler,
-                                               hints);
-    path = _mcd_request_get_object_path (channel->priv->request);
+    channel->priv->request = request;
 
-    if (proceeding)
-        _mcd_request_set_proceeding (channel->priv->request);
-
-    channel->priv->satisfied_requests = NULL;
-    channel->priv->latest_request_time = user_time;
+    channel->priv->satisfied_requests = g_list_prepend (NULL,
+        g_object_ref (channel->priv->request));
+    channel->priv->latest_request_time =
+        _mcd_request_get_user_action_time (request);
 
     _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_REQUEST);
 
-    /* This could do with refactoring so that requests are a separate object
-     * that dies at the appropriate time, but for now the path of least
-     * resistance is to have the McdChannel be a ChannelRequest throughout
-     * its lifetime */
-    dbus_g_connection_register_g_object (dgc, path, (GObject *) channel);
+    /* for the moment McdChannel implements the later stages of cancelling */
+    tp_g_signal_connect_object (request, "cancelling",
+        G_CALLBACK (_mcd_channel_request_cancelling_cb), channel, 0);
 
     return channel;
 }
@@ -1159,32 +1165,13 @@ _mcd_channel_get_requested_properties (McdChannel *channel)
 }
 
 /*
- * _mcd_channel_get_request_path:
- * @channel: the #McdChannel.
- *
- * Returns: the object path of the channel request, if the channel is in
- * MCD_CHANNEL_REQUEST status.
- */
-const gchar *
-_mcd_channel_get_request_path (McdChannel *channel)
-{
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-
-    if (channel->priv->request == NULL)
-        return NULL;
-
-    return _mcd_request_get_object_path (channel->priv->request);
-}
-
-/*
  * _mcd_channel_get_satisfied_requests:
  * @channel: the #McdChannel.
  * @get_latest_time: if not %NULL, the most recent request time will be copied
  *  through this pointer
  *
  * Returns: a newly allocated hash table mapping channel object paths
- * to McdChannel objects satisfied by this channel, if the channel status
- * is not yet MCD_CHANNEL_STATUS_DISPATCHED or MCD_CHANNEL_STATUS_FAILED.
+ * to McdRequest objects satisfied by this channel
  */
 GHashTable *
 _mcd_channel_get_satisfied_requests (McdChannel *channel,
@@ -1202,39 +1189,14 @@ _mcd_channel_get_satisfied_requests (McdChannel *channel,
     result = g_hash_table_new_full (g_str_hash, g_str_equal,
         g_free, g_object_unref);
 
-    /* Add ourself */
-    path = _mcd_channel_get_request_path (channel);
-    if (path != NULL)
-        g_hash_table_insert (result, g_strdup (path), g_object_ref (channel));
-
     for (l = channel->priv->satisfied_requests; l != NULL; l = g_list_next (l))
     {
-        path = _mcd_channel_get_request_path (l->data);
-
-        if (path != NULL)
-            g_hash_table_insert (result, g_strdup (path),
-                g_object_ref (l->data));
+        path = _mcd_request_get_object_path (l->data);
+        g_assert (path != NULL);
+        g_hash_table_insert (result, g_strdup (path), g_object_ref (l->data));
     }
 
     return result;
-}
-
-/*
- * _mcd_channel_get_request_user_action_time:
- * @channel: the #McdChannel.
- *
- * Returns: UserActionTime of the channel request, if the channel is in
- * MCD_CHANNEL_REQUEST status.
- */
-guint64
-_mcd_channel_get_request_user_action_time (McdChannel *channel)
-{
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), 0);
-
-    if (G_UNLIKELY (!channel->priv->request))
-        return 0;
-
-    return _mcd_request_get_user_action_time (channel->priv->request);
 }
 
 /*
@@ -1361,6 +1323,7 @@ _mcd_channel_set_request_proxy (McdChannel *channel, McdChannel *source)
 {
     g_return_if_fail (MCD_IS_CHANNEL (channel));
     g_return_if_fail (MCD_IS_CHANNEL (source));
+    g_return_if_fail (MCD_IS_REQUEST (channel->priv->request));
 
     g_return_if_fail (!source->priv->is_proxy);
     g_return_if_fail (source->priv->tp_chan != NULL);
@@ -1372,7 +1335,8 @@ _mcd_channel_set_request_proxy (McdChannel *channel, McdChannel *source)
         channel->priv->latest_request_time);
 
     source->priv->satisfied_requests = g_list_prepend (
-        source->priv->satisfied_requests, g_object_ref (channel));
+        source->priv->satisfied_requests,
+        g_object_ref (channel->priv->request));
 
     copy_status (source, channel);
     g_signal_connect (source, "status-changed",
@@ -1403,128 +1367,6 @@ mcd_channel_get_tp_channel (McdChannel *channel)
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
 
     return channel->priv->tp_chan;
-}
-
-static void
-channel_request_proceed (TpSvcChannelRequest *iface,
-                         DBusGMethodInvocation *context)
-{
-    McdChannel *self = MCD_CHANNEL (iface);
-    McdAccount *account;
-
-    if (G_UNLIKELY (self->priv->request == NULL))
-    {
-        GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
-            "McdChannel is on D-Bus but is not actually a request" };
-
-        /* shouldn't be possible, but this code is quite tangled */
-        g_warning ("%s: channel %p is on D-Bus but not actually a request",
-                   G_STRFUNC, self);
-        dbus_g_method_return_error (context, &na);
-        return;
-    }
-
-    account = _mcd_request_get_account (self->priv->request);
-
-    if (G_UNLIKELY (account == NULL))
-    {
-        GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
-            "McdChannel has no Account, cannot proceed" };
-
-        /* likewise, shouldn't be possible but this code is quite tangled */
-        g_warning ("%s: channel %p has no Account, so cannot proceed",
-                   G_STRFUNC, self);
-        dbus_g_method_return_error (context, &na);
-        return;
-    }
-
-    if (!_mcd_request_set_proceeding (self->priv->request))
-    {
-        GError na = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
-            "Proceed has already been called; stop calling it" };
-
-        dbus_g_method_return_error (context, &na);
-        return;
-    }
-
-    tp_svc_channel_request_return_from_proceed (context);
-    _mcd_account_proceed_with_request (account, self);
-}
-
-gboolean
-_mcd_channel_request_cancel (McdChannel *self,
-                             GError **error)
-{
-    McdChannelStatus status = mcd_channel_get_status (self);
-
-    DEBUG ("%p in status %u", self, status);
-
-    if (_mcd_request_get_cancellable (self->priv->request))
-    {
-        DEBUG ("cancellable");
-        g_object_ref (self);
-        mcd_channel_take_error (self, g_error_new (TP_ERRORS,
-                                                   TP_ERROR_CANCELLED,
-                                                   "Cancelled"));
-
-        /* If we're coming from state REQUEST, the call to the CM hasn't
-         * happened yet; now that we're in state FAILED, it never will,
-         * because mcd_connection_request_channel() now checks that.
-         *
-         * If we're coming from state REQUESTED, we need to close the channel
-         * when the CM tells us where it is, so we can't now.
-         *
-         * If we're coming from state DISPATCHING, we need to shoot it down
-         * now.
-         *
-         * Anything else is too late.
-         */
-        if (status == MCD_CHANNEL_STATUS_DISPATCHING)
-        {
-            _mcd_channel_close (self);
-            mcd_mission_abort ((McdMission *) self);
-        }
-
-        g_object_unref (self);
-        return TRUE;
-    }
-    else
-    {
-        DEBUG ("no longer cancellable");
-        g_set_error (error, TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
-                     "ChannelRequest is not cancellable (status=%u)",
-                     status);
-        return FALSE;
-    }
-}
-
-static void
-channel_request_cancel (TpSvcChannelRequest *iface,
-                        DBusGMethodInvocation *context)
-{
-    McdChannel *self = MCD_CHANNEL (iface);
-    GError *error = NULL;
-
-    if (_mcd_channel_request_cancel (self, &error))
-    {
-        tp_svc_channel_request_return_from_cancel (context);
-    }
-    else
-    {
-        dbus_g_method_return_error (context, error);
-        g_error_free (error);
-    }
-}
-
-static void
-request_iface_init (gpointer g_iface,
-                    gpointer iface_data G_GNUC_UNUSED)
-{
-#define IMPLEMENT(x) tp_svc_channel_request_implement_##x (\
-    g_iface, channel_request_##x)
-    IMPLEMENT (proceed);
-    IMPLEMENT (cancel);
-#undef IMPLEMENT
 }
 
 static void
@@ -1619,48 +1461,6 @@ _mcd_channel_depart (McdChannel *channel,
 
     tp_channel_call_when_ready (channel->priv->tp_chan,
                                 mcd_channel_ready_to_depart_cb, d);
-}
-
-GHashTable *
-_mcd_channel_dup_request_properties (McdChannel *self)
-{
-    GPtrArray *requests;
-    GHashTable *result;
-    McdAccount *account;
-    GHashTable *hints;
-
-    g_return_val_if_fail (self->priv->request != NULL, NULL);
-
-    requests = g_ptr_array_sized_new (1);
-    g_ptr_array_add (requests,
-                     _mcd_channel_get_requested_properties (self));
-
-    account = _mcd_request_get_account (self->priv->request);
-
-    hints = _mcd_request_get_hints (self->priv->request);
-    if (hints == NULL)
-        hints =  g_hash_table_new (NULL, NULL);
-    else
-        g_hash_table_ref (hints);
-
-    result = tp_asv_new(
-      TP_PROP_CHANNEL_REQUEST_USER_ACTION_TIME, G_TYPE_UINT64,
-        _mcd_request_get_user_action_time (self->priv->request),
-      TP_PROP_CHANNEL_REQUEST_REQUESTS,
-        TP_ARRAY_TYPE_QUALIFIED_PROPERTY_VALUE_MAP_LIST, requests,
-      TP_PROP_CHANNEL_REQUEST_ACCOUNT, DBUS_TYPE_G_OBJECT_PATH,
-        mcd_account_get_object_path (account),
-      TP_PROP_CHANNEL_REQUEST_INTERFACES, G_TYPE_STRV,
-        NULL,
-      TP_PROP_CHANNEL_REQUEST_PREFERRED_HANDLER, G_TYPE_STRING,
-        _mcd_request_get_preferred_handler (self->priv->request),
-      MC_IFACE_CHANNEL_REQUEST_FUTURE ".Hints", TP_HASH_TYPE_STRING_VARIANT_MAP,
-        hints,
-      NULL);
-
-    g_ptr_array_free (requests, TRUE);
-    g_hash_table_unref (hints);
-    return result;
 }
 
 /*
