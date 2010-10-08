@@ -419,41 +419,6 @@ mcd_manager_get_name (McdManager *manager)
     return priv->name;
 }
 
-/**
- * mcd_manager_get_parameters:
- * @manager: the #McdManager.
- * @protocol: the protocol name.
- *
- * Retrieve the array of the parameters supported by the protocol.
- *
- * Returns: a #GArray of #McProtocolParam elements.
- */
-const TpConnectionManagerParam *
-mcd_manager_get_parameters (McdManager *manager, const gchar *protocol)
-{
-    McdManagerPrivate *priv;
-    const TpConnectionManagerProtocol * const *protocols;
-    guint i;
-
-    g_return_val_if_fail (MCD_IS_MANAGER (manager), NULL);
-    g_return_val_if_fail (protocol != NULL, NULL);
-
-    priv = manager->priv;
-    if (G_UNLIKELY (!priv->tp_conn_mgr))
-        return NULL;
-
-    protocols = priv->tp_conn_mgr->protocols;
-    if (G_UNLIKELY (!protocols))
-        return NULL;
-
-    for (i = 0; protocols[i] != NULL; i++)
-    {
-        if (strcmp (protocols[i]->name, protocol) == 0)
-            return protocols[i]->params;
-    }
-    return NULL;
-}
-
 TpConnectionManagerProtocol *
 _mcd_manager_dup_protocol (McdManager *manager,
                            const gchar *protocol)
