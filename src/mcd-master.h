@@ -69,9 +69,6 @@ McdMaster *mcd_master_get_default (void);
 McdDispatcher *mcd_master_get_dispatcher (McdMaster *master);
 TpDBusDaemon *mcd_master_get_dbus_daemon (McdMaster *master);
 
-void mcd_master_add_connection_parameter (McdMaster *master, const gchar *name,
-					  const GValue *value);
-
 gboolean mcd_master_has_low_memory (McdMaster *master);
 void mcd_master_set_low_memory (McdMaster *master, gboolean low_memory);
 void mcd_master_set_idle (McdMaster *master, gboolean idle);
