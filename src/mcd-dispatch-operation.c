@@ -1808,8 +1808,9 @@ observe_channels_cb (TpClient *proxy, const GError *error,
 }
 
 /*
- * @paths_out: (transfer container) (element-type utf8): Requests_Satisfied
- * @props_out: (transfer container) (element-type utf8 GHashTable):
+ * @paths_out: (out) (transfer container) (element-type utf8):
+ *  Requests_Satisfied
+ * @props_out: (out) (transfer container) (element-type utf8 GHashTable):
  *  request-properties for Observer_Info or Handler_Info
  */
 static void
