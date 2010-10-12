@@ -41,21 +41,24 @@
 #undef  G_LOG_DOMAIN
 #define G_LOG_DOMAIN "account-store-libaccounts"
 
+
+/* logging helpers: */
 static void
 _g_log_handler (const gchar   *log_domain,
     GLogLevelFlags log_level,
     const gchar   *message,
     gpointer	      unused_data)
 {
-  if (log_domain != G_LOG_DOMAIN)
+  /* the libaccounts code is currently very chatty when debugging: *
+   * we are only interested in or own debugging output for now.    */
+  if ((gchar *)log_domain != (gchar *)G_LOG_DOMAIN)
     return;
 
   g_log_default_handler (log_domain, log_level, message, unused_data);
 }
 
-/* libaccounts is incredibly chatty */
 static void
-toggle_mute ()
+toggle_mute (void)
 {
   static GLogFunc old = NULL;
 
