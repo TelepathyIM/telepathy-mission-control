@@ -400,6 +400,40 @@ static void _sso_account_enable (AgAccount *account,
   ag_account_select_service (account, original);
 }
 
+/* saving settings other than the enabled tri-state */
+static void
+save_setting (AgAccount *account,
+    const Setting *setting,
+    const gchar *val)
+{
+  AgService *service = ag_account_get_selected_service (account);
+
+  if (!setting->writable)
+    return;
+
+  if (setting->global)
+    ag_account_select_service (account, NULL);
+  else if (service == NULL)
+    _ag_account_select_default_im_service (account);
+
+  if (val != NULL)
+    {
+      GValue value = { 0 };
+
+      g_value_init (&value, G_TYPE_STRING);
+      g_value_set_string (&value, val);
+      ag_account_set_value (account, setting->ag_name, &value);
+      g_value_unset (&value);
+    }
+  else
+    {
+      ag_account_set_value (account, setting->ag_name, NULL);
+    }
+
+  /* leave the selected service as we found it: */
+  ag_account_select_service (account, service);
+}
+
 gchar *
 libaccounts_get (const gchar *mc_account,
     const gchar *key)
