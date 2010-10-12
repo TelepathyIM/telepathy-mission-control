@@ -28,6 +28,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/already-has-channel.py \
 	dispatcher/already-has-obsolete.py \
 	dispatcher/bypass-approval.py \
+	dispatcher/bypass-observers.py \
 	dispatcher/cancel.py \
 	dispatcher/capture-bundle.py \
 	dispatcher/connect-for-request.py \

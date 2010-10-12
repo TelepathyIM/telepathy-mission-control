@@ -3,8 +3,8 @@
 /*
  * This file is part of mission-control
  *
- * Copyright © 2007-2009 Nokia Corporation.
- * Copyright © 2009-2010 Collabora Ltd.
+ * Copyright (C) 2007-2010 Nokia Corporation.
+ * Copyright (C) 2009-2010 Collabora Ltd.
  *
  * Contact: Naba Kumar  <naba.kumar@nokia.com>
  *
@@ -656,7 +656,22 @@ mcd_dispatcher_client_needs_recovery_cb (McdClientProxy *client,
     for (list = channels; list; list = list->next)
     {
         TpChannel *channel = list->data;
+        const gchar *object_path = tp_proxy_get_object_path (channel);
         GHashTable *properties;
+        const gchar *hname;
+
+        if (_mcd_handler_map_get_handler (self->priv->handler_map,
+              object_path, &hname))
+        {
+            McdClientProxy *handler =
+                _mcd_client_registry_lookup (self->priv->clients, hname);
+
+            if (_mcd_client_proxy_get_bypass_observers (handler))
+            {
+              DEBUG ("skipping unobservable channel %s", object_path);
+              continue;
+            }
+        }
 
         properties = tp_channel_borrow_immutable_properties (channel);
 

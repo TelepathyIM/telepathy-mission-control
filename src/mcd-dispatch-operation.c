@@ -3,8 +3,8 @@
 /*
  * This file is part of mission-control
  *
- * Copyright (C) 2008-2009 Nokia Corporation.
- * Copyright (C) 2009 Collabora Ltd.
+ * Copyright (C) 2008-2010 Nokia Corporation.
+ * Copyright (C) 2009-2010 Collabora Ltd.
  *
  * Contact: Alberto Mardegan  <alberto.mardegan@nokia.com>
  *
@@ -371,6 +371,8 @@ static void mcd_dispatch_operation_set_channel_handled_by (
     McdDispatchOperation *self, McdChannel *channel, const gchar *unique_name,
     const gchar *well_known_name);
 static gboolean _mcd_dispatch_operation_handlers_can_bypass_approval (
+    McdDispatchOperation *self);
+static gboolean _mcd_dispatch_operation_handlers_can_bypass_observers (
     McdDispatchOperation *self);
 
 static void
@@ -1695,6 +1697,34 @@ _mcd_dispatch_operation_handlers_can_bypass_approval (
     return FALSE;
 }
 
+/* this is analogous to *_can_bypass_handlers() method above */
+static gboolean
+_mcd_dispatch_operation_handlers_can_bypass_observers (
+    McdDispatchOperation *self)
+{
+    gchar **iter;
+
+    for (iter = self->priv->possible_handlers;
+         iter != NULL && *iter != NULL;
+         iter++)
+    {
+        McdClientProxy *handler = _mcd_client_registry_lookup (
+            self->priv->client_registry, *iter);
+
+        if (handler != NULL)
+        {
+            gboolean bypass = _mcd_client_proxy_get_bypass_observers (
+                handler);
+
+            DEBUG ("%s has BypassObservers=%c", *iter, bypass ? 'T' : 'F');
+            return bypass;
+        }
+    }
+
+    return FALSE;
+}
+
+
 gboolean
 _mcd_dispatch_operation_has_channel (McdDispatchOperation *self,
                                      McdChannel *channel)
@@ -2068,8 +2098,15 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
     {
         const GList *mini_plugins;
 
-        DEBUG ("Running observers");
-        _mcd_dispatch_operation_run_observers (self);
+        if (_mcd_dispatch_operation_handlers_can_bypass_observers (self))
+        {
+            DEBUG ("Bypassing observers");
+        }
+        else
+        {
+            DEBUG ("Running observers");
+            _mcd_dispatch_operation_run_observers (self);
+        }
 
         for (mini_plugins = mcp_list_objects ();
              mini_plugins != NULL;

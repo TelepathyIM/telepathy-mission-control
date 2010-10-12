@@ -602,7 +602,7 @@ class SimulatedClient(object):
             observe=[], approve=[], handle=[],
             cap_tokens=[], bypass_approval=False, wants_recovery=False,
             request_notification=True, implement_get_interfaces=True,
-            is_handler=None):
+            is_handler=None, bypass_observers=False):
         self.q = q
         self.bus = bus
         self.bus_name = '.'.join([cs.tp_name_prefix, 'Client', clientname])
@@ -612,6 +612,7 @@ class SimulatedClient(object):
         self.approve = aasv(approve)
         self.handle = aasv(handle)
         self.bypass_approval = bool(bypass_approval)
+        self.bypass_observers = bool(bypass_observers)
         self.wants_recovery = bool(wants_recovery)
         self.request_notification = bool(request_notification)
         self.handled_channels = dbus.Array([], signature='o')
@@ -725,6 +726,7 @@ class SimulatedClient(object):
         self.q.dbus_return(e.message, {
             'HandlerChannelFilter': self.handle,
             'BypassApproval': self.bypass_approval,
+            'BypassObservers': self.bypass_observers,
             'HandledChannels': self.handled_channels,
             'Capabilities': self.cap_tokens,
             },
@@ -746,6 +748,11 @@ class SimulatedClient(object):
     def Get_BypassApproval(self, e):
         assert self.handle
         self.q.dbus_return(e.message, self.bypass_approval, signature='v',
+                bus=self.bus)
+
+    def Get_BypassApproval(self, e):
+        assert self.handle
+        self.q.dbus_return(e.message, self.bypass_observers, signature='v',
                 bus=self.bus)
 
     def Get_Recover(self, e):

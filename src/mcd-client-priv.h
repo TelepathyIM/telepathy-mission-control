@@ -3,8 +3,8 @@
 /*
  * Mission Control client proxy.
  *
- * Copyright (C) 2009 Nokia Corporation
- * Copyright (C) 2009 Collabora Ltd.
+ * Copyright (C) 2009-2010 Nokia Corporation
+ * Copyright (C) 2009-2010 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -96,6 +96,8 @@ G_GNUC_INTERNAL const GList *_mcd_client_proxy_get_observer_filters
 G_GNUC_INTERNAL const GList *_mcd_client_proxy_get_handler_filters
     (McdClientProxy *self);
 G_GNUC_INTERNAL gboolean _mcd_client_proxy_get_bypass_approval
+    (McdClientProxy *self);
+G_GNUC_INTERNAL gboolean _mcd_client_proxy_get_bypass_observers
     (McdClientProxy *self);
 
 G_GNUC_INTERNAL GValueArray *_mcd_client_proxy_dup_handler_capabilities (
