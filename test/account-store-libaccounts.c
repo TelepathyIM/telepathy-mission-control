@@ -23,6 +23,7 @@
 #include <libaccounts-glib/ag-manager.h>
 #include <libaccounts-glib/ag-account.h>
 #include <glib.h>
+#include "account-store-libaccounts.h"
 
 #define PARAM_PREFIX_MC "param-"
 #define PARAM_PREFIX    "parameters/"
