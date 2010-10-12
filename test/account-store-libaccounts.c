@@ -545,3 +545,83 @@ libaccounts_exists (const gchar *mc_account)
 
   return exists;
 }
+
+GStrv
+libaccounts_list (void)
+{
+  AgManager *ag_manager = get_ag_manager ();
+  GList *ag_ids = ag_manager_list_by_service_type (ag_manager, "IM");
+  guint len = g_list_length (ag_ids);
+  GStrv rval = NULL;
+  GList *id;
+  guint i = 0;
+  Setting *setting = setting_data (MC_IDENTITY_KEY, SETTING_AG);
+
+  if (len == 0)
+    goto done;
+
+  rval = g_new (gchar *, len + 1);
+  rval[len] = NULL;
+
+  for (id = ag_ids; id && i < len; id = g_list_next (id))
+    {
+      GValue value = { 0 };
+      AgAccountId uid = GPOINTER_TO_UINT (id->data);
+      AgAccount *ag_account = ag_manager_get_account (ag_manager, uid);
+      AgSettingSource source = AG_SETTING_SOURCE_NONE;
+
+      if (ag_account)
+        {
+          if (setting->global)
+            ag_account_select_service (ag_account, NULL);
+          else
+            _ag_account_select_default_im_service (ag_account);
+
+          source = ag_account_get_value (ag_account, setting->ag_name, &value);
+        }
+
+      if (source != AG_SETTING_SOURCE_NONE)
+        {
+          rval[i++] = _gvalue_to_string (&value);
+          g_value_unset (&value);
+        }
+      else
+        {
+          GValue cmanager = { 0 };
+          GValue protocol = { 0 };
+          GValue account  = { 0 };
+          const gchar *acct = NULL;
+          const gchar *cman = NULL;
+          const gchar *proto = NULL;
+
+          g_value_init (&cmanager, G_TYPE_STRING);
+          g_value_init (&protocol, G_TYPE_STRING);
+          g_value_init (&account,  G_TYPE_STRING);
+
+          _ag_account_select_default_im_service (ag_account);
+
+          ag_account_get_value (ag_account, MC_CMANAGER_KEY, &cmanager);
+          cman = g_value_get_string (&cmanager);
+
+          ag_account_get_value (ag_account, MC_PROTOCOL_KEY, &protocol);
+          proto = g_value_get_string (&protocol);
+
+          ag_account_select_service (ag_account, NULL);
+          ag_account_get_value (ag_account, AG_ACCOUNT_KEY, &account);
+          acct = g_value_get_string (&account);
+
+          rval[i++] = g_strdup_printf ("unnamed account #%u (%s/%s/%s)",
+              uid, cman, proto, acct);
+
+          g_value_unset (&cmanager);
+          g_value_unset (&protocol);
+          g_value_unset (&account);
+        }
+    }
+
+ done:
+  g_list_free (ag_ids);
+  clear_setting_data (setting);
+
+  return rval;
+}
