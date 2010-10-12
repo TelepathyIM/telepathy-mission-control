@@ -514,44 +514,44 @@ libaccounts_set (const gchar *mc_account,
 {
   gboolean done = FALSE;
   AgAccount *ag_account = get_ag_account (mc_account);
+  Setting *setting = setting_data (key, SETTING_MC);
 
   toggle_mute ();
 
   if (ag_account != NULL)
     {
-      gchar *ag_key = mc_to_ag_key (key);
+      if (setting == NULL)
+        {
+          g_debug ("setting %s is unknown/unmapped, aborting update", key);
+          goto done;
+        }
 
-      if (g_str_equal (ag_key, ENABLED_KEY))
+      if (g_str_equal (setting->ag_name, MC_ENABLED_KEY))
         {
           gboolean on = g_str_equal (value, "true");
 
-          ag_account_select_service (ag_account, NULL);
-          ag_account_set_enabled (ag_account, on);
-          _ag_account_select_default_im_service (ag_account);
-          ag_account_set_enabled (ag_account, on);
-
+          _sso_account_enable (ag_account, NULL, on);
           done = TRUE;
+          goto done;
         }
       else
         {
-          GValue val = { 0 };
-
-          g_value_init (&val, G_TYPE_STRING);
-          g_value_set_string (&val, value);
-          ag_account_set_value (ag_account, ag_key, &val);
-          g_value_unset (&val);
-
+          save_setting (ag_account, setting, value);
           done = TRUE;
         }
 
       if (done)
         ag_account_store (ag_account, NULL, NULL);
 
-      g_free (ag_key);
-      g_object_unref (ag_account);
     }
 
+ done:
   toggle_mute ();
+
+  if (ag_account)
+    g_object_unref (ag_account);
+
+  clear_setting_data (setting);
 
   return done;
 }
