@@ -39,7 +39,7 @@ compile
 config.guess*
 config.h*
 config.log
-config.status
+config.status*
 config.sub*
 configure
 cscope.out
@@ -71,6 +71,7 @@ stamp-*
 /server/org.freedesktop.Telepathy.AccountManager.service
 /server/org.freedesktop.Telepathy.MissionControl5.service
 tags
+TAGS
 /telepathy-mission-control-5*
 /test/account-store
 /test/keyring-command

@@ -96,8 +96,6 @@ typedef struct _McdMasterPrivate
     /* We create this for our member objects */
     TpDBusDaemon *dbus_daemon;
 
-    GHashTable *extra_parameters;
-
     GPtrArray *mcd_plugins;
     GPtrArray *transport_plugins;
     GList *account_connections;
@@ -336,8 +334,6 @@ _mcd_master_finalize (GObject * object)
     g_list_foreach (priv->account_connections, (GFunc)g_free, NULL);
     g_list_free (priv->account_connections);
 
-    g_hash_table_destroy (priv->extra_parameters);
-
     G_OBJECT_CLASS (mcd_master_parent_class)->finalize (object);
 }
 
@@ -536,23 +532,12 @@ mcd_master_class_init (McdMasterClass * klass)
 }
 
 static void
-_g_value_free (gpointer data)
-{
-  GValue *value = (GValue *) data;
-  g_value_unset (value);
-  g_free (value);
-}
-
-static void
 mcd_master_init (McdMaster * master)
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
 
     if (!default_master)
 	default_master = master;
-
-    priv->extra_parameters = g_hash_table_new_full (g_str_hash, g_str_equal,
-						    g_free, _g_value_free);
 
     priv->transport_plugins = g_ptr_array_new ();
 
@@ -568,32 +553,6 @@ mcd_master_get_default (void)
     if (!default_master)
 	default_master = MCD_MASTER (g_object_new (MCD_TYPE_MASTER, NULL));
     return default_master;
-}
-
-/**
- * mcd_master_add_connection_parameter:
- * @master: the #McdMaster.
- * @name: the name of the parameter to add.
- * @value: a #GValue.
- *
- * Set a global connection parameter to be passed to all connection managers
- * (which support this parameter).  If called twice for the same parameter, the
- * new value will replace the previous one.
- */
-void
-mcd_master_add_connection_parameter (McdMaster *master, const gchar *name,
-				     const GValue *value)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    GValue *val;
-
-    g_return_if_fail (name != NULL);
-    g_return_if_fail (value != NULL);
-
-    val = g_malloc0 (sizeof (GValue));
-    g_value_init (val, G_VALUE_TYPE (value));
-    g_value_copy (value, val);
-    g_hash_table_replace (priv->extra_parameters, g_strdup (name), val);
 }
 
 /*

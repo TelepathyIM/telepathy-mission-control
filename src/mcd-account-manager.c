@@ -70,13 +70,10 @@ static void account_manager_iface_init (TpSvcAccountManagerClass *iface,
 					gpointer iface_data);
 static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
 				   gpointer iface_data);
-static void sso_iface_init (McSvcAccountManagerInterfaceSSOClass *iface,
-                            gpointer data);
 
 static void _mcd_account_manager_constructed (GObject *obj);
 
 static const McdDBusProp account_manager_properties[];
-static const McdDBusProp sso_properties[];
 
 static const McdInterfaceData account_manager_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_account_manager_get_type,
@@ -85,9 +82,6 @@ static const McdInterfaceData account_manager_interfaces[] = {
     MCD_IMPLEMENT_IFACE (mc_svc_account_manager_interface_query_get_type,
 			 account_manager_query,
 			 MC_IFACE_ACCOUNT_MANAGER_INTERFACE_QUERY),
-    MCD_IMPLEMENT_IFACE (mc_svc_account_manager_interface_sso_get_type,
-             sso,
-             MC_IFACE_ACCOUNT_MANAGER_INTERFACE_SSO),
     { G_TYPE_INVALID, }
 };
 
@@ -946,148 +940,6 @@ account_manager_iface_init (TpSvcAccountManagerClass *iface,
 }
 
 static void
-sso_get_service_accounts (McSvcAccountManagerInterfaceSSO *iface,
-                          const gchar *service,
-                          DBusGMethodInvocation *context)
-{
-    gsize len;
-    McdAccountManager *manager = MCD_ACCOUNT_MANAGER (iface);
-    McdAccountManagerPrivate *priv = manager->priv;
-    McdStorage *storage = MCD_STORAGE (priv->plugin_manager);
-    GStrv accounts = mcd_storage_dup_accounts (storage, &len);
-    GList *srv_accounts = NULL;
-    GPtrArray *paths = g_ptr_array_new ();
-
-
-    if (len > 0 && accounts != NULL)
-    {
-        guint i = 0;
-        gchar *name;
-
-        for (name = accounts[i]; name != NULL; name = accounts[++i])
-        {
-            gchar *id = mcd_storage_dup_string (storage, name, "libacct-uid");
-
-            if (id != NULL)
-            {
-                gchar *supported =
-                  mcd_storage_dup_string (storage, name, "sso-services");
-
-                if (supported != NULL)
-                {
-                    guint j;
-                    GStrv services = g_strsplit (supported, ";", 0);
-
-                    for (j = 0; services[j] != NULL; j++)
-                    {
-                        if (g_str_equal (service, services[j]))
-                        {
-                            McdAccount *a =
-                              g_hash_table_lookup (priv->accounts, name);
-
-                            if (a != NULL)
-                                srv_accounts = g_list_prepend (srv_accounts, a);
-                        }
-                    }
-
-                    g_free (supported);
-                    g_strfreev (services);
-                }
-
-                g_free (id);
-            }
-        }
-    }
-
-    if (srv_accounts != NULL)
-    {
-        GList *account = srv_accounts;
-
-        for (; account != NULL; account = g_list_next (account))
-        {
-            const gchar *path = mcd_account_get_object_path (account->data);
-            g_ptr_array_add (paths, (gpointer) path);
-        }
-
-        g_list_free (srv_accounts);
-    }
-
-    mc_svc_account_manager_interface_sso_return_from_get_service_accounts (
-      context,
-      paths);
-
-    g_ptr_array_unref (paths);
-}
-
-static void
-sso_get_account (McSvcAccountManagerInterfaceSSO *iface,
-                 const guint id,
-                 DBusGMethodInvocation *context)
-{
-    McdAccountManager *manager = MCD_ACCOUNT_MANAGER (iface);
-    McdAccountManagerPrivate *priv = manager->priv;
-    McdStorage *storage = MCD_STORAGE (priv->plugin_manager);
-    GStrv accounts = mcd_storage_dup_accounts (storage, NULL);
-    const gchar *path = NULL;
-
-    if (accounts != NULL)
-    {
-        guint i = 0;
-        gchar *name;
-        McdAccount *account = NULL;
-
-        for (name = accounts[i]; name != NULL; name = accounts[++i])
-        {
-            gchar *str_id =
-              mcd_storage_dup_string (storage, name, "libacct-uid");
-            guint64 sso_id = g_ascii_strtoull (str_id, NULL, 10);
-
-            if (sso_id != 0 && id != 0)
-            {
-                if (id == sso_id)
-                {
-                    account = g_hash_table_lookup (priv->accounts, name);
-                    break;
-                }
-            }
-
-            g_free (str_id);
-        }
-
-        if (account != NULL)
-            path = mcd_account_get_object_path (account);
-    }
-
-    if (path != NULL)
-    {
-        mc_svc_account_manager_interface_sso_return_from_get_account (context,
-                                                                      path);
-    }
-    else
-    {
-        GError *error = g_error_new (TP_TYPE_ERROR,
-                                     TP_ERROR_DOES_NOT_EXIST,
-                                     "SSO ID %u Not Found", id);
-
-        dbus_g_method_return_error (context, error);
-
-        g_error_free (error);
-    }
-
-    g_strfreev (accounts);
-}
-
-static void
-sso_iface_init (McSvcAccountManagerInterfaceSSOClass *iface, gpointer data)
-{
-#define IMPLEMENT(x) \
-mc_svc_account_manager_interface_sso_implement_##x (iface, sso_##x)
-    IMPLEMENT (get_account);
-    IMPLEMENT (get_service_accounts);
-#undef IMPLEMENT
-}
-
-static void
 accounts_to_gvalue (GHashTable *accounts, gboolean valid, GValue *value)
 {
     static GType ao_type = G_TYPE_INVALID;
@@ -1166,10 +1018,6 @@ static const McdDBusProp account_manager_properties[] = {
     { "Interfaces", NULL, mcd_dbus_get_interfaces },
     { "SupportedAccountProperties", NULL, get_supported_account_properties },
     { 0 },
-};
-
-static const McdDBusProp sso_properties[] = {
-    { NULL, NULL, NULL },
 };
 
 static void

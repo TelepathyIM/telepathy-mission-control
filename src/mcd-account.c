@@ -3357,6 +3357,25 @@ mcd_account_get_protocol_name (McdAccount *account)
     return priv->protocol_name;
 }
 
+/**
+ * mcd_account_get_cm:
+ * @account: an account
+ *
+ * Fetches the connection manager through which @account connects. If @account
+ * is not ready, or is invalid (perhaps because the connection manager is
+ * missing), this may be %NULL.
+ *
+ * Returns: the connection manager through which @account connects, or %NULL.
+ */
+TpConnectionManager *
+mcd_account_get_cm (McdAccount *account)
+{
+    g_return_val_if_fail (account != NULL, NULL);
+    g_return_val_if_fail (MCD_IS_ACCOUNT (account), NULL);
+
+    return mcd_manager_get_tp_proxy (account->priv->manager);
+}
+
 void
 _mcd_account_set_normalized_name (McdAccount *account, const gchar *name)
 {

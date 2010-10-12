@@ -123,6 +123,7 @@ gboolean mcd_account_is_enabled (McdAccount *account);
 
 const gchar *mcd_account_get_manager_name (McdAccount *account);
 const gchar *mcd_account_get_protocol_name (McdAccount *account);
+TpConnectionManager *mcd_account_get_cm (McdAccount *account);
 
 void mcd_account_request_presence (McdAccount *account,
 				   TpConnectionPresenceType type,
