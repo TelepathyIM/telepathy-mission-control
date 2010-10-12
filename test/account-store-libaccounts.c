@@ -295,56 +295,6 @@ _ag_account_select_default_im_service (AgAccount *account)
   return have_im_service;
 }
 
-static gchar *
-mc_to_ag_key (const gchar *mc_key)
-{
-  if (g_str_has_prefix (mc_key, PARAM_PREFIX_MC))
-    {
-      const gchar *pkey = mc_key + strlen (PARAM_PREFIX_MC);
-
-      if (g_str_equal (pkey, MC_ACCOUNT_KEY))
-        return g_strdup (AG_ACCOUNT_KEY);
-
-      if (g_str_equal (pkey, PASSWORD_KEY))
-        return g_strdup (PASSWORD_KEY);
-
-      return g_strdup_printf (PARAM_PREFIX "%s", pkey);
-    }
-
-  return g_strdup (mc_key);
-}
-
-static gchar *
-ag_to_mc_key (const gchar *ag_key)
-{
-  /* these two are parameters in MC but not in AG */
-  if (g_str_equal (ag_key, AG_ACCOUNT_KEY))
-    return g_strdup (PARAM_PREFIX_MC MC_ACCOUNT_KEY);
-
-  if (g_str_equal (ag_key, PASSWORD_KEY))
-    return g_strdup (PARAM_PREFIX_MC PASSWORD_KEY);
-
-  /* now check for regular params */
-  if (g_str_has_prefix (ag_key, PARAM_PREFIX))
-    return
-      g_strdup_printf (PARAM_PREFIX_MC "%s", ag_key + strlen (PARAM_PREFIX));
-
-  return g_strdup (ag_key);
-}
-
-static gboolean key_is_global (const char *ag_key)
-{
-  /* parameters and MC_IDENTITY_KEY are service specific */
-  if (g_str_has_prefix (ag_key, PARAM_PREFIX))
-    return FALSE;
-
-  if (g_str_equal (ag_key, MC_IDENTITY_KEY))
-    return FALSE;
-
-  /* anything else is global */
-  return TRUE;
-}
-
 /* enabled is actually a tri-state<->boolean mapping */
 static gboolean _sso_account_enabled (AgAccount *account, AgService *service)
 {
