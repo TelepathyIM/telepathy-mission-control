@@ -435,34 +435,32 @@ save_setting (AgAccount *account,
 }
 
 gchar *
-libaccounts_get (const gchar *mc_account,
-    const gchar *key)
+libaccounts_get (const gchar *mc_account, const gchar *key)
 {
   gchar *rval = NULL;
   AgAccount *ag_account = get_ag_account (mc_account);
+  Setting *setting = setting_data (key, SETTING_MC);
 
   toggle_mute ();
 
   if (ag_account != NULL)
     {
-      gchar *ag_key = mc_to_ag_key (key);
 
-      g_debug ("MC key %s -> AG key %s", key, ag_key);
-
-      if (g_str_equal (ag_key, ENABLED_KEY))
+      if (setting == NULL)
         {
-          gboolean on = FALSE;
+          g_debug ("setting %s is unknown/unmapped, aborting update", key);
+          rval = g_strdup ("");
+          goto done;
+        }
 
-          ag_account_select_service (ag_account, NULL);
-          on = ag_account_get_enabled (ag_account);
+      g_debug ("MC key %s -> AG key %s", key, setting->ag_name);
 
-          if (on)
-            {
-              _ag_account_select_default_im_service (ag_account);
-              on = ag_account_get_enabled (ag_account);
-            }
+      if (g_str_equal (setting->ag_name, AG_ENABLED_KEY))
+        {
+          gboolean on = _sso_account_enabled (ag_account, NULL);
 
-          rval = on ? g_strdup ("true") : g_strdup ("false");
+          rval = g_strdup (on ? "true" : "false");
+          goto done;
         }
       else
         {
@@ -471,25 +469,40 @@ libaccounts_get (const gchar *mc_account,
 
           g_value_init (&value, G_TYPE_STRING);
 
-          if (key_is_global (ag_key))
+          /* the 'account' parameter is a special case for historical reasons */
+          if (g_str_equal (key, MCPP MC_ACCOUNT_KEY))
+            {
+              _ag_account_select_default_im_service (ag_account);
+              source =
+                ag_account_get_value (ag_account, AG_ACCOUNT_ALT_KEY, &value);
+
+              if (source != AG_SETTING_SOURCE_NONE)
+                goto found;
+            }
+
+          if (setting->global)
             ag_account_select_service (ag_account, NULL);
           else
             _ag_account_select_default_im_service (ag_account);
 
-          source = ag_account_get_value (ag_account, ag_key, &value);
+          source = ag_account_get_value (ag_account, setting->ag_name, &value);
 
+        found:
           if (source != AG_SETTING_SOURCE_NONE)
             {
               rval = _gvalue_to_string (&value);
               g_value_unset (&value);
             }
         }
-
-      g_free (ag_key);
-      g_object_unref (ag_account);
     }
 
+ done:
   toggle_mute ();
+
+  if (ag_account)
+    g_object_unref (ag_account);
+
+  clear_setting_data (setting);
 
   return rval;
 }
