@@ -36,4 +36,6 @@ gboolean default_delete (const gchar *account);
 
 gboolean default_exists (const gchar *account);
 
+GStrv default_list (void);
+
 #endif
