@@ -25,21 +25,120 @@
 #include <glib.h>
 #include "account-store-libaccounts.h"
 
-#define PARAM_PREFIX_MC "param-"
-#define PARAM_PREFIX    "parameters/"
+#undef  G_LOG_DOMAIN
+#define G_LOG_DOMAIN "account-store-libaccounts"
+
+/* MC <-> AG global/local setting meta data */
+#define MCPP "param-"
+#define AGPP "parameters/"
 #define LIBACCT_ID_KEY  "libacct-uid"
 
-#define AG_ACCOUNT_KEY "username"
-#define MC_ACCOUNT_KEY "account"
-#define PASSWORD_KEY   "password"
-#define ENABLED_KEY    "Enabled"
+#define MC_ENABLED_KEY  "Enabled"
+#define AG_ENABLED_KEY  "enabled"
+
+#define AG_LABEL_KEY    "name"
+#define MC_LABEL_KEY    "DisplayName"
+
+#define AG_ACCOUNT_KEY  "username"
+#define MC_ACCOUNT_KEY  "account"
+#define PASSWORD_KEY    "password"
+#define AG_ACCOUNT_ALT_KEY AGPP "account"
 
 #define MC_CMANAGER_KEY "manager"
 #define MC_PROTOCOL_KEY "protocol"
 #define MC_IDENTITY_KEY "tmc-uid"
 
-#undef  G_LOG_DOMAIN
-#define G_LOG_DOMAIN "account-store-libaccounts"
+#define SERVICES_KEY    "sso-services"
+
+#define MC_SERVICE_KEY  "Service"
+
+typedef struct {
+  gchar *mc_name;
+  gchar *ag_name;
+  gboolean global;   /* global ag setting or service specific? */
+  gboolean readable; /* does the _standard_ read method copy this into MC?  */
+  gboolean writable; /* does the _standard_ write method copy this into AG? */
+  gboolean freeable; /* should clear_setting_data deallocate the names? */
+} Setting;
+
+#define GLOBAL     TRUE
+#define SERVICE    FALSE
+#define READABLE   TRUE
+#define UNREADABLE FALSE
+#define WRITABLE   TRUE
+#define UNWRITABLE FALSE
+
+typedef enum {
+  SETTING_MC,
+  SETTING_AG,
+} SettingType;
+
+Setting setting_map[] = {
+  { MC_ENABLED_KEY     , AG_ENABLED_KEY , GLOBAL , UNREADABLE, UNWRITABLE },
+  { MCPP MC_ACCOUNT_KEY, AG_ACCOUNT_KEY , GLOBAL , READABLE  , UNWRITABLE },
+  { MCPP PASSWORD_KEY  , PASSWORD_KEY   , GLOBAL , READABLE  , WRITABLE   },
+  { MC_LABEL_KEY       , AG_LABEL_KEY   , GLOBAL , READABLE  , WRITABLE   },
+  { LIBACCT_ID_KEY     , LIBACCT_ID_KEY , GLOBAL , UNREADABLE, UNWRITABLE },
+  { MC_IDENTITY_KEY    , MC_IDENTITY_KEY, SERVICE, READABLE  , WRITABLE   },
+  { MC_CMANAGER_KEY    , MC_CMANAGER_KEY, SERVICE, READABLE  , UNWRITABLE },
+  { MC_PROTOCOL_KEY    , MC_PROTOCOL_KEY, SERVICE, READABLE  , UNWRITABLE },
+  { MC_SERVICE_KEY     , MC_SERVICE_KEY , SERVICE, UNREADABLE, UNWRITABLE },
+  { SERVICES_KEY       , SERVICES_KEY   , GLOBAL , UNREADABLE, UNWRITABLE },
+  { NULL               , NULL           , SERVICE, UNREADABLE, UNWRITABLE }
+};
+
+static void
+clear_setting_data (Setting *setting)
+{
+  if (setting == NULL)
+    return;
+
+  if (!setting->freeable)
+    return;
+
+  g_free (setting->mc_name);
+  g_free (setting->ag_name);
+  setting->mc_name = NULL;
+  setting->ag_name = NULL;
+}
+
+static Setting *
+setting_data (const gchar *name, SettingType type)
+{
+  guint i = 0;
+  static Setting parameter = { NULL, NULL, SERVICE, READABLE, WRITABLE, TRUE };
+  const gchar *prefix;
+
+  for (; setting_map[i].mc_name != NULL; i++)
+    {
+      const gchar *setting_name = NULL;
+
+      if (type == SETTING_MC)
+        setting_name = setting_map[i].mc_name;
+      else
+        setting_name = setting_map[i].ag_name;
+
+      if (g_strcmp0 (name, setting_name) == 0)
+        return &setting_map[i];
+    }
+
+  prefix = (type == SETTING_MC) ? MCPP : AGPP;
+
+  if (!g_str_has_prefix (name, prefix))
+    { /* a non-parameter setting */
+      parameter.mc_name = g_strdup (name);
+      parameter.ag_name = g_strdup (name);
+    }
+  else
+    { /* a setting that is a parameter on both sides (AG & MC) */
+      const guint plength = strlen (prefix);
+
+      parameter.mc_name = g_strdup_printf ("%s%s", MCPP, name + plength);
+      parameter.ag_name = g_strdup_printf ("%s%s", AGPP, name + plength);
+    }
+
+  return &parameter;
+}
 
 
 /* logging helpers: */
