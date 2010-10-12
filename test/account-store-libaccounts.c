@@ -345,6 +345,61 @@ static gboolean key_is_global (const char *ag_key)
   return TRUE;
 }
 
+/* enabled is actually a tri-state<->boolean mapping */
+static gboolean _sso_account_enabled (AgAccount *account, AgService *service)
+{
+  gboolean local  = FALSE;
+  gboolean global = FALSE;
+  AgService *original = ag_account_get_selected_service (account);
+
+  if (service == NULL)
+    {
+      _ag_account_select_default_im_service (account);
+      local = ag_account_get_enabled (account);
+    }
+  else
+    {
+      if (original != service)
+        ag_account_select_service (account, service);
+
+      local = ag_account_get_enabled (account);
+    }
+
+  ag_account_select_service (account, NULL);
+  global = ag_account_get_enabled (account);
+
+  ag_account_select_service (account, original);
+
+  g_debug ("_sso_account_enabled: global:%d && local:%d", global, local);
+
+  return local && global;
+}
+
+static void _sso_account_enable (AgAccount *account,
+    AgService *service,
+    gboolean on)
+{
+  AgService *original = ag_account_get_selected_service (account);
+
+  /* turn the local enabled flag on/off as required */
+  if (service != NULL)
+    ag_account_select_service (account, service);
+  else
+    _ag_account_select_default_im_service (account);
+
+  ag_account_set_enabled (account, on);
+
+  /* if we are turning the account on, the global flag must also be set *
+   * NOTE: this isn't needed when turning the account off               */
+  if (on)
+    {
+      ag_account_select_service (account, NULL);
+      ag_account_set_enabled (account, on);
+    }
+
+  ag_account_select_service (account, original);
+}
+
 gchar *
 libaccounts_get (const gchar *mc_account,
     const gchar *key)
