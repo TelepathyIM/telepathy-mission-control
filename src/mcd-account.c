@@ -48,6 +48,7 @@
 #include "mcd-account-conditions.h"
 #include "mcd-account-manager-priv.h"
 #include "mcd-account-presence.h"
+#include "mcd-account-addressing.h"
 #include "mcd-connection-plugin.h"
 #include "mcd-connection-priv.h"
 #include "mcd-misc.h"
@@ -101,6 +102,9 @@ static const McdInterfaceData account_interfaces[] = {
                         mc_svc_account_interface_minimum_presence_get_type,
                         minimum_presence,
                         MC_IFACE_ACCOUNT_INTERFACE_MINIMUM_PRESENCE),
+    MCD_IMPLEMENT_IFACE (mc_svc_account_interface_addressing_get_type,
+        account_addressing,
+        MC_IFACE_ACCOUNT_INTERFACE_ADDRESSING),
 
     { G_TYPE_INVALID, }
 };
