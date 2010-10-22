@@ -10,6 +10,7 @@ SPECS = \
 	Account_Manager_Interface_SSO.xml \
 	Account.xml \
 	Account_Interface_Avatar.xml \
+	Account_Interface_Addressing.xml \
 	Account_Interface_ChannelRequests.xml \
 	Account_Interface_Compat.xml \
 	Account_Interface_Conditions.xml \
