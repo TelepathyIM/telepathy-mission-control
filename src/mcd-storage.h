@@ -109,6 +109,12 @@ gboolean mcd_storage_set_string (McdStorage *storage,
     const gchar *value,
     gboolean secret);
 
+gboolean mcd_storage_set_strv (McdStorage *storage,
+    const gchar *account,
+    const gchar *key,
+    const gchar * const *strv,
+    gboolean secret);
+
 gboolean mcd_storage_set_value (McdStorage *storage,
     const gchar *account,
     const gchar *key,

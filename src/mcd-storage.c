@@ -123,6 +123,48 @@ mcd_storage_set_value (McdStorage *storage,
 }
 
 /**
+ * mcd_storage_set_strv:
+ * @storage: An object implementing the #McdStorage interface
+ * @account: the unique name of an account
+ * @key: the key (name) of the parameter or setting
+ * @strv: the string vector to be stored (where %NULL is treated as equivalent
+ * to an empty vector)
+ * @secret: whether the value is confidential (might get stored in the
+ * keyring, for example)
+ *
+ * Copies and stores the supplied string vector to the internal cache.
+ *
+ * Returns: a #gboolean indicating whether the cache actually required an
+ * update (so that the caller can decide whether to request a commit to
+ * long term storage or not). %TRUE indicates the cache was updated and
+ * may not be in sync with the store any longer, %FALSE indicates we already
+ * held the value supplied.
+ */
+gboolean
+mcd_storage_set_strv (McdStorage *storage,
+    const gchar *account,
+    const gchar *key,
+    const gchar * const *strv,
+    gboolean secret)
+{
+  McdStorageIface *iface = MCD_STORAGE_GET_IFACE (storage);
+  GValue v = { 0, };
+  static const gchar * const *empty = { NULL };
+  gboolean ret;
+
+  g_assert (iface != NULL);
+  g_return_val_if_fail (account != NULL, FALSE);
+  g_return_val_if_fail (key != NULL, FALSE);
+  g_return_val_if_fail (iface->set_value != NULL, FALSE);
+
+  g_value_init (&v, G_TYPE_STRV);
+  g_value_set_static_boxed (&v, strv == NULL ? empty : strv);
+  ret = iface->set_value (storage, account, key, &v, secret);
+  g_value_unset (&v);
+  return ret;
+}
+
+/**
  * mcd_storage_commit:
  * @storage: An object implementing the #McdStorage interface
  * @account: the unique name of an account
