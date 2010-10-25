@@ -45,69 +45,43 @@ addressing_set_uri_scheme_association (McSvcAccountInterfaceAddressing *iface,
   McdAccount *self = MCD_ACCOUNT (iface);
   const gchar *account = mcd_account_get_unique_name (self);
   McdStorage *storage = _mcd_account_get_storage (self);
-  gboolean old_association = FALSE;
   GValue *stored_value =
     mcd_storage_dup_value (storage, account, SCHEMES, G_TYPE_STRV, NULL);
   gchar **schemes = g_value_get_boxed (stored_value);
-  gchar *scheme;
-  gsize pos = 0;
+  gboolean old_association = tp_strv_contains ((const gchar * const *) schemes,
+      uri_scheme);
 
-  if (schemes == NULL)
+  if (!!old_association != !!association)
     {
-      gchar *empty[] = { NULL };
-      schemes = empty;
-    }
-
-  for(scheme = schemes[pos++]; scheme != NULL; scheme = schemes[pos++])
-    {
-      if (!tp_strdiff (scheme, uri_scheme))
-        old_association = TRUE;
-    }
-
-  /* requested state different from stored, update required: */
-  if (old_association != association)
-    {
-      GValue new_box = { 0 };
-      gchar **new_schemes = NULL;
+      GPtrArray *new_schemes = g_ptr_array_new ();
+      gchar **s;
 
       if (association)
         {
-          new_schemes = g_new0 (gchar *, pos + 1);
-          new_schemes[pos] = NULL;
+          /* Prepend this new scheme to the existing list of schemes */
+          g_ptr_array_add (new_schemes, (gchar *) uri_scheme);
 
-          for (--pos; pos > 0; pos--)
-            new_schemes[pos] = schemes[pos - 1];
-
-          new_schemes[0] = (gchar *) uri_scheme;
+          for (s = schemes; s != NULL && *s != NULL; s++)
+            g_ptr_array_add (new_schemes, *s);
         }
       else
         {
-          guint i = 0;
-
-          new_schemes = g_new0 (gchar *, pos - 1);
-          new_schemes[pos - 2] = NULL;
-          pos = 0;
-
-          for (scheme = schemes[pos++]; scheme != NULL; scheme = schemes[pos++])
-            {
-              if (tp_strdiff (scheme, uri_scheme))
-                new_schemes[i++]  = scheme;
-            }
+          /* Remove this scheme from the existing list of schemes */
+          for (s = schemes; s != NULL && *s != NULL; s++)
+            if (tp_strdiff (*s, uri_scheme))
+              g_ptr_array_add (new_schemes, *s);
         }
 
-      g_value_init (&new_box, G_TYPE_STRV);
-      g_value_set_static_boxed (&new_box, new_schemes);
+      g_ptr_array_add (new_schemes, NULL);
+      mcd_storage_set_strv (storage, account, SCHEMES,
+          (const gchar * const *) new_schemes->pdata, FALSE);
 
-      mcd_storage_set_value (storage, account, SCHEMES, &new_box, FALSE);
-
-      g_free (new_schemes);
-      g_value_unset (&new_box);
+      g_ptr_array_unref (new_schemes);
     }
 
-  mc_svc_account_interface_addressing_return_from_set_uri_scheme_association(
-      context, old_association);
-
   tp_g_value_slice_free (stored_value);
+  mc_svc_account_interface_addressing_return_from_set_uri_scheme_association (
+      context, old_association);
 }
 
 static void
