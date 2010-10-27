@@ -245,7 +245,7 @@ static gboolean
 _ag_account_select_default_im_service (AgAccount *account)
 {
   gboolean have_im_service = FALSE;
-  GList *first = ag_account_list_services_by_type (account, "IM");
+  GList *first = ag_account_list_services_by_type (account, AG_SERVICE);
 
   if (first != NULL && first->data != NULL)
     {
@@ -505,7 +505,7 @@ static void _sso_toggled (GObject *object,
     {
       const gchar *service_type = ag_service_get_service_type (service);
 
-      if (!g_str_equal (service_type, "IM"))
+      if (!g_str_equal (service_type, AG_SERVICE))
         return;
     }
 
@@ -1245,7 +1245,7 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
     const McpAccountManager *am)
 {
   GList *ag_id;
-  GList *ag_ids = ag_manager_list_by_service_type (sso->ag_manager, "IM");
+  GList *ag_ids = ag_manager_list_by_service_type (sso->ag_manager, AG_SERVICE);
 
   for (ag_id = ag_ids; ag_id != NULL; ag_id = g_list_next (ag_id))
     {
@@ -1372,7 +1372,7 @@ _list (const McpAccountStorage *self,
   if (!sso->loaded)
     _load_from_libaccounts (sso, am);
 
-  ag_ids = ag_manager_list_by_service_type (sso->ag_manager, "IM");
+  ag_ids = ag_manager_list_by_service_type (sso->ag_manager, AG_SERVICE);
 
   for (ag_id = ag_ids; ag_id != NULL; ag_id = g_list_next (ag_id))
     {
@@ -1450,7 +1450,7 @@ _find_account (McdAccountManagerSso *sso,
 
   g_return_val_if_fail (account_id != NULL, found);
 
-  ag_ids = ag_manager_list_by_service_type (sso->ag_manager, "IM");
+  ag_ids = ag_manager_list_by_service_type (sso->ag_manager, AG_SERVICE);
 
   for (ag_id = ag_ids; ag_id != NULL; ag_id = g_list_next (ag_id))
     {
