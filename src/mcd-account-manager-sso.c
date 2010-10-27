@@ -48,6 +48,7 @@
   "Account storage in the Maemo SSO store via libaccounts-glib API"
 #define PLUGIN_PROVIDER "org.maemo.Telepathy.Account.Storage.LibAccounts"
 
+#define AG_SERVICE "IM"
 #define MCPP "param-"
 #define AGPP "parameters/"
 #define LIBACCT_ID_KEY  "libacct-uid"
@@ -691,7 +692,7 @@ static void
 mcd_account_manager_sso_init (McdAccountManagerSso *self)
 {
   DEBUG ("mcd_account_manager_sso_init");
-  self->ag_manager = ag_manager_new ();
+  self->ag_manager = ag_manager_new_for_service_type (AG_SERVICE);
   self->accounts =
     g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
   self->id_name_map =
