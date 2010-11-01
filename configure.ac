@@ -331,6 +331,13 @@ PKG_CHECK_MODULES([GLIB],
 AC_SUBST(GLIB_LIBS)
 AC_SUBST(GLIB_CFLAGS)
 
+dnl Check for MCE, a Maemo service used to determine when the device is idle.
+PKG_CHECK_MODULES([MCE], mce >= 1.5, [HAVE_MCE=yes], [HAVE_MCE=no])
+AM_CONDITIONAL([HAVE_MCE], [test x"$HAVE_MCE" = xyes])
+if test x"$HAVE_MCE" = xyes; then
+  AC_DEFINE([HAVE_MCE], [1], [Define if mce is available])
+fi
+
 dnl docs/Makefile.am needs to know whether it's an out of tree build
 dnl (srcdir != builddir)
 AM_CONDITIONAL([OUT_OF_TREE_BUILD], [test "z$ac_srcdir" != z.])

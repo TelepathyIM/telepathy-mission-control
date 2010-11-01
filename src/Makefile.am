@@ -183,6 +183,8 @@ libmcd_convenience_la_SOURCES = \
 	mcd-channel.c \
 	mcd-channel-priv.h \
 	mcd-service.c \
+	mcd-slacker.c \
+	mcd-slacker.h \
 	mcd-proxy.c \
 	mcd-transport.c \
 	mcd-provisioning.c \
