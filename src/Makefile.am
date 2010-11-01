@@ -54,7 +54,6 @@ mc_gen_headers = \
 	_gen/svc-Account_Interface_Stats.h \
 	_gen/svc-Account_Interface_Minimum_Presence.h \
 	_gen/svc-Account_Manager_Interface_Query.h \
-	_gen/svc-Account_Manager_Interface_SSO.h \
 	_gen/svc-Channel_Dispatcher_Future.h \
 	_gen/svc-Channel_Request_Future.h
 
@@ -71,7 +70,6 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/svc-Account_Interface_Stats.c \
 	_gen/svc-Account_Interface_Minimum_Presence.c \
 	_gen/svc-Account_Manager_Interface_Query.c \
-	_gen/svc-Account_Manager_Interface_SSO.c \
 	_gen/svc-Channel_Dispatcher_Future.c \
 	_gen/svc-Channel_Request_Future.c \
 	mcd-enum-types.c \
