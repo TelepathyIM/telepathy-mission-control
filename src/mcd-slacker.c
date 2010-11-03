@@ -159,9 +159,16 @@ get_inactivity_status_cb (
   gboolean is_inactive;
   GError *error = NULL;
 
-  if (dbus_g_proxy_end_call (proxy, call, &error /* ignore errors */,
+  if (!dbus_g_proxy_end_call (proxy, call, &error /* ignore errors */,
           G_TYPE_BOOLEAN, &is_inactive, G_TYPE_INVALID))
-    slacker_inactivity_changed (self, is_inactive);
+    {
+      DEBUG ("error getting inactivity status: %s", error->message);
+      g_error_free (error);
+    }
+    else
+    {
+      slacker_inactivity_changed (self, is_inactive);
+    }
 
   tp_clear_object (&self->priv->mce_request_proxy);
 }
