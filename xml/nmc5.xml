@@ -13,7 +13,6 @@
 <xi:include href="Account_Interface_Minimum_Presence.xml"/>
 <xi:include href="Account_Manager.xml"/>
 <xi:include href="Account_Manager_Interface_Query.xml"/>
-<xi:include href="Account_Manager_Interface_SSO.xml"/>
 
 <xi:include href="Client.xml"/>
 <xi:include href="Client_Approver.xml"/>
