@@ -8,7 +8,6 @@ TWISTED_BASIC_TESTS = \
 	account-manager/create-auto-connect.py \
 	account-manager/create-twice.py \
 	account-manager/create-with-properties.py \
-	account-manager/device-idle.py \
 	account-manager/enable.py \
 	account-manager/enable-auto-connect.py \
 	account-manager/nickname.py \
@@ -84,6 +83,7 @@ TWISTED_SEPARATE_TESTS = \
 	account-manager/auto-connect.py \
 	account-manager/avatar-persist.py \
 	account-manager/avatar-refresh.py \
+	account-manager/device-idle.py \
 	account-manager/make-valid.py \
 	crash-recovery/crash-recovery.py \
 	dispatcher/create-at-startup.py
