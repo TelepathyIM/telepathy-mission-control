@@ -27,5 +27,6 @@
 
 <xi:include href="Connection_Interface_Contact_Capabilities_Draft1.xml"/>
 <xi:include href="Connection_Interface_Contact_Capabilities.xml"/>
+<xi:include href="Connection_Interface_Power_Saving.xml"/>
 
 </tp:spec>

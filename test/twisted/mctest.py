@@ -850,7 +850,8 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
             interface=cs.tp_name_prefix + '.ConnectionManager',
             handled=False)
 
-    conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
+    conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol',
+                               account.object_path.split('/')[-1],
             'myself', has_requests=has_requests, has_presence=has_presence,
             has_aliasing=has_aliasing, has_avatars=has_avatars,
             avatars_persist=avatars_persist, extra_interfaces=extra_interfaces,

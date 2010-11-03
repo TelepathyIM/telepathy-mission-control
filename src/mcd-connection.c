@@ -67,6 +67,7 @@
 #include "mcd-channel.h"
 #include "mcd-provisioning-factory.h"
 #include "mcd-misc.h"
+#include "mcd-slacker.h"
 #include "sp_timestamp.h"
 
 #include "mcd-signals-marshal.h"
@@ -74,6 +75,8 @@
 #include "_gen/cli-Connection_Interface_Contact_Capabilities.h"
 #include "_gen/cli-Connection_Interface_Contact_Capabilities_Draft1-body.h"
 #include "_gen/cli-Connection_Interface_Contact_Capabilities-body.h"
+#include "_gen/cli-Connection_Interface_Power_Saving.h"
+#include "_gen/cli-Connection_Interface_Power_Saving-body.h"
 
 #define INITIAL_RECONNECTION_TIME   3 /* seconds */
 #define RECONNECTION_MULTIPLIER     3
@@ -124,6 +127,7 @@ struct _McdConnectionPrivate
     guint has_capabilities_if : 1;
     guint has_contact_capabilities_draft1_if : 1;
     guint has_contact_capabilities_if : 1;
+    guint has_power_saving_if : 1;
 
     /* FALSE until the dispatcher has said it's ready for us */
     guint dispatching_started : 1;
@@ -147,6 +151,7 @@ struct _McdConnectionPrivate
 
     gboolean is_disposed;
     
+    McdSlacker *slacker;
 };
 
 typedef struct
@@ -164,6 +169,7 @@ enum
     PROP_TP_CONNECTION,
     PROP_ACCOUNT,
     PROP_DISPATCHER,
+    PROP_SLACKER,
 };
 
 enum
@@ -1058,6 +1064,21 @@ _mcd_connection_setup_alias (McdConnection *connection)
     g_array_free (self_handle_array, TRUE);
 }
 
+static void
+_mcd_connection_setup_power_saving (McdConnection *connection)
+{
+  McdConnectionPrivate *priv = connection->priv;
+
+  if (priv->slacker == NULL)
+    return;
+
+  DEBUG ("is %sactive", mcd_slacker_is_inactive (priv->slacker) ? "in" : "");
+
+  if (mcd_slacker_is_inactive (priv->slacker))
+    mc_cli_connection_interface_power_saving_call_set_power_saving (priv->tp_conn, -1,
+        TRUE, NULL, NULL, NULL, NULL);
+}
+
 static gboolean
 mcd_connection_reconnect (McdConnection *connection)
 {
@@ -1604,6 +1625,8 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
         MC_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES_DRAFT1);
     priv->has_contact_capabilities_if = tp_proxy_has_interface_by_id (tp_conn,
         TP_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES);
+    priv->has_power_saving_if = tp_proxy_has_interface_by_id (tp_conn,
+        MC_IFACE_QUARK_CONNECTION_INTERFACE_POWER_SAVING);
 
     if (priv->has_presence_if)
 	_mcd_connection_setup_presence (connection);
@@ -1619,6 +1642,9 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
 
     if (priv->has_alias_if)
 	_mcd_connection_setup_alias (connection);
+
+    if (priv->has_power_saving_if)
+      _mcd_connection_setup_power_saving (connection);
 
     if (!priv->dispatching_started)
         _mcd_dispatcher_add_connection (priv->dispatcher, connection);
@@ -2018,6 +2044,31 @@ on_account_removed (McdAccount *account, McdConnection *connection)
 }
 
 static void
+on_inactivity_changed (McdSlacker *slacker,
+    gboolean inactive,
+    McdConnection *self)
+{
+  McdConnectionPrivate *priv = self->priv;
+  DEBUG ("%sactive, %s have power saving iface.", inactive ? "in" : "",
+      priv->has_power_saving_if ? "has" : "doesn't");
+
+  if (priv->has_power_saving_if)
+    mc_cli_connection_interface_power_saving_call_set_power_saving (priv->tp_conn, -1,
+        inactive, NULL, NULL, NULL, NULL);
+}
+
+static void
+_mcd_connection_constructed (GObject * object)
+{
+    McdConnection *self = MCD_CONNECTION (object);
+    McdConnectionPrivate *priv = self->priv;
+
+    if (priv->slacker != NULL)
+      g_signal_connect (priv->slacker, "inactivity-changed",
+          G_CALLBACK (on_inactivity_changed), self);
+}
+
+static void
 _mcd_connection_dispose (GObject * object)
 {
     McdConnection *connection = MCD_CONNECTION (object);
@@ -2057,6 +2108,15 @@ _mcd_connection_dispose (GObject * object)
                                               object);
         tp_clear_object (&priv->account);
     }
+
+    if (priv->slacker != NULL)
+      {
+        g_signal_handlers_disconnect_by_func (priv->slacker,
+                                              G_CALLBACK (on_inactivity_changed),
+                                              connection);
+
+        tp_clear_object (&priv->slacker);
+      }
 
     tp_clear_object (&priv->tp_conn_mgr);
     tp_clear_object (&priv->dispatcher);
@@ -2106,6 +2166,10 @@ _mcd_connection_set_property (GObject * obj, guint prop_id,
                           obj);
         _mcd_account_set_connection (account, MCD_CONNECTION (obj));
 	break;
+    case PROP_SLACKER:
+      g_assert (priv->slacker == NULL);
+      priv->slacker = g_value_dup_object (val);
+    break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
@@ -2134,6 +2198,9 @@ _mcd_connection_get_property (GObject * obj, guint prop_id,
 	break;
     case PROP_DISPATCHER:
 	g_value_set_object (val, priv->dispatcher);
+	break;
+    case PROP_SLACKER:
+      g_value_set_object (val, priv->slacker);
 	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -2237,6 +2304,8 @@ mcd_connection_add_signals (TpProxy *self,
                                                                          data);
     mc_cli_Connection_Interface_Contact_Capabilities_add_signals (self, quark,
                                                                   proxy, data);
+    mc_cli_Connection_Interface_Power_Saving_add_signals (self, quark,
+        proxy, data);
 }
 
 static void
@@ -2247,6 +2316,7 @@ mcd_connection_class_init (McdConnectionClass * klass)
 
     object_class->finalize = _mcd_connection_finalize;
     object_class->dispose = _mcd_connection_dispose;
+    object_class->constructed = _mcd_connection_constructed;
     object_class->set_property = _mcd_connection_set_property;
     object_class->get_property = _mcd_connection_get_property;
 
@@ -2292,6 +2362,13 @@ mcd_connection_class_init (McdConnectionClass * klass)
                               "Account",
                               "Account",
                               MCD_TYPE_ACCOUNT,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property
+        (object_class, PROP_SLACKER,
+         g_param_spec_object ("slacker",
+                              "MCE slacker",
+                              "Slacker object notifies us of user inactivity",
+                              MCD_TYPE_SLACKER,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
     signals[SELF_PRESENCE_CHANGED] = g_signal_new ("self-presence-changed",

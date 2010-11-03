@@ -93,3 +93,4 @@ test/twisted/tools/tmp-session-bus.conf
 /util/mc-tool
 /util/mc-wait-for-name
 /util/mc-wait-for-name.1
+test/twisted/config.py
