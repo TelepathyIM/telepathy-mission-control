@@ -16,8 +16,12 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 # 02110-1301 USA
 
-import dbus
-import dbus
+import config
+
+if config.HAVE_MCE:
+    print "NOTE: built with real MCE support; skipping idleness test"
+    raise SystemExit(77)
+
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \

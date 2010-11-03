@@ -90,6 +90,19 @@ TWISTED_SEPARATE_TESTS = \
 
 TWISTED_SEPARATE_TESTS += $(TWISTED_SPECIAL_BUILD_TESTS)
 
+if HAVE_MCE
+HAVE_MCE_PYBOOL = True
+else
+HAVE_MCE_PYBOOL = False
+endif
+
+config.py: Makefile
+	$(AM_V_GEN) { \
+		echo "HAVE_MCE = $(HAVE_MCE_PYBOOL)"; \
+	} > $@
+
+BUILT_SOURCES = config.py
+
 AM_CFLAGS = $(ERROR_CFLAGS)
 
 # A demo dispatcher plugin (new, minimal API)
@@ -274,7 +287,8 @@ CLEANFILES = \
 	mc-[1-9]*.log \
 	*.pyc \
 	*/*.pyc \
-	with-session-bus-*.dbus-monitor-logs
+	with-session-bus-*.dbus-monitor-logs \
+	config.py
 
 check_misc_sources = $(TESTS)
 
