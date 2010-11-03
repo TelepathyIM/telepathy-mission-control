@@ -63,6 +63,7 @@ CONN_IFACE_CONTACT_CAPS_DRAFT1 = CONN + '.Interface.ContactCapabilities.DRAFT'
 CONN_IFACE_CONTACT_CAPS = CONN + '.Interface.ContactCapabilities'
 CONN_IFACE_REQUESTS = CONN + '.Interface.Requests'
 CONN_IFACE_SIMPLE_PRESENCE = CONN + '.Interface.SimplePresence'
+CONN_IFACE_POWER_SAVING = CONN + '.Interface.PowerSaving.DRAFT'
 
 CONN_STATUS_CONNECTED = 0
 CONN_STATUS_CONNECTING = 1
