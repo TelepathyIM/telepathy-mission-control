@@ -614,6 +614,16 @@ def assertFlagsUnset(flags, value):
             "expected none of flags %u, but %u are set in %u" % (
             flags, masked, value))
 
+def assertSameSets(expected, value):
+    exp_set = set(expected)
+    val_set = set(value)
+
+    if exp_set != val_set:
+        raise AssertionError(
+            "expected contents:\n%s\ngot:\n%s" % (
+                pretty(exp_set), pretty(val_set)))
+
+
 def install_colourer():
     def red(s):
         return '\x1b[31m%s\x1b[0m' % s
@@ -637,6 +647,8 @@ def install_colourer():
 
     sys.stdout = Colourer(sys.stdout, patterns)
     return sys.stdout
+
+
 
 if __name__ == '__main__':
     unittest.main()

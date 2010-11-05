@@ -20,7 +20,7 @@ import dbus
 import dbus
 import dbus.service
 
-from servicetest import unwrap, assertContains, assertEquals
+from servicetest import unwrap, assertContains, assertEquals, assertSameSets
 from mctest import exec_test, create_fakecm_account
 import constants as cs
 
@@ -69,27 +69,18 @@ def test(q, bus, mc):
     assert (address_iface.SetURISchemeAssociation ('scheme-a', True))
     assert (address_iface.SetURISchemeAssociation ('scheme-c', True))
     uri_schemes = get_schemes (account_props)
-    assertContains ('scheme-a', uri_schemes)
-    assertContains ('scheme-b', uri_schemes)
-    assertContains ('scheme-c', uri_schemes)
-    assertEquals (len(uri_schemes), 3)
+    assertSameSets (set (['scheme-a','scheme-b','scheme-c']), set (uri_schemes))
 
     # remove a scheme that's not there from a non-empty list
     assert (not address_iface.SetURISchemeAssociation ('scheme-d', False))
     uri_schemes = get_schemes (account_props)
-    assertContains ('scheme-a', uri_schemes)
-    assertContains ('scheme-b', uri_schemes)
-    assertContains ('scheme-c', uri_schemes)
-    assertEquals (len(uri_schemes), 3)
+    assertSameSets (set (['scheme-a','scheme-b','scheme-c']), set (uri_schemes))
 
 
     # remove one that is there:
     assert (address_iface.SetURISchemeAssociation ('scheme-b', False))
     uri_schemes = get_schemes (account_props)
-    assertContains ('scheme-a', uri_schemes)
-    assertContains ('scheme-c', uri_schemes)
-    assertEquals (len(uri_schemes), 2)
-    
+    assertSameSets (set (['scheme-a','scheme-c']), set (uri_schemes))
 
 if __name__ == '__main__':
     exec_test(test, {})
