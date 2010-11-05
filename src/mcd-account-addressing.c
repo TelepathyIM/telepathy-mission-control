@@ -51,7 +51,7 @@ addressing_set_uri_scheme_association (McSvcAccountInterfaceAddressing *iface,
   gboolean old_association = tp_strv_contains ((const gchar * const *) schemes,
       uri_scheme);
 
-  if (!!old_association != !!association)
+  if (old_association != association)
     {
       GPtrArray *new_schemes = g_ptr_array_new ();
       gchar **s;
