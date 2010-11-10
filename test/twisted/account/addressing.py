@@ -43,42 +43,41 @@ def test(q, bus, mc):
     assertEquals (uri_schemes, [])
 
     # remove URI from empty list:
-    assert (not address_iface.SetURISchemeAssociation ('email', False))
+    address_iface.SetURISchemeAssociation ('email', False)
     uri_schemes = get_schemes (account_props)
     assertEquals (uri_schemes, [])
 
     # add association to empty list
-    assert (not address_iface.SetURISchemeAssociation ('email', True))
+    address_iface.SetURISchemeAssociation ('email', True)
     uri_schemes = get_schemes (account_props)
     assertEquals (uri_schemes, ['email'])
 
     # add association to list where it already resides
-    assert (address_iface.SetURISchemeAssociation ('email', True))
+    address_iface.SetURISchemeAssociation ('email', True)
     uri_schemes = get_schemes (account_props)
     assertEquals (uri_schemes, ['email'])
 
     # remove association to produce empty list 
-    assert (address_iface.SetURISchemeAssociation ('email', False))
+    address_iface.SetURISchemeAssociation ('email', False)
     uri_schemes = get_schemes (account_props)
     assertEquals (uri_schemes, [])
 
     # extend list to 3 schemes, with some redundant additions:
-    assert (not address_iface.SetURISchemeAssociation ('scheme-a', True))
-    assert (not address_iface.SetURISchemeAssociation ('scheme-b', True))
-    assert (not address_iface.SetURISchemeAssociation ('scheme-c', True))
-    assert (address_iface.SetURISchemeAssociation ('scheme-a', True))
-    assert (address_iface.SetURISchemeAssociation ('scheme-c', True))
+    address_iface.SetURISchemeAssociation ('scheme-a', True)
+    address_iface.SetURISchemeAssociation ('scheme-b', True)
+    address_iface.SetURISchemeAssociation ('scheme-c', True)
+    address_iface.SetURISchemeAssociation ('scheme-a', True)
+    address_iface.SetURISchemeAssociation ('scheme-c', True)
     uri_schemes = get_schemes (account_props)
     assertSameSets (set (['scheme-a','scheme-b','scheme-c']), set (uri_schemes))
 
     # remove a scheme that's not there from a non-empty list
-    assert (not address_iface.SetURISchemeAssociation ('scheme-d', False))
+    address_iface.SetURISchemeAssociation ('scheme-d', False)
     uri_schemes = get_schemes (account_props)
     assertSameSets (set (['scheme-a','scheme-b','scheme-c']), set (uri_schemes))
 
-
     # remove one that is there:
-    assert (address_iface.SetURISchemeAssociation ('scheme-b', False))
+    address_iface.SetURISchemeAssociation ('scheme-b', False)
     uri_schemes = get_schemes (account_props)
     assertSameSets (set (['scheme-a','scheme-c']), set (uri_schemes))
 

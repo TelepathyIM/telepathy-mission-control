@@ -69,10 +69,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</
         </tp:docstring>
       </arg>
 
-      <arg name="Old_URI_Association" direction="out" type="b">
-        <tp:docstring><p>The old URI association value</p></tp:docstring>
-      </arg>
-
     </method>
 
   </interface>

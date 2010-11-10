@@ -81,7 +81,7 @@ addressing_set_uri_scheme_association (McSvcAccountInterfaceAddressing *iface,
 
   tp_g_value_slice_free (stored_value);
   mc_svc_account_interface_addressing_return_from_set_uri_scheme_association (
-      context, old_association);
+      context);
 }
 
 static void
