@@ -16,9 +16,9 @@ Lesser General Public License for more details.</p>
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</p>
   </tp:license>
-  <interface name="org.freedesktop.Telepathy.Account.Interface.Addressing.DRAFT">
+  <interface name="org.freedesktop.Telepathy.Account.Interface.Addressing">
     <tp:requires interface="org.freedesktop.Telepathy.Account"/>
-    <tp:added version="0.21.UNRELEASED">(draft 1)</tp:added>
+    <tp:added version="0.21.UNRELEASED">(as stable api)</tp:added>
     <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
       <p>Some accounts can be used for multiple protocols; for instance, SIP
         and Skype accounts can often be used to contact the PSTN, MSN and
