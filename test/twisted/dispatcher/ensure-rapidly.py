@@ -23,8 +23,8 @@ a channel that has already been dispatched to a handler.
 import dbus
 import dbus.service
 
-from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async
+from servicetest import (EventPattern, tp_name_prefix, tp_path_prefix,
+        call_async, assertContains, assertLength, assertEquals)
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
         expect_client_setup
@@ -137,20 +137,20 @@ def test_channel_creation(q, bus, account, client, conn,
             )
 
     assert add_request_call1.args[0] == cr1.object_path
-    request_props = add_request_call1.args[1]
-    assert request_props[cs.CR + '.Account'] == account.object_path
-    assert request_props[cs.CR + '.Requests'] == [request]
-    assert request_props[cs.CR + '.UserActionTime'] == user_action_time1
-    assert request_props[cs.CR + '.PreferredHandler'] == client.bus_name
-    assert request_props[cs.CR + '.Interfaces'] == []
+    request_props1 = add_request_call1.args[1]
+    assert request_props1[cs.CR + '.Account'] == account.object_path
+    assert request_props1[cs.CR + '.Requests'] == [request]
+    assert request_props1[cs.CR + '.UserActionTime'] == user_action_time1
+    assert request_props1[cs.CR + '.PreferredHandler'] == client.bus_name
+    assert request_props1[cs.CR + '.Interfaces'] == []
 
     assert add_request_call2.args[0] == cr2.object_path
-    request_props = add_request_call2.args[1]
-    assert request_props[cs.CR + '.Account'] == account.object_path
-    assert request_props[cs.CR + '.Requests'] == [request]
-    assert request_props[cs.CR + '.UserActionTime'] == user_action_time2
-    assert request_props[cs.CR + '.PreferredHandler'] == client.bus_name
-    assert request_props[cs.CR + '.Interfaces'] == []
+    request_props2 = add_request_call2.args[1]
+    assert request_props2[cs.CR + '.Account'] == account.object_path
+    assert request_props2[cs.CR + '.Requests'] == [request]
+    assert request_props2[cs.CR + '.UserActionTime'] == user_action_time2
+    assert request_props2[cs.CR + '.PreferredHandler'] == client.bus_name
+    assert request_props2[cs.CR + '.Interfaces'] == []
 
     q.dbus_return(add_request_call1.message, signature='')
     q.dbus_return(add_request_call2.message, signature='')
@@ -215,6 +215,14 @@ def test_channel_creation(q, bus, account, client, conn,
         cr2.object_path]), e.args
     assert e.args[4] == user_action_time2, (e.args[4], user_action_time2)
     assert isinstance(e.args[5], dict)
+    assertContains('request-properties', e.args[5])
+    assertContains(cr1.object_path, e.args[5]['request-properties'])
+    assertContains(cr2.object_path, e.args[5]['request-properties'])
+    assertLength(2, e.args[5]['request-properties'])
+    assertEquals(request_props1,
+            e.args[5]['request-properties'][cr1.object_path])
+    assertEquals(request_props2,
+            e.args[5]['request-properties'][cr2.object_path])
     assert len(e.args) == 6
 
     # Handler accepts the Channels
