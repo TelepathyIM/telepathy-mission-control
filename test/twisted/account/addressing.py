@@ -69,17 +69,17 @@ def test(q, bus, mc):
     address_iface.SetURISchemeAssociation ('scheme-a', True)
     address_iface.SetURISchemeAssociation ('scheme-c', True)
     uri_schemes = get_schemes (account_props)
-    assertSameSets (set (['scheme-a','scheme-b','scheme-c']), set (uri_schemes))
+    assertSameSets (['scheme-a','scheme-b','scheme-c'], uri_schemes)
 
     # remove a scheme that's not there from a non-empty list
     address_iface.SetURISchemeAssociation ('scheme-d', False)
     uri_schemes = get_schemes (account_props)
-    assertSameSets (set (['scheme-a','scheme-b','scheme-c']), set (uri_schemes))
+    assertSameSets (['scheme-a','scheme-b','scheme-c'], uri_schemes)
 
     # remove one that is there:
     address_iface.SetURISchemeAssociation ('scheme-b', False)
     uri_schemes = get_schemes (account_props)
-    assertSameSets (set (['scheme-a','scheme-c']), set (uri_schemes))
+    assertSameSets (['scheme-a','scheme-c'], uri_schemes)
 
 if __name__ == '__main__':
     exec_test(test, {})
