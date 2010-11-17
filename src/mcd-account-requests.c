@@ -48,8 +48,6 @@
 #include "mcd-misc.h"
 #include "request.h"
 
-#include "_gen/svc-Channel_Request_Future.h"
-
 static void
 online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
 {
