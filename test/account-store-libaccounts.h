@@ -33,4 +33,6 @@ gboolean libaccounts_delete (const gchar *mc_account);
 
 gboolean libaccounts_exists (const gchar *mc_account);
 
+GStrv libaccounts_list (void);
+
 #endif

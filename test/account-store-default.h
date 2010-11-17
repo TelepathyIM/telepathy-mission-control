@@ -23,6 +23,7 @@
 #define _ACCOUNT_STORE_DEFAULT_H_
 
 #include <glib.h>
+#include <glib-object.h>
 
 gchar * default_get (const gchar *account,
     const gchar *key);
@@ -34,5 +35,7 @@ gboolean default_set (const gchar *account,
 gboolean default_delete (const gchar *account);
 
 gboolean default_exists (const gchar *account);
+
+GStrv default_list (void);
 
 #endif

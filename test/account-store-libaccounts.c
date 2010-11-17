@@ -23,38 +23,141 @@
 #include <libaccounts-glib/ag-manager.h>
 #include <libaccounts-glib/ag-account.h>
 #include <glib.h>
+#include "account-store-libaccounts.h"
 
-#define PARAM_PREFIX_MC "param-"
-#define PARAM_PREFIX    "parameters/"
+#undef  G_LOG_DOMAIN
+#define G_LOG_DOMAIN "account-store-libaccounts"
+
+/* MC <-> AG global/local setting meta data */
+#define MCPP "param-"
+#define AGPP "parameters/"
 #define LIBACCT_ID_KEY  "libacct-uid"
 
-#define AG_ACCOUNT_KEY "username"
-#define MC_ACCOUNT_KEY "account"
-#define PASSWORD_KEY   "password"
-#define ENABLED_KEY    "Enabled"
+#define MC_ENABLED_KEY  "Enabled"
+#define AG_ENABLED_KEY  "enabled"
+
+#define AG_LABEL_KEY    "name"
+#define MC_LABEL_KEY    "DisplayName"
+
+#define AG_ACCOUNT_KEY  "username"
+#define MC_ACCOUNT_KEY  "account"
+#define PASSWORD_KEY    "password"
+#define AG_ACCOUNT_ALT_KEY AGPP "account"
 
 #define MC_CMANAGER_KEY "manager"
 #define MC_PROTOCOL_KEY "protocol"
 #define MC_IDENTITY_KEY "tmc-uid"
 
-#undef  G_LOG_DOMAIN
-#define G_LOG_DOMAIN "account-store-libaccounts"
+#define SERVICES_KEY    "sso-services"
 
+#define MC_SERVICE_KEY  "Service"
+
+typedef struct {
+  gchar *mc_name;
+  gchar *ag_name;
+  gboolean global;   /* global ag setting or service specific? */
+  gboolean readable; /* does the _standard_ read method copy this into MC?  */
+  gboolean writable; /* does the _standard_ write method copy this into AG? */
+  gboolean freeable; /* should clear_setting_data deallocate the names? */
+} Setting;
+
+#define GLOBAL     TRUE
+#define SERVICE    FALSE
+#define READABLE   TRUE
+#define UNREADABLE FALSE
+#define WRITABLE   TRUE
+#define UNWRITABLE FALSE
+
+typedef enum {
+  SETTING_MC,
+  SETTING_AG,
+} SettingType;
+
+Setting setting_map[] = {
+  { MC_ENABLED_KEY     , AG_ENABLED_KEY , GLOBAL , UNREADABLE, UNWRITABLE },
+  { MCPP MC_ACCOUNT_KEY, AG_ACCOUNT_KEY , GLOBAL , READABLE  , UNWRITABLE },
+  { MCPP PASSWORD_KEY  , PASSWORD_KEY   , GLOBAL , READABLE  , WRITABLE   },
+  { MC_LABEL_KEY       , AG_LABEL_KEY   , GLOBAL , READABLE  , WRITABLE   },
+  { LIBACCT_ID_KEY     , LIBACCT_ID_KEY , GLOBAL , UNREADABLE, UNWRITABLE },
+  { MC_IDENTITY_KEY    , MC_IDENTITY_KEY, SERVICE, READABLE  , WRITABLE   },
+  { MC_CMANAGER_KEY    , MC_CMANAGER_KEY, SERVICE, READABLE  , UNWRITABLE },
+  { MC_PROTOCOL_KEY    , MC_PROTOCOL_KEY, SERVICE, READABLE  , UNWRITABLE },
+  { MC_SERVICE_KEY     , MC_SERVICE_KEY , SERVICE, UNREADABLE, UNWRITABLE },
+  { SERVICES_KEY       , SERVICES_KEY   , GLOBAL , UNREADABLE, UNWRITABLE },
+  { NULL               , NULL           , SERVICE, UNREADABLE, UNWRITABLE }
+};
+
+static void
+clear_setting_data (Setting *setting)
+{
+  if (setting == NULL)
+    return;
+
+  if (!setting->freeable)
+    return;
+
+  g_free (setting->mc_name);
+  g_free (setting->ag_name);
+  setting->mc_name = NULL;
+  setting->ag_name = NULL;
+}
+
+static Setting *
+setting_data (const gchar *name, SettingType type)
+{
+  guint i = 0;
+  static Setting parameter = { NULL, NULL, SERVICE, READABLE, WRITABLE, TRUE };
+  const gchar *prefix;
+
+  for (; setting_map[i].mc_name != NULL; i++)
+    {
+      const gchar *setting_name = NULL;
+
+      if (type == SETTING_MC)
+        setting_name = setting_map[i].mc_name;
+      else
+        setting_name = setting_map[i].ag_name;
+
+      if (g_strcmp0 (name, setting_name) == 0)
+        return &setting_map[i];
+    }
+
+  prefix = (type == SETTING_MC) ? MCPP : AGPP;
+
+  if (!g_str_has_prefix (name, prefix))
+    { /* a non-parameter setting */
+      parameter.mc_name = g_strdup (name);
+      parameter.ag_name = g_strdup (name);
+    }
+  else
+    { /* a setting that is a parameter on both sides (AG & MC) */
+      const guint plength = strlen (prefix);
+
+      parameter.mc_name = g_strdup_printf ("%s%s", MCPP, name + plength);
+      parameter.ag_name = g_strdup_printf ("%s%s", AGPP, name + plength);
+    }
+
+  return &parameter;
+}
+
+
+/* logging helpers: */
 static void
 _g_log_handler (const gchar   *log_domain,
     GLogLevelFlags log_level,
     const gchar   *message,
     gpointer	      unused_data)
 {
-  if (log_domain != G_LOG_DOMAIN)
+  /* the libaccounts code is currently very chatty when debugging: *
+   * we are only interested in or own debugging output for now.    */
+  if ((gchar *)log_domain != (gchar *)G_LOG_DOMAIN)
     return;
 
   g_log_default_handler (log_domain, log_level, message, unused_data);
 }
 
-/* libaccounts is incredibly chatty */
 static void
-toggle_mute ()
+toggle_mute (void)
 {
   static GLogFunc old = NULL;
 
@@ -192,85 +295,122 @@ _ag_account_select_default_im_service (AgAccount *account)
   return have_im_service;
 }
 
-static gchar *
-mc_to_ag_key (const gchar *mc_key)
+/* enabled is actually a tri-state<->boolean mapping */
+static gboolean _sso_account_enabled (AgAccount *account, AgService *service)
 {
-  if (g_str_has_prefix (mc_key, PARAM_PREFIX_MC))
+  gboolean local  = FALSE;
+  gboolean global = FALSE;
+  AgService *original = ag_account_get_selected_service (account);
+
+  if (service == NULL)
     {
-      const gchar *pkey = mc_key + strlen (PARAM_PREFIX_MC);
+      _ag_account_select_default_im_service (account);
+      local = ag_account_get_enabled (account);
+    }
+  else
+    {
+      if (original != service)
+        ag_account_select_service (account, service);
 
-      if (g_str_equal (pkey, MC_ACCOUNT_KEY))
-        return g_strdup (AG_ACCOUNT_KEY);
-
-      if (g_str_equal (pkey, PASSWORD_KEY))
-        return g_strdup (PASSWORD_KEY);
-
-      return g_strdup_printf (PARAM_PREFIX "%s", pkey);
+      local = ag_account_get_enabled (account);
     }
 
-  return g_strdup (mc_key);
+  ag_account_select_service (account, NULL);
+  global = ag_account_get_enabled (account);
+
+  ag_account_select_service (account, original);
+
+  g_debug ("_sso_account_enabled: global:%d && local:%d", global, local);
+
+  return local && global;
 }
 
-static gchar *
-ag_to_mc_key (const gchar *ag_key)
+static void _sso_account_enable (AgAccount *account,
+    AgService *service,
+    gboolean on)
 {
-  /* these two are parameters in MC but not in AG */
-  if (g_str_equal (ag_key, AG_ACCOUNT_KEY))
-    return g_strdup (PARAM_PREFIX_MC MC_ACCOUNT_KEY);
+  AgService *original = ag_account_get_selected_service (account);
 
-  if (g_str_equal (ag_key, PASSWORD_KEY))
-    return g_strdup (PARAM_PREFIX_MC PASSWORD_KEY);
+  /* turn the local enabled flag on/off as required */
+  if (service != NULL)
+    ag_account_select_service (account, service);
+  else
+    _ag_account_select_default_im_service (account);
 
-  /* now check for regular params */
-  if (g_str_has_prefix (ag_key, PARAM_PREFIX))
-    return
-      g_strdup_printf (PARAM_PREFIX_MC "%s", ag_key + strlen (PARAM_PREFIX));
+  ag_account_set_enabled (account, on);
 
-  return g_strdup (ag_key);
+  /* if we are turning the account on, the global flag must also be set *
+   * NOTE: this isn't needed when turning the account off               */
+  if (on)
+    {
+      ag_account_select_service (account, NULL);
+      ag_account_set_enabled (account, on);
+    }
+
+  ag_account_select_service (account, original);
 }
 
-static gboolean key_is_global (const char *ag_key)
+/* saving settings other than the enabled tri-state */
+static void
+save_setting (AgAccount *account,
+    const Setting *setting,
+    const gchar *val)
 {
-  /* parameters and MC_IDENTITY_KEY are service specific */
-  if (g_str_has_prefix (ag_key, PARAM_PREFIX))
-    return FALSE;
+  AgService *service = ag_account_get_selected_service (account);
 
-  if (g_str_equal (ag_key, MC_IDENTITY_KEY))
-    return FALSE;
+  if (!setting->writable)
+    return;
 
-  /* anything else is global */
-  return TRUE;
+  if (setting->global)
+    ag_account_select_service (account, NULL);
+  else if (service == NULL)
+    _ag_account_select_default_im_service (account);
+
+  if (val != NULL)
+    {
+      GValue value = { 0 };
+
+      g_value_init (&value, G_TYPE_STRING);
+      g_value_set_string (&value, val);
+      ag_account_set_value (account, setting->ag_name, &value);
+      g_value_unset (&value);
+    }
+  else
+    {
+      ag_account_set_value (account, setting->ag_name, NULL);
+    }
+
+  /* leave the selected service as we found it: */
+  ag_account_select_service (account, service);
 }
 
 gchar *
-libaccounts_get (const gchar *mc_account,
-    const gchar *key)
+libaccounts_get (const gchar *mc_account, const gchar *key)
 {
   gchar *rval = NULL;
   AgAccount *ag_account = get_ag_account (mc_account);
+  Setting *setting = setting_data (key, SETTING_MC);
 
   toggle_mute ();
 
   if (ag_account != NULL)
     {
-      gchar *ag_key = mc_to_ag_key (key);
 
-      g_debug ("MC key %s -> AG key %s", key, ag_key);
-
-      if (g_str_equal (ag_key, ENABLED_KEY))
+      if (setting == NULL)
         {
-          gboolean on = FALSE;
+          g_debug ("setting %s is unknown/unmapped, aborting update", key);
+          rval = g_strdup ("");
+          goto done;
+        }
 
-          ag_account_select_service (ag_account, NULL);
-          on = ag_account_get_enabled (ag_account);
+      g_debug ("MC key %s -> AG key %s", key, setting->ag_name);
 
-          if (on)
-            {
-              _ag_account_select_default_im_service (ag_account);
-              on = ag_account_get_enabled (ag_account);
-            }
+      if (g_str_equal (setting->ag_name, AG_ENABLED_KEY))
+        {
+          gboolean on = _sso_account_enabled (ag_account, NULL);
 
-          rval = on ? g_strdup ("true") : g_strdup ("false");
+          rval = g_strdup (on ? "true" : "false");
+          goto done;
         }
       else
         {
@@ -279,25 +419,40 @@ libaccounts_get (const gchar *mc_account,
 
           g_value_init (&value, G_TYPE_STRING);
 
-          if (key_is_global (ag_key))
+          /* the 'account' parameter is a special case for historical reasons */
+          if (g_str_equal (key, MCPP MC_ACCOUNT_KEY))
+            {
+              _ag_account_select_default_im_service (ag_account);
+              source =
+                ag_account_get_value (ag_account, AG_ACCOUNT_ALT_KEY, &value);
+
+              if (source != AG_SETTING_SOURCE_NONE)
+                goto found;
+            }
+
+          if (setting->global)
             ag_account_select_service (ag_account, NULL);
           else
             _ag_account_select_default_im_service (ag_account);
 
-          source = ag_account_get_value (ag_account, ag_key, &value);
+          source = ag_account_get_value (ag_account, setting->ag_name, &value);
 
+        found:
           if (source != AG_SETTING_SOURCE_NONE)
             {
               rval = _gvalue_to_string (&value);
               g_value_unset (&value);
             }
         }
-
-      g_free (ag_key);
-      g_object_unref (ag_account);
     }
 
+ done:
   toggle_mute ();
+
+  if (ag_account)
+    g_object_unref (ag_account);
+
+  clear_setting_data (setting);
 
   return rval;
 }
@@ -309,44 +464,44 @@ libaccounts_set (const gchar *mc_account,
 {
   gboolean done = FALSE;
   AgAccount *ag_account = get_ag_account (mc_account);
+  Setting *setting = setting_data (key, SETTING_MC);
 
   toggle_mute ();
 
   if (ag_account != NULL)
     {
-      gchar *ag_key = mc_to_ag_key (key);
+      if (setting == NULL)
+        {
+          g_debug ("setting %s is unknown/unmapped, aborting update", key);
+          goto done;
+        }
 
-      if (g_str_equal (ag_key, ENABLED_KEY))
+      if (g_str_equal (setting->ag_name, MC_ENABLED_KEY))
         {
           gboolean on = g_str_equal (value, "true");
 
-          ag_account_select_service (ag_account, NULL);
-          ag_account_set_enabled (ag_account, on);
-          _ag_account_select_default_im_service (ag_account);
-          ag_account_set_enabled (ag_account, on);
-
+          _sso_account_enable (ag_account, NULL, on);
           done = TRUE;
+          goto done;
         }
       else
         {
-          GValue val = { 0 };
-
-          g_value_init (&val, G_TYPE_STRING);
-          g_value_set_string (&val, value);
-          ag_account_set_value (ag_account, ag_key, &val);
-          g_value_unset (&val);
-
+          save_setting (ag_account, setting, value);
           done = TRUE;
         }
 
       if (done)
         ag_account_store (ag_account, NULL, NULL);
 
-      g_free (ag_key);
-      g_object_unref (ag_account);
     }
 
+ done:
   toggle_mute ();
+
+  if (ag_account)
+    g_object_unref (ag_account);
+
+  clear_setting_data (setting);
 
   return done;
 }
@@ -389,4 +544,84 @@ libaccounts_exists (const gchar *mc_account)
   toggle_mute ();
 
   return exists;
+}
+
+GStrv
+libaccounts_list (void)
+{
+  AgManager *ag_manager = get_ag_manager ();
+  GList *ag_ids = ag_manager_list_by_service_type (ag_manager, "IM");
+  guint len = g_list_length (ag_ids);
+  GStrv rval = NULL;
+  GList *id;
+  guint i = 0;
+  Setting *setting = setting_data (MC_IDENTITY_KEY, SETTING_AG);
+
+  if (len == 0)
+    goto done;
+
+  rval = g_new (gchar *, len + 1);
+  rval[len] = NULL;
+
+  for (id = ag_ids; id && i < len; id = g_list_next (id))
+    {
+      GValue value = { 0 };
+      AgAccountId uid = GPOINTER_TO_UINT (id->data);
+      AgAccount *ag_account = ag_manager_get_account (ag_manager, uid);
+      AgSettingSource source = AG_SETTING_SOURCE_NONE;
+
+      if (ag_account)
+        {
+          if (setting->global)
+            ag_account_select_service (ag_account, NULL);
+          else
+            _ag_account_select_default_im_service (ag_account);
+
+          source = ag_account_get_value (ag_account, setting->ag_name, &value);
+        }
+
+      if (source != AG_SETTING_SOURCE_NONE)
+        {
+          rval[i++] = _gvalue_to_string (&value);
+          g_value_unset (&value);
+        }
+      else
+        {
+          GValue cmanager = { 0 };
+          GValue protocol = { 0 };
+          GValue account  = { 0 };
+          const gchar *acct = NULL;
+          const gchar *cman = NULL;
+          const gchar *proto = NULL;
+
+          g_value_init (&cmanager, G_TYPE_STRING);
+          g_value_init (&protocol, G_TYPE_STRING);
+          g_value_init (&account,  G_TYPE_STRING);
+
+          _ag_account_select_default_im_service (ag_account);
+
+          ag_account_get_value (ag_account, MC_CMANAGER_KEY, &cmanager);
+          cman = g_value_get_string (&cmanager);
+
+          ag_account_get_value (ag_account, MC_PROTOCOL_KEY, &protocol);
+          proto = g_value_get_string (&protocol);
+
+          ag_account_select_service (ag_account, NULL);
+          ag_account_get_value (ag_account, AG_ACCOUNT_KEY, &account);
+          acct = g_value_get_string (&account);
+
+          rval[i++] = g_strdup_printf ("unnamed account #%u (%s/%s/%s)",
+              uid, cman, proto, acct);
+
+          g_value_unset (&cmanager);
+          g_value_unset (&protocol);
+          g_value_unset (&account);
+        }
+    }
+
+ done:
+  g_list_free (ag_ids);
+  clear_setting_data (setting);
+
+  return rval;
 }

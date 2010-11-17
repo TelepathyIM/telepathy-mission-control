@@ -277,3 +277,9 @@ default_exists (const gchar *account)
 {
   return g_key_file_has_group (default_keyfile (), account);
 }
+
+GStrv
+default_list (void)
+{
+  return g_key_file_get_groups (default_keyfile (), NULL);
+}

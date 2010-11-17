@@ -30,8 +30,8 @@
 #include "account-store-default.h"
 
 #define DOCSTRING_A \
-  "%s OP BACKEND ACCOUNT [KEY [VALUE]]\n\n" \
-  "  OP      := <get | set | del | has>\n"  \
+  "%s OP BACKEND ACCOUNT [KEY [VALUE]]\n\n"        \
+  "  OP      := <get | set | del | has | list>\n"  \
   "  BACKEND := <"
 
 #define DOCSTRING_B \
@@ -50,6 +50,7 @@ typedef struct {
   gboolean (*set) (const gchar *account, const gchar *key, const gchar *value);
   gboolean (*delete) (const gchar *account);
   gboolean (*exists) (const gchar *account);
+  GStrv    (*list) (void);
 } Backend;
 
 typedef enum {
@@ -58,6 +59,7 @@ typedef enum {
   OP_SET,
   OP_DELETE,
   OP_EXISTS,
+  OP_LIST,
 } Operation;
 
 const Backend backends[] = {
@@ -65,14 +67,16 @@ const Backend backends[] = {
     default_get,
     default_set,
     default_delete,
-    default_exists },
+    default_exists,
+    default_list, },
 
 #if ENABLE_LIBACCOUNTS_SSO
   { "libaccounts",
     libaccounts_get,
     libaccounts_set,
     libaccounts_delete,
-    libaccounts_exists },
+    libaccounts_exists,
+    libaccounts_list, },
 #endif
 
   { NULL }
@@ -158,6 +162,8 @@ int main (int argc, char **argv)
     op = OP_DELETE;
   else if (g_str_equal (op_name, "has"))
     op = OP_EXISTS;
+  else if (g_str_equal (op_name, "list"))
+    op = OP_LIST;
 
   switch (op)
     {
@@ -191,6 +197,11 @@ int main (int argc, char **argv)
         account = argv[3];
         break;
 
+      case OP_LIST:
+        if (argc < 3)
+          usage (argv[0], "op '%s' requires an backend", op_name);
+        break;
+
       case OP_UNKNOWN:
         usage (argv[0], "Unknown operation: %s", op_name);
     }
@@ -198,6 +209,8 @@ int main (int argc, char **argv)
   /* if we got this far, we have all the args we need: */
   switch (op)
     {
+      GStrv list;
+
       case OP_GET:
         output = store->get (account, setting);
         success = output != NULL;
@@ -220,9 +233,14 @@ int main (int argc, char **argv)
           output = g_strdup_printf ("Exists in %s", store->name);
         break;
 
-      case OP_UNKNOWN:
-        /* if this is the case then we already exited */
-        g_assert_not_reached ();
+      case OP_LIST:
+        list = store->list ();
+        output = g_strjoinv ("\n", list);
+        g_strfreev (list);
+        break;
+
+      default:
+        output = g_strdup ("Unknown operation");
     }
 
   if (output != NULL)
