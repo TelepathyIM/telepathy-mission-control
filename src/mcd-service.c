@@ -90,8 +90,8 @@ mcd_service_obtain_bus_name (McdService * obj)
                                       MISSION_CONTROL_DBUS_SERVICE,
                                       TRUE /* idempotent */, &error))
     {
-        g_error ("Failed registering '%s' service: %s",
-                 MISSION_CONTROL_DBUS_SERVICE, error->message);
+        g_warning ("Failed registering '%s' service: %s",
+                   MISSION_CONTROL_DBUS_SERVICE, error->message);
         g_error_free (error);
         exit (1);
     }

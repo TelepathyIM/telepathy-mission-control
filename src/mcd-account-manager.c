@@ -1331,8 +1331,8 @@ register_dbus_service (McdAccountManager *account_manager)
     {
         /* FIXME: put in proper error handling when MC gains the ability to
          * be the AM or the CD but not both */
-        g_error ("Failed registering '%s' service: %s",
-                 MC_ACCOUNT_MANAGER_DBUS_SERVICE, error->message);
+        g_warning("Failed registering '%s' service: %s",
+                  MC_ACCOUNT_MANAGER_DBUS_SERVICE, error->message);
         g_error_free (error);
         exit (1);
     }

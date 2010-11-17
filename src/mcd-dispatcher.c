@@ -1047,8 +1047,8 @@ mcd_dispatcher_constructed (GObject *object)
     {
         /* FIXME: put in proper error handling when MC gains the ability to
          * be the AM or the CD but not both */
-        g_error ("Failed registering '%s' service: %s",
-                 MCD_CHANNEL_DISPATCHER_BUS_NAME, error->message);
+        g_warning ("Failed registering '%s' service: %s",
+                   MCD_CHANNEL_DISPATCHER_BUS_NAME, error->message);
         g_error_free (error);
         exit (1);
     }
