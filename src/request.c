@@ -36,7 +36,7 @@
 #include "plugin-loader.h"
 #include "plugin-request.h"
 #include "_gen/interfaces.h"
-#include "_gen/svc-Channel_Request_Future.h"
+#include "_gen/svc-request.h"
 
 enum {
     PROP_0,
@@ -97,7 +97,7 @@ static void request_iface_init (TpSvcChannelRequestClass *);
 
 G_DEFINE_TYPE_WITH_CODE (McdRequest, _mcd_request, G_TYPE_OBJECT,
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_CHANNEL_REQUEST, request_iface_init);
-    G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_REQUEST_FUTURE, NULL);
+    G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_REQUEST_INTERFACE_HINTS, NULL);
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
                            tp_dbus_properties_mixin_iface_init))
 
@@ -311,7 +311,7 @@ _mcd_request_class_init (
       { "Requests", "requests", NULL },
       { NULL }
   };
-  static TpDBusPropertiesMixinPropImpl future_props[] = {
+  static TpDBusPropertiesMixinPropImpl hints_props[] = {
       { "Hints", "hints", NULL },
       { NULL }
   };
@@ -321,10 +321,10 @@ _mcd_request_class_init (
           NULL,
           request_props,
       },
-      { MC_IFACE_CHANNEL_REQUEST_FUTURE,
+      { MC_IFACE_CHANNEL_REQUEST_INTERFACE_HINTS,
         tp_dbus_properties_mixin_getter_gobject_properties,
         NULL,
-        future_props,
+        hints_props,
       },
       { NULL }
   };
@@ -564,14 +564,22 @@ _mcd_request_set_success (McdRequest *self,
 
   if (!self->is_complete)
     {
+      /* might be used for the connection's properties in future; empty
+       * for now */
+      GHashTable *future_conn_props = g_hash_table_new (g_str_hash,
+          g_str_equal);
       DEBUG ("Request succeeded");
       self->is_complete = TRUE;
       self->cancellable = FALSE;
 
-      mc_svc_channel_request_future_emit_succeeded_with_channel (self,
+      mc_svc_channel_request_interface_hints_emit_succeeded_with_channel (self,
           tp_proxy_get_object_path (tp_channel_borrow_connection (channel)),
-          tp_proxy_get_object_path (channel));
+          future_conn_props,
+          tp_proxy_get_object_path (channel),
+          tp_channel_borrow_immutable_properties (channel));
       tp_svc_channel_request_emit_succeeded (self);
+
+      g_hash_table_unref (future_conn_props);
 
       _mcd_request_clean_up (self);
     }
@@ -695,7 +703,7 @@ _mcd_request_dup_immutable_properties (McdRequest *self)
       TP_IFACE_CHANNEL_REQUEST, "PreferredHandler",
       TP_IFACE_CHANNEL_REQUEST, "Interfaces",
       TP_IFACE_CHANNEL_REQUEST, "Requests",
-      MC_IFACE_CHANNEL_REQUEST_FUTURE, "Hints",
+      MC_IFACE_CHANNEL_REQUEST_INTERFACE_HINTS, "Hints",
       NULL);
 }
 

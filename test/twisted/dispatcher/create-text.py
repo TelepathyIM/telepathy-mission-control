@@ -199,11 +199,13 @@ def test_channel_creation(q, bus, account, client, conn,
     q.dbus_return(e.message, signature='')
 
     # SucceededWithChannel is fired first
-    e = q.expect('dbus-signal', path=request_path, interface=cs.CR_FUTURE,
+    e = q.expect('dbus-signal', path=request_path, interface=cs.CR_IFACE_HINTS,
         signal='SucceededWithChannel')
 
     assertEquals(conn.object_path, e.args[0])
-    assertEquals(channel.object_path, e.args[1])
+    assert isinstance(e.args[1], dict), e.args[1]
+    assertEquals(channel.object_path, e.args[2])
+    assertEquals(channel_immutable, e.args[3])
 
     # CR emits Succeeded (or in Mardy's version, Account emits Succeeded)
     q.expect_many(

@@ -177,11 +177,11 @@ AM_IFACE_NOKIA_QUERY = 'com.nokia.AccountManager.Interface.Query'
 AM_PATH = tp_path_prefix + '/AccountManager'
 
 CR = tp_name_prefix + '.ChannelRequest'
-CR_FUTURE = CR + '.FUTURE'
+CR_IFACE_HINTS = CR + '.Interface.Hints.DRAFT'
 CDO = tp_name_prefix + '.ChannelDispatchOperation'
 
 CD = tp_name_prefix + '.ChannelDispatcher'
-CD_FUTURE = CD + '.FUTURE'
+CD_IFACE_HINTS = CD + '.Interface.Hints.DRAFT'
 CD_IFACE_OP_LIST = tp_name_prefix + '.ChannelDispatcher.Interface.OperationList'
 CD_PATH = tp_path_prefix + '/ChannelDispatcher'
 

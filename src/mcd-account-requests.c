@@ -48,8 +48,6 @@
 #include "mcd-misc.h"
 #include "request.h"
 
-#include "_gen/svc-Channel_Request_Future.h"
-
 static void
 online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
 {
@@ -134,7 +132,9 @@ static void mcd_account_channel_request_disconnect (McdRequest *request);
 static void
 on_request_succeeded_with_channel (McdRequest *request,
     const gchar *conn_path,
+    GHashTable *conn_props,
     const gchar *chan_path,
+    GHashTable *chan_props,
     McdChannel *channel)
 {
     McdAccount *account = _mcd_request_get_account (request);
