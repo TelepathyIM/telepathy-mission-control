@@ -441,8 +441,12 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
 
     if (account != NULL)
     {
+        const gchar * object_path = mcd_account_get_object_path (account);
+
         g_object_ref (account);
+        /* this unhooks the account's signal handlers */
         g_hash_table_remove (manager->priv->accounts, name);
+        tp_svc_account_manager_emit_account_removed (manager, object_path);
         mcd_account_delete (account, _mcd_account_delete_cb, NULL);
     }
 }
