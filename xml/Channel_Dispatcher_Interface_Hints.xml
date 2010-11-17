@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<node name="/Channel_Dispatcher_Future"
+<node name="/Channel_Dispatcher_Interface_Hints"
   xmlns:tp="http://telepathy.freedesktop.org/wiki/DbusSpec#extensions-v0">
 
   <tp:copyright>Copyright © 2008-2010 Collabora Ltd.</tp:copyright>
@@ -21,8 +21,8 @@
       USA.</p>
   </tp:license>
 
-  <interface name="org.freedesktop.Telepathy.ChannelDispatcher.FUTURE">
-    <tp:added version="0.17.26">(as a stable interface)</tp:added>
+  <interface name="org.freedesktop.Telepathy.ChannelDispatcher.Interface.Hints.DRAFT"
+    tp:causes-havoc="a staging area for future functionality">
 
     <tp:requires interface="org.freedesktop.Telepathy.ChannelDispatcher"/>
 
@@ -37,7 +37,7 @@
 
     <method name="CreateChannelWithHints"
             tp:name-for-bindings="Create_Channel_With_Hints">
-      <tp:added version="0.19.UNRELEASED">
+      <tp:added version="0.19.12">
         Support for this method is indicated by the
         <tp:member-ref>SupportsRequestHints</tp:member-ref> property.
         Clients MUST recover from this method being unsupported by falling back
@@ -183,9 +183,8 @@
         <tp:docstring>
           <p>Additional information about the channel request, which will be
             used as the value for the resulting request's <tp:dbus-ref
-              namespace="ofdT.ChannelRequest.FUTURE">Hints</tp:dbus-ref>
-            property, but will not otherwise be interpreted by the Channel
-            Dispatcher.</p>
+              namespace="ofdT.ChannelRequest.Interface.Hints.DRAFT">Hints</tp:dbus-ref>
+            property.</p>
 
           <tp:rationale>
             <p>See the Hints property's documentation for rationale.</p>
@@ -216,7 +215,7 @@
 
     <method name="EnsureChannelWithHints"
             tp:name-for-bindings="Ensure_Channel_With_Hints">
-      <tp:added version="0.19.UNRELEASED">
+      <tp:added version="0.19.12">
         Support for this method is indicated by the
         <tp:member-ref>SupportsRequestHints</tp:member-ref> property.
         Clients MUST recover from this method being unsupported by falling back
@@ -330,7 +329,7 @@
         <tp:docstring>
           Additional information about the channel request, which will be used
           as the value for the resulting request's <tp:dbus-ref
-          namespace="ofdT.ChannelRequest.FUTURE">Hints</tp:dbus-ref>
+          namespace="ofdT.ChannelRequest.Interface.Hints.DRAFT">Hints</tp:dbus-ref>
           property.</tp:docstring>
       </arg>
 
@@ -358,7 +357,7 @@
     <property name="SupportsRequestHints"
               tp:name-for-bindings="Supports_Request_Hints"
               type="b" access="read">
-      <tp:added version="0.19.UNRELEASED"/>
+      <tp:added version="0.19.12"/>
       <tp:docstring>
         If <code>True</code>, the channel dispatcher is new enough to support
         <tp:member-ref>CreateChannelWithHints</tp:member-ref> and

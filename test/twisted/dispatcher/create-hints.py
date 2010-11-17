@@ -73,7 +73,7 @@ def test_channel_creation(q, bus, account, client, conn,
     call_async(q, cd,
             (ensure and 'EnsureChannelWithHints' or 'CreateChannelWithHints'),
             account.object_path, request, user_action_time, prefer.bus_name,
-            hints, dbus_interface=cs.CD_FUTURE)
+            hints, dbus_interface=cs.CD_IFACE_HINTS)
     ret = q.expect('dbus-return',
             method=(ensure and 'EnsureChannelWithHints' or 'CreateChannelWithHints'))
     request_path = ret.value[0]
@@ -87,8 +87,9 @@ def test_channel_creation(q, bus, account, client, conn,
     assert request_props['UserActionTime'] == user_action_time
     assert request_props['PreferredHandler'] == prefer.bus_name
     assert request_props['Interfaces'] == []
-    future_props = cr.GetAll(cs.CR_FUTURE, dbus_interface=cs.PROPERTIES_IFACE)
-    assertEquals(hints, future_props['Hints'])
+    hints_props = cr.GetAll(cs.CR_IFACE_HINTS,
+            dbus_interface=cs.PROPERTIES_IFACE)
+    assertEquals(hints, hints_props['Hints'])
 
     cr.Proceed(dbus_interface=cs.CR)
 
@@ -178,11 +179,13 @@ def test_channel_creation(q, bus, account, client, conn,
     q.dbus_return(e.message, signature='')
 
     # SucceededWithChannel is fired first
-    e = q.expect('dbus-signal', path=request_path, interface=cs.CR_FUTURE,
+    e = q.expect('dbus-signal', path=request_path, interface=cs.CR_IFACE_HINTS,
         signal='SucceededWithChannel')
 
     assertEquals(conn.object_path, e.args[0])
-    assertEquals(channel.object_path, e.args[1])
+    assert isinstance(e.args[1], dict), e.args[1]
+    assertEquals(channel.object_path, e.args[2])
+    assertEquals(channel_immutable, e.args[3])
 
     # CR emits Succeeded (or in Mardy's version, Account emits Succeeded)
     q.expect_many(

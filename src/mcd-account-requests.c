@@ -132,7 +132,9 @@ static void mcd_account_channel_request_disconnect (McdRequest *request);
 static void
 on_request_succeeded_with_channel (McdRequest *request,
     const gchar *conn_path,
+    GHashTable *conn_props,
     const gchar *chan_path,
+    GHashTable *chan_props,
     McdChannel *channel)
 {
     McdAccount *account = _mcd_request_get_account (request);
