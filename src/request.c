@@ -36,7 +36,7 @@
 #include "plugin-loader.h"
 #include "plugin-request.h"
 #include "_gen/interfaces.h"
-#include "_gen/svc-Channel_Request_Future.h"
+#include "_gen/svc-request.h"
 
 enum {
     PROP_0,

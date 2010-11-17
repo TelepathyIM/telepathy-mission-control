@@ -61,7 +61,7 @@
 #include "plugin-loader.h"
 
 #include "libmcclient/mc-gtypes.h"
-#include "_gen/svc-Channel_Dispatcher_Future.h"
+#include "_gen/svc-dispatcher.h"
 
 #include <telepathy-glib/defs.h>
 #include <telepathy-glib/gtypes.h>
