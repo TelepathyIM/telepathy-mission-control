@@ -1,7 +1,21 @@
 telepathy-mission-control 5.6.1 (UNRELEASED)
 ============================================
 
-…
+Enhancements:
+
+• Make mc-tool support object paths, and improve the help (wjt)
+
+Fixes:
+
+• fd.o #30447: don't "return x()", where x returns void, in void functions
+  (Jeff Cai)
+
+• fd.o #30448: make type of mcp_account_storage_get_restrictions consistent
+  with the header (smcv)
+
+• Fix support for libaccounts-glib (fledermaus)
+
+• Remove unnecessary use of _POSIX_C_SOURCE (Jeff Cai)
 
 telepathy-mission-control 5.6.0 (2010-09-16)
 ============================================
