@@ -1,7 +1,20 @@
-telepathy-mission-control 5.7.0 (UNRELEASED)
+telepathy-mission-control 5.7.0 (2010-11-18)
 ============================================
 
-…
+The "Incursion into Transcarcharid Space" release, starting a new 
+development branch.
+
+Enhancements:
+
+• fd.o#31467: Account.Interface.Addressing interface (fledermaus, wjt)
+
+Fixes:
+
+• fd.o#31678: AccountManager.AccountRemoved signal could be skipped (fledermaus)
+
+• fd.o#31680: g_error() on dbus name acquisition_progressition failure 
+  was interpreted as a core dump by automated test suites, resulting
+  in a lot of false alarms (fledermaus)
 
 telepathy-mission-control 5.6.1 (2010-11-17)
 ============================================
