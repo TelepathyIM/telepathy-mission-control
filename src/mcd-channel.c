@@ -53,7 +53,6 @@
 #include "request.h"
 
 #include "_gen/interfaces.h"
-#include "_gen/svc-Channel_Request_Future.h"
 
 #define MCD_CHANNEL_PRIV(channel) (MCD_CHANNEL (channel)->priv)
 
