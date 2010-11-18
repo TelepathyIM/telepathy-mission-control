@@ -17,7 +17,6 @@ mc_headers = \
 	mcd-account-compat.h \
 	mcd-account-conditions.h \
 	mcd-account-presence.h \
-	mcd-account-addressing.h \
 	mcd-account-manager.h \
 	mcd-account-manager-default.h \
 	mcd-debug.h \
@@ -144,6 +143,7 @@ endif # ! ENABLE_MCD_PLUGINS
 
 libmcd_convenience_la_SOURCES = \
 	mcd-account.c \
+	mcd-account-addressing.h \
 	mcd-account-compat.c \
 	mcd-account-conditions.c \
 	mcd-account-config.h \
