@@ -35,6 +35,7 @@
 #include "request.h"
 
 /* auto-generated stubs */
+#include "_gen/svc-Account_Interface_Addressing.h"
 #include "_gen/svc-Account_Interface_ChannelRequests.h"
 #include "_gen/svc-Account_Interface_Compat.h"
 #include "_gen/svc-Account_Interface_Conditions.h"

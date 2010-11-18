@@ -49,6 +49,7 @@ mc_gen_headers = \
 	_gen/cli-Connection_Interface_Power_Saving.h \
 	_gen/enums.h \
 	_gen/interfaces.h \
+	_gen/svc-Account_Interface_Addressing.h \
 	_gen/svc-Account_Interface_ChannelRequests.h \
 	_gen/svc-Account_Interface_Compat.h \
 	_gen/svc-Account_Interface_Conditions.h \
@@ -66,6 +67,7 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/signals-marshal.c \
 	_gen/signals-marshal.h \
 	_gen/signals-marshal.list \
+	_gen/svc-Account_Interface_Addressing.c \
 	_gen/svc-Account_Interface_ChannelRequests.c \
 	_gen/svc-Account_Interface_Compat.c \
 	_gen/svc-Account_Interface_Conditions.c \
@@ -141,6 +143,7 @@ endif # ! ENABLE_MCD_PLUGINS
 
 libmcd_convenience_la_SOURCES = \
 	mcd-account.c \
+	mcd-account-addressing.h \
 	mcd-account-compat.c \
 	mcd-account-conditions.c \
 	mcd-account-config.h \
@@ -148,6 +151,7 @@ libmcd_convenience_la_SOURCES = \
 	mcd-account-requests.c \
 	mcd-account-stats.c \
 	mcd-account-presence.c \
+	mcd-account-addressing.c \
 	mcd-account-manager.c \
 	mcd-account-manager-priv.h \
 	mcd-account-manager-query.c \
