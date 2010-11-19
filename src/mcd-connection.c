@@ -192,7 +192,6 @@ static const gchar * const *presence_fallbacks[] = {
     _available_fb, _away_fb, _ext_away_fb, _hidden_fb, _busy_fb
 };
 
-static GError * map_tp_error_to_mc_error (McdChannel *channel, const GError *tp_error);
 static void _mcd_connection_release_tp_connection (McdConnection *connection);
 static gboolean request_channel_new_iface (McdConnection *connection,
                                            McdChannel *channel);
@@ -2421,29 +2420,6 @@ mcd_connection_get_account (McdConnection * id)
     return priv->account;
 }
 
-static GError *
-map_tp_error_to_mc_error (McdChannel *channel, const GError *error)
-{
-    McError mc_error_code;
-
-    DEBUG ("Telepathy Error = %s", error->message);
-
-    /* Some TP errors might be a bit too generic for the UIs.
-     * With some guesswork, we can add more precise error reporting here.
-     */
-    if (mcd_channel_get_channel_type_quark (channel) ==
-	TP_IFACE_QUARK_CHANNEL_TYPE_STREAMED_MEDIA &&
-	error->code == TP_ERROR_NOT_AVAILABLE)
-    {
-	mc_error_code = MC_CONTACT_DOES_NOT_SUPPORT_VOICE_ERROR;
-    }
-    else
-        return g_error_copy (error);
-
-    return g_error_new (MC_ERROR, mc_error_code, "Telepathy Error: %s",
-                        error->message);
-}
-
 static void
 common_request_channel_cb (TpConnection *proxy, gboolean yours,
                            const gchar *channel_path, GHashTable *properties,
@@ -2460,7 +2436,7 @@ common_request_channel_cb (TpConnection *proxy, gboolean yours,
          * https://bugs.freedesktop.org/show_bug.cgi?id=15769 will be fixed
          * soon :-) */
         DEBUG ("got error: %s", error->message);
-        mc_error = map_tp_error_to_mc_error (channel, error);
+        mc_error = g_error_copy (error);
         mcd_channel_take_error (channel, mc_error);
         mcd_mission_abort ((McdMission *)channel);
         return;
