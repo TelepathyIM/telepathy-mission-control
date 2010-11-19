@@ -32,3 +32,5 @@ _maintainer-upload-release-local: _maintainer-upload-release-check
 
 include tools/lcov.am
 include tools/telepathy.am
+
+CHANGELOG_RANGE=telepathy-mission-control-5.4.0..
