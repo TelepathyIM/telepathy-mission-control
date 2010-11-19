@@ -8,6 +8,12 @@ Enhancements:
 
 • fd.o#31467: Account.Interface.Addressing interface (fledermaus, wjt)
 
+• fd.o #31263: implement stable Conn.I.PowerSaving, and optionally integrate
+  it with Maemo's MCE service (eeejay)
+
+• fd.o #30000: implement draft ChannelDispatcher.I.Hints and
+  ChannelRequest.I.Hints (smcv)
+
 Fixes:
 
 • fd.o#31678: AccountManager.AccountRemoved signal could be skipped (fledermaus)
