@@ -1,7 +1,10 @@
 telepathy-mission-control 5.6.2 (UNRELEASED)
 ============================================
 
-…
+Fixes:
+
+• fd.o #24779: CurrentPresence is Offline for online connections not
+  implementing SimplePresence (wjt)
 
 telepathy-mission-control 5.6.1 (2010-11-17)
 ============================================
