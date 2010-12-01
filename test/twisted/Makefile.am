@@ -1,7 +1,6 @@
 TWISTED_TESTS =
 
 TWISTED_BASIC_TESTS = \
-	account/minimum-presence.py \
 	account/addressing.py \
 	account-manager/account-basics.py \
 	account-manager/bad-cm.py \

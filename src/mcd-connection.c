@@ -416,8 +416,8 @@ presence_get_statuses_cb (TpProxy *proxy, const GValue *v_statuses,
     }
 
     /* Now the presence info is ready. We can set the presence */
-    _mcd_account_get_combined_presence (priv->account, &presence,
-                                        &status, &message);
+    _mcd_account_get_requested_presence (priv->account, &presence,
+                                         &status, &message);
     if (priv->connected)
     {
         priv->presence_info_ready = TRUE;
