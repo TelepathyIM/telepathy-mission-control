@@ -25,6 +25,8 @@
 #include "plugin-account.h"
 #include "config.h"
 
+#include <string.h>
+
 #include "mission-control-plugins/implementation.h"
 
 #include <telepathy-glib/util.h>
@@ -228,7 +230,7 @@ unique_name (const McpAccountManager *ma,
   const gchar *base = NULL;
   gchar *esc_manager, *esc_protocol, *esc_base;
   guint i;
-  gsize base_len = sizeof (MC_ACCOUNT_DBUS_OBJECT_BASE) - 1;
+  gsize base_len = strlen (TP_ACCOUNT_OBJECT_PATH_BASE);
   DBusGConnection *connection = tp_proxy_get_dbus_connection (self->dbusd);
 
   base = tp_asv_get_string (params, "account");
@@ -242,8 +244,8 @@ unique_name (const McpAccountManager *ma,
 
   for (i = 0; i < G_MAXUINT; i++)
     {
-      gchar *path = g_strdup_printf ("%s%s/%s/%s%u",
-          MC_ACCOUNT_DBUS_OBJECT_BASE,
+      gchar *path = g_strdup_printf (
+          TP_ACCOUNT_OBJECT_PATH_BASE "%s/%s/%s%u",
           esc_manager, esc_protocol, esc_base, i);
 
       if (!g_key_file_has_group (self->keyfile, path + base_len) &&

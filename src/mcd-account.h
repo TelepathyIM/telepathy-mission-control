@@ -95,9 +95,6 @@ struct _McdAccountClass
     void (*_mc_reserved7) (void);
 };
 
-
-#define MC_ACCOUNT_DBUS_OBJECT_BASE "/org/freedesktop/Telepathy/Account/"
-
 GType mcd_account_get_type (void);
 McdAccount *mcd_account_new (McdAccountManager *account_manager,
 			     const gchar *name);

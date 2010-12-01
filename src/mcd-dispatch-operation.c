@@ -54,9 +54,6 @@
 #include <libmcclient/mc-errors.h>
 #include "libmcclient/mc-gtypes.h"
 
-#define MCD_CLIENT_BASE_NAME "org.freedesktop.Telepathy.Client."
-#define MCD_CLIENT_BASE_NAME_LEN (sizeof (MCD_CLIENT_BASE_NAME) - 1)
-
 #define MCD_DISPATCH_OPERATION_PRIV(operation) (MCD_DISPATCH_OPERATION (operation)->priv)
 
 static void
@@ -1062,7 +1059,7 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
                 _mcd_channel_get_request_preferred_handler (channel);
 
             if (preferred_handler != NULL &&
-                g_str_has_prefix (preferred_handler, MCD_CLIENT_BASE_NAME) &&
+                g_str_has_prefix (preferred_handler, TP_CLIENT_BUS_NAME_BASE) &&
                 tp_dbus_check_valid_bus_name (preferred_handler,
                                               TP_DBUS_NAME_TYPE_WELL_KNOWN,
                                               NULL))
@@ -1431,7 +1428,7 @@ mcd_dispatch_operation_check_handle_with (McdDispatchOperation *self,
         return TRUE;
     }
 
-    if (!g_str_has_prefix (handler_name, MCD_CLIENT_BASE_NAME) ||
+    if (!g_str_has_prefix (handler_name, TP_CLIENT_BUS_NAME_BASE) ||
         !tp_dbus_check_valid_bus_name (handler_name,
                                        TP_DBUS_NAME_TYPE_WELL_KNOWN, NULL))
     {
@@ -1457,7 +1454,7 @@ _mcd_dispatch_operation_approve (McdDispatchOperation *self,
     DEBUG ("%s/%p (preferred handler: '%s')", self->priv->unique_name, self,
            preferred_handler);
 
-    if (!g_str_has_prefix (preferred_handler, MCD_CLIENT_BASE_NAME) ||
+    if (!g_str_has_prefix (preferred_handler, TP_CLIENT_BUS_NAME_BASE) ||
         !tp_dbus_check_valid_bus_name (preferred_handler,
                                        TP_DBUS_NAME_TYPE_WELL_KNOWN, NULL))
     {

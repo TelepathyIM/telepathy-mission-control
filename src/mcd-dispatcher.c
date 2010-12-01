@@ -845,19 +845,19 @@ mcd_dispatcher_constructed (GObject *object)
     dgc = TP_PROXY (priv->dbus_daemon)->dbus_connection;
 
     if (!tp_dbus_daemon_request_name (priv->dbus_daemon,
-                                      MCD_CHANNEL_DISPATCHER_BUS_NAME,
+                                      TP_CHANNEL_DISPATCHER_BUS_NAME,
                                       TRUE /* idempotent */, &error))
     {
         /* FIXME: put in proper error handling when MC gains the ability to
          * be the AM or the CD but not both */
         g_warning ("Failed registering '%s' service: %s",
-                   MCD_CHANNEL_DISPATCHER_BUS_NAME, error->message);
+                   TP_CHANNEL_DISPATCHER_BUS_NAME, error->message);
         g_error_free (error);
         exit (1);
     }
 
     dbus_g_connection_register_g_object (dgc,
-                                         MCD_CHANNEL_DISPATCHER_OBJECT_PATH,
+                                         TP_CHANNEL_DISPATCHER_OBJECT_PATH,
                                          object);
 }
 

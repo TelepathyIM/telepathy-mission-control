@@ -2650,7 +2650,7 @@ mcd_account_setup (McdAccount *account)
         goto broken_account;
     }
 
-    priv->object_path = g_strconcat (MC_ACCOUNT_DBUS_OBJECT_BASE, name, NULL);
+    priv->object_path = g_strconcat (TP_ACCOUNT_OBJECT_PATH_BASE, name, NULL);
 
     if (!priv->always_on)
     {
