@@ -78,17 +78,11 @@ typedef void (*McdAccountGetParameterCb) (McdAccount *account,
 struct _McdAccountClass
 {
     GObjectClass parent_class;
-    void (*get_parameter) (McdAccount *account, const gchar *name,
-                           McdAccountGetParameterCb callback,
-                           gpointer user_data);
-    void (*set_parameter) (McdAccount *account, const gchar *name,
-                           const GValue *value,
-                           McdAccountSetParameterCb callback,
-                           gpointer user_data);
-    void (*delete) (McdAccount *account, McdAccountDeleteCb callback,
-                    gpointer user_data);
-    void (*load) (McdAccount *account, McdAccountLoadCb callback,
-                  gpointer user_data);
+    /* Used to be get_parameter; set_parameter; delete; load. These are not
+     * implementeed in any known subclass of this class, so have been removed;
+     * these padding fields are to preserve ABI compatibility.
+     */
+    GCallback dummy[4];
     gboolean (*check_request) (McdAccount *account, GHashTable *request,
                                GError **error);
     void (*_mc_reserved6) (void);

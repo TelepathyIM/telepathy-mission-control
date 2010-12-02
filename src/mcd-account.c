@@ -330,14 +330,6 @@ value_is_same (const GValue *val1, const GValue *val2)
     }
 }
 
-static void set_parameter (McdAccount *account, const gchar *name,
-                           const GValue *value,
-                           McdAccountSetParameterCb callback,
-                           gpointer user_data);
-static void get_parameter_from_file (McdAccount *account, const gchar *name,
-                                     McdAccountGetParameterCb callback,
-                                     gpointer user_data);
-
 static void
 mcd_account_loaded (McdAccount *account)
 {
@@ -392,9 +384,22 @@ mcd_account_loaded (McdAccount *account)
     g_object_unref (account);
 }
 
+/*
+ * _mcd_account_set_parameter:
+ * @account: the #McdAccount.
+ * @name: the parameter name.
+ * @value: a #GValue with the value to set, or %NULL.
+ * @callback: a function to be called on success or failure
+ * @user_data: data to be passed to @callback
+ *
+ * Sets the parameter @name to the value in @value. If @value, is %NULL, the
+ * parameter is unset.
+ */
 static void
-set_parameter (McdAccount *account, const gchar *name, const GValue *value,
-               McdAccountSetParameterCb callback, gpointer user_data)
+_mcd_account_set_parameter (McdAccount *account, const gchar *name,
+                            const GValue *value,
+                            McdAccountSetParameterCb callback,
+                            gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
     McdStorage *storage = priv->storage;
@@ -423,16 +428,19 @@ set_parameter (McdAccount *account, const gchar *name, const GValue *value,
 
 static GType mc_param_type (const TpConnectionManagerParam *param);
 
+/**
+ * mcd_account_get_parameter:
+ * @account: the #McdAccount.
+ * @name: the parameter name.
+ * @callback: function to call with the value
+ * @user_data: data to pass to @callback
+ *
+ * Get the @name parameter for @account, asynchronously.
+ */
 static void
-get_parameter (McdAccount *account, const gchar *name,
-               McdAccountGetParameterCb callback, gpointer user_data)
-{
-    get_parameter_from_file (account, name, callback, user_data);
-}
-
-static void
-get_parameter_from_file (McdAccount *account, const gchar *name,
-                         McdAccountGetParameterCb callback, gpointer user_data)
+mcd_account_get_parameter (McdAccount *account, const gchar *name,
+                           McdAccountGetParameterCb callback,
+                           gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
     McdStorage *storage = priv->storage;
@@ -543,8 +551,8 @@ get_account_data_path (McdAccountPrivate *priv)
 	return g_build_filename (base, priv->unique_name, NULL);
 }
 
-static void
-_mcd_account_delete (McdAccount *account,
+void
+mcd_account_delete (McdAccount *account,
                      McdAccountDeleteCb callback,
                      gpointer user_data)
 {
@@ -595,9 +603,9 @@ _mcd_account_delete (McdAccount *account,
         callback (account, NULL, user_data);
 }
 
-static void
-_mcd_account_load_real (McdAccount *account, McdAccountLoadCb callback,
-                        gpointer user_data)
+void
+_mcd_account_load (McdAccount *account, McdAccountLoadCb callback,
+                   gpointer user_data)
 {
     if (account->priv->loaded)
         callback (account, NULL, user_data);
@@ -1860,13 +1868,6 @@ mc_param_type (const TpConnectionManagerParam *param)
     return G_TYPE_INVALID;
 }
 
-void
-mcd_account_delete (McdAccount *account, McdAccountDeleteCb callback,
-                    gpointer user_data)
-{
-    MCD_ACCOUNT_GET_CLASS (account)->delete (account, callback, user_data);
-}
-
 typedef struct
 {
     McdAccount *self;
@@ -1908,24 +1909,6 @@ account_remove (TpSvcAccount *svc, DBusGMethodInvocation *context)
 
     DEBUG ("called");
     mcd_account_delete (self, account_remove_delete_cb, data);
-}
-
-/**
- * mcd_account_get_parameter:
- * @account: the #McdAccount.
- * @name: the parameter name.
- * @callback: function to call with the value
- * @user_data: data to pass to @callback
- *
- * Get the @name parameter for @account, asynchronously.
- */
-static void
-mcd_account_get_parameter (McdAccount *account, const gchar *name,
-                           McdAccountGetParameterCb callback,
-                           gpointer user_data)
-{
-    MCD_ACCOUNT_GET_CLASS (account)->get_parameter (account, name,
-                                                    callback, user_data);
 }
 
 /* this callback is invoked if a parameter was changed internally by MC   *
@@ -2114,27 +2097,6 @@ mcd_account_check_parameters (McdAccount *account,
     data->user_data = user_data;
 
     check_parameters_get_param_cb (NULL, NULL, NULL, data);
-}
-
-/*
- * _mcd_account_set_parameter:
- * @account: the #McdAccount.
- * @name: the parameter name.
- * @value: a #GValue with the value to set, or %NULL.
- * @callback: a function to be called on success or failure
- * @user_data: data to be passed to @callback
- *
- * Sets the parameter @name to the value in @value. If @value, is %NULL, the
- * parameter is unset.
- */
-static void
-_mcd_account_set_parameter (McdAccount *account, const gchar *name,
-                            const GValue *value,
-                            McdAccountSetParameterCb callback,
-                            gpointer user_data)
-{
-    MCD_ACCOUNT_GET_CLASS (account)->set_parameter (account, name, value,
-                                                    callback, user_data);
 }
 
 static GHashTable *
@@ -2904,10 +2866,6 @@ mcd_account_class_init (McdAccountClass * klass)
     object_class->set_property = set_property;
     object_class->get_property = get_property;
 
-    klass->get_parameter = get_parameter;
-    klass->set_parameter = set_parameter;
-    klass->delete = _mcd_account_delete;
-    klass->load = _mcd_account_load_real;
     klass->check_request = _mcd_account_check_request_real;
 
     g_object_class_install_property
@@ -4029,16 +3987,6 @@ _mcd_account_get_avatar_filename (McdAccount *account)
     filename = g_build_filename (data_dir, MC_AVATAR_FILENAME, NULL);
     g_free (data_dir);
     return filename;
-}
-
-void
-_mcd_account_load (McdAccount *account, McdAccountLoadCb callback,
-                   gpointer user_data)
-{
-    g_return_if_fail (MCD_IS_ACCOUNT (account));
-    g_return_if_fail (callback != NULL);
-
-    MCD_ACCOUNT_GET_CLASS (account)->load (account, callback, user_data);
 }
 
 static void
