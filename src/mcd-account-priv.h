@@ -169,9 +169,8 @@ typedef void (*McdAccountDupParametersCb) (McdAccount *account,
                                            GHashTable *params,
                                            gpointer user_data);
 
-G_GNUC_INTERNAL void _mcd_account_dup_parameters (McdAccount *account,
-                                                  McdAccountDupParametersCb callback,
-                                                  gpointer user_data);
+G_GNUC_INTERNAL G_GNUC_WARN_UNUSED_RESULT
+GHashTable *_mcd_account_dup_parameters (McdAccount *account);
 
 extern const McdDBusProp account_conditions_properties[];
 

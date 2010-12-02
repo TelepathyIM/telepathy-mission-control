@@ -70,10 +70,6 @@ typedef void (*McdAccountDeleteCb) (McdAccount *account,
 typedef void (*McdAccountSetParameterCb) (McdAccount *account,
                                           const GError *error,
                                           gpointer user_data);
-typedef void (*McdAccountGetParameterCb) (McdAccount *account,
-                                          const GValue *value,
-                                          const GError *error,
-                                          gpointer user_data);
 
 struct _McdAccountClass
 {
