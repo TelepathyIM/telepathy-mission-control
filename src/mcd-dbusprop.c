@@ -196,15 +196,6 @@ mcd_dbusprop_get_property (TpSvcDBusProperties *self,
     return TRUE;
 }
 
-static void
-dbusprop_get_cb (TpSvcDBusProperties *self, const GValue *value,
-                 const GError *error, gpointer user_data)
-{
-  DBusGMethodInvocation *context = (DBusGMethodInvocation *) user_data;
-
-  tp_svc_dbus_properties_return_from_get (context, value);
-}
-
 void
 dbusprop_acl_get (TpSvcDBusProperties *self,
                   const gchar *interface,
@@ -232,32 +223,21 @@ dbusprop_get (TpSvcDBusProperties *self,
 {
     GValue value = { 0 };
     GError *error = NULL;
-    const McdDBusProp *property;
 
     DEBUG ("%s, %s", interface_name, property_name);
 
-    /* Look whether the property can support async getting */
-    property = get_mcddbusprop (self, interface_name, property_name, NULL);
-    if (property != NULL && property->async_getprop != NULL)
-    {
-      property->async_getprop (self, property_name, dbusprop_get_cb, context);
-    }
-    else
-    {
-        /* The normal route */
-        mcd_dbusprop_get_property (self, interface_name, property_name,
-                                   &value, &error);
+    mcd_dbusprop_get_property (self, interface_name, property_name,
+                               &value, &error);
 
-        if (error)
-        {
-            dbus_g_method_return_error (context, error);
-            g_error_free (error);
-            return;
-        }
-
-        tp_svc_dbus_properties_return_from_get (context, &value);
-        g_value_unset (&value);
+    if (error)
+    {
+        dbus_g_method_return_error (context, error);
+        g_error_free (error);
+        return;
     }
+
+    tp_svc_dbus_properties_return_from_get (context, &value);
+    g_value_unset (&value);
 }
 
 typedef struct
@@ -269,30 +249,11 @@ typedef struct
 } GetAllData;
 
 static void
-get_all_iter (TpSvcDBusProperties *self,
-              const GValue *value,
-              const GError *error,
-              gpointer user_data)
+get_all_iter (GetAllData *data)
 {
-    GetAllData *data = (GetAllData *) user_data;
-
-    if (self != NULL && value != NULL)
-    {
-        /* This is actually a callback */
-        g_hash_table_insert (data->properties, (gchar *) data->property->name,
-                             tp_g_value_slice_dup (value));
-
-        data->property++;
-    }
-
     if (data->property->name != NULL)
     {
-        if (data->property->async_getprop)
-        {
-          data->property->async_getprop (data->self, data->property->name,
-                                         get_all_iter, data);
-        }
-        else if (data->property->getprop)
+        if (data->property->getprop)
         {
             GValue *out;
 
@@ -304,12 +265,12 @@ get_all_iter (TpSvcDBusProperties *self,
             g_free (out);
 
             data->property++;
-            get_all_iter (NULL, NULL, NULL, data);
+            get_all_iter (data);
         }
         else
         {
             data->property++;
-            get_all_iter (NULL, NULL, NULL, data);
+            get_all_iter (data);
         }
     }
     else
@@ -424,7 +385,7 @@ dbusprop_get_all (TpSvcDBusProperties *self,
 
     data->property = prop_array;
 
-    get_all_iter (NULL, NULL, NULL, data);
+    get_all_iter (data);
 }
 
 void

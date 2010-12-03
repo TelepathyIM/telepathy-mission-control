@@ -1904,31 +1904,6 @@ account_remove (TpSvcAccount *svc, DBusGMethodInvocation *context)
     mcd_account_delete (self, account_remove_delete_cb, data);
 }
 
-/* a non-parameter property was changed internally (eg by a storage plugin) *
- * if the property was/is known, then the value argument will be non-NULL:  *
- * so trigger the property change process via mcd_account_changed_property  */
-static void
-property_changed_cb (TpSvcDBusProperties *self,
-                     const GValue *value,
-                     const GError *error,
-                     const gpointer data)
-{
-    McdAccount *account = MCD_ACCOUNT (self);
-    const gchar *name = data;
-
-    if (value != NULL)
-    {
-        mcd_account_changed_property (account, name, value);
-    }
-    else
-    {
-        DEBUG ("%s.%s is NULL - %s",
-               mcd_account_get_unique_name (account),
-               name,
-               (error != NULL) ? error->message : "invalid property?");
-    }
-}
-
 /* tell the account that one of its properties has changed behind its back:  *
  * (as opposed to an external change triggered by DBus, for example) - This  *
  * typically occurs because an internal component (such as a storage plugin) *
@@ -1977,15 +1952,9 @@ mcd_account_property_changed (McdAccount *account, const gchar *name)
                 mcd_account_changed_property (account, prop->name, &value);
                 g_value_unset (&value);
             }
-            else if (prop->async_getprop != NULL)
-            {
-                gpointer key = (gpointer) prop->name;
-
-                prop->async_getprop (self, key, property_changed_cb, key);
-            }
             else
             {
-                DEBUG ("Valid DBus property %s with no get methods was changed"
+                DEBUG ("Valid DBus property %s with no get method was changed"
                        " - cannot notify change since we cannot get its value",
                       name);
             }
