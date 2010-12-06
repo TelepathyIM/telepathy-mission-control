@@ -1,5 +1,14 @@
-telepathy-mission-control 5.7.1 (UNRELEASED)
+telepathy-mission-control 5.7.1 (2010-12-06)
 ============================================
+
+The "Ack... I've been gritted" release.
+
+Enhancements:
+
+• mc-tool: Improved error message for nonexistent accounts
+
+• Removed obsolete mapping of TP_ERROR_NOT_AVAILABLE to
+  MC_CONTACT_DOES_NOT_SUPPORT_VOICE_ERROR
 
 Fixes:
 
