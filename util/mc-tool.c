@@ -1267,10 +1267,10 @@ void account_ready (GObject *account,
     GError *error = NULL;
 
     if (!tp_proxy_prepare_finish (account, res, &error)) {
-	fprintf (stderr, "%s: %s: %s\n",
-		 app_name, skip_prefix (command.common.account),
-                 error->message);
-	g_error_free (error);
+        fprintf (stderr, "%s: couldn't load account '%s': %s\n", app_name,
+            skip_prefix (command.common.account), error->message);
+        fprintf (stderr, "Try '%s list' to list known accounts.\n", app_name);
+        g_error_free (error);
     }
     else {
         /* not all properties are exposed through TpAccount, request the
