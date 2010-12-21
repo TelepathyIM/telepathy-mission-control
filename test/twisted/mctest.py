@@ -244,6 +244,14 @@ class SimulatedConnection(object):
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
                 args=[cs.CONN_IFACE_REQUESTS])
 
+        q.add_dbus_method_impl(self.GetContactAttributes,
+                path=self.object_path,
+                interface=cs.CONN_IFACE_CONTACTS, method='GetContactAttributes')
+        q.add_dbus_method_impl(self.GetAll_Contacts,
+                path=self.object_path,
+                interface=cs.PROPERTIES_IFACE, method='GetAll',
+                args=[cs.CONN_IFACE_CONTACTS])
+
         if not has_requests:
             q.add_dbus_method_impl(self.ListChannels,
                     path=self.object_path, interface=cs.CONN,
@@ -410,18 +418,25 @@ class SimulatedConnection(object):
         for c in self.channels:
             c.close()
 
-    def InspectHandles(self, e):
-        htype, hs = e.args
+    def inspect_handles(self, handles, htype=cs.HT_CONTACT):
         ret = []
 
-        for h in hs:
+        for h in handles:
             if (htype, h) in self._identifiers:
                 ret.append(self._identifiers[(htype, h)])
             else:
-                self.q.dbus_raise(e.message, INVALID_HANDLE, str(h))
-                return
+                raise Exception(h)
 
-        self.q.dbus_return(e.message, ret, signature='as')
+        return ret
+
+    def InspectHandles(self, e):
+        htype, hs = e.args
+
+        try:
+            ret = self.inspect_handles(hs, htype)
+            self.q.dbus_return(e.message, ret, signature='as')
+        except e:
+            self.q.dbus_raise(e.message, INVALID_HANDLE, str(e.args[0]))
 
     def GetStatus(self, e):
         self.q.dbus_return(e.message, self.status, signature='u')
@@ -498,6 +513,24 @@ class SimulatedConnection(object):
                     [(channel.object_path, channel.immutable)
                         for channel in channels],
                     signature='a(oa{sv})')
+
+    def GetContactAttributes(self, e):
+        ret = {}
+
+        try:
+            for h in e.args[0]:
+                id = self.inspect_handles(h)[0]
+                ret[dbus.UInt32(h)] = dbus.Dictionary({telepathy.CONN_IFACE + '/contact-id': id},
+                                                      signature='sv')
+
+            q.dbus_return(e.message, ret, signature='a{ua{sv}}')
+        except e:
+            self.q.dbus_raise(e.message, INVALID_HANDLE, str(e.args[0]))
+
+    def GetAll_Contacts(self, e):
+        self.q.dbus_return(e.message, {
+            'ContactAttributeInterfaces': []
+            }, signature='a{sv}')
 
 class SimulatedChannel(object):
     def __init__(self, conn, immutable, mutable={},
