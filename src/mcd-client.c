@@ -77,6 +77,7 @@ struct _McdClientProxyPrivate
     gboolean ready;
     gboolean bypass_approval;
     gboolean bypass_observers;
+    gboolean delay_approvers;
     gboolean recover;
 
     /* If a client was in the ListActivatableNames list, it must not be
@@ -410,6 +411,10 @@ parse_client_file (McdClientProxy *client,
     client->priv->bypass_observers =
         g_key_file_get_boolean (file, TP_IFACE_CLIENT_HANDLER,
                                 "BypassObservers", NULL);
+
+    client->priv->delay_approvers =
+        g_key_file_get_boolean (file, TP_IFACE_CLIENT_OBSERVER,
+                                "DelayApprovers", NULL);
 
     client->priv->recover =
         g_key_file_get_boolean (file, TP_IFACE_CLIENT_OBSERVER,
@@ -776,6 +781,12 @@ _mcd_client_proxy_observer_get_all_cb (TpProxy *proxy,
 
     /* by now, we at least know whether the client is running or not */
     g_assert (self->priv->unique_name != NULL);
+
+    /* FALSE if DelayApprovers is invalid or missing is a good fallback */
+    self->priv->delay_approvers = tp_asv_get_boolean (
+        properties, "DelayApprovers", NULL);
+    DEBUG ("%s has DelayApprovers=%c", bus_name,
+        self->priv->delay_approvers ? 'T' : 'F');
 
     filters = tp_asv_get_boxed (properties, "ObserverChannelFilter",
                                 TP_ARRAY_TYPE_STRING_VARIANT_MAP_LIST);
@@ -1409,6 +1420,14 @@ _mcd_client_proxy_get_bypass_observers (McdClientProxy *self)
     g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), FALSE);
 
     return self->priv->bypass_observers;
+}
+
+gboolean
+_mcd_client_proxy_get_delay_approvers (McdClientProxy *self)
+{
+    g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), FALSE);
+
+    return self->priv->delay_approvers;
 }
 
 static void

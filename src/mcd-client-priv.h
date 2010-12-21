@@ -99,6 +99,8 @@ G_GNUC_INTERNAL gboolean _mcd_client_proxy_get_bypass_approval
     (McdClientProxy *self);
 G_GNUC_INTERNAL gboolean _mcd_client_proxy_get_bypass_observers
     (McdClientProxy *self);
+G_GNUC_INTERNAL gboolean _mcd_client_proxy_get_delay_approvers
+    (McdClientProxy *self);
 
 G_GNUC_INTERNAL GValueArray *_mcd_client_proxy_dup_handler_capabilities (
     McdClientProxy *self);
