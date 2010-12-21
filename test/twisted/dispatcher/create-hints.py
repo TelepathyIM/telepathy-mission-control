@@ -73,7 +73,7 @@ def test_channel_creation(q, bus, account, client, conn,
     call_async(q, cd,
             (ensure and 'EnsureChannelWithHints' or 'CreateChannelWithHints'),
             account.object_path, request, user_action_time, prefer.bus_name,
-            hints, dbus_interface=cs.CD_IFACE_HINTS)
+            hints, dbus_interface=cs.CD)
     ret = q.expect('dbus-return',
             method=(ensure and 'EnsureChannelWithHints' or 'CreateChannelWithHints'))
     request_path = ret.value[0]
