@@ -194,6 +194,19 @@ class SimulatedConnection(object):
         self.avatars_persist = avatars_persist
         self.extra_interfaces = extra_interfaces[:]
 
+        self.interfaces = []
+
+        if self.has_requests:
+            self.interfaces.append(cs.CONN_IFACE_REQUESTS)
+        if self.has_aliasing:
+            self.interfaces.append(cs.CONN_IFACE_ALIASING)
+        if self.has_avatars:
+            self.interfaces.append(cs.CONN_IFACE_AVATARS)
+        if self.has_presence:
+            self.interfaces.append(cs.CONN_IFACE_SIMPLE_PRESENCE)
+        if self.extra_interfaces:
+            self.interfaces.extend(self.extra_interfaces)
+
         if self.avatars_persist:
             self.avatar = dbus.Struct((dbus.ByteArray('my old avatar'),
                 'text/plain'), signature='ays')
@@ -210,6 +223,11 @@ class SimulatedConnection(object):
         q.add_dbus_method_impl(self.GetStatus,
                 path=self.object_path, interface=cs.CONN, method='GetStatus')
 
+        q.add_dbus_method_impl(self.GetAll_Connection,
+                path=self.object_path,
+                interface=cs.PROPERTIES_IFACE, method='GetAll',
+                args=[cs.CONN])
+
         if implement_get_interfaces:
             q.add_dbus_method_impl(self.GetInterfaces,
                     path=self.object_path, interface=cs.CONN,
@@ -218,10 +236,21 @@ class SimulatedConnection(object):
         q.add_dbus_method_impl(self.InspectHandles,
                 path=self.object_path, interface=cs.CONN,
                 method='InspectHandles')
+        q.add_dbus_method_impl(self.HoldHandles,
+                path=self.object_path, interface=cs.CONN,
+                method='HoldHandles')
         q.add_dbus_method_impl(self.GetAll_Requests,
                 path=self.object_path,
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
                 args=[cs.CONN_IFACE_REQUESTS])
+
+        q.add_dbus_method_impl(self.GetContactAttributes,
+                path=self.object_path,
+                interface=cs.CONN_IFACE_CONTACTS, method='GetContactAttributes')
+        q.add_dbus_method_impl(self.GetAll_Contacts,
+                path=self.object_path,
+                interface=cs.PROPERTIES_IFACE, method='GetAll',
+                args=[cs.CONN_IFACE_CONTACTS])
 
         if not has_requests:
             q.add_dbus_method_impl(self.ListChannels,
@@ -281,6 +310,14 @@ class SimulatedConnection(object):
         self.presence = dbus.Struct((cs.PRESENCE_TYPE_OFFLINE, 'offline', ''),
                 signature='uss')
 
+    def GetAll_Connection(self, e):
+        self.q.dbus_return(e.message, {
+            'Interfaces': dbus.Array(self.interfaces, signature='s'),
+            'SelfHandle': dbus.UInt32(self.self_handle),
+            'Status': dbus.UInt32(self.status),
+            'HasImmortalHandles': dbus.Boolean(True),
+            }, signature='a{sv}')
+
     def forget_avatar(self):
         self.avatar = (dbus.ByteArray(''), '')
 
@@ -292,6 +329,7 @@ class SimulatedConnection(object):
     def GetAvatarRequirements(self, e):
         self.q.dbus_return(e.message, ['image/jpeg'], 0, 0, 96, 96, 8192,
                 signature='asqqqqu')
+
     def GetAll_Avatars(self, e):
         self.q.dbus_return(e.message, {
             'SupportedAvatarMIMETypes': ['image/jpeg'],
@@ -366,24 +404,7 @@ class SimulatedConnection(object):
                 {'Statuses': self.statuses}, signature='a{sv}')
 
     def GetInterfaces(self, e):
-        interfaces = []
-
-        if self.has_requests:
-            interfaces.append(cs.CONN_IFACE_REQUESTS)
-
-        if self.has_aliasing:
-            interfaces.append(cs.CONN_IFACE_ALIASING)
-
-        if self.has_avatars:
-            interfaces.append(cs.CONN_IFACE_AVATARS)
-
-        if self.has_presence:
-            interfaces.append(cs.CONN_IFACE_SIMPLE_PRESENCE)
-
-        if self.extra_interfaces:
-            interfaces.extend(self.extra_interfaces)
-
-        self.q.dbus_return(e.message, interfaces, signature='as')
+        self.q.dbus_return(e.message, self.interfaces, signature='as')
 
     def Connect(self, e):
         self.StatusChanged(cs.CONN_STATUS_CONNECTING,
@@ -397,18 +418,25 @@ class SimulatedConnection(object):
         for c in self.channels:
             c.close()
 
-    def InspectHandles(self, e):
-        htype, hs = e.args
+    def inspect_handles(self, handles, htype=cs.HT_CONTACT):
         ret = []
 
-        for h in hs:
+        for h in handles:
             if (htype, h) in self._identifiers:
                 ret.append(self._identifiers[(htype, h)])
             else:
-                self.q.dbus_raise(e.message, INVALID_HANDLE, str(h))
-                return
+                raise Exception(h)
 
-        self.q.dbus_return(e.message, ret, signature='as')
+        return ret
+
+    def InspectHandles(self, e):
+        htype, hs = e.args
+
+        try:
+            ret = self.inspect_handles(hs, htype)
+            self.q.dbus_return(e.message, ret, signature='as')
+        except e:
+            self.q.dbus_raise(e.message, INVALID_HANDLE, str(e.args[0]))
 
     def GetStatus(self, e):
         self.q.dbus_return(e.message, self.status, signature='u')
@@ -460,6 +488,10 @@ class SimulatedConnection(object):
     def GetSelfHandle(self, e):
         self.q.dbus_return(e.message, self.self_handle, signature='u')
 
+    def HoldHandles(self, e):
+        # do nothing
+        self.q.dbus_return(e.message, signature='')
+
     def NewChannels(self, channels):
         for channel in channels:
             assert not channel.announced
@@ -481,6 +513,24 @@ class SimulatedConnection(object):
                     [(channel.object_path, channel.immutable)
                         for channel in channels],
                     signature='a(oa{sv})')
+
+    def GetContactAttributes(self, e):
+        ret = {}
+
+        try:
+            for h in e.args[0]:
+                id = self.inspect_handles(h)[0]
+                ret[dbus.UInt32(h)] = dbus.Dictionary({telepathy.CONN_IFACE + '/contact-id': id},
+                                                      signature='sv')
+
+            q.dbus_return(e.message, ret, signature='a{ua{sv}}')
+        except e:
+            self.q.dbus_raise(e.message, INVALID_HANDLE, str(e.args[0]))
+
+    def GetAll_Contacts(self, e):
+        self.q.dbus_return(e.message, {
+            'ContactAttributeInterfaces': []
+            }, signature='a{sv}')
 
 class SimulatedChannel(object):
     def __init__(self, conn, immutable, mutable={},
