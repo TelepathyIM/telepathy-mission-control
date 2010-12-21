@@ -58,6 +58,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/request-disabled-account.py \
 	dispatcher/respawn-observers.py \
 	dispatcher/respawn-activatable-observers.py \
+	dispatcher/some-delay-approvers.py \
 	dispatcher/undispatchable.py \
 	dispatcher/vanishing-client.py
 
