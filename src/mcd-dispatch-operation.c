@@ -236,6 +236,11 @@ struct _McdDispatchOperationPrivate
      * A reference is held for each pending observer. */
     gsize observers_pending;
 
+    /* The number of observers that are pending which have
+     * DelayApprovers=TRUE. This is used to know if
+     * AddDispatchOperation can be called yet. */
+    gsize delay_approver_observers_pending;
+
     /* The number of approvers that have not yet returned from
      * AddDispatchOperation. Until they have done so, we can't allow the
      * dispatch operation to finish. This is a client lock.
@@ -285,7 +290,8 @@ mcd_dispatch_operation_may_signal_finished (McdDispatchOperation *self)
 }
 
 static void
-_mcd_dispatch_operation_inc_observers_pending (McdDispatchOperation *self)
+_mcd_dispatch_operation_inc_observers_pending (McdDispatchOperation *self,
+    McdClientProxy *client)
 {
     g_return_if_fail (self->priv->result == NULL);
 
@@ -295,16 +301,23 @@ _mcd_dispatch_operation_inc_observers_pending (McdDispatchOperation *self)
            self->priv->observers_pending,
            self->priv->observers_pending + 1);
     self->priv->observers_pending++;
+
+    if (_mcd_client_proxy_get_delay_approvers (client))
+      self->priv->delay_approver_observers_pending++;
 }
 
 static void
-_mcd_dispatch_operation_dec_observers_pending (McdDispatchOperation *self)
+_mcd_dispatch_operation_dec_observers_pending (McdDispatchOperation *self,
+    McdClientProxy *client)
 {
     DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
            self->priv->observers_pending,
            self->priv->observers_pending - 1);
     g_return_if_fail (self->priv->observers_pending > 0);
     self->priv->observers_pending--;
+
+    if (_mcd_client_proxy_get_delay_approvers (client))
+      self->priv->delay_approver_observers_pending--;
 
     _mcd_dispatch_operation_check_finished (self);
     _mcd_dispatch_operation_check_client_locks (self);
@@ -370,8 +383,6 @@ static gboolean mcd_dispatch_operation_idle_run_approvers (gpointer p);
 static void mcd_dispatch_operation_set_channel_handled_by (
     McdDispatchOperation *self, McdChannel *channel, const gchar *unique_name,
     const gchar *well_known_name);
-static gboolean _mcd_dispatch_operation_observers_can_delay_approvers (
-    McdDispatchOperation *self);
 static gboolean _mcd_dispatch_operation_handlers_can_bypass_approval (
     McdDispatchOperation *self);
 static gboolean _mcd_dispatch_operation_handlers_can_bypass_observers (
@@ -413,7 +424,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
      * return, then run that handler, then proceed with the other handlers. */
     if (!self->priv->tried_handlers_before_approval &&
         !_mcd_dispatch_operation_handlers_can_bypass_approval (self)
-        && !_mcd_dispatch_operation_observers_can_delay_approvers (self)
+        && self->priv->delay_approver_observers_pending == 0
         && self->priv->channels != NULL &&
         ! _mcd_plugin_dispatch_operation_will_terminate (
             self->priv->plugin_api))
@@ -1666,58 +1677,6 @@ _mcd_dispatch_operation_get_handler_failed (McdDispatchOperation *self,
 }
 
 static gboolean
-_mcd_dispatch_operation_observers_can_delay_approvers (
-    McdDispatchOperation *self)
-{
-    GHashTableIter iter;
-    gpointer client_p;
-    const GList *cl;
-
-    _mcd_client_registry_init_hash_iter (self->priv->client_registry, &iter);
-
-    while (g_hash_table_iter_next (&iter, NULL, &client_p))
-    {
-        McdClientProxy *client = MCD_CLIENT_PROXY (client_p);
-        gboolean can_observe = FALSE;
-        gboolean bypass;
-
-        if (!tp_proxy_has_interface_by_id (client,
-                TP_IFACE_QUARK_CLIENT_OBSERVER))
-          continue;
-
-        for (cl = self->priv->channels; cl != NULL; cl = cl->next)
-        {
-            McdChannel *channel = MCD_CHANNEL (cl->data);
-            GHashTable *properties;
-
-            properties = _mcd_channel_get_immutable_properties (channel);
-            g_assert (properties != NULL);
-
-            if (_mcd_client_match_filters (properties,
-                    _mcd_client_proxy_get_observer_filters (client),
-                    FALSE))
-              {
-                can_observe = TRUE;
-                break;
-              }
-        }
-
-        if (!can_observe)
-          continue;
-
-        bypass = _mcd_client_proxy_get_delay_approvers (client);
-
-        DEBUG ("%s has DelayApprovers=%c",
-            tp_proxy_get_object_path (client), bypass ? 'T' : 'F');
-
-        if (bypass)
-          return bypass;
-    }
-
-    return FALSE;
-}
-
-static gboolean
 _mcd_dispatch_operation_handlers_can_bypass_approval (
     McdDispatchOperation *self)
 {
@@ -1889,7 +1848,7 @@ observe_channels_cb (TpClient *proxy, const GError *error,
     else
         DEBUG ("success from %s", tp_proxy_get_object_path (proxy));
 
-    _mcd_dispatch_operation_dec_observers_pending (self);
+    _mcd_dispatch_operation_dec_observers_pending (self, MCD_CLIENT_PROXY (proxy));
 }
 
 /*
@@ -2013,7 +1972,7 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
             dispatch_operation_path = _mcd_dispatch_operation_get_path (self);
         }
 
-        _mcd_dispatch_operation_inc_observers_pending (self);
+        _mcd_dispatch_operation_inc_observers_pending (self, client);
 
         DEBUG ("calling ObserveChannels on %s for CDO %p",
                tp_proxy_get_bus_name (client), self);
