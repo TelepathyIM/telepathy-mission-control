@@ -16,7 +16,6 @@ mc_headers = \
 	mcd-account.h \
 	mcd-account-compat.h \
 	mcd-account-conditions.h \
-	mcd-account-presence.h \
 	mcd-account-manager.h \
 	mcd-account-manager-default.h \
 	mcd-debug.h \
@@ -53,7 +52,6 @@ mc_gen_headers = \
 	_gen/svc-Account_Interface_Compat.h \
 	_gen/svc-Account_Interface_Conditions.h \
 	_gen/svc-Account_Interface_Stats.h \
-	_gen/svc-Account_Interface_Minimum_Presence.h \
 	_gen/svc-Account_Manager_Interface_Query.h \
 	_gen/svc-dispatcher.h \
 	_gen/svc-request.h
@@ -71,7 +69,6 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/svc-Account_Interface_Compat.c \
 	_gen/svc-Account_Interface_Conditions.c \
 	_gen/svc-Account_Interface_Stats.c \
-	_gen/svc-Account_Interface_Minimum_Presence.c \
 	_gen/svc-Account_Manager_Interface_Query.c \
 	_gen/svc-dispatcher.c \
 	_gen/svc-request.c \
@@ -149,7 +146,6 @@ libmcd_convenience_la_SOURCES = \
 	mcd-account-connection.c \
 	mcd-account-requests.c \
 	mcd-account-stats.c \
-	mcd-account-presence.c \
 	mcd-account-addressing.c \
 	mcd-account-manager.c \
 	mcd-account-manager-priv.h \

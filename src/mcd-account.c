@@ -47,7 +47,6 @@
 #include "mcd-account-compat.h"
 #include "mcd-account-conditions.h"
 #include "mcd-account-manager-priv.h"
-#include "mcd-account-presence.h"
 #include "mcd-account-addressing.h"
 #include "mcd-connection-plugin.h"
 #include "mcd-connection-priv.h"
@@ -98,10 +97,6 @@ static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE_WITH_INIT (mc_svc_account_interface_stats_get_type,
                                    account_stats,
                                    MC_IFACE_ACCOUNT_INTERFACE_STATS),
-    MCD_IMPLEMENT_IFACE_WITH_INIT (
-                        mc_svc_account_interface_minimum_presence_get_type,
-                        minimum_presence,
-                        MC_IFACE_ACCOUNT_INTERFACE_MINIMUM_PRESENCE),
     MCD_IMPLEMENT_IFACE (mc_svc_account_interface_addressing_get_type,
         account_addressing,
         MC_IFACE_ACCOUNT_INTERFACE_ADDRESSING),
@@ -149,16 +144,6 @@ struct _McdAccountPrivate
     TpConnectionPresenceType req_presence_type;
     gchar *req_presence_status;
     gchar *req_presence_message;
-
-    /* minimum presence fields */
-    TpConnectionPresenceType min_presence_type;
-    gchar *min_presence_status;
-    gchar *min_presence_message;
-
-    /* combined (req + min) presence fields */
-    TpConnectionPresenceType combined_presence_type;
-    gchar *combined_presence_status;
-    gchar *combined_presence_message;
 
     /* automatic presence fields */
     TpConnectionPresenceType auto_presence_type;
@@ -645,103 +630,37 @@ on_connection_abort (McdConnection *connection, McdAccount *account)
 }
 
 static gboolean
-combine_presences (McdAccount *account)
-{
-    McdAccountPrivate *priv = account->priv;
-    gint req_prio, min_prio;
-    TpConnectionPresenceType new_type;
-    const gchar *new_status;
-    const gchar *new_message;
-    gboolean changed = FALSE;
-
-    req_prio = _mcd_account_presence_type_priority (priv->req_presence_type);
-    min_prio = _mcd_account_presence_type_priority (priv->min_presence_type);
-
-    if (req_prio >= min_prio)
-    {
-        new_type = priv->req_presence_type;
-        new_status = priv->req_presence_status;
-        new_message = priv->req_presence_message;
-    }
-    else
-    {
-
-        new_type = priv->min_presence_type;
-        new_status = priv->min_presence_status;
-        new_message = priv->min_presence_message;
-    }
-
-    if (new_type != priv->combined_presence_type)
-    {
-        priv->combined_presence_type = new_type;
-        changed = TRUE;
-    }
-
-    if (tp_strdiff (new_status, priv->combined_presence_status))
-    {
-        g_free (priv->combined_presence_status);
-        priv->combined_presence_status = g_strdup (new_status);
-        changed = TRUE;
-    }
-
-    if (tp_strdiff (new_message, priv->combined_presence_message))
-    {
-        g_free (priv->combined_presence_message);
-        priv->combined_presence_message = g_strdup (new_message);
-        changed = TRUE;
-    }
-
-    return changed;
-}
-
-static gboolean
 mcd_account_request_presence_int (McdAccount *account,
-				  gboolean requested,
 				  TpConnectionPresenceType type,
 				  const gchar *status, const gchar *message)
 {
     McdAccountPrivate *priv = account->priv;
-    gboolean changed;
+    gboolean changed = FALSE;
 
-    if (requested)
+    if (priv->req_presence_type != type)
     {
         priv->req_presence_type = type;
-
-        if (tp_strdiff (priv->req_presence_status, status))
-        {
-            g_free (priv->req_presence_status);
-            priv->req_presence_status = g_strdup (status);
-        }
-
-        if (tp_strdiff (priv->req_presence_message, message))
-        {
-            g_free (priv->req_presence_message);
-            priv->req_presence_message = g_strdup (message);
-        }
+        changed = TRUE;
     }
-    else
+
+    if (tp_strdiff (priv->req_presence_status, status))
     {
-        priv->min_presence_type = type;
-
-        if (tp_strdiff (priv->min_presence_status, status))
-        {
-            g_free (priv->min_presence_status);
-            priv->min_presence_status = g_strdup (status);
-        }
-
-        if (tp_strdiff (priv->min_presence_message, message))
-        {
-            g_free (priv->min_presence_message);
-            priv->min_presence_message = g_strdup (message);
-        }
+        g_free (priv->req_presence_status);
+        priv->req_presence_status = g_strdup (status);
+        changed = TRUE;
     }
 
-    changed = combine_presences (account);
+    if (tp_strdiff (priv->req_presence_message, message))
+    {
+        g_free (priv->req_presence_message);
+        priv->req_presence_message = g_strdup (message);
+        changed = TRUE;
+    }
 
-    DEBUG ("Combined presence: %u %s %s", 
-        priv->combined_presence_type,
-        priv->combined_presence_status,
-        priv->combined_presence_message);
+    DEBUG ("Requested presence: %u %s %s",
+        priv->req_presence_type,
+        priv->req_presence_status,
+        priv->req_presence_message);
 
     if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
     {
@@ -773,20 +692,12 @@ mcd_account_request_presence_int (McdAccount *account,
     else
     {
         _mcd_connection_request_presence (priv->connection,
-                                          priv->combined_presence_type,
-					  priv->combined_presence_status,
-					  priv->combined_presence_message);
+                                          priv->req_presence_type,
+					  priv->req_presence_status,
+					  priv->req_presence_message);
     }
 
     return changed;
-}
-
-void
-_mcd_account_set_minimum_presence (McdAccount *account,
-                                   TpConnectionPresenceType type,
-                                   const gchar *status, const gchar *message)
-{
-    mcd_account_request_presence_int (account, FALSE, type, status, message);
 }
 
 void
@@ -1085,7 +996,6 @@ _mcd_account_set_enabled (McdAccount *account,
         if (enabled)
         {
             mcd_account_request_presence_int (account,
-                                              TRUE,
                                               priv->req_presence_type,
                                               priv->req_presence_status,
                                               priv->req_presence_message);
@@ -1603,7 +1513,7 @@ set_requested_presence (TpSvcDBusProperties *self,
 
     DEBUG ("setting requested presence: %d, %s, %s", type, status, message);
 
-    if (mcd_account_request_presence_int (account, TRUE, type, status, message))
+    if (mcd_account_request_presence_int (account, type, status, message))
     {
 	mcd_account_changed_property (account, name, value);
     }
@@ -2378,13 +2288,13 @@ account_reconnect (TpSvcAccount *service,
     /* if we can't, or don't want to, connect this method is a no-op */
     if (!priv->enabled ||
         !priv->valid ||
-        priv->combined_presence_type == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
+        priv->req_presence_type == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
     {
         DEBUG ("doing nothing (enabled=%c, valid=%c and "
                "combined presence=%i)",
                self->priv->enabled ? 'T' : 'F',
                self->priv->valid ? 'T' : 'F',
-               self->priv->combined_presence_type);
+               self->priv->req_presence_type);
         tp_svc_account_return_from_reconnect (context);
         return;
     }
@@ -2611,8 +2521,6 @@ _mcd_account_finalize (GObject *object)
 
     DEBUG ("%p (%s)", object, priv->unique_name);
 
-    minimum_presence_finalize (account);
-
     if (priv->changed_properties)
 	g_hash_table_destroy (priv->changed_properties);
     if (priv->properties_source != 0)
@@ -2626,9 +2534,6 @@ _mcd_account_finalize (GObject *object)
 
     tp_clear_pointer (&priv->auto_presence_status, g_free);
     tp_clear_pointer (&priv->auto_presence_message, g_free);
-
-    tp_clear_pointer (&priv->combined_presence_status, g_free);
-    tp_clear_pointer (&priv->combined_presence_message, g_free);
 
     tp_clear_pointer (&priv->manager_name, g_free);
     tp_clear_pointer (&priv->protocol_name, g_free);
@@ -2645,8 +2550,6 @@ _mcd_account_dispose (GObject *object)
     McdAccountPrivate *priv = self->priv;
 
     DEBUG ("%p (%s)", object, priv->unique_name);
-
-    minimum_presence_dispose (self);
 
     if (!self->priv->removed)
     {
@@ -2798,15 +2701,9 @@ mcd_account_init (McdAccount *account)
     priv->req_presence_status = g_strdup ("offline");
     priv->req_presence_message = g_strdup ("");
 
-    priv->min_presence_type = TP_CONNECTION_PRESENCE_TYPE_UNSET;
-    priv->min_presence_status = NULL;
-    priv->min_presence_message = NULL;
-
     priv->curr_presence_type = TP_CONNECTION_PRESENCE_TYPE_OFFLINE;
     priv->curr_presence_status = g_strdup ("offline");
     priv->curr_presence_status = g_strdup ("");
-
-    combine_presences (account);
 
     priv->always_on = FALSE;
     priv->enabled = FALSE;
@@ -2976,7 +2873,7 @@ mcd_account_request_presence (McdAccount *account,
 			      TpConnectionPresenceType presence,
 			      const gchar *status, const gchar *message)
 {
-    if (mcd_account_request_presence_int (account, TRUE, presence, status, message))
+    if (mcd_account_request_presence_int (account, presence, status, message))
     {
 	GValue value = { 0 };
 	GType type;
@@ -3075,21 +2972,21 @@ mcd_account_get_requested_presence (McdAccount *account,
 }
 
 void
-_mcd_account_get_combined_presence (McdAccount *account,
-                                    TpConnectionPresenceType *presence,
-                                    const gchar **status,
-                                    const gchar **message)
+_mcd_account_get_requested_presence (McdAccount *account,
+                                     TpConnectionPresenceType *presence,
+                                     const gchar **status,
+                                     const gchar **message)
 {
     McdAccountPrivate *priv = account->priv;
 
     if (presence != NULL)
-        *presence = priv->combined_presence_type;
+        *presence = priv->req_presence_type;
 
     if (status != NULL)
-        *status = priv->combined_presence_status;
+        *status = priv->req_presence_status;
 
     if (message != NULL)
-        *message = priv->combined_presence_message;
+        *message = priv->req_presence_message;
 }
 
 /* TODO: remove when the relative members will become public */
@@ -3677,7 +3574,6 @@ check_validity_check_parameters_cb (McdAccount *account,
         {
             /* newly valid - try setting requested presence again */
             mcd_account_request_presence_int (account,
-		                              TRUE,
                                               priv->req_presence_type,
                                               priv->req_presence_status,
                                               priv->req_presence_message);
