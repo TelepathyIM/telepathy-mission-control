@@ -37,7 +37,7 @@ def test(q, bus, mc):
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
         }, signature='sv')
 
-    # Empathy is an approver for text channels with
+    # Empathy is an observer for text channels with
     # DelayApprovers=TRUE.
     empathy = SimulatedClient(q, bus, 'Empathy',
         observe=[text_fixed_properties], approve=[],
