@@ -236,6 +236,9 @@ class SimulatedConnection(object):
         q.add_dbus_method_impl(self.InspectHandles,
                 path=self.object_path, interface=cs.CONN,
                 method='InspectHandles')
+        q.add_dbus_method_impl(self.HoldHandles,
+                path=self.object_path, interface=cs.CONN,
+                method='HoldHandles')
         q.add_dbus_method_impl(self.GetAll_Requests,
                 path=self.object_path,
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
@@ -469,6 +472,10 @@ class SimulatedConnection(object):
 
     def GetSelfHandle(self, e):
         self.q.dbus_return(e.message, self.self_handle, signature='u')
+
+    def HoldHandles(self, e):
+        # do nothing
+        self.q.dbus_return(e.message, signature='')
 
     def NewChannels(self, channels):
         for channel in channels:
