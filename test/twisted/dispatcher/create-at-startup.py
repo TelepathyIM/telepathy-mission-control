@@ -152,15 +152,29 @@ def test(q, bus, unused):
 
     # Now that the dispatcher is ready to go, we start looking for channels,
     # and also make the actual request
-    _, cm_request_call = q.expect_many(
+    # Empathy observes the channel we originally requested.
+    _, a, cm_request_call = q.expect_many(
             EventPattern('dbus-method-call',
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
                 args=[cs.CONN_IFACE_REQUESTS],
                 path=conn.object_path, handled=True),
             EventPattern('dbus-method-call',
+                path=client.object_path,
+                interface=cs.OBSERVER, method='ObserveChannels',
+                handled=False),
+            EventPattern('dbus-method-call',
                 interface=cs.CONN_IFACE_REQUESTS, method='CreateChannel',
                 path=conn.object_path, args=[request], handled=False),
             )
+
+    assert a.args[0] == account.object_path, a.args
+    assert a.args[1] == conn.object_path, a.args
+    assert a.args[3] != '/', a.args         # there is a dispatch operation
+    assert a.args[4] == [], a.args
+    channels = a.args[2]
+    assert len(channels) == 1, channels
+    assert channels[0][0] == announcement.object_path, channels
+    assert channels[0][1] == announcement_immutable, channels
 
     # Time passes. A channel is returned.
 
@@ -178,24 +192,11 @@ def test(q, bus, unused):
             channel.object_path, channel.immutable, signature='oa{sv}')
     channel.announce()
 
-    # Empathy observes the channels, in the order they appeared
-    a = q.expect('dbus-method-call',
-            path=client.object_path,
-            interface=cs.OBSERVER, method='ObserveChannels',
-            handled=False)
+    # Empathy observes the newly-created channel.
     e = q.expect('dbus-method-call',
             path=client.object_path,
             interface=cs.OBSERVER, method='ObserveChannels',
             handled=False)
-
-    assert a.args[0] == account.object_path, a.args
-    assert a.args[1] == conn.object_path, a.args
-    assert a.args[3] != '/', a.args         # there is a dispatch operation
-    assert a.args[4] == [], a.args
-    channels = a.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == announcement.object_path, channels
-    assert channels[0][1] == announcement_immutable, channels
 
     assert e.args[0] == account.object_path, e.args
     assert e.args[1] == conn.object_path, e.args
