@@ -194,6 +194,19 @@ class SimulatedConnection(object):
         self.avatars_persist = avatars_persist
         self.extra_interfaces = extra_interfaces[:]
 
+        self.interfaces = []
+
+        if self.has_requests:
+            self.interfaces.append(cs.CONN_IFACE_REQUESTS)
+        if self.has_aliasing:
+            self.interfaces.append(cs.CONN_IFACE_ALIASING)
+        if self.has_avatars:
+            self.interfaces.append(cs.CONN_IFACE_AVATARS)
+        if self.has_presence:
+            self.interfaces.append(cs.CONN_IFACE_SIMPLE_PRESENCE)
+        if self.extra_interfaces:
+            self.interfaces.extend(self.extra_interfaces)
+
         if self.avatars_persist:
             self.avatar = dbus.Struct((dbus.ByteArray('my old avatar'),
                 'text/plain'), signature='ays')
@@ -209,6 +222,11 @@ class SimulatedConnection(object):
                 interface=cs.CONN, method='GetSelfHandle')
         q.add_dbus_method_impl(self.GetStatus,
                 path=self.object_path, interface=cs.CONN, method='GetStatus')
+
+        q.add_dbus_method_impl(self.GetAll_Connection,
+                path=self.object_path,
+                interface=cs.PROPERTIES_IFACE, method='GetAll',
+                args=[cs.CONN])
 
         if implement_get_interfaces:
             q.add_dbus_method_impl(self.GetInterfaces,
@@ -281,6 +299,14 @@ class SimulatedConnection(object):
         self.presence = dbus.Struct((cs.PRESENCE_TYPE_OFFLINE, 'offline', ''),
                 signature='uss')
 
+    def GetAll_Connection(self, e):
+        self.q.dbus_return(e.message, {
+            'Interfaces': dbus.Array(self.interfaces, signature='s'),
+            'SelfHandle': dbus.UInt32(self.self_handle),
+            'Status': dbus.UInt32(self.status),
+            'HasImmortalHandles': dbus.Boolean(True),
+            }, signature='a{sv}')
+
     def forget_avatar(self):
         self.avatar = (dbus.ByteArray(''), '')
 
@@ -292,6 +318,7 @@ class SimulatedConnection(object):
     def GetAvatarRequirements(self, e):
         self.q.dbus_return(e.message, ['image/jpeg'], 0, 0, 96, 96, 8192,
                 signature='asqqqqu')
+
     def GetAll_Avatars(self, e):
         self.q.dbus_return(e.message, {
             'SupportedAvatarMIMETypes': ['image/jpeg'],
@@ -366,24 +393,7 @@ class SimulatedConnection(object):
                 {'Statuses': self.statuses}, signature='a{sv}')
 
     def GetInterfaces(self, e):
-        interfaces = []
-
-        if self.has_requests:
-            interfaces.append(cs.CONN_IFACE_REQUESTS)
-
-        if self.has_aliasing:
-            interfaces.append(cs.CONN_IFACE_ALIASING)
-
-        if self.has_avatars:
-            interfaces.append(cs.CONN_IFACE_AVATARS)
-
-        if self.has_presence:
-            interfaces.append(cs.CONN_IFACE_SIMPLE_PRESENCE)
-
-        if self.extra_interfaces:
-            interfaces.extend(self.extra_interfaces)
-
-        self.q.dbus_return(e.message, interfaces, signature='as')
+        self.q.dbus_return(e.message, self.interfaces, signature='as')
 
     def Connect(self, e):
         self.StatusChanged(cs.CONN_STATUS_CONNECTING,
