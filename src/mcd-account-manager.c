@@ -1178,13 +1178,13 @@ register_dbus_service (McdAccountManager *account_manager)
     dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
 
     if (!tp_dbus_daemon_request_name (priv->dbus_daemon,
-                                      MC_ACCOUNT_MANAGER_DBUS_SERVICE,
+                                      TP_ACCOUNT_MANAGER_BUS_NAME,
                                       TRUE /* idempotent */, &error))
     {
         /* FIXME: put in proper error handling when MC gains the ability to
          * be the AM or the CD but not both */
         g_warning("Failed registering '%s' service: %s",
-                  MC_ACCOUNT_MANAGER_DBUS_SERVICE, error->message);
+                  TP_ACCOUNT_MANAGER_BUS_NAME, error->message);
         g_error_free (error);
         exit (1);
     }
@@ -1192,9 +1192,9 @@ register_dbus_service (McdAccountManager *account_manager)
     priv->dbus_registered = TRUE;
 
     if (G_LIKELY (dbus_connection))
-	dbus_g_connection_register_g_object (dbus_connection,
-					     MC_ACCOUNT_MANAGER_DBUS_OBJECT,
-					     (GObject *)account_manager);
+        dbus_g_connection_register_g_object (dbus_connection,
+                                             TP_ACCOUNT_MANAGER_OBJECT_PATH,
+                                             (GObject *)account_manager);
 }
 
 static void
@@ -1462,14 +1462,14 @@ mcd_account_manager_lookup_account_by_path (McdAccountManager *account_manager,
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
 
-    if (!g_str_has_prefix (object_path, MC_ACCOUNT_DBUS_OBJECT_BASE))
+    if (!g_str_has_prefix (object_path, TP_ACCOUNT_OBJECT_PATH_BASE))
     {
         /* can't possibly be right */
         return NULL;
     }
 
     return g_hash_table_lookup (priv->accounts,
-        object_path + (sizeof (MC_ACCOUNT_DBUS_OBJECT_BASE) - 1));
+        object_path + strlen (TP_ACCOUNT_OBJECT_PATH_BASE));
 }
 
 /*

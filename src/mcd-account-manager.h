@@ -75,9 +75,6 @@ GQuark mcd_account_manager_error_quark (void);
 
 #define MCD_ACCOUNT_MANAGER_ERROR (mcd_account_manager_error_quark ())
 
-#define MC_ACCOUNT_MANAGER_DBUS_SERVICE "org.freedesktop.Telepathy.AccountManager"
-#define MC_ACCOUNT_MANAGER_DBUS_OBJECT "/org/freedesktop/Telepathy/AccountManager"
-
 GType mcd_account_manager_get_type (void);
 McdAccountManager *mcd_account_manager_new (TpDBusDaemon *dbus_daemon);
 

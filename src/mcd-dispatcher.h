@@ -48,11 +48,6 @@ typedef struct _McdDispatcherPrivate McdDispatcherPrivate;
 #include "mcd-channel.h"
 #include "mcd-master.h"
 
-#define MCD_CHANNEL_DISPATCHER_BUS_NAME \
-    "org.freedesktop.Telepathy.ChannelDispatcher"
-#define MCD_CHANNEL_DISPATCHER_OBJECT_PATH \
-    "/org/freedesktop/Telepathy/ChannelDispatcher"
-
 struct _McdDispatcher
 {
     McdMission parent;

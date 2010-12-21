@@ -49,7 +49,6 @@ typedef struct _McdDBusProp
     const gchar *name;
     mcd_setprop setprop;
     mcd_getprop getprop;
-    mcd_async_getprop async_getprop;
 } McdDBusProp;
 
 typedef struct _McdInterfaceData

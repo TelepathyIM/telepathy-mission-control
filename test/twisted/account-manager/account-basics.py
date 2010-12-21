@@ -198,7 +198,7 @@ def test(q, bus, mc):
         else:
             raise AssertionError('Setting %s with wrong type should fail' % p)
 
-    for p in ('Conditions',):
+    for p in ('Condition',):
         try:
             account_props.Set(cs.ACCOUNT_IFACE_NOKIA_CONDITIONS, p,
                     badly_typed)

@@ -28,7 +28,6 @@ mc_headers = \
 	mcd-connection.h \
 	mcd-connection-plugin.h \
 	mcd-plugin.h \
-	mcd-presence-frame.h \
 	mcd-channel.h \
 	mcd-proxy.h \
 	mcd-dispatcher.h \
