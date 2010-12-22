@@ -97,7 +97,6 @@ static void request_iface_init (TpSvcChannelRequestClass *);
 
 G_DEFINE_TYPE_WITH_CODE (McdRequest, _mcd_request, G_TYPE_OBJECT,
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_CHANNEL_REQUEST, request_iface_init);
-    G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_REQUEST_INTERFACE_HINTS, NULL);
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
                            tp_dbus_properties_mixin_iface_init))
 
@@ -564,7 +563,7 @@ _mcd_request_set_success (McdRequest *self,
       self->is_complete = TRUE;
       self->cancellable = FALSE;
 
-      mc_svc_channel_request_interface_hints_emit_succeeded_with_channel (self,
+      tp_svc_channel_request_emit_succeeded_with_channel (self,
           tp_proxy_get_object_path (tp_channel_borrow_connection (channel)),
           future_conn_props,
           tp_proxy_get_object_path (channel),
