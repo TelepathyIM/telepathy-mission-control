@@ -32,7 +32,7 @@ def test(q, bus, mc):
     # fd.o #25684: creating similarly-named accounts in very quick succession
     # used to fail
 
-    params = dbus.Dictionary({"account": "anarki",
+    params = dbus.Dictionary({"account": "create-twice",
         "password": "secrecy"}, signature='sv')
 
     cm_name_ref = dbus.service.BusName(cs.tp_name_prefix +
