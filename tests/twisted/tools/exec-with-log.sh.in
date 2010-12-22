@@ -18,7 +18,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 # 02110-1301 USA
 
-cd "@abs_top_builddir@/test/twisted/tools"
+cd "@abs_top_builddir@/tests/twisted/tools"
 
 ulimit -c unlimited
 exec > missioncontrol-$$.log 2>&1
@@ -37,7 +37,7 @@ if test -n "$MISSIONCONTROL_TEST_VALGRIND"; then
 	MISSIONCONTROL_WRAPPER="valgrind --leak-check=full --num-callers=20"
 	MISSIONCONTROL_WRAPPER="$MISSIONCONTROL_WRAPPER --track-origins=yes"
 	MISSIONCONTROL_WRAPPER="$MISSIONCONTROL_WRAPPER -v"
-	MISSIONCONTROL_WRAPPER="$MISSIONCONTROL_WRAPPER --suppressions=@abs_top_srcdir@/test/twisted/tools/valgrind.supp"
+	MISSIONCONTROL_WRAPPER="$MISSIONCONTROL_WRAPPER --suppressions=@abs_top_srcdir@/tests/twisted/tools/valgrind.supp"
 	MISSIONCONTROL_WRAPPER="$MISSIONCONTROL_WRAPPER --gen-suppressions=all"
 	MISSIONCONTROL_WRAPPER="$MISSIONCONTROL_WRAPPER --show-reachable=yes"
 elif test -n "$MISSIONCONTROL_TEST_REFDBG"; then
@@ -51,7 +51,7 @@ elif test -n "$MISSIONCONTROL_TEST_REFDBG"; then
 fi
 
 if test "z$MC_EXECUTABLE" = z; then
-        MC_EXECUTABLE=@abs_top_builddir@/test/twisted/mc-debug-server
+        MC_EXECUTABLE=@abs_top_builddir@/tests/twisted/mc-debug-server
 fi
 
 if test -f "$MC_ACCOUNT_DIR/gnome-keyring-env"; then

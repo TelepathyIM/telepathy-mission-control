@@ -1,16 +1,16 @@
 To run Twisted tests:
 
-  make -C test/twisted check-twisted
+  make -C tests/twisted check-twisted
 
 To run an individual Twisted test:
 
-  make -C test/twisted check-twisted \
+  make -C tests/twisted check-twisted \
         TWISTED_BASIC_TESTS= \
         TWISTED_SEPARATE_TESTS=dispatcher/create-at-startup.py
 
 To run with debug information:
 
-  make -C test/twisted check-twisted \
+  make -C tests/twisted check-twisted \
         TWISTED_BASIC_TESTS= \
         TWISTED_SEPARATE_TESTS=dispatcher/create-at-startup.py \
         CHECK_TWISTED_VERBOSE=1

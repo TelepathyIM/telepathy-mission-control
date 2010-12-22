@@ -151,19 +151,19 @@ TESTS =
 TMPSUFFIX = foo
 
 BASIC_TESTS_ENVIRONMENT = \
-	PYTHONPATH=@abs_top_srcdir@/test/twisted:@abs_top_builddir@/test/twisted \
+	PYTHONPATH=@abs_top_srcdir@/tests/twisted:@abs_top_builddir@/tests/twisted \
 	MC_DEBUG=all \
-	MC_FILTER_PLUGIN_DIR=@abs_top_builddir@/test/twisted/.libs \
-	MC_CHANDLERS_DIR=@abs_top_srcdir@/test/twisted/chandlers \
-	MC_ACCOUNT_DIR=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX) \
-	XDG_CONFIG_HOME=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX) \
-	XDG_CONFIG_DIRS=@abs_top_srcdir@/test/twisted \
-	XDG_DATA_HOME=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX) \
-	XDG_DATA_DIRS=@abs_top_srcdir@/test/twisted \
-	XDG_CACHE_DIR=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX) \
-	XDG_CACHE_HOME=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX) \
-	MC_CLIENTS_DIR=@abs_top_srcdir@/test/twisted/telepathy/clients \
-	MC_MANAGER_DIR=@abs_top_srcdir@/test/twisted/telepathy/managers \
+	MC_FILTER_PLUGIN_DIR=@abs_top_builddir@/tests/twisted/.libs \
+	MC_CHANDLERS_DIR=@abs_top_srcdir@/tests/twisted/chandlers \
+	MC_ACCOUNT_DIR=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX) \
+	XDG_CONFIG_HOME=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX) \
+	XDG_CONFIG_DIRS=@abs_top_srcdir@/tests/twisted \
+	XDG_DATA_HOME=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX) \
+	XDG_DATA_DIRS=@abs_top_srcdir@/tests/twisted \
+	XDG_CACHE_DIR=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX) \
+	XDG_CACHE_HOME=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX) \
+	MC_CLIENTS_DIR=@abs_top_srcdir@/tests/twisted/telepathy/clients \
+	MC_MANAGER_DIR=@abs_top_srcdir@/tests/twisted/telepathy/managers \
 	G_DEBUG=fatal_criticals
 
 if ENABLE_GNOME_KEYRING
@@ -172,8 +172,8 @@ endif
 
 if ENABLE_LIBACCOUNTS_SSO
 BASIC_TESTS_ENVIRONMENT += AG_DEBUG=all \
-	ACCOUNTS=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX) \
-	AG_SERVICES=@abs_top_builddir@/test/twisted/tmp-$(TMPSUFFIX)
+	ACCOUNTS=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX) \
+	AG_SERVICES=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX)
 endif
 
 WITH_SESSION_BUS = \

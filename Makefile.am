@@ -10,7 +10,7 @@ SUBDIRS = \
     src \
     server \
     util \
-    test \
+    tests \
     doc
 
 pkgconfigdir = $(libdir)/pkgconfig

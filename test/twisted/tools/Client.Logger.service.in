@@ -1,3 +1,0 @@
-[D-BUS Service]
-Name=org.freedesktop.Telepathy.Client.Logger
-Exec=/bin/sh @abs_top_srcdir@/test/twisted/tools/fake-startup.sh org.freedesktop.Telepathy.Client.Logger

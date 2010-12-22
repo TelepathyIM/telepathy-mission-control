@@ -371,9 +371,9 @@ mission-control-plugins/Makefile \
 plugins/Makefile \
 server/Makefile \
 src/Makefile \
-test/Makefile \
-test/twisted/Makefile \
-test/twisted/tools/Makefile \
+tests/Makefile \
+tests/twisted/Makefile \
+tests/twisted/tools/Makefile \
 tools/Makefile \
 util/Makefile \
 xml/Makefile \
