@@ -100,10 +100,7 @@ def test(q, bus, mc):
     # FIXME: MC ought to also introspect the CM and find out that the params
     # are in fact sufficient
 
-    a_signal, am_signal, ret, rc = q.expect_many(
-            EventPattern('dbus-signal',
-                signal='AccountPropertyChanged', interface=cs.ACCOUNT,
-                predicate=(lambda e: 'Valid' in e.args[0])),
+    am_signal, ret, rc = q.expect_many(
             EventPattern('dbus-signal', path=cs.AM_PATH,
                 signal='AccountValidityChanged', interface=cs.AM),
             EventPattern('dbus-return', method='CreateAccount'),
@@ -111,7 +108,6 @@ def test(q, bus, mc):
             )
     account_path = ret.value[0]
     assert am_signal.args == [account_path, True], am_signal.args
-    assert a_signal.args[0]['Valid'] == True, a_signal.args
 
     assert account_path is not None
 
@@ -131,6 +127,8 @@ def test(q, bus, mc):
         properties.get('ConnectAutomatically')
     assert properties.get('Enabled') == True, \
         properties.get('Enabled')
+    assert properties.get('Valid') == True, \
+        properties.get('Valid')
     assert properties.get('Icon') == 'quake3arena', \
         properties.get('Icon')
     assert properties.get('Nickname') == 'AnArKi', \
