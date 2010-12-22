@@ -87,9 +87,7 @@ def test_channel_creation(q, bus, account, client, conn,
     assert request_props['UserActionTime'] == user_action_time
     assert request_props['PreferredHandler'] == prefer.bus_name
     assert request_props['Interfaces'] == []
-    hints_props = cr.GetAll(cs.CR_IFACE_HINTS,
-            dbus_interface=cs.PROPERTIES_IFACE)
-    assertEquals(hints, hints_props['Hints'])
+    assertEquals(hints, request_props['Hints'])
 
     cr.Proceed(dbus_interface=cs.CR)
 

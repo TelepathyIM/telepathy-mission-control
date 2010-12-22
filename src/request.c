@@ -309,9 +309,6 @@ _mcd_request_class_init (
       { "PreferredHandler", "preferred-handler", NULL },
       { "Interfaces", "interfaces", NULL },
       { "Requests", "requests", NULL },
-      { NULL }
-  };
-  static TpDBusPropertiesMixinPropImpl hints_props[] = {
       { "Hints", "hints", NULL },
       { NULL }
   };
@@ -320,11 +317,6 @@ _mcd_request_class_init (
           tp_dbus_properties_mixin_getter_gobject_properties,
           NULL,
           request_props,
-      },
-      { MC_IFACE_CHANNEL_REQUEST_INTERFACE_HINTS,
-        tp_dbus_properties_mixin_getter_gobject_properties,
-        NULL,
-        hints_props,
       },
       { NULL }
   };
@@ -703,7 +695,7 @@ _mcd_request_dup_immutable_properties (McdRequest *self)
       TP_IFACE_CHANNEL_REQUEST, "PreferredHandler",
       TP_IFACE_CHANNEL_REQUEST, "Interfaces",
       TP_IFACE_CHANNEL_REQUEST, "Requests",
-      MC_IFACE_CHANNEL_REQUEST_INTERFACE_HINTS, "Hints",
+      TP_IFACE_CHANNEL_REQUEST, "Hints",
       NULL);
 }
 
