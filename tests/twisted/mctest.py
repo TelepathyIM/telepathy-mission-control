@@ -806,12 +806,13 @@ class SimulatedClient(object):
         self.q.dbus_return(e.message, self.recover, signature='v',
                 bus=self.bus)
 
+def take_fakecm_name(bus):
+    return dbus.service.BusName(cs.CM + '.fakecm', bus=bus)
+
 def create_fakecm_account(q, bus, mc, params):
     """Create a fake connection manager and an account that uses it.
     """
-    cm_name_ref = dbus.service.BusName(
-            cs.tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
-
+    cm_name_ref = take_fakecm_name(bus)
     account_manager = AccountManager(bus)
 
     # Create an account
