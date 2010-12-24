@@ -1,5 +1,6 @@
-# Copyright (C) 2009 Nokia Corporation
-# Copyright (C) 2009 Collabora Ltd.
+# python sucks! vim: set fileencoding=utf-8 :
+# Copyright © 2009–2010 Nokia Corporation
+# Copyright © 2009–2010 Collabora Ltd.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -106,36 +107,31 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
         error = e
 
     try:
-        am_props_iface = dbus.Interface(get_account_manager(bus),
-                cs.PROPERTIES_IFACE)
-        am_props = am_props_iface.GetAll(cs.AM)
+        am = AccountManager(bus)
+        am_props = am.Properties.GetAll(cs.AM)
 
         for a in (am_props.get('ValidAccounts', []) +
                 am_props.get('InvalidAccounts', [])):
+            account = Account(bus, a)
+
             try:
-                account_props_iface = dbus.Interface(bus.get_object(cs.AM, a),
-                        cs.PROPERTIES_IFACE)
-                account_props_iface.Set(cs.ACCOUNT, 'RequestedPresence',
+                account.Properties.Set(cs.ACCOUNT, 'RequestedPresence',
                         (dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE), 'offline',
                             ''))
             except dbus.DBusException, e:
                 print >> sys.stderr, e
 
             try:
-                account_props_iface = dbus.Interface(bus.get_object(cs.AM, a),
-                        cs.PROPERTIES_IFACE)
-                account_props_iface.Set(cs.ACCOUNT, 'Enabled', False)
+                account.Properties.Set(cs.ACCOUNT, 'Enabled', False)
             except dbus.DBusException, e:
                 print >> sys.stderr, e
 
             try:
-                account_iface = dbus.Interface(bus.get_object(cs.AM, a),
-                        cs.ACCOUNT)
-                account_iface.Remove()
+                account.Remove()
             except dbus.DBusException, e:
                 print >> sys.stderr, e
 
-            servicetest.sync_dbus(bus, queue, am_props_iface)
+            servicetest.sync_dbus(bus, queue, am)
 
     except dbus.DBusException, e:
         print >> sys.stderr, e
@@ -816,12 +812,10 @@ def create_fakecm_account(q, bus, mc, params):
     cm_name_ref = dbus.service.BusName(
             cs.tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
 
-    # Get the AccountManager interface
-    account_manager = get_account_manager(bus)
-    account_manager_iface = dbus.Interface(account_manager, cs.AM)
+    account_manager = AccountManager(bus)
 
     # Create an account
-    servicetest.call_async(q, account_manager_iface, 'CreateAccount',
+    servicetest.call_async(q, account_manager, 'CreateAccount',
             'fakecm', # Connection_Manager
             'fakeprotocol', # Protocol
             'fakeaccount', #Display_Name
@@ -847,11 +841,8 @@ def create_fakecm_account(q, bus, mc, params):
     assert account_path is not None
 
     # Get the Account interface
-    account = bus.get_object(
-        cs.tp_name_prefix + '.AccountManager',
-        account_path)
-    account_iface = dbus.Interface(account, cs.ACCOUNT)
-    account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)
+    account = Account(bus, account_path)
+
     # Introspect Account for debugging purpose
     account_introspected = account.Introspect(
             dbus_interface=cs.INTROSPECTABLE_IFACE)
@@ -860,18 +851,14 @@ def create_fakecm_account(q, bus, mc, params):
     return (cm_name_ref, account)
 
 def get_fakecm_account(bus, mc, account_path):
-    # Get the Account interface
-    account = bus.get_object(
-        cs.tp_name_prefix + '.AccountManager',
-        account_path)
-    account_iface = dbus.Interface(account, cs.ACCOUNT)
-    account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)
+    account = Account(bus, account_path)
+
     # Introspect Account for debugging purpose
     account_introspected = account.Introspect(
             dbus_interface=cs.INTROSPECTABLE_IFACE)
     #print account_introspected
-    return account
 
+    return account
 
 def enable_fakecm_account(q, bus, mc, account, expected_params,
         has_requests=True, has_presence=False, has_aliasing=False,
@@ -881,17 +868,15 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
         expect_before_connect=[], expect_after_connect=[],
         has_hidden=False):
     # Enable the account
-    account.Set(cs.ACCOUNT, 'Enabled', True,
-            dbus_interface=cs.PROPERTIES_IFACE)
+    account.Properties.Set(cs.ACCOUNT, 'Enabled', True)
 
     if requested_presence is not None:
         requested_presence = dbus.Struct(
                 (dbus.UInt32(requested_presence[0]),) +
                 tuple(requested_presence[1:]),
                 signature='uss')
-        account.Set(cs.ACCOUNT,
-                'RequestedPresence', requested_presence,
-                dbus_interface=cs.PROPERTIES_IFACE)
+        account.Properties.Set(cs.ACCOUNT,
+                'RequestedPresence', requested_presence)
 
     e = q.expect('dbus-method-call', method='RequestConnection',
             args=['fakeprotocol', expected_params],
@@ -1006,13 +991,27 @@ def expect_client_setup(q, clients, got_interfaces_already=False):
     q.expect_many(*patterns)
 
 def get_account_manager(bus):
-    return bus.get_object(cs.AM, cs.AM_PATH,
+    """
+    A backwards-compatibility synonym for constructing a new AccountManager
+    object. Please don't use this in new tests.
+    """
+    return AccountManager(bus)
+
+class AccountManager(servicetest.ProxyWrapper):
+    def __init__(self, bus):
+        bare_am = bus.get_object(cs.AM, cs.AM_PATH,
             follow_name_owner_changes=True)
 
+        servicetest.ProxyWrapper.__init__(self, bare_am, cs.AM, {})
+
+class Account(servicetest.ProxyWrapper):
+    def __init__(self, bus, account_path):
+        servicetest.ProxyWrapper.__init__(self,
+            bus.get_object(cs.AM, account_path),
+            cs.ACCOUNT, {})
+
 def connect_to_mc(q, bus, mc):
-    # Get the AccountManager interface
-    account_manager = get_account_manager(bus)
-    account_manager_iface = dbus.Interface(account_manager, cs.AM)
+    account_manager = AccountManager(bus)
 
     # Introspect AccountManager for debugging purpose
     account_manager_introspected = account_manager.Introspect(
@@ -1020,8 +1019,7 @@ def connect_to_mc(q, bus, mc):
     #print account_manager_introspected
 
     # Check AccountManager has D-Bus property interface
-    properties = account_manager.GetAll(cs.AM,
-            dbus_interface=cs.PROPERTIES_IFACE)
+    properties = account_manager.Properties.GetAll(cs.AM)
     assert properties is not None
     interfaces = properties.get('Interfaces')
 
