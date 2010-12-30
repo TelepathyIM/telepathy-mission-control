@@ -72,10 +72,14 @@ static void account_avatar_iface_init (TpSvcAccountInterfaceAvatarClass *iface,
 static void account_storage_iface_init (
     TpSvcAccountInterfaceStorageClass *iface,
     gpointer iface_data);
+static void account_hidden_iface_init (
+    McSvcAccountInterfaceHiddenClass *iface,
+    gpointer iface_data);
 
 static const McdDBusProp account_properties[];
 static const McdDBusProp account_avatar_properties[];
 static const McdDBusProp account_storage_properties[];
+static const McdDBusProp account_hidden_properties[];
 
 static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_account_get_type, account, TP_IFACE_ACCOUNT),
@@ -100,6 +104,9 @@ static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE (mc_svc_account_interface_addressing_get_type,
         account_addressing,
         MC_IFACE_ACCOUNT_INTERFACE_ADDRESSING),
+    MCD_IMPLEMENT_IFACE (mc_svc_account_interface_hidden_get_type,
+                         account_hidden,
+                         MC_IFACE_ACCOUNT_INTERFACE_HIDDEN),
 
     { G_TYPE_INVALID, }
 };
@@ -164,6 +171,8 @@ struct _McdAccountPrivate
     guint always_on : 1;
     guint changing_presence : 1;
 
+    gboolean hidden;
+
     /* These fields are used to cache the changed properties */
     gboolean properties_frozen;
     GHashTable *changed_properties;
@@ -177,6 +186,7 @@ enum
     PROP_STORAGE,
     PROP_NAME,
     PROP_ALWAYS_ON,
+    PROP_HIDDEN,
 };
 
 enum
@@ -1704,6 +1714,65 @@ account_storage_iface_init (TpSvcAccountInterfaceStorageClass *iface,
 }
 
 static void
+get_hidden (TpSvcDBusProperties *self,
+    const gchar *name, GValue *value)
+{
+  g_value_init (value, G_TYPE_BOOLEAN);
+  g_object_get_property (G_OBJECT (self), "hidden", value);
+}
+
+static gboolean
+set_hidden (TpSvcDBusProperties *self,
+    const gchar *name,
+    const GValue *value,
+    GError **error)
+{
+  McdAccount *account = MCD_ACCOUNT (self);
+  McdAccountPrivate *priv = account->priv;
+  const gchar *account_name = mcd_account_get_unique_name (account);
+
+  if (!G_VALUE_HOLDS_BOOLEAN (value))
+    {
+      g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+          "Hidden must be set to a boolean, not a %s",
+          G_VALUE_TYPE_NAME (value));
+      return FALSE;
+    }
+
+  /* Technically this property is immutable after the account's been created,
+   * but currently it's not easy for this code to tell whether or not this is
+   * a create-time property. It would probably be better if the create-time
+   * properties were passed into us as a construct-time GObject property. But
+   * that's a job for another month.
+   *
+   * So for now we check whether the value has changed, and violate the spec
+   * by making this property mutable (at least with the keyfile backend).
+   */
+  if (mcd_storage_set_value (priv->storage, account_name,
+          MC_ACCOUNTS_KEY_HIDDEN, value, FALSE))
+    {
+      mcd_storage_commit (priv->storage, account_name);
+      mcd_account_changed_property (account, MC_ACCOUNTS_KEY_HIDDEN, value);
+      g_object_set_property (G_OBJECT (self), "hidden", value);
+    }
+
+  return TRUE;
+}
+
+static const McdDBusProp account_hidden_properties[] = {
+    { "Hidden", set_hidden, get_hidden },
+    { 0 },
+};
+
+static void
+account_hidden_iface_init (
+    McSvcAccountInterfaceHiddenClass *iface,
+    gpointer iface_data)
+{
+  /* wow, it's pretty crap that I need this. */
+}
+
+static void
 properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 {
 #define IMPLEMENT(x) tp_svc_dbus_properties_implement_##x (\
@@ -2394,6 +2463,8 @@ mcd_account_setup (McdAccount *account)
 
     priv->has_been_online =
       mcd_storage_get_boolean (storage, name, MC_ACCOUNTS_KEY_HAS_BEEN_ONLINE);
+    priv->hidden =
+      mcd_storage_get_boolean (storage, name, MC_ACCOUNTS_KEY_HIDDEN);
 
     /* load the automatic presence */
     priv->auto_presence_type =
@@ -2481,7 +2552,9 @@ set_property (GObject *obj, guint prop_id,
         }
 
         break;
-
+    case PROP_HIDDEN:
+        priv->hidden = g_value_get_boolean (val);
+        break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
@@ -2502,6 +2575,9 @@ get_property (GObject *obj, guint prop_id,
     case PROP_NAME:
 	g_value_set_string (val, priv->unique_name);
 	break;
+    case PROP_HIDDEN:
+        g_value_set_boolean (val, priv->hidden);
+        break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
@@ -2658,6 +2734,11 @@ mcd_account_class_init (McdAccountClass * klass)
                               G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY |
                               G_PARAM_STATIC_STRINGS));
 
+    g_object_class_install_property
+        (object_class, PROP_HIDDEN,
+         g_param_spec_boolean ("hidden", "Hidden?", "Is this account hidden?",
+                               FALSE,
+                               G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
     /* Signals */
     _mcd_account_signals[CONNECTION_STATUS_CHANGED] =
 	g_signal_new ("connection-status-changed",
