@@ -106,6 +106,7 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
         traceback.print_exc()
         error = e
 
+    # Clean up any accounts which are left over from the test.
     try:
         am = AccountManager(bus)
         am_props = am.Properties.GetAll(cs.AM)
@@ -135,6 +136,11 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
 
     except dbus.DBusException, e:
         print >> sys.stderr, e
+
+    except Exception, e:
+        import traceback
+        traceback.print_exc()
+        error = e
 
     queue.cleanup()
 
