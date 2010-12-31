@@ -831,6 +831,17 @@ def create_fakecm_account(q, bus, mc, params, properties={}):
     servicetest.call_async(q, account_manager, 'CreateAccount',
         'fakecm', 'fakeprotocol', 'fakeaccount', params, properties)
 
+    # Check whether the account being created is to be hidden; if so, then
+    # expect a different signal. It annoys me that this has to be in here, but,
+    # eh.
+    if properties.get(cs.ACCOUNT_IFACE_HIDDEN + '.Hidden', False):
+        validity_changed_pattern = servicetest.EventPattern('dbus-signal',
+            path=cs.AM_PATH, signal='HiddenAccountValidityChanged',
+            interface=cs.AM_IFACE_HIDDEN)
+    else:
+        validity_changed_pattern = servicetest.EventPattern('dbus-signal',
+            path=cs.AM_PATH, signal='AccountValidityChanged', interface=cs.AM)
+
     # The spec has no order guarantee here.
     # FIXME: MC ought to also introspect the CM and find out that the params
     # are in fact sufficient
@@ -838,8 +849,7 @@ def create_fakecm_account(q, bus, mc, params, properties={}):
             servicetest.EventPattern('dbus-signal',
                 signal='AccountPropertyChanged', interface=cs.ACCOUNT,
                 predicate=(lambda e: 'Valid' in e.args[0])),
-            servicetest.EventPattern('dbus-signal', path=cs.AM_PATH,
-                signal='AccountValidityChanged', interface=cs.AM),
+            validity_changed_pattern,
             servicetest.EventPattern('dbus-return', method='CreateAccount'),
             )
     account_path = ret.value[0]
@@ -1014,7 +1024,7 @@ class Account(servicetest.ProxyWrapper):
     def __init__(self, bus, account_path):
         servicetest.ProxyWrapper.__init__(self,
             bus.get_object(cs.AM, account_path),
-            cs.ACCOUNT, {})
+            cs.ACCOUNT, {'Compat': cs.ACCOUNT_IFACE_NOKIA_COMPAT})
 
 def connect_to_mc(q, bus, mc):
     account_manager = AccountManager(bus)
