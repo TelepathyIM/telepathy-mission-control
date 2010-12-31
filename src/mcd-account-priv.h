@@ -204,4 +204,6 @@ G_GNUC_INTERNAL void _mcd_account_get_requested_presence (McdAccount *account,
 G_GNUC_INTERNAL gboolean _mcd_account_presence_type_is_settable (
         TpConnectionPresenceType type);
 
+gboolean _mcd_account_is_hidden (McdAccount *account);
+
 #endif /* __MCD_ACCOUNT_PRIV_H__ */

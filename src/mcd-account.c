@@ -2864,6 +2864,14 @@ mcd_account_is_enabled (McdAccount *account)
     return priv->enabled;
 }
 
+gboolean
+_mcd_account_is_hidden (McdAccount *account)
+{
+    g_return_val_if_fail (MCD_IS_ACCOUNT (account), FALSE);
+
+    return account->priv->hidden;
+}
+
 const gchar *
 mcd_account_get_unique_name (McdAccount *account)
 {

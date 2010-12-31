@@ -29,6 +29,7 @@
 #include "mcd-dbusprop.h"
 
 /* auto-generated stubs */
+#include "_gen/svc-Account_Manager_Interface_Hidden.h"
 #include "_gen/svc-Account_Manager_Interface_Query.h"
 
 G_BEGIN_DECLS
