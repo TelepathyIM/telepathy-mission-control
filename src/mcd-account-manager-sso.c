@@ -1213,16 +1213,13 @@ _delete (const McpAccountStorage *self,
 }
 
 static gboolean
-_commit (const McpAccountStorage *self,
-    const McpAccountManager *am)
+_commit_real (gpointer user_data)
 {
-  GHashTableIter iter;
+  McpAccountStorage *self = MCP_ACCOUNT_STORAGE (user_data);
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (self);
+  GHashTableIter iter;
   gchar *key;
   AgAccount *account;
-
-  if (!sso->save)
-    return TRUE;
 
   /* FIXME: implement commit_one(), and use account_name if it's non-NULL */
 
@@ -1236,8 +1233,33 @@ _commit (const McpAccountStorage *self,
       ag_account_store (account, _ag_account_stored_cb, NULL);
     }
 
+  sso->commit_source = 0;
+
   /* any pending changes should now have been pushed, clear the save-me flag */
   sso->save = FALSE;
+
+  return FALSE;
+}
+
+static gboolean
+_commit (const McpAccountStorage *self,
+    const McpAccountManager *am)
+{
+  McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (self);
+
+  if (!sso->save)
+    return TRUE;
+
+  if (sso->commit_source == 0)
+    {
+      DEBUG ("Deferring commit");
+      sso->commit_source = g_timeout_add_seconds_full (G_PRIORITY_DEFAULT, 2,
+          _commit_real, g_object_ref (sso), g_object_unref);
+    }
+  else
+    {
+      DEBUG ("Already deferred commit");
+    }
 
   return TRUE;
 }

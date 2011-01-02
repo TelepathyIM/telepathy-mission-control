@@ -61,6 +61,7 @@ typedef struct {
   gboolean ready;
   gboolean save;
   gboolean loaded;
+  guint commit_source;
 } _McdAccountManagerSso;
 
 typedef struct {
