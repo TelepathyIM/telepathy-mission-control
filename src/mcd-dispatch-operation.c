@@ -392,6 +392,7 @@ static void
 _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 {
     Approval *approval;
+    guint approver_event_id = 0;
 
     if (!self->priv->invoked_observers_if_needed)
     {
@@ -431,7 +432,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
     {
         self->priv->tried_handlers_before_approval = TRUE;
 
-        g_idle_add_full (G_PRIORITY_HIGH,
+        approver_event_id = g_idle_add_full (G_PRIORITY_HIGH,
                          mcd_dispatch_operation_idle_run_approvers,
                          g_object_ref (self), g_object_unref);
     }
@@ -508,6 +509,12 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
                                         "Channel successfully claimed by %s",
                                         caller);
         g_free (caller);
+
+        if (approver_event_id > 0)
+        {
+            DEBUG ("Cancelling call to approvers as dispatch operation has been Claimed");
+            g_source_remove (approver_event_id);
+        }
 
         return;
     }
