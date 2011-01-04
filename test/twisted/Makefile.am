@@ -41,6 +41,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/create-text.py \
 	dispatcher/created-behind-our-back.py \
 	dispatcher/delay-approvers.py \
+	dispatcher/delay-then-call-handle-with.py \
 	dispatcher/delay-then-dont-call-approvers.py \
 	dispatcher/dispatch-activatable.py \
 	dispatcher/dispatch-before-connected.py \
