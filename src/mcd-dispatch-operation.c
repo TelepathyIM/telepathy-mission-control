@@ -518,6 +518,17 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 
         return;
     }
+    else if (approval != NULL && approval->type == APPROVAL_TYPE_HANDLE_WITH)
+    {
+        /* We set this to TRUE so that the handlers are called. */
+        self->priv->invoked_approvers_if_needed = TRUE;
+
+        if (approver_event_id > 0)
+        {
+            DEBUG ("Cancelling call to approvers as dispatch operation has been HandledWith'd");
+            g_source_remove (approver_event_id);
+        }
+    }
 
     if (self->priv->invoked_approvers_if_needed)
     {
