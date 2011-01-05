@@ -65,12 +65,12 @@ def test(q, bus, mc):
 
     # Alter some miscellaneous r/w properties
 
-    account_props.Set(cs.ACCOUNT, 'DisplayName', 'Work account')
-    account_props.Set(cs.ACCOUNT, 'Icon', 'im-jabber')
-    account_props.Set(cs.ACCOUNT, 'Nickname', 'Joe Bloggs')
     nokia_compat.SetHasBeenOnline()
     account_props.Set(cs.ACCOUNT_IFACE_NOKIA_COMPAT,
         'SecondaryVCardFields', ['x-badger', 'x-mushroom'])
+    account_props.Set(cs.ACCOUNT, 'Icon', 'im-jabber')
+    account_props.Set(cs.ACCOUNT, 'DisplayName', 'Work account')
+    account_props.Set(cs.ACCOUNT, 'Nickname', 'Joe Bloggs')
 
     secret_debug_api = dbus.Interface(bus.get_object(cs.AM, "/"),
         'org.freedesktop.Telepathy.MissionControl5.RegressionTests')

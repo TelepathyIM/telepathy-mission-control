@@ -854,6 +854,7 @@ mcd_account_set_string_val (McdAccount *account, const gchar *key,
         set = NULL;
 
     mcd_storage_set_value (storage, name, key, set, FALSE);
+    mcd_storage_commit (storage, name);
     mcd_account_changed_property (account, key, value);
 
     return SET_RESULT_CHANGED;
