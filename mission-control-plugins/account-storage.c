@@ -586,16 +586,23 @@ mcp_account_storage_commit (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  DEBUG (storage, "");
+  DEBUG (storage, "committing all accounts");
   g_return_val_if_fail (iface != NULL, FALSE);
 
-  if (iface->commit == NULL)
+  if (iface->commit != NULL)
     {
-      DEBUG (storage, "no commit method implemented, cannot save accounts");
+      return iface->commit (storage, am);
+    }
+  else if (iface->commit_one != NULL)
+    {
+      return iface->commit_one (storage, am, NULL);
+    }
+  else
+    {
+      DEBUG (storage,
+          "neither commit nor commit_one is implemented; cannot save accounts");
       return FALSE;
     }
-
-  return iface->commit (storage, am);
 }
 
 /**
@@ -619,16 +626,14 @@ mcp_account_storage_commit_one (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  DEBUG (storage, "");
+  DEBUG (storage, "called for %s", account ? account : "<all accounts>");
   g_return_val_if_fail (iface != NULL, FALSE);
 
-  /* if the plugin doesn't implement commit_one _or_ we weren't asked to  *
-   * save a specific account, try to commit them all: if that can't work, *
-   * give up, as there's nothing else that can be done:                   */
-  if (iface->commit_one == NULL || account == NULL)
+  if (iface->commit_one != NULL)
+    return iface->commit_one (storage, am, account);
+  else
+    /* Fall back to plain ->commit() */
     return mcp_account_storage_commit (storage, am);
-
-  return iface->commit_one (storage, am, account);
 }
 
 /**

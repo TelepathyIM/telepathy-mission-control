@@ -826,10 +826,7 @@ mcd_account_set_string_val (McdAccount *account, const gchar *key,
     McdAccountPrivate *priv = account->priv;
     McdStorage *storage = priv->storage;
     const gchar *name = mcd_account_get_unique_name (account);
-
     const gchar *new_string;
-    gchar *old_string;
-    const GValue *set = value;
 
     if (!G_VALUE_HOLDS_STRING (value))
     {
@@ -839,24 +836,19 @@ mcd_account_set_string_val (McdAccount *account, const gchar *key,
         return SET_RESULT_ERROR;
     }
 
-    old_string = mcd_storage_dup_string (storage, name, key);
     new_string = g_value_get_string (value);
 
-    if (!tp_strdiff (old_string, new_string))
-    {
-        g_free (old_string);
-        return SET_RESULT_UNCHANGED;
+    if (tp_str_empty (new_string)) {
+        new_string = NULL;
     }
 
-    g_free (old_string);
-
-    if (new_string == NULL || *new_string == '\0')
-        set = NULL;
-
-    mcd_storage_set_value (storage, name, key, set, FALSE);
-    mcd_account_changed_property (account, key, value);
-
-    return SET_RESULT_CHANGED;
+    if (mcd_storage_set_string (storage, name, key, new_string, FALSE)) {
+        mcd_storage_commit (storage, name);
+        mcd_account_changed_property (account, key, value);
+        return SET_RESULT_CHANGED;
+    } else {
+        return SET_RESULT_UNCHANGED;
+    }
 }
 
 static void
