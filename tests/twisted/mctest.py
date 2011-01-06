@@ -815,7 +815,7 @@ class SimulatedClient(object):
 def take_fakecm_name(bus):
     return dbus.service.BusName(cs.CM + '.fakecm', bus=bus)
 
-def create_fakecm_account(q, bus, mc, params):
+def create_fakecm_account(q, bus, mc, params, properties={}):
     """Create a fake connection manager and an account that uses it.
     """
     cm_name_ref = take_fakecm_name(bus)
@@ -826,9 +826,7 @@ def create_fakecm_account(q, bus, mc, params):
             'fakecm', # Connection_Manager
             'fakeprotocol', # Protocol
             'fakeaccount', #Display_Name
-            params, # Parameters
-            {}, # Properties
-            )
+            params, properties)
     # The spec has no order guarantee here.
     # FIXME: MC ought to also introspect the CM and find out that the params
     # are in fact sufficient
@@ -849,6 +847,10 @@ def create_fakecm_account(q, bus, mc, params):
 
     # Get the Account interface
     account = Account(bus, account_path)
+
+    for key, value in properties.iteritems():
+        interface, prop = key.rsplit('.', 1)
+        servicetest.assertEquals(value, account.Properties.Get(interface, prop))
 
     # Introspect Account for debugging purpose
     account_introspected = account.Introspect(
