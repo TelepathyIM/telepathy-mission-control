@@ -1,7 +1,31 @@
 telepathy-mission-control 5.7.2 (UNRELEASED)
 ============================================
 
-...
+Dependencies:
+
+• telepathy-glib ≥ 0.13.7 is now required.
+
+Enhancements:
+
+• The functionality from the draft ChannelDispatcher.Interface.Hints and
+  ChannelRequest.Interface.Hints interfaces is now on the main CD and CR
+  interfaces, since it became stable in telepathy-spec 0.21.5. (cassidy)
+
+Changes to unstable API:
+
+• Support for the draft MinimumPresence interface has been removed. (wjt)
+
+Fixes:
+
+• Various bugs in the test suite, some caused by telepathy-glib changes and
+  others which have been lingering for a while, have been fixed. (jonnylamb,
+  wjt)
+
+• Certain account properties, such as Nickname, are now more reliably saved to
+  disk when they are updated. (wjt)
+
+• The 'commit' virtual method for account storage plugins is once again
+  optional, as documented and as was previously the case. (fd.o#32153, wjt)
 
 telepathy-mission-control 5.7.1 (2010-12-06)
 ============================================
