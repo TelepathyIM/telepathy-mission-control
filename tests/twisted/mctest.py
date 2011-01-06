@@ -1034,6 +1034,32 @@ def connect_to_mc(q, bus, mc):
 
     return account_manager, properties, interfaces
 
+def tell_mc_to_die(q, bus):
+    """Instructs the running Mission Control to die via a magic method call in
+    the version built for tests."""
+
+    secret_debug_api = dbus.Interface(bus.get_object(cs.AM, "/"),
+        'org.freedesktop.Telepathy.MissionControl5.RegressionTests')
+    secret_debug_api.Abort()
+
+    # Make sure MC exits
+    q.expect('dbus-signal', signal='NameOwnerChanged',
+        predicate=(lambda e:
+            e.args[0] == 'org.freedesktop.Telepathy.AccountManager' and
+            e.args[2] == ''))
+
+def resuscitate_mc(q, bus, mc):
+    """Having killed MC with tell_mc_to_die(), this function revives it."""
+    bus.get_object(cs.MC, "/")
+
+    # Wait until it's up
+    q.expect('dbus-signal', signal='NameOwnerChanged',
+        predicate=(lambda e:
+            e.args[0] == 'org.freedesktop.Telepathy.AccountManager' and
+            e.args[2] != ''))
+
+    return connect_to_mc(q, bus, mc)
+
 def keyfile_read(fname):
     groups = { None: {} }
     group = None
@@ -1056,3 +1082,9 @@ def keyfile_read(fname):
         groups[group][k] = v
     return groups
 
+def read_account_keyfile():
+    """Reads the keyfile used by the 'diverted' storage plugin used by most of
+    the tests."""
+    key_file_name = os.path.join(os.getenv('XDG_CACHE_HOME'),
+        'mcp-test-diverted-account-plugin.conf')
+    return keyfile_read(key_file_name)

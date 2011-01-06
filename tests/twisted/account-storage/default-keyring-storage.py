@@ -26,8 +26,10 @@ import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
-from mctest import exec_test, create_fakecm_account, get_account_manager, \
-    get_fakecm_account, make_mc, connect_to_mc, keyfile_read
+from mctest import (
+    exec_test, create_fakecm_account, get_fakecm_account, connect_to_mc,
+    keyfile_read, tell_mc_to_die, resuscitate_mc
+    )
 import constants as cs
 
 use_keyring = False
@@ -149,17 +151,7 @@ def test(q, bus, mc):
     account_props.Set(cs.ACCOUNT_IFACE_NOKIA_COMPAT,
         'SecondaryVCardFields', ['x-badger', 'x-mushroom'])
 
-    # Restart MC
-
-    secret_debug_api = dbus.Interface(bus.get_object(cs.AM, "/"),
-        'org.freedesktop.Telepathy.MissionControl5.RegressionTests')
-    secret_debug_api.Abort()
-
-    # Make sure MC exits
-    q.expect('dbus-signal', signal='NameOwnerChanged',
-        predicate=(lambda e:
-            e.args[0] == 'org.freedesktop.Telepathy.AccountManager' and
-            e.args[2] == ''))
+    tell_mc_to_die(q, bus)
 
     # .. let's check the keyfile
     kf = keyfile_read(key_file_name)
@@ -185,18 +177,8 @@ def test(q, bus, mc):
         assert kf[group]['param-password'] == params['password'], kf
 
     # Reactivate MC
-    bus.get_object(cs.MC, "/")
-
-    # Wait until it's up
-    q.expect('dbus-signal', signal='NameOwnerChanged',
-        predicate=(lambda e:
-            e.args[0] == 'org.freedesktop.Telepathy.AccountManager' and
-            e.args[2] != ''))
-
-    mc = make_mc(bus, q.append)
-    account_manager, properties, interfaces = connect_to_mc(q, bus, mc)
+    account_manager, properties, interfaces = resuscitate_mc(q, bus, mc)
     account = get_fakecm_account(bus, mc, account_path)
-
     account_iface = dbus.Interface(account, cs.ACCOUNT)
 
     # Delete the account
