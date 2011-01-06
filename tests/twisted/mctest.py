@@ -817,20 +817,23 @@ def take_fakecm_name(bus):
 
 def create_fakecm_account(q, bus, mc, params, properties={}):
     """Create a fake connection manager and an account that uses it.
-    """
+
+    Optional keyword arguments:
+    properties -- a dictionary from qualified property names to values to pass
+                  to CreateAccount. If provided, this function will check that
+                  the newly-created account has these properties.
+
+    Returns: (a BusName for the fake CM, an Account proxy)"""
+
     cm_name_ref = take_fakecm_name(bus)
     account_manager = AccountManager(bus)
 
-    # Create an account
     servicetest.call_async(q, account_manager, 'CreateAccount',
-            'fakecm', # Connection_Manager
-            'fakeprotocol', # Protocol
-            'fakeaccount', #Display_Name
-            params, properties)
+        'fakecm', 'fakeprotocol', 'fakeaccount', params, properties)
+
     # The spec has no order guarantee here.
     # FIXME: MC ought to also introspect the CM and find out that the params
     # are in fact sufficient
-
     a_signal, am_signal, ret = q.expect_many(
             servicetest.EventPattern('dbus-signal',
                 signal='AccountPropertyChanged', interface=cs.ACCOUNT,
@@ -845,17 +848,11 @@ def create_fakecm_account(q, bus, mc, params, properties={}):
 
     assert account_path is not None
 
-    # Get the Account interface
     account = Account(bus, account_path)
 
     for key, value in properties.iteritems():
         interface, prop = key.rsplit('.', 1)
         servicetest.assertEquals(value, account.Properties.Get(interface, prop))
-
-    # Introspect Account for debugging purpose
-    account_introspected = account.Introspect(
-            dbus_interface=cs.INTROSPECTABLE_IFACE)
-    #print account_introspected
 
     return (cm_name_ref, account)
 
