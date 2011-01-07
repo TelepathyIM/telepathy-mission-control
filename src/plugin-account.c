@@ -35,6 +35,7 @@
 #include "mcd-account-manager-default.h"
 #if ENABLE_LIBACCOUNTS_SSO
 #include "mcd-account-manager-sso.h"
+#include "mcd-storage-ag-hidden.h"
 #endif
 
 static GList *stores = NULL;
@@ -283,10 +284,11 @@ add_storage_plugin (McpAccountStorage *plugin)
 }
 
 static void
-add_libaccount_plugin_if_enabled (void)
+add_libaccounts_plugins_if_enabled (void)
 {
 #if ENABLE_LIBACCOUNTS_SSO
   add_storage_plugin (MCP_ACCOUNT_STORAGE (mcd_account_manager_sso_new ()));
+  add_storage_plugin (MCP_ACCOUNT_STORAGE (mcd_storage_ag_hidden_new ()));
 #endif
 }
 
@@ -301,7 +303,7 @@ sort_and_cache_plugins ()
 
   /* Add compiled-in plugins */
   add_storage_plugin (MCP_ACCOUNT_STORAGE (mcd_account_manager_default_new ()));
-  add_libaccount_plugin_if_enabled ();
+  add_libaccounts_plugins_if_enabled ();
 
   for (p = mcp_list_objects(); p != NULL; p = g_list_next (p))
     {
