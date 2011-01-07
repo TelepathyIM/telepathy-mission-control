@@ -691,19 +691,27 @@ static void _sso_created (GObject *object,
 static void
 mcd_account_manager_sso_init (McdAccountManagerSso *self)
 {
-  DEBUG ("mcd_account_manager_sso_init");
-  self->ag_manager = ag_manager_new_for_service_type (AG_SERVICE);
   self->accounts =
     g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
   self->id_name_map =
     g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, g_free);
-
   self->watches =
     g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL,
         (GDestroyNotify) g_hash_table_unref);
-
   self->pending_signals = g_queue_new ();
 
+}
+
+static void
+mcd_account_manager_sso_constructed (GObject *object)
+{
+  McdAccountManagerSso *self = MCD_ACCOUNT_MANAGER_SSO (object);
+  GObjectClass *parent_class = G_OBJECT_CLASS (mcd_account_manager_sso_parent_class);
+
+  if (parent_class->constructed != NULL)
+    parent_class->constructed (object);
+
+  self->ag_manager = ag_manager_new_for_service_type (AG_SERVICE);
   self->services = ag_manager_list_services (self->ag_manager);
 
   g_signal_connect(self->ag_manager, "account-deleted",
@@ -715,6 +723,9 @@ mcd_account_manager_sso_init (McdAccountManagerSso *self)
 static void
 mcd_account_manager_sso_class_init (McdAccountManagerSsoClass *klass)
 {
+  GObjectClass *object_class = G_OBJECT_CLASS (klass);
+
+  object_class->constructed = mcd_account_manager_sso_constructed;
 }
 
 static void
