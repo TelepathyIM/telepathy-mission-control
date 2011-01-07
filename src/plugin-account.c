@@ -277,12 +277,16 @@ account_storage_cmp (gconstpointer a, gconstpointer b)
 }
 
 static void
+add_storage_plugin (McpAccountStorage *plugin)
+{
+  stores = g_list_insert_sorted (stores, plugin, account_storage_cmp);
+}
+
+static void
 add_libaccount_plugin_if_enabled (void)
 {
 #if ENABLE_LIBACCOUNTS_SSO
-    McdAccountManagerSso *sso_plugin = mcd_account_manager_sso_new ();
-
-    stores = g_list_insert_sorted (stores, sso_plugin, account_storage_cmp);
+  add_storage_plugin (MCP_ACCOUNT_STORAGE (mcd_account_manager_sso_new ()));
 #endif
 }
 
@@ -290,17 +294,13 @@ static void
 sort_and_cache_plugins ()
 {
   const GList *p;
-  McdAccountManagerDefault *default_plugin = NULL;
   static gboolean plugins_cached = FALSE;
 
   /* not guaranteed to have been called, but idempotent: */
   _mcd_plugin_loader_init ();
 
-  /* insert the default storage plugin into the sorted plugin list */
-  default_plugin = mcd_account_manager_default_new ();
-  stores = g_list_insert_sorted (stores, default_plugin, account_storage_cmp);
-
-  /* now poke the pseudo-plugins into the sorted GList of storage plugins */
+  /* Add compiled-in plugins */
+  add_storage_plugin (MCP_ACCOUNT_STORAGE (mcd_account_manager_default_new ()));
   add_libaccount_plugin_if_enabled ();
 
   for (p = mcp_list_objects(); p != NULL; p = g_list_next (p))
@@ -309,7 +309,7 @@ sort_and_cache_plugins ()
         {
           McpAccountStorage *plugin = g_object_ref (p->data);
 
-          stores = g_list_insert_sorted (stores, plugin, account_storage_cmp);
+          add_storage_plugin (plugin);
         }
     }
 
