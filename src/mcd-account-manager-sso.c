@@ -713,9 +713,8 @@ mcd_account_manager_sso_init (McdAccountManagerSso *self)
 }
 
 static void
-mcd_account_manager_sso_class_init (McdAccountManagerSsoClass *cls)
+mcd_account_manager_sso_class_init (McdAccountManagerSsoClass *klass)
 {
-  DEBUG ("mcd_account_manager_sso_class_init");
 }
 
 static void
