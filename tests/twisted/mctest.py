@@ -120,22 +120,22 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
                         (dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE), 'offline',
                             ''))
             except dbus.DBusException, e:
-                print >> sys.stderr, e
+                print >> sys.stderr, "Can't set %s offline: %s" % (a, e)
 
             try:
                 account.Properties.Set(cs.ACCOUNT, 'Enabled', False)
             except dbus.DBusException, e:
-                print >> sys.stderr, e
+                print >> sys.stderr, "Can't disable %s: %s" % (a, e)
 
             try:
                 account.Remove()
             except dbus.DBusException, e:
-                print >> sys.stderr, e
+                print >> sys.stderr, "Can't remove %s: %s" % (a, e)
 
             servicetest.sync_dbus(bus, queue, am)
 
     except dbus.DBusException, e:
-        print >> sys.stderr, e
+        print >> sys.stderr, "Couldn't clean up left-over accounts: %s" % e
 
     except Exception, e:
         import traceback
