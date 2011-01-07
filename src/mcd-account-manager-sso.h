@@ -65,6 +65,18 @@ typedef struct {
 
 typedef struct {
   GObjectClass parent_class;
+
+  /* In the libaccounts model, each account has a number of associated
+   * 'services'; for example, you might have a Google account with Google Talk,
+   * Google Mail, Google Calendar, etc. services. Each service is of a
+   * particular service type; for instance, the service named "google-talk" is
+   * of type "IM".
+   *
+   * Typically we care about the "IM" service type for Telepathy purposes; but
+   * we allow for the possibility of a subclass which cares about some other
+   * service type.
+   */
+  const gchar *service_type;
 } _McdAccountManagerSsoClass;
 
 typedef _McdAccountManagerSso McdAccountManagerSso;

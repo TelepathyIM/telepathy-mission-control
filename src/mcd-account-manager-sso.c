@@ -48,7 +48,6 @@
   "Account storage in the Maemo SSO store via libaccounts-glib API"
 #define PLUGIN_PROVIDER "org.maemo.Telepathy.Account.Storage.LibAccounts"
 
-#define AG_SERVICE "IM"
 #define MCPP "param-"
 #define AGPP "parameters/"
 #define LIBACCT_ID_KEY  "libacct-uid"
@@ -178,14 +177,16 @@ clear_setting_data (Setting *setting)
   setting->ag_name = NULL;
 }
 
-static gboolean _sso_account_enabled (AgAccount *account,
+static gboolean _sso_account_enabled (
+    McdAccountManagerSso *self,
+    AgAccount *account,
     AgService *service);
 
 static void account_storage_iface_init (McpAccountStorageIface *,
     gpointer);
 
 static gchar *
-_ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
+_ag_accountid_to_mc_key (McdAccountManagerSso *sso,
     AgAccountId id,
     gboolean create);
 
@@ -193,7 +194,9 @@ static void _ag_account_stored_cb (AgAccount *acct,
     const GError *err,
     gpointer ignore);
 
-static gboolean save_setting (AgAccount *account,
+static gboolean save_setting (
+    McdAccountManagerSso *self,
+    AgAccount *account,
     const Setting *setting,
     const gchar *val);
 
@@ -241,22 +244,36 @@ _gvalue_to_string (const GValue *val)
     }
 }
 
-static gboolean
-_ag_account_select_default_im_service (AgAccount *account)
+static const gchar *
+account_manager_sso_get_service_type (McdAccountManagerSso *self)
 {
-  gboolean have_im_service = FALSE;
-  GList *first = ag_account_list_services_by_type (account, AG_SERVICE);
+  McdAccountManagerSsoClass *klass = MCD_ACCOUNT_MANAGER_SSO_GET_CLASS (self);
+
+  g_assert (klass->service_type != NULL);
+
+  return klass->service_type;
+}
+
+static gboolean
+_ag_account_select_default_im_service (
+    McdAccountManagerSso *self,
+    AgAccount *account)
+{
+  const gchar *service_type = account_manager_sso_get_service_type (self);
+  gboolean have_service = FALSE;
+  GList *first = ag_account_list_services_by_type (account, service_type);
 
   if (first != NULL && first->data != NULL)
     {
-      have_im_service = TRUE;
-      DEBUG ("default IM service %s", ag_service_get_name (first->data));
+      have_service = TRUE;
+      DEBUG ("default %s service %s", service_type,
+          ag_service_get_name (first->data));
       ag_account_select_service (account, first->data);
     }
 
   ag_service_list_free (first);
 
-  return have_im_service;
+  return have_service;
 }
 
 static AgSettingSource
@@ -282,7 +299,9 @@ _ag_account_global_value (AgAccount *account,
 }
 
 static AgSettingSource
-_ag_account_local_value (AgAccount *account,
+_ag_account_local_value (
+    McdAccountManagerSso *self,
+    AgAccount *account,
     const gchar *key,
     GValue *value)
 {
@@ -295,7 +314,7 @@ _ag_account_local_value (AgAccount *account,
     }
   else
     {
-      _ag_account_select_default_im_service (account);
+      _ag_account_select_default_im_service (self, account);
       src = ag_account_get_value (account, key, value);
       ag_account_select_service (account, NULL);
     }
@@ -305,7 +324,9 @@ _ag_account_local_value (AgAccount *account,
 
 /* AG_ACCOUNT_ALT_KEY from service overrides global AG_ACCOUNT_KEY if set */
 static void
-_maybe_set_account_param_from_service (const McpAccountManager *am,
+_maybe_set_account_param_from_service (
+    McdAccountManagerSso *self,
+    const McpAccountManager *am,
     AgAccount *ag_account,
     const gchar *mc_account)
 {
@@ -317,7 +338,8 @@ _maybe_set_account_param_from_service (const McpAccountManager *am,
 
   g_value_init (&ag_value, G_TYPE_STRING);
 
-  source = _ag_account_local_value (ag_account, AG_ACCOUNT_ALT_KEY, &ag_value);
+  source = _ag_account_local_value (self, ag_account, AG_ACCOUNT_ALT_KEY,
+      &ag_value);
 
   if (source != AG_SETTING_SOURCE_NONE)
     {
@@ -416,7 +438,7 @@ static void _sso_updated (AgAccount * account,
   if (setting->global)
     src = _ag_account_global_value (account, key, &ag_value);
   else
-    src = _ag_account_local_value (account, key, &ag_value);
+    src = _ag_account_local_value (sso, account, key, &ag_value);
 
   if (src != AG_SETTING_SOURCE_NONE)
     ag_string = _gvalue_to_string (&ag_value);
@@ -500,16 +522,20 @@ static void _sso_toggled (GObject *object,
   manager = ag_account_get_manager (account);
   service = ag_manager_get_service (manager, service_name);
 
-  /* non IM services are of no interest to us, we don't handle them */
+  /* Services of types other than IM (or whatever a subclass has told us to
+   * care about instead) don't interest us.
+   */
   if (service != NULL)
     {
       const gchar *service_type = ag_service_get_service_type (service);
+      const gchar *our_service_type =
+          account_manager_sso_get_service_type (sso);
 
-      if (!g_str_equal (service_type, AG_SERVICE))
+      if (tp_strdiff (service_type, our_service_type))
         return;
     }
 
-  on = _sso_account_enabled (account, service);
+  on = _sso_account_enabled (sso, account, service);
   name = g_hash_table_lookup (sso->id_name_map, GUINT_TO_POINTER (id));
 
   if (name != NULL)
@@ -567,7 +593,9 @@ static void _sso_deleted (GObject *object,
 }
 
 /* return TRUE if we actually changed any state, FALSE otherwise */
-static gboolean _sso_account_enable (AgAccount *account,
+static gboolean _sso_account_enable (
+    McdAccountManagerSso *self,
+    AgAccount *account,
     AgService *service,
     gboolean on)
 {
@@ -575,14 +603,14 @@ static gboolean _sso_account_enable (AgAccount *account,
 
   /* the setting account is already in one of the global+service
      configurations that corresponds to our current state: don't touch it */
-  if (_sso_account_enabled (account, service) == on)
+  if (_sso_account_enabled (self, account, service) == on)
     return FALSE;
 
   /* turn the local enabled flag on/off as required */
   if (service != NULL)
     ag_account_select_service (account, service);
   else
-    _ag_account_select_default_im_service (account);
+    _ag_account_select_default_im_service (self, account);
 
   ag_account_set_enabled (account, on);
 
@@ -599,7 +627,9 @@ static gboolean _sso_account_enable (AgAccount *account,
   return TRUE;
 }
 
-static gboolean _sso_account_enabled (AgAccount *account,
+static gboolean _sso_account_enabled (
+    McdAccountManagerSso *self,
+    AgAccount *account,
     AgService *service)
 {
   gboolean local  = FALSE;
@@ -608,7 +638,7 @@ static gboolean _sso_account_enabled (AgAccount *account,
 
   if (service == NULL)
     {
-      _ag_account_select_default_im_service (account);
+      _ag_account_select_default_im_service (self, account);
       local = ag_account_get_enabled (account);
     }
   else
@@ -660,9 +690,9 @@ static void _sso_created (GObject *object,
                   g_hash_table_insert (sso->id_name_map, GUINT_TO_POINTER (id),
                       g_strdup (name));
 
-                  save_setting (account, setting, name);
+                  save_setting (sso, account, setting, name);
 
-                  ag_account_store (account, _ag_account_stored_cb, NULL);
+                  ag_account_store (account, _ag_account_stored_cb, sso);
 
                   g_signal_emit_by_name (mcpa, "created", name);
 
@@ -706,12 +736,15 @@ static void
 mcd_account_manager_sso_constructed (GObject *object)
 {
   McdAccountManagerSso *self = MCD_ACCOUNT_MANAGER_SSO (object);
-  GObjectClass *parent_class = G_OBJECT_CLASS (mcd_account_manager_sso_parent_class);
+  GObjectClass *parent_class =
+      G_OBJECT_CLASS (mcd_account_manager_sso_parent_class);
+  const gchar *service_type = account_manager_sso_get_service_type (self);
 
   if (parent_class->constructed != NULL)
     parent_class->constructed (object);
 
-  self->ag_manager = ag_manager_new_for_service_type (AG_SERVICE);
+  DEBUG ("Watching for services of type '%s'", service_type);
+  self->ag_manager = ag_manager_new_for_service_type (service_type);
   self->services = ag_manager_list_services (self->ag_manager);
 
   g_signal_connect(self->ag_manager, "account-deleted",
@@ -726,18 +759,24 @@ mcd_account_manager_sso_class_init (McdAccountManagerSsoClass *klass)
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
   object_class->constructed = mcd_account_manager_sso_constructed;
+
+  klass->service_type = "IM";
 }
 
 static void
-_ag_account_stored_cb (AgAccount *account, const GError *err, gpointer ignore)
+_ag_account_stored_cb (
+    AgAccount *account,
+    const GError *err,
+    gpointer user_data)
 {
+  McdAccountManagerSso *self = MCD_ACCOUNT_MANAGER_SSO (user_data);
   GValue uid = { 0 };
   const gchar *name = NULL;
   AgSettingSource src = AG_SETTING_SOURCE_NONE;
 
   g_value_init (&uid, G_TYPE_STRING);
 
-  src = _ag_account_local_value (account, MC_IDENTITY_KEY, &uid);
+  src = _ag_account_local_value (self, account, MC_IDENTITY_KEY, &uid);
 
   if (src != AG_SETTING_SOURCE_NONE && G_VALUE_HOLDS_STRING (&uid))
     {
@@ -753,7 +792,7 @@ _ag_account_stored_cb (AgAccount *account, const GError *err, gpointer ignore)
 }
 
 static gchar *
-_ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
+_ag_accountid_to_mc_key (McdAccountManagerSso *sso,
     AgAccountId id,
     gboolean create)
 {
@@ -766,7 +805,7 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
   g_value_init (&value, G_TYPE_STRING);
 
   /* first look for the stored TMC uid */
-  src = _ag_account_local_value (account, MC_IDENTITY_KEY, &value);
+  src = _ag_account_local_value (sso, account, MC_IDENTITY_KEY, &value);
 
   /* if we found something, our work here is done: */
   if (src != AG_SETTING_SOURCE_NONE)
@@ -806,7 +845,7 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
 
       /* if we weren't on a service when got here, pick the most likely one: */
       if (service == NULL)
-        _ag_account_select_default_im_service (account);
+        _ag_account_select_default_im_service (sso, account);
 
       ag_account_get_value (account, MC_CMANAGER_KEY, &cmanager);
       cman = g_value_get_string (&cmanager);
@@ -847,7 +886,7 @@ _ag_accountid_to_mc_key (const McdAccountManagerSso *sso,
       if (service != NULL)
         ag_account_select_service (account, service);
       else
-        _ag_account_select_default_im_service (account);
+        _ag_account_select_default_im_service (sso, account);
 
       ag_account_settings_iter_init (account, &iter, NULL);
       while (ag_account_settings_iter_next (&iter, &k, &v))
@@ -909,7 +948,9 @@ get_ag_account (const McdAccountManagerSso *sso,
 
 /* returns true if it actually changed an account's state */
 static gboolean
-save_setting (AgAccount *account,
+save_setting (
+    McdAccountManagerSso *self,
+    AgAccount *account,
     const Setting *setting,
     const gchar *val)
 {
@@ -922,7 +963,7 @@ save_setting (AgAccount *account,
   if (setting->global)
     ag_account_select_service (account, NULL);
   else if (service == NULL)
-    _ag_account_select_default_im_service (account);
+    _ag_account_select_default_im_service (self, account);
 
   if (setting->readable)
     {
@@ -934,7 +975,7 @@ save_setting (AgAccount *account,
       if (setting->global)
         src = _ag_account_global_value (account, setting->ag_name, &old);
       else
-        src = _ag_account_local_value (account, setting->ag_name, &old);
+        src = _ag_account_local_value (self, account, setting->ag_name, &old);
 
       /* unsetting an already unset value, bail out */
       if (val == NULL && src == AG_SETTING_SOURCE_NONE)
@@ -1011,11 +1052,11 @@ _set (const McpAccountStorage *self,
           gboolean on = g_str_equal (val, "true");
 
           DEBUG ("setting enabled flag: '%d'", on);
-          updated = _sso_account_enable (account, NULL, on);
+          updated = _sso_account_enable (sso, account, NULL, on);
         }
       else
         {
-          updated = save_setting (account, setting, val);
+          updated = save_setting (sso, account, setting, val);
         }
 
       if (updated)
@@ -1049,7 +1090,7 @@ _get (const McpAccountStorage *self,
         {
           const gchar *v = NULL;
 
-          v = _sso_account_enabled (account, service) ? "true" : "false";
+          v = _sso_account_enabled (sso, account, service) ? "true" : "false";
           mcp_account_manager_set_value (am, account_suffix, key, v);
         }
       else if (g_str_equal (key, SERVICES_KEY))
@@ -1076,7 +1117,7 @@ _get (const McpAccountStorage *self,
           const gchar *service_name = NULL;
           AgService *im_service = NULL;
 
-          _ag_account_select_default_im_service (account);
+          _ag_account_select_default_im_service (sso, account);
           im_service = ag_account_get_selected_service (account);
           service_name = ag_service_get_name (im_service);
           mcp_account_manager_set_value (am, account_suffix, key, service_name);
@@ -1095,7 +1136,7 @@ _get (const McpAccountStorage *self,
           if (setting->global)
             src = _ag_account_global_value (account, setting->ag_name, &v);
           else
-            src = _ag_account_local_value (account, setting->ag_name, &v);
+            src = _ag_account_local_value (sso, account, setting->ag_name, &v);
 
           if (src != AG_SETTING_SOURCE_NONE)
             {
@@ -1107,7 +1148,8 @@ _get (const McpAccountStorage *self,
             }
 
           if (g_str_equal (key, MCPP MC_ACCOUNT_KEY))
-            _maybe_set_account_param_from_service (am, account, account_suffix);
+            _maybe_set_account_param_from_service (sso, am, account,
+                account_suffix);
 
           g_value_unset (&v);
           clear_setting_data (setting);
@@ -1123,7 +1165,7 @@ _get (const McpAccountStorage *self,
 
       /* pick the IM service if we haven't got one set */
       if (service == NULL)
-        _ag_account_select_default_im_service (account);
+        _ag_account_select_default_im_service (sso, account);
 
       /* special case, not stored as a normal setting */
       im_service = ag_account_get_selected_service (account);
@@ -1170,10 +1212,10 @@ _get (const McpAccountStorage *self,
         }
 
       /* special case, actually two separate but related flags in SSO */
-      on = _sso_account_enabled (account, NULL) ? "true" : "false";
+      on = _sso_account_enabled (sso, account, NULL) ? "true" : "false";
       mcp_account_manager_set_value (am, account_suffix, MC_ENABLED_KEY, on);
 
-      _maybe_set_account_param_from_service (am, account, account_suffix);
+      _maybe_set_account_param_from_service (sso, am, account, account_suffix);
     }
 
   /* leave the selected service as we found it */
@@ -1211,7 +1253,7 @@ _delete (const McpAccountStorage *self,
       Setting *setting = setting_data (key, SETTING_MC);
 
       if (setting != NULL)
-        updated = save_setting (account, setting, NULL);
+        updated = save_setting (sso, account, setting, NULL);
 
       clear_setting_data (setting);
     }
@@ -1242,8 +1284,8 @@ _commit (const McpAccountStorage *self,
     {
       Setting *setting = setting_data (MC_IDENTITY_KEY, SETTING_MC);
       /* this value ties MC accounts to SSO accounts */
-      save_setting (account, setting, key);
-      ag_account_store (account, _ag_account_stored_cb, NULL);
+      save_setting (sso, account, setting, key);
+      ag_account_store (account, _ag_account_stored_cb, sso);
     }
 
   /* any pending changes should now have been pushed, clear the save-me flag */
@@ -1256,8 +1298,9 @@ static void
 _load_from_libaccounts (McdAccountManagerSso *sso,
     const McpAccountManager *am)
 {
+  GList *ag_ids = ag_manager_list_by_service_type (sso->ag_manager,
+      account_manager_sso_get_service_type (sso));
   GList *ag_id;
-  GList *ag_ids = ag_manager_list_by_service_type (sso->ag_manager, AG_SERVICE);
 
   for (ag_id = ag_ids; ag_id != NULL; ag_id = g_list_next (ag_id))
     {
@@ -1266,7 +1309,6 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
       AgAccountSettingIter iter;
       AgAccountId id = GPOINTER_TO_UINT (ag_id->data);
       AgAccount *account = ag_manager_get_account (sso->ag_manager, id);
-      const gchar *enabled = NULL;
 
       if (account != NULL)
         {
@@ -1278,6 +1320,7 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
               AgService *im_service = NULL;
               gchar *ident = g_strdup_printf ("%u", id);
               GStrv mc_id = g_strsplit (name, "/", 3);
+              gboolean enabled;
 
               /* cache the account object, and the ID->name maping: the  *
                * latter is required because we might receive an async    *
@@ -1289,7 +1332,7 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
                   g_strdup (name));
 
               if (service == NULL)
-                _ag_account_select_default_im_service (account);
+                _ag_account_select_default_im_service (sso, account);
 
               /* special case, not stored as a normal setting */
               im_service = ag_account_get_selected_service (account);
@@ -1338,14 +1381,15 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
                 }
 
               /* special case, actually two separate but related flags in SSO */
-              enabled = _sso_account_enabled (account, NULL) ? "true": "false";
+              enabled = _sso_account_enabled (sso, account, NULL);
 
-              mcp_account_manager_set_value (am, name, MC_ENABLED_KEY, enabled);
+              mcp_account_manager_set_value (am, name, MC_ENABLED_KEY,
+                  enabled ? "true" : "false");
               mcp_account_manager_set_value (am, name, LIBACCT_ID_KEY, ident);
               mcp_account_manager_set_value (am, name, MC_CMANAGER_KEY, mc_id[0]);
               mcp_account_manager_set_value (am, name, MC_PROTOCOL_KEY, mc_id[1]);
               mcp_account_manager_set_value (am, name, MC_IDENTITY_KEY, name);
-              _maybe_set_account_param_from_service (am, account, name);
+              _maybe_set_account_param_from_service (sso, am, account, name);
 
               /* force the services value to be synthesised + cached */
               _get (MCP_ACCOUNT_STORAGE (sso), am, name, SERVICES_KEY);
@@ -1384,7 +1428,8 @@ _list (const McpAccountStorage *self,
   if (!sso->loaded)
     _load_from_libaccounts (sso, am);
 
-  ag_ids = ag_manager_list_by_service_type (sso->ag_manager, AG_SERVICE);
+  ag_ids = ag_manager_list_by_service_type (sso->ag_manager,
+      account_manager_sso_get_service_type (sso));
 
   for (ag_id = ag_ids; ag_id != NULL; ag_id = g_list_next (ag_id))
     {
@@ -1462,7 +1507,8 @@ _find_account (McdAccountManagerSso *sso,
 
   g_return_val_if_fail (account_id != NULL, found);
 
-  ag_ids = ag_manager_list_by_service_type (sso->ag_manager, AG_SERVICE);
+  ag_ids = ag_manager_list_by_service_type (sso->ag_manager,
+      account_manager_sso_get_service_type (sso));
 
   for (ag_id = ag_ids; ag_id != NULL; ag_id = g_list_next (ag_id))
     {
@@ -1532,7 +1578,7 @@ _get_additional_info (const McpAccountStorage *self,
       (GDestroyNotify) g_free, (GDestroyNotify) tp_g_value_slice_free);
 
   if (service == NULL)
-    _ag_account_select_default_im_service (account);
+    _ag_account_select_default_im_service (sso, account);
 
   ag_account_settings_iter_init (account, &iter, NULL);
 
