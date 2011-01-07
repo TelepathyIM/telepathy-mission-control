@@ -37,7 +37,7 @@ G_BEGIN_DECLS
 
 #define MCD_ACCOUNT_MANAGER_SSO_CLASS(k)     \
     (G_TYPE_CHECK_CLASS_CAST((k), MCD_TYPE_ACCOUNT_MANAGER_SSO, \
-        McdAccountManagerClass))
+        McdAccountManagerSsoClass))
 
 #define MCD_IS_ACCOUNT_MANAGER_SSO(o) \
   (G_TYPE_CHECK_INSTANCE_TYPE ((o), MCD_TYPE_ACCOUNT_MANAGER_SSO))
