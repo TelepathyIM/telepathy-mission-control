@@ -1430,7 +1430,7 @@ mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
         gsize n_accounts = 0;
 
         groups = mcd_storage_dup_accounts (storage, &n_accounts);
-        DEBUG ("updating all %" G_GSIZE_FORMAT " accounts)", n_accounts);
+        DEBUG ("updating all %" G_GSIZE_FORMAT " accounts", n_accounts);
 
         mcd_storage_commit (storage, NULL);
 
