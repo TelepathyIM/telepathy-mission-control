@@ -86,4 +86,15 @@ GType mcd_account_manager_sso_get_type (void) G_GNUC_CONST;
 
 McdAccountManagerSso *mcd_account_manager_sso_new (void);
 
+/* FIXME: we shouldn't need to expose this. Subclasses should be able to chain
+ * up to the parent class's implementation of the interface method, but they
+ * can't because McpAccountStorageIface isn't exposed. See
+ * <https://bugs.freedesktop.org//show_bug.cgi?id=32914>.
+ */
+gboolean _mcd_account_manager_sso_get (
+    const McpAccountStorage *self,
+    const McpAccountManager *am,
+    const gchar *account_suffix,
+    const gchar *key);
+
 #endif

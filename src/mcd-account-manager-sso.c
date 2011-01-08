@@ -1223,8 +1223,9 @@ account_manager_sso_get_all (
   _maybe_set_account_param_from_service (sso, am, account, account_suffix);
 }
 
-static gboolean
-_get (const McpAccountStorage *self,
+gboolean
+_mcd_account_manager_sso_get (
+    const McpAccountStorage *self,
     const McpAccountManager *am,
     const gchar *account_suffix,
     const gchar *key)
@@ -1419,7 +1420,8 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
               _maybe_set_account_param_from_service (sso, am, account, name);
 
               /* force the services value to be synthesised + cached */
-              _get (MCP_ACCOUNT_STORAGE (sso), am, name, SERVICES_KEY);
+              _mcd_account_manager_sso_get (MCP_ACCOUNT_STORAGE (sso), am,
+                  name, SERVICES_KEY);
 
               ag_account_select_service (account, service);
 
@@ -1642,7 +1644,8 @@ account_storage_iface_init (McpAccountStorageIface *iface,
   mcp_account_storage_iface_set_priority (iface, PLUGIN_PRIORITY);
   mcp_account_storage_iface_set_provider (iface, PLUGIN_PROVIDER);
 
-  mcp_account_storage_iface_implement_get (iface, _get);
+  mcp_account_storage_iface_implement_get (iface,
+      _mcd_account_manager_sso_get);
   mcp_account_storage_iface_implement_set (iface, _set);
   mcp_account_storage_iface_implement_delete (iface, _delete);
   mcp_account_storage_iface_implement_commit (iface, _commit);
