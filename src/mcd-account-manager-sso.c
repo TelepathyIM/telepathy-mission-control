@@ -745,7 +745,6 @@ mcd_account_manager_sso_constructed (GObject *object)
 
   DEBUG ("Watching for services of type '%s'", service_type);
   self->ag_manager = ag_manager_new_for_service_type (service_type);
-  self->services = ag_manager_list_services (self->ag_manager);
 
   g_signal_connect(self->ag_manager, "account-deleted",
       G_CALLBACK (_sso_deleted), self);
