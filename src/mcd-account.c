@@ -1874,6 +1874,8 @@ mcd_account_check_parameters (McdAccount *account,
     TpConnectionManagerProtocol *protocol;
     const TpConnectionManagerParam *param;
 
+    g_return_if_fail (callback != NULL);
+
     DEBUG ("called for %s", priv->unique_name);
     protocol = _mcd_manager_dup_protocol (priv->manager, priv->protocol_name);
 
@@ -1881,9 +1883,7 @@ mcd_account_check_parameters (McdAccount *account,
     {
         DEBUG ("CM %s doesn't implement protocol %s", priv->manager_name,
             priv->protocol_name);
-        if (callback != NULL)
-            callback (account, FALSE, user_data);
-
+        callback (account, FALSE, user_data);
         return;
     }
 
