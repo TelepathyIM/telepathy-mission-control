@@ -51,6 +51,47 @@ typedef struct _McpAccountStorageIface McpAccountStorageIface;
 
 GType mcp_account_storage_get_type (void) G_GNUC_CONST;
 
+/* Virtual method implementation signatures */
+typedef gboolean (*McpAccountStorageGetFunc) (
+    const McpAccountStorage *storage,
+    const McpAccountManager *am,
+    const gchar *account,
+    const gchar *key);
+typedef gboolean (*McpAccountStorageSetFunc) (
+    const McpAccountStorage *storage,
+    const McpAccountManager *am,
+    const gchar *account,
+    const gchar *key,
+    const gchar *val);
+typedef gboolean (*McpAccountStorageDeleteFunc) (
+    const McpAccountStorage *storage,
+    const McpAccountManager *am,
+    const gchar *account,
+    const gchar *key);
+typedef GList * (*McpAccountStorageListFunc) (
+    const McpAccountStorage *storage,
+    const McpAccountManager *am);
+typedef gboolean (*McpAccountStorageCommitFunc) (
+    const McpAccountStorage *storage,
+    const McpAccountManager *am);
+typedef gboolean (*McpAccountStorageCommitOneFunc) (
+    const McpAccountStorage *storage,
+    const McpAccountManager *am,
+    const gchar *account);
+typedef void (*McpAccountStorageReadyFunc) (
+    const McpAccountStorage *storage,
+    const McpAccountManager *am);
+typedef void (*McpAccountStorageGetIdentifierFunc) (
+    const McpAccountStorage *storage,
+    const gchar *account,
+    GValue *identifier);
+typedef GHashTable * (*McpAccountStorageGetAdditionalInfoFunc) (
+    const McpAccountStorage *storage,
+    const gchar *account);
+typedef guint (*McpAccountStorageGetRestrictionsFunc) (
+    const McpAccountStorage *storage,
+    const gchar *account);
+
 /* virtual methods */
 void
 mcp_account_storage_iface_set_priority (McpAccountStorageIface *iface,
@@ -66,69 +107,29 @@ void mcp_account_storage_iface_set_provider (McpAccountStorageIface *iface,
     const gchar *provider);
 
 void mcp_account_storage_iface_implement_get (McpAccountStorageIface *iface,
-    gboolean (*method) (
-        const McpAccountStorage *,
-        const McpAccountManager *,
-        const gchar *,
-        const gchar *));
-
+    McpAccountStorageGetFunc method);
 void mcp_account_storage_iface_implement_set (McpAccountStorageIface *iface,
-    gboolean (*method) (
-        const McpAccountStorage *,
-        const McpAccountManager *,
-        const gchar *,
-        const gchar *,
-        const gchar *));
-
+    McpAccountStorageSetFunc method);
 void mcp_account_storage_iface_implement_delete (McpAccountStorageIface *iface,
-    gboolean (*method) (
-        const McpAccountStorage *,
-        const McpAccountManager *,
-        const gchar *,
-        const gchar *));
-
+    McpAccountStorageDeleteFunc method);
 void mcp_account_storage_iface_implement_list (McpAccountStorageIface *iface,
-    GList * (*method) (
-        const McpAccountStorage *,
-        const McpAccountManager *));
-
-void
-mcp_account_storage_iface_implement_commit (McpAccountStorageIface *iface,
-    gboolean (*method) (
-        const McpAccountStorage *,
-        const McpAccountManager *));
-
-void
-mcp_account_storage_iface_implement_commit_one (McpAccountStorageIface *iface,
-    gboolean (*method) (
-        const McpAccountStorage *,
-        const McpAccountManager *,
-        const gchar *));
-
-void
-mcp_account_storage_iface_implement_ready (McpAccountStorageIface *iface,
-    void (*method) (
-        const McpAccountStorage *storage,
-        const McpAccountManager *am));
-
+    McpAccountStorageListFunc method);
+void mcp_account_storage_iface_implement_commit (McpAccountStorageIface *iface,
+    McpAccountStorageCommitFunc method);
+void mcp_account_storage_iface_implement_commit_one (
+    McpAccountStorageIface *iface,
+    McpAccountStorageCommitOneFunc method);
+void mcp_account_storage_iface_implement_ready (McpAccountStorageIface *iface,
+    McpAccountStorageReadyFunc method);
 void mcp_account_storage_iface_implement_get_identifier (
     McpAccountStorageIface *iface,
-    void (*method) (
-        const McpAccountStorage *,
-        const gchar *,
-        GValue *));
-
+    McpAccountStorageGetIdentifierFunc method);
 void mcp_account_storage_iface_implement_get_additional_info (
     McpAccountStorageIface *iface,
-    GHashTable *(*method) (
-        const McpAccountStorage *,
-        const gchar *));
-
+    McpAccountStorageGetAdditionalInfoFunc method);
 void mcp_account_storage_iface_implement_get_restrictions (
     McpAccountStorageIface *iface,
-    guint (*method) (
-        const McpAccountStorage *,
-        const gchar *));
+    McpAccountStorageGetRestrictionsFunc method);
 
 gint mcp_account_storage_priority (const McpAccountStorage *storage);
 
