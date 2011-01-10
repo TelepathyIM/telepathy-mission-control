@@ -92,9 +92,8 @@ typedef guint (*McpAccountStorageGetRestrictionsFunc) (
     const McpAccountStorage *storage,
     const gchar *account);
 
-/* virtual methods */
-void
-mcp_account_storage_iface_set_priority (McpAccountStorageIface *iface,
+/* functions with which to fill in the vtable */
+void mcp_account_storage_iface_set_priority (McpAccountStorageIface *iface,
     guint prio);
 
 void mcp_account_storage_iface_set_name (McpAccountStorageIface *iface,
@@ -131,6 +130,7 @@ void mcp_account_storage_iface_implement_get_restrictions (
     McpAccountStorageIface *iface,
     McpAccountStorageGetRestrictionsFunc method);
 
+/* virtual methods */
 gint mcp_account_storage_priority (const McpAccountStorage *storage);
 
 gboolean mcp_account_storage_get (const McpAccountStorage *storage,
