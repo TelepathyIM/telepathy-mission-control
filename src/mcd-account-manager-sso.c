@@ -817,7 +817,7 @@ _ag_accountid_to_mc_key (McdAccountManagerSso *sso,
   if (!create)
     return NULL;
 
-  DEBUG ("no " MC_IDENTITY_KEY " found, synthesising one:\n");
+  DEBUG ("no " MC_IDENTITY_KEY " found, synthesising one:");
 
   src = _ag_account_global_value (account, AG_ACCOUNT_KEY, &value);
 
@@ -1468,14 +1468,14 @@ _list (const McpAccountStorage *self,
 
       if (name != NULL)
         {
-          DEBUG ("\naccount %s listed", name);
+          DEBUG ("account %s listed", name);
           rval = g_list_prepend (rval, name);
         }
       else
         {
           DelayedSignalData *data = g_slice_new0 (DelayedSignalData);
 
-          DEBUG ("\naccount %u delayed", id);
+          DEBUG ("account %u delayed", id);
           data->signal = DELAYED_CREATE;
           data->account_id = id;
           g_queue_push_tail (sso->pending_signals, data);
