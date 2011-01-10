@@ -1879,6 +1879,8 @@ mcd_account_check_parameters (McdAccount *account,
 
     if (protocol == NULL)
     {
+        DEBUG ("CM %s doesn't implement protocol %s", priv->manager_name,
+            priv->protocol_name);
         if (callback != NULL)
             callback (account, FALSE, user_data);
 
@@ -1892,6 +1894,7 @@ mcd_account_check_parameters (McdAccount *account,
 
         if (!mcd_account_get_parameter (account, param->name, NULL, NULL))
         {
+            DEBUG ("missing required parameter %s", param->name);
             callback (account, FALSE, user_data);
             goto out;
         }
