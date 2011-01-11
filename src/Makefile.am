@@ -40,8 +40,13 @@ mc_headers = \
 if ENABLE_LIBACCOUNTS_SSO
 mc_headers += \
 	mcd-account-manager-sso.h \
+	$(NULL)
+
+if ENABLE_LIBACCOUNTS_GLIB_HIDDEN
+mc_headers += \
 	mcd-storage-ag-hidden.h \
 	$(NULL)
+endif
 
 endif
 
@@ -215,8 +220,14 @@ libmcd_convenience_la_SOURCES = \
 if ENABLE_LIBACCOUNTS_SSO
 libmcd_convenience_la_SOURCES += \
 	mcd-account-manager-sso.c \
+	$(NULL)
+
+if ENABLE_LIBACCOUNTS_GLIB_HIDDEN
+libmcd_convenience_la_SOURCES += \
 	mcd-storage-ag-hidden.c \
 	$(NULL)
+endif
+
 endif
 
 %-signals-marshal.h: %-signals-marshal.list Makefile

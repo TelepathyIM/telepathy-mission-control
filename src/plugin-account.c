@@ -33,9 +33,12 @@
 
 /* these pseudo-plugins take care of the actual account storage/retrieval */
 #include "mcd-account-manager-default.h"
+
 #if ENABLE_LIBACCOUNTS_SSO
 #include "mcd-account-manager-sso.h"
-#include "mcd-storage-ag-hidden.h"
+# ifdef ACCOUNTS_GLIB_HIDDEN_SERVICE_TYPE
+# include "mcd-storage-ag-hidden.h"
+# endif
 #endif
 
 static GList *stores = NULL;
@@ -288,7 +291,9 @@ add_libaccounts_plugins_if_enabled (void)
 {
 #if ENABLE_LIBACCOUNTS_SSO
   add_storage_plugin (MCP_ACCOUNT_STORAGE (mcd_account_manager_sso_new ()));
+# ifdef ACCOUNTS_GLIB_HIDDEN_SERVICE_TYPE
   add_storage_plugin (MCP_ACCOUNT_STORAGE (mcd_storage_ag_hidden_new ()));
+# endif
 #endif
 }
 

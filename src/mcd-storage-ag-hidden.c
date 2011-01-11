@@ -23,6 +23,7 @@
 
 #include <telepathy-glib/util.h>
 
+#include "config.h"
 #include "mcd-debug.h"
 /* FIXME: if we weren't in-tree, we wouldn't be able to include this header and
  * we'd have to re-hardcode magic strings like "Hidden".
@@ -49,7 +50,7 @@ mcd_storage_ag_hidden_class_init (McdStorageAgHiddenClass *klass)
 {
   McdAccountManagerSsoClass *super = MCD_ACCOUNT_MANAGER_SSO_CLASS (klass);
 
-  super->service_type = "HiddenIM";
+  super->service_type = ACCOUNTS_GLIB_HIDDEN_SERVICE_TYPE;
 }
 
 static gboolean
