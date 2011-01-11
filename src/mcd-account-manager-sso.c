@@ -72,6 +72,8 @@
 
 #define MC_SERVICE_KEY  "Service"
 
+#define AG_ACCOUNT_WRITE_INTERVAL 5
+
 static const gchar *exported_settings[] = { "CredentialsId", NULL };
 
 typedef enum {
@@ -1255,8 +1257,9 @@ _commit (const McpAccountStorage *self,
 
   if (sso->commit_source == 0)
     {
-      DEBUG ("Deferring commit");
-      sso->commit_source = g_timeout_add_seconds_full (G_PRIORITY_DEFAULT, 2,
+      DEBUG ("Deferring commit for %d seconds", AG_ACCOUNT_WRITE_INTERVAL);
+      sso->commit_source = g_timeout_add_seconds_full (G_PRIORITY_DEFAULT,
+          AG_ACCOUNT_WRITE_INTERVAL,
           _commit_real, g_object_ref (sso), g_object_unref);
     }
   else
