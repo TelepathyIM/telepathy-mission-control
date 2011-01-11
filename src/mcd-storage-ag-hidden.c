@@ -82,6 +82,11 @@ account_storage_iface_init (
     McpAccountStorageIface *iface,
     gpointer unused G_GNUC_UNUSED)
 {
+  mcp_account_storage_iface_set_name (iface,
+      "maemo-libaccounts-hidden");
+  mcp_account_storage_iface_set_desc (iface,
+      "Loads accounts with service type '" ACCOUNTS_GLIB_HIDDEN_SERVICE_TYPE
+      "' from accounts-glib, and marks them as Hidden");
   mcp_account_storage_iface_implement_get (iface,
       _mcd_storage_ag_hidden_get);
 }
