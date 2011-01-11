@@ -28,20 +28,6 @@
 #include <string.h>
 #include <ctype.h>
 
-/* IMPORTANT IMPLEMENTATION NOTE:
- *
- * Note for implementors: save_param is for saving account parameters (in MC
- * terms) - anything that ends up stored as "param-" in the standard gkeyfile
- * save_value is for everything else.
- *
- * Whether such a value is stored in the global section of an SSO account or
- * in the IM specific section is orthogonal to the above, and in the mapping
- * is not necessarily from MC "name" to SSO "name", or from MC "param-name"
- * to SSO "parameters/name" - so be careful when making such decisions.
- *
- * The existing mappings have been arrived at empirically.
- */
-
 #define PLUGIN_PRIORITY (MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_KEYRING + 10)
 #define PLUGIN_NAME "maemo-libaccounts"
 #define PLUGIN_DESCRIPTION \
@@ -102,6 +88,21 @@ typedef enum {
   SETTING_AG,
 } SettingType;
 
+/* IMPORTANT IMPLEMENTATION NOTE:
+ *
+ * The mapping between telepathy settings and parameter names
+ * and ag account (libaccounts) settings, and whether those settings
+ * are stored in the global or service specific ag section is a
+ * finicky beast - the mapping below has been arrived at empirically
+ * Take care when altering it.
+ *
+ * Settings not mentioned explicitly are:
+ * • given the same name on both MC and AG sides
+ * • assigned to the service specific section
+ * • automatically prefixed (param- vs parameters/) for each side if necessary
+ *
+ * So if your setting fits these criteria, you do not need to add it at all.
+ */
 Setting setting_map[] = {
   { MC_ENABLED_KEY     , AG_ENABLED_KEY , GLOBAL , UNREADABLE, UNWRITABLE },
   { MCPP MC_ACCOUNT_KEY, AG_ACCOUNT_KEY , GLOBAL , READABLE  , UNWRITABLE },
