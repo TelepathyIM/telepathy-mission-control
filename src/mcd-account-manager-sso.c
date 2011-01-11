@@ -1221,10 +1221,13 @@ _commit_real (gpointer user_data)
   gchar *key;
   AgAccount *account;
 
-  /* FIXME: implement commit_one(), and use account_name if it's non-NULL */
-
   g_hash_table_iter_init (&iter, sso->accounts);
 
+  /* for each account, set its telepathy uid MC_IDENTITY_KEY in the  *
+   * AgAccount structure, and then flush any changes to said account *
+   * to long term storage with ag_account_store()                    *
+   * The actual changes are those pushed into the AgAccount in _set  *
+   * and _delete                                                     */
   while (g_hash_table_iter_next (&iter, (gpointer) &key, (gpointer) &account))
     {
       Setting *setting = setting_data (MC_IDENTITY_KEY, SETTING_MC);
