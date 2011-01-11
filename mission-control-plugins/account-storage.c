@@ -104,28 +104,6 @@ enum
 
 static guint signals[NO_SIGNAL] = { 0 };
 
-struct _McpAccountStorageIface
-{
-  GTypeInterface parent;
-
-  gint priority;
-  const gchar *name;
-  const gchar *desc;
-  const gchar *provider;
-
-  McpAccountStorageSetFunc set;
-  McpAccountStorageGetFunc get;
-  McpAccountStorageDeleteFunc delete;
-  McpAccountStorageCommitFunc commit;
-  McpAccountStorageListFunc list;
-  McpAccountStorageReadyFunc ready;
-  McpAccountStorageCommitOneFunc commit_one;
-  McpAccountStorageGetIdentifierFunc get_identifier;
-  McpAccountStorageGetAdditionalInfoFunc get_additional_info;
-  /* FIXME: when breaking API, make this return TpStorageRestrictionFlags */
-  McpAccountStorageGetRestrictionsFunc get_restrictions;
-};
-
 static void
 class_init (gpointer klass,
     gpointer data)

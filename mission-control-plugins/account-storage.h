@@ -88,9 +88,31 @@ typedef void (*McpAccountStorageGetIdentifierFunc) (
 typedef GHashTable * (*McpAccountStorageGetAdditionalInfoFunc) (
     const McpAccountStorage *storage,
     const gchar *account);
+/* FIXME: when breaking API, make this return TpStorageRestrictionFlags */
 typedef guint (*McpAccountStorageGetRestrictionsFunc) (
     const McpAccountStorage *storage,
     const gchar *account);
+
+struct _McpAccountStorageIface
+{
+  GTypeInterface parent;
+
+  gint priority;
+  const gchar *name;
+  const gchar *desc;
+  const gchar *provider;
+
+  McpAccountStorageSetFunc set;
+  McpAccountStorageGetFunc get;
+  McpAccountStorageDeleteFunc delete;
+  McpAccountStorageCommitFunc commit;
+  McpAccountStorageListFunc list;
+  McpAccountStorageReadyFunc ready;
+  McpAccountStorageCommitOneFunc commit_one;
+  McpAccountStorageGetIdentifierFunc get_identifier;
+  McpAccountStorageGetAdditionalInfoFunc get_additional_info;
+  McpAccountStorageGetRestrictionsFunc get_restrictions;
+};
 
 /* functions with which to fill in the vtable */
 void mcp_account_storage_iface_set_priority (McpAccountStorageIface *iface,
