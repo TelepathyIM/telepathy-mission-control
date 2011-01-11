@@ -655,6 +655,7 @@ command_show (TpAccount *account)
     show ("Connects",
 	  tp_account_get_connect_automatically (account) ? "automatically" : NULL);
     show ("Nickname", tp_account_get_nickname (account));
+    show ("Service", tp_account_get_service (account));
 
     automatic.type = account_get_automatic_presence (account,
                                                      &automatic.status,
