@@ -120,22 +120,22 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
                         (dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE), 'offline',
                             ''))
             except dbus.DBusException, e:
-                print >> sys.stderr, e
+                print >> sys.stderr, "Can't set %s offline: %s" % (a, e)
 
             try:
                 account.Properties.Set(cs.ACCOUNT, 'Enabled', False)
             except dbus.DBusException, e:
-                print >> sys.stderr, e
+                print >> sys.stderr, "Can't disable %s: %s" % (a, e)
 
             try:
                 account.Remove()
             except dbus.DBusException, e:
-                print >> sys.stderr, e
+                print >> sys.stderr, "Can't remove %s: %s" % (a, e)
 
             servicetest.sync_dbus(bus, queue, am)
 
     except dbus.DBusException, e:
-        print >> sys.stderr, e
+        print >> sys.stderr, "Couldn't clean up left-over accounts: %s" % e
 
     except Exception, e:
         import traceback
@@ -815,30 +815,41 @@ class SimulatedClient(object):
 def take_fakecm_name(bus):
     return dbus.service.BusName(cs.CM + '.fakecm', bus=bus)
 
-def create_fakecm_account(q, bus, mc, params):
+def create_fakecm_account(q, bus, mc, params, properties={}):
     """Create a fake connection manager and an account that uses it.
-    """
+
+    Optional keyword arguments:
+    properties -- a dictionary from qualified property names to values to pass
+                  to CreateAccount. If provided, this function will check that
+                  the newly-created account has these properties.
+
+    Returns: (a BusName for the fake CM, an Account proxy)"""
+
     cm_name_ref = take_fakecm_name(bus)
     account_manager = AccountManager(bus)
 
-    # Create an account
     servicetest.call_async(q, account_manager, 'CreateAccount',
-            'fakecm', # Connection_Manager
-            'fakeprotocol', # Protocol
-            'fakeaccount', #Display_Name
-            params, # Parameters
-            {}, # Properties
-            )
+        'fakecm', 'fakeprotocol', 'fakeaccount', params, properties)
+
+    # Check whether the account being created is to be hidden; if so, then
+    # expect a different signal. It annoys me that this has to be in here, but,
+    # eh.
+    if properties.get(cs.ACCOUNT_IFACE_HIDDEN + '.Hidden', False):
+        validity_changed_pattern = servicetest.EventPattern('dbus-signal',
+            path=cs.AM_PATH, signal='HiddenAccountValidityChanged',
+            interface=cs.AM_IFACE_HIDDEN)
+    else:
+        validity_changed_pattern = servicetest.EventPattern('dbus-signal',
+            path=cs.AM_PATH, signal='AccountValidityChanged', interface=cs.AM)
+
     # The spec has no order guarantee here.
     # FIXME: MC ought to also introspect the CM and find out that the params
     # are in fact sufficient
-
     a_signal, am_signal, ret = q.expect_many(
             servicetest.EventPattern('dbus-signal',
                 signal='AccountPropertyChanged', interface=cs.ACCOUNT,
                 predicate=(lambda e: 'Valid' in e.args[0])),
-            servicetest.EventPattern('dbus-signal', path=cs.AM_PATH,
-                signal='AccountValidityChanged', interface=cs.AM),
+            validity_changed_pattern,
             servicetest.EventPattern('dbus-return', method='CreateAccount'),
             )
     account_path = ret.value[0]
@@ -847,13 +858,11 @@ def create_fakecm_account(q, bus, mc, params):
 
     assert account_path is not None
 
-    # Get the Account interface
     account = Account(bus, account_path)
 
-    # Introspect Account for debugging purpose
-    account_introspected = account.Introspect(
-            dbus_interface=cs.INTROSPECTABLE_IFACE)
-    #print account_introspected
+    for key, value in properties.iteritems():
+        interface, prop = key.rsplit('.', 1)
+        servicetest.assertEquals(value, account.Properties.Get(interface, prop))
 
     return (cm_name_ref, account)
 
@@ -1015,7 +1024,7 @@ class Account(servicetest.ProxyWrapper):
     def __init__(self, bus, account_path):
         servicetest.ProxyWrapper.__init__(self,
             bus.get_object(cs.AM, account_path),
-            cs.ACCOUNT, {})
+            cs.ACCOUNT, {'Compat': cs.ACCOUNT_IFACE_NOKIA_COMPAT})
 
 def connect_to_mc(q, bus, mc):
     account_manager = AccountManager(bus)
@@ -1034,6 +1043,32 @@ def connect_to_mc(q, bus, mc):
     assert cs.AM_IFACE_NOKIA_QUERY in interfaces, interfaces
 
     return account_manager, properties, interfaces
+
+def tell_mc_to_die(q, bus):
+    """Instructs the running Mission Control to die via a magic method call in
+    the version built for tests."""
+
+    secret_debug_api = dbus.Interface(bus.get_object(cs.AM, "/"),
+        'org.freedesktop.Telepathy.MissionControl5.RegressionTests')
+    secret_debug_api.Abort()
+
+    # Make sure MC exits
+    q.expect('dbus-signal', signal='NameOwnerChanged',
+        predicate=(lambda e:
+            e.args[0] == 'org.freedesktop.Telepathy.AccountManager' and
+            e.args[2] == ''))
+
+def resuscitate_mc(q, bus, mc):
+    """Having killed MC with tell_mc_to_die(), this function revives it."""
+    bus.get_object(cs.MC, "/")
+
+    # Wait until it's up
+    q.expect('dbus-signal', signal='NameOwnerChanged',
+        predicate=(lambda e:
+            e.args[0] == 'org.freedesktop.Telepathy.AccountManager' and
+            e.args[2] != ''))
+
+    return connect_to_mc(q, bus, mc)
 
 def keyfile_read(fname):
     groups = { None: {} }
@@ -1057,3 +1092,9 @@ def keyfile_read(fname):
         groups[group][k] = v
     return groups
 
+def read_account_keyfile():
+    """Reads the keyfile used by the 'diverted' storage plugin used by most of
+    the tests."""
+    key_file_name = os.path.join(os.getenv('XDG_CACHE_HOME'),
+        'mcp-test-diverted-account-plugin.conf')
+    return keyfile_read(key_file_name)

@@ -26,15 +26,15 @@ import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
-from mctest import exec_test, create_fakecm_account, get_account_manager, \
-    get_fakecm_account, make_mc, connect_to_mc, keyfile_read
+from mctest import (
+    exec_test, create_fakecm_account, get_fakecm_account, connect_to_mc,
+    keyfile_read, read_account_keyfile, tell_mc_to_die, resuscitate_mc,
+    )
 import constants as cs
 
 def test(q, bus, mc):
     empty_key_file_name = os.path.join(os.environ['MC_ACCOUNT_DIR'], 'accounts.cfg')
 
-    key_file_name = os.path.join(os.getenv('XDG_CACHE_HOME'),
-        'mcp-test-diverted-account-plugin.conf')
     group = 'fakecm/fakeprotocol/someguy_40example_2ecom0'
 
     account_manager, properties, interfaces = connect_to_mc(q, bus, mc)
@@ -72,18 +72,10 @@ def test(q, bus, mc):
     account_props.Set(cs.ACCOUNT, 'DisplayName', 'Work account')
     account_props.Set(cs.ACCOUNT, 'Nickname', 'Joe Bloggs')
 
-    secret_debug_api = dbus.Interface(bus.get_object(cs.AM, "/"),
-        'org.freedesktop.Telepathy.MissionControl5.RegressionTests')
-    secret_debug_api.Abort()
-
-    # Make sure MC exits
-    q.expect('dbus-signal', signal='NameOwnerChanged',
-        predicate=(lambda e:
-            e.args[0] == 'org.freedesktop.Telepathy.AccountManager' and
-            e.args[2] == ''))
+    tell_mc_to_die(q, bus)
 
     # .. let's check the diverted keyfile
-    kf = keyfile_read(key_file_name)
+    kf = read_account_keyfile()
     assert group in kf, kf
     assert kf[group]['manager'] == 'fakecm'
     assert kf[group]['protocol'] == 'fakeprotocol'
@@ -100,18 +92,8 @@ def test(q, bus, mc):
     assert ekf == { None: {} }, ekf
 
     # Reactivate MC
-    bus.get_object(cs.MC, "/")
-
-    # Wait until it's up
-    q.expect('dbus-signal', signal='NameOwnerChanged',
-        predicate=(lambda e:
-            e.args[0] == 'org.freedesktop.Telepathy.AccountManager' and
-            e.args[2] != ''))
-
-    mc = make_mc(bus, q.append)
-    account_manager, properties, interfaces = connect_to_mc(q, bus, mc)
+    account_manager, properties, interfaces = resuscitate_mc(q, bus, mc)
     account = get_fakecm_account(bus, mc, account_path)
-
     account_iface = dbus.Interface(account, cs.ACCOUNT)
 
     # Delete the account
@@ -132,7 +114,7 @@ def test(q, bus, mc):
         )
 
     # Check the account is correctly deleted
-    kf = keyfile_read(key_file_name)
+    kf = read_account_keyfile()
     assert group not in kf, kf
 
 if __name__ == '__main__':

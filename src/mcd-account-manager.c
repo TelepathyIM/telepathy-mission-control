@@ -68,12 +68,16 @@
 
 static void account_manager_iface_init (TpSvcAccountManagerClass *iface,
 					gpointer iface_data);
+static void account_manager_hidden_iface_init (
+    McSvcAccountManagerInterfaceHiddenClass *iface,
+    gpointer iface_data);
 static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
 				   gpointer iface_data);
 
 static void _mcd_account_manager_constructed (GObject *obj);
 
 static const McdDBusProp account_manager_properties[];
+static const McdDBusProp account_manager_hidden_properties[];
 
 static const McdInterfaceData account_manager_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_account_manager_get_type,
@@ -82,6 +86,9 @@ static const McdInterfaceData account_manager_interfaces[] = {
     MCD_IMPLEMENT_IFACE (mc_svc_account_manager_interface_query_get_type,
 			 account_manager_query,
 			 MC_IFACE_ACCOUNT_MANAGER_INTERFACE_QUERY),
+    MCD_IMPLEMENT_IFACE (mc_svc_account_manager_interface_hidden_get_type,
+			 account_manager_hidden,
+			 MC_IFACE_ACCOUNT_MANAGER_INTERFACE_HIDDEN),
     { G_TYPE_INVALID, }
 };
 
@@ -608,9 +615,18 @@ on_account_validity_changed (McdAccount *account, gboolean valid,
     const gchar *object_path;
 
     object_path = mcd_account_get_object_path (account);
-    tp_svc_account_manager_emit_account_validity_changed (account_manager,
-							  object_path,
-							  valid);
+
+    if (_mcd_account_is_hidden (account))
+    {
+        mc_svc_account_manager_interface_hidden_emit_hidden_account_validity_changed (
+            account_manager, object_path, valid);
+    }
+    else
+    {
+        tp_svc_account_manager_emit_account_validity_changed (account_manager,
+                                                              object_path,
+                                                              valid);
+    }
 }
 
 static void
@@ -621,7 +637,17 @@ on_account_removed (McdAccount *account, McdAccountManager *account_manager)
     const gchar *name, *object_path;
 
     object_path = mcd_account_get_object_path (account);
-    tp_svc_account_manager_emit_account_removed (account_manager, object_path);
+
+    if (_mcd_account_is_hidden (account))
+    {
+        mc_svc_account_manager_interface_hidden_emit_hidden_account_removed (
+            account_manager, object_path);
+    }
+    else
+    {
+        tp_svc_account_manager_emit_account_removed (account_manager,
+                                                     object_path);
+    }
 
     name = mcd_account_get_unique_name (account);
     g_hash_table_remove (priv->accounts, name);
@@ -944,7 +970,15 @@ account_manager_iface_init (TpSvcAccountManagerClass *iface,
 }
 
 static void
-accounts_to_gvalue (GHashTable *accounts, gboolean valid, GValue *value)
+account_manager_hidden_iface_init (
+    McSvcAccountManagerInterfaceHiddenClass *iface,
+    gpointer iface_data)
+{
+}
+
+static void
+accounts_to_gvalue (GHashTable *accounts, gboolean valid, gboolean hidden,
+                    GValue *value)
 {
     static GType ao_type = G_TYPE_INVALID;
     GPtrArray *account_array;
@@ -962,9 +996,12 @@ accounts_to_gvalue (GHashTable *accounts, gboolean valid, GValue *value)
 
     while (g_hash_table_iter_next (&iter, &k, (gpointer)&account))
     {
-        if (mcd_account_is_valid (account) == valid)
+        if (mcd_account_is_valid (account) == valid &&
+            _mcd_account_is_hidden (account) == hidden)
+        {
             g_ptr_array_add (account_array,
                              g_strdup (mcd_account_get_object_path (account)));
+        }
     }
 
     g_value_init (value, ao_type);
@@ -979,7 +1016,7 @@ get_valid_accounts (TpSvcDBusProperties *self, const gchar *name,
     McdAccountManagerPrivate *priv = account_manager->priv;
 
     DEBUG ("called");
-    accounts_to_gvalue (priv->accounts, TRUE, value);
+    accounts_to_gvalue (priv->accounts, TRUE, FALSE, value);
 }
 
 static void
@@ -990,7 +1027,7 @@ get_invalid_accounts (TpSvcDBusProperties *self, const gchar *name,
     McdAccountManagerPrivate *priv = account_manager->priv;
 
     DEBUG ("called");
-    accounts_to_gvalue (priv->accounts, FALSE, value);
+    accounts_to_gvalue (priv->accounts, FALSE, FALSE, value);
 }
 
 static void
@@ -1021,6 +1058,32 @@ static const McdDBusProp account_manager_properties[] = {
     { "InvalidAccounts", NULL, get_invalid_accounts },
     { "Interfaces", NULL, mcd_dbus_get_interfaces },
     { "SupportedAccountProperties", NULL, get_supported_account_properties },
+    { 0 },
+};
+
+static void
+get_valid_hidden_accounts (TpSvcDBusProperties *self, const gchar *name,
+                           GValue *value)
+{
+    McdAccountManager *account_manager = MCD_ACCOUNT_MANAGER (self);
+    McdAccountManagerPrivate *priv = account_manager->priv;
+
+    accounts_to_gvalue (priv->accounts, TRUE, TRUE, value);
+}
+
+static void
+get_invalid_hidden_accounts (TpSvcDBusProperties *self, const gchar *name,
+                             GValue *value)
+{
+    McdAccountManager *account_manager = MCD_ACCOUNT_MANAGER (self);
+    McdAccountManagerPrivate *priv = account_manager->priv;
+
+    accounts_to_gvalue (priv->accounts, FALSE, TRUE, value);
+}
+
+static const McdDBusProp account_manager_hidden_properties[] = {
+    { "ValidHiddenAccounts", NULL, get_valid_hidden_accounts },
+    { "InvalidHiddenAccounts", NULL, get_invalid_hidden_accounts },
     { 0 },
 };
 
@@ -1430,7 +1493,7 @@ mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
         gsize n_accounts = 0;
 
         groups = mcd_storage_dup_accounts (storage, &n_accounts);
-        DEBUG ("updating all %" G_GSIZE_FORMAT " accounts)", n_accounts);
+        DEBUG ("updating all %" G_GSIZE_FORMAT " accounts", n_accounts);
 
         mcd_storage_commit (storage, NULL);
 

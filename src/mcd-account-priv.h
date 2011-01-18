@@ -39,6 +39,7 @@
 #include "_gen/svc-Account_Interface_ChannelRequests.h"
 #include "_gen/svc-Account_Interface_Compat.h"
 #include "_gen/svc-Account_Interface_Conditions.h"
+#include "_gen/svc-Account_Interface_Hidden.h"
 #include "_gen/svc-Account_Interface_Stats.h"
 
 G_GNUC_INTERNAL void _mcd_account_maybe_autoconnect (McdAccount *account);
@@ -202,5 +203,7 @@ G_GNUC_INTERNAL void _mcd_account_get_requested_presence (McdAccount *account,
 
 G_GNUC_INTERNAL gboolean _mcd_account_presence_type_is_settable (
         TpConnectionPresenceType type);
+
+gboolean _mcd_account_is_hidden (McdAccount *account);
 
 #endif /* __MCD_ACCOUNT_PRIV_H__ */
