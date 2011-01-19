@@ -10,7 +10,6 @@ TWISTED_BASIC_TESTS = \
 	account-manager/create-with-properties.py \
 	account-manager/enable.py \
 	account-manager/enable-auto-connect.py \
-	account-manager/hidden.py \
 	account-manager/nickname.py \
 	account-manager/service.py \
 	account-manager/param-types.py \
@@ -73,6 +72,7 @@ endif
 # For simplicity, these are also separate tests: at least
 # account-storage/*.py need their own instances.
 TWISTED_SPECIAL_BUILD_TESTS = \
+	account-manager/hidden.py \
 	account-manager/auto-away.py \
 	account-storage/default-keyring-storage.py \
 	account-storage/diverted-storage.py
