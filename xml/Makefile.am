@@ -18,6 +18,7 @@ SPECS = \
 	Account_Interface_Stats.xml \
 	Channel_Dispatch_Operation.xml \
 	Channel_Dispatcher.xml \
+	Channel_Dispatcher_Interface_Redispatch.xml \
 	Channel_Dispatcher_Interface_Operation_List.xml \
 	Channel_Request.xml \
 	Client.xml \

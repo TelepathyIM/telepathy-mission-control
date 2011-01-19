@@ -1,0 +1,130 @@
+<?xml version="1.0" ?>
+<node name="/Channel_Dispatcher_Interface_Redispatch"
+  xmlns:tp="http://telepathy.freedesktop.org/wiki/DbusSpec#extensions-v0">
+
+  <tp:copyright>Copyright © 2008-2010 Collabora Ltd.</tp:copyright>
+  <tp:copyright>Copyright © 2008-2009 Nokia Corporation</tp:copyright>
+  <tp:license xmlns="http://www.w3.org/1999/xhtml">
+    <p>This library is free software; you can redistribute it and/or
+      modify it under the terms of the GNU Lesser General Public
+      License as published by the Free Software Foundation; either
+      version 2.1 of the License, or (at your option) any later version.</p>
+
+    <p>This library is distributed in the hope that it will be useful,
+      but WITHOUT ANY WARRANTY; without even the implied warranty of
+      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+      Lesser General Public License for more details.</p>
+
+    <p>You should have received a copy of the GNU Lesser General Public
+      License along with this library; if not, write to the Free Software
+      Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
+      USA.</p>
+  </tp:license>
+
+  <interface name="org.freedesktop.Telepathy.ChannelDispatcher.Interface.Redispatch.DRAFT"
+    tp:causes-havoc="a staging area for future functionality">
+
+    <tp:requires interface="org.freedesktop.Telepathy.ChannelDispatcher"/>
+
+    <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+      <p>This interface contains functionality which we intend to incorporate
+        into the <tp:dbus-ref
+          namespace="org.freedesktop.Telepathy">ChannelDispatcher</tp:dbus-ref>
+        interface in future. It should be considered to
+        be conceptually part of the core ChannelDispatcher interface, but without
+        API or ABI guarantees.</p>
+    </tp:docstring>
+
+    <method name="RedispatchChannels"
+            tp:name-for-bindings="Redispatch_Channels">
+      <tp:added version="0.21.UNRELEASED" />
+      <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+        <p>Called by a
+        <tp:dbus-ref namespace="org.freedesktop.Telepathy.Client">Handler</tp:dbus-ref>
+          to redispatch a bunch of channels it is currently handling.</p>
+
+        <p>If another
+          <tp:dbus-ref namespace="org.freedesktop.Telepathy.Client">Handler</tp:dbus-ref>
+          can be found,
+          <tp:dbus-ref namespace="org.freedesktop.Telepathy.Client.Handler">HandleChannels</tp:dbus-ref>
+          will be called on it and this function will succeed. In that case,
+          the original <tp:dbus-ref namespace="org.freedesktop.Telepathy.Client">Handler</tp:dbus-ref>
+          does not longer handle those channels.</p>
+
+        <p>If this method fails, the original
+          <tp:dbus-ref namespace="org.freedesktop.Telepathy.Client">Handler</tp:dbus-ref>
+          is still handling the channels.</p>
+
+      </tp:docstring>
+
+      <arg direction="in" name="Account" type="o">
+        <tp:docstring>
+          The
+            <tp:dbus-ref namespace="org.freedesktop.Telepathy">Account</tp:dbus-ref>
+          owning the channels.
+        </tp:docstring>
+      </arg>
+
+      <arg direction="in" name="Channels" type="ao">
+        <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+          <p>The list of channels to redispatch. The caller has to be the current
+            <tp:dbus-ref namespace="org.freedesktop.Telepathy.Client">Handler</tp:dbus-ref>
+            of all of these channels
+          </p>
+        </tp:docstring>
+      </arg>
+
+      <arg direction="in" name="User_Action_Time" type="x"
+        tp:type="User_Action_Timestamp">
+        <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+          <p>The time at which user action occurred, or 0 if this channel
+            request is for some reason not involving user action.</p>
+
+          <p>This parameter is used in the same way as the corresponding
+            parameter to
+            <tp:member-ref>CreateChannelWithHints</tp:member-ref>.</p>
+        </tp:docstring>
+      </arg>
+
+      <arg direction="in" name="Preferred_Handler" type="s"
+        tp:type="DBus_Well_Known_Name">
+        <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+          <p>Either the well-known bus name (starting with
+            <code>org.freedesktop.Telepathy.Client.</code>)
+            of the preferred new handler for these
+            channels, or an empty string to indicate that any handler would be
+            acceptable. The behaviour and rationale are the same as for the
+            corresponding parameter to
+            <tp:member-ref>CreateChannelWithHints</tp:member-ref>.</p>
+
+        </tp:docstring>
+      </arg>
+
+      <arg direction="in" name="Hints" type="a{sv}">
+        <tp:docstring>
+          Additional information about the channels request, which will be used
+          as the value for the resulting request's <tp:dbus-ref
+          namespace="ofdT.ChannelRequest">Hints</tp:dbus-ref>
+          property.</tp:docstring>
+      </arg>
+
+      <tp:possible-errors>
+        <tp:error name="org.freedesktop.Telepathy.Error.InvalidArgument">
+          <tp:docstring>
+            The Preferred_Handler is syntactically invalid or does
+            not start with <code>org.freedesktop.Telepathy.Client.</code> or
+            the Account does not exist.
+          </tp:docstring>
+        </tp:error>
+
+        <tp:error name="org.freedesktop.Telepathy.Error.NotYours">
+          <tp:docstring>
+            The caller is not currently handling the channels.
+          </tp:docstring>
+        </tp:error>
+      </tp:possible-errors>
+    </method>
+
+  </interface>
+</node>
+<!-- vim:set sw=2 sts=2 et ft=xml: -->
