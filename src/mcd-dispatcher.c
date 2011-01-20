@@ -1700,6 +1700,36 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
     }
 }
 
+static gboolean
+check_preferred_handler (const gchar *preferred_handler,
+    GError **error)
+{
+  g_assert (error != NULL);
+
+  if (preferred_handler[0] == '\0')
+      return TRUE;
+
+  if (!tp_dbus_check_valid_bus_name (preferred_handler,
+                                     TP_DBUS_NAME_TYPE_WELL_KNOWN,
+                                     error))
+  {
+      /* The error is TP_DBUS_ERROR_INVALID_BUS_NAME, which has no D-Bus
+       * representation; re-map to InvalidArgument. */
+      (*error)->domain = TP_ERRORS;
+      (*error)->code = TP_ERROR_INVALID_ARGUMENT;
+      return FALSE;
+  }
+
+  if (!g_str_has_prefix (preferred_handler, TP_CLIENT_BUS_NAME_BASE))
+  {
+      g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                   "Not a Telepathy Client: %s", preferred_handler);
+      return FALSE;
+  }
+
+  return TRUE;
+}
+
 static void
 dispatcher_request_channel (McdDispatcher *self,
                             const gchar *account_path,
@@ -1737,26 +1767,8 @@ dispatcher_request_channel (McdDispatcher *self,
         goto despair;
     }
 
-    if (preferred_handler[0] != '\0')
-    {
-        if (!tp_dbus_check_valid_bus_name (preferred_handler,
-                                           TP_DBUS_NAME_TYPE_WELL_KNOWN,
-                                           &error))
-        {
-            /* The error is TP_DBUS_ERROR_INVALID_BUS_NAME, which has no D-Bus
-             * representation; re-map to InvalidArgument. */
-            error->domain = TP_ERRORS;
-            error->code = TP_ERROR_INVALID_ARGUMENT;
-            goto despair;
-        }
-
-        if (!g_str_has_prefix (preferred_handler, TP_CLIENT_BUS_NAME_BASE))
-        {
-            g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                         "Not a Telepathy Client: %s", preferred_handler);
-            goto despair;
-        }
-    }
+    if (!check_preferred_handler (preferred_handler, &error))
+        goto despair;
 
     channel = _mcd_account_create_request (self->priv->clients,
                                            account, requested_properties,
