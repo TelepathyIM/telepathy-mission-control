@@ -1285,8 +1285,8 @@ request_unrequested_channels (McdConnection *connection)
     }
 }
 
-static McdChannel *
-find_channel_by_path (McdConnection *connection,
+McdChannel *
+mcd_connection_find_channel_by_path (McdConnection *connection,
                       const gchar *object_path)
 {
     const GList *list = NULL;
@@ -1369,7 +1369,7 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
 
         /* if the channel was a request, we already have an object for it;
          * otherwise, create a new one */
-        channel = find_channel_by_path (connection, object_path);
+        channel = mcd_connection_find_channel_by_path (connection, object_path);
         if (!channel)
         {
             channel = mcd_channel_new_from_properties (proxy, object_path,
@@ -2253,7 +2253,7 @@ mcd_connection_need_dispatch (McdConnection *connection,
         {
             any_requested = TRUE;
 
-            if (find_channel_by_path (connection, object_path))
+            if (mcd_connection_find_channel_by_path (connection, object_path))
                 requested_by_us = TRUE;
         }
     }
@@ -2511,7 +2511,8 @@ common_request_channel_cb (TpConnection *proxy, gboolean yours,
     if (_mcd_channel_get_request_use_existing (channel))
     {
         McdChannel *existing;
-        existing = find_channel_by_path (connection, channel_path);
+        existing = mcd_connection_find_channel_by_path (connection,
+            channel_path);
         if (existing)
         {
             _mcd_dispatcher_add_channel_request (priv->dispatcher, existing,
