@@ -198,23 +198,27 @@ async_authorised_cb (DBusGProxy *proxy,
       pid, permitted ? "Allowed" : "Forbidden");
 
   mcp_dbus_acl_authorised_async_step (ad, permitted);
+
+  g_object_unref (proxy);
 }
 
 static void
 caller_async_authorised (const McpDBusAcl *self,
     DBusAclAuthData *data)
 {
-  DBusGConnection *dgc = tp_proxy_get_dbus_connection (data->dbus);
-  DBusGProxy *proxy = dbus_g_proxy_new_for_name (dgc,
-      DBUS_SERVICE_DBUS,
-      DBUS_PATH_DBUS,
-      DBUS_INTERFACE_DBUS);
-
   DEBUG ("starting async caller-permission ACL check");
 
   if (is_filtered (data->type, data->name, data->params))
     {
+      DBusGConnection *dgc;
+      DBusGProxy *proxy;
       gchar *caller = dbus_g_method_get_sender (data->context);
+
+      dgc = tp_proxy_get_dbus_connection (data->dbus);
+      proxy = dbus_g_proxy_new_for_name (dgc,
+          DBUS_SERVICE_DBUS,
+          DBUS_PATH_DBUS,
+          DBUS_INTERFACE_DBUS);
 
       dbus_g_proxy_begin_call (proxy, "GetConnectionUnixProcessID",
           async_authorised_cb,
