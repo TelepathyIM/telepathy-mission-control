@@ -2821,3 +2821,13 @@ void _mcd_connection_clear_emergency_data (McdConnection *self)
   tp_clear_pointer (&priv->emergency.numbers, g_slist_free);
 }
 
+void _mcd_connection_set_emergency_numbers (McdConnection *self,
+    GSList *numbers)
+{
+  McdConnectionPrivate *priv = self->priv;
+
+  g_assert (priv->emergency.numbers == NULL);
+
+  priv->emergency.numbers = numbers;
+}
+

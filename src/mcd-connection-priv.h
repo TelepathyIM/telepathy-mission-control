@@ -60,6 +60,9 @@ G_GNUC_INTERNAL void _mcd_connection_update_client_caps (McdConnection *self,
 
 G_GNUC_INTERNAL gboolean _mcd_connection_presence_info_is_ready (McdConnection *self);
 
+G_GNUC_INTERNAL void _mcd_connection_set_emergency_numbers (McdConnection *self,
+    GSList *numbers);
+
 
 G_GNUC_INTERNAL void _mcd_connection_clear_emergency_data (McdConnection *self);
 
