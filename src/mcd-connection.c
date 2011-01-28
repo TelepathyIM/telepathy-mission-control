@@ -150,8 +150,15 @@ struct _McdConnectionPrivate
     gchar *alias;
 
     gboolean is_disposed;
-    
+    gboolean service_points_watched;
+
     McdSlacker *slacker;
+
+    struct
+    {
+        TpIntSet *handles;
+        GSList *numbers;
+    } emergency;
 };
 
 typedef struct
