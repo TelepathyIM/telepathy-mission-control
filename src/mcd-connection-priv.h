@@ -68,6 +68,15 @@ G_GNUC_INTERNAL void _mcd_connection_set_emergency_handles (McdConnection *self,
 
 G_GNUC_INTERNAL void _mcd_connection_clear_emergency_data (McdConnection *self);
 
+G_GNUC_INTERNAL gboolean _mcd_connection_target_id_is_urgent (McdConnection *connection,
+    const gchar *name);
+
+G_GNUC_INTERNAL gboolean _mcd_connection_target_handle_is_urgent (McdConnection *self,
+    guint handle);
+
+G_GNUC_INTERNAL gboolean _mcd_connection_channel_is_urgent (McdConnection *self,
+    McdChannel *channel);
+
 G_END_DECLS
 
 #endif
