@@ -2787,3 +2787,37 @@ _mcd_connection_presence_info_is_ready (McdConnection *self)
 
     return self->priv->presence_info_ready;
 }
+
+void _mcd_connection_clear_emergency_data (McdConnection *self)
+{
+    McdConnectionPrivate *priv = self->priv;
+    guint n_handles = tp_intset_size (priv->emergency.handles);
+
+    /* trawl through the handles and unref them */
+    if (n_handles > 0)
+    {
+        TpConnection *tp_conn = mcd_connection_get_tp_connection (self);
+        TpIntSetFastIter iter;
+        TpHandle *handles = g_new0 (TpHandle, n_handles);
+        TpHandle handle;
+        guint i = 0;
+
+        tp_intset_fast_iter_init (&iter, priv->emergency.handles);
+
+        while (tp_intset_fast_iter_next (&iter, &handle))
+            handles[i++] = handle;
+
+        tp_connection_unref_handles (tp_conn, TP_HANDLE_TYPE_CONTACT,
+                                     n_handles, handles);
+
+        g_free (handles);
+    }
+
+  /* likewise free the emergency number data */
+  g_slist_foreach (priv->emergency.numbers, (GFunc) g_strfreev, NULL);
+
+  /* now zap the data structures holding them */
+  tp_clear_pointer (&priv->emergency.handles, tp_intset_destroy);
+  tp_clear_pointer (&priv->emergency.numbers, g_slist_free);
+}
+
