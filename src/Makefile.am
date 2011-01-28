@@ -26,6 +26,7 @@ mc_headers = \
 	mcd-manager.h \
 	mcd-connection.h \
 	mcd-connection-plugin.h \
+	mcd-connection-service-points.h \
 	mcd-plugin.h \
 	mcd-channel.h \
 	mcd-proxy.h \
@@ -189,6 +190,7 @@ libmcd_convenience_la_SOURCES = \
 	mcd-manager.c \
 	mcd-manager-priv.h \
 	mcd-connection.c \
+	mcd-connection-service-points.c \
 	mcd-connection-priv.h \
 	mcd-dispatcher.c \
 	mcd-dispatcher-priv.h \
