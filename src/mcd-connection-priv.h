@@ -63,6 +63,8 @@ G_GNUC_INTERNAL gboolean _mcd_connection_presence_info_is_ready (McdConnection *
 G_GNUC_INTERNAL void _mcd_connection_set_emergency_numbers (McdConnection *self,
     GSList *numbers);
 
+G_GNUC_INTERNAL void _mcd_connection_set_emergency_handles (McdConnection *self,
+    TpIntSet *handles);
 
 G_GNUC_INTERNAL void _mcd_connection_clear_emergency_data (McdConnection *self);
 

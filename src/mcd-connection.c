@@ -2831,3 +2831,13 @@ void _mcd_connection_set_emergency_numbers (McdConnection *self,
   priv->emergency.numbers = numbers;
 }
 
+void
+_mcd_connection_set_emergency_handles (McdConnection *self,
+    TpIntSet *handles)
+{
+  McdConnectionPrivate *priv = self->priv;
+
+  g_assert (priv->emergency.handles == NULL);
+
+  priv->emergency.handles = handles;
+}
