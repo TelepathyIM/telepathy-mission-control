@@ -36,6 +36,7 @@
  */
 
 #include "mcd-connection.h"
+#include "mcd-connection-service-points.h"
 
 #include <string.h>
 #include <sys/types.h>
@@ -1164,6 +1165,10 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
                     mcd_connection_probation_ended_cb, connection);
                 priv->probation_drop_count = 0;
             }
+
+            mcd_connection_service_point_setup (connection,
+                                                !priv->service_points_watched);
+            priv->service_points_watched = TRUE;
 
             priv->connected = TRUE;
         }
