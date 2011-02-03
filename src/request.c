@@ -53,6 +53,9 @@ enum {
     PROP_INTERFACES
 };
 
+#define REQUEST_HANDLE TP_IFACE_CHANNEL "TargetHandle"
+#define REQUEST_TARGET TP_IFACE_CHANNEL "TargetID"
+
 static guint sig_id_cancelling = 0;
 static guint sig_id_ready_to_request = 0;
 
@@ -491,7 +494,9 @@ void
 _mcd_request_proceed (McdRequest *self,
     DBusGMethodInvocation *context)
 {
+  McdConnection *connection = NULL;
   McdPluginRequest *plugin_api = NULL;
+  gboolean urgent = FALSE;
   const GList *mini_plugins;
 
   if (self->proceeding)
@@ -552,6 +557,7 @@ _mcd_request_proceed (McdRequest *self,
     }
 
   /* this is paired with the delay set when the request was created */
+ proceed:
   _mcd_request_end_delay (self);
 
   tp_clear_object (&plugin_api);
