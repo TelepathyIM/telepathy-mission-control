@@ -31,6 +31,7 @@
 #include <telepathy-glib/util.h>
 
 #include "mcd-account-priv.h"
+#include "mcd-connection-priv.h"
 #include "mcd-debug.h"
 #include "mcd-misc.h"
 #include "plugin-loader.h"
@@ -464,6 +465,28 @@ _mcd_request_get_hints (McdRequest *self)
   return self->hints;
 }
 
+static GList *
+_mcd_request_policy_plugins (void)
+{
+  static gboolean cached = FALSE;
+  static GList *policies = NULL;
+
+  if (G_UNLIKELY (!cached))
+    {
+      const GList *p = NULL;
+
+      for (p = mcp_list_objects (); p != NULL; p = g_list_next (p))
+        {
+          if (MCP_IS_REQUEST_POLICY (p->data))
+            policies = g_list_prepend (policies, g_object_ref (p->data));
+        }
+
+      cached = TRUE;
+    }
+
+  return policies;
+}
+
 void
 _mcd_request_proceed (McdRequest *self,
     DBusGMethodInvocation *context)
@@ -489,23 +512,43 @@ _mcd_request_proceed (McdRequest *self,
       tp_svc_channel_request_return_from_proceed (context);
     }
 
-  for (mini_plugins = mcp_list_objects ();
+  connection = mcd_account_get_connection (self->account);
+
+  if (connection != NULL)
+    {
+      const gchar *name = tp_asv_get_string (self->properties, REQUEST_TARGET);
+
+      if (name != NULL)
+        {
+          urgent = _mcd_connection_target_id_is_urgent (connection, name);
+        }
+      else
+        {
+          guint handle =
+            tp_asv_get_uint32 (self->properties, REQUEST_HANDLE, NULL);
+
+          urgent = _mcd_connection_target_handle_is_urgent (connection, handle);
+        }
+    }
+
+  /* urgent calls (eg emergency numbers) are not subject to policy *
+   * delays: they automatically pass go and collect 200 qwatloos   */
+  if (urgent)
+    goto proceed;
+
+  for (mini_plugins = _mcd_request_policy_plugins ();
        mini_plugins != NULL;
        mini_plugins = mini_plugins->next)
     {
-      if (MCP_IS_REQUEST_POLICY (mini_plugins->data))
+      DEBUG ("Checking request with policy");
+
+      /* Lazily create a plugin-API object if anything cares */
+      if (plugin_api == NULL)
         {
-          DEBUG ("Checking request with policy");
-
-          /* Lazily create a plugin-API object if anything cares */
-          if (plugin_api == NULL)
-            {
-              plugin_api = _mcd_plugin_request_new (self->account, self);
-            }
-
-          mcp_request_policy_check (mini_plugins->data,
-              MCP_REQUEST (plugin_api));
+          plugin_api = _mcd_plugin_request_new (self->account, self);
         }
+
+      mcp_request_policy_check (mini_plugins->data, MCP_REQUEST (plugin_api));
     }
 
   /* this is paired with the delay set when the request was created */
