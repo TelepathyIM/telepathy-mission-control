@@ -2869,31 +2869,29 @@ void _mcd_connection_clear_emergency_data (McdConnection *self)
         g_free (handles);
     }
 
-  /* likewise free the emergency number data */
-  g_slist_foreach (priv->emergency.numbers, (GFunc) g_strfreev, NULL);
+    /* likewise free the emergency number data */
+    g_slist_foreach (priv->emergency.numbers, (GFunc) g_strfreev, NULL);
 
-  /* now zap the data structures holding them */
-  tp_clear_pointer (&priv->emergency.handles, tp_intset_destroy);
-  tp_clear_pointer (&priv->emergency.numbers, g_slist_free);
+    /* now zap the data structures holding them */
+    tp_clear_pointer (&priv->emergency.handles, tp_intset_destroy);
+    tp_clear_pointer (&priv->emergency.numbers, g_slist_free);
 }
 
-void _mcd_connection_set_emergency_numbers (McdConnection *self,
-    GSList *numbers)
+void _mcd_connection_set_emergency_numbers (McdConnection *self, GSList *numbers)
 {
-  McdConnectionPrivate *priv = self->priv;
+    McdConnectionPrivate *priv = self->priv;
 
-  g_assert (priv->emergency.numbers == NULL);
+    g_assert (priv->emergency.numbers == NULL);
 
-  priv->emergency.numbers = numbers;
+    priv->emergency.numbers = numbers;
 }
 
 void
-_mcd_connection_set_emergency_handles (McdConnection *self,
-    TpIntSet *handles)
+_mcd_connection_set_emergency_handles (McdConnection *self, TpIntSet *handles)
 {
-  McdConnectionPrivate *priv = self->priv;
+    McdConnectionPrivate *priv = self->priv;
 
-  g_assert (priv->emergency.handles == NULL);
+    g_assert (priv->emergency.handles == NULL);
 
-  priv->emergency.handles = handles;
+    priv->emergency.handles = handles;
 }
