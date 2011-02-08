@@ -70,18 +70,28 @@ parse_services_list (McdConnection *connection,
 
       if (type == TP_SERVICE_POINT_TYPE_EMERGENCY)
         {
-          TpConnection *tp_conn = mcd_connection_get_tp_connection (connection);
-
           numbers = g_value_dup_boxed (sp_info->values + 1);
           e_numbers = g_slist_prepend (e_numbers, numbers);
-
-          tp_connection_request_handles (tp_conn, -1, TP_HANDLE_TYPE_CONTACT,
-              (const gchar * const *) numbers,
-              service_handles_fetched_cb, NULL, NULL, G_OBJECT (connection));
         }
     }
 
-  _mcd_connection_take_emergency_numbers (connection, e_numbers);
+  if (e_numbers != NULL)
+    {
+      GSList *service;
+      TpConnection *tp_conn = mcd_connection_get_tp_connection (connection);
+
+      _mcd_connection_clear_emergency_data (connection);
+
+      for (service = e_numbers; service != NULL; service =g_slist_next (service))
+        {
+          if (service->data != NULL)
+            tp_connection_request_handles (tp_conn, -1, TP_HANDLE_TYPE_CONTACT,
+                (const gchar *const *) service->data,
+                service_handles_fetched_cb, NULL, NULL, G_OBJECT (connection));
+        }
+
+      _mcd_connection_take_emergency_numbers (connection, e_numbers);
+    }
 }
 
 static void
