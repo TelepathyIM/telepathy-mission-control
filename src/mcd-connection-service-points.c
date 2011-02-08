@@ -47,7 +47,7 @@ service_handles_fetched_cb (TpConnection *tp_conn,
   for (i = 0; i < n_handles; i++)
     tp_intset_add (e_handles, handles[i]);
 
-  _mcd_connection_set_emergency_handles (connection, e_handles);
+  _mcd_connection_take_emergency_handles (connection, e_handles);
 }
 
 static void
@@ -81,7 +81,7 @@ parse_services_list (McdConnection *connection,
         }
     }
 
-  _mcd_connection_set_emergency_numbers (connection, e_numbers);
+  _mcd_connection_take_emergency_numbers (connection, e_numbers);
 }
 
 static void

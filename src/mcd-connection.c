@@ -2877,7 +2877,7 @@ void _mcd_connection_clear_emergency_data (McdConnection *self)
     tp_clear_pointer (&priv->emergency.numbers, g_slist_free);
 }
 
-void _mcd_connection_set_emergency_numbers (McdConnection *self, GSList *numbers)
+void _mcd_connection_take_emergency_numbers (McdConnection *self, GSList *numbers)
 {
     McdConnectionPrivate *priv = self->priv;
 
@@ -2888,7 +2888,7 @@ void _mcd_connection_set_emergency_numbers (McdConnection *self, GSList *numbers
 }
 
 void
-_mcd_connection_set_emergency_handles (McdConnection *self, TpIntSet *handles)
+_mcd_connection_take_emergency_handles (McdConnection *self, TpIntSet *handles)
 {
     McdConnectionPrivate *priv = self->priv;
 
