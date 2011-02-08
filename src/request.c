@@ -53,8 +53,8 @@ enum {
     PROP_INTERFACES
 };
 
-#define REQUEST_HANDLE TP_IFACE_CHANNEL "TargetHandle"
-#define REQUEST_TARGET TP_IFACE_CHANNEL "TargetID"
+
+
 
 static guint sig_id_cancelling = 0;
 static guint sig_id_ready_to_request = 0;
@@ -521,7 +521,8 @@ _mcd_request_proceed (McdRequest *self,
 
   if (connection != NULL)
     {
-      const gchar *name = tp_asv_get_string (self->properties, REQUEST_TARGET);
+      const gchar *name =
+        tp_asv_get_string (self->properties, TP_PROP_CHANNEL_TARGET_ID);
 
       if (name != NULL)
         {
@@ -529,8 +530,8 @@ _mcd_request_proceed (McdRequest *self,
         }
       else
         {
-          guint handle =
-            tp_asv_get_uint32 (self->properties, REQUEST_HANDLE, NULL);
+          guint handle = tp_asv_get_uint32 (self->properties,
+              TP_PROP_CHANNEL_TARGET_HANDLE, NULL);
 
           urgent = _mcd_connection_target_handle_is_urgent (connection, handle);
         }
