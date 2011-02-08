@@ -2881,7 +2881,8 @@ void _mcd_connection_set_emergency_numbers (McdConnection *self, GSList *numbers
 {
     McdConnectionPrivate *priv = self->priv;
 
-    g_assert (priv->emergency.numbers == NULL);
+    if (priv->emergency.numbers != NULL)
+        g_warning ("Overwriting old emergency numbers without clearing them");
 
     priv->emergency.numbers = numbers;
 }
@@ -2891,7 +2892,8 @@ _mcd_connection_set_emergency_handles (McdConnection *self, TpIntSet *handles)
 {
     McdConnectionPrivate *priv = self->priv;
 
-    g_assert (priv->emergency.handles == NULL);
+    if (priv->emergency.numbers != NULL)
+        g_warning ("Overwriting old emergency handles without clearing them");
 
     priv->emergency.handles = handles;
 }
