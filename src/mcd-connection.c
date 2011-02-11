@@ -2844,37 +2844,42 @@ _mcd_connection_presence_info_is_ready (McdConnection *self)
     return self->priv->presence_info_ready;
 }
 
-void _mcd_connection_clear_emergency_data (McdConnection *self)
+static void clear_emergency_handles (McdConnectionPrivate *priv)
 {
-    McdConnectionPrivate *priv = self->priv;
-    guint n_handles = tp_intset_size (priv->emergency.handles);
+  guint n_handles = tp_intset_size (priv->emergency.handles);
 
-    /* trawl through the handles and unref them */
-    if (n_handles > 0)
+  /* trawl through the handles and unref them */
+  if (n_handles > 0)
     {
-        TpConnection *tp_conn = mcd_connection_get_tp_connection (self);
-        TpIntSetFastIter iter;
-        TpHandle *handles = g_new0 (TpHandle, n_handles);
-        TpHandle handle;
-        guint i = 0;
+      TpIntSetFastIter iter;
+      TpHandle *handles = g_new0 (TpHandle, n_handles);
+      TpHandle handle;
+      guint i = 0;
 
-        tp_intset_fast_iter_init (&iter, priv->emergency.handles);
+      tp_intset_fast_iter_init (&iter, priv->emergency.handles);
 
-        while (tp_intset_fast_iter_next (&iter, &handle))
-            handles[i++] = handle;
+      while (tp_intset_fast_iter_next (&iter, &handle))
+        handles[i++] = handle;
 
-        tp_connection_unref_handles (tp_conn, TP_HANDLE_TYPE_CONTACT,
-                                     n_handles, handles);
+      tp_connection_unref_handles (priv->tp_conn, TP_HANDLE_TYPE_CONTACT,
+          n_handles, handles);
 
-        g_free (handles);
+      g_free (handles);
     }
 
-    /* likewise free the emergency number data */
-    g_slist_foreach (priv->emergency.numbers, (GFunc) g_strfreev, NULL);
+  tp_clear_pointer (&priv->emergency.handles, tp_intset_destroy);
+}
 
-    /* now zap the data structures holding them */
-    tp_clear_pointer (&priv->emergency.handles, tp_intset_destroy);
-    tp_clear_pointer (&priv->emergency.numbers, g_slist_free);
+static void clear_emergency_numbers (McdConnectionPrivate *priv)
+{
+  g_slist_foreach (priv->emergency.numbers, (GFunc) g_strfreev, NULL);
+  tp_clear_pointer (&priv->emergency.numbers, g_slist_free);
+}
+
+void _mcd_connection_clear_emergency_data (McdConnection *self)
+{
+    clear_emergency_handles (self->priv);
+    clear_emergency_numbers (self->priv);
 }
 
 void _mcd_connection_take_emergency_numbers (McdConnection *self, GSList *numbers)
@@ -2882,7 +2887,10 @@ void _mcd_connection_take_emergency_numbers (McdConnection *self, GSList *number
     McdConnectionPrivate *priv = self->priv;
 
     if (priv->emergency.numbers != NULL)
-        g_warning ("Overwriting old emergency numbers without clearing them");
+      {
+        clear_emergency_numbers (priv);
+        g_critical ("Overwriting old emergency numbers");
+      }
 
     priv->emergency.numbers = numbers;
 }
@@ -2893,7 +2901,10 @@ _mcd_connection_take_emergency_handles (McdConnection *self, TpIntSet *handles)
     McdConnectionPrivate *priv = self->priv;
 
     if (priv->emergency.numbers != NULL)
-        g_warning ("Overwriting old emergency handles without clearing them");
+      {
+        clear_emergency_handles (priv);
+        g_critical ("Overwriting old emergency handles");
+      }
 
     priv->emergency.handles = handles;
 }
