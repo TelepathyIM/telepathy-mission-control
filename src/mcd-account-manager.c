@@ -3,10 +3,8 @@
 /*
  * This file is part of mission-control
  *
- * Copyright (C) 2007-2009 Nokia Corporation.
- * Copyright (C) 2009 Collabora Ltd.
- *
- * Contact: Naba Kumar  <naba.kumar@nokia.com>
+ * Copyright © 2007-2011 Nokia Corporation.
+ * Copyright © 2009-2011 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -513,6 +511,9 @@ recover_connection (McdAccountManager *account_manager, gchar *file_contents,
     GError *error = NULL;
     gboolean ret = FALSE;
 
+    master = mcd_master_get_default ();
+    g_return_val_if_fail (MCD_IS_MASTER (master), FALSE);
+
     object_path = g_strdelimit (g_strdup_printf ("/%s", name), ".", '/');
     if (!get_account_connection (file_contents, object_path,
                                  &bus_name, &account_name))
@@ -525,9 +526,6 @@ recover_connection (McdAccountManager *account_manager, gchar *file_contents,
 
     DEBUG ("account is %s", mcd_account_get_unique_name (account));
     manager_name = mcd_account_get_manager_name (account);
-
-    master = mcd_master_get_default ();
-    g_return_val_if_fail (MCD_IS_MASTER (master), FALSE);
 
     manager = _mcd_master_lookup_manager (master, manager_name);
     if (G_UNLIKELY (!manager))

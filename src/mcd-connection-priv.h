@@ -3,10 +3,8 @@
 /*
  * This file is part of mission-control
  *
- * Copyright (C) 2007-2009 Nokia Corporation.
- * Copyright (C) 2009 Collabora Ltd.
- *
- * Contact: Naba Kumar  <naba.kumar@nokia.com>
+ * Copyright © 2007-2011 Nokia Corporation.
+ * Copyright © 2009-2011 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -59,6 +57,23 @@ G_GNUC_INTERNAL void _mcd_connection_update_client_caps (McdConnection *self,
     GPtrArray *client_caps);
 
 G_GNUC_INTERNAL gboolean _mcd_connection_presence_info_is_ready (McdConnection *self);
+
+G_GNUC_INTERNAL void _mcd_connection_take_emergency_numbers (McdConnection *self,
+    GSList *numbers);
+
+G_GNUC_INTERNAL void _mcd_connection_take_emergency_handles (McdConnection *self,
+    TpIntSet *handles);
+
+G_GNUC_INTERNAL void _mcd_connection_clear_emergency_data (McdConnection *self);
+
+G_GNUC_INTERNAL gboolean _mcd_connection_target_id_is_urgent (McdConnection *connection,
+    const gchar *name);
+
+G_GNUC_INTERNAL gboolean _mcd_connection_target_handle_is_urgent (McdConnection *self,
+    guint handle);
+
+G_GNUC_INTERNAL gboolean _mcd_connection_channel_is_urgent (McdConnection *self,
+    McdChannel *channel);
 
 G_END_DECLS
 

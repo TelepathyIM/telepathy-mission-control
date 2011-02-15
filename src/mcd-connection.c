@@ -3,10 +3,8 @@
 /*
  * This file is part of mission-control
  *
- * Copyright © 2007-2009 Nokia Corporation.
- * Copyright © 2009-2010 Collabora Ltd.
- *
- * Contact: Naba Kumar  <naba.kumar@nokia.com>
+ * Copyright © 2007-2011 Nokia Corporation.
+ * Copyright © 2009-2011 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -36,6 +34,7 @@
  */
 
 #include "mcd-connection.h"
+#include "mcd-connection-service-points.h"
 
 #include <string.h>
 #include <sys/types.h>
@@ -150,8 +149,15 @@ struct _McdConnectionPrivate
     gchar *alias;
 
     gboolean is_disposed;
-    
+    gboolean service_points_watched;
+
     McdSlacker *slacker;
+
+    struct
+    {
+        TpIntSet *handles;
+        GSList *numbers;
+    } emergency;
 };
 
 typedef struct
@@ -1157,6 +1163,10 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
                     mcd_connection_probation_ended_cb, connection);
                 priv->probation_drop_count = 0;
             }
+
+            mcd_connection_service_point_setup (connection,
+                                                !priv->service_points_watched);
+            priv->service_points_watched = TRUE;
 
             priv->connected = TRUE;
         }
@@ -2253,9 +2263,60 @@ mcd_connection_need_dispatch (McdConnection *connection,
     return !any_requested || requested_by_us;
 }
 
+gboolean
+_mcd_connection_target_id_is_urgent (McdConnection *self, const gchar *name)
+{
+  GSList *list = self->priv->emergency.numbers;
+
+  for (; list != NULL; list = g_slist_next (list))
+    {
+      const gchar **number = list->data;
+
+      for (; number != NULL && *number != NULL; number++)
+        {
+          if (!tp_strdiff (*number, name))
+            return TRUE;
+        }
+    }
+
+  return FALSE;
+}
+
+gboolean
+_mcd_connection_target_handle_is_urgent (McdConnection *self, guint handle)
+{
+  if (handle != 0 && self->priv->emergency.handles != NULL)
+    return tp_intset_is_member (self->priv->emergency.handles, handle);
+
+  return FALSE;
+}
+
+gboolean
+_mcd_connection_channel_is_urgent (McdConnection *self, McdChannel *channel)
+{
+    const gchar *name = NULL;
+
+    if (mcd_channel_get_handle_type (channel) != TP_HANDLE_TYPE_CONTACT)
+        return FALSE;
+
+    name = mcd_channel_get_name (channel);
+
+    if (tp_str_empty (name))
+    {
+        TpHandle handle = mcd_channel_get_handle (channel);
+
+        return _mcd_connection_target_handle_is_urgent (self, handle);
+    }
+    else
+    {
+        return _mcd_connection_target_id_is_urgent (self, name);
+    }
+
+    return FALSE;
+}
+
 static gboolean
-_mcd_connection_request_channel (McdConnection *connection,
-                                 McdChannel *channel)
+_mcd_connection_request_channel (McdConnection *connection, McdChannel *channel)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
     gboolean ret;
@@ -2779,4 +2840,69 @@ _mcd_connection_presence_info_is_ready (McdConnection *self)
     g_return_val_if_fail (MCD_IS_CONNECTION (self), FALSE);
 
     return self->priv->presence_info_ready;
+}
+
+static void clear_emergency_handles (McdConnectionPrivate *priv)
+{
+  guint n_handles = tp_intset_size (priv->emergency.handles);
+
+  /* trawl through the handles and unref them */
+  if (n_handles > 0)
+    {
+      TpIntSetFastIter iter;
+      TpHandle *handles = g_new0 (TpHandle, n_handles);
+      TpHandle handle;
+      guint i = 0;
+
+      tp_intset_fast_iter_init (&iter, priv->emergency.handles);
+
+      while (tp_intset_fast_iter_next (&iter, &handle))
+        handles[i++] = handle;
+
+      tp_connection_unref_handles (priv->tp_conn, TP_HANDLE_TYPE_CONTACT,
+          n_handles, handles);
+
+      g_free (handles);
+    }
+
+  tp_clear_pointer (&priv->emergency.handles, tp_intset_destroy);
+}
+
+static void clear_emergency_numbers (McdConnectionPrivate *priv)
+{
+  g_slist_foreach (priv->emergency.numbers, (GFunc) g_strfreev, NULL);
+  tp_clear_pointer (&priv->emergency.numbers, g_slist_free);
+}
+
+void _mcd_connection_clear_emergency_data (McdConnection *self)
+{
+    clear_emergency_handles (self->priv);
+    clear_emergency_numbers (self->priv);
+}
+
+void _mcd_connection_take_emergency_numbers (McdConnection *self, GSList *numbers)
+{
+    McdConnectionPrivate *priv = self->priv;
+
+    if (priv->emergency.numbers != NULL)
+      {
+        clear_emergency_numbers (priv);
+        g_critical ("Overwriting old emergency numbers");
+      }
+
+    priv->emergency.numbers = numbers;
+}
+
+void
+_mcd_connection_take_emergency_handles (McdConnection *self, TpIntSet *handles)
+{
+    McdConnectionPrivate *priv = self->priv;
+
+    if (priv->emergency.numbers != NULL)
+      {
+        clear_emergency_handles (priv);
+        g_critical ("Overwriting old emergency handles");
+      }
+
+    priv->emergency.handles = handles;
 }

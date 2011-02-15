@@ -1,7 +1,7 @@
 dnl Set the version number to e.g. 5.0.beta42 immediately before a release.
 dnl Set the version number to e.g. 5.0.beta42+ immediately after (this will
 dnl enable -Werror).
-AC_INIT([telepathy-mission-control], [5.7.2])
+AC_INIT([telepathy-mission-control], [5.7.3])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(Makefile.am)
@@ -335,7 +335,7 @@ PKG_CHECK_MODULES(DBUS, [dbus-1 >= 0.95, dbus-glib-1 >= 0.82])
 AC_SUBST(DBUS_CFLAGS)
 AC_SUBST(DBUS_LIBS)
 
-PKG_CHECK_MODULES([TELEPATHY], [telepathy-glib >= 0.13.7])
+PKG_CHECK_MODULES([TELEPATHY], [telepathy-glib >= 0.13.13])
 AC_SUBST(TELEPATHY_LIBS)
 AC_SUBST(TELEPATHY_CFLAGS)
 

@@ -41,6 +41,7 @@
 
 #include <telepathy-glib/debug.h>
 #include <telepathy-glib/debug-sender.h>
+#include <telepathy-glib/util.h>
 
 #include <mission-control-plugins/mission-control-plugins.h>
 
@@ -190,29 +191,27 @@ mcd_debug_set_level (gint level)
 }
 
 void
-mcd_debug (const gchar *format,
-    ...)
+mcd_debug (const gchar *format, ...)
 {
-  TpDebugSender *dbg;
-  GTimeVal now;
-  gchar *message;
+  gchar *message = NULL;
+  gchar **formatted = NULL;
+  TpDebugSender *dbg = tp_debug_sender_dup ();
   va_list args;
 
+  if (_mcd_debug_get_level () > 0)
+    formatted = &message;
+
   va_start (args, format);
-  message = g_strdup_vprintf (format, args);
+  tp_debug_sender_add_message_vprintf (dbg, NULL, formatted,
+      G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, format, args);
   va_end (args);
 
-  if (_mcd_debug_get_level () > 0)
-    g_debug ("%s", message);
+  if (!tp_str_empty (message))
+    {
+      g_debug ("%s", message);
+      g_free (message);
+    }
 
-  dbg = tp_debug_sender_dup ();
-
-  g_get_current_time (&now);
-
-  tp_debug_sender_add_message (dbg, &now, G_LOG_DOMAIN,
-                               G_LOG_LEVEL_DEBUG, message);
-
+  /* NOTE: the sender must be cached elsewhere, or this gets EXPENSIVE: */
   g_object_unref (dbg);
-
-  g_free (message);
 }
