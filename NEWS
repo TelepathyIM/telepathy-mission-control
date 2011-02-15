@@ -1,7 +1,27 @@
 telepathy-mission-control 5.7.3 (UNRELEASED)
 ============================================
 
+The "Future Events Like These Will Affect You in the Future" release.
 
+Dependencies:
+
+• telepathy-glib ≥ 0.13.13 is now required
+
+Enhancements:
+
+• The connection now uses Connection.Interface.ServicePoint.KnownServicePoints
+  to determine which contacts correspond to emergency calls. (fledermaus)
+
+• Request policy plugins cannot affect emergency calls any more. (fledermaus)
+
+• mcd_debug now bypasses printf completely if neither debugging nor the debug
+  cache is turned on. (fledermaus)
+
+Fixes:
+
+• Leak in the DBus ACL plugin mechanism fixed (barisione)
+
+• Potential leak in mcd_master initialisation code fixed (barisione)
 
 telepathy-mission-control 5.7.2 (2011-01-18)
 ============================================
