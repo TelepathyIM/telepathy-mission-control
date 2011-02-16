@@ -357,8 +357,6 @@ _mc_gtype_from_dbus_signature (const gchar *signature)
         return TP_STRUCT_TYPE_SIMPLE_PRESENCE;
     if (strcmp (signature, "a(oa{sv})") == 0)
         return MC_ARRAY_TYPE_CHANNEL_DETAILS_LIST;
-    if (strcmp (signature, "a{su}") == 0)
-        return MC_HASH_TYPE_CHANNEL_COUNT_MAP;
     g_warning ("%s: Type %s not mapped", G_STRFUNC, signature);
     return G_TYPE_INVALID;
 }

@@ -162,8 +162,6 @@ mc_account_init (McAccount *account)
 				  MC_IFACE_QUARK_ACCOUNT_INTERFACE_COMPAT);
     tp_proxy_add_interface_by_id ((TpProxy *)account,
 				  MC_IFACE_QUARK_ACCOUNT_INTERFACE_CONDITIONS);
-    tp_proxy_add_interface_by_id ((TpProxy *)account,
-				  MC_IFACE_QUARK_ACCOUNT_INTERFACE_STATS);
 }
 
 static GObject *

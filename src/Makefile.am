@@ -62,7 +62,6 @@ mc_gen_headers = \
 	_gen/svc-Account_Interface_Compat.h \
 	_gen/svc-Account_Interface_Conditions.h \
 	_gen/svc-Account_Interface_Hidden.h \
-	_gen/svc-Account_Interface_Stats.h \
 	_gen/svc-Account_Manager_Interface_Hidden.h \
 	_gen/svc-Account_Manager_Interface_Query.h \
 	_gen/svc-dispatcher.h \
@@ -81,7 +80,6 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/svc-Account_Interface_Compat.c \
 	_gen/svc-Account_Interface_Conditions.c \
 	_gen/svc-Account_Interface_Hidden.c \
-	_gen/svc-Account_Interface_Stats.c \
 	_gen/svc-Account_Manager_Interface_Query.c \
 	_gen/svc-Account_Manager_Interface_Hidden.c \
 	_gen/svc-dispatcher.c \
@@ -159,7 +157,6 @@ libmcd_convenience_la_SOURCES = \
 	mcd-account-config.h \
 	mcd-account-connection.c \
 	mcd-account-requests.c \
-	mcd-account-stats.c \
 	mcd-account-addressing.c \
 	mcd-account-manager.c \
 	mcd-account-manager-priv.h \

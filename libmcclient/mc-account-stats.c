@@ -67,10 +67,6 @@ _mc_account_stats_class_init (McAccountClass *klass)
 {
     klass->stats_channel_count_changed = channel_count_changed;
 
-    _mc_iface_add (MC_TYPE_ACCOUNT,
-		   MC_IFACE_QUARK_ACCOUNT_INTERFACE_STATS,
-		   &iface_description);
-
     /**
      * McAccount::channel-count-changed:
      * @account: the #McAccount.
