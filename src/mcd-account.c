@@ -2196,7 +2196,6 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
         {
             set_parameters_data_free (data);
             goto error;
-            return;
         }
     }
 
