@@ -1984,7 +1984,7 @@ typedef struct
 {
   McdAccount *account;
   GHashTable *params;
-  GSList *dbus_properties;
+  GQueue dbus_properties;
   GPtrArray *not_yet;
   McdAccountSetParametersCb *callback;
   gpointer user_data;
@@ -1995,7 +1995,7 @@ set_parameters_data_free (SetParametersData *data)
 {
     tp_clear_object (&data->account);
     tp_clear_pointer (&data->params, g_hash_table_destroy);
-    g_slist_free (data->dbus_properties);
+    g_queue_clear (&data->dbus_properties);
 
     g_slice_free (SetParametersData, data);
 }
@@ -2018,13 +2018,11 @@ set_parameters_finish (SetParametersData *data)
     if (mcd_account_get_connection_status (data->account) ==
         TP_CONNECTION_STATUS_CONNECTED)
     {
-        GSList *list;
         const gchar *name;
         const GValue *value;
 
-        for (list = data->dbus_properties; list != NULL; list = list->next)
+        while ((name = g_queue_pop_head (&data->dbus_properties)) != NULL)
         {
-            name = list->data;
             DEBUG ("updating parameter %s", name);
             value = g_hash_table_lookup (data->params, name);
             _mcd_connection_update_property (priv->connection, name, value);
@@ -2068,8 +2066,7 @@ set_parameter_changed (SetParametersData *data,
      * not, prepare to reset the connection */
     if (param->flags & TP_CONN_MGR_PARAM_FLAG_DBUS_PROPERTY)
     {
-        data->dbus_properties = g_slist_prepend (data->dbus_properties,
-                                                 param->name);
+        g_queue_push_tail (&data->dbus_properties, param->name);
     }
     else
     {
@@ -2181,7 +2178,7 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     data = g_slice_new0 (SetParametersData);
     data->account = g_object_ref (account);
     data->params = hash_table_copy (params);
-    data->dbus_properties = NULL;
+    g_queue_init (&data->dbus_properties);
     /* pessimistically assume that every parameter mentioned will be deferred
      * until reconnection */
     data->not_yet = g_ptr_array_sized_new (g_hash_table_size (params) +
