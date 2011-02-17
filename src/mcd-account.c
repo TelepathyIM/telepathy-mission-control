@@ -384,17 +384,13 @@ mcd_account_loaded (McdAccount *account)
  * @account: the #McdAccount.
  * @name: the parameter name.
  * @value: a #GValue with the value to set, or %NULL.
- * @callback: a function to be called on success or failure
- * @user_data: data to be passed to @callback
  *
  * Sets the parameter @name to the value in @value. If @value, is %NULL, the
  * parameter is unset.
  */
 static void
 _mcd_account_set_parameter (McdAccount *account, const gchar *name,
-                            const GValue *value,
-                            McdAccountSetParameterCb callback,
-                            gpointer user_data)
+                            const GValue *value)
 {
     McdAccountPrivate *priv = account->priv;
     McdStorage *storage = priv->storage;
@@ -405,9 +401,6 @@ _mcd_account_set_parameter (McdAccount *account, const gchar *name,
     g_snprintf (key, sizeof (key), "param-%s", name);
 
     mcd_storage_set_value (storage, account_name, key, value, secret);
-
-    if (callback != NULL)
-        callback (account, NULL, user_data); /* set_parameter */
 }
 
 
@@ -1991,10 +1984,6 @@ typedef struct
 {
   McdAccount *account;
   GHashTable *params;
-  GHashTableIter iter;
-  gchar **unset;
-  gchar **unset_iter;
-  const TpConnectionManagerParam *param;
   GSList *dbus_properties;
   GPtrArray *not_yet;
   McdAccountSetParametersCb *callback;
@@ -2006,7 +1995,6 @@ set_parameters_data_free (SetParametersData *data)
 {
     tp_clear_object (&data->account);
     tp_clear_pointer (&data->params, g_hash_table_destroy);
-    g_strfreev (data->unset);
     g_slist_free (data->dbus_properties);
 
     g_slice_free (SetParametersData, data);
@@ -2053,11 +2041,6 @@ set_parameters_finish (SetParametersData *data)
     set_parameters_data_free (data);
 }
 
-static void set_parameters_unset_single (McdAccount *account,
-                                         const GError *error,
-                                         gpointer user_data);
-
-
 static void
 set_parameters_unset_check_present (McdAccount *account,
                                     SetParametersData *data,
@@ -2072,61 +2055,6 @@ set_parameters_unset_check_present (McdAccount *account,
          * value is the default already) */
 
         g_ptr_array_add (data->not_yet, g_strdup (name));
-    }
-}
-
-static void
-set_parameters_unset_single (McdAccount *account, const GError *error,
-                             gpointer user_data)
-{
-    SetParametersData *data = (SetParametersData *) user_data;
-
-    if (data->unset == NULL)
-    {
-        set_parameters_finish (data);
-        return;
-    }
-
-    if (account == NULL)
-    {
-        data->unset_iter = data->unset; /* first time */
-    }
-    else
-    {
-        data->unset_iter++;
-    }
-
-    if (*data->unset_iter != NULL)
-    {
-        set_parameters_unset_check_present (data->account, data,
-                                            *data->unset_iter);
-        _mcd_account_set_parameter (data->account, *data->unset_iter, NULL,
-                                    set_parameters_unset_single, data);
-    }
-    else
-    {
-        set_parameters_finish (data);
-    }
-}
-
-static void
-set_parameters_set_single (McdAccount *account,
-                           const GError *error,
-                           gpointer user_data)
-{
-    SetParametersData *data = (SetParametersData *) user_data;
-    const gchar *name;
-    const GValue *value;
-
-    if (g_hash_table_iter_next (&data->iter, (gpointer) &name, (gpointer) &value))
-    {
-        _mcd_account_set_parameter (data->account, name, value,
-                                    set_parameters_set_single, data);
-    }
-    else
-    {
-        /* End of the hash table */
-        set_parameters_unset_single (NULL, NULL, data);
     }
 }
 
@@ -2229,6 +2157,7 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     TpConnectionManagerProtocol *protocol = NULL;
     GHashTableIter iter;
     gpointer key, value;
+    const gchar **unset_iter;
 
     DEBUG ("called");
     if (G_UNLIKELY (!priv->manager && !load_manager (account)))
@@ -2252,7 +2181,6 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     data = g_slice_new0 (SetParametersData);
     data->account = g_object_ref (account);
     data->params = hash_table_copy (params);
-    data->unset = g_strdupv ((gchar **) unset);
     data->dbus_properties = NULL;
     /* pessimistically assume that every parameter mentioned will be deferred
      * until reconnection */
@@ -2273,11 +2201,24 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     }
 
     /* If we made it here, all the parameters to be set look kosher. We haven't
-     * checked those that are meant to be unset. So now we kick off a slightly
-     * suspicious chain of parameter updates...
+     * checked those that are meant to be unset. So now we actually commit the
+     * updates, first setting new values, then clearing those in unset.
      */
-    g_hash_table_iter_init (&data->iter, data->params);
-    set_parameters_set_single (data->account, NULL, data);
+    g_hash_table_iter_init (&iter, params);
+    while (g_hash_table_iter_next (&iter, &key, &value))
+    {
+        _mcd_account_set_parameter (data->account, key, value);
+    }
+
+    for (unset_iter = unset;
+         unset_iter != NULL && *unset_iter != NULL;
+         unset_iter++)
+    {
+        set_parameters_unset_check_present (account, data, *unset_iter);
+        _mcd_account_set_parameter (account, *unset_iter, NULL);
+    }
+
+    set_parameters_finish (data);
     tp_connection_manager_protocol_free (protocol);
     return;
 
@@ -3444,7 +3385,7 @@ clear_register (McdAccount *self)
         GValue value = { 0 };
         const gchar *account_name = mcd_account_get_unique_name (self);
 
-        _mcd_account_set_parameter (self, "register", NULL, NULL, NULL);
+        _mcd_account_set_parameter (self, "register", NULL);
 
         g_hash_table_remove (params, "register");
 
