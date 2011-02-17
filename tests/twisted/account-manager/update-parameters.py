@@ -137,6 +137,34 @@ def test(q, bus, mc):
     not_yet.sort()
     assert not_yet == ['account', 'secret-mushroom', 'snakes'], not_yet
 
+    # Try to update 'account' to a value of the wrong type; MC should complain,
+    # without having changed the value of 'snakes'.
+    call_async(q, account, 'UpdateParameters',
+            { 'account': dbus.UInt32(39),
+              'snakes': dbus.UInt32(39),
+            },
+            [],
+            dbus_interface=cs.ACCOUNT)
+    q.expect('dbus-error', name=cs.INVALID_ARGUMENT)
+
+    props = account.Get(cs.ACCOUNT, 'Parameters',
+        dbus_interface=cs.PROPERTIES_IFACE)
+    assertEquals(42, props['snakes'])
+
+    # Try to update a parameter that doesn't exist; again, 'snakes' should not
+    # be changed.
+    call_async(q, account, 'UpdateParameters',
+            { 'accccccount': dbus.UInt32(39),
+              'snakes': dbus.UInt32(39),
+            },
+            [],
+            dbus_interface=cs.ACCOUNT)
+    q.expect('dbus-error', name=cs.INVALID_ARGUMENT)
+
+    props = account.Get(cs.ACCOUNT, 'Parameters',
+        dbus_interface=cs.PROPERTIES_IFACE)
+    assertEquals(42, props['snakes'])
+
     # Unset some parameters
     call_async(q, account, 'UpdateParameters',
             {},
