@@ -2037,6 +2037,13 @@ set_parameter_changed (GHashTable *dbus_properties,
     }
 }
 
+/*
+ * check_parameter_update:
+ *
+ * Checks whether an update to, or unsetting of, a parameter is actually a
+ * change, taking into account default values. This is very convoluted, but I
+ * couldn't find a way to make it clearer.
+ */
 static void
 check_parameter_update (McdAccount *account,
                         GHashTable *dbus_properties,
@@ -2044,25 +2051,38 @@ check_parameter_update (McdAccount *account,
                         const TpConnectionManagerParam *param,
                         const GValue *new_value)
 {
+    gboolean had_current_value;
     GValue current_value = { 0, };
     gboolean using_default = FALSE;
     GValue default_value = { 0, };
 
-    if (!mcd_account_get_parameter (account, param->name, &current_value, NULL))
-    {
-        /* If there's no existing value, the parameter's changed iff we're
-         * setting a new value.
-         */
-        if (new_value != NULL)
-            set_parameter_changed (dbus_properties, not_yet, param, new_value);
+    had_current_value = mcd_account_get_parameter (account, param->name,
+        &current_value, NULL);
 
-        return;
+    if (!had_current_value)
+    {
+        /* If this parameter was previously unset, and it's being unset,
+         * there's nothing to do.
+         */
+        if (new_value == NULL)
+            return;
+
+        /* If, however, we're setting a new value, we'll treat the default as
+         * the current value, if one exists; if there's no default, we know the
+         * parameter's changed.
+         */
+        if (!tp_connection_manager_param_get_default (param, &current_value))
+        {
+            set_parameter_changed (dbus_properties, not_yet, param, new_value);
+            return;
+        }
     }
 
-    /* There's an existing value. If we're unsetting this parameter, we need to
-     * check whether the existing value matches the default; if there is no
-     * default, then there's no way we can apply the change without
-     * reconnecting.
+    /* If we're unsetting this parameter, we need to check whether the existing
+     * value matches the default; if there is no default, then there's no way
+     * we can apply the change without reconnecting. Note that we've already
+     * handled the (!had_current_value && new_value) case above, so we do not
+     * end up unnecessarily comparing the default value to itself.
      */
     if (new_value == NULL)
     {

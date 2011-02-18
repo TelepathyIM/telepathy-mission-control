@@ -33,8 +33,11 @@ def test(q, bus, mc):
             tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
 
     # Create an account
-    params = dbus.Dictionary({"account": "someguy@example.com",
-        "password": "secrecy", 'nickname': 'albinoblacksheep'}, signature='sv')
+    params = dbus.Dictionary(
+        {"account": "someguy@example.com",
+         "password": "secrecy",
+         "nickname": "albinoblacksheep",
+         }, signature='sv')
     (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
 
     # Enable the account
@@ -195,6 +198,44 @@ def test(q, bus, mc):
     # on the CM.
     not_yet = ret.value[0]
     assertEquals(['nickname'], not_yet)
+
+    # Set contrived-example to its default value; since there's been no
+    # practical change, we shouldn't be told we need to reconnect to apply it.
+    call_async(q, account, 'UpdateParameters',
+        { 'contrived-example': dbus.UInt32(5) }, [])
+    ret, _ = q.expect_many(
+            EventPattern('dbus-return', method='UpdateParameters'),
+            EventPattern('dbus-signal',
+                path=account.object_path,
+                interface=cs.ACCOUNT, signal='AccountPropertyChanged',
+                args=[{'Parameters': {
+                    'account': r'\\',
+                    'password': 'secrecy',
+                    'secret-mushroom': '/Amanita muscaria/',
+                    'snakes': 42,
+                    "contrived-example": 5,
+                    }}]),
+            )
+    not_yet = ret.value[0]
+    assertEquals([], not_yet)
+
+    # Unset contrived-example; again, MC should be smart enough to know we
+    # don't need to do anything.
+    call_async(q, account, 'UpdateParameters', {}, ['contrived-example'])
+    ret, _ = q.expect_many(
+            EventPattern('dbus-return', method='UpdateParameters'),
+            EventPattern('dbus-signal',
+                path=account.object_path,
+                interface=cs.ACCOUNT, signal='AccountPropertyChanged',
+                args=[{'Parameters': {
+                    'account': r'\\',
+                    'password': 'secrecy',
+                    'secret-mushroom': '/Amanita muscaria/',
+                    'snakes': 42,
+                    }}]),
+            )
+    not_yet = ret.value[0]
+    assertEquals([], not_yet)
 
     accounts_dir = os.environ['MC_ACCOUNT_DIR']
 
