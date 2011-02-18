@@ -1978,17 +1978,32 @@ set_parameters_maybe_autoconnect_cb (McdAccount *account,
 }
 
 static void
-set_parameters_finish (McdAccount *account,
-                       GHashTable *dbus_properties)
+apply_parameter_updates (McdAccount *account,
+                         GHashTable *params,
+                         const gchar **unset,
+                         GHashTable *dbus_properties)
 {
     McdAccountPrivate *priv = account->priv;
+    GHashTableIter iter;
+    gpointer name, value;
+    const gchar **unset_iter;
+
+    g_hash_table_iter_init (&iter, params);
+    while (g_hash_table_iter_next (&iter, &name, &value))
+    {
+        _mcd_account_set_parameter (account, name, value);
+    }
+
+    for (unset_iter = unset;
+         unset_iter != NULL && *unset_iter != NULL;
+         unset_iter++)
+    {
+        _mcd_account_set_parameter (account, *unset_iter, NULL);
+    }
 
     if (mcd_account_get_connection_status (account) ==
         TP_CONNECTION_STATUS_CONNECTED)
     {
-        GHashTableIter iter;
-        gpointer name, value;
-
         g_hash_table_iter_init (&iter, dbus_properties);
         while (g_hash_table_iter_next (&iter, &name, &value))
         {
@@ -2176,9 +2191,6 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     GPtrArray *not_yet;
     GError *error = NULL;
     TpConnectionManagerProtocol *protocol = NULL;
-    GHashTableIter iter;
-    gpointer key, value;
-    const gchar **unset_iter;
 
     DEBUG ("called");
     if (G_UNLIKELY (!priv->manager && !load_manager (account)))
@@ -2210,24 +2222,7 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
         goto error;
     }
 
-    /* If we made it here, all the parameters to be set look kosher.  So now we
-     * actually commit the updates, first setting new values, then clearing
-     * those in unset.
-     */
-    g_hash_table_iter_init (&iter, params);
-    while (g_hash_table_iter_next (&iter, &key, &value))
-    {
-        _mcd_account_set_parameter (account, key, value);
-    }
-
-    for (unset_iter = unset;
-         unset_iter != NULL && *unset_iter != NULL;
-         unset_iter++)
-    {
-        _mcd_account_set_parameter (account, *unset_iter, NULL);
-    }
-
-    set_parameters_finish (account, dbus_properties);
+    apply_parameter_updates (account, params, unset, dbus_properties);
 
     if (callback != NULL)
     {
