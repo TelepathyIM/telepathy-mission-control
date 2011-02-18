@@ -1979,22 +1979,20 @@ set_parameters_maybe_autoconnect_cb (McdAccount *account,
 
 static void
 set_parameters_finish (McdAccount *account,
-                       GHashTable *params,
-                       GQueue *dbus_properties)
+                       GHashTable *dbus_properties)
 {
     McdAccountPrivate *priv = account->priv;
 
     if (mcd_account_get_connection_status (account) ==
         TP_CONNECTION_STATUS_CONNECTED)
     {
-        const gchar *name;
-        const GValue *value;
+        GHashTableIter iter;
+        gpointer name, value;
 
-        /* This is a bit sketchy; we modify the list the caller gave us. */
-        while ((name = g_queue_pop_head (dbus_properties)) != NULL)
+        g_hash_table_iter_init (&iter, dbus_properties);
+        while (g_hash_table_iter_next (&iter, &name, &value))
         {
             DEBUG ("updating parameter %s", name);
-            value = g_hash_table_lookup (params, name);
             _mcd_connection_update_property (priv->connection, name, value);
         }
     }
@@ -2021,9 +2019,10 @@ set_parameters_unset_check_present (McdAccount *account,
 }
 
 static void
-set_parameter_changed (GQueue *dbus_properties,
+set_parameter_changed (GHashTable *dbus_properties,
                        GPtrArray *not_yet,
-                       const TpConnectionManagerParam *param)
+                       const TpConnectionManagerParam *param,
+                       const GValue *new_value)
 {
     DEBUG ("Parameter %s changed", param->name);
 
@@ -2031,7 +2030,8 @@ set_parameter_changed (GQueue *dbus_properties,
      * not, prepare to reset the connection */
     if (param->flags & TP_CONN_MGR_PARAM_FLAG_DBUS_PROPERTY)
     {
-        g_queue_push_tail (dbus_properties, param->name);
+        g_hash_table_insert (dbus_properties, g_strdup (param->name),
+            tp_g_value_slice_dup (new_value));
     }
     else
     {
@@ -2042,7 +2042,7 @@ set_parameter_changed (GQueue *dbus_properties,
 static gboolean
 check_one_parameter (McdAccount *account,
                      TpConnectionManagerProtocol *protocol,
-                     GQueue *dbus_properties,
+                     GHashTable *dbus_properties,
                      GPtrArray *not_yet,
                      const gchar *name,
                      const GValue *new_value,
@@ -2081,14 +2081,15 @@ check_one_parameter (McdAccount *account,
                                        NULL))
         {
             if (!value_is_same (&current_value, new_value))
-                set_parameter_changed (dbus_properties, not_yet, param);
+                set_parameter_changed (dbus_properties, not_yet, param,
+                                       new_value);
 
             g_value_unset (&current_value);
         }
         else
         {
             /* If it had no previous value, it's certainly changed. */
-            set_parameter_changed (dbus_properties, not_yet, param);
+            set_parameter_changed (dbus_properties, not_yet, param, new_value);
         }
     }
 
@@ -2100,7 +2101,7 @@ check_parameters (McdAccount *account,
                   TpConnectionManagerProtocol *protocol,
                   GHashTable *params,
                   const gchar **unset,
-                  GQueue *dbus_properties,
+                  GHashTable *dbus_properties,
                   GPtrArray *not_yet,
                   GError **error)
 {
@@ -2137,7 +2138,7 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
                              gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
-    GQueue dbus_properties;
+    GHashTable *dbus_properties;
     GPtrArray *not_yet;
     GError *error = NULL;
     guint unset_size;
@@ -2165,15 +2166,17 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
 
     unset_size = (unset != NULL) ? g_strv_length ((gchar **) unset) : 0;
 
-    g_queue_init (&dbus_properties);
+    /* An a{sv} of DBus_Property parameters we should set on the connection. */
+    dbus_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
+          g_free, (GDestroyNotify) tp_g_value_slice_free);
     /* pessimistically assume that every parameter mentioned will be deferred
      * until reconnection */
     not_yet = g_ptr_array_sized_new (g_hash_table_size (params) + unset_size);
 
-    if (!check_parameters (account, protocol, params, unset, &dbus_properties,
+    if (!check_parameters (account, protocol, params, unset, dbus_properties,
                            not_yet, &error))
     {
-        g_queue_clear (&dbus_properties);
+        g_hash_table_unref (dbus_properties);
         /* FIXME: we leak not_yet, like we did before. This is fixed in a
          * subsequent commit. */
         goto error;
@@ -2197,14 +2200,14 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
         _mcd_account_set_parameter (account, *unset_iter, NULL);
     }
 
-    set_parameters_finish (account, params, &dbus_properties);
+    set_parameters_finish (account, dbus_properties);
 
     if (callback != NULL)
     {
         callback (account, not_yet, NULL, user_data);
     }
 
-    g_queue_clear (&dbus_properties);
+    g_hash_table_unref (dbus_properties);
     /* FIXME: not_yet is freed by the callback!!! */
     tp_connection_manager_protocol_free (protocol);
     return;
