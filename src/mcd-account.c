@@ -2037,87 +2037,76 @@ set_parameter_changed (GHashTable *dbus_properties,
     }
 }
 
-/*
- * check_parameter_update:
- *
- * Checks whether an update to, or unsetting of, a parameter is actually a
- * change, taking into account default values. This is very convoluted, but I
- * couldn't find a way to make it clearer.
- */
-static void
-check_parameter_update (McdAccount *account,
-                        GHashTable *dbus_properties,
-                        GPtrArray *not_yet,
-                        const TpConnectionManagerParam *param,
-                        const GValue *new_value)
+static gboolean
+check_one_parameter_update (McdAccount *account,
+                            TpConnectionManagerProtocol *protocol,
+                            GHashTable *dbus_properties,
+                            GPtrArray *not_yet,
+                            const gchar *name,
+                            const GValue *new_value,
+                            GError **error)
 {
-    gboolean had_current_value;
-    GValue current_value = { 0, };
-    gboolean using_default = FALSE;
-    GValue default_value = { 0, };
+    const TpConnectionManagerParam *param =
+        tp_connection_manager_protocol_get_param (protocol, name);
+    GType type;
 
-    had_current_value = mcd_account_get_parameter (account, param->name,
-        &current_value, NULL);
-
-    if (!had_current_value)
+    if (param == NULL)
     {
-        /* If this parameter was previously unset, and it's being unset,
-         * there's nothing to do.
-         */
-        if (new_value == NULL)
-            return;
-
-        /* If, however, we're setting a new value, we'll treat the default as
-         * the current value, if one exists; if there's no default, we know the
-         * parameter's changed.
-         */
-        if (!tp_connection_manager_param_get_default (param, &current_value))
-        {
-            set_parameter_changed (dbus_properties, not_yet, param, new_value);
-            return;
-        }
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "Protocol '%s' does not have parameter '%s'",
+                     protocol->name, name);
+        return FALSE;
     }
 
-    /* If we're unsetting this parameter, we need to check whether the existing
-     * value matches the default; if there is no default, then there's no way
-     * we can apply the change without reconnecting. Note that we've already
-     * handled the (!had_current_value && new_value) case above, so we do not
-     * end up unnecessarily comparing the default value to itself.
-     */
-    if (new_value == NULL)
+    type = mc_param_type (param);
+
+    if (G_VALUE_TYPE (new_value) != type)
     {
-        if (!tp_connection_manager_param_get_default (param, &default_value))
+        /* FIXME: define proper error */
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "parameter %s must be of type %s, not %s",
+                     param->name,
+                     g_type_name (type), G_VALUE_TYPE_NAME (new_value));
+        return FALSE;
+    }
+
+    if (mcd_account_get_connection_status (account) ==
+        TP_CONNECTION_STATUS_CONNECTED)
+    {
+        GValue current_value = { 0, };
+
+        /* Check if the parameter's current value (or its default, if it has
+         * one and it's not set to anything) matches the new value.
+         */
+        if (mcd_account_get_parameter (account, param->name,
+                &current_value, NULL) ||
+            tp_connection_manager_param_get_default (param, &current_value))
         {
-            g_ptr_array_add (not_yet, g_strdup (param->name));
+            if (!value_is_same (&current_value, new_value))
+                set_parameter_changed (dbus_properties, not_yet, param,
+                                       new_value);
+
             g_value_unset (&current_value);
-            return;
         }
-
-        using_default = TRUE;
-        new_value = &default_value;
+        else
+        {
+            /* The parameter wasn't previously set, and has no default value;
+             * this update must be a change.
+             */
+            set_parameter_changed (dbus_properties, not_yet, param, new_value);
+        }
     }
 
-    /* By now, we know we have both a previous value, and a new value (which
-     * may be the default). If they differ, we need to either update or
-     * reconnect.
-     */
-    if (!value_is_same (&current_value, new_value))
-        set_parameter_changed (dbus_properties, not_yet, param, new_value);
-
-    if (using_default)
-        g_value_unset (&default_value);
-
-    g_value_unset (&current_value);
+    return TRUE;
 }
 
 static gboolean
-check_one_parameter (McdAccount *account,
-                     TpConnectionManagerProtocol *protocol,
-                     GHashTable *dbus_properties,
-                     GPtrArray *not_yet,
-                     const gchar *name,
-                     const GValue *new_value,
-                     GError **error)
+check_one_parameter_unset (McdAccount *account,
+                           TpConnectionManagerProtocol *protocol,
+                           GHashTable *dbus_properties,
+                           GPtrArray *not_yet,
+                           const gchar *name,
+                           GError **error)
 {
     const TpConnectionManagerParam *param =
         tp_connection_manager_protocol_get_param (protocol, name);
@@ -2130,26 +2119,37 @@ check_one_parameter (McdAccount *account,
         return FALSE;
     }
 
-    if (new_value != NULL)
-    {
-        GType type = mc_param_type (param);
-
-        if (G_VALUE_TYPE (new_value) != type)
-        {
-            /* FIXME: define proper error */
-            g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                         "parameter %s must be of type %s, not %s",
-                         param->name,
-                         g_type_name (type), G_VALUE_TYPE_NAME (new_value));
-            return FALSE;
-        }
-    }
-
     if (mcd_account_get_connection_status (account) ==
         TP_CONNECTION_STATUS_CONNECTED)
     {
-        check_parameter_update (account, dbus_properties, not_yet, param,
-                                new_value);
+        GValue current_value = { 0, };
+
+        if (mcd_account_get_parameter (account, param->name, &current_value,
+                                       NULL))
+        {
+            /* There's an existing value; let's see if it's the same as the
+             * default, if any.
+             */
+            GValue default_value = { 0, };
+
+            if (tp_connection_manager_param_get_default (param, &default_value))
+            {
+                if (!value_is_same (&current_value, &default_value))
+                    set_parameter_changed (dbus_properties, not_yet, param,
+                                           &default_value);
+
+                g_value_unset (&default_value);
+            }
+            else
+            {
+                /* It has no default; we're gonna have to reconnect to make
+                 * this take effect.
+                 */
+                 g_ptr_array_add (not_yet, g_strdup (param->name));
+            }
+
+            g_value_unset (&current_value);
+        }
     }
 
     return TRUE;
@@ -2171,8 +2171,8 @@ check_parameters (McdAccount *account,
     g_hash_table_iter_init (&iter, params);
     while (g_hash_table_iter_next (&iter, &key, &value))
     {
-        if (!check_one_parameter (account, protocol, dbus_properties, not_yet,
-                                  key, value, error))
+        if (!check_one_parameter_update (account, protocol, dbus_properties,
+                                         not_yet, key, value, error))
             return FALSE;
     }
 
@@ -2180,8 +2180,8 @@ check_parameters (McdAccount *account,
          unset_iter != NULL && *unset_iter != NULL;
          unset_iter++)
     {
-        if (!check_one_parameter (account, protocol, dbus_properties, not_yet,
-                                  *unset_iter, NULL, error))
+        if (!check_one_parameter_unset (account, protocol, dbus_properties,
+                                        not_yet, *unset_iter, error))
             return FALSE;
     }
 
