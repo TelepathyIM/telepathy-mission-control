@@ -1,5 +1,6 @@
-# Copyright (C) 2009 Nokia Corporation
-# Copyright (C) 2009 Collabora Ltd.
+# vim: set fileencoding=utf-8 :
+# Copyright © 2009 Nokia Corporation
+# Copyright © 2009–2011 Collabora Ltd.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public

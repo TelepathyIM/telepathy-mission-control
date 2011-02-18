@@ -3,8 +3,8 @@
 /*
  * mcd-account.h - the Telepathy Account D-Bus interface (service side)
  *
- * Copyright (C) 2008 Collabora Ltd. <http://www.collabora.co.uk/>
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright © 2008–2011 Collabora Ltd. <http://www.collabora.co.uk/>
+ * Copyright © 2008 Nokia Corporation
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
