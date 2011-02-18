@@ -2095,6 +2095,29 @@ check_one_parameter (McdAccount *account,
     return TRUE;
 }
 
+static gboolean
+check_parameters (McdAccount *account,
+                  TpConnectionManagerProtocol *protocol,
+                  GHashTable *params,
+                  const gchar **unset,
+                  GQueue *dbus_properties,
+                  GPtrArray *not_yet,
+                  GError **error)
+{
+    GHashTableIter iter;
+    gpointer key, value;
+
+    g_hash_table_iter_init (&iter, params);
+    while (g_hash_table_iter_next (&iter, &key, &value))
+    {
+        if (!check_one_parameter (account, protocol, dbus_properties, not_yet,
+                                  key, value, error))
+            return FALSE;
+    }
+
+    return TRUE;
+}
+
 /*
  * _mcd_account_set_parameters:
  * @account: the #McdAccount.
@@ -2147,17 +2170,13 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
      * until reconnection */
     not_yet = g_ptr_array_sized_new (g_hash_table_size (params) + unset_size);
 
-    g_hash_table_iter_init (&iter, params);
-    while (g_hash_table_iter_next (&iter, &key, &value))
+    if (!check_parameters (account, protocol, params, unset, &dbus_properties,
+                           not_yet, &error))
     {
-        if (!check_one_parameter (account, protocol, &dbus_properties, not_yet,
-                                  key, value, &error))
-        {
-            g_queue_clear (&dbus_properties);
-            /* FIXME: we leak not_yet, like we did before. This is fixed in a
-             * subsequent commit. */
-            goto error;
-        }
+        g_queue_clear (&dbus_properties);
+        /* FIXME: we leak not_yet, like we did before. This is fixed in a
+         * subsequent commit. */
+        goto error;
     }
 
     /* If we made it here, all the parameters to be set look kosher. We haven't
