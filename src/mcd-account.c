@@ -2002,23 +2002,6 @@ set_parameters_finish (McdAccount *account,
 }
 
 static void
-set_parameters_unset_check_present (McdAccount *account,
-                                    GPtrArray *not_yet,
-                                    const gchar *name)
-{
-    if (mcd_account_get_parameter (account, name, NULL, NULL))
-    {
-        DEBUG ("unsetting %s", name);
-        /* pessimistically assume that removing any parameter merits
-         * reconnection (in a perfect implementation, if the
-         * Has_Default flag was set we'd check whether the current
-         * value is the default already) */
-
-        g_ptr_array_add (not_yet, g_strdup (name));
-    }
-}
-
-static void
 set_parameter_changed (GHashTable *dbus_properties,
                        GPtrArray *not_yet,
                        const TpConnectionManagerParam *param,
@@ -2039,6 +2022,59 @@ set_parameter_changed (GHashTable *dbus_properties,
     }
 }
 
+static void
+check_parameter_update (McdAccount *account,
+                        GHashTable *dbus_properties,
+                        GPtrArray *not_yet,
+                        const TpConnectionManagerParam *param,
+                        const GValue *new_value)
+{
+    GValue current_value = { 0, };
+    gboolean using_default = FALSE;
+    GValue default_value = { 0, };
+
+    if (!mcd_account_get_parameter (account, param->name, &current_value, NULL))
+    {
+        /* If there's no existing value, the parameter's changed iff we're
+         * setting a new value.
+         */
+        if (new_value != NULL)
+            set_parameter_changed (dbus_properties, not_yet, param, new_value);
+
+        return;
+    }
+
+    /* There's an existing value. If we're unsetting this parameter, we need to
+     * check whether the existing value matches the default; if there is no
+     * default, then there's no way we can apply the change without
+     * reconnecting.
+     */
+    if (new_value == NULL)
+    {
+        if (!tp_connection_manager_param_get_default (param, &default_value))
+        {
+            g_ptr_array_add (not_yet, g_strdup (param->name));
+            g_value_unset (&current_value);
+            return;
+        }
+
+        using_default = TRUE;
+        new_value = &default_value;
+    }
+
+    /* By now, we know we have both a previous value, and a new value (which
+     * may be the default). If they differ, we need to either update or
+     * reconnect.
+     */
+    if (!value_is_same (&current_value, new_value))
+        set_parameter_changed (dbus_properties, not_yet, param, new_value);
+
+    if (using_default)
+        g_value_unset (&default_value);
+
+    g_value_unset (&current_value);
+}
+
 static gboolean
 check_one_parameter (McdAccount *account,
                      TpConnectionManagerProtocol *protocol,
@@ -2050,7 +2086,6 @@ check_one_parameter (McdAccount *account,
 {
     const TpConnectionManagerParam *param =
         tp_connection_manager_protocol_get_param (protocol, name);
-    GType type;
 
     if (param == NULL)
     {
@@ -2060,37 +2095,26 @@ check_one_parameter (McdAccount *account,
         return FALSE;
     }
 
-    type = mc_param_type (param);
-
-    if (G_VALUE_TYPE (new_value) != type)
+    if (new_value != NULL)
     {
-        /* FIXME: define proper error */
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                     "parameter %s must be of type %s, not %s",
-                     param->name,
-                     g_type_name (type), G_VALUE_TYPE_NAME (new_value));
-        return FALSE;
+        GType type = mc_param_type (param);
+
+        if (G_VALUE_TYPE (new_value) != type)
+        {
+            /* FIXME: define proper error */
+            g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                         "parameter %s must be of type %s, not %s",
+                         param->name,
+                         g_type_name (type), G_VALUE_TYPE_NAME (new_value));
+            return FALSE;
+        }
     }
 
     if (mcd_account_get_connection_status (account) ==
         TP_CONNECTION_STATUS_CONNECTED)
     {
-        GValue current_value = { 0, };
-
-        if (mcd_account_get_parameter (account, param->name, &current_value,
-                                       NULL))
-        {
-            if (!value_is_same (&current_value, new_value))
-                set_parameter_changed (dbus_properties, not_yet, param,
-                                       new_value);
-
-            g_value_unset (&current_value);
-        }
-        else
-        {
-            /* If it had no previous value, it's certainly changed. */
-            set_parameter_changed (dbus_properties, not_yet, param, new_value);
-        }
+        check_parameter_update (account, dbus_properties, not_yet, param,
+                                new_value);
     }
 
     return TRUE;
@@ -2107,12 +2131,22 @@ check_parameters (McdAccount *account,
 {
     GHashTableIter iter;
     gpointer key, value;
+    const gchar **unset_iter;
 
     g_hash_table_iter_init (&iter, params);
     while (g_hash_table_iter_next (&iter, &key, &value))
     {
         if (!check_one_parameter (account, protocol, dbus_properties, not_yet,
                                   key, value, error))
+            return FALSE;
+    }
+
+    for (unset_iter = unset;
+         unset_iter != NULL && *unset_iter != NULL;
+         unset_iter++)
+    {
+        if (!check_one_parameter (account, protocol, dbus_properties, not_yet,
+                                  *unset_iter, NULL, error))
             return FALSE;
     }
 
@@ -2182,9 +2216,9 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
         goto error;
     }
 
-    /* If we made it here, all the parameters to be set look kosher. We haven't
-     * checked those that are meant to be unset. So now we actually commit the
-     * updates, first setting new values, then clearing those in unset.
+    /* If we made it here, all the parameters to be set look kosher.  So now we
+     * actually commit the updates, first setting new values, then clearing
+     * those in unset.
      */
     g_hash_table_iter_init (&iter, params);
     while (g_hash_table_iter_next (&iter, &key, &value))
@@ -2196,7 +2230,6 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
          unset_iter != NULL && *unset_iter != NULL;
          unset_iter++)
     {
-        set_parameters_unset_check_present (account, not_yet, *unset_iter);
         _mcd_account_set_parameter (account, *unset_iter, NULL);
     }
 

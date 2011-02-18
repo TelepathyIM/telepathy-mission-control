@@ -23,7 +23,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async, assertEquals
+        call_async, assertEquals, assertSameSets
 from mctest import exec_test, SimulatedConnection, create_fakecm_account,\
         SimulatedChannel
 import constants as cs
@@ -171,7 +171,7 @@ def test(q, bus, mc):
             ['nickname', 'com.example.Badgerable.Badgered'],
             dbus_interface=cs.ACCOUNT)
 
-    ret, _ = q.expect_many(
+    ret, _, _ = q.expect_many(
             EventPattern('dbus-return',
                 method='UpdateParameters'),
             EventPattern('dbus-signal',
@@ -183,16 +183,18 @@ def test(q, bus, mc):
                     'secret-mushroom': '/Amanita muscaria/',
                     'snakes': 42,
                     }}]),
+            EventPattern('dbus-method-call',
+                path=conn.object_path,
+                interface=cs.PROPERTIES_IFACE, method='Set',
+                args=['com.example.Badgerable', 'Badgered', False],
+                handled=False),
             )
 
-    # there's no well-defined way to unset a D-Bus property, so it'll go back
-    # to its implied default value only after reconnection
-    #
-    # FIXME: in a perfect implementation, we know that this particular D-Bus
-    # property has a default, so maybe we should set it back to that?
+    # Because com.example.Badgerable.Badgered has a default value (namely
+    # False), unsetting that parameter should cause the default value to be set
+    # on the CM.
     not_yet = ret.value[0]
-    not_yet.sort()
-    assert not_yet == ['com.example.Badgerable.Badgered', 'nickname'], not_yet
+    assertEquals(['nickname'], not_yet)
 
     accounts_dir = os.environ['MC_ACCOUNT_DIR']
 
