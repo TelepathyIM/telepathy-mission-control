@@ -2175,7 +2175,6 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     GHashTable *dbus_properties;
     GPtrArray *not_yet;
     GError *error = NULL;
-    guint unset_size;
     TpConnectionManagerProtocol *protocol = NULL;
     GHashTableIter iter;
     gpointer key, value;
@@ -2198,21 +2197,16 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
         goto error;
     }
 
-    unset_size = (unset != NULL) ? g_strv_length ((gchar **) unset) : 0;
-
     /* An a{sv} of DBus_Property parameters we should set on the connection. */
     dbus_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
           g_free, (GDestroyNotify) tp_g_value_slice_free);
-    /* pessimistically assume that every parameter mentioned will be deferred
-     * until reconnection */
-    not_yet = g_ptr_array_sized_new (g_hash_table_size (params) + unset_size);
+    not_yet = g_ptr_array_new_with_free_func (g_free);
 
     if (!check_parameters (account, protocol, params, unset, dbus_properties,
                            not_yet, &error))
     {
         g_hash_table_unref (dbus_properties);
-        /* FIXME: we leak not_yet, like we did before. This is fixed in a
-         * subsequent commit. */
+        g_ptr_array_unref (not_yet);
         goto error;
     }
 
@@ -2241,7 +2235,7 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     }
 
     g_hash_table_unref (dbus_properties);
-    /* FIXME: not_yet is freed by the callback!!! */
+    g_ptr_array_unref (not_yet);
     tp_connection_manager_protocol_free (protocol);
     return;
 
@@ -2283,12 +2277,8 @@ account_update_parameters_cb (McdAccount *account, GPtrArray *not_yet,
 
     /* And finally, return from UpdateParameters() */
     g_ptr_array_add (not_yet, NULL);
-
     tp_svc_account_return_from_update_parameters (context,
         (const gchar **) not_yet->pdata);
-
-    g_ptr_array_foreach (not_yet, (GFunc) g_free, NULL);
-    g_ptr_array_free (not_yet, TRUE);
 }
 
 static void
