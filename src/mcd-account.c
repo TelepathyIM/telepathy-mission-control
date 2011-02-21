@@ -3,10 +3,8 @@
 /*
  * This file is part of mission-control
  *
- * Copyright (C) 2008-2010 Nokia Corporation.
- * Copyright (C) 2009-2010 Collabora Ltd.
- *
- * Contact: Alberto Mardegan  <alberto.mardegan@nokia.com>
+ * Copyright © 2008–2010 Nokia Corporation.
+ * Copyright © 2009–2011 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -21,7 +19,6 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
- *
  */
 
 #include "config.h"
@@ -384,17 +381,13 @@ mcd_account_loaded (McdAccount *account)
  * @account: the #McdAccount.
  * @name: the parameter name.
  * @value: a #GValue with the value to set, or %NULL.
- * @callback: a function to be called on success or failure
- * @user_data: data to be passed to @callback
  *
  * Sets the parameter @name to the value in @value. If @value, is %NULL, the
  * parameter is unset.
  */
 static void
 _mcd_account_set_parameter (McdAccount *account, const gchar *name,
-                            const GValue *value,
-                            McdAccountSetParameterCb callback,
-                            gpointer user_data)
+                            const GValue *value)
 {
     McdAccountPrivate *priv = account->priv;
     McdStorage *storage = priv->storage;
@@ -405,9 +398,6 @@ _mcd_account_set_parameter (McdAccount *account, const gchar *name,
     g_snprintf (key, sizeof (key), "param-%s", name);
 
     mcd_storage_set_value (storage, account_name, key, value, secret);
-
-    if (callback != NULL)
-        callback (account, NULL, user_data); /* set_parameter */
 }
 
 
@@ -1974,44 +1964,6 @@ out:
     tp_connection_manager_protocol_free (protocol);
 }
 
-static GHashTable *
-hash_table_copy (GHashTable *orig)
-{
-    GHashTable *dest;
-
-    dest = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                  (GDestroyNotify) g_free,
-                                  (GDestroyNotify) tp_g_value_slice_free);
-    tp_g_hash_table_update (dest, orig, (GBoxedCopyFunc) g_strdup,
-                            (GBoxedCopyFunc) tp_g_value_slice_dup);
-    return dest;
-}
-
-typedef struct
-{
-  McdAccount *account;
-  GHashTable *params;
-  GHashTableIter iter;
-  gchar **unset;
-  gchar **unset_iter;
-  const TpConnectionManagerParam *param;
-  GSList *dbus_properties;
-  GPtrArray *not_yet;
-  McdAccountSetParametersCb *callback;
-  gpointer user_data;
-} SetParametersData;
-
-static void
-set_parameters_data_free (SetParametersData *data)
-{
-    tp_clear_object (&data->account);
-    tp_clear_pointer (&data->params, g_hash_table_destroy);
-    g_strfreev (data->unset);
-    g_slist_free (data->dbus_properties);
-
-    g_slice_free (SetParametersData, data);
-}
-
 static void
 set_parameters_maybe_autoconnect_cb (McdAccount *account,
                                      gboolean valid,
@@ -2023,116 +1975,49 @@ set_parameters_maybe_autoconnect_cb (McdAccount *account,
 }
 
 static void
-set_parameters_finish (SetParametersData *data)
+apply_parameter_updates (McdAccount *account,
+                         GHashTable *params,
+                         const gchar **unset,
+                         GHashTable *dbus_properties)
 {
-    McdAccountPrivate *priv = data->account->priv;
+    McdAccountPrivate *priv = account->priv;
+    GHashTableIter iter;
+    gpointer name, value;
+    const gchar **unset_iter;
 
-    if (mcd_account_get_connection_status (data->account) ==
+    g_hash_table_iter_init (&iter, params);
+    while (g_hash_table_iter_next (&iter, &name, &value))
+    {
+        _mcd_account_set_parameter (account, name, value);
+    }
+
+    for (unset_iter = unset;
+         unset_iter != NULL && *unset_iter != NULL;
+         unset_iter++)
+    {
+        _mcd_account_set_parameter (account, *unset_iter, NULL);
+    }
+
+    if (mcd_account_get_connection_status (account) ==
         TP_CONNECTION_STATUS_CONNECTED)
     {
-        GSList *list;
-        const gchar *name;
-        const GValue *value;
-
-        for (list = data->dbus_properties; list != NULL; list = list->next)
+        g_hash_table_iter_init (&iter, dbus_properties);
+        while (g_hash_table_iter_next (&iter, &name, &value))
         {
-            name = list->data;
             DEBUG ("updating parameter %s", name);
-            value = g_hash_table_lookup (data->params, name);
             _mcd_connection_update_property (priv->connection, name, value);
         }
     }
 
-    mcd_account_check_validity (data->account,
+    mcd_account_check_validity (account,
                                 set_parameters_maybe_autoconnect_cb, NULL);
-
-    if (data->callback != NULL)
-    {
-        data->callback (data->account, data->not_yet, NULL, data->user_data);
-    }
-    set_parameters_data_free (data);
-}
-
-static void set_parameters_unset_single (McdAccount *account,
-                                         const GError *error,
-                                         gpointer user_data);
-
-
-static void
-set_parameters_unset_check_present (McdAccount *account,
-                                    SetParametersData *data,
-                                    const gchar *name)
-{
-    if (mcd_account_get_parameter (account, name, NULL, NULL))
-    {
-        DEBUG ("unsetting %s", name);
-        /* pessimistically assume that removing any parameter merits
-         * reconnection (in a perfect implementation, if the
-         * Has_Default flag was set we'd check whether the current
-         * value is the default already) */
-
-        g_ptr_array_add (data->not_yet, g_strdup (name));
-    }
 }
 
 static void
-set_parameters_unset_single (McdAccount *account, const GError *error,
-                             gpointer user_data)
-{
-    SetParametersData *data = (SetParametersData *) user_data;
-
-    if (data->unset == NULL)
-    {
-        set_parameters_finish (data);
-        return;
-    }
-
-    if (account == NULL)
-    {
-        data->unset_iter = data->unset; /* first time */
-    }
-    else
-    {
-        data->unset_iter++;
-    }
-
-    if (*data->unset_iter != NULL)
-    {
-        set_parameters_unset_check_present (data->account, data,
-                                            *data->unset_iter);
-        _mcd_account_set_parameter (data->account, *data->unset_iter, NULL,
-                                    set_parameters_unset_single, data);
-    }
-    else
-    {
-        set_parameters_finish (data);
-    }
-}
-
-static void
-set_parameters_set_single (McdAccount *account,
-                           const GError *error,
-                           gpointer user_data)
-{
-    SetParametersData *data = (SetParametersData *) user_data;
-    const gchar *name;
-    const GValue *value;
-
-    if (g_hash_table_iter_next (&data->iter, (gpointer) &name, (gpointer) &value))
-    {
-        _mcd_account_set_parameter (data->account, name, value,
-                                    set_parameters_set_single, data);
-    }
-    else
-    {
-        /* End of the hash table */
-        set_parameters_unset_single (NULL, NULL, data);
-    }
-}
-
-static void
-set_parameter_changed (SetParametersData *data,
-                       const TpConnectionManagerParam *param)
+set_parameter_changed (GHashTable *dbus_properties,
+                       GPtrArray *not_yet,
+                       const TpConnectionManagerParam *param,
+                       const GValue *new_value)
 {
     DEBUG ("Parameter %s changed", param->name);
 
@@ -2140,22 +2025,23 @@ set_parameter_changed (SetParametersData *data,
      * not, prepare to reset the connection */
     if (param->flags & TP_CONN_MGR_PARAM_FLAG_DBUS_PROPERTY)
     {
-        data->dbus_properties = g_slist_prepend (data->dbus_properties,
-                                                 param->name);
+        g_hash_table_insert (dbus_properties, g_strdup (param->name),
+            tp_g_value_slice_dup (new_value));
     }
     else
     {
-        g_ptr_array_add (data->not_yet, g_strdup (param->name));
+        g_ptr_array_add (not_yet, g_strdup (param->name));
     }
 }
 
 static gboolean
-check_one_parameter (McdAccount *account,
-                     TpConnectionManagerProtocol *protocol,
-                     SetParametersData *data,
-                     const gchar *name,
-                     const GValue *new_value,
-                     GError **error)
+check_one_parameter_update (McdAccount *account,
+                            TpConnectionManagerProtocol *protocol,
+                            GHashTable *dbus_properties,
+                            GPtrArray *not_yet,
+                            const gchar *name,
+                            const GValue *new_value,
+                            GError **error)
 {
     const TpConnectionManagerParam *param =
         tp_connection_manager_protocol_get_param (protocol, name);
@@ -2186,19 +2072,114 @@ check_one_parameter (McdAccount *account,
     {
         GValue current_value = { 0, };
 
-        if (mcd_account_get_parameter (account, param->name, &current_value,
-                                       NULL))
+        /* Check if the parameter's current value (or its default, if it has
+         * one and it's not set to anything) matches the new value.
+         */
+        if (mcd_account_get_parameter (account, param->name,
+                &current_value, NULL) ||
+            tp_connection_manager_param_get_default (param, &current_value))
         {
             if (!value_is_same (&current_value, new_value))
-                set_parameter_changed (data, param);
+                set_parameter_changed (dbus_properties, not_yet, param,
+                                       new_value);
 
             g_value_unset (&current_value);
         }
         else
         {
-            /* If it had no previous value, it's certainly changed. */
-            set_parameter_changed (data, param);
+            /* The parameter wasn't previously set, and has no default value;
+             * this update must be a change.
+             */
+            set_parameter_changed (dbus_properties, not_yet, param, new_value);
         }
+    }
+
+    return TRUE;
+}
+
+static gboolean
+check_one_parameter_unset (McdAccount *account,
+                           TpConnectionManagerProtocol *protocol,
+                           GHashTable *dbus_properties,
+                           GPtrArray *not_yet,
+                           const gchar *name,
+                           GError **error)
+{
+    const TpConnectionManagerParam *param =
+        tp_connection_manager_protocol_get_param (protocol, name);
+
+    if (param == NULL)
+    {
+        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "Protocol '%s' does not have parameter '%s'",
+                     protocol->name, name);
+        return FALSE;
+    }
+
+    if (mcd_account_get_connection_status (account) ==
+        TP_CONNECTION_STATUS_CONNECTED)
+    {
+        GValue current_value = { 0, };
+
+        if (mcd_account_get_parameter (account, param->name, &current_value,
+                                       NULL))
+        {
+            /* There's an existing value; let's see if it's the same as the
+             * default, if any.
+             */
+            GValue default_value = { 0, };
+
+            if (tp_connection_manager_param_get_default (param, &default_value))
+            {
+                if (!value_is_same (&current_value, &default_value))
+                    set_parameter_changed (dbus_properties, not_yet, param,
+                                           &default_value);
+
+                g_value_unset (&default_value);
+            }
+            else
+            {
+                /* It has no default; we're gonna have to reconnect to make
+                 * this take effect.
+                 */
+                 g_ptr_array_add (not_yet, g_strdup (param->name));
+            }
+
+            g_value_unset (&current_value);
+        }
+    }
+
+    return TRUE;
+}
+
+static gboolean
+check_parameters (McdAccount *account,
+                  TpConnectionManagerProtocol *protocol,
+                  GHashTable *params,
+                  const gchar **unset,
+                  GHashTable *dbus_properties,
+                  GPtrArray *not_yet,
+                  GError **error)
+{
+    GHashTableIter iter;
+    gpointer key, value;
+    const gchar **unset_iter;
+
+    g_hash_table_iter_init (&iter, params);
+    while (g_hash_table_iter_next (&iter, &key, &value))
+    {
+        if (!check_one_parameter_update (account, protocol, dbus_properties,
+                                         not_yet, key, value, error))
+            return FALSE;
+    }
+
+    for (unset_iter = unset;
+         unset_iter != NULL && *unset_iter != NULL;
+         unset_iter++)
+    {
+        if (!check_one_parameter_unset (account, protocol, dbus_properties,
+                                        not_yet, *unset_iter, error))
+            return FALSE;
     }
 
     return TRUE;
@@ -2223,19 +2204,17 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
                              gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
-    SetParametersData *data;
+    GHashTable *dbus_properties = NULL;
+    GPtrArray *not_yet = NULL;
     GError *error = NULL;
-    guint unset_size;
     TpConnectionManagerProtocol *protocol = NULL;
-    GHashTableIter iter;
-    gpointer key, value;
 
     DEBUG ("called");
     if (G_UNLIKELY (!priv->manager && !load_manager (account)))
     {
         g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
                      "Manager %s not found", priv->manager_name);
-        goto error;
+        goto out;
     }
 
     protocol = _mcd_manager_dup_protocol (priv->manager, priv->protocol_name);
@@ -2244,48 +2223,30 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     {
         g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
                      "Protocol %s not found", priv->protocol_name);
-        goto error;
+        goto out;
     }
 
-    unset_size = (unset != NULL) ? g_strv_length ((gchar **) unset) : 0;
+    /* An a{sv} of DBus_Property parameters we should set on the connection. */
+    dbus_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
+          g_free, (GDestroyNotify) tp_g_value_slice_free);
+    not_yet = g_ptr_array_new_with_free_func (g_free);
 
-    data = g_slice_new0 (SetParametersData);
-    data->account = g_object_ref (account);
-    data->params = hash_table_copy (params);
-    data->unset = g_strdupv ((gchar **) unset);
-    data->dbus_properties = NULL;
-    /* pessimistically assume that every parameter mentioned will be deferred
-     * until reconnection */
-    data->not_yet = g_ptr_array_sized_new (g_hash_table_size (params) +
-                                           unset_size);
-    data->callback = callback;
-    data->user_data = user_data;
+    if (check_parameters (account, protocol, params, unset, dbus_properties,
+                           not_yet, &error))
+        apply_parameter_updates (account, params, unset, dbus_properties);
 
-    g_hash_table_iter_init (&iter, params);
-    while (g_hash_table_iter_next (&iter, &key, &value))
-    {
-        if (!check_one_parameter (account, protocol, data, key, value, &error))
-        {
-            set_parameters_data_free (data);
-            goto error;
-            return;
-        }
-    }
-
-    /* If we made it here, all the parameters to be set look kosher. We haven't
-     * checked those that are meant to be unset. So now we kick off a slightly
-     * suspicious chain of parameter updates...
-     */
-    g_hash_table_iter_init (&data->iter, data->params);
-    set_parameters_set_single (data->account, NULL, data);
-    tp_connection_manager_protocol_free (protocol);
-    return;
-
-error:
+out:
     if (callback != NULL)
-        callback (account, NULL, error, user_data);
+    {
+        if (error == NULL)
+            callback (account, not_yet, NULL, user_data);
+        else
+            callback (account, NULL, error, user_data);
+    }
 
-    g_error_free (error);
+    g_clear_error (&error);
+    tp_clear_pointer (&dbus_properties, g_hash_table_unref);
+    tp_clear_pointer (&not_yet, g_ptr_array_unref);
     tp_clear_pointer (&protocol, tp_connection_manager_protocol_free);
 }
 
@@ -2319,12 +2280,8 @@ account_update_parameters_cb (McdAccount *account, GPtrArray *not_yet,
 
     /* And finally, return from UpdateParameters() */
     g_ptr_array_add (not_yet, NULL);
-
     tp_svc_account_return_from_update_parameters (context,
         (const gchar **) not_yet->pdata);
-
-    g_ptr_array_foreach (not_yet, (GFunc) g_free, NULL);
-    g_ptr_array_free (not_yet, TRUE);
 }
 
 static void
@@ -3444,7 +3401,7 @@ clear_register (McdAccount *self)
         GValue value = { 0 };
         const gchar *account_name = mcd_account_get_unique_name (self);
 
-        _mcd_account_set_parameter (self, "register", NULL, NULL, NULL);
+        _mcd_account_set_parameter (self, "register", NULL);
 
         g_hash_table_remove (params, "register");
 
