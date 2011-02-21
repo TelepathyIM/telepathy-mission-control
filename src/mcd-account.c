@@ -2204,8 +2204,8 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
                              gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
-    GHashTable *dbus_properties;
-    GPtrArray *not_yet;
+    GHashTable *dbus_properties = NULL;
+    GPtrArray *not_yet = NULL;
     GError *error = NULL;
     TpConnectionManagerProtocol *protocol = NULL;
 
@@ -2214,7 +2214,7 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     {
         g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
                      "Manager %s not found", priv->manager_name);
-        goto error;
+        goto out;
     }
 
     protocol = _mcd_manager_dup_protocol (priv->manager, priv->protocol_name);
@@ -2223,7 +2223,7 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     {
         g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
                      "Protocol %s not found", priv->protocol_name);
-        goto error;
+        goto out;
     }
 
     /* An a{sv} of DBus_Property parameters we should set on the connection. */
@@ -2231,31 +2231,22 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
           g_free, (GDestroyNotify) tp_g_value_slice_free);
     not_yet = g_ptr_array_new_with_free_func (g_free);
 
-    if (!check_parameters (account, protocol, params, unset, dbus_properties,
+    if (check_parameters (account, protocol, params, unset, dbus_properties,
                            not_yet, &error))
-    {
-        g_hash_table_unref (dbus_properties);
-        g_ptr_array_unref (not_yet);
-        goto error;
-    }
+        apply_parameter_updates (account, params, unset, dbus_properties);
 
-    apply_parameter_updates (account, params, unset, dbus_properties);
-
+out:
     if (callback != NULL)
     {
-        callback (account, not_yet, NULL, user_data);
+        if (error == NULL)
+            callback (account, not_yet, NULL, user_data);
+        else
+            callback (account, NULL, error, user_data);
     }
 
-    g_hash_table_unref (dbus_properties);
-    g_ptr_array_unref (not_yet);
-    tp_connection_manager_protocol_free (protocol);
-    return;
-
-error:
-    if (callback != NULL)
-        callback (account, NULL, error, user_data);
-
-    g_error_free (error);
+    g_clear_error (&error);
+    tp_clear_pointer (&dbus_properties, g_hash_table_unref);
+    tp_clear_pointer (&not_yet, g_ptr_array_unref);
     tp_clear_pointer (&protocol, tp_connection_manager_protocol_free);
 }
 
