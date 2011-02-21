@@ -2108,15 +2108,12 @@ check_one_parameter_unset (McdAccount *account,
     const TpConnectionManagerParam *param =
         tp_connection_manager_protocol_get_param (protocol, name);
 
-    if (param == NULL)
-    {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                     "Protocol '%s' does not have parameter '%s'",
-                     protocol->name, name);
-        return FALSE;
-    }
-
-    if (mcd_account_get_connection_status (account) ==
+    /* The spec decrees that “If the given parameters […] do not exist at all,
+     * the account manager MUST accept this without error.”. Thus this function
+     * is a no-op if @name doesn't actually exist.
+     */
+    if (param != NULL &&
+        mcd_account_get_connection_status (account) ==
         TP_CONNECTION_STATUS_CONNECTED)
     {
         GValue current_value = { 0, };

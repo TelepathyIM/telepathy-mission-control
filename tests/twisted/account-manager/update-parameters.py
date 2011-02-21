@@ -169,10 +169,12 @@ def test(q, bus, mc):
         dbus_interface=cs.PROPERTIES_IFACE)
     assertEquals(42, props['snakes'])
 
-    # Unset some parameters
+    # Unset some parameters, including a parameter which doesn't exist at all.
+    # The spec says that “If the given parameters […] do not exist at all, the
+    # account manager MUST accept this without error.”
     call_async(q, account, 'UpdateParameters',
             {},
-            ['nickname', 'com.example.Badgerable.Badgered'],
+            ['nickname', 'com.example.Badgerable.Badgered', 'froufrou'],
             dbus_interface=cs.ACCOUNT)
 
     ret, _, _ = q.expect_many(
@@ -235,6 +237,14 @@ def test(q, bus, mc):
                     'snakes': 42,
                     }}]),
             )
+    not_yet = ret.value[0]
+    assertEquals([], not_yet)
+
+    # Unset contrived-example again; the spec decrees that “If the given
+    # parameters were not, in fact, stored, […] the account manager MUST accept
+    # this without error.”
+    call_async(q, account, 'UpdateParameters', {}, ['contrived-example'])
+    ret = q.expect('dbus-return', method='UpdateParameters')
     not_yet = ret.value[0]
     assertEquals([], not_yet)
 
