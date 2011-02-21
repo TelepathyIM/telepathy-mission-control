@@ -2114,7 +2114,7 @@ check_one_parameter_unset (McdAccount *account,
      */
     if (param != NULL &&
         mcd_account_get_connection_status (account) ==
-        TP_CONNECTION_STATUS_CONNECTED)
+            TP_CONNECTION_STATUS_CONNECTED)
     {
         GValue current_value = { 0, };
 
