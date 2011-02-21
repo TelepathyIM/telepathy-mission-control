@@ -3,6 +3,15 @@ telepathy-mission-control 5.7.4 (UNRELEASED)
 
 Insert changelog A into NEWS file B…
 
+Enhancements:
+
+• fd.o#33271: implement ChannelDispatcher.RedispatchChannels() (cassidy)
+
+Fixes:
+
+• fd.o#34316: UpdateParameters: bad handling of DBus_Property and
+  Has_Default in Unset argument (wjt)
+
 telepathy-mission-control 5.7.3 (2011-02-15)
 ============================================
 
