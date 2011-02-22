@@ -33,6 +33,7 @@
 #include <glib/gstdio.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/interfaces.h>
+#include <telepathy-glib/protocol.h>
 #include <telepathy-glib/svc-account.h>
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
@@ -1788,10 +1789,92 @@ static const McdDBusProp account_external_password_storage_properties[] = {
 };
 
 static void
+account_external_password_storage_forget_credentials_cb (TpProxy *cm,
+    const GError *in_error,
+    gpointer user_data,
+    GObject *self)
+{
+  DBusGMethodInvocation *context = user_data;
+
+  if (in_error != NULL)
+    {
+      dbus_g_method_return_error (context, in_error);
+      return;
+    }
+
+  mc_svc_account_interface_external_password_storage_return_from_forget_password (context);
+}
+
+static void
+account_external_password_storage_identify_account_cb (TpProxy *protocol,
+    const char *account_id,
+    const GError *in_error,
+    gpointer user_data,
+    GObject *self)
+{
+  McdAccount *account = MCD_ACCOUNT (self);
+  DBusGMethodInvocation *context = user_data;
+  TpConnectionManager *cm = mcd_account_get_cm (account);
+
+  if (in_error != NULL)
+    {
+      dbus_g_method_return_error (context, in_error);
+      return;
+    }
+
+  DEBUG ("Identified account as %s", account_id);
+
+  mc_cli_connection_manager_interface_account_storage_call_forget_credentials (
+      cm, -1, account_id,
+      account_external_password_storage_forget_credentials_cb,
+      context, NULL, self);
+}
+
+static void
+account_external_password_storage_forget_password (
+    McSvcAccountInterfaceExternalPasswordStorage *self,
+    DBusGMethodInvocation *context)
+{
+  McdAccount *account = MCD_ACCOUNT (self);
+  TpConnectionManager *cm = mcd_account_get_cm (account);
+  TpProtocol *protocol;
+  GHashTable *params;
+
+  /* do we support the interface */
+  if (!tp_proxy_has_interface_by_id (cm,
+          MC_IFACE_QUARK_CONNECTION_MANAGER_INTERFACE_ACCOUNT_STORAGE))
+    {
+      GError *error = g_error_new (TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
+          "CM for this Account does not implement AccountStorage iface");
+
+      dbus_g_method_return_error (context, error);
+      g_error_free (error);
+
+      return;
+    }
+
+  /* identify the account */
+  protocol = tp_connection_manager_get_protocol_object (cm,
+      account->priv->protocol_name);
+  params = _mcd_account_dup_parameters (account);
+
+  tp_cli_protocol_call_identify_account (protocol, -1, params,
+      account_external_password_storage_identify_account_cb,
+      context, NULL, G_OBJECT (self));
+
+  g_hash_table_unref (params);
+}
+
+static void
 account_external_password_storage_iface_init (
     McSvcAccountInterfaceExternalPasswordStorageClass *iface,
     gpointer iface_data)
 {
+#define IMPLEMENT(x) \
+  mc_svc_account_interface_external_password_storage_implement_##x (\
+      iface, account_external_password_storage_##x)
+  IMPLEMENT (forget_password);
+#undef IMPLEMENT
 }
 
 static void
