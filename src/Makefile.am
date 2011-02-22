@@ -52,6 +52,7 @@ endif
 endif
 
 mc_gen_headers = \
+	_gen/cli-Connection_Manager_Interface_Account_Storage.h \
 	_gen/cli-Connection_Interface_Contact_Capabilities_Draft1.h \
 	_gen/cli-Connection_Interface_Contact_Capabilities.h \
 	_gen/cli-Connection_Interface_Power_Saving.h \
@@ -70,6 +71,7 @@ mc_gen_headers = \
 	_gen/svc-request.h
 
 nodist_libmcd_convenience_la_SOURCES = \
+	_gen/cli-Connection_Manager_Interface_Account_Storage-body.h \
 	_gen/cli-Connection_Interface_Contact_Capabilities_Draft1-body.h \
 	_gen/cli-Connection_Interface_Contact_Capabilities-body.h \
 	_gen/cli-Connection_Interface_Power_Saving-body.h \

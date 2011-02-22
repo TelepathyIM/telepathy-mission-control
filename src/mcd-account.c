@@ -55,6 +55,8 @@
 #include "mcd-master-priv.h"
 #include "mcd-dbusprop.h"
 
+#include "_gen/cli-Connection_Manager_Interface_Account_Storage-body.h"
+
 #define MAX_KEY_LENGTH (DBUS_MAXIMUM_NAME_LENGTH + 6)
 #define MC_AVATAR_FILENAME	"avatar.bin"
 
@@ -2679,6 +2681,16 @@ _mcd_account_constructed (GObject *object)
 }
 
 static void
+mcd_account_add_signals (TpProxy *self,
+    guint quark,
+    DBusGProxy *proxy,
+    gpointer data)
+{
+  mc_cli_Connection_Manager_Interface_Account_Storage_add_signals (self,
+      quark, proxy, data);
+}
+
+static void
 mcd_account_class_init (McdAccountClass * klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
@@ -2745,6 +2757,9 @@ mcd_account_class_init (McdAccountClass * klass)
     _mcd_account_connection_class_init (klass);
 
     account_ready_quark = g_quark_from_static_string ("mcd_account_load");
+
+    tp_proxy_or_subclass_hook_on_interface_add (TP_TYPE_CONNECTION_MANAGER,
+        mcd_account_add_signals);
 }
 
 static void
