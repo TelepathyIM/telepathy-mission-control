@@ -72,11 +72,15 @@ static void account_storage_iface_init (
 static void account_hidden_iface_init (
     McSvcAccountInterfaceHiddenClass *iface,
     gpointer iface_data);
+static void account_external_password_storage_iface_init (
+    McSvcAccountInterfaceExternalPasswordStorageClass *iface,
+    gpointer iface_data);
 
 static const McdDBusProp account_properties[];
 static const McdDBusProp account_avatar_properties[];
 static const McdDBusProp account_storage_properties[];
 static const McdDBusProp account_hidden_properties[];
+static const McdDBusProp account_external_password_storage_properties[];
 
 static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_account_get_type, account, TP_IFACE_ACCOUNT),
@@ -104,6 +108,10 @@ static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE (mc_svc_account_interface_hidden_get_type,
                          account_hidden,
                          MC_IFACE_ACCOUNT_INTERFACE_HIDDEN),
+    MCD_IMPLEMENT_OPTIONAL_IFACE (
+        mc_svc_account_interface_external_password_storage_get_type,
+        account_external_password_storage,
+        MC_IFACE_ACCOUNT_INTERFACE_EXTERNAL_PASSWORD_STORAGE),
 
     { G_TYPE_INVALID, }
 };
@@ -515,6 +523,17 @@ static void on_manager_ready (McdManager *manager, const GError *error,
     {
         mcd_account_check_parameters (account, manager_ready_check_params_cb,
                                       NULL);
+
+        /* determine if we support Acct.I.ExternalPasswordStorage */
+        if (tp_proxy_has_interface_by_id (mcd_manager_get_tp_proxy (manager),
+                MC_IFACE_QUARK_CONNECTION_MANAGER_INTERFACE_ACCOUNT_STORAGE))
+        {
+            DEBUG ("CM %s has CM.I.AccountStorage iface",
+                   mcd_manager_get_name (manager));
+            mcd_dbus_activate_optional_interface (
+                TP_SVC_DBUS_PROPERTIES (account),
+                MC_TYPE_SVC_ACCOUNT_INTERFACE_EXTERNAL_PASSWORD_STORAGE);
+        }
     }
 }
 
@@ -1760,6 +1779,17 @@ account_hidden_iface_init (
     gpointer iface_data)
 {
   /* wow, it's pretty crap that I need this. */
+}
+
+static const McdDBusProp account_external_password_storage_properties[] = {
+    { 0 },
+};
+
+static void
+account_external_password_storage_iface_init (
+    McSvcAccountInterfaceExternalPasswordStorageClass *iface,
+    gpointer iface_data)
+{
 }
 
 static void
