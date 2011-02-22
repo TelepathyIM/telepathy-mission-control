@@ -39,6 +39,7 @@
 #include "_gen/svc-Account_Interface_ChannelRequests.h"
 #include "_gen/svc-Account_Interface_Compat.h"
 #include "_gen/svc-Account_Interface_Conditions.h"
+#include "_gen/svc-Account_Interface_External_Password_Storage.h"
 #include "_gen/svc-Account_Interface_Hidden.h"
 #include "_gen/svc-Account_Interface_Stats.h"
 
