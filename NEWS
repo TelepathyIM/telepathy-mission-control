@@ -1,11 +1,13 @@
-telepathy-mission-control 5.7.4 (UNRELEASED)
+telepathy-mission-control 5.7.4 (2011-02-23)
 ============================================
 
-Insert changelog A into NEWS file B…
+The “Northern winters start to thaw” release.
 
 Enhancements:
 
 • fd.o#33271: implement ChannelDispatcher.RedispatchChannels() (cassidy)
+
+• fd.o#34416: support for Account.I.ExternalPasswordStorage (danni)
 
 Fixes:
 
