@@ -579,6 +579,29 @@ get_account_data_path (McdAccountPrivate *priv)
 	return g_build_filename (base, priv->unique_name, NULL);
 }
 
+static void
+account_delete_identify_account_cb (TpProxy *protocol,
+    const char *account_id,
+    const GError *in_error,
+    gpointer user_data,
+    GObject *self)
+{
+  McdAccount *account = MCD_ACCOUNT (self);
+  TpConnectionManager *cm = mcd_account_get_cm (account);
+
+  if (in_error != NULL)
+    {
+      DEBUG ("Error identifying account: %s", in_error->message);
+      return;
+    }
+
+  DEBUG ("Identified account as %s", account_id);
+
+  mc_cli_connection_manager_interface_account_storage_call_remove_account (
+      cm, -1, account_id,
+      NULL, NULL, NULL, NULL);
+}
+
 void
 mcd_account_delete (McdAccount *account,
                      McdAccountDeleteCb callback,
@@ -588,6 +611,27 @@ mcd_account_delete (McdAccount *account,
     gchar *data_dir_str;
     GError *error = NULL;
     const gchar *name = mcd_account_get_unique_name (account);
+    TpConnectionManager *cm = mcd_account_get_cm (account);
+
+    /* if the CM implements CM.I.AccountStorage, we need to tell the CM
+     * to forget any account credentials it knows */
+    if (tp_proxy_has_interface_by_id (cm,
+            MC_IFACE_QUARK_CONNECTION_MANAGER_INTERFACE_ACCOUNT_STORAGE))
+    {
+        TpProtocol *protocol;
+        GHashTable *params;
+
+        /* identify the account */
+        protocol = tp_connection_manager_get_protocol_object (cm,
+            account->priv->protocol_name);
+        params = _mcd_account_dup_parameters (account);
+
+        tp_cli_protocol_call_identify_account (protocol, -1, params,
+            account_delete_identify_account_cb,
+            NULL, NULL, G_OBJECT (account));
+
+        g_hash_table_unref (params);
+    }
 
     /* got to turn the account off before removing it, otherwise we can *
      * end up with an orphaned CM holding the account online            */
