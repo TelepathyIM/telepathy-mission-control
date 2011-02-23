@@ -33,12 +33,14 @@
 #include <glib/gstdio.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/interfaces.h>
+#include <telepathy-glib/protocol.h>
 #include <telepathy-glib/svc-account.h>
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
 #include <libmcclient/mc-gtypes.h>
 #include <libmcclient/mc-interfaces.h>
+#include <libmcclient/mc-enums.h>
 
 #include "mcd-account-priv.h"
 #include "mcd-account-compat.h"
@@ -54,6 +56,8 @@
 #include "mcd-master.h"
 #include "mcd-master-priv.h"
 #include "mcd-dbusprop.h"
+
+#include "_gen/cli-Connection_Manager_Interface_Account_Storage-body.h"
 
 #define MAX_KEY_LENGTH (DBUS_MAXIMUM_NAME_LENGTH + 6)
 #define MC_AVATAR_FILENAME	"avatar.bin"
@@ -72,11 +76,15 @@ static void account_storage_iface_init (
 static void account_hidden_iface_init (
     McSvcAccountInterfaceHiddenClass *iface,
     gpointer iface_data);
+static void account_external_password_storage_iface_init (
+    McSvcAccountInterfaceExternalPasswordStorageClass *iface,
+    gpointer iface_data);
 
 static const McdDBusProp account_properties[];
 static const McdDBusProp account_avatar_properties[];
 static const McdDBusProp account_storage_properties[];
 static const McdDBusProp account_hidden_properties[];
+static const McdDBusProp account_external_password_storage_properties[];
 
 static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_account_get_type, account, TP_IFACE_ACCOUNT),
@@ -104,6 +112,10 @@ static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE (mc_svc_account_interface_hidden_get_type,
                          account_hidden,
                          MC_IFACE_ACCOUNT_INTERFACE_HIDDEN),
+    MCD_IMPLEMENT_OPTIONAL_IFACE (
+        mc_svc_account_interface_external_password_storage_get_type,
+        account_external_password_storage,
+        MC_IFACE_ACCOUNT_INTERFACE_EXTERNAL_PASSWORD_STORAGE),
 
     { G_TYPE_INVALID, }
 };
@@ -174,6 +186,8 @@ struct _McdAccountPrivate
     gboolean properties_frozen;
     GHashTable *changed_properties;
     guint properties_source;
+
+    gboolean password_saved;
 };
 
 enum
@@ -501,6 +515,100 @@ manager_ready_check_params_cb (McdAccount *account,
     mcd_account_loaded (account);
 }
 
+static void
+account_external_password_storage_get_accounts_cb (TpProxy *cm,
+    const GValue *value,
+    const GError *in_error,
+    gpointer user_data,
+    GObject *self)
+{
+  McdAccount *account = MCD_ACCOUNT (self);
+  const char *account_id = user_data;
+  GHashTable *map, *props;
+
+  if (in_error != NULL)
+    {
+      DEBUG ("Failed to get Account property: %s", in_error->message);
+      return;
+    }
+
+  g_return_if_fail (G_VALUE_HOLDS (value, MC_HASH_TYPE_ACCOUNT_FLAGS_MAP));
+
+  map = g_value_get_boxed (value);
+
+  account->priv->password_saved =
+    GPOINTER_TO_UINT (g_hash_table_lookup (map, account_id)) &
+      MC_ACCOUNT_FLAG_CREDENTIALS_STORED;
+
+  DEBUG ("PasswordSaved = %u", account->priv->password_saved);
+
+  /* emit the changed signal */
+  props = tp_asv_new (
+      "PasswordSaved", G_TYPE_BOOLEAN, account->priv->password_saved,
+      NULL);
+
+  tp_svc_dbus_properties_emit_properties_changed (account,
+      MC_IFACE_ACCOUNT_INTERFACE_EXTERNAL_PASSWORD_STORAGE,
+      props,
+      NULL);
+
+  g_hash_table_destroy (props);
+}
+
+static void
+account_setup_identify_account_cb (TpProxy *protocol,
+    const char *account_id,
+    const GError *in_error,
+    gpointer user_data,
+    GObject *self)
+{
+  McdAccount *account = MCD_ACCOUNT (self);
+  TpConnectionManager *cm = mcd_account_get_cm (account);
+
+  if (in_error != NULL)
+    {
+      DEBUG ("Error identifying account: %s", in_error->message);
+      return;
+    }
+
+  DEBUG ("Identified account as %s", account_id);
+
+  /* look up the current value of the CM.I.AS.Accounts property
+   * and monitor future changes */
+  tp_cli_dbus_properties_call_get (cm, -1,
+      MC_IFACE_CONNECTION_MANAGER_INTERFACE_ACCOUNT_STORAGE,
+      "Accounts",
+      account_external_password_storage_get_accounts_cb,
+      g_strdup (account_id), g_free, G_OBJECT (account));
+}
+
+static void
+account_external_password_storage_properties_changed_cb (TpProxy *cm,
+    const char *iface,
+    GHashTable *changed_properties,
+    const char **invalidated_properties,
+    gpointer user_data,
+    GObject *self)
+{
+  McdAccount *account = MCD_ACCOUNT (user_data);
+  TpProtocol *protocol = tp_connection_manager_get_protocol_object (
+      TP_CONNECTION_MANAGER (cm), account->priv->protocol_name);
+  GHashTable *params;
+
+  if (tp_strdiff (iface,
+        MC_IFACE_CONNECTION_MANAGER_INTERFACE_ACCOUNT_STORAGE))
+    return;
+
+  /* look up account identity so we can look up our value in
+   * the Accounts map */
+  params = _mcd_account_dup_parameters (account);
+  tp_cli_protocol_call_identify_account (protocol, -1, params,
+      account_setup_identify_account_cb,
+      NULL, NULL, G_OBJECT (account));
+
+  g_hash_table_unref (params);
+}
+
 static void on_manager_ready (McdManager *manager, const GError *error,
                               gpointer user_data)
 {
@@ -513,8 +621,39 @@ static void on_manager_ready (McdManager *manager, const GError *error,
     }
     else
     {
+        TpConnectionManager *cm = mcd_manager_get_tp_proxy (manager);
+
         mcd_account_check_parameters (account, manager_ready_check_params_cb,
                                       NULL);
+
+        /* determine if we support Acct.I.ExternalPasswordStorage */
+        if (tp_proxy_has_interface_by_id (cm,
+                MC_IFACE_QUARK_CONNECTION_MANAGER_INTERFACE_ACCOUNT_STORAGE))
+        {
+            TpProtocol *protocol = tp_connection_manager_get_protocol_object (
+                cm, account->priv->protocol_name);
+            GHashTable *params;
+
+            DEBUG ("CM %s has CM.I.AccountStorage iface",
+                   mcd_manager_get_name (manager));
+
+            mcd_dbus_activate_optional_interface (
+                TP_SVC_DBUS_PROPERTIES (account),
+                MC_TYPE_SVC_ACCOUNT_INTERFACE_EXTERNAL_PASSWORD_STORAGE);
+
+            /* look up account identity so we can look up our value in
+             * the Accounts map */
+            params = _mcd_account_dup_parameters (account);
+            tp_cli_protocol_call_identify_account (protocol, -1, params,
+                account_setup_identify_account_cb,
+                NULL, NULL, G_OBJECT (account));
+
+            tp_cli_dbus_properties_connect_to_properties_changed (cm,
+                account_external_password_storage_properties_changed_cb,
+                NULL, NULL, G_OBJECT (account), NULL);
+
+            g_hash_table_unref (params);
+        }
     }
 }
 
@@ -557,6 +696,32 @@ get_account_data_path (McdAccountPrivate *priv)
 	return g_build_filename (base, priv->unique_name, NULL);
 }
 
+static void
+account_delete_identify_account_cb (TpProxy *protocol,
+    const char *account_id,
+    const GError *in_error,
+    gpointer user_data,
+    GObject *self)
+{
+  McdAccount *account = MCD_ACCOUNT (self);
+  TpConnectionManager *cm = mcd_account_get_cm (account);
+
+  if (in_error != NULL)
+    {
+      DEBUG ("Error identifying account: %s", in_error->message);
+    }
+  else
+    {
+      DEBUG ("Identified account as %s", account_id);
+
+      mc_cli_connection_manager_interface_account_storage_call_remove_account (
+          cm, -1, account_id,
+          NULL, NULL, NULL, NULL);
+    }
+
+  g_object_unref (account);
+}
+
 void
 mcd_account_delete (McdAccount *account,
                      McdAccountDeleteCb callback,
@@ -566,6 +731,27 @@ mcd_account_delete (McdAccount *account,
     gchar *data_dir_str;
     GError *error = NULL;
     const gchar *name = mcd_account_get_unique_name (account);
+    TpConnectionManager *cm = mcd_account_get_cm (account);
+
+    /* if the CM implements CM.I.AccountStorage, we need to tell the CM
+     * to forget any account credentials it knows */
+    if (tp_proxy_has_interface_by_id (cm,
+            MC_IFACE_QUARK_CONNECTION_MANAGER_INTERFACE_ACCOUNT_STORAGE))
+    {
+        TpProtocol *protocol;
+        GHashTable *params;
+
+        /* identify the account */
+        protocol = tp_connection_manager_get_protocol_object (cm,
+            account->priv->protocol_name);
+        params = _mcd_account_dup_parameters (account);
+
+        tp_cli_protocol_call_identify_account (protocol, -1, params,
+            account_delete_identify_account_cb,
+            NULL, NULL, g_object_ref (account));
+
+        g_hash_table_unref (params);
+    }
 
     /* got to turn the account off before removing it, otherwise we can *
      * end up with an orphaned CM holding the account online            */
@@ -1763,6 +1949,113 @@ account_hidden_iface_init (
 }
 
 static void
+get_password_saved (TpSvcDBusProperties *self,
+    const gchar *name,
+    GValue *value)
+{
+  McdAccount *account = MCD_ACCOUNT (self);
+
+  g_assert_cmpstr (name, ==, "PasswordSaved");
+
+  g_value_init (value, G_TYPE_BOOLEAN);
+  g_value_set_boolean (value, account->priv->password_saved);
+}
+
+static const McdDBusProp account_external_password_storage_properties[] = {
+    { "PasswordSaved", NULL, get_password_saved },
+    { 0 },
+};
+
+static void
+account_external_password_storage_forget_credentials_cb (TpProxy *cm,
+    const GError *in_error,
+    gpointer user_data,
+    GObject *self)
+{
+  DBusGMethodInvocation *context = user_data;
+
+  if (in_error != NULL)
+    {
+      dbus_g_method_return_error (context, in_error);
+      return;
+    }
+
+  mc_svc_account_interface_external_password_storage_return_from_forget_password (context);
+}
+
+static void
+account_external_password_storage_identify_account_cb (TpProxy *protocol,
+    const char *account_id,
+    const GError *in_error,
+    gpointer user_data,
+    GObject *self)
+{
+  McdAccount *account = MCD_ACCOUNT (self);
+  DBusGMethodInvocation *context = user_data;
+  TpConnectionManager *cm = mcd_account_get_cm (account);
+
+  if (in_error != NULL)
+    {
+      dbus_g_method_return_error (context, in_error);
+      return;
+    }
+
+  DEBUG ("Identified account as %s", account_id);
+
+  mc_cli_connection_manager_interface_account_storage_call_forget_credentials (
+      cm, -1, account_id,
+      account_external_password_storage_forget_credentials_cb,
+      context, NULL, self);
+}
+
+static void
+account_external_password_storage_forget_password (
+    McSvcAccountInterfaceExternalPasswordStorage *self,
+    DBusGMethodInvocation *context)
+{
+  McdAccount *account = MCD_ACCOUNT (self);
+  TpConnectionManager *cm = mcd_account_get_cm (account);
+  TpProtocol *protocol;
+  GHashTable *params;
+
+  /* do we support the interface */
+  if (!tp_proxy_has_interface_by_id (cm,
+          MC_IFACE_QUARK_CONNECTION_MANAGER_INTERFACE_ACCOUNT_STORAGE))
+    {
+      GError *error = g_error_new (TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
+          "CM for this Account does not implement AccountStorage iface");
+
+      dbus_g_method_return_error (context, error);
+      g_error_free (error);
+
+      return;
+    }
+
+  /* identify the account */
+  protocol = tp_connection_manager_get_protocol_object (cm,
+      account->priv->protocol_name);
+  params = _mcd_account_dup_parameters (account);
+
+  tp_cli_protocol_call_identify_account (protocol, -1, params,
+      account_external_password_storage_identify_account_cb,
+      context, NULL, G_OBJECT (self));
+
+  g_hash_table_unref (params);
+}
+
+static void
+account_external_password_storage_iface_init (
+    McSvcAccountInterfaceExternalPasswordStorageClass *iface,
+    gpointer iface_data)
+{
+#define IMPLEMENT(x) \
+  mc_svc_account_interface_external_password_storage_implement_##x (\
+      iface, account_external_password_storage_##x)
+  IMPLEMENT (forget_password);
+#undef IMPLEMENT
+}
+
+static void
 properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 {
 #define IMPLEMENT(x) tp_svc_dbus_properties_implement_##x (\
@@ -2649,6 +2942,16 @@ _mcd_account_constructed (GObject *object)
 }
 
 static void
+mcd_account_add_signals (TpProxy *self,
+    guint quark,
+    DBusGProxy *proxy,
+    gpointer data)
+{
+  mc_cli_Connection_Manager_Interface_Account_Storage_add_signals (self,
+      quark, proxy, data);
+}
+
+static void
 mcd_account_class_init (McdAccountClass * klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
@@ -2715,6 +3018,9 @@ mcd_account_class_init (McdAccountClass * klass)
     _mcd_account_connection_class_init (klass);
 
     account_ready_quark = g_quark_from_static_string ("mcd_account_load");
+
+    tp_proxy_or_subclass_hook_on_interface_add (TP_TYPE_CONNECTION_MANAGER,
+        mcd_account_add_signals);
 }
 
 static void

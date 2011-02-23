@@ -10,6 +10,7 @@
 <xi:include href="Account_Interface_ChannelRequests.xml"/>
 <xi:include href="Account_Interface_Compat.xml"/>
 <xi:include href="Account_Interface_Conditions.xml"/>
+<xi:include href="Account_Interface_External_Password_Storage.xml"/>
 <xi:include href="Account_Interface_Hidden.xml"/>
 <xi:include href="Account_Interface_Stats.xml"/>
 <xi:include href="Account_Manager.xml"/>
@@ -26,6 +27,8 @@
 <xi:include href="Channel_Dispatcher_Interface_Operation_List.xml"/>
 <xi:include href="Channel_Request.xml"/>
 <xi:include href="Channel_Dispatch_Operation.xml"/>
+
+<xi:include href="Connection_Manager_Interface_Account_Storage.xml"/>
 
 <xi:include href="Connection_Interface_Contact_Capabilities_Draft1.xml"/>
 <xi:include href="Connection_Interface_Contact_Capabilities.xml"/>
