@@ -524,7 +524,7 @@ account_external_password_storage_get_accounts_cb (TpProxy *cm,
 {
   McdAccount *account = MCD_ACCOUNT (self);
   const char *account_id = user_data;
-  GHashTable *map;
+  GHashTable *map, *props;
 
   if (in_error != NULL)
     {
@@ -541,6 +541,18 @@ account_external_password_storage_get_accounts_cb (TpProxy *cm,
       MC_ACCOUNT_FLAG_CREDENTIALS_STORED;
 
   DEBUG ("PasswordSaved = %u", account->priv->password_saved);
+
+  /* emit the changed signal */
+  props = tp_asv_new (
+      "PasswordSaved", G_TYPE_BOOLEAN, account->priv->password_saved,
+      NULL);
+
+  tp_svc_dbus_properties_emit_properties_changed (account,
+      MC_IFACE_ACCOUNT_INTERFACE_EXTERNAL_PASSWORD_STORAGE,
+      props,
+      NULL);
+
+  g_hash_table_destroy (props);
 }
 
 static void
