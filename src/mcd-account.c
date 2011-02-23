@@ -709,14 +709,17 @@ account_delete_identify_account_cb (TpProxy *protocol,
   if (in_error != NULL)
     {
       DEBUG ("Error identifying account: %s", in_error->message);
-      return;
+    }
+  else
+    {
+      DEBUG ("Identified account as %s", account_id);
+
+      mc_cli_connection_manager_interface_account_storage_call_remove_account (
+          cm, -1, account_id,
+          NULL, NULL, NULL, NULL);
     }
 
-  DEBUG ("Identified account as %s", account_id);
-
-  mc_cli_connection_manager_interface_account_storage_call_remove_account (
-      cm, -1, account_id,
-      NULL, NULL, NULL, NULL);
+  g_object_unref (account);
 }
 
 void
@@ -745,7 +748,7 @@ mcd_account_delete (McdAccount *account,
 
         tp_cli_protocol_call_identify_account (protocol, -1, params,
             account_delete_identify_account_cb,
-            NULL, NULL, G_OBJECT (account));
+            NULL, NULL, g_object_ref (account));
 
         g_hash_table_unref (params);
     }
