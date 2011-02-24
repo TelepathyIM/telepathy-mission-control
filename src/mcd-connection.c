@@ -2899,7 +2899,7 @@ _mcd_connection_take_emergency_handles (McdConnection *self, TpIntSet *handles)
 {
     McdConnectionPrivate *priv = self->priv;
 
-    if (priv->emergency.numbers != NULL)
+    if (priv->emergency.handles != NULL)
       {
         clear_emergency_handles (priv);
         g_critical ("Overwriting old emergency handles");
