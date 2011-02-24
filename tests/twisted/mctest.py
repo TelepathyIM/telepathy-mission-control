@@ -105,6 +105,7 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
         import traceback
         traceback.print_exc()
         error = e
+        queue.verbose = False
 
     # Clean up any accounts which are left over from the test.
     try:

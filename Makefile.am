@@ -1,5 +1,11 @@
 ACLOCAL_AMFLAGS = -I m4
 
+CHECK_FOR_UNRELEASED := \
+    $(srcdir)/NEWS \
+    $(wildcard $(srcdir)/src/*.[ch]) \
+    $(wildcard $(libmmclient)/src/*.[ch]) \
+    $(NULL)
+
 SUBDIRS = \
     m4 \
     tools \

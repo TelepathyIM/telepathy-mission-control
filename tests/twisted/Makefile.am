@@ -53,6 +53,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/handle-channels-fails.py \
 	dispatcher/lose-text.py \
 	dispatcher/recover-from-disconnect.py \
+	dispatcher/redispatch-channels.py \
 	dispatcher/request-disabled-account.py \
 	dispatcher/respawn-observers.py \
 	dispatcher/respawn-activatable-observers.py \

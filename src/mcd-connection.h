@@ -88,5 +88,8 @@ gboolean mcd_connection_cancel_channel_request (McdConnection *connection,
 
 void mcd_connection_close (McdConnection *connection);
 
+McdChannel * mcd_connection_find_channel_by_path (McdConnection *connection,
+    const gchar *object_path);
+
 G_END_DECLS
 #endif /* __MCD_CONNECTION_H__ */

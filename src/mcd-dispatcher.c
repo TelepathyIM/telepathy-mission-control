@@ -85,10 +85,13 @@
 #define MCD_DISPATCHER_PRIV(dispatcher) (MCD_DISPATCHER (dispatcher)->priv)
 
 static void dispatcher_iface_init (gpointer, gpointer);
+static void redispatch_iface_init (gpointer, gpointer);
 
 G_DEFINE_TYPE_WITH_CODE (McdDispatcher, mcd_dispatcher, MCD_TYPE_MISSION,
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_CHANNEL_DISPATCHER,
                            dispatcher_iface_init);
+    G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_DISPATCHER_INTERFACE_REDISPATCH,
+                           redispatch_iface_init);
     G_IMPLEMENT_INTERFACE (
         TP_TYPE_SVC_CHANNEL_DISPATCHER_INTERFACE_OPERATION_LIST,
         NULL);
@@ -1700,6 +1703,36 @@ _mcd_dispatcher_recover_channel (McdDispatcher *dispatcher,
     }
 }
 
+static gboolean
+check_preferred_handler (const gchar *preferred_handler,
+    GError **error)
+{
+  g_assert (error != NULL);
+
+  if (preferred_handler[0] == '\0')
+      return TRUE;
+
+  if (!tp_dbus_check_valid_bus_name (preferred_handler,
+                                     TP_DBUS_NAME_TYPE_WELL_KNOWN,
+                                     error))
+  {
+      /* The error is TP_DBUS_ERROR_INVALID_BUS_NAME, which has no D-Bus
+       * representation; re-map to InvalidArgument. */
+      (*error)->domain = TP_ERRORS;
+      (*error)->code = TP_ERROR_INVALID_ARGUMENT;
+      return FALSE;
+  }
+
+  if (!g_str_has_prefix (preferred_handler, TP_CLIENT_BUS_NAME_BASE))
+  {
+      g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                   "Not a Telepathy Client: %s", preferred_handler);
+      return FALSE;
+  }
+
+  return TRUE;
+}
+
 static void
 dispatcher_request_channel (McdDispatcher *self,
                             const gchar *account_path,
@@ -1737,26 +1770,8 @@ dispatcher_request_channel (McdDispatcher *self,
         goto despair;
     }
 
-    if (preferred_handler[0] != '\0')
-    {
-        if (!tp_dbus_check_valid_bus_name (preferred_handler,
-                                           TP_DBUS_NAME_TYPE_WELL_KNOWN,
-                                           &error))
-        {
-            /* The error is TP_DBUS_ERROR_INVALID_BUS_NAME, which has no D-Bus
-             * representation; re-map to InvalidArgument. */
-            error->domain = TP_ERRORS;
-            error->code = TP_ERROR_INVALID_ARGUMENT;
-            goto despair;
-        }
-
-        if (!g_str_has_prefix (preferred_handler, TP_CLIENT_BUS_NAME_BASE))
-        {
-            g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                         "Not a Telepathy Client: %s", preferred_handler);
-            goto despair;
-        }
-    }
+    if (!check_preferred_handler (preferred_handler, &error))
+        goto despair;
 
     channel = _mcd_account_create_request (self->priv->clients,
                                            account, requested_properties,
@@ -2036,4 +2051,265 @@ _mcd_dispatcher_get_client_registry (McdDispatcher *self)
 {
     g_return_val_if_fail (MCD_IS_DISPATCHER (self), NULL);
     return self->priv->clients;
+}
+
+typedef struct
+{
+  McdDispatcher *self;
+  McdAccount *account;
+  gint64 user_action_time;
+  GHashTable *hints;
+  DBusGMethodInvocation *context;
+  /* List of reffed McdChannel */
+  GList *channels;
+  /* Queue of reffed McdClientProxy */
+  GQueue *handlers;
+} RedispatchChannelsCtx;
+
+static RedispatchChannelsCtx *
+redispatch_channels_ctx_new (McdDispatcher *self,
+    McdAccount *account,
+    gint64 user_action_time,
+    GHashTable *hints,
+    DBusGMethodInvocation *context)
+{
+  RedispatchChannelsCtx *ctx = g_slice_new0 (RedispatchChannelsCtx);
+
+  ctx->self = g_object_ref (self);
+  ctx->account = g_object_ref (account);
+  ctx->user_action_time = user_action_time;
+  ctx->hints = g_hash_table_ref (hints);
+  ctx->context = context;
+  ctx->handlers = g_queue_new ();
+  return ctx;
+}
+
+static void
+redispatch_channels_ctx_free (RedispatchChannelsCtx *ctx)
+{
+  g_object_unref (ctx->self);
+  g_object_unref (ctx->account);
+  g_list_foreach (ctx->channels, (GFunc) g_object_unref, NULL);
+  g_list_free (ctx->channels);
+  g_hash_table_unref (ctx->hints);
+  g_queue_foreach (ctx->handlers, (GFunc) g_object_unref, NULL);
+  g_queue_free (ctx->handlers);
+  g_slice_free (RedispatchChannelsCtx, ctx);
+}
+
+static void try_redispatching (RedispatchChannelsCtx *ctx);
+
+static void
+redispatch_handle_channels_cb (TpClient *client,
+    const GError *error,
+    gpointer user_data G_GNUC_UNUSED,
+    GObject *weak_object)
+{
+  RedispatchChannelsCtx *ctx = user_data;
+  GList *l;
+  McdClientProxy *clt_proxy = MCD_CLIENT_PROXY (client);
+
+  if (error != NULL)
+    {
+        DEBUG ("Handler refused redispatching channels");
+
+        try_redispatching (ctx);
+        return;
+    }
+
+  DEBUG ("Channels have been redispatched");
+
+  for (l = ctx->channels; l != NULL; l = g_list_next (l))
+    {
+      McdChannel *channel = l->data;
+
+      _mcd_handler_map_set_path_handled (ctx->self->priv->handler_map,
+          mcd_channel_get_object_path (channel),
+          _mcd_client_proxy_get_unique_name (clt_proxy),
+          tp_proxy_get_bus_name (client));
+    }
+
+  mc_svc_channel_dispatcher_interface_redispatch_return_from_redispatch_channels (
+      ctx->context);
+
+  redispatch_channels_ctx_free (ctx);
+}
+
+static void
+try_redispatching (RedispatchChannelsCtx *ctx)
+{
+  McdClientProxy *client;
+
+  if (g_queue_get_length (ctx->handlers) == 0)
+    {
+      GError *error = NULL;
+
+      g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_CAPABLE,
+          "There is no other suitable handler");
+
+      dbus_g_method_return_error (ctx->context, error);
+      g_error_free (error);
+
+      redispatch_channels_ctx_free (ctx);
+      return;
+    }
+
+  client = g_queue_pop_head (ctx->handlers);
+
+  DEBUG ("Try redispatching channels to %s", _mcd_client_proxy_get_unique_name (
+      client));
+
+  _mcd_client_proxy_handle_channels (client, -1, ctx->channels,
+      ctx->user_action_time, NULL, redispatch_handle_channels_cb,
+      ctx, NULL, NULL);
+
+  g_object_unref (client);
+}
+
+static void
+dispatcher_redispatch_channels (
+    McSvcChannelDispatcherInterfaceRedispatch *iface,
+    const gchar *account_path,
+    const GPtrArray *channels,
+    gint64 user_action_time,
+    const gchar *preferred_handler,
+    GHashTable *hints,
+    DBusGMethodInvocation *context)
+{
+  McdDispatcher *self = (McdDispatcher *) iface;
+  guint i;
+  GError *error = NULL;
+  const gchar *sender;
+  McdAccountManager *am;
+  McdAccount *account;
+  McdConnection *conn;
+  GStrv possible_handlers;
+  GList *tp_channels = NULL;
+  RedispatchChannelsCtx *ctx = NULL;
+
+  if (!check_preferred_handler (preferred_handler, &error))
+      goto error;
+
+  g_object_get (self->priv->master, "account-manager", &am, NULL);
+  g_assert (am != NULL);
+
+  account = mcd_account_manager_lookup_account_by_path (am, account_path);
+  g_object_unref (am);
+
+  if (account == NULL)
+    {
+      g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+          "No such account: %s", account_path);
+      goto error;
+    }
+
+  conn = mcd_account_get_connection (account);
+  if (conn == NULL)
+    {
+      g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+          "No connection for account: %s", account_path);
+      goto error;
+    }
+
+  if (channels->len == 0)
+    {
+      g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+          "Need at least one channel to redispatch");
+      goto error;
+    }
+
+  ctx = redispatch_channels_ctx_new (self, account, user_action_time, hints,
+      context);
+
+  sender = dbus_g_method_get_sender (context);
+
+  for (i = 0; i < channels->len; i++)
+    {
+      const gchar *chan_path = g_ptr_array_index (channels, i);
+      const gchar *chan_account;
+      const gchar *handler;
+      McdChannel *mcd_channel;
+      TpChannel *tp_channel;
+
+      /* Check account of the channel */
+      chan_account = _mcd_handler_map_get_channel_account (
+          self->priv->handler_map, chan_path);
+
+      if (tp_strdiff (account_path, chan_account))
+        {
+          g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+              "Channel %s has %s as account, not %s", chan_path, chan_account,
+              account_path);
+          goto error;
+        }
+
+      /* Check the caller is handling the channel */
+      handler = _mcd_handler_map_get_handler (self->priv->handler_map,
+          chan_path, NULL);
+      if (tp_strdiff (sender, handler))
+       {
+          g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_YOURS,
+              "Your are not handling channel %s", chan_path);
+          goto error;
+       }
+
+      mcd_channel = mcd_connection_find_channel_by_path (conn, chan_path);
+      g_assert (mcd_channel != NULL);
+
+      tp_channel = mcd_channel_get_tp_channel (mcd_channel);
+      g_assert (tp_channel != NULL);
+
+      tp_channels = g_list_prepend (tp_channels, tp_channel);
+      ctx->channels = g_list_prepend (ctx->channels,
+          g_object_ref (mcd_channel));
+    }
+
+  possible_handlers = mcd_dispatcher_dup_possible_handlers (self,
+      NULL, tp_channels, NULL);
+
+  g_list_free (tp_channels);
+
+  for (i = 0; possible_handlers[i] != NULL; i++)
+    {
+      McdClientProxy *client;
+      const gchar *unique_name;
+
+      client = _mcd_client_registry_lookup (self->priv->clients,
+          possible_handlers[i]);
+      g_assert (client != NULL);
+
+      unique_name = _mcd_client_proxy_get_unique_name (client);
+
+      /* Skip the caller */
+      if (!tp_strdiff (unique_name, sender))
+          continue;
+
+      /* Put the preferred handler at the head of the list so it will be tried
+       * first */
+      if (!tp_strdiff (possible_handlers[i], preferred_handler))
+        g_queue_push_head (ctx->handlers, g_object_ref (client));
+      else
+        g_queue_push_tail (ctx->handlers, g_object_ref (client));
+    }
+
+  g_strfreev (possible_handlers);
+
+  try_redispatching (ctx);
+
+  return;
+
+error:
+  dbus_g_method_return_error (context, error);
+  g_error_free (error);
+
+  tp_clear_pointer (&ctx, redispatch_channels_ctx_free);
+}
+
+static void
+redispatch_iface_init (gpointer g_iface,
+                       gpointer iface_data G_GNUC_UNUSED)
+{
+#define IMPLEMENT(x) mc_svc_channel_dispatcher_interface_redispatch_implement_##x (\
+    g_iface, dispatcher_##x)
+  IMPLEMENT(redispatch_channels);
 }

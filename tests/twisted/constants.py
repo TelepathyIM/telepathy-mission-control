@@ -187,6 +187,7 @@ CDO = tp_name_prefix + '.ChannelDispatchOperation'
 CD = tp_name_prefix + '.ChannelDispatcher'
 CD_IFACE_OP_LIST = tp_name_prefix + '.ChannelDispatcher.Interface.OperationList'
 CD_PATH = tp_path_prefix + '/ChannelDispatcher'
+CD_REDISPATCH = CD + '.Interface.Redispatch.DRAFT'
 
 MC = tp_name_prefix + '.MissionControl5'
 MC_PATH = tp_path_prefix + '/MissionControl5'

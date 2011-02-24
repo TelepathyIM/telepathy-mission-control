@@ -1,4 +1,20 @@
-telepathy-mission-control 5.7.3 (UNRELEASED)
+telepathy-mission-control 5.7.4 (2011-02-23)
+============================================
+
+The “Northern winters start to thaw” release.
+
+Enhancements:
+
+• fd.o#33271: implement ChannelDispatcher.RedispatchChannels() (cassidy)
+
+• fd.o#34416: support for Account.I.ExternalPasswordStorage (danni)
+
+Fixes:
+
+• fd.o#34316: UpdateParameters: bad handling of DBus_Property and
+  Has_Default in Unset argument (wjt)
+
+telepathy-mission-control 5.7.3 (2011-02-15)
 ============================================
 
 The "Future Events Like These Will Affect You in the Future" release.

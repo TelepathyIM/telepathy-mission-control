@@ -48,6 +48,63 @@ get_interfaces_quark (void)
     return interfaces_quark;
 }
 
+#define MCD_ACTIVE_OPTIONAL_INTERFACES_QUARK \
+    get_active_optional_interfaces_quark()
+
+static GQuark
+get_active_optional_interfaces_quark (void)
+{
+    static GQuark active_optional_interfaces_quark = 0;
+
+    if (G_UNLIKELY (active_optional_interfaces_quark == 0))
+        active_optional_interfaces_quark =
+            g_quark_from_static_string ("active-optional-interfaces");
+
+    return active_optional_interfaces_quark;
+}
+
+/**
+ * get_active_optional_interfaces:
+ *
+ * DBus Interfaces marked as optional will only be included in the object's
+ * Interfaces property if they appear in this set.
+ *
+ * Returns: a #TpIntset of the active optional interfaces.
+ */
+static TpIntset *
+get_active_optional_interfaces (TpSvcDBusProperties *object)
+{
+    TpIntset *aoi = g_object_get_qdata (G_OBJECT (object),
+                                        MCD_ACTIVE_OPTIONAL_INTERFACES_QUARK);
+
+    if (G_UNLIKELY (aoi == NULL))
+    {
+        aoi = tp_intset_new ();
+
+        g_object_set_qdata_full (G_OBJECT (object),
+                                 MCD_ACTIVE_OPTIONAL_INTERFACES_QUARK,
+                                 aoi,
+                                 (GDestroyNotify) tp_intset_destroy);
+    }
+
+    return aoi;
+}
+
+void
+mcd_dbus_activate_optional_interface (TpSvcDBusProperties *object,
+                                      GType interface)
+{
+    tp_intset_add (get_active_optional_interfaces (object), interface);
+}
+
+gboolean
+mcd_dbus_is_active_optional_interface (TpSvcDBusProperties *object,
+                                       GType interface)
+{
+    return tp_intset_is_member (get_active_optional_interfaces (object),
+                                interface);
+}
+
 static const McdDBusProp *
 get_interface_properties (TpSvcDBusProperties *object, const gchar *interface)
 {
@@ -438,7 +495,17 @@ mcd_dbus_get_interfaces (TpSvcDBusProperties *self, const gchar *name,
 	if (!iface_data) continue;
 
 	for (id = iface_data; id->get_type; id++)
+        {
+            if (id->optional &&
+                !mcd_dbus_is_active_optional_interface (self,
+                                                        id->get_type ()))
+            {
+                DEBUG ("skipping inactive optional iface %s", id->interface);
+                continue;
+            }
+
 	    g_ptr_array_add (a_ifaces, g_strdup (id->interface));
+        }
     }
     g_ptr_array_add (a_ifaces, NULL);
 

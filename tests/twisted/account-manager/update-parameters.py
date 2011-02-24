@@ -1,5 +1,6 @@
-# Copyright (C) 2009 Nokia Corporation
-# Copyright (C) 2009 Collabora Ltd.
+# vim: set fileencoding=utf-8 :
+# Copyright © 2009 Nokia Corporation
+# Copyright © 2009–2011 Collabora Ltd.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -23,7 +24,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async, assertEquals
+        call_async, assertEquals, assertSameSets
 from mctest import exec_test, SimulatedConnection, create_fakecm_account,\
         SimulatedChannel
 import constants as cs
@@ -33,8 +34,11 @@ def test(q, bus, mc):
             tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
 
     # Create an account
-    params = dbus.Dictionary({"account": "someguy@example.com",
-        "password": "secrecy", 'nickname': 'albinoblacksheep'}, signature='sv')
+    params = dbus.Dictionary(
+        {"account": "someguy@example.com",
+         "password": "secrecy",
+         "nickname": "albinoblacksheep",
+         }, signature='sv')
     (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
 
     # Enable the account
@@ -137,13 +141,43 @@ def test(q, bus, mc):
     not_yet.sort()
     assert not_yet == ['account', 'secret-mushroom', 'snakes'], not_yet
 
-    # Unset some parameters
+    # Try to update 'account' to a value of the wrong type; MC should complain,
+    # without having changed the value of 'snakes'.
+    call_async(q, account, 'UpdateParameters',
+            { 'account': dbus.UInt32(39),
+              'snakes': dbus.UInt32(39),
+            },
+            [],
+            dbus_interface=cs.ACCOUNT)
+    q.expect('dbus-error', name=cs.INVALID_ARGUMENT)
+
+    props = account.Get(cs.ACCOUNT, 'Parameters',
+        dbus_interface=cs.PROPERTIES_IFACE)
+    assertEquals(42, props['snakes'])
+
+    # Try to update a parameter that doesn't exist; again, 'snakes' should not
+    # be changed.
+    call_async(q, account, 'UpdateParameters',
+            { 'accccccount': dbus.UInt32(39),
+              'snakes': dbus.UInt32(39),
+            },
+            [],
+            dbus_interface=cs.ACCOUNT)
+    q.expect('dbus-error', name=cs.INVALID_ARGUMENT)
+
+    props = account.Get(cs.ACCOUNT, 'Parameters',
+        dbus_interface=cs.PROPERTIES_IFACE)
+    assertEquals(42, props['snakes'])
+
+    # Unset some parameters, including a parameter which doesn't exist at all.
+    # The spec says that “If the given parameters […] do not exist at all, the
+    # account manager MUST accept this without error.”
     call_async(q, account, 'UpdateParameters',
             {},
-            ['nickname', 'com.example.Badgerable.Badgered'],
+            ['nickname', 'com.example.Badgerable.Badgered', 'froufrou'],
             dbus_interface=cs.ACCOUNT)
 
-    ret, _ = q.expect_many(
+    ret, _, _ = q.expect_many(
             EventPattern('dbus-return',
                 method='UpdateParameters'),
             EventPattern('dbus-signal',
@@ -155,16 +189,64 @@ def test(q, bus, mc):
                     'secret-mushroom': '/Amanita muscaria/',
                     'snakes': 42,
                     }}]),
+            EventPattern('dbus-method-call',
+                path=conn.object_path,
+                interface=cs.PROPERTIES_IFACE, method='Set',
+                args=['com.example.Badgerable', 'Badgered', False],
+                handled=False),
             )
 
-    # there's no well-defined way to unset a D-Bus property, so it'll go back
-    # to its implied default value only after reconnection
-    #
-    # FIXME: in a perfect implementation, we know that this particular D-Bus
-    # property has a default, so maybe we should set it back to that?
+    # Because com.example.Badgerable.Badgered has a default value (namely
+    # False), unsetting that parameter should cause the default value to be set
+    # on the CM.
     not_yet = ret.value[0]
-    not_yet.sort()
-    assert not_yet == ['com.example.Badgerable.Badgered', 'nickname'], not_yet
+    assertEquals(['nickname'], not_yet)
+
+    # Set contrived-example to its default value; since there's been no
+    # practical change, we shouldn't be told we need to reconnect to apply it.
+    call_async(q, account, 'UpdateParameters',
+        { 'contrived-example': dbus.UInt32(5) }, [])
+    ret, _ = q.expect_many(
+            EventPattern('dbus-return', method='UpdateParameters'),
+            EventPattern('dbus-signal',
+                path=account.object_path,
+                interface=cs.ACCOUNT, signal='AccountPropertyChanged',
+                args=[{'Parameters': {
+                    'account': r'\\',
+                    'password': 'secrecy',
+                    'secret-mushroom': '/Amanita muscaria/',
+                    'snakes': 42,
+                    "contrived-example": 5,
+                    }}]),
+            )
+    not_yet = ret.value[0]
+    assertEquals([], not_yet)
+
+    # Unset contrived-example; again, MC should be smart enough to know we
+    # don't need to do anything.
+    call_async(q, account, 'UpdateParameters', {}, ['contrived-example'])
+    ret, _ = q.expect_many(
+            EventPattern('dbus-return', method='UpdateParameters'),
+            EventPattern('dbus-signal',
+                path=account.object_path,
+                interface=cs.ACCOUNT, signal='AccountPropertyChanged',
+                args=[{'Parameters': {
+                    'account': r'\\',
+                    'password': 'secrecy',
+                    'secret-mushroom': '/Amanita muscaria/',
+                    'snakes': 42,
+                    }}]),
+            )
+    not_yet = ret.value[0]
+    assertEquals([], not_yet)
+
+    # Unset contrived-example again; the spec decrees that “If the given
+    # parameters were not, in fact, stored, […] the account manager MUST accept
+    # this without error.”
+    call_async(q, account, 'UpdateParameters', {}, ['contrived-example'])
+    ret = q.expect('dbus-return', method='UpdateParameters')
+    not_yet = ret.value[0]
+    assertEquals([], not_yet)
 
     accounts_dir = os.environ['MC_ACCOUNT_DIR']
 

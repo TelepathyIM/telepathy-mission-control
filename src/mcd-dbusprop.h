@@ -58,6 +58,7 @@ typedef struct _McdInterfaceData
     const McdDBusProp *properties;
     GInterfaceInitFunc iface_init;
     McdInterfaceInit instance_init;
+    gboolean optional;
 } McdInterfaceData;
 
 #define MCD_IMPLEMENT_IFACE(type, type_name, dbus_name) \
@@ -67,6 +68,7 @@ typedef struct _McdInterfaceData
     type_name##_properties, \
     (GInterfaceInitFunc)type_name##_iface_init, \
     NULL, \
+    FALSE, \
 }
 
 #define MCD_IMPLEMENT_IFACE_WITH_INIT(type, type_name, dbus_name) \
@@ -76,6 +78,27 @@ typedef struct _McdInterfaceData
     type_name##_properties, \
     (GInterfaceInitFunc)type_name##_iface_init, \
     type_name##_instance_init, \
+    FALSE, \
+}
+
+#define MCD_IMPLEMENT_OPTIONAL_IFACE(type, type_name, dbus_name) \
+{ \
+    type, \
+    dbus_name, \
+    type_name##_properties, \
+    (GInterfaceInitFunc)type_name##_iface_init, \
+    NULL, \
+    TRUE, \
+}
+
+#define MCD_IMPLEMENT_OPTIONAL_IFACE_WITH_INIT(type, type_name, dbus_name) \
+{ \
+    type, \
+    dbus_name, \
+    type_name##_properties, \
+    (GInterfaceInitFunc)type_name##_iface_init, \
+    type_name##_instance_init, \
+    TRUE, \
 }
 
 void mcd_dbus_init_interfaces (GType g_define_type_id,
@@ -142,6 +165,11 @@ void dbusprop_get_all (TpSvcDBusProperties *self,
 void mcd_dbus_get_interfaces (TpSvcDBusProperties *self,
 			      const gchar *name,
 			      GValue *value);
+
+void mcd_dbus_activate_optional_interface (TpSvcDBusProperties *object,
+    GType interface);
+gboolean mcd_dbus_is_active_optional_interface (TpSvcDBusProperties *object,
+    GType interface);
 
 G_END_DECLS
 #endif /* __MCD_DBUSPROP_H__ */

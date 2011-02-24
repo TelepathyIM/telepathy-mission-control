@@ -8,6 +8,7 @@
 <xi:include href="../xml/Account_Interface_ChannelRequests.xml"/>
 <xi:include href="../xml/Account_Interface_Compat.xml"/>
 <xi:include href="../xml/Account_Interface_Conditions.xml"/>
+<xi:include href="../xml/Account_Interface_External_Password_Storage.xml"/>
 <xi:include href="../xml/Account_Interface_Stats.xml"/>
 <xi:include href="../xml/Account_Interface_Hidden.xml"/>
 

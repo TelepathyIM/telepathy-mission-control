@@ -34,13 +34,19 @@
 #include "mcd-dbusprop.h"
 #include "request.h"
 
+#include <telepathy-glib/proxy-subclass.h>
+#include "mcd-signals-marshal.h"
+
 /* auto-generated stubs */
 #include "_gen/svc-Account_Interface_Addressing.h"
 #include "_gen/svc-Account_Interface_ChannelRequests.h"
 #include "_gen/svc-Account_Interface_Compat.h"
 #include "_gen/svc-Account_Interface_Conditions.h"
+#include "_gen/svc-Account_Interface_External_Password_Storage.h"
 #include "_gen/svc-Account_Interface_Hidden.h"
 #include "_gen/svc-Account_Interface_Stats.h"
+
+#include "_gen/cli-Connection_Manager_Interface_Account_Storage.h"
 
 G_GNUC_INTERNAL void _mcd_account_maybe_autoconnect (McdAccount *account);
 G_GNUC_INTERNAL void _mcd_account_connect (McdAccount *account,
