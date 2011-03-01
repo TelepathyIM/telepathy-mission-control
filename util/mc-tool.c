@@ -31,9 +31,6 @@
 
 #include <telepathy-glib/telepathy-glib.h>
 
-#include <libmcclient/_gen/interfaces.h>
-#include <libmcclient/mc-profile.h>
-
 static gchar *app_name;
 static GMainLoop *main_loop;
 
@@ -45,7 +42,6 @@ show_help (gchar * err)
 
     printf ("Usage:\n"
 	    "    %1$s list\n"
-	    "    %1$s add <profile> <display name> [<param> ...]\n"
 	    "    %1$s add <manager>/<protocol> <display name> [<param> ...]\n"
 	    "    %1$s update <account name> [<param>|clear:key] ...\n"
 	    "    %1$s display <account name> <display name>\n"
@@ -85,7 +81,7 @@ union command {
 
     struct {
 	struct common common;
-	gchar const *manager, *protocol, *profile, *display;
+	gchar const *manager, *protocol, *display;
 	GHashTable *parameters;
     } add;
 
@@ -546,18 +542,8 @@ static gboolean
 command_add (TpAccountManager *manager)
 {
     GHashTable *properties;
-    GValue v_profile = { 0 };
 
     properties = g_hash_table_new (g_str_hash, g_str_equal);
-
-    if (command.add.profile)
-    {
-	g_value_init (&v_profile, G_TYPE_STRING);
-	g_value_set_static_string (&v_profile, command.add.profile);
-	g_hash_table_insert (properties,
-			     MC_IFACE_ACCOUNT_INTERFACE_COMPAT ".Profile",
-			     &v_profile);
-    }
 
     return NULL !=
 	tp_cli_account_manager_call_create_account
@@ -941,19 +927,9 @@ parse (int argc, char **argv)
 	}
 	else
 	{
-	    McProfile *profile;
-
-	    profile = mc_profile_lookup (argv[2]);
-	    if (!profile)
-	    {
-		g_warning ("%s: profile %s not found", argv[1], argv[2]);
-		exit (1);
-	    }
-
-	    command.add.profile = argv[2];
-	    command.add.manager = mc_profile_get_manager_name (profile);
-	    command.add.protocol = mc_profile_get_protocol_name (profile);
+	    show_help ("Invalid add command.");
 	}
+
 	command.ready.manager = command_add;
 	command.add.display = argv[3];
 
