@@ -35,6 +35,7 @@ mission_control_5_SOURCES = mc-server.c
 mission_control_5_LDADD = \
 	$(GLIB_LIBS) \
 	$(TELEPATHY_LIBS) \
-	$(top_builddir)/src/libmissioncontrol-server.la
+	$(top_builddir)/src/libmissioncontrol-server.la \
+	$(top_builddir)/mission-control-plugins/libmission-control-plugins.la
 
 endif

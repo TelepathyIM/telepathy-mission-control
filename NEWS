@@ -1,3 +1,16 @@
+telepathy-mission-control 5.7.5 (2011-03-01)
+============================================
+
+The “Beware the Ides of March” release.
+
+Fixes:
+
+• Build failures with new --no-add-needed ld default behaviour
+
+• mc-tool: help no longer mentions obsolete add <profile> syntax
+
+• Tests no longer hang forever if DBus name cannot be claimed
+
 telepathy-mission-control 5.7.4 (2011-02-23)
 ============================================
 
