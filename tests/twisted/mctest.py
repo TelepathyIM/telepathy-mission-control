@@ -66,6 +66,16 @@ def install_colourer():
     sys.stdout = Colourer(sys.stdout, patterns)
     return sys.stdout
 
+def wait_for_name(queue, bus, name):
+    if not bus.name_has_owner(name):
+        queue.expect('dbus-signal', signal='NameOwnerChanged',
+                predicate=lambda e: e.args[0] == name and e.args[2])
+
+def wait_for_mc(queue, bus, params):
+    mc = make_mc(bus, queue.append, params)
+    wait_for_name(queue, bus, cs.AM)
+    wait_for_name(queue, bus, cs.CD)
+    return mc
 
 def exec_test_deferred (fun, params, protocol=None, timeout=None,
         preload_mc=True):
@@ -81,23 +91,17 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
 
     bus = dbus.SessionBus()
     queue.attach_to_bus(bus)
+    error = None
+
     if preload_mc:
-        mc = make_mc(bus, queue.append, params)
-
         try:
-            bus.get_name_owner(cs.AM)
-        except dbus.DBusException, e:
-            queue.expect('dbus-signal', signal='NameOwnerChanged',
-                    predicate=lambda e: e.args[0] == cs.AM and e.args[2])
-
-        try:
-            bus.get_name_owner(cs.CD)
-        except dbus.DBusException, e:
-            queue.expect('dbus-signal', signal='NameOwnerChanged',
-                    predicate=lambda e: e.args[0] == cs.CD and e.args[2])
+            mc = wait_for_mc(queue, bus, params)
+        except Exception, e:
+            import traceback
+            traceback.print_exc()
+            os._exit(1)
     else:
         mc = None
-    error = None
 
     try:
         fun(queue, bus, mc)
