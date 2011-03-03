@@ -392,24 +392,11 @@ static void unwatch_account_keys (McdAccountManagerSso *sso,
     AgAccountId id)
 {
   gpointer watch_key = GUINT_TO_POINTER (id);
-  GHashTable *account_watches = g_hash_table_lookup (sso->watches, watch_key);
+  WatchData *wd = g_hash_table_lookup (sso->watches, watch_key);
   AgAccount *account = ag_manager_get_account (sso->ag_manager, id);
-  GHashTableIter iter;
-  gpointer key, value;
 
-  if (account_watches == NULL || account == NULL)
-    return;
-
-  g_hash_table_iter_init (&iter, account_watches);
-
-  while (g_hash_table_iter_next (&iter, &key, &value))
-    {
-      WatchData *watch = value;
-
-      ag_account_remove_watch (account, watch->watch);
-      watch->watch = NULL;
-      free_watch_data (watch);
-    }
+  if (wd != NULL && account != NULL)
+    ag_account_remove_watch (account, wd->watch);
 
   g_hash_table_remove (sso->watches, watch_key);
 }
@@ -477,36 +464,22 @@ static void _sso_updated (AgAccount * account,
 }
 
 static void watch_for_updates (McdAccountManagerSso *sso,
-    AgAccount *account,
-    Setting *setting)
+    AgAccount *account)
 {
   WatchData *data;
   gpointer id = GUINT_TO_POINTER (account->id);
-  GHashTable *account_watches = g_hash_table_lookup (sso->watches, id);
 
-  if (!setting->readable)
+  /* already watching account? let's be idempotent */
+  if (g_hash_table_lookup (sso->watches, id) != NULL)
     return;
 
-  if (account_watches == NULL)
-    {
-      account_watches =
-        g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
-      g_hash_table_insert (sso->watches, id, account_watches);
-    }
-  else if (g_hash_table_lookup (account_watches, setting->mc_name) != NULL)
-    {
-      return; /* already being watched */
-    }
+  DEBUG ("watching AG ID %u for updates", account->id);
 
-  DEBUG ("watching %u.%s [%s] for updates",
-      account->id,
-      setting->mc_name,
-      setting->ag_name);
+  g_signal_connect (account, "enabled", G_CALLBACK (_sso_toggled), sso);
 
-  data = make_watch_data (sso, setting->mc_name);
-  data->watch = ag_account_watch_key (account, setting->ag_name, _sso_updated,
-      data);
-  g_hash_table_insert (account_watches, g_strdup (setting->mc_name), data);
+  data = make_watch_data (sso);
+  data->watch = ag_account_watch_dir (account, "", _sso_updated, data);
+  g_hash_table_insert (sso->watches, id, data);
 }
 
 static void _sso_toggled (GObject *object,
@@ -738,7 +711,7 @@ mcd_account_manager_sso_init (McdAccountManagerSso *self)
     g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, g_free);
   self->watches =
     g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL,
-        (GDestroyNotify) g_hash_table_unref);
+        (GDestroyNotify) free_watch_data);
   self->pending_signals = g_queue_new ();
 
 }
