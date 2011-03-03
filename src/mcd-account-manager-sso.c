@@ -1,8 +1,8 @@
 /*
  * A pseudo-plugin that stores/fetches accounts in/from the SSO via libaccounts
  *
- * Copyright © 2010 Nokia Corporation
- * Copyright © 2010 Collabora Ltd.
+ * Copyright © 2010-2011 Nokia Corporation
+ * Copyright © 2010-2011 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
