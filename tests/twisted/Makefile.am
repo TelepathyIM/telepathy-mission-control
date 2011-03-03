@@ -39,6 +39,9 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/create-rejected-by-mini-plugin.py \
 	dispatcher/create-text.py \
 	dispatcher/created-behind-our-back.py \
+	dispatcher/delay-approvers.py \
+	dispatcher/delay-then-call-handle-with.py \
+	dispatcher/delay-then-dont-call-approvers.py \
 	dispatcher/dispatch-activatable.py \
 	dispatcher/dispatch-before-connected.py \
 	dispatcher/dispatch-delayed-by-mini-plugin.py \
@@ -57,6 +60,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/request-disabled-account.py \
 	dispatcher/respawn-observers.py \
 	dispatcher/respawn-activatable-observers.py \
+	dispatcher/some-delay-approvers.py \
 	dispatcher/undispatchable.py \
 	dispatcher/vanishing-client.py
 

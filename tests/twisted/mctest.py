@@ -659,7 +659,7 @@ class SimulatedClient(object):
             observe=[], approve=[], handle=[],
             cap_tokens=[], bypass_approval=False, wants_recovery=False,
             request_notification=True, implement_get_interfaces=True,
-            is_handler=None, bypass_observers=False):
+            is_handler=None, bypass_observers=False, delay_approvers=False):
         self.q = q
         self.bus = bus
         self.bus_name = '.'.join([cs.tp_name_prefix, 'Client', clientname])
@@ -670,6 +670,7 @@ class SimulatedClient(object):
         self.handle = aasv(handle)
         self.bypass_approval = bool(bypass_approval)
         self.bypass_observers = bool(bypass_observers)
+        self.delay_approvers = bool(delay_approvers)
         self.wants_recovery = bool(wants_recovery)
         self.request_notification = bool(request_notification)
         self.handled_channels = dbus.Array([], signature='o')
@@ -760,6 +761,7 @@ class SimulatedClient(object):
         self.q.dbus_return(e.message, {
             'ObserverChannelFilter': self.observe,
             'Recover': self.wants_recovery,
+            'DelayApprovers': dbus.Boolean(self.delay_approvers),
             },
                 signature='a{sv}', bus=self.bus)
 
