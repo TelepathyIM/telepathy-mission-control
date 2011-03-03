@@ -412,56 +412,93 @@ static void _sso_updated (AgAccount * account,
   McpAccountStorage *mcpa = MCP_ACCOUNT_STORAGE (sso);
   gpointer id = GUINT_TO_POINTER (account->id);
   const gchar *name = g_hash_table_lookup (sso->id_name_map, id);
-  AgSettingSource src = AG_SETTING_SOURCE_NONE;
-  GValue ag_value = { 0 };
-  gchar *mc_string = NULL;
-  gchar *ag_string = NULL;
-  Setting *setting = NULL;
+  AgService *service = ag_account_get_selected_service (account);
+  GStrv keys = NULL;
+  GHashTable *unseen = NULL;
+  GHashTableIter deleted_iter = { 0 };
+  const gchar *deleted_key;
+  guint i;
+  gboolean params_updated = FALSE;
 
-  DEBUG ("update for account %s, key %s [%s]", name, key, wd->mc_key);
-
-  /* an account we know nothing about. pretend this didn't happen */
+  /* account has no name yet: might be time to create it */
   if (name == NULL)
-    return;
+    return _sso_created (G_OBJECT (sso->ag_manager), account->id, sso);
 
-  g_value_init (&ag_value, G_TYPE_STRING);
+  DEBUG ("update for account %s", name);
 
-  setting = setting_data (key, SETTING_AG);
+  /* list the keys we know about so we can tell if one has been deleted */
+  keys = mcp_account_manager_list_keys (am, name);
+  unseen = g_hash_table_new (g_str_hash, g_str_equal);
 
-  if (setting == NULL)
+  for (i = 0; keys != NULL && keys[i] != NULL; i++)
+    g_hash_table_insert (unseen, keys[i], GUINT_TO_POINTER (TRUE));
+
+  /* now iterate over ag settings, global then service specific: */
+  ag_account_select_service (account, NULL);
+
+  for (i = 0; i < 2; i++)
     {
-      DEBUG ("setting %s is unknown/unmapped, aborting update", key);
-      return;
+      AgAccountSettingIter iter = { 0 };
+      const gchar *ag_key = NULL;
+      const GValue *ag_val = NULL;
+
+      if (i == 1)
+        _ag_account_select_default_im_service (sso, account);
+
+      ag_account_settings_iter_init (account, &iter, NULL);
+
+      while (ag_account_settings_iter_next (&iter, &ag_key, &ag_val))
+        {
+          Setting *setting = setting_data (ag_key, SETTING_AG);
+          const gchar *mc_key;
+          gchar *ag_str;
+          gchar *mc_str;
+
+          if (setting == NULL)
+            continue;
+
+          mc_key = setting->mc_name;
+          mc_str = mcp_account_manager_get_value (am, name, mc_key);
+          ag_str = _gvalue_to_string (ag_val);
+          g_hash_table_remove (unseen, mc_key);
+
+          if (tp_strdiff (ag_str, mc_str))
+            {
+              mcp_account_manager_set_value (am, name, mc_key, ag_str);
+
+              if (sso->ready)
+                {
+                  if (g_str_has_prefix (mc_key, MCPP))
+                    params_updated = TRUE;
+                  else
+                    g_signal_emit_by_name (mcpa, "altered-one", name, mc_key);
+                }
+            }
+
+          g_free (mc_str);
+          g_free (ag_str);
+          clear_setting_data (setting);
+        }
     }
 
-  if (setting->global)
-    src = _ag_account_global_value (account, key, &ag_value);
-  else
-    src = _ag_account_local_value (sso, account, key, &ag_value);
+  /* signal (and update) deleted settings: */
+  g_hash_table_iter_init (&deleted_iter, unseen);
 
-  if (src != AG_SETTING_SOURCE_NONE)
-    ag_string = _gvalue_to_string (&ag_value);
+  while (g_hash_table_iter_next (&deleted_iter, (gpointer *)&deleted_key, NULL))
+    {
+      mcp_account_manager_set_value (am, name, deleted_key, NULL);
 
-  mc_string = mcp_account_manager_get_value (am, name, wd->mc_key);
+      if (g_str_has_prefix (deleted_key, MCPP))
+        params_updated = TRUE;
+      else
+        g_signal_emit_by_name (mcpa, "altered-one", name, deleted_key);
+    }
 
-  DEBUG ("cmp values: %s:%s vs %s:%s", key, ag_string, wd->mc_key, mc_string);
+  if (params_updated)
+    g_signal_emit_by_name (mcpa, "altered-one", name, "Parameters");
 
-  if (g_strcmp0 (mc_string, ag_string) == 0)
-    goto done;
-
-  mcp_account_manager_set_value (am, name, wd->mc_key, ag_string);
-
-  /* if we haven't completed startup, there's nothing else to do here */
-  if (!sso->ready)
-    goto done;
-
-  g_signal_emit_by_name (mcpa, "altered-one", name, wd->mc_key);
-
- done:
-  g_free (ag_string);
-  g_free (mc_string);
-  g_value_unset (&ag_value);
-  clear_setting_data (setting);
+  /* put the selected service back the way it was when we found it */
+  ag_account_select_service (account, service);
 }
 
 static void watch_for_updates (McdAccountManagerSso *sso,
