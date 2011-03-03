@@ -197,6 +197,15 @@ static void _ag_account_stored_cb (AgAccount *acct,
     const GError *err,
     gpointer ignore);
 
+static void _sso_created (GObject *object,
+    AgAccountId id,
+    gpointer user_data);
+
+static void _sso_toggled (GObject *object,
+    const gchar *service_name,
+    gboolean enabled,
+    gpointer data);
+
 static gboolean save_setting (
     McdAccountManagerSso *self,
     AgAccount *account,
