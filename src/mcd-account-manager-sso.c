@@ -1391,7 +1391,6 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
 
                       mcp_account_manager_set_value (am, name, setting->mc_name,
                           value);
-                      watch_for_updates (sso, account, setting);
 
                       g_free (value);
                     }
@@ -1412,7 +1411,6 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
 
                       mcp_account_manager_set_value (am, name, setting->mc_name,
                           value);
-                      watch_for_updates (sso, account, setting);
 
                       g_free (value);
                     }
@@ -1437,8 +1435,7 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
 
               ag_account_select_service (account, service);
 
-              g_signal_connect (account, "enabled",
-                  G_CALLBACK (_sso_toggled), sso);
+              watch_for_updates (sso, account);
 
               g_strfreev (mc_id);
               g_free (ident);
