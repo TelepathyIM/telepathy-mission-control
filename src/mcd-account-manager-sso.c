@@ -346,6 +346,7 @@ _maybe_set_account_param_from_service (
   GValue ag_value = { 0 };
 
   g_return_if_fail (setting != NULL);
+  g_return_if_fail (ag_account != NULL);
 
   g_value_init (&ag_value, G_TYPE_STRING);
 
@@ -785,6 +786,12 @@ _ag_accountid_to_mc_key (McdAccountManagerSso *sso,
   AgAccount *account = ag_manager_get_account (sso->ag_manager, id);
   AgSettingSource src = AG_SETTING_SOURCE_NONE;
   GValue value = { 0 };
+
+  if (account == NULL)
+    {
+      DEBUG ("AG Account ID %u invalid", id);
+      return NULL;
+    }
 
   DEBUG ("AG Account ID: %u", id);
 
