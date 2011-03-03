@@ -123,7 +123,10 @@ typedef struct {
 
 typedef struct {
   McdAccountManagerSso *sso;
-  AgAccountWatch watch;
+  struct {
+    AgAccountWatch service;
+    AgAccountWatch global;
+  } watch;
 } WatchData;
 
 static Setting *
@@ -397,7 +400,10 @@ static void unwatch_account_keys (McdAccountManagerSso *sso,
   AgAccount *account = ag_manager_get_account (sso->ag_manager, id);
 
   if (wd != NULL && account != NULL)
-    ag_account_remove_watch (account, wd->watch);
+    {
+      ag_account_remove_watch (account, wd->watch.global);
+      ag_account_remove_watch (account, wd->watch.service);
+    }
 
   g_hash_table_remove (sso->watches, watch_key);
 }
@@ -515,18 +521,27 @@ static void watch_for_updates (McdAccountManagerSso *sso,
 {
   WatchData *data;
   gpointer id = GUINT_TO_POINTER (account->id);
-
+  AgService *service;
   /* already watching account? let's be idempotent */
   if (g_hash_table_lookup (sso->watches, id) != NULL)
     return;
 
   DEBUG ("watching AG ID %u for updates", account->id);
 
+  service = ag_account_get_selected_service (account);
+
   g_signal_connect (account, "enabled", G_CALLBACK (_sso_toggled), sso);
 
   data = make_watch_data (sso);
-  data->watch = ag_account_watch_dir (account, "", _sso_updated, data);
+
+  ag_account_select_service (account, NULL);
+  data->watch.global = ag_account_watch_dir (account, "", _sso_updated, data);
+
+  _ag_account_select_default_im_service (sso, account);
+  data->watch.service = ag_account_watch_dir (account, "", _sso_updated, data);
+
   g_hash_table_insert (sso->watches, id, data);
+  ag_account_select_service (account, service);
 }
 
 static void _sso_toggled (GObject *object,
