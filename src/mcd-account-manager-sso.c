@@ -655,7 +655,9 @@ static void _sso_created (GObject *object,
   if (sso->ready)
     {
       /* if we already know the account's name, we shouldn't fire the new *
-       * account signal as it is one we (and our superiors) already have  */
+       * account signal as it is one we (and our superiors) already have  *
+       * This could happen as a result of multiple updates being set off  *
+       * before we are ready, for example                                 */
       if (name == NULL)
         {
           McpAccountStorage *mcpa = MCP_ACCOUNT_STORAGE (sso);
@@ -680,15 +682,16 @@ static void _sso_created (GObject *object,
 
                   g_signal_emit_by_name (mcpa, "created", name);
 
-                  g_signal_connect (account, "enabled",
-                      G_CALLBACK (_sso_toggled), user_data);
-
                   clear_setting_data (setting);
                 }
               else
                 {
-                  DEBUG ("SSO account #%u is unnameable, ignoring it", id);
+                  /* not enough data to name the account: wait for an update */
+                  DEBUG ("SSO account #%u is currently unnameable", id);
                 }
+
+              /* in either case, add the account to the watched list */
+              watch_for_updates (sso, account);
             }
         }
     }
