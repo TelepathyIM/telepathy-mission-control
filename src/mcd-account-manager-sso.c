@@ -973,7 +973,7 @@ _ag_accountid_to_mc_key (McdAccountManagerSso *sso,
       return name;
     }
 
-  DEBUG (MC_IDENTITY_KEY "not synthesised, returning NULL");
+  DEBUG (MC_IDENTITY_KEY " not synthesised, returning NULL");
   return NULL;
 }
 
