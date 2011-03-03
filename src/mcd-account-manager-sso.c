@@ -1460,13 +1460,6 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
               g_free (ident);
             }
         }
-      else
-        {
-          DelayedSignalData *data = g_slice_new0 (DelayedSignalData);
-
-          data->account_id = id;
-          g_queue_push_tail (sso->pending_signals, data);
-        }
     }
 
   sso->loaded = TRUE;
