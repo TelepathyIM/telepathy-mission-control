@@ -402,8 +402,17 @@ static void unwatch_account_keys (McdAccountManagerSso *sso,
   g_hash_table_remove (sso->watches, watch_key);
 }
 
-static void _sso_updated (AgAccount * account,
-    const gchar *key,
+/* There are two types of ag watch: ag_account_watch_key and                *
+ * ag_account_watch_dir. _key passees us the watched key when invoking this *
+ * callback, dir watches only a prefix, and passes the watched prefix       *
+ * (not the actual updated setting) - we now watch with _dir since _key     *
+ * doesn't allow us to watch for keys-that-are-not-set at creation time     *
+ * (since those cannot be known in advance): This means that in this        *
+ * callback we must compare what we have in MC with what's in AG and issue  *
+ * update notices accordingly (and remember to handle deleted keys).        *
+ * It also means the const gchar *what-was-updated parameter is not useful  */
+static void _sso_updated (AgAccount *account,
+    const gchar *unused,
     gpointer data)
 {
   WatchData *wd = data;
