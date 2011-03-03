@@ -122,7 +122,6 @@ typedef struct {
 } DelayedSignalData;
 
 typedef struct {
-  gchar *mc_key;
   McdAccountManagerSso *sso;
   AgAccountWatch watch;
 } WatchData;
@@ -368,13 +367,11 @@ _maybe_set_account_param_from_service (
 }
 
 static WatchData *
-make_watch_data (McdAccountManagerSso *sso,
-    const gchar *mc_key)
+make_watch_data (McdAccountManagerSso *sso)
 {
   WatchData *data = g_slice_new0 (WatchData);
 
   data->sso = g_object_ref (sso);
-  data->mc_key = g_strdup (mc_key);
 
   return data;
 }
@@ -384,8 +381,10 @@ free_watch_data (gpointer data)
 {
   WatchData *wd = data;
 
-  g_object_unref (wd->sso);
-  g_free (wd->mc_key);
+  if (wd == NULL)
+    return;
+
+  tp_clear_object (&wd->sso);
   g_slice_free (WatchData, wd);
 }
 
