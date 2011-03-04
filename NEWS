@@ -1,7 +1,11 @@
-telepathy-mission-control 5.7.6 (UNRELEASED)
+telepathy-mission-control 5.7.6 (2011-03-07)
 ============================================
 
-GRINNING CAT FACE WITH SMILING EYES
+The “GRINNING CAT FACE WITH SMILING EYES”  release.
+
+Enhancements:
+
+• Support the Observer.DelayApprovers property.
 
 telepathy-mission-control 5.7.5 (2011-03-01)
 ============================================
