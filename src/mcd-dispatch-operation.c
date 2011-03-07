@@ -233,6 +233,11 @@ struct _McdDispatchOperationPrivate
      * A reference is held for each pending observer. */
     gsize observers_pending;
 
+    /* The number of observers that are pending which have
+     * DelayApprovers=TRUE. This is used to know if
+     * AddDispatchOperation can be called yet. */
+    gsize delay_approver_observers_pending;
+
     /* The number of approvers that have not yet returned from
      * AddDispatchOperation. Until they have done so, we can't allow the
      * dispatch operation to finish. This is a client lock.
@@ -282,7 +287,8 @@ mcd_dispatch_operation_may_signal_finished (McdDispatchOperation *self)
 }
 
 static void
-_mcd_dispatch_operation_inc_observers_pending (McdDispatchOperation *self)
+_mcd_dispatch_operation_inc_observers_pending (McdDispatchOperation *self,
+    McdClientProxy *client)
 {
     g_return_if_fail (self->priv->result == NULL);
 
@@ -292,16 +298,23 @@ _mcd_dispatch_operation_inc_observers_pending (McdDispatchOperation *self)
            self->priv->observers_pending,
            self->priv->observers_pending + 1);
     self->priv->observers_pending++;
+
+    if (_mcd_client_proxy_get_delay_approvers (client))
+      self->priv->delay_approver_observers_pending++;
 }
 
 static void
-_mcd_dispatch_operation_dec_observers_pending (McdDispatchOperation *self)
+_mcd_dispatch_operation_dec_observers_pending (McdDispatchOperation *self,
+    McdClientProxy *client)
 {
     DEBUG ("%" G_GSIZE_FORMAT " -> %" G_GSIZE_FORMAT,
            self->priv->observers_pending,
            self->priv->observers_pending - 1);
     g_return_if_fail (self->priv->observers_pending > 0);
     self->priv->observers_pending--;
+
+    if (_mcd_client_proxy_get_delay_approvers (client))
+      self->priv->delay_approver_observers_pending--;
 
     _mcd_dispatch_operation_check_finished (self);
     _mcd_dispatch_operation_check_client_locks (self);
@@ -376,6 +389,7 @@ static void
 _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 {
     Approval *approval;
+    guint approver_event_id = 0;
 
     if (!self->priv->invoked_observers_if_needed)
     {
@@ -408,13 +422,14 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
      * return, then run that handler, then proceed with the other handlers. */
     if (!self->priv->tried_handlers_before_approval &&
         !_mcd_dispatch_operation_handlers_can_bypass_approval (self)
+        && self->priv->delay_approver_observers_pending == 0
         && self->priv->channels != NULL &&
         ! _mcd_plugin_dispatch_operation_will_terminate (
             self->priv->plugin_api))
     {
         self->priv->tried_handlers_before_approval = TRUE;
 
-        g_idle_add_full (G_PRIORITY_HIGH,
+        approver_event_id = g_idle_add_full (G_PRIORITY_HIGH,
                          mcd_dispatch_operation_idle_run_approvers,
                          g_object_ref (self), g_object_unref);
     }
@@ -492,7 +507,24 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
                                         caller);
         g_free (caller);
 
+        if (approver_event_id > 0)
+        {
+            DEBUG ("Cancelling call to approvers as dispatch operation has been Claimed");
+            g_source_remove (approver_event_id);
+        }
+
         return;
+    }
+    else if (approval != NULL && approval->type == APPROVAL_TYPE_HANDLE_WITH)
+    {
+        /* We set this to TRUE so that the handlers are called. */
+        self->priv->invoked_approvers_if_needed = TRUE;
+
+        if (approver_event_id > 0)
+        {
+            DEBUG ("Cancelling call to approvers as dispatch operation has been HandledWith'd");
+            g_source_remove (approver_event_id);
+        }
     }
 
     if (self->priv->invoked_approvers_if_needed)
@@ -1831,7 +1863,7 @@ observe_channels_cb (TpClient *proxy, const GError *error,
     else
         DEBUG ("success from %s", tp_proxy_get_object_path (proxy));
 
-    _mcd_dispatch_operation_dec_observers_pending (self);
+    _mcd_dispatch_operation_dec_observers_pending (self, MCD_CLIENT_PROXY (proxy));
 }
 
 /*
@@ -1955,7 +1987,7 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
             dispatch_operation_path = _mcd_dispatch_operation_get_path (self);
         }
 
-        _mcd_dispatch_operation_inc_observers_pending (self);
+        _mcd_dispatch_operation_inc_observers_pending (self, client);
 
         DEBUG ("calling ObserveChannels on %s for CDO %p",
                tp_proxy_get_bus_name (client), self);
