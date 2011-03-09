@@ -846,6 +846,7 @@ _ag_accountid_to_mc_key (McdAccountManagerSso *sso,
 {
   AgAccount *account = ag_manager_get_account (sso->ag_manager, id);
   AgSettingSource src = AG_SETTING_SOURCE_NONE;
+  AgService *service = NULL;
   GValue value = { 0 };
 
   if (account == NULL)
@@ -853,6 +854,8 @@ _ag_accountid_to_mc_key (McdAccountManagerSso *sso,
       DEBUG ("AG Account ID %u invalid", id);
       return NULL;
     }
+
+  service = ag_account_get_selected_service (account);
 
   DEBUG ("AG Account ID: %u", id);
 
@@ -876,9 +879,12 @@ _ag_accountid_to_mc_key (McdAccountManagerSso *sso,
 
   src = _ag_account_global_value (account, AG_ACCOUNT_KEY, &value);
 
-  DEBUG (AG_ACCOUNT_KEY ": %s; type: %s",
-      src ? "exists" : "missing",
-      src ? (G_VALUE_TYPE_NAME (&value)) : "n/a" );
+  /* fall back to the alernative account-naming setting if necessary: */
+  if (src == AG_SETTING_SOURCE_NONE)
+    {
+      _ag_account_select_default_im_service (sso, account);
+      src = _ag_account_local_value (sso, account, AG_ACCOUNT_ALT_KEY, &value);
+    }
 
   if (src != AG_SETTING_SOURCE_NONE && G_VALUE_HOLDS_STRING (&value))
     {
@@ -889,7 +895,6 @@ _ag_accountid_to_mc_key (McdAccountManagerSso *sso,
       GValue protocol = { 0 };
       const gchar *cman, *proto;
       McpAccountManager *am = sso->manager_interface;
-      AgService *service = ag_account_get_selected_service (account);
       GHashTable *params = g_hash_table_new_full (g_str_hash, g_str_equal,
           g_free, NULL);
       gchar *name = NULL;
