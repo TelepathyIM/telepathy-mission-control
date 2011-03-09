@@ -1,3 +1,12 @@
+telepathy-mission-control 5.7.7 (2011-03-09)
+============================================
+
+The “Bulwer—Lytton Fiction Contest Entry” release.
+
+Fixes:
+
+• Updates the Maemo SSO plugin in line with SSO changes (fledermaus)
+
 telepathy-mission-control 5.7.6 (2011-03-07)
 ============================================
 
@@ -5,7 +14,7 @@ The “GRINNING CAT FACE WITH SMILING EYES”  release.
 
 Enhancements:
 
-• Support the Observer.DelayApprovers property.
+• Support the Observer.DelayApprovers property. (cassidy)
 
 telepathy-mission-control 5.7.5 (2011-03-01)
 ============================================
@@ -14,11 +23,11 @@ The “Beware the Ides of March” release.
 
 Fixes:
 
-• Build failures with new --no-add-needed ld default behaviour
+• Build failures with new --no-add-needed ld default behaviour (fledermaus)
 
-• mc-tool: help no longer mentions obsolete add <profile> syntax
+• mc-tool: help no longer mentions obsolete add <profile> syntax (wjt)
 
-• Tests no longer hang forever if DBus name cannot be claimed
+• Tests no longer hang forever if DBus name cannot be claimed (wjt)
 
 telepathy-mission-control 5.7.4 (2011-02-23)
 ============================================
