@@ -44,7 +44,6 @@
 #include "_gen/svc-Account_Interface_Conditions.h"
 #include "_gen/svc-Account_Interface_External_Password_Storage.h"
 #include "_gen/svc-Account_Interface_Hidden.h"
-#include "_gen/svc-Account_Interface_Stats.h"
 
 #include "_gen/cli-Connection_Manager_Interface_Account_Storage.h"
 
@@ -182,12 +181,6 @@ extern const McdDBusProp account_conditions_properties[];
 
 void account_conditions_iface_init (McSvcAccountInterfaceConditionsClass *iface,
 				    gpointer iface_data);
-
-extern const McdDBusProp account_stats_properties[];
-
-void account_stats_iface_init (McSvcAccountInterfaceStatsClass *iface,
-                               gpointer iface_data);
-void account_stats_instance_init (TpSvcDBusProperties *self);
 
 G_GNUC_INTERNAL gboolean _mcd_account_check_request_real (McdAccount *account,
                                                           GHashTable *request,
