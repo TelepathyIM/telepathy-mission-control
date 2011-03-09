@@ -1,8 +1,8 @@
 /*
  * A pseudo-plugin that stores/fetches accounts in/from the SSO via libaccounts
  *
- * Copyright © 2010 Nokia Corporation
- * Copyright © 2010 Collabora Ltd.
+ * Copyright © 2010-2011 Nokia Corporation
+ * Copyright © 2010-2011 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -122,9 +122,11 @@ typedef struct {
 } DelayedSignalData;
 
 typedef struct {
-  gchar *mc_key;
   McdAccountManagerSso *sso;
-  AgAccountWatch watch;
+  struct {
+    AgAccountWatch service;
+    AgAccountWatch global;
+  } watch;
 } WatchData;
 
 static Setting *
@@ -196,6 +198,15 @@ _ag_accountid_to_mc_key (McdAccountManagerSso *sso,
 static void _ag_account_stored_cb (AgAccount *acct,
     const GError *err,
     gpointer ignore);
+
+static void _sso_created (GObject *object,
+    AgAccountId id,
+    gpointer user_data);
+
+static void _sso_toggled (GObject *object,
+    const gchar *service_name,
+    gboolean enabled,
+    gpointer data);
 
 static gboolean save_setting (
     McdAccountManagerSso *self,
@@ -338,6 +349,7 @@ _maybe_set_account_param_from_service (
   GValue ag_value = { 0 };
 
   g_return_if_fail (setting != NULL);
+  g_return_if_fail (ag_account != NULL);
 
   g_value_init (&ag_value, G_TYPE_STRING);
 
@@ -359,13 +371,11 @@ _maybe_set_account_param_from_service (
 }
 
 static WatchData *
-make_watch_data (McdAccountManagerSso *sso,
-    const gchar *mc_key)
+make_watch_data (McdAccountManagerSso *sso)
 {
   WatchData *data = g_slice_new0 (WatchData);
 
   data->sso = g_object_ref (sso);
-  data->mc_key = g_strdup (mc_key);
 
   return data;
 }
@@ -375,8 +385,10 @@ free_watch_data (gpointer data)
 {
   WatchData *wd = data;
 
-  g_object_unref (wd->sso);
-  g_free (wd->mc_key);
+  if (wd == NULL)
+    return;
+
+  tp_clear_object (&wd->sso);
   g_slice_free (WatchData, wd);
 }
 
@@ -384,30 +396,29 @@ static void unwatch_account_keys (McdAccountManagerSso *sso,
     AgAccountId id)
 {
   gpointer watch_key = GUINT_TO_POINTER (id);
-  GHashTable *account_watches = g_hash_table_lookup (sso->watches, watch_key);
+  WatchData *wd = g_hash_table_lookup (sso->watches, watch_key);
   AgAccount *account = ag_manager_get_account (sso->ag_manager, id);
-  GHashTableIter iter;
-  gpointer key, value;
 
-  if (account_watches == NULL || account == NULL)
-    return;
-
-  g_hash_table_iter_init (&iter, account_watches);
-
-  while (g_hash_table_iter_next (&iter, &key, &value))
+  if (wd != NULL && account != NULL)
     {
-      WatchData *watch = value;
-
-      ag_account_remove_watch (account, watch->watch);
-      watch->watch = NULL;
-      free_watch_data (watch);
+      ag_account_remove_watch (account, wd->watch.global);
+      ag_account_remove_watch (account, wd->watch.service);
     }
 
   g_hash_table_remove (sso->watches, watch_key);
 }
 
-static void _sso_updated (AgAccount * account,
-    const gchar *key,
+/* There are two types of ag watch: ag_account_watch_key and                *
+ * ag_account_watch_dir. _key passees us the watched key when invoking this *
+ * callback, dir watches only a prefix, and passes the watched prefix       *
+ * (not the actual updated setting) - we now watch with _dir since _key     *
+ * doesn't allow us to watch for keys-that-are-not-set at creation time     *
+ * (since those cannot be known in advance): This means that in this        *
+ * callback we must compare what we have in MC with what's in AG and issue  *
+ * update notices accordingly (and remember to handle deleted keys).        *
+ * It also means the const gchar *what-was-updated parameter is not useful  */
+static void _sso_updated (AgAccount *account,
+    const gchar *unused,
     gpointer data)
 {
   WatchData *wd = data;
@@ -416,89 +427,122 @@ static void _sso_updated (AgAccount * account,
   McpAccountStorage *mcpa = MCP_ACCOUNT_STORAGE (sso);
   gpointer id = GUINT_TO_POINTER (account->id);
   const gchar *name = g_hash_table_lookup (sso->id_name_map, id);
-  AgSettingSource src = AG_SETTING_SOURCE_NONE;
-  GValue ag_value = { 0 };
-  gchar *mc_string = NULL;
-  gchar *ag_string = NULL;
-  Setting *setting = NULL;
+  AgService *service = ag_account_get_selected_service (account);
+  GStrv keys = NULL;
+  GHashTable *unseen = NULL;
+  GHashTableIter deleted_iter = { 0 };
+  const gchar *deleted_key;
+  guint i;
+  gboolean params_updated = FALSE;
 
-  DEBUG ("update for account %s, key %s [%s]", name, key, wd->mc_key);
-
-  /* an account we know nothing about. pretend this didn't happen */
+  /* account has no name yet: might be time to create it */
   if (name == NULL)
-    return;
+    return _sso_created (G_OBJECT (sso->ag_manager), account->id, sso);
 
-  g_value_init (&ag_value, G_TYPE_STRING);
+  DEBUG ("update for account %s", name);
 
-  setting = setting_data (key, SETTING_AG);
+  /* list the keys we know about so we can tell if one has been deleted */
+  keys = mcp_account_manager_list_keys (am, name);
+  unseen = g_hash_table_new (g_str_hash, g_str_equal);
 
-  if (setting == NULL)
+  for (i = 0; keys != NULL && keys[i] != NULL; i++)
+    g_hash_table_insert (unseen, keys[i], GUINT_TO_POINTER (TRUE));
+
+  /* now iterate over ag settings, global then service specific: */
+  ag_account_select_service (account, NULL);
+
+  for (i = 0; i < 2; i++)
     {
-      DEBUG ("setting %s is unknown/unmapped, aborting update", key);
-      return;
+      AgAccountSettingIter iter = { 0 };
+      const gchar *ag_key = NULL;
+      const GValue *ag_val = NULL;
+
+      if (i == 1)
+        _ag_account_select_default_im_service (sso, account);
+
+      ag_account_settings_iter_init (account, &iter, NULL);
+
+      while (ag_account_settings_iter_next (&iter, &ag_key, &ag_val))
+        {
+          Setting *setting = setting_data (ag_key, SETTING_AG);
+          const gchar *mc_key;
+          gchar *ag_str;
+          gchar *mc_str;
+
+          if (setting == NULL)
+            continue;
+
+          mc_key = setting->mc_name;
+          mc_str = mcp_account_manager_get_value (am, name, mc_key);
+          ag_str = _gvalue_to_string (ag_val);
+          g_hash_table_remove (unseen, mc_key);
+
+          if (tp_strdiff (ag_str, mc_str))
+            {
+              mcp_account_manager_set_value (am, name, mc_key, ag_str);
+
+              if (sso->ready)
+                {
+                  if (g_str_has_prefix (mc_key, MCPP))
+                    params_updated = TRUE;
+                  else
+                    g_signal_emit_by_name (mcpa, "altered-one", name, mc_key);
+                }
+            }
+
+          g_free (mc_str);
+          g_free (ag_str);
+          clear_setting_data (setting);
+        }
     }
 
-  if (setting->global)
-    src = _ag_account_global_value (account, key, &ag_value);
-  else
-    src = _ag_account_local_value (sso, account, key, &ag_value);
+  /* signal (and update) deleted settings: */
+  g_hash_table_iter_init (&deleted_iter, unseen);
 
-  if (src != AG_SETTING_SOURCE_NONE)
-    ag_string = _gvalue_to_string (&ag_value);
+  while (g_hash_table_iter_next (&deleted_iter, (gpointer *)&deleted_key, NULL))
+    {
+      mcp_account_manager_set_value (am, name, deleted_key, NULL);
 
-  mc_string = mcp_account_manager_get_value (am, name, wd->mc_key);
+      if (g_str_has_prefix (deleted_key, MCPP))
+        params_updated = TRUE;
+      else
+        g_signal_emit_by_name (mcpa, "altered-one", name, deleted_key);
+    }
 
-  DEBUG ("cmp values: %s:%s vs %s:%s", key, ag_string, wd->mc_key, mc_string);
+  if (params_updated)
+    g_signal_emit_by_name (mcpa, "altered-one", name, "Parameters");
 
-  if (g_strcmp0 (mc_string, ag_string) == 0)
-    goto done;
-
-  mcp_account_manager_set_value (am, name, wd->mc_key, ag_string);
-
-  /* if we haven't completed startup, there's nothing else to do here */
-  if (!sso->ready)
-    goto done;
-
-  g_signal_emit_by_name (mcpa, "altered-one", name, wd->mc_key);
-
- done:
-  g_free (ag_string);
-  g_free (mc_string);
-  g_value_unset (&ag_value);
-  clear_setting_data (setting);
+  /* put the selected service back the way it was when we found it */
+  ag_account_select_service (account, service);
 }
 
 static void watch_for_updates (McdAccountManagerSso *sso,
-    AgAccount *account,
-    Setting *setting)
+    AgAccount *account)
 {
   WatchData *data;
   gpointer id = GUINT_TO_POINTER (account->id);
-  GHashTable *account_watches = g_hash_table_lookup (sso->watches, id);
+  AgService *service;
 
-  if (!setting->readable)
+  /* already watching account? let's be idempotent */
+  if (g_hash_table_lookup (sso->watches, id) != NULL)
     return;
 
-  if (account_watches == NULL)
-    {
-      account_watches =
-        g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
-      g_hash_table_insert (sso->watches, id, account_watches);
-    }
-  else if (g_hash_table_lookup (account_watches, setting->mc_name) != NULL)
-    {
-      return; /* already being watched */
-    }
+  DEBUG ("watching AG ID %u for updates", account->id);
 
-  DEBUG ("watching %u.%s [%s] for updates",
-      account->id,
-      setting->mc_name,
-      setting->ag_name);
+  service = ag_account_get_selected_service (account);
 
-  data = make_watch_data (sso, setting->mc_name);
-  data->watch = ag_account_watch_key (account, setting->ag_name, _sso_updated,
-      data);
-  g_hash_table_insert (account_watches, g_strdup (setting->mc_name), data);
+  g_signal_connect (account, "enabled", G_CALLBACK (_sso_toggled), sso);
+
+  data = make_watch_data (sso);
+
+  ag_account_select_service (account, NULL);
+  data->watch.global = ag_account_watch_dir (account, "", _sso_updated, data);
+
+  _ag_account_select_default_im_service (sso, account);
+  data->watch.service = ag_account_watch_dir (account, "", _sso_updated, data);
+
+  g_hash_table_insert (sso->watches, id, data);
+  ag_account_select_service (account, service);
 }
 
 static void _sso_toggled (GObject *object,
@@ -674,7 +718,9 @@ static void _sso_created (GObject *object,
   if (sso->ready)
     {
       /* if we already know the account's name, we shouldn't fire the new *
-       * account signal as it is one we (and our superiors) already have  */
+       * account signal as it is one we (and our superiors) already have  *
+       * This could happen as a result of multiple updates being set off  *
+       * before we are ready, for example                                 */
       if (name == NULL)
         {
           McpAccountStorage *mcpa = MCP_ACCOUNT_STORAGE (sso);
@@ -699,15 +745,16 @@ static void _sso_created (GObject *object,
 
                   g_signal_emit_by_name (mcpa, "created", name);
 
-                  g_signal_connect (account, "enabled",
-                      G_CALLBACK (_sso_toggled), user_data);
-
                   clear_setting_data (setting);
                 }
               else
                 {
-                  DEBUG ("SSO account #%u is unnameable, ignoring it", id);
+                  /* not enough data to name the account: wait for an update */
+                  DEBUG ("SSO account #%u is currently unnameable", id);
                 }
+
+              /* in either case, add the account to the watched list */
+              watch_for_updates (sso, account);
             }
         }
     }
@@ -730,7 +777,7 @@ mcd_account_manager_sso_init (McdAccountManagerSso *self)
     g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, g_free);
   self->watches =
     g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL,
-        (GDestroyNotify) g_hash_table_unref);
+        (GDestroyNotify) free_watch_data);
   self->pending_signals = g_queue_new ();
 
 }
@@ -800,7 +847,16 @@ _ag_accountid_to_mc_key (McdAccountManagerSso *sso,
 {
   AgAccount *account = ag_manager_get_account (sso->ag_manager, id);
   AgSettingSource src = AG_SETTING_SOURCE_NONE;
+  AgService *service = NULL;
   GValue value = { 0 };
+
+  if (account == NULL)
+    {
+      DEBUG ("AG Account ID %u invalid", id);
+      return NULL;
+    }
+
+  service = ag_account_get_selected_service (account);
 
   DEBUG ("AG Account ID: %u", id);
 
@@ -824,9 +880,12 @@ _ag_accountid_to_mc_key (McdAccountManagerSso *sso,
 
   src = _ag_account_global_value (account, AG_ACCOUNT_KEY, &value);
 
-  DEBUG (AG_ACCOUNT_KEY ": %s; type: %s",
-      src ? "exists" : "missing",
-      src ? (G_VALUE_TYPE_NAME (&value)) : "n/a" );
+  /* fall back to the alernative account-naming setting if necessary: */
+  if (src == AG_SETTING_SOURCE_NONE)
+    {
+      _ag_account_select_default_im_service (sso, account);
+      src = _ag_account_local_value (sso, account, AG_ACCOUNT_ALT_KEY, &value);
+    }
 
   if (src != AG_SETTING_SOURCE_NONE && G_VALUE_HOLDS_STRING (&value))
     {
@@ -837,7 +896,6 @@ _ag_accountid_to_mc_key (McdAccountManagerSso *sso,
       GValue protocol = { 0 };
       const gchar *cman, *proto;
       McpAccountManager *am = sso->manager_interface;
-      AgService *service = ag_account_get_selected_service (account);
       GHashTable *params = g_hash_table_new_full (g_str_hash, g_str_equal,
           g_free, NULL);
       gchar *name = NULL;
@@ -921,7 +979,7 @@ _ag_accountid_to_mc_key (McdAccountManagerSso *sso,
       return name;
     }
 
-  DEBUG (MC_IDENTITY_KEY "not synthesised, returning NULL");
+  DEBUG (MC_IDENTITY_KEY " not synthesised, returning NULL");
   return NULL;
 }
 
@@ -1407,7 +1465,6 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
 
                       mcp_account_manager_set_value (am, name, setting->mc_name,
                           value);
-                      watch_for_updates (sso, account, setting);
 
                       g_free (value);
                     }
@@ -1428,7 +1485,6 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
 
                       mcp_account_manager_set_value (am, name, setting->mc_name,
                           value);
-                      watch_for_updates (sso, account, setting);
 
                       g_free (value);
                     }
@@ -1453,19 +1509,11 @@ _load_from_libaccounts (McdAccountManagerSso *sso,
 
               ag_account_select_service (account, service);
 
-              g_signal_connect (account, "enabled",
-                  G_CALLBACK (_sso_toggled), sso);
+              watch_for_updates (sso, account);
 
               g_strfreev (mc_id);
               g_free (ident);
             }
-        }
-      else
-        {
-          DelayedSignalData *data = g_slice_new0 (DelayedSignalData);
-
-          data->account_id = id;
-          g_queue_push_tail (sso->pending_signals, data);
         }
     }
 
