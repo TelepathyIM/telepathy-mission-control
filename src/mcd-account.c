@@ -587,7 +587,7 @@ account_external_password_storage_properties_changed_cb (TpProxy *cm,
     gpointer user_data,
     GObject *self)
 {
-  McdAccount *account = MCD_ACCOUNT (user_data);
+  McdAccount *account = MCD_ACCOUNT (self);
   TpProtocol *protocol = tp_connection_manager_get_protocol_object (
       TP_CONNECTION_MANAGER (cm), account->priv->protocol_name);
   GHashTable *params;
