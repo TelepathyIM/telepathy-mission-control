@@ -522,6 +522,7 @@ static void watch_for_updates (McdAccountManagerSso *sso,
   WatchData *data;
   gpointer id = GUINT_TO_POINTER (account->id);
   AgService *service;
+
   /* already watching account? let's be idempotent */
   if (g_hash_table_lookup (sso->watches, id) != NULL)
     return;
