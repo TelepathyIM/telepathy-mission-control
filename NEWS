@@ -1,6 +1,9 @@
 telepathy-mission-control 5.7.8 (UNRELEASED)
 ============================================
 
+Obsolescence:
+
+• Dead interface com.nokia.Account.Interface.Stats dropped (fledermaus)
 
 telepathy-mission-control 5.7.7 (2011-03-09)
 ============================================
