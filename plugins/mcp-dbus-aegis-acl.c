@@ -128,6 +128,8 @@ pid_is_permitted (const McpDBusAcl *self, pid_t pid)
           pid, caller, aegis_type, aegis_token);
       ok = creds_have_p (caller, aegis_type, aegis_token);
       DEBUG ("  --> %s", ok ? "TRUE" : "FALSE");
+
+      creds_free (caller);
     }
 
   return ok;
