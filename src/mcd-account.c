@@ -178,6 +178,7 @@ struct _McdAccountPrivate
     guint changing_presence : 1;
 
     gboolean hidden;
+    gboolean always_dispatch;
 
     /* These fields are used to cache the changed properties */
     gboolean properties_frozen;
@@ -2710,6 +2711,10 @@ mcd_account_setup (McdAccount *account)
     priv->hidden =
       mcd_storage_get_boolean (storage, name, MC_ACCOUNTS_KEY_HIDDEN);
 
+    /* special case flag (for ring accounts, so far) */
+    priv->always_dispatch =
+      mcd_storage_get_boolean (storage, name, MC_ACCOUNTS_KEY_ALWAYS_DISPATCH);
+
     /* load the automatic presence */
     priv->auto_presence_type =
       mcd_storage_get_integer (storage, name,
@@ -3039,6 +3044,7 @@ mcd_account_init (McdAccount *account)
     priv->curr_presence_status = g_strdup ("");
 
     priv->always_on = FALSE;
+    priv->always_dispatch = FALSE;
     priv->enabled = FALSE;
     priv->connect_automatically = FALSE;
 

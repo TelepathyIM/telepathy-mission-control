@@ -50,6 +50,7 @@
 #define MC_ACCOUNTS_KEY_ALIAS "Nickname"
 #define MC_ACCOUNTS_KEY_SECONDARY_VCARD_FIELDS "secondary_vcard_fields"
 #define MC_ACCOUNTS_KEY_HIDDEN "Hidden"
+#define MC_ACCOUNTS_KEY_ALWAYS_DISPATCH "always_dispatch"
 
 #define PRESETS_GROUP "Presets"
 #define PRESETS_GROUP_DEFAULTS "Defaults"
