@@ -2229,8 +2229,16 @@ static gboolean
 mcd_connection_need_dispatch (McdConnection *connection,
                               const GPtrArray *channels)
 {
+    McdAccount *account = mcd_connection_get_account (connection);
     gboolean any_requested = FALSE, requested_by_us = FALSE;
     guint i;
+
+    if (_mcd_account_needs_dispatch (account))
+    {
+        DEBUG ("Account %s must always be dispatched, bypassing checks",
+               mcd_account_get_object_path (account));
+        return TRUE;
+    }
 
     /* We must _not_ handle channels that have the Requested flag set but that
      * have no McdChannel object associated: these are the channels directly
