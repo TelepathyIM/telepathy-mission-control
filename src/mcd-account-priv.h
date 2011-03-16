@@ -205,4 +205,6 @@ G_GNUC_INTERNAL gboolean _mcd_account_presence_type_is_settable (
 
 gboolean _mcd_account_is_hidden (McdAccount *account);
 
+G_GNUC_INTERNAL gboolean _mcd_account_needs_dispatch (McdAccount *account);
+
 #endif /* __MCD_ACCOUNT_PRIV_H__ */

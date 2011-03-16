@@ -4326,6 +4326,14 @@ _mcd_account_get_always_on (McdAccount *self)
 }
 
 gboolean
+_mcd_account_needs_dispatch (McdAccount *self)
+{
+    g_return_val_if_fail (MCD_IS_ACCOUNT (self), FALSE);
+
+    return self->priv->always_dispatch;
+}
+
+gboolean
 mcd_account_parameter_is_secret (McdAccount *self, const gchar *name)
 {
     McdAccountPrivate *priv = self->priv;
