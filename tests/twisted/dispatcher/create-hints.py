@@ -27,7 +27,7 @@ from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async, assertEquals
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
-        expect_client_setup
+        expect_client_setup, ChannelDispatcher
 import constants as cs
 
 def test(q, bus, mc):
@@ -60,8 +60,8 @@ def test_channel_creation(q, bus, account, client, conn,
     if prefer is None:
         prefer = client
 
-    cd = bus.get_object(cs.CD, cs.CD_PATH)
-    cd_props = dbus.Interface(cd, cs.PROPERTIES_IFACE)
+    cd = ChannelDispatcher(bus)
+    assert cd.Properties.Get(cs.CD, "SupportsRequestHints")
 
     # chat UI calls ChannelDispatcher.EnsureChannelWithHints or
     # CreateChannelWithHints

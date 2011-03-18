@@ -178,6 +178,7 @@ enum
     PROP_DBUS_DAEMON,
     PROP_MCD_MASTER,
     PROP_INTERFACES,
+    PROP_SUPPORTS_REQUEST_HINTS,
     PROP_DISPATCH_OPERATIONS,
 };
 
@@ -513,6 +514,10 @@ _mcd_dispatcher_get_property (GObject * obj, guint prop_id,
 
     case PROP_INTERFACES:
         g_value_set_static_boxed (val, interfaces);
+        break;
+
+    case PROP_SUPPORTS_REQUEST_HINTS:
+        g_value_set_boolean (val, TRUE);
         break;
 
     case PROP_DISPATCH_OPERATIONS:
@@ -866,6 +871,7 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
 {
     static TpDBusPropertiesMixinPropImpl cd_props[] = {
         { "Interfaces", "interfaces", NULL },
+        { "SupportsRequestHints", "supports-request-hints", NULL },
         { NULL }
     };
     static TpDBusPropertiesMixinPropImpl op_list_props[] = {
@@ -912,6 +918,12 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
          g_param_spec_boxed ("interfaces", "Interfaces", "Interfaces",
                              G_TYPE_STRV,
                              G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
+    g_object_class_install_property (
+        object_class, PROP_SUPPORTS_REQUEST_HINTS,
+        g_param_spec_boolean ("supports-request-hints", "SupportsRequestHints",
+                              "Yes, we support CreateChannelWithHints etc.",
+                              TRUE, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property
         (object_class, PROP_DISPATCH_OPERATIONS,
