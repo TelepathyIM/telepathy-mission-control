@@ -1033,6 +1033,13 @@ class Account(servicetest.ProxyWrapper):
             bus.get_object(cs.AM, account_path),
             cs.ACCOUNT, {'Compat': cs.ACCOUNT_IFACE_NOKIA_COMPAT})
 
+class ChannelDispatcher(servicetest.ProxyWrapper):
+    def __init__(self, bus):
+        bare_cd = bus.get_object(cs.CD, cs.CD_PATH,
+            follow_name_owner_changes=True)
+
+        servicetest.ProxyWrapper.__init__(self, bare_cd, cs.CD, {})
+
 def connect_to_mc(q, bus, mc):
     account_manager = AccountManager(bus)
 
