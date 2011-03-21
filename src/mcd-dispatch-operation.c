@@ -3,10 +3,8 @@
 /*
  * This file is part of mission-control
  *
- * Copyright (C) 2008-2010 Nokia Corporation.
- * Copyright (C) 2009-2010 Collabora Ltd.
- *
- * Contact: Alberto Mardegan  <alberto.mardegan@nokia.com>
+ * Copyright © 2008-2011 Nokia Corporation.
+ * Copyright © 2009-2011 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
