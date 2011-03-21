@@ -86,12 +86,16 @@
 
 static void dispatcher_iface_init (gpointer, gpointer);
 static void redispatch_iface_init (gpointer, gpointer);
+static void messages_iface_init (gpointer, gpointer);
+
 
 G_DEFINE_TYPE_WITH_CODE (McdDispatcher, mcd_dispatcher, MCD_TYPE_MISSION,
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_CHANNEL_DISPATCHER,
                            dispatcher_iface_init);
     G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_DISPATCHER_INTERFACE_REDISPATCH,
                            redispatch_iface_init);
+    G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_DISPATCHER_INTERFACE_MESSAGES_DRAFT,
+                           messages_iface_init);
     G_IMPLEMENT_INTERFACE (
         TP_TYPE_SVC_CHANNEL_DISPATCHER_INTERFACE_OPERATION_LIST,
         NULL);
@@ -2076,6 +2080,256 @@ _mcd_dispatcher_get_client_registry (McdDispatcher *self)
 {
     g_return_val_if_fail (MCD_IS_DISPATCHER (self), NULL);
     return self->priv->clients;
+}
+
+/* org.freedesktop.Telepathy.ChannelDispatcher.Messages */
+typedef struct
+{
+    GPtrArray *payload;
+    guint flags;
+    guint tries;
+    gboolean close_after;
+    DBusGMethodInvocation *dbus_context;
+} MessageContext;
+
+static MessageContext *
+message_context_new (const GPtrArray *payload,
+                     guint flags,
+                     DBusGMethodInvocation *dbus_context)
+{
+    guint i;
+    const guint size = payload->len;
+    MessageContext *context = g_slice_new0 (MessageContext);
+    GPtrArray *msg_copy = g_ptr_array_sized_new (size);
+
+    g_ptr_array_set_free_func (msg_copy, (GDestroyNotify) g_hash_table_unref);
+
+    for (i = 0; i < size; i++)
+    {
+        GHashTable *part = g_ptr_array_index (payload, i);
+
+        g_ptr_array_add (msg_copy, _mcd_deepcopy_asv (part));
+    }
+
+    context->payload = msg_copy;
+    context->flags = flags;
+    context->dbus_context = dbus_context;
+
+    return context;
+}
+
+static void
+message_context_free (gpointer ctx)
+{
+    MessageContext *context = ctx;
+
+    tp_clear_pointer (&context->payload, g_ptr_array_unref);
+
+    if (context->dbus_context != NULL)
+    {
+        GError *error;
+
+        error = g_error_new_literal (TP_ERRORS, TP_ERROR_TERMINATED,
+                                     "Channel request failed");
+        dbus_g_method_return_error (context->dbus_context, error);
+        g_error_free (error);
+    }
+
+    g_slice_free (MessageContext, context);
+}
+
+static void
+send_message_submitted (TpChannel *proxy,
+                        const gchar *token,
+                        const GError *error,
+                        gpointer data,
+                        GObject *weak)
+{
+    MessageContext *message = data;
+    DBusGMethodInvocation *context = message->dbus_context;
+    McdChannel *channel = MCD_CHANNEL (weak);
+    McdRequest *request = _mcd_channel_get_request (channel);
+    gboolean close_after = message->close_after;
+    McdAccount *account = mcd_channel_get_account (channel);
+    const gchar *path = mcd_account_get_object_path (account);
+
+    DEBUG ("SEND_MESSAGE_SUBMITTED (error: %p; %s)",
+           error, error ? error->message : "-");
+
+    /* this frees the dbus context, so clear it from our cache afterwards */
+    if (error == NULL)
+      mc_svc_channel_dispatcher_interface_messages_draft_return_from_send_message (context, token);
+    else
+      dbus_g_method_return_error (context, error);
+
+    message->dbus_context = NULL;
+
+    _mcd_request_clear_internal_handler (request);
+
+    if (close_after)
+        _mcd_channel_close (channel);
+
+    _mcd_request_unblock_account (path);
+}
+
+static void
+send_message_got_channel (McdRequest *request,
+                          McdChannel *channel,
+                          gpointer data,
+                          gboolean close_after)
+{
+    MessageContext *message = data;
+    McdAccount *account = _mcd_request_get_account (request);
+    const gchar *account_path = mcd_account_get_object_path (account);
+
+    DEBUG ("received internal request/channel");
+
+    /* successful channel creation */
+    if (channel != NULL)
+    {
+        message->close_after = close_after;
+
+        DEBUG ("calling send on channel interface");
+        tp_cli_channel_interface_messages_call_send_message
+          (mcd_channel_get_tp_channel (channel),
+           -1,
+           message->payload,
+           message->flags,
+           send_message_submitted,
+           message,
+           NULL,
+           G_OBJECT (channel));
+    }
+    else /* doom and despair: no channel */
+    {
+        if (message->tries++ == 0)
+        {
+            /* FIXME: the intention is to keep the account blocked and *
+             * retry the transmission here: no tim eto implement this  *
+             * for the first draft but we'll get to it shortly.        */
+            GError *error = g_error_new_literal (TP_ERRORS, TP_ERROR_CANCELLED,
+                                                 "Channel closed by user");
+
+            dbus_g_method_return_error (message->dbus_context, error);
+            _mcd_request_unblock_account (account_path);
+            g_error_free (error);
+        }
+        else
+        {
+            GError *error = g_error_new_literal (TP_ERRORS, TP_ERROR_REJECTED,
+                                                 "Could not create channel");
+
+            dbus_g_method_return_error (message->dbus_context, error);
+            _mcd_request_unblock_account (account_path);
+            g_error_free (error);
+        }
+    }
+}
+
+static void
+messages_send_message (McSvcChannelDispatcherInterfaceMessagesDraft *iface,
+                       const gchar *account_path,
+                       const gchar *target_id,
+                       const GPtrArray *payload,
+                       guint flags,
+                       DBusGMethodInvocation *context)
+{
+    McdAccountManager *am;
+    McdAccount *account;
+    McdChannel *channel = NULL;
+    McdRequest *request = NULL;
+    GError *error = NULL;
+    MessageContext *message = NULL;
+    GHashTable *props = NULL;
+    GValue c_type = { 0 };
+    GValue h_type = { 0 };
+    GValue target = { 0 };
+    McdDispatcher *self = MCD_DISPATCHER (iface);
+
+    DEBUG ("messages_send_message");
+
+    g_return_if_fail (account_path != NULL);
+
+    g_object_get (self->priv->master, "account-manager", &am, NULL);
+
+    g_assert (am != NULL);
+
+    account = mcd_account_manager_lookup_account_by_path (am, account_path);
+
+    DEBUG ("%s -> %p", account_path, account);
+
+    if (account == NULL)
+    {
+        g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                     "No such account: %s", account_path);
+        goto failure;
+    }
+
+    props = g_hash_table_new_full (g_str_hash, g_str_equal,
+        NULL, (GDestroyNotify) g_value_unset);
+
+    g_value_init (&c_type, G_TYPE_STRING);
+    g_value_init (&h_type, G_TYPE_UINT);
+    g_value_init (&target, G_TYPE_STRING);
+
+    g_value_set_static_string (&c_type, TP_IFACE_CHANNEL_TYPE_TEXT);
+    g_value_set_uint (&h_type, TP_HANDLE_TYPE_CONTACT);
+    g_value_set_string (&target, target_id);
+
+    g_hash_table_insert (props, TP_PROP_CHANNEL_CHANNEL_TYPE, &c_type);
+    g_hash_table_insert (props, TP_PROP_CHANNEL_TARGET_HANDLE_TYPE, &h_type);
+    g_hash_table_insert (props, TP_PROP_CHANNEL_TARGET_ID, &target);
+
+    DEBUG ("Creating internal request");
+    /* compare dispatcher_request_channel: we _are_ the handler for     *
+     * this channel so we don't need to check_preferred_handler here    *
+     * Also: this deep-copies the props hash, so we can throw ours away */
+    channel = _mcd_account_create_request (self->priv->clients,
+                                           account, props, time (NULL),
+                                           NULL, NULL, TRUE,
+                                           &request, &error);
+    g_hash_table_unref (props);
+
+    if (channel == NULL || request == NULL)
+    {
+      g_set_error (&error, TP_ERRORS, TP_ERROR_RESOURCE_UNAVAILABLE,
+                   "Could not create channel request");
+        goto failure;
+    }
+
+    DEBUG ("allocating internal handler context");
+    message = message_context_new (payload, flags, context);
+
+    DEBUG ("assigning internal handler");
+    _mcd_request_set_internal_handler (request,
+                                       send_message_got_channel,
+                                       message_context_free,
+                                       message);
+
+    /* we don't need to predict the handler either, same reason as above  *
+     * we do, however, want to call proceed on the request, as it is ours */
+    DEBUG ("calling proceed");
+    _mcd_request_proceed (request, NULL);
+
+    goto finished;
+
+failure:
+    dbus_g_method_return_error (context, error);
+    g_error_free (error);
+
+finished:
+    /* these are reffed and held open by the request infrastructure */
+    tp_clear_object (&channel);
+    tp_clear_object (&request);
+}
+
+static void
+messages_iface_init (gpointer iface, gpointer data G_GNUC_UNUSED)
+{
+#define IMPLEMENT(x) \
+  mc_svc_channel_dispatcher_interface_messages_draft_implement_##x (iface, messages_##x)
+  IMPLEMENT (send_message);
+#undef IMPLEMENT
 }
 
 typedef struct
