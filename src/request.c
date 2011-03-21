@@ -702,10 +702,7 @@ _mcd_request_proceed (McdRequest *self,
 
   self->proceeding = TRUE;
 
-  if (context != NULL)
-    {
-      tp_svc_channel_request_return_from_proceed (context);
-    }
+  tp_clear_pointer (&context, tp_svc_channel_request_return_from_proceed);
 
   connection = mcd_account_get_connection (self->account);
 
