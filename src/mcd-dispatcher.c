@@ -1333,6 +1333,8 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
     GList *tp_channels = NULL;
     GStrv possible_handlers;
     McdRequest *request = NULL;
+    gboolean internal_request = FALSE;
+    const gchar * const internal_handlers[] = { "", NULL };
 
     if (channels == NULL)
     {
@@ -1375,11 +1377,16 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
         }
     }
 
+    internal_request = _mcd_request_is_internal (request);
+
     /* See if there are any handlers that can take all these channels */
-    possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
-                                                              request,
-                                                              tp_channels,
-                                                              NULL);
+    if (internal_request)
+        possible_handlers = g_strdupv ((GStrv) internal_handlers);
+    else
+        possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
+                                                                  request,
+                                                                  tp_channels,
+                                                                  NULL);
 
     g_list_foreach (tp_channels, (GFunc) g_object_unref, NULL);
     g_list_free (tp_channels);
@@ -1408,7 +1415,9 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
     }
     else
     {
-        DEBUG ("possible handlers found, dispatching");
+        DEBUG ("%s handler(s) found, dispatching %u channels",
+               internal_request ? "internal" : "possible",
+               g_list_length (channels));
 
         for (list = channels; list != NULL; list = list->next)
             _mcd_channel_set_status (MCD_CHANNEL (list->data),
@@ -1636,14 +1645,18 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
      * is not, @request must mirror the status of @channel */
     if (status == MCD_CHANNEL_STATUS_DISPATCHED)
     {
-
+        McdRequest *origin = _mcd_channel_get_request (request);
         DEBUG ("reinvoking handler on channel %p", channel);
 
         /* copy the object path and the immutable properties from the
          * existing channel */
         _mcd_channel_copy_details (request, channel);
 
-        _mcd_dispatcher_reinvoke_handler (dispatcher, request);
+        DEBUG ("checking if ensured channel should be handled internaly");
+        if (_mcd_request_is_internal (origin))
+          _mcd_request_handle_internally (origin, request, FALSE);
+        else
+          _mcd_dispatcher_reinvoke_handler (dispatcher, request);
     }
     else
     {
