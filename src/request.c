@@ -69,6 +69,11 @@ struct _McdRequest {
     GHashTable *hints;
     gchar *object_path;
 
+    /* if the request is an internally handled special case: */
+    McdRequestInternalHandler internal_handler;
+    GFreeFunc internal_handler_clear;
+    gpointer internal_handler_data;
+
     /* Number of reasons to not make the request yet.
      *
      * We hold one extra ref to ourselves per delay. The object starts with
@@ -290,6 +295,19 @@ _mcd_request_finalize (GObject *object)
 
   DEBUG ("%p", object);
 
+  if (self->internal_handler_clear != NULL)
+    {
+      tp_clear_pointer (&self->internal_handler_data,
+          self->internal_handler_clear);
+      self->internal_handler_clear = NULL;
+    }
+  else
+    {
+      self->internal_handler_data = NULL;
+    }
+
+  self->internal_handler = NULL;
+
   g_free (self->preferred_handler);
   g_free (self->object_path);
   g_free (self->failure_message);
@@ -424,6 +442,53 @@ _mcd_request_new (McdClientRegistry *clients,
   DEBUG ("%p (for %p)", self, account);
 
   return self;
+}
+
+void
+_mcd_request_set_internal_handler (McdRequest *self,
+    McdRequestInternalHandler handler,
+    GFreeFunc free_func,
+    gpointer data)
+{
+  g_assert (self->internal_handler == NULL);
+  g_assert (self->internal_handler_data == NULL);
+  g_assert (self->internal_handler_clear == NULL);
+
+  self->internal_handler = handler;
+  self->internal_handler_clear = free_func;
+  self->internal_handler_data = data;
+}
+
+gboolean
+_mcd_request_handle_internally (McdRequest *self,
+    McdChannel *channel,
+    gboolean close_after)
+{
+  gboolean handled = self->internal_handler != NULL;
+  gpointer data = self->internal_handler_data;
+  McdRequestInternalHandler handler = self->internal_handler;
+
+  if (handled)
+    handler (self, channel, data, close_after);
+
+  return handled;
+}
+
+void
+_mcd_request_clear_internal_handler (McdRequest *self)
+{
+  if (self->internal_handler_clear != NULL)
+    self->internal_handler_clear (self->internal_handler_data);
+
+  self->internal_handler = NULL;
+  self->internal_handler_data = NULL;
+  self->internal_handler_clear = NULL;
+}
+
+gboolean
+_mcd_request_is_internal (McdRequest *self)
+{
+  return self != NULL && self->internal_handler != NULL;
 }
 
 gboolean

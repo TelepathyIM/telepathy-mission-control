@@ -34,6 +34,9 @@ typedef struct _McdRequest McdRequest;
 typedef struct _McdRequestClass McdRequestClass;
 typedef struct _McdRequestPrivate McdRequestPrivate;
 
+typedef void (*McdRequestInternalHandler)
+  (McdRequest *, McdChannel *, gpointer, gboolean);
+
 G_GNUC_INTERNAL GType _mcd_request_get_type (void);
 
 #define MCD_TYPE_REQUEST \
@@ -89,6 +92,15 @@ G_GNUC_INTERNAL gboolean _mcd_request_cancel (McdRequest *self,
 
 G_GNUC_INTERNAL void _mcd_request_predict_handler (McdRequest *self);
 
+G_GNUC_INTERNAL void _mcd_request_set_internal_handler (McdRequest *self,
+    McdRequestInternalHandler handler,
+    GFreeFunc free_func,
+    gpointer data);
+G_GNUC_INTERNAL gboolean _mcd_request_handle_internally (McdRequest *self,
+    McdChannel *channel,
+    gboolean close_after);
+G_GNUC_INTERNAL void _mcd_request_clear_internal_handler (McdRequest *self);
+G_GNUC_INTERNAL gboolean _mcd_request_is_internal (McdRequest *self);
 G_END_DECLS
 
 #endif
