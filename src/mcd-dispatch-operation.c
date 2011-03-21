@@ -1722,7 +1722,8 @@ _mcd_dispatch_operation_handlers_can_bypass_approval (
     }
 
     /* If no handler still exists, we don't bypass approval, although if that
-     * happens we're basically doomed anyway. */
+     * happens we're basically doomed anyway. (unless this is an internal
+     * request, in which case we should be ok) */
     return FALSE;
 }
 
@@ -2139,6 +2140,7 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
     if (self->priv->channels != NULL)
     {
         const GList *mini_plugins;
+        gchar **possible_handlers = self->priv->possible_handlers;
 
         if (_mcd_dispatch_operation_handlers_can_bypass_observers (self))
         {
@@ -2150,14 +2152,39 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
             _mcd_dispatch_operation_run_observers (self);
         }
 
-        for (mini_plugins = mcp_list_objects ();
-             mini_plugins != NULL;
-             mini_plugins = mini_plugins->next)
+        /* internally generated/handled requests are not subject to policy */
+        if (possible_handlers != NULL && tp_str_empty (*possible_handlers))
         {
-            if (MCP_IS_DISPATCH_OPERATION_POLICY (mini_plugins->data))
+            guint i = 0;
+            GList *list = self->priv->channels;
+
+            DEBUG ("Invoking internal handlers for requests");
+
+            for (; list != NULL; list = g_list_next (list))
             {
-                mcp_dispatch_operation_policy_check (mini_plugins->data,
-                    MCP_DISPATCH_OPERATION (self->priv->plugin_api));
+                McdChannel *channel = list->data;
+                McdRequest *request = _mcd_channel_get_request (channel);
+
+                if (request != NULL)
+                {
+                    DEBUG ("Internal handler for request channel #%u", i);
+                    _mcd_request_handle_internally (request, channel, TRUE);
+                }
+
+                i++;
+            }
+        }
+        else
+        {
+            for (mini_plugins = mcp_list_objects ();
+                 mini_plugins != NULL;
+                 mini_plugins = mini_plugins->next)
+            {
+                if (MCP_IS_DISPATCH_OPERATION_POLICY (mini_plugins->data))
+                {
+                    mcp_dispatch_operation_policy_check (mini_plugins->data,
+                        MCP_DISPATCH_OPERATION (self->priv->plugin_api));
+                }
             }
         }
     }
