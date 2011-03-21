@@ -552,6 +552,133 @@ _mcd_request_policy_plugins (void)
   return policies;
 }
 
+/* hash keys on account paths: value is the lock-count */
+static GHashTable *account_locks = NULL;
+static GHashTable *blocked_reqs = NULL;
+
+static void
+_init_blocked_account_request_queue (void)
+{
+  account_locks = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+  blocked_reqs = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+}
+
+guint
+_mcd_request_block_account (const gchar *account)
+{
+  guint count;
+  gchar *key = g_strdup (account);
+
+  if (G_UNLIKELY (account_locks == NULL))
+    _init_blocked_account_request_queue ();
+
+  count = GPOINTER_TO_UINT (g_hash_table_lookup (account_locks, account));
+  g_hash_table_replace (account_locks, key, GUINT_TO_POINTER (++count));
+  DEBUG ("lock count for account %s is now: %u", account, count);
+
+  return count;
+}
+
+static void
+_unblock_request (gpointer object, gpointer data)
+{
+  DEBUG ("ending delay for internally locked request %p on account %s",
+      object, (const gchar *) data);
+  _mcd_request_end_delay (MCD_REQUEST (object));
+}
+
+guint
+_mcd_request_unblock_account (const gchar *account)
+{
+  guint count = 0;
+  gchar *key = NULL;
+
+  if (G_UNLIKELY (account_locks == NULL))
+    {
+      g_warning ("Unbalanced account-request-unblock for %s", account);
+      return 0;
+    }
+
+  count = GPOINTER_TO_UINT (g_hash_table_lookup (account_locks, account));
+
+  switch (count)
+    {
+      GQueue *queue;
+
+      case 0:
+        g_warning ("Unbalanced account-request-unblock for %s", account);
+        return 0;
+
+      case 1:
+        DEBUG ("removing lock from account %s", account);
+        g_hash_table_remove (account_locks, account);
+        queue = g_hash_table_lookup (blocked_reqs, account);
+
+        if (queue == NULL)
+          return 0;
+
+        g_queue_foreach (queue, _unblock_request, NULL);
+        g_queue_clear (queue);
+
+        return 0;
+
+      default:
+        DEBUG ("reducing lock count for %s", account);
+        key = g_strdup (account);
+        g_hash_table_replace (account_locks, key, GUINT_TO_POINTER (--count));
+        return count;
+    }
+}
+
+static gboolean
+_queue_blocked_requests (McdRequest *self)
+{
+  const gchar *path = NULL;
+  guint locks = 0;
+
+  /* this is an internal request and therefore not subject to blocking *
+     BUT the fact that this internal request is in-flight means other  *
+     requests on the same account/handle type should be blocked        */
+  if (self->internal_handler != NULL)
+    {
+      path = mcd_account_get_object_path (_mcd_request_get_account (self));
+      _mcd_request_block_account (path);
+
+      return FALSE;
+    }
+
+  /* no internal requests in flight, nothing to queue, nothing to do */
+  if (account_locks == NULL)
+    return FALSE;
+
+  if (path == NULL)
+    path = mcd_account_get_object_path (_mcd_request_get_account (self));
+
+  /* account_locks tracks the # of in-flight internal requests per account */
+  locks = GPOINTER_TO_UINT (g_hash_table_lookup (account_locks, path));
+
+  /* internal reqeusts in flight => other requests on that account must wait */
+  if (locks > 0)
+    {
+      GQueue *queue;
+
+      queue = g_hash_table_lookup (blocked_reqs, path);
+
+      if (queue == NULL)
+        {
+          queue = g_queue_new ();
+          g_hash_table_insert (blocked_reqs, g_strdup (path), queue);
+        }
+
+      _mcd_request_start_delay (self);
+      g_queue_push_tail (queue, self);
+
+      return TRUE;
+    }
+
+  return FALSE;
+}
+
 void
 _mcd_request_proceed (McdRequest *self,
     DBusGMethodInvocation *context)
@@ -559,6 +686,7 @@ _mcd_request_proceed (McdRequest *self,
   McdConnection *connection = NULL;
   McdPluginRequest *plugin_api = NULL;
   gboolean urgent = FALSE;
+  gboolean blocked = FALSE;
   const GList *mini_plugins;
 
   if (self->proceeding)
@@ -604,6 +732,14 @@ _mcd_request_proceed (McdRequest *self,
   if (urgent)
     goto proceed;
 
+  /* requests can pick up an extra delay (and ref) here */
+  blocked = _queue_blocked_requests (self);
+
+  if (blocked)
+    DEBUG ("Request delayed in favour of internal request on %s",
+        mcd_account_get_object_path (self->account));
+
+  /* now regular request policy plugins get their shot at denying/delaying */
   for (mini_plugins = _mcd_request_policy_plugins ();
        mini_plugins != NULL;
        mini_plugins = mini_plugins->next)

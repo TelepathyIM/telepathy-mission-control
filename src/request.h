@@ -101,6 +101,10 @@ G_GNUC_INTERNAL gboolean _mcd_request_handle_internally (McdRequest *self,
     gboolean close_after);
 G_GNUC_INTERNAL void _mcd_request_clear_internal_handler (McdRequest *self);
 G_GNUC_INTERNAL gboolean _mcd_request_is_internal (McdRequest *self);
+
+G_GNUC_INTERNAL guint _mcd_request_block_account (const gchar *account);
+G_GNUC_INTERNAL guint _mcd_request_unblock_account (const gchar *account);
+
 G_END_DECLS
 
 #endif
