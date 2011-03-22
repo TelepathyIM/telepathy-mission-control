@@ -434,6 +434,7 @@ static void _sso_updated (AgAccount *account,
   const gchar *deleted_key;
   guint i;
   gboolean params_updated = FALSE;
+  const gchar *immutables[] = { MC_SERVICE_KEY, SERVICES_KEY, NULL };
 
   /* account has no name yet: might be time to create it */
   if (name == NULL)
@@ -494,6 +495,15 @@ static void _sso_updated (AgAccount *account,
           g_free (ag_str);
           clear_setting_data (setting);
         }
+    }
+
+  /* special case values always exist and therefore cannot be deleted */
+  for (i = 0; immutables[i] != NULL; i++)
+    {
+      Setting *immutable = setting_data (immutables[i], SETTING_AG);
+
+      g_hash_table_remove (unseen, immutable->ag_name);
+      clear_setting_data (immutable);
     }
 
   /* signal (and update) deleted settings: */
