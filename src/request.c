@@ -295,18 +295,7 @@ _mcd_request_finalize (GObject *object)
 
   DEBUG ("%p", object);
 
-  if (self->internal_handler_clear != NULL)
-    {
-      tp_clear_pointer (&self->internal_handler_data,
-          self->internal_handler_clear);
-      self->internal_handler_clear = NULL;
-    }
-  else
-    {
-      self->internal_handler_data = NULL;
-    }
-
-  self->internal_handler = NULL;
+  _mcd_request_clear_internal_handler (self);
 
   g_free (self->preferred_handler);
   g_free (self->object_path);
