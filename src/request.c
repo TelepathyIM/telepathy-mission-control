@@ -464,14 +464,15 @@ _mcd_request_handle_internally (McdRequest *self,
     McdChannel *channel,
     gboolean close_after)
 {
-  gboolean handled = self->internal_handler != NULL;
-  gpointer data = self->internal_handler_data;
-  McdRequestInternalHandler handler = self->internal_handler;
+  if (self->internal_handler != NULL)
+    {
+      self->internal_handler (self, channel, self->internal_handler_data,
+          close_after);
 
-  if (handled)
-    handler (self, channel, data, close_after);
+      return TRUE;
+    }
 
-  return handled;
+  return FALSE;
 }
 
 void
