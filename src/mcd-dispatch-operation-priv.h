@@ -49,6 +49,7 @@ struct _McdDispatchOperationClass
     GObjectClass parent_class;
 };
 
+#define CDO_INTERNAL_HANDLER ""
 
 #define MC_DISPATCH_OPERATION_DBUS_OBJECT_BASE "/org/freedesktop/Telepathy/DispatchOperation/"
 
@@ -113,6 +114,9 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_close_channels (
 G_GNUC_INTERNAL void _mcd_dispatch_operation_destroy_channels (
     McdDispatchOperation *self);
 G_GNUC_INTERNAL void _mcd_dispatch_operation_forget_channels (
+    McdDispatchOperation *self);
+
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_internal (
     McdDispatchOperation *self);
 
 G_END_DECLS

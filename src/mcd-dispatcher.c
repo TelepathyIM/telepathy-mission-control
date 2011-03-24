@@ -294,6 +294,14 @@ channel_classes_equals (GHashTable *channel_class1, GHashTable *channel_class2)
 }
 
 static GStrv
+mcd_dispatcher_dup_internal_handlers ()
+{
+    const gchar * const internal_handlers[] = { CDO_INTERNAL_HANDLER, NULL };
+
+    return g_strdupv ((GStrv) internal_handlers);
+}
+
+static GStrv
 mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
                                       McdRequest *request,
                                       const GList *channels,
@@ -1338,7 +1346,6 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
     GStrv possible_handlers;
     McdRequest *request = NULL;
     gboolean internal_request = FALSE;
-    const gchar * const internal_handlers[] = { "", NULL };
 
     if (channels == NULL)
     {
@@ -1385,7 +1392,7 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
 
     /* See if there are any handlers that can take all these channels */
     if (internal_request)
-        possible_handlers = g_strdupv ((GStrv) internal_handlers);
+        possible_handlers = mcd_dispatcher_dup_internal_handlers ();
     else
         possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
                                                                   request,
