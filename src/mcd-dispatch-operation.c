@@ -479,6 +479,30 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
         return;
     }
 
+    if (_mcd_dispatch_operation_is_internal (self))
+    {
+        guint i = 0;
+        GList *list = self->priv->channels;
+
+        DEBUG ("Invoking internal handlers for requests");
+        for (; list != NULL; list = g_list_next (list), i++)
+        {
+            McdChannel *channel = list->data;
+            McdRequest *request = _mcd_channel_get_request (channel);
+
+            if (request == NULL)
+                continue;
+
+            DEBUG ("Internal handler for request channel #%u", i);
+            _mcd_request_handle_internally (request, channel, TRUE);
+        }
+
+        /* The rest of this function deals with externally handled requests: *
+         * Since these requests were internal, we need not trouble ourselves *
+         * further (and infact would probably trigger errors if we tried)    */
+        return;
+    }
+
     approval = g_queue_peek_head (self->priv->approvals);
 
     /* if we've been claimed, respond, then do not call HandleChannels */
