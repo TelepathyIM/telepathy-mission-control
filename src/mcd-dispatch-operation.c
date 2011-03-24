@@ -366,7 +366,7 @@ _mcd_dispatch_operation_get_cancelled (McdDispatchOperation *self)
 gboolean
 _mcd_dispatch_operation_is_internal (McdDispatchOperation *self)
 {
-    const gchar **handlers = self->priv->possible_handlers;
+    const gchar **handlers = (gchar **) self->priv->possible_handlers;
 
     return (handlers != NULL && !tp_strdiff (CDO_INTERNAL_HANDLER, *handlers));
 }
@@ -2174,7 +2174,6 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
     if (self->priv->channels != NULL)
     {
         const GList *mini_plugins;
-        gchar **possible_handlers = self->priv->possible_handlers;
 
         if (_mcd_dispatch_operation_handlers_can_bypass_observers (self))
         {

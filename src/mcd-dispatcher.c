@@ -294,7 +294,7 @@ channel_classes_equals (GHashTable *channel_class1, GHashTable *channel_class2)
 }
 
 static GStrv
-mcd_dispatcher_dup_internal_handlers ()
+mcd_dispatcher_dup_internal_handlers (void)
 {
     const gchar * const internal_handlers[] = { CDO_INTERNAL_HANDLER, NULL };
 
