@@ -2162,39 +2162,14 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
             _mcd_dispatch_operation_run_observers (self);
         }
 
-        /* internally generated/handled requests are not subject to policy */
-        if (possible_handlers != NULL && tp_str_empty (*possible_handlers))
+        for (mini_plugins = mcp_list_objects ();
+             mini_plugins != NULL;
+             mini_plugins = mini_plugins->next)
         {
-            guint i = 0;
-            GList *list = self->priv->channels;
-
-            DEBUG ("Invoking internal handlers for requests");
-
-            for (; list != NULL; list = g_list_next (list))
+            if (MCP_IS_DISPATCH_OPERATION_POLICY (mini_plugins->data))
             {
-                McdChannel *channel = list->data;
-                McdRequest *request = _mcd_channel_get_request (channel);
-
-                if (request != NULL)
-                {
-                    DEBUG ("Internal handler for request channel #%u", i);
-                    _mcd_request_handle_internally (request, channel, TRUE);
-                }
-
-                i++;
-            }
-        }
-        else
-        {
-            for (mini_plugins = mcp_list_objects ();
-                 mini_plugins != NULL;
-                 mini_plugins = mini_plugins->next)
-            {
-                if (MCP_IS_DISPATCH_OPERATION_POLICY (mini_plugins->data))
-                {
-                    mcp_dispatch_operation_policy_check (mini_plugins->data,
-                        MCP_DISPATCH_OPERATION (self->priv->plugin_api));
-                }
+                mcp_dispatch_operation_policy_check (mini_plugins->data,
+                    MCP_DISPATCH_OPERATION (self->priv->plugin_api));
             }
         }
     }
