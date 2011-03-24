@@ -1703,6 +1703,10 @@ _mcd_dispatch_operation_handlers_can_bypass_approval (
 {
     gchar **iter;
 
+    /* special case: internally handled request, not subject to approval */
+    if (_mcd_dispatch_operation_is_internal (self))
+        return TRUE;
+
     for (iter = self->priv->possible_handlers;
          iter != NULL && *iter != NULL;
          iter++)
