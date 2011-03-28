@@ -789,8 +789,19 @@ mcd_account_delete (McdAccount *account,
     }
 
     mcd_storage_commit (priv->storage, name);
+
     if (callback != NULL)
         callback (account, NULL, user_data);
+
+    /* If the account was not removed via the DBus Account interface code     *
+     * path and something is holding a ref to it so it does not get disposed, *
+     * then this signal may not get fired, so we make sure it _does_ here     */
+    if (!priv->removed)
+    {
+        DEBUG ("Forcing Account.Removed for %s", name);
+        priv->removed = TRUE;
+        tp_svc_account_emit_removed (account);
+    }
 }
 
 void
