@@ -2092,6 +2092,9 @@ _mcd_dispatcher_get_client_registry (McdDispatcher *self)
 /* org.freedesktop.Telepathy.ChannelDispatcher.Messages */
 typedef struct
 {
+    McdDispatcher *dispatcher;
+    gchar *account_path;
+    gchar *target_id;
     GPtrArray *payload;
     guint flags;
     guint tries;
@@ -2100,9 +2103,11 @@ typedef struct
 } MessageContext;
 
 static MessageContext *
-message_context_new (const GPtrArray *payload,
-                     guint flags,
-                     DBusGMethodInvocation *dbus_context)
+message_context_new (McdDispatcher *dispatcher,
+                     const gchar *account_path,
+                     const gchar *target_id,
+                     const GPtrArray *payload,
+                     guint flags)
 {
     guint i;
     const guint size = payload->len;
@@ -2118,9 +2123,12 @@ message_context_new (const GPtrArray *payload,
         g_ptr_array_add (msg_copy, _mcd_deepcopy_asv (part));
     }
 
+    context->dispatcher = g_object_ref (dispatcher);
+    context->account_path = g_strdup (account_path);
+    context->target_id = g_strdup (target_id);
     context->payload = msg_copy;
     context->flags = flags;
-    context->dbus_context = dbus_context;
+    context->dbus_context = NULL;
 
     return context;
 }
@@ -2131,6 +2139,8 @@ message_context_free (gpointer ctx)
     MessageContext *context = ctx;
 
     tp_clear_pointer (&context->payload, g_ptr_array_unref);
+    tp_clear_pointer (&context->account_path, g_free);
+    tp_clear_pointer (&context->target_id, g_free);
 
     if (context->dbus_context != NULL)
     {
@@ -2141,6 +2151,8 @@ message_context_free (gpointer ctx)
         dbus_g_method_return_error (context->dbus_context, error);
         g_error_free (error);
     }
+
+    tp_clear_pointer (&context->dispatcher, g_object_unref);
 
     g_slice_free (MessageContext, context);
 }
