@@ -2134,6 +2134,23 @@ message_context_new (McdDispatcher *dispatcher,
 }
 
 static void
+message_context_return_error (MessageContext *context, const GError *error)
+{
+    if (context->dbus_context == NULL)
+        return;
+
+    dbus_g_method_return_error (context->dbus_context, error);
+    context->dbus_context = NULL;
+}
+
+static void
+message_context_set_return_context (MessageContext *context,
+                                    DBusGMethodInvocation *dbus_context)
+{
+    context->dbus_context = dbus_context;
+}
+
+static void
 message_context_free (gpointer ctx)
 {
     MessageContext *context = ctx;
