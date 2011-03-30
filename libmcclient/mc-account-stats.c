@@ -138,12 +138,6 @@ on_stats_changed (TpProxy *proxy, GHashTable *properties, gpointer user_data,
 static void
 setup_props_monitor (TpProxy *proxy, GQuark interface)
 {
-    McAccount *account = MC_ACCOUNT (proxy);
-
-    mc_cli_account_interface_stats_connect_to_stats_changed (account,
-                                                             on_stats_changed,
-                                                             NULL, NULL,
-                                                             NULL, NULL);
 }
 
 /**
