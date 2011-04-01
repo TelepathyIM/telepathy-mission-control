@@ -2197,26 +2197,24 @@ send_message_submitted (TpChannel *proxy,
     McdChannel *channel = MCD_CHANNEL (weak);
     McdRequest *request = _mcd_channel_get_request (channel);
     gboolean close_after = message->close_after;
-    McdAccount *account = mcd_channel_get_account (channel);
-    const gchar *path = mcd_account_get_object_path (account);
-
-    DEBUG ("SEND_MESSAGE_SUBMITTED (error: %p; %s)",
-           error, error ? error->message : "-");
 
     /* this frees the dbus context, so clear it from our cache afterwards */
     if (error == NULL)
-      mc_svc_channel_dispatcher_interface_messages_draft_return_from_send_message (context, token);
+    {
+        mc_svc_channel_dispatcher_interface_messages_draft_return_from_send_message (context, token);
+        message_context_set_return_context (message, NULL);
+    }
     else
-      dbus_g_method_return_error (context, error);
+    {
+        DEBUG ("error: %s", error->message);
+        message_context_return_error (message, error);
+    }
 
-    message->dbus_context = NULL;
-
+    _mcd_request_unblock_account (message->account_path);
     _mcd_request_clear_internal_handler (request);
 
     if (close_after)
         _mcd_channel_close (channel);
-
-    _mcd_request_unblock_account (path);
 }
 
 static void
@@ -2226,8 +2224,6 @@ send_message_got_channel (McdRequest *request,
                           gboolean close_after)
 {
     MessageContext *message = data;
-    McdAccount *account = _mcd_request_get_account (request);
-    const gchar *account_path = mcd_account_get_object_path (account);
 
     DEBUG ("received internal request/channel");
 
@@ -2263,11 +2259,12 @@ send_message_got_channel (McdRequest *request,
         }
         else
         {
-            GError *error = g_error_new_literal (TP_ERRORS, TP_ERROR_REJECTED,
-                                                 "Could not create channel");
+            GError *error = g_error_new_literal (TP_ERRORS, TP_ERROR_CANCELLED,
+                                                 "Channel closed by owner");
 
-            dbus_g_method_return_error (message->dbus_context, error);
-            _mcd_request_unblock_account (account_path);
+            _mcd_request_unblock_account (message->account_path);
+            message_context_return_error (message, error);
+            message_context_free (message);
             g_error_free (error);
         }
     }
@@ -2321,7 +2318,7 @@ messages_send_message (McSvcChannelDispatcherInterfaceMessagesDraft *iface,
 
     g_value_set_static_string (&c_type, TP_IFACE_CHANNEL_TYPE_TEXT);
     g_value_set_uint (&h_type, TP_HANDLE_TYPE_CONTACT);
-    g_value_set_string (&target, target_id);
+    g_value_set_string (&target, message->target_id);
 
     g_hash_table_insert (props, TP_PROP_CHANNEL_CHANNEL_TYPE, &c_type);
     g_hash_table_insert (props, TP_PROP_CHANNEL_TARGET_HANDLE_TYPE, &h_type);
@@ -2344,10 +2341,6 @@ messages_send_message (McSvcChannelDispatcherInterfaceMessagesDraft *iface,
         goto failure;
     }
 
-    DEBUG ("allocating internal handler context");
-    message = message_context_new (payload, flags, context);
-
-    DEBUG ("assigning internal handler");
     _mcd_request_set_internal_handler (request,
                                        send_message_got_channel,
                                        message_context_free,
@@ -2361,7 +2354,8 @@ messages_send_message (McSvcChannelDispatcherInterfaceMessagesDraft *iface,
     goto finished;
 
 failure:
-    dbus_g_method_return_error (context, error);
+    message_context_return_error (message, error);
+    message_context_free (message);
     g_error_free (error);
 
 finished:
