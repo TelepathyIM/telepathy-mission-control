@@ -2333,7 +2333,6 @@ messages_send_message_start (DBusGMethodInvocation *dbus_context,
     g_hash_table_insert (props, TP_PROP_CHANNEL_TARGET_HANDLE_TYPE, &h_type);
     g_hash_table_insert (props, TP_PROP_CHANNEL_TARGET_ID, &target);
 
-    DEBUG ("Creating internal request");
     /* compare dispatcher_request_channel: we _are_ the handler for     *
      * this channel so we don't need to check_preferred_handler here    *
      * Also: this deep-copies the props hash, so we can throw ours away */
@@ -2345,8 +2344,8 @@ messages_send_message_start (DBusGMethodInvocation *dbus_context,
 
     if (channel == NULL || request == NULL)
     {
-      g_set_error (&error, TP_ERRORS, TP_ERROR_RESOURCE_UNAVAILABLE,
-                   "Could not create channel request");
+        g_set_error (&error, TP_ERRORS, TP_ERROR_RESOURCE_UNAVAILABLE,
+                     "Could not create channel request");
         goto failure;
     }
 
@@ -2357,7 +2356,6 @@ messages_send_message_start (DBusGMethodInvocation *dbus_context,
 
     /* we don't need to predict the handler either, same reason as above  *
      * we do, however, want to call proceed on the request, as it is ours */
-    DEBUG ("calling proceed");
     _mcd_request_proceed (request, NULL);
 
     goto finished;
