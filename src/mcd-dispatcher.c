@@ -2103,6 +2103,17 @@ typedef struct
 } MessageContext;
 
 static MessageContext *
+message_context_steal (MessageContext *from)
+{
+    MessageContext *stolen = g_slice_new0 (MessageContext);
+
+    g_memmove (stolen, from, sizeof (MessageContext));
+    memset (from, 0, sizeof (MessageContext));
+
+    return stolen;
+}
+
+static MessageContext *
 message_context_new (McdDispatcher *dispatcher,
                      const gchar *account_path,
                      const gchar *target_id,
