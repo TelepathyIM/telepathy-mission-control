@@ -81,6 +81,7 @@
 
 #define CREATE_CHANNEL TP_IFACE_CONNECTION_INTERFACE_REQUESTS ".CreateChannel"
 #define ENSURE_CHANNEL TP_IFACE_CONNECTION_INTERFACE_REQUESTS ".EnsureChannel"
+#define SEND_MESSAGE   TP_IFACE_CHANNEL_DISPATCHER ".Interface.Messages.DRAFT"
 
 #define MCD_DISPATCHER_PRIV(dispatcher) (MCD_DISPATCHER (dispatcher)->priv)
 
@@ -2271,41 +2272,52 @@ send_message_got_channel (McdRequest *request,
 }
 
 static void
-messages_send_message (McSvcChannelDispatcherInterfaceMessagesDraft *iface,
-                       const gchar *account_path,
-                       const gchar *target_id,
-                       const GPtrArray *payload,
-                       guint flags,
-                       DBusGMethodInvocation *context)
+messages_send_message_acl_success (DBusGMethodInvocation *dbus_context,
+                                   gpointer data)
+{
+    /* steal the contents of the message context from the ACL framework: *
+     * this avoids a nasty double-free (and means we don't have to dup   *
+     * the message payload memory twice)                                 */
+    messages_send_message_start (dbus_context, message_context_steal (data));
+}
+
+static void
+messages_send_message_start (DBusGMethodInvocation *dbus_context,
+                             MessageContext *message)
 {
     McdAccountManager *am;
     McdAccount *account;
     McdChannel *channel = NULL;
     McdRequest *request = NULL;
     GError *error = NULL;
-    MessageContext *message = NULL;
     GHashTable *props = NULL;
     GValue c_type = { 0 };
     GValue h_type = { 0 };
     GValue target = { 0 };
-    McdDispatcher *self = MCD_DISPATCHER (iface);
+    McdDispatcher *self = message->dispatcher;
 
-    DEBUG ("messages_send_message");
+    DEBUG ("messages_send_message_acl_success [attempt #%u]", message->tries);
+    /* the message request can now take posession of the dbus method context */
+    message_context_set_return_context (message, dbus_context);
 
-    g_return_if_fail (account_path != NULL);
+    if (tp_str_empty (message->account_path))
+    {
+        g_set_error_literal (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                             "Account path not specified");
+        goto failure;
+    }
 
     g_object_get (self->priv->master, "account-manager", &am, NULL);
 
     g_assert (am != NULL);
 
-    account = mcd_account_manager_lookup_account_by_path (am, account_path);
-
-    DEBUG ("%s -> %p", account_path, account);
+    account =
+      mcd_account_manager_lookup_account_by_path (am, message->account_path);
 
     if (account == NULL)
     {
         g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                     "No such account: %s", account_path);
+                     "No such account: %s", message->account_path);
         goto failure;
     }
 
@@ -2362,6 +2374,48 @@ finished:
     /* these are reffed and held open by the request infrastructure */
     tp_clear_object (&channel);
     tp_clear_object (&request);
+}
+
+static void
+messages_send_message_acl_cleanup (gpointer data)
+{
+    MessageContext *message = data;
+
+    /* At this point either the messages framework or the ACL framework   *
+     * is expected to have handled the DBus return, so we must not try to */
+    message_context_set_return_context (message, NULL);
+    message_context_free (message);
+}
+
+static void
+messages_send_message (McSvcChannelDispatcherInterfaceMessagesDraft *iface,
+                       const gchar *account_path,
+                       const gchar *target_id,
+                       const GPtrArray *payload,
+                       guint flags,
+                       DBusGMethodInvocation *context)
+{
+    McdDispatcher *self= MCD_DISPATCHER (iface);
+    MessageContext *message =
+      message_context_new (self, account_path, target_id, payload, flags);
+
+    /* these are for the ACL itself */
+    GValue *account = g_slice_new0 (GValue);
+    GHashTable *params =
+      g_hash_table_new_full (g_str_hash, g_str_equal, NULL, free_gvalue);
+
+    g_value_init (account, G_TYPE_STRING);
+    g_value_set_string (account, account_path);
+    g_hash_table_insert (params, "account-path", account);
+
+    mcp_dbus_acl_authorised_async (self->priv->dbus_daemon,
+                                   context,
+                                   DBUS_ACL_TYPE_METHOD,
+                                   SEND_MESSAGE,
+                                   params,
+                                   messages_send_message_acl_success,
+                                   message,
+                                   messages_send_message_acl_cleanup);
 }
 
 static void
