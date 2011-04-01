@@ -2182,7 +2182,7 @@ message_context_free (gpointer ctx)
         g_error_free (error);
     }
 
-    tp_clear_pointer (&context->dispatcher, g_object_unref);
+    tp_clear_object (&context->dispatcher);
 
     g_slice_free (MessageContext, context);
 }
