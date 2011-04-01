@@ -2218,6 +2218,9 @@ send_message_submitted (TpChannel *proxy,
         _mcd_channel_close (channel);
 }
 
+static void messages_send_message_start (DBusGMethodInvocation *context,
+                                         MessageContext *message);
+
 static void
 send_message_got_channel (McdRequest *request,
                           McdChannel *channel,
@@ -2248,15 +2251,9 @@ send_message_got_channel (McdRequest *request,
     {
         if (message->tries++ == 0)
         {
-            /* FIXME: the intention is to keep the account blocked and *
-             * retry the transmission here: no tim eto implement this  *
-             * for the first draft but we'll get to it shortly.        */
-            GError *error = g_error_new_literal (TP_ERRORS, TP_ERROR_CANCELLED,
-                                                 "Channel closed by user");
-
-            dbus_g_method_return_error (message->dbus_context, error);
-            _mcd_request_unblock_account (account_path);
-            g_error_free (error);
+            messages_send_message_start (message->dbus_context, message);
+            /* we created a new lock above, we can now release the old one: */
+            _mcd_request_unblock_account (message->account_path);
         }
         else
         {
