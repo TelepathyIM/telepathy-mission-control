@@ -366,7 +366,7 @@ _mcd_dispatch_operation_get_cancelled (McdDispatchOperation *self)
 gboolean
 _mcd_dispatch_operation_is_internal (McdDispatchOperation *self)
 {
-    const gchar **handlers = (gchar **) self->priv->possible_handlers;
+    GStrv handlers = self->priv->possible_handlers;
 
     return (handlers != NULL && !tp_strdiff (CDO_INTERNAL_HANDLER, *handlers));
 }
