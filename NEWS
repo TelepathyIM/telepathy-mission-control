@@ -1,5 +1,11 @@
-telepathy-mission-control 5.7.9 (UNRELEASED)
+telepathy-mission-control 5.7.9 (2011-04-05)
 ============================================
+
+The “From Hell's Heart I Stab at const” release.
+
+Fixes:
+
+• Build failure due to warning/error promotion (fledermaus)
 
 telepathy-mission-control 5.7.8 (2011-04-05)
 ============================================
