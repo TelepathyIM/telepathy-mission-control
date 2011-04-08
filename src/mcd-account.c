@@ -3052,7 +3052,7 @@ mcd_account_init (McdAccount *account)
 
     priv->curr_presence_type = TP_CONNECTION_PRESENCE_TYPE_OFFLINE;
     priv->curr_presence_status = g_strdup ("offline");
-    priv->curr_presence_status = g_strdup ("");
+    priv->curr_presence_message = g_strdup ("");
 
     priv->always_on = FALSE;
     priv->always_dispatch = FALSE;
