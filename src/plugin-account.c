@@ -634,6 +634,8 @@ update_storage (McdPluginAccountManager *self,
               pn, done ? "store" : "ignore", account, key);
         }
     }
+
+  g_free (val);
 }
 
 static gboolean
@@ -769,6 +771,7 @@ _storage_set_value (McdStorage *storage,
           updated = TRUE;
         }
 
+      g_free (new);
       g_free (buf);
       g_free (old);
 
