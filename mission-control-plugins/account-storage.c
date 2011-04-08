@@ -83,8 +83,9 @@
 #ifdef ENABLE_DEBUG
 
 #define DEBUG(_p, _format, ...) \
-  g_debug ("%s: %s: " _format, G_STRFUNC, \
-      (_p != NULL) ? mcp_account_storage_name (_p) : "NULL", ##__VA_ARGS__)
+  if (g_getenv ("MC_STORAGE_DEBUG") != NULL)  \
+    g_debug ("%s: %s: " _format, G_STRFUNC, \
+        (_p != NULL) ? mcp_account_storage_name (_p) : "NULL", ##__VA_ARGS__)
 
 #else  /* ENABLE_DEBUG */
 
