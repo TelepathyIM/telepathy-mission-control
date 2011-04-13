@@ -26,6 +26,10 @@
 
 #include "mcd-debug.h"
 
+#include <dbus/dbus.h>
+#include <dbus/dbus-glib.h>
+#include <dbus/dbus-glib-lowlevel.h>
+
 G_DEFINE_TYPE (McdClientRegistry, _mcd_client_registry, G_TYPE_OBJECT)
 
 enum
@@ -301,6 +305,52 @@ mcd_client_registry_list_names_cb (TpDBusDaemon *proxy,
    * ReloadConfig), so simplify by doing nothing */
 }
 
+static DBusHandlerResult
+mcd_client_registry_name_owner_filter (DBusConnection *conn,
+    DBusMessage *msg,
+    gpointer data)
+{
+  McdClientRegistry *self = MCD_CLIENT_REGISTRY (data);
+  const gchar *interface_name = NULL;
+  const gchar *member_name = NULL;
+
+  if (dbus_message_get_type (msg) != DBUS_MESSAGE_TYPE_SIGNAL)
+    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+
+  /* these two look weird but can happen during shutdown, I think */
+  interface_name = dbus_message_get_interface (msg);
+  if (interface_name == NULL)
+    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+
+  member_name = dbus_message_get_member (msg);
+  if (member_name == NULL)
+    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+
+  /* make sure this is the right kind of signal: */
+  if (!tp_strdiff (interface_name, DBUS_INTERFACE_DBUS) &&
+      !tp_strdiff (member_name, "NameOwnerChanged"))
+    {
+      const gchar *dbus_name = NULL;
+      const gchar *old_owner = NULL;
+      const gchar *new_owner = NULL;
+      gboolean ok = dbus_message_get_args (msg, NULL,
+          DBUS_TYPE_STRING, &dbus_name,
+          DBUS_TYPE_STRING, &old_owner,
+          DBUS_TYPE_STRING, &new_owner,
+          DBUS_TYPE_INVALID);
+
+      /* could not unpack args -> invalid -> stop processing right here */
+      if (!ok)
+        return DBUS_HANDLER_RESULT_HANDLED;
+
+      if (tp_str_empty (old_owner) && !tp_str_empty (new_owner))
+        _mcd_client_registry_found_name (self, dbus_name, new_owner, FALSE);
+    }
+
+  /* in case somebody else is also interested */
+  return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+}
+
 static void
 mcd_client_registry_name_owner_changed_cb (TpDBusDaemon *proxy,
     const gchar *name,
@@ -323,6 +373,30 @@ mcd_client_registry_name_owner_changed_cb (TpDBusDaemon *proxy,
 }
 
 static void
+watch_clients (McdClientRegistry *self)
+{
+  TpDBusDaemon *dbus_daemon = self->priv->dbus_daemon;
+  DBusGConnection *gconn = tp_proxy_get_dbus_connection (dbus_daemon);
+  DBusConnection *dconn = dbus_g_connection_get_connection (gconn);
+
+#define MATCH_ITEM(t,x) #t "='" x "'"
+
+#define CLIENT_MATCH_RULE "" \
+    MATCH_ITEM (type,          "signal")            "," \
+    MATCH_ITEM (sender,        DBUS_SERVICE_DBUS)   "," \
+    MATCH_ITEM (interface,     DBUS_INTERFACE_DBUS) "," \
+    MATCH_ITEM (member,        "NameOwnerChanged")  "," \
+    MATCH_ITEM (arg0namespace, "org.freedesktop.Telepathy.Client")
+
+  dbus_connection_add_filter (dconn,
+      mcd_client_registry_name_owner_filter,
+      g_object_ref (self),
+      g_object_unref);
+
+  dbus_bus_add_match (dconn, CLIENT_MATCH_RULE, NULL);
+}
+
+static void
 mcd_client_registry_constructed (GObject *object)
 {
   McdClientRegistry *self = MCD_CLIENT_REGISTRY (object);
@@ -339,8 +413,7 @@ mcd_client_registry_constructed (GObject *object)
   /* FIXME: ideally, this would be a more specific match, using arg0prefix
    * (when dbus-daemon supports that, which it doesn't yet) so we only get
    * new clients. */
-  tp_cli_dbus_daemon_connect_to_name_owner_changed (self->priv->dbus_daemon,
-      mcd_client_registry_name_owner_changed_cb, NULL, NULL, object, NULL);
+  watch_clients (self);
 
   tp_cli_dbus_daemon_call_list_names (self->priv->dbus_daemon, -1,
       mcd_client_registry_list_names_cb, NULL, NULL, object);
