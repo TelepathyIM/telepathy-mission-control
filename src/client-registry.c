@@ -372,28 +372,61 @@ mcd_client_registry_name_owner_changed_cb (TpDBusDaemon *proxy,
     }
 }
 
+static gboolean
+add_match (DBusConnection *conn,
+    const gchar const *rule,
+    const gchar *msg)
+{
+  DBusError error = { 0 };
+
+  dbus_error_init (&error);
+  dbus_bus_add_match (conn, rule, &error);
+
+  if (dbus_error_is_set (&error))
+    {
+      g_warning ("Could not add %s match rule: %s", msg, error.message);
+      dbus_error_free (&error);
+      return FALSE;
+    }
+
+  return TRUE;
+}
+
 static void
 watch_clients (McdClientRegistry *self)
 {
   TpDBusDaemon *dbus_daemon = self->priv->dbus_daemon;
   DBusGConnection *gconn = tp_proxy_get_dbus_connection (dbus_daemon);
   DBusConnection *dconn = dbus_g_connection_get_connection (gconn);
+  gboolean arg0_filtered = FALSE;
 
 #define MATCH_ITEM(t,x) #t "='" x "'"
 
-#define CLIENT_MATCH_RULE "" \
-    MATCH_ITEM (type,          "signal")            "," \
-    MATCH_ITEM (sender,        DBUS_SERVICE_DBUS)   "," \
-    MATCH_ITEM (interface,     DBUS_INTERFACE_DBUS) "," \
-    MATCH_ITEM (member,        "NameOwnerChanged")  "," \
+#define NAME_OWNER_RULE \
+    MATCH_ITEM (type,      "signal")            "," \
+    MATCH_ITEM (sender,    DBUS_SERVICE_DBUS)   "," \
+    MATCH_ITEM (interface, DBUS_INTERFACE_DBUS) "," \
+    MATCH_ITEM (member,    "NameOwnerChanged")
+
+#define CLIENT_MATCH_RULE \
+    NAME_OWNER_RULE "," \
     MATCH_ITEM (arg0namespace, "org.freedesktop.Telepathy.Client")
 
-  dbus_connection_add_filter (dconn,
+  arg0_filtered = dbus_connection_add_filter (dconn,
       mcd_client_registry_name_owner_filter,
       g_object_ref (self),
       g_object_unref);
 
-  dbus_bus_add_match (dconn, CLIENT_MATCH_RULE, NULL);
+  if (arg0_filtered)
+    {
+      arg0_filtered = add_match (dconn, CLIENT_MATCH_RULE, "client names");
+
+      if (!arg0_filtered)
+        arg0_filtered = add_match (dconn, NAME_OWNER_RULE, "all dbus names");
+    }
+
+  if (!arg0_filtered)
+    g_warning ("Could not add match & filter for telepathy client names");
 }
 
 static void
