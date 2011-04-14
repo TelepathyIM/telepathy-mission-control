@@ -410,9 +410,6 @@ mcd_client_registry_constructed (GObject *object)
 
   DEBUG ("Starting to look for clients");
 
-  /* FIXME: ideally, this would be a more specific match, using arg0prefix
-   * (when dbus-daemon supports that, which it doesn't yet) so we only get
-   * new clients. */
   watch_clients (self);
 
   tp_cli_dbus_daemon_call_list_names (self->priv->dbus_daemon, -1,
