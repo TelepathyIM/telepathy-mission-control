@@ -1,7 +1,7 @@
 /* Map containing registered Telepathy clients
  *
- * Copyright (C) 2007-2009 Nokia Corporation.
- * Copyright (C) 2009 Collabora Ltd.
+ * Copyright © 2007-2011 Nokia Corporation.
+ * Copyright © 2009-2011 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
