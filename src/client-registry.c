@@ -351,27 +351,6 @@ mcd_client_registry_name_owner_filter (DBusConnection *conn,
   return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
-static void
-mcd_client_registry_name_owner_changed_cb (TpDBusDaemon *proxy,
-    const gchar *name,
-    const gchar *old_owner,
-    const gchar *new_owner,
-    gpointer user_data G_GNUC_UNUSED,
-    GObject *weak_object)
-{
-  McdClientRegistry *self = MCD_CLIENT_REGISTRY (weak_object);
-
-  /* dbus-glib guarantees this */
-  g_assert (name != NULL);
-  g_assert (old_owner != NULL);
-  g_assert (new_owner != NULL);
-
-  if (old_owner[0] == '\0' && new_owner[0] != '\0')
-    {
-      _mcd_client_registry_found_name (self, name, new_owner, FALSE);
-    }
-}
-
 static gboolean
 add_match (DBusConnection *conn,
     const gchar const *rule,
