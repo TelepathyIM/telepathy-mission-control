@@ -22,6 +22,7 @@ plugins_include_HEADERS = \
 	account.h \
 	account-storage.h \
 	dbus-acl.h \
+	dbus-channel-acl.h \
 	dispatch-operation.h \
 	dispatch-operation-policy.h \
 	loader.h \
@@ -47,6 +48,7 @@ libmission_control_plugins_la_SOURCES = \
 	account.c \
 	account-storage.c \
 	dbus-acl.c \
+	dbus-channel-acl.c \
 	dispatch-operation.c \
 	dispatch-operation-policy.c \
 	implementation.h \
