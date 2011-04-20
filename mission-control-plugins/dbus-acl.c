@@ -71,8 +71,8 @@
 #ifdef ENABLE_DEBUG
 
 #define DEBUG(_p, _format, ...) \
-  g_debug ("%s: %s: " _format, G_STRFUNC, \
-      (_p != NULL) ? mcp_dbus_acl_name (_p) : "NULL", ##__VA_ARGS__)
+  g_debug ("dbus-acl: %s: %s: " _format, G_STRFUNC, \
+      (_p != NULL) ? mcp_dbus_acl_name (_p) : "-", ##__VA_ARGS__)
 
 #else  /* ENABLE_DEBUG */
 
@@ -298,7 +298,7 @@ mcp_dbus_acl_authorised_async_step (DBusAclAuthData *ad,
           McpDBusAclIface *iface = MCP_DBUS_ACL_GET_IFACE (plugin);
 
           if (ad->acl != NULL)
-            DEBUG (ad->acl, ":A: passed ACL for %s", ad->name);
+            DEBUG (ad->acl, "passed ACL for %s", ad->name);
 
           /* take the next plugin off the next_acl list */
           ad->next_acl = g_list_next (ad->next_acl);
@@ -313,7 +313,7 @@ mcp_dbus_acl_authorised_async_step (DBusAclAuthData *ad,
       else /* reached the end of the plugin list: call actual handler */
         {
           if (ad->acl != NULL)
-            DEBUG (ad->acl, ":B: passed ACL for %s", ad->name);
+            DEBUG (ad->acl, "passed final ACL for %s", ad->name);
 
           ad->handler (ad->context, ad->data);
         }
@@ -384,6 +384,9 @@ mcp_dbus_acl_authorised_async (TpDBusDaemon *dbus,
   ad->handler = handler;
   ad->next_acl = acls;
 
+  DEBUG (NULL, "DBus access ACL verification: %u rules for %s",
+      g_list_length (acls),
+      name);
   mcp_dbus_acl_authorised_async_step (ad, TRUE);
 }
 
