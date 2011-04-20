@@ -124,6 +124,31 @@ _mcd_tp_channel_details_build_from_list (const GList *channels)
 }
 
 /*
+ * _mcd_tp_channels_build_from_list:
+ * @channels: a #GList of #McdChannel elements.
+ *
+ * Returns: a #GPtrArray of #TpChannel, free with g_ptr_array_unref.
+ */
+GPtrArray *
+_mcd_tp_channels_build_from_list (const GList *channels)
+{
+    GPtrArray *tp_channels;
+    const GList *list;
+
+    tp_channels = g_ptr_array_sized_new (g_list_length ((GList *) channels));
+    g_ptr_array_set_free_func (tp_channels, g_object_unref);
+
+    for (list = channels; list != NULL; list = list->next)
+      {
+        TpChannel *channel = mcd_channel_get_tp_channel (list->data);
+
+        g_ptr_array_add (tp_channels, g_object_ref (G_OBJECT (channel)));
+      }
+
+    return tp_channels;
+}
+
+/*
  * _mcd_tp_channel_details_build_from_tp_chan:
  * @channel: a #TpChannel
  *
