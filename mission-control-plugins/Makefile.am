@@ -58,6 +58,7 @@ libmission_control_plugins_la_SOURCES = \
 
 if ENABLE_AEGIS
 libmission_control_plugins_la_SOURCES += builtin-aegis-acl.c
+libmission_control_plugins_la_SOURCES += builtin-aegis-channel-acl.c
 libmission_control_plugins_la_LIBADD += $(AEGIS_LIBS)
 endif
 
