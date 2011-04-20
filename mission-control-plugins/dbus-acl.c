@@ -62,6 +62,11 @@
 #include <mission-control-plugins/mcp-signals-marshal.h>
 #include <glib.h>
 #include <telepathy-glib/telepathy-glib.h>
+#include "config.h"
+
+#if ENABLE_AEGIS
+#include "builtin-aegis-acl.h"
+#endif
 
 #ifdef ENABLE_DEBUG
 
@@ -137,6 +142,11 @@ cached_acls (void)
           dbus_acls = g_list_prepend (dbus_acls, g_object_ref (p->data));
         }
     }
+
+#if ENABLE_AEGIS
+  DEBUG (NULL, "Initialising built-in Aegis ACL plugin");
+  dbus_acls = g_list_prepend (dbus_acls, aegis_acl_new ());
+#endif
 
   acl_plugins_cached = TRUE;
 
