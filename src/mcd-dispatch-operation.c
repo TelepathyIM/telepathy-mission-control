@@ -2245,6 +2245,10 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
     gchar **iter;
     gboolean is_approved = _mcd_dispatch_operation_is_approved (self);
     Approval *approval = g_queue_peek_head (self->priv->approvals);
+    TpDBusDaemon *dbus =
+      _mcd_client_registry_get_dbus_daemon (self->priv->client_registry);
+    GPtrArray *channels = NULL;
+    gboolean dispatched = FALSE;
 
     /* If there is a preferred Handler chosen by the first Approver or
      * request, it's the first one we'll consider. We'll even consider
@@ -2254,6 +2258,7 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
      * even if it already failed - perhaps the Approver is feeling lucky. */
     if (approval != NULL && approval->client_bus_name != NULL)
     {
+        GError *error = NULL;
         McdClientProxy *handler = _mcd_client_registry_lookup (
             self->priv->client_registry, approval->client_bus_name);
         gboolean failed = _mcd_dispatch_operation_get_handler_failed (self,
@@ -2269,8 +2274,16 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
         if (handler != NULL &&
             (approval->type == APPROVAL_TYPE_HANDLE_WITH || !failed))
         {
-            mcd_dispatch_operation_handle_channels (self, handler);
-            return TRUE;
+            TpProxy *client = (TpProxy *) handler;
+
+            channels = _mcd_tp_channels_build_from_list (self->priv->channels);
+
+            if (mcp_dbus_channel_acl_authorised (dbus, client, channels, &error))
+            {
+                mcd_dispatch_operation_handle_channels (self, handler);
+                dispatched = TRUE;
+                goto done;
+            }
         }
 
         /* If the Handler has disappeared, a HandleWith call should fail,
@@ -2278,16 +2291,28 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
          * can legitimately try more handlers. */
         if (approval->type == APPROVAL_TYPE_HANDLE_WITH)
         {
-            GError gone = { TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
-                "The requested Handler does not exist" };
-
             g_queue_pop_head (self->priv->approvals);
-            dbus_g_method_return_error (approval->context, &gone);
+
+            if (error == NULL)
+                error = g_error_new_literal (TP_ERRORS,
+                    TP_ERROR_NOT_IMPLEMENTED,
+                    "The requested Handler does not exist");
+
+            dbus_g_method_return_error (approval->context, error);
+            g_error_free (error);
+
+            if (channels != NULL)
+                g_ptr_array_unref (channels);
+
             approval->context = NULL;
             approval_free (approval);
-            return TRUE;
+            dispatched = TRUE;
+            goto done;
         }
     }
+
+    if (channels == NULL)
+        channels = _mcd_tp_channels_build_from_list (self->priv->channels);
 
     for (iter = self->priv->possible_handlers;
          iter != NULL && *iter != NULL;
@@ -2297,6 +2322,9 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
             self->priv->client_registry, *iter);
         gboolean failed = _mcd_dispatch_operation_get_handler_failed
             (self, *iter);
+        GError *error = NULL;
+        TpProxy *client = (TpProxy *) handler;
+        const gchar *name = tp_proxy_get_bus_name (client);
 
         DEBUG ("Possible handler: %s (still exists: %c, already failed: %c)",
                *iter, handler != NULL ? 'Y' : 'N', failed ? 'Y' : 'N');
@@ -2304,12 +2332,23 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
         if (handler != NULL && !failed &&
             (is_approved || _mcd_client_proxy_get_bypass_approval (handler)))
         {
-            mcd_dispatch_operation_handle_channels (self, handler);
-            return TRUE;
+            if (mcp_dbus_channel_acl_authorised (dbus, client, channels, &error))
+            {
+                mcd_dispatch_operation_handle_channels (self, handler);
+                dispatched = TRUE;
+                break;
+            }
+            else
+            {
+                DEBUG ("handler %s rejected by ACL: %s", name, error->message);
+            }
         }
     }
 
-    return FALSE;
+done:
+    if (channels != NULL)
+        g_ptr_array_unref (channels);
+    return dispatched;
 }
 
 static void
