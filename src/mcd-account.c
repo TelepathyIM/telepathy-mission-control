@@ -2175,19 +2175,10 @@ account_remove (TpSvcAccount *svc, DBusGMethodInvocation *context)
 void
 mcd_account_property_changed (McdAccount *account, const gchar *name)
 {
-    /* parameters are handled en bloc, but first make sure it's a valid name */
+    /* parameters are handled en bloc, reinvoke self with bloc key: */
     if (g_str_has_prefix (name, "param-"))
     {
-        const gchar *param = name + strlen ("param-");
-        GValue value = { 0, };
-
-        /* check to see if the parameter was/is a valid one. If it was real,
-         * kick off the en-bloc parameters update signal
-         */
-        if (mcd_account_get_parameter (account, param, &value, NULL))
-            mcd_account_property_changed (account, "Parameters");
-        else
-            DEBUG ("Unknown/unset parameter %s", name);
+        mcd_account_property_changed (account, "Parameters");
     }
     else
     {
