@@ -393,8 +393,8 @@ watch_clients (McdClientRegistry *self)
 
   arg0_filtered = dbus_connection_add_filter (dconn,
       mcd_client_registry_name_owner_filter,
-      g_object_ref (self),
-      g_object_unref);
+      self,
+      NULL);
 
   if (arg0_filtered)
     {
@@ -479,6 +479,17 @@ mcd_client_registry_dispose (GObject *object)
   McdClientRegistry *self = MCD_CLIENT_REGISTRY (object);
   void (*chain_up) (GObject *) =
     G_OBJECT_CLASS (_mcd_client_registry_parent_class)->dispose;
+
+  if (self->priv->dbus_daemon != NULL)
+    {
+      DBusGConnection *gconn =
+        tp_proxy_get_dbus_connection (self->priv->dbus_daemon);
+      DBusConnection *dconn = dbus_g_connection_get_connection (gconn);
+
+      dbus_connection_remove_filter (dconn,
+          mcd_client_registry_name_owner_filter,
+          self);
+    }
 
   tp_clear_object (&self->priv->dbus_daemon);
   tp_clear_object (&self->priv->string_pool);
