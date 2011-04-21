@@ -328,7 +328,7 @@ mcd_client_registry_name_owner_filter (DBusConnection *conn,
 
       /* could not unpack args -> invalid -> stop processing right here */
       if (!ok)
-        return DBUS_HANDLER_RESULT_HANDLED;
+        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 
       if (tp_str_empty (old_owner) && !tp_str_empty (new_owner))
         _mcd_client_registry_found_name (self, dbus_name, new_owner, FALSE);
