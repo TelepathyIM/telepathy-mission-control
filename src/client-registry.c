@@ -383,16 +383,8 @@ watch_clients (McdClientRegistry *self)
       self,
       NULL);
 
-  if (arg0_filtered)
-    {
-      arg0_filtered = add_match (dconn, CLIENT_MATCH_RULE, "client names");
-
-      if (!arg0_filtered)
-        arg0_filtered = add_match (dconn, NAME_OWNER_RULE, "all dbus names");
-    }
-
-  if (!arg0_filtered)
-    g_warning ("Could not add match & filter for telepathy client names");
+  if (arg0_filtered && !add_match (dconn, CLIENT_MATCH_RULE, "client names"))
+    add_match (dconn, NAME_OWNER_RULE, "all dbus names");
 }
 
 static void
