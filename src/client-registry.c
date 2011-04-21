@@ -314,21 +314,8 @@ mcd_client_registry_name_owner_filter (DBusConnection *conn,
   const gchar *interface_name = NULL;
   const gchar *member_name = NULL;
 
-  if (dbus_message_get_type (msg) != DBUS_MESSAGE_TYPE_SIGNAL)
-    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-
-  /* these two look weird but can happen during shutdown, I think */
-  interface_name = dbus_message_get_interface (msg);
-  if (interface_name == NULL)
-    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-
-  member_name = dbus_message_get_member (msg);
-  if (member_name == NULL)
-    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-
   /* make sure this is the right kind of signal: */
-  if (!tp_strdiff (interface_name, DBUS_INTERFACE_DBUS) &&
-      !tp_strdiff (member_name, "NameOwnerChanged"))
+  if (dbus_message_is_signal (msg, DBUS_INTERFACE_DBUS, "NameOwnerChanged"))
     {
       const gchar *dbus_name = NULL;
       const gchar *old_owner = NULL;
