@@ -19,11 +19,18 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include "config.h"
+
 #ifdef G_LOG_DOMAIN
 #undef G_LOG_DOMAIN
 #endif
 #define G_LOG_DOMAIN "mission-control-DBus-Access-ACL"
+
+#ifdef ENABLE_DEBUG
 #define DEBUG(_f, ...) g_debug ("%s: " _f, G_STRLOC, ##__VA_ARGS__)
+#else
+#define DEBUG(_f, ...) do {} while (0)
+#endif
 
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/util.h>
