@@ -311,8 +311,6 @@ mcd_client_registry_name_owner_filter (DBusConnection *conn,
     gpointer data)
 {
   McdClientRegistry *self = MCD_CLIENT_REGISTRY (data);
-  const gchar *interface_name = NULL;
-  const gchar *member_name = NULL;
 
   /* make sure this is the right kind of signal: */
   if (dbus_message_is_signal (msg, DBUS_INTERFACE_DBUS, "NameOwnerChanged"))
