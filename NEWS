@@ -1,6 +1,12 @@
 telepathy-mission-control 5.7.10 (UNRELEASED)
 ============================================
 
+Enhancements:
+
+• Use the new arg0namespace matching to watch only interesting
+  DBus name-owner-changed signals if DBus is new enough to allow
+  this (fledermaus)
+
 telepathy-mission-control 5.7.9 (2011-04-05)
 ============================================
 
