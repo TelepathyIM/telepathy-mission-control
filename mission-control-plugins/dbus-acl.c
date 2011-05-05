@@ -58,11 +58,12 @@
  * A single object can implement more than one interface.
  */
 
+#include "config.h"
+
 #include <mission-control-plugins/mission-control-plugins.h>
 #include <mission-control-plugins/mcp-signals-marshal.h>
 #include <glib.h>
 #include <telepathy-glib/telepathy-glib.h>
-#include "config.h"
 
 #if ENABLE_AEGIS
 #include "builtin-aegis-acl.h"
