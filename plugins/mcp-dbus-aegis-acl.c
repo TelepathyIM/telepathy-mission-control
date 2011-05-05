@@ -41,6 +41,9 @@
 #include <sys/types.h>
 #include <sys/creds.h>
 
+typedef struct _AegisAcl AegisAcl;
+typedef struct _AegisAclClass AegisAclClass;
+
 struct _AegisAcl {
   GObject parent;
 };
@@ -283,7 +286,7 @@ aegis_acl_iface_init (McpDBusAclIface *iface,
   mcp_dbus_acl_iface_implement_authorised_async (iface, caller_async_authorised);
 }
 
-AegisAcl *
+GObject *
 aegis_acl_new (void)
 {
   return g_object_new (aegis_acl_get_type (), NULL);

@@ -27,10 +27,7 @@
 
 G_BEGIN_DECLS
 
-typedef struct _AegisAcl AegisAcl;
-typedef struct _AegisAclClass AegisAclClass;
-
-AegisAcl *aegis_acl_new (void);
+GObject *aegis_acl_new (void);
 
 G_END_DECLS
 
