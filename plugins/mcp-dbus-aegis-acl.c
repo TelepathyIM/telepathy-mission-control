@@ -32,6 +32,7 @@
 #define DEBUG(_f, ...) do {} while (0)
 #endif
 
+#include <dbus/dbus-glib.h>
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/util.h>
 #include <telepathy-glib/defs.h>
@@ -58,6 +59,9 @@ struct _AegisAclClass {
   TP_IFACE_CHANNEL_DISPATCHER ".Interface.Messages.DRAFT.SendMessage"
 
 #define AEGIS_CALL_TOKEN "Cellular"
+
+/* implemented by the Aegis-patched dbus-daemon */
+#define AEGIS_INTERFACE "com.meego.DBus.Creds"
 
 #define PLUGIN_NAME "dbus-aegis-acl"
 #define PLUGIN_DESCRIPTION \
@@ -153,6 +157,79 @@ is_filtered (DBusAclType type,
   return FALSE;
 }
 
+/* For simplicity we don't implement non-trivial conversion between
+ * dbus-glib's arrays of guint, and libcreds' arrays of uint32_t.
+ * If this assertion fails on your platform, you'll need to implement it. */
+G_STATIC_ASSERT (sizeof (guint) == sizeof (uint32_t));
+
+static gboolean
+caller_creds_are_enough (const gchar *name,
+    const GArray *au)
+{
+  creds_t caller_creds = creds_import ((const uint32_t *) au->data, au->len);
+  gboolean ok = creds_have_p (caller_creds, aegis_type, aegis_token);
+
+#ifdef ENABLE_DEBUG
+  if (ok)
+    {
+      DEBUG ("Caller %s is appropriately privileged", name);
+    }
+  else
+    {
+      char buf[1024];
+      creds_type_t debug_type;
+      creds_value_t debug_value;
+      int i = 0;
+
+      DEBUG ("Caller %s has these credentials:", name);
+
+      while ((debug_type = creds_list (caller_creds, i, &debug_value))
+          != CREDS_BAD)
+        {
+          creds_creds2str (debug_type, debug_value, buf, sizeof (buf));
+          DEBUG ("- %s", buf);
+        }
+
+      DEBUG ("but they are insufficient");
+    }
+#endif
+
+  creds_free (caller_creds);
+  return ok;
+}
+
+static gboolean
+check_peer_creds_sync (DBusGConnection *dgc,
+    const gchar *bus_name)
+{
+  DBusGProxy *proxy = dbus_g_proxy_new_for_name (dgc,
+      DBUS_SERVICE_DBUS,
+      DBUS_PATH_DBUS,
+      AEGIS_INTERFACE);
+  GArray *au = NULL;
+  GError *error = NULL;
+  gboolean ok;
+
+  if (dbus_g_proxy_call (proxy, "GetConnectionCredentials", &error,
+      G_TYPE_STRING, bus_name,
+      G_TYPE_INVALID,
+      DBUS_TYPE_G_UINT_ARRAY, &au,
+      G_TYPE_INVALID))
+    {
+      ok = caller_creds_are_enough (bus_name, au);
+      g_array_unref (au);
+    }
+  else
+    {
+      DEBUG ("GetConnectionCredentials failed: %s", error->message);
+      g_clear_error (&error);
+      ok = FALSE;
+    }
+
+  g_object_unref (proxy);
+  return ok;
+}
+
 static gboolean
 pid_is_permitted (pid_t pid)
 {
@@ -186,24 +263,11 @@ caller_authorised (const McpDBusAcl *self,
 
   if (is_filtered (type, name, params))
     {
-      pid_t pid = 0;
-      GError *error = NULL;
       gchar *caller = dbus_g_method_get_sender ((DBusGMethodInvocation *) call);
-      DBusGProxy *proxy = dbus_g_proxy_new_for_name (dgc,
-          DBUS_SERVICE_DBUS,
-          DBUS_PATH_DBUS,
-          DBUS_INTERFACE_DBUS);
 
-      dbus_g_proxy_call (proxy, "GetConnectionUnixProcessID", &error,
-          G_TYPE_STRING, caller,
-          G_TYPE_INVALID,
-          G_TYPE_UINT, &pid,
-          G_TYPE_INVALID);
-
-      ok = pid_is_permitted (pid);
+      ok = check_peer_creds_sync (dgc, caller);
 
       g_free (caller);
-      g_object_unref (proxy);
     }
 
   DEBUG ("sync Aegis ACL check [%s]", ok ? "Allowed" : "Forbidden");
@@ -313,25 +377,8 @@ handler_is_suitable (McpDispatchOperationPolicy *self,
 
   if (cm_is_restricted (manager))
     {
-      pid_t pid = 0;
-      GError *error = NULL;
-      const gchar *name = tp_proxy_get_bus_name (recipient);
-      DBusGConnection *dgc = tp_proxy_get_dbus_connection (recipient);
-
-      DBusGProxy *proxy = dbus_g_proxy_new_for_name (dgc,
-          DBUS_SERVICE_DBUS,
-          DBUS_PATH_DBUS,
-          DBUS_INTERFACE_DBUS);
-
-      dbus_g_proxy_call (proxy, "GetConnectionUnixProcessID", &error,
-          G_TYPE_STRING, name,
-          G_TYPE_INVALID,
-          G_TYPE_UINT, &pid,
-          G_TYPE_INVALID);
-
-      ok = pid_is_permitted (pid);
-
-      g_object_unref (proxy);
+      ok = check_peer_creds_sync (tp_proxy_get_dbus_connection (recipient),
+          tp_proxy_get_bus_name (recipient));
     }
 
   DEBUG ("sync Aegis CDO policy check [%s]", ok ? "Allowed" : "Forbidden");
