@@ -303,6 +303,9 @@ sort_and_cache_plugins ()
   const GList *p;
   static gboolean plugins_cached = FALSE;
 
+  if (plugins_cached)
+    return;
+
   /* not guaranteed to have been called, but idempotent: */
   _mcd_plugin_loader_init ();
 
