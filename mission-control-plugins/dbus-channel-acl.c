@@ -117,30 +117,6 @@ mcp_dbus_channel_acl_get_type (void)
   return type;
 }
 
-static GList *
-cached_acls (void)
-{
-  static gboolean acl_plugins_cached = FALSE;
-  static GList *dbus_acls = NULL;
-
-  const GList *p;
-
-  if (acl_plugins_cached)
-    return dbus_acls;
-
-  for (p = mcp_list_objects(); p != NULL; p = g_list_next (p))
-    {
-      if (MCP_IS_DBUS_CHANNEL_ACL (p->data))
-        {
-          dbus_acls = g_list_prepend (dbus_acls, g_object_ref (p->data));
-        }
-    }
-
-  acl_plugins_cached = TRUE;
-
-  return dbus_acls;
-}
-
 /**
  * mcp_dbus_channel_acl_iface_set_name:
  * @iface: an instance implementing McpDBusChannelAclIface
@@ -176,60 +152,6 @@ mcp_dbus_channel_acl_iface_implement_authorised (McpDBusChannelAclIface *iface,
   iface->authorised = method;
 }
 
-/**
- * mcp_dbus_channel_acl_authorised:
- * @dbus: a #TpDBusDaemon instance
- * @recipient: the #TpProxy for the handler or observer
- * @channels: a #GPtrArray of #TpChannel objects
- * @denied: a place to store a #GError indicating why the handler was denied
- *
- * @denied should point to a GError * which is NULL, and will be set
- * only if an ACL plugin denies a handler permission to proceed.
- *
- * This method calls each #DBusChannelAcl plugin's authorised method, set by
- * mcp_dbus_channel_acl_iface_implement_authorised()
- *
- * If any plugin returns %FALSE, the call is considered to be forbidden.
- * (and no further plugins are invoked).
- *
- * Returns: a #gboolean - %TRUE for permitted, %FALSE for forbidden.
- **/
-gboolean
-mcp_dbus_channel_acl_authorised (const TpDBusDaemon *dbus,
-    const TpProxy *recipient,
-    const GPtrArray *channels,
-    GError **denied)
-{
-  GList *p;
-  GList *acls = cached_acls ();
-  gboolean permitted = TRUE;
-
-  DEBUG (NULL, "channel ACL verification [%u rules/%u channels]",
-      g_list_length (acls),
-      channels->len);
-
-  for (p = acls; permitted && p != NULL; p = g_list_next (p))
-    {
-      McpDBusChannelAcl *plugin = MCP_DBUS_CHANNEL_ACL (p->data);
-      McpDBusChannelAclIface *iface = MCP_DBUS_CHANNEL_ACL_GET_IFACE (p->data);
-
-      DEBUG (plugin, "checking Channel ACL for %s",
-          tp_proxy_get_object_path ((TpProxy *) recipient));
-
-      permitted = iface->authorised (plugin, dbus, recipient, channels);
-
-      if (!permitted)
-        {
-          g_set_error (denied, DBUS_GERROR, DBUS_GERROR_ACCESS_DENIED,
-              "permission denied by DBus ACL plugin '%s'",
-              mcp_dbus_channel_acl_name (p->data));
-          break;
-        }
-    }
-
-  return permitted;
-}
-
 /* plugin meta-data */
 const gchar *
 mcp_dbus_channel_acl_name (const McpDBusChannelAcl *self)
@@ -249,4 +171,20 @@ mcp_dbus_channel_acl_description (const McpDBusChannelAcl *self)
   g_return_val_if_fail (iface != NULL, FALSE);
 
   return iface->desc;
+}
+
+gboolean
+mcp_dbus_channel_acl_authorised (McpDBusChannelAcl *self,
+    TpDBusDaemon *dbus,
+    TpProxy *recipient,
+    const GPtrArray *channels)
+{
+  McpDBusChannelAclIface *iface = MCP_DBUS_CHANNEL_ACL_GET_IFACE (self);
+
+  g_return_val_if_fail (iface != NULL, FALSE);
+
+  if (iface->authorised != NULL)
+    return iface->authorised (self, dbus, recipient, channels);
+  else
+    return TRUE;
 }

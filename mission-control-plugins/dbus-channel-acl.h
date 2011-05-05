@@ -54,10 +54,10 @@ typedef gboolean (*DBusChannelAclAuthoriser) (const McpDBusChannelAcl *,
     const TpProxy *,
     const GPtrArray *);
 
-gboolean mcp_dbus_channel_acl_authorised (const TpDBusDaemon *dbus,
-    const TpProxy *recipient,
-    const GPtrArray *channels,
-    GError **denied);
+gboolean mcp_dbus_channel_acl_authorised (McpDBusChannelAcl *self,
+    TpDBusDaemon *dbus,
+    TpProxy *recipient,
+    const GPtrArray *channels);
 
 /* virtual methods */
 void mcp_dbus_channel_acl_iface_set_name (McpDBusChannelAclIface *iface,

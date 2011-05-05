@@ -2207,6 +2207,80 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
     g_object_unref (self);
 }
 
+static GList *
+cached_acls (void)
+{
+  static gboolean acl_plugins_cached = FALSE;
+  static GList *dbus_acls = NULL;
+
+  const GList *p;
+
+  if (acl_plugins_cached)
+    return dbus_acls;
+
+  for (p = mcp_list_objects(); p != NULL; p = g_list_next (p))
+    {
+      if (MCP_IS_DBUS_CHANNEL_ACL (p->data))
+        {
+          dbus_acls = g_list_prepend (dbus_acls, g_object_ref (p->data));
+        }
+    }
+
+  acl_plugins_cached = TRUE;
+
+  return dbus_acls;
+}
+
+/*
+ * @dbus: a #TpDBusDaemon instance
+ * @recipient: the #TpProxy for the handler or observer
+ * @channels: a #GPtrArray of #TpChannel objects
+ * @denied: a place to store a #GError indicating why the handler was denied
+ *
+ * @denied should point to a GError * which is NULL, and will be set
+ * only if an ACL plugin denies a handler permission to proceed.
+ *
+ * This method calls each #DBusChannelAcl plugin's authorised method, set by
+ * mcp_dbus_channel_acl_iface_implement_authorised()
+ *
+ * If any plugin returns %FALSE, the call is considered to be forbidden.
+ * (and no further plugins are invoked).
+ *
+ * Returns: a #gboolean - %TRUE for permitted, %FALSE for forbidden.
+ **/
+static gboolean
+mcd_dispatch_operation_check_handler (TpDBusDaemon *dbus,
+    TpProxy *recipient,
+    const GPtrArray *channels,
+    GError **denied)
+{
+  GList *p;
+  GList *acls = cached_acls ();
+
+  DEBUG ("channel ACL verification [%u rules/%u channels]",
+      g_list_length (acls),
+      channels->len);
+
+  for (p = acls; p != NULL; p = g_list_next (p))
+    {
+      McpDBusChannelAcl *plugin = MCP_DBUS_CHANNEL_ACL (p->data);
+
+      DEBUG ("%s: checking Channel ACL for %s",
+             mcp_dbus_channel_acl_name (plugin),
+             tp_proxy_get_object_path ((TpProxy *) recipient));
+
+      if (!mcp_dbus_channel_acl_authorised (plugin, dbus, recipient, channels))
+        {
+          g_set_error (denied, DBUS_GERROR, DBUS_GERROR_ACCESS_DENIED,
+              "permission denied by DBus ACL plugin '%s'",
+              mcp_dbus_channel_acl_name (p->data));
+          return FALSE;
+        }
+    }
+
+  return TRUE;
+}
+
 /*
  * mcd_dispatch_operation_handle_channels:
  * @self: the dispatch operation
@@ -2278,7 +2352,8 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
 
             channels = _mcd_tp_channels_build_from_list (self->priv->channels);
 
-            if (mcp_dbus_channel_acl_authorised (dbus, client, channels, &error))
+            if (mcd_dispatch_operation_check_handler (dbus, client, channels,
+                                                      &error))
             {
                 mcd_dispatch_operation_handle_channels (self, handler);
                 dispatched = TRUE;
@@ -2332,7 +2407,8 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
         if (handler != NULL && !failed &&
             (is_approved || _mcd_client_proxy_get_bypass_approval (handler)))
         {
-            if (mcp_dbus_channel_acl_authorised (dbus, client, channels, &error))
+            if (mcd_dispatch_operation_check_handler (dbus, client, channels,
+                                                      &error))
             {
                 mcd_dispatch_operation_handle_channels (self, handler);
                 dispatched = TRUE;
