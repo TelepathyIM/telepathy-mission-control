@@ -56,6 +56,16 @@ typedef void (*McpDispatchOperationPolicyCb) (
 void mcp_dispatch_operation_policy_check (McpDispatchOperationPolicy *policy,
     McpDispatchOperation *dispatch_operation);
 
+typedef gboolean (*McpDispatchOperationPolicyClientPredicate) (
+    McpDispatchOperationPolicy *policy,
+    TpProxy *client,
+    McpDispatchOperation *dispatch_operation);
+
+gboolean mcp_dispatch_operation_policy_handler_is_suitable (
+    McpDispatchOperationPolicy *policy,
+    TpProxy *handler,
+    McpDispatchOperation *dispatch_operation);
+
 void mcp_dispatch_operation_policy_iface_implement_check (
     McpDispatchOperationPolicyIface *iface,
     McpDispatchOperationPolicyCb impl);
@@ -64,6 +74,7 @@ struct _McpDispatchOperationPolicyIface {
     GTypeInterface parent;
 
     McpDispatchOperationPolicyCb check;
+    McpDispatchOperationPolicyClientPredicate handler_is_suitable;
 };
 
 G_END_DECLS

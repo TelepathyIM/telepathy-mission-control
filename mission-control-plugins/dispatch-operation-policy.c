@@ -51,6 +51,7 @@
  *     gpointer unused G_GNUC_UNUSED)
  * {
  *   iface-&gt;check = my_plugin_check_cdo;
+ *   iface-&gt;handler_is_suitable = my_plugin_handler_is_suitable;
  * }
  * </programlisting></example>
  *
@@ -96,6 +97,10 @@ mcp_dispatch_operation_policy_get_type (void)
  * @parent: the parent type
  * @check: an implementation of mcp_dispatch_operation_policy_check();
  *    %NULL is equivalent to an implementation that does nothing
+ * @handler_is_suitable: an implementation of
+ *    mcp_dispatch_operation_policy_handler_is_suitable();
+ *    %NULL is equivalent to an implementation that accepts everything,
+ *    i.e. always returns %TRUE
  */
 
 /**
@@ -105,6 +110,19 @@ mcp_dispatch_operation_policy_get_type (void)
  *  a bundle of channels being dispatched
  *
  * Signature of an implementation of mcp_dispatch_operation_policy_check().
+ */
+
+/**
+ * McpDispatchOperationPolicyClientPredicate:
+ * @policy: an implementation of this interface, provided by a plugin
+ * @client: a Telepathy Client
+ * @dispatch_operation: an object representing a dispatch operation, i.e.
+ *  a bundle of channels being dispatched
+ *
+ * Signature of a virtual method to ask a question about a Client in the
+ * context of a dispatch operation, synchronously.
+ *
+ * Returns: a boolean result
  */
 
 /**
@@ -149,4 +167,39 @@ mcp_dispatch_operation_policy_iface_implement_check (
     McpDispatchOperationPolicyCb impl)
 {
   iface->check = impl;
+}
+
+/**
+ * mcp_dispatch_operation_policy_handler_is_suitable:
+ * @policy: an implementation of this interface, provided by a plugin
+ * @handler: a proxy for the Handler's D-Bus API
+ * @dispatch_operation: an object representing a dispatch operation, i.e.
+ *  a bundle of channels being dispatched
+ *
+ * Check whether a handler is "suitable" for these channels. For instance,
+ * this could be used to ensure that only the platform's default UI can be
+ * used for particular channels, even if MC would normally consider
+ * a third-party UI to be a better match.
+ *
+ * Mission Control calls all implementations of this method in turn, stopping
+ * when one of them returns %FALSE or when all implementations have been
+ * called. If they all return %TRUE, the handler is considered to be suitable.
+ *
+ * Returns: %TRUE if @handler handle @dispatch_operation
+ */
+gboolean
+mcp_dispatch_operation_policy_handler_is_suitable (
+    McpDispatchOperationPolicy *policy,
+    TpProxy *handler,
+    McpDispatchOperation *dispatch_operation)
+{
+  McpDispatchOperationPolicyIface *iface =
+    MCP_DISPATCH_OPERATION_POLICY_GET_IFACE (policy);
+
+  g_return_val_if_fail (iface != NULL, TRUE);
+
+  if (iface->handler_is_suitable != NULL)
+    return iface->handler_is_suitable (policy, handler, dispatch_operation);
+  else
+    return TRUE;
 }

@@ -2207,30 +2207,6 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
     g_object_unref (self);
 }
 
-static GList *
-cached_acls (void)
-{
-  static gboolean acl_plugins_cached = FALSE;
-  static GList *dbus_acls = NULL;
-
-  const GList *p;
-
-  if (acl_plugins_cached)
-    return dbus_acls;
-
-  for (p = mcp_list_objects(); p != NULL; p = g_list_next (p))
-    {
-      if (MCP_IS_DBUS_CHANNEL_ACL (p->data))
-        {
-          dbus_acls = g_list_prepend (dbus_acls, g_object_ref (p->data));
-        }
-    }
-
-  acl_plugins_cached = TRUE;
-
-  return dbus_acls;
-}
-
 /*
  * @dbus: a #TpDBusDaemon instance
  * @recipient: the #TpProxy for the handler or observer
@@ -2241,7 +2217,9 @@ cached_acls (void)
  * only if an ACL plugin denies a handler permission to proceed.
  *
  * This method calls each #DBusChannelAcl plugin's authorised method, set by
- * mcp_dbus_channel_acl_iface_implement_authorised()
+ * mcp_dbus_channel_acl_iface_implement_authorised(),
+ * and each #McpDispatchOperationPolicyIface plugin's @handler_is_suitable
+ * method.
  *
  * If any plugin returns %FALSE, the call is considered to be forbidden.
  * (and no further plugins are invoked).
@@ -2254,30 +2232,50 @@ mcd_dispatch_operation_check_handler (McdDispatchOperation *self,
     GError **denied)
 {
   TpProxy *handler_proxy = (TpProxy *) handler;
-  GList *p;
-  GList *acls = cached_acls ();
+  const GList *p;
   McpDispatchOperation *plugin_api = MCP_DISPATCH_OPERATION (
       self->priv->plugin_api);
 
-  DEBUG ("%s: channel ACL verification [%u rules/%u channels]",
+  DEBUG ("%s: channel ACL verification [%u channels]",
       self->priv->unique_name,
-      g_list_length (acls),
       g_list_length (self->priv->channels));
 
-  for (p = acls; p != NULL; p = g_list_next (p))
+  for (p = mcp_list_objects (); p != NULL; p = g_list_next (p))
     {
-      McpDBusChannelAcl *plugin = MCP_DBUS_CHANNEL_ACL (p->data);
-
-      DEBUG ("%s: checking Channel ACL for %s",
-             mcp_dbus_channel_acl_name (plugin),
-             tp_proxy_get_object_path (handler_proxy));
-
-      if (!mcp_dbus_channel_acl_authorised (plugin, handler_proxy, plugin_api))
+      if (MCP_IS_DBUS_CHANNEL_ACL (p->data))
         {
-          g_set_error (denied, DBUS_GERROR, DBUS_GERROR_ACCESS_DENIED,
-              "permission denied by DBus ACL plugin '%s'",
-              mcp_dbus_channel_acl_name (p->data));
-          return FALSE;
+          McpDBusChannelAcl *plugin = p->data;
+
+          DEBUG ("%s: checking Channel ACL for %s",
+                 mcp_dbus_channel_acl_name (plugin),
+                 tp_proxy_get_object_path (handler_proxy));
+
+          if (!mcp_dbus_channel_acl_authorised (plugin, handler_proxy,
+                                                plugin_api))
+            {
+              g_set_error (denied, DBUS_GERROR, DBUS_GERROR_ACCESS_DENIED,
+                  "permission denied by DBus ACL plugin '%s'",
+                  mcp_dbus_channel_acl_name (p->data));
+              return FALSE;
+            }
+        }
+
+      if (MCP_IS_DISPATCH_OPERATION_POLICY (p->data))
+        {
+          McpDispatchOperationPolicy *plugin = p->data;
+
+          DEBUG ("%s: checking policy for %s",
+              G_OBJECT_TYPE_NAME (plugin),
+              tp_proxy_get_object_path (handler_proxy));
+
+          if (!mcp_dispatch_operation_policy_handler_is_suitable (plugin,
+                  handler_proxy, plugin_api))
+            {
+              g_set_error (denied, DBUS_GERROR, DBUS_GERROR_ACCESS_DENIED,
+                  "permission denied by dispatch operation policy '%s'",
+                  G_OBJECT_TYPE_NAME (plugin));
+              return FALSE;
+            }
         }
     }
 
