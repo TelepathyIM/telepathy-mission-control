@@ -2214,12 +2214,10 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
  * @denied: a place to store a #GError indicating why the handler was denied
  *
  * @denied should point to a GError * which is NULL, and will be set
- * only if an ACL plugin denies a handler permission to proceed.
+ * only if a plugin denies a handler permission to proceed.
  *
- * This method calls each #DBusChannelAcl plugin's authorised method, set by
- * mcp_dbus_channel_acl_iface_implement_authorised(),
- * and each #McpDispatchOperationPolicyIface plugin's @handler_is_suitable
- * method.
+ * This method calls each #McpDispatchOperationPolicyIface plugin's
+ * @handler_is_suitable method.
  *
  * If any plugin returns %FALSE, the call is considered to be forbidden.
  * (and no further plugins are invoked).
@@ -2242,24 +2240,6 @@ mcd_dispatch_operation_check_handler (McdDispatchOperation *self,
 
   for (p = mcp_list_objects (); p != NULL; p = g_list_next (p))
     {
-      if (MCP_IS_DBUS_CHANNEL_ACL (p->data))
-        {
-          McpDBusChannelAcl *plugin = p->data;
-
-          DEBUG ("%s: checking Channel ACL for %s",
-                 mcp_dbus_channel_acl_name (plugin),
-                 tp_proxy_get_object_path (handler_proxy));
-
-          if (!mcp_dbus_channel_acl_authorised (plugin, handler_proxy,
-                                                plugin_api))
-            {
-              g_set_error (denied, DBUS_GERROR, DBUS_GERROR_ACCESS_DENIED,
-                  "permission denied by DBus ACL plugin '%s'",
-                  mcp_dbus_channel_acl_name (p->data));
-              return FALSE;
-            }
-        }
-
       if (MCP_IS_DISPATCH_OPERATION_POLICY (p->data))
         {
           McpDispatchOperationPolicy *plugin = p->data;
