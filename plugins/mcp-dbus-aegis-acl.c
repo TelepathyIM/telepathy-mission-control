@@ -36,7 +36,7 @@
 #include <telepathy-glib/util.h>
 #include <telepathy-glib/defs.h>
 
-#include "builtin-aegis-acl.h"
+#include "mcp-dbus-aegis-acl.h"
 
 #define CREATE_CHANNEL TP_IFACE_CONNECTION_INTERFACE_REQUESTS ".CreateChannel"
 #define ENSURE_CHANNEL TP_IFACE_CONNECTION_INTERFACE_REQUESTS ".EnsureChannel"
