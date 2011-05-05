@@ -38,6 +38,19 @@
 
 #include "mcp-dbus-aegis-acl.h"
 
+#include <sys/types.h>
+#include <sys/creds.h>
+
+struct _AegisAcl {
+  GObject parent;
+};
+
+struct _AegisAclClass {
+  GObjectClass parent_class;
+  creds_value_t token;
+  creds_type_t token_type;
+};
+
 #define CREATE_CHANNEL TP_IFACE_CONNECTION_INTERFACE_REQUESTS ".CreateChannel"
 #define ENSURE_CHANNEL TP_IFACE_CONNECTION_INTERFACE_REQUESTS ".EnsureChannel"
 #define SEND_MESSAGE \

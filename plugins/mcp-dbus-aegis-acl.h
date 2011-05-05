@@ -23,24 +23,12 @@
 #define AEGIS_ACL_H
 
 #include <mission-control-plugins/mission-control-plugins.h>
-#include <sys/types.h>
-#include <sys/creds.h>
 #include <glib-object.h>
 
 G_BEGIN_DECLS
 
-typedef struct {
-  GObject parent;
-} _AegisAcl;
-
-typedef struct {
-  GObjectClass parent_class;
-  creds_value_t token;
-  creds_type_t token_type;
-} _AegisAclClass;
-
-typedef _AegisAcl AegisAcl;
-typedef _AegisAclClass AegisAclClass;
+typedef struct _AegisAcl AegisAcl;
+typedef struct _AegisAclClass AegisAclClass;
 
 AegisAcl *aegis_acl_new (void);
 
