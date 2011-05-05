@@ -70,7 +70,7 @@ static creds_type_t aegis_type = CREDS_BAD;
 
 static void aegis_acl_iface_init (McpDBusAclIface *,
     gpointer);
-static void aegis_channel_acl_iface_init (McpDBusChannelAclIface *,
+static void aegis_cdo_policy_iface_init (McpDispatchOperationPolicyIface *,
     gpointer);
 
 static GType aegis_acl_get_type (void);
@@ -78,8 +78,8 @@ static GType aegis_acl_get_type (void);
 G_DEFINE_TYPE_WITH_CODE (AegisAcl, aegis_acl,
     G_TYPE_OBJECT,
     G_IMPLEMENT_INTERFACE (MCP_TYPE_DBUS_ACL, aegis_acl_iface_init);
-    G_IMPLEMENT_INTERFACE (MCP_TYPE_DBUS_CHANNEL_ACL,
-      aegis_channel_acl_iface_init))
+    G_IMPLEMENT_INTERFACE (MCP_TYPE_DISPATCH_OPERATION_POLICY,
+      aegis_cdo_policy_iface_init))
 
 static void
 aegis_acl_init (AegisAcl *self)
@@ -304,7 +304,7 @@ cm_is_restricted (const gchar *cm_name)
 }
 
 static gboolean
-channel_authorised (McpDBusChannelAcl *self,
+handler_is_suitable (McpDispatchOperationPolicy *self,
     TpProxy *recipient,
     McpDispatchOperation *dispatch_op)
 {
@@ -334,18 +334,16 @@ channel_authorised (McpDBusChannelAcl *self,
       g_object_unref (proxy);
     }
 
-  DEBUG ("sync Aegis Channel ACL check [%s]", ok ? "Allowed" : "Forbidden");
+  DEBUG ("sync Aegis CDO policy check [%s]", ok ? "Allowed" : "Forbidden");
 
   return ok;
 }
 
 static void
-aegis_channel_acl_iface_init (McpDBusChannelAclIface *iface,
+aegis_cdo_policy_iface_init (McpDispatchOperationPolicyIface *iface,
     gpointer unused G_GNUC_UNUSED)
 {
-  mcp_dbus_channel_acl_iface_set_name (iface, PLUGIN_NAME);
-  mcp_dbus_channel_acl_iface_set_desc (iface, PLUGIN_DESCRIPTION);
-  mcp_dbus_channel_acl_iface_implement_authorised (iface, channel_authorised);
+  iface->handler_is_suitable = handler_is_suitable;
 }
 
 GObject *
