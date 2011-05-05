@@ -183,8 +183,7 @@ static void
 cdo_policy_iface_init (McpDispatchOperationPolicyIface *iface,
     gpointer unused G_GNUC_UNUSED)
 {
-  mcp_dispatch_operation_policy_iface_implement_check (iface,
-      test_permission_plugin_check_cdo);
+  iface->check = test_permission_plugin_check_cdo;
 }
 
 typedef struct {
@@ -378,8 +377,7 @@ static void
 rej_cdo_policy_iface_init (McpDispatchOperationPolicyIface *iface,
     gpointer unused G_GNUC_UNUSED)
 {
-  mcp_dispatch_operation_policy_iface_implement_check (iface,
-      test_rejection_plugin_check_cdo);
+  iface->check = test_rejection_plugin_check_cdo;
 }
 
 static void

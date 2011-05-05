@@ -48,13 +48,23 @@ typedef struct _McpDispatchOperationPolicyIface McpDispatchOperationPolicyIface;
 GType mcp_dispatch_operation_policy_get_type (void) G_GNUC_CONST;
 
 /* virtual methods */
+
+typedef void (*McpDispatchOperationPolicyCb) (
+    McpDispatchOperationPolicy *policy,
+    McpDispatchOperation *dispatch_operation);
+
 void mcp_dispatch_operation_policy_check (McpDispatchOperationPolicy *policy,
     McpDispatchOperation *dispatch_operation);
 
-/* vtable manipulation - the vtable is private to allow for expansion */
 void mcp_dispatch_operation_policy_iface_implement_check (
     McpDispatchOperationPolicyIface *iface,
-    void (*impl) (McpDispatchOperationPolicy *, McpDispatchOperation *));
+    McpDispatchOperationPolicyCb impl);
+
+struct _McpDispatchOperationPolicyIface {
+    GTypeInterface parent;
+
+    McpDispatchOperationPolicyCb check;
+};
 
 G_END_DECLS
 

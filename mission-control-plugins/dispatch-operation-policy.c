@@ -36,10 +36,7 @@
  * #McpDispatchOperationPolicy, then return an instance of that subclass from
  * mcp_plugin_ref_nth_object().
  *
- * The contents of the #McpDispatchOperationPolicyIface struct are not public,
- * so to provide an implementation of the check method,
- * plugins should call mcp_dispatch_operation_policy_iface_implement_check()
- * from the interface initialization function, like this:
+ * A typical plugin might look like this:
  *
  * <example><programlisting>
  * G_DEFINE_TYPE_WITH_CODE (MyPlugin, my_plugin,
@@ -53,8 +50,7 @@
  * cdo_policy_iface_init (McpDispatchOperationPolicyIface *iface,
  *     gpointer unused G_GNUC_UNUSED)
  * {
- *   mcp_dispatch_operation_policy_iface_implement_check (iface,
- *       my_plugin_check_cdo);
+ *   iface-&gt;check = my_plugin_check_cdo;
  * }
  * </programlisting></example>
  *
@@ -63,12 +59,6 @@
  */
 
 #include <mission-control-plugins/mission-control-plugins.h>
-
-struct _McpDispatchOperationPolicyIface {
-    GTypeInterface parent;
-
-    void (*check) (McpDispatchOperationPolicy *, McpDispatchOperation *);
-};
 
 GType
 mcp_dispatch_operation_policy_get_type (void)
@@ -100,6 +90,22 @@ mcp_dispatch_operation_policy_get_type (void)
 
   return type;
 }
+
+/**
+ * McpDispatchOperationPolicyIface:
+ * @parent: the parent type
+ * @check: an implementation of mcp_dispatch_operation_policy_check();
+ *    %NULL is equivalent to an implementation that does nothing
+ */
+
+/**
+ * McpDispatchOperationPolicyCb:
+ * @policy: an implementation of this interface, provided by a plugin
+ * @dispatch_operation: an object representing a dispatch operation, i.e.
+ *  a bundle of channels being dispatched
+ *
+ * Signature of an implementation of mcp_dispatch_operation_policy_check().
+ */
 
 /**
  * mcp_dispatch_operation_policy_check:
@@ -134,11 +140,13 @@ mcp_dispatch_operation_policy_check (McpDispatchOperationPolicy *policy,
  * @iface: the interface
  * @impl: an implementation of the virtual method
  *  mcp_dispatch_operation_policy_check()
+ *
+ * This method is no longer necessary: just set iface->check = impl instead.
  */
 void
 mcp_dispatch_operation_policy_iface_implement_check (
     McpDispatchOperationPolicyIface *iface,
-    void (*impl) (McpDispatchOperationPolicy *, McpDispatchOperation *))
+    McpDispatchOperationPolicyCb impl)
 {
   iface->check = impl;
 }
