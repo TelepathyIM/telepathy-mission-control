@@ -175,16 +175,15 @@ mcp_dbus_channel_acl_description (const McpDBusChannelAcl *self)
 
 gboolean
 mcp_dbus_channel_acl_authorised (McpDBusChannelAcl *self,
-    TpDBusDaemon *dbus,
     TpProxy *recipient,
-    const GPtrArray *channels)
+    McpDispatchOperation *dispatch_op)
 {
   McpDBusChannelAclIface *iface = MCP_DBUS_CHANNEL_ACL_GET_IFACE (self);
 
   g_return_val_if_fail (iface != NULL, FALSE);
 
   if (iface->authorised != NULL)
-    return iface->authorised (self, dbus, recipient, channels);
+    return iface->authorised (self, recipient, dispatch_op);
   else
     return TRUE;
 }

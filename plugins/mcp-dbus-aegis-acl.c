@@ -36,7 +36,7 @@
 #include <telepathy-glib/util.h>
 #include <telepathy-glib/defs.h>
 
-#include "mcp-dbus-aegis-acl.h"
+#include <mission-control-plugins/mission-control-plugins.h>
 
 #include <sys/types.h>
 #include <sys/creds.h>
@@ -304,42 +304,19 @@ cm_is_restricted (const gchar *cm_name)
 }
 
 static gboolean
-channels_are_filtered (const GPtrArray *channels)
-{
-  guint i;
-  gboolean filtered = FALSE;
-
-  for (i = 0; !filtered && i < channels->len; i++)
-    {
-      gchar *manager = NULL;
-      TpChannel *channel = g_ptr_array_index (channels, i);
-      TpConnection *connection = tp_channel_borrow_connection (channel);
-
-      if (tp_connection_parse_object_path (connection, NULL, &manager))
-        {
-          filtered = cm_is_restricted (manager);
-          g_free (manager);
-        }
-    }
-
-  return filtered;
-}
-
-static gboolean
-channel_authorised (const McpDBusChannelAcl *self,
-    const TpDBusDaemon *dbus,
-    const TpProxy *recipient,
-    const GPtrArray *channels)
+channel_authorised (McpDBusChannelAcl *self,
+    TpProxy *recipient,
+    McpDispatchOperation *dispatch_op)
 {
   gboolean ok = TRUE;
+  const gchar *manager = mcp_dispatch_operation_get_cm_name (dispatch_op);
 
-  if (channels_are_filtered (channels))
+  if (cm_is_restricted (manager))
     {
       pid_t pid = 0;
       GError *error = NULL;
-      const gchar *name = tp_proxy_get_bus_name ((TpProxy *) recipient);
-      DBusGConnection *dgc =
-        tp_proxy_get_dbus_connection ((TpProxy *) recipient);
+      const gchar *name = tp_proxy_get_bus_name (recipient);
+      DBusGConnection *dgc = tp_proxy_get_dbus_connection (recipient);
 
       DBusGProxy *proxy = dbus_g_proxy_new_for_name (dgc,
           DBUS_SERVICE_DBUS,

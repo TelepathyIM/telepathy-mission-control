@@ -2249,17 +2249,20 @@ cached_acls (void)
  * Returns: a #gboolean - %TRUE for permitted, %FALSE for forbidden.
  **/
 static gboolean
-mcd_dispatch_operation_check_handler (TpDBusDaemon *dbus,
-    TpProxy *recipient,
-    const GPtrArray *channels,
+mcd_dispatch_operation_check_handler (McdDispatchOperation *self,
+    McdClientProxy *handler,
     GError **denied)
 {
+  TpProxy *handler_proxy = (TpProxy *) handler;
   GList *p;
   GList *acls = cached_acls ();
+  McpDispatchOperation *plugin_api = MCP_DISPATCH_OPERATION (
+      self->priv->plugin_api);
 
-  DEBUG ("channel ACL verification [%u rules/%u channels]",
+  DEBUG ("%s: channel ACL verification [%u rules/%u channels]",
+      self->priv->unique_name,
       g_list_length (acls),
-      channels->len);
+      g_list_length (self->priv->channels));
 
   for (p = acls; p != NULL; p = g_list_next (p))
     {
@@ -2267,9 +2270,9 @@ mcd_dispatch_operation_check_handler (TpDBusDaemon *dbus,
 
       DEBUG ("%s: checking Channel ACL for %s",
              mcp_dbus_channel_acl_name (plugin),
-             tp_proxy_get_object_path ((TpProxy *) recipient));
+             tp_proxy_get_object_path (handler_proxy));
 
-      if (!mcp_dbus_channel_acl_authorised (plugin, dbus, recipient, channels))
+      if (!mcp_dbus_channel_acl_authorised (plugin, handler_proxy, plugin_api))
         {
           g_set_error (denied, DBUS_GERROR, DBUS_GERROR_ACCESS_DENIED,
               "permission denied by DBus ACL plugin '%s'",
@@ -2319,10 +2322,6 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
     gchar **iter;
     gboolean is_approved = _mcd_dispatch_operation_is_approved (self);
     Approval *approval = g_queue_peek_head (self->priv->approvals);
-    TpDBusDaemon *dbus =
-      _mcd_client_registry_get_dbus_daemon (self->priv->client_registry);
-    GPtrArray *channels = NULL;
-    gboolean dispatched = FALSE;
 
     /* If there is a preferred Handler chosen by the first Approver or
      * request, it's the first one we'll consider. We'll even consider
@@ -2348,16 +2347,10 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
         if (handler != NULL &&
             (approval->type == APPROVAL_TYPE_HANDLE_WITH || !failed))
         {
-            TpProxy *client = (TpProxy *) handler;
-
-            channels = _mcd_tp_channels_build_from_list (self->priv->channels);
-
-            if (mcd_dispatch_operation_check_handler (dbus, client, channels,
-                                                      &error))
+            if (mcd_dispatch_operation_check_handler (self, handler, &error))
             {
                 mcd_dispatch_operation_handle_channels (self, handler);
-                dispatched = TRUE;
-                goto done;
+                return TRUE;
             }
         }
 
@@ -2376,18 +2369,11 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
             dbus_g_method_return_error (approval->context, error);
             g_error_free (error);
 
-            if (channels != NULL)
-                g_ptr_array_unref (channels);
-
             approval->context = NULL;
             approval_free (approval);
-            dispatched = TRUE;
-            goto done;
+            return TRUE;
         }
     }
-
-    if (channels == NULL)
-        channels = _mcd_tp_channels_build_from_list (self->priv->channels);
 
     for (iter = self->priv->possible_handlers;
          iter != NULL && *iter != NULL;
@@ -2407,12 +2393,10 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
         if (handler != NULL && !failed &&
             (is_approved || _mcd_client_proxy_get_bypass_approval (handler)))
         {
-            if (mcd_dispatch_operation_check_handler (dbus, client, channels,
-                                                      &error))
+            if (mcd_dispatch_operation_check_handler (self, handler, &error))
             {
                 mcd_dispatch_operation_handle_channels (self, handler);
-                dispatched = TRUE;
-                break;
+                return TRUE;
             }
             else
             {
@@ -2422,10 +2406,7 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
         }
     }
 
-done:
-    if (channels != NULL)
-        g_ptr_array_unref (channels);
-    return dispatched;
+    return FALSE;
 }
 
 static void

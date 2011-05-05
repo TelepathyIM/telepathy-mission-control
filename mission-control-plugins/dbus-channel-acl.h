@@ -25,6 +25,8 @@
 #error Use <mission-control-plugins/mission-control-plugins.h> instead
 #endif
 
+#include <mission-control-plugins/dispatch-operation.h>
+
 #include <dbus/dbus-glib-lowlevel.h>
 #include <telepathy-glib/dbus.h>
 
@@ -49,15 +51,13 @@ typedef struct _McpDBusChannelAclIface McpDBusChannelAclIface;
 
 GType mcp_dbus_channel_acl_get_type (void) G_GNUC_CONST;
 
-typedef gboolean (*DBusChannelAclAuthoriser) (const McpDBusChannelAcl *,
-    const TpDBusDaemon *,
-    const TpProxy *,
-    const GPtrArray *);
+typedef gboolean (*DBusChannelAclAuthoriser) (McpDBusChannelAcl *,
+    TpProxy *,
+    McpDispatchOperation *dispatch_op);
 
 gboolean mcp_dbus_channel_acl_authorised (McpDBusChannelAcl *self,
-    TpDBusDaemon *dbus,
     TpProxy *recipient,
-    const GPtrArray *channels);
+    McpDispatchOperation *dispatch_op);
 
 /* virtual methods */
 void mcp_dbus_channel_acl_iface_set_name (McpDBusChannelAclIface *iface,
