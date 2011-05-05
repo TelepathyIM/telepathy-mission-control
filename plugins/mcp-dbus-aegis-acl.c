@@ -50,8 +50,6 @@ struct _AegisAcl {
 
 struct _AegisAclClass {
   GObjectClass parent_class;
-  creds_value_t token;
-  creds_type_t token_type;
 };
 
 #define CREATE_CHANNEL TP_IFACE_CONNECTION_INTERFACE_REQUESTS ".CreateChannel"
