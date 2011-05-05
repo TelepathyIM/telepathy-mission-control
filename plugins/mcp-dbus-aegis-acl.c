@@ -282,24 +282,30 @@ async_authorised_cb (DBusGProxy *proxy,
 {
   GError *error = NULL;
   DBusAclAuthData *ad = data;
-  pid_t pid = 0;
+  GArray *au = NULL;
   const McpDBusAcl *self = ad->acl;
   gboolean permitted = FALSE;
 
-  /* if this returns FALSE, there's no PID, which means something bizarre   *
-   * and untrustowrthy is going on, which in turn means we must deny: can't *
-   * authorise without first authenticating                                 */
+  /* if this returns FALSE, there are no credentials, which means something
+   * untrustworthy is going on, which in turn means we must deny: can't
+   * authorise without first authenticating */
   permitted = dbus_g_proxy_end_call (proxy, call, &error,
-      G_TYPE_UINT, &pid,
+      DBUS_TYPE_G_UINT_ARRAY, &au,
       G_TYPE_INVALID);
 
   if (permitted)
-    permitted = pid_is_permitted (pid);
+    {
+      permitted = caller_creds_are_enough (ad->name, au);
+      g_array_unref (au);
+    }
   else
-    g_error_free (error);
+    {
+      DEBUG ("GetConnectionCredentials failed: %s", error->message);
+      g_clear_error (&error);
+    }
 
-  DEBUG ("finished async Aegis ACL check [%u -> %s]",
-      pid, permitted ? "Allowed" : "Forbidden");
+  DEBUG ("finished async Aegis ACL check [%s]",
+      permitted ? "Allowed" : "Forbidden");
 
   mcp_dbus_acl_authorised_async_step (ad, permitted);
 
@@ -322,9 +328,9 @@ caller_async_authorised (const McpDBusAcl *self,
       proxy = dbus_g_proxy_new_for_name (dgc,
           DBUS_SERVICE_DBUS,
           DBUS_PATH_DBUS,
-          DBUS_INTERFACE_DBUS);
+          AEGIS_INTERFACE);
 
-      dbus_g_proxy_begin_call (proxy, "GetConnectionUnixProcessID",
+      dbus_g_proxy_begin_call (proxy, "GetConnectionCredentials",
           async_authorised_cb,
           data,
           NULL,
