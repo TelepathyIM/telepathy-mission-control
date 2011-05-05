@@ -65,7 +65,6 @@ struct _AegisAclClass {
   "associated with the calling process ID and determine whether " \
   "the DBus call or property access should be allowed"
 
-static gboolean token_initialised = FALSE;
 static creds_value_t aegis_token = CREDS_BAD;
 static creds_type_t aegis_type = CREDS_BAD;
 
@@ -94,7 +93,7 @@ aegis_acl_init (AegisAcl *self)
 static void
 aegis_acl_class_init (AegisAclClass *cls)
 {
-  if (token_initialised == TRUE)
+  if (aegis_type != CREDS_BAD)
     return;
 
   aegis_type = creds_str2creds (AEGIS_CALL_TOKEN, &aegis_token);
