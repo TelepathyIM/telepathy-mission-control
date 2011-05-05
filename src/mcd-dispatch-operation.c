@@ -2341,6 +2341,7 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
             else
             {
                 DEBUG ("handler %s rejected by ACL: %s", name, error->message);
+                g_clear_error (&error);
             }
         }
     }
