@@ -59,7 +59,6 @@
 #include "mcd-handler-map-priv.h"
 #include "mcd-misc.h"
 #include "plugin-loader.h"
-#include "channel-utils.h"
 
 #include "libmcclient/mc-gtypes.h"
 #include "_gen/svc-dispatcher.h"
@@ -1582,7 +1581,6 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
 
     if (handler == NULL)
     {
-        gboolean reinvocation_failed = FALSE;
         /* Failing that, maybe the Handler it was dispatched to was temporary;
          * try to pick another Handler that can deal with it, on the same
          * unique name (i.e. in the same process) */
@@ -1608,32 +1606,6 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
         {
             DEBUG ("Handler %s does not exist in client registry, not "
                    "reinvoking", possible_handlers[0]);
-            reinvocation_failed = TRUE;
-        }
-        else
-        {
-            GError *acl_error = NULL;
-            TpDBusDaemon *dbus = dispatcher->priv->dbus_daemon;
-            TpProxy *client = (TpProxy *) handler;
-            GPtrArray *channels =
-              _mcd_tp_channels_build_from_list (request_as_list);
-
-            if (!mcp_dbus_channel_acl_authorised (dbus, client, channels,
-                    &acl_error))
-            {
-                DEBUG ("Reinvoked handler %s forbidden by ACL: %s",
-                       possible_handlers[0],
-                       acl_error->message);
-
-                reinvocation_failed = TRUE;
-                g_error_free (acl_error);
-            }
-
-            g_ptr_array_unref (channels);
-        }
-
-        if (reinvocation_failed)
-        {
             mcd_dispatcher_finish_reinvocation (request);
             goto finally;
         }
