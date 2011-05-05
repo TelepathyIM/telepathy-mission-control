@@ -56,11 +56,6 @@ libmission_control_plugins_la_SOURCES = \
 	request.c \
 	request-policy.c
 
-if ENABLE_AEGIS
-libmission_control_plugins_la_SOURCES += builtin-aegis-channel-acl.c
-libmission_control_plugins_la_LIBADD += $(AEGIS_LIBS)
-endif
-
 BUILT_SOURCES = $(nodist_libmission_control_plugins_la_SOURCES)
 
 CLEANFILES = $(BUILT_SOURCES)

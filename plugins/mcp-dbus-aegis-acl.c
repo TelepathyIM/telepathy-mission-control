@@ -68,22 +68,18 @@ struct _AegisAclClass {
 static creds_value_t aegis_token = CREDS_BAD;
 static creds_type_t aegis_type = CREDS_BAD;
 
-static gchar *restricted[] =
-  {
-    CREATE_CHANNEL,
-    ENSURE_CHANNEL,
-    SEND_MESSAGE,
-    NULL
-  };
-
 static void aegis_acl_iface_init (McpDBusAclIface *,
+    gpointer);
+static void aegis_channel_acl_iface_init (McpDBusChannelAclIface *,
     gpointer);
 
 static GType aegis_acl_get_type (void);
 
 G_DEFINE_TYPE_WITH_CODE (AegisAcl, aegis_acl,
     G_TYPE_OBJECT,
-    G_IMPLEMENT_INTERFACE (MCP_TYPE_DBUS_ACL, aegis_acl_iface_init));
+    G_IMPLEMENT_INTERFACE (MCP_TYPE_DBUS_ACL, aegis_acl_iface_init);
+    G_IMPLEMENT_INTERFACE (MCP_TYPE_DBUS_CHANNEL_ACL,
+      aegis_channel_acl_iface_init))
 
 static void
 aegis_acl_init (AegisAcl *self)
@@ -99,14 +95,22 @@ aegis_acl_class_init (AegisAclClass *cls)
   aegis_type = creds_str2creds (AEGIS_CALL_TOKEN, &aegis_token);
 }
 
+static gchar *restricted_methods[] =
+  {
+    CREATE_CHANNEL,
+    ENSURE_CHANNEL,
+    SEND_MESSAGE,
+    NULL
+  };
+
 static gboolean
 method_is_filtered (const gchar *method)
 {
   guint i;
 
-  for (i = 0; restricted[i] != NULL; i++)
+  for (i = 0; restricted_methods[i] != NULL; i++)
     {
-      if (!tp_strdiff (method, restricted[i]))
+      if (!tp_strdiff (method, restricted_methods[i]))
         return TRUE;
     }
 
@@ -150,7 +154,7 @@ is_filtered (DBusAclType type,
 }
 
 static gboolean
-pid_is_permitted (const McpDBusAcl *self, pid_t pid)
+pid_is_permitted (pid_t pid)
 {
   gboolean ok = FALSE;
 
@@ -196,7 +200,7 @@ caller_authorised (const McpDBusAcl *self,
           G_TYPE_UINT, &pid,
           G_TYPE_INVALID);
 
-      ok = pid_is_permitted (self, pid);
+      ok = pid_is_permitted (pid);
 
       g_free (caller);
       g_object_unref (proxy);
@@ -226,7 +230,7 @@ async_authorised_cb (DBusGProxy *proxy,
       G_TYPE_INVALID);
 
   if (permitted)
-    permitted = pid_is_permitted (self, pid);
+    permitted = pid_is_permitted (pid);
   else
     g_error_free (error);
 
@@ -281,6 +285,90 @@ aegis_acl_iface_init (McpDBusAclIface *iface,
 
   mcp_dbus_acl_iface_implement_authorised (iface, caller_authorised);
   mcp_dbus_acl_iface_implement_authorised_async (iface, caller_async_authorised);
+}
+
+static gchar *restricted_cms[] = { "ring", "mmscm", NULL };
+
+static inline gboolean
+cm_is_restricted (const gchar *cm_name)
+{
+  guint i;
+
+  for (i = 0; restricted_cms[i] != NULL; i++)
+    {
+      if (!tp_strdiff (restricted_cms[i], cm_name))
+        return TRUE;
+    }
+
+  return FALSE;
+}
+
+static gboolean
+channels_are_filtered (const GPtrArray *channels)
+{
+  guint i;
+  gboolean filtered = FALSE;
+
+  for (i = 0; !filtered && i < channels->len; i++)
+    {
+      gchar *manager = NULL;
+      TpChannel *channel = g_ptr_array_index (channels, i);
+      TpConnection *connection = tp_channel_borrow_connection (channel);
+
+      if (tp_connection_parse_object_path (connection, NULL, &manager))
+        {
+          filtered = cm_is_restricted (manager);
+          g_free (manager);
+        }
+    }
+
+  return filtered;
+}
+
+static gboolean
+channel_authorised (const McpDBusChannelAcl *self,
+    const TpDBusDaemon *dbus,
+    const TpProxy *recipient,
+    const GPtrArray *channels)
+{
+  gboolean ok = TRUE;
+
+  if (channels_are_filtered (channels))
+    {
+      pid_t pid = 0;
+      GError *error = NULL;
+      const gchar *name = tp_proxy_get_bus_name ((TpProxy *) recipient);
+      DBusGConnection *dgc =
+        tp_proxy_get_dbus_connection ((TpProxy *) recipient);
+
+      DBusGProxy *proxy = dbus_g_proxy_new_for_name (dgc,
+          DBUS_SERVICE_DBUS,
+          DBUS_PATH_DBUS,
+          DBUS_INTERFACE_DBUS);
+
+      dbus_g_proxy_call (proxy, "GetConnectionUnixProcessID", &error,
+          G_TYPE_STRING, name,
+          G_TYPE_INVALID,
+          G_TYPE_UINT, &pid,
+          G_TYPE_INVALID);
+
+      ok = pid_is_permitted (pid);
+
+      g_object_unref (proxy);
+    }
+
+  DEBUG ("sync Aegis Channel ACL check [%s]", ok ? "Allowed" : "Forbidden");
+
+  return ok;
+}
+
+static void
+aegis_channel_acl_iface_init (McpDBusChannelAclIface *iface,
+    gpointer unused G_GNUC_UNUSED)
+{
+  mcp_dbus_channel_acl_iface_set_name (iface, PLUGIN_NAME);
+  mcp_dbus_channel_acl_iface_set_desc (iface, PLUGIN_DESCRIPTION);
+  mcp_dbus_channel_acl_iface_implement_authorised (iface, channel_authorised);
 }
 
 GObject *
