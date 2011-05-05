@@ -231,26 +231,6 @@ check_peer_creds_sync (DBusGConnection *dgc,
 }
 
 static gboolean
-pid_is_permitted (pid_t pid)
-{
-  gboolean ok = FALSE;
-
-  if (pid != 0)
-    {
-      creds_t caller = creds_gettask (pid);
-
-      DEBUG ("creds_have_p (creds_gettask (%d) -> %p, %d, %ld)",
-          pid, caller, aegis_type, aegis_token);
-      ok = creds_have_p (caller, aegis_type, aegis_token);
-      DEBUG ("  --> %s", ok ? "TRUE" : "FALSE");
-
-      creds_free (caller);
-    }
-
-  return ok;
-}
-
-static gboolean
 caller_authorised (const McpDBusAcl *self,
     const TpDBusDaemon *dbus,
     const DBusGMethodInvocation *call,
