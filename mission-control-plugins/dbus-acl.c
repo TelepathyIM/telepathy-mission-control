@@ -285,7 +285,7 @@ mcp_dbus_acl_authorised_async_step (DBusAclAuthData *ad,
 {
   if (permitted)
     {
-      if (ad->next_acl != NULL && ad->next_acl->data != NULL)
+      while (ad->next_acl != NULL && ad->next_acl->data != NULL)
         {
           McpDBusAcl *plugin = MCP_DBUS_ACL (ad->next_acl->data);
           McpDBusAclIface *iface = MCP_DBUS_ACL_GET_IFACE (plugin);
@@ -297,19 +297,21 @@ mcp_dbus_acl_authorised_async_step (DBusAclAuthData *ad,
           ad->next_acl = g_list_next (ad->next_acl);
           ad->acl = plugin;
 
-          /* kick off the next async authoriser in the chain */
-          iface->authorised_async (plugin, ad);
+          if (iface->authorised_async != NULL)
+            {
+              /* kick off the next async authoriser in the chain */
+              iface->authorised_async (plugin, ad);
 
-          /* don't clean up, the next async acl will call us when it's done: */
-          return;
+              /* don't clean up, the next async acl will call us when it's
+               * done: */
+              return;
+            }
         }
-      else /* reached the end of the plugin list: call actual handler */
-        {
-          if (ad->acl != NULL)
-            DEBUG (ad->acl, "passed final ACL for %s", ad->name);
 
-          ad->handler (ad->context, ad->data);
-        }
+      if (ad->acl != NULL)
+        DEBUG (ad->acl, "passed final ACL for %s", ad->name);
+
+      ad->handler (ad->context, ad->data);
     }
   else
     {
