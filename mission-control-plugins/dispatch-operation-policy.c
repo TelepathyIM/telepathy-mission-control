@@ -51,7 +51,8 @@
  *     gpointer unused G_GNUC_UNUSED)
  * {
  *   iface-&gt;check = my_plugin_check_cdo;
- *   iface-&gt;handler_is_suitable = my_plugin_handler_is_suitable;
+ *   iface-&gt;handler_is_suitable_async = my_plugin_handler_is_suitable_async;
+ *   iface-&gt;handler_is_suitable_finish = my_plugin_handler_is_suitable_finish;
  * }
  * </programlisting></example>
  *
@@ -97,10 +98,14 @@ mcp_dispatch_operation_policy_get_type (void)
  * @parent: the parent type
  * @check: an implementation of mcp_dispatch_operation_policy_check();
  *    %NULL is equivalent to an implementation that does nothing
- * @handler_is_suitable: an implementation of
- *    mcp_dispatch_operation_policy_handler_is_suitable();
- *    %NULL is equivalent to an implementation that accepts everything,
- *    i.e. always returns %TRUE
+ * @handler_is_suitable_async: an implementation of
+ *    mcp_dispatch_operation_policy_handler_is_suitable_async();
+ *    %NULL is treated as equivalent to an implementation that accepts
+ *    every handler, i.e. always asynchronously returns %TRUE
+ * @handler_is_suitable_finish: an implementation of
+ *    mcp_dispatch_operation_policy_handler_is_suitable_finish();
+ *    %NULL is treated as equivalent to an implementation that accepts any
+ *    #GSimpleAsyncResult
  */
 
 /**
@@ -113,16 +118,28 @@ mcp_dispatch_operation_policy_get_type (void)
  */
 
 /**
- * McpDispatchOperationPolicyClientPredicate:
+ * McpDispatchOperationPolicyAsyncClientPredicate:
  * @policy: an implementation of this interface, provided by a plugin
  * @client: a Telepathy Client
  * @dispatch_operation: an object representing a dispatch operation, i.e.
  *  a bundle of channels being dispatched
+ * @callback: callback to be called on success or failure
+ * @user_data: user data for the callback
  *
  * Signature of a virtual method to ask a question about a Client in the
- * context of a dispatch operation, synchronously.
+ * context of a dispatch operation, asynchronously.
+ */
+
+/**
+ * McpDispatchOperationPolicyFinisher:
+ * @policy: an implementation of this interface, provided by a plugin
+ * @result: the asynchronous result passed to a #GAsyncReadyCallback
+ * @error: (allow-none): used to return an error
  *
- * Returns: a boolean result
+ * Signature of a virtual method used to finish an asynchronous operation
+ * that succeeds or fails, but does not return any additional value.
+ *
+ * Returns: %TRUE if the operation succeeded, %FALSE on error
  */
 
 /**
@@ -170,36 +187,86 @@ mcp_dispatch_operation_policy_iface_implement_check (
 }
 
 /**
- * mcp_dispatch_operation_policy_handler_is_suitable:
+ * mcp_dispatch_operation_policy_handler_is_suitable_async:
  * @policy: an implementation of this interface, provided by a plugin
  * @handler: a proxy for the Handler's D-Bus API
  * @dispatch_operation: an object representing a dispatch operation, i.e.
  *  a bundle of channels being dispatched
+ * @callback: callback to be called on success or failure
+ * @user_data: user data for the callback
  *
  * Check whether a handler is "suitable" for these channels. For instance,
  * this could be used to ensure that only the platform's default UI can be
  * used for particular channels, even if MC would normally consider
  * a third-party UI to be a better match.
  *
- * Mission Control calls all implementations of this method in turn, stopping
- * when one of them returns %FALSE or when all implementations have been
- * called. If they all return %TRUE, the handler is considered to be suitable.
- *
- * Returns: %TRUE if @handler handle @dispatch_operation
+ * Mission Control calls all implementations of this method in parallel
+ * and waits for them all to return. If any of them raises an error,
+ * the handler is considered to be unsuitable.
  */
-gboolean
-mcp_dispatch_operation_policy_handler_is_suitable (
+void
+mcp_dispatch_operation_policy_handler_is_suitable_async (
     McpDispatchOperationPolicy *policy,
     TpProxy *handler,
-    McpDispatchOperation *dispatch_operation)
+    McpDispatchOperation *dispatch_operation,
+    GAsyncReadyCallback callback,
+    gpointer user_data)
 {
   McpDispatchOperationPolicyIface *iface =
     MCP_DISPATCH_OPERATION_POLICY_GET_IFACE (policy);
 
-  g_return_val_if_fail (iface != NULL, TRUE);
+  g_return_if_fail (iface != NULL);
 
-  if (iface->handler_is_suitable != NULL)
-    return iface->handler_is_suitable (policy, handler, dispatch_operation);
+  if (iface->handler_is_suitable_async != NULL)
+    {
+      iface->handler_is_suitable_async (policy, handler, dispatch_operation,
+          callback, user_data);
+    }
   else
-    return TRUE;
+    {
+      /* unimplemented: the default is to succeed */
+      GSimpleAsyncResult *simple = g_simple_async_result_new (
+          (GObject *) policy, callback, user_data,
+          mcp_dispatch_operation_policy_handler_is_suitable_async);
+
+      g_simple_async_result_complete_in_idle (simple);
+      g_object_unref (simple);
+    }
+}
+
+/**
+ * @policy: an implementation of this interface, provided by a plugin
+ * @result: the asynchronous result passed to the #GAsyncReadyCallback
+ * @error: (allow-none): used to return an error
+ *
+ * Finish a call to mcp_dispatch_operation_policy_handler_is_suitable_async().
+ *
+ * Returns: %TRUE if the handler is suitable; %FALSE if the handler is
+ *  unsuitable or there was an error
+ */
+gboolean
+mcp_dispatch_operation_policy_handler_is_suitable_finish (
+    McpDispatchOperationPolicy *policy,
+    GAsyncResult *result,
+    GError **error)
+{
+  McpDispatchOperationPolicyIface *iface =
+    MCP_DISPATCH_OPERATION_POLICY_GET_IFACE (policy);
+
+  g_return_val_if_fail (iface != NULL, FALSE);
+
+  if (iface->handler_is_suitable_finish != NULL)
+    {
+      return iface->handler_is_suitable_finish (policy, result, error);
+    }
+  else
+    {
+      /* accept any GSimpleAsyncResult regardless of source tag, so we can
+       * use it with the default implementation of _async or with most
+       * user-supplied implementations */
+      g_return_val_if_fail (G_IS_SIMPLE_ASYNC_RESULT (result), FALSE);
+
+      return !g_simple_async_result_propagate_error (
+          (GSimpleAsyncResult *) result, error);
+    }
 }

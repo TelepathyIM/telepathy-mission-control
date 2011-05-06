@@ -353,30 +353,41 @@ cm_is_restricted (const gchar *cm_name)
   return FALSE;
 }
 
-static gboolean
-handler_is_suitable (McpDispatchOperationPolicy *self,
+static void
+handler_is_suitable_async (McpDispatchOperationPolicy *self,
     TpProxy *recipient,
-    McpDispatchOperation *dispatch_op)
+    McpDispatchOperation *dispatch_op,
+    GAsyncReadyCallback callback,
+    gpointer user_data)
 {
-  gboolean ok = TRUE;
   const gchar *manager = mcp_dispatch_operation_get_cm_name (dispatch_op);
+  GSimpleAsyncResult *simple = g_simple_async_result_new ((GObject *) self,
+      callback, user_data, handler_is_suitable_async);
 
   if (cm_is_restricted (manager))
     {
       ok = check_peer_creds_sync (tp_proxy_get_dbus_connection (recipient),
           tp_proxy_get_bus_name (recipient));
+
+      if (!ok)
+        {
+          g_simple_async_result_set_error (simple, TP_ERRORS,
+              TP_ERROR_PERMISSION_DENIED, "insufficient Aegis credentials");
+        }
     }
 
   DEBUG ("sync Aegis CDO policy check [%s]", ok ? "Allowed" : "Forbidden");
 
-  return ok;
+  g_simple_async_result_complete_in_idle (simple);
+  g_object_unref (simple);
 }
 
 static void
 aegis_cdo_policy_iface_init (McpDispatchOperationPolicyIface *iface,
     gpointer unused G_GNUC_UNUSED)
 {
-  iface->handler_is_suitable = handler_is_suitable;
+  iface->handler_is_suitable_async = handler_is_suitable_async;
+  /* the default finish function accepts our GSimpleAsyncResult */
 }
 
 GObject *

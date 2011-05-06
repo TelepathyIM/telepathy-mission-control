@@ -56,15 +56,27 @@ typedef void (*McpDispatchOperationPolicyCb) (
 void mcp_dispatch_operation_policy_check (McpDispatchOperationPolicy *policy,
     McpDispatchOperation *dispatch_operation);
 
-typedef gboolean (*McpDispatchOperationPolicyClientPredicate) (
+typedef void (*McpDispatchOperationPolicyAsyncClientPredicate) (
     McpDispatchOperationPolicy *policy,
     TpProxy *client,
-    McpDispatchOperation *dispatch_operation);
+    McpDispatchOperation *dispatch_operation,
+    GAsyncReadyCallback callback,
+    gpointer user_data);
+typedef gboolean (*McpDispatchOperationPolicyFinisher) (
+    McpDispatchOperationPolicy *policy,
+    GAsyncResult *result,
+    GError **error);
 
-gboolean mcp_dispatch_operation_policy_handler_is_suitable (
+void mcp_dispatch_operation_policy_handler_is_suitable_async (
     McpDispatchOperationPolicy *policy,
     TpProxy *handler,
-    McpDispatchOperation *dispatch_operation);
+    McpDispatchOperation *dispatch_operation,
+    GAsyncReadyCallback callback,
+    gpointer user_data);
+gboolean mcp_dispatch_operation_policy_handler_is_suitable_finish (
+    McpDispatchOperationPolicy *policy,
+    GAsyncResult *result,
+    GError **error);
 
 void mcp_dispatch_operation_policy_iface_implement_check (
     McpDispatchOperationPolicyIface *iface,
@@ -74,7 +86,8 @@ struct _McpDispatchOperationPolicyIface {
     GTypeInterface parent;
 
     McpDispatchOperationPolicyCb check;
-    McpDispatchOperationPolicyClientPredicate handler_is_suitable;
+    McpDispatchOperationPolicyAsyncClientPredicate handler_is_suitable_async;
+    McpDispatchOperationPolicyFinisher handler_is_suitable_finish;
 };
 
 G_END_DECLS
