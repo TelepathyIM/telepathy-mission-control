@@ -1,11 +1,19 @@
-telepathy-mission-control 5.7.10 (UNRELEASED)
+telepathy-mission-control 5.7.10 (2011-05-06)
 ============================================
+
+The “Save the Alot” release.
 
 Enhancements:
 
 • Use the new arg0namespace matching to watch only interesting
   DBus name-owner-changed signals if DBus is new enough to allow
   this (fledermaus)
+
+Fixes:
+
+• Setting changes originating in storage backends (eg libaccounts)
+  were not necessarily propagated to CMs if they were not parameters
+  (fledermaus)
 
 telepathy-mission-control 5.7.9 (2011-04-05)
 ============================================
