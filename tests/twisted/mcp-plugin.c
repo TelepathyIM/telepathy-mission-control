@@ -94,6 +94,7 @@ test_permission_plugin_class_init (TestPermissionPluginClass *cls)
 typedef struct {
     McpDispatchOperation *dispatch_operation;
     McpDispatchOperationDelay *delay;
+    GSimpleAsyncResult *result;
 } PermissionContext;
 
 static void
@@ -101,7 +102,15 @@ permission_context_free (gpointer p)
 {
   PermissionContext *ctx = p;
 
-  mcp_dispatch_operation_end_delay (ctx->dispatch_operation, ctx->delay);
+  if (ctx->delay != NULL)
+    mcp_dispatch_operation_end_delay (ctx->dispatch_operation, ctx->delay);
+
+  if (ctx->result != NULL)
+    {
+      g_simple_async_result_complete_in_idle (ctx->result);
+      g_object_unref (ctx->result);
+    }
+
   g_object_unref (ctx->dispatch_operation);
   g_slice_free (PermissionContext, ctx);
 }
@@ -116,9 +125,18 @@ permission_cb (DBusPendingCall *pc,
   if (dbus_message_get_type (message) == DBUS_MESSAGE_TYPE_ERROR)
     {
       DEBUG ("Permission denied");
-      mcp_dispatch_operation_leave_channels (ctx->dispatch_operation,
-          TRUE, TP_CHANNEL_GROUP_CHANGE_REASON_PERMISSION_DENIED,
-          "Computer says no");
+
+      if (ctx->result != NULL)
+        {
+          g_simple_async_result_set_error (ctx->result, TP_ERRORS,
+              TP_ERROR_PERMISSION_DENIED, "No, sorry");
+        }
+      else
+        {
+          mcp_dispatch_operation_leave_channels (ctx->dispatch_operation,
+              TRUE, TP_CHANNEL_GROUP_CHANGE_REASON_PERMISSION_DENIED,
+              "Computer says no");
+        }
     }
   else
     {
@@ -209,10 +227,105 @@ finally:
 }
 
 static void
+handler_is_suitable_async (McpDispatchOperationPolicy *self,
+    TpProxy *recipient,
+    McpDispatchOperation *dispatch_operation,
+    GAsyncReadyCallback callback,
+    gpointer user_data)
+{
+  GSimpleAsyncResult *simple = g_simple_async_result_new ((GObject *) self,
+      callback, user_data, handler_is_suitable_async);
+  GHashTable *properties = mcp_dispatch_operation_ref_nth_channel_properties (
+      dispatch_operation, 0);
+  PermissionContext *ctx = NULL;
+
+  DEBUG ("enter");
+
+  if (properties == NULL)
+    {
+      DEBUG ("no channels!?");
+      goto finally;
+    }
+
+  /* currently this example just checks the first channel */
+
+  if (!tp_strdiff (tp_asv_get_string (properties,
+          TP_IFACE_CHANNEL ".TargetID"),
+        "policy@example.net"))
+    {
+      TpDBusDaemon *dbus_daemon = tp_dbus_daemon_dup (NULL);
+      DBusGConnection *gconn = tp_proxy_get_dbus_connection (dbus_daemon);
+      DBusConnection *libdbus = dbus_g_connection_get_connection (gconn);
+      DBusPendingCall *pc = NULL;
+      DBusMessage *message;
+
+      ctx = g_slice_new0 (PermissionContext);
+      ctx->dispatch_operation = g_object_ref (dispatch_operation);
+      ctx->result = simple;
+      /* take ownership */
+      simple = NULL;
+
+      /* in a real policy-mechanism you'd give some details, like the
+       * channel's properties or object path, and the name of the handler */
+      message = dbus_message_new_method_call ("com.example.Policy",
+          "/com/example/Policy", "com.example.Policy", "CheckHandler");
+
+      if (!dbus_connection_send_with_reply (libdbus, message,
+            &pc, -1))
+        {
+          g_error ("out of memory");
+        }
+
+      dbus_message_unref (message);
+
+      if (pc == NULL)
+        {
+          DEBUG ("got disconnected from D-Bus...");
+
+          goto finally;
+        }
+
+      /* pc is unreffed by permission_cb */
+
+      DEBUG ("Waiting for permission");
+
+      if (dbus_pending_call_get_completed (pc))
+        {
+          permission_cb (pc, ctx);
+          goto finally;
+        }
+
+      if (!dbus_pending_call_set_notify (pc, permission_cb, ctx,
+            permission_context_free))
+        {
+          g_error ("Out of memory");
+        }
+
+      /* ctx will be freed later */
+      ctx = NULL;
+  }
+
+finally:
+  if (ctx != NULL)
+    permission_context_free (ctx);
+
+  g_hash_table_unref (properties);
+
+  if (simple != NULL)
+    {
+      g_simple_async_result_complete_in_idle (simple);
+      g_object_unref (simple);
+    }
+}
+
+static void
 cdo_policy_iface_init (McpDispatchOperationPolicyIface *iface,
     gpointer unused G_GNUC_UNUSED)
 {
   iface->check = test_permission_plugin_check_cdo;
+
+  iface->handler_is_suitable_async = handler_is_suitable_async;
+  /* the default finish function accepts our GSimpleAsyncResult */
 }
 
 typedef struct {

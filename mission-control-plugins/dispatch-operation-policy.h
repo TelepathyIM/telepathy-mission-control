@@ -56,7 +56,7 @@ typedef void (*McpDispatchOperationPolicyCb) (
 void mcp_dispatch_operation_policy_check (McpDispatchOperationPolicy *policy,
     McpDispatchOperation *dispatch_operation);
 
-typedef void (*McpDispatchOperationPolicyAsyncClientPredicate) (
+typedef void (*McpDispatchOperationPolicyHandlerIsSuitableAsync) (
     McpDispatchOperationPolicy *policy,
     TpProxy *client,
     McpDispatchOperation *dispatch_operation,
@@ -86,7 +86,7 @@ struct _McpDispatchOperationPolicyIface {
     GTypeInterface parent;
 
     McpDispatchOperationPolicyCb check;
-    McpDispatchOperationPolicyAsyncClientPredicate handler_is_suitable_async;
+    McpDispatchOperationPolicyHandlerIsSuitableAsync handler_is_suitable_async;
     McpDispatchOperationPolicyFinisher handler_is_suitable_finish;
 };
 

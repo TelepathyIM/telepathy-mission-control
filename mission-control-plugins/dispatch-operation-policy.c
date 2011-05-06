@@ -118,7 +118,7 @@ mcp_dispatch_operation_policy_get_type (void)
  */
 
 /**
- * McpDispatchOperationPolicyAsyncClientPredicate:
+ * McpDispatchOperationPolicyHandlerIsSuitableAsync:
  * @policy: an implementation of this interface, provided by a plugin
  * @client: a Telepathy Client
  * @dispatch_operation: an object representing a dispatch operation, i.e.
@@ -126,8 +126,7 @@ mcp_dispatch_operation_policy_get_type (void)
  * @callback: callback to be called on success or failure
  * @user_data: user data for the callback
  *
- * Signature of a virtual method to ask a question about a Client in the
- * context of a dispatch operation, asynchronously.
+ * Signature of mcp_dispatch_operation_policy_handler_is_suitable_async()
  */
 
 /**
