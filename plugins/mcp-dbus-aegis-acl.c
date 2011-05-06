@@ -355,7 +355,8 @@ cm_is_restricted (const gchar *cm_name)
 
 static void
 handler_is_suitable_async (McpDispatchOperationPolicy *self,
-    TpProxy *recipient,
+    TpClient *recipient,
+    const gchar *unique_name,
     McpDispatchOperation *dispatch_op,
     GAsyncReadyCallback callback,
     gpointer user_data)
@@ -363,17 +364,35 @@ handler_is_suitable_async (McpDispatchOperationPolicy *self,
   const gchar *manager = mcp_dispatch_operation_get_cm_name (dispatch_op);
   GSimpleAsyncResult *simple = g_simple_async_result_new ((GObject *) self,
       callback, user_data, handler_is_suitable_async);
+  gboolean ok = TRUE;
 
   if (cm_is_restricted (manager))
     {
-      ok = check_peer_creds_sync (tp_proxy_get_dbus_connection (recipient),
-          tp_proxy_get_bus_name (recipient));
+      TpDBusDaemon *dbus = tp_dbus_daemon_dup (NULL);
+
+      /* if MC started successfully, we ought to have one */
+      g_assert (dbus != NULL);
+
+      if (!tp_str_empty (unique_name))
+        {
+          ok = check_peer_creds_sync (tp_proxy_get_dbus_connection (dbus),
+              unique_name);
+        }
+      else
+        {
+          g_assert (recipient != NULL);
+
+          ok = check_peer_creds_sync (tp_proxy_get_dbus_connection (dbus),
+              tp_proxy_get_bus_name (recipient));
+        }
 
       if (!ok)
         {
           g_simple_async_result_set_error (simple, TP_ERRORS,
               TP_ERROR_PERMISSION_DENIED, "insufficient Aegis credentials");
         }
+
+      g_object_unref (dbus);
     }
 
   DEBUG ("sync Aegis CDO policy check [%s]", ok ? "Allowed" : "Forbidden");

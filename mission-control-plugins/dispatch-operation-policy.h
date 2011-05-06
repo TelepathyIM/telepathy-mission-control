@@ -27,6 +27,8 @@
 
 #include <mission-control-plugins/dispatch-operation.h>
 
+#include <telepathy-glib/client.h>
+
 G_BEGIN_DECLS
 
 /* API for plugins to implement */
@@ -58,7 +60,8 @@ void mcp_dispatch_operation_policy_check (McpDispatchOperationPolicy *policy,
 
 typedef void (*McpDispatchOperationPolicyHandlerIsSuitableAsync) (
     McpDispatchOperationPolicy *policy,
-    TpProxy *client,
+    TpClient *handler,
+    const gchar *unique_name,
     McpDispatchOperation *dispatch_operation,
     GAsyncReadyCallback callback,
     gpointer user_data);
@@ -69,7 +72,8 @@ typedef gboolean (*McpDispatchOperationPolicyFinisher) (
 
 void mcp_dispatch_operation_policy_handler_is_suitable_async (
     McpDispatchOperationPolicy *policy,
-    TpProxy *handler,
+    TpClient *handler,
+    const gchar *unique_name,
     McpDispatchOperation *dispatch_operation,
     GAsyncReadyCallback callback,
     gpointer user_data);

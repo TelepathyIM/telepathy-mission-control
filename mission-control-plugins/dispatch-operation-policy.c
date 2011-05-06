@@ -120,7 +120,10 @@ mcp_dispatch_operation_policy_get_type (void)
 /**
  * McpDispatchOperationPolicyHandlerIsSuitableAsync:
  * @policy: an implementation of this interface, provided by a plugin
- * @client: a Telepathy Client
+ * @handler: a proxy for the Handler's D-Bus API, or %NULL if the Handler
+ *  is calling Claim (so its well-known name is not immediately obvious)
+ * @unique_name: The Handler's unique name, or empty or %NULL if it has not yet
+ *  been started
  * @dispatch_operation: an object representing a dispatch operation, i.e.
  *  a bundle of channels being dispatched
  * @callback: callback to be called on success or failure
@@ -188,7 +191,10 @@ mcp_dispatch_operation_policy_iface_implement_check (
 /**
  * mcp_dispatch_operation_policy_handler_is_suitable_async:
  * @policy: an implementation of this interface, provided by a plugin
- * @handler: a proxy for the Handler's D-Bus API
+ * @handler: a proxy for the Handler's D-Bus API, or %NULL if the Handler
+ *  is calling Claim (so its well-known name is not immediately obvious)
+ * @unique_name: The Handler's unique name, or empty or %NULL if it has not yet
+ *  been started
  * @dispatch_operation: an object representing a dispatch operation, i.e.
  *  a bundle of channels being dispatched
  * @callback: callback to be called on success or failure
@@ -206,7 +212,8 @@ mcp_dispatch_operation_policy_iface_implement_check (
 void
 mcp_dispatch_operation_policy_handler_is_suitable_async (
     McpDispatchOperationPolicy *policy,
-    TpProxy *handler,
+    TpClient *handler,
+    const gchar *unique_name,
     McpDispatchOperation *dispatch_operation,
     GAsyncReadyCallback callback,
     gpointer user_data)
@@ -218,8 +225,8 @@ mcp_dispatch_operation_policy_handler_is_suitable_async (
 
   if (iface->handler_is_suitable_async != NULL)
     {
-      iface->handler_is_suitable_async (policy, handler, dispatch_operation,
-          callback, user_data);
+      iface->handler_is_suitable_async (policy, handler, unique_name,
+          dispatch_operation, callback, user_data);
     }
   else
     {

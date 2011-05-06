@@ -228,7 +228,8 @@ finally:
 
 static void
 handler_is_suitable_async (McpDispatchOperationPolicy *self,
-    TpProxy *recipient,
+    TpClient *recipient,
+    const gchar *unique_name,
     McpDispatchOperation *dispatch_operation,
     GAsyncReadyCallback callback,
     gpointer user_data)
