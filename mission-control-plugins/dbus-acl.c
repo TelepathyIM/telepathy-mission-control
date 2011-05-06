@@ -393,6 +393,9 @@ mcp_dbus_acl_name (const McpDBusAcl *self)
 
   g_return_val_if_fail (iface != NULL, FALSE);
 
+  if (iface->name == NULL)
+    return G_OBJECT_TYPE_NAME (self);
+
   return iface->name;
 }
 
@@ -402,6 +405,9 @@ mcp_dbus_acl_description (const McpDBusAcl *self)
   McpDBusAclIface *iface = MCP_DBUS_ACL_GET_IFACE (self);
 
   g_return_val_if_fail (iface != NULL, FALSE);
+
+  if (iface->desc == NULL)
+    return "(no description)";
 
   return iface->desc;
 }
