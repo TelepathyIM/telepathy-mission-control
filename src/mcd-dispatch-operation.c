@@ -2275,6 +2275,15 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
 {
     GHashTable *handler_info;
     GHashTable *request_properties;
+    GError *error = NULL;
+
+    if (!mcd_dispatch_operation_check_handler (self, handler, &error))
+    {
+        _mcd_dispatch_operation_handle_channels_cb ((TpClient *) handler,
+            error, self, NULL);
+        g_error_free (error);
+        return;
+    }
 
     g_assert (!self->priv->calling_handle_channels);
     self->priv->calling_handle_channels = TRUE;
@@ -2309,7 +2318,6 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
      * even if it already failed - perhaps the Approver is feeling lucky. */
     if (approval != NULL && approval->client_bus_name != NULL)
     {
-        GError *error = NULL;
         McdClientProxy *handler = _mcd_client_registry_lookup (
             self->priv->client_registry, approval->client_bus_name);
         gboolean failed = _mcd_dispatch_operation_get_handler_failed (self,
@@ -2325,11 +2333,8 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
         if (handler != NULL &&
             (approval->type == APPROVAL_TYPE_HANDLE_WITH || !failed))
         {
-            if (mcd_dispatch_operation_check_handler (self, handler, &error))
-            {
-                mcd_dispatch_operation_handle_channels (self, handler);
-                return TRUE;
-            }
+            mcd_dispatch_operation_handle_channels (self, handler);
+            return TRUE;
         }
 
         /* If the Handler has disappeared, a HandleWith call should fail,
@@ -2337,15 +2342,13 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
          * can legitimately try more handlers. */
         if (approval->type == APPROVAL_TYPE_HANDLE_WITH)
         {
+            GError gone = { TP_ERRORS,
+                TP_ERROR_NOT_IMPLEMENTED,
+                "The requested Handler does not exist" };
+
             g_queue_pop_head (self->priv->approvals);
 
-            if (error == NULL)
-                error = g_error_new_literal (TP_ERRORS,
-                    TP_ERROR_NOT_IMPLEMENTED,
-                    "The requested Handler does not exist");
-
-            dbus_g_method_return_error (approval->context, error);
-            g_error_free (error);
+            dbus_g_method_return_error (approval->context, &gone);
 
             approval->context = NULL;
             approval_free (approval);
@@ -2361,9 +2364,6 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
             self->priv->client_registry, *iter);
         gboolean failed = _mcd_dispatch_operation_get_handler_failed
             (self, *iter);
-        GError *error = NULL;
-        TpProxy *client = (TpProxy *) handler;
-        const gchar *name = tp_proxy_get_bus_name (client);
 
         DEBUG ("Possible handler: %s (still exists: %c, already failed: %c)",
                *iter, handler != NULL ? 'Y' : 'N', failed ? 'Y' : 'N');
@@ -2371,16 +2371,8 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
         if (handler != NULL && !failed &&
             (is_approved || _mcd_client_proxy_get_bypass_approval (handler)))
         {
-            if (mcd_dispatch_operation_check_handler (self, handler, &error))
-            {
-                mcd_dispatch_operation_handle_channels (self, handler);
-                return TRUE;
-            }
-            else
-            {
-                DEBUG ("handler %s rejected by ACL: %s", name, error->message);
-                g_clear_error (&error);
-            }
+            mcd_dispatch_operation_handle_channels (self, handler);
+            return TRUE;
         }
     }
 
