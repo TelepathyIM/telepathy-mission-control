@@ -30,6 +30,35 @@
 
 #define DEBUG g_debug
 
+/* ------ TestNoOpPlugin -------------------------------------- */
+/* doesn't implement anything, to check that NULL pointers are OK */
+
+typedef struct {
+    GObject parent;
+} TestNoOpPlugin;
+
+typedef struct {
+    GObjectClass parent_class;
+} TestNoOpPluginClass;
+
+GType test_no_op_plugin_get_type (void) G_GNUC_CONST;
+
+G_DEFINE_TYPE_WITH_CODE (TestNoOpPlugin, test_no_op_plugin,
+    G_TYPE_OBJECT,
+    G_IMPLEMENT_INTERFACE (MCP_TYPE_DBUS_ACL, NULL);
+    G_IMPLEMENT_INTERFACE (MCP_TYPE_REQUEST_POLICY, NULL);
+    G_IMPLEMENT_INTERFACE (MCP_TYPE_DISPATCH_OPERATION_POLICY, NULL))
+
+static void
+test_no_op_plugin_init (TestNoOpPlugin *self)
+{
+}
+
+static void
+test_no_op_plugin_class_init (TestNoOpPluginClass *cls)
+{
+}
+
 /* ------ TestPermissionPlugin -------------------------------------- */
 
 typedef struct {
@@ -427,11 +456,19 @@ mcp_plugin_ref_nth_object (guint n)
   switch (n)
     {
     case 0:
-      return g_object_new (test_permission_plugin_get_type (),
+      return g_object_new (test_no_op_plugin_get_type (),
           NULL);
 
     case 1:
+      return g_object_new (test_permission_plugin_get_type (),
+          NULL);
+
+    case 2:
       return g_object_new (test_rejection_plugin_get_type (),
+          NULL);
+
+    case 3:
+      return g_object_new (test_no_op_plugin_get_type (),
           NULL);
 
     default:
