@@ -2203,7 +2203,16 @@ mcd_account_property_changed (McdAccount *account, const gchar *name)
                 GValue value = { 0 };
 
                 prop->getprop (self, name, &value);
-                mcd_account_changed_property (account, prop->name, &value);
+
+                /* poke the value back into itself with the setter: this      *
+                 * extra round-trip may trigger extra actions like notifying  *
+                 * the connection manager of the change, even though our own  *
+                 * internal storage already has this value and needn't change */
+                if (prop->setprop != NULL)
+                  prop->setprop (self, prop->name, &value, NULL);
+                else
+                  mcd_account_changed_property (account, prop->name, &value);
+
                 g_value_unset (&value);
             }
             else
