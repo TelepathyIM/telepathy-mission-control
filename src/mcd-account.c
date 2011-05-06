@@ -1286,7 +1286,10 @@ set_nickname (TpSvcDBusProperties *self, const gchar *name,
     DEBUG ("called for %s", priv->unique_name);
     ret = mcd_account_set_string_val (account, name, value, error);
 
-    if (ret == SET_RESULT_CHANGED && priv->connection != NULL)
+    /* we need to call _mcd_connection_set_nickname for side effects,  *
+     * as that is how the CM is informed of the current nickname, even *
+     * if the nickname hasn't changed from our POV                     */
+    if (priv->connection != NULL)
     {
         /* this is a no-op if the connection doesn't support it */
         _mcd_connection_set_nickname (priv->connection,
