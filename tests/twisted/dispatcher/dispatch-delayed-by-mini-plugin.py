@@ -174,9 +174,23 @@ def test(q, bus, mc):
     q.dbus_return(e.message, signature='')
     q.dbus_return(k.message, signature='')
 
+    empathy_cdo = bus.get_object(cs.CD, cdo_path)
+    empathy_cdo_iface = dbus.Interface(empathy_cdo, cs.CDO)
+    call_async(q, empathy_cdo_iface, 'Claim')
+
+    check_handler = q.expect('dbus-method-call', path='/com/example/Policy',
+            interface='com.example.Policy', method='CheckHandler')
+    q.dbus_raise(check_handler.message, 'com.example.Errors.No',
+            "That handler doesn't have enough options")
+    q.expect('dbus-error', method='Claim', name=cs.PERMISSION_DENIED)
+
     kopete_cdo = bus.get_object(cs.CD, cdo_path)
     kopete_cdo_iface = dbus.Interface(kopete_cdo, cs.CDO)
     call_async(q, kopete_cdo_iface, 'Claim')
+
+    check_handler = q.expect('dbus-method-call', path='/com/example/Policy',
+            interface='com.example.Policy', method='CheckHandler')
+    q.dbus_return(check_handler.message, signature='')
 
     q.expect_many(
             EventPattern('dbus-signal', path=cdo_path, signal='Finished'),

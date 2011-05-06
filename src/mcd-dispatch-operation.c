@@ -924,27 +924,97 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
                                          context);
 }
 
+typedef struct {
+    McdDispatchOperation *self;
+    DBusGMethodInvocation *context;
+    gsize handler_suitable_pending;
+} ClaimAttempt;
+
+static void
+claim_attempt_resolve (ClaimAttempt *claim_attempt)
+{
+    if (claim_attempt->context != NULL)
+    {
+        g_queue_push_tail (claim_attempt->self->priv->approvals,
+                           approval_new_claim (claim_attempt->context));
+        _mcd_dispatch_operation_check_client_locks (claim_attempt->self);
+    }
+
+    g_object_unref (claim_attempt->self);
+    g_slice_free (ClaimAttempt, claim_attempt);
+}
+
+static void
+claim_attempt_suitability_cb (GObject *source,
+                              GAsyncResult *res,
+                              gpointer user_data)
+{
+    ClaimAttempt *claim_attempt = user_data;
+    GError *error = NULL;
+
+    if (!mcp_dispatch_operation_policy_handler_is_suitable_finish (
+            MCP_DISPATCH_OPERATION_POLICY (source), res, &error))
+    {
+        if (claim_attempt->context != NULL)
+            dbus_g_method_return_error (claim_attempt->context, error);
+
+        claim_attempt->context = NULL;
+        g_error_free (error);
+    }
+
+    if (--claim_attempt->handler_suitable_pending == 0)
+    {
+        DEBUG ("all plugins have finished, resolving claim attempt");
+        claim_attempt_resolve (claim_attempt);
+    }
+}
+
 static void
 dispatch_operation_claim (TpSvcChannelDispatchOperation *cdo,
                           DBusGMethodInvocation *context)
 {
     McdDispatchOperation *self = MCD_DISPATCH_OPERATION (cdo);
-    McdDispatchOperationPrivate *priv = self->priv;
+    ClaimAttempt *claim_attempt;
+    gchar *sender = dbus_g_method_get_sender (context);
+    McpDispatchOperation *plugin_api = MCP_DISPATCH_OPERATION (
+        self->priv->plugin_api);
+    const GList *p;
 
     if (self->priv->result != NULL)
     {
-        gchar *sender = dbus_g_method_get_sender (context);
 
-        DEBUG ("Giving error to %s: %s", sender, priv->result->message);
-        dbus_g_method_return_error (context, priv->result);
-
-        g_free (sender);
-
-        return;
+        DEBUG ("Giving error to %s: %s", sender, self->priv->result->message);
+        dbus_g_method_return_error (context, self->priv->result);
+        goto finally;
     }
 
-    g_queue_push_tail (priv->approvals, approval_new_claim (context));
-    _mcd_dispatch_operation_check_client_locks (self);
+    claim_attempt = g_slice_new0 (ClaimAttempt);
+    claim_attempt->self = g_object_ref (self);
+    claim_attempt->context = context;
+    claim_attempt->handler_suitable_pending = 0;
+
+    for (p = mcp_list_objects (); p != NULL; p = g_list_next (p))
+    {
+        if (MCP_IS_DISPATCH_OPERATION_POLICY (p->data))
+        {
+            McpDispatchOperationPolicy *plugin = p->data;
+
+            DEBUG ("%s: checking policy for %s",
+                G_OBJECT_TYPE_NAME (plugin), sender);
+
+            claim_attempt->handler_suitable_pending++;
+            mcp_dispatch_operation_policy_handler_is_suitable_async (plugin,
+                    NULL, sender, plugin_api,
+                    claim_attempt_suitability_cb,
+                    claim_attempt);
+        }
+    }
+
+    if (claim_attempt->handler_suitable_pending == 0)
+        claim_attempt_resolve (claim_attempt);
+
+finally:
+    g_free (sender);
 }
 
 static void
