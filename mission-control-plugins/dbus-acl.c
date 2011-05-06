@@ -247,7 +247,8 @@ mcp_dbus_acl_authorised (const TpDBusDaemon *dbus,
 
       DEBUG (plugin, "checking ACL for %s", name);
 
-      permitted = iface->authorised (plugin, dbus, context, type, name, params);
+      if (iface->authorised != NULL)
+        permitted = iface->authorised (plugin, dbus, context, type, name, params);
 
       if (!permitted)
         break;
