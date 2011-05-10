@@ -83,6 +83,34 @@ def test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs):
 
     q.expect('dbus-error', method='DelegateChannels', name=cs.NOT_YOURS)
 
+    # gnome-shell which is handling the channel asks to re-ensure it
+    call_async(q, gs_cd_redispatch, 'PresentChannel',
+        chan.object_path, 0)
+
+    # gnome-shell is asked to re-handle the channel
+    e = q.expect('dbus-method-call',
+            path=gs.object_path,
+            interface=cs.HANDLER, method='HandleChannels',
+            handled=False)
+
+    q.dbus_return(e.message, signature='')
+
+    q.expect('dbus-return', method='PresentChannel')
+
+    # empathy which is not handling the channel asks to re-ensure it
+    call_async(q, emp_cd_redispatch, 'PresentChannel',
+        chan.object_path, 0)
+
+    # gnome-shell is asked to re-handle the channel
+    e = q.expect('dbus-method-call',
+            path=gs.object_path,
+            interface=cs.HANDLER, method='HandleChannels',
+            handled=False)
+
+    q.dbus_return(e.message, signature='')
+
+    q.expect('dbus-return', method='PresentChannel')
+
     # Empathy crashes
     empathy.release_name()
 

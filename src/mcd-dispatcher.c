@@ -2676,10 +2676,96 @@ error:
 }
 
 static void
+present_handle_channels_cb (TpClient *client,
+    const GError *error,
+    gpointer user_data G_GNUC_UNUSED,
+    GObject *weak_object)
+{
+  DBusGMethodInvocation *context = user_data;
+
+  if (error != NULL)
+    {
+      dbus_g_method_return_error (context, error);
+      return;
+    }
+
+  mc_svc_channel_dispatcher_interface_redispatch_return_from_present_channel (
+      context);
+}
+
+static void
+dispatcher_present_channel (
+    McSvcChannelDispatcherInterfaceRedispatch *iface,
+    const gchar *channel_path,
+    gint64 user_action_time,
+    DBusGMethodInvocation *context)
+{
+  McdDispatcher *self = (McdDispatcher *) iface;
+  McdAccountManager *am;
+  const gchar *chan_account;
+  McdAccount *account;
+  McdConnection *conn;
+  McdChannel *mcd_channel;
+  const gchar *handler = NULL;
+  GError *error = NULL;
+  McdClientProxy *client;
+  GList *channels = NULL;
+
+  chan_account = _mcd_handler_map_get_channel_account (
+      self->priv->handler_map, channel_path);
+
+  if (chan_account == NULL)
+    {
+      g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+          "Unknown channel: %s", channel_path);
+      goto error;
+    }
+
+  g_object_get (self->priv->master, "account-manager", &am, NULL);
+  g_assert (am != NULL);
+
+  account = mcd_account_manager_lookup_account_by_path (am, chan_account);
+  g_assert (account != NULL);
+  g_object_unref (am);
+
+  conn = mcd_account_get_connection (account);
+  g_assert (conn != NULL);
+
+  _mcd_handler_map_get_handler (self->priv->handler_map, channel_path,
+      &handler);
+  if (handler == NULL)
+    {
+      g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+          "Channel %s is currently not handled", channel_path);
+      goto error;
+    }
+
+  client = _mcd_client_registry_lookup (self->priv->clients, handler);
+  g_assert (client != NULL);
+
+  mcd_channel = mcd_connection_find_channel_by_path (conn, channel_path);
+  g_assert (mcd_channel != NULL);
+
+  channels = g_list_append (channels, mcd_channel);
+
+  _mcd_client_proxy_handle_channels (client, -1, channels,
+      user_action_time, NULL, present_handle_channels_cb,
+      context, NULL, NULL);
+
+  g_list_free (channels);
+  return;
+
+error:
+  dbus_g_method_return_error (context, error);
+  g_error_free (error);
+}
+
+static void
 redispatch_iface_init (gpointer g_iface,
                        gpointer iface_data G_GNUC_UNUSED)
 {
 #define IMPLEMENT(x) mc_svc_channel_dispatcher_interface_redispatch_implement_##x (\
     g_iface, dispatcher_##x)
   IMPLEMENT(delegate_channels);
+  IMPLEMENT(present_channel);
 }

@@ -116,6 +116,48 @@
 
     </method>
 
+    <method name="PresentChannel"
+            tp:name-for-bindings="Present_Channel">
+      <tp:added version="0.23.UNRELEASED" />
+      <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+        <p>Equivalent of calling
+        <tp:dbus-ref namespace="org.freedesktop.Telepathy.ChannelDispatcher">EnsureChannel</tp:dbus-ref>
+        with a Requested_Properties which would result in ensuring
+        Channel.</p>
+
+         <p>If Channel is handled, its handler will be asked to present it the user
+         (e.g. bring it into the foreground).</p>
+      </tp:docstring>
+
+      <arg direction="in" name="Channel" type="o">
+        <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+          <p>The channel to present.</p>
+        </tp:docstring>
+      </arg>
+
+      <arg direction="in" name="User_Action_Time" type="x"
+        tp:type="User_Action_Timestamp">
+        <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
+          <p>The time at which user action occurred, or 0 if this channel
+            request is for some reason not involving user action.</p>
+
+          <p>This parameter is used in the same way as the corresponding
+            parameter to
+            <tp:member-ref>EnsureChannelWithHints</tp:member-ref>.</p>
+        </tp:docstring>
+      </arg>
+
+      <tp:possible-errors>
+        <tp:error name="org.freedesktop.Telepathy.Error.InvalidArgument">
+          <tp:docstring>
+            The Account does not exist, the Channel does not exist or it
+            does not belong to the Account.
+          </tp:docstring>
+        </tp:error>
+
+      </tp:possible-errors>
+    </method>
+
   </interface>
 </node>
 <!-- vim:set sw=2 sts=2 et ft=xml: -->
