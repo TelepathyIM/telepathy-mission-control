@@ -2428,66 +2428,60 @@ typedef struct
   McdDispatcher *self;
   McdAccount *account;
   gint64 user_action_time;
-  GHashTable *hints;
   DBusGMethodInvocation *context;
   /* List of reffed McdChannel */
   GList *channels;
   /* Queue of reffed McdClientProxy */
   GQueue *handlers;
-} RedispatchChannelsCtx;
+} DelegateChannelsCtx;
 
-static RedispatchChannelsCtx *
-redispatch_channels_ctx_new (McdDispatcher *self,
-    McdAccount *account,
+static DelegateChannelsCtx *
+delegate_channels_ctx_new (McdDispatcher *self,
     gint64 user_action_time,
-    GHashTable *hints,
     DBusGMethodInvocation *context)
 {
-  RedispatchChannelsCtx *ctx = g_slice_new0 (RedispatchChannelsCtx);
+  DelegateChannelsCtx *ctx = g_slice_new0 (DelegateChannelsCtx);
 
   ctx->self = g_object_ref (self);
-  ctx->account = g_object_ref (account);
   ctx->user_action_time = user_action_time;
-  ctx->hints = g_hash_table_ref (hints);
   ctx->context = context;
   ctx->handlers = g_queue_new ();
   return ctx;
 }
 
 static void
-redispatch_channels_ctx_free (RedispatchChannelsCtx *ctx)
+delegate_channels_ctx_free (DelegateChannelsCtx *ctx)
 {
   g_object_unref (ctx->self);
   g_object_unref (ctx->account);
   g_list_foreach (ctx->channels, (GFunc) g_object_unref, NULL);
   g_list_free (ctx->channels);
-  g_hash_table_unref (ctx->hints);
   g_queue_foreach (ctx->handlers, (GFunc) g_object_unref, NULL);
   g_queue_free (ctx->handlers);
-  g_slice_free (RedispatchChannelsCtx, ctx);
+  g_slice_free (DelegateChannelsCtx, ctx);
 }
 
-static void try_redispatching (RedispatchChannelsCtx *ctx);
+static void try_delegating (DelegateChannelsCtx *ctx);
 
 static void
-redispatch_handle_channels_cb (TpClient *client,
+delegate_channels_cb (TpClient *client,
     const GError *error,
     gpointer user_data G_GNUC_UNUSED,
     GObject *weak_object)
 {
-  RedispatchChannelsCtx *ctx = user_data;
+  DelegateChannelsCtx *ctx = user_data;
   GList *l;
   McdClientProxy *clt_proxy = MCD_CLIENT_PROXY (client);
 
   if (error != NULL)
     {
-        DEBUG ("Handler refused redispatching channels");
+        DEBUG ("Handler refused delegated channels");
 
-        try_redispatching (ctx);
+        try_delegating (ctx);
         return;
     }
 
-  DEBUG ("Channels have been redispatched");
+  DEBUG ("Channels have been delegated");
 
   for (l = ctx->channels; l != NULL; l = g_list_next (l))
     {
@@ -2499,14 +2493,14 @@ redispatch_handle_channels_cb (TpClient *client,
           tp_proxy_get_bus_name (client));
     }
 
-  mc_svc_channel_dispatcher_interface_redispatch_return_from_redispatch_channels (
+  mc_svc_channel_dispatcher_interface_redispatch_return_from_delegate_channels (
       ctx->context);
 
-  redispatch_channels_ctx_free (ctx);
+  delegate_channels_ctx_free (ctx);
 }
 
 static void
-try_redispatching (RedispatchChannelsCtx *ctx)
+try_delegating (DelegateChannelsCtx *ctx)
 {
   McdClientProxy *client;
 
@@ -2520,76 +2514,51 @@ try_redispatching (RedispatchChannelsCtx *ctx)
       dbus_g_method_return_error (ctx->context, error);
       g_error_free (error);
 
-      redispatch_channels_ctx_free (ctx);
+      delegate_channels_ctx_free (ctx);
       return;
     }
 
   client = g_queue_pop_head (ctx->handlers);
 
-  DEBUG ("Try redispatching channels to %s", _mcd_client_proxy_get_unique_name (
+  DEBUG ("Try delegating channels to %s", _mcd_client_proxy_get_unique_name (
       client));
 
   _mcd_client_proxy_handle_channels (client, -1, ctx->channels,
-      ctx->user_action_time, NULL, redispatch_handle_channels_cb,
+      ctx->user_action_time, NULL, delegate_channels_cb,
       ctx, NULL, NULL);
 
   g_object_unref (client);
 }
 
 static void
-dispatcher_redispatch_channels (
+dispatcher_delegate_channels (
     McSvcChannelDispatcherInterfaceRedispatch *iface,
-    const gchar *account_path,
     const GPtrArray *channels,
     gint64 user_action_time,
     const gchar *preferred_handler,
-    GHashTable *hints,
     DBusGMethodInvocation *context)
 {
   McdDispatcher *self = (McdDispatcher *) iface;
   guint i;
   GError *error = NULL;
   const gchar *sender;
-  McdAccountManager *am;
-  McdAccount *account;
-  McdConnection *conn;
+  McdConnection *conn = NULL;
   GStrv possible_handlers;
   GList *tp_channels = NULL;
-  RedispatchChannelsCtx *ctx = NULL;
+  DelegateChannelsCtx *ctx = NULL;
+  const gchar *first_account = NULL;
 
   if (!check_preferred_handler (preferred_handler, &error))
       goto error;
 
-  g_object_get (self->priv->master, "account-manager", &am, NULL);
-  g_assert (am != NULL);
-
-  account = mcd_account_manager_lookup_account_by_path (am, account_path);
-  g_object_unref (am);
-
-  if (account == NULL)
-    {
-      g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-          "No such account: %s", account_path);
-      goto error;
-    }
-
-  conn = mcd_account_get_connection (account);
-  if (conn == NULL)
-    {
-      g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-          "No connection for account: %s", account_path);
-      goto error;
-    }
-
   if (channels->len == 0)
     {
       g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-          "Need at least one channel to redispatch");
+          "Need at least one channel to delegate");
       goto error;
     }
 
-  ctx = redispatch_channels_ctx_new (self, account, user_action_time, hints,
-      context);
+  ctx = delegate_channels_ctx_new (self, user_action_time, context);
 
   sender = dbus_g_method_get_sender (context);
 
@@ -2601,16 +2570,45 @@ dispatcher_redispatch_channels (
       McdChannel *mcd_channel;
       TpChannel *tp_channel;
 
-      /* Check account of the channel */
       chan_account = _mcd_handler_map_get_channel_account (
           self->priv->handler_map, chan_path);
 
-      if (tp_strdiff (account_path, chan_account))
+      if (chan_account == NULL)
         {
           g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-              "Channel %s has %s as account, not %s", chan_path, chan_account,
-              account_path);
+              "Unknown channel: %s", chan_path);
           goto error;
+        }
+
+      /* All the channels should belong to the same account, so we just need
+       * to get the connection for the first one. */
+      if (first_account == NULL)
+        {
+          McdAccountManager *am;
+          McdAccount *account;
+
+          first_account = chan_account;
+
+          g_object_get (self->priv->master, "account-manager", &am, NULL);
+          g_assert (am != NULL);
+
+          account = mcd_account_manager_lookup_account_by_path (am,
+              chan_account);
+          g_assert (account != NULL);
+          g_object_unref (am);
+
+          conn = mcd_account_get_connection (account);
+
+          ctx->account = g_object_ref (account);
+        }
+      else
+        {
+          if (tp_strdiff (first_account, chan_account))
+            {
+              g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                  "All the channels should belong to the same account");
+              goto error;
+            }
         }
 
       /* Check the caller is handling the channel */
@@ -2622,6 +2620,8 @@ dispatcher_redispatch_channels (
               "Your are not handling channel %s", chan_path);
           goto error;
        }
+
+      g_assert (conn != NULL);
 
       mcd_channel = mcd_connection_find_channel_by_path (conn, chan_path);
       g_assert (mcd_channel != NULL);
@@ -2664,7 +2664,7 @@ dispatcher_redispatch_channels (
 
   g_strfreev (possible_handlers);
 
-  try_redispatching (ctx);
+  try_delegating (ctx);
 
   return;
 
@@ -2672,7 +2672,7 @@ error:
   dbus_g_method_return_error (context, error);
   g_error_free (error);
 
-  tp_clear_pointer (&ctx, redispatch_channels_ctx_free);
+  tp_clear_pointer (&ctx, delegate_channels_ctx_free);
 }
 
 static void
@@ -2681,5 +2681,5 @@ redispatch_iface_init (gpointer g_iface,
 {
 #define IMPLEMENT(x) mc_svc_channel_dispatcher_interface_redispatch_implement_##x (\
     g_iface, dispatcher_##x)
-  IMPLEMENT(redispatch_channels);
+  IMPLEMENT(delegate_channels);
 }

@@ -35,9 +35,9 @@
         API or ABI guarantees.</p>
     </tp:docstring>
 
-    <method name="RedispatchChannels"
-            tp:name-for-bindings="Redispatch_Channels">
-      <tp:added version="0.21.UNRELEASED" />
+    <method name="DelegateChannels"
+            tp:name-for-bindings="Delegate_Channels">
+      <tp:added version="0.23.UNRELEASED" />
       <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
         <p>Called by a
         <tp:dbus-ref namespace="org.freedesktop.Telepathy.Client">Handler</tp:dbus-ref>
@@ -57,14 +57,6 @@
 
       </tp:docstring>
 
-      <arg direction="in" name="Account" type="o">
-        <tp:docstring>
-          The
-            <tp:dbus-ref namespace="org.freedesktop.Telepathy">Account</tp:dbus-ref>
-          owning the channels.
-        </tp:docstring>
-      </arg>
-
       <arg direction="in" name="Channels" type="ao">
         <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
           <p>The list of channels to redispatch. The caller has to be the current
@@ -77,8 +69,8 @@
       <arg direction="in" name="User_Action_Time" type="x"
         tp:type="User_Action_Timestamp">
         <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
-          <p>The time at which user action occurred, or 0 if this channel
-            request is for some reason not involving user action.</p>
+          <p>The time at which user action occurred, or 0 if this channels
+            delegation is for some reason not involving user action.</p>
 
           <p>This parameter is used in the same way as the corresponding
             parameter to
@@ -100,14 +92,6 @@
         </tp:docstring>
       </arg>
 
-      <arg direction="in" name="Hints" type="a{sv}">
-        <tp:docstring>
-          Additional information about the channels request, which will be used
-          as the value for the resulting request's <tp:dbus-ref
-          namespace="ofdT.ChannelRequest">Hints</tp:dbus-ref>
-          property.</tp:docstring>
-      </arg>
-
       <tp:possible-errors>
         <tp:error name="org.freedesktop.Telepathy.Error.InvalidArgument">
           <tp:docstring>
@@ -122,7 +106,14 @@
             The caller is not currently handling the channels.
           </tp:docstring>
         </tp:error>
+
+        <tp:error name="org.freedesktop.Telepathy.Error.NotCapable">
+          <tp:docstring>
+            There is no other suitable Handler.
+          </tp:docstring>
+        </tp:error>
       </tp:possible-errors>
+
     </method>
 
   </interface>

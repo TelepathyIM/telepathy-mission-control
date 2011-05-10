@@ -15,7 +15,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 # 02110-1301 USA
 
-"""Test CD.RedispatchChannels
+"""Test CD.DelegateChannels and Cd.PresentChannel
 """
 
 import dbus
@@ -27,16 +27,13 @@ from mctest import exec_test, SimulatedClient, \
         expect_client_setup
 import constants as cs
 
-hints = dbus.Dictionary({ 'badger': 42, 'snake': 'pony' },
-    signature='sv')
-
-def test_redispatch_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs):
+def test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs):
     # Now gnome-shell wants to give the channel to another handle
     gs_cd = bus.get_object(cs.CD, cs.CD_PATH)
     gs_cd_redispatch = dbus.Interface(gs_cd, cs.CD_REDISPATCH)
 
-    call_async(q, gs_cd_redispatch, 'RedispatchChannels',
-        account.object_path, [chan.object_path], 0, "", hints)
+    call_async(q, gs_cd_redispatch, 'DelegateChannels',
+        [chan.object_path], 0, "")
 
     # Empathy is asked to handle the channel and accept
     e = q.expect('dbus-method-call',
@@ -46,14 +43,14 @@ def test_redispatch_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs)
 
     q.dbus_return(e.message, signature='')
 
-    q.expect('dbus-return', method='RedispatchChannels')
+    q.expect('dbus-return', method='DelegateChannels')
 
     # Let's play ping-pong channel! Empathy give the channel back to GS
     emp_cd = empathy_bus.get_object(cs.CD, cs.CD_PATH)
     emp_cd_redispatch = dbus.Interface(emp_cd, cs.CD_REDISPATCH)
 
-    call_async(q, emp_cd_redispatch, 'RedispatchChannels',
-        account.object_path, [chan.object_path], 0, "", hints)
+    call_async(q, emp_cd_redispatch, 'DelegateChannels',
+        [chan.object_path], 0, "")
 
     # gnome-shell is asked to handle the channel and accept
     e = q.expect('dbus-method-call',
@@ -63,11 +60,11 @@ def test_redispatch_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs)
 
     q.dbus_return(e.message, signature='')
 
-    q.expect('dbus-return', method='RedispatchChannels')
+    q.expect('dbus-return', method='DelegateChannels')
 
     # gnome-shell wants to give it back, again
-    call_async(q, gs_cd_redispatch, 'RedispatchChannels',
-        account.object_path, [chan.object_path], 0, "", hints)
+    call_async(q, gs_cd_redispatch, 'DelegateChannels',
+        [chan.object_path], 0, "")
 
     # Empathy is asked to handle the channel but refuses
     e = q.expect('dbus-method-call',
@@ -77,14 +74,14 @@ def test_redispatch_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs)
 
     q.dbus_raise(e.message, cs.NOT_AVAILABLE, "No thanks")
 
-    # RedispatchChannels failed so gnome-shell is still handling the channel
-    q.expect('dbus-error', method='RedispatchChannels', name=cs.NOT_CAPABLE)
+    # DelegateChannels failed so gnome-shell is still handling the channel
+    q.expect('dbus-error', method='DelegateChannels', name=cs.NOT_CAPABLE)
 
-    # Empathy doesn't handle the channel atm but tries to redispatch it
-    call_async(q, emp_cd_redispatch, 'RedispatchChannels',
-        account.object_path, [chan.object_path], 0, "", hints)
+    # Empathy doesn't handle the channel atm but tries to delegates it
+    call_async(q, emp_cd_redispatch, 'DelegateChannels',
+        [chan.object_path], 0, "")
 
-    q.expect('dbus-error', method='RedispatchChannels', name=cs.NOT_YOURS)
+    q.expect('dbus-error', method='DelegateChannels', name=cs.NOT_YOURS)
 
     # Empathy crashes
     empathy.release_name()
@@ -95,11 +92,11 @@ def test_redispatch_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs)
                 e.args[0] == empathy.bus_name and e.args[2] == ''),
             )
 
-    # gnome-shell wants to redispatch, but there is no other handler
-    call_async(q, gs_cd_redispatch, 'RedispatchChannels',
-        account.object_path, [chan.object_path], 0, "", hints)
+    # gnome-shell wants to delegate, but there is no other handler
+    call_async(q, gs_cd_redispatch, 'DelegateChannels',
+        [chan.object_path], 0, "")
 
-    q.expect('dbus-error', method='RedispatchChannels', name=cs.NOT_CAPABLE)
+    q.expect('dbus-error', method='DelegateChannels', name=cs.NOT_CAPABLE)
 
     chan.close()
 
@@ -168,8 +165,8 @@ def test(q, bus, mc):
 
     q.dbus_return(e.message, signature='')
 
-    # test redispatching an incoming channel
-    test_redispatch_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs)
+    # test delegating an incoming channel
+    test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs)
 
     # Empathy is back
     empathy = SimulatedClient(q, empathy_bus, 'EmpathyChat',
@@ -187,7 +184,7 @@ def test(q, bus, mc):
     call_async(q, cd, 'CreateChannelWithHints',
             account.object_path, request, 0,
             cs.tp_name_prefix + '.Client.GnomeShell',
-            hints, dbus_interface=cs.CD)
+            {}, dbus_interface=cs.CD)
     e = q.expect('dbus-return', method='CreateChannelWithHints')
 
     cr = bus.get_object(cs.AM, e.value[0])
@@ -212,8 +209,8 @@ def test(q, bus, mc):
 
     q.dbus_return(e.message, signature='')
 
-    # test redispatching an outgoing channel
-    test_redispatch_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs)
+    # test delegating an outgoing channel
+    test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs)
 
 if __name__ == '__main__':
     exec_test(test, {})
