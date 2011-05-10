@@ -30,9 +30,9 @@ import constants as cs
 def test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs):
     # Now gnome-shell wants to give the channel to another handle
     gs_cd = bus.get_object(cs.CD, cs.CD_PATH)
-    gs_cd_redispatch = dbus.Interface(gs_cd, cs.CD_REDISPATCH)
+    gs_cd_iface = dbus.Interface(gs_cd, cs.CD)
 
-    call_async(q, gs_cd_redispatch, 'DelegateChannels',
+    call_async(q, gs_cd_iface, 'DelegateChannels',
         [chan.object_path], 0, "")
 
     # Empathy is asked to handle the channel and accept
@@ -47,9 +47,9 @@ def test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs):
 
     # Let's play ping-pong channel! Empathy give the channel back to GS
     emp_cd = empathy_bus.get_object(cs.CD, cs.CD_PATH)
-    emp_cd_redispatch = dbus.Interface(emp_cd, cs.CD_REDISPATCH)
+    emp_cd_iface = dbus.Interface(emp_cd, cs.CD)
 
-    call_async(q, emp_cd_redispatch, 'DelegateChannels',
+    call_async(q, emp_cd_iface, 'DelegateChannels',
         [chan.object_path], 0, "")
 
     # gnome-shell is asked to handle the channel and accept
@@ -63,7 +63,7 @@ def test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs):
     q.expect('dbus-return', method='DelegateChannels')
 
     # gnome-shell wants to give it back, again
-    call_async(q, gs_cd_redispatch, 'DelegateChannels',
+    call_async(q, gs_cd_iface, 'DelegateChannels',
         [chan.object_path], 0, "")
 
     # Empathy is asked to handle the channel but refuses
@@ -78,13 +78,13 @@ def test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs):
     q.expect('dbus-error', method='DelegateChannels', name=cs.NOT_CAPABLE)
 
     # Empathy doesn't handle the channel atm but tries to delegates it
-    call_async(q, emp_cd_redispatch, 'DelegateChannels',
+    call_async(q, emp_cd_iface, 'DelegateChannels',
         [chan.object_path], 0, "")
 
     q.expect('dbus-error', method='DelegateChannels', name=cs.NOT_YOURS)
 
     # gnome-shell which is handling the channel asks to re-ensure it
-    call_async(q, gs_cd_redispatch, 'PresentChannel',
+    call_async(q, gs_cd_iface, 'PresentChannel',
         chan.object_path, 0)
 
     # gnome-shell is asked to re-handle the channel
@@ -98,7 +98,7 @@ def test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs):
     q.expect('dbus-return', method='PresentChannel')
 
     # empathy which is not handling the channel asks to re-ensure it
-    call_async(q, emp_cd_redispatch, 'PresentChannel',
+    call_async(q, emp_cd_iface, 'PresentChannel',
         chan.object_path, 0)
 
     # gnome-shell is asked to re-handle the channel
@@ -121,7 +121,7 @@ def test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs):
             )
 
     # gnome-shell wants to delegate, but there is no other handler
-    call_async(q, gs_cd_redispatch, 'DelegateChannels',
+    call_async(q, gs_cd_iface, 'DelegateChannels',
         [chan.object_path], 0, "")
 
     q.expect('dbus-error', method='DelegateChannels', name=cs.NOT_CAPABLE)

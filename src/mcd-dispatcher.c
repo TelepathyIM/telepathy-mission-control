@@ -87,15 +87,12 @@
 #define MCD_DISPATCHER_PRIV(dispatcher) (MCD_DISPATCHER (dispatcher)->priv)
 
 static void dispatcher_iface_init (gpointer, gpointer);
-static void redispatch_iface_init (gpointer, gpointer);
 static void messages_iface_init (gpointer, gpointer);
 
 
 G_DEFINE_TYPE_WITH_CODE (McdDispatcher, mcd_dispatcher, MCD_TYPE_MISSION,
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_CHANNEL_DISPATCHER,
                            dispatcher_iface_init);
-    G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_DISPATCHER_INTERFACE_REDISPATCH,
-                           redispatch_iface_init);
     G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_DISPATCHER_INTERFACE_MESSAGES_DRAFT,
                            messages_iface_init);
     G_IMPLEMENT_INTERFACE (
@@ -2015,19 +2012,6 @@ dispatcher_ensure_channel_with_hints (TpSvcChannelDispatcher *iface,
 
 
 static void
-dispatcher_iface_init (gpointer g_iface,
-                       gpointer iface_data G_GNUC_UNUSED)
-{
-#define IMPLEMENT(x) tp_svc_channel_dispatcher_implement_##x (\
-    g_iface, dispatcher_##x)
-    IMPLEMENT (create_channel);
-    IMPLEMENT (ensure_channel);
-    IMPLEMENT (create_channel_with_hints);
-    IMPLEMENT (ensure_channel_with_hints);
-#undef IMPLEMENT
-}
-
-static void
 mcd_dispatcher_lost_connection (gpointer data,
                                 GObject *corpse)
 {
@@ -2493,7 +2477,7 @@ delegate_channels_cb (TpClient *client,
           tp_proxy_get_bus_name (client));
     }
 
-  mc_svc_channel_dispatcher_interface_redispatch_return_from_delegate_channels (
+  tp_svc_channel_dispatcher_return_from_delegate_channels (
       ctx->context);
 
   delegate_channels_ctx_free (ctx);
@@ -2532,7 +2516,7 @@ try_delegating (DelegateChannelsCtx *ctx)
 
 static void
 dispatcher_delegate_channels (
-    McSvcChannelDispatcherInterfaceRedispatch *iface,
+    TpSvcChannelDispatcher *iface,
     const GPtrArray *channels,
     gint64 user_action_time,
     const gchar *preferred_handler,
@@ -2689,13 +2673,12 @@ present_handle_channels_cb (TpClient *client,
       return;
     }
 
-  mc_svc_channel_dispatcher_interface_redispatch_return_from_present_channel (
-      context);
+  tp_svc_channel_dispatcher_return_from_present_channel (context);
 }
 
 static void
 dispatcher_present_channel (
-    McSvcChannelDispatcherInterfaceRedispatch *iface,
+    TpSvcChannelDispatcher *iface,
     const gchar *channel_path,
     gint64 user_action_time,
     DBusGMethodInvocation *context)
@@ -2761,11 +2744,16 @@ error:
 }
 
 static void
-redispatch_iface_init (gpointer g_iface,
+dispatcher_iface_init (gpointer g_iface,
                        gpointer iface_data G_GNUC_UNUSED)
 {
-#define IMPLEMENT(x) mc_svc_channel_dispatcher_interface_redispatch_implement_##x (\
+#define IMPLEMENT(x) tp_svc_channel_dispatcher_implement_##x (\
     g_iface, dispatcher_##x)
-  IMPLEMENT(delegate_channels);
-  IMPLEMENT(present_channel);
+  IMPLEMENT (create_channel);
+  IMPLEMENT (ensure_channel);
+  IMPLEMENT (create_channel_with_hints);
+  IMPLEMENT (ensure_channel_with_hints);
+  IMPLEMENT (delegate_channels);
+  IMPLEMENT (present_channel);
+#undef IMPLEMENT
 }
