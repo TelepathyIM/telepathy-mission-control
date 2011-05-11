@@ -183,7 +183,7 @@ caller_creds_are_enough (const gchar *name,
 
       DEBUG ("Caller %s has these credentials:", name);
 
-      while ((debug_type = creds_list (caller_creds, i, &debug_value))
+      while ((debug_type = creds_list (caller_creds, i++, &debug_value))
           != CREDS_BAD)
         {
           creds_creds2str (debug_type, debug_value, buf, sizeof (buf));
