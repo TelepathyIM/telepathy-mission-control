@@ -340,7 +340,7 @@ AC_SUBST(TELEPATHY_LIBS)
 AC_SUBST(TELEPATHY_CFLAGS)
 
 PKG_CHECK_MODULES([GLIB],
-	[glib-2.0 >= 2.24, gobject-2.0, gmodule-no-export-2.0])
+	[glib-2.0 >= 2.28, gobject-2.0, gmodule-no-export-2.0])
 AC_SUBST(GLIB_LIBS)
 AC_SUBST(GLIB_CFLAGS)
 
