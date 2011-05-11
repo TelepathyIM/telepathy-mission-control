@@ -71,7 +71,7 @@ _get_secret_from_keyring (const gchar *account, const gchar *key)
   GnomeKeyringAttributeList *match = gnome_keyring_attribute_list_new ();
   GList *items = NULL;
   GList *i;
-  gchar *secret;
+  gchar *secret = NULL;
 
   gnome_keyring_attribute_list_append_string (match, "account", account);
 
