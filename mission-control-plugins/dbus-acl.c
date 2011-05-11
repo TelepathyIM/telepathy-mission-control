@@ -229,6 +229,9 @@ mcp_dbus_acl_iface_implement_authorised_async (McpDBusAclIface *iface,
   iface->authorised_async = method;
 }
 
+/* FIXME: when we break ABI, this should move to src/ under a different name,
+ * and mcp_dbus_acl_authorised() should be a trivial wrapper around
+ * iface->authorised() */
 /**
  * mcp_dbus_acl_authorised:
  * @dbus: a #TpDBusDaemon instance
@@ -347,6 +350,9 @@ mcp_dbus_acl_authorised_async_step (DBusAclAuthData *ad,
   auth_data_free (ad);    /* done with internal bookkeeping */
 }
 
+/* FIXME: when we break ABI, this should move to src/ under a different name,
+ * and mcp_dbus_acl_authorised_async() should be a trivial wrapper around
+ * iface->authorised_async(); it should also use GIO-style asynchronicity */
 /**
  * mcp_dbus_acl_authorised_async:
  * @dbus: a #TpDBusDaemon instance

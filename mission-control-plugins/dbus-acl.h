@@ -48,6 +48,8 @@ typedef struct _McpDBusAclIface McpDBusAclIface;
 
 GType mcp_dbus_acl_get_type (void) G_GNUC_CONST;
 
+/* FIXME: when we break API, rename all types to start with Mcp */
+
 typedef void (*DBusAclAuthorised) (DBusGMethodInvocation *call, gpointer data);
 
 typedef enum {
