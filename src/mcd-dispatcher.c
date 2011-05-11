@@ -2578,7 +2578,7 @@ dispatcher_delegate_channels (
 
           account = mcd_account_manager_lookup_account_by_path (am,
               chan_account);
-          g_assert (account != NULL);
+          g_return_if_fail (account != NULL);
           g_object_unref (am);
 
           conn = mcd_account_get_connection (account);
@@ -2605,13 +2605,13 @@ dispatcher_delegate_channels (
           goto error;
        }
 
-      g_assert (conn != NULL);
+      g_return_if_fail (conn != NULL);
 
       mcd_channel = mcd_connection_find_channel_by_path (conn, chan_path);
-      g_assert (mcd_channel != NULL);
+      g_return_if_fail (mcd_channel != NULL);
 
       tp_channel = mcd_channel_get_tp_channel (mcd_channel);
-      g_assert (tp_channel != NULL);
+      g_return_if_fail (tp_channel != NULL);
 
       tp_channels = g_list_prepend (tp_channels, tp_channel);
       ctx->channels = g_list_prepend (ctx->channels,
@@ -2630,7 +2630,7 @@ dispatcher_delegate_channels (
 
       client = _mcd_client_registry_lookup (self->priv->clients,
           possible_handlers[i]);
-      g_assert (client != NULL);
+      g_return_if_fail (client != NULL);
 
       unique_name = _mcd_client_proxy_get_unique_name (client);
 
@@ -2708,11 +2708,11 @@ dispatcher_present_channel (
   g_assert (am != NULL);
 
   account = mcd_account_manager_lookup_account_by_path (am, chan_account);
-  g_assert (account != NULL);
+  g_return_if_fail (account != NULL);
   g_object_unref (am);
 
   conn = mcd_account_get_connection (account);
-  g_assert (conn != NULL);
+  g_return_if_fail (conn != NULL);
 
   _mcd_handler_map_get_handler (self->priv->handler_map, channel_path,
       &handler);
@@ -2724,10 +2724,10 @@ dispatcher_present_channel (
     }
 
   client = _mcd_client_registry_lookup (self->priv->clients, handler);
-  g_assert (client != NULL);
+  g_return_if_fail (client != NULL);
 
   mcd_channel = mcd_connection_find_channel_by_path (conn, channel_path);
-  g_assert (mcd_channel != NULL);
+  g_return_if_fail (mcd_channel != NULL);
 
   channels = g_list_append (channels, mcd_channel);
 
