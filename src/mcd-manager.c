@@ -220,10 +220,8 @@ _mcd_manager_constructor (GType type, guint n_params,
 {
     GObjectClass *object_class = (GObjectClass *)mcd_manager_parent_class;
     McdManager *manager;
-    McdManagerPrivate *priv;
 
     manager =  MCD_MANAGER (object_class->constructor (type, n_params, params));
-    priv = manager->priv;
 
     g_return_val_if_fail (manager != NULL, NULL);
 

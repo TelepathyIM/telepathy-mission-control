@@ -7,21 +7,14 @@ INCLUDES = \
 	-DLIBDIR="@libdir@" \
 	-DLIBVERSION="@MCP_ABI_VERSION@"
 
-EXTRA_DIST = 
-
-instdir = @libdir@/mission-control-plugins.@MCP_ABI_VERSION@
-
-plugin_LDFLAGS = -module -shared -avoid-version -rpath @abs_builddir@
-
-inst_LTLIBRARIES = 
+noinst_LTLIBRARIES =
 
 if ENABLE_AEGIS
 
-inst_LTLIBRARIES += mcp-dbus-aegis-acl.la
-
-mcp_dbus_aegis_acl_la_SOURCES = mcp-dbus-aegis-acl.c
-mcp_dbus_aegis_acl_la_LDFLAGS = \
-	$(plugin_LDFLAGS) \
+noinst_LTLIBRARIES += libmcp-aegis.la
+libmcp_aegis_la_SOURCES = mcp-dbus-aegis-acl.c
+libmcp_aegis_la_LIBADD = \
+	$(top_builddir)/mission-control-plugins/libmission-control-plugins.la \
 	$(TELEPATHY_LIBS) \
 	$(DBUS_LIBS) \
 	$(AEGIS_LIBS)

@@ -27,6 +27,8 @@
 
 #include <mission-control-plugins/dispatch-operation.h>
 
+#include <telepathy-glib/client.h>
+
 G_BEGIN_DECLS
 
 /* API for plugins to implement */
@@ -48,13 +50,49 @@ typedef struct _McpDispatchOperationPolicyIface McpDispatchOperationPolicyIface;
 GType mcp_dispatch_operation_policy_get_type (void) G_GNUC_CONST;
 
 /* virtual methods */
+
+typedef void (*McpDispatchOperationPolicyCb) (
+    McpDispatchOperationPolicy *policy,
+    McpDispatchOperation *dispatch_operation);
+
 void mcp_dispatch_operation_policy_check (McpDispatchOperationPolicy *policy,
     McpDispatchOperation *dispatch_operation);
 
-/* vtable manipulation - the vtable is private to allow for expansion */
+typedef void (*McpDispatchOperationPolicyHandlerIsSuitableAsync) (
+    McpDispatchOperationPolicy *policy,
+    TpClient *handler,
+    const gchar *unique_name,
+    McpDispatchOperation *dispatch_operation,
+    GAsyncReadyCallback callback,
+    gpointer user_data);
+typedef gboolean (*McpDispatchOperationPolicyFinisher) (
+    McpDispatchOperationPolicy *policy,
+    GAsyncResult *result,
+    GError **error);
+
+void mcp_dispatch_operation_policy_handler_is_suitable_async (
+    McpDispatchOperationPolicy *policy,
+    TpClient *handler,
+    const gchar *unique_name,
+    McpDispatchOperation *dispatch_operation,
+    GAsyncReadyCallback callback,
+    gpointer user_data);
+gboolean mcp_dispatch_operation_policy_handler_is_suitable_finish (
+    McpDispatchOperationPolicy *policy,
+    GAsyncResult *result,
+    GError **error);
+
 void mcp_dispatch_operation_policy_iface_implement_check (
     McpDispatchOperationPolicyIface *iface,
-    void (*impl) (McpDispatchOperationPolicy *, McpDispatchOperation *));
+    McpDispatchOperationPolicyCb impl);
+
+struct _McpDispatchOperationPolicyIface {
+    GTypeInterface parent;
+
+    McpDispatchOperationPolicyCb check;
+    McpDispatchOperationPolicyHandlerIsSuitableAsync handler_is_suitable_async;
+    McpDispatchOperationPolicyFinisher handler_is_suitable_finish;
+};
 
 G_END_DECLS
 

@@ -174,9 +174,23 @@ def test(q, bus, mc):
     q.dbus_return(e.message, signature='')
     q.dbus_return(k.message, signature='')
 
+    empathy_cdo = bus.get_object(cs.CD, cdo_path)
+    empathy_cdo_iface = dbus.Interface(empathy_cdo, cs.CDO)
+    call_async(q, empathy_cdo_iface, 'Claim')
+
+    check_handler = q.expect('dbus-method-call', path='/com/example/Policy',
+            interface='com.example.Policy', method='CheckHandler')
+    q.dbus_raise(check_handler.message, 'com.example.Errors.No',
+            "That handler doesn't have enough options")
+    q.expect('dbus-error', method='Claim', name=cs.PERMISSION_DENIED)
+
     kopete_cdo = bus.get_object(cs.CD, cdo_path)
     kopete_cdo_iface = dbus.Interface(kopete_cdo, cs.CDO)
     call_async(q, kopete_cdo_iface, 'Claim')
+
+    check_handler = q.expect('dbus-method-call', path='/com/example/Policy',
+            interface='com.example.Policy', method='CheckHandler')
+    q.dbus_return(check_handler.message, signature='')
 
     q.expect_many(
             EventPattern('dbus-signal', path=cdo_path, signal='Finished'),
@@ -184,6 +198,67 @@ def test(q, bus, mc):
                 signal='DispatchOperationFinished', args=[cdo_path]),
             EventPattern('dbus-return', method='Claim'),
             )
+
+    sync_dbus(bus, q, mc)
+
+    # Try again; this time we'll reject a selected handler
+    e, chan, cdo_path = signal_channel_expect_query(q, bus, account, conn,
+            empathy, kopete)
+
+    # The request is fine, continue...
+    q.dbus_return(e.message, signature='')
+
+    e, k = q.expect_many(
+            EventPattern('dbus-method-call',
+                path=empathy.object_path,
+                interface=cs.APPROVER, method='AddDispatchOperation',
+                handled=False),
+            EventPattern('dbus-method-call',
+                path=kopete.object_path,
+                interface=cs.APPROVER, method='AddDispatchOperation',
+                handled=False),
+            )
+    q.dbus_return(e.message, signature='')
+    q.dbus_return(k.message, signature='')
+
+    kopete_cdo = bus.get_object(cs.CD, cdo_path)
+    kopete_cdo_iface = dbus.Interface(kopete_cdo, cs.CDO)
+    call_async(q, kopete_cdo_iface, 'HandleWith',
+            cs.tp_name_prefix + '.Client.Kopete')
+
+    check_handler = q.expect('dbus-method-call', path='/com/example/Policy',
+            interface='com.example.Policy', method='CheckHandler')
+    q.dbus_raise(check_handler.message, 'com.example.Errors.No',
+            'That handler is not good enough')
+    q.expect('dbus-error', method='HandleWith', name=cs.PERMISSION_DENIED)
+
+    # well, let's try *something*... Kopete has been marked as failed,
+    # so this will try Empathy
+    call_async(q, kopete_cdo_iface, 'HandleWith', '')
+
+    check_handler = q.expect('dbus-method-call', path='/com/example/Policy',
+            interface='com.example.Policy', method='CheckHandler')
+    q.dbus_raise(check_handler.message, 'com.example.Errors.No',
+            'That handler is no good either')
+
+    # Oops... we ran out of handlers
+    _, _, _, e = q.expect_many(
+            EventPattern('dbus-error', method='HandleWith',
+                name=cs.PERMISSION_DENIED),
+            EventPattern('dbus-signal', path=cdo_path,
+                interface=cs.CDO, signal='Finished'),
+            EventPattern('dbus-signal', path=cs.CD_PATH,
+                interface=cs.CD_IFACE_OP_LIST,
+                signal='DispatchOperationFinished',
+                args=[cdo_path]),
+            EventPattern('dbus-method-call',
+                path=chan.object_path,
+                interface=cs.CHANNEL_IFACE_DESTROYABLE,
+                method='Destroy',
+                handled=False),
+            )
+    q.dbus_return(e.message, signature='')
+    chan.close()
 
     sync_dbus(bus, q, mc)
 
@@ -230,6 +305,14 @@ def test(q, bus, mc):
             chan.object_path, chan.immutable, signature='boa{sv}')
 
     q.dbus_return(policy_request.message, signature='')
+
+    # Now we want to pass the channel to the selected handler.
+    # What does the policy service think about that?
+    check_handler = q.expect('dbus-method-call', path='/com/example/Policy',
+            interface='com.example.Policy', method='CheckHandler')
+
+    # Yeah, we're OK with that.
+    q.dbus_return(check_handler.message, signature='')
 
     e = q.expect('dbus-method-call',
             path=kopete.object_path,

@@ -58,6 +58,8 @@
  * A single object can implement more than one interface.
  */
 
+#include "config.h"
+
 #include <mission-control-plugins/mission-control-plugins.h>
 #include <mission-control-plugins/mcp-signals-marshal.h>
 #include <glib.h>
@@ -66,8 +68,8 @@
 #ifdef ENABLE_DEBUG
 
 #define DEBUG(_p, _format, ...) \
-  g_debug ("%s: %s: " _format, G_STRFUNC, \
-      (_p != NULL) ? mcp_dbus_acl_name (_p) : "NULL", ##__VA_ARGS__)
+  g_debug ("dbus-acl: %s: %s: " _format, G_STRFUNC, \
+      (_p != NULL) ? mcp_dbus_acl_name (_p) : "-", ##__VA_ARGS__)
 
 #else  /* ENABLE_DEBUG */
 
@@ -245,7 +247,8 @@ mcp_dbus_acl_authorised (const TpDBusDaemon *dbus,
 
       DEBUG (plugin, "checking ACL for %s", name);
 
-      permitted = iface->authorised (plugin, dbus, context, type, name, params);
+      if (iface->authorised != NULL)
+        permitted = iface->authorised (plugin, dbus, context, type, name, params);
 
       if (!permitted)
         break;
@@ -282,31 +285,33 @@ mcp_dbus_acl_authorised_async_step (DBusAclAuthData *ad,
 {
   if (permitted)
     {
-      if (ad->next_acl != NULL && ad->next_acl->data != NULL)
+      while (ad->next_acl != NULL && ad->next_acl->data != NULL)
         {
           McpDBusAcl *plugin = MCP_DBUS_ACL (ad->next_acl->data);
           McpDBusAclIface *iface = MCP_DBUS_ACL_GET_IFACE (plugin);
 
           if (ad->acl != NULL)
-            DEBUG (ad->acl, ":A: passed ACL for %s", ad->name);
+            DEBUG (ad->acl, "passed ACL for %s", ad->name);
 
           /* take the next plugin off the next_acl list */
           ad->next_acl = g_list_next (ad->next_acl);
           ad->acl = plugin;
 
-          /* kick off the next async authoriser in the chain */
-          iface->authorised_async (plugin, ad);
+          if (iface->authorised_async != NULL)
+            {
+              /* kick off the next async authoriser in the chain */
+              iface->authorised_async (plugin, ad);
 
-          /* don't clean up, the next async acl will call us when it's done: */
-          return;
+              /* don't clean up, the next async acl will call us when it's
+               * done: */
+              return;
+            }
         }
-      else /* reached the end of the plugin list: call actual handler */
-        {
-          if (ad->acl != NULL)
-            DEBUG (ad->acl, ":B: passed ACL for %s", ad->name);
 
-          ad->handler (ad->context, ad->data);
-        }
+      if (ad->acl != NULL)
+        DEBUG (ad->acl, "passed final ACL for %s", ad->name);
+
+      ad->handler (ad->context, ad->data);
     }
   else
     {
@@ -374,6 +379,9 @@ mcp_dbus_acl_authorised_async (TpDBusDaemon *dbus,
   ad->handler = handler;
   ad->next_acl = acls;
 
+  DEBUG (NULL, "DBus access ACL verification: %u rules for %s",
+      g_list_length (acls),
+      name);
   mcp_dbus_acl_authorised_async_step (ad, TRUE);
 }
 
@@ -385,6 +393,9 @@ mcp_dbus_acl_name (const McpDBusAcl *self)
 
   g_return_val_if_fail (iface != NULL, FALSE);
 
+  if (iface->name == NULL)
+    return G_OBJECT_TYPE_NAME (self);
+
   return iface->name;
 }
 
@@ -394,6 +405,9 @@ mcp_dbus_acl_description (const McpDBusAcl *self)
   McpDBusAclIface *iface = MCP_DBUS_ACL_GET_IFACE (self);
 
   g_return_val_if_fail (iface != NULL, FALSE);
+
+  if (iface->desc == NULL)
+    return "(no description)";
 
   return iface->desc;
 }

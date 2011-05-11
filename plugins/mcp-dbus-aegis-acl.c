@@ -1,5 +1,5 @@
 /*
- * An Aegis/libcreds plugin that checks the caller's permission tokens
+ * A pseudo-plugin that checks the caller's Aegis permission tokens
  *
  * Copyright © 2010-2011 Nokia Corporation
  * Copyright © 2010-2011 Collabora Ltd.
@@ -19,11 +19,39 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include "config.h"
+
+#ifdef G_LOG_DOMAIN
+#undef G_LOG_DOMAIN
+#endif
+#define G_LOG_DOMAIN "mission-control-DBus-Access-ACL"
+
+#ifdef ENABLE_DEBUG
+#define DEBUG(_f, ...) g_debug ("%s: " _f, G_STRLOC, ##__VA_ARGS__)
+#else
+#define DEBUG(_f, ...) do {} while (0)
+#endif
+
+#include <dbus/dbus-glib.h>
+#include <telepathy-glib/interfaces.h>
+#include <telepathy-glib/util.h>
+#include <telepathy-glib/defs.h>
+
 #include <mission-control-plugins/mission-control-plugins.h>
+
 #include <sys/types.h>
 #include <sys/creds.h>
-#include <telepathy-glib/interfaces.h>
-#include <telepathy-glib/defs.h>
+
+typedef struct _AegisAcl AegisAcl;
+typedef struct _AegisAclClass AegisAclClass;
+
+struct _AegisAcl {
+  GObject parent;
+};
+
+struct _AegisAclClass {
+  GObjectClass parent_class;
+};
 
 #define CREATE_CHANNEL TP_IFACE_CONNECTION_INTERFACE_REQUESTS ".CreateChannel"
 #define ENSURE_CHANNEL TP_IFACE_CONNECTION_INTERFACE_REQUESTS ".EnsureChannel"
@@ -32,7 +60,8 @@
 
 #define AEGIS_CALL_TOKEN "Cellular"
 
-#define DEBUG g_debug
+/* implemented by the Aegis-patched dbus-daemon */
+#define AEGIS_INTERFACE "com.meego.DBus.Creds"
 
 #define PLUGIN_NAME "dbus-aegis-acl"
 #define PLUGIN_DESCRIPTION \
@@ -40,11 +69,37 @@
   "associated with the calling process ID and determine whether " \
   "the DBus call or property access should be allowed"
 
-static gboolean token_initialised = FALSE;
 static creds_value_t aegis_token = CREDS_BAD;
 static creds_type_t aegis_type = CREDS_BAD;
 
-static gchar *restricted[] =
+static void aegis_acl_iface_init (McpDBusAclIface *,
+    gpointer);
+static void aegis_cdo_policy_iface_init (McpDispatchOperationPolicyIface *,
+    gpointer);
+
+static GType aegis_acl_get_type (void);
+
+G_DEFINE_TYPE_WITH_CODE (AegisAcl, aegis_acl,
+    G_TYPE_OBJECT,
+    G_IMPLEMENT_INTERFACE (MCP_TYPE_DBUS_ACL, aegis_acl_iface_init);
+    G_IMPLEMENT_INTERFACE (MCP_TYPE_DISPATCH_OPERATION_POLICY,
+      aegis_cdo_policy_iface_init))
+
+static void
+aegis_acl_init (AegisAcl *self)
+{
+}
+
+static void
+aegis_acl_class_init (AegisAclClass *cls)
+{
+  if (aegis_type != CREDS_BAD)
+    return;
+
+  aegis_type = creds_str2creds (AEGIS_CALL_TOKEN, &aegis_token);
+}
+
+static gchar *restricted_methods[] =
   {
     CREATE_CHANNEL,
     ENSURE_CHANNEL,
@@ -52,51 +107,14 @@ static gchar *restricted[] =
     NULL
   };
 
-static void dbus_acl_iface_init (McpDBusAclIface *,
-    gpointer);
-
-typedef struct {
-  GObject parent;
-} DBusAegisAcl;
-
-typedef struct {
-  GObjectClass parent_class;
-  creds_value_t token;
-  creds_type_t token_type;
-} DBusAegisAclClass;
-
-GType dbus_aegis_acl_get_type (void) G_GNUC_CONST;
-
-#define DBUS_AEGIS_ACL(o) \
-  (G_TYPE_CHECK_INSTANCE_CAST ((o), dbus_aegis_acl_get_type (), \
-      DBusAegisAcl))
-
-G_DEFINE_TYPE_WITH_CODE (DBusAegisAcl, dbus_aegis_acl,
-    G_TYPE_OBJECT,
-    G_IMPLEMENT_INTERFACE (MCP_TYPE_DBUS_ACL, dbus_acl_iface_init));
-
-static void
-dbus_aegis_acl_init (DBusAegisAcl *self)
-{
-}
-
-static void
-dbus_aegis_acl_class_init (DBusAegisAclClass *cls)
-{
-  if (token_initialised == TRUE)
-    return;
-
-  aegis_type = creds_str2creds (AEGIS_CALL_TOKEN, &aegis_token);
-}
-
 static gboolean
 method_is_filtered (const gchar *method)
 {
   guint i;
 
-  for (i = 0; restricted[i] != NULL; i++)
+  for (i = 0; restricted_methods[i] != NULL; i++)
     {
-      if (!tp_strdiff (method, restricted[i]))
+      if (!tp_strdiff (method, restricted_methods[i]))
         return TRUE;
     }
 
@@ -139,23 +157,76 @@ is_filtered (DBusAclType type,
   return FALSE;
 }
 
+/* For simplicity we don't implement non-trivial conversion between
+ * dbus-glib's arrays of guint, and libcreds' arrays of uint32_t.
+ * If this assertion fails on your platform, you'll need to implement it. */
+G_STATIC_ASSERT (sizeof (guint) == sizeof (uint32_t));
+
 static gboolean
-pid_is_permitted (const McpDBusAcl *self, pid_t pid)
+caller_creds_are_enough (const gchar *name,
+    const GArray *au)
 {
-  gboolean ok = FALSE;
+  creds_t caller_creds = creds_import ((const uint32_t *) au->data, au->len);
+  gboolean ok = creds_have_p (caller_creds, aegis_type, aegis_token);
 
-  if (pid != 0)
+#ifdef ENABLE_DEBUG
+  if (ok)
     {
-      creds_t caller = creds_gettask (pid);
+      DEBUG ("Caller %s is appropriately privileged", name);
+    }
+  else
+    {
+      char buf[1024];
+      creds_type_t debug_type;
+      creds_value_t debug_value;
+      int i = 0;
 
-      DEBUG ("creds_have_p (creds_gettask (%d) -> %p, %d, %ld)",
-          pid, caller, aegis_type, aegis_token);
-      ok = creds_have_p (caller, aegis_type, aegis_token);
-      DEBUG ("  --> %s", ok ? "TRUE" : "FALSE");
+      DEBUG ("Caller %s has these credentials:", name);
 
-      creds_free (caller);
+      while ((debug_type = creds_list (caller_creds, i++, &debug_value))
+          != CREDS_BAD)
+        {
+          creds_creds2str (debug_type, debug_value, buf, sizeof (buf));
+          DEBUG ("- %s", buf);
+        }
+
+      DEBUG ("but they are insufficient");
+    }
+#endif
+
+  creds_free (caller_creds);
+  return ok;
+}
+
+static gboolean
+check_peer_creds_sync (DBusGConnection *dgc,
+    const gchar *bus_name)
+{
+  DBusGProxy *proxy = dbus_g_proxy_new_for_name (dgc,
+      DBUS_SERVICE_DBUS,
+      DBUS_PATH_DBUS,
+      AEGIS_INTERFACE);
+  GArray *au = NULL;
+  GError *error = NULL;
+  gboolean ok;
+
+  if (dbus_g_proxy_call (proxy, "GetConnectionCredentials", &error,
+      G_TYPE_STRING, bus_name,
+      G_TYPE_INVALID,
+      DBUS_TYPE_G_UINT_ARRAY, &au,
+      G_TYPE_INVALID))
+    {
+      ok = caller_creds_are_enough (bus_name, au);
+      g_array_unref (au);
+    }
+  else
+    {
+      DEBUG ("GetConnectionCredentials failed: %s", error->message);
+      g_clear_error (&error);
+      ok = FALSE;
     }
 
+  g_object_unref (proxy);
   return ok;
 }
 
@@ -172,24 +243,11 @@ caller_authorised (const McpDBusAcl *self,
 
   if (is_filtered (type, name, params))
     {
-      pid_t pid = 0;
-      GError *error = NULL;
       gchar *caller = dbus_g_method_get_sender ((DBusGMethodInvocation *) call);
-      DBusGProxy *proxy = dbus_g_proxy_new_for_name (dgc,
-          DBUS_SERVICE_DBUS,
-          DBUS_PATH_DBUS,
-          DBUS_INTERFACE_DBUS);
 
-      dbus_g_proxy_call (proxy, "GetConnectionUnixProcessID", &error,
-          G_TYPE_STRING, caller,
-          G_TYPE_INVALID,
-          G_TYPE_UINT, &pid,
-          G_TYPE_INVALID);
-
-      ok = pid_is_permitted (self, pid);
+      ok = check_peer_creds_sync (dgc, caller);
 
       g_free (caller);
-      g_object_unref (proxy);
     }
 
   DEBUG ("sync Aegis ACL check [%s]", ok ? "Allowed" : "Forbidden");
@@ -204,24 +262,30 @@ async_authorised_cb (DBusGProxy *proxy,
 {
   GError *error = NULL;
   DBusAclAuthData *ad = data;
-  pid_t pid = 0;
+  GArray *au = NULL;
   const McpDBusAcl *self = ad->acl;
   gboolean permitted = FALSE;
 
-  /* if this returns FALSE, there's no PID, which means something bizarre   *
-   * and untrustowrthy is going on, which in turn means we must deny: can't *
-   * authorise without first authenticating                                 */
+  /* if this returns FALSE, there are no credentials, which means something
+   * untrustworthy is going on, which in turn means we must deny: can't
+   * authorise without first authenticating */
   permitted = dbus_g_proxy_end_call (proxy, call, &error,
-      G_TYPE_UINT, &pid,
+      DBUS_TYPE_G_UINT_ARRAY, &au,
       G_TYPE_INVALID);
 
   if (permitted)
-    permitted = pid_is_permitted (self, pid);
+    {
+      permitted = caller_creds_are_enough (ad->name, au);
+      g_array_unref (au);
+    }
   else
-    g_error_free (error);
+    {
+      DEBUG ("GetConnectionCredentials failed: %s", error->message);
+      g_clear_error (&error);
+    }
 
-  DEBUG ("finished async Aegis ACL check [%u -> %s]",
-      pid, permitted ? "Allowed" : "Forbidden");
+  DEBUG ("finished async Aegis ACL check [%s]",
+      permitted ? "Allowed" : "Forbidden");
 
   mcp_dbus_acl_authorised_async_step (ad, permitted);
 
@@ -244,9 +308,9 @@ caller_async_authorised (const McpDBusAcl *self,
       proxy = dbus_g_proxy_new_for_name (dgc,
           DBUS_SERVICE_DBUS,
           DBUS_PATH_DBUS,
-          DBUS_INTERFACE_DBUS);
+          AEGIS_INTERFACE);
 
-      dbus_g_proxy_begin_call (proxy, "GetConnectionUnixProcessID",
+      dbus_g_proxy_begin_call (proxy, "GetConnectionCredentials",
           async_authorised_cb,
           data,
           NULL,
@@ -263,7 +327,7 @@ caller_async_authorised (const McpDBusAcl *self,
 
 
 static void
-dbus_acl_iface_init (McpDBusAclIface *iface,
+aegis_acl_iface_init (McpDBusAclIface *iface,
     gpointer unused G_GNUC_UNUSED)
 {
   mcp_dbus_acl_iface_set_name (iface, PLUGIN_NAME);
@@ -273,18 +337,80 @@ dbus_acl_iface_init (McpDBusAclIface *iface,
   mcp_dbus_acl_iface_implement_authorised_async (iface, caller_async_authorised);
 }
 
-GObject *
-mcp_plugin_ref_nth_object (guint n)
+static gchar *restricted_cms[] = { "ring", "mmscm", NULL };
+
+static inline gboolean
+cm_is_restricted (const gchar *cm_name)
 {
-  DEBUG ("Initializing mcp-dbus-caller-id plugin (n=%u)", n);
+  guint i;
 
-  switch (n)
+  for (i = 0; restricted_cms[i] != NULL; i++)
     {
-    case 0:
-      return g_object_new (dbus_aegis_acl_get_type (), NULL);
-
-    default:
-      return NULL;
+      if (!tp_strdiff (restricted_cms[i], cm_name))
+        return TRUE;
     }
+
+  return FALSE;
 }
 
+static void
+handler_is_suitable_async (McpDispatchOperationPolicy *self,
+    TpClient *recipient,
+    const gchar *unique_name,
+    McpDispatchOperation *dispatch_op,
+    GAsyncReadyCallback callback,
+    gpointer user_data)
+{
+  const gchar *manager = mcp_dispatch_operation_get_cm_name (dispatch_op);
+  GSimpleAsyncResult *simple = g_simple_async_result_new ((GObject *) self,
+      callback, user_data, handler_is_suitable_async);
+  gboolean ok = TRUE;
+
+  if (cm_is_restricted (manager))
+    {
+      TpDBusDaemon *dbus = tp_dbus_daemon_dup (NULL);
+
+      /* if MC started successfully, we ought to have one */
+      g_assert (dbus != NULL);
+
+      if (!tp_str_empty (unique_name))
+        {
+          ok = check_peer_creds_sync (tp_proxy_get_dbus_connection (dbus),
+              unique_name);
+        }
+      else
+        {
+          g_assert (recipient != NULL);
+
+          ok = check_peer_creds_sync (tp_proxy_get_dbus_connection (dbus),
+              tp_proxy_get_bus_name (recipient));
+        }
+
+      if (!ok)
+        {
+          g_simple_async_result_set_error (simple, TP_ERRORS,
+              TP_ERROR_PERMISSION_DENIED, "insufficient Aegis credentials");
+        }
+
+      g_object_unref (dbus);
+    }
+
+  DEBUG ("sync Aegis CDO policy check [%s]", ok ? "Allowed" : "Forbidden");
+
+  g_simple_async_result_complete_in_idle (simple);
+  g_object_unref (simple);
+}
+
+static void
+aegis_cdo_policy_iface_init (McpDispatchOperationPolicyIface *iface,
+    gpointer unused G_GNUC_UNUSED)
+{
+  iface->handler_is_suitable_async = handler_is_suitable_async;
+  /* the default finish function accepts our GSimpleAsyncResult */
+}
+
+GObject *
+aegis_acl_new (void)
+{
+  return g_object_new (aegis_acl_get_type (), NULL);
+}

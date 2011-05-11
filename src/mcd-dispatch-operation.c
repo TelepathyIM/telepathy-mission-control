@@ -243,6 +243,13 @@ struct _McdDispatchOperationPrivate
      * A reference is held for each pending approver. */
     gsize ado_pending;
 
+    /* The number of plugins whose decision we're waiting for,
+     * regarding whether a handler is in fact suitable. */
+    gsize handler_suitable_pending;
+
+    /* If non-NULL, a plugin has decided the selected handler is unsuitable. */
+    GError *handler_unsuitable;
+
     /* If TRUE, we're dispatching a channel request and it was cancelled */
     gboolean cancelled;
 
@@ -250,9 +257,9 @@ struct _McdDispatchOperationPrivate
      * after observers */
     gboolean observe_only;
 
-    /* If TRUE, we're in the middle of calling HandleChannels. This is a
-     * client lock. */
-    gboolean calling_handle_channels;
+    /* If non-NULL, we're in the middle of asking plugins whether we may call
+     * HandleChannels, or doing so. This is a client lock. */
+    McdClientProxy *trying_handler;
 
     /* If TRUE, we've tried all the BypassApproval handlers, which happens
      * before we run approvers. */
@@ -457,9 +464,9 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 
     /* if we've called one Handler, we may not continue until it responds
      * with an error */
-    if (self->priv->calling_handle_channels)
+    if (self->priv->trying_handler != NULL)
     {
-        DEBUG ("waiting for HandleChannels to return");
+        DEBUG ("waiting for handler_is_suitable or HandleChannels to return");
         return;
     }
 
@@ -917,27 +924,97 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
                                          context);
 }
 
+typedef struct {
+    McdDispatchOperation *self;
+    DBusGMethodInvocation *context;
+    gsize handler_suitable_pending;
+} ClaimAttempt;
+
+static void
+claim_attempt_resolve (ClaimAttempt *claim_attempt)
+{
+    if (claim_attempt->context != NULL)
+    {
+        g_queue_push_tail (claim_attempt->self->priv->approvals,
+                           approval_new_claim (claim_attempt->context));
+        _mcd_dispatch_operation_check_client_locks (claim_attempt->self);
+    }
+
+    g_object_unref (claim_attempt->self);
+    g_slice_free (ClaimAttempt, claim_attempt);
+}
+
+static void
+claim_attempt_suitability_cb (GObject *source,
+                              GAsyncResult *res,
+                              gpointer user_data)
+{
+    ClaimAttempt *claim_attempt = user_data;
+    GError *error = NULL;
+
+    if (!mcp_dispatch_operation_policy_handler_is_suitable_finish (
+            MCP_DISPATCH_OPERATION_POLICY (source), res, &error))
+    {
+        if (claim_attempt->context != NULL)
+            dbus_g_method_return_error (claim_attempt->context, error);
+
+        claim_attempt->context = NULL;
+        g_error_free (error);
+    }
+
+    if (--claim_attempt->handler_suitable_pending == 0)
+    {
+        DEBUG ("all plugins have finished, resolving claim attempt");
+        claim_attempt_resolve (claim_attempt);
+    }
+}
+
 static void
 dispatch_operation_claim (TpSvcChannelDispatchOperation *cdo,
                           DBusGMethodInvocation *context)
 {
     McdDispatchOperation *self = MCD_DISPATCH_OPERATION (cdo);
-    McdDispatchOperationPrivate *priv = self->priv;
+    ClaimAttempt *claim_attempt;
+    gchar *sender = dbus_g_method_get_sender (context);
+    McpDispatchOperation *plugin_api = MCP_DISPATCH_OPERATION (
+        self->priv->plugin_api);
+    const GList *p;
 
     if (self->priv->result != NULL)
     {
-        gchar *sender = dbus_g_method_get_sender (context);
 
-        DEBUG ("Giving error to %s: %s", sender, priv->result->message);
-        dbus_g_method_return_error (context, priv->result);
-
-        g_free (sender);
-
-        return;
+        DEBUG ("Giving error to %s: %s", sender, self->priv->result->message);
+        dbus_g_method_return_error (context, self->priv->result);
+        goto finally;
     }
 
-    g_queue_push_tail (priv->approvals, approval_new_claim (context));
-    _mcd_dispatch_operation_check_client_locks (self);
+    claim_attempt = g_slice_new0 (ClaimAttempt);
+    claim_attempt->self = g_object_ref (self);
+    claim_attempt->context = context;
+    claim_attempt->handler_suitable_pending = 0;
+
+    for (p = mcp_list_objects (); p != NULL; p = g_list_next (p))
+    {
+        if (MCP_IS_DISPATCH_OPERATION_POLICY (p->data))
+        {
+            McpDispatchOperationPolicy *plugin = p->data;
+
+            DEBUG ("%s: checking policy for %s",
+                G_OBJECT_TYPE_NAME (plugin), sender);
+
+            claim_attempt->handler_suitable_pending++;
+            mcp_dispatch_operation_policy_handler_is_suitable_async (plugin,
+                    NULL, sender, plugin_api,
+                    claim_attempt_suitability_cb,
+                    claim_attempt);
+        }
+    }
+
+    if (claim_attempt->handler_suitable_pending == 0)
+        claim_attempt_resolve (claim_attempt);
+
+finally:
+    g_free (sender);
 }
 
 static void
@@ -1881,7 +1958,7 @@ _mcd_dispatch_operation_handle_channels_cb (TpClient *client,
                                         tp_proxy_get_bus_name (client));
     }
 
-    self->priv->calling_handle_channels = FALSE;
+    tp_clear_object (&self->priv->trying_handler);
     _mcd_dispatch_operation_check_client_locks (self);
 }
 
@@ -2215,14 +2292,29 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
  * Invoke the handler for the given channels.
  */
 static void
-mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
-                                        McdClientProxy *handler)
+mcd_dispatch_operation_handle_channels (McdDispatchOperation *self)
 {
     GHashTable *handler_info;
     GHashTable *request_properties;
 
-    g_assert (!self->priv->calling_handle_channels);
-    self->priv->calling_handle_channels = TRUE;
+    g_assert (self->priv->trying_handler != NULL);
+
+    if (self->priv->handler_unsuitable != NULL)
+    {
+        GError *tmp = self->priv->handler_unsuitable;
+
+        /* move the error out of the way first, in case the callback
+         * tries a different handler which will also want to check
+         * handler_unsuitable */
+        self->priv->handler_unsuitable = NULL;
+
+        _mcd_dispatch_operation_handle_channels_cb (
+            (TpClient *) self->priv->trying_handler,
+            tmp, self, NULL);
+        g_error_free (tmp);
+
+        return;
+    }
 
     handler_info = tp_asv_new (NULL, NULL);
     collect_satisfied_requests (self->priv->channels, NULL,
@@ -2231,12 +2323,82 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self,
         MC_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP, request_properties);
     request_properties = NULL;
 
-    _mcd_client_proxy_handle_channels (handler,
+    _mcd_client_proxy_handle_channels (self->priv->trying_handler,
         -1, self->priv->channels, self->priv->handle_with_time,
         handler_info, _mcd_dispatch_operation_handle_channels_cb,
         g_object_ref (self), g_object_unref, NULL);
 
     g_hash_table_unref (handler_info);
+}
+
+static void
+mcd_dispatch_operation_handler_decision_cb (GObject *source,
+                                            GAsyncResult *res,
+                                            gpointer user_data)
+{
+    McdDispatchOperation *self = user_data;
+    GError *error = NULL;
+
+    if (!mcp_dispatch_operation_policy_handler_is_suitable_finish (
+            MCP_DISPATCH_OPERATION_POLICY (source), res, &error))
+    {
+        /* ignore any errors after the first */
+        if (self->priv->handler_unsuitable == NULL)
+            g_propagate_error (&self->priv->handler_unsuitable, error);
+        else
+            g_error_free (error);
+    }
+
+    if (--self->priv->handler_suitable_pending == 0)
+    {
+        mcd_dispatch_operation_handle_channels (self);
+    }
+
+    g_object_unref (self);
+}
+
+static void
+mcd_dispatch_operation_try_handler (McdDispatchOperation *self,
+                                    McdClientProxy *handler)
+{
+    TpClient *handler_client = (TpClient *) handler;
+    const GList *p;
+    McpDispatchOperation *plugin_api = MCP_DISPATCH_OPERATION (
+        self->priv->plugin_api);
+
+    g_assert (self->priv->trying_handler == NULL);
+    self->priv->trying_handler = g_object_ref (handler);
+
+    self->priv->handler_suitable_pending = 0;
+
+    DEBUG ("%s: channel ACL verification [%u channels]",
+        self->priv->unique_name,
+        g_list_length (self->priv->channels));
+
+    for (p = mcp_list_objects (); p != NULL; p = g_list_next (p))
+    {
+        if (MCP_IS_DISPATCH_OPERATION_POLICY (p->data))
+        {
+            McpDispatchOperationPolicy *plugin = p->data;
+
+            DEBUG ("%s: checking policy for %s",
+                G_OBJECT_TYPE_NAME (plugin),
+                tp_proxy_get_object_path (handler));
+
+            self->priv->handler_suitable_pending++;
+            mcp_dispatch_operation_policy_handler_is_suitable_async (plugin,
+                    handler_client,
+                    _mcd_client_proxy_get_unique_name (handler),
+                    plugin_api,
+                    mcd_dispatch_operation_handler_decision_cb,
+                    g_object_ref (self));
+        }
+    }
+
+    if (self->priv->handler_suitable_pending == 0)
+    {
+        mcd_dispatch_operation_handle_channels (self);
+    }
 }
 
 static gboolean
@@ -2269,7 +2431,7 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
         if (handler != NULL &&
             (approval->type == APPROVAL_TYPE_HANDLE_WITH || !failed))
         {
-            mcd_dispatch_operation_handle_channels (self, handler);
+            mcd_dispatch_operation_try_handler (self, handler);
             return TRUE;
         }
 
@@ -2278,11 +2440,14 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
          * can legitimately try more handlers. */
         if (approval->type == APPROVAL_TYPE_HANDLE_WITH)
         {
-            GError gone = { TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
+            GError gone = { TP_ERRORS,
+                TP_ERROR_NOT_IMPLEMENTED,
                 "The requested Handler does not exist" };
 
             g_queue_pop_head (self->priv->approvals);
+
             dbus_g_method_return_error (approval->context, &gone);
+
             approval->context = NULL;
             approval_free (approval);
             return TRUE;
@@ -2304,7 +2469,7 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
         if (handler != NULL && !failed &&
             (is_approved || _mcd_client_proxy_get_bypass_approval (handler)))
         {
-            mcd_dispatch_operation_handle_channels (self, handler);
+            mcd_dispatch_operation_try_handler (self, handler);
             return TRUE;
         }
     }

@@ -112,9 +112,9 @@ void mcp_dbus_acl_iface_implement_authorised (McpDBusAclIface *iface,
 void mcp_dbus_acl_iface_implement_authorised_async (McpDBusAclIface *iface,
     DBusAclAsyncAuthoriser method);
 
-const gchar *mcp_dbus_acl_name (const McpDBusAcl *storage);
+const gchar *mcp_dbus_acl_name (const McpDBusAcl *acl);
 
-const gchar *mcp_dbus_acl_description (const McpDBusAcl *storage);
+const gchar *mcp_dbus_acl_description (const McpDBusAcl *acl);
 
 G_END_DECLS
 
