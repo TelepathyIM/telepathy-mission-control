@@ -116,6 +116,17 @@ const gchar *mcp_dbus_acl_name (const McpDBusAcl *acl);
 
 const gchar *mcp_dbus_acl_description (const McpDBusAcl *acl);
 
+struct _McpDBusAclIface
+{
+  GTypeInterface parent;
+
+  const gchar *name;
+  const gchar *desc;
+
+  DBusAclAuthoriser authorised;
+  DBusAclAsyncAuthoriser authorised_async;
+};
+
 G_END_DECLS
 
 #endif

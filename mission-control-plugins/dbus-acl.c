@@ -32,26 +32,23 @@
  * #McpDBusAcl, then return an instance of that subclass from
  * mcp_plugin_ref_nth_object().
  *
- * The contents of the #McpDBusAcl struct are not public,
- * so to provide an implementation of the virtual methods,
- * plugins should call mcp_dbus_acl_iface_implement_*()
- * from the interface initialization function, like this:
+ * An implementation of this interface might look like this:
  *
  * <example><programlisting>
  * G_DEFINE_TYPE_WITH_CODE (APlugin, a_plugin,
  *    G_TYPE_OBJECT,
  *    G_IMPLEMENT_INTERFACE (...);
- *    G_IMPLEMENT_INTERFACE (MCP_TYPE_DBUS_ACL, dbus_acl_iface_init));
+ *    G_IMPLEMENT_INTERFACE (MCP_TYPE_DBUS_ACL, dbus_acl_iface_init);
+ *    G_IMPLEMENT_INTERFACE (...))
  * /<!-- -->* ... *<!-- -->/
  * static void
  * dbus_acl_iface_init (McpDBusAclIface *iface,
  *     gpointer unused G_GNUC_UNUSED)
  * {
- *   mcp_dbus_acl_iface_set_name (iface, PLUGIN_NAME);
- *   mcp_dbus_acl_iface_set_desc (iface, PLUGIN_DESCRIPTION);
- *   mcp_dbus_acl_iface_implement_authorised       (iface, _authorised);
- *   mcp_dbus_acl_iface_implement_authorised_async (iface, _authorised_async);
- * /<!-- -->* ... *<!-- -->/
+ *   iface-&gt;name = "APlugin";
+ *   iface-&gt;desc = "A plugin that checks some conditions";
+ *   iface-&gt;authorised = _authorised;
+ *   iface-&gt;authorised_async = _authorised_async;
  * }
  * </programlisting></example>
  *
@@ -77,16 +74,15 @@
 
 #endif /* ENABLE_DEBUG */
 
-struct _McpDBusAclIface
-{
-  GTypeInterface parent;
-
-  const gchar *name;
-  const gchar *desc;
-
-  DBusAclAuthoriser authorised;
-  DBusAclAsyncAuthoriser authorised_async;
-};
+/**
+ * McpDBusAclIface:
+ * @parent: the parent type
+ * @name: the name of the plugin, or %NULL to use the GObject class name
+ * @desc: the description of the plugin, or %NULL
+ * @authorised: an implementation of part of mcp_dbus_acl_authorised()
+ * @authorised_async: an implementation of part of
+ *    mcp_dbus_acl_authorised_async()
+ */
 
 GType
 mcp_dbus_acl_get_type (void)
@@ -175,6 +171,8 @@ auth_data_free (DBusAclAuthData *data)
  * @name: the plugin's name (used in debugging and some return values)
  *
  * Sets the name of the plugin. Intended for use by the plugin implementor.
+ *
+ * This is no longer necessary: just use "iface->name = name".
  **/
 void
 mcp_dbus_acl_iface_set_name (McpDBusAclIface *iface,
@@ -189,6 +187,8 @@ mcp_dbus_acl_iface_set_name (McpDBusAclIface *iface,
  * @desc: the plugin's description
  *
  * Sets the plugin's description. Intended for use by the plugin implementor.
+ *
+ * This is no longer necessary: just use "iface->desc = desc".
  **/
 void
 mcp_dbus_acl_iface_set_desc (McpDBusAclIface *iface,
@@ -197,6 +197,15 @@ mcp_dbus_acl_iface_set_desc (McpDBusAclIface *iface,
   iface->desc = desc;
 }
 
+/**
+ * mcp_dbus_acl_iface_implement_authorised:
+ * @iface: an instance implementing McpDBusAclIface
+ * @method: the plugin's description
+ *
+ * Implements this plugin's part of the mcp_dbus_acl_authorised() method.
+ *
+ * This is no longer necessary: just use "iface->authorised = method".
+ **/
 void
 mcp_dbus_acl_iface_implement_authorised (McpDBusAclIface *iface,
     DBusAclAuthoriser method)
@@ -204,6 +213,15 @@ mcp_dbus_acl_iface_implement_authorised (McpDBusAclIface *iface,
   iface->authorised = method;
 }
 
+/**
+ * mcp_dbus_acl_iface_implement_authorised_async:
+ * @iface: an instance implementing McpDBusAclIface
+ * @method: the plugin's description
+ *
+ * Implements this plugin's part of the mcp_dbus_acl_authorised_async() method.
+ *
+ * This is no longer necessary: just use "iface->authorised_async = method".
+ **/
 void
 mcp_dbus_acl_iface_implement_authorised_async (McpDBusAclIface *iface,
     DBusAclAsyncAuthoriser method)
