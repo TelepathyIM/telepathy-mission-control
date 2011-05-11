@@ -47,11 +47,20 @@ typedef struct _McpRequestPolicyIface McpRequestPolicyIface;
 GType mcp_request_policy_get_type (void) G_GNUC_CONST;
 
 /* virtual methods */
+
+typedef void (*McpRequestPolicyCb) (McpRequestPolicy *policy,
+    McpRequest *request);
+
 void mcp_request_policy_check (McpRequestPolicy *policy, McpRequest *request);
 
-/* vtable manipulation - the vtable is private to allow for expansion */
 void mcp_request_policy_iface_implement_check (McpRequestPolicyIface *iface,
     void (*impl) (McpRequestPolicy *, McpRequest *));
+
+struct _McpRequestPolicyIface {
+    GTypeInterface parent;
+
+    McpRequestPolicyCb check;
+};
 
 G_END_DECLS
 

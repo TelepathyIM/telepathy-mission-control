@@ -35,10 +35,7 @@
  * #McpRequestPolicy, then return an instance of that subclass from
  * mcp_plugin_ref_nth_object().
  *
- * The contents of the #McpRequestPolicyIface struct are not public, so to
- * provide an implementation of the check method,
- * plugins should call mcp_request_policy_iface_implement_check() from the
- * interface initialization function, like this:
+ * An implementation of this plugin might look like this:
  *
  * <example><programlisting>
  * G_DEFINE_TYPE_WITH_CODE (MyPlugin, my_plugin,
@@ -52,8 +49,7 @@
  * request_policy_iface_init (McpRequestPolicyIface *iface,
  *     gpointer unused G_GNUC_UNUSED)
  * {
- *   mcp_request_policy_iface_implement_check (iface,
- *       my_plugin_check_request);
+ *   iface-&gt;check = my_plugin_check_request;
  * }
  * </programlisting></example>
  *
@@ -63,11 +59,12 @@
 
 #include <mission-control-plugins/mission-control-plugins.h>
 
-struct _McpRequestPolicyIface {
-    GTypeInterface parent;
-
-    void (*check) (McpRequestPolicy *, McpRequest *);
-};
+/**
+ * McpRequestPolicyIface:
+ * @parent: the parent type
+ * @check: an implementation of mcp_request_policy_check(), or %NULL
+ *  to do nothing
+ */
 
 GType
 mcp_request_policy_get_type (void)
@@ -101,6 +98,14 @@ mcp_request_policy_get_type (void)
 }
 
 /**
+ * McpRequestPolicyCb:
+ * @policy: an implementation of this interface, provided by a plugin
+ * @request: an object representing a channel request
+ *
+ * Signature of an implementation of mcp_request_policy_check().
+ */
+
+/**
  * mcp_request_policy_check:
  * @policy: an implementation of this interface, provided by a plugin
  * @request: an object representing a channel request
@@ -131,6 +136,9 @@ mcp_request_policy_check (McpRequestPolicy *policy,
  * mcp_request_policy_iface_implement_check:
  * @iface: the interface
  * @impl: an implementation of the virtual method mcp_request_policy_check()
+ *
+ * This function is no longer needed, since #McpRequestPolicyIface is now
+ * public API. Use "iface->check = impl" instead.
  */
 void
 mcp_request_policy_iface_implement_check (McpRequestPolicyIface *iface,
