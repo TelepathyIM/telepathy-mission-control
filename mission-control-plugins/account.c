@@ -21,6 +21,23 @@
 #include <mission-control-plugins/mission-control-plugins.h>
 #include <mission-control-plugins/implementation.h>
 
+/**
+ * SECTION:account
+ * @title: McpAccountManager
+ * @short_description: Object representing the account manager, implemented
+ *    by Mission Control
+ * @see_also: #McpAccountStorage
+ * @include: mission-control-plugins/mission-control-plugins.h
+ *
+ * This object represents the Telepathy AccountManager.
+ *
+ * Most virtual methods on the McpAccountStorageIface interface receive an
+ * object provided by Mission Control that implements this interface.
+ * It can be used to manipulate Mission Control's in-memory cache of accounts.
+ *
+ * Only Mission Control should implement this interface.
+ */
+
 GType
 mcp_account_manager_get_type (void)
 {
