@@ -23,7 +23,7 @@
  * @title: McpAccountStorage
  * @short_description: Account Storage object, implemented by plugins
  * @see_also:
- * @include: mission-control-plugins/account-storage.h
+ * @include: mission-control-plugins/mission-control-plugins.h
  *
  * Plugins may implement #McpAccountStorage in order to provide account
  * parameter storage backends to the AccountManager object.

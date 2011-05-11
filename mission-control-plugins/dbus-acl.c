@@ -23,7 +23,7 @@
  * @title: McpDBusAcl
  * @short_description: DBus ACLs, implemented by plugins
  * @see_also:
- * @include: mission-control-plugins/dbus-acl.h
+ * @include: mission-control-plugins/mission-control-plugins.h
  *
  * Plugins may implement #McpDBusAcl in order to provide checks on whether
  * a DBus method call or property get/set operation should be allowed.
