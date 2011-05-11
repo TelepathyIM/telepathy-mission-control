@@ -1,5 +1,7 @@
-telepathy-mission-control 5.7.11 (UNRELEASED)
+telepathy-mission-control 5.7.11 (2011-05-11)
 ============================================
+
+The “Then you admit confirming not denying you ever said that?” release.
 
 Enhancements:
 
@@ -13,6 +15,12 @@ Enhancements:
 • The McpDispatchOperationPolicyIface struct is directly visible to plugins,
   removing the need to call mcp_dispatch_operation_policy_iface_implement_check
   (smcv)
+
+• The implementation vtable of MCP plugin classes is no longer concealed, and
+  maybe assigned to directly by implementations instead of using the _implement
+  methods (wjt, smcv)
+
+• More/better documentation for the MCP plugin classes (smcv)
 
 Fixes:
 
