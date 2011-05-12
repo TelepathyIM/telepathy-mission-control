@@ -2410,14 +2410,59 @@ messages_iface_init (gpointer iface, gpointer data G_GNUC_UNUSED)
 typedef struct
 {
   McdDispatcher *self;
-  McdAccount *account;
   gint64 user_action_time;
   DBusGMethodInvocation *context;
-  /* List of reffed McdChannel */
+  /* List of owned ChannelToDelegate */
   GList *channels;
+  /* array of owned channel path */
+  GPtrArray *delegated;
+  /* owned channel path -> owned GValueArray representing a
+   * TP_STRUCT_TYPE_NOT_DELEGATED_ERROR  */
+  GHashTable *not_delegated;
+} DelegateChannelsCtx;
+
+typedef struct
+{
+  /* borrowed reference */
+  DelegateChannelsCtx *ctx;
+  McdAccount *account;
+  McdChannel *channel;
   /* Queue of reffed McdClientProxy */
   GQueue *handlers;
-} DelegateChannelsCtx;
+  GError *error;
+} ChannelToDelegate;
+
+static ChannelToDelegate *
+channel_to_delegate_new (DelegateChannelsCtx *ctx,
+  McdAccount *account,
+  McdChannel *channel)
+{
+  ChannelToDelegate *chan = g_slice_new0 (ChannelToDelegate);
+
+  chan->ctx = ctx;
+  chan->account = g_object_ref (account);
+  chan->channel = g_object_ref (channel);
+  chan->handlers = g_queue_new ();
+  chan->error = NULL;
+  return chan;
+}
+
+static void
+channel_to_delegate_free (ChannelToDelegate *chan)
+{
+  g_object_unref (chan->account);
+  g_object_unref (chan->channel);
+  g_queue_foreach (chan->handlers, (GFunc) g_object_unref, NULL);
+  g_queue_free (chan->handlers);
+  tp_clear_pointer (&chan->error, g_error_free);
+  g_slice_free (ChannelToDelegate, chan);
+}
+
+static void
+free_not_delegated_error (gpointer data)
+{
+    g_boxed_free (TP_STRUCT_TYPE_NOT_DELEGATED_ERROR, data);
+}
 
 static DelegateChannelsCtx *
 delegate_channels_ctx_new (McdDispatcher *self,
@@ -2429,7 +2474,10 @@ delegate_channels_ctx_new (McdDispatcher *self,
   ctx->self = g_object_ref (self);
   ctx->user_action_time = user_action_time;
   ctx->context = context;
-  ctx->handlers = g_queue_new ();
+  ctx->channels = NULL;
+  ctx->delegated = g_ptr_array_new_with_free_func (g_free);
+  ctx->not_delegated = g_hash_table_new_full (g_str_hash, g_str_equal,
+      g_free, free_not_delegated_error);
   return ctx;
 }
 
@@ -2437,15 +2485,31 @@ static void
 delegate_channels_ctx_free (DelegateChannelsCtx *ctx)
 {
   g_object_unref (ctx->self);
-  g_object_unref (ctx->account);
-  g_list_foreach (ctx->channels, (GFunc) g_object_unref, NULL);
-  g_list_free (ctx->channels);
-  g_queue_foreach (ctx->handlers, (GFunc) g_object_unref, NULL);
-  g_queue_free (ctx->handlers);
+  g_ptr_array_unref (ctx->delegated);
+  g_hash_table_unref (ctx->not_delegated);
+  g_list_free_full (ctx->channels, (GDestroyNotify) channel_to_delegate_free);
   g_slice_free (DelegateChannelsCtx, ctx);
 }
 
-static void try_delegating (DelegateChannelsCtx *ctx);
+static void try_delegating (ChannelToDelegate *to_delegate);
+
+static void
+delegation_done (ChannelToDelegate *to_delegate)
+{
+  DelegateChannelsCtx *ctx = to_delegate->ctx;
+
+  ctx->channels = g_list_remove (ctx->channels, to_delegate);
+  channel_to_delegate_free (to_delegate);
+
+  if (ctx->channels == NULL)
+    {
+      /* We are done */
+      tp_svc_channel_dispatcher_return_from_delegate_channels (
+          ctx->context, ctx->delegated, ctx->not_delegated);
+
+      delegate_channels_ctx_free (ctx);
+    }
+}
 
 static void
 delegate_channels_cb (TpClient *client,
@@ -2453,175 +2517,103 @@ delegate_channels_cb (TpClient *client,
     gpointer user_data G_GNUC_UNUSED,
     GObject *weak_object)
 {
-  DelegateChannelsCtx *ctx = user_data;
-  GList *l;
+  ChannelToDelegate *to_delegate = user_data;
+  DelegateChannelsCtx *ctx = to_delegate->ctx;
   McdClientProxy *clt_proxy = MCD_CLIENT_PROXY (client);
 
   if (error != NULL)
     {
-        DEBUG ("Handler refused delegated channels");
+      DEBUG ("Handler refused delegated channels");
 
-        try_delegating (ctx);
-        return;
-    }
+      if (to_delegate->error == NULL)
+          to_delegate->error = g_error_copy (error);
 
-  DEBUG ("Channels have been delegated");
-
-  for (l = ctx->channels; l != NULL; l = g_list_next (l))
-    {
-      McdChannel *channel = l->data;
-
-      _mcd_handler_map_set_path_handled (ctx->self->priv->handler_map,
-          mcd_channel_get_object_path (channel),
-          _mcd_client_proxy_get_unique_name (clt_proxy),
-          tp_proxy_get_bus_name (client));
-    }
-
-  tp_svc_channel_dispatcher_return_from_delegate_channels (
-      ctx->context);
-
-  delegate_channels_ctx_free (ctx);
-}
-
-static void
-try_delegating (DelegateChannelsCtx *ctx)
-{
-  McdClientProxy *client;
-
-  if (g_queue_get_length (ctx->handlers) == 0)
-    {
-      GError *error = NULL;
-
-      g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_CAPABLE,
-          "There is no other suitable handler");
-
-      dbus_g_method_return_error (ctx->context, error);
-      g_error_free (error);
-
-      delegate_channels_ctx_free (ctx);
+      try_delegating (to_delegate);
       return;
     }
 
-  client = g_queue_pop_head (ctx->handlers);
+  DEBUG ("Channel %s has been delegated", mcd_channel_get_object_path (
+      to_delegate->channel));
+
+  _mcd_handler_map_set_path_handled (ctx->self->priv->handler_map,
+      mcd_channel_get_object_path (to_delegate->channel),
+      _mcd_client_proxy_get_unique_name (clt_proxy),
+      tp_proxy_get_bus_name (client));
+
+  g_ptr_array_add (ctx->delegated, g_strdup (
+      mcd_channel_get_object_path (to_delegate->channel)));
+
+  delegation_done (to_delegate);
+}
+
+static void
+try_delegating (ChannelToDelegate *to_delegate)
+{
+  McdClientProxy *client;
+  GList *channels = NULL;
+
+  if (g_queue_get_length (to_delegate->handlers) == 0)
+    {
+      GValueArray *v;
+      const gchar *dbus_error;
+
+      if (to_delegate->error == NULL)
+        {
+          g_set_error (&to_delegate->error, TP_ERRORS, TP_ERROR_NOT_CAPABLE,
+              "There is no other suitable handler");
+        }
+
+      if (to_delegate->error->domain == TP_ERRORS)
+        dbus_error = tp_error_get_dbus_name (to_delegate->error->code);
+      else
+        dbus_error = TP_ERROR_STR_NOT_AVAILABLE;
+
+      /* We failed to delegate this channel */
+      v = tp_value_array_build (2,
+        G_TYPE_STRING, dbus_error,
+        G_TYPE_STRING, to_delegate->error->message,
+        G_TYPE_INVALID);
+
+      g_hash_table_insert (to_delegate->ctx->not_delegated,
+          g_strdup (mcd_channel_get_object_path (to_delegate->channel)),
+          v);
+
+      delegation_done (to_delegate);
+      return;
+    }
+
+  client = g_queue_pop_head (to_delegate->handlers);
 
   DEBUG ("Try delegating channels to %s", _mcd_client_proxy_get_unique_name (
       client));
 
-  _mcd_client_proxy_handle_channels (client, -1, ctx->channels,
-      ctx->user_action_time, NULL, delegate_channels_cb,
-      ctx, NULL, NULL);
+  channels = g_list_prepend (channels, to_delegate->channel);
+
+  _mcd_client_proxy_handle_channels (client, -1, channels,
+      to_delegate->ctx->user_action_time, NULL, delegate_channels_cb,
+      to_delegate, NULL, NULL);
 
   g_object_unref (client);
+  g_list_free (channels);
 }
 
 static void
-dispatcher_delegate_channels (
-    TpSvcChannelDispatcher *iface,
-    const GPtrArray *channels,
-    gint64 user_action_time,
-    const gchar *preferred_handler,
-    DBusGMethodInvocation *context)
+add_possible_handlers (McdDispatcher *self,
+    ChannelToDelegate *to_delegate,
+    TpChannel *tp_channel,
+    const gchar *sender,
+    const gchar *preferred_handler)
 {
-  McdDispatcher *self = (McdDispatcher *) iface;
-  guint i;
-  GError *error = NULL;
-  const gchar *sender;
-  McdConnection *conn = NULL;
+  GList *channels = NULL;
   GStrv possible_handlers;
-  GList *tp_channels = NULL;
-  DelegateChannelsCtx *ctx = NULL;
-  const gchar *first_account = NULL;
+  guint i;
 
-  if (!check_preferred_handler (preferred_handler, &error))
-      goto error;
-
-  if (channels->len == 0)
-    {
-      g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-          "Need at least one channel to delegate");
-      goto error;
-    }
-
-  ctx = delegate_channels_ctx_new (self, user_action_time, context);
-
-  sender = dbus_g_method_get_sender (context);
-
-  for (i = 0; i < channels->len; i++)
-    {
-      const gchar *chan_path = g_ptr_array_index (channels, i);
-      const gchar *chan_account;
-      const gchar *handler;
-      McdChannel *mcd_channel;
-      TpChannel *tp_channel;
-
-      chan_account = _mcd_handler_map_get_channel_account (
-          self->priv->handler_map, chan_path);
-
-      if (chan_account == NULL)
-        {
-          g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-              "Unknown channel: %s", chan_path);
-          goto error;
-        }
-
-      /* All the channels should belong to the same account, so we just need
-       * to get the connection for the first one. */
-      if (first_account == NULL)
-        {
-          McdAccountManager *am;
-          McdAccount *account;
-
-          first_account = chan_account;
-
-          g_object_get (self->priv->master, "account-manager", &am, NULL);
-          g_assert (am != NULL);
-
-          account = mcd_account_manager_lookup_account_by_path (am,
-              chan_account);
-          g_return_if_fail (account != NULL);
-          g_object_unref (am);
-
-          conn = mcd_account_get_connection (account);
-
-          ctx->account = g_object_ref (account);
-        }
-      else
-        {
-          if (tp_strdiff (first_account, chan_account))
-            {
-              g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                  "All the channels should belong to the same account");
-              goto error;
-            }
-        }
-
-      /* Check the caller is handling the channel */
-      handler = _mcd_handler_map_get_handler (self->priv->handler_map,
-          chan_path, NULL);
-      if (tp_strdiff (sender, handler))
-       {
-          g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_YOURS,
-              "Your are not handling channel %s", chan_path);
-          goto error;
-       }
-
-      g_return_if_fail (conn != NULL);
-
-      mcd_channel = mcd_connection_find_channel_by_path (conn, chan_path);
-      g_return_if_fail (mcd_channel != NULL);
-
-      tp_channel = mcd_channel_get_tp_channel (mcd_channel);
-      g_return_if_fail (tp_channel != NULL);
-
-      tp_channels = g_list_prepend (tp_channels, tp_channel);
-      ctx->channels = g_list_prepend (ctx->channels,
-          g_object_ref (mcd_channel));
-    }
+  channels = g_list_prepend (channels, tp_channel);
 
   possible_handlers = mcd_dispatcher_dup_possible_handlers (self,
-      NULL, tp_channels, NULL);
+      NULL, channels, NULL);
 
-  g_list_free (tp_channels);
+  g_list_free (channels);
 
   for (i = 0; possible_handlers[i] != NULL; i++)
     {
@@ -2641,14 +2633,108 @@ dispatcher_delegate_channels (
       /* Put the preferred handler at the head of the list so it will be tried
        * first */
       if (!tp_strdiff (possible_handlers[i], preferred_handler))
-        g_queue_push_head (ctx->handlers, g_object_ref (client));
+        g_queue_push_head (to_delegate->handlers, g_object_ref (client));
       else
-        g_queue_push_tail (ctx->handlers, g_object_ref (client));
+        g_queue_push_tail (to_delegate->handlers, g_object_ref (client));
     }
 
   g_strfreev (possible_handlers);
+}
 
-  try_delegating (ctx);
+static void
+dispatcher_delegate_channels (
+    TpSvcChannelDispatcher *iface,
+    const GPtrArray *channels,
+    gint64 user_action_time,
+    const gchar *preferred_handler,
+    DBusGMethodInvocation *context)
+{
+  McdDispatcher *self = (McdDispatcher *) iface;
+  GError *error = NULL;
+  const gchar *sender;
+  McdConnection *conn = NULL;
+  DelegateChannelsCtx *ctx = NULL;
+  McdAccountManager *am;
+  guint i;
+  GList *l;
+
+  if (!check_preferred_handler (preferred_handler, &error))
+      goto error;
+
+  if (channels->len == 0)
+    {
+      g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+          "Need at least one channel to delegate");
+      goto error;
+    }
+
+  ctx = delegate_channels_ctx_new (self, user_action_time, context);
+
+  sender = dbus_g_method_get_sender (context);
+
+  g_object_get (self->priv->master, "account-manager", &am, NULL);
+  g_assert (am != NULL);
+
+  for (i = 0; i < channels->len; i++)
+    {
+      const gchar *chan_path = g_ptr_array_index (channels, i);
+      const gchar *chan_account;
+      const gchar *handler;
+      McdChannel *mcd_channel;
+      TpChannel *tp_channel;
+      McdAccount *account;
+      ChannelToDelegate *to_delegate;
+
+      chan_account = _mcd_handler_map_get_channel_account (
+          self->priv->handler_map, chan_path);
+
+      if (chan_account == NULL)
+        {
+          g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+              "Unknown channel: %s", chan_path);
+          goto error;
+        }
+
+      account = mcd_account_manager_lookup_account_by_path (am,
+          chan_account);
+      g_return_if_fail (account != NULL);
+
+      /* Check the caller is handling the channel */
+      handler = _mcd_handler_map_get_handler (self->priv->handler_map,
+          chan_path, NULL);
+      if (tp_strdiff (sender, handler))
+       {
+          g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_YOURS,
+              "Your are not handling channel %s", chan_path);
+          goto error;
+       }
+
+      conn = mcd_account_get_connection (account);
+      g_return_if_fail (conn != NULL);
+
+      mcd_channel = mcd_connection_find_channel_by_path (conn, chan_path);
+      g_return_if_fail (mcd_channel != NULL);
+
+      tp_channel = mcd_channel_get_tp_channel (mcd_channel);
+      g_return_if_fail (tp_channel != NULL);
+
+      to_delegate = channel_to_delegate_new (ctx, account, mcd_channel);
+
+      add_possible_handlers (self, to_delegate, tp_channel, sender,
+          preferred_handler);
+
+      ctx->channels = g_list_prepend (ctx->channels, to_delegate);
+    }
+
+  /* All the channels were ok, we can start delegating */
+  for (l = ctx->channels; l != NULL; l = g_list_next (l))
+    {
+      ChannelToDelegate *to_delegate = l->data;
+
+      try_delegating (to_delegate);
+    }
+
+  g_object_unref (am);
 
   return;
 
@@ -2657,6 +2743,7 @@ error:
   g_error_free (error);
 
   tp_clear_pointer (&ctx, delegate_channels_ctx_free);
+  tp_clear_object (&am);
 }
 
 static void

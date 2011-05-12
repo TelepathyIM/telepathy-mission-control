@@ -21,7 +21,7 @@
 import dbus
 import dbus.service
 
-from servicetest import call_async
+from servicetest import call_async, assertEquals
 from mctest import exec_test, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
         expect_client_setup
@@ -43,7 +43,8 @@ def test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs):
 
     q.dbus_return(e.message, signature='')
 
-    q.expect('dbus-return', method='DelegateChannels')
+    e = q.expect('dbus-return', method='DelegateChannels')
+    assertEquals(([chan.object_path], {}), e.value)
 
     # Let's play ping-pong channel! Empathy give the channel back to GS
     emp_cd = empathy_bus.get_object(cs.CD, cs.CD_PATH)
@@ -60,7 +61,8 @@ def test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs):
 
     q.dbus_return(e.message, signature='')
 
-    q.expect('dbus-return', method='DelegateChannels')
+    e = q.expect('dbus-return', method='DelegateChannels')
+    assertEquals(([chan.object_path], {}), e.value)
 
     # gnome-shell wants to give it back, again
     call_async(q, gs_cd_iface, 'DelegateChannels',
@@ -75,7 +77,8 @@ def test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs):
     q.dbus_raise(e.message, cs.NOT_AVAILABLE, "No thanks")
 
     # DelegateChannels failed so gnome-shell is still handling the channel
-    q.expect('dbus-error', method='DelegateChannels', name=cs.NOT_CAPABLE)
+    e = q.expect('dbus-return', method='DelegateChannels')
+    assertEquals(([], {chan.object_path: (cs.NOT_AVAILABLE, 'No thanks')}), e.value)
 
     # Empathy doesn't handle the channel atm but tries to delegates it
     call_async(q, emp_cd_iface, 'DelegateChannels',
@@ -124,7 +127,11 @@ def test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs):
     call_async(q, gs_cd_iface, 'DelegateChannels',
         [chan.object_path], 0, "")
 
-    q.expect('dbus-error', method='DelegateChannels', name=cs.NOT_CAPABLE)
+    e = q.expect('dbus-return', method='DelegateChannels')
+    delegated, not_delegated = e.value
+    assertEquals([], delegated)
+    error = not_delegated[chan.object_path]
+    assertEquals (error[0], cs.NOT_CAPABLE)
 
     chan.close()
 
