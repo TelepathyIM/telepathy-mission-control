@@ -219,7 +219,7 @@ _mcd_chmod_private (const gchar *filename)
 
     if (ret < 0)
     {
-        DEBUG ("g_stat: %s", g_strerror (errno));
+        DEBUG ("g_stat(%s): %s", filename, g_strerror (errno));
         return ret;
     }
 
