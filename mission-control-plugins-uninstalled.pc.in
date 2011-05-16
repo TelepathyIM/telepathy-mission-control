@@ -1,0 +1,18 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+libexecdir=@libexecdir@
+includedir=@includedir@
+MCP_API_VERSION=@MCP_API_VERSION@
+MCP_ABI_VERSION=@MCP_ABI_VERSION@
+plugindir=${libdir}/mission-control-plugins.@MCP_ABI_VERSION@
+missioncontrolpath=${libexecdir}/mission-control-5
+abs_top_srcdir=@abs_top_srcdir@
+abs_top_builddir=@abs_top_builddir@
+
+Name: mission-control-plugins (uninstalled)
+Description: Mission Control plugin API, Not Installed
+Requires: telepathy-glib
+Version: @VERSION@
+Libs: ${pc_top_builddir}/${pcfiledir}/libmission-control-plugins.la
+Cflags: -I${abs_top_srcdir}

@@ -64,6 +64,7 @@ ltmain.sh
 missing
 mission-control.pc
 /mission-control-plugins.pc
+/mission-control-plugins-uninstalled.pc
 patches/
 stamp-*
 /server/mission-control-5
