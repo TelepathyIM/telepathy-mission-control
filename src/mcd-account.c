@@ -829,8 +829,10 @@ static void mcd_account_changed_property (McdAccount *account,
 
 static void
 mcd_account_request_presence_int (McdAccount *account,
-				  TpConnectionPresenceType type,
-				  const gchar *status, const gchar *message)
+                                  TpConnectionPresenceType type,
+                                  const gchar *status,
+                                  const gchar *message,
+                                  gboolean user_initiated)
 {
     McdAccountPrivate *priv = account->priv;
     gboolean changed = FALSE;
@@ -1201,7 +1203,8 @@ _mcd_account_set_enabled (McdAccount *account,
             mcd_account_request_presence_int (account,
                                               priv->req_presence_type,
                                               priv->req_presence_status,
-                                              priv->req_presence_message);
+                                              priv->req_presence_message,
+                                              TRUE);
             _mcd_account_maybe_autoconnect (account);
         }
     }
@@ -1716,7 +1719,7 @@ set_requested_presence (TpSvcDBusProperties *self,
 
     DEBUG ("setting requested presence: %d, %s, %s", type, status, message);
 
-    mcd_account_request_presence_int (account, type, status, message);
+    mcd_account_request_presence_int (account, type, status, message, TRUE);
     return TRUE;
 }
 
@@ -3236,14 +3239,16 @@ _mcd_account_dup_parameters (McdAccount *account)
  * @status: presence status.
  * @message: presence status message.
  *
- * Request a presence status on the account.
+ * Request a presence status on the account, initiated by some other part of
+ * MC (i.e. not by user request).
  */
 void
 mcd_account_request_presence (McdAccount *account,
 			      TpConnectionPresenceType presence,
 			      const gchar *status, const gchar *message)
 {
-    mcd_account_request_presence_int (account, presence, status, message);
+    mcd_account_request_presence_int (account, presence, status, message,
+                                      FALSE);
 }
 
 static void
@@ -3927,11 +3932,14 @@ check_validity_check_parameters_cb (McdAccount *account,
 
         if (valid)
         {
-            /* newly valid - try setting requested presence again */
+            /* Newly valid - try setting requested presence again.
+             * This counts as user-initiated, because the user caused the
+             * account to become valid somehow. */
             mcd_account_request_presence_int (account,
                                               priv->req_presence_type,
                                               priv->req_presence_status,
-                                              priv->req_presence_message);
+                                              priv->req_presence_message,
+                                              TRUE);
         }
     }
 
@@ -3973,10 +3981,11 @@ _mcd_account_connect_with_auto_presence (McdAccount *account,
 {
     McdAccountPrivate *priv = account->priv;
 
-    mcd_account_request_presence (account,
-                                  priv->auto_presence_type,
-                                  priv->auto_presence_status,
-                                  priv->auto_presence_message);
+    mcd_account_request_presence_int (account,
+                                      priv->auto_presence_type,
+                                      priv->auto_presence_status,
+                                      priv->auto_presence_message,
+                                      user_initiated);
 }
 
 /*
