@@ -824,7 +824,10 @@ on_connection_abort (McdConnection *connection, McdAccount *account)
     _mcd_account_set_connection (account, NULL);
 }
 
-static gboolean
+static void mcd_account_changed_property (McdAccount *account,
+    const gchar *key, const GValue *value);
+
+static void
 mcd_account_request_presence_int (McdAccount *account,
 				  TpConnectionPresenceType type,
 				  const gchar *status, const gchar *message)
@@ -852,6 +855,21 @@ mcd_account_request_presence_int (McdAccount *account,
         changed = TRUE;
     }
 
+    if (changed)
+    {
+        GValue value = { 0 };
+
+        g_value_init (&value, TP_STRUCT_TYPE_SIMPLE_PRESENCE);
+        g_value_take_boxed (&value,
+                            tp_value_array_build (3,
+                                G_TYPE_UINT, type,
+                                G_TYPE_STRING, status,
+                                G_TYPE_STRING, message,
+                                G_TYPE_INVALID));
+        mcd_account_changed_property (account, "RequestedPresence", &value);
+        g_value_unset (&value);
+    }
+
     DEBUG ("Requested presence: %u %s %s",
         priv->req_presence_type,
         priv->req_presence_status,
@@ -862,13 +880,13 @@ mcd_account_request_presence_int (McdAccount *account,
         if (!priv->enabled)
         {
             DEBUG ("%s not Enabled", priv->unique_name);
-            return changed;
+            return;
         }
 
         if (!priv->valid)
         {
             DEBUG ("%s not Valid", priv->unique_name);
-            return changed;
+            return;
         }
     }
 
@@ -891,8 +909,6 @@ mcd_account_request_presence_int (McdAccount *account,
 					  priv->req_presence_status,
 					  priv->req_presence_message);
     }
-
-    return changed;
 }
 
 void
@@ -1700,11 +1716,7 @@ set_requested_presence (TpSvcDBusProperties *self,
 
     DEBUG ("setting requested presence: %d, %s, %s", type, status, message);
 
-    if (mcd_account_request_presence_int (account, type, status, message))
-    {
-	mcd_account_changed_property (account, name, value);
-    }
-
+    mcd_account_request_presence_int (account, type, status, message);
     return TRUE;
 }
 
@@ -3231,22 +3243,7 @@ mcd_account_request_presence (McdAccount *account,
 			      TpConnectionPresenceType presence,
 			      const gchar *status, const gchar *message)
 {
-    if (mcd_account_request_presence_int (account, presence, status, message))
-    {
-	GValue value = { 0 };
-	GType type;
-        GValueArray *va;
-
-	type = TP_STRUCT_TYPE_SIMPLE_PRESENCE;
-	g_value_init (&value, type);
-	g_value_take_boxed (&value, dbus_g_type_specialized_construct (type));
-	va = (GValueArray *) g_value_get_boxed (&value);
-	g_value_set_uint (va->values, presence);
-	g_value_set_static_string (va->values + 1, status);
-	g_value_set_static_string (va->values + 2, message);
-	mcd_account_changed_property (account, "RequestedPresence", &value);
-	g_value_unset (&value);
-    }
+    mcd_account_request_presence_int (account, presence, status, message);
 }
 
 static void
