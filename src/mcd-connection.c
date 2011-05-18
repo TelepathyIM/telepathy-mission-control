@@ -295,7 +295,8 @@ _mcd_connection_attempt (McdConnection *connection)
     if (mcd_account_get_connection_status (connection->priv->account) ==
         TP_CONNECTION_STATUS_DISCONNECTED)
     {
-        _mcd_account_connection_begin (connection->priv->account);
+        /* not user-initiated */
+        _mcd_account_connection_begin (connection->priv->account, FALSE);
     }
     else
     {

@@ -901,7 +901,7 @@ mcd_account_request_presence_int (McdAccount *account,
     {
         if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
         {
-            _mcd_account_connection_begin (account);
+            _mcd_account_connection_begin (account, user_initiated);
         }
     }
     else
@@ -2640,7 +2640,9 @@ account_reconnect (TpSvcAccount *service,
      * (I can't quite make out what actually happens). */
     if (priv->connection)
         mcd_connection_close (priv->connection);
-    _mcd_account_connection_begin (self);
+
+    /* Reconnect() counts as user-initiated */
+    _mcd_account_connection_begin (self, TRUE);
 
     /* FIXME: we shouldn't really return from this method until the
      * reconnection has actually happened, but that would require less tangled

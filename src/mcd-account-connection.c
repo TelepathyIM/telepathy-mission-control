@@ -52,7 +52,8 @@ _mcd_account_connection_context_free (McdAccountConnectionContext *c)
 }
 
 void
-_mcd_account_connection_begin (McdAccount *account)
+_mcd_account_connection_begin (McdAccount *account,
+                               gboolean user_initiated)
 {
     McdAccountConnectionContext *ctx;
 
