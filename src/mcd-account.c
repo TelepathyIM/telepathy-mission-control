@@ -267,7 +267,7 @@ _mcd_account_maybe_autoconnect (McdAccount *account)
     }
 
     DEBUG ("connecting account %s", priv->unique_name);
-    _mcd_account_connect_with_auto_presence (account);
+    _mcd_account_connect_with_auto_presence (account, FALSE);
 }
 
 static gboolean
@@ -379,7 +379,7 @@ mcd_account_loaded (McdAccount *account)
         /* otherwise, we want to go online now */
         if (account->priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED)
         {
-            _mcd_account_connect_with_auto_presence (account);
+            _mcd_account_connect_with_auto_presence (account, TRUE);
         }
     }
 
@@ -3971,7 +3971,8 @@ mcd_account_check_validity (McdAccount *account,
  * - going online automatically in order to request a channel
  */
 void
-_mcd_account_connect_with_auto_presence (McdAccount *account)
+_mcd_account_connect_with_auto_presence (McdAccount *account,
+                                         gboolean user_initiated)
 {
     McdAccountPrivate *priv = account->priv;
 
@@ -4035,7 +4036,7 @@ _mcd_account_online_request (McdAccount *account,
 
     /* listen to the StatusChanged signal */
     if (priv->loaded && priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED)
-        _mcd_account_connect_with_auto_presence (account);
+        _mcd_account_connect_with_auto_presence (account, TRUE);
 
     /* now the connection should be in connecting state; insert the
      * callback in the online_requests hash table, which will be processed
