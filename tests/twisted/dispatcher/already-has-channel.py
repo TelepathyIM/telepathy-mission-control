@@ -114,12 +114,6 @@ def test(q, bus, mc):
 
     # Now reply to GetInterfaces and say we have Requests
     conn.GetInterfaces(get_interfaces_call)
-    q.expect_many(
-            EventPattern('dbus-method-call',
-                interface=cs.PROPERTIES_IFACE, method='GetAll',
-                args=[cs.CONN_IFACE_REQUESTS],
-                path=conn.object_path, handled=True),
-            )
 
     # A channel dispatch operation is created for the channel we already had
 
