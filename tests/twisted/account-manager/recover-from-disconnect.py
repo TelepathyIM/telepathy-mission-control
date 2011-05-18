@@ -132,7 +132,12 @@ def test(q, bus, mc):
     assertEquals(cs.CONN_STATUS_REASON_REQUESTED,
         connecting.args[0].get('ConnectionStatusReason'))
 
-    conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
+    # The object path needs to be different from the first simulated
+    # connection which we made above, because the object isn't removed
+    # from this bus and it's actually hard to do so because it's not
+    # really on a bus, it's on the queue. So let's just change the
+    # object path and it's fine.
+    conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', 'second',
             'myself', has_presence=True)
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
