@@ -1,7 +1,20 @@
-telepathy-mission-control 5.7.12 (UNRELEASED)
+telepathy-mission-control 5.9.0 (2011-05-18)
 ============================================
 
+Dependencies:
 
+• telepathy-glib ≥ 0.15 is now required.
+
+• glib ≥ 2.28 is now required.
+
+Enhancements:
+
+• DelegateChannels and PresentChannel from spec version 0.23.2 have
+  been implemented. (cassidy)
+
+Fixes:
+
+• fd.o#36483: All tests now pass, even with newer tp-glib. (jonny)
 
 telepathy-mission-control 5.7.11 (2011-05-11)
 ============================================
