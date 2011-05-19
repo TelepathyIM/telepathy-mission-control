@@ -664,10 +664,10 @@ static void
 mcd_dispatcher_client_needs_recovery_cb (McdClientProxy *client,
                                          McdDispatcher *self)
 {
-    GList *channels =
+    const GList *channels =
         _mcd_handler_map_get_handled_channels (self->priv->handler_map);
     const GList *observer_filters;
-    GList *list;
+    const GList *list;
 
     DEBUG ("called");
 
@@ -705,6 +705,33 @@ mcd_dispatcher_client_needs_recovery_cb (McdClientProxy *client,
             _mcd_client_recover_observer (client, channel, account_path);
         }
 
+    }
+
+    /* we also need to think about channels that are still being dispatched,
+     * but have got far enough that this client wouldn't otherwise see them */
+    for (list = self->priv->operations; list != NULL; list = list->next)
+    {
+        McdDispatchOperation *op = list->data;
+
+        if (_mcd_dispatch_operation_has_invoked_observers (op))
+        {
+            for (channels = _mcd_dispatch_operation_peek_channels (op);
+                 channels != NULL;
+                 channels = channels->next)
+            {
+                McdChannel *mcd_channel = channels->data;
+                GHashTable *properties =
+                    _mcd_channel_get_immutable_properties (mcd_channel);
+
+                if (_mcd_client_match_filters (properties, observer_filters,
+                        FALSE))
+                {
+                    _mcd_client_recover_observer (client,
+                        mcd_channel_get_tp_channel (mcd_channel),
+                        _mcd_dispatch_operation_get_account_path (op));
+                }
+            }
+        }
     }
 }
 
