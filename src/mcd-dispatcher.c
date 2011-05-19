@@ -415,7 +415,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     g_return_if_fail (channels != NULL);
     g_return_if_fail (MCD_IS_CHANNEL (channels->data));
     g_return_if_fail (requested || !only_observe);
-    g_return_if_fail (possible_handlers != NULL || only_observe);
 
     account = mcd_channel_get_account (channels->data);
     if (G_UNLIKELY (!account))
@@ -1435,9 +1434,8 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
     {
         if (channels->next == NULL)
         {
-            DEBUG ("One channel, which cannot be handled");
-            _mcd_channel_undispatchable (channels->data);
-            g_list_free (channels);
+            DEBUG ("One channel, which cannot be handled - making a CDO "
+                   "anyway, to get Observers run");
         }
         else
         {
@@ -1451,6 +1449,8 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
                 _mcd_dispatcher_take_channels (dispatcher, list, requested,
                                                FALSE);
             }
+
+            return;
         }
     }
     else
@@ -1458,15 +1458,15 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
         DEBUG ("%s handler(s) found, dispatching %u channels",
                internal_request ? "internal" : "possible",
                g_list_length (channels));
-
-        for (list = channels; list != NULL; list = list->next)
-            _mcd_channel_set_status (MCD_CHANNEL (list->data),
-                                     MCD_CHANNEL_STATUS_DISPATCHING);
-
-        _mcd_dispatcher_enter_state_machine (dispatcher, channels,
-            (const gchar * const *) possible_handlers, requested, FALSE);
-        g_list_free (channels);
     }
+
+    for (list = channels; list != NULL; list = list->next)
+        _mcd_channel_set_status (MCD_CHANNEL (list->data),
+                                 MCD_CHANNEL_STATUS_DISPATCHING);
+
+    _mcd_dispatcher_enter_state_machine (dispatcher, channels,
+        (const gchar * const *) possible_handlers, requested, FALSE);
+    g_list_free (channels);
 
     g_strfreev (possible_handlers);
 }

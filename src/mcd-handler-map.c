@@ -460,6 +460,9 @@ _mcd_handler_map_get_channel_account (McdHandlerMap *self,
         channel_path);
 }
 
+/*
+ * Record that MC itself is handling this channel, internally.
+ */
 void
 _mcd_handler_map_set_channel_handled_internally (McdHandlerMap *self,
                                                  TpChannel *channel,
