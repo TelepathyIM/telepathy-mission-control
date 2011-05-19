@@ -86,6 +86,10 @@ GList *_mcd_handler_map_get_handled_channels (McdHandlerMap *self);
 const gchar *_mcd_handler_map_get_channel_account (McdHandlerMap *self,
                                                    const gchar *channel_path);
 
+void _mcd_handler_map_set_channel_handled_internally (McdHandlerMap *self,
+                                                      TpChannel *channel,
+                                                      const gchar *account_path);
+
 G_END_DECLS
 
 #endif

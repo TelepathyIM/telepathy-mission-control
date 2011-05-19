@@ -423,4 +423,12 @@ _mcd_handler_map_get_channel_account (McdHandlerMap *self,
         channel_path);
 }
 
-
+void
+_mcd_handler_map_set_channel_handled_internally (McdHandlerMap *self,
+                                                 TpChannel *channel,
+                                                 const gchar *account_path)
+{
+    _mcd_handler_map_set_channel_handled (self, channel,
+        tp_dbus_daemon_get_unique_name (self->priv->dbus_daemon),
+        NULL, account_path);
+}

@@ -501,6 +501,10 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
                 continue;
 
             DEBUG ("Internal handler for request channel #%u", i);
+            _mcd_handler_map_set_channel_handled_internally (
+                self->priv->handler_map,
+                mcd_channel_get_tp_channel (channel),
+                _mcd_dispatch_operation_get_account_path (self));
             _mcd_request_handle_internally (request, channel, TRUE);
         }
 
