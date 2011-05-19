@@ -78,6 +78,24 @@ mc-account-manager
 @user_data: 
 
 
+<!-- ##### FUNCTION mc_account_manager_get_valid_accounts ##### -->
+<para>
+
+</para>
+
+@manager: 
+@Returns: 
+
+
+<!-- ##### FUNCTION mc_account_manager_get_invalid_accounts ##### -->
+<para>
+
+</para>
+
+@manager: 
+@Returns: 
+
+
 <!-- ##### USER_FUNCTION McAccountManagerWhenReadyObjectCb ##### -->
 <para>
 

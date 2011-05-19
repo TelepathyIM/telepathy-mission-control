@@ -46,6 +46,11 @@ McdDispatcher
 
 </para>
 
+<!-- ##### ARG McdDispatcher:supports-request-hints ##### -->
+<para>
+
+</para>
+
 <!-- ##### FUNCTION mcd_dispatcher_new ##### -->
 <para>
 
