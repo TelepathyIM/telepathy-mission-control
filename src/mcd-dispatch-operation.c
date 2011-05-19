@@ -2604,3 +2604,11 @@ _mcd_dispatch_operation_destroy_channels (McdDispatchOperation *self)
 
     _mcd_dispatch_operation_forget_channels (self);
 }
+
+/* This should really be called ..._has_invoked_observers_if_needed,
+ * but that name would be ridiculous. */
+gboolean
+_mcd_dispatch_operation_has_invoked_observers (McdDispatchOperation *self)
+{
+    return self->priv->invoked_observers_if_needed;
+}

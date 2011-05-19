@@ -286,6 +286,15 @@ McProfile
 @Returns: 
 
 
+<!-- ##### FUNCTION mc_profile_presences_list ##### -->
+<para>
+
+</para>
+
+@id: 
+@Returns: 
+
+
 <!-- ##### FUNCTION mc_profile_presence_get_name ##### -->
 <para>
 

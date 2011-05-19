@@ -118,6 +118,8 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_forget_channels (
 
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_is_internal (
     McdDispatchOperation *self);
+G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_has_invoked_observers (
+    McdDispatchOperation *self);
 
 G_END_DECLS
 
