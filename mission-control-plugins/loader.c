@@ -43,9 +43,14 @@
 
 #include <gmodule.h>
 #include <mission-control-plugins/mission-control-plugins.h>
-#include <mission-control-plugins/debug-internal.h>
+#include <mission-control-plugins/debug.h>
 
 static gboolean debugging = FALSE;
+
+#undef  DEBUG
+#define DEBUG(format, ...) \
+  G_STMT_START { if (debugging || mcp_is_debugging (MCP_DEBUG_LOADER))  \
+      g_debug ("%s" format, G_STRLOC, ##__VA_ARGS__); } G_STMT_END
 
 /**
  * mcp_set_debug:
@@ -58,25 +63,6 @@ void
 mcp_set_debug (gboolean debug)
 {
   debugging = debug;
-}
-
-gboolean
-_mcp_is_debugging (void)
-{
-  return debugging;
-}
-
-void
-_mcp_debug (const gchar *format, ...)
-{
-  if (debugging)
-    {
-      va_list args;
-
-      va_start (args, format);
-      g_logv (G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, format, args);
-      va_end (args);
-    }
 }
 
 static GList *plugins = NULL;

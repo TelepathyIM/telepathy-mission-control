@@ -20,6 +20,9 @@
 
 #include <mission-control-plugins/mission-control-plugins.h>
 #include <mission-control-plugins/implementation.h>
+#include <mission-control-plugins/debug-internal.h>
+
+#define MCP_DEBUG_TYPE MCP_DEBUG_ACCOUNT
 
 /**
  * SECTION:account
