@@ -2854,7 +2854,10 @@ _mcd_connection_presence_info_is_ready (McdConnection *self)
 
 static void clear_emergency_handles (McdConnectionPrivate *priv)
 {
-  guint n_handles = tp_intset_size (priv->emergency.handles);
+  guint n_handles = 0;
+
+  if (priv->emergency.handles != NULL)
+    n_handles = tp_intset_size (priv->emergency.handles);
 
   /* trawl through the handles and unref them */
   if (n_handles > 0)
