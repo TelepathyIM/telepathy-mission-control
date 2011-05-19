@@ -172,6 +172,88 @@ def test(q, bus, mc):
     # Now there are no more active channel dispatch operations
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []
 
+    # Another channel: this one will remain unapproved
+
+    channel2_properties = dbus.Dictionary(text_fixed_properties,
+            signature='sv')
+    channel2_properties[cs.CHANNEL + '.TargetID'] = 'mercutio'
+    channel2_properties[cs.CHANNEL + '.TargetHandle'] = \
+            conn.ensure_handle(cs.HT_CONTACT, 'mercutio')
+    channel2_properties[cs.CHANNEL + '.InitiatorID'] = 'mercutio'
+    channel2_properties[cs.CHANNEL + '.InitiatorHandle'] = \
+            conn.ensure_handle(cs.HT_CONTACT, 'mercutio')
+    channel2_properties[cs.CHANNEL + '.Requested'] = False
+    channel2_properties[cs.CHANNEL + '.Interfaces'] = dbus.Array(signature='s')
+
+    chan2 = SimulatedChannel(conn, channel2_properties)
+    chan2.announce()
+
+    # A channel dispatch operation is created
+
+    e = q.expect('dbus-signal',
+            path=cs.CD_PATH,
+            interface=cs.CD_IFACE_OP_LIST,
+            signal='NewDispatchOperation')
+
+    cdo2_path = e.args[0]
+    cdo2_properties = e.args[1]
+
+    assert cdo2_properties[cs.CDO + '.Account'] == account.object_path
+    assert cdo2_properties[cs.CDO + '.Connection'] == conn.object_path
+    assert cs.CDO + '.Interfaces' in cdo_properties
+
+    handlers = cdo_properties[cs.CDO + '.PossibleHandlers'][:]
+    handlers.sort()
+    assert handlers == [cs.tp_name_prefix + '.Client.Kopete'], handlers
+
+    assert cs.CD_IFACE_OP_LIST in cd_props.Get(cs.CD, 'Interfaces')
+    assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') ==\
+            [(cdo2_path, cdo2_properties)]
+
+    cdo2 = bus.get_object(cs.CD, cdo2_path)
+    cdo2_iface = dbus.Interface(cdo2, cs.CDO)
+    cdo2_props_iface = dbus.Interface(cdo2, cs.PROPERTIES_IFACE)
+
+    assert cdo2_props_iface.Get(cs.CDO, 'Interfaces') == \
+            cdo2_properties[cs.CDO + '.Interfaces']
+    assert cdo2_props_iface.Get(cs.CDO, 'Connection') == conn.object_path
+    assert cdo2_props_iface.Get(cs.CDO, 'Account') == account.object_path
+    assert cdo2_props_iface.Get(cs.CDO, 'Channels') == [(chan2.object_path,
+        channel2_properties)]
+    assert cdo2_props_iface.Get(cs.CDO, 'PossibleHandlers') == \
+            cdo2_properties[cs.CDO + '.PossibleHandlers']
+
+    # The Observer (Empathy) is told about the new channel
+
+    e = q.expect('dbus-method-call',
+                path=empathy.object_path,
+                interface=cs.OBSERVER, method='ObserveChannels',
+                handled=False)
+
+    assert e.args[0] == account.object_path, e.args
+    assert e.args[1] == conn.object_path, e.args
+    assert e.args[3] == cdo2_path, e.args
+    assert e.args[4] == [], e.args      # no requests satisfied
+    channels = e.args[2]
+    assert len(channels) == 1, channels
+    assert channels[0][0] == chan2.object_path, channels
+    assert channels[0][1] == channel2_properties, channels
+
+    # Empathy indicates that it is ready to proceed
+    q.dbus_return(e.message, bus=empathy_bus, signature='')
+
+    # The Approver (Kopete) is next; this time, we don't approve
+
+    k = q.expect('dbus-method-call',
+                path=kopete.object_path,
+                interface=cs.APPROVER, method='AddDispatchOperation',
+                handled=False)
+
+    assert k.args == [[(chan2.object_path, channel2_properties)],
+            cdo2_path, cdo2_properties]
+
+    q.dbus_return(k.message, bus=kopete_bus, signature='')
+
     # Empathy crashes
     empathy.release_name()
 
@@ -194,25 +276,40 @@ def test(q, bus, mc):
             )
     empathy_unique_name = e.args[2]
 
-    e = q.expect('dbus-method-call',
+    e1, e2 = q.expect_many(
+            EventPattern('dbus-method-call',
                 path=empathy.object_path,
                 interface=cs.OBSERVER, method='ObserveChannels',
-                handled=False)
+                predicate=lambda e: e.args[2][0][0] == chan.object_path,
+                handled=False),
+            EventPattern('dbus-method-call',
+                path=empathy.object_path,
+                interface=cs.OBSERVER, method='ObserveChannels',
+                predicate=lambda e: e.args[2][0][0] == chan2.object_path,
+                handled=False),
+            )
 
-    # FIXME: assert the same things as before, except CDO (which we don't
-    # have) and account path (which we don't know how to get); also check
-    # that the recovering observer info key is set
-    assert e.args[0] == account.object_path, e.args
-    assert e.args[1] == conn.object_path, e.args
-    assert e.args[4] == [], e.args      # no requests satisfied
-    assert e.args[5]['recovering'] == 1, e.args # due to observer recovery
-    channels = e.args[2]
+    assert e1.args[0] == account.object_path, e1.args
+    assert e1.args[1] == conn.object_path, e1.args
+    assert e1.args[4] == [], e1.args      # no requests satisfied
+    assert e1.args[5]['recovering'] == 1, e1.args # due to observer recovery
+    channels = e1.args[2]
     assert len(channels) == 1, channels
     assert channels[0][0] == chan.object_path, channels
     assert channels[0][1] == channel_properties, channels
 
+    assert e2.args[0] == account.object_path, e2.args
+    assert e2.args[1] == conn.object_path, e2.args
+    assert e2.args[4] == [], e2.args      # no requests satisfied
+    assert e2.args[5]['recovering'] == 1, e2.args # due to observer recovery
+    channels = e2.args[2]
+    assert len(channels) == 1, channels
+    assert channels[0][0] == chan2.object_path, channels
+    assert channels[0][1] == channel2_properties, channels
+
     # Empathy indicates that it is ready to proceed
-    q.dbus_return(e.message, bus=empathy_bus, signature='')
+    q.dbus_return(e1.message, bus=empathy_bus, signature='')
+    q.dbus_return(e2.message, bus=empathy_bus, signature='')
 
     sync_dbus(bus, q, mc)
 
