@@ -108,7 +108,8 @@ typedef void (*McdOnlineRequestCb) (McdAccount *account, gpointer userdata,
 void _mcd_account_online_request (McdAccount *account,
                                   McdOnlineRequestCb callback,
                                   gpointer userdata);
-void _mcd_account_connect_with_auto_presence (McdAccount *account);
+void _mcd_account_connect_with_auto_presence (McdAccount *account,
+                                              gboolean user_initiated);
 G_GNUC_INTERNAL
 void _mcd_account_online_request_completed (McdAccount *account,
                                             GError *error);
@@ -140,7 +141,8 @@ extern const McdDBusProp account_compat_properties[];
 void account_compat_iface_init (McSvcAccountInterfaceCompatClass *iface,
 				     gpointer iface_data);
 
-G_GNUC_INTERNAL void _mcd_account_connection_begin (McdAccount *account);
+G_GNUC_INTERNAL void _mcd_account_connection_begin (McdAccount *account,
+                                                    gboolean user_initiated);
 G_GNUC_INTERNAL void _mcd_account_connection_class_init (McdAccountClass *klass);
 G_GNUC_INTERNAL McdTransport *_mcd_account_connection_get_transport
     (McdAccount *account);
