@@ -455,6 +455,7 @@ _mcd_request_handle_internally (McdRequest *self,
 {
   if (self->internal_handler != NULL)
     {
+      DEBUG ("Handling request %p, channel %p internally", self, channel);
       self->internal_handler (self, channel, self->internal_handler_data,
           close_after);
 
