@@ -1957,6 +1957,7 @@ dispatcher_channel_request_acl_start (McdDispatcher *dispatcher,
                                    crd,
                                    dispatcher_channel_request_acl_cleanup);
 
+    g_hash_table_unref (params);
 }
 
 static void

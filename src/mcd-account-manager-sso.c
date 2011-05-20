@@ -519,6 +519,9 @@ static void _sso_updated (AgAccount *account,
         g_signal_emit_by_name (mcpa, "altered-one", name, deleted_key);
     }
 
+  g_hash_table_unref (unseen);
+  g_strfreev (keys);
+
   if (params_updated)
     g_signal_emit_by_name (mcpa, "altered-one", name, "Parameters");
 

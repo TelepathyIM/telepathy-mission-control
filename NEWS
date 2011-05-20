@@ -1,6 +1,15 @@
 telepathy-mission-control 5.9.1 (UNRELEASED)
 ============================================
 
+Fixes:
+
+• fd.o #34025: when an Observer with Recover=TRUE catches up on channels,
+  don't miss out channels that have run their observers but have not
+  completed dispatching, mainly those waiting for approvers (smcv)
+
+• Fix various memory leaks (fledermaus)
+
+• If a storage plugin changes our nickname, propagate it to the CM (fledermaus)
 
 telepathy-mission-control 5.9.0 (2011-05-18)
 ============================================
