@@ -40,6 +40,7 @@
 struct _McdAccountConnectionContext {
     GHashTable *params;
     gint i_filter;
+    gboolean user_initiated;
 };
 
 static guint _mcd_account_signal_connection_process = 0;
@@ -52,7 +53,8 @@ _mcd_account_connection_context_free (McdAccountConnectionContext *c)
 }
 
 void
-_mcd_account_connection_begin (McdAccount *account)
+_mcd_account_connection_begin (McdAccount *account,
+                               gboolean user_initiated)
 {
     McdAccountConnectionContext *ctx;
 
@@ -68,6 +70,7 @@ _mcd_account_connection_begin (McdAccount *account)
     /* run the handlers */
     ctx = g_malloc (sizeof (McdAccountConnectionContext));
     ctx->i_filter = 0;
+    ctx->user_initiated = user_initiated;
 
     /* If we get this far, the account should be valid, so getting the
      * parameters should succeed.
@@ -145,3 +148,18 @@ _mcd_account_connection_class_init (McdAccountClass *klass)
 		      G_TYPE_NONE, 1, G_TYPE_BOOLEAN);
 }
 
+/**
+ * Returns: %TRUE if the current attempt to connect was user-initiated.
+ */
+gboolean
+mcd_account_connection_is_user_initiated (McdAccount *account)
+{
+    McdAccountConnectionContext *ctx;
+
+    ctx = _mcd_account_get_connection_context (account);
+
+    if (ctx == NULL)
+        return FALSE;
+
+    return ctx->user_initiated;
+}

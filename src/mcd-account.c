@@ -267,7 +267,7 @@ _mcd_account_maybe_autoconnect (McdAccount *account)
     }
 
     DEBUG ("connecting account %s", priv->unique_name);
-    _mcd_account_connect_with_auto_presence (account);
+    _mcd_account_connect_with_auto_presence (account, FALSE);
 }
 
 static gboolean
@@ -379,7 +379,7 @@ mcd_account_loaded (McdAccount *account)
         /* otherwise, we want to go online now */
         if (account->priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED)
         {
-            _mcd_account_connect_with_auto_presence (account);
+            _mcd_account_connect_with_auto_presence (account, TRUE);
         }
     }
 
@@ -824,10 +824,15 @@ on_connection_abort (McdConnection *connection, McdAccount *account)
     _mcd_account_set_connection (account, NULL);
 }
 
-static gboolean
+static void mcd_account_changed_property (McdAccount *account,
+    const gchar *key, const GValue *value);
+
+static void
 mcd_account_request_presence_int (McdAccount *account,
-				  TpConnectionPresenceType type,
-				  const gchar *status, const gchar *message)
+                                  TpConnectionPresenceType type,
+                                  const gchar *status,
+                                  const gchar *message,
+                                  gboolean user_initiated)
 {
     McdAccountPrivate *priv = account->priv;
     gboolean changed = FALSE;
@@ -852,6 +857,21 @@ mcd_account_request_presence_int (McdAccount *account,
         changed = TRUE;
     }
 
+    if (changed)
+    {
+        GValue value = { 0 };
+
+        g_value_init (&value, TP_STRUCT_TYPE_SIMPLE_PRESENCE);
+        g_value_take_boxed (&value,
+                            tp_value_array_build (3,
+                                G_TYPE_UINT, type,
+                                G_TYPE_STRING, status,
+                                G_TYPE_STRING, message,
+                                G_TYPE_INVALID));
+        mcd_account_changed_property (account, "RequestedPresence", &value);
+        g_value_unset (&value);
+    }
+
     DEBUG ("Requested presence: %u %s %s",
         priv->req_presence_type,
         priv->req_presence_status,
@@ -862,13 +882,13 @@ mcd_account_request_presence_int (McdAccount *account,
         if (!priv->enabled)
         {
             DEBUG ("%s not Enabled", priv->unique_name);
-            return changed;
+            return;
         }
 
         if (!priv->valid)
         {
             DEBUG ("%s not Valid", priv->unique_name);
-            return changed;
+            return;
         }
     }
 
@@ -881,7 +901,7 @@ mcd_account_request_presence_int (McdAccount *account,
     {
         if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
         {
-            _mcd_account_connection_begin (account);
+            _mcd_account_connection_begin (account, user_initiated);
         }
     }
     else
@@ -891,8 +911,6 @@ mcd_account_request_presence_int (McdAccount *account,
 					  priv->req_presence_status,
 					  priv->req_presence_message);
     }
-
-    return changed;
 }
 
 void
@@ -1185,7 +1203,8 @@ _mcd_account_set_enabled (McdAccount *account,
             mcd_account_request_presence_int (account,
                                               priv->req_presence_type,
                                               priv->req_presence_status,
-                                              priv->req_presence_message);
+                                              priv->req_presence_message,
+                                              TRUE);
             _mcd_account_maybe_autoconnect (account);
         }
     }
@@ -1703,11 +1722,7 @@ set_requested_presence (TpSvcDBusProperties *self,
 
     DEBUG ("setting requested presence: %d, %s, %s", type, status, message);
 
-    if (mcd_account_request_presence_int (account, type, status, message))
-    {
-	mcd_account_changed_property (account, name, value);
-    }
-
+    mcd_account_request_presence_int (account, type, status, message, TRUE);
     return TRUE;
 }
 
@@ -2628,7 +2643,9 @@ account_reconnect (TpSvcAccount *service,
      * (I can't quite make out what actually happens). */
     if (priv->connection)
         mcd_connection_close (priv->connection);
-    _mcd_account_connection_begin (self);
+
+    /* Reconnect() counts as user-initiated */
+    _mcd_account_connection_begin (self, TRUE);
 
     /* FIXME: we shouldn't really return from this method until the
      * reconnection has actually happened, but that would require less tangled
@@ -3227,29 +3244,16 @@ _mcd_account_dup_parameters (McdAccount *account)
  * @status: presence status.
  * @message: presence status message.
  *
- * Request a presence status on the account.
+ * Request a presence status on the account, initiated by some other part of
+ * MC (i.e. not by user request).
  */
 void
 mcd_account_request_presence (McdAccount *account,
 			      TpConnectionPresenceType presence,
 			      const gchar *status, const gchar *message)
 {
-    if (mcd_account_request_presence_int (account, presence, status, message))
-    {
-	GValue value = { 0 };
-	GType type;
-        GValueArray *va;
-
-	type = TP_STRUCT_TYPE_SIMPLE_PRESENCE;
-	g_value_init (&value, type);
-	g_value_take_boxed (&value, dbus_g_type_specialized_construct (type));
-	va = (GValueArray *) g_value_get_boxed (&value);
-	g_value_set_uint (va->values, presence);
-	g_value_set_static_string (va->values + 1, status);
-	g_value_set_static_string (va->values + 2, message);
-	mcd_account_changed_property (account, "RequestedPresence", &value);
-	g_value_unset (&value);
-    }
+    mcd_account_request_presence_int (account, presence, status, message,
+                                      FALSE);
 }
 
 static void
@@ -3933,11 +3937,14 @@ check_validity_check_parameters_cb (McdAccount *account,
 
         if (valid)
         {
-            /* newly valid - try setting requested presence again */
+            /* Newly valid - try setting requested presence again.
+             * This counts as user-initiated, because the user caused the
+             * account to become valid somehow. */
             mcd_account_request_presence_int (account,
                                               priv->req_presence_type,
                                               priv->req_presence_status,
-                                              priv->req_presence_message);
+                                              priv->req_presence_message,
+                                              TRUE);
         }
     }
 
@@ -3974,14 +3981,16 @@ mcd_account_check_validity (McdAccount *account,
  * - going online automatically in order to request a channel
  */
 void
-_mcd_account_connect_with_auto_presence (McdAccount *account)
+_mcd_account_connect_with_auto_presence (McdAccount *account,
+                                         gboolean user_initiated)
 {
     McdAccountPrivate *priv = account->priv;
 
-    mcd_account_request_presence (account,
-                                  priv->auto_presence_type,
-                                  priv->auto_presence_status,
-                                  priv->auto_presence_message);
+    mcd_account_request_presence_int (account,
+                                      priv->auto_presence_type,
+                                      priv->auto_presence_status,
+                                      priv->auto_presence_message,
+                                      user_initiated);
 }
 
 /*
@@ -4038,7 +4047,7 @@ _mcd_account_online_request (McdAccount *account,
 
     /* listen to the StatusChanged signal */
     if (priv->loaded && priv->conn_status == TP_CONNECTION_STATUS_DISCONNECTED)
-        _mcd_account_connect_with_auto_presence (account);
+        _mcd_account_connect_with_auto_presence (account, TRUE);
 
     /* now the connection should be in connecting state; insert the
      * callback in the online_requests hash table, which will be processed
