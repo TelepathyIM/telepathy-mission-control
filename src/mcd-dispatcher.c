@@ -2268,7 +2268,7 @@ send_message_got_channel (McdRequest *request,
 
             _mcd_request_unblock_account (message->account_path);
             message_context_return_error (message, error);
-            message_context_free (message);
+            _mcd_request_clear_internal_handler (request);
             g_error_free (error);
         }
     }
