@@ -1,7 +1,23 @@
-telepathy-mission-control 5.7.12 (UNRELEASED)
+telepathy-mission-control 5.8.0 (UNRELEASED)
 ============================================
 
+Fixes:
 
+• Fix the regression tests to pass under newer telepathy-glib versions
+  (jonnylamb)
+
+• fd.o #34025: when an Observer with Recover=TRUE catches up on channels,
+  don't miss out channels that have run their observers but have not
+  completed dispatching, mainly those waiting for approvers (smcv)
+
+• When detecting service points, don't crash if the Connection has no
+  interfaces (jonnylamb)
+
+• Fix various memory leaks (fledermaus)
+
+• If a storage plugin changes our nickname, propagate it to the CM (fledermaus)
+
+• Make storage plugins less verbose by default (fledermaus)
 
 telepathy-mission-control 5.7.11 (2011-05-11)
 ============================================
