@@ -1675,6 +1675,8 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
                                      McdChannel *channel, McdChannel *request)
 {
     McdChannelStatus status;
+    McdRequest *origin = _mcd_channel_get_request (request);
+    gboolean internal = _mcd_request_is_internal (origin);
 
     status = mcd_channel_get_status (channel);
 
@@ -1682,29 +1684,32 @@ _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,
      * is not, @request must mirror the status of @channel */
     if (status == MCD_CHANNEL_STATUS_DISPATCHED)
     {
-        McdRequest *origin = _mcd_channel_get_request (request);
-        DEBUG ("reinvoking handler on channel %p", channel);
+        DEBUG ("reinvoking handler on channel %p", request);
 
         /* copy the object path and the immutable properties from the
          * existing channel */
         _mcd_channel_copy_details (request, channel);
 
-        DEBUG ("checking if ensured channel should be handled internaly");
-        if (_mcd_request_is_internal (origin))
+        if (internal)
           _mcd_request_handle_internally (origin, request, FALSE);
         else
           _mcd_dispatcher_reinvoke_handler (dispatcher, request);
     }
     else
     {
-        const gchar *preferred_handler =
-            _mcd_channel_get_request_preferred_handler (request);
-
+        DEBUG ("non-reinvoked handling of channel %p", request);
         _mcd_channel_set_request_proxy (request, channel);
-        if (status == MCD_CHANNEL_STATUS_DISPATCHING)
+
+        if (internal)
+        {
+            _mcd_request_handle_internally (origin, request, FALSE);
+        }
+        else if (status == MCD_CHANNEL_STATUS_DISPATCHING)
         {
             McdDispatchOperation *op = find_operation_from_channel (dispatcher,
                                                                     channel);
+            const gchar *preferred_handler =
+              _mcd_channel_get_request_preferred_handler (request);
 
             g_return_if_fail (op != NULL);
 
@@ -2275,7 +2280,7 @@ send_message_got_channel (McdRequest *request,
 
             _mcd_request_unblock_account (message->account_path);
             message_context_return_error (message, error);
-            message_context_free (message);
+            _mcd_request_clear_internal_handler (request);
             g_error_free (error);
         }
     }
