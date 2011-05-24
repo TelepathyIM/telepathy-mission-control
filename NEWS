@@ -19,6 +19,10 @@ Fixes:
 
 • Make storage plugins less verbose by default (fledermaus)
 
+• Implementation of the draft ChannelDispatcher.Messages interface did 
+  not correctly handle all internal requests which should have been
+  dispatched to an existing channel (fledermaus)
+
 telepathy-mission-control 5.7.11 (2011-05-11)
 ============================================
 
