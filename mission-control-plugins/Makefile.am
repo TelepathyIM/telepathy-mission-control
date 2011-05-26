@@ -22,6 +22,7 @@ plugins_include_HEADERS = \
 	account.h \
 	account-storage.h \
 	dbus-acl.h \
+	debug.h \
 	dispatch-operation.h \
 	dispatch-operation-policy.h \
 	loader.h \
