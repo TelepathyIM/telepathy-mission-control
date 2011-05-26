@@ -161,6 +161,7 @@ void mcd_debug_init ()
     }
 
     mcp_set_debug ((mcd_debug_level >= 1));
+    mcp_debug_init ();
 
     tp_debug_divert_messages (g_getenv ("MC_LOGFILE"));
 
