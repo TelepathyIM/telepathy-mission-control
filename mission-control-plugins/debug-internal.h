@@ -33,8 +33,7 @@
 #ifdef ENABLE_DEBUG
 
 #define DEBUG(format, ...) \
-  if (mcp_debugging (MCP_DEBUG_TYPE)) \
-    g_debug ("%s: " format, G_STRLOC, ##__VA_ARGS__)
+  MCP_DEBUG (MCP_DEBUG_TYPE, format, ##__VA_ARGS__)
 
 #else
 
