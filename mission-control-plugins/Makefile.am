@@ -44,6 +44,8 @@ nodist_libmission_control_plugins_la_SOURCES = \
 
 libmission_control_plugins_la_SOURCES = \
 	debug-internal.h \
+	debug.h \
+	debug.c \
 	account.c \
 	account-storage.c \
 	dbus-acl.c \
