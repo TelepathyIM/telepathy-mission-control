@@ -18,9 +18,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <mission-control-plugins/mission-control-plugins.h>
-#include <mission-control-plugins/debug.h>
 #include <config.h>
+#include <mission-control-plugins/mission-control-plugins.h>
 
 static McpDebugFlags debug_flags;
 
