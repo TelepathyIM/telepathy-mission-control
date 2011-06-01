@@ -58,21 +58,15 @@
 #include "config.h"
 
 #include <mission-control-plugins/mission-control-plugins.h>
+#include <mission-control-plugins/debug-internal.h>
 #include <mission-control-plugins/mcp-signals-marshal.h>
 #include <glib.h>
 #include <telepathy-glib/telepathy-glib.h>
 
-#ifdef ENABLE_DEBUG
-
-#define DEBUG(_p, _format, ...) \
-  g_debug ("dbus-acl: %s: %s: " _format, G_STRFUNC, \
+#define MCP_DEBUG_TYPE MCP_DEBUG_DBUS_ACL
+#define ACL_DEBUG(_p, _format, ...) \
+  DEBUG("%s: " _format, \
       (_p != NULL) ? mcp_dbus_acl_name (_p) : "-", ##__VA_ARGS__)
-
-#else  /* ENABLE_DEBUG */
-
-#define DEBUG(_p, _format, ...) do {} while (0);
-
-#endif /* ENABLE_DEBUG */
 
 /**
  * McpDBusAclIface:
@@ -266,7 +260,7 @@ mcp_dbus_acl_authorised (const TpDBusDaemon *dbus,
       McpDBusAcl *plugin = MCP_DBUS_ACL (p->data);
       McpDBusAclIface *iface = MCP_DBUS_ACL_GET_IFACE (p->data);
 
-      DEBUG (plugin, "checking ACL for %s", name);
+      ACL_DEBUG (plugin, "checking ACL for %s", name);
 
       if (iface->authorised != NULL)
         permitted = iface->authorised (plugin, dbus, context, type, name, params);
@@ -312,7 +306,7 @@ mcp_dbus_acl_authorised_async_step (DBusAclAuthData *ad,
           McpDBusAclIface *iface = MCP_DBUS_ACL_GET_IFACE (plugin);
 
           if (ad->acl != NULL)
-            DEBUG (ad->acl, "passed ACL for %s", ad->name);
+            ACL_DEBUG (ad->acl, "passed ACL for %s", ad->name);
 
           /* take the next plugin off the next_acl list */
           ad->next_acl = g_list_next (ad->next_acl);
@@ -330,7 +324,7 @@ mcp_dbus_acl_authorised_async_step (DBusAclAuthData *ad,
         }
 
       if (ad->acl != NULL)
-        DEBUG (ad->acl, "passed final ACL for %s", ad->name);
+        ACL_DEBUG (ad->acl, "passed final ACL for %s", ad->name);
 
       ad->handler (ad->context, ad->data);
     }
@@ -403,7 +397,7 @@ mcp_dbus_acl_authorised_async (TpDBusDaemon *dbus,
   ad->handler = handler;
   ad->next_acl = acls;
 
-  DEBUG (NULL, "DBus access ACL verification: %u rules for %s",
+  ACL_DEBUG (NULL, "DBus access ACL verification: %u rules for %s",
       g_list_length (acls),
       name);
   mcp_dbus_acl_authorised_async_step (ad, TRUE);

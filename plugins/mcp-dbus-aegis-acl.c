@@ -26,11 +26,7 @@
 #endif
 #define G_LOG_DOMAIN "mission-control-DBus-Access-ACL"
 
-#ifdef ENABLE_DEBUG
-#define DEBUG(_f, ...) g_debug ("%s: " _f, G_STRLOC, ##__VA_ARGS__)
-#else
-#define DEBUG(_f, ...) do {} while (0)
-#endif
+#define DEBUG(_f, ...) MCP_DEBUG (MCP_DEBUG_DBUS_ACL, _f, ##__VA_ARGS__)
 
 #include <dbus/dbus-glib.h>
 #include <telepathy-glib/interfaces.h>

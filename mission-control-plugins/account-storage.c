@@ -78,18 +78,20 @@
 #include <mission-control-plugins/mission-control-plugins.h>
 #include <mission-control-plugins/mcp-signals-marshal.h>
 #include <mission-control-plugins/implementation.h>
+#include <mission-control-plugins/debug-internal.h>
 #include <glib.h>
+
+#define MCP_DEBUG_TYPE  MCP_DEBUG_ACCOUNT_STORAGE
 
 #ifdef ENABLE_DEBUG
 
-#define DEBUG(_p, _format, ...) \
-  if (g_getenv ("MC_STORAGE_DEBUG") != NULL)  \
-    g_debug ("%s: %s: " _format, G_STRFUNC, \
+#define SDEBUG(_p, _format, ...) \
+  DEBUG("%s: " _format, \
         (_p != NULL) ? mcp_account_storage_name (_p) : "NULL", ##__VA_ARGS__)
 
 #else  /* ENABLE_DEBUG */
 
-#define DEBUG(_p, _format, ...) do {} while (0);
+#define SDEBUG(_p, _format, ...) do {} while (0);
 
 #endif /* ENABLE_DEBUG */
 
@@ -397,7 +399,7 @@ mcp_account_storage_get (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  DEBUG (storage, "");
+  SDEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, FALSE);
 
   return iface->get (storage, am, account, key);
@@ -429,7 +431,7 @@ mcp_account_storage_set (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  DEBUG (storage, "");
+  SDEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, FALSE);
 
   return iface->set (storage, am, account, key, val);
@@ -466,7 +468,7 @@ mcp_account_storage_delete (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  DEBUG (storage, "");
+  SDEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, FALSE);
 
   return iface->delete (storage, am, account, key);
@@ -498,7 +500,7 @@ mcp_account_storage_commit (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  DEBUG (storage, "committing all accounts");
+  SDEBUG (storage, "committing all accounts");
   g_return_val_if_fail (iface != NULL, FALSE);
 
   if (iface->commit != NULL)
@@ -511,7 +513,7 @@ mcp_account_storage_commit (const McpAccountStorage *storage,
     }
   else
     {
-      DEBUG (storage,
+      SDEBUG (storage,
           "neither commit nor commit_one is implemented; cannot save accounts");
       return FALSE;
     }
@@ -538,7 +540,7 @@ mcp_account_storage_commit_one (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  DEBUG (storage, "called for %s", account ? account : "<all accounts>");
+  SDEBUG (storage, "called for %s", account ? account : "<all accounts>");
   g_return_val_if_fail (iface != NULL, FALSE);
 
   if (iface->commit_one != NULL)
@@ -566,7 +568,7 @@ mcp_account_storage_list (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  DEBUG (storage, "");
+  SDEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, NULL);
 
   return iface->list (storage, am);
@@ -612,7 +614,7 @@ mcp_account_storage_get_identifier (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  DEBUG (storage, "");
+  SDEBUG (storage, "");
   g_return_if_fail (iface != NULL);
   g_return_if_fail (identifier != NULL);
   g_return_if_fail (!G_IS_VALUE (identifier));
@@ -646,7 +648,7 @@ mcp_account_storage_get_additional_info (const McpAccountStorage *storage,
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
   GHashTable *ret = NULL;
 
-  DEBUG (storage, "");
+  SDEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, FALSE);
 
   if (iface->get_additional_info != NULL)

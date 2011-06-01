@@ -33,6 +33,7 @@
 #include <mission-control-plugins/loader.h>
 #include <mission-control-plugins/request.h>
 #include <mission-control-plugins/request-policy.h>
+#include <mission-control-plugins/debug.h>
 #undef  _MCP_IN_MISSION_CONTROL_PLUGINS_H
 
 #endif

@@ -22,6 +22,7 @@ plugins_include_HEADERS = \
 	account.h \
 	account-storage.h \
 	dbus-acl.h \
+	debug.h \
 	dispatch-operation.h \
 	dispatch-operation-policy.h \
 	loader.h \
@@ -44,6 +45,8 @@ nodist_libmission_control_plugins_la_SOURCES = \
 
 libmission_control_plugins_la_SOURCES = \
 	debug-internal.h \
+	debug.h \
+	debug.c \
 	account.c \
 	account-storage.c \
 	dbus-acl.c \

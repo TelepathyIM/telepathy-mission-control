@@ -418,7 +418,10 @@ _set (const McpAccountStorage *self,
   g_key_file_remove_key (amd->removed, account, key, NULL);
 #else
 
-  g_key_file_set_value (amd->keyfile, account, key, val);
+  if (val != NULL)
+    g_key_file_set_value (amd->keyfile, account, key, val);
+  else
+    g_key_file_remove_key (amd->keyfile, account, key, NULL);
 
 #endif
 

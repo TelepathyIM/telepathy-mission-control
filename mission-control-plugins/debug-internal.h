@@ -24,31 +24,21 @@
 #include "config.h"
 
 #include <glib.h>
+#include <mission-control-plugins/debug.h>
 
-G_BEGIN_DECLS
-
-gboolean _mcp_is_debugging (void);
-void _mcp_debug (const gchar *format, ...) G_GNUC_PRINTF (1, 2);
-
-G_END_DECLS
+#ifdef DEBUG
+#undef DEBUG
+#endif
 
 #ifdef ENABLE_DEBUG
 
-#undef DEBUG
 #define DEBUG(format, ...) \
-  _mcp_debug ("%s: " format, G_STRFUNC, ##__VA_ARGS__)
+  MCP_DEBUG (MCP_DEBUG_TYPE, format, ##__VA_ARGS__)
 
-#undef DEBUGGING
-#define DEBUGGING _mcp_is_debugging ()
+#else
 
-#else /* !defined (ENABLE_DEBUG) */
-
-#undef DEBUG
 #define DEBUG(format, ...) do {} while (0)
 
-#undef DEBUGGING
-#define DEBUGGING 0
-
-#endif /* !defined (ENABLE_DEBUG) */
+#endif
 
 #endif
