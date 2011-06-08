@@ -711,6 +711,13 @@ _mcd_master_account_replace_transport (McdMaster *master,
 
     g_return_val_if_fail (MCD_IS_ACCOUNT (account), FALSE);
 
+    if (_mcd_account_needs_dispatch (account))
+    {
+        DEBUG ("Always-dispatchable account %s needs no transport",
+               mcd_account_get_unique_name (account));
+        return TRUE;
+    }
+
     conditions = mcd_account_get_conditions (account);
     unconditional = g_hash_table_size (conditions) == 0;
 
