@@ -1978,17 +1978,6 @@ observe_channels_cb (TpClient *proxy, const GError *error,
     _mcd_dispatch_operation_dec_observers_pending (self, MCD_CLIENT_PROXY (proxy));
 }
 
-static void
-free_satisfied_requests (GPtrArray *requests)
-{
-    guint i;
-
-    for (i = 0; i < requests->len; i++)
-        g_free (g_ptr_array_index (requests, i));
-
-    g_ptr_array_unref (requests);
-}
-
 /*
  * @paths_out: (out) (transfer container) (element-type utf8):
  *  Requests_Satisfied
@@ -2020,6 +2009,8 @@ collect_satisfied_requests (const GList *channels,
     }
 
     satisfied_requests = g_ptr_array_sized_new (g_hash_table_size (set));
+    g_ptr_array_set_free_func (satisfied_requests, g_free);
+
     request_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
         g_free, (GDestroyNotify) g_hash_table_unref);
 
@@ -2040,7 +2031,7 @@ collect_satisfied_requests (const GList *channels,
     if (paths_out != NULL)
         *paths_out = satisfied_requests;
     else
-        free_satisfied_requests (satisfied_requests);
+        g_ptr_array_unref (satisfied_requests);
 
     if (props_out != NULL)
         *props_out = request_properties;
@@ -2123,7 +2114,7 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
             observe_channels_cb,
             g_object_ref (self), g_object_unref, NULL);
 
-        free_satisfied_requests (satisfied_requests);
+        g_ptr_array_unref (satisfied_requests);
 
         _mcd_tp_channel_details_free (channels_array);
 
