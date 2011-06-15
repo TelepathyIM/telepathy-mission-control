@@ -1098,6 +1098,84 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
     }
 }
 
+static gboolean
+connection_should_reconnect (TpConnection *tp_conn,
+                             guint domain,
+                             gint code)
+{
+    TpConnectionStatusReason reason;
+
+    if (domain == TP_ERROR)
+    {
+        switch (code)
+        {
+        case TP_ERROR_CONNECTION_FAILED:
+        case TP_ERROR_CONNECTION_LOST:
+        case TP_ERROR_DISCONNECTED:
+        case TP_ERROR_NETWORK_ERROR:
+            DEBUG ("error code %s, reconnecting",
+                tp_error_get_dbus_name (code));
+            return TRUE;
+
+        case TP_ERROR_SOFTWARE_UPGRADE_REQUIRED:
+        case TP_ERROR_SERVICE_BUSY:
+        case TP_ERROR_CONNECTION_REPLACED:
+        case TP_ERROR_ALREADY_CONNECTED:
+        case TP_ERROR_CONNECTION_REFUSED:
+        case TP_ERROR_INVALID_ARGUMENT:
+        case TP_ERROR_INVALID_HANDLE:
+        case TP_ERROR_CANCELLED:
+        case TP_ERROR_AUTHENTICATION_FAILED:
+        case TP_ERROR_ENCRYPTION_NOT_AVAILABLE:
+        case TP_ERROR_ENCRYPTION_ERROR:
+        case TP_ERROR_CERT_NOT_PROVIDED:
+        case TP_ERROR_CERT_UNTRUSTED:
+        case TP_ERROR_CERT_EXPIRED:
+        case TP_ERROR_CERT_NOT_ACTIVATED:
+        case TP_ERROR_CERT_FINGERPRINT_MISMATCH:
+        case TP_ERROR_CERT_HOSTNAME_MISMATCH:
+        case TP_ERROR_CERT_SELF_SIGNED:
+        case TP_ERROR_CERT_INVALID:
+        case TP_ERROR_CERT_REVOKED:
+        case TP_ERROR_CERT_INSECURE:
+        case TP_ERROR_CERT_LIMIT_EXCEEDED:
+            DEBUG ("error code %s, not reconnecting",
+                tp_error_get_dbus_name (code));
+            return FALSE;
+
+        default:
+            DEBUG ("TpError code %s not handled",
+                tp_error_get_dbus_name (code));
+        }
+    }
+    else if (domain == TP_DBUS_ERRORS)
+    {
+        switch (code)
+        {
+        case TP_DBUS_ERROR_NAME_OWNER_LOST:
+            /* CM crashed */
+            DEBUG ("dbus error code: OWNER_LOST, reconnecting", code);
+            return TRUE;
+        }
+    }
+
+    /* not sure what the GError meant, so check the generic status code */
+    tp_connection_get_status (tp_conn, &reason);
+
+    switch (reason)
+    {
+    case TP_CONNECTION_STATUS_REASON_NETWORK_ERROR:
+        DEBUG ("StatusReason %d, reconnecting", reason);
+        return TRUE;
+    default:
+        break;
+    }
+
+    DEBUG ("not reconnecting");
+
+    return FALSE;
+}
+
 static void
 mcd_connection_invalidated_cb (TpConnection *tp_conn,
                                guint domain,
@@ -1127,8 +1205,7 @@ mcd_connection_invalidated_cb (TpConnection *tp_conn,
 
     priv->connected = FALSE;
 
-    if ((priv->abort_reason == TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED ||
-         priv->abort_reason == TP_CONNECTION_STATUS_REASON_NETWORK_ERROR) &&
+    if (connection_should_reconnect (tp_conn, domain, code) &&
         priv->probation_drop_count <= PROBATION_MAX_DROPPED)
     {
         /* we were disconnected by a network error or by a connection manager
