@@ -196,7 +196,8 @@ caller_creds_are_enough (const gchar *name,
 
 static gboolean
 check_peer_creds_sync (DBusGConnection *dgc,
-    const gchar *bus_name)
+    const gchar *bus_name,
+    gboolean activate)
 {
   DBusGProxy *proxy = dbus_g_proxy_new_for_name (dgc,
       DBUS_SERVICE_DBUS,
@@ -204,7 +205,7 @@ check_peer_creds_sync (DBusGConnection *dgc,
       AEGIS_INTERFACE);
   GArray *au = NULL;
   GError *error = NULL;
-  gboolean ok;
+  gboolean ok = FALSE;
 
   if (dbus_g_proxy_call (proxy, "GetConnectionCredentials", &error,
       G_TYPE_STRING, bus_name,
@@ -214,6 +215,34 @@ check_peer_creds_sync (DBusGConnection *dgc,
     {
       ok = caller_creds_are_enough (bus_name, au);
       g_array_unref (au);
+    }
+  else if (activate && error->code == DBUS_GERROR_NAME_HAS_NO_OWNER)
+    {
+      guint status;
+      GError *start_error = NULL;
+      DBusGProxy *dbus = dbus_g_proxy_new_for_name (dgc,
+          DBUS_SERVICE_DBUS,
+          DBUS_PATH_DBUS,
+          DBUS_INTERFACE_DBUS);
+
+      DEBUG ("Trying to activate %s for aegis credentials check", bus_name);
+      if (dbus_g_proxy_call (dbus, "StartServiceByName", &start_error,
+              G_TYPE_STRING, bus_name,
+              G_TYPE_UINT, 0,
+              G_TYPE_INVALID,
+              G_TYPE_UINT, &status,
+              G_TYPE_INVALID))
+        {
+          ok = check_peer_creds_sync (dgc, bus_name, FALSE);
+        }
+      else
+        {
+          DEBUG ("GetConnectionCredentials failed: %s", start_error->message);
+          g_clear_error (&start_error);
+        }
+
+      g_object_unref (dbus);
+      g_clear_error (&error);
     }
   else
     {
@@ -241,7 +270,7 @@ caller_authorised (const McpDBusAcl *self,
     {
       gchar *caller = dbus_g_method_get_sender ((DBusGMethodInvocation *) call);
 
-      ok = check_peer_creds_sync (dgc, caller);
+      ok = check_peer_creds_sync (dgc, caller, FALSE);
 
       g_free (caller);
     }
@@ -372,14 +401,14 @@ handler_is_suitable_async (McpDispatchOperationPolicy *self,
       if (!tp_str_empty (unique_name))
         {
           ok = check_peer_creds_sync (tp_proxy_get_dbus_connection (dbus),
-              unique_name);
+              unique_name, TRUE);
         }
       else
         {
           g_assert (recipient != NULL);
 
           ok = check_peer_creds_sync (tp_proxy_get_dbus_connection (dbus),
-              tp_proxy_get_bus_name (recipient));
+              tp_proxy_get_bus_name (recipient), TRUE);
         }
 
       if (!ok)
