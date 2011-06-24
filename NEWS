@@ -28,6 +28,10 @@ Fixes:
   This could result in unwanted attempts to bring up the network on 
   platforms which used the transport plugin mechanism (fledermaus)
 
+• The Aegis ACL plugin needs to activate inactive handlers if they are
+  not runnng, as you cannot check the aegis credentials of a DBus name
+  alone, a PID or DBus connection is required (fledermaus)
+
 Enhancements:
 
 • Centralised debug control for MCP plugins via MCP_DEBUG environment
