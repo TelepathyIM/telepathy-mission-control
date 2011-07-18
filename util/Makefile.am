@@ -1,5 +1,6 @@
 AM_CPPFLAGS = \
 	-I$(top_srcdir) \
+	$(DBUS_CFLAGS) \
 	$(GLIB_CFLAGS) \
 	$(TELEPATHY_CFLAGS) 
 
