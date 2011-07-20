@@ -707,19 +707,30 @@ _mcd_master_account_replace_transport (McdMaster *master,
     GHashTable *conditions;
     gboolean connected = FALSE;
     gboolean unconditional = FALSE;
+    const gchar *name;
+    const guint n_plugins = priv->transport_plugins->len;
+    guint n_conds;
     guint i;
 
     g_return_val_if_fail (MCD_IS_ACCOUNT (account), FALSE);
 
+    /* no transport plugins, decision is always "go for it" */
+    if (n_plugins == 0)
+        return TRUE;
+
+    name = mcd_account_get_unique_name (account);
+
     if (_mcd_account_needs_dispatch (account))
     {
-        DEBUG ("Always-dispatchable account %s needs no transport",
-               mcd_account_get_unique_name (account));
+        DEBUG ("Always-dispatchable account %s needs no transport", name);
         return TRUE;
     }
 
     conditions = mcd_account_get_conditions (account);
-    unconditional = g_hash_table_size (conditions) == 0;
+    n_conds = g_hash_table_size (conditions);
+    unconditional = (n_conds == 0);
+
+    DEBUG ("Checking %s [%u conditions, %u plugins]", name, n_conds, n_plugins);
 
     for (i = 0; !connected && i < priv->transport_plugins->len; i++)
     {
