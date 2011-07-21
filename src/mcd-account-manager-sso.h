@@ -97,4 +97,6 @@ gboolean _mcd_account_manager_sso_get (
     const gchar *account_suffix,
     const gchar *key);
 
+G_END_DECLS
+
 #endif

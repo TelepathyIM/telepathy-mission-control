@@ -1,23 +1,33 @@
-telepathy-mission-control 5.8.0 (UNRELEASED)
+telepathy-mission-control 5.9.1 (UNRELEASED)
 ============================================
 
 Fixes:
-
-• Fix the regression tests to pass under newer telepathy-glib versions
-  (jonnylamb)
 
 • fd.o #34025: when an Observer with Recover=TRUE catches up on channels,
   don't miss out channels that have run their observers but have not
   completed dispatching, mainly those waiting for approvers (smcv)
 
-• When detecting service points, don't crash if the Connection has no
-  interfaces (jonnylamb)
-
 • Fix various memory leaks (fledermaus)
 
 • If a storage plugin changes our nickname, propagate it to the CM (fledermaus)
 
-• Make storage plugins less verbose by default (fledermaus)
+telepathy-mission-control 5.9.0 (2011-05-18)
+============================================
+
+Dependencies:
+
+• telepathy-glib ≥ 0.15 is now required.
+
+• glib ≥ 2.28 is now required.
+
+Enhancements:
+
+• DelegateChannels and PresentChannel from spec version 0.23.2 have
+  been implemented. (cassidy)
+
+Fixes:
+
+• fd.o#36483: All tests now pass, even with newer tp-glib. (jonny)
 
 • Implementation of the draft ChannelDispatcher.Messages interface did 
   not correctly handle all internal requests which should have been
