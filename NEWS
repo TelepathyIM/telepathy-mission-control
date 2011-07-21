@@ -1,4 +1,4 @@
-telepathy-mission-control 5.9.1 (UNRELEASED)
+telepathy-mission-control 5.9.1 (2011-07-21)
 ============================================
 
 Fixes:
@@ -10,6 +10,11 @@ Fixes:
 • Fix various memory leaks (fledermaus)
 
 • If a storage plugin changes our nickname, propagate it to the CM (fledermaus)
+
+• The McdTransport framework should have considered "no plugins" to be 
+  equivalent to "procced", not "abort" (fledermaus)
+
+• Some files were missing G_END_DECLS, which broke C++ includes (fledermaus)
 
 telepathy-mission-control 5.9.0 (2011-05-18)
 ============================================
