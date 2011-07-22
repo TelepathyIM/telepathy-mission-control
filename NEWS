@@ -30,6 +30,12 @@ Fixes:
 
 • Some files were missing G_END_DECLS, which broke C++ includes (fledermaus)
 
+Enhancements:
+
+• Centralised debug control for MCP plugins via MCP_DEBUG environment
+  variable (and macro + flags so out-of-tree plugins can take advantage
+  of same) (fledermaus)
+
 telepathy-mission-control 5.7.11 (2011-05-11)
 ============================================
 
