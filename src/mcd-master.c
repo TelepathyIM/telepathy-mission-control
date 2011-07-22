@@ -705,42 +705,65 @@ _mcd_master_account_replace_transport (McdMaster *master,
 {
     McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     GHashTable *conditions;
-    gboolean ret = FALSE;
+    gboolean connected = FALSE;
+    gboolean unconditional = FALSE;
+    const gchar *name;
+    const guint n_plugins = priv->transport_plugins->len;
+    guint n_conds;
+    guint i;
 
     g_return_val_if_fail (MCD_IS_ACCOUNT (account), FALSE);
 
-    conditions = mcd_account_get_conditions (account);
-    if (g_hash_table_size (conditions) == 0)
-        ret = TRUE;
-    else
-    {
-        guint i;
-        for (i = 0; i < priv->transport_plugins->len; i++)
-        {
-            McdTransportPlugin *plugin;
-            const GList *transports;
+    /* no transport plugins, decision is always "go for it" */
+    if (n_plugins == 0)
+        return TRUE;
 
-            plugin = g_ptr_array_index (priv->transport_plugins, i);
-            transports = mcd_transport_plugin_get_transports (plugin);
-            while (transports)
+    name = mcd_account_get_unique_name (account);
+
+    if (_mcd_account_needs_dispatch (account))
+    {
+        DEBUG ("Always-dispatchable account %s needs no transport", name);
+        return TRUE;
+    }
+
+    conditions = mcd_account_get_conditions (account);
+    n_conds = g_hash_table_size (conditions);
+    unconditional = (n_conds == 0);
+
+    DEBUG ("Checking %s [%u conditions, %u plugins]", name, n_conds, n_plugins);
+
+    for (i = 0; !connected && i < priv->transport_plugins->len; i++)
+    {
+        McdTransportPlugin *plugin;
+        const GList *transports;
+
+        plugin = g_ptr_array_index (priv->transport_plugins, i);
+        transports = mcd_transport_plugin_get_transports (plugin);
+
+        while (transports != NULL)
+        {
+            McdTransport *transport = transports->data;
+            McdTransportStatus status =
+              mcd_transport_get_status (plugin, transport);
+
+            transports = g_list_next (transports);
+
+            if (status != MCD_TRANSPORT_STATUS_CONNECTED)
+                continue;
+
+            if (unconditional ||
+                mcd_transport_plugin_check_conditions (plugin, transport,
+                                                       conditions))
             {
-                McdTransport *transport = transports->data;
-                if (mcd_transport_get_status (plugin, transport) ==
-                    MCD_TRANSPORT_STATUS_CONNECTED &&
-                    mcd_transport_plugin_check_conditions (plugin, transport,
-                                                           conditions))
-                {
-                    mcd_account_connection_bind_transport (account, transport);
-                    ret = TRUE;
-                    goto finish;
-                }
-                transports = transports->next;
+                mcd_account_connection_bind_transport (account, transport);
+                connected = TRUE;
+                break;
             }
         }
     }
-finish:
+
     g_hash_table_unref (conditions);
-    return ret;
+    return connected;
 }
 
 gboolean
