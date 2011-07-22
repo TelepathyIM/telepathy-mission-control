@@ -1,5 +1,7 @@
-telepathy-mission-control 5.8.0 (UNRELEASED)
+telepathy-mission-control 5.8.0 (2011-07-22)
 ============================================
+
+The "It's a big ball of... branchy-wanchy stuff" release
 
 Fixes:
 
@@ -22,6 +24,11 @@ Fixes:
 • Implementation of the draft ChannelDispatcher.Messages interface did 
   not correctly handle all internal requests which should have been
   dispatched to an existing channel (fledermaus)
+
+• The McdTransport framework should have considered "no plugins" to be 
+  equivalent to "proceed", not "abort" (fledermaus)
+
+• Some files were missing G_END_DECLS, which broke C++ includes (fledermaus)
 
 telepathy-mission-control 5.7.11 (2011-05-11)
 ============================================
