@@ -70,9 +70,7 @@
 #include "sp_timestamp.h"
 
 #include "mcd-signals-marshal.h"
-#include "_gen/cli-Connection_Interface_Contact_Capabilities_Draft1.h"
 #include "_gen/cli-Connection_Interface_Contact_Capabilities.h"
-#include "_gen/cli-Connection_Interface_Contact_Capabilities_Draft1-body.h"
 #include "_gen/cli-Connection_Interface_Contact_Capabilities-body.h"
 #include "_gen/cli-Connection_Interface_Power_Saving.h"
 #include "_gen/cli-Connection_Interface_Power_Saving-body.h"
@@ -124,7 +122,6 @@ struct _McdConnectionPrivate
     guint has_avatars_if : 1;
     guint has_alias_if : 1;
     guint has_capabilities_if : 1;
-    guint has_contact_capabilities_draft1_if : 1;
     guint has_contact_capabilities_if : 1;
     guint has_power_saving_if : 1;
 
@@ -653,31 +650,6 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
     for (i = 0; i < capabilities->len; i++)
 	g_boxed_free (type, g_ptr_array_index (capabilities, i));
     g_ptr_array_free (capabilities, TRUE);
-}
-
-static void
-_mcd_connection_setup_contact_capabilities (McdConnection *connection)
-{
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-    GPtrArray *contact_capabilities;
-
-    if (!priv->has_contact_capabilities_draft1_if)
-    {
-        DEBUG ("connection does not support contact capabilities interface");
-	priv->got_contact_capabilities = TRUE;
-	return;
-    }
-    contact_capabilities = _mcd_dispatcher_get_channel_enhanced_capabilities
-      (priv->dispatcher);
-
-    DEBUG ("advertising capabilities");
-
-    mc_cli_connection_interface_contact_capabilities_draft1_call_set_self_capabilities
-      (priv->tp_conn, -1, contact_capabilities, NULL, NULL, NULL, NULL);
-    DEBUG ("SetSelfCapabilities: Called.");
-
-    /* free the connection capabilities (FIXME) */
-    g_ptr_array_free (contact_capabilities, TRUE);
 }
 
 static void
@@ -1631,8 +1603,6 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
 						       TP_IFACE_QUARK_CONNECTION_INTERFACE_ALIASING);
     priv->has_capabilities_if = tp_proxy_has_interface_by_id (tp_conn,
 							      TP_IFACE_QUARK_CONNECTION_INTERFACE_CAPABILITIES);
-    priv->has_contact_capabilities_draft1_if = tp_proxy_has_interface_by_id (tp_conn,
-        MC_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES_DRAFT1);
     priv->has_contact_capabilities_if = tp_proxy_has_interface_by_id (tp_conn,
         TP_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES);
     priv->has_power_saving_if = tp_proxy_has_interface_by_id (tp_conn,
@@ -1643,9 +1613,6 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
 
     if (priv->has_capabilities_if)
 	_mcd_connection_setup_capabilities (connection);
-
-    if (priv->has_contact_capabilities_draft1_if)
-	_mcd_connection_setup_contact_capabilities (connection);
 
     if (priv->has_avatars_if)
 	_mcd_connection_setup_avatar (connection);
@@ -2367,10 +2334,6 @@ mcd_connection_add_signals (TpProxy *self,
                             DBusGProxy *proxy,
                             gpointer data)
 {
-    mc_cli_Connection_Interface_Contact_Capabilities_Draft1_add_signals (self,
-                                                                         quark,
-                                                                         proxy,
-                                                                         data);
     mc_cli_Connection_Interface_Contact_Capabilities_add_signals (self, quark,
                                                                   proxy, data);
     mc_cli_Connection_Interface_Power_Saving_add_signals (self, quark,

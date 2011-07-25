@@ -27,7 +27,6 @@ SPECS = \
 	Client_Observer.xml \
 	Connection_Manager_Interface_Account_Storage.xml \
         Connection_Interface_Contact_Capabilities.xml \
-        Connection_Interface_Contact_Capabilities_Draft1.xml \
         Channel_Dispatcher_Interface_Messages_DRAFT.xml \
 	Connection_Interface_Power_Saving.xml
 
