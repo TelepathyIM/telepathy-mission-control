@@ -221,8 +221,23 @@ set_param (GHashTable *parameters,
     else if (strcmp (type, "bool") == 0 || strcmp (type, "boolean") == 0)
     {
 	g_value_init (gvalue, G_TYPE_BOOLEAN);
-	g_value_set_boolean (gvalue, atoi (value));
-	ret = TRUE;
+	if (g_ascii_strcasecmp (value, "1") == 0 ||
+	    g_ascii_strcasecmp (value, "true") == 0 ||
+	    /* "yes please!" / "yes sir, captain tightpants" */
+	    g_ascii_strncasecmp (value, "yes", 3) == 0 ||
+	    g_ascii_strcasecmp (value, "mos def") == 0)
+	{
+	    g_value_set_boolean (gvalue, TRUE);
+	    ret = TRUE;
+	}
+	else if (g_ascii_strcasecmp (value, "0") == 0 ||
+	         g_ascii_strcasecmp (value, "false") == 0 ||
+	         g_ascii_strcasecmp (value, "no") == 0 ||
+	         g_ascii_strcasecmp (value, "nope") == 0)
+	{
+	    g_value_set_boolean (gvalue, FALSE);
+	    ret = TRUE;
+	}
     }
     else if (strcmp (type, "string") == 0)
     {
