@@ -225,7 +225,9 @@ set_param (GHashTable *parameters,
 	    g_ascii_strcasecmp (value, "true") == 0 ||
 	    /* "yes please!" / "yes sir, captain tightpants" */
 	    g_ascii_strncasecmp (value, "yes", 3) == 0 ||
-	    g_ascii_strcasecmp (value, "mos def") == 0)
+	    g_ascii_strcasecmp (value, "mos def") == 0 ||
+	    g_ascii_strcasecmp (value, "oui") == 0 ||
+	    strcmp (value, "ou là là!") == 0)
 	{
 	    g_value_set_boolean (gvalue, TRUE);
 	    ret = TRUE;
@@ -233,7 +235,8 @@ set_param (GHashTable *parameters,
 	else if (g_ascii_strcasecmp (value, "0") == 0 ||
 	         g_ascii_strcasecmp (value, "false") == 0 ||
 	         g_ascii_strcasecmp (value, "no") == 0 ||
-	         g_ascii_strcasecmp (value, "nope") == 0)
+	         g_ascii_strcasecmp (value, "nope") == 0 ||
+	         g_ascii_strcasecmp (value, "non") == 0)
 	{
 	    g_value_set_boolean (gvalue, FALSE);
 	    ret = TRUE;
