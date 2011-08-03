@@ -525,10 +525,9 @@ _delete (const McpAccountStorage *self,
       gboolean save = FALSE;
 
 #if ENABLE_GNOME_KEYRING
-      if (mcp_account_manager_parameter_is_secret (am, account, key))
-        save = g_key_file_remove_key (amd->secrets, account, key, NULL);
-      else
-        save = g_key_file_remove_key (amd->keyfile, account, key, NULL);
+      save = g_key_file_remove_key (amd->secrets, account, key, NULL);
+      if (g_key_file_remove_key (amd->keyfile, account, key, NULL))
+        save = TRUE;
 #else
       save = g_key_file_remove_key (amd->keyfile, account, key, NULL);
 #endif
