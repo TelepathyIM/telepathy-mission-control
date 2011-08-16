@@ -192,11 +192,6 @@ def test(q, bus, mc):
     q.expect('dbus-method-call', method='Disconnect',
             path=conn.object_path, handled=True)
 
-    # MC terminates the channel
-    # FIXME: it shouldn't do this!
-    #q.expect('dbus-method-call', method='Close',
-    #        path=chan.object_path, handled=True)
-
     properties = account.GetAll(cs.ACCOUNT, dbus_interface=cs.PROPERTIES_IFACE)
     assert properties['Connection'] == '/'
     assert properties['ConnectionStatus'] == cs.CONN_STATUS_DISCONNECTED
