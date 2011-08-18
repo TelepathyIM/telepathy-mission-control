@@ -2681,6 +2681,7 @@ void
 _mcd_connection_connect (McdConnection *connection, GHashTable *params)
 {
     McdConnectionPrivate *priv;
+    TpConnectionStatus status = TP_CONNECTION_STATUS_DISCONNECTED;
 
     g_return_if_fail (MCD_IS_CONNECTION (connection));
     g_return_if_fail (params != NULL);
@@ -2697,8 +2698,15 @@ _mcd_connection_connect (McdConnection *connection, GHashTable *params)
 	priv->reconnect_timer = 0;
     }
 
-    if (mcd_account_get_connection_status (priv->account) ==
-        TP_CONNECTION_STATUS_DISCONNECTED)
+    /* the account's status can be CONNECTING _before_ we get here, because
+     * for the account that includes things like trying to bring up an IAP
+     * via an McdTransport plugin. So we have to use the actual status of
+     * the connection (or DISCONNECTED if we havan't got one yet) */
+    if (priv->tp_conn != NULL)
+        status = tp_connection_get_status (priv->tp_conn, NULL);
+
+    if (status == TP_CONNECTION_STATUS_DISCONNECTED ||
+        status == TP_UNKNOWN_CONNECTION_STATUS)
     {
         _mcd_connection_connect_with_params (connection, params);
     }
