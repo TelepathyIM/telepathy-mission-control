@@ -344,6 +344,10 @@ PKG_CHECK_MODULES([GLIB],
 AC_SUBST(GLIB_LIBS)
 AC_SUBST(GLIB_CFLAGS)
 
+PKG_CHECK_MODULES([GIO], [gio-2.0 >= 2.28])
+AC_SUBST(GIO_LIBS)
+AC_SUBST(GIO_CFLAGS)
+
 dnl Check for MCE, a Maemo service used to determine when the device is idle.
 PKG_CHECK_MODULES([MCE], mce >= 1.5, [HAVE_MCE=yes], [HAVE_MCE=no])
 AM_CONDITIONAL([HAVE_MCE], [test x"$HAVE_MCE" = xyes])
