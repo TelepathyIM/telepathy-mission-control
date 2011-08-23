@@ -240,7 +240,7 @@ _mcd_account_maybe_autoconnect (McdAccount *account)
         return;
     }
 
-    if (!priv->valid)
+    if (!mcd_account_is_valid (account))
     {
         DEBUG ("%s not Valid", priv->unique_name);
         return;
@@ -349,7 +349,7 @@ mcd_account_loaded (McdAccount *account)
     {
         /* if we have established that the account is not valid or is
          * disabled, cancel all requests */
-        if (!account->priv->valid || !account->priv->enabled)
+        if (!mcd_account_is_valid (account) || !account->priv->enabled)
         {
             /* FIXME: pick better errors and put them in telepathy-spec? */
             GError e = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
@@ -357,7 +357,7 @@ mcd_account_loaded (McdAccount *account)
                     "online)" };
             GList *list;
 
-            if (account->priv->valid)
+            if (mcd_account_is_valid (account))
             {
                 e.message = "account isn't Enabled";
             }
@@ -885,7 +885,7 @@ mcd_account_request_presence_int (McdAccount *account,
             return;
         }
 
-        if (!priv->valid)
+        if (!mcd_account_is_valid (account))
         {
             DEBUG ("%s not Valid", priv->unique_name);
             return;
@@ -1131,10 +1131,9 @@ static void
 get_valid (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
-    McdAccountPrivate *priv = account->priv;
 
     g_value_init (value, G_TYPE_BOOLEAN);
-    g_value_set_boolean (value, priv->valid);
+    g_value_set_boolean (value, mcd_account_is_valid (account));
 }
 
 static void
@@ -2625,13 +2624,13 @@ account_reconnect (TpSvcAccount *service,
 
     /* if we can't, or don't want to, connect this method is a no-op */
     if (!priv->enabled ||
-        !priv->valid ||
+        !mcd_account_is_valid (self) ||
         priv->req_presence_type == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
     {
         DEBUG ("doing nothing (enabled=%c, valid=%c and "
                "combined presence=%i)",
                self->priv->enabled ? 'T' : 'F',
-               self->priv->valid ? 'T' : 'F',
+               mcd_account_is_valid (self) ? 'T' : 'F',
                self->priv->req_presence_type);
         tp_svc_account_return_from_reconnect (context);
         return;
@@ -4023,7 +4022,7 @@ _mcd_account_online_request (McdAccount *account,
         return;
     }
 
-    if (priv->loaded && !priv->valid)
+    if (priv->loaded && !mcd_account_is_valid (account))
     {
         /* FIXME: pick a better error and put it in telepathy-spec? */
         GError e = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
