@@ -42,7 +42,7 @@ def test(q, bus, mc):
             {}, # Properties
             )
     e = q.expect('dbus-error', method='CreateAccount')
-    #assertEquals(cs.NOT_IMPLEMENTED, e.name)
+    assertEquals(cs.NOT_IMPLEMENTED, e.name)
     #assertContains("nonexistent_cm", e.message)
 
     # Create an account with a bad Protocol - it should fail
@@ -57,7 +57,7 @@ def test(q, bus, mc):
             {}, # Properties
             )
     e = q.expect('dbus-error', method='CreateAccount')
-    #assertEquals(cs.NOT_IMPLEMENTED, e.name)
+    assertEquals(cs.NOT_IMPLEMENTED, e.name)
     assertContains("nonexistent-protocol", e.message)
 
     # Create an account with incomplete Parameters - it should fail

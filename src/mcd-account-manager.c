@@ -450,17 +450,6 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
     }
 }
 
-GQuark
-mcd_account_manager_error_quark (void)
-{
-    static GQuark quark = 0;
-
-    if (quark == 0)
-        quark = g_quark_from_static_string ("mcd-account-manager-error");
-
-    return quark;
-}
-
 static gboolean
 get_account_connection (const gchar *file_contents, const gchar *path,
                         gchar **p_bus_name, gchar **p_account_name)
@@ -813,9 +802,8 @@ complete_account_creation_set_cb (McdAccount *account, GPtrArray *not_yet,
     if (set_error != NULL)
     {
         cad->ok = FALSE;
-        g_set_error (&cad->error, MCD_ACCOUNT_MANAGER_ERROR,
-                     MCD_ACCOUNT_MANAGER_ERROR_SET_PARAMETER,
-                     "Failed to set parameter: %s", set_error->message);
+        g_set_error_literal (&cad->error, set_error->domain, set_error->code,
+                             set_error->message);
     }
 
     if (cad->ok && cad->properties != NULL)
