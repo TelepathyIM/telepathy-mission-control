@@ -21,15 +21,9 @@
 
 import dbus
 
-from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async
-from fakecm import start_fake_connection_manager
+from servicetest import call_async, assertEquals, assertContains
 from mctest import exec_test, get_account_manager
 import constants as cs
-
-FakeCM_bus_name = "com.example.FakeCM"
-ConnectionManager_object_path = "/com/example/FakeCM/ConnectionManager"
-
 
 def test(q, bus, mc):
     # Get the AccountManager interface
@@ -47,7 +41,9 @@ def test(q, bus, mc):
             params, # Parameters
             {}, # Properties
             )
-    q.expect('dbus-error', method='CreateAccount')
+    e = q.expect('dbus-error', method='CreateAccount')
+    #assertEquals(cs.NOT_IMPLEMENTED, e.name)
+    #assertContains("nonexistent_cm", e.message)
 
     # Create an account with a bad Protocol - it should fail
 
@@ -60,7 +56,9 @@ def test(q, bus, mc):
             params, # Parameters
             {}, # Properties
             )
-    q.expect('dbus-error', method='CreateAccount')
+    e = q.expect('dbus-error', method='CreateAccount')
+    #assertEquals(cs.NOT_IMPLEMENTED, e.name)
+    assertContains("nonexistent-protocol", e.message)
 
     # Create an account with incomplete Parameters - it should fail
 
@@ -73,7 +71,9 @@ def test(q, bus, mc):
             params, # Parameters
             {}, # Properties
             )
-    q.expect('dbus-error', method='CreateAccount')
+    e = q.expect('dbus-error', method='CreateAccount')
+    assertEquals(cs.INVALID_ARGUMENT, e.name)
+    assertContains("password", e.message)
 
 if __name__ == '__main__':
     exec_test(test, {})

@@ -2303,11 +2303,11 @@ out:
 
 static void
 set_parameters_maybe_autoconnect_cb (McdAccount *account,
-                                     gboolean valid,
+                                     const GError *invalid_reason,
                                      gpointer user_data G_GNUC_UNUSED)
 {
-    /* Strictly speaking this doesn't need to be called unless valid is TRUE,
-     * but calling it in all cases gives us clearer debug output */
+    /* Strictly speaking this doesn't need to be called unless invalid_reason
+     * is NULL, but calling it in all cases gives us clearer debug output */
     _mcd_account_maybe_autoconnect (account);
 }
 
@@ -3976,7 +3976,7 @@ check_validity_check_parameters_cb (McdAccount *account,
     }
 
     if (data->callback != NULL)
-        data->callback (account, now_valid, data->user_data);
+        data->callback (account, invalid_reason, data->user_data);
 
     g_slice_free (CheckValidityData, data);
 }

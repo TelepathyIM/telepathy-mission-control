@@ -156,10 +156,10 @@ static void account_loaded (McdAccount *account,
 
 /* calback chain for asynchronously updates from backends: */
 static void
-async_altered_validity_cb (McdAccount *account, gboolean valid, gpointer data)
+async_altered_validity_cb (McdAccount *account, const GError *invalid_reason, gpointer data)
 {
     DEBUG ("asynchronously altered account %s is %svalid",
-           mcd_account_get_unique_name (account), valid ? "" : "in");
+           mcd_account_get_unique_name (account), (invalid_reason == NULL) ? "" : "in");
 
     g_object_unref (account);
 }
@@ -285,10 +285,10 @@ altered_one_cb (GObject *storage,
 
 /* callbacks for the various stages in an backend-driven account creation */
 static void
-async_created_validity_cb (McdAccount *account, gboolean valid, gpointer data)
+async_created_validity_cb (McdAccount *account, const GError *invalid_reason, gpointer data)
 {
     DEBUG ("asynchronously created account %s is %svalid",
-           mcd_account_get_unique_name (account), valid ? "" : "in");
+           mcd_account_get_unique_name (account), (invalid_reason == NULL) ? "" : "in");
 
     /* safely cached in the accounts hash by now */
     g_object_unref (account);
@@ -762,20 +762,10 @@ set_new_account_properties (McdAccount *account,
 }
 
 static void
-complete_account_creation_finish (McdAccount *account, gboolean valid,
-                                  gpointer user_data)
+complete_account_creation_finish (McdAccount *account,
+                                  McdCreateAccountData *cad)
 {
-    McdCreateAccountData *cad = (McdCreateAccountData *) user_data;
-    McdAccountManager *account_manager;
-
-    account_manager = cad->account_manager;
-
-    if (!valid)
-    {
-        cad->ok = FALSE;
-        g_set_error (&cad->error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                         "The supplied CM parameters were not valid");
-    }
+    McdAccountManager *account_manager = cad->account_manager;
 
     if (!cad->ok)
     {
@@ -791,6 +781,23 @@ complete_account_creation_finish (McdAccount *account, gboolean valid,
     mcd_create_account_data_free (cad);
 
     tp_clear_object (&account);
+}
+
+static void
+complete_account_creation_check_validity_cb (McdAccount *account,
+                                             const GError *invalid_reason,
+                                             gpointer user_data)
+{
+    McdCreateAccountData *cad = user_data;
+
+    if (invalid_reason != NULL)
+    {
+        cad->ok = FALSE;
+        g_set_error_literal (&cad->error, invalid_reason->domain,
+            invalid_reason->code, invalid_reason->message);
+    }
+
+    complete_account_creation_finish (account, cad);
 }
 
 static void
@@ -819,11 +826,11 @@ complete_account_creation_set_cb (McdAccount *account, GPtrArray *not_yet,
     if (cad->ok)
     {
         add_account (account_manager, account, G_STRFUNC);
-        mcd_account_check_validity (account, complete_account_creation_finish, cad);
+        mcd_account_check_validity (account, complete_account_creation_check_validity_cb, cad);
     }
     else
     {
-        complete_account_creation_finish (account, TRUE, cad);
+        complete_account_creation_finish (account, cad);
     }
 }
 
