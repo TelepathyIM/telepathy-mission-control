@@ -168,9 +168,13 @@ struct _McdAccountPrivate
                                (callback with user data) to be called when the
                                account will be online */
 
+    /* %NULL if the account is valid; a valid error for reporting over the
+     * D-Bus if the account is invalid.
+     */
+    GError *invalid_reason;
+
     guint connect_automatically : 1;
     guint enabled : 1;
-    guint valid : 1;
     guint loaded : 1;
     guint has_been_online : 1;
     guint removed : 1;
@@ -511,7 +515,12 @@ manager_ready_check_params_cb (McdAccount *account,
 {
     McdAccountPrivate *priv = account->priv;
 
-    priv->valid = (invalid_reason == NULL);
+    g_clear_error (&priv->invalid_reason);
+    if (invalid_reason != NULL)
+    {
+        priv->invalid_reason = g_error_copy (invalid_reason);
+    }
+
     mcd_account_loaded (account);
 }
 
@@ -3104,6 +3113,9 @@ mcd_account_init (McdAccount *account)
 
     priv->changed_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
         NULL, (GDestroyNotify) tp_g_value_slice_free);
+
+    g_set_error (&priv->invalid_reason, TP_ERROR, TP_ERROR_NOT_YET,
+        "This account is not yet fully loaded");
 }
 
 McdAccount *
@@ -3148,7 +3160,7 @@ gboolean
 mcd_account_is_valid (McdAccount *account)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
-    return priv->valid;
+    return priv->invalid_reason == NULL;
 }
 
 /**
@@ -3930,21 +3942,27 @@ check_validity_check_parameters_cb (McdAccount *account,
 {
     CheckValidityData *data = (CheckValidityData *) user_data;
     McdAccountPrivate *priv = account->priv;
-    gboolean valid = (invalid_reason == NULL);
+    gboolean now_valid = (invalid_reason == NULL);
+    gboolean was_valid = (priv->invalid_reason == NULL);
 
-    if (valid != priv->valid)
+    g_clear_error (&priv->invalid_reason);
+    if (invalid_reason != NULL)
+    {
+        priv->invalid_reason = g_error_copy (invalid_reason);
+    }
+
+    if (was_valid != now_valid)
     {
         GValue value = { 0 };
         DEBUG ("Account validity changed (old: %d, new: %d)",
-               priv->valid, valid);
-        priv->valid = valid;
+               was_valid, now_valid);
         g_signal_emit (account, _mcd_account_signals[VALIDITY_CHANGED], 0,
-                       valid);
+                       now_valid);
         g_value_init (&value, G_TYPE_BOOLEAN);
-        g_value_set_boolean (&value, valid);
+        g_value_set_boolean (&value, now_valid);
         mcd_account_changed_property (account, "Valid", &value);
 
-        if (valid)
+        if (now_valid)
         {
             /* Newly valid - try setting requested presence again.
              * This counts as user-initiated, because the user caused the
@@ -3958,7 +3976,7 @@ check_validity_check_parameters_cb (McdAccount *account,
     }
 
     if (data->callback != NULL)
-        data->callback (account, valid, data->user_data);
+        data->callback (account, now_valid, data->user_data);
 
     g_slice_free (CheckValidityData, data);
 }
