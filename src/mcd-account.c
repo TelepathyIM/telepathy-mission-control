@@ -497,19 +497,21 @@ mcd_account_get_parameter (McdAccount *account, const gchar *name,
 }
 
 
-typedef void (*CheckParametersCb) (McdAccount *account, gboolean valid,
-                                   gpointer user_data);
+typedef void (*CheckParametersCb) (
+    McdAccount *account,
+    const GError *invalid_reason,
+    gpointer user_data);
 static void mcd_account_check_parameters (McdAccount *account,
     CheckParametersCb callback, gpointer user_data);
 
 static void
 manager_ready_check_params_cb (McdAccount *account,
-    gboolean valid,
+    const GError *invalid_reason,
     gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
 
-    priv->valid = valid;
+    priv->valid = (invalid_reason == NULL);
     mcd_account_loaded (account);
 }
 
@@ -2251,6 +2253,7 @@ mcd_account_check_parameters (McdAccount *account,
     McdAccountPrivate *priv = account->priv;
     TpConnectionManagerProtocol *protocol;
     const TpConnectionManagerParam *param;
+    GError *error = NULL;
 
     g_return_if_fail (callback != NULL);
 
@@ -2259,10 +2262,10 @@ mcd_account_check_parameters (McdAccount *account,
 
     if (protocol == NULL)
     {
-        DEBUG ("CM %s doesn't implement protocol %s", priv->manager_name,
+        g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+            "CM '%s' doesn't implement protocol '%s'", priv->manager_name,
             priv->protocol_name);
-        callback (account, FALSE, user_data);
-        return;
+        goto out;
     }
 
     for (param = protocol->params; param->name != NULL; param++)
@@ -2272,15 +2275,21 @@ mcd_account_check_parameters (McdAccount *account,
 
         if (!mcd_account_get_parameter (account, param->name, NULL, NULL))
         {
-            DEBUG ("missing required parameter %s", param->name);
-            callback (account, FALSE, user_data);
+            g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                "missing required parameter '%s'", param->name);
             goto out;
         }
     }
 
-    callback (account, TRUE, user_data);
 out:
-    tp_connection_manager_protocol_free (protocol);
+    if (error != NULL)
+    {
+        DEBUG ("%s", error->message);
+    }
+
+    callback (account, error, user_data);
+    g_clear_error (&error);
+    tp_clear_pointer (&protocol, tp_connection_manager_protocol_free);
 }
 
 static void
@@ -3916,11 +3925,12 @@ typedef struct
 
 static void
 check_validity_check_parameters_cb (McdAccount *account,
-                                    gboolean valid,
+                                    const GError *invalid_reason,
                                     gpointer user_data)
 {
     CheckValidityData *data = (CheckValidityData *) user_data;
     McdAccountPrivate *priv = account->priv;
+    gboolean valid = (invalid_reason == NULL);
 
     if (valid != priv->valid)
     {
