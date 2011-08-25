@@ -2546,6 +2546,12 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     DEBUG ("called");
     if (G_UNLIKELY (!priv->manager && !load_manager (account)))
     {
+        /* FIXME: this branch is never reached, even if the specified CM
+         * doesn't actually exist: load_manager essentially always succeeds,
+         * but of course the TpCM hasn't prepared (or failed, as it will if we
+         * would like to hit this path) yet. So in practice we hit the next
+         * block for nonexistant CMs too.
+         */
         g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
                      "Manager '%s' not found", priv->manager_name);
         goto out;
@@ -2556,7 +2562,8 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     if (G_UNLIKELY (protocol == NULL))
     {
         g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
-                     "Protocol '%s' not found", priv->protocol_name);
+                     "Protocol '%s' not found on CM '%s'", priv->protocol_name,
+                     priv->manager_name);
         goto out;
     }
 

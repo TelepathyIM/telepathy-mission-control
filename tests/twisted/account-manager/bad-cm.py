@@ -43,7 +43,7 @@ def test(q, bus, mc):
             )
     e = q.expect('dbus-error', method='CreateAccount')
     assertEquals(cs.NOT_IMPLEMENTED, e.name)
-    #assertContains("nonexistent_cm", e.message)
+    assertContains("nonexistent_cm", e.message)
 
     # Create an account with a bad Protocol - it should fail
 
