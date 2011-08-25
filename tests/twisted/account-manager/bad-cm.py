@@ -75,5 +75,38 @@ def test(q, bus, mc):
     assertEquals(cs.INVALID_ARGUMENT, e.name)
     assertContains("password", e.message)
 
+    # Create an account with unknown parameters
+    params = dbus.Dictionary(
+        { "account": "someguy@example.com",
+          "password": "secrecy",
+          "deerhoof": "evil",
+        }, signature='sv')
+    call_async(q, account_manager_iface, 'CreateAccount',
+            'fakecm', # Connection_Manager
+            'fakeprotocol', # Protocol
+            'fakeaccount', #Display_Name
+            params, # Parameters
+            {}, # Properties
+            )
+    e = q.expect('dbus-error', method='CreateAccount')
+    assertEquals(cs.INVALID_ARGUMENT, e.name)
+    assertContains("deerhoof", e.message)
+
+    # Create an account with parameters with the wrong types
+    params = dbus.Dictionary(
+        { "account": 12,
+          "password": "secrecy",
+        }, signature='sv')
+    call_async(q, account_manager_iface, 'CreateAccount',
+            'fakecm', # Connection_Manager
+            'fakeprotocol', # Protocol
+            'fakeaccount', #Display_Name
+            params, # Parameters
+            {}, # Properties
+            )
+    e = q.expect('dbus-error', method='CreateAccount')
+    assertEquals(cs.INVALID_ARGUMENT, e.name)
+    assertContains("account", e.message)
+
 if __name__ == '__main__':
     exec_test(test, {})

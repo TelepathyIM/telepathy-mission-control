@@ -2396,9 +2396,9 @@ check_one_parameter_update (McdAccount *account,
 
     if (G_VALUE_TYPE (new_value) != type)
     {
-        /* FIXME: define proper error */
+        /* FIXME: use D-Bus type names, not GType names. */
         g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                     "parameter %s must be of type %s, not %s",
+                     "parameter '%s' must be of type %s, not %s",
                      param->name,
                      g_type_name (type), G_VALUE_TYPE_NAME (new_value));
         return FALSE;
