@@ -22,88 +22,54 @@
 import dbus
 
 from servicetest import call_async, assertEquals, assertContains
-from mctest import exec_test, get_account_manager
+from mctest import exec_test, AccountManager
 import constants as cs
 
 def test(q, bus, mc):
-    # Get the AccountManager interface
-    account_manager = get_account_manager(bus)
-    account_manager_iface = dbus.Interface(account_manager, cs.AM)
+    am = AccountManager(bus)
+
+    def call_create(cm='fakecm', protocol='fakeprotocol', parameters=None):
+        if parameters is None:
+            parameters = {"account": "someguy@example.com",
+                          "password": "secrecy",
+                         }
+
+        call_async(q, am, 'CreateAccount',
+            cm, protocol, 'this is a beautiful account',
+            dbus.Dictionary(parameters, signature='sv'),
+            {})
 
     # Create an account with a bad Connection_Manager - it should fail
-
-    params = dbus.Dictionary({"account": "someguy@example.com",
-        "password": "secrecy"}, signature='sv')
-    call_async(q, account_manager_iface, 'CreateAccount',
-            'nonexistent_cm', # Connection_Manager
-            'fakeprotocol', # Protocol
-            'fakeaccount', #Display_Name
-            params, # Parameters
-            {}, # Properties
-            )
+    call_create(cm='nonexistent_cm')
     e = q.expect('dbus-error', method='CreateAccount')
     assertEquals(cs.NOT_IMPLEMENTED, e.name)
     assertContains("nonexistent_cm", e.message)
 
     # Create an account with a bad Protocol - it should fail
-
-    params = dbus.Dictionary({"account": "someguy@example.com",
-        "password": "secrecy"}, signature='sv')
-    call_async(q, account_manager_iface, 'CreateAccount',
-            'fakecm', # Connection_Manager
-            'nonexistent-protocol', # Protocol
-            'fakeaccount', #Display_Name
-            params, # Parameters
-            {}, # Properties
-            )
+    call_create(protocol='nonexistent-protocol')
     e = q.expect('dbus-error', method='CreateAccount')
     assertEquals(cs.NOT_IMPLEMENTED, e.name)
     assertContains("nonexistent-protocol", e.message)
 
     # Create an account with incomplete Parameters - it should fail
-
-    params = dbus.Dictionary({"account": "someguy@example.com"},
-            signature='sv')
-    call_async(q, account_manager_iface, 'CreateAccount',
-            'fakecm', # Connection_Manager
-            'fakeprotocol', # Protocol
-            'fakeaccount', #Display_Name
-            params, # Parameters
-            {}, # Properties
-            )
+    call_create(parameters={"account": "someguy@example.com"})
     e = q.expect('dbus-error', method='CreateAccount')
     assertEquals(cs.INVALID_ARGUMENT, e.name)
     assertContains("password", e.message)
 
     # Create an account with unknown parameters
-    params = dbus.Dictionary(
-        { "account": "someguy@example.com",
-          "password": "secrecy",
-          "deerhoof": "evil",
-        }, signature='sv')
-    call_async(q, account_manager_iface, 'CreateAccount',
-            'fakecm', # Connection_Manager
-            'fakeprotocol', # Protocol
-            'fakeaccount', #Display_Name
-            params, # Parameters
-            {}, # Properties
-            )
+    call_create(parameters={ "account": "someguy@example.com",
+                             "password": "secrecy",
+                             "deerhoof": "evil",
+                           })
     e = q.expect('dbus-error', method='CreateAccount')
     assertEquals(cs.INVALID_ARGUMENT, e.name)
     assertContains("deerhoof", e.message)
 
     # Create an account with parameters with the wrong types
-    params = dbus.Dictionary(
-        { "account": 12,
-          "password": "secrecy",
-        }, signature='sv')
-    call_async(q, account_manager_iface, 'CreateAccount',
-            'fakecm', # Connection_Manager
-            'fakeprotocol', # Protocol
-            'fakeaccount', #Display_Name
-            params, # Parameters
-            {}, # Properties
-            )
+    call_create(parameters={ "account": 12,
+                             "password": "secrecy",
+                           })
     e = q.expect('dbus-error', method='CreateAccount')
     assertEquals(cs.INVALID_ARGUMENT, e.name)
     assertContains("account", e.message)
