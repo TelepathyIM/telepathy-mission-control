@@ -156,10 +156,10 @@ static void account_loaded (McdAccount *account,
 
 /* calback chain for asynchronously updates from backends: */
 static void
-async_altered_validity_cb (McdAccount *account, gboolean valid, gpointer data)
+async_altered_validity_cb (McdAccount *account, const GError *invalid_reason, gpointer data)
 {
     DEBUG ("asynchronously altered account %s is %svalid",
-           mcd_account_get_unique_name (account), valid ? "" : "in");
+           mcd_account_get_unique_name (account), (invalid_reason == NULL) ? "" : "in");
 
     g_object_unref (account);
 }
@@ -285,10 +285,10 @@ altered_one_cb (GObject *storage,
 
 /* callbacks for the various stages in an backend-driven account creation */
 static void
-async_created_validity_cb (McdAccount *account, gboolean valid, gpointer data)
+async_created_validity_cb (McdAccount *account, const GError *invalid_reason, gpointer data)
 {
     DEBUG ("asynchronously created account %s is %svalid",
-           mcd_account_get_unique_name (account), valid ? "" : "in");
+           mcd_account_get_unique_name (account), (invalid_reason == NULL) ? "" : "in");
 
     /* safely cached in the accounts hash by now */
     g_object_unref (account);
@@ -448,17 +448,6 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
         tp_svc_account_manager_emit_account_removed (manager, object_path);
         mcd_account_delete (account, _mcd_account_delete_cb, NULL);
     }
-}
-
-GQuark
-mcd_account_manager_error_quark (void)
-{
-    static GQuark quark = 0;
-
-    if (quark == 0)
-        quark = g_quark_from_static_string ("mcd-account-manager-error");
-
-    return quark;
 }
 
 static gboolean
@@ -762,20 +751,10 @@ set_new_account_properties (McdAccount *account,
 }
 
 static void
-complete_account_creation_finish (McdAccount *account, gboolean valid,
-                                  gpointer user_data)
+complete_account_creation_finish (McdAccount *account,
+                                  McdCreateAccountData *cad)
 {
-    McdCreateAccountData *cad = (McdCreateAccountData *) user_data;
-    McdAccountManager *account_manager;
-
-    account_manager = cad->account_manager;
-
-    if (!valid)
-    {
-        cad->ok = FALSE;
-        g_set_error (&cad->error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                         "The supplied CM parameters were not valid");
-    }
+    McdAccountManager *account_manager = cad->account_manager;
 
     if (!cad->ok)
     {
@@ -794,6 +773,23 @@ complete_account_creation_finish (McdAccount *account, gboolean valid,
 }
 
 static void
+complete_account_creation_check_validity_cb (McdAccount *account,
+                                             const GError *invalid_reason,
+                                             gpointer user_data)
+{
+    McdCreateAccountData *cad = user_data;
+
+    if (invalid_reason != NULL)
+    {
+        cad->ok = FALSE;
+        g_set_error_literal (&cad->error, invalid_reason->domain,
+            invalid_reason->code, invalid_reason->message);
+    }
+
+    complete_account_creation_finish (account, cad);
+}
+
+static void
 complete_account_creation_set_cb (McdAccount *account, GPtrArray *not_yet,
                                   const GError *set_error, gpointer user_data)
 {
@@ -806,9 +802,8 @@ complete_account_creation_set_cb (McdAccount *account, GPtrArray *not_yet,
     if (set_error != NULL)
     {
         cad->ok = FALSE;
-        g_set_error (&cad->error, MCD_ACCOUNT_MANAGER_ERROR,
-                     MCD_ACCOUNT_MANAGER_ERROR_SET_PARAMETER,
-                     "Failed to set parameter: %s", set_error->message);
+        g_set_error_literal (&cad->error, set_error->domain, set_error->code,
+                             set_error->message);
     }
 
     if (cad->ok && cad->properties != NULL)
@@ -819,11 +814,11 @@ complete_account_creation_set_cb (McdAccount *account, GPtrArray *not_yet,
     if (cad->ok)
     {
         add_account (account_manager, account, G_STRFUNC);
-        mcd_account_check_validity (account, complete_account_creation_finish, cad);
+        mcd_account_check_validity (account, complete_account_creation_check_validity_cb, cad);
     }
     else
     {
-        complete_account_creation_finish (account, TRUE, cad);
+        complete_account_creation_finish (account, cad);
     }
 }
 

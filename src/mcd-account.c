@@ -168,9 +168,13 @@ struct _McdAccountPrivate
                                (callback with user data) to be called when the
                                account will be online */
 
+    /* %NULL if the account is valid; a valid error for reporting over the
+     * D-Bus if the account is invalid.
+     */
+    GError *invalid_reason;
+
     guint connect_automatically : 1;
     guint enabled : 1;
-    guint valid : 1;
     guint loaded : 1;
     guint has_been_online : 1;
     guint removed : 1;
@@ -240,7 +244,7 @@ _mcd_account_maybe_autoconnect (McdAccount *account)
         return;
     }
 
-    if (!priv->valid)
+    if (!mcd_account_is_valid (account))
     {
         DEBUG ("%s not Valid", priv->unique_name);
         return;
@@ -349,7 +353,7 @@ mcd_account_loaded (McdAccount *account)
     {
         /* if we have established that the account is not valid or is
          * disabled, cancel all requests */
-        if (!account->priv->valid || !account->priv->enabled)
+        if (!mcd_account_is_valid (account) || !account->priv->enabled)
         {
             /* FIXME: pick better errors and put them in telepathy-spec? */
             GError e = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
@@ -357,7 +361,7 @@ mcd_account_loaded (McdAccount *account)
                     "online)" };
             GList *list;
 
-            if (account->priv->valid)
+            if (mcd_account_is_valid (account))
             {
                 e.message = "account isn't Enabled";
             }
@@ -497,19 +501,26 @@ mcd_account_get_parameter (McdAccount *account, const gchar *name,
 }
 
 
-typedef void (*CheckParametersCb) (McdAccount *account, gboolean valid,
-                                   gpointer user_data);
+typedef void (*CheckParametersCb) (
+    McdAccount *account,
+    const GError *invalid_reason,
+    gpointer user_data);
 static void mcd_account_check_parameters (McdAccount *account,
     CheckParametersCb callback, gpointer user_data);
 
 static void
 manager_ready_check_params_cb (McdAccount *account,
-    gboolean valid,
+    const GError *invalid_reason,
     gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
 
-    priv->valid = valid;
+    g_clear_error (&priv->invalid_reason);
+    if (invalid_reason != NULL)
+    {
+        priv->invalid_reason = g_error_copy (invalid_reason);
+    }
+
     mcd_account_loaded (account);
 }
 
@@ -885,7 +896,7 @@ mcd_account_request_presence_int (McdAccount *account,
             return;
         }
 
-        if (!priv->valid)
+        if (!mcd_account_is_valid (account))
         {
             DEBUG ("%s not Valid", priv->unique_name);
             return;
@@ -1131,10 +1142,9 @@ static void
 get_valid (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
-    McdAccountPrivate *priv = account->priv;
 
     g_value_init (value, G_TYPE_BOOLEAN);
-    g_value_set_boolean (value, priv->valid);
+    g_value_set_boolean (value, mcd_account_is_valid (account));
 }
 
 static void
@@ -2252,6 +2262,7 @@ mcd_account_check_parameters (McdAccount *account,
     McdAccountPrivate *priv = account->priv;
     TpConnectionManagerProtocol *protocol;
     const TpConnectionManagerParam *param;
+    GError *error = NULL;
 
     g_return_if_fail (callback != NULL);
 
@@ -2260,10 +2271,10 @@ mcd_account_check_parameters (McdAccount *account,
 
     if (protocol == NULL)
     {
-        DEBUG ("CM %s doesn't implement protocol %s", priv->manager_name,
+        g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+            "CM '%s' doesn't implement protocol '%s'", priv->manager_name,
             priv->protocol_name);
-        callback (account, FALSE, user_data);
-        return;
+        goto out;
     }
 
     for (param = protocol->params; param->name != NULL; param++)
@@ -2273,24 +2284,30 @@ mcd_account_check_parameters (McdAccount *account,
 
         if (!mcd_account_get_parameter (account, param->name, NULL, NULL))
         {
-            DEBUG ("missing required parameter %s", param->name);
-            callback (account, FALSE, user_data);
+            g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                "missing required parameter '%s'", param->name);
             goto out;
         }
     }
 
-    callback (account, TRUE, user_data);
 out:
-    tp_connection_manager_protocol_free (protocol);
+    if (error != NULL)
+    {
+        DEBUG ("%s", error->message);
+    }
+
+    callback (account, error, user_data);
+    g_clear_error (&error);
+    tp_clear_pointer (&protocol, tp_connection_manager_protocol_free);
 }
 
 static void
 set_parameters_maybe_autoconnect_cb (McdAccount *account,
-                                     gboolean valid,
+                                     const GError *invalid_reason,
                                      gpointer user_data G_GNUC_UNUSED)
 {
-    /* Strictly speaking this doesn't need to be called unless valid is TRUE,
-     * but calling it in all cases gives us clearer debug output */
+    /* Strictly speaking this doesn't need to be called unless invalid_reason
+     * is NULL, but calling it in all cases gives us clearer debug output */
     _mcd_account_maybe_autoconnect (account);
 }
 
@@ -2379,9 +2396,9 @@ check_one_parameter_update (McdAccount *account,
 
     if (G_VALUE_TYPE (new_value) != type)
     {
-        /* FIXME: define proper error */
+        /* FIXME: use D-Bus type names, not GType names. */
         g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                     "parameter %s must be of type %s, not %s",
+                     "parameter '%s' must be of type %s, not %s",
                      param->name,
                      g_type_name (type), G_VALUE_TYPE_NAME (new_value));
         return FALSE;
@@ -2529,8 +2546,14 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     DEBUG ("called");
     if (G_UNLIKELY (!priv->manager && !load_manager (account)))
     {
-        g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                     "Manager %s not found", priv->manager_name);
+        /* FIXME: this branch is never reached, even if the specified CM
+         * doesn't actually exist: load_manager essentially always succeeds,
+         * but of course the TpCM hasn't prepared (or failed, as it will if we
+         * would like to hit this path) yet. So in practice we hit the next
+         * block for nonexistant CMs too.
+         */
+        g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
+                     "Manager '%s' not found", priv->manager_name);
         goto out;
     }
 
@@ -2538,8 +2561,9 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
 
     if (G_UNLIKELY (protocol == NULL))
     {
-        g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                     "Protocol %s not found", priv->protocol_name);
+        g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
+                     "Protocol '%s' not found on CM '%s'", priv->protocol_name,
+                     priv->manager_name);
         goto out;
     }
 
@@ -2625,13 +2649,13 @@ account_reconnect (TpSvcAccount *service,
 
     /* if we can't, or don't want to, connect this method is a no-op */
     if (!priv->enabled ||
-        !priv->valid ||
+        !mcd_account_is_valid (self) ||
         priv->req_presence_type == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
     {
         DEBUG ("doing nothing (enabled=%c, valid=%c and "
                "combined presence=%i)",
                self->priv->enabled ? 'T' : 'F',
-               self->priv->valid ? 'T' : 'F',
+               mcd_account_is_valid (self) ? 'T' : 'F',
                self->priv->req_presence_type);
         tp_svc_account_return_from_reconnect (context);
         return;
@@ -3096,6 +3120,9 @@ mcd_account_init (McdAccount *account)
 
     priv->changed_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
         NULL, (GDestroyNotify) tp_g_value_slice_free);
+
+    g_set_error (&priv->invalid_reason, TP_ERROR, TP_ERROR_NOT_YET,
+        "This account is not yet fully loaded");
 }
 
 McdAccount *
@@ -3140,7 +3167,7 @@ gboolean
 mcd_account_is_valid (McdAccount *account)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
-    return priv->valid;
+    return priv->invalid_reason == NULL;
 }
 
 /**
@@ -3917,25 +3944,32 @@ typedef struct
 
 static void
 check_validity_check_parameters_cb (McdAccount *account,
-                                    gboolean valid,
+                                    const GError *invalid_reason,
                                     gpointer user_data)
 {
     CheckValidityData *data = (CheckValidityData *) user_data;
     McdAccountPrivate *priv = account->priv;
+    gboolean now_valid = (invalid_reason == NULL);
+    gboolean was_valid = (priv->invalid_reason == NULL);
 
-    if (valid != priv->valid)
+    g_clear_error (&priv->invalid_reason);
+    if (invalid_reason != NULL)
+    {
+        priv->invalid_reason = g_error_copy (invalid_reason);
+    }
+
+    if (was_valid != now_valid)
     {
         GValue value = { 0 };
         DEBUG ("Account validity changed (old: %d, new: %d)",
-               priv->valid, valid);
-        priv->valid = valid;
+               was_valid, now_valid);
         g_signal_emit (account, _mcd_account_signals[VALIDITY_CHANGED], 0,
-                       valid);
+                       now_valid);
         g_value_init (&value, G_TYPE_BOOLEAN);
-        g_value_set_boolean (&value, valid);
+        g_value_set_boolean (&value, now_valid);
         mcd_account_changed_property (account, "Valid", &value);
 
-        if (valid)
+        if (now_valid)
         {
             /* Newly valid - try setting requested presence again.
              * This counts as user-initiated, because the user caused the
@@ -3949,7 +3983,7 @@ check_validity_check_parameters_cb (McdAccount *account,
     }
 
     if (data->callback != NULL)
-        data->callback (account, valid, data->user_data);
+        data->callback (account, invalid_reason, data->user_data);
 
     g_slice_free (CheckValidityData, data);
 }
@@ -4023,7 +4057,7 @@ _mcd_account_online_request (McdAccount *account,
         return;
     }
 
-    if (priv->loaded && !priv->valid)
+    if (priv->loaded && !mcd_account_is_valid (account))
     {
         /* FIXME: pick a better error and put it in telepathy-spec? */
         GError e = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
