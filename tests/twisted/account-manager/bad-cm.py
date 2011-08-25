@@ -67,12 +67,12 @@ def test(q, bus, mc):
     assertContains("deerhoof", e.message)
 
     # Create an account with parameters with the wrong types
-    call_create(parameters={ "account": 12,
-                             "password": "secrecy",
+    call_create(parameters={ "account": "someguy@example.com",
+                             "password": 1234,
                            })
     e = q.expect('dbus-error', method='CreateAccount')
     assertEquals(cs.INVALID_ARGUMENT, e.name)
-    assertContains("account", e.message)
+    assertContains("password", e.message)
 
 if __name__ == '__main__':
     exec_test(test, {})
