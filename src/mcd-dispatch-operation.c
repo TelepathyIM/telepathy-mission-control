@@ -566,6 +566,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
             g_source_remove (approver_event_id);
         }
 
+        approval_free (approval);
         return;
     }
     else if (approval != NULL && approval->type == APPROVAL_TYPE_HANDLE_WITH)
