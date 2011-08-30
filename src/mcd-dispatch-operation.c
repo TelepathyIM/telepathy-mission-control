@@ -885,6 +885,8 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation,
             default:
                 {} /* do nothing */
         }
+
+        approval_free (approval);
     }
 
     if (mcd_dispatch_operation_may_signal_finished (operation))
