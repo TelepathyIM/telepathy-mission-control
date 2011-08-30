@@ -156,6 +156,7 @@ approval_free (Approval *approval)
     /* we should have replied to the method call by now */
     g_assert (approval->context == NULL);
 
+    g_free (approval->client_bus_name);
     g_slice_free (Approval, approval);
 }
 
