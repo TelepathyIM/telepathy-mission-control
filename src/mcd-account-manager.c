@@ -1030,7 +1030,6 @@ get_supported_account_properties (TpSvcDBusProperties *svc,
         TP_IFACE_ACCOUNT ".ConnectAutomatically",
         TP_IFACE_ACCOUNT ".RequestedPresence",
         TP_IFACE_ACCOUNT_INTERFACE_AVATAR ".Avatar",
-        MC_IFACE_ACCOUNT_INTERFACE_COMPAT ".Profile",
         MC_IFACE_ACCOUNT_INTERFACE_COMPAT ".SecondaryVCardFields",
         MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS ".Condition",
         NULL

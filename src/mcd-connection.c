@@ -95,9 +95,6 @@ struct _McdConnectionPrivate
     /* Account */
     McdAccount *account;
 
-    /* Associated profile */
-    /* McProfile *profile; */
-
     /* Telepathy connection manager */
     TpConnectionManager *tp_conn_mgr;
 

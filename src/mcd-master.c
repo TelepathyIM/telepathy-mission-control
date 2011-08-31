@@ -73,7 +73,6 @@
 #include "mcd-account-manager.h"
 #include "mcd-account-manager-priv.h"
 #include "mcd-account-conditions.h"
-#include "mcd-account-compat.h"
 #include "mcd-account-priv.h"
 #include "mcd-plugin.h"
 #include "mcd-transport.h"

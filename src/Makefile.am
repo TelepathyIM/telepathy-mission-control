@@ -14,7 +14,6 @@ endif
 
 mc_headers = \
 	mcd-account.h \
-	mcd-account-compat.h \
 	mcd-account-conditions.h \
 	mcd-account-manager.h \
 	mcd-account-manager-default.h \

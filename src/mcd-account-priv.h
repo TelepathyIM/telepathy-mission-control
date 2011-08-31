@@ -28,7 +28,6 @@
 #define __MCD_ACCOUNT_PRIV_H__
 
 #include "mcd-account.h"
-#include "mcd-account-compat.h"
 #include "mcd-account-config.h"
 #include "mcd-channel.h"
 #include "mcd-dbusprop.h"
