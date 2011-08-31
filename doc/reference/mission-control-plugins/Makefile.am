@@ -116,28 +116,28 @@ check-local:
 	@err=0; \
 	echo "Checking for undocumented symbols..."; \
 	if grep '^0 symbols incomplete' \
-		$(srcdir)/$(DOC_MODULE)-undocumented.txt && \
+		$(DOC_MODULE)-undocumented.txt && \
 		grep '^0 not documented' \
-		$(srcdir)/$(DOC_MODULE)-undocumented.txt; then\
+		$(DOC_MODULE)-undocumented.txt; then\
 		:; \
 	else \
-		cat $(srcdir)/$(DOC_MODULE)-undocumented.txt; \
+		cat $(DOC_MODULE)-undocumented.txt; \
 		err=1; \
 	fi; \
 	echo "Checking for unused symbols..."; \
-	if grep . $(srcdir)/$(DOC_MODULE)-unused.txt; then\
+	if grep . $(DOC_MODULE)-unused.txt; then\
 		echo "^^^ Unused symbols" >&2; \
 		err=1; \
 	fi; \
 	echo "Checking for undeclared symbols..."; \
-	if test -e $(srcdir)/$(DOC_MODULE)-undeclared.txt &&\
-		grep . $(srcdir)/$(DOC_MODULE)-undeclared.txt; then\
+	if test -e $(DOC_MODULE)-undeclared.txt &&\
+		grep . $(DOC_MODULE)-undeclared.txt; then\
 		echo "^^^ Undeclared symbols" >&2; \
 		err=1; \
 	fi; \
-	sed -n -e 's,<FILE>\(.*\)</FILE>,\1,p' $(srcdir)/$(DOC_MODULE)-sections.txt |\
+	sed -n -e 's,<FILE>\(.*\)</FILE>,\1,p' $(DOC_MODULE)-sections.txt |\
 	while read file; do \
-		if grep -F "xml/$$file.xml" $(srcdir)/$(DOC_MODULE)-docs.sgml \
+		if grep -F "xml/$$file.xml" $(DOC_MODULE)-docs.sgml \
 			>/dev/null;\
 		then \
 		:; \
