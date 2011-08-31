@@ -56,7 +56,6 @@ mc_gen_headers = \
 	_gen/gtypes.h \
 	_gen/interfaces.h \
 	_gen/svc-Account_Interface_Addressing.h \
-	_gen/svc-Account_Interface_ChannelRequests.h \
 	_gen/svc-Account_Interface_Compat.h \
 	_gen/svc-Account_Interface_Conditions.h \
 	_gen/svc-Account_Interface_External_Password_Storage.h \
@@ -75,7 +74,6 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/signals-marshal.h \
 	_gen/signals-marshal.list \
 	_gen/svc-Account_Interface_Addressing.c \
-	_gen/svc-Account_Interface_ChannelRequests.c \
 	_gen/svc-Account_Interface_Compat.c \
 	_gen/svc-Account_Interface_Conditions.c \
 	_gen/svc-Account_Interface_External_Password_Storage.c \

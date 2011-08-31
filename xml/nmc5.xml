@@ -7,7 +7,6 @@
 <xi:include href="Account.xml"/>
 <xi:include href="Account_Interface_Addressing.xml"/>
 <xi:include href="Account_Interface_Avatar.xml"/>
-<xi:include href="Account_Interface_ChannelRequests.xml"/>
 <xi:include href="Account_Interface_Compat.xml"/>
 <xi:include href="Account_Interface_Conditions.xml"/>
 <xi:include href="Account_Interface_External_Password_Storage.xml"/>
