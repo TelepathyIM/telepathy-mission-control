@@ -2092,9 +2092,8 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
                                     &request_properties);
 
         /* transfer ownership into observer_info */
-        /* FIXME: use telepathy-glib type when available */
         tp_asv_take_boxed (observer_info, "request-properties",
-            MC_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP,
+            TP_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP,
             request_properties);
         request_properties = NULL;
 
@@ -2322,7 +2321,7 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self)
     collect_satisfied_requests (self->priv->channels, NULL,
                                 &request_properties);
     tp_asv_take_boxed (handler_info, "request-properties",
-        MC_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP, request_properties);
+        TP_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP, request_properties);
     request_properties = NULL;
 
     _mcd_client_proxy_handle_channels (self->priv->trying_handler,

@@ -1584,9 +1584,8 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
 
     handler_info = tp_asv_new (NULL, NULL);
     /* hand over ownership of request_properties */
-    /* FIXME: use telepathy-glib version when available */
     tp_asv_take_boxed (handler_info, "request-properties",
-                       MC_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP,
+                       TP_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP,
                        request_properties);
     request_properties = NULL;
 
