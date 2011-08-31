@@ -55,7 +55,6 @@ def test(q, bus, mc):
     assert (cs.ACCOUNT + '.Nickname') in supported
     assert (cs.ACCOUNT + '.ConnectAutomatically') in supported
     assert (cs.ACCOUNT_IFACE_AVATAR + '.Avatar') in supported
-    assert (cs.ACCOUNT_IFACE_NOKIA_COMPAT + '.Profile') in supported
     assert (cs.ACCOUNT_IFACE_NOKIA_COMPAT + '.SecondaryVCardFields') in supported
     assert (cs.ACCOUNT_IFACE_NOKIA_CONDITIONS + '.Condition') in supported
 
@@ -82,7 +81,6 @@ def test(q, bus, mc):
         cs.ACCOUNT + '.ConnectAutomatically': True,
         cs.ACCOUNT_IFACE_AVATAR + '.Avatar': (dbus.ByteArray('foo'),
             'image/jpeg'),
-        cs.ACCOUNT_IFACE_NOKIA_COMPAT + '.Profile': 'openarena',
         cs.ACCOUNT_IFACE_NOKIA_COMPAT + '.SecondaryVCardFields':
             dbus.Array(['x-ioquake3', 'x-quake3'], signature='s'),
         cs.ACCOUNT_IFACE_NOKIA_CONDITIONS + '.Condition':
@@ -139,7 +137,6 @@ def test(q, bus, mc):
             'image/jpeg')
 
     properties = account_props.GetAll(cs.ACCOUNT_IFACE_NOKIA_COMPAT)
-    assert properties.get('Profile') == 'openarena'
     assert sorted(properties.get('SecondaryVCardFields')) == \
             ['x-ioquake3', 'x-quake3']
 

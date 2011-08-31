@@ -189,7 +189,7 @@ def test(q, bus, mc):
         else:
             raise AssertionError('Setting %s with wrong type should fail' % p)
 
-    for p in ('Profile', 'SecondaryVCardFields'):
+    for p in ('SecondaryVCardFields'):
         try:
             account_props.Set(cs.ACCOUNT_IFACE_NOKIA_COMPAT, p, badly_typed)
         except dbus.DBusException, e:
