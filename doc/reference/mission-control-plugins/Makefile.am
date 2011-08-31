@@ -1,7 +1,5 @@
 ## Process this file with automake to produce Makefile.in
 
-abs_top_builddir = @abs_top_builddir@
-
 AUTOMAKE_OPTIONS = 1.9
 
 # This is a blank Makefile.am for using gtk-doc.
@@ -19,7 +17,7 @@ DOC_MAIN_SGML_FILE=$(DOC_MODULE)-docs.sgml
 # gtk-doc will search all .c & .h files beneath here for inline comments
 # documenting the functions and macros.
 # e.g. DOC_SOURCE_DIR=../../../gtk
-DOC_SOURCE_DIR=../../../mission-control-plugins
+DOC_SOURCE_DIR=$(abs_top_srcdir)/mission-control-plugins $(abs_top_builddir)/mission-control-plugins
 
 # Extra options to pass to gtkdoc-scangobj. Not normally needed.
 SCANGOBJ_OPTIONS=
