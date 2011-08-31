@@ -28,7 +28,7 @@ from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
-        expect_client_setup
+        expect_client_setup, ChannelDispatcher
 import constants as cs
 
 def test(q, bus, mc):
@@ -52,34 +52,27 @@ def test(q, bus, mc):
     user_action_time = dbus.Int64(1238582606)
 
     # chat UI calls ChannelDispatcher.CreateChannel
-    # (or in this case, an equivalent non-standard method on the Account)
+    cd = ChannelDispatcher(bus)
     request = dbus.Dictionary({
             cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
             cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
-    account_requests = dbus.Interface(account,
-            cs.ACCOUNT_IFACE_NOKIA_REQUESTS)
-    call_async(q, account_requests, 'Create',
-            request, user_action_time, client.bus_name)
+    request_path = cd.CreateChannel(account.object_path, request,
+        user_action_time, client.bus_name)
 
-    # chat UI connects to signals and calls ChannelRequest.Proceed() - but not
-    # in this non-standard API, which fires off the request instantly
-    ret, cm_request_call, add_request = q.expect_many(
-            EventPattern('dbus-return',
-                method='Create'),
-            EventPattern('dbus-method-call',
-                interface=cs.CONN_IFACE_REQUESTS,
-                method='CreateChannel',
-                path=conn.object_path, args=[request], handled=False),
-            EventPattern('dbus-method-call', handled=False,
-                interface=cs.CLIENT_IFACE_REQUESTS, method='AddRequest',
-                path=client.object_path),
-            )
-
-    request_path = ret.value[0]
-
+    add_request = q.expect('dbus-method-call', handled=False,
+        interface=cs.CLIENT_IFACE_REQUESTS, method='AddRequest',
+        path=client.object_path)
+    assert add_request.args[0] == request_path
     q.dbus_return(add_request.message, signature='')
+
+    # chat UI connects to signals and calls ChannelRequest.Proceed()
+    cr = bus.get_object(cs.CD, request_path)
+    cr.Proceed()
+    cm_request_call = q.expect('dbus-method-call',
+                interface=cs.CONN_IFACE_REQUESTS, method='CreateChannel',
+                path=conn.object_path, args=[request], handled=False)
 
     # Before the channel is returned, we delete the account
 
@@ -110,16 +103,9 @@ def test(q, bus, mc):
     # it's Disconnected
     assert remove_request.args[1].startswith(tp_name_prefix + '.Error.')
 
-    q.expect_many(
-            EventPattern('dbus-signal',
+    q.expect('dbus-signal',
                 path=request_path, interface=cs.CR, signal='Failed',
-                args=remove_request.args[1:]),
-            EventPattern('dbus-signal',
-                path=account.object_path,
-                interface=cs.ACCOUNT_IFACE_NOKIA_REQUESTS,
-                signal='Failed',
-                args=remove_request.args),
-            )
+                args=remove_request.args[1:])
 
     q.dbus_return(remove_request.message, signature='')
 

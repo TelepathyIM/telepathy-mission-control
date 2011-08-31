@@ -89,8 +89,6 @@ def test_channel_creation(q, bus, account, client, conn,
             cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
-    account_requests = dbus.Interface(account,
-            cs.ACCOUNT_IFACE_NOKIA_REQUESTS)
     call_async(q, cd,
             (ensure and 'EnsureChannel' or 'CreateChannel'),
             account.object_path, request, user_action_time, prefer.bus_name,
@@ -207,14 +205,9 @@ def test_channel_creation(q, bus, account, client, conn,
     assertEquals(channel.object_path, e.args[2])
     assertEquals(channel_immutable, e.args[3])
 
-    # CR emits Succeeded (or in Mardy's version, Account emits Succeeded)
-    q.expect_many(
-            EventPattern('dbus-signal', path=account.object_path,
-                interface=cs.ACCOUNT_IFACE_NOKIA_REQUESTS, signal='Succeeded',
-                args=[request_path]),
-            EventPattern('dbus-signal', path=request_path,
-                interface=cs.CR, signal='Succeeded'),
-            )
+    # CR emits Succeeded
+    q.expect('dbus-signal', path=request_path,
+                interface=cs.CR, signal='Succeeded')
 
     # Close the channel
     channel.close()

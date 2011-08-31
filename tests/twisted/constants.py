@@ -172,7 +172,6 @@ ACCOUNT_IFACE_AVATAR = ACCOUNT + '.Interface.Avatar'
 ACCOUNT_IFACE_ADDRESSING = ACCOUNT + '.Interface.Addressing'
 ACCOUNT_IFACE_HIDDEN = ACCOUNT + '.Interface.Hidden.DRAFT1'
 ACCOUNT_IFACE_NOKIA_COMPAT = 'com.nokia.Account.Interface.Compat'
-ACCOUNT_IFACE_NOKIA_REQUESTS = 'com.nokia.Account.Interface.ChannelRequests'
 ACCOUNT_IFACE_NOKIA_CONDITIONS = 'com.nokia.Account.Interface.Conditions'
 
 AM = tp_name_prefix + '.AccountManager'
