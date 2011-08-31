@@ -70,10 +70,6 @@
 #include "sp_timestamp.h"
 
 #include "mcd-signals-marshal.h"
-#include "_gen/cli-Connection_Interface_Contact_Capabilities.h"
-#include "_gen/cli-Connection_Interface_Contact_Capabilities-body.h"
-#include "_gen/cli-Connection_Interface_Power_Saving.h"
-#include "_gen/cli-Connection_Interface_Power_Saving-body.h"
 
 #define INITIAL_RECONNECTION_TIME   3 /* seconds */
 #define RECONNECTION_MULTIPLIER     3
@@ -1050,7 +1046,7 @@ _mcd_connection_setup_power_saving (McdConnection *connection)
   DEBUG ("is %sactive", mcd_slacker_is_inactive (priv->slacker) ? "in" : "");
 
   if (mcd_slacker_is_inactive (priv->slacker))
-    mc_cli_connection_interface_power_saving_call_set_power_saving (priv->tp_conn, -1,
+    tp_cli_connection_interface_power_saving_call_set_power_saving (priv->tp_conn, -1,
         TRUE, NULL, NULL, NULL, NULL);
 }
 
@@ -1603,7 +1599,7 @@ on_connection_ready (TpConnection *tp_conn, const GError *error,
     priv->has_contact_capabilities_if = tp_proxy_has_interface_by_id (tp_conn,
         TP_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES);
     priv->has_power_saving_if = tp_proxy_has_interface_by_id (tp_conn,
-        MC_IFACE_QUARK_CONNECTION_INTERFACE_POWER_SAVING);
+        TP_IFACE_QUARK_CONNECTION_INTERFACE_POWER_SAVING);
 
     if (priv->has_presence_if)
 	_mcd_connection_setup_presence (connection);
@@ -2027,7 +2023,7 @@ on_inactivity_changed (McdSlacker *slacker,
       priv->has_power_saving_if ? "has" : "doesn't");
 
   if (priv->has_power_saving_if)
-    mc_cli_connection_interface_power_saving_call_set_power_saving (priv->tp_conn, -1,
+    tp_cli_connection_interface_power_saving_call_set_power_saving (priv->tp_conn, -1,
         inactive, NULL, NULL, NULL, NULL);
 }
 
@@ -2326,18 +2322,6 @@ _mcd_connection_request_channel (McdConnection *connection, McdChannel *channel)
 }
 
 static void
-mcd_connection_add_signals (TpProxy *self,
-                            guint quark,
-                            DBusGProxy *proxy,
-                            gpointer data)
-{
-    mc_cli_Connection_Interface_Contact_Capabilities_add_signals (self, quark,
-                                                                  proxy, data);
-    mc_cli_Connection_Interface_Power_Saving_add_signals (self, quark,
-        proxy, data);
-}
-
-static void
 mcd_connection_class_init (McdConnectionClass * klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
@@ -2355,8 +2339,6 @@ mcd_connection_class_init (McdConnectionClass * klass)
     _mcd_ext_register_dbus_glib_marshallers ();
 
     tp_connection_init_known_interfaces ();
-    tp_proxy_or_subclass_hook_on_interface_add (TP_TYPE_CONNECTION,
-                                                mcd_connection_add_signals);
 
     /* Properties */
     g_object_class_install_property

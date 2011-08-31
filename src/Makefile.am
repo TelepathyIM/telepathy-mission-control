@@ -52,8 +52,6 @@ endif
 
 mc_gen_headers = \
 	_gen/cli-Connection_Manager_Interface_Account_Storage.h \
-	_gen/cli-Connection_Interface_Contact_Capabilities.h \
-	_gen/cli-Connection_Interface_Power_Saving.h \
 	_gen/enums.h \
 	_gen/interfaces.h \
 	_gen/svc-Account_Interface_Addressing.h \
@@ -69,8 +67,6 @@ mc_gen_headers = \
 
 nodist_libmcd_convenience_la_SOURCES = \
 	_gen/cli-Connection_Manager_Interface_Account_Storage-body.h \
-	_gen/cli-Connection_Interface_Contact_Capabilities-body.h \
-	_gen/cli-Connection_Interface_Power_Saving-body.h \
 	_gen/register-dbus-glib-marshallers-body.h \
 	_gen/signals-marshal.c \
 	_gen/signals-marshal.h \

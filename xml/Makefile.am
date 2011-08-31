@@ -26,9 +26,7 @@ SPECS = \
 	Client_Interface_Requests.xml \
 	Client_Observer.xml \
 	Connection_Manager_Interface_Account_Storage.xml \
-        Connection_Interface_Contact_Capabilities.xml \
-        Channel_Dispatcher_Interface_Messages_DRAFT.xml \
-	Connection_Interface_Power_Saving.xml
+	Channel_Dispatcher_Interface_Messages_DRAFT.xml
 
 
 SPECS_GEN = ${SPECS:%.xml=_gen/introspect-%.xml}
