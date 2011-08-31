@@ -21,8 +21,8 @@ SPECS_GEN = ${SPECS:%.xml=_gen/introspect-%.xml}
 all-local: $(SPECS_GEN)
 
 _gen/introspect-%.xml: %.xml $(tools_dir)/spec-to-introspect.xsl
-	$(mkdir_p) _gen
-	$(XSLTPROC) $(XSLTFLAGS) $(tools_dir)/spec-to-introspect.xsl $< \
+	$(AM_V_at)$(mkdir_p) _gen
+	$(AM_V_GEN)$(XSLTPROC) $(XSLTFLAGS) $(tools_dir)/spec-to-introspect.xsl $< \
 		| $(DROP_NAMESPACE) > $@
 
 clean-local:

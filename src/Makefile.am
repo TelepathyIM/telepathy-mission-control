@@ -230,17 +230,17 @@ endif
 endif
 
 %-signals-marshal.h: %-signals-marshal.list Makefile
-	glib-genmarshal --header --prefix=_$(subst -,_,$*)_marshal $< > $*-signals-marshal.h
+	$(AM_V_GEN)glib-genmarshal --header --prefix=_$(subst -,_,$*)_marshal $< > $*-signals-marshal.h
 
 %-signals-marshal.c: %-signals-marshal.list Makefile
-	{ echo '#include "$*-signals-marshal.h"' && \
+	$(AM_V_GEN){ echo '#include "$*-signals-marshal.h"' && \
 	glib-genmarshal --body --prefix=_$(subst -,_,$*)_marshal $<; } \
 	> $*-signals-marshal.c
 
 mcd-enum-types.h: stamp-mcd-enum-types.h
-	@true
+	$(AM_V_GEN)true
 stamp-mcd-enum-types.h: Makefile $(mc_headers) mcd-enum-types.c
-	( cd $(srcdir) && glib-mkenums \
+	$(AM_V_GEN)( cd $(srcdir) && glib-mkenums \
 		--fhead "#ifndef __MCD_ENUM_TYPES_H__\n#define __MCD_ENUM_TYPES_H__\n\n#include \"mcd-mission.h\"\n#include \"mcd-channel.h\"\n#include \"mcd-provisioning.h\"\n#include \"mcd-transport.h\"\n\nG_BEGIN_DECLS\n" \
 		--fprod "/* enumerations from \"@filename@\" */\n" \
 		--vhead "GType @enum_name@_get_type (void) G_GNUC_CONST;\n#define MCD_TYPE_@ENUMSHORT@ (@enum_name@_get_type())\n" \
@@ -251,7 +251,7 @@ stamp-mcd-enum-types.h: Makefile $(mc_headers) mcd-enum-types.c
 	&& echo timestamp > $(@F)
 
 mcd-enum-types.c: Makefile $(mc_headers)
-	( cd $(srcdir) && glib-mkenums \
+	$(AM_V_GEN)( cd $(srcdir) && glib-mkenums \
 		--fhead "#include \"mcd-enum-types.h\"\n#define g_intern_static_string(s) (s)\n" \
 		--fprod "\n/* enumerations from \"@filename@\" */" \
 		--ftail "\n#define __MCD_ENUM_TYPES_C__\n" \
@@ -273,36 +273,36 @@ EXTRA_DIST = \
 tools_dir = $(top_srcdir)/tools
 
 _gen/mcd.xml: mcd.xml $(wildcard $(top_srcdir)/xml/*.xml)
-	$(mkdir_p) _gen
-	$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
+	$(AM_V_at)$(mkdir_p) _gen
+	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
 
 _gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml)
-	$(mkdir_p) _gen
-	$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
+	$(AM_V_at)$(mkdir_p) _gen
+	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
 
 # Generated files which can be done for all "classes" at once
 
 _gen/signals-marshal.list: _gen/mcd.xml \
 	$(tools_dir)/glib-signals-marshal-gen.py
-	$(PYTHON) $(tools_dir)/glib-signals-marshal-gen.py $< > $@
+	$(AM_V_GEN)$(PYTHON) $(tools_dir)/glib-signals-marshal-gen.py $< > $@
 
 _gen/signals-marshal.h: _gen/signals-marshal.list Makefile.am
-	$(GLIB_GENMARSHAL) --header --prefix=_mcd_ext_marshal $< > $@
+	$(AM_V_GEN)$(GLIB_GENMARSHAL) --header --prefix=_mcd_ext_marshal $< > $@
 
 _gen/signals-marshal.c: _gen/signals-marshal.list Makefile.am
-	{ echo '#include "_gen/signals-marshal.h"' && \
+	$(AM_V_GEN){ echo '#include "_gen/signals-marshal.h"' && \
 	$(GLIB_GENMARSHAL) --body --prefix=_mcd_ext_marshal $<; } \
 	> $@
 
 _gen/register-dbus-glib-marshallers-body.h: _gen/mcd.xml \
 	$(tools_dir)/glib-client-marshaller-gen.py Makefile.am
-	$(PYTHON) $(tools_dir)/glib-client-marshaller-gen.py $< \
+	$(AM_V_GEN)$(PYTHON) $(tools_dir)/glib-client-marshaller-gen.py $< \
 		_mcd_ext > $@
 
 _gen/enums.h: _gen/mcd.xml $(tools_dir)/c-constants-generator.xsl
-	$(XSLTPROC) $(XSLTPROCFLAGS) \
+	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) \
 		--stringparam mixed-case-prefix mc \
 		$(tools_dir)/c-constants-generator.xsl \
 		$< > $@
@@ -310,7 +310,7 @@ _gen/enums.h: _gen/mcd.xml $(tools_dir)/c-constants-generator.xsl
 _gen/interfaces.h: _gen/mcd.xml \
 	$(tools_dir)/glib-interfaces-generator.xsl \
 	$(tools_dir)/c-interfaces-generator.xsl
-	$(XSLTPROC) $(XSLTPROCFLAGS) \
+	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) \
 		--stringparam mixed-case-prefix mc \
 		$(tools_dir)/glib-interfaces-generator.xsl \
 		$< > $@
@@ -318,14 +318,14 @@ _gen/interfaces.h: _gen/mcd.xml \
 _gen/interfaces-body.h: _gen/mcd.xml \
 	$(tools_dir)/glib-interfaces-body-generator.xsl \
 	$(tools_dir)/c-interfaces-generator.xsl
-	$(XSLTPROC) $(XSLTPROCFLAGS) \
+	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) \
 		--stringparam mixed-case-prefix mc \
 		$(tools_dir)/glib-interfaces-body-generator.xsl \
 		$< > $@
 
 _gen/gtypes.h _gen/gtypes-body.h: _gen/mcd.xml \
 	$(top_srcdir)/tools/glib-gtypes-generator.py
-	$(PYTHON) $(top_srcdir)/tools/glib-gtypes-generator.py \
+	$(AM_V_GEN)$(PYTHON) $(top_srcdir)/tools/glib-gtypes-generator.py \
 		$< _gen/gtypes mc
 
 
@@ -335,18 +335,18 @@ _gen/gtypes.h _gen/gtypes-body.h: _gen/mcd.xml \
 # like account, account-manager, ...)
 
 _gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml) Makefile.am
-	$(mkdir_p) _gen
-	$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
+	$(AM_V_at)$(mkdir_p) _gen
+	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
 
 _gen/%.xml: %.xml $(wildcard $(top_srcdir)/xml/*.xml) Makefile.am
-	$(mkdir_p) _gen
-	$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
+	$(AM_V_at)$(mkdir_p) _gen
+	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
 
 _gen/cli-%-body.h _gen/cli-%.h: _gen/%.xml \
 	$(tools_dir)/glib-client-gen.py Makefile.am
-	$(PYTHON) $(tools_dir)/glib-client-gen.py \
+	$(AM_V_GEN)$(PYTHON) $(tools_dir)/glib-client-gen.py \
 		--group=`echo $* | tr x- x_` \
 		--iface-quark-prefix=MC_IFACE_QUARK \
 		--tp-proxy-api=0.7.6 \
@@ -354,7 +354,7 @@ _gen/cli-%-body.h _gen/cli-%.h: _gen/%.xml \
 
 _gen/svc-%.c _gen/svc-%.h: _gen/%.xml \
 	$(tools_dir)/glib-ginterface-gen.py Makefile.am
-	$(PYTHON) $(tools_dir)/glib-ginterface-gen.py \
+	$(AM_V_GEN)$(PYTHON) $(tools_dir)/glib-ginterface-gen.py \
 		--filename=_gen/svc-$* \
 		--signal-marshal-prefix=_mcd_ext \
 		--include='<telepathy-glib/dbus.h>' \
