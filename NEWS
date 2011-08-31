@@ -1,7 +1,11 @@
 telepathy-mission-control 5.9.2 (UNRELEASED)
 ============================================
 
+Fixes:
 
+• fd.o #37861: Memory leak in collect_satisfied_requests in
+  mcd-dispatch-operation.c (fledermaus). (This was included in 5.8.0,
+  but not 5.9.0 or 5.9.1.)
 
 telepathy-mission-control 5.9.1 (2011-07-21)
 ============================================
