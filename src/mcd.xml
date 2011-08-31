@@ -16,6 +16,5 @@
 <xi:include href="../xml/Account_Manager_Interface_Hidden.xml"/>
 
 <xi:include href="dispatcher.xml"/>
-<xi:include href="request.xml"/>
 
 </tp:spec>

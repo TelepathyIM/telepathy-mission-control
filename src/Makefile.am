@@ -62,8 +62,7 @@ mc_gen_headers = \
 	_gen/svc-Account_Interface_Hidden.h \
 	_gen/svc-Account_Manager_Interface_Hidden.h \
 	_gen/svc-Account_Manager_Interface_Query.h \
-	_gen/svc-dispatcher.h \
-	_gen/svc-request.h
+	_gen/svc-dispatcher.h
 
 nodist_libmcd_convenience_la_SOURCES = \
 	_gen/cli-Connection_Manager_Interface_Account_Storage-body.h \
@@ -81,7 +80,6 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/svc-Account_Manager_Interface_Query.c \
 	_gen/svc-Account_Manager_Interface_Hidden.c \
 	_gen/svc-dispatcher.c \
-	_gen/svc-request.c \
 	mcd-enum-types.c \
 	mcd-enum-types.h \
 	mcd-signals-marshal.c \
@@ -266,11 +264,8 @@ mcd-enum-types.c: Makefile $(mc_headers)
 
 EXTRA_DIST = \
 	mcd.xml \
-	client.xml \
 	dispatcher.xml \
-	dispatch-operation.xml \
 	mcd-signals-marshal.list \
-	request.xml \
 	stamp-mcd-enum-types.h
 
 # ---- telepathy-glib-style code generation ----
