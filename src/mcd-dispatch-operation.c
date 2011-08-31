@@ -2009,8 +2009,10 @@ collect_satisfied_requests (const GList *channels,
     }
 
     satisfied_requests = g_ptr_array_sized_new (g_hash_table_size (set));
+    g_ptr_array_set_free_func (satisfied_requests, g_free);
+
     request_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
-        NULL, (GDestroyNotify) g_hash_table_unref);
+        g_free, (GDestroyNotify) g_hash_table_unref);
 
     g_hash_table_iter_init (&it, set);
 
@@ -2018,11 +2020,13 @@ collect_satisfied_requests (const GList *channels,
     {
         GHashTable *props;
 
-        g_ptr_array_add (satisfied_requests, path);
+        g_ptr_array_add (satisfied_requests, g_strdup (path));
         props = _mcd_request_dup_immutable_properties (value);
         g_assert (props != NULL);
-        g_hash_table_insert (request_properties, path, props);
+        g_hash_table_insert (request_properties, g_strdup (path), props);
     }
+
+    g_hash_table_unref (set);
 
     if (paths_out != NULL)
         *paths_out = satisfied_requests;
@@ -2110,8 +2114,6 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
             observe_channels_cb,
             g_object_ref (self), g_object_unref, NULL);
 
-        /* don't free the individual object paths, which are borrowed from the
-         * McdChannel objects */
         g_ptr_array_unref (satisfied_requests);
 
         _mcd_tp_channel_details_free (channels_array);
