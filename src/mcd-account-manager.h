@@ -90,4 +90,6 @@ McdAccount *mcd_account_manager_lookup_account_by_path (McdAccountManager *accou
 
 McdStorage *mcd_account_manager_get_storage (McdAccountManager *manager);
 
+G_END_DECLS
+
 #endif

@@ -1,4 +1,9 @@
-telepathy-mission-control 5.9.1 (UNRELEASED)
+telepathy-mission-control 5.9.2 (UNRELEASED)
+============================================
+
+
+
+telepathy-mission-control 5.9.1 (2011-07-21)
 ============================================
 
 Fixes:
@@ -10,6 +15,11 @@ Fixes:
 • Fix various memory leaks (fledermaus)
 
 • If a storage plugin changes our nickname, propagate it to the CM (fledermaus)
+
+• The McdTransport framework should have considered "no plugins" to be 
+  equivalent to "procced", not "abort" (fledermaus)
+
+• Some files were missing G_END_DECLS, which broke C++ includes (fledermaus)
 
 telepathy-mission-control 5.9.0 (2011-05-18)
 ============================================
@@ -32,6 +42,15 @@ Fixes:
 • Implementation of the draft ChannelDispatcher.Messages interface did 
   not correctly handle all internal requests which should have been
   dispatched to an existing channel (fledermaus)
+
+• The transport plugin infrastructure considered "no connected transports"
+  to be the same as "we have an alternative transport available & ready":
+  This could result in unwanted attempts to bring up the network on 
+  platforms which used the transport plugin mechanism (fledermaus)
+
+• The Aegis ACL plugin needs to activate inactive handlers if they are
+  not runnng, as you cannot check the aegis credentials of a DBus name
+  alone, a PID or DBus connection is required (fledermaus)
 
 Enhancements:
 

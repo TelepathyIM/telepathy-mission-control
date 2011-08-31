@@ -356,3 +356,7 @@ _gen/svc-%.c _gen/svc-%.h: _gen/%.xml \
 		--not-implemented-func='tp_dbus_g_method_return_not_implemented' \
 		--allow-unstable \
 		$< Mc_Svc_
+
+include ../tools/header-checks.am
+
+check-local: header-decl-macro-check

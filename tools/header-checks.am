@@ -1,0 +1,9 @@
+header-decl-macro-check: $(filter %.h,$(DIST_SOURCES))
+	@(for H in $^; \
+	  do \
+	    if [ x"$$(grep -l G_BEGIN_DECLS $$H)" != x"$$(grep -l G_END_DECLS $$H)" ]; \
+	    then \
+	        echo Unbalanced G_\*_DECL macros in $$H; \
+	        exit 1; \
+	    fi;\
+	  done)

@@ -71,4 +71,6 @@ GType mcd_account_manager_default_get_type (void) G_GNUC_CONST;
 
 McdAccountManagerDefault *mcd_account_manager_default_new (void);
 
+G_END_DECLS
+
 #endif
