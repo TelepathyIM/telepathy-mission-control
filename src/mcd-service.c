@@ -57,8 +57,6 @@
 #include "mcd-misc.h"
 #include "mcd-service.h"
 
-#include <libmcclient/mc-errors.h>
-
 /* DBus service specifics */
 #define MISSION_CONTROL_DBUS_SERVICE "org.freedesktop.Telepathy.MissionControl5"
 

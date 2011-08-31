@@ -12,7 +12,6 @@ SUBDIRS = \
     xml \
     mission-control-plugins \
     plugins \
-    libmcclient \
     src \
     server \
     util \
@@ -23,7 +22,7 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = mission-control-plugins.pc
 
 if ENABLE_MCD_PLUGINS
-pkgconfig_DATA += mission-control.pc libmcclient.pc
+pkgconfig_DATA += mission-control.pc
 endif
 
 DISTCHECK_CONFIGURE_FLAGS = \

@@ -38,10 +38,6 @@
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
-#include <libmcclient/mc-gtypes.h>
-#include <libmcclient/mc-interfaces.h>
-#include <libmcclient/mc-enums.h>
-
 #include "mcd-account-priv.h"
 #include "mcd-account-conditions.h"
 #include "mcd-account-manager-priv.h"
@@ -56,6 +52,9 @@
 #include "mcd-master-priv.h"
 #include "mcd-dbusprop.h"
 
+#include "_gen/interfaces.h"
+#include "_gen/enums.h"
+#include "_gen/gtypes.h"
 #include "_gen/cli-Connection_Manager_Interface_Account_Storage-body.h"
 
 #define MAX_KEY_LENGTH (DBUS_MAXIMUM_NAME_LENGTH + 6)

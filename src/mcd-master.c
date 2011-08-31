@@ -78,8 +78,6 @@
 #include "mcd-transport.h"
 #include "plugin-loader.h"
 
-#include <libmcclient/mc-errors.h>
-
 #define MCD_MASTER_PRIV(master) (G_TYPE_INSTANCE_GET_PRIVATE ((master), \
 				  MCD_TYPE_MASTER, \
 				  McdMasterPrivate))

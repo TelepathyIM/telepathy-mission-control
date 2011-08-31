@@ -49,9 +49,6 @@
 #include "plugin-dispatch-operation.h"
 #include "plugin-loader.h"
 
-#include <libmcclient/mc-errors.h>
-#include "libmcclient/mc-gtypes.h"
-
 #define MCD_DISPATCH_OPERATION_PRIV(operation) (MCD_DISPATCH_OPERATION (operation)->priv)
 
 static void
@@ -2499,7 +2496,7 @@ _mcd_dispatch_operation_close_as_undispatchable (McdDispatchOperation *self,
     for (list = channels; list != NULL; list = list->next)
     {
         McdChannel *channel = MCD_CHANNEL (list->data);
-        GError e = { MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
+        GError e = { TP_ERROR, TP_ERROR_NOT_AVAILABLE,
             "Handler no longer available" };
 
         mcd_channel_take_error (channel, g_error_copy (&e));

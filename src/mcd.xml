@@ -4,6 +4,8 @@
 
 <tp:copyright>Copyright (C) 2008 Nokia Corporation</tp:copyright>
 
+<xi:include href="../xml/Connection_Manager_Interface_Account_Storage.xml"/>
+
 <xi:include href="../xml/Account_Interface_Addressing.xml"/>
 <xi:include href="../xml/Account_Interface_ChannelRequests.xml"/>
 <xi:include href="../xml/Account_Interface_Compat.xml"/>

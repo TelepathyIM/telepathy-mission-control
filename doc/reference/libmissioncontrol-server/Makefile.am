@@ -33,7 +33,7 @@ MKDB_OPTIONS=--sgml-mode --output-format=xml
 
 # Extra options to supply to gtkdoc-fixref. Not normally needed.
 # e.g. FIXXREF_OPTIONS=--extra-dir=../gdk-pixbuf/html --extra-dir=../gdk/html
-FIXXREF_OPTIONS=--extra-dir=$(srcdir)/../libmcclient/html
+#FIXXREF_OPTIONS=
 
 # Used for dependencies. The docs will be rebuilt if any of these change.
 # e.g. HFILE_GLOB=$(top_srcdir)/gtk/*.h
@@ -74,7 +74,6 @@ INCLUDES = \
 GTKDOC_LIBS = \
 	$(top_builddir)/mission-control-plugins/libmission-control-plugins.la \
 	$(top_builddir)/src/libmissioncontrol-server.la \
-	$(top_builddir)/libmcclient/libmcclient.la \
 	$(GCONF_LIBS) \
 	$(GLIB_LIBS) \
 	$(DBUS_LIBS) \

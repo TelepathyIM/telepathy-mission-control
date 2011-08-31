@@ -53,6 +53,7 @@ endif
 mc_gen_headers = \
 	_gen/cli-Connection_Manager_Interface_Account_Storage.h \
 	_gen/enums.h \
+	_gen/gtypes.h \
 	_gen/interfaces.h \
 	_gen/svc-Account_Interface_Addressing.h \
 	_gen/svc-Account_Interface_ChannelRequests.h \
@@ -67,6 +68,8 @@ mc_gen_headers = \
 
 nodist_libmcd_convenience_la_SOURCES = \
 	_gen/cli-Connection_Manager_Interface_Account_Storage-body.h \
+	_gen/gtypes-body.h \
+	_gen/interfaces-body.h \
 	_gen/register-dbus-glib-marshallers-body.h \
 	_gen/signals-marshal.c \
 	_gen/signals-marshal.h \
@@ -95,7 +98,6 @@ BUILT_SOURCES = \
 CLEANFILES = $(BUILT_SOURCES)
 
 libmcd_convenience_la_LIBADD = \
-	$(top_builddir)/libmcclient/libmcclient.la \
 	$(top_builddir)/mission-control-plugins/libmission-control-plugins.la \
 	$(TELEPATHY_LIBS) \
 	$(DBUS_LIBS) \
@@ -170,6 +172,7 @@ libmcd_convenience_la_SOURCES = \
 	channel-utils.h \
 	client-registry.c \
 	client-registry.h \
+	gtypes.c \
 	mcd-dbusprop.c \
 	mcd-dbusprop.h \
 	mcd-debug.c \
@@ -318,6 +321,21 @@ _gen/interfaces.h: _gen/mcd.xml \
 		--stringparam mixed-case-prefix mc \
 		$(tools_dir)/glib-interfaces-generator.xsl \
 		$< > $@
+
+_gen/interfaces-body.h: _gen/mcd.xml \
+	$(tools_dir)/glib-interfaces-body-generator.xsl \
+	$(tools_dir)/c-interfaces-generator.xsl
+	$(XSLTPROC) $(XSLTPROCFLAGS) \
+		--stringparam mixed-case-prefix mc \
+		$(tools_dir)/glib-interfaces-body-generator.xsl \
+		$< > $@
+
+_gen/gtypes.h _gen/gtypes-body.h: _gen/mcd.xml \
+	$(top_srcdir)/tools/glib-gtypes-generator.py
+	$(PYTHON) $(top_srcdir)/tools/glib-gtypes-generator.py \
+		$< _gen/gtypes mc
+
+
 
 # Generated files which must be generated per "class".
 # (Currently the only "class" is nmc4, but the new API will need "classes"

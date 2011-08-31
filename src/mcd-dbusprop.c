@@ -33,9 +33,6 @@
 #include "mission-control-plugins/mission-control-plugins.h"
 #include "mission-control-plugins/implementation.h"
 
-#include <libmcclient/mc-interfaces.h>
-#include <libmcclient/mc-gtypes.h>
-
 #define MCD_INTERFACES_QUARK get_interfaces_quark()
 
 static GQuark

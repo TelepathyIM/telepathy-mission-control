@@ -60,7 +60,6 @@
 #include "mcd-misc.h"
 #include "plugin-loader.h"
 
-#include "libmcclient/mc-gtypes.h"
 #include "_gen/svc-dispatcher.h"
 
 #include <telepathy-glib/defs.h>
@@ -72,8 +71,6 @@
 #include <telepathy-glib/svc-channel-dispatcher.h>
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
-
-#include <libmcclient/mc-errors.h>
 
 #include <stdlib.h>
 #include <string.h>

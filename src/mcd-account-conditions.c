@@ -34,8 +34,6 @@
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/util.h>
 
-#include <libmcclient/mc-interfaces.h>
-
 #include "mcd-account.h"
 #include "mcd-account-priv.h"
 #include "mcd-account-conditions.h"

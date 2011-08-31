@@ -32,9 +32,6 @@
 
 #include <dbus/dbus-glib-lowlevel.h>
 
-#include <libmcclient/mc-errors.h>
-#include <libmcclient/mc-interfaces.h>
-
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/svc-channel-request.h>
 #include <telepathy-glib/svc-generic.h>

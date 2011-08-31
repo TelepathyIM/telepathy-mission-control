@@ -40,8 +40,6 @@
 #include "mcd-channel-priv.h"
 #include "mcd-debug.h"
 
-#include "libmcclient/mc-gtypes.h"
-
 G_DEFINE_TYPE (McdClientProxy, _mcd_client_proxy, TP_TYPE_CLIENT);
 
 enum

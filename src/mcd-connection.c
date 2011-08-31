@@ -55,10 +55,6 @@
 #include <telepathy-glib/proxy-subclass.h>
 #include <telepathy-glib/util.h>
 
-#include <libmcclient/mc-errors.h>
-#include <libmcclient/mc-gtypes.h>
-#include <libmcclient/mc-interfaces.h>
-
 #include "mcd-account-priv.h"
 #include "mcd-channel-priv.h"
 #include "mcd-connection-priv.h"
