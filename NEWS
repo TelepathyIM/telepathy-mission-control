@@ -1,18 +1,42 @@
 telepathy-mission-control 5.9.2 (UNRELEASED)
 ============================================
 
+The “unique versioning strategy” release.
+
+Changes:
+
+• The Compat.Profile property on accounts has been removed; as has
+  libmcclient, which used it but which is no longer widely used.
+
+• Documentation for the old extension API, libmissioncontrol-server, is
+  no longer built. Please use the mission-control-plugins API instead!
+
 Fixes:
 
 • fd.o #37861: Memory leak in collect_satisfied_requests in
-  mcd-dispatch-operation.c (fledermaus). (This was included in 5.8.0,
-  but not 5.9.0 or 5.9.1.)
+  mcd-dispatch-operation.c (fledermaus).
 
-• Connection attempts aborted by McdTransport plugins did not trigger
-  A status change signal - now they do (fledermaus)
+• fd.o #40562: Connection attempts aborted by McdTransport plugins did
+  not trigger a status change signal - now they do (fledermaus)
 
-• Dispatch channels with no (known) handlers to observers anyway (smcv)
+• fd.o #29022: Dispatch channels with no (known) handlers to observers
+  anyway (smcv)
 
-• Memory leaks in the approval mechanism plugged (fledermaus)
+• fd.o #40551: Memory leaks in the approval mechanism plugged
+  (fledermaus)
+
+• mission-control-plugins now explicitly links to GIO. (Frédéric Péters)
+
+• mc-tool now parses 'bool:foo=true' as setting 'foo' to True, as
+  opposed to setting 'foo' to False! (wjt)
+
+• fd.o#39796: always fully remove secret parameters when they are
+  un-set. (cassidy)
+
+Enhancements:
+
+• fd.o#40337: improve error reporting when creating an account fails.
+  (wjt)
 
 telepathy-mission-control 5.9.1 (2011-07-21)
 ============================================
