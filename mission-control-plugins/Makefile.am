@@ -64,10 +64,10 @@ BUILT_SOURCES = $(nodist_libmission_control_plugins_la_SOURCES)
 CLEANFILES = $(BUILT_SOURCES)
 
 %-signals-marshal.h: %-signals-marshal.list Makefile
-	glib-genmarshal --header --prefix=_$(subst -,_,$(notdir $*))_marshal $< \
+	$(AM_V_GEN)glib-genmarshal --header --prefix=_$(subst -,_,$(notdir $*))_marshal $< \
 	  > $*-signals-marshal.h
 
 %-signals-marshal.c: %-signals-marshal.list Makefile
-	{ echo '#include "$(notdir $*)-signals-marshal.h"' && \
+	$(AM_V_GEN){ echo '#include "$(notdir $*)-signals-marshal.h"' && \
 	  glib-genmarshal --body --prefix=_$(subst -,_,$(notdir $*))_marshal $<; } \
 	    > $*-signals-marshal.c

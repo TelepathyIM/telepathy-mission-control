@@ -1,17 +1,17 @@
 exec-with-log.sh: exec-with-log.sh.in Makefile
-	sed -e "s|[@]abs_top_srcdir[@]|@abs_top_srcdir@|g" \
+	$(AM_V_GEN)sed -e "s|[@]abs_top_srcdir[@]|@abs_top_srcdir@|g" \
 		-e "s|[@]abs_top_builddir[@]|@abs_top_builddir@|g" \
 		$< > $@
-	chmod +x $@
+	$(AM_V_at)chmod +x $@
 
 %.conf: %.conf.in
-	sed -e "s|[@]abs_top_builddir[@]|@abs_top_builddir@|g" $< > $@
+	$(AM_V_GEN)sed -e "s|[@]abs_top_builddir[@]|@abs_top_builddir@|g" $< > $@
 
 # We don't use the full filename for the .in because > 99 character filenames
 # in tarballs are non-portable (and automake 1.8 doesn't let us build
 # non-archaic tarballs)
 org.freedesktop.Telepathy.%.service: %.service.in
-	sed \
+	$(AM_V_GEN)sed \
 		-e "s|[@]abs_top_srcdir[@]|@abs_top_srcdir@|g" \
 		-e "s|[@]abs_top_builddir[@]|@abs_top_builddir@|g" \
 		$< > $@

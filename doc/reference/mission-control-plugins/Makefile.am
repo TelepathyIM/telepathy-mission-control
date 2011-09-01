@@ -1,7 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-abs_top_builddir = @abs_top_builddir@
-
+# We require automake 1.9 at least.
 AUTOMAKE_OPTIONS = 1.9
 
 # This is a blank Makefile.am for using gtk-doc.
@@ -12,14 +11,18 @@ AUTOMAKE_OPTIONS = 1.9
 # The name of the module, e.g. 'glib'.
 DOC_MODULE=mission-control-plugins
 
+# Uncomment for versioned docs and specify the version of the module, e.g. '2'.
+#DOC_MODULE_VERSION=2
+
+
 # The top-level SGML file. You can change this if you want to.
 DOC_MAIN_SGML_FILE=$(DOC_MODULE)-docs.sgml
 
-# The directory containing the source code. Relative to $(srcdir).
-# gtk-doc will search all .c & .h files beneath here for inline comments
-# documenting the functions and macros.
-# e.g. DOC_SOURCE_DIR=../../../gtk
-DOC_SOURCE_DIR=../../../mission-control-plugins
+# Directories containing the source code, relative to $(srcdir).
+# gtk-doc will search all .c and .h files beneath these paths
+# for inline comments documenting functions and macros.
+# e.g. DOC_SOURCE_DIR=../../../gtk ../../../gdk
+DOC_SOURCE_DIR=$(abs_top_srcdir)/mission-control-plugins $(abs_top_builddir)/mission-control-plugins
 
 # Extra options to pass to gtkdoc-scangobj. Not normally needed.
 SCANGOBJ_OPTIONS=
@@ -29,12 +32,15 @@ SCANGOBJ_OPTIONS=
 SCAN_OPTIONS=--rebuild-types --rebuild-sections
 
 # Extra options to supply to gtkdoc-mkdb.
-# e.g. MKDB_OPTIONS=--sgml-mode --output-format=xml
+# e.g. MKDB_OPTIONS=--xml-mode --output-format=xml
 MKDB_OPTIONS=--sgml-mode --output-format=xml
 
 # Extra options to supply to gtkdoc-mktmpl
 # e.g. MKTMPL_OPTIONS=--only-section-tmpl
 MKTMPL_OPTIONS=
+
+# Extra options to supply to gtkdoc-mkhtml
+MKHTML_OPTIONS=
 
 # Extra options to supply to gtkdoc-fixref. Not normally needed.
 # e.g. FIXXREF_OPTIONS=--extra-dir=../gdk-pixbuf/html --extra-dir=../gdk/html
@@ -46,8 +52,12 @@ FIXXREF_OPTIONS=
 HFILE_GLOB=$(top_srcdir)/mission-control-plugins/*.h
 CFILE_GLOB=$(top_srcdir)/mission-control-plugins/*.c
 
-# Header files to ignore when scanning.
-# e.g. IGNORE_HFILES=gtkdebug.h gtkintl.h
+# Extra header to include when scanning, which are not under DOC_SOURCE_DIR
+# e.g. EXTRA_HFILES=$(top_srcdir}/contrib/extra.h
+EXTRA_HFILES=
+
+# Header files or dirs to ignore when scanning. Use base file/dir names
+# e.g. IGNORE_HFILES=gtkdebug.h gtkintl.h private_code
 IGNORE_HFILES=implementation.h debug-internal.h
 
 # Images to copy into HTML directory.
@@ -66,9 +76,9 @@ expand_content_files=
 # CFLAGS and LDFLAGS for compiling gtkdoc-scangobj with your library.
 # Only needed if you are using gtkdoc-scangobj to dynamically query widget
 # signals and properties.
-# e.g. INCLUDES=-I$(top_srcdir) -I$(top_builddir) $(GTK_DEBUG_FLAGS)
+# e.g. GTKDOC_CFLAGS=-I$(top_srcdir) -I$(top_builddir) $(GTK_DEBUG_FLAGS)
 # e.g. GTKDOC_LIBS=$(top_builddir)/gtk/$(gtktargetlib)
-INCLUDES = \
+GTKDOC_CFLAGS = \
     -I$(top_srcdir) \
     $(TELEPATHY_CFLAGS) \
     $(DBUS_CFLAGS) \
@@ -82,6 +92,15 @@ GTKDOC_LIBS = \
 
 # This includes the standard gtk-doc make rules, copied by gtkdocize.
 include $(top_srcdir)/gtk-doc.make
+
+# Other files to distribute
+# e.g. EXTRA_DIST += version.xml.in
+#EXTRA_DIST += 
+
+# Files not to distribute
+# for --rebuild-types in $(SCAN_OPTIONS), e.g. $(DOC_MODULE).types
+# for --rebuild-sections in $(SCAN_OPTIONS) e.g. $(DOC_MODULE)-sections.txt
+#DISTCLEANFILES +=
 
 clean-local: clean-mcp
 
@@ -97,28 +116,28 @@ check-local:
 	@err=0; \
 	echo "Checking for undocumented symbols..."; \
 	if grep '^0 symbols incomplete' \
-		$(srcdir)/$(DOC_MODULE)-undocumented.txt && \
+		$(DOC_MODULE)-undocumented.txt && \
 		grep '^0 not documented' \
-		$(srcdir)/$(DOC_MODULE)-undocumented.txt; then\
+		$(DOC_MODULE)-undocumented.txt; then\
 		:; \
 	else \
-		cat $(srcdir)/$(DOC_MODULE)-undocumented.txt; \
+		cat $(DOC_MODULE)-undocumented.txt; \
 		err=1; \
 	fi; \
 	echo "Checking for unused symbols..."; \
-	if grep . $(srcdir)/$(DOC_MODULE)-unused.txt; then\
+	if grep . $(DOC_MODULE)-unused.txt; then\
 		echo "^^^ Unused symbols" >&2; \
 		err=1; \
 	fi; \
 	echo "Checking for undeclared symbols..."; \
-	if test -e $(srcdir)/$(DOC_MODULE)-undeclared.txt &&\
-		grep . $(srcdir)/$(DOC_MODULE)-undeclared.txt; then\
+	if test -e $(DOC_MODULE)-undeclared.txt &&\
+		grep . $(DOC_MODULE)-undeclared.txt; then\
 		echo "^^^ Undeclared symbols" >&2; \
 		err=1; \
 	fi; \
-	sed -n -e 's,<FILE>\(.*\)</FILE>,\1,p' $(srcdir)/$(DOC_MODULE)-sections.txt |\
+	sed -n -e 's,<FILE>\(.*\)</FILE>,\1,p' $(DOC_MODULE)-sections.txt |\
 	while read file; do \
-		if grep -F "xml/$$file.xml" $(srcdir)/$(DOC_MODULE)-docs.sgml \
+		if grep -F "xml/$$file.xml" $(DOC_MODULE)-docs.sgml \
 			>/dev/null;\
 		then \
 		:; \

@@ -26,4 +26,4 @@ EXTRA_DIST = \
 CLEANFILES = $(man1_MANS)
 
 mc-wait-for-name.1: mc-wait-for-name.1.in Makefile
-	sed -e 's![@]bindir[@]!@bindir@!g' < $< > $@
+	$(AM_V_GEN)sed -e 's![@]bindir[@]!@bindir@!g' < $< > $@
