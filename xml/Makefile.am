@@ -5,30 +5,15 @@ DROP_NAMESPACE = sed -e 's@xmlns:tp="http://telepathy\.freedesktop\.org/wiki/Dbu
 DROP_TPTYPE = sed -e 's@tp:type="[^"]*"@@g'
 
 SPECS = \
-	Account_Manager.xml \
 	Account_Manager_Interface_Hidden.xml \
 	Account_Manager_Interface_Query.xml \
-	Account.xml \
-	Account_Interface_Avatar.xml \
 	Account_Interface_Addressing.xml \
-	Account_Interface_ChannelRequests.xml \
 	Account_Interface_Compat.xml \
 	Account_Interface_Conditions.xml \
 	Account_Interface_External_Password_Storage.xml \
 	Account_Interface_Hidden.xml \
-	Channel_Dispatch_Operation.xml \
-	Channel_Dispatcher.xml \
-	Channel_Dispatcher_Interface_Operation_List.xml \
-	Channel_Request.xml \
-	Client.xml \
-	Client_Approver.xml \
-	Client_Handler.xml \
-	Client_Interface_Requests.xml \
-	Client_Observer.xml \
 	Connection_Manager_Interface_Account_Storage.xml \
-        Connection_Interface_Contact_Capabilities.xml \
-        Channel_Dispatcher_Interface_Messages_DRAFT.xml \
-	Connection_Interface_Power_Saving.xml
+	Channel_Dispatcher_Interface_Messages_DRAFT.xml
 
 
 SPECS_GEN = ${SPECS:%.xml=_gen/introspect-%.xml}

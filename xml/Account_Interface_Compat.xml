@@ -23,12 +23,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.</
         libmissioncontrol compatible layer.</p>
     </tp:docstring>
 
-    <property name="Profile" type="s" access="readwrite">
-      <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
-        <p>The name of the profile.</p>
-      </tp:docstring>
-    </property>
-
     <property name="AvatarFile" type="s" access="read">
       <tp:docstring xmlns="http://www.w3.org/1999/xhtml">
         <p>The location of the avatar.</p>

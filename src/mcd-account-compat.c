@@ -36,18 +36,13 @@
 #include <telepathy-glib/interfaces.h>
 #include <telepathy-glib/util.h>
 
-#include <libmcclient/mc-interfaces.h>
-
 #include "mcd-account.h"
 #include "mcd-account-priv.h"
-#include "mcd-account-compat.h"
 #include "mcd-account-manager.h"
 #include "mcd-misc.h"
 #include "mcd-service.h"
 
 #define COMPAT_REQ_DATA "compat_req"
-
-static guint _mcd_account_signal_profile_set = 0;
 
 typedef struct
 {
@@ -67,56 +62,6 @@ emit_compat_property_changed (McdAccount *account, const gchar *key,
     mc_svc_account_interface_compat_emit_compat_property_changed (account,
                                                                   properties);
     g_hash_table_destroy (properties);
-}
-
-static gboolean
-set_profile (TpSvcDBusProperties *self, const gchar *name,
-             const GValue *value, GError **error)
-{
-    McdAccount *account = MCD_ACCOUNT (self);
-    const gchar *string;
-    McdStorage *storage;
-    const GValue *set;
-    const gchar *account_name;
-
-    if (!G_VALUE_HOLDS_STRING (value))
-    {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
-                     "Expected string for Profile, but got %s",
-                     G_VALUE_TYPE_NAME (value));
-        return FALSE;
-    }
-
-    /* FIXME: should we reject profile changes after account creation? */
-    /* FIXME: some sort of validation beyond just the type? */
-
-    account_name = mcd_account_get_unique_name (account);
-    storage = _mcd_account_get_storage (account);
-    string = g_value_get_string (value);
-
-    if (string && string[0] != 0)
-        set = value;
-    else
-        set = NULL;
-
-    mcd_storage_set_value (storage, account_name, name, set, FALSE);
-    mcd_storage_commit (storage, account_name);
-
-    g_signal_emit (account, _mcd_account_signal_profile_set, 0);
-
-    return TRUE;
-}
-
-static void
-get_profile (TpSvcDBusProperties *self, const gchar *name, GValue *value)
-{
-    McdAccount *account = MCD_ACCOUNT (self);
-    McdStorage *storage = _mcd_account_get_storage (account);
-    const gchar *account_name = mcd_account_get_unique_name (account);
-    gchar *string = mcd_storage_dup_string (storage, account_name, name);
-
-    g_value_init (value, G_TYPE_STRING);
-    g_value_take_string (value, string);
 }
 
 static void
@@ -192,7 +137,6 @@ get_secondary_vcard_fields (TpSvcDBusProperties *self, const gchar *name,
 
 
 const McdDBusProp account_compat_properties[] = {
-    { "Profile", set_profile, get_profile },
     { "AvatarFile", NULL, get_avatar_file },
     { "SecondaryVCardFields", set_secondary_vcard_fields, get_secondary_vcard_fields },
     { 0 },
@@ -215,41 +159,3 @@ account_compat_iface_init (McSvcAccountInterfaceCompatClass *iface,
     IMPLEMENT (set_has_been_online);
 #undef IMPLEMENT
 }
-
-/**
- * mcd_account_compat_get_profile:
- * @account: the #McdAccount.
- *
- * Returns: the #McProfile for the account. Unreference it when done.
- */
-McProfile *
-mcd_account_compat_get_mc_profile (McdAccount *account)
-{
-    gchar *profile_name;
-    McProfile *profile = NULL;
-    McdStorage *storage = _mcd_account_get_storage (account);
-    const gchar *account_name = mcd_account_get_unique_name (account);
-
-    profile_name = mcd_storage_dup_string (storage, account_name, "Profile");
-
-    if (profile_name != NULL)
-    {
-        profile = mc_profile_lookup (profile_name);
-        g_free (profile_name);
-    }
-
-    return profile;
-}
-
-inline void
-_mcd_account_compat_class_init (McdAccountClass *klass)
-{
-    _mcd_account_signal_profile_set =
-	g_signal_new ("profile-set",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL, g_cclosure_marshal_VOID__VOID,
-		      G_TYPE_NONE, 0);
-}
-

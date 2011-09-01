@@ -73,8 +73,6 @@ def test_channel_creation(q, bus, account, client, conn,
             cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
-    account_requests = dbus.Interface(account,
-            cs.ACCOUNT_IFACE_NOKIA_REQUESTS)
     call_async(q, cd, 'CreateChannel',
             account.object_path, request, user_action_time, client.bus_name,
             dbus_interface=cs.CD)
@@ -90,15 +88,8 @@ def test_channel_creation(q, bus, account, client, conn,
     if cancel_before_proceed:
         cr.Cancel(dbus_interface=cs.CR)
 
-        accsig, stdsig = q.expect_many(
-                EventPattern('dbus-signal', path=account.object_path,
-                    interface=cs.ACCOUNT_IFACE_NOKIA_REQUESTS,
-                    signal='Failed'),
-                EventPattern('dbus-signal', path=request_path,
-                    interface=cs.CR, signal='Failed'),
-                )
-        assert accsig.args[0] == request_path
-        assert accsig.args[1] == cs.CANCELLED
+        stdsig = q.expect('dbus-signal', path=request_path,
+                    interface=cs.CR, signal='Failed')
         assert stdsig.args[0] == cs.CANCELLED
 
         # the channel request has gone away
@@ -146,17 +137,13 @@ def test_channel_creation(q, bus, account, client, conn,
     channel.announce()
 
     # Channel is unwanted now, MC stabs it in the face
-    accsig, stdsig, _ = q.expect_many(
-            EventPattern('dbus-signal', path=account.object_path,
-                interface=cs.ACCOUNT_IFACE_NOKIA_REQUESTS, signal='Failed'),
+    stdsig, _ = q.expect_many(
             EventPattern('dbus-signal', path=request_path,
                 interface=cs.CR, signal='Failed'),
             EventPattern('dbus-method-call', path=channel.object_path,
                 interface=cs.CHANNEL, method='Close', handled=True),
             )
 
-    assert accsig.args[0] == request_path
-    assert accsig.args[1] == cs.CANCELLED
     assert stdsig.args[0] == cs.CANCELLED
 
 if __name__ == '__main__':

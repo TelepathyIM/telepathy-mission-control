@@ -28,7 +28,7 @@ from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
-        expect_client_setup
+        expect_client_setup, ChannelDispatcher
 import constants as cs
 
 def test(q, bus, mc):
@@ -63,39 +63,30 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
     user_action_time = dbus.Int64(1238582606)
 
     # chat UI calls ChannelDispatcher.EnsureChannel or CreateChannel
-    # (or in this case, an equivalent non-standard method on the Account)
+    cd = ChannelDispatcher(bus)
     request = dbus.Dictionary({
             cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
             cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
-    account_requests = dbus.Interface(account,
-            cs.ACCOUNT_IFACE_NOKIA_REQUESTS)
-    call_async(q, account_requests,
-            (ensure and 'EnsureChannel' or 'Create'),
-            request, user_action_time, client.bus_name)
 
-    # chat UI connects to signals and calls ChannelRequest.Proceed() - but not
-    # in this non-standard API, which fires off the request instantly
-    ret, cm_request_call, add_request = q.expect_many(
-            EventPattern('dbus-return',
-                method=(ensure and 'EnsureChannel' or 'Create')),
-            EventPattern('dbus-method-call',
-                interface=cs.CONN_IFACE_REQUESTS,
-                method=(ensure and 'EnsureChannel' or 'CreateChannel'),
-                path=conn.object_path, args=[request], handled=False),
-            EventPattern('dbus-method-call', handled=False,
-                interface=cs.CLIENT_IFACE_REQUESTS, method='AddRequest',
-                path=client.object_path),
-            )
+    if ensure:
+        method = cd.EnsureChannel
+    else:
+        method = cd.CreateChannel
 
-    request_path = ret.value[0]
+    request_path = method(account.object_path, request,
+        user_action_time, client.bus_name)
 
-    cr = bus.get_object(cs.AM, request_path)
+    cr = bus.get_object(cs.CD, request_path)
     request_props = cr.GetAll(cs.CR, dbus_interface=cs.PROPERTIES_IFACE)
     assert request_props['Account'] == account.object_path
     assert request_props['Requests'] == [request]
     assert request_props['UserActionTime'] == user_action_time
+
+    add_request = q.expect('dbus-method-call', handled=False,
+        interface=cs.CLIENT_IFACE_REQUESTS, method='AddRequest',
+        path=client.object_path)
 
     assert add_request.args[0] == request_path
     request_props = add_request.args[1]
@@ -105,6 +96,13 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
     assert request_props[cs.CR + '.PreferredHandler'] == client.bus_name
 
     q.dbus_return(add_request.message, signature='')
+
+    # chat UI connects to signals and calls ChannelRequest.Proceed()
+    cr.Proceed()
+    cm_request_call = q.expect('dbus-method-call',
+                interface=cs.CONN_IFACE_REQUESTS,
+                method=(ensure and 'EnsureChannel' or 'CreateChannel'),
+                path=conn.object_path, args=[request], handled=False)
 
     # Time passes. A channel is returned.
 
@@ -160,14 +158,9 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
     # Handler accepts the Channels
     q.dbus_return(e.message, signature='')
 
-    # CR emits Succeeded (or in Mardy's version, Account emits Succeeded)
-    q.expect_many(
-            EventPattern('dbus-signal', path=account.object_path,
-                interface=cs.ACCOUNT_IFACE_NOKIA_REQUESTS, signal='Succeeded',
-                args=[request_path]),
-            EventPattern('dbus-signal', path=request_path,
-                interface=cs.CR, signal='Succeeded'),
-            )
+    # CR emits Succeeded
+    q.expect('dbus-signal', path=request_path,
+                interface=cs.CR, signal='Succeeded')
 
     # Close the channel
     channel.close()

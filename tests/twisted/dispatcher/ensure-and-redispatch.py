@@ -104,8 +104,6 @@ def test_channel_creation(q, bus, account, client, conn):
             cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
-    account_requests = dbus.Interface(account,
-            cs.ACCOUNT_IFACE_NOKIA_REQUESTS)
     call_async(q, cd, 'EnsureChannel',
             account.object_path, request, user_action_time, client.bus_name,
             dbus_interface=cs.CD)
@@ -197,14 +195,9 @@ def test_channel_creation(q, bus, account, client, conn):
     # Handler accepts the Channels
     q.dbus_return(e.message, signature='')
 
-    # CR emits Succeeded (or in Mardy's version, Account emits Succeeded)
-    q.expect_many(
-            EventPattern('dbus-signal', path=account.object_path,
-                interface=cs.ACCOUNT_IFACE_NOKIA_REQUESTS, signal='Succeeded',
-                args=[request_path]),
-            EventPattern('dbus-signal', path=request_path,
-                interface=cs.CR, signal='Succeeded'),
-            )
+    # CR emits Succeeded
+    q.expect('dbus-signal', path=request_path,
+                interface=cs.CR, signal='Succeeded')
 
     return channel
 
@@ -323,14 +316,9 @@ def test_channel_redispatch(q, bus, account, client, conn, channel,
             # Handler accepts the Channels
             q.dbus_return(e.message, signature='')
 
-    # CR emits Succeeded (or in Mardy's version, Account emits Succeeded)
-    q.expect_many(
-            EventPattern('dbus-signal', path=account.object_path,
-                interface=cs.ACCOUNT_IFACE_NOKIA_REQUESTS, signal='Succeeded',
-                args=[request_path]),
-            EventPattern('dbus-signal', path=request_path,
-                interface=cs.CR, signal='Succeeded'),
-            )
+    # CR emits Succeeded
+    q.expect('dbus-signal', path=request_path,
+                interface=cs.CR, signal='Succeeded')
 
     q.unforbid_events(forbidden)
 

@@ -181,21 +181,6 @@ AC_ARG_ENABLE(server,
 )
 AM_CONDITIONAL(HAVE_SERVER, [test x$server_enabled = xyes])
 
-ENABLE_MC_CLIENT_SO6="no"
-AC_MSG_CHECKING(whether to pretend libmcclient is stable)
-AC_ARG_ENABLE(mcclient-so6,
-	[  --enable-mcclient-so6    pretend libmcclient is ABI-stable],
-	[
-		AC_MSG_RESULT(${enableval})
-		ENABLE_MC_CLIENT_SO6="${enableval}"
-	],
-	[
-		AC_MSG_RESULT(no)
-		ENABLE_MC_CLIENT_SO6="no"
-	]
-)
-AM_CONDITIONAL(ENABLE_MC_CLIENT_SO6, [test "x$ENABLE_MC_CLIENT_SO6" = xyes])
-
 ENABLE_MC_SERVER_SO6="no"
 AC_MSG_CHECKING(whether to pretend libmissioncontrol-server is stable)
 AC_ARG_ENABLE(mcserver-so6,
@@ -376,11 +361,8 @@ AC_OUTPUT([
 Makefile \
 doc/Makefile \
 doc/reference/Makefile \
-doc/reference/libmcclient/Makefile \
 doc/reference/libmissioncontrol-server/Makefile \
 doc/reference/mission-control-plugins/Makefile \
-libmcclient.pc \
-libmcclient/Makefile \
 m4/Makefile \
 mission-control.pc \
 mission-control-plugins.pc \

@@ -70,8 +70,6 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
             cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
-    account_requests = dbus.Interface(account,
-            cs.ACCOUNT_IFACE_NOKIA_REQUESTS)
     call_async(q, cd,
             (ensure and 'EnsureChannel' or 'CreateChannel'),
             account.object_path, request, user_action_time, client.bus_name,

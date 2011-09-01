@@ -32,8 +32,6 @@
 #include <dbus/dbus-glib-lowlevel.h>
 #include <dbus/dbus.h>
 
-#include <libmcclient/mc-interfaces.h>
-
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/enums.h>
 #include <telepathy-glib/svc-generic.h>
@@ -57,6 +55,8 @@
 #include "mission-control-plugins/implementation.h"
 #include "plugin-account.h"
 #include "plugin-loader.h"
+
+#include "_gen/interfaces.h"
 
 #define PARAM_PREFIX "param-"
 #define WRITE_CONF_DELAY    500
@@ -1030,7 +1030,6 @@ get_supported_account_properties (TpSvcDBusProperties *svc,
         TP_IFACE_ACCOUNT ".ConnectAutomatically",
         TP_IFACE_ACCOUNT ".RequestedPresence",
         TP_IFACE_ACCOUNT_INTERFACE_AVATAR ".Avatar",
-        MC_IFACE_ACCOUNT_INTERFACE_COMPAT ".Profile",
         MC_IFACE_ACCOUNT_INTERFACE_COMPAT ".SecondaryVCardFields",
         MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS ".Condition",
         NULL

@@ -14,7 +14,6 @@ endif
 
 mc_headers = \
 	mcd-account.h \
-	mcd-account-compat.h \
 	mcd-account-conditions.h \
 	mcd-account-manager.h \
 	mcd-account-manager-default.h \
@@ -53,31 +52,27 @@ endif
 
 mc_gen_headers = \
 	_gen/cli-Connection_Manager_Interface_Account_Storage.h \
-	_gen/cli-Connection_Interface_Contact_Capabilities.h \
-	_gen/cli-Connection_Interface_Power_Saving.h \
 	_gen/enums.h \
+	_gen/gtypes.h \
 	_gen/interfaces.h \
 	_gen/svc-Account_Interface_Addressing.h \
-	_gen/svc-Account_Interface_ChannelRequests.h \
 	_gen/svc-Account_Interface_Compat.h \
 	_gen/svc-Account_Interface_Conditions.h \
 	_gen/svc-Account_Interface_External_Password_Storage.h \
 	_gen/svc-Account_Interface_Hidden.h \
 	_gen/svc-Account_Manager_Interface_Hidden.h \
 	_gen/svc-Account_Manager_Interface_Query.h \
-	_gen/svc-dispatcher.h \
-	_gen/svc-request.h
+	_gen/svc-dispatcher.h
 
 nodist_libmcd_convenience_la_SOURCES = \
 	_gen/cli-Connection_Manager_Interface_Account_Storage-body.h \
-	_gen/cli-Connection_Interface_Contact_Capabilities-body.h \
-	_gen/cli-Connection_Interface_Power_Saving-body.h \
+	_gen/gtypes-body.h \
+	_gen/interfaces-body.h \
 	_gen/register-dbus-glib-marshallers-body.h \
 	_gen/signals-marshal.c \
 	_gen/signals-marshal.h \
 	_gen/signals-marshal.list \
 	_gen/svc-Account_Interface_Addressing.c \
-	_gen/svc-Account_Interface_ChannelRequests.c \
 	_gen/svc-Account_Interface_Compat.c \
 	_gen/svc-Account_Interface_Conditions.c \
 	_gen/svc-Account_Interface_External_Password_Storage.c \
@@ -85,7 +80,6 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/svc-Account_Manager_Interface_Query.c \
 	_gen/svc-Account_Manager_Interface_Hidden.c \
 	_gen/svc-dispatcher.c \
-	_gen/svc-request.c \
 	mcd-enum-types.c \
 	mcd-enum-types.h \
 	mcd-signals-marshal.c \
@@ -100,7 +94,6 @@ BUILT_SOURCES = \
 CLEANFILES = $(BUILT_SOURCES)
 
 libmcd_convenience_la_LIBADD = \
-	$(top_builddir)/libmcclient/libmcclient.la \
 	$(top_builddir)/mission-control-plugins/libmission-control-plugins.la \
 	$(TELEPATHY_LIBS) \
 	$(DBUS_LIBS) \
@@ -175,6 +168,7 @@ libmcd_convenience_la_SOURCES = \
 	channel-utils.h \
 	client-registry.c \
 	client-registry.h \
+	gtypes.c \
 	mcd-dbusprop.c \
 	mcd-dbusprop.h \
 	mcd-debug.c \
@@ -270,11 +264,8 @@ mcd-enum-types.c: Makefile $(mc_headers)
 
 EXTRA_DIST = \
 	mcd.xml \
-	client.xml \
 	dispatcher.xml \
-	dispatch-operation.xml \
 	mcd-signals-marshal.list \
-	request.xml \
 	stamp-mcd-enum-types.h
 
 # ---- telepathy-glib-style code generation ----
@@ -323,6 +314,21 @@ _gen/interfaces.h: _gen/mcd.xml \
 		--stringparam mixed-case-prefix mc \
 		$(tools_dir)/glib-interfaces-generator.xsl \
 		$< > $@
+
+_gen/interfaces-body.h: _gen/mcd.xml \
+	$(tools_dir)/glib-interfaces-body-generator.xsl \
+	$(tools_dir)/c-interfaces-generator.xsl
+	$(XSLTPROC) $(XSLTPROCFLAGS) \
+		--stringparam mixed-case-prefix mc \
+		$(tools_dir)/glib-interfaces-body-generator.xsl \
+		$< > $@
+
+_gen/gtypes.h _gen/gtypes-body.h: _gen/mcd.xml \
+	$(top_srcdir)/tools/glib-gtypes-generator.py
+	$(PYTHON) $(top_srcdir)/tools/glib-gtypes-generator.py \
+		$< _gen/gtypes mc
+
+
 
 # Generated files which must be generated per "class".
 # (Currently the only "class" is nmc4, but the new API will need "classes"

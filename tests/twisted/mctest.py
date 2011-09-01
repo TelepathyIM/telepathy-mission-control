@@ -40,7 +40,13 @@ def make_mc(bus, event_func, params=None):
     if params:
         default_params.update(params)
 
-    return servicetest.make_mc(bus, event_func, default_params)
+    mc = bus.get_object(
+        cs.tp_name_prefix + '.MissionControl5',
+        cs.tp_path_prefix + '/MissionControl5',
+        follow_name_owner_changes=True)
+    assert mc is not None
+
+    return mc
 
 def install_colourer():
     def red(s):

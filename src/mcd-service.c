@@ -53,12 +53,9 @@
 #include "mcd-signals-marshal.h"
 #include "mcd-dispatcher.h"
 #include "mcd-dispatcher-context.h"
-#include "mcd-account-compat.h"
 #include "mcd-connection.h"
 #include "mcd-misc.h"
 #include "mcd-service.h"
-
-#include <libmcclient/mc-errors.h>
 
 /* DBus service specifics */
 #define MISSION_CONTROL_DBUS_SERVICE "org.freedesktop.Telepathy.MissionControl5"

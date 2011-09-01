@@ -30,8 +30,6 @@
 #include <glib/gi18n.h>
 #include <config.h>
 
-#include <libmcclient/mc-interfaces.h>
-
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/util.h>

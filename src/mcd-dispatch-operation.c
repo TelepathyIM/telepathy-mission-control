@@ -49,9 +49,6 @@
 #include "plugin-dispatch-operation.h"
 #include "plugin-loader.h"
 
-#include <libmcclient/mc-errors.h>
-#include "libmcclient/mc-gtypes.h"
-
 #define MCD_DISPATCH_OPERATION_PRIV(operation) (MCD_DISPATCH_OPERATION (operation)->priv)
 
 static void
@@ -2092,9 +2089,8 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
                                     &request_properties);
 
         /* transfer ownership into observer_info */
-        /* FIXME: use telepathy-glib type when available */
         tp_asv_take_boxed (observer_info, "request-properties",
-            MC_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP,
+            TP_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP,
             request_properties);
         request_properties = NULL;
 
@@ -2322,7 +2318,7 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self)
     collect_satisfied_requests (self->priv->channels, NULL,
                                 &request_properties);
     tp_asv_take_boxed (handler_info, "request-properties",
-        MC_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP, request_properties);
+        TP_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP, request_properties);
     request_properties = NULL;
 
     _mcd_client_proxy_handle_channels (self->priv->trying_handler,
@@ -2500,7 +2496,7 @@ _mcd_dispatch_operation_close_as_undispatchable (McdDispatchOperation *self,
     for (list = channels; list != NULL; list = list->next)
     {
         McdChannel *channel = MCD_CHANNEL (list->data);
-        GError e = { MC_ERROR, MC_CHANNEL_REQUEST_GENERIC_ERROR,
+        GError e = { TP_ERROR, TP_ERROR_NOT_AVAILABLE,
             "Handler no longer available" };
 
         mcd_channel_take_error (channel, g_error_copy (&e));

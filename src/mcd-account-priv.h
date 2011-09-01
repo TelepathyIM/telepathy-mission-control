@@ -28,7 +28,6 @@
 #define __MCD_ACCOUNT_PRIV_H__
 
 #include "mcd-account.h"
-#include "mcd-account-compat.h"
 #include "mcd-account-config.h"
 #include "mcd-channel.h"
 #include "mcd-dbusprop.h"
@@ -39,7 +38,6 @@
 
 /* auto-generated stubs */
 #include "_gen/svc-Account_Interface_Addressing.h"
-#include "_gen/svc-Account_Interface_ChannelRequests.h"
 #include "_gen/svc-Account_Interface_Compat.h"
 #include "_gen/svc-Account_Interface_Conditions.h"
 #include "_gen/svc-Account_Interface_External_Password_Storage.h"
@@ -155,9 +153,6 @@ G_GNUC_INTERNAL McdChannel *_mcd_account_create_request (
     const gchar *preferred_handler, GHashTable *request_metadata,
     gboolean use_existing,
     McdRequest **request_out, GError **error);
-
-void account_channelrequests_iface_init
-    (McSvcAccountInterfaceChannelRequestsClass *iface, gpointer iface_data);
 
 typedef struct _McdAccountConnectionContext McdAccountConnectionContext;
 

@@ -38,12 +38,7 @@
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/util.h>
 
-#include <libmcclient/mc-gtypes.h>
-#include <libmcclient/mc-interfaces.h>
-#include <libmcclient/mc-enums.h>
-
 #include "mcd-account-priv.h"
-#include "mcd-account-compat.h"
 #include "mcd-account-conditions.h"
 #include "mcd-account-manager-priv.h"
 #include "mcd-account-addressing.h"
@@ -57,6 +52,9 @@
 #include "mcd-master-priv.h"
 #include "mcd-dbusprop.h"
 
+#include "_gen/interfaces.h"
+#include "_gen/enums.h"
+#include "_gen/gtypes.h"
 #include "_gen/cli-Connection_Manager_Interface_Account_Storage-body.h"
 
 #define MAX_KEY_LENGTH (DBUS_MAXIMUM_NAME_LENGTH + 6)
@@ -91,9 +89,6 @@ static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_account_interface_avatar_get_type,
 			 account_avatar,
 			 TP_IFACE_ACCOUNT_INTERFACE_AVATAR),
-    MCD_IMPLEMENT_IFACE (mc_svc_account_interface_channelrequests_get_type,
-			 account_channelrequests,
-			 MC_IFACE_ACCOUNT_INTERFACE_CHANNELREQUESTS),
     MCD_IMPLEMENT_IFACE (mc_svc_account_interface_compat_get_type,
 			 account_compat,
 			 MC_IFACE_ACCOUNT_INTERFACE_COMPAT),
@@ -3071,7 +3066,6 @@ mcd_account_class_init (McdAccountClass * klass)
 		      G_TYPE_NONE, 1,
 		      G_TYPE_BOOLEAN);
 
-    _mcd_account_compat_class_init (klass);
     _mcd_account_connection_class_init (klass);
 
     account_ready_quark = g_quark_from_static_string ("mcd_account_load");

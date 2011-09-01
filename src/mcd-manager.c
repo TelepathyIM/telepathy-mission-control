@@ -47,8 +47,6 @@
 #include <glib/gi18n.h>
 #include <telepathy-glib/telepathy-glib.h>
 
-#include <libmcclient/mc-errors.h>
-
 #include "mcd-connection.h"
 
 #define MANAGER_SUFFIX ".manager"
