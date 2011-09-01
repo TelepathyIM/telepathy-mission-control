@@ -168,13 +168,13 @@ struct _McdAccountPrivate
      */
     GError *invalid_reason;
 
-    guint connect_automatically : 1;
-    guint enabled : 1;
-    guint loaded : 1;
-    guint has_been_online : 1;
-    guint removed : 1;
-    guint always_on : 1;
-    guint changing_presence : 1;
+    gboolean connect_automatically;
+    gboolean enabled;
+    gboolean loaded;
+    gboolean has_been_online;
+    gboolean removed;
+    gboolean always_on;
+    gboolean changing_presence;
 
     gboolean hidden;
     gboolean always_dispatch;
