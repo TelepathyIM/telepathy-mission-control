@@ -7,6 +7,13 @@ Fixes:
   mcd-dispatch-operation.c (fledermaus). (This was included in 5.8.0,
   but not 5.9.0 or 5.9.1.)
 
+• Connection attempts aborted by McdTransport plugins did not trigger
+  A status change signal - now they do (fledermaus)
+
+• Dispatch channels with no (known) handlers to observers anyway (smcv)
+
+• Memory leaks in the approval mechanism plugged (fledermaus)
+
 telepathy-mission-control 5.9.1 (2011-07-21)
 ============================================
 
