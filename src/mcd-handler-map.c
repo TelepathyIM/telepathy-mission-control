@@ -204,6 +204,12 @@ _mcd_handler_map_new (TpDBusDaemon *dbus_daemon)
                          NULL);
 }
 
+/*
+ * @well_known_name: (out): the well-known Client name of the handler,
+ *  or %NULL if not known (or if it's Mission Control itself)
+ *
+ * Returns: (transfer none): the unique name of the handler
+ */
 const gchar *
 _mcd_handler_map_get_handler (McdHandlerMap *self,
                               const gchar *channel_path,
@@ -216,6 +222,17 @@ _mcd_handler_map_get_handler (McdHandlerMap *self,
     return g_hash_table_lookup (self->priv->channel_processes, channel_path);
 }
 
+/*
+ * @channel_path: a channel
+ * @unique_name: the unique name of the handler
+ * @well_known_name: the well-known name of the handler, or %NULL if not known
+ *  (or if it's Mission Control itself)
+ *
+ * Record that @channel_path is being handled by the Client
+ * @well_known_name, whose unique name is @unique_name.
+ *
+ * Returns: (transfer none): the unique name of the handler
+ */
 void
 _mcd_handler_map_set_path_handled (McdHandlerMap *self,
                                    const gchar *channel_path,
@@ -316,6 +333,19 @@ handled_channel_invalidated_cb (TpChannel *channel,
     g_object_unref (self);
 }
 
+/*
+ * @channel: a channel
+ * @unique_name: the unique name of the handler
+ * @well_known_name: the well-known name of the handler, or %NULL if not known
+ *  (or if it's Mission Control itself)
+ * @account_path: the account that @channel came from, or %NULL if not known
+ *
+ * Record that @channel_path is being handled by the Client
+ * @well_known_name, whose unique name is @unique_name.
+ * The record will be removed if the channel closes or is invalidated.
+ *
+ * Returns: (transfer none): the unique name of the handler
+ */
 void
 _mcd_handler_map_set_channel_handled (McdHandlerMap *self,
                                       TpChannel *channel,
@@ -409,12 +439,19 @@ mcd_handler_map_name_owner_cb (TpDBusDaemon *dbus_daemon,
     }
 }
 
+/*
+ * Returns: (transfer container): all channels that are being handled
+ */
 GList *
 _mcd_handler_map_get_handled_channels (McdHandlerMap *self)
 {
     return g_hash_table_get_values (self->priv->handled_channels);
 }
 
+/*
+ * Returns: (transfer none): the account that @channel_path belongs to,
+ *  or %NULL if not known
+ */
 const gchar *
 _mcd_handler_map_get_channel_account (McdHandlerMap *self,
     const gchar *channel_path)
@@ -423,4 +460,15 @@ _mcd_handler_map_get_channel_account (McdHandlerMap *self,
         channel_path);
 }
 
-
+/*
+ * Record that MC itself is handling this channel, internally.
+ */
+void
+_mcd_handler_map_set_channel_handled_internally (McdHandlerMap *self,
+                                                 TpChannel *channel,
+                                                 const gchar *account_path)
+{
+    _mcd_handler_map_set_channel_handled (self, channel,
+        tp_dbus_daemon_get_unique_name (self->priv->dbus_daemon),
+        NULL, account_path);
+}

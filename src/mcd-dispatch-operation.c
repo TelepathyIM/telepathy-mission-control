@@ -498,12 +498,28 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
                 continue;
 
             DEBUG ("Internal handler for request channel #%u", i);
+            _mcd_handler_map_set_channel_handled_internally (
+                self->priv->handler_map,
+                mcd_channel_get_tp_channel (channel),
+                _mcd_dispatch_operation_get_account_path (self));
             _mcd_request_handle_internally (request, channel, TRUE);
         }
 
         /* The rest of this function deals with externally handled requests: *
          * Since these requests were internal, we need not trouble ourselves *
          * further (and infact would probably trigger errors if we tried)    */
+        return;
+    }
+
+    /* If there are no potential handlers, the story ends here: we don't
+     * want to run approvers in this case */
+    if (self->priv->possible_handlers == NULL)
+    {
+        GError incapable = { TP_ERRORS, TP_ERROR_NOT_CAPABLE,
+            "No possible handlers, giving up" };
+
+        DEBUG ("%s", incapable.message);
+        _mcd_dispatch_operation_close_as_undispatchable (self, &incapable);
         return;
     }
 
@@ -1056,12 +1072,6 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
     if (!priv->client_registry || !priv->handler_map)
         goto error;
 
-    if (priv->possible_handlers == NULL && !priv->observe_only)
-    {
-        g_critical ("!observe_only => possible_handlers must not be NULL");
-        goto error;
-    }
-
     if (priv->needs_approval && priv->observe_only)
     {
         g_critical ("observe_only => needs_approval must not be TRUE");
@@ -1430,9 +1440,6 @@ _mcd_dispatch_operation_new (McdClientRegistry *client_registry,
                              const gchar * const *possible_handlers)
 {
     gpointer *obj;
-
-    /* possible-handlers is only allowed to be NULL if we're only observing */
-    g_return_val_if_fail (possible_handlers != NULL || observe_only, NULL);
 
     /* If we're only observing, then the channels were requested "behind MC's
      * back", so they can't need approval (i.e. observe_only implies
@@ -1805,8 +1812,13 @@ _mcd_dispatch_operation_handlers_can_bypass_approval (
     if (_mcd_dispatch_operation_is_internal (self))
         return TRUE;
 
+    /* special case: we don't have any handlers at all, so we don't want
+     * approval - we're just going to fail */
+    if (self->priv->possible_handlers == NULL)
+        return TRUE;
+
     for (iter = self->priv->possible_handlers;
-         iter != NULL && *iter != NULL;
+         *iter != NULL;
          iter++)
     {
         McdClientProxy *handler = _mcd_client_registry_lookup (
