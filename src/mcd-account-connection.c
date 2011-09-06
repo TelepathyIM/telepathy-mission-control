@@ -78,6 +78,10 @@ _mcd_account_connection_begin (McdAccount *account,
     ctx->params = _mcd_account_dup_parameters (account);
     g_assert (ctx->params != NULL);
 
+    _mcd_account_set_connection_status (account,
+                                        TP_CONNECTION_STATUS_CONNECTING,
+                                        TP_CONNECTION_STATUS_REASON_REQUESTED,
+                                        NULL, NULL, NULL);
     _mcd_account_set_connection_context (account, ctx);
     mcd_account_connection_proceed (account, TRUE);
 }
