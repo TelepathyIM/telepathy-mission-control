@@ -7,6 +7,8 @@ Fixes:
 
 • Dispatch channels with no (known) handlers to observers anyway (smcv)
 
+• Memory leaks in the approval mechanism plugged (fledermaus)
+
 telepathy-mission-control 5.8.0 (2011-07-22)
 ============================================
 
