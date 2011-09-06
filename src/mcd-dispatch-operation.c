@@ -153,6 +153,7 @@ approval_free (Approval *approval)
     /* we should have replied to the method call by now */
     g_assert (approval->context == NULL);
 
+    g_free (approval->client_bus_name);
     g_slice_free (Approval, approval);
 }
 
@@ -563,6 +564,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
             g_source_remove (approver_event_id);
         }
 
+        approval_free (approval);
         return;
     }
     else if (approval != NULL && approval->type == APPROVAL_TYPE_HANDLE_WITH)
@@ -856,6 +858,7 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation,
                          * it's OK to not distinguish */
                         tp_svc_channel_dispatch_operation_return_from_handle_with (
                             approval->context);
+                        approval->context = NULL;
                     }
                     else
                     {
@@ -864,6 +867,7 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation,
                                successful_handler);
                         dbus_g_method_return_error (approval->context,
                                                     priv->result);
+                        approval->context = NULL;
                     }
                 }
                 else
@@ -875,13 +879,18 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation,
                            g_quark_to_string (priv->result->domain),
                            priv->result->code, priv->result->message);
                     dbus_g_method_return_error (approval->context, priv->result);
+                    approval->context = NULL;
                 }
 
                 break;
 
             default:
-                {} /* do nothing */
+                {   /* there shouldn't be a dbus context for these: */
+                    g_assert (approval->context == NULL);
+                }
         }
+
+        approval_free (approval);
     }
 
     if (mcd_dispatch_operation_may_signal_finished (operation))
