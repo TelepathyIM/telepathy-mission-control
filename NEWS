@@ -1,9 +1,12 @@
 telepathy-mission-control 5.8.1 (UNRELEASED)
 ============================================
 
-The “Bootstrap resampling is witchraft, I tell you! Witchcraft!” release.
+The “Bootstrap resampling is witchcraft, I tell you! Witchcraft!” release.
 
 Fixes:
+
+• Connection attempts aborted by McdTransport plugins did not trigger
+  A status change signal - now they do (fledermaus)
 
 • Dispatch channels with no (known) handlers to observers anyway (smcv)
 
