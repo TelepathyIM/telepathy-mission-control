@@ -1,6 +1,11 @@
 telepathy-mission-control 5.8.1 (UNRELEASED)
 ============================================
 
+The “Bootstrap resampling is witchraft, I tell you! Witchcraft!” release.
+
+Fixes:
+
+• Dispatch channels with no (known) handlers to observers anyway (smcv)
 
 telepathy-mission-control 5.8.0 (2011-07-22)
 ============================================
