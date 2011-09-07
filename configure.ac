@@ -340,10 +340,6 @@ if test x"$HAVE_MCE" = xyes; then
   AC_DEFINE([HAVE_MCE], [1], [Define if mce is available])
 fi
 
-dnl docs/Makefile.am needs to know whether it's an out of tree build
-dnl (srcdir != builddir)
-AM_CONDITIONAL([OUT_OF_TREE_BUILD], [test "z$ac_srcdir" != z.])
-
 dnl ***************************************************************************
 dnl Check for marshal and enum generators
 dnl ***************************************************************************
@@ -352,7 +348,7 @@ AC_SUBST(GLIB_GENMARSHAL)
 GLIB_MKENUMS="`$PKG_CONFIG --variable=glib_mkenums glib-2.0`"
 AC_SUBST(GLIB_MKENUMS)
 
-GTK_DOC_CHECK([1.17])
+GTK_DOC_CHECK([1.17],[--flavour no-tmpl])
 
 pluginlibdir=$libdir/mission-control
 AC_SUBST(pluginlibdir)
@@ -361,7 +357,6 @@ AC_OUTPUT([
 Makefile \
 doc/Makefile \
 doc/reference/Makefile \
-doc/reference/libmissioncontrol-server/Makefile \
 doc/reference/mission-control-plugins/Makefile \
 m4/Makefile \
 mission-control.pc \
