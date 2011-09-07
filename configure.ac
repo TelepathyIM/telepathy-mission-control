@@ -352,7 +352,7 @@ AC_SUBST(GLIB_GENMARSHAL)
 GLIB_MKENUMS="`$PKG_CONFIG --variable=glib_mkenums glib-2.0`"
 AC_SUBST(GLIB_MKENUMS)
 
-GTK_DOC_CHECK([1.17])
+GTK_DOC_CHECK([1.17],[--flavour no-tmpl])
 
 pluginlibdir=$libdir/mission-control
 AC_SUBST(pluginlibdir)
