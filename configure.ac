@@ -361,7 +361,6 @@ AC_OUTPUT([
 Makefile \
 doc/Makefile \
 doc/reference/Makefile \
-doc/reference/libmissioncontrol-server/Makefile \
 doc/reference/mission-control-plugins/Makefile \
 m4/Makefile \
 mission-control.pc \
