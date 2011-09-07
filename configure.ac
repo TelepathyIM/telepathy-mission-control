@@ -340,10 +340,6 @@ if test x"$HAVE_MCE" = xyes; then
   AC_DEFINE([HAVE_MCE], [1], [Define if mce is available])
 fi
 
-dnl docs/Makefile.am needs to know whether it's an out of tree build
-dnl (srcdir != builddir)
-AM_CONDITIONAL([OUT_OF_TREE_BUILD], [test "z$ac_srcdir" != z.])
-
 dnl ***************************************************************************
 dnl Check for marshal and enum generators
 dnl ***************************************************************************
