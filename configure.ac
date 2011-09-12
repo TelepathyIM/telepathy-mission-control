@@ -156,16 +156,6 @@ fi
 AC_SUBST(ACCOUNTS_CACHE_DIR)
 AC_DEFINE_UNQUOTED(ACCOUNTS_CACHE_DIR,"$ACCOUNTS_CACHE_DIR", [Directory for account/connection mapping for crash recovery])
 
-
-AC_ARG_WITH(chandlers_dir, AS_HELP_STRING([--with-chandlers-dir=<path>],[Directory for channel handlers]))
-if test -z "$with_chandlers_dir" ; then
-    CHANDLERS_DIR="telepathy/managers"
-else
-    CHANDLERS_DIR=$with_chandlers_dir
-fi
-AC_SUBST(CHANDLERS_DIR)
-AC_DEFINE_UNQUOTED(CHANDLERS_DIR,"$CHANDLERS_DIR", [Directory for channel handlers])
-
 server_enabled="yes"
 AC_MSG_CHECKING(whether to build the daemon)
 AC_ARG_ENABLE(server,

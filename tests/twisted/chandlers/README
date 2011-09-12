@@ -1,4 +1,0 @@
-This directory contains .chandler files used by Mission Control when it is run
-by twisted test. $MC_CHANDLERS_DIR is set to this directory in the twisted
-environment.
-

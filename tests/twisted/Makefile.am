@@ -159,7 +159,6 @@ BASIC_TESTS_ENVIRONMENT = \
 	PYTHONPATH=@abs_top_srcdir@/tests/twisted:@abs_top_builddir@/tests/twisted \
 	MC_DEBUG=all \
 	MC_FILTER_PLUGIN_DIR=@abs_top_builddir@/tests/twisted/.libs \
-	MC_CHANDLERS_DIR=@abs_top_srcdir@/tests/twisted/chandlers \
 	MC_ACCOUNT_DIR=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX) \
 	XDG_CONFIG_HOME=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX) \
 	XDG_CONFIG_DIRS=@abs_top_srcdir@/tests/twisted \
@@ -273,7 +272,6 @@ EXTRA_DIST = \
 	$(TWISTED_BASIC_TESTS) \
 	$(TWISTED_SEPARATE_TESTS) \
 	accounts/README \
-	chandlers/README \
 	telepathy/clients/README \
 	telepathy/clients/AbiWord.client \
 	telepathy/clients/Logger.client \
