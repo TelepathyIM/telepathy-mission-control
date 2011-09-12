@@ -164,7 +164,7 @@ gboolean mcp_account_storage_set (const McpAccountStorage *storage,
     const McpAccountManager *am,
     const gchar *account,
     const gchar *key,
-    const gchar *val);
+    const gchar *value);
 
 gboolean mcp_account_storage_delete (const McpAccountStorage *storage,
     const McpAccountManager *am,

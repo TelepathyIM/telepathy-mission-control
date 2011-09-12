@@ -241,6 +241,7 @@ mcp_dispatch_operation_policy_handler_is_suitable_async (
 }
 
 /**
+ * mcp_dispatch_operation_policy_handler_is_suitable_finish:
  * @policy: an implementation of this interface, provided by a plugin
  * @result: the asynchronous result passed to the #GAsyncReadyCallback
  * @error: (allow-none): used to return an error
