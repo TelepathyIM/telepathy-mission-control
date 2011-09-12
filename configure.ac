@@ -117,26 +117,6 @@ if test "x$enable_coverage" = "xyes"; then
        CFLAGS="$CFLAGS -g -fprofile-arcs -ftest-coverage"
 fi
 
-AC_ARG_WITH(profiles_dir, AS_HELP_STRING([--with-profiles-dir=<path>],[Directory for storing profiles]))
-if test -z "$with_profiles_dir" ; then
-    PROFILES_DIR="mission-control/profiles"
-else
-    PROFILES_DIR=$with_profiles_dir
-fi
-AC_SUBST(PROFILES_DIR)
-AC_DEFINE_UNQUOTED(PROFILES_DIR,"$PROFILES_DIR", [Directory for storing profiles])
-
-
-AC_ARG_WITH(managers_dir, AS_HELP_STRING([--with-managers-dir=<path>],[Directory for storing managers]))
-if test -z "$with_managers_dir" ; then
-    MANAGERS_DIR="telepathy/managers"
-else
-    MANAGERS_DIR=$with_managers_dir
-fi
-AC_SUBST(MANAGERS_DIR)
-AC_DEFINE_UNQUOTED(MANAGERS_DIR,"$MANAGERS_DIR", [Directory for storing managers])
-
-
 AC_ARG_WITH(accounts_dir, AS_HELP_STRING([--with-accounts-dir=<path>],[Directory for storing accounts]))
 if test -z "$with_accounts_dir" ; then
     ACCOUNTS_DIR="~/.mission-control/accounts"
