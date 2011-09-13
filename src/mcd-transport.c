@@ -115,6 +115,7 @@ mcd_transport_plugin_get_name (McdTransportPlugin *plugin)
     McdTransportPluginIface *iface;
 
     iface = MCD_TRANSPORT_PLUGIN_GET_IFACE (plugin);
+    g_return_val_if_fail (iface->get_name != NULL, NULL);
     return iface->get_name (plugin);
 }
 
@@ -133,6 +134,7 @@ mcd_transport_plugin_get_transports (McdTransportPlugin *plugin)
     McdTransportPluginIface *iface;
 
     iface = MCD_TRANSPORT_PLUGIN_GET_IFACE (plugin);
+    g_return_val_if_fail (iface->get_transports != NULL, NULL);
     return iface->get_transports (plugin);
 }
 
@@ -155,7 +157,11 @@ mcd_transport_plugin_check_conditions (McdTransportPlugin *plugin,
     McdTransportPluginIface *iface;
 
     iface = MCD_TRANSPORT_PLUGIN_GET_IFACE (plugin);
-    return iface->check_conditions (plugin, transport, conditions);
+
+    if (iface->check_conditions == NULL)
+        return TRUE;
+    else
+        return iface->check_conditions (plugin, transport, conditions);
 }
 
 /**
@@ -173,6 +179,7 @@ mcd_transport_get_name (McdTransportPlugin *plugin, McdTransport *transport)
     McdTransportPluginIface *iface;
 
     iface = MCD_TRANSPORT_PLUGIN_GET_IFACE (plugin);
+    g_return_val_if_fail (iface->get_transport_name != NULL, NULL);
     return iface->get_transport_name (plugin, transport);
 }
 
@@ -191,6 +198,8 @@ mcd_transport_get_status (McdTransportPlugin *plugin, McdTransport *transport)
     McdTransportPluginIface *iface;
 
     iface = MCD_TRANSPORT_PLUGIN_GET_IFACE (plugin);
+    g_return_val_if_fail (iface->get_transport_status != NULL,
+        MCD_TRANSPORT_STATUS_DISCONNECTED);
     return iface->get_transport_status (plugin, transport);
 }
 
