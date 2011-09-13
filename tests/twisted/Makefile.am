@@ -1,40 +1,40 @@
 TWISTED_TESTS =
 
 TWISTED_BASIC_TESTS = \
-	account/addressing.py \
 	account-manager/account-basics.py \
-	account-manager/bad-cm.py \
 	account-manager/avatar.py \
+	account-manager/bad-cm.py \
 	account-manager/create-auto-connect.py \
 	account-manager/create-twice.py \
 	account-manager/create-with-properties.py \
-	account-manager/enable.py \
 	account-manager/enable-auto-connect.py \
+	account-manager/enable.py \
 	account-manager/nickname.py \
-	account-manager/service.py \
 	account-manager/param-types.py \
 	account-manager/presence.py \
 	account-manager/reconnect.py \
 	account-manager/recover-from-disconnect.py \
 	account-manager/request-online.py \
+	account-manager/service.py \
 	account-manager/update-parameters.py \
 	account-requests/cancel.py \
 	account-requests/create-text.py \
 	account-requests/delete-account-during-request.py \
+	account/addressing.py \
 	capabilities/contact-caps.py \
 	capabilities/legacy-caps.py \
-	dispatcher/approver-fails.py \
 	dispatcher/already-has-channel.py \
 	dispatcher/already-has-obsolete.py \
+	dispatcher/approver-fails.py \
 	dispatcher/bypass-approval.py \
 	dispatcher/bypass-observers.py \
 	dispatcher/cancel.py \
 	dispatcher/capture-bundle.py \
 	dispatcher/connect-for-request.py \
+	dispatcher/create-delayed-by-mini-plugin.py \
 	dispatcher/create-handler-fails.py \
 	dispatcher/create-hints.py \
 	dispatcher/create-no-preferred-handler.py \
-	dispatcher/create-delayed-by-mini-plugin.py \
 	dispatcher/create-rejected-by-mini-plugin.py \
 	dispatcher/create-text.py \
 	dispatcher/created-behind-our-back.py \
@@ -57,8 +57,8 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/recover-from-disconnect.py \
 	dispatcher/redispatch-channels.py \
 	dispatcher/request-disabled-account.py \
-	dispatcher/respawn-observers.py \
 	dispatcher/respawn-activatable-observers.py \
+	dispatcher/respawn-observers.py \
 	dispatcher/some-delay-approvers.py \
 	dispatcher/undispatchable.py \
 	dispatcher/vanishing-client.py
@@ -76,8 +76,8 @@ endif
 # For simplicity, these are also separate tests: at least
 # account-storage/*.py need their own instances.
 TWISTED_SPECIAL_BUILD_TESTS = \
-	account-manager/hidden.py \
 	account-manager/auto-away.py \
+	account-manager/hidden.py \
 	account-storage/default-keyring-storage.py \
 	account-storage/diverted-storage.py
 
