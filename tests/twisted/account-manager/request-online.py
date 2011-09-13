@@ -151,14 +151,13 @@ def test(q, bus, mc):
             'RequestedPresence', requested_presence,
             dbus_interface=cs.PROPERTIES_IFACE)
 
-    # In response, MC tells us to Disconnect, and we do
+    # In response, MC tells us to Disconnect, and we do. But it should not
+    # Close() the open channel.
+    q.forbid_events([
+        EventPattern('dbus-method-call', method='Close', path=conn.object_path),
+        ])
     q.expect('dbus-method-call', method='Disconnect',
             path=conn.object_path, handled=True)
-
-    # MC terminates the channel
-    # FIXME: it shouldn't do this!
-    #q.expect('dbus-method-call', method='Close',
-    #        path=chan.object_path, handled=True)
 
     properties = account.GetAll(cs.ACCOUNT, dbus_interface=cs.PROPERTIES_IFACE)
     assertEquals('/', properties['Connection'])

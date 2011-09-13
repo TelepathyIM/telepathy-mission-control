@@ -17,19 +17,13 @@
 # 02110-1301 USA
 
 import dbus
-import dbus
-import dbus.service
 
 from servicetest import (EventPattern, tp_name_prefix, tp_path_prefix,
-        call_async, sync_dbus, assertEquals)
-from mctest import exec_test, SimulatedConnection, create_fakecm_account,\
-        SimulatedChannel
+        call_async, assertEquals)
+from mctest import exec_test, SimulatedConnection, create_fakecm_account
 import constants as cs
 
 def test(q, bus, mc):
-    cm_name_ref = dbus.service.BusName(
-            tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
-
     # Create an account. We're setting register=True here to verify
     # that after one successful connection, it'll be removed (fd.o #28118).
     params = dbus.Dictionary({"account": "someguy@example.com",
@@ -37,23 +31,17 @@ def test(q, bus, mc):
         "register": True}, signature='sv')
     (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
 
-    account_iface = dbus.Interface(account, cs.ACCOUNT)
-    account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)
-
-    call_async(q, account, 'Set', cs.ACCOUNT, 'Enabled', False,
-            dbus_interface=cs.PROPERTIES_IFACE)
+    call_async(q, account.Properties, 'Set', cs.ACCOUNT, 'Enabled', False)
     q.expect('dbus-return', method='Set')
 
     # Enable the account
-    call_async(q, account, 'Set', cs.ACCOUNT, 'Enabled', True,
-            dbus_interface=cs.PROPERTIES_IFACE)
+    call_async(q, account.Properties, 'Set', cs.ACCOUNT, 'Enabled', True)
 
     # Set online presence
     presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_BUSY), 'busy',
             'Fixing MC bugs'), signature='uss')
-    call_async(q, account, 'Set', cs.ACCOUNT,
-            'RequestedPresence', presence,
-            dbus_interface=cs.PROPERTIES_IFACE)
+    call_async(q, account.Properties, 'Set', cs.ACCOUNT,
+            'RequestedPresence', presence)
 
     e = q.expect('dbus-method-call', method='RequestConnection',
             args=['fakeprotocol', params],
@@ -166,10 +154,10 @@ def test(q, bus, mc):
         connecting.args[0].get('ConnectionStatusReason'))
 
     assertEquals('com.example.My.Network.Is.Full.Of.Eels',
-            account_props.Get(cs.ACCOUNT, 'ConnectionError'))
+            account.Properties.Get(cs.ACCOUNT, 'ConnectionError'))
     assertEquals(
             {'eels': 23, 'capacity': 23, 'debug-message': 'Too many eels'},
-            account_props.Get(cs.ACCOUNT, 'ConnectionErrorDetails'))
+            account.Properties.Get(cs.ACCOUNT, 'ConnectionErrorDetails'))
 
     # Connect succeeds
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
@@ -195,8 +183,8 @@ def test(q, bus, mc):
     assertEquals(cs.CONN_STATUS_REASON_REQUESTED,
         connected.args[0].get('ConnectionStatusReason'))
 
-    assertEquals('', account_props.Get(cs.ACCOUNT, 'ConnectionError'))
-    assertEquals({}, account_props.Get(cs.ACCOUNT, 'ConnectionErrorDetails'))
+    assertEquals('', account.Properties.Get(cs.ACCOUNT, 'ConnectionError'))
+    assertEquals({}, account.Properties.Get(cs.ACCOUNT, 'ConnectionErrorDetails'))
 
 if __name__ == '__main__':
     exec_test(test, {})
