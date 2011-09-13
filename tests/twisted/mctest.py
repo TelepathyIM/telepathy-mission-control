@@ -323,6 +323,9 @@ class SimulatedConnection(object):
         self.presence = dbus.Struct((cs.PRESENCE_TYPE_OFFLINE, 'offline', ''),
                 signature='uss')
 
+    def release_name(self):
+        del self._bus_name_ref
+
     def GetAll_Connection(self, e):
         self.q.dbus_return(e.message, {
             'Interfaces': dbus.Array(self.interfaces, signature='s'),
@@ -828,17 +831,24 @@ class SimulatedClient(object):
 def take_fakecm_name(bus):
     return dbus.service.BusName(cs.CM + '.fakecm', bus=bus)
 
-def create_fakecm_account(q, bus, mc, params, properties={}):
+def create_fakecm_account(q, bus, mc, params, properties={},
+                          cm_bus=None):
     """Create a fake connection manager and an account that uses it.
 
     Optional keyword arguments:
     properties -- a dictionary from qualified property names to values to pass
                   to CreateAccount. If provided, this function will check that
                   the newly-created account has these properties.
+    cm_bus     -- if not None, a BusConnection via which to claim the CM's
+                  name. If None, 'bus' will be used.
 
     Returns: (a BusName for the fake CM, an Account proxy)"""
 
-    cm_name_ref = take_fakecm_name(bus)
+    if cm_bus is None:
+        cm_bus = bus
+
+    cm_name_ref = take_fakecm_name(cm_bus)
+
     account_manager = AccountManager(bus)
 
     servicetest.call_async(q, account_manager, 'CreateAccount',
