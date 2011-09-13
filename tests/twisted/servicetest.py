@@ -42,6 +42,9 @@ class Event:
         self.__dict__.update(kw)
         self.type = type
 
+    def __str__(self):
+        return '\n'.join([ str(type(self)) ] + format_event(self))
+
 def format_event(event):
     ret = ['- type %s' % event.type]
 
