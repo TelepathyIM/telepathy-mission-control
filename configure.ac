@@ -342,3 +342,26 @@ tools/Makefile \
 util/Makefile \
 xml/Makefile \
 ])
+
+echo "
+Configure summary:
+
+        Compiler.....................:  ${CC}
+        Compiler Flags...............:  ${CFLAGS} ${ERROR_CFLAGS}
+        Linker Flags.................:  ${LDFLAGS}
+        Prefix.......................:  ${prefix}
+        Enable debug.................:  ${enable_debug}
+        Python tests.................:  ${mc_want_twisted_tests}
+
+    Options:
+        Account storage directory....:  ${ACCOUNTS_DIR}
+        Crash recovery directory.....:  ${ACCOUNTS_CACHE_DIR:-\$XDG_CACHE_HOME}
+
+    Features:
+        Plugin API documentation.....:  ${enable_gtk_doc}
+        Gnome Keyring................:  ${keyring_enabled}
+        Aegis........................:  ${aegis_enabled}
+        libaccounts-glib backend.....:  ${libaccounts_sso_enabled}
+        Hidden accounts-glib accounts:  ${with_accounts_glib_hidden_service_type}
+        Nokia Mode Control Entity....:  ${HAVE_MCE}
+"
