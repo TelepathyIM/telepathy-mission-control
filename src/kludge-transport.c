@@ -28,6 +28,11 @@
 struct _McdKludgeTransportPrivate {
     /* Rawr! I'm a mythical creature. */
     McdConnectivityMonitor *minotaur;
+
+    GList *one;
+
+    /* Hold a set of McdAccounts which would like to go online. */
+    GHashTable *pending_accounts;
 };
 
 static void transport_iface_init (
@@ -63,6 +68,12 @@ mcd_kludge_transport_constructed (GObject *object)
   priv->minotaur = mcd_connectivity_monitor_new ();
   tp_g_signal_connect_object (priv->minotaur, "state-change",
       (GCallback) monitor_state_changed_cb, self, G_CONNECT_AFTER);
+
+  /* We just use ourself as the McdTransport pointer... */
+  priv->one = g_list_prepend (NULL, self);
+
+  priv->pending_accounts = g_hash_table_new_full (NULL, NULL,
+      g_object_unref, NULL);
 }
 
 static void
@@ -73,6 +84,10 @@ mcd_kludge_transport_dispose (GObject *object)
   GObjectClass *parent_class = mcd_kludge_transport_parent_class;
 
   tp_clear_object (&priv->minotaur);
+  g_list_free (priv->one);
+  priv->one = NULL;
+
+  g_hash_table_unref (priv->pending_accounts);
 
   if (parent_class->dispose != NULL)
     parent_class->dispose (object);
@@ -102,9 +117,11 @@ static const GList *
 mcd_kludge_transport_get_transports (
     McdTransportPlugin *plugin)
 {
+  McdKludgeTransport *self = MCD_KLUDGE_TRANSPORT (plugin);
+
   g_return_val_if_fail (MCD_IS_KLUDGE_TRANSPORT (plugin), NULL);
 
-  return NULL;
+  return self->priv->one;
 }
 
 static const gchar *
@@ -113,8 +130,9 @@ mcd_kludge_transport_get_transport_name (
     McdTransport *transport)
 {
   g_return_val_if_fail (MCD_IS_KLUDGE_TRANSPORT (plugin), NULL);
+  g_return_val_if_fail (plugin == (McdTransportPlugin *) transport, NULL);
 
-  return NULL;
+  return "i love the internet";
 }
 
 static McdTransportStatus
@@ -122,10 +140,21 @@ mcd_kludge_transport_get_transport_status (
     McdTransportPlugin *plugin,
     McdTransport *transport)
 {
+  McdKludgeTransport *self = MCD_KLUDGE_TRANSPORT (plugin);
+  gboolean online;
+
   g_return_val_if_fail (MCD_IS_KLUDGE_TRANSPORT (plugin),
       MCD_TRANSPORT_STATUS_DISCONNECTED);
+  g_return_val_if_fail (plugin == (McdTransportPlugin *) transport,
+      MCD_TRANSPORT_STATUS_DISCONNECTED);
 
-  return MCD_TRANSPORT_STATUS_DISCONNECTED;
+  online = mcd_connectivity_monitor_is_online (self->priv->minotaur);
+  DEBUG ("we are allegedly %s", online ? "online" : "offline");
+
+  if (online)
+    return MCD_TRANSPORT_STATUS_CONNECTED;
+  else
+    return MCD_TRANSPORT_STATUS_DISCONNECTED;
 }
 
 static void
@@ -148,8 +177,61 @@ monitor_state_changed_cb (
     gpointer user_data)
 {
   McdKludgeTransport *self = MCD_KLUDGE_TRANSPORT (user_data);
+  McdTransportStatus new_status =
+      connected ? MCD_TRANSPORT_STATUS_CONNECTED
+                : MCD_TRANSPORT_STATUS_DISCONNECTED;
+  GHashTableIter iter;
+  gpointer key;
 
-  DEBUG ("%p", self);
+  g_signal_emit_by_name (self, "status-changed", self, new_status);
+
+  g_hash_table_iter_init (&iter, self->priv->pending_accounts);
+  while (g_hash_table_iter_next (&iter, &key, NULL))
+    {
+      McdAccount *account = MCD_ACCOUNT (key);
+
+      /* If we've gone online, allow the account to actually try to connect;
+       * if we've fallen offline, say as much. (I don't actually think this
+       * code will be reached if !connected, but.)
+       */
+      DEBUG ("telling %s to %s", mcd_account_get_unique_name (account),
+          connected ? "proceed" : "give up");
+      mcd_account_connection_bind_transport (account, (McdTransport *) self);
+      mcd_account_connection_proceed_with_reason (account, connected,
+          connected ? TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED
+                    : TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
+      g_hash_table_iter_remove (&iter);
+    }
+}
+
+/*
+ * mcd_kludge_transport_account_connection_cb:
+ * @account: an account which would like to go online
+ * @parameters: the connection parameters to be used
+ * @user_data: the McdKludgeTransport.
+ *
+ * Called when an account would like to sign in.
+ */
+static void
+mcd_kludge_transport_account_connection_cb (
+    McdAccount *account,
+    GHashTable *parameters,
+    gpointer user_data)
+{
+  McdKludgeTransport *self = MCD_KLUDGE_TRANSPORT (user_data);
+  McdKludgeTransportPrivate *priv = self->priv;
+
+  if (mcd_connectivity_monitor_is_online (priv->minotaur))
+    {
+      mcd_account_connection_bind_transport (account, (McdTransport *) self);
+      mcd_account_connection_proceed (account, TRUE);
+    }
+  else if (g_hash_table_lookup (priv->pending_accounts, account) == NULL)
+    {
+      g_object_ref (account);
+      g_hash_table_insert (priv->pending_accounts, account, account);
+    }
+  /* ... else we're already waiting, I guess */
 }
 
 static McdTransportPlugin *
@@ -165,4 +247,7 @@ mcd_kludge_transport_install (
   McdTransportPlugin *self = mcd_kludge_transport_new ();
 
   mcd_plugin_register_transport (plugin, self);
+  mcd_plugin_register_account_connection (plugin,
+      mcd_kludge_transport_account_connection_cb,
+      MCD_ACCOUNT_CONNECTION_PRIORITY_TRANSPORT, self);
 }
