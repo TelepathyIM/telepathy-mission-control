@@ -65,6 +65,7 @@
 #include <dbus/dbus-glib-lowlevel.h>
 #include <telepathy-glib/telepathy-glib.h>
 
+#include "kludge-transport.h"
 #include "mcd-master.h"
 #include "mcd-master-priv.h"
 #include "mcd-proxy.h"
@@ -476,6 +477,8 @@ mcd_master_constructor (GType type, guint n_params,
 #ifdef ENABLE_MCD_PLUGINS
     mcd_master_load_mcd_plugins (master);
 #endif
+
+    mcd_kludge_transport_install ((McdPlugin *) master);
 
     /* we assume that at this point all transport plugins have been registered.
      * We get the active transports and check whether some accounts should be
