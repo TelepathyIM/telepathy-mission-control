@@ -175,6 +175,8 @@ libmcd_convenience_la_SOURCES = \
 	connectivity-monitor.c \
 	connectivity-monitor.h \
 	gtypes.c \
+	kludge-transport.c \
+	kludge-transport.h \
 	mcd-dbusprop.c \
 	mcd-dbusprop.h \
 	mcd-debug.c \
