@@ -33,15 +33,6 @@ from twisted.internet import reactor
 import dbus
 import dbus.service
 
-def make_mc(bus):
-    mc = bus.get_object(
-        cs.tp_name_prefix + '.MissionControl5',
-        cs.tp_path_prefix + '/MissionControl5',
-        follow_name_owner_changes=True)
-    assert mc is not None
-
-    return mc
-
 def install_colourer():
     def red(s):
         return '\x1b[31m%s\x1b[0m' % s
@@ -66,16 +57,46 @@ def install_colourer():
     sys.stdout = Colourer(sys.stdout, patterns)
     return sys.stdout
 
-def wait_for_name(queue, bus, name):
-    if not bus.name_has_owner(name):
-        queue.expect('dbus-signal', signal='NameOwnerChanged',
-                predicate=lambda e: e.args[0] == name and e.args[2])
+class MC(dbus.proxies.ProxyObject):
+    def __init__(self, queue, bus, wait_for_names=True):
+        """
+        Arguments:
 
-def wait_for_mc(queue, bus):
-    mc = make_mc(bus)
-    wait_for_name(queue, bus, cs.AM)
-    wait_for_name(queue, bus, cs.CD)
-    return mc
+          queue: an event queue
+          bus: a D-Bus connection
+          wait_for_names: if True, the constructor will wait for MC to have
+                          been service-activated before returning. if False,
+                          the caller may later call wait_for_names().
+        """
+        dbus.proxies.ProxyObject.__init__(self,
+            conn=bus,
+            bus_name=cs.MC,
+            object_path=cs.MC_PATH,
+            follow_name_owner_changes=True)
+
+        self.q = queue
+        self.bus = bus
+
+        if wait_for_names:
+            self.wait_for_names()
+
+    def wait_for_names(self, *also_expect):
+        """
+        Waits for MC to have claimed all its bus names, along with the
+        (optional) EventPatterns passed as arguments.
+        """
+
+        patterns = [
+            servicetest.EventPattern('dbus-signal', signal='NameOwnerChanged',
+                predicate=lambda e, name=name: e.args[0] == name and e.args[2] != '')
+            for name in [cs.AM, cs.CD, cs.MC]
+            if not self.bus.name_has_owner(name)]
+
+        patterns.extend(also_expect)
+
+        events = self.q.expect_many(*patterns)
+
+        return events[3:]
 
 def exec_test_deferred (fun, params, protocol=None, timeout=None,
         preload_mc=True):
@@ -95,7 +116,7 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
 
     if preload_mc:
         try:
-            mc = wait_for_mc(queue, bus)
+            mc = MC(queue, bus)
         except Exception, e:
             import traceback
             traceback.print_exc()
