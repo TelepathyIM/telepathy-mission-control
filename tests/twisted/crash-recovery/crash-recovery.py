@@ -95,7 +95,7 @@ def test(q, bus, unused):
 
     # Service-activate MC.
     # We're told about the other channel as an observer...
-    mc = make_mc(bus, q.append)
+    mc = make_mc(bus)
     _, _, _, e = q.expect_many(
             EventPattern('dbus-signal',
                 path='/org/freedesktop/DBus',

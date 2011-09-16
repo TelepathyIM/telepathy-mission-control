@@ -79,7 +79,7 @@ def test(q, bus, unused):
             'password': r'\\ionstorm\\',
             }
 
-    mc = make_mc(bus, q.append)
+    mc = make_mc(bus)
 
     request_conn, prop_changed, _ = q.expect_many(
             EventPattern('dbus-method-call', method='RequestConnection',

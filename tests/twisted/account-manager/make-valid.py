@@ -94,7 +94,7 @@ def test(q, bus, unused):
     q.forbid_events(events)
 
     # Wait for MC to load
-    mc = make_mc(bus, q.append)
+    mc = make_mc(bus)
 
     q.expect_many(
             EventPattern('dbus-signal', signal='NameOwnerChanged',

@@ -30,7 +30,7 @@ import dbus.service
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
 from mctest import exec_test, create_fakecm_account, get_account_manager, \
-    get_fakecm_account, make_mc
+    get_fakecm_account
 import constants as cs
 
 if ('ACCOUNTS' not in os.environ or not os.environ['ACCOUNTS']):

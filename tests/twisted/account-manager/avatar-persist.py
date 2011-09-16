@@ -77,7 +77,7 @@ def test(q, bus, unused):
             'password': 'ionstorm',
             }
 
-    mc = make_mc(bus, q.append)
+    mc = make_mc(bus)
 
     e, _ = q.expect_many(
             EventPattern('dbus-method-call', method='RequestConnection',

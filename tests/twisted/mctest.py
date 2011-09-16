@@ -33,7 +33,7 @@ from twisted.internet import reactor
 import dbus
 import dbus.service
 
-def make_mc(bus, event_func):
+def make_mc(bus):
     mc = bus.get_object(
         cs.tp_name_prefix + '.MissionControl5',
         cs.tp_path_prefix + '/MissionControl5',
@@ -72,7 +72,7 @@ def wait_for_name(queue, bus, name):
                 predicate=lambda e: e.args[0] == name and e.args[2])
 
 def wait_for_mc(queue, bus):
-    mc = make_mc(bus, queue.append)
+    mc = make_mc(bus)
     wait_for_name(queue, bus, cs.AM)
     wait_for_name(queue, bus, cs.CD)
     return mc
