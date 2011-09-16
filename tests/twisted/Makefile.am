@@ -184,6 +184,7 @@ endif
 
 WITH_SESSION_BUS = \
 	sh $(srcdir)/tools/with-session-bus.sh \
+	--also-for-system \
 	--config-file=tools/tmp-session-bus.conf --
 
 COMBINED_TESTS_ENVIRONMENT = \
@@ -283,6 +284,7 @@ EXTRA_DIST = \
 	constants.py \
         fakeclient.py \
         fakecm.py \
+	fakeconnectivity.py \
 	mctest.py \
 	servicetest.py
 

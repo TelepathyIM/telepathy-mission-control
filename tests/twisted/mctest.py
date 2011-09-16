@@ -33,6 +33,8 @@ from twisted.internet import reactor
 import dbus
 import dbus.service
 
+from fakeconnectivity import FakeConnectivity
+
 def install_colourer():
     def red(s):
         return '\x1b[31m%s\x1b[0m' % s
@@ -58,7 +60,7 @@ def install_colourer():
     return sys.stdout
 
 class MC(dbus.proxies.ProxyObject):
-    def __init__(self, queue, bus, wait_for_names=True):
+    def __init__(self, queue, bus, wait_for_names=True, initially_online=True):
         """
         Arguments:
 
@@ -67,6 +69,8 @@ class MC(dbus.proxies.ProxyObject):
           wait_for_names: if True, the constructor will wait for MC to have
                           been service-activated before returning. if False,
                           the caller may later call wait_for_names().
+          initially_online: whether the fake implementations of Network Manager
+                            and ConnMan should claim to be online or offline.
         """
         dbus.proxies.ProxyObject.__init__(self,
             conn=bus,
@@ -74,6 +78,7 @@ class MC(dbus.proxies.ProxyObject):
             object_path=cs.MC_PATH,
             follow_name_owner_changes=True)
 
+        self.connectivity = FakeConnectivity(queue, bus, initially_online)
         self.q = queue
         self.bus = bus
 
@@ -99,7 +104,7 @@ class MC(dbus.proxies.ProxyObject):
         return events[3:]
 
 def exec_test_deferred (fun, params, protocol=None, timeout=None,
-        preload_mc=True):
+        preload_mc=True, initially_online=True):
     colourer = None
 
     if sys.stdout.isatty():
@@ -116,7 +121,7 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
 
     if preload_mc:
         try:
-            mc = MC(queue, bus)
+            mc = MC(queue, bus, initially_online=initially_online)
         except Exception, e:
             import traceback
             traceback.print_exc()
@@ -179,9 +184,10 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
     if colourer:
       sys.stdout = colourer.fh
 
-def exec_test(fun, params=None, protocol=None, timeout=None, preload_mc=True):
+def exec_test(fun, params=None, protocol=None, timeout=None,
+              preload_mc=True, initially_online=True):
   reactor.callWhenRunning (exec_test_deferred, fun, params, protocol, timeout,
-          preload_mc)
+          preload_mc, initially_online)
   reactor.run()
 
 class SimulatedConnection(object):
