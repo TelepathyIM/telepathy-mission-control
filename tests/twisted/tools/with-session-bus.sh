@@ -90,14 +90,17 @@ if [ -n "$with_system_bus" ] ; then
 fi
 
 if [ -n "$WITH_SESSION_BUS_FORK_DBUS_MONITOR" ] ; then
-  echo "Forking dbus-monitor $WITH_SESSION_BUS_FORK_DBUS_MONITOR_OPT" >&2
+  DBUS_MONITOR_LOG_FILE="$me-$$.dbus-monitor-logs"
+  echo "Running dbus-monitor $WITH_SESSION_BUS_FORK_DBUS_MONITOR_OPT" >&2
+  echo "Its output will be in $DBUS_MONITOR_LOG_FILE" >&2
   dbus-monitor $WITH_SESSION_BUS_FORK_DBUS_MONITOR_OPT \
-        > $me-$$.dbus-monitor-logs 2>&1 &
+        > $DBUS_MONITOR_LOG_FILE 2>&1 &
 fi
 
 if [ -n "$GABBLE_TEST_BUSTLE" ]; then
-  echo "Forking bustle-dbus-monitor" >&2
-  bustle-dbus-monitor > tools/$me-$$.bustle-logs 2>&1 &
+  BUSTLE_LOG_FILE="tools/$me-$$.bustle-logs"
+  echo "Running bustle-dbus-monitor; log file $BUSTLE_LOG_FILE" >&2
+  bustle-dbus-monitor > $BUSTLE_LOG_FILE 2>&1 &
 fi
 
 "$@" || e=$?
