@@ -42,6 +42,7 @@
 
 #include "mcd-service.h"
 
+TpDBusDaemon *bus_daemon = NULL;
 static McdService *mcd = NULL;
 
 static gboolean
@@ -66,6 +67,19 @@ delayed_abort (gpointer data G_GNUC_UNUSED)
     g_message ("Aborting by popular request");
     mcd_mission_abort ((McdMission *) mcd);
     return FALSE;
+}
+
+static gboolean
+billy_idle (gpointer user_data)
+{
+  DBusMessage *reply = user_data;
+  DBusConnection *connection = dbus_g_connection_get_connection (
+      ((TpProxy *) bus_daemon)->dbus_connection);
+
+  if (!dbus_connection_send (connection, reply, NULL))
+    g_error ("Out of memory");
+
+  return FALSE;
 }
 
 #define MCD_SYSTEM_MEMORY_CONSERVED (1 << 1)
@@ -156,6 +170,24 @@ dbus_filter_function (DBusConnection *connection,
 
       return DBUS_HANDLER_RESULT_HANDLED;
     }
+  else if (dbus_message_is_method_call (message,
+        "org.freedesktop.Telepathy.MissionControl5.RegressionTests",
+        "BillyIdle"))
+    {
+      /* Used to drive a souped-up version of sync_dbus(), where we need to
+       * ensure that all idles have fired, on top of the D-Bus queue being
+       * drained.
+       */
+      DBusMessage *reply = dbus_message_new_method_return (message);
+
+      if (reply == NULL)
+        g_error ("Out of memory");
+
+      g_idle_add_full (G_PRIORITY_LOW, billy_idle, reply,
+          (GDestroyNotify) dbus_message_unref);
+
+      return DBUS_HANDLER_RESULT_HANDLED;
+    }
 
   return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
@@ -163,7 +195,6 @@ dbus_filter_function (DBusConnection *connection,
 int
 main (int argc, char **argv)
 {
-    TpDBusDaemon *bus_daemon = NULL;
     GError *error = NULL;
     DBusConnection *connection = NULL;
     int ret = 1;
