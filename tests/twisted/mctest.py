@@ -769,7 +769,7 @@ class SimulatedClient(object):
         assert self.observe
         self.q.dbus_return(e.message, {
             'ObserverChannelFilter': self.observe,
-            'Recover': self.wants_recovery,
+            'Recover': dbus.Boolean(self.wants_recovery),
             'DelayApprovers': dbus.Boolean(self.delay_approvers),
             },
                 signature='a{sv}', bus=self.bus)
