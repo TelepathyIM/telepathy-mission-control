@@ -920,13 +920,15 @@ def get_fakecm_account(bus, mc, account_path):
 
     return account
 
-def enable_fakecm_account(q, bus, mc, account, expected_params,
-        has_requests=True, has_presence=False, has_aliasing=False,
-        has_avatars=False, avatars_persist=True,
-        extra_interfaces=[],
-        requested_presence=(2, 'available', ''),
-        expect_before_connect=[], expect_after_connect=[],
-        has_hidden=False):
+def enable_fakecm_account(q, bus, mc, account, expected_params, **kwargs):
+    # I'm too lazy to manually pass all the other kwargs to
+    # expect_fakecm_connection
+    try:
+        requested_presence = kwargs['requested_presence']
+        del kwargs['requested_presence']
+    except KeyError:
+        requested_presence = (2, 'available', '')
+
     # Enable the account
     account.Properties.Set(cs.ACCOUNT, 'Enabled', True)
 
@@ -938,6 +940,14 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
         account.Properties.Set(cs.ACCOUNT,
                 'RequestedPresence', requested_presence)
 
+    return expect_fakecm_connection(q, bus, mc, account, expected_params, **kwargs)
+
+def expect_fakecm_connection(q, bus, mc, account, expected_params,
+        has_requests=True, has_presence=False, has_aliasing=False,
+        has_avatars=False, avatars_persist=True,
+        extra_interfaces=[],
+        expect_before_connect=[], expect_after_connect=[],
+        has_hidden=False):
     e = q.expect('dbus-method-call', method='RequestConnection',
             args=['fakeprotocol', expected_params],
             destination=cs.tp_name_prefix + '.ConnectionManager.fakecm',
