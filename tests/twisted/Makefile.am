@@ -31,6 +31,7 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/bypass-observers.py \
 	dispatcher/cancel.py \
 	dispatcher/capture-bundle.py \
+	dispatcher/cdo-claim.py \
 	dispatcher/connect-for-request.py \
 	dispatcher/create-delayed-by-mini-plugin.py \
 	dispatcher/create-handler-fails.py \
