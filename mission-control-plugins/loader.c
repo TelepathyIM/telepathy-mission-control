@@ -50,7 +50,7 @@ static gboolean debugging = FALSE;
 #undef  DEBUG
 #define DEBUG(format, ...) \
   G_STMT_START { if (debugging || mcp_is_debugging (MCP_DEBUG_LOADER))  \
-      g_debug ("%s" format, G_STRLOC, ##__VA_ARGS__); } G_STMT_END
+      g_debug ("%s " format, G_STRLOC, ##__VA_ARGS__); } G_STMT_END
 
 /**
  * mcp_set_debug:
