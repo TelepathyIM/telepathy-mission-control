@@ -1111,13 +1111,14 @@ def tell_mc_to_die(q, bus):
 
 def resuscitate_mc(q, bus, mc):
     """Having killed MC with tell_mc_to_die(), this function revives it."""
-    bus.get_object(cs.MC, "/")
+    # We kick the daemon asynchronously because nm-glib makes blocking calls
+    # back to us during initialization...
+    bus.call_async(dbus.BUS_DAEMON_NAME, dbus.BUS_DAEMON_PATH,
+        dbus.BUS_DAEMON_IFACE, 'StartServiceByName', 'su', (cs.MC, 0),
+        reply_handler=None, error_handler=None)
 
     # Wait until it's up
-    q.expect('dbus-signal', signal='NameOwnerChanged',
-        predicate=(lambda e:
-            e.args[0] == 'org.freedesktop.Telepathy.AccountManager' and
-            e.args[2] != ''))
+    mc.wait_for_names()
 
     return connect_to_mc(q, bus, mc)
 
