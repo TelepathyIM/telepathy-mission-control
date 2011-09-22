@@ -118,6 +118,10 @@ typedef struct {
     gpointer userdata;
 } McdAccountConnectionData;
 
+/* Used to poison 'default_master' when the object it points to is disposed.
+ * The default_master should basically be alive for the duration of the MC run.
+ */
+#define POISONED_MASTER ((McdMaster *) 0xdeadbeef)
 static McdMaster *default_master = NULL;
 
 
@@ -425,6 +429,11 @@ _mcd_master_dispose (GObject * object)
     priv->dispatcher = NULL;
     g_object_unref (priv->proxy);
 
+    if (default_master == (McdMaster *) object)
+    {
+        default_master = POISONED_MASTER;
+    }
+
     G_OBJECT_CLASS (mcd_master_parent_class)->dispose (object);
 }
 
@@ -549,6 +558,9 @@ mcd_master_get_default (void)
 {
     if (!default_master)
 	default_master = MCD_MASTER (g_object_new (MCD_TYPE_MASTER, NULL));
+
+    g_return_val_if_fail (default_master != POISONED_MASTER, NULL);
+
     return default_master;
 }
 
