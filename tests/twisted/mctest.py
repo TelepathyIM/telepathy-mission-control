@@ -33,13 +33,7 @@ from twisted.internet import reactor
 import dbus
 import dbus.service
 
-def make_mc(bus, event_func, params=None):
-    default_params = {
-        }
-
-    if params:
-        default_params.update(params)
-
+def make_mc(bus):
     mc = bus.get_object(
         cs.tp_name_prefix + '.MissionControl5',
         cs.tp_path_prefix + '/MissionControl5',
@@ -77,8 +71,8 @@ def wait_for_name(queue, bus, name):
         queue.expect('dbus-signal', signal='NameOwnerChanged',
                 predicate=lambda e: e.args[0] == name and e.args[2])
 
-def wait_for_mc(queue, bus, params):
-    mc = make_mc(bus, queue.append, params)
+def wait_for_mc(queue, bus):
+    mc = make_mc(bus)
     wait_for_name(queue, bus, cs.AM)
     wait_for_name(queue, bus, cs.CD)
     return mc
@@ -101,7 +95,7 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
 
     if preload_mc:
         try:
-            mc = wait_for_mc(queue, bus, params)
+            mc = wait_for_mc(queue, bus)
         except Exception, e:
             import traceback
             traceback.print_exc()

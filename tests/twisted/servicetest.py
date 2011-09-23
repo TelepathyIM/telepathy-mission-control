@@ -470,9 +470,14 @@ def call_async(test, proxy, method, *args, **kw):
     method_proxy(*args, **kw)
 
 def sync_dbus(bus, q, proxy):
-    # Dummy D-Bus method call
-    call_async(q, dbus.Interface(proxy, dbus.PEER_IFACE), "Ping")
-    event = q.expect('dbus-return', method='Ping')
+    # Dummy D-Bus method call. We can't use DBus.Peer.Ping() because libdbus
+    # replies to that message immediately, rather than handing it up to
+    # dbus-glib and thence the application, which means that Ping()ing the
+    # application doesn't ensure that it's processed all D-Bus messages prior
+    # to our ping.
+    call_async(q, dbus.Interface(proxy, 'org.freedesktop.Telepathy.Tests'),
+        'DummySyncDBus')
+    q.expect('dbus-error', method='DummySyncDBus')
 
 class ProxyWrapper:
     def __init__(self, object, default, others):

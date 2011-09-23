@@ -15,6 +15,7 @@ set -e
 me=with-session-bus
 
 dbus_daemon_args="--print-address=5 --print-pid=6 --fork"
+sleep=0
 
 usage ()
 {
@@ -29,6 +30,11 @@ usage ()
 
 while test "z$1" != "z--"; do
   case "$1" in
+  --sleep=*)
+    sleep="$1"
+    sleep="${sleep#--sleep=}"
+    shift
+    ;;
   --session)
     dbus_daemon_args="$dbus_daemon_args --session"
     shift
@@ -36,6 +42,10 @@ while test "z$1" != "z--"; do
   --config-file=*)
     # FIXME: assumes config file doesn't contain any special characters
     dbus_daemon_args="$dbus_daemon_args $1"
+    shift
+    ;;
+  --also-for-system)
+    with_system_bus=1
     shift
     ;;
   *)
@@ -53,7 +63,9 @@ cleanup ()
 {
   pid=`head -n1 $me-$$.pid`
   if test -n "$pid" ; then
-    echo "Killing temporary bus daemon: $pid" >&2
+    if [ -n "$CHECK_TWISTED_VERBOSE" ] || [ -n "$VERBOSE_TESTS" ]; then
+      echo "Killing temporary bus daemon: $pid" >&2
+    fi
     kill -INT "$pid"
   fi
   rm -f $me-$$.address
@@ -63,20 +75,39 @@ cleanup ()
 trap cleanup INT HUP TERM
 dbus-daemon $dbus_daemon_args
 
-{ echo -n "Temporary bus daemon is "; cat $me-$$.address; } >&2
-{ echo -n "Temporary bus daemon PID is "; head -n1 $me-$$.pid; } >&2
+if [ -n "$CHECK_TWISTED_VERBOSE" ] || [ -n "$VERBOSE_TESTS" ]; then
+  { echo -n "Temporary bus daemon is "; cat $me-$$.address; } >&2
+  { echo -n "Temporary bus daemon PID is "; head -n1 $me-$$.pid; } >&2
+fi
 
 e=0
 DBUS_SESSION_BUS_ADDRESS="`cat $me-$$.address`"
 export DBUS_SESSION_BUS_ADDRESS
 
+if [ -n "$with_system_bus" ] ; then
+  DBUS_SYSTEM_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS"
+  export DBUS_SYSTEM_BUS_ADDRESS
+fi
+
 if [ -n "$WITH_SESSION_BUS_FORK_DBUS_MONITOR" ] ; then
-  echo "Forking dbus-monitor $WITH_SESSION_BUS_FORK_DBUS_MONITOR_OPT" >&2
+  DBUS_MONITOR_LOG_FILE="$me-$$.dbus-monitor-logs"
+  echo "Running dbus-monitor $WITH_SESSION_BUS_FORK_DBUS_MONITOR_OPT" >&2
+  echo "Its output will be in $DBUS_MONITOR_LOG_FILE" >&2
   dbus-monitor $WITH_SESSION_BUS_FORK_DBUS_MONITOR_OPT \
-        > $me-$$.dbus-monitor-logs 2>&1 &
+        > $DBUS_MONITOR_LOG_FILE 2>&1 &
+fi
+
+if [ -n "$GABBLE_TEST_BUSTLE" ]; then
+  BUSTLE_LOG_FILE="tools/$me-$$.bustle-logs"
+  echo "Running bustle-dbus-monitor; log file $BUSTLE_LOG_FILE" >&2
+  bustle-dbus-monitor > $BUSTLE_LOG_FILE 2>&1 &
 fi
 
 "$@" || e=$?
+
+if test $sleep != 0; then
+  sleep $sleep
+fi
 
 trap - INT HUP TERM
 cleanup

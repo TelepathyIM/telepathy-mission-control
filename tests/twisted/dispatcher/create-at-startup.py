@@ -73,7 +73,7 @@ def test(q, bus, unused):
             cs.tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
 
     # service-activate MC and immediately make a request
-    mc = make_mc(bus, q.append)
+    mc = make_mc(bus)
 
     account = bus.get_object(cs.MC,
             cs.tp_path_prefix +
