@@ -314,7 +314,14 @@ class IteratingEventQueue(BaseEventQueue):
             bus.add_message_filter(self._dbus_dev_null)
             return
 
-        bus.add_match_string("")    # eavesdrop, like dbus-monitor does
+        try:
+            # for dbus > 1.5
+            bus.add_match_string("eavesdrop=true")
+        except dbus.DBusException:
+            pass
+
+        # for dbus 1.4
+        bus.add_match_string("")
 
         bus.add_message_filter(self._dbus_filter_bound_method)
 
