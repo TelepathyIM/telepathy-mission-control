@@ -569,7 +569,11 @@ callback_for_update_parameters (GObject *source,
         if (reconnect_required[0] != NULL) {
             gchar *r = g_strjoinv (", ", reconnect_required);
 
-            printf ("Reconnect required to update these parameters: %s\n", r);
+            printf ("To apply changes to these parameters:\n");
+            printf ("  %s\n", r);
+            printf ("run:\n");
+            printf ("  %s reconnect %s\n", app_name,
+                    skip_prefix (command.common.account));
             g_free (r);
             g_strfreev (reconnect_required);
         }
@@ -831,6 +835,15 @@ command_auto_connect (TpAccount *account)
     tp_account_set_connect_automatically_async (account, command.boolean.value,
                                                 callback_for_async,
                                                 tp_account_set_connect_automatically_finish);
+
+    return TRUE;
+}
+
+static gboolean
+command_reconnect (TpAccount *account)
+{
+    tp_account_reconnect_async (account, callback_for_async,
+                                tp_account_reconnect_finish);
 
     return TRUE;
 }
@@ -1143,6 +1156,13 @@ parse (int argc, char **argv)
 	    command.boolean.value = FALSE;
 	else
 	    show_help ("Invalid auto-connect command.");
+    }
+    else if (strcmp (argv[1], "reconnect") == 0) {
+        if (argc != 3)
+            show_help ("Invalid reconnect command.");
+
+        command.ready.account = command_reconnect;
+        command.common.account = argv[2];
     }
     else if (strcmp (argv[1], "help") == 0
 	     || strcmp (argv[1], "-h") == 0 || strcmp (argv[1], "--help") == 0)
