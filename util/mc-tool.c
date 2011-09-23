@@ -635,7 +635,8 @@ command_show (TpAccount *account)
     show ("Valid", tp_account_is_valid (account) ? "" : "false");
     show ("Icon", tp_account_get_icon_name (account));
     show ("Connects",
-	  tp_account_get_connect_automatically (account) ? "automatically" : NULL);
+        tp_account_get_connect_automatically (account)
+            ? "automatically" : "only when requested");
     show ("Nickname", tp_account_get_nickname (account));
     show ("Service", tp_account_get_service (account));
 
