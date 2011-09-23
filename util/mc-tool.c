@@ -518,18 +518,23 @@ command_list (TpAccountManager *manager)
 
 
 static void
-callback_for_create_account (TpAccountManager *proxy,
-			     gchar const *account,
-			     GError const *error,
-			     gpointer user_data,
-			     GObject *weak)
+callback_for_create_account (GObject *source,
+			     GAsyncResult *result,
+			     gpointer user_data)
 {
-    if (error == NULL) {
+    TpAccountManager *am = TP_ACCOUNT_MANAGER (source);
+    TpAccount *account;
+    GError *error = NULL;
+
+    account = tp_account_manager_create_account_finish (am, result, &error);
+
+    if (account != NULL) {
 	command.common.ret = 0;
-	puts (skip_prefix (account));
+	puts (skip_prefix (tp_proxy_get_object_path (account)));
     }
     else {
-	fprintf (stderr, "%s: %s\n", app_name, error->message);
+	fprintf (stderr, "%s %s: %s\n", app_name, command.common.name,
+                 error->message);
     }
     g_main_loop_quit (main_loop);
 }
@@ -537,20 +542,17 @@ callback_for_create_account (TpAccountManager *proxy,
 static gboolean
 command_add (TpAccountManager *manager)
 {
-    GHashTable *properties;
+    GHashTable *properties = tp_asv_new (NULL, NULL);
 
-    properties = g_hash_table_new (g_str_hash, g_str_equal);
-
-    return NULL !=
-	tp_cli_account_manager_call_create_account
-	    (manager, 25000,
+    tp_account_manager_create_account_async (manager,
 	     command.add.manager,
 	     command.add.protocol,
 	     command.add.display,
 	     command.add.parameters,
 	     properties,
 	     callback_for_create_account,
-	     NULL, NULL, NULL);
+	     NULL);
+    return TRUE;
 }
 
 static void
