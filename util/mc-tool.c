@@ -444,28 +444,6 @@ getter_list_add(gchar const *name,
     g_datalist_id_set_data(&getter_list, id, getter);
 }
 
-static const char *
-account_get_normalized_name (TpAccount *account)
-{
-    return g_object_get_data (G_OBJECT (account), "NormalizedName");
-}
-
-static TpConnectionPresenceType
-account_get_automatic_presence (TpAccount *account,
-                                char **status, char **message)
-{
-    if (status != NULL)
-        *status = g_strdup (g_object_get_data (G_OBJECT (account),
-                            "AutomaticPresenceStatus"));
-
-    if (message != NULL)
-        *message = g_strdup (g_object_get_data (G_OBJECT (account),
-                             "AutomaticPresenceMessage"));
-
-    return GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (account),
-                             "AutomaticPresenceType"));
-}
-
 static void
 getter_list_init(void)
 {
@@ -482,14 +460,14 @@ getter_list_init(void)
     getter_list_add("Nickname", GET_STRING, tp_account_get_nickname);
     getter_list_add("ConnectAutomatically", GET_BOOLEAN,
 		    tp_account_get_connect_automatically);
-    getter_list_add("NormalizedName", GET_STRING, account_get_normalized_name);
+    getter_list_add("NormalizedName", GET_STRING, tp_account_get_normalized_name);
 
     getter_list_add("AutomaticPresenceType",
-		    GET_PRESENCE_TYPE, account_get_automatic_presence);
+		    GET_PRESENCE_TYPE, tp_account_get_automatic_presence);
     getter_list_add("AutomaticPresenceStatus",
-		    GET_PRESENCE_STATUS, account_get_automatic_presence);
+		    GET_PRESENCE_STATUS, tp_account_get_automatic_presence);
     getter_list_add("AutomaticPresenceMessage",
-		    GET_PRESENCE_MESSAGE, account_get_automatic_presence);
+		    GET_PRESENCE_MESSAGE, tp_account_get_automatic_presence);
 
     getter_list_add("RequestedPresenceType",
 		    GET_PRESENCE_TYPE, tp_account_get_requested_presence);
@@ -652,7 +630,7 @@ command_show (TpAccount *account)
 
     show ("Account", name);
     show ("Display Name", tp_account_get_display_name (account));
-    show ("Normalized", account_get_normalized_name (account));
+    show ("Normalized", tp_account_get_normalized_name (account));
     show ("Enabled", tp_account_is_enabled (account) ? "enabled" : "disabled");
     show ("Valid", tp_account_is_valid (account) ? "" : "false");
     show ("Icon", tp_account_get_icon_name (account));
@@ -661,7 +639,7 @@ command_show (TpAccount *account)
     show ("Nickname", tp_account_get_nickname (account));
     show ("Service", tp_account_get_service (account));
 
-    automatic.type = account_get_automatic_presence (account,
+    automatic.type = tp_account_get_automatic_presence (account,
                                                      &automatic.status,
                                                      &automatic.message);
     show_presence ("Automatic", &automatic);
@@ -1212,48 +1190,6 @@ void manager_ready (GObject *manager,
     g_main_loop_quit (main_loop);
 }
 
-static void
-account_got_all_properties (TpProxy *account,
-                            GHashTable *properties,
-                            const GError *error,
-                            gpointer user_data,
-                            GObject *weak_object)
-{
-    TpConnectionPresenceType type;
-    const char *status, *message;
-
-    if (error != NULL)
-    {
-        fprintf (stderr, "%s: %s: %s\n",
-                 app_name, skip_prefix (command.common.account),
-                 error->message);
-    }
-
-    /* load properties not expose in TpAccount */
-    /* NormalizedName */
-    g_object_set_data_full (G_OBJECT (account), "NormalizedName",
-                            g_strdup (tp_asv_get_string (properties,
-                                                         "NormalizedName")),
-                            g_free);
-
-    /* AutomaticPresence */
-    tp_value_array_unpack (tp_asv_get_boxed (properties, "AutomaticPresence",
-                                             TP_STRUCT_TYPE_SIMPLE_PRESENCE),
-                           3, &type, &status, &message);
-
-    g_object_set_data (G_OBJECT (account), "AutomaticPresenceType",
-                       GUINT_TO_POINTER (type));
-    g_object_set_data_full (G_OBJECT (account), "AutomaticPresenceStatus",
-                            g_strdup (status), g_free);
-    g_object_set_data_full (G_OBJECT (account), "AutomaticPresenceMessage",
-                            g_strdup (message), g_free);
-
-    if (command.ready.account (TP_ACCOUNT (account)))
-        return;
-
-    g_main_loop_quit (main_loop);
-}
-
 static
 void account_ready (GObject *account,
 		    GAsyncResult *res,
@@ -1268,14 +1204,8 @@ void account_ready (GObject *account,
         g_error_free (error);
     }
     else {
-        /* not all properties are exposed through TpAccount, request the
-         * remaining properties */
-        tp_cli_dbus_properties_call_get_all (account, 25000,
-                TP_IFACE_ACCOUNT,
-                account_got_all_properties,
-                NULL, NULL, NULL);
-
-        return;
+        if (command.ready.account (TP_ACCOUNT (account)))
+            return;
     }
 
     g_main_loop_quit (main_loop);
