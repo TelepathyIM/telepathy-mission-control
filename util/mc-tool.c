@@ -554,13 +554,24 @@ command_add (TpAccountManager *manager)
 }
 
 static void
-callback_for_update_parameters (TpAccount *proxy,
-                                const gchar **unchanged G_GNUC_UNUSED,
-                                const GError *error,
-                                gpointer user_data,
-                                GObject *weak_object)
+callback_for_update_parameters (GObject *source,
+                                GAsyncResult *result,
+                                gpointer user_data G_GNUC_UNUSED)
 {
-    if (error == NULL) {
+    TpAccount *account = TP_ACCOUNT (source);
+    gchar **reconnect_required = NULL;
+    GError *error = NULL;
+
+    if (tp_account_update_parameters_finish (account, result,
+                                             &reconnect_required, &error)) {
+        if (reconnect_required[0] != NULL) {
+            gchar *r = g_strjoinv (", ", reconnect_required);
+
+            printf ("Reconnect required to update these parameters: %s\n", r);
+            g_free (r);
+            g_strfreev (reconnect_required);
+        }
+
         command.common.ret = 0;
     }
     else {
@@ -843,13 +854,12 @@ command_auto_connect (TpAccount *account)
 static gboolean
 command_update (TpAccount *account)
 {
-    return NULL !=
-	tp_cli_account_call_update_parameters (account, 25000,
-					       command.update.set,
-					       (const gchar  **)
-					       command.update.unset->pdata,
-					       callback_for_update_parameters,
-					       NULL, NULL, NULL);
+    tp_account_update_parameters_async (account,
+                                        command.update.set,
+                                        (const gchar **) command.update.unset->pdata,
+                                        callback_for_update_parameters,
+                                        NULL);
+    return TRUE;
 }
 
 static gboolean
