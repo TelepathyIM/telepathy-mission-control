@@ -362,6 +362,33 @@ fi
 AM_CONDITIONAL(HAVE_NM, test "x$have_nm" = "xyes")
 AM_CONDITIONAL(HAVE_CONNMAN, test "x$have_connman" = "xyes")
 
+# -----------------------------------------------------------
+# Suspend/resume tracking goop
+# -----------------------------------------------------------
+
+AC_ARG_ENABLE([upower],
+    [AS_HELP_STRING([--enable-upower],
+        [monitor device suspending and resuming using upower-glib @<:@default=auto@:>@])],
+    [],
+    [enable_upower=auto])
+
+if test "x$enable_upower" != xno; then
+    PKG_CHECK_MODULES([UPOWER_GLIB], [upower-glib],
+        [AC_DEFINE([HAVE_UPOWER], [1], [Define to use upower-glib])
+         have_upower=yes
+        ],
+        [if test "x$enable_upower" == xyes; then
+            AC_MSG_ERROR([$UPOWER_GLIB_PKG_ERRORS])
+         else
+            have_upower=no
+         fi
+        ])
+else
+    have_upower=no
+fi
+
+AC_SUBST([UPOWER_GLIB_CFLAGS])
+AC_SUBST([UPOWER_GLIB_LIBS])
 
 dnl ***************************************************************************
 dnl Check for marshal and enum generators
@@ -416,6 +443,7 @@ Configure summary:
         Gnome Keyring................:  ${keyring_enabled}
         Network Manager integration..:  ${have_nm}
         ConnMan integration..........:  ${have_connman}
+        Suspend tracking with UPower.:  ${have_upower}
         Aegis........................:  ${aegis_enabled}
         libaccounts-glib backend.....:  ${libaccounts_sso_enabled}
         Hidden accounts-glib accounts:  ${with_accounts_glib_hidden_service_type}
