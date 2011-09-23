@@ -855,22 +855,12 @@ command_update (TpAccount *account)
 static gboolean
 command_auto_presence (TpAccount *account)
 {
-    GValue value = { 0, };
-    GValueArray *va = tp_value_array_build (3,
-                    G_TYPE_UINT, command.presence.type,
-					G_TYPE_STRING, command.presence.status,
-					G_TYPE_STRING, command.presence.message,
-                    G_TYPE_INVALID);
-
-    g_value_init (&value, TP_STRUCT_TYPE_SIMPLE_PRESENCE);
-    g_value_take_boxed (&value, va);
-
-	tp_cli_dbus_properties_call_set (account, 25000,
-                    TP_IFACE_ACCOUNT, "AutomaticPresence", &value,
-                    (tp_cli_dbus_properties_callback_for_set) callback_for_void,
-                    NULL, NULL, NULL);
-
-    g_value_unset (&value);
+    tp_account_set_automatic_presence_async (account,
+                                             command.presence.type,
+                                             command.presence.status,
+                                             command.presence.message,
+                                             callback_for_async,
+                                             tp_account_request_presence_finish);
 
     return TRUE;
 }
