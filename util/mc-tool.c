@@ -582,22 +582,6 @@ callback_for_update_parameters (GObject *source,
 }
 
 static void
-callback_for_void (TpAccount *proxy,
-		   const GError *error,
-		   gpointer user_data,
-		   GObject *weak_object)
-{
-    if (error == NULL) {
-	command.common.ret = 0;
-    }
-    else {
-	fprintf (stderr, "%s %s: %s\n", app_name, command.common.name,
-		 error->message);
-    }
-    g_main_loop_quit (main_loop);
-}
-
-static void
 callback_for_async (GObject *account,
 		    GAsyncResult *res,
 		    gpointer user_data)
@@ -622,10 +606,8 @@ callback_for_async (GObject *account,
 static gboolean
 command_remove (TpAccount *account)
 {
-    return NULL !=
-	tp_cli_account_call_remove (account, 25000,
-				    callback_for_void,
-				    NULL, NULL, NULL);
+    tp_account_remove_async (account, callback_for_async, tp_account_remove_finish);
+    return TRUE;
 }
 
 static gboolean
