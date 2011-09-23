@@ -29,7 +29,15 @@ struct _McdKludgeTransportPrivate {
     /* Rawr! I'm a mythical creature. */
     McdConnectivityMonitor *minotaur;
 
-    GList *one;
+    /* Pointers representing network connections, exposed to the application as
+     * opaque McdTransport pointers.
+     *
+     * In this generate example of an McdTransportPlugin, we only have one
+     * transport, representing "the internet". So in fact this list always
+     * contains a single pointer, namely the McdKludgeTransport instance
+     * itself.
+     */
+    GList *transports;
 
     /* Hold a set of McdAccounts which would like to go online. */
     GHashTable *pending_accounts;
@@ -70,7 +78,7 @@ mcd_kludge_transport_constructed (GObject *object)
       (GCallback) monitor_state_changed_cb, self, G_CONNECT_AFTER);
 
   /* We just use ourself as the McdTransport pointer... */
-  priv->one = g_list_prepend (NULL, self);
+  priv->transports = g_list_prepend (NULL, self);
 
   priv->pending_accounts = g_hash_table_new_full (NULL, NULL,
       g_object_unref, NULL);
@@ -84,8 +92,8 @@ mcd_kludge_transport_dispose (GObject *object)
   GObjectClass *parent_class = mcd_kludge_transport_parent_class;
 
   tp_clear_object (&priv->minotaur);
-  g_list_free (priv->one);
-  priv->one = NULL;
+  g_list_free (priv->transports);
+  priv->transports = NULL;
 
   g_hash_table_unref (priv->pending_accounts);
 
@@ -121,7 +129,7 @@ mcd_kludge_transport_get_transports (
 
   g_return_val_if_fail (MCD_IS_KLUDGE_TRANSPORT (plugin), NULL);
 
-  return self->priv->one;
+  return self->priv->transports;
 }
 
 static const gchar *
