@@ -145,13 +145,7 @@ mcd_master_transport_connected (McdMaster *master, McdTransportPlugin *plugin,
         McdAccount *account = MCD_ACCOUNT (v);
         GHashTable *conditions;
 
-        /* get all enabled accounts, which have the "ConnectAutomatically"
-         * flag set and that are not connected */
-        if (!mcd_account_is_valid (account) ||
-            !mcd_account_is_enabled (account) ||
-            !mcd_account_get_connect_automatically (account) ||
-            mcd_account_get_connection_status (account) ==
-            TP_CONNECTION_STATUS_CONNECTED)
+        if (!mcd_account_would_like_to_connect (account))
             continue;
 
         DEBUG ("account %s would like to connect",

@@ -119,6 +119,7 @@ void mcd_account_get_requested_presence (McdAccount *account,
 					 const gchar **message);
 
 gboolean mcd_account_get_connect_automatically (McdAccount *account);
+gboolean mcd_account_would_like_to_connect (McdAccount *account);
 void mcd_account_get_automatic_presence (McdAccount *account,
 					 TpConnectionPresenceType *presence,
 					 const gchar **status,

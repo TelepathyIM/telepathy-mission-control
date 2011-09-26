@@ -238,27 +238,8 @@ _mcd_account_maybe_autoconnect (McdAccount *account)
     g_return_if_fail (MCD_IS_ACCOUNT (account));
     priv = account->priv;
 
-    if (!priv->enabled)
+    if (!mcd_account_would_like_to_connect (account))
     {
-        DEBUG ("%s not Enabled", priv->unique_name);
-        return;
-    }
-
-    if (!mcd_account_is_valid (account))
-    {
-        DEBUG ("%s not Valid", priv->unique_name);
-        return;
-    }
-
-    if (priv->conn_status != TP_CONNECTION_STATUS_DISCONNECTED)
-    {
-        DEBUG ("%s already connecting/connected", priv->unique_name);
-        return;
-    }
-
-    if (!priv->connect_automatically)
-    {
-        DEBUG ("%s does not ConnectAutomatically", priv->unique_name);
         return;
     }
 
@@ -3401,6 +3382,48 @@ mcd_account_get_connect_automatically (McdAccount *account)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     return priv->connect_automatically;
+}
+
+/*
+ * mcd_account_would_like_to_connect:
+ * @account: an account
+ *
+ * Returns: %TRUE if @account is not currently in the process of trying to
+ *          connect, but would like to be, in a perfect world.
+ */
+gboolean
+mcd_account_would_like_to_connect (McdAccount *account)
+{
+    McdAccountPrivate *priv;
+
+    g_return_val_if_fail (MCD_IS_ACCOUNT (account), FALSE);
+    priv = account->priv;
+
+    if (!priv->enabled)
+    {
+        DEBUG ("%s not Enabled", priv->unique_name);
+        return FALSE;
+    }
+
+    if (!mcd_account_is_valid (account))
+    {
+        DEBUG ("%s not Valid", priv->unique_name);
+        return FALSE;
+    }
+
+    if (priv->conn_status != TP_CONNECTION_STATUS_DISCONNECTED)
+    {
+        DEBUG ("%s already connecting/connected", priv->unique_name);
+        return FALSE;
+    }
+
+    if (!priv->connect_automatically)
+    {
+        DEBUG ("%s does not ConnectAutomatically", priv->unique_name);
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 /* TODO: remove when the relative members will become public */
