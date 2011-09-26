@@ -924,6 +924,25 @@ mcd_account_request_presence_int (McdAccount *account,
     }
 }
 
+/*
+ * mcd_account_rerequest_presence:
+ *
+ * Re-requests the account's current RequestedPresence, possibly triggering a
+ * new connection attempt.
+ */
+static void
+mcd_account_rerequest_presence (McdAccount *account,
+                                gboolean user_initiated)
+{
+    McdAccountPrivate *priv = account->priv;
+
+    mcd_account_request_presence_int (account,
+                                      priv->req_presence_type,
+                                      priv->req_presence_status,
+                                      priv->req_presence_message,
+                                      user_initiated);
+}
+
 void
 _mcd_account_connect (McdAccount *account, GHashTable *params)
 {
@@ -1210,11 +1229,7 @@ _mcd_account_set_enabled (McdAccount *account,
 
         if (enabled)
         {
-            mcd_account_request_presence_int (account,
-                                              priv->req_presence_type,
-                                              priv->req_presence_status,
-                                              priv->req_presence_message,
-                                              TRUE);
+            mcd_account_rerequest_presence (account, TRUE);
             _mcd_account_maybe_autoconnect (account);
         }
     }
@@ -3965,11 +3980,7 @@ check_validity_check_parameters_cb (McdAccount *account,
             /* Newly valid - try setting requested presence again.
              * This counts as user-initiated, because the user caused the
              * account to become valid somehow. */
-            mcd_account_request_presence_int (account,
-                                              priv->req_presence_type,
-                                              priv->req_presence_status,
-                                              priv->req_presence_message,
-                                              TRUE);
+            mcd_account_rerequest_presence (account, TRUE);
         }
     }
 
