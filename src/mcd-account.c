@@ -3377,24 +3377,6 @@ mcd_account_get_requested_presence (McdAccount *account,
         *message = priv->req_presence_message;
 }
 
-void
-_mcd_account_get_requested_presence (McdAccount *account,
-                                     TpConnectionPresenceType *presence,
-                                     const gchar **status,
-                                     const gchar **message)
-{
-    McdAccountPrivate *priv = account->priv;
-
-    if (presence != NULL)
-        *presence = priv->req_presence_type;
-
-    if (status != NULL)
-        *status = priv->req_presence_status;
-
-    if (message != NULL)
-        *message = priv->req_presence_message;
-}
-
 /* TODO: remove when the relative members will become public */
 void
 mcd_account_get_current_presence (McdAccount *account,
