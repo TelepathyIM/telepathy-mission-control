@@ -109,14 +109,6 @@ void _mcd_account_online_request (McdAccount *account,
 void _mcd_account_connect_with_auto_presence (McdAccount *account,
                                               gboolean user_initiated);
 
-typedef struct {
-    McdOnlineRequestCb callback;
-    gpointer user_data;
-} McdOnlineRequestData;
-
-G_GNUC_INTERNAL
-GList *_mcd_account_get_online_requests (McdAccount *account);
-
 G_GNUC_INTERNAL McdStorage *_mcd_account_get_storage (McdAccount *account);
 
 static inline void
