@@ -55,6 +55,7 @@ show_help (gchar * err)
 	    "    %1$s auto-presence <account name> <presence status> [<message>]\n"
 	    "    %1$s request <account name> <presence status> [<message>]\n"
 	    "    %1$s auto-connect <account name> [(on|off)]\n"
+	    "    %1$s reconnect <account name>\n"
 	    "    %1$s remove <account name>\n"
 	    "  where <param> matches (int|uint|bool|string|path):<key>=<value>\n",
 	    app_name);
