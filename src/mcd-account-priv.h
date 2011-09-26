@@ -108,9 +108,6 @@ void _mcd_account_online_request (McdAccount *account,
                                   gpointer userdata);
 void _mcd_account_connect_with_auto_presence (McdAccount *account,
                                               gboolean user_initiated);
-G_GNUC_INTERNAL
-void _mcd_account_online_request_completed (McdAccount *account,
-                                            GError *error);
 
 typedef struct {
     McdOnlineRequestCb callback;

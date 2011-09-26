@@ -3657,7 +3657,7 @@ mcd_account_get_alias (McdAccount *account)
                                    MC_ACCOUNTS_KEY_ALIAS);
 }
 
-void
+static void
 _mcd_account_online_request_completed (McdAccount *account, GError *error)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
