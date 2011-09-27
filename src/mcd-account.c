@@ -4015,8 +4015,12 @@ mcd_account_check_validity (McdAccount *account,
 /*
  * _mcd_account_connect_with_auto_presence:
  * @account: the #McdAccount.
+ * @user_initiated: %TRUE if the connection attempt is in response to a user
+ *                  request (like a request for a channel)
  *
- * Request the account to go online with the configured AutomaticPresence.
+ * Request the account to go back online with the current RequestedPresence, if
+ * it is not Offline, or with the configured AutomaticPresence otherwise.
+ *
  * This is appropriate in these situations:
  * - going online automatically because we've gained connectivity
  * - going online automatically in order to request a channel
@@ -4027,11 +4031,14 @@ _mcd_account_connect_with_auto_presence (McdAccount *account,
 {
     McdAccountPrivate *priv = account->priv;
 
-    mcd_account_request_presence_int (account,
-                                      priv->auto_presence_type,
-                                      priv->auto_presence_status,
-                                      priv->auto_presence_message,
-                                      user_initiated);
+    if (_presence_type_is_online (priv->req_presence_type))
+        mcd_account_rerequest_presence (account, user_initiated);
+    else
+        mcd_account_request_presence_int (account,
+                                          priv->auto_presence_type,
+                                          priv->auto_presence_status,
+                                          priv->auto_presence_message,
+                                          user_initiated);
 }
 
 /*

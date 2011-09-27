@@ -20,7 +20,7 @@ import dbus
 import dbus.service
 
 from servicetest import (
-    EventPattern, call_async, sync_dbus,
+    EventPattern, call_async, sync_dbus, assertEquals,
 )
 from mctest import (
     exec_test, create_fakecm_account, expect_fakecm_connection,
@@ -82,6 +82,14 @@ def test(q, bus, mc):
     # When we turn the network back on, MC should try to sign us back on.
     mc.connectivity.go_online()
     e = q.expect('dbus-method-call', method='RequestConnection')
+
+    # In the process, our RequestedPresence should not have been trampled on.
+    # (Historically, MC would replace it with the AutomaticPresence, but that
+    # behaviour was unexpected: if the user explicitly set a status or message,
+    # why should the network connection cutting out and coming back up cause
+    # that to be lost?)
+    assertEquals(requested_presence,
+        account.Properties.Get(cs.ACCOUNT, 'RequestedPresence'))
 
     # But if we get disconnected before RequestConnection returns, MC should
     # clean up the new connection when it does, rather than trying to sign it
