@@ -236,6 +236,8 @@ mcd_kludge_transport_account_connection_cb (
     }
   else if (g_hash_table_lookup (priv->pending_accounts, account) == NULL)
     {
+      DEBUG ("%s wants to connect, but we're offline; queuing it up",
+          mcd_account_get_unique_name (account));
       g_object_ref (account);
       g_hash_table_insert (priv->pending_accounts, account, account);
     }
