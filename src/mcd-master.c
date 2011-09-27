@@ -156,8 +156,7 @@ mcd_master_transport_connected (McdMaster *master, McdTransportPlugin *plugin,
         {
             DEBUG ("conditions matched");
             _mcd_account_connect_with_auto_presence (account, FALSE);
-            if (g_hash_table_size (conditions) > 0)
-                mcd_account_connection_bind_transport (account, transport);
+            mcd_account_connection_bind_transport (account, transport);
         }
         g_hash_table_unref (conditions);
     }
