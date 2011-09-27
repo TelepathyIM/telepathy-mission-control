@@ -34,6 +34,17 @@ if not config.HAVE_CONNECTIVITY:
     print "NOTE: built without ConnMan or NM support"
     raise SystemExit(77)
 
+def sync_connectivity_state(mc):
+    # We cannot simply use sync_dbus here, because nm-glib reports property
+    # changes in an idle (presumably to batch them all together). This is fine
+    # and all that, but means we have to find a way to make sure MC has flushed
+    # its idle queue to avoid this test being racy. (This isn't just
+    # theoretical: this test failed about once per five runs when it used sync_dbus.)
+    #
+    # The test-specific version of MC implements the 'BillyIdle' method, which
+    # returns from a low-priority idle.
+    mc.BillyIdle(dbus_interface='org.freedesktop.Telepathy.MissionControl5.RegressionTests')
+
 def test(q, bus, mc):
     params = dbus.Dictionary(
         {"account": "yum yum network manager",
@@ -99,16 +110,7 @@ def test(q, bus, mc):
 
     mc.connectivity.go_offline()
     # Make sure that MC has noticed that the network connection has gone away.
-    #
-    # We cannot simply use sync_dbus here, because nm-glib reports property
-    # changes in an idle (presumably to batch them all together). This is fine
-    # and all that, but means we have to find a way to make sure MC has flushed
-    # its idle queue to avoid this test being racy. (This isn't just
-    # theoretical: this test failed about once per five runs when it used sync_dbus.)
-    #
-    # The test-specific version of MC implements the 'BillyIdle' method, which
-    # returns from a low-priority idle.
-    mc.BillyIdle(dbus_interface='org.freedesktop.Telepathy.MissionControl5.RegressionTests')
+    sync_connectivity_state(mc)
 
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol',
         account.object_path.split('/')[-1], 'myself')
