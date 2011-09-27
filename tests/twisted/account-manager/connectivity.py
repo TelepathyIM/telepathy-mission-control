@@ -73,6 +73,12 @@ def test(q, bus, mc):
     call_async(q, account.Properties, 'Set', cs.ACCOUNT, 'ConnectAutomatically',
         True)
     q.expect('dbus-return', method='Set')
+    # (but actually let's turn ConnectAutomatically off: we want to check that
+    # MC continues to try to apply RequestedPresence if the network connection
+    # goes away and comes back again, regardless of this setting)
+    call_async(q, account.Properties, 'Set', cs.ACCOUNT, 'ConnectAutomatically',
+        False)
+    q.expect('dbus-return', method='Set')
 
     sync_dbus(bus, q, mc)
     q.unforbid_events(request_connection_event)
@@ -117,6 +123,16 @@ def test(q, bus, mc):
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
     q.expect('dbus-method-call', method='Disconnect')
+
+    # So now the user gives up and sets their RequestedPresence to offline.
+    # Because this account does not ConnectAutomatically, if the network
+    # connection comes back up the account should not be brought back online.
+    q.forbid_events(request_connection_event)
+    account.Properties.Set(cs.ACCOUNT, 'RequestedPresence',
+        (dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE), 'offline', ''))
+    mc.connectivity.go_online()
+    # Make sure MC has noticed that the network connection has come back.
+    sync_connectivity_state(mc)
 
 if __name__ == '__main__':
     exec_test(test, initially_online=False)

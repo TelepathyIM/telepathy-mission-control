@@ -3417,9 +3417,13 @@ mcd_account_would_like_to_connect (McdAccount *account)
         return FALSE;
     }
 
-    if (!priv->connect_automatically)
+    if (!priv->connect_automatically &&
+        !_presence_type_is_online (priv->req_presence_type))
     {
-        DEBUG ("%s does not ConnectAutomatically", priv->unique_name);
+        DEBUG ("%s does not ConnectAutomatically, and its RequestedPresence "
+            "(%u, '%s', '%s') doesn't indicate the user wants to be online",
+            priv->unique_name, priv->req_presence_type,
+            priv->req_presence_status, priv->req_presence_message);
         return FALSE;
     }
 
