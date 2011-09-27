@@ -55,8 +55,9 @@ def test(q, bus, mc):
     # connect automatically, to check that none of these make it sign in.
     call_async(q, account.Properties, 'Set', cs.ACCOUNT, 'Enabled', True)
     q.expect('dbus-return', method='Set')
+    requested_presence = (dbus.UInt32(cs.PRESENCE_TYPE_BUSY), 'busy', 'gtfo')
     call_async(q, account.Properties, 'Set', cs.ACCOUNT, 'RequestedPresence',
-        (dbus.UInt32(cs.PRESENCE_TYPE_BUSY), 'busy', 'hlaghalgh'))
+        requested_presence)
     q.expect('dbus-return', method='Set')
     call_async(q, account.Properties, 'Set', cs.ACCOUNT, 'ConnectAutomatically',
         True)
@@ -68,7 +69,11 @@ def test(q, bus, mc):
     # Okay, I'm satisfied. Turn the network on.
     mc.connectivity.go_online()
 
-    expect_fakecm_connection(q, bus, mc, account, params)
+    expect_fakecm_connection(q, bus, mc, account, params, has_presence=True,
+        expect_before_connect=[
+            EventPattern('dbus-method-call', method='SetPresence',
+                args=list(requested_presence[1:])),
+        ])
 
     # If we turn the network off, the connection should be banished.
     mc.connectivity.go_offline()
