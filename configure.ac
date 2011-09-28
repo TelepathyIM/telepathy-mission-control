@@ -310,6 +310,59 @@ if test x"$HAVE_MCE" = xyes; then
   AC_DEFINE([HAVE_MCE], [1], [Define if mce is available])
 fi
 
+# -----------------------------------------------------------
+# Connectivity integration
+# -----------------------------------------------------------
+AC_ARG_WITH(connectivity,
+              AS_HELP_STRING([--with-connectivity=@<:@nm/connman/auto/no@:>@],
+                             [build with connectivity support]), ,
+                             with_connectivity=auto)
+
+if test "x$with_connectivity" = "xno"; then
+   have_nm=no
+   have_connman=no
+
+elif test "x$with_connectivity" = "xconnman"; then
+   have_nm=no
+
+   PKG_CHECK_MODULES(CONNMAN,
+   [
+      dbus-glib-1
+   ], have_connman="yes", have_connman="no")
+
+   if test "x$have_connman" = "xyes"; then
+      AC_DEFINE(HAVE_CONNMAN, 1, [Define if you have connman dependencies])
+   fi
+
+else
+   have_connman=no
+
+   PKG_CHECK_MODULES(NETWORK_MANAGER,
+   [
+      libnm-glib >= 0.7.0
+   ], have_nm="yes", have_nm="no")
+
+   if test "x$have_nm" = "xyes"; then
+      AC_DEFINE(HAVE_NM, 1, [Define if you have libnm-glib])
+   fi
+fi
+
+if test "x$with_connectivity" = "xconnman" -a "x$have_connman" != "xyes"; then
+   AC_MSG_ERROR([Couldn't find connman dependencies:
+
+$CONNMAN_PKG_ERRORS])
+fi
+
+if test "x$with_connectivity" = "xnm" -a "x$have_nm" != "xyes"; then
+   AC_MSG_ERROR([Couldn't find Network Manager dependencies:
+
+$NETWORK_MANAGER_PKG_ERRORS])
+fi
+
+AM_CONDITIONAL(HAVE_NM, test "x$have_nm" = "xyes")
+AM_CONDITIONAL(HAVE_CONNMAN, test "x$have_connman" = "xyes")
+
+
 dnl ***************************************************************************
 dnl Check for marshal and enum generators
 dnl ***************************************************************************
@@ -361,6 +414,8 @@ Configure summary:
     Features:
         Plugin API documentation.....:  ${enable_gtk_doc}
         Gnome Keyring................:  ${keyring_enabled}
+        Network Manager integration..:  ${have_nm}
+        ConnMan integration..........:  ${have_connman}
         Aegis........................:  ${aegis_enabled}
         libaccounts-glib backend.....:  ${libaccounts_sso_enabled}
         Hidden accounts-glib accounts:  ${with_accounts_glib_hidden_service_type}

@@ -65,6 +65,7 @@
 #include <dbus/dbus-glib-lowlevel.h>
 #include <telepathy-glib/telepathy-glib.h>
 
+#include "kludge-transport.h"
 #include "mcd-master.h"
 #include "mcd-master-priv.h"
 #include "mcd-proxy.h"
@@ -118,6 +119,10 @@ typedef struct {
     gpointer userdata;
 } McdAccountConnectionData;
 
+/* Used to poison 'default_master' when the object it points to is disposed.
+ * The default_master should basically be alive for the duration of the MC run.
+ */
+#define POISONED_MASTER ((McdMaster *) 0xdeadbeef)
 static McdMaster *default_master = NULL;
 
 
@@ -140,13 +145,7 @@ mcd_master_transport_connected (McdMaster *master, McdTransportPlugin *plugin,
         McdAccount *account = MCD_ACCOUNT (v);
         GHashTable *conditions;
 
-        /* get all enabled accounts, which have the "ConnectAutomatically"
-         * flag set and that are not connected */
-        if (!mcd_account_is_valid (account) ||
-            !mcd_account_is_enabled (account) ||
-            !mcd_account_get_connect_automatically (account) ||
-            mcd_account_get_connection_status (account) ==
-            TP_CONNECTION_STATUS_CONNECTED)
+        if (!mcd_account_would_like_to_connect (account))
             continue;
 
         DEBUG ("account %s would like to connect",
@@ -425,6 +424,11 @@ _mcd_master_dispose (GObject * object)
     priv->dispatcher = NULL;
     g_object_unref (priv->proxy);
 
+    if (default_master == (McdMaster *) object)
+    {
+        default_master = POISONED_MASTER;
+    }
+
     G_OBJECT_CLASS (mcd_master_parent_class)->dispose (object);
 }
 
@@ -467,6 +471,8 @@ mcd_master_constructor (GType type, guint n_params,
 #ifdef ENABLE_MCD_PLUGINS
     mcd_master_load_mcd_plugins (master);
 #endif
+
+    mcd_kludge_transport_install ((McdPlugin *) master);
 
     /* we assume that at this point all transport plugins have been registered.
      * We get the active transports and check whether some accounts should be
@@ -549,6 +555,9 @@ mcd_master_get_default (void)
 {
     if (!default_master)
 	default_master = MCD_MASTER (g_object_new (MCD_TYPE_MASTER, NULL));
+
+    g_return_val_if_fail (default_master != POISONED_MASTER, NULL);
+
     return default_master;
 }
 

@@ -29,7 +29,7 @@ from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
-        expect_client_setup, make_mc
+        expect_client_setup, MC
 import constants as cs
 
 def preseed():
@@ -72,9 +72,16 @@ def test(q, bus, unused):
     cm_name_ref = dbus.service.BusName(
             cs.tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
 
-    # service-activate MC and immediately make a request
-    mc = make_mc(bus)
+    # service-activate MC; it will try to introspect the running client.
+    mc = MC(q, bus, wait_for_names=False)
+    get_interfaces, = mc.wait_for_names(
+        EventPattern('dbus-method-call', path=client.object_path,
+            interface=cs.PROPERTIES_IFACE, method='Get',
+            args=[cs.CLIENT, 'Interfaces'],
+            handled=False))
 
+    # The client doesn't reply just yet; meanwhile, immediately make a channel
+    # request
     account = bus.get_object(cs.MC,
             cs.tp_path_prefix +
             '/Account/fakecm/fakeprotocol/jc_2edenton_40unatco_2eint')
@@ -89,12 +96,6 @@ def test(q, bus, unused):
     call_async(q, cd, 'CreateChannel',
             account.object_path, request, user_action_time, client.bus_name,
             dbus_interface=cs.CD)
-
-    get_interfaces = q.expect('dbus-method-call', path=client.object_path,
-            interface=cs.PROPERTIES_IFACE, method='Get',
-            args=[cs.CLIENT, 'Interfaces'],
-            handled=False)
-    # don't reply just yet
 
     ret = q.expect('dbus-return', method='CreateChannel')
     request_path = ret.value[0]

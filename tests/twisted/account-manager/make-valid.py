@@ -27,8 +27,7 @@ import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async, sync_dbus
-from mctest import exec_test, SimulatedConnection, create_fakecm_account, \
-        make_mc
+from mctest import exec_test, SimulatedConnection, create_fakecm_account, MC
 import constants as cs
 
 cm_name_ref = dbus.service.BusName(
@@ -94,14 +93,7 @@ def test(q, bus, unused):
     q.forbid_events(events)
 
     # Wait for MC to load
-    mc = make_mc(bus)
-
-    q.expect_many(
-            EventPattern('dbus-signal', signal='NameOwnerChanged',
-                predicate=lambda e: e.args[0] == cs.AM),
-            EventPattern('dbus-signal', signal='NameOwnerChanged',
-                predicate=lambda e: e.args[0] == cs.CD),
-            )
+    mc = MC(q, bus)
 
     # Trying to make a channel on account 1 doesn't work, because it's
     # not valid

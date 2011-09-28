@@ -33,14 +33,7 @@ from twisted.internet import reactor
 import dbus
 import dbus.service
 
-def make_mc(bus):
-    mc = bus.get_object(
-        cs.tp_name_prefix + '.MissionControl5',
-        cs.tp_path_prefix + '/MissionControl5',
-        follow_name_owner_changes=True)
-    assert mc is not None
-
-    return mc
+from fakeconnectivity import FakeConnectivity
 
 def install_colourer():
     def red(s):
@@ -66,19 +59,52 @@ def install_colourer():
     sys.stdout = Colourer(sys.stdout, patterns)
     return sys.stdout
 
-def wait_for_name(queue, bus, name):
-    if not bus.name_has_owner(name):
-        queue.expect('dbus-signal', signal='NameOwnerChanged',
-                predicate=lambda e: e.args[0] == name and e.args[2])
+class MC(dbus.proxies.ProxyObject):
+    def __init__(self, queue, bus, wait_for_names=True, initially_online=True):
+        """
+        Arguments:
 
-def wait_for_mc(queue, bus):
-    mc = make_mc(bus)
-    wait_for_name(queue, bus, cs.AM)
-    wait_for_name(queue, bus, cs.CD)
-    return mc
+          queue: an event queue
+          bus: a D-Bus connection
+          wait_for_names: if True, the constructor will wait for MC to have
+                          been service-activated before returning. if False,
+                          the caller may later call wait_for_names().
+          initially_online: whether the fake implementations of Network Manager
+                            and ConnMan should claim to be online or offline.
+        """
+        dbus.proxies.ProxyObject.__init__(self,
+            conn=bus,
+            bus_name=cs.MC,
+            object_path=cs.MC_PATH,
+            follow_name_owner_changes=True)
+
+        self.connectivity = FakeConnectivity(queue, bus, initially_online)
+        self.q = queue
+        self.bus = bus
+
+        if wait_for_names:
+            self.wait_for_names()
+
+    def wait_for_names(self, *also_expect):
+        """
+        Waits for MC to have claimed all its bus names, along with the
+        (optional) EventPatterns passed as arguments.
+        """
+
+        patterns = [
+            servicetest.EventPattern('dbus-signal', signal='NameOwnerChanged',
+                predicate=lambda e, name=name: e.args[0] == name and e.args[2] != '')
+            for name in [cs.AM, cs.CD, cs.MC]
+            if not self.bus.name_has_owner(name)]
+
+        patterns.extend(also_expect)
+
+        events = self.q.expect_many(*patterns)
+
+        return events[3:]
 
 def exec_test_deferred (fun, params, protocol=None, timeout=None,
-        preload_mc=True):
+        preload_mc=True, initially_online=True):
     colourer = None
 
     if sys.stdout.isatty():
@@ -95,7 +121,7 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
 
     if preload_mc:
         try:
-            mc = wait_for_mc(queue, bus)
+            mc = MC(queue, bus, initially_online=initially_online)
         except Exception, e:
             import traceback
             traceback.print_exc()
@@ -158,9 +184,10 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
     if colourer:
       sys.stdout = colourer.fh
 
-def exec_test(fun, params=None, protocol=None, timeout=None, preload_mc=True):
+def exec_test(fun, params=None, protocol=None, timeout=None,
+              preload_mc=True, initially_online=True):
   reactor.callWhenRunning (exec_test_deferred, fun, params, protocol, timeout,
-          preload_mc)
+          preload_mc, initially_online)
   reactor.run()
 
 class SimulatedConnection(object):
@@ -893,13 +920,15 @@ def get_fakecm_account(bus, mc, account_path):
 
     return account
 
-def enable_fakecm_account(q, bus, mc, account, expected_params,
-        has_requests=True, has_presence=False, has_aliasing=False,
-        has_avatars=False, avatars_persist=True,
-        extra_interfaces=[],
-        requested_presence=(2, 'available', ''),
-        expect_before_connect=[], expect_after_connect=[],
-        has_hidden=False):
+def enable_fakecm_account(q, bus, mc, account, expected_params, **kwargs):
+    # I'm too lazy to manually pass all the other kwargs to
+    # expect_fakecm_connection
+    try:
+        requested_presence = kwargs['requested_presence']
+        del kwargs['requested_presence']
+    except KeyError:
+        requested_presence = (2, 'available', '')
+
     # Enable the account
     account.Properties.Set(cs.ACCOUNT, 'Enabled', True)
 
@@ -911,6 +940,14 @@ def enable_fakecm_account(q, bus, mc, account, expected_params,
         account.Properties.Set(cs.ACCOUNT,
                 'RequestedPresence', requested_presence)
 
+    return expect_fakecm_connection(q, bus, mc, account, expected_params, **kwargs)
+
+def expect_fakecm_connection(q, bus, mc, account, expected_params,
+        has_requests=True, has_presence=False, has_aliasing=False,
+        has_avatars=False, avatars_persist=True,
+        extra_interfaces=[],
+        expect_before_connect=[], expect_after_connect=[],
+        has_hidden=False):
     e = q.expect('dbus-method-call', method='RequestConnection',
             args=['fakeprotocol', expected_params],
             destination=cs.tp_name_prefix + '.ConnectionManager.fakecm',
@@ -1084,13 +1121,14 @@ def tell_mc_to_die(q, bus):
 
 def resuscitate_mc(q, bus, mc):
     """Having killed MC with tell_mc_to_die(), this function revives it."""
-    bus.get_object(cs.MC, "/")
+    # We kick the daemon asynchronously because nm-glib makes blocking calls
+    # back to us during initialization...
+    bus.call_async(dbus.BUS_DAEMON_NAME, dbus.BUS_DAEMON_PATH,
+        dbus.BUS_DAEMON_IFACE, 'StartServiceByName', 'su', (cs.MC, 0),
+        reply_handler=None, error_handler=None)
 
     # Wait until it's up
-    q.expect('dbus-signal', signal='NameOwnerChanged',
-        predicate=(lambda e:
-            e.args[0] == 'org.freedesktop.Telepathy.AccountManager' and
-            e.args[2] != ''))
+    mc.wait_for_names()
 
     return connect_to_mc(q, bus, mc)
 

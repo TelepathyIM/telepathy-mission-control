@@ -28,8 +28,7 @@ import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
-from mctest import exec_test, SimulatedConnection, create_fakecm_account, \
-        make_mc
+from mctest import exec_test, SimulatedConnection, create_fakecm_account, MC
 import constants as cs
 
 cm_name_ref = dbus.service.BusName(
@@ -77,18 +76,14 @@ def test(q, bus, unused):
             'password': 'ionstorm',
             }
 
-    mc = make_mc(bus)
+    mc = MC(q, bus)
 
-    e, _ = q.expect_many(
-            EventPattern('dbus-method-call', method='RequestConnection',
+    e = q.expect('dbus-method-call', method='RequestConnection',
                 args=['fakeprotocol', expected_params],
                 destination=cs.tp_name_prefix + '.ConnectionManager.fakecm',
                 path=cs.tp_path_prefix + '/ConnectionManager/fakecm',
                 interface=cs.tp_name_prefix + '.ConnectionManager',
-                handled=False),
-            EventPattern('dbus-signal', signal='NameOwnerChanged',
-                    predicate=lambda e: e.args[0] == cs.AM and e.args[2]),
-            )
+                handled=False)
 
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
             'myself', has_avatars=True, avatars_persist=False)

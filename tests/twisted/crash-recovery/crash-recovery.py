@@ -28,7 +28,7 @@ import dbus.service
 from servicetest import EventPattern, call_async
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
-        expect_client_setup, make_mc
+        expect_client_setup, MC
 import constants as cs
 
 def preseed():
@@ -95,20 +95,8 @@ def test(q, bus, unused):
 
     # Service-activate MC.
     # We're told about the other channel as an observer...
-    mc = make_mc(bus)
-    _, _, _, e = q.expect_many(
-            EventPattern('dbus-signal',
-                path='/org/freedesktop/DBus',
-                interface='org.freedesktop.DBus', signal='NameOwnerChanged',
-                predicate=lambda e: e.args[0] == cs.AM and e.args[2]),
-            EventPattern('dbus-signal',
-                path='/org/freedesktop/DBus',
-                interface='org.freedesktop.DBus', signal='NameOwnerChanged',
-                predicate=lambda e: e.args[0] == cs.CD and e.args[2]),
-            EventPattern('dbus-signal',
-                path='/org/freedesktop/DBus',
-                interface='org.freedesktop.DBus', signal='NameOwnerChanged',
-                predicate=lambda e: e.args[0] == cs.MC and e.args[2]),
+    mc = MC(q, bus, wait_for_names=False)
+    e, = mc.wait_for_names(
             EventPattern('dbus-method-call',
                 path=client.object_path,
                 interface=cs.OBSERVER, method='ObserveChannels',

@@ -108,17 +108,6 @@ void _mcd_account_online_request (McdAccount *account,
                                   gpointer userdata);
 void _mcd_account_connect_with_auto_presence (McdAccount *account,
                                               gboolean user_initiated);
-G_GNUC_INTERNAL
-void _mcd_account_online_request_completed (McdAccount *account,
-                                            GError *error);
-
-typedef struct {
-    McdOnlineRequestCb callback;
-    gpointer user_data;
-} McdOnlineRequestData;
-
-G_GNUC_INTERNAL
-GList *_mcd_account_get_online_requests (McdAccount *account);
 
 G_GNUC_INTERNAL McdStorage *_mcd_account_get_storage (McdAccount *account);
 
@@ -191,11 +180,6 @@ G_GNUC_INTERNAL gboolean _mcd_account_set_enabled (McdAccount *account,
                                                    gboolean enabled,
                                                    gboolean write_out,
                                                    GError **error);
-
-G_GNUC_INTERNAL void _mcd_account_get_requested_presence (McdAccount *account,
-                                                          TpConnectionPresenceType *presence,
-                                                          const gchar **status,
-                                                          const gchar **message);
 
 G_GNUC_INTERNAL gboolean _mcd_account_presence_type_is_settable (
         TpConnectionPresenceType type);

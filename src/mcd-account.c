@@ -118,6 +118,11 @@ G_DEFINE_TYPE_WITH_CODE (McdAccount, mcd_account, G_TYPE_OBJECT,
 						properties_iface_init);
 			)
 
+typedef struct {
+    McdOnlineRequestCb callback;
+    gpointer user_data;
+} McdOnlineRequestData;
+
 struct _McdAccountPrivate
 {
     gchar *unique_name;
@@ -233,27 +238,8 @@ _mcd_account_maybe_autoconnect (McdAccount *account)
     g_return_if_fail (MCD_IS_ACCOUNT (account));
     priv = account->priv;
 
-    if (!priv->enabled)
+    if (!mcd_account_would_like_to_connect (account))
     {
-        DEBUG ("%s not Enabled", priv->unique_name);
-        return;
-    }
-
-    if (!mcd_account_is_valid (account))
-    {
-        DEBUG ("%s not Valid", priv->unique_name);
-        return;
-    }
-
-    if (priv->conn_status != TP_CONNECTION_STATUS_DISCONNECTED)
-    {
-        DEBUG ("%s already connecting/connected", priv->unique_name);
-        return;
-    }
-
-    if (!priv->connect_automatically)
-    {
-        DEBUG ("%s does not ConnectAutomatically", priv->unique_name);
         return;
     }
 
@@ -919,6 +905,25 @@ mcd_account_request_presence_int (McdAccount *account,
     }
 }
 
+/*
+ * mcd_account_rerequest_presence:
+ *
+ * Re-requests the account's current RequestedPresence, possibly triggering a
+ * new connection attempt.
+ */
+static void
+mcd_account_rerequest_presence (McdAccount *account,
+                                gboolean user_initiated)
+{
+    McdAccountPrivate *priv = account->priv;
+
+    mcd_account_request_presence_int (account,
+                                      priv->req_presence_type,
+                                      priv->req_presence_status,
+                                      priv->req_presence_message,
+                                      user_initiated);
+}
+
 void
 _mcd_account_connect (McdAccount *account, GHashTable *params)
 {
@@ -1205,11 +1210,7 @@ _mcd_account_set_enabled (McdAccount *account,
 
         if (enabled)
         {
-            mcd_account_request_presence_int (account,
-                                              priv->req_presence_type,
-                                              priv->req_presence_status,
-                                              priv->req_presence_message,
-                                              TRUE);
+            mcd_account_rerequest_presence (account, TRUE);
             _mcd_account_maybe_autoconnect (account);
         }
     }
@@ -3357,24 +3358,6 @@ mcd_account_get_requested_presence (McdAccount *account,
         *message = priv->req_presence_message;
 }
 
-void
-_mcd_account_get_requested_presence (McdAccount *account,
-                                     TpConnectionPresenceType *presence,
-                                     const gchar **status,
-                                     const gchar **message)
-{
-    McdAccountPrivate *priv = account->priv;
-
-    if (presence != NULL)
-        *presence = priv->req_presence_type;
-
-    if (status != NULL)
-        *status = priv->req_presence_status;
-
-    if (message != NULL)
-        *message = priv->req_presence_message;
-}
-
 /* TODO: remove when the relative members will become public */
 void
 mcd_account_get_current_presence (McdAccount *account,
@@ -3399,6 +3382,52 @@ mcd_account_get_connect_automatically (McdAccount *account)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     return priv->connect_automatically;
+}
+
+/*
+ * mcd_account_would_like_to_connect:
+ * @account: an account
+ *
+ * Returns: %TRUE if @account is not currently in the process of trying to
+ *          connect, but would like to be, in a perfect world.
+ */
+gboolean
+mcd_account_would_like_to_connect (McdAccount *account)
+{
+    McdAccountPrivate *priv;
+
+    g_return_val_if_fail (MCD_IS_ACCOUNT (account), FALSE);
+    priv = account->priv;
+
+    if (!priv->enabled)
+    {
+        DEBUG ("%s not Enabled", priv->unique_name);
+        return FALSE;
+    }
+
+    if (!mcd_account_is_valid (account))
+    {
+        DEBUG ("%s not Valid", priv->unique_name);
+        return FALSE;
+    }
+
+    if (priv->conn_status != TP_CONNECTION_STATUS_DISCONNECTED)
+    {
+        DEBUG ("%s already connecting/connected", priv->unique_name);
+        return FALSE;
+    }
+
+    if (!priv->connect_automatically &&
+        !_presence_type_is_online (priv->req_presence_type))
+    {
+        DEBUG ("%s does not ConnectAutomatically, and its RequestedPresence "
+            "(%u, '%s', '%s') doesn't indicate the user wants to be online",
+            priv->unique_name, priv->req_presence_type,
+            priv->req_presence_status, priv->req_presence_message);
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 /* TODO: remove when the relative members will become public */
@@ -3657,7 +3686,7 @@ mcd_account_get_alias (McdAccount *account)
                                    MC_ACCOUNTS_KEY_ALIAS);
 }
 
-void
+static void
 _mcd_account_online_request_completed (McdAccount *account, GError *error)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
@@ -3676,14 +3705,6 @@ _mcd_account_online_request_completed (McdAccount *account, GError *error)
     if (error)
         g_error_free (error);
     priv->online_requests = NULL;
-}
-
-GList *
-_mcd_account_get_online_requests (McdAccount *account)
-{
-    g_return_val_if_fail (MCD_IS_ACCOUNT (account), NULL);
-
-    return account->priv->online_requests;
 }
 
 static inline void
@@ -3968,11 +3989,7 @@ check_validity_check_parameters_cb (McdAccount *account,
             /* Newly valid - try setting requested presence again.
              * This counts as user-initiated, because the user caused the
              * account to become valid somehow. */
-            mcd_account_request_presence_int (account,
-                                              priv->req_presence_type,
-                                              priv->req_presence_status,
-                                              priv->req_presence_message,
-                                              TRUE);
+            mcd_account_rerequest_presence (account, TRUE);
         }
     }
 
@@ -4002,8 +4019,12 @@ mcd_account_check_validity (McdAccount *account,
 /*
  * _mcd_account_connect_with_auto_presence:
  * @account: the #McdAccount.
+ * @user_initiated: %TRUE if the connection attempt is in response to a user
+ *                  request (like a request for a channel)
  *
- * Request the account to go online with the configured AutomaticPresence.
+ * Request the account to go back online with the current RequestedPresence, if
+ * it is not Offline, or with the configured AutomaticPresence otherwise.
+ *
  * This is appropriate in these situations:
  * - going online automatically because we've gained connectivity
  * - going online automatically in order to request a channel
@@ -4014,11 +4035,14 @@ _mcd_account_connect_with_auto_presence (McdAccount *account,
 {
     McdAccountPrivate *priv = account->priv;
 
-    mcd_account_request_presence_int (account,
-                                      priv->auto_presence_type,
-                                      priv->auto_presence_status,
-                                      priv->auto_presence_message,
-                                      user_initiated);
+    if (_presence_type_is_online (priv->req_presence_type))
+        mcd_account_rerequest_presence (account, user_initiated);
+    else
+        mcd_account_request_presence_int (account,
+                                          priv->auto_presence_type,
+                                          priv->auto_presence_status,
+                                          priv->auto_presence_message,
+                                          user_initiated);
 }
 
 /*
