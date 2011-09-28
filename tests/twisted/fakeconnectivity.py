@@ -36,7 +36,7 @@ class FakeConnectivity(object):
             method='GetPermissions')
         q.add_dbus_method_impl(self.NM_Get,
             path=self.NM_PATH, interface=dbus.PROPERTIES_IFACE, method='Get',
-            predicate=lambda e: e.args[0] == "org.freedesktop.NetworkManager")
+            predicate=lambda e: e.args[0] == self.NM_INTERFACE)
 
         q.add_dbus_method_impl(self.ConnMan_GetState,
             path=self.CONNMAN_PATH, interface=self.CONNMAN_INTERFACE,
