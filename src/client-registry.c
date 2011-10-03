@@ -142,7 +142,7 @@ _mcd_client_registry_found_name (McdClientRegistry *self,
            * it is activatable */
           _mcd_client_proxy_set_activatable (client);
         }
-      else
+      else if (unique_name_if_known != NULL)
         {
           /* We already knew that it was activatable, but now we also know
            * that it is active */
