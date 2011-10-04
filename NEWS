@@ -1,6 +1,15 @@
 telepathy-mission-control 5.9.3 (UNRELEASED)
 ============================================
 
+The “HELLO / YES, THIS IS DOG” release.
+
+Fixes:
+
+• The regression tests now work with D-Bus ≥ 1.5.6. (fd.o#41090, smcv)
+
+• An obscure assertion failure in the client bus name monitoring code is
+  fixed, we hope! (fd.o#39767, wjt)
+
 
 
 telepathy-mission-control 5.9.2 (2011-08-31)

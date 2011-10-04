@@ -1322,6 +1322,7 @@ _mcd_client_proxy_set_active (McdClientProxy *self,
                               const gchar *unique_name)
 {
     g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
+    g_return_if_fail (unique_name != NULL);
 
     g_free (self->priv->unique_name);
     self->priv->unique_name = g_strdup (unique_name);
