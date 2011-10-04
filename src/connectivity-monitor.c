@@ -111,14 +111,6 @@ connectivity_monitor_set_connected (
   connectivity_monitor_change_states (self, connected, self->priv->awake);
 }
 
-static void
-connectivity_monitor_set_awake (
-    McdConnectivityMonitor *self,
-    gboolean awake)
-{
-  connectivity_monitor_change_states (self, self->priv->connected, awake);
-}
-
 #ifdef HAVE_NM
 
 #if !defined(NM_CHECK_VERSION)
@@ -213,6 +205,14 @@ connectivity_monitor_connman_check_state (McdConnectivityMonitor *connectivity_m
 #endif
 
 #ifdef HAVE_UPOWER
+static void
+connectivity_monitor_set_awake (
+    McdConnectivityMonitor *self,
+    gboolean awake)
+{
+  connectivity_monitor_change_states (self, self->priv->connected, awake);
+}
+
 static void
 notify_sleep_cb (
     UpClient *upower_client,
