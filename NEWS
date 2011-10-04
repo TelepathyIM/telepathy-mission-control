@@ -3,6 +3,29 @@ telepathy-mission-control 5.9.3 (UNRELEASED)
 
 The “HELLO / YES, THIS IS DOG” release.
 
+Dependencies:
+
+• MC now has optional dependencies on nm-glib and upower-glib.
+
+Enhancements:
+
+• Mission Control can now use either Network Manager or ConnMan (or
+  neither; the choice is controlled by a configure flag) to monitor the
+  network connection going up and down, and bring IM accounts on and
+  offline accordingly (whether due to ConnectAutomatically being True,
+  or RequestedConnection being non-offline). (fd.o#38978, wjt)
+
+  This appears to interact fine with Empathy, which also monitors the
+  network state (using fundamentally the same code); in future, we
+  intend that MC should be the sole party responsible for monitoring
+  network state.
+
+• Mission Control now listens for notifications from upower that the
+  machine is about to suspend, and tears down active connections. This
+  should help avoid the user appearing to be online for a few minutes
+  after they suspend their machine, until the server notices that
+  they've gone. (fd.o#28370, wjt)
+
 Fixes:
 
 • The regression tests now work with D-Bus ≥ 1.5.6. (fd.o#41090, smcv)
@@ -10,6 +33,8 @@ Fixes:
 • An obscure assertion failure in the client bus name monitoring code is
   fixed, we hope! (fd.o#39767, wjt)
 
+• MC no longer crashes when recovering from a client crashing if that client
+  was an Observer or Approver which had claimed the channel. (xclaesse)
 
 
 telepathy-mission-control 5.9.2 (2011-08-31)
