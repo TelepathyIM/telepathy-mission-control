@@ -4,6 +4,7 @@ INCLUDES = \
 	   $(GLIB_CFLAGS) \
 	   $(NETWORK_MANAGER_CFLAGS) \
 	   $(CONNMAN_CFLAGS) \
+	   $(UPOWER_GLIB_CFLAGS) \
 	   -DG_LOG_DOMAIN=\"mcd\" \
 	   -DMCD_PLUGIN_LOADER_DIR=\"@libdir@/mission-control-plugins.@MCP_ABI_VERSION@\" \
 	   -DMC_DISABLE_DEPRECATED -I$(top_srcdir)
@@ -101,7 +102,9 @@ libmcd_convenience_la_LIBADD = \
 	$(DBUS_LIBS) \
 	$(GLIB_LIBS) \
 	$(NETWORK_MANAGER_LIBS) \
-	$(CONNMAN_LIBS)
+	$(CONNMAN_LIBS) \
+	$(UPOWER_GLIB_LIBS) \
+	$(NULL)
 
 if ENABLE_GNOME_KEYRING
 libmcd_convenience_la_LIBADD += $(GNOME_KEYRING_LIBS)

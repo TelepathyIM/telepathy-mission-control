@@ -75,7 +75,7 @@ mcd_kludge_transport_constructed (GObject *object)
 
   priv->minotaur = mcd_connectivity_monitor_new ();
   tp_g_signal_connect_object (priv->minotaur, "state-change",
-      (GCallback) monitor_state_changed_cb, self, G_CONNECT_AFTER);
+      (GCallback) monitor_state_changed_cb, self, 0);
 
   /* We just use ourself as the McdTransport pointer... */
   priv->transports = g_list_prepend (NULL, self);

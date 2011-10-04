@@ -38,6 +38,10 @@
 #include <dbus/dbus-glib.h>
 #endif
 
+#ifdef HAVE_UPOWER
+#include <upower.h>
+#endif
+
 #include <telepathy-glib/util.h>
 
 #include "mcd-debug.h"
@@ -52,8 +56,15 @@ struct _McdConnectivityMonitorPrivate {
   DBusGProxy *proxy;
 #endif
 
+#ifdef HAVE_UPOWER
+  UpClient *upower_client;
+#endif
+
   gboolean connected;
   gboolean use_conn;
+
+  /* TRUE if the device is not suspended; FALSE while it is. */
+  gboolean awake;
 };
 
 enum {
@@ -72,20 +83,32 @@ static McdConnectivityMonitor *connectivity_monitor_singleton = NULL;
 G_DEFINE_TYPE (McdConnectivityMonitor, mcd_connectivity_monitor, G_TYPE_OBJECT);
 
 static void
-connectivity_monitor_change_state (McdConnectivityMonitor *connectivity_monitor,
-    gboolean new_state)
+connectivity_monitor_change_states (
+    McdConnectivityMonitor *self,
+    gboolean connected,
+    gboolean awake)
 {
-  McdConnectivityMonitorPrivate *priv;
+  McdConnectivityMonitorPrivate *priv = self->priv;
+  gboolean old_total = priv->connected && priv->awake;
+  gboolean new_total = connected && awake;
 
-  priv = connectivity_monitor->priv;
-
-  if (priv->connected == new_state)
+  if (priv->connected == connected &&
+      priv->awake == awake)
     return;
 
-  priv->connected = new_state;
+  priv->connected = connected;
+  priv->awake = awake;
 
-  g_signal_emit (connectivity_monitor, signals[STATE_CHANGE], 0,
-      priv->connected);
+  if (old_total != new_total)
+    g_signal_emit (self, signals[STATE_CHANGE], 0, new_total);
+}
+
+static void
+connectivity_monitor_set_connected (
+    McdConnectivityMonitor *self,
+    gboolean connected)
+{
+  connectivity_monitor_change_states (self, connected, self->priv->awake);
 }
 
 #ifdef HAVE_NM
@@ -119,7 +142,7 @@ connectivity_monitor_nm_state_change_cb (NMClient *client,
   DEBUG ("New NetworkManager network state %d (connected: %s)", state,
       new_nm_connected ? "true" : "false");
 
-  connectivity_monitor_change_state (connectivity_monitor, new_nm_connected);
+  connectivity_monitor_set_connected (connectivity_monitor, new_nm_connected);
 }
 #endif
 
@@ -141,7 +164,7 @@ connectivity_monitor_connman_state_changed_cb (DBusGProxy *proxy,
 
   DEBUG ("New ConnMan network state %s", new_state);
 
-  connectivity_monitor_change_state (connectivity_monitor, new_connected);
+  connectivity_monitor_set_connected (connectivity_monitor, new_connected);
 }
 
 static void
@@ -181,6 +204,40 @@ connectivity_monitor_connman_check_state (McdConnectivityMonitor *connectivity_m
 }
 #endif
 
+#ifdef HAVE_UPOWER
+static void
+connectivity_monitor_set_awake (
+    McdConnectivityMonitor *self,
+    gboolean awake)
+{
+  connectivity_monitor_change_states (self, self->priv->connected, awake);
+}
+
+static void
+notify_sleep_cb (
+    UpClient *upower_client,
+    UpSleepKind sleep_kind,
+    gpointer user_data)
+{
+  McdConnectivityMonitor *self = MCD_CONNECTIVITY_MONITOR (user_data);
+
+  DEBUG ("about to sleep! sleep_kind=%s", up_sleep_kind_to_string (sleep_kind));
+  connectivity_monitor_set_awake (self, FALSE);
+}
+
+static void
+notify_resume_cb (
+    UpClient *upower_client,
+    UpSleepKind sleep_kind,
+    gpointer user_data)
+{
+  McdConnectivityMonitor *self = MCD_CONNECTIVITY_MONITOR (user_data);
+
+  DEBUG ("woke up! sleep_kind=%s", up_sleep_kind_to_string (sleep_kind));
+  connectivity_monitor_set_awake (self, TRUE);
+}
+#endif
+
 static void
 mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
 {
@@ -196,6 +253,7 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
   connectivity_monitor->priv = priv;
 
   priv->use_conn = TRUE;
+  priv->awake = TRUE;
 
 #ifdef HAVE_NM
   priv->nm_client = nm_client_new ();
@@ -244,6 +302,16 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
 #if !defined(HAVE_NM) && !defined(HAVE_CONNMAN)
   priv->connected = TRUE;
 #endif
+
+#ifdef HAVE_UPOWER
+  priv->upower_client = up_client_new ();
+  tp_g_signal_connect_object (priv->upower_client,
+      "notify-sleep", G_CALLBACK (notify_sleep_cb), connectivity_monitor,
+      G_CONNECT_AFTER);
+  tp_g_signal_connect_object (priv->upower_client,
+      "notify-resume", G_CALLBACK (notify_resume_cb), connectivity_monitor,
+      G_CONNECT_AFTER);
+#endif
 }
 
 static void
@@ -275,6 +343,10 @@ connectivity_monitor_finalize (GObject *object)
       g_object_unref (priv->proxy);
       priv->proxy = NULL;
     }
+#endif
+
+#ifdef HAVE_UPOWER
+  tp_clear_object (&priv->upower_client);
 #endif
 
   G_OBJECT_CLASS (mcd_connectivity_monitor_parent_class)->finalize (object);
@@ -431,7 +503,7 @@ mcd_connectivity_monitor_set_use_conn (McdConnectivityMonitor *connectivity_moni
   else
 #endif
     {
-      connectivity_monitor_change_state (connectivity_monitor, TRUE);
+      connectivity_monitor_set_connected (connectivity_monitor, TRUE);
     }
 
   g_object_notify (G_OBJECT (connectivity_monitor), "use-conn");
