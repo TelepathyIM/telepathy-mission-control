@@ -317,10 +317,12 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
 static void
 connectivity_monitor_finalize (GObject *object)
 {
-#ifdef HAVE_NM
+#if defined(HAVE_NM) || defined(HAVE_CONNMAN) || defined(HAVE_UPOWER)
   McdConnectivityMonitor *connectivity_monitor = MCD_CONNECTIVITY_MONITOR (object);
   McdConnectivityMonitorPrivate *priv = connectivity_monitor->priv;
+#endif
 
+#ifdef HAVE_NM
   if (priv->nm_client != NULL)
     {
       g_signal_handler_disconnect (priv->nm_client,
@@ -332,9 +334,6 @@ connectivity_monitor_finalize (GObject *object)
 #endif
 
 #ifdef HAVE_CONNMAN
-  McdConnectivityMonitor *connectivity_monitor = MCD_CONNECTIVITY_MONITOR (object);
-  McdConnectivityMonitorPrivate *priv = connectivity_monitor->priv;
-
   if (priv->proxy != NULL)
     {
       dbus_g_proxy_disconnect_signal (priv->proxy, "StateChanged",
