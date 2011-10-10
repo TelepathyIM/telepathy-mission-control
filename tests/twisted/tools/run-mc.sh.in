@@ -1,0 +1,5 @@
+#!/bin/sh
+
+ulimit -c unlimited
+
+@libexecdir@/mission-control-5

@@ -63,7 +63,8 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/respawn-observers.py \
 	dispatcher/some-delay-approvers.py \
 	dispatcher/undispatchable.py \
-	dispatcher/vanishing-client.py
+	dispatcher/vanishing-client.py \
+	$(NULL)
 
 if ENABLE_MCD_PLUGINS
 TWISTED_BASIC_TESTS += \
@@ -98,6 +99,51 @@ TWISTED_SEPARATE_TESTS = \
 
 TWISTED_SEPARATE_TESTS += $(TWISTED_SPECIAL_BUILD_TESTS)
 
+# other files used by the twisted tests, but are not tests and are not built
+# source
+TWISTED_OTHER_FILES = \
+	constants.py \
+	fakeclient.py \
+	fakecm.py \
+	fakeconnectivity.py \
+	mctest.py \
+	servicetest.py \
+	telepathy/clients/README \
+	telepathy/clients/AbiWord.client \
+	telepathy/clients/Logger.client \
+	telepathy/managers/fakecm.manager \
+	telepathy/managers/onewitheverything.manager \
+	telepathy/managers/README \
+	$(NULL)
+
+mc-twisted-tests.list:
+	$(AM_V_GEN)echo $(TWISTED_BASIC_TESTS) > $@
+
+run-test.sh: run-test.sh.in Makefile
+	$(AM_V_GEN)sed \
+		-e "s|[@]mctestsdir[@]|@mctestsdir@|g" \
+		-e "s|[@]PYTHON[@]|$(PYTHON)|g" \
+		$< > $@
+	@chmod +x $@
+
+if ENABLE_INSTALLED_TESTS
+# Install files in each directory. They could be tests, pristine data files,
+# scripts or built source
+twistedtestsdir = @mctestsdir@/twisted
+nobase_nodist_twistedtests_SCRIPTS = \
+	run-test.sh \
+	$(NULL)
+nobase_dist_twistedtests_DATA = \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_OTHER_FILES) \
+	$(NULL)
+nobase_nodist_twistedtests_DATA = \
+	config.py \
+	mc-twisted-tests.list \
+	$(NULL)
+endif
+
+
 if HAVE_MCE
 HAVE_MCE_PYBOOL = True
 else
@@ -124,8 +170,34 @@ BUILT_SOURCES = config.py
 
 AM_CFLAGS = $(ERROR_CFLAGS)
 
+plugins_list = \
+	mcp-plugin.la \
+	mcp-account-diversion.la \
+	mcp-dbus-caller-permission.la \
+	$(NULL)
+
+if ENABLE_INSTALLED_TESTS
+
+noinst_LTLIBRARIES = \
+	$(NULL)
+testplugindir = @mctestsdir@/twisted/plugins
+testplugin_LTLIBRARIES = \
+	$(plugins_list) \
+	$(NULL)
+if ENABLE_MCD_PLUGINS
+testplugin_LTLIBRARIES += test-plugin.la
+endif
+
+else
+
 # A demo dispatcher plugin (new, minimal API)
-noinst_LTLIBRARIES = mcp-plugin.la mcp-account-diversion.la mcp-dbus-caller-permission.la
+noinst_LTLIBRARIES = $(plugins_list)
+if ENABLE_MCD_PLUGINS
+noinst_LTLIBRARIES += test-plugin.la
+endif
+
+endif
+
 mcp_plugin_la_SOURCES = mcp-plugin.c
 # these runes are necessary to make libtool build a dlopen()able shared
 # library even though it's not going to be installed - the default for noinst
@@ -140,7 +212,6 @@ mcp_dbus_caller_permission_la_LDFLAGS = $(mcp_plugin_la_LDFLAGS)
 
 if ENABLE_MCD_PLUGINS
 # A demo dispatcher plugin (old API, with access to MCD internals)
-noinst_LTLIBRARIES += test-plugin.la
 test_plugin_la_SOURCES = test-plugin.c
 test_plugin_la_LDFLAGS = -module -shared -avoid-version -rpath @abs_builddir@
 endif
@@ -197,7 +268,7 @@ endif
 WITH_SESSION_BUS = \
 	sh $(srcdir)/tools/with-session-bus.sh \
 	--also-for-system \
-	--config-file=tools/tmp-session-bus.conf --
+	--config-file=tools/servicedir-uninstalled/tmp-session-bus.conf --
 
 COMBINED_TESTS_ENVIRONMENT = \
 	$(BASIC_TESTS_ENVIRONMENT) \
@@ -286,19 +357,10 @@ check-separate:
 EXTRA_DIST = \
 	$(TWISTED_BASIC_TESTS) \
 	$(TWISTED_SEPARATE_TESTS) \
+	$(TWISTED_OTHER_FILES) \
 	accounts/README \
-	telepathy/clients/README \
-	telepathy/clients/AbiWord.client \
-	telepathy/clients/Logger.client \
-	telepathy/managers/fakecm.manager \
-	telepathy/managers/onewitheverything.manager \
-	telepathy/managers/README \
-	constants.py \
-        fakeclient.py \
-        fakecm.py \
-	fakeconnectivity.py \
-	mctest.py \
-	servicetest.py
+	run-test.sh.in \
+	$(NULL)
 
 CLEANFILES = \
 	accounts/accounts.cfg \

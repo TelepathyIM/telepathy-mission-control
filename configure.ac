@@ -117,6 +117,20 @@ if test "x$enable_coverage" = "xyes"; then
        CFLAGS="$CFLAGS -g -fprofile-arcs -ftest-coverage"
 fi
 
+AC_ARG_ENABLE([installed-tests],
+  AC_HELP_STRING([--enable-installed-tests],
+    [make tests installable]),
+    [installed_tests=$enableval], [installed_tests=no])
+
+if test x$installed_tests = xyes; then
+  AC_DEFINE(ENABLE_INSTALLED_TESTS, [],
+      [Make tests installable])
+fi
+AM_CONDITIONAL([ENABLE_INSTALLED_TESTS], [test "x$installed_tests" = xyes])
+
+mctestsdir=${libdir}/telepathy-mission-control-tests
+AC_SUBST(mctestsdir)
+
 AC_ARG_WITH(accounts_dir, AS_HELP_STRING([--with-accounts-dir=<path>],[Directory for storing accounts]))
 if test -z "$with_accounts_dir" ; then
     ACCOUNTS_DIR="~/.mission-control/accounts"
@@ -433,6 +447,7 @@ Configure summary:
         Prefix.......................:  ${prefix}
         Enable debug.................:  ${enable_debug}
         Python tests.................:  ${mc_want_twisted_tests}
+        Install unit tests...........:  ${installed_tests}
 
     Options:
         Account storage directory....:  ${ACCOUNTS_DIR}

@@ -1,0 +1,43 @@
+#!/bin/sh
+
+script_fullname=`readlink -e "@mctestsdir@/twisted/run-test.sh"`
+if [ `readlink -e "$0"` != "$script_fullname" ] ; then
+  echo "This script is meant to be installed"
+  exit 1
+fi
+
+export PYTHONPATH=@mctestsdir@/twisted
+
+export XDG_CONFIG_DIRS=@mctestsdir@/twisted
+export XDG_DATA_DIRS=@mctestsdir@/twisted
+
+TMP=/tmp/telepathy-mission-control-tests/tmp
+mkdir -p $TMP
+export XDG_CONFIG_HOME=$TMP
+export XDG_DATA_HOME=$TMP
+export XDG_CACHE_DIR=$TMP
+export XDG_CACHE_HOME=$TMP
+
+export G_DEBUG=fatal-criticals
+export MC_DEBUG=all
+export MC_FILTER_PLUGIN_DIR=@mctestsdir@/twisted/plugins
+export MC_ACCOUNT_DIR=/tmp/telepathy-mission-control-tests/accounts
+export MC_CLIENTS_DIR=@mctestsdir@/twisted/telepathy/clients
+export MC_MANAGER_DIR=@mctestsdir@/twisted/telepathy/managers
+export MC_FILTER_PLUGIN_DIR=@mctestsdir@/twisted/plugins
+mkdir -p $MC_ACCOUNT_DIR || exit 1
+
+if [ -n "$1" ] ; then
+  list="$1"
+else
+  list=$(cat @mctestsdir@/twisted/mc-twisted-tests.list)
+fi
+
+for i in $list ; do 
+  echo "Testing $i"
+  sh @mctestsdir@/twisted/tools/with-session-bus.sh \
+    --config-file=@mctestsdir@/twisted/tools/servicedir-installed/tmp-session-bus.conf \
+    -- \
+    @PYTHON@ @mctestsdir@/twisted/$i
+done
+
