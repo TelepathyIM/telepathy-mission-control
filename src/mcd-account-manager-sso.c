@@ -204,8 +204,7 @@ static void _sso_created (GObject *object,
     gpointer user_data);
 
 static void _sso_toggled (GObject *object,
-    const gchar *service_name,
-    gboolean enabled,
+    AgAccountId id,
     gpointer data);
 
 static gboolean save_setting (
@@ -544,8 +543,6 @@ static void watch_for_updates (McdAccountManagerSso *sso,
 
   service = ag_account_get_selected_service (account);
 
-  g_signal_connect (account, "enabled", G_CALLBACK (_sso_toggled), sso);
-
   data = make_watch_data (sso);
 
   ag_account_select_service (account, NULL);
@@ -559,18 +556,15 @@ static void watch_for_updates (McdAccountManagerSso *sso,
 }
 
 static void _sso_toggled (GObject *object,
-    const gchar *service_name,
-    gboolean enabled,
+    AgAccountId id,
     gpointer data)
 {
-  AgAccount *account = AG_ACCOUNT (object);
-  AgAccountId id = account->id;
+  AgManager *manager = AG_MANAGER (object);
   McdAccountManagerSso *sso = MCD_ACCOUNT_MANAGER_SSO (data);
   McpAccountStorage *mcpa = MCP_ACCOUNT_STORAGE (sso);
+  AgAccount *account = NULL;
   gboolean on = FALSE;
   const gchar *name = NULL;
-  AgService *service = NULL;
-  AgManager *manager = NULL;
 
   /* If the account manager isn't ready, account state changes are of no   *
    * interest to us: it will pick up the then-current state of the account *
@@ -579,24 +573,13 @@ static void _sso_toggled (GObject *object,
   if (!sso->ready)
     return;
 
-  manager = ag_account_get_manager (account);
-  service = ag_manager_get_service (manager, service_name);
+  account = ag_manager_get_account (manager, id);
 
-  /* Services of types other than IM (or whatever a subclass has told us to
-   * care about instead) don't interest us.
-   */
-  if (service != NULL)
+  if (account != NULL)
     {
-      const gchar *service_type = ag_service_get_service_type (service);
-      const gchar *our_service_type =
-          account_manager_sso_get_service_type (sso);
-
-      if (tp_strdiff (service_type, our_service_type))
-        return;
+      on = _sso_account_enabled (sso, account, NULL);
+      name = g_hash_table_lookup (sso->id_name_map, GUINT_TO_POINTER (id));
     }
-
-  on = _sso_account_enabled (sso, account, service);
-  name = g_hash_table_lookup (sso->id_name_map, GUINT_TO_POINTER (id));
 
   if (name != NULL)
     {
@@ -809,6 +792,8 @@ mcd_account_manager_sso_constructed (GObject *object)
   DEBUG ("Watching for services of type '%s'", service_type);
   self->ag_manager = ag_manager_new_for_service_type (service_type);
 
+  g_signal_connect(self->ag_manager, "enabled-event",
+      G_CALLBACK (_sso_toggled), self);
   g_signal_connect(self->ag_manager, "account-deleted",
       G_CALLBACK (_sso_deleted), self);
   g_signal_connect(self->ag_manager, "account-created",
