@@ -248,7 +248,7 @@ def test(q, bus, mc):
     not_yet = ret.value[0]
     assertEquals([], not_yet)
 
-    accounts_dir = os.environ['MC_ACCOUNT_DIR']
+    cache_dir = os.environ['XDG_CACHE_HOME']
 
     # fd.o #28557: when the file has been updated, the account parameter
     # has its two backslashes doubled to 4 (because of the .desktop encoding),
@@ -257,7 +257,7 @@ def test(q, bus, mc):
     updated = False
     while i < 500:
 
-        for line in open(accounts_dir +
+        for line in open(cache_dir +
                 '/mcp-test-diverted-account-plugin.conf', 'r'):
             if line.startswith('param-account=') and '\\' in line:
                 assertEquals(r'param-account=\\\\' + '\n', line)
