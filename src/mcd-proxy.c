@@ -37,7 +37,6 @@
 
 #include "mcd-proxy.h"
 
-#include <glib/gi18n.h>
 #include <telepathy-glib/telepathy-glib.h>
 
 #define MCD_PROXY_PRIV(proxy) (G_TYPE_INSTANCE_GET_PRIVATE ((proxy), \

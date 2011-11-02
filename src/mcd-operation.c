@@ -38,7 +38,6 @@
  * established.
  */
 
-#include <glib/gi18n.h>
 #include "mcd-operation.h"
 #include "mcd-mission-priv.h"
 

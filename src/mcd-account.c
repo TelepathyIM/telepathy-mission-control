@@ -29,7 +29,6 @@
 #include <string.h>
 
 #include <dbus/dbus.h>
-#include <glib/gi18n.h>
 #include <glib/gstdio.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/interfaces.h>

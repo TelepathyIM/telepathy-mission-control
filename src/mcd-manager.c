@@ -44,7 +44,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <glib/gi18n.h>
 #include <telepathy-glib/telepathy-glib.h>
 
 #include "mcd-connection.h"

@@ -38,7 +38,6 @@
 #include <dlfcn.h>
 #include <glib.h>
 #include <glib/gprintf.h>
-#include <glib/gi18n.h>
 
 #include <dbus/dbus-glib-lowlevel.h>
 

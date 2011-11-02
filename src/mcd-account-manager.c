@@ -24,7 +24,6 @@
 
 #include "mcd-account-manager.h"
 
-#include <glib/gi18n.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>

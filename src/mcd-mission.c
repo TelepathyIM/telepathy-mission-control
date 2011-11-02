@@ -51,7 +51,6 @@
 
 #include "mcd-mission-priv.h"
 
-#include <glib/gi18n.h>
 #include <telepathy-glib/telepathy-glib.h>
 
 #include "mcd-enum-types.h"

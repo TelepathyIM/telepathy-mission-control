@@ -37,8 +37,6 @@
 
 #include "mcd-channel.h"
 
-#include <glib/gi18n.h>
-
 #include <telepathy-glib/dbus.h>
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/interfaces.h>

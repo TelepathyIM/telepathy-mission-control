@@ -57,7 +57,6 @@
 #include <sys/types.h>
 #endif
 
-#include <glib/gi18n.h>
 #include <gmodule.h>
 #include <string.h>
 #include <dbus/dbus.h>

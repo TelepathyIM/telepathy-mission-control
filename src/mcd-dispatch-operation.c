@@ -31,7 +31,6 @@
 #include <dbus/dbus.h>
 #include <dbus/dbus-glib-lowlevel.h>
 
-#include <glib/gi18n.h>
 #include <glib/gstdio.h>
 
 #include <telepathy-glib/defs.h>
