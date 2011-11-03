@@ -76,6 +76,7 @@ TAGS
 /telepathy-mission-control-5*
 /tests/account-store
 /tests/keyring-command
+/tests/tease-the-minotaur
 /tests/test-*
 tests/mc-client
 tests/twisted/with-session-bus-*.dbus-monitor-logs
