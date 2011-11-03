@@ -11,6 +11,7 @@
 *.gcda
 *.gcno
 *.gcov
+/data/*.valid
 /doc/reference/*/html
 /doc/reference/*/xml
 /doc/reference/*/*-decl-list.txt
