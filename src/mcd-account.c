@@ -884,20 +884,25 @@ mcd_account_request_presence_int (McdAccount *account,
         }
     }
 
-    if (changed)
-    {
-        _mcd_account_set_changing_presence (account, TRUE);
-    }
-
     if (priv->connection == NULL)
     {
         if (type >= TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
         {
+            if (changed)
+            {
+                _mcd_account_set_changing_presence (account, TRUE);
+            }
+
             _mcd_account_connection_begin (account, user_initiated);
         }
     }
     else
     {
+        if (changed)
+        {
+            _mcd_account_set_changing_presence (account, TRUE);
+        }
+
         _mcd_connection_request_presence (priv->connection,
                                           priv->req_presence_type,
 					  priv->req_presence_status,

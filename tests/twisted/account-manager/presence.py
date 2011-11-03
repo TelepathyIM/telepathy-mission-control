@@ -30,11 +30,45 @@ def test(q, bus, mc):
         "password": "ionstorm"}, signature='sv')
     (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
 
-
-    # Go online with a particular presence
     presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_BUSY), 'busy',
             'Fighting conspiracies'), signature='uss')
 
+    def mk_offline(message=''):
+        return dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE), 'offline',
+            message), signature='uss')
+
+    offline = mk_offline()
+
+    # While the account is disabled, pushing stuff into RequestedPresence
+    # should not make ChangingPresence become True.
+    assert not account.Properties.Get(cs.ACCOUNT, 'Enabled')
+    assert not account.Properties.Get(cs.ACCOUNT, 'ChangingPresence')
+    events = [
+        EventPattern('dbus-signal', signal='AccountPropertyChanged',
+            predicate=lambda e: 'ChangingPresence' in e.args[0]),
+        EventPattern('dbus-method-call', method='RequestConnection'),
+        ]
+    q.forbid_events(events)
+    account.Properties.Set(cs.ACCOUNT, 'RequestedPresence', presence)
+    account.Properties.Set(cs.ACCOUNT, 'RequestedPresence', offline)
+    account.Properties.Set(cs.ACCOUNT, 'RequestedPresence', presence)
+    account.Properties.Set(cs.ACCOUNT, 'RequestedPresence', offline)
+
+    # Check that changing the message associated with our requested offline
+    # presence doesn't make anything happen either.
+    account.Properties.Set(cs.ACCOUNT, 'RequestedPresence',
+        mk_offline('byeeee'))
+
+    # Enable the account; RequestedPresence is still offline, so this should
+    # have no effect on ChangingPresence.
+    account.Properties.Set(cs.ACCOUNT, 'Enabled', True)
+    account.Properties.Set(cs.ACCOUNT, 'Enabled', False)
+
+    sync_dbus(bus, q, account)
+    assert not account.Properties.Get(cs.ACCOUNT, 'ChangingPresence')
+    q.unforbid_events(events)
+
+    # Go online with a particular presence
     log = []
 
     # FIXME: using predicate for its side-effects here is weird
