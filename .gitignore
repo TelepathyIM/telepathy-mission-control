@@ -12,6 +12,7 @@
 *.gcno
 *.gcov
 /data/*.valid
+/data/gschemas.compiled
 /doc/reference/*/html
 /doc/reference/*/xml
 /doc/reference/*/*-decl-list.txt

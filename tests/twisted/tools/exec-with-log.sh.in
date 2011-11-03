@@ -63,6 +63,8 @@ if test -f "$MC_ACCOUNT_DIR/gnome-keyring-env"; then
         export GNOME_KEYRING_CONTROL GNOME_KEYRING_PID MC_KEYRING_NAME SSH_AUTH_SOCK
 fi
 
+export GSETTINGS_SCHEMA_DIR=@abs_top_builddir@/data
+
 exec @abs_top_builddir@/libtool --mode=execute \
         $MISSIONCONTROL_WRAPPER \
         $MC_EXECUTABLE
