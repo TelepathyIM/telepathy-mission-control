@@ -30,8 +30,6 @@ def test(q, bus, mc):
         "password": "ionstorm"}, signature='sv')
     (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
 
-    account_iface = dbus.Interface(account, cs.ACCOUNT)
-    account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)
 
     # Go online with a particular presence
     presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_BUSY), 'busy',
@@ -92,7 +90,7 @@ def test(q, bus, mc):
     # Change requested presence after going online
     presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_AWAY), 'away',
             'In Hong Kong'), signature='uss')
-    call_async(q, account_props, 'Set', cs.ACCOUNT, 'RequestedPresence',
+    call_async(q, account.Properties, 'Set', cs.ACCOUNT, 'RequestedPresence',
             presence)
 
     e, _, _ = q.expect_many(
@@ -121,7 +119,7 @@ def test(q, bus, mc):
 
     presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_AWAY), 'away',
             'In Hong Kong'), signature='uss')
-    call_async(q, account_props, 'Set', cs.ACCOUNT, 'RequestedPresence',
+    call_async(q, account.Properties, 'Set', cs.ACCOUNT, 'RequestedPresence',
             presence)
 
     e = q.expect('dbus-method-call',
