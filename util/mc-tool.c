@@ -640,6 +640,8 @@ command_show (TpAccount *account)
     show ("Nickname", tp_account_get_nickname (account));
     show ("Service", tp_account_get_service (account));
 
+    puts ("");
+    puts ("Presences:");
     automatic.type = tp_account_get_automatic_presence (account,
                                                      &automatic.status,
                                                      &automatic.message);
@@ -657,6 +659,9 @@ command_show (TpAccount *account)
                                                         &requested.message);
     show_presence ("Requested", &requested);
     free_presence (&requested);
+
+    show ("Changing",
+        tp_account_get_changing_presence (account) ? "yes" : "no");
 
     puts ("");
     parameters = tp_account_get_parameters (account);
