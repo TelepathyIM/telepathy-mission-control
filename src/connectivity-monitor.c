@@ -485,7 +485,7 @@ mcd_connectivity_monitor_set_use_conn (McdConnectivityMonitor *connectivity_moni
   if (use_conn == priv->use_conn)
     return;
 
-  DEBUG ("use_conn GSetting key changed; new value = %s",
+  DEBUG ("use-conn GSettings key changed; new value = %s",
       use_conn ? "true" : "false");
 
   priv->use_conn = use_conn;
