@@ -11,6 +11,8 @@
 *.gcda
 *.gcno
 *.gcov
+/data/*.valid
+/data/gschemas.compiled
 /doc/reference/*/html
 /doc/reference/*/xml
 /doc/reference/*/*-decl-list.txt
@@ -51,8 +53,6 @@ install-sh
 /lcov.html
 /lcov.info
 /lcov.info.tmp
-libmcclient.pc
-libmcclient/diff
 libtool
 ltmain.sh
 /m4/gtk-doc.m4
@@ -76,6 +76,7 @@ TAGS
 /telepathy-mission-control-5*
 /tests/account-store
 /tests/keyring-command
+/tests/tease-the-minotaur
 /tests/test-*
 tests/mc-client
 tests/twisted/with-session-bus-*.dbus-monitor-logs

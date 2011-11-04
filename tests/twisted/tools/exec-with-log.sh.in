@@ -51,7 +51,8 @@ elif test -n "$MISSIONCONTROL_TEST_REFDBG"; then
 fi
 
 # The bus-daemon that is activating us doesn't know it's also the system bus
-export DBUS_SYSTEM_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS"
+DBUS_SYSTEM_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS"
+export DBUS_SYSTEM_BUS_ADDRESS
 
 if test "z$MC_EXECUTABLE" = z; then
         MC_EXECUTABLE=@abs_top_builddir@/tests/twisted/mc-debug-server
@@ -62,6 +63,9 @@ if test -f "$MC_ACCOUNT_DIR/gnome-keyring-env"; then
         . "$MC_ACCOUNT_DIR/gnome-keyring-env"
         export GNOME_KEYRING_CONTROL GNOME_KEYRING_PID MC_KEYRING_NAME SSH_AUTH_SOCK
 fi
+
+GSETTINGS_SCHEMA_DIR=@abs_top_builddir@/data
+export GSETTINGS_SCHEMA_DIR
 
 exec @abs_top_builddir@/libtool --mode=execute \
         $MISSIONCONTROL_WRAPPER \

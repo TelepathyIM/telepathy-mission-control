@@ -7,6 +7,7 @@ CHECK_FOR_UNRELEASED := \
     $(NULL)
 
 SUBDIRS = \
+    data \
     m4 \
     tools \
     xml \
