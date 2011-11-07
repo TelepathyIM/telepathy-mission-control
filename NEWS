@@ -1,7 +1,36 @@
-telepathy-mission-control 5.9.4 (UNRELEASED)
-============================================
+telepathy-mission-control 5.10.0 (UNRELEASED)
+=============================================
 
-…
+The “Imagine ALL the people!” release. Welcome to a new stable branch of
+Mission Control.
+
+A quick summary of what's changed since 5.8.x:
+
+• DelegateChannels and PresentChannel, as used by Gnome Shell 3.2, have
+  been added.
+
+• libmcclient has been removed.
+
+• MC now optionally uses Network Manager or ConnMan to monitor network
+  connectivity state, and UPower to be notified that the machine is
+  about to suspend.
+
+• Lots of crashes and leaks and bugs have been fixed.
+
+And, specifically since 5.9.3:
+
+• fd.o#41927: It is now possible to install the MC test suite. (albanc)
+
+• fd.o#42068: MC now has a GSettings key to force it to believe it is
+  online, even if NM/ConnMan says it is offline. This key is kept in
+  sync with the corresponding GSettings key provided by Empathy by some
+  black magic with aliased DConf paths. (wjt)
+
+• http://bugs.debian.org/644589: fix build with UPower but no NM or
+  ConnMan (jonny)
+
+• fd.o#42548: Account.ChangingPresence is now more accurate
+  (particularly on disabled accounts). (wjt)
 
 telepathy-mission-control 5.9.3 (2011-10-04)
 ============================================
