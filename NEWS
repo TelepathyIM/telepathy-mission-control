@@ -1,3 +1,15 @@
+telepathy-mission-control 5.10.1 (2011-11-08)
+=============================================
+
+The “Why would i want a debugger? I don't know. Why do you want a face?”
+release.
+
+Fixes:
+
+• An unnecessary enum definition, which conflicted with the one provided
+  by Empathy, has been removed from the GSettings schema. (Thanks,
+  ioni.)
+
 telepathy-mission-control 5.10.0 (2011-11-07)
 =============================================
 

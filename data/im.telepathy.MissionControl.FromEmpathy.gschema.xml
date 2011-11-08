@@ -1,12 +1,4 @@
 <schemalist>
-
-  <enum id="position">
-    <value nick="top-left" value="1"/>
-    <value nick="top-right" value="2"/>
-    <value nick="bottom-left" value="3"/>
-    <value nick="bottom-right" value="4"/>
-  </enum>
-
   <!-- sic: we are aliasing dconf key paths from Empathy's schema -->
   <schema id="im.telepathy.MissionControl.FromEmpathy" path="/org/gnome/empathy/">
     <key name="use-conn" type="b">
