@@ -105,7 +105,7 @@ G_DEFINE_TYPE_WITH_CODE (McdRequest, _mcd_request, G_TYPE_OBJECT,
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
                            tp_dbus_properties_mixin_iface_init))
 
-#define REQUEST_OBJ_BASE "/com/nokia/MissionControl/requests/r"
+#define REQUEST_OBJ_BASE "/org/freedesktop/Telepathy/ChannelDispatcher/Request"
 
 static guint last_req_id = 1;
 
