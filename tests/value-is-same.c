@@ -79,12 +79,6 @@ test_numeric (void)
   g_value_set_uint64 (g_value_init (&different, G_TYPE_UINT64), -23);
   assert_and_unset (&value, &same, &different);
 
-  /* FIXME: why is this supported? char doesn't exist on D-Bus */
-  g_value_set_char (g_value_init (&value, G_TYPE_CHAR), 42);
-  g_value_set_char (g_value_init (&same, G_TYPE_CHAR), 42);
-  g_value_set_char (g_value_init (&different, G_TYPE_CHAR), 23);
-  assert_and_unset (&value, &same, &different);
-
   g_value_set_uchar (g_value_init (&value, G_TYPE_UCHAR), 42);
   g_value_set_uchar (g_value_init (&same, G_TYPE_UCHAR), 42);
   g_value_set_uchar (g_value_init (&different, G_TYPE_UCHAR), 23);
