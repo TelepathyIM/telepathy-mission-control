@@ -4450,3 +4450,19 @@ mcd_account_dup_display_name (McdAccount *self)
 
     return mcd_storage_dup_string (self->priv->storage, name, "DisplayName");
 }
+
+gchar *
+mcd_account_dup_icon (McdAccount *self)
+{
+    const gchar *name = mcd_account_get_unique_name (self);
+
+    return mcd_storage_dup_string (self->priv->storage, name, "Icon");
+}
+
+gchar *
+mcd_account_dup_nickname (McdAccount *self)
+{
+    const gchar *name = mcd_account_get_unique_name (self);
+
+    return mcd_storage_dup_string (self->priv->storage, name, "Nickname");
+}
