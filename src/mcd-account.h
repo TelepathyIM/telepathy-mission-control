@@ -144,6 +144,10 @@ void mcd_account_property_changed (McdAccount *account, const gchar *name);
 
 gchar * mcd_account_dup_display_name (McdAccount *self);
 
+gboolean mcd_account_get_parameter (McdAccount *account, const gchar *name,
+                           GValue *parameter,
+                           GError **error);
+
 G_END_DECLS
 
 #endif

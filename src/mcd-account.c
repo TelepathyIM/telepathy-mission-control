@@ -423,7 +423,7 @@ static GType mc_param_type (const TpConnectionManagerParam *param);
  *
  * Returns: %TRUE if the parameter could be retrieved; %FALSE otherwise
  */
-static gboolean
+gboolean
 mcd_account_get_parameter (McdAccount *account, const gchar *name,
                            GValue *parameter,
                            GError **error)
