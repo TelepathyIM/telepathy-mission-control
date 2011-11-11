@@ -4442,3 +4442,11 @@ _mcd_account_set_changing_presence (McdAccount *self, gboolean value)
 
     g_value_unset (&changing_presence);
 }
+
+gchar *
+mcd_account_dup_display_name (McdAccount *self)
+{
+    const gchar *name = mcd_account_get_unique_name (self);
+
+    return mcd_storage_dup_string (self->priv->storage, name, "DisplayName");
+}

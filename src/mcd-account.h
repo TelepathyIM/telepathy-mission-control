@@ -142,6 +142,8 @@ gboolean mcd_account_parameter_is_secret (McdAccount *self,
 
 void mcd_account_property_changed (McdAccount *account, const gchar *name);
 
+gchar * mcd_account_dup_display_name (McdAccount *self);
+
 G_END_DECLS
 
 #endif
