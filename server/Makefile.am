@@ -36,7 +36,21 @@ mission_control_5_SOURCES = mc-server.c
 mission_control_5_LDADD = \
 	$(GLIB_LIBS) \
 	$(TELEPATHY_LIBS) \
+	$(DBUS_LIBS) \
 	$(top_builddir)/src/libmissioncontrol-server.la \
 	$(top_builddir)/mission-control-plugins/libmission-control-plugins.la
+
+Android.mk: Makefile.am
+	androgenizer -:PROJECT telepathy-mission-control \
+	 -:SHARED libmission-control-5 -:TAGS eng debug \
+	 -:REL_TOP $(top_srcdir) -:ABS_TOP $(abs_top_srcdir) \
+	 -:SOURCES $(mission_control_5_SOURCES) \
+	 -:CFLAGS $(DEFAULT_INCLUDES) $(DEFS) $(CFLAGS) $(AM_CFLAGS) \
+	 -:CPPFLAGS $(CPPFLAGS) $(AM_CPPFLAGS) $(INCLUDES) \
+	  -DBUILD_AS_ANDROID_SERVICE \
+	 -:LDFLAGS $(mission_control_5_LDADD) \
+	 -:LIBFILTER_STATIC missioncontrol-server mission-control-plugins \
+	  mcclient \
+	> $@
 
 endif

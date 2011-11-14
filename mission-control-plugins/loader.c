@@ -52,6 +52,13 @@ static gboolean debugging = FALSE;
   G_STMT_START { if (debugging || mcp_is_debugging (MCP_DEBUG_LOADER))  \
       g_debug ("%s " format, G_STRLOC, ##__VA_ARGS__); } G_STMT_END
 
+/* Android's build system prefixes the plugins with lib */
+#ifndef __BIONIC__
+#define PLUGIN_PREFIX "mcp-"
+#else
+#define PLUGIN_PREFIX "libmcp-"
+#endif
+
 /**
  * mcp_set_debug:
  * @debug: whether to log debug output
@@ -146,9 +153,9 @@ mcp_read_dir (const gchar *path)
       gchar *full_path;
       GModule *module;
 
-      if (!g_str_has_prefix (entry, "mcp-"))
+      if (!g_str_has_prefix (entry, PLUGIN_PREFIX))
         {
-          DEBUG ("%s isn't a plugin (doesn't start with mcp-)", entry);
+          DEBUG ("%s isn't a plugin (doesn't start with " PLUGIN_PREFIX ")", entry);
           continue;
         }
 

@@ -1,13 +1,17 @@
 AM_CPPFLAGS = \
 	-I$(top_srcdir) \
 	$(DBUS_CFLAGS) \
+	$(LIBFFI_CFLAGS) \
 	$(GLIB_CFLAGS) \
+	$(GIO_CFLAGS) \
 	$(TELEPATHY_CFLAGS) 
 
 LDADD = \
+	$(LIBFFI_LIBS) \
 	$(GLIB_LIBS) \
 	$(DBUS_LIBS) \
-	$(TELEPATHY_LIBS)
+	$(TELEPATHY_LIBS) \
+	$(GIO_LIBS)
 
 AM_CFLAGS = $(ERROR_CFLAGS)
 
@@ -27,3 +31,14 @@ CLEANFILES = $(man1_MANS)
 
 mc-wait-for-name.1: mc-wait-for-name.1.in Makefile
 	$(AM_V_GEN)sed -e 's![@]bindir[@]!@bindir@!g' < $< > $@
+
+Android.mk: Makefile.am
+	androgenizer -:PROJECT telepathy_mission_controll \
+	 -:EXECUTABLE mc-tool -:TAGS eng debug \
+	 -:REL_TOP $(top_srcdir) -:ABS_TOP $(abs_top_srcdir) \
+	 -:SOURCES $(mc_tool_SOURCES) \
+	 -:CFLAGS $(DEFS) $(CFLAGS) $(DEFAULT_INCLUDES) $(INCLUDES) \
+	  $(AM_CFLAGS) \
+	 -:CPPFLAGS $(CPPFLAGS) $(AM_CPPFLAGS) \
+	 -:LDFLAGS $(mc_tool_LDADD) \
+	> $@

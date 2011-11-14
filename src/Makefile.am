@@ -279,6 +279,17 @@ EXTRA_DIST = \
 	mcd-signals-marshal.list \
 	stamp-mcd-enum-types.h
 
+Android.mk: Makefile.am $(nodist_libmcd_convenience_la_SOURCES)
+	androgenizer  -:PROJECT telepathy-mission-control \
+	 -:STATIC libmissioncontrol-server \
+	 -:TAGS eng debug \
+	 -:REL_TOP $(top_srcdir) -:ABS_TOP $(abs_top_srcdir) \
+	 -:SOURCES $(libmcd_convenience_la_SOURCES) $(nodist_libmcd_convenience_la_SOURCES) \
+	 -:CFLAGS $(DEFAULT_INCLUDES) $(INCLUDES) $(DEFS) $(CFLAGS) $(AM_CFLAGS) \
+	 -:CPPFLAGS $(CPPFLAGS) $(AM_CPPFLAGS) \
+	 -:LDFLAGS $(libmcd_convenience_la_LIBADD) \
+	> $@
+
 # ---- telepathy-glib-style code generation ----
 
 tools_dir = $(top_srcdir)/tools

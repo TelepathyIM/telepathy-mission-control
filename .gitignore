@@ -31,6 +31,7 @@
 /doc/reference/mission-control-plugins/*.txt
 .libs
 .deps
+Android.mk
 Makefile
 Makefile.in
 _gen/

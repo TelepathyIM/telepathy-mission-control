@@ -33,6 +33,10 @@
 
 static TpDebugSender *debug_sender;
 
+#ifdef BUILD_AS_ANDROID_SERVICE
+int telepathy_mission_control_main (int argc, char **argv);
+#endif
+
 static void
 on_abort (McdService * mcd)
 {
@@ -46,7 +50,11 @@ on_abort (McdService * mcd)
 }
 
 int
+#ifdef BUILD_AS_ANDROID_SERVICE
+telepathy_mission_control_main (int argc, char **argv)
+#else
 main (int argc, char **argv)
+#endif
 {
     McdService *mcd;
 
