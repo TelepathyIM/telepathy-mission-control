@@ -1140,16 +1140,22 @@ typedef struct
 {
     McdAccountManager *self;
     McdAccount *account;
+    McdLoadAccountsData *lad;
 } MigrateCtx;
 
 static MigrateCtx *
 migrate_ctx_new (McdAccountManager *self,
-                 McdAccount *account)
+                 McdAccount *account,
+                 McdLoadAccountsData *lad)
 {
     MigrateCtx *ctx = g_slice_new (MigrateCtx);
 
     ctx->self = g_object_ref (self);
     ctx->account = g_object_ref (account);
+    ctx->lad = lad;
+
+    /* Lock attempting to migrate the account */
+    lad->account_lock++;
     return ctx;
 }
 
@@ -1158,7 +1164,19 @@ migrate_ctx_free (MigrateCtx *ctx)
 {
     g_object_unref (ctx->self);
     g_object_unref (ctx->account);
+    release_load_accounts_lock (ctx->lad);
     g_slice_free (MigrateCtx, ctx);
+}
+
+
+static void
+migrate_delete_account_cb (McdAccount *account,
+                           const GError *error,
+                           gpointer user_data)
+{
+    MigrateCtx *ctx = user_data;
+
+    migrate_ctx_free (ctx);
 }
 
 static void
@@ -1167,19 +1185,20 @@ migrate_create_account_cb (McdAccountManager *account_manager,
                            const GError *error,
                            gpointer user_data)
 {
-    McdAccount *old_account = user_data;
+    MigrateCtx *ctx = user_data;
 
     if (error != NULL)
     {
         DEBUG ("Failed to create account: %s", error->message);
-        _mcd_account_set_enabled (old_account, FALSE, TRUE, NULL);
+        _mcd_account_set_enabled (ctx->account, FALSE, TRUE, NULL);
+        migrate_ctx_free (ctx);
         return;
     }
 
     DEBUG ("Account %s migrated, removing it",
-           mcd_account_get_unique_name (old_account));
+           mcd_account_get_unique_name (ctx->account));
 
-    mcd_account_delete (old_account, NULL, NULL);
+    mcd_account_delete (ctx->account, migrate_delete_account_cb, ctx);
 }
 
 static void
@@ -1197,14 +1216,14 @@ migrate_butterfly_haze_ready (McdManager *manager,
     {
         DEBUG ("Can't find Haze: %s", error->message);
         _mcd_account_set_enabled (ctx->account, FALSE, TRUE, NULL);
-        goto out;
+        goto error;
     }
 
     /* Parameters; we just care about 'account' */
     if (!mcd_account_get_parameter (ctx->account, "account", &v, NULL))
     {
         _mcd_account_set_enabled (ctx->account, FALSE, TRUE, NULL);
-        goto out;
+        goto error;
     }
 
     parameters = g_hash_table_new (g_str_hash, g_str_equal);
@@ -1232,16 +1251,15 @@ migrate_butterfly_haze_ready (McdManager *manager,
     _mcd_account_manager_create_account (ctx->self,
                                        "haze", "msn", display_name,
                                        parameters, properties,
-                                       migrate_create_account_cb,
-                                       g_object_ref (ctx->account),
-                                       g_object_unref);
+                                       migrate_create_account_cb, ctx, NULL);
 
     g_value_unset (&v);
     g_free (display_name);
     g_hash_table_unref (parameters);
     g_hash_table_unref (properties);
+    return;
 
-out:
+error:
     migrate_ctx_free (ctx);
 }
 
@@ -1250,13 +1268,12 @@ butterfly_account_loaded (McdAccount *account,
                           const GError *error,
                           gpointer user_data)
 {
-    McdAccountManager *self = user_data;
+    MigrateCtx *ctx = user_data;
     McdMaster *master = mcd_master_get_default ();
     McdManager *manager;
-    MigrateCtx *ctx;
 
     if (error != NULL)
-        return;
+        goto error;
 
     DEBUG ("Try migrating butterfly account %s",
            mcd_account_get_unique_name (account));
@@ -1267,25 +1284,33 @@ butterfly_account_loaded (McdAccount *account,
     {
         DEBUG ("Can't find Haze");
         _mcd_account_set_enabled (account, FALSE, TRUE, NULL);
-        return;
+        goto error;
     }
 
-    ctx = migrate_ctx_new (self, account);
-
     mcd_manager_call_when_ready (manager, migrate_butterfly_haze_ready, ctx);
+    return;
+
+error:
+    migrate_ctx_free (ctx);
 }
 
 static void
 migrate_butterfly_account (McdAccountManager *self,
-                           McdAccount *account)
+                           McdAccount *account,
+                           McdLoadAccountsData *lad)
 {
-    _mcd_account_load (account, butterfly_account_loaded, self);
+    MigrateCtx *ctx;
+
+    ctx = migrate_ctx_new (self, account, lad);
+
+    _mcd_account_load (account, butterfly_account_loaded, ctx);
 }
 
 /* Migrate some specific type of account. If something went wrong during the
  * migration we disable it. */
 static void
-migrate_accounts (McdAccountManager *self)
+migrate_accounts (McdAccountManager *self,
+                  McdLoadAccountsData *lad)
 {
     McdAccountManagerPrivate *priv = self->priv;
     GHashTableIter iter;
@@ -1303,7 +1328,7 @@ migrate_accounts (McdAccountManager *self)
             continue;
 
         if (!tp_strdiff (cm->name, "butterfly"))
-            migrate_butterfly_account (self, account);
+            migrate_butterfly_account (self, account, lad);
     }
 }
 
@@ -1382,9 +1407,9 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
 
     uncork_storage_plugins (account_manager);
 
-    release_load_accounts_lock (lad);
+    migrate_accounts (account_manager, lad);
 
-    migrate_accounts (account_manager);
+    release_load_accounts_lock (lad);
 }
 
 static void
