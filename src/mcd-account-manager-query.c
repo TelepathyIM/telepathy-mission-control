@@ -335,14 +335,14 @@ account_manager_find_accounts (McSvcAccountManagerInterfaceQuery *self,
         accounts = _mcd_account_manager_get_accounts (account_manager);
         g_hash_table_foreach (accounts, find_accounts, &fd);
     }
-    g_array_free (fd.params, TRUE);
+    g_array_unref (fd.params);
     for (i = 0; i < fd.properties->len; i++)
     {
 	McdIfaceProperty *prop;
 	prop = &g_array_index (fd.properties, McdIfaceProperty, i);
 	g_free (prop->iface);
     }
-    g_array_free (fd.properties, TRUE);
+    g_array_unref (fd.properties);
 
     if (fd.error)
     {
@@ -353,7 +353,7 @@ account_manager_find_accounts (McSvcAccountManagerInterfaceQuery *self,
 
     mc_svc_account_manager_interface_query_return_from_find_accounts (context,
 								      fd.accounts);
-    g_ptr_array_free (fd.accounts, TRUE);
+    g_ptr_array_unref (fd.accounts);
 }
 
 

@@ -1418,7 +1418,7 @@ mcd_channel_ready_to_depart_cb (TpChannel *channel,
             channel, -1, a, d->message, d->reason,
             mcd_channel_depart_cb, NULL, NULL, NULL);
 
-        g_array_free (a, TRUE);
+        g_array_unref (a);
         g_free (d->message);
         g_slice_free (DepartData, d);
     }

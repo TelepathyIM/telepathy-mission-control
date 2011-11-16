@@ -477,7 +477,7 @@ _mcd_connection_setup_presence (McdConnection *connection)
         (priv->tp_conn, -1, self_handle_array,
          mcd_connection_initial_presence_cb, priv, NULL,
          (GObject *) connection);
-    g_array_free (self_handle_array, TRUE);
+    g_array_unref (self_handle_array);
 
     tp_cli_dbus_properties_call_get
         (priv->tp_conn, -1, TP_IFACE_CONNECTION_INTERFACE_SIMPLE_PRESENCE,
@@ -638,7 +638,7 @@ _mcd_connection_setup_capabilities (McdConnection *connection)
 				   G_TYPE_UINT, G_TYPE_INVALID);
     for (i = 0; i < capabilities->len; i++)
 	g_boxed_free (type, g_ptr_array_index (capabilities, i));
-    g_ptr_array_free (capabilities, TRUE);
+    g_ptr_array_unref (capabilities);
 }
 
 static void
@@ -849,7 +849,7 @@ avatars_request_tokens_cb (TpConnection *proxy, GHashTable *tokens,
     {
         DEBUG ("No avatar set, setting our own");
         _mcd_connection_set_avatar (connection, avatar, mime_type);
-        g_array_free (avatar, TRUE);
+        g_array_unref (avatar);
     }
     g_free (mime_type);
 }
@@ -900,7 +900,7 @@ _mcd_connection_setup_avatar (McdConnection *connection)
 									      priv, NULL,
 									      (GObject *)connection);
 	}
-	g_array_free (avatar, TRUE);
+	g_array_unref (avatar);
     }
     g_free (mime_type);
 }
@@ -972,7 +972,7 @@ _mcd_connection_set_nickname (McdConnection *connection,
 							   aliasing_set_aliases_cb,
 							   priv, NULL,
 							   (GObject *)connection);
-    g_hash_table_destroy (aliases);
+    g_hash_table_unref (aliases);
 }
 
 static void
@@ -1028,7 +1028,7 @@ _mcd_connection_setup_alias (McdConnection *connection)
     tp_cli_connection_interface_aliasing_call_get_aliases
         (priv->tp_conn, -1, self_handle_array, _mcd_connection_get_aliases_cb,
          priv, NULL, (GObject *) connection);
-    g_array_free (self_handle_array, TRUE);
+    g_array_unref (self_handle_array);
 }
 
 static void
@@ -1542,7 +1542,7 @@ list_channels_cb (TpConnection *connection,
         g_hash_table_insert (channel_props, TP_IFACE_CHANNEL ".TargetHandle",
                              va->values + 3);
         mcd_connection_found_channel (self, object_path, channel_props);
-        g_hash_table_destroy (channel_props);
+        g_hash_table_unref (channel_props);
     }
 
     self->priv->dispatched_initial_channels = TRUE;
@@ -1788,7 +1788,7 @@ mcd_connection_early_get_interfaces_cb (TpConnection *tp_conn,
                     _mcd_connection_update_client_caps (self, client_caps);
                     g_ptr_array_foreach (client_caps,
                                          (GFunc) g_value_array_free, NULL);
-                    g_ptr_array_free (client_caps, TRUE);
+                    g_ptr_array_unref (client_caps);
                 }
                 /* else the McdDispatcher hasn't sorted itself out yet, so
                  * we can't usefully pre-load capabilities - we'll be told
@@ -1950,7 +1950,7 @@ _mcd_connection_finalize (GObject * object)
 
     g_free (priv->alias);
     if (priv->recognized_presences)
-        g_hash_table_destroy (priv->recognized_presences);
+        g_hash_table_unref (priv->recognized_presences);
 
     G_OBJECT_CLASS (mcd_connection_parent_class)->finalize (object);
 }

@@ -53,7 +53,7 @@ mcd_provisioning_factory_dispose (GObject *object)
     McdProvisioningFactoryPriv *priv = MCD_PROVISIONING_FACTORY_GET_PRIV (object);
     if (priv->provs)
     {
-	g_hash_table_destroy (priv->provs);
+	g_hash_table_unref (priv->provs);
 	priv->provs = NULL;
     }
     G_OBJECT_CLASS (mcd_provisioning_factory_parent_class)->dispose (object);

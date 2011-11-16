@@ -542,7 +542,7 @@ account_external_password_storage_get_accounts_cb (TpProxy *cm,
       props,
       NULL);
 
-  g_hash_table_destroy (props);
+  g_hash_table_unref (props);
 }
 
 static void
@@ -2898,7 +2898,7 @@ _mcd_account_finalize (GObject *object)
     DEBUG ("%p (%s)", object, priv->unique_name);
 
     if (priv->changed_properties)
-	g_hash_table_destroy (priv->changed_properties);
+	g_hash_table_unref (priv->changed_properties);
     if (priv->properties_source != 0)
 	g_source_remove (priv->properties_source);
 
@@ -4193,7 +4193,7 @@ mcd_account_connection_ready_cb (McdAccount *account,
                                             mcd_account_self_handle_inspected_cb,
                                             NULL, NULL,
                                             (GObject *) account);
-    g_array_free (self_handle_array, TRUE);
+    g_array_unref (self_handle_array);
 
     /* FIXME: ideally, on protocols with server-stored nicknames, this should
      * only be done if the local Nickname has been changed since last time we

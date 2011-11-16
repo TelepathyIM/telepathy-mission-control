@@ -478,7 +478,7 @@ mcd_client_registry_dispose (GObject *object)
 
     }
 
-  tp_clear_pointer (&self->priv->clients, g_hash_table_destroy);
+  tp_clear_pointer (&self->priv->clients, g_hash_table_unref);
 
   if (chain_up != NULL)
     chain_up (object);

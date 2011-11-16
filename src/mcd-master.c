@@ -250,7 +250,7 @@ mcd_master_unload_mcd_plugins (McdMaster *master)
 	module = g_ptr_array_index (priv->mcd_plugins, i);
 	g_module_close (module);
     }
-    g_ptr_array_free (priv->mcd_plugins, TRUE);
+    g_ptr_array_unref (priv->mcd_plugins);
     priv->mcd_plugins = NULL;
 }
 
@@ -405,7 +405,7 @@ _mcd_master_dispose (GObject * object)
 						  object);
 	    g_object_unref (plugin);
 	}
-	g_ptr_array_free (priv->transport_plugins, TRUE);
+	g_ptr_array_unref (priv->transport_plugins);
 	priv->transport_plugins = NULL;
     }
 

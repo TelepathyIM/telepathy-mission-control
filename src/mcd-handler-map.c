@@ -141,7 +141,7 @@ _mcd_handler_map_dispose (GObject *object)
 {
     McdHandlerMap *self = MCD_HANDLER_MAP (object);
 
-    tp_clear_pointer (&self->priv->handled_channels, g_hash_table_destroy);
+    tp_clear_pointer (&self->priv->handled_channels, g_hash_table_unref);
 
     if (self->priv->handler_processes != NULL)
     {
@@ -160,7 +160,7 @@ _mcd_handler_map_dispose (GObject *object)
 
     }
 
-    tp_clear_pointer (&self->priv->handler_processes, g_hash_table_destroy);
+    tp_clear_pointer (&self->priv->handler_processes, g_hash_table_unref);
     tp_clear_object (&self->priv->dbus_daemon);
 
     G_OBJECT_CLASS (_mcd_handler_map_parent_class)->dispose (object);
@@ -171,9 +171,9 @@ _mcd_handler_map_finalize (GObject *object)
 {
     McdHandlerMap *self = MCD_HANDLER_MAP (object);
 
-    tp_clear_pointer (&self->priv->channel_processes, g_hash_table_destroy);
-    tp_clear_pointer (&self->priv->channel_clients, g_hash_table_destroy);
-    tp_clear_pointer (&self->priv->channel_accounts, g_hash_table_destroy);
+    tp_clear_pointer (&self->priv->channel_processes, g_hash_table_unref);
+    tp_clear_pointer (&self->priv->channel_clients, g_hash_table_unref);
+    tp_clear_pointer (&self->priv->channel_accounts, g_hash_table_unref);
 
     G_OBJECT_CLASS (_mcd_handler_map_parent_class)->finalize (object);
 }

@@ -331,7 +331,7 @@ get_all_iter (GetAllData *data)
     {
       tp_svc_dbus_properties_return_from_get_all (data->context,
                                                   data->properties);
-      g_hash_table_destroy (data->properties);
+      g_hash_table_unref (data->properties);
       g_slice_free (GetAllData, data);
 
     }

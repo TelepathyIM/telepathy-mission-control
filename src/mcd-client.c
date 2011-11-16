@@ -494,7 +494,7 @@ _mcd_client_proxy_set_filters (McdClientProxy *client,
             client_filters = g_list_prepend (client_filters,
                                              new_channel_class);
         else
-            g_hash_table_destroy (new_channel_class);
+            g_hash_table_unref (new_channel_class);
     }
 
     switch (interface)
@@ -634,8 +634,8 @@ _mcd_client_recover_observer (McdClientProxy *self, TpChannel *channel,
         NULL, NULL, NULL, NULL);
 
     _mcd_tp_channel_details_free (channels_array);
-    g_ptr_array_free (satisfied_requests, TRUE);
-    g_hash_table_destroy (observer_info);
+    g_ptr_array_unref (satisfied_requests);
+    g_hash_table_unref (observer_info);
 }
 
 static void
@@ -1367,7 +1367,7 @@ mcd_client_proxy_free_client_filters (GList **client_filters)
 
     if (*client_filters != NULL)
     {
-        g_list_foreach (*client_filters, (GFunc) g_hash_table_destroy, NULL);
+        g_list_foreach (*client_filters, (GFunc) g_hash_table_unref, NULL);
         g_list_free (*client_filters);
         *client_filters = NULL;
     }
@@ -1786,6 +1786,6 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
         callback, user_data, destroy, weak_object);
 
     _mcd_tp_channel_details_free (channel_details);
-    g_ptr_array_free (requests_satisfied, TRUE);
+    g_ptr_array_unref (requests_satisfied);
     g_hash_table_unref (handler_info);
 }

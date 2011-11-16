@@ -1298,7 +1298,7 @@ _mcd_account_manager_finalize (GObject *object)
     remove (priv->account_connections_file);
     g_free (priv->account_connections_file);
 
-    g_hash_table_destroy (priv->accounts);
+    g_hash_table_unref (priv->accounts);
 
     G_OBJECT_CLASS (mcd_account_manager_parent_class)->finalize (object);
 }

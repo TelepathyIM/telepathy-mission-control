@@ -849,7 +849,7 @@ mcd_dispatcher_client_registry_ready_cb (McdClientRegistry *clients,
     }
 
     g_ptr_array_foreach (vas, (GFunc) g_value_array_free, NULL);
-    g_ptr_array_free (vas, TRUE);
+    g_ptr_array_unref (vas);
 }
 
 static void
@@ -903,7 +903,7 @@ _mcd_dispatcher_dispose (GObject * object)
         tp_clear_object (&priv->clients);
     }
 
-    tp_clear_pointer (&priv->connections, g_hash_table_destroy);
+    tp_clear_pointer (&priv->connections, g_hash_table_unref);
     tp_clear_object (&priv->master);
     tp_clear_object (&priv->dbus_daemon);
 
@@ -940,7 +940,7 @@ mcd_dispatcher_update_client_caps (McdDispatcher *self,
     }
 
     g_ptr_array_foreach (vas, (GFunc) g_value_array_free, NULL);
-    g_ptr_array_free (vas, TRUE);
+    g_ptr_array_unref (vas);
 }
 
 static void
@@ -2126,7 +2126,7 @@ _mcd_dispatcher_add_connection (McdDispatcher *self,
         _mcd_connection_start_dispatching (connection, vas);
 
         g_ptr_array_foreach (vas, (GFunc) g_value_array_free, NULL);
-        g_ptr_array_free (vas, TRUE);
+        g_ptr_array_unref (vas);
     }
     /* else _mcd_connection_start_dispatching will be called when we're ready
      * for it */

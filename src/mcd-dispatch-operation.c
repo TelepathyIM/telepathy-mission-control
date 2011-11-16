@@ -2138,7 +2138,7 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
         g_list_free (observed);
     }
 
-    g_hash_table_destroy (observer_info);
+    g_hash_table_unref (observer_info);
 }
 
 static void
