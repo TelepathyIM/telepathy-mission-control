@@ -980,6 +980,10 @@ _ag_accountid_to_mc_key (McdAccountManagerSso *sso,
       DEBUG (MC_IDENTITY_KEY " value %p:%s synthesised", name, name);
       return name;
     }
+  else
+    {
+      g_value_unset (&value);
+    }
 
   DEBUG (MC_IDENTITY_KEY " not synthesised, returning NULL");
   return NULL;
