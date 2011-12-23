@@ -64,6 +64,10 @@
 #include <dbus/dbus-glib-lowlevel.h>
 #include <telepathy-glib/telepathy-glib.h>
 
+#ifdef G_OS_WIN32
+#include <io.h>
+#endif
+
 #include "kludge-transport.h"
 #include "mcd-master.h"
 #include "mcd-master-priv.h"
