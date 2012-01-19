@@ -376,6 +376,16 @@ fi
 AM_CONDITIONAL(HAVE_NM, test "x$have_nm" = "xyes")
 AM_CONDITIONAL(HAVE_CONNMAN, test "x$have_connman" = "xyes")
 
+AC_ARG_ENABLE([conn-setting],
+    [AS_HELP_STRING([--enable-conn-setting],
+         [use a GSetting to control automatic connectivity @<:@default=yes@:>@])],
+    [],
+    [enable_conn_setting=yes])
+if test x"$enable_conn_setting" = xyes; then
+  AC_DEFINE([ENABLE_CONN_SETTING], [1], [Define to use the "use-conn" GSetting])
+fi
+AM_CONDITIONAL([ENABLE_CONN_SETTING], [test x"$enable_conn_setting" = xyes])
+
 # -----------------------------------------------------------
 # Suspend/resume tracking goop
 # -----------------------------------------------------------
@@ -460,6 +470,7 @@ Configure summary:
         Gnome Keyring................:  ${keyring_enabled}
         Network Manager integration..:  ${have_nm}
         ConnMan integration..........:  ${have_connman}
+        Connectivity GSetting........:  ${enable_conn_setting}
         Suspend tracking with UPower.:  ${have_upower}
         Aegis........................:  ${aegis_enabled}
         libaccounts-glib backend.....:  ${libaccounts_sso_enabled}
