@@ -321,6 +321,23 @@ show_presence (gchar const *what, struct presence *presence)
     presence->type, presence->message);
 }
 
+static int
+show_uri_schemes (const gchar * const *schemes)
+{
+  int result;
+  gchar *tmp;
+
+  if (schemes == NULL || schemes[0] == NULL)
+    tmp = g_strdup ("");
+  else
+    tmp = g_strjoinv (", ", (gchar **) schemes);
+
+  result = printf ("%12s: %s\n", "URIScheme", tmp);
+
+  g_free (tmp);
+  return result;
+}
+
 static void
 free_presence (struct presence *presence)
 {
@@ -625,6 +642,7 @@ command_show (TpAccount *account)
     GHashTableIter i[1];
     gpointer keyp, valuep;
     struct presence automatic, current, requested;
+    const gchar * const *schemes;
 
     name = skip_prefix (command.common.account);
 
@@ -662,6 +680,11 @@ command_show (TpAccount *account)
 
     show ("Changing",
         tp_account_get_changing_presence (account) ? "yes" : "no");
+
+    puts ("");
+    puts ("Addressing:");
+    schemes = tp_account_get_uri_schemes (account);
+    show_uri_schemes (schemes);
 
     puts ("");
     parameters = tp_account_get_parameters (account);
@@ -1250,6 +1273,8 @@ main (int argc, char **argv)
         tp_proxy_prepare_async (am, NULL, manager_ready, NULL);
     }
     else {
+	const GQuark features[] = { TP_ACCOUNT_FEATURE_CORE, TP_ACCOUNT_FEATURE_ADDRESSING, 0 };
+
 	command.common.account = ensure_prefix (command.common.account);
 	a = tp_account_new (dbus, command.common.account, &error);
 
@@ -1261,7 +1286,7 @@ main (int argc, char **argv)
 	    goto out;
 	}
 
-	tp_proxy_prepare_async (a, NULL, account_ready, NULL);
+	tp_proxy_prepare_async (a, features, account_ready, NULL);
     }
 
     main_loop = g_main_loop_new (NULL, FALSE);
