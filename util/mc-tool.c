@@ -504,12 +504,25 @@ getter_by_name(char *name)
 
 /* ====================================================================== */
 
+static gint
+compare_accounts (gconstpointer a,
+                  gconstpointer b)
+{
+    return strcmp (tp_account_get_path_suffix (TP_ACCOUNT (a)),
+                   tp_account_get_path_suffix (TP_ACCOUNT (b)));
+}
+
+static GList *
+get_valid_accounts_sorted (TpAccountManager *manager)
+{
+    return g_list_sort (tp_account_manager_get_valid_accounts (manager),
+                        compare_accounts);
+}
+
 static gboolean
 command_list (TpAccountManager *manager)
 {
-    GList *accounts;
-
-    accounts = tp_account_manager_get_valid_accounts (manager);
+    GList *accounts = get_valid_accounts_sorted (manager);
 
     if (accounts != NULL) {
 	GList *ptr;
