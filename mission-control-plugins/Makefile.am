@@ -33,7 +33,7 @@ plugins_include_HEADERS = \
 
 libmission_control_plugins_la_LDFLAGS = \
 	-export-symbols-regex "^(mcp_)" \
-	-version-info "@MCP_LT_CURRENT@":"@MCP_LT_REVISION@":"@MCP_LT_AGE@"
+	-no-undefined -version-info "@MCP_LT_CURRENT@":"@MCP_LT_REVISION@":"@MCP_LT_AGE@"
 
 libmission_control_plugins_la_LIBADD = \
 	$(TELEPATHY_LIBS) \
