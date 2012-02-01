@@ -135,14 +135,6 @@ static char *ensure_prefix (char const *string)
     return g_strdup_printf ("%s%s", TP_ACCOUNT_OBJECT_PATH_BASE, string);
 }
 
-static const char *skip_prefix (char const *string)
-{
-    const char *prefixed = strip_prefix (string, TP_ACCOUNT_OBJECT_PATH_BASE);
-    if (prefixed != NULL)
-	return prefixed;
-    return string;
-}
-
 static void
 _g_value_free (gpointer data)
 {
@@ -525,7 +517,7 @@ command_list (TpAccountManager *manager)
 	command.common.ret = 0;
 
 	for (ptr = accounts; ptr != NULL; ptr = ptr->next) {
-	    puts (skip_prefix (tp_proxy_get_object_path (ptr->data)));
+	    puts (tp_account_get_path_suffix (ptr->data));
 	}
 
 	g_list_free (accounts);
@@ -548,7 +540,7 @@ callback_for_create_account (GObject *source,
 
     if (account != NULL) {
 	command.common.ret = 0;
-	puts (skip_prefix (tp_proxy_get_object_path (account)));
+	puts (tp_account_get_path_suffix (account));
     }
     else {
 	fprintf (stderr, "%s %s: %s\n", app_name, command.common.name,
@@ -591,7 +583,7 @@ callback_for_update_parameters (GObject *source,
             printf ("  %s\n", r);
             printf ("run:\n");
             printf ("  %s reconnect %s\n", app_name,
-                    skip_prefix (command.common.account));
+                    tp_account_get_path_suffix (account));
             g_free (r);
             g_strfreev (reconnect_required);
         }
@@ -637,16 +629,13 @@ command_remove (TpAccount *account)
 static gboolean
 command_show (TpAccount *account)
 {
-    gchar const *name;
     const GHashTable *parameters;
     GHashTableIter i[1];
     gpointer keyp, valuep;
     struct presence automatic, current, requested;
     const gchar * const *schemes;
 
-    name = skip_prefix (command.common.account);
-
-    show ("Account", name);
+    show ("Account", tp_account_get_path_suffix (account));
     show ("Display Name", tp_account_get_display_name (account));
     show ("Normalized", tp_account_get_normalized_name (account));
     show ("Enabled", tp_account_is_enabled (account) ? "enabled" : "disabled");
@@ -721,7 +710,7 @@ command_connection (TpAccount *account)
     }
     else {
 	fprintf(stderr, "%s: no connection\n",
-		skip_prefix (command.common.account));
+		tp_account_get_path_suffix (account));
     }
 
     return FALSE;
@@ -1225,20 +1214,21 @@ void manager_ready (GObject *manager,
 }
 
 static
-void account_ready (GObject *account,
+void account_ready (GObject *source,
 		    GAsyncResult *res,
 		    gpointer user_data)
 {
+    TpAccount *account = TP_ACCOUNT (source);
     GError *error = NULL;
 
     if (!tp_proxy_prepare_finish (account, res, &error)) {
         fprintf (stderr, "%s: couldn't load account '%s': %s\n", app_name,
-            skip_prefix (command.common.account), error->message);
+            tp_account_get_path_suffix (account), error->message);
         fprintf (stderr, "Try '%s list' to list known accounts.\n", app_name);
         g_error_free (error);
     }
     else {
-        if (command.ready.account (TP_ACCOUNT (account)))
+        if (command.ready.account (account))
             return;
     }
 
