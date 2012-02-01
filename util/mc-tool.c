@@ -42,6 +42,7 @@ show_help (gchar * err)
 
     printf ("Usage:\n"
 	    "    %1$s list\n"
+	    "    %1$s summary\n"
 	    "    %1$s add <manager>/<protocol> <display name> [<param> ...]\n"
 	    "    %1$s update <account name> [<param>|clear:key] ...\n"
 	    "    %1$s display <account name> <display name>\n"
@@ -539,6 +540,48 @@ command_list (TpAccountManager *manager)
     return FALSE;                 /* stop mainloop */
 }
 
+static gboolean
+command_summary (TpAccountManager *manager)
+{
+    GList *accounts, *l;
+    guint longest_account = 0;
+
+    accounts = tp_account_manager_get_valid_accounts (manager);
+    if (accounts == NULL) {
+        return FALSE;
+    }
+    command.common.ret = 0;
+
+    for (l = accounts; l != NULL; l = l->next) {
+        TpAccount *account = TP_ACCOUNT (l->data);
+
+        longest_account = MAX (longest_account,
+            strlen (tp_account_get_path_suffix (account)));
+    }
+
+    /* The -6 is so we can line up the "Enabled" header to have the ticks and
+     * crosses below the 7th and final character. We're only guaranteed
+     * longest_account ≥ 5 in theory (a/b/c is the shortest legal suffix) but
+     * in practice it's always going to be ≥ 7.
+     */
+    g_return_val_if_fail (longest_account >= 7, FALSE);
+    printf ("%-*s %s %s\n", longest_account - 6, "Account", "Enabled", "Requested");
+    printf ("%-*s %s %s\n", longest_account - 6, "=======", "=======", "=========");
+
+    for (l = accounts; l != NULL; l = l->next) {
+        TpAccount *account = TP_ACCOUNT (l->data);
+        gchar *status;
+
+        tp_account_get_requested_presence (account, &status, NULL);
+        printf ("%-*s %s %s\n",
+            longest_account, tp_account_get_path_suffix (account),
+            tp_account_is_enabled (account) ? "✓" : "☐",
+            status);
+    }
+
+    g_list_free (accounts);
+    return FALSE; /* stop mainloop */
+}
 
 static void
 callback_for_create_account (GObject *source,
@@ -976,6 +1019,14 @@ parse (int argc, char **argv)
 	    show_help ("Invalid list command.");
 
 	command.ready.manager = command_list;
+    }
+    else if (strcmp (argv[1], "summary") == 0)
+    {
+        /* List accounts */
+        if (argc != 2)
+            show_help ("Invalid summary command.");
+
+        command.ready.manager = command_summary;
     }
     else if (strcmp  (argv[1], "remove") == 0
 	     || strcmp (argv[1], "delete") == 0)
