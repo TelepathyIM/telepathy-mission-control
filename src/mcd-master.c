@@ -222,13 +222,32 @@ mcd_master_connect_automatic_accounts (McdMaster *master)
     }
 }
 
+static const gchar *
+mcd_transport_status_to_string (McdTransportStatus status)
+{
+    switch (status)
+    {
+        case MCD_TRANSPORT_STATUS_CONNECTED:
+            return "connected";
+        case MCD_TRANSPORT_STATUS_CONNECTING:
+            return "connecting";
+        case MCD_TRANSPORT_STATUS_DISCONNECTED:
+            return "disconnected";
+        case MCD_TRANSPORT_STATUS_DISCONNECTING:
+            return "disconnecting";
+    }
+
+    return "invalid";
+}
+
 static void
 on_transport_status_changed (McdTransportPlugin *plugin,
 			     McdTransport *transport,
 			     McdTransportStatus status, McdMaster *master)
 {
-    DEBUG ("Transport %s changed status to %u",
-           mcd_transport_get_name (plugin, transport), status);
+    DEBUG ("Transport %s changed status to %u (%s)",
+           mcd_transport_get_name (plugin, transport), status,
+           mcd_transport_status_to_string (status));
 
     if (status == MCD_TRANSPORT_STATUS_CONNECTED)
 	mcd_master_transport_connected (master, plugin, transport);
