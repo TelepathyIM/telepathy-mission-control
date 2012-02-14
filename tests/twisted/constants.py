@@ -1,5 +1,5 @@
 # Copyright (C) 2009 Nokia Corporation
-# Copyright (C) 2009 Collabora Ltd.
+# Copyright (C) 2009-2012 Collabora Ltd.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -173,6 +173,7 @@ ACCOUNT_IFACE_ADDRESSING = ACCOUNT + '.Interface.Addressing'
 ACCOUNT_IFACE_HIDDEN = ACCOUNT + '.Interface.Hidden.DRAFT1'
 ACCOUNT_IFACE_NOKIA_COMPAT = 'com.nokia.Account.Interface.Compat'
 ACCOUNT_IFACE_NOKIA_CONDITIONS = 'com.nokia.Account.Interface.Conditions'
+ACCOUNT_PATH_PREFIX = tp_path_prefix + '/Account/'
 
 AM = tp_name_prefix + '.AccountManager'
 AM_IFACE_HIDDEN = AM + '.Interface.Hidden.DRAFT1'
