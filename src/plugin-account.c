@@ -2,7 +2,7 @@
  * deliberately a "smaller" API than McdAccountManager.
  *
  * Copyright © 2010 Nokia Corporation
- * Copyright © 2010 Collabora Ltd.
+ * Copyright © 2010-2012 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -27,9 +27,9 @@
 
 #include <string.h>
 
-#include "mission-control-plugins/implementation.h"
+#include <telepathy-glib/telepathy-glib.h>
 
-#include <telepathy-glib/util.h>
+#include "mission-control-plugins/implementation.h"
 
 /* these pseudo-plugins take care of the actual account storage/retrieval */
 #include "mcd-account-manager-default.h"
@@ -554,6 +554,38 @@ _storage_dup_value (McdStorage *storage,
                 value = tp_g_value_slice_new_take_object_path (v_string);
               }
           }
+        else if (type == TP_ARRAY_TYPE_OBJECT_PATH_LIST)
+          {
+            gchar **v =
+              g_key_file_get_string_list (keyfile, account, key, NULL, error);
+            gchar **iter;
+            GPtrArray *arr = g_ptr_array_new ();
+
+            for (iter = v; iter != NULL && *iter != NULL; iter++)
+              {
+                if (!g_variant_is_object_path (*iter))
+                  {
+                    g_set_error (error, MCD_ACCOUNT_ERROR,
+                        MCD_ACCOUNT_ERROR_GET_PARAMETER,
+                        "Invalid object path %s stored in account", *iter);
+                    g_strfreev (v);
+                    v = NULL;
+                    break;
+                  }
+              }
+
+            for (iter = v; iter != NULL && *iter != NULL; iter++)
+              {
+                /* transfer ownership from v to arr */
+                g_ptr_array_add (arr, *iter);
+              }
+
+            /* not g_strfreev - the strings' ownership has been transferred */
+            g_free (v);
+
+            value = tp_g_value_slice_new_take_boxed (
+              TP_ARRAY_TYPE_OBJECT_PATH_LIST, arr);
+          }
         else
           {
             gchar *message =
@@ -744,6 +776,13 @@ _storage_set_value (McdStorage *storage,
               {
                 g_key_file_set_string (self->keyfile, name, key,
                     g_value_get_boxed (value));
+              }
+            else if (G_VALUE_HOLDS (value, TP_ARRAY_TYPE_OBJECT_PATH_LIST))
+              {
+                GPtrArray *arr = g_value_get_boxed (value);
+
+                g_key_file_set_string_list (self->keyfile, name, key,
+                    (const gchar * const *) arr->pdata, arr->len);
               }
             else
               {
