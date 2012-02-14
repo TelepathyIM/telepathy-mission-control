@@ -4,7 +4,7 @@
  * This file is part of mission-control
  *
  * Copyright © 2007-2011 Nokia Corporation.
- * Copyright © 2009-2011 Collabora Ltd.
+ * Copyright © 2009-2012 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -1212,6 +1212,8 @@ migrate_butterfly_haze_ready (McdManager *manager,
     GValue v = {0,};
     GHashTable *parameters, *properties;
     gchar *str;
+    GPtrArray *supersedes;
+    GPtrArray *old_supersedes;
 
     if (error != NULL)
     {
@@ -1245,6 +1247,23 @@ migrate_butterfly_haze_ready (McdManager *manager,
     str = mcd_account_dup_nickname (ctx->account);
     if (str != NULL)
         tp_asv_take_string (properties, TP_PROP_ACCOUNT_NICKNAME, str);
+
+    supersedes = g_ptr_array_new ();
+    old_supersedes = _mcd_account_get_supersedes (ctx->account);
+
+    if (old_supersedes != NULL)
+    {
+        guint i;
+
+        for (i = 0; i < old_supersedes->len; i++)
+            g_ptr_array_add (supersedes,
+                             g_strdup (g_ptr_array_index (old_supersedes, i)));
+    }
+
+    g_ptr_array_add (supersedes,
+                     g_strdup (mcd_account_get_object_path (ctx->account)));
+    tp_asv_take_boxed (properties, TP_PROP_ACCOUNT_SUPERSEDES,
+                       TP_ARRAY_TYPE_OBJECT_PATH_LIST, supersedes);
 
     /* Set the service while we're on it */
     tp_asv_set_string (properties, TP_PROP_ACCOUNT_SERVICE, "windows-live");

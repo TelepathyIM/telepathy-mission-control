@@ -3731,6 +3731,12 @@ _mcd_account_get_avatar (McdAccount *account, GArray **avatar,
     g_free (filename);
 }
 
+GPtrArray *
+_mcd_account_get_supersedes (McdAccount *self)
+{
+  return self->priv->supersedes;
+}
+
 static void
 mcd_account_connection_self_nickname_changed_cb (McdAccount *account,
                                                  const gchar *alias,
