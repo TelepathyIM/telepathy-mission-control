@@ -4,7 +4,7 @@
  * This file is part of mission-control
  *
  * Copyright © 2008–2010 Nokia Corporation.
- * Copyright © 2009–2011 Collabora Ltd.
+ * Copyright © 2009–2012 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -140,6 +140,7 @@ struct _McdAccountPrivate
     McdAccountConnectionContext *connection_context;
     GKeyFile *keyfile;		/* configuration file */
     McpAccountStorage *storage_plugin;
+    GPtrArray *supersedes;
 
     /* connection status */
     TpConnectionStatus conn_status;
@@ -422,7 +423,7 @@ static GType mc_param_type (const TpConnectionManagerParam *param);
  *
  * Returns: %TRUE if the parameter could be retrieved; %FALSE otherwise
  */
-static gboolean
+gboolean
 mcd_account_get_parameter (McdAccount *account, const gchar *name,
                            GValue *parameter,
                            GError **error)
@@ -1780,6 +1781,49 @@ get_normalized_name (TpSvcDBusProperties *self,
     mcd_account_get_string_val (account, name, value);
 }
 
+static gboolean
+set_supersedes (TpSvcDBusProperties *svc,
+    const gchar *name,
+    const GValue *value,
+    GError **error)
+{
+  McdAccount *self = MCD_ACCOUNT (svc);
+
+  if (!G_VALUE_HOLDS (value, TP_ARRAY_TYPE_OBJECT_PATH_LIST))
+    {
+      g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+          "Unexpected type for Supersedes: wanted 'ao', got %s",
+          G_VALUE_TYPE_NAME (value));
+      return FALSE;
+    }
+
+  if (self->priv->supersedes != NULL)
+    g_ptr_array_unref (self->priv->supersedes);
+
+  self->priv->supersedes = g_value_dup_boxed (value);
+  mcd_account_changed_property (self, name, value);
+
+  mcd_storage_set_value (self->priv->storage, self->priv->unique_name,
+      MC_ACCOUNTS_KEY_SUPERSEDES, value, FALSE);
+  mcd_storage_commit (self->priv->storage, self->priv->unique_name);
+
+  return TRUE;
+}
+
+static void
+get_supersedes (TpSvcDBusProperties *svc,
+    const gchar *name,
+    GValue *value)
+{
+  McdAccount *self = MCD_ACCOUNT (svc);
+
+  if (self->priv->supersedes == NULL)
+    self->priv->supersedes = g_ptr_array_new ();
+
+  g_value_init (value, TP_ARRAY_TYPE_OBJECT_PATH_LIST);
+  g_value_set_boxed (value, self->priv->supersedes);
+}
+
 static McpAccountStorage *
 get_storage_plugin (McdAccount *account)
 {
@@ -1898,6 +1942,7 @@ static const McdDBusProp account_properties[] = {
     { "ChangingPresence", NULL, get_changing_presence },
     { "NormalizedName", NULL, get_normalized_name },
     { "HasBeenOnline", NULL, get_has_been_online },
+    { "Supersedes", set_supersedes, get_supersedes },
     { 0 },
 };
 
@@ -2730,6 +2775,7 @@ mcd_account_setup (McdAccount *account)
     McdAccountPrivate *priv = account->priv;
     McdStorage *storage = priv->storage;
     const gchar *name = mcd_account_get_unique_name (account);
+    GValue *value;
 
     priv->manager_name =
       mcd_storage_dup_string (storage, name, MC_ACCOUNTS_KEY_MANAGER);
@@ -2795,6 +2841,23 @@ mcd_account_setup (McdAccount *account)
     priv->auto_presence_message =
       mcd_storage_dup_string (storage, name,
                               MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE);
+
+    value = mcd_storage_dup_value (storage, name,
+                                   MC_ACCOUNTS_KEY_SUPERSEDES,
+                                   TP_ARRAY_TYPE_OBJECT_PATH_LIST, NULL);
+
+    if (priv->supersedes != NULL)
+        g_ptr_array_unref (priv->supersedes);
+
+    if (value == NULL)
+    {
+        priv->supersedes = g_ptr_array_new ();
+    }
+    else
+    {
+        priv->supersedes = g_value_dup_boxed (value);
+        tp_g_value_slice_free (value);
+    }
 
     /* check the manager */
     if (!priv->manager && !load_manager (account))
@@ -3667,6 +3730,12 @@ _mcd_account_get_avatar (McdAccount *account, GArray **avatar,
     g_free (filename);
 }
 
+GPtrArray *
+_mcd_account_get_supersedes (McdAccount *self)
+{
+  return self->priv->supersedes;
+}
+
 static void
 mcd_account_connection_self_nickname_changed_cb (McdAccount *account,
                                                  const gchar *alias,
@@ -4440,4 +4509,28 @@ _mcd_account_set_changing_presence (McdAccount *self, gboolean value)
                                   &changing_presence);
 
     g_value_unset (&changing_presence);
+}
+
+gchar *
+mcd_account_dup_display_name (McdAccount *self)
+{
+    const gchar *name = mcd_account_get_unique_name (self);
+
+    return mcd_storage_dup_string (self->priv->storage, name, "DisplayName");
+}
+
+gchar *
+mcd_account_dup_icon (McdAccount *self)
+{
+    const gchar *name = mcd_account_get_unique_name (self);
+
+    return mcd_storage_dup_string (self->priv->storage, name, "Icon");
+}
+
+gchar *
+mcd_account_dup_nickname (McdAccount *self)
+{
+    const gchar *name = mcd_account_get_unique_name (self);
+
+    return mcd_storage_dup_string (self->priv->storage, name, "Nickname");
 }

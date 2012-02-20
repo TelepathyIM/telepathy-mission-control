@@ -1,5 +1,5 @@
 # Copyright (C) 2009 Nokia Corporation
-# Copyright (C) 2009 Collabora Ltd.
+# Copyright (C) 2009-2012 Collabora Ltd.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -21,7 +21,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async
+        call_async, assertEquals
 from mctest import exec_test, create_fakecm_account, AccountManager
 import constants as cs
 
@@ -52,6 +52,7 @@ def test(q, bus, mc):
     assert (cs.ACCOUNT_IFACE_NOKIA_CONDITIONS + '.Condition') in supported
 
     assert (cs.ACCOUNT + '.RequestedPresence') in supported
+    assert (cs.ACCOUNT + '.Supersedes') in supported
 
     params = dbus.Dictionary({"account": "anarki@example.com",
         "password": "secrecy"}, signature='sv')
@@ -76,6 +77,10 @@ def test(q, bus, mc):
             dbus.Array(['x-ioquake3', 'x-quake3'], signature='s'),
         cs.ACCOUNT_IFACE_NOKIA_CONDITIONS + '.Condition':
             dbus.Dictionary({ 'has-quad-damage': ':y' }, signature='ss'),
+        cs.ACCOUNT + '.Supersedes': dbus.Array([
+            cs.ACCOUNT_PATH_PREFIX + 'q1/q1/Ranger',
+            cs.ACCOUNT_PATH_PREFIX + 'q2/q2/Grunt',
+            ], signature='o'),
         }, signature='sv')
 
     call_async(q, account_manager, 'CreateAccount',
@@ -122,6 +127,12 @@ def test(q, bus, mc):
         properties.get('Icon')
     assert properties.get('Nickname') == 'AnArKi', \
         properties.get('Nickname')
+    assertEquals(
+            dbus.Array([
+                cs.ACCOUNT_PATH_PREFIX + 'q1/q1/Ranger',
+                cs.ACCOUNT_PATH_PREFIX + 'q2/q2/Grunt',
+                ], signature='o'),
+        properties.get('Supersedes'))
 
     properties = account_props.GetAll(cs.ACCOUNT_IFACE_AVATAR)
     assert properties.get('Avatar') == ([ord('f'), ord('o'), ord('o')],

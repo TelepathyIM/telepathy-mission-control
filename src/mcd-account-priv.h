@@ -87,6 +87,7 @@ G_GNUC_INTERNAL void _mcd_account_set_alias (McdAccount *account,
                                              const gchar *alias);
 
 G_GNUC_INTERNAL gchar *_mcd_account_get_avatar_filename (McdAccount *account);
+G_GNUC_INTERNAL GPtrArray *_mcd_account_get_supersedes (McdAccount *self);
 
 G_GNUC_INTERNAL void _mcd_account_tp_connection_changed (McdAccount *account,
     TpConnection *tp_conn);

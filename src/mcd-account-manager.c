@@ -4,7 +4,7 @@
  * This file is part of mission-control
  *
  * Copyright © 2007-2011 Nokia Corporation.
- * Copyright © 2009-2011 Collabora Ltd.
+ * Copyright © 2009-2012 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -1028,6 +1028,7 @@ get_supported_account_properties (TpSvcDBusProperties *svc,
         TP_IFACE_ACCOUNT ".Nickname",
         TP_IFACE_ACCOUNT ".ConnectAutomatically",
         TP_IFACE_ACCOUNT ".RequestedPresence",
+        TP_IFACE_ACCOUNT ".Supersedes",
         TP_IFACE_ACCOUNT_INTERFACE_AVATAR ".Avatar",
         MC_IFACE_ACCOUNT_INTERFACE_COMPAT ".SecondaryVCardFields",
         MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS ".Condition",
@@ -1135,6 +1136,221 @@ uncork_storage_plugins (McdAccountManager *account_manager)
     _mcd_plugin_account_manager_ready (priv->plugin_manager);
 }
 
+typedef struct
+{
+    McdAccountManager *self;
+    McdAccount *account;
+    McdLoadAccountsData *lad;
+} MigrateCtx;
+
+static MigrateCtx *
+migrate_ctx_new (McdAccountManager *self,
+                 McdAccount *account,
+                 McdLoadAccountsData *lad)
+{
+    MigrateCtx *ctx = g_slice_new (MigrateCtx);
+
+    ctx->self = g_object_ref (self);
+    ctx->account = g_object_ref (account);
+    ctx->lad = lad;
+
+    /* Lock attempting to migrate the account */
+    lad->account_lock++;
+    return ctx;
+}
+
+static void
+migrate_ctx_free (MigrateCtx *ctx)
+{
+    g_object_unref (ctx->self);
+    g_object_unref (ctx->account);
+    release_load_accounts_lock (ctx->lad);
+    g_slice_free (MigrateCtx, ctx);
+}
+
+
+static void
+migrate_delete_account_cb (McdAccount *account,
+                           const GError *error,
+                           gpointer user_data)
+{
+    MigrateCtx *ctx = user_data;
+
+    migrate_ctx_free (ctx);
+}
+
+static void
+migrate_create_account_cb (McdAccountManager *account_manager,
+                           McdAccount *account,
+                           const GError *error,
+                           gpointer user_data)
+{
+    MigrateCtx *ctx = user_data;
+
+    if (error != NULL)
+    {
+        DEBUG ("Failed to create account: %s", error->message);
+        _mcd_account_set_enabled (ctx->account, FALSE, TRUE, NULL);
+        migrate_ctx_free (ctx);
+        return;
+    }
+
+    DEBUG ("Account %s migrated, removing it",
+           mcd_account_get_unique_name (ctx->account));
+
+    mcd_account_delete (ctx->account, migrate_delete_account_cb, ctx);
+}
+
+static void
+migrate_butterfly_haze_ready (McdManager *manager,
+                              const GError *error,
+                              gpointer user_data)
+{
+    MigrateCtx *ctx = user_data;
+    gchar *display_name;
+    GValue v = {0,};
+    GHashTable *parameters, *properties;
+    gchar *str;
+    GPtrArray *supersedes;
+    GPtrArray *old_supersedes;
+
+    if (error != NULL)
+    {
+        DEBUG ("Can't find Haze: %s", error->message);
+        _mcd_account_set_enabled (ctx->account, FALSE, TRUE, NULL);
+        goto error;
+    }
+
+    /* Parameters; we just care about 'account' */
+    if (!mcd_account_get_parameter (ctx->account, "account", &v, NULL))
+    {
+        _mcd_account_set_enabled (ctx->account, FALSE, TRUE, NULL);
+        goto error;
+    }
+
+    parameters = g_hash_table_new (g_str_hash, g_str_equal);
+    g_hash_table_insert (parameters, "account", &v);
+
+    display_name = mcd_account_dup_display_name (ctx->account);
+
+    /* Properties */
+    properties = tp_asv_new (NULL, NULL);
+
+    str = mcd_account_dup_icon (ctx->account);
+    if (str != NULL)
+        tp_asv_take_string (properties, TP_PROP_ACCOUNT_ICON, str);
+
+    tp_asv_set_boolean (properties, TP_PROP_ACCOUNT_ENABLED,
+                        mcd_account_is_enabled (ctx->account));
+
+    str = mcd_account_dup_nickname (ctx->account);
+    if (str != NULL)
+        tp_asv_take_string (properties, TP_PROP_ACCOUNT_NICKNAME, str);
+
+    supersedes = g_ptr_array_new ();
+    old_supersedes = _mcd_account_get_supersedes (ctx->account);
+
+    if (old_supersedes != NULL)
+    {
+        guint i;
+
+        for (i = 0; i < old_supersedes->len; i++)
+            g_ptr_array_add (supersedes,
+                             g_strdup (g_ptr_array_index (old_supersedes, i)));
+    }
+
+    g_ptr_array_add (supersedes,
+                     g_strdup (mcd_account_get_object_path (ctx->account)));
+    tp_asv_take_boxed (properties, TP_PROP_ACCOUNT_SUPERSEDES,
+                       TP_ARRAY_TYPE_OBJECT_PATH_LIST, supersedes);
+
+    /* Set the service while we're on it */
+    tp_asv_set_string (properties, TP_PROP_ACCOUNT_SERVICE, "windows-live");
+
+    _mcd_account_manager_create_account (ctx->self,
+                                       "haze", "msn", display_name,
+                                       parameters, properties,
+                                       migrate_create_account_cb, ctx, NULL);
+
+    g_value_unset (&v);
+    g_free (display_name);
+    g_hash_table_unref (parameters);
+    g_hash_table_unref (properties);
+    return;
+
+error:
+    migrate_ctx_free (ctx);
+}
+
+static void
+butterfly_account_loaded (McdAccount *account,
+                          const GError *error,
+                          gpointer user_data)
+{
+    MigrateCtx *ctx = user_data;
+    McdMaster *master = mcd_master_get_default ();
+    McdManager *manager;
+
+    if (error != NULL)
+        goto error;
+
+    DEBUG ("Try migrating butterfly account %s",
+           mcd_account_get_unique_name (account));
+
+    /* Check if Haze is installed */
+    manager = _mcd_master_lookup_manager (master, "haze");
+    if (manager == NULL)
+    {
+        DEBUG ("Can't find Haze");
+        _mcd_account_set_enabled (account, FALSE, TRUE, NULL);
+        goto error;
+    }
+
+    mcd_manager_call_when_ready (manager, migrate_butterfly_haze_ready, ctx);
+    return;
+
+error:
+    migrate_ctx_free (ctx);
+}
+
+static void
+migrate_butterfly_account (McdAccountManager *self,
+                           McdAccount *account,
+                           McdLoadAccountsData *lad)
+{
+    MigrateCtx *ctx;
+
+    ctx = migrate_ctx_new (self, account, lad);
+
+    _mcd_account_load (account, butterfly_account_loaded, ctx);
+}
+
+/* Migrate some specific type of account. If something went wrong during the
+ * migration we disable it. */
+static void
+migrate_accounts (McdAccountManager *self,
+                  McdLoadAccountsData *lad)
+{
+    McdAccountManagerPrivate *priv = self->priv;
+    GHashTableIter iter;
+    gpointer v;
+
+    g_hash_table_iter_init (&iter, priv->accounts);
+    while (g_hash_table_iter_next (&iter, NULL, &v))
+    {
+        McdAccount *account = v;
+        TpConnectionManager *cm;
+
+        cm = mcd_account_get_cm (account);
+
+        if (cm == NULL)
+            continue;
+
+        if (!tp_strdiff (cm->name, "butterfly"))
+            migrate_butterfly_account (self, account, lad);
+    }
+}
+
 /**
  * _mcd_account_manager_setup:
  * @account_manager: the #McdAccountManager.
@@ -1209,6 +1425,8 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
     g_strfreev (accounts);
 
     uncork_storage_plugins (account_manager);
+
+    migrate_accounts (account_manager, lad);
 
     release_load_accounts_lock (lad);
 }

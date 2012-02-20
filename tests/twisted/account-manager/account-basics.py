@@ -1,5 +1,5 @@
 # Copyright (C) 2009 Nokia Corporation
-# Copyright (C) 2009 Collabora Ltd.
+# Copyright (C) 2009-2012 Collabora Ltd.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -20,7 +20,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async
+        call_async, assertEquals
 from mctest import exec_test, create_fakecm_account, get_account_manager
 import constants as cs
 
@@ -161,6 +161,23 @@ def test(q, bus, mc):
         )
     assert account_props.Get(cs.ACCOUNT_IFACE_NOKIA_CONDITIONS,
             'Condition') == {':foo': 'bar'}
+
+    assertEquals(dbus.Array(signature='o'),
+            account_props.Get(cs.ACCOUNT, 'Supersedes'))
+    call_async(q, account_props, 'Set', cs.ACCOUNT, 'Supersedes',
+            dbus.Array([cs.ACCOUNT_PATH_PREFIX + 'x/y/z'],
+                signature='o'))
+    q.expect_many(
+        EventPattern('dbus-signal',
+            path=account_path,
+            signal='AccountPropertyChanged',
+            interface=cs.ACCOUNT,
+            args=[{'Supersedes': [cs.ACCOUNT_PATH_PREFIX + 'x/y/z']}]),
+        EventPattern('dbus-return', method='Set'),
+        )
+    assertEquals(dbus.Array([cs.ACCOUNT_PATH_PREFIX + 'x/y/z'],
+                signature='o'),
+            account_props.Get(cs.ACCOUNT, 'Supersedes'))
 
     # Set some properties to invalidly typed values - this currently succeeds
     # but is a no-op, although in future it should change to raising an
