@@ -1397,6 +1397,15 @@ get_parameters (TpSvcDBusProperties *self, const gchar *name,
     McdAccount *account = MCD_ACCOUNT (self);
     GHashTable *params = _mcd_account_dup_parameters (account);
 
+    if (params == NULL)
+    {
+        if (mcd_account_is_valid (account))
+            g_warning ("%s is supposedly valid, but _dup_parameters() failed!",
+                mcd_account_get_unique_name (account));
+
+        params = tp_asv_new (NULL, NULL);
+    }
+
     g_value_init (value, TP_HASH_TYPE_STRING_VARIANT_MAP);
     g_value_take_boxed (value, params);
 }
@@ -3290,6 +3299,14 @@ _mcd_account_dup_parameters (McdAccount *account)
     priv = account->priv;
 
     DEBUG ("called");
+
+    /* FIXME: this is ridiculous. MC stores the parameters for the account, so
+     * it should be able to expose them on D-Bus even if the CM is uninstalled.
+     * It shouldn't need to iterate across the parameters supported by the CM.
+     * But it does, because MC doesn't store the types of parameters. So it
+     * needs the CM (or .manager file) to be around to tell it whether "true"
+     * is a string or a boolean…
+     */
     if (!priv->manager && !load_manager (account))
     {
         DEBUG ("unable to load manager for account %s", priv->unique_name);
