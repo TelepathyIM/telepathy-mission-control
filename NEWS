@@ -1,3 +1,33 @@
+telepathy-mission-control 5.11.0 (2012-02-21)
+=============================================
+
+The "leaning on the fourth wall" release.
+
+Requirements:
+
+• telepathy-glib 0.17.5 is now required
+
+Enhancements:
+
+• Migrate telepathy-butterfly accounts to telepathy-haze automatically,
+  if Haze is installed (fd.o #42814, Guillaume)
+
+• Improve mc-tool (fd.o #45308, Guillaume/Will)
+
+• Add Account.Supersedes (fd.o #42814, Simon)
+
+Fixes:
+
+• Prefer to destroy arrays with _unref instead of _free (Xavier)
+
+• Add support for building on Android (fd.o #42508, Alvaro/Derek)
+  and Windows (Alvaro/Siraj)
+
+• Make the NetworkManager integration optional (fd.o #43791, Mikhail)
+
+• Don't crash on Get('Parameters') for a CM that isn't installed
+  (fd.o #44939, Will)
+
 telepathy-mission-control 5.10.1 (2011-11-08)
 =============================================
 
