@@ -193,3 +193,9 @@ mcd_service_run (McdService * self)
     g_main_loop_run (self->main_loop);
 }
 
+void
+mcd_service_stop (McdService * self)
+{
+    if (self->main_loop != NULL)
+        g_main_loop_quit (self->main_loop);
+}

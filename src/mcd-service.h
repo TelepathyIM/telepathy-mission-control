@@ -69,5 +69,6 @@ GType mcd_service_get_type (void);
 
 McdService *mcd_service_new (void);
 void mcd_service_run (McdService * self);
+void mcd_service_stop (McdService * self);
 
 #endif
