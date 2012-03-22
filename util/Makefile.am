@@ -40,5 +40,5 @@ Android.mk: Makefile.am
 	 -:CFLAGS $(DEFS) $(CFLAGS) $(DEFAULT_INCLUDES) $(INCLUDES) \
 	  $(AM_CFLAGS) \
 	 -:CPPFLAGS $(CPPFLAGS) $(AM_CPPFLAGS) \
-	 -:LDFLAGS $(mc_tool_LDADD) \
+	 -:LDFLAGS $(LDADD) \
 	> $@
