@@ -17,6 +17,7 @@ telepathy-mission-control-configure-real:
 	LDFLAGS="$(CONFIGURE_LDFLAGS)" \
 	CPP=$(CONFIGURE_CPP) \
 	CPPFLAGS="$(CONFIGURE_CPPFLAGS)" \
+	PKG_CONFIG="pkg-config --static" \
 	PKG_CONFIG_LIBDIR="$(CONFIGURE_PKG_CONFIG_LIBDIR)" \
 	PKG_CONFIG_TOP_BUILD_DIR=$(PKG_CONFIG_TOP_BUILD_DIR) \
 	$(TELEPATHY_MISSION_CONTROL_TOP)/$(CONFIGURE) --host=arm-linux-androideabi \
