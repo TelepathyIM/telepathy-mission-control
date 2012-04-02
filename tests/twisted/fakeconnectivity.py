@@ -37,6 +37,11 @@ class FakeConnectivity(object):
         q.add_dbus_method_impl(self.NM_Get,
             path=self.NM_PATH, interface=dbus.PROPERTIES_IFACE, method='Get',
             predicate=lambda e: e.args[0] == self.NM_INTERFACE)
+        q.add_dbus_method_impl(self.NM_GetAll,
+            path=self.NM_PATH, interface=dbus.PROPERTIES_IFACE, method='GetAll',
+            predicate=lambda e: e.args[0] == self.NM_INTERFACE)
+        q.add_dbus_method_impl(self.NM_GetDevices,
+            path=self.NM_PATH, interface=self.NM_INTERFACE, method='GetDevices')
 
         q.add_dbus_method_impl(self.ConnMan_GetState,
             path=self.CONNMAN_PATH, interface=self.CONNMAN_INTERFACE,
@@ -60,8 +65,8 @@ class FakeConnectivity(object):
         }
         self.q.dbus_return(e.message, permissions, signature='a{ss}')
 
-    def NM_Get(self, e):
-        props = {
+    def nm_props(self):
+        return {
             'NetworkingEnabled': True,
             'WirelessEnabled': True,
             'WirelessHardwareEnabled': True,
@@ -74,7 +79,14 @@ class FakeConnectivity(object):
             'State': dbus.UInt32(self.nm_state),
         }
 
-        self.q.dbus_return(e.message, props[e.args[1]], signature='v')
+    def NM_Get(self, e):
+        self.q.dbus_return(e.message, self.nm_props()[e.args[1]], signature='v')
+
+    def NM_GetAll(self, e):
+        self.q.dbus_return(e.message, self.nm_props(), signature='a{sv}')
+
+    def NM_GetDevices(self, e):
+        self.q.dbus_return(e.message, [], signature='ao')
 
     def ConnMan_GetState(self, e):
         self.q.dbus_return(e.message, self.connman_state, signature='s')
