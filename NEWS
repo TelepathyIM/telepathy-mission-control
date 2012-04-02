@@ -1,7 +1,23 @@
-telepathy-mission-control 5.11.1 (UNRELEASED)
+telepathy-mission-control 5.12.0 (UNRELEASED)
 =============================================
 
-...
+This is the start of a new stable branch.
+
+Changes since 5.11.0:
+
+• GLib ≥ 2.30 is now required.
+
+• Add mcd_service_stop() and stop the service when SIGINT is
+  sent. (fd.o#47054, Alban)
+
+Summary of particularly noteworthy changes since 5.10.x:
+
+• GLib ≥ 2.30 and telepathy-glib ≥ 0.17.5 are now required
+
+• telepathy-butterfly accounts are migrated to telepathy-haze
+  automatically if Haze is installed.
+
+• Mission Control can now be stopped by sending SIGINT to the daemon.
 
 telepathy-mission-control 5.11.0 (2012-02-21)
 =============================================
