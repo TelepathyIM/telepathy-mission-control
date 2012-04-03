@@ -1561,21 +1561,25 @@ mcd_connection_setup_pre_requests (McdConnection *connection)
 }
 
 static void
-on_connection_ready (TpConnection *tp_conn, const GError *error,
-		     gpointer user_data)
+on_connection_ready (GObject *source_object, GAsyncResult *result,
+                     gpointer user_data)
 {
+    TpConnection *tp_conn = TP_CONNECTION (source_object);
     McdConnection *connection, **connection_ptr = user_data;
     McdConnectionPrivate *priv;
+    GError *error = NULL;
 
     connection = *connection_ptr;
     if (connection)
 	g_object_remove_weak_pointer ((GObject *)connection,
 				      (gpointer)connection_ptr);
     g_slice_free (McdConnection *, connection_ptr);
-    if (error)
+
+    if (!tp_proxy_prepare_finish (tp_conn, result, &error))
     {
         DEBUG ("got error: %s", error->message);
-	return;
+        g_clear_error (&error);
+        return;
     }
 
     if (!connection) return;
@@ -2288,7 +2292,7 @@ _mcd_connection_request_channel (McdConnection *connection, McdChannel *channel)
     g_return_val_if_fail (priv->tp_conn != NULL, FALSE);
     g_return_val_if_fail (TP_IS_CONNECTION (priv->tp_conn), FALSE);
 
-    if (!tp_connection_is_ready (priv->tp_conn))
+    if (!tp_proxy_is_prepared (priv->tp_conn, TP_CONNECTION_FEATURE_CONNECTED))
     {
         /* don't request any channel until the connection is ready (because we
          * don't know if the CM implements the Requests interface). The channel
@@ -2716,6 +2720,10 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
 {
     McdConnection **connection_ptr;
     McdConnectionPrivate *priv;
+    GQuark features[] = {
+      TP_CONNECTION_FEATURE_CONNECTED,
+      0
+    };
 
     g_return_if_fail (MCD_IS_CONNECTION (connection));
     priv = connection->priv;
@@ -2763,8 +2771,8 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
     *connection_ptr = connection;
     g_object_add_weak_pointer ((GObject *)connection,
                                (gpointer)connection_ptr);
-    tp_connection_call_when_ready (priv->tp_conn, on_connection_ready,
-                                   connection_ptr);
+    tp_proxy_prepare_async (priv->tp_conn, features,
+                            on_connection_ready, connection_ptr);
 }
 
 /**
@@ -2786,7 +2794,7 @@ _mcd_connection_is_ready (McdConnection *self)
     g_return_val_if_fail (MCD_IS_CONNECTION (self), FALSE);
 
     return (self->priv->tp_conn != NULL) &&
-        tp_connection_is_ready (self->priv->tp_conn);
+        tp_proxy_is_prepared (self->priv->tp_conn, TP_CONNECTION_FEATURE_CONNECTED);
 }
 
 gboolean
