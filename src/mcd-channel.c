@@ -191,11 +191,20 @@ _mcd_channel_setup_group (McdChannel *channel)
 }
 
 static void
-on_channel_ready (TpChannel *tp_chan, const GError *error, gpointer user_data)
+on_channel_ready (GObject *source_object, GAsyncResult *result, gpointer user_data)
 {
+    TpChannel *tp_chan = TP_CHANNEL (source_object);
     McdChannel *channel, **channel_ptr = user_data;
     McdChannelPrivate *priv;
     gboolean requested, valid;
+    GError *error = NULL;
+
+    if (!tp_proxy_prepare_finish (tp_chan, result, &error))
+    {
+        DEBUG ("failed to prepare channel: %s", error->message);
+        g_clear_error (&error);
+        return;
+    }
 
     channel = *channel_ptr;
     if (channel)
@@ -296,7 +305,7 @@ _mcd_channel_setup (McdChannel *channel, McdChannelPrivate *priv)
     channel_ptr = g_slice_alloc (sizeof (McdChannel *));
     *channel_ptr = channel;
     g_object_add_weak_pointer ((GObject *)channel, (gpointer)channel_ptr);
-    tp_channel_call_when_ready (priv->tp_chan, on_channel_ready, channel_ptr);
+    tp_proxy_prepare_async (priv->tp_chan, NULL, on_channel_ready, channel_ptr);
 
     g_signal_connect (priv->tp_chan, "invalidated",
 		      G_CALLBACK (proxy_destroyed), channel);
@@ -1389,18 +1398,21 @@ typedef struct {
 } DepartData;
 
 static void
-mcd_channel_ready_to_depart_cb (TpChannel *channel,
-                                const GError *error,
+mcd_channel_ready_to_depart_cb (GObject *source_object,
+                                GAsyncResult *result,
                                 gpointer data)
 {
+    TpChannel *channel = TP_CHANNEL (source_object);
     DepartData *d = data;
+    GError *error = NULL;
 
-    if (error != NULL)
+    if (!tp_proxy_prepare_finish (channel, result, &error))
     {
         DEBUG ("%s %d: %s", g_quark_to_string (error->domain), error->code,
                error->message);
         g_free (d->message);
         g_slice_free (DepartData, d);
+        g_clear_error (&error);
         return;
     }
 
@@ -1456,8 +1468,8 @@ _mcd_channel_depart (McdChannel *channel,
     d->reason = reason;
     d->message = g_strdup (message);
 
-    tp_channel_call_when_ready (channel->priv->tp_chan,
-                                mcd_channel_ready_to_depart_cb, d);
+    tp_proxy_prepare_async (channel->priv->tp_chan, NULL,
+                            mcd_channel_ready_to_depart_cb, d);
 }
 
 /*

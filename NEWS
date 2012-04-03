@@ -1,7 +1,9 @@
 telepathy-mission-control 5.12.1 (UNRELEASED)
 =============================================
 
-...
+Fixes:
+
+• Stop using deprecated telepathy-glib symbols. (Jonny)
 
 telepathy-mission-control 5.12.0 (2012-04-02)
 =============================================
