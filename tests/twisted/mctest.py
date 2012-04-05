@@ -1087,6 +1087,16 @@ class ChannelDispatcher(servicetest.ProxyWrapper):
 
         servicetest.ProxyWrapper.__init__(self, bare_cd, cs.CD, {})
 
+class ChannelDispatchOperation(servicetest.ProxyWrapper):
+    def __init__(self, bus, path):
+        bare_cdo = bus.get_object(cs.CD, path)
+        servicetest.ProxyWrapper.__init__(self, bare_cdo, cs.CDO, {})
+
+class ChannelRequest(servicetest.ProxyWrapper):
+    def __init__(self, bus, path):
+        bare_cr = bus.get_object(cs.CD, path)
+        servicetest.ProxyWrapper.__init__(self, bare_cr, cs.CR, {})
+
 def connect_to_mc(q, bus, mc):
     account_manager = AccountManager(bus)
 
