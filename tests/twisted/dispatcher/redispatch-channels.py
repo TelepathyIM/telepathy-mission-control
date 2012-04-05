@@ -29,8 +29,40 @@ from mctest import (
     ChannelDispatcher, ChannelDispatchOperation, ChannelRequest)
 import constants as cs
 
-def test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs):
-    # Now gnome-shell wants to give the channel to another handle
+REQUEST = dbus.Dictionary({
+        cs.CHANNEL_TYPE: cs.CHANNEL_TYPE_TEXT,
+        cs.TARGET_HANDLE_TYPE: cs.HT_CONTACT,
+        cs.TARGET_ID: 'juliet',
+        }, signature='sv')
+
+def test_ensure(q, bus, account, conn, chan, expected_handler_path):
+    """Tests that a client Ensure-ing the channel causes HandleChannels to be
+    called on the current handler. (Previously, DelegateChannels() and
+    PresentChannel() both broke this.)"""
+    cd = ChannelDispatcher(bus)
+    call_async(q, cd, 'EnsureChannel', account.object_path, REQUEST, 0, '')
+    e = q.expect('dbus-return', method='EnsureChannel')
+
+    cr = ChannelRequest(bus, e.value[0])
+    cr.Proceed()
+
+    e = q.expect('dbus-method-call', interface=cs.CONN_IFACE_REQUESTS,
+        method='EnsureChannel',
+        path=conn.object_path, args=[REQUEST], handled=False)
+    q.dbus_return(e.message, False,
+        chan.object_path, chan.immutable, signature='boa{sv}')
+
+    e = q.expect('dbus-method-call',
+            interface=cs.HANDLER, method='HandleChannels',
+            handled=False)
+    assertEquals(expected_handler_path, e.path)
+    q.dbus_return(e.message, signature='')
+
+def test_delegate_channel(q, bus, mc, account, conn, chan, empathy, empathy_bus, gs):
+    # Test that re-Ensure-ing works before we start Delegating and Presenting.
+    test_ensure(q, bus, account, conn, chan, gs.object_path)
+
+    # Now gnome-shell wants to give the channel to another handler
     gs_cd = ChannelDispatcher(bus)
     call_async(q, gs_cd, 'DelegateChannels',
         [chan.object_path], 0, "")
@@ -46,7 +78,12 @@ def test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs):
     e = q.expect('dbus-return', method='DelegateChannels')
     assertEquals(([chan.object_path], {}), e.value)
 
-    # Let's play ping-pong channel! Empathy give the channel back to GS
+    # Test that re-Ensure-ing the channel still works, and sends it to
+    # the right place.
+    test_ensure(q, bus, account, conn, chan, empathy.object_path)
+
+    # Let's play ping-pong with the channel! Empathy gives the channel
+    # back to GS
     emp_cd = ChannelDispatcher(empathy_bus)
     call_async(q, emp_cd, 'DelegateChannels',
         [chan.object_path], 0, "")
@@ -61,6 +98,10 @@ def test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs):
 
     e = q.expect('dbus-return', method='DelegateChannels')
     assertEquals(([chan.object_path], {}), e.value)
+
+    # Test that re-Ensure-ing the channel sttill works, and sends it
+    # to the right place.
+    test_ensure(q, bus, account, conn, chan, gs.object_path)
 
     # gnome-shell wants to give it back, again
     call_async(q, gs_cd, 'DelegateChannels',
@@ -77,6 +118,10 @@ def test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs):
     # DelegateChannels failed so gnome-shell is still handling the channel
     e = q.expect('dbus-return', method='DelegateChannels')
     assertEquals(([], {chan.object_path: (cs.NOT_AVAILABLE, 'No thanks')}), e.value)
+
+    # Test that re-Ensure-ing the channel sttill works, and sends it
+    # to the right place.
+    test_ensure(q, bus, account, conn, chan, gs.object_path)
 
     # Empathy doesn't handle the channel atm but tries to delegates it
     call_async(q, emp_cd, 'DelegateChannels',
@@ -111,6 +156,10 @@ def test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs):
     q.dbus_return(e.message, signature='')
 
     q.expect('dbus-return', method='PresentChannel')
+
+    # Test that re-Ensure-ing the channel *still* works, and sends it
+    # to the right place.
+    test_ensure(q, bus, account, conn, chan, gs.object_path)
 
     # Empathy crashes
     empathy.release_name()
@@ -198,7 +247,7 @@ def test(q, bus, mc):
     q.dbus_return(e.message, signature='')
 
     # test delegating an incoming channel
-    test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs)
+    test_delegate_channel(q, bus, mc, account, conn, chan, empathy, empathy_bus, gs)
 
     # Empathy is back
     empathy = SimulatedClient(q, empathy_bus, 'EmpathyChat',
@@ -207,14 +256,8 @@ def test(q, bus, mc):
     expect_client_setup(q, [empathy])
 
     # gnome-shell requests a channel for itself
-    request = dbus.Dictionary({
-            cs.CHANNEL_TYPE: cs.CHANNEL_TYPE_TEXT,
-            cs.TARGET_HANDLE_TYPE: cs.HT_CONTACT,
-            cs.TARGET_ID: 'juliet',
-            }, signature='sv')
-
     call_async(q, cd, 'CreateChannelWithHints',
-            account.object_path, request, 0,
+            account.object_path, REQUEST, 0,
             cs.tp_name_prefix + '.Client.GnomeShell',
             {})
     e = q.expect('dbus-return', method='CreateChannelWithHints')
@@ -224,10 +267,10 @@ def test(q, bus, mc):
 
     e = q.expect('dbus-method-call', interface=cs.CONN_IFACE_REQUESTS,
         method='CreateChannel',
-        path=conn.object_path, args=[request], handled=False)
+        path=conn.object_path, args=[REQUEST], handled=False)
 
     # channel is created
-    chan = SimulatedChannel(conn, request)
+    chan = SimulatedChannel(conn, REQUEST)
 
     q.dbus_return(e.message,
         chan.object_path, chan.immutable, signature='oa{sv}')
@@ -242,7 +285,7 @@ def test(q, bus, mc):
     q.dbus_return(e.message, signature='')
 
     # test delegating an outgoing channel
-    test_delegate_channel(q, bus, mc, account, chan, empathy, empathy_bus, gs)
+    test_delegate_channel(q, bus, mc, account, conn, chan, empathy, empathy_bus, gs)
 
 if __name__ == '__main__':
     exec_test(test, {})
