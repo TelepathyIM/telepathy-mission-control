@@ -870,13 +870,12 @@ _ag_accountid_to_mc_key (McdAccountManagerSso *sso,
       g_value_unset (&value);
       return uid;
     }
-  else
-    {
-      g_value_unset (&value);
-    }
 
   if (!create)
-    return NULL;
+    {
+      g_value_unset (&value);
+      return NULL;
+    }
 
   DEBUG ("no " MC_IDENTITY_KEY " found, synthesising one:");
 
