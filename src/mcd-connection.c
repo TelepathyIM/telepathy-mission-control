@@ -140,7 +140,7 @@ struct _McdConnectionPrivate
 
     struct
     {
-        TpIntSet *handles;
+        TpIntset *handles;
         GSList *numbers;
     } emergency;
 };
@@ -2815,7 +2815,7 @@ static void clear_emergency_handles (McdConnectionPrivate *priv)
   /* trawl through the handles and unref them */
   if (n_handles > 0)
     {
-      TpIntSetFastIter iter;
+      TpIntsetFastIter iter;
       TpHandle *handles = g_new0 (TpHandle, n_handles);
       TpHandle handle;
       guint i = 0;
@@ -2860,7 +2860,7 @@ void _mcd_connection_take_emergency_numbers (McdConnection *self, GSList *number
 }
 
 void
-_mcd_connection_take_emergency_handles (McdConnection *self, TpIntSet *handles)
+_mcd_connection_take_emergency_handles (McdConnection *self, TpIntset *handles)
 {
     McdConnectionPrivate *priv = self->priv;
 

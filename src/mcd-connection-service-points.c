@@ -39,7 +39,7 @@ service_handles_fetched_cb (TpConnection *tp_conn,
 {
   guint i;
   McdConnection *connection = MCD_CONNECTION (weak);
-  TpIntSet *e_handles = tp_intset_new ();
+  TpIntset *e_handles = tp_intset_new ();
 
   if (error != NULL)
     return;

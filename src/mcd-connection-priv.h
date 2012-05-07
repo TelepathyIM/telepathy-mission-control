@@ -62,7 +62,7 @@ G_GNUC_INTERNAL void _mcd_connection_take_emergency_numbers (McdConnection *self
     GSList *numbers);
 
 G_GNUC_INTERNAL void _mcd_connection_take_emergency_handles (McdConnection *self,
-    TpIntSet *handles);
+    TpIntset *handles);
 
 G_GNUC_INTERNAL void _mcd_connection_clear_emergency_data (McdConnection *self);
 
