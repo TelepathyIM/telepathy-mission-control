@@ -589,8 +589,9 @@ _storage_dup_value (McdStorage *storage,
         else
           {
             gchar *message =
-              g_strdup_printf ("cannot get property %s, unknown type %s",
-                  key, g_type_name (type));
+              g_strdup_printf ("cannot get property %s on account %s, "
+                  "unknown type %s",
+                  key, account, g_type_name (type));
 
             g_warning ("%s: %s", G_STRFUNC, message);
             g_set_error (error, MCD_ACCOUNT_ERROR,
