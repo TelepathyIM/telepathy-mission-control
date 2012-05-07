@@ -337,7 +337,7 @@ mcd_account_loaded (McdAccount *account)
         if (!mcd_account_is_valid (account) || !account->priv->enabled)
         {
             /* FIXME: pick better errors and put them in telepathy-spec? */
-            GError e = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+            GError e = { TP_ERROR, TP_ERROR_NOT_AVAILABLE,
                 "account isn't Valid (not enough information to put it "
                     "online)" };
             GList *list;
@@ -1059,7 +1059,7 @@ mcd_account_set_string_val (McdAccount *account, const gchar *key,
 
     if (!G_VALUE_HOLDS_STRING (value))
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "Expected string for %s, but got %s", key,
                      G_VALUE_TYPE_NAME (value));
         return SET_RESULT_ERROR;
@@ -1182,7 +1182,7 @@ _mcd_account_set_enabled (McdAccount *account,
 
     if (priv->always_on && !enabled)
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_PERMISSION_DENIED,
+        g_set_error (error, TP_ERROR, TP_ERROR_PERMISSION_DENIED,
                      "Account %s cannot be disabled",
                      priv->unique_name);
         return FALSE;
@@ -1235,7 +1235,7 @@ set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
 
     if (!G_VALUE_HOLDS_BOOLEAN (value))
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "Expected boolean for Enabled, but got %s",
                      G_VALUE_TYPE_NAME (value));
         return FALSE;
@@ -1287,7 +1287,7 @@ set_service (TpSvcDBusProperties *self, const gchar *name,
     }
     else
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "Invalid service '%s': Must consist of ASCII alphanumeric "
                      "characters, underscores (_) and hyphens (-) only, and "
                      "start with a letter",
@@ -1351,7 +1351,7 @@ set_avatar (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
 
     if (!G_VALUE_HOLDS (value, TP_STRUCT_TYPE_AVATAR))
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "Unexpected type for Avatar: wanted (ay,s), got %s",
                      G_VALUE_TYPE_NAME (value));
         return FALSE;
@@ -1457,7 +1457,7 @@ set_automatic_presence (TpSvcDBusProperties *self,
 
     if (!G_VALUE_HOLDS (value, TP_STRUCT_TYPE_SIMPLE_PRESENCE))
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "Unexpected type for AutomaticPresence: wanted (u,s,s), "
                      "got %s", G_VALUE_TYPE_NAME (value));
         return FALSE;
@@ -1470,7 +1470,7 @@ set_automatic_presence (TpSvcDBusProperties *self,
 
     if (!_presence_type_is_online (type))
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "AutomaticPresence must be an online presence, not %d",
                      type);
         return FALSE;
@@ -1571,7 +1571,7 @@ set_connect_automatically (TpSvcDBusProperties *self,
 
     if (!G_VALUE_HOLDS_BOOLEAN (value))
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "Expected boolean for ConnectAutomatically, but got %s",
                      G_VALUE_TYPE_NAME (value));
         return FALSE;
@@ -1581,7 +1581,7 @@ set_connect_automatically (TpSvcDBusProperties *self,
 
     if (priv->always_on && !connect_automatically)
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_PERMISSION_DENIED,
+        g_set_error (error, TP_ERROR, TP_ERROR_PERMISSION_DENIED,
                      "Account %s always connects automatically",
                      priv->unique_name);
         return FALSE;
@@ -1715,7 +1715,7 @@ set_requested_presence (TpSvcDBusProperties *self,
 
     if (!G_VALUE_HOLDS (value, TP_STRUCT_TYPE_SIMPLE_PRESENCE))
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "Unexpected type for RequestedPresence: wanted (u,s,s), "
                      "got %s", G_VALUE_TYPE_NAME (value));
         return FALSE;
@@ -1728,14 +1728,14 @@ set_requested_presence (TpSvcDBusProperties *self,
 
     if (priv->always_on && !_presence_type_is_online (type))
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_PERMISSION_DENIED,
+        g_set_error (error, TP_ERROR, TP_ERROR_PERMISSION_DENIED,
                      "Account %s cannot be taken offline", priv->unique_name);
         return FALSE;
     }
 
     if (!_mcd_account_presence_type_is_settable (type))
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "RequestedPresence %d cannot be set on yourself", type);
         return FALSE;
     }
@@ -1800,7 +1800,7 @@ set_supersedes (TpSvcDBusProperties *svc,
 
   if (!G_VALUE_HOLDS (value, TP_ARRAY_TYPE_OBJECT_PATH_LIST))
     {
-      g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+      g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
           "Unexpected type for Supersedes: wanted 'ao', got %s",
           G_VALUE_TYPE_NAME (value));
       return FALSE;
@@ -2000,7 +2000,7 @@ set_hidden (TpSvcDBusProperties *self,
 
   if (!G_VALUE_HOLDS_BOOLEAN (value))
     {
-      g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+      g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
           "Hidden must be set to a boolean, not a %s",
           G_VALUE_TYPE_NAME (value));
       return FALSE;
@@ -2113,7 +2113,7 @@ account_external_password_storage_forget_password (
   if (!tp_proxy_has_interface_by_id (cm,
           MC_IFACE_QUARK_CONNECTION_MANAGER_INTERFACE_ACCOUNT_STORAGE))
     {
-      GError *error = g_error_new (TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
+      GError *error = g_error_new (TP_ERROR, TP_ERROR_NOT_IMPLEMENTED,
           "CM for this Account does not implement AccountStorage iface");
 
       dbus_g_method_return_error (context, error);
@@ -2325,7 +2325,7 @@ mcd_account_check_parameters (McdAccount *account,
 
     if (protocol == NULL)
     {
-        g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (&error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
             "CM '%s' doesn't implement protocol '%s'", priv->manager_name,
             priv->protocol_name);
         goto out;
@@ -2338,7 +2338,7 @@ mcd_account_check_parameters (McdAccount *account,
 
         if (!mcd_account_get_parameter (account, param->name, NULL, NULL))
         {
-            g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+            g_set_error (&error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                 "missing required parameter '%s'", param->name);
             goto out;
         }
@@ -2440,7 +2440,7 @@ check_one_parameter_update (McdAccount *account,
 
     if (param == NULL)
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "Protocol '%s' does not have parameter '%s'",
                      protocol->name, name);
         return FALSE;
@@ -2451,7 +2451,7 @@ check_one_parameter_update (McdAccount *account,
     if (G_VALUE_TYPE (new_value) != type)
     {
         /* FIXME: use D-Bus type names, not GType names. */
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "parameter '%s' must be of type %s, not %s",
                      param->name,
                      g_type_name (type), G_VALUE_TYPE_NAME (new_value));
@@ -2606,7 +2606,7 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
          * would like to hit this path) yet. So in practice we hit the next
          * block for nonexistant CMs too.
          */
-        g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
+        g_set_error (&error, TP_ERROR, TP_ERROR_NOT_IMPLEMENTED,
                      "Manager '%s' not found", priv->manager_name);
         goto out;
     }
@@ -2615,7 +2615,7 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
 
     if (G_UNLIKELY (protocol == NULL))
     {
-        g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_IMPLEMENTED,
+        g_set_error (&error, TP_ERROR, TP_ERROR_NOT_IMPLEMENTED,
                      "Protocol '%s' not found on CM '%s'", priv->protocol_name,
                      priv->manager_name);
         goto out;
@@ -3009,7 +3009,7 @@ _mcd_account_dispose (GObject *object)
         GError *error;
         GList *list = priv->online_requests;
 
-        error = g_error_new (TP_ERRORS, TP_ERROR_DISCONNECTED,
+        error = g_error_new (TP_ERROR, TP_ERROR_DISCONNECTED,
                              "Disposing account %s", priv->unique_name);
         while (list)
         {
@@ -3811,7 +3811,7 @@ process_online_requests (McdAccount *account,
         error = NULL;
 	break;
     case TP_CONNECTION_STATUS_DISCONNECTED:
-        error = g_error_new (TP_ERRORS, TP_ERROR_DISCONNECTED,
+        error = g_error_new (TP_ERROR, TP_ERROR_DISCONNECTED,
                              "Account %s disconnected with reason %d",
                              priv->unique_name, reason);
 	break;
@@ -4168,7 +4168,7 @@ _mcd_account_online_request (McdAccount *account,
     if (priv->loaded && !mcd_account_is_valid (account))
     {
         /* FIXME: pick a better error and put it in telepathy-spec? */
-        GError e = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+        GError e = { TP_ERROR, TP_ERROR_NOT_AVAILABLE,
             "account isn't Valid (not enough information to put it online)" };
 
         DEBUG ("%s: %s", priv->unique_name, e.message);
@@ -4179,7 +4179,7 @@ _mcd_account_online_request (McdAccount *account,
     if (priv->loaded && !priv->enabled)
     {
         /* FIXME: pick a better error and put it in telepathy-spec? */
-        GError e = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+        GError e = { TP_ERROR, TP_ERROR_NOT_AVAILABLE,
             "account isn't Enabled" };
 
         DEBUG ("%s: %s", priv->unique_name, e.message);

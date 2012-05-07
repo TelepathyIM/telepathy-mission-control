@@ -740,7 +740,7 @@ set_new_account_properties (McdAccount *account,
         }
         else
         {
-            g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+            g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                          "Malformed property name: %s", name);
             ok = FALSE;
         }
@@ -864,7 +864,7 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
     if (G_UNLIKELY (manager == NULL || manager[0] == 0 ||
 		    protocol == NULL || protocol[0] == 0))
     {
-        GError error = { TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        GError error = { TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
             "Invalid parameters"};
         callback (account_manager, NULL, &error, user_data);
         if (destroy)
@@ -905,7 +905,7 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
     }
     else
     {
-        GError error = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE, "" };
+        GError error = { TP_ERROR, TP_ERROR_NOT_AVAILABLE, "" };
         callback (account_manager, NULL, &error, user_data);
         if (destroy)
             destroy (user_data);

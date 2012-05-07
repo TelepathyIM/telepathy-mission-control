@@ -1108,7 +1108,7 @@ mcd_dispatcher_new (TpDBusDaemon *dbus_daemon, McdMaster *master)
 void
 mcd_dispatcher_context_proceed (McdDispatcherContext *context)
 {
-    GError error = { TP_ERRORS, 0, NULL };
+    GError error = { TP_ERROR, 0, NULL };
     McdFilter *filter;
 
     if (_mcd_dispatch_operation_get_cancelled (context->operation))
@@ -1815,14 +1815,14 @@ check_preferred_handler (const gchar *preferred_handler,
   {
       /* The error is TP_DBUS_ERROR_INVALID_BUS_NAME, which has no D-Bus
        * representation; re-map to InvalidArgument. */
-      (*error)->domain = TP_ERRORS;
+      (*error)->domain = TP_ERROR;
       (*error)->code = TP_ERROR_INVALID_ARGUMENT;
       return FALSE;
   }
 
   if (!g_str_has_prefix (preferred_handler, TP_CLIENT_BUS_NAME_BASE))
   {
-      g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+      g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                    "Not a Telepathy Client: %s", preferred_handler);
       return FALSE;
   }
@@ -1862,7 +1862,7 @@ dispatcher_request_channel (McdDispatcher *self,
 
     if (account == NULL)
     {
-        g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (&error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "No such account: %s", account_path);
         goto despair;
     }
@@ -2223,7 +2223,7 @@ message_context_free (gpointer ctx)
     {
         GError *error;
 
-        error = g_error_new_literal (TP_ERRORS, TP_ERROR_TERMINATED,
+        error = g_error_new_literal (TP_ERROR, TP_ERROR_TERMINATED,
                                      "Channel request failed");
         dbus_g_method_return_error (context->dbus_context, error);
         g_error_free (error);
@@ -2305,7 +2305,7 @@ send_message_got_channel (McdRequest *request,
         }
         else
         {
-            GError *error = g_error_new_literal (TP_ERRORS, TP_ERROR_CANCELLED,
+            GError *error = g_error_new_literal (TP_ERROR, TP_ERROR_CANCELLED,
                                                  "Channel closed by owner");
 
             _mcd_request_unblock_account (message->account_path);
@@ -2347,7 +2347,7 @@ messages_send_message_start (DBusGMethodInvocation *dbus_context,
 
     if (tp_str_empty (message->account_path))
     {
-        g_set_error_literal (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error_literal (&error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                              "Account path not specified");
         goto failure;
     }
@@ -2361,7 +2361,7 @@ messages_send_message_start (DBusGMethodInvocation *dbus_context,
 
     if (account == NULL)
     {
-        g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (&error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "No such account: %s", message->account_path);
         goto failure;
     }
@@ -2392,7 +2392,7 @@ messages_send_message_start (DBusGMethodInvocation *dbus_context,
 
     if (channel == NULL || request == NULL)
     {
-        g_set_error (&error, TP_ERRORS, TP_ERROR_RESOURCE_UNAVAILABLE,
+        g_set_error (&error, TP_ERROR, TP_ERROR_RESOURCE_UNAVAILABLE,
                      "Could not create channel request");
         goto failure;
     }
@@ -2622,11 +2622,11 @@ try_delegating (ChannelToDelegate *to_delegate)
 
         if (to_delegate->error == NULL)
           {
-            g_set_error (&to_delegate->error, TP_ERRORS, TP_ERROR_NOT_CAPABLE,
+            g_set_error (&to_delegate->error, TP_ERROR, TP_ERROR_NOT_CAPABLE,
                 "There is no other suitable handler");
           }
 
-        if (to_delegate->error->domain == TP_ERRORS)
+        if (to_delegate->error->domain == TP_ERROR)
           dbus_error = tp_error_get_dbus_name (to_delegate->error->code);
         else
           dbus_error = TP_ERROR_STR_NOT_AVAILABLE;
@@ -2726,7 +2726,7 @@ dispatcher_delegate_channels (
 
     if (channels->len == 0)
       {
-        g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (&error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
             "Need at least one channel to delegate");
         goto error;
       }
@@ -2753,7 +2753,7 @@ dispatcher_delegate_channels (
 
         if (chan_account == NULL)
           {
-            g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+            g_set_error (&error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                 "Unknown channel: %s", chan_path);
             goto error;
           }
@@ -2767,7 +2767,7 @@ dispatcher_delegate_channels (
             chan_path, NULL);
         if (tp_strdiff (sender, handler))
          {
-            g_set_error (&error, TP_ERRORS, TP_ERROR_NOT_YOURS,
+            g_set_error (&error, TP_ERROR, TP_ERROR_NOT_YOURS,
                 "Your are not handling channel %s", chan_path);
             goto error;
          }
@@ -2848,7 +2848,7 @@ dispatcher_present_channel (
 
     if (chan_account == NULL)
       {
-        g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (&error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
             "Unknown channel: %s", channel_path);
         goto error;
       }
@@ -2875,7 +2875,7 @@ dispatcher_present_channel (
             _mcd_channel_get_request (mcd_channel));
     if (client == NULL)
       {
-        g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (&error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
             "Channel %s is currently not handled", channel_path);
         goto error;
       }

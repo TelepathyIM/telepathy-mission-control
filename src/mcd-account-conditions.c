@@ -67,7 +67,7 @@ set_condition (TpSvcDBusProperties *self, const gchar *name,
 
     if (!G_VALUE_HOLDS (value, TP_HASH_TYPE_STRING_STRING_MAP))
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "Expected a{s:s} for Condition, but got %s",
                      G_VALUE_TYPE_NAME (value));
         return FALSE;
@@ -75,7 +75,7 @@ set_condition (TpSvcDBusProperties *self, const gchar *name,
 
     if (_mcd_account_get_always_on (account))
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_PERMISSION_DENIED,
+        g_set_error (error, TP_ERROR, TP_ERROR_PERMISSION_DENIED,
                      "Account %s conditions cannot be changed",
                      mcd_account_get_unique_name (account));
         return FALSE;

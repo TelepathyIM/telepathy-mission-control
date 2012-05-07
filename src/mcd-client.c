@@ -1205,7 +1205,7 @@ _mcd_client_check_valid_name (const gchar *name_suffix,
 
     if (!g_ascii_isalpha (*name_suffix))
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "Client names must start with a letter");
         return FALSE;
     }
@@ -1214,7 +1214,7 @@ _mcd_client_check_valid_name (const gchar *name_suffix,
     {
         if (i > (255 - MC_CLIENT_BUS_NAME_BASE_LEN))
         {
-            g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+            g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                          "Client name too long");
         }
 
@@ -1227,7 +1227,7 @@ _mcd_client_check_valid_name (const gchar *name_suffix,
         {
             if (name_suffix[i-1] == '.')
             {
-                g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+                g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                              "Client names must not have a digit or dot "
                              "following a dot");
                 return FALSE;
@@ -1235,7 +1235,7 @@ _mcd_client_check_valid_name (const gchar *name_suffix,
         }
         else
         {
-            g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+            g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                          "Client names must not contain '%c'", name_suffix[i]);
             return FALSE;
         }
@@ -1243,7 +1243,7 @@ _mcd_client_check_valid_name (const gchar *name_suffix,
 
     if (name_suffix[i-1] == '.')
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "Client names must not end with a dot");
         return FALSE;
     }

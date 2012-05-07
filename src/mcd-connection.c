@@ -2308,7 +2308,7 @@ _mcd_connection_request_channel (McdConnection *connection, McdChannel *channel)
     else
     {
         mcd_channel_take_error (channel,
-                                g_error_new (TP_ERRORS,
+                                g_error_new (TP_ERROR,
                                              TP_ERROR_NOT_IMPLEMENTED,
                                              "No Requests interface"));
         mcd_mission_abort ((McdMission *) channel);

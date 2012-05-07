@@ -507,7 +507,7 @@ mcd_channel_abort (McdMission *mission)
         /* this code-path can only happen if the connection is aborted, as in
          * the other cases we handle the error in McdChannel; for this reason,
          * we use the DISCONNECTED error code */
-        GError *error = g_error_new (TP_ERRORS, TP_ERROR_DISCONNECTED,
+        GError *error = g_error_new (TP_ERROR, TP_ERROR_DISCONNECTED,
                                      "Channel aborted");
         mcd_channel_take_error (channel, error);
     }
@@ -562,7 +562,7 @@ mcd_channel_status_changed (McdChannel *channel, McdChannelStatus status)
                 g_critical ("Requested channel's status changed to FAILED "
                             "without a proper error");
                 _mcd_request_set_failure (channel->priv->request,
-                                          TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+                                          TP_ERROR, TP_ERROR_NOT_AVAILABLE,
                                           "MC bug! FAILED but no error");
             }
         }
@@ -1078,7 +1078,7 @@ _mcd_channel_request_cancelling_cb (McdRequest *request,
     g_object_ref (self);
     DEBUG ("%p in status %u", self, status);
 
-    mcd_channel_take_error (self, g_error_new (TP_ERRORS,
+    mcd_channel_take_error (self, g_error_new (TP_ERROR,
                                                TP_ERROR_CANCELLED,
                                                "Cancelled"));
 

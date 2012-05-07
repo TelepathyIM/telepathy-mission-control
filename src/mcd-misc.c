@@ -66,7 +66,7 @@ _mcd_build_error_string (const GError *error)
     GEnumClass *klass;
     const gchar *prefix;
 
-    if (error->domain == TP_ERRORS)
+    if (error->domain == TP_ERROR)
     {
         klass = g_type_class_ref (TP_TYPE_ERROR);
         prefix = TP_ERROR_PREFIX;
@@ -114,7 +114,7 @@ mcd_ready_data_free (McdReadyData *rd)
 {
     if (rd->strukt)
     {
-        GError error = { TP_ERRORS, TP_ERROR_CANCELLED, "Object disposed" };
+        GError error = { TP_ERROR, TP_ERROR_CANCELLED, "Object disposed" };
         mcd_object_invoke_ready_callbacks (rd, &error);
     }
     g_slice_free (McdReadyData, rd);

@@ -88,7 +88,7 @@ set_secondary_vcard_fields (TpSvcDBusProperties *self, const gchar *name,
 
     if (!G_VALUE_HOLDS (value, G_TYPE_STRV))
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "Expected string-array for SecondaryVCardFields, but "
                      "got %s", G_VALUE_TYPE_NAME (value));
         return FALSE;

@@ -413,7 +413,7 @@ handler_is_suitable_async (McpDispatchOperationPolicy *self,
 
       if (!ok)
         {
-          g_simple_async_result_set_error (simple, TP_ERRORS,
+          g_simple_async_result_set_error (simple, TP_ERROR,
               TP_ERROR_PERMISSION_DENIED, "insufficient Aegis credentials");
         }
 

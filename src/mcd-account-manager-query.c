@@ -304,7 +304,7 @@ parse_query (gpointer key, gpointer val, gpointer userdata)
     }
     else
     {
-	g_set_error (&fd->error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+	g_set_error (&fd->error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
 		     "Unrecognized query parameter: %s", name);
     }
 }
