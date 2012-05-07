@@ -20,6 +20,8 @@
 
 cd "@abs_top_builddir@/tests/twisted/tools"
 
+G_MESSAGES_DEBUG=all
+export G_MESSAGES_DEBUG
 ulimit -c unlimited
 exec > missioncontrol-$$.log 2>&1
 ln -f missioncontrol-$$.log missioncontrol.log
