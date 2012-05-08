@@ -80,9 +80,6 @@ GType mcd_dispatcher_get_type (void);
 McdDispatcher *mcd_dispatcher_new (TpDBusDaemon *dbus_daemon,
 				   McdMaster * master);
 
-gint mcd_dispatcher_get_channel_type_usage (McdDispatcher * dispatcher,
-					    GQuark chan_type_quark);
-
 G_END_DECLS
 
 #endif /* MCD_DISPATCHER_H */

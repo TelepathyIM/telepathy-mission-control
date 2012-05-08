@@ -216,49 +216,6 @@ chain_add_filter (GList *chain,
     return g_list_insert_before (chain, elem, filter_data);
 }
 
-/* Returns # of times particular channel type  has been used */
-gint
-mcd_dispatcher_get_channel_type_usage (McdDispatcher * dispatcher,
-				       GQuark chan_type_quark)
-{
-    const GList *managers, *connections, *channels;
-    McdDispatcherPrivate *priv = dispatcher->priv;
-    gint usage_counter = 0;
-
-    managers = mcd_operation_get_missions (MCD_OPERATION (priv->master));
-    while (managers)
-    {
-        connections =
-            mcd_operation_get_missions (MCD_OPERATION (managers->data));
-        while (connections)
-        {
-            channels =
-                mcd_operation_get_missions (MCD_OPERATION (connections->data));
-            while (channels)
-            {
-                McdChannel *channel = MCD_CHANNEL (channels->data);
-                McdChannelStatus status;
-
-                status = mcd_channel_get_status (channel);
-                if ((status == MCD_CHANNEL_STATUS_DISPATCHING ||
-                     status == MCD_CHANNEL_STATUS_HANDLER_INVOKED ||
-                     status == MCD_CHANNEL_STATUS_DISPATCHED) &&
-                    mcd_channel_get_channel_type_quark (channel) ==
-                    chan_type_quark)
-                {
-                    DEBUG ("Channel %p is active", channel);
-                    usage_counter++;
-                }
-                channels = channels->next;
-            }
-            connections = connections->next;
-        }
-	managers = managers->next;
-    }
-
-    return usage_counter;
-}
-
 static void
 on_master_abort (McdMaster *master, McdDispatcherPrivate *priv)
 {
