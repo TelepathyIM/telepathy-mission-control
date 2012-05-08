@@ -57,13 +57,6 @@ typedef struct filter_t {
     gpointer user_data;
 } McdFilter;
 
-void mcd_dispatcher_add_filter (McdDispatcher *dispatcher,
-                                McdFilterFunc filter,
-                                guint priority,
-                                gpointer user_data);
-void mcd_dispatcher_add_filters (McdDispatcher *dispatcher,
-                                 const McdFilter *filters);
-
 G_END_DECLS
 
 #endif

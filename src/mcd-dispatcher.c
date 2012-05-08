@@ -197,25 +197,6 @@ mcd_dispatcher_context_ref (McdDispatcherContext *context,
     context->ref_count++;
 }
 
-static GList *
-chain_add_filter (GList *chain,
-		  McdFilterFunc filter,
-		  guint priority,
-                  gpointer user_data)
-{
-    GList *elem;
-    McdFilter *filter_data;
-
-    filter_data = g_slice_new (McdFilter);
-    filter_data->func = filter;
-    filter_data->priority = priority;
-    filter_data->user_data = user_data;
-    for (elem = chain; elem; elem = elem->next)
-	if (((McdFilter *)elem->data)->priority >= priority) break;
-
-    return g_list_insert_before (chain, elem, filter_data);
-}
-
 static void
 on_master_abort (McdMaster *master, McdDispatcherPrivate *priv)
 {
@@ -359,7 +340,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     DEBUG ("CTXREF11 on %p", context);
     context->ref_count = 1;
     context->dispatcher = dispatcher;
-    context->chain = priv->filters;
+    context->chain = NULL;
 
     DEBUG ("new dispatcher context %p for %s channel %p (%s): %s",
            context, requested ? "requested" : "unrequested",
@@ -504,22 +485,6 @@ _mcd_dispatcher_get_property (GObject * obj, guint prop_id,
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
     }
-}
-
-static void
-_mcd_dispatcher_finalize (GObject * object)
-{
-    McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
-
-    if (priv->filters)
-    {
-        GList *list;
-        for (list = priv->filters; list != NULL; list = list->next)
-            g_slice_free (McdFilter, list->data);
-        g_list_free (priv->filters);
-    }
-
-    G_OBJECT_CLASS (mcd_dispatcher_parent_class)->finalize (object);
 }
 
 static void
@@ -945,7 +910,6 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
     object_class->constructed = mcd_dispatcher_constructed;
     object_class->set_property = _mcd_dispatcher_set_property;
     object_class->get_property = _mcd_dispatcher_get_property;
-    object_class->finalize = _mcd_dispatcher_finalize;
     object_class->dispose = _mcd_dispatcher_dispose;
 
     /* Properties */
@@ -1184,51 +1148,6 @@ _mcd_dispatcher_take_channels (McdDispatcher *dispatcher, GList *channels,
     g_list_free (channels);
 
     g_strfreev (possible_handlers);
-}
-
-/**
- * mcd_dispatcher_add_filter:
- * @dispatcher: The #McdDispatcher.
- * @filter: the filter function to be registered.
- * @priority: The priority of the filter.
- * @user_data: user data to be passed to @filter on invocation.
- *
- * Register a filter into the dispatcher chain: @filter will be invoked
- * whenever channels need to be dispatched.
- */
-void
-mcd_dispatcher_add_filter (McdDispatcher *dispatcher,
-                           McdFilterFunc filter,
-                           guint priority,
-                           gpointer user_data)
-{
-    McdDispatcherPrivate *priv;
-
-    g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
-    priv = dispatcher->priv;
-    priv->filters =
-        chain_add_filter (priv->filters, filter, priority, user_data);
-}
-
-/**
- * mcd_dispatcher_add_filters:
- * @dispatcher: The #McdDispatcher.
- * @filters: a zero-terminated array of #McdFilter elements.
- *
- * Convenience function to add a batch of filters at once.
- */
-void
-mcd_dispatcher_add_filters (McdDispatcher *dispatcher,
-                            const McdFilter *filters)
-{
-    const McdFilter *filter;
-
-    g_return_if_fail (filters != NULL);
-
-    for (filter = filters; filter->func != NULL; filter++)
-        mcd_dispatcher_add_filter (dispatcher, filter->func,
-                                   filter->priority,
-                                   filter->user_data);
 }
 
 static void
