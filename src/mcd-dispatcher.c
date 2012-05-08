@@ -97,17 +97,6 @@ G_DEFINE_TYPE_WITH_CODE (McdDispatcher, mcd_dispatcher, MCD_TYPE_MISSION,
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
                            tp_dbus_properties_mixin_iface_init))
 
-typedef struct _McdDispatcherContext McdDispatcherContext;
-
-struct _McdDispatcherContext
-{
-    gint ref_count;
-
-    McdDispatcher *dispatcher;
-
-    McdDispatchOperation *operation;
-};
-
 typedef struct
 {
     McdDispatcher *dispatcher;
@@ -259,7 +248,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
                                      gboolean requested,
                                      gboolean only_observe)
 {
-    McdDispatcherContext *context;
+    McdDispatchOperation *operation;
     McdDispatcherPrivate *priv;
     McdAccount *account;
 
@@ -277,14 +266,8 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 
     priv = dispatcher->priv;
 
-    /* Preparing and filling the context */
-    context = g_new0 (McdDispatcherContext, 1);
-    DEBUG ("CTXREF11 on %p", context);
-    context->ref_count = 1;
-    context->dispatcher = dispatcher;
-
-    DEBUG ("new dispatcher context %p for %s channel %p (%s): %s",
-           context, requested ? "requested" : "unrequested",
+    DEBUG ("new dispatch operation for %s channel %p (%s): %s",
+           requested ? "requested" : "unrequested",
            channels->data,
            channels->next == NULL ? "only" : "and more",
            mcd_channel_get_object_path (channels->data));
@@ -294,7 +277,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
      * perhaps we should act as though they're all unRequested, or split up the
      * bundle? */
 
-    context->operation = _mcd_dispatch_operation_new (priv->clients,
+    operation = _mcd_dispatch_operation_new (priv->clients,
         priv->handler_map, !requested, only_observe, channels,
         (const gchar * const *) possible_handlers);
 
@@ -304,22 +287,18 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
         {
             tp_svc_channel_dispatcher_interface_operation_list_emit_new_dispatch_operation (
                 dispatcher,
-                _mcd_dispatch_operation_get_path (context->operation),
-                _mcd_dispatch_operation_get_properties (context->operation));
+                _mcd_dispatch_operation_get_path (operation),
+                _mcd_dispatch_operation_get_properties (operation));
         }
 
         priv->operations = g_list_prepend (priv->operations,
-                                           g_object_ref (context->operation));
+                                           g_object_ref (operation));
 
-        g_signal_connect (context->operation, "finished",
+        g_signal_connect (operation, "finished",
                           G_CALLBACK (on_operation_finished), dispatcher);
     }
 
-    DEBUG ("entering state machine for context %p", context);
-
-    sp_timestamp ("invoke internal filters");
-
-    if (_mcd_dispatch_operation_get_cancelled (context->operation))
+    if (_mcd_dispatch_operation_get_cancelled (operation))
     {
         GError error = { TP_ERROR, TP_ERROR_CANCELLED,
             "Channel request cancelled" };
@@ -329,7 +308,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
          * otherwise we'll be trying to iterate over the list at the same time
          * that mcd_mission_abort results in modifying it, which would be
          * bad */
-        list = _mcd_dispatch_operation_dup_channels (context->operation);
+        list = _mcd_dispatch_operation_dup_channels (operation);
 
         while (list != NULL)
         {
@@ -344,17 +323,16 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
             list = g_list_delete_link (list, list);
         }
     }
-    else if (_mcd_dispatch_operation_peek_channels (context->operation) == NULL)
+    else if (_mcd_dispatch_operation_peek_channels (operation) == NULL)
     {
         DEBUG ("No channels left");
     }
     else
     {
-        _mcd_dispatch_operation_run_clients (context->operation);
+        _mcd_dispatch_operation_run_clients (operation);
     }
 
-    g_object_unref (context->operation);
-    g_free (context);
+    g_object_unref (operation);
 }
 
 static void
