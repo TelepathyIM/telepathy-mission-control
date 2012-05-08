@@ -48,9 +48,6 @@ void _mcd_object_call_on_struct_when_ready (gpointer object, gpointer strukt,
 void _mcd_object_ready (gpointer object, GQuark quark, const GError *error);
 
 G_GNUC_INTERNAL
-gboolean _mcd_file_set_contents (const gchar *filename, const gchar *contents,
-                                 gssize length, GError **error);
-G_GNUC_INTERNAL
 void _mcd_ext_register_dbus_glib_marshallers (void);
 
 G_GNUC_INTERNAL int _mcd_chmod_private (const gchar *filename);

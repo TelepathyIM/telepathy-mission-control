@@ -177,40 +177,6 @@ _mcd_object_ready (gpointer object, GQuark quark, const GError *error)
     g_object_unref (object);
 }
 
-gboolean
-_mcd_file_set_contents (const gchar *filename, const gchar *contents,
-                        gssize length, GError **error)
-{
-    gchar *old_contents = NULL;
-    gsize old_length = 0;
-
-    g_return_val_if_fail (filename != NULL, FALSE);
-    g_return_val_if_fail (error == NULL || *error == NULL, FALSE);
-    g_return_val_if_fail (contents != NULL || length == 0, FALSE);
-    g_return_val_if_fail (length >= -1, FALSE);
-
-    if (length == -1)
-        length = strlen (contents);
-
-    /* no real error handling needed here - if g_file_get_contents fails
-     * (probably because the file doesn't exist), then old_contents remains
-     * NULL, and we do want to rewrite the file */
-    if (g_file_get_contents (filename, &old_contents, &old_length, NULL))
-    {
-        gboolean unchanged = (((gsize) length) == old_length &&
-                              memcmp (contents, old_contents, length) == 0);
-
-        g_free (old_contents);
-
-        if (unchanged)
-        {
-            return TRUE;
-        }
-    }
-
-    return g_file_set_contents (filename, contents, length, error);
-}
-
 int
 _mcd_chmod_private (const gchar *filename)
 {
