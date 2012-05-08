@@ -2,7 +2,6 @@ INCLUDES = \
 	$(TELEPATHY_CFLAGS) \
 	$(DBUS_CFLAGS) \
 	$(GLIB_CFLAGS) \
-	$(GIO_CFLAGS) \
 	-I$(top_srcdir) \
 	-I$(top_builddir) \
 	-DG_LOG_DOMAIN=\"mc-plugins\" \
@@ -39,7 +38,7 @@ libmission_control_plugins_la_LIBADD = \
 	$(TELEPATHY_LIBS) \
 	$(DBUS_LIBS) \
 	$(GLIB_LIBS) \
-	$(GIO_LIBS)
+	$(NULL)
 
 nodist_libmission_control_plugins_la_SOURCES = \
 	mcp-signals-marshal.c \
