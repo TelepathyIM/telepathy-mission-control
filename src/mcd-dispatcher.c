@@ -300,8 +300,6 @@ on_operation_finished (McdDispatchOperation *operation,
     }
 }
 
-static void mcd_dispatcher_context_proceed (McdDispatcherContext *context);
-
 static void
 _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
                                      GList *channels,
@@ -369,8 +367,21 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 
     sp_timestamp ("invoke internal filters");
 
-    mcd_dispatcher_context_ref (context, "CTXREF01");
-    mcd_dispatcher_context_proceed (context);
+    if (_mcd_dispatch_operation_get_cancelled (context->operation))
+    {
+        GError error = { TP_ERROR, TP_ERROR_CANCELLED,
+            "Channel request cancelled" };
+
+        _mcd_dispatcher_context_abort (context, &error);
+    }
+    else if (_mcd_dispatch_operation_peek_channels (context->operation) == NULL)
+    {
+        DEBUG ("No channels left");
+    }
+    else
+    {
+        _mcd_dispatch_operation_run_clients (context->operation);
+    }
 
     mcd_dispatcher_context_unref (context, "CTXREF11");
 }
@@ -966,30 +977,6 @@ mcd_dispatcher_new (TpDBusDaemon *dbus_daemon, McdMaster *master)
 					"mcd-master", master, 
 					NULL));
     return obj;
-}
-
-static void
-mcd_dispatcher_context_proceed (McdDispatcherContext *context)
-{
-    GError error = { TP_ERROR, 0, NULL };
-
-    if (_mcd_dispatch_operation_get_cancelled (context->operation))
-    {
-        error.code = TP_ERROR_CANCELLED;
-        error.message = "Channel request cancelled";
-        _mcd_dispatcher_context_abort (context, &error);
-        goto no_more;
-    }
-
-    if (_mcd_dispatch_operation_peek_channels (context->operation) == NULL)
-    {
-        DEBUG ("No channels left");
-        goto no_more;
-    }
-
-no_more:    /* either no more filters, or no more channels */
-    _mcd_dispatch_operation_run_clients (context->operation);
-    mcd_dispatcher_context_unref (context, "CTXREF01");
 }
 
 static void
