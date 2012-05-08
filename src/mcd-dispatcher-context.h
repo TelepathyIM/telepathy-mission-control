@@ -89,14 +89,6 @@ McdChannel *mcd_dispatcher_context_get_channel_by_type
 McdConnection *mcd_dispatcher_context_get_connection
     (McdDispatcherContext *context);
 
-void mcd_dispatcher_context_close_all (McdDispatcherContext *context,
-                                       TpChannelGroupChangeReason reason,
-                                       const gchar *message);
-
-void mcd_dispatcher_context_destroy_all (McdDispatcherContext *context);
-
-void mcd_dispatcher_context_forget_all (McdDispatcherContext *context);
-
 G_END_DECLS
 
 #endif

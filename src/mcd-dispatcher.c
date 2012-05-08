@@ -1052,58 +1052,6 @@ no_more:    /* either no more filters, or no more channels */
     mcd_dispatcher_context_unref (context, "CTXREF01");
 }
 
-/**
- * mcd_dispatcher_context_forget_all:
- * @context: a #McdDispatcherContext
- *
- * Stop processing channels in @context, but do not close them. They will
- * no longer be dispatched, and the ChannelDispatchOperation (if any)
- * will emit ChannelLost.
- */
-void
-mcd_dispatcher_context_forget_all (McdDispatcherContext *context)
-{
-    g_return_if_fail (context);
-    _mcd_dispatch_operation_forget_channels (context->operation);
-}
-
-/**
- * mcd_dispatcher_context_destroy_all:
- * @context: a #McdDispatcherContext
- *
- * Consider all channels in the #McdDispatcherContext to be undispatchable,
- * and close them destructively. Information loss might result.
- */
-void
-mcd_dispatcher_context_destroy_all (McdDispatcherContext *context)
-{
-    g_return_if_fail (context);
-    _mcd_dispatch_operation_destroy_channels (context->operation);
-}
-
-/**
- * mcd_dispatcher_context_close_all:
- * @context: a #McdDispatcherContext
- * @reason: a reason code
- * @message: a message to be used if applicable, which should be "" if
- *  no message is appropriate
- *
- * Close all channels in the #McdDispatcherContext. If @reason is not
- * %TP_CHANNEL_GROUP_CHANGE_REASON_NONE and/or @message is non-empty,
- * attempt to use the RemoveMembersWithReason D-Bus method to specify
- * a message and reason, falling back to the Close method if that doesn't
- * work.
- */
-void
-mcd_dispatcher_context_close_all (McdDispatcherContext *context,
-                                  TpChannelGroupChangeReason reason,
-                                  const gchar *message)
-{
-    g_return_if_fail (context);
-    _mcd_dispatch_operation_leave_channels (context->operation, reason,
-                                            message);
-}
-
 static void
 mcd_dispatcher_context_unref (McdDispatcherContext * context,
                               const gchar *tag)
