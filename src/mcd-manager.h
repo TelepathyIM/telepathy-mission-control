@@ -57,8 +57,6 @@ struct _McdManager
 struct _McdManagerClass
 {
     McdOperationClass parent_class;
-    McdConnection *(*create_connection) (McdManager *manager,
-                                         McdAccount *account);
     void (*_mc_reserved1) (void);
     void (*_mc_reserved2) (void);
     void (*_mc_reserved3) (void);

@@ -259,20 +259,6 @@ _mcd_manager_get_property (GObject * obj, guint prop_id,
     }
 }
 
-static McdConnection *
-create_connection (McdManager *manager, McdAccount *account)
-{
-    McdManagerPrivate *priv = manager->priv;
-
-    return g_object_new (MCD_TYPE_CONNECTION,
-                         "dbus-daemon", priv->dbus_daemon,
-                         "tp-manager", priv->tp_conn_mgr,
-                         "dispatcher", priv->dispatcher,
-                         "account", account,
-                         "slacker", priv->slacker,
-                         NULL);
-}
-
 static void
 mcd_manager_class_init (McdManagerClass * klass)
 {
@@ -289,8 +275,6 @@ mcd_manager_class_init (McdManagerClass * klass)
 
     mission_class->connect = _mcd_manager_connect;
     mission_class->disconnect = _mcd_manager_disconnect;
-
-    klass->create_connection = create_connection;
 
     /* Properties */
     g_object_class_install_property
@@ -401,8 +385,14 @@ mcd_manager_create_connection (McdManager *manager, McdAccount *account)
     g_return_val_if_fail (MCD_IS_MANAGER (manager), NULL);
     g_return_val_if_fail (manager->priv->tp_conn_mgr != NULL, NULL);
 
-    connection = MCD_MANAGER_GET_CLASS (manager)->create_connection
-        (manager, account);
+    connection = g_object_new (MCD_TYPE_CONNECTION,
+                               "dbus-daemon", manager->priv->dbus_daemon,
+                               "tp-manager", manager->priv->tp_conn_mgr,
+                               "dispatcher", manager->priv->dispatcher,
+                               "account", account,
+                               "slacker", manager->priv->slacker,
+                               NULL);
+
     mcd_operation_take_mission (MCD_OPERATION (manager),
 				MCD_MISSION (connection));
     DEBUG ("Created a connection %p for account: %s",
