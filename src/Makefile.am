@@ -29,7 +29,6 @@ mc_headers = \
 	mcd-connection-plugin.h \
 	mcd-connection-service-points.h \
 	mcd-channel.h \
-	mcd-proxy.h \
 	mcd-dispatcher.h \
 	mcd-service.h \
 	mcd-transport.h \
@@ -159,7 +158,6 @@ libmcd_convenience_la_SOURCES = \
 	mcd-service.c \
 	mcd-slacker.c \
 	mcd-slacker.h \
-	mcd-proxy.c \
 	mcd-transport.c \
 	mcd-storage.c \
 	mcd-storage.h \

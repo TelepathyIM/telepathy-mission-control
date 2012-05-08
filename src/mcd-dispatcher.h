@@ -50,13 +50,13 @@ typedef struct _McdDispatcherPrivate McdDispatcherPrivate;
 
 struct _McdDispatcher
 {
-    McdMission parent;
+    GObject parent;
     McdDispatcherPrivate *priv;
 };
 
 struct _McdDispatcherClass
 {
-    McdMissionClass parent_class;
+    GObjectClass parent_class;
 
     /* signals */
     void (*_former_channel_added_signal) (void);

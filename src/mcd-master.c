@@ -68,7 +68,6 @@
 #include "kludge-transport.h"
 #include "mcd-master.h"
 #include "mcd-master-priv.h"
-#include "mcd-proxy.h"
 #include "mcd-manager.h"
 #include "mcd-dispatcher.h"
 #include "mcd-account-manager.h"
@@ -88,7 +87,6 @@ typedef struct _McdMasterPrivate
 {
     McdAccountManager *account_manager;
     McdDispatcher *dispatcher;
-    McdProxy *proxy;
 
     /* We create this for our member objects */
     TpDBusDaemon *dbus_daemon;
@@ -348,10 +346,7 @@ _mcd_master_dispose (GObject * object)
 
     tp_clear_object (&priv->account_manager);
     tp_clear_object (&priv->dbus_daemon);
-
-    /* Don't unref() the dispatcher: it will be unref()ed by the McdProxy */
-    priv->dispatcher = NULL;
-    g_object_unref (priv->proxy);
+    tp_clear_object (&priv->dispatcher);
 
     if (default_master == (McdMaster *) object)
     {
@@ -391,11 +386,6 @@ mcd_master_constructor (GType type, guint n_params,
         dbus_g_connection_get_connection (
             TP_PROXY (priv->dbus_daemon)->dbus_connection),
         TRUE);
-
-    /* propagate the signals to dispatcher, too */
-    priv->proxy = mcd_proxy_new (MCD_MISSION (master));
-    mcd_operation_take_mission (MCD_OPERATION (priv->proxy),
-				MCD_MISSION (priv->dispatcher));
 
     mcd_kludge_transport_install (master);
 

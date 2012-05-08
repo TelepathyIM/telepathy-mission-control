@@ -86,7 +86,7 @@ static void dispatcher_iface_init (gpointer, gpointer);
 static void messages_iface_init (gpointer, gpointer);
 
 
-G_DEFINE_TYPE_WITH_CODE (McdDispatcher, mcd_dispatcher, MCD_TYPE_MISSION,
+G_DEFINE_TYPE_WITH_CODE (McdDispatcher, mcd_dispatcher, G_TYPE_OBJECT,
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_CHANNEL_DISPATCHER,
                            dispatcher_iface_init);
     G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_DISPATCHER_INTERFACE_MESSAGES_DRAFT,
