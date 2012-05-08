@@ -327,6 +327,8 @@ on_operation_finished (McdDispatchOperation *operation,
     }
 }
 
+static void mcd_dispatcher_context_proceed (McdDispatcherContext *context);
+
 static void
 _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
                                      GList *channels,
@@ -1011,15 +1013,7 @@ mcd_dispatcher_new (TpDBusDaemon *dbus_daemon, McdMaster *master)
     return obj;
 }
 
-/**
- * mcd_dispatcher_context_proceed:
- * @context: a #McdDispatcherContext
- *
- * Must be called by plugin filters exactly once per invocation of the filter
- * function, to proceed with processing of the @context. This does nothing
- * if @context has already finished.
- */
-void
+static void
 mcd_dispatcher_context_proceed (McdDispatcherContext *context)
 {
     GError error = { TP_ERROR, 0, NULL };
@@ -1079,9 +1073,6 @@ mcd_dispatcher_context_forget_all (McdDispatcherContext *context)
  *
  * Consider all channels in the #McdDispatcherContext to be undispatchable,
  * and close them destructively. Information loss might result.
- *
- * Plugins must still call mcd_dispatcher_context_proceed() afterwards,
- * to release their reference to the dispatcher context.
  */
 void
 mcd_dispatcher_context_destroy_all (McdDispatcherContext *context)
@@ -1102,9 +1093,6 @@ mcd_dispatcher_context_destroy_all (McdDispatcherContext *context)
  * attempt to use the RemoveMembersWithReason D-Bus method to specify
  * a message and reason, falling back to the Close method if that doesn't
  * work.
- *
- * Plugins must still call mcd_dispatcher_context_proceed() afterwards,
- * to release their reference to the dispatcher context.
  */
 void
 mcd_dispatcher_context_close_all (McdDispatcherContext *context,

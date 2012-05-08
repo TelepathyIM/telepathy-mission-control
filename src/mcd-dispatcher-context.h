@@ -97,15 +97,6 @@ void mcd_dispatcher_context_destroy_all (McdDispatcherContext *context);
 
 void mcd_dispatcher_context_forget_all (McdDispatcherContext *context);
 
-/* Statemachine API section */
-
-/* Will step through the state machine.
- * @param ctx: The context
- * @param result: The return code
- */
-
-void mcd_dispatcher_context_proceed (McdDispatcherContext *context);
-
 G_END_DECLS
 
 #endif
