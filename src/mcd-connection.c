@@ -2485,44 +2485,6 @@ mcd_connection_request_channel (McdConnection *connection,
                                                                    channel);
 }
 
-gboolean
-mcd_connection_cancel_channel_request (McdConnection *connection,
-				       guint operation_id,
-				       const gchar *requestor_client_id,
-				       GError **error)
-{
-    const GList *channels, *node;
-    McdChannel *channel;
-
-    /* first, see if the channel is in the list of the pending channels */
-
-    channels = mcd_operation_get_missions (MCD_OPERATION (connection));
-    if (!channels) return FALSE;
-
-    for (node = channels; node; node = node->next)
-    {
-	guint chan_requestor_serial;
-	gchar *chan_requestor_client_id;
-
-	channel = MCD_CHANNEL (node->data);
-	g_object_get (channel,
-		      "requestor-serial", &chan_requestor_serial,
-		      "requestor-client-id", &chan_requestor_client_id,
-		      NULL);
-	if (chan_requestor_serial == operation_id &&
-	    strcmp (chan_requestor_client_id, requestor_client_id) == 0)
-	{
-            DEBUG ("requested channel found (%p)", channel);
-	    mcd_mission_abort (MCD_MISSION (channel));
-	    g_free (chan_requestor_client_id);
-	    return TRUE;
-	}
-	g_free (chan_requestor_client_id);
-    }
-    DEBUG ("requested channel not found!");
-    return FALSE;
-}
-
 void
 mcd_connection_close (McdConnection *connection)
 {
