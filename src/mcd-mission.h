@@ -52,7 +52,6 @@ struct _McdMissionClass
     GObjectClass parent_class;
 
     /* Signals */
-    void (*parent_set_signal) (McdMission * mission, McdMission * parent);
     void (*connected_signal) (McdMission * mission);
     void (*disconnected_signal) (McdMission * mission);
     
