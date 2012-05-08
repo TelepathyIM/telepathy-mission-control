@@ -4393,20 +4393,6 @@ _mcd_account_set_has_been_online (McdAccount *account)
     }
 }
 
-void
-_mcd_account_request_temporary_presence (McdAccount *self,
-                                         TpConnectionPresenceType type,
-                                         const gchar *status)
-{
-    if (self->priv->connection != NULL)
-    {
-        _mcd_account_set_changing_presence (self, TRUE);
-
-        _mcd_connection_request_presence (self->priv->connection,
-                                          type, status, "");
-    }
-}
-
 /**
  * mcd_account_connection_bind_transport:
  * @account: the #McdAccount.
