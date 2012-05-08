@@ -32,7 +32,6 @@ mc_headers = \
 	mcd-channel.h \
 	mcd-proxy.h \
 	mcd-dispatcher.h \
-	mcd-dispatcher-context.h \
 	mcd-service.h \
 	mcd-transport.h \
 	mcd-storage.h

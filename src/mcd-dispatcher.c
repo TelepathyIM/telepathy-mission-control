@@ -53,7 +53,6 @@
 #include "mcd-channel.h"
 #include "mcd-master.h"
 #include "mcd-channel-priv.h"
-#include "mcd-dispatcher-context.h"
 #include "mcd-dispatcher-priv.h"
 #include "mcd-dispatch-operation-priv.h"
 #include "mcd-handler-map-priv.h"
@@ -98,6 +97,8 @@ G_DEFINE_TYPE_WITH_CODE (McdDispatcher, mcd_dispatcher, MCD_TYPE_MISSION,
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
                            tp_dbus_properties_mixin_iface_init))
 
+typedef struct _McdDispatcherContext McdDispatcherContext;
+
 struct _McdDispatcherContext
 {
     gint ref_count;
@@ -105,12 +106,6 @@ struct _McdDispatcherContext
     McdDispatcher *dispatcher;
 
     McdDispatchOperation *operation;
-
-    /* State-machine internal data fields: */
-    GList *chain;
-
-    /* Next function in chain */
-    guint next_func_index;
 };
 
 typedef struct
@@ -141,9 +136,6 @@ struct _McdDispatcherPrivate
     GList *operations;
 
     TpDBusDaemon *dbus_daemon;
-
-    /* list of McdFilter elements */
-    GList *filters;
 
     /* hash table containing clients
      * char *bus_name -> McdClientProxy */
@@ -340,7 +332,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     DEBUG ("CTXREF11 on %p", context);
     context->ref_count = 1;
     context->dispatcher = dispatcher;
-    context->chain = NULL;
 
     DEBUG ("new dispatcher context %p for %s channel %p (%s): %s",
            context, requested ? "requested" : "unrequested",
@@ -981,7 +972,6 @@ static void
 mcd_dispatcher_context_proceed (McdDispatcherContext *context)
 {
     GError error = { TP_ERROR, 0, NULL };
-    McdFilter *filter;
 
     if (_mcd_dispatch_operation_get_cancelled (context->operation))
     {
@@ -995,20 +985,6 @@ mcd_dispatcher_context_proceed (McdDispatcherContext *context)
     {
         DEBUG ("No channels left");
         goto no_more;
-    }
-
-    filter = g_list_nth_data (context->chain, context->next_func_index);
-
-    if (filter != NULL)
-    {
-        context->next_func_index++;
-        DEBUG ("Next filter");
-        mcd_dispatcher_context_ref (context, "CTXREF10");
-        filter->func (context, filter->user_data);
-        mcd_dispatcher_context_unref (context, "CTXREF10");
-        /* The state machine goes on... this function will be invoked again
-         * (perhaps recursively, or perhaps later) by filter->func. */
-        return;
     }
 
 no_more:    /* either no more filters, or no more channels */

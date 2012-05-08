@@ -52,8 +52,6 @@
 #include <dbus/dbus.h>
 #include <telepathy-glib/telepathy-glib.h>
 
-#include "mcd-dispatcher.h"
-#include "mcd-dispatcher-context.h"
 #include "mcd-connection.h"
 #include "mcd-misc.h"
 #include "mcd-service.h"
