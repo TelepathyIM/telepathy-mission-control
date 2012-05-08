@@ -75,7 +75,6 @@
 #include "mcd-account-manager-priv.h"
 #include "mcd-account-conditions.h"
 #include "mcd-account-priv.h"
-#include "mcd-plugin.h"
 #include "mcd-transport.h"
 #include "plugin-loader.h"
 
@@ -398,7 +397,7 @@ mcd_master_constructor (GType type, guint n_params,
     mcd_operation_take_mission (MCD_OPERATION (priv->proxy),
 				MCD_MISSION (priv->dispatcher));
 
-    mcd_kludge_transport_install ((McdPlugin *) master);
+    mcd_kludge_transport_install (master);
 
     /* we assume that at this point all transport plugins have been registered.
      * We get the active transports and check whether some accounts should be
@@ -540,33 +539,33 @@ mcd_master_get_dbus_daemon (McdMaster *master)
 
 /**
  * mcd_plugin_register_transport:
- * @plugin: the #McdPlugin.
+ * @master: the #McdMaster.
  * @transport_plugin: the #McdTransportPlugin.
  *
  * Registers @transport_plugin as a transport monitoring object.
- * The @plugin takes ownership of the transport (i.e., it doesn't increment its
+ * The @master takes ownership of the transport (i.e., it doesn't increment its
  * reference count).
  */
 void
-mcd_plugin_register_transport (McdPlugin *plugin,
+mcd_master_register_transport (McdMaster *master,
 			       McdTransportPlugin *transport_plugin)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (plugin);
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
 
     DEBUG ("called");
     g_signal_connect (transport_plugin, "status-changed",
 		      G_CALLBACK (on_transport_status_changed),
-		      MCD_MASTER (plugin));
+		      master);
     g_ptr_array_add (priv->transport_plugins, transport_plugin);
 }
 
 void
-mcd_plugin_register_account_connection (McdPlugin *plugin,
+mcd_master_register_account_connection (McdMaster *master,
 					McdAccountConnectionFunc func,
 					gint priority,
 					gpointer userdata)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (plugin);
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     McdAccountConnectionData *acd;
     GList *list;
 

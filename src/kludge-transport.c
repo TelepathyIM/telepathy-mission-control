@@ -267,13 +267,12 @@ mcd_kludge_transport_new (void)
 }
 
 void
-mcd_kludge_transport_install (
-    McdPlugin *plugin)
+mcd_kludge_transport_install (McdMaster *master)
 {
   McdTransportPlugin *self = mcd_kludge_transport_new ();
 
-  mcd_plugin_register_transport (plugin, self);
-  mcd_plugin_register_account_connection (plugin,
+  mcd_master_register_transport (master, self);
+  mcd_master_register_account_connection (master,
       mcd_kludge_transport_account_connection_cb,
       MCD_ACCOUNT_CONNECTION_PRIORITY_TRANSPORT, self);
 }

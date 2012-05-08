@@ -21,7 +21,7 @@
 #define MCD_KLUDGE_TRANSPORT_H
 
 #include <glib-object.h>
-#include "mcd-plugin.h"
+#include "mcd-master.h"
 #include "mcd-transport.h"
 
 typedef struct _McdKludgeTransport McdKludgeTransport;
@@ -40,8 +40,7 @@ struct _McdKludgeTransport {
 
 GType mcd_kludge_transport_get_type (void);
 
-void mcd_kludge_transport_install (
-    McdPlugin *plugin);
+void mcd_kludge_transport_install (McdMaster *master);
 
 /* TYPE MACROS */
 #define MCD_TYPE_KLUDGE_TRANSPORT \
