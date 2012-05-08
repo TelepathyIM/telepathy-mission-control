@@ -748,12 +748,6 @@ mcd_channel_get_status (McdChannel *channel)
     return MCD_CHANNEL_PRIV (channel)->status;
 }
 
-const gchar *
-mcd_channel_get_channel_type (McdChannel *channel)
-{
-    return g_quark_to_string (mcd_channel_get_channel_type_quark (channel));
-}
-
 GQuark
 mcd_channel_get_channel_type_quark (McdChannel *channel)
 {
@@ -782,50 +776,6 @@ mcd_channel_get_object_path (McdChannel *channel)
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
 
     return priv->tp_chan ? TP_PROXY (priv->tp_chan)->object_path : NULL;
-}
-
-guint
-mcd_channel_get_handle (McdChannel *channel)
-{
-    McdChannelPrivate *priv;
-
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), 0);
-    priv = channel->priv;
-    if (priv->tp_chan)
-        return tp_channel_get_handle (priv->tp_chan, NULL);
-
-    if (G_LIKELY (priv->request != NULL))
-    {
-        GHashTable *properties = _mcd_request_get_properties (priv->request);
-
-        return tp_asv_get_uint32 (properties,
-            TP_IFACE_CHANNEL ".TargetHandle", NULL);
-    }
-
-    return 0;
-}
-
-TpHandleType
-mcd_channel_get_handle_type (McdChannel *channel)
-{
-    McdChannelPrivate *priv;
-    guint handle_type = TP_HANDLE_TYPE_NONE;
-
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), 0);
-    priv = channel->priv;
-    if (priv->tp_chan)
-    {
-        tp_channel_get_handle (priv->tp_chan, &handle_type);
-    }
-    else if (G_LIKELY (priv->request != NULL))
-    {
-        GHashTable *properties = _mcd_request_get_properties (priv->request);
-
-        handle_type = tp_asv_get_uint32 (properties,
-            TP_IFACE_CHANNEL ".TargetHandle", NULL);
-    }
-
-    return handle_type;
 }
 
 /*
