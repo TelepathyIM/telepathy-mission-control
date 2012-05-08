@@ -2132,13 +2132,6 @@ _mcd_dispatcher_add_connection (McdDispatcher *self,
      * for it */
 }
 
-McdClientRegistry *
-_mcd_dispatcher_get_client_registry (McdDispatcher *self)
-{
-    g_return_val_if_fail (MCD_IS_DISPATCHER (self), NULL);
-    return self->priv->clients;
-}
-
 /* org.freedesktop.Telepathy.ChannelDispatcher.Messages */
 typedef struct
 {
