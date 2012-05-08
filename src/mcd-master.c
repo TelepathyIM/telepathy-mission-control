@@ -526,36 +526,6 @@ _mcd_master_lookup_manager (McdMaster *master,
 }
 
 /**
- * mcd_master_get_dispatcher:
- * @master: the #McdMaster.
- *
- * Returns: the #McdDispatcher. It will go away when @master is disposed,
- * unless you keep a reference to it.
- */
-McdDispatcher *
-mcd_master_get_dispatcher (McdMaster *master)
-{
-    g_return_val_if_fail (MCD_IS_MASTER (master), NULL);
-    return MCD_MASTER_PRIV (master)->dispatcher;
-}
-
-/**
- * mcd_plugin_get_dispatcher:
- * @plugin: the #McdPlugin
- * 
- * Gets the McdDispatcher, to be used for registering channel filters. The
- * reference count of the returned object is not incremented, and the object is
- * guaranteed to stay alive during the whole lifetime of the plugin.
- *
- * Returns: the #McdDispatcher
- */
-McdDispatcher *
-mcd_plugin_get_dispatcher (McdPlugin *plugin)
-{
-    return MCD_MASTER_PRIV (plugin)->dispatcher;
-}
-
-/**
  * mcd_master_get_dbus_daemon:
  * @master: the #McdMaster.
  *

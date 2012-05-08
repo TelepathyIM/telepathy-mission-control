@@ -65,7 +65,6 @@ struct _McdMasterClass
 GType mcd_master_get_type (void);
 McdMaster *mcd_master_get_default (void);
 
-McdDispatcher *mcd_master_get_dispatcher (McdMaster *master);
 TpDBusDaemon *mcd_master_get_dbus_daemon (McdMaster *master);
 void mcd_master_shutdown (McdMaster *self, const gchar *reason);
 
