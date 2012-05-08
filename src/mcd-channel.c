@@ -69,7 +69,6 @@ struct _McdChannelPrivate
     guint outgoing : 1;
     guint has_group_if : 1;
     guint members_accepted : 1;
-    guint missed : 1;
     guint is_disposed : 1;
     guint is_aborted : 1;
     guint constructing : 1;
@@ -160,14 +159,6 @@ on_members_changed (TpChannel *proxy, const gchar *message,
         {
             removed_handle = g_array_index (removed, guint, i);
             DEBUG ("removed member %u", removed_handle);
-            if (removed_handle == self_handle ||
-                removed_handle == conn_self_handle)
-            {
-                /* We are removed (end of call), marking as missed, if not
-                 * already accespted the call */
-                if (!priv->members_accepted) priv->missed = TRUE;
-                break;
-            }
         }
     }
 }
@@ -976,21 +967,6 @@ mcd_channel_get_inviter (McdChannel *channel)
                                       TP_IFACE_CHANNEL ".InitiatorID");
     }
     return NULL;
-}
-
-/**
- * mcd_channel_is_missed:
- * @channel: the #McdChannel.
- *
- * Return %TRUE if the remote party removed itself before we could join the
- * channel.
- *
- * Returns: %TRUE if the channel is missed.
- */
-gboolean
-mcd_channel_is_missed (McdChannel *channel)
-{
-    return MCD_CHANNEL_PRIV (channel)->missed;
 }
 
 /*
