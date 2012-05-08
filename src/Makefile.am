@@ -24,7 +24,6 @@ mc_headers = \
 	mcd-mission.h \
 	mcd-operation.h \
 	mcd-master.h \
-	mcd-controller.h \
 	mcd-manager.h \
 	mcd-connection.h \
 	mcd-connection-plugin.h \
@@ -148,7 +147,6 @@ libmcd_convenience_la_SOURCES = \
 	mcd-mission.c \
 	mcd-mission-priv.h \
 	mcd-operation.c \
-	mcd-controller.c \
 	mcd-master.c \
 	mcd-master-priv.h \
 	mcd-manager.c \

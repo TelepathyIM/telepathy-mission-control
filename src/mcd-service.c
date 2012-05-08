@@ -99,7 +99,7 @@ static void
 mcd_service_disconnect (McdMission *mission)
 {
     MCD_MISSION_CLASS (mcd_service_parent_class)->disconnect (mission);
-    mcd_controller_shutdown (MCD_CONTROLLER (mission), "Disconnected");
+    mcd_master_shutdown (MCD_MASTER (mission), "Disconnected");
 }
 
 static void

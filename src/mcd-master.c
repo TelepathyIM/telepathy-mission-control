@@ -43,9 +43,6 @@
  * It is basically a container for all McdManager objects and
  * takes care of their management. It also takes care of sleep and awake
  * cycles (e.g. translates to auto away somewhere down the hierarchy).
- *
- * McdMaster is a subclass of McdConroller, which essentially means it
- * is subject to all device control.
  */
 
 #include <config.h>
@@ -86,7 +83,7 @@
 				  MCD_TYPE_MASTER, \
 				  McdMasterPrivate))
 
-G_DEFINE_TYPE (McdMaster, mcd_master, MCD_TYPE_CONTROLLER);
+G_DEFINE_TYPE (McdMaster, mcd_master, MCD_TYPE_OPERATION);
 
 typedef struct _McdMasterPrivate
 {
@@ -100,6 +97,9 @@ typedef struct _McdMasterPrivate
     GPtrArray *mcd_plugins;
     GPtrArray *transport_plugins;
     GList *account_connections;
+
+    /* Current pending sleep timer */
+    gint shutdown_timeout_id;
 
     gboolean is_disposed;
     gboolean low_memory;
@@ -696,4 +696,47 @@ _mcd_master_account_replace_transport (McdMaster *master,
 
     g_hash_table_unref (conditions);
     return connected;
+}
+
+/* Milliseconds to wait for Connectivity coming back up before exiting MC */
+#define EXIT_COUNTDOWN_TIME 5000
+
+static gboolean
+_mcd_master_exit_by_timeout (gpointer data)
+{
+    McdMaster *self = MCD_MASTER (data);
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (self);
+
+    priv->shutdown_timeout_id = 0;
+
+    /* Notify sucide */
+    mcd_mission_abort (MCD_MISSION (self));
+    return FALSE;
+}
+
+void
+mcd_master_shutdown (McdMaster *self,
+                     const gchar *reason)
+{
+    McdMasterPrivate *priv;
+
+    g_return_if_fail (MCD_IS_MASTER (self));
+    priv = MCD_MASTER_PRIV (self);
+
+    if(!priv->shutdown_timeout_id)
+    {
+        DEBUG ("MC will bail out because of \"%s\" out exit after %i",
+               reason ? reason : "No reason specified",
+               EXIT_COUNTDOWN_TIME);
+
+        priv->shutdown_timeout_id = g_timeout_add (EXIT_COUNTDOWN_TIME,
+                                                   _mcd_master_exit_by_timeout,
+                                                   self);
+    }
+    else
+    {
+        DEBUG ("Already shutting down. This one has the reason %s",
+               reason ? reason : "No reason specified");
+    }
+    mcd_debug_print_tree (self);
 }
