@@ -1100,9 +1100,6 @@ def connect_to_mc(q, bus, mc):
     assert properties is not None
     interfaces = properties.get('Interfaces')
 
-    # assert that current functionality exists
-    assert cs.AM_IFACE_NOKIA_QUERY in interfaces, interfaces
-
     return account_manager, properties, interfaces
 
 def tell_mc_to_die(q, bus):

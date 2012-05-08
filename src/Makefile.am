@@ -63,7 +63,6 @@ mc_gen_headers = \
 	_gen/svc-Account_Interface_External_Password_Storage.h \
 	_gen/svc-Account_Interface_Hidden.h \
 	_gen/svc-Account_Manager_Interface_Hidden.h \
-	_gen/svc-Account_Manager_Interface_Query.h \
 	_gen/svc-dispatcher.h
 
 nodist_libmcd_convenience_la_SOURCES = \
@@ -78,7 +77,6 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/svc-Account_Interface_Conditions.c \
 	_gen/svc-Account_Interface_External_Password_Storage.c \
 	_gen/svc-Account_Interface_Hidden.c \
-	_gen/svc-Account_Manager_Interface_Query.c \
 	_gen/svc-Account_Manager_Interface_Hidden.c \
 	_gen/svc-dispatcher.c \
 	mcd-enum-types.c \
@@ -161,7 +159,6 @@ libmcd_convenience_la_SOURCES = \
 	mcd-account-addressing.c \
 	mcd-account-manager.c \
 	mcd-account-manager-priv.h \
-	mcd-account-manager-query.c \
 	mcd-account-manager-default.c \
 	mcd-account-priv.h \
 	mcd-client.c \

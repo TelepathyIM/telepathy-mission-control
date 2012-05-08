@@ -176,7 +176,6 @@ ACCOUNT_PATH_PREFIX = tp_path_prefix + '/Account/'
 
 AM = tp_name_prefix + '.AccountManager'
 AM_IFACE_HIDDEN = AM + '.Interface.Hidden.DRAFT1'
-AM_IFACE_NOKIA_QUERY = 'com.nokia.AccountManager.Interface.Query'
 AM_PATH = tp_path_prefix + '/AccountManager'
 
 CR = tp_name_prefix + '.ChannelRequest'

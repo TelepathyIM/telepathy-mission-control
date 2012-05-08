@@ -44,9 +44,6 @@ def test(q, bus, mc):
         properties.get('InvalidAccounts')
     interfaces = properties.get('Interfaces')
 
-    # assert that current functionality exists
-    assert cs.AM_IFACE_NOKIA_QUERY in interfaces, interfaces
-
     params = dbus.Dictionary({"account": "someguy@example.com",
         "password": "secrecy"}, signature='sv')
     (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
