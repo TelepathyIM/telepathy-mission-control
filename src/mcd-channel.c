@@ -856,33 +856,6 @@ mcd_channel_get_name (McdChannel *channel)
     return tp_asv_get_string (properties, TP_IFACE_CHANNEL ".TargetID");
 }
 
-/**
- * mcd_channel_get_inviter:
- * @channel: the #McdChannel.
- *
- * Get the address of the inviter (i.e. the actor who put us in the pending
- * local members list).
- *
- * Returns: a const string holding the inviter address.
- */
-const gchar *
-mcd_channel_get_inviter (McdChannel *channel)
-{
-    McdChannelPrivate *priv;
-    GHashTable *properties = NULL;
-
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    priv = channel->priv;
-    if (priv->tp_chan)
-    {
-        properties = tp_channel_borrow_immutable_properties (priv->tp_chan);
-        if (properties)
-            return tp_asv_get_string (properties,
-                                      TP_IFACE_CHANNEL ".InitiatorID");
-    }
-    return NULL;
-}
-
 /*
  * _mcd_channel_get_immutable_properties:
  * @channel: the #McdChannel.

@@ -107,7 +107,6 @@ const gchar* mcd_channel_get_object_path (McdChannel *channel);
 guint mcd_channel_get_handle (McdChannel *channel);
 TpHandleType mcd_channel_get_handle_type (McdChannel *channel);
 const gchar *mcd_channel_get_name (McdChannel *channel);
-const gchar *mcd_channel_get_inviter (McdChannel *channel);
 gboolean mcd_channel_is_requested (McdChannel *channel);
 McdAccount *mcd_channel_get_account (McdChannel *channel);
 TpChannel *mcd_channel_get_tp_channel (McdChannel *channel);
