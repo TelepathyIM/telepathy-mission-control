@@ -20,6 +20,8 @@
  *
  */
 
+#include "config.h"
+
 #include "request.h"
 
 #include <dbus/dbus-glib.h>

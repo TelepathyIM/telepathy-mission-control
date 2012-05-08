@@ -35,6 +35,8 @@
  * FIXME
  */
 
+#include "config.h"
+
 #include "mcd-channel.h"
 
 #include <telepathy-glib/dbus.h>

@@ -23,11 +23,11 @@
  * 02110-1301 USA
  *
  */
+#include "config.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <glib/gstdio.h>
-#include <config.h>
 
 #include <telepathy-glib/svc-generic.h>
 #include <telepathy-glib/gtypes.h>

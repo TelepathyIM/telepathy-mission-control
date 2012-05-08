@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include "config.h"
+
 #include "mcd-storage-priv.h"
 #include "mcd-master.h"
 #include "mcd-account-manager-priv.h"

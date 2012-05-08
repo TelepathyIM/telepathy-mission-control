@@ -33,6 +33,8 @@
  * FIXME
  */
 
+#include "config.h"
+
 #include "mcd-connection.h"
 #include "mcd-connection-service-points.h"
 

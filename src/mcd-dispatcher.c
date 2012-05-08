@@ -35,6 +35,8 @@
  * FIXME
  */
 
+#include "config.h"
+
 #include <dlfcn.h>
 #include <glib.h>
 #include <glib/gprintf.h>

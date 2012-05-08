@@ -21,6 +21,8 @@
  *
  */
 
+#include "config.h"
+
 #include "plugin-request.h"
 
 #include <telepathy-glib/telepathy-glib.h>

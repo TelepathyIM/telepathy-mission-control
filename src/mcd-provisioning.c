@@ -23,6 +23,8 @@
  *
  */
 
+#include "config.h"
+
 #include "mcd-provisioning.h"
 
 GQuark 

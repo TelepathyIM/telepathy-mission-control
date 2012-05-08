@@ -24,6 +24,8 @@
  *
  */
 
+#include "config.h"
+
 #include <string.h>
 #include <telepathy-glib/errors.h>
 #include <telepathy-glib/util.h>

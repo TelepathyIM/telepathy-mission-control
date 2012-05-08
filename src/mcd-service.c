@@ -38,6 +38,8 @@
  * dbus interface.
  */
 
+#include "config.h"
+
 #include <dbus/dbus.h>
 #include <string.h>
 #include <dlfcn.h>

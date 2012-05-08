@@ -22,6 +22,8 @@
  *
  */
 
+#include "config.h"
+
 #include "mcd-connection-service-points.h"
 #include "mcd-connection-priv.h"
 #include <telepathy-glib/interfaces.h>

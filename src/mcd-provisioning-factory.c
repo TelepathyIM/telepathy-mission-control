@@ -23,6 +23,8 @@
 *
 */
 
+#include "config.h"
+
 #include "mcd-provisioning-factory.h"
 
 #define MCD_PROVISIONING_FACTORY_GET_PRIV(master) \

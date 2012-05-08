@@ -35,6 +35,8 @@
  * object to self container.
  */
 
+#include "config.h"
+
 #include "mcd-proxy.h"
 
 #include <telepathy-glib/telepathy-glib.h>

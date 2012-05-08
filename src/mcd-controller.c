@@ -36,6 +36,8 @@
  * life-cycle based on such events.
  */
 
+#include "config.h"
+
 #include "mcd-controller.h"
 
 /* Milliseconds to wait for Connectivity coming back up before exiting MC */

@@ -19,6 +19,8 @@
  *
  */
 
+#include "config.h"
+
 #include "client-registry.h"
 
 #include <telepathy-glib/handle-repo-dynamic.h>

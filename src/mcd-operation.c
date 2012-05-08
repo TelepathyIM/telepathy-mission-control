@@ -38,6 +38,8 @@
  * established.
  */
 
+#include "config.h"
+
 #include "mcd-operation.h"
 #include "mcd-mission-priv.h"
 

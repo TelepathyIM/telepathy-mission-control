@@ -21,10 +21,9 @@
  * 02110-1301 USA
  *
  */
+#include "config.h"
 
 #include "mcd-account-addressing.h"
-
-#include <config.h>
 
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/util.h>

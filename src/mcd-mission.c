@@ -49,6 +49,8 @@
  * object specific state managements.
  */
 
+#include "config.h"
+
 #include "mcd-mission-priv.h"
 
 #include <telepathy-glib/telepathy-glib.h>

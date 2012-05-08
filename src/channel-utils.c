@@ -24,6 +24,8 @@
  *
  */
 
+#include "config.h"
+
 #include "channel-utils.h"
 
 #include <telepathy-glib/channel.h>

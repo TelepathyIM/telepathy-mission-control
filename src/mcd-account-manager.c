@@ -21,13 +21,13 @@
  * 02110-1301 USA
  *
  */
+#include "config.h"
 
 #include "mcd-account-manager.h"
 
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <config.h>
 #include <dbus/dbus-glib-lowlevel.h>
 #include <dbus/dbus.h>
 

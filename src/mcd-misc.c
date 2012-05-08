@@ -24,6 +24,8 @@
  *
  */
 
+#include "config.h"
+
 #include "mcd-misc.h"
 #include <errno.h>
 #include <glib/gstdio.h>

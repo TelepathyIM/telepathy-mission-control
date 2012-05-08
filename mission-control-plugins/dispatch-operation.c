@@ -37,6 +37,8 @@
  * Only Mission Control should implement this interface.
  */
 
+#include "config.h"
+
 #include <mission-control-plugins/mission-control-plugins.h>
 #include <mission-control-plugins/implementation.h>
 
