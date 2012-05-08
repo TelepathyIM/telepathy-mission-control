@@ -828,34 +828,6 @@ mcd_channel_get_handle_type (McdChannel *channel)
     return handle_type;
 }
 
-/**
- * mcd_channel_get_name:
- * @channel: the #McdChannel.
- *
- * Get the Telepathy name of @channel (calls InspectHandles on the channel
- * handle).
- *
- * Returns: a const string holding the channel name.
- */
-const gchar *
-mcd_channel_get_name (McdChannel *channel)
-{
-    McdChannelPrivate *priv;
-    GHashTable *properties = NULL;
-
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    priv = channel->priv;
-
-    if (priv->tp_chan)
-        properties = tp_channel_borrow_immutable_properties (priv->tp_chan);
-    else if (G_LIKELY (priv->request != NULL))
-        properties = _mcd_request_get_properties (priv->request);
-
-    if (!properties) return NULL;
-
-    return tp_asv_get_string (properties, TP_IFACE_CHANNEL ".TargetID");
-}
-
 /*
  * _mcd_channel_get_immutable_properties:
  * @channel: the #McdChannel.
