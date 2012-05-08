@@ -1070,37 +1070,6 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
     }
 }
 
-/* CONTEXT API */
-
-/**
- * mcd_dispatcher_context_get_connection:
- * @context: the #McdDispatcherContext.
- *
- * Returns: the #McdConnection.
- */
-McdConnection *
-mcd_dispatcher_context_get_connection (McdDispatcherContext *context)
-{
-    const GList *channels = mcd_dispatcher_context_get_channels (context);
-
-    g_return_val_if_fail (channels != NULL, NULL);
-    return MCD_CONNECTION (mcd_mission_get_parent
-                           (MCD_MISSION (channels->data)));
-}
-
-/**
- * mcd_dispatcher_context_get_channels:
- * @context: the #McdDispatcherContext.
- *
- * Returns: a #GList of #McdChannel elements.
- */
-const GList *
-mcd_dispatcher_context_get_channels (McdDispatcherContext *context)
-{
-    g_return_val_if_fail (context != NULL, NULL);
-    return _mcd_dispatch_operation_peek_channels (context->operation);
-}
-
 /*
  * _mcd_dispatcher_take_channels:
  * @dispatcher: the #McdDispatcher.

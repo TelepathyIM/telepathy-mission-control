@@ -64,22 +64,6 @@ void mcd_dispatcher_add_filter (McdDispatcher *dispatcher,
 void mcd_dispatcher_add_filters (McdDispatcher *dispatcher,
                                  const McdFilter *filters);
 
-/* Context API section
- *
- * The use of gpointer is intentional; we want to make accessing the
- * internals of the context restricted to make it unlikely that
- * somebody shoots [him|her]self in the foot while doing fancy
- * tricks. This also minimizes the amount of necessary includes.
- */
-
-/* Getters */
-
-const GList *mcd_dispatcher_context_get_channels
-    (McdDispatcherContext *context);
-
-McdConnection *mcd_dispatcher_context_get_connection
-    (McdDispatcherContext *context);
-
 G_END_DECLS
 
 #endif
