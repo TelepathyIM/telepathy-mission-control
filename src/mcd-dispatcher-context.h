@@ -74,13 +74,6 @@ void mcd_dispatcher_add_filters (McdDispatcher *dispatcher,
 
 /* Getters */
 
-McdDispatcher* mcd_dispatcher_context_get_dispatcher (McdDispatcherContext * ctx);
-
-TpChannel *mcd_dispatcher_context_get_channel_object (McdDispatcherContext * ctx) G_GNUC_DEPRECATED;
-
-TpConnection *mcd_dispatcher_context_get_connection_object (McdDispatcherContext * ctx) G_GNUC_DEPRECATED;
-
-McdChannel * mcd_dispatcher_context_get_channel (McdDispatcherContext * ctx);
 const GList *mcd_dispatcher_context_get_channels
     (McdDispatcherContext *context);
 

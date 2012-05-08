@@ -1072,24 +1072,6 @@ mcd_dispatcher_context_unref (McdDispatcherContext * context,
 
 /* CONTEXT API */
 
-/* Context getters */
-TpChannel *
-mcd_dispatcher_context_get_channel_object (McdDispatcherContext * ctx)
-{
-    TpChannel *tp_chan;
-    g_return_val_if_fail (ctx, 0);
-    g_object_get (G_OBJECT (mcd_dispatcher_context_get_channel (ctx)),
-                  "tp-channel", &tp_chan, NULL);
-    g_object_unref (G_OBJECT (tp_chan));
-    return tp_chan;
-}
-
-McdDispatcher*
-mcd_dispatcher_context_get_dispatcher (McdDispatcherContext * ctx)
-{
-    return ctx->dispatcher;
-}
-
 /**
  * mcd_dispatcher_context_get_connection:
  * @context: the #McdDispatcherContext.
@@ -1104,28 +1086,6 @@ mcd_dispatcher_context_get_connection (McdDispatcherContext *context)
     g_return_val_if_fail (channels != NULL, NULL);
     return MCD_CONNECTION (mcd_mission_get_parent
                            (MCD_MISSION (channels->data)));
-}
-
-TpConnection *
-mcd_dispatcher_context_get_connection_object (McdDispatcherContext * ctx)
-{
-    const McdConnection *connection;
-    TpConnection *tp_conn;
-   
-    connection = mcd_dispatcher_context_get_connection (ctx); 
-    g_object_get (G_OBJECT (connection), "tp-connection",
-		  &tp_conn, NULL);
-   
-    g_object_unref (tp_conn); 
-    return tp_conn;
-}
-
-McdChannel *
-mcd_dispatcher_context_get_channel (McdDispatcherContext * ctx)
-{
-    const GList *channels = mcd_dispatcher_context_get_channels (ctx);
-
-    return channels ? MCD_CHANNEL (channels->data) : NULL;
 }
 
 /**
