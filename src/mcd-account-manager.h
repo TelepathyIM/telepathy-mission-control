@@ -72,8 +72,6 @@ McdAccountManager *mcd_account_manager_new (TpDBusDaemon *dbus_daemon);
 TpDBusDaemon *mcd_account_manager_get_dbus_daemon
     (McdAccountManager *account_manager);
 
-GKeyFile *mcd_account_manager_get_config (McdAccountManager *account_manager);
-
 typedef void (McdAccountManagerWriteConfCb) (McdAccountManager *account_manager,
                                              const GError *error,
                                              gpointer user_data);

@@ -3213,13 +3213,6 @@ _mcd_account_get_storage (McdAccount *account)
     return account->priv->storage;
 }
 
-TpDBusDaemon *
-mcd_account_get_dbus_daemon (McdAccount *account)
-{
-    return account->priv->dbus_daemon;
-}
-
-
 /*
  * mcd_account_is_valid:
  * @account: the #McdAccount.
@@ -3457,13 +3450,6 @@ mcd_account_get_current_presence (McdAccount *account,
         *message = priv->curr_presence_message;
 }
 
-gboolean
-mcd_account_get_connect_automatically (McdAccount *account)
-{
-    McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
-    return priv->connect_automatically;
-}
-
 /*
  * mcd_account_would_like_to_connect:
  * @account: an account
@@ -3508,25 +3494,6 @@ mcd_account_would_like_to_connect (McdAccount *account)
     }
 
     return TRUE;
-}
-
-/* TODO: remove when the relative members will become public */
-void
-mcd_account_get_automatic_presence (McdAccount *account,
-				    TpConnectionPresenceType *presence,
-				    const gchar **status,
-				    const gchar **message)
-{
-    McdAccountPrivate *priv = account->priv;
-
-    if (presence != NULL)
-        *presence = priv->auto_presence_type;
-
-    if (status != NULL)
-        *status = priv->auto_presence_status;
-
-    if (message != NULL)
-        *message = priv->auto_presence_message;
 }
 
 /* TODO: remove when the relative members will become public */
@@ -3587,17 +3554,6 @@ _mcd_account_set_normalized_name (McdAccount *account, const gchar *name)
                                   &value);
 
     g_value_unset (&value);
-}
-
-gchar *
-mcd_account_get_normalized_name (McdAccount *account)
-{
-    McdAccountPrivate *priv = account->priv;
-    const gchar *account_name = mcd_account_get_unique_name (account);
-
-    return mcd_storage_dup_string (priv->storage,
-                                   account_name,
-                                   MC_ACCOUNTS_KEY_NORMALIZED_NAME);
 }
 
 void
@@ -3764,7 +3720,7 @@ mcd_account_connection_self_nickname_changed_cb (McdAccount *account,
     g_value_unset (&value);
 }
 
-gchar *
+static gchar *
 mcd_account_get_alias (McdAccount *account)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
@@ -4000,13 +3956,6 @@ mcd_account_get_connection_status (McdAccount *account)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     return priv->conn_status;
-}
-
-TpConnectionStatusReason
-mcd_account_get_connection_status_reason (McdAccount *account)
-{
-    McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
-    return priv->conn_reason;
 }
 
 void
