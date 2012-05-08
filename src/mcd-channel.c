@@ -67,7 +67,6 @@ struct _McdChannelPrivate
 
     /* boolean properties */
     guint outgoing : 1;
-    guint has_group_if : 1;
     guint is_disposed : 1;
     guint is_aborted : 1;
     guint constructing : 1;
@@ -110,49 +109,6 @@ static void on_proxied_channel_status_changed (McdChannel *source,
                                                McdChannel *dest);
 
 static void
-on_members_changed (TpChannel *proxy, const gchar *message,
-		    const GArray *added, const GArray *removed,
-		    const GArray *l_pending, const GArray *r_pending,
-                    guint actor, guint reason, McdChannel *channel)
-{
-    TpHandle self_handle;
-    TpHandle conn_self_handle = 0;
-    TpHandle removed_handle = 0;
-    guint i;
-
-    self_handle = tp_channel_group_get_self_handle (proxy);
-    conn_self_handle =
-      tp_connection_get_self_handle (tp_channel_borrow_connection (proxy));
-
-    DEBUG ("called (actor %u, reason %u, self_handle %u, conn_self_handle %u)",
-           actor, reason, tp_channel_group_get_self_handle (proxy),
-           conn_self_handle);
-
-    if (added && added->len > 0)
-    {
-        DEBUG ("%u added members", added->len);
-	for (i = 0; i < added->len; i++)
-	{
-	    guint added_member = g_array_index (added, guint, i);
-            DEBUG ("added member %u", added_member);
-	}
-    }
-
-    if (removed && removed->len > 0 &&
-        (actor == 0 ||
-         reason == TP_CHANNEL_GROUP_CHANGE_REASON_ERROR ||
-         (actor != self_handle && actor != conn_self_handle) ||
-         reason == TP_CHANNEL_GROUP_CHANGE_REASON_NO_ANSWER))
-    {
-        for (i = 0; i < removed->len; i++)
-        {
-            removed_handle = g_array_index (removed, guint, i);
-            DEBUG ("removed member %u", removed_handle);
-        }
-    }
-}
-
-static void
 proxy_destroyed (TpProxy *self, guint domain, gint code, gchar *message,
 		 gpointer user_data)
 {
@@ -161,15 +117,6 @@ proxy_destroyed (TpProxy *self, guint domain, gint code, gchar *message,
     DEBUG ("Channel proxy invalidated: %s %d: %s",
            g_quark_to_string (domain), code, message);
     mcd_mission_abort (MCD_MISSION (channel));
-}
-
-static inline void
-_mcd_channel_setup_group (McdChannel *channel)
-{
-    McdChannelPrivate *priv = channel->priv;
-
-    g_signal_connect (priv->tp_chan, "group-members-changed",
-                      G_CALLBACK (on_members_changed), channel);
 }
 
 static void
@@ -208,11 +155,6 @@ on_channel_ready (GObject *source_object, GAsyncResult *result, gpointer user_da
          TP_IFACE_CHANNEL ".Requested", &valid);
     if (valid)
         priv->outgoing = requested;
-
-    priv->has_group_if = tp_proxy_has_interface_by_id (priv->tp_chan,
-						       TP_IFACE_QUARK_CHANNEL_INTERFACE_GROUP);
-    if (priv->has_group_if)
-	_mcd_channel_setup_group (channel);
 }
 
 void
@@ -266,9 +208,6 @@ _mcd_channel_release_tp_channel (McdChannel *channel)
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
     if (priv->tp_chan)
     {
-        g_signal_handlers_disconnect_by_func (G_OBJECT (priv->tp_chan),
-                                              G_CALLBACK (on_members_changed),
-                                              channel);
 	g_signal_handlers_disconnect_by_func (G_OBJECT (priv->tp_chan),
 					      G_CALLBACK (proxy_destroyed),
 					      channel);
