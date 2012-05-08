@@ -1116,33 +1116,6 @@ mcd_dispatcher_context_close_all (McdDispatcherContext *context,
                                             message);
 }
 
-/**
- * mcd_dispatcher_context_process:
- * @context: a #McdDispatcherContext
- * @result: %FALSE if the channels are to be destroyed
- *
- * Continue to process the @context.
- *
- * mcd_dispatcher_context_process (c, TRUE) is exactly equivalent to
- * mcd_dispatcher_context_proceed (c), which should be used instead in new
- * code.
- *
- * mcd_dispatcher_context_process (c, FALSE) is exactly equivalent to
- * mcd_dispatcher_context_destroy_all (c) followed by
- * mcd_dispatcher_context_proceed (c), which should be used instead in new
- * code.
- */
-void
-mcd_dispatcher_context_process (McdDispatcherContext * context, gboolean result)
-{
-    if (!result)
-    {
-        _mcd_dispatch_operation_destroy_channels (context->operation);
-    }
-
-    mcd_dispatcher_context_proceed (context);
-}
-
 static void
 mcd_dispatcher_context_unref (McdDispatcherContext * context,
                               const gchar *tag)

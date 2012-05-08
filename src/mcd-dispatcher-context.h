@@ -106,8 +106,6 @@ void mcd_dispatcher_context_forget_all (McdDispatcherContext *context);
 
 void mcd_dispatcher_context_proceed (McdDispatcherContext *context);
 
-void mcd_dispatcher_context_process (McdDispatcherContext * ctx, gboolean result);
-
 G_END_DECLS
 
 #endif
