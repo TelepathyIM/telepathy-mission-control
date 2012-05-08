@@ -44,7 +44,6 @@
 #include "mcd-connection-plugin.h"
 #include "mcd-connection-priv.h"
 #include "mcd-misc.h"
-#include "mcd-signals-marshal.h"
 #include "mcd-manager.h"
 #include "mcd-manager-priv.h"
 #include "mcd-master.h"
@@ -3131,7 +3130,7 @@ mcd_account_class_init (McdAccountClass * klass)
 		      G_OBJECT_CLASS_TYPE (klass),
 		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
 		      0,
-		      NULL, NULL, _mcd_marshal_VOID__UINT_UINT,
+		      NULL, NULL, NULL,
 		      G_TYPE_NONE,
 		      2, G_TYPE_UINT, G_TYPE_UINT);
     _mcd_account_signals[VALIDITY_CHANGED] =

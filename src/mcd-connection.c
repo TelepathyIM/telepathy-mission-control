@@ -64,8 +64,6 @@
 #include "mcd-slacker.h"
 #include "sp_timestamp.h"
 
-#include "mcd-signals-marshal.h"
-
 #define INITIAL_RECONNECTION_TIME   3 /* seconds */
 #define RECONNECTION_MULTIPLIER     3
 #define MAXIMUM_RECONNECTION_TIME   30 * 60 /* half an hour */
@@ -2384,7 +2382,7 @@ mcd_connection_class_init (McdConnectionClass * klass)
     signals[SELF_PRESENCE_CHANGED] = g_signal_new ("self-presence-changed",
         G_OBJECT_CLASS_TYPE (klass),
         G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED, 0,
-        NULL, NULL, _mcd_marshal_VOID__UINT_STRING_STRING,
+        NULL, NULL, NULL,
         G_TYPE_NONE, 3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING);
 
     signals[SELF_NICKNAME_CHANGED] = g_signal_new ("self-nickname-changed",
@@ -2396,7 +2394,7 @@ mcd_connection_class_init (McdConnectionClass * klass)
     signals[CONNECTION_STATUS_CHANGED] = g_signal_new (
         "connection-status-changed", G_OBJECT_CLASS_TYPE (klass),
         G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED, 0,
-        NULL, NULL, _mcd_marshal_VOID__UINT_UINT_OBJECT,
+        NULL, NULL, NULL,
         G_TYPE_NONE, 3, G_TYPE_UINT, G_TYPE_UINT, TP_TYPE_CONNECTION);
 
     signals[READY] = g_signal_new ("ready",

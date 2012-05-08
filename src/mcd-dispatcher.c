@@ -44,7 +44,6 @@
 #include "mission-control-plugins/mission-control-plugins.h"
 
 #include "client-registry.h"
-#include "mcd-signals-marshal.h"
 #include "mcd-account-priv.h"
 #include "mcd-client-priv.h"
 #include "mcd-connection.h"

@@ -85,8 +85,6 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/svc-dispatcher.c \
 	mcd-enum-types.c \
 	mcd-enum-types.h \
-	mcd-signals-marshal.c \
-	mcd-signals-marshal.h \
 	$(mc_gen_headers)
 
 BUILT_SOURCES = \
@@ -240,14 +238,6 @@ endif
 
 endif
 
-%-signals-marshal.h: %-signals-marshal.list Makefile
-	$(AM_V_GEN)glib-genmarshal --header --prefix=_$(subst -,_,$*)_marshal $< > $*-signals-marshal.h
-
-%-signals-marshal.c: %-signals-marshal.list Makefile
-	$(AM_V_GEN){ echo '#include "$*-signals-marshal.h"' && \
-	glib-genmarshal --body --prefix=_$(subst -,_,$*)_marshal $<; } \
-	> $*-signals-marshal.c
-
 mcd-enum-types.h: stamp-mcd-enum-types.h
 	$(AM_V_GEN)true
 stamp-mcd-enum-types.h: Makefile $(mc_headers) mcd-enum-types.c
@@ -276,7 +266,6 @@ mcd-enum-types.c: Makefile $(mc_headers)
 EXTRA_DIST = \
 	mcd.xml \
 	dispatcher.xml \
-	mcd-signals-marshal.list \
 	stamp-mcd-enum-types.h
 
 Android.mk: Makefile.am $(nodist_libmcd_convenience_la_SOURCES)

@@ -34,7 +34,6 @@
 #include "request.h"
 
 #include <telepathy-glib/proxy-subclass.h>
-#include "mcd-signals-marshal.h"
 
 /* auto-generated stubs */
 #include "_gen/svc-Account_Interface_Addressing.h"

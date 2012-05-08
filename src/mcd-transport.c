@@ -26,7 +26,6 @@
 
 #include <glib.h>
 #include "mcd-transport.h"
-#include "mcd-signals-marshal.h"
 #include "mcd-enum-types.h"
 
 /**
@@ -71,8 +70,7 @@ mcd_transport_plugin_base_init (gpointer iface)
             G_TYPE_FROM_INTERFACE (iface),
             G_SIGNAL_RUN_FIRST,
             G_STRUCT_OFFSET (McdTransportPluginIface, status_changed),
-            NULL, NULL,
-            _mcd_marshal_VOID__POINTER_UINT,
+            NULL, NULL, NULL,
             G_TYPE_NONE, 2,
             G_TYPE_POINTER, MCD_TYPE_TRANSPORT_STATUS);
         initialized = TRUE;
