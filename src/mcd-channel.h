@@ -101,7 +101,6 @@ McdChannel *mcd_channel_new_from_path (TpConnection *connection,
                                        TpHandleType handle_type);
 
 McdChannelStatus mcd_channel_get_status (McdChannel * channel);
-GQuark mcd_channel_get_channel_type_quark (McdChannel *channel);
 const gchar* mcd_channel_get_object_path (McdChannel *channel);
 gboolean mcd_channel_is_requested (McdChannel *channel);
 McdAccount *mcd_channel_get_account (McdChannel *channel);

@@ -1141,32 +1141,6 @@ mcd_dispatcher_context_get_channels (McdDispatcherContext *context)
     return _mcd_dispatch_operation_peek_channels (context->operation);
 }
 
-/**
- * mcd_dispatcher_context_get_channel_by_type:
- * @context: the #McdDispatcherContext.
- * @type: the #GQuark representing the channel type.
- *
- * Returns: the first #McdChannel of the requested type, or %NULL.
- */
-McdChannel *
-mcd_dispatcher_context_get_channel_by_type (McdDispatcherContext *context,
-                                            GQuark type)
-{
-    const GList *list;
-
-    g_return_val_if_fail (context != NULL, NULL);
-    for (list = mcd_dispatcher_context_get_channels (context);
-         list != NULL;
-         list = list->next)
-    {
-        McdChannel *channel = MCD_CHANNEL (list->data);
-
-        if (mcd_channel_get_channel_type_quark (channel) == type)
-            return channel;
-    }
-    return NULL;
-}
-
 /*
  * _mcd_dispatcher_take_channels:
  * @dispatcher: the #McdDispatcher.

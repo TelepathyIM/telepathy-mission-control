@@ -748,28 +748,6 @@ mcd_channel_get_status (McdChannel *channel)
     return MCD_CHANNEL_PRIV (channel)->status;
 }
 
-GQuark
-mcd_channel_get_channel_type_quark (McdChannel *channel)
-{
-    McdChannelPrivate *priv;
-
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), 0);
-    priv = channel->priv;
-    if (priv->tp_chan)
-        return tp_channel_get_channel_type_id (priv->tp_chan);
-
-    if (G_LIKELY (priv->request != NULL))
-    {
-        GHashTable *properties = _mcd_request_get_properties (priv->request);
-        const gchar *type = tp_asv_get_string (properties,
-            TP_IFACE_CHANNEL ".ChannelType");
-
-        return g_quark_from_string (type);
-    }
-
-    return 0;
-}
-
 const gchar *
 mcd_channel_get_object_path (McdChannel *channel)
 {
