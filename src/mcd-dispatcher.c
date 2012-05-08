@@ -174,20 +174,8 @@ enum
     PROP_DISPATCH_OPERATIONS,
 };
 
-static void mcd_dispatcher_context_unref (McdDispatcherContext * ctx,
-                                          const gchar *tag);
 static void on_operation_finished (McdDispatchOperation *operation,
                                    McdDispatcher *self);
-
-
-static inline void
-mcd_dispatcher_context_ref (McdDispatcherContext *context,
-                            const gchar *tag)
-{
-    g_return_if_fail (context != NULL);
-    DEBUG ("%s on %p (ref = %d)", tag, context, context->ref_count);
-    context->ref_count++;
-}
 
 static void
 on_master_abort (McdMaster *master, McdDispatcherPrivate *priv)
@@ -234,42 +222,6 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
     g_list_free (handlers);
 
     return ret;
-}
-
-/*
- * _mcd_dispatcher_context_abort:
- *
- * Abort processing of all the channels in the @context, as if they could not
- * be dispatched.
- *
- * This should only be invoked because filter plugins want to terminate a
- * channel.
- */
-static void
-_mcd_dispatcher_context_abort (McdDispatcherContext *context,
-                               const GError *error)
-{
-    GList *list;
-
-    g_return_if_fail (context);
-
-    /* make a temporary copy, which is destroyed during the loop - otherwise
-     * we'll be trying to iterate over the list at the same time
-     * that mcd_mission_abort results in modifying it, which would be bad */
-    list = _mcd_dispatch_operation_dup_channels (context->operation);
-
-    while (list != NULL)
-    {
-        McdChannel *channel = MCD_CHANNEL (list->data);
-
-        if (mcd_channel_get_error (channel) == NULL)
-            mcd_channel_take_error (channel, g_error_copy (error));
-
-        _mcd_channel_undispatchable (channel);
-
-        g_object_unref (channel);
-        list = g_list_delete_link (list, list);
-    }
 }
 
 static void
@@ -371,8 +323,26 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     {
         GError error = { TP_ERROR, TP_ERROR_CANCELLED,
             "Channel request cancelled" };
+        GList *list;
 
-        _mcd_dispatcher_context_abort (context, &error);
+        /* make a temporary copy, which is destroyed during the loop -
+         * otherwise we'll be trying to iterate over the list at the same time
+         * that mcd_mission_abort results in modifying it, which would be
+         * bad */
+        list = _mcd_dispatch_operation_dup_channels (context->operation);
+
+        while (list != NULL)
+        {
+            McdChannel *channel = MCD_CHANNEL (list->data);
+
+            if (mcd_channel_get_error (channel) == NULL)
+                mcd_channel_take_error (channel, g_error_copy (&error));
+
+            _mcd_channel_undispatchable (channel);
+
+            g_object_unref (channel);
+            list = g_list_delete_link (list, list);
+        }
     }
     else if (_mcd_dispatch_operation_peek_channels (context->operation) == NULL)
     {
@@ -383,7 +353,8 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
         _mcd_dispatch_operation_run_clients (context->operation);
     }
 
-    mcd_dispatcher_context_unref (context, "CTXREF11");
+    g_object_unref (context->operation);
+    g_free (context);
 }
 
 static void
@@ -977,24 +948,6 @@ mcd_dispatcher_new (TpDBusDaemon *dbus_daemon, McdMaster *master)
 					"mcd-master", master, 
 					NULL));
     return obj;
-}
-
-static void
-mcd_dispatcher_context_unref (McdDispatcherContext * context,
-                              const gchar *tag)
-{
-    /* FIXME: check for leaks */
-    g_return_if_fail (context);
-    g_return_if_fail (context->ref_count > 0);
-
-    DEBUG ("%s on %p (ref = %d)", tag, context, context->ref_count);
-    context->ref_count--;
-    if (context->ref_count == 0)
-    {
-        DEBUG ("freeing the context %p", context);
-        g_object_unref (context->operation);
-        g_free (context);
-    }
 }
 
 /*
