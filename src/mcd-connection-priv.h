@@ -72,9 +72,6 @@ G_GNUC_INTERNAL gboolean _mcd_connection_target_id_is_urgent (McdConnection *con
 G_GNUC_INTERNAL gboolean _mcd_connection_target_handle_is_urgent (McdConnection *self,
     guint handle);
 
-G_GNUC_INTERNAL gboolean _mcd_connection_channel_is_urgent (McdConnection *self,
-    McdChannel *channel);
-
 G_END_DECLS
 
 #endif

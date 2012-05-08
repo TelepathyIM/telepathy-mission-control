@@ -2259,30 +2259,6 @@ _mcd_connection_target_handle_is_urgent (McdConnection *self, guint handle)
   return FALSE;
 }
 
-gboolean
-_mcd_connection_channel_is_urgent (McdConnection *self, McdChannel *channel)
-{
-    const gchar *name = NULL;
-
-    if (mcd_channel_get_handle_type (channel) != TP_HANDLE_TYPE_CONTACT)
-        return FALSE;
-
-    name = mcd_channel_get_name (channel);
-
-    if (tp_str_empty (name))
-    {
-        TpHandle handle = mcd_channel_get_handle (channel);
-
-        return _mcd_connection_target_handle_is_urgent (self, handle);
-    }
-    else
-    {
-        return _mcd_connection_target_id_is_urgent (self, name);
-    }
-
-    return FALSE;
-}
-
 static gboolean
 _mcd_connection_request_channel (McdConnection *connection, McdChannel *channel)
 {
