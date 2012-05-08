@@ -425,19 +425,6 @@ mcd_manager_get_tp_proxy (McdManager *manager)
 }
 
 /**
- * mcd_manager_get_dispatcher:
- * @manager: the #McdManager.
- *
- * Returns: the #McdDispatcher.
- */
-McdDispatcher *
-mcd_manager_get_dispatcher (McdManager *manager)
-{
-    g_return_val_if_fail (MCD_IS_MANAGER (manager), NULL);
-    return manager->priv->dispatcher;
-}
-
-/**
  * mcd_manager_call_when_ready:
  * @manager: the #McdManager.
  * @callbacks: the #McdManagerReadyCb to invoke.

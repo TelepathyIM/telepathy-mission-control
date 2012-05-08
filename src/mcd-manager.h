@@ -82,7 +82,6 @@ McdConnection *mcd_manager_create_connection (McdManager *manager,
 					      McdAccount *account);
 
 TpConnectionManager *mcd_manager_get_tp_proxy (McdManager *manager);
-McdDispatcher *mcd_manager_get_dispatcher (McdManager *manager);
 
 typedef void (*McdManagerReadyCb) (McdManager *manager, const GError *error,
                                    gpointer user_data);
