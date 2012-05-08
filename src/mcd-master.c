@@ -259,90 +259,6 @@ on_transport_status_changed (McdTransportPlugin *plugin,
     }
 }
 
-#ifdef ENABLE_MCD_PLUGINS
-static void
-mcd_master_unload_mcd_plugins (McdMaster *master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    GModule *module;
-    guint i;
-
-    for (i = 0; i < priv->mcd_plugins->len; i++)
-    {
-	module = g_ptr_array_index (priv->mcd_plugins, i);
-	g_module_close (module);
-    }
-    g_ptr_array_unref (priv->mcd_plugins);
-    priv->mcd_plugins = NULL;
-}
-
-static const gchar *
-mcd_master_get_plugin_dir (void)
-{
-    const gchar *dir = g_getenv ("MC_FILTER_PLUGIN_DIR");
-
-    if (dir == NULL)
-        dir = MCD_DEFAULT_FILTER_PLUGIN_DIR;
-
-    return dir;
-}
-
-static void
-mcd_master_load_mcd_plugins (McdMaster *master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    const gchar *plugin_dir;
-    GDir *dir = NULL;
-    GError *error = NULL;
-    const gchar *name;
-
-    plugin_dir = mcd_master_get_plugin_dir ();
-
-    dir = g_dir_open (plugin_dir, 0, &error);
-    if (!dir)
-    {
-        DEBUG ("Could not open plugin directory %s: %s", plugin_dir,
-               error->message);
-	g_error_free (error);
-	return;
-    }
-
-    DEBUG ("Looking for plugins in %s", plugin_dir);
-
-    priv->mcd_plugins = g_ptr_array_new ();
-    while ((name = g_dir_read_name (dir)))
-    {
-	GModule *module;
-	gchar *path;
-
-	if (name[0] == '.' || !g_str_has_suffix (name, ".so")) continue;
-
-	path = g_build_filename (plugin_dir, name, NULL);
-	module = g_module_open (path, 0);
-	g_free (path);
-	if (module)
-	{
-	    McdPluginInitFunc init_func;
-	    if (g_module_symbol (module, MCD_PLUGIN_INIT_FUNC,
-				 (gpointer)&init_func))
-	    {
-                DEBUG ("Initializing plugin %s", name);
-		init_func ((McdPlugin *)master);
-		g_ptr_array_add (priv->mcd_plugins, module);
-	    }
-	    else
-                DEBUG ("Error looking up symbol " MCD_PLUGIN_INIT_FUNC
-                       " from plugin %s: %s", name, g_module_error ());
-	}
-	else
-	{
-            DEBUG ("Error opening plugin: %s: %s", name, g_module_error ());
-	}
-    }
-    g_dir_close (dir);
-}
-#endif
-
 static void
 _mcd_master_finalize (GObject * object)
 {
@@ -431,13 +347,6 @@ _mcd_master_dispose (GObject * object)
 	priv->transport_plugins = NULL;
     }
 
-#ifdef ENABLE_MCD_PLUGINS
-    if (priv->mcd_plugins)
-    {
-	mcd_master_unload_mcd_plugins (MCD_MASTER (object));
-    }
-#endif
-
     tp_clear_object (&priv->account_manager);
     tp_clear_object (&priv->dbus_daemon);
 
@@ -488,10 +397,6 @@ mcd_master_constructor (GType type, guint n_params,
     priv->proxy = mcd_proxy_new (MCD_MISSION (master));
     mcd_operation_take_mission (MCD_OPERATION (priv->proxy),
 				MCD_MISSION (priv->dispatcher));
-
-#ifdef ENABLE_MCD_PLUGINS
-    mcd_master_load_mcd_plugins (master);
-#endif
 
     mcd_kludge_transport_install ((McdPlugin *) master);
 

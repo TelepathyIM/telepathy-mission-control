@@ -10,8 +10,6 @@ AM_CPPFLAGS = \
 
 AM_CFLAGS = $(ERROR_CFLAGS)
 
-if HAVE_SERVER
-
 EXTRA_DIST = org.freedesktop.Telepathy.MissionControl5.service.in \
 	     org.freedesktop.Telepathy.AccountManager.service.in \
 	     mission-control-5.8.in
@@ -37,7 +35,7 @@ mission_control_5_LDADD = \
 	$(GLIB_LIBS) \
 	$(TELEPATHY_LIBS) \
 	$(DBUS_LIBS) \
-	$(top_builddir)/src/libmissioncontrol-server.la \
+	$(top_builddir)/src/libmcd-convenience.la \
 	$(top_builddir)/mission-control-plugins/libmission-control-plugins.la
 
 Android.mk: Makefile.am
@@ -49,8 +47,6 @@ Android.mk: Makefile.am
 	 -:CPPFLAGS $(CPPFLAGS) $(AM_CPPFLAGS) $(INCLUDES) \
 	  -DBUILD_AS_ANDROID_SERVICE \
 	 -:LDFLAGS $(mission_control_5_LDADD) \
-	 -:LIBFILTER_STATIC missioncontrol-server mission-control-plugins \
+	 -:LIBFILTER_STATIC mcd-convenience mission-control-plugins \
 	  mcclient \
 	> $@
-
-endif

@@ -3,7 +3,7 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 TELEPATHY_MISSION_CONTROL_BUILT_SOURCES := \
-	mission-control.pc \
+	mission-control-plugins.pc \
 	src/Android.mk \
 	server/Android.mk \
 	mission-control-plugins/Android.mk \

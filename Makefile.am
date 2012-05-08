@@ -22,14 +22,10 @@ SUBDIRS = \
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = mission-control-plugins.pc
 
-if ENABLE_MCD_PLUGINS
-pkgconfig_DATA += mission-control.pc
-endif
-
 DISTCHECK_CONFIGURE_FLAGS = \
 	--enable-gtk-doc \
 	--disable-gnome-keyring \
-	--disable-mcd-plugins
+	$(NULL)
 
 maintainer-upload-release: _maintainer-upload-release-local
 _maintainer-upload-release-local: _maintainer-upload-release-check

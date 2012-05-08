@@ -115,40 +115,6 @@ endif
 
 noinst_LTLIBRARIES = libmcd-convenience.la
 
-if ENABLE_MCD_PLUGINS
-# When this older plugin API is enabled, libmissioncontrol-server.la is a
-# shared library that wraps the convenience library
-lib_LTLIBRARIES = libmissioncontrol-server.la
-libmissioncontrol_server_la_SOURCES =
-libmissioncontrol_server_la_LIBADD = libmcd-convenience.la
-
-libmissioncontrol_server_la_LDFLAGS = \
-	-export-symbols-regex '^((mc_)|(mcd_)|(mission_control_))'
-
-if ENABLE_MC_SERVER_SO6
-# the redundant quoting here is to prevent the libtool command line from
-# looking like an error message in an oddly named file
-libmissioncontrol_server_la_LDFLAGS += -version-info "10":"0":"4"
-else
-libmissioncontrol_server_la_LDFLAGS += -release $(VERSION)
-endif
-
-mission_control_includedir = $(includedir)/mission-control
-mission_control_include_HEADERS = $(mc_headers)
-
-genincludedir = $(mission_control_includedir)/_gen
-nodist_geninclude_HEADERS = $(mc_gen_headers)
-
-INCLUDES += \
-	-DMCD_DEFAULT_FILTER_PLUGIN_DIR=\"@pluginlibdir@\"
-else # ! ENABLE_MCD_PLUGINS
-# When this older plugin API is not enabled, libmissioncontrol-server.la is
-# just a copy of the convenience library
-noinst_LTLIBRARIES += libmissioncontrol-server.la
-libmissioncontrol_server_la_SOURCES =
-libmissioncontrol_server_la_LIBADD = libmcd-convenience.la
-endif # ! ENABLE_MCD_PLUGINS
-
 libmcd_convenience_la_SOURCES = \
 	mcd-account.c \
 	mcd-account-addressing.h \

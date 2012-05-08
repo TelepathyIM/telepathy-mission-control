@@ -65,13 +65,6 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/vanishing-client.py \
 	$(NULL)
 
-if ENABLE_MCD_PLUGINS
-TWISTED_BASIC_TESTS += \
-	dispatcher/create-delayed-by-plugin.py \
-	dispatcher/dispatch-delayed-by-plugin.py \
-	dispatcher/dispatch-rejected-by-plugin.py
-endif
-
 # Tests that aren't to be run if we're running the real (installed) MC,
 # because they rely on special behaviour of mc-debug-server.
 #
@@ -183,17 +176,11 @@ testplugindir = @mctestsdir@/twisted/plugins
 testplugin_LTLIBRARIES = \
 	$(plugins_list) \
 	$(NULL)
-if ENABLE_MCD_PLUGINS
-testplugin_LTLIBRARIES += test-plugin.la
-endif
 
 else
 
 # A demo dispatcher plugin (new, minimal API)
 noinst_LTLIBRARIES = $(plugins_list)
-if ENABLE_MCD_PLUGINS
-noinst_LTLIBRARIES += test-plugin.la
-endif
 
 endif
 
@@ -209,18 +196,11 @@ mcp_account_diversion_la_LDFLAGS = $(mcp_plugin_la_LDFLAGS)
 mcp_dbus_caller_permission_la_SOURCES = mcp-dbus-caller-permission.c
 mcp_dbus_caller_permission_la_LDFLAGS = $(mcp_plugin_la_LDFLAGS)
 
-if ENABLE_MCD_PLUGINS
-# A demo dispatcher plugin (old API, with access to MCD internals)
-test_plugin_la_SOURCES = test-plugin.c
-test_plugin_la_LDFLAGS = -module -shared -avoid-version -rpath @abs_builddir@
-endif
-
 # A debug version of the normal MC executable, which exits cleanly on
 # disconnection from D-Bus (so gcov info gets written out)
 noinst_PROGRAMS = mc-debug-server
 mc_debug_server_SOURCES = mc-debug-server.c
 mc_debug_server_LDADD = \
-	$(top_builddir)/src/libmissioncontrol-server.la \
 	$(top_builddir)/src/libmcd-convenience.la
 
 INCLUDES = \
@@ -281,15 +261,11 @@ SEPARATE_TESTS_ENVIRONMENT = \
 if WANT_TWISTED_TESTS
 check-local: check-twisted
 
-if HAVE_SERVER
-
 installcheck-local: installcheck-twisted
 installcheck-twisted:
 	$(MAKE) check-twisted \
 		TWISTED_SPECIAL_BUILD_TESTS= \
 		MC_EXECUTABLE=@libexecdir@/mission-control-5
-
-endif # HAVE_SERVER
 
 endif # WANT_TWISTED_TESTS
 
