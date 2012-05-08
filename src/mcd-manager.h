@@ -81,8 +81,6 @@ mcd_manager_get_protocol_param (McdManager *manager, const gchar *protocol,
 McdConnection *mcd_manager_create_connection (McdManager *manager,
 					      McdAccount *account);
 
-McdConnection *mcd_manager_get_connection (McdManager *manager,
-					   const gchar *object_path);
 TpConnectionManager *mcd_manager_get_tp_proxy (McdManager *manager);
 McdDispatcher *mcd_manager_get_dispatcher (McdManager *manager);
 

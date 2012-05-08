@@ -96,35 +96,6 @@ on_manager_ready (GObject *source_object,
     g_clear_error (&error);
 }
 
-static gint
-_find_connection_by_path (gconstpointer data, gconstpointer user_data)
-{
-    TpConnection *tp_conn;
-    McdConnection *connection = MCD_CONNECTION (data);
-    const gchar *object_path = (const gchar *)user_data;
-    const gchar *conn_object_path = NULL;
-    gint ret;
-
-    if (!data) return 1;
-
-    g_object_get (G_OBJECT (connection), "tp-connection",
-		  &tp_conn, NULL);
-    if (!tp_conn)
-	return 1;
-    conn_object_path = TP_PROXY (tp_conn)->object_path;
-    if (strcmp (conn_object_path, object_path) == 0)
-    {
-	ret = 0;
-    }
-    else
-    {
-	ret = 1;
-    }
-    
-    g_object_unref (G_OBJECT (tp_conn));
-    return ret;
-}
-
 static void
 _mcd_manager_finalize (GObject * object)
 {
@@ -366,27 +337,6 @@ mcd_manager_new (const gchar *unique_name,
 				     "dispatcher", dispatcher,
 				     "dbus-daemon", dbus_daemon, NULL));
     return obj;
-}
-
-McdConnection *
-mcd_manager_get_connection (McdManager * manager, const gchar *object_path)
-{
-    const GList *connections;
-    const GList *node;
-
-    connections = mcd_operation_get_missions (MCD_OPERATION (manager));
-    node = g_list_find_custom ((GList*)connections, object_path,
-			       _find_connection_by_path);
-
-    if (node != NULL)
-    {
-	return MCD_CONNECTION (node->data);
-    }
-
-    else
-    {
-	return NULL;
-    }
 }
 
 /**
