@@ -1027,26 +1027,6 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
 }
 
 static void
-_build_channel_capabilities (const gchar *channel_type, guint type_flags,
-			     GPtrArray *capabilities)
-{
-    GValue cap = {0,};
-    GType cap_type;
-
-    cap_type = dbus_g_type_get_struct ("GValueArray", G_TYPE_STRING,
-				       G_TYPE_UINT, G_TYPE_INVALID);
-    g_value_init (&cap, cap_type);
-    g_value_take_boxed (&cap, dbus_g_type_specialized_construct (cap_type));
-
-    dbus_g_type_struct_set (&cap,
-			    0, channel_type,
-			    1, type_flags,
-			    G_MAXUINT);
-
-    g_ptr_array_add (capabilities, g_value_get_boxed (&cap));
-}
-
-static void
 mcd_dispatcher_init (McdDispatcher * dispatcher)
 {
     McdDispatcherPrivate *priv;
@@ -1319,47 +1299,6 @@ mcd_dispatcher_context_get_channel_by_type (McdDispatcherContext *context,
             return channel;
     }
     return NULL;
-}
-
-GPtrArray *
-_mcd_dispatcher_get_channel_capabilities (McdDispatcher *dispatcher)
-{
-    McdDispatcherPrivate *priv = dispatcher->priv;
-    GPtrArray *channel_handler_caps;
-    GHashTableIter iter;
-    gpointer key, value;
-
-    channel_handler_caps = g_ptr_array_new ();
-
-    /* Add the capabilities from the new-style clients */
-    _mcd_client_registry_init_hash_iter (priv->clients, &iter);
-    while (g_hash_table_iter_next (&iter, &key, &value))
-    {
-        McdClientProxy *client = value;
-        const GList *list;
-
-        for (list = _mcd_client_proxy_get_handler_filters (client);
-             list != NULL;
-             list = list->next)
-        {
-            GHashTable *channel_class = list->data;
-            const gchar *channel_type;
-            guint type_flags;
-
-            channel_type = tp_asv_get_string (channel_class,
-                                              TP_IFACE_CHANNEL ".ChannelType");
-            if (!channel_type) continue;
-
-            /* There is currently no way to map the HandlerChannelFilter client
-             * property into type-specific capabilities. Let's pretend we
-             * support everything. */
-            type_flags = 0xffffffff;
-
-            _build_channel_capabilities (channel_type, type_flags,
-                                         channel_handler_caps);
-        }
-    }
-    return channel_handler_caps;
 }
 
 /*

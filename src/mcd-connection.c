@@ -592,55 +592,6 @@ _foreach_channel_remove (McdMission * mission, McdOperation * operation)
 }
 
 static void
-capabilities_advertise_cb (TpConnection *proxy, const GPtrArray *out0,
-			   const GError *error, gpointer user_data,
-			   GObject *weak_object)
-{
-    if (error)
-    {
-	g_warning ("%s: AdvertiseCapabilities failed: %s", G_STRFUNC, error->message);
-    }
-    
-}
-
-static void
-_mcd_connection_setup_capabilities (McdConnection *connection)
-{
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-    GPtrArray *capabilities;
-    const gchar *removed = NULL;
-    GType type;
-    guint i;
-
-    if (priv->has_contact_capabilities_if)
-    {
-        DEBUG ("ContactCapabilities in use, avoiding Capabilities");
-        return;
-    }
-
-    if (!priv->has_capabilities_if)
-    {
-        DEBUG ("connection does not support capabilities interface");
-	return;
-    }
-    capabilities = _mcd_dispatcher_get_channel_capabilities (priv->dispatcher);
-    DEBUG ("advertising capabilities");
-    tp_cli_connection_interface_capabilities_call_advertise_capabilities (priv->tp_conn, -1,
-									  capabilities,
-									  &removed,
-									  capabilities_advertise_cb,
-									  priv, NULL,
-									  (GObject *) connection);
-
-    /* free the connection capabilities */
-    type = dbus_g_type_get_struct ("GValueArray", G_TYPE_STRING,
-				   G_TYPE_UINT, G_TYPE_INVALID);
-    for (i = 0; i < capabilities->len; i++)
-	g_boxed_free (type, g_ptr_array_index (capabilities, i));
-    g_ptr_array_unref (capabilities);
-}
-
-static void
 avatars_set_avatar_cb (TpConnection *proxy, const gchar *token,
 		       const GError *error, gpointer user_data,
 		       GObject *weak_object)
@@ -1602,9 +1553,6 @@ on_connection_ready (GObject *source_object, GAsyncResult *result,
 
     if (priv->has_presence_if)
 	_mcd_connection_setup_presence (connection);
-
-    if (priv->has_capabilities_if)
-	_mcd_connection_setup_capabilities (connection);
 
     if (priv->has_avatars_if)
 	_mcd_connection_setup_avatar (connection);
