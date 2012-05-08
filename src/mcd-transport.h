@@ -52,7 +52,6 @@ struct _McdTransportPluginIface
     GTypeInterface g_iface;
 
     /* methods */
-    const gchar * (*get_name) (McdTransportPlugin *plugin);
     const GList * (*get_transports) (McdTransportPlugin *plugin);
     gboolean (*check_conditions) (McdTransportPlugin *plugin,
 				  McdTransport *transport,
@@ -69,7 +68,6 @@ struct _McdTransportPluginIface
 
 GType mcd_transport_plugin_get_type (void) G_GNUC_CONST;
 
-const gchar *mcd_transport_plugin_get_name (McdTransportPlugin *plugin);
 const GList *mcd_transport_plugin_get_transports (McdTransportPlugin *plugin);
 
 gboolean mcd_transport_plugin_check_conditions (McdTransportPlugin *plugin,

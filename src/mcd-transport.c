@@ -103,22 +103,6 @@ mcd_transport_plugin_get_type (void)
 }
 
 /**
- * mcd_transport_plugin_get_name:
- * @plugin: the #McdTransportPlugin.
- *
- * Returns: the name of the plugin.
- */
-const gchar *
-mcd_transport_plugin_get_name (McdTransportPlugin *plugin)
-{
-    McdTransportPluginIface *iface;
-
-    iface = MCD_TRANSPORT_PLUGIN_GET_IFACE (plugin);
-    g_return_val_if_fail (iface->get_name != NULL, NULL);
-    return iface->get_name (plugin);
-}
-
-/**
  * mcd_transport_plugin_get_transports:
  * @plugin: the #McdTransportPlugin.
  *
