@@ -61,7 +61,6 @@
 #include "mcd-connection-priv.h"
 #include "mcd-dispatcher-priv.h"
 #include "mcd-channel.h"
-#include "mcd-provisioning-factory.h"
 #include "mcd-misc.h"
 #include "mcd-slacker.h"
 #include "sp_timestamp.h"

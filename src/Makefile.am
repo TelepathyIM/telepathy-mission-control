@@ -37,7 +37,6 @@ mc_headers = \
 	mcd-service.h \
 	mcd-transport.h \
 	mcd-provisioning.h \
-	mcd-provisioning-factory.h \
 	mcd-storage.h
 
 if ENABLE_LIBACCOUNTS_SSO
@@ -168,7 +167,6 @@ libmcd_convenience_la_SOURCES = \
 	mcd-proxy.c \
 	mcd-transport.c \
 	mcd-provisioning.c \
-	mcd-provisioning-factory.c \
 	mcd-storage.c \
 	mcd-storage.h \
 	mcd-storage-priv.h \
