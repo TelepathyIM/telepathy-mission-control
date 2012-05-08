@@ -265,30 +265,6 @@ on_master_abort (McdMaster *master, McdDispatcherPrivate *priv)
     tp_clear_object (&priv->master);
 }
 
-/* return TRUE if the two channel classes are equals
- */
-static gboolean
-channel_classes_equals (GHashTable *channel_class1, GHashTable *channel_class2)
-{
-    GHashTableIter iter;
-    gchar *property_name;
-    GValue *property_value;
-
-    if (g_hash_table_size (channel_class1) !=
-        g_hash_table_size (channel_class2))
-        return FALSE;
-
-    g_hash_table_iter_init (&iter, channel_class1);
-    while (g_hash_table_iter_next (&iter, (gpointer *) &property_name,
-                                   (gpointer *) &property_value))
-    {
-        if (!_mcd_client_match_property (channel_class2, property_name,
-                                         property_value))
-            return FALSE;
-    }
-    return TRUE;
-}
-
 static GStrv
 mcd_dispatcher_dup_internal_handlers (void)
 {
@@ -1384,47 +1360,6 @@ _mcd_dispatcher_get_channel_capabilities (McdDispatcher *dispatcher)
         }
     }
     return channel_handler_caps;
-}
-
-GPtrArray *
-_mcd_dispatcher_get_channel_enhanced_capabilities (McdDispatcher *dispatcher)
-{
-    McdDispatcherPrivate *priv = dispatcher->priv;
-    GHashTableIter iter;
-    gpointer key, value;
-    GPtrArray *caps = g_ptr_array_new ();
-
-    _mcd_client_registry_init_hash_iter (priv->clients, &iter);
-    while (g_hash_table_iter_next (&iter, &key, &value))
-    {
-        McdClientProxy *client = value;
-        const GList *list;
-
-        for (list = _mcd_client_proxy_get_handler_filters (client);
-             list != NULL;
-             list = list->next)
-        {
-            GHashTable *channel_class = list->data;
-            guint i;
-            gboolean already_in_caps = FALSE;
-
-            /* Check if the filter is already in the caps variable */
-            for (i = 0 ; i < caps->len ; i++)
-            {
-                GHashTable *channel_class2 = g_ptr_array_index (caps, i);
-                if (channel_classes_equals (channel_class, channel_class2))
-                {
-                    already_in_caps = TRUE;
-                    break;
-                }
-            }
-
-            if (! already_in_caps)
-                g_ptr_array_add (caps, channel_class);
-        }
-    }
-
-    return caps;
 }
 
 /*
