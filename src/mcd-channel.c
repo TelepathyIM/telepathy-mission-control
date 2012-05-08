@@ -68,7 +68,6 @@ struct _McdChannelPrivate
     /* boolean properties */
     guint outgoing : 1;
     guint has_group_if : 1;
-    guint members_accepted : 1;
     guint is_disposed : 1;
     guint is_aborted : 1;
     guint constructing : 1;
@@ -116,7 +115,6 @@ on_members_changed (TpChannel *proxy, const gchar *message,
 		    const GArray *l_pending, const GArray *r_pending,
                     guint actor, guint reason, McdChannel *channel)
 {
-    McdChannelPrivate *priv = channel->priv;
     TpHandle self_handle;
     TpHandle conn_self_handle = 0;
     TpHandle removed_handle = 0;
@@ -137,15 +135,6 @@ on_members_changed (TpChannel *proxy, const gchar *message,
 	{
 	    guint added_member = g_array_index (added, guint, i);
             DEBUG ("added member %u", added_member);
-
-            /* see whether we are the added member */
-            if (added_member == self_handle)
-            {
-                DEBUG ("This should appear only when the call was accepted");
-                priv->members_accepted = TRUE;
-                g_signal_emit_by_name (channel, "members-accepted");
-                break;
-            }
 	}
     }
 
@@ -595,14 +584,6 @@ mcd_channel_class_init (McdChannelClass * klass)
 				       status_changed_signal),
 		      NULL, NULL, g_cclosure_marshal_VOID__INT, G_TYPE_NONE,
 		      1, G_TYPE_INT);
-    mcd_channel_signals[MEMBERS_ACCEPTED] =
-	g_signal_new ("members-accepted", G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_FIRST,
-		      G_STRUCT_OFFSET (McdChannelClass,
-				       members_accepted_signal),
-		      NULL,
-		      NULL, g_cclosure_marshal_VOID__VOID,
-		      G_TYPE_NONE, 0);
 
     /* properties */
     g_object_class_install_property
@@ -826,12 +807,6 @@ McdChannelStatus
 mcd_channel_get_status (McdChannel *channel)
 {
     return MCD_CHANNEL_PRIV (channel)->status;
-}
-
-gboolean
-mcd_channel_get_members_accepted (McdChannel *channel)
-{
-    return MCD_CHANNEL_PRIV (channel)->members_accepted;
 }
 
 const gchar *

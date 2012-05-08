@@ -80,7 +80,7 @@ struct _McdChannelClass
     /* signals */
     void (*status_changed_signal) (McdChannel * channel,
 				   McdChannelStatus status);
-    void (*members_accepted_signal) (McdChannel *channel);
+    void (*_former_members_accepted_signal) (void);
     TpDBusPropertiesMixinClass _former_dbus_properties_class;
     void (*_mc_reserved1) (void);
     void (*_mc_reserved2) (void);
@@ -101,7 +101,6 @@ McdChannel *mcd_channel_new_from_path (TpConnection *connection,
                                        TpHandleType handle_type);
 
 McdChannelStatus mcd_channel_get_status (McdChannel * channel);
-gboolean mcd_channel_get_members_accepted (McdChannel *channel);
 const gchar* mcd_channel_get_channel_type (McdChannel *channel);
 GQuark mcd_channel_get_channel_type_quark (McdChannel *channel);
 const gchar* mcd_channel_get_object_path (McdChannel *channel);
