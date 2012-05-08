@@ -171,7 +171,6 @@ ACCOUNT = tp_name_prefix + '.Account'
 ACCOUNT_IFACE_AVATAR = ACCOUNT + '.Interface.Avatar'
 ACCOUNT_IFACE_ADDRESSING = ACCOUNT + '.Interface.Addressing'
 ACCOUNT_IFACE_HIDDEN = ACCOUNT + '.Interface.Hidden.DRAFT1'
-ACCOUNT_IFACE_NOKIA_COMPAT = 'com.nokia.Account.Interface.Compat'
 ACCOUNT_IFACE_NOKIA_CONDITIONS = 'com.nokia.Account.Interface.Conditions'
 ACCOUNT_PATH_PREFIX = tp_path_prefix + '/Account/'
 

@@ -87,9 +87,6 @@ static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_account_interface_avatar_get_type,
 			 account_avatar,
 			 TP_IFACE_ACCOUNT_INTERFACE_AVATAR),
-    MCD_IMPLEMENT_IFACE (mc_svc_account_interface_compat_get_type,
-			 account_compat,
-			 MC_IFACE_ACCOUNT_INTERFACE_COMPAT),
     MCD_IMPLEMENT_IFACE (mc_svc_account_interface_conditions_get_type,
 			 account_conditions,
 			 MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS),
@@ -3704,6 +3701,8 @@ _mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
     return TRUE;
 }
 
+static gchar *_mcd_account_get_avatar_filename (McdAccount *account);
+
 void
 _mcd_account_get_avatar (McdAccount *account, GArray **avatar,
                          gchar **mime_type)
@@ -4206,8 +4205,7 @@ _mcd_account_get_keyfile (McdAccount *account)
     return priv->keyfile;
 }
 
-/* this is public because of mcd-account-compat */
-gchar *
+static gchar *
 _mcd_account_get_avatar_filename (McdAccount *account)
 {
     McdAccountPrivate *priv = account->priv;
