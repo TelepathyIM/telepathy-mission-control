@@ -330,8 +330,8 @@ parse_client_filter (GKeyFile *file, const gchar *group)
     return filter;
 }
 
-static void _mcd_client_proxy_add_cap_tokens (McdClientProxy *self,
-                                              const gchar * const *cap_tokens);
+static void _mcd_client_proxy_set_cap_tokens (McdClientProxy *self,
+                                              GStrv cap_tokens);
 static void _mcd_client_proxy_add_interfaces (McdClientProxy *self,
                                               const gchar * const *interfaces);
 
@@ -422,8 +422,7 @@ parse_client_file (McdClientProxy *client,
                                       TP_IFACE_CLIENT_HANDLER ".Capabilities",
                                       NULL,
                                       NULL);
-    _mcd_client_proxy_add_cap_tokens (client,
-                                      (const gchar * const *) cap_tokens);
+    _mcd_client_proxy_set_cap_tokens (client, cap_tokens);
     g_strfreev (cap_tokens);
 }
 
@@ -522,10 +521,12 @@ _mcd_client_proxy_set_filters (McdClientProxy *client,
 /* This is NULL-safe for the last argument, for ease of use with
  * tp_asv_get_boxed */
 static void
-_mcd_client_proxy_add_cap_tokens (McdClientProxy *self,
-                                  const gchar * const *cap_tokens)
+_mcd_client_proxy_set_cap_tokens (McdClientProxy *self,
+                                  GStrv cap_tokens)
 {
     guint i;
+
+    tp_handle_set_clear (self->priv->capability_tokens);
 
     if (cap_tokens == NULL)
         return;
@@ -691,7 +692,7 @@ _mcd_client_proxy_handler_get_all_cb (TpProxy *proxy,
      * any capabilities */
     if (self->priv->unique_name[0] != '\0' || self->priv->activatable)
     {
-        _mcd_client_proxy_add_cap_tokens (self,
+        _mcd_client_proxy_set_cap_tokens (self,
             tp_asv_get_boxed (properties, "Capabilities", G_TYPE_STRV));
         g_signal_emit (self, signals[S_HANDLER_CAPABILITIES_CHANGED], 0);
     }
