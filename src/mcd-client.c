@@ -65,9 +65,7 @@ static guint signals[N_SIGNALS] = { 0 };
 struct _McdClientProxyPrivate
 {
     TpHandleRepoIface *string_pool;
-    /* Handler.Capabilities, represented as handles taken from
-     * dispatcher->priv->string_pool */
-    TpHandleSet *capability_tokens;
+    GStrv capability_tokens;
 
     gchar *unique_name;
     guint ready_lock;
@@ -524,21 +522,8 @@ static void
 _mcd_client_proxy_set_cap_tokens (McdClientProxy *self,
                                   GStrv cap_tokens)
 {
-    guint i;
-
-    tp_handle_set_clear (self->priv->capability_tokens);
-
-    if (cap_tokens == NULL)
-        return;
-
-    for (i = 0; cap_tokens[i] != NULL; i++)
-    {
-        TpHandle handle = tp_handle_ensure (self->priv->string_pool,
-                                            cap_tokens[i], NULL, NULL);
-
-        tp_handle_set_add (self->priv->capability_tokens, handle);
-        tp_handle_unref (self->priv->string_pool, handle);
-    }
+    g_strfreev (self->priv->capability_tokens);
+    self->priv->capability_tokens = g_strdupv (cap_tokens);
 }
 
 static void
@@ -1024,16 +1009,8 @@ mcd_client_proxy_dispose (GObject *object)
                                             mcd_client_proxy_unique_name_cb,
                                             self);
 
-    if (self->priv->string_pool != NULL)
-    {
-        if (self->priv->capability_tokens != NULL)
-        {
-            tp_handle_set_destroy (self->priv->capability_tokens);
-            self->priv->capability_tokens = NULL;
-        }
-
-        tp_clear_object (&self->priv->string_pool);
-    }
+    tp_clear_pointer (&self->priv->capability_tokens, g_strfreev);
+    tp_clear_object (&self->priv->string_pool);
 
     if (chain_up != NULL)
     {
@@ -1075,8 +1052,7 @@ mcd_client_proxy_constructed (GObject *object)
 
     bus_name = tp_proxy_get_bus_name (self);
 
-    self->priv->capability_tokens = tp_handle_set_new (
-        self->priv->string_pool);
+    self->priv->capability_tokens = NULL;
 
     DEBUG ("%s", bus_name);
 
@@ -1431,15 +1407,18 @@ _mcd_client_proxy_get_delay_approvers (McdClientProxy *self)
 static void
 _mcd_client_proxy_become_incapable (McdClientProxy *self)
 {
-    gboolean handler_was_capable = (self->priv->handler_filters != NULL ||
-        tp_handle_set_size (self->priv->capability_tokens) > 0);
+    gboolean handler_was_capable = (self->priv->handler_filters != NULL);
+
+    if (self->priv->capability_tokens != NULL &&
+        self->priv->capability_tokens[0] != NULL)
+    {
+        handler_was_capable = TRUE;
+    }
 
     _mcd_client_proxy_take_approver_filters (self, NULL);
     _mcd_client_proxy_take_observer_filters (self, NULL);
     _mcd_client_proxy_take_handler_filters (self, NULL);
-    tp_handle_set_destroy (self->priv->capability_tokens);
-    self->priv->capability_tokens = tp_handle_set_new (
-        self->priv->string_pool);
+    tp_clear_pointer (&self->priv->capability_tokens, g_strfreev);
 
     if (handler_was_capable)
     {
@@ -1447,29 +1426,14 @@ _mcd_client_proxy_become_incapable (McdClientProxy *self)
     }
 }
 
-typedef struct {
-    TpHandleRepoIface *repo;
-    GPtrArray *array;
-} TokenAppendContext;
-
-static void
-append_token_to_ptrs (TpHandleSet *unused G_GNUC_UNUSED,
-                      TpHandle handle,
-                      gpointer data)
-{
-    TokenAppendContext *context = data;
-
-    g_ptr_array_add (context->array,
-                     g_strdup (tp_handle_inspect (context->repo, handle)));
-}
-
 GValueArray *
 _mcd_client_proxy_dup_handler_capabilities (McdClientProxy *self)
 {
     GPtrArray *filters;
-    GPtrArray *cap_tokens;
+    GStrv cap_tokens;
     GValueArray *va;
     const GList *list;
+    gchar *empty_strv[] = { NULL };
 
     g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), NULL);
 
@@ -1487,22 +1451,10 @@ _mcd_client_proxy_dup_handler_capabilities (McdClientProxy *self)
         g_ptr_array_add (filters, copy);
     }
 
-    if (self->priv->capability_tokens == NULL)
-    {
-        cap_tokens = g_ptr_array_sized_new (1);
-    }
-    else
-    {
-        TokenAppendContext context = { self->priv->string_pool, NULL };
+    cap_tokens = self->priv->capability_tokens;
 
-        cap_tokens = g_ptr_array_sized_new (
-            tp_handle_set_size (self->priv->capability_tokens) + 1);
-        context.array = cap_tokens;
-        tp_handle_set_foreach (self->priv->capability_tokens,
-                               append_token_to_ptrs, &context);
-    }
-
-    g_ptr_array_add (cap_tokens, NULL);
+    if (cap_tokens == NULL)
+        cap_tokens = empty_strv;
 
     if (DEBUGGING)
     {
@@ -1511,11 +1463,11 @@ _mcd_client_proxy_dup_handler_capabilities (McdClientProxy *self)
         DEBUG ("%s:", tp_proxy_get_bus_name (self));
 
         DEBUG ("- %u channel filters", filters->len);
-        DEBUG ("- %u capability tokens:", cap_tokens->len - 1);
+        DEBUG ("- %u capability tokens:", g_strv_length (cap_tokens));
 
-        for (i = 0; i < cap_tokens->len - 1; i++)
+        for (i = 0; cap_tokens[i] != NULL; i++)
         {
-            DEBUG ("    %s", (gchar *) g_ptr_array_index (cap_tokens, i));
+            DEBUG ("    %s", cap_tokens[i]);
         }
 
         DEBUG ("-end-");
@@ -1532,7 +1484,7 @@ _mcd_client_proxy_dup_handler_capabilities (McdClientProxy *self)
 
     g_value_set_string (va->values + 0, tp_proxy_get_bus_name (self));
     g_value_take_boxed (va->values + 1, filters);
-    g_value_take_boxed (va->values + 2, g_ptr_array_free (cap_tokens, FALSE));
+    g_value_set_boxed (va->values + 2, cap_tokens);
 
     return va;
 }
