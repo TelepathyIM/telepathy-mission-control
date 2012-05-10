@@ -30,12 +30,13 @@
 
 #include <dbus/dbus.h>
 #include <glib/gstdio.h>
+#include <telepathy-glib/telepathy-glib.h>
+
+/* will become telepathy-glib-dbus.h when we depend on 0.19.0 */
 #include <telepathy-glib/gtypes.h>
 #include <telepathy-glib/interfaces.h>
-#include <telepathy-glib/protocol.h>
 #include <telepathy-glib/svc-account.h>
 #include <telepathy-glib/svc-generic.h>
-#include <telepathy-glib/util.h>
 
 #include "mcd-account-priv.h"
 #include "mcd-account-conditions.h"
@@ -4168,35 +4169,13 @@ _mcd_account_get_avatar_filename (McdAccount *account)
 }
 
 static void
-mcd_account_self_handle_inspected_cb (TpConnection *connection,
-                                      const gchar **names,
-                                      const GError *error,
-                                      gpointer user_data,
-                                      GObject *weak_object)
-{
-    McdAccount *self = MCD_ACCOUNT (weak_object);
-
-    if (error)
-    {
-        g_warning ("%s: InspectHandles failed: %s", G_STRFUNC, error->message);
-        return;
-    }
-
-    if (names != NULL && names[0] != NULL)
-    {
-        _mcd_account_set_normalized_name (self, names[0]);
-    }
-}
-
-static void
 mcd_account_connection_ready_cb (McdAccount *account,
                                  McdConnection *connection)
 {
     McdAccountPrivate *priv = account->priv;
     gchar *nickname;
     TpConnection *tp_connection;
-    GArray *self_handle_array;
-    guint self_handle;
+    TpContact *self_contact;
     TpConnectionStatus status;
     TpConnectionStatusReason reason;
     const gchar *dbus_error = NULL;
@@ -4209,22 +4188,18 @@ mcd_account_connection_ready_cb (McdAccount *account,
     g_return_if_fail (tp_connection != NULL);
     g_return_if_fail (priv->tp_connection == NULL ||
                       tp_connection == priv->tp_connection);
+    g_assert (tp_proxy_is_prepared (tp_connection,
+                                    TP_CONNECTION_FEATURE_CONNECTED));
 
     status = tp_connection_get_status (tp_connection, &reason);
     dbus_error = tp_connection_get_detailed_error (tp_connection, &details);
     _mcd_account_set_connection_status (account, status, reason,
                                         tp_connection, dbus_error, details);
 
-    self_handle_array = g_array_sized_new (FALSE, FALSE, sizeof (guint), 1);
-    self_handle = tp_connection_get_self_handle (tp_connection);
-    g_array_append_val (self_handle_array, self_handle);
-    tp_cli_connection_call_inspect_handles (tp_connection, -1,
-                                            TP_HANDLE_TYPE_CONTACT,
-                                            self_handle_array,
-                                            mcd_account_self_handle_inspected_cb,
-                                            NULL, NULL,
-                                            (GObject *) account);
-    g_array_unref (self_handle_array);
+    self_contact = tp_connection_get_self_contact (tp_connection);
+    g_assert (self_contact != NULL);
+    _mcd_account_set_normalized_name (account, tp_contact_get_identifier (
+            self_contact));
 
     /* FIXME: ideally, on protocols with server-stored nicknames, this should
      * only be done if the local Nickname has been changed since last time we
