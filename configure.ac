@@ -256,9 +256,11 @@ PKG_CHECK_MODULES(DBUS, [dbus-1 >= 0.95, dbus-glib-1 >= 0.82])
 AC_SUBST(DBUS_CFLAGS)
 AC_SUBST(DBUS_LIBS)
 
-PKG_CHECK_MODULES([TELEPATHY], [telepathy-glib >= 0.17.5])
-AC_SUBST(TELEPATHY_LIBS)
-AC_SUBST(TELEPATHY_CFLAGS)
+PKG_CHECK_MODULES([TELEPATHY], [telepathy-glib >= 0.19.0])
+AC_DEFINE([TP_VERSION_MIN_REQUIRED], [TP_VERSION_0_18],
+  [Ignore post-0.18 deprecations])
+AC_DEFINE([TP_VERSION_MAX_ALLOWED], [TP_VERSION_0_20],
+  [Prevent post-0.20 APIs])
 
 PKG_CHECK_MODULES([GLIB],
 	[glib-2.0 >= 2.30, gobject-2.0, gmodule-no-export-2.0, gio-2.0])
