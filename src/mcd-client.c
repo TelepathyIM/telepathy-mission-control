@@ -64,7 +64,6 @@ static guint signals[N_SIGNALS] = { 0 };
 
 struct _McdClientProxyPrivate
 {
-    TpHandleRepoIface *string_pool;
     GStrv capability_tokens;
 
     gchar *unique_name;
@@ -1010,7 +1009,6 @@ mcd_client_proxy_dispose (GObject *object)
                                             self);
 
     tp_clear_pointer (&self->priv->capability_tokens, g_strfreev);
-    tp_clear_object (&self->priv->string_pool);
 
     if (chain_up != NULL)
     {
@@ -1086,11 +1084,6 @@ mcd_client_proxy_set_property (GObject *object,
             self->priv->activatable = g_value_get_boolean (value);
             break;
 
-        case PROP_STRING_POOL:
-            g_assert (self->priv->string_pool == NULL);
-            self->priv->string_pool = g_value_dup_object (value);
-            break;
-
         case PROP_UNIQUE_NAME:
             g_assert (self->priv->unique_name == NULL);
             self->priv->unique_name = g_value_dup_string (value);
@@ -1155,14 +1148,6 @@ _mcd_client_proxy_class_init (McdClientProxyClass *klass)
         g_param_spec_boolean ("activatable", "Activatable?",
             "TRUE if this client can be service-activated", FALSE,
             G_PARAM_WRITABLE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
-
-    g_object_class_install_property (object_class, PROP_STRING_POOL,
-        g_param_spec_object ("string-pool", "String pool",
-            "TpHandleRepoIface used to intern strings representing capability "
-            "tokens",
-            G_TYPE_OBJECT,
-            G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY |
-            G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property (object_class, PROP_UNIQUE_NAME,
         g_param_spec_string ("unique-name", "Unique name",
@@ -1230,7 +1215,6 @@ _mcd_client_check_valid_name (const gchar *name_suffix,
 
 McdClientProxy *
 _mcd_client_proxy_new (TpDBusDaemon *dbus_daemon,
-                       TpHandleRepoIface *string_pool,
                        const gchar *well_known_name,
                        const gchar *unique_name_if_known,
                        gboolean activatable)
@@ -1255,7 +1239,6 @@ _mcd_client_proxy_new (TpDBusDaemon *dbus_daemon,
 
     self = g_object_new (MCD_TYPE_CLIENT_PROXY,
                          "dbus-daemon", dbus_daemon,
-                         "string-pool", string_pool,
                          "object-path", object_path,
                          "bus-name", well_known_name,
                          "unique-name", unique_name_if_known,

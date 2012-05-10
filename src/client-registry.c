@@ -57,10 +57,6 @@ struct _McdClientRegistryPrivate
 
   TpDBusDaemon *dbus_daemon;
 
-  /* Not really handles as such, but TpHandleRepoIface gives us a convenient
-   * reference-counted string pool */
-  TpHandleRepoIface *string_pool;
-
   /* We don't want to start dispatching until startup has finished. This
    * is defined as:
    * - activatable clients have been enumerated (ListActivatableNames)
@@ -157,8 +153,7 @@ _mcd_client_registry_found_name (McdClientRegistry *self,
   DEBUG ("Registering client %s", well_known_name);
 
   client = _mcd_client_proxy_new (self->priv->dbus_daemon,
-      self->priv->string_pool, well_known_name, unique_name_if_known,
-      activatable);
+      well_known_name, unique_name_if_known, activatable);
   g_hash_table_insert (self->priv->clients, g_strdup (well_known_name),
       client);
 
@@ -405,10 +400,6 @@ mcd_client_registry_constructed (GObject *object)
 
   tp_cli_dbus_daemon_call_list_names (self->priv->dbus_daemon, -1,
       mcd_client_registry_list_names_cb, NULL, NULL, object);
-
-  /* Dummy handle type, we're just using this as a string pool */
-  self->priv->string_pool = tp_dynamic_handle_repo_new (TP_HANDLE_TYPE_CONTACT,
-      NULL, NULL);
 }
 
 static void
@@ -471,7 +462,6 @@ mcd_client_registry_dispose (GObject *object)
     }
 
   tp_clear_object (&self->priv->dbus_daemon);
-  tp_clear_object (&self->priv->string_pool);
 
   if (self->priv->clients != NULL)
     {
