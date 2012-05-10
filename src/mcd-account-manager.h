@@ -24,7 +24,7 @@
 #ifndef __MCD_ACCOUNT_MANAGER_H__
 #define __MCD_ACCOUNT_MANAGER_H__
 
-#include <telepathy-glib/dbus.h>
+#include <telepathy-glib/telepathy-glib.h>
 #include "mission-control-plugins/mission-control-plugins.h"
 #include "mcd-storage.h"
 

@@ -42,7 +42,7 @@
 #include <upower.h>
 #endif
 
-#include <telepathy-glib/util.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 #include "mcd-debug.h"
 

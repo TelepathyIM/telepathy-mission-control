@@ -26,8 +26,7 @@
 #endif
 
 #include <mission-control-plugins/dispatch-operation.h>
-
-#include <telepathy-glib/client.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 G_BEGIN_DECLS
 

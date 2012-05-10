@@ -41,7 +41,7 @@
 
 #include <glib.h>
 
-#include <telepathy-glib/dbus.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 static int exit_status = EX_SOFTWARE;
 static guint timeout_id = 0;

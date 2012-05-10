@@ -23,7 +23,6 @@
 
 #include "client-registry.h"
 
-#include <telepathy-glib/handle-repo-dynamic.h>
 #include <telepathy-glib/telepathy-glib.h>
 
 #include "mcd-debug.h"

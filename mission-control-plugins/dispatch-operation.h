@@ -25,7 +25,7 @@
 #error Use <mission-control-plugins/mission-control-plugins.h> instead
 #endif
 
-#include <telepathy-glib/channel.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 G_BEGIN_DECLS
 

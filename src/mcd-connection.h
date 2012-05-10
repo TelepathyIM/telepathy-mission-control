@@ -28,7 +28,7 @@
 
 #include <glib.h>
 #include <glib-object.h>
-#include <telepathy-glib/connection-manager.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 #include "mcd-operation.h"
 

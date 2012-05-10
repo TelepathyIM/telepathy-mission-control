@@ -49,12 +49,10 @@
 #include <stdlib.h>
 #include <dlfcn.h>
 
-#include <telepathy-glib/dbus.h>
-#include <telepathy-glib/interfaces.h>
-#include <telepathy-glib/gtypes.h>
-#include <telepathy-glib/connection.h>
+#include <telepathy-glib/telepathy-glib.h>
+#include <telepathy-glib/telepathy-glib-dbus.h>
+
 #include <telepathy-glib/proxy-subclass.h>
-#include <telepathy-glib/util.h>
 
 #include "mcd-account-priv.h"
 #include "mcd-channel-priv.h"

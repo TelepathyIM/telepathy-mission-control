@@ -30,7 +30,7 @@
 #include <glib.h>
 #include <glib-object.h>
 #include <dbus/dbus-glib.h>
-#include <telepathy-glib/dbus-properties-mixin.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 G_BEGIN_DECLS
 

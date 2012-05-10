@@ -23,7 +23,7 @@
 #ifndef MCD_REQUEST_H
 #define MCD_REQUEST_H
 
-#include <telepathy-glib/client.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 #include "client-registry.h"
 #include "mcd-account.h"

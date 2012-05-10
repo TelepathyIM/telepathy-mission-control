@@ -26,8 +26,7 @@
 #ifndef MCD_HANDLER_MAP_H_
 #define MCD_HANDLER_MAP_H_
 
-#include <telepathy-glib/channel.h>
-#include <telepathy-glib/dbus.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 G_BEGIN_DECLS
 

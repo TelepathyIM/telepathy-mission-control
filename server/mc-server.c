@@ -37,7 +37,6 @@
 #endif
 
 #include <telepathy-glib/telepathy-glib.h>
-#include <telepathy-glib/debug-sender.h>
 
 #include "mcd-service.h"
 

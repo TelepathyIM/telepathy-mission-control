@@ -23,7 +23,7 @@
 
 #include "mcd-storage-ag-hidden.h"
 
-#include <telepathy-glib/util.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 #include "mcd-debug.h"
 /* FIXME: if we weren't in-tree, we wouldn't be able to include this header and

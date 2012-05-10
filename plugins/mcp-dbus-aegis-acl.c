@@ -29,9 +29,9 @@
 #define DEBUG(_f, ...) MCP_DEBUG (MCP_DEBUG_DBUS_ACL, _f, ##__VA_ARGS__)
 
 #include <dbus/dbus-glib.h>
-#include <telepathy-glib/interfaces.h>
-#include <telepathy-glib/util.h>
-#include <telepathy-glib/defs.h>
+
+#include <telepathy-glib/telepathy-glib.h>
+#include <telepathy-glib/telepathy-glib-dbus.h>
 
 #include <mission-control-plugins/mission-control-plugins.h>
 

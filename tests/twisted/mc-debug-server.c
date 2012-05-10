@@ -33,8 +33,7 @@
 #include <dbus/dbus-glib.h>
 #include <dbus/dbus-glib-lowlevel.h>
 
-#include <telepathy-glib/debug.h>
-#include <telepathy-glib/util.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 #if ENABLE_GNOME_KEYRING
 #include <gnome-keyring.h>

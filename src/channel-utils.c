@@ -28,9 +28,8 @@
 
 #include "channel-utils.h"
 
-#include <telepathy-glib/channel.h>
-#include <telepathy-glib/gtypes.h>
-#include <telepathy-glib/interfaces.h>
+#include <telepathy-glib/telepathy-glib.h>
+#include <telepathy-glib/telepathy-glib-dbus.h>
 
 #include "mcd-channel.h"
 #include "mcd-debug.h"

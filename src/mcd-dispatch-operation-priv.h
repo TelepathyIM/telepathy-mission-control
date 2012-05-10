@@ -24,8 +24,7 @@
 #ifndef __MCD_DISPATCH_OPERATION_PRIV_H__
 #define __MCD_DISPATCH_OPERATION_PRIV_H__
 
-#include <telepathy-glib/dbus.h>
-#include <telepathy-glib/enums.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 #include "client-registry.h"
 #include "mcd-handler-map-priv.h"

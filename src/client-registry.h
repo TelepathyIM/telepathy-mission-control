@@ -23,8 +23,8 @@
 #define MCD_CLIENT_REGISTRY_H
 
 #include <glib-object.h>
-#include <telepathy-glib/dbus.h>
-#include <telepathy-glib/handle-repo.h>
+
+#include <telepathy-glib/telepathy-glib.h>
 
 #include "mcd-client-priv.h"
 

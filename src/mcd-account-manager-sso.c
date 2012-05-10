@@ -23,7 +23,7 @@
 #include "mcd-account-manager-sso.h"
 #include "mcd-debug.h"
 
-#include <telepathy-glib/util.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 #include <string.h>
 #include <ctype.h>

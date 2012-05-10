@@ -24,8 +24,7 @@
 #ifndef __MCD_ACCOUNT_H__
 #define __MCD_ACCOUNT_H__
 
-#include <telepathy-glib/dbus.h>
-#include <telepathy-glib/enums.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 G_BEGIN_DECLS
 #define MCD_TYPE_ACCOUNT         (mcd_account_get_type ())

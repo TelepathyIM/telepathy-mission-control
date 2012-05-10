@@ -27,8 +27,8 @@
 #ifndef __MCD_DBUSPROP_H__
 #define __MCD_DBUSPROP_H__
 
-#include <telepathy-glib/svc-generic.h>
-#include <telepathy-glib/dbus.h>
+#include <telepathy-glib/telepathy-glib.h>
+#include <telepathy-glib/telepathy-glib-dbus.h>
 
 G_BEGIN_DECLS
 

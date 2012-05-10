@@ -61,15 +61,10 @@
 
 #include "_gen/svc-dispatcher.h"
 
-#include <telepathy-glib/defs.h>
-#include <telepathy-glib/gtypes.h>
-#include <telepathy-glib/handle-repo.h>
-#include <telepathy-glib/handle-repo-dynamic.h>
-#include <telepathy-glib/interfaces.h>
+#include <telepathy-glib/telepathy-glib.h>
+#include <telepathy-glib/telepathy-glib-dbus.h>
+
 #include <telepathy-glib/proxy-subclass.h>
-#include <telepathy-glib/svc-channel-dispatcher.h>
-#include <telepathy-glib/svc-generic.h>
-#include <telepathy-glib/util.h>
 
 #include <stdlib.h>
 #include <string.h>

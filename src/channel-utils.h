@@ -28,7 +28,8 @@
 #define CHANNEL_UTILS_H
 
 #include <glib.h>
-#include <telepathy-glib/channel.h>
+
+#include <telepathy-glib/telepathy-glib.h>
 
 G_BEGIN_DECLS
 

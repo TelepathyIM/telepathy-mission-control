@@ -26,7 +26,7 @@
 #include "config.h"
 #include "mcd-handler-map-priv.h"
 
-#include <telepathy-glib/util.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 #include "channel-utils.h"
 #include "mcd-channel-priv.h"

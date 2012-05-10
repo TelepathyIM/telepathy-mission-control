@@ -26,7 +26,7 @@
 #endif
 
 #include <dbus/dbus-glib-lowlevel.h>
-#include <telepathy-glib/dbus.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 G_BEGIN_DECLS
 

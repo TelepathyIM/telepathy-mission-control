@@ -31,12 +31,7 @@
 #include <dbus/dbus.h>
 #include <glib/gstdio.h>
 #include <telepathy-glib/telepathy-glib.h>
-
-/* will become telepathy-glib-dbus.h when we depend on 0.19.0 */
-#include <telepathy-glib/gtypes.h>
-#include <telepathy-glib/interfaces.h>
-#include <telepathy-glib/svc-account.h>
-#include <telepathy-glib/svc-generic.h>
+#include <telepathy-glib/telepathy-glib-dbus.h>
 
 #include "mcd-account-priv.h"
 #include "mcd-account-conditions.h"

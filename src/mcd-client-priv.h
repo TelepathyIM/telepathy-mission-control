@@ -29,9 +29,7 @@
 #include <glib.h>
 #include <glib-object.h>
 
-#include <telepathy-glib/channel.h>
-#include <telepathy-glib/client.h>
-#include <telepathy-glib/handle-repo.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 G_BEGIN_DECLS
 

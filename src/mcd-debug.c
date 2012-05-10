@@ -39,9 +39,8 @@
 
 #include <stdlib.h>
 
-#include <telepathy-glib/debug.h>
-#include <telepathy-glib/debug-sender.h>
-#include <telepathy-glib/util.h>
+#include <telepathy-glib/telepathy-glib.h>
+#include <telepathy-glib/telepathy-glib-dbus.h>
 
 #include <mission-control-plugins/mission-control-plugins.h>
 
