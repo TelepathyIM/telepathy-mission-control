@@ -35,6 +35,8 @@
  * FIXME
  */
 
+#include "config.h"
+
 #include "mcd-channel.h"
 
 #include <telepathy-glib/dbus.h>
@@ -65,9 +67,6 @@ struct _McdChannelPrivate
 
     /* boolean properties */
     guint outgoing : 1;
-    guint has_group_if : 1;
-    guint members_accepted : 1;
-    guint missed : 1;
     guint is_disposed : 1;
     guint is_aborted : 1;
     guint constructing : 1;
@@ -110,67 +109,6 @@ static void on_proxied_channel_status_changed (McdChannel *source,
                                                McdChannel *dest);
 
 static void
-on_members_changed (TpChannel *proxy, const gchar *message,
-		    const GArray *added, const GArray *removed,
-		    const GArray *l_pending, const GArray *r_pending,
-                    guint actor, guint reason, McdChannel *channel)
-{
-    McdChannelPrivate *priv = channel->priv;
-    TpHandle self_handle;
-    TpHandle conn_self_handle = 0;
-    TpHandle removed_handle = 0;
-    guint i;
-
-    self_handle = tp_channel_group_get_self_handle (proxy);
-    conn_self_handle =
-      tp_connection_get_self_handle (tp_channel_borrow_connection (proxy));
-
-    DEBUG ("called (actor %u, reason %u, self_handle %u, conn_self_handle %u)",
-           actor, reason, tp_channel_group_get_self_handle (proxy),
-           conn_self_handle);
-
-    if (added && added->len > 0)
-    {
-        DEBUG ("%u added members", added->len);
-	for (i = 0; i < added->len; i++)
-	{
-	    guint added_member = g_array_index (added, guint, i);
-            DEBUG ("added member %u", added_member);
-
-            /* see whether we are the added member */
-            if (added_member == self_handle)
-            {
-                DEBUG ("This should appear only when the call was accepted");
-                priv->members_accepted = TRUE;
-                g_signal_emit_by_name (channel, "members-accepted");
-                break;
-            }
-	}
-    }
-
-    if (removed && removed->len > 0 &&
-        (actor == 0 ||
-         reason == TP_CHANNEL_GROUP_CHANGE_REASON_ERROR ||
-         (actor != self_handle && actor != conn_self_handle) ||
-         reason == TP_CHANNEL_GROUP_CHANGE_REASON_NO_ANSWER))
-    {
-        for (i = 0; i < removed->len; i++)
-        {
-            removed_handle = g_array_index (removed, guint, i);
-            DEBUG ("removed member %u", removed_handle);
-            if (removed_handle == self_handle ||
-                removed_handle == conn_self_handle)
-            {
-                /* We are removed (end of call), marking as missed, if not
-                 * already accespted the call */
-                if (!priv->members_accepted) priv->missed = TRUE;
-                break;
-            }
-        }
-    }
-}
-
-static void
 proxy_destroyed (TpProxy *self, guint domain, gint code, gchar *message,
 		 gpointer user_data)
 {
@@ -179,15 +117,6 @@ proxy_destroyed (TpProxy *self, guint domain, gint code, gchar *message,
     DEBUG ("Channel proxy invalidated: %s %d: %s",
            g_quark_to_string (domain), code, message);
     mcd_mission_abort (MCD_MISSION (channel));
-}
-
-static inline void
-_mcd_channel_setup_group (McdChannel *channel)
-{
-    McdChannelPrivate *priv = channel->priv;
-
-    g_signal_connect (priv->tp_chan, "group-members-changed",
-                      G_CALLBACK (on_members_changed), channel);
 }
 
 static void
@@ -226,11 +155,6 @@ on_channel_ready (GObject *source_object, GAsyncResult *result, gpointer user_da
          TP_IFACE_CHANNEL ".Requested", &valid);
     if (valid)
         priv->outgoing = requested;
-
-    priv->has_group_if = tp_proxy_has_interface_by_id (priv->tp_chan,
-						       TP_IFACE_QUARK_CHANNEL_INTERFACE_GROUP);
-    if (priv->has_group_if)
-	_mcd_channel_setup_group (channel);
 }
 
 void
@@ -284,9 +208,6 @@ _mcd_channel_release_tp_channel (McdChannel *channel)
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
     if (priv->tp_chan)
     {
-        g_signal_handlers_disconnect_by_func (G_OBJECT (priv->tp_chan),
-                                              G_CALLBACK (on_members_changed),
-                                              channel);
 	g_signal_handlers_disconnect_by_func (G_OBJECT (priv->tp_chan),
 					      G_CALLBACK (proxy_destroyed),
 					      channel);
@@ -507,7 +428,7 @@ mcd_channel_abort (McdMission *mission)
         /* this code-path can only happen if the connection is aborted, as in
          * the other cases we handle the error in McdChannel; for this reason,
          * we use the DISCONNECTED error code */
-        GError *error = g_error_new (TP_ERRORS, TP_ERROR_DISCONNECTED,
+        GError *error = g_error_new (TP_ERROR, TP_ERROR_DISCONNECTED,
                                      "Channel aborted");
         mcd_channel_take_error (channel, error);
     }
@@ -562,7 +483,7 @@ mcd_channel_status_changed (McdChannel *channel, McdChannelStatus status)
                 g_critical ("Requested channel's status changed to FAILED "
                             "without a proper error");
                 _mcd_request_set_failure (channel->priv->request,
-                                          TP_ERRORS, TP_ERROR_NOT_AVAILABLE,
+                                          TP_ERROR, TP_ERROR_NOT_AVAILABLE,
                                           "MC bug! FAILED but no error");
             }
         }
@@ -602,14 +523,6 @@ mcd_channel_class_init (McdChannelClass * klass)
 				       status_changed_signal),
 		      NULL, NULL, g_cclosure_marshal_VOID__INT, G_TYPE_NONE,
 		      1, G_TYPE_INT);
-    mcd_channel_signals[MEMBERS_ACCEPTED] =
-	g_signal_new ("members-accepted", G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_FIRST,
-		      G_STRUCT_OFFSET (McdChannelClass,
-				       members_accepted_signal),
-		      NULL,
-		      NULL, g_cclosure_marshal_VOID__VOID,
-		      G_TYPE_NONE, 0);
 
     /* properties */
     g_object_class_install_property
@@ -835,160 +748,12 @@ mcd_channel_get_status (McdChannel *channel)
     return MCD_CHANNEL_PRIV (channel)->status;
 }
 
-gboolean
-mcd_channel_get_members_accepted (McdChannel *channel)
-{
-    return MCD_CHANNEL_PRIV (channel)->members_accepted;
-}
-
-const gchar *
-mcd_channel_get_channel_type (McdChannel *channel)
-{
-    return g_quark_to_string (mcd_channel_get_channel_type_quark (channel));
-}
-
-GQuark
-mcd_channel_get_channel_type_quark (McdChannel *channel)
-{
-    McdChannelPrivate *priv;
-
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), 0);
-    priv = channel->priv;
-    if (priv->tp_chan)
-        return tp_channel_get_channel_type_id (priv->tp_chan);
-
-    if (G_LIKELY (priv->request != NULL))
-    {
-        GHashTable *properties = _mcd_request_get_properties (priv->request);
-        const gchar *type = tp_asv_get_string (properties,
-            TP_IFACE_CHANNEL ".ChannelType");
-
-        return g_quark_from_string (type);
-    }
-
-    return 0;
-}
-
 const gchar *
 mcd_channel_get_object_path (McdChannel *channel)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
 
     return priv->tp_chan ? TP_PROXY (priv->tp_chan)->object_path : NULL;
-}
-
-guint
-mcd_channel_get_handle (McdChannel *channel)
-{
-    McdChannelPrivate *priv;
-
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), 0);
-    priv = channel->priv;
-    if (priv->tp_chan)
-        return tp_channel_get_handle (priv->tp_chan, NULL);
-
-    if (G_LIKELY (priv->request != NULL))
-    {
-        GHashTable *properties = _mcd_request_get_properties (priv->request);
-
-        return tp_asv_get_uint32 (properties,
-            TP_IFACE_CHANNEL ".TargetHandle", NULL);
-    }
-
-    return 0;
-}
-
-TpHandleType
-mcd_channel_get_handle_type (McdChannel *channel)
-{
-    McdChannelPrivate *priv;
-    guint handle_type = TP_HANDLE_TYPE_NONE;
-
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), 0);
-    priv = channel->priv;
-    if (priv->tp_chan)
-    {
-        tp_channel_get_handle (priv->tp_chan, &handle_type);
-    }
-    else if (G_LIKELY (priv->request != NULL))
-    {
-        GHashTable *properties = _mcd_request_get_properties (priv->request);
-
-        handle_type = tp_asv_get_uint32 (properties,
-            TP_IFACE_CHANNEL ".TargetHandle", NULL);
-    }
-
-    return handle_type;
-}
-
-/**
- * mcd_channel_get_name:
- * @channel: the #McdChannel.
- *
- * Get the Telepathy name of @channel (calls InspectHandles on the channel
- * handle).
- *
- * Returns: a const string holding the channel name.
- */
-const gchar *
-mcd_channel_get_name (McdChannel *channel)
-{
-    McdChannelPrivate *priv;
-    GHashTable *properties = NULL;
-
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    priv = channel->priv;
-
-    if (priv->tp_chan)
-        properties = tp_channel_borrow_immutable_properties (priv->tp_chan);
-    else if (G_LIKELY (priv->request != NULL))
-        properties = _mcd_request_get_properties (priv->request);
-
-    if (!properties) return NULL;
-
-    return tp_asv_get_string (properties, TP_IFACE_CHANNEL ".TargetID");
-}
-
-/**
- * mcd_channel_get_inviter:
- * @channel: the #McdChannel.
- *
- * Get the address of the inviter (i.e. the actor who put us in the pending
- * local members list).
- *
- * Returns: a const string holding the inviter address.
- */
-const gchar *
-mcd_channel_get_inviter (McdChannel *channel)
-{
-    McdChannelPrivate *priv;
-    GHashTable *properties = NULL;
-
-    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
-    priv = channel->priv;
-    if (priv->tp_chan)
-    {
-        properties = tp_channel_borrow_immutable_properties (priv->tp_chan);
-        if (properties)
-            return tp_asv_get_string (properties,
-                                      TP_IFACE_CHANNEL ".InitiatorID");
-    }
-    return NULL;
-}
-
-/**
- * mcd_channel_is_missed:
- * @channel: the #McdChannel.
- *
- * Return %TRUE if the remote party removed itself before we could join the
- * channel.
- *
- * Returns: %TRUE if the channel is missed.
- */
-gboolean
-mcd_channel_is_missed (McdChannel *channel)
-{
-    return MCD_CHANNEL_PRIV (channel)->missed;
 }
 
 /*
@@ -1078,7 +843,7 @@ _mcd_channel_request_cancelling_cb (McdRequest *request,
     g_object_ref (self);
     DEBUG ("%p in status %u", self, status);
 
-    mcd_channel_take_error (self, g_error_new (TP_ERRORS,
+    mcd_channel_take_error (self, g_error_new (TP_ERROR,
                                                TP_ERROR_CANCELLED,
                                                "Cancelled"));
 

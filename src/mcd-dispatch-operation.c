@@ -515,7 +515,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
      * want to run approvers in this case */
     if (self->priv->possible_handlers == NULL)
     {
-        GError incapable = { TP_ERRORS, TP_ERROR_NOT_CAPABLE,
+        GError incapable = { TP_ERROR, TP_ERROR_NOT_CAPABLE,
             "No possible handlers, giving up" };
 
         DEBUG ("%s", incapable.message);
@@ -552,7 +552,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
             approval->context);
         approval->context = NULL;
 
-        _mcd_dispatch_operation_finish (self, TP_ERRORS, TP_ERROR_NOT_YOURS,
+        _mcd_dispatch_operation_finish (self, TP_ERROR, TP_ERROR_NOT_YOURS,
                                         "Channel successfully claimed by %s",
                                         caller);
         g_free (caller);
@@ -586,7 +586,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 
             if (!_mcd_dispatch_operation_try_next_handler (self))
             {
-                GError incapable = { TP_ERRORS, TP_ERROR_NOT_CAPABLE,
+                GError incapable = { TP_ERROR, TP_ERROR_NOT_CAPABLE,
                     "No possible handler still exists, giving up" };
 
                 DEBUG ("ran out of handlers");
@@ -1568,7 +1568,7 @@ mcd_dispatch_operation_check_handle_with (McdDispatchOperation *self,
     if (!g_queue_is_empty (self->priv->approvals))
     {
         DEBUG ("NotYours: already finished or approved");
-        g_set_error (error, TP_ERRORS, TP_ERROR_NOT_YOURS,
+        g_set_error (error, TP_ERROR, TP_ERROR_NOT_YOURS,
                      "CDO already finished or approved");
         return FALSE;
     }
@@ -1584,7 +1584,7 @@ mcd_dispatch_operation_check_handle_with (McdDispatchOperation *self,
                                        TP_DBUS_NAME_TYPE_WELL_KNOWN, NULL))
     {
         DEBUG ("InvalidArgument: handler name %s is bad", handler_name);
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "Invalid handler name");
         return FALSE;
     }
@@ -1970,7 +1970,7 @@ _mcd_dispatch_operation_handle_channels_cb (TpClient *client,
          * handler we used, so we can reply to all the HandleWith calls with
          * success or failure */
         self->priv->successful_handler = g_object_ref (client);
-        _mcd_dispatch_operation_finish (self, TP_ERRORS, TP_ERROR_NOT_YOURS,
+        _mcd_dispatch_operation_finish (self, TP_ERROR, TP_ERROR_NOT_YOURS,
                                         "Channel successfully handled by %s",
                                         tp_proxy_get_bus_name (client));
     }
@@ -2458,7 +2458,7 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
          * can legitimately try more handlers. */
         if (approval->type == APPROVAL_TYPE_HANDLE_WITH)
         {
-            GError gone = { TP_ERRORS,
+            GError gone = { TP_ERROR,
                 TP_ERROR_NOT_IMPLEMENTED,
                 "The requested Handler does not exist" };
 

@@ -1078,7 +1078,7 @@ class Account(servicetest.ProxyWrapper):
     def __init__(self, bus, account_path):
         servicetest.ProxyWrapper.__init__(self,
             bus.get_object(cs.AM, account_path),
-            cs.ACCOUNT, {'Compat': cs.ACCOUNT_IFACE_NOKIA_COMPAT})
+            cs.ACCOUNT, {})
 
 class ChannelDispatcher(servicetest.ProxyWrapper):
     def __init__(self, bus):
@@ -1099,9 +1099,6 @@ def connect_to_mc(q, bus, mc):
     properties = account_manager.Properties.GetAll(cs.AM)
     assert properties is not None
     interfaces = properties.get('Interfaces')
-
-    # assert that current functionality exists
-    assert cs.AM_IFACE_NOKIA_QUERY in interfaces, interfaces
 
     return account_manager, properties, interfaces
 

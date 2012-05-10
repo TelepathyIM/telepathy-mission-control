@@ -19,9 +19,9 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
+#include "config.h"
 
 #include "mcd-slacker.h"
-#include "config.h"
 
 #include <dbus/dbus.h>
 #include <dbus/dbus-glib.h>
@@ -52,7 +52,6 @@
 #endif /* HAVE_MCE */
 
 #include "mcd-debug.h"
-#include "mcd-signals-marshal.h"
 
 struct _McdSlackerPrivate {
     DBusGConnection *bus;
@@ -293,8 +292,7 @@ mcd_slacker_class_init (McdSlackerClass *klass)
    */
   signals[SIG_INACTIVITY_CHANGED] = g_signal_new ("inactivity-changed",
       MCD_TYPE_SLACKER, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
-      _mcd_marshal_VOID__BOOLEAN,
-      G_TYPE_NONE, 1, G_TYPE_BOOLEAN);
+      NULL, G_TYPE_NONE, 1, G_TYPE_BOOLEAN);
 
   if (!mce_signal_interface_quark)
     {

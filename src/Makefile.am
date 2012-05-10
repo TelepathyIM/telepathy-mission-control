@@ -24,20 +24,14 @@ mc_headers = \
 	mcd-mission.h \
 	mcd-operation.h \
 	mcd-master.h \
-	mcd-controller.h \
 	mcd-manager.h \
 	mcd-connection.h \
 	mcd-connection-plugin.h \
 	mcd-connection-service-points.h \
-	mcd-plugin.h \
 	mcd-channel.h \
-	mcd-proxy.h \
 	mcd-dispatcher.h \
-	mcd-dispatcher-context.h \
 	mcd-service.h \
 	mcd-transport.h \
-	mcd-provisioning.h \
-	mcd-provisioning-factory.h \
 	mcd-storage.h
 
 if ENABLE_LIBACCOUNTS_SSO
@@ -59,12 +53,10 @@ mc_gen_headers = \
 	_gen/gtypes.h \
 	_gen/interfaces.h \
 	_gen/svc-Account_Interface_Addressing.h \
-	_gen/svc-Account_Interface_Compat.h \
 	_gen/svc-Account_Interface_Conditions.h \
 	_gen/svc-Account_Interface_External_Password_Storage.h \
 	_gen/svc-Account_Interface_Hidden.h \
 	_gen/svc-Account_Manager_Interface_Hidden.h \
-	_gen/svc-Account_Manager_Interface_Query.h \
 	_gen/svc-dispatcher.h
 
 nodist_libmcd_convenience_la_SOURCES = \
@@ -76,17 +68,13 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/signals-marshal.h \
 	_gen/signals-marshal.list \
 	_gen/svc-Account_Interface_Addressing.c \
-	_gen/svc-Account_Interface_Compat.c \
 	_gen/svc-Account_Interface_Conditions.c \
 	_gen/svc-Account_Interface_External_Password_Storage.c \
 	_gen/svc-Account_Interface_Hidden.c \
-	_gen/svc-Account_Manager_Interface_Query.c \
 	_gen/svc-Account_Manager_Interface_Hidden.c \
 	_gen/svc-dispatcher.c \
 	mcd-enum-types.c \
 	mcd-enum-types.h \
-	mcd-signals-marshal.c \
-	mcd-signals-marshal.h \
 	$(mc_gen_headers)
 
 BUILT_SOURCES = \
@@ -121,44 +109,9 @@ endif
 
 noinst_LTLIBRARIES = libmcd-convenience.la
 
-if ENABLE_MCD_PLUGINS
-# When this older plugin API is enabled, libmissioncontrol-server.la is a
-# shared library that wraps the convenience library
-lib_LTLIBRARIES = libmissioncontrol-server.la
-libmissioncontrol_server_la_SOURCES =
-libmissioncontrol_server_la_LIBADD = libmcd-convenience.la
-
-libmissioncontrol_server_la_LDFLAGS = \
-	-export-symbols-regex '^((mc_)|(mcd_)|(mission_control_))'
-
-if ENABLE_MC_SERVER_SO6
-# the redundant quoting here is to prevent the libtool command line from
-# looking like an error message in an oddly named file
-libmissioncontrol_server_la_LDFLAGS += -version-info "10":"0":"4"
-else
-libmissioncontrol_server_la_LDFLAGS += -release $(VERSION)
-endif
-
-mission_control_includedir = $(includedir)/mission-control
-mission_control_include_HEADERS = $(mc_headers)
-
-genincludedir = $(mission_control_includedir)/_gen
-nodist_geninclude_HEADERS = $(mc_gen_headers)
-
-INCLUDES += \
-	-DMCD_DEFAULT_FILTER_PLUGIN_DIR=\"@pluginlibdir@\"
-else # ! ENABLE_MCD_PLUGINS
-# When this older plugin API is not enabled, libmissioncontrol-server.la is
-# just a copy of the convenience library
-noinst_LTLIBRARIES += libmissioncontrol-server.la
-libmissioncontrol_server_la_SOURCES =
-libmissioncontrol_server_la_LIBADD = libmcd-convenience.la
-endif # ! ENABLE_MCD_PLUGINS
-
 libmcd_convenience_la_SOURCES = \
 	mcd-account.c \
 	mcd-account-addressing.h \
-	mcd-account-compat.c \
 	mcd-account-conditions.c \
 	mcd-account-config.h \
 	mcd-account-connection.c \
@@ -166,7 +119,6 @@ libmcd_convenience_la_SOURCES = \
 	mcd-account-addressing.c \
 	mcd-account-manager.c \
 	mcd-account-manager-priv.h \
-	mcd-account-manager-query.c \
 	mcd-account-manager-default.c \
 	mcd-account-priv.h \
 	mcd-client.c \
@@ -192,7 +144,6 @@ libmcd_convenience_la_SOURCES = \
 	mcd-mission.c \
 	mcd-mission-priv.h \
 	mcd-operation.c \
-	mcd-controller.c \
 	mcd-master.c \
 	mcd-master-priv.h \
 	mcd-manager.c \
@@ -207,10 +158,7 @@ libmcd_convenience_la_SOURCES = \
 	mcd-service.c \
 	mcd-slacker.c \
 	mcd-slacker.h \
-	mcd-proxy.c \
 	mcd-transport.c \
-	mcd-provisioning.c \
-	mcd-provisioning-factory.c \
 	mcd-storage.c \
 	mcd-storage.h \
 	mcd-storage-priv.h \
@@ -240,19 +188,11 @@ endif
 
 endif
 
-%-signals-marshal.h: %-signals-marshal.list Makefile
-	$(AM_V_GEN)glib-genmarshal --header --prefix=_$(subst -,_,$*)_marshal $< > $*-signals-marshal.h
-
-%-signals-marshal.c: %-signals-marshal.list Makefile
-	$(AM_V_GEN){ echo '#include "$*-signals-marshal.h"' && \
-	glib-genmarshal --body --prefix=_$(subst -,_,$*)_marshal $<; } \
-	> $*-signals-marshal.c
-
 mcd-enum-types.h: stamp-mcd-enum-types.h
 	$(AM_V_GEN)true
 stamp-mcd-enum-types.h: Makefile $(mc_headers) mcd-enum-types.c
 	$(AM_V_GEN)( cd $(srcdir) && glib-mkenums \
-		--fhead "#ifndef __MCD_ENUM_TYPES_H__\n#define __MCD_ENUM_TYPES_H__\n\n#include \"mcd-mission.h\"\n#include \"mcd-channel.h\"\n#include \"mcd-provisioning.h\"\n#include \"mcd-transport.h\"\n\nG_BEGIN_DECLS\n" \
+		--fhead "#ifndef __MCD_ENUM_TYPES_H__\n#define __MCD_ENUM_TYPES_H__\n\n#include \"mcd-mission.h\"\n#include \"mcd-channel.h\"\n#include \"mcd-transport.h\"\n\nG_BEGIN_DECLS\n" \
 		--fprod "/* enumerations from \"@filename@\" */\n" \
 		--vhead "GType @enum_name@_get_type (void) G_GNUC_CONST;\n#define MCD_TYPE_@ENUMSHORT@ (@enum_name@_get_type())\n" \
 		--ftail "G_END_DECLS\n\n#endif /* __MCD_ENUM_TYPES_H__ */" \
@@ -276,7 +216,6 @@ mcd-enum-types.c: Makefile $(mc_headers)
 EXTRA_DIST = \
 	mcd.xml \
 	dispatcher.xml \
-	mcd-signals-marshal.list \
 	stamp-mcd-enum-types.h
 
 Android.mk: Makefile.am $(nodist_libmcd_convenience_la_SOURCES)

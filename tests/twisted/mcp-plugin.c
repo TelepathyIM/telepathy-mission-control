@@ -128,7 +128,7 @@ permission_cb (DBusPendingCall *pc,
 
       if (ctx->result != NULL)
         {
-          g_simple_async_result_set_error (ctx->result, TP_ERRORS,
+          g_simple_async_result_set_error (ctx->result, TP_ERROR,
               TP_ERROR_PERMISSION_DENIED, "No, sorry");
         }
       else
@@ -355,7 +355,7 @@ request_permission_cb (DBusPendingCall *pc,
     {
       DEBUG ("Permission denied");
       mcp_request_deny (ctx->request,
-          TP_ERRORS, TP_CHANNEL_GROUP_CHANGE_REASON_PERMISSION_DENIED,
+          TP_ERROR, TP_CHANNEL_GROUP_CHANGE_REASON_PERMISSION_DENIED,
           "Computer says no");
     }
   else
@@ -536,7 +536,7 @@ test_rejection_plugin_check_request (McpRequestPolicy *policy,
         "com.example.ForbiddenChannel"))
     {
       DEBUG ("Forbidden channel detected, denying request");
-      mcp_request_deny (request, TP_ERRORS, TP_ERROR_PERMISSION_DENIED,
+      mcp_request_deny (request, TP_ERROR, TP_ERROR_PERMISSION_DENIED,
           "No, you don't");
     }
 
@@ -545,7 +545,7 @@ test_rejection_plugin_check_request (McpRequestPolicy *policy,
         NULL, NULL))
     {
       DEBUG ("Forbidden channel detected, denying request");
-      mcp_request_deny (request, TP_ERRORS, TP_ERROR_PERMISSION_DENIED,
+      mcp_request_deny (request, TP_ERROR, TP_ERROR_PERMISSION_DENIED,
           "No, you don't");
     }
 

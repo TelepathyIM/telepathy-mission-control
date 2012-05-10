@@ -21,6 +21,8 @@
  *
  */
 
+#include "config.h"
+
 #include "plugin-dispatch-operation.h"
 
 #include "mission-control-plugins/implementation.h"

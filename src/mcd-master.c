@@ -43,9 +43,6 @@
  * It is basically a container for all McdManager objects and
  * takes care of their management. It also takes care of sleep and awake
  * cycles (e.g. translates to auto away somewhere down the hierarchy).
- *
- * McdMaster is a subclass of McdConroller, which essentially means it
- * is subject to all device control.
  */
 
 #include <config.h>
@@ -71,14 +68,12 @@
 #include "kludge-transport.h"
 #include "mcd-master.h"
 #include "mcd-master-priv.h"
-#include "mcd-proxy.h"
 #include "mcd-manager.h"
 #include "mcd-dispatcher.h"
 #include "mcd-account-manager.h"
 #include "mcd-account-manager-priv.h"
 #include "mcd-account-conditions.h"
 #include "mcd-account-priv.h"
-#include "mcd-plugin.h"
 #include "mcd-transport.h"
 #include "plugin-loader.h"
 
@@ -86,13 +81,12 @@
 				  MCD_TYPE_MASTER, \
 				  McdMasterPrivate))
 
-G_DEFINE_TYPE (McdMaster, mcd_master, MCD_TYPE_CONTROLLER);
+G_DEFINE_TYPE (McdMaster, mcd_master, MCD_TYPE_OPERATION);
 
 typedef struct _McdMasterPrivate
 {
     McdAccountManager *account_manager;
     McdDispatcher *dispatcher;
-    McdProxy *proxy;
 
     /* We create this for our member objects */
     TpDBusDaemon *dbus_daemon;
@@ -100,6 +94,9 @@ typedef struct _McdMasterPrivate
     GPtrArray *mcd_plugins;
     GPtrArray *transport_plugins;
     GList *account_connections;
+
+    /* Current pending sleep timer */
+    gint shutdown_timeout_id;
 
     gboolean is_disposed;
     gboolean low_memory;
@@ -259,90 +256,6 @@ on_transport_status_changed (McdTransportPlugin *plugin,
     }
 }
 
-#ifdef ENABLE_MCD_PLUGINS
-static void
-mcd_master_unload_mcd_plugins (McdMaster *master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    GModule *module;
-    guint i;
-
-    for (i = 0; i < priv->mcd_plugins->len; i++)
-    {
-	module = g_ptr_array_index (priv->mcd_plugins, i);
-	g_module_close (module);
-    }
-    g_ptr_array_unref (priv->mcd_plugins);
-    priv->mcd_plugins = NULL;
-}
-
-static const gchar *
-mcd_master_get_plugin_dir (void)
-{
-    const gchar *dir = g_getenv ("MC_FILTER_PLUGIN_DIR");
-
-    if (dir == NULL)
-        dir = MCD_DEFAULT_FILTER_PLUGIN_DIR;
-
-    return dir;
-}
-
-static void
-mcd_master_load_mcd_plugins (McdMaster *master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    const gchar *plugin_dir;
-    GDir *dir = NULL;
-    GError *error = NULL;
-    const gchar *name;
-
-    plugin_dir = mcd_master_get_plugin_dir ();
-
-    dir = g_dir_open (plugin_dir, 0, &error);
-    if (!dir)
-    {
-        DEBUG ("Could not open plugin directory %s: %s", plugin_dir,
-               error->message);
-	g_error_free (error);
-	return;
-    }
-
-    DEBUG ("Looking for plugins in %s", plugin_dir);
-
-    priv->mcd_plugins = g_ptr_array_new ();
-    while ((name = g_dir_read_name (dir)))
-    {
-	GModule *module;
-	gchar *path;
-
-	if (name[0] == '.' || !g_str_has_suffix (name, ".so")) continue;
-
-	path = g_build_filename (plugin_dir, name, NULL);
-	module = g_module_open (path, 0);
-	g_free (path);
-	if (module)
-	{
-	    McdPluginInitFunc init_func;
-	    if (g_module_symbol (module, MCD_PLUGIN_INIT_FUNC,
-				 (gpointer)&init_func))
-	    {
-                DEBUG ("Initializing plugin %s", name);
-		init_func ((McdPlugin *)master);
-		g_ptr_array_add (priv->mcd_plugins, module);
-	    }
-	    else
-                DEBUG ("Error looking up symbol " MCD_PLUGIN_INIT_FUNC
-                       " from plugin %s: %s", name, g_module_error ());
-	}
-	else
-	{
-            DEBUG ("Error opening plugin: %s: %s", name, g_module_error ());
-	}
-    }
-    g_dir_close (dir);
-}
-#endif
-
 static void
 _mcd_master_finalize (GObject * object)
 {
@@ -431,19 +344,9 @@ _mcd_master_dispose (GObject * object)
 	priv->transport_plugins = NULL;
     }
 
-#ifdef ENABLE_MCD_PLUGINS
-    if (priv->mcd_plugins)
-    {
-	mcd_master_unload_mcd_plugins (MCD_MASTER (object));
-    }
-#endif
-
     tp_clear_object (&priv->account_manager);
     tp_clear_object (&priv->dbus_daemon);
-
-    /* Don't unref() the dispatcher: it will be unref()ed by the McdProxy */
-    priv->dispatcher = NULL;
-    g_object_unref (priv->proxy);
+    tp_clear_object (&priv->dispatcher);
 
     if (default_master == (McdMaster *) object)
     {
@@ -484,16 +387,7 @@ mcd_master_constructor (GType type, guint n_params,
             TP_PROXY (priv->dbus_daemon)->dbus_connection),
         TRUE);
 
-    /* propagate the signals to dispatcher, too */
-    priv->proxy = mcd_proxy_new (MCD_MISSION (master));
-    mcd_operation_take_mission (MCD_OPERATION (priv->proxy),
-				MCD_MISSION (priv->dispatcher));
-
-#ifdef ENABLE_MCD_PLUGINS
-    mcd_master_load_mcd_plugins (master);
-#endif
-
-    mcd_kludge_transport_install ((McdPlugin *) master);
+    mcd_kludge_transport_install (master);
 
     /* we assume that at this point all transport plugins have been registered.
      * We get the active transports and check whether some accounts should be
@@ -621,36 +515,6 @@ _mcd_master_lookup_manager (McdMaster *master,
 }
 
 /**
- * mcd_master_get_dispatcher:
- * @master: the #McdMaster.
- *
- * Returns: the #McdDispatcher. It will go away when @master is disposed,
- * unless you keep a reference to it.
- */
-McdDispatcher *
-mcd_master_get_dispatcher (McdMaster *master)
-{
-    g_return_val_if_fail (MCD_IS_MASTER (master), NULL);
-    return MCD_MASTER_PRIV (master)->dispatcher;
-}
-
-/**
- * mcd_plugin_get_dispatcher:
- * @plugin: the #McdPlugin
- * 
- * Gets the McdDispatcher, to be used for registering channel filters. The
- * reference count of the returned object is not incremented, and the object is
- * guaranteed to stay alive during the whole lifetime of the plugin.
- *
- * Returns: the #McdDispatcher
- */
-McdDispatcher *
-mcd_plugin_get_dispatcher (McdPlugin *plugin)
-{
-    return MCD_MASTER_PRIV (plugin)->dispatcher;
-}
-
-/**
  * mcd_master_get_dbus_daemon:
  * @master: the #McdMaster.
  *
@@ -665,33 +529,33 @@ mcd_master_get_dbus_daemon (McdMaster *master)
 
 /**
  * mcd_plugin_register_transport:
- * @plugin: the #McdPlugin.
+ * @master: the #McdMaster.
  * @transport_plugin: the #McdTransportPlugin.
  *
  * Registers @transport_plugin as a transport monitoring object.
- * The @plugin takes ownership of the transport (i.e., it doesn't increment its
+ * The @master takes ownership of the transport (i.e., it doesn't increment its
  * reference count).
  */
 void
-mcd_plugin_register_transport (McdPlugin *plugin,
+mcd_master_register_transport (McdMaster *master,
 			       McdTransportPlugin *transport_plugin)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (plugin);
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
 
     DEBUG ("called");
     g_signal_connect (transport_plugin, "status-changed",
 		      G_CALLBACK (on_transport_status_changed),
-		      MCD_MASTER (plugin));
+		      master);
     g_ptr_array_add (priv->transport_plugins, transport_plugin);
 }
 
 void
-mcd_plugin_register_account_connection (McdPlugin *plugin,
+mcd_master_register_account_connection (McdMaster *master,
 					McdAccountConnectionFunc func,
 					gint priority,
 					gpointer userdata)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (plugin);
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     McdAccountConnectionData *acd;
     GList *list;
 
@@ -793,81 +657,45 @@ _mcd_master_account_replace_transport (McdMaster *master,
     return connected;
 }
 
-gboolean
-mcd_master_has_low_memory (McdMaster *master)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+/* Milliseconds to wait for Connectivity coming back up before exiting MC */
+#define EXIT_COUNTDOWN_TIME 5000
 
-    return priv->low_memory;
+static gboolean
+_mcd_master_exit_by_timeout (gpointer data)
+{
+    McdMaster *self = MCD_MASTER (data);
+    McdMasterPrivate *priv = MCD_MASTER_PRIV (self);
+
+    priv->shutdown_timeout_id = 0;
+
+    /* Notify sucide */
+    mcd_mission_abort (MCD_MISSION (self));
+    return FALSE;
 }
 
-/* For the moment, this is implemented in terms of McdSystemFlags. */
 void
-mcd_master_set_low_memory (McdMaster *master,
-                           gboolean low_memory)
+mcd_master_shutdown (McdMaster *self,
+                     const gchar *reason)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    McdMasterPrivate *priv;
 
-    priv->low_memory = low_memory;
-}
+    g_return_if_fail (MCD_IS_MASTER (self));
+    priv = MCD_MASTER_PRIV (self);
 
-/* For the moment, this is implemented in terms of McdSystemFlags. When
- * McdSystemFlags are abolished, move the processing from set_flags to
- * this function. */
-void
-mcd_master_set_idle (McdMaster *master,
-                     gboolean idle)
-{
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-    gboolean idle_flag_old;
-
-    idle_flag_old = priv->idle;
-    priv->idle = idle != 0;
-
-    if (idle_flag_old != priv->idle)
+    if(!priv->shutdown_timeout_id)
     {
-        GHashTableIter iter;
-        gpointer v;
+        DEBUG ("MC will bail out because of \"%s\" out exit after %i",
+               reason ? reason : "No reason specified",
+               EXIT_COUNTDOWN_TIME);
 
-        g_hash_table_iter_init (&iter,
-            _mcd_account_manager_get_accounts (priv->account_manager));
-
-        while (g_hash_table_iter_next (&iter, NULL, &v))
-        {
-            McdAccount *account = MCD_ACCOUNT (v);
-
-            if (priv->idle)
-            {
-                TpConnectionPresenceType presence;
-
-                /* If the current presence is not Available then we don't go
-                 * auto-away - this avoids (a) manipulating offline accounts
-                 * and (b) messing up people's busy or invisible status */
-                mcd_account_get_current_presence (account, &presence, NULL,
-                                                  NULL);
-
-                if (presence != TP_CONNECTION_PRESENCE_TYPE_AVAILABLE)
-                {
-                    continue;
-                }
-
-                /* Set the Connection to be "away" if the CM supports it
-                 * (if not, it'll just fail - no harm done) */
-                _mcd_account_request_temporary_presence (account,
-                    TP_CONNECTION_PRESENCE_TYPE_AWAY, "away");
-            }
-            else
-            {
-                TpConnectionPresenceType presence;
-                const gchar *status;
-                const gchar *message;
-
-                /* Go back to the requested presence */
-                mcd_account_get_requested_presence (account, &presence,
-                                                    &status, &message);
-                mcd_account_request_presence (account, presence, status,
-                                              message);
-            }
-        }
+        priv->shutdown_timeout_id = g_timeout_add (EXIT_COUNTDOWN_TIME,
+                                                   _mcd_master_exit_by_timeout,
+                                                   self);
     }
+    else
+    {
+        DEBUG ("Already shutting down. This one has the reason %s",
+               reason ? reason : "No reason specified");
+    }
+    mcd_debug_print_tree (self);
 }

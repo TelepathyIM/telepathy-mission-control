@@ -75,6 +75,8 @@
  * an account storage plugin in an account storage object, though.
  */
 
+#include "config.h"
+
 #include <mission-control-plugins/mission-control-plugins.h>
 #include <mission-control-plugins/mcp-signals-marshal.h>
 #include <mission-control-plugins/implementation.h>

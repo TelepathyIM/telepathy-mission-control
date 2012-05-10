@@ -23,10 +23,10 @@
  *
  */
 
+#include "config.h"
 
 #include <glib.h>
 #include "mcd-transport.h"
-#include "mcd-signals-marshal.h"
 #include "mcd-enum-types.h"
 
 /**
@@ -71,8 +71,7 @@ mcd_transport_plugin_base_init (gpointer iface)
             G_TYPE_FROM_INTERFACE (iface),
             G_SIGNAL_RUN_FIRST,
             G_STRUCT_OFFSET (McdTransportPluginIface, status_changed),
-            NULL, NULL,
-            _mcd_marshal_VOID__POINTER_UINT,
+            NULL, NULL, NULL,
             G_TYPE_NONE, 2,
             G_TYPE_POINTER, MCD_TYPE_TRANSPORT_STATUS);
         initialized = TRUE;
@@ -101,22 +100,6 @@ mcd_transport_plugin_get_type (void)
         g_type_interface_add_prerequisite (type, G_TYPE_OBJECT);
     }
     return type;
-}
-
-/**
- * mcd_transport_plugin_get_name:
- * @plugin: the #McdTransportPlugin.
- *
- * Returns: the name of the plugin.
- */
-const gchar *
-mcd_transport_plugin_get_name (McdTransportPlugin *plugin)
-{
-    McdTransportPluginIface *iface;
-
-    iface = MCD_TRANSPORT_PLUGIN_GET_IFACE (plugin);
-    g_return_val_if_fail (iface->get_name != NULL, NULL);
-    return iface->get_name (plugin);
 }
 
 /**

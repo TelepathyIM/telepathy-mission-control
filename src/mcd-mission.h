@@ -52,27 +52,13 @@ struct _McdMissionClass
     GObjectClass parent_class;
 
     /* Signals */
-    void (*parent_set_signal) (McdMission * mission, McdMission * parent);
     void (*connected_signal) (McdMission * mission);
     void (*disconnected_signal) (McdMission * mission);
-    
-    void (*_former_flags_changed_signal) (void);
-    void (*_former_mode_set_signal) (void);
-
     void (*abort_signal) (McdMission * mission);
-    
+
     /* Virtual methods */
-    void (*_former_set_parent) (void);
-    
     void (*connect) (McdMission * mission);
     void (*disconnect) (McdMission * mission);
-    
-    void (*_former_set_flags) (void);
-    void (*_former_get_flags) (void);
-    
-    void (*_former_set_mode) (void);
-    void (*_former_get_mode) (void);
-    
     void (*abort) (McdMission * mission);
 };
 

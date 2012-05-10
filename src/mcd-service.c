@@ -38,6 +38,8 @@
  * dbus interface.
  */
 
+#include "config.h"
+
 #include <dbus/dbus.h>
 #include <string.h>
 #include <dlfcn.h>
@@ -50,9 +52,6 @@
 #include <dbus/dbus.h>
 #include <telepathy-glib/telepathy-glib.h>
 
-#include "mcd-signals-marshal.h"
-#include "mcd-dispatcher.h"
-#include "mcd-dispatcher-context.h"
 #include "mcd-connection.h"
 #include "mcd-misc.h"
 #include "mcd-service.h"
@@ -98,7 +97,7 @@ static void
 mcd_service_disconnect (McdMission *mission)
 {
     MCD_MISSION_CLASS (mcd_service_parent_class)->disconnect (mission);
-    mcd_controller_shutdown (MCD_CONTROLLER (mission), "Disconnected");
+    mcd_master_shutdown (MCD_MASTER (mission), "Disconnected");
 }
 
 static void

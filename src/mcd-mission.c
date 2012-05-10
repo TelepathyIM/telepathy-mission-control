@@ -49,6 +49,8 @@
  * object specific state managements.
  */
 
+#include "config.h"
+
 #include "mcd-mission-priv.h"
 
 #include <telepathy-glib/telepathy-glib.h>
@@ -155,7 +157,6 @@ _mcd_mission_set_parent (McdMission * mission, McdMission * parent)
     
     tp_clear_object (&priv->parent);
     priv->parent = parent;
-    g_signal_emit_by_name (mission, "parent-set", parent);
 }
 
 static void
@@ -270,21 +271,6 @@ mcd_mission_class_init (McdMissionClass * klass)
 							   disconnected_signal),
 		      NULL, NULL, g_cclosure_marshal_VOID__VOID, G_TYPE_NONE,
 		      0);
-    mcd_mission_signals[PARENT_SET] =
-	g_signal_new ("parent-set", G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_FIRST, G_STRUCT_OFFSET (McdMissionClass,
-							   parent_set_signal),
-		      NULL, NULL, g_cclosure_marshal_VOID__VOID, G_TYPE_NONE,
-		      0);
-
-    /* Properties */
-    g_object_class_install_property
-        (object_class, PROP_PARENT,
-         g_param_spec_object ("parent",
-                              "Parent mission",
-                              "Parent mission",
-                              MCD_TYPE_MISSION,
-                              G_PARAM_READWRITE));
 }
 
 static void

@@ -44,9 +44,6 @@ def test(q, bus, mc):
         properties.get('InvalidAccounts')
     interfaces = properties.get('Interfaces')
 
-    # assert that current functionality exists
-    assert cs.AM_IFACE_NOKIA_QUERY in interfaces, interfaces
-
     params = dbus.Dictionary({"account": "someguy@example.com",
         "password": "secrecy"}, signature='sv')
     (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
@@ -86,7 +83,6 @@ def test(q, bus, mc):
 
     interfaces = properties.get('Interfaces')
     assert cs.ACCOUNT_IFACE_AVATAR in interfaces, interfaces
-    assert cs.ACCOUNT_IFACE_NOKIA_COMPAT in interfaces, interfaces
     assert cs.ACCOUNT_IFACE_NOKIA_CONDITIONS in interfaces, interfaces
 
     # sanity check
@@ -129,28 +125,6 @@ def test(q, bus, mc):
         EventPattern('dbus-return', method='Set'),
         )
     assert account_props.Get(cs.ACCOUNT, 'Nickname') == 'Joe Bloggs'
-
-    call_async(q, dbus.Interface(account, cs.ACCOUNT_IFACE_NOKIA_COMPAT),
-            'SetHasBeenOnline')
-    q.expect_many(
-        EventPattern('dbus-signal',
-            path=account_path,
-            signal='AccountPropertyChanged',
-            interface=cs.ACCOUNT,
-            args=[{'HasBeenOnline': True}]),
-        EventPattern('dbus-return', method='SetHasBeenOnline'),
-        )
-    assert account_props.Get(cs.ACCOUNT, 'HasBeenOnline') == True
-
-    call_async(q, account_props, 'Set', cs.ACCOUNT_IFACE_NOKIA_COMPAT,
-            'SecondaryVCardFields',
-            ['x-badger', 'x-mushroom'])
-    # there's no change notification for the Compat properties
-    q.expect_many(
-        EventPattern('dbus-return', method='Set'),
-        )
-    assert account_props.Get(cs.ACCOUNT_IFACE_NOKIA_COMPAT,
-            'SecondaryVCardFields') == ['x-badger', 'x-mushroom']
 
     call_async(q, account_props, 'Set', cs.ACCOUNT_IFACE_NOKIA_CONDITIONS,
             'Condition',
@@ -206,15 +180,6 @@ def test(q, bus, mc):
         else:
             raise AssertionError('Setting %s with wrong type should fail' % p)
 
-    for p in ('SecondaryVCardFields'):
-        try:
-            account_props.Set(cs.ACCOUNT_IFACE_NOKIA_COMPAT, p, badly_typed)
-        except dbus.DBusException, e:
-            assert e.get_dbus_name() == cs.INVALID_ARGUMENT, \
-                    (p, e.get_dbus_name())
-        else:
-            raise AssertionError('Setting %s with wrong type should fail' % p)
-
     for p in ('Condition',):
         try:
             account_props.Set(cs.ACCOUNT_IFACE_NOKIA_CONDITIONS, p,
@@ -233,8 +198,6 @@ def test(q, bus, mc):
     assert properties['Icon'] == 'im-jabber'
     properties = account_props.GetAll(cs.ACCOUNT_IFACE_AVATAR)
     assert properties['Avatar'] == ([], '')
-    properties = account_props.GetAll(cs.ACCOUNT_IFACE_NOKIA_COMPAT)
-    assert properties['SecondaryVCardFields'] == ['x-badger', 'x-mushroom']
 
     # Delete the account
     assert account_iface.Remove() is None

@@ -28,7 +28,6 @@
 
 #include <glib.h>
 #include <glib-object.h>
-#include "mcd-controller.h"
 
 G_BEGIN_DECLS
 #define MCD_TYPE_MASTER         (mcd_master_get_type ())
@@ -47,12 +46,12 @@ typedef struct _McdMasterClass McdMasterClass;
 
 struct _McdMaster
 {
-    McdController parent;
+    McdOperation parent;
 };
 
 struct _McdMasterClass
 {
-    McdControllerClass parent_class;
+    McdOperationClass parent_class;
     McdManager *(*create_manager) (McdMaster *master,
                                    const gchar *unique_name);
     void (*_mc_reserved1) (void);
@@ -66,12 +65,20 @@ struct _McdMasterClass
 GType mcd_master_get_type (void);
 McdMaster *mcd_master_get_default (void);
 
-McdDispatcher *mcd_master_get_dispatcher (McdMaster *master);
 TpDBusDaemon *mcd_master_get_dbus_daemon (McdMaster *master);
+void mcd_master_shutdown (McdMaster *self, const gchar *reason);
 
-gboolean mcd_master_has_low_memory (McdMaster *master);
-void mcd_master_set_low_memory (McdMaster *master, gboolean low_memory);
-void mcd_master_set_idle (McdMaster *master, gboolean idle);
+void mcd_master_register_transport (McdMaster *master,
+                                    McdTransportPlugin *transport_plugin);
+
+typedef void (*McdAccountConnectionFunc) (McdAccount *account,
+                                          GHashTable *parameters,
+                                          gpointer userdata);
+
+void mcd_master_register_account_connection (McdMaster *master,
+                                             McdAccountConnectionFunc func,
+                                             gint priority,
+                                             gpointer userdata);
 
 G_END_DECLS
 #endif /* MCD_MASTER_H */

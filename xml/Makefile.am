@@ -6,9 +6,7 @@ DROP_TPTYPE = sed -e 's@tp:type="[^"]*"@@g'
 
 SPECS = \
 	Account_Manager_Interface_Hidden.xml \
-	Account_Manager_Interface_Query.xml \
 	Account_Interface_Addressing.xml \
-	Account_Interface_Compat.xml \
 	Account_Interface_Conditions.xml \
 	Account_Interface_External_Password_Storage.xml \
 	Account_Interface_Hidden.xml \

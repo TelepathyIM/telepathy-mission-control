@@ -150,54 +150,6 @@ fi
 AC_SUBST(ACCOUNTS_CACHE_DIR)
 AC_DEFINE_UNQUOTED(ACCOUNTS_CACHE_DIR,"$ACCOUNTS_CACHE_DIR", [Directory for account/connection mapping for crash recovery])
 
-server_enabled="yes"
-AC_MSG_CHECKING(whether to build the daemon)
-AC_ARG_ENABLE(server,
-	[  --enable-server         build server. default=yes],
-	[
-		AC_MSG_RESULT(${enableval})
-		server_enabled="${enableval}"
-	],
-	[
-		AC_MSG_RESULT(yes)
-		server_enabled="yes"
-	]
-)
-AM_CONDITIONAL(HAVE_SERVER, [test x$server_enabled = xyes])
-
-ENABLE_MC_SERVER_SO6="no"
-AC_MSG_CHECKING(whether to pretend libmissioncontrol-server is stable)
-AC_ARG_ENABLE(mcserver-so6,
-	[  --enable-mcserver-so6    pretend libmissioncontrol-server is ABI-stable],
-	[
-		AC_MSG_RESULT(${enableval})
-		ENABLE_MC_SERVER_SO6="${enableval}"
-	],
-	[
-		AC_MSG_RESULT(no)
-		ENABLE_MC_SERVER_SO6="no"
-	]
-)
-AM_CONDITIONAL(ENABLE_MC_SERVER_SO6, [test "x$ENABLE_MC_SERVER_SO6" = xyes])
-
-AC_MSG_CHECKING(whether to support plugins)
-AC_ARG_ENABLE(mcd-plugins,
-	[  --enable-mcd-plugins       support plugins that use internal APIs. default=no],
-	[
-		AC_MSG_RESULT(${enableval})
-		mcd_plugins_enabled="${enableval}"
-	],
-	[
-		AC_MSG_RESULT(no)
-		mcd_plugins_enabled="no"
-	]
-)
-AM_CONDITIONAL(ENABLE_MCD_PLUGINS, [test x$mcd_plugins_enabled = xyes])
-if test "x$mcd_plugins_enabled" = xyes
-then
-  AC_DEFINE([ENABLE_MCD_PLUGINS], [1], [Define if MCD plugins should be enabled])
-fi
-
 aegis_enabled="no"
 AC_MSG_CHECKING([whether to build with Aegis (libcreds) support])
 AC_ARG_ENABLE(aegis,
@@ -313,9 +265,8 @@ PKG_CHECK_MODULES([GLIB],
 AC_SUBST(GLIB_LIBS)
 AC_SUBST(GLIB_CFLAGS)
 
-PKG_CHECK_MODULES([GIO], [gio-2.0 >= 2.28])
-AC_SUBST(GIO_LIBS)
-AC_SUBST(GIO_CFLAGS)
+AC_DEFINE([GLIB_VERSION_MIN_REQUIRED], [GLIB_VERSION_2_30], [Ignore post 2.30 deprecations])
+AC_DEFINE([GLIB_VERSION_MAX_ALLOWED], [GLIB_VERSION_2_30], [Prevent post 2.30 APIs])
 
 dnl Check for MCE, a Maemo service used to determine when the device is idle.
 PKG_CHECK_MODULES([MCE], mce >= 1.5, [HAVE_MCE=yes], [HAVE_MCE=no])
@@ -435,7 +386,6 @@ doc/Makefile \
 doc/reference/Makefile \
 doc/reference/mission-control-plugins/Makefile \
 m4/Makefile \
-mission-control.pc \
 mission-control-plugins.pc \
 mission-control-plugins-uninstalled.pc \
 mission-control-plugins/Makefile \

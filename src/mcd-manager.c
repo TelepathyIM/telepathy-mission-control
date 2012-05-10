@@ -96,35 +96,6 @@ on_manager_ready (GObject *source_object,
     g_clear_error (&error);
 }
 
-static gint
-_find_connection_by_path (gconstpointer data, gconstpointer user_data)
-{
-    TpConnection *tp_conn;
-    McdConnection *connection = MCD_CONNECTION (data);
-    const gchar *object_path = (const gchar *)user_data;
-    const gchar *conn_object_path = NULL;
-    gint ret;
-
-    if (!data) return 1;
-
-    g_object_get (G_OBJECT (connection), "tp-connection",
-		  &tp_conn, NULL);
-    if (!tp_conn)
-	return 1;
-    conn_object_path = TP_PROXY (tp_conn)->object_path;
-    if (strcmp (conn_object_path, object_path) == 0)
-    {
-	ret = 0;
-    }
-    else
-    {
-	ret = 1;
-    }
-    
-    g_object_unref (G_OBJECT (tp_conn));
-    return ret;
-}
-
 static void
 _mcd_manager_finalize (GObject * object)
 {
@@ -288,20 +259,6 @@ _mcd_manager_get_property (GObject * obj, guint prop_id,
     }
 }
 
-static McdConnection *
-create_connection (McdManager *manager, McdAccount *account)
-{
-    McdManagerPrivate *priv = manager->priv;
-
-    return g_object_new (MCD_TYPE_CONNECTION,
-                         "dbus-daemon", priv->dbus_daemon,
-                         "tp-manager", priv->tp_conn_mgr,
-                         "dispatcher", priv->dispatcher,
-                         "account", account,
-                         "slacker", priv->slacker,
-                         NULL);
-}
-
 static void
 mcd_manager_class_init (McdManagerClass * klass)
 {
@@ -318,8 +275,6 @@ mcd_manager_class_init (McdManagerClass * klass)
 
     mission_class->connect = _mcd_manager_connect;
     mission_class->disconnect = _mcd_manager_disconnect;
-
-    klass->create_connection = create_connection;
 
     /* Properties */
     g_object_class_install_property
@@ -366,48 +321,6 @@ mcd_manager_new (const gchar *unique_name,
 				     "dispatcher", dispatcher,
 				     "dbus-daemon", dbus_daemon, NULL));
     return obj;
-}
-
-McdConnection *
-mcd_manager_get_connection (McdManager * manager, const gchar *object_path)
-{
-    const GList *connections;
-    const GList *node;
-
-    connections = mcd_operation_get_missions (MCD_OPERATION (manager));
-    node = g_list_find_custom ((GList*)connections, object_path,
-			       _find_connection_by_path);
-
-    if (node != NULL)
-    {
-	return MCD_CONNECTION (node->data);
-    }
-
-    else
-    {
-	return NULL;
-    }
-}
-
-gboolean
-mcd_manager_cancel_channel_request (McdManager *manager, guint operation_id,
-				    const gchar *requestor_client_id,
-				    GError **error)
-{
-    const GList *connections, *node;
-
-    connections = mcd_operation_get_missions (MCD_OPERATION (manager));
-    if (!connections) return FALSE;
-
-    for (node = connections; node; node = node->next)
-    {
-	if (mcd_connection_cancel_channel_request (MCD_CONNECTION (node->data),
-						   operation_id,
-						   requestor_client_id,
-						   error))
-	    return TRUE;
-    }
-    return FALSE;
 }
 
 /**
@@ -472,8 +385,14 @@ mcd_manager_create_connection (McdManager *manager, McdAccount *account)
     g_return_val_if_fail (MCD_IS_MANAGER (manager), NULL);
     g_return_val_if_fail (manager->priv->tp_conn_mgr != NULL, NULL);
 
-    connection = MCD_MANAGER_GET_CLASS (manager)->create_connection
-        (manager, account);
+    connection = g_object_new (MCD_TYPE_CONNECTION,
+                               "dbus-daemon", manager->priv->dbus_daemon,
+                               "tp-manager", manager->priv->tp_conn_mgr,
+                               "dispatcher", manager->priv->dispatcher,
+                               "account", account,
+                               "slacker", manager->priv->slacker,
+                               NULL);
+
     mcd_operation_take_mission (MCD_OPERATION (manager),
 				MCD_MISSION (connection));
     DEBUG ("Created a connection %p for account: %s",
@@ -493,19 +412,6 @@ mcd_manager_get_tp_proxy (McdManager *manager)
 {
     g_return_val_if_fail (MCD_IS_MANAGER (manager), NULL);
     return manager->priv->tp_conn_mgr;
-}
-
-/**
- * mcd_manager_get_dispatcher:
- * @manager: the #McdManager.
- *
- * Returns: the #McdDispatcher.
- */
-McdDispatcher *
-mcd_manager_get_dispatcher (McdManager *manager)
-{
-    g_return_val_if_fail (MCD_IS_MANAGER (manager), NULL);
-    return manager->priv->dispatcher;
 }
 
 /**

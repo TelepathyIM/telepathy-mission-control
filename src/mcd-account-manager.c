@@ -21,13 +21,13 @@
  * 02110-1301 USA
  *
  */
+#include "config.h"
 
 #include "mcd-account-manager.h"
 
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <config.h>
 #include <dbus/dbus-glib-lowlevel.h>
 #include <dbus/dbus.h>
 
@@ -80,9 +80,6 @@ static const McdInterfaceData account_manager_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_account_manager_get_type,
 			 account_manager,
 			 TP_IFACE_ACCOUNT_MANAGER),
-    MCD_IMPLEMENT_IFACE (mc_svc_account_manager_interface_query_get_type,
-			 account_manager_query,
-			 MC_IFACE_ACCOUNT_MANAGER_INTERFACE_QUERY),
     MCD_IMPLEMENT_IFACE (mc_svc_account_manager_interface_hidden_get_type,
 			 account_manager_hidden,
 			 MC_IFACE_ACCOUNT_MANAGER_INTERFACE_HIDDEN),
@@ -740,7 +737,7 @@ set_new_account_properties (McdAccount *account,
         }
         else
         {
-            g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+            g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                          "Malformed property name: %s", name);
             ok = FALSE;
         }
@@ -864,7 +861,7 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
     if (G_UNLIKELY (manager == NULL || manager[0] == 0 ||
 		    protocol == NULL || protocol[0] == 0))
     {
-        GError error = { TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        GError error = { TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
             "Invalid parameters"};
         callback (account_manager, NULL, &error, user_data);
         if (destroy)
@@ -905,7 +902,7 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
     }
     else
     {
-        GError error = { TP_ERRORS, TP_ERROR_NOT_AVAILABLE, "" };
+        GError error = { TP_ERROR, TP_ERROR_NOT_AVAILABLE, "" };
         callback (account_manager, NULL, &error, user_data);
         if (destroy)
             destroy (user_data);
@@ -1030,7 +1027,6 @@ get_supported_account_properties (TpSvcDBusProperties *svc,
         TP_IFACE_ACCOUNT ".RequestedPresence",
         TP_IFACE_ACCOUNT ".Supersedes",
         TP_IFACE_ACCOUNT_INTERFACE_AVATAR ".Avatar",
-        MC_IFACE_ACCOUNT_INTERFACE_COMPAT ".SecondaryVCardFields",
         MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS ".Condition",
         NULL
     };

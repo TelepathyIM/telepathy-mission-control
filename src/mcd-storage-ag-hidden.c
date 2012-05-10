@@ -19,11 +19,12 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include "config.h"
+
 #include "mcd-storage-ag-hidden.h"
 
 #include <telepathy-glib/util.h>
 
-#include "config.h"
 #include "mcd-debug.h"
 /* FIXME: if we weren't in-tree, we wouldn't be able to include this header and
  * we'd have to re-hardcode magic strings like "Hidden".

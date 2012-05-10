@@ -24,10 +24,11 @@
  *
  */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <glib/gstdio.h>
-#include <config.h>
 
 #include "mcd-master.h"
 #include "mcd-master-priv.h"

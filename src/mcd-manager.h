@@ -57,8 +57,6 @@ struct _McdManager
 struct _McdManagerClass
 {
     McdOperationClass parent_class;
-    McdConnection *(*create_connection) (McdManager *manager,
-                                         McdAccount *account);
     void (*_mc_reserved1) (void);
     void (*_mc_reserved2) (void);
     void (*_mc_reserved3) (void);
@@ -81,13 +79,7 @@ mcd_manager_get_protocol_param (McdManager *manager, const gchar *protocol,
 McdConnection *mcd_manager_create_connection (McdManager *manager,
 					      McdAccount *account);
 
-gboolean mcd_manager_cancel_channel_request (McdManager *manager, guint operation_id,
-					     const gchar *requestor_client_pid, GError **error);
-
-McdConnection *mcd_manager_get_connection (McdManager *manager,
-					   const gchar *object_path);
 TpConnectionManager *mcd_manager_get_tp_proxy (McdManager *manager);
-McdDispatcher *mcd_manager_get_dispatcher (McdManager *manager);
 
 typedef void (*McdManagerReadyCb) (McdManager *manager, const GError *error,
                                    gpointer user_data);

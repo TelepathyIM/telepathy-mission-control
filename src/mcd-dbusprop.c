@@ -24,6 +24,8 @@
  *
  */
 
+#include "config.h"
+
 #include <string.h>
 #include <telepathy-glib/errors.h>
 #include <telepathy-glib/util.h>
@@ -139,7 +141,7 @@ get_mcddbusprop (TpSvcDBusProperties *self,
     prop_array = get_interface_properties (self, interface_name);
     if (!prop_array)
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "invalid interface: %s", interface_name);
         return NULL;
     }
@@ -151,7 +153,7 @@ get_mcddbusprop (TpSvcDBusProperties *self,
 
     if (!property->name)
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "invalid property: %s", property_name);
         return NULL;
     }
@@ -175,7 +177,7 @@ mcd_dbusprop_set_property (TpSvcDBusProperties *self,
 
     if (!property->setprop)
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "property %s cannot be written", property_name);
         return FALSE;
     }
@@ -241,7 +243,7 @@ mcd_dbusprop_get_property (TpSvcDBusProperties *self,
 
     if (!property->getprop)
     {
-        g_set_error (error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "property %s cannot be read", property_name);
         return FALSE;
     }
@@ -423,7 +425,7 @@ dbusprop_get_all (TpSvcDBusProperties *self,
     prop_array = get_interface_properties (self, interface_name);
     if (!prop_array)
     {
-        g_set_error (&error, TP_ERRORS, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (&error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "invalid interface: %s", interface_name);
         dbus_g_method_return_error (context, error);
         g_error_free (error);

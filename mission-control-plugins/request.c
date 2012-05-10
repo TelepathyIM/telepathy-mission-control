@@ -26,6 +26,8 @@
  * @include: mission-control-plugins/mission-control-plugins.h
  */
 
+#include "config.h"
+
 #include <mission-control-plugins/mission-control-plugins.h>
 #include <mission-control-plugins/implementation.h>
 

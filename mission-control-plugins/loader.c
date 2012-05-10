@@ -41,6 +41,8 @@
  * the plugins.
  */
 
+#include "config.h"
+
 #include <gmodule.h>
 #include <mission-control-plugins/mission-control-plugins.h>
 #include <mission-control-plugins/debug.h>

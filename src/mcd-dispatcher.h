@@ -50,13 +50,13 @@ typedef struct _McdDispatcherPrivate McdDispatcherPrivate;
 
 struct _McdDispatcher
 {
-    McdMission parent;
+    GObject parent;
     McdDispatcherPrivate *priv;
 };
 
 struct _McdDispatcherClass
 {
-    McdMissionClass parent_class;
+    GObjectClass parent_class;
 
     /* signals */
     void (*_former_channel_added_signal) (void);
@@ -79,9 +79,6 @@ GType mcd_dispatcher_get_type (void);
 
 McdDispatcher *mcd_dispatcher_new (TpDBusDaemon *dbus_daemon,
 				   McdMaster * master);
-
-gint mcd_dispatcher_get_channel_type_usage (McdDispatcher * dispatcher,
-					    GQuark chan_type_quark);
 
 G_END_DECLS
 

@@ -60,6 +60,8 @@
  * may be useful to combine this interface with #McpRequestPolicy.
  */
 
+#include "config.h"
+
 #include <mission-control-plugins/mission-control-plugins.h>
 
 GType

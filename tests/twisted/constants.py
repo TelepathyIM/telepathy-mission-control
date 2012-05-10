@@ -171,13 +171,11 @@ ACCOUNT = tp_name_prefix + '.Account'
 ACCOUNT_IFACE_AVATAR = ACCOUNT + '.Interface.Avatar'
 ACCOUNT_IFACE_ADDRESSING = ACCOUNT + '.Interface.Addressing'
 ACCOUNT_IFACE_HIDDEN = ACCOUNT + '.Interface.Hidden.DRAFT1'
-ACCOUNT_IFACE_NOKIA_COMPAT = 'com.nokia.Account.Interface.Compat'
 ACCOUNT_IFACE_NOKIA_CONDITIONS = 'com.nokia.Account.Interface.Conditions'
 ACCOUNT_PATH_PREFIX = tp_path_prefix + '/Account/'
 
 AM = tp_name_prefix + '.AccountManager'
 AM_IFACE_HIDDEN = AM + '.Interface.Hidden.DRAFT1'
-AM_IFACE_NOKIA_QUERY = 'com.nokia.AccountManager.Interface.Query'
 AM_PATH = tp_path_prefix + '/AccountManager'
 
 CR = tp_name_prefix + '.ChannelRequest'

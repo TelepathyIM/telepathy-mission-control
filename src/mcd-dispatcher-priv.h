@@ -33,16 +33,6 @@
 
 G_BEGIN_DECLS
 
-/* retrieves the channel handlers' capabilities, in a format suitable for being
- * used as a parameter for the telepathy "AdvertiseCapabilities" method */
-G_GNUC_INTERNAL GPtrArray *_mcd_dispatcher_get_channel_capabilities (
-    McdDispatcher *dispatcher);
-
-/* retrieves the channel handlers' capabilities, in a format suitable for being
- * used as a parameter for the telepathy "SetSelfCapabilities" method */
-G_GNUC_INTERNAL GPtrArray *_mcd_dispatcher_get_channel_enhanced_capabilities (
-    McdDispatcher *dispatcher);
-
 /* not exported */
 G_GNUC_INTERNAL void _mcd_dispatcher_take_channels (
     McdDispatcher *dispatcher, GList *channels, gboolean requested,
@@ -60,9 +50,6 @@ G_GNUC_INTERNAL void _mcd_dispatcher_add_connection (McdDispatcher *self,
     McdConnection *connection);
 
 G_GNUC_INTERNAL GPtrArray *_mcd_dispatcher_dup_client_caps (
-    McdDispatcher *self);
-
-G_GNUC_INTERNAL McdClientRegistry *_mcd_dispatcher_get_client_registry (
     McdDispatcher *self);
 
 G_END_DECLS

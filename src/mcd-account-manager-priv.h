@@ -30,7 +30,6 @@
 
 /* auto-generated stubs */
 #include "_gen/svc-Account_Manager_Interface_Hidden.h"
-#include "_gen/svc-Account_Manager_Interface_Query.h"
 
 G_BEGIN_DECLS
 
@@ -54,11 +53,6 @@ G_GNUC_INTERNAL void _mcd_account_manager_create_account
 G_GNUC_INTERNAL
 void _mcd_account_manager_store_account_connections
     (McdAccountManager *manager);
-
-extern const McdDBusProp account_manager_query_properties[];
-
-void account_manager_query_iface_init (McSvcAccountManagerInterfaceQueryClass *iface,
-				       gpointer iface_data);
 
 G_END_DECLS
 

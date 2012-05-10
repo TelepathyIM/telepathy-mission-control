@@ -28,14 +28,11 @@
 
 #include <glib.h>
 #include <glib-object.h>
-#include "mcd-plugin.h"
 #include "mcd-transport.h"
 
 #include <telepathy-glib/enums.h>
 
 G_BEGIN_DECLS
-
-typedef void (*McdAccountConnectionFunc) (McdAccount *account, GHashTable *parameters, gpointer userdata);
 
 void mcd_account_connection_proceed (McdAccount *account, gboolean success);
 void mcd_account_connection_proceed_with_reason
@@ -47,11 +44,6 @@ gboolean mcd_account_connection_is_user_initiated (McdAccount *account);
 #define MCD_ACCOUNT_CONNECTION_PRIORITY_POLICY 10000
 #define MCD_ACCOUNT_CONNECTION_PRIORITY_TRANSPORT 20000
 #define MCD_ACCOUNT_CONNECTION_PRIORITY_PARAMS   30000
-
-void mcd_plugin_register_account_connection (McdPlugin *plugin,
-					     McdAccountConnectionFunc func,
-					     gint priority,
-					     gpointer userdata);
 
 G_END_DECLS
 

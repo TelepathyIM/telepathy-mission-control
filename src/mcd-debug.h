@@ -57,11 +57,6 @@ static inline gint _mcd_debug_get_level (void)
     return mcd_debug_level;
 }
 
-gpointer mcd_debug_ref (gpointer obj, const gchar *filename, gint linenum)
-    G_GNUC_DEPRECATED;
-void mcd_debug_unref (gpointer obj, const gchar *filename, gint linenum)
-    G_GNUC_DEPRECATED;
-
 void mcd_debug_print_tree (gpointer obj);
 
 void mcd_debug (const gchar *format, ...);

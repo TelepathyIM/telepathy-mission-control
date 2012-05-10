@@ -20,10 +20,10 @@
  * 02110-1301 USA
  *
  */
+#include "config.h"
 
 #include "plugin-loader.h"
 #include "plugin-account.h"
-#include "config.h"
 
 #include <string.h>
 

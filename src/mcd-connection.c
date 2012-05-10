@@ -33,6 +33,8 @@
  * FIXME
  */
 
+#include "config.h"
+
 #include "mcd-connection.h"
 #include "mcd-connection-service-points.h"
 
@@ -59,12 +61,9 @@
 #include "mcd-connection-priv.h"
 #include "mcd-dispatcher-priv.h"
 #include "mcd-channel.h"
-#include "mcd-provisioning-factory.h"
 #include "mcd-misc.h"
 #include "mcd-slacker.h"
 #include "sp_timestamp.h"
-
-#include "mcd-signals-marshal.h"
 
 #define INITIAL_RECONNECTION_TIME   3 /* seconds */
 #define RECONNECTION_MULTIPLIER     3
@@ -140,7 +139,7 @@ struct _McdConnectionPrivate
 
     struct
     {
-        TpIntSet *handles;
+        TpIntset *handles;
         GSList *numbers;
     } emergency;
 };
@@ -589,55 +588,6 @@ _foreach_channel_remove (McdMission * mission, McdOperation * operation)
     g_assert (MCD_IS_OPERATION (operation));
 
     mcd_operation_remove_mission (operation, mission);
-}
-
-static void
-capabilities_advertise_cb (TpConnection *proxy, const GPtrArray *out0,
-			   const GError *error, gpointer user_data,
-			   GObject *weak_object)
-{
-    if (error)
-    {
-	g_warning ("%s: AdvertiseCapabilities failed: %s", G_STRFUNC, error->message);
-    }
-    
-}
-
-static void
-_mcd_connection_setup_capabilities (McdConnection *connection)
-{
-    McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
-    GPtrArray *capabilities;
-    const gchar *removed = NULL;
-    GType type;
-    guint i;
-
-    if (priv->has_contact_capabilities_if)
-    {
-        DEBUG ("ContactCapabilities in use, avoiding Capabilities");
-        return;
-    }
-
-    if (!priv->has_capabilities_if)
-    {
-        DEBUG ("connection does not support capabilities interface");
-	return;
-    }
-    capabilities = _mcd_dispatcher_get_channel_capabilities (priv->dispatcher);
-    DEBUG ("advertising capabilities");
-    tp_cli_connection_interface_capabilities_call_advertise_capabilities (priv->tp_conn, -1,
-									  capabilities,
-									  &removed,
-									  capabilities_advertise_cb,
-									  priv, NULL,
-									  (GObject *) connection);
-
-    /* free the connection capabilities */
-    type = dbus_g_type_get_struct ("GValueArray", G_TYPE_STRING,
-				   G_TYPE_UINT, G_TYPE_INVALID);
-    for (i = 0; i < capabilities->len; i++)
-	g_boxed_free (type, g_ptr_array_index (capabilities, i));
-    g_ptr_array_unref (capabilities);
 }
 
 static void
@@ -1603,9 +1553,6 @@ on_connection_ready (GObject *source_object, GAsyncResult *result,
     if (priv->has_presence_if)
 	_mcd_connection_setup_presence (connection);
 
-    if (priv->has_capabilities_if)
-	_mcd_connection_setup_capabilities (connection);
-
     if (priv->has_avatars_if)
 	_mcd_connection_setup_avatar (connection);
 
@@ -2259,30 +2206,6 @@ _mcd_connection_target_handle_is_urgent (McdConnection *self, guint handle)
   return FALSE;
 }
 
-gboolean
-_mcd_connection_channel_is_urgent (McdConnection *self, McdChannel *channel)
-{
-    const gchar *name = NULL;
-
-    if (mcd_channel_get_handle_type (channel) != TP_HANDLE_TYPE_CONTACT)
-        return FALSE;
-
-    name = mcd_channel_get_name (channel);
-
-    if (tp_str_empty (name))
-    {
-        TpHandle handle = mcd_channel_get_handle (channel);
-
-        return _mcd_connection_target_handle_is_urgent (self, handle);
-    }
-    else
-    {
-        return _mcd_connection_target_id_is_urgent (self, name);
-    }
-
-    return FALSE;
-}
-
 static gboolean
 _mcd_connection_request_channel (McdConnection *connection, McdChannel *channel)
 {
@@ -2308,7 +2231,7 @@ _mcd_connection_request_channel (McdConnection *connection, McdChannel *channel)
     else
     {
         mcd_channel_take_error (channel,
-                                g_error_new (TP_ERRORS,
+                                g_error_new (TP_ERROR,
                                              TP_ERROR_NOT_IMPLEMENTED,
                                              "No Requests interface"));
         mcd_mission_abort ((McdMission *) channel);
@@ -2384,7 +2307,7 @@ mcd_connection_class_init (McdConnectionClass * klass)
     signals[SELF_PRESENCE_CHANGED] = g_signal_new ("self-presence-changed",
         G_OBJECT_CLASS_TYPE (klass),
         G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED, 0,
-        NULL, NULL, _mcd_marshal_VOID__UINT_STRING_STRING,
+        NULL, NULL, NULL,
         G_TYPE_NONE, 3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING);
 
     signals[SELF_NICKNAME_CHANGED] = g_signal_new ("self-nickname-changed",
@@ -2396,7 +2319,7 @@ mcd_connection_class_init (McdConnectionClass * klass)
     signals[CONNECTION_STATUS_CHANGED] = g_signal_new (
         "connection-status-changed", G_OBJECT_CLASS_TYPE (klass),
         G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED, 0,
-        NULL, NULL, _mcd_marshal_VOID__UINT_UINT_OBJECT,
+        NULL, NULL, NULL,
         G_TYPE_NONE, 3, G_TYPE_UINT, G_TYPE_UINT, TP_TYPE_CONNECTION);
 
     signals[READY] = g_signal_new ("ready",
@@ -2560,44 +2483,6 @@ mcd_connection_request_channel (McdConnection *connection,
 
     return MCD_CONNECTION_GET_CLASS (connection)->request_channel (connection,
                                                                    channel);
-}
-
-gboolean
-mcd_connection_cancel_channel_request (McdConnection *connection,
-				       guint operation_id,
-				       const gchar *requestor_client_id,
-				       GError **error)
-{
-    const GList *channels, *node;
-    McdChannel *channel;
-
-    /* first, see if the channel is in the list of the pending channels */
-
-    channels = mcd_operation_get_missions (MCD_OPERATION (connection));
-    if (!channels) return FALSE;
-
-    for (node = channels; node; node = node->next)
-    {
-	guint chan_requestor_serial;
-	gchar *chan_requestor_client_id;
-
-	channel = MCD_CHANNEL (node->data);
-	g_object_get (channel,
-		      "requestor-serial", &chan_requestor_serial,
-		      "requestor-client-id", &chan_requestor_client_id,
-		      NULL);
-	if (chan_requestor_serial == operation_id &&
-	    strcmp (chan_requestor_client_id, requestor_client_id) == 0)
-	{
-            DEBUG ("requested channel found (%p)", channel);
-	    mcd_mission_abort (MCD_MISSION (channel));
-	    g_free (chan_requestor_client_id);
-	    return TRUE;
-	}
-	g_free (chan_requestor_client_id);
-    }
-    DEBUG ("requested channel not found!");
-    return FALSE;
 }
 
 void
@@ -2815,7 +2700,7 @@ static void clear_emergency_handles (McdConnectionPrivate *priv)
   /* trawl through the handles and unref them */
   if (n_handles > 0)
     {
-      TpIntSetFastIter iter;
+      TpIntsetFastIter iter;
       TpHandle *handles = g_new0 (TpHandle, n_handles);
       TpHandle handle;
       guint i = 0;
@@ -2860,7 +2745,7 @@ void _mcd_connection_take_emergency_numbers (McdConnection *self, GSList *number
 }
 
 void
-_mcd_connection_take_emergency_handles (McdConnection *self, TpIntSet *handles)
+_mcd_connection_take_emergency_handles (McdConnection *self, TpIntset *handles)
 {
     McdConnectionPrivate *priv = self->priv;
 

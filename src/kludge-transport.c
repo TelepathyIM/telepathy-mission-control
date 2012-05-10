@@ -128,15 +128,6 @@ mcd_kludge_transport_class_init (McdKludgeTransportClass *klass)
   g_type_class_add_private (klass, sizeof (McdKludgeTransportPrivate));
 }
 
-static const gchar *
-mcd_kludge_transport_get_name (
-    McdTransportPlugin *plugin)
-{
-  g_return_val_if_fail (MCD_IS_KLUDGE_TRANSPORT (plugin), NULL);
-
-  return "McdKludgeTransport";
-}
-
 static const GList *
 mcd_kludge_transport_get_transports (
     McdTransportPlugin *plugin)
@@ -188,7 +179,6 @@ transport_iface_init (
 {
   McdTransportPluginIface *klass = g_iface;
 
-  klass->get_name = mcd_kludge_transport_get_name;
   klass->get_transports = mcd_kludge_transport_get_transports;
   klass->get_transport_name = mcd_kludge_transport_get_transport_name;
   klass->get_transport_status = mcd_kludge_transport_get_transport_status;
@@ -267,13 +257,12 @@ mcd_kludge_transport_new (void)
 }
 
 void
-mcd_kludge_transport_install (
-    McdPlugin *plugin)
+mcd_kludge_transport_install (McdMaster *master)
 {
   McdTransportPlugin *self = mcd_kludge_transport_new ();
 
-  mcd_plugin_register_transport (plugin, self);
-  mcd_plugin_register_account_connection (plugin,
+  mcd_master_register_transport (master, self);
+  mcd_master_register_account_connection (master,
       mcd_kludge_transport_account_connection_cb,
       MCD_ACCOUNT_CONNECTION_PRIORITY_TRANSPORT, self);
 }

@@ -140,16 +140,12 @@ def test(q, bus, mc):
 
     account_iface = dbus.Interface(account, cs.ACCOUNT)
     account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)
-    nokia_compat = dbus.Interface(account, cs.ACCOUNT_IFACE_NOKIA_COMPAT)
 
     # Alter some miscellaneous r/w properties
 
     account_props.Set(cs.ACCOUNT, 'DisplayName', 'Work account')
     account_props.Set(cs.ACCOUNT, 'Icon', 'im-jabber')
     account_props.Set(cs.ACCOUNT, 'Nickname', 'Joe Bloggs')
-    nokia_compat.SetHasBeenOnline()
-    account_props.Set(cs.ACCOUNT_IFACE_NOKIA_COMPAT,
-        'SecondaryVCardFields', ['x-badger', 'x-mushroom'])
 
     tell_mc_to_die(q, bus)
 
@@ -162,8 +158,6 @@ def test(q, bus, mc):
     assert kf[group]['DisplayName'] == 'Work account', kf
     assert kf[group]['Icon'] == 'im-jabber', kf
     assert kf[group]['Nickname'] == 'Joe Bloggs', kf
-    assert kf[group]['HasBeenOnline'] == 'true', kf
-    assert kf[group]['SecondaryVCardFields'] == 'x-badger;x-mushroom;', kf
 
     # This works wherever the password is stored
     pwd = account_store('get', 'default', 'param-password')

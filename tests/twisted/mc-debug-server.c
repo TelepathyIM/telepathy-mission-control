@@ -120,58 +120,6 @@ dbus_filter_function (DBusConnection *connection,
     }
   else if (dbus_message_is_method_call (message,
         "org.freedesktop.Telepathy.MissionControl5.RegressionTests",
-        "ChangeSystemFlags"))
-    {
-      DBusMessage *reply;
-      DBusError e;
-      dbus_uint32_t set, unset;
-
-      dbus_error_init (&e);
-
-      if (!dbus_message_get_args (message, &e,
-            'u', &set,
-            'u', &unset,
-            DBUS_TYPE_INVALID))
-        {
-          reply = dbus_message_new_error (message, e.name, e.message);
-          dbus_error_free (&e);
-        }
-      else
-        {
-          McdMaster *master = mcd_master_get_default ();
-
-          if (set & MCD_SYSTEM_IDLE)
-            {
-              mcd_master_set_idle (master, TRUE);
-            }
-
-          if (set & MCD_SYSTEM_MEMORY_CONSERVED)
-            {
-              mcd_master_set_low_memory (master, TRUE);
-            }
-
-          if (unset & MCD_SYSTEM_IDLE)
-            {
-              mcd_master_set_idle (master, FALSE);
-            }
-
-          if (unset & MCD_SYSTEM_MEMORY_CONSERVED)
-            {
-              mcd_master_set_low_memory (master, FALSE);
-            }
-
-          reply = dbus_message_new_method_return (message);
-        }
-
-      if (reply == NULL || !dbus_connection_send (connection, reply, NULL))
-        g_error ("Out of memory");
-
-      dbus_message_unref (reply);
-
-      return DBUS_HANDLER_RESULT_HANDLED;
-    }
-  else if (dbus_message_is_method_call (message,
-        "org.freedesktop.Telepathy.MissionControl5.RegressionTests",
         "BillyIdle"))
     {
       /* Used to drive a souped-up version of sync_dbus(), where we need to

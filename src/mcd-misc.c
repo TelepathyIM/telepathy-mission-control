@@ -24,6 +24,8 @@
  *
  */
 
+#include "config.h"
+
 #include "mcd-misc.h"
 #include <errno.h>
 #include <glib/gstdio.h>
@@ -66,7 +68,7 @@ _mcd_build_error_string (const GError *error)
     GEnumClass *klass;
     const gchar *prefix;
 
-    if (error->domain == TP_ERRORS)
+    if (error->domain == TP_ERROR)
     {
         klass = g_type_class_ref (TP_TYPE_ERROR);
         prefix = TP_ERROR_PREFIX;
@@ -114,7 +116,7 @@ mcd_ready_data_free (McdReadyData *rd)
 {
     if (rd->strukt)
     {
-        GError error = { TP_ERRORS, TP_ERROR_CANCELLED, "Object disposed" };
+        GError error = { TP_ERROR, TP_ERROR_CANCELLED, "Object disposed" };
         mcd_object_invoke_ready_callbacks (rd, &error);
     }
     g_slice_free (McdReadyData, rd);
@@ -173,40 +175,6 @@ _mcd_object_ready (gpointer object, GQuark quark, const GError *error)
     mcd_ready_data_free (rd);
 
     g_object_unref (object);
-}
-
-gboolean
-_mcd_file_set_contents (const gchar *filename, const gchar *contents,
-                        gssize length, GError **error)
-{
-    gchar *old_contents = NULL;
-    gsize old_length = 0;
-
-    g_return_val_if_fail (filename != NULL, FALSE);
-    g_return_val_if_fail (error == NULL || *error == NULL, FALSE);
-    g_return_val_if_fail (contents != NULL || length == 0, FALSE);
-    g_return_val_if_fail (length >= -1, FALSE);
-
-    if (length == -1)
-        length = strlen (contents);
-
-    /* no real error handling needed here - if g_file_get_contents fails
-     * (probably because the file doesn't exist), then old_contents remains
-     * NULL, and we do want to rewrite the file */
-    if (g_file_get_contents (filename, &old_contents, &old_length, NULL))
-    {
-        gboolean unchanged = (((gsize) length) == old_length &&
-                              memcmp (contents, old_contents, length) == 0);
-
-        g_free (old_contents);
-
-        if (unchanged)
-        {
-            return TRUE;
-        }
-    }
-
-    return g_file_set_contents (filename, contents, length, error);
 }
 
 int

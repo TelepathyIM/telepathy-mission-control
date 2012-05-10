@@ -34,11 +34,9 @@
 #include "request.h"
 
 #include <telepathy-glib/proxy-subclass.h>
-#include "mcd-signals-marshal.h"
 
 /* auto-generated stubs */
 #include "_gen/svc-Account_Interface_Addressing.h"
-#include "_gen/svc-Account_Interface_Compat.h"
 #include "_gen/svc-Account_Interface_Conditions.h"
 #include "_gen/svc-Account_Interface_External_Password_Storage.h"
 #include "_gen/svc-Account_Interface_Hidden.h"
@@ -86,7 +84,6 @@ G_GNUC_INTERNAL gchar *_mcd_account_get_avatar_token (McdAccount *account);
 G_GNUC_INTERNAL void _mcd_account_set_alias (McdAccount *account,
                                              const gchar *alias);
 
-G_GNUC_INTERNAL gchar *_mcd_account_get_avatar_filename (McdAccount *account);
 G_GNUC_INTERNAL GPtrArray *_mcd_account_get_supersedes (McdAccount *self);
 
 G_GNUC_INTERNAL void _mcd_account_tp_connection_changed (McdAccount *account,
@@ -121,13 +118,6 @@ _mcd_account_write_conf (McdAccount *account)
 
     mcd_storage_commit (storage, mcd_account_get_unique_name (account));
 }
-
-G_GNUC_INTERNAL void _mcd_account_compat_class_init (McdAccountClass *klass);
-
-extern const McdDBusProp account_compat_properties[];
-
-void account_compat_iface_init (McSvcAccountInterfaceCompatClass *iface,
-				     gpointer iface_data);
 
 G_GNUC_INTERNAL void _mcd_account_connection_begin (McdAccount *account,
                                                     gboolean user_initiated);

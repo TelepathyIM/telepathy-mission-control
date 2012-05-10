@@ -61,13 +61,9 @@ def test(q, bus, mc):
 
     account_iface = dbus.Interface(account, cs.ACCOUNT)
     account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)
-    nokia_compat = dbus.Interface(account, cs.ACCOUNT_IFACE_NOKIA_COMPAT)
 
     # Alter some miscellaneous r/w properties
 
-    nokia_compat.SetHasBeenOnline()
-    account_props.Set(cs.ACCOUNT_IFACE_NOKIA_COMPAT,
-        'SecondaryVCardFields', ['x-badger', 'x-mushroom'])
     account_props.Set(cs.ACCOUNT, 'Icon', 'im-jabber')
     account_props.Set(cs.ACCOUNT, 'DisplayName', 'Work account')
     account_props.Set(cs.ACCOUNT, 'Nickname', 'Joe Bloggs')
@@ -84,8 +80,6 @@ def test(q, bus, mc):
     assert kf[group]['DisplayName'] == 'Work account', kf
     assert kf[group]['Icon'] == 'im-jabber', kf
     assert kf[group]['Nickname'] == 'Joe Bloggs', kf
-    assert kf[group]['HasBeenOnline'] == 'true', kf
-    assert kf[group]['SecondaryVCardFields'] == 'x-badger;x-mushroom;', kf
 
     # default keyfile should be empty
     ekf = keyfile_read(empty_key_file_name)
