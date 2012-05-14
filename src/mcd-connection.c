@@ -1171,6 +1171,10 @@ connect_cb (TpConnection *tp_conn, const GError *error,
     }
 }
 
+static gboolean
+_mcd_connection_request_channel (McdConnection *connection,
+                                 McdChannel *channel);
+
 static void
 request_unrequested_channels (McdConnection *connection)
 {
@@ -1216,6 +1220,9 @@ mcd_connection_find_channel_by_path (McdConnection *connection,
     return NULL;
 }
 
+static gboolean mcd_connection_need_dispatch (McdConnection *connection,
+                                              const GPtrArray *channels);
+
 static void
 on_new_channels (TpConnection *proxy, const GPtrArray *channels,
                  gpointer user_data, GObject *weak_object)
@@ -1256,8 +1263,7 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
      * FALSE: they'll also be in Channels in the GetAll(Requests) result */
     if (!priv->dispatched_initial_channels) return;
 
-    only_observe = ! MCD_CONNECTION_GET_CLASS (connection)->need_dispatch (
-        connection, channels);
+    only_observe = !mcd_connection_need_dispatch (connection, channels);
 
     sp_timestamp ("NewChannels received");
     for (i = 0; i < channels->len; i++)
@@ -2205,7 +2211,8 @@ _mcd_connection_target_handle_is_urgent (McdConnection *self, guint handle)
 }
 
 static gboolean
-_mcd_connection_request_channel (McdConnection *connection, McdChannel *channel)
+_mcd_connection_request_channel (McdConnection *connection,
+                                 McdChannel *channel)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
     gboolean ret;
@@ -2252,9 +2259,6 @@ mcd_connection_class_init (McdConnectionClass * klass)
     object_class->constructed = _mcd_connection_constructed;
     object_class->set_property = _mcd_connection_set_property;
     object_class->get_property = _mcd_connection_get_property;
-
-    klass->need_dispatch = mcd_connection_need_dispatch;
-    klass->request_channel = _mcd_connection_request_channel;
 
     _mcd_ext_register_dbus_glib_marshallers ();
 
@@ -2479,8 +2483,7 @@ mcd_connection_request_channel (McdConnection *connection,
         mcd_operation_take_mission (MCD_OPERATION (connection),
                                     MCD_MISSION (channel));
 
-    return MCD_CONNECTION_GET_CLASS (connection)->request_channel (connection,
-                                                                   channel);
+    return _mcd_connection_request_channel (connection, channel);
 }
 
 void
