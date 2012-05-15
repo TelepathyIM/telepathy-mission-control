@@ -181,18 +181,15 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
                                       TpChannel *channel,
                                       const gchar *must_have_unique_name)
 {
-    GList *channels = g_list_prepend (NULL, channel);
     GList *handlers = _mcd_client_registry_list_possible_handlers (
         self->priv->clients,
         request != NULL ? _mcd_request_get_preferred_handler (request) : NULL,
         request != NULL ? _mcd_request_get_properties (request) : NULL,
-        channels, must_have_unique_name);
+        channel, must_have_unique_name);
     guint n_handlers = g_list_length (handlers);
     guint i;
     GStrv ret;
     const GList *iter;
-
-    g_list_free (channels);
 
     if (handlers == NULL)
         return NULL;
@@ -549,7 +546,6 @@ _mcd_dispatcher_lookup_handler (McdDispatcher *self,
     if (handler == NULL)
     {
         GList *possible_handlers;
-        GList *channels;
 
         /* Failing that, maybe the Handler it was dispatched to was temporary;
          * try to pick another Handler that can deal with it, on the same
@@ -557,12 +553,11 @@ _mcd_dispatcher_lookup_handler (McdDispatcher *self,
          * It can also happen in the case an Observer/Approver Claimed the
          * channel; in that case we did not get its handler well known name.
          */
-        channels = g_list_prepend (NULL, channel);
         possible_handlers = _mcd_client_registry_list_possible_handlers (
                 self->priv->clients,
                 request != NULL ? _mcd_request_get_preferred_handler (request) : NULL,
                 request != NULL ? _mcd_request_get_properties (request) : NULL,
-                channels, unique_name);
+                channel, unique_name);
 
         if (possible_handlers != NULL)
         {
@@ -579,7 +574,6 @@ _mcd_dispatcher_lookup_handler (McdDispatcher *self,
                    unique_name, object_path);
         }
 
-        g_list_free (channels);
         g_list_free (possible_handlers);
     }
 
