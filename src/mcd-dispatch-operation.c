@@ -1432,8 +1432,7 @@ _mcd_dispatch_operation_init (McdDispatchOperation *operation)
  * @channels: a #GList of #McdChannel elements to dispatch.
  * @possible_handlers: the bus names of possible handlers for these channels.
  *
- * Creates a #McdDispatchOperation. The #GList @channels will be no longer
- * valid after this function has been called.
+ * Creates a #McdDispatchOperation.
  */
 McdDispatchOperation *
 _mcd_dispatch_operation_new (McdClientRegistry *client_registry,
