@@ -2008,36 +2008,25 @@ observe_channels_cb (TpClient *proxy, const GError *error,
  *  request-properties for Observer_Info or Handler_Info
  */
 static void
-collect_satisfied_requests (const GList *channels,
+collect_satisfied_requests (McdChannel *channel,
     GPtrArray **paths_out,
     GHashTable **props_out)
 {
-    const GList *c;
-    GHashTable *set;
     GHashTableIter it;
     gpointer path, value;
     GPtrArray *satisfied_requests;
     GHashTable *request_properties;
+    GHashTable *reqs;
 
-    set = g_hash_table_new_full (g_str_hash, g_str_equal,
-        g_free, g_object_unref);
+    reqs = _mcd_channel_get_satisfied_requests (channel, NULL);
 
-    for (c = channels; c != NULL; c = c->next)
-    {
-        GHashTable *reqs = _mcd_channel_get_satisfied_requests (c->data,
-                                                                 NULL);
-        tp_g_hash_table_update (set, reqs,
-            (GBoxedCopyFunc) g_strdup, (GBoxedCopyFunc) g_object_ref);
-        g_hash_table_unref (reqs);
-    }
-
-    satisfied_requests = g_ptr_array_sized_new (g_hash_table_size (set));
+    satisfied_requests = g_ptr_array_sized_new (g_hash_table_size (reqs));
     g_ptr_array_set_free_func (satisfied_requests, g_free);
 
     request_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
         g_free, (GDestroyNotify) g_hash_table_unref);
 
-    g_hash_table_iter_init (&it, set);
+    g_hash_table_iter_init (&it, reqs);
 
     while (g_hash_table_iter_next (&it, &path, &value))
     {
@@ -2049,7 +2038,7 @@ collect_satisfied_requests (const GList *channels,
         g_hash_table_insert (request_properties, g_strdup (path), props);
     }
 
-    g_hash_table_unref (set);
+    g_hash_table_unref (reqs);
 
     if (paths_out != NULL)
         *paths_out = satisfied_requests;
@@ -2077,7 +2066,7 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
     while (g_hash_table_iter_next (&iter, NULL, &client_p))
     {
         McdClientProxy *client = MCD_CLIENT_PROXY (client_p);
-        GList *observed = NULL;
+        gboolean observed = FALSE;
         const gchar *account_path, *connection_path;
         GPtrArray *channels_array, *satisfied_requests;
         GHashTable *request_properties;
@@ -2099,7 +2088,7 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
             if (_mcd_client_match_filters (properties,
                 _mcd_client_proxy_get_observer_filters (client),
                 FALSE))
-                observed = g_list_prepend (observed, channel);
+                observed = TRUE;
         }
         if (!observed) continue;
 
@@ -2110,10 +2099,11 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
 
         /* TODO: there's room for optimization here: reuse the channels_array,
          * if the observed list is the same */
-        channels_array = _mcd_tp_channel_details_build_from_list (observed);
+        channels_array =
+            _mcd_tp_channel_details_build_from_list (self->priv->channels);
 
-        collect_satisfied_requests (observed, &satisfied_requests,
-                                    &request_properties);
+        collect_satisfied_requests (self->priv->channels->data,
+                                    &satisfied_requests, &request_properties);
 
         /* transfer ownership into observer_info */
         tp_asv_take_boxed (observer_info, "request-properties",
@@ -2140,8 +2130,6 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
         g_ptr_array_unref (satisfied_requests);
 
         _mcd_tp_channel_details_free (channels_array);
-
-        g_list_free (observed);
     }
 
     g_hash_table_unref (observer_info);
@@ -2341,9 +2329,21 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self)
         return;
     }
 
+    /* FIXME: it shouldn't be possible to get here without a channel */
+    if (self->priv->channels != NULL)
+    {
+        g_assert (self->priv->channels->next == NULL);
+
+        collect_satisfied_requests (self->priv->channels->data, NULL,
+                                    &request_properties);
+    }
+    else
+    {
+        request_properties = g_hash_table_new_full (g_str_hash,
+            g_str_equal, g_free, (GDestroyNotify) g_hash_table_unref);
+    }
+
     handler_info = tp_asv_new (NULL, NULL);
-    collect_satisfied_requests (self->priv->channels, NULL,
-                                &request_properties);
     tp_asv_take_boxed (handler_info, "request-properties",
         TP_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP, request_properties);
     request_properties = NULL;
