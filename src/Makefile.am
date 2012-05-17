@@ -220,7 +220,7 @@ EXTRA_DIST = \
 
 Android.mk: Makefile.am $(nodist_libmcd_convenience_la_SOURCES)
 	androgenizer  -:PROJECT telepathy-mission-control \
-	 -:STATIC libmissioncontrol-server \
+	 -:STATIC libmcd-convenience \
 	 -:TAGS eng debug \
 	 -:REL_TOP $(top_srcdir) -:ABS_TOP $(abs_top_srcdir) \
 	 -:SOURCES $(libmcd_convenience_la_SOURCES) $(nodist_libmcd_convenience_la_SOURCES) \
