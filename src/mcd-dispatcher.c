@@ -2060,6 +2060,9 @@ try_delegating (ChannelToDelegate *to_delegate)
     McdClientProxy *client;
     GList *channels = NULL;
 
+    DEBUG ("%s",
+        mcd_channel_get_object_path (to_delegate->channel));
+
     if (g_queue_get_length (to_delegate->handlers) == 0)
       {
         GValueArray *v;
@@ -2086,13 +2089,17 @@ try_delegating (ChannelToDelegate *to_delegate)
             g_strdup (mcd_channel_get_object_path (to_delegate->channel)),
             v);
 
+        DEBUG ("...but failed to delegate it: %s",
+            mcd_channel_get_object_path (to_delegate->channel),
+            to_delegate->error->message);
+
         delegation_done (to_delegate);
         return;
       }
 
     client = g_queue_pop_head (to_delegate->handlers);
 
-    DEBUG ("Try delegating channels to %s", _mcd_client_proxy_get_unique_name (
+    DEBUG ("...trying client %s", _mcd_client_proxy_get_unique_name (
         client));
 
     channels = g_list_prepend (channels, to_delegate->channel);
@@ -2165,6 +2172,8 @@ dispatcher_delegate_channels (
     McdAccountManager *am;
     guint i;
     GList *l;
+
+    DEBUG ("called");
 
     if (!check_preferred_handler (preferred_handler, &error))
         goto error;
