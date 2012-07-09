@@ -77,7 +77,7 @@ _delete_from_keyring (const McpAccountStorage *self,
     {
       /* flag the whole account as purged */
       gchar *removed = g_strdup (account);
-      g_hash_table_insert (amd->removed_accounts, removed, removed);
+      g_hash_table_replace (amd->removed_accounts, removed, removed);
     }
   else
     {
