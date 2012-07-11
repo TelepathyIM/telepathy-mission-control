@@ -1,9 +1,11 @@
-telepathy-mission-control 5.12.1 (UNRELEASED)
+telepathy-mission-control 5.12.1 (2012-07-11)
 =============================================
 
 Fixes:
 
 • Stop using deprecated telepathy-glib symbols. (Jonny)
+• fdo#51842 - fix access to freed memory. (Xavier)
+• fix existing channel dispatching after using present/delegate. (Jonny)
 
 telepathy-mission-control 5.12.0 (2012-04-02)
 =============================================
