@@ -82,7 +82,10 @@ signal_handler (int sig)
                   "Unable to write to quit pipe - buffer full?\n"
                   "Will exit instead.\n";
 
-                write (STDERR_FILENO, message, strlen (message));
+                if (write (STDERR_FILENO, message, strlen (message)) == -1)
+                  {
+                    /* Ignore, we are returning anyway */
+                  }
                 _exit (1);
               }
             break;
