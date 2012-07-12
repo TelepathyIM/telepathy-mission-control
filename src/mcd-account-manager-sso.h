@@ -21,7 +21,6 @@
 
 #include <mission-control-plugins/mission-control-plugins.h>
 #include <libaccounts-glib/ag-manager.h>
-#include <libaccounts-glib/ag-account.h>
 
 #ifndef __MCD_ACCOUNT_MANAGER_SSO_H__
 #define __MCD_ACCOUNT_MANAGER_SSO_H__

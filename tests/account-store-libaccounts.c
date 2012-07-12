@@ -19,11 +19,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <string.h>
+#include "account-store-libaccounts.h"
+
 #include <libaccounts-glib/ag-manager.h>
 #include <libaccounts-glib/ag-account.h>
-#include <glib.h>
-#include "account-store-libaccounts.h"
+#include <libaccounts-glib/ag-service.h>
+
+#include <string.h>
 
 #undef  G_LOG_DOMAIN
 #define G_LOG_DOMAIN "account-store-libaccounts"

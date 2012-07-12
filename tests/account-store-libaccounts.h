@@ -19,8 +19,12 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <glib-object.h>
+
 #ifndef _ACCOUNT_STORE_LIBACCOUNTS_H_
 #define _ACCOUNT_STORE_LIBACCOUNTS_H_
+
+G_BEGIN_DECLS
 
 gchar * libaccounts_get (const gchar *mc_account,
     const gchar *key);
@@ -34,5 +38,7 @@ gboolean libaccounts_delete (const gchar *mc_account);
 gboolean libaccounts_exists (const gchar *mc_account);
 
 GStrv libaccounts_list (void);
+
+G_END_DECLS
 
 #endif
