@@ -332,6 +332,14 @@ mcp_account_storage_iface_implement_get_restrictions (
   iface->get_restrictions = method;
 }
 
+void
+mcp_account_storage_iface_implement_create (
+    McpAccountStorageIface *iface,
+    McpAccountStorageCreate method)
+{
+  iface->create = method;
+}
+
 /**
  * mcp_account_storage_priority:
  * @storage: an #McpAccountStorage instance
@@ -439,6 +447,52 @@ mcp_account_storage_set (const McpAccountStorage *storage,
   g_return_val_if_fail (iface != NULL, FALSE);
 
   return iface->set (storage, am, account, key, value);
+}
+
+/**
+ * mcp_account_storage_create:
+ * @storage: an #McpAccountStorage instance
+ * @manager: the name of the manager
+ * @protocol: the name of the protocol
+ * @params: A gchar * / GValue * hash table of account parameters
+ * @error: a GError to fill
+ *
+ * Inform the plugin that a new account is being created. @manager, @protocol
+ * and @params are given to help determining the account's unique name, but does
+ * not need to be stored on the account yet, mcp_account_storage_set() and
+ * mcp_account_storage_commit() will be called later.
+ *
+ * It is recommended to use mcp_account_manager_get_unique_name() to create the
+ * unique name, but it's not mandatory. One could base the unique name on an
+ * internal storage identifier, prefixed with the provider's name
+ * (e.g. goa__1234).
+ *
+ * #McpAccountStorage::created signal should not be emitted for this account,
+ * not even when mcp_account_storage_commit() will be called.
+ *
+ * Returns: the newly allocated account name, which should be freed
+ *  once the caller is done with it, or %NULL if that couldn't be done.
+ */
+gchar *
+mcp_account_storage_create (const McpAccountStorage *storage,
+    const McpAccountManager *am,
+    const gchar *manager,
+    const gchar *protocol,
+    GHashTable *params,
+    GError **error)
+{
+  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
+
+  g_return_val_if_fail (iface != NULL, NULL);
+
+  if (iface->create == NULL)
+    {
+      g_set_error (error, TP_ERROR, TP_ERROR_NOT_IMPLEMENTED,
+          "This storage does not implement create function");
+      return NULL;
+    }
+
+  return iface->create (storage, am, manager, protocol, params, error);
 }
 
 /**

@@ -395,6 +395,47 @@ mcd_storage_get_plugin (McdStorage *storage, const gchar *account)
 }
 
 /**
+ * mcd_storage_create_account:
+ * @storage: An object implementing the #McdStorage interface
+ * @provider: the desired storage provider, or %NULL
+ * @manager: the name of the manager
+ * @protocol: the name of the protocol
+ * @params: A gchar * / GValue * hash table of account parameters
+ * @error: a #GError to fill when returning %NULL
+ *
+ * Create a new account in storage. This should not store any
+ * information on the long term storage until mcd_storage_commit() is called.
+ *
+ * See mcp_account_storage_create().
+ *
+ * Returns: the unique name to use for the new account, or %NULL on error.
+ */
+gchar *
+mcd_storage_create_account (McdStorage *storage,
+    const gchar *provider,
+    const gchar *manager,
+    const gchar *protocol,
+    GHashTable *params,
+    GError **error)
+{
+  McdStorageIface *iface = MCD_STORAGE_GET_IFACE (storage);
+
+  g_assert (iface != NULL);
+  g_assert (!tp_str_empty (manager));
+  g_assert (!tp_str_empty (protocol));
+
+  if (iface->create_account == NULL)
+    {
+      g_set_error (error, TP_ERROR, TP_ERROR_NOT_IMPLEMENTED,
+          "McdStorage::create_account not implemented");
+      return NULL;
+    }
+
+  return iface->create_account (storage, provider, manager, protocol, params,
+      error);
+}
+
+/**
  * mcd_storage_delete_account:
  * @storage: An object implementing the #McdStorage interface
  * @account: unique name of the account

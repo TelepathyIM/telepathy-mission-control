@@ -51,6 +51,13 @@ struct _McdStorageIface {
       const GValue *value,
       gboolean secret);
 
+  gchar * (*create_account) (McdStorage *storage,
+    const gchar *provider,
+    const gchar *manager,
+    const gchar *protocol,
+    GHashTable *params,
+    GError **error);
+
   void (*delete_account) (McdStorage *storage,
       const gchar *account);
 
@@ -120,6 +127,13 @@ gboolean mcd_storage_set_value (McdStorage *storage,
     const gchar *key,
     const GValue *value,
     gboolean secret);
+
+gchar *mcd_storage_create_account (McdStorage *storage,
+    const gchar *provider,
+    const gchar *manager,
+    const gchar *protocol,
+    GHashTable *params,
+    GError **error);
 
 void mcd_storage_delete_account (McdStorage *storage, const gchar *account);
 

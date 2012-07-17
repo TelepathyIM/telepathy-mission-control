@@ -1858,6 +1858,27 @@ get_storage_provider (TpSvcDBusProperties *self,
     g_value_set_static_string (value, "");
 }
 
+static gboolean
+set_storage_provider (TpSvcDBusProperties *self,
+    const gchar *name,
+    const GValue *value,
+    GError **error)
+{
+  McdAccount *account = MCD_ACCOUNT (self);
+  McpAccountStorage *storage_plugin = get_storage_plugin (account);
+  const gchar *current_provider = mcp_account_storage_provider (storage_plugin);
+
+  if (!G_VALUE_HOLDS_STRING (value) ||
+      tp_strdiff (g_value_get_string (value), current_provider))
+    {
+      g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
+          "Cannot change provider, it is defined at account creation only");
+      return FALSE;
+    }
+
+  return TRUE;
+}
+
 static void
 get_storage_identifier (TpSvcDBusProperties *self,
     const gchar *name, GValue *value)
@@ -1954,7 +1975,7 @@ static const McdDBusProp account_avatar_properties[] = {
 };
 
 static const McdDBusProp account_storage_properties[] = {
-    { "StorageProvider", NULL, get_storage_provider },
+    { "StorageProvider", set_storage_provider, get_storage_provider },
     { "StorageIdentifier", NULL, get_storage_identifier },
     { "StorageSpecificInformation", NULL, get_storage_specific_info },
     { "StorageRestrictions", NULL, get_storage_restrictions },

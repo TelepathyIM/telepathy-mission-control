@@ -519,6 +519,25 @@ _get (const McpAccountStorage *self,
   return TRUE;
 }
 
+static gchar *
+_create (const McpAccountStorage *self,
+    const McpAccountManager *am,
+    const gchar *manager,
+    const gchar *protocol,
+    GHashTable *params,
+    GError **error)
+{
+  gchar *unique_name;
+
+  /* See comment in plugin-account.c::_storage_create_account() before changing
+   * this implementation, it's more subtle than it looks */
+  unique_name = mcp_account_manager_get_unique_name (MCP_ACCOUNT_MANAGER (am),
+                                                     manager, protocol, params);
+  g_return_val_if_fail (unique_name != NULL, NULL);
+
+  return unique_name;
+}
+
 static gboolean
 _delete (const McpAccountStorage *self,
       const McpAccountManager *am,
@@ -639,6 +658,7 @@ account_storage_iface_init (McpAccountStorageIface *iface,
 
   mcp_account_storage_iface_implement_get (iface, _get);
   mcp_account_storage_iface_implement_set (iface, _set);
+  mcp_account_storage_iface_implement_create (iface, _create);
   mcp_account_storage_iface_implement_delete (iface, _delete);
   mcp_account_storage_iface_implement_commit_one (iface, _commit);
   mcp_account_storage_iface_implement_list (iface, _list);

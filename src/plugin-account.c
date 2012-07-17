@@ -819,6 +819,97 @@ _storage_set_value (McdStorage *storage,
     }
 }
 
+static gchar *
+_storage_create_account (McdStorage *storage,
+    const gchar *provider,
+    const gchar *manager,
+    const gchar *protocol,
+    GHashTable *params,
+    GError **error)
+{
+  GList *store;
+  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
+  McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+
+  /* If a storage provider is specified, use only it or fail */
+  if (provider != NULL)
+    {
+      for (store = stores; store != NULL; store = g_list_next (store))
+        {
+          McpAccountStorage *plugin = store->data;
+
+          if (!tp_strdiff (mcp_account_storage_provider (plugin), provider))
+            {
+              return mcp_account_storage_create (plugin, ma, manager,
+                  protocol, params, error);
+            }
+        }
+
+      g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
+          "Storage provider '%s' does not exist", provider);
+
+      return NULL;
+    }
+
+  /* No provider specified, let's pick the first plugin able to create this
+   * account in priority order.
+   *
+   * FIXME: This is rather subtle, and relies on the fact that accounts
+   * aren't always strongly tied to a single plugin.
+   *
+   * For plugins that only store their accounts set up specifically
+   * through them (like the libaccounts/SSO pseudo-plugin,
+   * McdAccountManagerSSO), create() will fail as unimplemented,
+   * and we'll fall through to the next plugin. Eventually we'll
+   * reach the default keyfile+gnome-keyring plugin, or another
+   * plugin that accepts arbitrary accounts. When set() is called,
+   * the libaccounts/SSO plugin will reject that too, and again,
+   * we'll fall through to a plugin that accepts arbitrary
+   * accounts.
+   *
+   * Plugins that will accept arbitrary accounts being created
+   * via D-Bus (like the default keyfile+gnome-keyring plugin,
+   * and the account-diversion plugin in tests/twisted)
+   * should, in principle, implement create() to be successful.
+   * If they do, their create() will succeed, and later, so will
+   * their set().
+   *
+   * We can't necessarily rely on all such plugins implementing
+   * create(), because it isn't a mandatory part of the plugin
+   * API (it was added later). However, as it happens, the
+   * default plugin returns successfully from create() without
+   * really doing anything. When we iterate through the accounts again
+   * to call set(), higher-priority plugins are given a second
+   * chance to intercept that; so we end up with create() in
+   * the default plugin being followed by set() from the
+   * higher-priority plugin. In theory that's bad because it
+   * splits the account across two plugins, but in practice
+   * it isn't a problem because the default plugin's create()
+   * doesn't really do anything anyway.
+   */
+  for (store = stores; store != NULL; store = g_list_next (store))
+    {
+      McpAccountStorage *plugin = store->data;
+      gchar *ret;
+
+      ret = mcp_account_storage_create (plugin, ma, manager, protocol, params,
+          error);
+
+      if (ret != NULL)
+        return ret;
+
+      g_clear_error (error);
+    }
+
+  /* This should never happen since the default storage is always able to create
+   * an account */
+  g_warn_if_reached ();
+  g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
+      "None of the storage provider are able to create the account");
+
+  return NULL;
+}
+
 static void
 _storage_delete_account (McdStorage *storage, const gchar *account)
 {
@@ -884,6 +975,7 @@ storage_iface_init (McdStorageIface *iface,
   iface->dup_accounts = _storage_dup_accounts;
   iface->dup_settings = _storage_dup_settings;
 
+  iface->create_account = _storage_create_account;
   iface->delete_account = _storage_delete_account;
   iface->set_string = _storage_set_string;
   iface->set_value = _storage_set_value;

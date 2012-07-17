@@ -63,6 +63,13 @@ typedef gboolean (*McpAccountStorageSetFunc) (
     const gchar *account,
     const gchar *key,
     const gchar *val);
+typedef gchar * (*McpAccountStorageCreate) (
+    const McpAccountStorage *storage,
+    const McpAccountManager *am,
+    const gchar *manager,
+    const gchar *protocol,
+    GHashTable *params,
+    GError **error);
 typedef gboolean (*McpAccountStorageDeleteFunc) (
     const McpAccountStorage *storage,
     const McpAccountManager *am,
@@ -112,6 +119,7 @@ struct _McpAccountStorageIface
   McpAccountStorageGetIdentifierFunc get_identifier;
   McpAccountStorageGetAdditionalInfoFunc get_additional_info;
   McpAccountStorageGetRestrictionsFunc get_restrictions;
+  McpAccountStorageCreate create;
 };
 
 /* functions with which to fill in the vtable */
@@ -131,6 +139,9 @@ void mcp_account_storage_iface_implement_get (McpAccountStorageIface *iface,
     McpAccountStorageGetFunc method);
 void mcp_account_storage_iface_implement_set (McpAccountStorageIface *iface,
     McpAccountStorageSetFunc method);
+void mcp_account_storage_iface_implement_create (
+    McpAccountStorageIface *iface,
+    McpAccountStorageCreate method);
 void mcp_account_storage_iface_implement_delete (McpAccountStorageIface *iface,
     McpAccountStorageDeleteFunc method);
 void mcp_account_storage_iface_implement_list (McpAccountStorageIface *iface,
@@ -165,6 +176,13 @@ gboolean mcp_account_storage_set (const McpAccountStorage *storage,
     const gchar *account,
     const gchar *key,
     const gchar *value);
+
+gchar * mcp_account_storage_create (const McpAccountStorage *storage,
+    const McpAccountManager *am,
+    const gchar *manager,
+    const gchar *protocol,
+    GHashTable *params,
+    GError **error);
 
 gboolean mcp_account_storage_delete (const McpAccountStorage *storage,
     const McpAccountManager *am,

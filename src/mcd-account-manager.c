@@ -845,15 +845,16 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
                                      GDestroyNotify destroy)
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
-    McpAccountManager *ma = MCP_ACCOUNT_MANAGER (priv->plugin_manager);
     McdStorage *storage = MCD_STORAGE (priv->plugin_manager);
     McdCreateAccountData *cad;
     McdAccount *account;
-    gchar *unique_name;
+    gchar *unique_name = NULL;
+    const gchar *provider;
+    GError *e = NULL;
 
     DEBUG ("called");
     if (G_UNLIKELY (manager == NULL || manager[0] == 0 ||
-		    protocol == NULL || protocol[0] == 0))
+                    protocol == NULL || protocol[0] == 0))
     {
         GError error = { TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
             "Invalid parameters"};
@@ -863,9 +864,21 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
         return;
     }
 
-    unique_name =
-      mcp_account_manager_get_unique_name (ma, manager, protocol, params);
-    g_return_if_fail (unique_name != NULL);
+    provider = tp_asv_get_string (properties,
+                                  TP_PROP_ACCOUNT_INTERFACE_STORAGE_STORAGE_PROVIDER);
+
+    unique_name = mcd_storage_create_account (storage, provider,
+                                              manager, protocol, params,
+                                              &e);
+
+    if (unique_name == NULL)
+    {
+        callback (account_manager, NULL, e, user_data);
+        g_clear_error (&e);
+        if (destroy)
+            destroy (user_data);
+        return;
+    }
 
     /* create the basic account keys */
     mcd_storage_set_string (storage, unique_name,
@@ -1022,6 +1035,7 @@ get_supported_account_properties (TpSvcDBusProperties *svc,
         TP_IFACE_ACCOUNT ".Supersedes",
         TP_IFACE_ACCOUNT_INTERFACE_AVATAR ".Avatar",
         MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS ".Condition",
+        TP_PROP_ACCOUNT_INTERFACE_STORAGE_STORAGE_PROVIDER,
         NULL
     };
 
