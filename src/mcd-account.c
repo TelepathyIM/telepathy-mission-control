@@ -1185,10 +1185,11 @@ _mcd_account_set_enabled (McdAccount *account,
         GValue value = { 0, };
         const gchar *name = mcd_account_get_unique_name (account);
 
-        if (!enabled)
-            mcd_account_request_presence (account,
-                                          TP_CONNECTION_PRESENCE_TYPE_OFFLINE,
-                                          "offline", NULL);
+        if (!enabled && priv->connection != NULL)
+            _mcd_connection_request_presence (priv->connection,
+                                              TP_CONNECTION_PRESENCE_TYPE_OFFLINE,
+                                              "offline",
+                                              NULL);
 
         priv->enabled = enabled;
 
