@@ -158,7 +158,7 @@ class_init (gpointer klass,
    *
    * Should not be fired until mcp_account_storage_ready() has been called
    **/
-  signals[ALTERED] = g_signal_new ("altered-one",
+  signals[ALTERED_ONE] = g_signal_new ("altered-one",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
       _mcp_marshal_VOID__STRING_STRING, G_TYPE_NONE,
       2, G_TYPE_STRING, G_TYPE_STRING);
