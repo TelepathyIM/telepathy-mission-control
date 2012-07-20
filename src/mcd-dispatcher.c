@@ -178,9 +178,10 @@ mcd_dispatcher_dup_internal_handlers (void)
 static GStrv
 mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
                                       McdRequest *request,
-                                      const GList *channels,
+                                      TpChannel *channel,
                                       const gchar *must_have_unique_name)
 {
+    GList *channels = g_list_prepend (NULL, channel);
     GList *handlers = _mcd_client_registry_list_possible_handlers (
         self->priv->clients,
         request != NULL ? _mcd_request_get_preferred_handler (request) : NULL,
@@ -190,6 +191,8 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
     guint i;
     GStrv ret;
     const GList *iter;
+
+    g_list_free (channels);
 
     if (handlers == NULL)
         return NULL;
@@ -939,7 +942,6 @@ _mcd_dispatcher_add_channel (McdDispatcher *dispatcher,
 {
     GList *channels = NULL;
     TpChannel *tp_channel = NULL;
-    GList *tp_channels = NULL;
     GStrv possible_handlers;
     McdRequest *request = NULL;
     gboolean internal_request = FALSE;
@@ -970,7 +972,6 @@ _mcd_dispatcher_add_channel (McdDispatcher *dispatcher,
      * It might also have the McdRequest part. */
     tp_channel = mcd_channel_get_tp_channel (channel);
     g_assert (tp_channel != NULL);
-    tp_channels = g_list_prepend (NULL, g_object_ref (tp_channel));
 
     request = _mcd_channel_get_request (channel);
     internal_request = _mcd_request_is_internal (request);
@@ -981,11 +982,8 @@ _mcd_dispatcher_add_channel (McdDispatcher *dispatcher,
     else
         possible_handlers = mcd_dispatcher_dup_possible_handlers (dispatcher,
                                                                   request,
-                                                                  tp_channels,
+                                                                  tp_channel,
                                                                   NULL);
-
-    g_list_foreach (tp_channels, (GFunc) g_object_unref, NULL);
-    g_list_free (tp_channels);
 
     if (possible_handlers == NULL)
     {
@@ -2091,16 +2089,11 @@ add_possible_handlers (McdDispatcher *self,
     const gchar *sender,
     const gchar *preferred_handler)
 {
-    GList *channels = NULL;
     GStrv possible_handlers;
     guint i;
 
-    channels = g_list_prepend (channels, tp_channel);
-
     possible_handlers = mcd_dispatcher_dup_possible_handlers (self,
-        NULL, channels, NULL);
-
-    g_list_free (channels);
+        NULL, tp_channel, NULL);
 
     for (i = 0; possible_handlers[i] != NULL; i++)
       {
