@@ -2498,8 +2498,6 @@ static void
 _mcd_dispatch_operation_close_as_undispatchable (McdDispatchOperation *self,
                                                  const GError *error)
 {
-    GList *channels, *list;
-
     /* All of the usable handlers vanished while we were thinking about it
      * (this can only happen if non-activatable handlers exit after we
      * include them in the list of possible handlers, but before we .
@@ -2510,20 +2508,17 @@ _mcd_dispatch_operation_close_as_undispatchable (McdDispatchOperation *self,
     _mcd_dispatch_operation_finish (self, error->domain, error->code,
                                     "%s", error->message);
 
-    channels = _mcd_dispatch_operation_dup_channels (self);
-
-    for (list = channels; list != NULL; list = list->next)
+    if (self->priv->channels != NULL)
     {
-        McdChannel *channel = MCD_CHANNEL (list->data);
+        McdChannel *channel = MCD_CHANNEL (self->priv->channels->data);
         GError e = { TP_ERROR, TP_ERROR_NOT_AVAILABLE,
             "Handler no longer available" };
 
+        g_object_ref (channel);
         mcd_channel_take_error (channel, g_error_copy (&e));
         _mcd_channel_undispatchable (channel);
         g_object_unref (channel);
     }
-
-    g_list_free (channels);
 }
 
 void
@@ -2552,16 +2547,17 @@ _mcd_dispatch_operation_end_plugin_delay (McdDispatchOperation *self)
 void
 _mcd_dispatch_operation_forget_channels (McdDispatchOperation *self)
 {
-    /* make a temporary copy, which is destroyed during the loop - otherwise
-     * we'll be trying to iterate over the list at the same time
-     * that mcd_mission_abort results in modifying it, which would be bad */
-    GList *list = _mcd_dispatch_operation_dup_channels (self);
+    g_assert (self->priv->channels == NULL ||
+              self->priv->channels->next == NULL);
 
-    while (list != NULL)
+    if (self->priv->channels != NULL)
     {
-        mcd_mission_abort (list->data);
-        g_object_unref (list->data);
-        list = g_list_delete_link (list, list);
+        /* Take a temporary copy, because self->priv->channels is going
+         * to be modified as a result of mcd_mission_abort() */
+        McdChannel *channel = g_object_ref (self->priv->channels->data);
+
+        mcd_mission_abort (MCD_MISSION (channel));
+        g_object_unref (channel);
     }
 
     /* There should now be none left (they all aborted) */
@@ -2573,20 +2569,22 @@ _mcd_dispatch_operation_leave_channels (McdDispatchOperation *self,
                                         TpChannelGroupChangeReason reason,
                                         const gchar *message)
 {
-    GList *list;
+    g_assert (self->priv->channels == NULL ||
+              self->priv->channels->next == NULL);
 
     if (message == NULL)
     {
         message = "";
     }
 
-    list = _mcd_dispatch_operation_dup_channels (self);
-
-    while (list != NULL)
+    if (self->priv->channels != NULL)
     {
-        _mcd_channel_depart (list->data, reason, message);
-        g_object_unref (list->data);
-        list = g_list_delete_link (list, list);
+        /* Take a temporary copy, because self->priv->channels could
+         * be modified as a result */
+        McdChannel *channel = g_object_ref (self->priv->channels->data);
+
+        _mcd_channel_depart (channel, reason, message);
+        g_object_unref (channel);
     }
 
     _mcd_dispatch_operation_forget_channels (self);
@@ -2595,13 +2593,17 @@ _mcd_dispatch_operation_leave_channels (McdDispatchOperation *self,
 void
 _mcd_dispatch_operation_close_channels (McdDispatchOperation *self)
 {
-    GList *list = _mcd_dispatch_operation_dup_channels (self);
+    g_assert (self->priv->channels == NULL ||
+              self->priv->channels->next == NULL);
 
-    while (list != NULL)
+    if (self->priv->channels != NULL)
     {
-        _mcd_channel_close (list->data);
-        g_object_unref (list->data);
-        list = g_list_delete_link (list, list);
+        /* Take a temporary copy, because self->priv->channels could
+         * be modified as a result */
+        McdChannel *channel = g_object_ref (self->priv->channels->data);
+
+        _mcd_channel_close (channel);
+        g_object_unref (channel);
     }
 
     _mcd_dispatch_operation_forget_channels (self);
@@ -2610,13 +2612,17 @@ _mcd_dispatch_operation_close_channels (McdDispatchOperation *self)
 void
 _mcd_dispatch_operation_destroy_channels (McdDispatchOperation *self)
 {
-    GList *list = _mcd_dispatch_operation_dup_channels (self);
+    g_assert (self->priv->channels == NULL ||
+              self->priv->channels->next == NULL);
 
-    while (list != NULL)
+    if (self->priv->channels != NULL)
     {
-        _mcd_channel_undispatchable (list->data);
-        g_object_unref (list->data);
-        list = g_list_delete_link (list, list);
+        /* Take a temporary copy, because self->priv->channels could
+         * be modified as a result */
+        McdChannel *channel = g_object_ref (self->priv->channels->data);
+
+        _mcd_channel_undispatchable (channel);
+        g_object_unref (channel);
     }
 
     _mcd_dispatch_operation_forget_channels (self);
