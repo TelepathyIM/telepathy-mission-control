@@ -107,99 +107,163 @@ def test(q, bus, mc):
 
     conn.NewChannels([text_chan, media_chan])
 
-    # A channel dispatch operation is created
+    # A channel dispatch operation is created for the Text channel first.
 
     e = q.expect('dbus-signal',
             path=cs.CD_PATH,
             interface=cs.CD_IFACE_OP_LIST,
             signal='NewDispatchOperation')
 
-    cdo_path = e.args[0]
-    cdo_properties = e.args[1]
+    text_cdo_path = e.args[0]
+    text_cdo_properties = e.args[1]
 
-    assert cdo_properties[cs.CDO + '.Account'] == account.object_path
-    assert cdo_properties[cs.CDO + '.Connection'] == conn.object_path
+    assert text_cdo_properties[cs.CDO + '.Account'] == account.object_path
+    assert text_cdo_properties[cs.CDO + '.Connection'] == conn.object_path
 
-    handlers = cdo_properties[cs.CDO + '.PossibleHandlers'][:]
-    # only Empathy can handle the whole batch
-    assert handlers == [cs.tp_name_prefix + '.Client.org.gnome.Empathy'], \
-            handlers
+    handlers = text_cdo_properties[cs.CDO + '.PossibleHandlers'][:]
+    assert (sorted(handlers) ==
+        [cs.tp_name_prefix + '.Client.org.gnome.Empathy',
+            cs.tp_name_prefix + '.Client.org.kde.Kopete']), handlers
+
+    text_cdo = bus.get_object(cs.CD, text_cdo_path)
+    text_cdo_iface = dbus.Interface(text_cdo, cs.CDO)
+
+    # Both Observers are told about the new Text channel
+
+    e_observe_text, k_observe_text = q.expect_many(
+            EventPattern('dbus-method-call',
+                path=empathy.object_path,
+                interface=cs.OBSERVER, method='ObserveChannels',
+                handled=False),
+            EventPattern('dbus-method-call',
+                path=kopete.object_path,
+                interface=cs.OBSERVER, method='ObserveChannels',
+                handled=False),
+            )
+    assert e_observe_text.args[0] == account.object_path, e_observe_text.args
+    assert e_observe_text.args[1] == conn.object_path, e_observe_text.args
+    assert e_observe_text.args[3] == text_cdo_path, e_observe_text.args
+    assert e_observe_text.args[4] == [], e_observe_text.args
+    channels = e_observe_text.args[2]
+    assert len(channels) == 1, channels
+    assert (text_chan.object_path, text_channel_properties) in channels
+
+    assert k_observe_text.args[0] == e_observe_text.args[0], k_observe_text.args
+    assert k_observe_text.args[1] == e_observe_text.args[1], k_observe_text.args
+    assert (k_observe_text.args[2] ==
+            [(text_chan.object_path, text_channel_properties)])
+
+    # Now a separate CDO is created for the media channel.
+
+    e = q.expect('dbus-signal',
+            path=cs.CD_PATH,
+            interface=cs.CD_IFACE_OP_LIST,
+            signal='NewDispatchOperation')
+
+    media_cdo_path = e.args[0]
+    media_cdo_properties = e.args[1]
+
+    assert media_cdo_properties[cs.CDO + '.Account'] == account.object_path
+    assert media_cdo_properties[cs.CDO + '.Connection'] == conn.object_path
+
+    handlers = media_cdo_properties[cs.CDO + '.PossibleHandlers'][:]
+    # only Empathy can handle it
+    assert (sorted(handlers) ==
+        [cs.tp_name_prefix + '.Client.org.gnome.Empathy']), handlers
 
     assert cs.CD_IFACE_OP_LIST in cd_props.Get(cs.CD, 'Interfaces')
-    assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') ==\
-            [(cdo_path, cdo_properties)]
+    assert (sorted(cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations')) ==
+            [(text_cdo_path, text_cdo_properties),
+                (media_cdo_path, media_cdo_properties)])
 
-    cdo = bus.get_object(cs.CD, cdo_path)
-    cdo_iface = dbus.Interface(cdo, cs.CDO)
+    media_cdo = bus.get_object(cs.CD, media_cdo_path)
+    media_cdo_iface = dbus.Interface(media_cdo, cs.CDO)
 
-    # Both Observers are told about the new channels
+    # Only Empathy is told about the new media channel
 
-    e, k = q.expect_many(
-            EventPattern('dbus-method-call',
-                path=empathy.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
-                handled=False),
-            EventPattern('dbus-method-call',
-                path=kopete.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
-                handled=False),
-            )
-    assert e.args[0] == account.object_path, e.args
-    assert e.args[1] == conn.object_path, e.args
-    assert e.args[3] == cdo_path, e.args
-    assert e.args[4] == [], e.args      # no requests satisfied
-    channels = e.args[2]
-    assert len(channels) == 2, channels
-    assert (text_chan.object_path, text_channel_properties) in channels
+    e_observe_media = q.expect('dbus-method-call',
+            path=empathy.object_path,
+            interface=cs.OBSERVER, method='ObserveChannels',
+            handled=False)
+    assert e_observe_media.args[0] == account.object_path, e_observe_media.args
+    assert e_observe_media.args[1] == conn.object_path, e_observe_media.args
+    assert e_observe_media.args[3] == media_cdo_path, e_observe_media.args
+    assert e_observe_media.args[4] == [], e_observe_media.args
+    channels = e_observe_media.args[2]
+    assert len(channels) == 1, channels
     assert (media_chan.object_path, media_channel_properties) in channels
 
-    # fd.o #21089: telepathy-spec doesn't say whether Kopete observes the whole
-    # batch or just the text channel. In current MC, it only observes the text.
-    assert k.args[0] == e.args[0], k.args
-    assert k.args[1] == e.args[1], e.args
-    assert k.args[2] == [(text_chan.object_path, text_channel_properties)]
+    # All Observers reply.
 
-    # Both Observers indicate that they are ready to proceed
-    q.dbus_return(k.message, signature='')
-    q.dbus_return(e.message, signature='')
+    q.dbus_return(e_observe_text.message, signature='')
+    q.dbus_return(k_observe_text.message, signature='')
+    q.dbus_return(e_observe_media.message, signature='')
 
     # The Approvers are next
-    # fd.o #21090: telepathy-spec doesn't say whether Kopete is asked to
-    # approve this CDO. In current MC, it is.
-    e, k = q.expect_many(
+    e_approve_text, k_approve_text, e_approve_media = q.expect_many(
             EventPattern('dbus-method-call',
                 path=empathy.object_path,
                 interface=cs.APPROVER, method='AddDispatchOperation',
+                predicate=lambda e: e.args[1] == text_cdo_path,
                 handled=False),
             EventPattern('dbus-method-call',
                 path=kopete.object_path,
                 interface=cs.APPROVER, method='AddDispatchOperation',
                 handled=False),
+            EventPattern('dbus-method-call',
+                path=empathy.object_path,
+                interface=cs.APPROVER, method='AddDispatchOperation',
+                predicate=lambda e: e.args[1] == media_cdo_path,
+                handled=False)
             )
-    assert len(e.args[0]) == 2
-    assert (text_chan.object_path, text_channel_properties) in e.args[0]
-    assert (media_chan.object_path, media_channel_properties) in e.args[0]
-    assert e.args[1:] == [cdo_path, cdo_properties]
-    assert k.args == e.args
+    assert len(e_approve_text.args[0]) == 1
+    assert ((text_chan.object_path, text_channel_properties) in
+            e_approve_text.args[0])
+    assert e_approve_text.args[1:] == [text_cdo_path, text_cdo_properties]
+    assert k_approve_text.args == e_approve_text.args
 
-    q.dbus_return(e.message, signature='')
-    q.dbus_return(k.message, signature='')
+    assert len(e_approve_media.args[0]) == 1
+    assert ((media_chan.object_path, media_channel_properties) in
+            e_approve_media.args[0])
+    assert e_approve_media.args[1:] == [media_cdo_path, media_cdo_properties]
+
+    q.dbus_return(e_approve_text.message, signature='')
+    q.dbus_return(k_approve_text.message, signature='')
+    q.dbus_return(e_approve_media.message, signature='')
 
     # Both Approvers now have a flashing icon or something, trying to get the
-    # user's attention
+    # user's attention. The user clicks on Empathy
+    call_async(q, text_cdo_iface, 'HandleWith',
+        cs.tp_name_prefix + '.Client.org.gnome.Empathy')
 
-    # The user doesn't care which one will handle the channels - because
-    # Empathy is the only possibility, it will be chosen (this is also a
-    # regression test for the ability to leave the handler unspecified).
-    call_async(q, cdo_iface, 'HandleWith', '')
-
-    # Empathy is asked to handle the channels
+    # Empathy is asked to handle the channel
     e = q.expect('dbus-method-call',
             path=empathy.object_path,
             interface=cs.HANDLER, method='HandleChannels',
             handled=False)
 
-    # Empathy accepts the channels
+    # Empathy accepts the channel
+    q.dbus_return(e.message, signature='')
+
+    q.expect_many(
+            EventPattern('dbus-return', method='HandleWith'),
+            EventPattern('dbus-signal', interface=cs.CDO, signal='Finished'),
+            EventPattern('dbus-signal', interface=cs.CD_IFACE_OP_LIST,
+                signal='DispatchOperationFinished'),
+            )
+
+    # The user doesn't care which client will handle the channel - because
+    # Empathy is the only possibility, it will be chosen (this is also a
+    # regression test for the ability to leave the handler unspecified).
+    call_async(q, media_cdo_iface, 'HandleWith', '')
+
+    # Empathy is asked to handle the channel
+    e = q.expect('dbus-method-call',
+            path=empathy.object_path,
+            interface=cs.HANDLER, method='HandleChannels',
+            handled=False)
+
+    # Empathy accepts the channel
     q.dbus_return(e.message, signature='')
 
     q.expect_many(
