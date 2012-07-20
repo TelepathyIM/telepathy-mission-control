@@ -246,7 +246,6 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     McdDispatchOperation *operation;
     McdDispatcherPrivate *priv;
     McdAccount *account;
-    GList *channels;
 
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
     g_return_if_fail (MCD_IS_CHANNEL (channel));
@@ -266,11 +265,9 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
            channel,
            mcd_channel_get_object_path (channel));
 
-    channels = g_list_prepend (NULL, channel);
     operation = _mcd_dispatch_operation_new (priv->clients,
-        priv->handler_map, !requested, only_observe, channels,
+        priv->handler_map, !requested, only_observe, channel,
         (const gchar * const *) possible_handlers);
-    g_list_free (channels);
 
     if (!requested)
     {

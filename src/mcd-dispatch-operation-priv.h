@@ -69,8 +69,11 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_approve
 #define MCD_DISPATCH_OPERATION_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), MCD_TYPE_DISPATCH_OPERATION, McdDispatchOperationClass))
 
 G_GNUC_INTERNAL McdDispatchOperation *_mcd_dispatch_operation_new (
-    McdClientRegistry *client_registry, McdHandlerMap *handler_map,
-    gboolean needs_approval, gboolean observe_only, GList *channels,
+    McdClientRegistry *client_registry,
+    McdHandlerMap *handler_map,
+    gboolean needs_approval,
+    gboolean observe_only,
+    McdChannel *channel,
     const gchar * const *possible_handlers);
 
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_has_channel (

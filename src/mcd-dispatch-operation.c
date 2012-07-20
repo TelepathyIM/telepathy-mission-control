@@ -1424,8 +1424,8 @@ _mcd_dispatch_operation_init (McdDispatchOperation *operation)
  * _mcd_dispatch_operation_new:
  * @client_registry: the client registry.
  * @handler_map: the handler map
- * @channels: a #GList of #McdChannel elements to dispatch.
- * @possible_handlers: the bus names of possible handlers for these channels.
+ * @channel: the channel to dispatch
+ * @possible_handlers: the bus names of possible handlers for this channel
  *
  * Creates a #McdDispatchOperation.
  */
@@ -1434,7 +1434,7 @@ _mcd_dispatch_operation_new (McdClientRegistry *client_registry,
                              McdHandlerMap *handler_map,
                              gboolean needs_approval,
                              gboolean observe_only,
-                             GList *channels,
+                             McdChannel *channel,
                              const gchar * const *possible_handlers)
 {
     gpointer *obj;
@@ -1443,14 +1443,12 @@ _mcd_dispatch_operation_new (McdClientRegistry *client_registry,
      * back", so they can't need approval (i.e. observe_only implies
      * !needs_approval) */
     g_return_val_if_fail (!observe_only || !needs_approval, NULL);
-    /* exactly one channel */
-    g_return_val_if_fail (channels != NULL, NULL);
-    g_return_val_if_fail (channels->next == NULL, NULL);
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
 
     obj = g_object_new (MCD_TYPE_DISPATCH_OPERATION,
                         "client-registry", client_registry,
                         "handler-map", handler_map,
-                        "channel", channels->data,
+                        "channel", channel,
                         "possible-handlers", possible_handlers,
                         "needs-approval", needs_approval,
                         "observe-only", observe_only,
