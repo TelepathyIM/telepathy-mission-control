@@ -481,24 +481,24 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 
     if (_mcd_dispatch_operation_is_internal (self))
     {
-        guint i = 0;
-        GList *list = self->priv->channels;
-
         DEBUG ("Invoking internal handlers for requests");
-        for (; list != NULL; list = g_list_next (list), i++)
+        if (self->priv->channels != NULL)
         {
-            McdChannel *channel = list->data;
+            McdChannel *channel = self->priv->channels->data;
             McdRequest *request = _mcd_channel_get_request (channel);
 
-            if (request == NULL)
-                continue;
+            /* exactly one channel */
+            g_assert (self->priv->channels->next == NULL);
 
-            DEBUG ("Internal handler for request channel #%u", i);
-            _mcd_handler_map_set_channel_handled_internally (
-                self->priv->handler_map,
-                mcd_channel_get_tp_channel (channel),
-                _mcd_dispatch_operation_get_account_path (self));
-            _mcd_request_handle_internally (request, channel, TRUE);
+            if (request != NULL)
+            {
+                DEBUG ("Internal handler for request channel");
+                _mcd_handler_map_set_channel_handled_internally (
+                    self->priv->handler_map,
+                    mcd_channel_get_tp_channel (channel),
+                    _mcd_dispatch_operation_get_account_path (self));
+                _mcd_request_handle_internally (request, channel, TRUE);
+            }
         }
 
         /* The rest of this function deals with externally handled requests: *
@@ -524,7 +524,6 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
     /* if we've been claimed, respond, then do not call HandleChannels */
     if (approval != NULL && approval->type == APPROVAL_TYPE_CLAIM)
     {
-        const GList *list;
         /* this needs to be copied because we don't use it til after we've
          * freed approval->context */
         gchar *caller = g_strdup (dbus_g_method_get_sender (
@@ -534,9 +533,11 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
          * failure */
         g_queue_pop_head (self->priv->approvals);
 
-        for (list = self->priv->channels; list != NULL; list = list->next)
+        if (self->priv->channels != NULL)
         {
-            McdChannel *channel = MCD_CHANNEL (list->data);
+            McdChannel *channel = MCD_CHANNEL (self->priv->channels->data);
+
+            g_assert (self->priv->channels->next == NULL);
 
             mcd_dispatch_operation_set_channel_handled_by (self, channel,
                 caller, NULL);
@@ -1087,14 +1088,13 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
     DEBUG ("%s/%p: needs_approval=%c", priv->unique_name, object,
            priv->needs_approval ? 'T' : 'F');
 
-    if (DEBUGGING)
+    if (priv->channels != NULL)
     {
-        GList *list;
-
-        for (list = priv->channels; list != NULL; list = list->next)
-        {
-            DEBUG ("Channel: %s", mcd_channel_get_object_path (list->data));
-        }
+        g_assert (priv->channels->next == NULL);
+        DEBUG ("Channel: %s",
+               mcd_channel_get_object_path (priv->channels->data));
+        g_assert (mcd_channel_get_account (priv->channels->data) ==
+                  priv->account);
     }
 
     /* If approval is not needed, we don't appear on D-Bus (and approvers
@@ -1317,12 +1317,11 @@ mcd_dispatch_operation_dispose (GObject *object)
 
     if (priv->channels != NULL)
     {
-        for (list = priv->channels; list != NULL; list = list->next)
-        {
-            g_signal_handlers_disconnect_by_func (list->data,
-                mcd_dispatch_operation_channel_aborted_cb, object);
-            g_object_unref (list->data);
-        }
+        g_assert (priv->channels->next == NULL);
+
+        g_signal_handlers_disconnect_by_func (priv->channels->data,
+            mcd_dispatch_operation_channel_aborted_cb, object);
+        g_object_unref (priv->channels->data);
 
         tp_clear_pointer (&priv->channels, g_list_free);
     }
@@ -1879,7 +1878,12 @@ _mcd_dispatch_operation_has_channel (McdDispatchOperation *self,
                                      McdChannel *channel)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
-    return (g_list_find (self->priv->channels, channel) != NULL);
+
+    g_assert (self->priv->channels == NULL ||
+              self->priv->channels->next == NULL);
+
+    return (self->priv->channels != NULL &&
+            self->priv->channels->data == (gpointer) channel);
 }
 
 McdChannel *
@@ -1926,12 +1930,13 @@ _mcd_dispatch_operation_handle_channels_cb (TpClient *client,
     }
     else
     {
-        const GList *list;
-
-        for (list = self->priv->channels; list != NULL; list = list->next)
+        /* FIXME: can channels ever be NULL here? */
+        if (self->priv->channels != NULL)
         {
-            McdChannel *channel = list->data;
+            McdChannel *channel = MCD_CHANNEL (self->priv->channels->data);
             const gchar *unique_name;
+
+            g_assert (self->priv->channels->next == NULL);
 
             unique_name = _mcd_client_proxy_get_unique_name (MCD_CLIENT_PROXY (client));
 
@@ -1959,11 +1964,12 @@ _mcd_dispatch_operation_handle_channels_cb (TpClient *client,
                 g_warning ("Closing channel %s as a result",
                            mcd_channel_get_object_path (channel));
                 _mcd_channel_undispatchable (channel);
-                continue;
             }
-
-            mcd_dispatch_operation_set_channel_handled_by (self, channel,
-                unique_name, tp_proxy_get_bus_name (client));
+            else
+            {
+                mcd_dispatch_operation_set_channel_handled_by (self, channel,
+                    unique_name, tp_proxy_get_bus_name (client));
+            }
         }
 
         /* emit Finished, if we haven't already; but first make a note of the
@@ -2059,7 +2065,6 @@ collect_satisfied_requests (const GList *channels,
 static void
 _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
 {
-    const GList *cl;
     const gchar *dispatch_operation_path = "/";
     GHashTable *observer_info;
     GHashTableIter iter;
@@ -2081,10 +2086,12 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
                                            TP_IFACE_QUARK_CLIENT_OBSERVER))
             continue;
 
-        for (cl = self->priv->channels; cl != NULL; cl = cl->next)
+        if (self->priv->channels != NULL)
         {
-            McdChannel *channel = MCD_CHANNEL (cl->data);
+            McdChannel *channel = MCD_CHANNEL (self->priv->channels->data);
             GHashTable *properties;
+
+            g_assert (self->priv->channels->next == NULL);
 
             properties = _mcd_channel_get_immutable_properties (channel);
             g_assert (properties != NULL);
@@ -2177,7 +2184,6 @@ add_dispatch_operation_cb (TpClient *proxy,
 static void
 _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
 {
-    const GList *cl;
     GHashTableIter iter;
     gpointer client_p;
 
@@ -2199,10 +2205,12 @@ _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
                                            TP_IFACE_QUARK_CLIENT_APPROVER))
             continue;
 
-        for (cl = self->priv->channels; cl != NULL; cl = cl->next)
+        if (self->priv->channels != NULL)
         {
-            McdChannel *channel = MCD_CHANNEL (cl->data);
+            McdChannel *channel = MCD_CHANNEL (self->priv->channels->data);
             GHashTable *channel_properties;
+
+            g_assert (self->priv->channels->next == NULL);
 
             channel_properties = _mcd_channel_get_immutable_properties (channel);
             g_assert (channel_properties != NULL);
@@ -2212,7 +2220,6 @@ _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
                 FALSE))
             {
                 matched = TRUE;
-                break;
             }
         }
         if (!matched) continue;
