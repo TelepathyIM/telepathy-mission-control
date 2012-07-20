@@ -293,25 +293,18 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     {
         GError error = { TP_ERROR, TP_ERROR_CANCELLED,
             "Channel request cancelled" };
-        GList *list;
+        McdChannel *cancelled;
 
-        /* make a temporary copy, which is destroyed during the loop -
-         * otherwise we'll be trying to iterate over the list at the same time
-         * that mcd_mission_abort results in modifying it, which would be
-         * bad */
-        list = _mcd_dispatch_operation_dup_channels (operation);
+        cancelled = _mcd_dispatch_operation_dup_channel (operation);
 
-        while (list != NULL)
+        if (cancelled != NULL)
         {
-            McdChannel *cancelled = MCD_CHANNEL (list->data);
-
             if (mcd_channel_get_error (cancelled) == NULL)
                 mcd_channel_take_error (cancelled, g_error_copy (&error));
 
             _mcd_channel_undispatchable (cancelled);
 
             g_object_unref (cancelled);
-            list = g_list_delete_link (list, list);
         }
     }
     else if (_mcd_dispatch_operation_peek_channel (operation) == NULL)

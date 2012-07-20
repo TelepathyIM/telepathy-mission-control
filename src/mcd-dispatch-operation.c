@@ -1897,15 +1897,18 @@ _mcd_dispatch_operation_peek_channel (McdDispatchOperation *self)
     return self->priv->channels->data;
 }
 
-GList *
-_mcd_dispatch_operation_dup_channels (McdDispatchOperation *self)
+McdChannel *
+_mcd_dispatch_operation_dup_channel (McdDispatchOperation *self)
 {
-    GList *copy;
-
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), NULL);
-    copy = g_list_copy (self->priv->channels);
-    g_list_foreach (copy, (GFunc) g_object_ref, NULL);
-    return copy;
+
+    g_assert (self->priv->channels == NULL ||
+              self->priv->channels->next == NULL);
+
+    if (self->priv->channels != NULL)
+        return g_object_ref (self->priv->channels->data);
+
+    return NULL;
 }
 
 static void
