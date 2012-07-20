@@ -573,9 +573,8 @@ on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
          * AddDispatchOperation or HandleChannels.
          *
          * We assume that channels without suppress_handler are incoming. */
-        _mcd_dispatcher_take_channels (priv->dispatcher,
-                                       g_list_prepend (NULL, channel),
-                                       suppress_handler, suppress_handler);
+        _mcd_dispatcher_add_channel (priv->dispatcher, channel,
+                                     suppress_handler, suppress_handler);
     }
 }
 
@@ -1269,7 +1268,6 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
         GValue *value;
         gboolean requested = FALSE;
         gboolean only_observe = FALSE;
-        GList *channel_list = NULL;
         McdChannel *channel;
 
         va = g_ptr_array_index (channels, i);
@@ -1297,16 +1295,14 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
                                         MCD_MISSION (channel));
         }
 
-        channel_list = g_list_prepend (channel_list, channel);
-
         if (!requested)
         {
             /* we always dispatch unrequested (incoming) channels */
             only_observe = FALSE;
         }
 
-        _mcd_dispatcher_take_channels (priv->dispatcher, channel_list,
-                                       requested, only_observe);
+        _mcd_dispatcher_add_channel (priv->dispatcher, channel, requested,
+                                     only_observe);
     }
 }
 
