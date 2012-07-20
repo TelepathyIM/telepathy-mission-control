@@ -238,7 +238,7 @@ on_operation_finished (McdDispatchOperation *operation,
 
 static void
 _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
-                                     GList *channels,
+                                     McdChannel *channel,
                                      const gchar * const *possible_handlers,
                                      gboolean requested,
                                      gboolean only_observe)
@@ -246,13 +246,13 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     McdDispatchOperation *operation;
     McdDispatcherPrivate *priv;
     McdAccount *account;
+    GList *channels;
 
     g_return_if_fail (MCD_IS_DISPATCHER (dispatcher));
-    g_return_if_fail (channels != NULL);
-    g_return_if_fail (MCD_IS_CHANNEL (channels->data));
+    g_return_if_fail (MCD_IS_CHANNEL (channel));
     g_return_if_fail (requested || !only_observe);
 
-    account = mcd_channel_get_account (channels->data);
+    account = mcd_channel_get_account (channel);
     if (G_UNLIKELY (!account))
     {
         g_warning ("%s called with no account", G_STRFUNC);
@@ -261,20 +261,16 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 
     priv = dispatcher->priv;
 
-    DEBUG ("new dispatch operation for %s channel %p (%s): %s",
+    DEBUG ("new dispatch operation for %s channel %p: %s",
            requested ? "requested" : "unrequested",
-           channels->data,
-           channels->next == NULL ? "only" : "and more",
-           mcd_channel_get_object_path (channels->data));
+           channel,
+           mcd_channel_get_object_path (channel));
 
-    /* FIXME: what should we do when the channels are a mixture of Requested
-     * and unRequested? At the moment we act as though they're all Requested;
-     * perhaps we should act as though they're all unRequested, or split up the
-     * bundle? */
-
+    channels = g_list_prepend (NULL, channel);
     operation = _mcd_dispatch_operation_new (priv->clients,
         priv->handler_map, !requested, only_observe, channels,
         (const gchar * const *) possible_handlers);
+    g_list_free (channels);
 
     if (!requested)
     {
@@ -307,14 +303,14 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
 
         while (list != NULL)
         {
-            McdChannel *channel = MCD_CHANNEL (list->data);
+            McdChannel *cancelled = MCD_CHANNEL (list->data);
 
-            if (mcd_channel_get_error (channel) == NULL)
-                mcd_channel_take_error (channel, g_error_copy (&error));
+            if (mcd_channel_get_error (cancelled) == NULL)
+                mcd_channel_take_error (cancelled, g_error_copy (&error));
 
-            _mcd_channel_undispatchable (channel);
+            _mcd_channel_undispatchable (cancelled);
 
-            g_object_unref (channel);
+            g_object_unref (cancelled);
             list = g_list_delete_link (list, list);
         }
     }
@@ -934,7 +930,6 @@ _mcd_dispatcher_add_channel (McdDispatcher *dispatcher,
                              gboolean requested,
                              gboolean only_observe)
 {
-    GList *channels = NULL;
     TpChannel *tp_channel = NULL;
     GStrv possible_handlers;
     McdRequest *request = NULL;
@@ -948,17 +943,14 @@ _mcd_dispatcher_add_channel (McdDispatcher *dispatcher,
            channel,
            mcd_channel_get_object_path (channel));
 
-    channels = g_list_prepend (NULL, channel);
-
     if (only_observe)
     {
         g_return_if_fail (requested);
 
         /* these channels were requested "behind our back", so only call
          * ObserveChannels on them */
-        _mcd_dispatcher_enter_state_machine (dispatcher, channels, NULL,
+        _mcd_dispatcher_enter_state_machine (dispatcher, channel, NULL,
                                              TRUE, TRUE);
-        g_list_free (channels);
         return;
     }
 
@@ -992,9 +984,8 @@ _mcd_dispatcher_add_channel (McdDispatcher *dispatcher,
 
     _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_DISPATCHING);
 
-    _mcd_dispatcher_enter_state_machine (dispatcher, channels,
+    _mcd_dispatcher_enter_state_machine (dispatcher, channel,
         (const gchar * const *) possible_handlers, requested, FALSE);
-    g_list_free (channels);
 
     g_strfreev (possible_handlers);
 }
