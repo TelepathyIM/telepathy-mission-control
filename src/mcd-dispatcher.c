@@ -314,7 +314,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
             list = g_list_delete_link (list, list);
         }
     }
-    else if (_mcd_dispatch_operation_peek_channels (operation) == NULL)
+    else if (_mcd_dispatch_operation_peek_channel (operation) == NULL)
     {
         DEBUG ("No channels left");
     }
@@ -625,11 +625,11 @@ mcd_dispatcher_client_needs_recovery_cb (McdClientProxy *client,
 
         if (_mcd_dispatch_operation_has_invoked_observers (op))
         {
-            for (channels = _mcd_dispatch_operation_peek_channels (op);
-                 channels != NULL;
-                 channels = channels->next)
+            McdChannel *mcd_channel =
+                _mcd_dispatch_operation_peek_channel (op);
+
+            if (mcd_channel != NULL)
             {
-                McdChannel *mcd_channel = channels->data;
                 GHashTable *properties =
                     _mcd_channel_get_immutable_properties (mcd_channel);
 

@@ -1149,7 +1149,7 @@ mcd_dispatch_operation_channel_aborted_cb (McdChannel *channel,
 
     _mcd_dispatch_operation_lose_channel (self, channel);
 
-    if (_mcd_dispatch_operation_peek_channels (self) == NULL)
+    if (self->priv->channels == NULL)
     {
         DEBUG ("Nothing left in this context");
     }
@@ -1884,11 +1884,17 @@ _mcd_dispatch_operation_has_channel (McdDispatchOperation *self,
     return (g_list_find (self->priv->channels, channel) != NULL);
 }
 
-const GList *
-_mcd_dispatch_operation_peek_channels (McdDispatchOperation *self)
+McdChannel *
+_mcd_dispatch_operation_peek_channel (McdDispatchOperation *self)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), NULL);
-    return self->priv->channels;
+    g_return_val_if_fail (self->priv->channels == NULL ||
+                          self->priv->channels->next == NULL, NULL);
+
+    if (self->priv->channels == NULL)
+        return NULL;
+
+    return self->priv->channels->data;
 }
 
 GList *

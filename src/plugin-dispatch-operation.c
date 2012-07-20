@@ -178,9 +178,11 @@ plugin_do_get_n_channels (McpDispatchOperation *obj)
   McdPluginDispatchOperation *self = MCD_PLUGIN_DISPATCH_OPERATION (obj);
 
   g_return_val_if_fail (self != NULL, 0);
-  /* FIXME: O(n) */
-  return g_list_length ((GList *) _mcd_dispatch_operation_peek_channels (
-        self->real_cdo));
+
+  if (_mcd_dispatch_operation_peek_channel (self->real_cdo) != NULL)
+    return 1;
+
+  return 0;
 }
 
 static const gchar *
@@ -191,11 +193,10 @@ plugin_do_get_nth_channel_path (McpDispatchOperation *obj,
   McdChannel *channel;
 
   g_return_val_if_fail (self != NULL, NULL);
-  /* FIXME: O(n) */
-  channel = g_list_nth_data ((GList *) _mcd_dispatch_operation_peek_channels (
-        self->real_cdo), n);
 
-  if (channel == NULL)
+  channel = _mcd_dispatch_operation_peek_channel (self->real_cdo);
+
+  if (channel == NULL || n != 0)
     return NULL;
 
   return mcd_channel_get_object_path (channel);
@@ -210,11 +211,10 @@ plugin_do_ref_nth_channel_properties (McpDispatchOperation *obj,
   GHashTable *ret;
 
   g_return_val_if_fail (self != NULL, NULL);
-  /* FIXME: O(n) */
-  channel = g_list_nth_data ((GList *) _mcd_dispatch_operation_peek_channels (
-        self->real_cdo), n);
 
-  if (channel == NULL)
+  channel = _mcd_dispatch_operation_peek_channel (self->real_cdo);
+
+  if (channel == NULL || n != 0)
     return NULL;
 
   ret = _mcd_channel_get_immutable_properties (channel);

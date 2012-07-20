@@ -75,7 +75,7 @@ G_GNUC_INTERNAL McdDispatchOperation *_mcd_dispatch_operation_new (
 
 G_GNUC_INTERNAL gboolean _mcd_dispatch_operation_has_channel (
     McdDispatchOperation *self, McdChannel *channel);
-G_GNUC_INTERNAL const GList *_mcd_dispatch_operation_peek_channels (
+G_GNUC_INTERNAL McdChannel *_mcd_dispatch_operation_peek_channel (
     McdDispatchOperation *self);
 G_GNUC_INTERNAL GList *_mcd_dispatch_operation_dup_channels (
     McdDispatchOperation *self);
