@@ -615,7 +615,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 enum
 {
     PROP_0,
-    PROP_CHANNELS,
+    PROP_CHANNEL,
     PROP_CLIENT_REGISTRY,
     PROP_HANDLER_MAP,
     PROP_POSSIBLE_HANDLERS,
@@ -1163,7 +1163,6 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
 {
     McdDispatchOperation *operation = MCD_DISPATCH_OPERATION (obj);
     McdDispatchOperationPrivate *priv = operation->priv;
-    GList *list;
 
     switch (prop_id)
     {
@@ -1177,16 +1176,16 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
         priv->handler_map = MCD_HANDLER_MAP (g_value_dup_object (val));
         break;
 
-    case PROP_CHANNELS:
+    case PROP_CHANNEL:
         /* because this is construct-only, we can assert that: */
         g_assert (priv->channels == NULL);
         g_assert (g_queue_is_empty (priv->approvals));
 
-        priv->channels = g_list_copy (g_value_get_pointer (val));
+        priv->channels = g_list_append (NULL, g_value_dup_object (val));
 
         if (G_LIKELY (priv->channels))
         {
-            /* get the connection and account from the first channel */
+            /* get the connection and account from the channel */
             McdChannel *channel = MCD_CHANNEL (priv->channels->data);
             const gchar *preferred_handler;
 
@@ -1203,7 +1202,7 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
                 g_warning ("Channel has no Connection?!");
             }
 
-            /* if the first channel is actually a channel request, get the
+            /* if the channel is actually a channel request, get the
              * preferred handler from it */
             preferred_handler =
                 _mcd_channel_get_request_preferred_handler (channel);
@@ -1233,16 +1232,10 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
                            "Account?!");
             }
 
-            /* reference the channels and connect to their signals */
-            for (list = priv->channels; list != NULL; list = list->next)
-            {
-                g_object_ref (list->data);
-
-                g_signal_connect_after (list->data, "abort",
-                    G_CALLBACK (mcd_dispatch_operation_channel_aborted_cb),
-                    operation);
-
-            }
+            /* connect to its signals */
+            g_signal_connect_after (channel, "abort",
+                G_CALLBACK (mcd_dispatch_operation_channel_aborted_cb),
+                operation);
         }
         break;
 
@@ -1383,9 +1376,11 @@ _mcd_dispatch_operation_class_init (McdDispatchOperationClass * klass)
             G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
             G_PARAM_STATIC_STRINGS));
 
-    g_object_class_install_property (object_class, PROP_CHANNELS,
-        g_param_spec_pointer ("channels", "channels", "channels",
-                              G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property (object_class, PROP_CHANNEL,
+        g_param_spec_object ("channel", "Channel", "the channel to dispatch",
+                             MCD_TYPE_CHANNEL,
+                             G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY |
+                             G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property (object_class, PROP_POSSIBLE_HANDLERS,
         g_param_spec_boxed ("possible-handlers", "Possible handlers",
@@ -1448,11 +1443,14 @@ _mcd_dispatch_operation_new (McdClientRegistry *client_registry,
      * back", so they can't need approval (i.e. observe_only implies
      * !needs_approval) */
     g_return_val_if_fail (!observe_only || !needs_approval, NULL);
+    /* exactly one channel */
+    g_return_val_if_fail (channels != NULL, NULL);
+    g_return_val_if_fail (channels->next == NULL, NULL);
 
     obj = g_object_new (MCD_TYPE_DISPATCH_OPERATION,
                         "client-registry", client_registry,
                         "handler-map", handler_map,
-                        "channels", channels,
+                        "channel", channels->data,
                         "possible-handlers", possible_handlers,
                         "needs-approval", needs_approval,
                         "observe-only", observe_only,
