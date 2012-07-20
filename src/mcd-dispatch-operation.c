@@ -198,9 +198,9 @@ struct _McdDispatchOperationPrivate
 
     /* Owned McdChannel we're dispatching */
     McdChannel *channel;
-    /* Owned McdChannels for which we can't emit ChannelLost yet, in
-     * reverse chronological order */
-    GList *lost_channels;
+    /* If non-NULL, we have lost the McdChannel but can't emit
+     * ChannelLost yet */
+    McdChannel *lost_channel;
 
     /* If TRUE, either the channel being dispatched was requested, or it
      * was pre-approved by being returned as a response to another request,
@@ -1311,7 +1311,6 @@ static void
 mcd_dispatch_operation_dispose (GObject *object)
 {
     McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (object);
-    GList *list;
 
     tp_clear_object (&priv->plugin_api);
     tp_clear_object (&priv->successful_handler);
@@ -1322,16 +1321,8 @@ mcd_dispatch_operation_dispose (GObject *object)
             mcd_dispatch_operation_channel_aborted_cb, object);
     }
 
-    if (priv->lost_channels != NULL)
-    {
-        for (list = priv->lost_channels; list != NULL; list = list->next)
-            g_object_unref (list->data);
-
-        tp_clear_pointer (&priv->lost_channels, g_list_free);
-    }
-
     tp_clear_object (&priv->channel);
-    tp_clear_object (&priv->connection);
+    tp_clear_object (&priv->lost_channel);
     tp_clear_object (&priv->account);
     tp_clear_object (&priv->handler_map);
     tp_clear_object (&priv->client_registry);
@@ -1643,9 +1634,8 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
                "%" G_GSIZE_FORMAT " approvers",
                self->priv->unique_name, self, object_path,
                self->priv->observers_pending, self->priv->ado_pending);
-        self->priv->lost_channels =
-            g_list_prepend (self->priv->lost_channels,
-                            g_object_ref (channel));
+        g_assert (self->priv->lost_channel == NULL);
+        self->priv->lost_channel = g_object_ref (channel);
     }
     else
     {
@@ -1673,28 +1663,26 @@ _mcd_dispatch_operation_check_finished (McdDispatchOperation *self)
 {
     if (mcd_dispatch_operation_may_signal_finished (self))
     {
-        GList *lost_channels;
+        McdChannel *lost_channel = self->priv->lost_channel;
 
-        /* get the lost channels into chronological order, and steal them from
-         * the object*/
-        lost_channels = g_list_reverse (self->priv->lost_channels);
-        self->priv->lost_channels = NULL;
+        /* steal it */
+        self->priv->lost_channel = NULL;
 
-        while (lost_channels != NULL)
+        if (lost_channel != NULL)
         {
-            McdChannel *channel = lost_channels->data;
-            const gchar *object_path = mcd_channel_get_object_path (channel);
+            const gchar *object_path = mcd_channel_get_object_path (
+                lost_channel);
 
             if (object_path == NULL)
             {
                 /* This shouldn't happen, but McdChannel is twisty enough
                  * that I can't be sure */
                 g_critical ("McdChannel has already lost its TpChannel: %p",
-                    channel);
+                    lost_channel);
             }
             else
             {
-                const GError *error = mcd_channel_get_error (channel);
+                const GError *error = mcd_channel_get_error (lost_channel);
                 gchar *error_name = _mcd_build_error_string (error);
 
                 DEBUG ("%s/%p losing channel %s: %s: %s",
@@ -1705,8 +1693,7 @@ _mcd_dispatch_operation_check_finished (McdDispatchOperation *self)
                 g_free (error_name);
             }
 
-            g_object_unref (channel);
-            lost_channels = g_list_delete_link (lost_channels, lost_channels);
+            g_object_unref (lost_channel);
         }
 
         if (self->priv->result != NULL)
