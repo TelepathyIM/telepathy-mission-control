@@ -1,10 +1,14 @@
-telepathy-mission-control 5.13.0 (UNRELEASED)
+telepathy-mission-control 5.13.0 (2012-07-23)
 =============================================
 
 Fixes:
 
 • Stop using deprecated telepathy-glib symbols. (Jonny)
 • Invalid GValue in libaccounts storage plugin (fd.o#48646, fledermaus)
+• fdo#52259 - Do not change RequestedPresence when disabling the account,
+  otherwise it won't reconnect when enabling it.
+• fdo#52231 - Let client decide which storage provider to use when creating an
+  account.
 
 telepathy-mission-control 5.12.0 (2012-04-02)
 =============================================
