@@ -34,8 +34,10 @@
 G_BEGIN_DECLS
 
 /* not exported */
-G_GNUC_INTERNAL void _mcd_dispatcher_take_channels (
-    McdDispatcher *dispatcher, GList *channels, gboolean requested,
+G_GNUC_INTERNAL void _mcd_dispatcher_add_channel (
+    McdDispatcher *dispatcher,
+    McdChannel *channel,
+    gboolean requested,
     gboolean only_observe);
 G_GNUC_INTERNAL
 void _mcd_dispatcher_add_channel_request (McdDispatcher *dispatcher,

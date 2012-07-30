@@ -196,14 +196,14 @@ struct _McdDispatchOperationPrivate
     McdAccount *account;
     McdConnection *connection;
 
-    /* Owned McdChannels we're dispatching */
-    GList *channels;
-    /* Owned McdChannels for which we can't emit ChannelLost yet, in
-     * reverse chronological order */
-    GList *lost_channels;
+    /* Owned McdChannel we're dispatching */
+    McdChannel *channel;
+    /* If non-NULL, we have lost the McdChannel but can't emit
+     * ChannelLost yet */
+    McdChannel *lost_channel;
 
-    /* If TRUE, either the channels being dispatched were requested, or they
-     * were pre-approved by being returned as a response to another request,
+    /* If TRUE, either the channel being dispatched was requested, or it
+     * was pre-approved by being returned as a response to another request,
      * or a client approved processing with arbitrary handlers */
     gboolean approved;
 
@@ -246,7 +246,7 @@ struct _McdDispatchOperationPrivate
     /* If TRUE, we're dispatching a channel request and it was cancelled */
     gboolean cancelled;
 
-    /* if TRUE, these channels were requested "behind our back", so stop
+    /* if TRUE, this channel was requested "behind our back", so stop
      * after observers */
     gboolean observe_only;
 
@@ -345,7 +345,7 @@ _mcd_dispatch_operation_dec_ado_pending (McdDispatchOperation *self)
 
     if (self->priv->ado_pending == 0 && !self->priv->accepted_by_an_approver)
     {
-        DEBUG ("No approver accepted the channels; considering them to be "
+        DEBUG ("No approver accepted the channel; considering it to be "
                "approved");
         g_queue_push_tail (self->priv->approvals,
                            approval_new (APPROVAL_TYPE_NO_APPROVERS));
@@ -429,7 +429,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
     if (!self->priv->tried_handlers_before_approval &&
         !_mcd_dispatch_operation_handlers_can_bypass_approval (self)
         && self->priv->delay_approver_observers_pending == 0
-        && self->priv->channels != NULL &&
+        && self->priv->channel != NULL &&
         ! _mcd_plugin_dispatch_operation_will_terminate (
             self->priv->plugin_api))
     {
@@ -463,7 +463,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
         return;
     }
 
-    /* if a handler has claimed or accepted the channels, we have nothing to
+    /* if a handler has claimed or accepted the channel, we have nothing to
      * do */
     if (self->priv->result != NULL)
     {
@@ -481,24 +481,21 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 
     if (_mcd_dispatch_operation_is_internal (self))
     {
-        guint i = 0;
-        GList *list = self->priv->channels;
-
         DEBUG ("Invoking internal handlers for requests");
-        for (; list != NULL; list = g_list_next (list), i++)
+        if (self->priv->channel != NULL)
         {
-            McdChannel *channel = list->data;
+            McdChannel *channel = self->priv->channel;
             McdRequest *request = _mcd_channel_get_request (channel);
 
-            if (request == NULL)
-                continue;
-
-            DEBUG ("Internal handler for request channel #%u", i);
-            _mcd_handler_map_set_channel_handled_internally (
-                self->priv->handler_map,
-                mcd_channel_get_tp_channel (channel),
-                _mcd_dispatch_operation_get_account_path (self));
-            _mcd_request_handle_internally (request, channel, TRUE);
+            if (request != NULL)
+            {
+                DEBUG ("Internal handler for request channel");
+                _mcd_handler_map_set_channel_handled_internally (
+                    self->priv->handler_map,
+                    mcd_channel_get_tp_channel (channel),
+                    _mcd_dispatch_operation_get_account_path (self));
+                _mcd_request_handle_internally (request, channel, TRUE);
+            }
         }
 
         /* The rest of this function deals with externally handled requests: *
@@ -524,7 +521,6 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
     /* if we've been claimed, respond, then do not call HandleChannels */
     if (approval != NULL && approval->type == APPROVAL_TYPE_CLAIM)
     {
-        const GList *list;
         /* this needs to be copied because we don't use it til after we've
          * freed approval->context */
         gchar *caller = g_strdup (dbus_g_method_get_sender (
@@ -534,9 +530,9 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
          * failure */
         g_queue_pop_head (self->priv->approvals);
 
-        for (list = self->priv->channels; list != NULL; list = list->next)
+        if (self->priv->channel != NULL)
         {
-            McdChannel *channel = MCD_CHANNEL (list->data);
+            McdChannel *channel = self->priv->channel;
 
             mcd_dispatch_operation_set_channel_handled_by (self, channel,
                 caller, NULL);
@@ -615,7 +611,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 enum
 {
     PROP_0,
-    PROP_CHANNELS,
+    PROP_CHANNEL,
     PROP_CLIENT_REGISTRY,
     PROP_HANDLER_MAP,
     PROP_POSSIBLE_HANDLERS,
@@ -724,8 +720,16 @@ get_channels (TpSvcDBusProperties *iface, const gchar *name, GValue *value)
     DEBUG ("called for %s", self->priv->unique_name);
 
     g_value_init (value, TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST);
+
+    if (self->priv->channel == NULL)
+    {
+        g_value_take_boxed (value, g_ptr_array_sized_new (0));
+        return;
+    }
+
     g_value_take_boxed (value,
-        _mcd_tp_channel_details_build_from_list (self->priv->channels));
+        _mcd_tp_channel_details_build_from_tp_chan (
+            mcd_channel_get_tp_channel (self->priv->channel)));
 }
 
 static void
@@ -868,7 +872,8 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation,
                 else
                 {
                     /* Handling finished for some other reason: perhaps the
-                     * channel was claimed, or perhaps we ran out of channels.
+                     * channel was claimed, or perhaps it closed or we were
+                     * told to forget about it.
                      */
                     DEBUG ("HandleWith -> error: %s %d: %s",
                            g_quark_to_string (priv->result->domain),
@@ -1073,7 +1078,7 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
     g_return_val_if_fail (operation != NULL, NULL);
     priv = operation->priv;
 
-    if (!priv->client_registry || !priv->handler_map)
+    if (!priv->client_registry || !priv->handler_map || !priv->channel)
         goto error;
 
     if (priv->needs_approval && priv->observe_only)
@@ -1087,14 +1092,12 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
     DEBUG ("%s/%p: needs_approval=%c", priv->unique_name, object,
            priv->needs_approval ? 'T' : 'F');
 
-    if (DEBUGGING)
+    if (priv->channel != NULL)
     {
-        GList *list;
-
-        for (list = priv->channels; list != NULL; list = list->next)
-        {
-            DEBUG ("Channel: %s", mcd_channel_get_object_path (list->data));
-        }
+        DEBUG ("Channel: %s",
+               mcd_channel_get_object_path (priv->channel));
+        g_assert (mcd_channel_get_account (priv->channel) ==
+                  priv->account);
     }
 
     /* If approval is not needed, we don't appear on D-Bus (and approvers
@@ -1149,7 +1152,7 @@ mcd_dispatch_operation_channel_aborted_cb (McdChannel *channel,
 
     _mcd_dispatch_operation_lose_channel (self, channel);
 
-    if (_mcd_dispatch_operation_peek_channels (self) == NULL)
+    if (self->priv->channel == NULL)
     {
         DEBUG ("Nothing left in this context");
     }
@@ -1163,7 +1166,6 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
 {
     McdDispatchOperation *operation = MCD_DISPATCH_OPERATION (obj);
     McdDispatchOperationPrivate *priv = operation->priv;
-    GList *list;
 
     switch (prop_id)
     {
@@ -1177,21 +1179,19 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
         priv->handler_map = MCD_HANDLER_MAP (g_value_dup_object (val));
         break;
 
-    case PROP_CHANNELS:
+    case PROP_CHANNEL:
         /* because this is construct-only, we can assert that: */
-        g_assert (priv->channels == NULL);
+        g_assert (priv->channel == NULL);
         g_assert (g_queue_is_empty (priv->approvals));
 
-        priv->channels = g_list_copy (g_value_get_pointer (val));
+        priv->channel = g_value_dup_object (val);
 
-        if (G_LIKELY (priv->channels))
+        if (G_LIKELY (priv->channel))
         {
-            /* get the connection and account from the first channel */
-            McdChannel *channel = MCD_CHANNEL (priv->channels->data);
             const gchar *preferred_handler;
 
             priv->connection = (McdConnection *)
-                mcd_mission_get_parent (MCD_MISSION (channel));
+                mcd_mission_get_parent (MCD_MISSION (priv->channel));
 
             if (G_LIKELY (priv->connection))
             {
@@ -1203,10 +1203,10 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
                 g_warning ("Channel has no Connection?!");
             }
 
-            /* if the first channel is actually a channel request, get the
+            /* if the channel is actually a channel request, get the
              * preferred handler from it */
             preferred_handler =
-                _mcd_channel_get_request_preferred_handler (channel);
+                _mcd_channel_get_request_preferred_handler (priv->channel);
 
             if (preferred_handler != NULL &&
                 g_str_has_prefix (preferred_handler, TP_CLIENT_BUS_NAME_BASE) &&
@@ -1220,7 +1220,7 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
                                    approval_new_requested (preferred_handler));
             }
 
-            priv->account = mcd_channel_get_account (channel);
+            priv->account = mcd_channel_get_account (priv->channel);
 
             if (G_LIKELY (priv->account != NULL))
             {
@@ -1233,16 +1233,10 @@ mcd_dispatch_operation_set_property (GObject *obj, guint prop_id,
                            "Account?!");
             }
 
-            /* reference the channels and connect to their signals */
-            for (list = priv->channels; list != NULL; list = list->next)
-            {
-                g_object_ref (list->data);
-
-                g_signal_connect_after (list->data, "abort",
-                    G_CALLBACK (mcd_dispatch_operation_channel_aborted_cb),
-                    operation);
-
-            }
+            /* connect to its signals */
+            g_signal_connect_after (priv->channel, "abort",
+                G_CALLBACK (mcd_dispatch_operation_channel_aborted_cb),
+                operation);
         }
         break;
 
@@ -1317,32 +1311,18 @@ static void
 mcd_dispatch_operation_dispose (GObject *object)
 {
     McdDispatchOperationPrivate *priv = MCD_DISPATCH_OPERATION_PRIV (object);
-    GList *list;
 
     tp_clear_object (&priv->plugin_api);
     tp_clear_object (&priv->successful_handler);
 
-    if (priv->channels != NULL)
+    if (priv->channel != NULL)
     {
-        for (list = priv->channels; list != NULL; list = list->next)
-        {
-            g_signal_handlers_disconnect_by_func (list->data,
-                mcd_dispatch_operation_channel_aborted_cb, object);
-            g_object_unref (list->data);
-        }
-
-        tp_clear_pointer (&priv->channels, g_list_free);
+        g_signal_handlers_disconnect_by_func (priv->channel,
+            mcd_dispatch_operation_channel_aborted_cb, object);
     }
 
-    if (priv->lost_channels != NULL)
-    {
-        for (list = priv->lost_channels; list != NULL; list = list->next)
-            g_object_unref (list->data);
-
-        tp_clear_pointer (&priv->lost_channels, g_list_free);
-    }
-
-    tp_clear_object (&priv->connection);
+    tp_clear_object (&priv->channel);
+    tp_clear_object (&priv->lost_channel);
     tp_clear_object (&priv->account);
     tp_clear_object (&priv->handler_map);
     tp_clear_object (&priv->client_registry);
@@ -1383,9 +1363,11 @@ _mcd_dispatch_operation_class_init (McdDispatchOperationClass * klass)
             G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
             G_PARAM_STATIC_STRINGS));
 
-    g_object_class_install_property (object_class, PROP_CHANNELS,
-        g_param_spec_pointer ("channels", "channels", "channels",
-                              G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+    g_object_class_install_property (object_class, PROP_CHANNEL,
+        g_param_spec_object ("channel", "Channel", "the channel to dispatch",
+                             MCD_TYPE_CHANNEL,
+                             G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY |
+                             G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property (object_class, PROP_POSSIBLE_HANDLERS,
         g_param_spec_boxed ("possible-handlers", "Possible handlers",
@@ -1429,31 +1411,31 @@ _mcd_dispatch_operation_init (McdDispatchOperation *operation)
  * _mcd_dispatch_operation_new:
  * @client_registry: the client registry.
  * @handler_map: the handler map
- * @channels: a #GList of #McdChannel elements to dispatch.
- * @possible_handlers: the bus names of possible handlers for these channels.
+ * @channel: the channel to dispatch
+ * @possible_handlers: the bus names of possible handlers for this channel
  *
- * Creates a #McdDispatchOperation. The #GList @channels will be no longer
- * valid after this function has been called.
+ * Creates a #McdDispatchOperation.
  */
 McdDispatchOperation *
 _mcd_dispatch_operation_new (McdClientRegistry *client_registry,
                              McdHandlerMap *handler_map,
                              gboolean needs_approval,
                              gboolean observe_only,
-                             GList *channels,
+                             McdChannel *channel,
                              const gchar * const *possible_handlers)
 {
     gpointer *obj;
 
-    /* If we're only observing, then the channels were requested "behind MC's
+    /* If we're only observing, then the channel was requested "behind MC's
      * back", so they can't need approval (i.e. observe_only implies
      * !needs_approval) */
     g_return_val_if_fail (!observe_only || !needs_approval, NULL);
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
 
     obj = g_object_new (MCD_TYPE_DISPATCH_OPERATION,
                         "client-registry", client_registry,
                         "handler-map", handler_map,
-                        "channels", channels,
+                        "channel", channel,
                         "possible-handlers", possible_handlers,
                         "needs-approval", needs_approval,
                         "observe-only", observe_only,
@@ -1620,16 +1602,18 @@ static void
 _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
                                       McdChannel *channel)
 {
-    GList *li = g_list_find (self->priv->channels, channel);
     const gchar *object_path;
     const GError *error = NULL;
 
-    if (li == NULL)
+    if (G_UNLIKELY (channel != self->priv->channel))
     {
+        g_warning ("%s: apparently lost %p but my channel is %p",
+                   G_STRFUNC, channel, self->priv->channel);
         return;
     }
 
-    self->priv->channels = g_list_delete_link (self->priv->channels, li);
+    /* steal the reference */
+    self->priv->channel = NULL;
 
     object_path = mcd_channel_get_object_path (channel);
     error = mcd_channel_get_error (channel);
@@ -1650,9 +1634,8 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
                "%" G_GSIZE_FORMAT " approvers",
                self->priv->unique_name, self, object_path,
                self->priv->observers_pending, self->priv->ado_pending);
-        self->priv->lost_channels =
-            g_list_prepend (self->priv->lost_channels,
-                            g_object_ref (channel));
+        g_assert (self->priv->lost_channel == NULL);
+        self->priv->lost_channel = g_object_ref (channel);
     }
     else
     {
@@ -1667,15 +1650,12 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
         g_free (error_name);
     }
 
-    /* We previously had a ref in the linked list - drop it */
+    /* We previously stole this ref from self->priv->channel - drop it */
     g_object_unref (channel);
 
-    if (self->priv->channels == NULL)
-    {
-        /* no channels left, so the CDO finishes (if it hasn't already) */
-        _mcd_dispatch_operation_finish (self, error->domain, error->code,
-                                        "%s", error->message);
-    }
+    /* no channels left, so the CDO finishes (if it hasn't already) */
+    _mcd_dispatch_operation_finish (self, error->domain, error->code,
+                                    "%s", error->message);
 }
 
 static void
@@ -1683,28 +1663,26 @@ _mcd_dispatch_operation_check_finished (McdDispatchOperation *self)
 {
     if (mcd_dispatch_operation_may_signal_finished (self))
     {
-        GList *lost_channels;
+        McdChannel *lost_channel = self->priv->lost_channel;
 
-        /* get the lost channels into chronological order, and steal them from
-         * the object*/
-        lost_channels = g_list_reverse (self->priv->lost_channels);
-        self->priv->lost_channels = NULL;
+        /* steal it */
+        self->priv->lost_channel = NULL;
 
-        while (lost_channels != NULL)
+        if (lost_channel != NULL)
         {
-            McdChannel *channel = lost_channels->data;
-            const gchar *object_path = mcd_channel_get_object_path (channel);
+            const gchar *object_path = mcd_channel_get_object_path (
+                lost_channel);
 
             if (object_path == NULL)
             {
                 /* This shouldn't happen, but McdChannel is twisty enough
                  * that I can't be sure */
                 g_critical ("McdChannel has already lost its TpChannel: %p",
-                    channel);
+                    lost_channel);
             }
             else
             {
-                const GError *error = mcd_channel_get_error (channel);
+                const GError *error = mcd_channel_get_error (lost_channel);
                 gchar *error_name = _mcd_build_error_string (error);
 
                 DEBUG ("%s/%p losing channel %s: %s: %s",
@@ -1715,8 +1693,7 @@ _mcd_dispatch_operation_check_finished (McdDispatchOperation *self)
                 g_free (error_name);
             }
 
-            g_object_unref (channel);
-            lost_channels = g_list_delete_link (lost_channels, lost_channels);
+            g_object_unref (lost_channel);
         }
 
         if (self->priv->result != NULL)
@@ -1884,25 +1861,28 @@ _mcd_dispatch_operation_has_channel (McdDispatchOperation *self,
                                      McdChannel *channel)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), FALSE);
-    return (g_list_find (self->priv->channels, channel) != NULL);
+
+    return (self->priv->channel != NULL &&
+            self->priv->channel == channel);
 }
 
-const GList *
-_mcd_dispatch_operation_peek_channels (McdDispatchOperation *self)
+McdChannel *
+_mcd_dispatch_operation_peek_channel (McdDispatchOperation *self)
 {
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), NULL);
-    return self->priv->channels;
+
+    return self->priv->channel;
 }
 
-GList *
-_mcd_dispatch_operation_dup_channels (McdDispatchOperation *self)
+McdChannel *
+_mcd_dispatch_operation_dup_channel (McdDispatchOperation *self)
 {
-    GList *copy;
-
     g_return_val_if_fail (MCD_IS_DISPATCH_OPERATION (self), NULL);
-    copy = g_list_copy (self->priv->channels);
-    g_list_foreach (copy, (GFunc) g_object_ref, NULL);
-    return copy;
+
+    if (self->priv->channel != NULL)
+        return g_object_ref (self->priv->channel);
+
+    return NULL;
 }
 
 static void
@@ -1922,11 +1902,10 @@ _mcd_dispatch_operation_handle_channels_cb (TpClient *client,
     }
     else
     {
-        const GList *list;
-
-        for (list = self->priv->channels; list != NULL; list = list->next)
+        /* FIXME: can channel ever be NULL here? */
+        if (self->priv->channel != NULL)
         {
-            McdChannel *channel = list->data;
+            McdChannel *channel = MCD_CHANNEL (self->priv->channel);
             const gchar *unique_name;
 
             unique_name = _mcd_client_proxy_get_unique_name (MCD_CLIENT_PROXY (client));
@@ -1955,11 +1934,12 @@ _mcd_dispatch_operation_handle_channels_cb (TpClient *client,
                 g_warning ("Closing channel %s as a result",
                            mcd_channel_get_object_path (channel));
                 _mcd_channel_undispatchable (channel);
-                continue;
             }
-
-            mcd_dispatch_operation_set_channel_handled_by (self, channel,
-                unique_name, tp_proxy_get_bus_name (client));
+            else
+            {
+                mcd_dispatch_operation_set_channel_handled_by (self, channel,
+                    unique_name, tp_proxy_get_bus_name (client));
+            }
         }
 
         /* emit Finished, if we haven't already; but first make a note of the
@@ -1998,36 +1978,25 @@ observe_channels_cb (TpClient *proxy, const GError *error,
  *  request-properties for Observer_Info or Handler_Info
  */
 static void
-collect_satisfied_requests (const GList *channels,
+collect_satisfied_requests (McdChannel *channel,
     GPtrArray **paths_out,
     GHashTable **props_out)
 {
-    const GList *c;
-    GHashTable *set;
     GHashTableIter it;
     gpointer path, value;
     GPtrArray *satisfied_requests;
     GHashTable *request_properties;
+    GHashTable *reqs;
 
-    set = g_hash_table_new_full (g_str_hash, g_str_equal,
-        g_free, g_object_unref);
+    reqs = _mcd_channel_get_satisfied_requests (channel, NULL);
 
-    for (c = channels; c != NULL; c = c->next)
-    {
-        GHashTable *reqs = _mcd_channel_get_satisfied_requests (c->data,
-                                                                 NULL);
-        tp_g_hash_table_update (set, reqs,
-            (GBoxedCopyFunc) g_strdup, (GBoxedCopyFunc) g_object_ref);
-        g_hash_table_unref (reqs);
-    }
-
-    satisfied_requests = g_ptr_array_sized_new (g_hash_table_size (set));
+    satisfied_requests = g_ptr_array_sized_new (g_hash_table_size (reqs));
     g_ptr_array_set_free_func (satisfied_requests, g_free);
 
     request_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
         g_free, (GDestroyNotify) g_hash_table_unref);
 
-    g_hash_table_iter_init (&it, set);
+    g_hash_table_iter_init (&it, reqs);
 
     while (g_hash_table_iter_next (&it, &path, &value))
     {
@@ -2039,7 +2008,7 @@ collect_satisfied_requests (const GList *channels,
         g_hash_table_insert (request_properties, g_strdup (path), props);
     }
 
-    g_hash_table_unref (set);
+    g_hash_table_unref (reqs);
 
     if (paths_out != NULL)
         *paths_out = satisfied_requests;
@@ -2055,7 +2024,6 @@ collect_satisfied_requests (const GList *channels,
 static void
 _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
 {
-    const GList *cl;
     const gchar *dispatch_operation_path = "/";
     GHashTable *observer_info;
     GHashTableIter iter;
@@ -2068,7 +2036,7 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
     while (g_hash_table_iter_next (&iter, NULL, &client_p))
     {
         McdClientProxy *client = MCD_CLIENT_PROXY (client_p);
-        GList *observed = NULL;
+        gboolean observed = FALSE;
         const gchar *account_path, *connection_path;
         GPtrArray *channels_array, *satisfied_requests;
         GHashTable *request_properties;
@@ -2077,9 +2045,9 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
                                            TP_IFACE_QUARK_CLIENT_OBSERVER))
             continue;
 
-        for (cl = self->priv->channels; cl != NULL; cl = cl->next)
+        if (self->priv->channel != NULL)
         {
-            McdChannel *channel = MCD_CHANNEL (cl->data);
+            McdChannel *channel = MCD_CHANNEL (self->priv->channel);
             GHashTable *properties;
 
             properties = _mcd_channel_get_immutable_properties (channel);
@@ -2088,8 +2056,10 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
             if (_mcd_client_match_filters (properties,
                 _mcd_client_proxy_get_observer_filters (client),
                 FALSE))
-                observed = g_list_prepend (observed, channel);
+                observed = TRUE;
         }
+
+        /* in particular this happens if there is no channel at all */
         if (!observed) continue;
 
         /* build up the parameters and invoke the observer */
@@ -2099,9 +2069,10 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
 
         /* TODO: there's room for optimization here: reuse the channels_array,
          * if the observed list is the same */
-        channels_array = _mcd_tp_channel_details_build_from_list (observed);
+        channels_array = _mcd_tp_channel_details_build_from_tp_chan (
+            mcd_channel_get_tp_channel (self->priv->channel));
 
-        collect_satisfied_requests (observed, &satisfied_requests,
+        collect_satisfied_requests (self->priv->channel, &satisfied_requests,
                                     &request_properties);
 
         /* transfer ownership into observer_info */
@@ -2129,8 +2100,6 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
         g_ptr_array_unref (satisfied_requests);
 
         _mcd_tp_channel_details_free (channels_array);
-
-        g_list_free (observed);
     }
 
     g_hash_table_unref (observer_info);
@@ -2173,7 +2142,6 @@ add_dispatch_operation_cb (TpClient *proxy,
 static void
 _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
 {
-    const GList *cl;
     GHashTableIter iter;
     gpointer client_p;
 
@@ -2195,9 +2163,9 @@ _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
                                            TP_IFACE_QUARK_CLIENT_APPROVER))
             continue;
 
-        for (cl = self->priv->channels; cl != NULL; cl = cl->next)
+        if (self->priv->channel != NULL)
         {
-            McdChannel *channel = MCD_CHANNEL (cl->data);
+            McdChannel *channel = MCD_CHANNEL (self->priv->channel);
             GHashTable *channel_properties;
 
             channel_properties = _mcd_channel_get_immutable_properties (channel);
@@ -2208,15 +2176,17 @@ _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
                 FALSE))
             {
                 matched = TRUE;
-                break;
             }
         }
+
+        /* in particular, after this point, self->priv->channel can't
+         * be NULL */
         if (!matched) continue;
 
         dispatch_operation = _mcd_dispatch_operation_get_path (self);
         properties = _mcd_dispatch_operation_get_properties (self);
-        channel_details =
-            _mcd_tp_channel_details_build_from_list (self->priv->channels);
+        channel_details = _mcd_tp_channel_details_build_from_tp_chan (
+            mcd_channel_get_tp_channel (self->priv->channel));
 
         DEBUG ("Calling AddDispatchOperation on approver %s for CDO %s @ %p",
                tp_proxy_get_bus_name (client), dispatch_operation, self);
@@ -2262,7 +2232,7 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
     g_object_ref (self);
     DEBUG ("%s %p", self->priv->unique_name, self);
 
-    if (self->priv->channels != NULL)
+    if (self->priv->channel != NULL)
     {
         const GList *mini_plugins;
 
@@ -2308,6 +2278,7 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
 static void
 mcd_dispatch_operation_handle_channels (McdDispatchOperation *self)
 {
+    GList *channels = NULL;
     GHashTable *handler_info;
     GHashTable *request_properties;
 
@@ -2330,19 +2301,31 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self)
         return;
     }
 
+    /* FIXME: it shouldn't be possible to get here without a channel */
+    if (self->priv->channel != NULL)
+    {
+        collect_satisfied_requests (self->priv->channel, NULL,
+                                    &request_properties);
+        channels = g_list_prepend (NULL, self->priv->channel);
+    }
+    else
+    {
+        request_properties = g_hash_table_new_full (g_str_hash,
+            g_str_equal, g_free, (GDestroyNotify) g_hash_table_unref);
+    }
+
     handler_info = tp_asv_new (NULL, NULL);
-    collect_satisfied_requests (self->priv->channels, NULL,
-                                &request_properties);
     tp_asv_take_boxed (handler_info, "request-properties",
         TP_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP, request_properties);
     request_properties = NULL;
 
     _mcd_client_proxy_handle_channels (self->priv->trying_handler,
-        -1, self->priv->channels, self->priv->handle_with_time,
+        -1, channels, self->priv->handle_with_time,
         handler_info, _mcd_dispatch_operation_handle_channels_cb,
         g_object_ref (self), g_object_unref, NULL);
 
     g_hash_table_unref (handler_info);
+    g_list_free (channels);
 }
 
 static void
@@ -2385,9 +2368,7 @@ mcd_dispatch_operation_try_handler (McdDispatchOperation *self,
 
     self->priv->handler_suitable_pending = 0;
 
-    DEBUG ("%s: channel ACL verification [%u channels]",
-        self->priv->unique_name,
-        g_list_length (self->priv->channels));
+    DEBUG ("%s: channel ACL verification", self->priv->unique_name);
 
     for (p = mcp_list_objects (); p != NULL; p = g_list_next (p))
     {
@@ -2495,8 +2476,6 @@ static void
 _mcd_dispatch_operation_close_as_undispatchable (McdDispatchOperation *self,
                                                  const GError *error)
 {
-    GList *channels, *list;
-
     /* All of the usable handlers vanished while we were thinking about it
      * (this can only happen if non-activatable handlers exit after we
      * include them in the list of possible handlers, but before we .
@@ -2507,20 +2486,17 @@ _mcd_dispatch_operation_close_as_undispatchable (McdDispatchOperation *self,
     _mcd_dispatch_operation_finish (self, error->domain, error->code,
                                     "%s", error->message);
 
-    channels = _mcd_dispatch_operation_dup_channels (self);
-
-    for (list = channels; list != NULL; list = list->next)
+    if (self->priv->channel != NULL)
     {
-        McdChannel *channel = MCD_CHANNEL (list->data);
+        McdChannel *channel = MCD_CHANNEL (self->priv->channel);
         GError e = { TP_ERROR, TP_ERROR_NOT_AVAILABLE,
             "Handler no longer available" };
 
+        g_object_ref (channel);
         mcd_channel_take_error (channel, g_error_copy (&e));
         _mcd_channel_undispatchable (channel);
         g_object_unref (channel);
     }
-
-    g_list_free (channels);
 }
 
 void
@@ -2549,20 +2525,18 @@ _mcd_dispatch_operation_end_plugin_delay (McdDispatchOperation *self)
 void
 _mcd_dispatch_operation_forget_channels (McdDispatchOperation *self)
 {
-    /* make a temporary copy, which is destroyed during the loop - otherwise
-     * we'll be trying to iterate over the list at the same time
-     * that mcd_mission_abort results in modifying it, which would be bad */
-    GList *list = _mcd_dispatch_operation_dup_channels (self);
-
-    while (list != NULL)
+    if (self->priv->channel != NULL)
     {
-        mcd_mission_abort (list->data);
-        g_object_unref (list->data);
-        list = g_list_delete_link (list, list);
+        /* Take a temporary copy, because self->priv->channels is going
+         * to be modified as a result of mcd_mission_abort() */
+        McdChannel *channel = g_object_ref (self->priv->channel);
+
+        mcd_mission_abort (MCD_MISSION (channel));
+        g_object_unref (channel);
     }
 
-    /* There should now be none left (they all aborted) */
-    g_return_if_fail (self->priv->channels == NULL);
+    /* There should now be no channel left (it was aborted) */
+    g_return_if_fail (self->priv->channel == NULL);
 }
 
 void
@@ -2570,20 +2544,19 @@ _mcd_dispatch_operation_leave_channels (McdDispatchOperation *self,
                                         TpChannelGroupChangeReason reason,
                                         const gchar *message)
 {
-    GList *list;
-
     if (message == NULL)
     {
         message = "";
     }
 
-    list = _mcd_dispatch_operation_dup_channels (self);
-
-    while (list != NULL)
+    if (self->priv->channel != NULL)
     {
-        _mcd_channel_depart (list->data, reason, message);
-        g_object_unref (list->data);
-        list = g_list_delete_link (list, list);
+        /* Take a temporary copy, because self->priv->channels could
+         * be modified as a result */
+        McdChannel *channel = g_object_ref (self->priv->channel);
+
+        _mcd_channel_depart (channel, reason, message);
+        g_object_unref (channel);
     }
 
     _mcd_dispatch_operation_forget_channels (self);
@@ -2592,13 +2565,14 @@ _mcd_dispatch_operation_leave_channels (McdDispatchOperation *self,
 void
 _mcd_dispatch_operation_close_channels (McdDispatchOperation *self)
 {
-    GList *list = _mcd_dispatch_operation_dup_channels (self);
-
-    while (list != NULL)
+    if (self->priv->channel != NULL)
     {
-        _mcd_channel_close (list->data);
-        g_object_unref (list->data);
-        list = g_list_delete_link (list, list);
+        /* Take a temporary copy, because self->priv->channels could
+         * be modified as a result */
+        McdChannel *channel = g_object_ref (self->priv->channel);
+
+        _mcd_channel_close (channel);
+        g_object_unref (channel);
     }
 
     _mcd_dispatch_operation_forget_channels (self);
@@ -2607,13 +2581,14 @@ _mcd_dispatch_operation_close_channels (McdDispatchOperation *self)
 void
 _mcd_dispatch_operation_destroy_channels (McdDispatchOperation *self)
 {
-    GList *list = _mcd_dispatch_operation_dup_channels (self);
-
-    while (list != NULL)
+    if (self->priv->channel != NULL)
     {
-        _mcd_channel_undispatchable (list->data);
-        g_object_unref (list->data);
-        list = g_list_delete_link (list, list);
+        /* Take a temporary copy, because self->priv->channels could
+         * be modified as a result */
+        McdChannel *channel = g_object_ref (self->priv->channel);
+
+        _mcd_channel_undispatchable (channel);
+        g_object_unref (channel);
     }
 
     _mcd_dispatch_operation_forget_channels (self);

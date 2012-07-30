@@ -604,11 +604,10 @@ GList *
 _mcd_client_registry_list_possible_handlers (McdClientRegistry *self,
     const gchar *preferred_handler,
     GHashTable *request_props,
-    const GList *channels,
+    TpChannel *channel,
     const gchar *must_have_unique_name)
 {
   GList *handlers = NULL;
-  const GList *iter;
   GList *handlers_iter;
   GHashTableIter client_iter;
   gpointer client_p;
@@ -618,7 +617,8 @@ _mcd_client_registry_list_possible_handlers (McdClientRegistry *self,
   while (g_hash_table_iter_next (&client_iter, NULL, &client_p))
     {
       McdClientProxy *client = MCD_CLIENT_PROXY (client_p);
-      gsize total_quality = 0;
+      GHashTable *properties;
+      gsize quality;
 
       if (must_have_unique_name != NULL &&
           tp_strdiff (must_have_unique_name,
@@ -636,48 +636,33 @@ _mcd_client_registry_list_possible_handlers (McdClientRegistry *self,
             continue;
         }
 
-      if (channels == NULL)
+      if (channel == NULL)
         {
-          /* We don't know any channels' properties (the next loop will not
+          /* We don't know the channel's properties (the next part will not
            * execute), so we must work out the quality of match from the
            * channel request. We can assume that the request will return one
            * channel, with the requested properties, plus Requested == TRUE.
            */
           g_assert (request_props != NULL);
-          total_quality = _mcd_client_match_filters (request_props,
+          quality = _mcd_client_match_filters (request_props,
               _mcd_client_proxy_get_handler_filters (client), TRUE);
         }
-
-      for (iter = channels; iter != NULL; iter = iter->next)
+      else
         {
-          TpChannel *channel = iter->data;
-          GHashTable *properties;
-          guint quality;
-
           g_assert (TP_IS_CHANNEL (channel));
           properties = tp_channel_borrow_immutable_properties (channel);
 
           quality = _mcd_client_match_filters (properties,
               _mcd_client_proxy_get_handler_filters (client), FALSE);
-
-          if (quality == 0)
-            {
-              total_quality = 0;
-              break;
-            }
-          else
-            {
-              total_quality += quality;
-            }
         }
 
-      if (total_quality > 0)
+      if (quality > 0)
         {
           PossibleHandler *ph = g_slice_new0 (PossibleHandler);
 
           ph->client = client;
           ph->bypass = _mcd_client_proxy_get_bypass_approval (client);
-          ph->quality = total_quality;
+          ph->quality = quality;
 
           handlers = g_list_prepend (handlers, ph);
         }

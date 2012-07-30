@@ -55,15 +55,6 @@ struct _McdConnection
 struct _McdConnectionClass
 {
     McdOperationClass parent_class;
-    gboolean (*need_dispatch) (McdConnection *connection,
-                               const GPtrArray *channels);
-    void (*_mc_reserved2) (void);
-    gboolean (*request_channel) (McdConnection *connection,
-                                 McdChannel *channel);
-    void (*_mc_reserved3) (void);
-    void (*_mc_reserved4) (void);
-    void (*_mc_reserved5) (void);
-    void (*_mc_reserved6) (void);
 };
 
 #include "mcd-dispatcher.h"
