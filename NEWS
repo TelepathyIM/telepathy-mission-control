@@ -1,5 +1,26 @@
+telepathy-mission-control 5.13.1 (UNRELEASED)
+=============================================
+
+Changes:
+
+• If a connection manager announces two or more channels in the same
+  NewChannels signal, behave as if it had announced each channel
+  separately. Simplify things that previously had to cope with
+  multiple channels at a time. (fd.o #52305, Simon)
+
 telepathy-mission-control 5.13.0 (2012-07-23)
 =============================================
+
+Changes:
+
+• Remove support for many deprecated interfaces (fd.o #49753, fd.o #24762,
+  fd.o #24899, fd.o #24914, fd.o #49648; Simon):
+  · old-style (mcd_*) plugins, including McdPlugin and McdFilter
+  · an obsolete auto-away mechanism
+  · the non-standard Compat and Query interfaces
+  · tracking group members in McdChannel
+  · Capabilities (the predecessor of ContactCapabilities)
+  · some remnants of ContactCapabilities draft 1
 
 Fixes:
 
