@@ -684,6 +684,36 @@ command_remove (TpAccount *account)
     return TRUE;
 }
 
+static gchar *
+dup_storage_restrictions (TpAccount *account)
+{
+  TpStorageRestrictionFlags flags;
+  GPtrArray *tmp;
+  gchar *result;
+
+  flags = tp_account_get_storage_restrictions (account);
+  if (flags == 0)
+    return g_strdup ("(none)");
+
+  tmp = g_ptr_array_new ();
+
+  if (flags & TP_STORAGE_RESTRICTION_FLAG_CANNOT_SET_PARAMETERS)
+    g_ptr_array_add (tmp, "Cannot_Set_Parameters");
+  if (flags & TP_STORAGE_RESTRICTION_FLAG_CANNOT_SET_ENABLED)
+    g_ptr_array_add (tmp, "Cannot_Set_Enabled");
+  if (flags & TP_STORAGE_RESTRICTION_FLAG_CANNOT_SET_PRESENCE)
+    g_ptr_array_add (tmp, "Cannot_Set_Presence");
+  if (flags & TP_STORAGE_RESTRICTION_FLAG_CANNOT_SET_SERVICE)
+    g_ptr_array_add (tmp, "Cannot_Set_Service");
+
+  g_ptr_array_add (tmp, NULL);
+
+  result = g_strjoinv (", ", (gchar **) tmp->pdata);
+
+  g_ptr_array_unref (tmp);
+  return result;
+}
+
 static gboolean
 command_show (TpAccount *account)
 {
@@ -692,6 +722,7 @@ command_show (TpAccount *account)
     gpointer keyp, valuep;
     struct presence automatic, current, requested;
     const gchar * const *schemes;
+    const gchar *storage_provider;
 
     show ("Account", tp_account_get_path_suffix (account));
     show ("Display Name", tp_account_get_display_name (account));
@@ -732,6 +763,33 @@ command_show (TpAccount *account)
     puts ("Addressing:");
     schemes = tp_account_get_uri_schemes (account);
     show_uri_schemes (schemes);
+
+    storage_provider = tp_account_get_storage_provider (account);
+    if (!tp_str_empty (storage_provider))
+      {
+        GVariant *storage_identifier;
+        gchar *storage_restrictions;
+
+        puts ("");
+        puts ("Storage:");
+        show ("Provider", storage_provider);
+
+        storage_identifier = tp_account_dup_storage_identifier_variant (
+            account);
+        if (storage_identifier != NULL)
+          {
+            gchar *tmp = g_variant_print (storage_identifier, TRUE);
+
+            show ("Identifier", tmp);
+
+            g_free (tmp);
+            g_variant_unref (storage_identifier);
+          }
+
+        storage_restrictions = dup_storage_restrictions (account);
+        show ("Restrictions", storage_restrictions);
+        g_free (storage_restrictions);
+      }
 
     puts ("");
     parameters = tp_account_get_parameters (account);
@@ -1329,7 +1387,8 @@ main (int argc, char **argv)
         tp_proxy_prepare_async (am, NULL, manager_ready, NULL);
     }
     else {
-	const GQuark features[] = { TP_ACCOUNT_FEATURE_CORE, TP_ACCOUNT_FEATURE_ADDRESSING, 0 };
+	const GQuark features[] = { TP_ACCOUNT_FEATURE_CORE,
+		TP_ACCOUNT_FEATURE_ADDRESSING, TP_ACCOUNT_FEATURE_STORAGE, 0 };
 
 	command.common.account = ensure_prefix (command.common.account);
 	a = tp_account_new (dbus, command.common.account, &error);
