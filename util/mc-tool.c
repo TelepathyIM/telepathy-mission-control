@@ -323,10 +323,7 @@ show_uri_schemes (const gchar * const *schemes)
   int result;
   gchar *tmp;
 
-  if (schemes == NULL || schemes[0] == NULL)
-    tmp = g_strdup ("");
-  else
-    tmp = g_strjoinv (", ", (gchar **) schemes);
+  tmp = g_strjoinv (", ", (gchar **) schemes);
 
   result = printf ("%12s: %s\n", "URIScheme", tmp);
 
@@ -760,10 +757,14 @@ command_show (TpAccount *account)
     show ("Changing",
         tp_account_get_changing_presence (account) ? "yes" : "no");
 
-    puts ("");
-    puts ("Addressing:");
     schemes = tp_account_get_uri_schemes (account);
-    show_uri_schemes (schemes);
+    if (schemes != NULL && schemes[0] != NULL)
+      {
+        puts ("");
+        puts ("Addressing:");
+
+        show_uri_schemes (schemes);
+      }
 
     storage_provider = tp_account_get_storage_provider (account);
     if (!tp_str_empty (storage_provider))
