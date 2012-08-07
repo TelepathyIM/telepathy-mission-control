@@ -1,3 +1,3 @@
 [D-BUS Service]
 Name=org.freedesktop.Telepathy.MissionControl5
-Exec=@libexecdir@/mission-control-5
+Exec=@bindir@/mc-wait-for-name --activate org.freedesktop.Telepathy.AccountManager org.freedesktop.Telepathy.MissionControl5
