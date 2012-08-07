@@ -45,6 +45,7 @@ show_help (gchar * err)
     printf ("Usage:\n"
 	    "    %1$s list\n"
 	    "    %1$s summary\n"
+	    "    %1$s dump\n"
 	    "    %1$s add <manager>/<protocol> <display name> [<param> ...]\n"
 	    "    %1$s update <account name> [<param>|clear:key] ...\n"
 	    "    %1$s display <account name> <display name>\n"
@@ -805,6 +806,30 @@ command_show (TpAccount *account)
 }
 
 static gboolean
+command_dump (TpAccountManager *manager)
+{
+    GList *accounts, *l;
+
+    accounts = tp_account_manager_get_valid_accounts (manager);
+    if (accounts == NULL) {
+        return FALSE;
+    }
+    command.common.ret = 0;
+
+    for (l = accounts; l != NULL; l = l->next) {
+        TpAccount *account = TP_ACCOUNT (l->data);
+
+        command_show (account);
+
+        if (l->next != NULL)
+          printf ("\n------------------------------------------------------------\n\n");
+    }
+
+    g_list_free (accounts);
+    return FALSE; /* stop mainloop */
+}
+
+static gboolean
 command_connection (TpAccount *account)
 {
     TpConnection *conn;
@@ -1088,6 +1113,14 @@ parse (int argc, char **argv)
 
         command.ready.manager = command_summary;
     }
+    else if (strcmp (argv[1], "dump") == 0)
+    {
+        /* Dump all accounts */
+        if (argc != 2)
+            show_help ("Invalid dump command.");
+
+        command.ready.manager = command_dump;
+    }
     else if (strcmp  (argv[1], "remove") == 0
 	     || strcmp (argv[1], "delete") == 0)
     {
@@ -1366,6 +1399,8 @@ main (int argc, char **argv)
     TpAccount *a = NULL;
     TpDBusDaemon *dbus = NULL;
     GError *error = NULL;
+    const GQuark features[] = { TP_ACCOUNT_FEATURE_CORE,
+        TP_ACCOUNT_FEATURE_ADDRESSING, TP_ACCOUNT_FEATURE_STORAGE, 0 };
 
     g_type_init ();
 
@@ -1383,12 +1418,16 @@ main (int argc, char **argv)
     }
 
     if (command.common.account == NULL) {
+        TpSimpleClientFactory *factory;
+
         am = tp_account_manager_new (dbus);
+        factory = tp_proxy_get_factory (am);
+
+        tp_simple_client_factory_add_account_features (factory, features);
+
         tp_proxy_prepare_async (am, NULL, manager_ready, NULL);
     }
     else {
-	const GQuark features[] = { TP_ACCOUNT_FEATURE_CORE,
-		TP_ACCOUNT_FEATURE_ADDRESSING, TP_ACCOUNT_FEATURE_STORAGE, 0 };
 
 	command.common.account = ensure_prefix (command.common.account);
 	a = tp_account_new (dbus, command.common.account, &error);
