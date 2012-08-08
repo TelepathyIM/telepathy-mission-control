@@ -7,6 +7,16 @@ Changes:
   NewChannels signal, behave as if it had announced each channel
   separately. Simplify things that previously had to cope with
   multiple channels at a time. (fd.o #52305, Simon)
+• Improve mc-tool: display Account.Storage settings, add "dump" subcommand
+  (fd.o #53202, Guillaume)
+
+Fixes:
+
+• Set up the altered-one signal for account storage backends correctly
+  (fd.o #52231, Xavier)
+• If service-activated under both names o.fd.Telepathy.MissionControl5
+  and o.fd.Telepathy.AccountManager simultaneously, avoid one or both
+  failing to activate due to a race condition (fd.o #53220, Simon)
 
 telepathy-mission-control 5.13.0 (2012-07-23)
 =============================================
@@ -25,6 +35,8 @@ Changes:
 Fixes:
 
 • Stop using deprecated telepathy-glib symbols. (Jonny)
+• fdo#51842 - fix access to freed memory. (Xavier)
+• fix existing channel dispatching after using present/delegate. (Jonny)
 • Invalid GValue in libaccounts storage plugin (fd.o#48646, fledermaus)
 • fdo#52259 - Do not change RequestedPresence when disabling the account,
   otherwise it won't reconnect when enabling it.

@@ -22,7 +22,10 @@ servicefile_DATA=org.freedesktop.Telepathy.MissionControl5.service \
 		 org.freedesktop.Telepathy.AccountManager.service
 
 %.service: %.service.in Makefile
-	$(AM_V_GEN)sed -e 's![@]libexecdir[@]!$(libexecdir)!' $< > $@
+	$(AM_V_GEN)sed \
+		-e 's![@]libexecdir[@]!$(libexecdir)!' \
+		-e 's![@]bindir[@]!$(bindir)!' \
+		$< > $@
 
 man8_MANS = mission-control-5.8
 
