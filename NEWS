@@ -1,7 +1,13 @@
 telepathy-mission-control 5.12.2 (UNRELEASED)
 =============================================
 
-...
+Fixes:
+
+• Set up the altered-one signal for account storage backends correctly
+  (fd.o #52231, Xavier)
+• If service-activated under both names o.fd.Telepathy.MissionControl5
+  and o.fd.Telepathy.AccountManager simultaneously, avoid one or both
+  failing to activate due to a race condition (fd.o #53220, Simon)
 
 telepathy-mission-control 5.12.1 (2012-07-11)
 =============================================
