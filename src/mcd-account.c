@@ -23,7 +23,6 @@
 
 #include "config.h"
 #include "mcd-account.h"
-#include "mcd-storage-priv.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -198,6 +197,7 @@ enum
 {
     CONNECTION_STATUS_CHANGED,
     VALIDITY_CHANGED,
+    CONNECTION_PATH_CHANGED,
     LAST_SIGNAL
 };
 
@@ -3156,6 +3156,13 @@ mcd_account_class_init (McdAccountClass * klass)
 		      NULL, NULL, g_cclosure_marshal_VOID__BOOLEAN,
 		      G_TYPE_NONE, 1,
 		      G_TYPE_BOOLEAN);
+    _mcd_account_signals[CONNECTION_PATH_CHANGED] =
+        g_signal_new ("connection-path-changed",
+                      G_OBJECT_CLASS_TYPE (klass),
+                      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
+                      0,
+                      NULL, NULL, g_cclosure_marshal_VOID__STRING,
+                      G_TYPE_NONE, 1, G_TYPE_STRING);
 
     _mcd_account_connection_class_init (klass);
 
@@ -3976,6 +3983,9 @@ mcd_account_get_connection_status (McdAccount *account)
     return priv->conn_status;
 }
 
+/* FIXME: if this was only called from _mcd_account_set_connection_status,
+ * we could combine CONNECTION_STATUS_CHANGED and CONNECTION_PATH_CHANGED
+ * into one signal... but for now, this is also called from McdConnection */
 void
 _mcd_account_tp_connection_changed (McdAccount *account,
                                     TpConnection *tp_conn)
@@ -3994,9 +4004,10 @@ _mcd_account_tp_connection_changed (McdAccount *account,
     }
 
     mcd_account_changed_property (account, "Connection", &value);
-    g_value_unset (&value);
 
-    _mcd_storage_store_connections (account->priv->storage);
+    g_signal_emit (account, _mcd_account_signals[CONNECTION_PATH_CHANGED], 0,
+        g_value_get_boxed (&value));
+    g_value_unset (&value);
 }
 
 McdConnection *

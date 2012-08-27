@@ -50,10 +50,6 @@ G_GNUC_INTERNAL void _mcd_account_manager_create_account
      const gchar *display_name, GHashTable *params, GHashTable *properties,
      McdGetAccountCb callback, gpointer user_data, GDestroyNotify destroy);
 
-G_GNUC_INTERNAL
-void _mcd_account_manager_store_account_connections
-    (McdAccountManager *manager);
-
 G_END_DECLS
 
 #endif

@@ -21,7 +21,7 @@
 
 #include "config.h"
 
-#include "mcd-storage-priv.h"
+#include "mcd-storage.h"
 #include "mcd-master.h"
 #include "mcd-account-manager-priv.h"
 
@@ -92,19 +92,4 @@ mcd_storage_set_strv (McdStorage *storage,
   ret = mcd_storage_set_value (storage, account, key, &v, secret);
   g_value_unset (&v);
   return ret;
-}
-
-void
-_mcd_storage_store_connections (McdStorage *storage)
-{
-  McdMaster *master = mcd_master_get_default ();
-  McdAccountManager *account_manager = NULL;
-
-  g_object_get (master, "account-manager", &account_manager, NULL);
-
-  if (account_manager != NULL)
-    {
-      _mcd_account_manager_store_account_connections (account_manager);
-      g_object_unref (account_manager);
-    }
 }

@@ -655,6 +655,9 @@ unref_account (gpointer data)
     g_object_unref (account);
 }
 
+static void _mcd_account_manager_store_account_connections (
+    McdAccountManager *);
+
 static void
 add_account (McdAccountManager *account_manager, McdAccount *account,
     const gchar *source)
@@ -682,6 +685,9 @@ add_account (McdAccountManager *account_manager, McdAccount *account,
 		      account_manager);
     g_signal_connect (account, "removed", G_CALLBACK (on_account_removed),
 		      account_manager);
+    tp_g_signal_connect_object (account, "connection-path-changed",
+        G_CALLBACK (_mcd_account_manager_store_account_connections),
+        account_manager, G_CONNECT_SWAPPED);
 
     /* some reports indicate this doesn't always fire for async backend  *
      * accounts: testing here hasn't shown this, but at least we will be *
@@ -1750,7 +1756,7 @@ mcd_account_manager_lookup_account_by_path (McdAccountManager *account_manager,
  * The data is stored in a temporary file, and can be read when MC restarts
  * after a crash.
  */
-void
+static void
 _mcd_account_manager_store_account_connections (McdAccountManager *manager)
 {
     McdAccountManagerPrivate *priv;

@@ -161,7 +161,6 @@ libmcd_convenience_la_SOURCES = \
 	mcd-transport.c \
 	mcd-storage.c \
 	mcd-storage.h \
-	mcd-storage-priv.h \
 	plugin-dispatch-operation.c \
 	plugin-dispatch-operation.h \
 	plugin-loader.c \
