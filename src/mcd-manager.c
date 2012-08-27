@@ -79,21 +79,16 @@ enum
 static GQuark readiness_quark = 0;
 
 static void
-on_manager_ready (GObject *source_object,
-                  GAsyncResult *result, gpointer user_data)
+on_manager_ready (TpConnectionManager *tp_conn_mgr, const GError *error,
+                  gpointer user_data, GObject *weak_object)
 {
-    TpConnectionManager *tp_conn_mgr = TP_CONNECTION_MANAGER (source_object);
-    McdManager *manager = MCD_MANAGER (user_data);
+    McdManager *manager = MCD_MANAGER (weak_object);
     McdManagerPrivate *priv;
-    GError *error = NULL;
-
-    tp_proxy_prepare_finish (tp_conn_mgr, result, &error);
 
     priv = manager->priv;
     DEBUG ("manager %s is ready", priv->name);
     priv->ready = TRUE;
     _mcd_object_ready (manager, readiness_quark, error);
-    g_clear_error (&error);
 }
 
 static gint
@@ -203,7 +198,8 @@ mcd_manager_setup (McdManager *manager)
         goto error;
     }
 
-    tp_proxy_prepare_async (priv->tp_conn_mgr, NULL, on_manager_ready, manager);
+    tp_connection_manager_call_when_ready (priv->tp_conn_mgr, on_manager_ready,
+                                           NULL, NULL, (GObject *)manager);
 
     DEBUG ("Manager %s created", priv->name);
     return TRUE;
