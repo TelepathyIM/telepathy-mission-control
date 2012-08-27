@@ -52,15 +52,12 @@ struct _McdPluginAccountManagerClass {
     GObjectClass parent;
 };
 
-static void storage_iface_init (McdStorageIface *iface,
-    gpointer unused G_GNUC_UNUSED);
-
 static void plugin_iface_init (McpAccountManagerIface *iface,
     gpointer unused G_GNUC_UNUSED);
 
 G_DEFINE_TYPE_WITH_CODE (McdPluginAccountManager, mcd_plugin_account_manager, \
     G_TYPE_OBJECT,
-    G_IMPLEMENT_INTERFACE (MCD_TYPE_STORAGE, storage_iface_init);
+    G_IMPLEMENT_INTERFACE (MCD_TYPE_STORAGE, NULL);
     G_IMPLEMENT_INTERFACE (MCP_TYPE_ACCOUNT_MANAGER, plugin_iface_init))
 
 static void
@@ -354,12 +351,21 @@ _mcd_plugin_account_manager_connect_signal (const gchar *signame,
     }
 }
 
-/* implement the McdStorage interface */
-static void
-_storage_load (McdStorage *self)
+/*
+ * mcd_storage_load:
+ * @storage: An object implementing the #McdStorage interface
+ *
+ * Load the long term account settings storage into our internal cache.
+ * Should only really be called during startup, ie before our DBus names
+ * have been claimed and other people might be relying on responses from us.
+ */
+void
+mcd_storage_load (McdStorage *self)
 {
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
   GList *store = NULL;
+
+  g_return_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (self));
 
   sort_and_cache_plugins ();
 
@@ -392,29 +398,70 @@ _storage_load (McdStorage *self)
     }
 }
 
-static GStrv
-_storage_dup_accounts (McdStorage *storage, gsize *n)
+/*
+ * mcd_storage_dup_accounts:
+ * @storage: An object implementing the #McdStorage interface
+ * @n: place for the number of accounts to be written to (or %NULL)
+ *
+ * Returns: a newly allocated GStrv containing the unique account names,
+ * which must be freed by the caller with g_strfreev().
+ */
+GStrv
+mcd_storage_dup_accounts (McdStorage *storage,
+    gsize *n)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
+
+  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), NULL);
 
   return g_key_file_get_groups (self->keyfile, n);
 }
 
-static GStrv
-_storage_dup_settings (McdStorage *storage, const gchar *account, gsize *n)
+/*
+ * mcd_storage_dup_settings:
+ * @storage: An object implementing the #McdStorage interface
+ * @account: unique name of the account
+ * @n: place for the number of settings to be written to (or %NULL)
+ *
+ * Returns: a newly allocated GStrv containing the names of all the
+ * settings or parameters currently stored for @account. Must be
+ * freed by the caller with g_strfreev().
+ */
+GStrv
+mcd_storage_dup_settings (McdStorage *storage,
+    const gchar *account,
+    gsize *n)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
+
+  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), NULL);
 
   return g_key_file_get_keys (self->keyfile, account, n, NULL);
 }
 
-static McpAccountStorage *
-_storage_get_plugin (McdStorage *storage, const gchar *account)
+/*
+ * mcd_storage_get_plugin:
+ * @storage: An object implementing the #McdStorage interface
+ * @account: unique name of the account
+ *
+ * Returns: the #McpAccountStorage object which is handling the account,
+ * if any (if a new account has not yet been flushed to storage this can
+ * be %NULL).
+ *
+ * Plugins are kept in permanent storage and can never be unloaded, so
+ * the returned pointer need not be reffed or unreffed. (Indeed, it's
+ * probably safer not to)
+ */
+McpAccountStorage *
+mcd_storage_get_plugin (McdStorage *storage, const gchar *account)
 {
   GList *store = stores;
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
   McpAccountStorage *owner = NULL;
+
+  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), NULL);
+  g_return_val_if_fail (account != NULL, NULL);
 
   for (; store != NULL && owner == NULL; store = g_list_next (store))
     {
@@ -427,31 +474,72 @@ _storage_get_plugin (McdStorage *storage, const gchar *account)
   return owner;
 }
 
-static gchar *
-_storage_dup_string (McdStorage *storage,
+/*
+ * mcd_storage_dup_string:
+ * @storage: An object implementing the #McdStorage interface
+ * @account: unique name of the account
+ * @key: name of the setting to be retrieved
+ *
+ * Returns: a newly allocated gchar * which must be freed with g_free().
+ */
+gchar *
+mcd_storage_dup_string (McdStorage *storage,
     const gchar *account,
     const gchar *key)
 {
   gchar *value = NULL;
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
 
+  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), NULL);
+  g_return_val_if_fail (account != NULL, NULL);
+
   value = g_key_file_get_string (self->keyfile, account, key, NULL);
 
   return value;
 }
 
-static gboolean
-_storage_has_value (McdStorage *storage,
+/*
+ * mcd_storage_has_value:
+ * @storage: An object implementing the #McdStorage interface
+ * @account: unique name of the account
+ * @key: name of the setting to be retrieved
+ *
+ * Returns: a #gboolean: %TRUE if the setting is present in the store,
+ * %FALSE otherwise.
+ */
+gboolean
+mcd_storage_has_value (McdStorage *storage,
     const gchar *account,
     const gchar *key)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
 
+  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), FALSE);
+  g_return_val_if_fail (account != NULL, FALSE);
+  g_return_val_if_fail (key != NULL, FALSE);
+
   return g_key_file_has_key (self->keyfile, account, key, NULL);
 }
 
-static GValue *
-_storage_dup_value (McdStorage *storage,
+/*
+ * mcd_storage_dup_value:
+ * @storage: An object implementing the #McdStorage interface
+ * @account: unique name of the account
+ * @key: name of the setting to be retrieved
+ * @type: the type of #GValue to retrieve
+ * @error: a place to store any #GError<!-- -->s that occur
+ *
+ * Returns: a newly allocated #GValue of type @type, whihc should be freed
+ * with tp_g_value_slice_free() or g_slice_free() depending on whether the
+ * the value itself should be freed (the former frees everything, the latter
+ * only the #GValue container.
+ *
+ * If @error is set, but a non-%NULL value was returned, this indicates
+ * that no value for the @key was found for @account, and the default
+ * value for @type has been returned.
+ */
+GValue *
+mcd_storage_dup_value (McdStorage *storage,
     const gchar *account,
     const gchar *key,
     GType type,
@@ -463,7 +551,12 @@ _storage_dup_value (McdStorage *storage,
   guint64 v_uint = 0;
   gboolean v_bool = FALSE;
   double v_double = 0.0;
-  GKeyFile *keyfile = MCD_PLUGIN_ACCOUNT_MANAGER (storage)->keyfile;
+  GKeyFile *keyfile;
+
+  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), NULL);
+  g_return_val_if_fail (account != NULL, NULL);
+
+  keyfile = MCD_PLUGIN_ACCOUNT_MANAGER (storage)->keyfile;
 
   switch (type)
     {
@@ -610,22 +703,44 @@ _storage_dup_value (McdStorage *storage,
   return value;
 }
 
-static gboolean
-_storage_get_boolean (McdStorage *storage,
+/*
+ * mcd_storage_get_boolean:
+ * @storage: An object implementing the #McdStorage interface
+ * @account: unique name of the account
+ * @key: name of the setting to be retrieved
+ *
+ * Returns: a #gboolean. Unset/unparseable values are returned as %FALSE
+ */
+gboolean
+mcd_storage_get_boolean (McdStorage *storage,
     const gchar *account,
     const gchar *key)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
+
+  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), FALSE);
+  g_return_val_if_fail (account != NULL, FALSE);
 
   return g_key_file_get_boolean (self->keyfile, account, key, NULL);
 }
 
-static gint
-_storage_get_integer (McdStorage *storage,
+/*
+ * mcd_storage_get_integer:
+ * @storage: An object implementing the #McdStorage interface
+ * @account: unique name of the account
+ * @key: name of the setting to be retrieved
+ *
+ * Returns: a #gint. Unset or non-numeric values are returned as 0
+ */
+gint
+mcd_storage_get_integer (McdStorage *storage,
     const gchar *account,
     const gchar *key)
 {
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
+
+  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), 0);
+  g_return_val_if_fail (account != NULL, 0);
 
   return g_key_file_get_integer (self->keyfile, account, key, NULL);
 }
@@ -671,8 +786,26 @@ update_storage (McdPluginAccountManager *self,
   g_free (val);
 }
 
-static gboolean
-_storage_set_string (McdStorage *storage,
+/*
+ * mcd_storage_set_string:
+ * @storage: An object implementing the #McdStorage interface
+ * @account: the unique name of an account
+ * @key: the key (name) of the parameter or setting
+ * @value: the value to be stored (or %NULL to erase it)
+ * @secret: whether the value is confidential (might get stored in the
+ * keyring, for example)
+ *
+ * Copies and stores the supplied @value (or removes it if %NULL) to the
+ * internal cache.
+ *
+ * Returns: a #gboolean indicating whether the cache actually required an
+ * update (so that the caller can decide whether to request a commit to
+ * long term storage or not). %TRUE indicates the cache was updated and
+ * may not be in sync with the store any longer, %FALSE indicates we already
+ * held the value supplied.
+ */
+gboolean
+mcd_storage_set_string (McdStorage *storage,
     const gchar *account,
     const gchar *key,
     const gchar *val,
@@ -681,6 +814,10 @@ _storage_set_string (McdStorage *storage,
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
   gboolean updated = FALSE;
   gchar *old = g_key_file_get_string (self->keyfile, account, key, NULL);
+
+  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), FALSE);
+  g_return_val_if_fail (account != NULL, FALSE);
+  g_return_val_if_fail (key != NULL, FALSE);
 
   if (val == NULL)
     g_key_file_remove_key (self->keyfile, account, key, NULL);
@@ -705,16 +842,38 @@ _storage_set_string (McdStorage *storage,
   return updated;
 }
 
-static gboolean
-_storage_set_value (McdStorage *storage,
+/*
+ * mcd_storage_set_value:
+ * @storage: An object implementing the #McdStorage interface
+ * @account: the unique name of an account
+ * @key: the key (name) of the parameter or setting
+ * @value: the value to be stored (or %NULL to erase it)
+ * @secret: whether the value is confidential (might get stored in the
+ * keyring, for example)
+ *
+ * Copies and stores the supplied @value (or removes it if %NULL) to the
+ * internal cache.
+ *
+ * Returns: a #gboolean indicating whether the cache actually required an
+ * update (so that the caller can decide whether to request a commit to
+ * long term storage or not). %TRUE indicates the cache was updated and
+ * may not be in sync with the store any longer, %FALSE indicates we already
+ * held the value supplied.
+ */
+gboolean
+mcd_storage_set_value (McdStorage *storage,
     const gchar *name,
     const gchar *key,
     const GValue *value,
     gboolean secret)
 {
+  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), FALSE);
+  g_return_val_if_fail (name != NULL, FALSE);
+  g_return_val_if_fail (key != NULL, FALSE);
+
   if (value == NULL)
     {
-      return _storage_set_string (storage, name, key, NULL, secret);
+      return mcd_storage_set_string (storage, name, key, NULL, secret);
     }
   else
     {
@@ -819,8 +978,24 @@ _storage_set_value (McdStorage *storage,
     }
 }
 
-static gchar *
-_storage_create_account (McdStorage *storage,
+/*
+ * mcd_storage_create_account:
+ * @storage: An object implementing the #McdStorage interface
+ * @provider: the desired storage provider, or %NULL
+ * @manager: the name of the manager
+ * @protocol: the name of the protocol
+ * @params: A gchar * / GValue * hash table of account parameters
+ * @error: a #GError to fill when returning %NULL
+ *
+ * Create a new account in storage. This should not store any
+ * information on the long term storage until mcd_storage_commit() is called.
+ *
+ * See mcp_account_storage_create().
+ *
+ * Returns: the unique name to use for the new account, or %NULL on error.
+ */
+gchar *
+mcd_storage_create_account (McdStorage *storage,
     const gchar *provider,
     const gchar *manager,
     const gchar *protocol,
@@ -830,6 +1005,10 @@ _storage_create_account (McdStorage *storage,
   GList *store;
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+
+  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), NULL);
+  g_return_val_if_fail (!tp_str_empty (manager), NULL);
+  g_return_val_if_fail (!tp_str_empty (protocol), NULL);
 
   /* If a storage provider is specified, use only it or fail */
   if (provider != NULL)
@@ -910,12 +1089,26 @@ _storage_create_account (McdStorage *storage,
   return NULL;
 }
 
-static void
-_storage_delete_account (McdStorage *storage, const gchar *account)
+
+/*
+ * mcd_storage_delete_account:
+ * @storage: An object implementing the #McdStorage interface
+ * @account: unique name of the account
+ *
+ * Removes an account's settings from long term storage.
+ * This does not handle any of the other logic to do with removing
+ * accounts, it merely ensures that no trace of the account remains
+ * in long term storage once mcd_storage_commit() has been called.
+ */
+void
+mcd_storage_delete_account (McdStorage *storage, const gchar *account)
 {
   GList *store;
   McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+
+  g_return_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage));
+  g_return_if_fail (account != NULL);
 
   g_key_file_remove_group (self->keyfile, account, NULL);
 
@@ -927,11 +1120,21 @@ _storage_delete_account (McdStorage *storage, const gchar *account)
     }
 }
 
-static void
-_storage_commit (McdStorage *self, const gchar *account)
+/*
+ * mcd_storage_commit:
+ * @storage: An object implementing the #McdStorage interface
+ * @account: the unique name of an account
+ *
+ * Sync the long term storage (whatever it might be) with the current
+ * state of our internal cache.
+ */
+void
+mcd_storage_commit (McdStorage *self, const gchar *account)
 {
   GList *store;
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+
+  g_return_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (self));
 
   for (store = stores; store != NULL; store = g_list_next (store))
     {
@@ -965,28 +1168,6 @@ _mcd_plugin_account_manager_ready (McdPluginAccountManager *self)
       DEBUG ("Unblocking async account ops by %s", plugin_name);
       mcp_account_storage_ready (plugin, ma);
     }
-}
-
-static void
-storage_iface_init (McdStorageIface *iface,
-    gpointer unused G_GNUC_UNUSED)
-{
-  iface->load = _storage_load;
-  iface->dup_accounts = _storage_dup_accounts;
-  iface->dup_settings = _storage_dup_settings;
-
-  iface->create_account = _storage_create_account;
-  iface->delete_account = _storage_delete_account;
-  iface->set_string = _storage_set_string;
-  iface->set_value = _storage_set_value;
-  iface->commit = _storage_commit;
-
-  iface->has_value = _storage_has_value;
-  iface->get_storage_plugin = _storage_get_plugin;
-  iface->dup_value = _storage_dup_value;
-  iface->dup_string = _storage_dup_string;
-  iface->get_integer = _storage_get_integer;
-  iface->get_boolean = _storage_get_boolean;
 }
 
 static void

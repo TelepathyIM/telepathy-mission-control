@@ -32,61 +32,6 @@ typedef struct _McdStorageIface McdStorageIface;
 
 struct _McdStorageIface {
   GTypeInterface parent;
-
-  void (*load) (McdStorage *storage);
-
-  GStrv (*dup_accounts) (McdStorage *storage, gsize *n);
-
-  GStrv (*dup_settings) (McdStorage *storage, const gchar *account, gsize *n);
-
-  gboolean (*set_string) (McdStorage *storage,
-      const gchar *account,
-      const gchar *key,
-      const gchar *value,
-      gboolean secret);
-
-  gboolean (*set_value) (McdStorage *storage,
-      const gchar *account,
-      const gchar *key,
-      const GValue *value,
-      gboolean secret);
-
-  gchar * (*create_account) (McdStorage *storage,
-    const gchar *provider,
-    const gchar *manager,
-    const gchar *protocol,
-    GHashTable *params,
-    GError **error);
-
-  void (*delete_account) (McdStorage *storage,
-      const gchar *account);
-
-  void (*commit) (McdStorage *storage, const gchar *account);
-
-  gchar * (*dup_string) (McdStorage *storage,
-    const gchar *account,
-    const gchar *key);
-
-  GValue * (*dup_value) (McdStorage *storage,
-    const gchar *account,
-    const gchar *key,
-    GType type,
-    GError **error);
-
-  gboolean  (*get_boolean) (McdStorage *storage,
-    const gchar *account,
-    const gchar *key);
-
-  gint (*get_integer) (McdStorage *storage,
-    const gchar *account,
-    const gchar *key);
-
-  gboolean (*has_value) (McdStorage *storage,
-      const gchar *account,
-      const gchar *key);
-
-  McpAccountStorage *(*get_storage_plugin) (McdStorage *storage,
-      const gchar *account);
 };
 
 #define MCD_TYPE_STORAGE (mcd_storage_get_type ())
