@@ -77,6 +77,12 @@
 #include "mcd-transport.h"
 #include "plugin-loader.h"
 
+#ifdef G_OS_UNIX
+# ifndef HAVE_UMASK
+#   error On Unix, MC relies on umask() for account privacy
+# endif
+#endif
+
 #define MCD_MASTER_PRIV(master) (G_TYPE_INSTANCE_GET_PRIVATE ((master), \
 				  MCD_TYPE_MASTER, \
 				  McdMasterPrivate))
