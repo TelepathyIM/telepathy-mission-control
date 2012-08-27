@@ -8,6 +8,10 @@ Fixes:
 • If service-activated under both names o.fd.Telepathy.MissionControl5
   and o.fd.Telepathy.AccountManager simultaneously, avoid one or both
   failing to activate due to a race condition (fd.o #53220, Simon)
+• When built for Android, don't use GSettings (fd.o #53497, Simon)
+• Revert the change from 5.12.1 that stopped using deprecated symbols,
+  which wasn't really necessary for a stable branch; ignore deprecation
+  warnings instead. (Simon)
 
 telepathy-mission-control 5.12.1 (2012-07-11)
 =============================================
