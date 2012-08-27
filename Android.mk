@@ -21,7 +21,7 @@ telepathy-mission-control-configure-real:
 	PKG_CONFIG_LIBDIR="$(CONFIGURE_PKG_CONFIG_LIBDIR)" \
 	PKG_CONFIG_TOP_BUILD_DIR=$(PKG_CONFIG_TOP_BUILD_DIR) \
 	$(TELEPATHY_MISSION_CONTROL_TOP)/$(CONFIGURE) --host=arm-linux-androideabi \
-		--disable-gtk-doc && \
+		--disable-gtk-doc --disable-conn-setting && \
 	for file in $(TELEPATHY_MISSION_CONTROL_BUILT_SOURCES); do \
 		rm -f $$file && \
 		make -C $$(dirname $$file) $$(basename $$file) ; \

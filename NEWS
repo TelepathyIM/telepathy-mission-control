@@ -17,6 +17,7 @@ Fixes:
 • If service-activated under both names o.fd.Telepathy.MissionControl5
   and o.fd.Telepathy.AccountManager simultaneously, avoid one or both
   failing to activate due to a race condition (fd.o #53220, Simon)
+• When built for Android, don't use GSettings (fd.o #53497, Simon)
 
 telepathy-mission-control 5.13.0 (2012-07-23)
 =============================================
