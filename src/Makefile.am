@@ -159,7 +159,6 @@ libmcd_convenience_la_SOURCES = \
 	mcd-slacker.c \
 	mcd-slacker.h \
 	mcd-transport.c \
-	mcd-storage.c \
 	mcd-storage.h \
 	plugin-dispatch-operation.c \
 	plugin-dispatch-operation.h \
@@ -168,7 +167,6 @@ libmcd_convenience_la_SOURCES = \
 	plugin-request.c \
 	plugin-request.h \
 	plugin-account.c \
-	plugin-account.h \
 	request.c \
 	request.h \
 	sp_timestamp.h \

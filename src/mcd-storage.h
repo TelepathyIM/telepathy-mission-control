@@ -27,25 +27,42 @@
 
 G_BEGIN_DECLS
 
-typedef struct _McdStorage McdStorage;
-typedef struct _McdStorageIface McdStorageIface;
+typedef struct {
+  GObject parent;
+  TpDBusDaemon *dbusd;
+  GKeyFile *keyfile;
+  GKeyFile *secrets;
+} McdStorage;
 
-struct _McdStorageIface {
-  GTypeInterface parent;
-};
+typedef struct _McdStorageClass McdStorageClass;
+typedef struct _McdStoragePrivate McdStoragePrivate;
 
 #define MCD_TYPE_STORAGE (mcd_storage_get_type ())
 
 #define MCD_STORAGE(o) \
   (G_TYPE_CHECK_INSTANCE_CAST ((o), MCD_TYPE_STORAGE, McdStorage))
 
+#define MCD_STORAGE_CLASS(cls) \
+  (G_TYPE_CHECK_CLASS_CAST ((cls), MCD_TYPE_STORAGE, McdStorageClass))
+
 #define MCD_IS_STORAGE(o) \
   (G_TYPE_CHECK_INSTANCE_TYPE ((o), MCD_TYPE_STORAGE))
 
-#define MCD_STORAGE_GET_IFACE(o) \
-  (G_TYPE_INSTANCE_GET_INTERFACE ((o), MCD_TYPE_STORAGE, McdStorageIface))
+#define MCD_IS_STORAGE_CLASS(cls) \
+  (G_TYPE_CHECK_CLASS_TYPE ((cls), MCD_TYPE_STORAGE))
+
+#define MCD_STORAGE_GET_CLASS(o) \
+  (G_TYPE_INSTANCE_GET_CLASS ((o), MCD_TYPE_STORAGE, McdStorageClass))
 
 GType mcd_storage_get_type (void);
+
+McdStorage *mcd_storage_new (void);
+void mcd_storage_set_dbus_daemon (McdStorage *self,
+    TpDBusDaemon *dbusd);
+void mcd_storage_ready (McdStorage *self);
+void mcd_storage_connect_signal (const gchar *signal,
+    GCallback func,
+    gpointer user_data);
 
 void mcd_storage_load (McdStorage *storage);
 

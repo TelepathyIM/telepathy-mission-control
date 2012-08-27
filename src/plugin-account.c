@@ -21,9 +21,12 @@
  *
  */
 #include "config.h"
+#include "mcd-storage.h"
 
+#include "mcd-account.h"
+#include "mcd-account-config.h"
+#include "mcd-debug.h"
 #include "plugin-loader.h"
-#include "plugin-account.h"
 
 #include <string.h>
 
@@ -48,31 +51,30 @@ enum {
   PROP_DBUS_DAEMON = 1,
 };
 
-struct _McdPluginAccountManagerClass {
+struct _McdStorageClass {
     GObjectClass parent;
 };
 
 static void plugin_iface_init (McpAccountManagerIface *iface,
     gpointer unused G_GNUC_UNUSED);
 
-G_DEFINE_TYPE_WITH_CODE (McdPluginAccountManager, mcd_plugin_account_manager, \
+G_DEFINE_TYPE_WITH_CODE (McdStorage, mcd_storage,
     G_TYPE_OBJECT,
-    G_IMPLEMENT_INTERFACE (MCD_TYPE_STORAGE, NULL);
     G_IMPLEMENT_INTERFACE (MCP_TYPE_ACCOUNT_MANAGER, plugin_iface_init))
 
 static void
-mcd_plugin_account_manager_init (McdPluginAccountManager *self)
+mcd_storage_init (McdStorage *self)
 {
   self->keyfile = g_key_file_new ();
   self->secrets = g_key_file_new ();
 }
 
 static void
-plugin_account_manager_finalize (GObject *object)
+storage_finalize (GObject *object)
 {
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (object);
+  McdStorage *self = MCD_STORAGE (object);
   GObjectFinalizeFunc finalize =
-    G_OBJECT_CLASS (mcd_plugin_account_manager_parent_class)->finalize;
+    G_OBJECT_CLASS (mcd_storage_parent_class)->finalize;
 
   g_key_file_free (self->keyfile);
   g_key_file_free (self->secrets);
@@ -84,11 +86,11 @@ plugin_account_manager_finalize (GObject *object)
 }
 
 static void
-plugin_account_manager_dispose (GObject *object)
+storage_dispose (GObject *object)
 {
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (object);
+  McdStorage *self = MCD_STORAGE (object);
   GObjectFinalizeFunc dispose =
-    G_OBJECT_CLASS (mcd_plugin_account_manager_parent_class)->dispose;
+    G_OBJECT_CLASS (mcd_storage_parent_class)->dispose;
 
   tp_clear_object (&self->dbusd);
 
@@ -97,10 +99,10 @@ plugin_account_manager_dispose (GObject *object)
 }
 
 static void
-plugin_account_manager_set_property (GObject *obj, guint prop_id,
+storage_set_property (GObject *obj, guint prop_id,
 	      const GValue *val, GParamSpec *pspec)
 {
-    McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (obj);
+    McdStorage *self = MCD_STORAGE (obj);
 
     switch (prop_id)
     {
@@ -116,10 +118,10 @@ plugin_account_manager_set_property (GObject *obj, guint prop_id,
 }
 
 static void
-plugin_account_manager_get_property (GObject *obj, guint prop_id,
+storage_get_property (GObject *obj, guint prop_id,
 	      GValue *val, GParamSpec *pspec)
 {
-    McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (obj);
+    McdStorage *self = MCD_STORAGE (obj);
 
     switch (prop_id)
     {
@@ -133,7 +135,7 @@ plugin_account_manager_get_property (GObject *obj, guint prop_id,
 }
 
 static void
-mcd_plugin_account_manager_class_init (McdPluginAccountManagerClass *cls)
+mcd_storage_class_init (McdStorageClass *cls)
 {
   GObjectClass *object_class = (GObjectClass *) cls;
   GParamSpec *spec = g_param_spec_object ("dbus-daemon",
@@ -142,23 +144,23 @@ mcd_plugin_account_manager_class_init (McdPluginAccountManagerClass *cls)
       TP_TYPE_DBUS_DAEMON,
       G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  object_class->set_property = plugin_account_manager_set_property;
-  object_class->get_property = plugin_account_manager_get_property;
-  object_class->dispose = plugin_account_manager_dispose;
-  object_class->finalize = plugin_account_manager_finalize;
+  object_class->set_property = storage_set_property;
+  object_class->get_property = storage_get_property;
+  object_class->dispose = storage_dispose;
+  object_class->finalize = storage_finalize;
 
   g_object_class_install_property (object_class, PROP_DBUS_DAEMON, spec);
 }
 
-McdPluginAccountManager *
-mcd_plugin_account_manager_new ()
+McdStorage *
+mcd_storage_new ()
 {
-  return g_object_new (MCD_TYPE_PLUGIN_ACCOUNT_MANAGER,
+  return g_object_new (MCD_TYPE_STORAGE,
       NULL);
 }
 
 void
-_mcd_plugin_account_manager_set_dbus_daemon (McdPluginAccountManager *self,
+mcd_storage_set_dbus_daemon (McdStorage *self,
     TpDBusDaemon *dbusd)
 {
   GValue value = { 0 };
@@ -174,7 +176,7 @@ get_value (const McpAccountManager *ma,
     const gchar *account,
     const gchar *key)
 {
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
+  McdStorage *self = MCD_STORAGE (ma);
   return g_key_file_get_value (self->keyfile, account, key, NULL);
 }
 
@@ -184,7 +186,7 @@ set_value (const McpAccountManager *ma,
     const gchar *key,
     const gchar *value)
 {
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
+  McdStorage *self = MCD_STORAGE (ma);
 
   if (value != NULL)
     g_key_file_set_value (self->keyfile, account, key, value);
@@ -196,7 +198,7 @@ static GStrv
 list_keys (const McpAccountManager *ma,
            const gchar * account)
 {
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
+  McdStorage *self = MCD_STORAGE (ma);
 
   return g_key_file_get_keys (self->keyfile, account, NULL, NULL);
 }
@@ -206,7 +208,7 @@ is_secret (const McpAccountManager *ma,
     const gchar *account,
     const gchar *key)
 {
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
+  McdStorage *self = MCD_STORAGE (ma);
 
   return g_key_file_get_boolean (self->secrets, account, key, NULL);
 }
@@ -216,7 +218,7 @@ make_secret (const McpAccountManager *ma,
     const gchar *account,
     const gchar *key)
 {
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
+  McdStorage *self = MCD_STORAGE (ma);
   DEBUG ("flagging %s.%s as secret", account, key);
   g_key_file_set_boolean (self->secrets, account, key, TRUE);
 }
@@ -227,7 +229,7 @@ unique_name (const McpAccountManager *ma,
     const gchar *protocol,
     const GHashTable *params)
 {
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (ma);
+  McdStorage *self = MCD_STORAGE (ma);
   const gchar *base = NULL;
   gchar *esc_manager, *esc_protocol, *esc_base;
   guint i;
@@ -335,7 +337,7 @@ sort_and_cache_plugins ()
 }
 
 void
-_mcd_plugin_account_manager_connect_signal (const gchar *signame,
+mcd_storage_connect_signal (const gchar *signame,
     GCallback func,
     gpointer user_data)
 {
@@ -365,7 +367,7 @@ mcd_storage_load (McdStorage *self)
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
   GList *store = NULL;
 
-  g_return_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (self));
+  g_return_if_fail (MCD_IS_STORAGE (self));
 
   sort_and_cache_plugins ();
 
@@ -407,12 +409,10 @@ mcd_storage_load (McdStorage *self)
  * which must be freed by the caller with g_strfreev().
  */
 GStrv
-mcd_storage_dup_accounts (McdStorage *storage,
+mcd_storage_dup_accounts (McdStorage *self,
     gsize *n)
 {
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
-
-  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), NULL);
+  g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
 
   return g_key_file_get_groups (self->keyfile, n);
 }
@@ -428,13 +428,11 @@ mcd_storage_dup_accounts (McdStorage *storage,
  * freed by the caller with g_strfreev().
  */
 GStrv
-mcd_storage_dup_settings (McdStorage *storage,
+mcd_storage_dup_settings (McdStorage *self,
     const gchar *account,
     gsize *n)
 {
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
-
-  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), NULL);
+  g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
 
   return g_key_file_get_keys (self->keyfile, account, n, NULL);
 }
@@ -453,14 +451,14 @@ mcd_storage_dup_settings (McdStorage *storage,
  * probably safer not to)
  */
 McpAccountStorage *
-mcd_storage_get_plugin (McdStorage *storage, const gchar *account)
+mcd_storage_get_plugin (McdStorage *self,
+    const gchar *account)
 {
   GList *store = stores;
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
   McpAccountStorage *owner = NULL;
 
-  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), NULL);
+  g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
   g_return_val_if_fail (account != NULL, NULL);
 
   for (; store != NULL && owner == NULL; store = g_list_next (store))
@@ -483,14 +481,13 @@ mcd_storage_get_plugin (McdStorage *storage, const gchar *account)
  * Returns: a newly allocated gchar * which must be freed with g_free().
  */
 gchar *
-mcd_storage_dup_string (McdStorage *storage,
+mcd_storage_dup_string (McdStorage *self,
     const gchar *account,
     const gchar *key)
 {
   gchar *value = NULL;
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
 
-  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), NULL);
+  g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
   g_return_val_if_fail (account != NULL, NULL);
 
   value = g_key_file_get_string (self->keyfile, account, key, NULL);
@@ -508,13 +505,11 @@ mcd_storage_dup_string (McdStorage *storage,
  * %FALSE otherwise.
  */
 gboolean
-mcd_storage_has_value (McdStorage *storage,
+mcd_storage_has_value (McdStorage *self,
     const gchar *account,
     const gchar *key)
 {
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
-
-  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), FALSE);
+  g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
   g_return_val_if_fail (key != NULL, FALSE);
 
@@ -539,7 +534,7 @@ mcd_storage_has_value (McdStorage *storage,
  * value for @type has been returned.
  */
 GValue *
-mcd_storage_dup_value (McdStorage *storage,
+mcd_storage_dup_value (McdStorage *self,
     const gchar *account,
     const gchar *key,
     GType type,
@@ -551,32 +546,29 @@ mcd_storage_dup_value (McdStorage *storage,
   guint64 v_uint = 0;
   gboolean v_bool = FALSE;
   double v_double = 0.0;
-  GKeyFile *keyfile;
 
-  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), NULL);
+  g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
   g_return_val_if_fail (account != NULL, NULL);
-
-  keyfile = MCD_PLUGIN_ACCOUNT_MANAGER (storage)->keyfile;
 
   switch (type)
     {
       case G_TYPE_STRING:
-        v_string = g_key_file_get_string (keyfile, account, key, error);
+        v_string = g_key_file_get_string (self->keyfile, account, key, error);
         value = tp_g_value_slice_new_take_string (v_string);
         break;
 
       case G_TYPE_INT:
-        v_int = g_key_file_get_integer (keyfile, account, key, error);
+        v_int = g_key_file_get_integer (self->keyfile, account, key, error);
         value = tp_g_value_slice_new_int (v_int);
         break;
 
       case G_TYPE_INT64:
-        v_int = tp_g_key_file_get_int64 (keyfile, account, key, error);
+        v_int = tp_g_key_file_get_int64 (self->keyfile, account, key, error);
         value = tp_g_value_slice_new_int64 (v_int);
         break;
 
       case G_TYPE_UINT:
-        v_uint = tp_g_key_file_get_uint64 (keyfile, account, key, error);
+        v_uint = tp_g_key_file_get_uint64 (self->keyfile, account, key, error);
 
         if (v_uint > 0xFFFFFFFFU)
           g_set_error (error, MCD_ACCOUNT_ERROR,
@@ -587,7 +579,7 @@ mcd_storage_dup_value (McdStorage *storage,
         break;
 
     case G_TYPE_UCHAR:
-        v_int = g_key_file_get_integer (keyfile, account, key, error);
+        v_int = g_key_file_get_integer (self->keyfile, account, key, error);
 
         if (v_int < 0 || v_int > 0xFF)
           {
@@ -603,31 +595,32 @@ mcd_storage_dup_value (McdStorage *storage,
         break;
 
       case G_TYPE_UINT64:
-        v_uint = tp_g_key_file_get_uint64 (keyfile, account, key, error);
+        v_uint = tp_g_key_file_get_uint64 (self->keyfile, account, key, error);
         value = tp_g_value_slice_new_uint64 (v_uint);
         break;
 
       case G_TYPE_BOOLEAN:
-        v_bool = g_key_file_get_boolean (keyfile, account, key, error);
+        v_bool = g_key_file_get_boolean (self->keyfile, account, key, error);
         value = tp_g_value_slice_new_boolean (v_bool);
         break;
 
       case G_TYPE_DOUBLE:
-        v_double = g_key_file_get_double (keyfile, account, key, error);
+        v_double = g_key_file_get_double (self->keyfile, account, key, error);
         value = tp_g_value_slice_new_double (v_double);
         break;
 
       default:
         if (type == G_TYPE_STRV)
           {
-            gchar **v =
-              g_key_file_get_string_list (keyfile, account, key, NULL, error);
+            gchar **v = g_key_file_get_string_list (self->keyfile, account,
+                key, NULL, error);
 
             value = tp_g_value_slice_new_take_boxed (G_TYPE_STRV, v);
           }
         else if (type == DBUS_TYPE_G_OBJECT_PATH)
           {
-            v_string = g_key_file_get_string (keyfile, account, key, NULL);
+            v_string = g_key_file_get_string (self->keyfile, account, key,
+                NULL);
 
             if (v_string == NULL)
               {
@@ -649,8 +642,8 @@ mcd_storage_dup_value (McdStorage *storage,
           }
         else if (type == TP_ARRAY_TYPE_OBJECT_PATH_LIST)
           {
-            gchar **v =
-              g_key_file_get_string_list (keyfile, account, key, NULL, error);
+            gchar **v = g_key_file_get_string_list (self->keyfile, account,
+                key, NULL, error);
             gchar **iter;
             GPtrArray *arr = g_ptr_array_new ();
 
@@ -712,13 +705,11 @@ mcd_storage_dup_value (McdStorage *storage,
  * Returns: a #gboolean. Unset/unparseable values are returned as %FALSE
  */
 gboolean
-mcd_storage_get_boolean (McdStorage *storage,
+mcd_storage_get_boolean (McdStorage *self,
     const gchar *account,
     const gchar *key)
 {
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
-
-  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), FALSE);
+  g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
 
   return g_key_file_get_boolean (self->keyfile, account, key, NULL);
@@ -733,20 +724,18 @@ mcd_storage_get_boolean (McdStorage *storage,
  * Returns: a #gint. Unset or non-numeric values are returned as 0
  */
 gint
-mcd_storage_get_integer (McdStorage *storage,
+mcd_storage_get_integer (McdStorage *self,
     const gchar *account,
     const gchar *key)
 {
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
-
-  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), 0);
+  g_return_val_if_fail (MCD_IS_STORAGE (self), 0);
   g_return_val_if_fail (account != NULL, 0);
 
   return g_key_file_get_integer (self->keyfile, account, key, NULL);
 }
 
 static void
-update_storage (McdPluginAccountManager *self,
+update_storage (McdStorage *self,
     const gchar *account,
     const gchar *key)
 {
@@ -805,17 +794,16 @@ update_storage (McdPluginAccountManager *self,
  * held the value supplied.
  */
 gboolean
-mcd_storage_set_string (McdStorage *storage,
+mcd_storage_set_string (McdStorage *self,
     const gchar *account,
     const gchar *key,
     const gchar *val,
     gboolean secret)
 {
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
   gboolean updated = FALSE;
   gchar *old = g_key_file_get_string (self->keyfile, account, key, NULL);
 
-  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), FALSE);
+  g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
   g_return_val_if_fail (key != NULL, FALSE);
 
@@ -861,23 +849,22 @@ mcd_storage_set_string (McdStorage *storage,
  * held the value supplied.
  */
 gboolean
-mcd_storage_set_value (McdStorage *storage,
+mcd_storage_set_value (McdStorage *self,
     const gchar *name,
     const gchar *key,
     const GValue *value,
     gboolean secret)
 {
-  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), FALSE);
+  g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (name != NULL, FALSE);
   g_return_val_if_fail (key != NULL, FALSE);
 
   if (value == NULL)
     {
-      return mcd_storage_set_string (storage, name, key, NULL, secret);
+      return mcd_storage_set_string (self, name, key, NULL, secret);
     }
   else
     {
-      McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
       gboolean updated = FALSE;
       gchar *old = g_key_file_get_value (self->keyfile, name, key, NULL);
       gchar *new = NULL;
@@ -995,7 +982,7 @@ mcd_storage_set_value (McdStorage *storage,
  * Returns: the unique name to use for the new account, or %NULL on error.
  */
 gchar *
-mcd_storage_create_account (McdStorage *storage,
+mcd_storage_create_account (McdStorage *self,
     const gchar *provider,
     const gchar *manager,
     const gchar *protocol,
@@ -1003,10 +990,9 @@ mcd_storage_create_account (McdStorage *storage,
     GError **error)
 {
   GList *store;
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
 
-  g_return_val_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage), NULL);
+  g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
   g_return_val_if_fail (!tp_str_empty (manager), NULL);
   g_return_val_if_fail (!tp_str_empty (protocol), NULL);
 
@@ -1101,13 +1087,13 @@ mcd_storage_create_account (McdStorage *storage,
  * in long term storage once mcd_storage_commit() has been called.
  */
 void
-mcd_storage_delete_account (McdStorage *storage, const gchar *account)
+mcd_storage_delete_account (McdStorage *self,
+    const gchar *account)
 {
   GList *store;
-  McdPluginAccountManager *self = MCD_PLUGIN_ACCOUNT_MANAGER (storage);
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
 
-  g_return_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (storage));
+  g_return_if_fail (MCD_IS_STORAGE (self));
   g_return_if_fail (account != NULL);
 
   g_key_file_remove_group (self->keyfile, account, NULL);
@@ -1134,7 +1120,7 @@ mcd_storage_commit (McdStorage *self, const gchar *account)
   GList *store;
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
 
-  g_return_if_fail (MCD_IS_PLUGIN_ACCOUNT_MANAGER (self));
+  g_return_if_fail (MCD_IS_STORAGE (self));
 
   for (store = stores; store != NULL; store = g_list_next (store))
     {
@@ -1154,8 +1140,48 @@ mcd_storage_commit (McdStorage *self, const gchar *account)
     }
 }
 
+/*
+ * mcd_storage_set_strv:
+ * @storage: An object implementing the #McdStorage interface
+ * @account: the unique name of an account
+ * @key: the key (name) of the parameter or setting
+ * @strv: the string vector to be stored (where %NULL is treated as equivalent
+ * to an empty vector)
+ * @secret: whether the value is confidential (might get stored in the
+ * keyring, for example)
+ *
+ * Copies and stores the supplied string vector to the internal cache.
+ *
+ * Returns: a #gboolean indicating whether the cache actually required an
+ * update (so that the caller can decide whether to request a commit to
+ * long term storage or not). %TRUE indicates the cache was updated and
+ * may not be in sync with the store any longer, %FALSE indicates we already
+ * held the value supplied.
+ */
+gboolean
+mcd_storage_set_strv (McdStorage *storage,
+    const gchar *account,
+    const gchar *key,
+    const gchar * const *strv,
+    gboolean secret)
+{
+  GValue v = { 0, };
+  static const gchar * const *empty = { NULL };
+  gboolean ret;
+
+  g_return_val_if_fail (MCD_IS_STORAGE (storage), FALSE);
+  g_return_val_if_fail (account != NULL, FALSE);
+  g_return_val_if_fail (key != NULL, FALSE);
+
+  g_value_init (&v, G_TYPE_STRV);
+  g_value_set_static_boxed (&v, strv == NULL ? empty : strv);
+  ret = mcd_storage_set_value (storage, account, key, &v, secret);
+  g_value_unset (&v);
+  return ret;
+}
+
 void
-_mcd_plugin_account_manager_ready (McdPluginAccountManager *self)
+mcd_storage_ready (McdStorage *self)
 {
   GList *store;
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
