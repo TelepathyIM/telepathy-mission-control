@@ -721,6 +721,7 @@ command_show (TpAccount *account)
     struct presence automatic, current, requested;
     const gchar * const *schemes;
     const gchar *storage_provider;
+    const gchar * const *supersedes;
 
     show ("Account", tp_account_get_path_suffix (account));
     show ("Display Name", tp_account_get_display_name (account));
@@ -791,6 +792,15 @@ command_show (TpAccount *account)
         storage_restrictions = dup_storage_restrictions (account);
         show ("Restrictions", storage_restrictions);
         g_free (storage_restrictions);
+      }
+
+    supersedes = tp_account_get_supersedes (account);
+    if (supersedes != NULL && supersedes[0] != NULL)
+      {
+        puts ("");
+        puts ("Supersedes:");
+        for (; *supersedes != NULL; supersedes++)
+          printf ("  %s\n", *supersedes + strlen (TP_ACCOUNT_OBJECT_PATH_BASE));
       }
 
     puts ("");
