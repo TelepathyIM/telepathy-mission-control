@@ -3,12 +3,14 @@ telepathy-mission-control 5.13.1 (UNRELEASED)
 
 Changes:
 
+• On Unix platforms, umask() is now required. (Simon)
 • If a connection manager announces two or more channels in the same
   NewChannels signal, behave as if it had announced each channel
   separately. Simplify things that previously had to cope with
   multiple channels at a time. (fd.o #52305, Simon)
-• Improve mc-tool: display Account.Storage settings, add "dump" subcommand
-  (fd.o #53202, Guillaume)
+• Improve mc-tool: display Account.Storage settings, add Supersedes,
+  add "dump" subcommand (fd.o #53202; Guillaume, Xavier)
+• More internal reorganisation (fd.o #54151, Simon)
 
 Fixes:
 
