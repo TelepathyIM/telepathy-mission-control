@@ -97,7 +97,6 @@ typedef struct _McdMasterPrivate
     /* We create this for our member objects */
     TpDBusDaemon *dbus_daemon;
 
-    GPtrArray *mcd_plugins;
     GPtrArray *transport_plugins;
     GList *account_connections;
 
