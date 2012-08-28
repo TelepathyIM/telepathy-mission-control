@@ -153,22 +153,11 @@ mcd_storage_class_init (McdStorageClass *cls)
 }
 
 McdStorage *
-mcd_storage_new ()
+mcd_storage_new (TpDBusDaemon *dbus_daemon)
 {
   return g_object_new (MCD_TYPE_STORAGE,
+      "dbus-daemon", dbus_daemon,
       NULL);
-}
-
-void
-mcd_storage_set_dbus_daemon (McdStorage *self,
-    TpDBusDaemon *dbusd)
-{
-  GValue value = { 0 };
-
-  g_value_init (&value, G_TYPE_OBJECT);
-  g_value_take_object (&value, dbusd);
-
-  g_object_set_property (G_OBJECT (self), "dbus-daemon", &value);
 }
 
 static gchar *

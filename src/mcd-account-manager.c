@@ -1622,6 +1622,18 @@ static void
 mcd_account_manager_init (McdAccountManager *account_manager)
 {
     McdAccountManagerPrivate *priv;
+
+    priv = G_TYPE_INSTANCE_GET_PRIVATE ((account_manager),
+					MCD_TYPE_ACCOUNT_MANAGER,
+					McdAccountManagerPrivate);
+    account_manager->priv = priv;
+}
+
+static void
+_mcd_account_manager_constructed (GObject *obj)
+{
+    McdAccountManager *account_manager = MCD_ACCOUNT_MANAGER (obj);
+    McdAccountManagerPrivate *priv = account_manager->priv;
     guint i = 0;
     static struct { const gchar *name; GCallback handler; } sig[] =
       { { "created", G_CALLBACK (created_cb) },
@@ -1634,12 +1646,7 @@ mcd_account_manager_init (McdAccountManager *account_manager)
 
     DEBUG ("");
 
-    priv = G_TYPE_INSTANCE_GET_PRIVATE ((account_manager),
-					MCD_TYPE_ACCOUNT_MANAGER,
-					McdAccountManagerPrivate);
-    account_manager->priv = priv;
-
-    priv->storage = mcd_storage_new ();
+    priv->storage = mcd_storage_new (priv->dbus_daemon);
     priv->accounts = g_hash_table_new_full (g_str_hash, g_str_equal,
                                             NULL, unref_account);
 
@@ -1660,19 +1667,6 @@ mcd_account_manager_init (McdAccountManager *account_manager)
 
     /* initializes the interfaces */
     mcd_dbus_init_interfaces_instances (account_manager);
-}
-
-static void
-_mcd_account_manager_constructed (GObject *obj)
-{
-    McdAccountManager *manager = MCD_ACCOUNT_MANAGER (obj);
-    McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (manager);
-
-    /* FIXME: I'm pretty sure we should just move most of the above code out of
-     * _init() to here and then mcd_plugin_account_manager_new() could take the
-     * TpDBusDaemon * as it should and everyone wins.
-     */
-    mcd_storage_set_dbus_daemon (priv->storage, priv->dbus_daemon);
 }
 
 McdAccountManager *

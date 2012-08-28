@@ -56,9 +56,7 @@ typedef struct _McdStoragePrivate McdStoragePrivate;
 
 GType mcd_storage_get_type (void);
 
-McdStorage *mcd_storage_new (void);
-void mcd_storage_set_dbus_daemon (McdStorage *self,
-    TpDBusDaemon *dbusd);
+McdStorage *mcd_storage_new (TpDBusDaemon *dbus_daemon);
 void mcd_storage_ready (McdStorage *self);
 void mcd_storage_connect_signal (const gchar *signal,
     GCallback func,
