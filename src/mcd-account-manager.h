@@ -56,14 +56,6 @@ struct _McdAccountManager
 struct _McdAccountManagerClass
 {
     GObjectClass parent_class;
-    McdAccount *(*account_new) (McdAccountManager *account_manager,
-                                const gchar *name);
-    void (*_mc_reserved2) (void);
-    void (*_mc_reserved3) (void);
-    void (*_mc_reserved4) (void);
-    void (*_mc_reserved5) (void);
-    void (*_mc_reserved6) (void);
-    void (*_mc_reserved7) (void);
 };
 
 GType mcd_account_manager_get_type (void);

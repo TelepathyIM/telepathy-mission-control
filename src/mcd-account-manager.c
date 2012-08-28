@@ -326,7 +326,6 @@ created_cb (GObject *storage_plugin_obj,
     McpAccountStorage *plugin = MCP_ACCOUNT_STORAGE (storage_plugin_obj);
     McdAccountManager *am = MCD_ACCOUNT_MANAGER (data);
     McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (am);
-    McdAccountManagerClass *mclass = MCD_ACCOUNT_MANAGER_GET_CLASS (am);
     McdLoadAccountsData *lad = g_slice_new (McdLoadAccountsData);
     McdAccount *account = NULL;
     McdStorage *storage = priv->storage;
@@ -342,7 +341,7 @@ created_cb (GObject *storage_plugin_obj,
     if (mcp_account_storage_get (plugin, MCP_ACCOUNT_MANAGER (storage),
                                  name, NULL))
     {
-        account = mclass->account_new (am, name);
+        account = mcd_account_new (am, name);
         lad->account = account;
     }
     else
@@ -604,12 +603,6 @@ list_connection_names_cb (const gchar * const *names, gsize n,
         }
     }
     g_free (contents);
-}
-
-static McdAccount *
-account_new (McdAccountManager *account_manager, const gchar *name)
-{
-    return mcd_account_new (account_manager, name);
 }
 
 static void
@@ -924,8 +917,7 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
                                 MC_ACCOUNTS_KEY_DISPLAY_NAME, display_name,
                                 FALSE);
 
-    account = MCD_ACCOUNT_MANAGER_GET_CLASS (account_manager)->account_new
-        (account_manager, unique_name);
+    account = mcd_account_new (account_manager, unique_name);
     g_free (unique_name);
 
     if (G_LIKELY (account))
@@ -1440,8 +1432,7 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
             continue;
         }
 
-        account = MCD_ACCOUNT_MANAGER_GET_CLASS (account_manager)->account_new
-            (account_manager, *name);
+        account = mcd_account_new (account_manager, *name);
 
         if (G_UNLIKELY (!account))
         {
@@ -1590,8 +1581,6 @@ mcd_account_manager_class_init (McdAccountManagerClass *klass)
     object_class->set_property = set_property;
     object_class->get_property = get_property;
     object_class->constructed = _mcd_account_manager_constructed;
-
-    klass->account_new = account_new;
 
     g_object_class_install_property
         (object_class, PROP_DBUS_DAEMON,
