@@ -40,7 +40,6 @@ _mcd_tp_channel_should_close (TpChannel *channel,
 {
     const GError *invalidated;
     const gchar *object_path;
-    GQuark channel_type;
 
     if (channel == NULL)
     {
@@ -60,20 +59,8 @@ _mcd_tp_channel_should_close (TpChannel *channel,
         return FALSE;
     }
 
-    channel_type = tp_channel_get_channel_type_id (channel);
-
-    if (channel_type == TP_IFACE_QUARK_CHANNEL_TYPE_CONTACT_LIST)
-    {
-        DEBUG ("Not %s %p:%s, it's a ContactList", verb, channel, object_path);
-        return FALSE;
-    }
-
-    if (channel_type == TP_IFACE_QUARK_CHANNEL_TYPE_TUBES)
-    {
-        DEBUG ("Not %s %p:%s, it's an old Tubes channel", verb, channel,
-               object_path);
-        return FALSE;
-    }
+    /* we used to special case ContactList and Tubes channels here and
+     * never close them automatically, but no longer! */
 
     return TRUE;
 }
