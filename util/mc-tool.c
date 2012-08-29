@@ -32,6 +32,7 @@
 #include <glib-object.h>
 
 #include <telepathy-glib/telepathy-glib.h>
+#include <telepathy-glib/telepathy-glib-dbus.h>
 
 static gchar *app_name;
 static GMainLoop *main_loop;
