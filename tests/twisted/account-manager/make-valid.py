@@ -156,7 +156,7 @@ def test(q, bus, unused):
             interface=cs.tp_name_prefix + '.ConnectionManager',
             handled=False)
 
-    conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
+    conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', 'account1',
             'myself', has_presence=True)
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
@@ -208,7 +208,7 @@ def test(q, bus, unused):
             interface=cs.tp_name_prefix + '.ConnectionManager',
             handled=False)
 
-    conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
+    conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', 'account2',
             'myself', has_presence=True)
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
