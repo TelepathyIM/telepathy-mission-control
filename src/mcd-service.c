@@ -166,19 +166,17 @@ McdService *
 mcd_service_new (void)
 {
     McdService *obj;
-    DBusGConnection *dbus_connection;
     TpDBusDaemon *dbus_daemon;
     GError *error = NULL;
 
     /* Initialize DBus connection */
-    dbus_connection = dbus_g_bus_get (DBUS_BUS_STARTER, &error);
-    if (dbus_connection == NULL)
+    dbus_daemon = tp_dbus_daemon_dup (&error);
+    if (dbus_daemon == NULL)
     {
 	g_printerr ("Failed to open connection to bus: %s", error->message);
 	g_error_free (error);
 	return NULL;
     }
-    dbus_daemon = tp_dbus_daemon_new (dbus_connection);
     obj = g_object_new (MCD_TYPE_SERVICE,
 			"dbus-daemon", dbus_daemon,
 			NULL);
