@@ -25,7 +25,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async
+        call_async, assertEquals
 from mctest import (
     exec_test, create_fakecm_account, get_fakecm_account, connect_to_mc,
     keyfile_read, tell_mc_to_die, resuscitate_mc
@@ -55,9 +55,11 @@ def remove_keyring(name):
 
     os.system('../keyring-command remove ' + name)
 
-def account_store(op, backend, key=None, value=None):
-    cmd = [ '../account-store', op, backend,
-        'fakecm/fakeprotocol/dontdivert_40example_2ecom0' ]
+# This doesn't escape its parameters before passing them to the shell,
+# so be careful.
+def account_store(op, backend, key=None, value=None,
+        account='fakecm/fakeprotocol/dontdivert_40example_2ecom0'):
+    cmd = [ '../account-store', op, backend, account ]
     if key:
         cmd.append(key)
         if value:
@@ -173,7 +175,7 @@ def test(q, bus, mc):
     assert pwd == params['password'], pwd
 
     # If we're using GNOME keyring, the password should not be in the
-    # password file
+    # keyfile
     if use_keyring:
         assert 'param-password' not in kf[group]
     else:
@@ -205,6 +207,60 @@ def test(q, bus, mc):
     kf = keyfile_read(key_file_name)
     assert group not in kf, kf
 
+    if use_keyring:
+        # the password has been deleted from the keyring too
+        pwd = account_store('get', 'default', 'param-password')
+        assertEquals(None, pwd)
+
+    # Tell MC to die, again
+    tell_mc_to_die(q, bus)
+
+    # Write out account configurations in which the password is in
+    # both the keyfile and the keyring
+
+    account_store('set', 'default', 'param-password', 'password_in_keyring')
+    open(ctl_dir + '/accounts.cfg', 'w').write(
+r"""# Telepathy accounts
+[%s]
+manager=fakecm
+protocol=fakeprotocol
+param-account=dontdivert@example.com
+param-password=password_in_keyfile
+DisplayName=New and improved account
+""" % group)
+
+    account_manager, properties, interfaces = resuscitate_mc(q, bus, mc)
+    account = get_fakecm_account(bus, mc, account_path)
+    account_iface = dbus.Interface(account, cs.ACCOUNT)
+
+    pwd = account_store('get', 'default', 'param-password')
+    if use_keyring:
+        assertEquals('password_in_keyring', pwd)
+    else:
+        # it was overwritten when we edited the keyfile
+        assertEquals('password_in_keyfile', pwd)
+
+    # Delete the password (only), like Empathy 3.0-3.4 do when migrating
+    account_iface.UpdateParameters({}, ['password'])
+    q.expect('dbus-signal',
+            path=account_path,
+            signal='AccountPropertyChanged',
+            interface=cs.ACCOUNT,
+            predicate=(lambda e:
+                'Parameters' in e.args[0]),
+            )
+
+    # Tell MC to die yet again
+    tell_mc_to_die(q, bus)
+
+    # Check the password is correctly deleted
+    kf = keyfile_read(key_file_name)
+    assert 'param-password' not in kf[group]
+    pwd = account_store('get', 'default', 'param-password')
+    assertEquals(None, pwd)
+
+    # Put it back, just so deleting all accounts won't raise errors
+    account_manager, properties, interfaces = resuscitate_mc(q, bus, mc)
 
 if __name__ == '__main__':
     ctl_dir = os.environ['MC_ACCOUNT_DIR']
