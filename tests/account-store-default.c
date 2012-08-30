@@ -290,3 +290,30 @@ default_list (void)
 {
   return g_key_file_get_groups (default_keyfile (), NULL);
 }
+
+guint
+default_count_passwords (void)
+{
+#if ENABLE_GNOME_KEYRING
+  GnomeKeyringResult ok = GNOME_KEYRING_RESULT_NO_KEYRING_DAEMON;
+  GnomeKeyringAttributeList *match = gnome_keyring_attribute_list_new ();
+  GList *items = NULL;
+  guint n = 0;
+
+  ok = gnome_keyring_find_items_sync (GNOME_KEYRING_ITEM_GENERIC_SECRET,
+      match, &items);
+
+  if (ok != GNOME_KEYRING_RESULT_OK)
+    goto finished;
+
+  n = g_list_length (items);
+  gnome_keyring_found_list_free (items);
+
+ finished:
+  gnome_keyring_attribute_list_free (match);
+
+  return n;
+#else
+  return 0;
+#endif
+}

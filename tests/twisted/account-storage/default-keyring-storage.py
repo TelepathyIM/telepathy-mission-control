@@ -258,6 +258,8 @@ DisplayName=New and improved account
     assert 'param-password' not in kf[group]
     pwd = account_store('get', 'default', 'param-password')
     assertEquals(None, pwd)
+    pwd = account_store('count-passwords', 'default')
+    assertEquals('0', pwd)
 
     # Put it back, just so deleting all accounts won't raise errors
     account_manager, properties, interfaces = resuscitate_mc(q, bus, mc)

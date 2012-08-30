@@ -51,6 +51,7 @@ typedef struct {
   gboolean (*delete) (const gchar *account);
   gboolean (*exists) (const gchar *account);
   GStrv    (*list) (void);
+  guint    (*count_passwords) (void);
 } Backend;
 
 typedef enum {
@@ -60,6 +61,7 @@ typedef enum {
   OP_DELETE,
   OP_EXISTS,
   OP_LIST,
+  OP_COUNT_PASSWORDS
 } Operation;
 
 const Backend backends[] = {
@@ -68,7 +70,8 @@ const Backend backends[] = {
     default_set,
     default_delete,
     default_exists,
-    default_list, },
+    default_list,
+    default_count_passwords },
 
 #if ENABLE_LIBACCOUNTS_SSO
   { "libaccounts",
@@ -76,7 +79,8 @@ const Backend backends[] = {
     libaccounts_set,
     libaccounts_delete,
     libaccounts_exists,
-    libaccounts_list, },
+    libaccounts_list,
+    NULL },
 #endif
 
   { NULL }
@@ -164,6 +168,8 @@ int main (int argc, char **argv)
     op = OP_EXISTS;
   else if (g_str_equal (op_name, "list"))
     op = OP_LIST;
+  else if (g_str_equal (op_name, "count-passwords"))
+    op = OP_COUNT_PASSWORDS;
 
   switch (op)
     {
@@ -198,6 +204,11 @@ int main (int argc, char **argv)
         break;
 
       case OP_LIST:
+        if (argc < 3)
+          usage (argv[0], "op '%s' requires an backend", op_name);
+        break;
+
+      case OP_COUNT_PASSWORDS:
         if (argc < 3)
           usage (argv[0], "op '%s' requires an backend", op_name);
         break;
@@ -237,6 +248,19 @@ int main (int argc, char **argv)
         list = store->list ();
         output = g_strjoinv ("\n", list);
         g_strfreev (list);
+        break;
+
+      case OP_COUNT_PASSWORDS:
+        if (store->count_passwords == NULL)
+          {
+            g_printerr ("Password-counting is unimplemented\n");
+          }
+        else
+          {
+            guint n = store->count_passwords ();
+            output = g_strdup_printf ("%u", n);
+            success = TRUE;
+          }
         break;
 
       default:

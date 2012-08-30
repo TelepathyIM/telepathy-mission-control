@@ -38,4 +38,6 @@ gboolean default_exists (const gchar *account);
 
 GStrv default_list (void);
 
+guint default_count_passwords (void);
+
 #endif
