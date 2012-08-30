@@ -32,6 +32,9 @@ from mctest import (
     )
 import constants as cs
 
+# FIXME: this test relies on tools in the builddir. It won't work when
+# the tests are installed and run without a builddir.
+
 use_keyring = False
 if ('MC_TEST_GNOME_KEYRING' in os.environ and
     os.environ['MC_TEST_GNOME_KEYRING'] == '1'):
@@ -79,7 +82,9 @@ def start_gnome_keyring_daemon(ctl_dir):
         return
 
     os.chmod(ctl_dir, 0700)
-    env = os.popen('gnome-keyring-daemon -d --control-directory=' + ctl_dir).read()
+    # Ugh. We have to put XDG_DATA_DIRS back the way we found them because
+    # otherwise it won't find its schemas and everything goes horribly wrong.
+    env = os.popen('/usr/bin/env XDG_DATA_DIRS=/usr/local/share:/usr/share gnome-keyring-daemon -d --control-directory=' + ctl_dir).read()
     env_file = open(ctl_dir + '/gnome-keyring-env', 'w')
 
     for line in env.split('\n'):
@@ -88,6 +93,10 @@ def start_gnome_keyring_daemon(ctl_dir):
             print "Adding to env: %s=%s" % (k, v)
             os.environ[k] = v
             env_file.write('%s=%s\n' % (k, v))
+
+    # Wait for gnome-keyring to start. We shouldn't have to do this, but,
+    # whatever. Happily, we have a tool which can do this for us.
+    os.system('../../util/mc-wait-for-name org.freedesktop.secrets')
 
     keyring_name = create_keyring()
     assert keyring_name
