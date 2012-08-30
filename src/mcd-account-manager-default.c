@@ -78,11 +78,13 @@ _delete_from_keyring (const McpAccountStorage *self,
       /* flag the whole account as purged */
       gchar *removed = g_strdup (account);
       g_hash_table_replace (amd->removed_accounts, removed, removed);
+      g_key_file_remove_group (amd->secrets, removed, NULL);
     }
   else
     {
       /* remember to forget this one param */
       g_key_file_set_value (amd->removed, account, key, "");
+      g_key_file_remove_key (amd->secrets, account, key, NULL);
     }
 }
 
