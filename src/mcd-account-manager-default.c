@@ -411,19 +411,16 @@ _set (const McpAccountStorage *self,
   /* if we have a keyring, secrets are segregated */
   secret = mcp_account_manager_parameter_is_secret (am, account, key);
 
+  /* remove it from both sets, then re-add it to the right one if non-null */
+  g_key_file_remove_key (amd->secrets, account, key, NULL);
+  g_key_file_remove_key (amd->keyfile, account, key, NULL);
+
   if (val != NULL)
     {
       if (secret)
         g_key_file_set_value (amd->secrets, account, key, val);
       else
         g_key_file_set_value (amd->keyfile, account, key, val);
-    }
-  else
-    {
-      if (secret)
-        g_key_file_remove_key (amd->secrets, account, key, NULL);
-      else
-        g_key_file_remove_key (amd->keyfile, account, key, NULL);
     }
 
   /* if we removed the account before, it now exists again, so... */
@@ -580,8 +577,10 @@ _delete (const McpAccountStorage *self,
           g_key_file_remove_group (amd->keyfile, account, NULL);
           _delete_from_keyring (self, am, account, NULL);
         }
-      else if (mcp_account_manager_parameter_is_secret (am, account, key))
+      else
         {
+          /* always delete from keyring, even if we didn't previously
+           * think it was secret - we might have been wrong */
           _delete_from_keyring (self, am, account, key);
         }
 
