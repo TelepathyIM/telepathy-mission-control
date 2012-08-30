@@ -197,15 +197,21 @@ _keyring_commit (const McpAccountStorage *self,
       for (j = 0; j < k; j++)
         {
           KeyringSetData *ksd = g_slice_new0 (KeyringSetData);
+          const gchar *key = keys[j];
+
+          /* for compatibility with old gnome keyring code we must strip  *
+           * the param- prefix from the name before saving to the keyring */
+          if (g_str_has_prefix (key, "param-"))
+            key += strlen ("param-");
 
           ksd->account = g_strdup (accts[i]);
-          ksd->name = g_strdup (keys[j]);
+          ksd->name = g_strdup (key);
           ksd->set = FALSE;
 
           gnome_keyring_delete_password (&keyring_schema,
               _keyring_set_cb, ksd, NULL,
               "account", accts[i],
-              "param", keys[j],
+              "param", key,
               NULL);
         }
 
