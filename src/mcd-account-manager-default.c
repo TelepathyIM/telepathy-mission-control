@@ -187,7 +187,7 @@ _keyring_commit (const McpAccountStorage *self,
     {
       gsize j;
       gsize k;
-      GStrv keys = g_key_file_get_keys (amd->secrets, accts[i], &k, NULL);
+      GStrv keys = g_key_file_get_keys (amd->removed, accts[i], &k, NULL);
 
       if (keys == NULL)
         k = 0;
