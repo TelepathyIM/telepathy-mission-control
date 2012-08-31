@@ -316,12 +316,12 @@ class IteratingEventQueue(BaseEventQueue):
 
         try:
             # for dbus > 1.5
-            bus.add_match_string("eavesdrop=true")
+            bus.add_match_string("eavesdrop=true,type='signal'")
         except dbus.DBusException:
-            pass
-
-        # for dbus 1.4
-        bus.add_match_string("")
+            bus.add_match_string("type='signal'")
+            bus.add_match_string("type='method_call'")
+        else:
+            bus.add_match_string("eavesdrop=true,type='method_call'")
 
         bus.add_message_filter(self._dbus_filter_bound_method)
 
