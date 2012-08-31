@@ -14,6 +14,7 @@ Changes:
 
 Fixes:
 
+• Passwords are now deleted from gnome-keyring correctly (fd.o #42088, Simon)
 • Set up the altered-one signal for account storage backends correctly
   (fd.o #52231, Xavier)
 • If service-activated under both names o.fd.Telepathy.MissionControl5
