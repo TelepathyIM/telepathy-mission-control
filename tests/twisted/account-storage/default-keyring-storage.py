@@ -266,6 +266,10 @@ DisplayName=New and improved account
 
 if __name__ == '__main__':
     ctl_dir = os.environ['MC_ACCOUNT_DIR']
+    try:
+        os.mkdir(ctl_dir, 0700)
+    except OSError:
+        pass
     start_gnome_keyring_daemon(ctl_dir)
     exec_test(test, {}, timeout=10)
     stop_gnome_keyring_daemon()
