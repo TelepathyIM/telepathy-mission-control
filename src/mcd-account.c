@@ -24,6 +24,7 @@
 #include "config.h"
 #include "mcd-account.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -51,7 +52,7 @@
 #include "_gen/cli-Connection_Manager_Interface_Account_Storage-body.h"
 
 #define MAX_KEY_LENGTH (DBUS_MAXIMUM_NAME_LENGTH + 6)
-#define MC_AVATAR_FILENAME	"avatar.bin"
+#define MC_OLD_AVATAR_FILENAME	"avatar.bin"
 
 #define MCD_ACCOUNT_PRIV(account) (MCD_ACCOUNT (account)->priv)
 
@@ -673,7 +674,7 @@ load_manager (McdAccount *account)
 /* Returns the data dir for the given account name.
  * Returned string must be freed by caller. */
 static gchar *
-get_account_data_path (McdAccountPrivate *priv)
+get_old_account_data_path (McdAccountPrivate *priv)
 {
     const gchar *base;
 
@@ -759,7 +760,7 @@ mcd_account_delete (McdAccount *account,
 
     mcd_storage_delete_account (priv->storage, name);
 
-    data_dir_str = get_account_data_path (priv);
+    data_dir_str = get_old_account_data_path (priv);
 
     if (data_dir_str != NULL)
     {
@@ -2811,6 +2812,213 @@ register_dbus_service (McdAccount *self,
 					     (GObject *) self);
 }
 
+/*
+ * @account: (allow-none):
+ * @dir_out: (out): e.g. ~/.local/share/telepathy/mission-control
+ * @basename_out: (out): e.g. gabble-jabber-fred_40example_2ecom.avatar
+ * @file_out: (out): @dir_out + "/" + @basename_out
+ */
+static void
+get_avatar_paths (McdAccount *account,
+                  gchar **dir_out,
+                  gchar **basename_out,
+                  gchar **file_out)
+{
+    gchar *dir = NULL;
+
+    dir = g_build_filename (g_get_user_data_dir (),
+                            "telepathy", "mission-control", NULL);
+
+    if (account == NULL)
+    {
+        if (file_out != NULL)
+            *file_out = NULL;
+
+        if (basename_out != NULL)
+            *basename_out = NULL;
+    }
+    else if (basename_out != NULL || file_out != NULL)
+    {
+        gchar *basename = NULL;
+
+        basename = g_strdup_printf ("%s.avatar", account->priv->unique_name);
+        g_strdelimit (basename, "/", '-');
+
+        if (file_out != NULL)
+            *file_out = g_build_filename (dir, basename, NULL);
+
+        if (basename_out != NULL)
+            *basename_out = basename;
+        else
+            g_free (basename);
+    }
+
+    if (dir_out != NULL)
+        *dir_out = dir;
+    else
+        g_free (dir);
+}
+
+static gboolean
+save_avatar (McdAccount *self,
+             gpointer data,
+             gssize len,
+             GError **error)
+{
+    gchar *dir = NULL;
+    gchar *file = NULL;
+    gboolean ret = FALSE;
+
+    get_avatar_paths (self, &dir, NULL, &file);
+
+    if (mcd_ensure_directory (dir, error) &&
+        g_file_set_contents (file, data, len, error))
+    {
+        DEBUG ("Saved avatar to %s", file);
+        ret = TRUE;
+    }
+    else if (len == 0)
+    {
+        GArray *avatar = NULL;
+
+        /* It failed, but maybe that's OK, since we didn't really want
+         * an avatar anyway. */
+        _mcd_account_get_avatar (self, &avatar, NULL);
+
+        if (avatar == NULL)
+        {
+            /* Creating the empty file failed, but it's fine, since what's
+             * on disk correctly indicates that we have no avatar. */
+            DEBUG ("Ignoring failure to write empty avatar");
+
+            if (error != NULL)
+                g_clear_error (error);
+        }
+        else
+        {
+            /* Continue to raise the error: we failed to write a 0-byte
+             * file into the highest-priority avatar directory, and we do
+             * need it, since there is a non-empty avatar in either that
+             * directory or a lower-priority directory */
+            g_array_free (avatar, TRUE);
+        }
+    }
+
+    g_free (dir);
+    g_free (file);
+    return ret;
+}
+
+static gchar *_mcd_account_get_old_avatar_filename (McdAccount *account,
+                                                    gchar **old_dir);
+
+static void
+mcd_account_migrate_avatar (McdAccount *account)
+{
+    GError *error = NULL;
+    gchar *old_file;
+    gchar *old_dir = NULL;
+    gchar *new_dir = NULL;
+    gchar *basename = NULL;
+    gchar *new_file = NULL;
+    gchar *contents = NULL;
+    guint i;
+
+    /* Try to migrate the avatar to a better location */
+    old_file = _mcd_account_get_old_avatar_filename (account, &old_dir);
+
+    if (!g_file_test (old_file, G_FILE_TEST_EXISTS))
+    {
+        /* nothing to do */
+        goto finally;
+    }
+
+    DEBUG ("Migrating avatar from %s", old_file);
+
+    get_avatar_paths (account, &new_dir, &basename, &new_file);
+
+    if (g_file_test (new_file, G_FILE_TEST_IS_REGULAR))
+    {
+        DEBUG ("... already migrated to %s", new_file);
+
+        if (g_unlink (old_file) != 0)
+        {
+            DEBUG ("Failed to unlink %s: %s", old_file,
+                   g_strerror (errno));
+        }
+
+        goto finally;
+    }
+
+    if (!mcd_ensure_directory (new_dir, &error))
+    {
+        DEBUG ("%s", error->message);
+        goto finally;
+    }
+
+    if (g_rename (old_file, new_file) == 0)
+    {
+        DEBUG ("Renamed %s to %s", old_file, new_file);
+    }
+    else
+    {
+        gsize len;
+
+        DEBUG ("Unable to rename %s to %s, will try copy+delete: %s",
+               old_file, new_file, g_strerror (errno));
+
+        if (!g_file_get_contents (old_file, &contents, &len, &error))
+        {
+            DEBUG ("Unable to load old avatar %s: %s", old_file,
+                   error->message);
+            goto finally;
+        }
+
+        if (g_file_set_contents (new_file, contents, len, &error))
+        {
+            DEBUG ("Copied old avatar from %s to %s", old_file, new_file);
+        }
+        else
+        {
+            DEBUG ("Unable to save new avatar %s: %s", new_file,
+                   error->message);
+            goto finally;
+        }
+
+        if (g_unlink (old_file) != 0)
+        {
+            DEBUG ("Failed to unlink %s: %s", old_file, g_strerror (errno));
+            goto finally;
+        }
+    }
+
+    /* old_dir is typically ~/.mission-control/accounts/gabble/jabber/badger0.
+     * We want to delete badger0, jabber, gabble, accounts if they are empty.
+     * If they are not, we'll just get ENOTEMPTY and stop. */
+    for (i = 0; i < 4; i++)
+    {
+        gchar *tmp;
+
+        if (g_rmdir (old_dir) != 0)
+        {
+            DEBUG ("Failed to rmdir %s: %s", old_dir, g_strerror (errno));
+            goto finally;
+        }
+
+        tmp = g_path_get_dirname (old_dir);
+        g_free (old_dir);
+        old_dir = tmp;
+    }
+
+finally:
+    g_clear_error (&error);
+    g_free (basename);
+    g_free (new_file);
+    g_free (new_dir);
+    g_free (contents);
+    g_free (old_file);
+}
+
 static gboolean
 mcd_account_setup (McdAccount *account)
 {
@@ -3100,6 +3308,7 @@ _mcd_account_constructed (GObject *object)
 
     DEBUG ("%p (%s)", object, account->priv->unique_name);
 
+    mcd_account_migrate_avatar (account);
     mcd_account_setup (account);
 }
 
@@ -3633,32 +3842,27 @@ _mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     const gchar *account_name = mcd_account_get_unique_name (account);
-    gchar *data_dir, *filename;
 
     DEBUG ("called");
-    data_dir = get_account_data_path (priv);
-    filename = g_build_filename (data_dir, MC_AVATAR_FILENAME, NULL);
-    if (!g_file_test (data_dir, G_FILE_TEST_EXISTS))
-	g_mkdir_with_parents (data_dir, 0700);
-    _mcd_chmod_private (data_dir);
-    g_free (data_dir);
 
     if (G_LIKELY(avatar) && avatar->len > 0)
     {
-	if (!g_file_set_contents (filename, avatar->data,
-				  (gssize)avatar->len, error))
+        if (!save_avatar (account, avatar->data, avatar->len, error))
 	{
-	    g_warning ("%s: writing to file %s failed", G_STRLOC,
-		       filename);
-	    g_free (filename);
+	    g_warning ("%s: writing avatar failed", G_STRLOC);
 	    return FALSE;
 	}
     }
     else
     {
-	g_remove (filename);
+        /* We implement "deleting" an avatar by writing out a zero-length
+         * file, so that it will override lower-priority directories. */
+        if (!save_avatar (account, "", 0, error))
+        {
+            g_warning ("%s: writing empty avatar failed", G_STRLOC);
+            return FALSE;
+        }
     }
-    g_free (filename);
 
     if (mime_type != NULL)
         mcd_storage_set_string (priv->storage,
@@ -3701,7 +3905,37 @@ _mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
     return TRUE;
 }
 
-static gchar *_mcd_account_get_avatar_filename (McdAccount *account);
+static GArray *
+load_avatar_or_warn (const gchar *filename)
+{
+    GError *error = NULL;
+    gchar *data = NULL;
+    gsize length;
+
+    if (g_file_get_contents (filename, &data, &length, &error))
+    {
+        if (length > 0 && length < G_MAXUINT)
+        {
+            GArray *ret;
+
+            ret = g_array_new (FALSE, FALSE, 1);
+            g_array_append_vals (ret, data, (guint) length);
+            return ret;
+        }
+        else
+        {
+            DEBUG ("avatar %s was empty or ridiculously large (%"
+                   G_GSIZE_FORMAT " bytes)", filename, length);
+            return NULL;
+        }
+    }
+    else
+    {
+        DEBUG ("error reading %s: %s", filename, error->message);
+        g_error_free (error);
+        return NULL;
+    }
+}
 
 void
 _mcd_account_get_avatar (McdAccount *account, GArray **avatar,
@@ -3709,6 +3943,7 @@ _mcd_account_get_avatar (McdAccount *account, GArray **avatar,
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     const gchar *account_name = mcd_account_get_unique_name (account);
+    gchar *basename;
     gchar *filename;
 
     if (mime_type != NULL)
@@ -3720,29 +3955,37 @@ _mcd_account_get_avatar (McdAccount *account, GArray **avatar,
 
     *avatar = NULL;
 
-    filename = _mcd_account_get_avatar_filename (account);
+    get_avatar_paths (account, NULL, &basename, &filename);
 
-    if (filename && g_file_test (filename, G_FILE_TEST_EXISTS))
+    if (g_file_test (filename, G_FILE_TEST_EXISTS))
     {
-	GError *error = NULL;
-	gchar *data = NULL;
-	gsize length;
-	if (g_file_get_contents (filename, &data, &length, &error))
-	{
-	    if (length > 0 && length < G_MAXUINT) 
-	    {
-		*avatar = g_array_new (FALSE, FALSE, 1);
-		(*avatar)->data = data;
-		(*avatar)->len = (guint)length;
-	    }
-	}
-	else
-	{
-            DEBUG ("error reading %s: %s", filename, error->message);
-	    g_error_free (error);
-	}
+        *avatar = load_avatar_or_warn (filename);
     }
+    else
+    {
+        const gchar * const *iter;
+
+        for (iter = g_get_system_data_dirs ();
+             iter != NULL && *iter != NULL;
+             iter++)
+        {
+            gchar *candidate = g_build_filename (*iter, "telepathy",
+                                                 "mission-control",
+                                                 basename, NULL);
+
+            if (g_file_test (candidate, G_FILE_TEST_EXISTS))
+            {
+                *avatar = load_avatar_or_warn (candidate);
+                g_free (candidate);
+                break;
+            }
+
+            g_free (candidate);
+        }
+    }
+
     g_free (filename);
+    g_free (basename);
 }
 
 GPtrArray *
@@ -4203,15 +4446,14 @@ _mcd_account_get_keyfile (McdAccount *account)
 }
 
 static gchar *
-_mcd_account_get_avatar_filename (McdAccount *account)
+_mcd_account_get_old_avatar_filename (McdAccount *account,
+                                      gchar **old_dir)
 {
     McdAccountPrivate *priv = account->priv;
-    gchar *data_dir, *filename;
+    gchar *filename;
 
-    data_dir = get_account_data_path (priv);
-    DEBUG("data dir: %s", data_dir);
-    filename = g_build_filename (data_dir, MC_AVATAR_FILENAME, NULL);
-    g_free (data_dir);
+    *old_dir = get_old_account_data_path (priv);
+    filename = g_build_filename (*old_dir, MC_OLD_AVATAR_FILENAME, NULL);
     return filename;
 }
 
