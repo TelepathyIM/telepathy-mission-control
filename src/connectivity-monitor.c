@@ -465,7 +465,7 @@ mcd_connectivity_monitor_is_online (McdConnectivityMonitor *connectivity_monitor
 {
   McdConnectivityMonitorPrivate *priv = connectivity_monitor->priv;
 
-  return priv->connected;
+  return priv->connected && priv->awake;
 }
 
 gboolean
