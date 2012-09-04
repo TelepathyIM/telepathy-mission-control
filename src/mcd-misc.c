@@ -176,6 +176,23 @@ _mcd_object_ready (gpointer object, GQuark quark, const GError *error)
     g_object_unref (object);
 }
 
+gboolean
+mcd_ensure_directory (const gchar *dir,
+                      GError **error)
+{
+    DEBUG ("%s", dir);
+
+    if (g_mkdir_with_parents (dir, 0700) != 0)
+    {
+        g_set_error (error, TP_ERROR, TP_ERROR_NOT_AVAILABLE,
+                     "Unable to create directory '%s': %s",
+                     dir, g_strerror (errno));
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
 int
 _mcd_chmod_private (const gchar *filename)
 {
