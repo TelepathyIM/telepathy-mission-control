@@ -203,13 +203,25 @@ is_secret (const McpAccountManager *ma,
 }
 
 static void
+mcd_storage_make_secret (McdStorage *self,
+    const gchar *account,
+    const gchar *key)
+{
+  g_return_if_fail (MCD_IS_STORAGE (self));
+  g_return_if_fail (account != NULL);
+  g_return_if_fail (key != NULL);
+
+  DEBUG ("flagging %s.%s as secret", account, key);
+
+  g_key_file_set_boolean (self->secrets, account, key, TRUE);
+}
+
+static void
 make_secret (const McpAccountManager *ma,
     const gchar *account,
     const gchar *key)
 {
-  McdStorage *self = MCD_STORAGE (ma);
-  DEBUG ("flagging %s.%s as secret", account, key);
-  g_key_file_set_boolean (self->secrets, account, key, TRUE);
+  mcd_storage_make_secret (MCD_STORAGE (ma), account, key);
 }
 
 static gchar *
@@ -726,12 +738,16 @@ mcd_storage_get_integer (McdStorage *self,
 static void
 update_storage (McdStorage *self,
     const gchar *account,
-    const gchar *key)
+    const gchar *key,
+    gboolean secret)
 {
   GList *store;
   gboolean done = FALSE;
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
   gchar *val = NULL;
+
+  if (secret)
+    mcd_storage_make_secret (self, account, key);
 
   /* don't unescape the value here, we're flushing it to storage         *
    * everywhere else should handle escaping on the way in and unescaping *
@@ -803,14 +819,7 @@ mcd_storage_set_string (McdStorage *self,
 
   if (tp_strdiff (old, val))
     {
-      if (secret)
-        {
-          McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
-
-          mcp_account_manager_parameter_make_secret (ma, account, key);
-        }
-
-      update_storage (self, account, key);
+      update_storage (self, account, key, secret);
       updated = TRUE;
     }
 
@@ -935,14 +944,7 @@ mcd_storage_set_value (McdStorage *self,
 
       if (tp_strdiff (old, new))
         {
-          if (secret)
-            {
-              McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
-
-              mcp_account_manager_parameter_make_secret (ma, name, key);
-            }
-
-          update_storage (self, name, key);
+          update_storage (self, name, key, secret);
           updated = TRUE;
         }
 
