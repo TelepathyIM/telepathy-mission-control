@@ -859,7 +859,16 @@ mcd_storage_set_value (McdStorage *self,
 
   if (value == NULL)
     {
-      return mcd_storage_set_string (self, name, key, NULL, secret);
+      gchar *old = g_key_file_get_value (self->keyfile, name, key, NULL);
+      gboolean updated = (old != NULL);
+
+      g_free (old);
+      g_key_file_remove_key (self->keyfile, name, key, NULL);
+
+      if (updated)
+        update_storage (self, name, key, secret);
+
+      return updated;
     }
   else
     {
