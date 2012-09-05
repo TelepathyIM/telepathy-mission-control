@@ -486,14 +486,21 @@ mcd_storage_dup_string (McdStorage *self,
     const gchar *account,
     const gchar *key)
 {
-  gchar *value = NULL;
+  GValue tmp = G_VALUE_INIT;
+  gchar *ret;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
   g_return_val_if_fail (account != NULL, NULL);
+  g_return_val_if_fail (key != NULL, NULL);
 
-  value = g_key_file_get_string (self->keyfile, account, key, NULL);
+  g_value_init (&tmp, G_TYPE_STRING);
 
-  return value;
+  if (!mcd_storage_get_value (self, account, key, &tmp, NULL))
+    return NULL;
+
+  ret = g_value_dup_string (&tmp);
+  g_value_unset (&tmp);
+  return ret;
 }
 
 /*
@@ -778,10 +785,18 @@ mcd_storage_get_boolean (McdStorage *self,
     const gchar *account,
     const gchar *key)
 {
+  GValue tmp = G_VALUE_INIT;
+
   g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
+  g_return_val_if_fail (key != NULL, FALSE);
 
-  return g_key_file_get_boolean (self->keyfile, account, key, NULL);
+  g_value_init (&tmp, G_TYPE_BOOLEAN);
+
+  if (!mcd_storage_get_value (self, account, key, &tmp, NULL))
+    return FALSE;
+
+  return g_value_get_boolean (&tmp);
 }
 
 /*
@@ -797,10 +812,18 @@ mcd_storage_get_integer (McdStorage *self,
     const gchar *account,
     const gchar *key)
 {
+  GValue tmp = G_VALUE_INIT;
+
   g_return_val_if_fail (MCD_IS_STORAGE (self), 0);
   g_return_val_if_fail (account != NULL, 0);
+  g_return_val_if_fail (key != NULL, 0);
 
-  return g_key_file_get_integer (self->keyfile, account, key, NULL);
+  g_value_init (&tmp, G_TYPE_INT);
+
+  if (!mcd_storage_get_value (self, account, key, &tmp, NULL))
+    return FALSE;
+
+  return g_value_get_int (&tmp);
 }
 
 static void
