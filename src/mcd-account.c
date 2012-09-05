@@ -1269,7 +1269,8 @@ set_nickname (TpSvcDBusProperties *self, const gchar *name,
     SetResult ret;
 
     DEBUG ("called for %s", priv->unique_name);
-    ret = mcd_account_set_string_val (account, name, value, error);
+    ret = mcd_account_set_string_val (account, MC_ACCOUNTS_KEY_NICKNAME,
+                                      value, error);
 
     /* we need to call _mcd_connection_set_nickname for side effects,  *
      * as that is how the CM is informed of the current nickname, even *
@@ -1289,7 +1290,7 @@ get_nickname (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
 
-    mcd_account_get_string_val (account, name, value);
+    mcd_account_get_string_val (account, MC_ACCOUNTS_KEY_NICKNAME, value);
 }
 
 static gboolean
@@ -3953,7 +3954,8 @@ mcd_account_connection_self_nickname_changed_cb (McdAccount *account,
 
     g_value_init (&value, G_TYPE_STRING);
     g_value_set_static_string (&value, alias);
-    mcd_account_set_string_val (account, MC_ACCOUNTS_KEY_ALIAS, &value, NULL);
+    mcd_account_set_string_val (account, MC_ACCOUNTS_KEY_NICKNAME,
+                                &value, NULL);
     g_value_unset (&value);
 }
 
@@ -3964,7 +3966,7 @@ mcd_account_get_alias (McdAccount *account)
     const gchar *account_name = mcd_account_get_unique_name (account);
 
     return mcd_storage_dup_string (priv->storage, account_name,
-                                   MC_ACCOUNTS_KEY_ALIAS);
+                                   MC_ACCOUNTS_KEY_NICKNAME);
 }
 
 static void
