@@ -805,25 +805,25 @@ mcd_storage_set_string (McdStorage *self,
     const gchar *val,
     gboolean secret)
 {
-  gboolean updated = FALSE;
-  gchar *old = g_key_file_get_string (self->keyfile, account, key, NULL);
+  gboolean updated;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
   g_return_val_if_fail (key != NULL, FALSE);
 
   if (val == NULL)
-    g_key_file_remove_key (self->keyfile, account, key, NULL);
-  else
-    g_key_file_set_string (self->keyfile, account, key, val);
-
-  if (tp_strdiff (old, val))
     {
-      update_storage (self, account, key, secret);
-      updated = TRUE;
+      updated = mcd_storage_set_value (self, account, key, NULL, secret);
     }
+  else
+    {
+      GValue tmp = G_VALUE_INIT;
 
-  g_free (old);
+      g_value_init (&tmp, G_TYPE_STRING);
+      g_value_set_string (&tmp, val);
+      updated = mcd_storage_set_value (self, account, key, &tmp, secret);
+      g_value_unset (&tmp);
+    }
 
   return updated;
 }
