@@ -2242,18 +2242,23 @@ account_remove (TpSvcAccount *svc, DBusGMethodInvocation *context)
     mcd_account_delete (self, account_remove_delete_cb, data);
 }
 
-/* tell the account that one of its properties has changed behind its back:  *
- * (as opposed to an external change triggered by DBus, for example) - This  *
- * typically occurs because an internal component (such as a storage plugin) *
- * wishes to notify us that something has changed.
- * This will trigger an update when the callback receives the new value     */
+/*
+ * @account: the account
+ * @name: a setting name, or "param-" + a parameter name
+ *
+ * Tell the account that one of its settings or parameters has changed
+ * behind its back (as opposed to an external change triggered by DBus,
+ * for example). This occurs when a storage plugin wishes to notify us
+ * that something has changed. This will trigger an update when the
+ * callback receives the new value. */
 void
-mcd_account_property_changed (McdAccount *account, const gchar *name)
+mcd_account_altered_by_plugin (McdAccount *account,
+                               const gchar *name)
 {
     /* parameters are handled en bloc, reinvoke self with bloc key: */
     if (g_str_has_prefix (name, "param-"))
     {
-        mcd_account_property_changed (account, "Parameters");
+        mcd_account_altered_by_plugin (account, "Parameters");
     }
     else
     {

@@ -127,7 +127,7 @@ gboolean mcd_account_check_request (McdAccount *account, GHashTable *request,
 gboolean mcd_account_parameter_is_secret (McdAccount *self,
                                               const gchar *name);
 
-void mcd_account_property_changed (McdAccount *account, const gchar *name);
+void mcd_account_altered_by_plugin (McdAccount *account, const gchar *name);
 
 gchar * mcd_account_dup_display_name (McdAccount *self);
 
