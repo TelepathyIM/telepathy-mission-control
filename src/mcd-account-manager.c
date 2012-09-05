@@ -411,6 +411,30 @@ toggled_cb (GObject *plugin, const gchar *name, gboolean on, gpointer data)
 }
 
 static void
+reconnect_cb (GObject *plugin, const gchar *name, gpointer data)
+{
+  McpAccountStorage *storage_plugin = MCP_ACCOUNT_STORAGE (plugin);
+  McdAccountManager *manager = MCD_ACCOUNT_MANAGER (data);
+  McdAccount *account = NULL;
+
+  account = mcd_account_manager_lookup_account (manager, name);
+
+  DEBUG ("%s plugin request %s reconnection",
+      mcp_account_storage_name (storage_plugin), name);
+
+  if (account == NULL)
+    {
+      g_warning ("%s: Unknown account %s from %s plugin",
+          G_STRFUNC, name, mcp_account_storage_name (storage_plugin));
+      return;
+    }
+
+  /* Storage ask to reconnect when important parameters changed, which is an
+   * user action. */
+  _mcd_account_reconnect (account, TRUE);
+}
+
+static void
 _mcd_account_delete_cb (McdAccount *account, const GError *error, gpointer data)
 {
     /* no need to do anything other than release the account ref, which *
@@ -1593,6 +1617,7 @@ mcd_account_manager_init (McdAccountManager *account_manager)
         { "toggled", G_CALLBACK (toggled_cb) },
         { "deleted", G_CALLBACK (deleted_cb) },
         { "altered-one", G_CALLBACK (altered_one_cb) },
+        { "reconnect", G_CALLBACK (reconnect_cb) },
         { NULL, NULL } };
 
     DEBUG ("");

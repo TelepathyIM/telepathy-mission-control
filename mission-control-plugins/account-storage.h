@@ -232,6 +232,8 @@ void mcp_account_storage_emit_deleted (McpAccountStorage *storage,
 void mcp_account_storage_emit_toggled (McpAccountStorage *storage,
     const gchar *account,
     gboolean enabled);
+void mcp_account_storage_emit_reconnect (McpAccountStorage *storage,
+    const gchar *account);
 
 G_END_DECLS
 

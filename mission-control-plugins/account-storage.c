@@ -104,6 +104,7 @@ enum
   TOGGLED,
   DELETED,
   ALTERED_ONE,
+  RECONNECT,
   NO_SIGNAL
 };
 
@@ -197,6 +198,19 @@ class_init (gpointer klass,
       _mcp_marshal_VOID__STRING_BOOLEAN, G_TYPE_NONE,
       2, G_TYPE_STRING, G_TYPE_BOOLEAN);
 
+  /**
+   * McpAccountStorage::reconnect
+   * @account: the unique name of the account to reconnect
+   *
+   * emitted if an external entity modified important parameters of the
+   * account and a reconnection is required in order to apply them.
+   *
+   * Should not be fired until mcp_account_storage_ready() has been called
+   **/
+  signals[RECONNECT] = g_signal_new ("reconnect",
+      type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+      g_cclosure_marshal_VOID__STRING, G_TYPE_NONE,
+      1, G_TYPE_STRING);
 }
 
 GType
@@ -864,4 +878,18 @@ mcp_account_storage_emit_toggled (McpAccountStorage *storage,
     gboolean enabled)
 {
   g_signal_emit (storage, signals[TOGGLED], 0, account, enabled);
+}
+
+/**
+ * mcp_account_storage_emit_reconnect:
+ * @storage: an #McpAccountStorage instance
+ * @account: the unique name of the account to reconnect
+ *
+ * Emits ::reconnect signal
+ */
+void
+mcp_account_storage_emit_reconnect (McpAccountStorage *storage,
+    const gchar *account)
+{
+  g_signal_emit (storage, signals[RECONNECT], 0, account);
 }
