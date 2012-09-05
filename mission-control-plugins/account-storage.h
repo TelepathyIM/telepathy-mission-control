@@ -220,6 +220,19 @@ const gchar *mcp_account_storage_name (const McpAccountStorage *storage);
 const gchar *mcp_account_storage_description (const McpAccountStorage *storage);
 const gchar *mcp_account_storage_provider (const McpAccountStorage *storage);
 
+void mcp_account_storage_emit_created (McpAccountStorage *storage,
+    const gchar *account);
+void mcp_account_storage_emit_altered (McpAccountStorage *storage,
+    const gchar *account);
+void mcp_account_storage_emit_altered_one (McpAccountStorage *storage,
+    const gchar *account,
+    const gchar *key);
+void mcp_account_storage_emit_deleted (McpAccountStorage *storage,
+    const gchar *account);
+void mcp_account_storage_emit_toggled (McpAccountStorage *storage,
+    const gchar *account,
+    gboolean enabled);
+
 G_END_DECLS
 
 #endif

@@ -132,7 +132,7 @@ class_init (gpointer klass,
 
   /**
    * McpAccountStorage::altered
-   * @account: the unique name of the created account
+   * @account: the unique name of the altered account
    *
    * emitted if an external entity alters an account
    * in the backend the emitting plugin handles
@@ -149,7 +149,7 @@ class_init (gpointer klass,
 
   /**
    * McpAccountStorage::altered-one
-   * @account: the unique name of the created account
+   * @account: the unique name of the altered account
    * @name: the name of the altered property (its key)
    *
    * emitted if an external entity alters an account
@@ -168,7 +168,7 @@ class_init (gpointer klass,
 
   /**
    * McpAccountStorage::deleted
-   * @account: the unique name of the created account
+   * @account: the unique name of the deleted account
    *
    * emitted if an external entity deletes an account
    * in the backend the emitting plugin handles
@@ -183,7 +183,7 @@ class_init (gpointer klass,
 
   /**
    * McpAccountStorage::toggled
-   * @account: the unique name of the created account
+   * @account: the unique name of the toggled account
    * @enabled: #gboolean indicating whether the account is enabled
    *
    * emitted if an external entity enables/disables an account
@@ -791,4 +791,77 @@ mcp_account_storage_provider (const McpAccountStorage *storage)
   g_return_val_if_fail (iface != NULL, NULL);
 
   return iface->provider != NULL ? iface->provider : "";
+}
+
+/**
+ * mcp_account_storage_emit_create:
+ * @storage: an #McpAccountStorage instance
+ * @account: the unique name of the created account
+ *
+ * Emits ::created signal
+ */
+void
+mcp_account_storage_emit_created (McpAccountStorage *storage,
+    const gchar *account)
+{
+  g_signal_emit (storage, signals[CREATED], 0, account);
+}
+
+/**
+ * mcp_account_storage_emit_altered:
+ * @storage: an #McpAccountStorage instance
+ * @account: the unique name of the altered account
+ *
+ * Emits ::altered signal
+ */
+void
+mcp_account_storage_emit_altered (McpAccountStorage *storage,
+    const gchar *account)
+{
+  g_signal_emit (storage, signals[ALTERED], 0, account);
+}
+
+/**
+ * mcp_account_storage_emit_altered_one:
+ * @storage: an #McpAccountStorage instance
+ * @account: the unique name of the altered account
+ * @key: the key of the altered property
+ *
+ * Emits ::created-one signal
+ */
+void
+mcp_account_storage_emit_altered_one (McpAccountStorage *storage,
+    const gchar *account,
+    const gchar *key)
+{
+  g_signal_emit (storage, signals[ALTERED_ONE], 0, account, key);
+}
+
+/**
+ * mcp_account_storage_emit_deleted:
+ * @storage: an #McpAccountStorage instance
+ * @account: the unique name of the deleted account
+ *
+ * Emits ::deleted signal
+ */
+void
+mcp_account_storage_emit_deleted (McpAccountStorage *storage,
+    const gchar *account)
+{
+  g_signal_emit (storage, signals[DELETED], 0, account);
+}
+
+/**
+ * mcp_account_storage_emit_toggled:
+ * @storage: an #McpAccountStorage instance
+ * @account: the unique name of the account
+ *
+ * Emits ::toggled signal
+ */
+void
+mcp_account_storage_emit_toggled (McpAccountStorage *storage,
+    const gchar *account,
+    gboolean enabled)
+{
+  g_signal_emit (storage, signals[TOGGLED], 0, account, enabled);
 }
