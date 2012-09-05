@@ -179,4 +179,8 @@ gboolean _mcd_account_is_hidden (McdAccount *account);
 
 G_GNUC_INTERNAL gboolean _mcd_account_needs_dispatch (McdAccount *account);
 
+G_GNUC_INTERNAL void _mcd_account_reconnect (McdAccount *self,
+    gboolean user_initiated);
+
+
 #endif /* __MCD_ACCOUNT_PRIV_H__ */

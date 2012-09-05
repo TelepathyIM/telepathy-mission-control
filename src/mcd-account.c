@@ -2706,6 +2706,20 @@ account_update_parameters (TpSvcAccount *self, GHashTable *set,
                                  account_update_parameters_cb, context);
 }
 
+void
+_mcd_account_reconnect (McdAccount *self,
+    gboolean user_initiated)
+{
+    /* FIXME: this isn't quite right. If we've just called RequestConnection
+     * (possibly with out of date parameters) but we haven't got a Connection
+     * back from the CM yet, the old parameters will still be used, I think
+     * (I can't quite make out what actually happens). */
+    if (self->priv->connection)
+        mcd_connection_close (self->priv->connection);
+
+    _mcd_account_connection_begin (self, user_initiated);
+}
+
 static void
 account_reconnect (TpSvcAccount *service,
                    DBusGMethodInvocation *context)
@@ -2729,15 +2743,8 @@ account_reconnect (TpSvcAccount *service,
         return;
     }
 
-    /* FIXME: this isn't quite right. If we've just called RequestConnection
-     * (possibly with out of date parameters) but we haven't got a Connection
-     * back from the CM yet, the old parameters will still be used, I think
-     * (I can't quite make out what actually happens). */
-    if (priv->connection)
-        mcd_connection_close (priv->connection);
-
     /* Reconnect() counts as user-initiated */
-    _mcd_account_connection_begin (self, TRUE);
+    _mcd_account_reconnect (self, TRUE);
 
     /* FIXME: we shouldn't really return from this method until the
      * reconnection has actually happened, but that would require less tangled
