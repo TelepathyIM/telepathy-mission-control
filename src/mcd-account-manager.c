@@ -1246,6 +1246,7 @@ migrate_butterfly_haze_ready (McdManager *manager,
     MigrateCtx *ctx = user_data;
     gchar *display_name;
     GValue v = {0,};
+    GValue password_v = {0,};
     GHashTable *parameters, *properties;
     gchar *str;
     GPtrArray *supersedes;
@@ -1258,8 +1259,10 @@ migrate_butterfly_haze_ready (McdManager *manager,
         goto error;
     }
 
-    /* Parameters; we just care about 'account' */
-    if (!mcd_account_get_parameter (ctx->account, "account", &v, NULL))
+    /* Parameters; the only mandatory one is 'account' */
+    if (!mcd_account_get_parameter_of_known_type (ctx->account,
+                                                  "account", G_TYPE_STRING,
+                                                  &v, NULL))
     {
         _mcd_account_set_enabled (ctx->account, FALSE, TRUE, NULL);
         goto error;
@@ -1267,6 +1270,15 @@ migrate_butterfly_haze_ready (McdManager *manager,
 
     parameters = g_hash_table_new (g_str_hash, g_str_equal);
     g_hash_table_insert (parameters, "account", &v);
+
+    /* If MC is storing the password, let's copy that too, so Empathy
+     * can migrate it somewhere better. */
+    if (mcd_account_get_parameter_of_known_type (ctx->account,
+                                                 "password", G_TYPE_STRING,
+                                                 &password_v, NULL))
+    {
+        g_hash_table_insert (parameters, "password", &password_v);
+    }
 
     display_name = mcd_account_dup_display_name (ctx->account);
 
