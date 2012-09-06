@@ -70,6 +70,16 @@ gchar * mcp_account_manager_get_unique_name (McpAccountManager *mcpa,
 GStrv mcp_account_manager_list_keys (const McpAccountManager *mcpa,
     const gchar *account);
 
+gchar *mcp_account_manager_escape_value_for_keyfile (
+    const McpAccountManager *mcpa,
+    const GValue *value);
+
+gboolean mcp_account_manager_unescape_value_from_keyfile (
+    const McpAccountManager *mcpa,
+    const gchar *escaped,
+    GValue *value,
+    GError **error);
+
 G_END_DECLS
 
 #endif

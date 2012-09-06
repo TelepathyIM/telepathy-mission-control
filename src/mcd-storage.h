@@ -146,6 +146,11 @@ gboolean mcd_keyfile_set_value (GKeyFile *keyfile,
     const gchar *key,
     const GValue *value);
 
+gchar *mcd_keyfile_escape_value (const GValue *value);
+gboolean mcd_keyfile_unescape_value (const gchar *escaped,
+    GValue *value,
+    GError **error);
+
 G_END_DECLS
 
 #endif /* MCD_STORAGE_H */

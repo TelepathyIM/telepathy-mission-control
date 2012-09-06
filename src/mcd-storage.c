@@ -589,6 +589,43 @@ mcd_storage_get_parameter (McdStorage *self,
       value, error);
 }
 
+static gboolean
+mcpa_unescape_value_from_keyfile (const McpAccountManager *unused G_GNUC_UNUSED,
+    const gchar *escaped,
+    GValue *value,
+    GError **error)
+{
+  return mcd_keyfile_unescape_value (escaped, value, error);
+}
+
+/*
+ * @escaped: a keyfile-escaped string
+ * @value: a #GValue initialized with a supported #GType
+ * @error: used to raise an error if %FALSE is returned
+ *
+ * Try to interpret @escaped as a value of the type of @value. If we can,
+ * write the resulting value into @value and return %TRUE.
+ *
+ * Returns: %TRUE if @escaped could be interpreted as a value of that type
+ */
+gboolean
+mcd_keyfile_unescape_value (const gchar *escaped,
+    GValue *value,
+    GError **error)
+{
+  GKeyFile *keyfile;
+  gboolean ret;
+
+  g_return_val_if_fail (escaped != NULL, FALSE);
+  g_return_val_if_fail (G_IS_VALUE (value), FALSE);
+
+  keyfile = g_key_file_new ();
+  g_key_file_set_value (keyfile, "g", "k", escaped);
+  ret = mcd_keyfile_get_value (keyfile, "g", "k", value, error);
+  g_key_file_free (keyfile);
+  return ret;
+}
+
 /*
  * mcd_keyfile_get_value:
  * @keyfile: A #GKeyFile
@@ -1092,6 +1129,37 @@ mcd_storage_set_parameter (McdStorage *self,
   return updated;
 }
 
+static gchar *
+mcpa_escape_value_for_keyfile (const McpAccountManager *unused G_GNUC_UNUSED,
+    const GValue *value)
+{
+  return mcd_keyfile_escape_value (value);
+}
+
+/*
+ * @value: a populated #GValue of a supported #GType
+ *
+ * Escape the contents of @value to go in a #GKeyFile. Return the
+ * value that would go in the keyfile.
+ *
+ * For instance, for a boolean value TRUE this would return "true",
+ * and for a string containing one space, it would return "\s".
+ */
+gchar *
+mcd_keyfile_escape_value (const GValue *value)
+{
+  GKeyFile *keyfile;
+  gchar *ret;
+
+  g_return_val_if_fail (G_IS_VALUE (value), NULL);
+
+  keyfile = g_key_file_new ();
+  mcd_keyfile_set_value (keyfile, "g", "k", value);
+  ret = g_key_file_get_value (keyfile, "g", "k", NULL);
+  g_key_file_free (keyfile);
+  return ret;
+}
+
 /*
  * mcd_keyfile_set_value:
  * @keyfile: a keyfile
@@ -1460,6 +1528,8 @@ plugin_iface_init (McpAccountManagerIface *iface,
   iface->make_secret = make_secret;
   iface->unique_name = unique_name;
   iface->list_keys = list_keys;
+  iface->escape_value_for_keyfile = mcpa_escape_value_for_keyfile;
+  iface->unescape_value_from_keyfile = mcpa_unescape_value_from_keyfile;
 }
 
 gboolean
