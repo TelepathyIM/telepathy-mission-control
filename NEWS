@@ -1,8 +1,16 @@
-telepathy-mission-control 5.12.2 (UNRELEASED)
+telepathy-mission-control 5.12.2 (2012-09-06)
 =============================================
+
+The "Parasaurolophus" release.
 
 Fixes:
 
+• Passwords are now deleted from gnome-keyring correctly (fd.o #42088, Simon)
+• When migrating Butterfly accounts to Haze, do the migration even if Butterfly
+  isn't installed, and copy the password as well as the username
+  (Debian #686835, Simon)
+• If compiled with UPower support, do not attempt to connect while going
+  to sleep (Guillaume)
 • Set up the altered-one signal for account storage backends correctly
   (fd.o #52231, Xavier)
 • If service-activated under both names o.fd.Telepathy.MissionControl5
