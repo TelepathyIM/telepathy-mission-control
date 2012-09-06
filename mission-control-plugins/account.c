@@ -73,6 +73,16 @@ mcp_account_manager_get_type (void)
   return type;
 }
 
+/**
+ * mcp_account_manager_set_value:
+ * @mcpa: an #McpAccountManager instance
+ * @account: the unique name of an account
+ * @key: the name of a setting, or "param-" plus the name of the parameter
+ * @value: the new value, escaped as if for a #GKeyFile, or %NULL to delete
+ *  the setting/parameter
+ *
+ * Inform Mission Control that @key has changed its value to @value.
+ */
 void
 mcp_account_manager_set_value (const McpAccountManager *mcpa,
     const gchar *account,
