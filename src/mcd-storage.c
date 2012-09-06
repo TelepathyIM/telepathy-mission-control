@@ -390,8 +390,7 @@ mcd_storage_load (McdStorage *self)
           gchar *name = account->data;
 
           DEBUG ("fetching %s from plugin %s [prio: %d]", name, pname, prio);
-          mcp_account_storage_get (plugin, ma, name, NULL);
-
+          mcd_storage_add_account_from_plugin (self, plugin, name);
           g_free (name);
         }
 
@@ -1299,4 +1298,20 @@ plugin_iface_init (McpAccountManagerIface *iface,
   iface->make_secret = make_secret;
   iface->unique_name = unique_name;
   iface->list_keys = list_keys;
+}
+
+gboolean
+mcd_storage_add_account_from_plugin (McdStorage *self,
+    McpAccountStorage *plugin,
+    const gchar *account)
+{
+  if (!mcp_account_storage_get (plugin, MCP_ACCOUNT_MANAGER (self),
+      account, NULL))
+    {
+      g_warning ("plugin %s disowned account %s",
+                 mcp_account_storage_name (plugin), account);
+      return FALSE;
+    }
+
+  return TRUE;
 }

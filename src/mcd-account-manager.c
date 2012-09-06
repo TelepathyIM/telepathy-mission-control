@@ -338,16 +338,14 @@ created_cb (GObject *storage_plugin_obj,
     lad->account_lock = 1; /* will be released at the end of this function */
 
     /* actually fetch the data into our cache from the plugin: */
-    if (mcp_account_storage_get (plugin, MCP_ACCOUNT_MANAGER (storage),
-                                 name, NULL))
+    if (mcd_storage_add_account_from_plugin (storage, plugin, name))
     {
         account = mcd_account_new (am, name);
         lad->account = account;
     }
     else
     {
-        g_warning ("plugin %s disowned its own new account %s",
-                   mcp_account_storage_name (plugin), name);
+        /* that function already warned about it */
         goto finish;
     }
 
