@@ -23,15 +23,15 @@ CLEANFILES = libglibcodegen.pyc libglibcodegen.pyo
 all: $(EXTRA_DIST)
 
 libglibcodegen.py: libtpcodegen.py
-	touch $@
+	$(AM_V_GEN)test -e ${srcdir}/$@ && touch ${srcdir}/$@
 glib-client-marshaller-gen.py: libglibcodegen.py
-	touch $@
+	$(AM_V_GEN)test -e ${srcdir}/$@ && touch ${srcdir}/$@
 glib-ginterface-gen.py: libglibcodegen.py
-	touch $@
+	$(AM_V_GEN)test -e ${srcdir}/$@ && touch ${srcdir}/$@
 glib-gtypes-generator.py: libglibcodegen.py
-	touch $@
+	$(AM_V_GEN)test -e ${srcdir}/$@ && touch ${srcdir}/$@
 glib-signals-marshal-gen.py: libglibcodegen.py
-	touch $@
+	$(AM_V_GEN)test -e ${srcdir}/$@ && touch ${srcdir}/$@
 
 TELEPATHY_GLIB_SRCDIR = $(top_srcdir)/../telepathy-glib
 maintainer-update-from-telepathy-glib:
