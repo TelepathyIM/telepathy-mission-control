@@ -1222,7 +1222,9 @@ migrate_butterfly_haze_ready (McdManager *manager,
     }
 
     /* Parameters; we just care about 'account' */
-    if (!mcd_account_get_parameter (ctx->account, "account", &v, NULL))
+    if (!mcd_account_get_parameter_of_known_type (ctx->account,
+                                                  "account", G_TYPE_STRING,
+                                                  &v, NULL))
     {
         _mcd_account_set_enabled (ctx->account, FALSE, TRUE, NULL);
         goto error;

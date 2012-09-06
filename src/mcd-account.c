@@ -429,15 +429,27 @@ mcd_account_get_parameter (McdAccount *account, const gchar *name,
                            GError **error)
 {
     McdAccountPrivate *priv = account->priv;
-    McdStorage *storage = priv->storage;
-    gchar key[MAX_KEY_LENGTH];
     const TpConnectionManagerParam *param;
     GType type;
-    const gchar *account_name = mcd_account_get_unique_name (account);
 
     param = mcd_manager_get_protocol_param (priv->manager,
                                             priv->protocol_name, name);
     type = mc_param_type (param);
+
+    return mcd_account_get_parameter_of_known_type (account, name,
+                                                    type, parameter, error);
+}
+
+gboolean
+mcd_account_get_parameter_of_known_type (McdAccount *account,
+                                         const gchar *name,
+                                         GType type,
+                                         GValue *parameter,
+                                         GError **error)
+{
+    const gchar *account_name = mcd_account_get_unique_name (account);
+    McdStorage *storage = account->priv->storage;
+    gchar key[MAX_KEY_LENGTH];
 
     g_snprintf (key, sizeof (key), "param-%s", name);
 

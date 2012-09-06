@@ -148,6 +148,12 @@ gboolean mcd_account_get_parameter (McdAccount *account, const gchar *name,
                            GValue *parameter,
                            GError **error);
 
+gboolean mcd_account_get_parameter_of_known_type (McdAccount *account,
+                                                  const gchar *name,
+                                                  GType type,
+                                                  GValue *parameter,
+                                                  GError **error);
+
 gchar * mcd_account_dup_icon (McdAccount *self);
 
 gchar * mcd_account_dup_nickname (McdAccount *self);
