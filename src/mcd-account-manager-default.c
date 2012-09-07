@@ -612,6 +612,8 @@ _commit (const McpAccountStorage *self,
   if (!amd->save)
     return TRUE;
 
+  DEBUG ("Saving accounts to %s", amd->filename);
+
   if (!_have_config (amd))
     _create_config (amd);
 
@@ -625,6 +627,31 @@ _commit (const McpAccountStorage *self,
   return rval;
 }
 
+static void
+am_default_load_keyfile (McdAccountManagerDefault *self,
+    const gchar *filename)
+{
+  GError *error = NULL;
+
+  if (g_key_file_load_from_file (self->keyfile, filename,
+        G_KEY_FILE_KEEP_COMMENTS, &error))
+    {
+      DEBUG ("Loaded accounts from %s", filename);
+    }
+  else
+    {
+      DEBUG ("Failed to load accounts from %s: %s", filename, error->message);
+      g_error_free (error);
+
+      /* Start with a blank configuration, but do not save straight away;
+       * we don't want to overwrite a corrupt-but-maybe-recoverable
+       * configuration file with an empty one until given a reason to
+       * do so. */
+      g_key_file_load_from_data (self->keyfile, INITIAL_CONFIG, -1,
+          G_KEY_FILE_KEEP_COMMENTS, NULL);
+    }
+}
+
 static GList *
 _list (const McpAccountStorage *self,
     const McpAccountManager *am)
@@ -635,12 +662,26 @@ _list (const McpAccountStorage *self,
   GList *rval = NULL;
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
 
-  if (!_have_config (amd))
-    _create_config (amd);
+  if (!amd->loaded && g_file_test (amd->filename, G_FILE_TEST_EXISTS))
+    {
+      /* If the file exists, but loading it fails, we deliberately
+       * do not fall through to the "initial configuration" case,
+       * because we don't want to overwrite a corrupted file
+       * with an empty one until an actual write takes place. */
+      am_default_load_keyfile (amd, amd->filename);
+      amd->loaded = TRUE;
+    }
 
   if (!amd->loaded)
-    amd->loaded = g_key_file_load_from_file (amd->keyfile, amd->filename,
-        G_KEY_FILE_KEEP_COMMENTS, NULL);
+    {
+      DEBUG ("Creating initial account data");
+      g_key_file_load_from_data (amd->keyfile, INITIAL_CONFIG, -1,
+          G_KEY_FILE_KEEP_COMMENTS, NULL);
+      amd->loaded = TRUE;
+      /* create the placeholder file */
+      amd->save = TRUE;
+      _commit (self, am, NULL);
+    }
 
   accounts = g_key_file_get_groups (amd->keyfile, &n);
 
