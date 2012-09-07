@@ -236,7 +236,7 @@ dbusprop_get (TpSvcDBusProperties *self,
               const gchar *property_name,
               DBusGMethodInvocation *context)
 {
-    GValue value = { 0 };
+    GValue value = G_VALUE_INIT;
     GError *error = NULL;
 
     DEBUG ("%s, %s", interface_name, property_name);

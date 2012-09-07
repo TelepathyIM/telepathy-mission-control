@@ -855,7 +855,7 @@ mcd_account_request_presence_int (McdAccount *account,
 
     if (changed)
     {
-        GValue value = { 0 };
+        GValue value = G_VALUE_INIT;
 
         g_value_init (&value, TP_STRUCT_TYPE_SIMPLE_PRESENCE);
         g_value_take_boxed (&value,
@@ -1194,7 +1194,7 @@ _mcd_account_set_enabled (McdAccount *account,
 
     if (priv->enabled != enabled)
     {
-        GValue value = { 0, };
+        GValue value = G_VALUE_INIT;
         const gchar *name = mcd_account_get_unique_name (account);
 
         if (!enabled && priv->connection != NULL)
@@ -1485,7 +1485,7 @@ set_automatic_presence (TpSvcDBusProperties *self,
 
     if (priv->auto_presence_type != type)
     {
-        GValue presence = { 0 };
+        GValue presence = G_VALUE_INIT;
 
         g_value_init (&presence, G_TYPE_INT);
         g_value_set_int (&presence, type);
@@ -1898,7 +1898,7 @@ get_storage_identifier (TpSvcDBusProperties *self,
 
   McdAccount *account = MCD_ACCOUNT (self);
   McpAccountStorage *storage_plugin = get_storage_plugin (account);
-  GValue identifier = { 0 };
+  GValue identifier = G_VALUE_INIT;
 
   g_value_init (value, G_TYPE_VALUE);
 
@@ -2308,7 +2308,7 @@ mcd_account_property_changed (McdAccount *account, const gchar *name)
 
             if (prop->getprop != NULL)
             {
-                GValue value = { 0 };
+                GValue value = G_VALUE_INIT;
 
                 prop->getprop (self, name, &value);
 
@@ -2487,7 +2487,7 @@ check_one_parameter_update (McdAccount *account,
     if (mcd_account_get_connection_status (account) ==
         TP_CONNECTION_STATUS_CONNECTED)
     {
-        GValue current_value = { 0, };
+        GValue current_value = G_VALUE_INIT;
 
         /* Check if the parameter's current value (or its default, if it has
          * one and it's not set to anything) matches the new value.
@@ -2533,7 +2533,7 @@ check_one_parameter_unset (McdAccount *account,
         mcd_account_get_connection_status (account) ==
             TP_CONNECTION_STATUS_CONNECTED)
     {
-        GValue current_value = { 0, };
+        GValue current_value = G_VALUE_INIT;
 
         if (mcd_account_get_parameter (account, param->name, &current_value,
                                        NULL))
@@ -2541,7 +2541,7 @@ check_one_parameter_unset (McdAccount *account,
             /* There's an existing value; let's see if it's the same as the
              * default, if any.
              */
-            GValue default_value = { 0, };
+            GValue default_value = G_VALUE_INIT;
 
             if (tp_connection_manager_param_get_default (param, &default_value))
             {
@@ -2679,7 +2679,7 @@ account_update_parameters_cb (McdAccount *account, GPtrArray *not_yet,
     DBusGMethodInvocation *context = (DBusGMethodInvocation *) user_data;
     const gchar *account_name = mcd_account_get_unique_name (account);
     GHashTable *params;
-    GValue value = { 0 };
+    GValue value = G_VALUE_INIT;
 
     if (error != NULL)
     {
@@ -3362,7 +3362,7 @@ _mcd_account_dup_parameters (McdAccount *account)
 
     for (param = protocol->params; param->name != NULL; param++)
     {
-        GValue v = { 0, };
+        GValue v = G_VALUE_INIT;
 
         if (mcd_account_get_parameter (account, param->name, &v, NULL))
         {
@@ -3403,7 +3403,7 @@ mcd_account_update_self_presence (McdAccount *account,
 {
     McdAccountPrivate *priv = account->priv;
     gboolean changed = FALSE;
-    GValue value = { 0 };
+    GValue value = G_VALUE_INIT;
 
     if (priv->curr_presence_type != presence)
     {
@@ -3581,7 +3581,7 @@ void
 _mcd_account_set_normalized_name (McdAccount *account, const gchar *name)
 {
     McdAccountPrivate *priv = account->priv;
-    GValue value = { 0, };
+    GValue value = G_VALUE_INIT;
     const gchar *account_name = mcd_account_get_unique_name (account);
 
     DEBUG ("called (%s)", name);
@@ -3756,7 +3756,7 @@ mcd_account_connection_self_nickname_changed_cb (McdAccount *account,
                                                  const gchar *alias,
                                                  McdConnection *connection)
 {
-    GValue value = { 0 };
+    GValue value = G_VALUE_INIT;
 
     g_value_init (&value, G_TYPE_STRING);
     g_value_set_static_string (&value, alias);
@@ -3852,7 +3852,7 @@ clear_register (McdAccount *self)
 
     if (tp_asv_get_boolean (params, "register", NULL))
     {
-        GValue value = { 0 };
+        GValue value = G_VALUE_INIT;
         const gchar *account_name = mcd_account_get_unique_name (self);
 
         _mcd_account_set_parameter (self, "register", NULL);
@@ -3961,7 +3961,7 @@ _mcd_account_set_connection_status (McdAccount *account,
 
     if (changed)
     {
-        GValue value = { 0 };
+        GValue value = G_VALUE_INIT;
 
         _mcd_account_tp_connection_changed (account, priv->tp_connection);
 
@@ -4009,7 +4009,7 @@ void
 _mcd_account_tp_connection_changed (McdAccount *account,
                                     TpConnection *tp_conn)
 {
-    GValue value = { 0 };
+    GValue value = G_VALUE_INIT;
 
     g_value_init (&value, DBUS_TYPE_G_OBJECT_PATH);
 
@@ -4060,7 +4060,7 @@ check_validity_check_parameters_cb (McdAccount *account,
 
     if (was_valid != now_valid)
     {
-        GValue value = { 0 };
+        GValue value = G_VALUE_INIT;
         DEBUG ("Account validity changed (old: %d, new: %d)",
                was_valid, now_valid);
         g_signal_emit (account, _mcd_account_signals[VALIDITY_CHANGED], 0,
@@ -4346,7 +4346,7 @@ _mcd_account_set_has_been_online (McdAccount *account)
 {
     if (!account->priv->has_been_online)
     {
-        GValue value = { 0 };
+        GValue value = G_VALUE_INIT;
         const gchar *account_name = mcd_account_get_unique_name (account);
 
         g_value_init (&value, G_TYPE_BOOLEAN);
@@ -4469,7 +4469,7 @@ void
 _mcd_account_set_changing_presence (McdAccount *self, gboolean value)
 {
     McdAccountPrivate *priv = self->priv;
-    GValue changing_presence = { 0 };
+    GValue changing_presence = G_VALUE_INIT;
 
     priv->changing_presence = value;
 

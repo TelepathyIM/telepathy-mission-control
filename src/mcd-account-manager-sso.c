@@ -348,7 +348,7 @@ _maybe_set_account_param_from_service (
 {
   Setting *setting = setting_data (AG_ACCOUNT_KEY, SETTING_AG);
   AgSettingSource source = AG_SETTING_SOURCE_NONE;
-  GValue ag_value = { 0 };
+  GValue ag_value = G_VALUE_INIT;
 
   g_return_if_fail (setting != NULL);
   g_return_if_fail (ag_account != NULL);
@@ -820,7 +820,7 @@ _ag_account_stored_cb (
     gpointer user_data)
 {
   McdAccountManagerSso *self = MCD_ACCOUNT_MANAGER_SSO (user_data);
-  GValue uid = { 0 };
+  GValue uid = G_VALUE_INIT;
   const gchar *name = NULL;
   AgSettingSource src = AG_SETTING_SOURCE_NONE;
 
@@ -849,7 +849,7 @@ _ag_accountid_to_mc_key (McdAccountManagerSso *sso,
   AgAccount *account = ag_manager_get_account (sso->ag_manager, id);
   AgSettingSource src = AG_SETTING_SOURCE_NONE;
   AgService *service = NULL;
-  GValue value = { 0 };
+  GValue value = G_VALUE_INIT;
 
   if (account == NULL)
     {
@@ -896,8 +896,8 @@ _ag_accountid_to_mc_key (McdAccountManagerSso *sso,
       AgAccountSettingIter iter;
       const gchar *k;
       const GValue *v;
-      GValue cmanager = { 0 };
-      GValue protocol = { 0 };
+      GValue cmanager = G_VALUE_INIT;
+      GValue protocol = G_VALUE_INIT;
       const gchar *cman, *proto;
       McpAccountManager *am = sso->manager_interface;
       GHashTable *params = g_hash_table_new_full (g_str_hash, g_str_equal,
@@ -1035,7 +1035,7 @@ save_setting (
 
   if (setting->readable)
     {
-      GValue old = { 0 };
+      GValue old = G_VALUE_INIT;
       AgSettingSource src = AG_SETTING_SOURCE_NONE;
 
       g_value_init (&old, G_TYPE_STRING);
@@ -1068,7 +1068,7 @@ save_setting (
 
   if (val != NULL)
     {
-      GValue value = { 0 };
+      GValue value = G_VALUE_INIT;
 
       g_value_init (&value, G_TYPE_STRING);
       g_value_set_string (&value, val);
@@ -1186,7 +1186,7 @@ account_manager_sso_get_one (
     }
   else
     {
-      GValue v = { 0 };
+      GValue v = G_VALUE_INIT;
       AgSettingSource src = AG_SETTING_SOURCE_NONE;
       Setting *setting = setting_data (key, SETTING_MC);
 

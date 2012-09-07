@@ -657,9 +657,9 @@ mcd_channel_new_from_path (TpConnection *connection, const gchar *object_path,
                            TpHandleType handle_type)
 {
     GHashTable *props;
-    GValue v_type = { 0 };
-    GValue v_handle = { 0 };
-    GValue v_handle_type = { 0 };
+    GValue v_type = G_VALUE_INIT;
+    GValue v_handle = G_VALUE_INIT;
+    GValue v_handle_type = G_VALUE_INIT;
     McdChannel *channel;
 
     props = g_hash_table_new (g_str_hash, g_str_equal);

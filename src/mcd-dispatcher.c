@@ -1719,9 +1719,9 @@ messages_send_message_start (DBusGMethodInvocation *dbus_context,
     McdRequest *request = NULL;
     GError *error = NULL;
     GHashTable *props = NULL;
-    GValue c_type = { 0 };
-    GValue h_type = { 0 };
-    GValue target = { 0 };
+    GValue c_type = G_VALUE_INIT;
+    GValue h_type = G_VALUE_INIT;
+    GValue target = G_VALUE_INIT;
     McdDispatcher *self = message->dispatcher;
 
     DEBUG ("messages_send_message_acl_success [attempt #%u]", message->tries);

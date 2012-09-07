@@ -82,7 +82,7 @@ static void
 _channel_details_array_append (GPtrArray *channel_array, TpChannel *channel)
 {
     GType type = TP_STRUCT_TYPE_CHANNEL_DETAILS;
-    GValue channel_val = { 0, };
+    GValue channel_val = G_VALUE_INIT;
     GHashTable *properties;
     const gchar *object_path;
 

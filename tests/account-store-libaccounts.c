@@ -250,7 +250,7 @@ get_ag_account (const gchar *mc_account)
 
       if (account != NULL)
         {
-          GValue value = { 0 };
+          GValue value = G_VALUE_INIT;
           AgSettingSource source = AG_SETTING_SOURCE_NONE;
 
           g_value_init (&value, G_TYPE_STRING);
@@ -370,7 +370,7 @@ save_setting (AgAccount *account,
 
   if (val != NULL)
     {
-      GValue value = { 0 };
+      GValue value = G_VALUE_INIT;
 
       g_value_init (&value, G_TYPE_STRING);
       g_value_set_string (&value, val);
@@ -416,7 +416,7 @@ libaccounts_get (const gchar *mc_account, const gchar *key)
         }
       else
         {
-          GValue value = { 0 };
+          GValue value = G_VALUE_INIT;
           AgSettingSource source = AG_SETTING_SOURCE_NONE;
 
           g_value_init (&value, G_TYPE_STRING);
@@ -567,7 +567,7 @@ libaccounts_list (void)
 
   for (id = ag_ids; id && i < len; id = g_list_next (id))
     {
-      GValue value = { 0 };
+      GValue value = G_VALUE_INIT;
       AgAccountId uid = GPOINTER_TO_UINT (id->data);
       AgAccount *ag_account = ag_manager_get_account (ag_manager, uid);
       AgSettingSource source = AG_SETTING_SOURCE_NONE;
@@ -589,9 +589,9 @@ libaccounts_list (void)
         }
       else
         {
-          GValue cmanager = { 0 };
-          GValue protocol = { 0 };
-          GValue account  = { 0 };
+          GValue cmanager = G_VALUE_INIT;
+          GValue protocol = G_VALUE_INIT;
+          GValue account  = G_VALUE_INIT;
           const gchar *acct = NULL;
           const gchar *cman = NULL;
           const gchar *proto = NULL;

@@ -1237,8 +1237,8 @@ migrate_butterfly_haze_ready (McdManager *manager,
 {
     MigrateCtx *ctx = user_data;
     gchar *display_name;
-    GValue v = {0,};
-    GValue password_v = {0,};
+    GValue v = G_VALUE_INIT;
+    GValue password_v = G_VALUE_INIT;
     GHashTable *parameters, *properties;
     gchar *str;
     GPtrArray *supersedes;

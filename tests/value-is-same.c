@@ -57,7 +57,9 @@ assert_and_reset (GValue *value, GValue *same, GValue *different)
 static void
 test_numeric (void)
 {
-  GValue value = { 0 }, same = { 0 }, different = { 0 };
+  GValue value = G_VALUE_INIT;
+  GValue same = G_VALUE_INIT;
+  GValue different = G_VALUE_INIT;
 
   g_value_set_int (g_value_init (&value, G_TYPE_INT), -42);
   g_value_set_int (g_value_init (&same, G_TYPE_INT), -42);
@@ -103,7 +105,9 @@ test_numeric (void)
 static void
 test_string (void)
 {
-  GValue value = { 0 }, same = { 0 }, different = { 0 };
+  GValue value = G_VALUE_INIT;
+  GValue same = G_VALUE_INIT;
+  GValue different = G_VALUE_INIT;
 
   g_value_init (&value, G_TYPE_STRING);
   g_value_init (&same, G_TYPE_STRING);
@@ -132,7 +136,9 @@ test_string (void)
 static void
 test_object_path (void)
 {
-  GValue value = { 0 }, same = { 0 }, different = { 0 };
+  GValue value = G_VALUE_INIT;
+  GValue same = G_VALUE_INIT;
+  GValue different = G_VALUE_INIT;
 
   g_value_init (&value, DBUS_TYPE_G_OBJECT_PATH);
   g_value_init (&same, DBUS_TYPE_G_OBJECT_PATH);
@@ -154,7 +160,9 @@ test_strv (void)
   const gchar * const empty[] = { NULL };
   const gchar * const small[] = { "foo", "bar", NULL };
   const gchar * const large[] = { "foo", "bar", "baz", NULL };
-  GValue value = { 0 }, same = { 0 }, different = { 0 };
+  GValue value = G_VALUE_INIT;
+  GValue same = G_VALUE_INIT;
+  GValue different = G_VALUE_INIT;
 
   g_value_init (&value, G_TYPE_STRV);
   g_value_init (&same, G_TYPE_STRV);

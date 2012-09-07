@@ -1154,7 +1154,7 @@ mcd_storage_set_strv (McdStorage *storage,
     const gchar * const *strv,
     gboolean secret)
 {
-  GValue v = { 0, };
+  GValue v = G_VALUE_INIT;
   static const gchar * const *empty = { NULL };
   gboolean ret;
 
