@@ -497,26 +497,28 @@ mcd_storage_dup_string (McdStorage *self,
 }
 
 /*
- * mcd_storage_dup_value:
+ * mcd_storage_get_value:
  * @storage: An object implementing the #McdStorage interface
  * @account: unique name of the account
  * @key: name of the setting to be retrieved
- * @type: the type of #GValue to retrieve
+ * @value: location to return the value, initialized to the right #GType
  * @error: a place to store any #GError<!-- -->s that occur
- *
- * Returns: a newly slice-allocated #GValue of type @type or %NULL on error.
  */
-GValue *
-mcd_storage_dup_value (McdStorage *self,
+gboolean
+mcd_storage_get_value (McdStorage *self,
     const gchar *account,
     const gchar *key,
-    GType type,
+    GValue *value,
     GError **error)
 {
-  GValue *value = NULL;
+  gboolean ret = FALSE;
+  GType type;
 
-  g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
-  g_return_val_if_fail (account != NULL, NULL);
+  g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
+  g_return_val_if_fail (account != NULL, FALSE);
+  g_return_val_if_fail (G_IS_VALUE (value), FALSE);
+
+  type = G_VALUE_TYPE (value);
 
   switch (type)
     {
@@ -526,7 +528,10 @@ mcd_storage_dup_value (McdStorage *self,
                 key, error);
 
             if (v_string != NULL)
-              value = tp_g_value_slice_new_take_string (v_string);
+              {
+                g_value_take_string (value, v_string);
+                ret = TRUE;
+              }
             /* else error is already set */
           }
         break;
@@ -538,9 +543,14 @@ mcd_storage_dup_value (McdStorage *self,
                 key, &e);
 
             if (e != NULL)
-              g_propagate_error (error, e);
+              {
+                g_propagate_error (error, e);
+              }
             else
-              value = tp_g_value_slice_new_int (v_int);
+              {
+                g_value_set_int (value, v_int);
+                ret = TRUE;
+              }
           }
         break;
 
@@ -551,9 +561,14 @@ mcd_storage_dup_value (McdStorage *self,
                 key, &e);
 
             if (e != NULL)
-              g_propagate_error (error, e);
+              {
+                g_propagate_error (error, e);
+              }
             else
-              value = tp_g_value_slice_new_int64 (v_int);
+              {
+                g_value_set_int64 (value, v_int);
+                ret = TRUE;
+              }
           }
         break;
 
@@ -564,14 +579,21 @@ mcd_storage_dup_value (McdStorage *self,
                 key, &e);
 
             if (e != NULL)
-              g_propagate_error (error, e);
+              {
+                g_propagate_error (error, e);
+              }
             else if (v_uint > G_MAXUINT32)
-              g_set_error (error, MCD_ACCOUNT_ERROR,
-                  MCD_ACCOUNT_ERROR_GET_PARAMETER,
-                  "Parameter '%s' out of range for an unsigned 32-bit "
-                  "integer: %" G_GUINT64_FORMAT, key, v_uint);
+              {
+                g_set_error (error, MCD_ACCOUNT_ERROR,
+                    MCD_ACCOUNT_ERROR_GET_PARAMETER,
+                    "Parameter '%s' out of range for an unsigned 32-bit "
+                    "integer: %" G_GUINT64_FORMAT, key, v_uint);
+              }
             else
-              value = tp_g_value_slice_new_uint (v_uint);
+              {
+                g_value_set_uint (value, v_uint);
+                ret = TRUE;
+              }
           }
         break;
 
@@ -582,14 +604,21 @@ mcd_storage_dup_value (McdStorage *self,
                 key, &e);
 
             if (e != NULL)
-              g_propagate_error (error, e);
+              {
+                g_propagate_error (error, e);
+              }
             else if (v_int < 0 || v_int > 0xFF)
-              g_set_error (error, MCD_ACCOUNT_ERROR,
-                  MCD_ACCOUNT_ERROR_GET_PARAMETER,
-                  "Parameter '%s' out of range for an unsigned byte: "
-                  "%d", key, v_int);
+              {
+                g_set_error (error, MCD_ACCOUNT_ERROR,
+                    MCD_ACCOUNT_ERROR_GET_PARAMETER,
+                    "Parameter '%s' out of range for an unsigned byte: "
+                    "%d", key, v_int);
+              }
             else
-              value = tp_g_value_slice_new_byte (v_int);
+              {
+                g_value_set_uchar (value, v_int);
+                ret = TRUE;
+              }
           }
         break;
 
@@ -600,9 +629,14 @@ mcd_storage_dup_value (McdStorage *self,
                 key, &e);
 
             if (e != NULL)
-              g_propagate_error (error, e);
+              {
+                g_propagate_error (error, e);
+              }
             else
-              value = tp_g_value_slice_new_uint64 (v_uint);
+              {
+                g_value_set_uint64 (value, v_uint);
+                ret = TRUE;
+              }
           }
         break;
 
@@ -613,9 +647,14 @@ mcd_storage_dup_value (McdStorage *self,
                 key, &e);
 
             if (e != NULL)
-              g_propagate_error (error, e);
+              {
+                g_propagate_error (error, e);
+              }
             else
-              value = tp_g_value_slice_new_boolean (v_bool);
+              {
+                g_value_set_boolean (value, v_bool);
+                ret = TRUE;
+              }
           }
         break;
 
@@ -626,9 +665,14 @@ mcd_storage_dup_value (McdStorage *self,
                 key, &e);
 
             if (e != NULL)
-              g_propagate_error (error, e);
+              {
+                g_propagate_error (error, e);
+              }
             else
-              value = tp_g_value_slice_new_double (v_double);
+              {
+                g_value_set_double (value, v_double);
+                ret = TRUE;
+              }
           }
         break;
 
@@ -639,7 +683,10 @@ mcd_storage_dup_value (McdStorage *self,
                 key, NULL, error);
 
             if (v != NULL)
-              value = tp_g_value_slice_new_take_boxed (type, v);
+              {
+                g_value_take_boxed (value, v);
+                ret = TRUE;
+              }
           }
         else if (type == DBUS_TYPE_G_OBJECT_PATH)
           {
@@ -659,7 +706,8 @@ mcd_storage_dup_value (McdStorage *self,
               }
             else
               {
-                value = tp_g_value_slice_new_take_object_path (v_string);
+                g_value_take_boxed (value, v_string);
+                ret = TRUE;
               }
           }
         else if (type == TP_ARRAY_TYPE_OBJECT_PATH_LIST)
@@ -695,7 +743,8 @@ mcd_storage_dup_value (McdStorage *self,
                  * transferred */
                 g_free (v);
 
-                value = tp_g_value_slice_new_take_boxed (type, arr);
+                g_value_take_boxed (value, arr);
+                ret = TRUE;
               }
           }
         else
@@ -713,7 +762,7 @@ mcd_storage_dup_value (McdStorage *self,
           }
     }
 
-  return value;
+  return ret;
 }
 
 /*

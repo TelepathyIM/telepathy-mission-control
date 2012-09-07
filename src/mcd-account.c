@@ -443,32 +443,23 @@ mcd_account_get_parameter_of_known_type (McdAccount *account,
     const gchar *account_name = mcd_account_get_unique_name (account);
     McdStorage *storage = account->priv->storage;
     gchar key[MAX_KEY_LENGTH];
-    GValue *value;
+    GValue tmp = G_VALUE_INIT;
 
     g_snprintf (key, sizeof (key), "param-%s", name);
+    g_value_init (&tmp, type);
 
-    value = mcd_storage_dup_value (storage, account_name, key,
-        type, error);
-
-    if (value != NULL)
+    if (mcd_storage_get_value (storage, account_name, key, &tmp, error))
     {
-        g_assert (G_VALUE_HOLDS (value, type));
-
         if (parameter != NULL)
         {
-            g_value_init (parameter, type);
-            g_value_copy (value, parameter);
+            memcpy (parameter, &tmp, sizeof (tmp));
         }
 
-        tp_g_value_slice_free (value);
         return TRUE;
     }
-    else
-    {
-        return FALSE;
-    }
-}
 
+    return FALSE;
+}
 
 typedef void (*CheckParametersCb) (
     McdAccount *account,
@@ -1074,18 +1065,10 @@ mcd_account_get_string_val (McdAccount *account, const gchar *key,
 {
     McdAccountPrivate *priv = account->priv;
     const gchar *name = mcd_account_get_unique_name (account);
-    GValue *fetched = NULL;
 
-    fetched =
-      mcd_storage_dup_value (priv->storage, name, key, G_TYPE_STRING, NULL);
     g_value_init (value, G_TYPE_STRING);
 
-    if (fetched != NULL)
-    {
-        g_value_copy (fetched, value);
-        tp_g_value_slice_free (fetched);
-    }
-    else
+    if (!mcd_storage_get_value (priv->storage, name, key, value, NULL))
     {
         g_value_set_static_string (value, NULL);
     }
@@ -3008,7 +2991,7 @@ mcd_account_setup (McdAccount *account)
     McdAccountPrivate *priv = account->priv;
     McdStorage *storage = priv->storage;
     const gchar *name = mcd_account_get_unique_name (account);
-    GValue *value;
+    GValue value = G_VALUE_INIT;
 
     priv->manager_name =
       mcd_storage_dup_string (storage, name, MC_ACCOUNTS_KEY_MANAGER);
@@ -3075,22 +3058,22 @@ mcd_account_setup (McdAccount *account)
       mcd_storage_dup_string (storage, name,
                               MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE);
 
-    value = mcd_storage_dup_value (storage, name,
-                                   MC_ACCOUNTS_KEY_SUPERSEDES,
-                                   TP_ARRAY_TYPE_OBJECT_PATH_LIST, NULL);
+    g_value_init (&value, TP_ARRAY_TYPE_OBJECT_PATH_LIST);
 
     if (priv->supersedes != NULL)
         g_ptr_array_unref (priv->supersedes);
 
-    if (value == NULL)
+    if (mcd_storage_get_value (storage, name,
+                               MC_ACCOUNTS_KEY_SUPERSEDES, &value, NULL))
     {
-        priv->supersedes = g_ptr_array_new ();
+        priv->supersedes = g_value_dup_boxed (&value);
     }
     else
     {
-        priv->supersedes = g_value_dup_boxed (value);
-        tp_g_value_slice_free (value);
+        priv->supersedes = g_ptr_array_new ();
     }
+
+    g_value_unset (&value);
 
     /* check the manager */
     if (!priv->manager && !load_manager (account))
