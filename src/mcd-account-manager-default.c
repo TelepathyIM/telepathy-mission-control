@@ -23,6 +23,7 @@
 #include <string.h>
 #include "mcd-account-manager-default.h"
 #include "mcd-debug.h"
+#include "mcd-misc.h"
 
 #define PLUGIN_NAME "default-gkeyfile"
 #define PLUGIN_PRIORITY MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_DEFAULT
@@ -380,25 +381,6 @@ mcd_account_manager_default_class_init (McdAccountManagerDefaultClass *cls)
   DEBUG ("mcd_account_manager_default_class_init");
 }
 
-static gboolean
-_have_config (McdAccountManagerDefault *self)
-{
-  DEBUG ("checking for %s", self->filename);
-  return g_file_test (self->filename, G_FILE_TEST_EXISTS);
-}
-
-static void
-_create_config (McdAccountManagerDefault *self)
-{
-  gchar *dir = g_path_get_dirname (self->filename);
-
-  DEBUG ("");
-  g_mkdir_with_parents (dir, 0700);
-  g_free (dir);
-  g_file_set_contents (self->filename, INITIAL_CONFIG, -1, NULL);
-  DEBUG ("created %s", self->filename);
-}
-
 /* We happen to know that the string MC gave us is "sufficiently escaped" to
  * put it in the keyfile as-is. */
 static gboolean
@@ -608,18 +590,39 @@ _commit (const McpAccountStorage *self,
   gchar *data;
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
   gboolean rval = FALSE;
+  gchar *dir;
+  GError *error = NULL;
 
   if (!amd->save)
     return TRUE;
 
+  dir = g_path_get_dirname (amd->filename);
+
   DEBUG ("Saving accounts to %s", amd->filename);
 
-  if (!_have_config (amd))
-    _create_config (amd);
+  if (!mcd_ensure_directory (dir, &error))
+    {
+      g_warning ("%s", error->message);
+      g_error_free (error);
+      /* fall through anyway: writing to the file will fail, but it does
+       * give us a chance to commit to the keyring too */
+    }
+
+  g_free (dir);
 
   data = g_key_file_to_data (amd->keyfile, &n, NULL);
-  rval = g_file_set_contents (amd->filename, data, n, NULL);
-  amd->save = !rval;
+  rval = g_file_set_contents (amd->filename, data, n, &error);
+
+  if (rval)
+    {
+      amd->save = FALSE;
+    }
+  else
+    {
+      g_warning ("%s", error->message);
+      g_error_free (error);
+    }
+
   g_free (data);
 
   _keyring_commit (self, am, account);
