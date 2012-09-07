@@ -525,14 +525,7 @@ mcd_storage_has_value (McdStorage *self,
  * @type: the type of #GValue to retrieve
  * @error: a place to store any #GError<!-- -->s that occur
  *
- * Returns: a newly allocated #GValue of type @type, whihc should be freed
- * with tp_g_value_slice_free() or g_slice_free() depending on whether the
- * the value itself should be freed (the former frees everything, the latter
- * only the #GValue container.
- *
- * If @error is set, but a non-%NULL value was returned, this indicates
- * that no value for the @key was found for @account, and the default
- * value for @type has been returned.
+ * Returns: a newly slice-allocated #GValue of type @type or %NULL on error.
  */
 GValue *
 mcd_storage_dup_value (McdStorage *self,
@@ -542,11 +535,6 @@ mcd_storage_dup_value (McdStorage *self,
     GError **error)
 {
   GValue *value = NULL;
-  gchar *v_string = NULL;
-  gint64 v_int = 0;
-  guint64 v_uint = 0;
-  gboolean v_bool = FALSE;
-  double v_double = 0.0;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
   g_return_val_if_fail (account != NULL, NULL);
@@ -554,60 +542,115 @@ mcd_storage_dup_value (McdStorage *self,
   switch (type)
     {
       case G_TYPE_STRING:
-        v_string = g_key_file_get_string (self->keyfile, account, key, error);
-        value = tp_g_value_slice_new_take_string (v_string);
+          {
+            gchar *v_string = g_key_file_get_string (self->keyfile, account,
+                key, error);
+
+            if (v_string != NULL)
+              value = tp_g_value_slice_new_take_string (v_string);
+            /* else error is already set */
+          }
         break;
 
       case G_TYPE_INT:
-        v_int = g_key_file_get_integer (self->keyfile, account, key, error);
-        value = tp_g_value_slice_new_int (v_int);
+          {
+            GError *e = NULL;
+            gint v_int = g_key_file_get_integer (self->keyfile, account,
+                key, &e);
+
+            if (e != NULL)
+              g_propagate_error (error, e);
+            else
+              value = tp_g_value_slice_new_int (v_int);
+          }
         break;
 
       case G_TYPE_INT64:
-        v_int = tp_g_key_file_get_int64 (self->keyfile, account, key, error);
-        value = tp_g_value_slice_new_int64 (v_int);
+          {
+            GError *e = NULL;
+            gint64 v_int = tp_g_key_file_get_int64 (self->keyfile, account,
+                key, &e);
+
+            if (e != NULL)
+              g_propagate_error (error, e);
+            else
+              value = tp_g_value_slice_new_int64 (v_int);
+          }
         break;
 
       case G_TYPE_UINT:
-        v_uint = tp_g_key_file_get_uint64 (self->keyfile, account, key, error);
+          {
+            GError *e = NULL;
+            guint64 v_uint = tp_g_key_file_get_uint64 (self->keyfile, account,
+                key, &e);
 
-        if (v_uint > 0xFFFFFFFFU)
-          g_set_error (error, MCD_ACCOUNT_ERROR,
-              MCD_ACCOUNT_ERROR_GET_PARAMETER,
-              "Integer is out of range");
-        else
-          value = tp_g_value_slice_new_uint (v_uint);
+            if (e != NULL)
+              g_propagate_error (error, e);
+            else if (v_uint > G_MAXUINT32)
+              g_set_error (error, MCD_ACCOUNT_ERROR,
+                  MCD_ACCOUNT_ERROR_GET_PARAMETER,
+                  "Parameter '%s' out of range for an unsigned 32-bit "
+                  "integer: %" G_GUINT64_FORMAT, key, v_uint);
+            else
+              value = tp_g_value_slice_new_uint (v_uint);
+          }
         break;
 
     case G_TYPE_UCHAR:
-        v_int = g_key_file_get_integer (self->keyfile, account, key, error);
+          {
+            GError *e = NULL;
+            gint v_int = g_key_file_get_integer (self->keyfile, account,
+                key, &e);
 
-        if (v_int < 0 || v_int > 0xFF)
-          {
-            g_set_error (error, MCD_ACCOUNT_ERROR,
-                MCD_ACCOUNT_ERROR_GET_PARAMETER,
-                "Integer is out of range");
-          }
-        else
-          {
-            value = tp_g_value_slice_new (G_TYPE_UCHAR);
-            g_value_set_uchar (value, v_int);
+            if (e != NULL)
+              g_propagate_error (error, e);
+            else if (v_int < 0 || v_int > 0xFF)
+              g_set_error (error, MCD_ACCOUNT_ERROR,
+                  MCD_ACCOUNT_ERROR_GET_PARAMETER,
+                  "Parameter '%s' out of range for an unsigned byte: "
+                  "%d", key, v_int);
+            else
+              value = tp_g_value_slice_new_byte (v_int);
           }
         break;
 
       case G_TYPE_UINT64:
-        v_uint = tp_g_key_file_get_uint64 (self->keyfile, account, key, error);
-        value = tp_g_value_slice_new_uint64 (v_uint);
+          {
+            GError *e = NULL;
+            guint64 v_uint = tp_g_key_file_get_uint64 (self->keyfile, account,
+                key, &e);
+
+            if (e != NULL)
+              g_propagate_error (error, e);
+            else
+              value = tp_g_value_slice_new_uint64 (v_uint);
+          }
         break;
 
       case G_TYPE_BOOLEAN:
-        v_bool = g_key_file_get_boolean (self->keyfile, account, key, error);
-        value = tp_g_value_slice_new_boolean (v_bool);
+          {
+            GError *e = NULL;
+            gboolean v_bool = g_key_file_get_boolean (self->keyfile, account,
+                key, &e);
+
+            if (e != NULL)
+              g_propagate_error (error, e);
+            else
+              value = tp_g_value_slice_new_boolean (v_bool);
+          }
         break;
 
       case G_TYPE_DOUBLE:
-        v_double = g_key_file_get_double (self->keyfile, account, key, error);
-        value = tp_g_value_slice_new_double (v_double);
+          {
+            GError *e = NULL;
+            gdouble v_double = g_key_file_get_double (self->keyfile, account,
+                key, &e);
+
+            if (e != NULL)
+              g_propagate_error (error, e);
+            else
+              value = tp_g_value_slice_new_double (v_double);
+          }
         break;
 
       default:
@@ -616,18 +659,17 @@ mcd_storage_dup_value (McdStorage *self,
             gchar **v = g_key_file_get_string_list (self->keyfile, account,
                 key, NULL, error);
 
-            value = tp_g_value_slice_new_take_boxed (G_TYPE_STRV, v);
+            if (v != NULL)
+              value = tp_g_value_slice_new_take_boxed (type, v);
           }
         else if (type == DBUS_TYPE_G_OBJECT_PATH)
           {
-            v_string = g_key_file_get_string (self->keyfile, account, key,
-                NULL);
+            gchar *v_string = g_key_file_get_string (self->keyfile, account,
+                key, error);
 
             if (v_string == NULL)
               {
-                g_set_error (error, MCD_ACCOUNT_ERROR,
-                    MCD_ACCOUNT_ERROR_GET_PARAMETER,
-                    "Invalid object path NULL");
+                /* do nothing, error is already set */
               }
             else if (!tp_dbus_check_valid_object_path (v_string, NULL))
               {
@@ -645,33 +687,37 @@ mcd_storage_dup_value (McdStorage *self,
           {
             gchar **v = g_key_file_get_string_list (self->keyfile, account,
                 key, NULL, error);
-            gchar **iter;
-            GPtrArray *arr = g_ptr_array_new ();
 
-            for (iter = v; iter != NULL && *iter != NULL; iter++)
+            if (v != NULL)
               {
-                if (!g_variant_is_object_path (*iter))
+                gchar **iter;
+                GPtrArray *arr = g_ptr_array_new ();
+
+                for (iter = v; iter != NULL && *iter != NULL; iter++)
                   {
-                    g_set_error (error, MCD_ACCOUNT_ERROR,
-                        MCD_ACCOUNT_ERROR_GET_PARAMETER,
-                        "Invalid object path %s stored in account", *iter);
-                    g_strfreev (v);
-                    v = NULL;
-                    break;
+                    if (!g_variant_is_object_path (*iter))
+                      {
+                        g_set_error (error, MCD_ACCOUNT_ERROR,
+                            MCD_ACCOUNT_ERROR_GET_PARAMETER,
+                            "Invalid object path %s stored in account", *iter);
+                        g_strfreev (v);
+                        v = NULL;
+                        break;
+                      }
                   }
+
+                for (iter = v; iter != NULL && *iter != NULL; iter++)
+                  {
+                    /* transfer ownership from v to arr */
+                    g_ptr_array_add (arr, *iter);
+                  }
+
+                /* not g_strfreev - the strings' ownership has been
+                 * transferred */
+                g_free (v);
+
+                value = tp_g_value_slice_new_take_boxed (type, arr);
               }
-
-            for (iter = v; iter != NULL && *iter != NULL; iter++)
-              {
-                /* transfer ownership from v to arr */
-                g_ptr_array_add (arr, *iter);
-              }
-
-            /* not g_strfreev - the strings' ownership has been transferred */
-            g_free (v);
-
-            value = tp_g_value_slice_new_take_boxed (
-              TP_ARRAY_TYPE_OBJECT_PATH_LIST, arr);
           }
         else
           {
@@ -687,12 +733,6 @@ mcd_storage_dup_value (McdStorage *self,
             g_free (message);
           }
     }
-
-  /* This can return a non-NULL GValue * _and_ a non-NULL GError *,      *
-   * indicating a value was not found and the default for that type      *
-   * (eg 0 for integers) has been returned - this matches the behaviour  *
-   * of the old code that this function replaces. If changing this, make *
-   * sure all our callers are suitable updated                           */
 
   return value;
 }

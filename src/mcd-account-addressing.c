@@ -45,9 +45,15 @@ addressing_set_uri_scheme_association (TpSvcAccountInterfaceAddressing *iface,
   McdStorage *storage = _mcd_account_get_storage (self);
   GValue *stored_value =
     mcd_storage_dup_value (storage, account, SCHEMES, G_TYPE_STRV, NULL);
-  gchar **schemes = g_value_get_boxed (stored_value);
-  gboolean old_association = tp_strv_contains ((const gchar * const *) schemes,
-      uri_scheme);
+  gchar **schemes = NULL;
+  gboolean old_association = FALSE;
+
+  if (stored_value != NULL)
+    {
+      schemes = g_value_get_boxed (stored_value);
+      old_association = tp_strv_contains ((const gchar * const *) schemes,
+          uri_scheme);
+    }
 
   if (old_association != association)
     {
@@ -77,7 +83,9 @@ addressing_set_uri_scheme_association (TpSvcAccountInterfaceAddressing *iface,
       g_ptr_array_unref (new_schemes);
     }
 
-  tp_g_value_slice_free (stored_value);
+  if (stored_value != NULL)
+    tp_g_value_slice_free (stored_value);
+
   tp_svc_account_interface_addressing_return_from_set_uri_scheme_association (
       context);
 }
@@ -94,9 +102,16 @@ addressing_get_uri_schemes (TpSvcDBusProperties *iface,
     mcd_storage_dup_value (storage, account, SCHEMES, G_TYPE_STRV, NULL);
 
   g_value_init (value, G_TYPE_STRV);
-  g_value_set_boxed (value, g_value_get_boxed (stored_value));
 
-  tp_g_value_slice_free (stored_value);
+  if (stored_value != NULL)
+    {
+      g_value_set_boxed (value, g_value_get_boxed (stored_value));
+      tp_g_value_slice_free (stored_value);
+    }
+  else
+    {
+      g_value_set_boxed (value, NULL);
+    }
 }
 
 const McdDBusProp account_addressing_properties[] = {

@@ -448,19 +448,12 @@ mcd_account_get_parameter_of_known_type (McdAccount *account,
 
     if (mcd_storage_has_value (storage, account_name, key))
     {
-        GError *error2 = NULL;
         GValue *value = mcd_storage_dup_value (storage, account_name, key,
-            type, &error2);
+            type, error);
 
         if (value != NULL)
         {
-            if (error2 != NULL)
-            {
-                DEBUG ("type mismatch for parameter '%s': %s", name,
-                       error2->message);
-                DEBUG ("using default");
-                g_clear_error (&error2);
-            }
+            g_assert (G_VALUE_HOLDS (value, type));
 
             if (parameter != NULL)
             {
@@ -473,7 +466,6 @@ mcd_account_get_parameter_of_known_type (McdAccount *account,
         }
         else
         {
-            g_propagate_error (error, error2);
             return FALSE;
         }
     }
