@@ -103,10 +103,6 @@ gchar *mcd_storage_dup_string (McdStorage *storage,
     const gchar *account,
     const gchar *key);
 
-gboolean mcd_storage_has_value (McdStorage *storage,
-    const gchar *account,
-    const gchar *key);
-
 GValue *mcd_storage_dup_value (McdStorage *storage,
     const gchar *account,
     const gchar *key,

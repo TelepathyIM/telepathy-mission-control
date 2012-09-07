@@ -497,27 +497,6 @@ mcd_storage_dup_string (McdStorage *self,
 }
 
 /*
- * mcd_storage_has_value:
- * @storage: An object implementing the #McdStorage interface
- * @account: unique name of the account
- * @key: name of the setting to be retrieved
- *
- * Returns: a #gboolean: %TRUE if the setting is present in the store,
- * %FALSE otherwise.
- */
-gboolean
-mcd_storage_has_value (McdStorage *self,
-    const gchar *account,
-    const gchar *key)
-{
-  g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
-  g_return_val_if_fail (account != NULL, FALSE);
-  g_return_val_if_fail (key != NULL, FALSE);
-
-  return g_key_file_has_key (self->keyfile, account, key, NULL);
-}
-
-/*
  * mcd_storage_dup_value:
  * @storage: An object implementing the #McdStorage interface
  * @account: unique name of the account

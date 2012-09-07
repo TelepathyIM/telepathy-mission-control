@@ -443,37 +443,28 @@ mcd_account_get_parameter_of_known_type (McdAccount *account,
     const gchar *account_name = mcd_account_get_unique_name (account);
     McdStorage *storage = account->priv->storage;
     gchar key[MAX_KEY_LENGTH];
+    GValue *value;
 
     g_snprintf (key, sizeof (key), "param-%s", name);
 
-    if (mcd_storage_has_value (storage, account_name, key))
+    value = mcd_storage_dup_value (storage, account_name, key,
+        type, error);
+
+    if (value != NULL)
     {
-        GValue *value = mcd_storage_dup_value (storage, account_name, key,
-            type, error);
+        g_assert (G_VALUE_HOLDS (value, type));
 
-        if (value != NULL)
+        if (parameter != NULL)
         {
-            g_assert (G_VALUE_HOLDS (value, type));
-
-            if (parameter != NULL)
-            {
-                g_value_init (parameter, type);
-                g_value_copy (value, parameter);
-            }
-
-            tp_g_value_slice_free (value);
-            return TRUE;
+            g_value_init (parameter, type);
+            g_value_copy (value, parameter);
         }
-        else
-        {
-            return FALSE;
-        }
+
+        tp_g_value_slice_free (value);
+        return TRUE;
     }
     else
     {
-        g_set_error (error, MCD_ACCOUNT_ERROR,
-                     MCD_ACCOUNT_ERROR_GET_PARAMETER,
-                     "Keyfile does not have key %s", key);
         return FALSE;
     }
 }
