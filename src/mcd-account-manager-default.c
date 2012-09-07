@@ -20,7 +20,12 @@
  */
 
 #include "config.h"
+
+#include <errno.h>
 #include <string.h>
+
+#include <glib/gstdio.h>
+
 #include "mcd-account-manager-default.h"
 #include "mcd-debug.h"
 #include "mcd-misc.h"
@@ -343,7 +348,7 @@ G_DEFINE_TYPE_WITH_CODE (McdAccountManagerDefault, mcd_account_manager_default,
         account_storage_iface_init));
 
 static gchar *
-get_account_conf_filename (void)
+get_old_filename (void)
 {
   const gchar *base;
 
@@ -361,11 +366,18 @@ get_account_conf_filename (void)
     return g_build_filename (base, "accounts.cfg", NULL);
 }
 
+static gchar *
+account_filename_in (const gchar *dir)
+{
+  return g_build_filename (dir, "telepathy", "mission-control", "accounts.cfg",
+      NULL);
+}
+
 static void
 mcd_account_manager_default_init (McdAccountManagerDefault *self)
 {
   DEBUG ("mcd_account_manager_default_init");
-  self->filename = get_account_conf_filename ();
+  self->filename = account_filename_in (g_get_user_data_dir ());
   self->keyfile = g_key_file_new ();
   self->secrets = g_key_file_new ();
   self->removed = g_key_file_new ();
@@ -677,11 +689,57 @@ _list (const McpAccountStorage *self,
 
   if (!amd->loaded)
     {
+      const gchar * const *iter;
+
+      for (iter = g_get_system_data_dirs ();
+          iter != NULL && *iter != NULL;
+          iter++)
+        {
+          gchar *filename = account_filename_in (*iter);
+
+          if (g_file_test (filename, G_FILE_TEST_EXISTS))
+            {
+              am_default_load_keyfile (amd, filename);
+              amd->loaded = TRUE;
+              /* Do not set amd->save: we don't need to write it to a
+               * higher-priority directory until it actually changes. */
+            }
+
+          g_free (filename);
+
+          if (amd->loaded)
+            break;
+        }
+    }
+
+  if (!amd->loaded)
+    {
+      gchar *old_filename = get_old_filename ();
+
+      if (g_file_test (old_filename, G_FILE_TEST_EXISTS))
+        {
+          am_default_load_keyfile (amd, old_filename);
+          amd->loaded = TRUE;
+          amd->save = TRUE;
+
+          if (_commit (self, am, NULL))
+            {
+              DEBUG ("Migrated %s to new location: deleting old copy");
+              if (g_unlink (old_filename) != 0)
+                g_warning ("Unable to delete %s: %s", old_filename,
+                    g_strerror (errno));
+            }
+        }
+
+      g_free (old_filename);
+    }
+
+  if (!amd->loaded)
+    {
       DEBUG ("Creating initial account data");
       g_key_file_load_from_data (amd->keyfile, INITIAL_CONFIG, -1,
           G_KEY_FILE_KEEP_COMMENTS, NULL);
       amd->loaded = TRUE;
-      /* create the placeholder file */
       amd->save = TRUE;
       _commit (self, am, NULL);
     }

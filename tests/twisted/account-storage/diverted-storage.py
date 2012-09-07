@@ -39,7 +39,8 @@ def test(q, bus, mc):
     except OSError:
         pass
 
-    empty_key_file_name = os.path.join(accounts_dir, 'accounts.cfg')
+    empty_key_file_name = os.path.join(os.environ['XDG_DATA_HOME'],
+            'telepathy', 'mission-control', 'accounts.cfg')
 
     group = 'fakecm/fakeprotocol/someguy_40example_2ecom0'
 
