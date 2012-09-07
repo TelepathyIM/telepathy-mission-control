@@ -36,7 +36,6 @@
 #include <telepathy-glib/proxy-subclass.h>
 
 /* auto-generated stubs */
-#include "_gen/svc-Account_Interface_Addressing.h"
 #include "_gen/svc-Account_Interface_Conditions.h"
 #include "_gen/svc-Account_Interface_External_Password_Storage.h"
 #include "_gen/svc-Account_Interface_Hidden.h"

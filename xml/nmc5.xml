@@ -4,7 +4,6 @@
 
 <tp:copyright>Copyright (C) 2008 Nokia Corporation</tp:copyright>
 
-<xi:include href="Account_Interface_Addressing.xml"/>
 <xi:include href="Account_Interface_Conditions.xml"/>
 <xi:include href="Account_Interface_External_Password_Storage.xml"/>
 <xi:include href="Account_Interface_Hidden.xml"/>

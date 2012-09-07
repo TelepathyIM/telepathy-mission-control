@@ -32,7 +32,7 @@ G_BEGIN_DECLS
 G_GNUC_INTERNAL extern const McdDBusProp account_addressing_properties[];
 
 G_GNUC_INTERNAL void account_addressing_iface_init (
-    McSvcAccountInterfaceAddressingClass *iface,
+    TpSvcAccountInterfaceAddressingClass *iface,
     gpointer data);
 
 G_END_DECLS

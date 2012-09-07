@@ -32,10 +32,10 @@
 #include "mcd-account-priv.h"
 #include "_gen/interfaces.h"
 
-#define SCHEMES MC_IFACE_ACCOUNT_INTERFACE_ADDRESSING ".URISchemes"
+#define SCHEMES TP_IFACE_ACCOUNT_INTERFACE_ADDRESSING ".URISchemes"
 
 static void
-addressing_set_uri_scheme_association (McSvcAccountInterfaceAddressing *iface,
+addressing_set_uri_scheme_association (TpSvcAccountInterfaceAddressing *iface,
     const gchar *uri_scheme,
     gboolean association,
     DBusGMethodInvocation *context)
@@ -78,7 +78,7 @@ addressing_set_uri_scheme_association (McSvcAccountInterfaceAddressing *iface,
     }
 
   tp_g_value_slice_free (stored_value);
-  mc_svc_account_interface_addressing_return_from_set_uri_scheme_association (
+  tp_svc_account_interface_addressing_return_from_set_uri_scheme_association (
       context);
 }
 
@@ -105,10 +105,10 @@ const McdDBusProp account_addressing_properties[] = {
 };
 
 void
-account_addressing_iface_init (McSvcAccountInterfaceAddressingClass *iface,
+account_addressing_iface_init (TpSvcAccountInterfaceAddressingClass *iface,
     gpointer data)
 {
-  #define IMPLEMENT(x) mc_svc_account_interface_addressing_implement_##x (\
+  #define IMPLEMENT(x) tp_svc_account_interface_addressing_implement_##x (\
     iface, addressing_##x)
     IMPLEMENT(set_uri_scheme_association);
 #undef IMPLEMENT
