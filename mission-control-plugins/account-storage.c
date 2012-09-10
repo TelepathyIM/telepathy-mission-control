@@ -129,16 +129,16 @@ class_init (gpointer klass,
    * McpAccountStorage::altered
    * @account: the unique name of the altered account
    *
-   * emitted if an external entity alters an account
-   * in the backend the emitting plugin handles
-   * should not be emitted if a single known property has been
-   * altered, see McpAccountStorage::altered-one instead
+   * This signal does not appear to be fully implemented
+   * (see <ulink href="https://bugs.freedesktop.org/show_bug.cgi?id=28288"
+   *  >freedesktop.org bug 28288</ulink>).
+   * Emit #McpAccountStorage::altered-one instead.
    *
    * Should not be fired until mcp_account_storage_ready() has been called
    *
-   **/
+   */
   signals[ALTERED] = g_signal_new ("altered",
-      type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+      type, G_SIGNAL_RUN_LAST | G_SIGNAL_DEPRECATED, 0, NULL, NULL,
       g_cclosure_marshal_VOID__STRING, G_TYPE_NONE,
       1, G_TYPE_STRING);
 
