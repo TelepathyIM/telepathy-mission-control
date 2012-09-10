@@ -250,14 +250,18 @@ def test(q, bus, mc, **kwargs):
 
     cache_dir = os.environ['XDG_CACHE_HOME']
 
-    # fd.o #28557: when the "file" has been updated, the account parameter
-    # has its two backslashes doubled to 4 (because of the .desktop encoding),
-    # but they are not doubled again.
-    assertEquals(r'\\\\',
+    # Now that we're using GVariant-based storage, the backslashes aren't
+    # escaped.
+    assertEquals(r'\\',
+            kwargs['fake_accounts_service'].accounts
+            [account.object_path[len(cs.ACCOUNT_PATH_PREFIX):]]
+            [2]     # parameters of known type
+            ['account'])
+    assertEquals(None,
             kwargs['fake_accounts_service'].accounts
             [account.object_path[len(cs.ACCOUNT_PATH_PREFIX):]]
             [3]     # parameters of unknown type
-            ['account'])
+            .get('account', None))
 
 if __name__ == '__main__':
     exec_test(test, {}, pass_kwargs=True)

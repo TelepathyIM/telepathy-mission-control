@@ -35,18 +35,6 @@
 #define TEST_DBUS_ACCOUNT_PLUGIN_PATH   TESTSLASH "DBusAccountPlugin"
 #define TEST_DBUS_ACCOUNT_PLUGIN_IFACE  TESTDOT   "DBusAccountPlugin"
 
-/* for now, the concepts of parameter/attribute flags are local to this
- * plugin */
-
-typedef enum {
-    ATTRIBUTE_FLAG_NONE = 0
-} AttributeFlag;
-
-typedef enum {
-    PARAMETER_FLAG_NONE = 0,
-    PARAMETER_FLAG_SECRET = 1
-} ParameterFlag;
-
 typedef struct {
     gchar *path;
     /* string => GVariant */
@@ -488,15 +476,15 @@ test_dbus_account_plugin_get (const McpAccountStorage *storage,
       while (g_hash_table_iter_next (&iter, &k, &v))
         {
           gchar *param_foo;
-          guint32 flags;
+          McpParameterFlags flags;
 
           param_foo = g_strdup_printf ("param-%s", (const gchar *) k);
           mcp_account_manager_set_value (am, account_name, param_foo, v);
 
-          flags = GPOINTER_TO_UINT (g_hash_table_lookup (account->parameter_flags,
-                k));
+          flags = GPOINTER_TO_UINT (g_hash_table_lookup (
+                account->parameter_flags, k));
 
-          if (flags & PARAMETER_FLAG_SECRET)
+          if (flags & MCP_PARAMETER_FLAG_SECRET)
             mcp_account_manager_parameter_make_secret (am, account_name,
                 param_foo);
 
@@ -519,7 +507,7 @@ test_dbus_account_plugin_get (const McpAccountStorage *storage,
           flags = GPOINTER_TO_UINT (g_hash_table_lookup (account->parameter_flags,
                 k));
 
-          if (flags & PARAMETER_FLAG_SECRET)
+          if (flags & MCP_PARAMETER_FLAG_SECRET)
             mcp_account_manager_parameter_make_secret (am, account_name,
                 param_foo);
 
@@ -543,7 +531,7 @@ test_dbus_account_plugin_get (const McpAccountStorage *storage,
           "GetParameter",
           g_variant_new_parsed ("(%o, %s)", account->path, key + 6), NULL);
 
-      if (flags & PARAMETER_FLAG_SECRET)
+      if (flags & MCP_PARAMETER_FLAG_SECRET)
         mcp_account_manager_parameter_make_secret (am, account_name, key);
 
       if (v != NULL)
@@ -596,76 +584,82 @@ test_dbus_account_plugin_set (const McpAccountStorage *storage,
     const gchar *key,
     const gchar *value)
 {
+  /* Now that we implement set_attribute and set_parameter, this no longer
+   * needs a real implementation. */
+  return FALSE;
+}
+
+static gboolean
+test_dbus_account_plugin_set_attribute (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account_name,
+    const gchar *attribute,
+    GVariant *value,
+    McpAttributeFlags flags)
+{
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
   Account *account = lookup_account (self, account_name);
 
   g_return_val_if_fail (account_name != NULL, FALSE);
-  g_return_val_if_fail (key != NULL, FALSE);
+  g_return_val_if_fail (attribute != NULL, FALSE);
   /* for deletions, MC would call delete() instead */
   g_return_val_if_fail (value != NULL, FALSE);
 
-  DEBUG ("%s of %s", key, account_name);
+  DEBUG ("%s of %s", attribute, account_name);
 
   if (!self->active || account == NULL ||
       (account->flags & UNCOMMITTED_DELETION))
     return FALSE;
 
-  if (g_str_has_prefix (key, "param-"))
-    {
-      guint32 flags = PARAMETER_FLAG_NONE;
+  g_hash_table_insert (account->attributes, g_strdup (attribute),
+      g_variant_ref (value));
+  g_hash_table_insert (account->attribute_flags, g_strdup (attribute),
+      GUINT_TO_POINTER (flags));
+  g_hash_table_add (account->uncommitted_attributes, g_strdup (attribute));
 
-      if (mcp_account_manager_parameter_is_secret (am, account_name, key))
-        {
-          flags |= PARAMETER_FLAG_SECRET;
-        }
+  g_dbus_connection_emit_signal (self->bus, NULL,
+      TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+      "DeferringSetAttribute",
+      g_variant_new_parsed ("(%o, %s, %v)", account->path, attribute, value),
+      NULL);
 
-      g_hash_table_remove (account->parameters, key + 6);
-      g_hash_table_insert (account->untyped_parameters, g_strdup (key + 6),
-          g_strdup (value));
-      g_hash_table_insert (account->parameter_flags, g_strdup (key + 6),
-          GUINT_TO_POINTER (flags));
-      g_hash_table_add (account->uncommitted_parameters, g_strdup (key + 6));
+  return TRUE;
+}
 
-      g_dbus_connection_emit_signal (self->bus, NULL,
-          TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-          "DeferringSetParameterUntyped",
-          g_variant_new_parsed ("(%o, %s, %s)", account->path, key, value), NULL);
-    }
-  else
-    {
-      GValue gvalue = G_VALUE_INIT;
-      GError *error = NULL;
-      GVariant *variant;
+static gboolean
+test_dbus_account_plugin_set_parameter (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account_name,
+    const gchar *parameter,
+    GVariant *value,
+    McpParameterFlags flags)
+{
+  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
+  Account *account = lookup_account (self, account_name);
 
-      if (!mcp_account_manager_init_value_for_attribute (am, &gvalue, key))
-        {
-          g_warning ("Cannot store unknown attribute %s", key);
-          return FALSE;
-        }
+  g_return_val_if_fail (account_name != NULL, FALSE);
+  g_return_val_if_fail (parameter != NULL, FALSE);
+  /* for deletions, MC would call delete() instead */
+  g_return_val_if_fail (value != NULL, FALSE);
 
-      if (!mcp_account_manager_unescape_value_from_keyfile (am, value,
-            &gvalue, &error))
-        {
-          g_warning ("MC gave me a attribute it couldn't unescape: %s: %s",
-              key, error->message);
-          g_clear_error (&error);
-          return FALSE;
-        }
+  DEBUG ("%s of %s", parameter, account_name);
 
-      variant = g_variant_ref_sink (dbus_g_value_build_g_variant (&gvalue));
+  if (!self->active || account == NULL ||
+      (account->flags & UNCOMMITTED_DELETION))
+    return FALSE;
 
-      g_hash_table_insert (account->attributes, g_strdup (key),
-          g_variant_ref (variant));
-      g_hash_table_remove (account->attribute_flags, key);
-      g_hash_table_add (account->uncommitted_attributes, g_strdup (key));
-      g_value_unset (&gvalue);
+  g_hash_table_remove (account->untyped_parameters, parameter);
+  g_hash_table_insert (account->parameters, g_strdup (parameter),
+      g_variant_ref (value));
+  g_hash_table_insert (account->parameter_flags, g_strdup (parameter),
+      GUINT_TO_POINTER (flags));
+  g_hash_table_add (account->uncommitted_parameters, g_strdup (parameter));
 
-      g_dbus_connection_emit_signal (self->bus, NULL,
-          TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-          "DeferringSetAttribute",
-          g_variant_new_parsed ("(%o, %s, %v)", account->path, key, variant), NULL);
-      g_variant_unref (variant);
-    }
+  g_dbus_connection_emit_signal (self->bus, NULL,
+      TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+      "DeferringSetParameter",
+      g_variant_new_parsed ("(%o, %s, %v)", account->path, parameter, value),
+      NULL);
 
   return TRUE;
 }
@@ -1083,6 +1077,8 @@ account_storage_iface_init (McpAccountStorageIface *iface)
 
   iface->get = test_dbus_account_plugin_get;
   iface->set = test_dbus_account_plugin_set;
+  iface->set_attribute = test_dbus_account_plugin_set_attribute;
+  iface->set_parameter = test_dbus_account_plugin_set_parameter;
   iface->list = test_dbus_account_plugin_list;
   iface->ready = test_dbus_account_plugin_ready;
   iface->delete = test_dbus_account_plugin_delete;
