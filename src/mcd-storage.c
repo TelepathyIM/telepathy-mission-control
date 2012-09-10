@@ -69,9 +69,13 @@ typedef struct {
     /* owned string => GVariant
      * e.g. { 'DisplayName': <'Frederick Bloggs'> } */
     GHashTable *attributes;
-    /* owned string => owned string escaped as if for a keyfile
-     * e.g. { 'account': 'fred@example.com', 'password': 'foo' } */
+    /* owned string => owned GVariant
+     * e.g. { 'account': <'fred@example.com'>, 'password': <'foo'> } */
     GHashTable *parameters;
+    /* owned string => owned string escaped as if for a keyfile
+     * e.g. { 'account': 'fred@example.com', 'password': 'foo' }
+     * keys of @parameters and @escaped_parameters are disjoint */
+    GHashTable *escaped_parameters;
     /* set of owned strings
      * e.g. { 'password': 'password' } */
     GHashTable *secrets;
@@ -84,6 +88,7 @@ mcd_storage_account_free (gpointer p)
 
   g_hash_table_unref (sa->attributes);
   g_hash_table_unref (sa->parameters);
+  g_hash_table_unref (sa->escaped_parameters);
   g_hash_table_unref (sa->secrets);
   g_slice_free (McdStorageAccount, sa);
 }
@@ -228,6 +233,8 @@ ensure_account (McdStorage *self,
       sa->attributes = g_hash_table_new_full (g_str_hash, g_str_equal,
           g_free, (GDestroyNotify) g_variant_unref);
       sa->parameters = g_hash_table_new_full (g_str_hash, g_str_equal,
+          g_free, (GDestroyNotify) g_variant_unref);
+      sa->escaped_parameters = g_hash_table_new_full (g_str_hash, g_str_equal,
           g_free, g_free);
       sa->secrets = g_hash_table_new_full (g_str_hash, g_str_equal,
           g_free, NULL);
@@ -235,19 +242,6 @@ ensure_account (McdStorage *self,
     }
 
   return sa;
-}
-
-static const gchar *
-mcd_storage_get_escaped_parameter (McdStorage *self,
-    const gchar *account,
-    const gchar *parameter)
-{
-  McdStorageAccount *sa = lookup_account (self, account);
-
-  if (sa == NULL)
-    return NULL;
-
-  return g_hash_table_lookup (sa->parameters, parameter);
 }
 
 static gchar *
@@ -265,8 +259,21 @@ get_value (const McpAccountManager *ma,
 
   if (g_str_has_prefix (key, "param-"))
     {
-      return g_strdup (mcd_storage_get_escaped_parameter (self, account,
-            key + 6));
+      variant = g_hash_table_lookup (sa->parameters, key + 6);
+
+      if (variant != NULL)
+        {
+          ret = mcd_keyfile_escape_variant (variant);
+          g_variant_unref (variant);
+          return ret;
+        }
+      else
+        {
+          /* OK, we don't have it as a variant. How about the keyfile-escaped
+           * version? */
+          return g_strdup (g_hash_table_lookup (sa->escaped_parameters,
+                key + 6));
+        }
     }
   else
     {
@@ -395,11 +402,12 @@ set_value (const McpAccountManager *ma,
 
   if (g_str_has_prefix (key, "param-"))
     {
+      g_hash_table_remove (sa->parameters, key + 6);
+      g_hash_table_remove (sa->escaped_parameters, key + 6);
+
       if (value != NULL)
-        g_hash_table_insert (sa->parameters, g_strdup (key + 6),
+        g_hash_table_insert (sa->escaped_parameters, g_strdup (key + 6),
             g_strdup (value));
-      else
-        g_hash_table_remove (sa->parameters, key + 6);
     }
   else
     {
@@ -897,13 +905,31 @@ mcd_storage_get_parameter (McdStorage *self,
     GValue *value,
     GError **error)
 {
+  McdStorageAccount *sa;
   const gchar *escaped;
+  GVariant *variant;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
   g_return_val_if_fail (parameter != NULL, FALSE);
 
-  escaped = mcd_storage_get_escaped_parameter (self, account, parameter);
+  sa = lookup_account (self, account);
+
+  if (sa == NULL)
+    {
+      g_set_error (error, TP_ERROR, TP_ERROR_NOT_AVAILABLE,
+          "Account %s does not exist", account);
+      return FALSE;
+    }
+
+  variant = g_hash_table_lookup (sa->parameters, parameter);
+
+  if (variant != NULL)
+    return mcd_storage_coerce_variant_to_value (variant, value, error);
+
+  /* OK, we don't have it as a variant. How about the keyfile-escaped
+   * version? */
+  escaped = g_hash_table_lookup (sa->escaped_parameters, parameter);
 
   if (escaped == NULL)
     {
@@ -1453,8 +1479,12 @@ mcd_storage_set_parameter (McdStorage *self,
     const GValue *value,
     gboolean secret)
 {
-  gchar *escaped = NULL;
+  GVariant *old_v;
+  GVariant *new_v = NULL;
+  const gchar *old_escaped;
+  gchar *new_escaped = NULL;
   McdStorageAccount *sa;
+  gboolean updated = FALSE;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
@@ -1463,28 +1493,40 @@ mcd_storage_set_parameter (McdStorage *self,
   sa = ensure_account (self, account);
 
   if (value != NULL)
-    escaped = mcd_keyfile_escape_value (value);
+    {
+      new_escaped = mcd_keyfile_escape_value (value);
+      new_v = g_variant_ref_sink (dbus_g_value_build_g_variant (value));
+    }
 
-  if (tp_strdiff (escaped, g_hash_table_lookup (sa->parameters, parameter)))
+  old_v = g_hash_table_lookup (sa->parameters, parameter);
+  old_escaped = g_hash_table_lookup (sa->escaped_parameters, parameter);
+
+  if (old_v != NULL)
+    updated = !mcd_nullable_variant_equal (old_v, new_v);
+  else if (old_escaped != NULL)
+    updated = tp_strdiff (old_escaped, new_escaped);
+  else
+    updated = (value != NULL);
+
+  if (updated)
     {
       gchar key[MAX_KEY_LENGTH];
 
-      if (escaped == NULL)
-        g_hash_table_remove (sa->parameters, parameter);
-      else
+      g_hash_table_remove (sa->parameters, parameter);
+      g_hash_table_remove (sa->escaped_parameters, parameter);
+
+      if (new_v != NULL)
         g_hash_table_insert (sa->parameters, g_strdup (parameter),
-            g_strdup (escaped));
+            g_variant_ref (new_v));
 
       g_snprintf (key, sizeof (key), "param-%s", parameter);
-      update_storage (self, account, key, escaped, secret);
-      g_free (escaped);
+      update_storage (self, account, key, new_escaped, secret);
       return TRUE;
     }
-  else
-    {
-      g_free (escaped);
-      return FALSE;
-    }
+
+  g_free (new_escaped);
+  tp_clear_pointer (&new_v, g_variant_unref);
+  return updated;
 }
 
 static gchar *
