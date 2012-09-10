@@ -49,8 +49,7 @@ store_condition (gpointer key, gpointer value, gpointer userdata)
     gchar condition_key[256];
 
     g_snprintf (condition_key, sizeof (condition_key), "condition-%s", name);
-    mcd_storage_set_string (storage, account_name, condition_key, condition,
-                            FALSE);
+    mcd_storage_set_string (storage, account_name, condition_key, condition);
 }
 
 static gboolean
@@ -84,14 +83,14 @@ set_condition (TpSvcDBusProperties *self, const gchar *name,
     conditions = g_value_get_boxed (value);
 
     /* first, delete existing conditions */
-    keys = mcd_storage_dup_settings (storage, account_name, NULL);
+    keys = mcd_storage_dup_attributes (storage, account_name, NULL);
 
     for (key = keys; *key != NULL; key++)
     {
         if (strncmp (*key, "condition-", 10) != 0)
             continue;
 
-        mcd_storage_set_value (storage, account_name, *key, NULL, FALSE);
+        mcd_storage_set_attribute (storage, account_name, *key, NULL);
     }
 
     g_strfreev (keys);
@@ -136,7 +135,7 @@ GHashTable *mcd_account_get_conditions (McdAccount *account)
     conditions = g_hash_table_new_full (g_str_hash, g_str_equal,
 					g_free, g_free);
 
-    keys = mcd_storage_dup_settings (storage, account_name, NULL);
+    keys = mcd_storage_dup_attributes (storage, account_name, NULL);
 
     for (key = keys; *key != NULL; key++)
     {

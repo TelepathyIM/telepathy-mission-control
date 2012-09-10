@@ -44,6 +44,8 @@
 # endif
 #endif
 
+#define MAX_KEY_LENGTH (DBUS_MAXIMUM_NAME_LENGTH + 6)
+
 static GList *stores = NULL;
 static void sort_and_cache_plugins (void);
 
@@ -65,7 +67,8 @@ G_DEFINE_TYPE_WITH_CODE (McdStorage, mcd_storage,
 static void
 mcd_storage_init (McdStorage *self)
 {
-  self->keyfile = g_key_file_new ();
+  self->attributes = g_key_file_new ();
+  self->parameters = g_key_file_new ();
   self->secrets = g_key_file_new ();
 }
 
@@ -76,9 +79,11 @@ storage_finalize (GObject *object)
   GObjectFinalizeFunc finalize =
     G_OBJECT_CLASS (mcd_storage_parent_class)->finalize;
 
-  g_key_file_free (self->keyfile);
+  g_key_file_free (self->attributes);
+  g_key_file_free (self->parameters);
   g_key_file_free (self->secrets);
-  self->keyfile = NULL;
+  self->attributes = NULL;
+  self->parameters = NULL;
   self->secrets = NULL;
 
   if (finalize != NULL)
@@ -166,7 +171,11 @@ get_value (const McpAccountManager *ma,
     const gchar *key)
 {
   McdStorage *self = MCD_STORAGE (ma);
-  return g_key_file_get_value (self->keyfile, account, key, NULL);
+
+  if (g_str_has_prefix (key, "param-"))
+    return g_key_file_get_value (self->parameters, account, key + 6, NULL);
+  else
+    return g_key_file_get_value (self->attributes, account, key, NULL);
 }
 
 static void
@@ -177,10 +186,21 @@ set_value (const McpAccountManager *ma,
 {
   McdStorage *self = MCD_STORAGE (ma);
 
-  if (value != NULL)
-    g_key_file_set_value (self->keyfile, account, key, value);
+  if (g_str_has_prefix (key, "param-"))
+    {
+      if (value != NULL)
+        g_key_file_set_value (self->parameters, account, key + 6, value);
+      else
+        g_key_file_remove_key (self->parameters, account, key + 6, NULL);
+
+    }
   else
-    g_key_file_remove_key (self->keyfile, account, key, NULL);
+    {
+      if (value != NULL)
+        g_key_file_set_value (self->attributes, account, key, value);
+      else
+        g_key_file_remove_key (self->attributes, account, key, NULL);
+    }
 }
 
 static GStrv
@@ -188,8 +208,31 @@ list_keys (const McpAccountManager *ma,
            const gchar * account)
 {
   McdStorage *self = MCD_STORAGE (ma);
+  GPtrArray *ret = g_ptr_array_new ();
+  GStrv strv;
+  gchar **iter;
 
-  return g_key_file_get_keys (self->keyfile, account, NULL, NULL);
+  strv = g_key_file_get_keys (self->attributes, account, NULL, NULL);
+
+  for (iter = strv; iter != NULL && *iter != NULL; iter++)
+    {
+      g_ptr_array_add (ret, *iter);
+    }
+
+  /* ownership of items donated to ret already */
+  g_free (strv);
+
+  strv = g_key_file_get_keys (self->parameters, account, NULL, NULL);
+
+  for (iter = strv; iter != NULL && *iter != NULL; iter++)
+    {
+      g_ptr_array_add (ret, g_strdup_printf ("param-%s", *iter));
+    }
+
+  g_strfreev (strv);
+
+  g_ptr_array_add (ret, NULL);
+  return (GStrv) g_ptr_array_free (ret, FALSE);
 }
 
 static gboolean
@@ -252,7 +295,7 @@ unique_name (const McpAccountManager *ma,
           TP_ACCOUNT_OBJECT_PATH_BASE "%s/%s/%s%u",
           esc_manager, esc_protocol, esc_base, i);
 
-      if (!g_key_file_has_group (self->keyfile, path + base_len) &&
+      if (!g_key_file_has_group (self->attributes, path + base_len) &&
           dbus_g_connection_lookup_g_object (connection, path) == NULL)
         {
           gchar *ret = g_strdup (path + base_len);
@@ -414,27 +457,27 @@ mcd_storage_dup_accounts (McdStorage *self,
 {
   g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
 
-  return g_key_file_get_groups (self->keyfile, n);
+  return g_key_file_get_groups (self->attributes, n);
 }
 
 /*
- * mcd_storage_dup_settings:
+ * mcd_storage_dup_attributes:
  * @storage: An object implementing the #McdStorage interface
  * @account: unique name of the account
- * @n: place for the number of settings to be written to (or %NULL)
+ * @n: place for the number of attributes to be written to (or %NULL)
  *
  * Returns: a newly allocated GStrv containing the names of all the
- * settings or parameters currently stored for @account. Must be
+ * attributes or parameters currently stored for @account. Must be
  * freed by the caller with g_strfreev().
  */
 GStrv
-mcd_storage_dup_settings (McdStorage *self,
+mcd_storage_dup_attributes (McdStorage *self,
     const gchar *account,
     gsize *n)
 {
   g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
 
-  return g_key_file_get_keys (self->keyfile, account, n, NULL);
+  return g_key_file_get_keys (self->attributes, account, n, NULL);
 }
 
 /*
@@ -476,25 +519,27 @@ mcd_storage_get_plugin (McdStorage *self,
  * mcd_storage_dup_string:
  * @storage: An object implementing the #McdStorage interface
  * @account: unique name of the account
- * @key: name of the setting to be retrieved
+ * @attribute: name of the attribute to be retrieved (which must not be a
+ *  parameter)
  *
  * Returns: a newly allocated gchar * which must be freed with g_free().
  */
 gchar *
 mcd_storage_dup_string (McdStorage *self,
     const gchar *account,
-    const gchar *key)
+    const gchar *attribute)
 {
   GValue tmp = G_VALUE_INIT;
   gchar *ret;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
   g_return_val_if_fail (account != NULL, NULL);
-  g_return_val_if_fail (key != NULL, NULL);
+  g_return_val_if_fail (attribute != NULL, NULL);
+  g_return_val_if_fail (!g_str_has_prefix (attribute, "param-"), NULL);
 
   g_value_init (&tmp, G_TYPE_STRING);
 
-  if (!mcd_storage_get_value (self, account, key, &tmp, NULL))
+  if (!mcd_storage_get_attribute (self, account, attribute, &tmp, NULL))
     return NULL;
 
   ret = g_value_dup_string (&tmp);
@@ -503,16 +548,58 @@ mcd_storage_dup_string (McdStorage *self,
 }
 
 /*
- * mcd_storage_get_value:
+ * mcd_storage_get_attribute:
  * @storage: An object implementing the #McdStorage interface
  * @account: unique name of the account
- * @key: name of the setting to be retrieved
+ * @attribute: name of the attribute to be retrieved, e.g. 'DisplayName'
  * @value: location to return the value, initialized to the right #GType
  * @error: a place to store any #GError<!-- -->s that occur
  */
 gboolean
-mcd_storage_get_value (McdStorage *self,
+mcd_storage_get_attribute (McdStorage *self,
     const gchar *account,
+    const gchar *attribute,
+    GValue *value,
+    GError **error)
+{
+  g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
+
+  return mcd_keyfile_get_value (self->attributes, account, attribute, value,
+      error);
+}
+
+/*
+ * mcd_storage_get_parameter:
+ * @storage: An object implementing the #McdStorage interface
+ * @account: unique name of the account
+ * @parameter: name of the parameter to be retrieved, e.g. 'account'
+ * @value: location to return the value, initialized to the right #GType
+ * @error: a place to store any #GError<!-- -->s that occur
+ */
+gboolean
+mcd_storage_get_parameter (McdStorage *self,
+    const gchar *account,
+    const gchar *parameter,
+    GValue *value,
+    GError **error)
+{
+  g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
+
+  return mcd_keyfile_get_value (self->parameters, account, parameter,
+      value, error);
+}
+
+/*
+ * mcd_keyfile_get_value:
+ * @keyfile: A #GKeyFile
+ * @group: name of a group
+ * @key: name of a key
+ * @value: location to return the value, initialized to the right #GType
+ * @error: a place to store any #GError<!-- -->s that occur
+ */
+gboolean
+mcd_keyfile_get_value (GKeyFile *keyfile,
+    const gchar *group,
     const gchar *key,
     GValue *value,
     GError **error)
@@ -520,8 +607,9 @@ mcd_storage_get_value (McdStorage *self,
   gboolean ret = FALSE;
   GType type;
 
-  g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
-  g_return_val_if_fail (account != NULL, FALSE);
+  g_return_val_if_fail (keyfile != NULL, FALSE);
+  g_return_val_if_fail (group != NULL, FALSE);
+  g_return_val_if_fail (key != NULL, FALSE);
   g_return_val_if_fail (G_IS_VALUE (value), FALSE);
 
   type = G_VALUE_TYPE (value);
@@ -530,7 +618,7 @@ mcd_storage_get_value (McdStorage *self,
     {
       case G_TYPE_STRING:
           {
-            gchar *v_string = g_key_file_get_string (self->keyfile, account,
+            gchar *v_string = g_key_file_get_string (keyfile, group,
                 key, error);
 
             if (v_string != NULL)
@@ -545,7 +633,7 @@ mcd_storage_get_value (McdStorage *self,
       case G_TYPE_INT:
           {
             GError *e = NULL;
-            gint v_int = g_key_file_get_integer (self->keyfile, account,
+            gint v_int = g_key_file_get_integer (keyfile, group,
                 key, &e);
 
             if (e != NULL)
@@ -563,7 +651,7 @@ mcd_storage_get_value (McdStorage *self,
       case G_TYPE_INT64:
           {
             GError *e = NULL;
-            gint64 v_int = tp_g_key_file_get_int64 (self->keyfile, account,
+            gint64 v_int = tp_g_key_file_get_int64 (keyfile, group,
                 key, &e);
 
             if (e != NULL)
@@ -581,7 +669,7 @@ mcd_storage_get_value (McdStorage *self,
       case G_TYPE_UINT:
           {
             GError *e = NULL;
-            guint64 v_uint = tp_g_key_file_get_uint64 (self->keyfile, account,
+            guint64 v_uint = tp_g_key_file_get_uint64 (keyfile, group,
                 key, &e);
 
             if (e != NULL)
@@ -606,7 +694,7 @@ mcd_storage_get_value (McdStorage *self,
     case G_TYPE_UCHAR:
           {
             GError *e = NULL;
-            gint v_int = g_key_file_get_integer (self->keyfile, account,
+            gint v_int = g_key_file_get_integer (keyfile, group,
                 key, &e);
 
             if (e != NULL)
@@ -631,7 +719,7 @@ mcd_storage_get_value (McdStorage *self,
       case G_TYPE_UINT64:
           {
             GError *e = NULL;
-            guint64 v_uint = tp_g_key_file_get_uint64 (self->keyfile, account,
+            guint64 v_uint = tp_g_key_file_get_uint64 (keyfile, group,
                 key, &e);
 
             if (e != NULL)
@@ -649,7 +737,7 @@ mcd_storage_get_value (McdStorage *self,
       case G_TYPE_BOOLEAN:
           {
             GError *e = NULL;
-            gboolean v_bool = g_key_file_get_boolean (self->keyfile, account,
+            gboolean v_bool = g_key_file_get_boolean (keyfile, group,
                 key, &e);
 
             if (e != NULL)
@@ -667,7 +755,7 @@ mcd_storage_get_value (McdStorage *self,
       case G_TYPE_DOUBLE:
           {
             GError *e = NULL;
-            gdouble v_double = g_key_file_get_double (self->keyfile, account,
+            gdouble v_double = g_key_file_get_double (keyfile, group,
                 key, &e);
 
             if (e != NULL)
@@ -685,7 +773,7 @@ mcd_storage_get_value (McdStorage *self,
       default:
         if (type == G_TYPE_STRV)
           {
-            gchar **v = g_key_file_get_string_list (self->keyfile, account,
+            gchar **v = g_key_file_get_string_list (keyfile, group,
                 key, NULL, error);
 
             if (v != NULL)
@@ -696,7 +784,7 @@ mcd_storage_get_value (McdStorage *self,
           }
         else if (type == DBUS_TYPE_G_OBJECT_PATH)
           {
-            gchar *v_string = g_key_file_get_string (self->keyfile, account,
+            gchar *v_string = g_key_file_get_string (keyfile, group,
                 key, error);
 
             if (v_string == NULL)
@@ -718,7 +806,7 @@ mcd_storage_get_value (McdStorage *self,
           }
         else if (type == TP_ARRAY_TYPE_OBJECT_PATH_LIST)
           {
-            gchar **v = g_key_file_get_string_list (self->keyfile, account,
+            gchar **v = g_key_file_get_string_list (keyfile, group,
                 key, NULL, error);
 
             if (v != NULL)
@@ -732,7 +820,7 @@ mcd_storage_get_value (McdStorage *self,
                       {
                         g_set_error (error, MCD_ACCOUNT_ERROR,
                             MCD_ACCOUNT_ERROR_GET_PARAMETER,
-                            "Invalid object path %s stored in account", *iter);
+                            "Invalid object path %s stored in keyfile", *iter);
                         g_strfreev (v);
                         v = NULL;
                         break;
@@ -756,9 +844,9 @@ mcd_storage_get_value (McdStorage *self,
         else
           {
             gchar *message =
-              g_strdup_printf ("cannot get property %s on account %s, "
+              g_strdup_printf ("cannot get key %s from group %s: "
                   "unknown type %s",
-                  key, account, g_type_name (type));
+                  key, group, g_type_name (type));
 
             g_warning ("%s: %s", G_STRFUNC, message);
             g_set_error (error, MCD_ACCOUNT_ERROR,
@@ -775,24 +863,25 @@ mcd_storage_get_value (McdStorage *self,
  * mcd_storage_get_boolean:
  * @storage: An object implementing the #McdStorage interface
  * @account: unique name of the account
- * @key: name of the setting to be retrieved
+ * @key: name of the attribute to be retrieved
  *
  * Returns: a #gboolean. Unset/unparseable values are returned as %FALSE
  */
 gboolean
 mcd_storage_get_boolean (McdStorage *self,
     const gchar *account,
-    const gchar *key)
+    const gchar *attribute)
 {
   GValue tmp = G_VALUE_INIT;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
-  g_return_val_if_fail (key != NULL, FALSE);
+  g_return_val_if_fail (attribute != NULL, FALSE);
+  g_return_val_if_fail (!g_str_has_prefix (attribute, "param-"), FALSE);
 
   g_value_init (&tmp, G_TYPE_BOOLEAN);
 
-  if (!mcd_storage_get_value (self, account, key, &tmp, NULL))
+  if (!mcd_storage_get_attribute (self, account, attribute, &tmp, NULL))
     return FALSE;
 
   return g_value_get_boolean (&tmp);
@@ -802,24 +891,25 @@ mcd_storage_get_boolean (McdStorage *self,
  * mcd_storage_get_integer:
  * @storage: An object implementing the #McdStorage interface
  * @account: unique name of the account
- * @key: name of the setting to be retrieved
+ * @attribute: name of the attribute to be retrieved
  *
  * Returns: a #gint. Unset or non-numeric values are returned as 0
  */
 gint
 mcd_storage_get_integer (McdStorage *self,
     const gchar *account,
-    const gchar *key)
+    const gchar *attribute)
 {
   GValue tmp = G_VALUE_INIT;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), 0);
   g_return_val_if_fail (account != NULL, 0);
-  g_return_val_if_fail (key != NULL, 0);
+  g_return_val_if_fail (attribute != NULL, 0);
+  g_return_val_if_fail (!g_str_has_prefix (attribute, "param-"), 0);
 
   g_value_init (&tmp, G_TYPE_INT);
 
-  if (!mcd_storage_get_value (self, account, key, &tmp, NULL))
+  if (!mcd_storage_get_attribute (self, account, attribute, &tmp, NULL))
     return FALSE;
 
   return g_value_get_int (&tmp);
@@ -842,7 +932,10 @@ update_storage (McdStorage *self,
   /* don't unescape the value here, we're flushing it to storage         *
    * everywhere else should handle escaping on the way in and unescaping *
    * on the way out of the keyfile, but not here:                        */
-  val = g_key_file_get_value (self->keyfile, account, key, NULL);
+  if (g_str_has_prefix (key, "param-"))
+    val = g_key_file_get_value (self->parameters, account, key + 6, NULL);
+  else
+    val = g_key_file_get_value (self->attributes, account, key, NULL);
 
   /* we're deleting, which is unconditional, no need to check if anyone *
    * claims this setting for themselves                                 */
@@ -874,10 +967,8 @@ update_storage (McdStorage *self,
  * mcd_storage_set_string:
  * @storage: An object implementing the #McdStorage interface
  * @account: the unique name of an account
- * @key: the key (name) of the parameter or setting
+ * @key: the name of the attribute
  * @value: the value to be stored (or %NULL to erase it)
- * @secret: whether the value is confidential (might get stored in the
- * keyring, for example)
  *
  * Copies and stores the supplied @value (or removes it if %NULL) to the
  * internal cache.
@@ -891,19 +982,19 @@ update_storage (McdStorage *self,
 gboolean
 mcd_storage_set_string (McdStorage *self,
     const gchar *account,
-    const gchar *key,
-    const gchar *val,
-    gboolean secret)
+    const gchar *attribute,
+    const gchar *val)
 {
   gboolean updated;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
-  g_return_val_if_fail (key != NULL, FALSE);
+  g_return_val_if_fail (attribute != NULL, FALSE);
+  g_return_val_if_fail (!g_str_has_prefix (attribute, "param-"), FALSE);
 
   if (val == NULL)
     {
-      updated = mcd_storage_set_value (self, account, key, NULL, secret);
+      updated = mcd_storage_set_attribute (self, account, attribute, NULL);
     }
   else
     {
@@ -911,7 +1002,7 @@ mcd_storage_set_string (McdStorage *self,
 
       g_value_init (&tmp, G_TYPE_STRING);
       g_value_set_string (&tmp, val);
-      updated = mcd_storage_set_value (self, account, key, &tmp, secret);
+      updated = mcd_storage_set_attribute (self, account, attribute, &tmp);
       g_value_unset (&tmp);
     }
 
@@ -919,13 +1010,94 @@ mcd_storage_set_string (McdStorage *self,
 }
 
 /*
- * mcd_storage_set_value:
+ * mcd_storage_set_attribute:
  * @storage: An object implementing the #McdStorage interface
  * @account: the unique name of an account
- * @key: the key (name) of the parameter or setting
+ * @attribute: the name of the attribute, e.g. "DisplayName"
+ * @value: the value to be stored (or %NULL to erase it)
+ *
+ * Copies and stores the supplied @value (or removes it if %NULL) in the
+ * internal cache.
+ *
+ * Returns: a #gboolean indicating whether the cache actually required an
+ * update (so that the caller can decide whether to request a commit to
+ * long term storage or not). %TRUE indicates the cache was updated and
+ * may not be in sync with the store any longer, %FALSE indicates we already
+ * held the value supplied.
+ */
+gboolean
+mcd_storage_set_attribute (McdStorage *self,
+    const gchar *account,
+    const gchar *attribute,
+    const GValue *value)
+{
+  gboolean updated;
+
+  g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
+  g_return_val_if_fail (account != NULL, FALSE);
+  g_return_val_if_fail (attribute != NULL, FALSE);
+  g_return_val_if_fail (!g_str_has_prefix (attribute, "param-"), FALSE);
+
+  updated = mcd_keyfile_set_value (self->attributes, account, attribute, value);
+
+  if (updated)
+    update_storage (self, account, attribute, FALSE);
+
+  return updated;
+}
+
+/*
+ * mcd_storage_set_parameter:
+ * @storage: An object implementing the #McdStorage interface
+ * @account: the unique name of an account
+ * @parameter: the name of the parameter, e.g. "account"
  * @value: the value to be stored (or %NULL to erase it)
  * @secret: whether the value is confidential (might get stored in the
  * keyring, for example)
+ *
+ * Copies and stores the supplied @value (or removes it if %NULL) in the
+ * internal cache.
+ *
+ * Returns: a #gboolean indicating whether the cache actually required an
+ * update (so that the caller can decide whether to request a commit to
+ * long term storage or not). %TRUE indicates the cache was updated and
+ * may not be in sync with the store any longer, %FALSE indicates we already
+ * held the value supplied.
+ */
+gboolean
+mcd_storage_set_parameter (McdStorage *self,
+    const gchar *account,
+    const gchar *parameter,
+    const GValue *value,
+    gboolean secret)
+{
+  gboolean updated;
+
+  g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
+  g_return_val_if_fail (account != NULL, FALSE);
+  g_return_val_if_fail (parameter != NULL, FALSE);
+
+  updated = mcd_keyfile_set_value (self->parameters, account, parameter,
+      value);
+
+  if (updated)
+    {
+      gchar key[MAX_KEY_LENGTH];
+
+      g_snprintf (key, sizeof (key), "param-%s", parameter);
+
+      update_storage (self, account, key, secret);
+    }
+
+  return updated;
+}
+
+/*
+ * mcd_keyfile_set_value:
+ * @keyfile: a keyfile
+ * @name: the name of a group
+ * @key: the key in the group
+ * @value: the value to be stored (or %NULL to erase it)
  *
  * Copies and stores the supplied @value (or removes it if %NULL) to the
  * internal cache.
@@ -937,40 +1109,34 @@ mcd_storage_set_string (McdStorage *self,
  * held the value supplied.
  */
 gboolean
-mcd_storage_set_value (McdStorage *self,
+mcd_keyfile_set_value (GKeyFile *keyfile,
     const gchar *name,
     const gchar *key,
-    const GValue *value,
-    gboolean secret)
+    const GValue *value)
 {
-  g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (name != NULL, FALSE);
   g_return_val_if_fail (key != NULL, FALSE);
 
   if (value == NULL)
     {
-      gchar *old = g_key_file_get_value (self->keyfile, name, key, NULL);
+      gchar *old = g_key_file_get_value (keyfile, name, key, NULL);
       gboolean updated = (old != NULL);
 
       g_free (old);
-      g_key_file_remove_key (self->keyfile, name, key, NULL);
-
-      if (updated)
-        update_storage (self, name, key, secret);
-
+      g_key_file_remove_key (keyfile, name, key, NULL);
       return updated;
     }
   else
     {
       gboolean updated = FALSE;
-      gchar *old = g_key_file_get_value (self->keyfile, name, key, NULL);
+      gchar *old = g_key_file_get_value (keyfile, name, key, NULL);
       gchar *new = NULL;
       gchar *buf = NULL;
 
       switch (G_VALUE_TYPE (value))
         {
           case G_TYPE_STRING:
-            g_key_file_set_string (self->keyfile, name, key,
+            g_key_file_set_string (keyfile, name, key,
                 g_value_get_string (value));
             break;
 
@@ -979,12 +1145,12 @@ mcd_storage_set_value (McdStorage *self,
             break;
 
           case G_TYPE_INT:
-            g_key_file_set_integer (self->keyfile, name, key,
+            g_key_file_set_integer (keyfile, name, key,
                 g_value_get_int (value));
             break;
 
           case G_TYPE_BOOLEAN:
-            g_key_file_set_boolean (self->keyfile, name, key,
+            g_key_file_set_boolean (keyfile, name, key,
                 g_value_get_boolean (value));
             break;
 
@@ -1003,7 +1169,7 @@ mcd_storage_set_value (McdStorage *self,
             break;
 
           case G_TYPE_DOUBLE:
-            g_key_file_set_double (self->keyfile, name, key,
+            g_key_file_set_double (keyfile, name, key,
                 g_value_get_double (value));
             break;
 
@@ -1012,20 +1178,20 @@ mcd_storage_set_value (McdStorage *self,
               {
                 gchar **strings = g_value_get_boxed (value);
 
-                g_key_file_set_string_list (self->keyfile, name, key,
+                g_key_file_set_string_list (keyfile, name, key,
                     (const gchar **)strings,
                     g_strv_length (strings));
               }
             else if (G_VALUE_HOLDS (value, DBUS_TYPE_G_OBJECT_PATH))
               {
-                g_key_file_set_string (self->keyfile, name, key,
+                g_key_file_set_string (keyfile, name, key,
                     g_value_get_boxed (value));
               }
             else if (G_VALUE_HOLDS (value, TP_ARRAY_TYPE_OBJECT_PATH_LIST))
               {
                 GPtrArray *arr = g_value_get_boxed (value);
 
-                g_key_file_set_string_list (self->keyfile, name, key,
+                g_key_file_set_string_list (keyfile, name, key,
                     (const gchar * const *) arr->pdata, arr->len);
               }
             else
@@ -1037,15 +1203,12 @@ mcd_storage_set_value (McdStorage *self,
         }
 
       if (buf != NULL)
-        g_key_file_set_string (self->keyfile, name, key, buf);
+        g_key_file_set_string (keyfile, name, key, buf);
 
-      new = g_key_file_get_value (self->keyfile, name, key, NULL);
+      new = g_key_file_get_value (keyfile, name, key, NULL);
 
       if (tp_strdiff (old, new))
-        {
-          update_storage (self, name, key, secret);
-          updated = TRUE;
-        }
+        updated = TRUE;
 
       g_free (new);
       g_free (buf);
@@ -1186,7 +1349,8 @@ mcd_storage_delete_account (McdStorage *self,
   g_return_if_fail (MCD_IS_STORAGE (self));
   g_return_if_fail (account != NULL);
 
-  g_key_file_remove_group (self->keyfile, account, NULL);
+  g_key_file_remove_group (self->attributes, account, NULL);
+  g_key_file_remove_group (self->parameters, account, NULL);
 
   for (store = stores; store != NULL; store = g_list_next (store))
     {
@@ -1234,11 +1398,9 @@ mcd_storage_commit (McdStorage *self, const gchar *account)
  * mcd_storage_set_strv:
  * @storage: An object implementing the #McdStorage interface
  * @account: the unique name of an account
- * @key: the key (name) of the parameter or setting
+ * @attribute: the name of the attribute
  * @strv: the string vector to be stored (where %NULL is treated as equivalent
  * to an empty vector)
- * @secret: whether the value is confidential (might get stored in the
- * keyring, for example)
  *
  * Copies and stores the supplied string vector to the internal cache.
  *
@@ -1251,9 +1413,8 @@ mcd_storage_commit (McdStorage *self, const gchar *account)
 gboolean
 mcd_storage_set_strv (McdStorage *storage,
     const gchar *account,
-    const gchar *key,
-    const gchar * const *strv,
-    gboolean secret)
+    const gchar *attribute,
+    const gchar * const *strv)
 {
   GValue v = G_VALUE_INIT;
   static const gchar * const *empty = { NULL };
@@ -1261,11 +1422,12 @@ mcd_storage_set_strv (McdStorage *storage,
 
   g_return_val_if_fail (MCD_IS_STORAGE (storage), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
-  g_return_val_if_fail (key != NULL, FALSE);
+  g_return_val_if_fail (attribute != NULL, FALSE);
+  g_return_val_if_fail (!g_str_has_prefix (attribute, "param-"), FALSE);
 
   g_value_init (&v, G_TYPE_STRV);
   g_value_set_static_boxed (&v, strv == NULL ? empty : strv);
-  ret = mcd_storage_set_value (storage, account, key, &v, secret);
+  ret = mcd_storage_set_attribute (storage, account, attribute, &v);
   g_value_unset (&v);
   return ret;
 }
