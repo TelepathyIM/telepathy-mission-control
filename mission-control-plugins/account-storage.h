@@ -122,46 +122,67 @@ struct _McpAccountStorageIface
   McpAccountStorageCreate create;
 };
 
+#ifndef __GTK_DOC_IGNORE__
+#ifndef MC_DISABLE_DEPRECATED
+
 /* functions with which to fill in the vtable */
+G_DEPRECATED_FOR (iface->priority = prio)
 void mcp_account_storage_iface_set_priority (McpAccountStorageIface *iface,
     guint prio);
 
+G_DEPRECATED_FOR (iface->name = name)
 void mcp_account_storage_iface_set_name (McpAccountStorageIface *iface,
     const gchar *name);
 
+G_DEPRECATED_FOR (iface->desc = desc)
 void mcp_account_storage_iface_set_desc (McpAccountStorageIface *iface,
     const gchar *desc);
 
+G_DEPRECATED_FOR (iface->provider = provider)
 void mcp_account_storage_iface_set_provider (McpAccountStorageIface *iface,
     const gchar *provider);
 
+G_DEPRECATED_FOR (iface->get = method)
 void mcp_account_storage_iface_implement_get (McpAccountStorageIface *iface,
     McpAccountStorageGetFunc method);
+G_DEPRECATED_FOR (iface->set = method)
 void mcp_account_storage_iface_implement_set (McpAccountStorageIface *iface,
     McpAccountStorageSetFunc method);
+G_DEPRECATED_FOR (iface->create = method)
 void mcp_account_storage_iface_implement_create (
     McpAccountStorageIface *iface,
     McpAccountStorageCreate method);
+G_DEPRECATED_FOR (iface->delete = method)
 void mcp_account_storage_iface_implement_delete (McpAccountStorageIface *iface,
     McpAccountStorageDeleteFunc method);
+G_DEPRECATED_FOR (iface->list = method)
 void mcp_account_storage_iface_implement_list (McpAccountStorageIface *iface,
     McpAccountStorageListFunc method);
+G_DEPRECATED_FOR (iface->commit = method)
 void mcp_account_storage_iface_implement_commit (McpAccountStorageIface *iface,
     McpAccountStorageCommitFunc method);
+G_DEPRECATED_FOR (iface->commit_one = method)
 void mcp_account_storage_iface_implement_commit_one (
     McpAccountStorageIface *iface,
     McpAccountStorageCommitOneFunc method);
+G_DEPRECATED_FOR (iface->ready = method)
 void mcp_account_storage_iface_implement_ready (McpAccountStorageIface *iface,
     McpAccountStorageReadyFunc method);
+G_DEPRECATED_FOR (iface->get_identifier = method)
 void mcp_account_storage_iface_implement_get_identifier (
     McpAccountStorageIface *iface,
     McpAccountStorageGetIdentifierFunc method);
+G_DEPRECATED_FOR (iface->get_additional_info = method)
 void mcp_account_storage_iface_implement_get_additional_info (
     McpAccountStorageIface *iface,
     McpAccountStorageGetAdditionalInfoFunc method);
+G_DEPRECATED_FOR (iface->get_restrictions = method)
 void mcp_account_storage_iface_implement_get_restrictions (
     McpAccountStorageIface *iface,
     McpAccountStorageGetRestrictionsFunc method);
+
+#endif /* !defined(MC_DISABLE_DEPRECATED) */
+#endif /* !defined(__GTK_DOC_IGNORE__) */
 
 /* virtual methods */
 gint mcp_account_storage_priority (const McpAccountStorage *storage);
