@@ -77,11 +77,15 @@ mcp_account_manager_get_type (void)
  * mcp_account_manager_set_value:
  * @mcpa: an #McpAccountManager instance
  * @account: the unique name of an account
- * @key: the name of a setting, or "param-" plus the name of the parameter
+ * @key: the setting whose value we wish to change: either an attribute
+ *  like "DisplayName", or "param-" plus a parameter like "account"
  * @value: the new value, escaped as if for a #GKeyFile, or %NULL to delete
  *  the setting/parameter
  *
  * Inform Mission Control that @key has changed its value to @value.
+ *
+ * This function may either be called from mcp_account_storage_get(),
+ * or just before emitting #McpAccountStorage::altered-one.
  */
 void
 mcp_account_manager_set_value (const McpAccountManager *mcpa,
@@ -97,6 +101,16 @@ mcp_account_manager_set_value (const McpAccountManager *mcpa,
   iface->set_value (mcpa, account, key, value);
 }
 
+/**
+ * mcp_account_manage_list_keys:
+ * @mcpa: a #McpAccountManager instance
+ * @account: the unique name of an account
+ *
+ * <!-- -->
+ *
+ * Returns: (transfer full): a list of all keys (attributes and
+ *  "param-"-prefixed parameters) stored for @account by any plugin
+ */
 GStrv
 mcp_account_manager_list_keys (const McpAccountManager *mcpa,
     const gchar *account)
@@ -114,13 +128,14 @@ mcp_account_manager_list_keys (const McpAccountManager *mcpa,
  * mcp_account_manager_get_value:
  * @mcpa: an #McpAccountManager instance
  * @account: the unique name of an account
- * @key: the setting whose value we want to retrieve
+ * @key: the setting whose value we wish to fetch: either an attribute
+ *  like "DisplayName", or "param-" plus a parameter like "account"
  *
  * Fetch a copy of the current value of an account setting held by
- * the #McdAccountManager.
+ * the account manager.
  *
- * Returns: a #gchar* which should be freed when the caller is done with it.
- **/
+ * Returns: (transfer full): the value of @key
+ */
 gchar *
 mcp_account_manager_get_value (const McpAccountManager *mcpa,
     const gchar *account,
@@ -138,16 +153,20 @@ mcp_account_manager_get_value (const McpAccountManager *mcpa,
  * mcp_account_manager_parameter_is_secret:
  * @mcpa: an #McpAccountManager instance
  * @account: the unique name of an account
- * @key: the setting whose value we want to retrieve
+ * @key: the constant string "param-", plus a parameter name like
+ *  "account" or "password"
  *
  * Determine whether a given account parameter is secret.
- * generally this is determined by MC and passed down to us,
- * but any #McpAccountStorage plugin may decide a setting is
+ * Generally this is determined by MC and passed down to plugins,
+ * but any #McpAccountStorage plugin may decide a parameter is
  * secret, in which case the return value for this call will
- * indicate that fact.
+ * indicate that fact too.
  *
- * Returns: a #gboolean, %TRUE for secret settings, %FALSE otherwise
- **/
+ * For historical reasons, this function only operates on parameters,
+ * but requires its argument to be prefixed with "param-".
+ *
+ * Returns: %TRUE for secret settings, %FALSE otherwise
+ */
 gboolean
 mcp_account_manager_parameter_is_secret (const McpAccountManager *mcpa,
     const gchar *account,
@@ -165,11 +184,16 @@ mcp_account_manager_parameter_is_secret (const McpAccountManager *mcpa,
  * mcp_account_manager_parameter_make_secret:
  * @mcpa: an #McpAccountManager instance
  * @account: the unique name of an account
- * @key: the setting whose value we want to retrieve
+ * @key: the constant string "param-", plus a parameter name like
+ *  "account" or "password"
  *
  * Flag an account setting as secret for the lifetime of this
- * #McpAccountManager and its corresponding #McdAccountManager
- **/
+ * #McpAccountManager. For instance, this should be called if
+ * @key has been retrieved from gnome-keyring.
+ *
+ * For historical reasons, this function only operates on parameters,
+ * but requires its argument to be prefixed with "param-".
+ */
 void
 mcp_account_manager_parameter_make_secret (const McpAccountManager *mcpa,
     const gchar *account,

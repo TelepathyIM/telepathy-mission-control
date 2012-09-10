@@ -2244,9 +2244,9 @@ account_remove (TpSvcAccount *svc, DBusGMethodInvocation *context)
 
 /*
  * @account: the account
- * @name: a setting name, or "param-" + a parameter name
+ * @name: an attribute name, or "param-" + a parameter name
  *
- * Tell the account that one of its settings or parameters has changed
+ * Tell the account that one of its attributes or parameters has changed
  * behind its back (as opposed to an external change triggered by DBus,
  * for example). This occurs when a storage plugin wishes to notify us
  * that something has changed. This will trigger an update when the

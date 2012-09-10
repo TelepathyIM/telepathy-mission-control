@@ -36,6 +36,13 @@ G_BEGIN_DECLS
 typedef struct _McpAccountStorage McpAccountStorage;
 typedef struct _McpAccountStorageIface McpAccountStorageIface;
 
+#ifdef _i_used_gtk_doc_but_all_i_got_was_this_heap_of_workarounds
+/* Without this, gtk-doc doesn't generate documentation for
+ * #McpAccountStorage. There is actually no such struct: do not attempt
+ * to use it. */
+struct _McpAccountStorage { };
+#endif
+
 #define MCP_TYPE_ACCOUNT_STORAGE (mcp_account_storage_get_type ())
 
 #define MCP_ACCOUNT_STORAGE(o) \
@@ -49,7 +56,7 @@ typedef struct _McpAccountStorageIface McpAccountStorageIface;
   (G_TYPE_INSTANCE_GET_INTERFACE ((o), MCP_TYPE_ACCOUNT_STORAGE, \
                                   McpAccountStorageIface))
 
-GType mcp_account_storage_get_type (void) G_GNUC_CONST;
+GType mcp_account_storage_get_type (void);
 
 /* Virtual method implementation signatures */
 typedef gboolean (*McpAccountStorageGetFunc) (
