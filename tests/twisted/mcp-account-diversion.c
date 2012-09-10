@@ -258,15 +258,15 @@ static void
 account_storage_iface_init (McpAccountStorageIface *iface,
     gpointer unused G_GNUC_UNUSED)
 {
-  mcp_account_storage_iface_set_name (iface, PLUGIN_NAME);
-  mcp_account_storage_iface_set_desc (iface, PLUGIN_DESCRIPTION);
-  mcp_account_storage_iface_set_priority (iface, PLUGIN_PRIORITY);
+  iface->name = PLUGIN_NAME;
+  iface->desc = PLUGIN_DESCRIPTION;
+  iface->priority = PLUGIN_PRIORITY;
 
-  mcp_account_storage_iface_implement_get (iface, _get);
-  mcp_account_storage_iface_implement_set (iface, _set);
-  mcp_account_storage_iface_implement_delete (iface, _delete);
-  mcp_account_storage_iface_implement_commit (iface, _commit);
-  mcp_account_storage_iface_implement_list (iface, _list);
+  iface->get = _get;
+  iface->set = _set;
+  iface->delete = _delete;
+  iface->commit = _commit;
+  iface->list = _list;
 }
 
 
