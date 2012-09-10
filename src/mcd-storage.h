@@ -30,9 +30,8 @@ G_BEGIN_DECLS
 typedef struct {
   GObject parent;
   TpDBusDaemon *dbusd;
-  GKeyFile *attributes;
-  GKeyFile *parameters;
-  GKeyFile *secrets;
+  /* owned string => owned McdStorageAccount */
+  GHashTable *accounts;
 } McdStorage;
 
 typedef struct _McdStorageClass McdStorageClass;

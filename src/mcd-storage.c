@@ -64,12 +64,34 @@ G_DEFINE_TYPE_WITH_CODE (McdStorage, mcd_storage,
     G_TYPE_OBJECT,
     G_IMPLEMENT_INTERFACE (MCP_TYPE_ACCOUNT_MANAGER, plugin_iface_init))
 
+typedef struct {
+    /* owned string => owned string escaped as if for a keyfile
+     * e.g. { 'DisplayName': 'Frederick Bloggs' } */
+    GHashTable *attributes;
+    /* owned string => owned string escaped as if for a keyfile
+     * e.g. { 'account': 'fred@example.com', 'password': 'foo' } */
+    GHashTable *parameters;
+    /* set of owned strings
+     * e.g. { 'password': 'password' } */
+    GHashTable *secrets;
+} McdStorageAccount;
+
+static void
+mcd_storage_account_free (gpointer p)
+{
+  McdStorageAccount *sa = p;
+
+  g_hash_table_unref (sa->attributes);
+  g_hash_table_unref (sa->parameters);
+  g_hash_table_unref (sa->secrets);
+  g_slice_free (McdStorageAccount, sa);
+}
+
 static void
 mcd_storage_init (McdStorage *self)
 {
-  self->attributes = g_key_file_new ();
-  self->parameters = g_key_file_new ();
-  self->secrets = g_key_file_new ();
+  self->accounts = g_hash_table_new_full (g_str_hash, g_str_equal,
+      g_free, mcd_storage_account_free);
 }
 
 static void
@@ -79,12 +101,8 @@ storage_finalize (GObject *object)
   GObjectFinalizeFunc finalize =
     G_OBJECT_CLASS (mcd_storage_parent_class)->finalize;
 
-  g_key_file_free (self->attributes);
-  g_key_file_free (self->parameters);
-  g_key_file_free (self->secrets);
-  self->attributes = NULL;
-  self->parameters = NULL;
-  self->secrets = NULL;
+  g_hash_table_unref (self->accounts);
+  self->accounts = NULL;
 
   if (finalize != NULL)
     finalize (object);
@@ -165,6 +183,60 @@ mcd_storage_new (TpDBusDaemon *dbus_daemon)
       NULL);
 }
 
+static McdStorageAccount *
+lookup_account (McdStorage *self,
+    const gchar *account)
+{
+  return g_hash_table_lookup (self->accounts, account);
+}
+
+static McdStorageAccount *
+ensure_account (McdStorage *self,
+    const gchar *account)
+{
+  McdStorageAccount *sa = lookup_account (self, account);
+
+  if (sa == NULL)
+    {
+      sa = g_slice_new (McdStorageAccount);
+      sa->attributes = g_hash_table_new_full (g_str_hash, g_str_equal,
+          g_free, g_free);
+      sa->parameters = g_hash_table_new_full (g_str_hash, g_str_equal,
+          g_free, g_free);
+      sa->secrets = g_hash_table_new_full (g_str_hash, g_str_equal,
+          g_free, NULL);
+      g_hash_table_insert (self->accounts, g_strdup (account), sa);
+    }
+
+  return sa;
+}
+
+static const gchar *
+mcd_storage_get_escaped_attribute (McdStorage *self,
+    const gchar *account,
+    const gchar *attribute)
+{
+  McdStorageAccount *sa = lookup_account (self, account);
+
+  if (sa == NULL)
+    return NULL;
+
+  return g_hash_table_lookup (sa->attributes, attribute);
+}
+
+static const gchar *
+mcd_storage_get_escaped_parameter (McdStorage *self,
+    const gchar *account,
+    const gchar *parameter)
+{
+  McdStorageAccount *sa = lookup_account (self, account);
+
+  if (sa == NULL)
+    return NULL;
+
+  return g_hash_table_lookup (sa->parameters, parameter);
+}
+
 static gchar *
 get_value (const McpAccountManager *ma,
     const gchar *account,
@@ -173,9 +245,10 @@ get_value (const McpAccountManager *ma,
   McdStorage *self = MCD_STORAGE (ma);
 
   if (g_str_has_prefix (key, "param-"))
-    return g_key_file_get_value (self->parameters, account, key + 6, NULL);
+    return g_strdup (mcd_storage_get_escaped_parameter (self, account,
+          key + 6));
   else
-    return g_key_file_get_value (self->attributes, account, key, NULL);
+    return g_strdup (mcd_storage_get_escaped_attribute (self, account, key));
 }
 
 static void
@@ -185,21 +258,22 @@ set_value (const McpAccountManager *ma,
     const gchar *value)
 {
   McdStorage *self = MCD_STORAGE (ma);
+  McdStorageAccount *sa = ensure_account (self, account);
 
   if (g_str_has_prefix (key, "param-"))
     {
       if (value != NULL)
-        g_key_file_set_value (self->parameters, account, key + 6, value);
+        g_hash_table_insert (sa->parameters, g_strdup (key + 6),
+            g_strdup (value));
       else
-        g_key_file_remove_key (self->parameters, account, key + 6, NULL);
-
+        g_hash_table_remove (sa->parameters, key + 6);
     }
   else
     {
       if (value != NULL)
-        g_key_file_set_value (self->attributes, account, key, value);
+        g_hash_table_insert (sa->attributes, g_strdup (key), g_strdup (value));
       else
-        g_key_file_remove_key (self->attributes, account, key, NULL);
+        g_hash_table_remove (sa->attributes, key);
     }
 }
 
@@ -209,27 +283,23 @@ list_keys (const McpAccountManager *ma,
 {
   McdStorage *self = MCD_STORAGE (ma);
   GPtrArray *ret = g_ptr_array_new ();
-  GStrv strv;
-  gchar **iter;
+  McdStorageAccount *sa = lookup_account (self, account);
 
-  strv = g_key_file_get_keys (self->attributes, account, NULL, NULL);
-
-  for (iter = strv; iter != NULL && *iter != NULL; iter++)
+  if (sa != NULL)
     {
-      g_ptr_array_add (ret, *iter);
+      GHashTableIter iter;
+      gpointer k;
+
+      g_hash_table_iter_init (&iter, sa->attributes);
+
+      while (g_hash_table_iter_next (&iter, &k, NULL))
+        g_ptr_array_add (ret, g_strdup (k));
+
+      g_hash_table_iter_init (&iter, sa->parameters);
+
+      while (g_hash_table_iter_next (&iter, &k, NULL))
+        g_ptr_array_add (ret, g_strdup_printf ("param-%s", (gchar *) k));
     }
-
-  /* ownership of items donated to ret already */
-  g_free (strv);
-
-  strv = g_key_file_get_keys (self->parameters, account, NULL, NULL);
-
-  for (iter = strv; iter != NULL && *iter != NULL; iter++)
-    {
-      g_ptr_array_add (ret, g_strdup_printf ("param-%s", *iter));
-    }
-
-  g_strfreev (strv);
 
   g_ptr_array_add (ret, NULL);
   return (GStrv) g_ptr_array_free (ret, FALSE);
@@ -241,8 +311,12 @@ is_secret (const McpAccountManager *ma,
     const gchar *key)
 {
   McdStorage *self = MCD_STORAGE (ma);
+  McdStorageAccount *sa = lookup_account (self, account);
 
-  return g_key_file_get_boolean (self->secrets, account, key, NULL);
+  if (sa == NULL || !g_str_has_prefix (key, "param-"))
+    return FALSE;
+
+  return g_hash_table_contains (sa->secrets, key + 6);
 }
 
 static void
@@ -250,13 +324,18 @@ mcd_storage_make_secret (McdStorage *self,
     const gchar *account,
     const gchar *key)
 {
+  McdStorageAccount *sa;
+
   g_return_if_fail (MCD_IS_STORAGE (self));
   g_return_if_fail (account != NULL);
   g_return_if_fail (key != NULL);
 
-  DEBUG ("flagging %s.%s as secret", account, key);
+  if (!g_str_has_prefix (key, "param-"))
+    return;
 
-  g_key_file_set_boolean (self->secrets, account, key, TRUE);
+  DEBUG ("flagging %s parameter %s as secret", account, key + 6);
+  sa = ensure_account (self, account);
+  g_hash_table_add (sa->secrets, g_strdup (key + 6));
 }
 
 static void
@@ -295,7 +374,7 @@ unique_name (const McpAccountManager *ma,
           TP_ACCOUNT_OBJECT_PATH_BASE "%s/%s/%s%u",
           esc_manager, esc_protocol, esc_base, i);
 
-      if (!g_key_file_has_group (self->attributes, path + base_len) &&
+      if (!g_hash_table_contains (self->accounts, path + base_len) &&
           dbus_g_connection_lookup_g_object (connection, path) == NULL)
         {
           gchar *ret = g_strdup (path + base_len);
@@ -455,9 +534,22 @@ GStrv
 mcd_storage_dup_accounts (McdStorage *self,
     gsize *n)
 {
-  g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
+  GPtrArray *ret = g_ptr_array_new ();
+  GHashTableIter iter;
+  gpointer k, v;
 
-  return g_key_file_get_groups (self->attributes, n);
+  g_hash_table_iter_init (&iter, self->accounts);
+
+  while (g_hash_table_iter_next (&iter, &k, &v))
+    {
+      McdStorageAccount *sa = v;
+
+      if (g_hash_table_size (sa->attributes) > 0)
+        g_ptr_array_add (ret, g_strdup (k));
+    }
+
+  g_ptr_array_add (ret, NULL);
+  return (GStrv) g_ptr_array_free (ret, FALSE);
 }
 
 /*
@@ -475,9 +567,22 @@ mcd_storage_dup_attributes (McdStorage *self,
     const gchar *account,
     gsize *n)
 {
-  g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
+  GPtrArray *ret = g_ptr_array_new ();
+  McdStorageAccount *sa = lookup_account (self, account);
 
-  return g_key_file_get_keys (self->attributes, account, n, NULL);
+  if (sa != NULL)
+    {
+      GHashTableIter iter;
+      gpointer k;
+
+      g_hash_table_iter_init (&iter, sa->attributes);
+
+      while (g_hash_table_iter_next (&iter, &k, NULL))
+        g_ptr_array_add (ret, g_strdup (k));
+    }
+
+  g_ptr_array_add (ret, NULL);
+  return (GStrv) g_ptr_array_free (ret, FALSE);
 }
 
 /*
@@ -562,10 +667,23 @@ mcd_storage_get_attribute (McdStorage *self,
     GValue *value,
     GError **error)
 {
-  g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
+  const gchar *escaped;
 
-  return mcd_keyfile_get_value (self->attributes, account, attribute, value,
-      error);
+  g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
+  g_return_val_if_fail (account != NULL, FALSE);
+  g_return_val_if_fail (attribute != NULL, FALSE);
+  g_return_val_if_fail (!g_str_has_prefix (attribute, "param-"), FALSE);
+
+  escaped = mcd_storage_get_escaped_attribute (self, account, attribute);
+
+  if (escaped == NULL)
+    {
+      g_set_error (error, TP_ERROR, TP_ERROR_NOT_AVAILABLE,
+          "Setting '%s' not stored by account %s", attribute, account);
+      return FALSE;
+    }
+
+  return mcd_keyfile_unescape_value (escaped, value, error);
 }
 
 /*
@@ -583,10 +701,22 @@ mcd_storage_get_parameter (McdStorage *self,
     GValue *value,
     GError **error)
 {
-  g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
+  const gchar *escaped;
 
-  return mcd_keyfile_get_value (self->parameters, account, parameter,
-      value, error);
+  g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
+  g_return_val_if_fail (account != NULL, FALSE);
+  g_return_val_if_fail (parameter != NULL, FALSE);
+
+  escaped = mcd_storage_get_escaped_parameter (self, account, parameter);
+
+  if (escaped == NULL)
+    {
+      g_set_error (error, TP_ERROR, TP_ERROR_NOT_AVAILABLE,
+          "Parameter '%s' not stored by account %s", parameter, account);
+      return FALSE;
+    }
+
+  return mcd_keyfile_unescape_value (escaped, value, error);
 }
 
 static gboolean
@@ -961,7 +1091,7 @@ update_storage (McdStorage *self,
   GList *store;
   gboolean done = FALSE;
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
-  gchar *val = NULL;
+  const gchar *val = NULL;
 
   if (secret)
     mcd_storage_make_secret (self, account, key);
@@ -970,9 +1100,9 @@ update_storage (McdStorage *self,
    * everywhere else should handle escaping on the way in and unescaping *
    * on the way out of the keyfile, but not here:                        */
   if (g_str_has_prefix (key, "param-"))
-    val = g_key_file_get_value (self->parameters, account, key + 6, NULL);
+    val = mcd_storage_get_escaped_parameter (self, account, key + 6);
   else
-    val = g_key_file_get_value (self->attributes, account, key, NULL);
+    val = mcd_storage_get_escaped_attribute (self, account, key);
 
   /* we're deleting, which is unconditional, no need to check if anyone *
    * claims this setting for themselves                                 */
@@ -996,8 +1126,6 @@ update_storage (McdStorage *self,
               pn, done ? "store" : "ignore", account, key);
         }
     }
-
-  g_free (val);
 }
 
 /*
@@ -1068,19 +1196,34 @@ mcd_storage_set_attribute (McdStorage *self,
     const gchar *attribute,
     const GValue *value)
 {
-  gboolean updated;
+  gchar *escaped = NULL;
+  McdStorageAccount *sa;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
   g_return_val_if_fail (attribute != NULL, FALSE);
   g_return_val_if_fail (!g_str_has_prefix (attribute, "param-"), FALSE);
 
-  updated = mcd_keyfile_set_value (self->attributes, account, attribute, value);
+  sa = ensure_account (self, account);
 
-  if (updated)
-    update_storage (self, account, attribute, FALSE);
+  if (value != NULL)
+    escaped = mcd_keyfile_escape_value (value);
 
-  return updated;
+  if (tp_strdiff (escaped, g_hash_table_lookup (sa->attributes, attribute)))
+    {
+      if (escaped == NULL)
+        g_hash_table_remove (sa->attributes, attribute);
+      else
+        g_hash_table_insert (sa->attributes, g_strdup (attribute), escaped);
+
+      update_storage (self, account, attribute, FALSE);
+      return TRUE;
+    }
+  else
+    {
+      g_free (escaped);
+      return FALSE;
+    }
 }
 
 /*
@@ -1108,25 +1251,36 @@ mcd_storage_set_parameter (McdStorage *self,
     const GValue *value,
     gboolean secret)
 {
-  gboolean updated;
+  gchar *escaped = NULL;
+  McdStorageAccount *sa;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
   g_return_val_if_fail (parameter != NULL, FALSE);
 
-  updated = mcd_keyfile_set_value (self->parameters, account, parameter,
-      value);
+  sa = ensure_account (self, account);
 
-  if (updated)
+  if (value != NULL)
+    escaped = mcd_keyfile_escape_value (value);
+
+  if (tp_strdiff (escaped, g_hash_table_lookup (sa->parameters, parameter)))
     {
       gchar key[MAX_KEY_LENGTH];
 
+      if (escaped == NULL)
+        g_hash_table_remove (sa->parameters, parameter);
+      else
+        g_hash_table_insert (sa->parameters, g_strdup (parameter), escaped);
+
       g_snprintf (key, sizeof (key), "param-%s", parameter);
-
       update_storage (self, account, key, secret);
+      return TRUE;
     }
-
-  return updated;
+  else
+    {
+      g_free (escaped);
+      return FALSE;
+    }
 }
 
 static gchar *
@@ -1417,8 +1571,7 @@ mcd_storage_delete_account (McdStorage *self,
   g_return_if_fail (MCD_IS_STORAGE (self));
   g_return_if_fail (account != NULL);
 
-  g_key_file_remove_group (self->attributes, account, NULL);
-  g_key_file_remove_group (self->parameters, account, NULL);
+  g_hash_table_remove (self->accounts, account);
 
   for (store = stores; store != NULL; store = g_list_next (store))
     {
