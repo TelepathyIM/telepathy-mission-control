@@ -391,6 +391,14 @@ mcd_storage_init_value_for_attribute (GValue *value,
   return FALSE;
 }
 
+static gboolean
+mcpa_init_value_for_attribute (const McpAccountManager *mcpa,
+    GValue *value,
+    const gchar *attribute)
+{
+  return mcd_storage_init_value_for_attribute (value, attribute);
+}
+
 static void
 set_value (const McpAccountManager *ma,
     const gchar *account,
@@ -1929,6 +1937,7 @@ plugin_iface_init (McpAccountManagerIface *iface,
   iface->list_keys = list_keys;
   iface->escape_value_for_keyfile = mcpa_escape_value_for_keyfile;
   iface->unescape_value_from_keyfile = mcpa_unescape_value_from_keyfile;
+  iface->init_value_for_attribute = mcpa_init_value_for_attribute;
 }
 
 gboolean

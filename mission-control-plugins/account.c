@@ -296,3 +296,28 @@ mcp_account_manager_unescape_value_from_keyfile (const McpAccountManager *mcpa,
 
   return iface->unescape_value_from_keyfile (mcpa, escaped, value, error);
 }
+
+/**
+ * mcp_account_manager_init_value_for_attribute:
+ * @mcpa: a #McpAccountManager
+ * @value: a zero-filled value to initialize
+ * @attribute: a supported Mission Control attribute
+ *
+ * If @attribute is a known Mission Control attribute, initialize @value
+ * with an appropriate type for @attribute and return %TRUE. Otherwise,
+ * return %FALSE.
+ *
+ * Returns: %TRUE if @value was initialized
+ */
+gboolean
+mcp_account_manager_init_value_for_attribute (const McpAccountManager *mcpa,
+    GValue *value,
+    const gchar *attribute)
+{
+  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
+
+  g_return_val_if_fail (iface != NULL, FALSE);
+  g_return_val_if_fail (iface->init_value_for_attribute != NULL, FALSE);
+
+  return iface->init_value_for_attribute (mcpa, value, attribute);
+}

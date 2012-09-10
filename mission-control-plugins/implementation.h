@@ -112,6 +112,10 @@ struct _McpAccountManagerIface {
       const gchar *escaped,
       GValue *value,
       GError **error);
+
+  gboolean (* init_value_for_attribute) (const McpAccountManager *mcpa,
+      GValue *value,
+      const gchar *attribute);
 };
 
 G_END_DECLS

@@ -80,6 +80,11 @@ gboolean mcp_account_manager_unescape_value_from_keyfile (
     GValue *value,
     GError **error);
 
+gboolean mcp_account_manager_init_value_for_attribute (
+    const McpAccountManager *mcpa,
+    GValue *value,
+    const gchar *attribute);
+
 G_END_DECLS
 
 #endif
