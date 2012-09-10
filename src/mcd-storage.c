@@ -1086,27 +1086,19 @@ static void
 update_storage (McdStorage *self,
     const gchar *account,
     const gchar *key,
+    const gchar *escaped,
     gboolean secret)
 {
   GList *store;
   gboolean done = FALSE;
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
-  const gchar *val = NULL;
 
   if (secret)
     mcd_storage_make_secret (self, account, key);
 
-  /* don't unescape the value here, we're flushing it to storage         *
-   * everywhere else should handle escaping on the way in and unescaping *
-   * on the way out of the keyfile, but not here:                        */
-  if (g_str_has_prefix (key, "param-"))
-    val = mcd_storage_get_escaped_parameter (self, account, key + 6);
-  else
-    val = mcd_storage_get_escaped_attribute (self, account, key);
-
   /* we're deleting, which is unconditional, no need to check if anyone *
    * claims this setting for themselves                                 */
-  if (val == NULL)
+  if (escaped == NULL)
     done = TRUE;
 
   for (store = stores; store != NULL; store = g_list_next (store))
@@ -1121,7 +1113,7 @@ update_storage (McdStorage *self,
         }
       else
         {
-          done = mcp_account_storage_set (plugin, ma, account, key, val);
+          done = mcp_account_storage_set (plugin, ma, account, key, escaped);
           DEBUG ("MCP:%s -> %s %s.%s",
               pn, done ? "store" : "ignore", account, key);
         }
@@ -1214,9 +1206,11 @@ mcd_storage_set_attribute (McdStorage *self,
       if (escaped == NULL)
         g_hash_table_remove (sa->attributes, attribute);
       else
-        g_hash_table_insert (sa->attributes, g_strdup (attribute), escaped);
+        g_hash_table_insert (sa->attributes, g_strdup (attribute),
+            g_strdup (escaped));
 
-      update_storage (self, account, attribute, FALSE);
+      update_storage (self, account, attribute, escaped, FALSE);
+      g_free (escaped);
       return TRUE;
     }
   else
@@ -1270,10 +1264,12 @@ mcd_storage_set_parameter (McdStorage *self,
       if (escaped == NULL)
         g_hash_table_remove (sa->parameters, parameter);
       else
-        g_hash_table_insert (sa->parameters, g_strdup (parameter), escaped);
+        g_hash_table_insert (sa->parameters, g_strdup (parameter),
+            g_strdup (escaped));
 
       g_snprintf (key, sizeof (key), "param-%s", parameter);
-      update_storage (self, account, key, secret);
+      update_storage (self, account, key, escaped, secret);
+      g_free (escaped);
       return TRUE;
     }
   else
