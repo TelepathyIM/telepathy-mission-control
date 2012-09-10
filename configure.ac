@@ -82,7 +82,7 @@ if test -z "$XSLTPROC"; then
     AC_MSG_ERROR([xsltproc (from the libxslt source package) is required])
 fi
 
-AM_PATH_PYTHON([2.5])
+AM_PATH_PYTHON([2.6])
 AC_MSG_CHECKING([for enough Python for the tests])
 mc_want_twisted_tests=no
 if $PYTHON -c "import twisted.internet.reactor, dbus.mainloop.glib"\
