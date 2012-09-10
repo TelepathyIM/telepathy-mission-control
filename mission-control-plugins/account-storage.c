@@ -32,41 +32,35 @@
  * #McpAccountStorage, then return an instance of that subclass from
  * mcp_plugin_ref_nth_object().
  *
- * The contents of the #McpAccountStorage struct are not public,
- * so to provide an implementation of the virtual methods,
- * plugins should call mcp_account_operation_iface_implement_*()
- * from the interface initialization function, like this:
+ * A complete implementation of this interface with all methods would
+ * look something like this:
  *
  * <example><programlisting>
- * G_DEFINE_TYPE_WITH_CODE (APlugin, a_plugin,
+ * G_DEFINE_TYPE_WITH_CODE (FooPlugin, foo_plugin,
  *    G_TYPE_OBJECT,
  *    G_IMPLEMENT_INTERFACE (...);
  *    G_IMPLEMENT_INTERFACE (MCP_TYPE_ACCOUNT_STORAGE,
  *      account_storage_iface_init));
  * /<!-- -->* ... *<!-- -->/
  * static void
- * account_storage_iface_init (McpAccountStorageIface *iface,
- *     gpointer unused G_GNUC_UNUSED)
+ * account_storage_iface_init (McpAccountStorageIface *iface)
  * {
- *   mcp_account_storage_iface_set_priority (iface, 0);
- *   mcp_account_storage_iface_set_name (iface, "foo")
- *   mcp_account_storage_iface_set_desc (iface, "The FOO storage backend");
- *   mcp_account_storage_iface_set_provider (iface,
- *     "org.freedesktop.Telepathy.MissionControl5.FooStorage");
- *   mcp_account_storage_iface_implement_get    (iface, _plugin_getval);
- *   mcp_account_storage_iface_implement_set    (iface, _plugin_setval);
- *   mcp_account_storage_iface_implement_delete (iface, _plugin_delete);
- *   mcp_account_storage_iface_implement_commit (iface, _plugin_commit);
- *   mcp_account_storage_iface_implement_commit_one (iface, _plugin_commit_one);
- *   mcp_account_storage_iface_implement_list   (iface, _plugin_list);
- *   mcp_account_storage_iface_implement_ready  (iface, _plugin_ready);
- *   mcp_account_storage_iface_implement_get_identifier (iface,
- *     _plugin_get_identifier);
- *   mcp_account_storage_iface_implement_get_additional_info (iface,
- *     _plugin_get_additional_info);
- *   mcp_account_storage_iface_implement_get_restrictions (iface,
- *     _plugin_get_restrictions);
- * /<!-- -->* ... *<!-- -->/
+ *   iface->priority = 0;
+ *   iface->name = "foo";
+ *   iface->desc = "The FOO storage backend";
+ *   iface->provider = "org.freedesktop.Telepathy.MissionControl5.FooStorage";
+ *
+ *   iface->get = foo_plugin_get;
+ *   iface->set = foo_plugin_get;
+ *   iface->delete = foo_plugin_delete;
+ *   iface->commit = foo_plugin_commit;
+ *   iface->commit_one = foo_plugin_commit_one;
+ *   iface->list = foo_plugin_list;
+ *   iface->ready = foo_plugin_ready;
+ *   iface->get_identifier = foo_plugin_get_identifier;
+ *   iface->get_additional_info = foo_plugin_get_additional_info;
+ *   iface->get_restrictions = foo_plugin_get_restrictions;
+ *   iface->create = foo_plugin_create;
  * }
  * </programlisting></example>
  *
