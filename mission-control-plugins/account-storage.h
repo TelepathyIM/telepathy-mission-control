@@ -127,6 +127,11 @@ struct _McpAccountStorageIface
   McpAccountStorageGetAdditionalInfoFunc get_additional_info;
   McpAccountStorageGetRestrictionsFunc get_restrictions;
   McpAccountStorageCreate create;
+
+  /* Since 5.13.UNRELEASED */
+  gboolean (*owns) (McpAccountStorage *storage,
+      McpAccountManager *am,
+      const gchar *account);
 };
 
 #ifndef __GTK_DOC_IGNORE__
@@ -248,6 +253,9 @@ const gchar *mcp_account_storage_name (const McpAccountStorage *storage);
 const gchar *mcp_account_storage_description (const McpAccountStorage *storage);
 const gchar *mcp_account_storage_provider (const McpAccountStorage *storage);
 
+gboolean mcp_account_storage_owns (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account);
 void mcp_account_storage_emit_created (McpAccountStorage *storage,
     const gchar *account);
 G_DEPRECATED_FOR (something that is actually implemented)

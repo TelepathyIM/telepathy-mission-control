@@ -788,7 +788,7 @@ mcd_storage_get_plugin (McdStorage *self,
     {
       McpAccountStorage *plugin = store->data;
 
-      if (mcp_account_storage_get (plugin, ma, account, "manager"))
+      if (mcp_account_storage_owns (plugin, ma, account))
         owner = plugin;
     }
 
