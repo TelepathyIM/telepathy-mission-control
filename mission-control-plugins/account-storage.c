@@ -116,6 +116,12 @@ class_init (gpointer klass,
 {
   GType type = G_TYPE_FROM_CLASS (klass);
 
+  if (signals[CREATED] != 0)
+    {
+      DEBUG ("already registered signals");
+      return;
+    }
+
   /**
    * McpAccountStorage::created
    * @account: the unique name of the created account
