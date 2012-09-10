@@ -1065,8 +1065,8 @@ set_display_name (TpSvcDBusProperties *self, const gchar *name,
     McdAccountPrivate *priv = account->priv;
 
     DEBUG ("called for %s", priv->unique_name);
-    return (mcd_account_set_string_val (account, name, value, error)
-            != SET_RESULT_ERROR);
+    return (mcd_account_set_string_val (account,
+        MC_ACCOUNTS_KEY_DISPLAY_NAME, value, error) != SET_RESULT_ERROR);
 }
 
 static void
@@ -1074,7 +1074,7 @@ get_display_name (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
 
-    mcd_account_get_string_val (account, name, value);
+    mcd_account_get_string_val (account, MC_ACCOUNTS_KEY_DISPLAY_NAME, value);
 }
 
 static gboolean
@@ -1085,8 +1085,8 @@ set_icon (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
     McdAccountPrivate *priv = account->priv;
 
     DEBUG ("called for %s", priv->unique_name);
-    return (mcd_account_set_string_val (account, name, value, error)
-            != SET_RESULT_ERROR);
+    return (mcd_account_set_string_val (account,
+        MC_ACCOUNTS_KEY_ICON, value, error) != SET_RESULT_ERROR);
 }
 
 static void
@@ -1094,7 +1094,7 @@ get_icon (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
 
-    mcd_account_get_string_val (account, name, value);
+    mcd_account_get_string_val (account, MC_ACCOUNTS_KEY_ICON, value);
 }
 
 static void
@@ -1238,7 +1238,8 @@ set_service (TpSvcDBusProperties *self, const gchar *name,
      * the appropriate error for us: don't duplicate that logic here */
     if (proceed)
     {
-        ret = mcd_account_set_string_val (account, name, value, error);
+        ret = mcd_account_set_string_val (account, MC_ACCOUNTS_KEY_SERVICE,
+                                          value, error);
     }
     else
     {
@@ -1257,7 +1258,7 @@ get_service (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 {
     McdAccount *account = MCD_ACCOUNT (self);
 
-    mcd_account_get_string_val (account, name, value);
+    mcd_account_get_string_val (account, MC_ACCOUNTS_KEY_SERVICE, value);
 }
 
 static gboolean
@@ -1743,7 +1744,8 @@ get_normalized_name (TpSvcDBusProperties *self,
 {
     McdAccount *account = MCD_ACCOUNT (self);
 
-    mcd_account_get_string_val (account, name, value);
+    mcd_account_get_string_val (account, MC_ACCOUNTS_KEY_NORMALIZED_NAME,
+                                value);
 }
 
 static gboolean
