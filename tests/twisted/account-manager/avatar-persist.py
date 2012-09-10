@@ -36,7 +36,7 @@ cm_name_ref = dbus.service.BusName(
 
 account_id = 'fakecm/fakeprotocol/jc_2edenton_40unatco_2eint'
 
-def preseed():
+def preseed(q, bus, fake_accounts_service):
 
     accounts_dir = os.environ['MC_ACCOUNT_DIR']
 
@@ -45,25 +45,24 @@ def preseed():
     except OSError:
         pass
 
-    accounts_cfg = open(accounts_dir + '/accounts.cfg', 'w')
-    accounts_cfg.write("""# Telepathy accounts
-[%s]
-manager=fakecm
-protocol=fakeprotocol
-DisplayName=Work account
-NormalizedName=jc.denton@unatco.int
-param-account=jc.denton@unatco.int
-param-password=ionstorm
-Enabled=1
-ConnectAutomatically=1
-AutomaticPresenceType=2
-AutomaticPresenceStatus=available
-AutomaticPresenceMessage=My vision is augmented
-Nickname=JC
-AvatarMime=image/jpeg
-avatar_token=Deus Ex
-""" % account_id)
-    accounts_cfg.close()
+    fake_accounts_service.update_attributes(account_id, changed={
+        'manager': 'fakecm',
+        'protocol': 'fakeprotocol',
+        'DisplayName': 'Work account',
+        'NormalizedName': 'jc.denton@unatco.int',
+        'Enabled': True,
+        'ConnectAutomatically': True,
+        'AutomaticPresenceType': dbus.UInt32(2),
+        'AutomaticPresenceStatus': 'available',
+        'AutomaticPresenceMessage': 'My vision is augmented',
+        'Nickname': 'JC',
+        'AvatarMime': 'image/jpeg',
+        'avatar_token': 'Deus Ex',
+        })
+    fake_accounts_service.update_parameters(account_id, untyped={
+        'account': 'jc.denton@unatco.int',
+        'password': 'ionstorm',
+        })
 
     datadirs = os.environ['XDG_DATA_DIRS'].split(':')
 
@@ -78,7 +77,9 @@ avatar_token=Deus Ex
     account_connections_file.write("")
     account_connections_file.close()
 
-def test(q, bus, unused):
+def test(q, bus, unused, **kwargs):
+    fake_accounts_service = kwargs['fake_accounts_service']
+    preseed(q, bus, fake_accounts_service)
 
     expected_params = {
             'account': 'jc.denton@unatco.int',
@@ -181,5 +182,5 @@ def test(q, bus, unused):
     assertEquals('Deus Ex', ''.join(open(low_prio_filename, 'r').readlines()))
 
 if __name__ == '__main__':
-    preseed()
-    exec_test(test, {}, preload_mc=False, use_fake_accounts_service=False)
+    exec_test(test, {}, preload_mc=False, use_fake_accounts_service=True,
+            pass_kwargs=True)

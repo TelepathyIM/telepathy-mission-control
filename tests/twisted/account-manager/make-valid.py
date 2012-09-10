@@ -36,7 +36,7 @@ cm_name_ref = dbus.service.BusName(
 account1_id = 'fakecm/fakeprotocol/jc_2edenton_40unatco_2eint'
 account2_id = 'fakecm/fakeprotocol/jc_2edenton_40example_2ecom'
 
-def preseed():
+def preseed(q, bus, fake_accounts_service):
 
     accounts_dir = os.environ['MC_ACCOUNT_DIR']
 
@@ -45,38 +45,40 @@ def preseed():
     except OSError:
         pass
 
-    # The passwords are missing, so the accounts can't connect yet.
-    accounts_cfg = open(accounts_dir + '/accounts.cfg', 'w')
-    accounts_cfg.write("""# Telepathy accounts
-[%s]
-manager=fakecm
-protocol=fakeprotocol
-DisplayName=Work account
-NormalizedName=jc.denton@unatco.int
-param-account=jc.denton@unatco.int
-Enabled=1
-ConnectAutomatically=1
-AutomaticPresenceType=2
-AutomaticPresenceStatus=available
-AutomaticPresenceMessage=My vision is augmented
-Nickname=JC
-AvatarMime=image/jpeg
+    fake_accounts_service.update_attributes(account1_id, changed={
+        'manager': 'fakecm',
+        'protocol': 'fakeprotocol',
+        'DisplayName': 'Work account',
+        'NormalizedName': 'jc.denton@unatco.int',
+        'Enabled': True,
+        'ConnectAutomatically': True,
+        'AutomaticPresenceType': dbus.UInt32(2),
+        'AutomaticPresenceStatus': 'available',
+        'AutomaticPresenceMessage': 'My vision is augmented',
+        'Nickname': 'JC',
+        'AvatarMime': 'image/jpeg',
+        })
+    fake_accounts_service.update_attributes(account2_id, changed={
+        'manager': 'fakecm',
+        'protocol': 'fakeprotocol',
+        'DisplayName': 'Personal account',
+        'NormalizedName': 'jc.denton@example.com',
+        'Enabled': True,
+        'ConnectAutomatically': False,
+        'AutomaticPresenceType': dbus.UInt32(2),
+        'AutomaticPresenceStatus': 'available',
+        'AutomaticPresenceMessage': 'My vision is augmented',
+        'Nickname': 'JC',
+        'AvatarMime': 'image/jpeg',
+        })
 
-[%s]
-manager=fakecm
-protocol=fakeprotocol
-DisplayName=Personal account
-NormalizedName=jc.denton@example.com
-param-account=jc.denton@example.com
-Enabled=1
-ConnectAutomatically=0
-AutomaticPresenceType=2
-AutomaticPresenceStatus=available
-AutomaticPresenceMessage=My vision is augmented
-Nickname=JC
-AvatarMime=image/jpeg
-""" % (account1_id, account2_id))
-    accounts_cfg.close()
+    # The passwords are missing, so the accounts can't connect yet.
+    fake_accounts_service.update_parameters(account1_id, changed={
+        'account': 'jc.denton@unatco.int',
+        })
+    fake_accounts_service.update_parameters(account2_id, changed={
+        'account': 'jc.denton@example.com',
+        })
 
     os.makedirs(accounts_dir + '/' + account1_id)
     avatar_bin = open(accounts_dir + '/' + account1_id + '/avatar.bin', 'w')
@@ -92,10 +94,14 @@ AvatarMime=image/jpeg
     account_connections_file.write("")
     account_connections_file.close()
 
-def test(q, bus, unused):
+def test(q, bus, unused, **kwargs):
+
     # make sure RequestConnection doesn't get called yet
     events = [EventPattern('dbus-method-call', method='RequestConnection')]
     q.forbid_events(events)
+
+    fake_accounts_service = kwargs['fake_accounts_service']
+    preseed(q, bus, fake_accounts_service)
 
     # Wait for MC to load
     mc = MC(q, bus)
@@ -230,5 +236,5 @@ def test(q, bus, unused):
             'busy', 'Talking to Illuminati')
 
 if __name__ == '__main__':
-    preseed()
-    exec_test(test, {}, preload_mc=False, use_fake_accounts_service=False)
+    exec_test(test, {}, preload_mc=False, use_fake_accounts_service=True,
+            pass_kwargs=True)
