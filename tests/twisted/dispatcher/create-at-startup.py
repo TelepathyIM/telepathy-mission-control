@@ -235,4 +235,4 @@ def test(q, bus, unused):
 
 if __name__ == '__main__':
     preseed()
-    exec_test(test, {}, preload_mc=False)
+    exec_test(test, {}, preload_mc=False, use_fake_accounts_service=False)

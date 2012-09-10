@@ -273,4 +273,4 @@ def test(q, bus, mc):
     assert updated
 
 if __name__ == '__main__':
-    exec_test(test, {})
+    exec_test(test, {}, use_fake_accounts_service=False)

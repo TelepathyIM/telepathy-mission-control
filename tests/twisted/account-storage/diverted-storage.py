@@ -119,4 +119,4 @@ def test(q, bus, mc):
     assert group not in kf, kf
 
 if __name__ == '__main__':
-    exec_test(test, {}, timeout=10)
+    exec_test(test, {}, timeout=10, use_fake_accounts_service=False)
