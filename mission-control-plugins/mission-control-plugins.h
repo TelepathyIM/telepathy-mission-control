@@ -23,6 +23,7 @@
 #define MCP_MISSION_CONTROL_PLUGINS_H
 
 #include <glib-object.h>
+#include <telepathy-glib/telepathy-glib.h>
 
 #define _MCP_IN_MISSION_CONTROL_PLUGINS_H
 #include <mission-control-plugins/account.h>

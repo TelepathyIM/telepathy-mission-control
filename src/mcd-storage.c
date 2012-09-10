@@ -1316,11 +1316,13 @@ static void
 update_storage (McdStorage *self,
     const gchar *account,
     const gchar *key,
+    GVariant *variant,
     const gchar *escaped,
     gboolean secret)
 {
   GList *store;
   gboolean done = FALSE;
+  gboolean parameter = g_str_has_prefix (key, "param-");
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
 
   if (secret)
@@ -1340,6 +1342,21 @@ update_storage (McdStorage *self,
         {
           DEBUG ("MCP:%s -> delete %s.%s", pn, account, key);
           mcp_account_storage_delete (plugin, ma, account, key);
+        }
+      else if (variant != NULL && !parameter &&
+          mcp_account_storage_set_attribute (plugin, ma, account, key, variant,
+            MCP_ATTRIBUTE_FLAG_NONE))
+        {
+          done = TRUE;
+          DEBUG ("MCP:%s -> store attribute %s.%s", pn, account, key);
+        }
+      else if (variant != NULL && parameter &&
+          mcp_account_storage_set_parameter (plugin, ma, account, key + 6,
+            variant,
+            secret ? MCP_PARAMETER_FLAG_SECRET : MCP_PARAMETER_FLAG_NONE))
+        {
+          done = TRUE;
+          DEBUG ("MCP:%s -> store parameter %s.%s", pn, account, key);
         }
       else
         {
@@ -1453,7 +1470,7 @@ mcd_storage_set_attribute (McdStorage *self,
       if (value != NULL)
         escaped = mcd_keyfile_escape_value (value);
 
-      update_storage (self, account, attribute, escaped, FALSE);
+      update_storage (self, account, attribute, new_v, escaped, FALSE);
       g_free (escaped);
       updated = TRUE;
     }
@@ -1528,7 +1545,7 @@ mcd_storage_set_parameter (McdStorage *self,
             g_variant_ref (new_v));
 
       g_snprintf (key, sizeof (key), "param-%s", parameter);
-      update_storage (self, account, key, new_escaped, secret);
+      update_storage (self, account, key, new_v, new_escaped, secret);
       return TRUE;
     }
 

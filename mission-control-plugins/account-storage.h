@@ -32,6 +32,15 @@ G_BEGIN_DECLS
 #define MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_NORMAL    100
 #define MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_KEYRING   10000
 
+typedef enum {
+    MCP_PARAMETER_FLAG_NONE = 0,
+    MCP_PARAMETER_FLAG_SECRET = TP_CONN_MGR_PARAM_FLAG_SECRET
+} McpParameterFlags;
+
+typedef enum {
+    MCP_ATTRIBUTE_FLAG_NONE = 0
+} McpAttributeFlags;
+
 /* API for plugins to implement */
 typedef struct _McpAccountStorage McpAccountStorage;
 typedef struct _McpAccountStorageIface McpAccountStorageIface;
@@ -132,6 +141,18 @@ struct _McpAccountStorageIface
   gboolean (*owns) (McpAccountStorage *storage,
       McpAccountManager *am,
       const gchar *account);
+  gboolean (*set_attribute) (McpAccountStorage *storage,
+      McpAccountManager *am,
+      const gchar *account,
+      const gchar *attribute,
+      GVariant *val,
+      McpAttributeFlags flags);
+  gboolean (*set_parameter) (McpAccountStorage *storage,
+      McpAccountManager *am,
+      const gchar *account,
+      const gchar *parameter,
+      GVariant *val,
+      McpParameterFlags flags);
 };
 
 #ifndef __GTK_DOC_IGNORE__
@@ -256,6 +277,20 @@ const gchar *mcp_account_storage_provider (const McpAccountStorage *storage);
 gboolean mcp_account_storage_owns (McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account);
+
+gboolean mcp_account_storage_set_attribute (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account,
+    const gchar *attribute,
+    GVariant *value,
+    McpAttributeFlags flags);
+gboolean mcp_account_storage_set_parameter (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account,
+    const gchar *parameter,
+    GVariant *value,
+    McpParameterFlags flags);
+
 void mcp_account_storage_emit_created (McpAccountStorage *storage,
     const gchar *account);
 G_DEPRECATED_FOR (something that is actually implemented)
