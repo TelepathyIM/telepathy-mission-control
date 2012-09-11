@@ -1471,29 +1471,12 @@ set_automatic_presence (TpSvcDBusProperties *self,
 
     if (priv->auto_presence_type != type)
     {
-        GValue presence = G_VALUE_INIT;
-
-        g_value_init (&presence, G_TYPE_INT);
-        g_value_set_int (&presence, type);
-
-        mcd_storage_set_attribute (priv->storage, account_name,
-                                   MC_ACCOUNTS_KEY_AUTO_PRESENCE_TYPE,
-                                   &presence);
         priv->auto_presence_type = type;
         changed = TRUE;
     }
 
     if (tp_strdiff (priv->auto_presence_status, status))
     {
-        const gchar *new_status = NULL;
-
-        if (status != NULL && status[0] != 0)
-            new_status = status;
-
-        mcd_storage_set_string (priv->storage, account_name,
-                                MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS,
-                                new_status);
-
         g_free (priv->auto_presence_status);
         priv->auto_presence_status = g_strdup (status);
         changed = TRUE;
@@ -1501,23 +1484,28 @@ set_automatic_presence (TpSvcDBusProperties *self,
 
     if (tp_strdiff (priv->auto_presence_message, message))
     {
-        const gchar *new_message = NULL;
-
-        if (!tp_str_empty (message))
-            new_message = message;
-
-        mcd_storage_set_string (priv->storage, account_name,
-                                MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE,
-                                new_message);
-
         g_free (priv->auto_presence_message);
         priv->auto_presence_message = g_strdup (message);
         changed = TRUE;
     }
 
-
     if (changed)
     {
+        GValue presence = G_VALUE_INIT;
+
+        g_value_init (&presence, G_TYPE_INT);
+        g_value_set_int (&presence, priv->auto_presence_type);
+
+        mcd_storage_set_attribute (priv->storage, account_name,
+                                   MC_ACCOUNTS_KEY_AUTO_PRESENCE_TYPE,
+                                   &presence);
+        mcd_storage_set_string (priv->storage, account_name,
+                                MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS,
+                                priv->auto_presence_status);
+        mcd_storage_set_string (priv->storage, account_name,
+                                MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE,
+                                priv->auto_presence_message);
+
         mcd_storage_commit (priv->storage, account_name);
         mcd_account_changed_property (account, name, value);
     }
