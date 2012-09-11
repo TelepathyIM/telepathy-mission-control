@@ -398,7 +398,8 @@ toggled_cb (GObject *plugin, const gchar *name, gboolean on, gpointer data)
       return;
     }
 
-  _mcd_account_set_enabled (account, on, FALSE, &error);
+  _mcd_account_set_enabled (account, on, FALSE,
+                            MCD_DBUS_PROP_SET_FLAG_NONE, &error);
 
   if (error != NULL)
     {
@@ -1216,7 +1217,8 @@ migrate_create_account_cb (McdAccountManager *account_manager,
     if (error != NULL)
     {
         DEBUG ("Failed to create account: %s", error->message);
-        _mcd_account_set_enabled (ctx->account, FALSE, TRUE, NULL);
+        _mcd_account_set_enabled (ctx->account, FALSE, TRUE,
+                                  MCD_DBUS_PROP_SET_FLAG_NONE, NULL);
         migrate_ctx_free (ctx);
         return;
     }
@@ -1244,7 +1246,8 @@ migrate_butterfly_haze_ready (McdManager *manager,
     if (error != NULL)
     {
         DEBUG ("Can't find Haze: %s", error->message);
-        _mcd_account_set_enabled (ctx->account, FALSE, TRUE, NULL);
+        _mcd_account_set_enabled (ctx->account, FALSE, TRUE,
+                                  MCD_DBUS_PROP_SET_FLAG_NONE, NULL);
         goto error;
     }
 
@@ -1253,7 +1256,8 @@ migrate_butterfly_haze_ready (McdManager *manager,
                                                   "account", G_TYPE_STRING,
                                                   &v, NULL))
     {
-        _mcd_account_set_enabled (ctx->account, FALSE, TRUE, NULL);
+        _mcd_account_set_enabled (ctx->account, FALSE, TRUE,
+                                  MCD_DBUS_PROP_SET_FLAG_NONE, NULL);
         goto error;
     }
 
@@ -1340,7 +1344,8 @@ butterfly_account_loaded (McdAccount *account,
     if (manager == NULL)
     {
         DEBUG ("Can't find Haze");
-        _mcd_account_set_enabled (account, FALSE, TRUE, NULL);
+        _mcd_account_set_enabled (account, FALSE, TRUE,
+                                  MCD_DBUS_PROP_SET_FLAG_NONE, NULL);
         goto error;
     }
 

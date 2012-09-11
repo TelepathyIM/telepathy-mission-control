@@ -707,7 +707,8 @@ mcd_account_delete (McdAccount *account,
 
     /* got to turn the account off before removing it, otherwise we can *
      * end up with an orphaned CM holding the account online            */
-    if (!_mcd_account_set_enabled (account, FALSE, FALSE, &error))
+    if (!_mcd_account_set_enabled (account, FALSE, FALSE,
+                                   MCD_DBUS_PROP_SET_FLAG_NONE, &error))
     {
         g_warning ("could not disable account %s (%s)", name, error->message);
         callback (account, error, user_data);
@@ -1011,8 +1012,11 @@ typedef enum {
  *  %SET_RESULT_ERROR on error
  */
 static SetResult
-mcd_account_set_string_val (McdAccount *account, const gchar *key,
-                            const GValue *value, GError **error)
+mcd_account_set_string_val (McdAccount *account,
+                            const gchar *key,
+                            const GValue *value,
+                            McdDBusPropSetFlags flags,
+                            GError **error)
 {
     McdAccountPrivate *priv = account->priv;
     McdStorage *storage = priv->storage;
@@ -1033,11 +1037,19 @@ mcd_account_set_string_val (McdAccount *account, const gchar *key,
         new_string = NULL;
     }
 
-    if (mcd_storage_set_string (storage, name, key, new_string)) {
+    if (flags & MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE)
+    {
+        mcd_account_changed_property (account, key, value);
+        return SET_RESULT_CHANGED;
+    }
+    else if (mcd_storage_set_string (storage, name, key, new_string))
+    {
         mcd_storage_commit (storage, name);
         mcd_account_changed_property (account, key, value);
         return SET_RESULT_CHANGED;
-    } else {
+    }
+    else
+    {
         return SET_RESULT_UNCHANGED;
     }
 }
@@ -1058,15 +1070,19 @@ mcd_account_get_string_val (McdAccount *account, const gchar *key,
 }
 
 static gboolean
-set_display_name (TpSvcDBusProperties *self, const gchar *name,
-                  const GValue *value, GError **error)
+set_display_name (TpSvcDBusProperties *self,
+                  const gchar *name,
+                  const GValue *value,
+                  McdDBusPropSetFlags flags,
+                  GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
 
     DEBUG ("called for %s", priv->unique_name);
     return (mcd_account_set_string_val (account,
-        MC_ACCOUNTS_KEY_DISPLAY_NAME, value, error) != SET_RESULT_ERROR);
+        MC_ACCOUNTS_KEY_DISPLAY_NAME, value, flags,
+        error) != SET_RESULT_ERROR);
 }
 
 static void
@@ -1078,7 +1094,10 @@ get_display_name (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 }
 
 static gboolean
-set_icon (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
+set_icon (TpSvcDBusProperties *self,
+          const gchar *name,
+          const GValue *value,
+          McdDBusPropSetFlags flags,
           GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
@@ -1086,7 +1105,7 @@ set_icon (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
 
     DEBUG ("called for %s", priv->unique_name);
     return (mcd_account_set_string_val (account,
-        MC_ACCOUNTS_KEY_ICON, value, error) != SET_RESULT_ERROR);
+        MC_ACCOUNTS_KEY_ICON, value, flags, error) != SET_RESULT_ERROR);
 }
 
 static void
@@ -1130,6 +1149,7 @@ gboolean
 _mcd_account_set_enabled (McdAccount *account,
                           gboolean enabled,
                           gboolean write_out,
+                          McdDBusPropSetFlags flags,
                           GError **error)
 {
     McdAccountPrivate *priv = account->priv;
@@ -1158,11 +1178,14 @@ _mcd_account_set_enabled (McdAccount *account,
         g_value_init (&value, G_TYPE_BOOLEAN);
         g_value_set_boolean (&value, enabled);
 
-        mcd_storage_set_attribute (priv->storage, name,
-                                   MC_ACCOUNTS_KEY_ENABLED, &value);
+        if (!(flags & MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE))
+        {
+            mcd_storage_set_attribute (priv->storage, name,
+                                       MC_ACCOUNTS_KEY_ENABLED, &value);
 
-        if (write_out)
-            mcd_storage_commit (priv->storage, name);
+            if (write_out)
+                mcd_storage_commit (priv->storage, name);
+        }
 
         mcd_account_changed_property (account, "Enabled", &value);
 
@@ -1179,7 +1202,10 @@ _mcd_account_set_enabled (McdAccount *account,
 }
 
 static gboolean
-set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
+set_enabled (TpSvcDBusProperties *self,
+             const gchar *name,
+             const GValue *value,
+             McdDBusPropSetFlags flags,
              GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
@@ -1198,7 +1224,7 @@ set_enabled (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
 
     enabled = g_value_get_boolean (value);
 
-    return _mcd_account_set_enabled (account, enabled, TRUE, error);
+    return _mcd_account_set_enabled (account, enabled, TRUE, flags, error);
 }
 
 static void
@@ -1213,7 +1239,9 @@ get_enabled (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 
 static gboolean
 set_service (TpSvcDBusProperties *self, const gchar *name,
-             const GValue *value, GError **error)
+             const GValue *value,
+             McdDBusPropSetFlags flags,
+             GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     SetResult ret = SET_RESULT_ERROR;
@@ -1239,7 +1267,7 @@ set_service (TpSvcDBusProperties *self, const gchar *name,
     if (proceed)
     {
         ret = mcd_account_set_string_val (account, MC_ACCOUNTS_KEY_SERVICE,
-                                          value, error);
+                                          value, flags, error);
     }
     else
     {
@@ -1263,7 +1291,9 @@ get_service (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 
 static gboolean
 set_nickname (TpSvcDBusProperties *self, const gchar *name,
-              const GValue *value, GError **error)
+              const GValue *value,
+              McdDBusPropSetFlags flags,
+              GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
@@ -1271,7 +1301,7 @@ set_nickname (TpSvcDBusProperties *self, const gchar *name,
 
     DEBUG ("called for %s", priv->unique_name);
     ret = mcd_account_set_string_val (account, MC_ACCOUNTS_KEY_NICKNAME,
-                                      value, error);
+                                      value, flags, error);
 
     /* we need to call _mcd_connection_set_nickname for side effects,  *
      * as that is how the CM is informed of the current nickname, even *
@@ -1296,6 +1326,7 @@ get_nickname (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 
 static gboolean
 set_avatar (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
+            McdDBusPropSetFlags flags,
             GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
@@ -1400,7 +1431,10 @@ _presence_type_is_online (TpConnectionPresenceType type)
 
 static gboolean
 set_automatic_presence (TpSvcDBusProperties *self,
-                        const gchar *name, const GValue *value, GError **error)
+                        const gchar *name,
+                        const GValue *value,
+                        McdDBusPropSetFlags flags,
+                        GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
@@ -1517,7 +1551,9 @@ get_automatic_presence (TpSvcDBusProperties *self,
 
 static gboolean
 set_connect_automatically (TpSvcDBusProperties *self,
-                           const gchar *name, const GValue *value,
+                           const gchar *name,
+                           const GValue *value,
+                           McdDBusPropSetFlags flags,
                            GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
@@ -1547,12 +1583,16 @@ set_connect_automatically (TpSvcDBusProperties *self,
     if (priv->connect_automatically != connect_automatically)
     {
         const gchar *account_name = mcd_account_get_unique_name (account);
-        mcd_storage_set_attribute (priv->storage, account_name,
-                                   MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY,
-                                   value);
+
+        if (!(flags & MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE))
+        {
+            mcd_storage_set_attribute (priv->storage, account_name,
+                                       MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY,
+                                       value);
+            mcd_storage_commit (priv->storage, account_name);
+        }
 
         priv->connect_automatically = connect_automatically;
-        mcd_storage_commit (priv->storage, account_name);
         mcd_account_changed_property (account, name, value);
 
         if (connect_automatically)
@@ -1659,7 +1699,9 @@ get_current_presence (TpSvcDBusProperties *self, const gchar *name,
 
 static gboolean
 set_requested_presence (TpSvcDBusProperties *self,
-                        const gchar *name, const GValue *value,
+                        const gchar *name,
+                        const GValue *value,
+                        McdDBusPropSetFlags flags,
                         GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
@@ -1752,6 +1794,7 @@ static gboolean
 set_supersedes (TpSvcDBusProperties *svc,
     const gchar *name,
     const GValue *value,
+    McdDBusPropSetFlags flags,
     GError **error)
 {
   McdAccount *self = MCD_ACCOUNT (svc);
@@ -1827,6 +1870,7 @@ static gboolean
 set_storage_provider (TpSvcDBusProperties *self,
     const gchar *name,
     const GValue *value,
+    McdDBusPropSetFlags flags,
     GError **error)
 {
   McdAccount *account = MCD_ACCOUNT (self);
@@ -1971,6 +2015,7 @@ static gboolean
 set_hidden (TpSvcDBusProperties *self,
     const gchar *name,
     const GValue *value,
+    McdDBusPropSetFlags flags,
     GError **error)
 {
   McdAccount *account = MCD_ACCOUNT (self);
@@ -2295,7 +2340,9 @@ mcd_account_altered_by_plugin (McdAccount *account,
             {
                 DEBUG ("Calling property setter for %s", name);
                 if (!prop->setprop (TP_SVC_DBUS_PROPERTIES (account),
-                                    prop->name, &value, &error))
+                                    prop->name, &value,
+                                    MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE,
+                                    &error))
                 {
                     WARNING ("Unable to set %s: %s", name, error->message);
                     g_error_free (error);
@@ -3982,7 +4029,7 @@ mcd_account_connection_self_nickname_changed_cb (McdAccount *account,
     g_value_init (&value, G_TYPE_STRING);
     g_value_set_static_string (&value, alias);
     mcd_account_set_string_val (account, MC_ACCOUNTS_KEY_NICKNAME,
-                                &value, NULL);
+                                &value, MCD_DBUS_PROP_SET_FLAG_NONE, NULL);
     g_value_unset (&value);
 }
 

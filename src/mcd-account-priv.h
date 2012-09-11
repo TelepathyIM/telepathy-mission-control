@@ -169,6 +169,7 @@ G_GNUC_INTERNAL void _mcd_account_set_changing_presence (McdAccount *self,
 G_GNUC_INTERNAL gboolean _mcd_account_set_enabled (McdAccount *account,
                                                    gboolean enabled,
                                                    gboolean write_out,
+                                                   McdDBusPropSetFlags flags,
                                                    GError **error);
 
 G_GNUC_INTERNAL gboolean _mcd_account_presence_type_is_settable (

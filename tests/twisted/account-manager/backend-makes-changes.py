@@ -144,12 +144,12 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
                 args=[account_tail,
                     {'ConnectAutomatically': True},
                     {'ConnectAutomatically': 0}, []]),
-            # FIXME: signal not actually emitted
-            #EventPattern('dbus-signal',
-            #    path=account_path,
-            #    signal='AccountPropertyChanged',
-            #    interface=cs.ACCOUNT,
-            #    args=[{'ConnectAutomatically': True}]),
+            EventPattern('dbus-signal',
+                path=account_path,
+                signal='AccountPropertyChanged',
+                interface=cs.ACCOUNT,
+                predicate=(lambda e:
+                    e.args[0].get('ConnectAutomatically') == True)),
             EventPattern('dbus-signal',
                 path=cs.TEST_DBUS_ACCOUNT_PLUGIN_PATH,
                 signal='AttributeChanged',
@@ -235,13 +235,11 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
                 signal='AttributesChanged',
                 args=[account_tail, {'DisplayName': 'Ezio\'s IM account'},
                     {'DisplayName': 0}, []]),
-            # FIXME: signal not actually emitted. Service, Icon, Nickname
-            # probably have the same bug.
-            #EventPattern('dbus-signal',
-            #    path=account_path,
-            #    signal='AccountPropertyChanged',
-            #    interface=cs.ACCOUNT,
-            #    args=[{'DisplayName': 'Ezio\'s IM account'}]),
+            EventPattern('dbus-signal',
+                path=account_path,
+                signal='AccountPropertyChanged',
+                interface=cs.ACCOUNT,
+                args=[{'DisplayName': 'Ezio\'s IM account'}]),
             EventPattern('dbus-signal',
                 path=cs.TEST_DBUS_ACCOUNT_PLUGIN_PATH,
                 signal='AttributeChanged',
@@ -249,6 +247,48 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
             )
     assertEquals("Ezio's IM account",
             account.Properties.Get(cs.ACCOUNT, 'DisplayName'))
+
+    fake_accounts_service.update_attributes(account_tail, {
+        'Icon': 'im-machiavelli'})
+    q.expect_many(
+            EventPattern('dbus-signal',
+                path=cs.TEST_DBUS_ACCOUNT_SERVICE_PATH,
+                signal='AttributesChanged',
+                args=[account_tail, {'Icon': 'im-machiavelli'},
+                    {'Icon': 0}, []]),
+            EventPattern('dbus-signal',
+                path=account_path,
+                signal='AccountPropertyChanged',
+                interface=cs.ACCOUNT,
+                args=[{'Icon': 'im-machiavelli'}]),
+            EventPattern('dbus-signal',
+                path=cs.TEST_DBUS_ACCOUNT_PLUGIN_PATH,
+                signal='AttributeChanged',
+                args=[account_path, 'Icon']),
+            )
+    assertEquals('im-machiavelli',
+            account.Properties.Get(cs.ACCOUNT, 'Icon'))
+
+    fake_accounts_service.update_attributes(account_tail, {
+        'Service': 'machiavelli-talk'})
+    q.expect_many(
+            EventPattern('dbus-signal',
+                path=cs.TEST_DBUS_ACCOUNT_SERVICE_PATH,
+                signal='AttributesChanged',
+                args=[account_tail, {'Service': 'machiavelli-talk'},
+                    {'Service': 0}, []]),
+            EventPattern('dbus-signal',
+                path=account_path,
+                signal='AccountPropertyChanged',
+                interface=cs.ACCOUNT,
+                args=[{'Service': 'machiavelli-talk'}]),
+            EventPattern('dbus-signal',
+                path=cs.TEST_DBUS_ACCOUNT_PLUGIN_PATH,
+                signal='AttributeChanged',
+                args=[account_path, 'Service']),
+            )
+    assertEquals('machiavelli-talk',
+            account.Properties.Get(cs.ACCOUNT, 'Service'))
 
     fake_accounts_service.update_parameters(account_tail, {
         'password': 'high profile'}, flags={'password': cs.PARAM_FLAG_SECRET})
