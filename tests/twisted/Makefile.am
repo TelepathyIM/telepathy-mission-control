@@ -3,6 +3,7 @@ TWISTED_TESTS =
 TWISTED_BASIC_TESTS = \
 	account-manager/account-basics.py \
 	account-manager/avatar.py \
+	account-manager/backend-makes-changes.py \
 	account-manager/bad-cm.py \
 	account-manager/crashy-cm.py \
 	account-manager/create-auto-connect.py \
