@@ -400,6 +400,51 @@ mcpa_init_value_for_attribute (const McpAccountManager *mcpa,
 }
 
 static void
+mcpa_set_attribute (const McpAccountManager *ma,
+    const gchar *account,
+    const gchar *attribute,
+    GVariant *value,
+    McpAttributeFlags flags)
+{
+  McdStorage *self = MCD_STORAGE (ma);
+  McdStorageAccount *sa = ensure_account (self, account);
+
+  if (value != NULL)
+    {
+      g_hash_table_insert (sa->attributes, g_strdup (attribute),
+          g_variant_ref_sink (value));
+    }
+  else
+    {
+      g_hash_table_remove (sa->attributes, attribute);
+    }
+}
+
+static void
+mcpa_set_parameter (const McpAccountManager *ma,
+    const gchar *account,
+    const gchar *parameter,
+    GVariant *value,
+    McpParameterFlags flags)
+{
+  McdStorage *self = MCD_STORAGE (ma);
+  McdStorageAccount *sa = ensure_account (self, account);
+
+  g_hash_table_remove (sa->parameters, parameter);
+  g_hash_table_remove (sa->escaped_parameters, parameter);
+
+  if (value != NULL)
+    g_hash_table_insert (sa->parameters, g_strdup (parameter),
+        g_variant_ref_sink (value));
+
+  if (flags & MCP_PARAMETER_FLAG_SECRET)
+    {
+      DEBUG ("flagging %s parameter %s as secret", account, parameter);
+      g_hash_table_add (sa->secrets, g_strdup (parameter));
+    }
+}
+
+static void
 set_value (const McpAccountManager *ma,
     const gchar *account,
     const gchar *key,
@@ -1955,6 +2000,8 @@ plugin_iface_init (McpAccountManagerIface *iface,
 
   iface->get_value = get_value;
   iface->set_value = set_value;
+  iface->set_attribute = mcpa_set_attribute;
+  iface->set_parameter = mcpa_set_parameter;
   iface->is_secret = is_secret;
   iface->make_secret = make_secret;
   iface->unique_name = unique_name;
