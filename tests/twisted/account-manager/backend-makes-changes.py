@@ -132,9 +132,8 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
                 args=[account_path,
                     cs.ACCOUNT_IFACE_ADDRESSING + '.URISchemes']),
             )
-    # FIXME: doesn't work
-    #assertEquals(['xmpp'],
-    #        account.Properties.Get(cs.ACCOUNT_IFACE_ADDRESSING, 'URISchemes'))
+    assertEquals(['xmpp'],
+            account.Properties.Get(cs.ACCOUNT_IFACE_ADDRESSING, 'URISchemes'))
 
     fake_accounts_service.update_attributes(account_tail,
         {'ConnectAutomatically': True})
@@ -156,9 +155,8 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
                 signal='AttributeChanged',
                 args=[account_path, 'ConnectAutomatically']),
             )
-    # FIXME: doesn't work
-    #assertEquals(True,
-    #        account.Properties.Get(cs.ACCOUNT, 'ConnectAutomatically'))
+    assertEquals(True,
+            account.Properties.Get(cs.ACCOUNT, 'ConnectAutomatically'))
 
     fake_accounts_service.update_attributes(account_tail,
         {'Supersedes': [cs.ACCOUNT_PATH_PREFIX + 'ac1/game/altair']})
@@ -174,19 +172,16 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
                 path=account_path,
                 signal='AccountPropertyChanged',
                 interface=cs.ACCOUNT,
-                # FIXME: signal is emitted, but doesn't have the new value
-                #args=[{'Supersedes':
-                #    [cs.ACCOUNT_PATH_PREFIX + 'ac1/game/altair']}],
-                predicate=(lambda e: 'Supersedes' in e.args[0]),
+                args=[{'Supersedes':
+                    [cs.ACCOUNT_PATH_PREFIX + 'ac1/game/altair']}],
                 ),
             EventPattern('dbus-signal',
                 path=cs.TEST_DBUS_ACCOUNT_PLUGIN_PATH,
                 signal='AttributeChanged',
                 args=[account_path, 'Supersedes']),
             )
-    # FIXME: doesn't work
-    #assertEquals([cs.ACCOUNT_PATH_PREFIX + 'ac1/game/altair'],
-    #        account.Properties.Get(cs.ACCOUNT, 'Supersedes'))
+    assertEquals([cs.ACCOUNT_PATH_PREFIX + 'ac1/game/altair'],
+            account.Properties.Get(cs.ACCOUNT, 'Supersedes'))
 
     fake_accounts_service.update_attributes(account_tail,
         {'AutomaticPresenceType': cs.PRESENCE_TYPE_HIDDEN,
