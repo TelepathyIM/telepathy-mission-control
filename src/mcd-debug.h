@@ -39,6 +39,8 @@ G_BEGIN_DECLS
 #define DEBUGGING (_mcd_debug_get_level () > 0)
 #define DEBUG(format, ...) \
   mcd_debug ("%s: " format, G_STRFUNC, ##__VA_ARGS__)
+#define WARNING(format, ...) \
+  g_warning ("%s: " format, G_STRFUNC, ##__VA_ARGS__)
 
 #else /* !defined ENABLE_DEBUG */
 
