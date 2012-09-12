@@ -16,7 +16,11 @@ endif
 
 SUBDIRS = . twisted
 
-TEST_EXECUTABLES = test-value-is-same
+TEST_EXECUTABLES = \
+	test-keyfile \
+	test-value-is-same \
+	$(NULL)
+
 NON_TEST_EXECUTABLES = account-store tease-the-minotaur
 
 if ENABLE_GNOME_KEYRING
@@ -31,6 +35,9 @@ TESTS = $(TEST_EXECUTABLES)
 # MC internals.
 test_value_is_same_SOURCES = value-is-same.c
 test_value_is_same_LDADD = $(top_builddir)/src/libmcd-convenience.la
+
+test_keyfile_SOURCES = keyfile.c
+test_keyfile_LDADD = $(top_builddir)/src/libmcd-convenience.la
 
 tease_the_minotaur_SOURCES = tease-the-minotaur.c
 tease_the_minotaur_LDADD = $(top_builddir)/src/libmcd-convenience.la
