@@ -74,6 +74,10 @@ gchar *mcp_account_manager_escape_value_for_keyfile (
     const McpAccountManager *mcpa,
     const GValue *value);
 
+gchar *mcp_account_manager_escape_variant_for_keyfile (
+    const McpAccountManager *mcpa,
+    GVariant *variant);
+
 gboolean mcp_account_manager_unescape_value_from_keyfile (
     const McpAccountManager *mcpa,
     const gchar *escaped,

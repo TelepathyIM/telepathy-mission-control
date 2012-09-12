@@ -267,6 +267,36 @@ mcp_account_manager_escape_value_for_keyfile (const McpAccountManager *mcpa,
 }
 
 /**
+ * mcp_account_manager_escape_variant_for_keyfile:
+ * @mcpa: a #McpAccountManager
+ * @variant: a #GVariant with a supported #GVariantType
+ *
+ * Escape @variant so it could be passed to g_key_file_set_value().
+ * For instance, escaping the boolean value TRUE returns "true",
+ * and escaping the string value containing one space returns "\s".
+ *
+ * It is a programming error to use an unsupported type.
+ * The supported types are currently %G_VARIANT_TYPE_STRING,
+ * %G_VARIANT_TYPE_BOOLEAN, %G_VARIANT_TYPE_INT32, %G_VARIANT_TYPE_UINT32,
+ * %G_VARIANT_TYPE_INT64, %G_VARIANT_TYPE_UINT64, %G_VARIANT_TYPE_BYTE,
+ * %G_VARIANT_TYPE_STRING_ARRAY, %G_VARIANT_TYPE_OBJECT_PATH and
+ * %G_VARIANT_TYPE_OBJECT_PATH_ARRAY.
+ *
+ * Returns: (transfer full): the escaped form of @variant
+ */
+gchar *
+mcp_account_manager_escape_variant_for_keyfile (const McpAccountManager *mcpa,
+    GVariant *variant)
+{
+  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
+
+  g_return_val_if_fail (iface != NULL, NULL);
+  g_return_val_if_fail (iface->escape_variant_for_keyfile != NULL, NULL);
+
+  return iface->escape_variant_for_keyfile (mcpa, variant);
+}
+
+/**
  * mcp_account_manager_unescape_value_from_keyfile:
  * @mcpa: a #McpAccountManager
  * @escaped: an escaped string as returned by g_key_file_get_value()

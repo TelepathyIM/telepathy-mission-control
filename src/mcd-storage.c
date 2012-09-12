@@ -1568,6 +1568,13 @@ mcd_keyfile_escape_value (const GValue *value)
   return ret;
 }
 
+static gchar *
+mcpa_escape_variant_for_keyfile (const McpAccountManager *unused G_GNUC_UNUSED,
+    GVariant *variant)
+{
+  return mcd_keyfile_escape_variant (variant);
+}
+
 /*
  * mcd_keyfile_set_value:
  * @keyfile: a keyfile
@@ -1936,6 +1943,7 @@ plugin_iface_init (McpAccountManagerIface *iface,
   iface->unique_name = unique_name;
   iface->list_keys = list_keys;
   iface->escape_value_for_keyfile = mcpa_escape_value_for_keyfile;
+  iface->escape_variant_for_keyfile = mcpa_escape_variant_for_keyfile;
   iface->unescape_value_from_keyfile = mcpa_unescape_value_from_keyfile;
   iface->init_value_for_attribute = mcpa_init_value_for_attribute;
 }

@@ -116,6 +116,9 @@ struct _McpAccountManagerIface {
   gboolean (* init_value_for_attribute) (const McpAccountManager *mcpa,
       GValue *value,
       const gchar *attribute);
+
+  gchar * (* escape_variant_for_keyfile) (const McpAccountManager *mcpa,
+      GVariant *variant);
 };
 
 G_END_DECLS
