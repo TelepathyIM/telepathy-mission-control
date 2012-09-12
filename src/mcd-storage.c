@@ -1872,6 +1872,44 @@ mcd_keyfile_set_value (GKeyFile *keyfile,
 
   if (value == NULL)
     {
+      return mcd_keyfile_set_variant (keyfile, name, key, NULL);
+    }
+  else
+    {
+      GVariant *variant = dbus_g_value_build_g_variant (value);
+      gboolean ret;
+
+      g_variant_ref_sink (variant);
+      ret = mcd_keyfile_set_variant (keyfile, name, key, variant);
+      g_variant_unref (variant);
+      return ret;
+    }
+}
+
+/*
+ * mcd_keyfile_set_variant:
+ * @keyfile: a keyfile
+ * @name: the name of a group
+ * @key: the key in the group
+ * @value: the value to be stored (or %NULL to erase it)
+ *
+ * Escape @variant and store it in the keyfile.
+ *
+ * Returns: %TRUE if the keyfile actually changed,
+ * so that the caller can decide whether to request a commit to
+ * long term storage or not.
+ */
+gboolean
+mcd_keyfile_set_variant (GKeyFile *keyfile,
+    const gchar *name,
+    const gchar *key,
+    GVariant *value)
+{
+  g_return_val_if_fail (name != NULL, FALSE);
+  g_return_val_if_fail (key != NULL, FALSE);
+
+  if (value == NULL)
+    {
       gchar *old = g_key_file_get_value (keyfile, name, key, NULL);
       gboolean updated = (old != NULL);
 
@@ -1886,75 +1924,88 @@ mcd_keyfile_set_value (GKeyFile *keyfile,
       gchar *new = NULL;
       gchar *buf = NULL;
 
-      switch (G_VALUE_TYPE (value))
+      switch (g_variant_classify (value))
         {
-          case G_TYPE_STRING:
+          case G_VARIANT_CLASS_STRING:
+          case G_VARIANT_CLASS_OBJECT_PATH:
+          case G_VARIANT_CLASS_SIGNATURE:
             g_key_file_set_string (keyfile, name, key,
-                g_value_get_string (value));
+                g_variant_get_string (value, NULL));
             break;
 
-          case G_TYPE_UINT:
-            buf = g_strdup_printf ("%u", g_value_get_uint (value));
+          case G_VARIANT_CLASS_UINT16:
+            buf = g_strdup_printf ("%u", g_variant_get_uint16 (value));
             break;
 
-          case G_TYPE_INT:
-            g_key_file_set_integer (keyfile, name, key,
-                g_value_get_int (value));
+          case G_VARIANT_CLASS_UINT32:
+            buf = g_strdup_printf ("%u", g_variant_get_uint32 (value));
             break;
 
-          case G_TYPE_BOOLEAN:
+          case G_VARIANT_CLASS_INT16:
+            buf = g_strdup_printf ("%d", g_variant_get_int16 (value));
+            break;
+
+          case G_VARIANT_CLASS_INT32:
+            buf = g_strdup_printf ("%d", g_variant_get_int32 (value));
+            break;
+
+          case G_VARIANT_CLASS_BOOLEAN:
             g_key_file_set_boolean (keyfile, name, key,
-                g_value_get_boolean (value));
+                g_variant_get_boolean (value));
             break;
 
-          case G_TYPE_UCHAR:
-            buf = g_strdup_printf ("%u", g_value_get_uchar (value));
+          case G_VARIANT_CLASS_BYTE:
+            buf = g_strdup_printf ("%u", g_variant_get_byte (value));
             break;
 
-          case G_TYPE_UINT64:
+          case G_VARIANT_CLASS_UINT64:
             buf = g_strdup_printf ("%" G_GUINT64_FORMAT,
-                                   g_value_get_uint64 (value));
+                                   g_variant_get_uint64 (value));
             break;
 
-          case G_TYPE_INT64:
+          case G_VARIANT_CLASS_INT64:
             buf = g_strdup_printf ("%" G_GINT64_FORMAT,
-                                   g_value_get_int64 (value));
+                                   g_variant_get_int64 (value));
             break;
 
-          case G_TYPE_DOUBLE:
+          case G_VARIANT_CLASS_DOUBLE:
             g_key_file_set_double (keyfile, name, key,
-                g_value_get_double (value));
+                g_variant_get_double (value));
             break;
 
-          default:
-            if (G_VALUE_HOLDS (value, G_TYPE_STRV))
+          case G_VARIANT_CLASS_ARRAY:
+            if (g_variant_is_of_type (value, G_VARIANT_TYPE_STRING_ARRAY))
               {
-                gchar **strings = g_value_get_boxed (value);
+                gsize len;
+                const gchar **strings = g_variant_get_strv (value, &len);
 
-                g_key_file_set_string_list (keyfile, name, key,
-                    (const gchar **)strings,
-                    g_strv_length (strings));
+                g_key_file_set_string_list (keyfile, name, key, strings, len);
               }
-            else if (G_VALUE_HOLDS (value, DBUS_TYPE_G_OBJECT_PATH))
+            else if (g_variant_is_of_type (value,
+                  G_VARIANT_TYPE_OBJECT_PATH_ARRAY))
               {
-                g_key_file_set_string (keyfile, name, key,
-                    g_value_get_boxed (value));
-              }
-            else if (G_VALUE_HOLDS (value, TP_ARRAY_TYPE_OBJECT_PATH_LIST))
-              {
-                GPtrArray *arr = g_value_get_boxed (value);
+                gsize len;
+                const gchar **strings = g_variant_get_objv (value, &len);
 
-                g_key_file_set_string_list (keyfile, name, key,
-                    (const gchar * const *) arr->pdata, arr->len);
+                g_key_file_set_string_list (keyfile, name, key, strings, len);
               }
-            else if (G_VALUE_HOLDS (value, TP_STRUCT_TYPE_SIMPLE_PRESENCE))
+            else
               {
-                guint type;
+                g_warning ("Unexpected array type %s",
+                    g_variant_get_type_string (value));
+                return FALSE;
+              }
+            break;
+
+          case G_VARIANT_CLASS_TUPLE:
+            if (g_variant_is_of_type (value, G_VARIANT_TYPE ("(uss)")))
+              {
+                guint32 type;
                 /* enough for "4294967296" + \0 */
                 gchar printf_buf[11];
                 const gchar * strv[4] = { NULL, NULL, NULL, NULL };
 
-                tp_value_array_unpack (g_value_get_boxed (value), 3,
+                g_variant_get (value, "(u&s&s)",
                     &type,
                     &(strv[1]),
                     &(strv[2]));
@@ -1965,8 +2016,16 @@ mcd_keyfile_set_value (GKeyFile *keyfile,
               }
             else
               {
-                g_warning ("Unexpected param type %s",
-                    G_VALUE_TYPE_NAME (value));
+                g_warning ("Unexpected struct type %s",
+                    g_variant_get_type_string (value));
+                return FALSE;
+              }
+            break;
+
+          default:
+              {
+                g_warning ("Unexpected variant type %s",
+                    g_variant_get_type_string (value));
                 return FALSE;
               }
         }

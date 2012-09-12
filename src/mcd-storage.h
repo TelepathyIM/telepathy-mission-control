@@ -145,6 +145,10 @@ gboolean mcd_keyfile_get_value (GKeyFile *keyfile,
     const gchar *key,
     GValue *value,
     GError **error);
+gboolean mcd_keyfile_set_variant (GKeyFile *keyfile,
+    const gchar *name,
+    const gchar *key,
+    GVariant *value);
 gboolean mcd_keyfile_set_value (GKeyFile *keyfile,
     const gchar *name,
     const gchar *key,
