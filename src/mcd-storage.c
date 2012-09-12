@@ -1121,8 +1121,8 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
     GValue *value,
     GError **error)
 {
-  gboolean ret = FALSE;
   GType type;
+  GVariant *variant = NULL;
 
   g_return_val_if_fail (keyfile != NULL, FALSE);
   g_return_val_if_fail (group != NULL, FALSE);
@@ -1134,20 +1134,132 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
   switch (type)
     {
       case G_TYPE_STRING:
+        variant = mcd_keyfile_get_variant (keyfile, group, key,
+            G_VARIANT_TYPE_STRING, error);
+        break;
+
+      case G_TYPE_INT:
+        variant = mcd_keyfile_get_variant (keyfile, group, key,
+            G_VARIANT_TYPE_INT32, error);
+        break;
+
+      case G_TYPE_INT64:
+        variant = mcd_keyfile_get_variant (keyfile, group, key,
+            G_VARIANT_TYPE_INT64, error);
+        break;
+
+      case G_TYPE_UINT:
+        variant = mcd_keyfile_get_variant (keyfile, group, key,
+            G_VARIANT_TYPE_UINT32, error);
+        break;
+
+      case G_TYPE_UCHAR:
+        variant = mcd_keyfile_get_variant (keyfile, group, key,
+            G_VARIANT_TYPE_BYTE, error);
+        break;
+
+      case G_TYPE_UINT64:
+        variant = mcd_keyfile_get_variant (keyfile, group, key,
+            G_VARIANT_TYPE_UINT64, error);
+        break;
+
+      case G_TYPE_BOOLEAN:
+        variant = mcd_keyfile_get_variant (keyfile, group, key,
+            G_VARIANT_TYPE_BOOLEAN, error);
+        break;
+
+      case G_TYPE_DOUBLE:
+        variant = mcd_keyfile_get_variant (keyfile, group, key,
+            G_VARIANT_TYPE_DOUBLE, error);
+        break;
+
+      default:
+        if (type == G_TYPE_STRV)
+          {
+            variant = mcd_keyfile_get_variant (keyfile, group, key,
+                G_VARIANT_TYPE_STRING_ARRAY, error);
+          }
+        else if (type == DBUS_TYPE_G_OBJECT_PATH)
+          {
+            variant = mcd_keyfile_get_variant (keyfile, group, key,
+                G_VARIANT_TYPE_OBJECT_PATH, error);
+          }
+        else if (type == TP_ARRAY_TYPE_OBJECT_PATH_LIST)
+          {
+            variant = mcd_keyfile_get_variant (keyfile, group, key,
+                G_VARIANT_TYPE_OBJECT_PATH_ARRAY, error);
+          }
+        else if (type == TP_STRUCT_TYPE_SIMPLE_PRESENCE)
+          {
+            variant = mcd_keyfile_get_variant (keyfile, group, key,
+                G_VARIANT_TYPE ("(uss)"), error);
+          }
+        else
+          {
+            gchar *message =
+              g_strdup_printf ("cannot get key %s from group %s: "
+                  "unknown type %s",
+                  key, group, g_type_name (type));
+
+            g_warning ("%s: %s", G_STRFUNC, message);
+            g_set_error (error, MCD_ACCOUNT_ERROR,
+                MCD_ACCOUNT_ERROR_GET_PARAMETER,
+                "%s", message);
+            g_free (message);
+          }
+    }
+
+  if (variant == NULL)
+    return FALSE;
+
+  g_variant_ref_sink (variant);
+  g_value_unset (value);
+  dbus_g_value_parse_g_variant (variant, value);
+  g_assert (G_VALUE_TYPE (value) == type);
+  g_variant_unref (variant);
+  return TRUE;
+}
+
+/*
+ * mcd_keyfile_get_variant:
+ * @keyfile: A #GKeyFile
+ * @group: name of a group
+ * @key: name of a key
+ * @type: the desired type
+ * @error: a place to store any #GError<!-- -->s that occur
+ *
+ * Returns: a new floating #GVariant
+ */
+GVariant *
+mcd_keyfile_get_variant (GKeyFile *keyfile,
+    const gchar *group,
+    const gchar *key,
+    const GVariantType *type,
+    GError **error)
+{
+  const gchar *type_str = g_variant_type_peek_string (type);
+  GVariant *ret = NULL;
+
+  g_return_val_if_fail (keyfile != NULL, NULL);
+  g_return_val_if_fail (group != NULL, NULL);
+  g_return_val_if_fail (key != NULL, NULL);
+  g_return_val_if_fail (g_variant_type_string_scan (type_str, NULL, NULL),
+      NULL);
+
+  switch (type_str[0])
+    {
+      case G_VARIANT_CLASS_STRING:
           {
             gchar *v_string = g_key_file_get_string (keyfile, group,
                 key, error);
 
             if (v_string != NULL)
-              {
-                g_value_take_string (value, v_string);
-                ret = TRUE;
-              }
+              ret = g_variant_new_string (v_string);
             /* else error is already set */
           }
         break;
 
-      case G_TYPE_INT:
+      case G_VARIANT_CLASS_INT32:
           {
             GError *e = NULL;
             gint v_int = g_key_file_get_integer (keyfile, group,
@@ -1159,13 +1271,12 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
               }
             else
               {
-                g_value_set_int (value, v_int);
-                ret = TRUE;
+                ret = g_variant_new_int32 (v_int);
               }
           }
         break;
 
-      case G_TYPE_INT64:
+      case G_VARIANT_CLASS_INT64:
           {
             GError *e = NULL;
             gint64 v_int = g_key_file_get_int64 (keyfile, group,
@@ -1177,13 +1288,12 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
               }
             else
               {
-                g_value_set_int64 (value, v_int);
-                ret = TRUE;
+                ret = g_variant_new_int64 (v_int);
               }
           }
         break;
 
-      case G_TYPE_UINT:
+      case G_VARIANT_CLASS_UINT32:
           {
             GError *e = NULL;
             guint64 v_uint = g_key_file_get_uint64 (keyfile, group,
@@ -1202,13 +1312,12 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
               }
             else
               {
-                g_value_set_uint (value, v_uint);
-                ret = TRUE;
+                ret = g_variant_new_uint32 (v_uint);
               }
           }
         break;
 
-    case G_TYPE_UCHAR:
+    case G_VARIANT_CLASS_BYTE:
           {
             GError *e = NULL;
             gint v_int = g_key_file_get_integer (keyfile, group,
@@ -1227,13 +1336,12 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
               }
             else
               {
-                g_value_set_uchar (value, v_int);
-                ret = TRUE;
+                ret = g_variant_new_byte (v_int);
               }
           }
         break;
 
-      case G_TYPE_UINT64:
+      case G_VARIANT_CLASS_UINT64:
           {
             GError *e = NULL;
             guint64 v_uint = g_key_file_get_uint64 (keyfile, group,
@@ -1245,13 +1353,12 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
               }
             else
               {
-                g_value_set_uint64 (value, v_uint);
-                ret = TRUE;
+                ret = g_variant_new_uint64 (v_uint);
               }
           }
         break;
 
-      case G_TYPE_BOOLEAN:
+      case G_VARIANT_CLASS_BOOLEAN:
           {
             GError *e = NULL;
             gboolean v_bool = g_key_file_get_boolean (keyfile, group,
@@ -1263,13 +1370,12 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
               }
             else
               {
-                g_value_set_boolean (value, v_bool);
-                ret = TRUE;
+                ret = g_variant_new_boolean (v_bool);
               }
           }
         break;
 
-      case G_TYPE_DOUBLE:
+      case G_VARIANT_CLASS_DOUBLE:
           {
             GError *e = NULL;
             gdouble v_double = g_key_file_get_double (keyfile, group,
@@ -1281,25 +1387,24 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
               }
             else
               {
-                g_value_set_double (value, v_double);
-                ret = TRUE;
+                ret = g_variant_new_double (v_double);
               }
           }
         break;
 
       default:
-        if (type == G_TYPE_STRV)
+        if (g_variant_type_equal (type, G_VARIANT_TYPE_STRING_ARRAY))
           {
             gchar **v = g_key_file_get_string_list (keyfile, group,
                 key, NULL, error);
 
             if (v != NULL)
               {
-                g_value_take_boxed (value, v);
-                ret = TRUE;
+                ret = g_variant_new_strv ((const gchar **) v, -1);
+                g_strfreev (v);
               }
           }
-        else if (type == DBUS_TYPE_G_OBJECT_PATH)
+        else if (g_variant_type_equal (type, G_VARIANT_TYPE_OBJECT_PATH))
           {
             gchar *v_string = g_key_file_get_string (keyfile, group,
                 key, error);
@@ -1313,15 +1418,15 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
                 g_set_error (error, MCD_ACCOUNT_ERROR,
                     MCD_ACCOUNT_ERROR_GET_PARAMETER,
                     "Invalid object path %s", v_string);
-                g_free (v_string);
               }
             else
               {
-                g_value_take_boxed (value, v_string);
-                ret = TRUE;
+                ret = g_variant_new_object_path (v_string);
               }
+
+            g_free (v_string);
           }
-        else if (type == TP_ARRAY_TYPE_OBJECT_PATH_LIST)
+        else if (g_variant_type_equal (type, G_VARIANT_TYPE_OBJECT_PATH_ARRAY))
           {
             gchar **v = g_key_file_get_string_list (keyfile, group,
                 key, NULL, error);
@@ -1329,7 +1434,6 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
             if (v != NULL)
               {
                 gchar **iter;
-                GPtrArray *arr = g_ptr_array_new ();
 
                 for (iter = v; iter != NULL && *iter != NULL; iter++)
                   {
@@ -1344,21 +1448,11 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
                       }
                   }
 
-                for (iter = v; iter != NULL && *iter != NULL; iter++)
-                  {
-                    /* transfer ownership from v to arr */
-                    g_ptr_array_add (arr, *iter);
-                  }
-
-                /* not g_strfreev - the strings' ownership has been
-                 * transferred */
-                g_free (v);
-
-                g_value_take_boxed (value, arr);
-                ret = TRUE;
+                ret = g_variant_new_objv ((const gchar **) v, -1);
+                g_strfreev (v);
               }
           }
-        else if (type == TP_STRUCT_TYPE_SIMPLE_PRESENCE)
+        else if (g_variant_type_equal (type, G_VARIANT_TYPE ("(uss)")))
           {
             gchar **v = g_key_file_get_string_list (keyfile, group,
                 key, NULL, error);
@@ -1388,13 +1482,8 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
                 else
                   {
                     /* a syntactically valid simple presence */
-                    g_value_take_boxed (value,
-                        tp_value_array_build (3,
-                          G_TYPE_UINT, (guint) u,
-                          G_TYPE_STRING, v[1],
-                          G_TYPE_STRING, v[2],
-                          G_TYPE_INVALID));
-                    ret = TRUE;
+                    ret = g_variant_new_parsed ("(%u, %s, %s)",
+                        (guint32) u, v[1], v[2]);
                   }
               }
 
@@ -1404,8 +1493,9 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
           {
             gchar *message =
               g_strdup_printf ("cannot get key %s from group %s: "
-                  "unknown type %s",
-                  key, group, g_type_name (type));
+                  "unknown type %.*s", key, group,
+                  (int) g_variant_type_get_string_length (type),
+                  type_str);
 
             g_warning ("%s: %s", G_STRFUNC, message);
             g_set_error (error, MCD_ACCOUNT_ERROR,
@@ -1415,6 +1505,7 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
           }
     }
 
+  g_assert (ret == NULL || g_variant_is_of_type (ret, type));
   return ret;
 }
 

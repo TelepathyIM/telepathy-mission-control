@@ -135,6 +135,11 @@ gboolean mcd_storage_add_account_from_plugin (McdStorage *storage,
     McpAccountStorage *plugin,
     const gchar *account);
 
+GVariant *mcd_keyfile_get_variant (GKeyFile *keyfile,
+    const gchar *group,
+    const gchar *key,
+    const GVariantType *type,
+    GError **error);
 gboolean mcd_keyfile_get_value (GKeyFile *keyfile,
     const gchar *group,
     const gchar *key,
