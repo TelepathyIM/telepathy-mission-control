@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include "config.h"
+
 #include <mission-control-plugins/mission-control-plugins.h>
 
 #include <dbus/dbus.h>
@@ -26,6 +28,8 @@
 
 #include <telepathy-glib/telepathy-glib.h>
 #include <telepathy-glib/telepathy-glib-dbus.h>
+
+#include "dbus-account-plugin.h"
 
 #define DEBUG g_debug
 
@@ -582,6 +586,10 @@ mcp_plugin_ref_nth_object (guint n)
 
     case 3:
       return g_object_new (test_no_op_plugin_get_type (),
+          NULL);
+
+    case 4:
+      return g_object_new (test_dbus_account_plugin_get_type (),
           NULL);
 
     default:

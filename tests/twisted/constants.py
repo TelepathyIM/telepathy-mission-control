@@ -188,3 +188,13 @@ CD_REDISPATCH = CD + '.Interface.Redispatch.DRAFT'
 
 MC = tp_name_prefix + '.MissionControl5'
 MC_PATH = tp_path_prefix + '/MissionControl5'
+
+TESTDOT = "org.freedesktop.Telepathy.MC.Test."
+TESTSLASH = "/org/freedesktop/Telepathy/MC/Test/"
+
+TEST_DBUS_ACCOUNT_SERVICE = TESTDOT + "DBusAccountService"
+TEST_DBUS_ACCOUNT_SERVICE_PATH = TESTSLASH + "DBusAccountService"
+TEST_DBUS_ACCOUNT_SERVICE_IFACE = TEST_DBUS_ACCOUNT_SERVICE
+
+TEST_DBUS_ACCOUNT_PLUGIN_PATH = TESTSLASH + "DBusAccountPlugin"
+TEST_DBUS_ACCOUNT_PLUGIN_IFACE = TESTDOT + "DBusAccountPlugin"
