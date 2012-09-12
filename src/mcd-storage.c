@@ -192,25 +192,15 @@ mcd_storage_new (TpDBusDaemon *dbus_daemon)
 static gchar *
 mcd_keyfile_escape_variant (GVariant *variant)
 {
-  GValue value = G_VALUE_INIT;
+  GKeyFile *keyfile;
   gchar *ret;
 
-  dbus_g_value_parse_g_variant (variant, &value);
+  g_return_val_if_fail (variant != NULL, NULL);
 
-  if (G_IS_VALUE (&value))
-    {
-      ret = mcd_keyfile_escape_value (&value);
-      g_value_unset (&value);
-    }
-  else
-    {
-      gchar *printed = g_variant_print (variant, TRUE);
-
-      ret = NULL;
-      g_warning ("Unable to translate variant %s", printed);
-      g_free (printed);
-    }
-
+  keyfile = g_key_file_new ();
+  mcd_keyfile_set_variant (keyfile, "g", "k", variant);
+  ret = g_key_file_get_value (keyfile, "g", "k", NULL);
+  g_key_file_free (keyfile);
   return ret;
 }
 
@@ -967,10 +957,10 @@ mcd_storage_coerce_variant_to_value (GVariant *variant,
   /* This is really pretty stupid but it'll do for now.
    * FIXME: implement a better similar-type-coercion mechanism than
    * round-tripping through a GKeyFile. */
-  escaped = mcd_keyfile_escape_value (&tmp);
+  g_value_unset (&tmp);
+  escaped = mcd_keyfile_escape_variant (variant);
   ret = mcd_keyfile_unescape_value (escaped, value, error);
   g_free (escaped);
-  g_value_unset (&tmp);
   return ret;
 }
 
@@ -1826,15 +1816,23 @@ mcpa_escape_value_for_keyfile (const McpAccountManager *unused G_GNUC_UNUSED,
 gchar *
 mcd_keyfile_escape_value (const GValue *value)
 {
-  GKeyFile *keyfile;
+  GVariant *variant;
   gchar *ret;
 
   g_return_val_if_fail (G_IS_VALUE (value), NULL);
 
-  keyfile = g_key_file_new ();
-  mcd_keyfile_set_value (keyfile, "g", "k", value);
-  ret = g_key_file_get_value (keyfile, "g", "k", NULL);
-  g_key_file_free (keyfile);
+  variant = dbus_g_value_build_g_variant (value);
+
+  if (variant == NULL)
+    {
+      g_warning ("Unable to convert %s to GVariant",
+          G_VALUE_TYPE_NAME (value));
+      return NULL;
+    }
+
+  g_variant_ref_sink (variant);
+  ret = mcd_keyfile_escape_variant (variant);
+  g_variant_unref (variant);
   return ret;
 }
 
@@ -1876,8 +1874,17 @@ mcd_keyfile_set_value (GKeyFile *keyfile,
     }
   else
     {
-      GVariant *variant = dbus_g_value_build_g_variant (value);
+      GVariant *variant;
       gboolean ret;
+
+      variant = dbus_g_value_build_g_variant (value);
+
+      if (variant == NULL)
+        {
+          g_warning ("Unable to convert %s to GVariant",
+              G_VALUE_TYPE_NAME (value));
+          return FALSE;
+        }
 
       g_variant_ref_sink (variant);
       ret = mcd_keyfile_set_variant (keyfile, name, key, variant);
