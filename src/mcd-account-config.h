@@ -29,6 +29,9 @@
 
 #include <telepathy-glib/telepathy-glib-dbus.h>
 
+/* If you add new storable attributes you must also update
+ * known_attributes in mcd-storage.c. */
+
 /* string, 's' */
 #define MC_ACCOUNTS_KEY_MANAGER "manager"
 #define MC_ACCOUNTS_KEY_PROTOCOL "protocol"

@@ -26,6 +26,7 @@
 #include "mcd-account.h"
 #include "mcd-account-config.h"
 #include "mcd-debug.h"
+#include "mcd-misc.h"
 #include "plugin-loader.h"
 
 #include <string.h>
@@ -65,8 +66,8 @@ G_DEFINE_TYPE_WITH_CODE (McdStorage, mcd_storage,
     G_IMPLEMENT_INTERFACE (MCP_TYPE_ACCOUNT_MANAGER, plugin_iface_init))
 
 typedef struct {
-    /* owned string => owned string escaped as if for a keyfile
-     * e.g. { 'DisplayName': 'Frederick Bloggs' } */
+    /* owned string => GVariant
+     * e.g. { 'DisplayName': <'Frederick Bloggs'> } */
     GHashTable *attributes;
     /* owned string => owned string escaped as if for a keyfile
      * e.g. { 'account': 'fred@example.com', 'password': 'foo' } */
@@ -183,6 +184,31 @@ mcd_storage_new (TpDBusDaemon *dbus_daemon)
       NULL);
 }
 
+static gchar *
+mcd_keyfile_escape_variant (GVariant *variant)
+{
+  GValue value = G_VALUE_INIT;
+  gchar *ret;
+
+  dbus_g_value_parse_g_variant (variant, &value);
+
+  if (G_IS_VALUE (&value))
+    {
+      ret = mcd_keyfile_escape_value (&value);
+      g_value_unset (&value);
+    }
+  else
+    {
+      gchar *printed = g_variant_print (variant, TRUE);
+
+      ret = NULL;
+      g_warning ("Unable to translate variant %s", printed);
+      g_free (printed);
+    }
+
+  return ret;
+}
+
 static McdStorageAccount *
 lookup_account (McdStorage *self,
     const gchar *account)
@@ -200,7 +226,7 @@ ensure_account (McdStorage *self,
     {
       sa = g_slice_new (McdStorageAccount);
       sa->attributes = g_hash_table_new_full (g_str_hash, g_str_equal,
-          g_free, g_free);
+          g_free, (GDestroyNotify) g_variant_unref);
       sa->parameters = g_hash_table_new_full (g_str_hash, g_str_equal,
           g_free, g_free);
       sa->secrets = g_hash_table_new_full (g_str_hash, g_str_equal,
@@ -209,19 +235,6 @@ ensure_account (McdStorage *self,
     }
 
   return sa;
-}
-
-static const gchar *
-mcd_storage_get_escaped_attribute (McdStorage *self,
-    const gchar *account,
-    const gchar *attribute)
-{
-  McdStorageAccount *sa = lookup_account (self, account);
-
-  if (sa == NULL)
-    return NULL;
-
-  return g_hash_table_lookup (sa->attributes, attribute);
 }
 
 static const gchar *
@@ -243,12 +256,132 @@ get_value (const McpAccountManager *ma,
     const gchar *key)
 {
   McdStorage *self = MCD_STORAGE (ma);
+  McdStorageAccount *sa = lookup_account (self, account);
+  GVariant *variant;
+  gchar *ret;
+
+  if (sa == NULL)
+    return NULL;
 
   if (g_str_has_prefix (key, "param-"))
-    return g_strdup (mcd_storage_get_escaped_parameter (self, account,
-          key + 6));
+    {
+      return g_strdup (mcd_storage_get_escaped_parameter (self, account,
+            key + 6));
+    }
   else
-    return g_strdup (mcd_storage_get_escaped_attribute (self, account, key));
+    {
+      variant = g_hash_table_lookup (sa->attributes, key);
+
+      if (variant != NULL)
+        {
+          ret = mcd_keyfile_escape_variant (variant);
+          g_variant_unref (variant);
+          return ret;
+        }
+      else
+        {
+          return NULL;
+        }
+    }
+}
+
+static struct {
+    const gchar *type;
+    const gchar *name;
+} known_attributes[] = {
+    /* Please keep this sorted by type, then by name. */
+
+    /* Array of object path */
+      { "ao", MC_ACCOUNTS_KEY_SUPERSEDES },
+
+    /* Array of string */
+      { "as", MC_ACCOUNTS_KEY_URI_SCHEMES },
+
+    /* Booleans */
+      { "b", MC_ACCOUNTS_KEY_ALWAYS_DISPATCH },
+      { "b", MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY },
+      { "b", MC_ACCOUNTS_KEY_ENABLED },
+      { "b", MC_ACCOUNTS_KEY_HAS_BEEN_ONLINE },
+      { "b", MC_ACCOUNTS_KEY_HIDDEN },
+
+    /* Strings */
+      { "s", MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE },
+      { "s", MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS },
+      { "s", MC_ACCOUNTS_KEY_AVATAR_MIME },
+      { "s", MC_ACCOUNTS_KEY_AVATAR_TOKEN },
+      { "s", MC_ACCOUNTS_KEY_DISPLAY_NAME },
+      { "s", MC_ACCOUNTS_KEY_ICON },
+      { "s", MC_ACCOUNTS_KEY_MANAGER },
+      { "s", MC_ACCOUNTS_KEY_NICKNAME },
+      { "s", MC_ACCOUNTS_KEY_NORMALIZED_NAME },
+      { "s", MC_ACCOUNTS_KEY_PROTOCOL },
+      { "s", MC_ACCOUNTS_KEY_SERVICE },
+
+    /* Integers */
+      { "u", MC_ACCOUNTS_KEY_AUTO_PRESENCE_TYPE },
+
+      { NULL, NULL }
+};
+
+static const gchar *
+mcd_storage_get_attribute_type (const gchar *attribute)
+{
+  guint i;
+
+  for (i = 0; known_attributes[i].type != NULL; i++)
+    {
+      if (!tp_strdiff (attribute, known_attributes[i].name))
+        return known_attributes[i].type;
+    }
+
+  /* special case for mcd-account-conditions.c */
+  if (g_str_has_prefix (attribute, "condition-"))
+    return "s";
+
+  return NULL;
+}
+
+static gboolean
+mcd_storage_init_value_for_attribute (GValue *value,
+    const gchar *attribute)
+{
+  const gchar *s = mcd_storage_get_attribute_type (attribute);
+
+  if (s == NULL)
+    return FALSE;
+
+  switch (s[0])
+    {
+      case 's':
+        g_value_init (value, G_TYPE_STRING);
+        return TRUE;
+
+      case 'b':
+        g_value_init (value, G_TYPE_BOOLEAN);
+        return TRUE;
+
+      case 'u':
+        /* this seems wrong but it's how we've always done it */
+        g_value_init (value, G_TYPE_INT);
+        return TRUE;
+
+      case 'a':
+          {
+            switch (s[1])
+              {
+                case 'o':
+                  g_value_init (value, TP_ARRAY_TYPE_OBJECT_PATH_LIST);
+                  return TRUE;
+
+                case 's':
+                  g_value_init (value, G_TYPE_STRV);
+                  return TRUE;
+              }
+          }
+        break;
+    }
+
+  return FALSE;
 }
 
 static void
@@ -271,9 +404,35 @@ set_value (const McpAccountManager *ma,
   else
     {
       if (value != NULL)
-        g_hash_table_insert (sa->attributes, g_strdup (key), g_strdup (value));
+        {
+          GValue tmp = G_VALUE_INIT;
+          GError *error = NULL;
+
+          if (!mcd_storage_init_value_for_attribute (&tmp, key))
+            {
+              g_warning ("Not sure what the type of '%s' is, assuming string",
+                  key);
+              g_value_init (&tmp, G_TYPE_STRING);
+            }
+
+          if (mcd_keyfile_unescape_value (value, &tmp, &error))
+            {
+              g_hash_table_insert (sa->attributes, g_strdup (key),
+                  g_variant_ref_sink (dbus_g_value_build_g_variant (&tmp)));
+              g_value_unset (&tmp);
+            }
+          else
+            {
+              g_warning ("Could not decode attribute '%s':'%s' from plugin: %s",
+                  key, value, error->message);
+              g_error_free (error);
+              g_hash_table_remove (sa->attributes, key);
+            }
+        }
       else
-        g_hash_table_remove (sa->attributes, key);
+        {
+          g_hash_table_remove (sa->attributes, key);
+        }
     }
 }
 
@@ -652,6 +811,33 @@ mcd_storage_dup_string (McdStorage *self,
   return ret;
 }
 
+static gboolean
+mcd_storage_coerce_variant_to_value (GVariant *variant,
+    GValue *value,
+    GError **error)
+{
+  GValue tmp = G_VALUE_INIT;
+  gboolean ret;
+  gchar *escaped;
+
+  dbus_g_value_parse_g_variant (variant, &tmp);
+
+  if (G_VALUE_TYPE (&tmp) == G_VALUE_TYPE (value))
+    {
+      memcpy (value, &tmp, sizeof (tmp));
+      return TRUE;
+    }
+
+  /* This is really pretty stupid but it'll do for now.
+   * FIXME: implement a better similar-type-coercion mechanism than
+   * round-tripping through a GKeyFile. */
+  escaped = mcd_keyfile_escape_value (&tmp);
+  ret = mcd_keyfile_unescape_value (escaped, value, error);
+  g_free (escaped);
+  g_value_unset (&tmp);
+  return ret;
+}
+
 /*
  * mcd_storage_get_attribute:
  * @storage: An object implementing the #McdStorage interface
@@ -667,23 +853,33 @@ mcd_storage_get_attribute (McdStorage *self,
     GValue *value,
     GError **error)
 {
-  const gchar *escaped;
+  McdStorageAccount *sa;
+  GVariant *variant;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
   g_return_val_if_fail (attribute != NULL, FALSE);
   g_return_val_if_fail (!g_str_has_prefix (attribute, "param-"), FALSE);
 
-  escaped = mcd_storage_get_escaped_attribute (self, account, attribute);
+  sa = lookup_account (self, account);
 
-  if (escaped == NULL)
+  if (sa == NULL)
+    {
+      g_set_error (error, TP_ERROR, TP_ERROR_NOT_AVAILABLE,
+          "Account %s does not exist", account);
+      return FALSE;
+    }
+
+  variant = g_hash_table_lookup (sa->attributes, attribute);
+
+  if (variant == NULL)
     {
       g_set_error (error, TP_ERROR, TP_ERROR_NOT_AVAILABLE,
           "Setting '%s' not stored by account %s", attribute, account);
       return FALSE;
     }
 
-  return mcd_keyfile_unescape_value (escaped, value, error);
+  return mcd_storage_coerce_variant_to_value (variant, value, error);
 }
 
 /*
@@ -1188,8 +1384,10 @@ mcd_storage_set_attribute (McdStorage *self,
     const gchar *attribute,
     const GValue *value)
 {
-  gchar *escaped = NULL;
   McdStorageAccount *sa;
+  GVariant *old_v;
+  GVariant *new_v;
+  gboolean updated = FALSE;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
@@ -1199,25 +1397,35 @@ mcd_storage_set_attribute (McdStorage *self,
   sa = ensure_account (self, account);
 
   if (value != NULL)
-    escaped = mcd_keyfile_escape_value (value);
+    new_v = g_variant_ref_sink (dbus_g_value_build_g_variant (value));
+  else
+    new_v = NULL;
 
-  if (tp_strdiff (escaped, g_hash_table_lookup (sa->attributes, attribute)))
+  old_v = g_hash_table_lookup (sa->attributes, attribute);
+
+  if (!mcd_nullable_variant_equal (old_v, new_v))
     {
-      if (escaped == NULL)
+      gchar *escaped = NULL;
+
+      /* First put it in the attributes hash table. (Watch out, this might
+       * invalidate old_v.) */
+      if (new_v == NULL)
         g_hash_table_remove (sa->attributes, attribute);
       else
         g_hash_table_insert (sa->attributes, g_strdup (attribute),
-            g_strdup (escaped));
+            g_variant_ref (new_v));
+
+      /* OK now we have to escape it in a stupid way for plugins */
+      if (value != NULL)
+        escaped = mcd_keyfile_escape_value (value);
 
       update_storage (self, account, attribute, escaped, FALSE);
       g_free (escaped);
-      return TRUE;
+      updated = TRUE;
     }
-  else
-    {
-      g_free (escaped);
-      return FALSE;
-    }
+
+  tp_clear_pointer (&new_v, g_variant_unref);
+  return updated;
 }
 
 /*

@@ -220,3 +220,16 @@ _mcd_chmod_private (const gchar *filename)
 
     return ret;
 }
+
+gboolean
+mcd_nullable_variant_equal (GVariant *a,
+                            GVariant *b)
+{
+    if (a == b)
+        return TRUE;
+
+    if (a == NULL || b == NULL)
+        return FALSE;
+
+    return g_variant_equal (a, b);
+}
