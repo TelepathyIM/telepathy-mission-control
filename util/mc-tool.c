@@ -424,6 +424,7 @@ typedef enum {
     GET_PARAM,
     GET_STRING,
     GET_BOOLEAN,
+    GET_PRESENCE,
     GET_PRESENCE_TYPE,
     GET_PRESENCE_STATUS,
     GET_PRESENCE_MESSAGE
@@ -473,6 +474,8 @@ getter_list_init(void)
 		    tp_account_get_connect_automatically);
     getter_list_add("NormalizedName", GET_STRING, tp_account_get_normalized_name);
 
+    getter_list_add("AutomaticPresence",
+                    GET_PRESENCE, tp_account_get_automatic_presence);
     getter_list_add("AutomaticPresenceType",
 		    GET_PRESENCE_TYPE, tp_account_get_automatic_presence);
     getter_list_add("AutomaticPresenceStatus",
@@ -893,6 +896,16 @@ command_get (TpAccount *account)
 	    else if (getter->type == GET_BOOLEAN) {
 		puts(getboolean(account) ? "true" : "false");
 	    }
+            else if (getter->type == GET_PRESENCE)
+            {
+                struct presence presence;
+
+                presence.type = getpresence(account, &presence.status,
+                    &presence.message);
+                printf ("(%u, \"%s\", \"%s\")\n", presence.type,
+                    presence.status, presence.message);
+                free_presence (&presence);
+            }
 	    else if (getter->type == GET_PRESENCE_TYPE ||
 		     getter->type == GET_PRESENCE_STATUS ||
 		     getter->type == GET_PRESENCE_MESSAGE) {
