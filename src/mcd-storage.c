@@ -330,7 +330,7 @@ static struct {
       { NULL, NULL }
 };
 
-static const gchar *
+const gchar *
 mcd_storage_get_attribute_type (const gchar *attribute)
 {
   guint i;
@@ -348,7 +348,7 @@ mcd_storage_get_attribute_type (const gchar *attribute)
   return NULL;
 }
 
-static gboolean
+gboolean
 mcd_storage_init_value_for_attribute (GValue *value,
     const gchar *attribute)
 {
