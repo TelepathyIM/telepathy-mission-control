@@ -242,6 +242,7 @@ protocol=fakeprotocol
 param-account=dontdivert@example.com
 param-password=password_in_keyfile
 DisplayName=New and improved account
+AutomaticPresence=2;available;;
 """ % group)
 
     account_manager, properties, interfaces = resuscitate_mc(q, bus, mc)
@@ -292,6 +293,7 @@ manager=fakecm
 protocol=fakeprotocol
 param-account=dontdivert@example.com
 DisplayName=Ye olde account
+AutomaticPresence=2;available;;
 """ % group)
 
     account_manager, properties, interfaces = resuscitate_mc(q, bus, mc)

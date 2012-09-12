@@ -1491,21 +1491,9 @@ set_automatic_presence (TpSvcDBusProperties *self,
 
     if (changed)
     {
-        GValue presence = G_VALUE_INIT;
-
-        g_value_init (&presence, G_TYPE_INT);
-        g_value_set_int (&presence, priv->auto_presence_type);
-
         mcd_storage_set_attribute (priv->storage, account_name,
-                                   MC_ACCOUNTS_KEY_AUTO_PRESENCE_TYPE,
-                                   &presence);
-        mcd_storage_set_string (priv->storage, account_name,
-                                MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS,
-                                priv->auto_presence_status);
-        mcd_storage_set_string (priv->storage, account_name,
-                                MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE,
-                                priv->auto_presence_message);
-
+                                   MC_ACCOUNTS_KEY_AUTOMATIC_PRESENCE,
+                                   value);
         mcd_storage_commit (priv->storage, account_name);
         mcd_account_changed_property (account, name, value);
     }
@@ -3083,10 +3071,67 @@ mcd_account_setup (McdAccount *account)
     priv->always_dispatch =
       mcd_storage_get_boolean (storage, name, MC_ACCOUNTS_KEY_ALWAYS_DISPATCH);
 
-    /* load the automatic presence */
-    priv->auto_presence_type =
-      mcd_storage_get_integer (storage, name,
-                               MC_ACCOUNTS_KEY_AUTO_PRESENCE_TYPE);
+    g_value_init (&value, TP_STRUCT_TYPE_SIMPLE_PRESENCE);
+
+    g_free (priv->auto_presence_status);
+    g_free (priv->auto_presence_message);
+
+    if (mcd_storage_get_attribute (storage, name,
+                                   MC_ACCOUNTS_KEY_AUTOMATIC_PRESENCE, &value,
+                                   NULL))
+    {
+        GValueArray *va = g_value_get_boxed (&value);
+
+        priv->auto_presence_type = g_value_get_uint (va->values + 0);
+        priv->auto_presence_status = g_value_dup_string (va->values + 1);
+        priv->auto_presence_message = g_value_dup_string (va->values + 2);
+
+        if (priv->auto_presence_status == NULL)
+            priv->auto_presence_status = g_strdup ("");
+        if (priv->auto_presence_message == NULL)
+            priv->auto_presence_message = g_strdup ("");
+    }
+    else
+    {
+        /* try the old versions */
+        priv->auto_presence_type =
+          mcd_storage_get_integer (storage, name,
+                                   MC_ACCOUNTS_KEY_AUTO_PRESENCE_TYPE);
+        priv->auto_presence_status =
+          mcd_storage_dup_string (storage, name,
+                                  MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS);
+        priv->auto_presence_message =
+          mcd_storage_dup_string (storage, name,
+                                  MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE);
+
+        if (priv->auto_presence_status == NULL)
+            priv->auto_presence_status = g_strdup ("");
+        if (priv->auto_presence_message == NULL)
+            priv->auto_presence_message = g_strdup ("");
+
+        /* migrate to a more sensible storage format */
+        g_value_take_boxed (&value, tp_value_array_build (3,
+                G_TYPE_UINT, (guint) priv->auto_presence_type,
+                G_TYPE_STRING, priv->auto_presence_status,
+                G_TYPE_STRING, priv->auto_presence_message,
+                G_TYPE_INVALID));
+
+        if (mcd_storage_set_attribute (storage, name,
+                                       MC_ACCOUNTS_KEY_AUTOMATIC_PRESENCE,
+                                       &value))
+        {
+            mcd_storage_set_attribute (storage, name,
+                                       MC_ACCOUNTS_KEY_AUTO_PRESENCE_TYPE,
+                                       NULL);
+            mcd_storage_set_attribute (storage, name,
+                                       MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS,
+                                       NULL);
+            mcd_storage_set_attribute (storage, name,
+                                       MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE,
+                                       NULL);
+            mcd_storage_commit (storage, name);
+        }
+    }
 
     /* If invalid or something, force it to AVAILABLE - we want the auto
      * presence type to be an online status */
@@ -3096,19 +3141,8 @@ mcd_account_setup (McdAccount *account)
         g_free (priv->auto_presence_status);
         priv->auto_presence_status = g_strdup ("available");
     }
-    else
-    {
-        g_free (priv->auto_presence_status);
-        priv->auto_presence_status =
-          mcd_storage_dup_string (storage, name,
-                                  MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS);
-    }
 
-    g_free (priv->auto_presence_message);
-    priv->auto_presence_message =
-      mcd_storage_dup_string (storage, name,
-                              MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE);
-
+    g_value_unset (&value);
     g_value_init (&value, TP_ARRAY_TYPE_OBJECT_PATH_LIST);
 
     if (priv->supersedes != NULL)

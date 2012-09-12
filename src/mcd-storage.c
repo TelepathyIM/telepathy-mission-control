@@ -299,6 +299,9 @@ static struct {
 } known_attributes[] = {
     /* Please keep this sorted by type, then by name. */
 
+    /* Structs */
+      { "(uss)", MC_ACCOUNTS_KEY_AUTOMATIC_PRESENCE },
+
     /* Array of object path */
       { "ao", MC_ACCOUNTS_KEY_SUPERSEDES },
 
