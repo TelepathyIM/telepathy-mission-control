@@ -49,9 +49,7 @@ def preseed(q, bus, fake_accounts_service):
         'NormalizedName': 'jc.denton@unatco.int',
         'Enabled': True,
         'ConnectAutomatically': False,
-        'AutomaticPresenceType': dbus.UInt32(2),
-        'AutomaticPresenceStatus': 'available',
-        'AutomaticPresenceMessage': '',
+        'AutomaticPresence': (dbus.UInt32(2), 'available', ''),
         })
     fake_accounts_service.update_parameters(account_id, untyped={
         'account': 'jc.denton@unatco.int',
