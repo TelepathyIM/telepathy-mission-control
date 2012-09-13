@@ -73,7 +73,7 @@ billy_idle (gpointer user_data)
 {
   DBusMessage *reply = user_data;
   DBusConnection *connection = dbus_g_connection_get_connection (
-      ((TpProxy *) bus_daemon)->dbus_connection);
+      tp_proxy_get_dbus_connection (bus_daemon));
 
   if (!dbus_connection_send (connection, reply, NULL))
     g_error ("Out of memory");
@@ -192,7 +192,7 @@ main (int argc, char **argv)
      * DBUS_HANDLER_RESULT_HANDLED for signals, so for *our* filter to have any
      * effect, we need to install it as soon as possible */
     connection = dbus_g_connection_get_connection (
-        ((TpProxy *) bus_daemon)->dbus_connection);
+	tp_proxy_get_dbus_connection (bus_daemon));
     dbus_connection_add_filter (connection, dbus_filter_function, NULL, NULL);
 
 #if ENABLE_GNOME_KEYRING

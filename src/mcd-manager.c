@@ -338,21 +338,21 @@ mcd_manager_get_name (McdManager *manager)
     return priv->name;
 }
 
-TpConnectionManagerProtocol *
+TpProtocol *
 _mcd_manager_dup_protocol (McdManager *manager,
                            const gchar *protocol)
 {
-    const TpConnectionManagerProtocol *p;
+    TpProtocol *p;
     g_return_val_if_fail (MCD_IS_MANAGER (manager), NULL);
     g_return_val_if_fail (protocol != NULL, NULL);
 
-    p = tp_connection_manager_get_protocol (manager->priv->tp_conn_mgr,
-                                            protocol);
+    p = tp_connection_manager_get_protocol_object (manager->priv->tp_conn_mgr,
+                                                   protocol);
 
     if (p == NULL)
         return NULL;
     else
-        return tp_connection_manager_protocol_copy (p);
+        return g_object_ref (p);
 }
 
 const TpConnectionManagerParam *
@@ -360,7 +360,7 @@ mcd_manager_get_protocol_param (McdManager *manager, const gchar *protocol,
                                 const gchar *param)
 {
     McdManagerPrivate *priv;
-    const TpConnectionManagerProtocol *cm_protocol;
+    TpProtocol *cm_protocol;
 
     g_return_val_if_fail (MCD_IS_MANAGER (manager), NULL);
     g_return_val_if_fail (protocol != NULL, NULL);
@@ -368,13 +368,13 @@ mcd_manager_get_protocol_param (McdManager *manager, const gchar *protocol,
 
     priv = manager->priv;
 
-    cm_protocol = tp_connection_manager_get_protocol (priv->tp_conn_mgr,
-                                                      protocol);
+    cm_protocol = tp_connection_manager_get_protocol_object (priv->tp_conn_mgr,
+                                                             protocol);
 
     if (cm_protocol == NULL)
         return NULL;
 
-    return tp_connection_manager_protocol_get_param (cm_protocol, param);
+    return tp_protocol_get_param (cm_protocol, param);
 }
 
 McdConnection *

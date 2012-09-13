@@ -749,7 +749,7 @@ mcd_channel_get_object_path (McdChannel *channel)
 {
     McdChannelPrivate *priv = MCD_CHANNEL_PRIV (channel);
 
-    return priv->tp_chan ? TP_PROXY (priv->tp_chan)->object_path : NULL;
+    return priv->tp_chan ? tp_proxy_get_object_path (priv->tp_chan) : NULL;
 }
 
 /*
@@ -825,7 +825,7 @@ mcd_channel_get_error (McdChannel *channel)
         return priv->error;
 
     if (priv->tp_chan)
-        return TP_PROXY (priv->tp_chan)->invalidated;
+        return tp_proxy_get_invalidated (priv->tp_chan);
 
     return NULL;
 }

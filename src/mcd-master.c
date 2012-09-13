@@ -287,8 +287,8 @@ _mcd_master_get_property (GObject * obj, guint prop_id,
 	g_value_set_object (val, priv->dbus_daemon);
 	break;
     case PROP_DBUS_CONNECTION:
-	g_value_set_pointer (val,
-			     TP_PROXY (priv->dbus_daemon)->dbus_connection);
+        g_value_set_pointer (val, tp_proxy_get_dbus_connection (
+                             TP_PROXY (priv->dbus_daemon)));
 	break;
     case PROP_ACCOUNT_MANAGER:
 	g_value_set_object (val, priv->account_manager);
@@ -389,7 +389,7 @@ mcd_master_constructor (GType type, guint n_params,
 
     dbus_connection_set_exit_on_disconnect (
         dbus_g_connection_get_connection (
-            TP_PROXY (priv->dbus_daemon)->dbus_connection),
+            tp_proxy_get_dbus_connection (TP_PROXY (priv->dbus_daemon))),
         TRUE);
 
     mcd_kludge_transport_install (master);

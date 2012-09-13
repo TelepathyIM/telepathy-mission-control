@@ -2153,10 +2153,17 @@ properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 static GType
 mc_param_type (const TpConnectionManagerParam *param)
 {
-    if (G_UNLIKELY (param == NULL)) return G_TYPE_INVALID;
-    if (G_UNLIKELY (!param->dbus_signature)) return G_TYPE_INVALID;
+    const gchar *dbus_signature;
 
-    switch (param->dbus_signature[0])
+    if (G_UNLIKELY (param == NULL))
+        return G_TYPE_INVALID;
+
+    dbus_signature = tp_connection_manager_param_get_dbus_signature (param);
+
+    if (G_UNLIKELY (!dbus_signature))
+        return G_TYPE_INVALID;
+
+    switch (dbus_signature[0])
     {
     case DBUS_TYPE_STRING:
 	return G_TYPE_STRING;
@@ -2188,13 +2195,13 @@ mc_param_type (const TpConnectionManagerParam *param)
         return G_TYPE_UINT64;
 
     case DBUS_TYPE_ARRAY:
-        if (param->dbus_signature[1] == DBUS_TYPE_STRING)
+        if (dbus_signature[1] == DBUS_TYPE_STRING)
             return G_TYPE_STRV;
         /* other array types are not supported:
          * fall through the default case */
     default:
         g_warning ("skipping parameter %s, unknown type %s",
-                   param->name, param->dbus_signature);
+            tp_connection_manager_param_get_name (param), dbus_signature);
     }
     return G_TYPE_INVALID;
 }
@@ -2312,8 +2319,9 @@ mcd_account_check_parameters (McdAccount *account,
                               gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
-    TpConnectionManagerProtocol *protocol;
-    const TpConnectionManagerParam *param;
+    TpProtocol *protocol;
+    GList *params = NULL;
+    GList *iter;
     GError *error = NULL;
 
     g_return_if_fail (callback != NULL);
@@ -2329,15 +2337,20 @@ mcd_account_check_parameters (McdAccount *account,
         goto out;
     }
 
-    for (param = protocol->params; param->name != NULL; param++)
+    params = tp_protocol_dup_params (protocol);
+
+    for (iter = params; iter != NULL; iter = iter->next)
     {
-        if (!(param->flags & TP_CONN_MGR_PARAM_FLAG_REQUIRED))
+        TpConnectionManagerParam *param = iter->data;
+        const gchar *param_name = tp_connection_manager_param_get_name (param);
+
+        if (!tp_connection_manager_param_is_required ((param)))
             continue;
 
-        if (!mcd_account_get_parameter (account, param->name, NULL, NULL))
+        if (!mcd_account_get_parameter (account, param_name, NULL, NULL))
         {
             g_set_error (&error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
-                "missing required parameter '%s'", param->name);
+                "missing required parameter '%s'", param_name);
             goto out;
         }
     }
@@ -2350,7 +2363,9 @@ out:
 
     callback (account, error, user_data);
     g_clear_error (&error);
-    tp_clear_pointer (&protocol, tp_connection_manager_protocol_free);
+    g_list_free_full (params,
+                      (GDestroyNotify) tp_connection_manager_param_free);
+    g_clear_object (&protocol);
 }
 
 static void
@@ -2408,24 +2423,26 @@ set_parameter_changed (GHashTable *dbus_properties,
                        const TpConnectionManagerParam *param,
                        const GValue *new_value)
 {
-    DEBUG ("Parameter %s changed", param->name);
+    const gchar *name = tp_connection_manager_param_get_name (param);
+
+    DEBUG ("Parameter %s changed", name);
 
     /* can the param be updated on the fly? If yes, prepare to do so; and if
      * not, prepare to reset the connection */
-    if (param->flags & TP_CONN_MGR_PARAM_FLAG_DBUS_PROPERTY)
+    if (tp_connection_manager_param_is_dbus_property (param))
     {
-        g_hash_table_insert (dbus_properties, g_strdup (param->name),
+        g_hash_table_insert (dbus_properties, g_strdup (name),
             tp_g_value_slice_dup (new_value));
     }
     else
     {
-        g_ptr_array_add (not_yet, g_strdup (param->name));
+        g_ptr_array_add (not_yet, g_strdup (name));
     }
 }
 
 static gboolean
 check_one_parameter_update (McdAccount *account,
-                            TpConnectionManagerProtocol *protocol,
+                            TpProtocol *protocol,
                             GHashTable *dbus_properties,
                             GPtrArray *not_yet,
                             const gchar *name,
@@ -2433,14 +2450,14 @@ check_one_parameter_update (McdAccount *account,
                             GError **error)
 {
     const TpConnectionManagerParam *param =
-        tp_connection_manager_protocol_get_param (protocol, name);
+        tp_protocol_get_param (protocol, name);
     GType type;
 
     if (param == NULL)
     {
         g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "Protocol '%s' does not have parameter '%s'",
-                     protocol->name, name);
+                     tp_protocol_get_name (protocol), name);
         return FALSE;
     }
 
@@ -2451,7 +2468,7 @@ check_one_parameter_update (McdAccount *account,
         /* FIXME: use D-Bus type names, not GType names. */
         g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "parameter '%s' must be of type %s, not %s",
-                     param->name,
+                     tp_connection_manager_param_get_name (param),
                      g_type_name (type), G_VALUE_TYPE_NAME (new_value));
         return FALSE;
     }
@@ -2464,7 +2481,7 @@ check_one_parameter_update (McdAccount *account,
         /* Check if the parameter's current value (or its default, if it has
          * one and it's not set to anything) matches the new value.
          */
-        if (mcd_account_get_parameter (account, param->name,
+        if (mcd_account_get_parameter (account, tp_connection_manager_param_get_name (param),
                 &current_value, NULL) ||
             tp_connection_manager_param_get_default (param, &current_value))
         {
@@ -2488,14 +2505,14 @@ check_one_parameter_update (McdAccount *account,
 
 static gboolean
 check_one_parameter_unset (McdAccount *account,
-                           TpConnectionManagerProtocol *protocol,
+                           TpProtocol *protocol,
                            GHashTable *dbus_properties,
                            GPtrArray *not_yet,
                            const gchar *name,
                            GError **error)
 {
     const TpConnectionManagerParam *param =
-        tp_connection_manager_protocol_get_param (protocol, name);
+        tp_protocol_get_param (protocol, name);
 
     /* The spec decrees that “If the given parameters […] do not exist at all,
      * the account manager MUST accept this without error.”. Thus this function
@@ -2507,8 +2524,8 @@ check_one_parameter_unset (McdAccount *account,
     {
         GValue current_value = G_VALUE_INIT;
 
-        if (mcd_account_get_parameter (account, param->name, &current_value,
-                                       NULL))
+        if (mcd_account_get_parameter (account, tp_connection_manager_param_get_name (param),
+                                       &current_value, NULL))
         {
             /* There's an existing value; let's see if it's the same as the
              * default, if any.
@@ -2528,7 +2545,7 @@ check_one_parameter_unset (McdAccount *account,
                 /* It has no default; we're gonna have to reconnect to make
                  * this take effect.
                  */
-                 g_ptr_array_add (not_yet, g_strdup (param->name));
+                g_ptr_array_add (not_yet, g_strdup (tp_connection_manager_param_get_name (param)));
             }
 
             g_value_unset (&current_value);
@@ -2540,7 +2557,7 @@ check_one_parameter_unset (McdAccount *account,
 
 static gboolean
 check_parameters (McdAccount *account,
-                  TpConnectionManagerProtocol *protocol,
+                  TpProtocol *protocol,
                   GHashTable *params,
                   const gchar **unset,
                   GHashTable *dbus_properties,
@@ -2593,7 +2610,7 @@ _mcd_account_set_parameters (McdAccount *account, GHashTable *params,
     GHashTable *dbus_properties = NULL;
     GPtrArray *not_yet = NULL;
     GError *error = NULL;
-    TpConnectionManagerProtocol *protocol = NULL;
+    TpProtocol *protocol = NULL;
 
     DEBUG ("called");
     if (G_UNLIKELY (!priv->manager && !load_manager (account)))
@@ -2640,7 +2657,7 @@ out:
     g_clear_error (&error);
     tp_clear_pointer (&dbus_properties, g_hash_table_unref);
     tp_clear_pointer (&not_yet, g_ptr_array_unref);
-    tp_clear_pointer (&protocol, tp_connection_manager_protocol_free);
+    g_clear_object (&protocol);
 }
 
 static void
@@ -2775,7 +2792,7 @@ register_dbus_service (McdAccount *self,
     dbus_daemon = self->priv->dbus_daemon;
     g_return_if_fail (dbus_daemon != NULL);
 
-    dbus_connection = TP_PROXY (dbus_daemon)->dbus_connection;
+    dbus_connection = tp_proxy_get_dbus_connection (TP_PROXY (dbus_daemon));
 
     if (G_LIKELY (dbus_connection))
 	dbus_g_connection_register_g_object (dbus_connection,
@@ -3503,8 +3520,9 @@ GHashTable *
 _mcd_account_dup_parameters (McdAccount *account)
 {
     McdAccountPrivate *priv;
-    TpConnectionManagerProtocol *protocol;
-    const TpConnectionManagerParam *param;
+    TpProtocol *protocol;
+    GList *protocol_params;
+    GList *iter;
     GHashTable *params;
 
     g_return_val_if_fail (MCD_IS_ACCOUNT (account), NULL);
@@ -3540,19 +3558,25 @@ _mcd_account_dup_parameters (McdAccount *account)
                                     g_free,
                                     (GDestroyNotify) tp_g_value_slice_free);
 
-    for (param = protocol->params; param->name != NULL; param++)
+    protocol_params = tp_protocol_dup_params (protocol);
+
+    for (iter = protocol_params; iter != NULL; iter = iter->next)
     {
+        TpConnectionManagerParam *param = iter->data;
+        const gchar *name = tp_connection_manager_param_get_name (param);
         GValue v = G_VALUE_INIT;
 
-        if (mcd_account_get_parameter (account, param->name, &v, NULL))
+        if (mcd_account_get_parameter (account, name, &v, NULL))
         {
-            g_hash_table_insert (params, g_strdup (param->name),
+            g_hash_table_insert (params, g_strdup (name),
                                  tp_g_value_slice_dup (&v));
             g_value_unset (&v);
         }
     }
 
-    tp_connection_manager_protocol_free (protocol);
+    g_list_free_full (protocol_params,
+                      (GDestroyNotify) tp_connection_manager_param_free);
+    g_object_unref (protocol);
     return params;
 }
 
@@ -4675,7 +4699,7 @@ mcd_account_parameter_is_secret (McdAccount *self, const gchar *name)
                                             priv->protocol_name, name);
 
     return (param != NULL &&
-        (param->flags & TP_CONN_MGR_PARAM_FLAG_SECRET) != 0);
+        tp_connection_manager_param_is_secret (param));
 }
 
 void

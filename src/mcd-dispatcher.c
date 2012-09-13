@@ -788,7 +788,7 @@ mcd_dispatcher_constructed (GObject *object)
                       G_CALLBACK (mcd_dispatcher_client_registry_ready_cb),
                       object);
 
-    dgc = TP_PROXY (priv->dbus_daemon)->dbus_connection;
+    dgc = tp_proxy_get_dbus_connection (TP_PROXY (priv->dbus_daemon));
 
     if (!tp_dbus_daemon_request_name (priv->dbus_daemon,
                                       TP_CHANNEL_DISPATCHER_BUS_NAME,

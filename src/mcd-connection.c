@@ -494,7 +494,8 @@ _mcd_connection_call_disconnect (McdConnection *connection)
 {
     TpConnection *tp_conn = connection->priv->tp_conn;
 
-    if (!tp_conn || TP_PROXY (tp_conn)->invalidated != NULL) return;
+    if (!tp_conn || tp_proxy_get_invalidated (TP_PROXY (tp_conn)) != NULL)
+        return;
 
     if (tp_connection_get_status (tp_conn, NULL) ==
         TP_CONNECTION_STATUS_DISCONNECTED) return;
@@ -2536,7 +2537,7 @@ mcd_connection_get_object_path (McdConnection *connection)
     McdConnectionPrivate *priv = connection->priv;
 
     if (priv->tp_conn)
-	return TP_PROXY (priv->tp_conn)->object_path;
+        return tp_proxy_get_object_path (TP_PROXY (priv->tp_conn));
     else
 	return NULL;
 }
@@ -2547,7 +2548,7 @@ mcd_connection_get_name (McdConnection *connection)
     McdConnectionPrivate *priv = connection->priv;
 
     if (priv->tp_conn)
-	return TP_PROXY (priv->tp_conn)->bus_name;
+        return tp_proxy_get_bus_name (TP_PROXY (priv->tp_conn));
     else
 	return NULL;
 }

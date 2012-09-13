@@ -1385,7 +1385,7 @@ migrate_accounts (McdAccountManager *self,
         if (cm == NULL)
             continue;
 
-        if (!tp_strdiff (cm->name, "butterfly"))
+        if (!tp_strdiff (tp_connection_manager_get_name (cm), "butterfly"))
             migrate_butterfly_account (self, account, lad);
     }
 }
@@ -1479,7 +1479,7 @@ register_dbus_service (McdAccountManager *account_manager)
     if (priv->dbus_registered)
         return;
 
-    dbus_connection = TP_PROXY (priv->dbus_daemon)->dbus_connection;
+    dbus_connection = tp_proxy_get_dbus_connection (TP_PROXY (priv->dbus_daemon));
 
     if (!tp_dbus_daemon_request_name (priv->dbus_daemon,
                                       TP_ACCOUNT_MANAGER_BUS_NAME,
