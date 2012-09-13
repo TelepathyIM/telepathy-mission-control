@@ -27,7 +27,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async, assertEquals
+        call_async, assertEquals, assertContains, assertDoesNotContain
 from mctest import (
     exec_test, create_fakecm_account, get_fakecm_account, connect_to_mc,
     keyfile_read, tell_mc_to_die, resuscitate_mc
@@ -180,7 +180,45 @@ def test(q, bus, mc):
 }
 """)
 
+    # This version of this account will be used
+    open(new_variant_file_name.replace('.account', 'priority.account'),
+            'w').write("""{
+'manager': <'fakecm'>,
+'protocol': <'fakeprotocol'>,
+'DisplayName': <'Visible'>,
+'AutomaticPresence': <'2;available;;'>,
+'KeyFileParameters': <{'account': 'dontdivert@example.com',
+    'password': 'password_in_variant_file'}>
+}
+""")
+    # This one won't, because it's "masked" by the higher-priority one
+    open(low_prio_variant_file_name.replace('.account', 'priority.account'),
+            'w').write("""{
+'manager': <'fakecm'>,
+'protocol': <'fakeprotocol'>,
+'DisplayName': <'Hidden'>,
+'Nickname': <'Hidden'>,
+'AutomaticPresence': <'2;available;;'>,
+'KeyFileParameters': <{'account': 'dontdivert@example.com',
+    'password': 'password_in_variant_file'}>
+}
+""")
+
+    # This empty file is considered to "mask" the lower-priority one
+    open(new_variant_file_name.replace('.account', 'masked.account'),
+            'w').write('')
+    open(low_prio_variant_file_name.replace('.account', 'masked.account'),
+            'w').write("""{
+'manager': <'fakecm'>,
+'protocol': <'fakeprotocol'>,
+'AutomaticPresence': <'2;available;;'>,
+'KeyFileParameters': <{'account': 'dontdivert@example.com',
+    'password': 'password_in_variant_file'}>
+}
+""")
+
     account_manager, properties, interfaces = resuscitate_mc(q, bus, mc)
+    assertContains(account_path, properties['ValidAccounts'])
     account = get_fakecm_account(bus, mc, account_path)
     account_iface = dbus.Interface(account, cs.ACCOUNT)
 
@@ -199,6 +237,22 @@ def test(q, bus, mc):
                 'Parameters' in e.args[0]),
             )
 
+    # test that "masking" works
+    assertDoesNotContain(account_path + "masked", properties['ValidAccounts'])
+    assertDoesNotContain(account_path + "masked",
+            properties['InvalidAccounts'])
+
+    # test that priority works
+    assertContains(account_path + "priority", properties['ValidAccounts'])
+    priority_account = get_fakecm_account(bus, mc, account_path + "priority")
+    assertEquals('', priority_account.Properties.Get(cs.ACCOUNT, 'Nickname'))
+    assertEquals('Visible',
+            priority_account.Properties.Get(cs.ACCOUNT, 'DisplayName'))
+
+    # test what happens when we delete an account that has a lower-priority
+    # "other self"
+    assert priority_account.Remove() is None
+
     # Tell MC to die yet again
     tell_mc_to_die(q, bus)
 
@@ -208,13 +262,22 @@ def test(q, bus, mc):
     assert not os.path.exists(newer_key_file_name)
     assert os.path.exists(low_prio_variant_file_name)
     assert os.path.exists(new_variant_file_name)
+    assert open(new_variant_file_name.replace('.account', 'masked.account'),
+        'r').read() == ''
+    assert open(new_variant_file_name.replace('.account', 'priority.account'),
+        'r').read() == ''
+
     pwd = account_store('get', 'variant-file', 'param-password')
     assertEquals(None, pwd)
 
     # Write out an account configuration in the old keyfile, to test
     # migration from there
     os.remove(new_variant_file_name)
+    os.remove(new_variant_file_name.replace('.account', 'masked.account'))
+    os.remove(new_variant_file_name.replace('.account', 'priority.account'))
     os.remove(low_prio_variant_file_name)
+    os.remove(low_prio_variant_file_name.replace('.account', 'masked.account'))
+    os.remove(low_prio_variant_file_name.replace('.account', 'priority.account'))
     open(old_key_file_name, 'w').write(
 r"""# Telepathy accounts
 [%s]
