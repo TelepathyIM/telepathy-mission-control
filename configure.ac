@@ -262,6 +262,7 @@ AC_DEFINE([TP_VERSION_MIN_REQUIRED], [TP_VERSION_0_18],
 AC_DEFINE([TP_VERSION_MAX_ALLOWED], [TP_VERSION_0_20],
   [Prevent post-0.20 APIs])
 AC_DEFINE([TP_SEAL_ENABLE], [], [Define to hide deprecated struct fields])
+AC_DEFINE([TP_DISABLE_SINGLE_INCLUDE], [], [Avoid individual headers])
 
 PKG_CHECK_MODULES([GLIB],
 	[glib-2.0 >= 2.30, gobject-2.0, gmodule-no-export-2.0, gio-2.0])
