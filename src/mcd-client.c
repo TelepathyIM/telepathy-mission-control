@@ -1559,12 +1559,19 @@ _mcd_client_match_property (GHashTable *channel_properties,
  * largest filter that matched)
  */
 guint
-_mcd_client_match_filters (GHashTable *channel_properties,
+_mcd_client_match_filters (GVariant *channel_properties,
                            const GList *filters,
                            gboolean assume_requested)
 {
     const GList *list;
     guint best_quality = 0;
+    GValue value = G_VALUE_INIT;
+
+    /* FIXME: when Xavier's tp_vardict_get_*() functions have landed,
+     * make _mcd_client_match_property use those on variant_properties
+     * rather than doing this. But for now... */
+    dbus_g_value_parse_g_variant (channel_properties, &value);
+    g_assert (G_VALUE_HOLDS (&value, TP_HASH_TYPE_STRING_VARIANT_MAP));
 
     for (list = filters; list != NULL; list = list->next)
     {
@@ -1600,7 +1607,7 @@ _mcd_client_match_filters (GHashTable *channel_properties,
                     break;
                 }
             }
-            else if (! _mcd_client_match_property (channel_properties,
+            else if (! _mcd_client_match_property (g_value_get_boxed (&value),
                                                    property_name,
                                                    filter_value))
             {
@@ -1614,6 +1621,8 @@ _mcd_client_match_filters (GHashTable *channel_properties,
             best_quality = quality;
         }
     }
+
+    g_value_unset (&value);
 
     return best_quality;
 }

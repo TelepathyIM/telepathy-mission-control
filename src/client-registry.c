@@ -603,7 +603,7 @@ possible_handler_cmp (gconstpointer a_,
 GList *
 _mcd_client_registry_list_possible_handlers (McdClientRegistry *self,
     const gchar *preferred_handler,
-    GHashTable *request_props,
+    GVariant *request_props,
     TpChannel *channel,
     const gchar *must_have_unique_name)
 {
@@ -617,7 +617,6 @@ _mcd_client_registry_list_possible_handlers (McdClientRegistry *self,
   while (g_hash_table_iter_next (&client_iter, NULL, &client_p))
     {
       McdClientProxy *client = MCD_CLIENT_PROXY (client_p);
-      GHashTable *properties;
       gsize quality;
 
       if (must_have_unique_name != NULL &&
@@ -649,11 +648,13 @@ _mcd_client_registry_list_possible_handlers (McdClientRegistry *self,
         }
       else
         {
-          g_assert (TP_IS_CHANNEL (channel));
-          properties = tp_channel_borrow_immutable_properties (channel);
+          GVariant *properties;
 
+          g_assert (TP_IS_CHANNEL (channel));
+          properties = tp_channel_dup_immutable_properties (channel);
           quality = _mcd_client_match_filters (properties,
               _mcd_client_proxy_get_handler_filters (client), FALSE);
+          g_variant_unref (properties);
         }
 
       if (quality > 0)

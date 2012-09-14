@@ -181,15 +181,24 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
                                       TpChannel *channel,
                                       const gchar *must_have_unique_name)
 {
-    GList *handlers = _mcd_client_registry_list_possible_handlers (
-        self->priv->clients,
-        request != NULL ? _mcd_request_get_preferred_handler (request) : NULL,
-        request != NULL ? _mcd_request_get_properties (request) : NULL,
-        channel, must_have_unique_name);
-    guint n_handlers = g_list_length (handlers);
+    GList *handlers;
+    guint n_handlers;
     guint i;
     GStrv ret;
     const GList *iter;
+    GVariant *request_properties = NULL;
+
+    if (request != NULL)
+        request_properties = mcd_request_dup_properties (request);
+
+    handlers = _mcd_client_registry_list_possible_handlers (
+        self->priv->clients,
+        request != NULL ? _mcd_request_get_preferred_handler (request) : NULL,
+        request_properties,
+        channel, must_have_unique_name);
+    n_handlers = g_list_length (handlers);
+
+    tp_clear_pointer (&request_properties, g_variant_unref);
 
     if (handlers == NULL)
         return NULL;
@@ -532,6 +541,7 @@ _mcd_dispatcher_lookup_handler (McdDispatcher *self,
     if (handler == NULL)
     {
         GList *possible_handlers;
+        GVariant *request_properties = NULL;
 
         /* Failing that, maybe the Handler it was dispatched to was temporary;
          * try to pick another Handler that can deal with it, on the same
@@ -539,11 +549,14 @@ _mcd_dispatcher_lookup_handler (McdDispatcher *self,
          * It can also happen in the case an Observer/Approver Claimed the
          * channel; in that case we did not get its handler well known name.
          */
+        if (request != NULL)
+            request_properties = mcd_request_dup_properties (request);
+
         possible_handlers = _mcd_client_registry_list_possible_handlers (
                 self->priv->clients,
                 request != NULL ? _mcd_request_get_preferred_handler (request) : NULL,
-                request != NULL ? _mcd_request_get_properties (request) : NULL,
-                channel, unique_name);
+                request_properties, channel, unique_name);
+        tp_clear_pointer (&request_properties, g_variant_unref);
 
         if (possible_handlers != NULL)
         {
@@ -583,7 +596,7 @@ mcd_dispatcher_client_needs_recovery_cb (McdClientProxy *client,
     {
         TpChannel *channel = list->data;
         const gchar *object_path = tp_proxy_get_object_path (channel);
-        GHashTable *properties;
+        GVariant *properties;
         McdClientProxy *handler;
 
         /* FIXME: This is not exactly the right behaviour, see fd.o#40305 */
@@ -594,7 +607,7 @@ mcd_dispatcher_client_needs_recovery_cb (McdClientProxy *client,
             continue;
         }
 
-        properties = tp_channel_borrow_immutable_properties (channel);
+        properties = tp_channel_dup_immutable_properties (channel);
 
         if (_mcd_client_match_filters (properties, observer_filters,
             FALSE))
@@ -605,6 +618,8 @@ mcd_dispatcher_client_needs_recovery_cb (McdClientProxy *client,
 
             _mcd_client_recover_observer (client, channel, account_path);
         }
+
+        g_variant_unref (properties);
     }
 
     /* we also need to think about channels that are still being dispatched,
@@ -620,8 +635,8 @@ mcd_dispatcher_client_needs_recovery_cb (McdClientProxy *client,
 
             if (mcd_channel != NULL)
             {
-                GHashTable *properties =
-                    _mcd_channel_get_immutable_properties (mcd_channel);
+                GVariant *properties =
+                    mcd_channel_dup_immutable_properties (mcd_channel);
 
                 if (_mcd_client_match_filters (properties, observer_filters,
                         FALSE))
@@ -630,6 +645,8 @@ mcd_dispatcher_client_needs_recovery_cb (McdClientProxy *client,
                         mcd_channel_get_tp_channel (mcd_channel),
                         _mcd_dispatch_operation_get_account_path (op));
                 }
+
+                g_variant_unref (properties);
             }
         }
     }

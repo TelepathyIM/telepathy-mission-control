@@ -2048,15 +2048,17 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
         if (self->priv->channel != NULL)
         {
             McdChannel *channel = MCD_CHANNEL (self->priv->channel);
-            GHashTable *properties;
+            GVariant *properties;
 
-            properties = _mcd_channel_get_immutable_properties (channel);
+            properties = mcd_channel_dup_immutable_properties (channel);
             g_assert (properties != NULL);
 
             if (_mcd_client_match_filters (properties,
                 _mcd_client_proxy_get_observer_filters (client),
                 FALSE))
                 observed = TRUE;
+
+            g_variant_unref (properties);
         }
 
         /* in particular this happens if there is no channel at all */
@@ -2166,9 +2168,9 @@ _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
         if (self->priv->channel != NULL)
         {
             McdChannel *channel = MCD_CHANNEL (self->priv->channel);
-            GHashTable *channel_properties;
+            GVariant *channel_properties;
 
-            channel_properties = _mcd_channel_get_immutable_properties (channel);
+            channel_properties = mcd_channel_dup_immutable_properties (channel);
             g_assert (channel_properties != NULL);
 
             if (_mcd_client_match_filters (channel_properties,
@@ -2177,6 +2179,8 @@ _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
             {
                 matched = TRUE;
             }
+
+            g_variant_unref (channel_properties);
         }
 
         /* in particular, after this point, self->priv->channel can't

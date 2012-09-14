@@ -83,19 +83,17 @@ _channel_details_array_append (GPtrArray *channel_array, TpChannel *channel)
 {
     GType type = TP_STRUCT_TYPE_CHANNEL_DETAILS;
     GValue channel_val = G_VALUE_INIT;
-    GHashTable *properties;
-    const gchar *object_path;
+    GVariant *pair[2];
+    GVariant *tuple;
 
-    properties = tp_channel_borrow_immutable_properties (channel);
-    object_path = tp_proxy_get_object_path (channel);
-
-    g_value_init (&channel_val, type);
-    g_value_take_boxed (&channel_val,
-                        dbus_g_type_specialized_construct (type));
-    dbus_g_type_struct_set (&channel_val,
-                            0, object_path,
-                            1, properties,
-                            G_MAXUINT);
+    pair[0] = g_variant_new_object_path (tp_proxy_get_object_path (channel));
+    pair[1] = tp_channel_dup_immutable_properties (channel);
+    /* takes ownership of floating pair[0] */
+    tuple = g_variant_new_tuple (pair, 2);
+    dbus_g_value_parse_g_variant (tuple, &channel_val);
+    g_variant_unref (pair[1]);
+    g_variant_unref (tuple);
+    g_assert (G_VALUE_HOLDS (&channel_val, type));
 
     g_ptr_array_add (channel_array, g_value_get_boxed (&channel_val));
 }

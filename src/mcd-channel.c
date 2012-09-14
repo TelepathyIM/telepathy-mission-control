@@ -741,15 +741,15 @@ mcd_channel_get_object_path (McdChannel *channel)
 }
 
 /*
- * _mcd_channel_get_immutable_properties:
+ * mcd_channel_dup_immutable_properties:
  * @channel: the #McdChannel.
  *
- * Returns: the #GHashTable of the immutable properties.
+ * Returns: the %G_VARIANT_TYPE_VARDICT of the immutable properties.
  */
-GHashTable *
-_mcd_channel_get_immutable_properties (McdChannel *channel)
+GVariant *
+mcd_channel_dup_immutable_properties (McdChannel *channel)
 {
-    GHashTable *ret;
+    GVariant *ret;
 
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
 
@@ -759,7 +759,7 @@ _mcd_channel_get_immutable_properties (McdChannel *channel)
         return NULL;
     }
 
-    ret = tp_channel_borrow_immutable_properties (channel->priv->tp_chan);
+    ret = tp_channel_dup_immutable_properties (channel->priv->tp_chan);
 
     if (ret == NULL)
     {

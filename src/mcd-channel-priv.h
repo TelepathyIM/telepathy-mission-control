@@ -45,9 +45,6 @@ void _mcd_channel_set_status (McdChannel *channel, McdChannelStatus status);
 /* not exported: */
 G_GNUC_INTERNAL void _mcd_channel_undispatchable (McdChannel *self);
 
-G_GNUC_INTERNAL
-GHashTable *_mcd_channel_get_immutable_properties (McdChannel *channel);
-
 G_GNUC_INTERNAL McdRequest *_mcd_channel_get_request (McdChannel *self);
 
 G_GNUC_INTERNAL

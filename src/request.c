@@ -762,6 +762,19 @@ _mcd_request_get_properties (McdRequest *self)
   return self->properties;
 }
 
+GVariant *
+mcd_request_dup_properties (McdRequest *self)
+{
+  GValue value = G_VALUE_INIT;
+  GVariant *ret;
+
+  g_value_init (&value, TP_HASH_TYPE_STRING_VARIANT_MAP);
+  g_value_set_boxed (&value, self->properties);
+  ret = dbus_g_value_build_g_variant (&value);
+  g_value_unset (&value);
+  return g_variant_ref_sink (ret);
+}
+
 void
 _mcd_request_start_delay (McdRequest *self)
 {
@@ -801,18 +814,27 @@ _mcd_request_set_success (McdRequest *self,
        * for now */
       GHashTable *future_conn_props = g_hash_table_new (g_str_hash,
           g_str_equal);
+      GVariant *variant;
+      GValue value = G_VALUE_INIT;
+
       DEBUG ("Request succeeded");
       self->is_complete = TRUE;
       self->cancellable = FALSE;
+
+      variant = tp_channel_dup_immutable_properties (channel);
+      dbus_g_value_parse_g_variant (variant, &value);
+      g_assert (G_VALUE_HOLDS (&value, TP_HASH_TYPE_STRING_VARIANT_MAP));
 
       tp_svc_channel_request_emit_succeeded_with_channel (self,
           tp_proxy_get_object_path (tp_channel_get_connection (channel)),
           future_conn_props,
           tp_proxy_get_object_path (channel),
-          tp_channel_borrow_immutable_properties (channel));
+          g_value_get_boxed (&value));
       tp_svc_channel_request_emit_succeeded (self);
 
       g_hash_table_unref (future_conn_props);
+      g_value_unset (&value);
+      g_variant_unref (variant);
 
       _mcd_request_clean_up (self);
     }
@@ -963,6 +985,7 @@ static TpClient *
 guess_request_handler (McdRequest *self)
 {
   GList *sorted_handlers;
+  GVariant *properties;
 
   if (!tp_str_empty (self->preferred_handler))
     {
@@ -973,9 +996,11 @@ guess_request_handler (McdRequest *self)
             return (TpClient *) client;
     }
 
+  properties = mcd_request_dup_properties (self);
   sorted_handlers = _mcd_client_registry_list_possible_handlers (
-      self->clients, self->preferred_handler, self->properties,
+      self->clients, self->preferred_handler, properties,
       NULL, NULL);
+  g_variant_unref (properties);
 
   if (sorted_handlers != NULL)
     {

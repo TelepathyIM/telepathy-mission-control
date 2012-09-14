@@ -108,5 +108,7 @@ TpChannel *mcd_channel_get_tp_channel (McdChannel *channel);
 void mcd_channel_take_error (McdChannel *channel, GError *error);
 const GError *mcd_channel_get_error (McdChannel *channel);
 
+GVariant *mcd_channel_dup_immutable_properties (McdChannel *channel);
+
 G_END_DECLS
 #endif /* MCD_CHANNEL_H */

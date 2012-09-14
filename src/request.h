@@ -63,6 +63,7 @@ G_GNUC_INTERNAL McdRequest *_mcd_request_new (McdClientRegistry *clients,
 G_GNUC_INTERNAL gboolean _mcd_request_get_use_existing (McdRequest *self);
 G_GNUC_INTERNAL McdAccount *_mcd_request_get_account (McdRequest *self);
 G_GNUC_INTERNAL GHashTable *_mcd_request_get_properties (McdRequest *self);
+G_GNUC_INTERNAL GVariant *mcd_request_dup_properties (McdRequest *self);
 G_GNUC_INTERNAL gint64 _mcd_request_get_user_action_time (McdRequest *self);
 G_GNUC_INTERNAL const gchar *_mcd_request_get_preferred_handler (
     McdRequest *self);
