@@ -120,8 +120,6 @@ on_channel_ready (GObject *source_object, GAsyncResult *result, gpointer user_da
 {
     TpChannel *tp_chan = TP_CHANNEL (source_object);
     McdChannel *channel, **channel_ptr = user_data;
-    McdChannelPrivate *priv;
-    gboolean requested, valid;
     GError *error = NULL;
 
     if (!tp_proxy_prepare_finish (tp_chan, result, &error))
@@ -145,12 +143,7 @@ on_channel_ready (GObject *source_object, GAsyncResult *result, gpointer user_da
     if (!channel) return;
 
     DEBUG ("channel %p is ready", channel);
-    priv = channel->priv;
-    requested = tp_asv_get_boolean
-        (tp_channel_borrow_immutable_properties (tp_chan),
-         TP_IFACE_CHANNEL ".Requested", &valid);
-    if (valid)
-        priv->outgoing = requested;
+    channel->priv->outgoing = tp_channel_get_requested (tp_chan);
 }
 
 void
@@ -217,7 +210,6 @@ static void
 _mcd_channel_setup (McdChannel *channel, McdChannelPrivate *priv)
 {
     McdChannel **channel_ptr;
-    GHashTable *properties;
 
     channel_ptr = g_slice_alloc (sizeof (McdChannel *));
     *channel_ptr = channel;
@@ -227,15 +219,7 @@ _mcd_channel_setup (McdChannel *channel, McdChannelPrivate *priv)
     g_signal_connect (priv->tp_chan, "invalidated",
 		      G_CALLBACK (proxy_destroyed), channel);
 
-    properties = tp_channel_borrow_immutable_properties (priv->tp_chan);
-    if (properties)
-    {
-        gboolean requested, valid = FALSE;
-        requested = tp_asv_get_boolean
-            (properties, TP_IFACE_CHANNEL ".Requested", &valid);
-        if (valid)
-            priv->outgoing = requested;
-    }
+    priv->outgoing = tp_channel_get_requested (priv->tp_chan);
 }
 
 static void
