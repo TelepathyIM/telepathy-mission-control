@@ -94,8 +94,9 @@ typedef struct _McdMasterPrivate
     McdAccountManager *account_manager;
     McdDispatcher *dispatcher;
 
-    /* We create this for our member objects */
+    /* We create these for our member objects */
     TpDBusDaemon *dbus_daemon;
+    TpSimpleClientFactory *client_factory;
 
     GPtrArray *transport_plugins;
     GList *account_connections;
@@ -352,6 +353,7 @@ _mcd_master_dispose (GObject * object)
     tp_clear_object (&priv->account_manager);
     tp_clear_object (&priv->dbus_daemon);
     tp_clear_object (&priv->dispatcher);
+    tp_clear_object (&priv->client_factory);
 
     if (default_master == (McdMaster *) object)
     {
@@ -379,8 +381,10 @@ mcd_master_constructor (GType type, guint n_params,
     umask (0077);
 #endif
 
+    priv->client_factory = tp_simple_client_factory_new (priv->dbus_daemon);
+
     if (!priv->account_manager)
-	priv->account_manager = mcd_account_manager_new (priv->dbus_daemon);
+	priv->account_manager = mcd_account_manager_new (priv->client_factory);
 
     priv->dispatcher = mcd_dispatcher_new (priv->dbus_daemon, master);
     g_assert (MCD_IS_DISPATCHER (priv->dispatcher));

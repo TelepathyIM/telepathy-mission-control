@@ -88,8 +88,8 @@ G_DEFINE_TYPE_WITH_CODE (McdAccountManager, mcd_account_manager, G_TYPE_OBJECT,
 
 struct _McdAccountManagerPrivate
 {
-    /* DBUS connection */
     TpDBusDaemon *dbus_daemon;
+    TpSimpleClientFactory *client_factory;
 
     McdStorage *storage;
     GHashTable *accounts;
@@ -131,6 +131,7 @@ enum
 {
     PROP_0,
     PROP_DBUS_DAEMON,
+    PROP_CLIENT_FACTORY
 };
 
 static guint write_conf_id = 0;
@@ -589,15 +590,23 @@ list_connection_names_cb (const gchar * const *names, gsize n,
         {
             /* Close the connection */
             TpConnection *proxy;
+            gchar *path;
+
+            path = g_strdup_printf ("/%s", names[i]);
+            g_strdelimit (path, ".", '/');
 
             DEBUG ("Killing connection");
-            proxy = tp_connection_new (priv->dbus_daemon, names[i], NULL, NULL);
+            proxy = tp_simple_client_factory_ensure_connection (
+                priv->client_factory, path, NULL, NULL);
+
             if (proxy)
             {
                 tp_cli_connection_call_disconnect (proxy, -1, NULL, NULL,
                                                    NULL, NULL);
                 g_object_unref (proxy);
             }
+
+            g_free (path);
         }
     }
     g_free (contents);
@@ -1506,10 +1515,15 @@ set_property (GObject *obj, guint prop_id,
 
     switch (prop_id)
     {
-    case PROP_DBUS_DAEMON:
-        tp_clear_object (&priv->dbus_daemon);
-	priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
-	break;
+    case PROP_CLIENT_FACTORY:
+        g_assert (priv->client_factory == NULL);  /* construct-only */
+        priv->client_factory =
+            TP_SIMPLE_CLIENT_FACTORY (g_value_dup_object (val));
+        priv->dbus_daemon =
+            tp_simple_client_factory_get_dbus_daemon (priv->client_factory);
+        g_object_ref (priv->dbus_daemon);
+        break;
+
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
@@ -1560,6 +1574,7 @@ _mcd_account_manager_dispose (GObject *object)
     McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (object);
 
     tp_clear_object (&priv->dbus_daemon);
+    tp_clear_object (&priv->client_factory);
 
     G_OBJECT_CLASS (mcd_account_manager_parent_class)->dispose (object);
 }
@@ -1580,7 +1595,15 @@ mcd_account_manager_class_init (McdAccountManagerClass *klass)
         (object_class, PROP_DBUS_DAEMON,
          g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
                               TP_TYPE_DBUS_DAEMON,
-                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+                              G_PARAM_READABLE));
+
+    g_object_class_install_property
+        (object_class, PROP_CLIENT_FACTORY,
+         g_param_spec_object ("client-factory",
+                              "Client factory",
+                              "Client factory",
+                              TP_TYPE_SIMPLE_CLIENT_FACTORY,
+                              G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static const gchar *
@@ -1653,13 +1676,13 @@ _mcd_account_manager_constructed (GObject *obj)
 }
 
 McdAccountManager *
-mcd_account_manager_new (TpDBusDaemon *dbus_daemon)
+mcd_account_manager_new (TpSimpleClientFactory *client_factory)
 {
     gpointer *obj;
 
     obj = g_object_new (MCD_TYPE_ACCOUNT_MANAGER,
-		       	"dbus-daemon", dbus_daemon,
-			NULL);
+                        "client-factory", client_factory,
+                        NULL);
     return MCD_ACCOUNT_MANAGER (obj);
 }
 
