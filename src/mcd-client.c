@@ -603,7 +603,7 @@ _mcd_client_recover_observer (McdClientProxy *self, TpChannel *channel,
         g_hash_table_new (NULL, NULL));
 
     channels_array = _mcd_tp_channel_details_build_from_tp_chan (channel);
-    conn = tp_channel_borrow_connection (channel);
+    conn = tp_channel_get_connection (channel);
     connection_path = tp_proxy_get_object_path (conn);
 
     DEBUG ("calling ObserveChannels on %s for channel %p",
@@ -1643,7 +1643,7 @@ borrow_channel_connection_path (McdChannel *channel)
 
     tp_channel = mcd_channel_get_tp_channel (channel);
     g_return_val_if_fail (tp_channel != NULL, "/");
-    tp_connection = tp_channel_borrow_connection (tp_channel);
+    tp_connection = tp_channel_get_connection (tp_channel);
     g_return_val_if_fail (tp_connection != NULL, "/");
     connection_path = tp_proxy_get_object_path (tp_connection);
     g_return_val_if_fail (connection_path != NULL, "/");

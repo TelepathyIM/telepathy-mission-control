@@ -806,7 +806,7 @@ _mcd_request_set_success (McdRequest *self,
       self->cancellable = FALSE;
 
       tp_svc_channel_request_emit_succeeded_with_channel (self,
-          tp_proxy_get_object_path (tp_channel_borrow_connection (channel)),
+          tp_proxy_get_object_path (tp_channel_get_connection (channel)),
           future_conn_props,
           tp_proxy_get_object_path (channel),
           tp_channel_borrow_immutable_properties (channel));
