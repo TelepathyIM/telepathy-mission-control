@@ -1473,13 +1473,10 @@ static void
 register_dbus_service (McdAccountManager *account_manager)
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
-    DBusGConnection *dbus_connection;
     GError *error = NULL;
 
     if (priv->dbus_registered)
         return;
-
-    dbus_connection = tp_proxy_get_dbus_connection (TP_PROXY (priv->dbus_daemon));
 
     if (!tp_dbus_daemon_request_name (priv->dbus_daemon,
                                       TP_ACCOUNT_MANAGER_BUS_NAME,
@@ -1495,10 +1492,9 @@ register_dbus_service (McdAccountManager *account_manager)
 
     priv->dbus_registered = TRUE;
 
-    if (G_LIKELY (dbus_connection))
-        dbus_g_connection_register_g_object (dbus_connection,
-                                             TP_ACCOUNT_MANAGER_OBJECT_PATH,
-                                             (GObject *)account_manager);
+    tp_dbus_daemon_register_object (priv->dbus_daemon,
+                                    TP_ACCOUNT_MANAGER_OBJECT_PATH,
+                                    account_manager);
 }
 
 static void
