@@ -1518,24 +1518,20 @@ on_connection_ready (GObject *source_object, GAsyncResult *result,
                      gpointer user_data)
 {
     TpConnection *tp_conn = TP_CONNECTION (source_object);
-    McdConnection *connection, **connection_ptr = user_data;
+    TpWeakRef *weak_ref = user_data;
+    McdConnection *connection = tp_weak_ref_dup_object (weak_ref);
     McdConnectionPrivate *priv;
     GError *error = NULL;
-
-    connection = *connection_ptr;
-    if (connection)
-	g_object_remove_weak_pointer ((GObject *)connection,
-				      (gpointer)connection_ptr);
-    g_slice_free (McdConnection *, connection_ptr);
 
     if (!tp_proxy_prepare_finish (tp_conn, result, &error))
     {
         DEBUG ("got error: %s", error->message);
         g_clear_error (&error);
-        return;
+        goto finally;
     }
 
-    if (!connection) return;
+    if (!connection)
+        goto finally;
 
     DEBUG ("connection is ready");
     priv = MCD_CONNECTION_PRIV (connection);
@@ -1571,6 +1567,10 @@ on_connection_ready (GObject *source_object, GAsyncResult *result,
     request_unrequested_channels (connection);
 
     g_signal_emit (connection, signals[READY], 0);
+
+finally:
+    g_clear_object (&connection);
+    tp_weak_ref_destroy (weak_ref);
 }
 
 void
@@ -1759,44 +1759,13 @@ mcd_connection_early_get_interfaces_cb (TpConnection *tp_conn,
     mcd_connection_done_task_before_connect (self);
 }
 
-typedef struct {
-    /* really a McdConnection *, but g_object_add_weak_pointer wants a
-     * gpointer */
-    gpointer mcd_connection;
-} RequestConnectionData;
-
-static RequestConnectionData *
-request_connection_data_new (McdConnection *connection)
-{
-    RequestConnectionData *rcd = g_slice_new (RequestConnectionData);
-
-    rcd->mcd_connection = connection;
-    g_object_add_weak_pointer (rcd->mcd_connection, &rcd->mcd_connection);
-    return rcd;
-}
-
-static void
-request_connection_data_free (gpointer p)
-{
-    RequestConnectionData *rcd = p;
-
-    if (rcd->mcd_connection != NULL)
-    {
-        g_object_remove_weak_pointer (rcd->mcd_connection,
-                                      &rcd->mcd_connection);
-        rcd->mcd_connection = NULL;
-    }
-
-    g_slice_free (RequestConnectionData, rcd);
-}
-
 static void
 request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
                        const gchar *obj_path, const GError *tperror,
                        gpointer user_data, GObject *weak_object)
 {
-    RequestConnectionData *rcd = user_data;
-    McdConnection *connection = rcd->mcd_connection;
+    TpWeakRef *weak_ref = user_data;
+    McdConnection *connection = tp_weak_ref_dup_object (weak_ref);
     McdConnectionPrivate *priv;
     GError *error = NULL;
 
@@ -1831,7 +1800,7 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
                            TP_CONNECTION_STATUS_REASON_REQUESTED, NULL);
         }
 
-        return;
+        goto finally;
     }
 
     priv = connection->priv;
@@ -1844,7 +1813,7 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
         g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
             TP_CONNECTION_STATUS_DISCONNECTED,
             TP_CONNECTION_STATUS_REASON_NETWORK_ERROR, NULL);
-        return;
+        goto finally;
     }
 
     DEBUG ("created %s", obj_path);
@@ -1854,7 +1823,7 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
     {
         g_warning ("%s: got error: %s", G_STRFUNC, error->message);
 	g_error_free (error);
-	return;
+        goto finally;
     }
 
     priv->tasks_before_connect = 1;
@@ -1864,6 +1833,10 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
     tp_cli_connection_call_get_interfaces (priv->tp_conn, -1,
         mcd_connection_early_get_interfaces_cb, NULL, NULL,
         (GObject *) connection);
+
+finally:
+    g_clear_object (&connection);
+    /* weak_ref is freed by the telepathy-glib call's destructor */
 }
 
 static void
@@ -1891,8 +1864,8 @@ _mcd_connection_connect_with_params (McdConnection *connection,
      * that it is no longer useful in some way other than getting aborted. */
     tp_cli_connection_manager_call_request_connection (priv->tp_conn_mgr, -1,
         protocol_name, params, request_connection_cb,
-        request_connection_data_new (connection), request_connection_data_free,
-        NULL);
+        tp_weak_ref_new (connection, NULL, NULL),
+        (GDestroyNotify) tp_weak_ref_destroy, NULL);
 }
 
 static void
@@ -2591,7 +2564,6 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
                                    const gchar *bus_name,
                                    const gchar *obj_path, GError **error)
 {
-    McdConnection **connection_ptr;
     McdConnectionPrivate *priv;
     GQuark features[] = {
       TP_CONNECTION_FEATURE_CONNECTED,
@@ -2640,12 +2612,9 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
                       connection);
     /* HACK for cancelling the _call_when_ready() callback when our object gets
      * destroyed */
-    connection_ptr = g_slice_alloc (sizeof (McdConnection *));
-    *connection_ptr = connection;
-    g_object_add_weak_pointer ((GObject *)connection,
-                               (gpointer)connection_ptr);
     tp_proxy_prepare_async (priv->tp_conn, features,
-                            on_connection_ready, connection_ptr);
+                            on_connection_ready,
+                            tp_weak_ref_new (connection, NULL, NULL));
 }
 
 /**
