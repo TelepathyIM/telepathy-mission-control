@@ -425,10 +425,13 @@ mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
 
           if (ret_ref_channel != NULL)
             {
+              /* FIXME: in next, this method should take a TpClientFactory
+               * argument, and pass it on here */
               TpConnection *connection =
                 mcp_dispatch_operation_ref_connection (self);
 
-              *ret_ref_channel = tp_channel_new_from_properties (connection,
+              *ret_ref_channel = tp_simple_client_factory_ensure_channel (
+                  tp_proxy_get_factory (connection), connection,
                   channel_path, properties, NULL);
 
               g_object_unref (connection);
@@ -464,7 +467,13 @@ mcp_dispatch_operation_ref_connection (McpDispatchOperation *self)
 
   if (conn_path != NULL && dbus != NULL)
     {
-      connection = tp_connection_new (dbus, NULL, conn_path, NULL);
+      /* FIXME: in next, this method should take a TpClientFactory argument
+       * instead of making a new one here */
+      TpSimpleClientFactory *factory = tp_simple_client_factory_new (dbus);
+
+      connection = tp_simple_client_factory_ensure_connection (factory,
+          conn_path, NULL, NULL);
+      g_object_unref (factory);
     }
 
   g_object_unref (dbus);
@@ -486,6 +495,8 @@ TpChannel *
 mcp_dispatch_operation_ref_nth_channel (McpDispatchOperation *self,
     guint n)
 {
+  /* FIXME: in next, this method should take a TpClientFactory argument,
+   * and pass it on here */
   TpConnection *connection = mcp_dispatch_operation_ref_connection (self);
   GHashTable *channel_properties = NULL;
   const gchar *channel_path = NULL;
@@ -505,10 +516,9 @@ mcp_dispatch_operation_ref_nth_channel (McpDispatchOperation *self,
   if (channel_properties == NULL)
     goto finally;
 
-  channel = tp_channel_new_from_properties (connection,
-      channel_path,
-      channel_properties,
-      NULL);
+  channel = tp_simple_client_factory_ensure_channel (
+      tp_proxy_get_factory (connection),
+      connection, channel_path, channel_properties, NULL);
 
 finally:
   tp_clear_object (&connection);
