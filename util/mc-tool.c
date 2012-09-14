@@ -515,16 +515,16 @@ compare_accounts (gconstpointer a,
 }
 
 static GList *
-get_valid_accounts_sorted (TpAccountManager *manager)
+dup_valid_accounts_sorted (TpAccountManager *manager)
 {
-    return g_list_sort (tp_account_manager_get_valid_accounts (manager),
+    return g_list_sort (tp_account_manager_dup_valid_accounts (manager),
                         compare_accounts);
 }
 
 static gboolean
 command_list (TpAccountManager *manager)
 {
-    GList *accounts = get_valid_accounts_sorted (manager);
+    GList *accounts = dup_valid_accounts_sorted (manager);
 
     if (accounts != NULL) {
 	GList *ptr;
@@ -535,7 +535,7 @@ command_list (TpAccountManager *manager)
 	    puts (tp_account_get_path_suffix (ptr->data));
 	}
 
-	g_list_free (accounts);
+	g_list_free_full (accounts, g_object_unref);
     }
 
     return FALSE;                 /* stop mainloop */
@@ -547,7 +547,7 @@ command_summary (TpAccountManager *manager)
     GList *accounts, *l;
     guint longest_account = 0;
 
-    accounts = tp_account_manager_get_valid_accounts (manager);
+    accounts = tp_account_manager_dup_valid_accounts (manager);
     if (accounts == NULL) {
         return FALSE;
     }
@@ -580,7 +580,7 @@ command_summary (TpAccountManager *manager)
             status);
     }
 
-    g_list_free (accounts);
+    g_list_free_full (accounts, g_object_unref);
     return FALSE; /* stop mainloop */
 }
 
@@ -822,7 +822,7 @@ command_dump (TpAccountManager *manager)
 {
     GList *accounts, *l;
 
-    accounts = tp_account_manager_get_valid_accounts (manager);
+    accounts = tp_account_manager_dup_valid_accounts (manager);
     if (accounts == NULL) {
         return FALSE;
     }
@@ -837,7 +837,7 @@ command_dump (TpAccountManager *manager)
           printf ("\n------------------------------------------------------------\n\n");
     }
 
-    g_list_free (accounts);
+    g_list_free_full (accounts, g_object_unref);
     return FALSE; /* stop mainloop */
 }
 
