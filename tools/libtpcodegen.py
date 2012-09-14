@@ -20,7 +20,7 @@ please make any changes there.
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-
+import os
 from string import ascii_letters, digits
 
 
@@ -28,6 +28,18 @@ NS_TP = "http://telepathy.freedesktop.org/wiki/DbusSpec#extensions-v0"
 
 _ASCII_ALNUM = ascii_letters + digits
 
+def file_set_contents(filename, contents):
+    try:
+        os.remove(filename)
+    except OSError:
+        pass
+    try:
+        os.remove(filename + '.tmp')
+    except OSError:
+        pass
+
+    open(filename + '.tmp', 'w').write(contents)
+    os.rename(filename + '.tmp', filename)
 
 def cmp_by_name(node1, node2):
     return cmp(node1.getAttributeNode("name").nodeValue,
@@ -120,6 +132,16 @@ def get_docstring(element):
             docstring = ''
     return docstring
 
+def get_deprecated(element):
+    text = []
+    for x in element.childNodes:
+        if hasattr(x, 'data'):
+            text.append(x.data.replace('\n', ' ').strip())
+        else:
+            # This caters for tp:dbus-ref elements, but little else.
+            if x.childNodes and hasattr(x.childNodes[0], 'data'):
+                text.append(x.childNodes[0].data.replace('\n', ' ').strip())
+    return ' '.join(text)
 
 def get_descendant_text(element_or_elements):
     if not element_or_elements:
