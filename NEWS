@@ -1,5 +1,7 @@
-telepathy-mission-control 5.13.2 (UNRELEASED)
+telepathy-mission-control 5.13.2 (2012-09-20)
 =============================================
+
+The "deconstructor ray" release.
 
 Running this version of Mission Control for the first time will automatically
 migrate your account data to a new location. If you subsequently downgrade
