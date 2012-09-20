@@ -1,6 +1,30 @@
 telepathy-mission-control 5.13.2 (UNRELEASED)
 =============================================
 
+Running this version of Mission Control for the first time will automatically
+migrate your account data to a new location. If you subsequently downgrade
+to an older version, it will no longer find your account data. Taking a backup
+copy of ~/.mission-control before you upgrade is recommended.
+
+Configuration changes:
+
+• Accounts are now stored in the telepathy/mission-control subdirectory
+  of g_get_user_data_dir(). On Unix, this usually means
+  ~/.local/share/telepathy/mission-control, but can be changed with the
+  standard $XDG_DATA_HOME and $XDG_DATA_DIRS environment variables.
+
+• ./configure --with-accounts-dir (at build time) and $MC_ACCOUNTS_DIR
+  (at runtime) no longer change where new accounts are stored. They now set
+  what Mission Control considers to be the "old" location for accounts;
+  accounts in that directory will be moved into the new location.
+  Using this option is deprecated.
+
+Enhancements:
+
+• Migrate accounts and avatars from ~/.mission-control to
+  the location described above (fd.o #35896; W. Jon McCann, Jonny, Simon)
+• More removals of obsolete code and interfaces (fd.o #54633, Simon)
+
 Fixes:
 
 • Recover from incomplete password migrations caused by upgrading to
