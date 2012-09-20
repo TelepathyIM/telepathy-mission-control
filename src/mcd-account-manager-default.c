@@ -20,7 +20,11 @@
  */
 
 #include "config.h"
+
 #include <string.h>
+
+#include <telepathy-glib/telepathy-glib.h>
+
 #include "mcd-account-manager-default.h"
 #include "mcd-debug.h"
 
@@ -284,6 +288,57 @@ _get_secrets_from_keyring (const McpAccountStorage *self,
 
               default:
                 g_warning ("Unsupported value type for %s.%s", account, name);
+            }
+
+          if (!tp_strdiff (param, "password"))
+            {
+              /* Empathy 3.0 was meant to migrate passwords from MC to
+               * itself, but it couldn't complete the migration by
+               * deleting the password from MC, because MC had several
+               * bugs that meant deleting passwords didn't work. To atone
+               * for our past sins, detect an incomplete migration and
+               * complete it. */
+              GnomeKeyringResult empathy_ok =
+                GNOME_KEYRING_RESULT_NO_KEYRING_DAEMON;
+              GnomeKeyringAttributeList *empathy_match =
+                gnome_keyring_attribute_list_new ();
+              GList *empathy_items = NULL;
+
+              gnome_keyring_attribute_list_append_string (empathy_match,
+                  "account-id", account);
+              gnome_keyring_attribute_list_append_string (empathy_match,
+                  "param-name", "password");
+
+              empathy_ok = gnome_keyring_find_items_sync (
+                  GNOME_KEYRING_ITEM_GENERIC_SECRET, empathy_match,
+                  &empathy_items);
+
+              if (empathy_ok == GNOME_KEYRING_RESULT_OK &&
+                  empathy_items != NULL)
+                {
+                  KeyringSetData *ksd = g_slice_new0 (KeyringSetData);
+
+                  DEBUG ("An Empathy 3.0 password migration wasn't finished "
+                      "due to fd.o #42088. Finishing it now by deleting the "
+                      "password for %s", account);
+
+                  ksd->account = g_strdup (account);
+                  ksd->name = g_strdup ("password");
+                  ksd->set = FALSE;
+
+                  gnome_keyring_delete_password (&keyring_schema,
+                      _keyring_set_cb, ksd, NULL,
+                      "account", account,
+                      "param", "password",
+                      NULL);
+                }
+
+              gnome_keyring_found_list_free (empathy_items);
+
+              /* behave as if it had already been deleted, i.e. we never
+               * actually found it... */
+              param = NULL;
+              value = NULL;
             }
 
           if (param != NULL && value != NULL)

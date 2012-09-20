@@ -1,7 +1,12 @@
 telepathy-mission-control 5.13.2 (UNRELEASED)
 =============================================
 
-...
+Fixes:
+
+• Recover from incomplete password migrations caused by upgrading to
+  Empathy 3 while running MC 5.12.1 or older, by deleting the old (MC) copy
+  of the password if Empathy has already copied it (fd.o #42088, Simon)
+• Omit generated file mcp-signals-marshal.h from tarballs (Simon)
 
 telepathy-mission-control 5.13.1 (2012-09-06)
 =============================================

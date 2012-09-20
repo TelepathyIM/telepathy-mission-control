@@ -28,7 +28,11 @@ plugins_include_HEADERS = \
 	loader.h \
 	request.h \
 	request-policy.h \
-	mcp-signals-marshal.h
+	$(NULL)
+
+nodist_plugins_include_HEADERS = \
+	mcp-signals-marshal.h \
+	$(NULL)
 
 libmission_control_plugins_la_LDFLAGS = \
 	-export-symbols-regex "^(mcp_)" \
