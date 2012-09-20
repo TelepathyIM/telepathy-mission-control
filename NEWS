@@ -1,7 +1,17 @@
-telepathy-mission-control 5.12.3 (UNRELEASED)
+telepathy-mission-control 5.12.3 (2012-09-20)
 =============================================
 
-...
+The "put it with the other Kryptonite" release.
+
+Fixes:
+
+• Recover from incomplete password migrations caused by upgrading to
+  Empathy 3 while running MC 5.12.1 or older, by deleting the old (MC) copy
+  of the password if Empathy has already copied it (fd.o #42088, Simon)
+• Omit generated file mcp-signals-marshal.h from tarballs (Simon)
+• Fix distcheck in out-of-tree builds (Simon)
+• Backport a patch from 5.13.1 to make the gnome-keyring regression test
+  work with modern gnome-keyring (Simon)
 
 telepathy-mission-control 5.12.2 (2012-09-06)
 =============================================
