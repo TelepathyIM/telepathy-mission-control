@@ -27,7 +27,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async
+        call_async, assertEquals
 from mctest import exec_test, SimulatedConnection, create_fakecm_account, MC
 import constants as cs
 
@@ -39,6 +39,11 @@ account_id = 'fakecm/fakeprotocol/jc_2edenton_40unatco_2eint'
 def preseed():
 
     accounts_dir = os.environ['MC_ACCOUNT_DIR']
+
+    try:
+        os.mkdir(accounts_dir, 0700)
+    except OSError:
+        pass
 
     accounts_cfg = open(accounts_dir + '/accounts.cfg', 'w')
     accounts_cfg.write("""# Telepathy accounts
@@ -60,8 +65,12 @@ avatar_token=Deus Ex
 """ % account_id)
     accounts_cfg.close()
 
-    os.makedirs(accounts_dir + '/' + account_id)
-    avatar_bin = open(accounts_dir + '/' + account_id + '/avatar.bin', 'w')
+    datadirs = os.environ['XDG_DATA_DIRS'].split(':')
+
+    os.makedirs(datadirs[0] + '/telepathy/mission-control')
+    avatar_filename = (datadirs[0] + '/telepathy/mission-control/' +
+        account_id.replace('/', '-') + '.avatar')
+    avatar_bin = open(avatar_filename, 'w')
     avatar_bin.write('Deus Ex')
     avatar_bin.close()
 
@@ -132,6 +141,44 @@ def test(q, bus, unused):
     account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)
     assert account_props.Get(cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
             byte_arrays=True) == conn.avatar
+
+    # The avatar wasn't deleted from $XDG_DATA_DIRS, but it was overridden.
+    assert not os.path.exists(os.environ['MC_ACCOUNT_DIR'] + '/' +
+            account_id + '/avatar.bin')
+    assert not os.path.exists(os.environ['MC_ACCOUNT_DIR'] + '/fakecm')
+
+    avatar_filename = account_id
+    avatar_filename = avatar_filename.replace('/', '-') + '.avatar'
+    avatar_filename = (os.environ['XDG_DATA_HOME'] +
+        '/telepathy/mission-control/' + avatar_filename)
+    assertEquals('MJ12', ''.join(open(avatar_filename, 'r').readlines()))
+
+    datadirs = os.environ['XDG_DATA_DIRS'].split(':')
+    low_prio_filename = account_id
+    low_prio_filename = low_prio_filename.replace('/', '-') + '.avatar'
+    low_prio_filename = (datadirs[0] +
+        '/telepathy/mission-control/' + low_prio_filename)
+    assertEquals('Deus Ex', ''.join(open(low_prio_filename, 'r').readlines()))
+
+    # If we set the avatar to be empty, that's written out as a file,
+    # so it'll override the one in XDG_DATA_DIRS
+    call_async(q, account_props, 'Set', cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
+            (dbus.ByteArray(''), ''))
+
+    q.expect_many(
+            EventPattern('dbus-method-call',
+                interface=cs.CONN_IFACE_AVATARS, method='ClearAvatar',
+                args=[]),
+            EventPattern('dbus-signal', path=account.object_path,
+                interface=cs.ACCOUNT_IFACE_AVATAR, signal='AvatarChanged'),
+            EventPattern('dbus-return', method='Set')
+            )
+
+    assert account_props.Get(cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
+            byte_arrays=True) == ('', '')
+
+    assertEquals('', ''.join(open(avatar_filename, 'r').readlines()))
+    assertEquals('Deus Ex', ''.join(open(low_prio_filename, 'r').readlines()))
 
 if __name__ == '__main__':
     preseed()

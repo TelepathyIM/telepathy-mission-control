@@ -33,7 +33,14 @@ from mctest import (
 import constants as cs
 
 def test(q, bus, mc):
-    empty_key_file_name = os.path.join(os.environ['MC_ACCOUNT_DIR'], 'accounts.cfg')
+    accounts_dir = os.environ['MC_ACCOUNT_DIR']
+    try:
+        os.mkdir(accounts_dir, 0700)
+    except OSError:
+        pass
+
+    empty_key_file_name = os.path.join(os.environ['XDG_DATA_HOME'],
+            'telepathy', 'mission-control', 'accounts.cfg')
 
     group = 'fakecm/fakeprotocol/someguy_40example_2ecom0'
 

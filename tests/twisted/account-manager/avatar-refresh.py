@@ -27,7 +27,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async
+        call_async, assertEquals
 from mctest import exec_test, SimulatedConnection, create_fakecm_account, MC
 import constants as cs
 
@@ -39,6 +39,11 @@ account_id = 'fakecm/fakeprotocol/jc_2edenton_40unatco_2eint'
 def preseed():
 
     accounts_dir = os.environ['MC_ACCOUNT_DIR']
+
+    try:
+        os.mkdir(accounts_dir, 0700)
+    except OSError:
+        pass
 
     accounts_cfg = open(accounts_dir + '/accounts.cfg', 'w')
     accounts_cfg.write("""# Telepathy accounts
@@ -113,6 +118,16 @@ def test(q, bus, unused):
                         cs.CONN_STATUS_CONNECTED),
                 ),
             )
+
+    # The avatar got migrated, too.
+    assert not os.path.exists(os.environ['MC_ACCOUNT_DIR'] + '/' +
+            account_id + '/avatar.bin')
+    assert not os.path.exists(os.environ['MC_ACCOUNT_DIR'] + '/fakecm')
+    avatar_filename = account_id
+    avatar_filename = avatar_filename.replace('/', '-') + '.avatar'
+    avatar_filename = (os.environ['XDG_DATA_HOME'] +
+        '/telepathy/mission-control/' + avatar_filename)
+    assertEquals('Deus Ex', ''.join(open(avatar_filename, 'r').readlines()))
 
 if __name__ == '__main__':
     preseed()

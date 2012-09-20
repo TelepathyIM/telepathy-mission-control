@@ -51,6 +51,8 @@ void _mcd_object_ready (gpointer object, GQuark quark, const GError *error);
 G_GNUC_INTERNAL
 void _mcd_ext_register_dbus_glib_marshallers (void);
 
+gboolean mcd_ensure_directory (const gchar *dir, GError **error);
+
 G_GNUC_INTERNAL int _mcd_chmod_private (const gchar *filename);
 
 G_END_DECLS

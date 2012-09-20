@@ -146,26 +146,8 @@ _keyring_remove_account (const gchar *acct)
 
 static const gchar *default_config (void)
 {
-  const gchar *base;
-  static const gchar *path = NULL;
-
-  if (path != NULL)
-    return path;
-
-  base = g_getenv ("MC_ACCOUNT_DIR");
-
-  if (!base)
-    base = ACCOUNTS_DIR;
-
-  if (!base)
-    return NULL;
-
-  if (base[0] == '~')
-    path = g_build_filename (g_get_home_dir(), base + 1, "accounts.cfg", NULL);
-  else
-    path = g_build_filename (base, "accounts.cfg", NULL);
-
-  return path;
+  return g_build_filename (g_get_user_data_dir (), "telepathy",
+      "mission-control", "accounts.cfg", NULL);
 }
 
 static GKeyFile * default_keyfile (void)

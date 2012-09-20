@@ -21,12 +21,16 @@
 
 #include "config.h"
 
+#include <errno.h>
 #include <string.h>
+
+#include <glib/gstdio.h>
 
 #include <telepathy-glib/telepathy-glib.h>
 
 #include "mcd-account-manager-default.h"
 #include "mcd-debug.h"
+#include "mcd-misc.h"
 
 #define PLUGIN_NAME "default-gkeyfile"
 #define PLUGIN_PRIORITY MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_DEFAULT
@@ -397,7 +401,7 @@ G_DEFINE_TYPE_WITH_CODE (McdAccountManagerDefault, mcd_account_manager_default,
         account_storage_iface_init));
 
 static gchar *
-get_account_conf_filename (void)
+get_old_filename (void)
 {
   const gchar *base;
 
@@ -415,11 +419,18 @@ get_account_conf_filename (void)
     return g_build_filename (base, "accounts.cfg", NULL);
 }
 
+static gchar *
+account_filename_in (const gchar *dir)
+{
+  return g_build_filename (dir, "telepathy", "mission-control", "accounts.cfg",
+      NULL);
+}
+
 static void
 mcd_account_manager_default_init (McdAccountManagerDefault *self)
 {
   DEBUG ("mcd_account_manager_default_init");
-  self->filename = get_account_conf_filename ();
+  self->filename = account_filename_in (g_get_user_data_dir ());
   self->keyfile = g_key_file_new ();
   self->secrets = g_key_file_new ();
   self->removed = g_key_file_new ();
@@ -433,25 +444,6 @@ static void
 mcd_account_manager_default_class_init (McdAccountManagerDefaultClass *cls)
 {
   DEBUG ("mcd_account_manager_default_class_init");
-}
-
-static gboolean
-_have_config (McdAccountManagerDefault *self)
-{
-  DEBUG ("checking for %s", self->filename);
-  return g_file_test (self->filename, G_FILE_TEST_EXISTS);
-}
-
-static void
-_create_config (McdAccountManagerDefault *self)
-{
-  gchar *dir = g_path_get_dirname (self->filename);
-
-  DEBUG ("");
-  g_mkdir_with_parents (dir, 0700);
-  g_free (dir);
-  g_file_set_contents (self->filename, INITIAL_CONFIG, -1, NULL);
-  DEBUG ("created %s", self->filename);
 }
 
 /* We happen to know that the string MC gave us is "sufficiently escaped" to
@@ -663,21 +655,69 @@ _commit (const McpAccountStorage *self,
   gchar *data;
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
   gboolean rval = FALSE;
+  gchar *dir;
+  GError *error = NULL;
 
   if (!amd->save)
     return TRUE;
 
-  if (!_have_config (amd))
-    _create_config (amd);
+  dir = g_path_get_dirname (amd->filename);
+
+  DEBUG ("Saving accounts to %s", amd->filename);
+
+  if (!mcd_ensure_directory (dir, &error))
+    {
+      g_warning ("%s", error->message);
+      g_error_free (error);
+      /* fall through anyway: writing to the file will fail, but it does
+       * give us a chance to commit to the keyring too */
+    }
+
+  g_free (dir);
 
   data = g_key_file_to_data (amd->keyfile, &n, NULL);
-  rval = g_file_set_contents (amd->filename, data, n, NULL);
-  amd->save = !rval;
+  rval = g_file_set_contents (amd->filename, data, n, &error);
+
+  if (rval)
+    {
+      amd->save = FALSE;
+    }
+  else
+    {
+      g_warning ("%s", error->message);
+      g_error_free (error);
+    }
+
   g_free (data);
 
   _keyring_commit (self, am, account);
 
   return rval;
+}
+
+static void
+am_default_load_keyfile (McdAccountManagerDefault *self,
+    const gchar *filename)
+{
+  GError *error = NULL;
+
+  if (g_key_file_load_from_file (self->keyfile, filename,
+        G_KEY_FILE_KEEP_COMMENTS, &error))
+    {
+      DEBUG ("Loaded accounts from %s", filename);
+    }
+  else
+    {
+      DEBUG ("Failed to load accounts from %s: %s", filename, error->message);
+      g_error_free (error);
+
+      /* Start with a blank configuration, but do not save straight away;
+       * we don't want to overwrite a corrupt-but-maybe-recoverable
+       * configuration file with an empty one until given a reason to
+       * do so. */
+      g_key_file_load_from_data (self->keyfile, INITIAL_CONFIG, -1,
+          G_KEY_FILE_KEEP_COMMENTS, NULL);
+    }
 }
 
 static GList *
@@ -690,12 +730,72 @@ _list (const McpAccountStorage *self,
   GList *rval = NULL;
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
 
-  if (!_have_config (amd))
-    _create_config (amd);
+  if (!amd->loaded && g_file_test (amd->filename, G_FILE_TEST_EXISTS))
+    {
+      /* If the file exists, but loading it fails, we deliberately
+       * do not fall through to the "initial configuration" case,
+       * because we don't want to overwrite a corrupted file
+       * with an empty one until an actual write takes place. */
+      am_default_load_keyfile (amd, amd->filename);
+      amd->loaded = TRUE;
+    }
 
   if (!amd->loaded)
-    amd->loaded = g_key_file_load_from_file (amd->keyfile, amd->filename,
-        G_KEY_FILE_KEEP_COMMENTS, NULL);
+    {
+      const gchar * const *iter;
+
+      for (iter = g_get_system_data_dirs ();
+          iter != NULL && *iter != NULL;
+          iter++)
+        {
+          gchar *filename = account_filename_in (*iter);
+
+          if (g_file_test (filename, G_FILE_TEST_EXISTS))
+            {
+              am_default_load_keyfile (amd, filename);
+              amd->loaded = TRUE;
+              /* Do not set amd->save: we don't need to write it to a
+               * higher-priority directory until it actually changes. */
+            }
+
+          g_free (filename);
+
+          if (amd->loaded)
+            break;
+        }
+    }
+
+  if (!amd->loaded)
+    {
+      gchar *old_filename = get_old_filename ();
+
+      if (g_file_test (old_filename, G_FILE_TEST_EXISTS))
+        {
+          am_default_load_keyfile (amd, old_filename);
+          amd->loaded = TRUE;
+          amd->save = TRUE;
+
+          if (_commit (self, am, NULL))
+            {
+              DEBUG ("Migrated %s to new location: deleting old copy");
+              if (g_unlink (old_filename) != 0)
+                g_warning ("Unable to delete %s: %s", old_filename,
+                    g_strerror (errno));
+            }
+        }
+
+      g_free (old_filename);
+    }
+
+  if (!amd->loaded)
+    {
+      DEBUG ("Creating initial account data");
+      g_key_file_load_from_data (amd->keyfile, INITIAL_CONFIG, -1,
+          G_KEY_FILE_KEEP_COMMENTS, NULL);
+      amd->loaded = TRUE;
+      amd->save = TRUE;
+      _commit (self, am, NULL);
+    }
 
   accounts = g_key_file_get_groups (amd->keyfile, &n);
 

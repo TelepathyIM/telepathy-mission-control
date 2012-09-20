@@ -124,7 +124,9 @@ def stop_gnome_keyring_daemon():
 
 def test(q, bus, mc):
     ctl_dir = os.environ['MC_ACCOUNT_DIR']
-    key_file_name = os.path.join(ctl_dir, 'accounts.cfg')
+    old_key_file_name = os.path.join(ctl_dir, 'accounts.cfg')
+    new_key_file_name = os.path.join(os.environ['XDG_DATA_HOME'],
+            'telepathy', 'mission-control', 'accounts.cfg')
     group = 'fakecm/fakeprotocol/dontdivert_40example_2ecom0'
 
     account_manager, properties, interfaces = connect_to_mc(q, bus, mc)
@@ -161,7 +163,8 @@ def test(q, bus, mc):
     tell_mc_to_die(q, bus)
 
     # .. let's check the keyfile
-    kf = keyfile_read(key_file_name)
+    assert not os.path.exists(old_key_file_name)
+    kf = keyfile_read(new_key_file_name)
     assert group in kf, kf
     assert kf[group]['manager'] == 'fakecm'
     assert kf[group]['protocol'] == 'fakeprotocol'
@@ -204,7 +207,8 @@ def test(q, bus, mc):
         )
 
     # Check the account is correctly deleted
-    kf = keyfile_read(key_file_name)
+    assert not os.path.exists(old_key_file_name)
+    kf = keyfile_read(new_key_file_name)
     assert group not in kf, kf
 
     if use_keyring:
@@ -215,11 +219,22 @@ def test(q, bus, mc):
     # Tell MC to die, again
     tell_mc_to_die(q, bus)
 
-    # Write out account configurations in which the password is in
+    # Write out an account configuration in which the password is in
     # both the keyfile and the keyring
 
-    account_store('set', 'default', 'param-password', 'password_in_keyring')
-    open(ctl_dir + '/accounts.cfg', 'w').write(
+
+    if use_keyring:
+        account_store('set', 'default', 'param-password',
+                'password_in_keyring')
+
+    low_prio_key_file_name = os.path.join(
+            os.environ['XDG_DATA_DIRS'].split(':')[0],
+            'telepathy', 'mission-control', 'accounts.cfg')
+    os.makedirs(os.path.dirname(low_prio_key_file_name), 0700)
+
+    # This is deliberately a lower-priority location
+    os.remove(new_key_file_name)
+    open(low_prio_key_file_name, 'w').write(
 r"""# Telepathy accounts
 [%s]
 manager=fakecm
@@ -233,12 +248,14 @@ DisplayName=New and improved account
     account = get_fakecm_account(bus, mc, account_path)
     account_iface = dbus.Interface(account, cs.ACCOUNT)
 
-    pwd = account_store('get', 'default', 'param-password')
+    # Files in lower-priority XDG locations aren't copied until something
+    # actually changes, and they aren't deleted.
+    assert not os.path.exists(new_key_file_name)
+    assert os.path.exists(low_prio_key_file_name)
+
     if use_keyring:
+        pwd = account_store('get', 'default', 'param-password')
         assertEquals('password_in_keyring', pwd)
-    else:
-        # it was overwritten when we edited the keyfile
-        assertEquals('password_in_keyfile', pwd)
 
     # Delete the password (only), like Empathy 3.0-3.4 do when migrating
     account_iface.UpdateParameters({}, ['password'])
@@ -253,19 +270,48 @@ DisplayName=New and improved account
     # Tell MC to die yet again
     tell_mc_to_die(q, bus)
 
-    # Check the password is correctly deleted
-    kf = keyfile_read(key_file_name)
+    # Check the account has copied (not moved! XDG_DATA_DIRS are,
+    # conceptually, read-only) from the old to the new name
+    assert not os.path.exists(old_key_file_name)
+    assert os.path.exists(low_prio_key_file_name)
+    kf = keyfile_read(new_key_file_name)
     assert 'param-password' not in kf[group]
     pwd = account_store('get', 'default', 'param-password')
     assertEquals(None, pwd)
     pwd = account_store('count-passwords', 'default')
     assertEquals('0', pwd)
 
-    # Put it back, just so deleting all accounts won't raise errors
+    # Write out an account configuration in the old keyfile, to test
+    # migration
+    os.remove(new_key_file_name)
+    os.remove(low_prio_key_file_name)
+    open(old_key_file_name, 'w').write(
+r"""# Telepathy accounts
+[%s]
+manager=fakecm
+protocol=fakeprotocol
+param-account=dontdivert@example.com
+DisplayName=Ye olde account
+""" % group)
+
     account_manager, properties, interfaces = resuscitate_mc(q, bus, mc)
+    account = get_fakecm_account(bus, mc, account_path)
+    account_iface = dbus.Interface(account, cs.ACCOUNT)
+
+    # This time it *does* get moved (really copied+deleted) automatically
+    # during MC startup
+    assert not os.path.exists(old_key_file_name)
+    assert not os.path.exists(low_prio_key_file_name)
+    kf = keyfile_read(new_key_file_name)
+    assert 'param-password' not in kf[group]
+    assertEquals('Ye olde account', kf[group]['DisplayName'])
 
 if __name__ == '__main__':
     ctl_dir = os.environ['MC_ACCOUNT_DIR']
+    try:
+        os.mkdir(ctl_dir, 0700)
+    except OSError:
+        pass
     start_gnome_keyring_daemon(ctl_dir)
     exec_test(test, {}, timeout=10)
     stop_gnome_keyring_daemon()

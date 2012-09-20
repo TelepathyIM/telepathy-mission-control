@@ -131,14 +131,14 @@ AM_CONDITIONAL([ENABLE_INSTALLED_TESTS], [test "x$installed_tests" = xyes])
 mctestsdir=${libdir}/telepathy-mission-control-tests
 AC_SUBST(mctestsdir)
 
-AC_ARG_WITH(accounts_dir, AS_HELP_STRING([--with-accounts-dir=<path>],[Directory for storing accounts]))
+AC_ARG_WITH([accounts_dir], [AS_HELP_STRING([--with-accounts-dir=<path>],[Directory in which accounts were previously stored])])
 if test -z "$with_accounts_dir" ; then
     ACCOUNTS_DIR="~/.mission-control/accounts"
 else
     ACCOUNTS_DIR=$with_accounts_dir
 fi
 AC_SUBST(ACCOUNTS_DIR)
-AC_DEFINE_UNQUOTED(ACCOUNTS_DIR,"$ACCOUNTS_DIR", [Directory for storing accounts])
+AC_DEFINE_UNQUOTED([ACCOUNTS_DIR], ["$ACCOUNTS_DIR"], [Directory in which accounts were previously stored])
 
 
 AC_ARG_WITH(accounts_cache_dir, AS_HELP_STRING([--with-accounts-cache-dir=<path>],[Directory for account/connection mapping for crash recovery]))

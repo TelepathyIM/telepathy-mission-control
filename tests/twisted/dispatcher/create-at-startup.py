@@ -35,6 +35,11 @@ import constants as cs
 def preseed():
     accounts_dir = os.environ['MC_ACCOUNT_DIR']
 
+    try:
+        os.mkdir(accounts_dir, 0700)
+    except OSError:
+        pass
+
     accounts_cfg = open(accounts_dir + '/accounts.cfg', 'w')
     accounts_cfg.write("""# Telepathy accounts
 [fakecm/fakeprotocol/jc_2edenton_40unatco_2eint]
