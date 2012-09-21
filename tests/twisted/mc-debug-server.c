@@ -143,6 +143,7 @@ int
 main (int argc, char **argv)
 {
     GError *error = NULL;
+    GDBusConnection *gdbus = NULL;
     DBusConnection *connection = NULL;
     int ret = 1;
     GMainLoop *teardown_loop;
@@ -164,6 +165,18 @@ main (int argc, char **argv)
         G_LOG_FATAL_MASK | G_LOG_LEVEL_CRITICAL | G_LOG_LEVEL_WARNING);
     g_log_set_fatal_mask ("GLib-GObject",
         G_LOG_FATAL_MASK | G_LOG_LEVEL_CRITICAL | G_LOG_LEVEL_WARNING);
+
+    gdbus = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
+
+    if (gdbus == NULL)
+    {
+        g_warning ("%s", error->message);
+        g_error_free (error);
+        error = NULL;
+        goto out;
+    }
+
+    g_dbus_connection_set_exit_on_close (gdbus, FALSE);
 
     bus_daemon = tp_dbus_daemon_dup (&error);
 
@@ -236,6 +249,7 @@ out:
         dbus_connection_flush (connection);
     }
 
+    tp_clear_object (&gdbus);
     tp_clear_object (&bus_daemon);
 
     dbus_shutdown ();
