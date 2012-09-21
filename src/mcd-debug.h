@@ -47,6 +47,15 @@ G_BEGIN_DECLS
 
 #endif /* ENABLE_DEBUG */
 
+#define MESSAGE(format, ...) \
+  g_message ("%s: " format, G_STRFUNC, ##__VA_ARGS__)
+#define WARNING(format, ...) \
+  g_warning ("%s: " format, G_STRFUNC, ##__VA_ARGS__)
+#define CRITICAL(format, ...) \
+  g_critical ("%s: " format, G_STRFUNC, ##__VA_ARGS__)
+#define ERROR(format, ...) \
+  g_error ("%s: " format, G_STRFUNC, ##__VA_ARGS__)
+
 extern gint mcd_debug_level;
 
 void mcd_debug_init (void);
