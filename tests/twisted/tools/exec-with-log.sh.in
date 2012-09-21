@@ -50,6 +50,8 @@ elif test -n "$MISSIONCONTROL_TEST_REFDBG"; then
         if test -z "$MISSIONCONTROL_WRAPPER" ; then
                 MISSIONCONTROL_WRAPPER="refdbg"
         fi
+elif test -n "$MISSIONCONTROL_TEST_BACKTRACE"; then
+        MISSIONCONTROL_WRAPPER="gdb -x @abs_top_srcdir@/tools/run_and_bt.gdb"
 fi
 
 # The bus-daemon that is activating us doesn't know it's also the system bus

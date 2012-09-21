@@ -15,6 +15,7 @@ EXTRA_DIST = \
     lcov.am \
     libtpcodegen.py \
     libglibcodegen.py \
+    run_and_bt.gdb \
     spec-to-introspect.xsl \
     telepathy.am
 
