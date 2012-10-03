@@ -8,8 +8,8 @@
   <bookinfo>
     <title>Mission Control Plugins Reference Manual</title>
     <releaseinfo>
-      The latest version of this documentation can be found on-line at
-      <ulink role="online-location" url="http://telepathy.freedesktop.org/doc/mission-control-plugins/">http://telepathy.freedesktop.org/doc/mission-control-plugins/</ulink>.
+      The latest version of this documentation in this stable branch can be found on-line at
+      <ulink role="online-location" url="http://telepathy.freedesktop.org/doc/mission-control-plugins-5.14.x/">http://telepathy.freedesktop.org/doc/mission-control-plugins-5.14.x/</ulink>.
     </releaseinfo>
   </bookinfo>
 
