@@ -30,7 +30,7 @@ DISTCHECK_CONFIGURE_FLAGS = \
 maintainer-upload-release: _maintainer-upload-release-local
 _maintainer-upload-release-local: _maintainer-upload-release-check
 	rsync -rvzPp --chmod=Dg+s,ug+rwX,o=rX doc/reference/mission-control-plugins/html/ \
-	telepathy.freedesktop.org:/srv/telepathy.freedesktop.org/www/doc/mission-control-plugins-5.14.x/
+	telepathy.freedesktop.org:/srv/telepathy.freedesktop.org/www/doc/mission-control-plugins/
 
 include tools/lcov.am
 include tools/telepathy.am
