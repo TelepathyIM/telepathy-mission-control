@@ -147,4 +147,4 @@ check-local:
 		fi; \
 	done
 endif
-+# ... but don't fail on incomplete documentation, this is a stable branch
+# ... but don't fail on incomplete documentation, this is a stable branch
