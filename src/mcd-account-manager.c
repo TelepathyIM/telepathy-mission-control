@@ -124,7 +124,7 @@ typedef struct
 typedef struct
 {
     McdAccount *account;
-    gchar *property;
+    gchar *key;
 } McdAlterAccountData;
 
 enum
@@ -226,11 +226,11 @@ async_altered_one_manager_cb (McdManager *cm,
 
     /* this triggers the final parameter check which results in dbus signals *
      * being fired and (potentially) the account going online automatically  */
-    mcd_account_property_changed (altered->account, altered->property);
+    mcd_account_altered_by_plugin (altered->account, altered->key);
 
     g_object_unref (cm);
     g_object_unref (altered->account);
-    g_free (altered->property);
+    g_free (altered->key);
     g_slice_free (McdAlterAccountData, altered);
 }
 
@@ -267,7 +267,7 @@ altered_one_cb (GObject *storage,
 
         g_object_ref (cm);
         altered->account = g_object_ref (account);
-        altered->property = g_strdup (key);
+        altered->key = g_strdup (key);
 
         mcd_manager_call_when_ready (cm, async_altered_one_manager_cb, altered);
     }
@@ -338,16 +338,14 @@ created_cb (GObject *storage_plugin_obj,
     lad->account_lock = 1; /* will be released at the end of this function */
 
     /* actually fetch the data into our cache from the plugin: */
-    if (mcp_account_storage_get (plugin, MCP_ACCOUNT_MANAGER (storage),
-                                 name, NULL))
+    if (mcd_storage_add_account_from_plugin (storage, plugin, name))
     {
         account = mcd_account_new (am, name);
         lad->account = account;
     }
     else
     {
-        g_warning ("plugin %s disowned its own new account %s",
-                   mcp_account_storage_name (plugin), name);
+        /* that function already warned about it */
         goto finish;
     }
 

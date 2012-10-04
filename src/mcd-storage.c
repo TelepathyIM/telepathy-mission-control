@@ -203,13 +203,25 @@ is_secret (const McpAccountManager *ma,
 }
 
 static void
+mcd_storage_make_secret (McdStorage *self,
+    const gchar *account,
+    const gchar *key)
+{
+  g_return_if_fail (MCD_IS_STORAGE (self));
+  g_return_if_fail (account != NULL);
+  g_return_if_fail (key != NULL);
+
+  DEBUG ("flagging %s.%s as secret", account, key);
+
+  g_key_file_set_boolean (self->secrets, account, key, TRUE);
+}
+
+static void
 make_secret (const McpAccountManager *ma,
     const gchar *account,
     const gchar *key)
 {
-  McdStorage *self = MCD_STORAGE (ma);
-  DEBUG ("flagging %s.%s as secret", account, key);
-  g_key_file_set_boolean (self->secrets, account, key, TRUE);
+  mcd_storage_make_secret (MCD_STORAGE (ma), account, key);
 }
 
 static gchar *
@@ -378,8 +390,7 @@ mcd_storage_load (McdStorage *self)
           gchar *name = account->data;
 
           DEBUG ("fetching %s from plugin %s [prio: %d]", name, pname, prio);
-          mcp_account_storage_get (plugin, ma, name, NULL);
-
+          mcd_storage_add_account_from_plugin (self, plugin, name);
           g_free (name);
         }
 
@@ -474,128 +485,201 @@ mcd_storage_dup_string (McdStorage *self,
     const gchar *account,
     const gchar *key)
 {
-  gchar *value = NULL;
+  GValue tmp = G_VALUE_INIT;
+  gchar *ret;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
   g_return_val_if_fail (account != NULL, NULL);
+  g_return_val_if_fail (key != NULL, NULL);
 
-  value = g_key_file_get_string (self->keyfile, account, key, NULL);
+  g_value_init (&tmp, G_TYPE_STRING);
 
-  return value;
+  if (!mcd_storage_get_value (self, account, key, &tmp, NULL))
+    return NULL;
+
+  ret = g_value_dup_string (&tmp);
+  g_value_unset (&tmp);
+  return ret;
 }
 
 /*
- * mcd_storage_has_value:
+ * mcd_storage_get_value:
  * @storage: An object implementing the #McdStorage interface
  * @account: unique name of the account
  * @key: name of the setting to be retrieved
- *
- * Returns: a #gboolean: %TRUE if the setting is present in the store,
- * %FALSE otherwise.
+ * @value: location to return the value, initialized to the right #GType
+ * @error: a place to store any #GError<!-- -->s that occur
  */
 gboolean
-mcd_storage_has_value (McdStorage *self,
-    const gchar *account,
-    const gchar *key)
-{
-  g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
-  g_return_val_if_fail (account != NULL, FALSE);
-  g_return_val_if_fail (key != NULL, FALSE);
-
-  return g_key_file_has_key (self->keyfile, account, key, NULL);
-}
-
-/*
- * mcd_storage_dup_value:
- * @storage: An object implementing the #McdStorage interface
- * @account: unique name of the account
- * @key: name of the setting to be retrieved
- * @type: the type of #GValue to retrieve
- * @error: a place to store any #GError<!-- -->s that occur
- *
- * Returns: a newly allocated #GValue of type @type, whihc should be freed
- * with tp_g_value_slice_free() or g_slice_free() depending on whether the
- * the value itself should be freed (the former frees everything, the latter
- * only the #GValue container.
- *
- * If @error is set, but a non-%NULL value was returned, this indicates
- * that no value for the @key was found for @account, and the default
- * value for @type has been returned.
- */
-GValue *
-mcd_storage_dup_value (McdStorage *self,
+mcd_storage_get_value (McdStorage *self,
     const gchar *account,
     const gchar *key,
-    GType type,
+    GValue *value,
     GError **error)
 {
-  GValue *value = NULL;
-  gchar *v_string = NULL;
-  gint64 v_int = 0;
-  guint64 v_uint = 0;
-  gboolean v_bool = FALSE;
-  double v_double = 0.0;
+  gboolean ret = FALSE;
+  GType type;
 
-  g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
-  g_return_val_if_fail (account != NULL, NULL);
+  g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
+  g_return_val_if_fail (account != NULL, FALSE);
+  g_return_val_if_fail (G_IS_VALUE (value), FALSE);
+
+  type = G_VALUE_TYPE (value);
 
   switch (type)
     {
       case G_TYPE_STRING:
-        v_string = g_key_file_get_string (self->keyfile, account, key, error);
-        value = tp_g_value_slice_new_take_string (v_string);
+          {
+            gchar *v_string = g_key_file_get_string (self->keyfile, account,
+                key, error);
+
+            if (v_string != NULL)
+              {
+                g_value_take_string (value, v_string);
+                ret = TRUE;
+              }
+            /* else error is already set */
+          }
         break;
 
       case G_TYPE_INT:
-        v_int = g_key_file_get_integer (self->keyfile, account, key, error);
-        value = tp_g_value_slice_new_int (v_int);
+          {
+            GError *e = NULL;
+            gint v_int = g_key_file_get_integer (self->keyfile, account,
+                key, &e);
+
+            if (e != NULL)
+              {
+                g_propagate_error (error, e);
+              }
+            else
+              {
+                g_value_set_int (value, v_int);
+                ret = TRUE;
+              }
+          }
         break;
 
       case G_TYPE_INT64:
-        v_int = tp_g_key_file_get_int64 (self->keyfile, account, key, error);
-        value = tp_g_value_slice_new_int64 (v_int);
+          {
+            GError *e = NULL;
+            gint64 v_int = tp_g_key_file_get_int64 (self->keyfile, account,
+                key, &e);
+
+            if (e != NULL)
+              {
+                g_propagate_error (error, e);
+              }
+            else
+              {
+                g_value_set_int64 (value, v_int);
+                ret = TRUE;
+              }
+          }
         break;
 
       case G_TYPE_UINT:
-        v_uint = tp_g_key_file_get_uint64 (self->keyfile, account, key, error);
+          {
+            GError *e = NULL;
+            guint64 v_uint = tp_g_key_file_get_uint64 (self->keyfile, account,
+                key, &e);
 
-        if (v_uint > 0xFFFFFFFFU)
-          g_set_error (error, MCD_ACCOUNT_ERROR,
-              MCD_ACCOUNT_ERROR_GET_PARAMETER,
-              "Integer is out of range");
-        else
-          value = tp_g_value_slice_new_uint (v_uint);
+            if (e != NULL)
+              {
+                g_propagate_error (error, e);
+              }
+            else if (v_uint > G_MAXUINT32)
+              {
+                g_set_error (error, MCD_ACCOUNT_ERROR,
+                    MCD_ACCOUNT_ERROR_GET_PARAMETER,
+                    "Parameter '%s' out of range for an unsigned 32-bit "
+                    "integer: %" G_GUINT64_FORMAT, key, v_uint);
+              }
+            else
+              {
+                g_value_set_uint (value, v_uint);
+                ret = TRUE;
+              }
+          }
         break;
 
     case G_TYPE_UCHAR:
-        v_int = g_key_file_get_integer (self->keyfile, account, key, error);
+          {
+            GError *e = NULL;
+            gint v_int = g_key_file_get_integer (self->keyfile, account,
+                key, &e);
 
-        if (v_int < 0 || v_int > 0xFF)
-          {
-            g_set_error (error, MCD_ACCOUNT_ERROR,
-                MCD_ACCOUNT_ERROR_GET_PARAMETER,
-                "Integer is out of range");
-          }
-        else
-          {
-            value = tp_g_value_slice_new (G_TYPE_UCHAR);
-            g_value_set_uchar (value, v_int);
+            if (e != NULL)
+              {
+                g_propagate_error (error, e);
+              }
+            else if (v_int < 0 || v_int > 0xFF)
+              {
+                g_set_error (error, MCD_ACCOUNT_ERROR,
+                    MCD_ACCOUNT_ERROR_GET_PARAMETER,
+                    "Parameter '%s' out of range for an unsigned byte: "
+                    "%d", key, v_int);
+              }
+            else
+              {
+                g_value_set_uchar (value, v_int);
+                ret = TRUE;
+              }
           }
         break;
 
       case G_TYPE_UINT64:
-        v_uint = tp_g_key_file_get_uint64 (self->keyfile, account, key, error);
-        value = tp_g_value_slice_new_uint64 (v_uint);
+          {
+            GError *e = NULL;
+            guint64 v_uint = tp_g_key_file_get_uint64 (self->keyfile, account,
+                key, &e);
+
+            if (e != NULL)
+              {
+                g_propagate_error (error, e);
+              }
+            else
+              {
+                g_value_set_uint64 (value, v_uint);
+                ret = TRUE;
+              }
+          }
         break;
 
       case G_TYPE_BOOLEAN:
-        v_bool = g_key_file_get_boolean (self->keyfile, account, key, error);
-        value = tp_g_value_slice_new_boolean (v_bool);
+          {
+            GError *e = NULL;
+            gboolean v_bool = g_key_file_get_boolean (self->keyfile, account,
+                key, &e);
+
+            if (e != NULL)
+              {
+                g_propagate_error (error, e);
+              }
+            else
+              {
+                g_value_set_boolean (value, v_bool);
+                ret = TRUE;
+              }
+          }
         break;
 
       case G_TYPE_DOUBLE:
-        v_double = g_key_file_get_double (self->keyfile, account, key, error);
-        value = tp_g_value_slice_new_double (v_double);
+          {
+            GError *e = NULL;
+            gdouble v_double = g_key_file_get_double (self->keyfile, account,
+                key, &e);
+
+            if (e != NULL)
+              {
+                g_propagate_error (error, e);
+              }
+            else
+              {
+                g_value_set_double (value, v_double);
+                ret = TRUE;
+              }
+          }
         break;
 
       default:
@@ -604,18 +688,20 @@ mcd_storage_dup_value (McdStorage *self,
             gchar **v = g_key_file_get_string_list (self->keyfile, account,
                 key, NULL, error);
 
-            value = tp_g_value_slice_new_take_boxed (G_TYPE_STRV, v);
+            if (v != NULL)
+              {
+                g_value_take_boxed (value, v);
+                ret = TRUE;
+              }
           }
         else if (type == DBUS_TYPE_G_OBJECT_PATH)
           {
-            v_string = g_key_file_get_string (self->keyfile, account, key,
-                NULL);
+            gchar *v_string = g_key_file_get_string (self->keyfile, account,
+                key, error);
 
             if (v_string == NULL)
               {
-                g_set_error (error, MCD_ACCOUNT_ERROR,
-                    MCD_ACCOUNT_ERROR_GET_PARAMETER,
-                    "Invalid object path NULL");
+                /* do nothing, error is already set */
               }
             else if (!tp_dbus_check_valid_object_path (v_string, NULL))
               {
@@ -626,40 +712,46 @@ mcd_storage_dup_value (McdStorage *self,
               }
             else
               {
-                value = tp_g_value_slice_new_take_object_path (v_string);
+                g_value_take_boxed (value, v_string);
+                ret = TRUE;
               }
           }
         else if (type == TP_ARRAY_TYPE_OBJECT_PATH_LIST)
           {
             gchar **v = g_key_file_get_string_list (self->keyfile, account,
                 key, NULL, error);
-            gchar **iter;
-            GPtrArray *arr = g_ptr_array_new ();
 
-            for (iter = v; iter != NULL && *iter != NULL; iter++)
+            if (v != NULL)
               {
-                if (!g_variant_is_object_path (*iter))
+                gchar **iter;
+                GPtrArray *arr = g_ptr_array_new ();
+
+                for (iter = v; iter != NULL && *iter != NULL; iter++)
                   {
-                    g_set_error (error, MCD_ACCOUNT_ERROR,
-                        MCD_ACCOUNT_ERROR_GET_PARAMETER,
-                        "Invalid object path %s stored in account", *iter);
-                    g_strfreev (v);
-                    v = NULL;
-                    break;
+                    if (!g_variant_is_object_path (*iter))
+                      {
+                        g_set_error (error, MCD_ACCOUNT_ERROR,
+                            MCD_ACCOUNT_ERROR_GET_PARAMETER,
+                            "Invalid object path %s stored in account", *iter);
+                        g_strfreev (v);
+                        v = NULL;
+                        break;
+                      }
                   }
+
+                for (iter = v; iter != NULL && *iter != NULL; iter++)
+                  {
+                    /* transfer ownership from v to arr */
+                    g_ptr_array_add (arr, *iter);
+                  }
+
+                /* not g_strfreev - the strings' ownership has been
+                 * transferred */
+                g_free (v);
+
+                g_value_take_boxed (value, arr);
+                ret = TRUE;
               }
-
-            for (iter = v; iter != NULL && *iter != NULL; iter++)
-              {
-                /* transfer ownership from v to arr */
-                g_ptr_array_add (arr, *iter);
-              }
-
-            /* not g_strfreev - the strings' ownership has been transferred */
-            g_free (v);
-
-            value = tp_g_value_slice_new_take_boxed (
-              TP_ARRAY_TYPE_OBJECT_PATH_LIST, arr);
           }
         else
           {
@@ -676,13 +768,7 @@ mcd_storage_dup_value (McdStorage *self,
           }
     }
 
-  /* This can return a non-NULL GValue * _and_ a non-NULL GError *,      *
-   * indicating a value was not found and the default for that type      *
-   * (eg 0 for integers) has been returned - this matches the behaviour  *
-   * of the old code that this function replaces. If changing this, make *
-   * sure all our callers are suitable updated                           */
-
-  return value;
+  return ret;
 }
 
 /*
@@ -698,10 +784,18 @@ mcd_storage_get_boolean (McdStorage *self,
     const gchar *account,
     const gchar *key)
 {
+  GValue tmp = G_VALUE_INIT;
+
   g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
+  g_return_val_if_fail (key != NULL, FALSE);
 
-  return g_key_file_get_boolean (self->keyfile, account, key, NULL);
+  g_value_init (&tmp, G_TYPE_BOOLEAN);
+
+  if (!mcd_storage_get_value (self, account, key, &tmp, NULL))
+    return FALSE;
+
+  return g_value_get_boolean (&tmp);
 }
 
 /*
@@ -717,21 +811,33 @@ mcd_storage_get_integer (McdStorage *self,
     const gchar *account,
     const gchar *key)
 {
+  GValue tmp = G_VALUE_INIT;
+
   g_return_val_if_fail (MCD_IS_STORAGE (self), 0);
   g_return_val_if_fail (account != NULL, 0);
+  g_return_val_if_fail (key != NULL, 0);
 
-  return g_key_file_get_integer (self->keyfile, account, key, NULL);
+  g_value_init (&tmp, G_TYPE_INT);
+
+  if (!mcd_storage_get_value (self, account, key, &tmp, NULL))
+    return FALSE;
+
+  return g_value_get_int (&tmp);
 }
 
 static void
 update_storage (McdStorage *self,
     const gchar *account,
-    const gchar *key)
+    const gchar *key,
+    gboolean secret)
 {
   GList *store;
   gboolean done = FALSE;
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
   gchar *val = NULL;
+
+  if (secret)
+    mcd_storage_make_secret (self, account, key);
 
   /* don't unescape the value here, we're flushing it to storage         *
    * everywhere else should handle escaping on the way in and unescaping *
@@ -789,32 +895,25 @@ mcd_storage_set_string (McdStorage *self,
     const gchar *val,
     gboolean secret)
 {
-  gboolean updated = FALSE;
-  gchar *old = g_key_file_get_string (self->keyfile, account, key, NULL);
+  gboolean updated;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
   g_return_val_if_fail (key != NULL, FALSE);
 
   if (val == NULL)
-    g_key_file_remove_key (self->keyfile, account, key, NULL);
-  else
-    g_key_file_set_string (self->keyfile, account, key, val);
-
-  if (tp_strdiff (old, val))
     {
-      if (secret)
-        {
-          McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
-
-          mcp_account_manager_parameter_make_secret (ma, account, key);
-        }
-
-      update_storage (self, account, key);
-      updated = TRUE;
+      updated = mcd_storage_set_value (self, account, key, NULL, secret);
     }
+  else
+    {
+      GValue tmp = G_VALUE_INIT;
 
-  g_free (old);
+      g_value_init (&tmp, G_TYPE_STRING);
+      g_value_set_string (&tmp, val);
+      updated = mcd_storage_set_value (self, account, key, &tmp, secret);
+      g_value_unset (&tmp);
+    }
 
   return updated;
 }
@@ -850,7 +949,16 @@ mcd_storage_set_value (McdStorage *self,
 
   if (value == NULL)
     {
-      return mcd_storage_set_string (self, name, key, NULL, secret);
+      gchar *old = g_key_file_get_value (self->keyfile, name, key, NULL);
+      gboolean updated = (old != NULL);
+
+      g_free (old);
+      g_key_file_remove_key (self->keyfile, name, key, NULL);
+
+      if (updated)
+        update_storage (self, name, key, secret);
+
+      return updated;
     }
   else
     {
@@ -935,14 +1043,7 @@ mcd_storage_set_value (McdStorage *self,
 
       if (tp_strdiff (old, new))
         {
-          if (secret)
-            {
-              McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
-
-              mcp_account_manager_parameter_make_secret (ma, name, key);
-            }
-
-          update_storage (self, name, key);
+          update_storage (self, name, key, secret);
           updated = TRUE;
         }
 
@@ -1197,4 +1298,20 @@ plugin_iface_init (McpAccountManagerIface *iface,
   iface->make_secret = make_secret;
   iface->unique_name = unique_name;
   iface->list_keys = list_keys;
+}
+
+gboolean
+mcd_storage_add_account_from_plugin (McdStorage *self,
+    McpAccountStorage *plugin,
+    const gchar *account)
+{
+  if (!mcp_account_storage_get (plugin, MCP_ACCOUNT_MANAGER (self),
+      account, NULL))
+    {
+      g_warning ("plugin %s disowned account %s",
+                 mcp_account_storage_name (plugin), account);
+      return FALSE;
+    }
+
+  return TRUE;
 }

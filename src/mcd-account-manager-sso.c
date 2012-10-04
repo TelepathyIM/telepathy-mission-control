@@ -1723,21 +1723,19 @@ static void
 account_storage_iface_init (McpAccountStorageIface *iface,
     gpointer unused G_GNUC_UNUSED)
 {
-  mcp_account_storage_iface_set_name (iface, PLUGIN_NAME);
-  mcp_account_storage_iface_set_desc (iface, PLUGIN_DESCRIPTION);
-  mcp_account_storage_iface_set_priority (iface, PLUGIN_PRIORITY);
-  mcp_account_storage_iface_set_provider (iface, PLUGIN_PROVIDER);
+  iface->name = PLUGIN_NAME;
+  iface->desc = PLUGIN_DESCRIPTION;
+  iface->priority = PLUGIN_PRIORITY;
+  iface->provider = PLUGIN_PROVIDER;
 
-  mcp_account_storage_iface_implement_get (iface,
-      _mcd_account_manager_sso_get);
-  mcp_account_storage_iface_implement_set (iface, _set);
-  mcp_account_storage_iface_implement_delete (iface, _delete);
-  mcp_account_storage_iface_implement_commit (iface, _commit);
-  mcp_account_storage_iface_implement_list (iface, _list);
-  mcp_account_storage_iface_implement_ready (iface, _ready);
-  mcp_account_storage_iface_implement_get_identifier (iface, _get_identifier);
-  mcp_account_storage_iface_implement_get_additional_info (iface,
-      _get_additional_info);
+  iface->get = _mcd_account_manager_sso_get;
+  iface->set = _set;
+  iface->delete = _delete;
+  iface->commit = _commit;
+  iface->list = _list;
+  iface->ready = _ready;
+  iface->get_identifier = _get_identifier;
+  iface->get_additional_info = _get_additional_info;
 }
 
 McdAccountManagerSso *
