@@ -122,6 +122,7 @@ struct _McdAccountPrivate
     gchar *protocol_name;
 
     TpConnection *tp_connection;
+    TpContact *self_contact;
     McdConnection *connection;
     McdManager *manager;
 
@@ -3256,6 +3257,7 @@ _mcd_account_dispose (GObject *object)
     tp_clear_object (&priv->storage_plugin);
     tp_clear_object (&priv->storage);
     tp_clear_object (&priv->dbus_daemon);
+    tp_clear_object (&priv->self_contact);
 
     _mcd_account_set_connection_context (self, NULL);
     _mcd_account_set_connection (self, NULL);
@@ -4172,6 +4174,7 @@ _mcd_account_set_connection_status (McdAccount *account,
         || (tp_conn != NULL && status == TP_CONNECTION_STATUS_DISCONNECTED))
     {
         tp_clear_object (&priv->tp_connection);
+        tp_clear_object (&priv->self_contact);
 
         if (tp_conn != NULL && status != TP_CONNECTION_STATUS_DISCONNECTED)
             priv->tp_connection = g_object_ref (tp_conn);
@@ -4459,7 +4462,6 @@ mcd_account_connection_ready_cb (McdAccount *account,
     McdAccountPrivate *priv = account->priv;
     gchar *nickname;
     TpConnection *tp_connection;
-    TpContact *self_contact;
     TpConnectionStatus status;
     TpConnectionStatusReason reason;
     const gchar *dbus_error = NULL;
@@ -4474,16 +4476,17 @@ mcd_account_connection_ready_cb (McdAccount *account,
                       tp_connection == priv->tp_connection);
     g_assert (tp_proxy_is_prepared (tp_connection,
                                     TP_CONNECTION_FEATURE_CONNECTED));
+    priv->self_contact = tp_connection_get_self_contact (priv->tp_connection);
+    g_assert (priv->self_contact != NULL);
+    g_object_ref (priv->self_contact);
 
     status = tp_connection_get_status (tp_connection, &reason);
     dbus_error = tp_connection_get_detailed_error (tp_connection, &details);
     _mcd_account_set_connection_status (account, status, reason,
                                         tp_connection, dbus_error, details);
 
-    self_contact = tp_connection_get_self_contact (tp_connection);
-    g_assert (self_contact != NULL);
     _mcd_account_set_normalized_name (account, tp_contact_get_identifier (
-            self_contact));
+            priv->self_contact));
 
     /* FIXME: ideally, on protocols with server-stored nicknames, this should
      * only be done if the local Nickname has been changed since last time we
