@@ -173,6 +173,7 @@ struct _McdAccountPrivate
     gboolean removed;
     gboolean always_on;
     gboolean changing_presence;
+    gboolean setting_avatar;
 
     gboolean hidden;
     gboolean always_dispatch;
@@ -1342,6 +1343,163 @@ get_nickname (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     McdAccount *account = MCD_ACCOUNT (self);
 
     mcd_account_get_string_val (account, name, value);
+}
+
+static void
+mcd_account_self_contact_notify_avatar_file_cb (McdAccount *self,
+    GParamSpec *unused_param_spec G_GNUC_UNUSED,
+    TpContact *self_contact)
+{
+  const gchar *token = tp_contact_get_avatar_token (self_contact);
+  gchar *prev_token;
+  GFile *file = tp_contact_get_avatar_file (self_contact);
+  GError *error = NULL;
+  gboolean changed;
+
+  if (self->priv->setting_avatar)
+    {
+      DEBUG ("Ignoring avatar change notification: we are setting ours");
+      return;
+    }
+
+  prev_token = _mcd_account_get_avatar_token (self);
+  changed = tp_strdiff (prev_token, token);
+  g_free (prev_token);
+
+  if (!changed)
+    {
+      DEBUG ("Avatar unchanged: '%s'", token);
+      return;
+    }
+
+  if (file == NULL)
+    {
+      if (!_mcd_account_set_avatar (self, NULL, "", "", &error))
+        {
+          DEBUG ("Attempt to clear avatar failed: %s", error->message);
+          g_clear_error (&error);
+        }
+    }
+  else
+    {
+      gchar *contents = NULL;
+      gsize len = 0;
+      GArray *arr;
+
+      if (!g_file_load_contents (file, NULL, &contents, &len, NULL, &error))
+        {
+          gchar *uri = g_file_get_uri (file);
+
+          WARNING ("Unable to read avatar file %s: %s", uri, error->message);
+          g_clear_error (&error);
+          g_free (uri);
+          return;
+        }
+
+      if (G_UNLIKELY (len > G_MAXUINT))
+        {
+          gchar *uri = g_file_get_uri (file);
+
+          WARNING ("Avatar file %s was ludicrously huge", uri);
+          g_free (uri);
+          g_free (contents);
+          return;
+        }
+
+      arr = g_array_sized_new (TRUE, FALSE, 1, (guint) len);
+      g_array_append_vals (arr, contents, (guint) len);
+      g_free (contents);
+
+      if (!_mcd_account_set_avatar (self, arr,
+              tp_contact_get_avatar_mime_type (self_contact),
+              tp_contact_get_avatar_token (self_contact), &error))
+        {
+          DEBUG ("Attempt to save avatar failed: %s", error->message);
+          g_clear_error (&error);
+        }
+
+      g_array_unref (arr);
+    }
+}
+
+static void
+avatars_set_avatar_cb (TpConnection *tp_connection,
+    const gchar *token,
+    const GError *error,
+    gpointer user_data,
+    GObject *weak_object)
+{
+  McdAccount *self = MCD_ACCOUNT (weak_object);
+
+  self->priv->setting_avatar = FALSE;
+
+  if (error != NULL)
+    {
+      WARNING ("%s: %s", self->priv->unique_name, error->message);
+    }
+  else
+    {
+      DEBUG ("%s: new token %s", self->priv->unique_name, token);
+      _mcd_account_set_avatar_token (self, token);
+    }
+}
+
+static void
+avatars_clear_avatar_cb (TpConnection *tp_connection,
+    const GError *error,
+    gpointer user_data,
+    GObject *weak_object)
+{
+  McdAccount *self = MCD_ACCOUNT (weak_object);
+
+  self->priv->setting_avatar = FALSE;
+
+  if (error != NULL)
+    {
+      WARNING ("%s: %s", self->priv->unique_name, error->message);
+    }
+  else
+    {
+      DEBUG ("%s: success", self->priv->unique_name);
+      _mcd_account_set_avatar_token (self, "");
+    }
+}
+
+static void
+mcd_account_send_avatar_to_connection (McdAccount *self,
+    const GArray *avatar,
+    const gchar *mime_type)
+{
+  if (self->priv->tp_connection == NULL)
+    return;
+
+  if (self->priv->self_contact == NULL)
+    return;
+
+  DEBUG ("%s: %u bytes", self->priv->unique_name, avatar->len);
+
+  if (tp_proxy_has_interface_by_id (self->priv->tp_connection,
+          TP_IFACE_QUARK_CONNECTION_INTERFACE_AVATARS))
+    {
+      self->priv->setting_avatar = TRUE;
+
+      if (avatar->len > 0 && avatar->len < G_MAXUINT)
+        {
+          tp_cli_connection_interface_avatars_call_set_avatar (
+            self->priv->tp_connection, -1, avatar, mime_type,
+            avatars_set_avatar_cb, NULL, NULL, (GObject *) self);
+        }
+      else
+        {
+          tp_cli_connection_interface_avatars_call_clear_avatar (
+              self->priv->tp_connection, -1, avatars_clear_avatar_cb,
+              NULL, NULL, (GObject *) self);
+        }
+    }
+  else
+    {
+      DEBUG ("unsupported, ignoring");
+    }
 }
 
 static gboolean
@@ -3924,11 +4082,7 @@ _mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
                                MC_ACCOUNTS_KEY_AVATAR_TOKEN,
                                NULL, FALSE);
 
-        /* this is a no-op if the connection doesn't support avatars */
-        if (priv->connection != NULL)
-        {
-            _mcd_connection_set_avatar (priv->connection, avatar, mime_type);
-        }
+        mcd_account_send_avatar_to_connection (account, avatar, mime_type);
     }
 
     mcd_storage_commit (priv->storage, account_name);
@@ -4493,6 +4647,67 @@ _mcd_account_get_old_avatar_filename (McdAccount *account,
 }
 
 static void
+mcd_account_process_initial_avatar_token (McdAccount *self,
+    TpContact *self_contact)
+{
+  gchar *prev_token = _mcd_account_get_avatar_token (self);
+  const gchar *token = tp_contact_get_avatar_token (self_contact);
+
+  /* If we have a stored avatar but no avatar token, we must have
+   * changed it locally; set it.
+   *
+   * Meanwhile, if the self-contact's avatar token is empty, this is a
+   * protocol like link-local XMPP where avatars don't persist.
+   * Upload ours, if any. */
+  if (tp_str_empty (prev_token) || tp_str_empty (token))
+    {
+      GArray *avatar = NULL;
+      gchar *mime_type = NULL;
+
+      _mcd_account_get_avatar (self, &avatar, &mime_type);
+
+      if (avatar != NULL)
+        {
+          if (tp_str_empty (prev_token))
+            DEBUG ("We have an avatar that has never been uploaded");
+          if (tp_str_empty (token))
+            DEBUG ("We have an avatar and the server doesn't");
+
+          mcd_account_send_avatar_to_connection (self, avatar, mime_type);
+          g_array_unref (avatar);
+          g_free (mime_type);
+          return;
+        }
+
+      tp_clear_pointer (&avatar, g_array_unref);
+      g_free (mime_type);
+    }
+
+  /* Otherwise, if the self-contact's avatar token
+   * differs from ours, one of our "other selves" must have changed
+   * it remotely. Behave the same as if it changes remotely
+   * mid-session - i.e. download it and use it as our new avatar. */
+  if (tp_strdiff (token, prev_token))
+    {
+      GFile *file = tp_contact_get_avatar_file (self_contact);
+
+      DEBUG ("The server's avatar does not match ours");
+
+      if (file != NULL)
+        {
+          /* We have already downloaded it: copy it. */
+          mcd_account_self_contact_notify_avatar_file_cb (self, NULL,
+              self->priv->self_contact);
+        }
+      /* ... else we haven't downloaded it yet, but when we do,
+       * notify::avatar-file will go off. */
+    }
+
+  g_free (prev_token);
+}
+
+
+static void
 mcd_account_self_contact_upgraded_cb (GObject *source_object,
     GAsyncResult *res,
     gpointer user_data)
@@ -4516,10 +4731,17 @@ mcd_account_self_contact_upgraded_cb (GObject *source_object,
 
       if (self_contact == self->priv->self_contact)
         {
+          DEBUG ("%s", tp_contact_get_identifier (self_contact));
+
           tp_g_signal_connect_object (self_contact, "notify::alias",
               G_CALLBACK (mcd_account_self_contact_notify_alias_cb),
               self, G_CONNECT_SWAPPED);
           mcd_account_self_contact_notify_alias_cb (self, NULL, self_contact);
+
+          tp_g_signal_connect_object (self_contact, "notify::avatar-file",
+              G_CALLBACK (mcd_account_self_contact_notify_avatar_file_cb),
+              self, G_CONNECT_SWAPPED);
+          mcd_account_process_initial_avatar_token (self, self_contact);
         }
       else
         {
@@ -4546,6 +4768,8 @@ mcd_account_self_contact_changed_cb (McdAccount *self,
     TpConnection *tp_connection)
 {
   static const TpContactFeature contact_features[] = {
+      TP_CONTACT_FEATURE_AVATAR_TOKEN,
+      TP_CONTACT_FEATURE_AVATAR_DATA,
       TP_CONTACT_FEATURE_ALIAS
   };
   TpContact *self_contact;
