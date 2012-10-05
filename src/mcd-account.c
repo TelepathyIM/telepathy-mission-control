@@ -4541,12 +4541,43 @@ mcd_account_self_contact_upgraded_cb (GObject *source_object,
 }
 
 static void
+mcd_account_self_contact_changed_cb (McdAccount *self,
+    GParamSpec *unused_param_spec G_GNUC_UNUSED,
+    TpConnection *tp_connection)
+{
+  static const TpContactFeature contact_features[] = {
+      TP_CONTACT_FEATURE_ALIAS
+  };
+  TpContact *self_contact;
+
+  if (tp_connection != self->priv->tp_connection)
+    return;
+
+  self_contact = tp_connection_get_self_contact (tp_connection);
+  g_assert (self_contact != NULL);
+
+  DEBUG ("%s", tp_contact_get_identifier (self_contact));
+
+  if (self_contact != self->priv->self_contact)
+    {
+      g_clear_object (&self->priv->self_contact);
+      self->priv->self_contact = g_object_ref (self_contact);
+    }
+
+  _mcd_account_set_normalized_name (self,
+      tp_contact_get_identifier (self_contact));
+
+  tp_connection_upgrade_contacts_async (tp_connection,
+      1, &self_contact,
+      G_N_ELEMENTS (contact_features), contact_features,
+      mcd_account_self_contact_upgraded_cb,
+      tp_weak_ref_new (self, NULL, NULL));
+}
+
+static void
 mcd_account_connection_ready_cb (McdAccount *account,
                                  McdConnection *connection)
 {
-    static const TpContactFeature contact_features[] = {
-        TP_CONTACT_FEATURE_ALIAS
-    };
     McdAccountPrivate *priv = account->priv;
     gchar *nickname;
     TpConnection *tp_connection;
@@ -4564,23 +4595,17 @@ mcd_account_connection_ready_cb (McdAccount *account,
                       tp_connection == priv->tp_connection);
     g_assert (tp_proxy_is_prepared (tp_connection,
                                     TP_CONNECTION_FEATURE_CONNECTED));
-    priv->self_contact = tp_connection_get_self_contact (priv->tp_connection);
-    g_assert (priv->self_contact != NULL);
-    g_object_ref (priv->self_contact);
 
     status = tp_connection_get_status (tp_connection, &reason);
     dbus_error = tp_connection_get_detailed_error (tp_connection, &details);
     _mcd_account_set_connection_status (account, status, reason,
                                         tp_connection, dbus_error, details);
 
-    _mcd_account_set_normalized_name (account, tp_contact_get_identifier (
-            priv->self_contact));
-
-    tp_connection_upgrade_contacts_async (tp_connection,
-        1, &priv->self_contact,
-        G_N_ELEMENTS (contact_features), contact_features,
-        mcd_account_self_contact_upgraded_cb,
-        tp_weak_ref_new (account, NULL, NULL));
+    tp_g_signal_connect_object (tp_connection, "notify::self-contact",
+        G_CALLBACK (mcd_account_self_contact_changed_cb), account,
+        G_CONNECT_SWAPPED);
+    mcd_account_self_contact_changed_cb (account, NULL, tp_connection);
+    g_assert (priv->self_contact != NULL);
 
     /* FIXME: ideally, on protocols with server-stored nicknames, this should
      * only be done if the local Nickname has been changed since last time we
