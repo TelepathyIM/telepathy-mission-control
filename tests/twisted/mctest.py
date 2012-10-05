@@ -344,6 +344,12 @@ class SimulatedConnection(object):
         self.presence = dbus.Struct((cs.PRESENCE_TYPE_OFFLINE, 'offline', ''),
                 signature='uss')
 
+    def change_self_ident(self, ident):
+        self.self_ident = ident
+        self.self_handle = self.ensure_handle(cs.HT_CONTACT, ident)
+        self.q.dbus_emit(self.object_path, cs.CONN, 'SelfHandleChanged',
+                self.self_handle, signature='u')
+
     def release_name(self):
         del self._bus_name_ref
 
