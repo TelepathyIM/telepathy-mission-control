@@ -946,8 +946,12 @@ def expect_fakecm_connection(q, bus, mc, account, expected_params,
         has_requests=True, has_presence=False, has_aliasing=False,
         has_avatars=False, avatars_persist=True,
         extra_interfaces=[],
-        expect_before_connect=[], expect_after_connect=[],
+        expect_before_connect=(), expect_after_connect=(),
         has_hidden=False):
+    # make (safely) mutable copies
+    expect_before_connect = list(expect_before_connect)
+    expect_after_connect = list(expect_after_connect)
+
     e = q.expect('dbus-method-call', method='RequestConnection',
             args=['fakeprotocol', expected_params],
             destination=cs.tp_name_prefix + '.ConnectionManager.fakecm',
