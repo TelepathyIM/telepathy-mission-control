@@ -4585,11 +4585,25 @@ mcd_account_connection_ready_cb (McdAccount *account,
     /* FIXME: ideally, on protocols with server-stored nicknames, this should
      * only be done if the local Nickname has been changed since last time we
      * were online; Aliasing doesn't currently offer a way to tell whether
-     * this is such a protocol, though. */
-
+     * this is such a protocol, though.
+     *
+     * As a first step towards doing the right thing, we assume that if our
+     * locally-stored nickname is just the protocol identifer, the
+     * server-stored nickname (if any) takes precedence.
+     */
     nickname = mcd_account_get_alias (account);
 
-    if (nickname != NULL)
+    if (tp_str_empty (nickname))
+    {
+        DEBUG ("no nickname yet");
+    }
+    else if (!tp_strdiff (nickname,
+            tp_contact_get_identifier (priv->self_contact)))
+    {
+        DEBUG ("not setting nickname to '%s' since it matches the "
+            "NormalizedName", nickname);
+    }
+    else
     {
         mcd_account_send_nickname_to_connection (account, nickname);
     }
