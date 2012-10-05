@@ -1278,6 +1278,44 @@ get_service (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     mcd_account_get_string_val (account, name, value);
 }
 
+static void
+mcd_account_set_self_alias_cb (TpConnection *tp_connection,
+    const GError *error,
+    gpointer user_data,
+    GObject *weak_object)
+{
+  if (error)
+    WARNING ("%s", error->message);
+}
+
+static void
+mcd_account_send_nickname_to_connection (McdAccount *self,
+    const gchar *nickname)
+{
+  if (self->priv->tp_connection == NULL)
+    return;
+
+  if (self->priv->self_contact == NULL)
+    return;
+
+  DEBUG ("%s: '%s'", self->priv->unique_name, nickname);
+
+  if (tp_proxy_has_interface_by_id (self->priv->tp_connection,
+          TP_IFACE_QUARK_CONNECTION_INTERFACE_ALIASING))
+    {
+      GHashTable *aliases = g_hash_table_new (NULL, NULL);
+
+      g_hash_table_insert (aliases,
+          GUINT_TO_POINTER (tp_contact_get_handle (self->priv->self_contact)),
+          (gchar *) nickname);
+      tp_cli_connection_interface_aliasing_call_set_aliases (
+          self->priv->tp_connection, -1, aliases,
+          mcd_account_set_self_alias_cb, NULL, NULL, NULL);
+      g_hash_table_unref (aliases);
+    }
+}
+
+
 static gboolean
 set_nickname (TpSvcDBusProperties *self, const gchar *name,
               const GValue *value, GError **error)
@@ -1289,14 +1327,10 @@ set_nickname (TpSvcDBusProperties *self, const gchar *name,
     DEBUG ("called for %s", priv->unique_name);
     ret = mcd_account_set_string_val (account, name, value, error);
 
-    /* we need to call _mcd_connection_set_nickname for side effects,  *
-     * as that is how the CM is informed of the current nickname, even *
-     * if the nickname hasn't changed from our POV                     */
-    if (priv->connection != NULL)
+    if (ret != SET_RESULT_ERROR)
     {
-        /* this is a no-op if the connection doesn't support it */
-        _mcd_connection_set_nickname (priv->connection,
-                                      g_value_get_string (value));
+        mcd_account_send_nickname_to_connection (account,
+            g_value_get_string (value));
     }
 
     return (ret != SET_RESULT_ERROR);
@@ -3992,15 +4026,18 @@ _mcd_account_get_supersedes (McdAccount *self)
 }
 
 static void
-mcd_account_connection_self_nickname_changed_cb (McdAccount *account,
-                                                 const gchar *alias,
-                                                 McdConnection *connection)
+mcd_account_self_contact_notify_alias_cb (McdAccount *self,
+    GParamSpec *unused_param_spec G_GNUC_UNUSED,
+    TpContact *self_contact)
 {
     GValue value = G_VALUE_INIT;
 
+    if (self_contact != self->priv->self_contact)
+        return;
+
     g_value_init (&value, G_TYPE_STRING);
-    g_value_set_static_string (&value, alias);
-    mcd_account_set_string_val (account, MC_ACCOUNTS_KEY_ALIAS, &value, NULL);
+    g_object_get_property (G_OBJECT (self_contact), "alias", &value);
+    mcd_account_set_string_val (self, MC_ACCOUNTS_KEY_ALIAS, &value, NULL);
     g_value_unset (&value);
 }
 
@@ -4456,9 +4493,60 @@ _mcd_account_get_old_avatar_filename (McdAccount *account,
 }
 
 static void
+mcd_account_self_contact_upgraded_cb (GObject *source_object,
+    GAsyncResult *res,
+    gpointer user_data)
+{
+  McdAccount *self = tp_weak_ref_dup_object (user_data);
+  GPtrArray *contacts = NULL;
+  GError *error = NULL;
+
+  if (self == NULL)
+    return;
+
+  g_return_if_fail (MCD_IS_ACCOUNT (self));
+
+  if (tp_connection_upgrade_contacts_finish (TP_CONNECTION (source_object),
+          res, &contacts, &error))
+    {
+      TpContact *self_contact;
+
+      g_assert (contacts->len == 1);
+      self_contact = g_ptr_array_index (contacts, 0);
+
+      if (self_contact == self->priv->self_contact)
+        {
+          tp_g_signal_connect_object (self_contact, "notify::alias",
+              G_CALLBACK (mcd_account_self_contact_notify_alias_cb),
+              self, G_CONNECT_SWAPPED);
+          mcd_account_self_contact_notify_alias_cb (self, NULL, self_contact);
+        }
+      else
+        {
+          DEBUG ("self-contact '%s' has changed to '%s' since we asked to "
+              "upgrade it", tp_contact_get_identifier (self_contact),
+              tp_contact_get_identifier (self->priv->self_contact));
+        }
+
+      g_ptr_array_unref (contacts);
+    }
+  else
+    {
+      WARNING ("failed to prepare self-contact: %s", error->message);
+      g_clear_error (&error);
+    }
+
+  g_object_unref (self);
+  tp_weak_ref_destroy (user_data);
+}
+
+static void
 mcd_account_connection_ready_cb (McdAccount *account,
                                  McdConnection *connection)
 {
+    static const TpContactFeature contact_features[] = {
+        TP_CONTACT_FEATURE_ALIAS
+    };
     McdAccountPrivate *priv = account->priv;
     gchar *nickname;
     TpConnection *tp_connection;
@@ -4488,6 +4576,12 @@ mcd_account_connection_ready_cb (McdAccount *account,
     _mcd_account_set_normalized_name (account, tp_contact_get_identifier (
             priv->self_contact));
 
+    tp_connection_upgrade_contacts_async (tp_connection,
+        1, &priv->self_contact,
+        G_N_ELEMENTS (contact_features), contact_features,
+        mcd_account_self_contact_upgraded_cb,
+        tp_weak_ref_new (account, NULL, NULL));
+
     /* FIXME: ideally, on protocols with server-stored nicknames, this should
      * only be done if the local Nickname has been changed since last time we
      * were online; Aliasing doesn't currently offer a way to tell whether
@@ -4497,8 +4591,7 @@ mcd_account_connection_ready_cb (McdAccount *account,
 
     if (nickname != NULL)
     {
-        /* this is a no-op if the connection doesn't support it */
-        _mcd_connection_set_nickname (connection, nickname);
+        mcd_account_send_nickname_to_connection (account, nickname);
     }
 
     g_free (nickname);
@@ -4562,10 +4655,6 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
             g_signal_connect_swapped (connection, "ready",
                 G_CALLBACK (mcd_account_connection_ready_cb), account);
         }
-
-        g_signal_connect_swapped (connection, "self-nickname-changed",
-                G_CALLBACK (mcd_account_connection_self_nickname_changed_cb),
-                account);
 
         g_signal_connect (connection, "self-presence-changed",
                           G_CALLBACK (on_conn_self_presence_changed), account);
