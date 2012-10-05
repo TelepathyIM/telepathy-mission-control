@@ -54,7 +54,7 @@ def test(q, bus, mc, trivial_nickname=False):
     expect_after_connect = [
             EventPattern('dbus-method-call',
                 interface=cs.CONN_IFACE_ALIASING, method='GetAliases',
-                handled=False),
+                handled=True),
             ]
     forbidden = []
 
@@ -74,8 +74,6 @@ def test(q, bus, mc, trivial_nickname=False):
 
     get_aliases = results[1]
     assert get_aliases.args[0] == [ conn.self_handle ]
-    q.dbus_return(get_aliases.message, { conn.self_handle: 'wjt@example.com' },
-            signature='a{us}')
 
     if trivial_nickname:
         assertLength(2, results)

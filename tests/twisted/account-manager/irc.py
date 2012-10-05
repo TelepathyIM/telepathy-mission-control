@@ -49,7 +49,7 @@ def test(q, bus, mc):
     expect_after_connect = [
             EventPattern('dbus-method-call',
                 interface=cs.CONN_IFACE_ALIASING, method='GetAliases',
-                handled=False),
+                handled=True),
             EventPattern('dbus-method-call',
                 interface=cs.CONN_IFACE_ALIASING, method='SetAliases',
                 handled=False),
@@ -61,8 +61,6 @@ def test(q, bus, mc):
             self_ident=params['account'])
 
     assert get_aliases.args[0] == [ conn.self_handle ]
-    q.dbus_return(get_aliases.message, { conn.self_handle: 'brucewayne' },
-            signature='a{us}')
 
     assert set_aliases.args[0] == { conn.self_handle: 'BruceWayne' }
     q.dbus_return(set_aliases.message, signature='')
@@ -74,18 +72,17 @@ def test(q, bus, mc):
     # Another client changes our alias remotely, but because this is IRC,
     # that manifests itself as a handle change
     conn.change_self_ident('thebatman')
+    conn.change_self_alias('TheBatman')
 
     get_aliases, _ = q.expect_many(
         EventPattern('dbus-method-call', interface=cs.CONN_IFACE_ALIASING,
-            method='GetAliases', handled=False),
+            method='GetAliases', handled=True),
         EventPattern('dbus-signal', path=account.object_path,
             signal='AccountPropertyChanged', interface=cs.ACCOUNT,
             predicate=(lambda e:
                 e.args[0].get('NormalizedName') == 'thebatman')),
         )
     assert get_aliases.args[0] == [ conn.self_handle ]
-    q.dbus_return(get_aliases.message, { conn.self_handle: 'TheBatman' },
-            signature='a{us}')
     q.expect('dbus-signal', path=account.object_path,
             signal='AccountPropertyChanged', interface=cs.ACCOUNT,
             args=[{'Nickname': 'TheBatman'}])
@@ -107,20 +104,19 @@ def test(q, bus, mc):
         )
     assertEquals('BruceWayne', account_props.Get(cs.ACCOUNT, 'Nickname'))
     conn.change_self_ident('brucewayne')
+    conn.change_self_alias('BruceWayne')
     q.dbus_return(e.message, signature='')
 
     # In response to the self-handle change, we check our nickname again
     get_aliases, _ = q.expect_many(
         EventPattern('dbus-method-call', interface=cs.CONN_IFACE_ALIASING,
-            method='GetAliases', handled=False),
+            method='GetAliases', handled=True),
         EventPattern('dbus-signal', path=account.object_path,
             signal='AccountPropertyChanged', interface=cs.ACCOUNT,
             predicate=(lambda e:
                 e.args[0].get('NormalizedName') == 'brucewayne')),
         )
     assert get_aliases.args[0] == [ conn.self_handle ]
-    q.dbus_return(get_aliases.message, { conn.self_handle: 'BruceWayne' },
-            signature='a{us}')
 
     forbidden = [EventPattern('dbus-signal', signal='AccountPropertyChanged',
         predicate=lambda e: 'Nickname' in e.args[0])]

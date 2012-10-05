@@ -202,11 +202,16 @@ class SimulatedConnection(object):
         return self._last_handle
 
     def __init__(self, q, bus, cmname, protocol, account_part, self_ident,
+            self_alias=None,
             implement_get_interfaces=True, has_requests=True,
             has_presence=False, has_aliasing=False, has_avatars=False,
-            avatars_persist=True, extra_interfaces=[], has_hidden=False):
+            avatars_persist=True, extra_interfaces=[], has_hidden=False,
+            implement_get_aliases=True):
         self.q = q
         self.bus = bus
+
+        if self_alias is None:
+            self_alias = self_ident
 
         self.bus_name = '.'.join([cs.tp_name_prefix, 'Connection',
                 cmname, protocol.replace('-', '_'), account_part])
@@ -219,6 +224,7 @@ class SimulatedConnection(object):
         self.status = cs.CONN_STATUS_DISCONNECTED
         self.reason = cs.CONN_STATUS_CONNECTING
         self.self_ident = self_ident
+        self.self_alias = self_alias
         self.self_handle = self.ensure_handle(cs.HT_CONTACT, self_ident)
         self.channels = []
         self.has_requests = has_requests
@@ -313,6 +319,11 @@ class SimulatedConnection(object):
                     method='GetAliasFlags',
                     args=[])
 
+            if implement_get_aliases:
+                q.add_dbus_method_impl(self.GetAliases,
+                        path=self.object_path,
+                        interface=cs.CONN_IFACE_ALIASING, method='GetAliases')
+
         if has_avatars:
             q.add_dbus_method_impl(self.GetAvatarRequirements,
                     path=self.object_path, interface=cs.CONN_IFACE_AVATARS,
@@ -350,6 +361,12 @@ class SimulatedConnection(object):
         self.q.dbus_emit(self.object_path, cs.CONN, 'SelfHandleChanged',
                 self.self_handle, signature='u')
 
+    def change_self_alias(self, alias):
+        self.self_alias = alias
+        self.q.dbus_emit(self.object_path, cs.CONN_IFACE_ALIASING,
+                'AliasesChanged', [(self.self_handle, self.self_alias)],
+                signature='a(us)')
+
     def release_name(self):
         del self._bus_name_ref
 
@@ -367,6 +384,13 @@ class SimulatedConnection(object):
     # not actually very relevant for MC so hard-code 0 for now
     def GetAliasFlags(self, e):
         self.q.dbus_return(e.message, 0, signature='u')
+
+    def GetAliases(self, e):
+        ret = dbus.Dictionary(signature='us')
+        if self.self_handle in e.args[0]:
+            ret[self.self_handle] = self.self_alias
+
+        self.q.dbus_return(e.message, ret, signature='a{us}')
 
     # mostly for the UI's benefit; for now hard-code the requirements from XMPP
     def GetAvatarRequirements(self, e):
