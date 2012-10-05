@@ -947,7 +947,8 @@ def expect_fakecm_connection(q, bus, mc, account, expected_params,
         has_avatars=False, avatars_persist=True,
         extra_interfaces=[],
         expect_before_connect=(), expect_after_connect=(),
-        has_hidden=False):
+        has_hidden=False,
+        self_ident='myself'):
     # make (safely) mutable copies
     expect_before_connect = list(expect_before_connect)
     expect_after_connect = list(expect_after_connect)
@@ -961,7 +962,7 @@ def expect_fakecm_connection(q, bus, mc, account, expected_params,
 
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol',
                                account.object_path.split('/')[-1],
-            'myself', has_requests=has_requests, has_presence=has_presence,
+            self_ident, has_requests=has_requests, has_presence=has_presence,
             has_aliasing=has_aliasing, has_avatars=has_avatars,
             avatars_persist=avatars_persist, extra_interfaces=extra_interfaces,
             has_hidden=has_hidden)
