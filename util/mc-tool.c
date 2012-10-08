@@ -1410,6 +1410,7 @@ main (int argc, char **argv)
     TpAccountManager *am = NULL;
     TpAccount *a = NULL;
     TpDBusDaemon *dbus = NULL;
+    TpSimpleClientFactory *client_factory = NULL;
     GError *error = NULL;
     const GQuark features[] = { TP_ACCOUNT_FEATURE_CORE,
         TP_ACCOUNT_FEATURE_ADDRESSING, TP_ACCOUNT_FEATURE_STORAGE, 0 };
@@ -1428,6 +1429,7 @@ main (int argc, char **argv)
             app_name, command.common.name, error->message);
         goto out;
     }
+    client_factory = tp_simple_client_factory_new (dbus);
 
     if (command.common.account == NULL) {
         TpSimpleClientFactory *factory;
@@ -1442,7 +1444,8 @@ main (int argc, char **argv)
     else {
 
 	command.common.account = ensure_prefix (command.common.account);
-	a = tp_account_new (dbus, command.common.account, &error);
+        a = tp_simple_client_factory_ensure_account (client_factory,
+            command.common.account, NULL, &error);
 
 	if (error != NULL)
 	{
@@ -1460,6 +1463,7 @@ main (int argc, char **argv)
 
 out:
     g_clear_error (&error);
+    tp_clear_object (&client_factory);
     tp_clear_object (&dbus);
     tp_clear_object (&am);
     tp_clear_object (&a);
