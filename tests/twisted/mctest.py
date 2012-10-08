@@ -292,6 +292,9 @@ class SimulatedConnection(object):
                     path=self.object_path, interface=cs.CONN,
                     method='GetInterfaces')
 
+        q.add_dbus_method_impl(self.RequestHandles,
+                path=self.object_path, interface=cs.CONN,
+                method='RequestHandles')
         q.add_dbus_method_impl(self.InspectHandles,
                 path=self.object_path, interface=cs.CONN,
                 method='InspectHandles')
@@ -523,6 +526,12 @@ class SimulatedConnection(object):
             self.q.dbus_return(e.message, ret, signature='as')
         except e:
             self.q.dbus_raise(e.message, INVALID_HANDLE, str(e.args[0]))
+
+    def RequestHandles(self, e):
+        htype, idents = e.args
+        self.q.dbus_return(e.message,
+                [self.ensure_handle(htype, i) for i in idents],
+                signature='au')
 
     def GetStatus(self, e):
         self.q.dbus_return(e.message, self.status, signature='u')
