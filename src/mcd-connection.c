@@ -128,11 +128,12 @@ struct _McdConnectionPrivate
 
     McdSlacker *slacker;
 
-    struct
-    {
-        TpIntset *handles;
-        GSList *numbers;
-    } emergency;
+    /* Emergency service points' handles.
+     * Set of handles, lazily-allocated. */
+    TpIntset *service_point_handles;
+    /* Emergency service points' identifiers.
+     * Set of (transfer full) (type utf8), lazily-allocated. */
+    GHashTable *service_point_ids;
 };
 
 typedef struct
@@ -1547,6 +1548,9 @@ _mcd_connection_finalize (GObject * object)
     if (priv->recognized_presences)
         g_hash_table_unref (priv->recognized_presences);
 
+    tp_clear_pointer (&priv->service_point_handles, tp_intset_destroy);
+    tp_clear_pointer (&priv->service_point_ids, g_hash_table_unref);
+
     G_OBJECT_CLASS (mcd_connection_parent_class)->finalize (object);
 }
 
@@ -1824,31 +1828,19 @@ mcd_connection_need_dispatch (McdConnection *connection,
 }
 
 gboolean
-_mcd_connection_target_id_is_urgent (McdConnection *self, const gchar *name)
+_mcd_connection_target_id_is_urgent (McdConnection *self,
+    const gchar *name)
 {
-  GSList *list = self->priv->emergency.numbers;
-
-  for (; list != NULL; list = g_slist_next (list))
-    {
-      const gchar **number = list->data;
-
-      for (; number != NULL && *number != NULL; number++)
-        {
-          if (!tp_strdiff (*number, name))
-            return TRUE;
-        }
-    }
-
-  return FALSE;
+  return self->priv->service_point_ids != NULL &&
+      g_hash_table_contains (self->priv->service_point_ids, name);
 }
 
 gboolean
-_mcd_connection_target_handle_is_urgent (McdConnection *self, guint handle)
+_mcd_connection_target_handle_is_urgent (McdConnection *self,
+    guint handle)
 {
-  if (handle != 0 && self->priv->emergency.handles != NULL)
-    return tp_intset_is_member (self->priv->emergency.handles, handle);
-
-  return FALSE;
+  return self->priv->service_point_handles != NULL &&
+      tp_intset_is_member (self->priv->service_point_handles, handle);
 }
 
 static gboolean
@@ -2336,46 +2328,41 @@ _mcd_connection_presence_info_is_ready (McdConnection *self)
     return self->priv->presence_info_ready;
 }
 
-static void clear_emergency_handles (McdConnectionPrivate *priv)
+void
+_mcd_connection_take_emergency_numbers (McdConnection *self,
+    GSList *numbers)
 {
-  tp_clear_pointer (&priv->emergency.handles, tp_intset_destroy);
-}
+  GSList *iter;
 
-static void clear_emergency_numbers (McdConnectionPrivate *priv)
-{
-  g_slist_foreach (priv->emergency.numbers, (GFunc) g_strfreev, NULL);
-  tp_clear_pointer (&priv->emergency.numbers, g_slist_free);
-}
+  if (self->priv->service_point_ids == NULL)
+    self->priv->service_point_ids = g_hash_table_new_full (g_str_hash,
+        g_str_equal, g_free, NULL);
 
-void _mcd_connection_clear_emergency_data (McdConnection *self)
-{
-    clear_emergency_handles (self->priv);
-    clear_emergency_numbers (self->priv);
-}
+  for (iter = numbers; iter != NULL; iter = iter->next)
+    {
+      GStrv ids = iter->data;
+      gchar **id_p;
 
-void _mcd_connection_take_emergency_numbers (McdConnection *self, GSList *numbers)
-{
-    McdConnectionPrivate *priv = self->priv;
+      /* We treat emergency numbers as "sticky": if a given ID has ever
+       * been considered an emergency number, it stays an emergency number.
+       * This seems safer than ever removing one and losing their special
+       * treatment. */
+      for (id_p = ids; id_p != NULL && *id_p != NULL; id_p++)
+        g_hash_table_add (self->priv->service_point_ids, *id_p);
+    }
 
-    if (priv->emergency.numbers != NULL)
-      {
-        clear_emergency_numbers (priv);
-        g_critical ("Overwriting old emergency numbers");
-      }
-
-    priv->emergency.numbers = numbers;
+  /* GStrv members' ownership has already been transferred */
+  g_slist_free_full (numbers, g_free);
 }
 
 void
-_mcd_connection_take_emergency_handles (McdConnection *self, TpIntset *handles)
+_mcd_connection_take_emergency_handles (McdConnection *self,
+    TpIntset *handles)
 {
-    McdConnectionPrivate *priv = self->priv;
+  if (self->priv->service_point_handles == NULL)
+    self->priv->service_point_handles = tp_intset_new ();
 
-    if (priv->emergency.handles != NULL)
-      {
-        clear_emergency_handles (priv);
-        g_critical ("Overwriting old emergency handles");
-      }
-
-    priv->emergency.handles = handles;
+  /* As above, we treat emergency numbers as "sticky". */
+  tp_intset_union_update (self->priv->service_point_handles, handles);
+  tp_intset_destroy (handles);
 }

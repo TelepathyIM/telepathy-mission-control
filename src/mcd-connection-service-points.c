@@ -83,8 +83,6 @@ parse_services_list (McdConnection *connection,
       GSList *service;
       TpConnection *tp_conn = mcd_connection_get_tp_connection (connection);
 
-      _mcd_connection_clear_emergency_data (connection);
-
       for (service = e_numbers; service != NULL; service =g_slist_next (service))
         {
           if (service->data != NULL)

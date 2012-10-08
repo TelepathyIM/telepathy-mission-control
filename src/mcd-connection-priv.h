@@ -61,8 +61,6 @@ G_GNUC_INTERNAL void _mcd_connection_take_emergency_numbers (McdConnection *self
 G_GNUC_INTERNAL void _mcd_connection_take_emergency_handles (McdConnection *self,
     TpIntset *handles);
 
-G_GNUC_INTERNAL void _mcd_connection_clear_emergency_data (McdConnection *self);
-
 G_GNUC_INTERNAL gboolean _mcd_connection_target_id_is_urgent (McdConnection *connection,
     const gchar *name);
 
