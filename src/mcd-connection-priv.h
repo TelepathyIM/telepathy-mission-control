@@ -47,9 +47,6 @@ G_GNUC_INTERNAL void _mcd_connection_start_dispatching (McdConnection *self,
 
 G_GNUC_INTERNAL gboolean _mcd_connection_is_ready (McdConnection *self);
 
-G_GNUC_INTERNAL void _mcd_connection_set_nickname (McdConnection *self,
-                                                   const gchar *nickname);
-
 G_GNUC_INTERNAL void _mcd_connection_set_avatar (McdConnection *self,
                                                  const GArray *avatar,
                                                  const gchar *mime_type);

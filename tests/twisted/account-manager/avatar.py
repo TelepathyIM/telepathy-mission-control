@@ -118,7 +118,6 @@ def test(q, bus, mc):
     conn.forget_avatar()
     q.dbus_emit(conn.object_path, cs.CONN_IFACE_AVATARS, 'AvatarUpdated',
                 conn.self_handle, '', signature='us')
-    q.expect('dbus-method-call', method='GetKnownAvatarTokens')
     q.expect('dbus-signal', path=account.object_path,
              interface=cs.ACCOUNT_IFACE_AVATAR, signal='AvatarChanged')
 

@@ -122,6 +122,7 @@ struct _McdAccountPrivate
     gchar *protocol_name;
 
     TpConnection *tp_connection;
+    TpContact *self_contact;
     McdConnection *connection;
     McdManager *manager;
 
@@ -172,6 +173,7 @@ struct _McdAccountPrivate
     gboolean removed;
     gboolean always_on;
     gboolean changing_presence;
+    gboolean setting_avatar;
 
     gboolean hidden;
     gboolean always_dispatch;
@@ -1277,6 +1279,44 @@ get_service (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     mcd_account_get_string_val (account, name, value);
 }
 
+static void
+mcd_account_set_self_alias_cb (TpConnection *tp_connection,
+    const GError *error,
+    gpointer user_data,
+    GObject *weak_object)
+{
+  if (error)
+    DEBUG ("%s", error->message);
+}
+
+static void
+mcd_account_send_nickname_to_connection (McdAccount *self,
+    const gchar *nickname)
+{
+  if (self->priv->tp_connection == NULL)
+    return;
+
+  if (self->priv->self_contact == NULL)
+    return;
+
+  DEBUG ("%s: '%s'", self->priv->unique_name, nickname);
+
+  if (tp_proxy_has_interface_by_id (self->priv->tp_connection,
+          TP_IFACE_QUARK_CONNECTION_INTERFACE_ALIASING))
+    {
+      GHashTable *aliases = g_hash_table_new (NULL, NULL);
+
+      g_hash_table_insert (aliases,
+          GUINT_TO_POINTER (tp_contact_get_handle (self->priv->self_contact)),
+          (gchar *) nickname);
+      tp_cli_connection_interface_aliasing_call_set_aliases (
+          self->priv->tp_connection, -1, aliases,
+          mcd_account_set_self_alias_cb, NULL, NULL, NULL);
+      g_hash_table_unref (aliases);
+    }
+}
+
+
 static gboolean
 set_nickname (TpSvcDBusProperties *self, const gchar *name,
               const GValue *value, GError **error)
@@ -1284,19 +1324,38 @@ set_nickname (TpSvcDBusProperties *self, const gchar *name,
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
     SetResult ret;
+    GValue replacement = G_VALUE_INIT;
 
     DEBUG ("called for %s", priv->unique_name);
+
+    /* If we're asked to set Nickname = "", set it to our identifier
+     * (NormalizedName) instead, so that we always have some sort of nickname.
+     * This matches what we do when connecting an account.
+     *
+     * Exception: if we're not fully connected yet (and hence have no
+     * self-contact), rely on the corresponding special-case
+     * when we do become connected.
+     */
+    if (G_VALUE_HOLDS_STRING (value) &&
+        tp_str_empty (g_value_get_string (value)) &&
+        priv->self_contact != NULL)
+    {
+        g_value_init (&replacement, G_TYPE_STRING);
+        g_value_set_string (&replacement,
+            tp_contact_get_identifier (priv->self_contact));
+        value = &replacement;
+    }
+
     ret = mcd_account_set_string_val (account, name, value, error);
 
-    /* we need to call _mcd_connection_set_nickname for side effects,  *
-     * as that is how the CM is informed of the current nickname, even *
-     * if the nickname hasn't changed from our POV                     */
-    if (priv->connection != NULL)
+    if (ret != SET_RESULT_ERROR)
     {
-        /* this is a no-op if the connection doesn't support it */
-        _mcd_connection_set_nickname (priv->connection,
-                                      g_value_get_string (value));
+        mcd_account_send_nickname_to_connection (account,
+            g_value_get_string (value));
     }
+
+    if (value == &replacement)
+        g_value_unset (&replacement);
 
     return (ret != SET_RESULT_ERROR);
 }
@@ -1307,6 +1366,169 @@ get_nickname (TpSvcDBusProperties *self, const gchar *name, GValue *value)
     McdAccount *account = MCD_ACCOUNT (self);
 
     mcd_account_get_string_val (account, name, value);
+}
+
+static void
+mcd_account_self_contact_notify_avatar_file_cb (McdAccount *self,
+    GParamSpec *unused_param_spec G_GNUC_UNUSED,
+    TpContact *self_contact)
+{
+  const gchar *token;
+  gchar *prev_token;
+  GFile *file;
+  GError *error = NULL;
+  gboolean changed;
+
+  if (self_contact != self->priv->self_contact)
+    return;
+
+  file = tp_contact_get_avatar_file (self_contact);
+  token = tp_contact_get_avatar_token (self_contact);
+
+  if (self->priv->setting_avatar)
+    {
+      DEBUG ("Ignoring avatar change notification: we are setting ours");
+      return;
+    }
+
+  prev_token = _mcd_account_get_avatar_token (self);
+  changed = tp_strdiff (prev_token, token);
+  g_free (prev_token);
+
+  if (!changed)
+    {
+      DEBUG ("Avatar unchanged: '%s'", token);
+      return;
+    }
+
+  if (file == NULL)
+    {
+      if (!_mcd_account_set_avatar (self, NULL, "", "", &error))
+        {
+          DEBUG ("Attempt to clear avatar failed: %s", error->message);
+          g_clear_error (&error);
+        }
+    }
+  else
+    {
+      gchar *contents = NULL;
+      gsize len = 0;
+      GArray *arr;
+
+      if (!g_file_load_contents (file, NULL, &contents, &len, NULL, &error))
+        {
+          gchar *uri = g_file_get_uri (file);
+
+          WARNING ("Unable to read avatar file %s: %s", uri, error->message);
+          g_clear_error (&error);
+          g_free (uri);
+          return;
+        }
+
+      if (G_UNLIKELY (len > G_MAXUINT))
+        {
+          gchar *uri = g_file_get_uri (file);
+
+          WARNING ("Avatar file %s was ludicrously huge", uri);
+          g_free (uri);
+          g_free (contents);
+          return;
+        }
+
+      arr = g_array_sized_new (TRUE, FALSE, 1, (guint) len);
+      g_array_append_vals (arr, contents, (guint) len);
+      g_free (contents);
+
+      if (!_mcd_account_set_avatar (self, arr,
+              tp_contact_get_avatar_mime_type (self_contact),
+              tp_contact_get_avatar_token (self_contact), &error))
+        {
+          DEBUG ("Attempt to save avatar failed: %s", error->message);
+          g_clear_error (&error);
+        }
+
+      g_array_unref (arr);
+    }
+}
+
+static void
+avatars_set_avatar_cb (TpConnection *tp_connection,
+    const gchar *token,
+    const GError *error,
+    gpointer user_data,
+    GObject *weak_object)
+{
+  McdAccount *self = MCD_ACCOUNT (weak_object);
+
+  self->priv->setting_avatar = FALSE;
+
+  if (error != NULL)
+    {
+      DEBUG ("%s: %s", self->priv->unique_name, error->message);
+    }
+  else
+    {
+      DEBUG ("%s: new token %s", self->priv->unique_name, token);
+      _mcd_account_set_avatar_token (self, token);
+    }
+}
+
+static void
+avatars_clear_avatar_cb (TpConnection *tp_connection,
+    const GError *error,
+    gpointer user_data,
+    GObject *weak_object)
+{
+  McdAccount *self = MCD_ACCOUNT (weak_object);
+
+  self->priv->setting_avatar = FALSE;
+
+  if (error != NULL)
+    {
+      DEBUG ("%s: %s", self->priv->unique_name, error->message);
+    }
+  else
+    {
+      DEBUG ("%s: success", self->priv->unique_name);
+      _mcd_account_set_avatar_token (self, "");
+    }
+}
+
+static void
+mcd_account_send_avatar_to_connection (McdAccount *self,
+    const GArray *avatar,
+    const gchar *mime_type)
+{
+  if (self->priv->tp_connection == NULL)
+    return;
+
+  if (self->priv->self_contact == NULL)
+    return;
+
+  DEBUG ("%s: %u bytes", self->priv->unique_name, avatar->len);
+
+  if (tp_proxy_has_interface_by_id (self->priv->tp_connection,
+          TP_IFACE_QUARK_CONNECTION_INTERFACE_AVATARS))
+    {
+      self->priv->setting_avatar = TRUE;
+
+      if (avatar->len > 0 && avatar->len < G_MAXUINT)
+        {
+          tp_cli_connection_interface_avatars_call_set_avatar (
+            self->priv->tp_connection, -1, avatar, mime_type,
+            avatars_set_avatar_cb, NULL, NULL, (GObject *) self);
+        }
+      else
+        {
+          tp_cli_connection_interface_avatars_call_clear_avatar (
+              self->priv->tp_connection, -1, avatars_clear_avatar_cb,
+              NULL, NULL, (GObject *) self);
+        }
+    }
+  else
+    {
+      DEBUG ("unsupported, ignoring");
+    }
 }
 
 static gboolean
@@ -3256,6 +3478,7 @@ _mcd_account_dispose (GObject *object)
     tp_clear_object (&priv->storage_plugin);
     tp_clear_object (&priv->storage);
     tp_clear_object (&priv->dbus_daemon);
+    tp_clear_object (&priv->self_contact);
 
     _mcd_account_set_connection_context (self, NULL);
     _mcd_account_set_connection (self, NULL);
@@ -3888,11 +4111,7 @@ _mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
                                MC_ACCOUNTS_KEY_AVATAR_TOKEN,
                                NULL, FALSE);
 
-        /* this is a no-op if the connection doesn't support avatars */
-        if (priv->connection != NULL)
-        {
-            _mcd_connection_set_avatar (priv->connection, avatar, mime_type);
-        }
+        mcd_account_send_avatar_to_connection (account, avatar, mime_type);
     }
 
     mcd_storage_commit (priv->storage, account_name);
@@ -3990,15 +4209,18 @@ _mcd_account_get_supersedes (McdAccount *self)
 }
 
 static void
-mcd_account_connection_self_nickname_changed_cb (McdAccount *account,
-                                                 const gchar *alias,
-                                                 McdConnection *connection)
+mcd_account_self_contact_notify_alias_cb (McdAccount *self,
+    GParamSpec *unused_param_spec G_GNUC_UNUSED,
+    TpContact *self_contact)
 {
     GValue value = G_VALUE_INIT;
 
+    if (self_contact != self->priv->self_contact)
+        return;
+
     g_value_init (&value, G_TYPE_STRING);
-    g_value_set_static_string (&value, alias);
-    mcd_account_set_string_val (account, MC_ACCOUNTS_KEY_ALIAS, &value, NULL);
+    g_object_get_property (G_OBJECT (self_contact), "alias", &value);
+    mcd_account_set_string_val (self, MC_ACCOUNTS_KEY_ALIAS, &value, NULL);
     g_value_unset (&value);
 }
 
@@ -4172,6 +4394,7 @@ _mcd_account_set_connection_status (McdAccount *account,
         || (tp_conn != NULL && status == TP_CONNECTION_STATUS_DISCONNECTED))
     {
         tp_clear_object (&priv->tp_connection);
+        tp_clear_object (&priv->self_contact);
 
         if (tp_conn != NULL && status != TP_CONNECTION_STATUS_DISCONNECTED)
             priv->tp_connection = g_object_ref (tp_conn);
@@ -4453,13 +4676,168 @@ _mcd_account_get_old_avatar_filename (McdAccount *account,
 }
 
 static void
+mcd_account_process_initial_avatar_token (McdAccount *self)
+{
+  gchar *prev_token;
+  const gchar *token;
+
+  g_assert (self->priv->self_contact != NULL);
+
+  prev_token = _mcd_account_get_avatar_token (self);
+  token = tp_contact_get_avatar_token (self->priv->self_contact);
+
+  /* If we have a stored avatar but no avatar token, we must have
+   * changed it locally; set it.
+   *
+   * Meanwhile, if the self-contact's avatar token is empty, this is a
+   * protocol like link-local XMPP where avatars don't persist.
+   * Upload ours, if any. */
+  if (tp_str_empty (prev_token) || tp_str_empty (token))
+    {
+      GArray *avatar = NULL;
+      gchar *mime_type = NULL;
+
+      _mcd_account_get_avatar (self, &avatar, &mime_type);
+
+      if (avatar != NULL)
+        {
+          if (tp_str_empty (prev_token))
+            DEBUG ("We have an avatar that has never been uploaded");
+          if (tp_str_empty (token))
+            DEBUG ("We have an avatar and the server doesn't");
+
+          mcd_account_send_avatar_to_connection (self, avatar, mime_type);
+          g_array_unref (avatar);
+          g_free (mime_type);
+          return;
+        }
+
+      tp_clear_pointer (&avatar, g_array_unref);
+      g_free (mime_type);
+    }
+
+  /* Otherwise, if the self-contact's avatar token
+   * differs from ours, one of our "other selves" must have changed
+   * it remotely. Behave the same as if it changes remotely
+   * mid-session - i.e. download it and use it as our new avatar. */
+  if (tp_strdiff (token, prev_token))
+    {
+      GFile *file = tp_contact_get_avatar_file (self->priv->self_contact);
+
+      DEBUG ("The server's avatar does not match ours");
+
+      if (file != NULL)
+        {
+          /* We have already downloaded it: copy it. */
+          mcd_account_self_contact_notify_avatar_file_cb (self, NULL,
+              self->priv->self_contact);
+        }
+      /* ... else we haven't downloaded it yet, but when we do,
+       * notify::avatar-file will go off. */
+    }
+
+  g_free (prev_token);
+}
+
+
+static void
+mcd_account_self_contact_upgraded_cb (GObject *source_object,
+    GAsyncResult *res,
+    gpointer user_data)
+{
+  McdAccount *self = tp_weak_ref_dup_object (user_data);
+  GPtrArray *contacts = NULL;
+  GError *error = NULL;
+
+  if (self == NULL)
+    return;
+
+  g_return_if_fail (MCD_IS_ACCOUNT (self));
+
+  if (tp_connection_upgrade_contacts_finish (TP_CONNECTION (source_object),
+          res, &contacts, &error))
+    {
+      TpContact *self_contact;
+
+      g_assert (contacts->len == 1);
+      self_contact = g_ptr_array_index (contacts, 0);
+
+      if (self_contact == self->priv->self_contact)
+        {
+          DEBUG ("%s", tp_contact_get_identifier (self_contact));
+
+          tp_g_signal_connect_object (self_contact, "notify::alias",
+              G_CALLBACK (mcd_account_self_contact_notify_alias_cb),
+              self, G_CONNECT_SWAPPED);
+          mcd_account_self_contact_notify_alias_cb (self, NULL, self_contact);
+
+          tp_g_signal_connect_object (self_contact, "notify::avatar-file",
+              G_CALLBACK (mcd_account_self_contact_notify_avatar_file_cb),
+              self, G_CONNECT_SWAPPED);
+          mcd_account_process_initial_avatar_token (self);
+        }
+      else
+        {
+          DEBUG ("self-contact '%s' has changed to '%s' since we asked to "
+              "upgrade it", tp_contact_get_identifier (self_contact),
+              tp_contact_get_identifier (self->priv->self_contact));
+        }
+
+      g_ptr_array_unref (contacts);
+    }
+  else
+    {
+      DEBUG ("failed to prepare self-contact: %s", error->message);
+      g_clear_error (&error);
+    }
+
+  g_object_unref (self);
+  tp_weak_ref_destroy (user_data);
+}
+
+static void
+mcd_account_self_contact_changed_cb (McdAccount *self,
+    GParamSpec *unused_param_spec G_GNUC_UNUSED,
+    TpConnection *tp_connection)
+{
+  static const TpContactFeature contact_features[] = {
+      TP_CONTACT_FEATURE_AVATAR_TOKEN,
+      TP_CONTACT_FEATURE_AVATAR_DATA,
+      TP_CONTACT_FEATURE_ALIAS
+  };
+  TpContact *self_contact;
+
+  if (tp_connection != self->priv->tp_connection)
+    return;
+
+  self_contact = tp_connection_get_self_contact (tp_connection);
+  g_assert (self_contact != NULL);
+
+  DEBUG ("%s", tp_contact_get_identifier (self_contact));
+
+  if (self_contact == self->priv->self_contact)
+    return;
+
+  g_clear_object (&self->priv->self_contact);
+  self->priv->self_contact = g_object_ref (self_contact);
+
+  _mcd_account_set_normalized_name (self,
+      tp_contact_get_identifier (self_contact));
+
+  tp_connection_upgrade_contacts_async (tp_connection,
+      1, &self_contact,
+      G_N_ELEMENTS (contact_features), contact_features,
+      mcd_account_self_contact_upgraded_cb,
+      tp_weak_ref_new (self, NULL, NULL));
+}
+
+static void
 mcd_account_connection_ready_cb (McdAccount *account,
                                  McdConnection *connection)
 {
     McdAccountPrivate *priv = account->priv;
     gchar *nickname;
     TpConnection *tp_connection;
-    TpContact *self_contact;
     TpConnectionStatus status;
     TpConnectionStatusReason reason;
     const gchar *dbus_error = NULL;
@@ -4480,22 +4858,36 @@ mcd_account_connection_ready_cb (McdAccount *account,
     _mcd_account_set_connection_status (account, status, reason,
                                         tp_connection, dbus_error, details);
 
-    self_contact = tp_connection_get_self_contact (tp_connection);
-    g_assert (self_contact != NULL);
-    _mcd_account_set_normalized_name (account, tp_contact_get_identifier (
-            self_contact));
+    tp_g_signal_connect_object (tp_connection, "notify::self-contact",
+        G_CALLBACK (mcd_account_self_contact_changed_cb), account,
+        G_CONNECT_SWAPPED);
+    mcd_account_self_contact_changed_cb (account, NULL, tp_connection);
+    g_assert (priv->self_contact != NULL);
 
     /* FIXME: ideally, on protocols with server-stored nicknames, this should
      * only be done if the local Nickname has been changed since last time we
      * were online; Aliasing doesn't currently offer a way to tell whether
-     * this is such a protocol, though. */
-
+     * this is such a protocol, though.
+     *
+     * As a first step towards doing the right thing, we assume that if our
+     * locally-stored nickname is just the protocol identifer, the
+     * server-stored nickname (if any) takes precedence.
+     */
     nickname = mcd_account_get_alias (account);
 
-    if (nickname != NULL)
+    if (tp_str_empty (nickname))
     {
-        /* this is a no-op if the connection doesn't support it */
-        _mcd_connection_set_nickname (connection, nickname);
+        DEBUG ("no nickname yet");
+    }
+    else if (!tp_strdiff (nickname,
+            tp_contact_get_identifier (priv->self_contact)))
+    {
+        DEBUG ("not setting nickname to '%s' since it matches the "
+            "NormalizedName", nickname);
+    }
+    else
+    {
+        mcd_account_send_nickname_to_connection (account, nickname);
     }
 
     g_free (nickname);
@@ -4559,10 +4951,6 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
             g_signal_connect_swapped (connection, "ready",
                 G_CALLBACK (mcd_account_connection_ready_cb), account);
         }
-
-        g_signal_connect_swapped (connection, "self-nickname-changed",
-                G_CALLBACK (mcd_account_connection_self_nickname_changed_cb),
-                account);
 
         g_signal_connect (connection, "self-presence-changed",
                           G_CALLBACK (on_conn_self_presence_changed), account);
