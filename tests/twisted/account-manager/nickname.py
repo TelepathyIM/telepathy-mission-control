@@ -139,8 +139,26 @@ def test(q, bus, mc, nickname):
     assertEquals(nickname, account_props.Get(cs.ACCOUNT, 'Nickname'))
     q.dbus_return(e.message, signature='')
 
-    # If we set an empty nickname while connected, MC currently does use it
-    # (??? this is pretty weird)
+    # Set the nickname back to something else
+    nickname = 'wjt'
+    call_async(q, account_props, 'Set', cs.ACCOUNT, 'Nickname', nickname)
+    _, _, e = q.expect_many(
+        EventPattern('dbus-signal',
+            path=account.object_path,
+            signal='AccountPropertyChanged',
+            interface=cs.ACCOUNT,
+            args=[{'Nickname': nickname}]),
+        EventPattern('dbus-return', method='Set'),
+        EventPattern('dbus-method-call',
+            interface=cs.CONN_IFACE_ALIASING, method='SetAliases',
+            args=[{ conn.self_handle: nickname }],
+            handled=False)
+        )
+    assertEquals(nickname, account_props.Get(cs.ACCOUNT, 'Nickname'))
+    q.dbus_return(e.message, signature='')
+
+    # If we set an empty nickname while connected, MC uses our normalized
+    # name (identifier) instead.
     call_async(q, account_props, 'Set', cs.ACCOUNT, 'Nickname',
             '')
     _, _, e = q.expect_many(
@@ -148,14 +166,14 @@ def test(q, bus, mc, nickname):
             path=account.object_path,
             signal='AccountPropertyChanged',
             interface=cs.ACCOUNT,
-            args=[{'Nickname': ''}]),
+            args=[{'Nickname': params['account']}]),
         EventPattern('dbus-return', method='Set'),
         EventPattern('dbus-method-call',
             interface=cs.CONN_IFACE_ALIASING, method='SetAliases',
-            args=[{ conn.self_handle: '' }],
+            args=[{ conn.self_handle: params['account'] }],
             handled=False)
         )
-    assertEquals('', account_props.Get(cs.ACCOUNT, 'Nickname'))
+    assertEquals(params['account'], account_props.Get(cs.ACCOUNT, 'Nickname'))
     q.dbus_return(e.message, signature='')
 
 def test_both(q, bus, mc):
