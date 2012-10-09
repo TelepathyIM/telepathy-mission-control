@@ -198,7 +198,6 @@ enum
 
 enum
 {
-    CONNECTION_STATUS_CHANGED,
     VALIDITY_CHANGED,
     CONNECTION_PATH_CHANGED,
     LAST_SIGNAL
@@ -3579,14 +3578,6 @@ mcd_account_class_init (McdAccountClass * klass)
                                FALSE,
                                G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
     /* Signals */
-    _mcd_account_signals[CONNECTION_STATUS_CHANGED] =
-	g_signal_new ("connection-status-changed",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
-		      0,
-		      NULL, NULL, NULL,
-		      G_TYPE_NONE,
-		      2, G_TYPE_UINT, G_TYPE_UINT);
     _mcd_account_signals[VALIDITY_CHANGED] =
 	g_signal_new ("validity-changed",
 		      G_OBJECT_CLASS_TYPE (klass),
@@ -4449,11 +4440,6 @@ _mcd_account_set_connection_status (McdAccount *account,
     mcd_account_thaw_properties (account);
 
     process_online_requests (account, status, reason);
-
-    if (changed)
-	g_signal_emit (account,
-		       _mcd_account_signals[CONNECTION_STATUS_CHANGED], 0,
-		       status, reason);
 }
 
 TpConnectionStatus
@@ -4463,9 +4449,6 @@ mcd_account_get_connection_status (McdAccount *account)
     return priv->conn_status;
 }
 
-/* FIXME: if this was only called from _mcd_account_set_connection_status,
- * we could combine CONNECTION_STATUS_CHANGED and CONNECTION_PATH_CHANGED
- * into one signal... but for now, this is also called from McdConnection */
 void
 _mcd_account_tp_connection_changed (McdAccount *account,
                                     TpConnection *tp_conn)
