@@ -4815,11 +4815,11 @@ mcd_account_self_contact_changed_cb (McdAccount *self,
 
   DEBUG ("%s", tp_contact_get_identifier (self_contact));
 
-  if (self_contact != self->priv->self_contact)
-    {
-      g_clear_object (&self->priv->self_contact);
-      self->priv->self_contact = g_object_ref (self_contact);
-    }
+  if (self_contact == self->priv->self_contact)
+    return;
+
+  g_clear_object (&self->priv->self_contact);
+  self->priv->self_contact = g_object_ref (self_contact);
 
   _mcd_account_set_normalized_name (self,
       tp_contact_get_identifier (self_contact));
