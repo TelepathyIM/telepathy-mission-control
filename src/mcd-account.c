@@ -4676,11 +4676,15 @@ _mcd_account_get_old_avatar_filename (McdAccount *account,
 }
 
 static void
-mcd_account_process_initial_avatar_token (McdAccount *self,
-    TpContact *self_contact)
+mcd_account_process_initial_avatar_token (McdAccount *self)
 {
-  gchar *prev_token = _mcd_account_get_avatar_token (self);
-  const gchar *token = tp_contact_get_avatar_token (self_contact);
+  gchar *prev_token;
+  const gchar *token;
+
+  g_assert (self->priv->self_contact != NULL);
+
+  prev_token = _mcd_account_get_avatar_token (self);
+  token = tp_contact_get_avatar_token (self->priv->self_contact);
 
   /* If we have a stored avatar but no avatar token, we must have
    * changed it locally; set it.
@@ -4718,7 +4722,7 @@ mcd_account_process_initial_avatar_token (McdAccount *self,
    * mid-session - i.e. download it and use it as our new avatar. */
   if (tp_strdiff (token, prev_token))
     {
-      GFile *file = tp_contact_get_avatar_file (self_contact);
+      GFile *file = tp_contact_get_avatar_file (self->priv->self_contact);
 
       DEBUG ("The server's avatar does not match ours");
 
@@ -4770,7 +4774,7 @@ mcd_account_self_contact_upgraded_cb (GObject *source_object,
           tp_g_signal_connect_object (self_contact, "notify::avatar-file",
               G_CALLBACK (mcd_account_self_contact_notify_avatar_file_cb),
               self, G_CONNECT_SWAPPED);
-          mcd_account_process_initial_avatar_token (self, self_contact);
+          mcd_account_process_initial_avatar_token (self);
         }
       else
         {
