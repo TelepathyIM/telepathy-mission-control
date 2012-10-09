@@ -4754,7 +4754,7 @@ mcd_account_self_contact_upgraded_cb (GObject *source_object,
     }
   else
     {
-      WARNING ("failed to prepare self-contact: %s", error->message);
+      DEBUG ("failed to prepare self-contact: %s", error->message);
       g_clear_error (&error);
     }
 
