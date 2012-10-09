@@ -1286,7 +1286,7 @@ mcd_account_set_self_alias_cb (TpConnection *tp_connection,
     GObject *weak_object)
 {
   if (error)
-    WARNING ("%s", error->message);
+    DEBUG ("%s", error->message);
 }
 
 static void
@@ -1435,7 +1435,7 @@ avatars_set_avatar_cb (TpConnection *tp_connection,
 
   if (error != NULL)
     {
-      WARNING ("%s: %s", self->priv->unique_name, error->message);
+      DEBUG ("%s: %s", self->priv->unique_name, error->message);
     }
   else
     {
@@ -1456,7 +1456,7 @@ avatars_clear_avatar_cb (TpConnection *tp_connection,
 
   if (error != NULL)
     {
-      WARNING ("%s: %s", self->priv->unique_name, error->message);
+      DEBUG ("%s: %s", self->priv->unique_name, error->message);
     }
   else
     {
