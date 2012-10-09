@@ -1373,11 +1373,17 @@ mcd_account_self_contact_notify_avatar_file_cb (McdAccount *self,
     GParamSpec *unused_param_spec G_GNUC_UNUSED,
     TpContact *self_contact)
 {
-  const gchar *token = tp_contact_get_avatar_token (self_contact);
+  const gchar *token;
   gchar *prev_token;
-  GFile *file = tp_contact_get_avatar_file (self_contact);
+  GFile *file;
   GError *error = NULL;
   gboolean changed;
+
+  if (self_contact != self->priv->self_contact)
+    return;
+
+  file = tp_contact_get_avatar_file (self_contact);
+  token = tp_contact_get_avatar_token (self_contact);
 
   if (self->priv->setting_avatar)
     {
