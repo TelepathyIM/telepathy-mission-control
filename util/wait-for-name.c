@@ -38,6 +38,8 @@
  *
  */
 
+#include "config.h"
+
 #ifdef HAVE_SYSEXITS_H
 # include <sysexits.h>
 #else

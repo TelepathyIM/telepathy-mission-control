@@ -22,6 +22,8 @@
  *   Will Thompson <will.thompson@collabora.co.uk>
  */
 
+#include "config.h"
+
 #include "connectivity-monitor.h"
 
 static void
