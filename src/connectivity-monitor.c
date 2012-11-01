@@ -148,7 +148,7 @@ connectivity_monitor_nm_state_change_cb (NMClient *client,
 
 #ifdef HAVE_CONNMAN
 static void
-connectivity_monitor_connman_state_changed_cb (DBusGProxy *proxy,
+connectivity_monitor_connman_state_changed (DBusGProxy *proxy,
     const gchar *new_state,
     McdConnectivityMonitor *connectivity_monitor)
 {
@@ -168,25 +168,47 @@ connectivity_monitor_connman_state_changed_cb (DBusGProxy *proxy,
 }
 
 static void
+connectivity_monitor_connman_property_changed_cb (DBusGProxy *proxy,
+    const gchar *prop_name,
+    const GValue *new_value,
+    McdConnectivityMonitor *connectivity_monitor)
+{
+  if (!tp_strdiff (prop_name, "State"))
+    connectivity_monitor_connman_state_changed (proxy,
+        g_value_get_string (new_value), connectivity_monitor);
+}
+
+static void
 connectivity_monitor_connman_check_state_cb (DBusGProxy *proxy,
     DBusGProxyCall *call_id,
     gpointer user_data)
 {
   McdConnectivityMonitor *connectivity_monitor = (McdConnectivityMonitor *) user_data;
   GError *error = NULL;
-  gchar *state;
+  GHashTable *props;
 
   if (dbus_g_proxy_end_call (proxy, call_id, &error,
-          G_TYPE_STRING, &state, G_TYPE_INVALID))
+          dbus_g_type_get_map ("GHashTable", G_TYPE_STRING, G_TYPE_VALUE),
+          &props, G_TYPE_INVALID))
     {
-      connectivity_monitor_connman_state_changed_cb (proxy, state,
-          connectivity_monitor);
-      g_free (state);
+      const gchar *state = tp_asv_get_string (props, "State");
+
+      if (state != NULL)
+        {
+          connectivity_monitor_connman_state_changed (proxy, state,
+              connectivity_monitor);
+        }
+      else
+        {
+          DEBUG ("Failed to get State: not in GetProperties return");
+        }
+
+      g_hash_table_unref (props);
     }
   else
     {
-      DEBUG ("Failed to call GetState: %s", error->message);
-      connectivity_monitor_connman_state_changed_cb (proxy, "offline",
+      DEBUG ("Failed to call GetProperties: %s", error->message);
+      connectivity_monitor_connman_state_changed (proxy, "offline",
           connectivity_monitor);
     }
 }
@@ -198,7 +220,7 @@ connectivity_monitor_connman_check_state (McdConnectivityMonitor *connectivity_m
 
   priv = connectivity_monitor->priv;
 
-  dbus_g_proxy_begin_call (priv->proxy, "GetState",
+  dbus_g_proxy_begin_call (priv->proxy, "GetProperties",
       connectivity_monitor_connman_check_state_cb, connectivity_monitor, NULL,
       G_TYPE_INVALID);
 }
@@ -280,14 +302,14 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
           "net.connman.Manager");
 
       dbus_g_object_register_marshaller (
-          g_cclosure_marshal_VOID__STRING,
-          G_TYPE_NONE, G_TYPE_STRING, G_TYPE_INVALID);
+          g_cclosure_marshal_generic,
+          G_TYPE_NONE, G_TYPE_STRING, G_TYPE_BOXED, G_TYPE_INVALID);
 
-      dbus_g_proxy_add_signal (priv->proxy, "StateChanged",
-          G_TYPE_STRING, G_TYPE_INVALID);
+      dbus_g_proxy_add_signal (priv->proxy, "PropertyChanged",
+          G_TYPE_STRING, G_TYPE_VALUE, G_TYPE_INVALID);
 
-      dbus_g_proxy_connect_signal (priv->proxy, "StateChanged",
-          G_CALLBACK (connectivity_monitor_connman_state_changed_cb),
+      dbus_g_proxy_connect_signal (priv->proxy, "PropertyChanged",
+          G_CALLBACK (connectivity_monitor_connman_property_changed_cb),
           connectivity_monitor, NULL);
 
       connectivity_monitor_connman_check_state (connectivity_monitor);
@@ -336,8 +358,9 @@ connectivity_monitor_finalize (GObject *object)
 #ifdef HAVE_CONNMAN
   if (priv->proxy != NULL)
     {
-      dbus_g_proxy_disconnect_signal (priv->proxy, "StateChanged",
-          G_CALLBACK (connectivity_monitor_connman_state_changed_cb), connectivity_monitor);
+      dbus_g_proxy_disconnect_signal (priv->proxy, "PropertyChanged",
+          G_CALLBACK (connectivity_monitor_connman_property_changed_cb),
+          connectivity_monitor);
 
       g_object_unref (priv->proxy);
       priv->proxy = NULL;

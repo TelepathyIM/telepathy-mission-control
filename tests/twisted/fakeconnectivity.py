@@ -43,9 +43,9 @@ class FakeConnectivity(object):
         q.add_dbus_method_impl(self.NM_GetDevices,
             path=self.NM_PATH, interface=self.NM_INTERFACE, method='GetDevices')
 
-        q.add_dbus_method_impl(self.ConnMan_GetState,
+        q.add_dbus_method_impl(self.ConnMan_GetProperties,
             path=self.CONNMAN_PATH, interface=self.CONNMAN_INTERFACE,
-            method='GetState')
+            method='GetProperties')
 
         self.change_state(initially_online)
 
@@ -88,8 +88,15 @@ class FakeConnectivity(object):
     def NM_GetDevices(self, e):
         self.q.dbus_return(e.message, [], signature='ao')
 
-    def ConnMan_GetState(self, e):
-        self.q.dbus_return(e.message, self.connman_state, signature='s')
+    def Connman_props(self):
+        return {
+            'OfflineMode': False,
+            'SessionMode': False,
+            'State': self.connman_state,
+        }
+
+    def ConnMan_GetProperties(self, e):
+        self.q.dbus_return(e.message, self.Connman_props(), signature='a{sv}')
 
     def change_state(self, online):
         if online:
@@ -106,7 +113,7 @@ class FakeConnectivity(object):
             'StateChanged', self.nm_state,
             signature='u')
         self.q.dbus_emit(self.CONNMAN_PATH, self.CONNMAN_INTERFACE,
-            'StateChanged', self.connman_state, signature='s')
+            'PropertyChanged', "State", self.connman_state, signature='sv')
 
     def go_online(self):
         self.change_state(True)
