@@ -60,6 +60,7 @@ addressing_set_uri_scheme_association (TpSvcAccountInterfaceAddressing *iface,
     {
       GPtrArray *new_schemes = g_ptr_array_new ();
       gchar **s;
+      GHashTable *changed;
 
       if (association)
         {
@@ -81,6 +82,14 @@ addressing_set_uri_scheme_association (TpSvcAccountInterfaceAddressing *iface,
       mcd_storage_set_strv (storage, account, SCHEMES,
           (const gchar * const *) new_schemes->pdata, FALSE);
 
+      changed = tp_asv_new (
+          "URISchemes", G_TYPE_STRV, new_schemes->pdata,
+          NULL);
+
+      tp_svc_dbus_properties_emit_properties_changed (self,
+          TP_IFACE_ACCOUNT_INTERFACE_ADDRESSING, changed, NULL);
+
+      g_hash_table_unref (changed);
       g_ptr_array_unref (new_schemes);
     }
 

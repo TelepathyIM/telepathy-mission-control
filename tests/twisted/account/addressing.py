@@ -57,8 +57,24 @@ def test(q, bus, mc):
     uri_schemes = get_schemes (account_props)
     assertEquals (uri_schemes, ['mailto'])
 
-    # remove association to produce empty list 
+    q.expect('dbus-signal', signal='PropertiesChanged',
+        predicate=(lambda e:
+            e.args[0] == cs.ACCOUNT_IFACE_ADDRESSING and
+            set(e.args[1]['URISchemes']) == set(['mailto'])))
+
+    # add a second association
+    address_iface.SetURISchemeAssociation ('telnet', True)
+    uri_schemes = get_schemes (account_props)
+    assertSameSets (['mailto','telnet',], uri_schemes)
+
+    q.expect('dbus-signal', signal='PropertiesChanged',
+        predicate=(lambda e:
+            e.args[0] == cs.ACCOUNT_IFACE_ADDRESSING and
+            set(e.args[1]['URISchemes']) == set(['telnet', 'mailto'])))
+
+    # remove associations to produce empty list
     address_iface.SetURISchemeAssociation ('mailto', False)
+    address_iface.SetURISchemeAssociation ('telnet', False)
     uri_schemes = get_schemes (account_props)
     assertEquals (uri_schemes, [])
 
