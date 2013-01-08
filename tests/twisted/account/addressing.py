@@ -43,22 +43,22 @@ def test(q, bus, mc):
     assertEquals (uri_schemes, [])
 
     # remove URI from empty list:
-    address_iface.SetURISchemeAssociation ('email', False)
+    address_iface.SetURISchemeAssociation ('mailto', False)
     uri_schemes = get_schemes (account_props)
     assertEquals (uri_schemes, [])
 
     # add association to empty list
-    address_iface.SetURISchemeAssociation ('email', True)
+    address_iface.SetURISchemeAssociation ('mailto', True)
     uri_schemes = get_schemes (account_props)
-    assertEquals (uri_schemes, ['email'])
+    assertEquals (uri_schemes, ['mailto'])
 
     # add association to list where it already resides
-    address_iface.SetURISchemeAssociation ('email', True)
+    address_iface.SetURISchemeAssociation ('mailto', True)
     uri_schemes = get_schemes (account_props)
-    assertEquals (uri_schemes, ['email'])
+    assertEquals (uri_schemes, ['mailto'])
 
     # remove association to produce empty list 
-    address_iface.SetURISchemeAssociation ('email', False)
+    address_iface.SetURISchemeAssociation ('mailto', False)
     uri_schemes = get_schemes (account_props)
     assertEquals (uri_schemes, [])
 
