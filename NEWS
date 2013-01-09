@@ -1,7 +1,48 @@
 telepathy-mission-control 5.15.0 (UNRELEASED)
 =============================================
 
-...
+Deprecations:
+
+• McpAccountStorage::altered, which appears to have never worked, is now
+  deprecated (fd.o #28288). Emit ::altered-one instead.
+
+• mcp_account_storage_iface_set_priority() etc. are now deprecated.
+  Use, for instance, "iface->priority = prio" instead.
+
+Fixes:
+
+• Update to the current ConnMan D-Bus API (fd.o #56600, Mike Ruprecht)
+
+• Honour NOCONFIGURE=1 in autogen.sh, like gnome-autogen.sh (d.o #57165,
+  Guillaume)
+
+• If a stored parameter has a value inappropriate for its type
+  (e.g. require-tls=2 where the connection manager expects require-tls
+  to be boolean), invalidate the account, rather than treating the
+  value as 0, "", [] etc. (fd.o #54870, Simon)
+
+• Handle Connection errors better, and in particular, don't try to reconnect
+  on SoftwareUpgradeRequired or ConnectionRefused (fd.o #37844,
+  Emilio Pozuelo Monfort)
+
+• Handle errors from RequestConnection correctly, rather than as NetworkError
+  (fd.o #39334, Simon)
+
+• If the stored nickname for an account is the same as the normalized name
+  (identifier), don't set it on connect, in case a better nickname is stored
+  on the server (fd.o #39381, Simon)
+
+• Emit Properties.PropertiesChanged for URISchemes, as per the upcoming
+  telepathy-spec 0.27.1 (fd.o #40393, Guillaume)
+
+Internal changes:
+
+• Refactor avatar and alias handling (fd.o #55668, Simon)
+
+• Start to refactor account storage (fd.o #54870, Simon)
+
+• Start to remove uses of functions deprecated in telepathy-glib 0.20
+  (fd.o #55391; Jonny, Simon)
 
 telepathy-mission-control 5.14.0 (2012-10-03)
 =============================================
