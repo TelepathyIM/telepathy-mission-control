@@ -80,7 +80,16 @@ BUILT_SOURCES = \
 	stamp-mcd-enum-types.h \
 	$(nodist_libmcd_convenience_la_SOURCES)
 
-CLEANFILES = $(BUILT_SOURCES)
+CLEANFILES = \
+	$(BUILT_SOURCES) \
+	_gen/cli-Connection_Manager_Interface_Account_Storage-gtk-doc.h \
+	_gen/svc-dispatcher-gtk-doc.h \
+	_gen/svc-Account_Interface_Hidden-gtk-doc.h \
+	_gen/svc-Account_Interface_External_Password_Storage-gtk-doc.h \
+	_gen/svc-Account_Interface_Conditions-gtk-doc.h \
+	_gen/svc-Account_Manager_Interface_Hidden-gtk-doc.h \
+	_gen/gtypes-gtk-doc.h \
+	$(NULL)
 
 libmcd_convenience_la_LIBADD = \
 	$(top_builddir)/mission-control-plugins/libmission-control-plugins.la \
