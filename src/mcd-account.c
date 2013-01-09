@@ -4275,16 +4275,10 @@ on_conn_status_changed (McdConnection *connection,
                         TpConnectionStatus status,
                         TpConnectionStatusReason reason,
                         TpConnection *tp_conn,
+                        const gchar *dbus_error,
+                        GHashTable *details,
                         McdAccount *account)
 {
-    const gchar *dbus_error = NULL;
-    const GHashTable *details = NULL;
-
-    if (tp_conn != NULL)
-    {
-        dbus_error = tp_connection_get_detailed_error (tp_conn, &details);
-    }
-
     _mcd_account_set_connection_status (account, status, reason, tp_conn,
                                         dbus_error, details);
 }

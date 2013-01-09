@@ -16,6 +16,7 @@ TWISTED_BASIC_TESTS = \
 	account-manager/presence.py \
 	account-manager/reconnect.py \
 	account-manager/recover-from-disconnect.py \
+	account-manager/req-conn-fails.py \
 	account-manager/request-online.py \
 	account-manager/service.py \
 	account-manager/update-parameters.py \

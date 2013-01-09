@@ -44,6 +44,7 @@
 
 #include <glib.h>
 #include <glib/gstdio.h>
+#include <gio/gio.h>
 
 #include <string.h>
 #include <stdlib.h>
@@ -658,7 +659,7 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
     {
     case TP_CONNECTION_STATUS_CONNECTING:
         g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
-                       conn_status, conn_reason, tp_conn);
+                       conn_status, conn_reason, tp_conn, NULL, NULL);
         priv->abort_reason = TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
         priv->connected = FALSE;
         break;
@@ -666,7 +667,7 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
     case TP_CONNECTION_STATUS_CONNECTED:
         {
             g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
-                           conn_status, conn_reason, tp_conn);
+                           conn_status, conn_reason, tp_conn, NULL, NULL);
 
             if (priv->probation_timer == 0)
             {
@@ -1430,6 +1431,49 @@ mcd_connection_early_get_interfaces_cb (TpConnection *tp_conn,
     mcd_connection_done_task_before_connect (self);
 }
 
+static gchar *
+translate_g_error (GQuark domain,
+    gint code,
+    const gchar *message)
+{
+  if (domain == TP_ERROR)
+    {
+      return g_strdup (tp_error_get_dbus_name (code));
+    }
+  else if (domain == TP_DBUS_ERRORS)
+    {
+      switch (code)
+        {
+        case TP_DBUS_ERROR_UNKNOWN_REMOTE_ERROR:
+            {
+              const gchar *p = strchr (message, ':');
+
+              if (p != NULL)
+                {
+                  gchar *tmp = g_strndup (message, message - p);
+
+                  /* The syntactic restrictions for error names are the same
+                   * as for interface names. */
+                  if (g_dbus_is_interface_name (tmp))
+                    return tmp;
+
+                  g_free (tmp);
+                }
+            }
+          break;
+
+        case TP_DBUS_ERROR_NO_INTERFACE:
+          return g_strdup (DBUS_ERROR_UNKNOWN_INTERFACE);
+
+        case TP_DBUS_ERROR_NAME_OWNER_LOST:
+          return g_strdup (DBUS_ERROR_NAME_HAS_NO_OWNER);
+        }
+    }
+
+  /* catch-all */
+  return g_strdup (DBUS_ERROR_FAILED);
+}
+
 static void
 request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
                        const gchar *obj_path, const GError *tperror,
@@ -1468,7 +1512,8 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
         {
             g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
                            TP_CONNECTION_STATUS_DISCONNECTED,
-                           TP_CONNECTION_STATUS_REASON_REQUESTED, NULL);
+                           TP_CONNECTION_STATUS_REASON_REQUESTED,
+                           NULL, "", NULL);
         }
 
         goto finally;
@@ -1478,12 +1523,21 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
 
     if (tperror)
     {
+        gchar *dbus_error = translate_g_error (tperror->domain,
+            tperror->code, tperror->message);
+        GHashTable *details = tp_asv_new (
+            "debug-message", G_TYPE_STRING, tperror->message,
+            NULL);
+
         g_warning ("%s: RequestConnection failed: %s",
                    G_STRFUNC, tperror->message);
 
         g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
             TP_CONNECTION_STATUS_DISCONNECTED,
-            TP_CONNECTION_STATUS_REASON_NETWORK_ERROR, NULL);
+            TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED, NULL,
+            dbus_error, details);
+        g_hash_table_unref (details);
+        g_free (dbus_error);
         goto finally;
     }
 
@@ -1524,7 +1578,7 @@ _mcd_connection_connect_with_params (McdConnection *connection,
 
     g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
                    TP_CONNECTION_STATUS_CONNECTING,
-                   TP_CONNECTION_STATUS_REASON_REQUESTED, NULL);
+                   TP_CONNECTION_STATUS_REASON_REQUESTED, NULL, NULL, NULL);
 
     /* If the McdConnection gets aborted (which results in it being freed!),
      * we need to kill off the Connection. So, we can't use connection as the
@@ -1560,9 +1614,27 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
     g_signal_emit (connection, signals[SELF_PRESENCE_CHANGED], 0,
                    TP_CONNECTION_PRESENCE_TYPE_OFFLINE, "offline", "");
 
-    g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
-                   TP_CONNECTION_STATUS_DISCONNECTED,
-                   priv->abort_reason, priv->tp_conn);
+    if (priv->abort_reason == TP_CONNECTION_STATUS_REASON_REQUESTED)
+    {
+        g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
+                       TP_CONNECTION_STATUS_DISCONNECTED,
+                       priv->abort_reason, priv->tp_conn, "", NULL);
+    }
+    else
+    {
+        const gchar *dbus_error = NULL;
+        const GHashTable *details = NULL;
+
+        if (priv->tp_conn != NULL)
+        {
+            dbus_error = tp_connection_get_detailed_error (priv->tp_conn,
+                &details);
+        }
+
+        g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
+                       TP_CONNECTION_STATUS_DISCONNECTED,
+                       priv->abort_reason, priv->tp_conn, dbus_error, details);
+    }
 
     if (priv->tp_conn)
     {
@@ -1937,11 +2009,19 @@ mcd_connection_class_init (McdConnectionClass * klass)
         NULL, NULL, NULL,
         G_TYPE_NONE, 3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING);
 
+    /**
+     * @status:
+     * @status_reason:
+     * @connection:
+     * @dbus_error: a D-Bus error name, or %NULL
+     * @details: a #GHashTable from string to #GValue, or %NULL
+     */
     signals[CONNECTION_STATUS_CHANGED] = g_signal_new (
         "connection-status-changed", G_OBJECT_CLASS_TYPE (klass),
         G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED, 0,
         NULL, NULL, NULL,
-        G_TYPE_NONE, 3, G_TYPE_UINT, G_TYPE_UINT, TP_TYPE_CONNECTION);
+        G_TYPE_NONE, 5, G_TYPE_UINT, G_TYPE_UINT, TP_TYPE_CONNECTION,
+        G_TYPE_STRING, G_TYPE_HASH_TABLE);
 
     signals[READY] = g_signal_new ("ready",
         G_OBJECT_CLASS_TYPE (klass),
@@ -2228,8 +2308,10 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
       TP_CONNECTION_FEATURE_CONNECTED,
       0
     };
+    GError *inner_error = NULL;
 
     g_return_if_fail (MCD_IS_CONNECTION (connection));
+    g_return_if_fail (error != NULL);
     priv = connection->priv;
 
     if (priv->tp_conn != NULL)
@@ -2249,14 +2331,23 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
 
     g_assert (priv->tp_conn == NULL);
     priv->tp_conn = tp_connection_new (priv->dbus_daemon, bus_name,
-                                       obj_path, error);
+                                       obj_path, &inner_error);
     DEBUG ("new connection is %p", priv->tp_conn);
     if (!priv->tp_conn)
     {
+        GHashTable *details = tp_asv_new (
+            "debug-message", inner_error->message,
+            NULL);
+
+        /* Constructing a TpConnection can only fail from invalid arguments,
+         * which would mean either MC or the connection manager is confused. */
         g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
             TP_CONNECTION_STATUS_DISCONNECTED,
-            TP_CONNECTION_STATUS_REASON_NETWORK_ERROR,
-            NULL);
+            TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED,
+            NULL, TP_ERROR_STR_CONFUSED, details);
+
+        g_hash_table_unref (details);
+        g_propagate_error (error, inner_error);
         return;
     }
     /* FIXME: need some way to feed the status into the Account, but we don't
