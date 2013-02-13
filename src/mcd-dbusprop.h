@@ -32,8 +32,16 @@
 
 G_BEGIN_DECLS
 
-typedef gboolean (*mcd_setprop) (TpSvcDBusProperties *self, const gchar *name,
-                                 const GValue *value, GError **error);
+typedef enum {
+    MCD_DBUS_PROP_SET_FLAG_NONE = 0,
+    MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE = 1
+} McdDBusPropSetFlags;
+
+typedef gboolean (*mcd_setprop) (TpSvcDBusProperties *self,
+                                 const gchar *name,
+                                 const GValue *value,
+                                 McdDBusPropSetFlags flags,
+                                 GError **error);
 typedef void (*mcd_getprop) (TpSvcDBusProperties *self, const gchar *name,
                              GValue *value);
 

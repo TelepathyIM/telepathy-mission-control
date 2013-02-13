@@ -32,15 +32,6 @@ G_BEGIN_DECLS
 #define MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_NORMAL    100
 #define MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_KEYRING   10000
 
-typedef enum {
-    MCP_PARAMETER_FLAG_NONE = 0,
-    MCP_PARAMETER_FLAG_SECRET = TP_CONN_MGR_PARAM_FLAG_SECRET
-} McpParameterFlags;
-
-typedef enum {
-    MCP_ATTRIBUTE_FLAG_NONE = 0
-} McpAttributeFlags;
-
 /* API for plugins to implement */
 typedef struct _McpAccountStorage McpAccountStorage;
 typedef struct _McpAccountStorageIface McpAccountStorageIface;

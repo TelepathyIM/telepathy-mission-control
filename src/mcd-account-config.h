@@ -39,6 +39,8 @@
 #define MC_ACCOUNTS_KEY_NORMALIZED_NAME "NormalizedName"
 #define MC_ACCOUNTS_KEY_AVATAR_TOKEN "avatar_token"
 #define MC_ACCOUNTS_KEY_AVATAR_MIME "AvatarMime"
+#define MC_ACCOUNTS_KEY_AUTOMATIC_PRESENCE "AutomaticPresence"
+/* next two are obsoleted by MC_ACCOUNTS_KEY_AUTOMATIC_PRESENCE */
 #define MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS "AutomaticPresenceStatus"
 #define MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE "AutomaticPresenceMessage"
 #define MC_ACCOUNTS_KEY_ICON "Icon"
@@ -47,6 +49,7 @@
 /* ... also "condition-*" reserved by mcd-account-conditions.c */
 
 /* unsigned 32-bit integer, 'u' */
+/* obsoleted by MC_ACCOUNTS_KEY_AUTOMATIC_PRESENCE */
 #define MC_ACCOUNTS_KEY_AUTO_PRESENCE_TYPE "AutomaticPresenceType"
 
 /* boolean, 'b' */

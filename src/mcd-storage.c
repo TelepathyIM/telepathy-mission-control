@@ -29,6 +29,7 @@
 #include "mcd-misc.h"
 #include "plugin-loader.h"
 
+#include <errno.h>
 #include <string.h>
 
 #include <telepathy-glib/telepathy-glib.h>
@@ -299,6 +300,9 @@ static struct {
 } known_attributes[] = {
     /* Please keep this sorted by type, then by name. */
 
+    /* Structs */
+      { "(uss)", MC_ACCOUNTS_KEY_AUTOMATIC_PRESENCE },
+
     /* Array of object path */
       { "ao", MC_ACCOUNTS_KEY_SUPERSEDES },
 
@@ -331,7 +335,7 @@ static struct {
       { NULL, NULL }
 };
 
-static const gchar *
+const gchar *
 mcd_storage_get_attribute_type (const gchar *attribute)
 {
   guint i;
@@ -349,7 +353,7 @@ mcd_storage_get_attribute_type (const gchar *attribute)
   return NULL;
 }
 
-static gboolean
+gboolean
 mcd_storage_init_value_for_attribute (GValue *value,
     const gchar *attribute)
 {
@@ -387,6 +391,16 @@ mcd_storage_init_value_for_attribute (GValue *value,
               }
           }
         break;
+
+      case '(':
+          {
+            if (!tp_strdiff (s, "(uss)"))
+              {
+                g_value_init (value, TP_STRUCT_TYPE_SIMPLE_PRESENCE);
+                return TRUE;
+              }
+          }
+        break;
     }
 
   return FALSE;
@@ -398,6 +412,51 @@ mcpa_init_value_for_attribute (const McpAccountManager *mcpa,
     const gchar *attribute)
 {
   return mcd_storage_init_value_for_attribute (value, attribute);
+}
+
+static void
+mcpa_set_attribute (const McpAccountManager *ma,
+    const gchar *account,
+    const gchar *attribute,
+    GVariant *value,
+    McpAttributeFlags flags)
+{
+  McdStorage *self = MCD_STORAGE (ma);
+  McdStorageAccount *sa = ensure_account (self, account);
+
+  if (value != NULL)
+    {
+      g_hash_table_insert (sa->attributes, g_strdup (attribute),
+          g_variant_ref_sink (value));
+    }
+  else
+    {
+      g_hash_table_remove (sa->attributes, attribute);
+    }
+}
+
+static void
+mcpa_set_parameter (const McpAccountManager *ma,
+    const gchar *account,
+    const gchar *parameter,
+    GVariant *value,
+    McpParameterFlags flags)
+{
+  McdStorage *self = MCD_STORAGE (ma);
+  McdStorageAccount *sa = ensure_account (self, account);
+
+  g_hash_table_remove (sa->parameters, parameter);
+  g_hash_table_remove (sa->escaped_parameters, parameter);
+
+  if (value != NULL)
+    g_hash_table_insert (sa->parameters, g_strdup (parameter),
+        g_variant_ref_sink (value));
+
+  if (flags & MCP_PARAMETER_FLAG_SECRET)
+    {
+      DEBUG ("flagging %s parameter %s as secret", account, parameter);
+      g_hash_table_add (sa->secrets, g_strdup (parameter));
+    }
 }
 
 static void
@@ -1239,6 +1298,48 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
                 ret = TRUE;
               }
           }
+        else if (type == TP_STRUCT_TYPE_SIMPLE_PRESENCE)
+          {
+            gchar **v = g_key_file_get_string_list (keyfile, group,
+                key, NULL, error);
+
+            if (v == NULL)
+              {
+                /* error is already set, do nothing */
+              }
+            else if (g_strv_length (v) != 3)
+              {
+                g_set_error (error, TP_ERROR, TP_ERROR_NOT_AVAILABLE,
+                    "Invalid simple-presence structure stored in keyfile");
+              }
+            else
+              {
+                guint64 u;
+                gchar *endptr;
+
+                errno = 0;
+                u = g_ascii_strtoull (v[0], &endptr, 10);
+
+                if (errno != 0 || *endptr != '\0' || u > G_MAXUINT32)
+                  {
+                    g_set_error (error, TP_ERROR, TP_ERROR_NOT_AVAILABLE,
+                        "Invalid presence type stored in keyfile: %s", v[0]);
+                  }
+                else
+                  {
+                    /* a syntactically valid simple presence */
+                    g_value_take_boxed (value,
+                        tp_value_array_build (3,
+                          G_TYPE_UINT, (guint) u,
+                          G_TYPE_STRING, v[1],
+                          G_TYPE_STRING, v[2],
+                          G_TYPE_INVALID));
+                    ret = TRUE;
+                  }
+              }
+
+            g_strfreev (v);
+          }
         else
           {
             gchar *message =
@@ -1695,6 +1796,22 @@ mcd_keyfile_set_value (GKeyFile *keyfile,
                 g_key_file_set_string_list (keyfile, name, key,
                     (const gchar * const *) arr->pdata, arr->len);
               }
+            else if (G_VALUE_HOLDS (value, TP_STRUCT_TYPE_SIMPLE_PRESENCE))
+              {
+                guint type;
+                /* enough for "4294967296" + \0 */
+                gchar printf_buf[11];
+                const gchar * strv[4] = { NULL, NULL, NULL, NULL };
+
+                tp_value_array_unpack (g_value_get_boxed (value), 3,
+                    &type,
+                    &(strv[1]),
+                    &(strv[2]));
+                g_snprintf (printf_buf, sizeof (printf_buf), "%u", type);
+                strv[0] = printf_buf;
+
+                g_key_file_set_string_list (keyfile, name, key, strv, 3);
+              }
             else
               {
                 g_warning ("Unexpected param type %s",
@@ -1956,6 +2073,8 @@ plugin_iface_init (McpAccountManagerIface *iface,
 
   iface->get_value = get_value;
   iface->set_value = set_value;
+  iface->set_attribute = mcpa_set_attribute;
+  iface->set_parameter = mcpa_set_parameter;
   iface->is_secret = is_secret;
   iface->make_secret = make_secret;
   iface->unique_name = unique_name;

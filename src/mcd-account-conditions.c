@@ -53,8 +53,11 @@ store_condition (gpointer key, gpointer value, gpointer userdata)
 }
 
 static gboolean
-set_condition (TpSvcDBusProperties *self, const gchar *name,
-               const GValue *value, GError **error)
+set_condition (TpSvcDBusProperties *self,
+               const gchar *name,
+               const GValue *value,
+               McdDBusPropSetFlags flags,
+               GError **error)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     McdStorage *storage = _mcd_account_get_storage (account);
@@ -95,9 +98,12 @@ set_condition (TpSvcDBusProperties *self, const gchar *name,
 
     g_strfreev (keys);
 
-    g_hash_table_foreach (conditions, store_condition, account);
+    if (!(flags & MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE))
+    {
+        g_hash_table_foreach (conditions, store_condition, account);
 
-    mcd_storage_commit (storage, account_name);
+        mcd_storage_commit (storage, account_name);
+    }
 
     return TRUE;
 }

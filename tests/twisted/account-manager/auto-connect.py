@@ -51,6 +51,7 @@ def preseed(q, bus, fake_accounts_service):
         'NormalizedName': 'jc.denton@unatco.int',
         'Enabled': True,
         'ConnectAutomatically': True,
+        # These are in the old format. They'll be combined shortly.
         'AutomaticPresenceType': dbus.UInt32(2),
         'AutomaticPresenceStatus': 'available',
         'AutomaticPresenceMessage': 'My vision is augmented',
@@ -85,7 +86,24 @@ def test(q, bus, unused, **kwargs):
             'password': r'\\ionstorm\\',
             }
 
-    mc = MC(q, bus)
+    mc = MC(q, bus, wait_for_names=False)
+    mc.wait_for_names(
+            # Migration step: the three separate attributes get combined
+            # (before the names are taken, so we need to expect it here)
+            EventPattern('dbus-method-call',
+                interface=cs.TEST_DBUS_ACCOUNT_SERVICE_IFACE,
+                method='UpdateAttributes',
+                predicate=(lambda e:
+                    e.args[0] == account_id and
+                    e.args[1] == {'AutomaticPresence':
+                        (2, 'available', 'My vision is augmented')} and
+                    e.args[2] == {'AutomaticPresence': 0} and   # flags
+                    set(e.args[3]) == set([     # no particular order
+                        'AutomaticPresenceType',
+                        'AutomaticPresenceStatus',
+                        'AutomaticPresenceMessage',
+                        ])))
+            )
 
     request_conn, prop_changed = q.expect_many(
             EventPattern('dbus-method-call', method='RequestConnection',

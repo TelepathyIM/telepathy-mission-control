@@ -428,19 +428,21 @@ test_dbus_account_plugin_process_attributes (TestDBusAccountPlugin *self,
               (stored == NULL ||
                 !g_variant_equal (value, stored)))
             {
-              gchar *escaped = mcp_account_manager_escape_variant_for_keyfile (
-                  self->feedback, value);
+              gchar *repr = g_variant_print (value, TRUE);
+              guint32 flags;
 
-              DEBUG ("%s changed to (escaped) %s, signalling MC",
-                  attr, escaped);
+              DEBUG ("%s changed to %s, signalling MC", attr, repr);
+              g_free (repr);
+
+              if (!g_variant_lookup (attr_flags, attr, "u", &flags))
+                flags = 0;
 
               g_hash_table_insert (account->attributes,
                   g_strdup (attr), g_variant_ref (value));
-              mcp_account_manager_set_value (self->feedback,
-                  account_name, attr, escaped);
+              mcp_account_manager_set_attribute (self->feedback,
+                  account_name, attr, value, flags);
               mcp_account_storage_emit_altered_one (
                   MCP_ACCOUNT_STORAGE (self), account_name, attr);
-              g_free (escaped);
 
               g_dbus_connection_emit_signal (self->bus, NULL,
                   TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
@@ -462,8 +464,8 @@ test_dbus_account_plugin_process_attributes (TestDBusAccountPlugin *self,
               DEBUG ("%s deleted", attr);
 
               g_hash_table_remove (account->attributes, attr);
-              mcp_account_manager_set_value (self->feedback,
-                  account_name, attr, NULL);
+              mcp_account_manager_set_attribute (self->feedback,
+                  account_name, attr, NULL, 0);
               mcp_account_storage_emit_altered_one (
                   MCP_ACCOUNT_STORAGE (self), account_name, attr);
 
@@ -538,17 +540,19 @@ test_dbus_account_plugin_process_parameters (TestDBusAccountPlugin *self,
               (stored == NULL ||
                !g_variant_equal (value, stored)))
             {
+              guint32 flags;
+
+              if (!g_variant_lookup (param_flags, param, "u", &flags))
+                flags = 0;
+
               g_hash_table_insert (account->parameters,
                   g_strdup (param), g_variant_ref (value));
-              escaped = mcp_account_manager_escape_variant_for_keyfile (
-                  self->feedback, value);
               key = g_strdup_printf ("param-%s", param);
-              mcp_account_manager_set_value (self->feedback,
-                  account_name, key, escaped);
+              mcp_account_manager_set_parameter (self->feedback,
+                  account_name, param, value, flags);
               mcp_account_storage_emit_altered_one (
                   MCP_ACCOUNT_STORAGE (self), account_name, key);
               g_free (key);
-              g_free (escaped);
 
               g_dbus_connection_emit_signal (self->bus, NULL,
                   TEST_DBUS_ACCOUNT_PLUGIN_PATH,
@@ -607,8 +611,8 @@ test_dbus_account_plugin_process_parameters (TestDBusAccountPlugin *self,
               g_hash_table_remove (account->untyped_parameters,
                   param);
               key = g_strdup_printf ("param-%s", param);
-              mcp_account_manager_set_value (self->feedback,
-                  account_name, key, NULL);
+              mcp_account_manager_set_parameter (self->feedback,
+                  account_name, param, NULL, 0);
               mcp_account_storage_emit_altered_one (
                   MCP_ACCOUNT_STORAGE (self), account_name, key);
               g_free (key);

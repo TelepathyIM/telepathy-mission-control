@@ -217,8 +217,14 @@ class_init (gpointer klass,
    * in the backend that the emitting plugin handles.
    *
    * Before emitting this signal, the plugin must call
+   * either mcp_account_manager_set_attribute(),
+   * either mcp_account_manager_set_parameter() or
    * mcp_account_manager_set_value() to push the new value
    * into the account manager.
+   *
+   * Note that mcp_account_manager_set_parameter() does not use the
+   * "param-" prefix, but this signal and mcp_account_manager_set_value()
+   * both do.
    *
    * Should not be fired until mcp_account_storage_ready() has been called
    */
@@ -252,7 +258,7 @@ class_init (gpointer klass,
    * in the backend the emitting plugin handles. This is similar to
    * emitting #McpAccountStorage::altered-one for the attribute
    * "Enabled", except that the plugin is not required to call
-   * mcp_account_manager_set_value() first.
+   * a function like mcp_account_manager_set_value() first.
    *
    * Should not be fired until mcp_account_storage_ready() has been called
    *
@@ -514,9 +520,15 @@ mcp_account_storage_priority (const McpAccountStorage *storage)
  *  like "DisplayName", or "param-" plus a parameter like "account"
  *
  * Get a value from the plugin's in-memory cache.
- * The plugin is expected to call mcp_account_manager_set_value(),
- * and if appropriate, mcp_account_manager_parameter_make_secret(),
+ * Before emitting this signal, the plugin must call
+ * either mcp_account_manager_set_attribute(),
+ * mcp_account_manager_set_parameter(),
+ * or mcp_account_manager_set_value() and (if appropriate)
+ * mcp_account_manager_parameter_make_secret()
  * before returning from this method call.
+ *
+ * Note that mcp_account_manager_set_parameter() does not use the
+ * "param-" prefix, even if called from this function.
  *
  * If @key is %NULL the plugin should iterate through all attributes and
  * parameters, and push each of them into @am, as if this method had

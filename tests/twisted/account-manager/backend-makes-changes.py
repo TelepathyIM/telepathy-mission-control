@@ -132,9 +132,8 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
                 args=[account_path,
                     cs.ACCOUNT_IFACE_ADDRESSING + '.URISchemes']),
             )
-    # FIXME: doesn't work
-    #assertEquals(['xmpp'],
-    #        account.Properties.Get(cs.ACCOUNT_IFACE_ADDRESSING, 'URISchemes'))
+    assertEquals(['xmpp'],
+            account.Properties.Get(cs.ACCOUNT_IFACE_ADDRESSING, 'URISchemes'))
 
     fake_accounts_service.update_attributes(account_tail,
         {'ConnectAutomatically': True})
@@ -145,20 +144,19 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
                 args=[account_tail,
                     {'ConnectAutomatically': True},
                     {'ConnectAutomatically': 0}, []]),
-            # FIXME: signal not actually emitted
-            #EventPattern('dbus-signal',
-            #    path=account_path,
-            #    signal='AccountPropertyChanged',
-            #    interface=cs.ACCOUNT,
-            #    args=[{'ConnectAutomatically': True}]),
+            EventPattern('dbus-signal',
+                path=account_path,
+                signal='AccountPropertyChanged',
+                interface=cs.ACCOUNT,
+                predicate=(lambda e:
+                    e.args[0].get('ConnectAutomatically') == True)),
             EventPattern('dbus-signal',
                 path=cs.TEST_DBUS_ACCOUNT_PLUGIN_PATH,
                 signal='AttributeChanged',
                 args=[account_path, 'ConnectAutomatically']),
             )
-    # FIXME: doesn't work
-    #assertEquals(True,
-    #        account.Properties.Get(cs.ACCOUNT, 'ConnectAutomatically'))
+    assertEquals(True,
+            account.Properties.Get(cs.ACCOUNT, 'ConnectAutomatically'))
 
     fake_accounts_service.update_attributes(account_tail,
         {'Supersedes': [cs.ACCOUNT_PATH_PREFIX + 'ac1/game/altair']})
@@ -174,63 +172,45 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
                 path=account_path,
                 signal='AccountPropertyChanged',
                 interface=cs.ACCOUNT,
-                # FIXME: signal is emitted, but doesn't have the new value
-                #args=[{'Supersedes':
-                #    [cs.ACCOUNT_PATH_PREFIX + 'ac1/game/altair']}],
-                predicate=(lambda e: 'Supersedes' in e.args[0]),
+                args=[{'Supersedes':
+                    [cs.ACCOUNT_PATH_PREFIX + 'ac1/game/altair']}],
                 ),
             EventPattern('dbus-signal',
                 path=cs.TEST_DBUS_ACCOUNT_PLUGIN_PATH,
                 signal='AttributeChanged',
                 args=[account_path, 'Supersedes']),
             )
-    # FIXME: doesn't work
-    #assertEquals([cs.ACCOUNT_PATH_PREFIX + 'ac1/game/altair'],
-    #        account.Properties.Get(cs.ACCOUNT, 'Supersedes'))
+    assertEquals([cs.ACCOUNT_PATH_PREFIX + 'ac1/game/altair'],
+            account.Properties.Get(cs.ACCOUNT, 'Supersedes'))
 
     fake_accounts_service.update_attributes(account_tail,
-        {'AutomaticPresenceType': cs.PRESENCE_TYPE_HIDDEN,
-            'AutomaticPresenceStatus': 'hidden',
-            'AutomaticPresenceMessage': 'in a haystack or something'})
+        {'AutomaticPresence': (dbus.UInt32(cs.PRESENCE_TYPE_HIDDEN), 'hidden',
+            'in a haystack or something')})
     q.expect_many(
             EventPattern('dbus-signal',
                 path=cs.TEST_DBUS_ACCOUNT_SERVICE_PATH,
                 signal='AttributesChanged',
                 args=[account_tail,
-                    {'AutomaticPresenceType': cs.PRESENCE_TYPE_HIDDEN,
-                        'AutomaticPresenceStatus': 'hidden',
-                        'AutomaticPresenceMessage':
-                            'in a haystack or something'},
-                    {'AutomaticPresenceType': 0,
-                        'AutomaticPresenceStatus': 0,
-                        'AutomaticPresenceMessage': 0},
+                    {'AutomaticPresence': (cs.PRESENCE_TYPE_HIDDEN,
+                        'hidden',
+                        'in a haystack or something')},
+                    {'AutomaticPresence': 0},
                     []]),
-            # FIXME: signal not actually emitted: the three parts don't get
-            # combined correctly
-            #EventPattern('dbus-signal',
-            #    path=account_path,
-            #    signal='AccountPropertyChanged',
-            #    interface=cs.ACCOUNT,
-            #    args=[{'AutomaticPresence':
-            #        (cs.PRESENCE_TYPE_HIDDEN, 'hidden',
-            #            'in a haystack or something')}]),
+            EventPattern('dbus-signal',
+                path=account_path,
+                signal='AccountPropertyChanged',
+                interface=cs.ACCOUNT,
+                args=[{'AutomaticPresence':
+                    (cs.PRESENCE_TYPE_HIDDEN, 'hidden',
+                        'in a haystack or something')}]),
             EventPattern('dbus-signal',
                 path=cs.TEST_DBUS_ACCOUNT_PLUGIN_PATH,
                 signal='AttributeChanged',
-                args=[account_path, 'AutomaticPresenceType']),
-            EventPattern('dbus-signal',
-                path=cs.TEST_DBUS_ACCOUNT_PLUGIN_PATH,
-                signal='AttributeChanged',
-                args=[account_path, 'AutomaticPresenceStatus']),
-            EventPattern('dbus-signal',
-                path=cs.TEST_DBUS_ACCOUNT_PLUGIN_PATH,
-                signal='AttributeChanged',
-                args=[account_path, 'AutomaticPresenceMessage']),
+                args=[account_path, 'AutomaticPresence']),
             )
-    # FIXME: doesn't work
-    #assertEquals((cs.PRESENCE_TYPE_HIDDEN, 'hidden',
-    #    'in a haystack or something'),
-    #        account.Properties.Get(cs.ACCOUNT, 'AutomaticPresence'))
+    assertEquals((cs.PRESENCE_TYPE_HIDDEN, 'hidden',
+        'in a haystack or something'),
+            account.Properties.Get(cs.ACCOUNT, 'AutomaticPresence'))
 
     fake_accounts_service.update_attributes(account_tail, {
         'DisplayName': 'Ezio\'s IM account'})
@@ -240,13 +220,11 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
                 signal='AttributesChanged',
                 args=[account_tail, {'DisplayName': 'Ezio\'s IM account'},
                     {'DisplayName': 0}, []]),
-            # FIXME: signal not actually emitted. Service, Icon, Nickname
-            # probably have the same bug.
-            #EventPattern('dbus-signal',
-            #    path=account_path,
-            #    signal='AccountPropertyChanged',
-            #    interface=cs.ACCOUNT,
-            #    args=[{'DisplayName': 'Ezio\'s IM account'}]),
+            EventPattern('dbus-signal',
+                path=account_path,
+                signal='AccountPropertyChanged',
+                interface=cs.ACCOUNT,
+                args=[{'DisplayName': 'Ezio\'s IM account'}]),
             EventPattern('dbus-signal',
                 path=cs.TEST_DBUS_ACCOUNT_PLUGIN_PATH,
                 signal='AttributeChanged',
@@ -254,6 +232,48 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
             )
     assertEquals("Ezio's IM account",
             account.Properties.Get(cs.ACCOUNT, 'DisplayName'))
+
+    fake_accounts_service.update_attributes(account_tail, {
+        'Icon': 'im-machiavelli'})
+    q.expect_many(
+            EventPattern('dbus-signal',
+                path=cs.TEST_DBUS_ACCOUNT_SERVICE_PATH,
+                signal='AttributesChanged',
+                args=[account_tail, {'Icon': 'im-machiavelli'},
+                    {'Icon': 0}, []]),
+            EventPattern('dbus-signal',
+                path=account_path,
+                signal='AccountPropertyChanged',
+                interface=cs.ACCOUNT,
+                args=[{'Icon': 'im-machiavelli'}]),
+            EventPattern('dbus-signal',
+                path=cs.TEST_DBUS_ACCOUNT_PLUGIN_PATH,
+                signal='AttributeChanged',
+                args=[account_path, 'Icon']),
+            )
+    assertEquals('im-machiavelli',
+            account.Properties.Get(cs.ACCOUNT, 'Icon'))
+
+    fake_accounts_service.update_attributes(account_tail, {
+        'Service': 'machiavelli-talk'})
+    q.expect_many(
+            EventPattern('dbus-signal',
+                path=cs.TEST_DBUS_ACCOUNT_SERVICE_PATH,
+                signal='AttributesChanged',
+                args=[account_tail, {'Service': 'machiavelli-talk'},
+                    {'Service': 0}, []]),
+            EventPattern('dbus-signal',
+                path=account_path,
+                signal='AccountPropertyChanged',
+                interface=cs.ACCOUNT,
+                args=[{'Service': 'machiavelli-talk'}]),
+            EventPattern('dbus-signal',
+                path=cs.TEST_DBUS_ACCOUNT_PLUGIN_PATH,
+                signal='AttributeChanged',
+                args=[account_path, 'Service']),
+            )
+    assertEquals('machiavelli-talk',
+            account.Properties.Get(cs.ACCOUNT, 'Service'))
 
     fake_accounts_service.update_parameters(account_tail, {
         'password': 'high profile'}, flags={'password': cs.PARAM_FLAG_SECRET})

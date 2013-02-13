@@ -150,6 +150,10 @@ gboolean mcd_keyfile_unescape_value (const gchar *escaped,
     GValue *value,
     GError **error);
 
+const gchar *mcd_storage_get_attribute_type (const gchar *attribute);
+gboolean mcd_storage_init_value_for_attribute (GValue *value,
+    const gchar *attribute);
+
 G_END_DECLS
 
 #endif /* MCD_STORAGE_H */
