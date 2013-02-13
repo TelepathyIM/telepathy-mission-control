@@ -1,6 +1,11 @@
 telepathy-mission-control 5.15.0 (UNRELEASED)
 =============================================
 
+Requirements:
+
+• GLib 2.32 is now required.
+• The regression tests now require Python 2.6.
+
 Deprecations:
 
 • McpAccountStorage::altered, which appears to have never worked, is now
@@ -8,6 +13,13 @@ Deprecations:
 
 • mcp_account_storage_iface_set_priority() etc. are now deprecated.
   Use, for instance, "iface->priority = prio" instead.
+
+Enhancements:
+
+• Account storage plugins (McpAccountStorageIface) may, and should, implement
+  the new set_attribute(), set_parameter() and owns() methods. These methods
+  allow the plugin to know the type of each attribute or parameter, which
+  is presented as a GVariant. (fd.o #54872, Simon)
 
 Fixes:
 
@@ -39,7 +51,9 @@ Internal changes:
 
 • Refactor avatar and alias handling (fd.o #55668, Simon)
 
-• Start to refactor account storage (fd.o #54870, Simon)
+• Refactor account storage (fd.o #54870, #54872; Simon)
+
+• Improve regression test coverage for account storage (fd.o #54873, Simon)
 
 • Start to remove uses of functions deprecated in telepathy-glib 0.20
   (fd.o #55391; Jonny, Simon)
