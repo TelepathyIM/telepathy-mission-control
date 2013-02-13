@@ -1,6 +1,12 @@
 telepathy-mission-control 5.15.0 (UNRELEASED)
 =============================================
 
+Running this version of Mission Control for the first time will automatically
+migrate some account data to a new format. If you subsequently downgrade
+to an older version, it will no longer understand all account data.
+Taking a backup copy of ~/.local/share/telepathy/mission-control
+before you upgrade is recommended.
+
 Requirements:
 
 • GLib 2.32 is now required.
@@ -20,6 +26,8 @@ Enhancements:
   the new set_attribute(), set_parameter() and owns() methods. These methods
   allow the plugin to know the type of each attribute or parameter, which
   is presented as a GVariant. (fd.o #54872, Simon)
+
+• `mc-tool get <account> AutomaticPresence` now works (fd.o #54780, Simon)
 
 Fixes:
 
@@ -46,6 +54,8 @@ Fixes:
 
 • Emit Properties.PropertiesChanged for URISchemes, as per the upcoming
   telepathy-spec 0.27.1 (fd.o #40393, Guillaume)
+
+• McpAccountStorage::altered-one now works as intended (fd.o #54780, Simon)
 
 Internal changes:
 
