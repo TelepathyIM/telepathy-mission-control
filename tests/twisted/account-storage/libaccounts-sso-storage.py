@@ -86,4 +86,4 @@ def test(q, bus, mc):
 if __name__ == '__main__':
     ctl_dir = os.environ['ACCOUNTS']
     prepare_accounts_db(ctl_dir)
-    exec_test(test, {}, timeout=10)
+    exec_test(test, {}, timeout=10, use_fake_accounts_service=False)

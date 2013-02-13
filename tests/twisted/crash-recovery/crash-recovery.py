@@ -31,7 +31,9 @@ from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         expect_client_setup, MC
 import constants as cs
 
-def preseed():
+account_id = 'fakecm/fakeprotocol/jc_2edenton_40unatco_2eint'
+
+def preseed(q, bus, fake_accounts_service):
     accounts_dir = os.environ['MC_ACCOUNT_DIR']
 
     try:
@@ -39,20 +41,17 @@ def preseed():
     except OSError:
         pass
 
-    accounts_cfg = open(accounts_dir + '/accounts.cfg', 'w')
-
-    accounts_cfg.write("""# Telepathy accounts
-[fakecm/fakeprotocol/jc_2edenton_40unatco_2eint]
-manager=fakecm
-protocol=fakeprotocol
-DisplayName=Work account
-NormalizedName=jc.denton@unatco.int
-param-account=jc.denton@unatco.int
-param-password=ionstorm
-Enabled=1
-""")
-
-    accounts_cfg.close()
+    fake_accounts_service.update_attributes(account_id, changed={
+        'manager': 'fakecm',
+        'protocol': 'fakeprotocol',
+        'DisplayName': 'Work account',
+        'NormalizedName': 'jc.denton@unatco.int',
+        'Enabled': True,
+        })
+    fake_accounts_service.update_parameters(account_id, untyped={
+        'account': 'jc.denton@unatco.int',
+        'password': 'ionstorm',
+        })
 
     account_connections_file = open(accounts_dir + '/.mc_connections', 'w')
 
@@ -61,7 +60,10 @@ Enabled=1
                 cs.tp_name_prefix + '.Connection.fakecm.fakeprotocol.jc',
                 'fakecm/fakeprotocol/jc_2edenton_40unatco_2eint'))
 
-def test(q, bus, unused):
+def test(q, bus, unused, **kwargs):
+    fake_accounts_service = kwargs['fake_accounts_service']
+    preseed(q, bus, fake_accounts_service)
+
     text_fixed_properties = dbus.Dictionary({
         cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
@@ -124,5 +126,5 @@ def test(q, bus, unused):
     q.dbus_return(e.message, signature='')
 
 if __name__ == '__main__':
-    preseed()
-    exec_test(test, {}, preload_mc=False)
+    exec_test(test, {}, preload_mc=False, use_fake_accounts_service=True,
+            pass_kwargs=True)

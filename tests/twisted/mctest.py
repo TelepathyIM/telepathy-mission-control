@@ -33,6 +33,7 @@ from twisted.internet import reactor
 import dbus
 import dbus.service
 
+from fakeaccountsservice import FakeAccountsService
 from fakeconnectivity import FakeConnectivity
 
 def install_colourer():
@@ -104,7 +105,8 @@ class MC(dbus.proxies.ProxyObject):
         return events[3:]
 
 def exec_test_deferred (fun, params, protocol=None, timeout=None,
-        preload_mc=True, initially_online=True):
+        preload_mc=True, initially_online=True, use_fake_accounts_service=True,
+        pass_kwargs=False):
     colourer = None
 
     if sys.stdout.isatty():
@@ -129,8 +131,24 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
     else:
         mc = None
 
+    if use_fake_accounts_service:
+        fake_accounts_service = FakeAccountsService(queue, bus)
+
+        if preload_mc:
+            queue.expect('dbus-signal',
+                    path=cs.TEST_DBUS_ACCOUNT_PLUGIN_PATH,
+                    interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+                    signal='Active')
+    else:
+        fake_accounts_service = None
+
+    if pass_kwargs:
+        kwargs=dict(fake_accounts_service=fake_accounts_service)
+    else:
+        kwargs=dict()
+
     try:
-        fun(queue, bus, mc)
+        fun(queue, bus, mc, **kwargs)
     except Exception, e:
         import traceback
         traceback.print_exc()
@@ -185,9 +203,10 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
       sys.stdout = colourer.fh
 
 def exec_test(fun, params=None, protocol=None, timeout=None,
-              preload_mc=True, initially_online=True):
+              preload_mc=True, initially_online=True,
+              use_fake_accounts_service=True, pass_kwargs=False):
   reactor.callWhenRunning (exec_test_deferred, fun, params, protocol, timeout,
-          preload_mc, initially_online)
+          preload_mc, initially_online, use_fake_accounts_service, pass_kwargs)
   reactor.run()
 
 class SimulatedConnection(object):

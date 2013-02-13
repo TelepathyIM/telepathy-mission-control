@@ -50,6 +50,17 @@ def test(q, bus, mc):
             interface=cs.ACCOUNT_IFACE_AVATAR,
             args=[]),
         EventPattern('dbus-return', method='Set'),
+        EventPattern('dbus-signal',
+            interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+            signal='DeferringSetAttribute',
+            args=[account.object_path, 'AvatarMime', 'image/jpeg']),
+        EventPattern('dbus-signal',
+            interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+            signal='CommittingOne',
+            args=[account.object_path]),
+        EventPattern('dbus-method-call',
+            interface=cs.TEST_DBUS_ACCOUNT_SERVICE_IFACE,
+            method='UpdateAttributes'),
         )
     assert account_props.Get(cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
             byte_arrays=True) == ('AAAA', 'image/jpeg')
@@ -78,7 +89,18 @@ def test(q, bus, mc):
                 handled=True),
             EventPattern('dbus-signal', path=account.object_path,
                 interface=cs.ACCOUNT_IFACE_AVATAR, signal='AvatarChanged'),
-            EventPattern('dbus-return', method='Set')
+            EventPattern('dbus-return', method='Set'),
+            EventPattern('dbus-signal',
+                interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+                signal='DeferringSetAttribute',
+                args=[account.object_path, 'AvatarMime', 'image/png']),
+            EventPattern('dbus-signal',
+                interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+                signal='CommittingOne',
+                args=[account.object_path]),
+            EventPattern('dbus-method-call',
+                interface=cs.TEST_DBUS_ACCOUNT_SERVICE_IFACE,
+                method='UpdateAttributes'),
             )
 
     assert account_props.Get(cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
@@ -106,8 +128,21 @@ def test(q, bus, mc):
     q.dbus_emit(conn.object_path, cs.CONN_IFACE_AVATARS,
             'AvatarRetrieved', conn.self_handle, 'CCCC',
             dbus.ByteArray('CCCC'), 'image/svg', signature='usays')
-    q.expect('dbus-signal', path=account.object_path,
-            interface=cs.ACCOUNT_IFACE_AVATAR, signal='AvatarChanged'),
+    q.expect_many(
+            EventPattern('dbus-signal', path=account.object_path,
+                interface=cs.ACCOUNT_IFACE_AVATAR, signal='AvatarChanged'),
+            EventPattern('dbus-signal',
+                interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+                signal='DeferringSetAttribute',
+                args=[account.object_path, 'avatar_token', 'CCCC']),
+            EventPattern('dbus-signal',
+                interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+                signal='CommittingOne',
+                args=[account.object_path]),
+            EventPattern('dbus-method-call',
+                interface=cs.TEST_DBUS_ACCOUNT_SERVICE_IFACE,
+                method='UpdateAttributes'),
+            )
 
     assert account_props.Get(cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
             byte_arrays=True) == ('CCCC', 'image/svg')
@@ -118,8 +153,27 @@ def test(q, bus, mc):
     conn.forget_avatar()
     q.dbus_emit(conn.object_path, cs.CONN_IFACE_AVATARS, 'AvatarUpdated',
                 conn.self_handle, '', signature='us')
+    q.expect_many(
+            EventPattern('dbus-signal',
+                interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+                signal='DeferringSetAttribute',
+                args=[account.object_path, 'avatar_token', '']),
+            EventPattern('dbus-signal',
+                interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+                signal='DeferringSetAttribute',
+                args=[account.object_path, 'AvatarMime', '']),
+            )
     q.expect('dbus-signal', path=account.object_path,
              interface=cs.ACCOUNT_IFACE_AVATAR, signal='AvatarChanged')
+    q.expect_many(
+            EventPattern('dbus-signal',
+                interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+                signal='CommittingOne',
+                args=[account.object_path]),
+            EventPattern('dbus-method-call',
+                interface=cs.TEST_DBUS_ACCOUNT_SERVICE_IFACE,
+                method='UpdateAttributes'),
+            )
 
     assertEquals(account_props.Get(cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
                                    byte_arrays=False), ([], ''))

@@ -29,7 +29,7 @@ from mctest import exec_test, SimulatedConnection, create_fakecm_account,\
         SimulatedChannel
 import constants as cs
 
-def test(q, bus, mc):
+def test(q, bus, mc, **kwargs):
     cm_name_ref = dbus.service.BusName(
             tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
 
@@ -250,27 +250,18 @@ def test(q, bus, mc):
 
     cache_dir = os.environ['XDG_CACHE_HOME']
 
-    # fd.o #28557: when the file has been updated, the account parameter
-    # has its two backslashes doubled to 4 (because of the .desktop encoding),
-    # but they are not doubled again.
-    i = 0
-    updated = False
-    while i < 500:
-
-        for line in open(cache_dir +
-                '/mcp-test-diverted-account-plugin.conf', 'r'):
-            if line.startswith('param-account=') and '\\' in line:
-                assertEquals(r'param-account=\\\\' + '\n', line)
-                updated = True
-
-        if updated:
-            break
-
-        # just to not busy-wait
-        time.sleep(0.1)
-        i += 1
-
-    assert updated
+    # Now that we're using GVariant-based storage, the backslashes aren't
+    # escaped.
+    assertEquals(r'\\',
+            kwargs['fake_accounts_service'].accounts
+            [account.object_path[len(cs.ACCOUNT_PATH_PREFIX):]]
+            [2]     # parameters of known type
+            ['account'])
+    assertEquals(None,
+            kwargs['fake_accounts_service'].accounts
+            [account.object_path[len(cs.ACCOUNT_PATH_PREFIX):]]
+            [3]     # parameters of unknown type
+            .get('account', None))
 
 if __name__ == '__main__':
-    exec_test(test, {})
+    exec_test(test, {}, pass_kwargs=True)

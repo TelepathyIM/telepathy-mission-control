@@ -364,6 +364,7 @@ class IteratingEventQueue(BaseEventQueue):
 
             e = Event('dbus-method-call', message=message,
                 interface=message.get_interface(), path=message.get_path(),
+                raw_args=message.get_args_list(byte_arrays=True),
                 args=map(unwrap, message.get_args_list(byte_arrays=True)),
                 destination=str(destination),
                 method=message.get_member(),

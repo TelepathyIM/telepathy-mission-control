@@ -313,5 +313,5 @@ if __name__ == '__main__':
     except OSError:
         pass
     start_gnome_keyring_daemon(ctl_dir)
-    exec_test(test, {}, timeout=10)
+    exec_test(test, {}, timeout=10, use_fake_accounts_service=False)
     stop_gnome_keyring_daemon()

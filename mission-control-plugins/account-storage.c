@@ -68,6 +68,8 @@
  *   iface->get_restrictions = foo_plugin_get_restrictions;
  *   iface->create = foo_plugin_create;
  *   iface->owns = foo_plugin_owns;
+ *   iface->set_attribute = foo_plugin_set_attribute;
+ *   iface->set_parameter = foo_plugin_set_parameter;
  * }
  * </programlisting></example>
  *
@@ -112,6 +114,38 @@ enum
 static guint signals[NO_SIGNAL] = { 0 };
 
 static gboolean
+default_set (const McpAccountStorage *storage,
+    const McpAccountManager *am,
+    const gchar *account,
+    const gchar *key,
+    const gchar *val)
+{
+  return FALSE;
+}
+
+static gboolean
+default_set_attribute (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account,
+    const gchar *attribute,
+    GVariant *value,
+    McpAttributeFlags flags)
+{
+  return FALSE;
+}
+
+static gboolean
+default_set_parameter (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account,
+    const gchar *parameter,
+    GVariant *value,
+    McpParameterFlags flags)
+{
+  return FALSE;
+}
+
+static gboolean
 default_owns (McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account)
@@ -132,6 +166,9 @@ class_init (gpointer klass,
   McpAccountStorageIface *iface = klass;
 
   iface->owns = default_owns;
+  iface->set = default_set;
+  iface->set_attribute = default_set_attribute;
+  iface->set_parameter = default_set_parameter;
 
   if (signals[CREATED] != 0)
     {
@@ -525,7 +562,7 @@ mcp_account_storage_get (const McpAccountStorage *storage,
  * @account: the unique name of the account
  * @key: the non-%NULL setting whose value we wish to store: either an
  *  attribute like "DisplayName", or "param-" plus a parameter like "account"
- * @value: a non-%NULL value to associate with @key
+ * @value: a value to associate with @key, escaped as if for a #GKeyFile
  *
  * The plugin is expected to either quickly and synchronously
  * update its internal cache of values with @value, or to
@@ -536,7 +573,11 @@ mcp_account_storage_get (const McpAccountStorage *storage,
  * mcp_account_storage_commit() or mcp_account_storage_commit_one()
  * after a short delay.
  *
- * Returns: %TRUE if the setting was claimed, %FALSE otherwise
+ * Plugins that implement mcp_storage_set_attribute() and
+ * mcp_account_storage_set_parameter() can just return %FALSE here.
+ * There is a default implementation, which just returns %FALSE.
+ *
+ * Returns: %TRUE if the attribute was claimed, %FALSE otherwise
  */
 gboolean
 mcp_account_storage_set (const McpAccountStorage *storage,
@@ -551,6 +592,94 @@ mcp_account_storage_set (const McpAccountStorage *storage,
   g_return_val_if_fail (iface != NULL, FALSE);
 
   return iface->set (storage, am, account, key, value);
+}
+
+/**
+ * mcp_account_storage_set_attribute:
+ * @storage: an #McpAccountStorage instance
+ * @am: an #McpAccountManager instance
+ * @account: the unique name of the account
+ * @attribute: the name of an attribute, e.g. "DisplayName"
+ * @value: a value to associate with @attribute
+ * @flags: flags influencing how the attribute is to be stored
+ *
+ * Store an attribute.
+ *
+ * The plugin is expected to either quickly and synchronously
+ * update its internal cache of values with @value, or to
+ * decline to store the attribute.
+ *
+ * The plugin is not expected to write to its long term storage
+ * at this point.
+ *
+ * There is a default implementation, which just returns %FALSE.
+ * Mission Control will call mcp_account_storage_set() instead,
+ * using a keyfile-escaped version of @value.
+ *
+ * Returns: %TRUE if the attribute was claimed, %FALSE otherwise
+ *
+ * Since: 5.13.UNRELEASED
+ */
+gboolean
+mcp_account_storage_set_attribute (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account,
+    const gchar *attribute,
+    GVariant *value,
+    McpAttributeFlags flags)
+{
+  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
+
+  SDEBUG (storage, "");
+  g_return_val_if_fail (iface != NULL, FALSE);
+  g_return_val_if_fail (iface->set_attribute != NULL, FALSE);
+
+  return iface->set_attribute (storage, am, account, attribute, value, flags);
+}
+
+/**
+ * mcp_account_storage_set_parameter:
+ * @storage: an #McpAccountStorage instance
+ * @am: an #McpAccountManager instance
+ * @account: the unique name of the account
+ * @parameter: the name of a parameter, e.g. "account" (note that there
+ *  is no "param-" prefix here)
+ * @value: a value to associate with @parameter
+ * @flags: flags influencing how the parameter is to be stored
+ *
+ * Store a parameter.
+ *
+ * The plugin is expected to either quickly and synchronously
+ * update its internal cache of values with @value, or to
+ * decline to store the parameter.
+ *
+ * The plugin is not expected to write to its long term storage
+ * at this point.
+ *
+ * There is a default implementation, which just returns %FALSE.
+ * Mission Control will call mcp_account_storage_set() instead,
+ * using "param-" + @parameter as key and a keyfile-escaped version
+ * of @value as value.
+ *
+ * Returns: %TRUE if the parameter was claimed, %FALSE otherwise
+ *
+ * Since: 5.13.UNRELEASED
+ */
+gboolean
+mcp_account_storage_set_parameter (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account,
+    const gchar *parameter,
+    GVariant *value,
+    McpParameterFlags flags)
+{
+  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
+
+  SDEBUG (storage, "");
+  g_return_val_if_fail (iface != NULL, FALSE);
+  g_return_val_if_fail (iface->set_parameter != NULL, FALSE);
+
+  return iface->set_parameter (storage, am, account, parameter, value, flags);
 }
 
 /**

@@ -99,6 +99,22 @@ def test(q, bus, mc):
             signal='AccountPropertyChanged',
             interface=cs.ACCOUNT,
             args=[{'DisplayName': 'Work account'}]),
+        EventPattern('dbus-signal',
+            interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+            signal='DeferringSetAttribute',
+            args=[account_path, 'DisplayName', 'Work account']),
+        EventPattern('dbus-signal',
+            interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+            signal='CommittingOne',
+            args=[account_path]),
+        EventPattern('dbus-method-call',
+            interface=cs.TEST_DBUS_ACCOUNT_SERVICE_IFACE,
+            method='UpdateAttributes',
+            args=[account_path[len(cs.ACCOUNT_PATH_PREFIX):],
+                {'DisplayName': 'Work account'},
+                {'DisplayName': 0}, # flags
+                []],
+            ),
         EventPattern('dbus-return', method='Set'),
         )
     assert account_props.Get(cs.ACCOUNT, 'DisplayName') == 'Work account'
@@ -110,6 +126,22 @@ def test(q, bus, mc):
             signal='AccountPropertyChanged',
             interface=cs.ACCOUNT,
             args=[{'Icon': 'im-jabber'}]),
+        EventPattern('dbus-signal',
+            interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+            signal='DeferringSetAttribute',
+            args=[account_path, 'Icon', 'im-jabber']),
+        EventPattern('dbus-signal',
+            interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+            signal='CommittingOne',
+            args=[account_path]),
+        EventPattern('dbus-method-call',
+            interface=cs.TEST_DBUS_ACCOUNT_SERVICE_IFACE,
+            method='UpdateAttributes',
+            args=[account_path[len(cs.ACCOUNT_PATH_PREFIX):],
+                {'Icon': 'im-jabber'},
+                {'Icon': 0}, # flags
+                []],
+            ),
         EventPattern('dbus-return', method='Set'),
         )
     assert account_props.Get(cs.ACCOUNT, 'Icon') == 'im-jabber'
@@ -123,6 +155,22 @@ def test(q, bus, mc):
             interface=cs.ACCOUNT,
             args=[{'Nickname': 'Joe Bloggs'}]),
         EventPattern('dbus-return', method='Set'),
+        EventPattern('dbus-signal',
+            interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+            signal='DeferringSetAttribute',
+            args=[account_path, 'Nickname', 'Joe Bloggs']),
+        EventPattern('dbus-signal',
+            interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+            signal='CommittingOne',
+            args=[account_path]),
+        EventPattern('dbus-method-call',
+            interface=cs.TEST_DBUS_ACCOUNT_SERVICE_IFACE,
+            method='UpdateAttributes',
+            args=[account_path[len(cs.ACCOUNT_PATH_PREFIX):],
+                {'Nickname': 'Joe Bloggs'},
+                {'Nickname': 0}, # flags
+                []],
+            ),
         )
     assert account_props.Get(cs.ACCOUNT, 'Nickname') == 'Joe Bloggs'
 
@@ -132,6 +180,22 @@ def test(q, bus, mc):
     # there's no change notification for the Condition
     q.expect_many(
         EventPattern('dbus-return', method='Set'),
+        EventPattern('dbus-signal',
+            interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+            signal='DeferringSetAttribute',
+            args=[account_path, 'condition-:foo', 'bar']),
+        EventPattern('dbus-signal',
+            interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+            signal='CommittingOne',
+            args=[account_path]),
+        EventPattern('dbus-method-call',
+            interface=cs.TEST_DBUS_ACCOUNT_SERVICE_IFACE,
+            method='UpdateAttributes',
+            args=[account_path[len(cs.ACCOUNT_PATH_PREFIX):],
+                {'condition-:foo': 'bar'},
+                {'condition-:foo': 0}, # flags
+                []],
+            ),
         )
     assert account_props.Get(cs.ACCOUNT_IFACE_NOKIA_CONDITIONS,
             'Condition') == {':foo': 'bar'}
@@ -148,6 +212,23 @@ def test(q, bus, mc):
             interface=cs.ACCOUNT,
             args=[{'Supersedes': [cs.ACCOUNT_PATH_PREFIX + 'x/y/z']}]),
         EventPattern('dbus-return', method='Set'),
+        EventPattern('dbus-signal',
+            interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+            signal='DeferringSetAttribute',
+            args=[account_path, 'Supersedes',
+                [cs.ACCOUNT_PATH_PREFIX + 'x/y/z']]),
+        EventPattern('dbus-signal',
+            interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+            signal='CommittingOne',
+            args=[account_path]),
+        EventPattern('dbus-method-call',
+            interface=cs.TEST_DBUS_ACCOUNT_SERVICE_IFACE,
+            method='UpdateAttributes',
+            args=[account_path[len(cs.ACCOUNT_PATH_PREFIX):],
+                {'Supersedes': [cs.ACCOUNT_PATH_PREFIX + 'x/y/z']},
+                {'Supersedes': 0}, # flags
+                []],
+            ),
         )
     assertEquals(dbus.Array([cs.ACCOUNT_PATH_PREFIX + 'x/y/z'],
                 signature='o'),
@@ -156,6 +237,16 @@ def test(q, bus, mc):
     # Set some properties to invalidly typed values - this currently succeeds
     # but is a no-op, although in future it should change to raising an
     # exception
+
+    forbidden = [
+        EventPattern('dbus-signal',
+            interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+            signal='DeferringSetAttribute'),
+        EventPattern('dbus-method-call',
+            interface=cs.TEST_DBUS_ACCOUNT_SERVICE_IFACE,
+            method='UpdateAttributes'),
+       ]
+    q.forbid_events(forbidden)
 
     # this variable's D-Bus type must differ from the types of all known
     # properties
@@ -199,9 +290,12 @@ def test(q, bus, mc):
     properties = account_props.GetAll(cs.ACCOUNT_IFACE_AVATAR)
     assert properties['Avatar'] == ([], '')
 
+    q.unforbid_events(forbidden)
+
     # Delete the account
-    assert account_iface.Remove() is None
-    account_event, account_manager_event = q.expect_many(
+    call_async(q, account_iface, 'Remove')
+    q.expect_many(
+        EventPattern('dbus-return', method='Remove'),
         EventPattern('dbus-signal',
             path=account_path,
             signal='Removed',
@@ -214,6 +308,18 @@ def test(q, bus, mc):
             interface=cs.AM,
             args=[account_path]
             ),
+        EventPattern('dbus-signal',
+            interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+            signal='DeferringDelete',
+            args=[account_path]),
+        EventPattern('dbus-signal',
+            interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+            signal='CommittingOne',
+            args=[account_path]),
+        EventPattern('dbus-method-call',
+            interface=cs.TEST_DBUS_ACCOUNT_SERVICE_IFACE,
+            method='DeleteAccount',
+            args=[account_path[len(cs.ACCOUNT_PATH_PREFIX):]]),
         )
 
     # Check the account is correctly deleted
