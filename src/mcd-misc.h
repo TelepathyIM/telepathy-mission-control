@@ -55,5 +55,7 @@ gboolean mcd_ensure_directory (const gchar *dir, GError **error);
 
 G_GNUC_INTERNAL int _mcd_chmod_private (const gchar *filename);
 
+gboolean mcd_nullable_variant_equal (GVariant *a, GVariant *b);
+
 G_END_DECLS
 #endif /* MCD_MISC_H */

@@ -1,5 +1,5 @@
 /* Mission Control storage API - interface which provides access to account
- * parameter/setting storage
+ * parameter/attribute storage
  *
  * Copyright © 2010 Nokia Corporation
  * Copyright © 2010 Collabora Ltd.
@@ -30,8 +30,8 @@ G_BEGIN_DECLS
 typedef struct {
   GObject parent;
   TpDBusDaemon *dbusd;
-  GKeyFile *keyfile;
-  GKeyFile *secrets;
+  /* owned string => owned McdStorageAccount */
+  GHashTable *accounts;
 } McdStorage;
 
 typedef struct _McdStorageClass McdStorageClass;
@@ -66,25 +66,28 @@ void mcd_storage_load (McdStorage *storage);
 
 GStrv mcd_storage_dup_accounts (McdStorage *storage, gsize *n);
 
-GStrv mcd_storage_dup_settings (McdStorage *storage,
+GStrv mcd_storage_dup_attributes (McdStorage *storage,
     const gchar *account,
     gsize *n);
 
 gboolean mcd_storage_set_string (McdStorage *storage,
     const gchar *account,
-    const gchar *key,
-    const gchar *value,
-    gboolean secret);
+    const gchar *attribute,
+    const gchar *value);
 
 gboolean mcd_storage_set_strv (McdStorage *storage,
     const gchar *account,
-    const gchar *key,
-    const gchar * const *strv,
-    gboolean secret);
+    const gchar *attribute,
+    const gchar * const *strv);
 
-gboolean mcd_storage_set_value (McdStorage *storage,
+gboolean mcd_storage_set_attribute (McdStorage *storage,
     const gchar *account,
-    const gchar *key,
+    const gchar *attribute,
+    const GValue *value);
+
+gboolean mcd_storage_set_parameter (McdStorage *storage,
+    const gchar *account,
+    const gchar *parameter,
     const GValue *value,
     gboolean secret);
 
@@ -101,21 +104,27 @@ void mcd_storage_commit (McdStorage *storage, const gchar *account);
 
 gchar *mcd_storage_dup_string (McdStorage *storage,
     const gchar *account,
-    const gchar *key);
+    const gchar *attribute);
 
-gboolean mcd_storage_get_value (McdStorage *storage,
+gboolean mcd_storage_get_attribute (McdStorage *storage,
     const gchar *account,
-    const gchar *key,
+    const gchar *attribute,
+    GValue *value,
+    GError **error);
+
+gboolean mcd_storage_get_parameter (McdStorage *storage,
+    const gchar *account,
+    const gchar *parameter,
     GValue *value,
     GError **error);
 
 gboolean mcd_storage_get_boolean (McdStorage *storage,
     const gchar *account,
-    const gchar *key);
+    const gchar *attribute);
 
 gint mcd_storage_get_integer (McdStorage *storage,
     const gchar *account,
-    const gchar *key);
+    const gchar *attribute);
 
 McpAccountStorage * mcd_storage_get_plugin (McdStorage *storage,
     const gchar *account);
@@ -125,6 +134,21 @@ G_GNUC_INTERNAL void _mcd_storage_store_connections (McdStorage *storage);
 gboolean mcd_storage_add_account_from_plugin (McdStorage *storage,
     McpAccountStorage *plugin,
     const gchar *account);
+
+gboolean mcd_keyfile_get_value (GKeyFile *keyfile,
+    const gchar *group,
+    const gchar *key,
+    GValue *value,
+    GError **error);
+gboolean mcd_keyfile_set_value (GKeyFile *keyfile,
+    const gchar *name,
+    const gchar *key,
+    const GValue *value);
+
+gchar *mcd_keyfile_escape_value (const GValue *value);
+gboolean mcd_keyfile_unescape_value (const gchar *escaped,
+    GValue *value,
+    GError **error);
 
 G_END_DECLS
 

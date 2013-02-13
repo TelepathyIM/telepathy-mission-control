@@ -237,3 +237,87 @@ mcp_account_manager_get_unique_name (McpAccountManager *mcpa,
 
   return iface->unique_name (mcpa, manager, protocol, params);
 }
+
+/**
+ * mcp_account_manager_escape_value_from_keyfile:
+ * @mcpa: a #McpAccountManager
+ * @value: a value with a supported #GType
+ *
+ * Escape @value so it could be passed to g_key_file_set_value().
+ * For instance, escaping the boolean value TRUE returns "true",
+ * and escaping the string value containing one space returns "\s".
+ *
+ * It is a programming error to use an unsupported type.
+ * The supported types are currently %G_TYPE_STRING, %G_TYPE_BOOLEAN,
+ * %G_TYPE_INT, %G_TYPE_UINT, %G_TYPE_INT64, %G_TYPE_UINT64, %G_TYPE_UCHAR,
+ * %G_TYPE_STRV, %DBUS_TYPE_G_OBJECT_PATH and %TP_ARRAY_TYPE_OBJECT_PATH_LIST.
+ *
+ * Returns: the escaped form of @value
+ */
+gchar *
+mcp_account_manager_escape_value_for_keyfile (const McpAccountManager *mcpa,
+    const GValue *value)
+{
+  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
+
+  g_return_val_if_fail (iface != NULL, NULL);
+  g_return_val_if_fail (iface->escape_value_for_keyfile != NULL, NULL);
+
+  return iface->escape_value_for_keyfile (mcpa, value);
+}
+
+/**
+ * mcp_account_manager_unescape_value_from_keyfile:
+ * @mcpa: a #McpAccountManager
+ * @escaped: an escaped string as returned by g_key_file_get_value()
+ * @value: a value to populate, with a supported #GType
+ * @error: used to raise an error if %FALSE is returned
+ *
+ * Attempt to interpret @escaped as a value of @value's type.
+ * If successful, put it in @value and return %TRUE.
+ *
+ * It is a programming error to try to escape an unsupported type.
+ * The supported types are currently %G_TYPE_STRING, %G_TYPE_BOOLEAN,
+ * %G_TYPE_INT, %G_TYPE_UINT, %G_TYPE_INT64, %G_TYPE_UINT64, %G_TYPE_UCHAR,
+ * %G_TYPE_STRV, %DBUS_TYPE_G_OBJECT_PATH and %TP_ARRAY_TYPE_OBJECT_PATH_LIST.
+ *
+ * Returns: %TRUE if @value was filled in
+ */
+gboolean
+mcp_account_manager_unescape_value_from_keyfile (const McpAccountManager *mcpa,
+    const gchar *escaped,
+    GValue *value,
+    GError **error)
+{
+  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
+
+  g_return_val_if_fail (iface != NULL, FALSE);
+  g_return_val_if_fail (iface->unescape_value_from_keyfile != NULL, FALSE);
+
+  return iface->unescape_value_from_keyfile (mcpa, escaped, value, error);
+}
+
+/**
+ * mcp_account_manager_init_value_for_attribute:
+ * @mcpa: a #McpAccountManager
+ * @value: a zero-filled value to initialize
+ * @attribute: a supported Mission Control attribute
+ *
+ * If @attribute is a known Mission Control attribute, initialize @value
+ * with an appropriate type for @attribute and return %TRUE. Otherwise,
+ * return %FALSE.
+ *
+ * Returns: %TRUE if @value was initialized
+ */
+gboolean
+mcp_account_manager_init_value_for_attribute (const McpAccountManager *mcpa,
+    GValue *value,
+    const gchar *attribute)
+{
+  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
+
+  g_return_val_if_fail (iface != NULL, FALSE);
+  g_return_val_if_fail (iface->init_value_for_attribute != NULL, FALSE);
+
+  return iface->init_value_for_attribute (mcpa, value, attribute);
+}

@@ -32,8 +32,6 @@
 #include "mcd-account-priv.h"
 #include "_gen/interfaces.h"
 
-#define SCHEMES TP_IFACE_ACCOUNT_INTERFACE_ADDRESSING ".URISchemes"
-
 static void
 addressing_set_uri_scheme_association (TpSvcAccountInterfaceAddressing *iface,
     const gchar *uri_scheme,
@@ -49,7 +47,8 @@ addressing_set_uri_scheme_association (TpSvcAccountInterfaceAddressing *iface,
 
   g_value_init (&value, G_TYPE_STRV);
 
-  if (mcd_storage_get_value (storage, account, SCHEMES, &value, NULL))
+  if (mcd_storage_get_attribute (storage, account, MC_ACCOUNTS_KEY_URI_SCHEMES,
+                                 &value, NULL))
     {
       schemes = g_value_get_boxed (&value);
       old_association = tp_strv_contains ((const gchar * const *) schemes,
@@ -79,8 +78,8 @@ addressing_set_uri_scheme_association (TpSvcAccountInterfaceAddressing *iface,
         }
 
       g_ptr_array_add (new_schemes, NULL);
-      mcd_storage_set_strv (storage, account, SCHEMES,
-          (const gchar * const *) new_schemes->pdata, FALSE);
+      mcd_storage_set_strv (storage, account, MC_ACCOUNTS_KEY_URI_SCHEMES,
+          (const gchar * const *) new_schemes->pdata);
 
       changed = tp_asv_new (
           "URISchemes", G_TYPE_STRV, new_schemes->pdata,
@@ -109,7 +108,8 @@ addressing_get_uri_schemes (TpSvcDBusProperties *iface,
 
   g_value_init (value, G_TYPE_STRV);
 
-  if (!mcd_storage_get_value (storage, account, SCHEMES, value, NULL))
+  if (!mcd_storage_get_attribute (storage, account, MC_ACCOUNTS_KEY_URI_SCHEMES,
+                                  value, NULL))
     {
       g_value_set_boxed (value, NULL);
     }

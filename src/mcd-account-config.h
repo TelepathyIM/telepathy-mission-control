@@ -27,33 +27,53 @@
 #ifndef __MCD_ACCOUNT_CONFIG_H__
 #define __MCD_ACCOUNT_CONFIG_H__
 
+#include <telepathy-glib/telepathy-glib-dbus.h>
+
+/* If you add new storable attributes you must also update
+ * known_attributes in mcd-storage.c. */
+
+/* string, 's' */
 #define MC_ACCOUNTS_KEY_MANAGER "manager"
 #define MC_ACCOUNTS_KEY_PROTOCOL "protocol"
-#define MC_ACCOUNTS_KEY_PRESETS "presets"
-#define MC_ACCOUNTS_KEY_GROUPS "groups"
 #define MC_ACCOUNTS_KEY_DISPLAY_NAME "DisplayName"
-#define MC_ACCOUNTS_KEY_ICON_NAME "icon_name"
 #define MC_ACCOUNTS_KEY_NORMALIZED_NAME "NormalizedName"
-#define MC_ACCOUNTS_KEY_ENABLED "Enabled"
-#define MC_ACCOUNTS_KEY_DELETED "deleted"
-#define MC_ACCOUNTS_KEY_PROFILE "profile"
-#define MC_ACCOUNTS_KEY_PARAM_ACCOUNT "account"
 #define MC_ACCOUNTS_KEY_AVATAR_TOKEN "avatar_token"
 #define MC_ACCOUNTS_KEY_AVATAR_MIME "AvatarMime"
-#define MC_ACCOUNTS_KEY_AVATAR_ID "avatar_id"
-#define MC_ACCOUNTS_KEY_AUTO_PRESENCE_TYPE "AutomaticPresenceType"
 #define MC_ACCOUNTS_KEY_AUTO_PRESENCE_STATUS "AutomaticPresenceStatus"
 #define MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE "AutomaticPresenceMessage"
-#define MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY "ConnectAutomatically"
-#define MC_ACCOUNTS_KEY_HAS_BEEN_ONLINE "HasBeenOnline"
-#define MC_ACCOUNTS_KEY_DATA_DIR "data_dir"
-#define MC_ACCOUNTS_KEY_ALIAS "Nickname"
-#define MC_ACCOUNTS_KEY_SECONDARY_VCARD_FIELDS "secondary_vcard_fields"
-#define MC_ACCOUNTS_KEY_HIDDEN "Hidden"
+#define MC_ACCOUNTS_KEY_ICON "Icon"
+#define MC_ACCOUNTS_KEY_NICKNAME "Nickname"
+#define MC_ACCOUNTS_KEY_SERVICE "Service"
+/* ... also "condition-*" reserved by mcd-account-conditions.c */
+
+/* unsigned 32-bit integer, 'u' */
+#define MC_ACCOUNTS_KEY_AUTO_PRESENCE_TYPE "AutomaticPresenceType"
+
+/* boolean, 'b' */
 #define MC_ACCOUNTS_KEY_ALWAYS_DISPATCH "always_dispatch"
+#define MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY "ConnectAutomatically"
+#define MC_ACCOUNTS_KEY_ENABLED "Enabled"
+#define MC_ACCOUNTS_KEY_HAS_BEEN_ONLINE "HasBeenOnline"
+#define MC_ACCOUNTS_KEY_HIDDEN "Hidden"
+
+/* string array, 'as' */
+#define MC_ACCOUNTS_KEY_URI_SCHEMES \
+    TP_IFACE_ACCOUNT_INTERFACE_ADDRESSING ".URISchemes"
+
+/* object path array, 'ao' */
 #define MC_ACCOUNTS_KEY_SUPERSEDES "Supersedes"
 
+/* things that previously existed, so they should now be considered
+ * to be reserved */
 #define PRESETS_GROUP "Presets"
 #define PRESETS_GROUP_DEFAULTS "Defaults"
+#define MC_OLD_ACCOUNTS_KEY_AVATAR_ID "avatar_id"
+#define MC_OLD_ACCOUNTS_KEY_DATA_DIR "data_dir"
+#define MC_OLD_ACCOUNTS_KEY_DELETED "deleted"
+#define MC_OLD_ACCOUNTS_KEY_GROUPS "groups"
+#define MC_OLD_ACCOUNTS_KEY_ICON_NAME "icon_name"
+#define MC_OLD_ACCOUNTS_KEY_PRESETS "presets"
+#define MC_OLD_ACCOUNTS_KEY_PROFILE "profile"
+#define MC_OLD_ACCOUNTS_KEY_SECONDARY_VCARD_FIELDS "secondary_vcard_fields"
 
 #endif /* __MCD_ACCOUNT_CONFIG_H__ */

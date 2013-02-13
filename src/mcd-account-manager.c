@@ -915,14 +915,13 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
 
     /* create the basic account keys */
     mcd_storage_set_string (storage, unique_name,
-                            MC_ACCOUNTS_KEY_MANAGER, manager, FALSE);
+                            MC_ACCOUNTS_KEY_MANAGER, manager);
     mcd_storage_set_string (storage, unique_name,
-                            MC_ACCOUNTS_KEY_PROTOCOL, protocol, FALSE);
+                            MC_ACCOUNTS_KEY_PROTOCOL, protocol);
 
     if (display_name != NULL)
         mcd_storage_set_string (storage, unique_name,
-                                MC_ACCOUNTS_KEY_DISPLAY_NAME, display_name,
-                                FALSE);
+                                MC_ACCOUNTS_KEY_DISPLAY_NAME, display_name);
 
     account = mcd_account_new (account_manager, unique_name);
     g_free (unique_name);
