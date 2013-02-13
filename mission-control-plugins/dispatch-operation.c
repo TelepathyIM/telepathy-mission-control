@@ -295,6 +295,16 @@ mcp_dispatch_operation_end_delay (McpDispatchOperation *self,
  *
  * Leave all channels in this bundle by using RemoveMembersWithReason if the
  * channel has the Group interface, or Close if not.
+ *
+ * This method was intended for StreamedMedia channels, which (ab)used the
+ * Group interface for call control. StreamedMedia channels have been
+ * superseded by Call channels, which have a proper "hang up" method which
+ * should be used instead.
+ *
+ * Deprecated: 5.15.UNRELEASED: Use tp_call_channel_hangup_async() to
+ *  hang up Call channels, mcp_dispatch_operation_close_channels() to close
+ *  generic channels, or mcp_dispatch_operation_destroy_channels() to
+ *  terminate the channel destructively.
  */
 void
 mcp_dispatch_operation_leave_channels (McpDispatchOperation *self,
@@ -320,6 +330,9 @@ mcp_dispatch_operation_leave_channels (McpDispatchOperation *self,
  *  (usually recommended), wait for Observers to reply first
  *
  * Close all channels in this bundle by using the Close D-Bus method.
+ *
+ * Plugins that terminate an audio or audio/video call should
+ * use tp_call_channel_hangup_async() instead.
  */
 void
 mcp_dispatch_operation_close_channels (McpDispatchOperation *self,
@@ -340,6 +353,9 @@ mcp_dispatch_operation_close_channels (McpDispatchOperation *self,
  *
  * Close all channels in this bundle destructively, by using the Destroy D-Bus
  * method if implemented, or the Close D-Bus method if not.
+ *
+ * Plugins that terminate an audio or audio/video call should
+ * use tp_call_channel_hangup_async() instead.
  */
 void
 mcp_dispatch_operation_destroy_channels (McpDispatchOperation *self,

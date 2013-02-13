@@ -85,9 +85,13 @@ McpDispatchOperationDelay *mcp_dispatch_operation_start_delay (
 void mcp_dispatch_operation_end_delay (McpDispatchOperation *self,
     McpDispatchOperationDelay *delay);
 
+#ifndef MC_DISABLE_DEPRECATED
+G_DEPRECATED_FOR (mcp_dispatch_operation_close_channels or tp_call_channel_hangup_async)
 void mcp_dispatch_operation_leave_channels (McpDispatchOperation *self,
     gboolean wait_for_observers, TpChannelGroupChangeReason reason,
     const gchar *message);
+#endif
+
 void mcp_dispatch_operation_close_channels (McpDispatchOperation *self,
     gboolean wait_for_observers);
 void mcp_dispatch_operation_destroy_channels (McpDispatchOperation *self,
