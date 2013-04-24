@@ -160,7 +160,8 @@ connectivity_monitor_connman_state_changed (DBusGProxy *proxy,
   if (!priv->use_conn)
     return;
 
-  new_connected = !tp_strdiff (new_state, "online");
+  new_connected = (!tp_strdiff (new_state, "online")
+                   || !tp_strdiff (new_state, "ready"));
 
   DEBUG ("New ConnMan network state %s", new_state);
 
