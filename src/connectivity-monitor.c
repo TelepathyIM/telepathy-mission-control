@@ -46,6 +46,16 @@
 
 #include "mcd-debug.h"
 
+typedef enum {
+    /* Set if the device is not suspended; clear if it is. */
+    CONNECTIVITY_AWAKE = (1 << 0),
+    /* Set if GNetworkMonitor says we're up. */
+    CONNECTIVITY_UP = (1 << 1),
+    /* Clear if NetworkManager says we're in a shaky state like
+     * disconnecting (the GNetworkMonitor can't tell this). Set otherwise. */
+    CONNECTIVITY_STABLE = (1 << 2)
+} Connectivity;
+
 struct _McdConnectivityMonitorPrivate {
 #ifdef HAVE_NM
   NMClient *nm_client;
@@ -60,11 +70,8 @@ struct _McdConnectivityMonitorPrivate {
   UpClient *upower_client;
 #endif
 
-  gboolean connected;
+  Connectivity connectivity;
   gboolean use_conn;
-
-  /* TRUE if the device is not suspended; FALSE while it is. */
-  gboolean awake;
 };
 
 enum {
@@ -82,33 +89,32 @@ static McdConnectivityMonitor *connectivity_monitor_singleton = NULL;
 
 G_DEFINE_TYPE (McdConnectivityMonitor, mcd_connectivity_monitor, G_TYPE_OBJECT);
 
-static void
-connectivity_monitor_change_states (
-    McdConnectivityMonitor *self,
-    gboolean connected,
-    gboolean awake)
+static gboolean
+is_connected (Connectivity connectivity)
 {
-  McdConnectivityMonitorPrivate *priv = self->priv;
-  gboolean old_total = priv->connected && priv->awake;
-  gboolean new_total = connected && awake;
-
-  if (priv->connected == connected &&
-      priv->awake == awake)
-    return;
-
-  priv->connected = connected;
-  priv->awake = awake;
-
-  if (old_total != new_total)
-    g_signal_emit (self, signals[STATE_CHANGE], 0, new_total);
+  return ((connectivity & CONNECTIVITY_AWAKE) &&
+      (connectivity & CONNECTIVITY_UP) &&
+      (connectivity & CONNECTIVITY_STABLE));
 }
 
 static void
-connectivity_monitor_set_connected (
+connectivity_monitor_change_states (
     McdConnectivityMonitor *self,
-    gboolean connected)
+    Connectivity set,
+    Connectivity clear)
 {
-  connectivity_monitor_change_states (self, connected, self->priv->awake);
+  McdConnectivityMonitorPrivate *priv = self->priv;
+  Connectivity connectivity = ((priv->connectivity | set) & (~clear));
+  gboolean old_total = is_connected (priv->connectivity);
+  gboolean new_total = is_connected (connectivity);
+
+  if (priv->connectivity == connectivity)
+    return;
+
+  priv->connectivity = connectivity;
+
+  if (old_total != new_total)
+    g_signal_emit (self, signals[STATE_CHANGE], 0, new_total);
 }
 
 #ifdef HAVE_NM
@@ -123,7 +129,6 @@ connectivity_monitor_nm_state_change_cb (NMClient *client,
     McdConnectivityMonitor *connectivity_monitor)
 {
   McdConnectivityMonitorPrivate *priv;
-  gboolean new_nm_connected;
   NMState state;
 
   priv = connectivity_monitor->priv;
@@ -132,17 +137,29 @@ connectivity_monitor_nm_state_change_cb (NMClient *client,
     return;
 
   state = nm_client_get_state (priv->nm_client);
-  new_nm_connected = !(state == NM_STATE_CONNECTING
+
+  if (state == NM_STATE_CONNECTING
 #if NM_CHECK_VERSION(0,8,992)
       || state == NM_STATE_DISCONNECTING
 #endif
-      || state == NM_STATE_ASLEEP
-      || state == NM_STATE_DISCONNECTED);
-
-  DEBUG ("New NetworkManager network state %d (connected: %s)", state,
-      new_nm_connected ? "true" : "false");
-
-  connectivity_monitor_set_connected (connectivity_monitor, new_nm_connected);
+      || state == NM_STATE_ASLEEP)
+    {
+      DEBUG ("New NetworkManager network state %d (unstable)", state);
+      connectivity_monitor_change_states (connectivity_monitor,
+          0, CONNECTIVITY_STABLE);
+    }
+  else if (state == NM_STATE_DISCONNECTED)
+    {
+      DEBUG ("New NetworkManager network state %d (stable, down)", state);
+      connectivity_monitor_change_states (connectivity_monitor,
+          CONNECTIVITY_STABLE, CONNECTIVITY_UP);
+    }
+  else
+    {
+      DEBUG ("New NetworkManager network state %d (stable, up)", state);
+      connectivity_monitor_change_states (connectivity_monitor,
+          CONNECTIVITY_STABLE|CONNECTIVITY_UP, 0);
+    }
 }
 #endif
 
@@ -233,7 +250,10 @@ connectivity_monitor_set_awake (
     McdConnectivityMonitor *self,
     gboolean awake)
 {
-  connectivity_monitor_change_states (self, self->priv->connected, awake);
+  if (awake)
+    connectivity_monitor_change_states (self, CONNECTIVITY_AWAKE, 0);
+  else
+    connectivity_monitor_change_states (self, 0, CONNECTIVITY_AWAKE);
 }
 
 static void
@@ -276,7 +296,7 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
   connectivity_monitor->priv = priv;
 
   priv->use_conn = TRUE;
-  priv->awake = TRUE;
+  priv->connectivity = CONNECTIVITY_AWAKE | CONNECTIVITY_STABLE;
 
 #ifdef HAVE_NM
   priv->nm_client = nm_client_new ();
@@ -323,7 +343,7 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
 #endif
 
 #if !defined(HAVE_NM) && !defined(HAVE_CONNMAN)
-  priv->connected = TRUE;
+  priv->connectivity |= CONNECTIVITY_UP;
 #endif
 
 #ifdef HAVE_UPOWER
@@ -489,7 +509,7 @@ mcd_connectivity_monitor_is_online (McdConnectivityMonitor *connectivity_monitor
 {
   McdConnectivityMonitorPrivate *priv = connectivity_monitor->priv;
 
-  return priv->connected && priv->awake;
+  return is_connected (priv->connectivity);
 }
 
 gboolean
@@ -526,7 +546,9 @@ mcd_connectivity_monitor_set_use_conn (McdConnectivityMonitor *connectivity_moni
   else
 #endif
     {
-      connectivity_monitor_set_connected (connectivity_monitor, TRUE);
+      /* !use_conn basically means "always assume it's stable and up". */
+      connectivity_monitor_change_states (connectivity_monitor,
+          CONNECTIVITY_STABLE|CONNECTIVITY_UP, 0);
     }
 
   g_object_notify (G_OBJECT (connectivity_monitor), "use-conn");
