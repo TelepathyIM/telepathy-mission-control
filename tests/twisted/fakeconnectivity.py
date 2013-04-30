@@ -98,8 +98,11 @@ class FakeConnectivity(object):
     def ConnMan_GetProperties(self, e):
         self.q.dbus_return(e.message, self.Connman_props(), signature='a{sv}')
 
-    def change_state(self, online):
-        if online:
+    def change_state(self, online, indeterminate=False):
+        if indeterminate:
+            self.nm_state = self.NM_STATE_DISCONNECTING
+            # keep the previous ConnMan state
+        elif online:
             self.nm_state = self.NM_STATE_CONNECTED_GLOBAL
             self.connman_state = self.CONNMAN_ONLINE
         else:
@@ -112,11 +115,16 @@ class FakeConnectivity(object):
         self.q.dbus_emit(self.NM_PATH, self.NM_INTERFACE,
             'StateChanged', self.nm_state,
             signature='u')
-        self.q.dbus_emit(self.CONNMAN_PATH, self.CONNMAN_INTERFACE,
-            'PropertyChanged', "State", self.connman_state, signature='sv')
+
+        if not indeterminate:
+            self.q.dbus_emit(self.CONNMAN_PATH, self.CONNMAN_INTERFACE,
+                'PropertyChanged', "State", self.connman_state, signature='sv')
 
     def go_online(self):
         self.change_state(True)
 
     def go_offline(self):
         self.change_state(False)
+
+    def go_indeterminate(self):
+        self.change_state(None, True)
