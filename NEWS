@@ -1,7 +1,13 @@
 telepathy-mission-control 5.14.1 (UNRELEASED)
 =============================================
 
-...
+Fixes:
+
+• Build successfully with Automake 1.13 (fd.o #59605, Nuno Araujo)
+
+• Isolate regression tests better (fd.o #63119, Simon McVittie)
+
+• Respect NOCONFIGURE in autogen.sh (fd.o #57165, Cosimo Cecchi)
 
 telepathy-mission-control 5.14.0 (2012-10-03)
 =============================================
