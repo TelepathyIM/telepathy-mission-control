@@ -34,9 +34,6 @@ Fixes:
 • Update to the current ConnMan D-Bus API (fd.o #56600;
   Mike Ruprecht, Joshua Lock)
 
-• Honour NOCONFIGURE=1 in autogen.sh, like gnome-autogen.sh (d.o #57165,
-  Guillaume)
-
 • If a stored parameter has a value inappropriate for its type
   (e.g. require-tls=2 where the connection manager expects require-tls
   to be boolean), invalidate the account, rather than treating the
@@ -57,6 +54,12 @@ Fixes:
   telepathy-spec 0.27.1 (fd.o #40393, Guillaume)
 
 • McpAccountStorage::altered-one now works as intended (fd.o #54780, Simon)
+
+• Respect NOCONFIGURE in autogen.sh (fd.o #57165, Cosimo Cecchi)
+
+• Build successfully with Automake 1.13 (fd.o #59605, Nuno Araujo)
+
+• Isolate regression tests better (fd.o #63119, Simon McVittie)
 
 Internal changes:
 
