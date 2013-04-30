@@ -1,6 +1,7 @@
 /* -*- Mode: C; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2; -*- */
 /*
  * Copyright © 2009–2011 Collabora Ltd.
+ * Copyright © 2013 Intel Corporation
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -26,16 +27,7 @@
 
 
 #ifdef HAVE_NM
-# ifdef HAVE_CONNMAN
-#  error tried to build both Network Manager and ConnMan support simultaneously!
-/* I mean, we could support both one day, but not for now. */
-# endif
-/* Moving swiftly on… */
 #include <nm-client.h>
-#endif
-
-#ifdef HAVE_CONNMAN
-#include <dbus/dbus-glib.h>
 #endif
 
 #ifdef HAVE_UPOWER
@@ -57,13 +49,11 @@ typedef enum {
 } Connectivity;
 
 struct _McdConnectivityMonitorPrivate {
+  GNetworkMonitor *network_monitor;
+
 #ifdef HAVE_NM
   NMClient *nm_client;
   gulong state_change_signal_id;
-#endif
-
-#ifdef HAVE_CONNMAN
-  DBusGProxy *proxy;
 #endif
 
 #ifdef HAVE_UPOWER
@@ -138,111 +128,56 @@ connectivity_monitor_nm_state_change_cb (NMClient *client,
 
   state = nm_client_get_state (priv->nm_client);
 
+  /* Deliberately not checking for DISCONNECTED. If we are really disconnected,
+   * the netlink GNetworkMonitor will say so; or if we have non-NM connectivity
+   * with a default route, we might as well give it a try. */
   if (state == NM_STATE_CONNECTING
 #if NM_CHECK_VERSION(0,8,992)
       || state == NM_STATE_DISCONNECTING
 #endif
       || state == NM_STATE_ASLEEP)
     {
-      DEBUG ("New NetworkManager network state %d (unstable)", state);
+      DEBUG ("New NetworkManager network state %d (unstable state)", state);
+
       connectivity_monitor_change_states (connectivity_monitor,
           0, CONNECTIVITY_STABLE);
     }
-  else if (state == NM_STATE_DISCONNECTED)
-    {
-      DEBUG ("New NetworkManager network state %d (stable, down)", state);
-      connectivity_monitor_change_states (connectivity_monitor,
-          CONNECTIVITY_STABLE, CONNECTIVITY_UP);
-    }
   else
     {
-      DEBUG ("New NetworkManager network state %d (stable, up)", state);
+      DEBUG ("New NetworkManager network state %d (stable state)", state);
       connectivity_monitor_change_states (connectivity_monitor,
-          CONNECTIVITY_STABLE|CONNECTIVITY_UP, 0);
+          CONNECTIVITY_STABLE, 0);
     }
 }
 #endif
 
-#ifdef HAVE_CONNMAN
 static void
-connectivity_monitor_connman_state_changed (DBusGProxy *proxy,
-    const gchar *new_state,
+connectivity_monitor_network_changed (GNetworkMonitor *monitor,
+    gboolean available,
     McdConnectivityMonitor *connectivity_monitor)
 {
   McdConnectivityMonitorPrivate *priv;
-  gboolean new_connected;
 
   priv = connectivity_monitor->priv;
 
   if (!priv->use_conn)
     return;
 
-  new_connected = (!tp_strdiff (new_state, "online")
-                   || !tp_strdiff (new_state, "ready"));
-
-  DEBUG ("New ConnMan network state %s", new_state);
-
-  connectivity_monitor_set_connected (connectivity_monitor, new_connected);
-}
-
-static void
-connectivity_monitor_connman_property_changed_cb (DBusGProxy *proxy,
-    const gchar *prop_name,
-    const GValue *new_value,
-    McdConnectivityMonitor *connectivity_monitor)
-{
-  if (!tp_strdiff (prop_name, "State"))
-    connectivity_monitor_connman_state_changed (proxy,
-        g_value_get_string (new_value), connectivity_monitor);
-}
-
-static void
-connectivity_monitor_connman_check_state_cb (DBusGProxy *proxy,
-    DBusGProxyCall *call_id,
-    gpointer user_data)
-{
-  McdConnectivityMonitor *connectivity_monitor = (McdConnectivityMonitor *) user_data;
-  GError *error = NULL;
-  GHashTable *props;
-
-  if (dbus_g_proxy_end_call (proxy, call_id, &error,
-          dbus_g_type_get_map ("GHashTable", G_TYPE_STRING, G_TYPE_VALUE),
-          &props, G_TYPE_INVALID))
+  if (available)
     {
-      const gchar *state = tp_asv_get_string (props, "State");
-
-      if (state != NULL)
-        {
-          connectivity_monitor_connman_state_changed (proxy, state,
-              connectivity_monitor);
-        }
-      else
-        {
-          DEBUG ("Failed to get State: not in GetProperties return");
-        }
-
-      g_hash_table_unref (props);
+      DEBUG ("GNetworkMonitor (%s) says we are at least partially online",
+          G_OBJECT_TYPE_NAME (monitor));
+      connectivity_monitor_change_states (connectivity_monitor,
+          CONNECTIVITY_UP, 0);
     }
   else
     {
-      DEBUG ("Failed to call GetProperties: %s", error->message);
-      connectivity_monitor_connman_state_changed (proxy, "offline",
-          connectivity_monitor);
+      DEBUG ("GNetworkMonitor (%s) says we are offline",
+          G_OBJECT_TYPE_NAME (monitor));
+      connectivity_monitor_change_states (connectivity_monitor,
+          0, CONNECTIVITY_UP);
     }
 }
-
-static void
-connectivity_monitor_connman_check_state (McdConnectivityMonitor *connectivity_monitor)
-{
-  McdConnectivityMonitorPrivate *priv;
-
-  priv = connectivity_monitor->priv;
-
-  dbus_g_proxy_begin_call (priv->proxy, "GetProperties",
-      connectivity_monitor_connman_check_state_cb, connectivity_monitor, NULL,
-      G_TYPE_INVALID);
-}
-#endif
 
 #ifdef HAVE_UPOWER
 static void
@@ -285,10 +220,6 @@ static void
 mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
 {
   McdConnectivityMonitorPrivate *priv;
-#ifdef HAVE_CONNMAN
-  DBusGConnection *connection;
-  GError *error = NULL;
-#endif
 
   priv = G_TYPE_INSTANCE_GET_PRIVATE (connectivity_monitor,
       MCD_TYPE_CONNECTIVITY_MONITOR, McdConnectivityMonitorPrivate);
@@ -296,7 +227,18 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
   connectivity_monitor->priv = priv;
 
   priv->use_conn = TRUE;
-  priv->connectivity = CONNECTIVITY_AWAKE | CONNECTIVITY_STABLE;
+  /* Initially, assume everything is good. */
+  priv->connectivity = CONNECTIVITY_AWAKE | CONNECTIVITY_STABLE |
+    CONNECTIVITY_UP;
+
+  priv->network_monitor = g_network_monitor_get_default ();
+
+  tp_g_signal_connect_object (priv->network_monitor, "network-changed",
+      G_CALLBACK (connectivity_monitor_network_changed),
+      connectivity_monitor, 0);
+  connectivity_monitor_network_changed (priv->network_monitor,
+      g_network_monitor_get_network_available (priv->network_monitor),
+      connectivity_monitor);
 
 #ifdef HAVE_NM
   priv->nm_client = nm_client_new ();
@@ -314,38 +256,6 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
     }
 #endif
 
-#ifdef HAVE_CONNMAN
-  connection = dbus_g_bus_get (DBUS_BUS_SYSTEM, &error);
-  if (connection != NULL)
-    {
-      priv->proxy = dbus_g_proxy_new_for_name (connection,
-          "net.connman", "/",
-          "net.connman.Manager");
-
-      dbus_g_object_register_marshaller (
-          g_cclosure_marshal_generic,
-          G_TYPE_NONE, G_TYPE_STRING, G_TYPE_BOXED, G_TYPE_INVALID);
-
-      dbus_g_proxy_add_signal (priv->proxy, "PropertyChanged",
-          G_TYPE_STRING, G_TYPE_VALUE, G_TYPE_INVALID);
-
-      dbus_g_proxy_connect_signal (priv->proxy, "PropertyChanged",
-          G_CALLBACK (connectivity_monitor_connman_property_changed_cb),
-          connectivity_monitor, NULL);
-
-      connectivity_monitor_connman_check_state (connectivity_monitor);
-    }
-  else
-    {
-      DEBUG ("Failed to get system bus connection: %s", error->message);
-      g_error_free (error);
-    }
-#endif
-
-#if !defined(HAVE_NM) && !defined(HAVE_CONNMAN)
-  priv->connectivity |= CONNECTIVITY_UP;
-#endif
-
 #ifdef HAVE_UPOWER
   priv->upower_client = up_client_new ();
   tp_g_signal_connect_object (priv->upower_client,
@@ -360,7 +270,7 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
 static void
 connectivity_monitor_finalize (GObject *object)
 {
-#if defined(HAVE_NM) || defined(HAVE_CONNMAN) || defined(HAVE_UPOWER)
+#if defined(HAVE_NM) || defined(HAVE_UPOWER)
   McdConnectivityMonitor *connectivity_monitor = MCD_CONNECTIVITY_MONITOR (object);
   McdConnectivityMonitorPrivate *priv = connectivity_monitor->priv;
 #endif
@@ -376,18 +286,6 @@ connectivity_monitor_finalize (GObject *object)
     }
 #endif
 
-#ifdef HAVE_CONNMAN
-  if (priv->proxy != NULL)
-    {
-      dbus_g_proxy_disconnect_signal (priv->proxy, "PropertyChanged",
-          G_CALLBACK (connectivity_monitor_connman_property_changed_cb),
-          connectivity_monitor);
-
-      g_object_unref (priv->proxy);
-      priv->proxy = NULL;
-    }
-#endif
-
 #ifdef HAVE_UPOWER
   tp_clear_object (&priv->upower_client);
 #endif
@@ -398,6 +296,10 @@ connectivity_monitor_finalize (GObject *object)
 static void
 connectivity_monitor_dispose (GObject *object)
 {
+  McdConnectivityMonitor *self = MCD_CONNECTIVITY_MONITOR (object);
+
+  g_clear_object (&self->priv->network_monitor);
+
   G_OBJECT_CLASS (mcd_connectivity_monitor_parent_class)->dispose (object);
 }
 
@@ -534,17 +436,17 @@ mcd_connectivity_monitor_set_use_conn (McdConnectivityMonitor *connectivity_moni
 
   priv->use_conn = use_conn;
 
-#if defined(HAVE_NM) || defined(HAVE_CONNMAN)
   if (use_conn)
     {
 #if defined(HAVE_NM)
       connectivity_monitor_nm_state_change_cb (priv->nm_client, NULL, connectivity_monitor);
-#elif defined(HAVE_CONNMAN)
-      connectivity_monitor_connman_check_state (connectivity_monitor);
 #endif
+
+      connectivity_monitor_network_changed (priv->network_monitor,
+          g_network_monitor_get_network_available (priv->network_monitor),
+          connectivity_monitor);
     }
   else
-#endif
     {
       /* !use_conn basically means "always assume it's stable and up". */
       connectivity_monitor_change_states (connectivity_monitor,

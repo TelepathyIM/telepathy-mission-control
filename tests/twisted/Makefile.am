@@ -146,22 +146,15 @@ HAVE_MCE_PYBOOL = False
 endif
 
 if HAVE_NM
-HAVE_CONNECTIVITY_PYBOOL = True
 HAVE_NM_PYBOOL = True
 else
 HAVE_NM_PYBOOL = False
-if HAVE_CONNMAN
-HAVE_CONNECTIVITY_PYBOOL = True
-else
-HAVE_CONNECTIVITY_PYBOOL = False
-endif
 endif
 
 config.py: Makefile
 	$(AM_V_GEN) { \
 		echo "HAVE_MCE = $(HAVE_MCE_PYBOOL)"; \
 		echo "HAVE_NM = $(HAVE_NM_PYBOOL)"; \
-		echo "HAVE_CONNECTIVITY = $(HAVE_CONNECTIVITY_PYBOOL)"; \
 	} > $@
 
 BUILT_SOURCES = config.py

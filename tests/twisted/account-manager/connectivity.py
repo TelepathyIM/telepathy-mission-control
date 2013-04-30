@@ -30,10 +30,6 @@ import constants as cs
 
 import config
 
-if not config.HAVE_CONNECTIVITY:
-    print "NOTE: built without ConnMan or NM support"
-    raise SystemExit(77)
-
 def sync_connectivity_state(mc):
     # We cannot simply use sync_dbus here, because nm-glib reports property
     # changes in an idle (presumably to batch them all together). This is fine
