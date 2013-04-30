@@ -172,6 +172,7 @@ plugins_list = \
 	mcp-plugin.la \
 	mcp-account-diversion.la \
 	mcp-dbus-caller-permission.la \
+	libgiofakenetworkmonitor.la \
 	$(NULL)
 
 if ENABLE_INSTALLED_TESTS
@@ -199,6 +200,12 @@ mcp_plugin_la_SOURCES = \
 # library even though it's not going to be installed - the default for noinst
 # libraries is static
 mcp_plugin_la_LDFLAGS = -module -shared -avoid-version -rpath @abs_builddir@
+
+libgiofakenetworkmonitor_la_SOURCES = \
+	fake-network-monitor.c \
+	fake-network-monitor.h \
+	$(NULL)
+libgiofakenetworkmonitor_la_LDFLAGS = $(mcp_plugin_la_LDFLAGS)
 
 mcp_account_diversion_la_SOURCES = mcp-account-diversion.c
 mcp_account_diversion_la_LDFLAGS = $(mcp_plugin_la_LDFLAGS)
@@ -233,6 +240,7 @@ BASIC_TESTS_ENVIRONMENT = \
 	PYTHONPATH=@abs_top_srcdir@/tests/twisted:@abs_top_builddir@/tests/twisted \
 	MC_DEBUG=all \
 	MC_FILTER_PLUGIN_DIR=@abs_top_builddir@/tests/twisted/.libs \
+	GIO_EXTRA_MODULES=@abs_top_builddir@/tests/twisted/.libs \
 	MC_ACCOUNT_DIR=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX)/mc-account-dir \
 	XDG_CONFIG_HOME=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX)/config \
 	XDG_CONFIG_DIRS=@abs_top_srcdir@/tests/twisted \

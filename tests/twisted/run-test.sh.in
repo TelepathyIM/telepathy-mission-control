@@ -21,6 +21,7 @@ export XDG_CACHE_HOME=$TMP
 export G_DEBUG=fatal-criticals
 export MC_DEBUG=all
 export MC_FILTER_PLUGIN_DIR=@mctestsdir@/twisted/plugins
+export GIO_EXTRA_MODULES=@mctestsdir@/twisted/plugins
 export MC_ACCOUNT_DIR=/tmp/telepathy-mission-control-tests/accounts
 export MC_CLIENTS_DIR=@mctestsdir@/twisted/telepathy/clients
 export MC_MANAGER_DIR=@mctestsdir@/twisted/telepathy/managers
