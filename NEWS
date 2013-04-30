@@ -31,7 +31,8 @@ Enhancements:
 
 Fixes:
 
-• Update to the current ConnMan D-Bus API (fd.o #56600, Mike Ruprecht)
+• Update to the current ConnMan D-Bus API (fd.o #56600;
+  Mike Ruprecht, Joshua Lock)
 
 • Honour NOCONFIGURE=1 in autogen.sh, like gnome-autogen.sh (d.o #57165,
   Guillaume)
