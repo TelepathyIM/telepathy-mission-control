@@ -335,14 +335,14 @@ _get_secrets_from_keyring (const McpAccountStorage *self,
                       "account", account,
                       "param", "password",
                       NULL);
+
+                  /* behave as if it had already been deleted, i.e. we never
+                   * actually found it... */
+                  param = NULL;
+                  value = NULL;
                 }
 
               gnome_keyring_found_list_free (empathy_items);
-
-              /* behave as if it had already been deleted, i.e. we never
-               * actually found it... */
-              param = NULL;
-              value = NULL;
             }
 
           if (param != NULL && value != NULL)
