@@ -3,6 +3,11 @@ telepathy-mission-control 5.14.1 (UNRELEASED)
 
 Fixes:
 
+• Only ignore passwords stored in our old gnome-keyring location if Empathy
+  has actually copied them to its new location, fixing use of a
+  gnome-keyring-enabled MC version with no Empathy or other
+  SASLAuthentication handler (e.g. under Sugar). (fd.o #59468, Simon)
+
 • Build successfully with Automake 1.13 (fd.o #59605, Nuno Araujo)
 
 • Isolate regression tests better (fd.o #63119, Simon McVittie)
