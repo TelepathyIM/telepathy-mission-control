@@ -1,7 +1,8 @@
 /*
- * slacker.c - Maemo device state monitor
+ * slacker.c - Idleness monitor
  * Copyright ©2010 Collabora Ltd.
  * Copyright ©2008-2010 Nokia Corporation
+ * Copyright ©2013 Intel Corporation
  *
  * Derived from code in e-book-backend-tp.c in eds-backend-telepathy; thanks!
  *
@@ -23,39 +24,12 @@
 
 #include "mcd-slacker.h"
 
-#include <dbus/dbus.h>
-#include <dbus/dbus-glib.h>
-#include <dbus/dbus-glib-lowlevel.h>
-
 #include <telepathy-glib/telepathy-glib.h>
-
-#ifdef HAVE_MCE
-#include <mce/dbus-names.h>
-#else /* HAVE_MCE */
-
-/* Use some dummy interfaces etc. for the test suite.
- *
- * In a perfect world of sweetness and light these would not be enabled for the
- * real build, but we do not live in a perfect world of sweetness and light: we
- * live below a dark cloud of bitter ash, the charred remains of a defunct
- * economy and cygnine clothing.
- */
-#define MCE_SERVICE "org.freedesktop.Telepathy.MissionControl.Tests.MCE"
-
-#define MCE_SIGNAL_IF "org.freedesktop.Telepathy.MissionControl.Tests.MCE"
-#define MCE_INACTIVITY_SIG "InactivityChanged"
-
-#define MCE_REQUEST_IF "org.freedesktop.Telepathy.MissionControl.Tests.MCE"
-#define MCE_REQUEST_PATH "/org/freedesktop/Telepathy/MissionControl/Tests/MCE"
-#define MCE_INACTIVITY_STATUS_GET "GetInactivity"
-
-#endif /* HAVE_MCE */
 
 #include "mcd-debug.h"
 
 struct _McdSlackerPrivate {
-    DBusGConnection *bus;
-    DBusGProxy *mce_request_proxy;
+    GDBusProxy *proxy;
 
     gboolean is_inactive;
 };
@@ -68,6 +42,22 @@ enum {
 };
 
 static guint signals[N_SIGNALS];
+
+/* GNOME Session Manager interface description:
+ * https://git.gnome.org/browse/gnome-session/tree/gnome-session/org.gnome.SessionManager.Presence.xml
+ */
+enum {
+    STATUS_AVAILABLE = 0,
+    STATUS_INVISIBLE,
+    STATUS_BUSY,
+    STATUS_IDLE
+};
+
+#define SERVICE_NAME "org.gnome.SessionManager"
+#define SERVICE_OBJECT_PATH "/org/gnome/SessionManager/Presence"
+#define SERVICE_INTERFACE "org.gnome.SessionManager.Presence"
+#define SERVICE_PROP_NAME "status"
+#define SERVICE_SIG_NAME "StatusChanged"
 
 /**
  * mcd_slacker_is_inactive:
@@ -86,117 +76,73 @@ mcd_slacker_is_inactive (McdSlacker *self)
 }
 
 static void
-slacker_inactivity_changed (
-    McdSlacker *self,
-    gboolean is_inactive)
+status_changed (McdSlacker *self,
+    GVariant *prop)
 {
-  McdSlackerPrivate *priv = self->priv;
-  gboolean old = priv->is_inactive;
+  gboolean old = self->priv->is_inactive;
 
-  priv->is_inactive = is_inactive;
-
-  if (!!old != !!is_inactive)
+  if (g_variant_classify (prop) != G_VARIANT_CLASS_UINT32)
     {
-      DEBUG ("device became %s", (is_inactive ? "inactive" : "active"));
-      g_signal_emit (self, signals[SIG_INACTIVITY_CHANGED], 0, is_inactive);
-    }
-}
-
-static GQuark mce_signal_interface_quark = 0;
-static GQuark mce_inactivity_signal_quark = 0;
-
-#define INACTIVITY_MATCH_RULE \
-  "type='signal',interface='" MCE_SIGNAL_IF "',member='" MCE_INACTIVITY_SIG "'"
-
-static DBusHandlerResult
-slacker_message_filter (
-    DBusConnection *connection,
-    DBusMessage *message,
-    gpointer user_data)
-{
-  McdSlacker *self = MCD_SLACKER (user_data);
-  GQuark interface, member;
-  const gchar *interface_name = NULL;
-  const gchar *member_name = NULL;
-
-  if (dbus_message_get_type (message) != DBUS_MESSAGE_TYPE_SIGNAL)
-    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-
-  interface_name = dbus_message_get_interface (message);
-  if (interface_name == NULL)
-    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-
-  member_name = dbus_message_get_member (message);
-  if (member_name == NULL)
-    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-
-  interface = g_quark_try_string (interface_name);
-  member = g_quark_try_string (member_name);
-
-  if (interface == mce_signal_interface_quark &&
-      member == mce_inactivity_signal_quark)
-    {
-      gboolean is_inactive;
-
-      if (dbus_message_get_args (message, NULL, DBUS_TYPE_BOOLEAN, &is_inactive,
-              DBUS_TYPE_INVALID))
-        slacker_inactivity_changed (self, is_inactive);
-      else
-        DEBUG (MCE_INACTIVITY_SIG " without a boolean argument, ignoring");
+      WARNING ("Status property is of type %s and we expected an uint32",
+          g_variant_get_type_string (prop));
+      return;
     }
 
-  return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+  self->priv->is_inactive = (g_variant_get_uint32 (prop) == STATUS_IDLE);
+
+  if (self->priv->is_inactive != old)
+    {
+      DEBUG ("device became %s",
+          self->priv->is_inactive ? "inactive" : "active");
+      g_signal_emit (self, signals[SIG_INACTIVITY_CHANGED], 0,
+          self->priv->is_inactive);
+    }
 }
 
 static void
-get_inactivity_status_cb (
-    DBusGProxy *proxy,
-    DBusGProxyCall *call,
+signal_cb (GDBusProxy *proxy,
+    gchar *sender_name,
+    gchar *signal_name,
+    GVariant *parameters,
     gpointer user_data)
 {
-  McdSlacker *self = MCD_SLACKER (user_data);
-  gboolean is_inactive;
+  McdSlacker *self = user_data;
+  GVariant *prop;
+
+  if (tp_strdiff (signal_name, SERVICE_SIG_NAME))
+    return;
+
+  prop = g_variant_get_child_value (parameters, 0);
+  status_changed (self, prop);
+  g_variant_unref (prop);
+}
+
+static void
+proxy_new_cb (GObject *source,
+    GAsyncResult *result,
+    gpointer user_data)
+{
+  McdSlacker *self = user_data;
+  GVariant *prop;
   GError *error = NULL;
 
-  if (!dbus_g_proxy_end_call (proxy, call, &error /* ignore errors */,
-          G_TYPE_BOOLEAN, &is_inactive, G_TYPE_INVALID))
+  self->priv->proxy = g_dbus_proxy_new_finish (result, &error);
+  if (self->priv->proxy == NULL)
     {
-      DEBUG ("error getting inactivity status: %s", error->message);
-      g_error_free (error);
-    }
-    else
-    {
-      slacker_inactivity_changed (self, is_inactive);
+      DEBUG ("Error while creating slacker proxy: %s", error->message);
+      goto out;
     }
 
-  tp_clear_object (&self->priv->mce_request_proxy);
+  g_signal_connect (self->priv->proxy, "g-signal",
+      G_CALLBACK (signal_cb), self);
+
+  prop = g_dbus_proxy_get_cached_property (self->priv->proxy, SERVICE_PROP_NAME);
+  status_changed (self, prop);
+  g_variant_unref (prop);
+
+out:
+  g_object_unref (self);
 }
-
-static void
-slacker_add_filter (McdSlacker *self)
-{
-  McdSlackerPrivate *priv = self->priv;
-  DBusConnection *c = dbus_g_connection_get_connection (self->priv->bus);
-
-  dbus_connection_add_filter (c, slacker_message_filter, self, NULL);
-  dbus_bus_add_match (c, INACTIVITY_MATCH_RULE, NULL);
-
-  priv->mce_request_proxy = dbus_g_proxy_new_for_name (priv->bus,
-      MCE_SERVICE, MCE_REQUEST_PATH, MCE_REQUEST_IF);
-  dbus_g_proxy_begin_call (priv->mce_request_proxy, MCE_INACTIVITY_STATUS_GET,
-      get_inactivity_status_cb, self, NULL, G_TYPE_INVALID);
-}
-
-static void
-slacker_remove_filter (McdSlacker *self)
-{
-  DBusConnection *c = dbus_g_connection_get_connection (self->priv->bus);
-
-  dbus_connection_remove_filter (c, slacker_message_filter, self);
-  dbus_bus_remove_match (c, INACTIVITY_MATCH_RULE, NULL);
-}
-
-/* GObject boilerplate */
 
 static void
 mcd_slacker_init (McdSlacker *self)
@@ -234,37 +180,20 @@ static void
 mcd_slacker_constructed (GObject *object)
 {
   McdSlacker *self = MCD_SLACKER (object);
-  GError *error = NULL;
 
-#ifdef HAVE_MCE
-  self->priv->bus = dbus_g_bus_get (DBUS_BUS_SYSTEM, &error);
-#else
-  self->priv->bus = dbus_g_bus_get (DBUS_BUS_SESSION, &error);
-#endif
-
-  if (self->priv->bus == NULL)
-    {
-      g_warning ("help! where did my system bus go? %s", error->message);
-      g_clear_error (&error);
-    }
-  else
-    {
-      slacker_add_filter (self);
-    }
+  g_dbus_proxy_new_for_bus (G_BUS_TYPE_SESSION,
+      G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START, NULL,
+      SERVICE_NAME, SERVICE_OBJECT_PATH, SERVICE_INTERFACE,
+      NULL,
+      proxy_new_cb, g_object_ref (self));
 }
 
 static void
 mcd_slacker_dispose (GObject *object)
 {
   McdSlacker *self = MCD_SLACKER (object);
-  McdSlackerPrivate *priv = self->priv;
 
-  tp_clear_object (&priv->mce_request_proxy); /* this cancels pending calls */
-
-  if (priv->bus != NULL)
-    slacker_remove_filter (self);
-
-  tp_clear_pointer (&priv->bus, dbus_g_connection_unref);
+  g_clear_object (&self->priv->proxy);
 
   ((GObjectClass *) mcd_slacker_parent_class)->dispose (object);
 }
@@ -285,21 +214,11 @@ mcd_slacker_class_init (McdSlackerClass *klass)
    * @self: what a slacker
    * @inactive: %TRUE if the device is inactive.
    *
-   * The ::inactivity-changed is emitted whenever MCE declares that the device
-   * has become active or inactive. Note that there is a lag (of around 30
-   * seconds, at the time of writing) between the screen blanking and MCE
-   * declaring the device inactive.
+   * The ::inactivity-changed is emitted when session becomes idle.
    */
   signals[SIG_INACTIVITY_CHANGED] = g_signal_new ("inactivity-changed",
       MCD_TYPE_SLACKER, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
       NULL, G_TYPE_NONE, 1, G_TYPE_BOOLEAN);
-
-  if (!mce_signal_interface_quark)
-    {
-      mce_signal_interface_quark = g_quark_from_static_string (MCE_SIGNAL_IF);
-      mce_inactivity_signal_quark = g_quark_from_static_string (
-          MCE_INACTIVITY_SIG);
-    }
 }
 
 McdSlacker *

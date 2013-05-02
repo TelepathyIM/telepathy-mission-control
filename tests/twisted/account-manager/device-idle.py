@@ -1,5 +1,6 @@
 # Copyright (C) 2009 Nokia Corporation
 # Copyright (C) 2009 Collabora Ltd.
+# Copyright (C) 2013 Intel Corporation
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -18,10 +19,6 @@
 
 import config
 
-if config.HAVE_MCE:
-    print "NOTE: built with real MCE support; skipping idleness test"
-    raise SystemExit(77)
-
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
@@ -30,34 +27,50 @@ from mctest import exec_test, create_fakecm_account, SimulatedConnection, \
     enable_fakecm_account
 import constants as cs
 
-# Fake MCE constants, cloned from mce-slacker.c
-MCE_SERVICE = "org.freedesktop.Telepathy.MissionControl.Tests.MCE"
+# Fake SessionManager constants, cloned from mcd-slacker.c
+STATUS_AVAILABLE = 0
+STATUS_INVISIBLE = 1
+STATUS_BUSY = 2
+STATUS_IDLE = 3
 
-MCE_SIGNAL_IF = "org.freedesktop.Telepathy.MissionControl.Tests.MCE"
+SERVICE_NAME = "org.gnome.SessionManager"
+SERVICE_OBJECT_PATH = "/org/gnome/SessionManager/Presence"
+SERVICE_INTERFACE = "org.gnome.SessionManager.Presence"
+SERVICE_PROP_NAME = "status"
+SERVICE_SIG_NAME = "StatusChanged"
 
-MCE_REQUEST_IF = "org.freedesktop.Telepathy.MissionControl.Tests.MCE"
-MCE_REQUEST_PATH = "/org/freedesktop/Telepathy/MissionControl/Tests/MCE"
-
-class SimulatedMCE(object):
-    def __init__(self, q, bus, inactive=False):
+class SimulatedSession(object):
+    def __init__(self, q, bus, status=STATUS_AVAILABLE):
         self.bus = bus
         self.q = q
-        self.inactive = inactive
-        self.object_path = MCE_REQUEST_PATH
-        self._name_ref = dbus.service.BusName(MCE_SERVICE, bus)
+        self.status = status
+        self.object_path = SERVICE_OBJECT_PATH
+        self._name_ref = dbus.service.BusName(SERVICE_NAME, bus)
 
-        q.add_dbus_method_impl(self.GetInactivity,
-                               path=self.object_path, interface=MCE_REQUEST_IF,
-                               method='GetInactivity')
+        self.q.add_dbus_method_impl(self.GetAll,
+                path=self.object_path,
+                interface=cs.PROPERTIES_IFACE, method='GetAll')
+        self.q.add_dbus_method_impl(self.Get,
+                path=self.object_path,
+                interface=cs.PROPERTIES_IFACE, method='Get')
 
+    def GetAll(self, e):
+        ret = dbus.Dictionary({}, signature='sv')
+        ret[SERVICE_PROP_NAME] = dbus.UInt32(self.status)
+        self.q.dbus_return(e.message, ret, signature='a{sv}')
 
-    def GetInactivity(self, e):
-        self.q.dbus_return(e.message, self.inactive, signature='b')
+    def Get(self, e):
+        if e.args[0] == SERVICE_INTERFACE and e.args[1] == SERVICE_PROP_NAME:
+            self.q.dbus_return(e.message, dbus.UInt32(self.status), signature='v')
+            return
 
-    def InactivityChanged(self, new_value):
-        self.inactive = new_value
-        self.q.dbus_emit(self.object_path, MCE_SIGNAL_IF, "InactivityChanged",
-                         self.inactive, signature="b")
+        self.q.dbus_raise(e.message, cs.NOT_IMPLEMENTED, \
+            "Unknown property %s on interface %s" % (e.args[0], e.args[1]))
+
+    def StatusChanged(self, new_value):
+        self.status = new_value
+        self.q.dbus_emit(self.object_path, SERVICE_INTERFACE, SERVICE_SIG_NAME,
+                         dbus.UInt32(self.status), signature="u")
 
     def release_name(self):
         del self._name_ref
@@ -87,7 +100,7 @@ def _disable_account(q, bus, mc, account, conn):
             path=conn.object_path, handled=True)
 
 def test(q, bus, mc):
-    mce = SimulatedMCE(q, bus, True)
+    service = SimulatedSession(q, bus, STATUS_IDLE)
 
     account1, conn1 = _create_and_enable(
         q, bus, mc, "first@example.com", True,
@@ -100,10 +113,10 @@ def test(q, bus, mc):
 
     q.forbid_events(forbid_no_iface)
 
-    for enabled in [False, True, False]:
-        mce.InactivityChanged(enabled)
+    for status in [STATUS_AVAILABLE, STATUS_IDLE, STATUS_BUSY]:
+        service.StatusChanged(status)
         q.expect('dbus-method-call', method='SetPowerSaving',
-                 args=[enabled], interface=cs.CONN_IFACE_POWER_SAVING,
+                 args=[status == STATUS_IDLE], interface=cs.CONN_IFACE_POWER_SAVING,
                  path=conn1.object_path)
 
     _disable_account(q, bus, mc, account1, conn1)
@@ -117,13 +130,13 @@ def test(q, bus, mc):
 
     q.forbid_events(forbid_when_disconnected)
 
-    mce.InactivityChanged(True)
+    service.StatusChanged(STATUS_IDLE)
 
     sync_dbus(bus, q, account1)
 
     q.unforbid_events(forbid_when_disconnected)
 
-    mce.release_name()
+    service.release_name()
 
 if __name__ == '__main__':
     exec_test(test, {})

@@ -1,5 +1,5 @@
 /*
- * slacker.h - header for Maemo device state monitor
+ * slacker.h - header for McdSlacker
  * Copyright ©2010 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
