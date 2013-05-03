@@ -630,7 +630,7 @@ mcp_account_storage_set (const McpAccountStorage *storage,
  *
  * Returns: %TRUE if the attribute was claimed, %FALSE otherwise
  *
- * Since: 5.13.UNRELEASED
+ * Since: 5.15.0
  */
 gboolean
 mcp_account_storage_set_attribute (McpAccountStorage *storage,
@@ -675,7 +675,7 @@ mcp_account_storage_set_attribute (McpAccountStorage *storage,
  *
  * Returns: %TRUE if the parameter was claimed, %FALSE otherwise
  *
- * Since: 5.13.UNRELEASED
+ * Since: 5.15.0
  */
 gboolean
 mcp_account_storage_set_parameter (McpAccountStorage *storage,
@@ -1270,7 +1270,7 @@ mcp_account_storage_emit_reconnect (McpAccountStorage *storage,
  *
  * Returns: %TRUE if @account is stored in @storage
  *
- * Since: 5.13.UNRELEASED
+ * Since: 5.15.0
  */
 gboolean
 mcp_account_storage_owns (McpAccountStorage *storage,

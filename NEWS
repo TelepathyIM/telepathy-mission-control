@@ -1,5 +1,7 @@
-telepathy-mission-control 5.15.0 (UNRELEASED)
+telepathy-mission-control 5.15.0 (2013-05-03)
 =============================================
+
+The “any other citizen of the Queen” release.
 
 Running this version of Mission Control for the first time will automatically
 migrate some account data to a new format. If you subsequently downgrade
@@ -28,6 +30,11 @@ Enhancements:
   is presented as a GVariant. (fd.o #54872, Simon)
 
 • `mc-tool get <account> AutomaticPresence` now works (fd.o #54780, Simon)
+
+• When running under GNOME 3 or Unity, MC will attempt to enable
+  connections' power-saving features while the session is idle;
+  this is currently effective for Google Talk XMPP connections.
+  (fd.o #62530; Xavier, Simon)
 
 Fixes:
 

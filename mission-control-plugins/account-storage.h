@@ -128,7 +128,7 @@ struct _McpAccountStorageIface
   McpAccountStorageGetRestrictionsFunc get_restrictions;
   McpAccountStorageCreate create;
 
-  /* Since 5.13.UNRELEASED */
+  /* Since 5.15.0 */
   gboolean (*owns) (McpAccountStorage *storage,
       McpAccountManager *am,
       const gchar *account);
