@@ -83,7 +83,8 @@ status_changed (McdSlacker *self,
 
   if (g_variant_classify (prop) != G_VARIANT_CLASS_UINT32)
     {
-      WARNING ("Status property is of type %s and we expected an uint32",
+      WARNING ("%s.%s property is of type %s and we expected u",
+          SERVICE_INTERFACE, SERVICE_PROP_NAME,
           g_variant_get_type_string (prop));
       return;
     }
@@ -112,6 +113,14 @@ signal_cb (GDBusProxy *proxy,
   if (tp_strdiff (signal_name, SERVICE_SIG_NAME))
     return;
 
+  if (!g_variant_is_of_type (parameters, G_VARIANT_TYPE ("(u)")))
+    {
+      WARNING ("%s.%s arguments are of type %s and we expected (u)",
+          SERVICE_INTERFACE, SERVICE_PROP_NAME,
+          g_variant_get_type_string (parameters));
+      return;
+    }
+
   prop = g_variant_get_child_value (parameters, 0);
   status_changed (self, prop);
   g_variant_unref (prop);
@@ -137,8 +146,20 @@ proxy_new_cb (GObject *source,
       G_CALLBACK (signal_cb), self);
 
   prop = g_dbus_proxy_get_cached_property (self->priv->proxy, SERVICE_PROP_NAME);
-  status_changed (self, prop);
-  g_variant_unref (prop);
+
+  if (g_dbus_proxy_get_name_owner (self->priv->proxy) == NULL)
+    {
+      DEBUG ("%s service not found", SERVICE_NAME);
+    }
+  else if (prop == NULL)
+    {
+      DEBUG ("%s.%s property is missing", SERVICE_INTERFACE, SERVICE_PROP_NAME);
+    }
+  else
+    {
+      status_changed (self, prop);
+      g_variant_unref (prop);
+    }
 
 out:
   g_object_unref (self);
