@@ -46,7 +46,7 @@ AC_SUBST([MCP_API_VERSION])
 # else if library source has changed since last release
 #     increment revision
 MCP_LT_CURRENT=4
-MCP_LT_REVISION=1
+MCP_LT_REVISION=2
 MCP_LT_AGE=4
 AC_SUBST([MCP_LT_CURRENT])
 AC_SUBST([MCP_LT_REVISION])

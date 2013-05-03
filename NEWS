@@ -55,17 +55,6 @@ Fixes:
 
 • McpAccountStorage::altered-one now works as intended (fd.o #54780, Simon)
 
-• Respect NOCONFIGURE in autogen.sh (fd.o #57165, Cosimo Cecchi)
-
-• Only ignore passwords stored in our old gnome-keyring location if Empathy
-  has actually copied them to its new location, fixing use of a
-  gnome-keyring-enabled MC version with no Empathy or other
-  SASLAuthentication handler (e.g. under Sugar). (fd.o #59468, Simon)
-
-• Build successfully with Automake 1.13 (fd.o #59605, Nuno Araujo)
-
-• Isolate regression tests better (fd.o #63119, Simon McVittie)
-
 Internal changes:
 
 • Refactor avatar and alias handling (fd.o #55668, Simon)
@@ -76,6 +65,24 @@ Internal changes:
 
 • Start to remove uses of functions deprecated in telepathy-glib 0.20
   (fd.o #55391; Jonny, Simon)
+
+telepathy-mission-control 5.14.1 (2013-05-03)
+=============================================
+
+The “implicit maze” release.
+
+Fixes:
+
+• Only ignore passwords stored in our old gnome-keyring location if Empathy
+  has actually copied them to its new location, fixing use of a
+  gnome-keyring-enabled MC version with no Empathy or other
+  SASLAuthentication handler (e.g. under Sugar). (fd.o #59468, Simon)
+
+• Build successfully with Automake 1.13 (fd.o #59605, Nuno Araujo)
+
+• Isolate regression tests better (fd.o #63119, Simon McVittie)
+
+• Respect NOCONFIGURE in autogen.sh (fd.o #57165, Cosimo Cecchi)
 
 telepathy-mission-control 5.14.0 (2012-10-03)
 =============================================
