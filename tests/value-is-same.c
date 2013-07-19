@@ -23,6 +23,8 @@
  *
  */
 
+#include <config.h>
+
 /* Yes, this is a hack */
 #include "mcd-account.c"
 
