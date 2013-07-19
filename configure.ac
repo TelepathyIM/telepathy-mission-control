@@ -94,24 +94,23 @@ AC_MSG_RESULT([$mc_want_twisted_tests])
 AM_CONDITIONAL([WANT_TWISTED_TESTS], test yes = "$mc_want_twisted_tests")
 
 AC_ARG_ENABLE(debug,            [  --disable-debug               compile without debug code],[enable_debug=${enableval}], enable_debug=yes )
-if test "x$enable_debug" = "xyes"; then
-	CFLAGS="$CFLAGS -DENABLE_DEBUG"
-fi
+AS_IF([test "x$enable_debug" = "xyes"],
+    [AC_DEFINE([ENABLE_DEBUG], [1], [Define to compile in debug messages])])
 
 AC_ARG_ENABLE(cast-checks,      [  --disable-cast-checks         compile with GLIB cast checks disabled],[cchecks=${enableval}],cchecks=yes)
-if test "x$cchecks" = "xno"; then
-	CFLAGS="$CFLAGS -DG_DISABLE_CAST_CHECKS"
-fi
+AS_IF([test "x$cchecks" = "xno"],
+    [AC_DEFINE([G_DISABLE_CAST_CHECKS], [1],
+        [Define to disable checked casts (not recommended)])])
 
 AC_ARG_ENABLE(asserts,      [  --disable-asserts        compile with GLIB assertions disabled],[asserts=${enableval}],asserts=yes)
-if test "x$asserts" = "xno"; then
-	CFLAGS="$CFLAGS -DG_DISABLE_ASSERTS"
-fi
+AS_IF([test "x$asserts" = "xno"],
+    [AC_DEFINE([G_DISABLE_ASSERTS], [1],
+        [Define to disable assertions (not recommended)])])
 
 AC_ARG_ENABLE(checks,       [  --disable-checks         compile with GLIB checks disabled],[checks=${enableval}],checks=yes)
-if test "x$checks" = "xno"; then
-	CFLAGS="$CFLAGS -DG_DISABLE_CHECKS"
-fi
+AS_IF([test "x$checks" = "xno"],
+    [AC_DEFINE([G_DISABLE_CHECKS], [1],
+        [Define to disable checks (not recommended)])])
 
 AC_ARG_ENABLE(coverage,       [  --enable-coverage         compile with coverage info],[enable_coverage=${enableval}],enable_coverage=no)
 if test "x$enable_coverage" = "xyes"; then
