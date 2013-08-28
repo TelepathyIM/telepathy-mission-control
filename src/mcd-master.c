@@ -300,10 +300,6 @@ _mcd_master_set_property (GObject *obj, guint prop_id,
 	g_assert (priv->dbus_daemon == NULL);
 	priv->dbus_daemon = g_value_dup_object (val);
 	break;
-    case PROP_ACCOUNT_MANAGER:
-	g_assert (priv->account_manager == NULL);
-	priv->account_manager = g_value_dup_object (val);
-	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
@@ -370,9 +366,7 @@ mcd_master_constructor (GType type, guint n_params,
 #endif
 
     priv->client_factory = tp_simple_client_factory_new (priv->dbus_daemon);
-
-    if (!priv->account_manager)
-	priv->account_manager = mcd_account_manager_new (priv->client_factory);
+    priv->account_manager = mcd_account_manager_new (priv->client_factory);
 
     priv->dispatcher = mcd_dispatcher_new (priv->dbus_daemon, master);
     g_assert (MCD_IS_DISPATCHER (priv->dispatcher));
@@ -433,7 +427,7 @@ mcd_master_class_init (McdMasterClass * klass)
          g_param_spec_object ("account-manager",
                               "AccountManager", "AccountManager",
                               MCD_TYPE_ACCOUNT_MANAGER,
-                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+                              G_PARAM_READABLE));
 }
 
 static void
