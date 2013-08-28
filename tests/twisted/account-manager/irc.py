@@ -1,7 +1,10 @@
 # encoding: utf-8
 #
+# Test the odd things about IRC: it has no presence, and nicknames
+# are the same thing as identifiers.
+#
 # Copyright © 2009 Nokia Corporation
-# Copyright © 2009-2012 Collabora Ltd.
+# Copyright © 2009-2013 Collabora Ltd.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -53,9 +56,14 @@ def test(q, bus, mc):
             EventPattern('dbus-method-call',
                 interface=cs.CONN_IFACE_ALIASING, method='SetAliases',
                 handled=False),
+            EventPattern('dbus-signal',
+                interface=cs.ACCOUNT,
+                predicate=lambda e:
+                    e.args[0].get('CurrentPresence') ==
+                        (cs.PRESENCE_TYPE_UNSET, '', '')),
             ]
 
-    conn, get_aliases, set_aliases = enable_fakecm_account(q, bus, mc,
+    conn, get_aliases, set_aliases, _ = enable_fakecm_account(q, bus, mc,
             account, params, has_aliasing=True,
             expect_after_connect=expect_after_connect,
             self_ident=params['account'])
