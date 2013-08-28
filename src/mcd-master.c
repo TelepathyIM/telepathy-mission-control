@@ -402,14 +402,6 @@ mcd_master_constructor (GType type, guint n_params,
     return (GObject *) master;
 }
 
-static McdManager *
-mcd_master_create_manager (McdMaster *master, const gchar *unique_name)
-{
-    McdMasterPrivate *priv = master->priv;
-
-    return mcd_manager_new (unique_name, priv->dispatcher, priv->dbus_daemon);
-}
-
 static void
 mcd_master_class_init (McdMasterClass * klass)
 {
@@ -421,8 +413,6 @@ mcd_master_class_init (McdMasterClass * klass)
     object_class->get_property = _mcd_master_get_property;
     object_class->set_property = _mcd_master_set_property;
     object_class->dispose = _mcd_master_dispose;
-
-    klass->create_manager = mcd_master_create_manager;
 
     /* Properties */
     g_object_class_install_property
@@ -509,8 +499,9 @@ _mcd_master_lookup_manager (McdMaster *master,
 	    return manager;
     }
 
-    manager = MCD_MASTER_GET_CLASS (master)->create_manager
-        (master, unique_name);
+    manager = mcd_manager_new (unique_name,
+                               master->priv->dispatcher,
+                               master->priv->dbus_daemon);
     if (G_UNLIKELY (!manager))
 	g_warning ("Manager %s not created", unique_name);
     else
