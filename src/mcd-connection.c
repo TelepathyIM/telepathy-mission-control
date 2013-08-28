@@ -114,9 +114,6 @@ struct _McdConnectionPrivate
      * dispatched */
     guint dispatched_initial_channels : 1;
 
-    /* FALSE until we got the first PresencesChanged for the self handle */
-    guint got_presences_changed : 1;
-
     /* TRUE if the last status change was to CONNECTED */
     guint connected : 1;
 
@@ -159,7 +156,6 @@ enum
 enum
 {
     READY,
-    SELF_PRESENCE_CHANGED,
     CONNECTION_STATUS_CHANGED,
     N_SIGNALS
 };
@@ -412,64 +408,9 @@ presence_get_statuses_cb (TpProxy *proxy, const GValue *v_statuses,
 }
 
 static void
-on_presences_changed (TpConnection *proxy, GHashTable *presences,
-                      gpointer user_data, GObject *weak_object)
-{
-    McdConnectionPrivate *priv = user_data;
-    GValueArray *va;
-    TpHandle self_handle;
-
-    self_handle = tp_connection_get_self_handle (proxy);
-    va = g_hash_table_lookup (presences, GUINT_TO_POINTER (self_handle));
-    if (va)
-    {
-        TpConnectionPresenceType presence;
-        const gchar *status, *message;
-
-        presence = g_value_get_uint (va->values);
-        status = g_value_get_string (va->values + 1);
-        message = g_value_get_string (va->values + 2);
-        g_signal_emit (weak_object, signals[SELF_PRESENCE_CHANGED], 0,
-                       presence, status, message);
-        priv->got_presences_changed = TRUE;
-    }
-}
-
-static void
-mcd_connection_initial_presence_cb (TpConnection *proxy,
-                                    GHashTable *presences,
-                                    const GError *error,
-                                    gpointer user_data,
-                                    GObject *weak_object)
-{
-    if (error != NULL)
-    {
-        DEBUG ("GetPresences([SelfHandle]) failed: %s", error->message);
-        return;
-    }
-
-    on_presences_changed (proxy, presences, user_data, weak_object);
-}
-
-static void
 _mcd_connection_setup_presence (McdConnection *connection)
 {
     McdConnectionPrivate *priv =  connection->priv;
-    GArray *self_handle_array;
-    guint self_handle;
-
-    tp_cli_connection_interface_simple_presence_connect_to_presences_changed
-        (priv->tp_conn, on_presences_changed, priv, NULL,
-         (GObject *)connection, NULL);
-
-    self_handle_array = g_array_new (FALSE, FALSE, sizeof (guint));
-    self_handle = tp_connection_get_self_handle (priv->tp_conn);
-    g_array_append_val (self_handle_array, self_handle);
-    tp_cli_connection_interface_simple_presence_call_get_presences
-        (priv->tp_conn, -1, self_handle_array,
-         mcd_connection_initial_presence_cb, priv, NULL,
-         (GObject *) connection);
-    g_array_unref (self_handle_array);
 
     tp_cli_dbus_properties_call_get
         (priv->tp_conn, -1, TP_IFACE_CONNECTION_INTERFACE_SIMPLE_PRESENCE,
@@ -1616,8 +1557,6 @@ _mcd_connection_release_tp_connection (McdConnection *connection,
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
 
     DEBUG ("%p", connection);
-    g_signal_emit (connection, signals[SELF_PRESENCE_CHANGED], 0,
-                   TP_CONNECTION_PRESENCE_TYPE_OFFLINE, "offline", "");
 
     if (priv->abort_reason == TP_CONNECTION_STATUS_REASON_REQUESTED)
     {
@@ -2007,12 +1946,6 @@ mcd_connection_class_init (McdConnectionClass * klass)
                               "Slacker object notifies us of user inactivity",
                               MCD_TYPE_SLACKER,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
-
-    signals[SELF_PRESENCE_CHANGED] = g_signal_new ("self-presence-changed",
-        G_OBJECT_CLASS_TYPE (klass),
-        G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED, 0,
-        NULL, NULL, NULL,
-        G_TYPE_NONE, 3, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING);
 
     /**
      * @status:

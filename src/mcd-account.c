@@ -4,7 +4,7 @@
  * This file is part of mission-control
  *
  * Copyright © 2008–2010 Nokia Corporation.
- * Copyright © 2009–2012 Collabora Ltd.
+ * Copyright © 2009–2013 Collabora Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -3981,13 +3981,17 @@ mcd_account_request_presence (McdAccount *account,
 
 static void
 mcd_account_update_self_presence (McdAccount *account,
-                                  TpConnectionPresenceType presence,
+                                  guint presence,
                                   const gchar *status,
-                                  const gchar *message)
+                                  const gchar *message,
+                                  TpContact *self_contact)
 {
     McdAccountPrivate *priv = account->priv;
     gboolean changed = FALSE;
     GValue value = G_VALUE_INIT;
+
+    if (self_contact != account->priv->self_contact)
+        return;
 
     if (priv->curr_presence_type != presence)
     {
@@ -4023,21 +4027,6 @@ mcd_account_update_self_presence (McdAccount *account,
                                               G_TYPE_INVALID));
     mcd_account_changed_property (account, "CurrentPresence", &value);
     g_value_unset (&value);
-}
-
-
-static void
-on_conn_self_presence_changed (McdConnection *connection,
-                               TpConnectionPresenceType presence,
-                               const gchar *status,
-                               const gchar *message,
-                               gpointer user_data)
-{
-    McdAccount *account = MCD_ACCOUNT (user_data);
-    McdAccountPrivate *priv = account->priv;
-
-    g_assert (priv->connection == connection);
-    mcd_account_update_self_presence (account, presence, status, message);
 }
 
 /* TODO: remove when the relative members will become public */
@@ -4508,6 +4497,14 @@ _mcd_account_set_connection_status (McdAccount *account,
     }
     else if (status == TP_CONNECTION_STATUS_DISCONNECTED)
     {
+        /* we'll get this from the TpContact soon, but it makes sense
+         * to bundle everything together into one signal */
+        mcd_account_update_self_presence (account,
+            TP_CONNECTION_PRESENCE_TYPE_OFFLINE,
+            "offline",
+            "",
+            priv->self_contact);
+
         if (dbus_error == NULL)
             dbus_error = "";
 
@@ -4915,6 +4912,18 @@ mcd_account_self_contact_upgraded_cb (GObject *source_object,
               G_CALLBACK (mcd_account_self_contact_notify_avatar_file_cb),
               self, G_CONNECT_SWAPPED);
           mcd_account_process_initial_avatar_token (self);
+
+          tp_g_signal_connect_object (self_contact, "presence-changed",
+              G_CALLBACK (mcd_account_update_self_presence),
+              self, G_CONNECT_SWAPPED);
+
+          /* If the connection doesn't support SimplePresence then the
+           * presence will be (UNSET, '', '') which is what we want anyway. */
+          mcd_account_update_self_presence (self,
+              tp_contact_get_presence_type (self_contact),
+              tp_contact_get_presence_status (self_contact),
+              tp_contact_get_presence_message (self_contact),
+              self_contact);
         }
       else
         {
@@ -4943,7 +4952,8 @@ mcd_account_self_contact_changed_cb (McdAccount *self,
   static const TpContactFeature contact_features[] = {
       TP_CONTACT_FEATURE_AVATAR_TOKEN,
       TP_CONTACT_FEATURE_AVATAR_DATA,
-      TP_CONTACT_FEATURE_ALIAS
+      TP_CONTACT_FEATURE_ALIAS,
+      TP_CONTACT_FEATURE_PRESENCE
   };
   TpContact *self_contact;
 
@@ -5031,21 +5041,6 @@ mcd_account_connection_ready_cb (McdAccount *account,
     }
 
     g_free (nickname);
-
-    if (!tp_proxy_has_interface_by_id (tp_connection,
-            TP_IFACE_QUARK_CONNECTION_INTERFACE_SIMPLE_PRESENCE))
-    {
-        /* This connection doesn't have SimplePresence, but it's online.
-         * TpConnection only emits connection-ready when the account is online
-         * and we've introspected it, so we know that if this interface isn't
-         * present now, it's not going to appear.
-         *
-         * So, the spec says that we should set CurrentPresence to Unset.
-         */
-        mcd_account_update_self_presence (account,
-            TP_CONNECTION_PRESENCE_TYPE_UNSET, "", "");
-    }
-
 }
 
 void
@@ -5061,9 +5056,6 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
     {
         g_signal_handlers_disconnect_by_func (priv->connection,
                                               on_connection_abort, account);
-        g_signal_handlers_disconnect_by_func (priv->connection,
-                                              on_conn_self_presence_changed,
-                                              account);
         g_signal_handlers_disconnect_by_func (priv->connection,
                                               on_conn_status_changed,
                                               account);
@@ -5092,8 +5084,6 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
                 G_CALLBACK (mcd_account_connection_ready_cb), account);
         }
 
-        g_signal_connect (connection, "self-presence-changed",
-                          G_CALLBACK (on_conn_self_presence_changed), account);
         g_signal_connect (connection, "connection-status-changed",
                           G_CALLBACK (on_conn_status_changed), account);
         g_signal_connect (connection, "abort",
