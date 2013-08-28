@@ -39,6 +39,7 @@ G_BEGIN_DECLS
 
 typedef struct _McdMaster McdMaster;
 typedef struct _McdMasterClass McdMasterClass;
+typedef struct _McdMasterPrivate McdMasterPrivate;
 
 #include <mcd-manager.h>
 #include <mcd-connection.h>
@@ -47,6 +48,7 @@ typedef struct _McdMasterClass McdMasterClass;
 struct _McdMaster
 {
     McdOperation parent;
+    McdMasterPrivate *priv;
 };
 
 struct _McdMasterClass

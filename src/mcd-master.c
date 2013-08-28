@@ -83,13 +83,9 @@
 # endif
 #endif
 
-#define MCD_MASTER_PRIV(master) (G_TYPE_INSTANCE_GET_PRIVATE ((master), \
-				  MCD_TYPE_MASTER, \
-				  McdMasterPrivate))
-
 G_DEFINE_TYPE (McdMaster, mcd_master, MCD_TYPE_OPERATION);
 
-typedef struct _McdMasterPrivate
+struct _McdMasterPrivate
 {
     McdAccountManager *account_manager;
     McdDispatcher *dispatcher;
@@ -107,7 +103,7 @@ typedef struct _McdMasterPrivate
     gboolean is_disposed;
     gboolean low_memory;
     gboolean idle;
-} McdMasterPrivate;
+};
 
 enum
 {
@@ -136,7 +132,7 @@ static void
 mcd_master_transport_connected (McdMaster *master, McdTransportPlugin *plugin,
 				McdTransport *transport)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    McdMasterPrivate *priv = master->priv;
     GHashTable *accounts;
     GHashTableIter iter;
     gpointer v;
@@ -172,7 +168,7 @@ static void
 mcd_master_transport_disconnected (McdMaster *master, McdTransportPlugin *plugin,
 				   McdTransport *transport)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    McdMasterPrivate *priv = master->priv;
     GHashTable *accounts;
     GHashTableIter iter;
     gpointer v;
@@ -212,7 +208,7 @@ mcd_master_transport_disconnected (McdMaster *master, McdTransportPlugin *plugin
 static void
 mcd_master_connect_automatic_accounts (McdMaster *master)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    McdMasterPrivate *priv = master->priv;
     GHashTable *accounts;
     GHashTableIter iter;
     gpointer ht_key, ht_value;
@@ -265,7 +261,7 @@ on_transport_status_changed (McdTransportPlugin *plugin,
 static void
 _mcd_master_finalize (GObject * object)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (object);
+    McdMasterPrivate *priv = MCD_MASTER (object)->priv;
 
     g_list_foreach (priv->account_connections, (GFunc)g_free, NULL);
     g_list_free (priv->account_connections);
@@ -277,7 +273,7 @@ static void
 _mcd_master_get_property (GObject * obj, guint prop_id,
 			  GValue * val, GParamSpec * pspec)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (obj);
+    McdMasterPrivate *priv = MCD_MASTER (obj)->priv;
 
     switch (prop_id)
     {
@@ -304,7 +300,7 @@ static void
 _mcd_master_set_property (GObject *obj, guint prop_id,
 			  const GValue *val, GParamSpec *pspec)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (obj);
+    McdMasterPrivate *priv = MCD_MASTER (obj)->priv;
 
     switch (prop_id)
     {
@@ -325,7 +321,7 @@ _mcd_master_set_property (GObject *obj, guint prop_id,
 static void
 _mcd_master_dispose (GObject * object)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (object);
+    McdMasterPrivate *priv = MCD_MASTER (object)->priv;
     
     if (priv->is_disposed)
     {
@@ -372,7 +368,7 @@ mcd_master_constructor (GType type, guint n_params,
     McdMasterPrivate *priv;
 
     master =  MCD_MASTER (object_class->constructor (type, n_params, params));
-    priv = MCD_MASTER_PRIV (master);
+    priv = master->priv;
 
     g_return_val_if_fail (master != NULL, NULL);
 
@@ -409,7 +405,7 @@ mcd_master_constructor (GType type, guint n_params,
 static McdManager *
 mcd_master_create_manager (McdMaster *master, const gchar *unique_name)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    McdMasterPrivate *priv = master->priv;
 
     return mcd_manager_new (unique_name, priv->dispatcher, priv->dbus_daemon);
 }
@@ -461,12 +457,13 @@ mcd_master_class_init (McdMasterClass * klass)
 static void
 mcd_master_init (McdMaster * master)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    master->priv = G_TYPE_INSTANCE_GET_PRIVATE (master,
+        MCD_TYPE_MASTER, McdMasterPrivate);
 
     if (!default_master)
 	default_master = master;
 
-    priv->transport_plugins = g_ptr_array_new ();
+    master->priv->transport_plugins = g_ptr_array_new ();
 
     /* This newer plugin API is currently always enabled       */
     /* .... and is enabled before anything else as potentially *
@@ -533,7 +530,7 @@ TpDBusDaemon *
 mcd_master_get_dbus_daemon (McdMaster *master)
 {
     g_return_val_if_fail (MCD_IS_MASTER (master), NULL);
-    return MCD_MASTER_PRIV (master)->dbus_daemon;
+    return master->priv->dbus_daemon;
 }
 
 /**
@@ -549,13 +546,11 @@ void
 mcd_master_register_transport (McdMaster *master,
 			       McdTransportPlugin *transport_plugin)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
-
     DEBUG ("called");
     g_signal_connect (transport_plugin, "status-changed",
 		      G_CALLBACK (on_transport_status_changed),
 		      master);
-    g_ptr_array_add (priv->transport_plugins, transport_plugin);
+    g_ptr_array_add (master->priv->transport_plugins, transport_plugin);
 }
 
 void
@@ -564,7 +559,7 @@ mcd_master_register_account_connection (McdMaster *master,
 					gint priority,
 					gpointer userdata)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    McdMasterPrivate *priv = master->priv;
     McdAccountConnectionData *acd;
     GList *list;
 
@@ -586,10 +581,9 @@ _mcd_master_get_nth_account_connection (McdMaster *master,
                                         McdAccountConnectionFunc *func,
                                         gpointer *userdata)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
     McdAccountConnectionData *acd;
 
-    acd = g_list_nth_data (priv->account_connections, i);
+    acd = g_list_nth_data (master->priv->account_connections, i);
     if (acd)
     {
 	*func = acd->func;
@@ -603,7 +597,7 @@ gboolean
 _mcd_master_account_replace_transport (McdMaster *master,
                                        McdAccount *account)
 {
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (master);
+    McdMasterPrivate *priv = master->priv;
     GHashTable *conditions;
     gboolean connected = FALSE;
     gboolean unconditional = FALSE;
@@ -673,9 +667,8 @@ static gboolean
 _mcd_master_exit_by_timeout (gpointer data)
 {
     McdMaster *self = MCD_MASTER (data);
-    McdMasterPrivate *priv = MCD_MASTER_PRIV (self);
 
-    priv->shutdown_timeout_id = 0;
+    self->priv->shutdown_timeout_id = 0;
 
     /* Notify sucide */
     mcd_mission_abort (MCD_MISSION (self));
@@ -689,7 +682,7 @@ mcd_master_shutdown (McdMaster *self,
     McdMasterPrivate *priv;
 
     g_return_if_fail (MCD_IS_MASTER (self));
-    priv = MCD_MASTER_PRIV (self);
+    priv = self->priv;
 
     if(!priv->shutdown_timeout_id)
     {
