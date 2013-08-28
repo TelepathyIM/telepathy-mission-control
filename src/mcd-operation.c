@@ -166,10 +166,14 @@ _mcd_operation_disconnect (McdMission * mission)
     MCD_MISSION_CLASS (mcd_operation_parent_class)->disconnect (mission);
 }
 
-static void
-_mcd_operation_take_mission (McdOperation * operation, McdMission * mission)
+void
+mcd_operation_take_mission (McdOperation * operation, McdMission * mission)
 {
-    McdOperationPrivate *priv = MCD_OPERATION_PRIV (operation);
+    McdOperationPrivate *priv;
+
+    g_return_if_fail (MCD_IS_OPERATION (operation));
+    g_return_if_fail (MCD_IS_MISSION (mission));
+    priv = MCD_OPERATION_PRIV (operation);
 
     priv->missions = g_list_prepend (priv->missions, mission);
     _mcd_mission_set_parent (mission, MCD_MISSION (operation));
@@ -182,10 +186,14 @@ _mcd_operation_take_mission (McdOperation * operation, McdMission * mission)
     g_signal_emit_by_name (G_OBJECT (operation), "mission-taken", mission);
 }
 
-static void
-_mcd_operation_remove_mission (McdOperation * operation, McdMission * mission)
+void
+mcd_operation_remove_mission (McdOperation * operation, McdMission * mission)
 {
-    McdOperationPrivate *priv = MCD_OPERATION_PRIV (operation);
+    McdOperationPrivate *priv;
+
+    g_return_if_fail (MCD_IS_OPERATION (operation));
+    g_return_if_fail (MCD_IS_MISSION (mission));
+    priv = MCD_OPERATION_PRIV (operation);
 
     g_return_if_fail (g_list_find (priv->missions, mission) != NULL);
     
@@ -213,9 +221,6 @@ mcd_operation_class_init (McdOperationClass * klass)
 
     mission_class->connect = _mcd_operation_connect;
     mission_class->disconnect = _mcd_operation_disconnect;
-
-    klass->take_mission = _mcd_operation_take_mission;
-    klass->remove_mission = _mcd_operation_remove_mission;
 
     mcd_operation_signals[MISSION_TAKEN] =
 	g_signal_new ("mission-taken",
@@ -258,22 +263,6 @@ mcd_operation_new (void)
     McdOperation *obj;
     obj = MCD_OPERATION (g_object_new (MCD_TYPE_OPERATION, NULL));
     return obj;
-}
-
-void
-mcd_operation_take_mission (McdOperation * operation, McdMission * mission)
-{
-    g_return_if_fail (MCD_IS_OPERATION (operation));
-    g_return_if_fail (MCD_IS_MISSION (mission));
-    MCD_OPERATION_GET_CLASS (operation)->take_mission (operation, mission);
-}
-
-void
-mcd_operation_remove_mission (McdOperation * operation, McdMission * mission)
-{
-    g_return_if_fail (MCD_IS_OPERATION (operation));
-    g_return_if_fail (MCD_IS_MISSION (mission));
-    MCD_OPERATION_GET_CLASS (operation)->remove_mission (operation, mission);
 }
 
 const GList *
