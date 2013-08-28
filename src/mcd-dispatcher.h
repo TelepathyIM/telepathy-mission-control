@@ -57,22 +57,7 @@ struct _McdDispatcher
 struct _McdDispatcherClass
 {
     GObjectClass parent_class;
-
-    /* signals */
-    void (*_former_channel_added_signal) (void);
-    void (*_former_channel_removed_signal) (void);
-    void (*_former_dispatched_signal) (void);
-    void (*_former_dispatch_failed_signal) (void);
-
-    /* virtual methods */
     TpDBusPropertiesMixinClass dbus_properties_class;
-    void (*_mc_reserved0) (void);
-    void (*_mc_reserved1) (void);
-    void (*_mc_reserved2) (void);
-    void (*_mc_reserved3) (void);
-    void (*_mc_reserved4) (void);
-    void (*_mc_reserved5) (void);
-    void (*_mc_reserved6) (void);
 };
 
 GType mcd_dispatcher_get_type (void);

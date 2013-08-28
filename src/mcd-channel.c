@@ -80,7 +80,6 @@ struct _McdChannelPrivate
 enum _McdChannelSignalType
 {
     STATUS_CHANGED,
-    MEMBERS_ACCEPTED,
     LAST_SIGNAL
 };
 
