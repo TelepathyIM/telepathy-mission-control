@@ -220,10 +220,6 @@ INCLUDES = \
 	-DMC_DISABLE_DEPRECATED \
 	-DLIBDIR="@libdir@" -DLIBVERSION="0"
 
-if ENABLE_GNOME_KEYRING
-INCLUDES += $(GNOME_KEYRING_CFLAGS)
-endif
-
 TESTS =
 
 TMPSUFFIX = foo
@@ -243,10 +239,6 @@ BASIC_TESTS_ENVIRONMENT = \
 	MC_CLIENTS_DIR=@abs_top_srcdir@/tests/twisted/telepathy/clients \
 	MC_MANAGER_DIR=@abs_top_srcdir@/tests/twisted/telepathy/managers \
 	G_DEBUG=fatal_criticals
-
-if ENABLE_GNOME_KEYRING
-BASIC_TESTS_ENVIRONMENT += MC_TEST_GNOME_KEYRING=1
-endif
 
 if ENABLE_LIBACCOUNTS_SSO
 BASIC_TESTS_ENVIRONMENT += AG_DEBUG=all \

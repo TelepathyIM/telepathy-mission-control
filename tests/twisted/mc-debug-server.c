@@ -35,10 +35,6 @@
 
 #include <telepathy-glib/telepathy-glib.h>
 
-#if ENABLE_GNOME_KEYRING
-#include <gnome-keyring.h>
-#endif
-
 #include "mcd-service.h"
 
 TpDBusDaemon *bus_daemon = NULL;
@@ -148,9 +144,6 @@ main (int argc, char **argv)
     int ret = 1;
     GMainLoop *teardown_loop;
     guint linger_time = 5;
-#if ENABLE_GNOME_KEYRING
-    GnomeKeyringResult result;
-#endif
 
     g_type_init ();
 
@@ -194,25 +187,6 @@ main (int argc, char **argv)
     connection = dbus_g_connection_get_connection (
 	tp_proxy_get_dbus_connection (bus_daemon));
     dbus_connection_add_filter (connection, dbus_filter_function, NULL, NULL);
-
-#if ENABLE_GNOME_KEYRING
-    if (g_getenv ("MC_KEYRING_NAME") != NULL)
-    {
-        const gchar *keyring_name = g_getenv ("MC_KEYRING_NAME");
-
-        if ((result = gnome_keyring_set_default_keyring_sync (keyring_name)) ==
-             GNOME_KEYRING_RESULT_OK)
-        {
-            g_debug ("Successfully set up temporary keyring %s for tests",
-                     keyring_name);
-        }
-        else
-        {
-            g_warning ("Failed to set %s as the default keyring: %s",
-                       keyring_name, gnome_keyring_result_to_message (result));
-        }
-    }
-#endif
 
     mcd = mcd_service_new ();
 

@@ -464,9 +464,8 @@ mcp_account_storage_iface_implement_create (
  * are higher priority.
  *
  * Plugins at a higher priority then MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_KEYRING
- * will have the opportunity to "steal" passwords from the gnome keyring:
- * Plugins at a lower priority than this will not receive secret parameters
- * from MC as the keyring plugin will already have claimed them.
+ * used to have the opportunity to "steal" passwords from the gnome keyring.
+ * It is no longer significant.
  *
  * Plugins at a lower priority than the default plugin will never be asked to
  * store any details, although they may still be asked to list them at startup

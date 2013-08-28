@@ -195,18 +195,6 @@ then
                      [keyring_enabled=no])
 fi
 
-AM_CONDITIONAL(ENABLE_GNOME_KEYRING, [test x$keyring_enabled = xyes])
-
-if test "x$keyring_enabled" = xyes
-then
-  PKG_CHECK_MODULES([GNOME_KEYRING], [gnome-keyring-1])
-  AC_SUBST([GNOME_KEYRING_LIBS])
-  AC_SUBST([GNOME_KEYRING_CFLAGS])
-  AC_DEFINE([ENABLE_GNOME_KEYRING], [1], [Define whether gnome-keyring support is enabled])
-else
-  AC_DEFINE([ENABLE_GNOME_KEYRING], [0], [Define whether gnome-keyring support is enabled])
-fi
-
 dnl libaccounts-glib SSO
 libaccounts_sso_enabled="no"
 AC_MSG_CHECKING(whether to build with libaccounts-glib SSO suport)

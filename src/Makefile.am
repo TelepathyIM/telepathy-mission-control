@@ -11,10 +11,6 @@ INCLUDES = \
 
 AM_CFLAGS = $(ERROR_CFLAGS)
 
-if ENABLE_GNOME_KEYRING
-INCLUDES += $(GNOME_KEYRING_CFLAGS)
-endif
-
 mc_headers = \
 	mcd-account.h \
 	mcd-account-conditions.h \
@@ -98,10 +94,6 @@ libmcd_convenience_la_LIBADD = \
 	$(CONNMAN_LIBS) \
 	$(UPOWER_GLIB_LIBS) \
 	$(NULL)
-
-if ENABLE_GNOME_KEYRING
-libmcd_convenience_la_LIBADD += $(GNOME_KEYRING_LIBS)
-endif
 
 if ENABLE_LIBACCOUNTS_SSO
 libmcd_convenience_la_LIBADD += $(LIBACCOUNTS_SSO_LIBS)

@@ -1,3 +1,5 @@
+# Test for default account storage backend.
+#
 # Copyright (C) 2009-2010 Nokia Corporation
 # Copyright (C) 2009-2010 Collabora Ltd.
 #
@@ -32,29 +34,6 @@ from mctest import (
     )
 import constants as cs
 
-# FIXME: this test relies on tools in the builddir. It won't work when
-# the tests are installed and run without a builddir.
-
-use_keyring = False
-if ('MC_TEST_GNOME_KEYRING' in os.environ and
-    os.environ['MC_TEST_GNOME_KEYRING'] == '1'):
-        use_keyring = True
-
-def create_keyring():
-    if not use_keyring:
-        return
-
-    keyring = os.popen('../keyring-command create').read()
-    if not keyring or keyring.startswith('**'):
-        return None
-    return keyring[:-1]
-
-def remove_keyring(name):
-    if not use_keyring:
-        return
-
-    os.system('../keyring-command remove ' + name)
-
 # This doesn't escape its parameters before passing them to the shell,
 # so be careful.
 def account_store(op, backend, key=None, value=None,
@@ -78,49 +57,6 @@ def account_store(op, backend, key=None, value=None,
         return ret[0]
     else:
         return None
-
-def start_gnome_keyring_daemon(ctl_dir):
-    if not use_keyring:
-        return
-
-    os.chmod(ctl_dir, 0700)
-    # Ugh. We have to put XDG_DATA_DIRS back the way we found them because
-    # otherwise it won't find its schemas and everything goes horribly wrong.
-    env = os.popen('/usr/bin/env XDG_DATA_DIRS=/usr/local/share:/usr/share gnome-keyring-daemon -d --control-directory=' + ctl_dir).read()
-    env_file = open(ctl_dir + '/gnome-keyring-env', 'w')
-
-    for line in env.split('\n'):
-        if line:
-            k, v = line.split('=', 1)
-            print "Adding to env: %s=%s" % (k, v)
-            os.environ[k] = v
-            env_file.write('%s=%s\n' % (k, v))
-
-    # Wait for gnome-keyring to start. We shouldn't have to do this, but,
-    # whatever. Happily, we have a tool which can do this for us.
-    os.system('../../util/mc-wait-for-name org.freedesktop.secrets')
-
-    keyring_name = create_keyring()
-    assert keyring_name
-    print "Created new keyring name, putting to env", keyring_name
-    os.environ['MC_KEYRING_NAME'] = keyring_name
-    env_file.write('MC_KEYRING_NAME=%s\n' % keyring_name)
-    env_file.close()
-
-def stop_gnome_keyring_daemon():
-    if not use_keyring:
-        return
-
-    keyring_name = os.environ['MC_KEYRING_NAME']
-    keyring_daemon_pid = os.environ['GNOME_KEYRING_PID']
-
-    if keyring_name:
-        print "Removing keyring", keyring_name
-        remove_keyring(keyring_name)
-
-    if keyring_daemon_pid:
-        print "Killing keyring daemon, pid =", keyring_daemon_pid
-        os.kill(int(keyring_daemon_pid), 15)
 
 def test(q, bus, mc):
     ctl_dir = os.environ['MC_ACCOUNT_DIR']
@@ -177,12 +113,8 @@ def test(q, bus, mc):
     pwd = account_store('get', 'default', 'param-password')
     assert pwd == params['password'], pwd
 
-    # If we're using GNOME keyring, the password should not be in the
-    # keyfile
-    if use_keyring:
-        assert 'param-password' not in kf[group]
-    else:
-        assert kf[group]['param-password'] == params['password'], kf
+    # We no longer use gnome-keyring, so the password is stored as clear-text.
+    assert kf[group]['param-password'] == params['password'], kf
 
     # Reactivate MC
     account_manager, properties, interfaces = resuscitate_mc(q, bus, mc)
@@ -211,21 +143,8 @@ def test(q, bus, mc):
     kf = keyfile_read(new_key_file_name)
     assert group not in kf, kf
 
-    if use_keyring:
-        # the password has been deleted from the keyring too
-        pwd = account_store('get', 'default', 'param-password')
-        assertEquals(None, pwd)
-
     # Tell MC to die, again
     tell_mc_to_die(q, bus)
-
-    # Write out an account configuration in which the password is in
-    # both the keyfile and the keyring
-
-
-    if use_keyring:
-        account_store('set', 'default', 'param-password',
-                'password_in_keyring')
 
     low_prio_key_file_name = os.path.join(
             os.environ['XDG_DATA_DIRS'].split(':')[0],
@@ -253,10 +172,6 @@ AutomaticPresence=2;available;;
     # actually changes, and they aren't deleted.
     assert not os.path.exists(new_key_file_name)
     assert os.path.exists(low_prio_key_file_name)
-
-    if use_keyring:
-        pwd = account_store('get', 'default', 'param-password')
-        assertEquals('password_in_keyring', pwd)
 
     # Delete the password (only), like Empathy 3.0-3.4 do when migrating
     account_iface.UpdateParameters({}, ['password'])
@@ -314,6 +229,4 @@ if __name__ == '__main__':
         os.mkdir(ctl_dir, 0700)
     except OSError:
         pass
-    start_gnome_keyring_daemon(ctl_dir)
     exec_test(test, {}, timeout=10, use_fake_accounts_service=False)
-    stop_gnome_keyring_daemon()

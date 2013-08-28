@@ -62,12 +62,6 @@ if test "z$MC_EXECUTABLE" = z; then
         MC_EXECUTABLE=@abs_top_builddir@/tests/twisted/mc-debug-server
 fi
 
-if test -f "$MC_ACCOUNT_DIR/gnome-keyring-env"; then
-        cat "$MC_ACCOUNT_DIR/gnome-keyring-env"
-        . "$MC_ACCOUNT_DIR/gnome-keyring-env"
-        export GNOME_KEYRING_CONTROL GNOME_KEYRING_PID MC_KEYRING_NAME SSH_AUTH_SOCK
-fi
-
 GSETTINGS_SCHEMA_DIR=@abs_top_builddir@/data
 export GSETTINGS_SCHEMA_DIR
 
