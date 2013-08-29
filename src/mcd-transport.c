@@ -139,24 +139,3 @@ mcd_transport_get_name (McdTransportPlugin *plugin, McdTransport *transport)
     g_return_val_if_fail (iface->get_transport_name != NULL, NULL);
     return iface->get_transport_name (plugin, transport);
 }
-
-/**
- * mcd_transport_get_status:
- * @plugin: the #McdTransportPlugin.
- * @transport: a #McdTransport.
- *
- * Gets the status of @transport.
- *
- * Returns: the #McdTransportStatus of the transport.
- */
-McdTransportStatus
-mcd_transport_get_status (McdTransportPlugin *plugin, McdTransport *transport)
-{
-    McdTransportPluginIface *iface;
-
-    iface = MCD_TRANSPORT_PLUGIN_GET_IFACE (plugin);
-    g_return_val_if_fail (iface->get_transport_status != NULL,
-        MCD_TRANSPORT_STATUS_DISCONNECTED);
-    return iface->get_transport_status (plugin, transport);
-}
-

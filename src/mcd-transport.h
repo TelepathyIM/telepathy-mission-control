@@ -55,9 +55,6 @@ struct _McdTransportPluginIface
     const GList * (*get_transports) (McdTransportPlugin *plugin);
     const gchar * (*get_transport_name) (McdTransportPlugin *plugin,
 					 McdTransport *transport);
-    McdTransportStatus (*get_transport_status) (McdTransportPlugin *plugin,
-						McdTransport *transport);
-
     /* signals */
     void (*status_changed) (McdTransportPlugin *plugin, McdTransport *transport,
 			    McdTransportStatus status);
@@ -69,8 +66,6 @@ const GList *mcd_transport_plugin_get_transports (McdTransportPlugin *plugin);
 
 const gchar *mcd_transport_get_name (McdTransportPlugin *plugin,
 				     McdTransport *transport);
-McdTransportStatus mcd_transport_get_status (McdTransportPlugin *plugin,
-					     McdTransport *transport);
 
 G_END_DECLS
 #endif /* __MCD_TRANSPORT_PLUGIN_H__ */

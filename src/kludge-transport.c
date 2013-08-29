@@ -120,28 +120,6 @@ mcd_kludge_transport_get_transport_name (
   return "i love the internet";
 }
 
-static McdTransportStatus
-mcd_kludge_transport_get_transport_status (
-    McdTransportPlugin *plugin,
-    McdTransport *transport)
-{
-  McdKludgeTransport *self = MCD_KLUDGE_TRANSPORT (plugin);
-  gboolean online;
-
-  g_return_val_if_fail (MCD_IS_KLUDGE_TRANSPORT (plugin),
-      MCD_TRANSPORT_STATUS_DISCONNECTED);
-  g_return_val_if_fail (plugin == (McdTransportPlugin *) transport,
-      MCD_TRANSPORT_STATUS_DISCONNECTED);
-
-  online = mcd_connectivity_monitor_is_online (self->priv->minotaur);
-  DEBUG ("we are allegedly %s", online ? "online" : "offline");
-
-  if (online)
-    return MCD_TRANSPORT_STATUS_CONNECTED;
-  else
-    return MCD_TRANSPORT_STATUS_DISCONNECTED;
-}
-
 static void
 transport_iface_init (
     gpointer g_iface,
@@ -151,7 +129,6 @@ transport_iface_init (
 
   klass->get_transports = mcd_kludge_transport_get_transports;
   klass->get_transport_name = mcd_kludge_transport_get_transport_name;
-  klass->get_transport_status = mcd_kludge_transport_get_transport_status;
 }
 
 static McdTransportPlugin *

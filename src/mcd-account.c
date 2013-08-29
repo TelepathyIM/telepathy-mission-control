@@ -230,7 +230,6 @@ void
 _mcd_account_maybe_autoconnect (McdAccount *account)
 {
     McdAccountPrivate *priv;
-    McdMaster *master;
 
     g_return_if_fail (MCD_IS_ACCOUNT (account));
     priv = account->priv;
@@ -240,12 +239,20 @@ _mcd_account_maybe_autoconnect (McdAccount *account)
         return;
     }
 
-    master = mcd_master_get_default ();
-
-    if (!_mcd_master_account_replace_transport (master, account))
+    if (_mcd_account_needs_dispatch (account))
     {
-        DEBUG ("%s conditions not satisfied", priv->unique_name);
-        return;
+        DEBUG ("Always-dispatchable account %s needs no transport",
+            priv->unique_name);
+    }
+    else if (mcd_connectivity_monitor_is_online (priv->connectivity))
+    {
+        DEBUG ("Account %s has connectivity, connecting",
+            priv->unique_name);
+    }
+    else
+    {
+        DEBUG ("Account %s needs connectivity, not connecting",
+            priv->unique_name);
     }
 
     DEBUG ("connecting account %s", priv->unique_name);

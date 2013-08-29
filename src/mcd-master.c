@@ -384,59 +384,6 @@ mcd_master_register_transport (McdMaster *master,
     g_ptr_array_add (master->priv->transport_plugins, transport_plugin);
 }
 
-gboolean
-_mcd_master_account_replace_transport (McdMaster *master,
-                                       McdAccount *account)
-{
-    McdMasterPrivate *priv = master->priv;
-    gboolean connected = FALSE;
-    const gchar *name;
-    const guint n_plugins = priv->transport_plugins->len;
-    guint i;
-
-    g_return_val_if_fail (MCD_IS_ACCOUNT (account), FALSE);
-
-    /* no transport plugins, decision is always "go for it" */
-    if (n_plugins == 0)
-        return TRUE;
-
-    name = mcd_account_get_unique_name (account);
-
-    if (_mcd_account_needs_dispatch (account))
-    {
-        DEBUG ("Always-dispatchable account %s needs no transport", name);
-        return TRUE;
-    }
-
-    DEBUG ("Checking %s [%u plugins]", name, n_plugins);
-
-    for (i = 0; !connected && i < priv->transport_plugins->len; i++)
-    {
-        McdTransportPlugin *plugin;
-        const GList *transports;
-
-        plugin = g_ptr_array_index (priv->transport_plugins, i);
-        transports = mcd_transport_plugin_get_transports (plugin);
-
-        while (transports != NULL)
-        {
-            McdTransport *transport = transports->data;
-            McdTransportStatus status =
-              mcd_transport_get_status (plugin, transport);
-
-            transports = g_list_next (transports);
-
-            if (status != MCD_TRANSPORT_STATUS_CONNECTED)
-                continue;
-
-            connected = TRUE;
-            break;
-        }
-    }
-
-    return connected;
-}
-
 /* Milliseconds to wait for Connectivity coming back up before exiting MC */
 #define EXIT_COUNTDOWN_TIME 5000
 
