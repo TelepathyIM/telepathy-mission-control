@@ -45,10 +45,6 @@ struct _McdKludgeTransportPrivate {
 static void transport_iface_init (
     gpointer g_iface,
     gpointer iface_data);
-static void monitor_state_changed_cb (
-    McdConnectivityMonitor *monitor,
-    gboolean connected,
-    gpointer user_data);
 
 G_DEFINE_TYPE_WITH_CODE (McdKludgeTransport, mcd_kludge_transport,
     G_TYPE_OBJECT,
@@ -158,20 +154,6 @@ transport_iface_init (
   klass->get_transport_status = mcd_kludge_transport_get_transport_status;
 }
 
-static void
-monitor_state_changed_cb (
-    McdConnectivityMonitor *monitor,
-    gboolean connected,
-    gpointer user_data)
-{
-  McdKludgeTransport *self = MCD_KLUDGE_TRANSPORT (user_data);
-  McdTransportStatus new_status =
-      connected ? MCD_TRANSPORT_STATUS_CONNECTED
-                : MCD_TRANSPORT_STATUS_DISCONNECTED;
-
-  g_signal_emit_by_name (self, "status-changed", self, new_status);
-}
-
 static McdTransportPlugin *
 mcd_kludge_transport_new (McdConnectivityMonitor *connectivity_monitor)
 {
@@ -180,8 +162,6 @@ mcd_kludge_transport_new (McdConnectivityMonitor *connectivity_monitor)
   /* Strictly speaking this should be done with properties, but I'm
    * going to delete this class soon anyway. */
   self->priv->minotaur = connectivity_monitor;
-  tp_g_signal_connect_object (self->priv->minotaur, "state-change",
-      (GCallback) monitor_state_changed_cb, self, 0);
 
   return MCD_TRANSPORT_PLUGIN (self);
 }

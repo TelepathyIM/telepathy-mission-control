@@ -109,7 +109,10 @@ connectivity_monitor_change_states (
   priv->connectivity = connectivity;
 
   if (old_total != new_total)
-    g_signal_emit (self, signals[STATE_CHANGE], 0, new_total);
+    {
+      DEBUG ("%s", new_total ? "connected" : "disconnected");
+      g_signal_emit (self, signals[STATE_CHANGE], 0, new_total);
+    }
 }
 
 #ifdef HAVE_NM

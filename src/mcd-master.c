@@ -126,71 +126,6 @@ typedef struct {
 #define POISONED_MASTER ((McdMaster *) 0xdeadbeef)
 static McdMaster *default_master = NULL;
 
-
-static void
-mcd_master_transport_connected (McdMaster *master, McdTransportPlugin *plugin,
-				McdTransport *transport)
-{
-    McdMasterPrivate *priv = master->priv;
-    GHashTable *accounts;
-    GHashTableIter iter;
-    gpointer v;
-
-    DEBUG ("%s", mcd_transport_get_name (plugin, transport));
-
-    accounts = _mcd_account_manager_get_accounts (priv->account_manager);
-    g_hash_table_iter_init (&iter, accounts);
-
-    while (g_hash_table_iter_next (&iter, NULL, &v))
-    {
-        McdAccount *account = MCD_ACCOUNT (v);
-
-        if (!mcd_account_would_like_to_connect (account))
-            continue;
-
-        DEBUG ("account %s would like to connect",
-               mcd_account_get_unique_name (account));
-        _mcd_account_connect_with_auto_presence (account, FALSE);
-    }
-}
-
-static void
-mcd_master_transport_disconnected (McdMaster *master, McdTransportPlugin *plugin,
-				   McdTransport *transport)
-{
-    McdMasterPrivate *priv = master->priv;
-    GHashTable *accounts;
-    GHashTableIter iter;
-    gpointer v;
-
-    DEBUG ("%s", mcd_transport_get_name (plugin, transport));
-
-    accounts = _mcd_account_manager_get_accounts (priv->account_manager);
-    g_hash_table_iter_init (&iter, accounts);
-
-    while (g_hash_table_iter_next (&iter, NULL, &v))
-    {
-        McdAccount *account = MCD_ACCOUNT (v);
-
-        if (_mcd_account_needs_dispatch (account))
-        {
-            /* special treatment for cellular accounts */
-            DEBUG ("account %s is always dispatched and does not need a "
-                   "transport", mcd_account_get_unique_name (account));
-        }
-        else
-        {
-            McdConnection *connection;
-
-            DEBUG ("account %s must disconnect",
-                   mcd_account_get_unique_name (account));
-            connection = mcd_account_get_connection (account);
-            if (connection)
-                mcd_connection_close (connection);
-        }
-    }
-}
-
 static void
 mcd_master_connect_automatic_accounts (McdMaster *master)
 {
@@ -204,43 +139,6 @@ mcd_master_connect_automatic_accounts (McdMaster *master)
     while (g_hash_table_iter_next (&iter, &ht_key, &ht_value))
     {
         _mcd_account_maybe_autoconnect (ht_value);
-    }
-}
-
-static const gchar *
-mcd_transport_status_to_string (McdTransportStatus status)
-{
-    switch (status)
-    {
-        case MCD_TRANSPORT_STATUS_CONNECTED:
-            return "connected";
-        case MCD_TRANSPORT_STATUS_CONNECTING:
-            return "connecting";
-        case MCD_TRANSPORT_STATUS_DISCONNECTED:
-            return "disconnected";
-        case MCD_TRANSPORT_STATUS_DISCONNECTING:
-            return "disconnecting";
-    }
-
-    return "invalid";
-}
-
-static void
-on_transport_status_changed (McdTransportPlugin *plugin,
-			     McdTransport *transport,
-			     McdTransportStatus status, McdMaster *master)
-{
-    DEBUG ("Transport %s changed status to %u (%s)",
-           mcd_transport_get_name (plugin, transport), status,
-           mcd_transport_status_to_string (status));
-
-    if (status == MCD_TRANSPORT_STATUS_CONNECTED)
-	mcd_master_transport_connected (master, plugin, transport);
-    else if (status == MCD_TRANSPORT_STATUS_DISCONNECTING ||
-	     status == MCD_TRANSPORT_STATUS_DISCONNECTED)
-    {
-	/* disconnect all accounts that were using this transport */
-	mcd_master_transport_disconnected (master, plugin, transport);
     }
 }
 
@@ -308,9 +206,6 @@ _mcd_master_dispose (GObject * object)
 	{
 	    McdTransportPlugin *plugin;
 	    plugin = g_ptr_array_index (priv->transport_plugins, i);
-	    g_signal_handlers_disconnect_by_func (plugin, 
-						  on_transport_status_changed,
-						  object);
 	    g_object_unref (plugin);
 	}
 	g_ptr_array_unref (priv->transport_plugins);
@@ -507,9 +402,6 @@ mcd_master_register_transport (McdMaster *master,
 			       McdTransportPlugin *transport_plugin)
 {
     DEBUG ("called");
-    g_signal_connect (transport_plugin, "status-changed",
-		      G_CALLBACK (on_transport_status_changed),
-		      master);
     g_ptr_array_add (master->priv->transport_plugins, transport_plugin);
 }
 

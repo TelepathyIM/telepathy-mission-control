@@ -3610,6 +3610,34 @@ monitor_state_changed_cb (
 {
   McdAccount *self = MCD_ACCOUNT (user_data);
 
+  if (connected)
+    {
+      if (mcd_account_would_like_to_connect (self))
+        {
+          DEBUG ("account %s would like to connect",
+              self->priv->unique_name);
+          _mcd_account_connect_with_auto_presence (self, FALSE);
+        }
+    }
+  else
+    {
+      if (_mcd_account_needs_dispatch (self))
+        {
+          /* special treatment for cellular accounts */
+          DEBUG ("account %s is always dispatched and does not need a "
+              "transport", self->priv->unique_name);
+        }
+      else
+        {
+          McdConnection *connection;
+
+          DEBUG ("account %s must disconnect", self->priv->unique_name);
+          connection = mcd_account_get_connection (self);
+          if (connection)
+            mcd_connection_close (connection);
+        }
+    }
+
   if (!self->priv->waiting_for_connectivity)
     return;
 
