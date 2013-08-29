@@ -37,7 +37,6 @@
 #include "mcd-account-conditions.h"
 #include "mcd-account-manager-priv.h"
 #include "mcd-account-addressing.h"
-#include "mcd-connection-plugin.h"
 #include "mcd-connection-priv.h"
 #include "mcd-misc.h"
 #include "mcd-manager.h"

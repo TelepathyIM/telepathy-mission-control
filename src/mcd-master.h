@@ -43,7 +43,6 @@ typedef struct _McdMasterPrivate McdMasterPrivate;
 
 #include <mcd-manager.h>
 #include <mcd-connection.h>
-#include <mcd-connection-plugin.h>
 
 struct _McdMaster
 {
@@ -61,18 +60,6 @@ McdMaster *mcd_master_get_default (void);
 
 TpDBusDaemon *mcd_master_get_dbus_daemon (McdMaster *master);
 void mcd_master_shutdown (McdMaster *self, const gchar *reason);
-
-void mcd_master_register_transport (McdMaster *master,
-                                    McdTransportPlugin *transport_plugin);
-
-typedef void (*McdAccountConnectionFunc) (McdAccount *account,
-                                          GHashTable *parameters,
-                                          gpointer userdata);
-
-void mcd_master_register_account_connection (McdMaster *master,
-                                             McdAccountConnectionFunc func,
-                                             gint priority,
-                                             gpointer userdata);
 
 G_END_DECLS
 #endif /* MCD_MASTER_H */

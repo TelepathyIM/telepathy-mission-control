@@ -167,19 +167,3 @@ _mcd_account_connection_class_init (McdAccountClass *klass)
 		      NULL, NULL, g_cclosure_marshal_VOID__BOOLEAN,
 		      G_TYPE_NONE, 1, G_TYPE_BOOLEAN);
 }
-
-/**
- * Returns: %TRUE if the current attempt to connect was user-initiated.
- */
-gboolean
-mcd_account_connection_is_user_initiated (McdAccount *account)
-{
-    McdAccountConnectionContext *ctx;
-
-    ctx = _mcd_account_get_connection_context (account);
-
-    if (ctx == NULL)
-        return FALSE;
-
-    return ctx->user_initiated;
-}

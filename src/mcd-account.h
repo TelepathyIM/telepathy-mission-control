@@ -154,6 +154,10 @@ gboolean mcd_account_get_waiting_for_connectivity (McdAccount *self);
 void mcd_account_set_waiting_for_connectivity (McdAccount *self,
     gboolean waiting);
 
+void mcd_account_connection_proceed (McdAccount *account, gboolean success);
+void mcd_account_connection_proceed_with_reason
+    (McdAccount *account, gboolean success, TpConnectionStatusReason reason);
+
 G_END_DECLS
 
 #endif

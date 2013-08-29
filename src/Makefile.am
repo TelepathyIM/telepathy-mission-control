@@ -26,12 +26,10 @@ mc_headers = \
 	mcd-master.h \
 	mcd-manager.h \
 	mcd-connection.h \
-	mcd-connection-plugin.h \
 	mcd-connection-service-points.h \
 	mcd-channel.h \
 	mcd-dispatcher.h \
 	mcd-service.h \
-	mcd-transport.h \
 	mcd-storage.h
 
 if ENABLE_LIBACCOUNTS_SSO
@@ -137,8 +135,6 @@ libmcd_convenience_la_SOURCES = \
 	connectivity-monitor.c \
 	connectivity-monitor.h \
 	gtypes.c \
-	kludge-transport.c \
-	kludge-transport.h \
 	mcd-dbusprop.c \
 	mcd-dbusprop.h \
 	mcd-debug.c \
@@ -165,7 +161,6 @@ libmcd_convenience_la_SOURCES = \
 	mcd-service.c \
 	mcd-slacker.c \
 	mcd-slacker.h \
-	mcd-transport.c \
 	mcd-storage.c \
 	mcd-storage.h \
 	plugin-dispatch-operation.c \
@@ -196,7 +191,7 @@ mcd-enum-types.h: stamp-mcd-enum-types.h
 	$(AM_V_GEN)true
 stamp-mcd-enum-types.h: Makefile $(mc_headers) mcd-enum-types.c
 	$(AM_V_GEN)( cd $(srcdir) && glib-mkenums \
-		--fhead "#ifndef __MCD_ENUM_TYPES_H__\n#define __MCD_ENUM_TYPES_H__\n\n#include \"mcd-mission.h\"\n#include \"mcd-channel.h\"\n#include \"mcd-transport.h\"\n\nG_BEGIN_DECLS\n" \
+		--fhead "#ifndef __MCD_ENUM_TYPES_H__\n#define __MCD_ENUM_TYPES_H__\n\n#include \"mcd-mission.h\"\n#include \"mcd-channel.h\"\n\nG_BEGIN_DECLS\n" \
 		--fprod "/* enumerations from \"@filename@\" */\n" \
 		--vhead "GType @enum_name@_get_type (void) G_GNUC_CONST;\n#define MCD_TYPE_@ENUMSHORT@ (@enum_name@_get_type())\n" \
 		--ftail "G_END_DECLS\n\n#endif /* __MCD_ENUM_TYPES_H__ */" \

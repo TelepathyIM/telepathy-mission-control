@@ -65,7 +65,6 @@
 #include <io.h>
 #endif
 
-#include "kludge-transport.h"
 #include "mcd-master.h"
 #include "mcd-master-priv.h"
 #include "mcd-manager.h"
@@ -74,7 +73,6 @@
 #include "mcd-account-manager-priv.h"
 #include "mcd-account-conditions.h"
 #include "mcd-account-priv.h"
-#include "mcd-transport.h"
 #include "plugin-loader.h"
 
 #ifdef G_OS_UNIX
@@ -94,8 +92,6 @@ struct _McdMasterPrivate
     TpDBusDaemon *dbus_daemon;
     TpSimpleClientFactory *client_factory;
 
-    GPtrArray *transport_plugins;
-
     /* Current pending sleep timer */
     gint shutdown_timeout_id;
 
@@ -113,12 +109,6 @@ enum
     PROP_DISPATCHER,
     PROP_ACCOUNT_MANAGER,
 };
-
-typedef struct {
-    gint priority;
-    McdAccountConnectionFunc func;
-    gpointer userdata;
-} McdAccountConnectionData;
 
 /* Used to poison 'default_master' when the object it points to is disposed.
  * The default_master should basically be alive for the duration of the MC run.
@@ -182,20 +172,6 @@ _mcd_master_dispose (GObject * object)
     }
     priv->is_disposed = TRUE;
 
-    if (priv->transport_plugins)
-    {
-	guint i;
-
-	for (i = 0; i < priv->transport_plugins->len; i++)
-	{
-	    McdTransportPlugin *plugin;
-	    plugin = g_ptr_array_index (priv->transport_plugins, i);
-	    g_object_unref (plugin);
-	}
-	g_ptr_array_unref (priv->transport_plugins);
-	priv->transport_plugins = NULL;
-    }
-
     tp_clear_object (&priv->account_manager);
     tp_clear_object (&priv->dbus_daemon);
     tp_clear_object (&priv->dispatcher);
@@ -239,9 +215,6 @@ mcd_master_constructor (GType type, guint n_params,
         dbus_g_connection_get_connection (
             tp_proxy_get_dbus_connection (TP_PROXY (priv->dbus_daemon))),
         TRUE);
-
-    mcd_kludge_transport_install (master,
-        mcd_account_manager_get_connectivity_monitor (priv->account_manager));
 
     return (GObject *) master;
 }
@@ -295,8 +268,6 @@ mcd_master_init (McdMaster * master)
 
     if (!default_master)
 	default_master = master;
-
-    master->priv->transport_plugins = g_ptr_array_new ();
 
     /* This newer plugin API is currently always enabled       */
     /* .... and is enabled before anything else as potentially *
@@ -365,23 +336,6 @@ mcd_master_get_dbus_daemon (McdMaster *master)
 {
     g_return_val_if_fail (MCD_IS_MASTER (master), NULL);
     return master->priv->dbus_daemon;
-}
-
-/**
- * mcd_plugin_register_transport:
- * @master: the #McdMaster.
- * @transport_plugin: the #McdTransportPlugin.
- *
- * Registers @transport_plugin as a transport monitoring object.
- * The @master takes ownership of the transport (i.e., it doesn't increment its
- * reference count).
- */
-void
-mcd_master_register_transport (McdMaster *master,
-			       McdTransportPlugin *transport_plugin)
-{
-    DEBUG ("called");
-    g_ptr_array_add (master->priv->transport_plugins, transport_plugin);
 }
 
 /* Milliseconds to wait for Connectivity coming back up before exiting MC */
