@@ -127,22 +127,6 @@ typedef struct {
 static McdMaster *default_master = NULL;
 
 static void
-mcd_master_connect_automatic_accounts (McdMaster *master)
-{
-    McdMasterPrivate *priv = master->priv;
-    GHashTable *accounts;
-    GHashTableIter iter;
-    gpointer ht_key, ht_value;
-
-    accounts = _mcd_account_manager_get_accounts (priv->account_manager);
-    g_hash_table_iter_init (&iter, accounts);
-    while (g_hash_table_iter_next (&iter, &ht_key, &ht_value))
-    {
-        _mcd_account_maybe_autoconnect (ht_value);
-    }
-}
-
-static void
 _mcd_master_get_property (GObject * obj, guint prop_id,
 			  GValue * val, GParamSpec * pspec)
 {
@@ -258,11 +242,6 @@ mcd_master_constructor (GType type, guint n_params,
 
     mcd_kludge_transport_install (master,
         mcd_account_manager_get_connectivity_monitor (priv->account_manager));
-
-    /* we assume that at this point all transport plugins have been registered.
-     * We get the active transports and check whether some accounts should be
-     * automatically connected */
-    mcd_master_connect_automatic_accounts (master);
 
     return (GObject *) master;
 }

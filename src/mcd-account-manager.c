@@ -1418,6 +1418,8 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
     McdStorage *storage = priv->storage;
     McdLoadAccountsData *lad;
     gchar **accounts, **name;
+    GHashTableIter iter;
+    gpointer v;
 
     tp_list_connection_names (priv->dbus_daemon,
                               list_connection_names_cb, NULL, NULL,
@@ -1481,6 +1483,11 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
     migrate_accounts (account_manager, lad);
 
     release_load_accounts_lock (lad);
+
+    g_hash_table_iter_init (&iter, account_manager->priv->accounts);
+
+    while (g_hash_table_iter_next (&iter, NULL, &v))
+      _mcd_account_maybe_autoconnect (v);
 }
 
 static void
