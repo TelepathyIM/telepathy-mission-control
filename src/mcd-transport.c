@@ -121,32 +121,6 @@ mcd_transport_plugin_get_transports (McdTransportPlugin *plugin)
     return iface->get_transports (plugin);
 }
 
-
-/**
- * mcd_transport_plugin_check_conditions:
- * @plugin: the #McdTransportPlugin.
- * @transport: a #McdTransport.
- * @conditions: a #GHashTable with account conditions.
- *
- * Checks whether @transport satisfies the @conditions.
- *
- * Returns: %TRUE if all conditions are met, %FALSE otherwise.
- */
-gboolean
-mcd_transport_plugin_check_conditions (McdTransportPlugin *plugin,
-				       McdTransport *transport,
-				       const GHashTable *conditions)
-{
-    McdTransportPluginIface *iface;
-
-    iface = MCD_TRANSPORT_PLUGIN_GET_IFACE (plugin);
-
-    if (iface->check_conditions == NULL)
-        return TRUE;
-    else
-        return iface->check_conditions (plugin, transport, conditions);
-}
-
 /**
  * mcd_transport_get_name:
  * @plugin: the #McdTransportPlugin.
