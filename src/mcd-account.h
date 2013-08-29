@@ -150,6 +150,10 @@ gchar * mcd_account_dup_nickname (McdAccount *self);
 McdConnectivityMonitor *mcd_account_get_connectivity_monitor (
     McdAccount *self);
 
+gboolean mcd_account_get_waiting_for_connectivity (McdAccount *self);
+void mcd_account_set_waiting_for_connectivity (McdAccount *self,
+    gboolean waiting);
+
 G_END_DECLS
 
 #endif

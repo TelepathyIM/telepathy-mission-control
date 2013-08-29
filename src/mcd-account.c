@@ -173,6 +173,7 @@ struct _McdAccountPrivate
     gboolean always_on;
     gboolean changing_presence;
     gboolean setting_avatar;
+    gboolean waiting_for_connectivity;
 
     gboolean hidden;
     /* In addition to affecting dispatching, this flag also makes this
@@ -3602,6 +3603,29 @@ _mcd_account_constructor (GType type, guint n_params,
 }
 
 static void
+monitor_state_changed_cb (
+    McdConnectivityMonitor *monitor,
+    gboolean connected,
+    gpointer user_data)
+{
+  McdAccount *self = MCD_ACCOUNT (user_data);
+
+  if (!self->priv->waiting_for_connectivity)
+    return;
+
+  /* If we've gone online, allow the account to actually try to connect;
+   * if we've fallen offline, say as much. (I don't actually think this
+   * code will be reached if !connected, but.)
+   */
+  DEBUG ("telling %s to %s", self->priv->unique_name,
+      connected ? "proceed" : "give up");
+  mcd_account_connection_proceed_with_reason (self, connected,
+      connected ? TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED
+                : TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
+  self->priv->waiting_for_connectivity = FALSE;
+}
+
+static void
 _mcd_account_constructed (GObject *object)
 {
     GObjectClass *object_class = (GObjectClass *)mcd_account_parent_class;
@@ -3614,6 +3638,9 @@ _mcd_account_constructed (GObject *object)
 
     mcd_account_migrate_avatar (account);
     mcd_account_setup (account);
+
+    tp_g_signal_connect_object (account->priv->connectivity, "state-change",
+        (GCallback) monitor_state_changed_cb, account, 0);
 }
 
 static void
@@ -5161,4 +5188,17 @@ McdConnectivityMonitor *
 mcd_account_get_connectivity_monitor (McdAccount *self)
 {
     return self->priv->connectivity;
+}
+
+gboolean
+mcd_account_get_waiting_for_connectivity (McdAccount *self)
+{
+  return self->priv->waiting_for_connectivity;
+}
+
+void
+mcd_account_set_waiting_for_connectivity (McdAccount *self,
+    gboolean waiting)
+{
+  self->priv->waiting_for_connectivity = waiting;
 }

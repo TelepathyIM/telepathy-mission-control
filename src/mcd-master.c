@@ -95,7 +95,6 @@ struct _McdMasterPrivate
     TpSimpleClientFactory *client_factory;
 
     GPtrArray *transport_plugins;
-    GList *account_connections;
 
     /* Current pending sleep timer */
     gint shutdown_timeout_id;
@@ -246,17 +245,6 @@ on_transport_status_changed (McdTransportPlugin *plugin,
 }
 
 static void
-_mcd_master_finalize (GObject * object)
-{
-    McdMasterPrivate *priv = MCD_MASTER (object)->priv;
-
-    g_list_foreach (priv->account_connections, (GFunc)g_free, NULL);
-    g_list_free (priv->account_connections);
-
-    G_OBJECT_CLASS (mcd_master_parent_class)->finalize (object);
-}
-
-static void
 _mcd_master_get_property (GObject * obj, guint prop_id,
 			  GValue * val, GParamSpec * pspec)
 {
@@ -391,7 +379,6 @@ mcd_master_class_init (McdMasterClass * klass)
     g_type_class_add_private (object_class, sizeof (McdMasterPrivate));
 
     object_class->constructor = mcd_master_constructor;
-    object_class->finalize = _mcd_master_finalize;
     object_class->get_property = _mcd_master_get_property;
     object_class->set_property = _mcd_master_set_property;
     object_class->dispose = _mcd_master_dispose;
@@ -524,46 +511,6 @@ mcd_master_register_transport (McdMaster *master,
 		      G_CALLBACK (on_transport_status_changed),
 		      master);
     g_ptr_array_add (master->priv->transport_plugins, transport_plugin);
-}
-
-void
-mcd_master_register_account_connection (McdMaster *master,
-					McdAccountConnectionFunc func,
-					gint priority,
-					gpointer userdata)
-{
-    McdMasterPrivate *priv = master->priv;
-    McdAccountConnectionData *acd;
-    GList *list;
-
-    DEBUG ("called");
-    acd = g_malloc (sizeof (McdAccountConnectionData));
-    acd->priority = priority;
-    acd->func = func;
-    acd->userdata = userdata;
-    for (list = priv->account_connections; list; list = list->next)
-	if (((McdAccountConnectionData *)list->data)->priority >= priority) break;
-
-    priv->account_connections =
-       	g_list_insert_before (priv->account_connections, list, acd);
-}
-
-void
-_mcd_master_get_nth_account_connection (McdMaster *master,
-                                        gint i,
-                                        McdAccountConnectionFunc *func,
-                                        gpointer *userdata)
-{
-    McdAccountConnectionData *acd;
-
-    acd = g_list_nth_data (master->priv->account_connections, i);
-    if (acd)
-    {
-	*func = acd->func;
-	*userdata = acd->userdata;
-    }
-    else
-	*func = NULL;
 }
 
 gboolean

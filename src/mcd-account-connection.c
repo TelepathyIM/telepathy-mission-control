@@ -39,7 +39,6 @@
 
 struct _McdAccountConnectionContext {
     GHashTable *params;
-    gint i_filter;
     gboolean user_initiated;
 };
 
@@ -69,7 +68,6 @@ _mcd_account_connection_begin (McdAccount *account,
     /* create dynamic params HT */
     /* run the handlers */
     ctx = g_malloc (sizeof (McdAccountConnectionContext));
-    ctx->i_filter = 0;
     ctx->user_initiated = user_initiated;
 
     /* If we get this far, the account should be valid, so getting the
@@ -92,9 +90,7 @@ mcd_account_connection_proceed_with_reason (McdAccount *account,
                                             TpConnectionStatusReason reason)
 {
     McdAccountConnectionContext *ctx;
-    McdAccountConnectionFunc func = NULL;
-    gpointer userdata;
-    McdMaster *master;
+    gboolean delayed;
 
     /* call next handler, or terminate the chain (emitting proper signal).
      * if everything is fine, call mcd_manager_create_connection() and
@@ -106,15 +102,35 @@ mcd_account_connection_proceed_with_reason (McdAccount *account,
 
     if (success)
     {
-        master = mcd_master_get_default ();
-        _mcd_master_get_nth_account_connection (master, ctx->i_filter++,
-                                                &func, &userdata);
-    }
-    if (func)
-    {
-	func (account, ctx->params, userdata);
+        if (mcd_connectivity_monitor_is_online (
+              mcd_account_get_connectivity_monitor (account)))
+        {
+            DEBUG ("%s wants to connect and we're online - go for it",
+                mcd_account_get_unique_name (account));
+            delayed = FALSE;
+        }
+        else if (!mcd_account_get_waiting_for_connectivity (account))
+        {
+            DEBUG ("%s wants to connect, but we're offline; queuing it up",
+                mcd_account_get_unique_name (account));
+            delayed = TRUE;
+            mcd_account_set_waiting_for_connectivity (account, TRUE);
+        }
+        else
+        {
+            DEBUG ("%s wants to connect, but is already waiting for "
+                "connectivity?", mcd_account_get_unique_name (account));
+            delayed = TRUE;
+        }
     }
     else
+    {
+        DEBUG ("%s failed to connect: reason code %d",
+            mcd_account_get_unique_name (account), reason);
+        delayed = FALSE;
+    }
+
+    if (!delayed)
     {
 	/* end of the chain */
 	g_signal_emit (account, _mcd_account_signal_connection_process, 0,

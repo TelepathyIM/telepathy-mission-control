@@ -40,9 +40,6 @@ struct _McdKludgeTransportPrivate {
      * itself.
      */
     GList *transports;
-
-    /* Hold a set of McdAccounts which would like to go online. */
-    GHashTable *pending_accounts;
 };
 
 static void transport_iface_init (
@@ -77,9 +74,6 @@ mcd_kludge_transport_constructed (GObject *object)
 
   /* We just use ourself as the McdTransport pointer... */
   priv->transports = g_list_prepend (NULL, self);
-
-  priv->pending_accounts = g_hash_table_new_full (NULL, NULL,
-      g_object_unref, NULL);
 }
 
 static void
@@ -92,8 +86,6 @@ mcd_kludge_transport_dispose (GObject *object)
   tp_clear_object (&priv->minotaur);
   g_list_free (priv->transports);
   priv->transports = NULL;
-
-  g_hash_table_unref (priv->pending_accounts);
 
   if (parent_class->dispose != NULL)
     parent_class->dispose (object);
@@ -176,58 +168,8 @@ monitor_state_changed_cb (
   McdTransportStatus new_status =
       connected ? MCD_TRANSPORT_STATUS_CONNECTED
                 : MCD_TRANSPORT_STATUS_DISCONNECTED;
-  GHashTableIter iter;
-  gpointer key;
 
   g_signal_emit_by_name (self, "status-changed", self, new_status);
-
-  g_hash_table_iter_init (&iter, self->priv->pending_accounts);
-  while (g_hash_table_iter_next (&iter, &key, NULL))
-    {
-      McdAccount *account = MCD_ACCOUNT (key);
-
-      /* If we've gone online, allow the account to actually try to connect;
-       * if we've fallen offline, say as much. (I don't actually think this
-       * code will be reached if !connected, but.)
-       */
-      DEBUG ("telling %s to %s", mcd_account_get_unique_name (account),
-          connected ? "proceed" : "give up");
-      mcd_account_connection_proceed_with_reason (account, connected,
-          connected ? TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED
-                    : TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
-      g_hash_table_iter_remove (&iter);
-    }
-}
-
-/*
- * mcd_kludge_transport_account_connection_cb:
- * @account: an account which would like to go online
- * @parameters: the connection parameters to be used
- * @user_data: the McdKludgeTransport.
- *
- * Called when an account would like to sign in.
- */
-static void
-mcd_kludge_transport_account_connection_cb (
-    McdAccount *account,
-    GHashTable *parameters,
-    gpointer user_data)
-{
-  McdKludgeTransport *self = MCD_KLUDGE_TRANSPORT (user_data);
-  McdKludgeTransportPrivate *priv = self->priv;
-
-  if (mcd_connectivity_monitor_is_online (priv->minotaur))
-    {
-      mcd_account_connection_proceed (account, TRUE);
-    }
-  else if (g_hash_table_lookup (priv->pending_accounts, account) == NULL)
-    {
-      DEBUG ("%s wants to connect, but we're offline; queuing it up",
-          mcd_account_get_unique_name (account));
-      g_object_ref (account);
-      g_hash_table_insert (priv->pending_accounts, account, account);
-    }
-  /* ... else we're already waiting, I guess */
 }
 
 static McdTransportPlugin *
@@ -251,7 +193,4 @@ mcd_kludge_transport_install (McdMaster *master,
   McdTransportPlugin *self = mcd_kludge_transport_new (connectivity_monitor);
 
   mcd_master_register_transport (master, self);
-  mcd_master_register_account_connection (master,
-      mcd_kludge_transport_account_connection_cb,
-      MCD_ACCOUNT_CONNECTION_PRIORITY_TRANSPORT, self);
 }
