@@ -42,8 +42,6 @@ struct _McdAccountConnectionContext {
     gboolean user_initiated;
 };
 
-static guint _mcd_account_signal_connection_process = 0;
-
 void
 _mcd_account_connection_context_free (McdAccountConnectionContext *c)
 {
@@ -133,8 +131,6 @@ mcd_account_connection_proceed_with_reason (McdAccount *account,
     if (!delayed)
     {
 	/* end of the chain */
-	g_signal_emit (account, _mcd_account_signal_connection_process, 0,
-		       success);
 	if (success)
 	{
 	    _mcd_account_connect (account, ctx->params);
@@ -154,16 +150,4 @@ mcd_account_connection_proceed (McdAccount *account, gboolean success)
 {
     mcd_account_connection_proceed_with_reason
         (account, success, TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED);
-}
-
-inline void
-_mcd_account_connection_class_init (McdAccountClass *klass)
-{
-    _mcd_account_signal_connection_process =
-	g_signal_new ("connection-process",
-		      G_OBJECT_CLASS_TYPE (klass),
-		      G_SIGNAL_RUN_LAST,
-		      0,
-		      NULL, NULL, g_cclosure_marshal_VOID__BOOLEAN,
-		      G_TYPE_NONE, 1, G_TYPE_BOOLEAN);
 }

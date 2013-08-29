@@ -3757,8 +3757,6 @@ mcd_account_class_init (McdAccountClass * klass)
                       NULL, NULL, g_cclosure_marshal_VOID__STRING,
                       G_TYPE_NONE, 1, G_TYPE_STRING);
 
-    _mcd_account_connection_class_init (klass);
-
     account_ready_quark = g_quark_from_static_string ("mcd_account_load");
 
     tp_proxy_or_subclass_hook_on_interface_add (TP_TYPE_CONNECTION_MANAGER,

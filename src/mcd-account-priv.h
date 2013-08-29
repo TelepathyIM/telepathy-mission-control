@@ -120,7 +120,6 @@ _mcd_account_write_conf (McdAccount *account)
 
 G_GNUC_INTERNAL void _mcd_account_connection_begin (McdAccount *account,
                                                     gboolean user_initiated);
-G_GNUC_INTERNAL void _mcd_account_connection_class_init (McdAccountClass *klass);
 
 extern const McdDBusProp account_channelrequests_properties[];
 
