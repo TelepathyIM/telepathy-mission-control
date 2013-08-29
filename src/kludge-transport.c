@@ -43,11 +43,6 @@ struct _McdKludgeTransportPrivate {
 
     /* Hold a set of McdAccounts which would like to go online. */
     GHashTable *pending_accounts;
-
-#ifdef ENABLE_CONN_SETTING
-    /* Application settings we steal from under Empathy's nose. */
-    GSettings *settings;
-#endif
 };
 
 static void transport_iface_init (
@@ -89,12 +84,6 @@ mcd_kludge_transport_constructed (GObject *object)
 
   priv->pending_accounts = g_hash_table_new_full (NULL, NULL,
       g_object_unref, NULL);
-
-#ifdef ENABLE_CONN_SETTING
-  priv->settings = g_settings_new ("im.telepathy.MissionControl.FromEmpathy");
-  g_settings_bind (priv->settings, "use-conn", priv->minotaur, "use-conn",
-      G_SETTINGS_BIND_GET);
-#endif
 }
 
 static void
@@ -105,9 +94,6 @@ mcd_kludge_transport_dispose (GObject *object)
   GObjectClass *parent_class = mcd_kludge_transport_parent_class;
 
   tp_clear_object (&priv->minotaur);
-#ifdef ENABLE_CONN_SETTING
-  tp_clear_object (&priv->settings);
-#endif
   g_list_free (priv->transports);
   priv->transports = NULL;
 

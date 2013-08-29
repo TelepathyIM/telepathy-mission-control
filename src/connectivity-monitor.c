@@ -60,6 +60,11 @@ struct _McdConnectivityMonitorPrivate {
   UpClient *upower_client;
 #endif
 
+#ifdef ENABLE_CONN_SETTING
+    /* Application settings we steal from under Empathy's nose. */
+    GSettings *settings;
+#endif
+
   Connectivity connectivity;
   gboolean use_conn;
 };
@@ -240,6 +245,13 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
       g_network_monitor_get_network_available (priv->network_monitor),
       connectivity_monitor);
 
+#ifdef ENABLE_CONN_SETTING
+  priv->settings = g_settings_new ("im.telepathy.MissionControl.FromEmpathy");
+  g_settings_bind (priv->settings, "use-conn",
+      connectivity_monitor, "use-conn",
+      G_SETTINGS_BIND_GET);
+#endif
+
 #ifdef HAVE_NM
   priv->nm_client = nm_client_new ();
   if (priv->nm_client != NULL)
@@ -299,6 +311,10 @@ connectivity_monitor_dispose (GObject *object)
   McdConnectivityMonitor *self = MCD_CONNECTIVITY_MONITOR (object);
 
   g_clear_object (&self->priv->network_monitor);
+
+#ifdef ENABLE_CONN_SETTING
+  g_clear_object (&self->priv->settings);
+#endif
 
   G_OBJECT_CLASS (mcd_connectivity_monitor_parent_class)->dispose (object);
 }
