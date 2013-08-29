@@ -128,7 +128,6 @@ struct _McdAccountPrivate
     McdStorage *storage;
     TpDBusDaemon *dbus_daemon;
 
-    McdTransport *transport;
     McdAccountConnectionContext *connection_context;
     GKeyFile *keyfile;		/* configuration file */
     McpAccountStorage *storage_plugin;
@@ -175,6 +174,8 @@ struct _McdAccountPrivate
     gboolean setting_avatar;
 
     gboolean hidden;
+    /* In addition to affecting dispatching, this flag also makes this
+     * account bypass connectivity checks. */
     gboolean always_dispatch;
 
     /* These fields are used to cache the changed properties */
@@ -5016,7 +5017,6 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
     else
     {
         priv->conn_status = TP_CONNECTION_STATUS_DISCONNECTED;
-        priv->transport = NULL;
     }
 }
 
@@ -5039,56 +5039,6 @@ _mcd_account_set_has_been_online (McdAccount *account)
                                       &value);
         g_value_unset (&value);
     }
-}
-
-/**
- * mcd_account_connection_bind_transport:
- * @account: the #McdAccount.
- * @transport: the #McdTransport.
- *
- * Set @account as dependent on @transport; connectivity plugins should call
- * this function in the callback they registered with
- * mcd_plugin_register_account_connection(). This tells the account manager to
- * disconnect @account when @transport goes away.
- */
-void
-mcd_account_connection_bind_transport (McdAccount *account,
-                                       McdTransport *transport)
-{
-    g_return_if_fail (MCD_IS_ACCOUNT (account));
-
-    if (transport == account->priv->transport)
-    {
-        DEBUG ("account %s transport remains %p",
-               account->priv->unique_name, transport);
-    }
-    else if (transport == NULL)
-    {
-        DEBUG ("unbinding account %s from transport %p",
-               account->priv->unique_name, account->priv->transport);
-        account->priv->transport = NULL;
-    }
-    else if (account->priv->transport == NULL)
-    {
-        DEBUG ("binding account %s to transport %p",
-               account->priv->unique_name, transport);
-
-        account->priv->transport = transport;
-    }
-    else
-    {
-        DEBUG ("disallowing migration of account %s from transport %p to %p",
-               account->priv->unique_name, account->priv->transport,
-               transport);
-    }
-}
-
-McdTransport *
-_mcd_account_connection_get_transport (McdAccount *account)
-{
-    g_return_val_if_fail (MCD_IS_ACCOUNT (account), NULL);
-
-    return account->priv->transport;
 }
 
 McdAccountConnectionContext *

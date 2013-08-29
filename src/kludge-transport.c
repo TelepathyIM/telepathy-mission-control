@@ -196,7 +196,6 @@ monitor_state_changed_cb (
        */
       DEBUG ("telling %s to %s", mcd_account_get_unique_name (account),
           connected ? "proceed" : "give up");
-      mcd_account_connection_bind_transport (account, (McdTransport *) self);
       mcd_account_connection_proceed_with_reason (account, connected,
           connected ? TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED
                     : TP_CONNECTION_STATUS_REASON_NETWORK_ERROR);
@@ -223,7 +222,6 @@ mcd_kludge_transport_account_connection_cb (
 
   if (mcd_connectivity_monitor_is_online (priv->minotaur))
     {
-      mcd_account_connection_bind_transport (account, (McdTransport *) self);
       mcd_account_connection_proceed (account, TRUE);
     }
   else if (g_hash_table_lookup (priv->pending_accounts, account) == NULL)

@@ -152,7 +152,6 @@ mcd_master_transport_connected (McdMaster *master, McdTransportPlugin *plugin,
         DEBUG ("account %s would like to connect",
                mcd_account_get_unique_name (account));
         _mcd_account_connect_with_auto_presence (account, FALSE);
-        mcd_account_connection_bind_transport (account, transport);
     }
 }
 
@@ -174,7 +173,13 @@ mcd_master_transport_disconnected (McdMaster *master, McdTransportPlugin *plugin
     {
         McdAccount *account = MCD_ACCOUNT (v);
 
-        if (transport == _mcd_account_connection_get_transport (account))
+        if (_mcd_account_needs_dispatch (account))
+        {
+            /* special treatment for cellular accounts */
+            DEBUG ("account %s is always dispatched and does not need a "
+                   "transport", mcd_account_get_unique_name (account));
+        }
+        else
         {
             McdConnection *connection;
 
@@ -183,16 +188,6 @@ mcd_master_transport_disconnected (McdMaster *master, McdTransportPlugin *plugin
             connection = mcd_account_get_connection (account);
             if (connection)
                 mcd_connection_close (connection);
-            mcd_account_connection_bind_transport (account, NULL);
-
-            /* it may be that there is another transport to which the account
-             * can reconnect */
-            if (_mcd_master_account_replace_transport (master, account))
-            {
-                DEBUG ("conditions matched");
-                _mcd_account_connect_with_auto_presence (account, FALSE);
-            }
-
         }
     }
 }
@@ -615,7 +610,6 @@ _mcd_master_account_replace_transport (McdMaster *master,
             if (status != MCD_TRANSPORT_STATUS_CONNECTED)
                 continue;
 
-            mcd_account_connection_bind_transport (account, transport);
             connected = TRUE;
             break;
         }

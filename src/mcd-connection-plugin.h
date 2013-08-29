@@ -37,8 +37,6 @@ G_BEGIN_DECLS
 void mcd_account_connection_proceed (McdAccount *account, gboolean success);
 void mcd_account_connection_proceed_with_reason
     (McdAccount *account, gboolean success, TpConnectionStatusReason reason);
-void mcd_account_connection_bind_transport (McdAccount *account,
-                                            McdTransport *transport);
 gboolean mcd_account_connection_is_user_initiated (McdAccount *account);
 
 #define MCD_ACCOUNT_CONNECTION_PRIORITY_POLICY 10000
