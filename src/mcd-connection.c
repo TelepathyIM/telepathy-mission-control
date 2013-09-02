@@ -175,7 +175,8 @@ static const gchar * const *presence_fallbacks[] = {
     _available_fb, _away_fb, _ext_away_fb, _hidden_fb, _busy_fb
 };
 
-static void _mcd_connection_release_tp_connection (McdConnection *connection);
+static void _mcd_connection_release_tp_connection (McdConnection *connection,
+                                                   McdInhibit *inhibit);
 static gboolean request_channel_new_iface (McdConnection *connection,
                                            McdChannel *channel);
 
@@ -480,12 +481,15 @@ static void
 disconnect_cb (TpConnection *proxy, const GError *error, gpointer user_data,
 	       GObject *weak_object)
 {
-    if (error)
-	g_warning ("Disconnect failed: %s", error->message);
+  if (error != NULL)
+    WARNING ("Disconnect failed: %s", error->message);
+  else
+    DEBUG ("Disconnected %s", tp_proxy_get_object_path (TP_PROXY (proxy)));
 }
 
 static void
-_mcd_connection_call_disconnect (McdConnection *connection)
+_mcd_connection_call_disconnect (McdConnection *connection,
+                                 McdInhibit *inhibit)
 {
     TpConnection *tp_conn = connection->priv->tp_conn;
 
@@ -494,10 +498,10 @@ _mcd_connection_call_disconnect (McdConnection *connection)
 
     if (tp_connection_get_status (tp_conn, NULL) ==
         TP_CONNECTION_STATUS_DISCONNECTED) return;
-    tp_cli_connection_call_disconnect (tp_conn, -1,
-				       disconnect_cb,
-				       NULL, NULL,
-				       (GObject *)connection);
+    tp_cli_connection_call_disconnect (tp_conn, -1, disconnect_cb,
+        inhibit ? mcd_inhibit_hold (inhibit) : NULL,
+        inhibit ? (GDestroyNotify) mcd_inhibit_release : NULL,
+        NULL);
 
 }
 
@@ -525,7 +529,7 @@ _mcd_connection_request_presence (McdConnection *self,
         /* Connection Proxy */
         self->priv->abort_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
         mcd_mission_disconnect (MCD_MISSION (self));
-        _mcd_connection_call_disconnect (self);
+        _mcd_connection_call_disconnect (self, NULL);
 
         /* if a reconnection attempt is scheduled, cancel it */
         if (self->priv->reconnect_timer)
@@ -792,7 +796,7 @@ mcd_connection_invalidated_cb (TpConnection *tp_conn,
 
     DEBUG ("Proxy destroyed (%s)!", message);
 
-    _mcd_connection_release_tp_connection (connection);
+    _mcd_connection_release_tp_connection (connection, NULL);
 
     if (priv->connected &&
         priv->abort_reason != TP_CONNECTION_STATUS_REASON_REQUESTED &&
@@ -1606,7 +1610,8 @@ _mcd_connection_finalize (GObject * object)
 }
 
 static void
-_mcd_connection_release_tp_connection (McdConnection *connection)
+_mcd_connection_release_tp_connection (McdConnection *connection,
+                                       McdInhibit *inhibit)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
 
@@ -1645,7 +1650,7 @@ _mcd_connection_release_tp_connection (McdConnection *connection)
         g_signal_handlers_disconnect_by_func (G_OBJECT (priv->tp_conn),
             G_CALLBACK (mcd_connection_invalidated_cb), connection);
 
-	_mcd_connection_call_disconnect (connection);
+        _mcd_connection_call_disconnect (connection, inhibit);
 
         /* the tp_connection has gone away, so we no longer need (or want) *
            the probation timer to go off: there's nothing for it to check  */
@@ -1727,7 +1732,7 @@ _mcd_connection_dispose (GObject * object)
     mcd_operation_foreach (MCD_OPERATION (connection),
 			   (GFunc) _foreach_channel_remove, connection);
 
-    _mcd_connection_release_tp_connection (connection);
+    _mcd_connection_release_tp_connection (connection, NULL);
     g_assert (priv->tp_conn == NULL);
 
     if (priv->account)
@@ -2186,13 +2191,14 @@ mcd_connection_request_channel (McdConnection *connection,
 }
 
 void
-mcd_connection_close (McdConnection *connection)
+mcd_connection_close (McdConnection *connection,
+                      McdInhibit *inhibit)
 {
     g_return_if_fail (MCD_IS_CONNECTION (connection));
 
     connection->priv->closed = TRUE;
     connection->priv->abort_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
-    _mcd_connection_release_tp_connection (connection);
+    _mcd_connection_release_tp_connection (connection, inhibit);
     mcd_mission_abort (MCD_MISSION (connection));
 }
 
@@ -2326,7 +2332,7 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
         }
 
         DEBUG ("releasing old connection first");
-        _mcd_connection_release_tp_connection (connection);
+        _mcd_connection_release_tp_connection (connection, NULL);
     }
 
     g_assert (priv->tp_conn == NULL);

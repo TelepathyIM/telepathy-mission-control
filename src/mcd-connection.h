@@ -30,6 +30,7 @@
 #include <glib-object.h>
 #include <telepathy-glib/telepathy-glib.h>
 
+#include "connectivity-monitor.h" /* for McdInhibit */
 #include "mcd-operation.h"
 
 G_BEGIN_DECLS
@@ -72,7 +73,8 @@ TpConnection *mcd_connection_get_tp_connection (McdConnection *connection);
 gboolean mcd_connection_request_channel (McdConnection *connection,
 					 McdChannel *channel);
 
-void mcd_connection_close (McdConnection *connection);
+void mcd_connection_close (McdConnection *connection,
+                           McdInhibit *inhibit);
 
 McdChannel * mcd_connection_find_channel_by_path (McdConnection *connection,
     const gchar *object_path);

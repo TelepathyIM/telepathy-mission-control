@@ -68,6 +68,10 @@ gboolean mcd_connectivity_monitor_get_use_conn (McdConnectivityMonitor *connecti
 void mcd_connectivity_monitor_set_use_conn (McdConnectivityMonitor *connectivity,
     gboolean use_conn);
 
+typedef struct _McdInhibit McdInhibit;
+McdInhibit *mcd_inhibit_hold (McdInhibit *inhibit);
+void mcd_inhibit_release (McdInhibit *inhibit);
+
 G_END_DECLS
 
 #endif /* MCD_CONNECTIVITY_MONITOR_H */

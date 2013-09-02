@@ -2981,7 +2981,7 @@ _mcd_account_reconnect (McdAccount *self,
      * back from the CM yet, the old parameters will still be used, I think
      * (I can't quite make out what actually happens). */
     if (self->priv->connection)
-        mcd_connection_close (self->priv->connection);
+        mcd_connection_close (self->priv->connection, NULL);
 
     _mcd_account_connection_begin (self, user_initiated);
 }
@@ -3612,6 +3612,7 @@ static void
 monitor_state_changed_cb (
     McdConnectivityMonitor *monitor,
     gboolean connected,
+    McdInhibit *inhibit,
     gpointer user_data)
 {
   McdAccount *self = MCD_ACCOUNT (user_data);
@@ -3639,8 +3640,9 @@ monitor_state_changed_cb (
 
           DEBUG ("account %s must disconnect", self->priv->unique_name);
           connection = mcd_account_get_connection (self);
-          if (connection)
-            mcd_connection_close (connection);
+
+          if (connection != NULL)
+            mcd_connection_close (connection, inhibit);
         }
     }
 

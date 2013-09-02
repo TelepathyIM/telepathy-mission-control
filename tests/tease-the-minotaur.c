@@ -30,6 +30,7 @@ static void
 state_change_cb (
     McdConnectivityMonitor *minotaur,
     gboolean connected,
+    McdInhibit *inhibit,
     gpointer user_data)
 {
   g_print (connected ? "connected\n" : "disconnected\n");
@@ -47,7 +48,8 @@ main (
 
   minotaur = mcd_connectivity_monitor_new ();
   g_signal_connect (minotaur, "state-change", (GCallback) state_change_cb, NULL);
-  state_change_cb (minotaur, mcd_connectivity_monitor_is_online (minotaur), NULL);
+  state_change_cb (minotaur, mcd_connectivity_monitor_is_online (minotaur),
+      NULL, NULL);
 
   im_feeling_loopy = g_main_loop_new (NULL, FALSE);
   g_main_loop_run (im_feeling_loopy);
