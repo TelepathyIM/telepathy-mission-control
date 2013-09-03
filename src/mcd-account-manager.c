@@ -1066,9 +1066,11 @@ get_supported_account_properties (TpSvcDBusProperties *svc,
         TP_IFACE_ACCOUNT ".ConnectAutomatically",
         TP_IFACE_ACCOUNT ".RequestedPresence",
         TP_IFACE_ACCOUNT ".Supersedes",
+        TP_PROP_ACCOUNT_SERVICE,
         TP_IFACE_ACCOUNT_INTERFACE_AVATAR ".Avatar",
         MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS ".Condition",
         TP_PROP_ACCOUNT_INTERFACE_STORAGE_STORAGE_PROVIDER,
+        MC_IFACE_ACCOUNT_INTERFACE_HIDDEN ".Hidden",
         NULL
     };
 

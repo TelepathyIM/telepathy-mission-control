@@ -23,6 +23,7 @@ from mctest import (
     )
 from servicetest import (
     EventPattern, assertEquals, assertContains, assertDoesNotContain,
+    call_async,
     )
 import constants as cs
 
@@ -49,6 +50,11 @@ def test_create_hidden_account(q, bus, mc):
     Hidden property set to True, and can be removed.
     """
     am = AccountManager(bus)
+
+    call_async(q, am.Properties, 'Get', cs.AM,
+            'SupportedAccountProperties')
+    supported = q.expect('dbus-return', method='Get').value[0]
+    assertContains(cs.ACCOUNT_IFACE_HIDDEN + '.Hidden', supported)
 
     # Make a new hidden account, and check that it really is hidden.
     params = { "account": "aperture@porti.co", "password": "tollgate" }

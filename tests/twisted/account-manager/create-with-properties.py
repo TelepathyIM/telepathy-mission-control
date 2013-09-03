@@ -21,7 +21,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async, assertEquals
+        call_async, assertEquals, assertContains
 from mctest import exec_test, create_fakecm_account, AccountManager
 import constants as cs
 
@@ -49,6 +49,7 @@ def test(q, bus, mc):
 
     assert (cs.ACCOUNT + '.RequestedPresence') in supported
     assert (cs.ACCOUNT + '.Supersedes') in supported
+    assertContains(cs.ACCOUNT + '.Service', supported)
 
     params = dbus.Dictionary({"account": "anarki@example.com",
         "password": "secrecy"}, signature='sv')
@@ -75,6 +76,7 @@ def test(q, bus, mc):
             cs.ACCOUNT_PATH_PREFIX + 'q1/q1/Ranger',
             cs.ACCOUNT_PATH_PREFIX + 'q2/q2/Grunt',
             ], signature='o'),
+        cs.ACCOUNT + '.Service': 'arena',
         }, signature='sv')
 
     call_async(q, account_manager, 'CreateAccount',
@@ -127,6 +129,7 @@ def test(q, bus, mc):
                 cs.ACCOUNT_PATH_PREFIX + 'q2/q2/Grunt',
                 ], signature='o'),
         properties.get('Supersedes'))
+    assertEquals('arena', properties.get('Service'))
 
     properties = account_props.GetAll(cs.ACCOUNT_IFACE_AVATAR)
     assert properties.get('Avatar') == ([ord('f'), ord('o'), ord('o')],
