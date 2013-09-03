@@ -90,6 +90,7 @@ struct _McdAccountManagerPrivate
 {
     TpDBusDaemon *dbus_daemon;
     TpSimpleClientFactory *client_factory;
+    McdConnectivityMonitor *minotaur;
 
     McdStorage *storage;
     GHashTable *accounts;
@@ -1579,6 +1580,7 @@ _mcd_account_manager_dispose (GObject *object)
 
     tp_clear_object (&priv->dbus_daemon);
     tp_clear_object (&priv->client_factory);
+    tp_clear_object (&priv->minotaur);
 
     G_OBJECT_CLASS (mcd_account_manager_parent_class)->dispose (object);
 }
@@ -1656,6 +1658,8 @@ _mcd_account_manager_constructed (GObject *obj)
 
     DEBUG ("");
 
+    priv->minotaur = mcd_connectivity_monitor_new ();
+
     priv->storage = mcd_storage_new (priv->dbus_daemon);
     priv->accounts = g_hash_table_new_full (g_str_hash, g_str_equal,
                                             NULL, unref_account);
@@ -1702,6 +1706,13 @@ mcd_account_manager_get_dbus_daemon (McdAccountManager *account_manager)
     g_return_val_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager), NULL);
 
     return account_manager->priv->dbus_daemon;
+}
+
+McdConnectivityMonitor *
+mcd_account_manager_get_connectivity_monitor (McdAccountManager *self)
+{
+  g_return_val_if_fail (MCD_IS_ACCOUNT_MANAGER (self), NULL);
+  return self->priv->minotaur;
 }
 
 /**

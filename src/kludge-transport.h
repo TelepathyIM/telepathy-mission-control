@@ -23,6 +23,7 @@
 #include <glib-object.h>
 #include "mcd-master.h"
 #include "mcd-transport.h"
+#include "connectivity-monitor.h"
 
 typedef struct _McdKludgeTransport McdKludgeTransport;
 typedef struct _McdKludgeTransportClass McdKludgeTransportClass;
@@ -40,7 +41,8 @@ struct _McdKludgeTransport {
 
 GType mcd_kludge_transport_get_type (void);
 
-void mcd_kludge_transport_install (McdMaster *master);
+void mcd_kludge_transport_install (McdMaster *master,
+    McdConnectivityMonitor *connectivity_monitor);
 
 /* TYPE MACROS */
 #define MCD_TYPE_KLUDGE_TRANSPORT \

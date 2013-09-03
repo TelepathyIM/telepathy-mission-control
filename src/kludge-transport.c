@@ -75,10 +75,6 @@ mcd_kludge_transport_constructed (GObject *object)
   if (parent_class->constructed != NULL)
     parent_class->constructed (object);
 
-  priv->minotaur = mcd_connectivity_monitor_new ();
-  tp_g_signal_connect_object (priv->minotaur, "state-change",
-      (GCallback) monitor_state_changed_cb, self, 0);
-
   /* We just use ourself as the McdTransport pointer... */
   priv->transports = g_list_prepend (NULL, self);
 
@@ -235,15 +231,24 @@ mcd_kludge_transport_account_connection_cb (
 }
 
 static McdTransportPlugin *
-mcd_kludge_transport_new (void)
+mcd_kludge_transport_new (McdConnectivityMonitor *connectivity_monitor)
 {
-  return g_object_new (MCD_TYPE_KLUDGE_TRANSPORT, NULL);
+  McdKludgeTransport *self = g_object_new (MCD_TYPE_KLUDGE_TRANSPORT, NULL);
+
+  /* Strictly speaking this should be done with properties, but I'm
+   * going to delete this class soon anyway. */
+  self->priv->minotaur = connectivity_monitor;
+  tp_g_signal_connect_object (self->priv->minotaur, "state-change",
+      (GCallback) monitor_state_changed_cb, self, 0);
+
+  return MCD_TRANSPORT_PLUGIN (self);
 }
 
 void
-mcd_kludge_transport_install (McdMaster *master)
+mcd_kludge_transport_install (McdMaster *master,
+    McdConnectivityMonitor *connectivity_monitor)
 {
-  McdTransportPlugin *self = mcd_kludge_transport_new ();
+  McdTransportPlugin *self = mcd_kludge_transport_new (connectivity_monitor);
 
   mcd_master_register_transport (master, self);
   mcd_master_register_account_connection (master,

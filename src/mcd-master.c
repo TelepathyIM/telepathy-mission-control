@@ -373,7 +373,8 @@ mcd_master_constructor (GType type, guint n_params,
             tp_proxy_get_dbus_connection (TP_PROXY (priv->dbus_daemon))),
         TRUE);
 
-    mcd_kludge_transport_install (master);
+    mcd_kludge_transport_install (master,
+        mcd_account_manager_get_connectivity_monitor (priv->account_manager));
 
     /* we assume that at this point all transport plugins have been registered.
      * We get the active transports and check whether some accounts should be
