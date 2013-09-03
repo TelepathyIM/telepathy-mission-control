@@ -1,7 +1,23 @@
 telepathy-mission-control 5.15.1 (UNRELEASED)
 =============================================
 
-...
+Dependencies:
+
+• There is no longer a special configuration option for ConnMan connectivity
+  monitoring. MC now can use any GNetworkMonitor plugin, such as the Linux
+  Netlink plugin provided with GLib, or
+  <https://github.com/jukkar/connman-network-monitor/>.
+
+• On systems with NetworkManager, basic connectivity monitoring support
+  no longer requires libnm-glib, although compiling with libnm-glib might
+  still mean that disconnection can be detected more quickly.
+
+Enhancements:
+
+• Use GIO's GNetworkMonitor plugins to monitor connectivity
+  (fd.o #56635, Simon)
+
+• Internal cleanup related to the connectivity code (fd.o #68712, Simon)
 
 telepathy-mission-control 5.15.0 (2013-05-03)
 =============================================
@@ -187,7 +203,7 @@ Fixes:
   isn't installed, and copy the password as well as the username
   (Debian #686835, Simon)
 • If compiled with UPower support, do not attempt to connect while going
-  to sleep (Guillaume)
+  to sleep (fd.o #50009, Guillaume)
 • Set up the altered-one signal for account storage backends correctly
   (fd.o #52231, Xavier)
 • If service-activated under both names o.fd.Telepathy.MissionControl5
