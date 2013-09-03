@@ -51,7 +51,20 @@
 #define LOGIN1_MANAGER_INHIBIT "Inhibit"
 
 struct _McdInhibit {
+    /* The number of reasons why we should delay sleep/shutdown. This behaves
+     * like a refcount: when it reaches 0, we close the fd and free the
+     * McdInhibit structure.
+     *
+     * 1 when we are waiting for PrepareForSleep/PrepareForShutdown;
+     * the number of extra "holds" (currently one per McdAccount) when we have
+     * received that signal and are waiting for each McdAccount to disconnect;
+     * temporarily 1 + number of extra "holds" while we are dealing with the
+     * signal.
+     */
     gsize holds;
+
+    /* fd encapsulating the delay, provided by logind. We close this
+     * when we no longer have any reason to delay sleep/shutdown. */
     int fd;
 };
 
