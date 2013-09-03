@@ -342,7 +342,7 @@ created_cb (GObject *storage_plugin_obj,
     /* actually fetch the data into our cache from the plugin: */
     if (mcd_storage_add_account_from_plugin (storage, plugin, name))
     {
-        account = mcd_account_new (am, name);
+        account = mcd_account_new (am, name, priv->minotaur);
         lad->account = account;
     }
     else
@@ -925,7 +925,7 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
         mcd_storage_set_string (storage, unique_name,
                                 MC_ACCOUNTS_KEY_DISPLAY_NAME, display_name);
 
-    account = mcd_account_new (account_manager, unique_name);
+    account = mcd_account_new (account_manager, unique_name, priv->minotaur);
     g_free (unique_name);
 
     if (G_LIKELY (account))
@@ -1444,7 +1444,7 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
             continue;
         }
 
-        account = mcd_account_new (account_manager, *name);
+        account = mcd_account_new (account_manager, *name, priv->minotaur);
 
         if (G_UNLIKELY (!account))
         {

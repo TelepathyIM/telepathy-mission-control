@@ -79,8 +79,10 @@ struct _McdAccountClass
 };
 
 GType mcd_account_get_type (void);
+
 McdAccount *mcd_account_new (McdAccountManager *account_manager,
-			     const gchar *name);
+    const gchar *name,
+    McdConnectivityMonitor *minotaur);
 
 void mcd_account_delete (McdAccount *account, McdAccountDeleteCb callback,
                          gpointer user_data);
@@ -144,6 +146,9 @@ gboolean mcd_account_get_parameter_of_known_type (McdAccount *account,
 gchar * mcd_account_dup_icon (McdAccount *self);
 
 gchar * mcd_account_dup_nickname (McdAccount *self);
+
+McdConnectivityMonitor *mcd_account_get_connectivity_monitor (
+    McdAccount *self);
 
 G_END_DECLS
 

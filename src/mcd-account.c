@@ -127,6 +127,7 @@ struct _McdAccountPrivate
 
     McdStorage *storage;
     TpDBusDaemon *dbus_daemon;
+    McdConnectivityMonitor *connectivity;
 
     McdAccountConnectionContext *connection_context;
     GKeyFile *keyfile;		/* configuration file */
@@ -190,6 +191,7 @@ enum
 {
     PROP_0,
     PROP_DBUS_DAEMON,
+    PROP_CONNECTIVITY_MONITOR,
     PROP_STORAGE,
     PROP_NAME,
     PROP_ALWAYS_ON,
@@ -3441,6 +3443,11 @@ set_property (GObject *obj, guint prop_id,
         priv->dbus_daemon = g_value_dup_object (val);
         break;
 
+      case PROP_CONNECTIVITY_MONITOR:
+        g_assert (priv->connectivity == NULL);
+        priv->connectivity = g_value_dup_object (val);
+        break;
+
     case PROP_NAME:
 	g_assert (priv->unique_name == NULL);
 	priv->unique_name = g_value_dup_string (val);
@@ -3479,6 +3486,11 @@ get_property (GObject *obj, guint prop_id,
     case PROP_DBUS_DAEMON:
         g_value_set_object (val, priv->dbus_daemon);
 	break;
+
+    case PROP_CONNECTIVITY_MONITOR:
+        g_value_set_object (val, priv->connectivity);
+        break;
+
     case PROP_NAME:
 	g_value_set_string (val, priv->unique_name);
 	break;
@@ -3559,6 +3571,7 @@ _mcd_account_dispose (GObject *object)
     tp_clear_object (&priv->storage);
     tp_clear_object (&priv->dbus_daemon);
     tp_clear_object (&priv->self_contact);
+    tp_clear_object (&priv->connectivity);
 
     _mcd_account_set_connection_context (self, NULL);
     _mcd_account_set_connection (self, NULL);
@@ -3633,6 +3646,14 @@ mcd_account_class_init (McdAccountClass * klass)
          g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
                               TP_TYPE_DBUS_DAEMON,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+
+    g_object_class_install_property
+        (object_class, PROP_CONNECTIVITY_MONITOR,
+         g_param_spec_object ("connectivity monitor",
+                              "Connectivity monitor",
+                              "Connectivity monitor",
+                              MCD_TYPE_CONNECTIVITY_MONITOR,
+                              G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 
     g_object_class_install_property
         (object_class, PROP_STORAGE,
@@ -3729,7 +3750,9 @@ mcd_account_init (McdAccount *account)
 }
 
 McdAccount *
-mcd_account_new (McdAccountManager *account_manager, const gchar *name)
+mcd_account_new (McdAccountManager *account_manager,
+    const gchar *name,
+    McdConnectivityMonitor *connectivity)
 {
     gpointer *obj;
     McdStorage *storage = mcd_account_manager_get_storage (account_manager);
@@ -3738,6 +3761,7 @@ mcd_account_new (McdAccountManager *account_manager, const gchar *name)
     obj = g_object_new (MCD_TYPE_ACCOUNT,
                         "storage", storage,
                         "dbus-daemon", dbus,
+                        "connectivity-monitor", connectivity,
 			"name", name,
 			NULL);
     return MCD_ACCOUNT (obj);
@@ -5131,4 +5155,10 @@ mcd_account_dup_nickname (McdAccount *self)
     const gchar *name = mcd_account_get_unique_name (self);
 
     return mcd_storage_dup_string (self->priv->storage, name, "Nickname");
+}
+
+McdConnectivityMonitor *
+mcd_account_get_connectivity_monitor (McdAccount *self)
+{
+    return self->priv->connectivity;
 }
