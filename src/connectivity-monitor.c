@@ -69,6 +69,8 @@ struct _McdInhibit {
 };
 
 typedef enum {
+    CONNECTIVITY_NONE = 0,
+
     /* Set if the device is not suspended; clear if it is suspending
      * (or suspended, but we don't get scheduled then). */
     CONNECTIVITY_AWAKE = (1 << 0),
@@ -166,6 +168,26 @@ connectivity_monitor_change_states (
     }
 }
 
+/* Calling this function makes us "more online" or has no effect */
+static inline void
+connectivity_monitor_add_states (
+    McdConnectivityMonitor *self,
+    Connectivity set,
+    McdInhibit *inhibit)
+{
+  connectivity_monitor_change_states (self, set, CONNECTIVITY_NONE, inhibit);
+}
+
+/* Calling this function makes us "less online" or has no effect */
+static inline void
+connectivity_monitor_remove_states (
+    McdConnectivityMonitor *self,
+    Connectivity clear,
+    McdInhibit *inhibit)
+{
+  connectivity_monitor_change_states (self, CONNECTIVITY_NONE, clear, inhibit);
+}
+
 #ifdef HAVE_NM
 
 #if !defined(NM_CHECK_VERSION)
@@ -198,14 +220,14 @@ connectivity_monitor_nm_state_change_cb (NMClient *client,
     {
       DEBUG ("New NetworkManager network state %d (unstable state)", state);
 
-      connectivity_monitor_change_states (connectivity_monitor,
-          0, CONNECTIVITY_STABLE, NULL);
+      connectivity_monitor_remove_states (connectivity_monitor,
+          CONNECTIVITY_STABLE, NULL);
     }
   else
     {
       DEBUG ("New NetworkManager network state %d (stable state)", state);
-      connectivity_monitor_change_states (connectivity_monitor,
-          CONNECTIVITY_STABLE, 0, NULL);
+      connectivity_monitor_add_states (connectivity_monitor,
+          CONNECTIVITY_STABLE, NULL);
     }
 }
 #endif
@@ -226,15 +248,15 @@ connectivity_monitor_network_changed (GNetworkMonitor *monitor,
     {
       DEBUG ("GNetworkMonitor (%s) says we are at least partially online",
           G_OBJECT_TYPE_NAME (monitor));
-      connectivity_monitor_change_states (connectivity_monitor,
-          CONNECTIVITY_UP, 0, NULL);
+      connectivity_monitor_add_states (connectivity_monitor, CONNECTIVITY_UP,
+          NULL);
     }
   else
     {
       DEBUG ("GNetworkMonitor (%s) says we are offline",
           G_OBJECT_TYPE_NAME (monitor));
-      connectivity_monitor_change_states (connectivity_monitor,
-          0, CONNECTIVITY_UP, NULL);
+      connectivity_monitor_remove_states (connectivity_monitor,
+          CONNECTIVITY_UP, NULL);
     }
 }
 
@@ -245,9 +267,9 @@ connectivity_monitor_set_awake (
     gboolean awake)
 {
   if (awake)
-    connectivity_monitor_change_states (self, CONNECTIVITY_AWAKE, 0, NULL);
+    connectivity_monitor_add_states (self, CONNECTIVITY_AWAKE, NULL);
   else
-    connectivity_monitor_change_states (self, 0, CONNECTIVITY_AWAKE, NULL);
+    connectivity_monitor_remove_states (self, CONNECTIVITY_AWAKE, NULL);
 }
 
 static void
@@ -372,14 +394,14 @@ login1_prepare_for_sleep_cb (GDBusConnection *system_bus G_GNUC_UNUSED,
       if (sleeping)
         {
           DEBUG ("about to suspend");
-          connectivity_monitor_change_states (self, 0, CONNECTIVITY_AWAKE,
+          connectivity_monitor_remove_states (self, CONNECTIVITY_AWAKE,
               self->priv->login1_inhibit);
         }
       else
         {
           DEBUG ("woke up, or suspend was cancelled");
           connectivity_monitor_renew_inhibit (self);
-          connectivity_monitor_change_states (self, CONNECTIVITY_AWAKE, 0,
+          connectivity_monitor_add_states (self, CONNECTIVITY_AWAKE,
               self->priv->login1_inhibit);
         }
     }
@@ -412,14 +434,14 @@ login1_prepare_for_shutdown_cb (GDBusConnection *system_bus G_GNUC_UNUSED,
       if (shutting_down)
         {
           DEBUG ("about to shut down");
-          connectivity_monitor_change_states (self, 0, CONNECTIVITY_RUNNING,
+          connectivity_monitor_remove_states (self, CONNECTIVITY_RUNNING,
               self->priv->login1_inhibit);
         }
       else
         {
           DEBUG ("shutdown was cancelled");
           connectivity_monitor_renew_inhibit (self);
-          connectivity_monitor_change_states (self, CONNECTIVITY_RUNNING, 0,
+          connectivity_monitor_add_states (self, CONNECTIVITY_RUNNING,
               self->priv->login1_inhibit);
         }
     }
@@ -735,8 +757,8 @@ mcd_connectivity_monitor_set_use_conn (McdConnectivityMonitor *connectivity_moni
   else
     {
       /* !use_conn basically means "always assume it's stable and up". */
-      connectivity_monitor_change_states (connectivity_monitor,
-          CONNECTIVITY_STABLE|CONNECTIVITY_UP, 0, NULL);
+      connectivity_monitor_add_states (connectivity_monitor,
+          CONNECTIVITY_STABLE|CONNECTIVITY_UP, NULL);
     }
 
   g_object_notify (G_OBJECT (connectivity_monitor), "use-conn");
