@@ -196,7 +196,6 @@ mcp_plugin_la_LDFLAGS = -module -shared -avoid-version -rpath @abs_builddir@
 
 libgiofakenetworkmonitor_la_SOURCES = \
 	fake-network-monitor.c \
-	fake-network-monitor.h \
 	$(NULL)
 libgiofakenetworkmonitor_la_LDFLAGS = $(mcp_plugin_la_LDFLAGS)
 
