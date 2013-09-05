@@ -12,12 +12,25 @@ Dependencies:
   no longer requires libnm-glib, although compiling with libnm-glib might
   still mean that disconnection can be detected more quickly.
 
+• gnome-keyring support has been removed. Use a ServerAuthentication Handler
+  similar to the ones provided in Empathy or KDE-Telepathy if you
+  don't want passwords to be stored in a file as clear text.
+
 Enhancements:
 
 • Use GIO's GNetworkMonitor plugins to monitor connectivity
   (fd.o #56635, Simon)
 
+• Remove gnome-keyring integration in favour of recommending
+  ServerAuthentication Handlers, which have better UI and don't expose
+  passwords on D-Bus (fd.o #32578, Simon)
+
 • Internal cleanup related to the connectivity code (fd.o #68712, Simon)
+
+Fixes:
+
+• Don't emit critical warnings if more than one emergency "service point" is
+  provided, and don't leak memory if any are provided (fd.o #55773, Simon)
 
 telepathy-mission-control 5.15.0 (2013-05-03)
 =============================================
