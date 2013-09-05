@@ -79,12 +79,6 @@ gchar *
 default_get (const gchar *account,
     const gchar *key)
 {
-  const gchar *pkey = key;
-  gchar *value = NULL;
-
-  if (g_str_has_prefix (key, "param-"))
-    pkey = key + strlen("param-");
-
   return g_key_file_get_string (default_keyfile (), account, key, NULL);
 }
 
