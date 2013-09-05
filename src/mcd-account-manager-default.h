@@ -50,7 +50,6 @@ G_BEGIN_DECLS
 typedef struct {
   GObject parent;
   GKeyFile *keyfile;
-  GKeyFile *secrets;
   GKeyFile *removed;
   GHashTable *removed_accounts;
   gchar *filename;

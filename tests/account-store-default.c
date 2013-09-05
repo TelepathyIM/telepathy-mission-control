@@ -89,27 +89,6 @@ default_set (const gchar *account,
 {
   GKeyFile *keyfile = NULL;
 
-#if ENABLE_GNOME_KEYRING
-  /* we want to catch, for instance, param-password or param-proxy-password */
-  if (g_str_has_prefix (key, "param-") && g_str_has_suffix (key, "-password"))
-    {
-      GnomeKeyringResult result = GNOME_KEYRING_RESULT_CANCELLED;
-      gchar *name =
-        g_strdup_printf ("account: %s; param: %s", account,
-            key + strlen ("param-"));
-
-      result = gnome_keyring_store_password_sync (&keyring_schema, NULL,
-          name, value,
-          "account", account,
-          "param", key + strlen ("param-"),
-          NULL);
-
-      g_free (name);
-
-      return result == GNOME_KEYRING_RESULT_OK;
-    }
-#endif
-
   keyfile = default_keyfile ();
 
   if (keyfile == NULL)
@@ -140,31 +119,4 @@ GStrv
 default_list (void)
 {
   return g_key_file_get_groups (default_keyfile (), NULL);
-}
-
-guint
-default_count_passwords (void)
-{
-#if ENABLE_GNOME_KEYRING
-  GnomeKeyringResult ok = GNOME_KEYRING_RESULT_NO_KEYRING_DAEMON;
-  GnomeKeyringAttributeList *match = gnome_keyring_attribute_list_new ();
-  GList *items = NULL;
-  guint n = 0;
-
-  ok = gnome_keyring_find_items_sync (GNOME_KEYRING_ITEM_GENERIC_SECRET,
-      match, &items);
-
-  if (ok != GNOME_KEYRING_RESULT_OK)
-    goto finished;
-
-  n = g_list_length (items);
-  gnome_keyring_found_list_free (items);
-
- finished:
-  gnome_keyring_attribute_list_free (match);
-
-  return n;
-#else
-  return 0;
-#endif
 }

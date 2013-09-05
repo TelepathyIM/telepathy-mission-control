@@ -77,7 +77,6 @@ mcd_account_manager_default_init (McdAccountManagerDefault *self)
   DEBUG ("mcd_account_manager_default_init");
   self->filename = account_filename_in (g_get_user_data_dir ());
   self->keyfile = g_key_file_new ();
-  self->secrets = g_key_file_new ();
   self->removed = g_key_file_new ();
   self->removed_accounts =
     g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
@@ -101,41 +100,13 @@ _set (const McpAccountStorage *self,
     const gchar *val)
 {
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
-#if ENABLE_GNOME_KEYRING
-  gboolean secret;
-#endif
 
   amd->save = TRUE;
-
-#if ENABLE_GNOME_KEYRING
-  /* if we have a keyring, secrets are segregated */
-  secret = mcp_account_manager_parameter_is_secret (am, account, key);
-
-  /* remove it from both sets, then re-add it to the right one if non-null */
-  g_key_file_remove_key (amd->secrets, account, key, NULL);
-  g_key_file_remove_key (amd->keyfile, account, key, NULL);
-
-  if (val != NULL)
-    {
-      if (secret)
-        g_key_file_set_value (amd->secrets, account, key, val);
-      else
-        g_key_file_set_value (amd->keyfile, account, key, val);
-    }
-
-  /* if we removed the account before, it now exists again, so... */
-  g_hash_table_remove (amd->removed_accounts, account);
-
-  /* likewise the param should no longer be on the deleted list */
-  g_key_file_remove_key (amd->removed, account, key, NULL);
-#else
 
   if (val != NULL)
     g_key_file_set_value (amd->keyfile, account, key, val);
   else
     g_key_file_remove_key (amd->keyfile, account, key, NULL);
-
-#endif
 
   return TRUE;
 }
@@ -152,16 +123,7 @@ _get (const McpAccountStorage *self,
     {
       gchar *v = NULL;
 
-#if ENABLE_GNOME_KEYRING
-      if (mcp_account_manager_parameter_is_secret (am, account, key))
-        v = g_key_file_get_value (amd->secrets, account, key, NULL);
-
-      /* fall back to public source if secret was not in keyring */
-      if (v == NULL)
-        v = g_key_file_get_value (amd->keyfile, account, key, NULL);
-#else
       v = g_key_file_get_value (amd->keyfile, account, key, NULL);
-#endif
 
       if (v == NULL)
         return FALSE;
@@ -189,28 +151,6 @@ _get (const McpAccountStorage *self,
         }
 
       g_strfreev (keys);
-
-#if ENABLE_GNOME_KEYRING
-      keys = g_key_file_get_keys (amd->secrets, account, &n, NULL);
-
-      if (keys == NULL)
-        n = 0;
-
-      for (i = 0; i < n; i++)
-        {
-          gchar *v = g_key_file_get_value (amd->secrets, account, keys[i], NULL);
-
-          if (v != NULL)
-            {
-              mcp_account_manager_set_value (am, account, keys[i], v);
-              mcp_account_manager_parameter_make_secret (am, account, keys[i]);
-            }
-
-          g_free (v);
-        }
-
-      g_strfreev (keys);
-#endif
     }
 
   return TRUE;
@@ -254,25 +194,16 @@ _delete (const McpAccountStorage *self,
       GStrv keys;
       gboolean save = FALSE;
 
-#if ENABLE_GNOME_KEYRING
-      save = g_key_file_remove_key (amd->secrets, account, key, NULL);
-      if (g_key_file_remove_key (amd->keyfile, account, key, NULL))
-        save = TRUE;
-#else
       save = g_key_file_remove_key (amd->keyfile, account, key, NULL);
-#endif
 
       if (save)
         amd->save = TRUE;
 
       keys = g_key_file_get_keys (amd->keyfile, account, &n, NULL);
 
-      /* if that was the last parameter, the account is gone too:  *
-       * note that secret parameters don't keep an account alive - *
-       * when the last public param dies, the account dies with it */
+      /* if that was the last parameter, the account is gone too */
       if (keys == NULL || n == 0)
         {
-          g_key_file_remove_group (amd->secrets, account, NULL);
           g_key_file_remove_group (amd->keyfile, account, NULL);
         }
 

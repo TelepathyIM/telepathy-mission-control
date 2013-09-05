@@ -194,8 +194,6 @@ AutomaticPresence=2;available;;
     assert 'param-password' not in kf[group]
     pwd = account_store('get', 'default', 'param-password')
     assertEquals(None, pwd)
-    pwd = account_store('count-passwords', 'default')
-    assertEquals('0', pwd)
 
     # Write out an account configuration in the old keyfile, to test
     # migration

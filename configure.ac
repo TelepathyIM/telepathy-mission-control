@@ -173,27 +173,7 @@ AC_ARG_ENABLE(aegis,
 
 AM_CONDITIONAL(ENABLE_AEGIS, [test x$aegis_enabled = xyes])
 
-keyring_enabled="no"
-AC_MSG_CHECKING(whether to build with gnome-keyring support)
-AC_ARG_ENABLE(gnome-keyring,
-        [ --enable-gnome-keyring    build with gnome-keyring support. default=no],
-        [
-                AC_MSG_RESULT(${enableval})
-                keyring_enabled="${enableval}"
-        ],
-        [
-                AC_MSG_RESULT(no)
-                keyring_enabled="no"
-        ]
-)
-
 PKG_PROG_PKG_CONFIG()
-
-if test "x$keyring_enabled" = xauto
-then
-    PKG_CHECK_EXISTS([gnome-keyring-1], [keyring_enabled=yes],
-                     [keyring_enabled=no])
-fi
 
 dnl libaccounts-glib SSO
 libaccounts_sso_enabled="no"
@@ -394,7 +374,6 @@ Configure summary:
 
     Features:
         Plugin API documentation.....:  ${enable_gtk_doc}
-        Gnome Keyring................:  ${keyring_enabled}
         Network Manager integration..:  ${have_nm}
         ConnMan integration..........:  ${have_connman}
         Connectivity GSetting........:  ${enable_conn_setting}
