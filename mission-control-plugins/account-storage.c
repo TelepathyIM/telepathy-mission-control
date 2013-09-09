@@ -968,8 +968,7 @@ mcp_account_storage_get_additional_info (const McpAccountStorage *storage,
  * Returns: a bitmask of %TpStorageRestrictionFlags with the restrictions to
  *  account storage.
  */
-/* FIXME: when breaking API, make this return TpStorageRestrictionFlags */
-guint
+TpStorageRestrictionFlags
 mcp_account_storage_get_restrictions (const McpAccountStorage *storage,
     const gchar *account)
 {

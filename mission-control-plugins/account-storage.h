@@ -102,8 +102,7 @@ typedef void (*McpAccountStorageGetIdentifierFunc) (
 typedef GHashTable * (*McpAccountStorageGetAdditionalInfoFunc) (
     const McpAccountStorage *storage,
     const gchar *account);
-/* FIXME: when breaking API, make this return TpStorageRestrictionFlags */
-typedef guint (*McpAccountStorageGetRestrictionsFunc) (
+typedef TpStorageRestrictionFlags (*McpAccountStorageGetRestrictionsFunc) (
     const McpAccountStorage *storage,
     const gchar *account);
 
@@ -195,7 +194,8 @@ GHashTable *mcp_account_storage_get_additional_info (
     const McpAccountStorage *storage,
     const gchar *account);
 
-guint mcp_account_storage_get_restrictions (const McpAccountStorage *storage,
+TpStorageRestrictionFlags mcp_account_storage_get_restrictions (
+    const McpAccountStorage *storage,
     const gchar *account);
 
 const gchar *mcp_account_storage_name (const McpAccountStorage *storage);
