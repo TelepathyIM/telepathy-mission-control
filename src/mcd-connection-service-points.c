@@ -31,25 +31,6 @@
 #include <telepathy-glib/telepathy-glib-dbus.h>
 
 static void
-service_point_contact_cb (GObject *source,
-    GAsyncResult *result,
-    gpointer user_data)
-{
-  McdConnection *connection = MCD_CONNECTION (user_data);
-  TpContact *contact = tp_connection_dup_contact_by_id_finish (
-      TP_CONNECTION (source), result, NULL);
-
-  if (contact != NULL)
-    {
-      mcd_connection_add_emergency_handle (connection,
-          tp_contact_get_handle (contact));
-      g_object_unref (contact);
-    }
-
-  g_object_unref (connection);
-}
-
-static void
 parse_services_list (McdConnection *connection,
     const GPtrArray *services)
 {
@@ -76,22 +57,6 @@ parse_services_list (McdConnection *connection,
 
   if (e_numbers != NULL)
     {
-      GSList *service;
-      TpConnection *tp_conn = mcd_connection_get_tp_connection (connection);
-
-      /* FIXME: in 1.0, drop this and spec that when calling a service point,
-       * you should use TargetID. See
-       * https://bugs.freedesktop.org/show_bug.cgi?id=59162#c3 */
-      for (service = e_numbers; service != NULL; service =g_slist_next (service))
-        {
-          const gchar * const *iter;
-
-          for (iter = service->data; iter != NULL && *iter != NULL; iter++)
-            tp_connection_dup_contact_by_id_async (tp_conn,
-                *iter, 0, NULL, service_point_contact_cb,
-                g_object_ref (connection));
-        }
-
       _mcd_connection_take_emergency_numbers (connection, e_numbers);
     }
 }
