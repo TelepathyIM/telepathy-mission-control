@@ -56,10 +56,11 @@ def test(q, bus, mc):
     q.dbus_return(e.message, points, signature='v')
 
     # MC looks up the handles for these numbers
-    e = q.expect('dbus-method-call', path=conn.object_path,
+    patterns = [EventPattern('dbus-method-call', path=conn.object_path,
             interface=cs.CONN, method='RequestHandles',
-            args=[cs.HT_CONTACT, e_numbers],
-            handled=True)
+            args=[cs.HT_CONTACT, [num]],
+            handled=True) for num in e_numbers]
+    q.expect_many(*patterns)
 
     # the service points change
     e_numbers = ['911', '112', '999']
@@ -69,10 +70,11 @@ def test(q, bus, mc):
                 'ServicePointsChanged', points, signature='a((us)as)')
 
     # MC looks up the new handles
-    e = q.expect('dbus-method-call', path=conn.object_path,
+    patterns = [EventPattern('dbus-method-call', path=conn.object_path,
             interface=cs.CONN, method='RequestHandles',
-            args=[cs.HT_CONTACT, e_numbers],
-            handled=True)
+            args=[cs.HT_CONTACT, [num]],
+            handled=True) for num in e_numbers]
+    q.expect_many(*patterns)
 
     # MC used to critical if more than one emergency service point was
     # given by the CM. That's silly, so let's test it.
@@ -87,15 +89,11 @@ def test(q, bus, mc):
 
     e_numbers = e_numbers1 + e_numbers2
 
-    q.expect_many(EventPattern('dbus-method-call', path=conn.object_path,
+    patterns = [EventPattern('dbus-method-call', path=conn.object_path,
             interface=cs.CONN, method='RequestHandles',
-            args=[cs.HT_CONTACT, e_numbers1],
-            handled=True),
-        EventPattern('dbus-method-call', path=conn.object_path,
-            interface=cs.CONN, method='RequestHandles',
-            args=[cs.HT_CONTACT, e_numbers2],
-            handled=True),
-        )
+            args=[cs.HT_CONTACT, [num]],
+            handled=True) for num in e_numbers]
+    q.expect_many(*patterns)
 
     fixed_properties = dbus.Dictionary({
         cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,

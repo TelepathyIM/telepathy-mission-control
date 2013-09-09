@@ -31,26 +31,22 @@
 #include <telepathy-glib/telepathy-glib-dbus.h>
 
 static void
-service_handles_fetched_cb (TpConnection *tp_conn,
-    TpHandleType handle_type,
-    guint n_handles,
-    const TpHandle *handles,
-    const gchar * const *ids,
-    const GError *error,
-    gpointer user_data G_GNUC_UNUSED,
-    GObject *weak)
+service_point_contact_cb (GObject *source,
+    GAsyncResult *result,
+    gpointer user_data)
 {
-  guint i;
-  McdConnection *connection = MCD_CONNECTION (weak);
-  TpIntset *e_handles = tp_intset_new ();
+  McdConnection *connection = MCD_CONNECTION (user_data);
+  TpContact *contact = tp_connection_dup_contact_by_id_finish (
+      TP_CONNECTION (source), result, NULL);
 
-  if (error != NULL)
-    return;
+  if (contact != NULL)
+    {
+      mcd_connection_add_emergency_handle (connection,
+          tp_contact_get_handle (contact));
+      g_object_unref (contact);
+    }
 
-  for (i = 0; i < n_handles; i++)
-    tp_intset_add (e_handles, handles[i]);
-
-  _mcd_connection_take_emergency_handles (connection, e_handles);
+  g_object_unref (connection);
 }
 
 static void
@@ -83,12 +79,17 @@ parse_services_list (McdConnection *connection,
       GSList *service;
       TpConnection *tp_conn = mcd_connection_get_tp_connection (connection);
 
+      /* FIXME: in 1.0, drop this and spec that when calling a service point,
+       * you should use TargetID. See
+       * https://bugs.freedesktop.org/show_bug.cgi?id=59162#c3 */
       for (service = e_numbers; service != NULL; service =g_slist_next (service))
         {
-          if (service->data != NULL)
-            tp_connection_request_handles (tp_conn, -1, TP_HANDLE_TYPE_CONTACT,
-                (const gchar *const *) service->data,
-                service_handles_fetched_cb, NULL, NULL, G_OBJECT (connection));
+          const gchar * const *iter;
+
+          for (iter = service->data; iter != NULL && *iter != NULL; iter++)
+            tp_connection_dup_contact_by_id_async (tp_conn,
+                *iter, 0, NULL, service_point_contact_cb,
+                g_object_ref (connection));
         }
 
       _mcd_connection_take_emergency_numbers (connection, e_numbers);

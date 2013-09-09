@@ -79,5 +79,7 @@ void mcd_connection_close (McdConnection *connection,
 McdChannel * mcd_connection_find_channel_by_path (McdConnection *connection,
     const gchar *object_path);
 
+void mcd_connection_add_emergency_handle (McdConnection *self, TpHandle handle);
+
 G_END_DECLS
 #endif /* __MCD_CONNECTION_H__ */

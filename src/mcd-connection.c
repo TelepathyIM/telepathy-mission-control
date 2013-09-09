@@ -2356,13 +2356,12 @@ _mcd_connection_take_emergency_numbers (McdConnection *self,
 }
 
 void
-_mcd_connection_take_emergency_handles (McdConnection *self,
-    TpIntset *handles)
+mcd_connection_add_emergency_handle (McdConnection *self,
+    TpHandle handle)
 {
   if (self->priv->service_point_handles == NULL)
     self->priv->service_point_handles = tp_intset_new ();
 
   /* As above, we treat emergency numbers as "sticky". */
-  tp_intset_union_update (self->priv->service_point_handles, handles);
-  tp_intset_destroy (handles);
+  tp_intset_add (self->priv->service_point_handles, handle);
 }
