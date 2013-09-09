@@ -1317,92 +1317,6 @@ finally:
 }
 
 static void
-dispatcher_channel_request_acl_cleanup (gpointer data)
-{
-    McdChannelRequestACL *crd = data;
-
-    DEBUG ("cleanup acl (%p)", data);
-
-    g_free (crd->account_path);
-    g_free (crd->preferred_handler);
-    g_hash_table_unref (crd->properties);
-    g_object_unref (crd->dispatcher);
-    tp_clear_pointer (&crd->request_metadata, g_hash_table_unref);
-
-    g_slice_free (McdChannelRequestACL, crd);
-}
-
-static void
-dispatcher_channel_request_acl_success (DBusGMethodInvocation *context,
-                                        gpointer data)
-{
-    McdChannelRequestACL *crd = data;
-
-    DEBUG ("complete acl (%p)", crd);
-
-    dispatcher_request_channel (MCD_DISPATCHER (crd->dispatcher),
-                                crd->account_path,
-                                crd->properties,
-                                crd->user_action_time,
-                                crd->preferred_handler,
-                                crd->request_metadata,
-                                context,
-                                crd->ensure);
-}
-
-static void
-free_gvalue (gpointer gvalue)
-{
-    GValue *gv = gvalue;
-
-    g_value_unset (gv);
-    g_slice_free (GValue, gv);
-}
-
-static void
-dispatcher_channel_request_acl_start (McdDispatcher *dispatcher,
-                                      const gchar *method,
-                                      const gchar *account_path,
-                                      GHashTable *requested_properties,
-                                      gint64 user_action_time,
-                                      const gchar *preferred_handler,
-                                      GHashTable *request_metadata,
-                                      DBusGMethodInvocation *context,
-                                      gboolean ensure)
-{
-    McdChannelRequestACL *crd = g_slice_new0 (McdChannelRequestACL);
-    GValue *account = g_slice_new0 (GValue);
-    GHashTable *params =
-      g_hash_table_new_full (g_str_hash, g_str_equal, NULL, free_gvalue);
-
-    g_value_init (account, G_TYPE_STRING);
-    g_value_set_string (account, account_path);
-    g_hash_table_insert (params, "account-path", account);
-
-    crd->dispatcher = g_object_ref (dispatcher);
-    crd->account_path = g_strdup (account_path);
-    crd->preferred_handler = g_strdup (preferred_handler);
-    crd->properties = g_hash_table_ref (requested_properties);
-    crd->user_action_time = user_action_time;
-    crd->ensure = ensure;
-    crd->request_metadata = request_metadata != NULL ?
-        g_hash_table_ref (request_metadata) : NULL;
-
-    DEBUG ("start %s.%s acl (%p)", account_path, method, crd);
-
-    mcp_dbus_acl_authorised_async (dispatcher->priv->dbus_daemon,
-                                   context,
-                                   DBUS_ACL_TYPE_METHOD,
-                                   method,
-                                   params,
-                                   dispatcher_channel_request_acl_success,
-                                   crd,
-                                   dispatcher_channel_request_acl_cleanup);
-
-    g_hash_table_unref (params);
-}
-
-static void
 dispatcher_create_channel (TpSvcChannelDispatcher *iface,
                            const gchar *account_path,
                            GHashTable *requested_properties,
@@ -1410,15 +1324,14 @@ dispatcher_create_channel (TpSvcChannelDispatcher *iface,
                            const gchar *preferred_handler,
                            DBusGMethodInvocation *context)
 {
-    dispatcher_channel_request_acl_start (MCD_DISPATCHER (iface),
-                                          CREATE_CHANNEL,
-                                          account_path,
-                                          requested_properties,
-                                          user_action_time,
-                                          preferred_handler,
-                                          NULL,
-                                          context,
-                                          FALSE);
+    dispatcher_request_channel (MCD_DISPATCHER (iface),
+                                account_path,
+                                requested_properties,
+                                user_action_time,
+                                preferred_handler,
+                                NULL,
+                                context,
+                                FALSE);
 }
 
 static void
@@ -1429,15 +1342,14 @@ dispatcher_ensure_channel (TpSvcChannelDispatcher *iface,
                            const gchar *preferred_handler,
                            DBusGMethodInvocation *context)
 {
-    dispatcher_channel_request_acl_start (MCD_DISPATCHER (iface),
-                                          ENSURE_CHANNEL,
-                                          account_path,
-                                          requested_properties,
-                                          user_action_time,
-                                          preferred_handler,
-                                          NULL,
-                                          context,
-                                          TRUE);
+    dispatcher_request_channel (MCD_DISPATCHER (iface),
+                                account_path,
+                                requested_properties,
+                                user_action_time,
+                                preferred_handler,
+                                NULL,
+                                context,
+                                TRUE);
 }
 
 static void
@@ -1449,15 +1361,14 @@ dispatcher_create_channel_with_hints (TpSvcChannelDispatcher *iface,
     GHashTable *hints,
     DBusGMethodInvocation *context)
 {
-    dispatcher_channel_request_acl_start (MCD_DISPATCHER (iface),
-                                          CREATE_CHANNEL,
-                                          account_path,
-                                          requested_properties,
-                                          user_action_time,
-                                          preferred_handler,
-                                          hints,
-                                          context,
-                                          FALSE);
+    dispatcher_request_channel (MCD_DISPATCHER (iface),
+                                account_path,
+                                requested_properties,
+                                user_action_time,
+                                preferred_handler,
+                                hints,
+                                context,
+                                FALSE);
 }
 
 static void
@@ -1469,15 +1380,14 @@ dispatcher_ensure_channel_with_hints (TpSvcChannelDispatcher *iface,
     GHashTable *hints,
     DBusGMethodInvocation *context)
 {
-    dispatcher_channel_request_acl_start (MCD_DISPATCHER (iface),
-                                          ENSURE_CHANNEL,
-                                          account_path,
-                                          requested_properties,
-                                          user_action_time,
-                                          preferred_handler,
-                                          hints,
-                                          context,
-                                          TRUE);
+    dispatcher_request_channel (MCD_DISPATCHER (iface),
+                                account_path,
+                                requested_properties,
+                                user_action_time,
+                                preferred_handler,
+                                hints,
+                                context,
+                                TRUE);
 }
 
 
@@ -1550,17 +1460,6 @@ typedef struct
     gboolean close_after;
     DBusGMethodInvocation *dbus_context;
 } MessageContext;
-
-static MessageContext *
-message_context_steal (MessageContext *from)
-{
-    MessageContext *stolen = g_slice_new0 (MessageContext);
-
-    g_memmove (stolen, from, sizeof (MessageContext));
-    memset (from, 0, sizeof (MessageContext));
-
-    return stolen;
-}
 
 static MessageContext *
 message_context_new (McdDispatcher *dispatcher,
@@ -1717,16 +1616,6 @@ send_message_got_channel (McdRequest *request,
 }
 
 static void
-messages_send_message_acl_success (DBusGMethodInvocation *dbus_context,
-                                   gpointer data)
-{
-    /* steal the contents of the message context from the ACL framework: *
-     * this avoids a nasty double-free (and means we don't have to dup   *
-     * the message payload memory twice)                                 */
-    messages_send_message_start (dbus_context, message_context_steal (data));
-}
-
-static void
 messages_send_message_start (DBusGMethodInvocation *dbus_context,
                              MessageContext *message)
 {
@@ -1820,17 +1709,6 @@ finished:
 }
 
 static void
-messages_send_message_acl_cleanup (gpointer data)
-{
-    MessageContext *message = data;
-
-    /* At this point either the messages framework or the ACL framework   *
-     * is expected to have handled the DBus return, so we must not try to */
-    message_context_set_return_context (message, NULL);
-    message_context_free (message);
-}
-
-static void
 messages_send_message (McSvcChannelDispatcherInterfaceMessagesDraft *iface,
                        const gchar *account_path,
                        const gchar *target_id,
@@ -1842,23 +1720,7 @@ messages_send_message (McSvcChannelDispatcherInterfaceMessagesDraft *iface,
     MessageContext *message =
       message_context_new (self, account_path, target_id, payload, flags);
 
-    /* these are for the ACL itself */
-    GValue *account = g_slice_new0 (GValue);
-    GHashTable *params =
-      g_hash_table_new_full (g_str_hash, g_str_equal, NULL, free_gvalue);
-
-    g_value_init (account, G_TYPE_STRING);
-    g_value_set_string (account, account_path);
-    g_hash_table_insert (params, "account-path", account);
-
-    mcp_dbus_acl_authorised_async (self->priv->dbus_daemon,
-                                   context,
-                                   DBUS_ACL_TYPE_METHOD,
-                                   SEND_MESSAGE,
-                                   params,
-                                   messages_send_message_acl_success,
-                                   message,
-                                   messages_send_message_acl_cleanup);
+    messages_send_message_start (context, message);
 }
 
 static void

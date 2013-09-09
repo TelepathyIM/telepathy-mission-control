@@ -50,6 +50,7 @@
 #include <stdlib.h>
 #include <dlfcn.h>
 
+#include <dbus/dbus.h>
 #include <telepathy-glib/telepathy-glib.h>
 #include <telepathy-glib/telepathy-glib-dbus.h>
 

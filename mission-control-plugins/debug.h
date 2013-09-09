@@ -35,12 +35,11 @@ typedef enum {
   MCP_DEBUG_NONE                      = 0,
   MCP_DEBUG_ACCOUNT                   = 1 << 0,
   MCP_DEBUG_ACCOUNT_STORAGE           = 1 << 1,
-  MCP_DEBUG_DBUS_ACL                  = 1 << 2,
+  MCP_DEBUG_REQUEST_POLICY            = 1 << 2,
   MCP_DEBUG_DISPATCH_OPERATION        = 1 << 3,
   MCP_DEBUG_DISPATCH_OPERATION_POLICY = 1 << 4,
   MCP_DEBUG_LOADER                    = 1 << 5,
   MCP_DEBUG_REQUEST                   = 1 << 6,
-  MCP_DEBUG_REQUEST_POLICY            = 1 << 7,
 } McpDebugFlags;
 
 gboolean mcp_is_debugging (McpDebugFlags type);

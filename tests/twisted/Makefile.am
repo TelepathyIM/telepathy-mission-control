@@ -164,7 +164,6 @@ AM_CFLAGS = $(ERROR_CFLAGS)
 plugins_list = \
 	mcp-plugin.la \
 	mcp-account-diversion.la \
-	mcp-dbus-caller-permission.la \
 	libgiofakenetworkmonitor.la \
 	$(NULL)
 
@@ -201,9 +200,6 @@ libgiofakenetworkmonitor_la_LDFLAGS = $(mcp_plugin_la_LDFLAGS)
 
 mcp_account_diversion_la_SOURCES = mcp-account-diversion.c
 mcp_account_diversion_la_LDFLAGS = $(mcp_plugin_la_LDFLAGS)
-
-mcp_dbus_caller_permission_la_SOURCES = mcp-dbus-caller-permission.c
-mcp_dbus_caller_permission_la_LDFLAGS = $(mcp_plugin_la_LDFLAGS)
 
 # A debug version of the normal MC executable, which exits cleanly on
 # disconnection from D-Bus (so gcov info gets written out)

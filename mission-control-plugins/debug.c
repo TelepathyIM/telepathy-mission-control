@@ -26,12 +26,11 @@ static McpDebugFlags debug_flags;
 static GDebugKey const keys[] = {
   { "account",                   MCP_DEBUG_ACCOUNT                   },
   { "account-storage",           MCP_DEBUG_ACCOUNT_STORAGE           },
-  { "dbus-acl",                  MCP_DEBUG_DBUS_ACL                  },
+  { "request-policy",            MCP_DEBUG_REQUEST_POLICY            },
   { "dispatch-operation",        MCP_DEBUG_DISPATCH_OPERATION        },
   { "dispatch-operation-policy", MCP_DEBUG_DISPATCH_OPERATION_POLICY },
   { "loader",                    MCP_DEBUG_LOADER                    },
   { "request",                   MCP_DEBUG_REQUEST                   },
-  { "request-policy",            MCP_DEBUG_REQUEST_POLICY            },
   { NULL, 0 }
 };
 

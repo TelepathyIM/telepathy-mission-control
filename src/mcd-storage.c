@@ -32,6 +32,7 @@
 #include <errno.h>
 #include <string.h>
 
+#include <dbus/dbus.h>
 #include <telepathy-glib/telepathy-glib.h>
 #include <telepathy-glib/telepathy-glib-dbus.h>
 
