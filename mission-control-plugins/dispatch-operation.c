@@ -332,6 +332,9 @@ mcp_dispatch_operation_destroy_channels (McpDispatchOperation *self,
 /**
  * mcp_dispatch_operation_find_channel_by_type:
  * @self: a dispatch operation
+ * @client_factory: used to construct @ret_ref_channel. In high-level
+ *  language bindings using gobject-introspection, this must not be %NULL.
+ *  In C, this may be %NULL, but only if @ret_ref_channel is also %NULL.
  * @start_from: index at which to start searching, usually 0
  * @handle_type: the handle type to match
  * @channel_type: the channel type to match
@@ -358,6 +361,7 @@ mcp_dispatch_operation_destroy_channels (McpDispatchOperation *self,
  */
 gboolean
 mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
+    TpSimpleClientFactory *client_factory,
     guint start_from,
     TpHandleType handle_type,
     GQuark channel_type,
@@ -372,6 +376,8 @@ mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
 
   g_return_val_if_fail (MCP_IS_DISPATCH_OPERATION (self), FALSE);
   g_return_val_if_fail (channel_type != 0, FALSE);
+  g_return_val_if_fail (client_factory != NULL || ret_ref_channel == NULL,
+      FALSE);
 
   for (i = start_from; i < mcp_dispatch_operation_get_n_channels (self); i++)
     {
@@ -402,14 +408,11 @@ mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
 
           if (ret_ref_channel != NULL)
             {
-              /* FIXME: in next, this method should take a TpClientFactory
-               * argument, and pass it on here */
               TpConnection *connection =
-                mcp_dispatch_operation_ref_connection (self);
+                mcp_dispatch_operation_ref_connection (self, client_factory);
 
               *ret_ref_channel = tp_simple_client_factory_ensure_channel (
-                  tp_proxy_get_factory (connection), connection,
-                  channel_path, properties, NULL);
+                  client_factory, connection, channel_path, properties, NULL);
 
               g_object_unref (connection);
             }
@@ -426,35 +429,31 @@ mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
 /**
  * mcp_dispatch_operation_ref_connection:
  * @self: a dispatch operation
+ * @client_factory: the client factory to use to construct the #TpConnection
  *
- * Return a #TpConnection object. It is not guaranteed to be ready immediately;
- * use tp_connection_call_when_ready().
+ * Return a #TpConnection object. It is not guaranteed to be prepared;
+ * use tp_proxy_prepare_async().
  *
  * Returns: a reference to a #TpConnection, which must be released with
  *  g_object_unref() by the caller
  */
 TpConnection *
-mcp_dispatch_operation_ref_connection (McpDispatchOperation *self)
+mcp_dispatch_operation_ref_connection (McpDispatchOperation *self,
+    TpSimpleClientFactory *client_factory)
 {
-  TpDBusDaemon *dbus = tp_dbus_daemon_dup (NULL);
-  TpConnection *connection = NULL;
   const gchar *conn_path;
+
+  g_return_val_if_fail (client_factory != NULL, NULL);
 
   conn_path = mcp_dispatch_operation_get_connection_path (self);
 
-  if (conn_path != NULL && dbus != NULL)
+  if (conn_path != NULL)
     {
-      /* FIXME: in next, this method should take a TpClientFactory argument
-       * instead of making a new one here */
-      TpSimpleClientFactory *factory = tp_simple_client_factory_new (dbus);
-
-      connection = tp_simple_client_factory_ensure_connection (factory,
+      return tp_simple_client_factory_ensure_connection (client_factory,
           conn_path, NULL, NULL);
-      g_object_unref (factory);
     }
 
-  g_object_unref (dbus);
-  return connection;
+  return NULL;
 }
 
 /**
@@ -462,22 +461,25 @@ mcp_dispatch_operation_ref_connection (McpDispatchOperation *self)
  * @self: a dispatch operation
  * @n: index of the channel to inspect
  *
- * Return a #TpChannel object. It is not guaranteed to be ready immediately;
- * use tp_channel_call_when_ready().
+ * Return a #TpChannel object. It is not guaranteed to be prepared;
+ * use tp_proxy_prepare_async().
  *
  * Returns: a reference to a #TpChannel, which must be released with
  *  g_object_unref() by the caller, or %NULL if @n is too large
  */
 TpChannel *
 mcp_dispatch_operation_ref_nth_channel (McpDispatchOperation *self,
+    TpSimpleClientFactory *client_factory,
     guint n)
 {
-  /* FIXME: in next, this method should take a TpClientFactory argument,
-   * and pass it on here */
-  TpConnection *connection = mcp_dispatch_operation_ref_connection (self);
+  TpConnection *connection;
   GHashTable *channel_properties = NULL;
   const gchar *channel_path = NULL;
   TpChannel *channel = NULL;
+
+  g_return_val_if_fail (client_factory != NULL, NULL);
+
+  connection = mcp_dispatch_operation_ref_connection (self, client_factory);
 
   if (connection == NULL)
     goto finally;
@@ -493,8 +495,7 @@ mcp_dispatch_operation_ref_nth_channel (McpDispatchOperation *self,
   if (channel_properties == NULL)
     goto finally;
 
-  channel = tp_simple_client_factory_ensure_channel (
-      tp_proxy_get_factory (connection),
+  channel = tp_simple_client_factory_ensure_channel (client_factory,
       connection, channel_path, channel_properties, NULL);
 
 finally:
