@@ -1108,7 +1108,7 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
       case G_TYPE_INT64:
           {
             GError *e = NULL;
-            gint64 v_int = tp_g_key_file_get_int64 (keyfile, group,
+            gint64 v_int = g_key_file_get_int64 (keyfile, group,
                 key, &e);
 
             if (e != NULL)
@@ -1126,7 +1126,7 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
       case G_TYPE_UINT:
           {
             GError *e = NULL;
-            guint64 v_uint = tp_g_key_file_get_uint64 (keyfile, group,
+            guint64 v_uint = g_key_file_get_uint64 (keyfile, group,
                 key, &e);
 
             if (e != NULL)
@@ -1176,7 +1176,7 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
       case G_TYPE_UINT64:
           {
             GError *e = NULL;
-            guint64 v_uint = tp_g_key_file_get_uint64 (keyfile, group,
+            guint64 v_uint = g_key_file_get_uint64 (keyfile, group,
                 key, &e);
 
             if (e != NULL)
