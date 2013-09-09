@@ -58,6 +58,7 @@ struct _McdManagerPrivate
 {
     gchar *name;
     TpDBusDaemon *dbus_daemon;
+    TpSimpleClientFactory *client_factory;
     McdDispatcher *dispatcher;
 
     TpConnectionManager *tp_conn_mgr;
@@ -73,7 +74,7 @@ enum
     PROP_0,
     PROP_NAME,
     PROP_DISPATCHER,
-    PROP_DBUS_DAEMON,
+    PROP_CLIENT_FACTORY
 };
 
 static GQuark readiness_quark = 0;
@@ -122,6 +123,7 @@ _mcd_manager_dispose (GObject * object)
 
     tp_clear_object (&priv->dispatcher);
     tp_clear_object (&priv->tp_conn_mgr);
+    tp_clear_object (&priv->client_factory);
     tp_clear_object (&priv->dbus_daemon);
     tp_clear_object (&priv->slacker);
 
@@ -229,10 +231,14 @@ _mcd_manager_set_property (GObject * obj, guint prop_id,
 	tp_clear_object (&priv->dispatcher);
 	priv->dispatcher = dispatcher;
 	break;
-    case PROP_DBUS_DAEMON:
-	tp_clear_object (&priv->dbus_daemon);
-	priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
-	break;
+
+    case PROP_CLIENT_FACTORY:
+        g_assert (priv->client_factory == NULL); /* construct-only */
+        priv->client_factory = g_value_dup_object (val);
+        priv->dbus_daemon = g_object_ref (
+            tp_simple_client_factory_get_dbus_daemon (priv->client_factory));
+        break;
+
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
@@ -249,9 +255,6 @@ _mcd_manager_get_property (GObject * obj, guint prop_id,
     {
     case PROP_DISPATCHER:
 	g_value_set_object (val, priv->dispatcher);
-	break;
-    case PROP_DBUS_DAEMON:
-	g_value_set_object (val, priv->dbus_daemon);
 	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -289,11 +292,11 @@ mcd_manager_class_init (McdManagerClass * klass)
                               "Dispatcher",
                               MCD_TYPE_DISPATCHER,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property
-        (object_class, PROP_DBUS_DAEMON,
-         g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
-                              TP_TYPE_DBUS_DAEMON,
-                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
+
+    g_object_class_install_property (object_class, PROP_CLIENT_FACTORY,
+        g_param_spec_object ("client-factory", "Client factory",
+            "Client factory", TP_TYPE_SIMPLE_CLIENT_FACTORY,
+            G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 
     readiness_quark = g_quark_from_static_string ("mcd_manager_got_info");
 }
@@ -313,13 +316,14 @@ mcd_manager_init (McdManager *manager)
 McdManager *
 mcd_manager_new (const gchar *unique_name,
 		 McdDispatcher *dispatcher,
-		 TpDBusDaemon *dbus_daemon)
+                 TpSimpleClientFactory *client_factory)
 {
     McdManager *obj;
     obj = MCD_MANAGER (g_object_new (MCD_TYPE_MANAGER,
 				     "name", unique_name,
 				     "dispatcher", dispatcher,
-				     "dbus-daemon", dbus_daemon, NULL));
+                                     "client-factory", client_factory,
+                                     NULL));
     return obj;
 }
 
@@ -386,7 +390,7 @@ mcd_manager_create_connection (McdManager *manager, McdAccount *account)
     g_return_val_if_fail (manager->priv->tp_conn_mgr != NULL, NULL);
 
     connection = g_object_new (MCD_TYPE_CONNECTION,
-                               "dbus-daemon", manager->priv->dbus_daemon,
+                               "client-factory", manager->priv->client_factory,
                                "tp-manager", manager->priv->tp_conn_mgr,
                                "dispatcher", manager->priv->dispatcher,
                                "account", account,

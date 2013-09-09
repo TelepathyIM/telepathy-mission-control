@@ -75,8 +75,8 @@ G_DEFINE_TYPE (McdConnection, mcd_connection, MCD_TYPE_OPERATION);
 /* Private */
 struct _McdConnectionPrivate
 {
-    /* DBUS connection */
-    TpDBusDaemon *dbus_daemon;
+    /* Factory for TpConnection objects */
+    TpSimpleClientFactory *client_factory;
 
     /* Channel dispatcher */
     McdDispatcher *dispatcher;
@@ -146,7 +146,7 @@ typedef struct
 enum
 {
     PROP_0,
-    PROP_DBUS_DAEMON,
+    PROP_CLIENT_FACTORY,
     PROP_TP_MANAGER,
     PROP_TP_CONNECTION,
     PROP_ACCOUNT,
@@ -1697,7 +1697,7 @@ _mcd_connection_dispose (GObject * object)
 
     tp_clear_object (&priv->tp_conn_mgr);
     tp_clear_object (&priv->dispatcher);
-    tp_clear_object (&priv->dbus_daemon);
+    tp_clear_object (&priv->client_factory);
 
     G_OBJECT_CLASS (mcd_connection_parent_class)->dispose (object);
 }
@@ -1723,10 +1723,12 @@ _mcd_connection_set_property (GObject * obj, guint prop_id,
 	tp_clear_object (&priv->dispatcher);
 	priv->dispatcher = dispatcher;
 	break;
-    case PROP_DBUS_DAEMON:
-	tp_clear_object (&priv->dbus_daemon);
-	priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
-	break;
+
+    case PROP_CLIENT_FACTORY:
+        g_assert (priv->client_factory == NULL); /* construct-only */
+        priv->client_factory = g_value_dup_object (val);
+        break;
+
     case PROP_TP_MANAGER:
 	tp_conn_mgr = g_value_get_object (val);
 	g_object_ref (tp_conn_mgr);
@@ -1761,9 +1763,6 @@ _mcd_connection_get_property (GObject * obj, guint prop_id,
 
     switch (prop_id)
     {
-    case PROP_DBUS_DAEMON:
-	g_value_set_object (val, priv->dbus_daemon);
-	break;
     case PROP_ACCOUNT:
 	g_value_set_object (val, priv->account);
 	break;
@@ -1905,11 +1904,12 @@ mcd_connection_class_init (McdConnectionClass * klass)
                               "Dispatcher",
                               MCD_TYPE_DISPATCHER,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
-    g_object_class_install_property
-        (object_class, PROP_DBUS_DAEMON,
-         g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
-                              TP_TYPE_DBUS_DAEMON,
-                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+
+    g_object_class_install_property (object_class, PROP_CLIENT_FACTORY,
+        g_param_spec_object ("client-factory", "Client factory",
+            "Client factory", TP_TYPE_SIMPLE_CLIENT_FACTORY,
+            G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+
     g_object_class_install_property
         (object_class, PROP_TP_MANAGER,
          g_param_spec_object ("tp-manager",
@@ -2261,8 +2261,8 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
     }
 
     g_assert (priv->tp_conn == NULL);
-    priv->tp_conn = tp_connection_new (priv->dbus_daemon, bus_name,
-                                       obj_path, &inner_error);
+    priv->tp_conn = tp_simple_client_factory_ensure_connection (
+        priv->client_factory, obj_path, NULL, &inner_error);
     DEBUG ("new connection is %p", priv->tp_conn);
     if (!priv->tp_conn)
     {

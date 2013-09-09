@@ -62,7 +62,7 @@ struct _McdManagerClass
 GType mcd_manager_get_type (void);
 McdManager *mcd_manager_new (const gchar *unique_name,
 			     McdDispatcher *dispatcher,
-			     TpDBusDaemon *dbus_daemon);
+                             TpSimpleClientFactory *client_factory);
 
 const gchar *mcd_manager_get_name (McdManager *manager);
 

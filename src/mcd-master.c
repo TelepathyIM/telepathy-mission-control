@@ -315,7 +315,7 @@ _mcd_master_lookup_manager (McdMaster *master,
 
     manager = mcd_manager_new (unique_name,
                                master->priv->dispatcher,
-                               master->priv->dbus_daemon);
+                               master->priv->client_factory);
     if (G_UNLIKELY (!manager))
 	g_warning ("Manager %s not created", unique_name);
     else
