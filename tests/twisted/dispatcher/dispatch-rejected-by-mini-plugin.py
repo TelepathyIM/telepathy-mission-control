@@ -205,9 +205,8 @@ def test(q, bus, mc):
                 args=[cdo_path]),
             EventPattern('dbus-method-call',
                 path=chan.object_path,
-                interface=cs.CHANNEL_IFACE_GROUP,
-                method='RemoveMembersWithReason', args=[[conn.self_handle],
-                    "Can't touch this", cs.GROUP_REASON_PERMISSION_DENIED],
+                interface=cs.CHANNEL_IFACE_DESTROYABLE,
+                method='Destroy',
                 handled=False),
             )
     q.dbus_return(e.message, signature='')

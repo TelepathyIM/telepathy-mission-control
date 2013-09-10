@@ -285,45 +285,6 @@ mcp_dispatch_operation_end_delay (McpDispatchOperation *self,
 }
 
 /**
- * mcp_dispatch_operation_leave_channels:
- * @self: a dispatch operation
- * @wait_for_observers: if %FALSE, leave the channels immediately; if %TRUE
- *  (usually recommended), wait for Observers to reply first
- * @reason: the reason code to give
- * @message: a human-readable message provided by the user, or either the
- *  empty string or %NULL if no message has been provided
- *
- * Leave all channels in this bundle by using RemoveMembersWithReason if the
- * channel has the Group interface, or Close if not.
- *
- * This method was intended for StreamedMedia channels, which (ab)used the
- * Group interface for call control. StreamedMedia channels have been
- * superseded by Call channels, which have a proper "hang up" method which
- * should be used instead.
- *
- * Deprecated: 5.15.UNRELEASED: Use tp_call_channel_hangup_async() to
- *  hang up Call channels, mcp_dispatch_operation_close_channels() to close
- *  generic channels, or mcp_dispatch_operation_destroy_channels() to
- *  terminate the channel destructively.
- */
-void
-mcp_dispatch_operation_leave_channels (McpDispatchOperation *self,
-    gboolean wait_for_observers,
-    TpChannelGroupChangeReason reason,
-    const gchar *message)
-{
-  McpDispatchOperationIface *iface = MCP_DISPATCH_OPERATION_GET_IFACE (self);
-
-  g_return_if_fail (iface != NULL);
-  g_return_if_fail (iface->leave_channels != NULL);
-
-  if (message == NULL)
-    message = "";
-
-  iface->leave_channels (self, wait_for_observers, reason, message);
-}
-
-/**
  * mcp_dispatch_operation_close_channels:
  * @self: a dispatch operation
  * @wait_for_observers: if %FALSE, close the channels immediately; if %TRUE

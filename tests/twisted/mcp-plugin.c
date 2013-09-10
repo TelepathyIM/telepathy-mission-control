@@ -137,11 +137,8 @@ permission_cb (DBusPendingCall *pc,
         }
       else
         {
-          G_GNUC_BEGIN_IGNORE_DEPRECATIONS
-          mcp_dispatch_operation_leave_channels (ctx->dispatch_operation,
-              TRUE, TP_CHANNEL_GROUP_CHANGE_REASON_PERMISSION_DENIED,
-              "Computer says no");
-          G_GNUC_END_IGNORE_DEPRECATIONS
+          mcp_dispatch_operation_destroy_channels (ctx->dispatch_operation,
+              TRUE);
         }
     }
   else
@@ -513,12 +510,8 @@ test_rejection_plugin_check_cdo (McpDispatchOperationPolicy *policy,
     }
   else if (!tp_strdiff (target_id, "mc.hammer@example.net"))
     {
-      DEBUG ("MC Hammer detected, leaving channels when observers have run");
-      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
-      mcp_dispatch_operation_leave_channels (dispatch_operation, TRUE,
-          TP_CHANNEL_GROUP_CHANGE_REASON_PERMISSION_DENIED,
-          "Can't touch this");
-      G_GNUC_END_IGNORE_DEPRECATIONS
+      DEBUG ("MC Hammer detected, destroying channels when observers have run");
+      mcp_dispatch_operation_destroy_channels (dispatch_operation, TRUE);
     }
 
   g_hash_table_unref (properties);

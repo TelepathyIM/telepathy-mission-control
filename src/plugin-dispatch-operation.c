@@ -34,7 +34,6 @@
 typedef enum {
     PLUGIN_ACTION_NONE,
     PLUGIN_ACTION_CLOSE,
-    PLUGIN_ACTION_LEAVE,
     PLUGIN_ACTION_DESTROY
 } PluginAction;
 
@@ -279,38 +278,6 @@ plugin_do_end_delay (McpDispatchOperation *obj,
   g_object_unref (self);
 }
 
-
-/* Close */
-static void
-plugin_do_leave_channels (McpDispatchOperation *obj,
-    gboolean wait_for_observers, TpChannelGroupChangeReason reason,
-    const gchar *message)
-{
-  McdPluginDispatchOperation *self = MCD_PLUGIN_DISPATCH_OPERATION (obj);
-
-  DEBUG ("%p (wait=%c reason=%d message=%s)", self,
-      wait_for_observers ? 'T' : 'F', reason, message);
-
-  g_return_if_fail (self != NULL);
-
-  if (wait_for_observers)
-    {
-      if (self->after_observers < PLUGIN_ACTION_LEAVE)
-        {
-          DEBUG ("Remembering for later");
-          self->after_observers = PLUGIN_ACTION_LEAVE;
-          self->reason = reason;
-          g_free (self->message);
-          self->message = g_strdup (message);
-        }
-    }
-  else
-    {
-      DEBUG ("Leaving now");
-      _mcd_dispatch_operation_leave_channels (self->real_cdo, reason, message);
-    }
-}
-
 static void
 plugin_do_close_channels (McpDispatchOperation *obj,
     gboolean wait_for_observers)
@@ -370,12 +337,6 @@ _mcd_plugin_dispatch_operation_observers_finished (
       _mcd_dispatch_operation_destroy_channels (self->real_cdo);
       break;
 
-    case PLUGIN_ACTION_LEAVE:
-      DEBUG ("leaving now: %d %s", self->reason, self->message);
-      _mcd_dispatch_operation_leave_channels (self->real_cdo,
-          self->reason, self->message);
-      break;
-
     case PLUGIN_ACTION_CLOSE:
       DEBUG ("closing now");
       _mcd_dispatch_operation_close_channels (self->real_cdo);
@@ -412,7 +373,6 @@ plugin_iface_init (McpDispatchOperationIface *iface,
   iface->start_delay = plugin_do_start_delay;
   iface->end_delay = plugin_do_end_delay;
 
-  iface->leave_channels = plugin_do_leave_channels;
   iface->close_channels = plugin_do_close_channels;
   iface->destroy_channels = plugin_do_destroy_channels;
 }

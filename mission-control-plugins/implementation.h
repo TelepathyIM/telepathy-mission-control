@@ -68,9 +68,6 @@ struct _McpDispatchOperationIface {
         McpDispatchOperationDelay *delay);
 
     /* Close */
-    void (*leave_channels) (McpDispatchOperation *self,
-        gboolean wait_for_observers, TpChannelGroupChangeReason reason,
-        const gchar *message);
     void (*close_channels) (McpDispatchOperation *self,
         gboolean wait_for_observers);
     void (*destroy_channels) (McpDispatchOperation *self,

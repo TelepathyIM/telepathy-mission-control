@@ -108,9 +108,6 @@ G_GNUC_INTERNAL void _mcd_dispatch_operation_start_plugin_delay (
 G_GNUC_INTERNAL void _mcd_dispatch_operation_end_plugin_delay (
     McdDispatchOperation *self);
 
-G_GNUC_INTERNAL void _mcd_dispatch_operation_leave_channels (
-    McdDispatchOperation *self, TpChannelGroupChangeReason reason,
-    const gchar *message);
 G_GNUC_INTERNAL void _mcd_dispatch_operation_close_channels (
     McdDispatchOperation *self);
 G_GNUC_INTERNAL void _mcd_dispatch_operation_destroy_channels (
