@@ -284,9 +284,6 @@ gboolean mcp_account_storage_set_parameter (McpAccountStorage *storage,
 
 void mcp_account_storage_emit_created (McpAccountStorage *storage,
     const gchar *account);
-G_DEPRECATED_FOR (something that is actually implemented)
-void mcp_account_storage_emit_altered (McpAccountStorage *storage,
-    const gchar *account);
 void mcp_account_storage_emit_altered_one (McpAccountStorage *storage,
     const gchar *account,
     const gchar *key);

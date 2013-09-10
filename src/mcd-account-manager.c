@@ -146,70 +146,6 @@ static void account_loaded (McdAccount *account,
                             const GError *error,
                             gpointer user_data);
 
-/* calback chain for asynchronously updates from backends: */
-static void
-async_altered_validity_cb (McdAccount *account, const GError *invalid_reason, gpointer data)
-{
-    DEBUG ("asynchronously altered account %s is %svalid",
-           mcd_account_get_unique_name (account), (invalid_reason == NULL) ? "" : "in");
-
-    g_object_unref (account);
-}
-
-static void
-async_altered_manager_cb (McdManager *cm, const GError *error, gpointer data)
-{
-    McdAccount *account = data;
-    const gchar *name = NULL;
-
-    if (cm != NULL)
-        name = mcd_manager_get_name (cm);
-
-    if (error != NULL)
-        DEBUG ("manager %s not ready: %s", name, error->message);
-    else
-        DEBUG ("manager %s is ready", name);
-
-    /* this triggers the final parameter check which results in dbus signals *
-     * being fired and (potentially) the account going online automatically  */
-    mcd_account_check_validity (account, async_altered_validity_cb, NULL);
-
-    g_object_unref (cm);
-}
-
-/* account has been updated by a third party, and the McpAccountStorage *
- * plugin has just informed us of this fact                             */
-static void
-altered_cb (GObject *storage, const gchar *name, gpointer data)
-{
-    McdAccountManager *am = MCD_ACCOUNT_MANAGER (data);
-    McdMaster *master = mcd_master_get_default ();
-    McdAccount *account = NULL;
-    McdManager *cm = NULL;
-    const gchar *cm_name = NULL;
-
-    account = mcd_account_manager_lookup_account (am, name);
-
-    if (G_UNLIKELY (!account))
-    {
-        g_warning ("%s: account %s does not exist", G_STRFUNC, name);
-        return;
-    }
-
-    /* in theory, the CM is already ready by this point, but make sure: */
-    cm_name = mcd_account_get_manager_name (account);
-
-    if (cm_name != NULL)
-        cm = _mcd_master_lookup_manager (master, cm_name);
-
-    if (cm != NULL)
-    {
-        g_object_ref (cm);
-        g_object_ref (account);
-        mcd_manager_call_when_ready (cm, async_altered_manager_cb, account);
-    }
-}
-
 static void
 async_altered_one_manager_cb (McdManager *cm,
                               const GError *error,
@@ -1658,7 +1594,6 @@ _mcd_account_manager_constructed (GObject *obj)
     guint i = 0;
     static struct { const gchar *name; GCallback handler; } sig[] =
       { { "created", G_CALLBACK (created_cb) },
-        { "altered", G_CALLBACK (altered_cb) },
         { "toggled", G_CALLBACK (toggled_cb) },
         { "deleted", G_CALLBACK (deleted_cb) },
         { "altered-one", G_CALLBACK (altered_one_cb) },

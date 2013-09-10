@@ -103,7 +103,6 @@
 enum
 {
   CREATED,
-  ALTERED,
   TOGGLED,
   DELETED,
   ALTERED_ONE,
@@ -188,23 +187,6 @@ class_init (gpointer klass,
    */
   signals[CREATED] = g_signal_new ("created",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
-      g_cclosure_marshal_VOID__STRING, G_TYPE_NONE,
-      1, G_TYPE_STRING);
-
-  /**
-   * McpAccountStorage::altered
-   * @account: the unique name of the altered account
-   *
-   * This signal does not appear to be fully implemented
-   * (see <ulink href="https://bugs.freedesktop.org/show_bug.cgi?id=28288"
-   *  >freedesktop.org bug 28288</ulink>).
-   * Emit #McpAccountStorage::altered-one instead.
-   *
-   * Should not be fired until mcp_account_storage_ready() has been called
-   *
-   */
-  signals[ALTERED] = g_signal_new ("altered",
-      type, G_SIGNAL_RUN_LAST | G_SIGNAL_DEPRECATED, 0, NULL, NULL,
       g_cclosure_marshal_VOID__STRING, G_TYPE_NONE,
       1, G_TYPE_STRING);
 
@@ -966,7 +948,7 @@ mcp_account_storage_list (const McpAccountStorage *storage,
  * @am: an #McpAccountManager instance
  *
  * Informs the plugin that it is now permitted to create new accounts,
- * ie it can now fire its "created", "altered", "toggled" and "deleted"
+ * ie it can now fire its "created", "altered-one", "toggled" and "deleted"
  * signals.
  */
 void
@@ -1177,20 +1159,6 @@ mcp_account_storage_emit_created (McpAccountStorage *storage,
     const gchar *account)
 {
   g_signal_emit (storage, signals[CREATED], 0, account);
-}
-
-/**
- * mcp_account_storage_emit_altered:
- * @storage: an #McpAccountStorage instance
- * @account: the unique name of the altered account
- *
- * Emits the #McpAccountStorage::altered signal
- */
-void
-mcp_account_storage_emit_altered (McpAccountStorage *storage,
-    const gchar *account)
-{
-  g_signal_emit (storage, signals[ALTERED], 0, account);
 }
 
 /**
