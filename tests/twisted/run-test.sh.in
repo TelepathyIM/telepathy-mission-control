@@ -87,6 +87,8 @@ for i in $list ; do
   rm -fr "$tmp"
   mkdir "$tmp"
 
+  MC_TEST_LOG_DIR="${tmp}"
+  export MC_TEST_LOG_DIR
   MC_ACCOUNT_DIR="${tmp}/mc-account-dir"
   export MC_ACCOUNT_DIR
   XDG_CONFIG_HOME="${tmp}/config"

@@ -251,8 +251,7 @@ CHECK_TWISTED_SLOW =
 
 check-twisted: $(BUILT_SOURCES)
 	$(MAKE) -C tools
-	rm -f tools/core
-	rm -f tools/missioncontrol-*.log
+	rm -f core
 	failed=0; \
 	if test x$(CHECK_TWISTED_SLOW) = x; then \
 		extra_tests= ; \
@@ -263,8 +262,8 @@ check-twisted: $(BUILT_SOURCES)
 	  MC_ABS_TOP_SRCDIR=@abs_top_srcdir@ \
 	  MC_ABS_TOP_BUILDDIR=@abs_top_builddir@ \
 	  sh run-test.sh "${TWISTED_TESTS}${extra_tests}"
-	if test -e tools/core; then\
-		echo "Core dump exists: tools/core";\
+	if test -e core; then\
+		echo "Core dump exists: core";\
 		exit 1;\
 	fi
 
@@ -282,6 +281,7 @@ CLEANFILES = \
 	accounts/accounts.cfg \
 	accounts/.mc_connections \
 	mc-[1-9]*.log \
+	missioncontrol.log \
 	*.pyc \
 	*/*.pyc \
 	with-session-bus-*.dbus-monitor-logs \

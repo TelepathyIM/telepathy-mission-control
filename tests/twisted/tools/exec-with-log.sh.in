@@ -18,18 +18,17 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 # 02110-1301 USA
 
-cd "@abs_top_builddir@/tests/twisted/tools"
-
 G_MESSAGES_DEBUG=all
 export G_MESSAGES_DEBUG
 ulimit -c unlimited
-exec > missioncontrol-$$.log 2>&1
-ln -f missioncontrol-$$.log missioncontrol.log
 
-if test -z "$MC_ACCOUNT_DIR"; then
-        echo "MC_ACCOUNT_DIR must be set"
+if test -z "$MC_TEST_LOG_DIR"; then
+        echo "MC_TEST_LOG_DIR must be set"
         exit 1
 fi
+
+exec > ${MC_TEST_LOG_DIR}/missioncontrol-$$.log 2>&1
+ln -f ${MC_TEST_LOG_DIR}/missioncontrol-$$.log missioncontrol.log
 
 if test -n "$MISSIONCONTROL_TEST_VALGRIND"; then
         G_DEBUG="$G_DEBUG,gc-friendly"
