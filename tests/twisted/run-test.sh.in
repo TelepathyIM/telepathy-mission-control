@@ -13,6 +13,9 @@
 
 set -e
 
+MC_TEST_CURDIR="`pwd`"
+export MC_TEST_CURDIR
+
 if test "x$MC_TEST_UNINSTALLED" = x; then
   script_fullname=`readlink -e "@mctestsdir@/twisted/run-test.sh"`
   if [ `readlink -e "$0"` != "$script_fullname" ] ; then
@@ -83,7 +86,7 @@ any_failed=0
 for i in $list ; do
   echo "Testing $i ..."
 
-  tmp="`pwd`/tmp-`echo $i | tr ./ __`"
+  tmp="${MC_TEST_CURDIR}/tmp-`echo $i | tr ./ __`"
   rm -fr "$tmp"
   mkdir "$tmp"
 
