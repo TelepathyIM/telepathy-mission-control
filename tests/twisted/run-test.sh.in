@@ -1,44 +1,136 @@
 #!/bin/sh
 
-script_fullname=`readlink -e "@mctestsdir@/twisted/run-test.sh"`
-if [ `readlink -e "$0"` != "$script_fullname" ] ; then
-  echo "This script is meant to be installed"
-  exit 1
+# This script assumes that it is run in a temporary directory where it can
+# create and delete subdirectories for files, logs, etc., but other users
+# cannot write (for instance, /tmp is unsuitable, but
+# the directory created by `mktemp -d /tmp/test.XXXXXXXXXX` is fine).
+#
+# During "make check" or "make installcheck" it runs in
+# ${top_builddir}/tests/twisted.
+#
+# During installed testing, the test environment must run it in a
+# suitable location.
+
+set -e
+
+if test "x$MC_TEST_UNINSTALLED" = x; then
+  script_fullname=`readlink -e "@mctestsdir@/twisted/run-test.sh"`
+  if [ `readlink -e "$0"` != "$script_fullname" ] ; then
+    echo "This script is meant to be installed at $script_fullname" >&2
+    exit 1
+  fi
+
+  test_src="@mctestsdir@"
+  test_build="@mctestsdir@"
+  config_file="@mctestsdir@/twisted/tools/servicedir-installed/tmp-session-bus.conf"
+  plugins="@mctestsdir@/twisted/plugins"
+
+  PYTHONPATH="@mctestsdir@/twisted"
+  export PYTHONPATH
+
+  MC_TWISTED_PATH="@mctestsdir@/twisted"
+  export MC_TWISTED_PATH
+else
+  if test -z "$MC_ABS_TOP_SRCDIR"; then
+    echo "MC_ABS_TOP_SRCDIR must be set" >&2
+    exit 1
+  fi
+  if test -z "$MC_ABS_TOP_BUILDDIR"; then
+    echo "MC_ABS_TOP_BUILDDIR must be set" >&2
+    exit 1
+  fi
+
+  test_src="${MC_ABS_TOP_SRCDIR}/tests"
+  test_build="${MC_ABS_TOP_BUILDDIR}/tests"
+  config_file="${test_build}/twisted/tools/servicedir-uninstalled/tmp-session-bus.conf"
+  plugins="${test_build}/twisted/.libs"
+
+  PYTHONPATH="${test_src}/twisted:${test_build}/twisted"
+  export PYTHONPATH
+
+  MC_TWISTED_PATH="${test_src}/twisted"
+  export MC_TWISTED_PATH
 fi
 
-export PYTHONPATH=@mctestsdir@/twisted
+MC_DEBUG=all
+export MC_DEBUG
+G_DEBUG=fatal-criticals
+export G_DEBUG
+# for ENABLE_LIBACCOUNTS_SSO
+AG_DEBUG=all
+export AG_DEBUG
 
-export XDG_CONFIG_DIRS=@mctestsdir@/twisted
-export XDG_DATA_DIRS=@mctestsdir@/twisted
+GIO_EXTRA_MODULES="${plugins}"
+export GIO_EXTRA_MODULES
+MC_FILTER_PLUGIN_DIR="${plugins}"
+export MC_FILTER_PLUGIN_DIR
 
-TMP=/tmp/telepathy-mission-control-tests/tmp
-mkdir -p $TMP
-export XDG_CONFIG_HOME=$TMP
-export XDG_DATA_HOME=$TMP
-export XDG_CACHE_DIR=$TMP
-export XDG_CACHE_HOME=$TMP
+XDG_CONFIG_DIRS="${test_src}/twisted"
+export XDG_CONFIG_DIRS
 
-export G_DEBUG=fatal-criticals
-export MC_DEBUG=all
-export MC_FILTER_PLUGIN_DIR=@mctestsdir@/twisted/plugins
-export GIO_EXTRA_MODULES=@mctestsdir@/twisted/plugins
-export MC_ACCOUNT_DIR=/tmp/telepathy-mission-control-tests/accounts
-export MC_CLIENTS_DIR=@mctestsdir@/twisted/telepathy/clients
-export MC_MANAGER_DIR=@mctestsdir@/twisted/telepathy/managers
-export MC_FILTER_PLUGIN_DIR=@mctestsdir@/twisted/plugins
-mkdir -p $MC_ACCOUNT_DIR || exit 1
+MC_CLIENTS_DIR="${test_src}/twisted/telepathy/clients"
+export MC_CLIENTS_DIR
+MC_MANAGER_DIR="${test_src}/twisted/telepathy/managers"
+export MC_MANAGER_DIR
 
 if [ -n "$1" ] ; then
   list="$1"
 else
-  list=$(cat @mctestsdir@/twisted/mc-twisted-tests.list)
+  list=$(cat "${test_build}"/twisted/mc-twisted-tests.list)
 fi
 
-for i in $list ; do 
-  echo "Testing $i"
-  sh @mctestsdir@/twisted/tools/with-session-bus.sh \
-    --config-file=@mctestsdir@/twisted/tools/servicedir-installed/tmp-session-bus.conf \
+any_failed=0
+for i in $list ; do
+  echo "Testing $i ..."
+
+  tmp="`pwd`/tmp-`echo $i | tr ./ __`"
+  rm -fr "$tmp"
+  mkdir "$tmp"
+
+  MC_ACCOUNT_DIR="${tmp}/mc-account-dir"
+  export MC_ACCOUNT_DIR
+  XDG_CONFIG_HOME="${tmp}/config"
+  export XDG_CONFIG_HOME
+  XDG_DATA_HOME="${tmp}/localshare"
+  export XDG_DATA_HOME
+  XDG_DATA_DIRS="${tmp}/share:${test_src}/twisted"
+  export XDG_DATA_DIRS
+  XDG_CACHE_HOME="${tmp}/cache"
+  export XDG_CACHE_HOME
+  XDG_CACHE_DIR="${tmp}/cache"
+  export XDG_CACHE_DIR
+
+  # for ENABLE_LIBACCOUNTS_SSO
+  ACCOUNTS="${tmp}/libaccounts-accounts"
+  export ACCOUNTS
+  AG_SERVICES="${tmp}/libaccounts-services"
+  export AG_SERVICES
+
+  sh "${test_src}/twisted/tools/with-session-bus.sh" \
+    ${MC_TEST_SLEEP} \
+    --also-for-system \
+    --config-file="${config_file}" \
     -- \
-    @PYTHON@ @mctestsdir@/twisted/$i
+    @TEST_PYTHON@ -u "${test_src}/twisted/$i"
+  e=$?
+  case "$e" in
+    (0)
+      echo "PASS: $i"
+      if test -z "MC_TEST_KEEP_TEMP"; then
+        rm -fr "$tmp"
+      fi
+      ;;
+    (77)
+      echo "SKIP: $i"
+      if test -z "MC_TEST_KEEP_TEMP"; then
+        rm -fr "$tmp"
+      fi
+      ;;
+    (*)
+      any_failed=1
+      echo "FAIL: $i ($e)"
+      ;;
+  esac
 done
 
+exit $any_failed

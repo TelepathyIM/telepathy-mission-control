@@ -5,14 +5,12 @@ To run Twisted tests:
 To run an individual Twisted test:
 
   make -C tests/twisted check-twisted \
-        TWISTED_BASIC_TESTS= \
-        TWISTED_SEPARATE_TESTS=dispatcher/create-at-startup.py
+        TWISTED_TESTS=dispatcher/create-at-startup.py
 
 To run with debug information:
 
   make -C tests/twisted check-twisted \
-        TWISTED_BASIC_TESTS= \
-        TWISTED_SEPARATE_TESTS=dispatcher/create-at-startup.py \
+        TWISTED_TESTS=dispatcher/create-at-startup.py \
         CHECK_TWISTED_VERBOSE=1
 
 To debug an individual test you can set one of the following env variable:

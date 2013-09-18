@@ -1,5 +1,5 @@
-TWISTED_TESTS =
-
+# Tests that don't need their own MC instance, although in practice
+# we currently run them in their own MC instance anyway.
 TWISTED_BASIC_TESTS = \
 	account-manager/account-basics.py \
 	account-manager/avatar.py \
@@ -79,9 +79,11 @@ TWISTED_SPECIAL_BUILD_TESTS = \
 	account-storage/default-keyring-storage.py \
 	account-storage/diverted-storage.py
 
+# Tests that are usually too slow to run.
 TWISTED_SLOW_TESTS = \
 	account-manager/server-drops-us.py
 
+# Tests that need their own MC instance.
 TWISTED_SEPARATE_TESTS = \
 	account-manager/auto-connect.py \
 	account-manager/avatar-persist.py \
@@ -91,7 +93,12 @@ TWISTED_SEPARATE_TESTS = \
 	crash-recovery/crash-recovery.py \
 	dispatcher/create-at-startup.py
 
-TWISTED_SEPARATE_TESTS += $(TWISTED_SPECIAL_BUILD_TESTS)
+# All the tests that are run by "make check"
+TWISTED_TESTS = \
+	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_SEPARATE_TESTS) \
+	$(TWISTED_SPECIAL_BUILD_TESTS) \
+	$(NULL)
 
 # other files used by the twisted tests, but are not tests and are not built
 # source
@@ -111,13 +118,15 @@ TWISTED_OTHER_FILES = \
 	telepathy/managers/README \
 	$(NULL)
 
+# This deliberately doesn't include the TWISTED_SPECIAL_BUILD_TESTS
+# since it's testing the real binary, not the "debug" binary.
 mc-twisted-tests.list:
-	$(AM_V_GEN)echo $(TWISTED_BASIC_TESTS) > $@
+	$(AM_V_GEN)echo $(TWISTED_BASIC_TESTS) $(TWISTED_SEPARATE_TESTS) > $@
 
 run-test.sh: run-test.sh.in Makefile
 	$(AM_V_GEN)sed \
 		-e "s|[@]mctestsdir[@]|@mctestsdir@|g" \
-		-e "s|[@]PYTHON[@]|$(PYTHON)|g" \
+		-e "s|[@]TEST_PYTHON[@]|$(PYTHON)|g" \
 		$< > $@
 	@chmod +x $@
 
@@ -130,6 +139,7 @@ nobase_nodist_twistedtests_SCRIPTS = \
 	$(NULL)
 nobase_dist_twistedtests_DATA = \
 	$(TWISTED_BASIC_TESTS) \
+	$(TWISTED_SEPARATE_TESTS) \
 	$(TWISTED_OTHER_FILES) \
 	$(NULL)
 nobase_nodist_twistedtests_DATA = \
@@ -222,44 +232,6 @@ INCLUDES = \
 
 TESTS =
 
-TMPSUFFIX = foo
-
-BASIC_TESTS_ENVIRONMENT = \
-	PYTHONPATH=@abs_top_srcdir@/tests/twisted:@abs_top_builddir@/tests/twisted \
-	MC_DEBUG=all \
-	MC_FILTER_PLUGIN_DIR=@abs_top_builddir@/tests/twisted/.libs \
-	GIO_EXTRA_MODULES=@abs_top_builddir@/tests/twisted/.libs \
-	MC_ACCOUNT_DIR=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX)/mc-account-dir \
-	XDG_CONFIG_HOME=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX)/config \
-	XDG_CONFIG_DIRS=@abs_top_srcdir@/tests/twisted \
-	XDG_DATA_HOME=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX)/localshare \
-	XDG_DATA_DIRS=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX)/share:@abs_top_srcdir@/tests/twisted \
-	XDG_CACHE_DIR=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX)/cache \
-	XDG_CACHE_HOME=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX)/cache \
-	MC_CLIENTS_DIR=@abs_top_srcdir@/tests/twisted/telepathy/clients \
-	MC_MANAGER_DIR=@abs_top_srcdir@/tests/twisted/telepathy/managers \
-	G_DEBUG=fatal_criticals
-
-if ENABLE_LIBACCOUNTS_SSO
-BASIC_TESTS_ENVIRONMENT += AG_DEBUG=all \
-	ACCOUNTS=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX) \
-	AG_SERVICES=@abs_top_builddir@/tests/twisted/tmp-$(TMPSUFFIX)
-endif
-
-WITH_SESSION_BUS = \
-	sh $(srcdir)/tools/with-session-bus.sh \
-	--also-for-system \
-	--config-file=tools/servicedir-uninstalled/tmp-session-bus.conf --
-
-COMBINED_TESTS_ENVIRONMENT = \
-	$(BASIC_TESTS_ENVIRONMENT) \
-	$(PYTHON) -u
-
-SEPARATE_TESTS_ENVIRONMENT = \
-	$(BASIC_TESTS_ENVIRONMENT) \
-	$(WITH_SESSION_BUS) \
-	$(PYTHON)
-
 if WANT_TWISTED_TESTS
 check-local: check-twisted
 
@@ -271,69 +243,32 @@ installcheck-twisted:
 
 endif # WANT_TWISTED_TESTS
 
-check-twisted:
+CHECK_TWISTED_SLOW =
+
+check-twisted: $(BUILT_SOURCES)
 	$(MAKE) -C tools
 	rm -f tools/core
 	rm -f tools/missioncontrol-*.log
-	mkdir tmp-$$$$ && { \
-		$(MAKE) check-combined TMPSUFFIX=$$$$; \
-		e=$$?; \
-		rm -rf tmp-$$$$; \
-	exit $$e; }
-	for TESTS in $(TWISTED_SEPARATE_TESTS); do export TESTS; ( \
-	rm -rf tmp-$$$$ && mkdir tmp-$$$$ && { \
-		e=0; \
-		$(MAKE) check-separate \
-			TMPSUFFIX=$$$$ \
-			TESTS=$$TESTS \
-		|| e=$$?; \
-		rm -rf tmp-$$$$; \
-	}; exit $$e ) || exit $$?; done
-	@if test -e tools/core; then\
-		echo "Core dump exists: tools/core";\
-		exit 1;\
-	fi
-
-check-torture:
-	mkdir tmp-$$$$ && { \
-		env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) \
-			$(MAKE) _check-torture TMPSUFFIX=$$$$; \
-		e=$$?; \
-		rm -rf tmp-$$$$; \
-	exit $$e; }
-
-TORTURE_REPEATS = 100
-
-_check-torture:
-	for i in `seq 1 $(TORTURE_REPEATS)`; do \
-		$(MAKE) check-TESTS \
-			TESTS='$$(TWISTED_BASIC_TESTS) $$(TWISTED_SLOW_TESTS)'\
-			TESTS_ENVIRONMENT='$$(COMBINED_TESTS_ENVIRONMENT)'; \
-		e=$$?; \
-		test z$$e = z0 || break; \
-	done
-
-CHECK_TWISTED_SLOW =
-
-check-combined:
+	failed=0; \
 	if test x$(CHECK_TWISTED_SLOW) = x; then \
 		extra_tests= ; \
 	else \
 		extra_tests=' $$(TWISTED_SLOW_TESTS)'; \
 	fi; \
-	env $(BASIC_TESTS_ENVIRONMENT) $(WITH_SESSION_BUS) \
-	$(MAKE) check-TESTS \
-		TESTS='$$(TWISTED_BASIC_TESTS)'"$${extra_tests}" \
-		TESTS_ENVIRONMENT='$$(COMBINED_TESTS_ENVIRONMENT)'
-
-check-separate:
-	echo "Running $(TESTS) in tmp-$(TMPSUFFIX)"
-	$(MAKE) check-TESTS \
-		TESTS_ENVIRONMENT='$$(SEPARATE_TESTS_ENVIRONMENT)'
+	MC_TEST_UNINSTALLED=1 \
+	  MC_ABS_TOP_SRCDIR=@abs_top_srcdir@ \
+	  MC_ABS_TOP_BUILDDIR=@abs_top_builddir@ \
+	  sh run-test.sh "${TWISTED_TESTS}${extra_tests}"
+	if test -e tools/core; then\
+		echo "Core dump exists: tools/core";\
+		exit 1;\
+	fi
 
 EXTRA_DIST = \
 	$(TWISTED_BASIC_TESTS) \
 	$(TWISTED_SEPARATE_TESTS) \
+	$(TWISTED_SLOW_TESTS) \
+	$(TWISTED_SPECIAL_BUILD_TESTS) \
 	$(TWISTED_OTHER_FILES) \
 	accounts/README \
 	run-test.sh.in \
