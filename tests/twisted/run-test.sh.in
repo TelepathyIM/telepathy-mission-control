@@ -116,13 +116,13 @@ for i in $list ; do
   case "$e" in
     (0)
       echo "PASS: $i"
-      if test -z "MC_TEST_KEEP_TEMP"; then
+      if test -z "$MC_TEST_KEEP_TEMP"; then
         rm -fr "$tmp"
       fi
       ;;
     (77)
       echo "SKIP: $i"
-      if test -z "MC_TEST_KEEP_TEMP"; then
+      if test -z "$MC_TEST_KEEP_TEMP"; then
         rm -fr "$tmp"
       fi
       ;;

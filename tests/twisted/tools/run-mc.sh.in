@@ -2,4 +2,10 @@
 
 ulimit -c unlimited
 
+
+# Our fake session bus is also a fake system bus, but it doesn't know that
+# when it service-activates us
+DBUS_SYSTEM_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS"
+export DBUS_SYSTEM_BUS_ADDRESS
+
 @libexecdir@/mission-control-5

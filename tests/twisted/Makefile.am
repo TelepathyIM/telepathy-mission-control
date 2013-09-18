@@ -167,7 +167,11 @@ config.py: Makefile
 		echo "HAVE_NM = $(HAVE_NM_PYBOOL)"; \
 	} > $@
 
-BUILT_SOURCES = config.py
+BUILT_SOURCES = \
+	config.py \
+	mc-twisted-tests.list \
+	run-test.sh \
+	$(NULL)
 
 AM_CFLAGS = $(ERROR_CFLAGS)
 
