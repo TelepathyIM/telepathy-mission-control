@@ -267,7 +267,7 @@ installcheck-local: installcheck-twisted
 installcheck-twisted:
 	$(MAKE) check-twisted \
 		TWISTED_SPECIAL_BUILD_TESTS= \
-		MC_EXECUTABLE=@libexecdir@/mission-control-5
+		MC_EXECUTABLE=$(DESTDIR)@libexecdir@/mission-control-5
 
 endif # WANT_TWISTED_TESTS
 
