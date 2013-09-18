@@ -343,7 +343,8 @@ _list (const McpAccountStorage *self,
 
           if (_commit (self, am, NULL))
             {
-              DEBUG ("Migrated %s to new location: deleting old copy");
+              DEBUG ("Migrated %s to new location: deleting old copy",
+                  old_filename);
               if (g_unlink (old_filename) != 0)
                 g_warning ("Unable to delete %s: %s", old_filename,
                     g_strerror (errno));

@@ -2051,7 +2051,7 @@ try_delegating (ChannelToDelegate *to_delegate)
             g_strdup (mcd_channel_get_object_path (to_delegate->channel)),
             v);
 
-        DEBUG ("...but failed to delegate it: %s",
+        DEBUG ("...but failed to delegate %s: %s",
             mcd_channel_get_object_path (to_delegate->channel),
             to_delegate->error->message);
 

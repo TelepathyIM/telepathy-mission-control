@@ -83,7 +83,7 @@ const Backend backends[] = {
 };
 
 static void usage (const gchar *name, const gchar *fmt,
-    ...) G_GNUC_NORETURN;
+    ...) G_GNUC_NORETURN G_GNUC_PRINTF (2, 3);
 
 int main (int argc, char **argv)
 {
@@ -102,7 +102,7 @@ int main (int argc, char **argv)
   g_set_application_name (argv[0]);
 
   if (argc < 3)
-    usage (argv[0], "");
+    usage (argv[0], "Not enough arguments");
 
   op_name = argv[1];
   backend = argv[2];

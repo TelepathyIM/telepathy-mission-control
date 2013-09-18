@@ -70,7 +70,7 @@ static inline gint _mcd_debug_get_level (void)
 
 void mcd_debug_print_tree (gpointer obj);
 
-void mcd_debug (const gchar *format, ...);
+void mcd_debug (const gchar *format, ...) G_GNUC_PRINTF (1, 2);
 
 G_END_DECLS
 

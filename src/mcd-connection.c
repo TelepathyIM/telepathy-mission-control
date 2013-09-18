@@ -705,7 +705,7 @@ connection_should_reconnect (TpConnection *tp_conn,
         {
         case TP_DBUS_ERROR_NAME_OWNER_LOST:
             /* CM crashed */
-            DEBUG ("dbus error code: OWNER_LOST, reconnecting", code);
+            DEBUG ("dbus error code: OWNER_LOST, reconnecting");
             return TRUE;
         }
     }

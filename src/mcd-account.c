@@ -2673,7 +2673,7 @@ apply_parameter_updates (McdAccount *account,
         g_hash_table_iter_init (&iter, dbus_properties);
         while (g_hash_table_iter_next (&iter, &name, &value))
         {
-            DEBUG ("updating parameter %s", name);
+            DEBUG ("updating parameter %s", (const gchar *) name);
             _mcd_connection_update_property (priv->connection, name, value);
         }
     }
