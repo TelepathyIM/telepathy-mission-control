@@ -285,7 +285,8 @@ CLEANFILES = \
 	*.pyc \
 	*/*.pyc \
 	with-session-bus-*.dbus-monitor-logs \
-	config.py
+	$(BUILT_SOURCES) \
+	$(NULL)
 
 check_misc_sources = $(TESTS)
 
