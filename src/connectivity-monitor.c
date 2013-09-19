@@ -209,9 +209,6 @@ connectivity_monitor_nm_state_change_cb (NMClient *client,
 
   state = nm_client_get_state (priv->nm_client);
 
-  /* Deliberately not checking for DISCONNECTED. If we are really disconnected,
-   * the netlink GNetworkMonitor will say so; or if we have non-NM connectivity
-   * with a default route, we might as well give it a try. */
   if (state == NM_STATE_CONNECTING
 #if NM_CHECK_VERSION(0,8,992)
       || state == NM_STATE_DISCONNECTING
@@ -222,6 +219,13 @@ connectivity_monitor_nm_state_change_cb (NMClient *client,
 
       connectivity_monitor_remove_states (connectivity_monitor,
           CONNECTIVITY_STABLE, NULL);
+    }
+  else if (state == NM_STATE_DISCONNECTED)
+    {
+      DEBUG ("New NetworkManager network state %d (disconnected)", state);
+
+      connectivity_monitor_remove_states (connectivity_monitor,
+          CONNECTIVITY_UP|CONNECTIVITY_STABLE, NULL);
     }
   else
     {
