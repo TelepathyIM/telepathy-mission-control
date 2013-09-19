@@ -1,7 +1,18 @@
 telepathy-mission-control 5.17.0 (UNRELEASED)
 =============================================
 
-…
+Incompatible changes:
+
+• The mission-control-plugins library has broken API/ABI; deprecated functions
+  and the "D-Bus ACL" plugin API have been removed. For plugins not using
+  this functionality (e.g. Empathy's GNOME Online Accounts integration),
+  a simple recompile should be sufficient.
+
+• Channel requests that specify an emergency service point by handle,
+  rather than by ID, are no longer treated specially. Channel requests
+  to an emergency service point by its normalized identifier (e.g.
+  from a user dialling 911 on a phone keypad) still get special treatment:
+  request policy plugins are bypassed for these requests.
 
 telepathy-mission-control 5.15.1 (2013-09-19)
 =============================================
