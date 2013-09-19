@@ -4,6 +4,7 @@ dnl enable -Werror).
 AC_INIT([telepathy-mission-control], [5.15.0+])
 
 AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_SRCDIR(Makefile.am)
 AM_INIT_AUTOMAKE([1.9 tar-ustar -Wno-portability])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES])

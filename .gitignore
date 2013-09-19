@@ -12,6 +12,7 @@
 *.gcno
 *.gcov
 \#*\#
+/build-aux
 /data/*.valid
 /data/gschemas.compiled
 /doc/reference/*/html
