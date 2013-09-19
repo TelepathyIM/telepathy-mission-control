@@ -111,13 +111,13 @@ for i in $list ; do
   AG_SERVICES="${tmp}/libaccounts-services"
   export AG_SERVICES
 
+  e=0
   sh "${test_src}/twisted/tools/with-session-bus.sh" \
     ${MC_TEST_SLEEP} \
     --also-for-system \
     --config-file="${config_file}" \
     -- \
-    @TEST_PYTHON@ -u "${test_src}/twisted/$i"
-  e=$?
+    @TEST_PYTHON@ -u "${test_src}/twisted/$i" || e=$?
   case "$e" in
     (0)
       echo "PASS: $i"
