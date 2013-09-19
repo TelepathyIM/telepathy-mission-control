@@ -134,6 +134,12 @@ for i in $list ; do
     (*)
       any_failed=1
       echo "FAIL: $i ($e)"
+      (
+        cd $tmp && for x in *.log; do
+          echo "===== log file: $x ====="
+          cat "$x"
+        done
+      )
       ;;
   esac
 done
