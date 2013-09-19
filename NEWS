@@ -1,5 +1,14 @@
-telepathy-mission-control 5.15.1 (UNRELEASED)
+telepathy-mission-control 5.15.2 (UNRELEASED)
 =============================================
+
+…
+
+telepathy-mission-control 5.15.1 (2013-09-19)
+=============================================
+
+The “where can I put giant plastic arthopods?” release.
+
+This is a release candidate for Mission Control 5.16.
 
 Dependencies:
 
@@ -16,6 +25,13 @@ Dependencies:
   similar to the ones provided in Empathy or KDE-Telepathy if you
   don't want passwords to be stored in a file as clear text.
 
+Deprecations:
+
+• mcp_dispatch_operation_leave_channels() is deprecated.
+  To hang up and close Call channels in a dispatch policy plugin,
+  use tp_call_channel_hangup_async() and
+  mcp_dispatch_operation_close_channels() instead.
+
 Enhancements:
 
 • Use GIO's GNetworkMonitor plugins to monitor connectivity
@@ -31,6 +47,18 @@ Fixes:
 
 • Don't emit critical warnings if more than one emergency "service point" is
   provided, and don't leak memory if any are provided (fd.o #55773, Simon)
+
+• Advertise Service and Hidden as properties that can be given when creating
+  an account (fd.o #33127, Simon)
+
+• Fix a likely crash when upgrading the storage format of accounts,
+  a regression in 5.15.0 (fd.o #69542, Simon)
+
+• Fix a crash when an account is disconnected while inspecting the
+  self-contact, a regression in 5.15.0 (fd.o #69542, Simon)
+
+• Make the regression tests pass with the parallel test harness used by
+  default in Automake 1.13+ (fd.o #69542, Simon)
 
 telepathy-mission-control 5.15.0 (2013-05-03)
 =============================================

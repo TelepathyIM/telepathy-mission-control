@@ -2673,7 +2673,7 @@ apply_parameter_updates (McdAccount *account,
         g_hash_table_iter_init (&iter, dbus_properties);
         while (g_hash_table_iter_next (&iter, &name, &value))
         {
-            DEBUG ("updating parameter %s", name);
+            DEBUG ("updating parameter %s", (const gchar *) name);
             _mcd_connection_update_property (priv->connection, name, value);
         }
     }
@@ -4924,6 +4924,11 @@ mcd_account_self_contact_upgraded_cb (GObject *source_object,
               tp_contact_get_presence_status (self_contact),
               tp_contact_get_presence_message (self_contact),
               self_contact);
+        }
+      else if (self->priv->self_contact == NULL)
+        {
+          DEBUG ("self-contact '%s' has disappeared since we asked to "
+              "upgrade it", tp_contact_get_identifier (self_contact));
         }
       else
         {

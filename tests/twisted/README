@@ -5,23 +5,23 @@ To run Twisted tests:
 To run an individual Twisted test:
 
   make -C tests/twisted check-twisted \
-        TWISTED_BASIC_TESTS= \
-        TWISTED_SEPARATE_TESTS=dispatcher/create-at-startup.py
+        TWISTED_TESTS=dispatcher/create-at-startup.py
 
 To run with debug information:
 
   make -C tests/twisted check-twisted \
-        TWISTED_BASIC_TESTS= \
-        TWISTED_SEPARATE_TESTS=dispatcher/create-at-startup.py \
+        TWISTED_TESTS=dispatcher/create-at-startup.py \
         CHECK_TWISTED_VERBOSE=1
 
 To debug an individual test you can set one of the following env variable:
 
   * MISSIONCONTROL_TEST_VALGRIND : to run Mission Control inside valgrind. The
-    report is added to tools/missioncontrol-testing.log.
+    report is added to missioncontrol.log. You'll probably also want
+    MC_TEST_KEEP_TEMP to keep the logs in tests/twisted/tmp-*, even when
+    tests passed.
 
   * MISSIONCONTROL_TEST_REFDBG : to run Mission Control inside refdbg. The
-    report is written to tools/refdbg.log. You can change
+    report is written to refdbg.log. You can change
     MISSIONCONTROL_WRAPPER to use an alternative refdbg and change
     REFDBG_OPTIONS to set your own parameters. Example:
         export MISSIONCONTROL_TEST_REFDBG=1

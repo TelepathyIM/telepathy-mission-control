@@ -12,6 +12,7 @@
 *.gcno
 *.gcov
 \#*\#
+/build-aux
 /data/*.valid
 /data/gschemas.compiled
 /doc/reference/*/html
@@ -76,6 +77,7 @@ stamp-*
 tags
 TAGS
 /telepathy-mission-control-5*
+/test-driver
 /tests/account-store
 /tests/keyring-command
 /tests/tease-the-minotaur
