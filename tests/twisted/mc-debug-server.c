@@ -122,9 +122,23 @@ dbus_filter_function (DBusConnection *connection,
        * drained.
        */
       DBusMessage *reply = dbus_message_new_method_return (message);
+      GVariant *variant;
+      GDBusConnection *system_bus;
 
       if (reply == NULL)
         g_error ("Out of memory");
+
+      /* Sync GDBus, too, to make sure we have received any pending
+       * FakeNetworkMonitor messages. */
+      system_bus = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, NULL);
+      g_assert (system_bus != NULL);
+      variant = g_dbus_connection_call_sync (system_bus,
+          "org.freedesktop.DBus", "/org/freedesktop/DBus",
+          "org.freedesktop.DBus", "ListNames",
+          NULL, NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL);
+      g_assert (variant != NULL);
+      g_variant_unref (variant);
+      g_object_unref (system_bus);
 
       g_idle_add_full (G_PRIORITY_LOW, billy_idle, reply,
           (GDestroyNotify) dbus_message_unref);
