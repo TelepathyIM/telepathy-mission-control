@@ -301,7 +301,7 @@ mcp_dispatch_operation_end_delay (McpDispatchOperation *self,
  * superseded by Call channels, which have a proper "hang up" method which
  * should be used instead.
  *
- * Deprecated: 5.15.UNRELEASED: Use tp_call_channel_hangup_async() to
+ * Deprecated: 5.15.1: Use tp_call_channel_hangup_async() to
  *  hang up Call channels, mcp_dispatch_operation_close_channels() to close
  *  generic channels, or mcp_dispatch_operation_destroy_channels() to
  *  terminate the channel destructively.
