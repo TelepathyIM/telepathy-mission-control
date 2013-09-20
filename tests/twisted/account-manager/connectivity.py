@@ -96,6 +96,7 @@ def test(q, bus, mc):
         q.expect('dbus-method-call', method='Disconnect')
 
         mc.connectivity.go_offline()
+        sync_connectivity_state(mc)
 
         # When we turn the network back on, MC should try to sign us back on.
         # In the process, our RequestedPresence should not have been

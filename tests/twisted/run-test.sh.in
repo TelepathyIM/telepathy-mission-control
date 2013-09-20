@@ -111,13 +111,17 @@ for i in $list ; do
   AG_SERVICES="${tmp}/libaccounts-services"
   export AG_SERVICES
 
+  CHECK_TWISTED_VERBOSE=1
+  export CHECK_TWISTED_VERBOSE
+
+  e=0
   sh "${test_src}/twisted/tools/with-session-bus.sh" \
     ${MC_TEST_SLEEP} \
     --also-for-system \
     --config-file="${config_file}" \
     -- \
-    @TEST_PYTHON@ -u "${test_src}/twisted/$i"
-  e=$?
+    @TEST_PYTHON@ -u "${test_src}/twisted/$i" \
+    > "$tmp"/test.log 2>&1 || e=$?
   case "$e" in
     (0)
       echo "PASS: $i"
@@ -134,6 +138,12 @@ for i in $list ; do
     (*)
       any_failed=1
       echo "FAIL: $i ($e)"
+      (
+        cd $tmp && for x in *.log; do
+          echo "===== log file: $x ====="
+          cat "$x"
+        done
+      )
       ;;
   esac
 done

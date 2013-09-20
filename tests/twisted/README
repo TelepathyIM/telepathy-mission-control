@@ -7,11 +7,15 @@ To run an individual Twisted test:
   make -C tests/twisted check-twisted \
         TWISTED_TESTS=dispatcher/create-at-startup.py
 
-To run with debug information:
+Debug information (the test's own log, and Mission Control's log)
+is recorded in a subdirectory of tests-twisted whose name is based
+on the test's name, like tests/twisted/tmp-dispatcher_create-at-startup_py.
+The same tmp-* directory also contains the account data used in the test.
+If the test fails, its output will be sent to stdout.
 
-  make -C tests/twisted check-twisted \
-        TWISTED_TESTS=dispatcher/create-at-startup.py \
-        CHECK_TWISTED_VERBOSE=1
+These directories are normally deleted after a test passes or is skipped,
+and kept for analysis if it fails. Set the environment variable
+MC_TEST_KEEP_TEMP to avoid deleting them.
 
 To debug an individual test you can set one of the following env variable:
 
