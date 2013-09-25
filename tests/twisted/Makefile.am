@@ -105,8 +105,6 @@ TWISTED_TESTS = \
 TWISTED_OTHER_FILES = \
 	constants.py \
 	fakeaccountsservice.py \
-	fakeclient.py \
-	fakecm.py \
 	fakeconnectivity.py \
 	mctest.py \
 	servicetest.py \
