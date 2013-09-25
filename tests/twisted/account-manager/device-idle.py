@@ -83,7 +83,7 @@ def _create_and_enable(q, bus, mc, account_name, power_saving_supported,
     params = dbus.Dictionary({"account": account_name, "password": "secrecy"},
                               signature='sv')
     cm_name_ref, account = create_fakecm_account(q, bus, mc, params)
-    conn = enable_fakecm_account(q, bus, mc, account, params, has_requests=False,
+    conn = enable_fakecm_account(q, bus, mc, account, params,
                                  extra_interfaces=extra_interfaces,
                                  expect_after_connect=expect_after_connect)
 

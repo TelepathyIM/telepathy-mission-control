@@ -73,7 +73,7 @@ def test(q, bus, mc):
             handled=False)
 
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
-            'myself', has_requests=True, has_presence=True)
+            'myself', has_presence=True)
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 

@@ -113,109 +113,16 @@ def test(q, bus, mc):
 
     # Now reply to GetInterfaces and say we don't have Requests
     conn.GetInterfaces(get_interfaces_call)
-    q.expect('dbus-method-call',
-            interface=cs.CONN, method='ListChannels', args=[],
-            path=conn.object_path, handled=True)
 
-    # A channel dispatch operation is created for the channel we already had
-
-    e = q.expect('dbus-signal',
-            path=cs.CD_PATH,
-            interface=cs.CD_IFACE_OP_LIST,
-            signal='NewDispatchOperation')
-
-    cdo_path = e.args[0]
-    cdo_properties = e.args[1]
-
-    assert cdo_properties[cs.CDO + '.Account'] == account.object_path
-    assert cdo_properties[cs.CDO + '.Connection'] == conn.object_path
-
-    handlers = cdo_properties[cs.CDO + '.PossibleHandlers'][:]
-    handlers.sort()
-    assert handlers == [cs.tp_name_prefix + '.Client.Empathy',
-            cs.tp_name_prefix + '.Client.Kopete'], handlers
-
-    assert cs.CD_IFACE_OP_LIST in cd_props.Get(cs.CD, 'Interfaces')
-    assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') ==\
-            [(cdo_path, cdo_properties)]
-
-    cdo = bus.get_object(cs.CD, cdo_path)
-    cdo_iface = dbus.Interface(cdo, cs.CDO)
-
-    # Both Observers are told about the new channel
-
-    e, k = q.expect_many(
-            EventPattern('dbus-method-call',
-                path=empathy.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
-                handled=False),
-            EventPattern('dbus-method-call',
-                path=kopete.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
-                handled=False),
-            )
-    assert e.args[0] == account.object_path, e.args
-    assert e.args[1] == conn.object_path, e.args
-    assert e.args[3] == cdo_path, e.args
-    assert e.args[4] == [], e.args      # no requests satisfied
-    channels = e.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == chan.object_path, channels
-
-    assert k.args == e.args
-
-    # Both Observers indicate that they are ready to proceed
-    q.dbus_return(k.message, signature='')
-    q.dbus_return(e.message, signature='')
-
-    # The Approvers are next
-
-    e, k = q.expect_many(
-            EventPattern('dbus-method-call',
-                path=empathy.object_path,
-                interface=cs.APPROVER, method='AddDispatchOperation',
-                handled=False),
-            EventPattern('dbus-method-call',
-                path=kopete.object_path,
-                interface=cs.APPROVER, method='AddDispatchOperation',
-                handled=False),
-            )
-
-    assert len(e.args) == 3
-    assert len(e.args[0]) == 1
-    assert e.args[0][0][0] == chan.object_path
-    assert e.args[1] == cdo_path
-    assert e.args[2] == cdo_properties
-    assert k.args == e.args
-
-    q.dbus_return(e.message, signature='')
-    q.dbus_return(k.message, signature='')
-
-    # Both Approvers now have a flashing icon or something, trying to get the
-    # user's attention
-
-    # The user responds to Empathy first
-    call_async(q, cdo_iface, 'HandleWith',
-            cs.tp_name_prefix + '.Client.Empathy')
-
-    # Empathy is asked to handle the channels
-    e = q.expect('dbus-method-call',
-            path=empathy.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
-            handled=False)
-
-    # Empathy accepts the channels
-    q.dbus_return(e.message, signature='')
-
+    # MC shoots down the connection. Goodbye!
     q.expect_many(
-            EventPattern('dbus-return', method='HandleWith'),
-            EventPattern('dbus-signal', interface=cs.CDO, signal='Finished'),
-            EventPattern('dbus-signal', interface=cs.CD_IFACE_OP_LIST,
-                signal='DispatchOperationFinished'),
+            EventPattern('dbus-signal', signal='AccountPropertyChanged',
+                predicate=lambda e:
+                    e.args[0].get('ConnectionError') ==
+                        cs.SOFTWARE_UPGRADE_REQUIRED),
+            EventPattern('dbus-method-call', method='Disconnect',
+                handled=True),
             )
-
-    # Now there are no more active channel dispatch operations
-    assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []
 
 if __name__ == '__main__':
     exec_test(test, {})

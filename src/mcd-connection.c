@@ -174,7 +174,8 @@ static const gchar * const *presence_fallbacks[] = {
 };
 
 static void _mcd_connection_release_tp_connection (McdConnection *connection,
-                                                   McdInhibit *inhibit);
+                                                   McdInhibit *inhibit,
+                                                   gboolean already_signalled);
 static gboolean request_channel_new_iface (McdConnection *connection,
                                            McdChannel *channel);
 
@@ -488,40 +489,6 @@ _mcd_connection_request_presence (McdConnection *self,
 }
 
 static void
-on_new_channel (TpConnection *proxy, const gchar *chan_obj_path,
-	       	const gchar *chan_type, guint handle_type, guint handle,
-		gboolean suppress_handler, gpointer user_data,
-	       	GObject *weak_object)
-{
-    McdConnection *connection = MCD_CONNECTION (weak_object);
-    McdConnectionPrivate *priv = user_data;
-    McdChannel *channel;
-
-    DEBUG ("%s (t=%s, ht=%u, h=%u, suppress=%c)",
-           chan_obj_path, chan_type, handle_type, handle,
-           suppress_handler ? 'T' : 'F');
-
-    if (priv->dispatched_initial_channels)
-    {
-        channel = mcd_channel_new_from_path (proxy,
-                                             chan_obj_path,
-                                             chan_type, handle, handle_type);
-        if (G_UNLIKELY (!channel)) return;
-        mcd_operation_take_mission (MCD_OPERATION (connection),
-                                    MCD_MISSION (channel));
-
-        /* MC no longer calls RequestChannel. As a result, if suppress_handler
-         * is TRUE, we know that this channel was requested "behind our back",
-         * therefore we should call ObserveChannels, but refrain from calling
-         * AddDispatchOperation or HandleChannels.
-         *
-         * We assume that channels without suppress_handler are incoming. */
-        _mcd_dispatcher_add_channel (priv->dispatcher, channel,
-                                     suppress_handler, suppress_handler);
-    }
-}
-
-static void
 _foreach_channel_remove (McdMission * mission, McdOperation * operation)
 {
     g_assert (MCD_IS_MISSION (mission));
@@ -739,7 +706,7 @@ mcd_connection_invalidated_cb (TpConnection *tp_conn,
 
     DEBUG ("Proxy destroyed (%s)!", message);
 
-    _mcd_connection_release_tp_connection (connection, NULL);
+    _mcd_connection_release_tp_connection (connection, NULL, FALSE);
 
     if (priv->connected &&
         priv->abort_reason != TP_CONNECTION_STATUS_REASON_REQUESTED &&
@@ -1084,65 +1051,6 @@ mcd_connection_setup_requests (McdConnection *connection)
 }
 
 static void
-list_channels_cb (TpConnection *connection,
-                  const GPtrArray *structs,
-                  const GError *error,
-                  gpointer user_data,
-                  GObject *weak_object)
-{
-    McdConnection *self = MCD_CONNECTION (weak_object);
-    guint i;
-
-    if (error)
-    {
-        g_warning ("ListChannels got error: %s", error->message);
-        return;
-    }
-
-    for (i = 0; i < structs->len; i++)
-    {
-        GValueArray *va = g_ptr_array_index (structs, i);
-        const gchar *object_path;
-        GHashTable *channel_props;
-
-        object_path = g_value_get_boxed (va->values + 0);
-
-        DEBUG ("%s (t=%s, ht=%u, h=%u)",
-               object_path,
-               g_value_get_string (va->values + 1),
-               g_value_get_uint (va->values + 2),
-               g_value_get_uint (va->values + 3));
-
-        /* this is not the most efficient thing we could possibly do, but
-         * we're on a fallback path so it's OK to be a bit slow */
-        channel_props = g_hash_table_new (g_str_hash, g_str_equal);
-        g_hash_table_insert (channel_props, TP_IFACE_CHANNEL ".ChannelType",
-                             va->values + 1);
-        g_hash_table_insert (channel_props, TP_IFACE_CHANNEL ".TargetHandleType",
-                             va->values + 2);
-        g_hash_table_insert (channel_props, TP_IFACE_CHANNEL ".TargetHandle",
-                             va->values + 3);
-        mcd_connection_found_channel (self, object_path, channel_props);
-        g_hash_table_unref (channel_props);
-    }
-
-    self->priv->dispatched_initial_channels = TRUE;
-}
-
-static void
-mcd_connection_setup_pre_requests (McdConnection *connection)
-{
-    McdConnectionPrivate *priv = connection->priv;
-
-    tp_cli_connection_connect_to_new_channel
-        (priv->tp_conn, on_new_channel, priv, NULL,
-         (GObject *)connection, NULL);
-
-    tp_cli_connection_call_list_channels (priv->tp_conn, -1,
-        list_channels_cb, priv, NULL, (GObject *) connection);
-}
-
-static void
 on_connection_ready (GObject *source_object, GAsyncResult *result,
                      gpointer user_data)
 {
@@ -1161,6 +1069,28 @@ on_connection_ready (GObject *source_object, GAsyncResult *result,
 
     if (!connection)
         goto finally;
+
+    if (!tp_proxy_has_interface_by_id (tp_conn,
+            TP_IFACE_QUARK_CONNECTION_INTERFACE_REQUESTS))
+    {
+        GHashTable *asv;
+
+        DEBUG ("%s: connection manager is too old",
+               tp_proxy_get_object_path (tp_conn));
+        connection->priv->abort_reason =
+            TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
+        asv = tp_asv_new (
+            "debug-message", G_TYPE_STRING,
+                "Connection manager does not implement Requests interface",
+            NULL);
+        g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
+            TP_CONNECTION_STATUS_DISCONNECTED,
+            connection->priv->abort_reason,
+            tp_conn, TP_ERROR_STR_SOFTWARE_UPGRADE_REQUIRED, asv);
+        g_hash_table_unref (asv);
+        _mcd_connection_release_tp_connection (connection, NULL, TRUE);
+        goto finally;
+    }
 
     DEBUG ("connection is ready");
     priv = MCD_CONNECTION_PRIV (connection);
@@ -1203,11 +1133,9 @@ _mcd_connection_start_dispatching (McdConnection *self,
 
     self->priv->dispatching_started = TRUE;
 
-    if (tp_proxy_has_interface_by_id (self->priv->tp_conn,
-            TP_IFACE_QUARK_CONNECTION_INTERFACE_REQUESTS))
-        mcd_connection_setup_requests (self);
-    else
-        mcd_connection_setup_pre_requests (self);
+    g_return_if_fail (tp_proxy_has_interface_by_id (self->priv->tp_conn,
+        TP_IFACE_QUARK_CONNECTION_INTERFACE_REQUESTS));
+    mcd_connection_setup_requests (self);
 
     /* FIXME: why is this here? if we need to update caps before and after   *
      * connected, it should be in the call_when_ready callback.              */
@@ -1557,13 +1485,18 @@ _mcd_connection_finalize (GObject * object)
 
 static void
 _mcd_connection_release_tp_connection (McdConnection *connection,
-                                       McdInhibit *inhibit)
+                                       McdInhibit *inhibit,
+                                       gboolean already_signalled)
 {
     McdConnectionPrivate *priv = MCD_CONNECTION_PRIV (connection);
 
     DEBUG ("%p", connection);
 
-    if (priv->abort_reason == TP_CONNECTION_STATUS_REASON_REQUESTED)
+    if (already_signalled)
+    {
+        DEBUG ("already emitted connection-status-changed");
+    }
+    else if (priv->abort_reason == TP_CONNECTION_STATUS_REASON_REQUESTED)
     {
         g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
                        TP_CONNECTION_STATUS_DISCONNECTED,
@@ -1676,7 +1609,7 @@ _mcd_connection_dispose (GObject * object)
     mcd_operation_foreach (MCD_OPERATION (connection),
 			   (GFunc) _foreach_channel_remove, connection);
 
-    _mcd_connection_release_tp_connection (connection, NULL);
+    _mcd_connection_release_tp_connection (connection, NULL, FALSE);
     g_assert (priv->tp_conn == NULL);
 
     if (priv->account)
@@ -2124,7 +2057,7 @@ mcd_connection_close (McdConnection *connection,
 
     connection->priv->closed = TRUE;
     connection->priv->abort_reason = TP_CONNECTION_STATUS_REASON_REQUESTED;
-    _mcd_connection_release_tp_connection (connection, inhibit);
+    _mcd_connection_release_tp_connection (connection, inhibit, FALSE);
     mcd_mission_abort (MCD_MISSION (connection));
 }
 
@@ -2258,7 +2191,7 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
         }
 
         DEBUG ("releasing old connection first");
-        _mcd_connection_release_tp_connection (connection, NULL);
+        _mcd_connection_release_tp_connection (connection, NULL, FALSE);
     }
 
     g_assert (priv->tp_conn == NULL);

@@ -1047,16 +1047,7 @@ def expect_fakecm_connection(q, bus, mc, account, expected_params,
 
     expect_after_connect = list(expect_after_connect)
 
-    if not has_requests:
-        expect_after_connect.append(
-                servicetest.EventPattern('dbus-method-call',
-                    interface=cs.CONN, method='ListChannels', args=[],
-                    path=conn.object_path, handled=True))
-
     events = events + list(q.expect_many(*expect_after_connect))
-
-    if not has_requests:
-        del events[-1]
 
     if events:
         return (conn,) + tuple(events)
