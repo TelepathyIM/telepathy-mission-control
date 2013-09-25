@@ -83,7 +83,7 @@ def test(q, bus, mc, **kwargs):
             path=conn.object_path, handled=True)
 
     # Connect succeeds
-    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
     # Assert that the NormalizedName is harvested from the Connection at some
     # point

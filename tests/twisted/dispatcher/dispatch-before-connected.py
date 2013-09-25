@@ -61,7 +61,7 @@ def test(q, bus, mc):
     expect_client_setup(q, [verifier])
 
     account_props.Set(cs.ACCOUNT, 'RequestedPresence',
-                      (dbus.UInt32(cs.PRESENCE_TYPE_AVAILABLE), 'available', ''))
+                      (dbus.UInt32(cs.PRESENCE_AVAILABLE), 'available', ''))
 
     account_props.Set(cs.ACCOUNT, 'Enabled', True)
 

@@ -30,11 +30,11 @@ def test(q, bus, mc):
         "password": "ionstorm"}, signature='sv')
     (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
 
-    presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_BUSY), 'busy',
+    presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_BUSY), 'busy',
             'Fighting conspiracies'), signature='uss')
 
     def mk_offline(message=''):
-        return dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE), 'offline',
+        return dbus.Struct((dbus.UInt32(cs.PRESENCE_OFFLINE), 'offline',
             message), signature='uss')
 
     offline = mk_offline()
@@ -122,7 +122,7 @@ def test(q, bus, mc):
                 'Get(Statuses)[2]', 'SetPresence[2]'], log
 
     # Change requested presence after going online
-    presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_AWAY), 'away',
+    presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_AWAY), 'away',
             'In Hong Kong'), signature='uss')
     call_async(q, account.Properties, 'Set', cs.ACCOUNT, 'RequestedPresence',
             presence)
@@ -151,7 +151,7 @@ def test(q, bus, mc):
         predicate=lambda e: e.args[0].get('RequestedPresence') is not None)]
     q.forbid_events(events)
 
-    presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_AWAY), 'away',
+    presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_AWAY), 'away',
             'In Hong Kong'), signature='uss')
     call_async(q, account.Properties, 'Set', cs.ACCOUNT, 'RequestedPresence',
             presence)

@@ -56,13 +56,13 @@ def test(q, bus, mc):
     q.forbid_events(request_connection_event)
 
     account.Properties.Set(cs.ACCOUNT, 'RequestedPresence',
-        (dbus.UInt32(cs.PRESENCE_TYPE_BUSY), 'busy', 'hlaghalgh'))
+        (dbus.UInt32(cs.PRESENCE_BUSY), 'busy', 'hlaghalgh'))
 
     # Turn the account on, re-request an online presence, and even tell it to
     # connect automatically, to check that none of these make it sign in.
     call_async(q, account.Properties, 'Set', cs.ACCOUNT, 'Enabled', True)
     q.expect('dbus-return', method='Set')
-    requested_presence = (dbus.UInt32(cs.PRESENCE_TYPE_BUSY), 'busy', 'gtfo')
+    requested_presence = (dbus.UInt32(cs.PRESENCE_BUSY), 'busy', 'gtfo')
     call_async(q, account.Properties, 'Set', cs.ACCOUNT, 'RequestedPresence',
         requested_presence)
     q.expect('dbus-return', method='Set')
@@ -149,7 +149,7 @@ def test(q, bus, mc):
     # connection comes back up the account should not be brought back online.
     q.forbid_events(request_connection_event)
     account.Properties.Set(cs.ACCOUNT, 'RequestedPresence',
-        (dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE), 'offline', ''))
+        (dbus.UInt32(cs.PRESENCE_OFFLINE), 'offline', ''))
     mc.connectivity.go_online()
     # Make sure MC has noticed that the network connection has come back.
     sync_connectivity_state(mc)

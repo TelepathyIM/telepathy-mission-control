@@ -71,7 +71,7 @@ def test(q, bus, mc):
     test_channel_creation(q, bus, account, client, conn, True)
     test_channel_creation(q, bus, account, client, conn, False, unsuitable)
     test_channel_creation(q, bus, account, client, conn, False, unsuitable,
-            cs.CHANNEL_TYPE_STREAMED_MEDIA)
+            cs.CHANNEL_TYPE_CALL)
 
 def test_channel_creation(q, bus, account, client, conn,
         ensure=False, prefer=None, channel_type=cs.CHANNEL_TYPE_TEXT):

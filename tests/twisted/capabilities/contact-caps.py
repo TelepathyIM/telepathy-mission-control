@@ -56,7 +56,7 @@ def test(q, bus, mc):
         }, signature='sv')
 
     media_fixed_properties = dbus.Dictionary({
-        cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_STREAMED_MEDIA,
+        cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_CALL,
         }, signature='sv')
     media_call = SimulatedClient(q, bus, 'MediaCall',
             observe=[], approve=[], handle=[media_fixed_properties],

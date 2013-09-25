@@ -34,7 +34,7 @@ def test(q, bus, mc):
     account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)
 
     call_async(q, account_props, 'Set', cs.ACCOUNT, 'RequestedPresence',
-            (dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE), 'offline', ''))
+            (dbus.UInt32(cs.PRESENCE_OFFLINE), 'offline', ''))
     q.expect('dbus-return', method='Set')
 
     call_async(q, account_props, 'Set', cs.ACCOUNT, 'Enabled', False)
@@ -45,7 +45,7 @@ def test(q, bus, mc):
     q.expect('dbus-return', method='Set')
 
     call_async(q, account_props, 'Set', cs.ACCOUNT, 'RequestedPresence',
-            (dbus.UInt32(cs.PRESENCE_TYPE_BUSY), 'busy', 'Testing Enabled'))
+            (dbus.UInt32(cs.PRESENCE_BUSY), 'busy', 'Testing Enabled'))
     q.expect('dbus-return', method='Set')
 
     # Go online by setting Enabled

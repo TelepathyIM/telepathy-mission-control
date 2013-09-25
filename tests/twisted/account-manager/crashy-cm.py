@@ -45,7 +45,7 @@ def test(q, bus, mc):
 
     # Set online presence
     presence = dbus.Struct(
-        (dbus.UInt32(cs.PRESENCE_TYPE_BUSY), 'busy', 'Fixing MC bugs'),
+        (dbus.UInt32(cs.PRESENCE_BUSY), 'busy', 'Fixing MC bugs'),
         signature='uss')
     account.Properties.Set(cs.ACCOUNT, 'RequestedPresence', presence)
 
@@ -65,7 +65,7 @@ def test(q, bus, mc):
             path=conn.object_path, handled=True)
 
     # Connect succeeds
-    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
     # CM crashes
     conn.release_name()
@@ -80,7 +80,7 @@ def test(q, bus, mc):
     assertEquals('/', changed['Connection'])
     assertEquals(cs.CONN_STATUS_DISCONNECTED, changed['ConnectionStatus'])
     # In the absence of a better code, None will have to do.
-    assertEquals(cs.CONN_STATUS_REASON_NONE, changed['ConnectionStatusReason'])
+    assertEquals(cs.CSR_NONE_SPECIFIED, changed['ConnectionStatusReason'])
     # And NoReply will do as “it crashed”.
     assertEquals(cs.DBUS_ERROR_NO_REPLY, changed['ConnectionError'])
 

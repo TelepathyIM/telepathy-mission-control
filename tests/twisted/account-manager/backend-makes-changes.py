@@ -34,7 +34,7 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
             {}, # attr flags
             {'account': 'ezio@firenze.fic', 'password': 'nothing is true'},
             {}, # untyped parameters
-            {'password': cs.PARAM_FLAG_SECRET}) # param flags
+            {'password': cs.PARAM_SECRET}) # param flags
     q.expect_many(
             EventPattern('dbus-signal',
                 path=cs.TEST_DBUS_ACCOUNT_SERVICE_PATH,
@@ -47,7 +47,7 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
                     {'account': 'ezio@firenze.fic',
                         'password': 'nothing is true'},
                     {},
-                    {'account': 0, 'password': cs.PARAM_FLAG_SECRET}]),
+                    {'account': 0, 'password': cs.PARAM_SECRET}]),
             EventPattern('dbus-signal',
                 path=cs.AM_PATH,
                 signal='AccountValidityChanged',
@@ -184,14 +184,14 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
             account.Properties.Get(cs.ACCOUNT, 'Supersedes'))
 
     fake_accounts_service.update_attributes(account_tail,
-        {'AutomaticPresence': (dbus.UInt32(cs.PRESENCE_TYPE_HIDDEN), 'hidden',
+        {'AutomaticPresence': (dbus.UInt32(cs.PRESENCE_HIDDEN), 'hidden',
             'in a haystack or something')})
     q.expect_many(
             EventPattern('dbus-signal',
                 path=cs.TEST_DBUS_ACCOUNT_SERVICE_PATH,
                 signal='AttributesChanged',
                 args=[account_tail,
-                    {'AutomaticPresence': (cs.PRESENCE_TYPE_HIDDEN,
+                    {'AutomaticPresence': (cs.PRESENCE_HIDDEN,
                         'hidden',
                         'in a haystack or something')},
                     {'AutomaticPresence': 0},
@@ -201,14 +201,14 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
                 signal='AccountPropertyChanged',
                 interface=cs.ACCOUNT,
                 args=[{'AutomaticPresence':
-                    (cs.PRESENCE_TYPE_HIDDEN, 'hidden',
+                    (cs.PRESENCE_HIDDEN, 'hidden',
                         'in a haystack or something')}]),
             EventPattern('dbus-signal',
                 path=cs.TEST_DBUS_ACCOUNT_PLUGIN_PATH,
                 signal='AttributeChanged',
                 args=[account_path, 'AutomaticPresence']),
             )
-    assertEquals((cs.PRESENCE_TYPE_HIDDEN, 'hidden',
+    assertEquals((cs.PRESENCE_HIDDEN, 'hidden',
         'in a haystack or something'),
             account.Properties.Get(cs.ACCOUNT, 'AutomaticPresence'))
 
@@ -276,13 +276,13 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
             account.Properties.Get(cs.ACCOUNT, 'Service'))
 
     fake_accounts_service.update_parameters(account_tail, {
-        'password': 'high profile'}, flags={'password': cs.PARAM_FLAG_SECRET})
+        'password': 'high profile'}, flags={'password': cs.PARAM_SECRET})
     q.expect_many(
             EventPattern('dbus-signal',
                 path=cs.TEST_DBUS_ACCOUNT_SERVICE_PATH,
                 signal='ParametersChanged',
                 args=[account_tail, {'password': 'high profile'},
-                    {}, {'password': cs.PARAM_FLAG_SECRET}, []]),
+                    {}, {'password': cs.PARAM_SECRET}, []]),
             EventPattern('dbus-signal',
                     path=account_path,
                     signal='AccountPropertyChanged',
@@ -296,13 +296,13 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
             )
 
     fake_accounts_service.update_parameters(account_tail, untyped={
-        'password': r'\\\n'}, flags={'password': cs.PARAM_FLAG_SECRET})
+        'password': r'\\\n'}, flags={'password': cs.PARAM_SECRET})
     q.expect_many(
             EventPattern('dbus-signal',
                 path=cs.TEST_DBUS_ACCOUNT_SERVICE_PATH,
                 signal='ParametersChanged',
                 args=[account_tail, {}, {'password': r'\\\n'},
-                    {'password': cs.PARAM_FLAG_SECRET}, []]),
+                    {'password': cs.PARAM_SECRET}, []]),
             EventPattern('dbus-signal',
                     path=account_path,
                     signal='AccountPropertyChanged',

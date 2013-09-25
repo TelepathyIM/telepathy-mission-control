@@ -48,7 +48,7 @@ def test(q, bus, mc):
             dbus_interface=cs.PROPERTIES_IFACE)
 
     # Set online presence
-    presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_BUSY), 'busy',
+    presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_BUSY), 'busy',
             'Fixing MC bugs'), signature='uss')
     call_async(q, account, 'Set', cs.ACCOUNT,
             'RequestedPresence', presence,
@@ -72,7 +72,7 @@ def test(q, bus, mc):
             path=conn.object_path, handled=True)
 
     # Connect succeeds
-    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
     conn = drop_and_expect_reconnect(q, bus, conn)
     conn = drop_and_expect_reconnect(q, bus, conn)
@@ -83,7 +83,7 @@ def test(q, bus, mc):
 
     # Connection falls over for a miscellaneous reason
     conn.StatusChanged(cs.CONN_STATUS_DISCONNECTED,
-            cs.CONN_STATUS_REASON_NETWORK_ERROR)
+            cs.CSR_NETWORK_ERROR)
     # Right, that's it, I'm giving up...
 
     # This test can be considered to have succeeded if we don't
@@ -98,7 +98,7 @@ def test(q, bus, mc):
 def drop_and_expect_reconnect(q, bus, conn):
     # Connection falls over for a miscellaneous reason
     conn.StatusChanged(cs.CONN_STATUS_DISCONNECTED,
-            cs.CONN_STATUS_REASON_NETWORK_ERROR)
+            cs.CSR_NETWORK_ERROR)
 
     # MC reconnects
 
@@ -120,7 +120,7 @@ def drop_and_expect_reconnect(q, bus, conn):
             path=conn.object_path, handled=True)
 
     # Connect succeeds
-    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
     return conn
 

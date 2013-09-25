@@ -25,8 +25,8 @@
 
 #define DEBUG(format, ...) g_debug ("%s: " format, G_STRFUNC, ##__VA_ARGS__)
 
-#define TESTDOT "org.freedesktop.Telepathy.MC.Test."
-#define TESTSLASH "/org/freedesktop/Telepathy/MC/Test/"
+#define TESTDOT "org.freedesktop.Telepathy.Test."
+#define TESTSLASH "/org/freedesktop/Telepathy/Test/"
 
 #define TEST_DBUS_ACCOUNT_SERVICE       TESTDOT   "DBusAccountService"
 #define TEST_DBUS_ACCOUNT_SERVICE_PATH  TESTSLASH "DBusAccountService"

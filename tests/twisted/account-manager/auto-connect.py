@@ -124,7 +124,7 @@ def test(q, bus, unused, **kwargs):
     assertEquals({}, prop_changed.args[0].get('ConnectionErrorDetails'))
     assertEquals(cs.CONN_STATUS_CONNECTING,
         prop_changed.args[0].get('ConnectionStatus'))
-    assertEquals(cs.CONN_STATUS_REASON_REQUESTED,
+    assertEquals(cs.CSR_REQUESTED,
         prop_changed.args[0].get('ConnectionStatusReason'))
 
     q.dbus_return(request_conn.message, conn.bus_name, conn.object_path,
@@ -147,16 +147,16 @@ def test(q, bus, unused, **kwargs):
     assertEquals({}, prop_changed.args[0].get('ConnectionErrorDetails'))
     assertEquals(cs.CONN_STATUS_CONNECTING,
         prop_changed.args[0].get('ConnectionStatus'))
-    assertEquals(cs.CONN_STATUS_REASON_REQUESTED,
+    assertEquals(cs.CSR_REQUESTED,
         prop_changed.args[0].get('ConnectionStatusReason'))
 
     props = account.GetAll(cs.ACCOUNT, dbus_interface=cs.PROPERTIES_IFACE)
     assert props['Connection'] == conn.object_path
     assert props['ConnectionStatus'] == cs.CONN_STATUS_CONNECTING
-    assert props['ConnectionStatusReason'] == cs.CONN_STATUS_REASON_REQUESTED
+    assert props['ConnectionStatusReason'] == cs.CSR_REQUESTED
 
     print "becoming connected"
-    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
     set_aliases, set_presence, set_avatar, prop_changed = q.expect_many(
             EventPattern('dbus-method-call',
@@ -183,11 +183,11 @@ def test(q, bus, unused, **kwargs):
     assertEquals({}, prop_changed.args[0].get('ConnectionErrorDetails'))
     assertEquals(cs.CONN_STATUS_CONNECTED,
         prop_changed.args[0].get('ConnectionStatus'))
-    assertEquals(cs.CONN_STATUS_REASON_REQUESTED,
+    assertEquals(cs.CSR_REQUESTED,
         prop_changed.args[0].get('ConnectionStatusReason'))
 
     assert account.Get(cs.ACCOUNT, 'CurrentPresence',
-            dbus_interface=cs.PROPERTIES_IFACE) == (cs.PRESENCE_TYPE_AVAILABLE,
+            dbus_interface=cs.PROPERTIES_IFACE) == (cs.PRESENCE_AVAILABLE,
             'available', 'My vision is augmented')
 
     q.dbus_return(set_aliases.message, signature='')

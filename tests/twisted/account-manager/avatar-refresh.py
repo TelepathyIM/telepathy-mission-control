@@ -100,7 +100,7 @@ def test(q, bus, unused, **kwargs):
     q.expect('dbus-method-call', method='Connect',
                 path=conn.object_path, handled=True, interface=cs.CONN)
 
-    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
     _, _, e = q.expect_many(
             EventPattern('dbus-method-call',

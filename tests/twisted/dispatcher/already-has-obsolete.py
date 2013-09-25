@@ -82,7 +82,7 @@ def test(q, bus, mc):
 
     q.expect('dbus-method-call', method='Connect',
             path=conn.object_path, handled=True)
-    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
     get_interfaces_call = q.expect('dbus-method-call', method='GetInterfaces',
             path=conn.object_path, handled=False)

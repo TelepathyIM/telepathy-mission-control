@@ -169,7 +169,7 @@ def test(q, bus, unused, **kwargs):
 
     q.expect('dbus-method-call', method='Connect',
             path=conn.object_path, handled=True, interface=cs.CONN)
-    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
     set_presence, e = q.expect_many(
             EventPattern('dbus-method-call', path=conn.object_path,
@@ -181,7 +181,7 @@ def test(q, bus, unused, **kwargs):
                     and e.args[0]['CurrentPresence'][2] != ''),
             )
 
-    assert e.args[0]['CurrentPresence'] == (cs.PRESENCE_TYPE_AVAILABLE,
+    assert e.args[0]['CurrentPresence'] == (cs.PRESENCE_AVAILABLE,
             'available', 'My vision is augmented')
 
     # Request an online presence on account 2, then make it valid
@@ -191,7 +191,7 @@ def test(q, bus, unused, **kwargs):
     account_path = (cs.tp_path_prefix + '/Account/' + account2_id)
     account = bus.get_object(cs.MC, account_path)
 
-    requested_presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_BUSY),
+    requested_presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_BUSY),
         'busy', 'Talking to Illuminati'))
     account.Set(cs.ACCOUNT, 'RequestedPresence',
             dbus.Struct(requested_presence, variant_level=1),
@@ -221,7 +221,7 @@ def test(q, bus, unused, **kwargs):
 
     q.expect('dbus-method-call', method='Connect',
             path=conn.object_path, handled=True, interface=cs.CONN)
-    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
     set_presence = q.expect('dbus-method-call', path=conn.object_path,
             interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
@@ -232,7 +232,7 @@ def test(q, bus, unused, **kwargs):
             predicate=lambda e: 'CurrentPresence' in e.args[0]
                 and e.args[0]['CurrentPresence'][1] == 'busy')
 
-    assert e.args[0]['CurrentPresence'] == (cs.PRESENCE_TYPE_BUSY,
+    assert e.args[0]['CurrentPresence'] == (cs.PRESENCE_BUSY,
             'busy', 'Talking to Illuminati')
 
 if __name__ == '__main__':

@@ -166,7 +166,7 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
 
             try:
                 account.Properties.Set(cs.ACCOUNT, 'RequestedPresence',
-                        (dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE), 'offline',
+                        (dbus.UInt32(cs.PRESENCE_OFFLINE), 'offline',
                             ''))
             except dbus.DBusException, e:
                 print >> sys.stderr, "Can't set %s offline: %s" % (a, e)
@@ -361,20 +361,20 @@ class SimulatedConnection(object):
                     method='SetAvatar')
 
         self.statuses = dbus.Dictionary({
-            'available': (cs.PRESENCE_TYPE_AVAILABLE, True, True),
-            'away': (cs.PRESENCE_TYPE_AWAY, True, True),
-            'lunch': (cs.PRESENCE_TYPE_XA, True, True),
-            'busy': (cs.PRESENCE_TYPE_BUSY, True, True),
-            'phone': (cs.PRESENCE_TYPE_BUSY, True, True),
-            'offline': (cs.PRESENCE_TYPE_OFFLINE, False, False),
-            'error': (cs.PRESENCE_TYPE_ERROR, False, False),
-            'unknown': (cs.PRESENCE_TYPE_UNKNOWN, False, False),
+            'available': (cs.PRESENCE_AVAILABLE, True, True),
+            'away': (cs.PRESENCE_AWAY, True, True),
+            'lunch': (cs.PRESENCE_EXTENDED_AWAY, True, True),
+            'busy': (cs.PRESENCE_BUSY, True, True),
+            'phone': (cs.PRESENCE_BUSY, True, True),
+            'offline': (cs.PRESENCE_OFFLINE, False, False),
+            'error': (cs.PRESENCE_ERROR, False, False),
+            'unknown': (cs.PRESENCE_UNKNOWN, False, False),
             }, signature='s(ubb)')
 
         if has_hidden:
-            self.statuses['hidden'] = (cs.PRESENCE_TYPE_HIDDEN, True, True)
+            self.statuses['hidden'] = (cs.PRESENCE_HIDDEN, True, True)
 
-        self.presence = dbus.Struct((cs.PRESENCE_TYPE_OFFLINE, 'offline', ''),
+        self.presence = dbus.Struct((cs.PRESENCE_OFFLINE, 'offline', ''),
                 signature='uss')
 
     def change_self_ident(self, ident):
@@ -461,7 +461,7 @@ class SimulatedConnection(object):
             else:
                 # stub - MC doesn't care
                 ret[contact] = dbus.Struct(
-                        (cs.PRESENCE_TYPE_UNKNOWN, 'unknown', ''),
+                        (cs.PRESENCE_UNKNOWN, 'unknown', ''),
                         signature='uss')
         self.q.dbus_return(e.message, ret, signature='a{u(uss)}')
 
@@ -497,12 +497,12 @@ class SimulatedConnection(object):
 
     def Connect(self, e):
         self.StatusChanged(cs.CONN_STATUS_CONNECTING,
-                cs.CONN_STATUS_REASON_REQUESTED)
+                cs.CSR_REQUESTED)
         self.q.dbus_return(e.message, signature='')
 
     def Disconnect(self, e):
         self.StatusChanged(cs.CONN_STATUS_DISCONNECTED,
-                cs.CONN_STATUS_REASON_REQUESTED)
+                cs.CSR_REQUESTED)
         self.q.dbus_return(e.message, signature='')
         for c in self.channels:
             c.close()
@@ -546,8 +546,8 @@ class SimulatedConnection(object):
         self.q.dbus_emit(self.object_path, cs.CONN, 'StatusChanged',
                 status, reason, signature='uu')
         if self.status == cs.CONN_STATUS_CONNECTED and self.has_presence:
-            if self.presence[0] == cs.PRESENCE_TYPE_OFFLINE:
-                self.presence = dbus.Struct((cs.PRESENCE_TYPE_AVAILABLE,
+            if self.presence[0] == cs.PRESENCE_OFFLINE:
+                self.presence = dbus.Struct((cs.PRESENCE_AVAILABLE,
                     'available', ''), signature='uss')
 
             self.q.dbus_emit(self.object_path,
@@ -1043,7 +1043,7 @@ def expect_fakecm_connection(q, bus, mc, account, expected_params,
 
     q.expect('dbus-method-call', method='Connect',
             path=conn.object_path, handled=True)
-    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
     expect_after_connect = list(expect_after_connect)
 

@@ -37,7 +37,7 @@ def test(q, bus, mc):
 
     # Set online presence
     presence = dbus.Struct(
-        (dbus.UInt32(cs.PRESENCE_TYPE_BUSY), 'busy', 'Fixing MC bugs'),
+        (dbus.UInt32(cs.PRESENCE_BUSY), 'busy', 'Fixing MC bugs'),
         signature='uss')
     account.Properties.Set(cs.ACCOUNT, 'RequestedPresence', presence)
 
@@ -56,7 +56,7 @@ def test(q, bus, mc):
     changed, = e.args
     assertEquals('/', changed['Connection'])
     assertEquals(cs.CONN_STATUS_DISCONNECTED, changed['ConnectionStatus'])
-    assertEquals(cs.CONN_STATUS_REASON_NONE, changed['ConnectionStatusReason'])
+    assertEquals(cs.CSR_NONE_SPECIFIED, changed['ConnectionStatusReason'])
     assertEquals(cs.NOT_IMPLEMENTED, changed['ConnectionError'])
 
 if __name__ == '__main__':

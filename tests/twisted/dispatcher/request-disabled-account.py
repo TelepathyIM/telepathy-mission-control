@@ -35,11 +35,11 @@ def test(q, bus, mc):
     account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)
 
     call_async(q, account_props, 'Set', cs.ACCOUNT, 'RequestedPresence',
-            (dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE), 'offline', ''))
+            (dbus.UInt32(cs.PRESENCE_OFFLINE), 'offline', ''))
     q.expect('dbus-return', method='Set')
 
     call_async(q, account_props, 'Set', cs.ACCOUNT, 'AutomaticPresence',
-            (dbus.UInt32(cs.PRESENCE_TYPE_BUSY), 'busy',
+            (dbus.UInt32(cs.PRESENCE_BUSY), 'busy',
                 'Testing automatic presence'))
     q.expect('dbus-return', method='Set')
     q.expect('dbus-signal', signal='AccountPropertyChanged',

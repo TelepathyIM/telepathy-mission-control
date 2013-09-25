@@ -68,7 +68,7 @@ def test(q, bus, mc):
             dbus_interface=cs.PROPERTIES_IFACE)
 
     # Set online presence
-    presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_BUSY), 'busy',
+    presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_BUSY), 'busy',
             'Fixing MC bugs'), signature='uss')
     call_async(q, account, 'Set', cs.ACCOUNT,
             'RequestedPresence', presence,
@@ -99,13 +99,13 @@ def test(q, bus, mc):
             path=conn.object_path, handled=True)
 
     # Connect succeeds
-    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
     test_dispatching(q, bus, conn, account, empathy, kopete)
 
     # Connection falls over for a miscellaneous reason
     conn.StatusChanged(cs.CONN_STATUS_DISCONNECTED,
-            cs.CONN_STATUS_REASON_NETWORK_ERROR)
+            cs.CSR_NETWORK_ERROR)
 
     # MC reconnects
 
@@ -134,7 +134,7 @@ def test(q, bus, mc):
             path=conn.object_path, handled=True)
 
     # Connect succeeds
-    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
     test_dispatching(q, bus, conn, account, empathy, kopete)
 

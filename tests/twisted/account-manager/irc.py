@@ -60,7 +60,7 @@ def test(q, bus, mc):
                 interface=cs.ACCOUNT,
                 predicate=lambda e:
                     e.args[0].get('CurrentPresence') ==
-                        (cs.PRESENCE_TYPE_UNSET, '', '')),
+                        (cs.PRESENCE_UNSET, '', '')),
             ]
 
     conn, get_aliases, set_aliases, _ = enable_fakecm_account(q, bus, mc,

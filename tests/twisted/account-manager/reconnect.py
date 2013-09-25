@@ -51,7 +51,7 @@ def test(q, bus, mc):
             dbus_interface=cs.PROPERTIES_IFACE)
     q.expect('dbus-return', method='Set')
 
-    requested_presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_AVAILABLE),
+    requested_presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_AVAILABLE),
         dbus.String(u'available'), dbus.String(u'')))
     call_async(q, account, 'Set', cs.ACCOUNT,
             'RequestedPresence', requested_presence,
@@ -65,7 +65,7 @@ def test(q, bus, mc):
 
     # While we want to be offline but the account is enabled, Reconnect is
     # still a no-op.
-    requested_presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE),
+    requested_presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_OFFLINE),
         dbus.String(u'offline'), dbus.String(u'')))
     call_async(q, account, 'Set', cs.ACCOUNT,
             'RequestedPresence', requested_presence,
@@ -98,7 +98,7 @@ def test(q, bus, mc):
 
     q.unforbid_events(looks_like_reconnection)
 
-    requested_presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_AVAILABLE),
+    requested_presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_AVAILABLE),
         dbus.String(u'brb'), dbus.String(u'Be back soon!')))
     account.Set(cs.ACCOUNT,
             'RequestedPresence', requested_presence,
@@ -131,7 +131,7 @@ def test(q, bus, mc):
             path=conn.object_path, handled=True)
 
     # Connect succeeds
-    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
     # Assert that the NormalizedName is harvested from the Connection at some
     # point
@@ -180,10 +180,10 @@ def test(q, bus, mc):
 
     q.expect('dbus-method-call', method='Connect',
             path=conn.object_path, handled=True)
-    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
     # Put the account offline
-    requested_presence = (dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE), 'offline', '')
+    requested_presence = (dbus.UInt32(cs.PRESENCE_OFFLINE), 'offline', '')
     account.Set(cs.ACCOUNT,
             'RequestedPresence', requested_presence,
             dbus_interface=cs.PROPERTIES_IFACE)

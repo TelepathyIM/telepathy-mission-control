@@ -59,7 +59,7 @@ def test(q, bus, mc):
     # The spec says it should be (Offline, "", "") but I don't think the
     # strings really matter. If anything, the second one should start out at
     # "offline".
-    assertEquals(cs.PRESENCE_TYPE_OFFLINE, props['CurrentPresence'][0])
+    assertEquals(cs.PRESENCE_OFFLINE, props['CurrentPresence'][0])
 
     # Enable the account
     account.Set(cs.ACCOUNT, 'Enabled', True,
@@ -73,7 +73,7 @@ def test(q, bus, mc):
     assert props['Enabled']
     assert props['Valid']
     # Ditto above re. string fields.
-    assertEquals(cs.PRESENCE_TYPE_OFFLINE, props['CurrentPresence'][0])
+    assertEquals(cs.PRESENCE_OFFLINE, props['CurrentPresence'][0])
 
     # Go online
     requested_presence = dbus.Struct((dbus.UInt32(2L), dbus.String(u'brb'),
@@ -108,7 +108,7 @@ def test(q, bus, mc):
             path=conn.object_path, handled=True)
 
     # Connect succeeds
-    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
     # Assert that the NormalizedName is harvested from the Connection at some
     # point
@@ -129,7 +129,7 @@ def test(q, bus, mc):
 
     # Since this Connection doesn't support SimplePresence, but it's online,
     # the spec says that CurrentPresence should be Unset.
-    assertEquals((cs.PRESENCE_TYPE_UNSET, "", ""),
+    assertEquals((cs.PRESENCE_UNSET, "", ""),
         properties.get('CurrentPresence'))
 
     new_channel = http_fixed_properties
@@ -146,7 +146,7 @@ def test(q, bus, mc):
     q.dbus_return(e.message, signature='')
 
     # Put the account offline
-    requested_presence = (dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE), 'offline', '')
+    requested_presence = (dbus.UInt32(cs.PRESENCE_OFFLINE), 'offline', '')
     account.Set(cs.ACCOUNT,
             'RequestedPresence', requested_presence,
             dbus_interface=cs.PROPERTIES_IFACE)

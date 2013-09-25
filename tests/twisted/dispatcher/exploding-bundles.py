@@ -43,7 +43,7 @@ def test(q, bus, mc):
 
     media_fixed_properties = dbus.Dictionary({
         cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
-        cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_STREAMED_MEDIA,
+        cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_CALL,
         }, signature='sv')
 
     misc_fixed_properties = dbus.Dictionary({

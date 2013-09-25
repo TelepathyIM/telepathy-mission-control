@@ -60,10 +60,10 @@ def test(q, bus, mc):
     creation_properties = dbus.Dictionary({
         cs.ACCOUNT + '.Enabled': True,
         cs.ACCOUNT + '.AutomaticPresence': dbus.Struct((
-            dbus.UInt32(cs.PRESENCE_TYPE_BUSY),
+            dbus.UInt32(cs.PRESENCE_BUSY),
             'busy', 'Exploding'), signature='uss'),
         cs.ACCOUNT + '.RequestedPresence': dbus.Struct((
-            dbus.UInt32(cs.PRESENCE_TYPE_AWAY),
+            dbus.UInt32(cs.PRESENCE_AWAY),
             'away', 'Respawning'), signature='uss'),
         cs.ACCOUNT + '.Icon': 'quake3arena',
         cs.ACCOUNT + '.Nickname': 'AnArKi',
@@ -107,10 +107,10 @@ def test(q, bus, mc):
     account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)
 
     properties = account_props.GetAll(cs.ACCOUNT)
-    assert properties.get('AutomaticPresence') == (cs.PRESENCE_TYPE_BUSY,
+    assert properties.get('AutomaticPresence') == (cs.PRESENCE_BUSY,
             'busy', 'Exploding'), \
         properties.get('AutomaticPresence')
-    assert properties.get('RequestedPresence') == (cs.PRESENCE_TYPE_AWAY,
+    assert properties.get('RequestedPresence') == (cs.PRESENCE_AWAY,
             'away', 'Respawning'), \
         properties.get('RequestedPresence')
     assert properties.get('ConnectAutomatically') == True, \

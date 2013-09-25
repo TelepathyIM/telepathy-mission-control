@@ -43,7 +43,7 @@ def test(q, bus, mc):
         }, signature='sv')
     voip_fixed_properties = dbus.Dictionary({
         cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
-        cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_STREAMED_MEDIA,
+        cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_CALL,
         }, signature='sv')
 
     # Two clients want to observe, approve and handle text and VoIP channels.

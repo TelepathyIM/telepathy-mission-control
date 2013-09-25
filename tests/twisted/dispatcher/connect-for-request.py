@@ -38,11 +38,11 @@ def test(q, bus, mc):
     # automatically
 
     call_async(q, account_props, 'Set', cs.ACCOUNT, 'RequestedPresence',
-            (dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE), 'offline', ''))
+            (dbus.UInt32(cs.PRESENCE_OFFLINE), 'offline', ''))
     q.expect('dbus-return', method='Set')
 
     call_async(q, account_props, 'Set', cs.ACCOUNT, 'AutomaticPresence',
-            (dbus.UInt32(cs.PRESENCE_TYPE_BUSY), 'busy',
+            (dbus.UInt32(cs.PRESENCE_BUSY), 'busy',
                 'Testing automatic presence'))
     q.expect('dbus-return', method='Set')
     q.expect('dbus-signal', signal='AccountPropertyChanged',
@@ -108,8 +108,8 @@ def test(q, bus, mc):
 
     q.expect('dbus-method-call', method='Connect',
             path=conn.object_path, handled=True)
-    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
-    conn.presence = dbus.Struct((cs.PRESENCE_TYPE_AVAILABLE, 'available', ''),
+    conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
+    conn.presence = dbus.Struct((cs.PRESENCE_AVAILABLE, 'available', ''),
             signature='uss')
 
     _, cm_request_call = q.expect_many(
@@ -123,7 +123,7 @@ def test(q, bus, mc):
 
     q.dbus_emit(conn.object_path, cs.CONN_IFACE_SIMPLE_PRESENCE,
             'PresencesChanged',
-            {conn.self_handle: (dbus.UInt32(cs.PRESENCE_TYPE_BUSY), 'busy',
+            {conn.self_handle: (dbus.UInt32(cs.PRESENCE_BUSY), 'busy',
                 'Testing automatic presence')},
             signature='a{u(uss)}')
 
