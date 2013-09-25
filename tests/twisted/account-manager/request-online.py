@@ -102,8 +102,9 @@ def test(q, bus, mc):
                 args=[cs.CONN_IFACE_REQUESTS],
                 path=conn.object_path, handled=True),
             )
-    # MC calls GetStatus (maybe) and then Connect
 
+    # MC prepares the connection, does any pre-Connect setup, then
+    # calls Connect
     q.expect('dbus-method-call', method='Connect',
             path=conn.object_path, handled=True)
 

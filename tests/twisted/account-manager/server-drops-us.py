@@ -66,8 +66,8 @@ def test(q, bus, mc):
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
-    # MC calls GetStatus (maybe) and then Connect
-
+    # MC prepares the connection, does any pre-Connect setup, then
+    # calls Connect
     q.expect('dbus-method-call', method='Connect',
             path=conn.object_path, handled=True)
 
@@ -114,8 +114,8 @@ def drop_and_expect_reconnect(q, bus, conn):
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
-    # MC calls GetStatus (maybe) and then Connect
-
+    # MC prepares the connection, does any pre-Connect setup, then
+    # calls Connect
     q.expect('dbus-method-call', method='Connect',
             path=conn.object_path, handled=True)
 
