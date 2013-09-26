@@ -1162,10 +1162,10 @@ _mcd_client_check_valid_name (const gchar *name_suffix,
 {
     guint i;
 
-    if (!g_ascii_isalpha (*name_suffix))
+    if (!g_ascii_isalpha (*name_suffix) && *name_suffix != '_')
     {
         g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
-                     "Client names must start with a letter");
+                     "Client names must start with a letter or underscore");
         return FALSE;
     }
 
