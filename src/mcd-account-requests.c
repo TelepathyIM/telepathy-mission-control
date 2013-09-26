@@ -78,7 +78,7 @@ online_request_cb (McdAccount *account, gpointer userdata, const GError *error)
 static void mcd_account_channel_request_disconnect (McdRequest *request);
 
 static void
-on_request_succeeded_with_channel (McdRequest *request,
+on_request_succeeded (McdRequest *request,
     const gchar *conn_path,
     GHashTable *conn_props,
     const gchar *chan_path,
@@ -115,7 +115,7 @@ mcd_account_channel_request_disconnect (McdRequest *request)
                                           0,        /* signal_id ignored */
                                           0,        /* detail ignored */
                                           NULL,     /* closure ignored */
-                                          on_request_succeeded_with_channel,
+                                          on_request_succeeded,
                                           NULL      /* user data ignored */);
     g_signal_handlers_disconnect_matched (request, G_SIGNAL_MATCH_FUNC,
                                           0,        /* signal_id ignored */
@@ -167,8 +167,8 @@ _mcd_account_create_request (McdClientRegistry *clients,
     /* we use connect_after, to make sure that other signals (such as
      * RemoveRequest) are emitted before the Failed signal */
     g_signal_connect_data (request,
-                           "succeeded-with-channel",
-                           G_CALLBACK (on_request_succeeded_with_channel),
+                           "succeeded",
+                           G_CALLBACK (on_request_succeeded),
                            g_object_ref (channel),
                            (GClosureNotify) g_object_unref,
                            G_CONNECT_AFTER);

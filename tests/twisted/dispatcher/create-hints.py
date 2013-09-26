@@ -176,18 +176,13 @@ def test_channel_creation(q, bus, account, client, conn,
     # Handler accepts the Channels
     q.dbus_return(e.message, signature='')
 
-    # SucceededWithChannel is fired first
     e = q.expect('dbus-signal', path=request_path, interface=cs.CR,
-        signal='SucceededWithChannel')
+        signal='Succeeded')
 
     assertEquals(conn.object_path, e.args[0])
     assert isinstance(e.args[1], dict), e.args[1]
     assertEquals(channel.object_path, e.args[2])
     assertEquals(channel_immutable, e.args[3])
-
-    # CR emits Succeeded
-    q.expect('dbus-signal', path=request_path,
-                interface=cs.CR, signal='Succeeded')
 
     # Close the channel
     channel.close()
